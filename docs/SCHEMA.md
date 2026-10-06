@@ -1097,15 +1097,14 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 
 ### `tarif_tagihan`
 - `id` PK
-- `jenjang`: string(50) — lembaga penerbit tagihan; paket MI-MD dibumpkan ke MI
-- `paket`: string(20) — konteks pendaftaran santri: MI | MD | MI-MD | MTS | MLN | …
+- `jenjang`: string(50) — lembaga penerbit tagihan (santri dua lembaga tetap ditagih di primer)
 - `tahun_ajaran`: string(20) — tarif boleh berubah/tetap per tahun ajaran
 - `jenis_id`: FK → jenis_tagihan [cascade]
 - `tingkat`: string(100) [null] — scope opsional per tingkat
 - `nominal`: unsignedBigInteger
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`
-- UNIQUE(`jenjang`, `paket`, `tahun_ajaran`, `jenis_id`, `tingkat`) — nama `uq_tarif_tagihan`
+- UNIQUE(`jenjang`, `tahun_ajaran`, `jenis_id`, `tingkat`) — nama `uq_tarif_tagihan`
 
 ### `dispensasi` (paket keringanan: N aturan jenis + daftar santri penerima)
 - `id` PK
@@ -1136,7 +1135,6 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `id` PK
 - `santri_id`: FK → santri [cascade]
 - `jenjang`: string(50) — lembaga penerbit
-- `paket`: string(20)
 - `tahun_ajaran`: string(20)
 - `jenis_id`: FK → jenis_tagihan
 - `periode`: string(20) [null] — mis. '2025-07' (bulanan) / '2025/2026' (non-bulanan, otomatis kode TA) / null (legacy)

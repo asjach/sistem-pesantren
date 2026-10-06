@@ -5,13 +5,13 @@ import { appendQueryParam, type ScalarOrArray } from './query';
 export interface JenisTagihan { id: number; nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang: string | null; is_active: boolean }
 
 export interface Tarif {
-  id: number; jenjang: string; paket: string; tahun_ajaran: string; jenis_id: number;
+  id: number; jenjang: string; tahun_ajaran: string; jenis_id: number;
   tingkat: string | null; nominal: number; is_active: boolean;
   jenis?: { id: number; nama: string };
 }
 
 export interface TagihanRow {
-  id: number; santri_id: number; jenjang: string; paket: string; tahun_ajaran: string;
+  id: number; santri_id: number; jenjang: string; tahun_ajaran: string;
   jenis_id: number; periode: string | null; nominal: number; terbayar: number;
   status: 'belum' | 'sebagian' | 'lunas'; jatuh_tempo: string | null;
   jenis?: { nama: string };
@@ -95,7 +95,7 @@ export type KelompokKandidat = 'mi_saja' | 'md_saja' | 'mi' | 'md' | 'mi_md' | '
 
 export interface KandidatTagihanRow {
   santri_id: number; nama_lengkap: string; jk: string | null; nisn: string | null; nis_lokal: string | null;
-  paket: string; jenjang: string; tingkat: string | null; kelas: string | null; kelas_id: number | null;
+  jenjang: string; tingkat: string | null; kelas: string | null; kelas_id: number | null;
   status_akhir: string | null;
 }
 
@@ -178,7 +178,7 @@ export interface CrosstabKolom {
 }
 
 export interface CrosstabBaris {
-  santri_id: number; nama: string; jenjang: string; paket: string;
+  santri_id: number; nama: string; jenjang: string;
   sel: Record<string, CrosstabSel>;
   total_tagihan: number; total_terbayar: number;
   /** Sisa tagihan yang sudah lewat jatuh tempo saja. */

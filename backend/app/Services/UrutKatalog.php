@@ -227,7 +227,6 @@ class UrutKatalog
         ],
         'keuangan_tarif' => [
             'lembaga' => ['tarif_tagihan.jenjang'],
-            'paket' => ['tarif_tagihan.paket'],
             'ta' => ['tarif_tagihan.tahun_ajaran'],
             'jenis' => ['jenis_tagihan.nama'],
             'tingkat' => ['tarif_tagihan.tingkat'],
@@ -254,7 +253,6 @@ class UrutKatalog
             'nama' => ['kandidat.nama_lengkap'],
             'jk' => ['kandidat.jk'],
             'nis' => ['kandidat.nis_lokal'],
-            'paket' => ['kandidat.paket'],
             'tingkat' => ['kandidat.tingkat'],
             'kelas' => ['kandidat.kelas'],
             'status' => ['kandidat.status_akhir'],

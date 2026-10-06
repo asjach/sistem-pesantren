@@ -125,7 +125,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
     <tr>
       <th scope="row" className="sticky left-0 z-10 max-w-56 border-b border-r bg-card p-2 text-left font-normal">
         <span className="block truncate font-medium">{baris.nama}</span>
-        <span className="block text-[10px] text-muted-foreground">{baris.paket}</span>
+        <span className="block text-[10px] text-muted-foreground">{baris.jenjang}</span>
       </th>
       {kolom.map((k) => {
         const sel = baris.sel[k.key];

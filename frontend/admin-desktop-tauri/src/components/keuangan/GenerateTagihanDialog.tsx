@@ -37,7 +37,6 @@ const FIELDS_KANDIDAT: ExcelField[] = [
   { key: 'nama', label: 'Santri', kind: 'static' },
   { key: 'jk', label: 'JK', kind: 'static', width: 40 },
   { key: 'nis', label: 'NIS/NISN', kind: 'static', width: 110 },
-  { key: 'paket', label: 'Paket', kind: 'static', width: 80 },
   { key: 'tingkat', label: 'Tkt', kind: 'static', width: 50 },
   { key: 'kelas', label: 'Kelas', kind: 'static', width: 90 },
   { key: 'status_akhir', label: 'Status', kind: 'static', width: 90 },
@@ -45,7 +44,6 @@ const FIELDS_KANDIDAT: ExcelField[] = [
 
 const FIELDS_TERPILIH: ExcelField[] = [
   { key: 'nama', label: 'Santri', kind: 'static' },
-  { key: 'paket', label: 'Paket', kind: 'static', width: 80 },
   { key: 'kelas', label: 'Tkt / Kelas', kind: 'static', width: 120 },
   { key: 'nominal', label: 'Nominal', kind: 'text', width: 110 },
   { key: 'dispensasi', label: 'Dispensasi', kind: 'static', width: 170 },
@@ -319,7 +317,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
             <FieldLabel htmlFor="sel_gen_tarif">Tarif (opsional)</FieldLabel>
             <select id="sel_gen_tarif" className="h-8 max-w-64 rounded border px-2 text-sm" value={tarifId} onChange={(e) => pilihTarif(e.target.value === '' ? '' : Number(e.target.value))}>
               <option value="">Manual…</option>
-              {tarifTampil.map((t) => <option key={t.id} value={t.id}>{t.jenjang} {t.paket} · {t.jenis?.nama ?? t.jenis_id} · Rp {t.nominal.toLocaleString('id')}</option>)}
+              {tarifTampil.map((t) => <option key={t.id} value={t.id}>{t.jenjang} · {t.jenis?.nama ?? t.jenis_id} · Rp {t.nominal.toLocaleString('id')}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1">
@@ -408,7 +406,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                   arahUrut={arahUrut}
                   onUrut={terapkanUrut}
                   getValues={(r) => ({
-                    nama: r.nama_lengkap, jk: r.jk, nis: r.nis_lokal ?? r.nisn, paket: r.paket,
+                    nama: r.nama_lengkap, jk: r.jk, nis: r.nis_lokal ?? r.nisn,
                     tingkat: r.tingkat, kelas: r.kelas, status_akhir: r.status_akhir,
                   })}
                   loading={loading}
@@ -442,7 +440,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     rows={terpilih.map((r) => ({ ...r, id: r.santri_id }))}
                     getValues={(r) => ({
                       nama: r.nama_lengkap,
-                      paket: r.paket,
                       kelas: [r.tingkat, r.kelas].filter(Boolean).join(' / ') || '—',
                       nominal: r.nominal,
                       dispensasi: r.dispensasiLabel === null

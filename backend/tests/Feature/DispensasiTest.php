@@ -97,7 +97,7 @@ class DispensasiTest extends TestCase
 
         // Sudah dipakai tagihan → tidak bisa dihapus (nonaktifkan saja).
         Tagihan::create([
-            'santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026',
+            'santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
             'jenis_id' => $asas->id, 'periode' => '2025/2026', 'nominal' => 0,
             'potongan' => 50000, 'dispensasi_ids' => [$id],
         ]);

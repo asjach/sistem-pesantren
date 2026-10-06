@@ -410,7 +410,7 @@ class TabelUrutTest extends TestCase
         $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);
         foreach ([200000, 100000] as $nominal) {
             TarifTagihan::create([
-                'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2026/2027',
+                'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
                 'jenis_id' => $jenis->id, 'nominal' => $nominal,
             ]);
         }
@@ -427,11 +427,11 @@ class TabelUrutTest extends TestCase
         $alfa = Santri::create(['nama_lengkap' => 'Alfa', 'jk' => 'L']);
         $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);
         Tagihan::create([
-            'santri_id' => $zed->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'santri_id' => $zed->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
             'jenis_id' => $jenis->id, 'periode' => '2026-07', 'nominal' => 300000, 'status' => 'belum', 'terbayar' => 0,
         ]);
         Tagihan::create([
-            'santri_id' => $alfa->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'santri_id' => $alfa->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
             'jenis_id' => $jenis->id, 'periode' => '2026-07', 'nominal' => 100000, 'status' => 'belum', 'terbayar' => 0,
         ]);
         $this->assertSame(
@@ -463,11 +463,11 @@ class TabelUrutTest extends TestCase
         $kecil = Santri::create(['nama_lengkap' => 'Kecil', 'jk' => 'L']);
         $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);
         Tagihan::create([
-            'santri_id' => $besar->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'santri_id' => $besar->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
             'jenis_id' => $jenis->id, 'periode' => '2026-07', 'nominal' => 100000, 'status' => 'sebagian', 'terbayar' => 50000,
         ]);
         Tagihan::create([
-            'santri_id' => $kecil->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2026/2027',
+            'santri_id' => $kecil->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
             'jenis_id' => $jenis->id, 'periode' => '2026-07', 'nominal' => 100000, 'status' => 'sebagian', 'terbayar' => 90000,
         ]);
         $this->assertSame(

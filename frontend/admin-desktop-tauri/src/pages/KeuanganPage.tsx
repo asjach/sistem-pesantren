@@ -41,7 +41,6 @@ const FIELDS_JENIS: ExcelField[] = [
 
 const FIELDS_TARIF: ExcelField[] = [
   { key: 'jenjang', label: 'Lembaga', kind: 'static', width: 90 },
-  { key: 'paket', label: 'Paket', kind: 'static', width: 90 },
   { key: 'tahun_ajaran', label: 'Tahun Ajaran', kind: 'static', width: 110 },
   { key: 'jenis', label: 'Jenis', kind: 'static' },
   { key: 'nominal', label: 'Nominal', kind: 'static', width: 110 },
@@ -65,15 +64,6 @@ const FIELDS_DISPENSASI: ExcelField[] = [
   { key: 'status', label: 'Status', kind: 'static', width: 80 },
 ];
 
-const OPSI_PAKET = ['MI', 'MD', 'MI-MD', 'MTS', 'MLN'];
-
-/** Paket yang berlaku per jenjang (MI-MD = santri MI yang juga MD). */
-const PAKET_PER_JENJANG: Record<string, string[]> = {
-  MI: ['MI', 'MI-MD'],
-  MD: ['MD', 'MI-MD'],
-  MTS: ['MTS'],
-  MLN: ['MLN'],
-};
 const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan', 'tunggakan', 'dispensasi'] as const;
 
 /** State urut satu tabel; perubahan state memicu muat ulang via effect. */
@@ -227,7 +217,6 @@ export default function KeuanganPage() {
   const [tipeJenis, setTipeJenis] = useState<'bulanan' | 'non_bulanan'>('non_bulanan');
   const [lembagaJenis, setLembagaJenis] = useState('');
   const [tfJenjang, setTfJenjang] = useState('MI');
-  const [tfPaket, setTfPaket] = useState('MI');
   const [tfTA, setTfTA] = useState('2025/2026');
   const [tfJenis, setTfJenis] = useState<number | ''>('');
   const [tfNominal, setTfNominal] = useState('');
@@ -318,7 +307,7 @@ export default function KeuanganPage() {
             arahUrut={uTarif.arah}
             onUrut={uTarif.terapkan}
             getValues={(r) => ({
-              jenjang: r.jenjang, paket: r.paket, tahun_ajaran: r.tahun_ajaran,
+              jenjang: r.jenjang, tahun_ajaran: r.tahun_ajaran,
               jenis: r.jenis?.nama ?? null, nominal: r.nominal.toLocaleString('id'),
               aktif: r.is_active ? 'Ya' : 'Tidak',
             })}
@@ -602,14 +591,10 @@ export default function KeuanganPage() {
             <DialogTitle>Tambah Tarif</DialogTitle>
             <DialogDescription className="sr-only">Formulir penambahan tarif tagihan.</DialogDescription>
           </DialogHeader>
-          <form id="form_tambah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (tfJenis === '') return; try { await buatTarif({ jenjang: tfJenjang, paket: tfPaket, tahun_ajaran: tfTA, jenis_id: Number(tfJenis), nominal: Number(tfNominal) }); toast.success('Tarif dibuat.'); setTfJenis(''); setTfNominal(''); setTambahTarifOpen(false); await load(); await loadTarif(jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } }}>
+          <form id="form_tambah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (tfJenis === '') return; try { await buatTarif({ jenjang: tfJenjang, tahun_ajaran: tfTA, jenis_id: Number(tfJenis), nominal: Number(tfNominal) }); toast.success('Tarif dibuat.'); setTfJenis(''); setTfNominal(''); setTambahTarifOpen(false); await load(); await loadTarif(jenjangs, tahunAjaranNames); } catch (e2) { toast.error(errorMessage(e2)); } }}>
             <FieldLabel htmlFor="sel_tarif_jenjang">Jenjang</FieldLabel>
             <select id="sel_tarif_jenjang" className="border rounded px-2" value={tfJenjang} onChange={(e) => setTfJenjang(e.target.value)} required>
               {lembagas.filter((l) => pilihanLembaga.some((p) => p.jenjang === l.jenjang)).map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
-            </select>
-            <FieldLabel htmlFor="sel_tarif_paket">Paket</FieldLabel>
-            <select id="sel_tarif_paket" className="border rounded px-2" value={tfPaket} onChange={(e) => setTfPaket(e.target.value)} required>
-              {(PAKET_PER_JENJANG[tfJenjang] ?? OPSI_PAKET).map((x) => <option key={x} value={x}>{x}</option>)}
             </select>
             <FieldLabel htmlFor="sel_tarif_ta">Tahun Ajaran</FieldLabel>
             <select id="sel_tarif_ta" className="border rounded px-2" value={tfTA} onChange={(e) => setTfTA(e.target.value)} required>

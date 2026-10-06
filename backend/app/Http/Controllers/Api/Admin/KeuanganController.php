@@ -111,7 +111,6 @@ class KeuanganController extends Controller
     {
         $data = $request->validate([
             'jenjang' => 'required|string',
-            'paket' => 'required|string|max:20',
             'tahun_ajaran' => 'required|string|max:9',
             'jenis_id' => 'required|integer|exists:jenis_tagihan,id',
             'tingkat' => 'nullable|string|max:100',
@@ -138,7 +137,6 @@ class KeuanganController extends Controller
         // Tarif yang sudah dipakai generate tagihan tidak boleh dihapus
         // (kombinasi inilah yang disalin ke baris tagihan).
         $dipakai = Tagihan::where('jenjang', $tarif->jenjang)
-            ->where('paket', $tarif->paket)
             ->where('tahun_ajaran', $tarif->tahun_ajaran)
             ->where('jenis_id', $tarif->jenis_id)
             ->exists();
@@ -455,7 +453,6 @@ class KeuanganController extends Controller
                 'santri_id' => (int) $santriId,
                 'nama' => $santri?->nama_lengkap ?? 'Tidak dikenal',
                 'jenjang' => (string) $kelompok->first()->jenjang,
-                'paket' => (string) $kelompok->first()->paket,
                 'sel' => $sel,
                 'total_tagihan' => (int) $kelompok->sum('nominal'),
                 'total_terbayar' => (int) $kelompok->sum('terbayar'),
@@ -535,7 +532,6 @@ class KeuanganController extends Controller
         $data = $request->validate([
             'santri_id' => 'required|integer|exists:santri,id',
             'jenjang' => 'required|string',
-            'paket' => 'required|string|max:20',
             'tahun_ajaran' => 'required|string|max:9',
             'jenis_id' => 'required|integer|exists:jenis_tagihan,id',
             'periode' => 'nullable|string|max:20',
@@ -560,7 +556,7 @@ class KeuanganController extends Controller
 
     /**
      * Kandidat santri generate: daftar santri aktif pada satu TA sesuai
-     * kelompok kriteria, sudah dihitung paket/jenjang/tingkat/kelasnya.
+     * kelompok kriteria, sudah dihitung jenjang/tingkat/kelasnya.
      * Santri yang sudah punya tagihan lengkap untuk jenis+periode terpilih
      * disembunyikan dari kandidat.
      */
@@ -603,7 +599,6 @@ class KeuanganController extends Controller
                 'jk' => $info['jk'],
                 'nisn' => $info['nisn'],
                 'nis_lokal' => $info['nis_lokal'],
-                'paket' => $info['paket'],
                 'jenjang' => $info['jenjang_utama'],
                 'tingkat' => $info['tingkat'],
                 'kelas' => $info['kelas'],
@@ -618,7 +613,6 @@ class KeuanganController extends Controller
             'nama' => 'nama_lengkap',
             'jk' => 'jk',
             'nis' => 'nis_lokal',
-            'paket' => 'paket',
             'tingkat' => 'tingkat',
             'kelas' => 'kelas',
             'status' => 'status_akhir',
@@ -648,7 +642,7 @@ class KeuanganController extends Controller
 
     /**
      * Buat tagihan massal untuk daftar santri terpilih (tabel kedua dialog
-     * generate). Paket/jenjang tiap santri dihitung dari riwayat TA terkait;
+     * generate). Jenjang tiap santri dihitung dari riwayat TA terkait;
      * nominal boleh dioverride per santri.
      */
     public function generateTagihan(Request $request)
@@ -705,7 +699,7 @@ class KeuanganController extends Controller
                 $tagihan = Tagihan::firstOrCreate(
                     ['santri_id' => $santriId, 'jenis_id' => $jenis->id, 'periode' => $periode],
                     [
-                        'jenjang' => $info['jenjang_utama'], 'paket' => $info['paket'],
+                        'jenjang' => $info['jenjang_utama'],
                         'tahun_ajaran' => $data['tahun_ajaran'], 'nominal' => $nominal,
                         'potongan' => $potongan, 'dispensasi_ids' => $dispensasiIds,
                         'jatuh_tempo' => JatuhTempo::untuk((string) $jenis->tipe, $periode, $data['jatuh_tempo'] ?? null),
@@ -787,7 +781,7 @@ class KeuanganController extends Controller
      * Baris semester 2 menang sebagai baris tampilan.
      *
      * @param  list<int>  $santriIds
-     * @return array<int, array{santri_id:int, nama_lengkap:string, jk:?string, nisn:?string, nis_lokal:?string, per_jenjang:array<string, array{semester:?string, tingkat:?string, kelas:?string, kelas_id:?int, status:?string}>, paket:string, jenjang_utama:string, tingkat:?string, kelas:?string, kelas_id:?int, status_akhir:?string, kelas_akhir:bool}>
+     * @return array<int, array{santri_id:int, nama_lengkap:string, jk:?string, nisn:?string, nis_lokal:?string, per_jenjang:array<string, array{semester:?string, tingkat:?string, kelas:?string, kelas_id:?int, status:?string}>, jenjang_utama:string, tingkat:?string, kelas:?string, kelas_id:?int, status_akhir:?string, kelas_akhir:bool}>
      */
     private function petaSantriGenerate(string $ta, array $santriIds = [], ?string $cari = null): array
     {
@@ -836,7 +830,6 @@ class KeuanganController extends Controller
         foreach ($peta as &$info) {
             $jenjangs = array_keys($info['per_jenjang']);
             $has = fn (string $j) => in_array($j, $jenjangs, true);
-            $info['paket'] = $has('MI') && $has('MD') ? 'MI-MD' : ($has('MI') ? 'MI' : ($has('MD') ? 'MD' : ($jenjangs[0] ?? '')));
             $info['jenjang_utama'] = $has('MI') ? 'MI' : ($has('MD') ? 'MD' : ($jenjangs[0] ?? ''));
             $utama = $info['per_jenjang'][$info['jenjang_utama']] ?? null;
             $info['tingkat'] = $utama['tingkat'] ?? null;
@@ -859,7 +852,7 @@ class KeuanganController extends Controller
      * Filter kelompok kriteria terhadap peta santri.
      *
      * Patokan keaktifan sudah ditegakkan di query peta: yang tersaring hanya
-     * `pindah_keluar`, jadi kelompok di sini murni soal pola paket/jenjang
+     * `pindah_keluar`, jadi kelompok di sini murni soal pola jenjang
      * atau tingkat akhir — bukan status aktif.
      *
      * @param  array{per_jenjang:array<string, mixed>, kelas_akhir:bool}  $info

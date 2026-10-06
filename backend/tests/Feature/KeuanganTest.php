@@ -11,9 +11,11 @@ use App\Models\Tagihan;
 use App\Models\TahunAjaran;
 use App\Models\TarifTagihan;
 use App\Models\User;
+use App\Services\UrutKatalog;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class KeuanganTest extends TestCase
@@ -100,7 +102,7 @@ class KeuanganTest extends TestCase
         $this->assertSame([$miMd->id], $ids($kandidat('kelas_akhir')));
         $this->assertEqualsCanonicalizing([$miSaja->id, $mdSaja->id], $ids($kandidat('selain_kelas_akhir')));
 
-        // Pencarian NIS lokal + baris MI-MD menampilkan paket gabungan.
+        // Pencarian NIS lokal menemukan Santri yang punya dua riwayat (MI-MD).
         DB::table('lembaga_santri')->insert([
             'santri_id' => $miMd->id, 'jenjang' => 'MI', 'nis_lokal' => '88001', 'created_at' => now(), 'updated_at' => now(),
         ]);
@@ -108,7 +110,9 @@ class KeuanganTest extends TestCase
             ->getJson('/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&q=88001')
             ->assertStatus(200)->json();
         $this->assertSame([$miMd->id], $ids($cariNis));
-        $this->assertSame('MI-MD', $cariNis['data'][0]['paket']);
+        // Jenjang utama = MI (lembaga penagih), mengikuti jenjang pertama.
+        $this->assertSame('MI', $cariNis['data'][0]['jenjang']);
+        $this->assertArrayNotHasKey('paket', $cariNis['data'][0]);
 
         // Generate hanya santri pada tabel terpilih, nominal default + override.
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
@@ -122,10 +126,9 @@ class KeuanganTest extends TestCase
 
         $tagihanMi = Tagihan::where('santri_id', $miSaja->id)->firstOrFail();
         $this->assertSame(75000, $tagihanMi->nominal);
-        $this->assertSame('MI', $tagihanMi->paket);
+        $this->assertSame('MI', $tagihanMi->jenjang);
         $tagihanMimd = Tagihan::where('santri_id', $miMd->id)->firstOrFail();
         $this->assertSame(50000, $tagihanMimd->nominal);
-        $this->assertSame('MI-MD', $tagihanMimd->paket);
         $this->assertSame('MI', $tagihanMimd->jenjang);
     }
 
@@ -199,7 +202,7 @@ class KeuanganTest extends TestCase
         ]);
 
         // A sudah punya tagihan Juli → hilang dari kandidat periode itu.
-        Tagihan::create(['santri_id' => $a->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
+        Tagihan::create(['santri_id' => $a->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
         $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&jenis_id={$jenis->id}&periode=2025-07")
             ->assertStatus(200)->assertJsonCount(1, 'data')->assertJsonPath('data.0.santri_id', $b->id);
 
@@ -386,9 +389,9 @@ class KeuanganTest extends TestCase
     {
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
-        TarifTagihan::create(['jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
-        TarifTagihan::create(['jenjang' => 'MD', 'paket' => 'MD', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 60000]);
-        TarifTagihan::create(['jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2024/2025', 'jenis_id' => $jenis->id, 'nominal' => 70000]);
+        TarifTagihan::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
+        TarifTagihan::create(['jenjang' => 'MD', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 60000]);
+        TarifTagihan::create(['jenjang' => 'MI', 'tahun_ajaran' => '2024/2025', 'jenis_id' => $jenis->id, 'nominal' => 70000]);
 
         // Tanpa filter: semua tarif.
         $this->actingAs($admin)->getJson('/api/admin/keuangan/tarif')
@@ -408,11 +411,11 @@ class KeuanganTest extends TestCase
     {
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
-        $dipakai = TarifTagihan::create(['jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
-        $bebas = TarifTagihan::create(['jenjang' => 'MD', 'paket' => 'MD', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 60000]);
+        $dipakai = TarifTagihan::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
+        $bebas = TarifTagihan::create(['jenjang' => 'MD', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 60000]);
 
         $santri = Santri::create(['nama_lengkap' => 'Santri Tarif', 'jk' => 'L']);
-        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
 
         // Sudah dipakai tagihan → 422, tarif tetap ada.
         $this->actingAs($admin)->deleteJson("/api/admin/keuangan/tarif/{$dipakai->id}")
@@ -423,6 +426,51 @@ class KeuanganTest extends TestCase
         $this->actingAs($admin)->deleteJson("/api/admin/keuangan/tarif/{$bebas->id}")
             ->assertStatus(200);
         $this->assertDatabaseMissing('tarif_tagihan', ['id' => $bebas->id]);
+    }
+
+    public function test_paket_dihapus_dari_skema_tarif_dan_tagihan(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Tanpa Paket', 'jk' => 'L']);
+        $tarif = TarifTagihan::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
+        $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 50000]);
+
+        // Kolom dihapus dari skema, bukan sekadar disembunyikan dari UI.
+        $this->assertFalse(Schema::hasColumn('tarif_tagihan', 'paket'));
+        $this->assertFalse(Schema::hasColumn('tagihan', 'paket'));
+        $this->assertArrayNotHasKey('paket', $tarif->fresh()->getAttributes());
+        $this->assertArrayNotHasKey('paket', $tagihan->fresh()->getAttributes());
+
+        // Respons API tidak lagi mengirim paket.
+        $res = $this->actingAs($admin)->getJson('/api/admin/keuangan/tarif')->assertStatus(200)->json();
+        $this->assertNotEmpty($res);
+        $this->assertArrayNotHasKey('paket', $res[0]);
+
+        // Store tarif tanpa paket tetap diterima (validasi tidak mewajibkannya).
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tarif', [
+            'jenjang' => 'MD', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 60000,
+        ])->assertStatus(201);
+    }
+
+    public function test_urut_paket_ditolak_setelah_dihapus_dari_katalog(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        TarifTagihan::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
+
+        // Kode "paket" dicabut dari UrutKatalog → sort=paket 422, bukan diam-diam
+        // lolos lalu membandingkan null (urutan tidak berubah tanpa tanda).
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tarif?sort=paket')
+            ->assertStatus(422);
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&sort=paket')
+            ->assertStatus(422);
+
+        // Kode yang sah tetap jalan.
+        $this->actingAs($admin)->getJson('/api/admin/keuangan/tarif?sort=nominal&arah=turun')
+            ->assertStatus(200);
+        $this->assertArrayNotHasKey('paket', array_keys(UrutKatalog::peta('keuangan_tarif')));
+        $this->assertArrayNotHasKey('paket', array_keys(UrutKatalog::peta('keuangan_gen_kandidat')));
     }
 
     public function test_index_tagihan_filter_belum_lunas_dan_cari_nis_lokal(): void
@@ -436,9 +484,9 @@ class KeuanganTest extends TestCase
         ]);
         $lain = Santri::create(['nama_lengkap' => 'Santri Lain', 'jk' => 'P']);
 
-        $belum = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
-        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-08', 'nominal' => 75000, 'terbayar' => 75000, 'status' => 'lunas']);
-        Tagihan::create(['santri_id' => $lain->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
+        $belum = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-08', 'nominal' => 75000, 'terbayar' => 75000, 'status' => 'lunas']);
+        Tagihan::create(['santri_id' => $lain->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
 
         // Cari NIS lokal + hanya belum lunas → hanya tagihan sasaran.
         $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan?belum_lunas=1&santri=99001')
@@ -463,10 +511,10 @@ class KeuanganTest extends TestCase
         $santri = Santri::create(['nama_lengkap' => 'Santri Crosstab', 'jk' => 'L']);
         $lain = Santri::create(['nama_lengkap' => 'Santri Kosong', 'jk' => 'P']);
 
-        $juli = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000, 'jatuh_tempo' => now()->subDays(40)->toDateString()]);
-        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000, 'terbayar' => 20000, 'status' => 'sebagian', 'jatuh_tempo' => now()->subDays(10)->toDateString()]);
-        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'periode' => '2025/2026', 'nominal' => 300000, 'terbayar' => 300000, 'status' => 'lunas']);
-        Tagihan::create(['santri_id' => $lain->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000]);
+        $juli = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000, 'jatuh_tempo' => now()->subDays(40)->toDateString()]);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000, 'terbayar' => 20000, 'status' => 'sebagian', 'jatuh_tempo' => now()->subDays(10)->toDateString()]);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'periode' => '2025/2026', 'nominal' => 300000, 'terbayar' => 300000, 'status' => 'lunas']);
+        Tagihan::create(['santri_id' => $lain->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000]);
 
         $res = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026')
             ->assertStatus(200)
@@ -513,13 +561,13 @@ class KeuanganTest extends TestCase
         $santri = Santri::create(['nama_lengkap' => 'Santri Telat', 'jk' => 'P']);
 
         // Lewat jatuh tempo & belum lunas → tunggakan.
-        $lewat = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000, 'jatuh_tempo' => now()->subDays(5)->toDateString()]);
+        $lewat = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000, 'jatuh_tempo' => now()->subDays(5)->toDateString()]);
         // Lewat jatuh tempo tapi lunas → bukan tunggakan.
-        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000, 'terbayar' => 50000, 'status' => 'lunas', 'jatuh_tempo' => now()->subDays(3)->toDateString()]);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-08', 'nominal' => 50000, 'terbayar' => 50000, 'status' => 'lunas', 'jatuh_tempo' => now()->subDays(3)->toDateString()]);
         // Jatuh tempo tepat hari ini → belum terlambat.
-        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-09', 'nominal' => 50000, 'jatuh_tempo' => now()->toDateString()]);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-09', 'nominal' => 50000, 'jatuh_tempo' => now()->toDateString()]);
         // Bulan depan → belum jatuh tempo.
-        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-10', 'nominal' => 50000, 'jatuh_tempo' => now()->addMonth()->toDateString()]);
+        Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-10', 'nominal' => 50000, 'jatuh_tempo' => now()->addMonth()->toDateString()]);
 
         $baris = collect($this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab')->assertStatus(200)->json('baris'))->first();
 
@@ -555,7 +603,7 @@ class KeuanganTest extends TestCase
         $admin = $this->admin();
         $hipa = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
         $santri = Santri::create(['nama_lengkap' => 'Santri Tanpa Tempo', 'jk' => 'L']);
-        $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'nominal' => 300000]);
+        $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'nominal' => 300000]);
 
         // Tanpa batas waktu = langsung tunggakan, walau baru dibuat.
         $this->assertTrue($t->terlambat());
@@ -582,7 +630,7 @@ class KeuanganTest extends TestCase
         $admin = $this->admin();
         $hipa = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
         $santri = Santri::create(['nama_lengkap' => 'Santri Lunas', 'jk' => 'P']);
-        $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'nominal' => 300000, 'terbayar' => 300000, 'status' => 'lunas']);
+        $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'nominal' => 300000, 'terbayar' => 300000, 'status' => 'lunas']);
 
         $this->assertFalse($t->terlambat());
         $this->assertSame(0, $t->sisaTerlambat());
@@ -595,7 +643,7 @@ class KeuanganTest extends TestCase
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
         $santri = Santri::create(['nama_lengkap' => 'Santri Hapus', 'jk' => 'L']);
-        $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 100000]);
+        $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 100000]);
 
         // Hapus tagihan tanpa pembayaran.
         $this->actingAs($admin)->deleteJson("/api/admin/keuangan/tagihan/{$tagihan->id}")
@@ -603,7 +651,7 @@ class KeuanganTest extends TestCase
         $this->assertDatabaseMissing('tagihan', ['id' => $tagihan->id]);
 
         // Tagihan ber-pembayaran aktif tak bisa dihapus langsung.
-        $tagihan2 = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-01', 'nominal' => 100000]);
+        $tagihan2 = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-01', 'nominal' => 100000]);
         $bayar = $this->actingAs($admin)->postJson('/api/admin/keuangan/pembayaran', [
             'tagihan_id' => $tagihan2->id, 'jumlah' => 20000,
         ])->assertStatus(201)->json('id');
@@ -624,7 +672,7 @@ class KeuanganTest extends TestCase
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'Ujian', 'tipe' => 'non_bulanan']);
         $santri = Santri::create(['nama_lengkap' => 'Santri Ujian', 'jk' => 'L']);
-        $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 800000, 'jatuh_tempo' => now()->subDays(10)->toDateString()]);
+        $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 800000, 'jatuh_tempo' => now()->subDays(10)->toDateString()]);
 
         $this->actingAs($admin)->postJson('/api/admin/keuangan/pembayaran', [
             'tagihan_id' => $tagihan->id, 'jumlah' => 300000, 'metode' => 'tunai', 'kas' => 'tunai_tu',
@@ -655,7 +703,7 @@ class KeuanganTest extends TestCase
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
         $santri = Santri::create(['nama_lengkap' => 'Santri Hapus Bayar', 'jk' => 'L']);
-        $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 100000]);
+        $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 100000]);
 
         $bayar = $this->actingAs($admin)->postJson('/api/admin/keuangan/pembayaran', [
             'tagihan_id' => $tagihan->id, 'jumlah' => 40000,
