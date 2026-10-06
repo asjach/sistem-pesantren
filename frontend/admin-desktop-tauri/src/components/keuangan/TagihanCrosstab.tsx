@@ -300,7 +300,7 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
               <th
                 key={g.jenisId}
                 colSpan={g.kolom.length}
-                className="sticky top-0 z-20 border-b border-r bg-muted p-1.5 text-center font-medium"
+                className="sticky top-0 z-20 border-b border-r bg-muted px-1.5 py-[3.5px] text-center font-medium"
               >
                 {g.jenisNama}
               </th>
@@ -316,7 +316,7 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
               <th
                 key={k.key}
                 style={{ top: tinggiGrup }}
-                className={`sticky z-10 border-b border-r bg-muted p-1.5 text-center font-normal ${k.tipe === 'non_bulanan' ? 'text-muted-foreground' : ''}`}
+                className={`sticky z-10 border-b border-r bg-muted px-1.5 py-[3.5px] text-center font-normal ${k.tipe === 'non_bulanan' ? 'text-muted-foreground' : ''}`}
                 title={labelSel(k)}
               >
                 {labelKolom(k)}
