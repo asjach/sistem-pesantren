@@ -91,13 +91,23 @@ interface TooltipSel {
   jatuhTempo: string | null;
 }
 
-function TooltipTagihan({ data }: { data: TooltipSel }) {
+function TooltipTagihan({ data, x, y }: { data: TooltipSel; x: number; y: number }) {
   const status = data.status === 'lunas'
     ? 'Lunas'
     : data.terlambat ? 'Tunggakan' : 'Belum jatuh tempo';
 
+  // `fixed` wajib pada elemen yang diberi koordinat; di dekat tepi kanan/dasar
+  // tooltip dibalik agar tidak terpotong viewport.
+  const geser = typeof window !== 'undefined' ? Math.min(x + 12, window.innerWidth - 240) : x + 12;
+  const bawah = typeof window !== 'undefined' && y + 200 > window.innerHeight;
+
   return (
-    <div className="pointer-events-none fixed z-50 w-56 rounded-lg border bg-popover p-2.5 text-xs shadow-md">
+    <div
+      id="tip_tagihan_sel"
+      role="tooltip"
+      style={{ left: geser, top: bawah ? y - 190 : y + 18 }}
+      className="pointer-events-none fixed z-50 w-56 rounded-lg border bg-popover p-2.5 text-xs shadow-md"
+    >
       <p className="font-semibold">{data.nama}</p>
       <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
         <dt className="text-muted-foreground">Nama Tarif</dt>
@@ -242,18 +252,7 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
           )}
         </tbody>
       </table>
-      {hover !== null && (
-        <div
-          id="tip_tagihan_sel"
-          role="tooltip"
-          style={{
-            left: Math.min(hover.x + 12, (typeof window === 'undefined' ? 0 : window.innerWidth) - 240),
-            top: hover.y + 18,
-          }}
-        >
-          <TooltipTagihan data={hover.isi} />
-        </div>
-      )}
+      {hover !== null && <TooltipTagihan data={hover.isi} x={hover.x} y={hover.y} />}
     </div>
   );
 }
