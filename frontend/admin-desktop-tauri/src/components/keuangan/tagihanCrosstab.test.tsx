@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -162,5 +162,52 @@ describe('sel tagihan: klik kiri = klik kanan', () => {
     );
     const aktif = screen.getAllByRole('button', { name: '50.000' })[1];
     expect(aktif.className).toContain('ring-2');
+  });
+});
+
+describe('kartu hovervs popover: tak boleh menumpuk', () => {
+  it('klik kiri menutup kartu hover', async () => {
+    renderCrosstab(baris(sel({}), sel({ id: 2 })));
+    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
+    await userEvent.hover(tombol);
+    expect(await screen.findByRole('tooltip')).toBeInTheDocument();
+
+    await userEvent.click(tombol);
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+  });
+
+  it('klik kanan juga menutup kartu hover', async () => {
+    renderCrosstab(baris(sel({}), sel({ id: 2 })));
+    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
+    await userEvent.hover(tombol);
+    expect(await screen.findByRole('tooltip')).toBeInTheDocument();
+
+    fireEvent.contextMenu(tombol);
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+  });
+
+  it('kartu tak muncul lagi karena jitter kecil, tapi muncul setelah pointer bergerak jauh', async () => {
+    renderCrosstab(baris(sel({}), sel({ id: 2 })));
+    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
+    // jsdom tak punya layout -> semua rect 0,0. Beri rect palsu supaya
+    // ambang "pointer harus bergerak jauh" benar-benar teruji.
+    tombol.getBoundingClientRect = () => ({
+      left: 570, top: 190, width: 60, height: 20, right: 630, bottom: 210, x: 570, y: 190,
+      toJSON: () => ({}),
+    }) as DOMRect;
+    await userEvent.hover(tombol);
+    await screen.findByRole('tooltip');
+
+    fireEvent.click(tombol);
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+
+    // Gerak < 6px dari titik klik → masih ditekan.
+    fireEvent.mouseMove(tombol, { clientX: 601, clientY: 200 });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    // Gerak jauh → kartu hidup lagi.
+    fireEvent.mouseMove(tombol, { clientX: 640, clientY: 200 });
+    expect(await screen.findByRole('tooltip')).toBeInTheDocument();
   });
 });

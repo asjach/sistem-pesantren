@@ -139,7 +139,7 @@ function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
 /** Satu baris tabel. `memo` + props stabil → saat tooltip berpindah sel, hanya
  *  baris yang di-hover yang dirender ulang, bukan seluruh tabel (ratusan sel). */
 const BarisCrosstab = memo(function BarisCrosstab({
-  baris, kolom, terpilihId, onPilih, onHoverMasuk, onHoverKeluar,
+  baris, kolom, terpilihId, onPilih, onHoverMasuk, onHoverGerak, onHoverKeluar,
 }: {
   baris: CrosstabBaris;
   kolom: CrosstabKolom[];
@@ -151,6 +151,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
     kolom: CrosstabKolom,
   ) => void;
   onHoverMasuk: (isi: TooltipSel, anchor: HTMLElement) => void;
+  onHoverGerak: (isi: TooltipSel, e: React.MouseEvent<HTMLElement>) => void;
   onHoverKeluar: () => void;
 }) {
   return (
@@ -179,6 +180,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
               onClick={(e) => onPilih(sel, meta, e.currentTarget, k)}
               onContextMenu={(e) => { e.preventDefault(); onPilih(sel, meta, e.currentTarget, k); }}
               onMouseEnter={(e) => onHoverMasuk(isiTooltip, e.currentTarget)}
+              onMouseMove={(e) => onHoverGerak(isiTooltip, e)}
               onMouseLeave={onHoverKeluar}
               aria-describedby="tip_tagihan_sel"
               title={`${baris.nama} — sisa Rp ${sel.sisa.toLocaleString('id')}`}
@@ -269,18 +271,43 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   const jangkarRef = useRef<HTMLDivElement | null>(null);
   /** Tenggang sebelum menutup, agar perpindahan sel tak berkedip. */
   const tutupRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Posisi terakhir saat kartu ditutup karena klik. Pointer harus bergerak
+   *  jauh dari titik ini dulu, supaya jittersaat klik tak menyalakannya
+   *  kembali (dan menumpuk dengan popover). */
+  const agarJauhRef = useRef<{ x: number; y: number } | null>(null);
 
   // Handler stabil (dipakai props memo BarisCrosstab): `onPilih` & friends
   // dibuat ulang tiap render bila ditulis inline, sehingga memo tidak berlaku.
   const pilihRef = useRef(onPilih);
   pilihRef.current = onPilih;
+
+  /* Kartu sengaja dimatikan saat klik. Kalau pointer lalu bergerak (mis. saat
+     popover ditutup), kartu boleh hidup lagi — tapi hanya setelah keluar dari
+     titik klik, supaya gerak kecil saat klik tidak langsung menumpukkannya. */
+  const hoverGerak = useCallback((isi: TooltipSel, e: React.MouseEvent<HTMLElement>) => {
+    const agarJauh = agarJauhRef.current;
+    if (agarJauh === null) return;
+    if (Math.hypot(e.clientX - agarJauh.x, e.clientY - agarJauh.y) < 6) return;
+    agarJauhRef.current = null;
+    setHover({ isi, anchor: e.currentTarget });
+  }, []);
+
   const pilihStabil = useCallback(
     (
       sel: CrosstabSel,
       meta: { nama: string; label: string },
       anchor: HTMLElement,
       kolom: CrosstabKolom,
-    ) => pilihRef.current(sel, meta, anchor, kolom),
+    ) => {
+      // Klik kiri/kanan membuka popover aksi → tutup kartu hover seketika,
+      // jangan sampai dua-duanya menumpuk di atas sel yang sama. Pointer tak
+      // bergerak lagi, jadi mouseenter tak akan menyalakannya kembali.
+      if (tutupRef.current !== null) { clearTimeout(tutupRef.current); tutupRef.current = null; }
+      const kotak = anchor.getBoundingClientRect();
+      agarJauhRef.current = { x: kotak.left + kotak.width / 2, y: kotak.top + kotak.height / 2 };
+      setHover(null);
+      pilihRef.current(sel, meta, anchor, kolom);
+    },
     [],
   );
   const hoverMasuk = useCallback((isi: TooltipSel, anchor: HTMLElement) => {
@@ -378,6 +405,7 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
               terpilihId={terpilihId}
               onPilih={pilihStabil}
               onHoverMasuk={hoverMasuk}
+              onHoverGerak={hoverGerak}
               onHoverKeluar={hoverKeluar}
             />
           ))}
