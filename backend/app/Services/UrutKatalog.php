@@ -240,7 +240,7 @@ class UrutKatalog
             'id' => ['dispensasi.id'],
         ],
         // Sort koleksi in-memory: kolom = kunci baris keluaran (lihat
-        // KeuanganController::terapkanUrutKoleksi), bukan kolom SQL.
+        // Concerns\UrutDaftar::terapkanUrutKoleksi), bukan kolom SQL.
         'keuangan_tunggakan' => [
             'nama' => ['tunggakan.nama'],
             'total' => ['tunggakan.total_tagihan'],
