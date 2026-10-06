@@ -93,6 +93,9 @@ interface TooltipSel {
 
 const LEBAR_TOOLTIP = 224;
 const TINGGI_TOOLTIP = 200;
+/** Jarak tooltip dari kursor (x, y) — dipakai juga sebagai posisi awal render. */
+const JARAK_X = 12;
+const JARAK_Y = 18;
 
 /**
  * Letak tooltip. Ditulis langsung ke DOM (bukan state) — posisi mengikuti
@@ -101,9 +104,8 @@ const TINGGI_TOOLTIP = 200;
  */
 function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
   if (el === null) return;
-  const geser = Math.min(x + 12, window.innerWidth - LEBAR_TOOLTIP - 12);
-  el.style.left = `${Math.max(8, geser)}px`;
-  el.style.top = `${y + TINGGI_TOOLTIP > window.innerHeight ? Math.max(8, y - TINGGI_TOOLTIP) : y + 18}px`;
+  el.style.left = `${Math.max(8, Math.min(x + JARAK_X, window.innerWidth - LEBAR_TOOLTIP - 8))}px`;
+  el.style.top = `${Math.max(8, y + TINGGI_TOOLTIP > window.innerHeight ? y - TINGGI_TOOLTIP : y + JARAK_Y)}px`;
 }
 
 function TooltipTagihan({ data, tipRef }: { data: TooltipSel; tipRef: React.Ref<HTMLDivElement> }) {
@@ -162,6 +164,18 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   /** Sel yang sedang di-hover. Isinya berubah → render ulang; posisinya ditulis ke DOM. */
   const [hover, setHover] = useState<TooltipSel | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
+  /** Posisi kursor terakhir (ref: tidak memicu render). Dipakai untuk
+   *  menempatkan tooltip pada frame yang sama saat pertama kali muncul —
+   *  tanpa ini tooltip sempat berkedip di pojok kiri atas. */
+  const kursorRef = useRef<{ x: number; y: number } | null>(null);
+
+  // useLayoutEffect: posisi dipasang sebelum browser melukis => tooltip tidak
+  // pernah tampil di posisi default sesaat.
+  useLayoutEffect(() => {
+    if (hover !== null && kursorRef.current !== null) {
+      NeedleLetak(tipRef.current, kursorRef.current.x, kursorRef.current.y);
+    }
+  }, [hover]);
   useLayoutEffect(() => {
     const el = grupRef.current;
     if (!el) return;
@@ -236,7 +250,10 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
                       type="button"
                       id={`btn_tagihan_sel_${sel.id}`}
                       onClick={() => onPilih(sel, { nama: r.nama, label: labelSel(k) })}
-                      onMouseEnter={(e) => { setHover(isiTooltip); NeedleLetak(tipRef.current, e.clientX, e.clientY); }}
+                      onMouseEnter={(e) => {
+                        kursorRef.current = { x: e.clientX, y: e.clientY };
+                        setHover(isiTooltip);
+                      }}
                       onMouseMove={(e) => NeedleLetak(tipRef.current, e.clientX, e.clientY)}
                       onMouseLeave={() => setHover(null)}
                       aria-describedby={hover === isiTooltip ? 'tip_tagihan_sel' : undefined}
