@@ -229,16 +229,25 @@ class RefService
             if (! Schema::hasTable($table)) {
                 continue;
             }
+            // Dua query per tabel (kunci yang sudah ada di jenjang ini + contoh
+            // baris pertama tiap kunci), bukan dua query per kunci.
+            $adaDiJenjang = [];
+            foreach (DB::table($table)->where('jenjang', $jenjang)->pluck($key) as $nilai) {
+                $adaDiJenjang[(string) $nilai] = true;
+            }
             $kuncis = DB::table($table)->distinct()->pluck($key)->all();
+            if ($kuncis === []) {
+                continue;
+            }
+            $contohPerKunci = [];
+            foreach (DB::table($table)->whereIn($key, $kuncis)->orderBy('id')->get() as $baris) {
+                $contohPerKunci[(string) $baris->{$key}] ??= (array) $baris;
+            }
             foreach ($kuncis as $nilai) {
-                $ada = DB::table($table)
-                    ->where('jenjang', $jenjang)
-                    ->where($key, $nilai)
-                    ->exists();
-                if ($ada) {
+                if (isset($adaDiJenjang[(string) $nilai]) || ! isset($contohPerKunci[(string) $nilai])) {
                     continue;
                 }
-                $contoh = (array) DB::table($table)->where($key, $nilai)->orderBy('id')->first();
+                $contoh = $contohPerKunci[(string) $nilai];
                 unset($contoh['id'], $contoh['created_at'], $contoh['updated_at']);
                 $contoh['jenjang'] = $jenjang;
                 $contoh['is_active'] = true;
