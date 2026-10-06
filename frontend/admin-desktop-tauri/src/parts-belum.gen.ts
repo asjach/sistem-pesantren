@@ -21,7 +21,6 @@ export const BELUM_DIPAKAI: ReadonlySet<string> = new Set([
   'input_otp',
   'calendar',
   'button_group',
-  'hover_card',
   'command',
   'sheet',
   'drawer',

@@ -1,5 +1,6 @@
-import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import type { CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan } from '../../api/keuangan';
 
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -104,6 +105,20 @@ interface TooltipSel {
   jatuhTempo: string | null;
 }
 
+/** Baris tooltip hover: rincian tagihan per sel. */
+interface TooltipSel {
+  nama: string;
+  jenisNama: string;
+  tipe: CrosstabKolom['tipe'];
+  periode: string | null;
+  nominal: number;
+  terbayar: number;
+  sisa: number;
+  status: CrosstabSel['status'];
+  terlambat: boolean;
+  jatuhTempo: string | null;
+}
+
 const LEBAR_TOOLTIP = 224;
 const TINGGI_TOOLTIP = 200;
 /** Jarak tooltip dari kursor (x, y) — dipakai juga sebagai posisi awal render. */
@@ -124,7 +139,7 @@ function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
 /** Satu baris tabel. `memo` + props stabil → saat tooltip berpindah sel, hanya
  *  baris yang di-hover yang dirender ulang, bukan seluruh tabel (ratusan sel). */
 const BarisCrosstab = memo(function BarisCrosstab({
-  baris, kolom, terpilihId, onPilih, onHoverMasuk, onHoverGerak, onHoverKeluar,
+  baris, kolom, terpilihId, onPilih, onHoverMasuk, onHoverKeluar,
 }: {
   baris: CrosstabBaris;
   kolom: CrosstabKolom[];
@@ -135,8 +150,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
-  onHoverMasuk: (isi: TooltipSel, e: React.MouseEvent) => void;
-  onHoverGerak: (e: React.MouseEvent) => void;
+  onHoverMasuk: (isi: TooltipSel, anchor: HTMLElement) => void;
   onHoverKeluar: () => void;
 }) {
   return (
@@ -164,8 +178,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
               /* Klik kiri dan klik kanan sama-sama membuka popover aksi. */
               onClick={(e) => onPilih(sel, meta, e.currentTarget, k)}
               onContextMenu={(e) => { e.preventDefault(); onPilih(sel, meta, e.currentTarget, k); }}
-              onMouseEnter={(e) => onHoverMasuk(isiTooltip, e)}
-              onMouseMove={onHoverGerak}
+              onMouseEnter={(e) => onHoverMasuk(isiTooltip, e.currentTarget)}
               onMouseLeave={onHoverKeluar}
               aria-describedby="tip_tagihan_sel"
               title={`${baris.nama} — sisa Rp ${sel.sisa.toLocaleString('id')}`}
@@ -185,18 +198,14 @@ const BarisCrosstab = memo(function BarisCrosstab({
   );
 });
 
-function TooltipTagihan({ data, tipRef }: { data: TooltipSel; tipRef: React.Ref<HTMLDivElement> }) {
+/** Isi kartu hover: rincian tagihan per sel (dipakai di dalam HoverCardContent). */
+function IsiKartuTagihan({ data }: { data: TooltipSel }) {
   const status = data.status === 'lunas'
     ? 'Lunas'
     : data.terlambat ? 'Tunggakan' : 'Belum jatuh tempo';
 
   return (
-    <div
-      id="tip_tagihan_sel"
-      role="tooltip"
-      ref={tipRef}
-      className="pointer-events-none fixed left-0 top-0 z-50 w-56 rounded-lg border bg-popover p-2.5 text-xs shadow-md"
-    >
+    <div className="text-xs">
       <p className="font-semibold">{data.nama}</p>
       <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
         <dt className="text-muted-foreground">Nama Tarif</dt>
@@ -239,13 +248,12 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   // menembus header saat digulir.
   const grupRef = useRef<HTMLTableRowElement>(null);
   const [tinggiGrup, setTinggiGrup] = useState(0);
-  /** Sel yang sedang di-hover. Isinya berubah → render ulang; posisinya ditulis ke DOM. */
-  const [hover, setHover] = useState<TooltipSel | null>(null);
-  const tipRef = useRef<HTMLDivElement | null>(null);
-  /** Posisi kursor terakhir (ref: tidak memicu render). Dipakai untuk
-   *  menempatkan tooltip pada frame yang sama saat pertama kali muncul —
-   *  tanpa ini tooltip sempat berkedip di pojok kiri atas. */
-  const kursorRef = useRef<{ x: number; y: number } | null>(null);
+  /** Sel yang sedang di-hover + elemen selnya (jangkar kartu). */
+  const [hover, setHover] = useState<{ isi: TooltipSel; anchor: HTMLElement } | null>(null);
+  /** Elemen jangkar HoverCard (diposisikan di atas sel yang di-hover). */
+  const jangkarRef = useRef<HTMLDivElement | null>(null);
+  /** Tenggang sebelum menutup: mousemove dari sel ke kartu takfeflictutnutup. */
+  const tutupRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Handler stabil (dipakai props memo BarisCrosstab): `onPilih` & friends
   // dibuat ulang tiap render bila ditulis inline, sehingga memo tidak berlaku.
@@ -260,20 +268,46 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
     ) => pilihRef.current(sel, meta, anchor, kolom),
     [],
   );
-  const hoverMasuk = useCallback((isi: TooltipSel, e: React.MouseEvent) => {
-    kursorRef.current = { x: e.clientX, y: e.clientY };
-    setHover(isi);
+  const hoverMasuk = useCallback((isi: TooltipSel, anchor: HTMLElement) => {
+    if (tutupRef.current !== null) { clearTimeout(tutupRef.current); tutupRef.current = null; }
+    setHover({ isi, anchor });
   }, []);
-  const hoverGerak = useCallback((e: React.MouseEvent) => NeedleLetak(tipRef.current, e.clientX, e.clientY), []);
-  const hoverKeluar = useCallback(() => setHover(null), []);
+  const hoverKeluar = useCallback(() => {
+    if (tutupRef.current !== null) clearTimeout(tutupRef.current);
+    tutupRef.current = setTimeout(() => setHover(null), 400);
+  }, []);
+  /** Pointer masuk kartu: batalkan penundaan tutup. */
+  const hoverMasukKartu = useCallback(() => {
+    if (tutupRef.current !== null) { clearTimeout(tutupRef.current); tutupRef.current = null; }
+  }, []);
 
-  // useLayoutEffect: posisi dipasang sebelum browser melukis => tooltip tidak
-  // pernah tampil di posisi default sesaat.
-  useLayoutEffect(() => {
-    if (hover !== null && kursorRef.current !== null) {
-      NeedleLetak(tipRef.current, kursorRef.current.x, kursorRef.current.y);
-    }
+  /* Radix HoverCard tidak punya virtualRef seperti PopoverAnchor, jadi
+     jangkarnya harus elemen nyata. Kita taruh satu elemen tak terlihat persis
+     di atas sel yang di-hover; posisinya ditulis sebelum browser melukis. */
+  const tempatkanJangkar = useCallback(() => {
+    const el = jangkarRef.current;
+    if (el === null || hover === null) return;
+    const r = hover.anchor.getBoundingClientRect();
+    el.style.left = `${r.left}px`;
+    el.style.top = `${r.top}px`;
+    el.style.width = `${r.width}px`;
+    el.style.height = `${r.height}px`;
   }, [hover]);
+
+  useLayoutEffect(tempatkanJangkar, [tempatkanJangkar]);
+
+  /* Tabel digulir → tutup kartu. Radix tidak memantau pergeseran posisi
+     jangkar, jadi tanpa ini kartu melayang jauh dari sel asalnya. */
+  useEffect(() => {
+    const wrap = document.getElementById('crosstab_tagihan_scroll');
+    if (wrap === null) return;
+    const tutup = () => {
+      if (tutupRef.current !== null) { clearTimeout(tutupRef.current); tutupRef.current = null; }
+      setHover(null);
+    };
+    wrap.addEventListener('scroll', tutup, { passive: true });
+    return () => wrap.removeEventListener('scroll', tutup);
+  }, []);
   useLayoutEffect(() => {
     const el = grupRef.current;
     if (!el) return;
@@ -289,7 +323,7 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   }
 
   return (
-    <div className="h-full overflow-auto rounded-xl border bg-card">
+    <div id="crosstab_tagihan_scroll" className="h-full overflow-auto rounded-xl border bg-card">
       <table id="tbl_tagihan_crosstab" className="w-full border-separate border-spacing-0 text-xs">
         <thead>
           <tr ref={grupRef}>
@@ -333,7 +367,6 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
               terpilihId={terpilihId}
               onPilih={pilihStabil}
               onHoverMasuk={hoverMasuk}
-              onHoverGerak={hoverGerak}
               onHoverKeluar={hoverKeluar}
             />
           ))}
@@ -346,7 +379,29 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
           )}
         </tbody>
       </table>
-      {hover !== null && <TooltipTagihan data={hover} tipRef={tipRef} />}
+      <HoverCard open={hover !== null} openDelay={0} closeDelay={200}>
+        <HoverCardTrigger asChild>
+          <div
+            ref={jangkarRef}
+            aria-hidden
+            className="pointer-events-none fixed z-0 h-0 w-0 opacity-0"
+          />
+        </HoverCardTrigger>
+        <HoverCardContent
+          /* Radix tak memberi role pada content; kita pasang agar
+             aria-describedby pada sel tetap menunjuk elemen yang benar. */
+          id="tip_tagihan_sel"
+          role="tooltip"
+          align="center"
+          sideOffset={6}
+          collisionPadding={12}
+          onPointerEnter={hoverMasukKartu}
+          onPointerLeave={hoverKeluar}
+          className="w-56 p-2.5"
+        >
+          {hover !== null && <IsiKartuTagihan data={hover.isi} />}
+        </HoverCardContent>
+      </HoverCard>
     </div>
   );
 }

@@ -30,7 +30,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { FieldLabel } from '@/components/ui/field';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import { Plus } from '@/icons';
+import { ArrowDownAZ, ArrowUpAZ, Info, Plus, RotateCcw, Search, TriangleAlert, X } from '@/icons';
 import { DeleteAction } from '@/components/RowActions';
 import UbahTagihanDialog, { type TargetUbahTagihan } from '@/components/keuangan/UbahTagihanDialog';
 import PopoverAksiTagihan, { type TagihanAktif } from '@/components/keuangan/PopoverAksiTagihan';
@@ -376,47 +376,102 @@ export default function KeuanganPage() {
           />
         </TabsContent>
 
-<TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+<TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-2 bg-muted/30 p-2 ${KELAS_PANEL_TAB}`}>
+          {/* Bilah alat tagihan: cari | urut | filter | aksi. */}
+          <div className="rounded-xl border bg-card p-2.5 shadow-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <Input
-              id="inp_tagihan_cari"
-              placeholder="Cari nama / NIS / NISN…"
-              className="h-8 w-64"
-              value={cariTagihan}
-              onChange={(e) => setCariTagihan(e.target.value)}
-            />
-            <select
-              id="sel_tagihan_urut"
-              className="h-8 rounded border px-2 text-xs"
-              value={urutTagihan}
-              onChange={(e) => setUrutTagihan(e.target.value)}
-              aria-label="Urutkan baris"
-            >
-              <option value="">Urutkan: nama</option>
-              <option value="total">Total tagihan</option>
-              <option value="bayar">Terbayar</option>
-              <option value="sisa">Tunggakan</option>
-            </select>
-            <Button
-              id="btn_tagihan_arah"
-              size="sm"
-              variant="outline"
-              title={arahTagihan === 'naik' ? 'Arah: naik' : 'Arah: turun'}
-              onClick={() => setArahTagihan((a) => (a === 'naik' ? 'turun' : 'naik'))}
-            >
-              {arahTagihan === 'naik' ? 'Naik' : 'Turun'}
-            </Button>
+            <div className="relative">
+              <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="inp_tagihan_cari"
+                placeholder="Cari nama / NIS / NISN…"
+                className="h-8 w-64 pl-8 pr-8"
+                value={cariTagihan}
+                onChange={(e) => setCariTagihan(e.target.value)}
+              />
+              {cariTagihan !== '' && (
+                <button
+                  type="button"
+                  id="btn_tagihan_cari_bersih"
+                  aria-label="Bersihkan pencarian"
+                  title="Bersihkan pencarian"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  onClick={() => setCariTagihan('')}
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+            <div aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
+            <div className="flex items-center gap-1.5">
+              <select
+                id="sel_tagihan_urut"
+                className="h-8 rounded-lg border border-border bg-background px-2 text-xs transition-colors hover:border-ring/50 focus:border-ring focus:outline-none"
+                value={urutTagihan}
+                onChange={(e) => setUrutTagihan(e.target.value)}
+                aria-label="Urutkan baris"
+              >
+                <option value="">Urutkan: nama</option>
+                <option value="total">Total tagihan</option>
+                <option value="bayar">Terbayar</option>
+                <option value="sisa">Tunggakan</option>
+              </select>
+              <Button
+                id="btn_tagihan_arah"
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5 px-2.5 text-xs"
+                title={arahTagihan === 'naik' ? 'Arah: naik (klik untuk turun)' : 'Arah: turun (klik untuk naik)'}
+                onClick={() => setArahTagihan((a) => (a === 'naik' ? 'turun' : 'naik'))}
+              >
+                {arahTagihan === 'naik' ? <ArrowUpAZ size={14} /> : <ArrowDownAZ size={14} />}
+                {arahTagihan === 'naik' ? 'Naik' : 'Turun'}
+              </Button>
+            </div>
+            <div aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
             <Button
               id="btn_tagihan_terlambat"
               size="sm"
               variant={terlambatTagihan ? 'default' : 'outline'}
               aria-pressed={terlambatTagihan}
+              className="h-8 gap-1.5 px-2.5 text-xs"
               title="Tampilkan hanya tagihan yang sudah lewat jatuh tempo"
               onClick={() => { setTerlambatTagihan((v) => !v); setTagihanPage(1); }}
             >
-              Terlambat
+              <TriangleAlert size={14} />
+              Terlambat saja
             </Button>
-            <Button id="btn_gen_buka" size="sm" onClick={() => setGenerateOpen(true)}>+ Buat Tagihan</Button>
+            <div className="flex-1" />
+            {(cariTagihan !== '' || urutTagihan !== '' || arahTagihan !== 'naik' || terlambatTagihan) && (
+              <Button
+                id="btn_tagihan_reset"
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                title="Kembalikan pencarian, urutan, dan filter ke awal"
+                onClick={() => { setCariTagihan(''); setUrutTagihan(''); setArahTagihan('naik'); setTerlambatTagihan(false); setTagihanPage(1); }}
+              >
+                <RotateCcw size={14} />
+                Atur ulang
+              </Button>
+            )}
+            <Button id="btn_gen_buka" size="sm" className="h-8 gap-1.5 px-3 text-xs font-medium" onClick={() => setGenerateOpen(true)}><Plus size={14} /> Buat Tagihan</Button>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-dashed pt-2 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Info size={13} className="shrink-0" />
+              Klik sel nominal untuk bayar, ubah, atau lihat riwayat.
+            </span>
+            <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="Arti warna sel">
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Lunas</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-destructive" />Tunggakan</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/40" />Belum jatuh tempo</span>
+            </span>
+            <span className="ml-auto tabular-nums">
+              {tagihanTotal > 0 ? tagihanTotal + ' santri' : 'Belum ada data'}
+            </span>
+          </div>
           </div>
 
           <div className="min-h-0 flex-1">
