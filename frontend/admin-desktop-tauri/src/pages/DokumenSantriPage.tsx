@@ -1,54 +1,32 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ambilBerkas, errorMessage, isTauri, prefGet } from '../api/client';
-import type { LokasiArsip } from '@/lib/arsipDokumen';
-import { bisa } from '../api/auth';
-import { useAuth } from '../auth/AuthContext';
-import { listSantri, type Santri } from '../api/santri';
-import { listDokumen, hapusDokumen, ubahDokumen, unggahBerkasDokumen, unduhBerkasDokumen, type DokumenRow } from '../api/dokumen';
-import { listKelas, referensiList, type Kelas, type ReferensiRow } from '../api/master';
-import { listRiwayatBelajar } from '../api/siklus';
-import { Button } from '@/components/ui/button';
-import FilterRail from '@/components/FilterRail';
-import TombolIkon from '@/components/TombolIkon';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { errorMessage } from '@/api/client';
+import { bisa } from '@/api/auth';
+import { useAuth } from '@/auth/AuthContext';
+import { listSantri, type Santri } from '@/api/santri';
+import { listDokumen } from '@/api/dokumen';
+import { listKelas, type Kelas } from '@/api/master';
+import { listRiwayatBelajar } from '@/api/siklus';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import FilterRail from '@/components/FilterRail';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import ComboCari from '@/components/ComboCari';
 import { ProfilSantriDialog } from '@/components/ProfilSantriDialog';
 import { cn } from '@/lib/utils';
 import { jenjangTampilSantri, urutSantriFilter, type InfoUrutSantri } from '@/lib/urut';
-import {
-  BATAS_BERKAS,
-  EKSTENSI_PILIH,
-  ekstensiDariNama,
-  mimeDariEkstensi,
-  pilihBerkasDokumen,
-} from '@/lib/arsipDokumen';
-import PenampilBerkas, { type SumberBerkas } from '@/components/dokumen/PenampilBerkas';
-import DialogSinkronDokumen from '@/components/dokumen/DialogSinkronDokumen';
+import PanelDokumen from '@/components/dokumen/PanelDokumen';
 import TambahDokumenSantriDialog from '@/components/dokumen/TambahDokumenSantriDialog';
-import { siapkanFileUntukServer } from '@/lib/konversiHeic';
-import { gantiEkstensi, type HasilGambar } from '@/lib/olahGambar';
-import { Check, Download, FolderOpen, MoreVertical, Plus, RefreshCw, Save, Trash2, Undo2, Upload, X } from '@/icons';
-import { toast } from 'sonner';
 
 /** Halaman Dokumen Santri — tata letak sama dengan Tambah Dokumen.
- *  Kolom 1 baris 1: tabel Daftar Santri; baris 2: tabel Daftar Dokumen
- *  milik santri terpilih (klik baris = pratinjau di kolom 2).
- *  Kolom 2: pratinjau baca-saja + aksi Unduh/Ganti per baris. */
+ *  Kolom 1 baris 1: tabel Daftar Santri; baris 2: daftar dokumen milik
+ *  santri terpilih (klik baris = pratinjau di kolom 2).
+ *  Kolom 2: pratinjau baca-saja + aksi Unduh/Ganti per baris.
+ *  Logika & tampilan dokumen dipakai bersama Dokumen Pegawai lewat
+ *  `PanelDokumen`; halaman ini hanya mengurus panel subjek (santri). */
 export default function DokumenSantriPage() {
   const { user } = useAuth();
-  const desktop = isTauri();
   const canUbah = bisa(user, 'dokumen_santri.ubah');
   const canHapus = bisa(user, 'dokumen_santri.hapus');
   const canTambah = bisa(user, 'dokumen_santri.tambah');
@@ -197,505 +175,9 @@ export default function DokumenSantriPage() {
     return () => { hidup = false; };
   }, [muatJumlahSantri]);
 
-  // ----- Daftar dokumen milik santri terpilih (kolom 1, baris 2) -----
-  const [dokumens, setDokumens] = useState<DokumenRow[]>([]);
-  const [loadingDok, setLoadingDok] = useState(false);
-  /** Salinan arsip yang benar-benar ada di perangkat ini (kunci: id dokumen). */
-  const [arsipAda, setArsipAda] = useState<Record<number, boolean>>({});
-  const muatDokumen = useCallback(async (sid: number, signal?: AbortSignal) => {
-    setLoadingDok(true);
-    try {
-      const p = await listDokumen('santri', { santri_id: sid, per_page: 0, signal });
-      if (signal?.aborted) return;
-      setDokumens(p.data);
-      // Petakan keberadaan salinan arsip (desktop saja, baris lokal/test) —
-      // dasar mengaktifkan/mematikan aksi Ubah.
-      if (!isTauri()) { setArsipAda({}); return; }
-      const perlu = p.data.filter((d) => (d.penyimpanan ?? 'server') !== 'server' && d.nama_file);
-      if (perlu.length === 0) { setArsipAda({}); return; }
-      try {
-        const { cariLokal } = await import('@/lib/arsipDokumen');
-        const peta: Record<number, boolean> = {};
-        for (const d of perlu) {
-          peta[d.id] = d.nama_file
-            ? (await cariLokal(d.nama_file, d.jenis_dokumen, 'santri', d.penyimpanan ?? 'server')) !== null
-            : false;
-        }
-        if (!signal?.aborted) setArsipAda(peta);
-      } catch {
-        if (!signal?.aborted) setArsipAda({});
-      }
-    } catch (e) {
-      if (signal?.aborted) return;
-      toast.error(errorMessage(e));
-      setDokumens([]);
-    } finally {
-      setLoadingDok(false);
-    }
-  }, []);
-  useEffect(() => {
-    setDokId(null);
-    setPratinjau(null);
-    if (santriId == null) { setDokumens([]); return; }
-    const c = new AbortController();
-    void muatDokumen(santriId, c.signal);
-    return () => c.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [santriId, muatDokumen]);
-
-  // ----- Pratinjau (kolom 2, baca-saja) -----
-  const [dokId, setDokId] = useState<number | null>(null);
-  const [pratinjau, setPratinjau] = useState<SumberBerkas | null>(null);
-
-  /** Ambil byte untuk pratinjau: arsip perangkat bila lokal/test, bila tidak dari server. */
-  const muatPratinjau = useCallback(async (r: DokumenRow) => {
-    setDokId(r.id);
-    setPratinjau(null);
-    try {
-      const nama = r.nama_file ?? `dokumen-${r.id}`;
-      const ext = ekstensiDariNama(nama);
-      const mime = mimeDariEkstensi(ext);
-      const lokasi = r.penyimpanan ?? 'server';
-      if (lokasi !== 'server' && desktop && r.nama_file) {
-        const { cariLokal } = await import('@/lib/arsipDokumen');
-        const ketemu = await cariLokal(r.nama_file, r.jenis_dokumen, 'santri', lokasi);
-        if (ketemu) {
-          setPratinjau({ bytes: ketemu.bytes, mime, nama });
-          return;
-        }
-        // Cermin: salinan server selalu ada — jatuh ke unduh di bawah.
-        if (lokasi !== 'cermin') {
-          toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
-          return;
-        }
-      }
-      if ((lokasi === 'lokal' || lokasi === 'test') && !desktop) {
-        toast.error('Berkas tersimpan di arsip perangkat, bukan di server. Buka lewat aplikasi desktop.');
-        return;
-      }
-      const buf = await ambilBerkas(`/admin/dokumen/santri/${r.id}/unduh`);
-      setPratinjau({ bytes: new Uint8Array(buf), mime, nama });
-    } catch (e) {
-      toast.error(errorMessage(e));
-    }
-  }, [desktop]);
-
-  /** Unduh menurut kolom penyimpanan: server langsung; lokal/test via
-   *  dialog simpan native dari arsip perangkat (desktop). Tanpa tebak-tebakan. */
-  const unduhCerdas = useCallback(async (r: DokumenRow) => {
-    const lokasi = r.penyimpanan ?? 'server';
-    if (lokasi === 'server' || !isTauri() || !r.nama_file) {
-      await unduhBerkasDokumen('santri', r.id, r.nama_file ?? 'dokumen').catch((e) => toast.error(errorMessage(e)));
-      return;
-    }
-    try {
-      const { writeFile } = await import('@tauri-apps/plugin-fs');
-      const { save } = await import('@tauri-apps/plugin-dialog');
-      const { cariLokal } = await import('@/lib/arsipDokumen');
-      const ketemu = await cariLokal(r.nama_file, r.jenis_dokumen, 'santri', lokasi);
-      if (!ketemu && lokasi !== 'cermin') {
-        toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
-        return;
-      }
-      // Cermin tanpa salinan lokal: salinan server selalu ada.
-      const bytes = ketemu?.bytes ?? new Uint8Array(await ambilBerkas(`/admin/dokumen/santri/${r.id}/unduh`));
-      const tujuan = await save({
-        defaultPath: r.nama_file,
-        filters: [{ name: 'Dokumen', extensions: ['jpg', 'jpeg', 'png', 'pdf'] }],
-      });
-      if (!tujuan) return;
-      await writeFile(tujuan, bytes);
-      toast.success(`Tersimpan: ${String(tujuan).split('/').pop() ?? r.nama_file}`);
-    } catch (e) {
-      toast.warning(`Arsip lokal gagal dibaca: ${errorMessage(e)}`);
-    }
-  }, []);
-
-  /** Aksi butuh desktop bila byte hanya ada di arsip perangkat tapi dibuka dari web. */
-  const perluDesktop = useCallback(
-    (r: DokumenRow) => !isTauri() && ((r.penyimpanan ?? 'server') === 'lokal' || (r.penyimpanan ?? 'server') === 'test'),
-    [],
-  );
-
-  /** Bersihkan salinan arsip lokal (desktop, best-effort, diam bila tak ada). */
-  const bersihkanArsip = useCallback(async (nama: string | null, jenis: string, lokasi: LokasiArsip) => {
-    if (!isTauri() || !nama) return;
-    try {
-      const { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST, akarArsip, hapusArsip } = await import('@/lib/arsipDokumen');
-      const [r1, r2] = await Promise.all([
-        prefGet(PREF_FOLDER_ARSIP).catch(() => null),
-        prefGet(PREF_FOLDER_ARSIP_TEST).catch(() => null),
-      ]);
-      const akars = await Promise.all([
-        akarArsip(typeof r1 === 'string' ? r1 : '', ROOT_ARSIP_DOKUMEN),
-        akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
-      ]);
-      for (const akar of akars) {
-        await hapusArsip(nama, jenis, akar, 'santri', lokasi);
-      }
-    } catch (e) {
-      toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
-    }
-  }, []);
-
-  // ----- Hapus dokumen -----
-  const [hapusRow, setHapusRow] = useState<DokumenRow | null>(null);
-
-  // ----- Sinkron cermin (santri ini / semua santri) -----
-  const [sinkronTerbuka, setSinkronTerbuka] = useState(false);
-  const [tambahTerbuka, setTambahTerbuka] = useState(false);
-  const namaSantriAktif = useMemo(
-    () => santris.find((x) => x.id === santriId)?.nama_lengkap ?? '',
-    [santris, santriId],
-  );
-  const segarkanSetelahSinkron = useCallback(async () => {
-    void muatJumlahSantri().then(setJumlahSantri);
-    if (santriId == null) return;
-    await muatDokumen(santriId);
-    if (dokId != null) {
-      const p = await listDokumen('santri', { santri_id: santriId, per_page: 0 });
-      const baru = p.data.find((d) => d.id === dokId);
-      if (baru) void muatPratinjau(baru);
-    }
-  }, [santriId, dokId, muatDokumen, muatJumlahSantri, muatPratinjau]);
-
-  const onHapus = useCallback(async () => {
-    if (!hapusRow) return;
-    setBusy(true);
-    try {
-      const nama = hapusRow.nama_file;
-      const jenis = hapusRow.jenis_dokumen;
-      const idHapus = hapusRow.id;
-      await hapusDokumen('santri', hapusRow.id);
-      toast.success('Dokumen dihapus.');
-      await bersihkanArsip(nama, jenis, (hapusRow.penyimpanan ?? 'server') === 'test' ? 'test' : 'lokal');
-      setHapusRow(null);
-      if (dokId === idHapus) { setDokId(null); setPratinjau(null); }
-      if (santriId != null) {
-        await muatDokumen(santriId);
-        void muatJumlahSantri().then(setJumlahSantri);
-      }
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }, [hapusRow, dokId, santriId, muatDokumen, muatJumlahSantri, bersihkanArsip]);
-
-  /** Ubah aktif hanya bila nama berkas bisa ikut selaras: baris Server
-   *  (backend yang memindah) atau arsipnya ada di perangkat ini (desktop
-   *  yang memindah). Selain itu aksi dimatikan agar DB tak beda dari fisik. */
-  const bisaSelaras = useCallback((r: DokumenRow) => {
-    if ((r.penyimpanan ?? 'server') === 'server') return true;
-    return desktop && arsipAda[r.id] === true;
-  }, [desktop, arsipAda]);
-  const judulSelaras = useCallback((r: DokumenRow) => {
-    if ((r.penyimpanan ?? 'server') === 'server') return 'Ubah jenis/catatan — nama berkas ikut diselaraskan';
-    if (!desktop) return 'Baris arsip perangkat hanya bisa diubah lewat aplikasi desktop';
-    return arsipAda[r.id] === true
-      ? 'Ubah jenis/catatan — salinan arsip ikut dipindah'
-      : 'Salinan arsip tidak ada di perangkat ini — ubah dari perangkat asal';
-  }, [desktop, arsipAda]);
-
-  // ----- Ubah inline di segmen Info dokumen (jenis/lembaga/catatan
-  //  memicu selaras nama berkas; status/nama/lokasi edit data langsung) -----
-  const [editJenis, setEditJenis] = useState('');
-  const [editLembaga, setEditLembaga] = useState('');
-  const [editCatatan, setEditCatatan] = useState('');
-  const [editAktif, setEditAktif] = useState('Ya');
-  const [editNama, setEditNama] = useState('');
-  const [editLokasi, setEditLokasi] = useState('server');
-  // Ganti baris terpilih → editor mengikuti nilai baris baru.
-  useEffect(() => {
-    const baris = dokumens.find((d) => d.id === dokId) ?? null;
-    setEditJenis(baris?.jenis_dokumen ?? '');
-    setEditLembaga(baris?.lembaga ?? '');
-    setEditCatatan(baris?.catatan ?? '');
-    setEditAktif(baris?.is_active === false ? 'Tidak' : 'Ya');
-    setEditNama(baris?.nama_file ?? '');
-    setEditLokasi(baris?.penyimpanan ?? 'server');
-  }, [dokId, dokumens]);
-
-  /** Opsi jenis dari referensi (sama dengan halaman Tambah). */
-  const [jenisRows, setJenisRows] = useState<ReferensiRow[]>([]);
-  useEffect(() => {
-    if (jenjangs.length === 0) { setJenisRows([]); return; }
-    let hidup = true;
-    referensiList('jenis_dokumen_santri', jenjangs)
-      .then((r) => { if (hidup) setJenisRows(r); })
-      .catch(() => { if (hidup) setJenisRows([]); });
-    return () => { hidup = false; };
-  }, [jenjangs]);
-  const opsiJenisUbah = useMemo(() => {
-    const opsi = jenisRows.map((r) => ({ value: String(r.nama ?? r.kode), label: String(r.nama ?? r.kode) }));
-    // Nilai tersimpan yang tak ada di referensi tetap bisa tampil/terpilih.
-    const kini = editJenis.trim();
-    if (kini !== '' && !opsi.some((o) => o.value === kini)) opsi.push({ value: kini, label: kini });
-    return opsi;
-  }, [jenisRows, editJenis]);
-
-  const onUbah = useCallback(async () => {
-    // Cari langsung (bukan dokPratinjau) agar callback bisa dideklarasikan
-    // sebelum memo baris terpilih.
-    const baris = dokumens.find((d) => d.id === dokId) ?? null;
-    if (!baris || editJenis.trim() === '') return;
-    // Hanya field yang berubah yang dikirim; jenis/lembaga/catatan memicu
-    // selaras nama berkas, sisanya edit data langsung.
-    const payload: Record<string, unknown> = { selaraskan_nama: true };
-    if (editJenis.trim() !== (baris.jenis_dokumen ?? '')) payload.jenis_dokumen = editJenis.trim();
-    if (editLembaga !== (baris.lembaga ?? '')) payload.lembaga = editLembaga || null;
-    if ((editCatatan.trim() || '') !== (baris.catatan ?? '')) payload.catatan = editCatatan.trim() || null;
-    const aktifAwal = baris.is_active === false ? 'Tidak' : 'Ya';
-    if (editAktif !== aktifAwal) payload.is_active = editAktif === 'Ya';
-    if (editNama.trim() !== (baris.nama_file ?? '')) payload.nama_file = editNama.trim() || null;
-    if (editLokasi !== (baris.penyimpanan ?? 'server')) payload.penyimpanan = editLokasi;
-    if (Object.keys(payload).length <= 1) return;
-    setBusy(true);
-    const namaLama = baris.nama_file;
-    const jenisLama = baris.jenis_dokumen;
-    const jenisBaru = editJenis.trim();
-    const idUbah = baris.id;
-    const lokasi = baris.penyimpanan ?? 'server';
-    try {
-      const hasil = await ubahDokumen('santri', baris.id, payload);
-      toast.success('Dokumen diubah.');
-      const segar = hasil.data;
-      setEditJenis(segar?.jenis_dokumen ?? jenisBaru);
-      setEditLembaga(segar?.lembaga ?? '');
-      setEditCatatan(segar?.catatan ?? '');
-      setEditAktif(segar?.is_active === false ? 'Tidak' : 'Ya');
-      setEditNama(segar?.nama_file ?? '');
-      setEditLokasi(segar?.penyimpanan ?? 'server');
-      // Desktop: pindahkan salinan arsip mengikuti nama + folder baru.
-      const namaBaru = hasil.data?.nama_file ?? null;
-      if (desktop && lokasi !== 'server' && namaLama && namaBaru && namaBaru !== namaLama) {
-        try {
-          const { exists, mkdir, rename } = await import('@tauri-apps/plugin-fs');
-          const { join } = await import('@tauri-apps/api/path');
-          const { kandidatAkarArsip, cariArsip } = await import('@/lib/arsipDokumen');
-          let pindah = false;
-          for (const { akar, lokasi: lokasiArsip } of await kandidatAkarArsip(lokasi)) {
-            const lama = await cariArsip(namaLama, jenisLama, akar, 'santri', lokasiArsip);
-            if (!lama) continue;
-            const { folderArsip } = await import('@/lib/arsipDokumen');
-            const folderTipe = await folderArsip(akar, lokasiArsip, 'santri');
-            await mkdir(folderTipe, { recursive: true });
-            const baru = await join(folderTipe, namaBaru);
-            if (await exists(baru)) {
-              toast.warning('Metadata berubah; nama baru sudah dipakai di arsip — salinan lama dibiarkan.');
-              pindah = true;
-              break;
-            }
-            await rename(lama, baru);
-            pindah = true;
-            break;
-          }
-          if (!pindah) toast.warning('Metadata berubah; salinan arsip tidak ditemukan di perangkat ini.');
-        } catch (e) {
-          toast.warning(`Metadata berubah; arsip lokal gagal dipindah: ${errorMessage(e)}`);
-        }
-      }
-      if (santriId != null) {
-        await muatDokumen(santriId);
-        if (dokId === idUbah) {
-          const p = await listDokumen('santri', { santri_id: santriId, per_page: 0 });
-          const baru = p.data.find((dd) => dd.id === idUbah);
-          if (baru) void muatPratinjau(baru);
-        }
-      }
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }, [dokumens, editJenis, editLembaga, editCatatan, editAktif, editNama, editLokasi, santriId, dokId, desktop, muatDokumen, muatPratinjau]);
-
-  /** Toggle aktif via klik kanan: aktif → nonaktifkan & sebaliknya. */
-  const onToggleAktif = useCallback(async (row: DokumenRow) => {
-    setBusy(true);
-    try {
-      const jadiAktif = !(row.is_active ?? true);
-      await ubahDokumen('santri', row.id, { is_active: jadiAktif });
-      toast.success(jadiAktif ? 'Dokumen diaktifkan.' : 'Dokumen dinonaktifkan.');
-      if (santriId != null) await muatDokumen(santriId);
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }, [santriId, muatDokumen]);
-
-  // ----- Ganti berkas -----
-  const [gantiRow, setGantiRow] = useState<DokumenRow | null>(null);
-  const [gantiFile, setGantiFile] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
-  const inputGantiWebRef = useRef<HTMLInputElement>(null);
-
-  async function onBrowseGanti() {
-    if (desktop) {
-      try {
-        const b = await pilihBerkasDokumen();
-        if (!b) return;
-        const { readFile } = await import('@tauri-apps/plugin-fs');
-        const bytes = await readFile(b.path);
-        setGantiFile(new File([new Uint8Array(bytes)], b.nama, { type: b.mime }));
-      } catch (e) {
-        toast.error(errorMessage(e));
-      }
-      return;
-    }
-    inputGantiWebRef.current?.click();
-  }
-
-  function onFileGantiWeb(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] ?? null;
-    if (!f) return;
-    const ext = ekstensiDariNama(f.name);
-    if (!EKSTENSI_PILIH.includes(ext)) {
-      toast.error(`Berkas harus ${EKSTENSI_PILIH.join('/').toUpperCase()} (HEIC/WEBP otomatis dikonversi).`);
-      e.target.value = '';
-      return;
-    }
-    if (f.size > BATAS_BERKAS) {
-      toast.error('Berkas melebihi 10 MB.');
-      e.target.value = '';
-      return;
-    }
-    setGantiFile(f);
-  }
-
-  /** Ganti isi berkas di lokasi yang sama (server diunggah, arsip
-   *  perangkat ditulis ulang) + salinan arsip lama dibuang. */
-  const terapkanGanti = useCallback(async (row: DokumenRow, file: File): Promise<boolean> => {
-    setBusy(true);
-    const namaLama = row.nama_file;
-    const jenisLama = row.jenis_dokumen;
-    const idLama = row.id;
-    const lokasi = row.penyimpanan ?? 'server';
-    try {
-      if (lokasi !== 'server' && isTauri()) {
-        const { targetTulisLokal, tulisGantiArsip } = await import('@/lib/arsipDokumen');
-        const siapLokal = await siapkanFileUntukServer(file);
-        if (siapLokal.dikonversi) toast.info('Berkas dikonversi ke JPG.');
-        const target = await targetTulisLokal(namaLama ?? '', row.jenis_dokumen, 'santri', lokasi);
-        const namaBaru = await tulisGantiArsip({
-          namaLama,
-          jenis: row.jenis_dokumen,
-          pemilik: row.pemilik ?? '',
-          catatan: row.catatan ?? '',
-          ext: ekstensiDariNama(siapLokal.file.name),
-          data: new Uint8Array(await siapLokal.file.arrayBuffer()),
-          lokasi: target.lokasi,
-          tipe: 'santri',
-        });
-        if (namaBaru !== namaLama) {
-          await ubahDokumen('santri', row.id, { nama_file: namaBaru });
-        }
-        toast.success('Berkas diganti.');
-        if (santriId != null) {
-          await muatDokumen(santriId);
-          void muatJumlahSantri().then(setJumlahSantri);
-        }
-        if (dokId === idLama && santriId != null) {
-          const p = await listDokumen('santri', { santri_id: santriId, per_page: 0 });
-          const baru = p.data.find((d) => d.id === idLama);
-          if (baru) void muatPratinjau(baru);
-        }
-        return true;
-      }
-      const siap = await siapkanFileUntukServer(file);
-      if (siap.dikonversi) toast.info('Berkas HEIC dikonversi ke JPG.');
-      await unggahBerkasDokumen('santri', row.id, siap.file);
-      toast.success('Berkas diganti.');
-      await bersihkanArsip(namaLama, jenisLama, lokasi === 'test' ? 'test' : 'lokal');
-      if (santriId != null) {
-        await muatDokumen(santriId);
-        void muatJumlahSantri().then(setJumlahSantri);
-      }
-      // Segarkan pratinjau bila baris yang diganti sedang tampil.
-      if (dokId === idLama && santriId != null) {
-        const p = await listDokumen('santri', { santri_id: santriId, per_page: 0 });
-        const baru = p.data.find((d) => d.id === idLama);
-        if (baru) void muatPratinjau(baru);
-      }
-      return true;
-    } catch (e) {
-      toast.error(errorMessage(e));
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  }, [santriId, dokId, muatDokumen, muatJumlahSantri, muatPratinjau, bersihkanArsip]);
-
-  const onGanti = useCallback(async () => {
-    if (!gantiRow || !gantiFile) return;
-    if (await terapkanGanti(gantiRow, gantiFile)) {
-      setGantiRow(null);
-      setGantiFile(null);
-    }
-  }, [gantiRow, gantiFile, terapkanGanti]);
-
-  const daftarIds = useMemo(() => santris.map((s) => s.id), [santris]);
-
-  /** Keluaran viewer (hasil putar/crop/resize/editor) + status kotor. */
-  const [keluaran, setKeluaran] = useState<HasilGambar | null>(null);
-  const [kotor, setKotor] = useState(false);
-  /** Pipeline viewer sibuk: Simpan dikunci agar tak mengunggah byte basi. */
-  const [prosesViewer, setProsesViewer] = useState(false);
-  /** Kunci remount viewer (Buang perubahan mengembalikan tampilan asli). */
-  const [kunciViewer, setKunciViewer] = useState(0);
-  /** Baris yang sedang dipratinjau — dasar mengaktifkan tombol ubah viewer. */
-  const dokPratinjau = useMemo(() => dokumens.find((d) => d.id === dokId) ?? null, [dokumens, dokId]);
   /** Santri terpilih (fallback nama bila baris tak memuat join). */
   const santriDipilih = useMemo(() => santris.find((p) => p.id === santriId) ?? null, [santris, santriId]);
-  /** Baris terpilih boleh diubah inline (izin + arsip tersedia bila perangkat). */
-  const infoBisaUbah = dokPratinjau != null && canUbah && bisaSelaras(dokPratinjau);
-  /** Ada perubahan yang belum disimpan (enam field edit inline). */
-  const infoKotor = dokPratinjau != null
-    && (editJenis.trim() !== (dokPratinjau.jenis_dokumen ?? '')
-      || editLembaga !== (dokPratinjau.lembaga ?? '')
-      || (editCatatan.trim() || '') !== (dokPratinjau.catatan ?? '')
-      || editAktif !== (dokPratinjau.is_active === false ? 'Tidak' : 'Ya')
-      || editNama.trim() !== (dokPratinjau.nama_file ?? '')
-      || editLokasi !== (dokPratinjau.penyimpanan ?? 'server'));
-  const bisaUbahViewer = canUbah && dokPratinjau !== null && !perluDesktop(dokPratinjau);
-
-  /** Simpan hasil edit viewer: arsip perangkat ditulis balik di tempat
-   *  (lokasi tak berubah); server diunggah seperti Ganti. */
-  const onSimpanEdit = useCallback(async () => {
-    if (!dokPratinjau || !keluaran || !pratinjau) return;
-    const lokasi = dokPratinjau.penyimpanan ?? 'server';
-    if (lokasi !== 'server' && isTauri() && dokPratinjau.nama_file) {
-      setBusy(true);
-      try {
-        const namaBaru = gantiEkstensi(pratinjau.nama, keluaran.ext);
-        const { targetTulisLokal, tulisBalikArsip } = await import('@/lib/arsipDokumen');
-        const target = await targetTulisLokal(dokPratinjau.nama_file, dokPratinjau.jenis_dokumen, 'santri', lokasi);
-        await tulisBalikArsip(dokPratinjau.nama_file, namaBaru, dokPratinjau.jenis_dokumen, keluaran.bytes, 'santri', target.lokasi);
-        if (namaBaru !== dokPratinjau.nama_file) {
-          await ubahDokumen('santri', dokPratinjau.id, { nama_file: namaBaru });
-        }
-        toast.success('Berkas diganti.');
-        if (santriId != null) {
-          await muatDokumen(santriId);
-          const p = await listDokumen('santri', { santri_id: santriId, per_page: 0 });
-          const baru = p.data.find((d) => d.id === dokPratinjau.id);
-          if (baru) void muatPratinjau(baru);
-        }
-      } catch (e) {
-        toast.error(errorMessage(e));
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-    const file = new File(
-      [keluaran.bytes.buffer as ArrayBuffer],
-      gantiEkstensi(pratinjau.nama, keluaran.ext),
-      { type: keluaran.mime },
-    );
-    await terapkanGanti(dokPratinjau, file);
-  }, [dokPratinjau, keluaran, pratinjau, terapkanGanti, santriId, muatDokumen, muatPratinjau]);
+  const daftarIds = useMemo(() => santris.map((s) => s.id), [santris]);
 
   /** Mode filter: urut jenjang → tingkat → kelas → nama → jk. */
   const infoUrutSantri = useMemo(() => {
@@ -713,10 +195,6 @@ export default function DokumenSantriPage() {
     () => (sumber === 'filter' ? urutSantriFilter(santris, infoUrutSantri) : santris),
     [sumber, santris, infoUrutSantri],
   );
-  const lokasiLabel = (r: DokumenRow) =>
-    (r.penyimpanan ?? 'server') === 'lokal' ? 'Lokal'
-    : (r.penyimpanan ?? 'server') === 'test' ? 'Test'
-    : (r.penyimpanan ?? 'server') === 'cermin' ? 'Cermin' : 'Server';
 
   return (
     <div className={PAGE_SHELL}>
@@ -727,491 +205,99 @@ export default function DokumenSantriPage() {
           panel dokumen) — hanya saat sumber daftar = Filter Santri. */}
       <div className="flex min-h-0 flex-1">
         {sumber === 'filter' ? <FilterRail /> : null}
-      <ResizablePanelGroup orientation="horizontal" id="grup_lihat_dokumen" className="min-h-0 min-w-0 flex-1 overflow-hidden">
-        {/* Kolom 1: daftar santri (baris 1) + daftar dokumen (baris 2). */}
-        <ResizablePanel defaultSize={400} minSize={300} maxSize="70%" id="panel_lihat_dokumen_daftar" className="min-h-0">
-          <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-xl border bg-card p-4">
-          <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-            <FieldLabel id="label_sumber_santri_lihat">Daftar santri</FieldLabel>
-            <div id="radio_sumber_santri_lihat" role="radiogroup" aria-labelledby="label_sumber_santri_lihat" className="flex flex-wrap gap-2">
-              {([
-                ['filter', 'Filter Santri'],
-                ['buku', 'Buku Induk'],
-              ] as const).map(([nilai, label]) => (
-                <label
-                  key={nilai}
-                  htmlFor={`radio_sumber_lihat_${nilai}`}
-                  className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
-                >
-                  <input
-                    type="radio"
-                    id={`radio_sumber_lihat_${nilai}`}
-                    name="sumber_santri_lihat"
-                    value={nilai}
-                    checked={sumber === nilai}
-                    onChange={() => { setSumber(nilai); setSantriId(null); }}
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-            <div className="min-h-[120px] flex-1 overflow-y-auto rounded-md border">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-muted">
-                  <tr className="text-left">
-                    <th className="px-2 py-1 font-medium">Nama</th>
-                    <th className="px-2 py-1 font-medium">Kelas</th>
-                    <th className="px-2 py-1 font-medium">Dok</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loadingSantri ? (
-                    <tr><td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">Memuat…</td></tr>
-                  ) : santriTampil.length === 0 ? (
-                    <tr><td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">{sumber === 'filter' ? 'Tidak ada santri pada filter ini.' : 'Tidak ada santri.'}</td></tr>
-                  ) : santriTampil.map((s) => {
-                    const aktif = s.id === santriId;
-                    const n = jumlahSantri[s.id] ?? 0;
-                    return (
-                      <tr
-                        key={s.id}
-                        onClick={() => setSantriId(s.id)}
-                        onContextMenu={(e) => { e.preventDefault(); setProfilId(s.id); }}
-                        title="Klik untuk memilih, klik kanan untuk profil"
-                        aria-selected={aktif}
-                        className={cn(
-                          'cursor-pointer border-t',
-                          aktif ? 'bg-accent font-medium' : 'hover:bg-muted/60',
-                        )}
-                      >
-                        <td className="px-2 py-1">
-                          {s.nama_lengkap}
-                          {s.is_active_pst !== 'Ya' && <Badge variant="destructive" className="ml-1 py-0 align-middle text-[9px] leading-3">Nonaktif</Badge>}
-                        </td>
-                        <td className="px-2 py-1 text-muted-foreground">{kelasSantri[s.id] ?? '—'}</td>
-                        <td className="px-2 py-1"><Badge variant={n > 0 ? 'secondary' : 'outline'} className="py-0 leading-4">{n}</Badge></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-             <div className="flex items-center justify-between gap-2">
-              <FieldLabel id="label_daftar_dokumen_lihat">Daftar dokumen{santriId != null && dokumens.length > 0 ? ` (${dokumens.length})` : ''}</FieldLabel>
-              {desktop && canUbah && santriId != null && (
-                <Button
-                  id="tombol_sinkron_dok_lihat"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSinkronTerbuka(true)}
-                  title="Sinkronkan dokumen santri ini (cermin dua arah)"
-                >
-                  <RefreshCw size={14} /> Sinkronkan
-                </Button>
-              )}
-            </div>
-            <div className="min-h-[120px] flex-1 overflow-y-auto rounded-md border">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-muted">
-                  <tr className="text-left">
-                    <th className="px-2 py-1 font-medium">Jenis</th>
-                    <th className="px-2 py-1 font-medium">Catatan</th>
-                    <th className="px-2 py-1 text-right font-medium">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {santriId == null ? (
-                    <tr><td colSpan={3} className="px-2 py-3 text-center text-muted-foreground">Pilih santri dahulu.</td></tr>
-                  ) : loadingDok ? (
-                    <tr><td colSpan={3} className="px-2 py-3 text-center text-muted-foreground">Memuat…</td></tr>
-                  ) : dokumens.length === 0 ? (
-                    <tr><td colSpan={3} className="px-2 py-3 text-center text-muted-foreground">Belum ada dokumen.</td></tr>
-                  ) : dokumens.map((d) => {
-                    const aktif = d.id === dokId;
-                    const kunci = perluDesktop(d);
-                    return (
-                      <ContextMenu key={d.id}>
-                        <ContextMenuTrigger asChild>
-                      <tr
-                        onClick={() => { if (!kunci) void muatPratinjau(d); }}
-                        title={kunci ? 'Berkas hanya ada di arsip perangkat — buka lewat aplikasi desktop' : 'Klik untuk pratinjau'}
-                        aria-selected={aktif}
-                        className={cn(
-                          'border-t',
-                          kunci ? 'opacity-60' : 'cursor-pointer',
-                          aktif ? 'bg-accent font-medium' : (!kunci && 'hover:bg-muted/60'),
-                        )}
-                      >
-                        <td className="px-2">
-                          <span
-                            title={d.is_active === false ? 'Nonaktif' : 'Aktif'}
-                            className={cn(
-                              'mr-1.5 inline-block size-2 rounded-full align-middle',
-                              d.is_active === false ? 'bg-red-500' : 'bg-green-500',
-                            )}
-                          />
-                          {d.jenis_dokumen}
-                          {d.lembaga ? <Badge variant="outline" className="ml-1 py-0 text-[10px] leading-3">{d.lembaga}</Badge> : null}
-                        </td>
-                        <td className="max-w-40 truncate px-2 text-muted-foreground" title={d.catatan ?? undefined}>{d.catatan || '—'}</td>
-                        <td className="px-2 text-right">
-                          <span className="inline-block" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  id={`btn_aksi_dok_lihat_${d.id}`}
-                                  size="sm"
-                                  variant="ghost"
-                                  title="Aksi dokumen"
-                                  className="size-6 px-0"
-                                >
-                                  <MoreVertical size={14} />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {d.nama_file && (
-                                  <DropdownMenuItem
-                                    disabled={kunci}
-                                    title={kunci ? 'Berkas hanya ada di arsip perangkat — buka lewat aplikasi desktop' : 'Unduh berkas'}
-                                    onClick={() => void unduhCerdas(d)}
-                                  >
-                                    <Download size={14} /> Unduh
-                                  </DropdownMenuItem>
-                                )}
-                                {canUbah && (
-                                  <DropdownMenuItem
-                                    disabled={kunci}
-                                    title={kunci ? 'Baris arsip perangkat hanya bisa diganti lewat aplikasi desktop' : 'Ganti berkas'}
-                                    onClick={() => { setGantiFile(null); setGantiRow(d); }}
-                                  >
-                                    <Upload size={14} /> Ganti
-                                  </DropdownMenuItem>
-                                )}
-                                {canUbah && d.is_active === false && (
-                                  <DropdownMenuItem
-                                    title="Jadikan dokumen aktif (menonaktifkan yang lain se-kunci)"
-                                    onClick={() => void onToggleAktif(d)}
-                                  >
-                                    <Check size={14} /> Jadikan aktif
-                                  </DropdownMenuItem>
-                                )}
-                                {canHapus && (
-                                  <DropdownMenuItem
-                                    disabled={kunci}
-                                    title={kunci ? 'Baris arsip perangkat hanya bisa dihapus lewat aplikasi desktop (agar salinannya ikut bersih)' : 'Hapus dokumen'}
-                                    onClick={() => setHapusRow(d)}
-                                  >
-                                    <Trash2 size={14} /> Hapus
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </span>
-                        </td>
-                      </tr>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          {canUbah && (
-                            <ContextMenuItem
-                              id={`menu_toggle_aktif_dok_lihat_${d.id}`}
-                              disabled={busy}
-                              onClick={() => void onToggleAktif(d)}
-                            >
-                              {d.is_active === false ? <Check size={14} /> : <X size={14} />}
-                              {d.is_active === false ? 'Aktifkan' : 'Nonaktifkan'}
-                            </ContextMenuItem>
-                          )}
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-col gap-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <FieldLabel id="label_info_dokumen_lihat">Info dokumen</FieldLabel>
-              {infoKotor && (
-                <>
-                  <TombolIkon
-                    tip="Kembalikan ke nilai awal"
-                    id="btn_reset_info_dok_lihat"
-                    size="icon"
-                    variant="ghost"
-                    className="size-6"
-                    disabled={busy}
-                    onClick={() => {
-                      setEditJenis(dokPratinjau?.jenis_dokumen ?? '');
-                      setEditLembaga(dokPratinjau?.lembaga ?? '');
-                      setEditCatatan(dokPratinjau?.catatan ?? '');
-                      setEditAktif(dokPratinjau?.is_active === false ? 'Tidak' : 'Ya');
-                      setEditNama(dokPratinjau?.nama_file ?? '');
-                      setEditLokasi(dokPratinjau?.penyimpanan ?? 'server');
-                    }}
+        <PanelDokumen
+          entitas="santri"
+          subjekId={santriId}
+          subjekTerpilih={santriDipilih ? { namaLengkap: santriDipilih.nama_lengkap } : null}
+          jenjangs={jenjangs}
+          filterLoading={filterLoading}
+          bolehUbah={canUbah}
+          bolehHapus={canHapus}
+          bolehTambah={canTambah}
+          segarkanJumlah={() => { void muatJumlahSantri().then(setJumlahSantri); }}
+          panelSubjek={(
+            <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+              <FieldLabel id="label_sumber_santri_lihat">Daftar santri</FieldLabel>
+              <div id="radio_sumber_santri_lihat" role="radiogroup" aria-labelledby="label_sumber_santri_lihat" className="flex flex-wrap gap-2">
+                {([
+                  ['filter', 'Filter Santri'],
+                  ['buku', 'Buku Induk'],
+                ] as const).map(([nilai, label]) => (
+                  <label
+                    key={nilai}
+                    htmlFor={'radio_sumber_lihat_' + nilai}
+                    className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                   >
-                    <Undo2 size={14} />
-                  </TombolIkon>
-                  <TombolIkon
-                    tip="Simpan perubahan"
-                    id="btn_simpan_info_dok_lihat"
-                    size="icon"
-                    variant="ghost"
-                    className="size-6"
-                    disabled={busy || editJenis.trim() === '' || !infoBisaUbah}
-                    onClick={() => void onUbah()}
-                  >
-                    <Save size={14} />
-                  </TombolIkon>
-                </>
-              )}
-            </div>
-            {dokPratinjau == null ? (
-              <div className="h-56 overflow-y-auto rounded-md border px-2 py-1.5">
-                <p className="text-xs text-muted-foreground">Pilih baris dokumen untuk melihat info.</p>
+                    <input
+                      type="radio"
+                      id={'radio_sumber_lihat_' + nilai}
+                      name="sumber_santri_lihat"
+                      value={nilai}
+                      checked={sumber === nilai}
+                      onChange={() => { setSumber(nilai); setSantriId(null); }}
+                    />
+                    {label}
+                  </label>
+                ))}
               </div>
-            ) : (
-              <dl id="info_dokumen_lihat" className="grid h-56 grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 overflow-y-auto rounded-md border px-2 py-1.5 text-xs">
-                <dt className="text-muted-foreground">Nama santri</dt>
-                <dd>{dokPratinjau.pemilik ?? santriDipilih?.nama_lengkap ?? '—'}</dd>
-                <dt className="text-muted-foreground">NIS Lokal</dt>
-                <dd>{dokPratinjau.nis_lokal ?? '—'}</dd>
-                <dt className="text-muted-foreground">Jenis</dt>
-                <dd>
-                  {infoBisaUbah ? (
-                    <ComboCari
-                      id="combo_jenis_info_dok_lihat"
-                      inputId="input_jenis_info_dok_lihat"
-                      value={editJenis}
-                      onChange={setEditJenis}
-                      options={opsiJenisUbah}
-                      placeholder="Pilih jenis…"
-                      className="w-full"
-                    />
-                  ) : (
-                    <span title={canUbah && dokPratinjau ? judulSelaras(dokPratinjau) : undefined}>{dokPratinjau.jenis_dokumen}</span>
-                  )}
-                </dd>
-                <dt className="text-muted-foreground">Lembaga</dt>
-                <dd>
-                  {infoBisaUbah ? (
-                    <ComboCari
-                      id="combo_lembaga_info_dok_lihat"
-                      inputId="input_lembaga_info_dok_lihat"
-                      value={editLembaga}
-                      onChange={setEditLembaga}
-                      options={[{ value: '', label: '—' }, ...jenjangs.map((j) => ({ value: j, label: j }))]}
-                      placeholder="Tanpa lembaga…"
-                      className="w-full"
-                    />
-                  ) : (
-                    dokPratinjau.lembaga ?? '—'
-                  )}
-                </dd>
-                <dt className="text-muted-foreground">Status</dt>
-                <dd>
-                  {infoBisaUbah ? (
-                    <ComboCari
-                      id="combo_status_info_dok_lihat"
-                      inputId="input_status_info_dok_lihat"
-                      value={editAktif}
-                      onChange={setEditAktif}
-                      options={[{ value: 'Ya', label: 'Aktif' }, { value: 'Tidak', label: 'Nonaktif' }]}
-                      placeholder="Pilih status…"
-                      className="w-full"
-                    />
-                  ) : (
-                    dokPratinjau.is_active === false ? 'Nonaktif' : 'Aktif'
-                  )}
-                </dd>
-                <dt className="text-muted-foreground">Nama berkas</dt>
-                <dd>
-                  {infoBisaUbah ? (
-                    <Input
-                      id="input_nama_info_dok_lihat"
-                      value={editNama}
-                      onChange={(e) => setEditNama(e.target.value)}
-                      placeholder="nama berkas…"
-                      className="h-6 text-xs"
-                    />
-                  ) : (
-                    <span className="block truncate" title={dokPratinjau.nama_file ?? undefined}>{dokPratinjau.nama_file ?? '—'}</span>
-                  )}
-                </dd>
-                <dt className="text-muted-foreground">Lokasi</dt>
-                <dd>
-                  {infoBisaUbah ? (
-                    <ComboCari
-                      id="combo_lokasi_info_dok_lihat"
-                      inputId="input_lokasi_info_dok_lihat"
-                      value={editLokasi}
-                      onChange={setEditLokasi}
-                      options={[
-                        { value: 'server', label: 'Server' },
-                        { value: 'lokal', label: 'Lokal' },
-                        { value: 'test', label: 'Test' },
-                        ...((dokPratinjau.penyimpanan ?? 'server') === 'cermin'
-                          ? [{ value: 'cermin', label: 'Cermin' }]
-                          : []),
-                      ]}
-                      placeholder="Pilih lokasi…"
-                      className="w-full"
-                    />
-                  ) : (
-                    lokasiLabel(dokPratinjau)
-                  )}
-                </dd>
-                <dt className="text-muted-foreground">Catatan</dt>
-                <dd>
-                  {infoBisaUbah ? (
-                    <Input
-                      id="input_catatan_info_dok_lihat"
-                      value={editCatatan}
-                      onChange={(e) => setEditCatatan(e.target.value)}
-                      placeholder="opsional"
-                      className="h-6 text-xs"
-                    />
-                  ) : (
-                    <span className="block truncate" title={dokPratinjau.catatan ?? undefined}>{dokPratinjau.catatan || '—'}</span>
-                  )}
-                </dd>
-              </dl>
-            )}
-          </div>
-          {canTambah && (
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-              <Button
-                id="tombol_tambah_dok_lihat"
-                size="sm"
-                disabled={!santriDipilih}
-                onClick={() => setTambahTerbuka(true)}
-                title={santriDipilih ? 'Tambah dokumen untuk santri ini' : 'Pilih santri dahulu'}
-              >
-                <Plus size={14} /> Tambah Dokumen
-              </Button>
+              <div className="min-h-[120px] flex-1 overflow-y-auto rounded-md border">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-muted">
+                    <tr className="text-left">
+                      <th className="px-2 py-1 font-medium">Nama</th>
+                      <th className="px-2 py-1 font-medium">Kelas</th>
+                      <th className="px-2 py-1 font-medium">Dok</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingSantri ? (
+                      <tr><td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">Memuat…</td></tr>
+                    ) : santriTampil.length === 0 ? (
+                      <tr><td colSpan={3} className="px-2 py-1 text-center text-muted-foreground">{sumber === 'filter' ? 'Tidak ada santri pada filter ini.' : 'Tidak ada santri.'}</td></tr>
+                    ) : santriTampil.map((s) => {
+                      const aktif = s.id === santriId;
+                      const n = jumlahSantri[s.id] ?? 0;
+                      return (
+                        <tr
+                          key={s.id}
+                          onClick={() => setSantriId(s.id)}
+                          onContextMenu={(e) => { e.preventDefault(); setProfilId(s.id); }}
+                          title="Klik untuk memilih, klik kanan untuk profil"
+                          aria-selected={aktif}
+                          className={cn(
+                            'cursor-pointer border-t',
+                            aktif ? 'bg-accent font-medium' : 'hover:bg-muted/60',
+                          )}
+                        >
+                          <td className="px-2 py-1">
+                            {s.nama_lengkap}
+                            {s.is_active_pst !== 'Ya' && <Badge variant="destructive" className="ml-1 py-0 align-middle text-[9px] leading-3">Nonaktif</Badge>}
+                          </td>
+                          <td className="px-2 py-1 text-muted-foreground">{kelasSantri[s.id] ?? '—'}</td>
+                          <td className="px-2 py-1"><Badge variant={n > 0 ? 'secondary' : 'outline'} className="py-0 leading-4">{n}</Badge></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
-          </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle orientation="horizontal" id="gagang_lihat_dokumen" aria-label="Atur lebar kolom daftar dan pratinjau" />
-        {/* Kolom 2: pratinjau + edit (fungsi sama dengan Tambah Dokumen). */}
-        <ResizablePanel minSize="25%" id="panel_lihat_dokumen_pratinjau" className="min-h-0 min-w-0">
-          <div className="flex h-full min-h-0 flex-col gap-1.5">
-            {kotor && keluaran && dokId !== null && (
-              <div className="flex shrink-0 items-center gap-2 rounded-md border border-dashed px-2 py-1">
-                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                  {prosesViewer ? 'Menyiapkan hasil…' : 'Ada perubahan belum disimpan.'}
-                </span>
-                <TombolIkon tip="Buang perubahan" variant="outline" size="icon" onClick={() => setKunciViewer((k) => k + 1)}>
-                  <Undo2 size={14} />
-                </TombolIkon>
-                <TombolIkon tip={prosesViewer ? 'Menyiapkan hasil…' : 'Simpan hasil edit'} id="btn_simpan_edit_dok_lihat" size="icon" disabled={busy || prosesViewer} onClick={() => void onSimpanEdit()}>
-                  <Save size={14} />
-                </TombolIkon>
-              </div>
-            )}
-            <div className="min-h-0 flex-1">
-              <PenampilBerkas
-                key={`lihat_dokumen_${dokId ?? 'kosong'}_${kunciViewer}`}
-                sumber={pratinjau}
-                kualitas="asli"
-                onKeluaran={setKeluaran}
-                onKotor={setKotor}
-                onProses={setProsesViewer}
-                idPrefix="lihat_dokumen"
-                bisaUbah={bisaUbahViewer}
-                teksKosong="Belum ada dokumen dipilih — pilih santri lalu klik baris dokumen."
-              />
-            </div>
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          dialogTambah={({ terbuka, onTutup, onSelesai }) => (santriDipilih ? (
+            <TambahDokumenSantriDialog
+              terbuka={terbuka}
+              pemilik={{ id: santriDipilih.id, namaLengkap: santriDipilih.nama_lengkap }}
+              onTutup={onTutup}
+              onSelesai={onSelesai}
+            />
+          ) : null)}
+        />
       </div>
       <ProfilSantriDialog
         target={profilId != null ? { id: profilId, daftar: daftarIds } : null}
         onGanti={(id) => setProfilId(id)}
         onOpenChange={(o) => { if (!o) setProfilId(null); }}
       />
-      {santriDipilih && (
-        <TambahDokumenSantriDialog
-          terbuka={tambahTerbuka}
-          pemilik={{ id: santriDipilih.id, namaLengkap: santriDipilih.nama_lengkap }}
-          onTutup={() => setTambahTerbuka(false)}
-          onSelesai={() => { void segarkanSetelahSinkron(); }}
-        />
-      )}
-      <DialogSinkronDokumen
-        tipe="santri"
-        terbuka={sinkronTerbuka}
-        onTutup={() => setSinkronTerbuka(false)}
-        ambilBaris={async () => (santriId == null
-          ? []
-          : (await listDokumen('santri', { santri_id: santriId, per_page: 0 })).data)}
-        lingkup={santriId == null ? 'Santri belum dipilih' : `Santri: ${namaSantriAktif || `#${santriId}`}`}
-        onSelesai={() => { void segarkanSetelahSinkron(); }}
-      />
-      <AlertDialog open={hapusRow !== null} onOpenChange={(o) => { if (!o) setHapusRow(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus dokumen "{hapusRow?.jenis_dokumen}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Dokumen milik santri terpilih dihapus permanen beserta berkas fisiknya.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <AlertDialogCancel disabled={busy} aria-label="Batal">
-                  <X size={14} />
-                </AlertDialogCancel>
-              </TooltipTrigger>
-              <TooltipContent><p>Batal</p></TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={busy} aria-label="Hapus dokumen" onClick={() => void onHapus()}>
-                  <Trash2 size={14} />
-                </AlertDialogAction>
-              </TooltipTrigger>
-              <TooltipContent><p>Hapus dokumen</p></TooltipContent>
-            </Tooltip>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <Dialog open={gantiRow !== null} onOpenChange={(o) => { if (!o) setGantiRow(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Ganti berkas: {gantiRow?.jenis_dokumen}</DialogTitle>
-            <DialogDescription>Berkas lama diganti di lokasi yang sama; salinan arsip lama (bila ada) ikut dibuang.</DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center gap-2">
-            <TombolIkon tip="Pilih berkas" variant="outline" size="icon" onClick={() => void onBrowseGanti()}>
-              <FolderOpen size={14} />
-            </TombolIkon>
-            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={gantiFile?.name}>
-              {gantiFile ? `${gantiFile.name} (${(gantiFile.size / 1024).toFixed(0)} KB)` : 'Belum ada berkas dipilih.'}
-            </span>
-          </div>
-          <input
-            ref={inputGantiWebRef}
-            id="input_ganti_dok_lihat"
-            type="file"
-            accept=".jpg,.jpeg,.png,.pdf,.heic,.heif,.webp"
-            className="hidden"
-            onChange={onFileGantiWeb}
-          />
-          <DialogFooter>
-            <TombolIkon tip="Batal" variant="outline" size="icon" onClick={() => setGantiRow(null)}>
-              <X size={14} />
-            </TombolIkon>
-            <TombolIkon tip="Ganti berkas" id="btn_proses_ganti_dok_lihat" size="icon" disabled={!gantiFile || busy} onClick={() => void onGanti()}>
-              <Upload size={14} />
-            </TombolIkon>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
