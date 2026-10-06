@@ -54,7 +54,7 @@ const FIELDS_TUNGGAKAN: ExcelField[] = [
   { key: 'total_tagihan', label: 'Total', kind: 'static', width: 110 },
   { key: 'terbayar', label: 'Terbayar', kind: 'static', width: 110 },
   { key: 'tunggakan', label: 'Tunggakan', kind: 'static', width: 110 },
-  { key: 'terlambat_terlama', label: 'Lewat Sejak', kind: 'static', width: 110 },
+  { key: 'terlambat_terlama', label: 'Lewat Sejak', kind: 'static', width: 120 },
 ];
 
 const FIELDS_DISPENSASI: ExcelField[] = [
@@ -487,7 +487,7 @@ export default function KeuanganPage() {
               total_tagihan: r.total_tagihan.toLocaleString('id'),
               terbayar: r.terbayar.toLocaleString('id'),
               tunggakan: r.tunggakan.toLocaleString('id'),
-              terlambat_terlama: tanggal(r.terlambat_terlama),
+              terlambat_terlama: r.tanpa_jatuh_tempo ? 'Tanpa batas' : tanggal(r.terlambat_terlama),
             })}
             loading={loading}
             emptyText="Tidak ada tagihan yang lewat jatuh tempo."

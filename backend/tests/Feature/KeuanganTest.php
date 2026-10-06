@@ -550,21 +550,44 @@ class KeuanganTest extends TestCase
             ->assertStatus(200)->assertJsonCount(0, 'per_santri');
     }
 
-    public function test_tagihan_tanpa_jatuh_tempo_bukan_tunggakan(): void
+    public function test_tagihan_tanpa_jatuh_tempo_langsung_terlambat(): void
     {
         $admin = $this->admin();
         $hipa = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
         $santri = Santri::create(['nama_lengkap' => 'Santri Tanpa Tempo', 'jk' => 'L']);
         $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'nominal' => 300000]);
 
+        // Tanpa batas waktu = langsung tunggakan, walau baru dibuat.
+        $this->assertTrue($t->terlambat());
+        $this->assertSame(300000, $t->sisaTerlambat());
+
+        // Endpoint tunggakan memuatnya; tandai "tanpa batas".
+        $tunggakan = $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')
+            ->assertStatus(200)->json('per_santri');
+        $this->assertCount(1, $tunggakan);
+        $this->assertSame(300000, $tunggakan[0]['tunggakan']);
+        $this->assertNull($tunggakan[0]['terlambat_terlama']);
+        $this->assertTrue($tunggakan[0]['tanpa_jatuh_tempo']);
+
+        // Filter crosstab terlambat=1 ikut menyertakannya.
+        $baris = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?terlambat=1')
+            ->assertStatus(200)->json('baris.0');
+        $this->assertTrue(array_values($baris['sel'])[0]['terlambat']);
+        $this->assertSame(300000, $baris['tunggakan']);
+        $this->assertSame(300000, $baris['total_tagihan']);
+    }
+
+    public function test_tagihan_lunas_tanpa_jatuh_tempo_bukan_tunggakan(): void
+    {
+        $admin = $this->admin();
+        $hipa = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri Lunas', 'jk' => 'P']);
+        $t = Tagihan::create(['santri_id' => $santri->id, 'jenjang' => 'MI', 'paket' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $hipa->id, 'nominal' => 300000, 'terbayar' => 300000, 'status' => 'lunas']);
+
         $this->assertFalse($t->terlambat());
         $this->assertSame(0, $t->sisaTerlambat());
         $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')
             ->assertStatus(200)->assertJsonCount(0, 'per_santri');
-        // Crosstab tetap menagih &0 tunggakan.
-        $baris = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab')->assertStatus(200)->json('baris.0');
-        $this->assertSame(300000, $baris['total_tagihan']);
-        $this->assertSame(0, $baris['tunggakan']);
     }
 
     public function test_hapus_tagihan(): void

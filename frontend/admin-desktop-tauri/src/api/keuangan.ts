@@ -18,12 +18,14 @@ export interface TagihanRow {
   santri?: { nama_lengkap: string };
 }
 
-/** Baris tab Tunggakan: hanya tagihan yang sudah lewat jatuh tempo. */
+/** Baris tab Tunggakan: belum lunas dan sudah lewat batas waktunya. */
 export interface TunggakanRow {
   santri_id: number; nama: string; total_tagihan: number; terbayar: number;
   tunggakan: number; jumlah_tagihan: number;
-  /** Jatuh tempo paling awal di antara tagihan yang terlambat. */
+  /** Jatuh tempo paling awal di antara tagihan yang punya batas waktu. */
   terlambat_terlama: string | null;
+  /** Ada tagihan terlambat yang tidak punya tanggal batas sama sekali. */
+  tanpa_jatuh_tempo: boolean;
 }
 
 export function daftarJenis(params: { sort?: string[]; arah?: 'naik' | 'turun' } = {}) {

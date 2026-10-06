@@ -73,7 +73,9 @@ function tanggalPanjang(iso: string): string {
 /** Tooltip sel: sisa + jatuh tempo + status-sdkterminasi. */
 function judulSel(sel: CrosstabSel, label: string): string {
   const nominal = `sisa Rp ${sel.sisa.toLocaleString('id')}`;
-  const tempo = sel.jatuh_tempo === null ? 'tanpa jatuh tempo' : `jatuh tempo ${tanggalPanjang(sel.jatuh_tempo)}`;
+  const tempo = sel.jatuh_tempo === null
+    ? 'tanpa batas jatuh tempo'
+    : `jatuh tempo ${tanggalPanjang(sel.jatuh_tempo)}`;
   const status = sel.status === 'lunas'
     ? 'lunas'
     : (sel.terlambat ? 'TERLAMBAT' : 'belum jatuh tempo');

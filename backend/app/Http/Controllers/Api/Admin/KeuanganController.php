@@ -400,10 +400,11 @@ class KeuanganController extends Controller
         if ($request->boolean('belum_lunas')) {
             $q->where('status', '!=', 'lunas');
         }
-        // Tunggakan = sudah lewat jatuh tempo DAN belum lunas.
+        // Tunggakan = belum lunas DAN lewat batas waktu. Tanpa jatuh tempo = lewat
+        // (tidak ada batasnya), jadi ikut paling depan.
         if ($request->boolean('terlambat')) {
             $q->where('status', '!=', 'lunas')
-                ->whereNotNull('jatuh_tempo')->whereDate('jatuh_tempo', '<', today());
+                ->where(fn ($w) => $w->whereNull('jatuh_tempo')->orWhereDate('jatuh_tempo', '<', today()));
         }
         if ($request->filled('santri')) {
             $cari = $request->input('santri');
@@ -995,16 +996,16 @@ class KeuanganController extends Controller
     }
 
     /**
-     * Tunggakan per santri: HANYA tagihan yang sudah lewat jatuh tempo dan belum
-     * lunas. Tagihan bulan yang masih berjalan tidak dihitung. Tagihan tanpa
-     * jatuh tempo (jenis non-bulanan yang tidak diisi) ikut diabaikan.
+     * Tunggakan per santri: tagihan belum lunas yang sudah lewat batas
+     * waktunya. Tagihan bulanan bulan yang masih berjalan tidak dihitung;
+     * tagihan tanpa jatuh tempo (non-bulanan yang tidak diisi manual) langsung
+     * dihitung, sebab tidak punya batas waktu.
      */
     public function tunggakan(Request $request)
     {
         $q = Tagihan::with(['jenis', 'santri'])
             ->where('status', '!=', 'lunas')
-            ->whereNotNull('jatuh_tempo')
-            ->whereDate('jatuh_tempo', '<', today());
+            ->where(fn ($w) => $w->whereNull('jatuh_tempo')->orWhereDate('jatuh_tempo', '<', today()));
         if ($request->filled('jenjang')) {
             $q->where('jenjang', $request->input('jenjang'));
         }
@@ -1023,7 +1024,10 @@ class KeuanganController extends Controller
                 'terbayar' => $rows->sum('terbayar'),
                 'tunggakan' => $rows->sum(fn ($r) => $r->sisaTerlambat()),
                 'jumlah_tagihan' => $rows->count(),
-                'terlambat_terlama' => $rows->min(fn ($r) => $r->jatuh_tempo?->format('Y-m-d')),
+                'terlambat_terlama' => $rows->filter(fn ($r) => $r->jatuh_tempo !== null)
+                    ->min(fn ($r) => $r->jatuh_tempo->format('Y-m-d')),
+                // Ada tagihan terlambat tanpa tanggal batas sama sekali.
+                'tanpa_jatuh_tempo' => $rows->contains(fn ($r) => $r->jatuh_tempo === null),
             ];
         })->values();
 

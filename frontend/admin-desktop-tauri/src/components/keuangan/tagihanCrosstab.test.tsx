@@ -78,10 +78,15 @@ describe('tooltip sel crosstab', () => {
     expect(tooltip).not.toContain('TERLAMBAT');
   });
 
-  it('menyebut "tanpa jatuh tempo" untuk tagihan non-bulanan', () => {
-    renderCrosstab(baris(sel({ jatuh_tempo: null }), sel({ id: 2, jatuh_tempo: null })));
-    const tooltip = screen.getAllByRole('button', { name: '50.000' })[0].getAttribute('title') ?? '';
-    expect(tooltip).toContain('tanpa jatuh tempo');
+  it('tanpa batas = langsung TUNGGAKAN', () => {
+    renderCrosstab(baris(
+      sel({ jatuh_tempo: null, terlambat: true }),
+      sel({ id: 2, jatuh_tempo: null, terlambat: true }),
+    ));
+    for (const tombol of screen.getAllByRole('button')) {
+      expect(tombol.getAttribute('title')).toContain('tanpa batas jatuh tempo');
+      expect(tombol.className).toContain('text-destructive');
+    }
   });
 });
 
