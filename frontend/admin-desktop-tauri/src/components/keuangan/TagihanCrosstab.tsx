@@ -1,15 +1,5 @@
 import { memo, useCallback, useLayoutEffect, useRef, useState } from 'react';
 
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuLabel,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import { History, Trash2, Wallet } from '@/icons';
-
 import type { CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan } from '../../api/keuangan';
 
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -33,15 +23,12 @@ export function labelSel(k: CrosstabKolom): string {
 interface Props {
   data: CrosstabTagihan | null;
   loading: boolean;
-  /** Id tagihan sel yang sedang dipilih (form bayar di action bar halaman). */
+  /** Id tagihan sel yang sedang aktif (dilingkasi di tabel). */
   terpilihId: number | null;
-  onPilih: (sel: CrosstabSel, meta: { nama: string; label: string }) => void;
+  /** Sel diklik (kiri maupun kanan) → halaman membuka popover aksi pada sel itu.
+   *  `anchor` = elemen sel, dipakai sebagai jangkar popover. */
+  onPilih: (sel: CrosstabSel, meta: { nama: string; label: string }, anchor: HTMLElement) => void;
   emptyText: string;
-  /** Aksi context menu (klik kanan sel). Semua opsional: tanpa salah satu,
-   *  itemnya tidak muncul. */
-  onBayar?: (sel: CrosstabSel, meta: { nama: string; label: string }) => void;
-  onRiwayat?: (sel: CrosstabSel, meta: { nama: string; label: string }) => void;
-  onHapus?: (sel: CrosstabSel, meta: { nama: string; label: string }) => void;
 }
 
 interface GrupKolom {
@@ -132,17 +119,15 @@ function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
 /** Satu baris tabel. `memo` + props stabil → saat tooltip berpindah sel, hanya
  *  baris yang di-hover yang dirender ulang, bukan seluruh tabel (ratusan sel). */
 const BarisCrosstab = memo(function BarisCrosstab({
-  baris, kolom, terpilihId, onPilih, onHoverMasuk, onHoverGerak, onHoverKeluar, onKlikKanan,
+  baris, kolom, terpilihId, onPilih, onHoverMasuk, onHoverGerak, onHoverKeluar,
 }: {
   baris: CrosstabBaris;
   kolom: CrosstabKolom[];
   terpilihId: number | null;
-  onPilih: (sel: CrosstabSel, meta: { nama: string; label: string }) => void;
+  onPilih: (sel: CrosstabSel, meta: { nama: string; label: string }, anchor: HTMLElement) => void;
   onHoverMasuk: (isi: TooltipSel, e: React.MouseEvent) => void;
   onHoverGerak: (e: React.MouseEvent) => void;
   onHoverKeluar: () => void;
-  /** Klik kanan pada sel tagihan: tandai sel ini sebagai aktif + buka menu aksi. */
-  onKlikKanan: (sel: CrosstabSel, meta: { nama: string; label: string }) => void;
 }) {
   return (
     <tr>
@@ -166,15 +151,14 @@ const BarisCrosstab = memo(function BarisCrosstab({
             <button
               type="button"
               id={`btn_tagihan_sel_${sel.id}`}
-              onClick={() => onPilih(sel, meta)}
+              /* Klik kiri dan klik kanan sama-sama membuka popover aksi. */
+              onClick={(e) => onPilih(sel, meta, e.currentTarget)}
+              onContextMenu={(e) => { e.preventDefault(); onPilih(sel, meta, e.currentTarget); }}
               onMouseEnter={(e) => onHoverMasuk(isiTooltip, e)}
               onMouseMove={onHoverGerak}
               onMouseLeave={onHoverKeluar}
-              /* Tanpa preventDefault: Radix ContextMenuTrigger melewati
-                 handler-nya bila event sudah defaultPrevented, sehingga menu
-                 tak akan terbuka. Menu bawaan browser sudah dicegah Radix. */
-              onContextMenu={() => onKlikKanan(sel, meta)}
               aria-describedby="tip_tagihan_sel"
+              title={`${baris.nama} — sisa Rp ${sel.sisa.toLocaleString('id')}`}
               className={`w-full rounded px-1.5 py-0.5 text-right tabular-nums hover:ring-1 hover:ring-ring ${kelasSel(sel)} ${sel.terlambat ? 'font-semibold' : ''} ${dipilih ? 'ring-2 ring-ring' : ''}`}
             >
               {sel.nominal.toLocaleString('id')}
@@ -233,9 +217,9 @@ function TooltipTagihan({ data, tipRef }: { data: TooltipSel; tipRef: React.Ref<
 }
 
 /** Tabel silang tagihan: baris = santri, kolom = jenis (bulanan per bulan).
- *  Sel berisi nominal dengan warna status; klik sel memilih tagihan itu,
- *  klik kanan membuka menu aksi (bayar / riwayat / hapus). */
-export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText, onBayar, onRiwayat, onHapus }: Props) {
+ *  Sel berisi nominal dengan warna status; klik sel (kiri maupun kanan)
+ *  melaporkan tagihan terpilih ke halaman, yang membuka popover aksi. */
+export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Props) {
   const kolom = data?.kolom ?? [];
   const baris: CrosstabBaris[] = data?.baris ?? [];
   const grup = grupKolom(kolom);
@@ -258,18 +242,9 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
   const pilihRef = useRef(onPilih);
   pilihRef.current = onPilih;
   const pilihStabil = useCallback(
-    (sel: CrosstabSel, meta: { nama: string; label: string }) => pilihRef.current(sel, meta),
+    (sel: CrosstabSel, meta: { nama: string; label: string }, anchor: HTMLElement) => pilihRef.current(sel, meta, anchor),
     [],
   );
-
-  /** Sel yang diklik-kanan terakhir — isi menu aksi context. */
-  const [ctx, setCtx] = useState<{ sel: CrosstabSel; meta: { nama: string; label: string } } | null>(null);
-  const klikKananStabil = useCallback((sel: CrosstabSel, meta: { nama: string; label: string }) => {
-    setCtx({ sel, meta });
-    // Sekalian jadikan sel aktif supaya bar aksi & form bayar ikut terisi.
-    pilihRef.current(sel, meta);
-  }, []);
-  const adaAksi = onBayar !== undefined || onRiwayat !== undefined || onHapus !== undefined;
   const hoverMasuk = useCallback((isi: TooltipSel, e: React.MouseEvent) => {
     kursorRef.current = { x: e.clientX, y: e.clientY };
     setHover(isi);
@@ -298,8 +273,8 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
     return <p className="p-8 text-center text-sm text-muted-foreground">{loading ? 'Memuat…' : emptyText}</p>;
   }
 
-  const isiTabel = (
-    <>
+  return (
+    <div className="h-full overflow-auto rounded-xl border bg-card">
       <table id="tbl_tagihan_crosstab" className="w-full border-separate border-spacing-0 text-xs">
         <thead>
           <tr ref={grupRef}>
@@ -345,7 +320,6 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
               onHoverMasuk={hoverMasuk}
               onHoverGerak={hoverGerak}
               onHoverKeluar={hoverKeluar}
-              onKlikKanan={klikKananStabil}
             />
           ))}
           {baris.length === 0 && (
@@ -358,62 +332,6 @@ export default function TagihanCrosstab({ data, loading, terpilihId, onPilih, em
         </tbody>
       </table>
       {hover !== null && <TooltipTagihan data={hover} tipRef={tipRef} />}
-    </>
-  );
-
-  if (!adaAksi) {
-    return <div className="h-full overflow-auto rounded-xl border bg-card">{isiTabel}</div>;
-  }
-
-  return (
-    /* Satu ContextMenu untuk SELURUH tabel (bukan per sel): dengan ribuan sel,
-       satu root jauh lebih ringan. Sel mana yang diklik-kanan dibaca dari state
-       `ctx`, diisi pada event yang sama saat menu dibuka. */
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div className="h-full overflow-auto rounded-xl border bg-card">{isiTabel}</div>
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        {ctx === null ? (
-          <ContextMenuItem disabled>Klik kanan pada sel tagihan</ContextMenuItem>
-        ) : (
-          <>
-            <ContextMenuLabel>{`${ctx.meta.label} — ${ctx.meta.nama}`}</ContextMenuLabel>
-            {onBayar && (
-              <ContextMenuItem
-                id="menu_tagihan_bayar"
-                disabled={ctx.sel.status === 'lunas'}
-                onSelect={() => onBayar(ctx.sel, ctx.meta)}
-              >
-                <Wallet size={16} />
-                <span>Bayar</span>
-              </ContextMenuItem>
-            )}
-            {onRiwayat && (
-              <ContextMenuItem
-                id="menu_tagihan_riwayat"
-                onSelect={() => onRiwayat(ctx.sel, ctx.meta)}
-              >
-                <History size={16} />
-                <span>Lihat riwayat pembayaran</span>
-              </ContextMenuItem>
-            )}
-            {onHapus && (
-              <>
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                  id="menu_tagihan_hapus"
-                  className="text-destructive"
-                  onSelect={() => onHapus(ctx.sel, ctx.meta)}
-                >
-                  <Trash2 size={16} />
-                  <span>Hapus tagihan</span>
-                </ContextMenuItem>
-              </>
-            )}
-          </>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
+    </div>
   );
 }
