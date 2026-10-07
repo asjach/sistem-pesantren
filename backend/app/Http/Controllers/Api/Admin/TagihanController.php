@@ -84,6 +84,17 @@ class TagihanController extends Controller
             }
         }
 
+        /* Kelas & status keaktifan per Santri, diambil dari riwayat TA yang
+           sama dengan filter topBar: semester 2 (genap) menang, dan Santri
+           MI-MD memakai kelas MI (`jenjang_utama` sudah embody aturan itu).
+           `pindah_keluar` ikut diambil — statusnya justru dipakai untuk
+           penanda titik merah, bukan untuk menyembunyikan baris. Kalau filter
+           TA kosong, tidak ada patokan kelas yang benar, jadi kolomnya dibiarkan kosong. */
+        $tahunAjaran = $this->nilaiFilter($request, 'tahun_ajaran');
+        $peta = $tahunAjaran === []
+            ? []
+            : $this->petaSantriGenerate((string) $tahunAjaran[0], array_keys($tagihan->groupBy('santri_id')->all()), null, true);
+
         $baris = [];
         foreach ($tagihan->groupBy('santri_id') as $santriId => $kelompok) {
             $sel = [];
@@ -100,12 +111,41 @@ class TagihanController extends Controller
                 ];
             }
             $santri = $kelompok->first()->santri;
+            $info = $peta[(int) $santriId] ?? null;
+
+            /* Keaktifan (aturan user): untuk Santri MI-MD, tidak aktif HANYA
+               bila `status_akhir` di MI **dan** MD sama-sama `pindah_keluar`;
+               kalau hanya salah satu, Santri itu dianggap masih aktif (mis.
+               pindah dari MI tapi masih sekolah di MD). Dievaluasi dari
+               `per_jenjang` — bukan dari jenjang yang kebetulan sedang difilter
+               crosstab, supaya Santri yang pindah tidak ditandai merah ketika
+               tabel sedang disaring jenjang MD, atau sebaliknya. Santri
+               berjenjang tunggal (atau MTS/MLN) memakai `status_akhir`. */
+            $status = null;
+            $aktif = false;
+            if ($info !== null) {
+                $statusMi = $info['per_jenjang']['MI']['status'] ?? null;
+                $statusMd = $info['per_jenjang']['MD']['status'] ?? null;
+                if ($statusMi !== null && $statusMd !== null) {
+                    $aktif = ! ($statusMi === 'pindah_keluar' && $statusMd === 'pindah_keluar');
+                    $status = $aktif ? ($info['status_akhir'] ?? null) : 'pindah_keluar';
+                } else {
+                    $status = $info['status_akhir'];
+                    $aktif = $status !== null && $status !== 'pindah_keluar';
+                }
+            }
             $baris[] = [
                 'santri_id' => (int) $santriId,
                 'nama' => $santri?->nama_lengkap ?? 'Tidak dikenal',
                 'ayah_nama' => $santri?->ayah_nama,
                 'ibu_nama' => $santri?->ibu_nama,
                 'jenjang' => (string) $kelompok->first()->jenjang,
+                'kelas' => $info['kelas'] ?? null,
+                'tingkat' => $info['tingkat'] ?? null,
+                /* `aktif` hasil hitungan MI+MD di atas — bukan `status !== 'pindah_keluar'`,
+                   karena untuk MI-MD sudah aktif meski `status_akhir` (MI) pindah_keluar. */
+                'status_akhir' => $status,
+                'aktif' => $aktif,
                 'sel' => $sel,
                 'total_tagihan' => (int) $kelompok->sum('nominal'),
                 'total_terbayar' => (int) $kelompok->sum('terbayar'),

@@ -30,10 +30,15 @@ trait KeuanganLembaga
      *
      * Baris semester 2 menang sebagai baris tampilan.
      *
+     * $sertakanPindahKeluar=false menyaring Santri berstatus `pindah_keluar`.
+     * Crosstab butuh keduanya: tagihan tetap memuat Santri yang sudah pindah,
+     * dan penanda keaktifannya justru dihitung dari status itu — menyaringnya
+     * di sini membuat barisnya hilang tanpa jejak.
+     *
      * @param  list<int>  $santriIds
      * @return array<int, array{santri_id:int, nama_lengkap:string, jk:?string, nisn:?string, nis_lokal:?string, per_jenjang:array<string, array{semester:?string, tingkat:?string, kelas:?string, kelas_id:?int, status:?string}>, jenjang_utama:string, tingkat:?string, kelas:?string, kelas_id:?int, status_akhir:?string, kelas_akhir:bool}>
      */
-    private function petaSantriGenerate(string $ta, array $santriIds = [], ?string $cari = null): array
+    private function petaSantriGenerate(string $ta, array $santriIds = [], ?string $cari = null, bool $sertakanPindahKeluar = false): array
     {
         $baris = DB::table('riwayat_belajar as rb')
             ->join('santri as s', 's.id', '=', 'rb.santri_id')
@@ -42,7 +47,7 @@ trait KeuanganLembaga
                 $j->on('ls.santri_id', '=', 'rb.santri_id')->on('ls.jenjang', '=', 'rb.jenjang');
             })
             ->where('rb.tahun_ajaran', $ta)
-            ->where('rb.status_akhir', '!=', 'pindah_keluar')
+            ->when(! $sertakanPindahKeluar, fn ($q) => $q->where('rb.status_akhir', '!=', 'pindah_keluar'))
             ->when($santriIds !== [], fn ($q) => $q->whereIn('rb.santri_id', $santriIds))
             ->when($cari !== null && $cari !== '', fn ($q) => $q->whereIn('rb.santri_id', DB::table('santri as s2')
                 ->leftJoin('lembaga_santri as ls2', 'ls2.santri_id', '=', 's2.id')

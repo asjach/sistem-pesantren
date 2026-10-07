@@ -586,6 +586,115 @@ class KeuanganTest extends TestCase
             ->assertJsonPath('data.0.santri_id', $lain->id);
     }
 
+    public function test_crosstab_baris_santri_ada_kelas_dan_status_keaktifan(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+
+        $buat = function (string $nama, string $status = 'aktif') {
+            return Santri::create(['nama_lengkap' => $nama, 'jk' => 'L']);
+        };
+        $riwayat = function (int $santriId, string $jenjang, string $semester, string $tingkat, ?string $kelas, string $status = 'aktif') {
+            $k = $kelas === null ? null : Kelas::create(['jenjang' => $jenjang, 'tahun_ajaran' => '2025/2026', 'tingkat' => $tingkat, 'nama_kelas' => $kelas]);
+            DB::table('riwayat_belajar')->insert([
+                'santri_id' => $santriId, 'tahun_ajaran' => '2025/2026', 'jenjang' => $jenjang,
+                'tingkat' => $tingkat, 'kelas_id' => $k?->id, 'semester' => $semester,
+                'status_akhir' => $status, 'is_active_riwayat' => 'Ya',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        };
+
+        // Genap menang; MI-MD memakai kelas MI; pindah_keluar tetap tampil.
+        $genap = $buat('Genap Menang');
+        $riwayat($genap->id, 'MI', '1', '4', '4A');
+        $riwayat($genap->id, 'MI', '2', '4', '4B');
+
+        $mimd = $buat('MI-MD');
+        $riwayat($mimd->id, 'MD', '2', '5', '5MD');
+        $riwayat($mimd->id, 'MI', '2', '5', '5MI');
+
+        $pindah = $buat('Sudah Pindah');
+        $riwayat($pindah->id, 'MI', '2', '6', '6A', 'pindah_keluar');
+
+        foreach ([$genap, $mimd, $pindah] as $s) {
+            Tagihan::create(['santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
+        }
+
+        $baris = collect($this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026')
+            ->assertStatus(200)->assertJsonCount(3, 'baris')->json('baris'))
+            ->keyBy('nama');
+
+        // Semester genap menang atas ganjil.
+        $this->assertSame('4', $baris['Genap Menang']['tingkat']);
+        $this->assertSame('4B', $baris['Genap Menang']['kelas']);
+
+        // MI-MD: jenjang utama MI, jadi kelasnya dari MI.
+        $this->assertSame('5MI', $baris['MI-MD']['kelas']);
+
+        // Pindah/Keluar tetap ditampilkan (tidak disaring), ditandai tidak aktif.
+        $this->assertSame('pindah_keluar', $baris['Sudah Pindah']['status_akhir']);
+        $this->assertFalse($baris['Sudah Pindah']['aktif']);
+
+        /* Keaktifan MI-MD (aturan user): tidak aktif HANYA kalau MI **dan** MD
+           sama-sama `pindah_keluar`. Kalau hanya salah satu → masih aktif.
+           Status dibaca dari `per_jenjang`, bukan dari jenjang yang sedang
+           difilter crosstab. */
+        // Baris kelas dibuat sekali lalu dipakai ulang (unik per jenjang+TA+nama).
+        $kelasMi = Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'tingkat' => '3', 'nama_kelas' => '3A']);
+        $kelasMd = Kelas::create(['jenjang' => 'MD', 'tahun_ajaran' => '2025/2026', 'tingkat' => '3', 'nama_kelas' => '3B']);
+        $riwayatDenganKelas = function (int $santriId, string $jenjang, int $kelasId, string $status) {
+            DB::table('riwayat_belajar')->insert([
+                'santri_id' => $santriId, 'tahun_ajaran' => '2025/2026', 'jenjang' => $jenjang,
+                'tingkat' => '3', 'kelas_id' => $kelasId, 'semester' => '2',
+                'status_akhir' => $status, 'is_active_riwayat' => 'Ya',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        };
+        /* Jenjang unik tagihan = (santri, jenis, periode) tanpa jenjang, jadi
+           satu Santri hanya punya satu tagihan per bulan. Supaya aturan keaktifan
+           terbukti TAK bergantung pada jenjang yang sedang difilter crosstab,
+           tiap kombinasi dibuat dua kali: sekali bertagihan MI, sekali MD. */
+        $pasangan = function (string $nama, string $statusMi, string $statusMd, string $jenjangTagihan) use ($buat, $riwayatDenganKelas, $kelasMi, $kelasMd, $infaq) {
+            $s = $buat($nama);
+            $riwayatDenganKelas($s->id, 'MI', $kelasMi->id, $statusMi);
+            $riwayatDenganKelas($s->id, 'MD', $kelasMd->id, $statusMd);
+            Tagihan::create(['santri_id' => $s->id, 'jenjang' => $jenjangTagihan, 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
+
+            return $s;
+        };
+        $namaPindah = 'MI Pindah, MD Aktif';
+        $namaAktif = 'MI MD Sama-sama Aktif';
+        $namaDuaPindah = 'MI MD Dua-dua Pindah';
+        foreach (['MI', 'MD'] as $j) {
+            $pasangan("{$namaPindah} ({$j})", 'pindah_keluar', 'aktif', $j);
+            $pasangan("{$namaAktif} ({$j})", 'aktif', 'aktif', $j);
+            $pasangan("{$namaDuaPindah} ({$j})", 'pindah_keluar', 'pindah_keluar', $j);
+        }
+
+        $ambil = function (string $jenjang) use ($admin) {
+            return collect($this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026&jenjang[]={$jenjang}")
+                ->assertStatus(200)->json('baris'))->keyBy('nama');
+        };
+        foreach (['MI', 'MD'] as $jenjang) {
+            $b = $ambil($jenjang);
+            // Hanya salah satu yang pindah → masih aktif.
+            $this->assertTrue($b["{$namaPindah} ({$jenjang})"]['aktif'], "satu jenjang pindah → aktif ($jenjang)");
+            $this->assertTrue($b["{$namaAktif} ({$jenjang})"]['aktif'], "keduanya aktif → aktif ($jenjang)");
+            // Keduanya pindah → tidak aktif.
+            $this->assertFalse($b["{$namaDuaPindah} ({$jenjang})"]['aktif'], "keduanya pindah → tidak aktif ($jenjang)");
+            $this->assertSame('pindah_keluar', $b["{$namaDuaPindah} ({$jenjang})"]['status_akhir']);
+            // Kelas SELALU dari MI walau tagihan/barisnya MD.
+            $this->assertSame('3A', $b["{$namaPindah} ({$jenjang})"]['kelas'], "kelas dari MI ($jenjang)");
+        }
+        $this->assertTrue($baris['Genap Menang']['aktif']);
+        $this->assertSame('aktif', $baris['Genap Menang']['status_akhir']);
+
+        // Tanpa filter TA tak ada patokan kelas → kolom kosong, bukan error.
+        $tanpaTa = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab')->assertStatus(200)->json('baris');
+        $this->assertNull($tanpaTa[0]['kelas']);
+        $this->assertFalse($tanpaTa[0]['aktif']);
+    }
+
     public function test_crosstab_tagihan_kolom_per_jenis_dan_bulan(): void
     {
         $admin = $this->admin();

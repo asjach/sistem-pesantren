@@ -18,12 +18,14 @@ function sel(partial: Partial<CrosstabSel>): CrosstabSel {
   };
 }
 
-function baris(selJul: CrosstabSel, selAgu: CrosstabSel): CrosstabBaris {
+function baris(selJul: CrosstabSel, selAgu: CrosstabSel, timpa: Partial<CrosstabBaris> = {}): CrosstabBaris {
   return {
     santri_id: 7, nama: 'Santri Uji', jenjang: 'MI',
     ayah_nama: 'Ayah Uji', ibu_nama: 'Ibu Uji',
+    kelas: 'IA', tingkat: '1', status_akhir: 'aktif', aktif: true,
     sel: { '1-2025-07': selJul, '1-2025-08': selAgu },
     total_tagihan: 100000, total_terbayar: 0, tunggakan: 0,
+    ...timpa,
   };
 }
 
@@ -244,5 +246,37 @@ describe('pemilihan sel pada pointerdown (bukan click)', () => {
     pointerDown(tombol, 1);
     pointerDown(tombol, 2);
     expect(onPilih).not.toHaveBeenCalled();
+  });
+});
+
+describe('TagihanCrosstab — kolom Santri', () => {
+  it('menampilkan orang tua & kelas di bawah nama', () => {
+    renderCrosstab(baris(sel({ nominal: 1000 }), sel({ nominal: 1000 }), {
+      ayah_nama: 'Ayah Uji', ibu_nama: 'Ibu Uji', tingkat: '4', kelas: '4B',
+    }));
+    // Baris kecil berisi "Ayah · Ibu · kelas" — tingkat tidak ikut (sudah
+    // tercermin dari nama kelas).
+    expect(screen.getByText(/Ayah Uji · Ibu Uji · 4B/)).toBeInTheDocument();
+    expect(screen.queryByText(/4 4B/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Ayah Uji/).className).toMatch(/text-\[8px\]/);
+  });
+
+  it('beranda titik hijau saat aktif dan merah saat sudah Pindah/Keluar', () => {
+    const { unmount } = renderCrosstab(baris(sel({ nominal: 1000 }), sel({ nominal: 1000 }), { aktif: true, status_akhir: 'naik' }));
+    const hijau = screen.getByTitle('Aktif');
+    expect(hijau.className).toMatch(/bg-emerald-500/);
+    unmount();
+
+    renderCrosstab(baris(sel({ nominal: 1000 }), sel({ nominal: 1000 }), { aktif: false, status_akhir: 'pindah_keluar' }));
+    const merah = screen.getByTitle(/Tidak aktif/);
+    expect(merah.className).toMatch(/bg-destructive/);
+  });
+
+  it('baris tanpa kelas maupun orang tua tidak menambah baris kosong', () => {
+    renderCrosstab(baris(sel({ nominal: 1000 }), sel({ nominal: 1000 }), {
+      ayah_nama: null, ibu_nama: null, tingkat: null, kelas: null,
+    }));
+    expect(screen.getByText('Santri Uji')).toBeInTheDocument();
+    expect(screen.queryByText(/·/)).not.toBeInTheDocument();
   });
 });

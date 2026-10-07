@@ -188,6 +188,11 @@ export interface CrosstabBaris {
   santri_id: number; nama: string; jenjang: string;
   /** Nama ayah & ibu; dipakai ringkasan di popover aksi sel. */
   ayah_nama: string | null; ibu_nama: string | null;
+  /** Kelas & tingkat dari riwayat belajar pada TA filter (semester genap
+   *  menang; Santri MI-MD memakai kelas MI). */
+  kelas: string | null; tingkat: string | null;
+  /** `status_akhir` riwayat pada TA filter + turunannya (bukan pindah_keluar). */
+  status_akhir: string | null; aktif: boolean;
   sel: Record<string, CrosstabSel>;
   total_tagihan: number; total_terbayar: number;
   /** Sisa tagihan yang sudah lewat jatuh tempo saja. */
@@ -204,6 +209,8 @@ export function crosstabTagihan(params: {
   tahun_ajaran?: ScalarOrArray<string>; jenjang?: ScalarOrArray<string>; jenis_id?: number | '';
   status?: string; belum_lunas?: boolean; terlambat?: boolean; santri?: string;
   page?: number; per_page?: string; sort?: string[]; arah?: 'naik' | 'turun';
+  /** Batalkan request lama saat filter/pencarian berubah (pola `useDaftarTabel`). */
+  signal?: AbortSignal;
 } = {}) {
   const q = new URLSearchParams();
   appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
@@ -218,7 +225,7 @@ export function crosstabTagihan(params: {
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   const s = q.toString();
-  return api<CrosstabTagihan>(`/admin/keuangan/tagihan/crosstab${s ? `?${s}` : ''}`);
+  return api<CrosstabTagihan>(`/admin/keuangan/tagihan/crosstab${s ? `?${s}` : ''}`, { signal: params.signal });
 }
 
 export function hapusTagihan(id: number) {

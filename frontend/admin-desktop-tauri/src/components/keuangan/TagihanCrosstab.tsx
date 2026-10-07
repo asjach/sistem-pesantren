@@ -179,10 +179,32 @@ const BarisCrosstab = memo(function BarisCrosstab({
   onHoverGerak: (isi: TooltipSel, e: React.MouseEvent<HTMLElement>) => void;
   onHoverKeluar: () => void;
 }) {
+  const orangTua = [baris.ayah_nama, baris.ibu_nama].filter((n): n is string => !!n && n.trim() !== '').join(' · ');
+  /* Cuma nama kelas — tingkat ("4") sudah tercermin dari kelas ("4B"), jadi
+     menampilkan keduanya bikin baris kecil jadi panjang tanpa informasi baru. */
+  const kelas = baris.kelas ?? '';
+
   return (
     <tr>
-      <th scope="row" className="sticky left-0 z-10 max-w-56 border-b border-r bg-card py-0.5 pl-3 pr-0.5 text-left font-normal">
-        <span className="block truncate font-medium">{baris.nama}</span>
+      {/* Kolom Santri: nama, titik keaktifan, lalu baris kecil untuk orang tua
+          & kelas. `sticky left-0` memuat tiga baris, jadi lebar maksimal
+          dilonggarkan sedikit dari max-w-56 (nama saja) supaya kelas & nama
+          orang tua tak terpotong di kelas yang panjang. */}
+      <th scope="row" className="sticky left-0 z-10 max-w-64 border-b border-r bg-card py-1 pl-2 pr-0.5 text-left font-normal">
+        <span className="flex items-center gap-1.5">
+          {/* Hijau = masih aktif pada TA filter; merah = sudah Pindah/Keluar.
+              Ditampilkan, bukan disaring: tagihannya tetap ada dan tetap dihitung di tunggakan. */}
+          <span
+            className={cn('size-1.5 shrink-0 rounded-full', baris.aktif ? 'bg-emerald-500' : 'bg-destructive')}
+            title={baris.aktif ? 'Aktif' : `Tidak aktif — ${baris.status_akhir ?? 'pindah'}`}
+          />
+          <span className="min-w-0 truncate font-medium">{baris.nama}</span>
+        </span>
+        {(orangTua !== '' || kelas !== '') && (
+          <span className="mt-px block truncate pl-3 text-[8px] leading-tight text-muted-foreground/70">
+            {[orangTua, kelas].filter(Boolean).join(' · ')}
+          </span>
+        )}
       </th>
       {kolom.map((k) => {
         const sel = baris.sel[k.key];
@@ -419,9 +441,19 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Prop
   useLayoutEffect(tempatkanJangkar, [tempatkanJangkar]);
 
   /* Tabel digulir → tutup kartu. Radix tidak memantau pergeseran posisi
-     jangkar, jadi tanpa ini kartu melayang jauh dari sel asalnya. */
+     jangkar, jadi tanpa ini kartu melayang jauh dari sel asalnya.
+
+     Wadah diambil dari `scrollRef`, bukan `getElementById`, dan dependensinya
+     `adaKolom`: sebelumnya efeknya dependensi kosong, jadi saat tab Tagihan
+     di-mount sementara data masih dimuat, komponen return lebih dulu
+     (lihat `kolom.length === 0` di bawah) → wadahnya belum ada → effect
+     batal dan tidak pernah diulang. Akibatnya "gulir → tutup kartu" tidak
+     berlaku di kunjungan pertama. Terverifikasi lewat
+     `DOMDebugger.getEventListeners`: mount pertama `[]`, setelah pindah tab
+     lalu kembali `["scroll"]`. */
+  const adaKolom = kolom.length > 0;
   useEffect(() => {
-    const wrap = document.getElementById('crosstab_tagihan_scroll');
+    const wrap = scrollRef.current;
     if (wrap === null) return;
     const tutup = () => {
       if (tutupRef.current !== null) { clearTimeout(tutupRef.current); tutupRef.current = null; }
@@ -429,7 +461,7 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Prop
     };
     wrap.addEventListener('scroll', tutup, { passive: true });
     return () => wrap.removeEventListener('scroll', tutup);
-  }, []);
+  }, [adaKolom]);
   useLayoutEffect(() => {
     const el = grupRef.current;
     if (!el) return;
