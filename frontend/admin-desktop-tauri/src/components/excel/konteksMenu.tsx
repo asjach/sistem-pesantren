@@ -51,6 +51,10 @@ export interface MenuKonteksGridProps {
   salinBaris: (id: string | number) => void;
   salinSel: (id: string | number, key: string) => void;
   salinKolom: (key: string) => void;
+  /** Klik kanan di sudut kiri-atas (pilih semua): menu salin seluruh tabel. */
+  sudut?: boolean;
+  /** Salin seluruh tabel (label header + semua baris) sebagai TSV. */
+  onSalinSemua: () => void;
   onKonfirmasi: (konfirmasi: AksiMenu['konfirmasi']) => void;
   /** Geser posisi kolom (super_admin efektif; global tersimpan otomatis). */
   bolehGeser: boolean;
@@ -88,6 +92,8 @@ export default function MenuKonteksGrid({
   salinBaris,
   salinSel,
   salinKolom,
+  sudut,
+  onSalinSemua,
   onKonfirmasi,
   bolehGeser,
   jumlahKolom,
@@ -102,6 +108,20 @@ export default function MenuKonteksGrid({
 }: MenuKonteksGridProps) {
   return (
     <ContextMenuContent>
+      {/* Sudut kiri-atas (kotak centang pilih semua): salin seluruh tabel. */}
+      {sudut && (
+        <>
+          <ContextMenuLabel>TABEL</ContextMenuLabel>
+          <ContextMenuItem
+            id={`menu_ctx_salin_semua_${tableKey}`}
+            onSelect={() => onSalinSemua()}
+          >
+            <Copy size={16} />
+            <span>Salin semua (TSV)</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
       {/* Area header kolom: semua tombol dalam SATU baris ikon tanpa label
           (perataan | lebar | beku); preset tetap daftar centang. */}
       {header && (

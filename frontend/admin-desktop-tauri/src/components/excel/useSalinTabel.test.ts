@@ -49,6 +49,21 @@ function pasang(range: GridSelection | null, checked: (string | number)[] = []) 
 
 const salin = () => vi.mocked(copyText);
 
+describe('salinSemuaCtx (menu sudut kiri-atas)', () => {
+  beforeEach(() => {
+    salin().mockClear();
+    salin().mockResolvedValue(true);
+  });
+
+  it('menyalin label header + seluruh baris sebagai TSV', async () => {
+    const { result } = pasang(null);
+
+    await result.current.salinSemuaCtx();
+
+    expect(salin()).toHaveBeenCalledWith('Nama\tKode\nAhmad\tP001\nBudi\tP002');
+  });
+});
+
 describe('salinFisik (intersepsi Ctrl+C desktop)', () => {
   beforeEach(() => {
     salin().mockClear();

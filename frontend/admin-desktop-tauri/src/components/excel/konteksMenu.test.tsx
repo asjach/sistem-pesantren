@@ -17,7 +17,11 @@ function apiPalsu(terapan: PresetKolomApi['terapan'] = { kolom: null, label: nul
   };
 }
 
-function renderMenu(api: ReturnType<typeof apiPalsu>, bolehKelola = true) {
+function renderMenu(
+  api: ReturnType<typeof apiPalsu>,
+  bolehKelola = true,
+  ekstra: Partial<MenuKonteksGridProps> = {},
+) {
   const ref = { current: api } as MutableRefObject<PresetKolomApi | null>;
   const props: MenuKonteksGridProps = {
     tableKey: 'uji',
@@ -42,6 +46,7 @@ function renderMenu(api: ReturnType<typeof apiPalsu>, bolehKelola = true) {
     salinBaris: () => {},
     salinSel: () => {},
     salinKolom: () => {},
+    onSalinSemua: () => {},
     onKonfirmasi: () => {},
     bolehGeser: false,
     jumlahKolom: 3,
@@ -53,6 +58,7 @@ function renderMenu(api: ReturnType<typeof apiPalsu>, bolehKelola = true) {
     onResetTinggiBaris: () => {},
     barisManualAda: false,
     barisManualBarisIni: false,
+    ...ekstra,
   };
   return renderDenganTema(
     <ContextMenu open>
@@ -60,6 +66,24 @@ function renderMenu(api: ReturnType<typeof apiPalsu>, bolehKelola = true) {
     </ContextMenu>,
   );
 }
+
+describe('MenuKonteksGrid — sudut kiri-atas (salin semua)', () => {
+  it('menawarkan Salin semua dan memanggil penanganannya', async () => {
+    const user = userEvent.setup();
+    const onSalinSemua = vi.fn();
+    renderMenu(apiPalsu(), true, { sudut: true, onSalinSemua });
+
+    await user.click(screen.getByText('Salin semua (TSV)'));
+
+    expect(onSalinSemua).toHaveBeenCalledTimes(1);
+  });
+
+  it('tidak menawarkan Salin semua di luar sudut', () => {
+    renderMenu(apiPalsu());
+
+    expect(screen.queryByText('Salin semua (TSV)')).toBeNull();
+  });
+});
 
 describe('MenuKonteksGrid — seksi TAMPILKAN KOLOM', () => {
   it('menampilkan seluruh kolom beserta status tampilnya', () => {

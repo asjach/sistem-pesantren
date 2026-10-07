@@ -256,6 +256,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const [ctx, setCtx] = useState<
     | { area: 'header'; colKey: string }
     | { area: 'row'; rowId: T['id']; rowLabel: string; colKey: string | null }
+    | { area: 'sudut' }
     | { area: 'grid' }
   >({ area: 'grid' });
   const [ctxKonfirmasi, setCtxKonfirmasi] = useState<AksiMenu['konfirmasi'] | null>(null);
@@ -473,6 +474,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     salinBarisCtx,
     salinSelCtx,
     salinKolomCtx,
+    salinSemuaCtx,
     onCopy,
     salinFisik,
     teksSalinan,
@@ -1100,6 +1102,13 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  menu (Radix maupun menu bawaan WebView). */
   function onGridContextMenu(e: React.MouseEvent) {
     const t = e.target as HTMLElement;
+    // Sudut kiri-atas (kotak centang "pilih semua") punya menu sendiri:
+    // salin seluruh tabel. Diperiksa sebelum cabang header karena sel ini
+    // juga berkelas header tanpa `data-col-key`.
+    if (t.closest('.dsg-cell')?.querySelector('input.simpes-dsg-checkall')) {
+      setCtx({ area: 'sudut' });
+      return;
+    }
     const colKey = t.closest('[data-col-key]')?.getAttribute('data-col-key') ?? null;
     if (t.closest('.dsg-cell-header')) {
       const f = colKey ? fieldsRef.current.find((x) => x.key === colKey) : null;
@@ -1394,6 +1403,8 @@ export default function ExcelTable<T extends { id: string | number }>({
             salinBaris={(id) => void salinBarisCtx(id as T['id'])}
             salinSel={(id, key) => void salinSelCtx(id as T['id'], key)}
             salinKolom={(key) => void salinKolomCtx(key)}
+            sudut={ctx.area === 'sudut'}
+            onSalinSemua={() => void salinSemuaCtx()}
             onKonfirmasi={setCtxKonfirmasi}
             bolehGeser={bolehGeser}
             jumlahKolom={visibleFields.length}

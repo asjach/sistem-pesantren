@@ -106,6 +106,14 @@ export function useSalinTabel<T extends { id: string | number }>({
     else toast.error('Gagal menyalin.');
   }
 
+  /** Salin SELURUH tabel (label header + nilai semua baris terlihat) sebagai
+   *  TSV. Dipakai menu klik kanan di sudut kiri-atas grid. */
+  async function salinSemuaCtx() {
+    const header = visibleFieldsRef.current.map((f) => labelKolom(f.key, f.label));
+    const body = rowsRef.current.map((r) => visibleFieldsRef.current.map((f) => displayOf(r.id, f.key)));
+    await tulisTSV(header, body, `${body.length} baris tabel disalin (TSV).`);
+  }
+
   /** Tulis TSV + toast; true bila ada yang ditulis. */
   async function tulisTSV(header: string[], body: string[][], pesan: string): Promise<boolean> {
     if (body.length === 0) return false;
@@ -217,6 +225,7 @@ export function useSalinTabel<T extends { id: string | number }>({
     salinBarisCtx,
     salinSelCtx,
     salinKolomCtx,
+    salinSemuaCtx,
     onCopy,
     salinFisik,
     teksSalinan,
