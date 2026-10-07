@@ -88,7 +88,11 @@ export function generateTagihan(data: {
   tahun_ajaran: string; jenis_id: number; periode?: string | null; periode_sampai?: string | null;
   jatuh_tempo?: string | null; nominal: number; santri: { santri_id: number; nominal?: number | null }[];
 }) {
-  return api<{ dibuat: number; dilewati: number }>('/admin/keuangan/tagihan/generate', { method: 'POST', body: JSON.stringify(data) });
+  return api<{
+    dibuat: number; diperbarui: number; dilewati: number;
+    /** Tagihan yang dilewati karena nominal baru < yang sudah dibayar. */
+    alasan: { santri_id: number; periode: string | null; nominal_sekarang: number; terbayar: number }[];
+  }>('/admin/keuangan/tagihan/generate', { method: 'POST', body: JSON.stringify(data) });
 }
 
 export type KelompokKandidat = 'mi_saja' | 'md_saja' | 'mi' | 'md' | 'mi_md' | 'aktif' | 'kelas_akhir' | 'selain_kelas_akhir' | 'custom';
@@ -97,6 +101,8 @@ export interface KandidatTagihanRow {
   santri_id: number; nama_lengkap: string; jk: string | null; nisn: string | null; nis_lokal: string | null;
   jenjang: string; tingkat: string | null; kelas: string | null; kelas_id: number | null;
   status_akhir: string | null;
+  /** Rekap tagihan yang sudah ada untuk periode terpilih (generate ulang). */
+  tagihan_periode: number; tagihan_nominal: number; tagihan_terbayar: number;
 }
 
 export function kandidatTagihan(params: {

@@ -33,19 +33,37 @@ const OPSI_KELOMPOK: { value: KelompokKandidat; label: string }[] = [
   { value: 'custom', label: 'Custom' },
 ];
 
+/** Jumlah periode bulanan yang akan digenerate (1 bila hanya "Dari Bulan"). */
+function hitungJumlahPeriode(dari: string, sampai: string): number {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(dari)) return 0;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(sampai)) return 1;
+  const [y1, b1] = dari.split('-').map(Number);
+  const [y2, b2] = sampai.split('-').map(Number);
+  return Math.min(24, Math.max(0, (y2 - y1) * 12 + (b2 - b1) + 1));
+}
+
+/** Ringkasan tagihan yang sudah ada: "3/3 bulan · Rp 225.000", atau "—". */
+function ringkasSudahAda(r: KandidatTagihanRow, jumlahPeriode: number): string {
+  if (r.tagihan_periode <= 0) return 'Belum ada';
+  const bulan = jumlahPeriode > 1 ? `${r.tagihan_periode}/${jumlahPeriode} bulan` : 'ada';
+  return `${bulan} · Rp ${r.tagihan_nominal.toLocaleString('id')}`;
+}
+
 const FIELDS_KANDIDAT: ExcelField[] = [
   { key: 'nama', label: 'Santri', kind: 'static' },
   { key: 'jk', label: 'JK', kind: 'static', width: 40 },
   { key: 'nis', label: 'NIS/NISN', kind: 'static', width: 110 },
   { key: 'tingkat', label: 'Tkt', kind: 'static', width: 50 },
   { key: 'kelas', label: 'Kelas', kind: 'static', width: 90 },
+  { key: 'sudah', label: 'Tagihan', kind: 'static', width: 130 },
   { key: 'status_akhir', label: 'Status', kind: 'static', width: 90 },
 ];
 
 const FIELDS_TERPILIH: ExcelField[] = [
   { key: 'nama', label: 'Santri', kind: 'static' },
   { key: 'kelas', label: 'Tkt / Kelas', kind: 'static', width: 120 },
-  { key: 'nominal', label: 'Nominal', kind: 'text', width: 110 },
+  { key: 'sekarang', label: 'Nominal sekarang', kind: 'static', width: 150 },
+  { key: 'nominal', label: 'Nominal baru', kind: 'text', width: 110 },
   { key: 'dispensasi', label: 'Dispensasi', kind: 'static', width: 170 },
 ];
 
@@ -275,12 +293,27 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         periode_sampai: bulanan ? (periodeSampai || null) : null,
         jatuh_tempo: jatuhTempo || null, nominal, santri,
       });
-      toast.success(`Dibuat ${r.dibuat}, dilewati ${r.dilewati}.`);
+      /* Laporan per kategori: dibuat (baru), diperbarui (tagihan lama di-update),
+         dilewati (nominal baru < yang sudah dibayar — alasannya disebut
+         supaya user tahu itu bukan kegagalan diam-diam). */
+      const bagian = [`Dibuat ${r.dibuat}`, `diperbarui ${r.diperbarui}`];
+      if (r.dilewati > 0) bagian.push(`dilewati ${r.dilewati}`);
+      const pesan = bagian.join(', ');
+      if (r.alasan.length > 0) {
+        toast.warning(`${pesan} — ${r.alasan.length} dilewati: nominal baru lebih kecil dari yang sudah dibayar (mis. ${r.alasan[0].periode ?? 'sekali'}: sudah dibayar Rp ${r.alasan[0].terbayar.toLocaleString('id')}).`);
+      } else {
+        toast.success(`${pesan}.`);
+      }
       await onSelesai();
       onOpenChange(false);
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
   };
 
+  /** Berapa periode yang akan digenerate — dipakai ringkasan "N/M bulan". */
+  const jumlahPeriode = useMemo(
+    () => (bulanan ? hitungJumlahPeriode(periodeDari, periodeSampai) : 1),
+    [bulanan, periodeDari, periodeSampai],
+  );
   const totalNominal = terpilih.reduce((s, r) => s + (Number(r.nominal) || 0), 0);
   const tarifTampil = jenisId === '' ? tarif : tarif.filter((t) => t.jenis_id === jenisId);
 
@@ -408,6 +441,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                   getValues={(r) => ({
                     nama: r.nama_lengkap, jk: r.jk, nis: r.nis_lokal ?? r.nisn,
                     tingkat: r.tingkat, kelas: r.kelas, status_akhir: r.status_akhir,
+                    sudah: ringkasSudahAda(r, jumlahPeriode),
                   })}
                   loading={loading}
                   emptyText={jenisId === '' ? 'Pilih jenis tagihan untuk menghitung tagihan yang sudah ada.' : 'Tidak ada kandidat untuk kriteria ini.'}
@@ -441,6 +475,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     getValues={(r) => ({
                       nama: r.nama_lengkap,
                       kelas: [r.tingkat, r.kelas].filter(Boolean).join(' / ') || '—',
+                      sekarang: ringkasSudahAda(r, jumlahPeriode),
                       nominal: r.nominal,
                       dispensasi: r.dispensasiLabel === null
                         ? null

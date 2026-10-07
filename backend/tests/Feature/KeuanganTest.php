@@ -189,7 +189,7 @@ class KeuanganTest extends TestCase
         ])->assertStatus(422);
     }
 
-    public function test_kandidat_sembunyikan_sudah_ada_dan_range_bulanan(): void
+    public function test_kandidat_menandai_sudah_ada_dan_generate_ulang_memperbarui(): void
     {
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
@@ -201,29 +201,47 @@ class KeuanganTest extends TestCase
             ['santri_id' => $b->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'tingkat' => '2', 'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
-        // A sudah punya tagihan Juli → hilang dari kandidat periode itu.
-        Tagihan::create(['santri_id' => $a->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000]);
-        $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&jenis_id={$jenis->id}&periode=2025-07")
-            ->assertStatus(200)->assertJsonCount(1, 'data')->assertJsonPath('data.0.santri_id', $b->id);
+        /* A sudah punya tagihan Juli → TETAP muncul sebagai kandidat (dipakai
+           alur generate 2: perbarui sebagian Santri), tapi ditandai lewat
+           rekap `tagihan_*`, bukan disembunyikan. */
+        Tagihan::create(['santri_id' => $a->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000, 'terbayar' => 25000, 'status' => 'sebagian']);
+        // `sort[]=nama` dipakai supaya urutan baris pasti (default-nya kelas → JK → nama).
+        $periodeJuli = "/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&jenis_id={$jenis->id}&periode=2025-07&sort[]=nama";
+        $this->actingAs($admin)->getJson($periodeJuli)
+            ->assertStatus(200)->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.santri_id', $a->id)
+            ->assertJsonPath('data.0.tagihan_periode', 1)
+            ->assertJsonPath('data.0.tagihan_nominal', 75000)
+            ->assertJsonPath('data.0.tagihan_terbayar', 25000)
+            ->assertJsonPath('data.1.santri_id', $b->id)
+            ->assertJsonPath('data.1.tagihan_periode', 0);
 
-        // Juli–September untuk A baru 1 dari 3 → tetap muncul (belum lengkap).
-        $urlRange = "/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&jenis_id={$jenis->id}&periode=2025-07&periode_sampai=2025-09";
+        // Juli–September: A terisi 1 dari 3 bulan → rekap-nya 1.
+        $urlRange = "/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&jenis_id={$jenis->id}&periode=2025-07&periode_sampai=2025-09&sort[]=nama";
         $this->actingAs($admin)->getJson($urlRange)->assertStatus(200)->assertJsonCount(2, 'data');
 
-        // Generate rentang 3 bulan untuk B → dibuat 3; diulang → dilewati 3.
+        /* Generate rentang 3 bulan untuk B → dibuat 3. Diulang dengan nominal
+           sama → diperbarui 3 (bukan "dilewati"), lalu nominal diubah →
+           tagihannya ikut berubah. */
         $payload = [
             'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id,
             'periode' => '2025-07', 'periode_sampai' => '2025-09',
             'nominal' => 75000, 'santri' => [['santri_id' => $b->id]],
         ];
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
-            ->assertStatus(200)->assertJson(['dibuat' => 3, 'dilewati' => 0]);
+            ->assertStatus(200)->assertJson(['dibuat' => 3, 'diperbarui' => 0, 'dilewati' => 0]);
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
-            ->assertStatus(200)->assertJson(['dibuat' => 0, 'dilewati' => 3]);
+            ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 3, 'dilewati' => 0]);
 
-        // B lengkap → kandidat rentang hanya menyisakan A yang masih bolong.
+        $payload['nominal'] = 90000;
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
+            ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 3]);
+        $this->assertSame(90000, Tagihan::where('santri_id', $b->id)->where('periode', '2025-08')->firstOrFail()->nominal);
+
+        // B sekarang lengkap 3/3 bulan → rekap ikut menyesuaikan.
         $this->actingAs($admin)->getJson($urlRange)
-            ->assertStatus(200)->assertJsonCount(1, 'data')->assertJsonPath('data.0.santri_id', $a->id);
+            ->assertStatus(200)->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.1.tagihan_periode', 3);
     }
 
     public function test_generate_menolak_santri_tanpa_riwayat_ta(): void
@@ -237,6 +255,71 @@ class KeuanganTest extends TestCase
             'santri' => [['santri_id' => $santri->id]],
         ])->assertStatus(422);
         $this->assertDatabaseCount('tagihan', 0);
+    }
+
+    public function test_generate_rollback_semua_bila_santri_kedua_gagal(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
+
+        $aktif = Santri::create(['nama_lengkap' => 'Aktif', 'jk' => 'L']);
+        DB::table('riwayat_belajar')->insert([
+            'santri_id' => $aktif->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'tingkat' => '1',
+            'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $tanpaRiwayat = Santri::create(['nama_lengkap' => 'Tanpa Riwayat', 'jk' => 'P']);
+
+        // Santri kedua tidak punya riwayat TA → abort di tengah loop. Tanpa
+        // transaksi, tagihan Santri pertama sudah terlanjur tersimpan.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 10000,
+            'santri' => [
+                ['santri_id' => $aktif->id],
+                ['santri_id' => $tanpaRiwayat->id],
+            ],
+        ])->assertStatus(422);
+        $this->assertDatabaseCount('tagihan', 0);
+    }
+
+    public function test_generate_ulang_tidak_merusak_pembayaran(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Sudah Bayar', 'jk' => 'L']);
+        DB::table('riwayat_belajar')->insert([
+            'santri_id' => $santri->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI', 'tingkat' => '1',
+            'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $generate = fn (int $nominal) => $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
+            'nominal' => $nominal, 'santri' => [['santri_id' => $santri->id]],
+        ]);
+        $generate(75000)->assertStatus(200)->assertJson(['dibuat' => 1]);
+
+        $tagihan = Tagihan::where('santri_id', $santri->id)->firstOrFail();
+        $tagihan->update(['terbayar' => 30000, 'status' => 'sebagian']);
+
+        // Nominal dinaikkan → tagihan diperbarui, pembayaran & status ikut dihitung ulang.
+        $generate(100000)->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 1, 'dilewati' => 0]);
+        $tagihan->refresh();
+        $this->assertSame(100000, $tagihan->nominal);
+        $this->assertSame(30000, $tagihan->terbayar);
+        $this->assertSame('sebagian', $tagihan->status);
+
+        // Nominal diturunkan ke Rp 20.000 (di bawah Rp 30.000 yang dibayar) → dilewati.
+        $generate(20000)->assertStatus(200)
+            ->assertJson(['dibuat' => 0, 'diperbarui' => 0, 'dilewati' => 1])
+            ->assertJsonPath('alasan.0.terbayar', 30000)
+            ->assertJsonPath('alasan.0.nominal_sekarang', 100000);
+        $tagihan->refresh();
+        $this->assertSame(100000, $tagihan->nominal);
+
+        // Diturunkan tapi masih di atas pembayaran → tetap diperbarui.
+        $generate(80000)->assertStatus(200)->assertJson(['diperbarui' => 1]);
+        $this->assertSame(80000, $tagihan->fresh()->nominal);
     }
 
     public function test_generate_bulanan_validasi_dan_non_bulanan_periode_otomatis_ta(): void
@@ -258,13 +341,13 @@ class KeuanganTest extends TestCase
             ->assertStatus(200)->assertJson(['dibuat' => 1, 'dilewati' => 0]);
         $this->assertSame('2025/2026', Tagihan::where('jenis_id', $nonBulanan->id)->value('periode'));
 
-        // Generate ulang TA yang sama → dilewati (label periode sama).
+        // Generate ulang TA yang sama → diperbarui (label periode sama), bukan dilewati.
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payloadNon)
-            ->assertStatus(200)->assertJson(['dibuat' => 0, 'dilewati' => 1]);
+            ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 1, 'dilewati' => 0]);
 
-        // Kandidat non-bulanan menyembunyikan yang sudah punya tagihan TA itu.
+        // Kandidat non-bulanan tetap menandai yang sudah punya tagihan TA itu.
         $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&jenis_id={$nonBulanan->id}")
-            ->assertStatus(200)->assertJsonCount(0, 'data');
+            ->assertStatus(200)->assertJsonCount(1, 'data')->assertJsonPath('data.0.tagihan_periode', 1);
 
         // Bulanan tanpa periode → 422; sampai lebih awal dari mulai → 422.
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
@@ -295,7 +378,7 @@ class KeuanganTest extends TestCase
             'periode' => '2025-07', 'periode_sampai' => '2025-09', 'nominal' => 10000,
             'jatuh_tempo' => '2025-12-31',
             'santri' => [['santri_id' => $santri->id]],
-        ])->assertStatus(200)->assertJson(['dibuat' => 2, 'dilewati' => 1]);
+        ])->assertStatus(200)->assertJson(['dibuat' => 2, 'diperbarui' => 1, 'dilewati' => 0]);
         // Tiap bulan dapat tanggalnya sendiri, semuanya tanggal 10 bulan itu.
         foreach (['2025-07' => '2025-07-10', '2025-08' => '2025-08-10', '2025-09' => '2025-09-10'] as $periode => $harus) {
             $this->assertSame($harus, Tagihan::where('jenis_id', $bulanan->id)->where('periode', $periode)->firstOrFail()->jatuh_tempo->format('Y-m-d'));

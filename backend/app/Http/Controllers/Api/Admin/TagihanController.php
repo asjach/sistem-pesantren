@@ -19,6 +19,7 @@ use App\Services\UrutKatalog;
 use App\Support\JatuhTempo;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /** Keuangan: tagihan, kandidat/generate, crosstab, dan tunggakan. */
 class TagihanController extends Controller
@@ -246,8 +247,15 @@ class TagihanController extends Controller
         $periodes = $jenis !== null
             ? $this->periodesTagihan($jenis, $data['tahun_ajaran'], $data['periode'] ?? null, $data['periode_sampai'] ?? null, false)
             : [];
-        $lengkap = $jenis !== null && $periodes !== []
-            ? $this->santriSudahLengkap(array_keys($peta), $jenis->id, $periodes)
+
+        /* Santri yang sudah punya tagihan untuk periode terpilih TIDAK lagi
+           disembunyikan: alur generate dua tahap (tagih semua, lalu perbarui
+           sebagian) butuh mereka tetap bisa dipilih. Yang dikirim cukup
+           agregat — jumlah periode yang terisi + total nominal/terbayar — buat
+           pratinjau "sudah ada · 3/3 bulan · Rp 225.000" di dialog, bukan
+           rincian per periode (bisa 24 baris per Santri). */
+        $sudahAda = $jenis !== null && $periodes !== []
+            ? $this->rekapTagihanSudahAda(array_keys($peta), $jenis->id, $periodes)
             : [];
 
         $hasil = [];
@@ -258,9 +266,7 @@ class TagihanController extends Controller
             if (! $actor->canAccessLembaga($info['jenjang_utama'])) {
                 continue;
             }
-            if (isset($lengkap[$id])) {
-                continue;
-            }
+            $ada = $sudahAda[$id] ?? ['periode' => 0, 'nominal' => 0, 'terbayar' => 0];
             $hasil[] = [
                 'santri_id' => $id,
                 'nama_lengkap' => $info['nama_lengkap'],
@@ -272,6 +278,9 @@ class TagihanController extends Controller
                 'kelas' => $info['kelas'],
                 'kelas_id' => $info['kelas_id'],
                 'status_akhir' => $info['status_akhir'],
+                'tagihan_periode' => $ada['periode'],
+                'tagihan_nominal' => $ada['nominal'],
+                'tagihan_terbayar' => $ada['terbayar'],
             ];
         }
 
@@ -312,6 +321,15 @@ class TagihanController extends Controller
      * Buat tagihan massal untuk daftar santri terpilih (tabel kedua dialog
      * generate). Jenjang tiap santri dihitung dari riwayat TA terkait;
      * nominal boleh dioverride per santri.
+     *
+     * Alur dua tahap yang didukung: generate pertama menagih semua Santri
+     * aktif, generate berikutnya untuk sebagian Santri terpilih **memperbarui**
+     * tagihan yang sudah ada (nominal, jatuh tempo, tahun ajaran, jenjang,
+     * potongan/dispensasi) — bukan membuat duplikat dan bukan mengabaikannya.
+     * `terbayar` beserta riwayat pembayarannya tidak pernah disentuh dan status
+     * dihitung ulang dari nominal vs terbayar. Tagihan yang nominal barunya
+     * lebih kecil dari yang sudah dibayar **dilewati**, bukan dipaksa turun,
+     * dan alasannya dikembalikan agar bisa ditampilkan ke pengguna.
      */
     public function generateTagihan(TagihanGenerateRequest $request)
     {
@@ -333,42 +351,100 @@ class TagihanController extends Controller
             ->get();
         $aturan = app(DispensasiService::class);
 
-        $dibuat = 0;
-        $dilewati = 0;
-        foreach ($diminta as $santriId => $s) {
-            $info = $peta[$santriId] ?? null;
-            if ($info === null) {
-                abort(422, "Santri #{$santriId} tidak aktif pada tahun ajaran {$data['tahun_ajaran']}.");
-            }
-            $this->canLembaga($actor, $info['jenjang_utama']) || abort(403);
+        /* Satu transaksi untuk seluruh daftar. Tanpa itu `abort()` di tengah
+           loop (mis. Santri tidak aktif pada TA) meninggalkan tagihan yang
+           sudah terlanjur dibuat: user melihat "gagal" padahal sebagian data
+           sudah jadi, lalu generate ulang hanya melaporkan "dilewati". */
+        $hasil = DB::transaction(function () use (
+            $actor, $data, $jenis, $periodes, $diminta, $peta, $daftarDispensasi, $aturan
+        ): array {
+            $dibuat = 0;
+            $diperbarui = 0;
+            $alasan = [];
 
-            if (array_key_exists('nominal', $s) && $s['nominal'] !== null) {
-                $nominal = (int) $s['nominal'];
-                $potongan = 0;
-                $dispensasiIds = null;
-            } else {
-                $hasil = $aturan->terapkan((int) $data['nominal'], $aturan->saring($daftarDispensasi, (int) $santriId), (int) $jenis->id);
-                $nominal = $hasil['nominal'];
-                $potongan = $hasil['potongan'];
-                $dispensasiIds = $hasil['ids'] === [] ? null : $hasil['ids'];
-            }
+            foreach ($diminta as $santriId => $s) {
+                $info = $peta[$santriId] ?? null;
+                if ($info === null) {
+                    abort(422, "Santri #{$santriId} tidak aktif pada tahun ajaran {$data['tahun_ajaran']}.");
+                }
+                $this->canLembaga($actor, $info['jenjang_utama']) || abort(403);
 
-            foreach ($periodes as $periode) {
-                $tagihan = Tagihan::firstOrCreate(
-                    ['santri_id' => $santriId, 'jenis_id' => $jenis->id, 'periode' => $periode],
-                    [
+                if (array_key_exists('nominal', $s) && $s['nominal'] !== null) {
+                    $nominal = (int) $s['nominal'];
+                    $potongan = 0;
+                    $dispensasiIds = null;
+                } else {
+                    $terapkan = $aturan->terapkan((int) $data['nominal'], $aturan->saring($daftarDispensasi, (int) $santriId), (int) $jenis->id);
+                    $nominal = $terapkan['nominal'];
+                    $potongan = $terapkan['potongan'];
+                    $dispensasiIds = $terapkan['ids'] === [] ? null : $terapkan['ids'];
+                }
+
+                foreach ($periodes as $periode) {
+                    $jatuhTempo = JatuhTempo::untuk((string) $jenis->tipe, $periode, $data['jatuh_tempo'] ?? null);
+                    $ada = Tagihan::where('santri_id', $santriId)
+                        ->where('jenis_id', $jenis->id)
+                        ->where('periode', $periode)
+                        ->first();
+
+                    if ($ada === null) {
+                        Tagihan::create([
+                            'santri_id' => $santriId,
+                            'jenis_id' => $jenis->id,
+                            'periode' => $periode,
+                            'jenjang' => $info['jenjang_utama'],
+                            'tahun_ajaran' => $data['tahun_ajaran'],
+                            'nominal' => $nominal,
+                            'potongan' => $potongan,
+                            'dispensasi_ids' => $dispensasiIds,
+                            'jatuh_tempo' => $jatuhTempo,
+                            'status' => 'belum',
+                            'terbayar' => 0,
+                        ]);
+                        $dibuat++;
+
+                        continue;
+                    }
+
+                    if ($nominal < (int) $ada->terbayar) {
+                        $alasan[] = [
+                            'santri_id' => (int) $santriId,
+                            'periode' => $periode,
+                            'nominal_sekarang' => (int) $ada->nominal,
+                            'terbayar' => (int) $ada->terbayar,
+                        ];
+
+                        continue;
+                    }
+
+                    $ada->fill([
                         'jenjang' => $info['jenjang_utama'],
-                        'tahun_ajaran' => $data['tahun_ajaran'], 'nominal' => $nominal,
-                        'potongan' => $potongan, 'dispensasi_ids' => $dispensasiIds,
-                        'jatuh_tempo' => JatuhTempo::untuk((string) $jenis->tipe, $periode, $data['jatuh_tempo'] ?? null),
-                        'status' => 'belum', 'terbayar' => 0,
-                    ]
-                );
-                $tagihan->wasRecentlyCreated ? $dibuat++ : $dilewati++;
+                        'tahun_ajaran' => $data['tahun_ajaran'],
+                        'nominal' => $nominal,
+                        'potongan' => $potongan,
+                        'dispensasi_ids' => $dispensasiIds,
+                        'jatuh_tempo' => $jatuhTempo,
+                    ]);
+                    $ada->terbayar = (int) $ada->terbayar;
+                    $ada->status = match (true) {
+                        $ada->terbayar <= 0 => 'belum',
+                        $ada->terbayar >= (int) $ada->nominal => 'lunas',
+                        default => 'sebagian',
+                    };
+                    $ada->save();
+                    $diperbarui++;
+                }
             }
-        }
 
-        return response()->json(['dibuat' => $dibuat, 'dilewati' => $dilewati]);
+            return ['dibuat' => $dibuat, 'diperbarui' => $diperbarui, 'alasan' => $alasan];
+        });
+
+        return response()->json([
+            'dibuat' => $hasil['dibuat'],
+            'diperbarui' => $hasil['diperbarui'],
+            'dilewati' => count($hasil['alasan']),
+            'alasan' => $hasil['alasan'],
+        ]);
     }
 
     /**
@@ -454,13 +530,17 @@ class TagihanController extends Controller
     }
 
     /**
-     * Santri yang sudah punya tagihan untuk seluruh periode terpilih.
+     * Rekap tagihan yang sudah ada untuk periode terpilih, per Santri.
+     *
+     * Dipakai dialog generate untuk pratinjau: berapa bulan yang sudah terisi
+     * serta total nominal & pembayarannya, sehingga user bisa lihat
+     * "sudah ada · 3/3 bulan · Rp 225.000" sebelum menekan tombol Generate.
      *
      * @param  list<int>  $santriIds
      * @param  list<string>  $periodes
-     * @return array<int, true>
+     * @return array<int, array{periode: int, nominal: int, terbayar: int}>
      */
-    private function santriSudahLengkap(array $santriIds, int $jenisId, array $periodes): array
+    private function rekapTagihanSudahAda(array $santriIds, int $jenisId, array $periodes): array
     {
         if ($santriIds === [] || $periodes === []) {
             return [];
@@ -470,14 +550,17 @@ class TagihanController extends Controller
             ->where('jenis_id', $jenisId)
             ->whereIn('santri_id', $santriIds)
             ->whereIn('periode', $periodes)
-            ->selectRaw('santri_id, count(distinct periode) as jumlah')
             ->groupBy('santri_id')
-            ->havingRaw('count(distinct periode) >= ?', [count($periodes)])
-            ->pluck('jumlah', 'santri_id');
+            ->selectRaw('santri_id, count(distinct periode) as periode, SUM(nominal) as nominal, SUM(terbayar) as terbayar')
+            ->get();
 
         $hasil = [];
-        foreach ($baris as $santriId => $_) {
-            $hasil[(int) $santriId] = true;
+        foreach ($baris as $b) {
+            $hasil[(int) $b->santri_id] = [
+                'periode' => (int) $b->periode,
+                'nominal' => (int) $b->nominal,
+                'terbayar' => (int) $b->terbayar,
+            ];
         }
 
         return $hasil;
