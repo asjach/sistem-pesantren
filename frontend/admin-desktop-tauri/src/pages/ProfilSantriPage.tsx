@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import TagihanSantriPanel from '@/components/keuangan/TagihanSantriPanel';
 import { IsiProfilSantri, KepalaProfil, useProfilSantri } from '@/components/santri/IsiProfilSantri';
 import { ArrowLeft } from '@/icons';
 
@@ -35,7 +36,15 @@ export default function ProfilSantriPage() {
       </div>
 
       {profil ? (
-        <IsiProfilSantri profil={profil} className="min-h-0 flex-1 px-3" />
+        <IsiProfilSantri
+          profil={profil}
+          className="min-h-0 flex-1 px-3"
+          ekstra={
+            <TagihanSantriPanel
+              santri={{ id: profil.santri.id, nama_lengkap: profil.santri.nama_lengkap }}
+            />
+          }
+        />
       ) : (
         <p className="py-10 text-center text-xs text-muted-foreground">Memuat data…</p>
       )}

@@ -216,12 +216,14 @@ function Bagian({ judul, jangkar, children }: { judul: string; jangkar?: string;
 }
 
 /** Daftar bagian profil untuk navigasi lompat (chip di dialog). Urutan dan
- *  slug sejajar dengan `BAGIAN_IDENTITAS` + bagian riwayat di bawahnya. */
+ *  slug sejajar dengan `BAGIAN_IDENTITAS` + bagian riwayat di bawahnya;
+ *  `tagihan` milik panel ekstra dari pemanggil (mis. dialog profil). */
 export const TAUT_BAGIAN_PROFIL = [
   { slug: 'identitas', judul: 'Identitas' },
   { slug: 'alamat', judul: 'Alamat' },
   { slug: 'keluarga', judul: 'Keluarga' },
   { slug: 'riwayat', judul: 'Riwayat' },
+  { slug: 'tagihan', judul: 'Tagihan' },
 ] as const;
 
 /** Tabel relasi di dalam bagian keanggotaan & riwayat. Baris dibuat rapat

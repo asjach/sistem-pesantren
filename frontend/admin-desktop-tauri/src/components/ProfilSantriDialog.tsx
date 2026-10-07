@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { bisa } from '@/api/auth';
+import { useAuth } from '@/auth/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +14,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { IsiProfilSantri, KepalaProfil, TAUT_BAGIAN_PROFIL, useProfilSantri } from '@/components/santri/IsiProfilSantri';
 import DispensasiSantriPanel from '@/components/keuangan/DispensasiSantriPanel';
+import TagihanSantriPanel from '@/components/keuangan/TagihanSantriPanel';
 import { ChevronLeft, ChevronRight, ExternalLink, X } from '@/icons';
 import { bukaDiTabBaru } from '@/lib/tabBaru';
 import { toast } from 'sonner';
@@ -64,6 +67,9 @@ export interface ProfilSantriDialogProps {
 export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSantriDialogProps) {
   const open = target !== null;
   const profil = useProfilSantri(target?.id ?? null, open);
+  const { user } = useAuth();
+  /** Panel tagihan + chip lompatnya hanya untuk pemegang izin keuangan. */
+  const bolehKeuangan = bisa(user, 'keuangan.lihat');
 
   /** Tetangga dari tabel asal, urut dan tanpa duplikat (satu Santri bisa
    *  muncul di beberapa baris, mis. riwayat per tahun). Satu baris dihitung
@@ -151,7 +157,7 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
         {/* Lompat cepat ke tiap bagian — isi profil panjang (60+ baris). */}
         {profil && (
           <nav aria-label="Lompat ke bagian profil" className="flex shrink-0 flex-wrap gap-1">
-            {TAUT_BAGIAN_PROFIL.map((t) => (
+            {TAUT_BAGIAN_PROFIL.filter((t) => t.slug !== 'tagihan' || bolehKeuangan).map((t) => (
               <Button
                 key={t.slug}
                 id={`btn_lompat_${t.slug}`}
@@ -171,7 +177,15 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
             profil={profil}
             className="h-[60vh] min-h-72"
             jangkar={JANGKAR_PROFIL}
-            ekstra={<DispensasiSantriPanel santri={{ id: profil.santri.id, nama_lengkap: profil.santri.nama_lengkap }} />}
+            ekstra={
+              <>
+                <TagihanSantriPanel
+                  santri={{ id: profil.santri.id, nama_lengkap: profil.santri.nama_lengkap }}
+                  jangkar={`${JANGKAR_PROFIL}_tagihan`}
+                />
+                <DispensasiSantriPanel santri={{ id: profil.santri.id, nama_lengkap: profil.santri.nama_lengkap }} />
+              </>
+            }
           />
         ) : (
           <KerangkaProfil />
