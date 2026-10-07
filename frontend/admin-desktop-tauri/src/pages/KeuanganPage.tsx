@@ -393,7 +393,7 @@ export default function KeuanganPage() {
           />
         </TabsContent>
 
-        <TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-2 bg-muted/30 p-2 ${KELAS_PANEL_TAB}`}>
+        <TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-1 bg-muted/30 p-1 ${KELAS_PANEL_TAB}`}>
           <TagihanTab
             crosstab={crosstab}
             loading={loadingTagihan}
