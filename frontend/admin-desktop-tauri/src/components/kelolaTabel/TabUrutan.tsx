@@ -50,7 +50,8 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
 
   const muat = useCallback(async () => {
     try {
-      const res = await muatUrutPreset(tableKey);
+      // Dialog kelola selalu baca segar (lewati memo pemakaian tabel).
+      const res = await muatUrutPreset(tableKey, true);
       setData(res.data);
       const bersih = res.data.opsi.map((o) => ({ ...o, kode: [...o.kode], arah_kolom: o.arah_kolom ? { ...o.arah_kolom } : null }));
       setDraft(bersih);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  arahKolomDariOpsi,
   muatUrutPreset,
   type ArahUrut,
   type PresetUrutData,
@@ -48,6 +49,7 @@ export default function PresetUrut({
   const [gagalMuat, setGagalMuat] = useState(false);
 
   const muat = useCallback(async () => {
+    // Termemo per tabel: berbagi satu request dengan hook data.
     try {
       const res = await muatUrutPreset(tableKey);
       setData(res.data);
@@ -71,18 +73,9 @@ export default function PresetUrut({
   const idxAktif = opsi.findIndex((o) => o.kode.join(',') === kunciAktif);
   const nilaiSelect = idxAktif >= 0 ? String(idxAktif) : kunciAktif === '' ? TANPA : '';
 
-  /** Arah per kode dari opsi preset (hanya kode yang benar-benar diatur). */
-  function arahKolomOpsi(o: (typeof opsi)[number]): Record<string, ArahUrut> | undefined {
-    const peta = o.arah_kolom;
-    if (!peta || Object.keys(peta).length === 0) return undefined;
-    const keluar: Record<string, ArahUrut> = {};
-    for (const k of o.kode) {
-      if (peta[k] === 'naik' || peta[k] === 'turun') keluar[k] = peta[k];
-    }
-    return Object.keys(keluar).length > 0 ? keluar : undefined;
-  }
-
   // Terapkan opsi bawaan sekali saat preset termuat & halaman belum punya urutan.
+  // (Bila hook data sudah membenihkan urutan yang sama, penjaga urutAktif
+  // di bawah membuatnya nir-op: tidak ada muat ulang kedua.)
   useEffect(() => {
     if (!data || !onUrut) return;
     if ((urutAktif ?? []).length > 0 || sudahRef.current === tableKey) return;
@@ -90,7 +83,7 @@ export default function PresetUrut({
     const bawaan = data.opsi.find((o) => o.bawaan);
     if (bawaan) {
       const globalArah = bawaan.arah ?? arahUrut ?? 'naik';
-      onUrut(bawaan.kode, globalArah, arahKolomOpsi(bawaan));
+      onUrut(bawaan.kode, globalArah, arahKolomDariOpsi(bawaan));
     }
   }, [data, tableKey, urutAktif, arahUrut, onUrut]);
 
@@ -100,7 +93,7 @@ export default function PresetUrut({
       return;
     }
     const it = opsi[Number(v)];
-    if (it) onUrut?.(it.kode, it.arah ?? arahUrut ?? 'naik', arahKolomOpsi(it));
+    if (it) onUrut?.(it.kode, it.arah ?? arahUrut ?? 'naik', arahKolomDariOpsi(it));
   }
 
   function balikArah() {

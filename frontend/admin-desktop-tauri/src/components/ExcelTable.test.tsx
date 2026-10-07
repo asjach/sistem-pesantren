@@ -28,6 +28,7 @@ vi.mock('@/api/urutPreset', () => ({
   muatUrutPreset: vi.fn(async () => ({ pesan: 'ok', data: { table_key: 'uji', opsi: [], tersedia: [] } })),
   simpanUrutPreset: vi.fn(),
   hapusUrutPreset: vi.fn(),
+  arahKolomDariOpsi: vi.fn(() => undefined),
 }));
 
 // ---- Stub jsdom untuk react-datasheet-grid ----
