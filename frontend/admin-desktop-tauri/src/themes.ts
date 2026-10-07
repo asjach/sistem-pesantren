@@ -29,7 +29,7 @@ export type ThemeName =
   | 'tokyo' | 'nightowl' | 'solarized' | 'github' | 'palenight'
   | 'gruvbox' | 'catppuccin' | 'ayu' | 'cobalt' | 'synthwave'
   | 'shadesofpurple' | 'tomorrow' | 'horizon' | 'panda' | 'winter'
-  | 'rosepine' | 'geist' | 'vercelbiru' | 'linear' | 'supabase';
+  | 'rosepine' | 'gr8r' | 'geist' | 'vercelbiru' | 'linear' | 'supabase';
 
 export const THEME_PRESETS: TemaPreset[] = [
   {
@@ -181,6 +181,12 @@ export const THEME_PRESETS: TemaPreset[] = [
     terang: { bg: '#ffffff', fg: '#171717', accent: '#24b47e' },
     gelap: { bg: '#121212', fg: '#ededed', accent: '#3ecf8e' },
     sidebar: '#121212', sidebarDeep: '#0a0a0a',
+  },
+  {
+    id: 'gr8r', nama: 'Gr8r Hangat',
+    terang: { bg: '#fbfaf8', fg: '#1d1c1a', accent: '#4b5bd6' },
+    gelap: { bg: '#1a1a19', fg: '#eceae5', accent: '#8e9af3' },
+    sidebar: '#201f1d', sidebarDeep: '#151514',
   },
 ];
 

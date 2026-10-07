@@ -24,8 +24,8 @@ export const DENSITY_PX: Record<DensityName, number> = {
 /** Mode navigasi utama: rail kiri atau bar menu atas. */
 export type NavigasiName = 'sidebar' | 'menubar';
 
-/** Lebar navigasi kiri (px). Bawaan 240px (setara `w-60`); bisa diseret. */
-export const SIDEBAR_LEBAR_DEFAULT = 240;
+/** Lebar navigasi kiri (px). Bawaan 252px (selaras `--side-w` ala Gr8r); bisa diseret. */
+export const SIDEBAR_LEBAR_DEFAULT = 252;
 /** Bawaan + bawah: di bawah ini label menu terpotong, jadi panel autogut. */
 export const SIDEBAR_LEBAR_MIN = 180;
 /** Di bawah ambang ini seretan dianggap "mentok ke pinggir" → navigasi disembunyikan. */
@@ -91,7 +91,7 @@ export interface Prefs {
 }
 
 export const DEFAULT_PREFS: Prefs = {
-  theme: 'geist',
+  theme: 'gr8r',
   mode: 'sistem',
   collapsed: false,
   sidebarLebar: SIDEBAR_LEBAR_DEFAULT,

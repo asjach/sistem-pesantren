@@ -73,8 +73,8 @@ describe('useLebarSidebar', () => {
   });
 
   it('seret ke kanan dari keadaan sembunyi membuka kembali', () => {
-    const { result, simpan, lipat } = setup(240);
-    seret(result.current.mulaiSeret, 240);
+    const { result, simpan, lipat } = setup(SIDEBAR_LEBAR_DEFAULT);
+    seret(result.current.mulaiSeret, SIDEBAR_LEBAR_DEFAULT);
     geser(20);
     lepas();
     expect(lipat).toEqual([true]);
@@ -82,10 +82,10 @@ describe('useLebarSidebar', () => {
     // Terbuka lagi lewat tombol; seretan berikutnya menyimpan lebar baru.
     act(() => { result.current.resetLebar(); });
     act(() => { simpan.length = 0; });
-    seret(result.current.mulaiSeret, 240);
-    geser(300);
+    seret(result.current.mulaiSeret, SIDEBAR_LEBAR_DEFAULT);
+    geser(SIDEBAR_LEBAR_DEFAULT + 60);
     lepas();
-    expect(simpan).toEqual([300]);
+    expect(simpan).toEqual([SIDEBAR_LEBAR_DEFAULT + 60]);
     expect(lipat).toEqual([true, false, false]);
   });
 
