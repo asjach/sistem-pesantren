@@ -89,7 +89,8 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   mutasi_keluar: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   kenaikan: buatKonfigurasi(['lembaga', 'tahun_ajaran', 'tingkat'], { tingkat: true }),
   kelulusan: buatKonfigurasi(FILTER_KELULUSAN),
-  keuangan: buatKonfigurasi(FILTER_KELULUSAN),
+  // Degree + kelas dipakai rail filter tab Tagihan (crosstab), bukan TopBar.
+  keuangan: buatKonfigurasi(FILTER_AKADEMIK, { tingkat: true, kelas: true }),
   pembayaran: buatKonfigurasi(FILTER_KELULUSAN),
   rekap_santri: buatKonfigurasi(FILTER_REKAP),
   pengajuan_biodata: buatKonfigurasi([]),

@@ -98,6 +98,26 @@ vi.mock('@/hooks/useFilterGlobalAktif', () => ({
   targetTunggal: () => new Date(),
 }));
 
+/* Rail filter tingkat/kelas butuh context tingkat & kelas (halaman test ini
+   memakai provider penuh) dan daftar kelas lingkup. */
+vi.mock('@/tingkatAktif', () => ({
+  useTingkatAktif: () => ({ pilih: vi.fn() }),
+}));
+vi.mock('@/kelasAktif', () => ({
+  useKelasAktif: () => ({ pilih: vi.fn() }),
+}));
+vi.mock('@/api/master', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/api/master')>();
+  return {
+    ...asli,
+    listKelas: vi.fn(async () => ({
+      pesan: 'ok',
+      data: [],
+      meta: { current_page: 1, last_page: 1, total: 0, per_page: 1000 },
+    })),
+  };
+});
+
 vi.mock('@/api/toolbarPreset', () => ({
   muatToolbarPreset: vi.fn(async () => ({
     pesan: 'ok',

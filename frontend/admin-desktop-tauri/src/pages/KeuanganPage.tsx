@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
@@ -9,7 +9,7 @@ import {
   type JenisTagihan, type Tarif, type TunggakanRow, type PembayaranRow, type Dispensasi,
   type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
-import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '../api/master';
+import { listKelas, listLembaga, listTahunAjaran, type Kelas, type Lembaga, type TahunAjaran } from '../api/master';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -88,7 +88,7 @@ export default function KeuanganPage() {
   const { page: tunggakanPage, perPage: tunggakanPerPage, setPage: setTunggakanPage, setPerPage: setTunggakanPerPage } = usePager('keuangan_tunggakan');
   const [tunggakanLastPage, setTunggakanLastPage] = useState(1);
   const [tunggakanTotal, setTunggakanTotal] = useState(0);
-  const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
+  const { jenjangs, tahunAjaranNames, tingkat, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
   /** Jenis global (Semua) hanya untuk super_admin efektif — mati saat bertindak. */
   const { efektifSuper, peranJenjang, pilihan: pilihanLembaga } = useLembagaAktif();
   /** Urut header tiap tabel (perubahan memicu muat ulang via effect). */
@@ -107,6 +107,23 @@ export default function KeuanganPage() {
   const [arahTagihan, setArahTagihan] = useState<'naik' | 'turun'>('naik');
   /** Tab Tagihan: hanya sel yang sudah lewat jatuh tempo. */
   const [terlambatTagihan, setTerlambatTagihan] = useState(false);
+
+  /** Opsi kelas lingkup: rail bekerja dengan NAMA kelas (filter global),
+   *  sedangkan endpoint crosstab minta ID — jadi dipetakan di sini. */
+  const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
+  useEffect(() => {
+    if (filterLoading || jenjangs.length === 0) { setKelasOpsi([]); return; }
+    let hidup = true;
+    listKelas({ jenjang: jenjangs, tahun_ajaran: tahunAjaranNames, per_page: 1000 })
+      .then((p) => { if (hidup) setKelasOpsi(p.data); })
+      .catch(() => { if (hidup) setKelasOpsi([]); });
+    return () => { hidup = false; };
+  }, [filterLoading, jenjangs, tahunAjaranNames]);
+  /** Id kelas dari nama yang dipilih di rail. */
+  const kelasFilterIds = useMemo(
+    () => kelasOpsi.filter((k) => kelasAktif.includes(k.nama_kelas)).map((k) => k.id),
+    [kelasOpsi, kelasAktif],
+  );
 
   /** Request terakhir; naik tiap muat. Balasan yang tak lagi relevan diabaikan. */
   const crosstabReqRef = useRef(0);
@@ -136,6 +153,8 @@ export default function KeuanganPage() {
         sort: urutTagihan === '' ? undefined : [urutTagihan],
         arah: urutTagihan === '' ? undefined : arahTagihan,
         terlambat: terlambatTagihan || undefined,
+        tingkat: tingkat.length ? tingkat : undefined,
+        kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
         signal: ac.signal,
       });
       if (req !== crosstabReqRef.current) return;
@@ -151,7 +170,7 @@ export default function KeuanganPage() {
     } finally {
       if (req === crosstabReqRef.current) setLoadingTagihan(false);
     }
-  }, [cariTagihanTertunda, urutTagihan, arahTagihan, terlambatTagihan]);
+  }, [cariTagihanTertunda, urutTagihan, arahTagihan, terlambatTagihan, tingkat, kelasFilterIds]);
 
   // Ketikan pencarian → tunggu 400 ms baru jadi nilai muat.
   useEffect(() => {
@@ -387,7 +406,7 @@ export default function KeuanganPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman
-        tampil={{ lembaga: true, tahun_ajaran: true }}
+        tampil={{ lembaga: true, tahun_ajaran: true, tingkat: true, kelas: true }}
         tabel={[
           { key: 'keuangan_jenis', judul: 'Jenis Tagihan', fields: FIELDS_JENIS },
           { key: 'keuangan_tarif', judul: 'Tarif', fields: FIELDS_TARIF },

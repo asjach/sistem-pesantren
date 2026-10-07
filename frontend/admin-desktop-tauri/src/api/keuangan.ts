@@ -208,6 +208,8 @@ export interface CrosstabTagihan {
 export function crosstabTagihan(params: {
   tahun_ajaran?: ScalarOrArray<string>; jenjang?: ScalarOrArray<string>; jenis_id?: number | '';
   status?: string; belum_lunas?: boolean; terlambat?: boolean; santri?: string;
+  /** Filter rail: tingkat (kode) & kelas (id, bukan nama) pada baris yang tampil. */
+  tingkat?: ScalarOrArray<string>; kelas_id?: ScalarOrArray<number>;
   page?: number; per_page?: string; sort?: string[]; arah?: 'naik' | 'turun';
   /** Batalkan request lama saat filter/pencarian berubah (pola `useDaftarTabel`). */
   signal?: AbortSignal;
@@ -220,6 +222,8 @@ export function crosstabTagihan(params: {
   if (params.belum_lunas) q.set('belum_lunas', '1');
   if (params.terlambat) q.set('terlambat', '1');
   if (params.santri) q.set('santri', params.santri);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
   if (params.page) q.set('page', String(params.page));
   if (params.per_page) q.set('per_page', params.per_page);
   if (params.sort?.length) q.set('sort', params.sort.join(','));

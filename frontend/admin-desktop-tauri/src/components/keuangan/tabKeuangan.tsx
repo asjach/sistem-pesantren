@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
+import FilterRail from '@/components/FilterRail';
 import TagihanCrosstab from '@/components/keuangan/TagihanCrosstab';
 import { DeleteAction, EditAction } from '@/components/RowActions';
 import { ArrowDownAZ, ArrowUpAZ, Info, Plus, RotateCcw, Search, TriangleAlert, X } from '@/icons';
@@ -386,24 +387,32 @@ export function TagihanTab({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1">
-        <TagihanCrosstab
-          data={crosstab}
-          loading={loading}
-          terpilihId={terpilihId}
-          emptyText="Belum ada tagihan."
-          onPilih={onPilih}
-        />
-        {popover}
+      {/* Rail filter tingkat & kelas di kiri crosstab — pola yang sama seperti
+          tabel Santri (lihat `ExcelTable` berprop `rail`). Bilah alat tetap
+          penuh lebar di atas, rail hanya membagi ruang tabel. */}
+      <div className="flex min-h-0 flex-1">
+        <FilterRail />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1">
+            <TagihanCrosstab
+              data={crosstab}
+              loading={loading}
+              terpilihId={terpilihId}
+              emptyText="Belum ada tagihan."
+              onPilih={onPilih}
+            />
+            {popover}
+          </div>
+          <Pager
+            page={pager.page}
+            lastPage={pager.lastPage}
+            total={total}
+            perPage={pager.perPage}
+            onPage={pager.onPage}
+            onPerPage={pager.onPerPage}
+          />
+        </div>
       </div>
-      <Pager
-        page={pager.page}
-        lastPage={pager.lastPage}
-        total={total}
-        perPage={pager.perPage}
-        onPage={pager.onPage}
-        onPerPage={pager.onPerPage}
-      />
     </>
   );
 }

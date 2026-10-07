@@ -695,6 +695,68 @@ class KeuanganTest extends TestCase
         $this->assertFalse($tanpaTa[0]['aktif']);
     }
 
+    public function test_crosstab_filter_tingkat_kelas_ikut_baris_yang_tampil(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $kelas3 = Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'tingkat' => '3', 'nama_kelas' => '3A']);
+        $kelas4 = Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'tingkat' => '4', 'nama_kelas' => '4A']);
+        $kelas5 = Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'tingkat' => '5', 'nama_kelas' => '5A']);
+
+        $buat = function (string $nama) use ($infaq) {
+            $s = Santri::create(['nama_lengkap' => $nama, 'jk' => 'L']);
+            Tagihan::create(['santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
+
+            return $s->id;
+        };
+        $riwayat = function (int $santriId, string $semester, string $tingkat, int $kelasId) {
+            DB::table('riwayat_belajar')->insert([
+                'santri_id' => $santriId, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI',
+                'tingkat' => $tingkat, 'kelas_id' => $kelasId, 'semester' => $semester,
+                'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        };
+
+        // Naik kelas di tengah tahun: baris TAMPILNYA genap (4A), bukan ganjil (3A).
+        $naik = $buat('Naik Kelas');
+        $riwayat($naik, '1', '3', $kelas3->id);
+        $riwayat($naik, '2', '4', $kelas4->id);
+
+        $tetap = $buat('Tetap Kelas Empat');
+        $riwayat($tetap, '2', '4', $kelas4->id);
+
+        $lima = $buat('Kelas Lima');
+        $riwayat($lima, '2', '5', $kelas5->id);
+
+        $nama = function (string $query) use ($admin) {
+            $res = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?'.$query)
+                ->assertStatus(200);
+
+            return collect($res->json('baris'))->pluck('nama')->sort()->values()->all();
+        };
+
+        // Tanpa filter: semua baris.
+        $this->assertSame(['Kelas Lima', 'Naik Kelas', 'Tetap Kelas Empat'], $nama('tahun_ajaran=2025/2026'));
+
+        // Kelas 4A → dua Santri yang kelas TERTAMPILNYA 4A.
+        $this->assertSame(['Naik Kelas', 'Tetap Kelas Empat'], $nama("tahun_ajaran=2025/2026&kelas_id[]={$kelas4->id}"));
+
+        // Kelas 3A TIDAK memunculkan Santri yang naik kelas (baris tampilnya 4A).
+        $this->assertSame([], $nama("tahun_ajaran=2025/2026&kelas_id[]={$kelas3->id}"));
+
+        // Tingkat 4 = dua Santri yang sama (tingkat ikut dari baris yang menang).
+        $this->assertSame(['Naik Kelas', 'Tetap Kelas Empat'], $nama('tahun_ajaran=2025/2026&tingkat[]=4'));
+        $this->assertSame(['Kelas Lima'], $nama('tahun_ajaran=2025/2026&tingkat[]=5'));
+
+        // Tanpa tahun ajaran tak ada patokan kelas → filter diabaikan, bukan menyaring semua.
+        $this->assertCount(3, $nama("kelas_id[]={$kelas4->id}"));
+
+        // Total ikut terfilter (bukan cuma isi halaman).
+        $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026&kelas_id[]={$kelas4->id}")
+            ->assertStatus(200)->assertJsonPath('total', 2);
+    }
+
     public function test_crosstab_tagihan_kolom_per_jenis_dan_bulan(): void
     {
         $admin = $this->admin();

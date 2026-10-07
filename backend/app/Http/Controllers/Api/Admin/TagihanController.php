@@ -34,6 +34,52 @@ class TagihanController extends Controller
      * periode). Nilai sel membawa nominal + status sehingga FE bisa mewarnai
      * lunas/belum. Label bulan FE yang membentuk (dari `periode`).
      */
+    /**
+     * Saring Santri berdasarkan tingkat & kelas pada baris riwayat yang DIPAKAI
+     * tampil di baris crosstab (genap menang atas ganjil pada jenjang + TA yang
+     * sama) — bukan baris riwayat mana pun.
+     *
+     * Kalau hanya "ada riwayat yang cocok", Santri naik kelas di tengah tahun
+     * akan muncul di kelas yang tak tercantum pada barisnya. Jadi saringan dibuat
+     * sama dengan kolom "Kelas" di tabel.
+     *
+     * Tanpa `tahun_ajaran` tak ada patokan kelas yang benar (sama seperti peta
+     * kelas di baris), jadi filter diabaikan — bukan diam-diam menyaring semua.
+     *
+     * @param  list<string>  $tahunAjaran
+     * @param  list<string>  $jenjang
+     * @param  list<string>  $tingkat
+     * @param  list<string>  $kelasId
+     */
+    private function applyFilterKelasTampil($q, array $tahunAjaran, array $jenjang, array $tingkat, array $kelasId): void
+    {
+        if ($tahunAjaran === [] || ($tingkat === [] && $kelasId === [])) {
+            return;
+        }
+        $q->whereHas('santri.riwayatBelajar', function ($rb) use ($tahunAjaran, $jenjang, $tingkat, $kelasId) {
+            $rb->whereIn('tahun_ajaran', [$tahunAjaran[0]]);
+            if ($jenjang !== []) {
+                $rb->whereIn('jenjang', $jenjang);
+            }
+            if ($tingkat !== []) {
+                $rb->whereIn('tingkat', $tingkat);
+            }
+            if ($kelasId !== []) {
+                $rb->whereIn('kelas_id', array_map('intval', $kelasId));
+            }
+            // Genap menang atas ganjil: baris ganjil gugur begitu ada baris
+            // semester 2 pada (santri, jenjang, tahun ajaran) yang sama.
+            $rb->whereNotExists(function ($g) {
+                $g->selectRaw('1')->from('riwayat_belajar as rb_genap')
+                    ->whereColumn('rb_genap.santri_id', 'riwayat_belajar.santri_id')
+                    ->whereColumn('rb_genap.jenjang', 'riwayat_belajar.jenjang')
+                    ->whereColumn('rb_genap.tahun_ajaran', 'riwayat_belajar.tahun_ajaran')
+                    ->where('rb_genap.semester', '2')
+                    ->where('riwayat_belajar.semester', '<>', '2');
+            });
+        });
+    }
+
     public function crosstabTagihan(TagihanCrosstabRequest $request)
     {
         $q = Tagihan::with(['jenis', 'santri']);
@@ -61,6 +107,18 @@ class TagihanController extends Controller
                 ->orWhere('nisn', 'like', '%'.$cari.'%')
                 ->orWhereHas('lembagaSantri', fn ($ls) => $ls->where('nis_lokal', 'like', '%'.$cari.'%')));
         }
+
+        /* Filter rail tingkat & kelas dipasang di `$q` (bukan di query agregat
+          terpisah) supaya ikut memotong paginasi, total, daftar kolom, dan sel. */
+        $tahunAjaran = $this->nilaiFilter($request, 'tahun_ajaran');
+        $jenjang = $this->nilaiFilter($request, 'jenjang');
+        $this->applyFilterKelasTampil(
+            $q,
+            $tahunAjaran,
+            $jenjang,
+            $this->nilaiFilter($request, 'tingkat'),
+            $this->nilaiFilter($request, 'kelas_id'),
+        );
 
         $page = max(1, (int) $request->input('page', 1));
         $perPage = $this->perPage($request);
@@ -143,7 +201,6 @@ class TagihanController extends Controller
            `pindah_keluar` ikut diambil — statusnya justru dipakai untuk
            penanda titik merah, bukan untuk menyembunyikan baris. Kalau filter
            TA kosong, tidak ada patokan kelas yang benar, jadi kolomnya dibiarkan kosong. */
-        $tahunAjaran = $this->nilaiFilter($request, 'tahun_ajaran');
         $idHalaman = $halaman->pluck('santri_id')->all();
         $peta = $tahunAjaran === [] || $idHalaman === []
             ? []
