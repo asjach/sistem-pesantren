@@ -113,7 +113,7 @@ export default function Menubar() {
     <nav
       data-slot="menubar"
       aria-label="Menu aplikasi"
-      className="flex shrink-0 items-center gap-0.5 border-b bg-[var(--sidebar-deep)] px-2 py-1 text-white"
+      className="flex shrink-0 items-center gap-0.5 border-b bg-[var(--sidebar)] px-2 py-1 text-white"
     >
       <span
         className="mr-2 truncate px-1 text-xs font-semibold tracking-wide"

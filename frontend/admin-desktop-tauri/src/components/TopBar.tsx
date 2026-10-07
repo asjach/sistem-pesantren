@@ -295,7 +295,7 @@ export default function TopBar() {
       <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
         <header
           className="relative shrink-0 border-b border-white/15 px-0.5 pt-1 text-white"
-          style={{ background: 'linear-gradient(90deg, var(--sidebar-deep), var(--sidebar))' }}
+          style={{ background: 'var(--sidebar)' }}
         >
       {/* Judul halaman untuk pembaca layar (visual tampil di bar judul). */}
       <h1 id="judul_halaman_aktif" className="sr-only">

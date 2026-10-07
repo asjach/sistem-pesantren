@@ -306,7 +306,8 @@ export default function Sidebar() {
       )}
       style={{
         width: collapsed && !seret ? 0 : lebarTampil(collapsed),
-        background: 'linear-gradient(180deg, var(--sidebar-deep), var(--sidebar))',
+        // Permukaan tinta datar (tanpa gradasi dekoratif) — bahasa buku induk.
+        background: 'var(--sidebar)',
       }}
     >
       {!collapsed ? (
