@@ -43,6 +43,9 @@ export interface MenuKonteksGridProps {
   /** Tulis perataan ke DB global (jalan pintas dialog Kelola Tabel). */
   onUbahAlign: (key: string, a: AlignKolom) => void;
   presetApiRef: MutableRefObject<PresetKolomApi | null>;
+  /** Semua kolom beserta label efektif & status tampil — dipakai seksi
+   *  TAMPILKAN KOLOM pada menu klik kanan header. */
+  daftarKolom: { key: string; label: string; tampil: boolean }[];
   /** Kelola preset = super_admin saja (sembunyikan seksi tampil preset). */
   bolehKelola: boolean;
   salinBaris: (id: string | number) => void;
@@ -80,6 +83,7 @@ export default function MenuKonteksGrid({
   align,
   onUbahAlign,
   presetApiRef,
+  daftarKolom,
   bolehKelola,
   salinBaris,
   salinSel,
@@ -271,6 +275,31 @@ export default function MenuKonteksGrid({
           )}
           {bolehKelola && (
           <>
+          {/* Centang kolom yang tampil pada susunan yang sedang berlaku
+              (preset aktif bila ada, simpanan "Lengkap" bila tidak): toggle
+              menulis ke sumber itu juga, jadi tabel + dropdown Kolom langsung
+              mencerminkan pilihan baru. */}
+          <ContextMenuLabel>TAMPILKAN KOLOM</ContextMenuLabel>
+          {daftarKolom.length === 0 ? (
+            <ContextMenuItem disabled>Tidak ada kolom</ContextMenuItem>
+          ) : (
+            <div className="max-h-64 overflow-y-auto">
+              {daftarKolom.map((k) => (
+                <ContextMenuCheckboxItem
+                  key={k.key}
+                  id={`menu_ctx_tampil_kolom_${k.key}_${tableKey}`}
+                  checked={k.tampil}
+                  onSelect={(e) => e.preventDefault()}
+                  onCheckedChange={(c) =>
+                    void presetApiRef.current?.toggleKolomAktif(k.key, !!c)
+                  }
+                >
+                  {k.label}
+                </ContextMenuCheckboxItem>
+              ))}
+            </div>
+          )}
+          <ContextMenuSeparator />
           <ContextMenuLabel>TAMPILKAN DI PRESET</ContextMenuLabel>
           {(presetApiRef.current?.presets.length ?? 0) === 0 ? (
             <ContextMenuItem disabled>Belum ada preset</ContextMenuItem>

@@ -368,6 +368,12 @@ export default function ExcelTable<T extends { id: string | number }>({
     return dasar;
   }, [fields, presetKeys, urutanDb]);
   const visibleFieldsRef = useRef(visibleFields);
+  /** Semua kolom beserta label efektif & status tampil — dipakai menu klik
+   *  kanan header agar kolom bisa ditampilkan/disembunyikan dari sana. */
+  const daftarKolom = useMemo(() => {
+    const tampil = new Set(visibleFields.map((f) => f.key));
+    return fields.map((f) => ({ key: f.key, label: labelKolom(f.key, f.label), tampil: tampil.has(f.key) }));
+  }, [fields, visibleFields, labelKolom]);
   const gridRef = useRef<DataSheetGridRef>(null);
 
   // Muat jumlah kolom beku tabel ini; clamp bila preset menyembunyikan kolom.
@@ -1384,6 +1390,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             onUbahAlign={simpanAlign}
             presetApiRef={presetApiRef}
             bolehKelola={bolehGeser}
+            daftarKolom={daftarKolom}
             salinBaris={(id) => void salinBarisCtx(id as T['id'])}
             salinSel={(id, key) => void salinSelCtx(id as T['id'], key)}
             salinKolom={(key) => void salinKolomCtx(key)}

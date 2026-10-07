@@ -27,7 +27,24 @@ const LENGKAP = '_lengkap';
  *  Pengelolaan preset (tambah/ubah/hapus) hanya lewat dialog Kelola Tabel. */
 export interface PresetKolomApi {
   presets: PresetTabel[];
+  /** Susunan yang sedang berlaku: preset personal, preset bawaan, atau
+   *  "Lengkap" (custom). `null` = semua kolom tampil. */
+  terapan: SusunanBerlaku;
   toggleKolom: (presetId: number, key: string, tampil: boolean) => Promise<void>;
+  /** Tampilkan/sembunyikan kolom pada susunan yang SEDANG berlaku (preset
+   *  aktif bila ada, simpanan "Lengkap kustom" bila tidak). Dipakai menu
+   *  klik kanan header tabel. */
+  toggleKolomAktif: (key: string, tampil: boolean) => Promise<void>;
+}
+
+/** Susunan kolom yang sedang dipakai tabel. */
+export interface SusunanBerlaku {
+  /** Key kolom yang tampil; `null` = semua kolom (mode Lengkap). */
+  kolom: string[] | null;
+  /** Label kustom per key (ikut tersimpan bila susunan tanpa preset). */
+  label: Record<string, string> | null;
+  /** Id preset sumber susunan; `null` = susunan "Lengkap" tanpa preset. */
+  presetId: number | null;
 }
 
 /** Combobox preset kolom tampilan tabel (kelola global via Kelola Tabel). */
@@ -61,9 +78,14 @@ export default function PresetKolom({
 
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
 
+  /** Susunan yang sedang dipakai (diungkap ke API agar menu konteks tahu
+   *  sumber kolom: preset aktif atau "Lengkap" tanpa preset). */
+  const [terapan, setTerapan] = useState<SusunanBerlaku>({ kolom: null, label: null, presetId: null });
+
   const terapkan = useCallback((preset: PresetTabel | null) => {
     if (!preset) {
       onApply(null, null, null);
+      setTerapan({ kolom: null, label: null, presetId: null });
       return;
     }
     const keys = preset.kolom.filter((k) => fieldKeys.has(k));
@@ -71,7 +93,9 @@ export default function PresetKolom({
     for (const [k, v] of Object.entries(preset.label ?? {})) {
       if (fieldKeys.has(k) && v.trim() !== '') label[k] = v.trim();
     }
-    onApply(keys.length > 0 ? keys : null, Object.keys(label).length > 0 ? label : null, preset.id);
+    const labelHasil = Object.keys(label).length > 0 ? label : null;
+    onApply(keys.length > 0 ? keys : null, labelHasil, preset.id);
+    setTerapan({ kolom: keys.length > 0 ? keys : null, label: labelHasil, presetId: preset.id ?? null });
   }, [fieldKeys, onApply]);
 
   const muat = useCallback(async (pilihId?: number | null) => {
@@ -120,6 +144,36 @@ export default function PresetKolom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableKey]);
 
+  /** Tulis susunan baru: preset bila ada sumber preset, simpanan
+   *  "Lengkap kustom" pribadi bila tanpa preset. Simpan langsung ke DB, lalu
+   *  segarkan + terapkan ulang. */
+  const simpanSusunan = useCallback(async (
+    targetPresetId: number | null, next: Set<string>, label: Record<string, string> | null,
+    pesanSukses: string,
+  ) => {
+    if (next.size === 0) {
+      toast.error('Tabel harus menyisakan minimal satu kolom.');
+      return;
+    }
+    try {
+      if (targetPresetId === null) {
+        // Tanpa preset: simpanan pribadi per tabel (bukan global) — setiap
+        // role boleh memakainya. DITERAPKAN LOKAL, bukan `muat()` ulang:
+        // muat dengan pilihan eksplisit tidak membaca `aktif_kolom`
+        // (lihat `muat`), sehingga tabel akan snap-back ke semua kolom.
+        await setPresetAktif(tableKey, null, [...next], label);
+        toast.success(pesanSukses);
+        terapkan({ kolom: [...next], label: label ?? {} } as PresetTabel);
+      } else {
+        await updatePresetTabel(targetPresetId, { kolom: [...next] });
+        toast.success(pesanSukses);
+        await muat(aktifId);
+      }
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }, [tableKey, aktifId, muat, terapkan]);
+
   /** Tampilkan/sembunyikan satu kolom pada preset (dipakai context menu
    *  header tabel): simpan langsung ke DB, lalu segarkan + terapkan ulang. */
   const toggleKolomPreset = useCallback(async (presetId: number, key: string, tampil: boolean) => {
@@ -128,26 +182,31 @@ export default function PresetKolom({
     const next = new Set(p.kolom);
     if (tampil) next.add(key);
     else next.delete(key);
-    if (next.size === 0) {
-      toast.error('Preset harus menyisakan minimal satu kolom.');
-      return;
-    }
-    try {
-      await updatePresetTabel(presetId, { kolom: [...next] });
-      toast.success(tampil ? 'Kolom ditampilkan pada preset.' : 'Kolom disembunyikan dari preset.');
-      await muat(aktifId);
-    } catch (e) {
-      toast.error(errorMessage(e));
-    }
-  }, [presets, aktifId, muat]);
+    await simpanSusunan(p.id, next, null,
+      tampil ? 'Kolom ditampilkan pada preset.' : 'Kolom disembunyikan dari preset.');
+  }, [presets, simpanSusunan]);
+
+  /** Tampilkan/sembunyikan satu kolom pada susunan yang SEDANG berlaku:
+   *  preset aktif bila ada, simpanan "Lengkap kustom" bila tidak. Dipakai menu
+   *  klik kanan header tabel — tanpa harus membuka dialog Kelola Tabel. */
+  const toggleKolomAktif = useCallback(async (key: string, tampil: boolean) => {
+    const dasar = terapan.kolom ?? [...fieldKeys];
+    const next = new Set(dasar);
+    if (tampil) next.add(key);
+    else next.delete(key);
+    await simpanSusunan(terapan.presetId, next, terapan.label,
+      tampil ? 'Kolom ditampilkan.' : 'Kolom disembunyikan.');
+  }, [terapan, fieldKeys, simpanSusunan]);
 
   useEffect(() => {
     if (!apiRef) return;
     apiRef.current = {
       presets,
+      terapan,
       toggleKolom: toggleKolomPreset,
+      toggleKolomAktif,
     };
-  }, [apiRef, presets, toggleKolomPreset]);
+  }, [apiRef, presets, terapan, toggleKolomPreset, toggleKolomAktif]);
 
   async function pilihPreset(v: string) {
     const id = v === LENGKAP ? null : Number(v);
