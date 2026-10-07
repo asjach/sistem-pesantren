@@ -129,6 +129,7 @@
   --dur: 0.14s;
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 
 /* ---------- dark: fallback aman (Hijau gelap) ---------- */
 .dark {
@@ -145,6 +146,7 @@
   --shadow-card: 0 0 0 1px var(--border);
   --shadow-pop: 0 16px 40px -10px rgb(0 0 0 / 0.6), 0 0 0 1px var(--border-strong);
   --shadow-drag: 0 18px 40px -10px rgb(0 0 0 / 0.7), 0 0 0 1px var(--border-strong);
+}
 
 @layer base {
   * {
