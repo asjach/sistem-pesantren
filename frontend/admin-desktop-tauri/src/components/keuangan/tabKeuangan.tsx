@@ -369,8 +369,14 @@ export function TagihanTab({
             <Info size={13} className="shrink-0" />
             Klik sel nominal untuk bayar, ubah, atau lihat riwayat.
           </span>
+          {/* Legenda warna sel. "Sebagian" sempat hilang: sel kuning muncul
+              tanpa keterangan sama sekali, jadi terlihat seperti warna acak.
+              Pucat = belum lewat jatuh tempo, pekat = sudah lewat. */}
           <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="Arti warna sel">
             <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Lunas</span>
+            <span className="inline-flex items-center gap-1" title="Sudah dibayar sebagian, masih ada sisa">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />Sebagian
+            </span>
             <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-destructive" />Tunggakan</span>
             <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/40" />Belum Aktif</span>
           </span>
