@@ -22,19 +22,42 @@ class PembayaranController extends Controller
         $this->canLembaga($request->user(), $tagihan->jenjang) || abort(403);
 
         $no = $data['no_kwitansi'] ?? strtoupper(bin2hex(random_bytes(5)));
-        $pembayaran = Pembayaran::create([
-            'tagihan_id' => $tagihan->id,
-            'jumlah' => $data['jumlah'],
-            'metode' => $data['metode'] ?? 'tunai',
-            'kas' => $data['kas'] ?? 'tunai_tu',
-            'no_kwitansi' => $no,
-            'diterima_oleh' => $request->user()->id,
-            'status' => 'aktif',
-            'catatan' => $data['catatan'] ?? null,
-        ]);
-        $tagihan->terbayar = min($tagihan->nominal, $tagihan->terbayar + (int) $data['jumlah']);
-        $tagihan->status = $tagihan->terbayar >= $tagihan->nominal ? 'lunas' : 'sebagian';
-        $tagihan->save();
+
+        /* Pembayaran melebihi sisa ditolak, bukan dipotong diam-diam.
+           Sebelumnya `terbayar` di-clamp dengan `min()` sedangkan baris
+           pembayaran menyimpan jumlah penuh — sehingga jumlah transfer kas
+           tidak sama dengan `terbayar` tagihan (mis. bayar Rp 150.000 atas sisa
+           Rp 100.000: pembayaran 150.000, terbayar naik 100.000).ovi
+
+           `lockForUpdate` + cek ulang di dalam transaksi: dua permintaan yang
+           datang bersamaan (mis. dua kas menekan Bayar di detik sama) tidak
+           bisa sama-sama lolos pemeriksaan sisa. */
+        $pembayaran = DB::transaction(function () use ($data, $request, $tagihan, $no) {
+            $tagihan = Tagihan::whereKey($tagihan->id)->lockForUpdate()->firstOrFail();
+            $sisa = max(0, (int) $tagihan->nominal - (int) $tagihan->terbayar);
+            if ((int) $data['jumlah'] > $sisa) {
+                abort(422, $sisa === 0
+                    ? 'Tagihan ini sudah lunas.'
+                    : 'Nominal melebihi sisa tagihan (sisa Rp '.$sisa.').');
+            }
+
+            $pembayaran = Pembayaran::create([
+                'tagihan_id' => $tagihan->id,
+                'jumlah' => $data['jumlah'],
+                'metode' => $data['metode'] ?? 'tunai',
+                'kas' => $data['kas'] ?? 'tunai_tu',
+                'no_kwitansi' => $no,
+                'diterima_oleh' => $request->user()->id,
+                'status' => 'aktif',
+                'catatan' => $data['catatan'] ?? null,
+            ]);
+
+            $tagihan->terbayar = (int) $tagihan->terbayar + (int) $data['jumlah'];
+            $tagihan->status = $tagihan->terbayar >= $tagihan->nominal ? 'lunas' : 'sebagian';
+            $tagihan->save();
+
+            return $pembayaran;
+        });
 
         return response()->json($pembayaran, 201);
     }
