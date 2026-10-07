@@ -46,6 +46,26 @@ if (typeof globalThis.document !== 'undefined' && !adaGetClientRects) {
   };
 }
 
+// jsdom belum mengimplementasikan Element#scrollIntoView; Radix Select
+// memanggilnya untuk menggulir item terpilih ke tampilan saat dropdown dibuka.
+// Tanpa stub ini Select tidak pernah terbuka di test ("scrollIntoView is not a
+// function"), jadi pilihan di dalam combobox mustahil diuji.
+if (typeof globalThis.Element !== 'undefined'
+  && typeof globalThis.Element.prototype.scrollIntoView !== 'function') {
+  globalThis.Element.prototype.scrollIntoView = function scrollIntoView(): void {};
+}
+
+// jsdom juga belum punya Pointer Capture API; Radix Select memanggil
+// hasPointerCapture di trigger-nya saat membuka dropdown.
+if (typeof globalThis.Element !== 'undefined'
+  && typeof globalThis.Element.prototype.hasPointerCapture !== 'function') {
+  globalThis.Element.prototype.hasPointerCapture = function hasPointerCapture(): boolean {
+    return false;
+  };
+  globalThis.Element.prototype.setPointerCapture = function setPointerCapture(): void {};
+  globalThis.Element.prototype.releasePointerCapture = function releasePointerCapture(): void {};
+}
+
 // Bersihkan DOM + localStorage antar test agar prefersisten tidak bocor.
 afterEach(() => {
   cleanup();

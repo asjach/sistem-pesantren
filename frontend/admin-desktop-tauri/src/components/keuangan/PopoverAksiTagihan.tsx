@@ -71,10 +71,25 @@ const METODE: { value: DataBayar['metode']; label: string }[] = [
   { value: 'transfer', label: 'Transfer' },
 ];
 
+/** Pilihan posisi kas per metode pembayaran.
+ *
+ *  Uang tunai memang masuk ke Kas TU, dan transfer masuk ke bank — jadi
+ *  menampilkan seluruh pilihan untuk kedua metode sekaligus menghasilkan
+ *  kombinasi yang tidak masuk akal (mis. "Tunai" + "Bank Pesantren"). Nilai
+ *  `kas` di backend tetap daftar tetap `tunai_tu,bank_lembaga,bank_pesantren`,
+ *  jadi ini murni soal opsi yang ditawarkan, bukan perubahan data. */
+const KAS_PER_METODE: Record<DataBayar['metode'], { value: DataBayar['kas']; label: string }[]> = {
+  tunai: [{ value: 'tunai_tu', label: 'Kas TU' }],
+  transfer: [
+    { value: 'bank_pesantren', label: 'Bank Pesantren' },
+    { value: 'bank_lembaga', label: 'Bank Jenjang' },
+  ],
+};
+
+/** Semua nilai kas (untuk memetakan label di riwayat pembayaran). */
 const KAS: { value: DataBayar['kas']; label: string }[] = [
-  { value: 'tunai_tu', label: 'Kas TU' },
-  { value: 'bank_lembaga', label: 'Bank Lembaga' },
-  { value: 'bank_pesantren', label: 'Bank Pesantren' },
+  ...KAS_PER_METODE.tunai,
+  ...KAS_PER_METODE.transfer,
 ];
 
 /** Badge status: lunas / tunggakan (lewat jatuh tempo) / belum jatuh tempo. */
@@ -241,7 +256,19 @@ export default function PopoverAksiTagihan({
           {/* Tab: ikon di atas, label di bawahnya. */}
           <TabsList
             variant="line"
-            className={cn('grid h-auto w-full gap-0 rounded-none border-b p-0', adaPembayaran ? 'grid-cols-4' : 'grid-cols-3')}
+            /* `h-auto!` (important) wajib: `tabsListVariants` memaksa `h-9`
+               (36px) untuk tab horizontal, padahal isi tab di sini 48,5px
+               (ikon di atas label). Akibatnya trigger meluber 13px melewati
+               tepi bawah tablist dan garis `border-b` lama tergambar melintasi
+               area label — itu sebabnya posisinya terasa salah, bukan karena
+               divider-nya sendiri. Sekarang tinggi tablist mengikuti isinya,
+               divider duduk 4px di bawah penanda tab aktif (`pb-1`), dan
+               penanda aktif dirapatkan dari `bottom:-5px` ke `bottom-0`
+               supaya menempel pada labelnya. */
+            className={cn(
+              'grid h-auto! w-full gap-0 rounded-none border-b p-0 pb-1 [&_[role=tab]]:after:bottom-0',
+              adaPembayaran ? 'grid-cols-4' : 'grid-cols-3',
+            )}
           >
             <TabUji ikon={<Wallet size={15} />} label="Bayar" />
             <TabUji ikon={<Pencil size={15} />} label="Ubah" />
@@ -257,47 +284,51 @@ export default function PopoverAksiTagihan({
               </p>
             ) : (
               <>
-                <div className="space-y-1">
-                  <FieldLabel htmlFor="inp_bayar_jumlah">Bayar</FieldLabel>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm text-muted-foreground">Rp</span>
-                    <Input
-                      /* autoFocus (bukan ref): komponen Input tidak forwardRef. */
-                      autoFocus
-                      id="inp_bayar_jumlah"
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={sisa}
-                      value={teksJumlah}
-                      onChange={(e) => setTeksJumlah(e.target.value)}
-                      aria-label="Jumlah pembayaran"
-                      aria-invalid={jumlahSalah}
-                      className={cn('h-8 tabular-nums', jumlahSalah && 'border-destructive')}
-                    />
-                    <Button
-                      id="btn_bayar_penuh"
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-2 text-xs"
-                      disabled={sisa <= 0}
-                      onClick={() => setTeksJumlah(String(sisa))}
-                    >
-                      Penuh
-                    </Button>
-                  </div>
-                  {jumlahSalah && (
-                    <p id="galat_bayar_jumlah" className="text-[11px] text-destructive">
-                      Isi Rp 1 sampai Rp {sisa.toLocaleString('id')} (sisa tagihan).
-                    </p>
-                  )}
-                </div>
+                {/* Satu grid untuk ketiga kontrol: kolom label dikunci
+                    `4rem` supaya "Bayar", "Metode", dan "Posisi Kas" rata kiri
+                    dengan lebar sama (dulu tiap baris `grid-cols-[auto_1fr]`,
+                    jadi tiap label lebarnya mengikuti teksnya sendiri dan
+                    kontrolnya mulai di x berbeda-beda). 4rem cukup untuk
+                    label terpanjang "Posisi Kas" (~52px) plus jarak. */}
+                <div className="grid grid-cols-[4rem_1fr] items-center gap-x-2 gap-y-1.5">
+                  <FieldLabel htmlFor="inp_bayar_jumlah" className="text-xs">Bayar</FieldLabel>
+                  {/* Prefix "Rp" sengaja dihapus: Tanpanya baris ini dimulai
+                      rata dengan select di bawahnya; dengan prefix, kolom
+                      kontrolnya meleset 22px ke kanan. */}
+                  <Input
+                    /* autoFocus (bukan ref): komponen Input tidak forwardRef. */
+                    autoFocus
+                    id="inp_bayar_jumlah"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={sisa}
+                    value={teksJumlah}
+                    onChange={(e) => setTeksJumlah(e.target.value)}
+                    aria-label="Jumlah pembayaran"
+                    aria-invalid={jumlahSalah}
+                    className={cn('h-8 w-full min-w-0 tabular-nums', jumlahSalah && 'border-destructive')}
+                  />
 
-                <div className="space-y-1">
-                  <FieldLabel htmlFor="sel_bayar_metode">Metode</FieldLabel>
-                  <Select value={metode} onValueChange={(v) => setMetode(v as DataBayar['metode'])}>
-                    <SelectTrigger id="sel_bayar_metode" aria-label="Metode pembayaran" className="h-8 w-full text-xs">
+<FieldLabel htmlFor="sel_bayar_metode" className="text-xs">Metode</FieldLabel>
+              <Select
+                value={metode}
+                onValueChange={(v) => {
+                  const baru = v as DataBayar['metode'];
+                  setMetode(baru);
+                  /* Kas ikut menyesuaikan metode: kalau nilai kas sekarang
+                     tidak ada di pilihan metode baru, ambil yang pertama —
+                     mencegah form mengirim kombinasi yang tidak ada pilihannya. */
+                  const opsi = KAS_PER_METODE[baru];
+                  setKas((k) => (opsi.some((o) => o.value === k) ? k : opsi[0].value));
+                }}
+              >
+                    <SelectTrigger
+                      id="sel_bayar_metode"
+                      aria-label="Metode pembayaran"
+                      title={labelMetode(metode)}
+                      className="h-8 w-full min-w-0 text-xs"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -306,20 +337,29 @@ export default function PopoverAksiTagihan({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
 
-                <div className="space-y-1">
-                  <FieldLabel htmlFor="sel_bayar_kas">Posisi Kas</FieldLabel>
+                  <FieldLabel htmlFor="sel_bayar_kas" className="text-xs">Posisi Kas</FieldLabel>
                   <Select value={kas} onValueChange={(v) => setKas(v as DataBayar['kas'])}>
-                    <SelectTrigger id="sel_bayar_kas" aria-label="Kas tujuan" className="h-8 w-full text-xs">
+                    <SelectTrigger
+                      id="sel_bayar_kas"
+                      aria-label="Kas tujuan"
+                      title={labelKas(kas)}
+                      className="h-8 w-full min-w-0 text-xs"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {KAS.map((k) => (
+                      {KAS_PER_METODE[metode].map((k) => (
                         <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+
+                  {jumlahSalah && (
+                    <p id="galat_bayar_jumlah" className="col-start-2 text-[11px] text-destructive">
+                      Isi Rp 1 sampai Rp {sisa.toLocaleString('id')} (sisa tagihan).
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex justify-end pt-0.5">
@@ -339,8 +379,12 @@ export default function PopoverAksiTagihan({
 
           {/* --- Ubah --- */}
           <TabsContent value="ubah" className="m-0 space-y-2 p-3">
-            <div className="space-y-1">
-              <FieldLabel htmlFor="inp_ubah_nominal">Nominal</FieldLabel>
+            {/* Pola sama seperti panel Bayar: satu grid, kolom label dikunci 5rem
+                supaya ketiganya rata kiri dan kontrolnya mulai di x yang sama.
+                5rem (80px) dipilih karena label terpanjang di sini "Tahun Ajaran"
+                (67px terukur) — 4rem milik panel Bayar tidak cukup. */}
+            <div className="grid grid-cols-[5rem_1fr] items-center gap-x-2 gap-y-1.5">
+              <FieldLabel htmlFor="inp_ubah_nominal" className="text-xs">Nominal</FieldLabel>
               <Input
                 id="inp_ubah_nominal"
                 type="number"
@@ -348,19 +392,12 @@ export default function PopoverAksiTagihan({
                 value={nominal}
                 onChange={(e) => setNominal(e.target.value)}
                 aria-invalid={nominalSalah}
-                className={cn('h-8 tabular-nums', nominalSalah && 'border-destructive')}
+                className={cn('h-8 w-full min-w-0 tabular-nums', nominalSalah && 'border-destructive')}
               />
-              {nominalSalah && (
-                <p className="text-[11px] text-destructive">
-                  Minimal Rp {tagihan.terbayar.toLocaleString('id')} (nilai yang sudah dibayar).
-                </p>
-              )}
-            </div>
 
-            <div className="space-y-1">
-              <FieldLabel htmlFor="sel_ubah_ta">Tahun Ajaran</FieldLabel>
+              <FieldLabel htmlFor="sel_ubah_ta" className="text-xs">Tahun Ajaran</FieldLabel>
               <Select value={tahunAjaran} onValueChange={setTahunAjaran}>
-                <SelectTrigger id="sel_ubah_ta" aria-label="Tahun ajaran" className="h-8 w-full text-xs">
+                <SelectTrigger id="sel_ubah_ta" aria-label="Tahun ajaran" className="h-8 w-full min-w-0 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -375,23 +412,33 @@ export default function PopoverAksiTagihan({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
 
-            <div className="space-y-1">
-              <FieldLabel htmlFor="inp_ubah_jatuh_tempo">Jatuh Tempo</FieldLabel>
+              <FieldLabel htmlFor="inp_ubah_jatuh_tempo" className="text-xs">Jatuh Tempo</FieldLabel>
               {bulanan ? (
-                <p id="inp_ubah_jatuh_tempo" className="text-xs text-muted-foreground">
-                  {tagihan.jatuhTempo ? tanggalPanjang(tagihan.jatuhTempo) : '—'}
-                  <span> (otomatis: tanggal 10 bulan berjalan)</span>
-                </p>
+                /* Tanggal + keterangan dipisah baris: dalam kolom kontrol yang
+                   hanya ~238px, digabung jadi satu paragraf terlihat rapat. */
+                <div className="min-w-0">
+                  <p id="inp_ubah_jatuh_tempo" className="text-xs text-muted-foreground">
+                    {tagihan.jatuhTempo ? tanggalPanjang(tagihan.jatuhTempo) : '—'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/80">
+                    <span>(otomatis: tanggal 10 bulan berjalan)</span>
+                  </p>
+                </div>
               ) : (
                 <Input
                   id="inp_ubah_jatuh_tempo"
                   type="date"
-                  className="h-8"
+                  className="h-8 w-full min-w-0"
                   value={jatuhTempo}
                   onChange={(e) => setJatuhTempo(e.target.value)}
                 />
+              )}
+
+              {nominalSalah && (
+                <p className="col-start-2 text-[11px] text-destructive">
+                  Minimal Rp {tagihan.terbayar.toLocaleString('id')} (nilai yang sudah dibayar).
+                </p>
               )}
             </div>
 

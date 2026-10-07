@@ -145,6 +145,10 @@ describe('tab aksi', () => {
   });
 });
 
+/** Radix memasang `pointer-events: none` di body selagi dropdown terbuka,
+ *  jadi userEvent menolak klik tanpa `pointerEventsCheck: 0`. */
+const klikSelect = (el: Element) => userEvent.click(el, { pointerEventsCheck: 0 });
+
 describe('panel bayar', () => {
   it('jumlah defaultnya sisa tagihan dan bisa diubah', async () => {
     const { onBayar } = renderPopover(tagihan());
@@ -158,9 +162,11 @@ describe('panel bayar', () => {
     expect(onBayar).toHaveBeenCalledWith({ jumlah: 25000, metode: 'tunai', kas: 'tunai_tu' });
   });
 
-  it('tombol Penuh mengisi sisa tagihan', async () => {
+  it('tombol Penuh sudah dihapus — field tetap terisi sisa saat dibuka', () => {
+    // Aturan main: field nominal sudah default ke sisa tagihan saat panel dibuka,
+    // jadi tombol pintas "Penuh" tidak perlu lagi (memperkecil baris input).
     renderPopover(tagihan());
-    await userEvent.click(screen.getByRole('button', { name: 'Penuh' }));
+    expect(screen.queryByRole('button', { name: 'Penuh' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Jumlah pembayaran')).toHaveValue(55000);
   });
 
@@ -180,6 +186,45 @@ describe('panel bayar', () => {
     expect(screen.getByText('Posisi Kas')).toBeInTheDocument();
     expect(screen.getByLabelText('Metode pembayaran')).toBeInTheDocument();
     expect(screen.getByLabelText('Kas tujuan')).toBeInTheDocument();
+  });
+
+  it('pilihan kas ikut metode: tunai hanya Kas TU', async () => {
+    renderPopover(tagihan());
+    await klikSelect(screen.getByLabelText('Kas tujuan'));
+    const opsi = screen.getAllByRole('option').map((o) => o.textContent);
+    expect(opsi).toEqual(['Kas TU']);
+  });
+
+  it('ganti ke transfer → pilihan kas jadi bank, dan kas terpilih ikut berubah', async () => {
+    const { onBayar } = renderPopover(tagihan());
+    expect(screen.getByLabelText('Kas tujuan')).toHaveTextContent('Kas TU');
+
+    await klikSelect(screen.getByLabelText('Metode pembayaran'));
+    await klikSelect(screen.getByRole('option', { name: 'Transfer' }));
+
+    // Nilai kas lama (tunai_tu) tidak ada di pilihan transfer → ambil yang pertama.
+    expect(screen.getByLabelText('Kas tujuan')).toHaveTextContent('Bank Pesantren');
+
+    await klikSelect(screen.getByLabelText('Kas tujuan'));
+    const opsi = screen.getAllByRole('option').map((o) => o.textContent);
+    expect(opsi).toEqual(['Bank Pesantren', 'Bank Jenjang']);
+    await userEvent.keyboard('{Escape}'); // tutup dropdown sebelum klik Simpan
+
+    await userEvent.click(document.getElementById('btn_bayar_simpan') as HTMLElement);
+    await waitFor(() => expect(onBayar).toHaveBeenCalledWith(
+      expect.objectContaining({ metode: 'transfer', kas: 'bank_pesantren' }),
+    ));
+  });
+
+  it('kembali ke tunai → kas kembali jadi Kas TU', async () => {
+    renderPopover(tagihan());
+    await klikSelect(screen.getByLabelText('Metode pembayaran'));
+    await klikSelect(screen.getByRole('option', { name: 'Transfer' }));
+    expect(screen.getByLabelText('Kas tujuan')).toHaveTextContent('Bank Pesantren');
+
+    await klikSelect(screen.getByLabelText('Metode pembayaran'));
+    await klikSelect(screen.getByRole('option', { name: 'Tunai' }));
+    expect(screen.getByLabelText('Kas tujuan')).toHaveTextContent('Kas TU');
   });
 
   it('tagihan lunas menyembunyikan form bayar', () => {
@@ -271,7 +316,7 @@ describe('panel detail pembayaran', () => {
     expect(daftar.getByText('Rp 20.000')).toBeInTheDocument();
     expect(daftar.getByText('Rp 35.000')).toBeInTheDocument();
     expect(daftar.getByText(/Tunai · Kas TU · KW-001/)).toBeInTheDocument();
-    expect(daftar.getByText(/Transfer · Bank Lembaga/)).toBeInTheDocument();
+    expect(daftar.getByText(/Transfer · Bank Jenjang/)).toBeInTheDocument();
     expect(daftar.getByText('01 Agu 2025 09:12')).toBeInTheDocument();
   });
 
