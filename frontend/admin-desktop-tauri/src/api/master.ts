@@ -123,14 +123,74 @@ export function deleteLembaga(jenjang: string) {
   return api<{ message: string }>(`/admin/lembaga/${encodeURIComponent(jenjang)}`, { method: 'DELETE' });
 }
 
+/** Baris hitungan per lembaga (jenjang + nama + jumlah). */
+export interface StatistikLembaga {
+  jenjang: string;
+  nama: string;
+  jumlah: number;
+}
+
+/** Sebaran santri aktif per tingkat (per jenjang) pada TA aktif. */
+export interface StatistikTingkat {
+  jenjang: string;
+  tingkat: string | null;
+  jumlah: number;
+}
+
+export interface StatistikSantri {
+  total: number;
+  laki_laki: number;
+  perempuan: number;
+  asrama: number;
+  non_asrama: number;
+  baru_ta_aktif: number;
+  per_lembaga: StatistikLembaga[];
+  per_tingkat: StatistikTingkat[];
+}
+
+export interface StatistikPegawai {
+  total: number;
+  aktif: number;
+  per_lembaga: StatistikLembaga[];
+}
+
+export interface StatistikKeuangan {
+  jumlah_tagihan: number;
+  nominal: number;
+  terbayar: number;
+  tunggakan: number;
+  lunas: number;
+  belum: number;
+  sebagian: number;
+}
+
+export interface StatistikSiklus {
+  alumni: number;
+  alumni_ta_aktif: number;
+  mutasi: number;
+  mutasi_ta_aktif: number;
+  alumni_per_ta: { tahun_ajaran: string; jumlah: number }[];
+}
+
+export interface StatistikPsb {
+  total: number;
+  per_status: Record<string, number>;
+}
+
+/** Statistik dashboard; blok bernilai `null` bila akun tak berizin modul itu. */
 export interface Ringkasan {
   lembaga: number;
   pengguna: number;
   tahun_ajaran_aktif: number;
   kelas: number;
+  /** Kelas pada tahun ajaran aktif saja. */
+  kelas_aktif: number;
   tahun_aktif: { nama: string; tanggal_mulai: string | null; tanggal_selesai: string | null; is_aktif: boolean }[];
-  santri: null;
-  antrean_psb: null;
+  santri: StatistikSantri | null;
+  pegawai: StatistikPegawai | null;
+  keuangan: StatistikKeuangan | null;
+  siklus: StatistikSiklus | null;
+  psb: StatistikPsb | null;
 }
 
 export function ringkasan(jenjang?: string) {

@@ -117,11 +117,16 @@ API: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`,
 `POST|DELETE /api/admin/users/{user}/lembaga` (attach/detach, multi-lembaga).
 Status: ✅ live.
 
-**Dashboard (ekstra — didokumentasikan v1.3.2).**
+**Dashboard (ekstra — didokumentasikan v1.3.2; statistik diperluas).**
 `GET /api/dashboard/ringkasan` (`auth:sanctum`, semua peran, scope tenant +
 opsional `?jenjang=`): hitungan `lembaga/pengguna/tahun_ajaran_aktif/kelas`
-+ daftar tahun aktif. Bukan executive dashboard 504. Slot `santri`,
-`antrean_psb` = null (placeholder modul lanjutan).
+(+ `kelas_aktif` TA aktif) + daftar tahun aktif, ditambah blok statistik
+`santri` (aktif = riwayat belajar aktif, L/P, asrama, santri baru, per lembaga,
+per tingkat TA aktif), `pegawai` (total + aktif TA per lembaga), `keuangan`
+(nominal/terbayar/tunggakan terlambat + status), `siklus` (alumni/mutasi +
+tren alumni per TA), dan `psb` (calon per status). Tiap blok digerbangi izin
+modulnya (`santri.lihat`, `pegawai.lihat`, `keuangan.lihat`, `psb.lihat`) dan
+bernilai `null` bila akun tak berizin. Bukan executive dashboard 504.
 
 **004 Reference & master data.** 34 kamus tables (per-lembaga; fan-out mengisi tiap lembaga, tanpa baris global),
 `RefService::effective()/kodeAktif()/forget()` (cached), urut tampil
