@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { History, Pencil, Trash2, Wallet } from '@/icons';
+import { History, Pencil, Trash2, Wallet, X } from '@/icons';
 import { cn } from '@/lib/utils';
 
 export interface TagihanAktif {
@@ -224,15 +224,35 @@ export default function PopoverAksiTagihan({
         align="start"
         sideOffset={6}
         collisionPadding={12}
-        className="w-[22rem] p-0"
+        /* `border-ring/50` (bukan `border` bawaan 12%): panel ini
+           mengambang di atas crosstab yang ramai, garis tipis low-contrast
+           bawaan tak terlihat di antara warna sel. */
+        className="w-[22rem] border-ring/50 p-0"
       >
         {/* Ringkasan tagihan: nama, orang tua, dan angka nominal/dibayar/sisa. */}
         <div className="border-b px-3 py-2.5">
           <div className="flex items-start justify-between gap-2">
             <p className="min-w-0 truncate text-sm font-medium">{tagihan.nama}</p>
-            <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', b.kelas)}>
-              {b.teks}
-            </span>
+            <div className="flex shrink-0 items-center gap-1">
+              <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', b.kelas)}>
+                {b.teks}
+              </span>
+              {/* Jalan tutup eksplisit: popover ini terkontrol halaman, jadi
+                  tombol memanggil `onTutup` langsung (bukan PopoverClose) —
+                  sama dengan yang dilakukan klik luar & Esc. */}
+              <Button
+                id="btn_tutup_popover_tagihan"
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Tutup"
+                title="Tutup"
+                onClick={onTutup}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X size={14} />
+              </Button>
+            </div>
           </div>
           <dl className="mt-1.5 space-y-0.5 text-xs">
             <BarisRingkas label="Ayah" nilai={namaOrang(tagihan.ayah_nama)} />

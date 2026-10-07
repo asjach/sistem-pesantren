@@ -120,6 +120,15 @@ describe('ringkasan tagihan', () => {
     renderPopover(tagihan({ jatuhTempo: null }));
     expect(screen.getByText('Tanpa batas jatuh tempo')).toBeInTheDocument();
   });
+
+  it('tombol tutup di kanan atas memanggil onTutup', async () => {
+    const onTutup = vi.fn();
+    renderPopover(tagihan(), { onTutup });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tutup' }));
+
+    expect(onTutup).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('tab aksi', () => {

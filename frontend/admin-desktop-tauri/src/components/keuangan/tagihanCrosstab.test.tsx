@@ -29,12 +29,12 @@ function baris(selJul: CrosstabSel, selAgu: CrosstabSel, timpa: Partial<Crosstab
   };
 }
 
-function renderCrosstab(b: CrosstabBaris, onPilih = () => {}) {
+function renderCrosstab(b: CrosstabBaris, onPilih = () => {}, terpilihId: number | null = null) {
   return renderDenganTema(
     <TagihanCrosstab
       data={{ kolom: KOLOM, baris: [b], total: 1, per_page: 25, current_page: 1, last_page: 1 }}
       loading={false}
-      terpilihId={null}
+      terpilihId={terpilihId}
       onPilih={onPilih}
       emptyText="Kosong"
     />,
@@ -202,6 +202,25 @@ describe('kartu hovervs popover: tak boleh menumpuk', () => {
 
     // Gerak jauh → kartu hidup lagi.
     fireEvent.mouseMove(tombol, { clientX: 640, clientY: 200 });
+    expect(await screen.findByRole('tooltip')).toBeInTheDocument();
+  });
+});
+
+describe('popover terbuka mematikan kartu hover', () => {
+  it('kartu tak muncul saat popover untuk sel lain sedang terbuka', async () => {
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, 99);
+    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
+
+    await userEvent.hover(tombol);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('kartu muncul lagi setelah popover ditutup (terpilihId null)', async () => {
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null);
+    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
+
+    await userEvent.hover(tombol);
     expect(await screen.findByRole('tooltip')).toBeInTheDocument();
   });
 });

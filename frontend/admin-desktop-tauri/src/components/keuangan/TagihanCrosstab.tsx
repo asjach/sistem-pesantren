@@ -80,55 +80,10 @@ function kelasSel(sel: CrosstabSel): string {
     : 'bg-muted/20 text-muted-foreground/50';
 }
 
-
-/**
- * Keterangan status satu sel: judul pendek (untuk `title` sel) + penjelasan
- * panjang (untuk kartu hover).
- *
- * Sebelumnya sel berwarna — terutama kuning "Sebagian" — muncul tanpa
- * penjelasan, sehingga user mengira itu salah warna. Jadi setiap warna
- * membawa arti yang sama di kartu hover dan di tooltip native.
- */
-function statusSel(sel: {
-  status: string;
-  terlambat: boolean;
-  jatuh_tempo: string | null;
-}): { judul: string; warna: string; detail: string } {
-  if (sel.status === 'lunas') {
-    return {
-      judul: 'Lunas',
-      warna: 'text-emerald-600 dark:text-emerald-300',
-      detail: 'Sudah dibayar penuh — tidak ada sisa tagihan.',
-    };
-  }
-  if (sel.status === 'sebagian') {
-    return {
-      judul: 'Sebagian',
-      warna: 'text-amber-600 dark:text-amber-300',
-      detail: sel.terlambat
-        ? `Sudah dibayar sebagian, masih ada sisa, dan sudah lewat jatuh tempo${sel.jatuh_tempo ? ` (${tanggalPanjang(sel.jatuh_tempo)})` : ''} — termasuk tunggakan.`
-        : `Sudah dibayar sebagian, masih ada sisa${sel.jatuh_tempo ? ` (jatuh tempo ${tanggalPanjang(sel.jatuh_tempo)})` : ''}.`,
-    };
-  }
-  return {
-    judul: sel.terlambat ? 'Tunggakan' : 'Belum jatuh tempo',
-    warna: sel.terlambat ? 'text-destructive' : 'text-muted-foreground',
-    detail: sel.terlambat
-      ? `Belum ada pembayaran dan sudah lewat batas waktu${sel.jatuh_tempo ? ` (jatuh tempo ${tanggalPanjang(sel.jatuh_tempo)})` : ' (tanpa batas tanggal)'} — masuk hitungan tunggakan.`
-      : `Belum ada pembayaran${sel.jatuh_tempo ? `, jatuh tempo ${tanggalPanjang(sel.jatuh_tempo)}` : ''} — belum lewat batas waktu, jadi belum jadi hutang.`,
-  };
-}
-
 /** "Juli 2025" dari periode bulanan 'YYYY-MM'. */
 function periodePanjang(periode: string): string {
   const [y, b] = periode.split('-');
   return `${BULAN[Number(b) - 1] ?? b} ${y}`;
-}
-
-/** "10 Okt 2026" dari tanggal jatuh tempo 'YYYY-MM-DD'. */
-function tanggalPanjang(iso: string): string {
-  const [y, b, tgl] = iso.split('-');
-  return `${tgl} ${BULAN[Number(b) - 1] ?? b} ${y}`;
 }
 
 /** Data satu sel yang ditampilkan di kartu hover. */
@@ -140,9 +95,6 @@ interface TooltipSel {
   nominal: number;
   terbayar: number;
   sisa: number;
-  status: string;
-  terlambat: boolean;
-  jatuhTempo: string | null;
 }
 
 const LEBAR_TOOLTIP = 224;
@@ -214,7 +166,6 @@ const BarisCrosstab = memo(function BarisCrosstab({
         const isiTooltip: TooltipSel = {
           nama: baris.nama, jenisNama: k.jenis_nama, tipe: k.tipe, periode: k.periode,
           nominal: sel.nominal, terbayar: sel.terbayar, sisa: sel.sisa,
-          status: sel.status, terlambat: sel.terlambat, jatuhTempo: sel.jatuh_tempo,
         };
         const meta = {
           nama: baris.nama, label: labelSel(k),
@@ -242,9 +193,6 @@ const BarisCrosstab = memo(function BarisCrosstab({
               onMouseMove={(e) => onHoverGerak(isiTooltip, e)}
               onMouseLeave={onHoverKeluar}
               aria-describedby="tip_tagihan_sel"
-                            /* `title` bawaan status, bukan cuma sisa: warna sel (kuning =
-                 "Sebagian") tanpa penjelasan terasa seperti bug. */
-              title={`${baris.nama} — ${statusSel(sel).judul} · sisa Rp ${sel.sisa.toLocaleString('id')}`}
               className={`w-full rounded px-1.5 py-0.5 text-right tabular-nums hover:ring-1 hover:ring-ring ${kelasSel(sel)} ${sel.terlambat ? 'font-semibold' : ''}`}
             >
               {sel.nominal.toLocaleString('id')}
@@ -278,7 +226,6 @@ function WrapperTanPointer({ children }: { children: React.ReactNode }) {
 
 /** Isi kartu hover: rincian tagihan per sel (dipakai di dalam HoverCardContent). */
 function IsiKartuTagihan({ data }: { data: TooltipSel }) {
-  const status = statusSel({ status: data.status, terlambat: data.terlambat, jatuh_tempo: data.jatuhTempo });
   return (
     <div className="text-xs">
       <p className="font-semibold">{data.nama}</p>
@@ -300,15 +247,6 @@ function IsiKartuTagihan({ data }: { data: TooltipSel }) {
           Rp {data.sisa.toLocaleString('id')}
         </dd>
       </dl>
-      {/* Kaki kartu: arti warna sel. Tanpa ini kuning "Sebagian" cuma
-         iovascular tanpa penjelasan. */}
-      <p className="mt-2 flex items-start gap-1.5 border-t pt-2">
-        <span className={cn('mt-[3px] size-1.5 shrink-0 rounded-full bg-current', status.warna)} aria-hidden />
-        <span className="min-w-0">
-          <span className={cn('font-semibold', status.warna)}>{status.judul}</span>
-          <span className="text-muted-foreground"> — {status.detail}</span>
-        </span>
-      </p>
     </div>
   );
 }
@@ -373,10 +311,16 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Prop
   const pilihRef = useRef(onPilih);
   pilihRef.current = onPilih;
 
+  /** Cermin `terpilihId` (ada popover = tak ada kartu hover) untuk callback
+   *  yang harus tetap stabil, jadi tak perlu masuk ke dependensi useCallback. */
+  const adaPopoverRef = useRef(terpilihId !== null);
+  adaPopoverRef.current = terpilihId !== null;
+
   /* Kartu sengaja dimatikan saat klik. Kalau pointer lalu bergerak (mis. saat
      popover ditutup), kartu boleh hidup lagi — tapi hanya setelah keluar dari
      titik klik, supaya gerak kecil saat klik tidak langsung menumpukkannya. */
   const hoverGerak = useCallback((isi: TooltipSel, e: React.MouseEvent<HTMLElement>) => {
+    if (adaPopoverRef.current) return;
     const agarJauh = agarJauhRef.current;
     if (agarJauh === null) return;
     if (Math.hypot(e.clientX - agarJauh.x, e.clientY - agarJauh.y) < 6) return;
@@ -417,6 +361,7 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Prop
     [],
   );
   const hoverMasuk = useCallback((isi: TooltipSel, anchor: HTMLElement) => {
+    if (adaPopoverRef.current) return;
     if (tutupRef.current !== null) { clearTimeout(tutupRef.current); tutupRef.current = null; }
     setHover({ isi, anchor });
   }, []);
@@ -439,6 +384,15 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Prop
   }, [hover]);
 
   useLayoutEffect(tempatkanJangkar, [tempatkanJangkar]);
+
+  /* Popover aksi terbuka → tutup kartu yang masih nyangkut (mis. popover
+     dibuka lewat keyboard saat pointer astral di sel lain). Tanpa ini kartu
+     tetap menggantung di atas panel yang sama. */
+  useEffect(() => {
+    if (terpilihId === null) return;
+    if (tutupRef.current !== null) { clearTimeout(tutupRef.current); tutupRef.current = null; }
+    setHover(null);
+  }, [terpilihId]);
 
   /* Tabel digulir → tutup kartu. Radix tidak memantau pergeseran posisi
      jangkar, jadi tanpa ini kartu melayang jauh dari sel asalnya.
@@ -570,8 +524,11 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Prop
              menutupi sel di bawahnya dan pointer tak pernah sampai ke sana,
              sehingga sel yang tertutup tak bisa di-hover. Tembusnya membuat
              hover selalu mendarat di sel yang sebenarnya di bawah kursor,
-             dan kartu ikut berganti isi. */
-          className="pointer-events-none w-56 p-2.5"
+             dan kartu ikut berganti isi.
+             Border `border-ring/50` (bukan `border` bawaan 12%): kartu
+             mengambang di atas tabel yang ramai, jadi garis tipis
+             low-contrast bawaan hilang di antara warna sel. */
+          className="pointer-events-none w-56 border-ring/50 p-2.5"
         >
           {hover !== null && (
             <WrapperTanPointer>
