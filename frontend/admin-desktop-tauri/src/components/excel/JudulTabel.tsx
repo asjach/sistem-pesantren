@@ -80,7 +80,7 @@ export default function JudulTabel({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={!bolehKelola}>
-        <div data-part="header_tabel" className="flex min-h-8 shrink-0 items-center justify-between gap-2 border-b border-[color:var(--warna-border-ribbon)] bg-muted/40 px-3 text-xs font-medium">
+        <div data-part="header_tabel" className="flex min-h-8 shrink-0 items-center justify-between gap-2 border-b border-border px-3 text-xs font-medium">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <div className="min-w-0 flex-1 truncate">{judul}</div>
             {infoTampil ? (

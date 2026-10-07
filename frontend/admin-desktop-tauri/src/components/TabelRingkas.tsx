@@ -68,8 +68,8 @@ export default function TabelRingkas({
 
   return (
     <section className={cn('flex min-w-0 flex-col', className)}>
-      <header className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-1.5 text-xs font-medium">
-        <span className="uppercase">{judul}</span>
+      <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-xs font-medium">
+        <span>{judul}</span>
         {aksi}
       </header>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">

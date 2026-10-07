@@ -68,9 +68,11 @@ describe('TabelRingkas — jarak judul vs tabel', () => {
     expect(header).not.toBeNull();
     expect((header as HTMLElement).className).toMatch(/\bpx-3\b/);
     expect((header as HTMLElement).className).toMatch(/\bpy-1\.5\b/);
-    // Judul kartu tampil UPPERCASE (pola header tabel lain di aplikasi).
+    // Judul kartu sentence case (tanpa UPPERCASE) — diselaraskan dengan bilah
+    // judul ExcelTable dan bahasa "buku induk" (skill frontend-design melarang
+    // label huruf kapital semua).
     const spanJudul = header?.querySelector('span');
-    expect(spanJudul?.className).toMatch(/\buppercase\b/);
+    expect(spanJudul?.className ?? '').not.toMatch(/\buppercase\b/);
   });
 
   it('wrapper grid di dalam header tidak menambah padding', () => {
