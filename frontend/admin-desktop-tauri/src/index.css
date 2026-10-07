@@ -614,23 +614,39 @@
   padding-right: 0;
   cursor: pointer;
 }
-/* Checkbox DSG: kotak border; terpilih = titik aksen 6px tanpa border. */
+/* Checkbox DSG: kotak siku 2px, border 1px (naik 1.5px saat fokus) dengan warna
+   redup; terpilih = kotak tetap ber-border + centang di dalamnya. */
 .simpes-dsg input.dsg-checkbox {
+  position: relative;
   appearance: none;
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
   margin: auto;
-  border: 1.5px solid color-mix(in srgb, var(--foreground) 45%, transparent);
-  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 28%, transparent);
+  border-radius: 2px;
   background: transparent;
   cursor: pointer;
 }
 .simpes-dsg input.dsg-checkbox:checked {
-  border-color: transparent;
-  background: radial-gradient(circle at center, var(--accent) 3px, transparent 3.5px);
+  /* Border tetap terlihat (tidak dihilangkan) agar kotak(selected) jelas. */
+  border-color: color-mix(in srgb, var(--foreground) 28%, transparent);
+  background: transparent;
+}
+/* Isi saat tercentang: centang (checkmark) — dua sisi L diputar 45 derajat. */
+.simpes-dsg input.dsg-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  top: 45%;
+  left: 48%;
+  width: 3.5px;
+  height: 7px;
+  border-right: 1.5px solid var(--accent);
+  border-bottom: 1.5px solid var(--accent);
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 .simpes-dsg input.dsg-checkbox:focus-visible {
+  border-width: 1.5px;
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
