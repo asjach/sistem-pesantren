@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type DragEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { Check, ChevronDown } from '@/icons';
 import { PAGE_SHELL } from '@/components/PageHeader';
@@ -21,6 +21,12 @@ interface KolomPapan {
   id: StatusPapan;
   judul: string;
   kartu: KartuContoh[];
+}
+
+/** Posisi sisip saat menyeret: sebelum kartu ke-`indeks` di kolom. */
+interface SasaranJatuh {
+  kolom: StatusPapan;
+  indeks: number;
 }
 
 const DATA_AWAL: KolomPapan[] = [
@@ -67,12 +73,48 @@ function Lencana({ label, warna }: { label: string; warna: string }) {
   );
 }
 
+/** Garis sisip 2px aksen ala Gr8r (trow drop-before/after). */
+function GarisSisip({ id }: { id: string }) {
+  return (
+    <div
+      id={id}
+      aria-hidden="true"
+      className="h-[2px] shrink-0 rounded-full"
+      style={{ background: 'var(--accent)' }}
+    />
+  );
+}
+
 /** Kartu tugas ala kcard Gr8r: permukaan + bayangan kartu + radius 8. */
-function Kartu({ kartu, selesai, onJungkit }: { kartu: KartuContoh; selesai: boolean; onJungkit: () => void }) {
+function Kartu({
+  kartu,
+  selesai,
+  diseret,
+  onJungkit,
+  onMulaiSeret,
+  onLepasSeret,
+  onDiAtas,
+}: {
+  kartu: KartuContoh;
+  selesai: boolean;
+  diseret: boolean;
+  onJungkit: () => void;
+  onMulaiSeret: (e: DragEvent) => void;
+  onLepasSeret: () => void;
+  onDiAtas: (e: DragEvent) => void;
+}) {
   return (
     <article
       id={`kartu_contoh_${kartu.id}`}
-      className="flex cursor-pointer flex-col gap-2 rounded-lg p-[10px_12px] transition-shadow"
+      draggable="true"
+      onDragStart={onMulaiSeret}
+      onDragEnd={onLepasSeret}
+      onDragOver={onDiAtas}
+      aria-label={`Kartu ${kartu.judul}. Seret untuk memindahkan.`}
+      className={cn(
+        'flex cursor-grab flex-col gap-2 rounded-lg p-[10px_12px] transition-shadow active:cursor-grabbing',
+        diseret && 'opacity-40',
+      )}
       style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-start gap-2">
@@ -83,6 +125,8 @@ function Kartu({ kartu, selesai, onJungkit }: { kartu: KartuContoh; selesai: boo
           aria-checked={selesai}
           aria-label={selesai ? `Batalkan selesai: ${kartu.judul}` : `Tandai selesai: ${kartu.judul}`}
           onClick={onJungkit}
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
           className="mt-0.5 grid size-4 shrink-0 place-items-center rounded border transition-colors"
           style={{
             borderColor: selesai ? 'var(--accent)' : 'var(--border-strong)',
@@ -117,10 +161,13 @@ function Kartu({ kartu, selesai, onJungkit }: { kartu: KartuContoh; selesai: boo
 }
 
 /** Halaman contoh papan kanban (demonstrasi bahasa desain Gr8r).
- *  Data statis di memori — tanpa backend, izin ikut dasbor. */
+ *  Seret kartu antar/antar kolom; data statis di memori — izin ikut dasbor. */
 export default function PapanContohPage() {
+  const [kolom, setKolom] = useState<KolomPapan[]>(DATA_AWAL);
   const [selesai, setSelesai] = useState<Set<string>>(() => new Set(['arsip_rapor']));
   const [lipat, setLipat] = useState<Set<StatusPapan>>(() => new Set());
+  const [seretId, setSeretId] = useState<string | null>(null);
+  const [sasaran, setSasaran] = useState<SasaranJatuh | null>(null);
 
   function jungkitSelesai(id: string) {
     setSelesai((prev) => {
@@ -140,55 +187,142 @@ export default function PapanContohPage() {
     });
   }
 
-  const total = DATA_AWAL.reduce((n, k) => n + k.kartu.length, 0);
+  function bersihkanSeret() {
+    setSeretId(null);
+    setSasaran(null);
+  }
+
+  function mulaiSeret(e: DragEvent, id: string) {
+    e.dataTransfer.effectAllowed = 'move';
+    // Firefox: seret butuh data agar dragstart tidak dibatalkan.
+    e.dataTransfer.setData('text/plain', id);
+    setSeretId(id);
+  }
+
+  /** Indeks sisip dari posisi pointer: paruh atas = sebelum, bawah = sesudah. */
+  function indeksSisip(e: DragEvent, indeks: number): number {
+    const kotak = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    return e.clientY > kotak.top + kotak.height / 2 ? indeks + 1 : indeks;
+  }
+
+  function diAtasKartu(e: DragEvent, kolomId: StatusPapan, indeks: number) {
+    if (!seretId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    const posisi = indeksSisip(e, indeks);
+    setSasaran((prev) => (prev && prev.kolom === kolomId && prev.indeks === posisi ? prev : { kolom: kolomId, indeks: posisi }));
+  }
+
+  function diAtasKolom(e: DragEvent, kolomId: StatusPapan, jumlah: number) {
+    if (!seretId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setSasaran((prev) => (prev && prev.kolom === kolomId && prev.indeks === jumlah ? prev : { kolom: kolomId, indeks: jumlah }));
+  }
+
+  function tinggalkanKolom(e: DragEvent) {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setSasaran(null);
+  }
+
+  function pindahkanKartu(id: string, ke: StatusPapan, indeks: number) {
+    setKolom((prev) => {
+      const asal = prev.find((k) => k.kartu.some((c) => c.id === id));
+      if (!asal) return prev;
+      const kartu = asal.kartu.find((c) => c.id === id);
+      if (!kartu) return prev;
+      const tanpa = prev.map((k) => (k.id === asal.id ? { ...k, kartu: k.kartu.filter((c) => c.id !== id) } : k));
+      return tanpa.map((k) => {
+        if (k.id !== ke) return k;
+        let posisi = Math.max(0, Math.min(indeks, k.kartu.length));
+        // Pindah dalam kolom yang sama: koreksi geseran setelah kartu diangkat.
+        if (asal.id === ke) {
+          const idxAsal = asal.kartu.findIndex((c) => c.id === id);
+          if (idxAsal < posisi) posisi -= 1;
+        }
+        return { ...k, kartu: [...k.kartu.slice(0, posisi), kartu, ...k.kartu.slice(posisi)] };
+      });
+    });
+  }
+
+  function jatuhkan(e: DragEvent, kolomId: StatusPapan, jumlah: number) {
+    e.preventDefault();
+    if (!seretId) return;
+    const target = sasaran && sasaran.kolom === kolomId ? sasaran.indeks : jumlah;
+    pindahkanKartu(seretId, kolomId, target);
+    bersihkanSeret();
+  }
+
+  const total = kolom.reduce((n, k) => n + k.kartu.length, 0);
 
   return (
     <div id="papan_contoh" className={cn(PAGE_SHELL, 'h-full')}>
       <div className="mx-auto w-full max-w-none px-6 pt-7 pb-3">
         <h2 className="text-base font-semibold">Contoh Papan</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Demonstrasi bahasa desain Gr8r — {total} kartu contoh, perubahan hanya di memori.
+          Demonstrasi bahasa desain Gr8r — seret kartu antar kolom, {total} kartu contoh, perubahan hanya di memori.
         </p>
       </div>
       <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-6 pb-6">
-        {DATA_AWAL.map((kolom) => {
-          const terlipat = lipat.has(kolom.id);
+        {kolom.map((item) => {
+          const terlipat = lipat.has(item.id);
+          const disorot = sasaran?.kolom === item.id && seretId !== null;
           return (
             <section
-              key={kolom.id}
-              id={`kolom_papan_${kolom.id}`}
-              aria-label={`Kolom ${kolom.judul}`}
+              key={item.id}
+              id={`kolom_papan_${item.id}`}
+              aria-label={`Kolom ${item.judul}, ${item.kartu.length} kartu`}
+              onDragOver={(e) => diAtasKolom(e, item.id, item.kartu.length)}
+              onDragLeave={tinggalkanKolom}
+              onDrop={(e) => jatuhkan(e, item.id, item.kartu.length)}
               className={cn('flex max-h-full shrink-0 flex-col rounded-[10px] border', terlipat && 'w-11 cursor-pointer items-center pt-2')}
               style={{
                 width: terlipat ? undefined : 284,
-                background: 'var(--sunken)',
-                borderColor: 'var(--divider)',
+                background: disorot ? 'color-mix(in srgb, var(--accent) 6%, var(--sunken))' : 'var(--sunken)',
+                borderColor: disorot ? 'var(--accent-line)' : 'var(--divider)',
               }}
-              onClick={terlipat ? () => jungkitLipat(kolom.id) : undefined}
+              onClick={terlipat ? () => jungkitLipat(item.id) : undefined}
             >
               {terlipat ? (
                 <span className="text-xs font-medium text-muted-foreground [writing-mode:vertical-rl]">
-                  {kolom.judul} · {kolom.kartu.length}
+                  {item.judul} · {item.kartu.length}
                 </span>
               ) : (
                 <>
                   <header className="flex items-center gap-[7px] pt-[10px] pr-2 pb-1.5 pl-3 text-[12.5px] font-semibold">
-                    {kolom.judul}
-                    <span className="font-medium text-muted-foreground tabular-nums">{kolom.kartu.length}</span>
+                    {item.judul}
+                    <span className="font-medium text-muted-foreground tabular-nums">{item.kartu.length}</span>
                     <button
-                      id={`btn_lipat_kolom_${kolom.id}`}
+                      id={`btn_lipat_kolom_${item.id}`}
                       type="button"
-                      aria-label={`Lipat kolom ${kolom.judul}`}
-                      onClick={() => jungkitLipat(kolom.id)}
+                      aria-label={`Lipat kolom ${item.judul}`}
+                      onClick={() => jungkitLipat(item.id)}
                       className="ml-auto grid size-[26px] place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <ChevronDown size={13} />
                     </button>
                   </header>
                   <div className="flex min-h-[60px] flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
-                    {kolom.kartu.map((kartu) => (
-                      <Kartu key={kartu.id} kartu={kartu} selesai={selesai.has(kartu.id)} onJungkit={() => jungkitSelesai(kartu.id)} />
+                    {item.kartu.map((kartu, idx) => (
+                      <div key={kartu.id} className="flex flex-col gap-1.5">
+                        {sasaran && sasaran.kolom === item.id && sasaran.indeks === idx ? (
+                          <GarisSisip id={`garis_sisip_${item.id}_${idx}`} />
+                        ) : null}
+                        <Kartu
+                          kartu={kartu}
+                          selesai={selesai.has(kartu.id)}
+                          diseret={seretId === kartu.id}
+                          onJungkit={() => jungkitSelesai(kartu.id)}
+                          onMulaiSeret={(e) => mulaiSeret(e, kartu.id)}
+                          onLepasSeret={bersihkanSeret}
+                          onDiAtas={(e) => diAtasKartu(e, item.id, idx)}
+                        />
+                      </div>
                     ))}
+                    {sasaran && sasaran.kolom === item.id && sasaran.indeks >= item.kartu.length ? (
+                      <GarisSisip id={`garis_sisip_${item.id}_akhir`} />
+                    ) : null}
                   </div>
                 </>
               )}
