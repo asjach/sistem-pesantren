@@ -100,14 +100,31 @@ export default function KeuanganPage() {
   /** Crosstab tagihan: baris = santri, kolom = jenis (bulanan per bulan). */
   const [crosstab, setCrosstab] = useState<CrosstabTagihan | null>(null);
   const [cariTagihan, setCariTagihan] = useState('');
+  /** Pencarian yang benar-benar dipakai saat muat: ditunda 400 ms supaya tak
+   *  memanggil API tiap ketikan (pola sama dengan `useDaftarTabel`). */
+  const [cariTagihanTertunda, setCariTagihanTertunda] = useState('');
   const [urutTagihan, setUrutTagihan] = useState('');
   const [arahTagihan, setArahTagihan] = useState<'naik' | 'turun'>('naik');
   /** Tab Tagihan: hanya sel yang sudah lewat jatuh tempo. */
   const [terlambatTagihan, setTerlambatTagihan] = useState(false);
 
+  /** Request terakhir; naik tiap muat. Balasan yang tak lagi relevan diabaikan. */
+  const crosstabReqRef = useRef(0);
+  const crosstabAbortRef = useRef<AbortController | null>(null);
+
   const loadCrosstab = useCallback(async (
     page: number, perPage: number, jenjang: readonly string[], ta: readonly string[],
   ) => {
+    /* Tanpa penjaga ini, mengetik cepat membuat balasan yang lebih LAMA
+       tiba belakangan dan menimpa data kueri yang lebih baru — tabel menampilkan
+       hasil ketikan lama sementara kotak pencarian sudah berisi teks baru
+       (terbukti Playwright: ketik "a" lalu "zzz" → tetap 543 baris, bukan
+       tabel kosong). Pola req + AbortController + debounce mengikuti
+       `useDaftarTabel`. */
+    const req = ++crosstabReqRef.current;
+    crosstabAbortRef.current?.abort();
+    const ac = new AbortController();
+    crosstabAbortRef.current = ac;
     setErrTagihan(''); setLoadingTagihan(true);
     try {
       const res = await crosstabTagihan({
@@ -115,26 +132,42 @@ export default function KeuanganPage() {
         per_page: perPage === 0 ? 'all' : String(perPage),
         jenjang,
         tahun_ajaran: ta,
-        santri: cariTagihan.trim() === '' ? undefined : cariTagihan.trim(),
+        santri: cariTagihanTertunda === '' ? undefined : cariTagihanTertunda,
         sort: urutTagihan === '' ? undefined : [urutTagihan],
         arah: urutTagihan === '' ? undefined : arahTagihan,
         terlambat: terlambatTagihan || undefined,
+        signal: ac.signal,
       });
+      if (req !== crosstabReqRef.current) return;
       setCrosstab(res);
       setTagihanPage(res.current_page);
       setTagihanLastPage(res.last_page);
       setTagihanTotal(res.total);
     } catch (e) {
+      if (ac.signal.aborted) return;
+      if (req !== crosstabReqRef.current) return;
       setErrTagihan(errorMessage(e));
       setCrosstab(null);
-    } finally { setLoadingTagihan(false); }
-  }, [cariTagihan, urutTagihan, arahTagihan, terlambatTagihan]);
+    } finally {
+      if (req === crosstabReqRef.current) setLoadingTagihan(false);
+    }
+  }, [cariTagihanTertunda, urutTagihan, arahTagihan, terlambatTagihan]);
+
+  // Ketikan pencarian → tunggu 400 ms baru jadi nilai muat.
+  useEffect(() => {
+    const bersih = cariTagihan.trim();
+    const t = setTimeout(() => setCariTagihanTertunda(bersih), bersih === '' ? 0 : 400);
+    return () => clearTimeout(t);
+  }, [cariTagihan]);
 
   // Filter global/pencarian/urut berubah → muat dari halaman 1.
   useEffect(() => {
     if (filterLoading || jenjangs.length === 0) { if (!filterLoading && jenjangs.length === 0) setCrosstab(null); return; }
     void loadCrosstab(1, tagihanPerPage, jenjangs, tahunAjaranNames);
-  }, [filterLoading, jenjangs, tahunAjaranNames, tagihanPerPage, cariTagihan, urutTagihan, arahTagihan, terlambatTagihan, loadCrosstab]);
+  }, [filterLoading, jenjangs, tahunAjaranNames, tagihanPerPage, cariTagihanTertunda, urutTagihan, arahTagihan, terlambatTagihan, loadCrosstab]);
+
+  // Batalkan request yang masih jalan saat halaman dilepas.
+  useEffect(() => () => crosstabAbortRef.current?.abort(), []);
 
   /** Tarif mengikuti filter lembaga & tahun ajaran (server-side; kosong = semua). */
   const loadTarif = useCallback(async (jenjang: readonly string[], ta: readonly string[]) => {
