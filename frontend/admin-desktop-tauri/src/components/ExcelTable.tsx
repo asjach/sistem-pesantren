@@ -37,6 +37,12 @@ import {
 } from '@/components/ui/context-menu';
 import { ActionIcon } from '@/components/RowActions';
 import { Pencil, PlusCircle, Save } from '@/icons';
+
+/** Klik kanan di "corner button" (sel header gutter di sudut kiri-atas,
+ *  bertanda segitiga `.dsg-corner-indicator`) → menu salin seluruh tabel. */
+export function diCornerButton(target: Element | null): boolean {
+  return !!target?.closest('.dsg-cell-gutter.dsg-cell-header');
+}
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1102,10 +1108,10 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  menu (Radix maupun menu bawaan WebView). */
   function onGridContextMenu(e: React.MouseEvent) {
     const t = e.target as HTMLElement;
-    // Sudut kiri-atas (kotak centang "pilih semua") punya menu sendiri:
-    // salin seluruh tabel. Diperiksa sebelum cabang header karena sel ini
-    // juga berkelas header tanpa `data-col-key`.
-    if (t.closest('.dsg-cell')?.querySelector('input.simpes-dsg-checkall')) {
+    // "Corner button" ala Excel/PyQt (sel header gutter) punya menu sendiri:
+    // salin seluruh tabel. Diperiksa sebelum cabang header karena sel ini juga
+    // berkelas header tetapi tanpa `data-col-key` (jatuh ke "area kosong").
+    if (diCornerButton(t)) {
       setCtx({ area: 'sudut' });
       return;
     }

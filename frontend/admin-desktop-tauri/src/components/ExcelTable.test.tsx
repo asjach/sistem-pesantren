@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import ExcelTable, { type ExcelTableProps } from './ExcelTable';
+import ExcelTable, { diCornerButton, type ExcelTableProps } from './ExcelTable';
 import { RibbonTableProvider, useRibbonTable, type RibbonTableApi } from '@/components/RibbonTable';
 import { renderDenganTema, PembungkusTema } from '@/test/utils';
 
@@ -80,6 +80,31 @@ function renderTabel(props: Partial<ExcelTableProps<Baris>> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+});
+
+describe('ExcelTable — corner button (sudut kiri-atas)', () => {
+  it('mengenali sel header gutter (dengan segitiga) sebagai corner button', () => {
+    const sel = document.createElement('div');
+    sel.className = 'dsg-cell dsg-cell-gutter dsg-cell-header';
+    const segitiga = document.createElement('span');
+    segitiga.className = 'dsg-corner-indicator';
+    sel.appendChild(segitiga);
+
+    // Klik tepat di segitiga maupun di selnya sama-sama dikenali.
+    expect(diCornerButton(segitiga)).toBe(true);
+    expect(diCornerButton(sel)).toBe(true);
+  });
+
+  it('bukan corner button: header kolom, sel data, dan target kosong', () => {
+    const header = document.createElement('div');
+    header.className = 'dsg-cell dsg-cell-header';
+    const selData = document.createElement('div');
+    selData.className = 'dsg-cell';
+
+    expect(diCornerButton(header)).toBe(false);
+    expect(diCornerButton(selData)).toBe(false);
+    expect(diCornerButton(null)).toBe(false);
+  });
 });
 
 describe('ExcelTable', () => {
