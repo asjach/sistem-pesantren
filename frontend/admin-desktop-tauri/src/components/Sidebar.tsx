@@ -5,6 +5,8 @@ import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useTheme } from '@/theme';
+import { useLebarSidebar } from '@/components/useLebarSidebar';
+import { SIDEBAR_LEBAR_MAX, SIDEBAR_LEBAR_MIN } from '@/prefs';
 import { cn } from '@/lib/utils';
 import { ChevronDown } from '@/icons';
 
@@ -110,7 +112,12 @@ function simpanGrupTutup(next: Set<string>) {
  *  Bisa dilipat ke rail ikon (tombol atau Ctrl/Cmd+B); status di pref
  *  `simpes_sidebar`. Tautan halaman terpisah dari tools di ribbon. */
 export default function Sidebar() {
-  const { collapsed } = useTheme();
+  const { collapsed, sidebarLebar, setSidebarLebar, setCollapsed } = useTheme();
+  const { seret, seretSembunyi, lebarTampil, mulaiSeret, onKeyDown, resetLebar } = useLebarSidebar({
+    lebar: sidebarLebar,
+    setLebar: setSidebarLebar,
+    setCollapsed,
+  });
   const { user } = useAuth();
   const { bertindak } = useLembagaAktif();
   // Saat bertindak sebagai lembaga, kemampuan super_admin dianggap nonaktif
@@ -294,9 +301,13 @@ export default function Sidebar() {
       aria-label="Navigasi utama"
       className={cn(
         'relative flex h-full shrink-0 flex-col overflow-hidden border-r border-white/10 text-white transition-[width] duration-200',
-        collapsed ? 'w-0 border-r-0' : 'w-60',
+        seret && 'transition-none',
+        collapsed && !seret && 'border-r-0',
       )}
-      style={{ background: 'linear-gradient(180deg, var(--sidebar-deep), var(--sidebar))' }}
+      style={{
+        width: collapsed && !seret ? 0 : lebarTampil(collapsed),
+        background: 'linear-gradient(180deg, var(--sidebar-deep), var(--sidebar))',
+      }}
     >
       {!collapsed ? (
         <div className="flex items-center gap-2 px-3 py-3">
@@ -398,6 +409,33 @@ export default function Sidebar() {
           );
           })}
         </nav>
+      ) : null}
+
+      {/* Gagang seret lebar navigasi: strip tipis di tepi kanan. Seret ke
+          kiri-mentok menyembunyikan navigasi (lihat useLebarSidebar). */}
+      {!collapsed ? (
+        <div
+          id="gagang_lebar_sidebar"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Lebar navigasi"
+          aria-valuenow={sidebarLebar}
+          aria-valuemin={SIDEBAR_LEBAR_MIN}
+          aria-valuemax={SIDEBAR_LEBAR_MAX}
+          tabIndex={0}
+          title="Seret untuk mengubah lebar navigasi"
+          onMouseDown={mulaiSeret}
+          onDoubleClick={resetLebar}
+          onKeyDown={onKeyDown}
+          className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-col-resize touch-none select-none"
+        >
+          <span
+            className={cn(
+              'absolute inset-y-0 right-0 w-px bg-white/10 transition-colors',
+              seretSembunyi ? 'bg-white/70' : 'hover:bg-white/40',
+            )}
+          />
+        </div>
       ) : null}
     </aside>
   );

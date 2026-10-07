@@ -24,6 +24,22 @@ export const DENSITY_PX: Record<DensityName, number> = {
 /** Mode navigasi utama: rail kiri atau bar menu atas. */
 export type NavigasiName = 'sidebar' | 'menubar';
 
+/** Lebar navigasi kiri (px). Bawaan 240px (setara `w-60`); bisa diseret. */
+export const SIDEBAR_LEBAR_DEFAULT = 240;
+/** Bawaan + bawah: di bawah ini label menu terpotong, jadi panel autogut. */
+export const SIDEBAR_LEBAR_MIN = 180;
+/** Di bawah ambang ini seretan dianggap "mentok ke pinggir" → navigasi disembunyikan. */
+export const SIDEBAR_SNAP_HIDE = 96;
+/** Batas atas: terlalu lebar menyisakan konten yang tak terbaca. */
+export const SIDEBAR_LEBAR_MAX = 480;
+
+/** Jepit lebar navigasi ke rentang yang wajar (px bulat). */
+export function clampSidebarLebar(px: number): number {
+  const n = Number(px);
+  if (!Number.isFinite(n)) return SIDEBAR_LEBAR_DEFAULT;
+  return Math.min(SIDEBAR_LEBAR_MAX, Math.max(SIDEBAR_LEBAR_MIN, Math.round(n)));
+}
+
 /** Nilai "Semua" pada pilihan baris per halaman: dikirim sebagai `per_page=0`
  *  dan diartikan backend sebagai tanpa batas (semua baris dalam satu halaman). */
 export const PER_PAGE_ALL = 0;
@@ -45,6 +61,7 @@ const K = {
   theme: 'simpes_theme',
   mode: 'simpes_mode',
   sidebar: 'simpes_sidebar',
+  sidebarLebar: 'simpes_sidebar_lebar',
   density: 'simpes_density',
   warnaUI: 'simpes_warna_ui',
   parts: 'simpes_parts',
@@ -60,6 +77,8 @@ export interface Prefs {
   theme: ThemeName;
   mode: ModeName;
   collapsed: boolean;
+  /** Lebar navigasi kiri hasil seretan (px; dijepit saat dimuat). */
+  sidebarLebar: number;
   density: DensityName;
   /** Tingkat kekayaan warna UI (judul/ikon/permukaan/semantik). */
   warnaUI: WarnaUIName;
@@ -75,6 +94,7 @@ export const DEFAULT_PREFS: Prefs = {
   theme: 'geist',
   mode: 'sistem',
   collapsed: false,
+  sidebarLebar: SIDEBAR_LEBAR_DEFAULT,
   density: 'sedang',
   warnaUI: 'kaya',
   navigasi: 'sidebar',
@@ -100,10 +120,11 @@ export function onAccentFor(hex: string): string {
 }
 
 export async function loadPrefs(): Promise<Prefs> {
-  const [theme, mode, sidebar, density, warnaUI, partsRaw, iconSetRaw, navigasiRaw, fontLama, fontFamilyLama] = await Promise.all([
+  const [theme, mode, sidebar, sidebarLebarRaw, density, warnaUI, partsRaw, iconSetRaw, navigasiRaw, fontLama, fontFamilyLama] = await Promise.all([
     prefGet(K.theme),
     prefGet(K.mode),
     prefGet(K.sidebar),
+    prefGet(K.sidebarLebar),
     prefGet(K.density),
     prefGet(K.warnaUI),
     prefGet(K.parts),
@@ -148,6 +169,7 @@ export async function loadPrefs(): Promise<Prefs> {
       : DEFAULT_PREFS.theme,
     mode: mode === 'gelap' || mode === 'terang' ? mode : 'sistem',
     collapsed: sidebar === '1',
+    sidebarLebar: sidebarLebarRaw === null ? SIDEBAR_LEBAR_DEFAULT : clampSidebarLebar(Number(sidebarLebarRaw)),
     density: (['ramping', 'sedang', 'nyaman'] as string[]).includes(density ?? '')
       ? (density as DensityName)
       : 'sedang',
@@ -165,6 +187,7 @@ export async function savePrefs(p: Prefs): Promise<void> {
     prefSet(K.theme, p.theme),
     prefSet(K.mode, p.mode),
     prefSet(K.sidebar, p.collapsed ? '1' : '0'),
+    prefSet(K.sidebarLebar, String(p.sidebarLebar)),
     prefSet(K.density, p.density),
     prefSet(K.warnaUI, p.warnaUI),
     prefSet(K.parts, JSON.stringify(p.parts)),

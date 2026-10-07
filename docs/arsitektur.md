@@ -210,6 +210,7 @@ Contoh kamus ringkas:
 
 ### 7.3 Navigasi
 - Dua mode per perangkat: sidebar rail (lipat ke ikon via tombol & Ctrl/Cmd+B, 5 grup) atau menubar; pemilih di submenu Navigasi pada menu akun, sejajar submenu Tema (25 pilihan), Set ikon (9 set), dan Kaya warna.
+- Lebar sidebar bisa diseret lewat gagang di tepi kanan (180–480px, pref `simpes_sidebar_lebar`; klik ganda gagang = kembali 240px). Seret ke kiri-mentok (≤96px) menyembunyikan navigasi seketika, dan lebar lamanya disimpan agar dibuka kembali sama; keyboard ←/→ geser 16px (Shift 48px) serta Home = bawaan.
 - Menu akun kanan atas: pengalih lembaga aktif, tahun ajaran aktif, strip mode terang/gelap/sistem, lalu keluar.
 - Bar judul halaman + baris tools kontekstual; halaman menyumbang tools via slot (tab ganda bila halaman + tabel sama-sama punya tools); tombol lipat baris tools per perangkat.
 

@@ -22,6 +22,8 @@ interface ThemeState extends Prefs {
   setTheme: (t: ThemeName) => void;
   setMode: (m: ModeName) => void;
   setCollapsed: (c: boolean) => void;
+  /** Set lebar navigasi kiri (px; sudah dijepit pemanggil). */
+  setSidebarLebar: (px: number) => void;
   /** Mode navigasi utama. */
   setNavigasi: (n: NavigasiName) => void;
   setDensity: (d: DensityName) => void;
@@ -109,6 +111,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setTheme: (theme) => update({ theme }),
       setMode: (mode) => update({ mode }),
       setCollapsed: (collapsed) => update({ collapsed }),
+      setSidebarLebar: (sidebarLebar) => update({ sidebarLebar }),
       setNavigasi: (navigasi) => update({ navigasi }),
       setDensity: (density) => update({ density }),
       setWarnaUI: (warnaUI) => update({ warnaUI }),
