@@ -1,0 +1,219 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\JenisTagihan;
+use App\Models\Santri;
+use App\Models\Tagihan;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * Pagination crosstab harus memotong di SQL, bukan sesudah seluruh tagihan
+ * dimuat. Yang diuji: (1) `total` & `last_page` benar walau baris cuma satu
+ * halaman, (2) halaman 2 tidak mengulang baris halaman 1, (3) setiap halaman
+ * punya `total_tagihan`/`tunggakan` agregat SELURUH tagihan Santri itu (bukan
+ * hanya yang kebetulan masuk halaman) — ini yang paling rawan rusak kalau
+ * agregat ikut terpotong.
+ */
+class CrosstabPaginasiTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function admin(): User
+    {
+        $u = User::create(['name' => 'Admin', 'email' => 'admin@example.com', 'phone' => '081234567890', 'password' => 'password']);
+        $u->assignRole('super_admin');
+
+        return $u;
+    }
+
+    /** `$jumlah` Santri, tiap Santri 1 tagihan bulanan, semua jenjang & TA sama. */
+    private function seedSantri(int $jumlah = 15): array
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq '.$jumlah, 'tipe' => 'bulanan']);
+
+        $ids = [];
+        for ($i = 1; $i <= $jumlah; $i++) {
+            $s = Santri::create(['nama_lengkap' => sprintf('Santri %02d', $i), 'jk' => 'L']);
+            $ids[] = $s->id;
+            Tagihan::create([
+                'santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
+                'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 10000,
+                'jatuh_tempo' => now()->addMonth()->toDateString(),
+            ]);
+        }
+
+        return [$admin, $ids];
+    }
+
+    public function test_paginasi_memotong_di_sql_tanpa_memotong_agregat(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq', 'tipe' => 'bulanan']);
+        $lunas = JenisTagihan::create(['nama' => 'ASAS', 'tipe' => 'non_bulanan']);
+
+        // 5 Santri, tiap Santri 3 tagihan bulanan + 1 non-bulanan.
+        $nilai = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $s = Santri::create(['nama_lengkap' => sprintf('Santri %02d', $i), 'jk' => 'L']);
+            $nilai[] = $s->id;
+            foreach (['2025-07', '2025-08', '2025-09'] as $bulan) {
+                Tagihan::create([
+                    'santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
+                    'jenis_id' => $infaq->id, 'periode' => $bulan, 'nominal' => 10000 * $i,
+                    // Satu tagihan lewat jatuh tempo supaya tunggakan tak nol.
+                    'jatuh_tempo' => $bulan === '2025-07' ? now()->subDays(30)->toDateString() : now()->addMonth()->toDateString(),
+                ]);
+            }
+            Tagihan::create([
+                'santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
+                'jenis_id' => $lunas->id, 'periode' => '2025/2026', 'nominal' => 50000 * $i,
+                'jatuh_tempo' => now()->addMonths(6)->toDateString(),
+            ]);
+        }
+
+        $halaman1 = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?per_page=2&page=1')->assertStatus(200)->json();
+        $halaman2 = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?per_page=2&page=2')->assertStatus(200)->json();
+        $halaman3 = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?per_page=2&page=3')->assertStatus(200)->json();
+
+        // Total & jumlah halaman dihitung dari seluruh data, bukan halaman ini.
+        $this->assertSame(5, $halaman1['total']);
+        $this->assertSame(3, $halaman1['last_page']);
+        $this->assertCount(2, $halaman1['baris']);
+        $this->assertCount(2, $halaman2['baris']);
+        $this->assertCount(1, $halaman3['baris']);
+
+        // Halaman tidak saling tumpang tindih.
+        $id1 = array_column($halaman1['baris'], 'santri_id');
+        $id2 = array_column($halaman2['baris'], 'santri_id');
+        $id3 = array_column($halaman3['baris'], 'santri_id');
+        $this->assertSame([], array_intersect($id1, $id2));
+        $this->assertSame([], array_intersect($id2, $id3));
+        $this->assertCount(5, array_unique([...$id1, ...$id2, ...$id3]));
+
+        // Agregat per baris = SELURUH tagihan Santri itu, bukan yang di halaman.
+        $santriKedua = $halaman2['baris'][0];
+        $expected = Tagihan::where('santri_id', $santriKedua['santri_id'])->sum('nominal');
+        $this->assertSame($expected, $santriKedua['total_tagihan']);
+        $this->assertSame(4, count($santriKedua['sel']), 'sel memuat 3 bulan + 1 non-bulanan');
+
+        /* Tunggakan = sisa > 0 yang lewat batas waktu; jatuh tempo kosong
+           berarti tanpa batas = ikut lewat (aturan yang sama dengan
+           `Tagihan::sisaTerlambat()`), jadi expectation dihitung dari model,
+           bukan dari filter tanggal manual. */
+        $expectedTunggakan = Tagihan::where('santri_id', $santriKedua['santri_id'])
+            ->get()
+            ->sum(fn ($t) => $t->sisaTerlambat());
+        $this->assertSame($expectedTunggakan, $santriKedua['tunggakan']);
+
+        // Kolom lengkap regardless halaman (3 bulan + ASAS).
+        $this->assertSame(4, count($halaman3['baris'][0]['sel']));
+        $this->assertSame(
+            ['1-2025-07', '1-2025-08', '1-2025-09', 'jenis-'.$lunas->id],
+            array_column($halaman1['kolom'], 'key'),
+        );
+
+        // Urutan di SQL: nama naik/turun & total.
+        $urut = function (string $arah) use ($admin) {
+            return array_column($this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/crosstab?sort=nama&arah={$arah}&per_page=all")->json('baris'), 'nama');
+        };
+        $namaNaik = $urut('naik');
+        $namaTurun = $urut('turun');
+        $this->assertSame('Santri 01', $namaNaik[0], 'arah=naik harus menaik');
+        $this->assertSame('Santri 05', $namaTurun[0], 'arah=turun harus menurun');
+        $this->assertSame(array_reverse($namaNaik), $namaTurun);
+
+        $totalTurun = array_column($this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?sort=total&arah=turun&per_page=all')->json('baris'), 'total_tagihan');
+        $sorted = $totalTurun;
+        rsort($sorted);
+        $this->assertSame($sorted, $totalTurun);
+    }
+
+    public function test_halaman_di_luar_rentang_tidak_error(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq', 'tipe' => 'bulanan']);
+        $s = Santri::create(['nama_lengkap' => 'Santri Tunggal', 'jk' => 'P']);
+        Tagihan::create([
+            'santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
+            'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 10000,
+        ]);
+
+        $res = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?per_page=50&page=9')->assertStatus(200)->json();
+        $this->assertSame([], $res['baris']);
+        $this->assertSame(1, $res['total']);
+        $this->assertNotEmpty($res['kolom'], 'kolom tetap dikirim walau baris kosong');
+        $this->assertSame(1, $res['last_page']);
+    }
+
+    /* every page must be a contiguous slice: no duplicate and no gap, and the
+       last page must be partial without dropping its rows. */
+    public function test_halaman_berurutan_tidak_duplikat_atau_hilang(): void
+    {
+        [$admin, $santri] = $this->seedSantri();
+
+        $ambil = function (int $halaman) use ($admin) {
+            return $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/crosstab?sort=nama&arah=naik&per_page=10&page={$halaman}")->json();
+        };
+
+        $p1 = $ambil(1);
+        $this->assertSame(10, count($p1['baris']));
+        $this->assertSame('Santri 01', $p1['baris'][0]['nama']);
+
+        $p2 = $ambil(2);
+        $this->assertSame(5, count($p2['baris']));
+        $this->assertSame(2, $p2['last_page']);
+        $this->assertSame('Santri 11', $p2['baris'][0]['nama'], 'halaman 2 lanjutan, bukan ulang');
+
+        $id1 = array_column($p1['baris'], 'santri_id');
+        $id2 = array_column($p2['baris'], 'santri_id');
+        $this->assertSame([], array_values(array_intersect($id1, $id2)), 'tidak boleh ada baris di dua halaman');
+        $this->assertCount(15, array_unique([...$id1, ...$id2]), 'semua 15 Santri harus tepat satu kali');
+
+        /* `total` tidak berubah dan halaman di luar jangkauan kosong; FE
+           yang mengoreksi halaman lewat `pager.sync(current_page, last_page)`. */
+        $luar = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?sort=nama&arah=naik&per_page=10&page=99')->json();
+        $this->assertSame(15, $luar['total']);
+        $this->assertSame(2, $luar['last_page']);
+        $this->assertSame([], $luar['baris']);
+    }
+
+    /* per_page=all must return every Santri — total is read from SQL, so the
+       page limit must follow the same number. */
+    public function test_per_page_all_memuat_seluruh_santri(): void
+    {
+        [$admin] = $this->seedSantri();
+
+        $semua = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?sort=nama&arah=naik&per_page=all')->json();
+
+        $this->assertSame(15, $semua['total']);
+        $this->assertCount(15, $semua['baris']);
+        $this->assertSame(1, $semua['last_page']);
+        $this->assertSame('Santri 01', $semua['baris'][0]['nama']);
+        $this->assertSame('Santri 15', $semua['baris'][14]['nama']);
+    }
+
+    /* aggregate columns must hold on every page, not just the first. */
+    public function test_agregat_halaman_ikut_benar(): void
+    {
+        [$admin, $santri] = $this->seedSantri();
+
+        $h2 = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?sort=nama&arah=naik&per_page=10&page=2')->json('baris');
+
+        $santriId = $h2[0]['santri_id'];
+        $tagihan = Tagihan::where('santri_id', $santriId)->get();
+        $this->assertSame(
+            (int) $tagihan->sum('nominal'),
+            $h2[0]['total_tagihan'],
+            'total harus jumlah nominal tagihan Santri tsb',
+        );
+        $this->assertSame(
+            (int) $tagihan->filter(fn ($t) => $t->terlambat())->sum(fn ($t) => $t->sisa()),
+            $h2[0]['tunggakan'],
+            'tunggakan harus sisa tagihan yang lewat batas waktu',
+        );
+    }
+}

@@ -90,6 +90,8 @@ trait UrutDaftar
      */
     protected function terapkanUrutKoleksi(Request $request, array $baris, array $peta): array
     {
+        // (parsing token & validasi pindah ke `kriteriaUrutan` agar crosstab yang
+        //  mengurutkan lewat SQL memakai aturan yang sama).
         $mentah = $request->input('sort');
         if ($mentah === null || $mentah === '' || $mentah === []) {
             return $baris;
@@ -100,23 +102,7 @@ trait UrutDaftar
             return $baris;
         }
 
-        $request->validate(['arah' => ['nullable', Rule::in(['naik', 'turun'])]]);
-
-        validator(
-            ['sort' => array_map(fn ($v) => explode(':', $v, 2)[0], $daftar)],
-            ['sort' => ['array', 'min:1', 'max:3'], 'sort.*' => [Rule::in(array_keys($peta))]]
-        )->validate();
-
-        $arahGlobal = (string) $request->input('arah', 'naik');
-        $kriteria = [];
-        foreach ($daftar as $token) {
-            $potong = explode(':', $token, 2);
-            $sufiks = isset($potong[1]) ? strtolower(trim($potong[1])) : '';
-            $kriteria[] = [
-                $peta[$potong[0]],
-                in_array($sufiks, ['desc', 'turun'], true) ? 'turun' : (in_array($sufiks, ['asc', 'naik'], true) ? 'naik' : $arahGlobal),
-            ];
-        }
+        $kriteria = $this->kriteriaUrutan($request, $peta);
 
         usort($baris, function ($a, $b) use ($kriteria) {
             foreach ($kriteria as [$kunci, $arah]) {
@@ -137,6 +123,48 @@ trait UrutDaftar
      * @param  string[]  $nullable  kolom boleh-NULL (selalu di bawah).
      * @param  array<string, 'naik'|'turun'>|null  $arah  arah per kolom (bila null: pakai `$urut['arah']` global).
      */
+    /**
+     * Kriteria urutan dari request: daftar [kolom, arah] siap pakai.
+     *
+     * Dipakai `terapkanUrutKoleksi` (urut di PHP) maupun crosstab yang mengurutkan
+     * lewat SQL — validasi token & arah hanya di satu tempat.
+     *
+     * @param  array<string, string>  $peta  token publik => kolom tujuan.
+     * @return array<int, array{0: string, 1: 'naik'|'turun'}>
+     */
+    protected function kriteriaUrutan(Request $request, array $peta): array
+    {
+        $mentah = $request->input('sort');
+        if ($mentah === null || $mentah === '' || $mentah === []) {
+            return [];
+        }
+        $daftar = is_array($mentah) ? $mentah : explode(',', (string) $mentah);
+        $daftar = array_values(array_filter(array_map(fn ($v) => trim((string) $v), $daftar)));
+        if ($daftar === []) {
+            return [];
+        }
+
+        $request->validate(['arah' => ['nullable', Rule::in(['naik', 'turun'])]]);
+
+        validator(
+            ['sort' => array_map(fn ($v) => explode(':', $v, 2)[0], $daftar)],
+            ['sort' => ['array', 'min:1', 'max:3'], 'sort.*' => [Rule::in(array_keys($peta))]]
+        )->validate();
+
+        $arahGlobal = (string) $request->input('arah', 'naik');
+        $kriteria = [];
+        foreach ($daftar as $token) {
+            $potong = explode(':', $token, 2);
+            $sufiks = isset($potong[1]) ? strtolower(trim($potong[1])) : '';
+            $kriteria[] = [
+                $peta[$potong[0]],
+                in_array($sufiks, ['desc', 'turun'], true) ? 'turun' : (in_array($sufiks, ['asc', 'naik'], true) ? 'naik' : $arahGlobal),
+            ];
+        }
+
+        return $kriteria;
+    }
+
     protected function terapkanUrut(mixed $query, ?array $urut, array $bawaan, array $nullable = [], ?array $arah = null): void
     {
         $pasang = function (string $kolom, string $arahKolom) use ($query, $nullable): void {

@@ -37,22 +37,22 @@ class TagihanController extends Controller
     public function crosstabTagihan(TagihanCrosstabRequest $request)
     {
         $q = Tagihan::with(['jenis', 'santri']);
-        $this->applyFilter($q, $request, 'jenjang', 'jenjang');
-        $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
+        $this->applyFilter($q, $request, 'jenjang', 'tagihan.jenjang');
+        $this->applyFilter($q, $request, 'tahun_ajaran', 'tagihan.tahun_ajaran');
         if ($request->filled('jenis_id')) {
-            $q->where('jenis_id', (int) $request->input('jenis_id'));
+            $q->where('tagihan.jenis_id', (int) $request->input('jenis_id'));
         }
         if ($request->filled('status')) {
-            $q->where('status', $request->input('status'));
+            $q->where('tagihan.status', $request->input('status'));
         }
         if ($request->boolean('belum_lunas')) {
-            $q->where('status', '!=', 'lunas');
+            $q->where('tagihan.status', '!=', 'lunas');
         }
         // Tunggakan = belum lunas DAN lewat batas waktu. Tanpa jatuh tempo = lewat
         // (tidak ada batasnya), jadi ikut paling depan.
         if ($request->boolean('terlambat')) {
             $q->where('status', '!=', 'lunas')
-                ->where(fn ($w) => $w->whereNull('jatuh_tempo')->orWhereDate('jatuh_tempo', '<', today()));
+                ->where(fn ($w) => $w->whereNull('tagihan.jatuh_tempo')->orWhereDate('tagihan.jatuh_tempo', '<', today()));
         }
         if ($request->filled('santri')) {
             $cari = $request->input('santri');
@@ -62,26 +62,79 @@ class TagihanController extends Controller
                 ->orWhereHas('lembagaSantri', fn ($ls) => $ls->where('nis_lokal', 'like', '%'.$cari.'%')));
         }
 
-        $tagihan = $q->orderBy('santri_id')->orderBy('jenis_id')->get();
-        $bulanan = fn ($t) => $t->jenis?->tipe === 'bulanan';
-        $key = fn ($t) => $this->keyKolomCrosstab((int) $t->jenis_id, $bulanan($t) ? $t->periode : null, $bulanan($t));
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = $this->perPage($request);
+
+        /* Agregat per Santri + urutan + paginasi dilakukan di SQL. Sebelumnya
+           seluruh tagihan (7.602 baris di dev DB untuk TA 2026/2027) dimuat ke
+           memori lalu di-group dan di-`array_slice` di PHP: tumbuh linier
+           dengan data dan menahan memori meski tabel hanya menampilkan satu
+           halaman. Sekarang hanya Santri di halaman ini yang diambil datanya. */
+        $petaUrut = [
+            'nama' => 's.nama_lengkap',
+            'total' => 'total_tagihan',
+            'bayar' => 'total_terbayar',
+            'sisa' => 'tunggakan',
+            'id' => 'tagihan.santri_id',
+        ];
+        $agregat = (clone $q)
+            ->join('santri as s', 's.id', '=', 'tagihan.santri_id')
+            ->select('tagihan.santri_id')
+            ->selectRaw('s.nama_lengkap, s.ayah_nama, s.ibu_nama')
+            ->selectRaw('SUM(tagihan.nominal) as total_tagihan')
+            ->selectRaw('SUM(tagihan.terbayar) as total_terbayar')
+            /* Sama dengan `Tagihan::sisaTerlambat()`: sisa > 0 DAN lewat batas
+               waktu; jatuh tempo kosong = tanpa batas = lewat. */
+            ->selectRaw(
+                'SUM(CASE WHEN (tagihan.nominal - tagihan.terbayar) > 0'
+                .' AND (tagihan.jatuh_tempo IS NULL OR tagihan.jatuh_tempo < ?) THEN (tagihan.nominal - tagihan.terbayar) ELSE 0 END) as tunggakan',
+                [today()->toDateString()]
+            )
+            /* `santri` di-group juga: kolomnya ikut dipilih, jadi MySQL dengan
+               ONLY_FULL_GROUP_BY akan menolak kalau tidak. Idempoten terhadap
+               `tagihan.santri_id` (satu Santri = satu baris), jadi hasil & biaya
+               sama. */
+            ->groupBy('tagihan.santri_id', 's.nama_lengkap', 's.ayah_nama', 's.ibu_nama');
+
+        foreach ($this->kriteriaUrutan($request, $petaUrut) as [$kolom, $arah]) {
+            $agregat->orderBy($kolom, $arah === 'turun' ? 'desc' : 'asc');
+        }
+        // Tanpa parameter urutan: urut Santri id (perilaku lama).
+        if ($this->kriteriaUrutan($request, $petaUrut) === []) {
+            $agregat->orderBy('tagihan.santri_id');
+        }
+
+        $totalSantri = (int) (clone $q)->join('santri as s', 's.id', '=', 'tagihan.santri_id')
+            ->distinct()->count('tagihan.santri_id');
+
+        $perPageSql = $perPage >= self::PER_PAGE_ALL ? $totalSantri : $perPage;
+        $halaman = $agregat
+            ->offset(max(0, ($page - 1) * $perPageSql))
+            ->limit(max(1, $perPageSql))
+            ->get();
 
         // Kolom: per jenis; bulanan dipecah satu kolom per bulan (periode).
+        /* Kolom cukup dari kombinasi (jenis, periode) yang ADA, jadi diambil
+          distinct di SQL — bukan semua baris tagihan._baris sebelumnya satu baris
+           per tagihan (7.602 di dev DB) hanya dirangkum jadi daftar kolom. */
         $kolom = [];
-        foreach ($tagihan->groupBy('jenis_id') as $jenisId => $baris) {
-            $jenis = $baris->first()->jenis;
-            $periode = $jenis?->tipe === 'bulanan'
-                ? $baris->pluck('periode')->filter()->unique()->sort()->values()->all()
-                : [null];
-            foreach ($periode as $p) {
-                $kolom[] = [
-                    'key' => $this->keyKolomCrosstab((int) $jenisId, $p, $jenis?->tipe === 'bulanan'),
-                    'jenis_id' => (int) $jenisId,
-                    'jenis_nama' => $jenis?->nama ?? 'Jenis #'.$jenisId,
-                    'tipe' => $jenis?->tipe ?? 'non_bulanan',
-                    'periode' => $p,
-                ];
-            }
+        foreach ((clone $q)->join('jenis_tagihan as jt', 'jt.id', '=', 'tagihan.jenis_id')
+            ->select('tagihan.jenis_id', 'tagihan.periode')
+            ->selectRaw('MIN(jt.nama) as jenis_nama, MIN(jt.tipe) as tipe')
+            ->groupBy('tagihan.jenis_id', 'tagihan.periode')
+            ->orderBy('tagihan.jenis_id')
+            ->orderBy('tagihan.periode')
+            ->get() as $barisKolom) {
+            $jenisId = (int) $barisKolom->jenis_id;
+            $bulanan = $barisKolom->tipe === 'bulanan';
+            $p = $bulanan ? $barisKolom->periode : null;
+            $kolom[] = [
+                'key' => $this->keyKolomCrosstab($jenisId, $p, $bulanan),
+                'jenis_id' => $jenisId,
+                'jenis_nama' => $barisKolom->jenis_nama ?? 'Jenis #'.$jenisId,
+                'tipe' => $barisKolom->tipe ?? 'non_bulanan',
+                'periode' => $p,
+            ];
         }
 
         /* Kelas & status keaktifan per Santri, diambil dari riwayat TA yang
@@ -91,12 +144,30 @@ class TagihanController extends Controller
            penanda titik merah, bukan untuk menyembunyikan baris. Kalau filter
            TA kosong, tidak ada patokan kelas yang benar, jadi kolomnya dibiarkan kosong. */
         $tahunAjaran = $this->nilaiFilter($request, 'tahun_ajaran');
-        $peta = $tahunAjaran === []
+        $idHalaman = $halaman->pluck('santri_id')->all();
+        $peta = $tahunAjaran === [] || $idHalaman === []
             ? []
-            : $this->petaSantriGenerate((string) $tahunAjaran[0], array_keys($tagihan->groupBy('santri_id')->all()), null, true);
+            : $this->petaSantriGenerate((string) $tahunAjaran[0], $idHalaman, null, true);
 
+        // Sel tagihan hanya untuk Santri di halaman ini (bukan semua).
+        $tagihan = $idHalaman === []
+            ? collect()
+            : (clone $q)->with('jenis')->whereIn('santri_id', $idHalaman)
+                ->orderBy('santri_id')->orderBy('jenis_id')->get();
+
+        $bulanan = fn ($t) => $t->jenis?->tipe === 'bulanan';
+        $key = fn ($t) => $this->keyKolomCrosstab((int) $t->jenis_id, $bulanan($t) ? $t->periode : null, $bulanan($t));
+
+        /* Baris dirakit mengikuti urutan `$halaman` (hasil agregat yang sudah
+           terurut & dipaginasi di SQL), bukan urutan query sel. Sebelumnya
+           baris disusun dari `groupBy` query sel yang berurutan `santri_id`,
+           sehingga urutan SQL (mis. nama menurun) hilang dan semua respons
+           kembali ke urutan id. */
+        $selPerSantri = $tagihan->groupBy('santri_id');
         $baris = [];
-        foreach ($tagihan->groupBy('santri_id') as $santriId => $kelompok) {
+        foreach ($halaman as $agregatSantri) {
+            $santriId = (int) $agregatSantri->santri_id;
+            $kelompok = $selPerSantri->get($santriId, collect());
             $sel = [];
             foreach ($kelompok as $t) {
                 $sel[$key($t)] = [
@@ -110,8 +181,6 @@ class TagihanController extends Controller
                     'jatuh_tempo' => $t->jatuh_tempo?->format('Y-m-d'),
                 ];
             }
-            $santri = $kelompok->first()->santri;
-            $info = $peta[(int) $santriId] ?? null;
 
             /* Keaktifan (aturan user): untuk Santri MI-MD, tidak aktif HANYA
                bila `status_akhir` di MI **dan** MD sama-sama `pindah_keluar`;
@@ -121,6 +190,7 @@ class TagihanController extends Controller
                crosstab, supaya Santri yang pindah tidak ditandai merah ketika
                tabel sedang disaring jenjang MD, atau sebaliknya. Santri
                berjenjang tunggal (atau MTS/MLN) memakai `status_akhir`. */
+            $info = $peta[(int) $santriId] ?? null;
             $status = null;
             $aktif = false;
             if ($info !== null) {
@@ -134,11 +204,12 @@ class TagihanController extends Controller
                     $aktif = $status !== null && $status !== 'pindah_keluar';
                 }
             }
+
             $baris[] = [
                 'santri_id' => (int) $santriId,
-                'nama' => $santri?->nama_lengkap ?? 'Tidak dikenal',
-                'ayah_nama' => $santri?->ayah_nama,
-                'ibu_nama' => $santri?->ibu_nama,
+                'nama' => $agregatSantri->nama_lengkap ?? 'Tidak dikenal',
+                'ayah_nama' => $agregatSantri->ayah_nama ?? null,
+                'ibu_nama' => $agregatSantri->ibu_nama ?? null,
                 'jenjang' => (string) $kelompok->first()->jenjang,
                 'kelas' => $info['kelas'] ?? null,
                 'tingkat' => $info['tingkat'] ?? null,
@@ -147,30 +218,19 @@ class TagihanController extends Controller
                 'status_akhir' => $status,
                 'aktif' => $aktif,
                 'sel' => $sel,
-                'total_tagihan' => (int) $kelompok->sum('nominal'),
-                'total_terbayar' => (int) $kelompok->sum('terbayar'),
-                'tunggakan' => (int) $kelompok->sum(fn ($t) => $t->sisaTerlambat()),
+                'total_tagihan' => (int) ($agregatSantri->total_tagihan ?? $kelompok->sum('nominal')),
+                'total_terbayar' => (int) ($agregatSantri->total_terbayar ?? $kelompok->sum('terbayar')),
+                'tunggakan' => (int) ($agregatSantri->tunggakan ?? $kelompok->sum(fn ($t) => $t->sisaTerlambat())),
             ];
         }
 
-        $baris = $this->terapkanUrutKoleksi($request, $baris, [
-            'nama' => 'nama',
-            'total' => 'total_tagihan',
-            'bayar' => 'total_terbayar',
-            'sisa' => 'tunggakan',
-            'id' => 'santri_id',
-        ]);
-
-        $page = max(1, (int) $request->input('page', 1));
-        $perPage = $this->perPage($request);
-
         return response()->json([
             'kolom' => $kolom,
-            'baris' => array_slice($baris, ($page - 1) * $perPage, $perPage),
-            'total' => count($baris),
+            'baris' => $baris,
+            'total' => $totalSantri,
             'per_page' => $perPage,
             'current_page' => $page,
-            'last_page' => max(1, (int) ceil(count($baris) / $perPage)),
+            'last_page' => max(1, (int) ceil($totalSantri / $perPage)),
         ]);
     }
 
