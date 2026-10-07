@@ -40,7 +40,7 @@ class IzinKatalog
         'kenaikan' => ['lihat', 'ubah'],
         'kelulusan' => ['lihat', 'ubah'],
         'rekap_santri' => ['lihat'],
-        'mutasi_keluar' => ['lihat', 'ubah'],
+        'mutasi_keluar' => ['lihat', 'ubah', 'hapus'],
         'pengajuan_biodata' => ['lihat', 'ubah'],
         'preset_tabel' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'urut_preset' => ['lihat', 'tambah', 'ubah', 'hapus'],

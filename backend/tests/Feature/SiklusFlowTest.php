@@ -807,6 +807,60 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('Tidak', $santri->fresh()->is_active_pst);
     }
 
+    public function test_06b_hapus_arsip_mutasi_memulihkan_riwayat_dan_keanggotaan(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $santri = $this->makeSantri('Batal Mutasi');
+        $this->makeKeanggotaan($santri, $f['mi'], '25009');
+        $kelas = $this->makeKelas($f['mi'], $f['taLama'], '3A', '3');
+        $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelas->id]);
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/mutasi", [
+            'jenjang' => $f['mi']->jenjang,
+            'kelas_terakhir_id' => $kelas->id,
+            'tanggal_mutasi' => '2026-05-02',
+            'alasan_mutasi' => 'Ikut pindah orang tua',
+        ])->assertStatus(200);
+
+        $mutasi = MutasiKeluar::firstOrFail();
+        $this->actingAs($admin, 'sanctum')
+            ->deleteJson("/api/admin/mutasi-keluar/{$mutasi->id}")
+            ->assertStatus(200);
+
+        $this->assertSame(0, MutasiKeluar::count());
+        $this->assertDatabaseHas('riwayat_belajar', [
+            'santri_id' => $santri->id, 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+        ]);
+        $this->assertDatabaseHas('lembaga_santri', [
+            'santri_id' => $santri->id, 'is_active_lembaga' => 'Ya',
+        ]);
+        $this->assertSame('Ya', $santri->fresh()->is_active_pst);
+    }
+
+    public function test_06c_hapus_arsip_mutasi_ditolak_santri_di_lembaga_lain(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $santri = $this->makeSantri('Mutasi Beda Lembaga');
+        $this->makeKeanggotaan($santri, $f['mi'], '25010');
+        $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1');
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/mutasi", [
+            'jenjang' => $f['mi']->jenjang,
+            'tanggal_mutasi' => '2026-05-03',
+            'alasan_mutasi' => 'Lainnya',
+        ])->assertStatus(200);
+
+        $mutasi = MutasiKeluar::firstOrFail();
+        // Admin lembaga lain (bukan pasangan MI↔MD) tak boleh menghapus arsip MI.
+        $luar = $this->makeUser('admin', [$f['root']->jenjang]);
+
+        $this->actingAs($luar, 'sanctum')
+            ->deleteJson("/api/admin/mutasi-keluar/{$mutasi->id}")
+            ->assertStatus(403);
+        $this->assertSame(1, MutasiKeluar::count());
+    }
+
     // ---------- 07. berhenti jenjang paket (MD berhenti, MI lanjut) ----------
 
     public function test_07_berhenti_jenjang_tidak_menghentikan_jenjang_lain(): void

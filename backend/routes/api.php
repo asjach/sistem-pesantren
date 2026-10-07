@@ -228,6 +228,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('mutasi-keluar/import-potong', [MutasiKeluarArsipController::class, 'potongImport'])->middleware(['permission:mutasi_keluar.ubah', 'throttle:imports']);
         Route::post('mutasi-keluar/import-potong/{sesi}/batal', [MutasiKeluarArsipController::class, 'batalPotong'])->middleware('permission:mutasi_keluar.ubah');
         Route::get('mutasi-keluar/import-potong/{sesi}/galat', [MutasiKeluarArsipController::class, 'galatPotong'])->middleware('permission:mutasi_keluar.lihat');
+        Route::delete('mutasi-keluar/{mutasi}', [MutasiKeluarArsipController::class, 'destroy'])->middleware('permission:mutasi_keluar.hapus');
         Route::get('alumni', [AlumniArsipController::class, 'index'])->middleware('permission:kelulusan.lihat');
         Route::put('alumni/{alumni}', [AlumniArsipController::class, 'update'])->middleware('permission:kelulusan.ubah');
         Route::get('alumni/import-template', [AlumniArsipController::class, 'templateImport'])->middleware('permission:kelulusan.lihat');

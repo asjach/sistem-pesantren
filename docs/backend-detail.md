@@ -274,6 +274,14 @@ Status: ✅ live (salin genap, naik/pindah/mutasi/lulus/berhenti massal per-item
 buka baris mengulang tapel-berikut (tanpa alumni).
 Aturan penghapus: **X di halaman MI-MD = hapus fisik** jejak MD (anggota +
 riwayat) tanpa arsip; pengarsipan resmi hanya lewat mutasi/kelulusan.
+Batal mutasi keluar dari arsip (`DELETE /api/admin/mutasi-keluar/{mutasi}`, izin
+`mutasi_keluar.hapus`, tombol di kolom Aksi tabel arsip): hapus baris arsip,
+buka kembali baris riwayat yang ditutupnya (`pindah_keluar` → `aktif`, invarian
+`is_active_riwayat='Ya'` iff `aktif`), aktifkan lagi keanggotaan `lembaga_santri`
+(baris nonaktif terbaru, atau buat baru bila tak ada), lalu hitung ulang
+`is_active_pst`. Ditolak 422 bila sudah ada riwayat aktif di jenjang itu, baris
+asal `pindah_keluar` tak ditemukan, atau `status_akhir='aktif'` nonaktif di
+kamus lembaga.
 Aturan beku kelas arsip: `alumni.kelas_lulus_id` terisi otomatis dari riwayat
 aktif terakhir saat lulus; `mutasi_keluar.kelas_terakhir_id` beku otomatis
 dari riwayat aktif terakhir, input manual menang bila diisi (validasi

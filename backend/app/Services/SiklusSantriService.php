@@ -440,6 +440,56 @@ class SiklusSantriService
         });
     }
 
+    /**
+     * Batalkan mutasi keluar dari arsip: hapus baris `mutasi_keluar`, buka
+     * kembali baris riwayat yang ditutupnya (`pindah_keluar` → `aktif`),
+     * aktifkan lagi keanggotaan lembaga, lalu hitung ulang status global.
+     * Hanya bila belum ada riwayat aktif di lembaga tersebut.
+     */
+    public function batalMutasiKeluar(MutasiKeluar $mutasi): RiwayatBelajar
+    {
+        return DB::transaction(function () use ($mutasi) {
+            $jenjang = $mutasi->jenjang;
+            $santri = Santri::whereKey($mutasi->santri_id)->lockForUpdate()->firstOrFail();
+            if (! in_array('aktif', RefService::kodeAktif('status_akhir', $jenjang), true)) {
+                abort(422, 'Status aktif nonaktif di lembaga ini.');
+            }
+            if (RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('jenjang', $jenjang)
+                ->where('is_active_riwayat', RiwayatBelajar::YA)->exists()) {
+                abort(422, 'Sudah ada riwayat aktif di lembaga ini — batal mutasi tidak bisa dilanjutkan.');
+            }
+            $lama = RiwayatBelajar::where('santri_id', $santri->id)
+                ->where('jenjang', $jenjang)
+                ->where('status_akhir', 'pindah_keluar')
+                ->where('is_active_riwayat', RiwayatBelajar::TIDAK)
+                ->lockForUpdate()->latest('id')->first();
+            if (! $lama) {
+                throw ValidationException::withMessages(['mutasi' => 'Baris asal mutasi tidak ditemukan.']);
+            }
+
+            $mutasi->delete();
+            // Invarian: is_active_riwayat='Ya' iff status_akhir='aktif'.
+            $lama->update(['status_akhir' => 'aktif', 'is_active_riwayat' => RiwayatBelajar::YA]);
+
+            if (LembagaSantri::aktif($santri->id, $jenjang) === null) {
+                $anggota = LembagaSantri::where('santri_id', $santri->id)
+                    ->where('jenjang', $jenjang)
+                    ->where('is_active_lembaga', LembagaSantri::TIDAK)
+                    ->lockForUpdate()->latest('id')->first();
+                if ($anggota) {
+                    $anggota->update(['is_active_lembaga' => LembagaSantri::YA, 'tgl_selesai' => null]);
+                } else {
+                    $this->pastikanKeanggotaanAktif($santri, $jenjang);
+                }
+            }
+
+            $santri->hitungUlangStatusGlobal();
+
+            return $lama->fresh();
+        });
+    }
+
     /** Lulus per lembaga: tutup riwayat + keanggotaan, arsip `alumni` (1 baris per santri). */
     public function prosesLulusPerLembaga(Santri $santri, string $jenjang, array $dataLulus): Alumni
     {

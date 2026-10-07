@@ -16,6 +16,7 @@ use App\Models\MutasiKeluar;
 use App\Models\Santri;
 use App\Services\Impor\DataMutasiKeluar;
 use App\Services\MutasiKeluarImporService;
+use App\Services\SiklusSantriService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -83,6 +84,22 @@ class MutasiKeluarArsipController extends Controller
     public function templateImport()
     {
         return Excel::download(new MutasiKeluarTemplateExport, 'template-import-mutasi-keluar.xlsx');
+    }
+
+    /**
+     * DELETE /api/admin/mutasi-keluar/{mutasi} — batalkan mutasi keluar: arsip
+     * dihapus, riwayat dan keanggotaan dikembalikan seperti sebelum mutasi.
+     */
+    public function destroy(Request $request, MutasiKeluar $mutasi, SiklusSantriService $siklusService): JsonResponse
+    {
+        $this->authorizeLembaga($request->user(), $mutasi->jenjang);
+
+        $riwayat = $siklusService->batalMutasiKeluar($mutasi);
+
+        return response()->json([
+            'pesan' => 'Arsip mutasi dihapus; riwayat dan keanggotaan dipulihkan.',
+            'data' => $riwayat,
+        ]);
     }
 
     /**
