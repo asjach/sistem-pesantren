@@ -44,7 +44,19 @@ const GARIS = 'color-mix(in srgb, var(--foreground) 14%, transparent)';
 
 /* ---------- Komponen buku induk ---------- */
 
-/** Seksi = judul + garis rambut, bukan kartu. */
+/** Lencana hitung ala badge Gr8r (abu netral). */
+function LencanaHitung({ anak }: { anak: ReactNode }) {
+  return (
+    <span
+      className="inline-flex h-5 shrink-0 items-center rounded-[5px] px-[7px] text-[11px] font-medium tabular-nums"
+      style={{ background: 'var(--surface-3)', color: 'var(--muted-foreground)' }}
+    >
+      {anak}
+    </span>
+  );
+}
+
+/** Seksi = kartu Gr8r (permukaan + bayangan kartu + radius 10). */
 function Seksi({
   judul,
   keterangan,
@@ -55,15 +67,16 @@ function Seksi({
   children: ReactNode;
 }) {
   return (
-    <section className="mb-9 min-w-0 break-inside-avoid">
+    <section
+      className="mb-6 min-w-0 break-inside-avoid rounded-[10px] p-4"
+      style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
+    >
       <div
-        className="flex items-baseline justify-between gap-3 pb-1.5"
-        style={{ borderBottom: '1px solid ' + GARIS }}
+        className="flex items-center justify-between gap-3 pb-2.5"
+        style={{ borderBottom: '1px solid var(--divider)' }}
       >
         <h2 className="text-xs font-semibold">{judul}</h2>
-        {keterangan ? (
-          <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">{keterangan}</span>
-        ) : null}
+        {keterangan ? <LencanaHitung anak={keterangan} /> : null}
       </div>
       <div className="pt-3">{children}</div>
     </section>
@@ -94,8 +107,8 @@ function BarisLedger({
           {satuanPanjang ? String(nilai) : angka(nilai)}
         </span>
       </div>
-      <div className="mt-1 h-px w-full" style={{ background: GARIS }}>
-        <div className="h-px" style={{ width: lebar + '%', background: warna ?? ISIAN }} />
+      <div className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-3)' }}>
+        <div className="h-full rounded-full" style={{ width: lebar + '%', background: warna ?? ISIAN }} />
       </div>
     </div>
   );
@@ -136,7 +149,7 @@ function Komposisi({
   const total = bagian.reduce((jumlah, b) => jumlah + b.nilai, 0);
   return (
     <div>
-      <div className="flex h-1.5 w-full overflow-hidden" style={{ background: GARIS }}>
+      <div className="flex h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--surface-3)' }}>
         {bagian.map((b) => (
           <div
             key={b.label}
@@ -202,7 +215,7 @@ function DeretAlumni({ data }: { data: { tahun_ajaran: string; jumlah: number }[
         {data.map((d) => (
           <div key={d.tahun_ajaran} className="flex h-full min-w-0 flex-1 items-end" title={d.tahun_ajaran + ': ' + angka(d.jumlah)}>
             <div
-              className="w-full"
+              className="w-full rounded-[3px]"
               style={{ height: String(Math.max(6, Math.round((d.jumlah / maks) * 100))) + '%', background: ISIAN }}
             />
           </div>
@@ -244,11 +257,11 @@ export default function DashboardPage() {
 
   if (!data) {
     return (
-      <div className="mx-auto w-full max-w-[1240px] px-5 py-7 md:px-8">
+      <div className="mx-auto w-full max-w-[1160px] px-6 py-7">
         <Skeleton className="h-7 w-40" />
         <Skeleton className="mt-2 h-16 w-52" />
-        <div className="mt-8 grid gap-8 lg:grid-cols-2">
-          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-40 rounded-sm" />)}
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-40 rounded-[10px]" />)}
         </div>
       </div>
     );
@@ -290,9 +303,12 @@ export default function DashboardPage() {
   const maksPsb = Math.max(1, ...perTahapPsb.map((d) => d.jumlah));
 
   return (
-    <div className="mx-auto w-full max-w-[1240px] px-5 py-7 md:px-8">
+    <div className="mx-auto w-full max-w-[1160px] px-6 py-7">
       {/* Angka pokok: satu-satunya tempat aksen dipakai. */}
-      <section className="pb-7" style={{ borderBottom: '1px solid ' + GARIS }}>
+      <section
+        className="rounded-[12px] p-6"
+        style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
+      >
         <p className="text-[11px] text-muted-foreground">{hero.label}</p>
         <p
           id="dashboard_angka_pokok"
@@ -302,12 +318,13 @@ export default function DashboardPage() {
         </p>
         <div className="mt-3 h-px w-16" style={{ background: 'var(--accent)' }} />
         <p className="mt-3 text-[11px] text-muted-foreground">{hero.keterangan}</p>
-        <dl
-          className="mt-6 grid grid-cols-2 gap-y-4 pt-4 sm:grid-cols-4"
-          style={{ borderTop: '1px solid ' + GARIS }}
-        >
+        <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {konteks.map((k) => (
-            <div key={k.label} className="min-w-0">
+            <div
+              key={k.label}
+              className="min-w-0 rounded-lg border p-3"
+              style={{ borderColor: 'var(--divider)', background: 'var(--background)' }}
+            >
               <dt className="text-[11px] text-muted-foreground">{k.label}</dt>
               <dd className="mt-0.5 text-lg font-semibold tabular-nums">{k.nilai}</dd>
             </div>
@@ -315,8 +332,8 @@ export default function DashboardPage() {
         </dl>
       </section>
 
-      {/* Lembar buku induk: seksi-seksi bergaris, tanpa kartu. */}
-      <div className="gap-x-12 pt-8 lg:columns-2">
+      {/* Kartu-kartu ringkasan ala Gr8r dalam dua kolom. */}
+      <div className="gap-6 pt-8 lg:columns-2">
         {santri ? (
           <Seksi judul="Santri" keterangan={angka(santri.total) + ' aktif'}>
             <Komposisi

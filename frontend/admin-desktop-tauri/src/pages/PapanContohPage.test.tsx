@@ -50,6 +50,22 @@ describe('PapanContohPage', () => {
     expect(tombol).toHaveAttribute('aria-checked', 'true');
   });
 
+  it('pemilih Pindah memindahkan kartu lewat keyboard + mengumumkan', () => {
+    renderDenganTema(<PapanContohPage />);
+    const pilih = document.getElementById('select_pindah_contoh_rekap_spp');
+    if (!pilih) throw new Error('pemilih pindah tak ditemukan');
+    fireEvent.change(pilih, { target: { value: 'selesai' } });
+    expect(screen.getByLabelText('Kolom Dikerjakan, 0 kartu')).toBeInTheDocument();
+    expect(screen.getByLabelText('Kolom Selesai, 2 kartu')).toBeInTheDocument();
+    expect(document.getElementById('status_papan_contoh')?.textContent).toContain('dipindahkan ke kolom Selesai');
+  });
+
+  it('seret mouse juga mengumumkan tujuan', () => {
+    renderDenganTema(<PapanContohPage />);
+    seretKeKolom('jadwal_tes', 'dikerjakan');
+    expect(document.getElementById('status_papan_contoh')?.textContent).toContain('dipindahkan ke kolom Dikerjakan');
+  });
+
   it('kolom bisa dilipat dan dibuka lagi', () => {
     renderDenganTema(<PapanContohPage />);
     fireEvent.click(document.getElementById('btn_lipat_kolom_antrean')!);

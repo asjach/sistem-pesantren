@@ -90,18 +90,24 @@ function Kartu({
   kartu,
   selesai,
   diseret,
+  kolomKini,
+  tujuan,
   onJungkit,
   onMulaiSeret,
   onLepasSeret,
   onDiAtas,
+  onPindah,
 }: {
   kartu: KartuContoh;
   selesai: boolean;
   diseret: boolean;
+  kolomKini: StatusPapan;
+  tujuan: { id: StatusPapan; judul: string }[];
   onJungkit: () => void;
   onMulaiSeret: (e: DragEvent) => void;
   onLepasSeret: () => void;
   onDiAtas: (e: DragEvent) => void;
+  onPindah: (ke: StatusPapan) => void;
 }) {
   return (
     <article
@@ -143,8 +149,29 @@ function Kartu({
       <div className="flex flex-wrap gap-1">
         <Lencana label={kartu.label} warna={kartu.warna_label} />
       </div>
-      <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span className="tabular-nums">{kartu.tanggal}</span>
+        {/* Alternatif keyboard untuk seret-dan-letakkan. */}
+        <select
+          id={`select_pindah_contoh_${kartu.id}`}
+          aria-label={`Pindahkan ${kartu.judul} ke kolom`}
+          value=""
+          onChange={(e) => {
+            if (e.target.value !== '') onPindah(e.target.value as StatusPapan);
+          }}
+          onDragStart={(e) => e.preventDefault()}
+          className="h-5 max-w-[6.5rem] cursor-pointer truncate rounded border bg-transparent pr-0 text-[11px] outline-none hover:text-foreground focus:border-[var(--accent)]"
+          style={{ borderColor: 'var(--divider)' }}
+        >
+          <option value="">Pindah…</option>
+          {tujuan
+            .filter((t) => t.id !== kolomKini)
+            .map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.judul}
+              </option>
+            ))}
+        </select>
         <span className="tabular-nums">
           {kartu.sub_tugas_selesai}/{kartu.sub_tugas_total}
         </span>
@@ -168,14 +195,31 @@ export default function PapanContohPage() {
   const [lipat, setLipat] = useState<Set<StatusPapan>>(() => new Set());
   const [seretId, setSeretId] = useState<string | null>(null);
   const [sasaran, setSasaran] = useState<SasaranJatuh | null>(null);
+  const [pengumuman, setPengumuman] = useState('');
+
+  function cariKartu(id: string): { kartu: KartuContoh; kolom: KolomPapan } | null {
+    for (const k of kolom) {
+      const kartu = k.kartu.find((c) => c.id === id);
+      if (kartu) return { kartu, kolom: k };
+    }
+    return null;
+  }
 
   function jungkitSelesai(id: string) {
+    const temu = cariKartu(id);
     setSelesai((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    if (temu) {
+      setPengumuman(
+        selesai.has(id)
+          ? `Kartu ${temu.kartu.judul} dibatalkan selesainya.`
+          : `Kartu ${temu.kartu.judul} ditandai selesai.`,
+      );
+    }
   }
 
   function jungkitLipat(id: StatusPapan) {
@@ -246,18 +290,37 @@ export default function PapanContohPage() {
     });
   }
 
+  function umumkanPindah(id: string, ke: StatusPapan) {
+    const temu = cariKartu(id);
+    const tujuan = kolom.find((k) => k.id === ke);
+    if (temu && tujuan && temu.kolom.id !== ke) {
+      setPengumuman(`Kartu ${temu.kartu.judul} dipindahkan ke kolom ${tujuan.judul}.`);
+    }
+  }
+
   function jatuhkan(e: DragEvent, kolomId: StatusPapan, jumlah: number) {
     e.preventDefault();
     if (!seretId) return;
     const target = sasaran && sasaran.kolom === kolomId ? sasaran.indeks : jumlah;
+    umumkanPindah(seretId, kolomId);
     pindahkanKartu(seretId, kolomId, target);
     bersihkanSeret();
+  }
+
+  function pindahKeyboard(id: string, ke: StatusPapan) {
+    const tujuan = kolom.find((k) => k.id === ke);
+    if (!tujuan) return;
+    umumkanPindah(id, ke);
+    pindahkanKartu(id, ke, tujuan.kartu.length);
   }
 
   const total = kolom.reduce((n, k) => n + k.kartu.length, 0);
 
   return (
     <div id="papan_contoh" className={cn(PAGE_SHELL, 'h-full')}>
+      <div id="status_papan_contoh" role="status" aria-live="polite" className="sr-only">
+        {pengumuman}
+      </div>
       <div className="mx-auto w-full max-w-none px-6 pt-7 pb-3">
         <h2 className="text-base font-semibold">Contoh Papan</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -313,10 +376,13 @@ export default function PapanContohPage() {
                           kartu={kartu}
                           selesai={selesai.has(kartu.id)}
                           diseret={seretId === kartu.id}
+                          kolomKini={item.id}
+                          tujuan={kolom.map((k) => ({ id: k.id, judul: k.judul }))}
                           onJungkit={() => jungkitSelesai(kartu.id)}
                           onMulaiSeret={(e) => mulaiSeret(e, kartu.id)}
                           onLepasSeret={bersihkanSeret}
                           onDiAtas={(e) => diAtasKartu(e, item.id, idx)}
+                          onPindah={(ke) => pindahKeyboard(kartu.id, ke)}
                         />
                       </div>
                     ))}
