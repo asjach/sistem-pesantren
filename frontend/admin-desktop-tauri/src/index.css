@@ -348,6 +348,13 @@
   font-weight: var(--simpes-font-weight, var(--part-tabel_sel-weight, 300));
   font-variant-numeric: tabular-nums;
 }
+/* Kolom Aksi: sel hanya memuat tombol ikon kecil (24px), jadi padding sel
+   8px membuat kolom 1 tombol terlalu longgar. Dipadatkan ke 4px agar lebar
+   kolom otomatis (lihat ACTIONS_MIN_W) ikut ramping. */
+.simpes-dsg .dsg-cell.simpes-dsg-col-aksi {
+  padding-left: 4px;
+  padding-right: 4px;
+}
 /* Garis pemisah antar baris berasal dari border-top baris DI BAWAHNYA,
    sehingga baris terakhir tidak punya garis bawah. Garis kanan kolom
    terakhir juga putus karena box-shadow DSG terpotong area scroll.

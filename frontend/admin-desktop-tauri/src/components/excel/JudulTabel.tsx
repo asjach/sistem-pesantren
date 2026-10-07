@@ -44,6 +44,12 @@ interface Props {
  * Bilah judul tabel: judul + info tengah, kontrol toolbar (filter, aksi massal,
  * awalan/akhir halaman, Urutkan, Kolom), tombol aksi utama, dan menu klik-kanan
  * "Kelola Tabel". Id elemen dipertahankan agar halaman/tes tetap menemukannya.
+ *
+ * `min-h-8` (border-box, sudah termasuk `border-b` 1px) menjaga tinggi
+ * bilah tetap sama walau tabel tanpa kontrol toolbar: semua kontrol
+ * setinggi `h-6` (24px) tapi `py-1` + garis bawah membuat baris kontrol
+ * tumbuh 1px lebih tinggi daripada baris berisi teks judul saja. Padding
+ * vertikal diganti lantai tinggi agar keduanya tepat 32px.
  */
 export default function JudulTabel({
   tableKey,
@@ -74,7 +80,7 @@ export default function JudulTabel({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={!bolehKelola}>
-        <div data-part="header_tabel" className="flex shrink-0 items-center justify-between gap-2 border-b border-[color:var(--warna-border-ribbon)] bg-muted/40 px-3 py-1 text-xs font-medium">
+        <div data-part="header_tabel" className="flex min-h-8 shrink-0 items-center justify-between gap-2 border-b border-[color:var(--warna-border-ribbon)] bg-muted/40 px-3 text-xs font-medium">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <div className="min-w-0 flex-1 truncate">{judul}</div>
             {infoTampil ? (

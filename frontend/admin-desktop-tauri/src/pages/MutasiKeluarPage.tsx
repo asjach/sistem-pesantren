@@ -5,6 +5,7 @@ import { errorMessage } from '../api/client';
 import {
   batalPotongMutasi,
   daftarKelas,
+  hapusMutasiKeluar,
   importMutasiPotong,
   listMutasiKeluar,
   mutasiSantri,
@@ -28,7 +29,7 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { FileUp, ArrowRight } from '@/icons';
-import { ActionIcon } from '@/components/RowActions';
+import { ActionIcon, DeleteAction } from '@/components/RowActions';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
@@ -114,6 +115,8 @@ export default function MutasiKeluarPage() {
 
   // Import arsip mutasi (Periksa → Import).
   const canImportMutasi = bisa(user, 'mutasi_keluar.ubah');
+  /** Batal mutasi dari arsip (hapus arsip + pulihkan status). */
+  const canHapusMutasi = bisa(user, 'mutasi_keluar.hapus');
   const [fileOpen, setFileOpen] = useState(false);
 
   const loadKiri = useCallback(async (
@@ -232,6 +235,15 @@ export default function MutasiKeluarPage() {
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
   };
 
+  /** Batalkan mutasi keluar: hapus arsip, riwayat & keanggotaan dipulihkan. */
+  const hapusArsip = useCallback(async (m: MutasiKeluar) => {
+    try {
+      await hapusMutasiKeluar(m.id);
+      toast.success('Arsip mutasi dihapus; status santri dipulihkan.');
+      await Promise.all([loadKiri(), loadArsip(pager.page, pager.perPage)]);
+    } catch (e) { setErr(errorMessage(e)); }
+  }, [loadKiri, loadArsip, pager.page, pager.perPage]);
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
@@ -256,19 +268,18 @@ export default function MutasiKeluarPage() {
                 onCommit={async () => {}}
                 onSaved={() => {}}
                 renderActions={(r) => (
-                  <>
-                    {aksiProfil(r.santri_id, { daftar: daftarAktif })}
-                    {bisa(user, 'mutasi_keluar.ubah') && (
-                      <ActionIcon
-                        id={`btn_mutasi_${r.id}`}
-                        title="Mutasi keluar"
-                        onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}
-                      >
-                        <ArrowRight size={16} />
-                      </ActionIcon>
-                    )}
-                  </>
+                  bisa(user, 'mutasi_keluar.ubah') && (
+                    <ActionIcon
+                      id={`btn_mutasi_${r.id}`}
+                      title="Mutasi keluar"
+                      onClick={() => { setBaris(r); setTanggal(''); setAlasan(''); setNoSurat(''); setTujuan(''); setNpsn(''); setNsm(''); setKeterangan(''); }}
+                    >
+                      <ArrowRight size={16} />
+                    </ActionIcon>
+                  )
                 )}
+                // Detail Santri hanya lewat klik kanan → AKSI (ikon kolom disembunyikan).
+                renderActionsKonteks={(r) => aksiProfil(r.santri_id, { daftar: daftarAktif })}
                 hideCheckbox
                 emptyText="Pilih lembaga dulu."
               />
@@ -316,9 +327,19 @@ export default function MutasiKeluarPage() {
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
-              renderActions={(m) => aksiProfil(m.santri_id, { prefix: 'arsip', daftar: daftarArsip })}
-              hideCheckbox
-               hideActions
+renderActions={(m) => (
+                  canHapusMutasi && (
+                    <DeleteAction
+                      id={`btn_hapus_mutasi_${m.id}`}
+                      title="Hapus arsip mutasi?"
+                      description={`${m.santri?.nama_lengkap ?? 'Santri'} akan kembali aktif di ${m.lembaga?.nama ?? m.jenjang}. Arsip mutasi dihapus permanen.`}
+                      onConfirm={() => void hapusArsip(m)}
+                    />
+                  )
+                )}
+               // Detail Santri hanya lewat klik kanan → AKSI (ikon kolom disembunyikan).
+               renderActionsKonteks={(m) => aksiProfil(m.santri_id, { prefix: 'arsip', daftar: daftarArsip })}
+               hideCheckbox
                emptyText="Belum ada arsip mutasi."
             />
           </div>

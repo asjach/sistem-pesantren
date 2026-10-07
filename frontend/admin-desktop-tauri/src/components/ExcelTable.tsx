@@ -101,6 +101,11 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   onSaved: () => Promise<void> | void;
   /** Isi kolom Aksi (ikon Lihat/Ubah/Hapus, sudah digerbang role oleh halaman). */
   renderActions: (row: T) => ReactNode;
+  /** Aksi tambahan yang HANYA muncul di menu klik kanan (submenu AKSI), bukan
+   *  di kolom Aksi — mis. tombol profil Santri yang membuka dialog navigasi
+   *  sehingga ikonnya tak perlu tampil di setiap baris. Kosongkan bila menu
+   *  klik kanan cukup memakai `renderActions`. */
+  renderActionsKonteks?: (row: T) => ReactNode;
   filter?: ReactNode;
   /** Label info halaman di area judul tabel. */
   tengah?: ReactNode;
@@ -202,6 +207,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   onCommit,
   onSaved,
   renderActions,
+  renderActionsKonteks,
   filter,
   tengah,
   header,
@@ -1023,7 +1029,7 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  kanan saat grid di-scroll horizontal (freeze pane sisi kanan). */
   const aksiColumn: Column<GridRow> = useMemo(() => ({
     id: '__aksi',
-    title: <HeaderTitle label="AKSI" colKey="__aksi" onResizeStart={startResize} onAutoFit={onAutoFit} />,
+    title: <HeaderTitle label="Aksi" colKey="__aksi" onResizeStart={startResize} onAutoFit={onAutoFit} />,
     basis: widths.__aksi ?? autoWidths.__aksi ?? ACTIONS_DEFAULT_W,
     grow: 0,
     shrink: 0,
@@ -1031,7 +1037,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     // Kolom terakhir: garis kanan digambar di dalam sel (lihat index.css)
     // karena box-shadow DSG terpotong oleh tepi area scroll.
     headerClassName: 'simpes-dsg-col-last',
-    cellClassName: 'simpes-dsg-col-last',
+    cellClassName: 'simpes-dsg-col-last simpes-dsg-col-aksi',
     component: ActionsCell,
     columnData: {
       ringkas: aksiRingkas && !aksiLangsung,
@@ -1227,7 +1233,11 @@ export default function ExcelTable<T extends { id: string | number }>({
   const ctxRowDomain = ctxRow
     ? rowsRef.current.find((r) => String(r.id) === String(ctxRow.rowId)) ?? null
     : null;
-  const ctxRowAksi = ctxRowDomain ? flattenAksi(renderRef.current(ctxRowDomain)) : [];
+  const ctxRowAksi = ctxRowDomain
+    ? flattenAksi(renderRef.current(ctxRowDomain)).concat(
+      renderActionsKonteks === undefined ? [] : flattenAksi(renderActionsKonteks(ctxRowDomain)),
+    )
+    : [];
   const ctxHeaderLabel = ctxHeader
     ? labelKolom(ctxHeader.colKey, fieldsRef.current.find((f) => f.key === ctxHeader.colKey)?.label ?? ctxHeader.colKey)
     : '';

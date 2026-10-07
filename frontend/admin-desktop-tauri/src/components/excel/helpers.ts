@@ -11,13 +11,13 @@ export const AUTOFIT_MAX_W = 480;
 export const AUTOFIT_BUFFER = 8;
 
 /** Lebar kolom Aksi saat belum terukur (3 tombol ikon + padding + napas). */
-export const ACTIONS_DEFAULT_W = 124;
+export const ACTIONS_DEFAULT_W = 104;
 
 /** Lebar kolom checklist (kolom data pertama). */
 export const CHECK_W = 44;
 
-/** Lantai lebar kolom Aksi (1 tombol ikon + padding). */
-export const ACTIONS_MIN_W = 56;
+/** Lantai lebar kolom Aksi (1 tombol ikon + padding sel 4px×2 + buffer). */
+export const ACTIONS_MIN_W = 40;
 
 /** Penanda "kapasitas aksi > 3" per tableKey; hanya tumbuh selama sesi (tidak
  *  pernah turun) agar layout ikon vs hamburger tidak berubah-ubah mengikuti

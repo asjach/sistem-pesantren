@@ -681,6 +681,13 @@ export function mutasiSantri(
   });
 }
 
+/** Batalkan mutasi keluar: hapus arsip + pulihkan riwayat & keanggotaan. */
+export function hapusMutasiKeluar(id: number) {
+  return api<{ pesan: string; data: RiwayatRow }>(`/admin/mutasi-keluar/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 /** Profil santri: identitas + keanggotaan + riwayat + mutasi + alumni. */
 export interface ProfilSantri {
   santri: Santri;
