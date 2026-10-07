@@ -66,13 +66,14 @@ describe('DashboardPage — statistik', () => {
   it('menampilkan KPI dan blok statistik dari data ringkasan', async () => {
     renderDenganTema(<DashboardPage />);
 
-    expect(await screen.findByText('Rp 204 jt')).toBeInTheDocument();
+    // Angka pokok (buku induk) + baris akun keuangan.
+    expect(await screen.findByText('552', { selector: '#dashboard_angka_pokok' })).toBeInTheDocument();
+    expect(screen.getByText('Rp 204.025.000')).toBeInTheDocument();
     expect(screen.getByText('PTK aktif')).toBeInTheDocument();
-    expect(screen.getAllByText('Santri aktif').length).toBeGreaterThan(0);
-    expect(screen.getByText('Per tingkat · TA aktif')).toBeInTheDocument();
-    expect(screen.getAllByText('Ibtidaiyah · MI').length).toBeGreaterThan(0);
-    expect(screen.getByText('Tren alumni per tahun ajaran')).toBeInTheDocument();
-    expect(screen.getByText('Belum ada calon santri pada lingkup ini.')).toBeInTheDocument();
+    expect(screen.getByText('Per tingkat, 2026/2027')).toBeInTheDocument();
+    expect(screen.getAllByText('Ibtidaiyah (MI)').length).toBeGreaterThan(0);
+    expect(screen.getByText('Alumni per tahun ajaran')).toBeInTheDocument();
+    expect(screen.getByText('Belum ada calon pada lingkup ini.')).toBeInTheDocument();
   });
 
   it('menyembunyikan blok santri/PTK bila akun tidak berizin modulnya', async () => {
@@ -94,7 +95,7 @@ describe('DashboardPage — statistik', () => {
     renderDenganTema(<DashboardPage />);
 
     expect(await screen.findByText('Kelas TA aktif')).toBeInTheDocument();
-    expect(screen.queryByText('Per tingkat · TA aktif')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Per tingkat/)).not.toBeInTheDocument();
     expect(screen.queryByText('Antrean PSB')).not.toBeInTheDocument();
   });
 });
