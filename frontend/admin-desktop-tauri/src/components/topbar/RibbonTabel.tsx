@@ -50,7 +50,7 @@ function PilihFont({
         id={id}
         title={title}
         aria-label={ariaLabel}
-        className="h-6 w-44 border-white/20 bg-white/5 text-white [&_svg]:text-white/70"
+        className="h-6 w-44 border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)] text-[var(--sidebar-foreground)] [&_svg]:text-[color-mix(in_srgb,var(--sidebar-foreground)_70%,transparent)]"
       >
         <SelectValue placeholder="Bawaan" />
       </SelectTrigger>
@@ -102,7 +102,7 @@ function WarnaInput({
       title={title}
       aria-label={ariaLabel}
       onChange={(e) => onChange(e.target.value)}
-      className="h-6 w-8 shrink-0 cursor-pointer rounded-md border border-white/20 bg-white/5 p-0.5"
+      className="h-6 w-8 shrink-0 cursor-pointer rounded-md border border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)] p-0.5"
     />
   );
 }
@@ -172,7 +172,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
           <div className="flex items-center gap-1.5">
             <span
               id="label_bekukan_kolom_top"
-              className="min-w-[86px] whitespace-nowrap text-xs text-white/80"
+              className="min-w-[86px] whitespace-nowrap text-xs text-[color-mix(in_srgb,var(--sidebar-foreground)_80%,transparent)]"
             >
               Freeze Kolom
             </span>
@@ -198,7 +198,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
           </div>
           {/* Tinggi baris header */}
           <div className="flex items-center gap-1.5">
-            <span className="min-w-[86px] whitespace-nowrap text-xs text-white/80">Tinggi header</span>
+            <span className="min-w-[86px] whitespace-nowrap text-xs text-[color-mix(in_srgb,var(--sidebar-foreground)_80%,transparent)]">Tinggi header</span>
             <SpinBox
               id="input_tinggi_header_top"
               value={effectiveHeaderH}
@@ -245,7 +245,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
                 value={k.id}
                 title={`Kerapatan ${k.nama}`}
                 aria-label={`Kerapatan ${k.nama}`}
-                className="h-6 w-8 rounded-md border-0 px-0 text-white/75 hover:bg-white/10 hover:text-white data-[state=on]:bg-white/20 data-[state=on]:text-white data-[spacing=0]:rounded-md data-[spacing=0]:first:rounded-md data-[spacing=0]:last:rounded-md"
+                className="h-6 w-8 rounded-md border-0 px-0 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] data-[state=on]:bg-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] data-[state=on]:text-[var(--sidebar-foreground)] data-[spacing=0]:rounded-md data-[spacing=0]:first:rounded-md data-[spacing=0]:last:rounded-md"
               >
                 <k.icon size={14} />
               </ToggleGroupItem>
@@ -271,14 +271,14 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
         <div className="grid grid-cols-[auto_11rem_auto_auto_auto_auto] items-center gap-x-3 gap-y-1">
           {/* Judul kolom */}
           <span aria-hidden />
-          <span className="text-[10px] uppercase tracking-wide text-white/50">Font</span>
-          <span className="text-center text-[10px] uppercase tracking-wide text-white/50">Font Size</span>
+          <span className="text-[10px] uppercase tracking-wide text-[color-mix(in_srgb,var(--sidebar-foreground)_50%,transparent)]">Font</span>
+          <span className="text-center text-[10px] uppercase tracking-wide text-[color-mix(in_srgb,var(--sidebar-foreground)_50%,transparent)]">Font Size</span>
           <span aria-hidden />
-          <span className="text-center text-[10px] uppercase tracking-wide text-white/50">Color</span>
-          <span className="text-center text-[10px] uppercase tracking-wide text-white/50">Bg-Color</span>
+          <span className="text-center text-[10px] uppercase tracking-wide text-[color-mix(in_srgb,var(--sidebar-foreground)_50%,transparent)]">Color</span>
+          <span className="text-center text-[10px] uppercase tracking-wide text-[color-mix(in_srgb,var(--sidebar-foreground)_50%,transparent)]">Bg-Color</span>
 
           {/* Header */}
-          <span className="pr-1 text-xs text-white/80">Header</span>
+          <span className="pr-1 text-xs text-[color-mix(in_srgb,var(--sidebar-foreground)_80%,transparent)]">Header</span>
           <PilihFont
             id="select_huruf_header_top"
             value={headerFont}
@@ -334,7 +334,7 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
           </div>
 
           {/* Cell */}
-          <span className="pr-1 text-xs text-white/80">Cell</span>
+          <span className="pr-1 text-xs text-[color-mix(in_srgb,var(--sidebar-foreground)_80%,transparent)]">Cell</span>
           <PilihFont
             id="select_huruf_top"
             value={fontFamily}

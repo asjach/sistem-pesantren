@@ -19,7 +19,7 @@ const itemBase =
  *  tidak menyentuh teks (teks mulai setelah `px-2.5` tautan). Jalur ke halaman
  *  aktif memakai warna aksen tema (`aktif`), cabang lain redup. */
 function cabang(aktif = false) {
-  const warna = aktif ? 'before:bg-[var(--accent)] after:bg-[var(--accent)]' : 'before:bg-white/15 after:bg-white/40';
+  const warna = aktif ? 'before:bg-[var(--accent)] after:bg-[var(--accent)]' : 'before:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] after:bg-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)]';
   return `relative before:absolute before:top-1/2 before:-left-2 before:h-px before:w-2 before:-translate-y-1/2 before:content-[""] after:absolute after:top-1/2 after:left-0 after:size-[5px] after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:content-[""] ${warna}`;
 }
 
@@ -31,11 +31,11 @@ function cabang(aktif = false) {
 function segmenBaris(atasAktif: boolean, bawah: 'aksen' | 'abu' | 'nihil') {
   return cn(
     'relative before:absolute before:top-0 before:-left-2 before:w-px before:content-[""] before:bottom-1/2',
-    atasAktif ? 'before:bg-[var(--accent)]' : 'before:bg-white/15',
+    atasAktif ? 'before:bg-[var(--accent)]' : 'before:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]',
     bawah !== 'nihil'
       && 'after:absolute after:top-1/2 after:bottom-0 after:-left-2 after:w-px after:content-[""]',
     bawah === 'aksen' && 'after:bg-[var(--accent)]',
-    bawah === 'abu' && 'after:bg-white/15',
+    bawah === 'abu' && 'after:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]',
   );
 }
 
@@ -47,7 +47,7 @@ function segmenBaris(atasAktif: boolean, bawah: 'aksen' | 'abu' | 'nihil') {
 function lanjutanLuar(aktif = false) {
   return cn(
     'relative before:absolute before:top-0 before:bottom-0 before:-left-[23px] before:w-px before:content-[""]',
-    aktif ? 'before:bg-[var(--accent)]' : 'before:bg-white/15',
+    aktif ? 'before:bg-[var(--accent)]' : 'before:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]',
   );
 }
 
@@ -59,9 +59,9 @@ function segmenSub(terakhir: boolean, buka: boolean, segAktif: boolean, lanjutAk
   const lanjut = !terakhir || buka;
   return cn(
     'relative before:absolute before:top-0 before:-left-2 before:w-px before:content-[""] before:bottom-1/2',
-    segAktif ? 'before:bg-[var(--accent)]' : 'before:bg-white/15',
+    segAktif ? 'before:bg-[var(--accent)]' : 'before:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]',
     lanjut && 'after:absolute after:top-1/2 after:bottom-0 after:-left-2 after:w-px after:content-[""]',
-    lanjut && (lanjutAktif ? 'after:bg-[var(--accent)]' : 'after:bg-white/15'),
+    lanjut && (lanjutAktif ? 'after:bg-[var(--accent)]' : 'after:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]'),
   );
 }
 
@@ -192,8 +192,8 @@ export default function Sidebar() {
           ikonSaja && 'justify-center px-0',
           anak && ['py-1 text-[11px]', cabang(aktif)],
           aktif
-            ? 'bg-white/20 font-semibold text-white'
-            : 'text-white/75 hover:bg-white/10 hover:text-white',
+            ? 'bg-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] font-semibold text-[var(--sidebar-foreground)]'
+            : 'text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)]',
         )}
       >
         {!anak && <Icon size={16} />}
@@ -262,12 +262,12 @@ export default function Sidebar() {
                 itemBase,
                 'w-full py-1 text-[11px]',
                 cabang(jalurAktif.includes(n.kunci)),
-                'text-white/75 hover:bg-white/10 hover:text-white',
+                'text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)]',
               )}
             >
               <SubIkon size={14} />
               <span className="flex-1 truncate text-left">{n.def.label}</span>
-              <ChevronDown size={12} className={cn('shrink-0 text-white/60 transition-transform', !buka && '-rotate-90')} />
+              <ChevronDown size={12} className={cn('shrink-0 text-[color-mix(in_srgb,var(--sidebar-foreground)_60%,transparent)] transition-transform', !buka && '-rotate-90')} />
             </button>
           </div>
         {buka && (
@@ -300,7 +300,7 @@ export default function Sidebar() {
       data-slot="sidebar"
       aria-label="Navigasi utama"
       className={cn(
-        'relative flex h-full shrink-0 flex-col overflow-hidden border-r border-white/10 text-white transition-[width] duration-200',
+        'relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] text-[var(--sidebar-foreground)] transition-[width] duration-200',
         seret && 'transition-none',
         collapsed && !seret && 'border-r-0',
       )}
@@ -375,12 +375,12 @@ export default function Sidebar() {
                 className={cn(
                   itemBase,
                   'w-full',
-                  'text-white/75 hover:bg-white/10 hover:text-white',
+                  'text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)]',
                 )}
               >
                 <GrupIkon size={16} />
                 <span className="flex-1 truncate text-left">{g.label}</span>
-                <ChevronDown size={14} className={cn('shrink-0 text-white/60 transition-transform', !terbuka && '-rotate-90')} />
+                <ChevronDown size={14} className={cn('shrink-0 text-[color-mix(in_srgb,var(--sidebar-foreground)_60%,transparent)] transition-transform', !terbuka && '-rotate-90')} />
               </button>
               {terbuka && (
                 <div
@@ -432,8 +432,8 @@ export default function Sidebar() {
         >
           <span
             className={cn(
-              'absolute inset-y-0 right-0 w-px bg-white/10 transition-colors',
-              seretSembunyi ? 'bg-white/70' : 'hover:bg-white/40',
+              'absolute inset-y-0 right-0 w-px bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] transition-colors',
+              seretSembunyi ? 'bg-[color-mix(in_srgb,var(--sidebar-foreground)_70%,transparent)]' : 'hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)]',
             )}
           />
         </div>

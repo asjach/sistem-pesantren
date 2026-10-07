@@ -55,8 +55,20 @@ function applyPrefs(p: Prefs, osDark: boolean) {
   root.style.setProperty('--on-accent', onAccentFor(face.accent));
   root.style.setProperty('--background', face.bg);
   root.style.setProperty('--foreground', face.fg);
-  root.style.setProperty('--sidebar', t.sidebar);
-  root.style.setProperty('--sidebar-deep', t.sidebarDeep);
+  // Pasangan sidebar mengikuti mode ala Gr8r: light mode = sidebar terang
+  // yang diturunkan dari wajah tema (kecuali tema mendefinisikan `sidebarFg`
+  // sendiri, mis. Gr8r Hangat); dark mode = sidebar bawaan tema + tinta putih.
+  const punyaSidebarKhusus = t.sidebarFg !== undefined || t.sidebarGelap !== undefined;
+  if (!dark && !punyaSidebarKhusus) {
+    root.style.setProperty('--sidebar', `color-mix(in srgb, ${face.bg} 95%, ${face.fg})`);
+    root.style.setProperty('--sidebar-deep', `color-mix(in srgb, ${face.bg} 90%, ${face.fg})`);
+    root.style.setProperty('--sidebar-foreground', `color-mix(in srgb, ${face.fg} 75%, ${face.bg})`);
+  } else {
+    const sbGelap = dark && t.sidebarGelap ? t.sidebarGelap : undefined;
+    root.style.setProperty('--sidebar', sbGelap?.sidebar ?? t.sidebar);
+    root.style.setProperty('--sidebar-deep', sbGelap?.sidebarDeep ?? t.sidebarDeep);
+    root.style.setProperty('--sidebar-foreground', sbGelap?.fg ?? t.sidebarFg ?? '#ffffff');
+  }
   // Gaya atomik per bagian UI (di-generate ke <style id="simpes_part_styles">).
   terapkanGayaBagian(p.parts);
 }

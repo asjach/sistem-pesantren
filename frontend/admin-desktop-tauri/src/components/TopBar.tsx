@@ -83,7 +83,7 @@ function nilaiDropdown(values: readonly string[], mode: ModeFilterGlobal): strin
 const navBase =
   'flex items-center gap-2 rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
 const navIdle =
-  'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white';
+  'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-[var(--sidebar-foreground)]';
 
 /** Preferensi tampil/sembunyi baris toolbar (per perangkat). */
 const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
@@ -103,7 +103,7 @@ function TabRibbon({ tampil, onToggle }: { tampil: boolean; onToggle: () => void
           aria-label={tampil ? 'Sembunyikan ribbon' : 'Tampilkan ribbon'}
           aria-expanded={tampil}
           onClick={onToggle}
-          className="absolute inset-x-0 bottom-0 z-20 flex h-1 items-center justify-center bg-transparent text-white/60 transition-colors hover:bg-white/15 hover:text-white"
+          className="absolute inset-x-0 bottom-0 z-20 flex h-1 items-center justify-center bg-transparent text-[color-mix(in_srgb,var(--sidebar-foreground)_60%,transparent)] transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] hover:text-[var(--sidebar-foreground)]"
         >
           {tampil ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
         </button>
@@ -156,7 +156,7 @@ export default function TopBar() {
     return index === -1 ? urutanLembaga.length : index;
   };
   const daftarLembaga = [...pilihan].sort((a, b) => posisiLembaga(a.jenjang) - posisiLembaga(b.jenjang));
-  const classFilterLembaga = cn('relative mr-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-20 after:w-px after:bg-white/15', daftarLembaga.length === 1 ? 'w-[80px]' : 'w-[160px]');
+  const classFilterLembaga = cn('relative mr-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-20 after:w-px after:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]', daftarLembaga.length === 1 ? 'w-[80px]' : 'w-[160px]');
   const taPilihanTerurut = [...taPilihan].sort((a, b) => b.nama.localeCompare(a.nama, 'id', { numeric: true }));
   const { theme, mode, dark, iconSet, warnaUI, navigasi, collapsed, setTheme, setMode, setCollapsed, setIconSet, setWarnaUI, setNavigasi } = useTheme();
   const nav = useNavigate();
@@ -294,7 +294,7 @@ export default function TopBar() {
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
         <header
-          className="relative shrink-0 border-b border-white/15 px-0.5 pt-1 text-white"
+          className="relative shrink-0 border-b border-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] bg-[var(--sidebar)] px-0.5 pt-1 text-[var(--sidebar-foreground)]"
           style={{ background: 'var(--sidebar)' }}
         >
       {/* Judul halaman untuk pembaca layar (visual tampil di bar judul). */}
@@ -307,7 +307,7 @@ export default function TopBar() {
           SELALU sama dengan titik tengah baris/halaman — lepas dari lebar
           judul/search maupun area akun. Padding kiri menyisakan ruang untuk
           kenop navigasi yang melintasi border. */}
-      <div data-part="area_judul" className="relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 py-0 pb-1 pl-6 pr-3 md:pr-6">
+      <div data-part="area_judul" className="relative grid min-h-[46px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 py-0 pb-1 pl-6 pr-3 md:pr-6">
         {/* Kenop navigasi: satu tombol untuk dua arah — chevron kiri
             menyembunyikan rail (saat tampil), chevron kanan menampilkannya
             kembali (saat tertutup). Saat rail tampil, tombol melintasi garis
@@ -330,7 +330,7 @@ export default function TopBar() {
                 aria-expanded={!collapsed}
                 onClick={() => setCollapsed(!collapsed)}
                 style={{ left: collapsed ? '0px' : '-6px' }}
-                className="absolute top-1/2 z-20 grid h-6 w-3 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-[var(--sidebar)] text-white/75 transition-[left,color] duration-200 hover:border-white/40 hover:text-white"
+                className="absolute top-1/2 z-20 grid h-6 w-3 -translate-y-1/2 place-items-center rounded-full border border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-[var(--sidebar)] text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] transition-[left,color] duration-200 hover:border-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)] hover:text-[var(--sidebar-foreground)]"
               >
                 {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
               </button>
@@ -358,7 +358,7 @@ export default function TopBar() {
         <div
           className={cn(
             'relative flex min-h-[26px] min-w-0 items-center gap-0 rounded-md border p-0',
-            adaFilterTopBar ? 'border-white/15 bg-white/5' : 'border-transparent',
+            adaFilterTopBar ? 'border-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)]' : 'border-transparent',
           )}
         >
             {tampil.lembaga && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
@@ -415,7 +415,7 @@ export default function TopBar() {
               }))}
               dipilih={nilaiDropdown(semesters, modeSemester)}
               tampilkanSemua={false}
-              className="relative mr-0 w-[160px] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:z-20 before:w-px before:bg-white/15"
+              className="relative mr-0 w-[160px] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:z-20 before:w-px before:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]"
               itemClassName="min-w-0 flex-1 shrink"
               onPilih={pilihSemesterNilai}
               onSemua={() => pilihSemester(null)}
@@ -434,7 +434,7 @@ export default function TopBar() {
                   type="button"
                   aria-label={registrasi.tabel.length === 0 ? 'Kelola filter halaman' : 'Kelola tabel'}
                   onClick={bukaKelola}
-                  className="mr-1 grid size-6 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+                  className="mr-1 grid size-6 place-items-center rounded-md text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)]"
                 >
                   <NotebookTabs size={14} />
                 </button>
@@ -452,7 +452,7 @@ export default function TopBar() {
             <DropdownMenuTrigger asChild>
               <button
                 id="btn_menu_pengguna"
-                className={cn(navBase, navIdle, 'data-[state=open]:bg-white/15')}
+                className={cn(navBase, navIdle, 'data-[state=open]:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]')}
               >
                 <Users size={15} />
                 <span className="hidden max-w-[9rem] truncate sm:inline">{user?.name}</span>
@@ -614,9 +614,9 @@ export default function TopBar() {
 
       {/* Baris 2: isi ribbon tools kontekstual (kontrol tabel / tools halaman). */}
       {adaTools && tampilTools && (
-        <div className="border-t border-white/10 bg-white/5">
+        <div className="border-t border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)]">
           {banyakTab && (
-            <div className="flex items-center gap-0.5 border-b border-white/10 px-3 pt-1 md:px-5">
+            <div className="flex items-center gap-0.5 border-b border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] px-3 pt-1 md:px-5">
               {([
                 { id: 'halaman' as const, label: slotLabel ?? 'Halaman' },
                 { id: 'tabel' as const, label: 'Tabel' },
@@ -630,8 +630,8 @@ export default function TopBar() {
                   className={cn(
                     'rounded-t-md px-3 py-0.5 text-[11px] transition-colors',
                     tabTools === t.id
-                      ? 'bg-white/15 font-semibold text-white'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white',
+                      ? 'bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] font-semibold text-[var(--sidebar-foreground)]'
+                      : 'text-[color-mix(in_srgb,var(--sidebar-foreground)_70%,transparent)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)]',
                   )}
                 >
                   {t.label}

@@ -68,6 +68,21 @@ export function TopBarSearch({
     onChange(v);
   };
 
+  // Pintasan Ctrl/⌘+K memfokuskan pencarian topbar (ala Gr8r).
+  useEffect(() => {
+    const fokus = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        const el = document.getElementById('input_cari_topbar');
+        if (el) {
+          e.preventDefault();
+          el.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', fokus);
+    return () => window.removeEventListener('keydown', fokus);
+  }, []);
+
   if (!ctx?.el) return null;
   return createPortal(
     <form
@@ -75,15 +90,22 @@ export function TopBarSearch({
       onSubmit={(e) => e.preventDefault()}
       className="relative flex w-[150px] shrink-0 items-center"
     >
-      <Search size={14} className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-white/60" />
+      <Search size={14} className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-[color-mix(in_srgb,var(--sidebar-foreground)_60%,transparent)]" />
       <input
         id="input_cari_topbar"
         type="search"
         value={value}
         onChange={(e) => ketik(e.target.value)}
         aria-label={placeholder}
-        className="h-6 w-full rounded-md border border-white/20 bg-white/10 pr-6 pl-7 text-xs text-white outline-none focus:border-white/40 focus:bg-white/15 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:appearance-none"
+        className="h-[26px] w-full rounded-md border border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] pr-14 pl-7 text-xs text-[var(--sidebar-foreground)] outline-none placeholder:text-[color-mix(in_srgb,var(--sidebar-foreground)_60%,transparent)] focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:appearance-none"
       />
+      <kbd
+        aria-hidden="true"
+        title="Fokus pencarian (Ctrl/⌘+K)"
+        className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] px-1 font-mono text-[10px] text-[color-mix(in_srgb,var(--sidebar-foreground)_60%,transparent)] sm:inline"
+      >
+        ⌘K
+      </kbd>
       {value !== '' && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -92,7 +114,7 @@ export function TopBarSearch({
               id="btn_hapus_cari_topbar"
               aria-label="Bersihkan pencarian"
               onClick={() => ketik('')}
-              className="absolute top-1/2 right-1 grid size-4 -translate-y-1/2 place-items-center rounded text-white/60 hover:bg-white/10 hover:text-white"
+              className="absolute top-1/2 right-8 grid size-4 -translate-y-1/2 place-items-center rounded text-[color-mix(in_srgb,var(--sidebar-foreground)_60%,transparent)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)]"
             >
               <X size={12} />
             </button>

@@ -53,6 +53,7 @@ const DaftarDokumenPegawaiPage = lazy(() => import('./pages/DaftarDokumenPegawai
 const DokumenPegawaiPage = lazy(() => import('./pages/DokumenPegawaiPage'));
 const DokumenMadrasahPage = lazy(() => import('./pages/DokumenMadrasahPage'));
 const KelolaIzinPage = lazy(() => import('./pages/KelolaIzinPage'));
+const PapanContohPage = lazy(() => import('./pages/PapanContohPage'));
 
 // Shell dipasang SEKALI sebagai rute induk: TopBar/ribbon + provider tetap
 // mounted saat pindah halaman. Suspense ada di dalam area konten sehingga
@@ -104,6 +105,7 @@ export default function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route element={<Shell />}>
                       <Route path="/" element={<KhususIzin izin="dashboard.lihat"><DashboardPage /></KhususIzin>} />
+                      <Route path="/contoh-papan" element={<KhususIzin izin="dashboard.lihat"><PapanContohPage /></KhususIzin>} />
                       {/* Data Induk: satu halaman, beberapa tab (Pengguna,
                           Lembaga, Tahun Ajaran, Kelas, Buku Induk, Referensi).
                           Rute tiap tab tetap rute lamanya agar pengaturan

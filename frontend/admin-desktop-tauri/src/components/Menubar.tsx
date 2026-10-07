@@ -113,7 +113,7 @@ export default function Menubar() {
     <nav
       data-slot="menubar"
       aria-label="Menu aplikasi"
-      className="flex shrink-0 items-center gap-0.5 border-b bg-[var(--sidebar)] px-2 py-1 text-white"
+      className="flex shrink-0 items-center gap-0.5 border-b border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] bg-[var(--sidebar)] px-2 py-1 text-[var(--sidebar-foreground)]"
     >
       <span
         className="mr-2 truncate px-1 text-xs font-semibold tracking-wide"
@@ -139,7 +139,7 @@ export default function Menubar() {
           <DropdownMenu key={g.id}>
             <DropdownMenuTrigger
               id={`menu_${g.id}`}
-              className="rounded-md px-2.5 py-1 text-xs text-white/80 outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 data-[state=open]:bg-white/20 data-[state=open]:text-white"
+              className="rounded-md px-2.5 py-1 text-xs text-[color-mix(in_srgb,var(--sidebar-foreground)_80%,transparent)] outline-none hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60 data-[state=open]:bg-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] data-[state=open]:text-[var(--sidebar-foreground)]"
             >
               {LABEL_MENU[g.id]}
             </DropdownMenuTrigger>

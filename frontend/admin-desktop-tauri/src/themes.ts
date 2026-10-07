@@ -22,6 +22,10 @@ export interface TemaPreset {
   /** Sidebar (dipakai di kedua mode). */
   sidebar: string;
   sidebarDeep: string;
+  /** Tinta di atas sidebar (bawaan putih; isi bila sidebar terang). */
+  sidebarFg?: string;
+  /** Pasangan sidebar + tinta khusus mode gelap (bawaan = ikut terang). */
+  sidebarGelap?: { sidebar: string; sidebarDeep: string; fg: string };
 }
 
 export type ThemeName =
@@ -186,7 +190,8 @@ export const THEME_PRESETS: TemaPreset[] = [
     id: 'gr8r', nama: 'Gr8r Hangat',
     terang: { bg: '#fbfaf8', fg: '#1d1c1a', accent: '#4b5bd6' },
     gelap: { bg: '#1a1a19', fg: '#eceae5', accent: '#8e9af3' },
-    sidebar: '#201f1d', sidebarDeep: '#151514',
+    sidebar: '#f4f3f0', sidebarDeep: '#eeede9', sidebarFg: '#57544e',
+    sidebarGelap: { sidebar: '#1c1b1a', sidebarDeep: '#151514', fg: '#b5b2ab' },
   },
 ];
 

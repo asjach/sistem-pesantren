@@ -50,7 +50,7 @@ export function SpinBox({
     onChange(clamp(typed + d, min, max));
   };
   const btn = cn(
-    'shrink-0 place-items-center text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40 grid',
+    'shrink-0 place-items-center text-[color-mix(in_srgb,var(--sidebar-foreground)_70%,transparent)] transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] disabled:pointer-events-none disabled:opacity-40 grid',
     vertikal ? 'h-6' : 'w-5',
   );
   // Lebar kotak angka menyesuaikan isi (jumlah digit) + sedikit padding, agar
@@ -62,7 +62,7 @@ export function SpinBox({
       title={title}
       data-part="spinbox"
       className={cn(
-        'flex items-stretch overflow-hidden rounded-md border border-white/20 bg-white/5 focus-within:ring-2 focus-within:ring-white/30',
+        'flex items-stretch overflow-hidden rounded-md border border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)] focus-within:ring-2 focus-within:ring-[var(--sidebar-foreground)]/30',
         vertikal ? 'flex-col' : 'h-6',
         disabled && 'pointer-events-none opacity-40',
       )}
@@ -85,7 +85,7 @@ export function SpinBox({
         aria-label={ariaLabel}
         disabled={disabled}
         className={cn(
-          'border-white/20 bg-transparent px-0 text-center text-xs text-white outline-none',
+          'border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-transparent px-0 text-center text-xs text-[var(--sidebar-foreground)] outline-none',
           vertikal ? 'h-6 w-full border-y' : 'h-full border-x',
         )}
         style={vertikal ? undefined : { width: lebarIsi }}
@@ -144,8 +144,8 @@ export function RibbonCmd({
             'flex h-6 items-center gap-1.5 rounded-md text-xs whitespace-nowrap transition-colors',
             iconOnly ? 'w-6 justify-center' : 'px-2',
             aktif
-              ? 'bg-white/20 font-semibold text-white'
-              : 'text-white/85 hover:bg-white/10 hover:text-white',
+              ? 'bg-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] font-semibold text-[var(--sidebar-foreground)]'
+              : 'text-[color-mix(in_srgb,var(--sidebar-foreground)_85%,transparent)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)]',
             'disabled:pointer-events-none disabled:opacity-40',
           )}
         >
@@ -170,7 +170,7 @@ export function RibbonGroup({ label, children, disabled }: { label?: string; chi
       className={cn('flex shrink-0 flex-col items-center gap-1.5 px-3', disabled && 'pointer-events-none opacity-40')}
     >
       {label && (
-        <span className="w-full pb-1 text-center text-[10px] uppercase tracking-wide text-white/50">
+        <span className="w-full pb-1 text-center text-[10px] uppercase tracking-wide text-[color-mix(in_srgb,var(--sidebar-foreground)_50%,transparent)]">
           {label}
         </span>
       )}
@@ -182,5 +182,5 @@ export function RibbonGroup({ label, children, disabled }: { label?: string; chi
 /** Garis pemisah antar grup: setinggi penuh baris ribbon (menembus padding
  *  vertikal baris) sehingga menyentuh border atas/bawah bilah ribbon. */
 export function RibbonPemisah() {
-  return <span aria-hidden data-part="pemisah_ribbon" className="-my-3 mx-0.5 w-px shrink-0 self-stretch bg-white/15" />;
+  return <span aria-hidden data-part="pemisah_ribbon" className="-my-3 mx-0.5 w-px shrink-0 self-stretch bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]" />;
 }

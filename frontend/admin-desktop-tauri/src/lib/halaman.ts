@@ -5,6 +5,7 @@ import {
   CalendarRange,
   ClipboardCheck,
   ClipboardList,
+  Columns3,
   Eye,
   FileCheck2,
   FolderOpen,
@@ -151,6 +152,7 @@ export const HALAMAN_PENEMPATAN_PEGAWAI: HalamanDef = {
 
 export const HALAMAN: HalamanDef[] = [
   { to: '/', label: 'Dashboard', deskripsi: 'Ringkasan data pesantren.', tab: 'beranda', icon: Home, permission: 'dashboard.lihat' },
+  { to: '/contoh-papan', label: 'Contoh Papan', deskripsi: 'Contoh papan kanban ala Gr8r (demonstrasi bahasa desain).', tab: 'beranda', icon: Columns3, permission: 'dashboard.lihat' },
   HALAMAN_DATA_INDUK,
   { to: '/dokumen-santri', label: 'Daftar Dokumen', deskripsi: 'Berkas dokumen santri (KK, akta, ijazah, dll).', tab: 'dokumen', sub: 'santri', grid: true, icon: FolderOpen, permission: 'dokumen_santri.lihat' },
   { to: '/dokumen-santri/lihat', label: 'Dokumen Santri', deskripsi: 'Pratinjau dokumen per santri (lihat, unduh, ganti).', tab: 'dokumen', sub: 'santri', icon: Eye, permission: 'dokumen_santri.lihat' },

@@ -90,6 +90,8 @@
 
   --card: color-mix(in srgb, var(--foreground) 5%, var(--background));
   --card-foreground: var(--foreground);
+  /* Alias nama Gr8r untuk --card (dipakai komponen gaya papan/kanban). */
+  --surface: var(--card);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
   --primary: var(--accent);

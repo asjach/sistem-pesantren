@@ -8,7 +8,7 @@ import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 const navBase =
   'flex items-center gap-2 rounded-none px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
 const navIdle =
-  'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-white';
+  'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-[var(--sidebar-foreground)]';
 
 export interface OpsiFilterDropdown {
   nilai: string;
@@ -63,7 +63,7 @@ export function FilterDropdown({
           disabled={disabled}
           title={judul}
           aria-label={ariaLabel ?? label}
-          className={cn(navBase, navIdle, 'mr-0 data-[state=open]:bg-white/15')}
+          className={cn(navBase, navIdle, 'mr-0 data-[state=open]:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]')}
         >
           <span className="hidden max-w-[9rem] truncate sm:inline">{teks}</span>
           <ChevronDown size={13} className="opacity-70" />
@@ -168,7 +168,7 @@ export function FilterSelect({
         title={title ?? labelTerpilihFallback(dipilih, label)}
         aria-label={ariaLabel ?? label}
         className={cn(
-          'mr-0 h-6 max-w-[12rem] rounded-none border-0 bg-transparent px-2.5 text-white hover:bg-white/10 data-[placeholder]:text-white dark:bg-transparent dark:hover:bg-white/10 [&_svg]:hidden',
+          'mr-0 h-6 max-w-[12rem] rounded-none border-0 bg-transparent px-2.5 text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] data-[placeholder]:text-[color-mix(in_srgb,var(--sidebar-foreground)_70%,transparent)] dark:bg-transparent dark:hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] [&_svg]:hidden',
           className,
         )}
       >
