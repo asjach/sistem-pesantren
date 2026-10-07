@@ -64,10 +64,13 @@ class PresetTabelTest extends TestCase
         $id = (int) $res->json('data.0.id');
         $this->assertNull(PresetTabel::findOrFail($id)->jenjang);
 
-        // Nama "lengkap" milik bawaan sistem.
+        // Nama "Lengkap" kini boleh dipakai: preset bawaan semua kolom.
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
             'table_key' => 'psb', 'nama' => 'Lengkap', 'kolom' => ['nama'],
-        ])->assertStatus(422)->assertJsonValidationErrors(['nama']);
+        ])->assertStatus(201);
+        $this->assertDatabaseHas('preset_tabel', [
+            'table_key' => 'psb', 'nama' => 'Lengkap',
+        ]);
 
         // Simpan ulang nama sama = menimpa kolom (bukan menambah baris).
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
@@ -77,9 +80,10 @@ class PresetTabelTest extends TestCase
         $this->assertSame(1, PresetTabel::where('table_key', 'psb')->where('nama', 'default')->count());
 
         // Admin boleh membaca + memilih (setAktif), tapi tak boleh ubah/hapus.
-        $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=psb')
-            ->assertStatus(200)
-            ->assertJsonPath('data.presets.0.nama', 'default');
+        // Nama diperiksa tanpa bergantung urutan ("Lengkap" ikut terdaftar).
+        $daftar = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=psb');
+        $daftar->assertStatus(200);
+        $this->assertContains('default', array_column($daftar->json('data.presets'), 'nama'));
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/preset-tabel/aktif', [
             'table_key' => 'psb', 'preset_id' => $id,
         ])->assertStatus(200);
@@ -94,7 +98,8 @@ class PresetTabelTest extends TestCase
         ])->assertStatus(200);
         $this->assertEquals(['nama', 'status'], PresetTabel::findOrFail($id)->kolom);
         $this->actingAs($pusat, 'sanctum')->deleteJson("/api/admin/preset-tabel/{$id}")->assertStatus(200);
-        $this->assertSame(0, PresetTabel::where('table_key', 'psb')->count());
+        // Preset "Lengkap" yang dibuat di atas tetap ada; sisanya sudah terhapus.
+        $this->assertSame(0, PresetTabel::where('table_key', 'psb')->where('nama', '!=', 'Lengkap')->count());
     }
 
     public function test_set_aktif_menolak_preset_tabel_lain_dan_non_global(): void
@@ -207,6 +212,7 @@ class PresetTabelTest extends TestCase
         $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=psb')
             ->assertJsonPath('data.default_preset_id', null);
     }
+
     public function test_set_aktif_tanpa_preset_menyimpan_susunan_kolom_kustom(): void
     {
         $pusat = $this->makeUser('super_admin');
@@ -240,5 +246,4 @@ class PresetTabelTest extends TestCase
         $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=santri')
             ->assertJsonPath('data.aktif_kolom', null);
     }
-
 }

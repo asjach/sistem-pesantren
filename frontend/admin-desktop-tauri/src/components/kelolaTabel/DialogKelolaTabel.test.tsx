@@ -1,8 +1,9 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import DialogKelolaTabel from './DialogKelolaTabel';
+import { listPresetTabel } from '@/api/preset';
 import { renderDenganTema } from '@/test/utils';
 import type { ModeSemuaFilterGlobal, TampilFilterGlobal } from '@/lib/filterHalaman';
 import type { KunciFilterGlobal } from '@/components/VisibilitasFilter';
@@ -81,6 +82,32 @@ function panelNamaPerataan() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('DialogKelolaTabel — sinkronisasi preset dari luar', () => {
+  it('memuat ulang daftar preset saat menerima EVENT_PRESET_BERUBAH tabel ini', async () => {
+    const muat = vi.mocked(listPresetTabel);
+    renderDialog();
+    await waitFor(() => expect(muat).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('simpes:preset-berubah', { detail: { tableKey: 'uji' } }));
+    });
+
+    await waitFor(() => expect(muat).toHaveBeenCalledTimes(2));
+  });
+
+  it('mengabaikan event dari tabel lain', async () => {
+    const muat = vi.mocked(listPresetTabel);
+    renderDialog();
+    await waitFor(() => expect(muat).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('simpes:preset-berubah', { detail: { tableKey: 'tabel_lain' } }));
+    });
+
+    expect(muat).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('DialogKelolaTabel — navigasi tab', () => {

@@ -80,10 +80,9 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
       setPresets(res.data.presets);
       setBawaanId(res.data.default_preset_id);
       // Buka pada susunan yang benar-benar dipakai halaman ini: preset aktif,
-      // lalu preset bawaan (cermin `PresetKolom`), kalau tidak "Lengkap
-      // (semua kolom)"/"Lengkap kustom". Dialog jadi mencerminkan isi tabel,
-      // bukan daftar kosong.
-      const aktifId = res.data.aktif_preset_id ?? res.data.default_preset_id;
+      // kalau tidak "Lengkap (semua kolom)"/"Lengkap kustom" — cermin
+      // `PresetKolom`. Dialog jadi mencerminkan isi tabel, bukan daftar kosong.
+      const aktifId = res.data.aktif_preset_id;
       const aktif = aktifId === null
         ? null
         : res.data.presets.find((p) => p.id === aktifId) ?? null;
@@ -148,6 +147,8 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
   }, [muat, tableKey]);
 
   return {
+    /** Muat ulang daftar preset (dipakai listener `EVENT_PRESET_BERUBAH`). */
+    muat,
     /** `key` untuk TabKolom & TabNamaPerataan: naik tiap preset dibuka ulang. */
     nonce: kelola.nonce,
     kolom: {
@@ -346,7 +347,20 @@ export default function DialogKelolaTabel({
   // Hook tetap dipanggil tanpa syarat: `fields` boleh undefined (tab Kolom
   // lalu menampilkan keterangan), tapi state Kolom/Nama & Perataan harus
   // hidup terus supaya tidak hilang saat pindah tabel.
-  const kolom = useKelolaKolom({ tableKey, fields: fields ?? [] });
+  const { muat, ...kolom } = useKelolaKolom({ tableKey, fields: fields ?? [] });
+
+  // Ikut menyegarkan diri saat susunan preset diubah dari luar (mis. menu klik
+  // kanan header tabel atau seret kolom), tapi JANGAN sentuh editan yang belum
+  // disimpan supaya pekerjaan pengguna tidak hilang.
+  useEffect(() => {
+    const segarkan = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (d?.tableKey !== tableKey || kotorRef.current) return;
+      void muat();
+    };
+    window.addEventListener(EVENT_PRESET_BERUBAH, segarkan);
+    return () => window.removeEventListener(EVENT_PRESET_BERUBAH, segarkan);
+  }, [tableKey, muat]);
 
   // Tab Filter tidak ada untuk tabel tanpa filter — jangan sampai panelnya
   // yang sedang aktif lenyap (dialog tampak kosong).

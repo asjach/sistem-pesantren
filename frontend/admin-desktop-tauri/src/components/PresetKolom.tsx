@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import {
+  createPresetTabel,
   listPresetTabel,
   setPresetAktif,
+  setPresetBawaan,
   updatePresetTabel,
   type PresetTabel,
 } from '../api/preset';
+import { useAuth } from '../auth/AuthContext';
 import type { ExcelField } from './ExcelTable';
 import {
   Select,
@@ -21,6 +25,14 @@ import FilterField from './FilterField';
 import { EVENT_PRESET_BERUBAH } from './kelolaTabel/jenis';
 
 const LENGKAP = '_lengkap';
+
+/** Nama preset semua kolom yang dipastikan ada di setiap tabel. */
+const NAMA_LENGKAP = 'Lengkap';
+
+/** Samakan nama preset tanpa peduli besar-kecil huruf. */
+function namaLengkap(nama: string): boolean {
+  return nama.trim().toLowerCase() === NAMA_LENGKAP.toLowerCase();
+}
 
 /** API imperatif PresetKolom untuk dipakai pemanggil (mis. context menu header
  *  tabel: tampil/sembunyikan kolom pada preset tanpa membuka dialog).
@@ -68,14 +80,16 @@ export default function PresetKolom({
   lebarTrigger?: number;
 }) {
   /** Memilih preset untuk dilihat bisa semua role (kelola via Kelola Tabel). */
+  const { user } = useAuth();
+  /** Buat/ubah preset = super_admin (izin `preset_tabel.tambah`). */
+  const bolehKelola = bisa(user, 'preset_tabel.tambah');
+  /** Tabel yang sudah dipastikan punya preset "Lengkap" (cegah permintaan ulang). */
+  const sudahPastikan = useRef<Set<string>>(new Set());
 
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   const [aktifId, setAktifId] = useState<number | null>(null);
   /** Preset bawaan tabel (dipakai bila user belum memilih dan ada preset). */
   const [bawaanId, setBawaanId] = useState<number | null>(null);
-  /** Muat pertama selesai? Gerbang tampil/sembunyi dropdown. */
-  const [muatSelesai, setMuatSelesai] = useState(false);
-
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
 
   /** Susunan yang sedang dipakai (diungkap ke API agar menu konteks tahu
@@ -101,24 +115,55 @@ export default function PresetKolom({
   const muat = useCallback(async (pilihId?: number | null) => {
     try {
       const res = await listPresetTabel(tableKey);
-      const daftar = res.data.presets;
+      let daftar = res.data.presets;
+      let bawaan = res.data.default_preset_id;
+
+      // Tiap tabel wajib punya preset "Lengkap" (semua kolom) sebagai bawaan.
+      // Dibuat sekali saat tabel pertama dibuka oleh pengelola preset; tabel
+      // yang belum sempat dibuatkan tetap memakai "Lengkap" bawaan sistem.
+      if (bolehKelola && !sudahPastikan.current.has(tableKey) && !daftar.some((p) => namaLengkap(p.nama))) {
+        sudahPastikan.current.add(tableKey);
+        try {
+          const dibuat = await createPresetTabel({
+            table_key: tableKey,
+            nama: NAMA_LENGKAP,
+            kolom: [...fieldKeys],
+          });
+          const idBaru = dibuat.data[0]?.id ?? null;
+          if (idBaru !== null) await setPresetBawaan(idBaru, true);
+          const ulang = await listPresetTabel(tableKey);
+          daftar = ulang.data.presets;
+          bawaan = ulang.data.default_preset_id;
+        } catch {
+          // Tanpa izin atau gagal: pakai "Lengkap" bawaan sistem.
+        }
+      }
+
       setPresets(daftar);
-      setBawaanId(res.data.default_preset_id);
+      setBawaanId(bawaan);
+
       const targetId = pilihId !== undefined ? pilihId : res.data.aktif_preset_id;
       let target = targetId === null ? null : daftar.find((p) => p.id === targetId) ?? null;
-      // Tanpa pilihan pribadi: preset bawaan bila ada, bila tidak = Lengkap.
-      if (target === null && res.data.default_preset_id !== null) {
-        target = daftar.find((p) => p.id === res.data.default_preset_id) ?? null;
-      }
-      setAktifId(target?.id ?? null);
-      // Susunan "Lengkap kustom" tersimpan (mis. sebagian kolom disembunyikan)
-      // dipakai saat memang tidak ada preset aktif/bawaan. Hanya pada muat
-      // alami - saat pemanggil menentukan `pilihId`, pilihan itu yang berlaku.
+
+      // Susunan pribadi tersimpan (preset_id null + kolom) = pilihan eksplisit
+      // terakhir pengguna, jadi menang atas preset bawaan. Hanya pada muat
+      // alami — saat pemanggil menentukan `pilihId`, pilihan itu yang berlaku.
       const kolomKustom = pilihId === undefined && target === null ? res.data.aktif_kolom : null;
       if (kolomKustom && kolomKustom.length > 0) {
+        setAktifId(null);
         terapkan({ kolom: kolomKustom, label: res.data.aktif_label ?? {} } as PresetTabel);
         return;
       }
+
+      // Belum ada pilihan pengguna: pakai preset bawaan — idealnya "Lengkap"
+      // yang dibuat di atas — lalu jatuh ke preset bernama "Lengkap" bila ada.
+      if (target === null && bawaan !== null) {
+        target = daftar.find((p) => p.id === bawaan) ?? null;
+      }
+      if (target === null) {
+        target = daftar.find((p) => namaLengkap(p.nama)) ?? null;
+      }
+      setAktifId(target?.id ?? null);
       terapkan(target);
     } catch (e) {
       setPresets([]);
@@ -126,16 +171,16 @@ export default function PresetKolom({
       setBawaanId(null);
       terapkan(null);
       toast.error(errorMessage(e));
-    } finally {
-      setMuatSelesai(true);
     }
-  }, [tableKey, terapkan]);
+  }, [tableKey, terapkan, bolehKelola, fieldKeys]);
 
   useEffect(() => {
     void muat();
     const segarkan = (e: Event) => {
       const d = (e as CustomEvent).detail;
-      if (d?.tableKey !== tableKey) return;
+      // Abaikan event dari diri sendiri: `simpanSusunan` sudah menerapkan lokal
+      // (memuat ulang justru bisa mengembalikan susunan lama sebelum tersimpan).
+      if (d?.tableKey !== tableKey || d?.sumber === 'presetKolom') return;
       // Muat ulang: susunan aktif (termasuk Lengkap kustom) dibaca dari server.
       void muat();
     };
@@ -169,6 +214,10 @@ export default function PresetKolom({
         toast.success(pesanSukses);
         await muat(aktifId);
       }
+      // Kabari pemilih lain dan dialog Kelola Tabel agar memuat ulang. Diri
+      // sendiri sengaja tidak ikut memuat ulang (lihat listener di bawah) karena
+      // susunan barusan sudah diterapkan lokal.
+      window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey, sumber: 'presetKolom' } }));
     } catch (e) {
       toast.error(errorMessage(e));
     }
@@ -230,9 +279,8 @@ export default function PresetKolom({
     ) : p.nama
   );
 
-  // Tanpa preset (hanya "Lengkap") dropdown tak berguna: sembunyikan setelah
-  // muat pertama; tabel berpreset tetap menampilkannya.
-  if (muatSelesai && presets.length === 0) return null;
+  // Pemilih selalu tampil: "Lengkap" (semua kolom) adalah awalan tiap tabel,
+  // jadi tabel tanpa preset pun tetap punya pilihan yang terlihat.
 
   return (
     <>
@@ -249,7 +297,11 @@ export default function PresetKolom({
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            <SelectItem value={LENGKAP}>Lengkap</SelectItem>
+            {/* Bila tabel sudah punya preset "Lengkap" (baris DB), opsi bawaan
+                sistem disembunyikan supaya tidak ada dua entri "Lengkap". */}
+            {presets.some((p) => namaLengkap(p.nama)) ? null : (
+              <SelectItem value={LENGKAP}>Lengkap</SelectItem>
+            )}
             {presets.map((p) => (
               <SelectItem key={p.id} value={String(p.id)}>{labelPreset(p)}</SelectItem>
             ))}

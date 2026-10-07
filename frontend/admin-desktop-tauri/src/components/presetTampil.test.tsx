@@ -83,14 +83,31 @@ describe('dropdown Urutkan — tampil hanya bila pilihan > 1', () => {
   });
 });
 
-describe('dropdown Kolom — tampil hanya bila pilihan > 1', () => {
-  it('tersembunyi saat tidak ada preset (hanya "Lengkap")', async () => {
+describe('dropdown Kolom — selalu tampil dengan awalan "Lengkap"', () => {
+  it('tetap tampil walau belum ada preset (hanya "Lengkap")', async () => {
     presetKolom(0);
-    await waitFor(() => expect(screen.queryByText('Kolom')).toBeNull());
+    expect(await screen.findByText('Kolom')).toBeInTheDocument();
   });
 
   it('tetap tampil saat ada 1 preset (2 item: "Lengkap" + preset)', async () => {
     presetKolom(1);
     expect(await screen.findByText('Kolom')).toBeInTheDocument();
+  });
+
+  it('memakai preset bawaan sebagai awalan bila pengguna belum memilih', async () => {
+    const onApply = vi.fn();
+    listPresetTabel.mockResolvedValue({
+      pesan: 'ok',
+      data: {
+        presets: [{ id: 9, nama: 'Lengkap', kolom: ['a'] }],
+        aktif_preset_id: null,
+        aktif_kolom: null,
+        aktif_label: null,
+        default_preset_id: 9,
+      },
+    });
+    renderDenganTema(<PresetKolom tableKey="uji" fields={FIELDS} onApply={onApply} />);
+
+    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], null, 9));
   });
 });

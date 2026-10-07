@@ -57,7 +57,6 @@ class PresetTabelController extends Controller
     {
         $this->pastikanSuperAdmin($request->user());
         $data = $request->validated();
-        $this->pastikanNamaBukanLengkap($data['nama']);
 
         $kolom = array_values(array_unique($data['kolom']));
         $label = $this->bersihkanLabel($data['label'] ?? null, $kolom);
@@ -88,7 +87,6 @@ class PresetTabelController extends Controller
         $data = $request->validated();
 
         $nama = $data['nama'] ?? $preset->nama;
-        $this->pastikanNamaBukanLengkap($nama);
         $this->pastikanNamaUnik($preset->table_key, $nama, $preset->id);
 
         $kolom = array_values(array_unique($data['kolom'] ?? $preset->kolom));
@@ -186,13 +184,6 @@ class PresetTabelController extends Controller
     protected function queryEfektif(string $tableKey)
     {
         return PresetTabel::where('table_key', $tableKey)->whereNull('jenjang');
-    }
-
-    protected function pastikanNamaBukanLengkap(string $nama): void
-    {
-        if (mb_strtolower(trim($nama)) === 'lengkap') {
-            throw ValidationException::withMessages(['nama' => 'Nama "lengkap" dipakai bawaan sistem; pilih nama lain.']);
-        }
     }
 
     protected function pastikanNamaUnik(string $tableKey, string $nama, ?int $ignoreId = null): void
