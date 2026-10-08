@@ -166,7 +166,7 @@ export const HALAMAN: HalamanDef[] = [
   HALAMAN_SANTRI_AKTIF,
   HALAMAN_PENEMPATAN,
   HALAMAN_AKADEMIK,
-  { to: '/keuangan', label: 'Pengaturan', deskripsi: 'Jenis tagihan, tarif, tagihan, dan tunggakan.', tab: 'keuangan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
+  { to: '/keuangan', label: 'Pengaturan', deskripsi: 'Jenis tagihan, tarif, dan tagihan santri.', tab: 'keuangan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
   { to: '/keuangan/dispensasi', label: 'Dispensasi', deskripsi: 'Daftar dispensasi santri.', tab: 'keuangan', grid: true, icon: BadgeCheck, permission: 'keuangan.lihat' },
   { to: '/pembayaran', label: 'Pembayaran', deskripsi: 'Kasir: cari santri, lihat tagihan belum lunas, catat pembayaran.', tab: 'keuangan', grid: true, icon: ReceiptText, permission: 'keuangan.lihat' },
   {

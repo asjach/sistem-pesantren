@@ -17,7 +17,7 @@ return new class extends Migration
         'kegiatan_psb' => ['kegiatan_psb_gelombang', 'kegiatan_psb_kuota'],
         'kelulusan' => ['kelulusan_santri_akhir', 'kelulusan_alumni', 'kelulusan_tidak_lulus'],
         'kenaikan' => ['kenaikan_santri_genap', 'kenaikan_naik_kelas', 'kenaikan_tidak_naik_kelas'],
-        'keuangan' => ['keuangan_jenis', 'keuangan_tarif', 'keuangan_tagihan', 'keuangan_tunggakan', 'keuangan_dispensasi'],
+        'keuangan' => ['keuangan_jenis', 'keuangan_tarif', 'keuangan_tagihan', 'keuangan_dispensasi'],
         'lembaga_pegawai' => ['pegawai_ringkas', 'pegawai_lembaga'],
         'mi_md' => ['mi_md_mi', 'mi_md_md', 'mi_md_beda'],
         'mutasi_keluar' => ['mutasi_santri_aktif', 'mutasi_arsip'],

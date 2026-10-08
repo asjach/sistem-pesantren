@@ -106,7 +106,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('keuangan/pembayaran/{pembayaran}/batal', [PembayaranController::class, 'batalPembayaran'])->middleware('permission:keuangan.ubah');
         Route::delete('keuangan/pembayaran/{pembayaran}', [PembayaranController::class, 'destroyPembayaran'])->middleware('permission:keuangan.hapus');
         Route::get('keuangan/tagihan/{tagihan}/pembayaran', [PembayaranController::class, 'pembayaranTagihan'])->middleware('permission:keuangan.lihat');
-        Route::get('keuangan/tunggakan', [TagihanController::class, 'tunggakan'])->middleware('permission:keuangan.lihat');
 
         Route::get('semester-aktif', [SemesterAktifController::class, 'index'])->middleware('permission:semester.lihat');
         Route::put('semester-aktif', [SemesterAktifController::class, 'upsert'])->middleware('permission:semester.ubah');

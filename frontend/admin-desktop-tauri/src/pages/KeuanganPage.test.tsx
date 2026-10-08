@@ -76,7 +76,6 @@ vi.mock('@/api/keuangan', async (importOriginal) => {
     crosstabTagihan: uji.crosstabTagihan,
     daftarJenis: vi.fn(async () => []),
     daftarTarif: vi.fn(async () => []),
-    daftarTunggakan: vi.fn(async () => ({ pesan: 'ok', data: [], meta: { current_page: 1, last_page: 1, total: 0, per_page: 50 } })),
     daftarDispensasi: vi.fn(async () => []),
     riwayatPembayaran: vi.fn(async () => ({ pesan: 'ok', data: [] })),
   };

@@ -234,7 +234,6 @@ class UrutPresetTest extends TestCase
             'keuangan_jenis',
             'keuangan_tarif',
             'keuangan_dispensasi',
-            'keuangan_tunggakan',
             'keuangan_gen_kandidat',
             'mutasi_santri_aktif',
             'pindah_kelas',

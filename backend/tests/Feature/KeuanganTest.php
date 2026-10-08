@@ -819,7 +819,7 @@ class KeuanganTest extends TestCase
             ->assertStatus(422);
     }
 
-    public function test_tunggakan_hanya_yang_sudah_lewat_jatuh_tempo(): void
+    public function test_crosstab_terlambat_hanya_yang_sudah_lewat_jatuh_tempo(): void
     {
         $admin = $this->admin();
         $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
@@ -848,19 +848,6 @@ class KeuanganTest extends TestCase
         $tersaring = collect($this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?terlambat=1')->assertStatus(200)->json('baris'))->first();
         $this->assertSame([$lewat->id], array_column($tersaring['sel'], 'id'));
         $this->assertSame(50000, $tersaring['tunggakan']);
-
-        // Endpoint tunggakan: hanya tagihan terlambat.
-        $tunggakan = $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')->assertStatus(200)->json('data');
-        $this->assertCount(1, $tunggakan);
-        $this->assertSame('Santri Telat', $tunggakan[0]['nama']);
-        $this->assertSame(50000, $tunggakan[0]['tunggakan']);
-        $this->assertSame(1, $tunggakan[0]['jumlah_tagihan']);
-        $this->assertSame(now()->subDays(5)->toDateString(), $tunggakan[0]['terlambat_terlama']);
-
-        // Tidak ada satu pun yang lewat → kosong.
-        Tagihan::query()->update(['jatuh_tempo' => now()->addMonth()->toDateString()]);
-        $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')
-            ->assertStatus(200)->assertJsonCount(0, 'data');
     }
 
     public function test_tagihan_tanpa_jatuh_tempo_langsung_terlambat(): void
@@ -873,14 +860,6 @@ class KeuanganTest extends TestCase
         // Tanpa batas waktu = langsung tunggakan, walau baru dibuat.
         $this->assertTrue($t->terlambat());
         $this->assertSame(300000, $t->sisaTerlambat());
-
-        // Endpoint tunggakan memuatnya; tandai "tanpa batas".
-        $tunggakan = $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')
-            ->assertStatus(200)->json('data');
-        $this->assertCount(1, $tunggakan);
-        $this->assertSame(300000, $tunggakan[0]['tunggakan']);
-        $this->assertNull($tunggakan[0]['terlambat_terlama']);
-        $this->assertTrue($tunggakan[0]['tanpa_jatuh_tempo']);
 
         // Filter crosstab terlambat=1 ikut menyertakannya.
         $baris = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?terlambat=1')
@@ -899,8 +878,6 @@ class KeuanganTest extends TestCase
 
         $this->assertFalse($t->terlambat());
         $this->assertSame(0, $t->sisaTerlambat());
-        $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')
-            ->assertStatus(200)->assertJsonCount(0, 'data');
     }
 
     public function test_ubah_tagihan_nominal_tempo_tahun_ajaran(): void
@@ -1037,9 +1014,6 @@ class KeuanganTest extends TestCase
         $tagihan->refresh();
         $this->assertSame(500000, $tagihan->terbayar);
         $this->assertSame('sebagian', $tagihan->status);
-
-        $tunggakan = $this->actingAs($admin)->getJson('/api/admin/keuangan/tunggakan')->assertStatus(200)->json('data');
-        $this->assertNotEmpty($tunggakan);
     }
 
     public function test_hapus_pembayaran(): void

@@ -9,11 +9,11 @@ import TagihanCrosstab from '@/components/keuangan/TagihanCrosstab';
 import { DeleteAction, EditAction } from '@/components/RowActions';
 import { ArrowDownAZ, ArrowUpAZ, Info, Plus, RotateCcw, Search, TriangleAlert, X } from '@/icons';
 import type { PetaArahKolom } from '@/lib/urut';
-import { tanggal } from '@/lib/tanggal';
 import type { PerPage } from '@/prefs';
 import type {
-  CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan, Dispensasi, JenisTagihan, Tarif, TunggakanRow,
+  CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan, Dispensasi, JenisTagihan, Tarif,
 } from '@/api/keuangan';
+import type { Santri } from '@/api/santri';
 
 /* Isi tiap tab halaman Keuangan.
  *
@@ -36,15 +36,6 @@ export const FIELDS_TARIF: ExcelField[] = [
   { key: 'aktif', label: 'Aktif', kind: 'static', width: 70 },
 ];
 
-export const FIELDS_TUNGGAKAN: ExcelField[] = [
-  { key: 'nama', label: 'Santri', kind: 'static' },
-  { key: 'jumlah_tagihan', label: 'Jml Tagihan', kind: 'static', width: 100 },
-  { key: 'total_tagihan', label: 'Total', kind: 'static', width: 110 },
-  { key: 'terbayar', label: 'Terbayar', kind: 'static', width: 110 },
-  { key: 'tunggakan', label: 'Tunggakan', kind: 'static', width: 110 },
-  { key: 'terlambat_terlama', label: 'Lewat Sejak', kind: 'static', width: 120 },
-];
-
 export const FIELDS_DISPENSASI: ExcelField[] = [
   { key: 'nama', label: 'Dispensasi', kind: 'static' },
   { key: 'aturan', label: 'Aturan per Jenis', kind: 'static' },
@@ -52,6 +43,62 @@ export const FIELDS_DISPENSASI: ExcelField[] = [
   { key: 'tahun_ajaran', label: 'TA', kind: 'static', width: 100 },
   { key: 'status', label: 'Status', kind: 'static', width: 80 },
 ];
+
+export const FIELDS_PENERIMA: ExcelField[] = [
+  { key: 'nama', label: 'Santri', kind: 'static' },
+  { key: 'nis', label: 'NIS', kind: 'static', width: 110 },
+  { key: 'lembaga', label: 'Lembaga', kind: 'static', width: 100 },
+  { key: 'dispensasi', label: 'Dispensasi', kind: 'static' },
+  { key: 'tahun_ajaran', label: 'TA', kind: 'static', width: 100 },
+];
+
+/** Baris tab Daftar Penerima Dispensasi: satu santri × satu paket dispensasi. */
+export interface BarisPenerima {
+  /** `${dispensasi_id}:${santri_id}` — unik per pasangan. */
+  id: string;
+  santri_id: number;
+  nama: string;
+  nis: string | null;
+  lembaga: string | null;
+  dispensasi_id: number;
+  dispensasi: string;
+  tahun_ajaran: string;
+}
+
+/** NIS tampil: NIS lokal lebih dulu, lalu NIS kemenag (dari keanggotaan aktif). */
+function nisTampil(s: Santri): string | null {
+  const aktif = s.lembaga_aktif ?? [];
+  return aktif.find((l) => l.nis_lokal)?.nis_lokal
+    ?? aktif.find((l) => l.nis_kemenag)?.nis_kemenag
+    ?? null;
+}
+
+/** Lembaga tampil: jenjang keanggotaan aktif (urut, unik). */
+function lembagaTampil(s: Santri): string | null {
+  const unik = [...new Set((s.lembaga_aktif ?? []).map((l) => l.jenjang).filter(Boolean))];
+  return unik.length ? unik.join(', ') : null;
+}
+
+/** Ratakan paket dispensasi → baris penerima (satu baris per pasangan
+ *  santri-paket), urut nama santri lalu nama paket. */
+export function barisPenerima(daftar: Dispensasi[]): BarisPenerima[] {
+  const baris: BarisPenerima[] = [];
+  for (const d of daftar) {
+    for (const s of d.santri_tambahan ?? []) {
+      baris.push({
+        id: `${d.id}:${s.id}`,
+        santri_id: s.id,
+        nama: s.nama_lengkap,
+        nis: nisTampil(s),
+        lembaga: lembagaTampil(s),
+        dispensasi_id: d.id,
+        dispensasi: d.nama,
+        tahun_ajaran: d.tahun_ajaran,
+      });
+    }
+  }
+  return baris.sort((a, b) => a.nama.localeCompare(b.nama, 'id') || a.dispensasi.localeCompare(b.dispensasi, 'id'));
+}
 
 /** State urut header satu tabel (dimiliki halaman, diteruskan ke tab). */
 export interface SortTabel {
@@ -140,58 +187,6 @@ export function TarifTab({ rows, loading, sort, onTambah, onEdit, onHapus }: {
   );
 }
 
-/** Tab Tunggakan: tabel baca-saja (urut dari header) + pager server-side. */
-export function TunggakanTab({
-  rows, loading, sort, page, lastPage, total, perPage, onPage, onPerPage,
-}: {
-  rows: TunggakanRow[];
-  loading: boolean;
-  sort: SortTabel;
-  page: number;
-  lastPage: number;
-  total: number;
-  perPage: PerPage;
-  onPage: (p: number) => void;
-  onPerPage: (pp: PerPage) => void;
-}) {
-  return (
-    <>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <ExcelTable<TunggakanRow & { id: number }>
-          tableKey="keuangan_tunggakan"
-          fields={FIELDS_TUNGGAKAN}
-          rows={rows.map((w) => ({ ...w, id: w.santri_id }))}
-          urutAktif={sort.urut}
-          arahUrut={sort.arah}
-          onUrut={sort.terapkan}
-          getValues={(r) => ({
-            nama: r.nama, jumlah_tagihan: String(r.jumlah_tagihan),
-            total_tagihan: r.total_tagihan.toLocaleString('id'),
-            terbayar: r.terbayar.toLocaleString('id'),
-            tunggakan: r.tunggakan.toLocaleString('id'),
-            terlambat_terlama: r.tanpa_jatuh_tempo ? 'Tanpa batas' : tanggal(r.terlambat_terlama),
-          })}
-          loading={loading}
-          emptyText="Tidak ada tagihan yang lewat jatuh tempo."
-          canEdit={false}
-          onCommit={async () => {}}
-          onSaved={() => {}}
-          renderActions={() => null}
-          hideCheckbox
-        />
-      </div>
-      <Pager
-        page={page}
-        lastPage={lastPage}
-        total={total}
-        perPage={perPage}
-        onPage={onPage}
-        onPerPage={onPerPage}
-      />
-    </>
-  );
-}
-
 /** Tab Dispensasi: tabel + tombol tambah/ubah/hapus. */
 export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus }: {
   rows: Dispensasi[];
@@ -235,6 +230,63 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus }
       hideCheckbox
       addButtonLangsung
       addButton={<Button id="btn_dispensasi_tambah_buka" size="icon" variant="outline" aria-label="Tambah dispensasi" title="Tambah dispensasi" onClick={onTambah}><Plus size={16} /></Button>}
+    />
+  );
+}
+
+/** Tab Daftar Penerima Dispensasi: tabel santri penerima + combobox paket
+ *  dispensasi sebagai filter. Filter dipegang halaman (state hilang saat tab
+ *  tidak aktif dilepas Radix). */
+export function PenerimaDispensasiTab({ rows, loading, daftar, pilihan, onPilih }: {
+  rows: BarisPenerima[];
+  loading: boolean;
+  /** Opsi combobox: seluruh paket dispensasi. */
+  daftar: Dispensasi[];
+  /** Id paket terpilih; `'semua'` = tanpa filter. */
+  pilihan: number | 'semua';
+  onPilih: (v: number | 'semua') => void;
+}) {
+  return (
+    <ExcelTable<BarisPenerima>
+      tableKey="keuangan_penerima_dispensasi"
+      fields={FIELDS_PENERIMA}
+      rows={rows}
+      getValues={(r) => ({
+        nama: r.nama,
+        nis: r.nis,
+        lembaga: r.lembaga,
+        dispensasi: r.dispensasi,
+        tahun_ajaran: r.tahun_ajaran,
+      })}
+      loading={loading}
+      emptyText="Belum ada penerima dispensasi."
+      canEdit={false}
+      onCommit={async () => {}}
+      onSaved={() => {}}
+      renderActions={() => null}
+      hideCheckbox
+      filter={(
+        <Select
+          value={pilihan === 'semua' ? 'semua' : String(pilihan)}
+          onValueChange={(v) => onPilih(v === 'semua' ? 'semua' : Number(v))}
+        >
+          <SelectTrigger
+            id="sel_penerima_dispensasi"
+            size="sm"
+            aria-label="Filter daftar dispensasi"
+            title="Filter daftar dispensasi"
+            className="w-[220px]"
+          >
+            <SelectValue placeholder="Daftar Dispensasi" />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start" className="contain-layout will-change-transform">
+            <SelectItem value="semua">Daftar Dispensasi: semua</SelectItem>
+            {daftar.map((d) => (
+              <SelectItem key={d.id} value={String(d.id)}>{`${d.nama} · ${d.tahun_ajaran}`}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
     />
   );
 }

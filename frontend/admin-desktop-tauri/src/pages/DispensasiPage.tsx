@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { errorMessage } from '@/api/client';
+import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
   daftarDispensasi,
@@ -15,8 +15,12 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
-import { DispensasiTab, FIELDS_DISPENSASI } from '@/components/keuangan/tabKeuangan';
+import {
+  barisPenerima, DispensasiTab, FIELDS_DISPENSASI, FIELDS_PENERIMA, PenerimaDispensasiTab,
+} from '@/components/keuangan/tabKeuangan';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+
+const TAB_DISPENSASI = ['daftar', 'penerima'] as const;
 
 function useUrutTabel() {
   const [urut, setUrut] = useState<string[]>([]);
@@ -42,6 +46,17 @@ export default function DispensasiPage() {
 
   const [dispensasiOpen, setDispensasiOpen] = useState(false);
   const [editDispensasi, setEditDispensasi] = useState<Dispensasi | null>(null);
+  const [tab, setTab] = useState<string>('daftar');
+  /** Filter combobox tab Penerima: id paket, atau `'semua'`. */
+  const [penerimaDispensasiId, setPenerimaDispensasiId] = useState<number | 'semua'>('semua');
+
+  useEffect(() => {
+    let hidup = true;
+    prefGet('simpes_keuangan_dispensasi_tab').then((v) => {
+      if (hidup && v !== null && (TAB_DISPENSASI as readonly string[]).includes(v)) setTab(v);
+    }).catch(() => {});
+    return () => { hidup = false; };
+  }, []);
 
   const load = useCallback(async () => {
     setErr('');
@@ -93,6 +108,15 @@ export default function DispensasiPage() {
 
   const taBawaan = targetTunggal(tahunAjaranNames) ?? daftarTA.find((x) => x.is_aktif)?.nama ?? '';
 
+  /** Baris penerima (satu santri × satu paket), disaring paket terpilih. */
+  const penerima = useMemo(() => barisPenerima(dispensasi), [dispensasi]);
+  const penerimaTampil = useMemo(
+    () => penerimaDispensasiId === 'semua'
+      ? penerima
+      : penerima.filter((r) => r.dispensasi_id === penerimaDispensasiId),
+    [penerima, penerimaDispensasiId],
+  );
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
@@ -100,11 +124,13 @@ export default function DispensasiPage() {
         tampil={{ lembaga: false, tahun_ajaran: false, tingkat: false, kelas: false }}
         tabel={[
           { key: 'keuangan_dispensasi', judul: 'Daftar Dispensasi', fields: FIELDS_DISPENSASI },
+          { key: 'keuangan_penerima_dispensasi', judul: 'Daftar Penerima Dispensasi', fields: FIELDS_PENERIMA },
         ]}
       />
-      <Tabs value="daftar" className="flex min-h-0 flex-1 flex-col gap-0">
+      <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_dispensasi_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0">
         <TabsList className={KELAS_LIST_TAB}>
           <TabsTrigger value="daftar" id="keu_tab_daftar_dispensasi" className={KELAS_TRIGGER}>Daftar Dispensasi</TabsTrigger>
+          <TabsTrigger value="penerima" id="keu_tab_penerima_dispensasi" className={KELAS_TRIGGER}>Daftar Penerima Dispensasi</TabsTrigger>
         </TabsList>
         <TabsContent value="daftar" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <DispensasiTab
@@ -114,6 +140,15 @@ export default function DispensasiPage() {
             onTambah={bukaTambahDispensasi}
             onEdit={bukaUbahDispensasi}
             onHapus={hapusDispensasiBaris}
+          />
+        </TabsContent>
+        <TabsContent value="penerima" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+          <PenerimaDispensasiTab
+            rows={penerimaTampil}
+            loading={loading}
+            daftar={dispensasi}
+            pilihan={penerimaDispensasiId}
+            onPilih={setPenerimaDispensasiId}
           />
         </TabsContent>
       </Tabs>

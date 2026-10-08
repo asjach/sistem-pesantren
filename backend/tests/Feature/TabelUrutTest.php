@@ -457,25 +457,6 @@ class TabelUrutTest extends TestCase
         $this->assertSame(['Alfa', 'Zeta'], array_column($res->json(), 'nama'));
     }
 
-    public function test_keuangan_tunggakan_urut_sisa(): void
-    {
-        $besar = Santri::create(['nama_lengkap' => 'Besar', 'jk' => 'L']);
-        $kecil = Santri::create(['nama_lengkap' => 'Kecil', 'jk' => 'L']);
-        $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);
-        Tagihan::create([
-            'santri_id' => $besar->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
-            'jenis_id' => $jenis->id, 'periode' => '2026-07', 'nominal' => 100000, 'status' => 'sebagian', 'terbayar' => 50000,
-        ]);
-        Tagihan::create([
-            'santri_id' => $kecil->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
-            'jenis_id' => $jenis->id, 'periode' => '2026-07', 'nominal' => 100000, 'status' => 'sebagian', 'terbayar' => 90000,
-        ]);
-        $this->assertSame(
-            ['Besar', 'Kecil'],
-            $this->kolom($this->super(), '/api/admin/keuangan/tunggakan?sort=sisa&arah=turun', 'nama', 'data')
-        );
-    }
-
     public function test_kandidat_urut_nama(): void
     {
         $f = $this->dasar();

@@ -239,16 +239,6 @@ class UrutKatalog
             'aktif' => ['dispensasi.is_active'],
             'id' => ['dispensasi.id'],
         ],
-        // Sort koleksi in-memory: kolom = kunci baris keluaran (lihat
-        // Concerns\UrutDaftar::terapkanUrutKoleksi), bukan kolom SQL.
-        'keuangan_tunggakan' => [
-            'nama' => ['tunggakan.nama'],
-            'total' => ['tunggakan.total_tagihan'],
-            'bayar' => ['tunggakan.terbayar'],
-            'sisa' => ['tunggakan.tunggakan'],
-            'jumlah' => ['tunggakan.jumlah_tagihan'],
-            'id' => ['tunggakan.santri_id'],
-        ],
         'keuangan_gen_kandidat' => [
             'nama' => ['kandidat.nama_lengkap'],
             'jk' => ['kandidat.jk'],

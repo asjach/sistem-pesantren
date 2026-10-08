@@ -19,16 +19,6 @@ export interface TagihanRow {
   santri?: { nama_lengkap: string };
 }
 
-/** Baris tab Tunggakan: belum lunas dan sudah lewat batas waktunya. */
-export interface TunggakanRow {
-  santri_id: number; nama: string; total_tagihan: number; terbayar: number;
-  tunggakan: number; jumlah_tagihan: number;
-  /** Jatuh tempo paling awal di antara tagihan yang punya batas waktu. */
-  terlambat_terlama: string | null;
-  /** Ada tagihan terlambat yang tidak punya tanggal batas sama sekali. */
-  tanpa_jatuh_tempo: boolean;
-}
-
 export function daftarJenis(params: { sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
   const q = new URLSearchParams();
   if (params.sort?.length) q.set('sort', params.sort.join(','));
@@ -328,25 +318,4 @@ export interface PembayaranRow {
 
 export function riwayatPembayaran(tagihanId: number) {
   return api<PembayaranRow[]>(`/admin/keuangan/tagihan/${tagihanId}/pembayaran`);
-}
-
-/** Halaman daftar tunggakan (bentuk paginator Laravel). */
-export interface TunggakanHalaman {
-  data: TunggakanRow[];
-  current_page: number;
-  last_page: number;
-  total: number;
-  per_page: number;
-}
-
-export function daftarTunggakan(params: {
-  page?: number; per_page?: string; sort?: string[]; arah?: 'naik' | 'turun';
-} = {}) {
-  const q = new URLSearchParams();
-  if (params.page) q.set('page', String(params.page));
-  if (params.per_page) q.set('per_page', params.per_page);
-  if (params.sort?.length) q.set('sort', params.sort.join(','));
-  if (params.arah) q.set('arah', params.arah);
-  const s = q.toString();
-  return api<TunggakanHalaman>(`/admin/keuangan/tunggakan${s ? `?${s}` : ''}`);
 }

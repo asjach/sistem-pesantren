@@ -17,6 +17,8 @@ const JUDUL_TABEL: Record<string, string> = {
   pengajuan_biodata: 'Pengajuan Biodata',
   psb: 'PSB',
   pegawai: 'Pegawai',
+  keuangan_dispensasi: 'Daftar Dispensasi',
+  keuangan_penerima_dispensasi: 'Daftar Penerima Dispensasi',
 };
 
 /** Judul header tabel: pemetaan khusus, atau kapitalisasi tableKey. */

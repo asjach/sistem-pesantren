@@ -4,9 +4,9 @@ import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
   daftarJenis, daftarTarif, hapusTarif, buatTagihan,
-  daftarTunggakan, crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran,
+  crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran,
   riwayatPembayaran, hapusPembayaran,
-  type JenisTagihan, type Tarif, type TunggakanRow, type PembayaranRow,
+  type JenisTagihan, type Tarif, type PembayaranRow,
   type CrosstabBaris, type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
 import { labelSel } from '@/components/keuangan/TagihanCrosstab';
@@ -21,14 +21,14 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { usePager } from '@/hooks/usePager';
 import GenerateTagihanDialog from '@/components/keuangan/GenerateTagihanDialog';
 import {
-  FIELDS_JENIS, FIELDS_TARIF, FIELDS_TUNGGAKAN,
-  JenisTab, TagihanTab, TarifTab, TunggakanTab,
+  FIELDS_JENIS, FIELDS_TARIF,
+  JenisTab, TagihanTab, TarifTab,
 } from '@/components/keuangan/tabKeuangan';
 import {
   DialogTambahJenis, DialogTambahTarif, DialogUbahJenis, DialogUbahTarif,
 } from '@/components/keuangan/jenisTarifDialogs';
 
-const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan', 'tunggakan'] as const;
+const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan'] as const;
 
 /** State urut satu tabel; perubahan state memicu muat ulang via effect. */
 function useUrutTabel() {
@@ -44,7 +44,7 @@ function useUrutTabel() {
   return { urut, arah, arahKolom, terapkan };
 }
 
-/** Halaman Keuangan: jenis tagihan, tarif, tagihan, pembayaran, tunggakan.
+/** Halaman Keuangan: jenis tagihan, tarif, dan tagihan (crosstab).
  *
  *  Isi tiap tab hidup di `components/keuangan/tabKeuangan.tsx` dan form
  *  jenis/tarif di `components/keuangan/jenisTarifDialogs.tsx`. Seluruh state
@@ -54,22 +54,19 @@ function useUrutTabel() {
 export default function KeuanganPage() {
   const [jenis, setJenis] = useState<JenisTagihan[]>([]);
   const [tarif, setTarif] = useState<Tarif[]>([]);
-  const [tunggakan, setTunggakan] = useState<TunggakanRow[]>([]);
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [daftarTA, setDaftarTA] = useState<TahunAjaran[]>([]);
   /** Error per tab; digabung untuk satu ErrorNotice di atas halaman. */
   const [errJenis, setErrJenis] = useState('');
   const [errTarif, setErrTarif] = useState('');
-  const [errTunggakan, setErrTunggakan] = useState('');
   const [errTagihan, setErrTagihan] = useState('');
   /** Status muat per tab — supaya muat ulang satu tab tak menandai tab lain. */
   const [loadingJenis, setLoadingJenis] = useState(false);
   const [loadingTarif, setLoadingTarif] = useState(false);
-  const [loadingTunggakan, setLoadingTunggakan] = useState(false);
   const [loadingTagihan, setLoadingTagihan] = useState(false);
   const [tab, setTab] = useState<string>('jenis');
 
-  const err = errJenis || errTarif || errTunggakan || errTagihan;
+  const err = errJenis || errTarif || errTagihan;
 
   useEffect(() => {
     let hidup = true;
@@ -82,16 +79,12 @@ export default function KeuanganPage() {
   const { page: tagihanPage, perPage: tagihanPerPage, setPage: setTagihanPage, setPerPage: setTagihanPerPage } = usePager('keuangan_tagihan');
   const [tagihanLastPage, setTagihanLastPage] = useState(1);
   const [tagihanTotal, setTagihanTotal] = useState(0);
-  const { page: tunggakanPage, perPage: tunggakanPerPage, setPage: setTunggakanPage, setPerPage: setTunggakanPerPage } = usePager('keuangan_tunggakan');
-  const [tunggakanLastPage, setTunggakanLastPage] = useState(1);
-  const [tunggakanTotal, setTunggakanTotal] = useState(0);
   const { jenjangs, tahunAjaranNames, tingkat, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
   /** Jenis global (Semua) hanya untuk super_admin efektif — mati saat bertindak. */
   const { efektifSuper, peranJenjang, pilihan: pilihanLembaga } = useLembagaAktif();
   /** Urut header tiap tabel (perubahan memicu muat ulang via effect). */
   const uJenis = useUrutTabel();
   const uTarif = useUrutTabel();
-  const uTunggakan = useUrutTabel();
 
   /** Crosstab tagihan: baris = santri, kolom = jenis (bulanan per bulan). */
   const [crosstab, setCrosstab] = useState<CrosstabTagihan | null>(null);
@@ -200,32 +193,6 @@ export default function KeuanganPage() {
     if (filterLoading) return;
     void loadTarif(jenjangs, tahunAjaranNames);
   }, [filterLoading, jenjangs, tahunAjaranNames, loadTarif]);
-
-  /**
-   * Tunggakan per santri: server-side & terpaginasi. Perubahan urut header
-   * mengganti identitas `loadTunggakan` sehingga effect memuat ulang dari
-   * halaman 1 (pager ikut disinkronkan dari respons).
-   */
-  const loadTunggakan = useCallback(async (page: number, perPage: number) => {
-    setErrTunggakan(''); setLoadingTunggakan(true);
-    try {
-      const res = await daftarTunggakan({
-        page,
-        per_page: perPage === 0 ? 'all' : String(perPage),
-        sort: uTunggakan.urut.length ? tokenUrut(uTunggakan.urut, uTunggakan.arahKolom) : undefined,
-        arah: uTunggakan.urut.length ? uTunggakan.arah : undefined,
-      });
-      setTunggakan(res.data);
-      setTunggakanPage(res.current_page);
-      setTunggakanLastPage(res.last_page);
-      setTunggakanTotal(res.total);
-    } catch (e) {
-      setErrTunggakan(errorMessage(e));
-      setTunggakan([]);
-    } finally { setLoadingTunggakan(false); }
-  }, [uTunggakan.urut, uTunggakan.arah, uTunggakan.arahKolom, setTunggakanPage]);
-
-  useEffect(() => { void loadTunggakan(1, tunggakanPerPage); }, [loadTunggakan, tunggakanPerPage]);
 
   useEffect(() => { setTagihanPage(1); }, [jenjangs, tahunAjaranNames]);
 
@@ -487,7 +454,6 @@ export default function KeuanganPage() {
         tabel={[
           { key: 'keuangan_jenis', judul: 'Jenis Tagihan', fields: FIELDS_JENIS },
           { key: 'keuangan_tarif', judul: 'Tarif', fields: FIELDS_TARIF },
-          { key: 'keuangan_tunggakan', judul: 'Tunggakan', fields: FIELDS_TUNGGAKAN },
         ]}
       />
       <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0">
@@ -495,8 +461,6 @@ export default function KeuanganPage() {
           <TabsTrigger value="jenis" id="keu_tab_jenis" className={KELAS_TRIGGER}>Jenis Tagihan</TabsTrigger>
           <TabsTrigger value="tarif" id="keu_tab_tarif" className={KELAS_TRIGGER}>Tarif</TabsTrigger>
           <TabsTrigger value="tagihan" id="keu_tab_tagihan" className={KELAS_TRIGGER}>Tagihan</TabsTrigger>
-          <TabsTrigger value="tunggakan" id="keu_tab_tunggakan" className={KELAS_TRIGGER}>Tunggakan</TabsTrigger>
-          {/* Dispensasi pindah ke sub-grup terpisah */}
         </TabsList>
 
         <TabsContent value="jenis" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
@@ -602,20 +566,6 @@ export default function KeuanganPage() {
                 }}
               />
             }
-          />
-        </TabsContent>
-
-        <TabsContent value="tunggakan" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <TunggakanTab
-            rows={tunggakan}
-            loading={loadingTunggakan}
-            sort={uTunggakan}
-            page={tunggakanPage}
-            lastPage={tunggakanLastPage}
-            total={tunggakanTotal}
-            perPage={tunggakanPerPage}
-            onPage={(p) => { setTunggakanPage(p); void loadTunggakan(p, tunggakanPerPage); }}
-            onPerPage={(pp) => { setTunggakanPerPage(pp); void loadTunggakan(1, pp); }}
           />
         </TabsContent>
 
