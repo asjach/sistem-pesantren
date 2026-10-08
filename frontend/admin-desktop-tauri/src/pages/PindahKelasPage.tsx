@@ -328,14 +328,16 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
           )}
           hideCheckbox
            emptyText="Tidak ada santri pada kelas ini."
-         />
-         <Pager
-           page={page}
-           lastPage={lastPage}
-           total={tampil.length}
-           perPage={perPage}
-           onPage={setPage}
-           onPerPage={setPerPage}
+           pager={(
+             <Pager
+               page={page}
+               lastPage={lastPage}
+               total={tampil.length}
+               perPage={perPage}
+               onPage={setPage}
+               onPerPage={setPerPage}
+             />
+           )}
          />
        </div>
     </section>

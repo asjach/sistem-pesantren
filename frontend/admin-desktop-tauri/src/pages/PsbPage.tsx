@@ -695,14 +695,16 @@ export default function PsbPage() {
         )}
         renderActions={renderActions}
         renderBulkActions={renderBulkActions}
-      />
-      <Pager
-        page={pager.page}
-        lastPage={lastPage}
-        total={total}
-        perPage={pager.perPage}
-        onPage={(p) => { pager.setPage(p); load(p); }}
-        onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
+        pager={(
+          <Pager
+            page={pager.page}
+            lastPage={lastPage}
+            total={total}
+            perPage={pager.perPage}
+            onPage={(p) => { pager.setPage(p); load(p); }}
+            onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
+          />
+        )}
       />
 
       <DialogDaftarUlangSeleksi

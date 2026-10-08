@@ -454,9 +454,9 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                           <ArrowRight data-icon="inline-start" size={14} /> Masukkan ({checked.length})
                         </Button>
                       )}
+                    pager={<Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage, cari)} onPerPage={(pp) => setPerPage(pp)} />}
                     />
                   </div>
-                  <Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage, cari)} onPerPage={(pp) => setPerPage(pp)} />
                 </div>
               </ResizablePanel>
               <ResizableHandle orientation="horizontal" withHandle id="gagang_dispensasi_santri" aria-label="Atur lebar daftar santri aktif dan penerima" />

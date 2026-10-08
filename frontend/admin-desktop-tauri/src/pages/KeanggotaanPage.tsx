@@ -391,10 +391,12 @@ export default function KeanggotaanPage() {
           </>
         )}
         emptyText="Belum ada keanggotaan."
+        pager={(
+          <Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage}
+            onPage={(p) => { pager.setPage(p); void load(p); }}
+            onPerPage={(pp) => { pager.setPerPage(pp); void load(1, pp); }} />
+        )}
       />
-      <Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage}
-        onPage={(p) => { pager.setPage(p); void load(p); }}
-        onPerPage={(pp) => { pager.setPerPage(pp); void load(1, pp); }} />
 
       <Dialog open={ubah !== null} onOpenChange={(o) => { if (!o) setUbah(null); }}>
         <DialogContent className="sm:max-w-lg">

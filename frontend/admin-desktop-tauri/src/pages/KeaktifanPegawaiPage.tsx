@@ -299,6 +299,16 @@ export default function KeaktifanPegawaiPage() {
           </>
         }
         renderActions={renderActions}
+        pager={(
+          <Pager
+            page={pager.page}
+            lastPage={lastPage}
+            total={total}
+            perPage={pager.perPage}
+            onPage={(p) => { pager.setPage(p); load(p); }}
+            onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
+          />
+        )}
       />
       <ImportBertahapUmumDialog
         open={importOpen}
@@ -370,14 +380,6 @@ export default function KeaktifanPegawaiPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <Pager
-        page={pager.page}
-        lastPage={lastPage}
-        total={total}
-        perPage={pager.perPage}
-        onPage={(p) => { pager.setPage(p); load(p); }}
-        onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
-      />
     </div>
   );
 }

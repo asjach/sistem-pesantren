@@ -166,14 +166,16 @@ export default function DaftarKelasPage() {
             </Select>
           </FilterField>
         )}
-      />
-      <Pager
-        page={pager.page}
-        lastPage={lastPage}
-        total={total}
-        perPage={pager.perPage}
-        onPage={(p) => { pager.setPage(p); load(p); }}
-        onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
+        pager={(
+          <Pager
+            page={pager.page}
+            lastPage={lastPage}
+            total={total}
+            perPage={pager.perPage}
+            onPage={(p) => { pager.setPage(p); load(p); }}
+            onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
+          />
+        )}
       />
 
       <EditSantriDialog

@@ -339,11 +339,11 @@ renderActions={(m) => (
                 )}
                // Detail Santri hanya lewat klik kanan → AKSI (ikon kolom disembunyikan).
                renderActionsKonteks={(m) => aksiProfil(m.santri_id, { prefix: 'arsip', daftar: daftarArsip })}
-               hideCheckbox
-               emptyText="Belum ada arsip mutasi."
+                hideCheckbox
+                emptyText="Belum ada arsip mutasi."
+                pager={<Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage} onPage={(p) => { pager.setPage(p); void loadArsip(p); }} onPerPage={(pp) => { pager.setPerPage(pp); void loadArsip(1, pp); }} />}
             />
           </div>
-          <Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage} onPage={(p) => { pager.setPage(p); void loadArsip(p); }} onPerPage={(pp) => { pager.setPerPage(pp); void loadArsip(1, pp); }} />
         </section>
         </ResizablePanel>
       </ResizablePanelGroup>

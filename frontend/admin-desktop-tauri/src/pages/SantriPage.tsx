@@ -275,8 +275,10 @@ export default function SantriPage() {
             </Button>}
           </>
         )}
+        pager={(
+          <Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage} onPage={(p) => { pager.setPage(p); load(p); }} onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }} />
+        )}
       />
-      <Pager page={pager.page} lastPage={lastPage} total={total} perPage={pager.perPage} onPage={(p) => { pager.setPage(p); load(p); }} onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }} />
 
       {/* Tambah identitas */}
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>

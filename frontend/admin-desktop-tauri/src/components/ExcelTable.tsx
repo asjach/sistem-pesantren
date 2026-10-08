@@ -172,6 +172,10 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   /** Tabel database utama grid ini: kolom tanpa `sumber` dianggap berasal dari
    *  tabel ini (nama kolom = key-nya), kecuali `sumber: null`. */
   sumberTabel?: string;
+  /** Kontrol paginasi halaman (mis. `<Pager/>`). Dirender di kaki tabel
+   *  SEBARIS dengan tombol tinggi baris; tanpa prop ini kaki tabel hanya
+   *  berisi tombol tinggi baris. */
+  pager?: ReactNode;
 }
 
 
@@ -242,6 +246,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   urutAktif,
   arahUrut = 'naik',
   onUrut,
+  pager,
 }: ExcelTableProps<T>) {
   const { density } = useTheme();
   const densityPx = DENSITY_PX[density];
@@ -1569,9 +1574,11 @@ export default function ExcelTable<T extends { id: string | number }>({
       </div>
       </div>
 
-      {/* Tombol tinggi baris: kanan bawah tiap tabel (menggantikan hitungan
-          data Pager). Nilainya global, tetapi tombolnya muncul di semua tabel. */}
-      <div className="mt-1 flex shrink-0 items-center justify-end">
+      {/* Kaki tabel: kontrol paginasi (bila ada) sebaris dengan tombol tinggi
+          baris. Nilai tinggi baris global, tetapi tombolnya tampil di tiap
+          tabel — termasuk yang tanpa paginasi (baris tombol saja). */}
+      <div className="mt-1 flex shrink-0 items-center gap-1">
+        {pager ? <div className="min-w-0 flex-1">{pager}</div> : <div className="flex-1" />}
         <TombolTinggiBaris tableKey={tableKey} />
       </div>
 

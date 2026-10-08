@@ -291,11 +291,10 @@ export default function RiwayatBelajarPage() {
     setPindahOpen(false);
   }
 
-  const panel = (tabel: ReactNode, pagerNode: ReactNode) => (
+  const panel = (tabel: ReactNode) => (
     <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
       <div className="flex min-h-0 flex-1 flex-col pb-0">
         {tabel}
-        {pagerNode}
       </div>
     </section>
   );
@@ -361,16 +360,18 @@ export default function RiwayatBelajarPage() {
                onCommit={noopCommit}
                onSaved={noopCommit}
                renderActions={(r) => aksiProfil(r.santri_id, { prefix: 'ganjil', daftar: daftarGanjil })}
-            />,
-            <Pager
-              page={kiri.pager.page}
-              lastPage={kiri.lastPage}
-              total={kiri.total}
-              perPage={kiri.pager.perPage}
-              onPage={(p) => { kiri.pager.setPage(p); void kiri.load(p); }}
-               onPerPage={(pp) => { kiri.pager.setPerPage(pp); void kiri.load(1, pp); }}
-              />,
+            pager={(
+              <Pager
+                page={kiri.pager.page}
+                lastPage={kiri.lastPage}
+                total={kiri.total}
+                perPage={kiri.pager.perPage}
+                onPage={(p) => { kiri.pager.setPage(p); void kiri.load(p); }}
+                onPerPage={(pp) => { kiri.pager.setPerPage(pp); void kiri.load(1, pp); }}
+              />
             )}
+            />
+           )}
            </ResizableAutoHidePanel>
            <ResizableHandle orientation="horizontal" withHandle id="gagang_riwayat_belajar" />
            <ResizablePanel id="panel_riwayat_genap" defaultSize="50%" minSize="20%">
@@ -428,15 +429,17 @@ export default function RiwayatBelajarPage() {
                onCommit={noopCommit}
                onSaved={noopCommit}
                renderActions={(r) => aksiProfil(r.santri_id, { prefix: 'genap', daftar: daftarGenap })}
-            />,
-            <Pager
-              page={kanan.pager.page}
-               lastPage={kanan.lastPage}
-              total={kanan.total}
-              perPage={kanan.pager.perPage}
-              onPage={(p) => { kanan.pager.setPage(p); void kanan.load(p); }}
-               onPerPage={(pp) => { kanan.pager.setPerPage(pp); void kanan.load(1, pp); }}
-              />,
+            pager={(
+              <Pager
+                page={kanan.pager.page}
+                lastPage={kanan.lastPage}
+                total={kanan.total}
+                perPage={kanan.pager.perPage}
+                onPage={(p) => { kanan.pager.setPage(p); void kanan.load(p); }}
+                onPerPage={(pp) => { kanan.pager.setPerPage(pp); void kanan.load(1, pp); }}
+              />
+            )}
+            />
             )}
            </ResizablePanel>
          </ResizablePanelGroup>

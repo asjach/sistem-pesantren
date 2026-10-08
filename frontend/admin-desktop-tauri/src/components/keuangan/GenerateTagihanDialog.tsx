@@ -496,9 +496,9 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                       <ArrowRight data-icon="inline-start" size={14} /> Pindahkan ({checked.length})
                     </Button>
                   )}
+                pager={<Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage)} onPerPage={(pp) => setPerPage(pp)} />}
                 />
               </div>
-              <Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage)} onPerPage={(pp) => setPerPage(pp)} />
             </div>
           </ResizablePanel>
           <ResizableHandle orientation="horizontal" withHandle id="gagang_gen_tagihan" aria-label="Atur lebar kandidat dan daftar generate" />

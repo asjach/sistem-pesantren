@@ -190,14 +190,16 @@ export default function PengajuanBiodataPage() {
           </FilterField>
         )}
         renderActions={renderActions}
-      />
-      <Pager
-        page={pager.page}
-        lastPage={lastPage}
-        total={total}
-        perPage={pager.perPage}
-        onPage={(p) => { pager.setPage(p); load(p); }}
-        onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
+        pager={(
+          <Pager
+            page={pager.page}
+            lastPage={lastPage}
+            total={total}
+            perPage={pager.perPage}
+            onPage={(p) => { pager.setPage(p); load(p); }}
+            onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
+          />
+        )}
       />
 
       <Dialog open={tolakRow !== null} onOpenChange={(o) => { if (!o) setTolakRow(null); }}>
