@@ -5,8 +5,8 @@ import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
   daftarJenis, daftarTarif, hapusTarif, buatTagihan,
   daftarTunggakan, crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran,
-  riwayatPembayaran, hapusPembayaran, daftarDispensasi, hapusDispensasi,
-  type JenisTagihan, type Tarif, type TunggakanRow, type PembayaranRow, type Dispensasi,
+  riwayatPembayaran, hapusPembayaran,
+  type JenisTagihan, type Tarif, type TunggakanRow, type PembayaranRow,
   type CrosstabBaris, type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
 import { labelSel } from '@/components/keuangan/TagihanCrosstab';
@@ -20,16 +20,15 @@ import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAkti
 import { useLembagaAktif } from '@/lembagaAktif';
 import { usePager } from '@/hooks/usePager';
 import GenerateTagihanDialog from '@/components/keuangan/GenerateTagihanDialog';
-import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
 import {
-  DispensasiTab, FIELDS_DISPENSASI, FIELDS_JENIS, FIELDS_TARIF, FIELDS_TUNGGAKAN,
+  FIELDS_JENIS, FIELDS_TARIF, FIELDS_TUNGGAKAN,
   JenisTab, TagihanTab, TarifTab, TunggakanTab,
 } from '@/components/keuangan/tabKeuangan';
 import {
   DialogTambahJenis, DialogTambahTarif, DialogUbahJenis, DialogUbahTarif,
 } from '@/components/keuangan/jenisTarifDialogs';
 
-const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan', 'tunggakan', 'dispensasi'] as const;
+const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan', 'tunggakan'] as const;
 
 /** State urut satu tabel; perubahan state memicu muat ulang via effect. */
 function useUrutTabel() {
@@ -56,24 +55,21 @@ export default function KeuanganPage() {
   const [jenis, setJenis] = useState<JenisTagihan[]>([]);
   const [tarif, setTarif] = useState<Tarif[]>([]);
   const [tunggakan, setTunggakan] = useState<TunggakanRow[]>([]);
-  const [dispensasi, setDispensasi] = useState<Dispensasi[]>([]);
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [daftarTA, setDaftarTA] = useState<TahunAjaran[]>([]);
   /** Error per tab; digabung untuk satu ErrorNotice di atas halaman. */
   const [errJenis, setErrJenis] = useState('');
   const [errTarif, setErrTarif] = useState('');
   const [errTunggakan, setErrTunggakan] = useState('');
-  const [errDispensasi, setErrDispensasi] = useState('');
   const [errTagihan, setErrTagihan] = useState('');
   /** Status muat per tab — supaya muat ulang satu tab tak menandai tab lain. */
   const [loadingJenis, setLoadingJenis] = useState(false);
   const [loadingTarif, setLoadingTarif] = useState(false);
   const [loadingTunggakan, setLoadingTunggakan] = useState(false);
-  const [loadingDispensasi, setLoadingDispensasi] = useState(false);
   const [loadingTagihan, setLoadingTagihan] = useState(false);
   const [tab, setTab] = useState<string>('jenis');
 
-  const err = errJenis || errTarif || errTunggakan || errDispensasi || errTagihan;
+  const err = errJenis || errTarif || errTunggakan || errTagihan;
 
   useEffect(() => {
     let hidup = true;
@@ -96,7 +92,6 @@ export default function KeuanganPage() {
   const uJenis = useUrutTabel();
   const uTarif = useUrutTabel();
   const uTunggakan = useUrutTabel();
-  const uDispensasi = useUrutTabel();
 
   /** Crosstab tagihan: baris = santri, kolom = jenis (bulanan per bulan). */
   const [crosstab, setCrosstab] = useState<CrosstabTagihan | null>(null);
@@ -235,23 +230,20 @@ export default function KeuanganPage() {
   useEffect(() => { setTagihanPage(1); }, [jenjangs, tahunAjaranNames]);
 
   const load = useCallback(async () => {
-    setErrJenis(''); setErrDispensasi('');
-    setLoadingJenis(true); setLoadingDispensasi(true);
+    setErrJenis('');
+    setLoadingJenis(true);
     try {
-      const [j, l, tas, dispen] = await Promise.all([
+      const [j, l, tas] = await Promise.all([
         daftarJenis({
           sort: uJenis.urut.length ? tokenUrut(uJenis.urut, uJenis.arahKolom) : undefined,
           arah: uJenis.urut.length ? uJenis.arah : undefined,
         }),
         listLembaga({ per_page: 100 }),
         listTahunAjaran({ per_page: 100 }),
-        daftarDispensasi({
-          sort: uDispensasi.urut.length ? tokenUrut(uDispensasi.urut, uDispensasi.arahKolom) : undefined,
-          arah: uDispensasi.urut.length ? uDispensasi.arah : undefined,
-        }),
       ]);
       setJenis(j);
-      setLembagas(l.data); setDaftarTA(tas.data); setDispensasi(dispen);
+      setLembagas(l.data);
+      setDaftarTA(tas.data);
       const taAktif = tas.data.find((x) => x.is_aktif)?.nama ?? tas.data[0]?.nama ?? '';
       const diTA = (v: string) => v !== '' && tas.data.some((x) => x.nama === v);
       setTfTA((v) => (diTA(v) ? v : taAktif));
@@ -260,19 +252,17 @@ export default function KeuanganPage() {
       setTfJenjang((v) => (diLembaga(v) ? v : jenjangBawaan));
     } catch (e) {
       const m = errorMessage(e);
-      setErrJenis(m); setErrDispensasi(m);
+      setErrJenis(m);
     } finally {
-      setLoadingJenis(false); setLoadingDispensasi(false);
+      setLoadingJenis(false);
     }
-  }, [uJenis.urut, uJenis.arah, uJenis.arahKolom, uDispensasi.urut, uDispensasi.arah, uDispensasi.arahKolom]);
+  }, [uJenis.urut, uJenis.arah, uJenis.arahKolom]);
   useEffect(() => { void load(); }, [load]);
 
   // Form sederhana
   const [tambahJenisOpen, setTambahJenisOpen] = useState(false);
   const [tambahTarifOpen, setTambahTarifOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
-  const [dispensasiOpen, setDispensasiOpen] = useState(false);
-  const [editDispensasi, setEditDispensasi] = useState<Dispensasi | null>(null);
   const [editJenis, setEditJenis] = useState<JenisTagihan | null>(null);
   const [editTarif, setEditTarif] = useState<Tarif | null>(null);
   const [tfJenjang, setTfJenjang] = useState('MI');
@@ -475,8 +465,6 @@ export default function KeuanganPage() {
     if (genTAtopbar && daftarTA.some((x) => x.nama === genTAtopbar)) setTfTA(genTAtopbar);
     setTambahTarifOpen(true);
   }, [genTAtopbar, daftarTA]);
-  const bukaTambahDispensasi = useCallback(() => { setEditDispensasi(null); setDispensasiOpen(true); }, []);
-  const bukaUbahDispensasi = useCallback((d: Dispensasi) => { setEditDispensasi(d); setDispensasiOpen(true); }, []);
   const suksesTarif = useCallback(async () => {
     await load();
     await loadTarif(jenjangs, tahunAjaranNames);
@@ -490,15 +478,6 @@ export default function KeuanganPage() {
       } catch (e2) { toast.error(errorMessage(e2)); }
     })();
   }, [loadTarif, jenjangs, tahunAjaranNames]);
-  const hapusDispensasiBaris = useCallback((r: Dispensasi) => {
-    void (async () => {
-      try {
-        await hapusDispensasi(r.id);
-        toast.success('Dispensasi dihapus.');
-        await load();
-      } catch (e2) { toast.error(errorMessage(e2)); }
-    })();
-  }, [load]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -509,7 +488,6 @@ export default function KeuanganPage() {
           { key: 'keuangan_jenis', judul: 'Jenis Tagihan', fields: FIELDS_JENIS },
           { key: 'keuangan_tarif', judul: 'Tarif', fields: FIELDS_TARIF },
           { key: 'keuangan_tunggakan', judul: 'Tunggakan', fields: FIELDS_TUNGGAKAN },
-          { key: 'keuangan_dispensasi', judul: 'Dispensasi', fields: FIELDS_DISPENSASI },
         ]}
       />
       <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0">
@@ -518,7 +496,7 @@ export default function KeuanganPage() {
           <TabsTrigger value="tarif" id="keu_tab_tarif" className={KELAS_TRIGGER}>Tarif</TabsTrigger>
           <TabsTrigger value="tagihan" id="keu_tab_tagihan" className={KELAS_TRIGGER}>Tagihan</TabsTrigger>
           <TabsTrigger value="tunggakan" id="keu_tab_tunggakan" className={KELAS_TRIGGER}>Tunggakan</TabsTrigger>
-          <TabsTrigger value="dispensasi" id="keu_tab_dispensasi" className={KELAS_TRIGGER}>Dispensasi</TabsTrigger>
+          {/* Dispensasi pindah ke sub-grup terpisah */}
         </TabsList>
 
         <TabsContent value="jenis" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
@@ -641,16 +619,6 @@ export default function KeuanganPage() {
           />
         </TabsContent>
 
-        <TabsContent value="dispensasi" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <DispensasiTab
-            rows={dispensasi}
-            loading={loadingDispensasi}
-            sort={uDispensasi}
-            onTambah={bukaTambahDispensasi}
-            onEdit={bukaUbahDispensasi}
-            onHapus={hapusDispensasiBaris}
-          />
-        </TabsContent>
       </Tabs>
 
       <GenerateTagihanDialog
@@ -664,15 +632,6 @@ export default function KeuanganPage() {
           setTagihanPage(1);
           await loadCrosstab(1, tagihanPerPage, jenjangs, tahunAjaranNames);
         }}
-      />
-      <DispensasiDialog
-        open={dispensasiOpen}
-        onOpenChange={setDispensasiOpen}
-        editing={editDispensasi}
-        jenis={jenis}
-        daftarTA={daftarTA}
-        taBawaan={genTAtopbar}
-        onSaved={load}
       />
 
       {tambahTarifOpen && (

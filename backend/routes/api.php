@@ -98,6 +98,9 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::delete('keuangan/tagihan/{tagihan}', [TagihanController::class, 'destroyTagihan'])->middleware('permission:keuangan.hapus');
         Route::match(['put', 'patch'], 'keuangan/tagihan/{tagihan}', [TagihanController::class, 'updateTagihan'])->middleware('permission:keuangan.ubah');
         Route::post('keuangan/tagihan/generate', [TagihanController::class, 'generateTagihan'])->middleware('permission:keuangan.tambah');
+        // Pratinjau: hitungan generate tanpa menulis apa pun (dipakai dialog
+        // Buat Tagihan supaya aturan grup/kuota hanya hidup di backend).
+        Route::post('keuangan/tagihan/pratinjau', [TagihanController::class, 'pratinjauTagihan'])->middleware('permission:keuangan.tambah');
         Route::get('keuangan/tagihan/kandidat', [TagihanController::class, 'kandidatTagihan'])->middleware('permission:keuangan.tambah');
         Route::post('keuangan/pembayaran', [PembayaranController::class, 'storePembayaran'])->middleware('permission:keuangan.tambah');
         Route::post('keuangan/pembayaran/{pembayaran}/batal', [PembayaranController::class, 'batalPembayaran'])->middleware('permission:keuangan.ubah');

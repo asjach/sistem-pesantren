@@ -450,6 +450,103 @@ class DispensasiTest extends TestCase
             ->assertStatus(200)->assertJsonCount(1);
     }
 
+    public function test_pratinjau_sama_dengan_generate_dan_tak_menulis(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Pratinjau');
+        $ganjil = $this->paket($jenis, 'Ganjil', 'bebas', 0, $santri);
+        $ganjil->update(['grup' => 'prestasi', 'kuota_bulan' => 1]);
+        $genap = $this->paket($jenis, 'Genap', 'persen', 50, $santri);
+        $genap->update(['grup' => 'prestasi']);
+
+        $payload = [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id,
+            'periode' => '2025-07', 'periode_sampai' => '2025-08', 'nominal' => 100000,
+            'santri' => [['santri_id' => $santri->id]],
+        ];
+
+        $pratinjau = $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/pratinjau', $payload)
+            ->assertStatus(200)->json();
+        // Pratinjau tak menulis apa pun.
+        $this->assertDatabaseCount('tagihan', 0);
+        // Juli: ganjil (bebas) menang; Agustus: kuotanya habis → failover ke genap.
+        $this->assertSame(0, $pratinjau[0]['nominal']);
+        $this->assertSame([$ganjil->id], $pratinjau[0]['dispensasi_ids']);
+        $this->assertSame(['Ganjil'], $pratinjau[0]['dispensasi_nama']);
+        $this->assertFalse($pratinjau[0]['seragam']);
+        $this->assertSame(50000, $pratinjau[0]['periode'][1]['nominal']);
+        $this->assertSame([$genap->id], $pratinjau[0]['periode'][1]['dispensasi_ids']);
+        $this->assertSame([], $pratinjau[0]['tak_kebagian']);
+        // Sumbangan tiap paket per baris ikut dikirim (dasar kartu hover UI).
+        $this->assertSame([
+            ['id' => $ganjil->id, 'nama' => 'Ganjil', 'tipe' => 'bebas', 'nilai' => 0,
+                'sebelum' => 100000, 'sesudah' => 0, 'potongan' => 100000],
+        ], $pratinjau[0]['periode'][0]['langkah']);
+        $this->assertSame($genap->id, $pratinjau[0]['periode'][1]['langkah'][0]['id']);
+        $this->assertSame(50000, $pratinjau[0]['periode'][1]['langkah'][0]['potongan']);
+
+        // Generate dengan payload sama menulis nilai yang dijanjikan pratinjau.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
+            ->assertStatus(200)->assertJson(['dibuat' => 2]);
+        $jul = Tagihan::where('santri_id', $santri->id)->where('periode', '2025-07')->firstOrFail();
+        $agu = Tagihan::where('santri_id', $santri->id)->where('periode', '2025-08')->firstOrFail();
+        $this->assertSame($pratinjau[0]['periode'][0]['nominal'], (int) $jul->nominal);
+        $this->assertSame($pratinjau[0]['periode'][0]['dispensasi_ids'], $jul->dispensasi_ids);
+        $this->assertSame($pratinjau[0]['periode'][1]['nominal'], (int) $agu->nominal);
+        $this->assertSame($pratinjau[0]['periode'][1]['dispensasi_ids'], $agu->dispensasi_ids);
+    }
+
+    public function test_pratinjau_sebut_penerima_yang_tak_kebagian_kuota(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Kuota Habis');
+        $habis = $this->paket($jenis, 'Kuota Habis', 'persen', 50, $santri);
+        $habis->update(['kuota_bulan' => 1]);
+        // Kuotanya sudah terpakai habis di tagihan bulan sebelumnya.
+        $lampau = $this->tagihanManual($santri, $jenis);
+        $lampau->update(['dispensasi_ids' => [$habis->id]]);
+
+        $pratinjau = $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/pratinjau', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-08',
+            'nominal' => 100000, 'santri' => [['santri_id' => $santri->id]],
+        ])->assertStatus(200)->json();
+
+        $this->assertSame(100000, $pratinjau[0]['nominal']);
+        $this->assertNull($pratinjau[0]['dispensasi_ids']);
+        $this->assertSame(['Kuota Habis'], $pratinjau[0]['tak_kebagian']);
+        $this->assertTrue($pratinjau[0]['seragam']);
+    }
+
+    public function test_pratinjau_tandai_baris_yang_dilewati_generate(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Sudah Bayar');
+        $this->paket($jenis, 'Prestasi', 'bebas', 0, $santri);
+
+        $tagihan = $this->tagihanManual($santri, $jenis);
+        $tagihan->update(['terbayar' => 50000, 'status' => 'sebagian']);
+
+        $payload = [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
+            'nominal' => 100000, 'santri' => [['santri_id' => $santri->id]],
+        ];
+        $pratinjau = $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/pratinjau', $payload)
+            ->assertStatus(200)->json();
+        // Baris dibiarkan apa adanya generate → ditampilkan nilai sekarang,
+        // dengan sebabnya supaya user tahu bukan kegagalan diam-diam.
+        $this->assertSame('sudah ada pembayaran', $pratinjau[0]['periode'][0]['sebab']);
+        $this->assertSame(100000, $pratinjau[0]['nominal']);
+        $this->assertNull($pratinjau[0]['dispensasi_ids']);
+
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
+            ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 0, 'dilewati' => 1]);
+        $this->assertNull($tagihan->fresh()->dispensasi_ids);
+        $this->assertSame(50000, (int) $tagihan->fresh()->terbayar);
+    }
+
     private function tagihanManual(Santri $santri, JenisTagihan $jenis, int $nominal = 100000): Tagihan
     {
         return Tagihan::create([

@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import {
-  generateTagihan, kandidatTagihan, kuotaPakai, daftarDispensasi,
-  type JenisTagihan, type KandidatTagihanRow, type KelompokKandidat, type Tarif, type Dispensasi,
+  generateTagihan, kandidatTagihan, pratinjauTagihan,
+  type JenisTagihan, type KandidatTagihanRow, type KelompokKandidat, type PratinjauBaris,
+  type Tarif, type PratinjauSantri,
 } from '../../api/keuangan';
+import RincianBulanKartu from './RincianBulanKartu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
@@ -18,7 +20,7 @@ import { ActionIcon } from '@/components/RowActions';
 import { ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
-import { alokasiPaketKuota, hitungDispensasi } from '@/lib/dispensasi';
+import { rincianPeriode } from '@/lib/dispensasi';
 import { ArrowRight, Trash2, X } from '@/icons';
 import { type PerPage } from '@/prefs';
 
@@ -65,6 +67,16 @@ const FIELDS_TERPILIH: ExcelField[] = [
   { key: 'kelas', label: 'Tkt / Kelas', kind: 'static', width: 120 },
   { key: 'sekarang', label: 'Nominal sekarang', kind: 'static', width: 150 },
   { key: 'nominal', label: 'Nominal baru', kind: 'text', width: 110 },
+  {
+    key: 'rincian', label: 'Rincian Bulan', kind: 'static', width: 220,
+    // Teks sel kerap terpotong lebar kolom → detail lengkapnya di kartu hover.
+    kartuHover: (row) => {
+      const periode = (row as unknown as BarisTerpilih).periode;
+      return periode === null || periode === undefined
+        ? null
+        : <RincianBulanKartu periode={periode} />;
+    },
+  },
   { key: 'dispensasi', label: 'Dispensasi', kind: 'static', width: 170 },
 ];
 
@@ -72,6 +84,10 @@ type KandidatRow = KandidatTagihanRow & { id: number };
 type BarisTerpilih = KandidatTagihanRow & {
   nominal: string; nominalManual: boolean;
   potongan: number; dispensasiIds: number[] | null; dispensasiLabel: string | null;
+  /** Potongan per bulan dari pratinjau (null = satu bulan / belum dimuat). */
+  rincian: string | null;
+  /** Periode mentah dari pratinjau — isi kartu hover kolom Rincian Bulan. */
+  periode: PratinjauBaris[] | null;
 };
 
 interface Props {
@@ -118,7 +134,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
   const [terpilih, setTerpilih] = useState<BarisTerpilih[]>([]);
   const [busy, setBusy] = useState(false);
-  const [daftarDispen, setDaftarDispen] = useState<Dispensasi[]>([]);
 
   const jenisTerpilih = useMemo(() => jenis.find((j) => j.id === jenisId) ?? null, [jenis, jenisId]);
   const bulanan = jenisTerpilih?.tipe === 'bulanan';
@@ -127,7 +142,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   useEffect(() => {
     if (!open) return;
     setTerpilih([]); setCari(''); setKelompok('aktif'); setJenisId(''); setTarifId('');
-    setNominalDefault(''); setJatuhTempo(''); setErr(''); setDaftarDispen([]);
+    setNominalDefault(''); setJatuhTempo(''); setErr('');
     const m = (tahunAjaran ?? '').match(/^(\d{4})\/(\d{4})$/);
     if (m) { setPeriodeDari(`${m[1]}-07`); setPeriodeSampai(`${m[2]}-06`); }
     else { setPeriodeDari(''); setPeriodeSampai(''); }
@@ -165,84 +180,78 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   const idTerpilih = useMemo(() => new Set(terpilih.map((r) => r.santri_id)), [terpilih]);
   const kandidatTampil = useMemo(() => kandidat.filter((r) => !idTerpilih.has(r.santri_id)), [kandidat, idTerpilih]);
 
-  // Dispensasi aktif untuk TA+jenis terpilih (dipakai pratinjau nominal).
-  useEffect(() => {
-    if (!open || tahunAjaran === null || jenisId === '') { setDaftarDispen([]); return; }
-    let hidup = true;
-    void (async () => {
-      try {
-        const d = await daftarDispensasi({ tahun_ajaran: tahunAjaran, jenis_id: jenisId, is_active: true });
-        if (hidup) setDaftarDispen(d);
-      } catch { if (hidup) setDaftarDispen([]); }
-    })();
-    return () => { hidup = false; };
-  }, [open, tahunAjaran, jenisId]);
-
   /** Berapa periode yang akan digenerate — dipakai ringkasan "N/M bulan" + konsumsi kuota. */
   const jumlahPeriode = useMemo(
     () => (bulanan ? hitungJumlahPeriode(periodeDari, periodeSampai) : 1),
     [bulanan, periodeDari, periodeSampai],
   );
 
-  const idsTerpilih = useMemo(() => terpilih.map((r) => r.santri_id), [terpilih]);
-  /** Tanda isi terpilih (stabil terhadap identitas array): fetch kuota hanya
-   *  bila HIMPUNAN santri berubah — bukan tiap render ulang terpilih. */
-  const sigTerpilih = useMemo(
-    () => [...new Set(idsTerpilih)].sort((a, b) => a - b).join(','),
-    [idsTerpilih],
+  /** Santri baris otomatis — baris bernominal manual tak perlu pratinjau. */
+  const santriAuto = useMemo(
+    () => [...new Set(terpilih.filter((r) => !r.nominalManual).map((r) => r.santri_id))].sort((a, b) => a - b),
+    [terpilih],
   );
-  const idsTerpilihRef = useRef(idsTerpilih);
-  idsTerpilihRef.current = idsTerpilih;
+  /** Tanda isi otomatis (stabil terhadap identitas array): pratinjau hanya
+   *  dimuat ulang bila HIMPUNAN santrinya berubah — bukan tiap render. */
+  const sigAuto = useMemo(() => santriAuto.join(','), [santriAuto]);
+  const santriAutoRef = useRef(santriAuto);
+  santriAutoRef.current = santriAuto;
 
-  // Kuota terpakai per santri (pratinjau; backend otoritatif) — muat ulang
-  // saat daftar terpilih berubah (debounce).
-  const [kuotaPakaiMap, setKuotaPakaiMap] = useState<Record<number, Record<number, number>>>({});
+  const nominalAngkaDefault = Number(nominalDefault);
+  // Field kosong bukan 0: jangan minta pratinjau (dan jangan tampilkan
+  // potongan) sebelum nominalnya diisi.
+  const pratinjauSiap = jenisId !== '' && tahunAjaran !== null && nominalDefault.trim() !== ''
+    && Number.isInteger(nominalAngkaDefault) && nominalAngkaDefault >= 0
+    && (!bulanan || hitungJumlahPeriode(periodeDari, periodeSampai) > 0);
+
+  /** Potongan & dispensasi dari backend — hitungan yang sama dengan generate
+   *  (aturan grup/kuota tak lagi dicerminkan di sini). Nilai lama dibiarkan
+   *  tampil sampai jawaban baru datang supaya tabel tak berkedip. */
+  const [pratinjau, setPratinjau] = useState<Record<number, PratinjauSantri>>({});
+  const [pratinjauGagal, setPratinjauGagal] = useState(false);
   useEffect(() => {
-    if (!open || sigTerpilih === '') { setKuotaPakaiMap({}); return; }
+    if (!open || !pratinjauSiap) { setPratinjau({}); setPratinjauGagal(false); return; }
+    if (sigAuto === '') { setPratinjau({}); setPratinjauGagal(false); return; }
     let hidup = true;
     const t = setTimeout(() => {
       void (async () => {
         try {
-          const m = await kuotaPakai(idsTerpilihRef.current);
+          const h = await pratinjauTagihan({
+            tahun_ajaran: tahunAjaran, jenis_id: Number(jenisId),
+            periode: bulanan ? periodeDari : null,
+            periode_sampai: bulanan ? (periodeSampai || null) : null,
+            nominal: nominalAngkaDefault,
+            santri: santriAutoRef.current.map((id) => ({ santri_id: id })),
+          });
           if (!hidup) return;
-          // Samakan isi = pertahankan identitas (putus loop alokasi).
-          setKuotaPakaiMap((lama) => (JSON.stringify(lama) === JSON.stringify(m) ? lama : m));
-        } catch { if (hidup) setKuotaPakaiMap({}); }
+          setPratinjau(Object.fromEntries(h.map((p) => [p.santri_id, p])));
+          setPratinjauGagal(false);
+        } catch {
+          if (hidup) { setPratinjau({}); setPratinjauGagal(true); }
+        }
       })();
     }, 300);
     return () => { hidup = false; clearTimeout(t); };
-  }, [open, sigTerpilih]);
+  }, [open, pratinjauSiap, jenisId, tahunAjaran, bulanan, periodeDari, periodeSampai, nominalAngkaDefault, sigAuto]);
 
-  /** Alokasi paket per baris terpilih (semua paket otomatis + kuota;
-   *  cermin backend, pratinjau indicatif). */
-  const alokasi = useMemo(
-    () => alokasiPaketKuota(daftarDispen, idsTerpilih, kuotaPakaiMap, jumlahPeriode),
-    [daftarDispen, idsTerpilih, kuotaPakaiMap, jumlahPeriode],
-  );
-
-  /** Susun baris otomatis: nominal default + alokasi paket per baris
-   *  (otomatis + kuota; manual tak diubah). Penerima kuota yang tak kebagian
-   *  disebut di label agar jelas (backend otoritatif). */
+  /** Susun baris otomatis dari jawaban pratinjau (manual tak diubah). */
   const susunBaris = useCallback((r: KandidatTagihanRow, nominalStr: string): BarisTerpilih => {
-    const awal = Number(nominalStr);
-    if (jenisId === '' || !Number.isInteger(awal) || awal < 0) {
-      return { ...r, nominal: nominalStr, nominalManual: false, potongan: 0, dispensasiIds: null, dispensasiLabel: null };
+    const p = pratinjau[r.santri_id];
+    if (p === undefined) {
+      return { ...r, nominal: nominalStr, nominalManual: false, potongan: 0, dispensasiIds: null, dispensasiLabel: null, rincian: null, periode: null };
     }
-    const paket = alokasi.get(r.santri_id) ?? [];
-    const dapat = new Set(paket.map((d) => d.id));
-    const takKebagian = daftarDispen
-      .filter((d) => d.kuota_bulan !== null && (d.santri_ids ?? []).includes(r.santri_id) && !dapat.has(d.id))
-      .map((d) => d.nama);
-    const h = hitungDispensasi(awal, paket, Number(jenisId));
-    const dasar = h.label === '' ? null : h.label;
-    const catatan = takKebagian.length > 0 ? `tak kebagian kuota: ${takKebagian.join(', ')}` : null;
-    const label = [dasar, catatan].filter((x): x is string => x !== null).join(' · ') || null;
+    const catatan = [
+      p.tak_kebagian.length > 0 ? `tak kebagian kuota: ${p.tak_kebagian.join(', ')}` : null,
+      p.periode.find((b) => b.sebab !== null)?.sebab ?? null,
+    ].filter((x): x is string => x !== null);
+    const label = [p.dispensasi_nama.join(', ') || null, ...catatan]
+      .filter((x): x is string => x !== null).join(' · ') || null;
     return {
-      ...r, nominal: String(h.nominal), nominalManual: false,
-      potongan: h.potongan, dispensasiIds: h.ids.length > 0 ? h.ids : null,
-      dispensasiLabel: label,
+      ...r, nominal: String(p.nominal), nominalManual: false,
+      potongan: p.potongan, dispensasiIds: p.dispensasi_ids, dispensasiLabel: label,
+      rincian: rincianPeriode(p.periode), periode: p.periode,
     };
-  }, [alokasi, daftarDispen, jenisId]);
+  }, [pratinjau]);
 
   // Nominal default / dispensasi berubah → baris otomatis dihitung ulang.
   // Hanya baris yang nilainya berubah diganti (identitas dipertahankan)
@@ -255,7 +264,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         if (r.nominalManual) return r;
         const b = susunBaris(r, nominalDefault);
         if (b.nominal === r.nominal && b.potongan === r.potongan
-          && b.dispensasiLabel === r.dispensasiLabel
+          && b.dispensasiLabel === r.dispensasiLabel && b.rincian === r.rincian
+          && b.periode === r.periode
           && JSON.stringify(b.dispensasiIds) === JSON.stringify(r.dispensasiIds)) return r;
         berubah = true;
         return b;
@@ -504,15 +514,16 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                       kelas: [r.tingkat, r.kelas].filter(Boolean).join(' / ') || '—',
                       sekarang: ringkasSudahAda(r, jumlahPeriode),
                       nominal: r.nominal,
+                      rincian: r.nominalManual ? 'Nominal manual' : r.rincian,
                       dispensasi: r.dispensasiLabel === null
                         ? null
-                        : `−Rp ${r.potongan.toLocaleString('id')} · ${r.dispensasiLabel}`,
+                        : `${r.potongan > 0 ? `−Rp ${r.potongan.toLocaleString('id')} · ` : ''}${r.dispensasiLabel}`,
                     })}
                     emptyText="Pindahkan santri dari daftar kandidat (centang lalu Pindahkan, atau ikon →)."
                     canEdit
                     onCommit={async (id, fields) => {
                       setTerpilih((rows) => rows.map((x) => x.santri_id === id
-                        ? { ...x, nominal: fields.nominal ?? x.nominal, nominalManual: true, potongan: 0, dispensasiIds: null, dispensasiLabel: null }
+                        ? { ...x, nominal: fields.nominal ?? x.nominal, nominalManual: true, potongan: 0, dispensasiIds: null, dispensasiLabel: null, rincian: null, periode: null }
                         : x));
                     }}
                     onSaved={() => {}}
@@ -528,6 +539,12 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
               </div>
             </ResizablePanel>
         </ResizablePanelGroup>
+
+        {pratinjauGagal && (
+          <p className="border-t px-2 py-1 text-[11px] text-muted-foreground">
+            Pratinjau potongan gagal dimuat — nominal tampil sebelum dispensasi. Angka final dihitung saat Generate.
+          </p>
+        )}
 
         <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-2 py-2 sm:justify-between">
           <p className="text-sm text-muted-foreground">

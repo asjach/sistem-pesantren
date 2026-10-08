@@ -85,15 +85,52 @@ export function daftarTagihan(params: { page?: string; per_page?: string; jenjan
   return api<Paginate<TagihanRow>>(`/admin/keuangan/tagihan${s ? `?${s}` : ''}`);
 }
 
-export function generateTagihan(data: {
+export interface GenerateTagihanInput {
   tahun_ajaran: string; jenis_id: number; periode?: string | null; periode_sampai?: string | null;
   jatuh_tempo?: string | null; nominal: number; santri: { santri_id: number; nominal?: number | null }[];
-}) {
+}
+
+export function generateTagihan(data: GenerateTagihanInput) {
   return api<{
     dibuat: number; diperbarui: number; tetap: number; dilewati: number;
     /** Tagihan yang dilewati: sudah ada pembayaran (bulanan) atau nominal baru < terbayar. */
     alasan: { santri_id: number; periode: string | null; nominal_sekarang: number; terbayar: number; sebab: string }[];
   }>('/admin/keuangan/tagihan/generate', { method: 'POST', body: JSON.stringify(data) });
+}
+
+/** Sumbangan satu paket pada satu baris: nominal sebelum → sesudah paket. */
+export interface PratinjauLangkah {
+  id: number; nama: string; tipe: 'persen' | 'nominal' | 'bebas'; nilai: number;
+  sebelum: number; sesudah: number; potongan: number;
+}
+
+/** Satu baris (periode) hasil pratinjau generate. */
+export interface PratinjauBaris {
+  periode: string; nominal: number; potongan: number;
+  dispensasi_ids: number[]; nama: string[];
+  /** Paket yang benar-benar menyumbang potongan di baris ini (urut id). */
+  langkah: PratinjauLangkah[];
+  /** Sebab baris dilewati generate (sudah dibayar / nominal baru < terbayar). */
+  sebab: string | null;
+}
+
+/** Pratinjau generate per santri — hitungan backend (sumber yang sama
+ *  dengan generate; frontend tak lagi mencerminkan aturan grup/kuota). */
+export interface PratinjauSantri {
+  santri_id: number;
+  /** Nilai periode pertama — yang ditampilkan tabel. */
+  nominal: number; potongan: number;
+  dispensasi_ids: number[] | null; dispensasi_nama: string[];
+  /** Semua periode bernilai & berdispensasi sama (false = failover kuota). */
+  seragam: boolean;
+  /** Penerima paket berkuota yang tak kebagian kuota dalam rentang ini. */
+  tak_kebagian: string[];
+  periode: PratinjauBaris[];
+}
+
+/** Hitungan generate tanpa menulis apa pun — dipakai dialog Buat Tagihan. */
+export function pratinjauTagihan(data: GenerateTagihanInput) {
+  return api<PratinjauSantri[]>('/admin/keuangan/tagihan/pratinjau', { method: 'POST', body: JSON.stringify(data) });
 }
 
 /** Buat SATU tagihan manual (dipakai popover tambah dari sel kosong).

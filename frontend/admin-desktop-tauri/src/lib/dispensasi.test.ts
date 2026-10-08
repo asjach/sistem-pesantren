@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Dispensasi } from '@/api/keuangan';
+import type { Dispensasi, PratinjauBaris } from '@/api/keuangan';
 import {
-  alokasiPaketKuota,
   aturanUntukJenis,
   hitungDispensasi,
+  labelBulan,
+  rincianPeriode,
   ringkasAturan,
   saringDispensasi,
   selaraskanGrup,
@@ -92,42 +93,74 @@ describe('selaraskanGrup', () => {
   });
 });
 
+describe('labelBulan', () => {
+  it('menerjemahkan YYYY-MM jadi bulan singkat; periode lain apa adanya', () => {
+    expect(labelBulan('2025-07')).toBe('Jul');
+    expect(labelBulan('2026-12')).toBe('Des');
+    expect(labelBulan('2025/2026')).toBe('2025/2026');
+  });
+});
+
+describe('rincianPeriode', () => {
+  const b = (
+    periode: string, nominal: number, ids: number[] = [], sebab: string | null = null,
+    nama: string[] = [],
+  ): PratinjauBaris => ({ periode, nominal, potongan: 0, dispensasi_ids: ids, nama, langkah: [], sebab });
+
+  it('null untuk satu bulan, "Sama tiap bulan" bila seragam', () => {
+    expect(rincianPeriode([b('2025-07', 50000)])).toBeNull();
+    expect(rincianPeriode([b('2025-07', 0), b('2025-08', 0)])).toBe('Sama tiap bulan');
+  });
+
+  it('menggabung bulan berurutan yang sama & menandai bulan yang dilewati', () => {
+    expect(rincianPeriode([
+      b('2025-07', 0, [1]),
+      b('2025-08', 50000, [2]),
+      b('2025-09', 50000, [2]),
+      b('2026-06', 100000, [], 'sudah ada pembayaran'),
+    ])).toBe('Jul: 0 · Agu–Sep: 50.000 · Jun: 100.000 (dilewati)');
+  });
+
+  it('rentang lintas tahun tanpa tahun; nominal sama tapi paket beda tetap dipisah', () => {
+    expect(rincianPeriode([
+      b('2025-07', 0, [1]),
+      b('2025-08', 50000, [2]),
+      b('2026-06', 50000, [2]),
+    ])).toBe('Jul: 0 · Agu–Jun: 50.000');
+    expect(rincianPeriode([b('2025-07', 0, [1]), b('2025-08', 0, [2])]))
+      .toBe('Jul: 0 · Agu: 0');
+  });
+
+  it('menyebut nama paket saat paketnya berpindah (nominal bisa sama)', () => {
+    expect(rincianPeriode([
+      b('2025-07', 0, [2, 5], null, ['Anak Pegawai', 'Genap']),
+      b('2025-08', 0, [2, 3], null, ['Anak Pegawai', 'Ganjil']),
+      b('2025-09', 0, [2, 3], null, ['Anak Pegawai', 'Ganjil']),
+    ])).toBe('Jul: 0 (Anak Pegawai, Genap) · Agu–Sep: 0 (Anak Pegawai, Ganjil)');
+    // Paket sama terus → namanya disebut sekali (di rentang pertama) saja.
+    expect(rincianPeriode([
+      b('2025-07', 0, [2], null, ['Anak Pegawai']),
+      b('2025-08', 50000, [2], null, ['Anak Pegawai']),
+    ])).toBe('Jul: 0 (Anak Pegawai) · Agu: 50.000');
+  });
+
+  it('kasus failover nyata: bulan dibiarkan, lalu paket berganti di tengah', () => {
+    expect(rincianPeriode([
+      b('2026-07', 10000, [], 'sudah ada pembayaran'),
+      b('2026-08', 10000, [], 'sudah ada pembayaran'),
+      b('2026-09', 0, [2, 3], null, ['Anak Pegawai', 'Prestasi Ganjil']),
+      b('2027-02', 0, [2, 3], null, ['Anak Pegawai', 'Prestasi Ganjil']),
+      b('2027-03', 0, [2, 5], null, ['Anak Pegawai', 'Prestasi Genap']),
+      b('2027-06', 0, [2, 5], null, ['Anak Pegawai', 'Prestasi Genap']),
+    ])).toBe('Jul–Agu: 10.000 (dilewati) · Sep–Feb: 0 (Anak Pegawai, Prestasi Ganjil)'
+      + ' · Mar–Jun: 0 (Anak Pegawai, Prestasi Genap)');
+  });
+});
+
 describe('sisaKuota', () => {
   it('null tanpa kuota; kuota − terpakai bila ada', () => {
     expect(sisaKuota(paket({ id: 1 }), 3)).toBeNull();
     expect(sisaKuota(paket({ id: 1, kuota_bulan: 6 }), 4)).toBe(2);
     expect(sisaKuota(paket({ id: 1, kuota_bulan: 2 }), 2)).toBe(0);
-  });
-});
-
-describe('alokasiPaketKuota', () => {
-  it('urut santri, bulan awal dulu; bukan-penerima & habis dicoret', () => {
-    const kuota = paket({ id: 1, kuota_bulan: 2 }, [], [7, 8]);
-    const tetap = paket({ id: 2 }, [], [7, 8]);
-    const hasil = alokasiPaketKuota([kuota, tetap], [7, 8, 9], { 7: { 1: 1 } }, 1);
-    // Santri 7: sisa 2−1=1 → dapat (konsumsi 1). Santri 8: sisa 2−0−0… run ini
-    // belum pakai untuk 8 (alokasi per santri) → dapat. Bukan penerima tidak.
-    expect(hasil.get(7)?.map((d) => d.id)).toEqual([1, 2]);
-    expect(hasil.get(8)?.map((d) => d.id)).toEqual([1, 2]);
-    expect(hasil.get(9)).toEqual([]);
-  });
-
-  it('penghitung per santri independen', () => {
-    const kuota = paket({ id: 1, kuota_bulan: 1 }, [], [7, 8]);
-    // Kuota 7 habis → 7 dicoret, 8 (penghitung sendiri) tetap dapat.
-    const hasil = alokasiPaketKuota([kuota], [7, 8], { 7: { 1: 1 } }, 1);
-    expect(hasil.get(7)).toEqual([]);
-    expect(hasil.get(8)?.map((d) => d.id)).toEqual([1]);
-  });
-
-  it('se-grup failover: habis dicoret dulu, bersisa maju (tak menumpuk)', () => {
-    const ganjil = paket({ id: 1, kuota_bulan: 1, grup: 'prestasi' }, [], [7]);
-    const genap = paket({ id: 2, kuota_bulan: 6, grup: 'prestasi' }, [], [7]);
-    // Ganjil habis (1/1) → Genap maju sendirian.
-    const hasil = alokasiPaketKuota([ganjil, genap], [7], { 7: { 1: 1 } }, 1);
-    expect(hasil.get(7)?.map((d) => d.id)).toEqual([2]);
-    // Keduanya bersisa → pertama menang, tak menumpuk.
-    const hasil2 = alokasiPaketKuota([genap, ganjil], [7], {}, 1);
-    expect(hasil2.get(7)?.map((d) => d.id)).toEqual([1]);
   });
 });

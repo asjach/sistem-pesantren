@@ -1,4 +1,90 @@
-import type { Dispensasi } from '@/api/keuangan';
+import type { Dispensasi, PratinjauBaris } from '@/api/keuangan';
+
+const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+/** "2025-07" → "Jul"; periode lain (mis. kode TA) dikembalikan apa adanya.
+ *  Tahunnya sengaja tidak diulang: dialog sudah menampilkan Dari/Sampai Bulan. */
+export function labelBulan(periode: string): string {
+  const m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(periode);
+  if (!m) return periode;
+  return BULAN[Number(m[2]) - 1];
+}
+
+/** Rentang satu kelompok bulan: "Jul" atau "Agu–Jun". */
+function labelRentang(pertama: string, terakhir: string): string {
+  return pertama === terakhir
+    ? labelBulan(pertama)
+    : `${labelBulan(pertama)}–${labelBulan(terakhir)}`;
+}
+
+/** Satu rentang bulan yang bernilai & berdispensasi sama (hasil pengelompokan). */
+export interface RentangPeriode {
+  /** "Jul–Agu" (label ringkas, sudah dibentuk `labelRentang`). */
+  label: string;
+  /** Periode pertama & terakhir rentang (untuk label panjang di kartu). */
+  dari: string;
+  sampai: string;
+  bulan: number;
+  nominal: number;
+  potongan: number;
+  nama: string[];
+  langkah: PratinjauBaris['langkah'];
+  sebab: string | null;
+}
+
+/** Kelompokkan bulan-bulan berurutan yang bernilai & berdispensasi sama.
+ *  Satu sumber untuk teks ringkas sel maupun kartu hover. */
+export function rentangPeriode(baris: PratinjauBaris[]): RentangPeriode[] {
+  const kunci = (b: PratinjauBaris) =>
+    `${b.nominal}|${b.dispensasi_ids.join(',')}|${b.sebab ?? ''}`;
+  const kelompok: PratinjauBaris[][] = [];
+  for (const b of baris) {
+    const akhir = kelompok[kelompok.length - 1];
+    if (akhir && kunci(akhir[0]) === kunci(b)) akhir.push(b);
+    else kelompok.push([b]);
+  }
+  return kelompok.map((k) => {
+    const awal = k[0];
+    return {
+      label: labelRentang(awal.periode, k[k.length - 1].periode),
+      dari: awal.periode,
+      sampai: k[k.length - 1].periode,
+      bulan: k.length,
+      nominal: awal.nominal,
+      potongan: awal.potongan,
+      nama: awal.nama,
+      langkah: awal.langkah ?? [],
+      sebab: awal.sebab,
+    };
+  });
+}
+
+/** Label rentang untuk kartu hover — dengan tahun ("Agu 2026 – Jun 2027"). */
+export function labelRentangPanjang(dari: string, sampai: string): string {
+  if (dari === sampai) return `${labelBulan(dari)} ${dari.slice(0, 4)}`;
+  return `${labelBulan(dari)} ${dari.slice(0, 4)} – ${labelBulan(sampai)} ${sampai.slice(0, 4)}`;
+}
+
+/** Rincian potongan per bulan dari jawaban pratinjau backend: bulan-bulan
+ *  berurutan yang bernilai & berdispensasi sama digabung, jadi efek failover
+ *  kuota terlihat (mis. "Jul: 0 · Agu–Jun: 50.000").
+ *  `null` bila rentangnya cuma satu bulan — tak ada yang perlu dijelaskan;
+ *  "Sama tiap bulan" bila semua bulannya sama. */
+export function rincianPeriode(baris: PratinjauBaris[]): string | null {
+  if (baris.length < 2) return null;
+  const rentang = rentangPeriode(baris);
+  if (rentang.length === 1) return 'Sama tiap bulan';
+  // Nama paket disebut saat paketnya BERPINDAH dari rentang sebelumnya —
+  // itulah titik failover-nya; tanpa itu "0 · 0 · 0" tak menjelaskan apa pun.
+  return rentang.map((r, i) => {
+    const bagian = [`${r.label}: ${r.nominal.toLocaleString('id')}`];
+    const nama = r.nama.join(', ');
+    const sebelum = i === 0 ? '' : rentang[i - 1].nama.join(', ');
+    if (nama !== '' && nama !== sebelum) bagian.push(`(${nama})`);
+    if (r.sebab) bagian.push('(dilewati)');
+    return bagian.join(' ');
+  }).join(' · ');
+}
 
 /** Aturan satu dispensasi untuk jenis terpilih (spesifik menang atas semua-jenis).
  *  Cerminan `DispensasiService::aturanUntukJenis` di backend (dipakai pratinjau). */
@@ -86,44 +172,4 @@ export function sisaKuota(
 ): number | null {
   if (d.kuota_bulan === null || d.kuota_bulan === undefined) return null;
   return d.kuota_bulan - terpakai;
-}
-
-/** Alokasi paket berkuota ke baris-baris generate (urut daftar santri,
- *  bulan-bulan awal dulu — cermin alokasi backend). Non-kuota & penerima
- *  selalu ikut; berkuota ikut bila sisa masih ada (konsumsi = periode run).
- *  Se-grup tak menumpuk: saring kuota dulu (failover — habis dicoret agar
- *  bersisa maju), lalu pertama (id terkecil) menang per grup.
- *  Pratinjau indicatif: backend otoritatif (pengecualian baris existing
- *  & parsial dalam-santri hanya dihitung di sana). */
-export function alokasiPaketKuota(
-  paket: Dispensasi[],
-  santriIds: number[],
-  terpakai: Record<number, Record<number, number>>,
-  periode: number,
-): Map<number, Dispensasi[]> {
-  const jalan = new Map<string, number>();
-  const hasil = new Map<number, Dispensasi[]>();
-  for (const sid of santriIds) {
-    const pakai = terpakai[sid] ?? {};
-    const tersedia = saringDispensasi(paket, sid).filter((d) => {
-      if (d.kuota_bulan === null || d.kuota_bulan === undefined) return true;
-      const sisa = d.kuota_bulan - (pakai[d.id] ?? 0) - (jalan.get(`${sid}:${d.id}`) ?? 0);
-      return sisa > 0;
-    });
-    const menang = new Set<string>();
-    const selaras = [...tersedia].sort((a, b) => a.id - b.id).filter((d) => {
-      if (d.grup === null || d.grup === undefined) return true;
-      if (menang.has(d.grup)) return false;
-      menang.add(d.grup);
-      return true;
-    });
-    for (const d of selaras) {
-      if (d.kuota_bulan !== null && d.kuota_bulan !== undefined) {
-        const kunci = `${sid}:${d.id}`;
-        jalan.set(kunci, (jalan.get(kunci) ?? 0) + periode);
-      }
-    }
-    hasil.set(sid, selaras);
-  }
-  return hasil;
 }

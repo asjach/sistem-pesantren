@@ -47,6 +47,7 @@ const MiMdPage = lazy(() => import('./pages/MiMdPage'));
 const RekapSantriPage = lazy(() => import('./pages/RekapSantriPage'));
 const KeuanganPage = lazy(() => import('./pages/KeuanganPage'));
 const PembayaranPage = lazy(() => import('./pages/PembayaranPage'));
+const DispensasiPage = lazy(() => import('./pages/DispensasiPage'));
 const MutasiKeluarPage = lazy(() => import('./pages/MutasiKeluarPage'));
 const PengajuanBiodataPage = lazy(() => import('./pages/PengajuanBiodataPage'));
 const DaftarDokumenSantriPage = lazy(() => import('./pages/DaftarDokumenSantriPage'));
@@ -181,7 +182,9 @@ export default function App() {
                         <Route path="/kenaikan" element={<KhususIzin izin="kenaikan.lihat"><KenaikanKelasPage /></KhususIzin>} />
                         <Route path="/kelulusan" element={<KhususIzin izin="kelulusan.lihat"><KelulusanPage /></KhususIzin>} />
                       </Route>
-                      <Route path="/keuangan" element={<KhususIzin izin="keuangan.lihat"><KeuanganPage /></KhususIzin>} />
+                      <Route path="/keuangan" element={<Navigate to="/keuangan/pengaturan" replace />} />
+                      <Route path="/keuangan/pengaturan" element={<KhususIzin izin="keuangan.lihat"><KeuanganPage /></KhususIzin>} />
+                      <Route path="/keuangan/dispensasi" element={<KhususIzin izin="keuangan.lihat"><DispensasiPage /></KhususIzin>} />
                       <Route path="/pembayaran" element={<KhususIzin izin="keuangan.lihat"><PembayaranPage /></KhususIzin>} />
                       <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />
                       <Route path="/dokumen-santri" element={<KhususIzin izin="dokumen_santri.lihat"><DaftarDokumenSantriPage /></KhususIzin>} />

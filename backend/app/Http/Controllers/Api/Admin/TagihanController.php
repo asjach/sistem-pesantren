@@ -651,15 +651,12 @@ class TagihanController extends Controller
                             $potongan = 0;
                             $dispensasiIds = null;
                         } else {
-                            // Baris baru: saring kuota dulu (failover se-grup:
-                            // yang habis dicoret agar bersisa bisa maju),
-                            // lalu selaraskan (menempel tak ada di sini).
-                            $berlaku = $paketDasar->filter(
-                                fn ($d) => $this->kuotaTersedia($d, $pakaiKuota, [], $kuotaBerlaku)
-                            )->values();
-                            $gabung = $aturan->selaraskan(collect(), $berlaku);
-                            $paketBaris = $this->paketBaris($gabung, $pakaiKuota, null, $kuotaBerlaku);
-                            $hitung = $aturan->terapkan((int) $data['nominal'], $paketBaris, (int) $jenis->id);
+                            // Baris baru: menempel tak ada di sini, jadi paket
+                            // yang tersisa kuotanya menang per grup.
+                            $hitung = $this->hitungBarisDispensasi(
+                                $paketDasar, $pakaiKuota, collect(), null, $kuotaBerlaku,
+                                (int) $data['nominal'], (int) $jenis->id, $aturan
+                            );
                             $nominal = $hitung['nominal'];
                             $potongan = $hitung['potongan'];
                             $dispensasiIds = $hitung['ids'] === [] ? null : $hitung['ids'];
@@ -691,17 +688,13 @@ class TagihanController extends Controller
                         $punyaIds = null;
                     } else {
                         $punyaIds = $ada->dispensasi_ids;
-                        // Menempel menang dalam grupnya (meneruskan). Failover
-                        // kuota: yang habis & belum menempel dicoret DULU agar
+                        // Menempel menang dalam grupnya (meneruskan); failover
+                        // kuota: yang habis & belum menempel dicoret dulu agar
                         // se-grup yang bersisa bisa maju ke baris ini.
-                        $punya = array_map('intval', (array) $punyaIds);
-                        $berlaku = $paketDasar->filter(
-                            fn ($d) => $this->kuotaTersedia($d, $pakaiKuota, $punya, $kuotaBerlaku)
-                        )->values();
-                        $sudahAda = $grupMap->only($punya)->values();
-                        $gabung = $aturan->selaraskan($sudahAda, $berlaku);
-                        $paketBaris = $this->paketBaris($gabung, $pakaiKuota, $ada, $kuotaBerlaku);
-                        $hitung = $aturan->terapkan((int) $data['nominal'], $paketBaris, (int) $jenis->id);
+                        $hitung = $this->hitungBarisDispensasi(
+                            $paketDasar, $pakaiKuota, $grupMap, $ada, $kuotaBerlaku,
+                            (int) $data['nominal'], (int) $jenis->id, $aturan
+                        );
                         $nominal = $hitung['nominal'];
                         $potongan = $hitung['potongan'];
                         $dispensasiIds = $hitung['ids'] === [] ? null : $hitung['ids'];
@@ -774,6 +767,174 @@ class TagihanController extends Controller
     }
 
     /**
+     * POST /api/admin/keuangan/tagihan/pratinjau — hitungan yang SAMA dengan
+     * `generateTagihan`, tetapi tidak menulis apa pun. Dialog Buat Tagihan
+     * memakai ini supaya nominal potongan & dispensasi yang ditampilkan
+     * berasal dari sumber yang sama (aturan grup/kuota tak lagi dicerminkan
+     * di frontend).
+     *
+     * Hasil per santri: nilai periode pertama (yang ditampilkan tabel) +
+     * rincian seluruh periode (termasuk sumbangan tiap paket per baris), nama
+     * paket yang menempel, serta paket penerima berkuota yang tak kebagian
+     * kuota sama sekali dalam rentang ini.
+     */
+    public function pratinjauTagihan(TagihanGenerateRequest $request)
+    {
+        $data = $request->validated();
+        $actor = $request->user();
+
+        $jenis = JenisTagihan::findOrFail($data['jenis_id']);
+        $periodes = $this->periodesTagihan($jenis, $data['tahun_ajaran'], $data['periode'] ?? null, $data['periode_sampai'] ?? null);
+
+        $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
+        $peta = $this->petaSantriGenerate($data['tahun_ajaran'], $diminta->keys()->all());
+
+        $daftarDispensasi = Dispensasi::with(['aturan.jenis', 'santriTambahan'])
+            ->where('tahun_ajaran', $data['tahun_ajaran'])
+            ->where('is_active', true)
+            ->whereHas('aturan', fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenis->id))
+            ->get();
+        $aturan = app(DispensasiService::class);
+        $kuotaBerlaku = $jenis->tipe === 'bulanan';
+
+        // Baris existing seluruh santri sekaligus: pratinjau tidak menulis,
+        // jadi tak perlu satu query per santri per periode seperti generate.
+        $adaPeta = $this->petaTagihanAda($diminta->keys()->all(), (int) $jenis->id, $periodes);
+
+        $hasil = [];
+        foreach ($diminta as $santriId => $s) {
+            $info = $peta[$santriId] ?? null;
+            if ($info === null) {
+                abort(422, "Santri #{$santriId} tidak aktif pada tahun ajaran {$data['tahun_ajaran']}.");
+            }
+            $this->canLembaga($actor, $info['jenjang_utama']) || abort(403);
+
+            if (array_key_exists('nominal', $s) && $s['nominal'] !== null) {
+                $paketDasar = null;
+                $nominalManual = (int) $s['nominal'];
+                $pakaiKuota = [];
+                $grupMap = collect();
+            } else {
+                $paketDasar = $aturan->saring($daftarDispensasi, (int) $santriId)->sortBy('id')->values();
+                $pakaiKuota = $this->pakaiKuota($paketDasar, (int) $santriId);
+                $grupMap = $this->grupMenempel((int) $santriId);
+                $nominalManual = null;
+            }
+
+            $namaPaket = $paketDasar === null ? [] : $paketDasar->pluck('nama', 'id')->all();
+            foreach ($grupMap as $d) {
+                $namaPaket[(int) $d->id] = $d->nama;
+            }
+
+            $baris = [];
+            $menempel = [];
+            foreach ($periodes as $periode) {
+                $ada = $adaPeta[$santriId][$periode] ?? null;
+                $langkah = [];
+                if ($paketDasar === null) {
+                    $nominal = $nominalManual;
+                    $potongan = 0;
+                    $ids = [];
+                } else {
+                    $hitung = $this->hitungBarisDispensasi(
+                        $paketDasar, $pakaiKuota, $grupMap, $ada, $kuotaBerlaku,
+                        (int) $data['nominal'], (int) $jenis->id, $aturan
+                    );
+                    $nominal = $hitung['nominal'];
+                    $potongan = $hitung['potongan'];
+                    $ids = $hitung['ids'];
+                    $langkah = $hitung['langkah'];
+                }
+
+                // Sebab yang sama dengan generate: baris begini dilewati —
+                // tak ditulis ulang dan tak ikut menghabiskan kuota.
+                $sebab = null;
+                if ($ada !== null && $paketDasar !== null && $kuotaBerlaku && (int) $ada->terbayar > 0) {
+                    $sebab = 'sudah ada pembayaran';
+                } elseif ($ada !== null && $nominal < (int) $ada->terbayar) {
+                    $sebab = 'nominal baru di bawah terbayar';
+                }
+
+                if ($sebab === null) {
+                    if ($paketDasar !== null) {
+                        $this->konsumsiKuota($ids, $pakaiKuota, $ada?->dispensasi_ids);
+                    }
+                } elseif ($ada !== null) {
+                    // Baris dibiarkan apa adanya — itulah bentuknya setelah generate.
+                    $nominal = (int) $ada->nominal;
+                    $potongan = (int) $ada->potongan;
+                    $ids = array_map('intval', (array) ($ada->dispensasi_ids ?? []));
+                    $langkah = [];
+                }
+                foreach ($ids as $id) {
+                    $menempel[(int) $id] = true;
+                }
+
+                $baris[] = [
+                    'periode' => $periode,
+                    'nominal' => $nominal,
+                    'potongan' => $potongan,
+                    'dispensasi_ids' => $ids,
+                    'nama' => array_map(fn ($id) => $namaPaket[(int) $id] ?? "#{$id}", $ids),
+                    // Sumbangan tiap paket di baris ini (sebelum → sesudah).
+                    'langkah' => $langkah,
+                    'sebab' => $sebab,
+                ];
+            }
+
+            // Periode berbeda bisa berakhir beda paket (failover kuota); tabel
+            // menampilkan periode pertama, jadi tandai bila sisanya beda.
+            $pertama = $baris[0];
+            $seragam = ! array_any(
+                $baris,
+                fn ($b) => $b['nominal'] !== $pertama['nominal'] || $b['dispensasi_ids'] !== $pertama['dispensasi_ids']
+            );
+
+            $takKebagian = [];
+            foreach ($paketDasar ?? [] as $d) {
+                if ($d->kuota_bulan !== null && ! isset($menempel[(int) $d->id])) {
+                    $takKebagian[] = $d->nama;
+                }
+            }
+
+            $hasil[] = [
+                'santri_id' => (int) $santriId,
+                'nominal' => (int) $pertama['nominal'],
+                'potongan' => (int) $pertama['potongan'],
+                'dispensasi_ids' => $pertama['dispensasi_ids'] === [] ? null : $pertama['dispensasi_ids'],
+                'dispensasi_nama' => $pertama['nama'],
+                'seragam' => $seragam,
+                'tak_kebagian' => $takKebagian,
+                'periode' => $baris,
+            ];
+        }
+
+        return response()->json($hasil);
+    }
+
+    /**
+     * Peta tagihan existing per santri per periode untuk pratinjau:
+     * `santri_id → periode → Tagihan`.
+     *
+     * @param  list<int>  $santriIds
+     * @param  list<string>  $periodes
+     * @return array<int, array<string, Tagihan>>
+     */
+    private function petaTagihanAda(array $santriIds, int $jenisId, array $periodes): array
+    {
+        if ($santriIds === [] || $periodes === []) {
+            return [];
+        }
+        $peta = [];
+        foreach (Tagihan::whereIn('santri_id', $santriIds)->where('jenis_id', $jenisId)
+            ->whereIn('periode', $periodes)->get() as $t) {
+            $peta[(int) $t->santri_id][(string) $t->periode] = $t;
+        }
+
+        return $peta;
+    }
+
+    /**
      * Model paket aktif yang menempel di tagihan santri (periode apa pun),
      * diindeks id — dasar prioritas "meneruskan" per grup saat digabung
      * dengan paket berlaku/diminta.
@@ -843,19 +1004,38 @@ class TagihanController extends Controller
     }
 
     /**
-     * Subset paket untuk satu baris tagihan: paket berkuota yang habis
-     * (dan belum menempel di baris ini) dicoret. Murni, tanpa efek —
-     * pencatatan konsumsi dilakukan terpisah setelah baris tersimpan.
+     * Hitung satu baris tagihan dari paket dispensasi santri — dipakai BAIK
+     * oleh generate (menulis) maupun pratinjau (tanpa menulis) supaya aturan
+     * kuota/grup hanya hidup di satu tempat.
+     *
+     * Urutannya: saring kuota dulu (failover se-grup — yang habis dicoret
+     * agar se-grup yang bersisa bisa maju), lalu selaraskan grup (paket yang
+     * menempel di baris ini menang), lalu terapkan aturan akumulatif.
+     * Murni, tanpa efek — pencatatan konsumsi kuota dilakukan pemanggil
+     * lewat `konsumsiKuota()` setelah barisnya pasti jadi/ditulis.
      *
      * @param  Collection<int, Dispensasi>  $paketDasar
-     * @param  array<int, int>  $pakai
-     * @return Collection<int, Dispensasi>
+     * @param  array<int, int>  $pakaiKuota
+     * @param  Collection<int, Dispensasi>  $grupMap
+     * @return array{nominal: int, potongan: int, ids: list<int>}
      */
-    private function paketBaris(Collection $paketDasar, array $pakai, ?Tagihan $ada, bool $kuotaBerlaku): Collection
-    {
-        $punya = $ada === null ? [] : array_map('intval', (array) ($ada->dispensasi_ids ?? []));
+    private function hitungBarisDispensasi(
+        Collection $paketDasar,
+        array $pakaiKuota,
+        Collection $grupMap,
+        ?Tagihan $ada,
+        bool $kuotaBerlaku,
+        int $nominalDasar,
+        int $jenisId,
+        DispensasiService $aturan,
+    ): array {
+        $punya = array_map('intval', (array) ($ada->dispensasi_ids ?? []));
+        $berlaku = $paketDasar
+            ->filter(fn ($d) => $this->kuotaTersedia($d, $pakaiKuota, $punya, $kuotaBerlaku))
+            ->values();
+        $gabung = $aturan->selaraskan($grupMap->only($punya)->values(), $berlaku);
 
-        return $paketDasar->filter(fn ($d) => $this->kuotaTersedia($d, $pakai, $punya, $kuotaBerlaku))->values();
+        return $aturan->terapkan($nominalDasar, $gabung, $jenisId);
     }
 
     /**

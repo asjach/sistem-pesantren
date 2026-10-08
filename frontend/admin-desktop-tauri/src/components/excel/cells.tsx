@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CellProps } from 'react-datasheet-grid';
 import { Switch } from '@/components/ui/switch';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { hasOpenEditor, INPUT_ROW_ID } from './helpers';
 import type { CheckColData, GridRow, SelectColData, StaticColData, TextColData, ToggleColData } from './types';
 
@@ -165,13 +166,14 @@ export function ToggleCell({ rowData, setRowData, columnData, disabled }: CellPr
 /** Sel baca-saja (teks polos). */
 export function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticColData>) {
   const pegangan = columnData.onResizeBaris;
-  return (
+  const teks = String(rowData[columnData.fieldKey] ?? '');
+  const isi = (
     <span
       className="simpes-dsg-fill"
       data-col-key={columnData.fieldKey}
       onDoubleClick={() => columnData.onDblClick?.()}
     >
-      {String(rowData[columnData.fieldKey] ?? '')}
+      {teks}
       {pegangan && (
         <span
           className="simpes-dsg-pegangan-baris"
@@ -181,6 +183,25 @@ export function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticCol
       )}
     </span>
   );
+
+  // Kartu hover opsional: isi panjang yang terpotong lebar kolom tetap utuh
+  // dibaca. Delay kecil supaya terasa langsung, bukan tooltip bawaan browser.
+  if (columnData.kartuHover) {
+    return (
+      <HoverCard openDelay={120} closeDelay={80}>
+        <HoverCardTrigger asChild>{isi}</HoverCardTrigger>
+        <HoverCardContent
+          align="start"
+          side="bottom"
+          className="w-auto max-w-[26rem] p-3 text-xs"
+        >
+          {columnData.kartuHover(rowData)}
+        </HoverCardContent>
+      </HoverCard>
+    );
+  }
+
+  return isi;
 }
 
 /** Sel centang: status dikendalikan penuh oleh grid (`checkedIds`).

@@ -111,10 +111,12 @@ describe('halamanDariPath & halaman bertab', () => {
       '/pegawai-keaktifan',
       '/penempatan-pegawai',
     ]);
-    // Keuangan: Pengaturan (dulu halaman Keuangan) + Pembayaran (kasir).
-    expect(halamanGrupLangsung('keuangan').map((h) => h.to)).toEqual([
-      '/keuangan',
-      '/pembayaran',
+    // Keuangan: subgrup Pengaturan + Dispensasi, dengan Pembayaran (kasir)
+    // sebagai halaman langsung.
+    expect(halamanGrupLangsung('keuangan').map((h) => h.to)).toEqual(['/pembayaran']);
+    expect(halamanSubgrup('keuangan', 'pengaturan').map((h) => h.to)).toEqual(['/keuangan']);
+    expect(halamanSubgrup('keuangan', 'dispensasi').map((h) => h.to)).toEqual([
+      '/keuangan/dispensasi',
     ]);
   });
 

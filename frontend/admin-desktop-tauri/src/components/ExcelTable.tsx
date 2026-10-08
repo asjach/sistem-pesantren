@@ -983,6 +983,15 @@ export default function ExcelTable<T extends { id: string | number }>({
             component: StaticCell,
             columnData: {
               fieldKey: f.key,
+              /* Kartu hover menerima baris SUMBER yang digabung dengan nilai
+                 tampilan: data yang tak ditampilkan grid (mis. rincian periode
+                 mentah) tetap bisa dipakai tanpa menaruhnya di `getValues`. */
+              kartuHover: f.kartuHover === undefined
+                ? undefined
+                : (grid: GridRow) => {
+                  const sumber = rowsRef.current.find((r) => String(r.id) === String(grid.id));
+                  return f.kartuHover!({ ...(sumber as unknown as GridRow), ...grid });
+                },
               // Mode Input aktif: klik 2× tidak menyalakan mode Edit.
               onDblClick: () => {
                 if (!showInput) enableEditByDoubleClick();

@@ -35,31 +35,46 @@ class DispensasiService
      * mengurangi langsung, bebas menihilkan; hasil akhir min 0.
      * Hanya dispensasi yang aturannya cocok yang tercatat di `ids`.
      *
+     * `langkah` memuat sumbangan tiap paket (sebelum → sesudah) supaya UI bisa
+     * menjelaskan potongan per paket, bukan hanya total akhirnya.
+     *
      * @param  Collection<int, Dispensasi>  $cocok
-     * @return array{nominal: int, potongan: int, ids: list<int>}
+     * @return array{nominal: int, potongan: int, ids: list<int>, langkah: list<array{id: int, nama: string, tipe: string, nilai: int, sebelum: int, sesudah: int, potongan: int}>}
      */
     public function terapkan(int $nominalAwal, Collection $cocok, int $jenisId): array
     {
         $urut = $cocok->sortBy('id')->values();
         $nominal = $nominalAwal;
         $ids = [];
+        $langkah = [];
         foreach ($urut as $d) {
             $aturan = $this->aturanUntukJenis($d, $jenisId);
             if ($aturan === null) {
                 continue;
             }
+            $sebelum = $nominal;
             $nominal = match ($aturan->tipe) {
                 'persen' => (int) floor($nominal * (100 - min(100, max(0, $aturan->nilai))) / 100),
                 'bebas' => 0,
                 default => max(0, $nominal - max(0, $aturan->nilai)),
             };
             $ids[] = (int) $d->id;
+            $langkah[] = [
+                'id' => (int) $d->id,
+                'nama' => (string) $d->nama,
+                'tipe' => (string) $aturan->tipe,
+                'nilai' => (int) $aturan->nilai,
+                'sebelum' => $sebelum,
+                'sesudah' => $nominal,
+                'potongan' => max(0, $sebelum - $nominal),
+            ];
         }
 
         return [
             'nominal' => $nominal,
             'potongan' => max(0, $nominalAwal - $nominal),
             'ids' => $ids,
+            'langkah' => $langkah,
         ];
     }
 

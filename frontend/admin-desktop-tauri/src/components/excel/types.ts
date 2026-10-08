@@ -12,6 +12,9 @@ export interface ExcelField {
   label: string;
   /** Lebar cadangan bila pengukuran konten gagal; lebar normal mengikuti AutoFit. */
   width?: number;
+  /** Kolom static: isi kartu hover untuk tiap baris (mis. rincian panjang
+   *  yang tak muat di lebar kolom). Ada nilainya = sel dibungkus HoverCard. */
+  kartuHover?: (rowData: GridRow) => ReactNode;
   /** text/select bisa diedit saat mode Edit aktif; static selalu baca-saja;
    *  toggle = switch ON/OFF yang langsung tersimpan (nilai 'ya'/'tidak'). */
   kind: 'text' | 'select' | 'static' | 'toggle';
@@ -105,6 +108,8 @@ export interface ToggleColData {
 
 export interface StaticColData {
   fieldKey: string;
+  /** Isi kartu hover sel — absen = sel teks polos tanpa kartu. */
+  kartuHover?: (rowData: GridRow) => ReactNode;
   /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
   onDblClick?: () => void;
   /** Pegangan seret batas bawah baris (tinggi baris manual per baris).
