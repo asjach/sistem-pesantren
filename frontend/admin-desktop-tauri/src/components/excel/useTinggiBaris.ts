@@ -38,8 +38,11 @@ function serialPeta(peta: Record<string, number>): string {
 /**
  * Tinggi baris per tabel, **per baris**:
  * - **manual**: seret pegangan batas bawah baris hanya mengubah baris itu;
- * - **ikut isi**: baris membesar sendiri bila teksnya membungkus; baris yang
- *   isinya muat tetap memakai tinggi dasar.
+ * - **ikut isi** (MATI bawaan, bisa dinyalakan per tabel dari menu klik
+ *   kanan): baris membesar sendiri bila teksnya membungkus; baris yang
+ *   isinya muat tetap memakai tinggi dasar. Bawaan mati agar refresh/
+ *   pagination tidak me-remount grid (sumber kedip) kecuali pengguna
+ *   memang butuh bungkus teks.
  *
  * Catatan: `react-datasheet-grid` meng-cache offset baris dan tidak pernah
  * membersihkannya sendiri, jadi pemanggil wajib me-remount grid saat tinggi
@@ -48,7 +51,7 @@ function serialPeta(peta: Record<string, number>): string {
  */
 export function useTinggiBaris(tableKey: string) {
   const [manual, setManual] = useState<Record<string, number>>({});
-  const [autoIkut, setAutoIkutState] = useState(true);
+  const [autoIkut, setAutoIkutState] = useState(false);
   /** Serial peta manual — dipakai ExcelTable sebagai tanda remount grid. */
   const [sigManual, setSigManual] = useState('');
   const refs = useRef({
@@ -71,8 +74,10 @@ export function useTinggiBaris(tableKey: string) {
       })
       .catch(() => { /* tanpa tinggi manual bila pref gagal dibaca */ });
     prefGet(autoBarisKey(tableKey))
-      .then((v) => { if (hidup) setAutoIkutState(v !== '0'); })
-      .catch(() => { /* bawaan: ikut isi */ });
+      // Bawaan MATI: hanya nilai eksplisit '1' yang menyalakan (pengguna yang
+      // pernah menyalakan tetap ON; yang belum pernah atur ikut bawaan baru).
+      .then((v) => { if (hidup) setAutoIkutState(v === '1'); })
+      .catch(() => { /* bawaan: tidak ikut isi */ });
     return () => { hidup = false; };
   }, [tableKey]);
 

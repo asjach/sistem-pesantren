@@ -18,6 +18,37 @@ export function ambilContohBaris<T>(baris: readonly T[], batas = BATAS_CONTOH_UK
   return keluar;
 }
 
+/**
+ * Gabung lebar segar dengan lebar sebelumnya secara MONOTON: kolom hanya
+ * boleh membesar mengikuti data terlebar yang pernah terlihat, tak pernah
+ * menyusut otomatis (pola Excel).
+ *
+ * Konteks: lebar diukur dari SAMPEL halaman aktif — halaman teks panjang vs
+ * pendek membuat kolom berkedip kecil-besar-besar-kecil bila lebar segar
+ * dipakai mentah, dan tiap perubahan lebar merambat ke estimasi tinggi baris
+ * (berisiko remount + flash). Monoton memutus denyut itu: pindah halaman
+ * tak lagi menggerakkan kolom kecuali ada data yang benar-benar lebih lebar.
+ * Mengembalikan objek LAMA bila tak ada yang berubah (identitas stabil → tak
+ * memicu render ulang berantai di `dsgColumns`/`tinggiBarisSatuan`).
+ */
+export function gabungLebarMaks(
+  prev: Record<string, number>,
+  segar: Record<string, number>,
+): Record<string, number> {
+  const semua = new Set([...Object.keys(prev), ...Object.keys(segar)]);
+  let berubah = Object.keys(prev).length !== semua.size;
+  const out: Record<string, number> = {};
+  for (const k of semua) {
+    const p = prev[k];
+    const s = segar[k];
+    const v = p === undefined ? s : s === undefined ? p : Math.max(p, s);
+    if (v === undefined) continue;
+    out[k] = v;
+    if (!berubah && p !== v) berubah = true;
+  }
+  return berubah ? out : prev;
+}
+
 export function lebarJudulDuaBaris(label: string, ukur: (text: string) => number): number {
   const kata = label.trim().split(/\s+/).filter(Boolean);
   if (kata.length < 2) return ukur(label);

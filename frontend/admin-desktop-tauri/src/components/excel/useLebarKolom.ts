@@ -4,7 +4,7 @@ import { prefSet } from '@/api/client';
 import { DEFAULT_HEADER_H, MAX_HEADER_H } from '@/components/GridPrefs';
 import { toast } from 'sonner';
 
-import { ambilContohBaris, lebarJudulDuaBaris, ukurAutoFit } from './autofit';
+import { ambilContohBaris, gabungLebarMaks, lebarJudulDuaBaris, ukurAutoFit } from './autofit';
 import {
   AUTOFIT_BUFFER,
   AUTOFIT_MAX_W,
@@ -17,7 +17,7 @@ import {
   writeWidthCache,
 } from './helpers';
 import { PAD_JUDUL_X, ukurPerluTinggiHeader } from './header';
-import { measureActionsWidth, bersihkanProbe } from './measure';
+import { measureActionsWidth, bersihkanProbe, dapatkanKanvas, fontKanvas } from './measure';
 import type { ExcelField, GridRow } from './types';
 
 /** Ref mutable yang selalu terisi (dipakai untuk cermin nilai terbaru). */
@@ -211,18 +211,41 @@ export function useLebarKolom<T extends { id: string | number }>({
      *  Setelah pernah tampil, pengungkapan kembali dilakukan secepatnya. */
     let siapSejak = 0;
     let pernahTampil = false;
-    const mulai = performance.now();
+    // Node kontainer DSG terakhir terlihat. Remount MENGGANTI node ini, dan
+    // jendela flash 100px hanya ada tepat setelah pergantian — di luar itu
+    // hasil baca seragam-100px adalah lebar SAH (kolom memang ~100px) sehingga
+    // grid tidak boleh disembunyikan (mis. saat scroll memicu mutasi style).
+    let contTerlihat: Element | null = null;
+    let remountBaru = false;
+    // Awal jendela failsafe (2,5 dtk): dibuka ulang tiap remount agar gerbang
+    // tetap hidup untuk refresh yang datang setelah halaman lama terbuka.
+    let mulai = performance.now();
     const periksa = () => {
       raf = 0;
       if (batal) return;
+      const cont = el.querySelector('.dsg-container');
+      if (cont !== contTerlihat) {
+        contTerlihat = cont;
+        // Node baru SETELAH pernah tampil = remount (bukan mount awal):
+        // buka jendela deteksi + failsafe baru untuk remount ini.
+        if (pernahTampil) {
+          remountBaru = true;
+          menyerahRef.current = false;
+          mulai = performance.now();
+        }
+      }
       const lewatFailsafe = performance.now() - mulai > 2500;
-      const belumSiap = !lewatFailsafe && !menyerahRef.current && !sedangLebarRef.current
+      const bacaSeragam = !lewatFailsafe && !menyerahRef.current && !sedangLebarRef.current
         ? gridBelumSiapTampil(el, harapSisiRef.current)
         : false;
+      // Sembunyikan hanya bila (a) belum pernah tampil, atau (b) remount
+      // baru yang bacaannya masih seragam-100px (jendela flash 100px).
+      const belumSiap = bacaSeragam && (!pernahTampil || remountBaru);
       if (lewatFailsafe) menyerahRef.current = true;
       if (belumSiap) {
         siapSejak = 0;
         setTampilGrid(false);
+        jadwalkan();
         return;
       }
       // Remount tertunda (tanda tinggi baris belum dipakai DSG): tahan dulu —
@@ -246,6 +269,7 @@ export function useLebarKolom<T extends { id: string | number }>({
         }
       }
       pernahTampil = true;
+      remountBaru = false;
       setTampilGrid(true);
       setLebarStabil(true);
     };
@@ -263,14 +287,24 @@ export function useLebarKolom<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableKey, wrapRef]);
 
-  // Jaring SEBELUM cat: bila commit ini menghasilkan DOM grid dengan lebar
-  // bawaan DSG (mis. baru di-remount karena tanda tinggi baris berubah),
-  // sembunyikan pada commit yang sama. Tanpa ini satu bingkai 100px sempat
-  // terlihat sebelum MutationObserver sempat bertindak.
+  // Jaring SEBELUM cat: bila commit ini MENGGANTI kontainer DSG (remount)
+  // dan bacaannya masih seragam-100px, sembunyikan pada commit yang sama.
+  // Tanpa ini satu bingkai flash 100px (sel melompat ke kanan lalu balik
+  // ke kiri) sempat terlihat sebelum MutationObserver bertindak. Tabel yang
+  // sudah stabil (node sama) tak pernah disentuh — walau kolomnya ~100px —
+  // sehingga scroll/mutasi biasa tak membuat kartu berkedip.
+  const layoutContRef = useRef<Element | null>(null);
   useLayoutEffect(() => {
-    if (menyerahRef.current || sedangLebarRef.current) return;
+    if (sedangLebarRef.current) return;
     const el = wrapRef.current;
-    if (el && gridBelumSiapTampil(el, harapSisiRef.current)) setTampilGrid(false);
+    const cont = el?.querySelector('.dsg-container') ?? null;
+    const ganti = cont !== layoutContRef.current;
+    layoutContRef.current = cont;
+    if (!el || !ganti || !cont) return;
+    // Kontainer berganti (remount): buka ulang jendela failsafe yang mungkin
+    // sudah kedaluwarsa sejak mount awal, lalu tutup flash SEBELUM cat.
+    menyerahRef.current = false;
+    if (gridBelumSiapTampil(el, harapSisiRef.current)) setTampilGrid(false);
   });
 
   useEffect(() => {
@@ -541,14 +575,17 @@ export function useLebarKolom<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fontPx, fontFamily]);
 
-  // Data berubah (ganti kegiatan/filter/muat ulang) → sesuaikan ulang lebar
-  // kolom yang belum diatur pengguna.
+  // Kolom/preset berubah → sesuaikan ulang lebar kolom yang belum diatur
+  // pengguna. SENGAJA tidak dipicu perubahan `rows` (pagination/refetch):
+  // lebar harus stabil lintas halaman agar tabel tidak berkedip/melompat;
+  // isi halaman baru tetap terbaca, dan AutoFit manual (gagang/toolbar)
+  // selalu tersedia bila kolom terasa sempit.
   useEffect(() => {
     if (skipFitPertamaRef.current) return;
     if (fittedRef.current !== tableKey) return;
     return scheduleAutoFit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, fields, visibleFields]);
+  }, [fields, visibleFields]);
 
   // Setelah commit pertama, AutoFit kembali normal (perubahan berikutnya —
   // huruf/data/filter — boleh menyesuaikan lebar). Efek ini SENGAJA ditaruh
@@ -561,10 +598,22 @@ export function useLebarKolom<T extends { id: string | number }>({
    *  ready) memakai host pengukuran offscreen. Grid jadi bisa tampil langsung
    *  dengan lebar final — tidak ada geseran, tidak ada jeda muat tambahan.
    *  Hasil ini hanya dipakai untuk kolom yang belum punya lebar tersimpan;
-   *  AutoFit DOM (saat font/data berubah) tetap boleh menyempurnakan. */
+   *  AutoFit DOM (saat font/data berubah) tetap boleh menyempurnakan.
+   *
+   *  MONOTON + IDENTITAS STABIL: hasil segar diukur dari SAMPEL halaman aktif,
+   *  sehingga halaman teks panjang vs pendek akan membuat kolom berdenyut
+   *  kecil-besar bila dipakai mentah. `gabungLebarMaks` memastikan kolom hanya
+   *  membesar (pola Excel) dan mengembalikan objek lama bila tak ada yang
+   *  berubah — memutus rantai render ulang `dsgColumns`/`tinggiBarisSatuan`/
+   *  `gridRowHeight` tiap pagination. Cakupan direset per tabel+font agar
+   *  perubahan font (mis. diperkecil) tetap boleh menyusutkan kolom. */
+  const syncPrevRef = useRef<Record<string, number>>({});
+  const syncScopeRef = useRef('');
   const syncAutoWidths = useMemo<Record<string, number>>(() => {
     const host = hostUkur();
-    if (!host) return {};
+    const cakupan = `${tableKey}|${effectiveFont}|${fontStack}|${fontStackWeight}`;
+    const segarAwal = syncPrevRef.current;
+    if (!host) return segarAwal;
     host.style.setProperty('--simpes-font-size', `${effectiveFont}px`);
     if (fontStack) {
       host.style.setProperty('--simpes-font-family', fontStack);
@@ -578,7 +627,7 @@ export function useLebarKolom<T extends { id: string | number }>({
     const headContEl = host.querySelector<HTMLElement>('.dsg-cell-header-container');
     const cellProbe = host.querySelector<HTMLElement>('[data-ukur="cell"]');
     const headProbe = host.querySelector<HTMLElement>('[data-ukur="head"]');
-    if (!cellEl || !headCellEl || !headContEl || !cellProbe || !headProbe) return {};
+    if (!cellEl || !headCellEl || !headContEl || !cellProbe || !headProbe) return segarAwal;
     const csCell = getComputedStyle(cellEl);
     const csHeadCell = getComputedStyle(headCellEl);
     const csHeadCont = getComputedStyle(headContEl);
@@ -615,20 +664,51 @@ export function useLebarKolom<T extends { id: string | number }>({
       cacheTeks.set(text, hasil);
       return hasil;
     };
+    // Saring cepat via kanvas (tanpa layout): tiap `textContent` + baca
+    // `getBoundingClientRect` yang silih berganti memaksa layout sinkron
+    // (layout-thrash, ratusan kali per pagination). Kanvas mengukur semuanya
+    // tanpa layout; DOM hanya memverifikasi kandidat teratas (margin 40px
+    // menutup selisih kanvas vs DOM — pola sama `ukurAutoFit`).
+    const ctxKan = dapatkanKanvas();
+    if (ctxKan) ctxKan.font = fontKanvas(csCell);
     for (const f of visibleFields) {
       let w = lebarJudulDuaBaris(
         labelKolom(f.key, f.label),
         (text) => lebar(headProbe, csHeadCont, text),
       ) + padHead + AUTOFIT_BUFFER;
-      for (const v of values) {
-        const s = teksTampilSel(f, v[f.key]);
-        if (!s) continue;
-        w = Math.max(w, lebarCache(s) + padCell + AUTOFIT_BUFFER);
+      if (ctxKan == null) {
+        for (const v of values) {
+          const s = teksTampilSel(f, v[f.key]);
+          if (!s) continue;
+          w = Math.max(w, lebarCache(s) + padCell + AUTOFIT_BUFFER);
+        }
+      } else {
+        let maksKan = -1;
+        const kandidat: { s: string; cw: number }[] = [];
+        for (const v of values) {
+          const s = teksTampilSel(f, v[f.key]);
+          if (!s) continue;
+          const cw = ctxKan.measureText(s).width;
+          if (cw > maksKan) maksKan = cw;
+          kandidat.push({ s, cw });
+        }
+        for (const { s, cw } of kandidat) {
+          if (cw < maksKan - 40) continue;
+          w = Math.max(w, lebarCache(s) + padCell + AUTOFIT_BUFFER);
+        }
       }
       out[f.key] = Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, Math.ceil(w)));
     }
-    return out;
-  }, [rows, visibleFields, effectiveFont, fontStack, fontStackWeight, labelKolom, getValuesRef]);
+    // Monoton per cakupan tabel+font (lihat komentar di atas).
+    if (syncScopeRef.current !== cakupan) {
+      syncScopeRef.current = cakupan;
+      syncPrevRef.current = out;
+      return out;
+    }
+    const stabil = gabungLebarMaks(syncPrevRef.current, out);
+    syncPrevRef.current = stabil;
+    return stabil;
+  }, [tableKey, rows, visibleFields, effectiveFont, fontStack, fontStackWeight, labelKolom, getValuesRef]);
 
   /** Reset bagian lebar dari "kembalikan tampilan bawaan" (ribbon): buang
    *  lebar simpanan, hitung ulang AutoFit penuh. Seleksi & toast tetap di

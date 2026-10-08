@@ -34,16 +34,24 @@ export function hitungTinggiBaris(params: {
   fontPx: number;
   minH: number;
   maxH?: number;
-  /** Faktor tinggi baris huruf (1.5 = line-height sel bawaan). */
+  /** Faktor tinggi baris huruf. Sel data mewarisi `line-height` body (1.45,
+   *  lihat `@layer base` di index.css) — pemanggil sebaiknya mengisi dari
+   *  hasil ukur `getComputedStyle`, bukan mengandalkan bawaan ini. */
   lineHeight?: number;
+  /** Padding mendatar sel kiri+kanan (px). Bawaan = cerminan
+   *  `--part-tabel_sel-padx` bawaan (8px+8px); pemanggil sebaiknya mengisi
+   *  dari hasil ukur `getComputedStyle` agar tetap tepat bila pengguna
+   *  mengubahnya di Pengaturan → Tampilan. */
+  padX?: number;
 }): number {
   const faktor = params.lineHeight ?? 1.35;
+  const padX = params.padX ?? PAD_X_SEL;
   const tinggiBarisTeks = Math.max(1, Math.round(params.fontPx * faktor));
   const plafon = params.maxH ?? MAX_BARIS_H;
 
   let baris = 1;
   for (let i = 0; i < params.lebarTeks.length; i += 1) {
-    const tersedia = (params.lebarKolom[i] ?? 0) - PAD_X_SEL;
+    const tersedia = (params.lebarKolom[i] ?? 0) - padX;
     baris = Math.max(baris, hitungBarisTeks(params.lebarTeks[i], tersedia));
   }
 

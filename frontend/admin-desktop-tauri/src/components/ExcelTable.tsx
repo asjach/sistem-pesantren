@@ -319,10 +319,13 @@ export default function ExcelTable<T extends { id: string | number }>({
   renderRef.current = renderActions;
   /** Jumlah aksi maksimum pada data yang sedang dimuat (per baris, setelah
    *  kondisi halaman disaring). Dipakai menaikkan high-water mark `ringkas`
-   *  di bawah — tidak untuk keputusan per baris. */
+   *  di bawah — tidak untuk keputusan per baris. `renderActions` dibaca via
+   *  ref: definisi inline halaman berganti identitas tiap render dan tidak
+   *  boleh memicu hitung ulang (iterasi seluruh baris) sia-sia. */
   const aksiMaksBaris = useMemo(
-    () => rows.reduce((m, r) => Math.max(m, flattenAksi(renderActions(r)).length), 0),
-    [rows, renderActions],
+    () => rows.reduce((m, r) => Math.max(m, flattenAksi(renderRef.current(r)).length), 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows],
   );
   const [aksiRingkas, setAksiRingkas] = useState(() => (AKSI_RINGKAS.get(tableKey) ?? 0) > 3);
   useEffect(() => {
@@ -467,6 +470,20 @@ export default function ExcelTable<T extends { id: string | number }>({
     fontStackWeight,
   });
 
+  /** Gerbang macet: `tampilGrid` false lebih dari 800ms. Jendela flash
+   *  remount normal hanya ~2 bingkai (kartu kosong cukup) — kerangka skeleton
+   *  baru ditampilkan bila penahanan berlarut (tabel yang semua kolomnya
+   *  memang ~100px, atau mount awal yang lambat). */
+  const [gateLama, setGateLama] = useState(false);
+  useEffect(() => {
+    if (tampilGrid) {
+      setGateLama(false);
+      return;
+    }
+    const t = setTimeout(() => setGateLama(true), 800);
+    return () => clearTimeout(t);
+  }, [tampilGrid, tableKey]);
+
   /** Tinggi baris per tabel: ikut isi + seret batas bawah baris (manual). */
   const {
     manual: tinggiBarisManual,
@@ -509,8 +526,9 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   // Tinggi grid mengikuti sisa ruang vertikal wrapper (flex-1 dari halaman).
   // useLayoutEffect: diukur SEBELUM cat sehingga kartu tidak sempat tampil
-  // dengan tinggi tebakan awal lalu melompat ke tinggi asli. Observer dipasang
-  // ulang saat loading/rows berubah karena wrapper ikut dirender ulang.
+  // dengan tinggi tebakan awal lalu melompat ke tinggi asli. Observer tetap
+  // terpasang pada elemen wrapper yang sama (tidak perlu dipasang ulang saat
+  // loading/rows berubah) agar tinggi stabil saat pagination/refetch.
   useLayoutEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
@@ -522,7 +540,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     const ro = new ResizeObserver(ukur);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [loading, rows.length, tableKey]);
+  }, [tableKey]);
 
 
   // Seleksi + range mengikuti data aktif. Hanya reset bila KUMPULAN ID berubah
@@ -697,28 +715,48 @@ export default function ExcelTable<T extends { id: string | number }>({
       out.push(g);
     }
     return out;
+    // `editing` disengaja TIDAK masuk deps: isi nilai grid tak bergantung mode
+    // Edit (hanya `disabled` sel yang bergantung — itu di `dsgColumns`).
+    // Tanpa ini tiap nyala/mati mode Edit membangun ulang seluruh nilai grid.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, drafts, checkedIds, fields, getValues, editing, showInput, inputRowValues]);
+  }, [rows, drafts, checkedIds, fields, getValues, showInput, inputRowValues]);
+
+  /** Tinggi tiap baris grid (satu kali hitung per render, dipakai ulang di
+   *  bawah agar tidak mengukur dua kali). */
+  const tinggiPerBaris = useMemo(() => {
+    const out: number[] = [];
+    for (const g of gridValue) out.push(tinggiBarisSatuan(g));
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridValue, tinggiBarisSatuan, sigTinggiBarisManual]);
+
+  /** Kasus umum (hampir semua refresh/pagination): SEMUA baris sama tinggi.
+   *  Offset DSG (= indeks × tinggi) tak bergantung urutan/isinya, jadi remount
+   * penuh (sumber flash 100px: ke kanan lalu ke kiri) TIDAK diperlukan —
+   *  cukup angka tinggi tunggal. Hanya saat ada baris beda tinggi DSG butuh
+   *  fungsi per baris + remount. */
+  const tinggiSeragam = tinggiPerBaris.length > 0 && tinggiPerBaris.every((h) => h === tinggiPerBaris[0]);
 
   /**
-   * `rowHeight` DSG: fungsi saat tabel punya baris (tinggi per baris), angka
-   * saat kosong — jalur tinggi variabel DSG melempar `undefined.top` bila
-   * `value` kosong.
+   * `rowHeight` DSG: angka bila seragam/kosong (jalur cepat, tanpa remount),
+   * fungsi bila tinggi variabel — jalur variabel DSG melempar `undefined.top`
+   * bila `value` kosong, jadi tabel kosong tetap memakai angka.
    */
   const gridRowHeight = useMemo(
-    () => (gridValue.length === 0
+    () => (tinggiSeragam ? tinggiPerBaris[0] : (gridValue.length === 0
       ? effectiveH
-      : ({ rowData }: { rowData: GridRow }) => tinggiBarisSatuan(rowData)),
-    [gridValue.length, effectiveH, tinggiBarisSatuan],
+      : ({ rowData }: { rowData: GridRow }) => tinggiBarisSatuan(rowData))),
+    [tinggiSeragam, tinggiPerBaris, gridValue.length, effectiveH, tinggiBarisSatuan],
   );
 
-  /** Tanda tinggi baris saat ini (setiap baris ikut isinya masing-masing). */
+  /** Tanda tinggi baris saat ini. Jalur seragam memakai satu angka sehingga
+   *  pengurutan ulang/pagination dengan tinggi sama TIDAK mengubah tanda
+   *  (sebelumnya: urutan beda → string beda → remount sia-sia + flash). */
   const sigTinggiBaris = useMemo(() => {
-    if (gridValue.length === 0) return 'kosong';
-    const parts: string[] = [];
-    for (const g of gridValue) parts.push(String(tinggiBarisSatuan(g)));
-    return parts.join(',');
-  }, [gridValue, tinggiBarisSatuan, sigTinggiBarisManual]);
+    if (tinggiPerBaris.length === 0) return 'kosong';
+    if (tinggiSeragam) return `seragam:${tinggiPerBaris[0]}`;
+    return tinggiPerBaris.join(',');
+  }, [tinggiPerBaris, tinggiSeragam]);
 
   /**
    * Tanda remount yang DIPAKAI `key` grid.
@@ -803,8 +841,35 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
   }
 
-  const dsgColumns: Column<GridRow>[] = useMemo(() => {
-    /** Kelas perataan kolom dari standar global tabel (bawaan tengah). */
+  /** Pembungkus STABIL untuk DSG (yang di-memo): identitasnya tidak pernah
+   *  berubah antar render, isinya selalu handler terbaru via ref. Tanpa ini
+   *  setiap render ExcelTable (mis. ketikan pencarian di halaman) mengganti
+   *  identitas `onChange`/`onScroll` sehingga memo DSG jebol dan seluruh grid
+   *  di-render ulang — padahal data tidak berubah. */
+  const handleChangeRef = useRef<(v: GridRow[]) => void>(() => {});
+  handleChangeRef.current = handleChange;
+  const handleChangeStable = useCallback((v: GridRow[]) => handleChangeRef.current(v), []);
+  const handleScrollRef = useRef(() => {});
+  handleScrollRef.current = () => { fitActionsIfNeeded(); simpanScroll(); };
+  const handleScrollStable = useCallback(() => handleScrollRef.current(), []);
+  const handleSelectionStable = useCallback(({ selection }: { selection: GridSelection | null }) => {
+    setRange(selection);
+  }, []);
+  const rowClassNameStable = useCallback(({ rowIndex }: { rowIndex: number }) => {
+    const r = gridValue[rowIndex];
+    return cn(
+      rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
+      r && String(r.id) === INPUT_ROW_ID && 'simpes-dsg-row-input',
+      r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridValue, checkedIds]);
+
+  /** Draft baris input saja (dropdown bertingkat): identitasnya stabil selama
+   *  yang berubah hanya draft baris data — lihat deps `dsgColumns`. */
+  const inputDraft = drafts[INPUT_ROW_ID];
+
+  const dsgColumns: Column<GridRow>[] = useMemo(() => {    /** Kelas perataan kolom dari standar global tabel (bawaan tengah). */
     const alignClass = (key: string) =>
       alignEfektif(key) === 'right'
         ? 'simpes-dsg-align-right'
@@ -883,7 +948,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             columnData: {
               fieldKey: f.key,
               choices: typeof f.inputChoices === 'function'
-                ? f.inputChoices(drafts[INPUT_ROW_ID] ?? {})
+                ? f.inputChoices(inputDraft ?? {})
                 : (f.inputChoices ?? f.choices ?? []),
               onEnter: (col: number) => inputEnterRef.current(col),
             },
@@ -949,7 +1014,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             fieldKey: f.key,
             choices: f.choices ?? [],
             choicesInput: typeof f.inputChoices === 'function'
-              ? f.inputChoices(drafts[INPUT_ROW_ID] ?? {})
+              ? f.inputChoices(inputDraft ?? {})
               : (f.inputChoices ?? undefined),
             onEnter: (col: number) => inputEnterRef.current(col),
             // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
@@ -1028,8 +1093,11 @@ export default function ExcelTable<T extends { id: string | number }>({
       }
     }
     return cols;
+    // `drafts` disengaja TIDAK masuk deps: satu-satunya yang dibaca dari state
+    // adalah draft BARIS INPUT (dropdown bertingkat, via `inputDraft`);
+    // ketikan edit baris data tak perlu membangun ulang definisi kolom.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, showInput, freezeAktif, hideCheckbox, labelKolom, alignEfektif, drafts]);
+  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, showInput, freezeAktif, hideCheckbox, labelKolom, alignEfektif, inputDraft]);
 
   /** Logika baris input (mode Input): draft, validasi, simpan, kursor. */
   const {
@@ -1358,6 +1426,14 @@ export default function ExcelTable<T extends { id: string | number }>({
               style={{ height: gridHeight, visibility: tampilGrid ? undefined : 'hidden' }}
               onContextMenu={onGridContextMenu}
             >
+              {/* Bilah muat halus saat refetch (ganti halaman/filter): grid
+                  lama tetap terlihat, hanya bilah tipis di tepi atas yang
+                  bergerak — tanpa kerangka, tanpa kedip. */}
+              {loading && rows.length > 0 && (
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden" aria-hidden="true">
+                  <div className="simpes-muat-bar h-full bg-primary/70" />
+                </div>
+              )}
               {pakaiMemuat ? (
                 <TabelMemuat rowH={effectiveH} baris={maxRows ?? 14} />
               ) : (
@@ -1366,7 +1442,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     key={`baris-${sigAktif}`}
                     ref={gridRef}
                     value={gridValue}
-                    onChange={handleChange}
+                    onChange={handleChangeStable}
                     columns={dsgColumns}
                     stickyLeftColumnCount={freezeAktif > 0 ? freezeAktif + (hideCheckbox ? 0 : 1) : 0}
                     stickyRightColumn={hideActions ? undefined : aksiColumn}
@@ -1377,16 +1453,9 @@ export default function ExcelTable<T extends { id: string | number }>({
                     lockRows
                     addRowsComponent={false}
                     disableContextMenu
-                    rowClassName={({ rowIndex }) => {
-                      const r = gridValue[rowIndex];
-                      return cn(
-                        rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
-                        r && String(r.id) === INPUT_ROW_ID && 'simpes-dsg-row-input',
-                        r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
-                      );
-                    }}
-                    onSelectionChange={({ selection }) => setRange(selection)}
-                    onScroll={() => { fitActionsIfNeeded(); simpanScroll(); }}
+                    rowClassName={rowClassNameStable}
+                    onSelectionChange={handleSelectionStable}
+                    onScroll={handleScrollStable}
                   />
                 </CheckAllContext.Provider>
               )}
@@ -1436,9 +1505,11 @@ export default function ExcelTable<T extends { id: string | number }>({
           />
         </ContextMenu>
 
-        {/* Placeholder saat lebar kolom belum stabil (grid disembunyikan agar
-            tidak terlihat melompat). Berbentuk tabel agar tidak tampak blok kosong. */}
-        {!tampilGrid && (
+        {/* Placeholder saat gerbang lebar menahan grid. Hanya bila BELUM ada
+            data (muat awal) atau gerbang macet >800ms (kasus langka: semua
+            kolom memang ~100px) — jendela flash remount (~2 bingkai) cukup
+            ditutup kartu kosong seukuran, tanpa kerangka yang berkedip. */}
+        {!tampilGrid && (rows.length === 0 || gateLama) && (
           <div className="absolute inset-0 z-10" aria-hidden="true">
             <TabelMemuat rowH={effectiveH} />
           </div>

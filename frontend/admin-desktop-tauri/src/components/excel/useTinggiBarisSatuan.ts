@@ -53,8 +53,17 @@ export function useTinggiBarisSatuan({
 }: Props): (rowData: GridRow) => number {
   const cacheLebarTeks = useRef(new Map<string, number>());
   const cacheTinggiBaris = useRef(new Map<string, number>());
-  /** Gaya terhitung dibaca sekali per kombinasi font/tinggi (bukan per baris). */
-  const gayaRef = useRef<{ kunci: string; gaya: CSSStyleDeclaration | null }>({ kunci: '', gaya: null });
+  /** Gaya terhitung dibaca sekali per kombinasi font/tinggi (bukan per baris),
+   *  beserta faktor line-height & padding sel NYATA dari DOM — bukan konstanta
+   *  tebakan. Tanpa ini estimasi bungkus teks meleset dari render DSG
+   *  (dulu: asumsi 1.35 vs warisan body 1.45, padding mati 16px), sehingga
+   *  tinggi baris goyang tiap data berubah dan memicu remount yang kentara. */
+  const gayaRef = useRef<{
+    kunci: string;
+    gaya: CSSStyleDeclaration | null;
+    faktorBaris: number;
+    padX: number;
+  }>({ kunci: '', gaya: null, faktorBaris: 1.45, padX: 16 });
   return useCallback((rowData: GridRow): number => {
     const rowKey = String(rowData.id);
     const manual = tinggiBarisManual[rowKey];
@@ -64,10 +73,31 @@ export function useTinggiBarisSatuan({
     try {
       const kunciGaya = `${effectiveFont}|${effectiveH}`;
       if (gayaRef.current.kunci !== kunciGaya || gayaRef.current.gaya === null) {
-        gayaRef.current = {
-          kunci: kunciGaya,
-          gaya: wrapRef.current ? getComputedStyle(wrapRef.current) : null,
-        };
+        const gaya = wrapRef.current ? getComputedStyle(wrapRef.current) : null;
+        // Faktor warisan dari elemen yang sama tempat line-height dihitung
+        // (line-height unitless 1.45 terhitung jadi px) — bukan dari
+        // effectiveFont yang basisnya beda (font body vs font tabel).
+        let faktorBaris = 1.45;
+        let padX = 16;
+        try {
+          if (gaya) {
+            const fs = parseFloat(gaya.fontSize);
+            const lh = parseFloat(gaya.lineHeight);
+            if (Number.isFinite(fs) && fs > 0 && Number.isFinite(lh) && lh > 0) {
+              faktorBaris = lh / fs;
+            }
+          }
+          const sel = wrapRef.current?.querySelector<HTMLElement>(
+            '.dsg-row:not(.dsg-row-header) .dsg-cell:not(.dsg-cell-gutter)',
+          );
+          if (sel) {
+            const cs = getComputedStyle(sel);
+            padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+          }
+        } catch {
+          // Gagal baca DOM → pakai bawaan aman di atas.
+        }
+        gayaRef.current = { kunci: kunciGaya, gaya, faktorBaris, padX };
       }
       const style = gayaRef.current.gaya;
       if (!style) return effectiveH;
@@ -83,7 +113,7 @@ export function useTinggiBarisSatuan({
       }
       if (teks.length === 0) return effectiveH;
 
-      const sig = `${rowKey}|${effectiveFont}|${effectiveH}|${lebarKolom.join(',')}|${teks.join('\u0001')}`;
+      const sig = `${rowKey}|${effectiveFont}|${effectiveH}|${gayaRef.current.faktorBaris.toFixed(3)}|${gayaRef.current.padX}|${lebarKolom.join(',')}|${teks.join('\u0001')}`;
       const tersimpan = cacheTinggiBaris.current.get(sig);
       if (tersimpan !== undefined) return tersimpan;
 
@@ -96,7 +126,14 @@ export function useTinggiBarisSatuan({
         cacheLebarTeks.current.set(kunci, baru);
         return baru;
       });
-      const tinggi = hitungTinggiBaris({ lebarTeks, lebarKolom, fontPx: effectiveFont, minH: effectiveH });
+      const tinggi = hitungTinggiBaris({
+        lebarTeks,
+        lebarKolom,
+        fontPx: effectiveFont,
+        minH: effectiveH,
+        lineHeight: gayaRef.current.faktorBaris,
+        padX: gayaRef.current.padX,
+      });
       if (cacheTinggiBaris.current.size > 10000) cacheTinggiBaris.current.clear();
       cacheTinggiBaris.current.set(sig, tinggi);
       return tinggi;

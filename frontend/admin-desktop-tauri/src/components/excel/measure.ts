@@ -35,6 +35,26 @@ export function bersihkanProbe() {
   probe = null;
 }
 
+/** Konteks kanvas bersama untuk PENYARINGAN cepat lebar teks (tanpa layout).
+ *  Kanvas tidak menggantikan span DOM (`tabular-nums` tak terwakili) —
+ *  dipakai hanya menyaring kandidat terlebar; final tetap diukur DOM. */
+let kanvas: CanvasRenderingContext2D | null | undefined;
+export function dapatkanKanvas(): CanvasRenderingContext2D | null {
+  if (kanvas === undefined) {
+    try {
+      kanvas = document.createElement('canvas').getContext('2d');
+    } catch {
+      kanvas = null;
+    }
+  }
+  return kanvas;
+}
+
+/** String font kanvas dari gaya terhitung (format sama `ctx.font`). */
+export function fontKanvas(cs: CSSStyleDeclaration): string {
+  return `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+}
+
 /** Lebar kolom Aksi diukur dari tombol yang benar-benar dirender — jumlah
  *  tombol bergantung role/baris sehingga tidak bisa dihitung dari data.
  *  Mengembalikan null bila kolom Aksi sedang tidak dirender (virtualisasi). */

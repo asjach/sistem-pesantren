@@ -329,6 +329,16 @@
   flex-direction: column;
   min-height: 0;
 }
+/* Bilah muat halus di tepi atas kartu saat refetch (pagination/filter):
+   segmen menyapu kiri-kanan; grid di bawahnya tetap terlihat. */
+.simpes-muat-bar {
+  width: 33.333%;
+  animation: simpes-muat-geser 1.1s ease-in-out infinite;
+}
+@keyframes simpes-muat-geser {
+  0% { margin-left: -33.333%; }
+  100% { margin-left: 100%; }
+}
 .simpes-dsg .dsg-row.dsg-row-header {
   /* Header bergaya buku induk: kertas tipis + garis bawah netral yang tegas,
      bukan isian aksen. Override isian var bagian tetap menang bila diatur. */

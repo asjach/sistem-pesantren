@@ -191,8 +191,13 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
 
   useEffect(() => {
     if (pager.ready && benihSiap) void load(pager.page);
+    // Kunci ISI deps (bukan identitas array): turunan filter seperti
+    // `kelasFilterIds` (hasil map/filter) berganti identitas tiap render
+    // walau isinya sama — tanpa kunci ini tabel memuat 2× (satu diabort)
+    // setiap identitas berganti. Konvensi: `deps` hanya berisi data
+    // ter-JSON-kan (string/boolean/array), bukan fungsi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, benihSiap, searchTertunda, ...deps]);
+  }, [pager.ready, benihSiap, searchTertunda, JSON.stringify(deps)]);
 
   const onSearchChange = useCallback(
     (v: string) => {
