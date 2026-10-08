@@ -30,6 +30,12 @@ class Tagihan extends Model
         return $this->belongsTo(JenisTagihan::class, 'jenis_id');
     }
 
+    /** Lembaga penerbit tagihan (snapshot saat generate, restrict hapus). */
+    public function lembaga(): BelongsTo
+    {
+        return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
+    }
+
     public function pembayaran(): HasMany
     {
         return $this->hasMany(Pembayaran::class);

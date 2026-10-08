@@ -17,4 +17,10 @@ class TarifTagihan extends Model
     {
         return $this->belongsTo(JenisTagihan::class, 'jenis_id');
     }
+
+    /** Lembaga penerbit tarif. */
+    public function lembaga(): BelongsTo
+    {
+        return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
+    }
 }

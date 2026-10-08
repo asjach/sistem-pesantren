@@ -13,6 +13,7 @@ use App\Models\TarifTagihan;
 use App\Models\User;
 use App\Services\UrutKatalog;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -37,6 +38,38 @@ class KeuanganTest extends TestCase
         $u->assignRole('super_admin');
 
         return $u;
+    }
+
+    public function test_jenjang_keuangan_terikat_fk_lembaga(): void
+    {
+        $jenis = JenisTagihan::create(['nama' => 'Infaq', 'tipe' => 'bulanan', 'jenjang' => 'MI']);
+        $this->assertSame('MI', $jenis->lembaga->jenjang);
+
+        // Jenis global (null) tetap sah.
+        JenisTagihan::create(['nama' => 'Global', 'tipe' => 'bulanan', 'jenjang' => null]);
+
+        $tarif = TarifTagihan::create([
+            'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000,
+        ]);
+        $this->assertSame('MI', $tarif->lembaga->jenjang);
+
+        $santri = Santri::create(['nama_lengkap' => 'S FK', 'jk' => 'L']);
+        $tagihan = Tagihan::create([
+            'santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
+            'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 75000,
+        ]);
+        $this->assertSame('MI', $tagihan->lembaga->jenjang);
+
+        // Jenjang asing ditolak database (penegakan MySQL; di sqlite
+        // yang tak mendukung FK alter, cukup relasinya yang diuji).
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Penegakan FK butuh MySQL.');
+        }
+        $this->expectException(QueryException::class);
+        Tagihan::create([
+            'santri_id' => $santri->id, 'jenjang' => 'XX', 'tahun_ajaran' => '2025/2026',
+            'jenis_id' => $jenis->id, 'periode' => '2025-08', 'nominal' => 75000,
+        ]);
     }
 
     public function test_kandidat_urut_kelas_jk_lalu_nama(): void
