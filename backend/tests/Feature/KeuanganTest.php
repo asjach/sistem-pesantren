@@ -221,8 +221,8 @@ class KeuanganTest extends TestCase
         $this->actingAs($admin)->getJson($urlRange)->assertStatus(200)->assertJsonCount(2, 'data');
 
         /* Generate rentang 3 bulan untuk B → dibuat 3. Diulang dengan nominal
-           sama → diperbarui 3 (bukan "dilewati"), lalu nominal diubah →
-           tagihannya ikut berubah. */
+           sama → tetap 3 (tak ada nilai berubah, bukan "diperbarui"),
+           lalu nominal diubah → tagihannya ikut berubah. */
         $payload = [
             'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id,
             'periode' => '2025-07', 'periode_sampai' => '2025-09',
@@ -231,7 +231,7 @@ class KeuanganTest extends TestCase
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
             ->assertStatus(200)->assertJson(['dibuat' => 3, 'diperbarui' => 0, 'dilewati' => 0]);
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
-            ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 3, 'dilewati' => 0]);
+            ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 0, 'tetap' => 3, 'dilewati' => 0]);
 
         $payload['nominal'] = 90000;
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
@@ -347,9 +347,9 @@ class KeuanganTest extends TestCase
             ->assertStatus(200)->assertJson(['dibuat' => 1, 'dilewati' => 0]);
         $this->assertSame('2025/2026', Tagihan::where('jenis_id', $nonBulanan->id)->value('periode'));
 
-        // Generate ulang TA yang sama → diperbarui (label periode sama), bukan dilewati.
+        // Generate ulang TA yang sama → tetap (nilai sama), bukan dilewati.
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payloadNon)
-            ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 1, 'dilewati' => 0]);
+            ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 0, 'tetap' => 1, 'dilewati' => 0]);
 
         // Kandidat non-bulanan tetap menandai yang sudah punya tagihan TA itu.
         $this->actingAs($admin)->getJson("/api/admin/keuangan/tagihan/kandidat?tahun_ajaran=2025/2026&kelompok=aktif&jenis_id={$nonBulanan->id}")
@@ -384,7 +384,7 @@ class KeuanganTest extends TestCase
             'periode' => '2025-07', 'periode_sampai' => '2025-09', 'nominal' => 10000,
             'jatuh_tempo' => '2025-12-31',
             'santri' => [['santri_id' => $santri->id]],
-        ])->assertStatus(200)->assertJson(['dibuat' => 2, 'diperbarui' => 1, 'dilewati' => 0]);
+        ])->assertStatus(200)->assertJson(['dibuat' => 2, 'diperbarui' => 0, 'tetap' => 1, 'dilewati' => 0]);
         // Tiap bulan dapat tanggalnya sendiri, semuanya tanggal 10 bulan itu.
         foreach (['2025-07' => '2025-07-10', '2025-08' => '2025-08-10', '2025-09' => '2025-09-10'] as $periode => $harus) {
             $this->assertSame($harus, Tagihan::where('jenis_id', $bulanan->id)->where('periode', $periode)->firstOrFail()->jatuh_tempo->format('Y-m-d'));

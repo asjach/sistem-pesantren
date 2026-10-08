@@ -90,7 +90,7 @@ export function generateTagihan(data: {
   jatuh_tempo?: string | null; nominal: number; santri: { santri_id: number; nominal?: number | null }[];
 }) {
   return api<{
-    dibuat: number; diperbarui: number; dilewati: number;
+    dibuat: number; diperbarui: number; tetap: number; dilewati: number;
     /** Tagihan yang dilewati: sudah ada pembayaran (bulanan) atau nominal baru < terbayar. */
     alasan: { santri_id: number; periode: string | null; nominal_sekarang: number; terbayar: number; sebab: string }[];
   }>('/admin/keuangan/tagihan/generate', { method: 'POST', body: JSON.stringify(data) });

@@ -314,11 +314,12 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         periode_sampai: bulanan ? (periodeSampai || null) : null,
         jatuh_tempo: jatuhTempo || null, nominal, santri,
       });
-      /* Laporan per kategori: dibuat (baru), diperbarui (tagihan lama di-update),
-         dilewati (bulanan yang sudah ada pembayaran, atau nominal baru <
-         yang sudah dibayar — sebab disebut supaya user tahu itu bukan
-         kegagalan diam-diam). */
+      /* Laporan per kategori: dibuat (baru), diperbarui (nilainya berubah),
+         tetap (sudah sama, tak disentuh), dilewati (bulanan yang sudah ada
+         pembayaran, atau nominal baru < yang sudah dibayar — sebab disebut
+         supaya user tahu itu bukan kegagalan diam-diam). */
       const bagian = [`Dibuat ${r.dibuat}`, `diperbarui ${r.diperbarui}`];
+      if (r.tetap > 0) bagian.push(`tetap ${r.tetap}`);
       if (r.dilewati > 0) bagian.push(`dilewati ${r.dilewati}`);
       const pesan = bagian.join(', ');
       if (r.alasan.length > 0) {

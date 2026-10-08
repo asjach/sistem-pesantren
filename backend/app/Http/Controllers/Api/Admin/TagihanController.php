@@ -603,6 +603,7 @@ class TagihanController extends Controller
         ): array {
             $dibuat = 0;
             $diperbarui = 0;
+            $tetap = 0;
             $alasan = [];
 
             foreach ($diminta as $santriId => $s) {
@@ -722,16 +723,24 @@ class TagihanController extends Controller
                     if ($paketDasar !== null) {
                         $this->konsumsiKuota($idsBaru, $pakaiKuota, $punyaIds);
                     }
+                    // Tanpa perubahan nilai = tidak dihitung "diperbarui"
+                    // (save() pun tak mengeluarkan query bila tak dirty).
+                    if (! $ada->wasChanged()) {
+                        $tetap++;
+
+                        continue;
+                    }
                     $diperbarui++;
                 }
             }
 
-            return ['dibuat' => $dibuat, 'diperbarui' => $diperbarui, 'alasan' => $alasan];
+            return ['dibuat' => $dibuat, 'diperbarui' => $diperbarui, 'tetap' => $tetap, 'alasan' => $alasan];
         });
 
         return response()->json([
             'dibuat' => $hasil['dibuat'],
             'diperbarui' => $hasil['diperbarui'],
+            'tetap' => $hasil['tetap'],
             'dilewati' => count($hasil['alasan']),
             'alasan' => $hasil['alasan'],
         ]);

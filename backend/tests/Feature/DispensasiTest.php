@@ -229,7 +229,7 @@ class DispensasiTest extends TestCase
 
         // Generate ulang idempoten: yang menempel bertahan, yang penuh tetap penuh.
         $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
-            ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 3, 'dilewati' => 0]);
+            ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 0, 'tetap' => 3, 'dilewati' => 0]);
         $this->assertSame(0, $per('2025-07')->nominal);
         $this->assertSame([$d->id], $per('2025-08')->dispensasi_ids);
         $this->assertSame(100000, $per('2025-09')->nominal);
