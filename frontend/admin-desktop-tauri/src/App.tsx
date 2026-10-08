@@ -119,7 +119,7 @@ export default function App() {
           <KelasAktifProvider>
             <ThemeProvider>
               <BrowserRouter>
-                  <Toaster richColors position="top-center" />
+                  <Toaster richColors position="bottom-center" />
                   <Routes>
                     <Route path="/login" element={<LoginPage />} />
                     <Route element={<Shell />}>
