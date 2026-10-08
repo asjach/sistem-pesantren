@@ -20,8 +20,11 @@ export const KELAS_TRIGGER =
 export const KELAS_LIST_TAB =
   'mx-auto my-1 max-w-full scroll-tanpa-bar gap-x-2 overflow-x-auto overflow-y-hidden border border-border p-0 group-data-[orientation=horizontal]/tabs:h-[26px]';
 
-/** Panel tab (TabsContent): kotak berbingkai agar area isi tab jelas. */
-export const KELAS_PANEL_TAB = 'border border-border';
+/** Panel tab (TabsContent): kotak berbingkai agar area isi tab jelas.
+ *  `simpes-panel-tab` dipakai CSS: saat isinya tabel yang menempel tepi, garis
+ *  kiri tabel dibuang karena bingkai panel sudah menjadi tepi kirinya — tanpa
+ *  itu dua garis 1px berdempetan dan terbaca 2px (lihat index.css). */
+export const KELAS_PANEL_TAB = 'border border-border simpes-panel-tab';
 
 /** Id elemen snake_case dari rute (`/tahun-ajaran` → `tahun_ajaran`). */
 function idRute(to: string): string {

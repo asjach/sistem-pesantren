@@ -192,6 +192,31 @@ describe('ExcelTable — klik kanan baris', () => {
   });
 });
 
+describe('penanda kelas grid yang dibaca CSS', () => {
+  /** CSS index.css memakai `simpes-dsg-bleed` untuk tahu tepi kiri grid ada di
+   *  luar bingkai panel (pasangan `-mx-1`) — kalau penanda ini lepas dari
+   *  kondisinya, aturan tepi kiri tabel di panel jadi salah sasaran. */
+  const kelasGrid = (container: HTMLElement) =>
+    container.querySelector<HTMLElement>('.simpes-dsg')?.className ?? '';
+
+  it('tanpa bar judul (mis. hidePreset): grid bleed — `-mx-1` + penanda `simpes-dsg-bleed`', () => {
+    const { container } = renderTabel({ hidePreset: true });
+    expect(kelasGrid(container)).toContain('-mx-1');
+    expect(kelasGrid(container)).toContain('simpes-dsg-bleed');
+  });
+
+  it('bar judul tampil: tak bleed, penandanya ikut hilang', () => {
+    const { container } = renderTabel();
+    expect(kelasGrid(container)).not.toContain('simpes-dsg-bleed');
+  });
+
+  it('pemilik judul (judulPemilik): tak bleed walau tanpa bar judul', () => {
+    const { container } = renderTabel({ hidePreset: true, judulPemilik: true });
+    expect(kelasGrid(container)).not.toContain('-mx-1');
+    expect(kelasGrid(container)).not.toContain('simpes-dsg-bleed');
+  });
+});
+
 describe('ExcelTable × RibbonTableProvider', () => {
   it('mendaftarkan tabel; mode Edit dari ribbon memunculkan pill mode', async () => {
     const status = { ada: false, editMode: false };

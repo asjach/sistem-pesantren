@@ -1415,8 +1415,10 @@ export default function ExcelTable<T extends { id: string | number }>({
         className={cn(
           // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
           // layout p-1) tanpa sudut membulat; judul tetap berpadding.
+          // `simpes-dsg-bleed` menandai keadaan itu untuk CSS: saat bleed, tepi
+          // kiri tabel ada di luar bingkai panel sehingga garisnya tetap perlu.
           'simpes-dsg relative flex min-w-0 flex-col',
-          !headerTampil && !judulPemilik && '-mx-1',
+          !headerTampil && !judulPemilik && '-mx-1 simpes-dsg-bleed',
           maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
         )}

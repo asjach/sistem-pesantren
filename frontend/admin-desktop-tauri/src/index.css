@@ -416,6 +416,20 @@
 .simpes-dsg .simpes-dsg-row-last .dsg-cell {
   box-shadow: 1px 0 var(--dsg-border-color);
 }
+/* Kolom terakhir (kolom Aksi, atau kolom data terakhir tanpa kolom Aksi)
+   menggambar garis kanannya lewat border-right — sama seperti kolom beku
+   terakhir di atas. Bayangan kanan bawaan sel harus ikut dibuang, kalau tidak
+   ia menambah garis kedua TEPAT di sebelah border itu (terbaca 2px). Di baris
+   terakhir bayangannya dibuang seluruhnya: garis kanan dari border-right,
+   garis bawah dari `::after`. Diletakkan SETELAH aturan baris terakhir agar
+   menang di baris itu. */
+.simpes-dsg .dsg-cell.simpes-dsg-col-last {
+  box-shadow: 0 1px var(--dsg-border-color);
+}
+.simpes-dsg .simpes-dsg-row-last .dsg-cell.simpes-dsg-col-last,
+.simpes-dsg .simpes-dsg-row-last .dsg-cell.simpes-dsg-beku-tepi {
+  box-shadow: none;
+}
 /* Baris tercentang: sorot lembut (ikut warna aksen tema) agar jelas
    baris mana yang sedang dipilih lewat checklist. */
 .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell,
@@ -621,6 +635,22 @@
   height: 100%;
   z-index: 30;
 }
+/* Tabel di dalam panel tab berbingkai (`simpes-panel-tab`): bingkai panel jatuh
+   TEPAT 1px di kiri garis kiri tabel, jadi dua garis 1px berdempetan — terbaca
+   sebagai satu garis 2px ("border kiri lebih tebal"). Solusinya menggeser tepi
+   kiri tabel 1px ke kiri sehingga garis kiri tabel berimpit dengan bingkai
+   panel (garis bawahnya menutup bingkai; warnanya sama). Sengaja digeser, bukan
+   dihapus: kalau garisnya dibuang, tabel yang tak menempel bingkai (mis. di
+   dalam kartu bersarang atau panel split) kehilangan tepi kirinya. `left` pada
+   elemen `relative` tidak mengubah tata letak, jadi lebar kolom aman; `margin-
+   right: -1px` mengembalikan liputan tepi kanan (tanpa itu, tepi kanan kartu
+   mundur 1px dan menyisakan pita latar). Grid "bleed" (`-mx-1`, penanda
+   `simpes-dsg-bleed`) tidak disentuh: tepi kirinya memang di luar bingkai. */
+.simpes-panel-tab .simpes-dsg:not(.simpes-dsg-bleed) {
+  left: -1px;
+  margin-right: -1px;
+}
+
 /* Kolom beku kiri (freeze pane, hasil patch DSG `stickyLeftColumnCount`):
    sel memakai offset `left` inline dari DSG sebagai posisi sticky, sehingga
    menempel di kiri tanpa perhitungan offset manual. Kolom terdepan dipaksa
@@ -632,10 +662,22 @@
 .simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-sticky-left {
   z-index: 42;
 }
-/* Pembatas kanan di tepi area beku (kolom beku terakhir). */
+/* Pembatas kanan di tepi area beku (kolom beku terakhir).
+   Garis kanannya = border-right (di dalam elemen, tak terpotong overflow).
+   Bayangan kanan bawaan sel DSG (`1px 1px`) jatuh TEPAT di sebelah border itu
+   → dua garis 1px berdempetan, terbaca 2px — jadi hanya komponen bawah yang
+   dipertahankan (garis baris tetap seperti sel lain). */
 .simpes-dsg .dsg-cell.dsg-cell-sticky-left.simpes-dsg-beku-tepi {
   border-right: 1px solid var(--dsg-border-color);
-  box-shadow: 1px 0 var(--dsg-border-color), 0 1px var(--dsg-border-color);
+  box-shadow: 0 1px var(--dsg-border-color);
+}
+/* Sel yang persis di kanan area beku: garis kirinya berdempetan dengan
+   border-right sel beku terakhir (dua garis 1px → terbaca 2px). Pembatas area
+   beku cukup satu — border-right sel beku, yang tetap menempel di tepinya saat
+   grid digulir horizontal (border kiri sel berjalan ikut konten dan tertutup
+   area beku). */
+.simpes-dsg .dsg-cell.simpes-dsg-beku-tepi + .dsg-cell {
+  border-left: none;
 }
 /* Kotak seleksi DSG tidak ikut menempel di area beku → beri aksen sel aktif. */
 .simpes-dsg .dsg-cell.dsg-cell-sticky-left.dsg-cell-active {
