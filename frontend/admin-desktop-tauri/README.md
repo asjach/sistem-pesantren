@@ -81,8 +81,7 @@ dan `react-data-table-component` sudah dicabut) lewat wrapper `ExcelTable`.
   26–200px) · alat tabel · tombol tambah halaman.
 - **Global** (berlaku semua tabel, tersimpan per perangkat): ukuran huruf,
   tinggi baris, jenis huruf.
-- Petunjuk "Seret untuk memblokir sel • Ctrl+C menyalin" ada di tooltip area
-  tabel (bukan teks di toolbar); info baris tercentang muncul hanya saat ada.
+- Info baris tercentang muncul hanya saat ada (bukan teks di toolbar).
 - Checkbox baris + **Salin TSV** (siap tempel ke Excel); Ctrl+C menyalin sel.
 - Kolom **Aksi** (Lihat/Ubah/Hapus) digerbang role per halaman; klik di dalam
   sel Aksi tidak mengubah seleksi grid.

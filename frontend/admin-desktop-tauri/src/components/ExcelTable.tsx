@@ -1404,7 +1404,6 @@ export default function ExcelTable<T extends { id: string | number }>({
               : {}),
           } as React.CSSProperties
         }
-        title="Seret untuk memblokir sel • Ctrl+C menyalin"
         onMouseDownCapture={(e) => {
           downPosRef.current = { x: e.clientX, y: e.clientY };
           closeEditorOnOtherCell(e);
