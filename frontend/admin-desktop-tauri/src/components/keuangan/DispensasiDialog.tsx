@@ -100,7 +100,6 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
   const [nama, setNama] = useState('');
   const [keterangan, setKeterangan] = useState('');
   const [ta, setTa] = useState('');
-  const [sifat, setSifat] = useState<'tetap' | 'sementara'>('tetap');
   const [kuota, setKuota] = useState('');
   const [aktif, setAktif] = useState(true);
 
@@ -139,7 +138,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
     setCari(''); setPage(1); setTambahJenisId(''); setTab('jenis');
     if (editing) {
       setNama(editing.nama); setKeterangan(editing.keterangan ?? ''); setTa(editing.tahun_ajaran);
-      setSifat(editing.sifat); setKuota(editing.kuota_bulan === null ? '' : String(editing.kuota_bulan));
+      setKuota(editing.kuota_bulan === null ? '' : String(editing.kuota_bulan));
       setAktif(editing.is_active);
       const aturan = editing.aturan ?? [];
       setBaris(aturan.filter((a) => a.jenis_id !== null).map((a) => ({ jenisId: a.jenis_id as number, tipe: a.tipe, nilai: String(a.nilai) })));
@@ -148,7 +147,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
       const bawaan = taBawaan !== null && daftarTA.some((x) => x.nama === taBawaan)
         ? taBawaan
         : (daftarTA.find((x) => x.is_aktif)?.nama ?? daftarTA[0]?.nama ?? '');
-      setNama(''); setKeterangan(''); setTa(bawaan); setSifat('tetap'); setKuota(''); setAktif(true);
+      setNama(''); setKeterangan(''); setTa(bawaan); setKuota(''); setAktif(true);
       setBaris([]);
       setSantriPilih(santriAwal ? [{ id: santriAwal.id, nama: santriAwal.nama_lengkap, nisLokal: null, ayah: null, ibu: null }] : []);
     }
@@ -246,7 +245,6 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
       nama: nama.trim(),
       keterangan: keterangan.trim() === '' ? null : keterangan.trim(),
       tahun_ajaran: ta,
-      sifat,
       kuota_bulan: kuota.trim() === '' ? null : Number(kuota),
       aturan,
       santri_ids: santriPilih.length > 0 ? santriPilih.map((s) => s.id) : null,
@@ -300,18 +298,6 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                 {daftarTA.map((x) => (
                   <SelectItem key={x.nama} value={x.nama}>{x.nama}{x.is_aktif ? ' (aktif)' : ''}</SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex w-44 flex-col gap-1">
-            <FieldLabel htmlFor="sel_dispensasi_sifat">Sifat</FieldLabel>
-            <Select value={sifat} onValueChange={(v) => setSifat(v as 'tetap' | 'sementara')}>
-              <SelectTrigger id="sel_dispensasi_sifat" className="h-8 w-full" aria-label="Sifat dispensasi">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tetap">Tetap (otomatis tiap generate)</SelectItem>
-                <SelectItem value="sementara">Sementara (hanya bila dicentang saat generate)</SelectItem>
               </SelectContent>
             </Select>
           </div>

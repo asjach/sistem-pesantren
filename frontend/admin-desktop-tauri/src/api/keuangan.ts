@@ -88,8 +88,6 @@ export function daftarTagihan(params: { page?: string; per_page?: string; jenjan
 export function generateTagihan(data: {
   tahun_ajaran: string; jenis_id: number; periode?: string | null; periode_sampai?: string | null;
   jatuh_tempo?: string | null; nominal: number; santri: { santri_id: number; nominal?: number | null }[];
-  /** Paket sementara yang dicentang generate ini (tetap selalu otomatis). */
-  dispensasi_sementara_ids?: number[];
 }) {
   return api<{
     dibuat: number; diperbarui: number; dilewati: number;
@@ -146,7 +144,6 @@ export interface DispensasiAturan {
 
 export interface Dispensasi {
   id: number; nama: string; keterangan: string | null; tahun_ajaran: string;
-  sifat: 'tetap' | 'sementara';
   /** Kuota bulan (tagihan bulanan per santri); null = tanpa batas. */
   kuota_bulan: number | null;
   santri_ids: number[] | null; is_active: boolean;
@@ -161,7 +158,6 @@ export interface DispensasiAturanInput {
 
 export interface DispensasiInput {
   nama: string; keterangan?: string | null; tahun_ajaran: string;
-  sifat?: 'tetap' | 'sementara';
   kuota_bulan?: number | null;
   aturan: DispensasiAturanInput[]; santri_ids?: number[] | null;
   is_active?: boolean;

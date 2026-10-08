@@ -18,17 +18,12 @@ class Dispensasi extends Model
     protected $table = 'dispensasi';
 
     protected $fillable = [
-        'nama', 'keterangan', 'tahun_ajaran', 'sifat', 'kuota_bulan', 'is_active',
+        'nama', 'keterangan', 'tahun_ajaran', 'kuota_bulan', 'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'kuota_bulan' => 'integer',
-    ];
-
-    /** Bawaan PHP (DB default juga `tetap`): respons create langsung benar. */
-    protected $attributes = [
-        'sifat' => 'tetap',
     ];
 
     /** Aturan potongan per jenis tagihan. */

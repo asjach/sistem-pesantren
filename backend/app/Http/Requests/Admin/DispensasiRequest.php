@@ -19,7 +19,6 @@ class DispensasiRequest extends FormRequest
             'nama' => 'required|string|max:100',
             'keterangan' => 'nullable|string|max:255',
             'tahun_ajaran' => 'required|string|exists:tahun_ajaran,nama',
-            'sifat' => 'sometimes|in:tetap,sementara',
             // Kuota bulan: khusus tagihan bulanan (null = tanpa batas).
             'kuota_bulan' => 'nullable|integer|min:1|max:120',
             'aturan' => 'required|array|min:1',

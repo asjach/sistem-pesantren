@@ -567,11 +567,9 @@ class TagihanController extends Controller
      * non-bulanan dilewati bila nominal barunya lebih kecil dari terbayar —
      * alasannya dikembalikan agar bisa ditampilkan ke pengguna.
      *
-     * Dispensasi tetap otomatis tiap generate; sementara hanya yang dicentang
-     * (`dispensasi_sementara_ids`) pada generate ini, dan hanya untuk santri
-     * yang sudah penerima paket itu. Generate tak pernah menambah penerima.
-     * Paket berkuota dialokasikan ke N bulan pertama per santri; baris yang
-     * sudah menempel dipertahankan (kuota yang diturunkan tak mencabut).
+     * Dispensasi aktif selalu otomatis tiap generate; paket berkuota
+     * dialokasikan ke N bulan pertama per santri (baris yang sudah
+     * menempel dipertahankan). Generate tak pernah menambah penerima.
      */
     public function generateTagihan(TagihanGenerateRequest $request)
     {
@@ -584,16 +582,14 @@ class TagihanController extends Controller
         $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
         $peta = $this->petaSantriGenerate($data['tahun_ajaran'], $diminta->keys()->all());
 
-        // Dispensasi aktif untuk TA+jenis ini; tetap otomatis, sementara
-        // hanya yang dicentang. Baris tanpa override manual dihitung ulang
-        // di sini (otoritatif), override manual menang.
+        // Dispensasi aktif untuk TA+jenis ini (semua paket selalu otomatis;
+        // kuota membatasi N bulan pertama). Baris tanpa override manual
+        // dihitung ulang di sini (otoritatif), override manual menang.
         $daftarDispensasi = Dispensasi::with(['aturan.jenis', 'santriTambahan'])
             ->where('tahun_ajaran', $data['tahun_ajaran'])
             ->where('is_active', true)
-            ->where('sifat', 'tetap')
             ->whereHas('aturan', fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenis->id))
             ->get();
-        $sementaraDipilih = $this->sementaraTerpilih($data, $jenis);
         $aturan = app(DispensasiService::class);
         // Kuota dihitung dari tagihan bulanan; jenis non-bulanan mengabaikannya.
         $kuotaBerlaku = $jenis->tipe === 'bulanan';
@@ -603,7 +599,7 @@ class TagihanController extends Controller
            sudah terlanjur dibuat: user melihat "gagal" padahal sebagian data
            sudah jadi, lalu generate ulang hanya melaporkan "dilewati". */
         $hasil = DB::transaction(function () use (
-            $actor, $data, $jenis, $periodes, $diminta, $peta, $daftarDispensasi, $sementaraDipilih, $aturan, $kuotaBerlaku
+            $actor, $data, $jenis, $periodes, $diminta, $peta, $daftarDispensasi, $aturan, $kuotaBerlaku
         ): array {
             $dibuat = 0;
             $diperbarui = 0;
@@ -621,13 +617,9 @@ class TagihanController extends Controller
                     $nominalManual = (int) $s['nominal'];
                     $pakaiKuota = [];
                 } else {
-                    // Sementara tercentang hanya untuk yang sudah penerima
-                    // (generate tak pernah mendaftarkan penerima baru —
-                    // itu wewenang dialog Dispensasi / Ubah per tagihan).
-                    $paketDasar = $aturan->saring(
-                        $daftarDispensasi->concat($sementaraDipilih)->unique('id')->values(),
-                        (int) $santriId
-                    );
+                    // Generate tak pernah mendaftarkan penerima baru —
+                    // itu wewenang dialog Dispensasi / Ubah per tagihan.
+                    $paketDasar = $aturan->saring($daftarDispensasi, (int) $santriId);
                     // Kuota terpakai per paket (tagihan bulanan santri ini
                     // yang sudah memuat paket) — alokasi per baris di bawah.
                     $pakaiKuota = $this->pakaiKuota($paketDasar, (int) $santriId);
@@ -819,37 +811,6 @@ class TagihanController extends Controller
                 $pakai[(int) $id] = ($pakai[(int) $id] ?? 0) + 1;
             }
         }
-    }
-
-    /**
-     * Paket sementara yang dicentang di dialog generate: wajib aktif,
-     * TA sama, sifat sementara, dan punya aturan untuk jenis ini.
-     *
-     * @param  array<string, mixed>  $data
-     * @return Collection<int, Dispensasi>
-     */
-    private function sementaraTerpilih(array $data, JenisTagihan $jenis): Collection
-    {
-        $ids = collect($data['dispensasi_sementara_ids'] ?? [])
-            ->map(fn ($v) => (int) $v)->unique()->values();
-        if ($ids->isEmpty()) {
-            return collect();
-        }
-        $paket = Dispensasi::with(['aturan.jenis', 'santriTambahan'])->whereIn('id', $ids)->get();
-        if ($paket->count() !== $ids->count()) {
-            abort(422, 'Paket sementara tidak dikenal.');
-        }
-        $aturanSvc = app(DispensasiService::class);
-        foreach ($paket as $d) {
-            if ($d->sifat !== 'sementara' || ! $d->is_active || $d->tahun_ajaran !== $data['tahun_ajaran']) {
-                abort(422, "Paket '{$d->nama}' bukan dispensasi sementara aktif TA ini.");
-            }
-            if ($aturanSvc->aturanUntukJenis($d, (int) $jenis->id) === null) {
-                abort(422, "Paket '{$d->nama}' tidak punya aturan untuk jenis tagihan ini.");
-            }
-        }
-
-        return $paket;
     }
 
     /**

@@ -62,7 +62,6 @@ class DispensasiTest extends TestCase
             'santri_ids' => [$santri->id],
         ])->assertStatus(201)
             ->assertJsonPath('nama', 'Anak Pegawai')
-            ->assertJsonPath('sifat', 'tetap')
             ->assertJsonPath('santri_ids', [$santri->id])
             ->assertJsonPath('santri_tambahan.0.nama_lengkap', 'Santri A')
             ->json('id');
@@ -178,46 +177,30 @@ class DispensasiTest extends TestCase
         $this->assertNull($manual->dispensasi_ids);
     }
 
-    public function test_generate_sementara_hanya_bila_dicentang_dan_hanya_penerima(): void
+    public function test_generate_menerapkan_otomatis_hanya_penerima(): void
     {
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
         $santri = $this->santriDenganRiwayat('Santri Prestasi');
         $biasa = $this->santriDenganRiwayat('Santri Biasa');
 
-        $tetap = $this->paket($jenis, 'Anak Pegawai', 'persen', 50, 'tetap', $santri);
-        $sementara = $this->paket($jenis, 'Prestasi', 'bebas', 0, 'sementara', $santri);
+        $tetap = $this->paket($jenis, 'Anak Pegawai', 'persen', 50, $santri);
+        $kuota = $this->paket($jenis, 'Prestasi', 'bebas', 0, $santri);
+        $kuota->update(['kuota_bulan' => 6]);
 
-        $payload = [
+        // Semua paket aktif selalu otomatis — hanya untuk penerima.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
             'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
             'nominal' => 100000,
             'santri' => [['santri_id' => $santri->id], ['santri_id' => $biasa->id]],
-        ];
-
-        // Tanpa centang: penerima tetap dapat 50% → 50.000; bukan penerima utuh.
-        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
-            ->assertStatus(200)->assertJson(['dibuat' => 2]);
+        ])->assertStatus(200)->assertJson(['dibuat' => 2]);
         $tagihan = Tagihan::where('santri_id', $santri->id)->firstOrFail();
-        $this->assertSame(50000, $tagihan->nominal);
-        $this->assertSame([$tetap->id], $tagihan->dispensasi_ids);
-        $this->assertSame(100000, Tagihan::where('santri_id', $biasa->id)->firstOrFail()->nominal);
-
-        // Centang sementara: penerima bebas → 0; bukan penerima TETAP utuh
-        // (generate tak mendaftarkan penerima baru).
-        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate',
-            $payload + ['dispensasi_sementara_ids' => [$sementara->id]])->assertStatus(200);
-        $tagihan->refresh();
+        // 50% → 50.000 lalu bebas → 0 (tetap + kuota, keduanya otomatis).
         $this->assertSame(0, $tagihan->nominal);
-        $this->assertSame(100000, $tagihan->potongan);
-        $this->assertSame([$tetap->id, $sementara->id], $tagihan->dispensasi_ids);
+        $this->assertSame([$tetap->id, $kuota->id], $tagihan->dispensasi_ids);
         $biasaTagihan = Tagihan::where('santri_id', $biasa->id)->firstOrFail();
         $this->assertSame(100000, $biasaTagihan->nominal);
         $this->assertNull($biasaTagihan->dispensasi_ids);
-        $this->assertDatabaseMissing('santri_dispensasi', ['dispensasi_id' => $sementara->id, 'santri_id' => $biasa->id]);
-
-        // Paket tetap yang dicentang sebagai sementara → 422.
-        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate',
-            $payload + ['dispensasi_sementara_ids' => [$tetap->id]])->assertStatus(422);
     }
 
     public function test_generate_kuota_membatasi_n_bulan_pertama(): void
@@ -225,7 +208,7 @@ class DispensasiTest extends TestCase
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
         $santri = $this->santriDenganRiwayat('Santri Kuota');
-        $d = $this->paket($jenis, 'Prestasi', 'bebas', 0, 'sementara', $santri);
+        $d = $this->paket($jenis, 'Prestasi', 'bebas', 0, $santri);
         $d->update(['kuota_bulan' => 2]);
 
         $payload = [
@@ -233,8 +216,7 @@ class DispensasiTest extends TestCase
             'periode' => '2025-07', 'periode_sampai' => '2025-09', 'nominal' => 100000,
             'santri' => [['santri_id' => $santri->id]],
         ];
-        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate',
-            $payload + ['dispensasi_sementara_ids' => [$d->id]])
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
             ->assertStatus(200)->assertJson(['dibuat' => 3]);
 
         $per = fn (string $p) => Tagihan::where('santri_id', $santri->id)->where('periode', $p)->firstOrFail();
@@ -246,8 +228,7 @@ class DispensasiTest extends TestCase
         $this->assertNull($per('2025-09')->dispensasi_ids);
 
         // Generate ulang idempoten: yang menempel bertahan, yang penuh tetap penuh.
-        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate',
-            $payload + ['dispensasi_sementara_ids' => [$d->id]])
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
             ->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 3, 'dilewati' => 0]);
         $this->assertSame(0, $per('2025-07')->nominal);
         $this->assertSame([$d->id], $per('2025-08')->dispensasi_ids);
@@ -259,7 +240,7 @@ class DispensasiTest extends TestCase
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'Infaq', 'tipe' => 'bulanan']);
         $santri = $this->santriDenganRiwayat('Santri Kuota Ubah');
-        $d = $this->paket($jenis, 'Prestasi', 'persen', 50, 'sementara', $santri);
+        $d = $this->paket($jenis, 'Prestasi', 'persen', 50, $santri);
         $d->update(['kuota_bulan' => 1]);
 
         $t1 = $this->tagihanManual($santri, $jenis);
@@ -289,7 +270,7 @@ class DispensasiTest extends TestCase
         $admin = $this->admin();
         $jenis = JenisTagihan::create(['nama' => 'Infaq', 'tipe' => 'bulanan']);
         $santri = $this->santriDenganRiwayat('Santri Hitung');
-        $d = $this->paket($jenis, 'Prestasi', 'bebas', 0, 'sementara', $santri);
+        $d = $this->paket($jenis, 'Prestasi', 'bebas', 0, $santri);
         $d->update(['kuota_bulan' => 6]);
 
         $t1 = $this->tagihanManual($santri, $jenis);
@@ -370,9 +351,9 @@ class DispensasiTest extends TestCase
         ]);
     }
 
-    private function paket(JenisTagihan $jenis, string $nama, string $tipe, int $nilai, string $sifat, Santri ...$penerima): Dispensasi
+    private function paket(JenisTagihan $jenis, string $nama, string $tipe, int $nilai, Santri ...$penerima): Dispensasi
     {
-        $d = Dispensasi::create(['nama' => $nama, 'tahun_ajaran' => '2025/2026', 'sifat' => $sifat]);
+        $d = Dispensasi::create(['nama' => $nama, 'tahun_ajaran' => '2025/2026']);
         $d->aturan()->create(['jenis_id' => $jenis->id, 'tipe' => $tipe, 'nilai' => $nilai]);
         if ($penerima !== []) {
             $d->santriTambahan()->sync(array_map(fn ($s) => $s->id, $penerima));
@@ -387,7 +368,7 @@ class DispensasiTest extends TestCase
         $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
         $santri = $this->santriDenganRiwayat('Santri Ubah');
         $tagihan = $this->tagihanManual($santri, $jenis);
-        $d = $this->paket($jenis, 'Prestasi', 'persen', 50, 'tetap', $santri);
+        $d = $this->paket($jenis, 'Prestasi', 'persen', 50, $santri);
 
         // Terapkan: kotor 100.000 → 50.000 + jejak.
         $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [
@@ -424,7 +405,7 @@ class DispensasiTest extends TestCase
         $santri = $this->santriDenganRiwayat('Santri Baru');
         $asing = $this->santriDenganRiwayat('Santri Asing');
         $tagihan = $this->tagihanManual($santri, $jenis);
-        $d = $this->paket($jenis, 'Khusus', 'persen', 50, 'tetap', $asing);
+        $d = $this->paket($jenis, 'Khusus', 'persen', 50, $asing);
 
         // Belum penerima → 200 + otomatis terdaftar + 50% dari 100.000.
         $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [
@@ -450,12 +431,12 @@ class DispensasiTest extends TestCase
         $payload = ['nominal' => 100000, 'tahun_ajaran' => '2025/2026'];
 
         // Tanpa aturan untuk jenis ini.
-        $d2 = $this->paket($lainJenis, 'ASAS Saja', 'persen', 50, 'tetap', $santri);
+        $d2 = $this->paket($lainJenis, 'ASAS Saja', 'persen', 50, $santri);
         $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}",
             $payload + ['dispensasi_ids' => [$d2->id]])->assertStatus(422);
 
         // Nonaktif.
-        $d3 = $this->paket($jenis, 'Mati', 'persen', 50, 'tetap', $santri);
+        $d3 = $this->paket($jenis, 'Mati', 'persen', 50, $santri);
         $d3->update(['is_active' => false]);
         $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}",
             $payload + ['dispensasi_ids' => [$d3->id]])->assertStatus(422);
@@ -475,7 +456,7 @@ class DispensasiTest extends TestCase
         $santri = $this->santriDenganRiwayat('Santri Bayar');
         $tagihan = $this->tagihanManual($santri, $jenis);
         $tagihan->update(['terbayar' => 60000, 'status' => 'sebagian']);
-        $d = $this->paket($jenis, 'Setengah', 'persen', 50, 'tetap', $santri);
+        $d = $this->paket($jenis, 'Setengah', 'persen', 50, $santri);
 
         // 50% dari 100.000 = 50.000 < terbayar 60.000 → tolak.
         $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [

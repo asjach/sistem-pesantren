@@ -459,13 +459,13 @@ describe('tab Ubah — dispensasi', () => {
   const PAKET: Dispensasi[] = [
     {
       id: 11, nama: 'Prestasi', keterangan: null, tahun_ajaran: '2025/2026', is_active: true,
-      sifat: 'tetap', kuota_bulan: null,
+      kuota_bulan: null,
       aturan: [{ id: 1, dispensasi_id: 11, jenis_id: 1, tipe: 'persen', nilai: 50 }],
       santri_ids: [7],
     },
     {
       id: 12, nama: 'Anak Pegawai', keterangan: null, tahun_ajaran: '2025/2026', is_active: true,
-      sifat: 'tetap', kuota_bulan: null,
+      kuota_bulan: null,
       aturan: [{ id: 2, dispensasi_id: 12, jenis_id: 1, tipe: 'nominal', nilai: 10000 }],
       santri_ids: [9],
     },
