@@ -154,36 +154,8 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
       <RibbonPemisah />
       <RibbonGroup>
         <div className="flex flex-col items-start gap-1.5">
-          {/* Label di samping stepper; lebar label dikunci agar kedua stepper
-              sejajar dalam satu kolom. */}
-          <div className="flex items-center gap-1.5">
-            <span
-              id="label_bekukan_kolom_top"
-              className="min-w-[86px] whitespace-nowrap text-xs text-[color-mix(in_srgb,var(--sidebar-foreground)_80%,transparent)]"
-            >
-              Freeze Kolom
-            </span>
-            <SpinBox
-              id="input_bekukan_kolom_top"
-              value={apiTabel?.freeze ?? 0}
-              min={0}
-              max={apiTabel?.freezeMax ?? 0}
-              title="Bekukan N kolom pertama di kiri (termasuk kolom centang)"
-              ariaLabel="Jumlah kolom beku"
-              onChange={(v) => apiTabel?.setFreeze(v)}
-            />
-            {/* Selalu tampil; nonaktif bila tidak ada kolom beku (seragam dengan
-                tombol reset lain di grup ini). */}
-            <RibbonCmd
-              id="btn_lepas_bekukan_kolom_top"
-              icon={RotateCcw}
-              label="Lepas semua kolom beku"
-              iconOnly
-              disabled={(apiTabel?.freeze ?? 0) === 0}
-              onClick={() => apiTabel?.setFreeze(0)}
-            />
-          </div>
-          {/* Tinggi baris header */}
+          {/* Tinggi baris header. Bekukan kolom kini hanya lewat klik kanan
+              header tabel (menu konteks grid), bukan dari ribbon. */}
           <div className="flex items-center gap-1.5">
             <span className="min-w-[86px] whitespace-nowrap text-xs text-[color-mix(in_srgb,var(--sidebar-foreground)_80%,transparent)]">Tinggi header</span>
             <SpinBox

@@ -1307,9 +1307,6 @@ export default function ExcelTable<T extends { id: string | number }>({
       setInputMode,
       showInput,
       headerHeight: headerH ?? headerAutoH ?? DEFAULT_HEADER_H,
-      freeze: freezeAktif,
-      freezeMax: visibleFields.length,
-      setFreeze: ubahFreeze,
     });
   }, [
     ribbonDaftar,
@@ -1322,9 +1319,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     showInput,
     headerH,
     headerAutoH,
-    freezeAktif,
-    visibleFields.length,
-    ubahFreeze,
   ]);
 
   const hasFilter = filter !== undefined;
