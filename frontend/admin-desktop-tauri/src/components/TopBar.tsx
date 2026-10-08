@@ -246,7 +246,7 @@ export default function TopBar() {
           SELALU sama dengan titik tengah baris/halaman — lepas dari lebar
           judul/search maupun area akun. Padding kiri menyisakan ruang untuk
           kenop navigasi yang melintasi border. */}
-      <div data-part="area_judul" className="relative grid min-h-[46px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 py-0 pb-1 pl-6 pr-3 md:pr-6">
+      <div data-part="area_judul" className="relative grid min-h-[32px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 py-0 pb-1 pl-6 pr-3 md:pr-6">
         {/* Kenop navigasi: satu tombol untuk dua arah — chevron kiri
             menyembunyikan rail (saat tampil), chevron kanan menampilkannya
             kembali (saat tertutup). Klik = lipat/buka; SERET = atur lebar,
