@@ -9,12 +9,14 @@ import {
   type Dispensasi,
   type JenisTagihan,
 } from '@/api/keuangan';
-import { listLembaga, listTahunAjaran, type Lembaga, type TahunAjaran } from '@/api/master';
+import { listTahunAjaran, type TahunAjaran } from '@/api/master';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
 import { DispensasiTab, FIELDS_DISPENSASI } from '@/components/keuangan/tabKeuangan';
-import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 
 function useUrutTabel() {
   const [urut, setUrut] = useState<string[]>([]);
@@ -32,7 +34,6 @@ function useUrutTabel() {
 export default function DispensasiPage() {
   const [dispensasi, setDispensasi] = useState<Dispensasi[]>([]);
   const [jenis, setJenis] = useState<JenisTagihan[]>([]);
-  const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [daftarTA, setDaftarTA] = useState<TahunAjaran[]>([]);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,18 +47,16 @@ export default function DispensasiPage() {
     setErr('');
     setLoading(true);
     try {
-      const [dispen, j, l, tas] = await Promise.all([
+      const [dispen, j, tas] = await Promise.all([
         daftarDispensasi({
           sort: uDispensasi.urut.length ? tokenUrut(uDispensasi.urut, uDispensasi.arahKolom) : undefined,
           arah: uDispensasi.urut.length ? uDispensasi.arah : undefined,
         }),
         daftarJenis({}),
-        listLembaga({ per_page: 100 }),
         listTahunAjaran({ per_page: 100 }),
       ]);
       setDispensasi(dispen);
       setJenis(j);
-      setLembagas(l.data);
       setDaftarTA(tas.data);
     } catch (e) {
       setErr(errorMessage(e));
@@ -92,7 +91,7 @@ export default function DispensasiPage() {
     })();
   }, [load]);
 
-  const taBawaan = tahunAjaranNames.find((x) => x) ?? daftarTA.find((x) => x.is_aktif)?.nama ?? '';
+  const taBawaan = targetTunggal(tahunAjaranNames) ?? daftarTA.find((x) => x.is_aktif)?.nama ?? '';
 
   return (
     <div className={PAGE_SHELL}>
@@ -100,19 +99,24 @@ export default function DispensasiPage() {
       <PengaturanHalaman
         tampil={{ lembaga: false, tahun_ajaran: false, tingkat: false, kelas: false }}
         tabel={[
-          { key: 'keuangan_dispensasi', judul: 'Dispensasi', fields: FIELDS_DISPENSASI },
+          { key: 'keuangan_dispensasi', judul: 'Daftar Dispensasi', fields: FIELDS_DISPENSASI },
         ]}
       />
-      <div className="flex min-h-0 flex-1 flex-col gap-1">
-        <DispensasiTab
-          rows={dispensasi}
-          loading={loading}
-          sort={uDispensasi}
-          onTambah={bukaTambahDispensasi}
-          onEdit={bukaUbahDispensasi}
-          onHapus={hapusDispensasiBaris}
-        />
-      </div>
+      <Tabs value="daftar" className="flex min-h-0 flex-1 flex-col gap-0">
+        <TabsList className={KELAS_LIST_TAB}>
+          <TabsTrigger value="daftar" id="keu_tab_daftar_dispensasi" className={KELAS_TRIGGER}>Daftar Dispensasi</TabsTrigger>
+        </TabsList>
+        <TabsContent value="daftar" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+          <DispensasiTab
+            rows={dispensasi}
+            loading={loading}
+            sort={uDispensasi}
+            onTambah={bukaTambahDispensasi}
+            onEdit={bukaUbahDispensasi}
+            onHapus={hapusDispensasiBaris}
+          />
+        </TabsContent>
+      </Tabs>
 
       <DispensasiDialog
         open={dispensasiOpen}

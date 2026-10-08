@@ -166,8 +166,8 @@ export const HALAMAN: HalamanDef[] = [
   HALAMAN_SANTRI_AKTIF,
   HALAMAN_PENEMPATAN,
   HALAMAN_AKADEMIK,
-  { to: '/keuangan', label: 'Pengaturan', deskripsi: 'Jenis tagihan, tarif, tagihan, dan tunggakan.', tab: 'keuangan', sub: 'pengaturan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
-  { to: '/keuangan/dispensasi', label: 'Dispensasi', deskripsi: 'Pengaturan dispensasi santri.', tab: 'keuangan', sub: 'dispensasi', grid: true, icon: BadgeCheck, permission: 'keuangan.lihat' },
+  { to: '/keuangan', label: 'Pengaturan', deskripsi: 'Jenis tagihan, tarif, tagihan, dan tunggakan.', tab: 'keuangan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
+  { to: '/keuangan/dispensasi', label: 'Dispensasi', deskripsi: 'Daftar dispensasi santri.', tab: 'keuangan', grid: true, icon: BadgeCheck, permission: 'keuangan.lihat' },
   { to: '/pembayaran', label: 'Pembayaran', deskripsi: 'Kasir: cari santri, lihat tagihan belum lunas, catat pembayaran.', tab: 'keuangan', grid: true, icon: ReceiptText, permission: 'keuangan.lihat' },
   {
     to: '/pengaturan/izin',
@@ -243,16 +243,7 @@ export const NAV_GRUP: GrupNav[] = [
       { langsung: true },
     ],
   },
-  {
-    id: 'keuangan',
-    label: 'Keuangan',
-    icon: Wallet,
-    anak: [
-      { id: 'pengaturan', label: 'Pengaturan', icon: Wallet },
-      { id: 'dispensasi', label: 'Dispensasi', icon: BadgeCheck },
-      { langsung: true },
-    ],
-  },
+  { id: 'keuangan', label: 'Keuangan', icon: Wallet },
   { id: 'pengaturan', label: 'Pengaturan', icon: Palette },
 ];
 
