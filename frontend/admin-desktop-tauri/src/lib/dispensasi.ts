@@ -60,19 +60,21 @@ export function ringkasAturan(
 }
 
 /** Gabung dua daftar paket per grup — cermin `DispensasiService::selaraskan`:
- *  `$utama` menang dalam grupnya (se-grup yang kalah dicoret); grup null
+ *  `$utama` menang dalam grupnya, daftar pertama menang bila se-grup ganda
+ *  (termasuk di dalam `$utama` — menormalkan jejak legacy); grup null
  *  selalu digabung. Dipakai pratinjau (backend otoritatif). */
 export function selaraskanGrup<T extends { id: number; grup: string | null }>(utama: T[], lawan: T[]): T[] {
-  const grupUtama = new Set<string>();
-  for (const d of utama) if (d.grup !== null) grupUtama.add(d.grup);
-  const hasil = [...utama];
-  const adaId = new Set(utama.map((d) => d.id));
-  for (const d of lawan) {
-    if (adaId.has(d.id)) continue;
-    if (d.grup !== null && grupUtama.has(d.grup)) continue;
-    hasil.push(d);
-    adaId.add(d.id);
-    if (d.grup !== null) grupUtama.add(d.grup);
+  const grupMenang = new Set<string>();
+  const hasil: T[] = [];
+  const adaId = new Set<number>();
+  for (const daftar of [utama, lawan]) {
+    for (const d of daftar) {
+      if (adaId.has(d.id)) continue;
+      if (d.grup !== null && grupMenang.has(d.grup)) continue;
+      hasil.push(d);
+      adaId.add(d.id);
+      if (d.grup !== null) grupMenang.add(d.grup);
+    }
   }
   return hasil;
 }
@@ -89,6 +91,8 @@ export function sisaKuota(
 /** Alokasi paket berkuota ke baris-baris generate (urut daftar santri,
  *  bulan-bulan awal dulu — cermin alokasi backend). Non-kuota & penerima
  *  selalu ikut; berkuota ikut bila sisa masih ada (konsumsi = periode run).
+ *  Se-grup tak menumpuk: saring kuota dulu (failover — habis dicoret agar
+ *  bersisa maju), lalu pertama (id terkecil) menang per grup.
  *  Pratinjau indicatif: backend otoritatif (pengecualian baris existing
  *  & parsial dalam-santri hanya dihitung di sana). */
 export function alokasiPaketKuota(
@@ -101,15 +105,25 @@ export function alokasiPaketKuota(
   const hasil = new Map<number, Dispensasi[]>();
   for (const sid of santriIds) {
     const pakai = terpakai[sid] ?? {};
-    const pilih = saringDispensasi(paket, sid).filter((d) => {
+    const tersedia = saringDispensasi(paket, sid).filter((d) => {
       if (d.kuota_bulan === null || d.kuota_bulan === undefined) return true;
-      const kunci = `${sid}:${d.id}`;
-      const sisa = d.kuota_bulan - (pakai[d.id] ?? 0) - (jalan.get(kunci) ?? 0);
-      if (sisa <= 0) return false;
-      jalan.set(kunci, (jalan.get(kunci) ?? 0) + periode);
+      const sisa = d.kuota_bulan - (pakai[d.id] ?? 0) - (jalan.get(`${sid}:${d.id}`) ?? 0);
+      return sisa > 0;
+    });
+    const menang = new Set<string>();
+    const selaras = [...tersedia].sort((a, b) => a.id - b.id).filter((d) => {
+      if (d.grup === null || d.grup === undefined) return true;
+      if (menang.has(d.grup)) return false;
+      menang.add(d.grup);
       return true;
     });
-    hasil.set(sid, pilih);
+    for (const d of selaras) {
+      if (d.kuota_bulan !== null && d.kuota_bulan !== undefined) {
+        const kunci = `${sid}:${d.id}`;
+        jalan.set(kunci, (jalan.get(kunci) ?? 0) + periode);
+      }
+    }
+    hasil.set(sid, selaras);
   }
   return hasil;
 }

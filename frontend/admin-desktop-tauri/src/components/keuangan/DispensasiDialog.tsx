@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import {
-  buatDispensasi, ubahDispensasi,
+  buatDispensasi, kuotaPakai, ubahDispensasi,
   type Dispensasi, type DispensasiInput, type JenisTagihan, type TipeDispensasi,
 } from '../../api/keuangan';
 import { type TahunAjaran } from '../../api/master';
@@ -122,6 +122,36 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
 
+  /** Kuota terpakai per penerima (santri_id → bulan) — mode ubah + berkuota. */
+  const [kuotaPakaiMap, setKuotaPakaiMap] = useState<Record<number, number>>({});
+  const kuotaAngka = kuota.trim() === '' ? null : Number(kuota);
+  const kuotaAktif = kuotaAngka !== null && Number.isInteger(kuotaAngka) && kuotaAngka >= 1;
+
+  // Mode ubah berkuota: muat pemakaian agar kolom sisa terisi.
+  useEffect(() => {
+    if (!open || !editing || !kuotaAktif) { setKuotaPakaiMap({}); return; }
+    let hidup = true;
+    const ids = (editing.santri_ids ?? []);
+    if (ids.length === 0) { setKuotaPakaiMap({}); return; }
+    void (async () => {
+      try {
+        const m = await kuotaPakai(ids);
+        if (!hidup) return;
+        const perSantri: Record<number, number> = {};
+        for (const [sid, pakai] of Object.entries(m)) perSantri[Number(sid)] = pakai[editing.id] ?? 0;
+        setKuotaPakaiMap(perSantri);
+      } catch { if (hidup) setKuotaPakaiMap({}); }
+    })();
+    return () => { hidup = false; };
+  }, [open, editing, kuotaAktif]);
+
+  /** Kolom penerima + sisa kuota (bila paket berkuota): "terpakai/kuota". */
+  const fieldsPenerima: ExcelField[] = useMemo(
+    () => kuotaAktif
+      ? [...FIELDS_SANTRI, { key: 'sisa', label: 'Sisa Kuota', kind: 'static', width: 90 }]
+      : FIELDS_SANTRI,
+    [kuotaAktif],
+  );
   /** Klik header: kolom NIS lokal hanya tampilan (tanpa urut server) → abaikan. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun', peta?: PetaArahKolom) {
     const bersih = nilai.filter((k) => k !== 'nis_lokal');
@@ -440,9 +470,14 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                   <div className="flex min-h-0 flex-1 flex-col">
                     <ExcelTable<Penerima>
                       tableKey="dispensasi_santri_penerima"
-                      fields={FIELDS_SANTRI}
+                      fields={fieldsPenerima}
                       rows={santriPilih}
-                      getValues={(r) => ({ nama: r.nama, nis_lokal: r.nisLokal, ayah: r.ayah, ibu: r.ibu })}
+                      getValues={(r) => ({
+                        nama: r.nama, nis_lokal: r.nisLokal, ayah: r.ayah, ibu: r.ibu,
+                        sisa: kuotaAktif && kuotaAngka !== null
+                          ? `${Math.max(0, kuotaAngka - (kuotaPakaiMap[r.id] ?? 0))}/${kuotaAngka}`
+                          : null,
+                      })}
                       emptyText="Masukkan santri dari daftar kiri (centang lalu Masukkan, atau ikon →)."
                       canEdit={false}
                       onCommit={async () => {}}

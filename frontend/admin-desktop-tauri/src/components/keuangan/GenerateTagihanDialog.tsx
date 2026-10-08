@@ -221,20 +221,28 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   );
 
   /** Susun baris otomatis: nominal default + alokasi paket per baris
-   *  (otomatis + kuota; manual tak diubah). */
+   *  (otomatis + kuota; manual tak diubah). Penerima kuota yang tak kebagian
+   *  disebut di label agar jelas (backend otoritatif). */
   const susunBaris = useCallback((r: KandidatTagihanRow, nominalStr: string): BarisTerpilih => {
     const awal = Number(nominalStr);
     if (jenisId === '' || !Number.isInteger(awal) || awal < 0) {
       return { ...r, nominal: nominalStr, nominalManual: false, potongan: 0, dispensasiIds: null, dispensasiLabel: null };
     }
     const paket = alokasi.get(r.santri_id) ?? [];
+    const dapat = new Set(paket.map((d) => d.id));
+    const takKebagian = daftarDispen
+      .filter((d) => d.kuota_bulan !== null && (d.santri_ids ?? []).includes(r.santri_id) && !dapat.has(d.id))
+      .map((d) => d.nama);
     const h = hitungDispensasi(awal, paket, Number(jenisId));
+    const dasar = h.label === '' ? null : h.label;
+    const catatan = takKebagian.length > 0 ? `tak kebagian kuota: ${takKebagian.join(', ')}` : null;
+    const label = [dasar, catatan].filter((x): x is string => x !== null).join(' · ') || null;
     return {
       ...r, nominal: String(h.nominal), nominalManual: false,
       potongan: h.potongan, dispensasiIds: h.ids.length > 0 ? h.ids : null,
-      dispensasiLabel: h.label === '' ? null : h.label,
+      dispensasiLabel: label,
     };
-  }, [alokasi, jenisId]);
+  }, [alokasi, daftarDispen, jenisId]);
 
   // Nominal default / dispensasi berubah → baris otomatis dihitung ulang.
   // Hanya baris yang nilainya berubah diganti (identitas dipertahankan)

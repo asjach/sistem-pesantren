@@ -64,9 +64,10 @@ class DispensasiService
     }
 
     /**
-     * Gabung dua daftar paket per grup: `$utama` menang dalam grupnya
-     * (yang kalah se-grup dicoret — tak menimpa, tak menumpuk);
-     * grup null selalu digabung. Generate memakai (menempel, berlaku),
+     * Gabung dua daftar paket per grup: `$utama` menang dalam grupnya,
+     * daftar pertama menang bila se-grup ganda (termasuk di dalam
+     * `$utama` sendiri — menormalkan jejak legacy). Grup null selalu
+     * digabung. Generate memakai (menempel, berlaku),
      * Ubah memakai (diminta, menempel).
      *
      * @param  Collection<int, Dispensasi>  $utama
@@ -75,27 +76,24 @@ class DispensasiService
      */
     public function selaraskan(Collection $utama, Collection $lawan): Collection
     {
-        $grupUtama = [];
-        foreach ($utama as $d) {
-            if ($d->grup !== null) {
-                $grupUtama[$d->grup] = true;
-            }
-        }
-        $hasil = $utama->values();
-        foreach ($lawan as $d) {
-            if ($utama->contains('id', $d->id)) {
-                continue;
-            }
-            if ($d->grup !== null && isset($grupUtama[$d->grup])) {
-                continue;
-            }
-            $hasil->push($d);
-            if ($d->grup !== null) {
-                $grupUtama[$d->grup] = true;
+        $grupMenang = [];
+        $hasil = collect();
+        foreach ([$utama, $lawan] as $daftar) {
+            foreach ($daftar as $d) {
+                if ($hasil->contains('id', $d->id)) {
+                    continue;
+                }
+                if ($d->grup !== null && isset($grupMenang[$d->grup])) {
+                    continue;
+                }
+                $hasil->push($d);
+                if ($d->grup !== null) {
+                    $grupMenang[$d->grup] = true;
+                }
             }
         }
 
-        return $hasil->unique('id')->values();
+        return $hasil->values();
     }
 
     /**

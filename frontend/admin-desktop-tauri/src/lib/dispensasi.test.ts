@@ -87,6 +87,9 @@ describe('selaraskanGrup', () => {
     expect(selaraskanGrup([g(1, null)], [g(1, null), g(2, null)])).toEqual([g(1, null), g(2, null)]);
     expect(selaraskanGrup([], [g(1, 'a'), g(2, 'a')])).toEqual([g(1, 'a')]);
   });
+  it('ganda se-grup di dalam utama: daftar pertama menang (legacy)', () => {
+    expect(selaraskanGrup([g(1, 'p'), g(2, 'p'), g(3, null)], [])).toEqual([g(1, 'p'), g(3, null)]);
+  });
 });
 
 describe('sisaKuota', () => {
@@ -115,5 +118,16 @@ describe('alokasiPaketKuota', () => {
     const hasil = alokasiPaketKuota([kuota], [7, 8], { 7: { 1: 1 } }, 1);
     expect(hasil.get(7)).toEqual([]);
     expect(hasil.get(8)?.map((d) => d.id)).toEqual([1]);
+  });
+
+  it('se-grup failover: habis dicoret dulu, bersisa maju (tak menumpuk)', () => {
+    const ganjil = paket({ id: 1, kuota_bulan: 1, grup: 'prestasi' }, [], [7]);
+    const genap = paket({ id: 2, kuota_bulan: 6, grup: 'prestasi' }, [], [7]);
+    // Ganjil habis (1/1) → Genap maju sendirian.
+    const hasil = alokasiPaketKuota([ganjil, genap], [7], { 7: { 1: 1 } }, 1);
+    expect(hasil.get(7)?.map((d) => d.id)).toEqual([2]);
+    // Keduanya bersisa → pertama menang, tak menumpuk.
+    const hasil2 = alokasiPaketKuota([genap, ganjil], [7], {}, 1);
+    expect(hasil2.get(7)?.map((d) => d.id)).toEqual([1]);
   });
 });

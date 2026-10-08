@@ -342,6 +342,54 @@ class DispensasiTest extends TestCase
         $this->assertSame([$anak->id, $genap->id], $t->dispensasi_ids);
     }
 
+    public function test_generate_menormalkan_ganda_segrup_legacy(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Legacy');
+        $ganjil = $this->paket($jenis, 'Ganjil', 'bebas', 0, $santri);
+        $ganjil->update(['grup' => 'prestasi']);
+        $genap = $this->paket($jenis, 'Genap', 'bebas', 0, $santri);
+        $genap->update(['grup' => 'prestasi']);
+
+        // Jejak legacy: dua se-grup menempel sebelum flag grup ada.
+        $t = $this->tagihanManual($santri, $jenis);
+        $t->update(['nominal' => 0, 'potongan' => 100000, 'dispensasi_ids' => [$ganjil->id, $genap->id]]);
+
+        // Generate ulang menormalkan: daftar pertama menang (ganjil).
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
+            'nominal' => 100000, 'santri' => [['santri_id' => $santri->id]],
+        ])->assertStatus(200);
+        $t->refresh();
+        $this->assertSame(0, $t->nominal);
+        $this->assertSame([$ganjil->id], $t->dispensasi_ids);
+    }
+
+    public function test_generate_failover_segrup_kuota_habis(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Failover');
+        $ganjil = $this->paket($jenis, 'Ganjil', 'bebas', 0, $santri);
+        $ganjil->update(['grup' => 'prestasi', 'kuota_bulan' => 1]);
+        $genap = $this->paket($jenis, 'Genap', 'bebas', 0, $santri);
+        $genap->update(['grup' => 'prestasi', 'kuota_bulan' => 6]);
+
+        // Ganjil habis di Juli (1/1); Agustus failover ke Genap (tak menumpuk).
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id,
+            'periode' => '2025-07', 'periode_sampai' => '2025-08', 'nominal' => 100000,
+            'santri' => [['santri_id' => $santri->id]],
+        ])->assertStatus(200)->assertJson(['dibuat' => 2]);
+        $jul = Tagihan::where('santri_id', $santri->id)->where('periode', '2025-07')->firstOrFail();
+        $agu = Tagihan::where('santri_id', $santri->id)->where('periode', '2025-08')->firstOrFail();
+        $this->assertSame([$ganjil->id], $jul->dispensasi_ids);
+        $this->assertSame([$genap->id], $agu->dispensasi_ids);
+        $this->assertSame(0, $jul->nominal);
+        $this->assertSame(0, $agu->nominal);
+    }
+
     public function test_aturan_hanya_berlaku_untuk_jenisnya_dan_bebas_menihilkan(): void
     {
         $admin = $this->admin();

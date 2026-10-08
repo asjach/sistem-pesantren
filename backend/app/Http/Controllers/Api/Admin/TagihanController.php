@@ -651,8 +651,13 @@ class TagihanController extends Controller
                             $potongan = 0;
                             $dispensasiIds = null;
                         } else {
-                            // Baris baru: gabungan = berlaku (menempel tak ada).
-                            $gabung = $aturan->selaraskan(collect(), $paketDasar);
+                            // Baris baru: saring kuota dulu (failover se-grup:
+                            // yang habis dicoret agar bersisa bisa maju),
+                            // lalu selaraskan (menempel tak ada di sini).
+                            $berlaku = $paketDasar->filter(
+                                fn ($d) => $this->kuotaTersedia($d, $pakaiKuota, [], $kuotaBerlaku)
+                            )->values();
+                            $gabung = $aturan->selaraskan(collect(), $berlaku);
                             $paketBaris = $this->paketBaris($gabung, $pakaiKuota, null, $kuotaBerlaku);
                             $hitung = $aturan->terapkan((int) $data['nominal'], $paketBaris, (int) $jenis->id);
                             $nominal = $hitung['nominal'];
@@ -686,11 +691,15 @@ class TagihanController extends Controller
                         $punyaIds = null;
                     } else {
                         $punyaIds = $ada->dispensasi_ids;
-                        // Menempel menang dalam grupnya (meneruskan);
-                        // pendatang se-grup dicoret sebelum alokasi kuota.
+                        // Menempel menang dalam grupnya (meneruskan). Failover
+                        // kuota: yang habis & belum menempel dicoret DULU agar
+                        // se-grup yang bersisa bisa maju ke baris ini.
                         $punya = array_map('intval', (array) $punyaIds);
+                        $berlaku = $paketDasar->filter(
+                            fn ($d) => $this->kuotaTersedia($d, $pakaiKuota, $punya, $kuotaBerlaku)
+                        )->values();
                         $sudahAda = $grupMap->only($punya)->values();
-                        $gabung = $aturan->selaraskan($sudahAda, $paketDasar);
+                        $gabung = $aturan->selaraskan($sudahAda, $berlaku);
                         $paketBaris = $this->paketBaris($gabung, $pakaiKuota, $ada, $kuotaBerlaku);
                         $hitung = $aturan->terapkan((int) $data['nominal'], $paketBaris, (int) $jenis->id);
                         $nominal = $hitung['nominal'];
@@ -814,6 +823,26 @@ class TagihanController extends Controller
     }
 
     /**
+     * Satu paket boleh dipakai baris ini: tanpa kuota selalu boleh;
+     * berkuota boleh bila sudah menempel (tak konsumsi baru) atau sisa
+     * masih ada. Non-bulanan mengabaikan kuota.
+     *
+     * @param  array<int, int>  $pakai
+     * @param  list<int>  $punya
+     */
+    private function kuotaTersedia(Dispensasi $d, array $pakai, array $punya, bool $kuotaBerlaku): bool
+    {
+        if (! $kuotaBerlaku || $d->kuota_bulan === null) {
+            return true;
+        }
+        if (in_array((int) $d->id, $punya, true)) {
+            return true;
+        }
+
+        return ($pakai[(int) $d->id] ?? 0) < (int) $d->kuota_bulan;
+    }
+
+    /**
      * Subset paket untuk satu baris tagihan: paket berkuota yang habis
      * (dan belum menempel di baris ini) dicoret. Murni, tanpa efek —
      * pencatatan konsumsi dilakukan terpisah setelah baris tersimpan.
@@ -824,21 +853,9 @@ class TagihanController extends Controller
      */
     private function paketBaris(Collection $paketDasar, array $pakai, ?Tagihan $ada, bool $kuotaBerlaku): Collection
     {
-        if (! $kuotaBerlaku) {
-            return $paketDasar;
-        }
         $punya = $ada === null ? [] : array_map('intval', (array) ($ada->dispensasi_ids ?? []));
 
-        return $paketDasar->filter(function ($d) use ($pakai, $punya) {
-            if ($d->kuota_bulan === null) {
-                return true;
-            }
-            if (in_array((int) $d->id, $punya, true)) {
-                return true;
-            }
-
-            return ($pakai[(int) $d->id] ?? 0) < (int) $d->kuota_bulan;
-        })->values();
+        return $paketDasar->filter(fn ($d) => $this->kuotaTersedia($d, $pakai, $punya, $kuotaBerlaku))->values();
     }
 
     /**
