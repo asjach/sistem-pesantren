@@ -23,7 +23,7 @@ import {
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
-import { ViewDialog } from '@/components/ViewDialog';
+import DialogLihatLembaga from '@/components/lembaga/DialogLihatLembaga';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import {
   Dialog,
@@ -123,6 +123,10 @@ export default function LembagaPage() {
   const [editSeleksi, setEditSeleksi] = useState(false);
   const [editAktif, setEditAktif] = useState(true);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
+  /** Galat validasi/server khusus dialog Ubah (terlihat tanpa menutup dialog). */
+  const [editErr, setEditErr] = useState('');
+  /** Mencegah simpan ganda saat request lambat. */
+  const [simpanBusy, setSimpanBusy] = useState(false);
   const setF = useCallback(
     (kunci: string) => (e: { target: { value: string } }) =>
       setEditForm((f) => ({ ...f, [kunci]: e.target.value })),
@@ -135,6 +139,7 @@ export default function LembagaPage() {
 
   const openEdit = useCallback((l: Lembaga) => {
     setEditRow(l);
+    setEditErr('');
     setEditNama(l.nama);
     setEditKelompok(l.kelompok_psb === 'combo_mi_md' ? 'combo_mi_md' : 'eksklusif');
     setEditSeleksi(!!l.is_seleksi);
@@ -198,7 +203,9 @@ export default function LembagaPage() {
   }, [nama, jenjang, kelompokPsb, isSeleksi, load, pager.goFirst]);
 
   const onUpdate = useCallback(async () => {
-    if (!editRow) return;
+    if (!editRow || simpanBusy) return;
+    setEditErr('');
+    setSimpanBusy(true);
     try {
       const f = editForm;
       const teks = (v: string | undefined) => {
@@ -254,9 +261,12 @@ export default function LembagaPage() {
       setEditRow(null);
       await load();
     } catch (e) {
-      setErr(errorMessage(e));
+      // Tetap di dialog agar pengguna bisa perbaiki (pesan halaman tertutup dialog).
+      setEditErr(errorMessage(e));
+    } finally {
+      setSimpanBusy(false);
     }
-  }, [editRow, editNama, editKelompok, editSeleksi, editAktif, editForm, load]);
+  }, [editRow, editNama, editKelompok, editSeleksi, editAktif, editForm, load, simpanBusy]);
 
   const onDelete = useCallback(async (jenjang: string) => {
     try {
@@ -332,7 +342,7 @@ export default function LembagaPage() {
   );
 
   const seksi = (judul: string) => (
-    <div className="col-span-2 border-b pb-1 pt-2 text-xs font-semibold">{judul}</div>
+    <div className="col-span-2 -mx-1 rounded-md bg-muted/60 px-2 py-1 text-xs font-semibold">{judul}</div>
   );
 
   return (
@@ -406,23 +416,26 @@ export default function LembagaPage() {
           </DialogContent>
         </Dialog>
       )}
-      <ViewDialog
+      <DialogLihatLembaga
         open={viewRow !== null}
         onOpenChange={(o) => { if (!o) setViewRow(null); }}
-        title={viewRow ? `Lembaga: ${viewRow.nama}` : 'Lembaga'}
-        row={viewRow as unknown as Record<string, unknown> | null}
+        lembaga={viewRow}
+        onUbah={canUbah && viewRow ? () => { const l = viewRow; setViewRow(null); openEdit(l); } : undefined}
       />
-      <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o) setEditRow(null); }}>
+      <Dialog open={editRow !== null} onOpenChange={(o) => { if (!o && !simpanBusy) setEditRow(null); }}>
         <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Ubah lembaga</DialogTitle>
             <DialogDescription className="sr-only">Formulir perubahan data lembaga.</DialogDescription>
           </DialogHeader>
+          {editErr ? (
+            <p id="galat_ubah_lembaga" role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive-foreground">{editErr}</p>
+          ) : null}
           <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
             {seksi('Identitas')}
             <FieldLabel htmlFor="input_ubah_jenjang_lembaga">Jenjang (kunci, tak dapat diubah)</FieldLabel>
             <Input id="input_ubah_jenjang_lembaga" value={editRow?.jenjang ?? ''} readOnly disabled />
-            <FieldLabel htmlFor="input_ubah_nama_lembaga">Nama</FieldLabel>
+            <FieldLabel htmlFor="input_ubah_nama_lembaga">Nama <span aria-hidden="true" className="text-destructive">*</span></FieldLabel>
             <Input id="input_ubah_nama_lembaga" value={editNama} onChange={(e) => setEditNama(e.target.value)} required maxLength={100} />
             {medan('input_ubah_nama_singkat_lembaga', 'Nama singkat', 'nama_singkat', { maxLength: 50 })}
             {medan('input_ubah_mudir_lembaga', 'Mudir / Kepala', 'mudir_am', { maxLength: 100 })}
@@ -458,11 +471,17 @@ export default function LembagaPage() {
             {medan('input_ubah_kecamatan_lembaga', 'Kecamatan', 'kecamatan', { maxLength: 100 })}
             {medan('input_ubah_kab_kota_lembaga', 'Kab/Kota', 'kab_kota', { maxLength: 100 })}
             {medan('input_ubah_provinsi_lembaga', 'Provinsi', 'provinsi', { maxLength: 100 })}
-            {medan('input_ubah_rt_lembaga', 'RT', 'rt', { maxLength: 3 })}
-            {medan('input_ubah_rw_lembaga', 'RW', 'rw', { maxLength: 3 })}
+            <FieldLabel htmlFor="input_ubah_rt_lembaga">RT / RW</FieldLabel>
+            <div className="flex gap-2">
+              <Input id="input_ubah_rt_lembaga" value={editForm.rt ?? ''} onChange={setF('rt')} maxLength={3} placeholder="001" autoComplete="off" className="w-24" aria-label="RT" />
+              <Input id="input_ubah_rw_lembaga" value={editForm.rw ?? ''} onChange={setF('rw')} maxLength={3} placeholder="002" autoComplete="off" className="w-24" aria-label="RW" />
+            </div>
             {medan('input_ubah_kode_pos_lembaga', 'Kode pos', 'kode_pos', { maxLength: 10 })}
-            {medan('input_ubah_lintang_lembaga', 'Lintang', 'lintang', { placeholder: '-6.89' })}
-            {medan('input_ubah_bujur_lembaga', 'Bujur', 'bujur', { placeholder: '107.61' })}
+            <FieldLabel htmlFor="input_ubah_lintang_lembaga">Lintang / Bujur</FieldLabel>
+            <div className="flex gap-2">
+              <Input id="input_ubah_lintang_lembaga" value={editForm.lintang ?? ''} onChange={setF('lintang')} placeholder="-6.89" autoComplete="off" className="w-36" aria-label="Lintang" />
+              <Input id="input_ubah_bujur_lembaga" value={editForm.bujur ?? ''} onChange={setF('bujur')} placeholder="107.61" autoComplete="off" className="w-36" aria-label="Bujur" />
+            </div>
             {medan('input_ubah_telepon_lembaga', 'Telepon', 'telepon', { maxLength: 30 })}
             {medan('input_ubah_email_lembaga', 'Email', 'email', { maxLength: 100 })}
             {medan('input_ubah_website_lembaga', 'Website', 'website', { maxLength: 100 })}
@@ -496,8 +515,10 @@ export default function LembagaPage() {
             </label>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
-            <Button id="btn_simpan_lembaga" onClick={onUpdate}>Simpan</Button>
+            <Button type="button" variant="outline" disabled={simpanBusy} onClick={() => setEditRow(null)}>Batal</Button>
+            <Button id="btn_simpan_lembaga" disabled={simpanBusy} onClick={onUpdate}>
+              {simpanBusy ? 'Menyimpan…' : 'Simpan'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
