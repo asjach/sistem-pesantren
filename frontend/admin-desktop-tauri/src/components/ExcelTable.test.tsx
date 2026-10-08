@@ -217,6 +217,23 @@ describe('penanda kelas grid yang dibaca CSS', () => {
   });
 });
 
+describe('ExcelTable — baris "+ Tambah baris"', () => {
+  it('hanya tampil bila tabel punya onCreateRow, dan kliknya menyalakan mode Input', async () => {
+    const { unmount } = renderTabel();
+    expect(screen.queryByLabelText('Tambah baris baru')).not.toBeInTheDocument();
+    unmount();
+
+    renderTabel({ onCreateRow: vi.fn(async () => {}) });
+    const tombol = screen.getByLabelText('Tambah baris baru');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    fireEvent.click(tombol);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Input aktif'));
+    // Baris "+" digantikan baris isian di ujung bawah grid.
+    expect(screen.queryByLabelText('Tambah baris baru')).not.toBeInTheDocument();
+  });
+});
+
 describe('ExcelTable × RibbonTableProvider', () => {
   it('mendaftarkan tabel; klik ganda sel memunculkan pill Mode Edit', async () => {
     const status = { ada: false };

@@ -13,7 +13,7 @@ import {
   useGridPrefs,
 } from '@/components/GridPrefs';
 import type { RibbonTableApi } from '@/components/RibbonTable';
-import { PlusCircle, RotateCcw } from '@/icons';
+import { RotateCcw } from '@/icons';
 import {
   Select,
   SelectContent,
@@ -131,18 +131,8 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
 
   return (
     <>
-      <RibbonGroup>
-        {/* Mode Edit kini hanya lewat klik ganda pada sel tabel. */}
-        <RibbonCmd
-          id="ribbon_btn_input"
-          icon={PlusCircle}
-          label="Mode Input"
-          aktif={!!apiTabel?.showInput}
-          disabled={!apiTabel?.inputEnabled}
-          onClick={() => apiTabel?.setInputMode(!apiTabel.inputMode)}
-        />
-      </RibbonGroup>
-      <RibbonPemisah />
+      {/* Mode Edit lewat klik ganda sel; mode Input lewat baris "+ Tambah
+          baris" di ujung bawah grid — keduanya bukan dari ribbon. */}
       <RibbonGroup>
         <div className="flex flex-col items-start gap-1.5">
           {/* Tinggi baris header. Bekukan kolom kini hanya lewat klik kanan

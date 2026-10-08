@@ -12,6 +12,9 @@ interface Props {
   orientasi: 'vertikal' | 'horizontal';
   /** Wadah `.simpes-dsg` (tempat mencari `.dsg-container`). */
   wadahRef: RefObject<HTMLDivElement | null>;
+  /** Jarak rel dari dasar kartu (px) — mis. tinggi baris "+ Tambah baris"
+   *  yang memakan ujung bawah kartu, agar rel tidak menutupinya. */
+  jarakBawah?: number;
 }
 
 /** Bilah gulir melayang di tepi kartu tabel — pengganti scrollbar bawaan
@@ -20,7 +23,7 @@ interface Props {
  *  Gulir roda/sentuh tetap bawaan — komponen ini hanya visual + pegangan:
  *  seret jempol, klik rel (lompat satu layar), keyboard saat fokus.
  *  `.dsg-container` dicari ulang tiap sinkron agar tahan remount grid. */
-export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
+export default function ScrollbarMelayang({ orientasi, wadahRef, jarakBawah = 0 }: Props) {
   const vertikal = orientasi === 'vertikal';
   const relRef = useRef<HTMLDivElement>(null);
   const seret = useRef<{ awalPointer: number; awalGulir: number } | null>(null);
@@ -171,9 +174,10 @@ export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
       tabIndex={0}
       onPointerDown={klikRel}
       onKeyDown={tekanTombol}
+      style={{ bottom: jarakBawah }}
       className={cn(
         'absolute z-10 touch-none outline-none select-none focus-visible:ring-2 focus-visible:ring-ring',
-        vertikal ? 'inset-y-0 right-0 w-2.5' : 'inset-x-0 bottom-0 h-2.5',
+        vertikal ? 'top-0 right-0 w-2.5' : 'inset-x-0 h-2.5',
       )}
     >
       <div

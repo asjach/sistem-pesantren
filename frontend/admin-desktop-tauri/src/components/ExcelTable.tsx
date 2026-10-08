@@ -38,7 +38,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ActionIcon } from '@/components/RowActions';
-import { Pencil, PlusCircle, Save } from '@/icons';
+import { Pencil, Plus, PlusCircle, Save } from '@/icons';
 
 /** Klik kanan di "corner button" (sel header gutter di sudut kiri-atas,
  *  bertanda segitiga `.dsg-corner-indicator`) → menu salin seluruh tabel. */
@@ -666,6 +666,17 @@ export default function ExcelTable<T extends { id: string | number }>({
       : rows.length === 0 && !showInput
         ? 280
         : headerEfektifH + 1 + (barisIsi + (showInput ? 1 : 0)) * effectiveH;
+
+  /** Baris "+ Tambah baris" ala spreadsheet di ujung bawah grid — jalan masuk
+   *  mode Input tanpa tombol ribbon. Tampil selama tabel punya `onCreateRow`
+   *  dan mode Input belum aktif. */
+  const TINGGI_BARIS_TAMBAH = 26;
+  const barisTambahTampil = inputEnabled && !showInput;
+  const tinggiBarisTambah = barisTambahTampil ? TINGGI_BARIS_TAMBAH : 0;
+  /** Tinggi area grid DSG vs tinggi kartu: tabel halaman tetap setinggi
+   *  wrapper (baris tambah memakan sebagian), tabel kompak bertambah tinggi. */
+  const isiGridH = maxRows === undefined ? gridHeight - tinggiBarisTambah : gridHeight;
+  const kartuH = maxRows === undefined ? gridHeight : gridHeight + tinggiBarisTambah;
 
   // Simpan tinggi final tabel kompak untuk dipakai sebagai placeholder pada
   // kunjungan berikutnya (tinggi placeholder = tinggi final → tanpa geseran).
@@ -1298,18 +1309,11 @@ export default function ExcelTable<T extends { id: string | number }>({
       salin: () => ribbonAksiRef.current.salin(),
       autofit: () => ribbonAksiRef.current.autofit(),
       reset: () => ribbonAksiRef.current.reset(),
-      inputEnabled,
-      inputMode,
-      setInputMode,
-      showInput,
       headerHeight: headerH ?? headerAutoH ?? DEFAULT_HEADER_H,
     });
   }, [
     ribbonDaftar,
     tableKey,
-    inputEnabled,
-    inputMode,
-    showInput,
     headerH,
     headerAutoH,
   ]);
@@ -1439,7 +1443,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                 // Tabel kompak: haluskan perubahan tinggi placeholder → final.
                 maxRows !== undefined && 'transition-[height] duration-200 ease-out',
               )}
-              style={{ height: gridHeight, visibility: tampilGrid ? undefined : 'hidden' }}
+              style={{ height: kartuH, visibility: tampilGrid ? undefined : 'hidden' }}
               onContextMenu={onGridContextMenu}
             >
               {/* Bilah muat halus saat refetch (ganti halaman/filter): grid
@@ -1464,7 +1468,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     stickyLeftColumnCount={freezeAktif > 0 ? freezeAktif + (hideCheckbox ? 0 : 1) : 0}
                     stickyRightColumn={hideActions ? undefined : aksiColumn}
                     rowKey="id"
-                    height={gridHeight}
+                    height={isiGridH}
                     rowHeight={gridRowHeight}
                     headerRowHeight={headerH ?? headerAutoH ?? DEFAULT_HEADER_H}
                     lockRows
@@ -1484,8 +1488,25 @@ export default function ExcelTable<T extends { id: string | number }>({
               {/* Bilah gulir melayang (pengganti scrollbar bawaan yang
                   disembunyikan): menempel tepi kartu, grid menembus di
                   bawahnya. Sembunyi sendiri bila tak ada luapan. */}
-              <ScrollbarMelayang orientasi="vertikal" wadahRef={wrapRef} />
-              <ScrollbarMelayang orientasi="horizontal" wadahRef={wrapRef} />
+              <ScrollbarMelayang orientasi="vertikal" wadahRef={wrapRef} jarakBawah={tinggiBarisTambah} />
+              <ScrollbarMelayang orientasi="horizontal" wadahRef={wrapRef} jarakBawah={tinggiBarisTambah} />
+
+              {/* Baris "+ Tambah baris" (ala spreadsheet): klik → mode Input
+                  aktif dan baris isian muncul di ujung bawah grid. */}
+              {barisTambahTampil && (
+                <button
+                  id={`btn_tambah_baris_${tableKey}`}
+                  type="button"
+                  aria-label="Tambah baris baru"
+                  title="Tambah baris baru"
+                  style={{ height: TINGGI_BARIS_TAMBAH }}
+                  className="flex w-full shrink-0 items-center gap-1.5 border-t border-border bg-muted/30 px-2.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  onClick={() => setInputMode(true)}
+                >
+                  <Plus size={14} />
+                  <span>Tambah baris</span>
+                </button>
+              )}
             </div>
           </ContextMenuTrigger>
 
