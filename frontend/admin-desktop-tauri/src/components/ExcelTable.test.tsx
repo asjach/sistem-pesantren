@@ -217,20 +217,28 @@ describe('penanda kelas grid yang dibaca CSS', () => {
   });
 });
 
-describe('ExcelTable — baris "+ Tambah baris"', () => {
-  it('hanya tampil bila tabel punya onCreateRow, dan kliknya menyalakan mode Input', async () => {
+describe('ExcelTable — tombol ikon kaki tabel', () => {
+  it('tombol "Tambah baris" hanya tampil bila ada onCreateRow, dan kliknya menyalakan mode Input', async () => {
     const { unmount } = renderTabel();
     expect(screen.queryByLabelText('Tambah baris baru')).not.toBeInTheDocument();
     unmount();
 
     renderTabel({ onCreateRow: vi.fn(async () => {}) });
-    const tombol = screen.getByLabelText('Tambah baris baru');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
-    fireEvent.click(tombol);
+    fireEvent.click(screen.getByLabelText('Tambah baris baru'));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Input aktif'));
-    // Baris "+" digantikan baris isian di ujung bawah grid.
+    // Digantikan baris isian di ujung bawah grid.
     expect(screen.queryByLabelText('Tambah baris baru')).not.toBeInTheDocument();
+  });
+
+  it('tombol mode Edit menyalakan mode Edit', async () => {
+    renderTabel();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Aktifkan mode Edit'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Edit aktif'));
+    expect(screen.queryByLabelText('Aktifkan mode Edit')).not.toBeInTheDocument();
   });
 });
 

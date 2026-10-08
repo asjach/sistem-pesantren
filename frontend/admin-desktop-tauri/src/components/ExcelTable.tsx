@@ -10,7 +10,7 @@ import 'react-datasheet-grid/dist/style.css';
 import { DENSITY_PX } from '@/prefs';
 import { useTheme } from '@/theme';
 import { isTauri, prefSet } from '@/api/client';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
@@ -666,17 +666,6 @@ export default function ExcelTable<T extends { id: string | number }>({
       : rows.length === 0 && !showInput
         ? 280
         : headerEfektifH + 1 + (barisIsi + (showInput ? 1 : 0)) * effectiveH;
-
-  /** Baris "+ Tambah baris" ala spreadsheet di ujung bawah grid — jalan masuk
-   *  mode Input tanpa tombol ribbon. Tampil selama tabel punya `onCreateRow`
-   *  dan mode Input belum aktif. */
-  const TINGGI_BARIS_TAMBAH = 26;
-  const barisTambahTampil = inputEnabled && !showInput;
-  const tinggiBarisTambah = barisTambahTampil ? TINGGI_BARIS_TAMBAH : 0;
-  /** Tinggi area grid DSG vs tinggi kartu: tabel halaman tetap setinggi
-   *  wrapper (baris tambah memakan sebagian), tabel kompak bertambah tinggi. */
-  const isiGridH = maxRows === undefined ? gridHeight - tinggiBarisTambah : gridHeight;
-  const kartuH = maxRows === undefined ? gridHeight : gridHeight + tinggiBarisTambah;
 
   // Simpan tinggi final tabel kompak untuk dipakai sebagai placeholder pada
   // kunjungan berikutnya (tinggi placeholder = tinggi final → tanpa geseran).
@@ -1443,7 +1432,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                 // Tabel kompak: haluskan perubahan tinggi placeholder → final.
                 maxRows !== undefined && 'transition-[height] duration-200 ease-out',
               )}
-              style={{ height: kartuH, visibility: tampilGrid ? undefined : 'hidden' }}
+              style={{ height: gridHeight, visibility: tampilGrid ? undefined : 'hidden' }}
               onContextMenu={onGridContextMenu}
             >
               {/* Bilah muat halus saat refetch (ganti halaman/filter): grid
@@ -1468,7 +1457,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     stickyLeftColumnCount={freezeAktif > 0 ? freezeAktif + (hideCheckbox ? 0 : 1) : 0}
                     stickyRightColumn={hideActions ? undefined : aksiColumn}
                     rowKey="id"
-                    height={isiGridH}
+                    height={gridHeight}
                     rowHeight={gridRowHeight}
                     headerRowHeight={headerH ?? headerAutoH ?? DEFAULT_HEADER_H}
                     lockRows
@@ -1488,25 +1477,8 @@ export default function ExcelTable<T extends { id: string | number }>({
               {/* Bilah gulir melayang (pengganti scrollbar bawaan yang
                   disembunyikan): menempel tepi kartu, grid menembus di
                   bawahnya. Sembunyi sendiri bila tak ada luapan. */}
-              <ScrollbarMelayang orientasi="vertikal" wadahRef={wrapRef} jarakBawah={tinggiBarisTambah} />
-              <ScrollbarMelayang orientasi="horizontal" wadahRef={wrapRef} jarakBawah={tinggiBarisTambah} />
-
-              {/* Baris "+ Tambah baris" (ala spreadsheet): klik → mode Input
-                  aktif dan baris isian muncul di ujung bawah grid. */}
-              {barisTambahTampil && (
-                <button
-                  id={`btn_tambah_baris_${tableKey}`}
-                  type="button"
-                  aria-label="Tambah baris baru"
-                  title="Tambah baris baru"
-                  style={{ height: TINGGI_BARIS_TAMBAH }}
-                  className="flex w-full shrink-0 items-center gap-1.5 border-t border-border bg-muted/30 px-2.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  onClick={() => setInputMode(true)}
-                >
-                  <Plus size={14} />
-                  <span>Tambah baris</span>
-                </button>
-              )}
+              <ScrollbarMelayang orientasi="vertikal" wadahRef={wrapRef} />
+              <ScrollbarMelayang orientasi="horizontal" wadahRef={wrapRef} />
             </div>
           </ContextMenuTrigger>
 
@@ -1583,11 +1555,37 @@ export default function ExcelTable<T extends { id: string | number }>({
       </div>
 
       {/* Kaki tabel: kontrol paginasi (bila ada) sebaris dengan tombol tinggi
-          baris. Nilai tinggi baris global, tetapi tombolnya tampil di tiap
-          tabel — termasuk yang tanpa paginasi (baris tombol saja). */}
-      <div className="mt-1 flex shrink-0 items-center gap-1">
+          baris dan tombol ikon mode (tambah baris / edit). Nilai tinggi baris
+          global, tetapi tombolnya tampil di tiap tabel. */}
+      <div data-part="kaki_tabel" className="mt-0 flex shrink-0 items-center gap-1">
         {pager ? <div className="min-w-0 flex-1">{pager}</div> : <div className="flex-1" />}
         <TombolTinggiBaris tableKey={tableKey} />
+        {inputEnabled && !showInput && (
+          <Button
+            id={`btn_tambah_baris_${tableKey}`}
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Tambah baris baru"
+            title="Tambah baris baru"
+            onClick={() => setInputMode(true)}
+          >
+            <Plus size={14} />
+          </Button>
+        )}
+        {canEdit && !editing && (
+          <Button
+            id={`btn_mode_edit_${tableKey}`}
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Aktifkan mode Edit"
+            title="Aktifkan mode Edit (atau klik ganda sel)"
+            onClick={() => setEditMode(true)}
+          >
+            <Pencil size={14} />
+          </Button>
+        )}
       </div>
 
       {/* Bilah status mode di bawah tabel (bagian badan halaman): menandai Mode

@@ -22,7 +22,7 @@ interface Props {
  *  pilihan "Semua", kontrol tetap tampil agar bisa dikembalikan. */
 export default function Pager({ page, lastPage, onPage, perPage, onPerPage }: Props) {
   return (
-    <div id="pager" className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 px-1 py-1">
+    <div id="pager" className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 px-2 py-0">
       <div className="flex min-w-0 items-center gap-2">
         <ToggleGroup
           id="group_per_page"

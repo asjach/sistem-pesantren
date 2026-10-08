@@ -586,6 +586,15 @@
 .simpes-dsg .dsg-cell-header .simpes-dsg-headtitle {
   justify-content: center;
 }
+/* ---------- Kaki tabel (paginasi + tombol ikon) ---------- */
+/* Semua tombol di kaki tabel bersudut siku: jumlah baris per halaman, prev/next,
+   tinggi baris, tambah baris, dan edit. `!important` dipakai karena item
+   ToggleGroup membawa varian `data-[spacing=0]:first/last:rounded-*` yang
+   specific-nya lebih tinggi daripada selektor atribut ini. */
+[data-part='kaki_tabel'] button {
+  border-radius: 0 !important;
+}
+
 /* ---------- Mode Input (baris baru di paling bawah) ---------- */
 /* Bintang merah di header untuk kolom wajib. */
 .simpes-dsg .simpes-dsg-wajib-tanda {
