@@ -5,7 +5,7 @@ import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useTheme } from '@/theme';
-import { useLebarSidebar } from '@/components/useLebarSidebar';
+import { useAksiSeretSidebar, useStatusSeretSidebar } from '@/components/SeretSidebar';
 import { SIDEBAR_LEBAR_MAX, SIDEBAR_LEBAR_MIN } from '@/prefs';
 import { cn } from '@/lib/utils';
 import { ChevronDown } from '@/icons';
@@ -112,12 +112,10 @@ function simpanGrupTutup(next: Set<string>) {
  *  Bisa dilipat ke rail ikon (tombol atau Ctrl/Cmd+B); status di pref
  *  `simpes_sidebar`. Tautan halaman terpisah dari tools di ribbon. */
 export default function Sidebar() {
-  const { collapsed, sidebarLebar, setSidebarLebar, setCollapsed } = useTheme();
-  const { seret, seretSembunyi, lebarTampil, mulaiSeret, onKeyDown, resetLebar } = useLebarSidebar({
-    lebar: sidebarLebar,
-    setLebar: setSidebarLebar,
-    setCollapsed,
-  });
+  const { collapsed, sidebarLebar } = useTheme();
+  // Seret-lebar dibagi dengan kenop lipat di topBar (lihat SeretSidebar).
+  const { seret, seretSembunyi, lebarTampil } = useStatusSeretSidebar();
+  const { mulaiSeret, onKeyDown, resetLebar } = useAksiSeretSidebar();
   const { user } = useAuth();
   const { bertindak } = useLembagaAktif();
   // Saat bertindak sebagai lembaga, kemampuan super_admin dianggap nonaktif

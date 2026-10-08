@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri, prefGet, prefSet } from '@/api/client';
@@ -37,6 +37,8 @@ import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LogOut
 import { useRibbonTable } from '@/components/RibbonTable';
 import { useRibbonSlotCtx } from '@/components/RibbonSlot';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
+import { useAksiSeretSidebar } from '@/components/SeretSidebar';
+import { apakahKlik } from '@/components/useLebarSidebar';
 import BannerBertindak from '@/components/BannerBertindak';
 import DialogFilterHalaman from '@/components/kelolaHalaman/DialogFilterHalaman';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
@@ -159,6 +161,13 @@ export default function TopBar() {
   const classFilterLembaga = cn('relative mr-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-20 after:w-px after:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]', daftarLembaga.length === 1 ? 'w-[80px]' : 'w-[160px]');
   const taPilihanTerurut = [...taPilihan].sort((a, b) => b.nama.localeCompare(a.nama, 'id', { numeric: true }));
   const { theme, mode, dark, iconSet, warnaUI, navigasi, collapsed, setTheme, setMode, setCollapsed, setIconSet, setWarnaUI, setNavigasi } = useTheme();
+  /** Kenop lipat merangkap gagang seret lebar; aksinya dari seret bersama. */
+  const { mulaiSeret: mulaiSeretKenop } = useAksiSeretSidebar();
+  /** Tooltip kenop dikendalikan agar bisa ditutup saat seretan dimulai. */
+  const [tipKenop, setTipKenop] = useState(false);
+  /** Posisi x pointer saat mousedown kenop terakhir (null = aktivasi keyboard).
+   *  Pembeda klik (toggle) vs seretan (atur lebar) — lihat `apakahKlik`. */
+  const xKlikKenop = useRef<number | null>(null);
   const nav = useNavigate();
   const { pathname } = useLocation();
   const ribbon = useRibbonTable();
@@ -315,33 +324,62 @@ export default function TopBar() {
       <div data-part="area_judul" className="relative grid min-h-[46px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 py-0 pb-1 pl-6 pr-3 md:pr-6">
         {/* Kenop navigasi: satu tombol untuk dua arah — chevron kiri
             menyembunyikan rail (saat tampil), chevron kanan menampilkannya
-            kembali (saat tertutup). Saat rail tampil, tombol melintasi garis
-            border vertikalnya (tepi kiri header = border kanan rail),
-            persis seperti tab ribbon yang melintasi border bawahnya. Saat
+            kembali (saat tertutup). Klik = lipat/buka; SERET = atur lebar,
+            aksi yang sama dengan gagang di tepi kanan sidebar (keduanya satu
+            instans seret, lihat SeretSidebar). Saat rail tampil, tombol
+            melintasi garis border vertikalnya (tepi kiri header = border kanan
+            rail), persis seperti tab ribbon yang melintasi border bawahnya. Saat
             rail tertutup garis itu tidak ada, jadi tombol digeser masuk penuh
             ke dalam header agar tidak terpotong tepi layar; pergeserannya
             mengikuti animasi lebar rail lewat `transition-[left]` bersamaan
             `duration-200` milik rail itu sendiri.
-            Dijangkarkan ke baris judul lewat `top-1/2` + `-translate-y-1/2`,
-            jadi tetap di titik tengah yang sama baik saat ribbon tampil
-            maupun disembunyikan. */}
+            Tingginya disamakan dengan topBar: direntang penuh dari tepi atas
+            header (`-top-1` menutup padding atas header) sampai dasar baris
+            judul, jadi tinggi baris tak perlu diukur atau di-hardcode. Tanpa
+            radius — bentuknya siku, bukan pil — supaya tab-nya terbaca
+            sebagai satu potongan dengan garis border yang dilewatinya.
+            Lebar tab cuma 12px, terlalu kecil untuk target pointer, jadi area
+            kliknya diperluas lewat pseudo-elemen (tidak mengubah tampilan:
+            pseudo tak ikut tata letak). Hanya ke KANAN — ke arah ruang kosong
+            `pl-6` baris judul — karena strip di kiri tombol adalah gagang
+            seret lebar sidebar (`.absolute … w-1.5 cursor-col-resize`) yang
+            tak boleh direbut; perluasan 12px ke kanan menaikkan target ke
+            24px, setara tombol ikon lain di header. */}
         {navigasi === 'sidebar' && (
-          <Tooltip>
+          <Tooltip open={tipKenop} onOpenChange={setTipKenop}>
             <TooltipTrigger asChild>
               <button
                 id="btn_lipat_sidebar"
                 type="button"
-                aria-label={collapsed ? 'Buka navigasi' : 'Lipat navigasi'}
+                aria-label={collapsed
+                  ? 'Buka navigasi (Ctrl/Cmd+B); seret untuk mengatur lebar'
+                  : 'Lipat navigasi (Ctrl/Cmd+B); seret untuk mengatur lebar'}
                 aria-expanded={!collapsed}
-                onClick={() => setCollapsed(!collapsed)}
+                onMouseDown={(e) => {
+                  // Seret = atur lebar (aksi yang sama dengan gagang di tepi
+                  // sidebar); klik tanpa geseran tetap melipat. Tooltip
+                  // ditutup dulu agar tak mengambang selama seretan.
+                  setTipKenop(false);
+                  xKlikKenop.current = e.clientX;
+                  mulaiSeretKenop(e);
+                }}
+                onClick={(e) => {
+                  const x = xKlikKenop.current;
+                  xKlikKenop.current = null;
+                  if (!apakahKlik(x, e.clientX)) return;
+                  setCollapsed(!collapsed);
+                }}
                 style={{ left: collapsed ? '0px' : '-6px' }}
-                className="absolute top-1/2 z-20 grid h-6 w-3 -translate-y-1/2 place-items-center rounded-full border border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-[var(--sidebar)] text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] transition-[left,color] duration-200 hover:border-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)] hover:text-[var(--sidebar-foreground)]"
+                className="absolute -top-1 bottom-0 z-20 grid w-3 cursor-col-resize place-items-center rounded-none border border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-[var(--sidebar)] text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] transition-[left,color] duration-200 before:absolute before:inset-y-0 before:left-0 before:-right-3 before:content-[''] touch-none select-none hover:border-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)] hover:text-[var(--sidebar-foreground)]"
               >
                 {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{collapsed ? 'Buka navigasi (Ctrl/Cmd+B)' : 'Lipat navigasi (Ctrl/Cmd+B)'}</p>
+              <p>
+                {collapsed ? 'Buka navigasi (Ctrl/Cmd+B)' : 'Lipat navigasi (Ctrl/Cmd+B)'}
+                {' · Seret untuk mengatur lebar'}
+              </p>
             </TooltipContent>
           </Tooltip>
         )}

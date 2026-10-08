@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { useLebarSidebar } from '@/components/useLebarSidebar';
+import { AMBANG_GESER_KLIK, apakahKlik, useLebarSidebar } from '@/components/useLebarSidebar';
 import {
   SIDEBAR_LEBAR_DEFAULT,
   SIDEBAR_LEBAR_MAX,
@@ -129,5 +129,23 @@ describe('useLebarSidebar', () => {
     const { result } = setup(240);
     expect(result.current.lebarTampil(true)).toBe(0);
     expect(result.current.lebarTampil(false)).toBe(240);
+  });
+});
+
+describe('apakahKlik', () => {
+  it('tanpa mousedown — aktivasi keyboard/AT — selalu klik', () => {
+    expect(apakahKlik(null, 0)).toBe(true);
+    expect(apakahKlik(null, 500)).toBe(true);
+  });
+
+  it('pointer yang tak bergeser (atau di bawah ambang) tetap klik', () => {
+    expect(apakahKlik(100, 100)).toBe(true);
+    expect(apakahKlik(100, 100 + AMBANG_GESER_KLIK)).toBe(true);
+    expect(apakahKlik(100, 100 - AMBANG_GESER_KLIK)).toBe(true);
+  });
+
+  it('seretan yang menggeser pointer bukan klik — toggle tak ikut jalan', () => {
+    expect(apakahKlik(100, 100 + AMBANG_GESER_KLIK + 1)).toBe(false);
+    expect(apakahKlik(300, 120)).toBe(false);
   });
 });

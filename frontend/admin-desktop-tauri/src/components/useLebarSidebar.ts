@@ -60,6 +60,10 @@ export function useLebarSidebar({ lebar, setLebar, setCollapsed }: Opsi): LebarS
   const mulaiSeret = useCallback((e: MouseEvent<HTMLElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
+    // Kursor seret dipasang di <body> selama seretan: pointer gampang keluar
+    // dari gagang yang tipis saat diseret cepat, dan tanpa ini kursornya
+    // berkedip balik ke panah di tengah seretan.
+    document.body.style.cursor = 'col-resize';
     ref.current.mulaiX = e.clientX;
     ref.current.lebarAwal = lebar;
     ref.current.lebar = lebar;
@@ -76,6 +80,7 @@ export function useLebarSidebar({ lebar, setLebar, setCollapsed }: Opsi): LebarS
     const selesai = () => {
       window.removeEventListener('mousemove', geser);
       window.removeEventListener('mouseup', selesai);
+      document.body.style.cursor = '';
       ref.current.lepas = null;
       const w = ref.current.lebar;
       setSeret(false);
@@ -134,4 +139,25 @@ export function useLebarSidebar({ lebar, setLebar, setCollapsed }: Opsi): LebarS
   );
 
   return { seret, seretSembunyi, lebarTampil, mulaiSeret, onKeyDown, resetLebar };
+}
+
+/** Jarak pointer maksimal (px) antara `mousedown` dan klik yang masih dibaca
+ *  sebagai klik. Dipakai elemen yang merangkap tombol + gagang seret. */
+export const AMBANG_GESER_KLIK = 3;
+
+/**
+ * Klik atau penutup seretan?
+ *
+ * `xMousedown` = posisi pointer saat `mousedown`, atau `null` bila tak ada
+ * mousedown sama sekali — aktivasi keyboard/AT, yang selalu klik.
+ *
+ * Ambang jarak dipilih dibanding flag "pernah bergerak" karena flag serupa
+ * bertahan melewati seretan yang dilepas di luar elemen (klik tak pernah
+ * terjadi untuk menghabiskannya) dan bisa menelan aktivasi keyboard berikutnya.
+ * Harga pilihannya: seretan yang dilepas tepat di titik awalnya tetap terbaca
+ * sebagai klik.
+ */
+export function apakahKlik(xMousedown: number | null, xKlik: number): boolean {
+  if (xMousedown === null) return true;
+  return Math.abs(xKlik - xMousedown) <= AMBANG_GESER_KLIK;
 }
