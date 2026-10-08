@@ -102,7 +102,13 @@ export default function PresetKolom({
       setTerapan({ kolom: null, label: null, presetId: null });
       return;
     }
-    const keys = preset.kolom.filter((k) => fieldKeys.has(k));
+    const dikenal = preset.kolom.filter((k) => fieldKeys.has(k));
+    // Preset "Lengkap" = semua kolom: kolom baru yang belum tersimpan ikut
+    // tampil di akhir (tanpa mengubah simpanan). Preset kustom lain
+    // menghormati sembunyian eksplisit penggunanya.
+    const keys = namaLengkap(preset.nama ?? '')
+      ? [...dikenal, ...[...fieldKeys].filter((k) => !dikenal.includes(k))]
+      : dikenal;
     const label: Record<string, string> = {};
     for (const [k, v] of Object.entries(preset.label ?? {})) {
       if (fieldKeys.has(k) && v.trim() !== '') label[k] = v.trim();
