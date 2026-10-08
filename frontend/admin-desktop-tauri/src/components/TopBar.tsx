@@ -326,12 +326,26 @@ export default function TopBar() {
             menyembunyikan rail (saat tampil), chevron kanan menampilkannya
             kembali (saat tertutup). Klik = lipat/buka; SERET = atur lebar,
             aksi yang sama dengan gagang di tepi kanan sidebar (keduanya satu
-            instans seret, lihat SeretSidebar). Saat rail tampil, tombol
-            melintasi garis border vertikalnya (tepi kiri header = border kanan
-            rail), persis seperti tab ribbon yang melintasi border bawahnya.
-            Offsets `left` (relatif ke baris judul, yang bergeser mengikuti
-            lebar rail): `-3px` saat rail tampil — tab menempel border dengan
-            porsi kecil di sisi rail; `-2px` saat rail tertutup — membatalkan
+            instans seret, lihat SeretSidebar). Sisi tab yang digambar
+            satu per satu dihapus karena berdesakan dengan garis yang sudah ada,
+            sehingga yang tersisa cuma satu garis vertikal 1px di tepi kanan +
+            chevron. Tab menyentuh garis pembatas vertikal (tepi kiri header =
+            border kanan rail) di sebelah kirinya:
+            - `border-l` jatuh di piksel yang SAMA dengan border kanan rail dan
+              garis gagang seret (yang sudah berimpit) → pemisah rail↔header
+              tebal di tinggi header. Setelah dihapus, garis itu utuh & seragam.
+            - `border-b` duduk tepat di atas `border-b` header → dua garis
+              horizontal berdempetan.
+            - `border-t` jatuh di luar jendela (`-top-1`) → tak pernah terlihat.
+            Karena tak ada `border-l`, latar tab HARUS transparan: kalau tetap
+            berlatar, padding box-nya melebar 1px ke kiri dan menutup piksel
+            garis rail, jadi pemisah justru hilang di tinggi header.
+            Tab karena itu tak lagi "melintasi" border bawah header seperti tab
+            ribbon — bentuknya sekarang gagang vertikal, ditandai garis kanannya
+            yang terus terang saat hover. Offsets `left` (relatif ke baris judul,
+            yang bergeser mengikuti lebar rail): `-3px` saat rail tampil — tepi kiri tab jatuh
+            tepat di garis pembatas, porsi 1px di sisi rail transparan jadi
+            garisnya tak tertutup; `-2px` saat rail tertutup — membatalkan
             `px-0.5` header sehingga tab rata dengan tepi kiri jendela. Tidak
             ada yang terpotong: saat tertutup lebar rail 0, jadi tepi baris = 2
             dan tepi kiri tombol jatuh tepat di 0. Pergeserannya mengikuti
@@ -340,8 +354,8 @@ export default function TopBar() {
             Tingginya disamakan dengan topBar: direntang penuh dari tepi atas
             header (`-top-1` menutup padding atas header) sampai dasar baris
             judul, jadi tinggi baris tak perlu diukur atau di-hardcode. Tanpa
-            radius — bentuknya siku, bukan pil — supaya tab-nya terbaca
-            sebagai satu potongan dengan garis border yang dilewatinya.
+            radius — bentuknya siku, bukan pil — supaya ujung garis genggamannya
+            tegas, sama seperti garis pembatas di sebelahnya.
             Lebar tab cuma 12px, terlalu kecil untuk target pointer, jadi area
             kliknya diperluas lewat pseudo-elemen (tidak mengubah tampilan:
             pseudo tak ikut tata letak). Hanya ke KANAN — ke arah ruang kosong
@@ -374,7 +388,7 @@ export default function TopBar() {
                   setCollapsed(!collapsed);
                 }}
                 style={{ left: collapsed ? '-2px' : '-3px' }}
-                className="absolute -top-1 bottom-0 z-20 grid w-3 cursor-col-resize place-items-center rounded-none border border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-[var(--sidebar)] text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] transition-[left,color] duration-200 before:absolute before:inset-y-0 before:left-0 before:-right-3 before:content-[''] touch-none select-none hover:border-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)] hover:text-[var(--sidebar-foreground)]"
+                className="absolute -top-1 bottom-0 z-20 grid w-3 cursor-col-resize place-items-center rounded-none border-r border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-transparent text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] transition-[left,color] duration-200 before:absolute before:inset-y-0 before:left-0 before:-right-3 before:content-[''] touch-none select-none hover:border-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)] hover:text-[var(--sidebar-foreground)]"
               >
                 {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
               </button>

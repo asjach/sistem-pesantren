@@ -113,7 +113,7 @@ export function ActionsCell({ rowData, columnData }: CellProps<GridRow, ActionsC
     if (aksi.length === 0) return <></>;
   } else if (aksi.length <= 3) {
     return (
-      <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-center gap-1" {...stop}>
+      <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-center gap-0.5" {...stop}>
         {aksi.map((el, i) => (
           <Fragment key={el.key ?? i}>{el}</Fragment>
         ))}
@@ -122,7 +122,7 @@ export function ActionsCell({ rowData, columnData }: CellProps<GridRow, ActionsC
   }
 
   return (
-    <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-end gap-1" {...stop}>
+    <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-end gap-0.5" {...stop}>
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         {/* Rantai asChild ganda (menu→tooltip→button) agar pemicu hamburger
             tetap satu elemen sekaligus ber-tooltip shadcn. */}

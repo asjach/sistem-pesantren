@@ -11,13 +11,19 @@ export const AUTOFIT_MAX_W = 480;
 export const AUTOFIT_BUFFER = 8;
 
 /** Lebar kolom Aksi saat belum terukur (3 tombol ikon + padding + napas). */
-export const ACTIONS_DEFAULT_W = 104;
+export const ACTIONS_DEFAULT_W = 84;
+
+/** Napas khusus kolom Aksi (ikon tak butuh selega teks): 4, bukan 8. */
+export const AKSI_BUFFER = 4;
 
 /** Lebar kolom checklist (kolom data pertama). */
-export const CHECK_W = 44;
+export const CHECK_W = 36;
 
-/** Lantai lebar kolom Aksi (1 tombol ikon + padding sel 4px×2 + buffer). */
-export const ACTIONS_MIN_W = 40;
+/** Lebar kolom nomor urut gutter DSG (bawaan DSG 40). */
+export const GUTTER_W = 36;
+
+/** Lantai lebar kolom Aksi (1 tombol ikon + padding sel 2px×2 + napas). */
+export const ACTIONS_MIN_W = 32;
 
 /** Penanda "kapasitas aksi > 3" per tableKey; hanya tumbuh selama sesi (tidak
  *  pernah turun) agar layout ikon vs hamburger tidak berubah-ubah mengikuti

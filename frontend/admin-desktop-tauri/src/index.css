@@ -310,6 +310,17 @@
      terakhir, jadi border container dibuang. */
   border-right: none;
   border-bottom: none;
+  /* Scrollbar bawaan disembunyikan: diganti bilah melayang kustom
+     (`ScrollbarMelayang`) yang menempel tepi kartu — grid melukis sampai tepi
+     kartu ("menembus" area scrollbar). `overflow: overlay` TIDAK dipakai:
+     Chrome modern menghitungnya sebagai `auto` (terbukti di Chrome 154),
+     jadi tak ada efek. Gulir roda/sentuh/keyboard grid tetap bawaan — hanya
+     visual bilahnya yang diganti. */
+  scrollbar-width: none;
+}
+.simpes-dsg .dsg-container::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 /* Lapisan scroll DSG menggambar bingkai atas/kiri + bayangan gulir selebar
    VIEWPORT (bukan lebar tabel), sehingga tampak "lewat" dari tabel saat kolom
@@ -344,6 +355,16 @@
      bukan isian aksen. Override isian var bagian tetap menang bila diatur. */
   background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 4%, var(--card)));
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+/* Bilah judul tabel (JudulTabel, `data-part="header_tabel"`) menggambar
+   `border-b`-nya sendiri sebagai pemisah ke grid. `border-top` sel header
+   tabel — bawaan `.dsg-cell` DSG — jatuh tepat 1px di bawahnya: dua garis 1px
+   berdempetan, terbaca 2px. Mematikannya TEPAT saat bilah judulnya ada
+   (penanda `simpes-dsg-bilah-judul`): tanpa bilah judul, `border-top` itu
+   tetap jadi tepi atas tabel dan tak boleh hilang. Batas bawah tabel tak
+   tersentuh karena `border-top` (bukan `border-bottom`) yang dipakai sel. */
+.simpes-dsg-bilah-judul .dsg-row-header .dsg-cell {
+  border-top: none;
 }
 /* Indikator sudut select-all ala Excel: DSG memberi `margin: auto` (tampak
    berjarak ke semua sisi). Rapatkan tepat ke sudut kanan-bawah sel.
@@ -385,11 +406,11 @@
   font-variant-numeric: tabular-nums;
 }
 /* Kolom Aksi: sel hanya memuat tombol ikon kecil (24px), jadi padding sel
-   8px membuat kolom 1 tombol terlalu longgar. Dipadatkan ke 4px agar lebar
+   8px membuat kolom 1 tombol terlalu longgar. Dipadatkan ke 2px agar lebar
    kolom otomatis (lihat ACTIONS_MIN_W) ikut ramping. */
 .simpes-dsg .dsg-cell.simpes-dsg-col-aksi {
-  padding-left: 4px;
-  padding-right: 4px;
+  padding-left: 2px;
+  padding-right: 2px;
 }
 /* Garis pemisah antar baris berasal dari border-top baris DI BAWAHNYA,
    sehingga baris terakhir tidak punya garis bawah. Garis kanan kolom
@@ -635,6 +656,19 @@
   height: 100%;
   z-index: 30;
 }
+/* Panel tab (TabsContent berbingkai, `KELAS_PANEL_TAB`) digeser 1px ke kiri:
+   border kiri panel jatuh TEPAT di piksel border kanan rail navigasi sidebar.
+   Tanpa itu dua garis 1px berdempetan — border rail + border panel — dan tepi
+   kiri panel terbaca 2px. Panel ini flex item yang direntangkan (stretch bawaan
+   flex kolom), jadi `margin-left: -1px` sekaligus melebarkannya 1px: tepi kanan
+   tetap rata dengan area konten, tak menyisakan pita latar. Memakai margin
+   karena panel bukan elemen ber-`position` (`left` tak berpengaruh di situ).
+   Saat rail terlipat (lebar 0) border kiri panel ikut bergeser 1px keluar
+   jendela dan terpotong `overflow-hidden` shell — tak terlihat karena panel
+   sudah menempel tepi kiri jendela. */
+.simpes-panel-tab {
+  margin-left: -1px;
+}
 /* Tabel di dalam panel tab berbingkai (`simpes-panel-tab`): bingkai panel jatuh
    TEPAT 1px di kiri garis kiri tabel, jadi dua garis 1px berdempetan — terbaca
    sebagai satu garis 2px ("border kiri lebih tebal"). Solusinya menggeser tepi
@@ -698,8 +732,8 @@
   position: relative;
   appearance: none;
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
   margin: auto;
   border: 1px solid color-mix(in srgb, var(--foreground) 28%, transparent);
   border-radius: 2px;
@@ -717,11 +751,18 @@
   position: absolute;
   top: 45%;
   left: 48%;
-  width: 3.5px;
+  width: 4px;
   height: 7px;
   border-right: 1.5px solid var(--accent);
   border-bottom: 1.5px solid var(--accent);
   transform: translate(-50%, -50%) rotate(45deg);
+}
+/* Checkbox "pilih semua" di header: samakan 11px dengan kotak baris. */
+.simpes-dsg input.simpes-dsg-checkall {
+  width: 11px;
+  height: 11px;
+  margin: auto;
+  cursor: pointer;
 }
 .simpes-dsg input.dsg-checkbox:focus-visible {
   border-width: 1.5px;

@@ -46,7 +46,7 @@ function RailModeToggle({
     <div className="flex h-7 items-center justify-center border-b border-border/60">
       <Switch
         id={`filter_rail_mode_${group}`}
-        size="xs"
+        size="2xs"
         checked={jamak}
         disabled={disabled}
         title={jamak ? 'Klik satu · drag atau Ctrl/Cmd klik untuk beberapa' : 'Klik untuk satu nilai'}
@@ -57,15 +57,21 @@ function RailModeToggle({
   );
 }
 
-function RailSectionLabel({ children }: { children: string }) {
+function RailSectionLabel({ children, tinggi }: { children: string; tinggi?: number }) {
   return (
-    <div className="flex h-6 shrink-0 items-center justify-center whitespace-nowrap border-b border-border/60 px-0.5 text-[10px] font-normal leading-none tracking-tight text-muted-foreground">
+    <div
+      className={cn(
+        'flex shrink-0 items-center justify-center whitespace-nowrap border-b border-border/60 px-0 text-[9px] font-normal leading-none tracking-tight text-muted-foreground',
+        tinggi === undefined && 'h-6',
+      )}
+      style={tinggi === undefined ? undefined : { height: tinggi }}
+    >
       {children}
     </div>
   );
 }
 
-export default function FilterRail() {
+export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
   const { pathname } = useLocation();
   const filter = useVisibilitasFilter();
   const { jenjangs, tahunAjaranNames, tingkat, kelas, loading: filterLoading } = useFilterGlobalAktif();
@@ -295,7 +301,7 @@ export default function FilterRail() {
   }
 
   const itemClass = (active: boolean) => cn(
-    'flex h-6 w-full select-none items-center justify-center border-b border-border/60 px-1 text-xs font-normal text-foreground/75 transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+    'flex h-6 w-full select-none items-center justify-center border-b border-border/60 px-1 text-[11px] font-normal text-foreground/75 transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
     loading && 'cursor-wait opacity-60',
     active && 'bg-accent text-accent-foreground shadow-[inset_3px_0_0_var(--accent)]',
   );
@@ -305,11 +311,11 @@ export default function FilterRail() {
        id="filter_rail_tingkat_kelas"
        aria-label="Filter tingkat dan kelas"
        aria-busy={loading}
-      className="flex h-full w-[42px] shrink-0 flex-col gap-2 overflow-hidden border-r border-border bg-background text-foreground"
+      className="flex h-full w-[36px] shrink-0 flex-col gap-2 overflow-hidden border-r border-border bg-background text-foreground"
     >
       {showTingkat ? (
         <section aria-label="Tingkat" className="shrink-0">
-          <RailSectionLabel>Tingkat</RailSectionLabel>
+          <RailSectionLabel tinggi={tinggiLabel}>Tingkat</RailSectionLabel>
           <RailModeToggle
             group="tingkat"
             mode={modeTingkat}
@@ -348,7 +354,7 @@ export default function FilterRail() {
                  onClick={(event) => clickValue('tingkat', value, event)}
                  className={itemClass(active)}
                >
-                 {value}
+                 <span className="max-w-full truncate">{value}</span>
                </button>
              );
            }) : (
@@ -358,7 +364,7 @@ export default function FilterRail() {
       ) : null}
       {showKelas ? (
         <section aria-label="Kelas" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <RailSectionLabel>Kelas</RailSectionLabel>
+          <RailSectionLabel tinggi={tinggiLabel}>Kelas</RailSectionLabel>
           <RailModeToggle
             group="kelas"
             mode={modeKelas}

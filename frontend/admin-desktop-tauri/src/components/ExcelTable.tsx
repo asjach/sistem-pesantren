@@ -17,6 +17,7 @@ import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import FilterRail from '@/components/FilterRail';
+import ScrollbarMelayang from './excel/ScrollbarMelayang';
 import { gabungUrutan } from './excel/urutanKolom';
 import { judulTabel } from './excel/judul';
 import { useToolbarPresetState } from './excel/useToolbarPreset';
@@ -43,6 +44,9 @@ import { Pencil, PlusCircle, Save } from '@/icons';
 export function diCornerButton(target: Element | null): boolean {
   return !!target?.closest('.dsg-cell-gutter.dsg-cell-header');
 }
+/** Kolom gutter DSG (nomor urut): identitas stabil agar memo kolom DSG tak
+ *  dihitung ulang tiap render (literal inline selalu dihitung ulang). */
+const GUTTER_COLUMN = { basis: GUTTER_W };
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +67,7 @@ import {
   ACTIONS_MIN_W,
   AKSI_RINGKAS,
   CHECK_W,
+  GUTTER_W,
   INPUT_ROW_ID,
   MIN_COL_W,
   freezeKey,
@@ -1391,9 +1396,11 @@ export default function ExcelTable<T extends { id: string | number }>({
 
       {/* Rel Tingkat/Kelas (bila `rail`): di kiri grid, tepat di bawah bar
           judul tabel sehingga bagian atasnya sejajar judul kolom grid.
-          Tanpa `rail`, kontainer `contents` tidak mengubah tata letak. */}
+          Label rel diberi tinggi header tabel efektif (`headerEfektifH`) agar
+          sejajar walau tinggi header diubah (ribbon) atau otomatis. Tanpa
+          `rail`, kontainer `contents` tidak mengubah tata letak. */}
       <div className={cn(rail ? 'flex min-h-0 flex-1' : 'contents')}>
-        {rail ? <FilterRail /> : null}
+        {rail ? <FilterRail tinggiLabel={headerEfektifH} /> : null}
       <div
         ref={wrapRef}
         style={
@@ -1418,6 +1425,12 @@ export default function ExcelTable<T extends { id: string | number }>({
           // `simpes-dsg-bleed` menandai keadaan itu untuk CSS: saat bleed, tepi
           // kiri tabel ada di luar bingkai panel sehingga garisnya tetap perlu.
           'simpes-dsg relative flex min-w-0 flex-col',
+          // Bilah judul tabel di atas (JudulTabel) sudah menggambar `border-b`
+          // sebagai pemisah ke grid; `border-top` sel header tabel jatuh tepat
+          // 1px di bawahnya → dua garis berdempetan terbaca 2px. Penanda ini
+          // membuat CSS mematikan garis itu (index.css); tanpa bilah
+          // judul, `border-top` itu tetap jadi tepi atas tabel.
+          headerTampil && 'simpes-dsg-bilah-judul',
           !headerTampil && !judulPemilik && '-mx-1 simpes-dsg-bleed',
           maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
@@ -1454,6 +1467,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     value={gridValue}
                     onChange={handleChangeStable}
                     columns={dsgColumns}
+                    gutterColumn={GUTTER_COLUMN}
                     stickyLeftColumnCount={freezeAktif > 0 ? freezeAktif + (hideCheckbox ? 0 : 1) : 0}
                     stickyRightColumn={hideActions ? undefined : aksiColumn}
                     rowKey="id"
@@ -1474,6 +1488,11 @@ export default function ExcelTable<T extends { id: string | number }>({
                   <p className="text-xs text-muted-foreground">{emptyText}</p>
                 </div>
               )}
+              {/* Bilah gulir melayang (pengganti scrollbar bawaan yang
+                  disembunyikan): menempel tepi kartu, grid menembus di
+                  bawahnya. Sembunyi sendiri bila tak ada luapan. */}
+              <ScrollbarMelayang orientasi="vertikal" wadahRef={wrapRef} />
+              <ScrollbarMelayang orientasi="horizontal" wadahRef={wrapRef} />
             </div>
           </ContextMenuTrigger>
 

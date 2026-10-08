@@ -1,4 +1,4 @@
-import { ACTIONS_MIN_W, AUTOFIT_BUFFER, AUTOFIT_MAX_W } from './helpers';
+import { ACTIONS_MIN_W, AKSI_BUFFER, AUTOFIT_MAX_W } from './helpers';
 
 /** Span pengukur teks (dibuat malas, dipakai bersama semua tabel). */
 let probe: HTMLSpanElement | null = null;
@@ -75,5 +75,5 @@ export function measureActionsWidth(root: HTMLElement | null): number | null {
     }
   }
   if (content <= 0) return null;
-  return Math.min(AUTOFIT_MAX_W, Math.max(ACTIONS_MIN_W, Math.ceil(content) + pad + AUTOFIT_BUFFER));
+  return Math.min(AUTOFIT_MAX_W, Math.max(ACTIONS_MIN_W, Math.ceil(content) + pad + AKSI_BUFFER));
 }

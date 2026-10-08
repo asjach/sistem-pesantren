@@ -411,7 +411,15 @@ export default function Sidebar() {
       ) : null}
 
       {/* Gagang seret lebar navigasi: strip tipis di tepi kanan. Seret ke
-          kiri-mentok menyembunyikan navigasi (lihat useLebarSidebar). */}
+          kiri-mentok menyembunyikan navigasi (lihat useLebarSidebar).
+          Garis 1px-nya digeser 1px ke KANAN (`-right-[1px]`) supaya jatuh TEPAT
+          di piksel border kanan rail. Tanpa itu, garis ini berdempetan dengan
+          border rail (yang 1px di kanannya) dan perbatasan rail↔main terbaca
+          garis 2px — "dobel". Diberimpitkan, bukan dihapus: warna hover/seret
+          milik gagang ini tetap jadi umpan balik. Menggeser kolom <main> 1px ke
+          kiri TIDAK cukup — rail ber-`relative` dilukis di atas kolom main yang
+          in-flow, jadi latar main tak bisa menutup border rail; yang perlu
+          disatukan adalah dua garis milik rail ini. */}
       {!collapsed ? (
         <div
           id="gagang_lebar_sidebar"
@@ -430,7 +438,7 @@ export default function Sidebar() {
         >
           <span
             className={cn(
-              'absolute inset-y-0 right-0 w-px bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] transition-colors',
+              'absolute inset-y-0 -right-[1px] w-px bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] transition-colors',
               seretSembunyi ? 'bg-[color-mix(in_srgb,var(--sidebar-foreground)_70%,transparent)]' : 'hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)]',
             )}
           />

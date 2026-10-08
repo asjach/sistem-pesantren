@@ -7,17 +7,19 @@ function Switch({
   size = "default",
   ...props
 }: React.ComponentProps<typeof SwitchPrimitive.Root> & {
-  size?: "default" | "sm" | "xs"
+  size?: "default" | "sm" | "xs" | "2xs"
 }) {
   const ukuran = {
     default: "h-5 w-9",
     sm: "h-4 w-7",
     xs: "h-3.5 w-6",
+    "2xs": "h-3 w-5",
   }[size]
   const thumbUkuran = {
     default: "size-4 data-[state=checked]:translate-x-4",
     sm: "size-3 data-[state=checked]:translate-x-3",
     xs: "size-2.5 data-[state=checked]:translate-x-2.5",
+    "2xs": "size-2 data-[state=checked]:translate-x-2",
   }[size]
   return (
     <SwitchPrimitive.Root
