@@ -66,8 +66,10 @@ class DispensasiService
     /**
      * Aturan satu dispensasi untuk satu jenis: spesifik (`jenis_id` = jenis)
      * menang atas umum (`jenis_id` null); null bila tak ada yang cocok.
+     * Publik untuk validasi eksplisit di ubah-tagihan (dipakai juga di
+     * dalam `terapkan`).
      */
-    private function aturanUntukJenis(Dispensasi $d, int $jenisId): ?DispensasiAturan
+    public function aturanUntukJenis(Dispensasi $d, int $jenisId): ?DispensasiAturan
     {
         $daftar = $d->relationLoaded('aturan') ? $d->aturan : $d->aturan()->get();
         $umum = null;

@@ -230,6 +230,8 @@ class TagihanController extends Controller
                 $sel[$key($t)] = [
                     'id' => (int) $t->id,
                     'nominal' => (int) $t->nominal,
+                    'potongan' => (int) ($t->potongan ?? 0),
+                    'dispensasi_ids' => $t->dispensasi_ids ?? null,
                     'terbayar' => (int) $t->terbayar,
                     'sisa' => $t->sisa(),
                     'status' => (string) $t->status,
@@ -354,6 +356,13 @@ class TagihanController extends Controller
      * `uq_tagihan_santri_jenis_periode`, jadi mengubahnya berarti tagihan ini
      * menjadi tagihan yang lain, bukan koreksi.
      *
+     * Dispensasi eksplisit (`dispensasi_ids`, dari combobox tab Ubah):
+     * nominal dihitung ulang dari KOTOR (`nominal + potongan` tersimpan —
+     * tepat, karena potongan selalu `awal - akhir`) memakai paket terpilih;
+     * [] = lepas + koreksi manual (pakai nominal ketikan, jejak dibersihkan).
+     * Tanpa kunci itu, koreksi nominal manual membersihkan jejak lama (agar
+     * tak basi), nilai sama membiarkannya.
+     *
      * Nominal tidak boleh turun di bawah yang sudah dibayar (sisa negatif).
      * Status dihitung ulang dari nominal vs terbayar. Jenis bulanan mengabaikan
      * jatuh tempo manual — aturan tanggal 10 bulan berjalan berlaku juga di
@@ -364,6 +373,44 @@ class TagihanController extends Controller
         $data = $request->validated();
         $this->canLembaga($request->user(), $tagihan->jenjang) || abort(403);
 
+        if (array_key_exists('dispensasi_ids', $data)) {
+            $ids = collect($data['dispensasi_ids'] ?? [])
+                ->map(fn ($v) => (int) $v)->unique()->sort()->values();
+            if ($ids->isEmpty()) {
+                // Lepas eksplisit ("Tanpa dispensasi") + koreksi manual: pakai
+                // nominal ketikan, jejak lama dibersihkan.
+                $data['potongan'] = 0;
+                $data['dispensasi_ids'] = null;
+            } else {
+                $aturanSvc = app(DispensasiService::class);
+                $paket = Dispensasi::with(['aturan.jenis', 'santriTambahan'])
+                    ->whereIn('id', $ids)->where('is_active', true)->get();
+                if ($paket->count() !== $ids->count()) {
+                    abort(422, 'Dispensasi tidak valid atau sudah nonaktif.');
+                }
+                foreach ($paket as $d) {
+                    if ($aturanSvc->aturanUntukJenis($d, (int) $tagihan->jenis_id) === null) {
+                        abort(422, "Dispensasi '{$d->nama}' tidak punya aturan untuk jenis tagihan ini.");
+                    }
+                    if (!in_array((int) $tagihan->santri_id, $d->santri_ids ?? [], true)) {
+                        abort(422, "Santri bukan penerima dispensasi '{$d->nama}'.");
+                    }
+                }
+                $hasil = $aturanSvc->terapkan(
+                    (int) $tagihan->nominal + (int) $tagihan->potongan,
+                    $paket,
+                    (int) $tagihan->jenis_id,
+                );
+                $data['nominal'] = $hasil['nominal'];
+                $data['potongan'] = $hasil['potongan'];
+                $data['dispensasi_ids'] = $hasil['ids'] === [] ? null : $hasil['ids'];
+            }
+        } elseif ((int) $data['nominal'] !== (int) $tagihan->nominal) {
+            // Koreksi manual: jejak potongan lama basi bila nominal berubah.
+            $data['potongan'] = 0;
+            $data['dispensasi_ids'] = null;
+        }
+
         if ($data['nominal'] < $tagihan->terbayar) {
             abort(422, "Nominal tidak boleh lebih kecil dari yang sudah dibayar (Rp {$tagihan->terbayar}).");
         }
@@ -372,6 +419,14 @@ class TagihanController extends Controller
 
         $tagihan->nominal = $data['nominal'];
         $tagihan->tahun_ajaran = $data['tahun_ajaran'];
+        // Jejak dispensasi hanya berubah lewat dua jalur di atas (terapkan
+        // eksplisit / koreksi manual); ubah TA/tanggal saja mempertahankannya.
+        if (array_key_exists('potongan', $data)) {
+            $tagihan->potongan = $data['potongan'];
+        }
+        if (array_key_exists('dispensasi_ids', $data)) {
+            $tagihan->dispensasi_ids = $data['dispensasi_ids'];
+        }
         $tagihan->jatuh_tempo = JatuhTempo::untuk(
             (string) $jenis->tipe,
             $tagihan->periode,

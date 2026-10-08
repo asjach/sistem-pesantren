@@ -1,17 +1,27 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PembayaranRow } from '@/api/keuangan';
+import type { Dispensasi } from '@/api/keuangan';
 import type { TahunAjaran } from '@/api/master';
 import { renderDenganTema } from '@/test/utils';
-import PopoverAksiTagihan, { type DataBayar, type DataUbah, type TagihanAktif } from './PopoverAksiTagihan';
+import PopoverAksiTagihan, { type DataBayar, type DataTambah, type DataUbah, type TagihanAktif, type TambahCtx } from './PopoverAksiTagihan';
+
+/** Daftar dispensasi: kosong bawaan (tiap test yang butuh menimpa via mock). */
+const daftarDispen = vi.fn(async (_p?: unknown): Promise<Dispensasi[]> => []);
+vi.mock('@/api/keuangan', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/api/keuangan')>();
+  return { ...asli, daftarDispensasi: (p: unknown) => daftarDispen(p) };
+});
 
 function tagihan(partial: Partial<TagihanAktif> = {}): TagihanAktif {
   return {
     id: 7, nama: 'Santri Uji', label: 'Infaq Bulanan · Jul 2025',
     ayah_nama: 'Bpk. Abdul', ibu_nama: 'Siti Aminah',
+    santri_id: 7, jenisId: 1,
     nominal: 75000, terbayar: 20000, sisa: 55000, status: 'sebagian',
+    potongan: 0, dispensasi_ids: null,
     terlambat: true, jatuhTempo: '2025-08-10', tahunAjaran: '2025/2026',
     tipe: 'bulanan', ...partial,
   };
@@ -47,6 +57,7 @@ function renderPopover(
     onHapus: () => Promise<void>;
     onHapusPembayaran: (id: number) => Promise<void>;
     onMuatRiwayat: () => void;
+    onTambah: (d: DataTambah) => Promise<void>;
   }> = {},
   riwayat: Partial<{ rows: PembayaranRow[]; busy: boolean; error: string }> = {},
 ) {
@@ -57,11 +68,13 @@ function renderPopover(
     onHapus: vi.fn(() => Promise.resolve()),
     onHapusPembayaran: vi.fn(() => Promise.resolve()),
     onMuatRiwayat: vi.fn(),
+    onTambah: vi.fn(() => Promise.resolve()),
     ...aksi,
   };
   const view = renderDenganTema(
     <PopoverAksiTagihan
       tagihan={t}
+      tambah={null}
       anchor={jangkar()}
       daftarTA={DAFTAR_TA}
       riwayat={riwayat.rows ?? []}
@@ -101,17 +114,17 @@ describe('ringkasan tagihan', () => {
 
   it('badge status mengikuti kondisi tagihan', () => {
     const { unmount } = renderDenganTema(
-      <PopoverAksiTagihan tagihan={tagihan({ terlambat: true })} anchor={jangkar()} daftarTA={DAFTAR_TA}
+      <PopoverAksiTagihan tagihan={tagihan({ terlambat: true })} tambah={null} anchor={jangkar()} daftarTA={DAFTAR_TA}
         riwayat={[]} riwayatBusy={false} riwayatError=""
-        onTutup={() => {}} onBayar={async () => {}} onUbah={async () => {}} onHapus={async () => {}} onHapusPembayaran={async () => {}} onMuatRiwayat={() => {}} />,
+        onTutup={() => {}} onBayar={async () => {}} onUbah={async () => {}} onHapus={async () => {}} onHapusPembayaran={async () => {}} onMuatRiwayat={() => {}} onTambah={async () => {}} />,
     );
     expect(screen.getByText('Tunggakan')).toBeInTheDocument();
     unmount();
 
     renderDenganTema(
-      <PopoverAksiTagihan tagihan={tagihan({ terlambat: false, status: 'lunas', sisa: 0 })} anchor={jangkar()} daftarTA={DAFTAR_TA}
+      <PopoverAksiTagihan tagihan={tagihan({ terlambat: false, status: 'lunas', sisa: 0 })} tambah={null} anchor={jangkar()} daftarTA={DAFTAR_TA}
         riwayat={[]} riwayatBusy={false} riwayatError=""
-        onTutup={() => {}} onBayar={async () => {}} onUbah={async () => {}} onHapus={async () => {}} onHapusPembayaran={async () => {}} onMuatRiwayat={() => {}} />,
+        onTutup={() => {}} onBayar={async () => {}} onUbah={async () => {}} onHapus={async () => {}} onHapusPembayaran={async () => {}} onMuatRiwayat={() => {}} onTambah={async () => {}} />,
     );
     expect(screen.getByText('Lunas')).toBeInTheDocument();
   });
@@ -353,10 +366,164 @@ describe('panel detail pembayaran', () => {
 describe('tanpa tagihan / jangkar', () => {
   it('tidak merender apa pun', () => {
     const { container } = renderDenganTema(
-      <PopoverAksiTagihan tagihan={null} anchor={null} daftarTA={DAFTAR_TA}
+      <PopoverAksiTagihan tagihan={null} tambah={null} anchor={null} daftarTA={DAFTAR_TA}
         riwayat={[]} riwayatBusy={false} riwayatError=""
-        onTutup={() => {}} onBayar={async () => {}} onUbah={async () => {}} onHapus={async () => {}} onHapusPembayaran={async () => {}} onMuatRiwayat={() => {}} />,
+        onTutup={() => {}} onBayar={async () => {}} onUbah={async () => {}} onHapus={async () => {}} onHapusPembayaran={async () => {}} onMuatRiwayat={() => {}} onTambah={async () => {}} />,
     );
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('mode tambah (sel kosong)', () => {
+  function tambahCtx(timpa: Partial<TambahCtx> = {}): TambahCtx {
+    return {
+      nama: 'Santri Uji', label: 'Infaq Bulanan · Agu 2025',
+      santri_id: 7, jenjang: 'MI', ayah_nama: 'Bpk. Abdul', ibu_nama: 'Siti Aminah',
+      jenis_id: 1, periode: '2025-08', tipe: 'bulanan',
+      tahunAjaran: '2025/2026', nominalAwal: 50000, ...timpa,
+    };
+  }
+
+  function renderTambah(ctx: TambahCtx, onTambah = vi.fn(() => Promise.resolve())) {
+    renderDenganTema(
+      <PopoverAksiTagihan
+        tagihan={null}
+        tambah={ctx}
+        anchor={jangkar()}
+        daftarTA={DAFTAR_TA}
+        riwayat={[]} riwayatBusy={false} riwayatError=""
+        onTutup={() => {}}
+        onBayar={async () => {}}
+        onUbah={async () => {}}
+        onHapus={async () => {}}
+        onTambah={onTambah}
+        onHapusPembayaran={async () => {}}
+        onMuatRiwayat={() => {}}
+      />,
+    );
+    return onTambah;
+  }
+
+  it('menampilkan ringkasan santri + label sel tanpa tab aksi', () => {
+    renderTambah(tambahCtx());
+    expect(screen.getByText('Santri Uji')).toBeInTheDocument();
+    expect(screen.getByText(/Tambah tagihan/)).toBeInTheDocument();
+    expect(screen.getByText(/Infaq Bulanan · Agu 2025/)).toBeInTheDocument();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+  });
+
+  it('nominal terisi dari tarif; simpan memanggil onTambah', async () => {
+    const onTambah = renderTambah(tambahCtx());
+    expect(screen.getByDisplayValue('50000')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(onTambah).toHaveBeenCalledTimes(1);
+    expect(onTambah).toHaveBeenCalledWith({ nominal: 50000, jatuh_tempo: null });
+  });
+
+  it('nominal di bawah 1 mengunci simpan', async () => {
+    const onTambah = renderTambah(tambahCtx({ nominalAwal: null }));
+    const simpan = screen.getByRole('button', { name: 'Simpan' });
+    expect(simpan).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Nominal tagihan baru'), '0');
+    expect(screen.getByText('Isi nominal minimal Rp 1.')).toBeInTheDocument();
+    expect(simpan).toBeDisabled();
+    await userEvent.click(simpan).catch(() => {});
+    expect(onTambah).not.toHaveBeenCalled();
+  });
+
+  it('bulanan otomatis tanggal 10; non-bulanan minta tanggal manual', async () => {
+    renderTambah(tambahCtx());
+    expect(screen.getByText(/Otomatis: tanggal 10/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Jatuh Tempo')).not.toBeInTheDocument();
+  });
+
+  it('non-bulanan mengirim jatuh tempo terisi', async () => {
+    const onTambah = renderTambah(tambahCtx({
+      tipe: 'non_bulanan', periode: null, label: 'Pendaftaran · sekali', nominalAwal: 100000,
+    }));
+    const tgl = screen.getByLabelText('Jatuh Tempo');
+    fireEvent.change(tgl, { target: { value: '2025-09-01' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(onTambah).toHaveBeenCalledWith({ nominal: 100000, jatuh_tempo: '2025-09-01' });
+  });
+
+  it('tanpa tahun ajaran tunggal simpan dikunci', () => {
+    renderTambah(tambahCtx({ tahunAjaran: null }));
+    expect(screen.getByText(/Pilih satu tahun ajaran/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Simpan' })).toBeDisabled();
+  });
+});
+
+describe('tab Ubah — dispensasi', () => {
+  const PAKET: Dispensasi[] = [
+    {
+      id: 11, nama: 'Prestasi', keterangan: null, tahun_ajaran: '2025/2026', is_active: true,
+      aturan: [{ id: 1, dispensasi_id: 11, jenis_id: 1, tipe: 'persen', nilai: 50 }],
+      santri_ids: [7],
+    },
+    {
+      id: 12, nama: 'Anak Pegawai', keterangan: null, tahun_ajaran: '2025/2026', is_active: true,
+      aturan: [{ id: 2, dispensasi_id: 12, jenis_id: 1, tipe: 'nominal', nilai: 10000 }],
+      santri_ids: [9],
+    },
+  ];
+
+  async function bukaUbah() {
+    renderPopover(tagihan());
+    await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
+  }
+
+  it('memuat paket untuk jenis+TA dan menandai bukan-penerima', async () => {
+    daftarDispen.mockResolvedValue(PAKET);
+    await bukaUbah();
+    await waitFor(() => expect(daftarDispen).toHaveBeenCalledWith(
+      expect.objectContaining({ tahun_ajaran: '2025/2026', jenis_id: 1, is_active: true }),
+    ));
+    await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
+    expect(screen.getByRole('option', { name: 'Prestasi · 50%' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Anak Pegawai.*bukan penerima/ })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('memilih paket menyesuaikan nominal + pratinjau, simpan mengirim ids', async () => {
+    const p = { onUbah: vi.fn(() => Promise.resolve()) };
+    daftarDispen.mockResolvedValue(PAKET);
+    renderPopover(tagihan(), p);
+    await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
+    await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
+    await userEvent.click(screen.getByRole('option', { name: 'Prestasi · 50%' }));
+    // Kotor 75.000 − 50% → 37.500, input dikunci mengikuti paket.
+    expect(screen.getByDisplayValue('37500')).toBeInTheDocument();
+    expect(screen.getByText(/Rp 75.000.*Rp 37.500.*Prestasi/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('37500')).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(p.onUbah).toHaveBeenCalledWith(expect.objectContaining({
+      nominal: 37500, dispensasi_ids: [11],
+    }));
+  });
+
+  it('tanpa dispensasi mengembalikan kotor dan mengirim ids kosong', async () => {
+    const p = { onUbah: vi.fn(() => Promise.resolve()) };
+    daftarDispen.mockResolvedValue(PAKET);
+    renderPopover(tagihan({ nominal: 37500, potongan: 37500, dispensasi_ids: [11] }), p);
+    await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
+    expect(screen.getByText(/potongan Rp 37.500/)).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
+    await userEvent.click(screen.getByRole('option', { name: /Tanpa dispensasi/ }));
+    expect(screen.getByText(/Kembali kotor Rp 75.000/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(p.onUbah).toHaveBeenCalledWith(expect.objectContaining({
+      nominal: 75000, dispensasi_ids: [],
+    }));
+  });
+
+  it('tanpa disentuh mengirim tanpa kunci ids (jalur lama)', async () => {
+    let terkirim: DataUbah | undefined;
+    const p = { onUbah: vi.fn(async (d: DataUbah) => { terkirim = d; }) };
+    daftarDispen.mockResolvedValue(PAKET);
+    renderPopover(tagihan(), p);
+    await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(terkirim?.nominal).toBe(75000);
+    expect(terkirim && 'dispensasi_ids' in terkirim).toBe(false);
   });
 });

@@ -234,4 +234,128 @@ class DispensasiTest extends TestCase
         $this->actingAs($admin)->getJson("/api/admin/keuangan/dispensasi?tahun_ajaran=2025/2026&jenis_id={$jenis->id}")
             ->assertStatus(200)->assertJsonCount(1);
     }
+
+    private function tagihanManual(Santri $santri, JenisTagihan $jenis, int $nominal = 100000): Tagihan
+    {
+        return Tagihan::create([
+            'santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
+            'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => $nominal,
+        ]);
+    }
+
+    private function paket(JenisTagihan $jenis, string $nama, string $tipe, int $nilai, Santri ...$penerima): Dispensasi
+    {
+        $d = Dispensasi::create(['nama' => $nama, 'tahun_ajaran' => '2025/2026']);
+        $d->aturan()->create(['jenis_id' => $jenis->id, 'tipe' => $tipe, 'nilai' => $nilai]);
+        if ($penerima !== []) {
+            $d->santriTambahan()->sync(array_map(fn ($s) => $s->id, $penerima));
+        }
+
+        return $d;
+    }
+
+    public function test_ubah_menerapkan_dan_melepas_dispensasi(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Ubah');
+        $tagihan = $this->tagihanManual($santri, $jenis);
+        $d = $this->paket($jenis, 'Prestasi', 'persen', 50, $santri);
+
+        // Terapkan: kotor 100.000 → 50.000 + jejak.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [
+            'nominal' => 50000, 'tahun_ajaran' => '2025/2026', 'dispensasi_ids' => [$d->id],
+        ])->assertStatus(200);
+        $tagihan->refresh();
+        $this->assertSame(50000, $tagihan->nominal);
+        $this->assertSame(50000, $tagihan->potongan);
+        $this->assertSame([$d->id], $tagihan->dispensasi_ids);
+
+        // Lepas ([]) + ketik kotor: kembali 100.000, jejak bersih.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [
+            'nominal' => 100000, 'tahun_ajaran' => '2025/2026', 'dispensasi_ids' => [],
+        ])->assertStatus(200);
+        $tagihan->refresh();
+        $this->assertSame(100000, $tagihan->nominal);
+        $this->assertSame(0, $tagihan->potongan);
+        $this->assertNull($tagihan->dispensasi_ids);
+
+        // Lepas ([]) + koreksi manual: pakai ketikan, jejak bersih.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [
+            'nominal' => 90000, 'tahun_ajaran' => '2025/2026', 'dispensasi_ids' => [],
+        ])->assertStatus(200);
+        $tagihan->refresh();
+        $this->assertSame(90000, $tagihan->nominal);
+        $this->assertSame(0, $tagihan->potongan);
+        $this->assertNull($tagihan->dispensasi_ids);
+    }
+
+    public function test_ubah_menolak_dispensasi_tak_berlaku(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq', 'tipe' => 'bulanan']);
+        $lainJenis = JenisTagihan::create(['nama' => 'ASAS', 'tipe' => 'non_bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Tolak');
+        $asing = $this->santriDenganRiwayat('Santri Asing');
+        $tagihan = $this->tagihanManual($santri, $jenis);
+
+        $payload = ['nominal' => 100000, 'tahun_ajaran' => '2025/2026'];
+
+        // Bukan penerima.
+        $d = $this->paket($jenis, 'Khusus', 'persen', 50, $asing);
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}",
+            $payload + ['dispensasi_ids' => [$d->id]])->assertStatus(422);
+
+        // Tanpa aturan untuk jenis ini.
+        $d2 = $this->paket($lainJenis, 'ASAS Saja', 'persen', 50, $santri);
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}",
+            $payload + ['dispensasi_ids' => [$d2->id]])->assertStatus(422);
+
+        // Nonaktif.
+        $d3 = $this->paket($jenis, 'Mati', 'persen', 50, $santri);
+        $d3->update(['is_active' => false]);
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}",
+            $payload + ['dispensasi_ids' => [$d3->id]])->assertStatus(422);
+
+        // Id tak dikenal.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}",
+            $payload + ['dispensasi_ids' => [999999]])->assertStatus(422);
+
+        $this->assertSame(100000, $tagihan->refresh()->nominal);
+        $this->assertSame(0, $tagihan->potongan);
+    }
+
+    public function test_ubah_menolak_diskon_di_bawah_terbayar_dan_membersihkan_jejak_manual(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Bayar');
+        $tagihan = $this->tagihanManual($santri, $jenis);
+        $tagihan->update(['terbayar' => 60000, 'status' => 'sebagian']);
+        $d = $this->paket($jenis, 'Setengah', 'persen', 50, $santri);
+
+        // 50% dari 100.000 = 50.000 < terbayar 60.000 → tolak.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [
+            'nominal' => 100000, 'tahun_ajaran' => '2025/2026', 'dispensasi_ids' => [$d->id],
+        ])->assertStatus(422);
+
+        // Koreksi manual tanpa kunci dispensasi membersihkan jejak lama.
+        $tagihan->update(['nominal' => 100000, 'potongan' => 20000, 'dispensasi_ids' => [$d->id]]);
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [
+            'nominal' => 90000, 'tahun_ajaran' => '2025/2026',
+        ])->assertStatus(200);
+        $tagihan->refresh();
+        $this->assertSame(90000, $tagihan->nominal);
+        $this->assertSame(0, $tagihan->potongan);
+        $this->assertNull($tagihan->dispensasi_ids);
+
+        // Nilai sama tanpa kunci: jejak dipertahankan.
+        $tagihan->update(['nominal' => 90000, 'potongan' => 10000, 'dispensasi_ids' => [$d->id]]);
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [
+            'nominal' => 90000, 'tahun_ajaran' => '2025/2026',
+        ])->assertStatus(200);
+        $tagihan->refresh();
+        $this->assertSame(10000, $tagihan->potongan);
+        $this->assertSame([$d->id], $tagihan->dispensasi_ids);
+    }
 }

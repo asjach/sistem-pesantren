@@ -18,6 +18,7 @@ import { ActionIcon } from '@/components/RowActions';
 import { ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
+import { hitungDispensasi, saringDispensasi } from '@/lib/dispensasi';
 import { ArrowRight, Trash2, X } from '@/icons';
 import { type PerPage } from '@/prefs';
 
@@ -72,44 +73,6 @@ type BarisTerpilih = KandidatTagihanRow & {
   nominal: string; nominalManual: boolean;
   potongan: number; dispensasiIds: number[] | null; dispensasiLabel: string | null;
 };
-
-/** Aturan satu dispensasi untuk jenis terpilih (spesifik menang atas semua-jenis). */
-function aturanUntukJenis(d: Dispensasi, jenisId: number) {
-  let umum = null;
-  for (const a of d.aturan ?? []) {
-    if (a.jenis_id === null) umum ??= a;
-    else if (a.jenis_id === jenisId) return a;
-  }
-  return umum;
-}
-
-/** Dispensasi yang cocok untuk satu baris santri (terdaftar sebagai penerima). */
-function saringDispensasi(daftar: Dispensasi[], r: KandidatTagihanRow): Dispensasi[] {
-  return daftar.filter((d) => (d.santri_ids ?? []).includes(r.santri_id));
-}
-
-/** Akumulatif urut id — sama dengan DispensasiService di backend. */
-function hitungDispensasi(nominalAwal: number, cocok: Dispensasi[], jenisId: number) {
-  const urut = [...cocok].sort((a, b) => a.id - b.id);
-  let nominal = nominalAwal;
-  const pakai: Dispensasi[] = [];
-  for (const d of urut) {
-    const a = aturanUntukJenis(d, jenisId);
-    if (!a) continue;
-    nominal = a.tipe === 'persen'
-      ? Math.floor(nominal * (100 - Math.min(100, Math.max(0, a.nilai))) / 100)
-      : a.tipe === 'bebas'
-        ? 0
-        : Math.max(0, nominal - Math.max(0, a.nilai));
-    pakai.push(d);
-  }
-  return {
-    nominal,
-    potongan: Math.max(0, nominalAwal - nominal),
-    ids: pakai.map((d) => d.id),
-    label: pakai.map((d) => d.nama).join(', '),
-  };
-}
 
 interface Props {
   open: boolean;
@@ -221,7 +184,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     if (jenisId === '' || !Number.isInteger(awal) || awal < 0) {
       return { ...r, nominal: nominalStr, nominalManual: false, potongan: 0, dispensasiIds: null, dispensasiLabel: null };
     }
-    const h = hitungDispensasi(awal, saringDispensasi(daftarDispen, r), Number(jenisId));
+    const h = hitungDispensasi(awal, saringDispensasi(daftarDispen, r.santri_id), Number(jenisId));
     return {
       ...r, nominal: String(h.nominal), nominalManual: false,
       potongan: h.potongan, dispensasiIds: h.ids.length > 0 ? h.ids : null,

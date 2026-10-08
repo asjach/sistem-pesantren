@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 
-import type { PembayaranRow } from '@/api/keuangan';
+import type { Dispensasi, PembayaranRow } from '@/api/keuangan';
+import { daftarDispensasi } from '@/api/keuangan';
 import type { TahunAjaran } from '@/api/master';
+import { hitungDispensasi, ringkasAturan, saringDispensasi } from '@/lib/dispensasi';
 import { DeleteAction } from '@/components/RowActions';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
@@ -19,11 +21,17 @@ export interface TagihanAktif {
   /** Nama ayah & ibu dari data santri; dipakai baris "Orang Tua". */
   ayah_nama: string | null;
   ibu_nama: string | null;
+  /** Kunci santri + jenis: dipakai memilih dispensasi yang penerimanya cocok. */
+  santri_id: number;
+  jenisId: number;
   nominal: number;
   /** Sudah dibayar untuk tagihan ini (bukan total baris). */
   terbayar: number;
   sisa: number;
   status: 'belum' | 'sebagian' | 'lunas';
+  /** Jejak dispensasi saat ini (nominal kotor = nominal + potongan). */
+  potongan: number;
+  dispensasi_ids: number[] | null;
   /** Sudah lewat jatuh tempo (kunci warna badge & tunggakan). */
   terlambat: boolean;
   /** Tanggal jatuh tempo 'YYYY-MM-DD' atau null (tanpa batas). */
@@ -43,12 +51,41 @@ export interface DataUbah {
   nominal: number;
   tahun_ajaran: string;
   jatuh_tempo: string | null;
+  /** Kunci eksplisit paket dispensasi ([] = lepas). Absen = jalur lama. */
+  dispensasi_ids?: number[] | null;
+}
+
+/** Konteks tambah dari sel kosong: santri + kolom asal (belum ada tagihan). */
+export interface TambahCtx {
+  nama: string;
+  /** Label sel: "Infaq Bulanan · Agu 2025". */
+  label: string;
+  santri_id: number;
+  jenjang: string;
+  ayah_nama: string | null;
+  ibu_nama: string | null;
+  jenis_id: number;
+  periode: string | null;
+  tipe: 'bulanan' | 'non_bulanan';
+  /** TA filter tunggal (null = belum tunggal, simpan dikunci). */
+  tahunAjaran: string | null;
+  /** Nominal awal dari tarif yang cocok (null = isi manual). */
+  nominalAwal: number | null;
+}
+
+/** Nilai yang dikirim ke endpoint buat tagihan satuan. */
+export interface DataTambah {
+  nominal: number;
+  jatuh_tempo: string | null;
 }
 
 type TabKey = 'bayar' | 'ubah' | 'hapus' | 'detail';
 
 interface Props {
   tagihan: TagihanAktif | null;
+  /** Konteks tambah (sel kosong). Eksklusif terhadap `tagihan`: halaman
+   *  membersihkan salah satunya setiap membuka yang lain. */
+  tambah: TambahCtx | null;
   /** Elemen sel asal — jangkar popover. null = tertutup. */
   anchor: HTMLElement | null;
   /** Daftar tahun ajaran sudah dimuat halaman (tak perlu fetch ulang). */
@@ -60,6 +97,8 @@ interface Props {
   onBayar: (data: DataBayar) => Promise<void>;
   onUbah: (data: DataUbah) => Promise<void>;
   onHapus: () => Promise<void>;
+  /** Buat tagihan satuan dari mode tambah. */
+  onTambah: (data: DataTambah) => Promise<void>;
   /** Hapus satu baris pembayaran dari riwayat. */
   onHapusPembayaran: (id: number) => Promise<void>;
   /** Minta halaman memuat riwayat pembayaran (dipanggil saat tab Detail dibuka). */
@@ -144,8 +183,8 @@ function rupiah(n: number): string {
  * bisa diuji sendiri), bukan inline di halaman.
  */
 export default function PopoverAksiTagihan({
-  tagihan, anchor, daftarTA, riwayat, riwayatBusy, riwayatError,
-  onTutup, onBayar, onUbah, onHapus, onHapusPembayaran, onMuatRiwayat,
+  tagihan, tambah, anchor, daftarTA, riwayat, riwayatBusy, riwayatError,
+  onTutup, onBayar, onUbah, onHapus, onTambah, onHapusPembayaran, onMuatRiwayat,
 }: Props) {
   const [tab, setTab] = useState<TabKey>('bayar');
   const [teksJumlah, setTeksJumlah] = useState('');
@@ -156,8 +195,17 @@ export default function PopoverAksiTagihan({
   const [nominal, setNominal] = useState('');
   const [tahunAjaran, setTahunAjaran] = useState('');
   const [jatuhTempo, setJatuhTempo] = useState('');
+  /** Pilihan dispensasi tab Ubah: undefined = belum disentuh (jalur lama),
+   *  'tanpa' = lepas eksplisit, number = id paket (nominal mengikuti paket). */
+  const [dispenPilih, setDispenPilih] = useState<number | 'tanpa' | undefined>(undefined);
+  /** Daftar paket dispensasi untuk jenis+TA tagihan ini. */
+  const [dispenDaftar, setDispenDaftar] = useState<Dispensasi[]>([]);
+  const [dispenGagal, setDispenGagal] = useState(false);
+  /* Form tambah (sel kosong) */
+  const [nominalBaru, setNominalBaru] = useState('');
+  const [jatuhTempoBaru, setJatuhTempoBaru] = useState('');
 
-  const terbuka = anchor !== null && tagihan !== null;
+  const terbuka = anchor !== null && (tagihan !== null || tambah !== null);
 
   // Sel baru → isi ulang seluruh form; jumlah defaultnya sisa tagihan (kasus
   // paling umum adalah membayar penuh, dan nilainya masih bisa dikoreksi).
@@ -169,8 +217,27 @@ export default function PopoverAksiTagihan({
     setNominal(String(tagihan.nominal));
     setTahunAjaran(tagihan.tahunAjaran);
     setJatuhTempo(tagihan.jatuhTempo ?? '');
+    setDispenPilih(undefined);
     setTab('bayar');
   }, [tagihan]);
+
+  // Daftar dispensasi untuk tagihan ini (dipakai combobox tab Ubah).
+  useEffect(() => {
+    if (tagihan === null) return;
+    let hidup = true;
+    setDispenGagal(false);
+    daftarDispensasi({ tahun_ajaran: tagihan.tahunAjaran, jenis_id: tagihan.jenisId, is_active: true })
+      .then((d) => { if (hidup) setDispenDaftar(d); })
+      .catch(() => { if (hidup) { setDispenDaftar([]); setDispenGagal(true); } });
+    return () => { hidup = false; };
+  }, [tagihan]);
+
+  // Konteks tambah berganti → nominal mengikuti tarif yang cocok.
+  useEffect(() => {
+    if (tambah === null) return;
+    setNominalBaru(tambah.nominalAwal != null ? String(tambah.nominalAwal) : '');
+    setJatuhTempoBaru('');
+  }, [tambah]);
 
   // Riwayat diambil saat tab Detail benar-benar dibuka, bukan di awal — jangan
   //ountain request untuk tab yang mungkin tak pernah dibuka.
@@ -178,7 +245,136 @@ export default function PopoverAksiTagihan({
     if (tab === 'detail') onMuatRiwayat();
   }, [tab, onMuatRiwayat]);
 
-  if (tagihan === null || anchor === null) return null;
+  if (tagihan === null && tambah === null) return null;
+  if (anchor === null) return null;
+
+  const tambahAktif = tambah !== null && tagihan === null;
+
+  const jalankan = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await fn();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* Mode tambah (sel kosong): ringkas + satu form, tanpa tab aksi. */
+  if (tambahAktif && tambah) {
+    const jangkar = anchor;
+    const nBaru = Number(nominalBaru);
+    const nominalBaruValid = nominalBaru !== '' && Number.isInteger(nBaru) && nBaru >= 1;
+    const nominalBaruSalah = nominalBaru !== '' && !nominalBaruValid;
+    const taSiap = tambah.tahunAjaran !== null && tambah.tahunAjaran !== '';
+    const bulananBaru = tambah.tipe === 'bulanan';
+    return (
+      <Popover
+        open={terbuka}
+        onOpenChange={(o) => { if (!o) onTutup(); }}
+      >
+        <PopoverAnchor
+          virtualRef={{
+            current: { getBoundingClientRect: () => jangkar.getBoundingClientRect() },
+          }}
+        />
+        <PopoverContent
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          className="w-[22rem] border-ring/50 p-0"
+        >
+          <div className="border-b px-3 py-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="min-w-0 truncate text-sm font-medium">{tambah.nama}</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Tambah tagihan · {tambah.label}</p>
+              </div>
+              <Button
+                id="btn_tutup_popover_tambah"
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Tutup"
+                title="Tutup"
+                onClick={onTutup}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                <X size={14} />
+              </Button>
+            </div>
+            <dl className="mt-1.5 space-y-0.5 text-xs">
+              <BarisRingkas label="Ayah" nilai={namaOrang(tambah.ayah_nama)} />
+              <BarisRingkas label="Ibu" nilai={namaOrang(tambah.ibu_nama)} />
+              <BarisRingkas label="Tahun Ajaran" nilai={tambah.tahunAjaran ?? '—'} />
+            </dl>
+          </div>
+          <div className="space-y-2 p-3">
+            <div className="grid grid-cols-[5rem_1fr] items-center gap-x-2 gap-y-1.5">
+              <FieldLabel htmlFor="inp_tambah_nominal" className="text-xs">Nominal</FieldLabel>
+              <Input
+                autoFocus
+                id="inp_tambah_nominal"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={nominalBaru}
+                onChange={(e) => setNominalBaru(e.target.value)}
+                aria-label="Nominal tagihan baru"
+                aria-invalid={nominalBaruSalah}
+                className={cn('h-8 w-full min-w-0 tabular-nums', nominalBaruSalah && 'border-destructive')}
+              />
+              <FieldLabel htmlFor="inp_tambah_jatuh_tempo" className="text-xs">Jatuh Tempo</FieldLabel>
+              {bulananBaru ? (
+                <p id="inp_tambah_jatuh_tempo" className="text-xs text-muted-foreground">
+                  Otomatis: tanggal 10 bulan berjalan
+                </p>
+              ) : (
+                <Input
+                  id="inp_tambah_jatuh_tempo"
+                  type="date"
+                  className="h-8 w-full min-w-0"
+                  value={jatuhTempoBaru}
+                  onChange={(e) => setJatuhTempoBaru(e.target.value)}
+                />
+              )}
+              {nominalBaruSalah && (
+                <p className="col-start-2 text-[11px] text-destructive">
+                  Isi nominal minimal Rp 1.
+                </p>
+              )}
+              {!taSiap && (
+                <p className="col-start-2 text-[11px] text-destructive">
+                  Pilih satu tahun ajaran pada filter di atas.
+                </p>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Nominal mengikuti tarif bila cocok — ketik manual untuk menimpa.
+            </p>
+            <div className="flex justify-end gap-1.5 pt-0.5">
+              <Button id="btn_tambah_batal" type="button" variant="ghost" className="h-8" onClick={onTutup}>
+                Batal
+              </Button>
+              <Button
+                id="btn_tambah_simpan"
+                type="button"
+                className="h-8"
+                disabled={!nominalBaruValid || !taSiap || busy}
+                onClick={() => void jalankan(() => onTambah({
+                  nominal: nBaru,
+                  jatuh_tempo: bulananBaru ? null : (jatuhTempoBaru || null),
+                }))}
+              >
+                {busy ? '…' : 'Simpan'}
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  if (tagihan === null) return null;
 
   const sisa = tagihan.sisa;
   const lunas = tagihan.status === 'lunas' || sisa <= 0;
@@ -195,19 +391,34 @@ export default function PopoverAksiTagihan({
   const nominalAngka = Number(nominal);
   const nominalSalah = nominal !== ''
     && (!Number.isInteger(nominalAngka) || nominalAngka < 0 || nominalAngka < tagihan.terbayar);
-  const ubahValid = nominal !== ''
-    && !nominalSalah
+
+  /** Nominal kotor = nominal tersimpan + potongan tercatat (tepat, karena
+   *  potongan selalu `awal − akhir`). Dasar pratinjau & hitung backend. */
+  const nominalKotor = tagihan.nominal + tagihan.potongan;
+  /** Paket yang penerimanya cocok dengan santri ini. */
+  const paketCocok = saringDispensasi(dispenDaftar, tagihan.santri_id);
+  const idPenerima = new Set(paketCocok.map((d) => d.id));
+  const paketPilih = typeof dispenPilih === 'number'
+    ? (paketCocok.find((d) => d.id === dispenPilih) ?? null)
+    : null;
+  /** Pratinjau hasil paket terpilih (cerminan hitung backend). */
+  const pratinjau = paketPilih
+    ? hitungDispensasi(nominalKotor, [paketPilih], tagihan.jenisId)
+    : null;
+  const dispenTersentuh = dispenPilih !== undefined;
+  /** Nominal efektif terkirim: pratinjau paket, atau ketikan manual. */
+  const nominalEfektif = pratinjau ? pratinjau.nominal : nominalAngka;
+  const nominalEfektifSalah = pratinjau
+    ? pratinjau.nominal < tagihan.terbayar
+    : nominalSalah;
+  const ubahValid = (pratinjau ? true : nominal !== '')
+    && !nominalEfektifSalah
     && tahunAjaran !== ''
     && (!busy);
-
-  const jalankan = async (fn: () => Promise<void>) => {
-    setBusy(true);
-    try {
-      await fn();
-    } finally {
-      setBusy(false);
-    }
-  };
+  /** Nama paket jejak saat ini (id tak dikenal = paket nonaktif/dihapus). */
+  const jejakNama = (tagihan.dispensasi_ids ?? []).map((id) =>
+    dispenDaftar.find((d) => d.id === id)?.nama ?? `paket #${id}`,
+  );
 
   return (
     <Popover
@@ -404,15 +615,72 @@ export default function PopoverAksiTagihan({
                 5rem (80px) dipilih karena label terpanjang di sini "Tahun Ajaran"
                 (67px terukur) — 4rem milik panel Bayar tidak cukup. */}
             <div className="grid grid-cols-[5rem_1fr] items-center gap-x-2 gap-y-1.5">
+              <FieldLabel htmlFor="sel_ubah_dispen" className="text-xs">Dispensasi</FieldLabel>
+              <Select
+                value={dispenPilih === undefined ? '' : dispenPilih === 'tanpa' ? 'tanpa' : String(dispenPilih)}
+                onValueChange={(v) => {
+                  if (v === '') setDispenPilih(undefined);
+                  else if (v === 'tanpa') {
+                    // Lepas: isi nominal dengan kotor (satu klik kembali);
+                    // tetap bisa diketik ulang sebagai koreksi manual.
+                    setDispenPilih('tanpa');
+                    setNominal(String(nominalKotor));
+                  } else setDispenPilih(Number(v));
+                }}
+              >
+                <SelectTrigger id="sel_ubah_dispen" aria-label="Dispensasi tagihan" className="h-8 w-full min-w-0 text-xs">
+                  <SelectValue placeholder="Tanpa perubahan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Tanpa perubahan</SelectItem>
+                  <SelectItem value="tanpa">Tanpa dispensasi (kotor)</SelectItem>
+                  {dispenDaftar.map((d) => {
+                    const penerima = idPenerima.has(d.id);
+                    const ringkas = ringkasAturan(d, tagihan.jenisId);
+                    if (ringkas === null) return null;
+                    return (
+                      <SelectItem key={d.id} value={String(d.id)} disabled={!penerima}>
+                        {d.nama} · {ringkas}{penerima ? '' : ' (bukan penerima)'}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+
+              {dispenGagal && (
+                <p className="col-start-2 text-[11px] text-destructive">
+                  Gagal memuat daftar dispensasi.
+                </p>
+              )}
+              {tagihan.potongan > 0 && (
+                <p className="col-start-2 text-[11px] text-muted-foreground">
+                  Saat ini: potongan {rupiah(tagihan.potongan)}
+                  {jejakNama.length > 0 ? ` (${jejakNama.join(', ')})` : ''}.
+                </p>
+              )}
+              {pratinjau && paketPilih && (
+                <p className="col-start-2 text-[11px] text-muted-foreground">
+                  {rupiah(nominalKotor)} − {rupiah(pratinjau.potongan)} ({paketPilih.nama})
+                  {' → '}<b>{rupiah(pratinjau.nominal)}</b>
+                </p>
+              )}
+              {dispenPilih === 'tanpa' && tagihan.potongan > 0 && (
+                <p className="col-start-2 text-[11px] text-muted-foreground">
+                  Kembali kotor {rupiah(nominalKotor)} (melepas potongan).
+                </p>
+              )}
+
               <FieldLabel htmlFor="inp_ubah_nominal" className="text-xs">Nominal</FieldLabel>
               <Input
                 id="inp_ubah_nominal"
                 type="number"
                 min={tagihan.terbayar}
-                value={nominal}
+                value={pratinjau ? String(pratinjau.nominal) : nominal}
                 onChange={(e) => setNominal(e.target.value)}
-                aria-invalid={nominalSalah}
-                className={cn('h-8 w-full min-w-0 tabular-nums', nominalSalah && 'border-destructive')}
+                disabled={pratinjau !== null}
+                title={pratinjau ? 'Mengikuti dispensasi terpilih' : undefined}
+                aria-invalid={nominalEfektifSalah}
+                className={cn('h-8 w-full min-w-0 tabular-nums', nominalEfektifSalah && 'border-destructive')}
               />
 
               <FieldLabel htmlFor="sel_ubah_ta" className="text-xs">Tahun Ajaran</FieldLabel>
@@ -455,7 +723,7 @@ export default function PopoverAksiTagihan({
                 />
               )}
 
-              {nominalSalah && (
+              {nominalEfektifSalah && (
                 <p className="col-start-2 text-[11px] text-destructive">
                   Minimal Rp {tagihan.terbayar.toLocaleString('id')} (nilai yang sudah dibayar).
                 </p>
@@ -469,9 +737,12 @@ export default function PopoverAksiTagihan({
                 className="h-8"
                 disabled={!ubahValid || busy}
                 onClick={() => void jalankan(() => onUbah({
-                  nominal: nominalAngka,
+                  nominal: nominalEfektif,
                   tahun_ajaran: tahunAjaran,
                   jatuh_tempo: bulanan ? null : (jatuhTempo || null),
+                  ...(dispenTersentuh
+                    ? { dispensasi_ids: typeof dispenPilih === 'number' ? [dispenPilih] : [] }
+                    : {}),
                 }))}
               >
                 {busy ? '…' : 'Simpan'}
