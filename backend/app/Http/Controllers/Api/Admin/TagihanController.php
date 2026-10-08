@@ -589,11 +589,11 @@ class TagihanController extends Controller
         $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
         $peta = $this->petaSantriGenerate($data['tahun_ajaran'], $diminta->keys()->all());
 
-        // Dispensasi aktif untuk TA+jenis ini (semua paket selalu otomatis;
-        // kuota membatasi N bulan pertama). Baris tanpa override manual
-        // dihitung ulang di sini (otoritatif), override manual menang.
+        // Dispensasi aktif untuk jenis ini — TIDAK terikat tahun ajaran:
+        // paket berlaku lintas TA (kuota/penerima/grup yang membatasi).
+        // Baris tanpa override manual dihitung ulang di sini (otoritatif),
+        // override manual menang.
         $daftarDispensasi = Dispensasi::with(['aturan.jenis', 'santriTambahan'])
-            ->where('tahun_ajaran', $data['tahun_ajaran'])
             ->where('is_active', true)
             ->whereHas('aturan', fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenis->id))
             ->get();
@@ -790,7 +790,6 @@ class TagihanController extends Controller
         $peta = $this->petaSantriGenerate($data['tahun_ajaran'], $diminta->keys()->all());
 
         $daftarDispensasi = Dispensasi::with(['aturan.jenis', 'santriTambahan'])
-            ->where('tahun_ajaran', $data['tahun_ajaran'])
             ->where('is_active', true)
             ->whereHas('aturan', fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenis->id))
             ->get();

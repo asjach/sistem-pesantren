@@ -228,7 +228,7 @@ export default function PopoverAksiTagihan({
     if (tagihan === null) return;
     let hidup = true;
     setDispenGagal(false);
-    daftarDispensasi({ tahun_ajaran: tagihan.tahunAjaran, jenis_id: tagihan.jenisId, is_active: true })
+    daftarDispensasi({ jenis_id: tagihan.jenisId, is_active: true })
       .then((d) => { if (hidup) setDispenDaftar(d); })
       .catch(() => { if (hidup) { setDispenDaftar([]); setDispenGagal(true); } });
     // Sisa kuota santri ini (opsi habis dinonaktifkan; sudah-menempel tetap bisa dipilih).

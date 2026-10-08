@@ -479,9 +479,11 @@ describe('tab Ubah — dispensasi', () => {
   it('semua paket bisa dipilih; bukan-penerima otomatis terdaftar', async () => {
     daftarDispen.mockResolvedValue(PAKET);
     await bukaUbah();
+    // Daftar lintas TA: hanya jenis + aktif yang dikirim.
     await waitFor(() => expect(daftarDispen).toHaveBeenCalledWith(
-      expect.objectContaining({ tahun_ajaran: '2025/2026', jenis_id: 1, is_active: true }),
+      expect.objectContaining({ jenis_id: 1, is_active: true }),
     ));
+    expect(daftarDispen).not.toHaveBeenCalledWith(expect.objectContaining({ tahun_ajaran: expect.anything() }));
     await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
     expect(screen.getByRole('option', { name: 'Prestasi · 50%' })).toBeInTheDocument();
     const opsi = screen.getByRole('option', { name: /Anak Pegawai.*otomatis terdaftar/ });

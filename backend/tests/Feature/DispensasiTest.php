@@ -390,6 +390,27 @@ class DispensasiTest extends TestCase
         $this->assertSame(0, $agu->nominal);
     }
 
+    public function test_dispensasi_tidak_terikat_tahun_ajaran(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Lintas TA');
+
+        // Paket ber-TA lain tetap berlaku lintas tahun ajaran.
+        TahunAjaran::create(['nama' => '2024/2025']);
+        $d = Dispensasi::create(['nama' => 'Lintas', 'tahun_ajaran' => '2024/2025']);
+        $d->aturan()->create(['jenis_id' => $jenis->id, 'tipe' => 'persen', 'nilai' => 50]);
+        $d->santriTambahan()->sync([$santri->id]);
+
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
+            'nominal' => 100000, 'santri' => [['santri_id' => $santri->id]],
+        ])->assertStatus(200)->assertJson(['dibuat' => 1]);
+        $tagihan = Tagihan::where('santri_id', $santri->id)->firstOrFail();
+        $this->assertSame(50000, $tagihan->nominal);
+        $this->assertSame([$d->id], $tagihan->dispensasi_ids);
+    }
+
     public function test_aturan_hanya_berlaku_untuk_jenisnya_dan_bebas_menihilkan(): void
     {
         $admin = $this->admin();

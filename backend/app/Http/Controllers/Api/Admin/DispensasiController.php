@@ -24,17 +24,16 @@ class DispensasiController extends Controller
     use UrutDaftar;
 
     /**
-     * Daftar dispensasi. Filter TA/jenis/status; `santri_id` = hanya yang
-     * berlaku untuk santri itu (dipakai profil santri).
+     * Daftar dispensasi. Filter jenis/status; `santri_id` = hanya yang
+     * berlaku untuk santri itu (dipakai profil santri; `tahun_ajaran`
+     * wajib sebagai konteks jenjang santri). Paket TIDAK terikat TA —
+     * `tahun_ajaran` hanya label arsip, bukan penyaring paket.
      */
     public function indexDispensasi(DispensasiIndexRequest $request)
     {
         $data = $request->validated();
 
         $q = Dispensasi::with(['aturan.jenis', 'santriTambahan.lembagaAktif']);
-        if (! empty($data['tahun_ajaran'])) {
-            $q->where('tahun_ajaran', $data['tahun_ajaran']);
-        }
         if (! empty($data['jenis_id'])) {
             $jenisId = (int) $data['jenis_id'];
             $q->whereHas('aturan', fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenisId));
