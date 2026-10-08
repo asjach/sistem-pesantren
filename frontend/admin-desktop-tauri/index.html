@@ -5,6 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>SIMPES Admin Desktop</title>
+    <style>
+      /* Latar dasar sebelum tema terpasang: hangat netral, bukan putih mentah,
+         supaya muat pertama tidak berkedip putih. */
+      html { background: #fbfaf8; }
+      html.dark { background: #1a1a19; }
+    </style>
+    <script>
+      /* Pasang mode + warna latar SEDINI mungkin (sebelum bundel dimuat) dari
+         cache tema agar cat pertama sudah sewarna tema pengguna — tanpa kilatan
+         putih maupun tema bawaan. Cache ditulis ulang tiap tema berubah oleh
+         ThemeProvider; bila belum ada, gaya dasar di atas yang berlaku. */
+      (function () {
+        try {
+          var mentah = localStorage.getItem('simpes_tema_cache');
+          if (!mentah) return;
+          var c = JSON.parse(mentah);
+          if (!c) return;
+          var r = document.documentElement;
+          if (c.dark) r.classList.add('dark');
+          if (c.theme) r.dataset.theme = c.theme;
+          if (c.warna) r.dataset.warna = c.warna;
+          if (c.bg) r.style.background = c.bg;
+        } catch (e) {
+          /* penyimpanan terkunci/rusak → pakai gaya dasar */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

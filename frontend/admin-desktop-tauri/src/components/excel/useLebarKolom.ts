@@ -4,11 +4,10 @@ import { prefSet } from '@/api/client';
 import { DEFAULT_HEADER_H, MAX_HEADER_H } from '@/components/GridPrefs';
 import { toast } from 'sonner';
 
-import { lebarJudulDuaBaris, ukurAutoFit } from './autofit';
+import { ambilContohBaris, lebarJudulDuaBaris, ukurAutoFit } from './autofit';
 import {
   AUTOFIT_BUFFER,
   AUTOFIT_MAX_W,
-  CHECK_W,
   MIN_COL_W,
   hostUkur,
   loadWidths,
@@ -26,6 +25,33 @@ interface LiveRef<T> {
   current: T;
 }
 
+/** Lebar bawaan kolom DSG (px) — dipakai sebelum basis kita terpasang. */
+const DSG_LEBAR_BAWAAN = 100;
+
+/** Grid BELUM layak ditampilkan? Dua sebab, keduanya memicu kedip
+ *  "kecil lalu membesar" bila terlihat:
+ *  1. header belum lengkap (DSG baru mount, baru sebagian sel terender);
+ *  2. seluruh kolom data masih seragam 100px — lebar bawaan DSG sebelum
+ *     basis kita dipakai.
+ *  Dibandingkan relatif (seragam 100), bukan sama-persis ke basis, agar tak
+ *  salah sembunyi saat basis kebetulan mirip. */
+export function gridBelumSiapTampil(root: HTMLElement | null, harapSisi = 3): boolean {
+  if (!root) return true;
+  const heads = root.querySelectorAll<HTMLElement>(
+    '.dsg-row-header .dsg-cell:not(.dsg-cell-gutter)',
+  );
+  // Header dianggap belum lengkap sampai jumlah selnya mendekati perkiraan
+  // (checkbox + kolom tampil + Aksi). Tabel berkolom sedikit tak ikut tertahan.
+  const minimal = Math.min(3, Math.max(1, harapSisi));
+  if (heads.length < minimal) return true;
+  let seragam = 0;
+  for (const h of heads) {
+    if (Math.abs(h.getBoundingClientRect().width - DSG_LEBAR_BAWAAN) <= 1) seragam += 1;
+  }
+  // Toleransi 1 kolom: kolom Aksi/checkbox bisa sudah punya lebar sendiri.
+  return seragam >= heads.length - 1;
+}
+
 export interface LebarKolomOptions<T extends { id: string | number }> {
   tableKey: string;
   fields: ExcelField[];
@@ -34,6 +60,11 @@ export interface LebarKolomOptions<T extends { id: string | number }> {
   rowsRef: LiveRef<T[]>;
   /** Petakan baris domain → nilai grid (dibaca terkini saat mengukur). */
   getValuesRef: LiveRef<(row: T) => Record<string, string | null>>;
+  /** true saat remount grid masih tertunda (tanda tinggi baris belum
+   *  diterapkan DSG). Diisi ExcelTable setelah nilainya dihitung; dibaca
+   *  gerbang pengungkapan agar tampilan pertama MENUNGGU remount selesai —
+   *  tanpa ini grid tempat tampil lalu disembunyikan remount (kedip). */
+  remountTertundaRef?: LiveRef<boolean>;
   /** Baris grid aktif per id (untuk teks sel saat AutoFit DOM). */
   gridByIdRef: LiveRef<Map<string, GridRow>>;
   visibleFields: ExcelField[];
@@ -68,6 +99,7 @@ export function useLebarKolom<T extends { id: string | number }>({
   rows,
   rowsRef,
   getValuesRef,
+  remountTertundaRef,
   gridByIdRef,
   visibleFields,
   wrapRef,
@@ -107,6 +139,17 @@ export function useLebarKolom<T extends { id: string | number }>({
    *  frame pertama sebelum basis kita dipakai — tanpa penahan ini terlihat
    *  header "melompat". Selalu mulai tersembunyi, termasuk saat cache ada. */
   const [lebarStabil, setLebarStabil] = useState(false);
+  /** Grid TAMPIL hanya saat DOM-nya sudah memakai lebar basis (bukan lebar
+   *  bawaan DSG). Dikendalikan gerbang kontinu di bawah — bukan sekali jalan,
+   *  sebab tiap remount DSG memulai lagi dari lebar bawaan. */
+  const [tampilGrid, setTampilGrid] = useState(false);
+  /** Failsafe gerbang sudah lewat: jangan pernah menyembunyikan grid lagi. */
+  const menyerahRef = useRef(false);
+  /** Cermin `sedangLebar` untuk dibaca di dalam callback gerbang. */
+  const sedangLebarRef = useRef(false);
+  /** Perkiraan jumlah sel header (checkbox + kolom tampil + Aksi). */
+  const harapSisiRef = useRef(3);
+  harapSisiRef.current = (hideCheckbox ? 0 : 1) + visibleFields.length + (hideActions ? 0 : 1);
   /** Tinggi header otomatis (konten-driven) — dari judul terpanjang yang
    *  membungkus; dipakai bila pengguna tidak mengunci tinggi manual. */
   const [headerAutoH, setHeaderAutoH] = useState<number | null>(null);
@@ -118,6 +161,7 @@ export function useLebarKolom<T extends { id: string | number }>({
   /** True selama gagang lebar kolom sedang diseret (grid tidak boleh
    *  di-remount di tengah gerakan — lihat ExcelTable). */
   const [sedangLebar, setSedangLebar] = useState(false);
+  sedangLebarRef.current = sedangLebar;
   const resizeRef = useRef<{ key: string; startX: number; startW: number; targets: string[] } | null>(null);
   /** Listener resize aktif (dibersihkan saat unmount bila masih menyeret). */
   const resizeListenersRef = useRef<{ move: (ev: MouseEvent) => void; up: () => void } | null>(null);
@@ -146,48 +190,92 @@ export function useLebarKolom<T extends { id: string | number }>({
     writeWidthCache(tableKey, { autoWidths });
   }, [tableKey, autoWidths]);
 
-  // Tampilkan grid setelah DSG benar-benar memakai lebar basis kita. Pada frame
-  // pertama DSG merender semua kolom 100px (bawaan) sebelum basis kita dipakai —
-  // tanpa penahan ini header tampak "melompat". Kolom pertama (checkbox) selalu
-  // CHECK_W, jadi kita tunggu sampai lebarnya bukan lagi 100 (bawaan DSG).
+  // Gerbang visibilitas grid: bingkai "lebar bawaan DSG" (semua kolom seragam
+  // 100px sesaat setelah DSG di-mount ulang) TIDAK boleh terlihat. Gerbang ini
+  // kontinu — dipicu MutationObserver, bukan sekali jalan — sebab remount bisa
+  // terjadi kapan saja (tanda tinggi baris berubah) dan tiap remount memulai
+  // lagi dari lebar bawaan. Pemeriksaan dibatasi 1× per bingkai dan berhenti
+  // permanen setelah 1,5 dtk (failsafe) agar grid tak pernah tersembunyi lama.
   useEffect(() => {
-    if (lebarStabil) return;
-    // Tanpa kolom centang tak ada penanda lebar basis pertama → tunggu lebar
-    // basis kolom data siap, lalu tampilkan.
-    if (hideCheckbox) {
-      if (widthsReady && !loading) setLebarStabil(true);
-      return;
-    }
-    if (!widthsReady || loading) return;
-    if (rows.length === 0) {
+    const el = wrapRef.current;
+    if (!el || typeof MutationObserver === 'undefined') {
+      setTampilGrid(true);
       setLebarStabil(true);
       return;
     }
-    let tries = 0;
     let raf = 0;
     let batal = false;
-    const cek = () => {
+    /** Saat grid pertama kali terlihat: pengungkapan PERTAMA menunggu masa
+     *  tenang 200 ms agar remount susulan (tanda tinggi baris berubah ~120 ms
+     *  setelah data tiba) tak membuat tabel tampil lalu tersembunyi lagi.
+     *  Setelah pernah tampil, pengungkapan kembali dilakukan secepatnya. */
+    let siapSejak = 0;
+    let pernahTampil = false;
+    const mulai = performance.now();
+    const periksa = () => {
+      raf = 0;
       if (batal) return;
-      const head = wrapRef.current?.querySelector<HTMLElement>(
-        '.dsg-row-header .dsg-cell:not(.dsg-cell-gutter)',
-      );
-      const w = head ? Math.round(head.getBoundingClientRect().width) : 0;
-      if (Math.abs(w - CHECK_W) <= 1 || ++tries > 20) {
-        setLebarStabil(true);
+      const lewatFailsafe = performance.now() - mulai > 2500;
+      const belumSiap = !lewatFailsafe && !menyerahRef.current && !sedangLebarRef.current
+        ? gridBelumSiapTampil(el, harapSisiRef.current)
+        : false;
+      if (lewatFailsafe) menyerahRef.current = true;
+      if (belumSiap) {
+        siapSejak = 0;
+        setTampilGrid(false);
         return;
       }
-      raf = requestAnimationFrame(cek);
+      // Remount tertunda (tanda tinggi baris belum dipakai DSG): tahan dulu —
+      // remount akan mengembalikan lebar ke bawaan, jadi menampilkan sekarang
+      // berujung grid tersembunyi lagi (kedip tampil→sembunyi→tampil).
+      if (!pernahTampil && remountTertundaRef?.current === true) {
+        siapSejak = 0;
+        setTampilGrid(false);
+        return;
+      }
+      const kini = performance.now();
+      if (!pernahTampil) {
+        if (siapSejak === 0) {
+          siapSejak = kini;
+          jadwalkan();
+          return;
+        }
+        if (kini - siapSejak < 200) {
+          jadwalkan();
+          return;
+        }
+      }
+      pernahTampil = true;
+      setTampilGrid(true);
+      setLebarStabil(true);
     };
-    raf = requestAnimationFrame(cek);
+    const jadwalkan = () => {
+      if (!raf && !batal) raf = requestAnimationFrame(periksa);
+    };
+    const mo = new MutationObserver(jadwalkan);
+    mo.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+    jadwalkan();
     return () => {
       batal = true;
-      cancelAnimationFrame(raf);
+      if (raf) cancelAnimationFrame(raf);
+      mo.disconnect();
     };
-  }, [lebarStabil, widthsReady, loading, rows.length, tableKey, hideCheckbox, wrapRef]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableKey, wrapRef]);
+
+  // Jaring SEBELUM cat: bila commit ini menghasilkan DOM grid dengan lebar
+  // bawaan DSG (mis. baru di-remount karena tanda tinggi baris berubah),
+  // sembunyikan pada commit yang sama. Tanpa ini satu bingkai 100px sempat
+  // terlihat sebelum MutationObserver sempat bertindak.
+  useLayoutEffect(() => {
+    if (menyerahRef.current || sedangLebarRef.current) return;
+    const el = wrapRef.current;
+    if (el && gridBelumSiapTampil(el, harapSisiRef.current)) setTampilGrid(false);
+  });
 
   useEffect(() => {
-    const t = setTimeout(() => setLebarStabil(true), 1500);
-    return () => clearTimeout(t);
+    setTampilGrid(false);
+    menyerahRef.current = false;
   }, [tableKey]);
 
   // Ukur lebar kolom Aksi dari tombol yang benar-benar dirender SEBELUM cat
@@ -233,8 +321,10 @@ export function useLebarKolom<T extends { id: string | number }>({
 
   /** AutoFit semua kolom yang belum punya lebar tersimpan (muat awal).
    *  `ignoreSaved = true` untuk reset: lebar simpanan baru dibuang, jadi
-   *  semua kolom dihitung ulang. */
-  function computeAutoWidths(ignoreSaved = false): Record<string, number> {
+   *  semua kolom dihitung ulang. `lewati` = kunci yang sudah final dari
+   *  `syncAutoWidths` (isi awal hanya mengisi kekosongan agar tak menimpa
+   *  lalu membuat kolom berkedip kecil-besar-kecil). */
+  function computeAutoWidths(ignoreSaved = false, lewati: Record<string, number> = {}): Record<string, number> {
     const out: Record<string, number> = {};
     const keys = [
       ...visibleFieldsRef.current.map((f) => f.key),
@@ -242,6 +332,7 @@ export function useLebarKolom<T extends { id: string | number }>({
     ];
     for (const key of keys) {
       if (!ignoreSaved && widthsRef.current[key] !== undefined) continue;
+      if (!ignoreSaved && lewati[key] !== undefined) continue;
       // Bila pengukuran gagal sesaat (sel aksi/teks belum dirender virtualisasi),
       // pertahankan hasil ukur terakhir — lebih baik daripada jatuh ke lebar bawaan.
       const w = autoFitWidth(key) ?? autoWidthsRef.current[key] ?? null;
@@ -251,12 +342,14 @@ export function useLebarKolom<T extends { id: string | number }>({
   }
 
   /** Terapkan AutoFit kolom non-manual, diulang satu frame lagi supaya sel
-   *  yang telat dirender DSG ikut terukur (kolom Aksi paling sering telat). */
-  function scheduleAutoFit() {
+   *  yang telat dirender DSG ikut terukur (kolom Aksi paling sering telat).
+   *  `isiKosong` = hanya mengisi kunci yang belum ada di `syncAutoWidths`
+   *  (dipakai isi awal; penyempurnaan font/data tetap hitung ulang penuh). */
+  function scheduleAutoFit(isiKosong = false) {
     let raf2 = 0;
     const terapkan = () =>
       setAutoWidths((prev) => {
-        const auto = computeAutoWidths();
+        const auto = computeAutoWidths(false, isiKosong ? syncAutoWidths : {});
         const keys = Object.keys(auto);
         if (keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === auto[k])) return prev;
         return auto;
@@ -294,9 +387,9 @@ export function useLebarKolom<T extends { id: string | number }>({
         return;
       }
       fittedRef.current = tableKey;
-      // Lebar sudah tampil dari syncAutoWidths; AutoFit DOM di sini hanya
-      // menyempurnakan kolom (mis. Aksi) tanpa menahan tampilnya grid.
-      batalFit = scheduleAutoFit();
+      // Lebar sudah tampil dari syncAutoWidths; AutoFit di sini hanya
+      // mengisi kekosongan (mis. Aksi) tanpa menimpa yang sudah tampil.
+      batalFit = scheduleAutoFit(true);
     };
     const mulai = () => {
       if (!batal) raf = requestAnimationFrame(attempt);
@@ -511,7 +604,17 @@ export function useLebarKolom<T extends { id: string | number }>({
     // (padding sel = 0) — ikutkan agar judul tidak membungkus 1 huruf.
     const padHead = padOf(csHeadCell) + padOf(csHeadCont) + PAD_JUDUL_X;
     const out: Record<string, number> = {};
-    const values = rows.map((r) => getValuesRef.current(r) as Record<string, unknown>);
+    // Contoh merata (maks 300 baris) + cache teks per komputasi: nilai
+    // berulang (status, tanggal, JK) hanya diukur DOM sekali.
+    const values = ambilContohBaris(rows).map((r) => getValuesRef.current(r) as Record<string, unknown>);
+    const cacheTeks = new Map<string, number>();
+    const lebarCache = (text: string): number => {
+      const ada = cacheTeks.get(text);
+      if (ada !== undefined) return ada;
+      const hasil = lebar(cellProbe, csCell, text);
+      cacheTeks.set(text, hasil);
+      return hasil;
+    };
     for (const f of visibleFields) {
       let w = lebarJudulDuaBaris(
         labelKolom(f.key, f.label),
@@ -520,7 +623,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       for (const v of values) {
         const s = teksTampilSel(f, v[f.key]);
         if (!s) continue;
-        w = Math.max(w, lebar(cellProbe, csCell, s) + padCell + AUTOFIT_BUFFER);
+        w = Math.max(w, lebarCache(s) + padCell + AUTOFIT_BUFFER);
       }
       out[f.key] = Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, Math.ceil(w)));
     }
@@ -544,6 +647,7 @@ export function useLebarKolom<T extends { id: string | number }>({
     autoWidths,
     widthsReady,
     lebarStabil,
+    tampilGrid,
     headerAutoH,
     syncAutoWidths,
     startResize,

@@ -3,6 +3,21 @@ import { PAD_JUDUL_X } from './header';
 import { measureActionsWidth, measureTextWidth } from './measure';
 import type { ExcelField } from './types';
 
+/** Batas baris pemindaian ukur: di atas ini diambil contoh merata (bukan
+ *  semua baris) agar muat ribuan baris tetap cepat. Lebar dari contoh +
+ *  buffer, dan pengguna bisa seret gagang bila ada outlier terlewat. */
+export const BATAS_CONTOH_UKUR = 300;
+
+/** Ambil contoh indeks tersebar bila melebihi batas. */
+export function ambilContohBaris<T>(baris: readonly T[], batas = BATAS_CONTOH_UKUR): readonly T[] {
+  if (baris.length <= batas) return baris;
+  const keluar: T[] = [];
+  for (let i = 0; i < batas; i += 1) {
+    keluar.push(baris[Math.round((i * (baris.length - 1)) / (batas - 1))]);
+  }
+  return keluar;
+}
+
 export function lebarJudulDuaBaris(label: string, ukur: (text: string) => number): number {
   const kata = label.trim().split(/\s+/).filter(Boolean);
   if (kata.length < 2) return ukur(label);
@@ -70,7 +85,7 @@ export function ukurAutoFit(root: HTMLElement | null, key: string, o: OpsiAutoFi
   ctx.font = fontOf(csCell);
   const values: { v: string; cw: number }[] = [];
   let maxCw = 0;
-  for (const r of o.rows) {
+  for (const r of ambilContohBaris(o.rows)) {
     const v = o.teksSel(f, String(r.id), key);
     if (!v) continue;
     const cw = ctx.measureText(v).width;

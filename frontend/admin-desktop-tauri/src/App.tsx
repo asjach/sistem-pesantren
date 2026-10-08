@@ -14,7 +14,9 @@ import { ThemeProvider } from './theme';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import HalamanTabs, { ArahHalamanTabs } from './components/HalamanTabs';
-import { HALAMAN_AKADEMIK, HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN, HALAMAN_PENEMPATAN_PEGAWAI, HALAMAN_SANTRI_AKTIF } from './lib/halaman';
+import { HALAMAN_AKADEMIK, HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN, HALAMAN_PENEMPATAN_PEGAWAI, HALAMAN_SANTRI_AKTIF, halamanDariPath } from './lib/halaman';
+import { DENSITY_PX, bacaPrefsSinkron } from './prefs';
+import { TabelMemuat } from './components/excel/primitives';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 
@@ -81,7 +83,24 @@ function KhususIzin({ izin, children }: { izin: string; children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** Kerangka halaman saat chunk-nya masih dimuat. Halaman bertabel memakai
+ *  kerangka BERBENTUK TABEL (judul + baris) sehingga transisi ke grid mulus —
+ *  bukan blok besar yang tampak "melompat" saat tabel muncul. */
 function PageFallback() {
+  const halaman = halamanDariPath(window.location.pathname);
+  const rowH = DENSITY_PX[bacaPrefsSinkron()?.density ?? 'sedang'];
+  if (halaman?.grid) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-8 shrink-0 items-center border-b border-border px-3">
+          <Skeleton className="h-3.5 w-24" />
+        </div>
+        <div className="min-h-0 flex-1">
+          <TabelMemuat rowH={rowH} baris={16} />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-2">
       <Skeleton className="h-8 w-64" />

@@ -425,13 +425,17 @@ export default function ExcelTable<T extends { id: string | number }>({
       ? fontChoice.value.split('|')
       : ['', ''];
 
+  /** Diisi di bawah setelah tanda tinggi baris dihitung; dibaca gerbang lebar
+   *  kolom agar tampilan pertama menunggu remount grid selesai (anti kedip). */
+  const remountTertundaRef = useRef(true);
+
   /** Manajemen lebar kolom: state widths/autoWidths, persistensi, penahan
    *  lebarStabil, seret gagang, AutoFit, lebar Aksi, tinggi header otomatis. */
   const {
     widths,
     sedangLebar,
     autoWidths,
-    lebarStabil,
+    tampilGrid,
     headerAutoH,
     syncAutoWidths,
     startResize,
@@ -446,6 +450,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     rows,
     rowsRef,
     getValuesRef,
+    remountTertundaRef,
     gridByIdRef,
     visibleFields,
     wrapRef,
@@ -729,6 +734,9 @@ export default function ExcelTable<T extends { id: string | number }>({
    */
   const sigRemount = `${sigTinggiBaris}|${sigTinggiBarisManual}`;
   const [sigAktif, setSigAktif] = useState(sigRemount);
+  // Remount tertunda = tanda baru belum dipakai DSG (masih menunggu debounce
+  // 120 ms) → gerbang lebar kolom menahan tampilan sampai remount selesai.
+  remountTertundaRef.current = sigAktif !== sigRemount;
   const sigManualTerakhir = useRef(sigTinggiBarisManual);
   useEffect(() => {
     if (sigManualTerakhir.current !== sigTinggiBarisManual) {
@@ -1347,7 +1355,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                 // Tabel kompak: haluskan perubahan tinggi placeholder → final.
                 maxRows !== undefined && 'transition-[height] duration-200 ease-out',
               )}
-              style={{ height: gridHeight, visibility: lebarStabil || loading ? undefined : 'hidden' }}
+              style={{ height: gridHeight, visibility: tampilGrid ? undefined : 'hidden' }}
               onContextMenu={onGridContextMenu}
             >
               {pakaiMemuat ? (
@@ -1430,7 +1438,7 @@ export default function ExcelTable<T extends { id: string | number }>({
 
         {/* Placeholder saat lebar kolom belum stabil (grid disembunyikan agar
             tidak terlihat melompat). Berbentuk tabel agar tidak tampak blok kosong. */}
-        {!lebarStabil && !loading && (
+        {!tampilGrid && (
           <div className="absolute inset-0 z-10" aria-hidden="true">
             <TabelMemuat rowH={effectiveH} />
           </div>

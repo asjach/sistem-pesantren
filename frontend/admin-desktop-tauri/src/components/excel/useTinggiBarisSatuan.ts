@@ -53,6 +53,8 @@ export function useTinggiBarisSatuan({
 }: Props): (rowData: GridRow) => number {
   const cacheLebarTeks = useRef(new Map<string, number>());
   const cacheTinggiBaris = useRef(new Map<string, number>());
+  /** Gaya terhitung dibaca sekali per kombinasi font/tinggi (bukan per baris). */
+  const gayaRef = useRef<{ kunci: string; gaya: CSSStyleDeclaration | null }>({ kunci: '', gaya: null });
   return useCallback((rowData: GridRow): number => {
     const rowKey = String(rowData.id);
     const manual = tinggiBarisManual[rowKey];
@@ -60,7 +62,14 @@ export function useTinggiBarisSatuan({
     if (!barisIkutIsi || maxRows !== undefined || rowKey === INPUT_ROW_ID) return effectiveH;
 
     try {
-      const style = wrapRef.current ? getComputedStyle(wrapRef.current) : null;
+      const kunciGaya = `${effectiveFont}|${effectiveH}`;
+      if (gayaRef.current.kunci !== kunciGaya || gayaRef.current.gaya === null) {
+        gayaRef.current = {
+          kunci: kunciGaya,
+          gaya: wrapRef.current ? getComputedStyle(wrapRef.current) : null,
+        };
+      }
+      const style = gayaRef.current.gaya;
       if (!style) return effectiveH;
 
       const teks: string[] = [];
@@ -83,12 +92,12 @@ export function useTinggiBarisSatuan({
         const ada = cacheLebarTeks.current.get(kunci);
         if (ada !== undefined) return ada;
         const baru = measureTextWidth(t, style);
-        if (cacheLebarTeks.current.size > 2000) cacheLebarTeks.current.clear();
+        if (cacheLebarTeks.current.size > 20000) cacheLebarTeks.current.clear();
         cacheLebarTeks.current.set(kunci, baru);
         return baru;
       });
       const tinggi = hitungTinggiBaris({ lebarTeks, lebarKolom, fontPx: effectiveFont, minH: effectiveH });
-      if (cacheTinggiBaris.current.size > 1000) cacheTinggiBaris.current.clear();
+      if (cacheTinggiBaris.current.size > 10000) cacheTinggiBaris.current.clear();
       cacheTinggiBaris.current.set(sig, tinggi);
       return tinggi;
     } catch {

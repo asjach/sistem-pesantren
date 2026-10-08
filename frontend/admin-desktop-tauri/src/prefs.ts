@@ -119,6 +119,72 @@ export function onAccentFor(hex: string): string {
   return contrastWhite >= 4.5 ? '#ffffff' : '#111511';
 }
 
+/** Nilai mentah prefs (dari penyimpanan mana pun) — jalur async & sinkron. */
+export interface NilaiPrefsMentah {
+  theme: string | null;
+  mode: string | null;
+  sidebar: string | null;
+  sidebarLebar: string | null;
+  density: string | null;
+  warnaUI: string | null;
+  parts: string | null;
+  iconSet: string | null;
+  navigasi: string | null;
+}
+
+/** Normalisasi nilai mentah → `Prefs` (dipakai jalur async & boot sinkron). */
+export function normalkanPrefs(m: NilaiPrefsMentah): Prefs {
+  let parts = EMPTY_PARTS;
+  try {
+    if (m.parts) parts = normalizeParts(JSON.parse(m.parts));
+  } catch {
+    parts = EMPTY_PARTS;
+  }
+  return {
+    theme: PRESET_IDS.includes(m.theme ?? '') ? (m.theme as ThemeName) : DEFAULT_PREFS.theme,
+    mode: m.mode === 'gelap' || m.mode === 'terang' ? m.mode : 'sistem',
+    collapsed: m.sidebar === '1',
+    sidebarLebar: m.sidebarLebar === null
+      ? SIDEBAR_LEBAR_DEFAULT
+      : clampSidebarLebar(Number(m.sidebarLebar)),
+    density: (['ramping', 'sedang', 'nyaman'] as string[]).includes(m.density ?? '')
+      ? (m.density as DensityName)
+      : 'sedang',
+    warnaUI: (WARNA_UI as string[]).includes(m.warnaUI ?? '')
+      ? (m.warnaUI as WarnaUIName)
+      : DEFAULT_PREFS.warnaUI,
+    parts,
+    iconSet: ICON_SETS.some((s) => s.id === m.iconSet) ? (m.iconSet as IconSetId) : ICON_SET_DEFAULT,
+    navigasi: m.navigasi === 'menubar' ? 'menubar' : 'sidebar',
+  };
+}
+
+/** Baca prefs SINKRON dari localStorage — dipakai agar tema, lebar navigasi,
+ *  dan status lipat sudah benar pada cat PERTAMA (tanpa kilatan tema bawaan).
+ *  Desktop (Tauri) menyimpan di store async → fn ini mengembalikan null dan
+ *  jalur async yang berlaku seperti semula. */
+export function bacaPrefsSinkron(): Prefs | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    if (localStorage.getItem(K.theme) === null) return null;
+    const ambil = (k: string) => localStorage.getItem(k);
+    return normalkanPrefs({
+      theme: ambil(K.theme),
+      mode: ambil(K.mode),
+      sidebar: ambil(K.sidebar),
+      sidebarLebar: ambil(K.sidebarLebar),
+      density: ambil(K.density),
+      warnaUI: ambil(K.warnaUI),
+      parts: ambil(K.parts),
+      iconSet: ambil(K.iconSet),
+      navigasi: ambil(K.navigasi),
+    });
+  } catch {
+    // Penyimpanan terkunci/penuh → jatuh ke jalur async (bawaan aman).
+    return null;
+  }
+}
+
 export async function loadPrefs(): Promise<Prefs> {
   const [theme, mode, sidebar, sidebarLebarRaw, density, warnaUI, partsRaw, iconSetRaw, navigasiRaw, fontLama, fontFamilyLama] = await Promise.all([
     prefGet(K.theme),
@@ -133,18 +199,25 @@ export async function loadPrefs(): Promise<Prefs> {
     prefGet(K.fontLama),
     prefGet(K.fontFamilyLama),
   ]);
-  let parts = EMPTY_PARTS;
-  try {
-    if (partsRaw) parts = normalizeParts(JSON.parse(partsRaw));
-  } catch {
-    parts = EMPTY_PARTS;
-  }
+  // Normalisasi sama persis dengan jalur boot sinkron (`bacaPrefsSinkron`),
+  // sehingga cat pertama dan hasil akhir tak pernah berbeda.
+  const dasar = normalkanPrefs({
+    theme,
+    mode,
+    sidebar,
+    sidebarLebar: sidebarLebarRaw,
+    density,
+    warnaUI,
+    parts: partsRaw,
+    iconSet: iconSetRaw,
+    navigasi: navigasiRaw,
+  });
 
   // Migrasi sekali-jalan: jenis & ukuran huruf sel dulu disimpan di pref
   // terpisah; kini memakai bagian UI `tabel_sel`. Pindahkan bila bagian itu
   // belum diatur, lalu hapus pref lama (berlaku juga di perangkat tanpa nilai).
   if (fontLama != null || fontFamilyLama != null) {
-    const sel = { ...(parts.gaya.tabel_sel ?? {}) };
+    const sel = { ...(dasar.parts.gaya.tabel_sel ?? {}) };
     if (sel.size == null && fontLama != null && fontLama.trim() !== '') {
       const n = Math.round(Number(fontLama));
       if (Number.isFinite(n)) sel.size = n;
@@ -157,29 +230,15 @@ export async function loadPrefs(): Promise<Prefs> {
       sel.font = fontFamilyLama;
     }
     if (Object.keys(sel).length > 0) {
-      parts = { ...parts, gaya: { ...parts.gaya, tabel_sel: sel } };
+      const parts = { ...dasar.parts, gaya: { ...dasar.parts.gaya, tabel_sel: sel } };
       await prefSet(K.parts, JSON.stringify(parts));
+      await Promise.all([prefSet(K.fontLama, ''), prefSet(K.fontFamilyLama, '')]);
+      return { ...dasar, parts };
     }
     await Promise.all([prefSet(K.fontLama, ''), prefSet(K.fontFamilyLama, '')]);
   }
 
-  return {
-    theme: PRESET_IDS.includes(theme ?? '')
-      ? (theme as ThemeName)
-      : DEFAULT_PREFS.theme,
-    mode: mode === 'gelap' || mode === 'terang' ? mode : 'sistem',
-    collapsed: sidebar === '1',
-    sidebarLebar: sidebarLebarRaw === null ? SIDEBAR_LEBAR_DEFAULT : clampSidebarLebar(Number(sidebarLebarRaw)),
-    density: (['ramping', 'sedang', 'nyaman'] as string[]).includes(density ?? '')
-      ? (density as DensityName)
-      : 'sedang',
-    warnaUI: (WARNA_UI as string[]).includes(warnaUI ?? '')
-      ? (warnaUI as WarnaUIName)
-      : DEFAULT_PREFS.warnaUI,
-    parts,
-    iconSet: ICON_SETS.some((s) => s.id === iconSetRaw) ? (iconSetRaw as IconSetId) : ICON_SET_DEFAULT,
-    navigasi: navigasiRaw === 'menubar' ? 'menubar' : 'sidebar',
-  };
+  return dasar;
 }
 
 export async function savePrefs(p: Prefs): Promise<void> {

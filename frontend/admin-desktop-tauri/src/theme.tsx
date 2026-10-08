@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   DEFAULT_PREFS,
+  bacaPrefsSinkron,
   loadPrefs,
   onAccentFor,
   savePrefs,
@@ -41,15 +42,12 @@ const Ctx = createContext<ThemeState | null>(null);
 /** Preferensi tampilan = setelan perangkat pengguna; tidak ada standar lembaga. */
 type DevicePrefs = Prefs;
 
-function applyPrefs(p: Prefs, osDark: boolean) {
+/** Pasang warna satu preset pada <html> untuk mode tertentu. Dipakai jalur
+ *  efek (perubahan prefs) DAN jalur boot sinkron — lihat `pasangTemaAwal`. */
+export function pasangWarnaTema(themeName: string, dark: boolean) {
   const root = document.documentElement;
-  root.dataset.theme = p.theme;
-  // Tingkat "kaya warna" UI (dibaca aturan CSS [data-warna=…]).
-  root.dataset.warna = p.warnaUI;
-  const dark = p.mode === 'gelap' || (p.mode === 'sistem' && osDark);
-  root.classList.toggle('dark', dark);
-  // Preset: seluruh wajah diambil dari data + teks aksen dihitung otomatis.
-  const t = findPreset(p.theme);
+  root.dataset.theme = themeName;
+  const t = findPreset(themeName);
   const face = dark ? t.gelap : t.terang;
   root.style.setProperty('--accent', face.accent);
   root.style.setProperty('--on-accent', onAccentFor(face.accent));
@@ -69,12 +67,33 @@ function applyPrefs(p: Prefs, osDark: boolean) {
     root.style.setProperty('--sidebar-deep', sbGelap?.sidebarDeep ?? t.sidebarDeep);
     root.style.setProperty('--sidebar-foreground', sbGelap?.fg ?? t.sidebarFg ?? '#ffffff');
   }
+}
+
+/** Simpan warna hasil tema ke penyimpanan sebagai cache boot. Dibaca skrip
+ *  inline `index.html` agar cat pertama sudah sewarna tema (anti kilatan). */
+function simpanCacheTema(theme: string, dark: boolean, warna: string, bg: string) {
+  try {
+    localStorage.setItem('simpes_tema_cache', JSON.stringify({ theme, dark, warna, bg }));
+  } catch {
+    /* penyimpanan penuh/terkunci: boot memakai gaya dasar */
+  }
+}
+
+function applyPrefs(p: Prefs, osDark: boolean) {
+  const dark = p.mode === 'gelap' || (p.mode === 'sistem' && osDark);
+  document.documentElement.classList.toggle('dark', dark);
+  // Tingkat "kaya warna" UI (dibaca aturan CSS [data-warna=…]).
+  document.documentElement.dataset.warna = p.warnaUI;
+  pasangWarnaTema(p.theme, dark);
+  simpanCacheTema(p.theme, dark, p.warnaUI, findPreset(p.theme)[dark ? 'gelap' : 'terang'].bg);
   // Gaya atomik per bagian UI (di-generate ke <style id="simpes_part_styles">).
   terapkanGayaBagian(p.parts);
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [device, setDevice] = useState<DevicePrefs>(DEFAULT_PREFS);
+  // Nilai awal dibaca SINKRON dari penyimpanan (bila ada) supaya cat pertama
+  // sudah memakai tema/lebar navigasi pengguna — tanpa kilatan bawaan.
+  const [device, setDevice] = useState<DevicePrefs>(() => bacaPrefsSinkron() ?? DEFAULT_PREFS);
   const [osDark, setOsDark] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
   );

@@ -226,7 +226,12 @@ export default function TopBar() {
   const adaTools = adaToolsHalaman || adaToolsTabel;
   // Dua sumber tools (halaman + tabel) → baris tools memakai tab agar ringkas.
   const banyakTab = adaToolsHalaman && adaToolsTabel;
-  const tampilTools = adaTools && toolsTampil;
+  /** Halaman bertabel PASTI memunculkan baris tools, tapi pendaftaran tabel
+   *  baru terjadi setelah halaman ter-mount. Reservasi tingginya sejak cat
+   *  pertama (placeholder) agar header tak tumbuh 51→150px dan menggeser
+   *  seluruh isi halaman. Halaman tanpa tabel tetap menunggu `adaTools`. */
+  const akanAdaTools = adaTools || halaman?.grid === true;
+  const tampilTools = akanAdaTools && toolsTampil;
   /** Ada filter global yang benar-benar dirender di topBar (tempat TabRibbon menempel). */
   const adaFilterTopBar = (tampil.lembaga && (adaSemua || banyakPilihan) && daftarLembaga.length > 0)
     || (tampil.tahun_ajaran && taPilihanTerurut.length > 0)
@@ -606,15 +611,15 @@ export default function TopBar() {
 
         {/* Gagang ribbon: strip tipis selebar baris, menempel di garis batas
             bawah baris judul/filter (lihat `TabRibbon`). */}
-        {adaTools && <TabRibbon tampil={toolsTampil} onToggle={togolTools} />}
+        {akanAdaTools && <TabRibbon tampil={toolsTampil} onToggle={togolTools} />}
       </div>
 
       {/* Banner "bertindak sebagai lembaga": di atas ribbon agar selalu terlihat. */}
       <BannerBertindak terbuka={false} onTutup={() => {}} />
 
       {/* Baris 2: isi ribbon tools kontekstual (kontrol tabel / tools halaman). */}
-      {adaTools && tampilTools && (
-        <div className="border-t border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)]">
+      {akanAdaTools && tampilTools && (
+        <div className="min-h-[100px] border-t border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)]">
           {banyakTab && (
             <div className="flex items-center gap-0.5 border-b border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] px-3 pt-1 md:px-5">
               {([
@@ -640,8 +645,8 @@ export default function TopBar() {
             </div>
           )}
           <div className="flex min-h-[76px] flex-nowrap items-stretch gap-2 overflow-x-auto px-3 py-3 md:px-5">
-            {(!banyakTab || tabTools === 'halaman') && <div ref={hostRef} className="contents" />}
-            {(!banyakTab || tabTools === 'tabel') && apiTabel && <RibbonTabel apiTabel={apiTabel} />}
+            {adaTools && (!banyakTab || tabTools === 'halaman') && <div ref={hostRef} className="contents" />}
+            {adaTools && (!banyakTab || tabTools === 'tabel') && apiTabel && <RibbonTabel apiTabel={apiTabel} />}
           </div>
         </div>
       )}
