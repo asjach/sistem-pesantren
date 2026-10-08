@@ -10,9 +10,10 @@ import PopoverAksiTagihan, { type DataBayar, type DataTambah, type DataUbah, typ
 
 /** Daftar dispensasi: kosong bawaan (tiap test yang butuh menimpa via mock). */
 const daftarDispen = vi.fn(async (_p?: unknown): Promise<Dispensasi[]> => []);
+const kuotaTerpakai = vi.fn(async (_ids?: unknown): Promise<Record<number, Record<number, number>>> => ({}));
 vi.mock('@/api/keuangan', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/api/keuangan')>();
-  return { ...asli, daftarDispensasi: (p: unknown) => daftarDispen(p) };
+  return { ...asli, daftarDispensasi: (p: unknown) => daftarDispen(p), kuotaPakai: (ids: unknown) => kuotaTerpakai(ids) };
 });
 
 function tagihan(partial: Partial<TagihanAktif> = {}): TagihanAktif {
@@ -458,11 +459,13 @@ describe('tab Ubah — dispensasi', () => {
   const PAKET: Dispensasi[] = [
     {
       id: 11, nama: 'Prestasi', keterangan: null, tahun_ajaran: '2025/2026', is_active: true,
+      sifat: 'tetap', kuota_bulan: null,
       aturan: [{ id: 1, dispensasi_id: 11, jenis_id: 1, tipe: 'persen', nilai: 50 }],
       santri_ids: [7],
     },
     {
       id: 12, nama: 'Anak Pegawai', keterangan: null, tahun_ajaran: '2025/2026', is_active: true,
+      sifat: 'tetap', kuota_bulan: null,
       aturan: [{ id: 2, dispensasi_id: 12, jenis_id: 1, tipe: 'nominal', nilai: 10000 }],
       santri_ids: [9],
     },
@@ -473,7 +476,7 @@ describe('tab Ubah — dispensasi', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
   }
 
-  it('memuat paket untuk jenis+TA dan menandai bukan-penerima', async () => {
+  it('semua paket bisa dipilih; bukan-penerima otomatis terdaftar', async () => {
     daftarDispen.mockResolvedValue(PAKET);
     await bukaUbah();
     await waitFor(() => expect(daftarDispen).toHaveBeenCalledWith(
@@ -481,7 +484,10 @@ describe('tab Ubah — dispensasi', () => {
     ));
     await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
     expect(screen.getByRole('option', { name: 'Prestasi · 50%' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /Anak Pegawai.*bukan penerima/ })).toHaveAttribute('aria-disabled', 'true');
+    const opsi = screen.getByRole('option', { name: /Anak Pegawai.*otomatis terdaftar/ });
+    expect(opsi).not.toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(opsi);
+    expect(screen.getByText(/santri otomatis jadi penerima/)).toBeInTheDocument();
   });
 
   it('memilih paket menyesuaikan nominal + pratinjau, simpan mengirim ids', async () => {
@@ -499,6 +505,19 @@ describe('tab Ubah — dispensasi', () => {
     expect(p.onUbah).toHaveBeenCalledWith(expect.objectContaining({
       nominal: 37500, dispensasi_ids: [11],
     }));
+  });
+
+  it('paket kuota habis dinonaktifkan; yang menempel tetap bisa dipilih', async () => {
+    daftarDispen.mockResolvedValue([
+      { ...PAKET[0], kuota_bulan: 1 },
+      { ...PAKET[1], kuota_bulan: 1 },
+    ]);
+    kuotaTerpakai.mockResolvedValue({ 7: { 11: 1 } });
+    await bukaUbah();
+    await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
+    // Prestasi kuota 1 sudah terpakai 1 → habis; Anak Pegawai sisa → aktif.
+    expect(screen.getByRole('option', { name: /Prestasi.*kuota habis/ })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('option', { name: /Anak Pegawai.*otomatis terdaftar/ })).not.toHaveAttribute('aria-disabled', 'true');
   });
 
   it('tanpa dispensasi mengembalikan kotor dan mengirim ids kosong', async () => {

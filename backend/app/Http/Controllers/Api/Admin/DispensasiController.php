@@ -13,6 +13,7 @@ use App\Models\JenisTagihan;
 use App\Models\Tagihan;
 use App\Services\DispensasiService;
 use App\Services\UrutKatalog;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /** Keuangan: dispensasi (keringanan) tagihan. */
@@ -30,7 +31,7 @@ class DispensasiController extends Controller
     {
         $data = $request->validated();
 
-        $q = Dispensasi::with(['aturan.jenis', 'santriTambahan']);
+        $q = Dispensasi::with(['aturan.jenis', 'santriTambahan.lembagaAktif']);
         if (! empty($data['tahun_ajaran'])) {
             $q->where('tahun_ajaran', $data['tahun_ajaran']);
         }
@@ -66,6 +67,43 @@ class DispensasiController extends Controller
         return response()->json($daftar->values());
     }
 
+    /**
+     * Kuota terpakai per santri per paket: jumlah tagihan BULANAN yang
+     * memuat paket (seumur hidup, semua TA). Dipakai pratinjau generate &
+     * popover agar tak over-janji; backend generate/Ubah tetap otoritatif.
+     *
+     * @return array<int, array<int, int>> santri_id → (paket_id → terpakai)
+     */
+    public function kuotaPakai(Request $request): array
+    {
+        $ids = collect($request->query('santri_ids', []))
+            ->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->unique()->take(500)->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+        $paketIds = Dispensasi::whereNotNull('kuota_bulan')->pluck('id')
+            ->map(fn ($v) => (int) $v)->all();
+        if ($paketIds === []) {
+            return [];
+        }
+        $jenisBulanan = JenisTagihan::where('tipe', 'bulanan')->pluck('id')
+            ->map(fn ($v) => (int) $v)->all();
+        $baris = Tagihan::whereIn('santri_id', $ids)->whereIn('jenis_id', $jenisBulanan)
+            ->get(['santri_id', 'dispensasi_ids']);
+        $hasil = [];
+        foreach ($baris as $t) {
+            foreach ((array) ($t->dispensasi_ids ?? []) as $did) {
+                $did = (int) $did;
+                if (in_array($did, $paketIds, true)) {
+                    $sid = (int) $t->santri_id;
+                    $hasil[$sid][$did] = ($hasil[$sid][$did] ?? 0) + 1;
+                }
+            }
+        }
+
+        return $hasil;
+    }
+
     public function storeDispensasi(DispensasiRequest $request)
     {
         $data = $this->validasiDispensasi($request);
@@ -79,7 +117,7 @@ class DispensasiController extends Controller
             return $d;
         });
 
-        return response()->json($dispensasi->load(['aturan.jenis', 'santriTambahan']), 201);
+        return response()->json($dispensasi->load(['aturan.jenis', 'santriTambahan.lembagaAktif']), 201);
     }
 
     public function updateDispensasi(DispensasiRequest $request, Dispensasi $dispensasi)
@@ -92,7 +130,7 @@ class DispensasiController extends Controller
             $dispensasi->santriTambahan()->sync($this->normalisasiSantriIds($data['santri_ids'] ?? null));
         });
 
-        return response()->json($dispensasi->load(['aturan.jenis', 'santriTambahan']));
+        return response()->json($dispensasi->load(['aturan.jenis', 'santriTambahan.lembagaAktif']));
     }
 
     public function destroyDispensasi(Dispensasi $dispensasi)

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
 import type { Dispensasi, PembayaranRow } from '@/api/keuangan';
-import { daftarDispensasi } from '@/api/keuangan';
+import { daftarDispensasi, kuotaPakai } from '@/api/keuangan';
 import type { TahunAjaran } from '@/api/master';
-import { hitungDispensasi, ringkasAturan, saringDispensasi } from '@/lib/dispensasi';
+import { hitungDispensasi, ringkasAturan, saringDispensasi, sisaKuota } from '@/lib/dispensasi';
 import { DeleteAction } from '@/components/RowActions';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
@@ -201,6 +201,8 @@ export default function PopoverAksiTagihan({
   /** Daftar paket dispensasi untuk jenis+TA tagihan ini. */
   const [dispenDaftar, setDispenDaftar] = useState<Dispensasi[]>([]);
   const [dispenGagal, setDispenGagal] = useState(false);
+  /** Kuota terpakai santri ini per paket (pratinjau; backend otoritatif). */
+  const [kuotaPakaiMap, setKuotaPakaiMap] = useState<Record<number, number>>({});
   /* Form tambah (sel kosong) */
   const [nominalBaru, setNominalBaru] = useState('');
   const [jatuhTempoBaru, setJatuhTempoBaru] = useState('');
@@ -229,6 +231,10 @@ export default function PopoverAksiTagihan({
     daftarDispensasi({ tahun_ajaran: tagihan.tahunAjaran, jenis_id: tagihan.jenisId, is_active: true })
       .then((d) => { if (hidup) setDispenDaftar(d); })
       .catch(() => { if (hidup) { setDispenDaftar([]); setDispenGagal(true); } });
+    // Sisa kuota santri ini (opsi habis dinonaktifkan; sudah-menempel tetap bisa dipilih).
+    kuotaPakai([tagihan.santri_id])
+      .then((m) => { if (hidup) setKuotaPakaiMap(m[tagihan.santri_id] ?? {}); })
+      .catch(() => { if (hidup) setKuotaPakaiMap({}); });
     return () => { hidup = false; };
   }, [tagihan]);
 
@@ -395,11 +401,11 @@ export default function PopoverAksiTagihan({
   /** Nominal kotor = nominal tersimpan + potongan tercatat (tepat, karena
    *  potongan selalu `awal − akhir`). Dasar pratinjau & hitung backend. */
   const nominalKotor = tagihan.nominal + tagihan.potongan;
-  /** Paket yang penerimanya cocok dengan santri ini. */
-  const paketCocok = saringDispensasi(dispenDaftar, tagihan.santri_id);
-  const idPenerima = new Set(paketCocok.map((d) => d.id));
+  /** Id paket yang santrinya sudah penerima (label saja — memilih paket
+   *  lain otomatis mendaftarkan santri sebagai penerima saat Simpan). */
+  const idPenerima = new Set(saringDispensasi(dispenDaftar, tagihan.santri_id).map((d) => d.id));
   const paketPilih = typeof dispenPilih === 'number'
-    ? (paketCocok.find((d) => d.id === dispenPilih) ?? null)
+    ? (dispenDaftar.find((d) => d.id === dispenPilih) ?? null)
     : null;
   /** Pratinjau hasil paket terpilih (cerminan hitung backend). */
   const pratinjau = paketPilih
@@ -638,9 +644,11 @@ export default function PopoverAksiTagihan({
                     const penerima = idPenerima.has(d.id);
                     const ringkas = ringkasAturan(d, tagihan.jenisId);
                     if (ringkas === null) return null;
+                    const sudahMenempel = (tagihan.dispensasi_ids ?? []).includes(d.id);
+                    const kuotaHabis = (sisaKuota(d, kuotaPakaiMap[d.id] ?? 0) ?? 1) <= 0 && !sudahMenempel;
                     return (
-                      <SelectItem key={d.id} value={String(d.id)} disabled={!penerima}>
-                        {d.nama} · {ringkas}{penerima ? '' : ' (bukan penerima)'}
+                      <SelectItem key={d.id} value={String(d.id)} disabled={kuotaHabis}>
+                        {d.nama} · {ringkas}{penerima ? '' : ' (otomatis terdaftar)'}{kuotaHabis ? ' (kuota habis)' : ''}
                       </SelectItem>
                     );
                   })}
@@ -662,6 +670,7 @@ export default function PopoverAksiTagihan({
                 <p className="col-start-2 text-[11px] text-muted-foreground">
                   {rupiah(nominalKotor)} − {rupiah(pratinjau.potongan)} ({paketPilih.nama})
                   {' → '}<b>{rupiah(pratinjau.nominal)}</b>
+                  {!idPenerima.has(paketPilih.id) ? ' · santri otomatis jadi penerima.' : ''}
                 </p>
               )}
               {dispenPilih === 'tanpa' && tagihan.potongan > 0 && (

@@ -58,3 +58,40 @@ export function ringkasAturan(
   if (a.tipe === 'bebas') return 'Bebas';
   return `Rp ${a.nilai.toLocaleString('id')}`;
 }
+
+/** Sisa kuota paket untuk satu santri (null = tanpa batas). */
+export function sisaKuota(
+  d: Dispensasi,
+  terpakai: number,
+): number | null {
+  if (d.kuota_bulan === null || d.kuota_bulan === undefined) return null;
+  return d.kuota_bulan - terpakai;
+}
+
+/** Alokasi paket berkuota ke baris-baris generate (urut daftar santri,
+ *  bulan-bulan awal dulu — cermin alokasi backend). Non-kuota & penerima
+ *  selalu ikut; berkuota ikut bila sisa masih ada (konsumsi = periode run).
+ *  Pratinjau indicatif: backend otoritatif (pengecualian baris existing
+ *  & parsial dalam-santri hanya dihitung di sana). */
+export function alokasiPaketKuota(
+  paket: Dispensasi[],
+  santriIds: number[],
+  terpakai: Record<number, Record<number, number>>,
+  periode: number,
+): Map<number, Dispensasi[]> {
+  const jalan = new Map<string, number>();
+  const hasil = new Map<number, Dispensasi[]>();
+  for (const sid of santriIds) {
+    const pakai = terpakai[sid] ?? {};
+    const pilih = saringDispensasi(paket, sid).filter((d) => {
+      if (d.kuota_bulan === null || d.kuota_bulan === undefined) return true;
+      const kunci = `${sid}:${d.id}`;
+      const sisa = d.kuota_bulan - (pakai[d.id] ?? 0) - (jalan.get(kunci) ?? 0);
+      if (sisa <= 0) return false;
+      jalan.set(kunci, (jalan.get(kunci) ?? 0) + periode);
+      return true;
+    });
+    hasil.set(sid, pilih);
+  }
+  return hasil;
+}

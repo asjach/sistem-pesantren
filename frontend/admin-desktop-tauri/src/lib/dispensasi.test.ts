@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import type { Dispensasi } from '@/api/keuangan';
 import {
+  alokasiPaketKuota,
   aturanUntukJenis,
   hitungDispensasi,
   ringkasAturan,
   saringDispensasi,
+  sisaKuota,
 } from './dispensasi';
 
 function paket(
@@ -74,5 +76,34 @@ describe('ringkasAturan', () => {
     expect(ringkasAturan(paket({ id: 2 }, [aturan(1, 1, 'nominal', 10000)]), 1)).toBe('Rp 10.000');
     expect(ringkasAturan(paket({ id: 3 }, [aturan(1, 1, 'bebas', 0)]), 1)).toBe('Bebas');
     expect(ringkasAturan(paket({ id: 4 }, [aturan(1, 2, 'persen', 10)]), 1)).toBeNull();
+  });
+});
+
+describe('sisaKuota', () => {
+  it('null tanpa kuota; kuota − terpakai bila ada', () => {
+    expect(sisaKuota(paket({ id: 1 }), 3)).toBeNull();
+    expect(sisaKuota(paket({ id: 1, kuota_bulan: 6 }), 4)).toBe(2);
+    expect(sisaKuota(paket({ id: 1, kuota_bulan: 2 }), 2)).toBe(0);
+  });
+});
+
+describe('alokasiPaketKuota', () => {
+  it('urut santri, bulan awal dulu; bukan-penerima & habis dicoret', () => {
+    const kuota = paket({ id: 1, kuota_bulan: 2 }, [], [7, 8]);
+    const tetap = paket({ id: 2 }, [], [7, 8]);
+    const hasil = alokasiPaketKuota([kuota, tetap], [7, 8, 9], { 7: { 1: 1 } }, 1);
+    // Santri 7: sisa 2−1=1 → dapat (konsumsi 1). Santri 8: sisa 2−0−0… run ini
+    // belum pakai untuk 8 (alokasi per santri) → dapat. Bukan penerima tidak.
+    expect(hasil.get(7)?.map((d) => d.id)).toEqual([1, 2]);
+    expect(hasil.get(8)?.map((d) => d.id)).toEqual([1, 2]);
+    expect(hasil.get(9)).toEqual([]);
+  });
+
+  it('penghitung per santri independen', () => {
+    const kuota = paket({ id: 1, kuota_bulan: 1 }, [], [7, 8]);
+    // Kuota 7 habis → 7 dicoret, 8 (penghitung sendiri) tetap dapat.
+    const hasil = alokasiPaketKuota([kuota], [7, 8], { 7: { 1: 1 } }, 1);
+    expect(hasil.get(7)).toEqual([]);
+    expect(hasil.get(8)?.map((d) => d.id)).toEqual([1]);
   });
 });

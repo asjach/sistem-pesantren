@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import {
-  generateTagihan, kandidatTagihan, daftarDispensasi,
+  generateTagihan, kandidatTagihan, kuotaPakai, daftarDispensasi,
   type JenisTagihan, type KandidatTagihanRow, type KelompokKandidat, type Tarif, type Dispensasi,
 } from '../../api/keuangan';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import { ActionIcon } from '@/components/RowActions';
 import { ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
-import { hitungDispensasi, saringDispensasi } from '@/lib/dispensasi';
+import { alokasiPaketKuota, hitungDispensasi, ringkasAturan } from '@/lib/dispensasi';
 import { ArrowRight, Trash2, X } from '@/icons';
 import { type PerPage } from '@/prefs';
 
@@ -119,6 +119,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   const [terpilih, setTerpilih] = useState<BarisTerpilih[]>([]);
   const [busy, setBusy] = useState(false);
   const [daftarDispen, setDaftarDispen] = useState<Dispensasi[]>([]);
+  /** Paket sementara yang dicentang generate ini (tetap selalu otomatis). */
+  const [sementaraPilih, setSementaraPilih] = useState<number[]>([]);
 
   const jenisTerpilih = useMemo(() => jenis.find((j) => j.id === jenisId) ?? null, [jenis, jenisId]);
   const bulanan = jenisTerpilih?.tipe === 'bulanan';
@@ -127,7 +129,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   useEffect(() => {
     if (!open) return;
     setTerpilih([]); setCari(''); setKelompok('aktif'); setJenisId(''); setTarifId('');
-    setNominalDefault(''); setJatuhTempo(''); setErr(''); setDaftarDispen([]);
+    setNominalDefault(''); setJatuhTempo(''); setErr(''); setDaftarDispen([]); setSementaraPilih([]);
     const m = (tahunAjaran ?? '').match(/^(\d{4})\/(\d{4})$/);
     if (m) { setPeriodeDari(`${m[1]}-07`); setPeriodeSampai(`${m[2]}-06`); }
     else { setPeriodeDari(''); setPeriodeSampai(''); }
@@ -178,19 +180,66 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     return () => { hidup = false; };
   }, [open, tahunAjaran, jenisId]);
 
-  /** Susun baris otomatis: nominal default + dispensasi (manual tidak diubah). */
+  /** Paket sementara TA+jenis ini; tetap selalu otomatis (tak perlu centang). */
+  const sementaraDaftar = useMemo(
+    () => daftarDispen.filter((d) => d.sifat === 'sementara'),
+    [daftarDispen],
+  );
+  /** Paket sementara tercentang yang masih ada di daftar (anti kirim basi). */
+  const sementaraAktif = useMemo(
+    () => sementaraDaftar.filter((d) => sementaraPilih.includes(d.id)),
+    [sementaraDaftar, sementaraPilih],
+  );
+
+  /** Berapa periode yang akan digenerate — dipakai ringkasan "N/M bulan" + konsumsi kuota. */
+  const jumlahPeriode = useMemo(
+    () => (bulanan ? hitungJumlahPeriode(periodeDari, periodeSampai) : 1),
+    [bulanan, periodeDari, periodeSampai],
+  );
+
+  const idsTerpilih = useMemo(() => terpilih.map((r) => r.santri_id), [terpilih]);
+
+  // Kuota terpakai per santri (pratinjau; backend otoritatif) — muat ulang
+  // saat daftar terpilih berubah (debounce).
+  const [kuotaPakaiMap, setKuotaPakaiMap] = useState<Record<number, Record<number, number>>>({});
+  useEffect(() => {
+    if (!open || idsTerpilih.length === 0) { setKuotaPakaiMap({}); return; }
+    let hidup = true;
+    const t = setTimeout(() => {
+      void (async () => {
+        try {
+          const m = await kuotaPakai(idsTerpilih);
+          if (hidup) setKuotaPakaiMap(m);
+        } catch { if (hidup) setKuotaPakaiMap({}); }
+      })();
+    }, 300);
+    return () => { hidup = false; clearTimeout(t); };
+  }, [open, idsTerpilih]);
+
+  /** Alokasi paket per baris terpilih (cermin backend; pratinjau indicatif). */
+  const alokasi = useMemo(
+    () => alokasiPaketKuota(
+      [...daftarDispen.filter((d) => d.sifat !== 'sementara'), ...sementaraAktif],
+      idsTerpilih, kuotaPakaiMap, jumlahPeriode,
+    ),
+    [daftarDispen, sementaraAktif, idsTerpilih, kuotaPakaiMap, jumlahPeriode],
+  );
+
+  /** Susun baris otomatis: nominal default + alokasi paket per baris
+   *  (tetap untuk penerima + sementara tercentang + kuota; manual tak diubah). */
   const susunBaris = useCallback((r: KandidatTagihanRow, nominalStr: string): BarisTerpilih => {
     const awal = Number(nominalStr);
     if (jenisId === '' || !Number.isInteger(awal) || awal < 0) {
       return { ...r, nominal: nominalStr, nominalManual: false, potongan: 0, dispensasiIds: null, dispensasiLabel: null };
     }
-    const h = hitungDispensasi(awal, saringDispensasi(daftarDispen, r.santri_id), Number(jenisId));
+    const paket = alokasi.get(r.santri_id) ?? [];
+    const h = hitungDispensasi(awal, paket, Number(jenisId));
     return {
       ...r, nominal: String(h.nominal), nominalManual: false,
       potongan: h.potongan, dispensasiIds: h.ids.length > 0 ? h.ids : null,
       dispensasiLabel: h.label === '' ? null : h.label,
     };
-  }, [daftarDispen, jenisId]);
+  }, [alokasi, jenisId]);
 
   // Nominal default / dispensasi berubah → baris otomatis dihitung ulang.
   useEffect(() => {
@@ -255,15 +304,18 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         periode: bulanan ? periodeDari : null,
         periode_sampai: bulanan ? (periodeSampai || null) : null,
         jatuh_tempo: jatuhTempo || null, nominal, santri,
+        dispensasi_sementara_ids: sementaraAktif.length > 0 ? sementaraAktif.map((d) => d.id) : undefined,
       });
       /* Laporan per kategori: dibuat (baru), diperbarui (tagihan lama di-update),
-         dilewati (nominal baru < yang sudah dibayar — alasannya disebut
-         supaya user tahu itu bukan kegagalan diam-diam). */
+         dilewati (bulanan yang sudah ada pembayaran, atau nominal baru <
+         yang sudah dibayar — sebab disebut supaya user tahu itu bukan
+         kegagalan diam-diam). */
       const bagian = [`Dibuat ${r.dibuat}`, `diperbarui ${r.diperbarui}`];
       if (r.dilewati > 0) bagian.push(`dilewati ${r.dilewati}`);
       const pesan = bagian.join(', ');
       if (r.alasan.length > 0) {
-        toast.warning(`${pesan} — ${r.alasan.length} dilewati: nominal baru lebih kecil dari yang sudah dibayar (mis. ${r.alasan[0].periode ?? 'sekali'}: sudah dibayar Rp ${r.alasan[0].terbayar.toLocaleString('id')}).`);
+        const pertama = r.alasan[0];
+        toast.warning(`${pesan} — ${r.alasan.length} dilewati: ${pertama.sebab} (mis. ${pertama.periode ?? 'sekali'}: sudah dibayar Rp ${pertama.terbayar.toLocaleString('id')}).`);
       } else {
         toast.success(`${pesan}.`);
       }
@@ -272,11 +324,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
   };
 
-  /** Berapa periode yang akan digenerate — dipakai ringkasan "N/M bulan". */
-  const jumlahPeriode = useMemo(
-    () => (bulanan ? hitungJumlahPeriode(periodeDari, periodeSampai) : 1),
-    [bulanan, periodeDari, periodeSampai],
-  );
   const totalNominal = terpilih.reduce((s, r) => s + (Number(r.nominal) || 0), 0);
   const tarifTampil = jenisId === '' ? tarif : tarif.filter((t) => t.jenis_id === jenisId);
 
@@ -352,6 +399,26 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
               <Input id="inp_gen_jatuh_tempo" type="date" className="h-8" value={jatuhTempo} onChange={(e) => setJatuhTempo(e.target.value)} aria-describedby="ket_gen_jatuh_tempo" />
               <p id="ket_gen_jatuh_tempo" className="text-[11px] text-muted-foreground">
                 Kosong = tanpa tenggat, langsung dihitung tunggakan.
+              </p>
+            </div>
+          )}
+          {sementaraDaftar.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <FieldLabel id="lbl_gen_sementara">Dispensasi Sementara</FieldLabel>
+              <div role="group" aria-labelledby="lbl_gen_sementara" className="flex max-w-120 flex-wrap gap-x-3 gap-y-1">
+                {sementaraDaftar.map((d) => (
+                  <label key={d.id} className="flex cursor-pointer items-center gap-1.5 text-xs select-none">
+                    <input
+                      id={`cek_gen_sementara_${d.id}`} type="checkbox" className="size-3.5 accent-primary"
+                      checked={sementaraPilih.includes(d.id)}
+                      onChange={(e) => setSementaraPilih((lama) => e.target.checked ? [...lama, d.id] : lama.filter((x) => x !== d.id))}
+                    />
+                    {d.nama} · {ringkasAturan(d, Number(jenisId)) ?? '—'}{d.kuota_bulan !== null ? ` · kuota ${d.kuota_bulan} bln` : ''}
+                  </label>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Hanya yang dicentang diterapkan, dan hanya untuk santri penerima paket itu (tetap selalu otomatis).
               </p>
             </div>
           )}

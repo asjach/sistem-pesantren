@@ -25,6 +25,9 @@ class TagihanGenerateRequest extends FormRequest
             'santri' => 'required|array|min:1',
             'santri.*.santri_id' => 'required|integer|distinct|exists:santri,id',
             'santri.*.nominal' => 'nullable|integer|min:0',
+            // Paket sementara yang dicentang generate ini (tetap selalu otomatis).
+            'dispensasi_sementara_ids' => 'nullable|array',
+            'dispensasi_sementara_ids.*' => 'integer|exists:dispensasi,id',
         ];
     }
 }

@@ -1,5 +1,6 @@
 import { api } from './client';
 import type { Paginate } from './master';
+import type { Santri } from './santri';
 import { appendQueryParam, type ScalarOrArray } from './query';
 
 export interface JenisTagihan { id: number; nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang: string | null; is_active: boolean }
@@ -87,11 +88,13 @@ export function daftarTagihan(params: { page?: string; per_page?: string; jenjan
 export function generateTagihan(data: {
   tahun_ajaran: string; jenis_id: number; periode?: string | null; periode_sampai?: string | null;
   jatuh_tempo?: string | null; nominal: number; santri: { santri_id: number; nominal?: number | null }[];
+  /** Paket sementara yang dicentang generate ini (tetap selalu otomatis). */
+  dispensasi_sementara_ids?: number[];
 }) {
   return api<{
     dibuat: number; diperbarui: number; dilewati: number;
-    /** Tagihan yang dilewati karena nominal baru < yang sudah dibayar. */
-    alasan: { santri_id: number; periode: string | null; nominal_sekarang: number; terbayar: number }[];
+    /** Tagihan yang dilewati: sudah ada pembayaran (bulanan) atau nominal baru < terbayar. */
+    alasan: { santri_id: number; periode: string | null; nominal_sekarang: number; terbayar: number; sebab: string }[];
   }>('/admin/keuangan/tagihan/generate', { method: 'POST', body: JSON.stringify(data) });
 }
 
@@ -143,8 +146,13 @@ export interface DispensasiAturan {
 
 export interface Dispensasi {
   id: number; nama: string; keterangan: string | null; tahun_ajaran: string;
+  sifat: 'tetap' | 'sementara';
+  /** Kuota bulan (tagihan bulanan per santri); null = tanpa batas. */
+  kuota_bulan: number | null;
   santri_ids: number[] | null; is_active: boolean;
   aturan: DispensasiAturan[];
+  /** Penerima termuat (nama asli + NIS/ortu); sumber prefill tabel penerima. */
+  santri_tambahan?: Santri[] | null;
 }
 
 export interface DispensasiAturanInput {
@@ -153,6 +161,8 @@ export interface DispensasiAturanInput {
 
 export interface DispensasiInput {
   nama: string; keterangan?: string | null; tahun_ajaran: string;
+  sifat?: 'tetap' | 'sementara';
+  kuota_bulan?: number | null;
   aturan: DispensasiAturanInput[]; santri_ids?: number[] | null;
   is_active?: boolean;
 }
@@ -175,6 +185,16 @@ export function buatDispensasi(data: DispensasiInput) {
 
 export function ubahDispensasi(id: number, data: DispensasiInput) {
   return api<Dispensasi>(`/admin/keuangan/dispensasi/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+/** Kuota terpakai per santri per paket (tagihan bulanan seumur hidup):
+ *  `{ santri_id: { paket_id: terpakai } }`. Pratinjau agar tak over-janji;
+ *  backend generate/Ubah tetap otoritatif. */
+export function kuotaPakai(santriIds: number[]) {
+  const q = new URLSearchParams();
+  santriIds.forEach((id) => q.append('santri_ids[]', String(id)));
+  const s = q.toString();
+  return api<Record<number, Record<number, number>>>(`/admin/keuangan/dispensasi/kuota-pakai${s ? `?${s}` : ''}`);
 }
 
 export function hapusDispensasi(id: number) {

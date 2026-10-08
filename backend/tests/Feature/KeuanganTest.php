@@ -302,23 +302,29 @@ class KeuanganTest extends TestCase
         $tagihan = Tagihan::where('santri_id', $santri->id)->firstOrFail();
         $tagihan->update(['terbayar' => 30000, 'status' => 'sebagian']);
 
-        // Nominal dinaikkan → tagihan diperbarui, pembayaran & status ikut dihitung ulang.
-        $generate(100000)->assertStatus(200)->assertJson(['dibuat' => 0, 'diperbarui' => 1, 'dilewati' => 0]);
+        // Generate ulang bulanan hanya menyentuh yang belum ada pembayaran:
+        // nominal dinaikkan pun dilewati dengan alasan jelas.
+        $generate(100000)->assertStatus(200)
+            ->assertJson(['dibuat' => 0, 'diperbarui' => 0, 'dilewati' => 1])
+            ->assertJsonPath('alasan.0.sebab', 'sudah ada pembayaran');
         $tagihan->refresh();
-        $this->assertSame(100000, $tagihan->nominal);
+        $this->assertSame(75000, $tagihan->nominal);
         $this->assertSame(30000, $tagihan->terbayar);
         $this->assertSame('sebagian', $tagihan->status);
 
-        // Nominal diturunkan ke Rp 20.000 (di bawah Rp 30.000 yang dibayar) → dilewati.
+        // Nominal diturunkan ke Rp 20.000 → tetap dilewati (sudah dibayar).
         $generate(20000)->assertStatus(200)
             ->assertJson(['dibuat' => 0, 'diperbarui' => 0, 'dilewati' => 1])
             ->assertJsonPath('alasan.0.terbayar', 30000)
-            ->assertJsonPath('alasan.0.nominal_sekarang', 100000);
+            ->assertJsonPath('alasan.0.nominal_sekarang', 75000);
         $tagihan->refresh();
-        $this->assertSame(100000, $tagihan->nominal);
+        $this->assertSame(75000, $tagihan->nominal);
 
-        // Diturunkan tapi masih di atas pembayaran → tetap diperbarui.
-        $generate(80000)->assertStatus(200)->assertJson(['diperbarui' => 1]);
+        // Override manual per santri di dialog = niat eksplisit → tetap jalan.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
+            'nominal' => 80000, 'santri' => [['santri_id' => $santri->id, 'nominal' => 80000]],
+        ])->assertStatus(200)->assertJson(['diperbarui' => 1]);
         $this->assertSame(80000, $tagihan->fresh()->nominal);
     }
 

@@ -19,6 +19,7 @@ use App\Services\UrutKatalog;
 use App\Support\JatuhTempo;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /** Keuangan: tagihan, kandidat/generate, crosstab, dan tunggakan. */
@@ -361,7 +362,11 @@ class TagihanController extends Controller
      * tepat, karena potongan selalu `awal - akhir`) memakai paket terpilih;
      * [] = lepas + koreksi manual (pakai nominal ketikan, jejak dibersihkan).
      * Tanpa kunci itu, koreksi nominal manual membersihkan jejak lama (agar
-     * tak basi), nilai sama membiarkannya.
+     * tak basi), nilai sama membiarkannya. Santri yang belum terdaftar
+     * otomatis menjadi penerima paket (bebas dari tab Ubah — daftar
+     * penerima selalu cermin pemakaian), dalam transaksi yang sama.
+     * Paket berkuota yang habis ditolak (kecuali sudah menempel di
+     * tagihan ini) — khusus tagihan bulanan.
      *
      * Nominal tidak boleh turun di bawah yang sudah dibayar (sisa negatif).
      * Status dihitung ulang dari nominal vs terbayar. Jenis bulanan mengabaikan
@@ -373,6 +378,7 @@ class TagihanController extends Controller
         $data = $request->validated();
         $this->canLembaga($request->user(), $tagihan->jenjang) || abort(403);
 
+        $perluDaftar = [];
         if (array_key_exists('dispensasi_ids', $data)) {
             $ids = collect($data['dispensasi_ids'] ?? [])
                 ->map(fn ($v) => (int) $v)->unique()->sort()->values();
@@ -392,8 +398,19 @@ class TagihanController extends Controller
                     if ($aturanSvc->aturanUntukJenis($d, (int) $tagihan->jenis_id) === null) {
                         abort(422, "Dispensasi '{$d->nama}' tidak punya aturan untuk jenis tagihan ini.");
                     }
-                    if (!in_array((int) $tagihan->santri_id, $d->santri_ids ?? [], true)) {
-                        abort(422, "Santri bukan penerima dispensasi '{$d->nama}'.");
+                    if (! in_array((int) $tagihan->santri_id, $d->santri_ids ?? [], true)) {
+                        $perluDaftar[] = $d->id;
+                    }
+                }
+                if (JenisTagihan::whereKey($tagihan->jenis_id)->value('tipe') === 'bulanan') {
+                    $punya = array_map('intval', (array) ($tagihan->dispensasi_ids ?? []));
+                    $pakai = $this->pakaiKuota($paket, (int) $tagihan->santri_id);
+                    foreach ($paket as $d) {
+                        if ($d->kuota_bulan !== null
+                            && ! in_array((int) $d->id, $punya, true)
+                            && ($pakai[(int) $d->id] ?? 0) >= (int) $d->kuota_bulan) {
+                            abort(422, "Kuota {$d->kuota_bulan} bulan paket '{$d->nama}' sudah habis untuk santri ini.");
+                        }
                     }
                 }
                 $hasil = $aturanSvc->terapkan(
@@ -437,7 +454,13 @@ class TagihanController extends Controller
             $tagihan->terbayar >= $tagihan->nominal => 'lunas',
             default => 'sebagian',
         };
-        $tagihan->save();
+        DB::transaction(function () use ($tagihan, $perluDaftar) {
+            foreach ($perluDaftar as $did) {
+                Dispensasi::whereKey($did)->firstOrFail()
+                    ->santriTambahan()->syncWithoutDetaching([(int) $tagihan->santri_id]);
+            }
+            $tagihan->save();
+        });
 
         return response()->json($tagihan);
     }
@@ -539,9 +562,16 @@ class TagihanController extends Controller
      * tagihan yang sudah ada (nominal, jatuh tempo, tahun ajaran, jenjang,
      * potongan/dispensasi) — bukan membuat duplikat dan bukan mengabaikannya.
      * `terbayar` beserta riwayat pembayarannya tidak pernah disentuh dan status
-     * dihitung ulang dari nominal vs terbayar. Tagihan yang nominal barunya
-     * lebih kecil dari yang sudah dibayar **dilewati**, bukan dipaksa turun,
-     * dan alasannya dikembalikan agar bisa ditampilkan ke pengguna.
+     * dihitung ulang dari nominal vs terbayar. Tagihan bulanan yang sudah ada
+     * pembayarannya **dilewati** (generate ulang hanya yang belum dibayar);
+     * non-bulanan dilewati bila nominal barunya lebih kecil dari terbayar —
+     * alasannya dikembalikan agar bisa ditampilkan ke pengguna.
+     *
+     * Dispensasi tetap otomatis tiap generate; sementara hanya yang dicentang
+     * (`dispensasi_sementara_ids`) pada generate ini, dan hanya untuk santri
+     * yang sudah penerima paket itu. Generate tak pernah menambah penerima.
+     * Paket berkuota dialokasikan ke N bulan pertama per santri; baris yang
+     * sudah menempel dipertahankan (kuota yang diturunkan tak mencabut).
      */
     public function generateTagihan(TagihanGenerateRequest $request)
     {
@@ -554,21 +584,26 @@ class TagihanController extends Controller
         $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
         $peta = $this->petaSantriGenerate($data['tahun_ajaran'], $diminta->keys()->all());
 
-        // Dispensasi aktif untuk TA+jenis ini; baris tanpa override manual
-        // dihitung ulang di sini (otoritatif), override manual menang.
+        // Dispensasi aktif untuk TA+jenis ini; tetap otomatis, sementara
+        // hanya yang dicentang. Baris tanpa override manual dihitung ulang
+        // di sini (otoritatif), override manual menang.
         $daftarDispensasi = Dispensasi::with(['aturan.jenis', 'santriTambahan'])
             ->where('tahun_ajaran', $data['tahun_ajaran'])
             ->where('is_active', true)
+            ->where('sifat', 'tetap')
             ->whereHas('aturan', fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenis->id))
             ->get();
+        $sementaraDipilih = $this->sementaraTerpilih($data, $jenis);
         $aturan = app(DispensasiService::class);
+        // Kuota dihitung dari tagihan bulanan; jenis non-bulanan mengabaikannya.
+        $kuotaBerlaku = $jenis->tipe === 'bulanan';
 
         /* Satu transaksi untuk seluruh daftar. Tanpa itu `abort()` di tengah
            loop (mis. Santri tidak aktif pada TA) meninggalkan tagihan yang
            sudah terlanjur dibuat: user melihat "gagal" padahal sebagian data
            sudah jadi, lalu generate ulang hanya melaporkan "dilewati". */
         $hasil = DB::transaction(function () use (
-            $actor, $data, $jenis, $periodes, $diminta, $peta, $daftarDispensasi, $aturan
+            $actor, $data, $jenis, $periodes, $diminta, $peta, $daftarDispensasi, $sementaraDipilih, $aturan, $kuotaBerlaku
         ): array {
             $dibuat = 0;
             $diperbarui = 0;
@@ -582,14 +617,21 @@ class TagihanController extends Controller
                 $this->canLembaga($actor, $info['jenjang_utama']) || abort(403);
 
                 if (array_key_exists('nominal', $s) && $s['nominal'] !== null) {
-                    $nominal = (int) $s['nominal'];
-                    $potongan = 0;
-                    $dispensasiIds = null;
+                    $paketDasar = null;
+                    $nominalManual = (int) $s['nominal'];
+                    $pakaiKuota = [];
                 } else {
-                    $terapkan = $aturan->terapkan((int) $data['nominal'], $aturan->saring($daftarDispensasi, (int) $santriId), (int) $jenis->id);
-                    $nominal = $terapkan['nominal'];
-                    $potongan = $terapkan['potongan'];
-                    $dispensasiIds = $terapkan['ids'] === [] ? null : $terapkan['ids'];
+                    // Sementara tercentang hanya untuk yang sudah penerima
+                    // (generate tak pernah mendaftarkan penerima baru —
+                    // itu wewenang dialog Dispensasi / Ubah per tagihan).
+                    $paketDasar = $aturan->saring(
+                        $daftarDispensasi->concat($sementaraDipilih)->unique('id')->values(),
+                        (int) $santriId
+                    );
+                    // Kuota terpakai per paket (tagihan bulanan santri ini
+                    // yang sudah memuat paket) — alokasi per baris di bawah.
+                    $pakaiKuota = $this->pakaiKuota($paketDasar, (int) $santriId);
+                    $nominalManual = null;
                 }
 
                 foreach ($periodes as $periode) {
@@ -600,6 +642,18 @@ class TagihanController extends Controller
                         ->first();
 
                     if ($ada === null) {
+                        if ($paketDasar === null) {
+                            $nominal = $nominalManual;
+                            $potongan = 0;
+                            $dispensasiIds = null;
+                        } else {
+                            $paketBaris = $this->paketBaris($paketDasar, $pakaiKuota, null, $kuotaBerlaku);
+                            $hitung = $aturan->terapkan((int) $data['nominal'], $paketBaris, (int) $jenis->id);
+                            $nominal = $hitung['nominal'];
+                            $potongan = $hitung['potongan'];
+                            $dispensasiIds = $hitung['ids'] === [] ? null : $hitung['ids'];
+                            $this->konsumsiKuota($hitung['ids'], $pakaiKuota, null);
+                        }
                         Tagihan::create([
                             'santri_id' => $santriId,
                             'jenis_id' => $jenis->id,
@@ -618,12 +672,41 @@ class TagihanController extends Controller
                         continue;
                     }
 
+                    if ($paketDasar === null) {
+                        $nominal = $nominalManual;
+                        $potongan = 0;
+                        $dispensasiIds = null;
+                        $idsBaru = [];
+                        $punyaIds = null;
+                    } else {
+                        $punyaIds = $ada->dispensasi_ids;
+                        $paketBaris = $this->paketBaris($paketDasar, $pakaiKuota, $ada, $kuotaBerlaku);
+                        $hitung = $aturan->terapkan((int) $data['nominal'], $paketBaris, (int) $jenis->id);
+                        $nominal = $hitung['nominal'];
+                        $potongan = $hitung['potongan'];
+                        $dispensasiIds = $hitung['ids'] === [] ? null : $hitung['ids'];
+                        $idsBaru = $hitung['ids'];
+                    }
+
+                    if ($paketDasar !== null && $jenis->tipe === 'bulanan' && (int) $ada->terbayar > 0) {
+                        $alasan[] = [
+                            'santri_id' => (int) $santriId,
+                            'periode' => $periode,
+                            'nominal_sekarang' => (int) $ada->nominal,
+                            'terbayar' => (int) $ada->terbayar,
+                            'sebab' => 'sudah ada pembayaran',
+                        ];
+
+                        continue;
+                    }
+
                     if ($nominal < (int) $ada->terbayar) {
                         $alasan[] = [
                             'santri_id' => (int) $santriId,
                             'periode' => $periode,
                             'nominal_sekarang' => (int) $ada->nominal,
                             'terbayar' => (int) $ada->terbayar,
+                            'sebab' => 'nominal baru di bawah terbayar',
                         ];
 
                         continue;
@@ -644,6 +727,9 @@ class TagihanController extends Controller
                         default => 'sebagian',
                     };
                     $ada->save();
+                    if ($paketDasar !== null) {
+                        $this->konsumsiKuota($idsBaru, $pakaiKuota, $punyaIds);
+                    }
                     $diperbarui++;
                 }
             }
@@ -657,6 +743,113 @@ class TagihanController extends Controller
             'dilewati' => count($hasil['alasan']),
             'alasan' => $hasil['alasan'],
         ]);
+    }
+
+    /**
+     * Kuota terpakai per paket: jumlah tagihan BULANAN santri yang memuat
+     * paket (seumur hidup, semua TA) — dasar alokasi N bulan pertama.
+     *
+     * @param  Collection<int, Dispensasi>  $paket
+     * @return array<int, int> peta id paket → terpakai
+     */
+    private function pakaiKuota(Collection $paket, int $santriId): array
+    {
+        $berkuota = $paket->filter(fn ($d) => $d->kuota_bulan !== null);
+        if ($berkuota->isEmpty()) {
+            return [];
+        }
+        $jenisBulanan = JenisTagihan::where('tipe', 'bulanan')->pluck('id')
+            ->map(fn ($v) => (int) $v)->all();
+        $daftar = Tagihan::where('santri_id', $santriId)->whereIn('jenis_id', $jenisBulanan)->pluck('dispensasi_ids');
+        $pakai = [];
+        foreach ($berkuota as $d) {
+            $c = 0;
+            foreach ($daftar as $ids) {
+                if (is_array($ids) && in_array((int) $d->id, array_map('intval', $ids), true)) {
+                    $c++;
+                }
+            }
+            $pakai[(int) $d->id] = $c;
+        }
+
+        return $pakai;
+    }
+
+    /**
+     * Subset paket untuk satu baris tagihan: paket berkuota yang habis
+     * (dan belum menempel di baris ini) dicoret. Murni, tanpa efek —
+     * pencatatan konsumsi dilakukan terpisah setelah baris tersimpan.
+     *
+     * @param  Collection<int, Dispensasi>  $paketDasar
+     * @param  array<int, int>  $pakai
+     * @return Collection<int, Dispensasi>
+     */
+    private function paketBaris(Collection $paketDasar, array $pakai, ?Tagihan $ada, bool $kuotaBerlaku): Collection
+    {
+        if (! $kuotaBerlaku) {
+            return $paketDasar;
+        }
+        $punya = $ada === null ? [] : array_map('intval', (array) ($ada->dispensasi_ids ?? []));
+
+        return $paketDasar->filter(function ($d) use ($pakai, $punya) {
+            if ($d->kuota_bulan === null) {
+                return true;
+            }
+            if (in_array((int) $d->id, $punya, true)) {
+                return true;
+            }
+
+            return ($pakai[(int) $d->id] ?? 0) < (int) $d->kuota_bulan;
+        })->values();
+    }
+
+    /**
+     * Catat konsumsi kuota atas id yang baru menempel di baris ini
+     * (yang sudah menempel sebelumnya tidak dihitung ulang).
+     *
+     * @param  list<int>  $idsBaru
+     * @param  array<int, int>  $pakai
+     * @param  list<int>|null  $punya
+     */
+    private function konsumsiKuota(array $idsBaru, array &$pakai, ?array $punya): void
+    {
+        $punyaInt = array_map('intval', $punya ?? []);
+        foreach ($idsBaru as $id) {
+            if (! in_array((int) $id, $punyaInt, true)) {
+                $pakai[(int) $id] = ($pakai[(int) $id] ?? 0) + 1;
+            }
+        }
+    }
+
+    /**
+     * Paket sementara yang dicentang di dialog generate: wajib aktif,
+     * TA sama, sifat sementara, dan punya aturan untuk jenis ini.
+     *
+     * @param  array<string, mixed>  $data
+     * @return Collection<int, Dispensasi>
+     */
+    private function sementaraTerpilih(array $data, JenisTagihan $jenis): Collection
+    {
+        $ids = collect($data['dispensasi_sementara_ids'] ?? [])
+            ->map(fn ($v) => (int) $v)->unique()->values();
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+        $paket = Dispensasi::with(['aturan.jenis', 'santriTambahan'])->whereIn('id', $ids)->get();
+        if ($paket->count() !== $ids->count()) {
+            abort(422, 'Paket sementara tidak dikenal.');
+        }
+        $aturanSvc = app(DispensasiService::class);
+        foreach ($paket as $d) {
+            if ($d->sifat !== 'sementara' || ! $d->is_active || $d->tahun_ajaran !== $data['tahun_ajaran']) {
+                abort(422, "Paket '{$d->nama}' bukan dispensasi sementara aktif TA ini.");
+            }
+            if ($aturanSvc->aturanUntukJenis($d, (int) $jenis->id) === null) {
+                abort(422, "Paket '{$d->nama}' tidak punya aturan untuk jenis tagihan ini.");
+            }
+        }
+
+        return $paket;
     }
 
     /**

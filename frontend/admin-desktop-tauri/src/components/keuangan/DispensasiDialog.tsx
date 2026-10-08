@@ -60,6 +60,19 @@ interface Penerima {
   nisLokal: string | null;
   ayah: string | null;
   ibu: string | null;
+  /** Nama karangan (id tanpa relasi) — digantikan saat kandidat termuat. */
+  namaSemu?: boolean;
+}
+
+/** Baris penerima awal mode ubah: nama asli dari relasi termuat bila ada,
+ *  selebihnya penanda karangan (digantikan saat kandidat termuat). */
+export function penerimaAwal(d: Dispensasi): Penerima[] {
+  const termuat = new Map((d.santri_tambahan ?? []).map((s) => [s.id, s]));
+  return (d.santri_ids ?? []).map((id) => {
+    const s = termuat.get(id);
+    if (!s) return { id, nama: `Santri #${id}`, nisLokal: null, ayah: null, ibu: null, namaSemu: true };
+    return { id, nama: s.nama_lengkap, nisLokal: nisLokalTampil(s), ayah: s.ayah_nama ?? null, ibu: s.ibu_nama ?? null };
+  });
 }
 
 /** NIS lokal tampil: gabungan unik keanggotaan aktif (tanpa duplikat). */
@@ -87,6 +100,8 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
   const [nama, setNama] = useState('');
   const [keterangan, setKeterangan] = useState('');
   const [ta, setTa] = useState('');
+  const [sifat, setSifat] = useState<'tetap' | 'sementara'>('tetap');
+  const [kuota, setKuota] = useState('');
   const [aktif, setAktif] = useState(true);
 
   const [baris, setBaris] = useState<BarisAturan[]>([]);
@@ -124,15 +139,16 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
     setCari(''); setPage(1); setTambahJenisId(''); setTab('jenis');
     if (editing) {
       setNama(editing.nama); setKeterangan(editing.keterangan ?? ''); setTa(editing.tahun_ajaran);
+      setSifat(editing.sifat); setKuota(editing.kuota_bulan === null ? '' : String(editing.kuota_bulan));
       setAktif(editing.is_active);
       const aturan = editing.aturan ?? [];
       setBaris(aturan.filter((a) => a.jenis_id !== null).map((a) => ({ jenisId: a.jenis_id as number, tipe: a.tipe, nilai: String(a.nilai) })));
-      setSantriPilih((editing.santri_ids ?? []).map((id) => ({ id, nama: `Santri #${id}`, nisLokal: null, ayah: null, ibu: null })));
+      setSantriPilih(penerimaAwal(editing));
     } else {
       const bawaan = taBawaan !== null && daftarTA.some((x) => x.nama === taBawaan)
         ? taBawaan
         : (daftarTA.find((x) => x.is_aktif)?.nama ?? daftarTA[0]?.nama ?? '');
-      setNama(''); setKeterangan(''); setTa(bawaan); setAktif(true);
+      setNama(''); setKeterangan(''); setTa(bawaan); setSifat('tetap'); setKuota(''); setAktif(true);
       setBaris([]);
       setSantriPilih(santriAwal ? [{ id: santriAwal.id, nama: santriAwal.nama_lengkap, nisLokal: null, ayah: null, ibu: null }] : []);
     }
@@ -161,6 +177,23 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
     const t = setTimeout(() => { void muatKandidat(1, perPage, cari); }, cari.trim() === '' ? 0 : 300);
     return () => clearTimeout(t);
   }, [open, cari, perPage, urut, arahUrut, arahKolom, muatKandidat]);
+
+  // Kandidat termuat → ganti baris nama-karangan dengan data asli.
+  useEffect(() => {
+    if (!open || kandidat.length === 0) return;
+    setSantriPilih((lama) => {
+      if (!lama.some((p) => p.namaSemu)) return lama;
+      const peta = new Map(kandidat.map((s) => [s.id, s]));
+      let berubah = false;
+      const hasil = lama.map((p) => {
+        const s = p.namaSemu ? peta.get(p.id) : undefined;
+        if (!s) return p;
+        berubah = true;
+        return { id: p.id, nama: s.nama_lengkap, nisLokal: nisLokalTampil(s), ayah: s.ayah_nama ?? null, ibu: s.ibu_nama ?? null };
+      });
+      return berubah ? hasil : lama;
+    });
+  }, [open, kandidat]);
 
   const tambahPenerima = useCallback((rows: Santri[]) => {
     setSantriPilih((lama) => {
@@ -196,6 +229,10 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
   const simpan = async () => {
     if (nama.trim() === '') { toast.error('Isi nama dispensasi.'); return; }
     if (ta === '') { toast.error('Pilih tahun ajaran.'); return; }
+    if (kuota.trim() !== '') {
+      const k = Number(kuota);
+      if (!Number.isInteger(k) || k < 1 || k > 120) { toast.error('Kuota bulan diisi 1–120 atau dikosongkan.'); return; }
+    }
 
     if (baris.length === 0) { toast.error('Pilih minimal satu jenis tagihan.'); return; }
     const aturan: { jenis_id: number | null; tipe: TipeDispensasi; nilai: number }[] = [];
@@ -209,6 +246,8 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
       nama: nama.trim(),
       keterangan: keterangan.trim() === '' ? null : keterangan.trim(),
       tahun_ajaran: ta,
+      sifat,
+      kuota_bulan: kuota.trim() === '' ? null : Number(kuota),
       aturan,
       santri_ids: santriPilih.length > 0 ? santriPilih.map((s) => s.id) : null,
       is_active: aktif,
@@ -263,6 +302,24 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="flex w-44 flex-col gap-1">
+            <FieldLabel htmlFor="sel_dispensasi_sifat">Sifat</FieldLabel>
+            <Select value={sifat} onValueChange={(v) => setSifat(v as 'tetap' | 'sementara')}>
+              <SelectTrigger id="sel_dispensasi_sifat" className="h-8 w-full" aria-label="Sifat dispensasi">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tetap">Tetap (otomatis tiap generate)</SelectItem>
+                <SelectItem value="sementara">Sementara (hanya bila dicentang saat generate)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-28 flex-col gap-1">
+            <FieldLabel htmlFor="inp_dispensasi_kuota">
+              Kuota Bln <span className="font-normal text-muted-foreground">(opsional)</span>
+            </FieldLabel>
+            <Input id="inp_dispensasi_kuota" type="number" min={1} max={120} className="h-8" value={kuota} onChange={(e) => setKuota(e.target.value)} placeholder="mis. 6" />
           </div>
           <div className="flex min-w-52 flex-1 flex-col gap-1">
             <FieldLabel htmlFor="inp_dispensasi_keterangan">
