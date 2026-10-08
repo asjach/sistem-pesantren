@@ -13,7 +13,7 @@ import {
   useGridPrefs,
 } from '@/components/GridPrefs';
 import type { RibbonTableApi } from '@/components/RibbonTable';
-import { Pencil, PlusCircle, RotateCcw } from '@/icons';
+import { PlusCircle, RotateCcw } from '@/icons';
 import {
   Select,
   SelectContent,
@@ -132,24 +132,15 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
   return (
     <>
       <RibbonGroup>
-        <div className="flex flex-col items-start gap-1">
-          <RibbonCmd
-            id="ribbon_btn_input"
-            icon={PlusCircle}
-            label="Mode Input"
-            aktif={!!apiTabel?.showInput}
-            disabled={!apiTabel?.inputEnabled}
-            onClick={() => apiTabel?.setInputMode(!apiTabel.inputMode)}
-          />
-          <RibbonCmd
-            id="ribbon_btn_edit"
-            icon={Pencil}
-            label="Mode Edit"
-            aktif={!!apiTabel?.editing}
-            disabled={!apiTabel?.canEdit}
-            onClick={() => apiTabel?.setEditMode(!apiTabel.editMode)}
-          />
-        </div>
+        {/* Mode Edit kini hanya lewat klik ganda pada sel tabel. */}
+        <RibbonCmd
+          id="ribbon_btn_input"
+          icon={PlusCircle}
+          label="Mode Input"
+          aktif={!!apiTabel?.showInput}
+          disabled={!apiTabel?.inputEnabled}
+          onClick={() => apiTabel?.setInputMode(!apiTabel.inputMode)}
+        />
       </RibbonGroup>
       <RibbonPemisah />
       <RibbonGroup>

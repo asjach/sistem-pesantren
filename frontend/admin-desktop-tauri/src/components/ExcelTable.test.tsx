@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import ExcelTable, { diCornerButton, type ExcelTableProps } from './ExcelTable';
-import { RibbonTableProvider, useRibbonTable, type RibbonTableApi } from '@/components/RibbonTable';
+import { RibbonTableProvider, useRibbonTable } from '@/components/RibbonTable';
 import { renderDenganTema, PembungkusTema } from '@/test/utils';
 
 // ---- Mock API (unit test tidak boleh memanggil fetch nyata) ----
@@ -218,16 +218,13 @@ describe('penanda kelas grid yang dibaca CSS', () => {
 });
 
 describe('ExcelTable × RibbonTableProvider', () => {
-  it('mendaftarkan tabel; mode Edit dari ribbon memunculkan pill mode', async () => {
-    const status = { ada: false, editMode: false };
-    let apiTerakhir: RibbonTableApi | null = null;
+  it('mendaftarkan tabel; klik ganda sel memunculkan pill Mode Edit', async () => {
+    const status = { ada: false };
 
-    /** Konsumen kecil di dalam provider: membaca status & API tabel aktif. */
+    /** Konsumen kecil di dalam provider: membaca API tabel aktif. */
     function RibbonProbe() {
       const ribbon = useRibbonTable();
       status.ada = ribbon?.api != null;
-      status.editMode = ribbon?.api?.editMode ?? false;
-      if (ribbon?.api) apiTerakhir = ribbon.api;
       return null;
     }
 
@@ -252,9 +249,9 @@ describe('ExcelTable × RibbonTableProvider', () => {
 
     await waitFor(() => expect(status.ada).toBe(true));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    // Nyalakan mode Edit seperti tombol ribbon (tanpa interaksi DOM grid DSG).
-    apiTerakhir!.setEditMode(true);
-    await waitFor(() => expect(status.editMode).toBe(true));
-    expect(screen.getByRole('status')).toHaveTextContent('Mode Edit aktif');
+
+    // Mode Edit dinyalakan lewat klik ganda sel (pengganti tombol ribbon).
+    fireEvent.doubleClick(screen.getByText('Ahmad'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Edit aktif'));
   });
 });

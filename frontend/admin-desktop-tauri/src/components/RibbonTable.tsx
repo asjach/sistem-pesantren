@@ -6,11 +6,6 @@ export interface RibbonTableApi {
   salin: () => void;
   autofit: () => void;
   reset: () => void;
-  /** Mode edit sel: kemampuan + status (dipakai tombol toggle di ribbon). */
-  canEdit: boolean;
-  editMode: boolean;
-  setEditMode: (v: boolean) => void;
-  editing: boolean;
   /** Mode input baris baru: kemampuan + status. */
   inputEnabled: boolean;
   inputMode: boolean;
