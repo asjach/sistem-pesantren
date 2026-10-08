@@ -12,7 +12,7 @@ import type { PetaArahKolom } from '@/lib/urut';
 import { tanggal } from '@/lib/tanggal';
 import type { PerPage } from '@/prefs';
 import type {
-  CrosstabKolom, CrosstabSel, CrosstabTagihan, Dispensasi, JenisTagihan, Tarif, TunggakanRow,
+  CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan, Dispensasi, JenisTagihan, Tarif, TunggakanRow,
 } from '@/api/keuangan';
 
 /* Isi tiap tab halaman Keuangan.
@@ -245,7 +245,7 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus }
 export function TagihanTab({
   crosstab, loading, terpilihId, total,
   cari, onCari, urut, onUrut, arah, onArah, terlambat, onTerlambat,
-  onPilih, onReset, onBukaGenerate, pager, popover,
+  onPilih, onTambah, onReset, onBukaGenerate, pager, popover,
 }: {
   crosstab: CrosstabTagihan | null;
   loading: boolean;
@@ -261,10 +261,12 @@ export function TagihanTab({
   onTerlambat: (v: boolean) => void;
   onPilih: (
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
+  /** Diteruskan ke sel kosong crosstab (tombol tambah). */
+  onTambah?: (baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => void;
   onReset: () => void;
   onBukaGenerate: () => void;
   pager: {
@@ -368,7 +370,7 @@ export function TagihanTab({
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-dashed pt-2 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Info size={13} className="shrink-0" />
-            Klik sel nominal untuk bayar, ubah, atau lihat riwayat.
+            Klik sel nominal untuk bayar, ubah, atau lihat riwayat; klik sel kosong untuk tambah tagihan.
           </span>
           {/* Legenda warna sel. "Sebagian" sempat hilang: sel kuning muncul
               tanpa keterangan sama sekali, jadi terlihat seperti warna acak.
@@ -400,6 +402,7 @@ export function TagihanTab({
               terpilihId={terpilihId}
               emptyText="Belum ada tagihan."
               onPilih={onPilih}
+              onTambah={onTambah}
             />
             {popover}
           </div>

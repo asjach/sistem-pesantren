@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { Plus } from '@/icons';
 import type { CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan } from '../../api/keuangan';
 import { cn } from '@/lib/utils';
 
@@ -31,10 +32,13 @@ interface Props {
    *  `anchor` = elemen sel, dipakai sebagai jangkar popover. */
   onPilih: (
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
+  /** Sel KOSONG diklik → halaman membuka alur tambah tagihan (mis. dialog
+   *  Buat Tagihan terisi santri+jenis+periode). Absen = sel kosong inert. */
+  onTambah?: (baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => void;
   emptyText: string;
 }
 
@@ -117,16 +121,17 @@ function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
 /** Satu baris tabel. `memo` + props stabil → saat tooltip berpindah sel, hanya
  *  baris yang di-hover yang dirender ulang, bukan seluruh tabel (ratusan sel). */
 const BarisCrosstab = memo(function BarisCrosstab({
-  baris, kolom, onPilih, onHoverMasuk, onHoverGerak, onHoverKeluar,
+  baris, kolom, onPilih, onTambah, onHoverMasuk, onHoverGerak, onHoverKeluar,
 }: {
   baris: CrosstabBaris;
   kolom: CrosstabKolom[];
   onPilih: (
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
+  onTambah?: (baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => void;
   onHoverMasuk: (isi: TooltipSel, anchor: HTMLElement) => void;
   onHoverGerak: (isi: TooltipSel, e: React.MouseEvent<HTMLElement>) => void;
   onHoverKeluar: () => void;
@@ -161,7 +166,27 @@ const BarisCrosstab = memo(function BarisCrosstab({
       {kolom.map((k) => {
         const sel = baris.sel[k.key];
         if (!sel) {
-          return <td key={k.key} className="border-b border-r p-0.5 text-center text-muted-foreground/40">·</td>;
+          const label = labelSel(k);
+          // Sel kosong: tombol tambah samar (muncul saat hover/fokus) —
+          // mengekliknya membuka alur tambah tagihan untuk santri × kolom ini.
+          return (
+            <td key={k.key} className="group border-b border-r p-0.5 text-center">
+              {onTambah ? (
+                <button
+                  type="button"
+                  id={`btn_tagihan_tambah_${baris.santri_id}_${k.key}`}
+                  title={`Tambah tagihan ${label} untuk ${baris.nama}`}
+                  aria-label={`Tambah tagihan ${label} untuk ${baris.nama}`}
+                  onClick={(e) => onTambah(baris, k, e.currentTarget)}
+                  className="inline-flex w-full items-center justify-center rounded px-1.5 py-0.5 text-muted-foreground/40 opacity-0 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring group-hover:opacity-100"
+                >
+                  <Plus size={13} />
+                </button>
+              ) : (
+                <span className="text-muted-foreground/40">·</span>
+              )}
+            </td>
+          );
         }
         const isiTooltip: TooltipSel = {
           nama: baris.nama, jenisNama: k.jenis_nama, tipe: k.tipe, periode: k.periode,
@@ -169,7 +194,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
         };
         const meta = {
           nama: baris.nama, label: labelSel(k),
-          ayah_nama: baris.ayah_nama, ibu_nama: baris.ibu_nama,
+          ayah_nama: baris.ayah_nama, ibu_nama: baris.ibu_nama, santri_id: baris.santri_id,
         };
         return (
           <td key={k.key} className="border-b border-r p-0.5">
@@ -254,7 +279,7 @@ function IsiKartuTagihan({ data }: { data: TooltipSel }) {
 /** Tabel silang tagihan: baris = santri, kolom = jenis (bulanan per bulan).
  *  Sel berisi nominal dengan warna status; klik sel (kiri maupun kanan)
  *  melaporkan tagihan terpilih ke halaman, yang membuka popover aksi. */
-function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Props) {
+function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, emptyText }: Props) {
   const kolom = data?.kolom ?? [];
   const baris: CrosstabBaris[] = data?.baris ?? [];
   const grup = grupKolom(kolom);
@@ -339,7 +364,7 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Prop
   const pilihStabil = useCallback(
     (
       sel: CrosstabSel,
-      meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null },
+      meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number },
       anchor: HTMLElement,
       kolom: CrosstabKolom,
     ) => {
@@ -473,6 +498,7 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, emptyText }: Prop
               baris={r}
               kolom={kolom}
               onPilih={pilihStabil}
+              onTambah={onTambah}
               onHoverMasuk={hoverMasuk}
               onHoverGerak={hoverGerak}
               onHoverKeluar={hoverKeluar}

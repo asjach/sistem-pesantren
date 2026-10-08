@@ -29,13 +29,14 @@ function baris(selJul: CrosstabSel, selAgu: CrosstabSel, timpa: Partial<Crosstab
   };
 }
 
-function renderCrosstab(b: CrosstabBaris, onPilih = () => {}, terpilihId: number | null = null) {
+function renderCrosstab(b: CrosstabBaris, onPilih = () => {}, terpilihId: number | null = null, onTambah?: (baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => void) {
   return renderDenganTema(
     <TagihanCrosstab
       data={{ kolom: KOLOM, baris: [b], total: 1, per_page: 25, current_page: 1, last_page: 1 }}
       loading={false}
       terpilihId={terpilihId}
       onPilih={onPilih}
+      onTambah={onTambah}
       emptyText="Kosong"
     />,
   );
@@ -297,5 +298,30 @@ describe('TagihanCrosstab — kolom Santri', () => {
     }));
     expect(screen.getByText('Santri Uji')).toBeInTheDocument();
     expect(screen.queryByText(/·/)).not.toBeInTheDocument();
+  });
+});
+
+describe('TagihanCrosstab — sel kosong bisa tambah tagihan', () => {
+  /** Baris dengan sel Agustus kosong (tanpa tagihan). */
+  function barisKosongAgu(): CrosstabBaris {
+    const b = baris(sel({}), sel({ id: 2 }));
+    return { ...b, sel: { '1-2025-07': b.sel['1-2025-07'] } };
+  }
+
+  it('tanpa onTambah: sel kosong tetap titik inert', () => {
+    renderCrosstab(barisKosongAgu());
+    expect(screen.getByText('·')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Tambah tagihan/ })).not.toBeInTheDocument();
+  });
+
+  it('dengan onTambah: tombol tambah memanggil dengan baris + kolom + jangkar', () => {
+    const onTambah = vi.fn();
+    renderCrosstab(barisKosongAgu(), () => {}, null, onTambah);
+    const tombol = screen.getByRole('button', { name: 'Tambah tagihan Infaq Bulanan · Agu 2025 untuk Santri Uji' });
+    fireEvent.click(tombol);
+    expect(onTambah).toHaveBeenCalledTimes(1);
+    expect(onTambah.mock.calls[0][0]).toMatchObject({ santri_id: 7, nama: 'Santri Uji' });
+    expect(onTambah.mock.calls[0][1]).toMatchObject({ jenis_id: 1, periode: '2025-08' });
+    expect(onTambah.mock.calls[0][2]).toBe(tombol);
   });
 });

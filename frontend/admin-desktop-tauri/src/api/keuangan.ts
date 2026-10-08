@@ -95,6 +95,16 @@ export function generateTagihan(data: {
   }>('/admin/keuangan/tagihan/generate', { method: 'POST', body: JSON.stringify(data) });
 }
 
+/** Buat SATU tagihan manual (dipakai popover tambah dari sel kosong).
+ *  Dispensasi tidak diterapkan otomatis (lihat dialog Buat Tagihan untuk
+ *  pratinjau potongan) — nominal yang diketik adalah nominal final. */
+export function buatTagihan(data: {
+  santri_id: number; jenjang: string; tahun_ajaran: string; jenis_id: number;
+  periode?: string | null; nominal: number; jatuh_tempo?: string | null;
+}) {
+  return api<TagihanRow>('/admin/keuangan/tagihan', { method: 'POST', body: JSON.stringify(data) });
+}
+
 export type KelompokKandidat = 'mi_saja' | 'md_saja' | 'mi' | 'md' | 'mi_md' | 'aktif' | 'kelas_akhir' | 'selain_kelas_akhir' | 'custom';
 
 export interface KandidatTagihanRow {
@@ -177,6 +187,9 @@ export interface CrosstabSel {
   /** Sudah lewat jatuh tempo & belum lunas (dasar hitungan tunggakan). */
   terlambat: boolean;
   tahun_ajaran: string;
+  /** Jejak dispensasi dari generate (0/null bila manual/tanpa). */
+  potongan?: number;
+  dispensasi_ids?: number[] | null;
 }
 
 export interface CrosstabKolom {
@@ -240,7 +253,7 @@ export function hapusTagihan(id: number) {
  * Ubah tagihan yang sudah terlanjur dibuat: nominal, tahun ajaran, jatuh tempo.
  * Jenis & periode tidak bisa diubah — keduanya bagian kunci unik tagihan.
  */
-export function ubahTagihan(id: number, data: { nominal: number; tahun_ajaran: string; jatuh_tempo: string | null }) {
+export function ubahTagihan(id: number, data: { nominal: number; tahun_ajaran: string; jatuh_tempo: string | null; dispensasi_ids?: number[] | null }) {
   return api<TagihanRow>(`/admin/keuangan/tagihan/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 

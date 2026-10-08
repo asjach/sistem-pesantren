@@ -3,17 +3,18 @@ import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
-  daftarJenis, daftarTarif, hapusTarif,
+  daftarJenis, daftarTarif, hapusTarif, buatTagihan,
   daftarTunggakan, crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran,
   riwayatPembayaran, hapusPembayaran, daftarDispensasi, hapusDispensasi,
   type JenisTagihan, type Tarif, type TunggakanRow, type PembayaranRow, type Dispensasi,
-  type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
+  type CrosstabBaris, type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
+import { labelSel } from '@/components/keuangan/TagihanCrosstab';
 import { listKelas, listLembaga, listTahunAjaran, type Kelas, type Lembaga, type TahunAjaran } from '../api/master';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import PopoverAksiTagihan, { type TagihanAktif } from '@/components/keuangan/PopoverAksiTagihan';
+import PopoverAksiTagihan, { type TagihanAktif, type TambahCtx } from '@/components/keuangan/PopoverAksiTagihan';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -283,7 +284,7 @@ export default function KeuanganPage() {
   const [selTagihan, setSelTagihan] = useState<{
     id: number; nama: string; label: string;
     ayah_nama: string | null; ibu_nama: string | null;
-    nominal: number; sisa: number;
+    santri_id: number; nominal: number; sisa: number;
     status: 'belum' | 'sebagian' | 'lunas';
   } | null>(null);
 
@@ -303,25 +304,34 @@ export default function KeuanganPage() {
   const [selPenuh, setSelPenuh] = useState<CrosstabSel | null>(null);
   const [kolomTerpilih, setKolomTerpilih] = useState<CrosstabKolom | null>(null);
 
-  /** Data yang ditampilkan popover, diturunkan dari sel + kolom terpilih. */
-  const popoverTagihan: TagihanAktif | null =
-    selTagihan !== null && selPenuh !== null && kolomTerpilih !== null
+  /** Data yang ditampilkan popover, diturunkan dari sel + kolom terpilih.
+   *  Di-memo agar identitas stabil: popover me-reset form + fetch ulang tiap
+   *  identitas berganti, dan render halaman (ketikan cari, reload) tidak boleh
+   *  mengulanginya selama sel yang sama masih terpilih. */
+  const popoverTagihan: TagihanAktif | null = useMemo(
+    () => (selTagihan !== null && selPenuh !== null && kolomTerpilih !== null
       ? {
           id: selTagihan.id,
           nama: selTagihan.nama,
           label: selTagihan.label,
           ayah_nama: selTagihan.ayah_nama,
           ibu_nama: selTagihan.ibu_nama,
+          santri_id: selTagihan.santri_id,
+          jenisId: kolomTerpilih.jenis_id,
           nominal: selPenuh.nominal,
           terbayar: selPenuh.terbayar,
           sisa: selPenuh.sisa,
           status: selPenuh.status,
+          potongan: selPenuh.potongan ?? 0,
+          dispensasi_ids: selPenuh.dispensasi_ids ?? null,
           terlambat: selPenuh.terlambat,
           jatuhTempo: selPenuh.jatuh_tempo,
           tahunAjaran: selPenuh.tahun_ajaran,
           tipe: kolomTerpilih.tipe,
         }
-      : null;
+      : null),
+    [selTagihan, selPenuh, kolomTerpilih],
+  );
 
   /* Menandai "gesture ini sedang memilih sel baru". Radix DismissableLayer
      menutup popover di pointerdown pertama, lalu memilih sel baru di
@@ -331,15 +341,16 @@ export default function KeuanganPage() {
   const pindahSelRef = useRef(false);
   const pilihSel = useCallback((
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => {
     pindahSelRef.current = true;
     setTimeout(() => { pindahSelRef.current = false; }, 0);
+    setTambahCtx(null);
     setSelTagihan({
       id: sel.id, nama: meta.nama, label: meta.label,
-      ayah_nama: meta.ayah_nama, ibu_nama: meta.ibu_nama,
+      ayah_nama: meta.ayah_nama, ibu_nama: meta.ibu_nama, santri_id: meta.santri_id,
       nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
     });
     setSelPenuh(sel);
@@ -354,7 +365,94 @@ export default function KeuanganPage() {
     setSelTagihan(null);
     setSelPenuh(null);
     setKolomTerpilih(null);
+    setTambahCtx(null);
   }, []);
+
+  /** Konteks tambah dari sel kosong (santri + kolom): popover dibuka dalam
+   *  mode tambah. null = popover (bila terbuka) dalam mode aksi biasa. */
+  const [tambahCtx, setTambahCtx] = useState<{
+    baris: CrosstabBaris; kolom: CrosstabKolom; anchor: HTMLElement; nominalAwal: number | null;
+  } | null>(null);
+  /** Klik sel kosong (·) → buka popover tambah untuk santri × kolom itu. */
+  const tambahDariSel = useCallback((baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => {
+    const cocok = tarif.find((t) => t.jenis_id === kolom.jenis_id
+      && (genTAtopbar == null || t.tahun_ajaran === genTAtopbar));
+    setSelTagihan(null);
+    setSelPenuh(null);
+    setKolomTerpilih(null);
+    setTambahCtx({ baris, kolom, anchor, nominalAwal: cocok?.nominal ?? null });
+    setAnchorSel(anchor);
+  }, [tarif, genTAtopbar]);
+
+  /** Simpan dari popover tambah: buat satuan → muat ulang → buka popover
+   *  aksi pada sel yang baru dibuat (lanjut bayar bila perlu). */
+  const simpanTambah = useCallback(async (d: { nominal: number; jatuh_tempo: string | null }) => {
+    if (!tambahCtx) return;
+    const { baris, kolom } = tambahCtx;
+    const ta = genTAtopbar;
+    if (!ta) {
+      toast.error('Pilih satu tahun ajaran pada filter di atas.');
+      return;
+    }
+    try {
+      const dibuat = await buatTagihan({
+        santri_id: baris.santri_id,
+        jenjang: baris.jenjang,
+        tahun_ajaran: ta,
+        jenis_id: kolom.jenis_id,
+        periode: kolom.tipe === 'bulanan' ? (kolom.periode ?? null) : null,
+        nominal: d.nominal,
+        jatuh_tempo: d.jatuh_tempo,
+      });
+      toast.success('Tagihan dibuat.');
+      tutupPopover();
+      await muatCrosstabSekarang();
+      // Tunggu cat/React selesai agar tombol sel baru sudah ada di DOM.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const tombol = document.querySelector<HTMLElement>(`#btn_tagihan_sel_${dibuat.id}`);
+      if (!tombol) return;
+      const hariIni = new Date().toLocaleDateString('sv-SE');
+      // Respons create membawa datetime penuh; crosstab memakai tanggal saja.
+      const jt = dibuat.jatuh_tempo?.slice(0, 10) ?? null;
+      pilihSel(
+        {
+          id: dibuat.id, nominal: dibuat.nominal, terbayar: dibuat.terbayar,
+          sisa: Math.max(dibuat.nominal - dibuat.terbayar, 0), status: dibuat.status,
+          jatuh_tempo: jt, terlambat: dibuat.status !== 'lunas' && !!jt && jt < hariIni,
+          tahun_ajaran: dibuat.tahun_ajaran,
+        },
+        {
+          nama: baris.nama, label: labelSel(kolom),
+          ayah_nama: baris.ayah_nama, ibu_nama: baris.ibu_nama, santri_id: baris.santri_id,
+        },
+        tombol,
+        kolom,
+      );
+    } catch (e) {
+      toast.error(errorMessage(e));
+      // Dilempar agar popover tetap terbuka untuk koreksi (pola onUbah).
+      throw e;
+    }
+  }, [tambahCtx, genTAtopbar, muatCrosstabSekarang, pilihSel]);
+
+  /** Konteks tambah untuk popover (di-memo: identitas stabil agar form
+   *  tambah tak di-reset tiap render halaman — alasan sama `popoverTagihan`). */
+  const tambahPop: TambahCtx | null = useMemo(
+    () => (tambahCtx ? {
+      nama: tambahCtx.baris.nama,
+      label: labelSel(tambahCtx.kolom),
+      santri_id: tambahCtx.baris.santri_id,
+      jenjang: tambahCtx.baris.jenjang,
+      ayah_nama: tambahCtx.baris.ayah_nama,
+      ibu_nama: tambahCtx.baris.ibu_nama,
+      jenis_id: tambahCtx.kolom.jenis_id,
+      periode: tambahCtx.kolom.periode,
+      tipe: tambahCtx.kolom.tipe,
+      tahunAjaran: genTAtopbar,
+      nominalAwal: tambahCtx.nominalAwal,
+    } : null),
+    [tambahCtx, genTAtopbar],
+  );
 
   /** Muat riwayat pembayaran tagihan terpilih (dipanggil saat tab Detail dibuka). */
   const muatRiwayat = useCallback(async (id: number) => {
@@ -460,6 +558,7 @@ export default function KeuanganPage() {
             terlambat={terlambatTagihan}
             onTerlambat={(v) => { setTerlambatTagihan(v); setTagihanPage(1); }}
             onPilih={pilihSel}
+            onTambah={tambahDariSel}
             onReset={() => { setCariTagihan(''); setUrutTagihan(''); setArahTagihan('naik'); setTerlambatTagihan(false); setTagihanPage(1); }}
             onBukaGenerate={() => setGenerateOpen(true)}
             pager={{
@@ -472,6 +571,7 @@ export default function KeuanganPage() {
             popover={
               <PopoverAksiTagihan
                 tagihan={popoverTagihan}
+                tambah={tambahPop}
                 anchor={anchorSel}
                 daftarTA={daftarTA}
                 riwayat={riwayatRows}
@@ -499,6 +599,7 @@ export default function KeuanganPage() {
                     await muatCrosstabSekarang();
                   } catch (e2) { toast.error(errorMessage(e2)); throw e2; }
                 }}
+                onTambah={simpanTambah}
                 onHapusPembayaran={async (id) => {
                   try {
                     await hapusPembayaran(id);
