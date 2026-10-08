@@ -134,7 +134,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
       nominal: 100000, santri: [{ santri_id: 7 }],
     });
     await waitFor(() => expect(document.body.textContent).toContain('−Rp 50.000 · Anak Pegawai'));
-    expect(screen.getByText(/total Rp 50\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/estimasi Rp 50\.000/)).toBeInTheDocument();
   });
 
   it('menampilkan rincian potongan per bulan saat nominalnya berubah antar bulan', async () => {
@@ -222,7 +222,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     await siapkanSatuBaris();
 
     await waitFor(() => expect(document.body.textContent).toContain('sudah ada pembayaran'));
-    expect(screen.getByText(/total Rp 100\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/estimasi Rp 100\.000/)).toBeInTheDocument();
   });
 
   it('memberi tahu saat pratinjau gagal (nominal tampil sebelum dispensasi)', async () => {
@@ -234,5 +234,23 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     await waitFor(() => expect(
       screen.getByText(/Pratinjau potongan gagal dimuat/),
     ).toBeInTheDocument());
+  });
+
+  it('menampilkan langkah filter, ringkasan aksi, dan penanda baris manual', async () => {
+    api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
+    api.pratinjau.mockResolvedValue([PRATINJAU]);
+
+    await siapkanSatuBaris();
+    await waitFor(() => expect(api.pratinjau).toHaveBeenCalled());
+
+    // Bilah filter berlangkah 1-2-3 + ringkasan N×M di footer.
+    expect(screen.getAllByText('Santri').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Tagihan').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Periode').length).toBeGreaterThan(0);
+    expect(screen.getByText(/1 santri × 12 bulan = 1 tagihan/)).toBeInTheDocument();
+
+    // Kolom Mode menandai baris otomatis (Manual setelah diketik ulang).
+    expect(document.body.textContent).toContain('Otomatis');
+    expect(document.body.textContent).toContain('Mode');
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import {
@@ -62,11 +62,28 @@ const FIELDS_KANDIDAT: ExcelField[] = [
   { key: 'status_akhir', label: 'Status', kind: 'static', width: 90 },
 ];
 
+const FIELDS_HASIL: ExcelField[] = [
+  { key: 'nama', label: 'Santri', kind: 'static' },
+  { key: 'periode', label: 'Periode', kind: 'static', width: 110 },
+  { key: 'sebab', label: 'Sebab Dilewati', kind: 'static' },
+  { key: 'terbayar', label: 'Sudah Dibayar', kind: 'static', width: 130 },
+];
+
+interface AlasanHasil {
+  id: string; nama: string; periode: string | null; sebab: string; terbayar: number; nominal_sekarang: number;
+}
+
+interface HasilGenerate {
+  dibuat: number; diperbarui: number; tetap: number; dilewati: number;
+  alasan: AlasanHasil[];
+}
+
 const FIELDS_TERPILIH: ExcelField[] = [
   { key: 'nama', label: 'Santri', kind: 'static' },
   { key: 'kelas', label: 'Tkt / Kelas', kind: 'static', width: 120 },
   { key: 'sekarang', label: 'Nominal sekarang', kind: 'static', width: 150 },
   { key: 'nominal', label: 'Nominal baru', kind: 'text', width: 110 },
+  { key: 'mode', label: 'Mode', kind: 'static', width: 80 },
   {
     key: 'rincian', label: 'Rincian Bulan', kind: 'static', width: 220,
     // Teks sel kerap terpotong lebar kolom → detail lengkapnya di kartu hover.
@@ -97,6 +114,19 @@ interface Props {
   tarif: Tarif[];
   tahunAjaran: string | null;
   onSelesai: () => void | Promise<void>;
+}
+
+/** Kelompok isian berlangkah di bilah filter: lencana angka + label grup. */
+function GrupLangkah({ no, label, children }: { no: string; label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 rounded-lg border bg-muted/30 px-2 py-1.5">
+      <span aria-hidden className="mt-1 grid size-5 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">{no}</span>
+      <div className="flex flex-col gap-1">
+        <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
+        <div className="flex flex-wrap items-end gap-3">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 /** Dialog generate tagihan: kandidat per kelompok santri (tabel kiri, bisa
@@ -134,6 +164,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
   const [terpilih, setTerpilih] = useState<BarisTerpilih[]>([]);
   const [busy, setBusy] = useState(false);
+  /** Hasil generate terakhir (panel persisten; null = mode susun). */
+  const [hasil, setHasil] = useState<HasilGenerate | null>(null);
 
   const jenisTerpilih = useMemo(() => jenis.find((j) => j.id === jenisId) ?? null, [jenis, jenisId]);
   const bulanan = jenisTerpilih?.tipe === 'bulanan';
@@ -142,11 +174,19 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   useEffect(() => {
     if (!open) return;
     setTerpilih([]); setCari(''); setKelompok('aktif'); setJenisId(''); setTarifId('');
-    setNominalDefault(''); setJatuhTempo(''); setErr('');
+    setNominalDefault(''); setJatuhTempo(''); setErr(''); setHasil(null);
     const m = (tahunAjaran ?? '').match(/^(\d{4})\/(\d{4})$/);
     if (m) { setPeriodeDari(`${m[1]}-07`); setPeriodeSampai(`${m[2]}-06`); }
     else { setPeriodeDari(''); setPeriodeSampai(''); }
   }, [open, tahunAjaran]);
+
+  // Kriteria diubah → hasil lama basi (kembali ke mode susun).
+  // Aman dari loop: setHasil(null) saat sudah null tidak me-render ulang.
+  useEffect(() => {
+    if (!open) return;
+    setHasil(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, terpilih, jenisId, nominalDefault, periodeDari, periodeSampai, jatuhTempo, tarifId, kelompok]);
 
   const muatKandidat = useCallback(async (halaman: number, jumlah: PerPage) => {
     if (!open || tahunAjaran === null) return;
@@ -243,6 +283,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     const catatan = [
       p.tak_kebagian.length > 0 ? `tak kebagian kuota: ${p.tak_kebagian.join(', ')}` : null,
       p.periode.find((b) => b.sebab !== null)?.sebab ?? null,
+      p.seragam === false ? 'nominal bervariasi per bulan (lihat Rincian)' : null,
     ].filter((x): x is string => x !== null);
     const label = [p.dispensasi_nama.join(', ') || null, ...catatan]
       .filter((x): x is string => x !== null).join(' · ') || null;
@@ -332,26 +373,41 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         periode_sampai: bulanan ? (periodeSampai || null) : null,
         jatuh_tempo: jatuhTempo || null, nominal, santri,
       });
-      /* Laporan per kategori: dibuat (baru), diperbarui (nilainya berubah),
-         tetap (sudah sama, tak disentuh), dilewati (bulanan yang sudah ada
-         pembayaran, atau nominal baru < yang sudah dibayar — sebab disebut
-         supaya user tahu itu bukan kegagalan diam-diam). */
-      const bagian = [`Dibuat ${r.dibuat}`, `diperbarui ${r.diperbarui}`];
-      if (r.tetap > 0) bagian.push(`tetap ${r.tetap}`);
-      if (r.dilewati > 0) bagian.push(`dilewati ${r.dilewati}`);
-      const pesan = bagian.join(', ');
-      if (r.alasan.length > 0) {
-        const pertama = r.alasan[0];
-        toast.warning(`${pesan} — ${r.alasan.length} dilewati: ${pertama.sebab} (mis. ${pertama.periode ?? 'sekali'}: sudah dibayar Rp ${pertama.terbayar.toLocaleString('id')}).`);
-      } else {
-        toast.success(`${pesan}.`);
-      }
+      // Hasil tampil persisten di panel (bukan cuma toast) — nama santri
+      // disalin saat ini agar tetap benar walau daftar diubah sesudahnya.
+      const nama = new Map(terpilih.map((x) => [x.santri_id, x.nama_lengkap]));
+      setHasil({
+        dibuat: r.dibuat, diperbarui: r.diperbarui, tetap: r.tetap, dilewati: r.dilewati,
+        alasan: r.alasan.map((a) => ({
+          id: `${a.santri_id}-${a.periode ?? 'sekali'}`,
+          nama: nama.get(a.santri_id) ?? `Santri #${a.santri_id}`,
+          periode: a.periode, sebab: a.sebab, terbayar: a.terbayar,
+          nominal_sekarang: a.nominal_sekarang,
+        })),
+      });
       await onSelesai();
-      onOpenChange(false);
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
   };
 
-  const totalNominal = terpilih.reduce((s, r) => s + (Number(r.nominal) || 0), 0);
+  /** Ringkasan pra-generate: N santri × M bulan = K tagihan, estimasi total.
+   *  Baris otomatis memakai rincian per-periode pratinjau (tepat); manual
+   *  memakai nominal ketikan × jumlah periode. */
+  const ringkasan = useMemo(() => {
+    let total = 0, baris = 0;
+    for (const r of terpilih) {
+      if (r.nominalManual) {
+        total += (Number(r.nominal) || 0) * jumlahPeriode;
+        baris += jumlahPeriode;
+      } else if (r.periode !== null && r.periode.length > 0) {
+        total += r.periode.reduce((s, b) => s + b.nominal, 0);
+        baris += r.periode.length;
+      } else {
+        total += (Number(r.nominal) || 0) * jumlahPeriode;
+        baris += jumlahPeriode;
+      }
+    }
+    return { total, baris };
+  }, [terpilih, jumlahPeriode]);
   const tarifTampil = jenisId === '' ? tarif : tarif.filter((t) => t.jenis_id === jenisId);
 
   return (
@@ -369,77 +425,123 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
           </DialogClose>
         </DialogHeader>
 
-        <div className="flex flex-wrap items-end gap-3 border-b px-2 py-2">
-          <div className="flex flex-col gap-1">
-            <FieldLabel htmlFor="sel_gen_kelompok">Kelompok Santri</FieldLabel>
-            <select id="sel_gen_kelompok" className="h-8 rounded border px-2 text-sm" value={kelompok} onChange={(e) => setKelompok(e.target.value as KelompokKandidat)}>
-              {OPSI_KELOMPOK.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <FieldLabel htmlFor="sel_gen_jenis">Jenis Tagihan</FieldLabel>
-            <select id="sel_gen_jenis" className="h-8 rounded border px-2 text-sm" value={jenisId} onChange={(e) => ubahJenis(e.target.value === '' ? '' : Number(e.target.value))} required>
-              <option value="">Jenis…</option>
-              {jenis.map((j) => <option key={j.id} value={j.id}>{j.nama}{j.jenjang ? ` (${j.jenjang})` : ''}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <FieldLabel htmlFor="sel_gen_tarif">Tarif (opsional)</FieldLabel>
-            <select id="sel_gen_tarif" className="h-8 max-w-64 rounded border px-2 text-sm" value={tarifId} onChange={(e) => pilihTarif(e.target.value === '' ? '' : Number(e.target.value))}>
-              <option value="">Manual…</option>
-              {tarifTampil.map((t) => <option key={t.id} value={t.id}>{t.jenjang} · {t.jenis?.nama ?? t.jenis_id} · Rp {t.nominal.toLocaleString('id')}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <FieldLabel htmlFor="inp_gen_nominal">Nominal Default</FieldLabel>
-            <Input id="inp_gen_nominal" type="number" min={0} className="h-8 w-32" value={nominalDefault} onChange={(e) => ubahNominalDefault(e.target.value)} required />
-          </div>
-          {bulanan ? (
-            <>
-              <div className="flex flex-col gap-1">
-                <FieldLabel htmlFor="inp_gen_dari">Dari Bulan</FieldLabel>
-                <Input id="inp_gen_dari" type="month" className="h-8" value={periodeDari} onChange={(e) => setPeriodeDari(e.target.value)} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <FieldLabel htmlFor="inp_gen_sampai">Sampai Bulan</FieldLabel>
-                <Input id="inp_gen_sampai" type="month" className="h-8" value={periodeSampai} onChange={(e) => setPeriodeSampai(e.target.value)} />
-              </div>
-            </>
-          ) : (
+        <div className="flex flex-wrap items-stretch gap-2 border-b px-2 py-2">
+          <GrupLangkah no="1" label="Santri">
             <div className="flex flex-col gap-1">
-              <FieldLabel htmlFor="info_gen_periode">Periode</FieldLabel>
-              <p id="info_gen_periode" className="flex h-8 items-center text-xs text-muted-foreground">
-                Otomatis {tahunAjaran ?? '—'} (satu tagihan per TA)
-              </p>
+              <FieldLabel htmlFor="sel_gen_kelompok">Kelompok Santri</FieldLabel>
+              <select id="sel_gen_kelompok" className="h-8 rounded border px-2 text-sm" value={kelompok} onChange={(e) => setKelompok(e.target.value as KelompokKandidat)}>
+                {OPSI_KELOMPOK.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
             </div>
-          )}
-          {bulanan ? (
+          </GrupLangkah>
+          <GrupLangkah no="2" label="Tagihan">
             <div className="flex flex-col gap-1">
-              <FieldLabel htmlFor="info_gen_jatuh_tempo">Jatuh Tempo</FieldLabel>
-              <p id="info_gen_jatuh_tempo" className="flex h-8 items-center text-xs text-muted-foreground">
-                Otomatis tanggal 10 bulan berjalan
-              </p>
+              <FieldLabel htmlFor="sel_gen_jenis">Jenis Tagihan</FieldLabel>
+              <select id="sel_gen_jenis" className="h-8 rounded border px-2 text-sm" value={jenisId} onChange={(e) => ubahJenis(e.target.value === '' ? '' : Number(e.target.value))} required>
+                <option value="">Jenis…</option>
+                {jenis.map((j) => <option key={j.id} value={j.id}>{j.nama}{j.jenjang ? ` (${j.jenjang})` : ''}</option>)}
+              </select>
             </div>
-          ) : (
             <div className="flex flex-col gap-1">
-              <FieldLabel htmlFor="inp_gen_jatuh_tempo">Jatuh Tempo</FieldLabel>
-              <Input id="inp_gen_jatuh_tempo" type="date" className="h-8" value={jatuhTempo} onChange={(e) => setJatuhTempo(e.target.value)} aria-describedby="ket_gen_jatuh_tempo" />
-              <p id="ket_gen_jatuh_tempo" className="text-[11px] text-muted-foreground">
-                Kosong = tanpa tenggat, langsung dihitung tunggakan.
-              </p>
+              <FieldLabel htmlFor="sel_gen_tarif">Tarif (opsional)</FieldLabel>
+              <select id="sel_gen_tarif" className="h-8 max-w-64 rounded border px-2 text-sm" value={tarifId} onChange={(e) => pilihTarif(e.target.value === '' ? '' : Number(e.target.value))}>
+                <option value="">Manual…</option>
+                {tarifTampil.map((t) => <option key={t.id} value={t.id}>{t.jenjang} · {t.jenis?.nama ?? t.jenis_id} · Rp {t.nominal.toLocaleString('id')}</option>)}
+              </select>
             </div>
-          )}
-          <p className="pb-1 text-xs text-muted-foreground">
+            <div className="flex flex-col gap-1">
+              <FieldLabel htmlFor="inp_gen_nominal">Nominal Default</FieldLabel>
+              <Input id="inp_gen_nominal" type="number" min={0} className="h-8 w-32" value={nominalDefault} onChange={(e) => ubahNominalDefault(e.target.value)} required />
+            </div>
+          </GrupLangkah>
+          <GrupLangkah no="3" label="Periode">
+            {bulanan ? (
+              <>
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="inp_gen_dari">Dari Bulan</FieldLabel>
+                  <Input id="inp_gen_dari" type="month" className="h-8" value={periodeDari} onChange={(e) => setPeriodeDari(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="inp_gen_sampai">Sampai Bulan</FieldLabel>
+                  <Input id="inp_gen_sampai" type="month" className="h-8" value={periodeSampai} onChange={(e) => setPeriodeSampai(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="info_gen_jatuh_tempo">Jatuh Tempo</FieldLabel>
+                  <p id="info_gen_jatuh_tempo" className="flex h-8 items-center text-xs text-muted-foreground">
+                    Otomatis tgl 10
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="info_gen_periode">Periode</FieldLabel>
+                  <p id="info_gen_periode" className="flex h-8 items-center text-xs text-muted-foreground">
+                    Otomatis {tahunAjaran ?? '—'}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="inp_gen_jatuh_tempo">Jatuh Tempo</FieldLabel>
+                  <Input id="inp_gen_jatuh_tempo" type="date" className="h-8" value={jatuhTempo} onChange={(e) => setJatuhTempo(e.target.value)} aria-describedby="ket_gen_jatuh_tempo" />
+                </div>
+              </>
+            )}
+          </GrupLangkah>
+          <p className="self-center pb-0 text-xs text-muted-foreground">
             {tahunAjaran === null
               ? <span className="text-destructive">Pilih satu tahun ajaran pada filter di atas.</span>
-              : bulanan
-                ? <>TA {tahunAjaran}. Isi Dari Bulan; Sampai Bulan opsional (kosong = satu bulan, maks 24 bulan). Tunggakan dihitung setelah tanggal 10 bulan berjalan lewat.</>
-                : <>TA {tahunAjaran}. Jenis non-bulanan: periode otomatis kode TA — bisa digenerate lagi di tahun ajaran berikutnya. Isi Jatuh Tempo bila tagihan ini punya tenggat; kosong = langsung dihitung tunggakan.</>}
+              : <>TA {tahunAjaran} · {bulanan ? 'tunggakan dihitung setelah tgl 10 lewat' : 'kosongkan jatuh tempo = langsung tunggakan'} · nominal per baris bisa diketik ulang (manual menang).</>}
           </p>
         </div>
 
         {err !== '' && <div className="px-2 pt-2"><ErrorNotice>{err}</ErrorNotice></div>}
 
+        {hasil !== null ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                { label: 'Dibuat', nilai: hasil.dibuat, id: 'hasil_gen_dibuat' },
+                { label: 'Diperbarui', nilai: hasil.diperbarui, id: 'hasil_gen_diperbarui' },
+                { label: 'Tetap', nilai: hasil.tetap, id: 'hasil_gen_tetap' },
+                { label: 'Dilewati', nilai: hasil.dilewati, id: 'hasil_gen_dilewati' },
+              ].map((k) => (
+                <div key={k.id} id={k.id} className="rounded-lg border bg-muted/30 px-3 py-2">
+                  <p className="text-2xl font-semibold">{k.nilai}</p>
+                  <p className="text-xs text-muted-foreground">{k.label}</p>
+                </div>
+              ))}
+            </div>
+            {hasil.alasan.length > 0 ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-1">
+                <p className="text-sm font-medium">Dilewati ({hasil.alasan.length})</p>
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <ExcelTable<AlasanHasil>
+                    tableKey="keuangan_gen_hasil"
+                    fields={FIELDS_HASIL}
+                    rows={hasil.alasan}
+                    getValues={(r) => ({
+                      nama: r.nama, periode: r.periode ?? 'sekali', sebab: r.sebab,
+                      terbayar: `Rp ${r.terbayar.toLocaleString('id')}`,
+                    })}
+                    emptyText="—"
+                    canEdit={false}
+                    onCommit={async () => {}}
+                    onSaved={() => {}}
+                    hideCheckbox
+                    hideActions
+                    renderActions={() => null}
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Semua baris terproses tanpa ada yang dilewati.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" disabled={busy} onClick={() => setHasil(null)}>Susun lagi</Button>
+              <Button type="button" disabled={busy} onClick={() => onOpenChange(false)}>Tutup</Button>
+            </div>
+          </div>
+        ) : (
         <ResizablePanelGroup orientation="horizontal" id="grup_gen_tagihan" className="min-h-0 flex-1 overflow-hidden">
           <ResizablePanel defaultSize="50%" minSize="25%" id="panel_gen_kandidat" className="min-h-0 min-w-0">
             <div className="flex h-full min-h-0 flex-col gap-1 p-2">
@@ -510,11 +612,12 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     fields={FIELDS_TERPILIH}
                     rows={terpilih.map((r) => ({ ...r, id: r.santri_id }))}
                     getValues={(r) => ({
-                      nama: r.nama_lengkap,
+                      nama: r.nominalManual ? `● ${r.nama_lengkap}` : r.nama_lengkap,
                       kelas: [r.tingkat, r.kelas].filter(Boolean).join(' / ') || '—',
                       sekarang: ringkasSudahAda(r, jumlahPeriode),
                       nominal: r.nominal,
-                      rincian: r.nominalManual ? 'Nominal manual' : r.rincian,
+                      mode: r.nominalManual ? 'Manual' : 'Otomatis',
+                      rincian: r.nominalManual ? 'Nominal manual — dispensasi tak diterapkan' : r.rincian,
                       dispensasi: r.dispensasiLabel === null
                         ? null
                         : `${r.potongan > 0 ? `−Rp ${r.potongan.toLocaleString('id')} · ` : ''}${r.dispensasiLabel}`,
@@ -530,17 +633,27 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     aksiLangsung
                     hideCheckbox
                     renderActions={(r) => (
-                      <ActionIcon id={`btn_gen_hapus_${r.santri_id}`} title="Keluarkan dari daftar" onClick={() => setTerpilih((rows) => rows.filter((x) => x.santri_id !== r.santri_id))}>
-                        <Trash2 size={16} />
-                      </ActionIcon>
+                      <span className="flex items-center gap-1">
+                        {r.nominalManual && (
+                          <ActionIcon id={`btn_gen_otomatis_${r.santri_id}`} title="Kembalikan ke otomatis (hitung ulang + dispensasi)" onClick={() => setTerpilih((rows) => rows.map((x) => x.santri_id === r.santri_id
+                            ? { ...x, nominal: nominalDefault, nominalManual: false, potongan: 0, dispensasiIds: null, dispensasiLabel: null, rincian: null, periode: null }
+                            : x))}>
+                            <span className="text-[11px] font-semibold">Auto</span>
+                          </ActionIcon>
+                        )}
+                        <ActionIcon id={`btn_gen_hapus_${r.santri_id}`} title="Keluarkan dari daftar" onClick={() => setTerpilih((rows) => rows.filter((x) => x.santri_id !== r.santri_id))}>
+                          <Trash2 size={16} />
+                        </ActionIcon>
+                      </span>
                     )}
                   />
                 </div>
               </div>
             </ResizablePanel>
         </ResizablePanelGroup>
+        )}
 
-        {pratinjauGagal && (
+        {pratinjauGagal && !hasil && (
           <p className="border-t px-2 py-1 text-[11px] text-muted-foreground">
             Pratinjau potongan gagal dimuat — nominal tampil sebelum dispensasi. Angka final dihitung saat Generate.
           </p>
@@ -548,11 +661,11 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
         <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-2 py-2 sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            {terpilih.length} santri · total Rp {totalNominal.toLocaleString('id')}
+            {terpilih.length} santri × {jumlahPeriode} bulan = {ringkasan.baris} tagihan · estimasi Rp {ringkasan.total.toLocaleString('id')}
           </p>
           <div className="flex gap-2">
             <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Batal</Button>
-            <Button id="btn_gen_generate" type="button" disabled={busy} onClick={() => void simpan()}>Generate</Button>
+            <Button id="btn_gen_generate" type="button" disabled={busy || terpilih.length === 0} onClick={() => void simpan()}>Generate</Button>
           </div>
         </DialogFooter>
       </DialogContent>
