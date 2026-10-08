@@ -1,4 +1,3 @@
-import { DENSITY_PX, type DensityName } from '@/prefs';
 import { useTheme } from '@/theme';
 import {
   DEFAULT_FONT_PX,
@@ -9,14 +8,12 @@ import {
   FONT_TABEL_DEFAULT,
   MAX_FONT_PX,
   MAX_HEADER_H,
-  MAX_ROW_H,
   MIN_FONT_PX,
   MIN_HEADER_H,
-  MIN_ROW_H,
   useGridPrefs,
 } from '@/components/GridPrefs';
 import type { RibbonTableApi } from '@/components/RibbonTable';
-import { DensityLarge, DensityMedium, DensitySmall, Pencil, PlusCircle, RotateCcw, type Ikon } from '@/icons';
+import { Pencil, PlusCircle, RotateCcw } from '@/icons';
 import {
   Select,
   SelectContent,
@@ -27,7 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { RibbonCmd, RibbonGroup, RibbonPemisah, SpinBox } from './primitives';
 
 /** Pemilih jenis huruf bergaya ribbon (dipakai isi tabel & header tabel). */
@@ -107,18 +103,9 @@ function WarnaInput({
   );
 }
 
-/** Item kerapatan (ikon saja — label jadi tooltip). Tinggi seragam `h-6`,
- *  sejajar dengan tiap baris stepper vertikal. Rapat = banyak baris. */
-const KERAPATAN: { id: DensityName; nama: string; icon: Ikon }[] = [
-  { id: 'ramping', nama: 'Ramping', icon: DensitySmall },
-  { id: 'sedang', nama: 'Sedang', icon: DensityMedium },
-  { id: 'nyaman', nama: 'Nyaman', icon: DensityLarge },
-];
-
 export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
-  const { density, dark, parts, setGayaBagian, setWarnaBagian, setDensity } = useTheme();
-  const { rowH, headerH, fontPx, fontFamily, setRowH, setHeaderH, setFontPx, setFontFamily } = useGridPrefs();
-  const effectiveH = rowH ?? DENSITY_PX[density];
+  const { dark, parts, setGayaBagian, setWarnaBagian } = useTheme();
+  const { headerH, fontPx, fontFamily, setHeaderH, setFontPx, setFontFamily } = useGridPrefs();
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
   /** Tinggi header efektif: nilai riil tabel aktif (auto/manual) agar spinner
    *  tidak menampilkan angka yang berbeda dari yang dirender. */
@@ -220,48 +207,6 @@ export function RibbonTabel({ apiTabel }: { apiTabel: RibbonTableApi | null }) {
               onClick={() => setHeaderH(null)}
             />
           </div>
-        </div>
-      </RibbonGroup>
-      <RibbonPemisah />
-      <RibbonGroup disabled={!apiTabel}>
-        <div className="flex items-start gap-1.5">
-          <ToggleGroup
-            type="single"
-            orientation="vertical"
-            spacing={0}
-            value={density}
-            onValueChange={(v) => {
-              if (!v) return;
-              setDensity(v as DensityName);
-              // Kosongkan tinggi baris manual agar preset kerapatan berlaku.
-              setRowH(null);
-            }}
-            className="flex-col items-stretch pt-px"
-          >
-            {KERAPATAN.map((k) => (
-              <ToggleGroupItem
-                key={k.id}
-                id={`btn_kerapatan_${k.id}`}
-                value={k.id}
-                title={`Kerapatan ${k.nama}`}
-                aria-label={`Kerapatan ${k.nama}`}
-                className="h-6 w-8 rounded-md border-0 px-0 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] data-[state=on]:bg-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] data-[state=on]:text-[var(--sidebar-foreground)] data-[spacing=0]:rounded-md data-[spacing=0]:first:rounded-md data-[spacing=0]:last:rounded-md"
-              >
-                <k.icon size={14} />
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          <SpinBox
-            id="input_tinggi_top"
-            vertikal
-            value={effectiveH}
-            min={MIN_ROW_H}
-            max={MAX_ROW_H}
-            title="Tinggi baris (berlaku semua tabel)"
-            ariaLabel="Tinggi baris (px)"
-            disabled={!apiTabel}
-            onChange={setRowH}
-          />
         </div>
       </RibbonGroup>
       <RibbonPemisah />

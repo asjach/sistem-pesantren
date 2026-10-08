@@ -7,7 +7,28 @@ import {
   MIN_BARIS_H,
   PAD_X_SEL,
   PAD_Y_SEL,
+  tinggiBarisBerikut,
+  TINGGI_BARIS_OPSI,
 } from './tinggiBaris';
+
+describe('tinggiBarisBerikut', () => {
+  it('memutar ke pilihan berikutnya dan melingkar dari nilai terakhir', () => {
+    expect(TINGGI_BARIS_OPSI).toEqual([20, 24, 28, 32]);
+    expect(tinggiBarisBerikut(20)).toBe(24);
+    expect(tinggiBarisBerikut(24)).toBe(28);
+    expect(tinggiBarisBerikut(28)).toBe(32);
+    expect(tinggiBarisBerikut(32)).toBe(20);
+  });
+
+  it('nilai di luar daftar → pilihan terkecil yang lebih besar', () => {
+    expect(tinggiBarisBerikut(30)).toBe(32);
+    expect(tinggiBarisBerikut(21)).toBe(24);
+  });
+
+  it('nilai di atas semua pilihan → kembali ke pilihan pertama', () => {
+    expect(tinggiBarisBerikut(50)).toBe(20);
+  });
+});
 
 describe('hitungBarisTeks', () => {
   it('selalu minimal satu baris untuk teks kosong atau lebar nol', () => {

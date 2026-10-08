@@ -9,6 +9,8 @@ import { PER_PAGE_ALL, PER_PAGE_OPTIONS, normalizePerPage, type PerPage } from '
 interface Props {
   page: number;
   lastPage: number;
+  /** Jumlah seluruh baris. Tidak lagi ditampilkan di kanan bawah (posisi itu
+   *  kini dipakai tombol tinggi baris); tetap diterima agar pemanggil utuh. */
   total: number;
   onPage: (p: number) => void;
   perPage: PerPage;
@@ -18,7 +20,7 @@ interface Props {
 /** Pagination bawaan semua halaman tabel (default 50/halaman, persisten).
  *  Tak ditampilkan bila seluruh data masuk dalam satu halaman — kecuali pada
  *  pilihan "Semua", kontrol tetap tampil agar bisa dikembalikan. */
-export default function Pager({ page, lastPage, total, onPage, perPage, onPerPage }: Props) {
+export default function Pager({ page, lastPage, onPage, perPage, onPerPage }: Props) {
   return (
     <div id="pager" className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 px-1 py-1">
       <div className="flex min-w-0 items-center gap-2">
@@ -75,9 +77,6 @@ export default function Pager({ page, lastPage, total, onPage, perPage, onPerPag
           <ChevronRight size={16} />
         </Button>
       </div>
-      <span className="flex h-6 min-w-0 items-center justify-self-end text-right text-xs text-muted-foreground">
-        {total} data
-      </span>
     </div>
   );
 }

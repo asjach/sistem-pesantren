@@ -17,6 +17,7 @@ import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import FilterRail from '@/components/FilterRail';
+import TombolTinggiBaris from './excel/TombolTinggiBaris';
 import ScrollbarMelayang from './excel/ScrollbarMelayang';
 import { gabungUrutan } from './excel/urutanKolom';
 import { judulTabel } from './excel/judul';
@@ -1566,6 +1567,12 @@ export default function ExcelTable<T extends { id: string | number }>({
           </AlertDialogContent>
         </AlertDialog>
       </div>
+      </div>
+
+      {/* Tombol tinggi baris: kanan bawah tiap tabel (menggantikan hitungan
+          data Pager). Nilainya global, tetapi tombolnya muncul di semua tabel. */}
+      <div className="mt-1 flex shrink-0 items-center justify-end">
+        <TombolTinggiBaris tableKey={tableKey} />
       </div>
 
       {/* Bilah status mode di bawah tabel (bagian badan halaman): menandai Mode

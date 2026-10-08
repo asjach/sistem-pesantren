@@ -20,10 +20,10 @@ function pasang(overrides: Partial<Parameters<typeof Pager>[0]> = {}) {
 }
 
 describe('Pager', () => {
-  it('menampilkan posisi halaman dan jumlah data', () => {
+  it('menampilkan posisi halaman (tanpa hitungan data)', () => {
     pasang();
     expect(screen.getByText('Hal 2 / 5')).toBeInTheDocument();
-    expect(screen.getByText('250 data')).toBeInTheDocument();
+    expect(screen.queryByText('250 data')).not.toBeInTheDocument();
   });
 
   it('tombol sebelumnya terkunci di halaman 1 dan berikutnya di halaman terakhir', () => {
