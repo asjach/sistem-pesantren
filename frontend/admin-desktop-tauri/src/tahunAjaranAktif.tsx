@@ -75,8 +75,13 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
         return;
       }
       // Tunggu lembaga aktif selesai dimuat agar tak memuat dua kali
-      // (untuk "Semua" lalu untuk jenjang terpilih).
-      if (lembagaLoading) return;
+      // (untuk "Semua" lalu untuk jenjang terpilih). Selama menunggu lapor
+      // SIBUK (bukan ready-kosong): hilir (rail/tabel) mengira scope final
+      // bila loading false + daftar kosong, lalu memuat ulang sia-sia.
+      if (lembagaLoading) {
+        setLoading(true);
+        return;
+      }
 
       setLoading(true);
       let daftar: TahunAjaran[] = [];

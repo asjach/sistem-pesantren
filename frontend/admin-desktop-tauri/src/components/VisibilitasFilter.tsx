@@ -131,11 +131,23 @@ export function VisibilitasFilterProvider({ children }: { children: ReactNode })
   }, [registrasiAktif, pageKey]);
   const kunciBacaRef = useRef(kunciBaca);
   kunciBacaRef.current = kunciBaca;
+  /** Muatan terakhir yang sudah diterapkan. Transisi registrasi fallback →
+   *  asli (atau render ulang) dengan kunci+bawaan sama TIDAK boleh memuat
+   *  ulang + menyentuh `siap`: tanpa penjaga ini setiap masuk halaman memuat
+   *  `pengaturan-tabel` 2–3× dan flag `siap` berkedip sehingga rail/tabel ikut
+   *  berkedip. */
+  const muatCache = useRef('');
 
   useEffect(() => {
     const relevan = registrasiAktif?.filterRelevan ?? konfigurasi.filter;
     const bawaan = registrasiAktif?.bawaan ?? konfigurasi.tampil;
     const modeBawaan = registrasiAktif?.modeBawaan ?? konfigurasi.mode;
+
+    // Kunci mencakup bawaan: halaman dengan override `tampil` berbeda tetap
+    // direset dengan benar saat kunci berubah. Cache diisi saat muat SELESAI
+    // (bukan di awal) agar cleanup StrictMode tidak membuat `siap` macet.
+    const kunci = JSON.stringify([pageKey, kunciBacaRef.current, relevan, bawaan, modeBawaan]);
+    if (muatCache.current === kunci) return;
 
     setTampil({ ...bawaan });
     setMode({ ...modeBawaan });
@@ -155,7 +167,9 @@ export function VisibilitasFilterProvider({ children }: { children: ReactNode })
         })
         .catch(() => {})
         .finally(() => {
-          if (hidup) setPageSiap(pageKey);
+          if (!hidup) return;
+          muatCache.current = kunci;
+          setPageSiap(pageKey);
         });
     };
 

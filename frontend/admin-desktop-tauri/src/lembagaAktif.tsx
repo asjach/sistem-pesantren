@@ -66,6 +66,19 @@ function simpanNilaiAktif(values: readonly string[]): string {
   return JSON.stringify(normalisasiNilaiAktif(values));
 }
 
+/** Samakan isi dua daftar pilihan (abaikan identitas array + urutan). */
+function samaPilihan(a: readonly PilihanLembaga[], b: readonly PilihanLembaga[]): boolean {
+  if (a.length !== b.length) return false;
+  const kunci = (p: PilihanLembaga) => `${p.jenjang}|${p.nama}`;
+  const daftarA = a.map(kunci).sort().join('\n');
+  return daftarA === b.map(kunci).sort().join('\n');
+}
+
+/** Samakan isi dua daftar string (abaikan identitas array). */
+function samaString(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
 const Ctx = createContext<LembagaAktifState | null>(null);
 
 export function LembagaAktifProvider({ children }: { children: ReactNode }) {
@@ -85,6 +98,18 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     && (user.roles.some((r) => r.name === 'super_admin')
       || (user.roles.some((r) => r.name === 'admin') && (user.lembagas?.length ?? 0) === 0));
 
+  /** Cakupan terakhir yang sudah dimuat penuh. `setUser` beridentitas baru
+   *  TAPI isi sama (mis. penyegaran /me) tidak boleh memicu muat ulang:
+   *  tanpa penjaga ini setiap refresh identitas meledakkan `loading`,
+   *  mengganti identitas `jenjangs`/`pilihan`, dan merembet ke rail +
+   *  tabel (daftar hilang lalu muncul lagi). Kunci mencakup peran efektif
+   *  sehingga "bertindak sebagai" (peran menyempit) tetap memuat ulang. */
+  const cakupanMuat = useRef('');
+  const peranSig = user
+    ? `${[...user.roles.map((r) => r.name)].sort().join(',')}|${(user.lembagas ?? []).map((l) => l.jenjang).sort().join(',')}`
+    : '';
+  const kunciCakupan = `${idPengguna ?? ''}|${adaSemua}|${peranSig}`;
+
   useEffect(() => {
     let alive = true;
 
@@ -94,11 +119,17 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
         setPilihanPeran([]);
         setJenjangs([]);
         setPeranJenjang(null);
+        cakupanMuat.current = '';
         // `loading` sengaja TIDAK dimatikan di sini: selama user belum ada,
         // provider anak (tahun ajaran/TopBar) harus tetap menunggu agar tidak
         // memuat untuk state perantara ("Semua" lalu jenjang terpilih).
         return;
       }
+
+      // Cakupan sama dengan yang sudah dimuat (mis. `setUser` identitas baru
+      // isi sama): lewati total — tanpa ini `loading` meledak + identitas
+      // array berganti sehingga rail/tabel memuat ulang sia-sia.
+      if (cakupanMuat.current === kunciCakupan) return;
 
       setLoading(true);
       const peranSuper = user.roles.some((r) => r.name === 'super_admin');
@@ -125,8 +156,8 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
         daftar = (user.lembagas ?? []).map((l) => ({ jenjang: l.jenjang, nama: l.nama }));
       }
       if (!alive) return;
-      setPilihan(daftar);
-      setPilihanPeran(daftarPeran);
+      setPilihan((prev) => (samaPilihan(prev, daftar) ? prev : daftar));
+      setPilihanPeran((prev) => (samaPilihan(prev, daftarPeran) ? prev : daftarPeran));
 
       const simpanan = await prefGet(KEY).catch(() => null);
       const valid = bacaNilaiAktif(simpanan).filter((nilai) =>
@@ -143,7 +174,9 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
         terpilih = adaSemua ? [] : (daftar[0] ? [daftar[0].jenjang] : []);
       }
       if (!alive) return;
-      setJenjangs(terpilih);
+      // Identitas stabil bila isi sama: hilir (`scopeJenjang`, deps tabel)
+      // tidak boleh mengira lingkup berganti.
+      setJenjangs((prev) => (samaString(prev, terpilih) ? prev : terpilih));
       // Pulihkan peran tersimpan (hanya jenjang yang masih valid di daftar).
       const simpananPeran = await prefGet(PERAN_KEY).catch(() => null);
       if (alive && simpananPeran && simpananPeran !== '0' && daftar.some((d) => d.jenjang === simpananPeran)) {
@@ -156,6 +189,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
           me().then((u) => { if (alive && isDesktopRoleAllowed(u)) setUser(u); }).catch(() => {});
         }
       }
+      if (alive) cakupanMuat.current = kunciCakupan;
       setLoading(false);
     })();
 

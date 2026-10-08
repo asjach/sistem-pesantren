@@ -71,8 +71,12 @@ export default function FilterRail() {
   const { jenjangs, tahunAjaranNames, tingkat, kelas, loading: filterLoading } = useFilterGlobalAktif();
   const { pilih: pilihTingkat } = useTingkatAktif();
   const { pilih: pilihKelas } = useKelasAktif();
-  const [kelasTersedia, setKelasTersedia] = useState<Kelas[]>([]);
-  const [tingkatReferensi, setTingkatReferensi] = useState<ReferensiRow[]>([]);
+  /** `null` = BELUM dimuat (tampilkan "Memuat…"), `[]` = sudah dimuat kosong.
+   *  Tanpa pembeda ini cat pertama menampilkan "Tidak ada …" lalu berganti
+   *  "Memuat…" lalu daftar — dua kali kedip teks tiap masuk halaman. */
+  const [kelasTersedia, setKelasTersedia] = useState<Kelas[] | null>(null);
+  const [kelasLoading, setKelasLoading] = useState(false);
+  const [tingkatReferensi, setTingkatReferensi] = useState<ReferensiRow[] | null>(null);
   const [tingkatReferensiLoading, setTingkatReferensiLoading] = useState(false);
   const [tingkatReferensiGagal, setTingkatReferensiGagal] = useState(false);
   const [modeBusy, setModeBusy] = useState<RailGroup | null>(null);
@@ -87,11 +91,23 @@ export default function FilterRail() {
   const scopeMiMd = pathname === '/mi-md';
   const hideTingkatAll = pageKey === 'pindah_kelas';
   const scopeJenjang = useMemo(() => (scopeMiMd ? ['MI', 'MD'] : jenjangs), [scopeMiMd, jenjangs]);
+  /** Kunci ISI lingkup (bukan identitas array): fetch hanya diulang bila
+   *  isinya benar-benar berubah — identitas baru isi-sama (mis. setState
+   *  ulang provider) tidak boleh mengosongkan + memuat ulang daftar. */
+  const scopeKey = scopeJenjang.join(',');
+  const taKey = tahunAjaranNames.join(',');
   const showTingkat = !!filter?.filterRelevan.includes('tingkat') && filter.tampil.tingkat;
   const showKelas = !!filter?.filterRelevan.includes('kelas') && filter.tampil.kelas;
   const modeTingkat = filter?.mode.tingkat ?? 'single';
   const modeKelas = filter?.mode.kelas ?? 'single';
-  const loading = filterLoading || tingkatReferensiLoading;
+  /** Sibuk = masih tahap muat (salah satu fetch ATAU daftar belum pernah
+   *  terisi). Satu periode sibuk stabil — tombol redup/nonaktif sekali,
+   *  bukan berkedip tiap tahap fetch selesai. */
+  const loading = filterLoading
+    || tingkatReferensiLoading
+    || kelasLoading
+    || (showTingkat && tingkatReferensi === null)
+    || (showKelas && kelasTersedia === null);
 
   async function ubahMode(group: RailGroup, next: ModeFilterGlobal) {
     const current = group === 'tingkat' ? modeTingkat : modeKelas;
@@ -136,13 +152,16 @@ export default function FilterRail() {
 
   useEffect(() => {
     if (!showTingkat) {
-      setTingkatReferensi([]);
+      setTingkatReferensi(null);
       setTingkatReferensiLoading(false);
       setTingkatReferensiGagal(false);
       return;
     }
+    // Tunggu filter global siap: tanpa ini fetch pertama memakai lingkup
+    // kosong (terbuang), lalu diulang dengan lingkup final — daftar berkedip.
+    if (filterLoading) return;
     let hidup = true;
-    setTingkatReferensi([]);
+    setTingkatReferensi(null);
     setTingkatReferensiLoading(true);
     setTingkatReferensiGagal(false);
     referensiList('tingkat', scopeJenjang.length > 0 ? scopeJenjang : undefined)
@@ -156,24 +175,32 @@ export default function FilterRail() {
         if (hidup) setTingkatReferensiLoading(false);
       });
     return () => { hidup = false; };
-  }, [scopeJenjang, showTingkat]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeKey, showTingkat, filterLoading]);
 
   useEffect(() => {
     if ((!showTingkat && !showKelas) || scopeJenjang.length === 0 || tahunAjaranNames.length === 0) {
       setKelasTersedia([]);
+      setKelasLoading(false);
       return;
     }
     if (filterLoading) return;
     let hidup = true;
+    // null + flag: daftar lama (lingkup lain) tidak dipertahankan —
+    // "Memuat…" deterministik, bukan daftar usang lalu berganti.
+    setKelasTersedia(null);
+    setKelasLoading(true);
     listKelas({ jenjang: scopeJenjang, tahun_ajaran: tahunAjaranNames, per_page: 1000 })
       .then((res) => { if (hidup) setKelasTersedia(res.data); })
-      .catch(() => { if (hidup) setKelasTersedia([]); });
+      .catch(() => { if (hidup) setKelasTersedia([]); })
+      .finally(() => { if (hidup) setKelasLoading(false); });
     return () => { hidup = false; };
-  }, [filterLoading, showKelas, showTingkat, scopeJenjang, tahunAjaranNames]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterLoading, showKelas, showTingkat, scopeKey, taKey]);
 
   const tingkatOpsi = useMemo(() => {
     const values = new Map<string, number>();
-    for (const row of tingkatReferensi) {
+    for (const row of tingkatReferensi ?? []) {
       const nama = row.nama?.trim();
       if (!nama || row.is_active === false) continue;
       const urutan = Number.isFinite(row.urutan) ? row.urutan : 0;
@@ -186,19 +213,19 @@ export default function FilterRail() {
   }, [tingkatReferensi]);
 
   const kelasOpsi = useMemo(() => {
-    const values = kelasTersedia
+    const values = (kelasTersedia ?? [])
       .filter((item) => !showTingkat || tingkat.length === 0 || (item.tingkat != null && tingkat.includes(String(item.tingkat))))
       .map((item) => item.nama_kelas)
       .filter(Boolean);
     return [...new Set(values)].sort((a, b) => a.localeCompare(b, 'id', { numeric: true }));
-  }, [kelasTersedia, tingkat]);
+  }, [kelasTersedia, tingkat, showTingkat]);
 
   if (!showTingkat && !showKelas) return null;
 
   function applyLevelSelection(next: string[], currentKelas: readonly string[] = stateFilterRef.current.kelas) {
     pilihTingkat(next);
     const validClasses = new Set(
-      stateFilterRef.current.kelasTersedia
+      (stateFilterRef.current.kelasTersedia ?? [])
         .filter((item) => next.length === 0 || (item.tingkat != null && next.includes(String(item.tingkat))))
         .map((item) => item.nama_kelas),
     );
@@ -302,9 +329,9 @@ export default function FilterRail() {
                All
              </button>
            ) : null}
-           {tingkatReferensiLoading ? (
-             <span className="block px-1 py-3 text-center text-[10px] text-muted-foreground">Memuat…</span>
-           ) : tingkatReferensiGagal ? (
+            {tingkatReferensiLoading || tingkatReferensi === null ? (
+              <span className="block px-1 py-3 text-center text-[10px] text-muted-foreground">Memuat…</span>
+            ) : tingkatReferensiGagal ? (
              <span className="block px-1 py-3 text-center text-[10px] text-muted-foreground">Gagal memuat</span>
 ) : tingkatOpsi.length > 0 ? tingkatOpsi.map((value, index) => {
              const active = tingkat.includes(value);
