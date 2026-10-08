@@ -283,6 +283,65 @@ class DispensasiTest extends TestCase
             ->assertStatus(200)->assertExactJson([]);
     }
 
+    public function test_generate_segrup_tidak_menumpuk_meneruskan_yang_menempel(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Grup');
+        $ganjil = $this->paket($jenis, 'Prestasi Ganjil', 'bebas', 0, $santri);
+        $ganjil->update(['grup' => 'prestasi']);
+        $genap = $this->paket($jenis, 'Prestasi Genap', 'bebas', 0, $santri);
+        $genap->update(['grup' => 'prestasi']);
+
+        $payload = [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id,
+            'periode' => '2025-07', 'periode_sampai' => '2025-08', 'nominal' => 100000,
+            'santri' => [['santri_id' => $santri->id]],
+        ];
+        // Baris baru: ganjil (id lebih kecil) menang, genap dicoret.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
+            ->assertStatus(200)->assertJson(['dibuat' => 2]);
+        $jul = Tagihan::where('santri_id', $santri->id)->where('periode', '2025-07')->firstOrFail();
+        $this->assertSame([$ganjil->id], $jul->dispensasi_ids);
+
+        // Genap ditempel manual di Agustus, generate ulang: ganjil tidak
+        // menimpa (meneruskan), genap bertahan.
+        $agu = Tagihan::where('santri_id', $santri->id)->where('periode', '2025-08')->firstOrFail();
+        $agu->update(['dispensasi_ids' => [$genap->id]]);
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)->assertStatus(200);
+        $this->assertSame([$ganjil->id], $jul->fresh()->dispensasi_ids);
+        $this->assertSame([$genap->id], $agu->fresh()->dispensasi_ids);
+    }
+
+    public function test_ubah_menggantikan_yang_segrup_mempertahankan_lain(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Ganti');
+        $anak = $this->paket($jenis, 'Anak Pegawai', 'persen', 50, $santri);
+        $ganjil = $this->paket($jenis, 'Ganjil', 'bebas', 0, $santri);
+        $ganjil->update(['grup' => 'prestasi']);
+        $genap = $this->paket($jenis, 'Genap', 'bebas', 0, $santri);
+        $genap->update(['grup' => 'prestasi']);
+
+        $t = $this->tagihanManual($santri, $jenis);
+        // Pasang anak + ganjil: beda grup → digabung (50% → 50rb lalu bebas → 0).
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$t->id}", [
+            'nominal' => 100000, 'tahun_ajaran' => '2025/2026', 'dispensasi_ids' => [$anak->id, $ganjil->id],
+        ])->assertStatus(200);
+        $t->refresh();
+        $this->assertSame(0, $t->nominal);
+        $this->assertSame([$anak->id, $ganjil->id], $t->dispensasi_ids);
+
+        // Pilih genap: menggantikan ganjil se-grup, anak dipertahankan.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$t->id}", [
+            'nominal' => 0, 'tahun_ajaran' => '2025/2026', 'dispensasi_ids' => [$genap->id],
+        ])->assertStatus(200);
+        $t->refresh();
+        $this->assertSame(0, $t->nominal);
+        $this->assertSame([$anak->id, $genap->id], $t->dispensasi_ids);
+    }
+
     public function test_aturan_hanya_berlaku_untuk_jenisnya_dan_bebas_menihilkan(): void
     {
         $admin = $this->admin();

@@ -64,6 +64,41 @@ class DispensasiService
     }
 
     /**
+     * Gabung dua daftar paket per grup: `$utama` menang dalam grupnya
+     * (yang kalah se-grup dicoret — tak menimpa, tak menumpuk);
+     * grup null selalu digabung. Generate memakai (menempel, berlaku),
+     * Ubah memakai (diminta, menempel).
+     *
+     * @param  Collection<int, Dispensasi>  $utama
+     * @param  Collection<int, Dispensasi>  $lawan
+     * @return Collection<int, Dispensasi>
+     */
+    public function selaraskan(Collection $utama, Collection $lawan): Collection
+    {
+        $grupUtama = [];
+        foreach ($utama as $d) {
+            if ($d->grup !== null) {
+                $grupUtama[$d->grup] = true;
+            }
+        }
+        $hasil = $utama->values();
+        foreach ($lawan as $d) {
+            if ($utama->contains('id', $d->id)) {
+                continue;
+            }
+            if ($d->grup !== null && isset($grupUtama[$d->grup])) {
+                continue;
+            }
+            $hasil->push($d);
+            if ($d->grup !== null) {
+                $grupUtama[$d->grup] = true;
+            }
+        }
+
+        return $hasil->unique('id')->values();
+    }
+
+    /**
      * Aturan satu dispensasi untuk satu jenis: spesifik (`jenis_id` = jenis)
      * menang atas umum (`jenis_id` null); null bila tak ada yang cocok.
      * Publik untuk validasi eksplisit di ubah-tagihan (dipakai juga di

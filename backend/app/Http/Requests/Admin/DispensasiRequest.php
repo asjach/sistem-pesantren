@@ -21,6 +21,8 @@ class DispensasiRequest extends FormRequest
             'tahun_ajaran' => 'required|string|exists:tahun_ajaran,nama',
             // Kuota bulan: khusus tagihan bulanan (null = tanpa batas).
             'kuota_bulan' => 'nullable|integer|min:1|max:120',
+            // Grup eksklusivitas (mis. "prestasi"); null = selalu digabung.
+            'grup' => 'nullable|string|max:50',
             'aturan' => 'required|array|min:1',
             'aturan.*.jenis_id' => 'nullable|integer|exists:jenis_tagihan,id',
             'aturan.*.tipe' => 'required|in:persen,nominal,bebas',

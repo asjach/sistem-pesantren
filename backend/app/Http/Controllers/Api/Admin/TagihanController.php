@@ -366,7 +366,8 @@ class TagihanController extends Controller
      * otomatis menjadi penerima paket (bebas dari tab Ubah — daftar
      * penerima selalu cermin pemakaian), dalam transaksi yang sama.
      * Paket berkuota yang habis ditolak (kecuali sudah menempel di
-     * tagihan ini) — khusus tagihan bulanan.
+     * tagihan ini) — khusus tagihan bulanan. Pilihan eksplisit
+     * menggantikan yang se-grup; grup lain yang menempel dipertahankan.
      *
      * Nominal tidak boleh turun di bawah yang sudah dibayar (sisa negatif).
      * Status dihitung ulang dari nominal vs terbayar. Jenis bulanan mengabaikan
@@ -413,9 +414,14 @@ class TagihanController extends Controller
                         }
                     }
                 }
+                // Pilihan eksplisit menggantikan yang se-grup; grup lain yang
+                // menempel dipertahankan (digabung, bukan ditimpa semua).
+                $punya = array_map('intval', (array) ($tagihan->dispensasi_ids ?? []));
+                $sudahAda = $this->grupMenempel((int) $tagihan->santri_id)->only($punya)->values();
+                $final = $aturanSvc->selaraskan($paket, $sudahAda);
                 $hasil = $aturanSvc->terapkan(
                     (int) $tagihan->nominal + (int) $tagihan->potongan,
-                    $paket,
+                    $final,
                     (int) $tagihan->jenis_id,
                 );
                 $data['nominal'] = $hasil['nominal'];
@@ -569,7 +575,8 @@ class TagihanController extends Controller
      *
      * Dispensasi aktif selalu otomatis tiap generate; paket berkuota
      * dialokasikan ke N bulan pertama per santri (baris yang sudah
-     * menempel dipertahankan). Generate tak pernah menambah penerima.
+     * menempel dipertahankan). Se-grup tak menumpuk: yang menempel
+     * menang (meneruskan). Generate tak pernah menambah penerima.
      */
     public function generateTagihan(TagihanGenerateRequest $request)
     {
@@ -620,10 +627,14 @@ class TagihanController extends Controller
                 } else {
                     // Generate tak pernah mendaftarkan penerima baru —
                     // itu wewenang dialog Dispensasi / Ubah per tagihan.
-                    $paketDasar = $aturan->saring($daftarDispensasi, (int) $santriId);
+                    $paketDasar = $aturan->saring($daftarDispensasi, (int) $santriId)
+                        ->sortBy('id')->values();
                     // Kuota terpakai per paket (tagihan bulanan santri ini
                     // yang sudah memuat paket) — alokasi per baris di bawah.
                     $pakaiKuota = $this->pakaiKuota($paketDasar, (int) $santriId);
+                    // Paket aktif yang menempel di tagihan santri — prioritas
+                    // "meneruskan" per grup saat digabung per baris.
+                    $grupMap = $this->grupMenempel((int) $santriId);
                     $nominalManual = null;
                 }
 
@@ -640,7 +651,9 @@ class TagihanController extends Controller
                             $potongan = 0;
                             $dispensasiIds = null;
                         } else {
-                            $paketBaris = $this->paketBaris($paketDasar, $pakaiKuota, null, $kuotaBerlaku);
+                            // Baris baru: gabungan = berlaku (menempel tak ada).
+                            $gabung = $aturan->selaraskan(collect(), $paketDasar);
+                            $paketBaris = $this->paketBaris($gabung, $pakaiKuota, null, $kuotaBerlaku);
                             $hitung = $aturan->terapkan((int) $data['nominal'], $paketBaris, (int) $jenis->id);
                             $nominal = $hitung['nominal'];
                             $potongan = $hitung['potongan'];
@@ -673,7 +686,12 @@ class TagihanController extends Controller
                         $punyaIds = null;
                     } else {
                         $punyaIds = $ada->dispensasi_ids;
-                        $paketBaris = $this->paketBaris($paketDasar, $pakaiKuota, $ada, $kuotaBerlaku);
+                        // Menempel menang dalam grupnya (meneruskan);
+                        // pendatang se-grup dicoret sebelum alokasi kuota.
+                        $punya = array_map('intval', (array) $punyaIds);
+                        $sudahAda = $grupMap->only($punya)->values();
+                        $gabung = $aturan->selaraskan($sudahAda, $paketDasar);
+                        $paketBaris = $this->paketBaris($gabung, $pakaiKuota, $ada, $kuotaBerlaku);
                         $hitung = $aturan->terapkan((int) $data['nominal'], $paketBaris, (int) $jenis->id);
                         $nominal = $hitung['nominal'];
                         $potongan = $hitung['potongan'];
@@ -744,6 +762,25 @@ class TagihanController extends Controller
             'dilewati' => count($hasil['alasan']),
             'alasan' => $hasil['alasan'],
         ]);
+    }
+
+    /**
+     * Model paket aktif yang menempel di tagihan santri (periode apa pun),
+     * diindeks id — dasar prioritas "meneruskan" per grup saat digabung
+     * dengan paket berlaku/diminta.
+     *
+     * @return Collection<int, Dispensasi>
+     */
+    private function grupMenempel(int $santriId): Collection
+    {
+        $ids = Tagihan::where('santri_id', $santriId)->whereNotNull('dispensasi_ids')
+            ->pluck('dispensasi_ids')->flatten()->map(fn ($v) => (int) $v)->unique()->values();
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return Dispensasi::with('aturan.jenis')->whereIn('id', $ids)
+            ->where('is_active', true)->get()->keyBy('id');
     }
 
     /**

@@ -101,6 +101,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
   const [keterangan, setKeterangan] = useState('');
   const [ta, setTa] = useState('');
   const [kuota, setKuota] = useState('');
+  const [grup, setGrup] = useState('');
   const [aktif, setAktif] = useState(true);
 
   const [baris, setBaris] = useState<BarisAturan[]>([]);
@@ -139,6 +140,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
     if (editing) {
       setNama(editing.nama); setKeterangan(editing.keterangan ?? ''); setTa(editing.tahun_ajaran);
       setKuota(editing.kuota_bulan === null ? '' : String(editing.kuota_bulan));
+      setGrup(editing.grup ?? '');
       setAktif(editing.is_active);
       const aturan = editing.aturan ?? [];
       setBaris(aturan.filter((a) => a.jenis_id !== null).map((a) => ({ jenisId: a.jenis_id as number, tipe: a.tipe, nilai: String(a.nilai) })));
@@ -147,7 +149,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
       const bawaan = taBawaan !== null && daftarTA.some((x) => x.nama === taBawaan)
         ? taBawaan
         : (daftarTA.find((x) => x.is_aktif)?.nama ?? daftarTA[0]?.nama ?? '');
-      setNama(''); setKeterangan(''); setTa(bawaan); setKuota(''); setAktif(true);
+      setNama(''); setKeterangan(''); setTa(bawaan); setKuota(''); setGrup(''); setAktif(true);
       setBaris([]);
       setSantriPilih(santriAwal ? [{ id: santriAwal.id, nama: santriAwal.nama_lengkap, nisLokal: null, ayah: null, ibu: null }] : []);
     }
@@ -232,6 +234,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
       const k = Number(kuota);
       if (!Number.isInteger(k) || k < 1 || k > 120) { toast.error('Kuota bulan diisi 1–120 atau dikosongkan.'); return; }
     }
+    if (grup.trim().length > 50) { toast.error('Grup maksimal 50 karakter.'); return; }
 
     if (baris.length === 0) { toast.error('Pilih minimal satu jenis tagihan.'); return; }
     const aturan: { jenis_id: number | null; tipe: TipeDispensasi; nilai: number }[] = [];
@@ -246,6 +249,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
       keterangan: keterangan.trim() === '' ? null : keterangan.trim(),
       tahun_ajaran: ta,
       kuota_bulan: kuota.trim() === '' ? null : Number(kuota),
+      grup: grup.trim() === '' ? null : grup.trim(),
       aturan,
       santri_ids: santriPilih.length > 0 ? santriPilih.map((s) => s.id) : null,
       is_active: aktif,
@@ -306,6 +310,12 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
               Kuota Bln <span className="font-normal text-muted-foreground">(opsional)</span>
             </FieldLabel>
             <Input id="inp_dispensasi_kuota" type="number" min={1} max={120} className="h-8" value={kuota} onChange={(e) => setKuota(e.target.value)} placeholder="mis. 6" />
+          </div>
+          <div className="flex w-32 flex-col gap-1">
+            <FieldLabel htmlFor="inp_dispensasi_grup">
+              Grup <span className="font-normal text-muted-foreground">(opsional)</span>
+            </FieldLabel>
+            <Input id="inp_dispensasi_grup" className="h-8" value={grup} onChange={(e) => setGrup(e.target.value)} placeholder="mis. prestasi" />
           </div>
           <div className="flex min-w-52 flex-1 flex-col gap-1">
             <FieldLabel htmlFor="inp_dispensasi_keterangan">

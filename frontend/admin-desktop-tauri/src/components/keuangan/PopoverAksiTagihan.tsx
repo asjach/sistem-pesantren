@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import type { Dispensasi, PembayaranRow } from '@/api/keuangan';
 import { daftarDispensasi, kuotaPakai } from '@/api/keuangan';
 import type { TahunAjaran } from '@/api/master';
-import { hitungDispensasi, ringkasAturan, saringDispensasi, sisaKuota } from '@/lib/dispensasi';
+import { hitungDispensasi, ringkasAturan, saringDispensasi, selaraskanGrup, sisaKuota } from '@/lib/dispensasi';
 import { DeleteAction } from '@/components/RowActions';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
@@ -407,9 +407,15 @@ export default function PopoverAksiTagihan({
   const paketPilih = typeof dispenPilih === 'number'
     ? (dispenDaftar.find((d) => d.id === dispenPilih) ?? null)
     : null;
+  /** Jejak menempel (model dikenal) — digabung dengan pilihan (pilihan
+   *  menang se-grup), cermin `selaraskan` backend. */
+  const jejakModel = (tagihan.dispensasi_ids ?? [])
+    .map((id) => dispenDaftar.find((d) => d.id === id))
+    .filter((d): d is Dispensasi => d !== undefined);
+  const paketFinal = paketPilih ? selaraskanGrup([paketPilih], jejakModel) : [];
   /** Pratinjau hasil paket terpilih (cerminan hitung backend). */
   const pratinjau = paketPilih
-    ? hitungDispensasi(nominalKotor, [paketPilih], tagihan.jenisId)
+    ? hitungDispensasi(nominalKotor, paketFinal, tagihan.jenisId)
     : null;
   const dispenTersentuh = dispenPilih !== undefined;
   /** Nominal efektif terkirim: pratinjau paket, atau ketikan manual. */
@@ -668,7 +674,7 @@ export default function PopoverAksiTagihan({
               )}
               {pratinjau && paketPilih && (
                 <p className="col-start-2 text-[11px] text-muted-foreground">
-                  {rupiah(nominalKotor)} − {rupiah(pratinjau.potongan)} ({paketPilih.nama})
+                  {rupiah(nominalKotor)} − {rupiah(pratinjau.potongan)} ({pratinjau.label || paketPilih.nama})
                   {' → '}<b>{rupiah(pratinjau.nominal)}</b>
                   {!idPenerima.has(paketPilih.id) ? ' · santri otomatis jadi penerima.' : ''}
                 </p>

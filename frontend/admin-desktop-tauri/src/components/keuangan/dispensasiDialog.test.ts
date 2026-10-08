@@ -6,7 +6,7 @@ import { penerimaAwal } from './DispensasiDialog';
 function paket(partial: Partial<Dispensasi> = {}): Dispensasi {
   return {
     id: 2, nama: 'Anak Pegawai', keterangan: null, tahun_ajaran: '2025/2026',
-    kuota_bulan: null,
+    kuota_bulan: null, grup: null,
     santri_ids: null, is_active: true, aturan: [], ...partial,
   };
 }

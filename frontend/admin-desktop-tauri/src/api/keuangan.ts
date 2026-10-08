@@ -146,6 +146,8 @@ export interface Dispensasi {
   id: number; nama: string; keterangan: string | null; tahun_ajaran: string;
   /** Kuota bulan (tagihan bulanan per santri); null = tanpa batas. */
   kuota_bulan: number | null;
+  /** Grup eksklusivitas (maks 1 per tagihan); null = selalu digabung. */
+  grup: string | null;
   santri_ids: number[] | null; is_active: boolean;
   aturan: DispensasiAturan[];
   /** Penerima termuat (nama asli + NIS/ortu); sumber prefill tabel penerima. */
@@ -159,6 +161,7 @@ export interface DispensasiAturanInput {
 export interface DispensasiInput {
   nama: string; keterangan?: string | null; tahun_ajaran: string;
   kuota_bulan?: number | null;
+  grup?: string | null;
   aturan: DispensasiAturanInput[]; santri_ids?: number[] | null;
   is_active?: boolean;
 }

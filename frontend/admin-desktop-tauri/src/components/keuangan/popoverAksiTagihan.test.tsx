@@ -459,13 +459,13 @@ describe('tab Ubah — dispensasi', () => {
   const PAKET: Dispensasi[] = [
     {
       id: 11, nama: 'Prestasi', keterangan: null, tahun_ajaran: '2025/2026', is_active: true,
-      kuota_bulan: null,
+      kuota_bulan: null, grup: null,
       aturan: [{ id: 1, dispensasi_id: 11, jenis_id: 1, tipe: 'persen', nilai: 50 }],
       santri_ids: [7],
     },
     {
       id: 12, nama: 'Anak Pegawai', keterangan: null, tahun_ajaran: '2025/2026', is_active: true,
-      kuota_bulan: null,
+      kuota_bulan: null, grup: null,
       aturan: [{ id: 2, dispensasi_id: 12, jenis_id: 1, tipe: 'nominal', nilai: 10000 }],
       santri_ids: [9],
     },
@@ -518,6 +518,28 @@ describe('tab Ubah — dispensasi', () => {
     // Prestasi kuota 1 sudah terpakai 1 → habis; Anak Pegawai sisa → aktif.
     expect(screen.getByRole('option', { name: /Prestasi.*kuota habis/ })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByRole('option', { name: /Anak Pegawai.*otomatis terdaftar/ })).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('pilihan se-grup menggantikan jejak (pratinjau gabung)', async () => {
+    const ganjil: Dispensasi = {
+      id: 21, nama: 'Ganjil', keterangan: null, tahun_ajaran: '2025/2026', is_active: true,
+      kuota_bulan: null, grup: 'prestasi',
+      aturan: [{ id: 21, dispensasi_id: 21, jenis_id: 1, tipe: 'bebas', nilai: 0 }],
+      santri_ids: [7],
+    };
+    const genap: Dispensasi = { ...ganjil, id: 22, nama: 'Genap', aturan: [{ id: 22, dispensasi_id: 22, jenis_id: 1, tipe: 'bebas', nilai: 0 }] };
+    daftarDispen.mockResolvedValue([ganjil, genap]);
+    const p = { onUbah: vi.fn(() => Promise.resolve()) };
+    renderPopover(tagihan({ nominal: 0, potongan: 75000, terbayar: 0, dispensasi_ids: [21] }), p);
+    await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
+    await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
+    await userEvent.click(screen.getByRole('option', { name: 'Genap · Bebas' }));
+    // Kotor 75.000 → bebas (genap ganti ganjil) → 0.
+    expect(screen.getByText(/Rp 75\.000.*Genap/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(p.onUbah).toHaveBeenCalledWith(expect.objectContaining({
+      nominal: 0, dispensasi_ids: [22],
+    }));
   });
 
   it('tanpa dispensasi mengembalikan kotor dan mengirim ids kosong', async () => {

@@ -7,6 +7,7 @@ import {
   hitungDispensasi,
   ringkasAturan,
   saringDispensasi,
+  selaraskanGrup,
   sisaKuota,
 } from './dispensasi';
 
@@ -76,6 +77,15 @@ describe('ringkasAturan', () => {
     expect(ringkasAturan(paket({ id: 2 }, [aturan(1, 1, 'nominal', 10000)]), 1)).toBe('Rp 10.000');
     expect(ringkasAturan(paket({ id: 3 }, [aturan(1, 1, 'bebas', 0)]), 1)).toBe('Bebas');
     expect(ringkasAturan(paket({ id: 4 }, [aturan(1, 2, 'persen', 10)]), 1)).toBeNull();
+  });
+});
+
+describe('selaraskanGrup', () => {
+  const g = (id: number, grup: string | null) => ({ id, grup });
+  it('utama menang se-grup; null selalu gabung; duplikat sekali', () => {
+    expect(selaraskanGrup([g(2, 'prestasi')], [g(1, 'prestasi'), g(3, null)])).toEqual([g(2, 'prestasi'), g(3, null)]);
+    expect(selaraskanGrup([g(1, null)], [g(1, null), g(2, null)])).toEqual([g(1, null), g(2, null)]);
+    expect(selaraskanGrup([], [g(1, 'a'), g(2, 'a')])).toEqual([g(1, 'a')]);
   });
 });
 

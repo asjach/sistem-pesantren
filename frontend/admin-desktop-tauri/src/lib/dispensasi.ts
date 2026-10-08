@@ -59,6 +59,24 @@ export function ringkasAturan(
   return `Rp ${a.nilai.toLocaleString('id')}`;
 }
 
+/** Gabung dua daftar paket per grup — cermin `DispensasiService::selaraskan`:
+ *  `$utama` menang dalam grupnya (se-grup yang kalah dicoret); grup null
+ *  selalu digabung. Dipakai pratinjau (backend otoritatif). */
+export function selaraskanGrup<T extends { id: number; grup: string | null }>(utama: T[], lawan: T[]): T[] {
+  const grupUtama = new Set<string>();
+  for (const d of utama) if (d.grup !== null) grupUtama.add(d.grup);
+  const hasil = [...utama];
+  const adaId = new Set(utama.map((d) => d.id));
+  for (const d of lawan) {
+    if (adaId.has(d.id)) continue;
+    if (d.grup !== null && grupUtama.has(d.grup)) continue;
+    hasil.push(d);
+    adaId.add(d.id);
+    if (d.grup !== null) grupUtama.add(d.grup);
+  }
+  return hasil;
+}
+
 /** Sisa kuota paket untuk satu santri (null = tanpa batas). */
 export function sisaKuota(
   d: Dispensasi,

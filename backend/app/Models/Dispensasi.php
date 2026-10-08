@@ -18,7 +18,7 @@ class Dispensasi extends Model
     protected $table = 'dispensasi';
 
     protected $fillable = [
-        'nama', 'keterangan', 'tahun_ajaran', 'kuota_bulan', 'is_active',
+        'nama', 'keterangan', 'tahun_ajaran', 'kuota_bulan', 'grup', 'is_active',
     ];
 
     protected $casts = [
