@@ -1,7 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
 import { GridPrefsProvider } from '@/components/GridPrefs';
-import { RibbonTableProvider } from '@/components/RibbonTable';
-import { RibbonSlotProvider } from '@/components/RibbonSlot';
 import { TopBarSearchProvider } from '@/components/TopBarSearch';
 import { CariGlobalProvider } from '@/hooks/useCariGlobal';
 import { VisibilitasFilterProvider } from '@/components/VisibilitasFilter';
@@ -22,33 +20,29 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <GridPrefsProvider>
-      <RibbonTableProvider>
-        <RibbonSlotProvider>
-          <VisibilitasFilterProvider>
-            <CariGlobalProvider>
-              <TopBarSearchProvider>
-                {/* Seret lebar navigasi satu instans untuk Sidebar + TopBar
-                    (kenop lipat ikut bisa diseret) — lihat SeretSidebar. */}
-                <SeretSidebarProvider>
-                  <div className="flex h-screen overflow-hidden bg-background">
-                    {!pakaiMenubar && <Sidebar />}
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      {pakaiMenubar && <Menubar />}
-                      <TopBar />
-                      <div className="flex min-h-0 flex-1 bg-background">
-                        {/* Ganti lembaga/tahun ajaran aktif → remount halaman: filter & data ikut scope baru. */}
-                        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background p-0">
-                          <Fragment key={`${jenjang ?? 'semua'}:${tahunAjaranNama ?? 'semua'}`}>{children}</Fragment>
-                        </main>
-                      </div>
-                    </div>
+      <VisibilitasFilterProvider>
+        <CariGlobalProvider>
+          <TopBarSearchProvider>
+            {/* Seret lebar navigasi satu instans untuk Sidebar + TopBar
+                (kenop lipat ikut bisa diseret) — lihat SeretSidebar. */}
+            <SeretSidebarProvider>
+              <div className="flex h-screen overflow-hidden bg-background">
+                {!pakaiMenubar && <Sidebar />}
+                <div className="flex min-w-0 flex-1 flex-col">
+                  {pakaiMenubar && <Menubar />}
+                  <TopBar />
+                  <div className="flex min-h-0 flex-1 bg-background">
+                    {/* Ganti lembaga/tahun ajaran aktif → remount halaman: filter & data ikut scope baru. */}
+                    <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background p-0">
+                      <Fragment key={`${jenjang ?? 'semua'}:${tahunAjaranNama ?? 'semua'}`}>{children}</Fragment>
+                    </main>
                   </div>
-                </SeretSidebarProvider>
-              </TopBarSearchProvider>
-            </CariGlobalProvider>
-          </VisibilitasFilterProvider>
-        </RibbonSlotProvider>
-      </RibbonTableProvider>
+                </div>
+              </div>
+            </SeretSidebarProvider>
+          </TopBarSearchProvider>
+        </CariGlobalProvider>
+      </VisibilitasFilterProvider>
     </GridPrefsProvider>
   );
 }

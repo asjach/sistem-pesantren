@@ -58,6 +58,7 @@ import IcScalingMaterial from '~icons/material-symbols/scale';
 import IcScrollTextMaterial from '~icons/material-symbols/notes';
 import IcSearchMaterial from '~icons/material-symbols/search';
 import IcServerMaterial from '~icons/material-symbols/dns';
+import IcSettingsMaterial from '~icons/material-symbols/settings';
 import IcSunMaterial from '~icons/material-symbols/light-mode';
 import IcTrash2Material from '~icons/material-symbols/delete';
 import IcUndo2Material from '~icons/material-symbols/undo';
@@ -137,6 +138,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ScrollText: IcScrollTextMaterial,
   Search: IcSearchMaterial,
   Server: IcServerMaterial,
+  Settings: IcSettingsMaterial,
   Sun: IcSunMaterial,
   Trash2: IcTrash2Material,
   Undo2: IcUndo2Material,

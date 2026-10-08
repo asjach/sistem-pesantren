@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 88 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 89 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -113,6 +113,7 @@ export const Scaling = (p: IkonProps) => <IkonDinamis {...p} nama="Scaling" />;
 export const ScrollText = (p: IkonProps) => <IkonDinamis {...p} nama="ScrollText" />;
 export const Search = (p: IkonProps) => <IkonDinamis {...p} nama="Search" />;
 export const Server = (p: IkonProps) => <IkonDinamis {...p} nama="Server" />;
+export const Settings = (p: IkonProps) => <IkonDinamis {...p} nama="Settings" />;
 export const Sun = (p: IkonProps) => <IkonDinamis {...p} nama="Sun" />;
 export const Trash2 = (p: IkonProps) => <IkonDinamis {...p} nama="Trash2" />;
 export const Undo2 = (p: IkonProps) => <IkonDinamis {...p} nama="Undo2" />;

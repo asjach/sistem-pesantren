@@ -12,10 +12,7 @@ import { BELUM_DIPAKAI } from './parts-belum.gen';
  *  selektor struktural yang sudah ada. */
 export type PartId =
   | 'ribbon'
-  | 'tab_ribbon'
   | 'area_akun'
-  | 'grup_ribbon'
-  | 'menu_ribbon'
   | 'separator'
   | 'aspect_ratio'
   | 'scroll_area'
@@ -99,8 +96,7 @@ export type PartId =
   // Komponen khas aplikasi (bukan shadcn).
   | 'multiselect'
   | 'spinbox'
-  | 'pesan_galat'
-  | 'pemisah_ribbon';
+  | 'pesan_galat';
 
 export type PartMode = 'terang' | 'gelap';
 
@@ -179,46 +175,20 @@ export const PARTS: PartMeta[] = [
   // ---------- Struktur ----------
   {
     id: 'ribbon',
-    label: 'Bilah ribbon',
+    label: 'Header aplikasi',
     grup: 'Struktur',
-    sub: 'Ribbon',
-    hint: 'Header aplikasi: bar judul + baris tools kontekstual.',
+    sub: 'Header',
+    hint: 'Bar judul halaman + filter global + area akun.',
     sel: '#root header',
-  },
-  {
-    id: 'tab_ribbon',
-    label: 'Tab ribbon',
-    grup: 'Struktur',
-    sub: 'Ribbon',
-    kendali: true,
-    hint: 'Tombol tab (Beranda, Master, …).',
-    sel: "#root header button[id^='tab_ribbon_']",
   },
   {
     id: 'area_akun',
     label: 'Area akun (kanan atas)',
     grup: 'Struktur',
-    sub: 'Ribbon',
+    sub: 'Header',
     kendali: true,
-    hint: 'Area kanan atas strip ribbon: tombol mode & menu akun.',
+    hint: 'Area kanan atas header: tombol mode & menu akun.',
     sel: "[data-part='area_akun']",
-  },
-  {
-    id: 'grup_ribbon',
-    label: 'Grup ribbon',
-    grup: 'Struktur',
-    sub: 'Grup & menu',
-    hint: 'Label & wadah kelompok tombol di ribbon.',
-    sel: "[data-part='grup_ribbon']",
-  },
-  {
-    id: 'menu_ribbon',
-    label: 'Tombol alat ribbon',
-    grup: 'Struktur',
-    sub: 'Grup & menu',
-    kendali: true,
-    hint: 'Tombol aksi/alat di baris ribbon (bukan navigasi halaman).',
-    sel: "[data-part='menu_ribbon']",
   },
   {
     id: 'separator',
@@ -945,11 +915,11 @@ export const PARTS: PartMeta[] = [
   },
   {
     id: 'spinbox',
-    label: 'Stepper angka (ribbon)',
+    label: 'Stepper angka',
     grup: 'Kontrol',
     sub: 'Form',
     kendali: true,
-    hint: 'Spinbox −/+ untuk tinggi baris & ukuran huruf tabel.',
+    hint: 'Spinbox −/+ untuk tinggi header & ukuran huruf tabel (popover pengaturan).',
     sel: "[data-part='spinbox']",
   },
   {
@@ -960,14 +930,6 @@ export const PARTS: PartMeta[] = [
     kendali: true,
     hint: 'Kotak pesan galat seragam di seluruh halaman.',
     sel: "[data-part='pesan_galat']",
-  },
-  {
-    id: 'pemisah_ribbon',
-    label: 'Pemisah ribbon',
-    grup: 'Struktur',
-    sub: 'Bingkai',
-    hint: 'Garis pemisah antar grup di ribbon.',
-    sel: "[data-part='pemisah_ribbon']",
   },
 ];
 

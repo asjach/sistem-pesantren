@@ -57,6 +57,7 @@ import IcSaveBi from '~icons/bi/save';
 import IcScrollTextBi from '~icons/bi/journal-text';
 import IcSearchBi from '~icons/bi/search';
 import IcServerBi from '~icons/bi/server';
+import IcSettingsBi from '~icons/bi/gear';
 import IcSunBi from '~icons/bi/sun';
 import IcTrash2Bi from '~icons/bi/trash';
 import IcUndo2Bi from '~icons/bi/reply';
@@ -131,6 +132,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ScrollText: IcScrollTextBi,
   Search: IcSearchBi,
   Server: IcServerBi,
+  Settings: IcSettingsBi,
   Sun: IcSunBi,
   Trash2: IcTrash2Bi,
   Undo2: IcUndo2Bi,

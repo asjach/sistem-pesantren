@@ -107,8 +107,9 @@
   /* Warna peringatan (banner mode Edit, dsb) — bukan warna mentah Tailwind. */
   --warning: #b45309;
   --warning-foreground: #92400e;
-  /* Border low-contrast: hanya 12% teks di atas latar (lembut, tidak "tebal"). */
-  --border: color-mix(in srgb, var(--foreground) 12%, var(--background));
+  /* Border low-contrast: hanya 8% teks di atas latar (lembut, tidak "tebal") —
+     disetarakan dengan keremangan tepi sidebar, tetap terbaca di kedua mode. */
+  --border: color-mix(in srgb, var(--foreground) 8%, var(--background));
   --input: var(--border);
   --ring: var(--accent);
   /* ---------- token turunan Gr8r (hangat & tenang) ----------
@@ -593,6 +594,37 @@
    specific-nya lebih tinggi daripada selektor atribut ini. */
 [data-part='kaki_tabel'] button {
   border-radius: 0 !important;
+}
+/* Garis atas pager sudah jadi batas barisnya: tombol di dalam pager tak
+   menambah garis horizontal sendiri agar tidak terbaca 2px. */
+#pager button {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+}
+/* Semua tombol kaki tabel tampil datar (latar transparan saat diam) — tombol
+   pager maupun grup aksi (tinggi baris/tambah baris/edit). Tanpa ini, tombol
+   `variant="outline"` memakai `bg-background` sehingga warnanya beda dari item
+   ToggleGroup yang memang `bg-transparent`. Sorot hover dan item jumlah-baris
+   yang terpilih tetap dipertahankan agar afordansinya jelas. */
+[data-part='kaki_tabel'] button:not(:hover):not([data-state='on']) {
+  background-color: transparent;
+}
+/* Kaki tabel menempel tepi bawah bingkai halaman: garis bawah tombol (tinggi
+   baris, tambah baris, edit) akan menumpuk dengan garis bingkai itu dan terbaca
+   2px — matikan, biar garis bingkai yang jadi batas bawahnya. */
+[data-part='kaki_tabel'] button {
+  border-bottom: 0 !important;
+}
+/* Grup aksi (tinggi baris / tambah baris / edit) memakai satu bingkai menyatu:
+   garis dalam dibagi — hanya tombol pertama yang bergaris kiri (pola sama
+   dengan kelompok jumlah baris di pager). */
+[data-part='grup_aksi'] > button + button {
+  border-left: 0 !important;
+}
+/* Pager merapat ke tepi kiri bingkai halaman (px-0): garis kiri item pertama
+   akan menumpuk dengan garis bingkai itu dan terbaca 2px — matikan. */
+#pager [data-slot='toggle-group-item']:first-child {
+  border-left: 0 !important;
 }
 
 /* ---------- Mode Input (baris baru di paling bawah) ---------- */

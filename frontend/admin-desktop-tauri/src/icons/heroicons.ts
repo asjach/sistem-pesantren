@@ -48,6 +48,7 @@ import IcScalingHeroicons from '~icons/heroicons/scale';
 import IcScrollTextHeroicons from '~icons/heroicons/document-text';
 import IcSearchHeroicons from '~icons/heroicons/magnifying-glass';
 import IcServerHeroicons from '~icons/heroicons/server';
+import IcSettingsHeroicons from '~icons/heroicons/cog';
 import IcSunHeroicons from '~icons/heroicons/sun';
 import IcTrash2Heroicons from '~icons/heroicons/trash';
 import IcUndo2Heroicons from '~icons/heroicons/arrow-uturn-left';
@@ -110,6 +111,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ScrollText: IcScrollTextHeroicons,
   Search: IcSearchHeroicons,
   Server: IcServerHeroicons,
+  Settings: IcSettingsHeroicons,
   Sun: IcSunHeroicons,
   Trash2: IcTrash2Heroicons,
   Undo2: IcUndo2Heroicons,

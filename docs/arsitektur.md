@@ -205,7 +205,7 @@ Contoh kamus ringkas:
 ### 7.2 Tema, mode, dan token
 - 25 preset tema (termasuk Hijau Pesantren bawaan dan set populer ala VSCode); tiap tema berisi palet terang + gelap + warna sidebar.
 - Mode Terang/Gelap/Sistem (sistem mengikuti OS) + varian Kaya warna (netral/aksen/kaya); bawaan: tema `geist`, mode sistem, warna kaya.
-- Teks tombol dihitung otomatis (kontras ≥4,5:1); ikon header/ribbon/sidebar/akun mengikuti warna aksen; border global lembut (12% via color-mix, tanpa shadow kartu); radius seragam 4 px.
+- Teks tombol dihitung otomatis (kontras ≥4,5:1); ikon header/sidebar/akun mengikuti warna aksen; border global lembut (8% via color-mix, tanpa shadow kartu); radius seragam 4 px.
 - Token runtime per bagian (~100 id: tabel, form, dialog, toast, sidebar, dsb.) — font, ukuran, radius, padding, warna per mode; fallback CSS bila standar belum diatur.
 
 ### 7.3 Navigasi
@@ -227,7 +227,7 @@ Contoh kamus ringkas:
 
 ### 7.6 Font
 - Bawaan tabel: Roboto Light (300), sel dan header masing-masing 11 px; UI: Aptos (isi), display (judul), Aptos Narrow, monospace kode.
-- 29 opsi font (sistem + Aptos + Google Fonts yang disimpan lokal sehingga offline); pilihan tersimpan per perangkat dan diatur lewat ribbon Tabel.
+- 29 opsi font (sistem + Aptos + Google Fonts yang disimpan lokal sehingga offline); pilihan tersimpan per perangkat dan diatur lewat popover pengaturan tabel (ikon gerigi di kaki tabel).
 
 ### 7.7 Pengaturan tampilan
 

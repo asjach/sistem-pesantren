@@ -60,6 +60,7 @@ import IcSaveRi from '~icons/ri/save-fill';
 import IcScrollTextRi from '~icons/ri/file-text-line';
 import IcSearchRi from '~icons/ri/search-line';
 import IcServerRi from '~icons/ri/server-line';
+import IcSettingsRi from '~icons/ri/settings-line';
 import IcSunRi from '~icons/ri/sun-fill';
 import IcTrash2Ri from '~icons/ri/delete-bin-line';
 import IcUndo2Ri from '~icons/ri/arrow-go-back-line';
@@ -137,6 +138,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ScrollText: IcScrollTextRi,
   Search: IcSearchRi,
   Server: IcServerRi,
+  Settings: IcSettingsRi,
   Sun: IcSunRi,
   Trash2: IcTrash2Ri,
   Undo2: IcUndo2Ri,

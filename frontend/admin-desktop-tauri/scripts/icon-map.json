@@ -670,6 +670,17 @@
   "bi": "server",
   "material": "dns"
  },
+ "Settings": {
+  "lucide": "settings",
+  "tabler": "settings",
+  "ph": "gear",
+  "heroicons": "cog",
+  "ri": "settings-line",
+  "iconoir": "settings",
+  "radix": "gear",
+  "bi": "gear",
+  "material": "settings"
+ },
  "Sun": {
   "lucide": "sun",
   "tabler": "sun",

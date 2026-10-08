@@ -17,6 +17,7 @@ import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import FilterRail from '@/components/FilterRail';
+import PopoverSettingTabel from './excel/PopoverSettingTabel';
 import TombolTinggiBaris from './excel/TombolTinggiBaris';
 import ScrollbarMelayang from './excel/ScrollbarMelayang';
 import { gabungUrutan } from './excel/urutanKolom';
@@ -32,7 +33,6 @@ import { useInteraksiSel } from './excel/useInteraksiSel';
 import { copyText, tulisPolosSinkron } from '@/lib/clipboard';
 import { useBarisInput } from './excel/useBarisInput';
 import { KonteksLebarFilter } from './excel/lebarFilter';
-import { useRibbonTable } from '@/components/RibbonTable';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -1275,38 +1275,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     toast.success('Tampilan tabel dikembalikan bawaan.');
   }
 
-  // Publikasikan perintah tabel ke tab ribbon "Tabel" (tab memakai tabel
-  // pertama yang terdaftar di halaman; handler selalu versi terbaru via ref).
-  // Depend hanya pada callback registri yang stabil + status mode — objek context
-  // berubah identitas saat registri terisi dan akan memicu loop daftar/lepas.
-  const ribbon = useRibbonTable();
-  const ribbonDaftar = ribbon?.daftar;
-  const ribbonLepas = ribbon?.lepas;
-  const ribbonAktif = ribbon?.aktif;
-  const ribbonAksiRef = useRef({ salin: () => {}, autofit: () => {}, reset: () => {} });
-  ribbonAksiRef.current = { salin: onCopy, autofit: onAutoFitAll, reset: onResetView };
-  // Lepas registri hanya saat tabel unmount/ganti key — bukan tiap status mode
-  // berubah (kalau tidak, ribbon sempat kosong lalu disabled sekilas).
-  useEffect(() => {
-    if (!ribbonDaftar || !ribbonLepas) return;
-    return () => ribbonLepas(tableKey);
-  }, [ribbonDaftar, ribbonLepas, tableKey]);
-  useEffect(() => {
-    if (!ribbonDaftar) return;
-    ribbonDaftar(tableKey, {
-      tableKey,
-      salin: () => ribbonAksiRef.current.salin(),
-      autofit: () => ribbonAksiRef.current.autofit(),
-      reset: () => ribbonAksiRef.current.reset(),
-      headerHeight: headerH ?? headerAutoH ?? DEFAULT_HEADER_H,
-    });
-  }, [
-    ribbonDaftar,
-    tableKey,
-    headerH,
-    headerAutoH,
-  ]);
-
   const hasFilter = filter !== undefined;
   const hasUrut = !!onUrut;
   const filterTampil = visToolbar.filter && hasFilter;
@@ -1383,8 +1351,8 @@ export default function ExcelTable<T extends { id: string | number }>({
       {/* Rel Tingkat/Kelas (bila `rail`): di kiri grid, tepat di bawah bar
           judul tabel sehingga bagian atasnya sejajar judul kolom grid.
           Label rel diberi tinggi header tabel efektif (`headerEfektifH`) agar
-          sejajar walau tinggi header diubah (ribbon) atau otomatis. Tanpa
-          `rail`, kontainer `contents` tidak mengubah tata letak. */}
+          sejajar walau tinggi header diubah (pengaturan tabel) atau otomatis.
+          Tanpa `rail`, kontainer `contents` tidak mengubah tata letak. */}
       <div className={cn(rail ? 'flex min-h-0 flex-1' : 'contents')}>
         {rail ? <FilterRail tinggiLabel={headerEfektifH} /> : null}
       <div
@@ -1400,8 +1368,6 @@ export default function ExcelTable<T extends { id: string | number }>({
         onMouseDownCapture={(e) => {
           downPosRef.current = { x: e.clientX, y: e.clientY };
           closeEditorOnOtherCell(e);
-          // Halaman multi-tabel: tabel yang disentuh jadi sumber perintah ribbon.
-          ribbonAktif?.(tableKey);
           cegahSeleksiSelCentang(e);
         }}
         onClickCapture={toggleCheckByCell}
@@ -1520,6 +1486,35 @@ export default function ExcelTable<T extends { id: string | number }>({
           />
         </ContextMenu>
 
+        {/* Penanda mode (Edit/Input) melayang di kanan bawah area tabel —
+            menandai mode aktif + tombol keluar tanpa memakan ruang layout. */}
+        {(editing || showInput) && (
+          <div className="absolute right-3 bottom-3 z-20 flex flex-wrap items-center justify-end gap-1.5">
+            {editing && (
+              <PillMode
+                id={`banner_mode_edit_${tableKey}`}
+                btnId={`btn_keluar_mode_edit_${tableKey}`}
+                aksen="warning"
+                ikon={<Pencil size={14} />}
+                judul="Mode Edit aktif"
+                petunjuk="Sel bertanda bawah = bisa diedit; sel berarsir = baca-saja. Tekan Esc untuk keluar."
+                onKeluar={() => setEditMode(false)}
+              />
+            )}
+            {showInput && (
+              <PillMode
+                id={`banner_mode_input_${tableKey}`}
+                btnId={`btn_keluar_mode_input_${tableKey}`}
+                aksen="primary"
+                ikon={<PlusCircle size={14} />}
+                judul="Mode Input aktif"
+                petunjuk="Isi baris paling bawah, lalu klik ikon simpan. Tekan Esc untuk keluar."
+                onKeluar={() => setInputMode(false)}
+              />
+            )}
+          </div>
+        )}
+
         {/* Placeholder saat gerbang lebar menahan grid. Hanya bila BELUM ada
             data (muat awal) atau gerbang macet >800ms (kasus langka: semua
             kolom memang ~100px) — jendela flash remount (~2 bingkai) cukup
@@ -1557,65 +1552,42 @@ export default function ExcelTable<T extends { id: string | number }>({
       {/* Kaki tabel: kontrol paginasi (bila ada) sebaris dengan tombol tinggi
           baris dan tombol ikon mode (tambah baris / edit). Nilai tinggi baris
           global, tetapi tombolnya tampil di tiap tabel. */}
-      <div data-part="kaki_tabel" className="mt-0 flex shrink-0 items-center gap-1">
+      <div data-part="kaki_tabel" className="mt-0 flex shrink-0 items-center gap-0">
         {pager ? <div className="min-w-0 flex-1">{pager}</div> : <div className="flex-1" />}
-        <TombolTinggiBaris tableKey={tableKey} />
-        {inputEnabled && !showInput && (
-          <Button
-            id={`btn_tambah_baris_${tableKey}`}
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            aria-label="Tambah baris baru"
-            title="Tambah baris baru"
-            onClick={() => setInputMode(true)}
-          >
-            <Plus size={14} />
-          </Button>
-        )}
-        {canEdit && !editing && (
-          <Button
-            id={`btn_mode_edit_${tableKey}`}
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            aria-label="Aktifkan mode Edit"
-            title="Aktifkan mode Edit (atau klik ganda sel)"
-            onClick={() => setEditMode(true)}
-          >
-            <Pencil size={14} />
-          </Button>
-        )}
-      </div>
-
-      {/* Bilah status mode di bawah tabel (bagian badan halaman): menandai Mode
-          Edit/Input aktif + tombol keluar; tidak menutupi isi grid. */}
-      {(editing || showInput) && (
-        <div className="mt-2 flex shrink-0 flex-wrap items-center justify-center gap-1.5">
-          {editing && (
-            <PillMode
-              id={`banner_mode_edit_${tableKey}`}
-              btnId={`btn_keluar_mode_edit_${tableKey}`}
-              aksen="warning"
-              ikon={<Pencil size={14} />}
-              judul="Mode Edit aktif"
-              petunjuk="Sel bertanda bawah = bisa diedit; sel berarsir = baca-saja. Tekan Esc untuk keluar."
-              onKeluar={() => setEditMode(false)}
-            />
+        {/* Grup aksi (pengaturan tabel / tinggi baris / tambah baris / edit):
+            bingkai menyatu — garis dalam dibagi seperti kelompok jumlah baris
+            di pager. */}
+        <div data-part="grup_aksi" className="flex items-center">
+          <PopoverSettingTabel tableKey={tableKey} headerHeight={headerEfektifH} />
+          <TombolTinggiBaris tableKey={tableKey} />
+          {inputEnabled && !showInput && (
+            <Button
+              id={`btn_tambah_baris_${tableKey}`}
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Tambah baris baru"
+              title="Tambah baris baru"
+              onClick={() => setInputMode(true)}
+            >
+              <Plus size={14} />
+            </Button>
           )}
-          {showInput && (
-            <PillMode
-              id={`banner_mode_input_${tableKey}`}
-              btnId={`btn_keluar_mode_input_${tableKey}`}
-              aksen="primary"
-              ikon={<PlusCircle size={14} />}
-              judul="Mode Input aktif"
-              petunjuk="Isi baris paling bawah, lalu klik ikon simpan. Tekan Esc untuk keluar."
-              onKeluar={() => setInputMode(false)}
-            />
+          {canEdit && !editing && (
+            <Button
+              id={`btn_mode_edit_${tableKey}`}
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Aktifkan mode Edit"
+              title="Aktifkan mode Edit (atau klik ganda sel)"
+              onClick={() => setEditMode(true)}
+            >
+              <Pencil size={14} />
+            </Button>
           )}
         </div>
-      )}
+      </div>
 
       {/* Dialog pengaturan tabel ini: kolom, urutan, toolbar, dan filter. */}
       {visHalaman?.registrasi ? (

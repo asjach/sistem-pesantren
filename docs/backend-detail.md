@@ -262,7 +262,8 @@ tampil agar bisa dikembalikan. Status: ✅ live.
 gaya per bagian UI, lebar kolom, beku, tinggi baris, perataan, preset aktif)
 disimpan di prefs perangkat; tidak ada lagi standar tampilan lembaga, "Rekam
 Visual", maupun halaman editor `/pengaturan/tampilan` (v2.284). Gaya per bagian
-UI hanya bisa diubah lewat ribbon Tabel (font/warna header & sel).
+UI hanya bisa diubah lewat popover pengaturan tabel (ikon gerigi di kaki tabel:
+tinggi header + font/warna header & sel).
 Endpoint `pengaturan-tampilan`, tabelnya, dan izin `tampilan.*` dihapus.
 
 **Pengaturan server (lintas modul).** Halaman pengaturan ganti base-URL backend

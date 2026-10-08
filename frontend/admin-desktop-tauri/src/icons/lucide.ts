@@ -64,6 +64,7 @@ import IcScalingLucide from '~icons/lucide/scaling';
 import IcScrollTextLucide from '~icons/lucide/scroll-text';
 import IcSearchLucide from '~icons/lucide/search';
 import IcServerLucide from '~icons/lucide/server';
+import IcSettingsLucide from '~icons/lucide/settings';
 import IcSunLucide from '~icons/lucide/sun';
 import IcTrash2Lucide from '~icons/lucide/trash-2';
 import IcUndo2Lucide from '~icons/lucide/undo-2';
@@ -154,6 +155,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ScrollText: IcScrollTextLucide,
   Search: IcSearchLucide,
   Server: IcServerLucide,
+  Settings: IcSettingsLucide,
   Sun: IcSunLucide,
   Trash2: IcTrash2Lucide,
   Undo2: IcUndo2Lucide,

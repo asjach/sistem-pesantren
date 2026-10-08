@@ -25,7 +25,6 @@ const LEWATI = new Set(['parts.ts', 'parts-belum.gen.ts', 'partStyles.ts', 'Part
 /** Probe untuk bagian ber-selektor struktural (tanpa data-slot/data-part). */
 const PROBE = {
   ribbon: /<header[\s>]/,
-  tab_ribbon: /tab_ribbon_/,
   judul_halaman: /<h[12][\s>]/,
   subjudul: /<h[34][\s>]/,
   teks_isi: /<main[\s>]/,

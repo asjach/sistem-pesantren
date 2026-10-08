@@ -53,6 +53,7 @@ import IcSaveIconoir from '~icons/iconoir/floppy-disk';
 import IcScrollTextIconoir from '~icons/iconoir/notes';
 import IcSearchIconoir from '~icons/iconoir/search';
 import IcServerIconoir from '~icons/iconoir/server';
+import IcSettingsIconoir from '~icons/iconoir/settings';
 import IcSunIconoir from '~icons/iconoir/brightness';
 import IcTrash2Iconoir from '~icons/iconoir/trash';
 import IcUndo2Iconoir from '~icons/iconoir/undo';
@@ -121,6 +122,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ScrollText: IcScrollTextIconoir,
   Search: IcSearchIconoir,
   Server: IcServerIconoir,
+  Settings: IcSettingsIconoir,
   Sun: IcSunIconoir,
   Trash2: IcTrash2Iconoir,
   Undo2: IcUndo2Iconoir,

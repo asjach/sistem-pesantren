@@ -2,8 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import ExcelTable, { diCornerButton, type ExcelTableProps } from './ExcelTable';
-import { RibbonTableProvider, useRibbonTable } from '@/components/RibbonTable';
-import { renderDenganTema, PembungkusTema } from '@/test/utils';
+import { renderDenganTema } from '@/test/utils';
 
 // ---- Mock API (unit test tidak boleh memanggil fetch nyata) ----
 
@@ -242,40 +241,12 @@ describe('ExcelTable — tombol ikon kaki tabel', () => {
   });
 });
 
-describe('ExcelTable × RibbonTableProvider', () => {
-  it('mendaftarkan tabel; klik ganda sel memunculkan pill Mode Edit', async () => {
-    const status = { ada: false };
-
-    /** Konsumen kecil di dalam provider: membaca API tabel aktif. */
-    function RibbonProbe() {
-      const ribbon = useRibbonTable();
-      status.ada = ribbon?.api != null;
-      return null;
-    }
-
-    render(
-      <PembungkusTema>
-        <RibbonTableProvider>
-          <ExcelTable<Baris>
-            tableKey="uji"
-            fields={fields}
-            rows={rows}
-            getValues={getValues}
-            canEdit
-            onCommit={vi.fn(async () => {})}
-            onSaved={vi.fn()}
-            renderActions={() => null}
-            tengah={<span>10 baris</span>}
-          />
-          <RibbonProbe />
-        </RibbonTableProvider>
-      </PembungkusTema>,
-    );
-
-    await waitFor(() => expect(status.ada).toBe(true));
+describe('ExcelTable — klik ganda sel', () => {
+  it('klik ganda sel memunculkan pill Mode Edit', async () => {
+    renderTabel();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
-    // Mode Edit dinyalakan lewat klik ganda sel (pengganti tombol ribbon).
+    // Mode Edit dinyalakan lewat klik ganda sel.
     fireEvent.doubleClick(screen.getByText('Ahmad'));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Edit aktif'));
   });

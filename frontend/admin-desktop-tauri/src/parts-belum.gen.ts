@@ -3,7 +3,6 @@
 
 /** Bagian yang belum punya elemen/komponen nyata di project (hanya pratinjau). */
 export const BELUM_DIPAKAI: ReadonlySet<string> = new Set([
-  'tab_ribbon',
   'aspect_ratio',
   'scroll_area',
   'collapsible',

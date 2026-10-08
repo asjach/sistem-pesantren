@@ -60,6 +60,7 @@ import IcScalingTabler from '~icons/tabler/scale';
 import IcScrollTextTabler from '~icons/tabler/notes';
 import IcSearchTabler from '~icons/tabler/search';
 import IcServerTabler from '~icons/tabler/server';
+import IcSettingsTabler from '~icons/tabler/settings';
 import IcSunTabler from '~icons/tabler/sun';
 import IcTrash2Tabler from '~icons/tabler/trash';
 import IcUndo2Tabler from '~icons/tabler/corner-up-left';
@@ -141,6 +142,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ScrollText: IcScrollTextTabler,
   Search: IcSearchTabler,
   Server: IcServerTabler,
+  Settings: IcSettingsTabler,
   Sun: IcSunTabler,
   Trash2: IcTrash2Tabler,
   Undo2: IcUndo2Tabler,

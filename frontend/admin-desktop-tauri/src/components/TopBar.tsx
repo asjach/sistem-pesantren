@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
-import { isTauri, prefGet, prefSet } from '@/api/client';
+import { isTauri } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
@@ -33,9 +33,7 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LogOut, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Sun, Users } from '@/icons';
-import { useRibbonTable } from '@/components/RibbonTable';
-import { useRibbonSlotCtx } from '@/components/RibbonSlot';
+import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, LogOut, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Sun, Users } from '@/icons';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { useAksiSeretSidebar } from '@/components/SeretSidebar';
 import { apakahKlik } from '@/components/useLebarSidebar';
@@ -51,7 +49,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { halamanDariPath } from '@/lib/halaman';
-import { RibbonTabel } from './topbar/RibbonTabel';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 // ---------- Header: judul halaman + area akun (atas) & baris tools (bawah) ----------
@@ -87,38 +84,7 @@ const navBase =
 const navIdle =
   'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-[var(--sidebar-foreground)]';
 
-/** Preferensi tampil/sembunyi baris toolbar (per perangkat). */
-const TOOLS_TAMPIL_KEY = 'simpes_tools_tampil';
-
-/** Gagang buka/tutup ribbon tools: strip tipis selebar baris judul/filter,
- *  menempel pada garis batas bawah baris (di atas border baris ribbon) dengan
- *  chevron di tengah; klik area mana pun pada strip untuk membuka/menutup.
- *  Dijangkarkan ke baris judul — bukan ke tepi bawah header — jadi posisinya
- *  sama persis baik saat ribbon tampil maupun disembunyikan. */
-function TabRibbon({ tampil, onToggle }: { tampil: boolean; onToggle: () => void }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          id="btn_tampil_tools"
-          type="button"
-          aria-label={tampil ? 'Sembunyikan ribbon' : 'Tampilkan ribbon'}
-          aria-expanded={tampil}
-          onClick={onToggle}
-          className="absolute inset-x-0 bottom-0 z-20 flex h-1 items-center justify-center bg-transparent text-[color-mix(in_srgb,var(--sidebar-foreground)_60%,transparent)] transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] hover:text-[var(--sidebar-foreground)]"
-        >
-          {tampil ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>{tampil ? 'Sembunyikan ribbon' : 'Tampilkan ribbon'}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-/** Header aplikasi: bar judul halaman + area akun, lalu baris ribbon tools
- *  (kontrol tabel aktif atau tools yang disumbang halaman lewat `RibbonSlot`).
+/** Header aplikasi: bar judul halaman + filter global + area akun.
  *  Navigasi halaman ada di Sidebar, bukan di sini. */
 export default function TopBar() {
   const { user, logoutLocal } = useAuth();
@@ -170,12 +136,6 @@ export default function TopBar() {
   const xKlikKenop = useRef<number | null>(null);
   const nav = useNavigate();
   const { pathname } = useLocation();
-  const ribbon = useRibbonTable();
-  const apiTabel = ribbon?.api ?? null;
-  const slot = useRibbonSlotCtx();
-  const setSlotEl = slot?.setEl;
-  const slotAda = slot?.ada ?? false;
-  const slotLabel = slot?.label ?? null;
   const search = useTopBarSearchCtx();
   const setSearchEl = search?.setEl;
   const searchAda = search?.ada ?? false;
@@ -227,33 +187,14 @@ export default function TopBar() {
   const tabelKelolaData = tabelKelola === null
     ? null
     : registrasi?.tabel.find((t) => t.key === tabelKelola) ?? registrasi?.tabel[0] ?? null;
-  const [toolsTampil, setToolsTampil] = useState(true);
-  const [tabTools, setTabTools] = useState<'halaman' | 'tabel'>('halaman');
   const isSuperAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
-  const adaToolsHalaman = slotAda;
-  const adaToolsTabel = apiTabel !== null;
-  const adaTools = adaToolsHalaman || adaToolsTabel;
-  // Dua sumber tools (halaman + tabel) → baris tools memakai tab agar ringkas.
-  const banyakTab = adaToolsHalaman && adaToolsTabel;
-  /** Halaman bertabel PASTI memunculkan baris tools, tapi pendaftaran tabel
-   *  baru terjadi setelah halaman ter-mount. Reservasi tingginya sejak cat
-   *  pertama (placeholder) agar header tak tumbuh 51→150px dan menggeser
-   *  seluruh isi halaman. Halaman tanpa tabel tetap menunggu `adaTools`. */
-  const akanAdaTools = adaTools || halaman?.grid === true;
-  const tampilTools = akanAdaTools && toolsTampil;
-  /** Ada filter global yang benar-benar dirender di topBar (tempat TabRibbon menempel). */
+  /** Ada filter global yang benar-benar dirender di topBar. */
   const adaFilterTopBar = (tampil.lembaga && (adaSemua || banyakPilihan) && daftarLembaga.length > 0)
     || (tampil.tahun_ajaran && taPilihanTerurut.length > 0)
     || tampil.semester;
 
-  // Elemen target portal tools halaman (lihat `RibbonSlot`).
-  const hostRef = useCallback((el: HTMLDivElement | null) => setSlotEl?.(el), [setSlotEl]);
   // Elemen target portal pencarian halaman (lihat `TopBarSearch`).
   const searchHostRef = useCallback((el: HTMLDivElement | null) => setSearchEl?.(el), [setSearchEl]);
-
-  useEffect(() => {
-    prefGet(TOOLS_TAMPIL_KEY).then((v) => setToolsTampil(v !== '0')).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (navigasi !== 'sidebar') return;
@@ -266,22 +207,6 @@ export default function TopBar() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [collapsed, navigasi, setCollapsed]);
-
-  // Jaga tab aktif tetap valid saat ketersediaan tools berubah (navigasi).
-  // Halaman tanpa tools sama sekali tidak menyentuh state (hindari bolak-balik).
-  useEffect(() => {
-    if (tabTools === 'halaman' && adaToolsHalaman) return;
-    if (tabTools === 'tabel' && adaToolsTabel) return;
-    if (adaToolsHalaman) setTabTools('halaman');
-    else if (adaToolsTabel) setTabTools('tabel');
-  }, [tabTools, adaToolsHalaman, adaToolsTabel]);
-
-  function togolTools() {
-    setToolsTampil((v) => {
-      prefSet(TOOLS_TAMPIL_KEY, v ? '0' : '1').catch(() => {});
-      return !v;
-    });
-  }
 
   // Judul halaman → title bar jendela (hemat ruang di aplikasi). Di dev web
   // memakai document.title; di Tauri sekalian set judul window native.
@@ -665,47 +590,9 @@ export default function TopBar() {
           </DropdownMenu>
         </div>
 
-        {/* Gagang ribbon: strip tipis selebar baris, menempel di garis batas
-            bawah baris judul/filter (lihat `TabRibbon`). */}
-        {akanAdaTools && <TabRibbon tampil={toolsTampil} onToggle={togolTools} />}
       </div>
 
-      {/* Banner "bertindak sebagai lembaga": di atas ribbon agar selalu terlihat. */}
       <BannerBertindak terbuka={false} onTutup={() => {}} />
-
-      {/* Baris 2: isi ribbon tools kontekstual (kontrol tabel / tools halaman). */}
-      {akanAdaTools && tampilTools && (
-        <div className="min-h-[100px] border-t border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)]">
-          {banyakTab && (
-            <div className="flex items-center gap-0.5 border-b border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] px-3 pt-1 md:px-5">
-              {([
-                { id: 'halaman' as const, label: slotLabel ?? 'Halaman' },
-                { id: 'tabel' as const, label: 'Tabel' },
-              ]).map((t) => (
-                <button
-                  key={t.id}
-                  id={`tab_tools_${t.id}`}
-                  type="button"
-                  aria-pressed={tabTools === t.id}
-                  onClick={() => setTabTools(t.id)}
-                  className={cn(
-                    'rounded-t-md px-3 py-0.5 text-[11px] transition-colors',
-                    tabTools === t.id
-                      ? 'bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] font-semibold text-[var(--sidebar-foreground)]'
-                      : 'text-[color-mix(in_srgb,var(--sidebar-foreground)_70%,transparent)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)]',
-                  )}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex min-h-[76px] flex-nowrap items-stretch gap-2 overflow-x-auto px-3 py-3 md:px-5">
-            {adaTools && (!banyakTab || tabTools === 'halaman') && <div ref={hostRef} className="contents" />}
-            {adaTools && (!banyakTab || tabTools === 'tabel') && apiTabel && <RibbonTabel apiTabel={apiTabel} />}
-          </div>
-        </div>
-      )}
 
       {registrasi && efektifSuper && tabelKelolaData ? (
         <DialogKelolaTabel

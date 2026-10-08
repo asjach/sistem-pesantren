@@ -55,6 +55,7 @@ import IcScalingPh from '~icons/ph/resize';
 import IcScrollTextPh from '~icons/ph/scroll';
 import IcSearchPh from '~icons/ph/magnifying-glass';
 import IcServerPh from '~icons/ph/hard-drives';
+import IcSettingsPh from '~icons/ph/gear';
 import IcSunPh from '~icons/ph/sun';
 import IcTrash2Ph from '~icons/ph/trash';
 import IcUndo2Ph from '~icons/ph/arrow-u-up-left';
@@ -129,6 +130,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ScrollText: IcScrollTextPh,
   Search: IcSearchPh,
   Server: IcServerPh,
+  Settings: IcSettingsPh,
   Sun: IcSunPh,
   Trash2: IcTrash2Ph,
   Undo2: IcUndo2Ph,

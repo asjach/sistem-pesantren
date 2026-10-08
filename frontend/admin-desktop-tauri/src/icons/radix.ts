@@ -40,6 +40,7 @@ import IcRotateCcwRadix from '~icons/radix-icons/rotate-counter-clockwise';
 import IcRotateCwRadix from '~icons/radix-icons/reload';
 import IcSearchRadix from '~icons/radix-icons/magnifying-glass';
 import IcServerRadix from '~icons/radix-icons/server';
+import IcSettingsRadix from '~icons/radix-icons/gear';
 import IcSunRadix from '~icons/radix-icons/sun';
 import IcTrash2Radix from '~icons/radix-icons/trash';
 import IcUploadRadix from '~icons/radix-icons/upload';
@@ -90,6 +91,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   RotateCw: IcRotateCwRadix,
   Search: IcSearchRadix,
   Server: IcServerRadix,
+  Settings: IcSettingsRadix,
   Sun: IcSunRadix,
   Trash2: IcTrash2Radix,
   Upload: IcUploadRadix,

@@ -90,6 +90,7 @@ const IKON = {
   ScrollText: ['scroll-text', 'scroll', 'document-text', 'scroll-2', 'notes', 'file-text-line', 'journal-text'],
   Search: ['search', 'magnifying-glass', 'search-line', 'find', 'magnifier', 'search-2', 'zoom'],
   Server: ['server', 'server-2', 'dns', 'server-stack', 'hard-drives', 'database', 'server-line'],
+  Settings: ['settings', 'settings-2', 'settings-3', 'cog', 'cog-2', 'gear', 'gear-six', 'cog-6-tooth', 'gear-fine'],
   Sun: ['sun', 'light-mode', 'weather-sunny', 'sun-fill', 'sun-1', 'sun-line', 'brightness'],
   Trash2: ['trash-2', 'trash', 'delete', 'trash-bin', 'bin', 'trash-line', 'delete-2', 'garbage', 'delete-bin-line'],
   Undo2: ['undo-2', 'undo', 'arrow-u-left-top', 'arrow-go-back', 'rotate-left', 'corner-up-left', 'reply', 'arrow-uturn-left', 'arrow-u-up-left', 'arrow-go-back-line'],
