@@ -1,14 +1,15 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import FilterRail from '@/components/FilterRail';
 import TagihanCrosstab from '@/components/keuangan/TagihanCrosstab';
 import { DeleteAction, EditAction } from '@/components/RowActions';
 import { ArrowDownAZ, ArrowUpAZ, Info, Plus, RotateCcw, Search, TriangleAlert, X } from '@/icons';
 import type { PetaArahKolom } from '@/lib/urut';
+import type { PilihanLembaga } from '@/lembagaAktif';
 import type { PerPage } from '@/prefs';
 import type {
   CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan, Dispensasi, JenisTagihan, Tarif,
@@ -21,19 +22,57 @@ import type { Santri } from '@/api/santri';
  * pencarian/urutan/pilihan tidak hilang saat berpindah tab — Radix melepas
  * isi tab yang tidak aktif. Komponen di sini murni menerima data + handler. */
 
+/** Penanda pilihan "Semua (global)" di baris input tabel Jenis: jenjang
+ *  `null` tak bisa diwakili pilihan kosong sebab kolomnya `required`. */
+export const JENIS_GLOBAL = '__global';
+
+/** Nama & tipe bisa diedit langsung lewat mode Edit; `lembaga` baca-saja di
+ *  baris data (pindah lingkup hanya lewat dialog Ubah) tapi jadi dropdown di
+ *  baris input — pilihannya disuntik `JenisTab`. */
 export const FIELDS_JENIS: ExcelField[] = [
-  { key: 'nama', label: 'Jenis Tagihan', kind: 'static' },
-  { key: 'tipe', label: 'Tipe', kind: 'static', width: 90 },
-  { key: 'lembaga', label: 'Lembaga', kind: 'static', width: 130 },
-  { key: 'aktif', label: 'Status', kind: 'static', width: 80 },
+  {
+    key: 'nama', label: 'Jenis Tagihan', kind: 'text', maxLength: 100, required: true,
+    validate: (v) => (!v || !v.trim() ? 'Nama jenis wajib diisi.' : null),
+  },
+  {
+    key: 'tipe', label: 'Tipe', width: 110, kind: 'select', required: true,
+    choices: [
+      { value: 'bulanan', label: 'Bulanan' },
+      { value: 'non_bulanan', label: 'Non-bulanan' },
+    ],
+    // Sel yang dikosongkan (Delete) ditolak, bukan diam-diam jadi Non-bulanan.
+    validate: (v) => (v === 'bulanan' || v === 'non_bulanan' ? null : 'Tipe harus Bulanan atau Non-bulanan.'),
+  },
+  { key: 'lembaga', label: 'Lembaga', width: 130, kind: 'static', inputKind: 'select', required: true },
+  // Switch status tersimpan langsung (tanpa Mode Edit), seperti kolom is_active lain.
+  { key: 'aktif', label: 'Status', width: 80, kind: 'toggle' },
 ];
 
+/** Angka nominal dari teks sel grid: terima digit polos (`75000`) atau
+ *  ber-titik ribuan (`75.000`); selain bentuk itu → null (ditolak validate). */
+function nominalDariTeks(v: string | null | undefined): number | null {
+  const s = (v ?? '').trim();
+  if (!/^(\d+|\d{1,3}(\.\d{3})+)$/.test(s)) return null;
+  return Number(s.replace(/\./g, ''));
+}
+
+/** Jenjang + TA + jenis adalah kunci baris tarif — sel itu baca-saja; hanya
+ *  nominal & status aktif yang bisa diedit langsung lewat mode Edit. */
 export const FIELDS_TARIF: ExcelField[] = [
   { key: 'jenjang', label: 'Lembaga', kind: 'static', width: 90 },
   { key: 'tahun_ajaran', label: 'Tahun Ajaran', kind: 'static', width: 110 },
-  { key: 'jenis', label: 'Jenis', kind: 'static' },
-  { key: 'nominal', label: 'Nominal', kind: 'static', width: 110 },
-  { key: 'aktif', label: 'Aktif', kind: 'static', width: 70 },
+  // Jenis hanya bisa diisi di baris input (mode Input); pilihannya disuntik
+  // TarifTab dari daftar jenis yang berlaku untuk lembaga filter.
+  { key: 'jenis', label: 'Jenis', kind: 'static', inputKind: 'select', required: true },
+  {
+    key: 'nominal', label: 'Nominal', width: 110, kind: 'text', maxLength: 15, required: true,
+    validate: (v) => ((v ?? '').trim() === ''
+      ? 'Nominal wajib diisi.'
+      : (nominalDariTeks(v) === null ? 'Nominal harus angka bulat ≥ 0.' : null)),
+  },
+  // Switch status tersimpan langsung (tanpa Mode Edit) seperti kolom is_active
+  // lain; gerbang izinnya mengikuti `canEdit` tabel.
+  { key: 'aktif', label: 'Aktif', kind: 'toggle', width: 70 },
 ];
 
 export const FIELDS_DISPENSASI: ExcelField[] = [
@@ -107,29 +146,133 @@ export interface SortTabel {
   terapkan: (nilai: string[], arah: 'naik' | 'turun', peta?: PetaArahKolom) => void;
 }
 
-/** Tab Jenis Tagihan: tabel + tombol tambah/ubah. */
-export function JenisTab({ rows, loading, sort, efektifSuper, onTambah, onEdit }: {
+/** Nilai grid tabel Jenis Tagihan. `tipe` dikirim mentah karena kolomnya
+ *  select — label Bulanan/Non-bulanan diambil dari `choices` kolom. */
+export function nilaiGridJenis(j: JenisTagihan): Record<string, string | null> {
+  return {
+    nama: j.nama,
+    tipe: j.tipe,
+    lembaga: j.jenjang ?? 'Semua',
+    aktif: j.is_active ? 'ya' : 'tidak',
+  };
+}
+
+/** Payload `ubahJenis` dari sel yang berubah. Lingkup (jenjang) sengaja tidak
+ *  ikut — pindah lembaga hanya lewat dialog Ubah; field yang tidak berubah
+ *  memakai nilai baris sebab endpoint menuntut `nama` juga. */
+export function payloadUbahJenis(baris: JenisTagihan, f: Record<string, string | null>): {
+  nama: string; tipe: 'bulanan' | 'non_bulanan'; is_active: boolean;
+} {
+  const nama = f.nama !== undefined ? (f.nama ?? '').trim() : baris.nama;
+  return {
+    // Validator sudah menolak nama kosong; ini jaring pengaman terakhir.
+    nama: nama === '' ? baris.nama : nama,
+    tipe: f.tipe !== undefined ? (f.tipe === 'bulanan' ? 'bulanan' : 'non_bulanan') : baris.tipe,
+    is_active: f.aktif !== undefined ? f.aktif === 'ya' : baris.is_active,
+  };
+}
+
+/** Payload `buatJenis` dari baris input: nama & tipe wajib, lingkup lembaga
+ *  wajib dipilih (`JENIS_GLOBAL` = jenis global, hanya untuk super_admin). */
+export function payloadBuatJenis(f: Record<string, string | null>): {
+  nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang: string | null;
+} {
+  const nama = (f.nama ?? '').trim();
+  if (nama === '') throw new Error('Nama jenis wajib diisi.');
+  const tipe = f.tipe === 'bulanan' ? 'bulanan' as const
+    : f.tipe === 'non_bulanan' ? 'non_bulanan' as const : null;
+  if (tipe === null) throw new Error('Pilih tipe tagihan dulu.');
+  const lembaga = (f.lembaga ?? '').trim();
+  if (lembaga === '') throw new Error('Pilih lembaga dulu.');
+  return { nama, tipe, jenjang: lembaga === JENIS_GLOBAL ? null : lembaga };
+}
+
+/** Baris tarif yang sudah memakai kombinasi (lembaga, tahun ajaran, jenis) —
+ *  calon bentrok saat menambah baris baru. `tingkat` sengaja tidak ikut:
+ *  baris input selalu tanpa tingkat, dan pipeline generate tidak pernah
+ *  membaca tingkat tarif. Index DB `uq_tarif_tagihan` memang memuat tingkat,
+ *  tetapi MySQL/SQLite menganggap NULL berbeda sehingga baris ganda tetap
+ *  bisa lolos ke database — penjaga ini yang menutupnya. */
+export function tarifBentrok(
+  rows: readonly Tarif[],
+  calon: { jenjang: string; tahun_ajaran: string; jenis_id: number },
+): Tarif | null {
+  return rows.find((t) => t.jenjang === calon.jenjang
+    && t.tahun_ajaran === calon.tahun_ajaran
+    && t.jenis_id === calon.jenis_id) ?? null;
+}
+
+/** Penjaga sebelum POST: lempar pesan bentrok bila (lembaga, TA, jenis) sudah
+ *  punya tarif. Dipakai halaman agar duplikat dicegah di klien — tidak
+ *  bergantung pada 422 server. */
+export function pastikanTarifBaru(
+  rows: readonly Tarif[],
+  calon: { jenjang: string; tahun_ajaran: string; jenis_id: number },
+): void {
+  const bentrok = tarifBentrok(rows, calon);
+  if (bentrok === null) return;
+  throw new Error(`Tarif ${bentrok.jenis?.nama ?? 'jenis ini'} untuk ${calon.jenjang} ${calon.tahun_ajaran} sudah ada — ubah baris itu, bukan menambah baris baru.`);
+}
+
+/** Pilihan jenis di baris input tabel Tarif: jenis global (null) selalu ikut +
+ *  khusus lembaga filter (penyaringan sama dengan dialog Tambah Tarif); jenis
+ *  yang sudah punya tarif di lingkup ini ditandai "· sudah ada". */
+export function opsiJenisTarif(
+  jenis: JenisTagihan[],
+  jenjangFilter: string | null,
+  terpakai: ReadonlySet<number>,
+): ExcelChoice[] {
+  return jenis
+    .filter((j) => j.jenjang === null || j.jenjang === jenjangFilter)
+    .map((j) => ({ value: String(j.id), label: terpakai.has(j.id) ? `${j.nama} · sudah ada` : j.nama }));
+}
+
+/** Acuan tetap saat halaman tidak mengirim daftar jenis terpakai. */
+const TANPA_JENIS_TERPAKAI: ReadonlySet<number> = new Set();
+
+/** Tab Jenis Tagihan: tabel + tombol tambah/ubah. Nama, tipe, dan status bisa
+ *  diedit langsung (mode Edit, izin `keuangan.ubah`); mode Input membuat jenis
+ *  baru (izin `keuangan.tambah`) dengan lingkup lembaga dipilih di baris input. */
+export function JenisTab({ rows, loading, sort, efektifSuper, pilihanLembaga, canEdit, onCommit, onSaved, onCreateRow, onTambah, onEdit }: {
   rows: JenisTagihan[];
   loading: boolean;
   sort: SortTabel;
   efektifSuper: boolean;
+  /** Opsi lingkup lembaga di baris input (jenis global + lembaga peran). */
+  pilihanLembaga: PilihanLembaga[];
+  /** Gerbang izin `keuangan.ubah`: menyalakan mode Edit & switch Status. */
+  canEdit: boolean;
+  /** Simpan satu baris hasil edit sel (antrean auto-save ExcelTable). */
+  onCommit: (id: number, fields: Record<string, string | null>) => Promise<void>;
+  onSaved: () => Promise<void> | void;
+  /** Absen = mode Input tidak tersedia (pemegang `keuangan.tambah` saja). */
+  onCreateRow?: (fields: Record<string, string | null>) => Promise<void>;
   onTambah: () => void;
   onEdit: (j: JenisTagihan) => void;
 }) {
+  /** Pilihan lingkup di baris input: "Semua (global)" hanya untuk super_admin
+   *  efektif — sama seperti select lingkup pada dialog Tambah Jenis. */
+  const fields = useMemo<ExcelField[]>(() => {
+    const opsi: ExcelChoice[] = pilihanLembaga.map((l) => ({ value: l.jenjang, label: `${l.jenjang} — ${l.nama}` }));
+    if (efektifSuper) opsi.unshift({ value: JENIS_GLOBAL, label: 'Semua (global)' });
+    return FIELDS_JENIS.map((f) => (f.key === 'lembaga' ? { ...f, inputChoices: opsi } : f));
+  }, [pilihanLembaga, efektifSuper]);
+
   return (
     <ExcelTable<JenisTagihan & { id: number }>
       tableKey="keuangan_jenis"
-      fields={FIELDS_JENIS}
+      fields={fields}
       rows={rows.map((j) => ({ ...j, id: j.id }))}
       urutAktif={sort.urut}
       arahUrut={sort.arah}
       onUrut={sort.terapkan}
-      getValues={(r) => ({ nama: r.nama, tipe: r.tipe === 'bulanan' ? 'Bulanan' : 'Non-bulanan', lembaga: r.jenjang ?? 'Semua', aktif: r.is_active ? 'Aktif' : 'Nonaktif' })}
+      getValues={nilaiGridJenis}
       loading={loading}
       emptyText="Belum ada jenis tagihan."
-      canEdit={false}
-      onCommit={async () => {}}
-      onSaved={() => {}}
+      canEdit={canEdit}
+      onCommit={onCommit}
+      onSaved={onSaved}
+      onCreateRow={onCreateRow}
       renderActions={(j) => (
         (j.jenjang !== null || efektifSuper)
           ? <EditAction id={`btn_jenis_ubah_${j.id}`} onClick={() => onEdit(j)} />
@@ -142,33 +285,90 @@ export function JenisTab({ rows, loading, sort, efektifSuper, onTambah, onEdit }
   );
 }
 
-/** Tab Tarif: tabel + tombol tambah/ubah/hapus. */
-export function TarifTab({ rows, loading, sort, onTambah, onEdit, onHapus }: {
+/** Nilai grid tabel Tarif: nominal terformat ribuan, status memakai bentuk
+ *  `ya`/`tidak` (bentuk yang dibaca ToggleCell). */
+export function nilaiGridTarif(r: Tarif): Record<string, string | null> {
+  return {
+    jenjang: r.jenjang,
+    tahun_ajaran: r.tahun_ajaran,
+    jenis: r.jenis?.nama ?? null,
+    nominal: r.nominal.toLocaleString('id'),
+    aktif: r.is_active ? 'ya' : 'tidak',
+  };
+}
+
+/** Payload `ubahTarif` dari sel yang berubah: field yang tidak ikut berubah
+ *  memakai nilai baris, sebab endpoint menuntut nominal + status sekaligus. */
+export function payloadUbahTarif(
+  baris: Tarif,
+  f: Record<string, string | null>,
+): { nominal: number; is_active: boolean } {
+  return {
+    nominal: f.nominal !== undefined ? (nominalDariTeks(f.nominal) ?? baris.nominal) : baris.nominal,
+    is_active: f.aktif !== undefined ? f.aktif === 'ya' : baris.is_active,
+  };
+}
+
+/** Payload `buatTarif` dari baris input (jenjang + tahun ajaran diambil dari
+ *  filter halaman): jenis wajib dipilih, nominal wajib angka yang valid.
+ *  Dilempar sebagai Error agar pesannya tampil sebagai toast baris input. */
+export function payloadBuatTarif(f: Record<string, string | null>): { jenis_id: number; nominal: number } {
+  const jenisId = Number((f.jenis ?? '').trim());
+  if (!Number.isInteger(jenisId) || jenisId <= 0) throw new Error('Pilih jenis tagihan dulu.');
+  const nominal = nominalDariTeks(f.nominal);
+  if (nominal === null) throw new Error('Nominal harus angka bulat ≥ 0.');
+  return { jenis_id: jenisId, nominal };
+}
+
+/** Tab Tarif: tabel + tombol tambah/ubah/hapus. Nominal & status aktif bisa
+ *  diedit langsung (mode Edit, auto-save per sel) oleh pemegang `keuangan.ubah`;
+ *  mode Input membuat tarif baru untuk lingkup filter oleh pemegang
+ *  `keuangan.tambah`. */
+export function TarifTab({ rows, loading, sort, jenis, jenjangFilter, jenisTerpakai, canEdit, onCommit, onSaved, onCreateRow, inputRowValues, onTambah, onEdit, onHapus }: {
   rows: Tarif[];
   loading: boolean;
   sort: SortTabel;
+  /** Daftar jenis tagihan untuk dropdown baris input (mode Input). */
+  jenis: JenisTagihan[];
+  /** Lembaga filter tunggal: menentukan jenis yang berlaku di baris input. */
+  jenjangFilter: string | null;
+  /** Jenis yang sudah punya tarif di lingkup baris input — ditandai di dropdown. */
+  jenisTerpakai?: ReadonlySet<number>;
+  /** Gerbang izin `keuangan.ubah`: menyalakan mode Edit & switch Aktif. */
+  canEdit: boolean;
+  /** Simpan satu baris hasil edit sel (antrean auto-save ExcelTable). */
+  onCommit: (id: number, fields: Record<string, string | null>) => Promise<void>;
+  onSaved: () => Promise<void> | void;
+  /** Absen = mode Input tidak tersedia (pemegang `keuangan.tambah` saja). */
+  onCreateRow?: (fields: Record<string, string | null>) => Promise<void>;
+  /** Nilai tampilan kolom statis baris input (lembaga + TA dari filter). */
+  inputRowValues?: Record<string, string | null>;
   onTambah: () => void;
   onEdit: (t: Tarif) => void;
   onHapus: (t: Tarif) => void;
 }) {
+  /** Pilihan jenis di baris input (lingkup filter + tanda "sudah ada"). */
+  const fields = useMemo<ExcelField[]>(() => {
+    const opsi = opsiJenisTarif(jenis, jenjangFilter, jenisTerpakai ?? TANPA_JENIS_TERPAKAI);
+    return FIELDS_TARIF.map((f) => (f.key === 'jenis' ? { ...f, inputChoices: opsi } : f));
+  }, [jenis, jenjangFilter, jenisTerpakai]);
+
   return (
     <ExcelTable<Tarif & { id: number }>
       tableKey="keuangan_tarif"
-      fields={FIELDS_TARIF}
+      fields={fields}
       rows={rows.map((t) => ({ ...t, id: t.id }))}
       urutAktif={sort.urut}
       arahUrut={sort.arah}
       onUrut={sort.terapkan}
-      getValues={(r) => ({
-        jenjang: r.jenjang, tahun_ajaran: r.tahun_ajaran,
-        jenis: r.jenis?.nama ?? null, nominal: r.nominal.toLocaleString('id'),
-        aktif: r.is_active ? 'Ya' : 'Tidak',
-      })}
+      getValues={nilaiGridTarif}
       loading={loading}
       emptyText="Belum ada tarif."
-      canEdit={false}
-      onCommit={async () => {}}
-      onSaved={() => {}}
+      canEdit={canEdit}
+      onCommit={onCommit}
+      onSaved={onSaved}
+      onCreateRow={onCreateRow}
+      inputRowValues={inputRowValues}
       renderActions={(r) => (
         <>
           <EditAction id={`btn_tarif_ubah_${r.id}`} onClick={() => onEdit(r)} />

@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
-  daftarJenis, daftarTarif, hapusTarif, buatTagihan,
+  daftarJenis, daftarTarif, hapusTarif, buatJenis, ubahJenis, buatTarif, buatTagihan, ubahTarif,
   crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran,
   riwayatPembayaran, hapusPembayaran,
   type JenisTagihan, type Tarif, type PembayaranRow,
@@ -18,11 +18,14 @@ import PopoverAksiTagihan, { type TagihanAktif, type TambahCtx } from '@/compone
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { useLembagaAktif } from '@/lembagaAktif';
+import { useAuth } from '../auth/AuthContext';
+import { bisa } from '../api/auth';
 import { usePager } from '@/hooks/usePager';
 import GenerateTagihanDialog from '@/components/keuangan/GenerateTagihanDialog';
 import {
   FIELDS_JENIS, FIELDS_TARIF,
   JenisTab, TagihanTab, TarifTab,
+  pastikanTarifBaru, payloadBuatJenis, payloadBuatTarif, payloadUbahJenis, payloadUbahTarif,
 } from '@/components/keuangan/tabKeuangan';
 import {
   DialogTambahJenis, DialogTambahTarif, DialogUbahJenis, DialogUbahTarif,
@@ -82,6 +85,11 @@ export default function KeuanganPage() {
   const { jenjangs, tahunAjaranNames, tingkat, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
   /** Jenis global (Semua) hanya untuk super_admin efektif — mati saat bertindak. */
   const { efektifSuper, peranJenjang, pilihan: pilihanLembaga } = useLembagaAktif();
+  const { user } = useAuth();
+  /** Mode Edit tabel Jenis & Tarif = izin `keuangan.ubah` (endpoint PUT). */
+  const canUbahKeuangan = bisa(user, 'keuangan.ubah');
+  /** Mode Input tabel Jenis & Tarif = izin `keuangan.tambah` (endpoint POST). */
+  const canTambahKeuangan = bisa(user, 'keuangan.tambah');
   /** Urut header tiap tabel (perubahan memicu muat ulang via effect). */
   const uJenis = useUrutTabel();
   const uTarif = useUrutTabel();
@@ -235,6 +243,18 @@ export default function KeuanganPage() {
   const [tfJenjang, setTfJenjang] = useState('MI');
   const [tfTA, setTfTA] = useState('2025/2026');
   const genTAtopbar = targetTunggal(tahunAjaranNames);
+  /** Lembaga filter tunggal — lingkup baris input tabel Tarif (mode Input). */
+  const jenjangInputTarif = targetTunggal(jenjangs);
+  /** Jenis yang sudah punya tarif di lingkup baris input (lembaga + TA filter):
+   *  ditandai "sudah ada" di dropdown agar bentrok terlihat sebelum disimpan. */
+  const jenisTerpakaiTarif = useMemo(() => {
+    if (jenjangInputTarif === null || genTAtopbar === null) return new Set<number>();
+    return new Set(
+      tarif
+        .filter((t) => t.jenjang === jenjangInputTarif && t.tahun_ajaran === genTAtopbar)
+        .map((t) => t.jenis_id),
+    );
+  }, [tarif, jenjangInputTarif, genTAtopbar]);
   /** Sel asal popover aksi (jangkar). null = popover tertutup. */
   const [anchorSel, setAnchorSel] = useState<HTMLElement | null>(null);
   /** Tagihan terpilih dari sel crosstab (isi popover aksi). */
@@ -446,6 +466,56 @@ export default function KeuanganPage() {
     })();
   }, [loadTarif, jenjangs, tahunAjaranNames]);
 
+  /** Simpan satu baris tarif hasil edit sel (auto-save mode Edit): nominal &
+   *  status aktif; field lain memakai nilai baris (endpoint minta keduanya). */
+  const commitTarif = useCallback(async (id: number, f: Record<string, string | null>) => {
+    const baris = tarif.find((t) => t.id === id);
+    if (!baris) return;
+    const { nominal, is_active } = payloadUbahTarif(baris, f);
+    await ubahTarif(id, nominal, is_active);
+  }, [tarif]);
+
+  /** Antrean auto-save mode Edit selesai → muat ulang tabel tarif sekali. */
+  const muatUlangTarif = useCallback(async () => {
+    await loadTarif(jenjangs, tahunAjaranNames);
+  }, [loadTarif, jenjangs, tahunAjaranNames]);
+
+  /** Mode Input: buat tarif baru dari baris input. Lembaga + tahun ajaran
+   *  diambil dari filter (harus tunggal agar baris baru tetap terlihat di
+   *  tabel); jenis & nominal diisi di baris input. */
+  const createTarifRow = useCallback(async (f: Record<string, string | null>) => {
+    if (jenjangInputTarif === null || genTAtopbar === null) {
+      throw new Error('Pilih satu lembaga & satu tahun ajaran di filter dulu untuk mode Input.');
+    }
+    const { jenis_id, nominal } = payloadBuatTarif(f);
+    // Bentrok dicek dari baris yang sudah dimuat (lingkup filter = lingkup
+    // baris ini). Tanpa ini pasangan lembaga+TA+jenis yang sama bisa tersimpan
+    // dua kali: index `uq_tarif_tagihan` memuat `tingkat`, dan MySQL/SQLite
+    // menganggap NULL berbeda sehingga baris tanpa tingkat tidak tertahan.
+    pastikanTarifBaru(tarif, { jenjang: jenjangInputTarif, tahun_ajaran: genTAtopbar, jenis_id });
+    await buatTarif({ jenjang: jenjangInputTarif, tahun_ajaran: genTAtopbar, jenis_id, nominal });
+    toast.success('Tarif dibuat.');
+    await loadTarif(jenjangs, tahunAjaranNames);
+  }, [jenjangInputTarif, genTAtopbar, tarif, loadTarif, jenjangs, tahunAjaranNames]);
+
+  /** Simpan satu baris jenis tagihan hasil edit sel (mode Edit): nama, tipe,
+   *  status; lingkup lembaga tidak ikut — pindah lingkup lewat dialog Ubah. */
+  const commitJenis = useCallback(async (id: number, f: Record<string, string | null>) => {
+    const baris = jenis.find((j) => j.id === id);
+    if (!baris) return;
+    await ubahJenis(id, payloadUbahJenis(baris, f));
+  }, [jenis]);
+
+  /** Mode Input tabel Jenis: buat jenis baru dari baris input. Lingkup lembaga
+   *  dipilih di baris input; jenis global hanya untuk super_admin (server
+   *  menolak bila bukan — pesannya tampil sebagai toast baris input). */
+  const createJenisRow = useCallback(async (f: Record<string, string | null>) => {
+    const { nama, tipe, jenjang } = payloadBuatJenis(f);
+    await buatJenis(nama, tipe, jenjang);
+    toast.success('Jenis dibuat.');
+    await load();
+  }, [load]);
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
@@ -469,6 +539,11 @@ export default function KeuanganPage() {
             loading={loadingJenis}
             sort={uJenis}
             efektifSuper={efektifSuper}
+            pilihanLembaga={pilihanLembaga}
+            canEdit={canUbahKeuangan}
+            onCommit={commitJenis}
+            onSaved={load}
+            onCreateRow={canTambahKeuangan ? createJenisRow : undefined}
             onTambah={bukaTambahJenis}
             onEdit={setEditJenis}
           />
@@ -479,6 +554,14 @@ export default function KeuanganPage() {
             rows={tarif}
             loading={loadingTarif}
             sort={uTarif}
+            jenis={jenis}
+            jenjangFilter={jenjangInputTarif}
+            jenisTerpakai={jenisTerpakaiTarif}
+            canEdit={canUbahKeuangan}
+            onCommit={commitTarif}
+            onSaved={muatUlangTarif}
+            onCreateRow={canTambahKeuangan ? createTarifRow : undefined}
+            inputRowValues={{ jenjang: jenjangInputTarif ?? '', tahun_ajaran: genTAtopbar ?? '' }}
             onTambah={bukaTambahTarif}
             onEdit={setEditTarif}
             onHapus={hapusTarifBaris}

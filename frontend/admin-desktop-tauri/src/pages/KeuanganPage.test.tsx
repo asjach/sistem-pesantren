@@ -5,7 +5,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import KeuanganPage from './KeuanganPage';
 import { renderDenganTema } from '@/test/utils';
-import type { CrosstabTagihan } from '@/api/keuangan';
+import { daftarJenis, daftarTarif, type CrosstabTagihan, type JenisTagihan, type Tarif } from '@/api/keuangan';
 
 beforeAll(() => {
   if (!('ResizeObserver' in globalThis)) {
@@ -69,6 +69,21 @@ const uji = vi.hoisted(() => {
   return { crosstub, tertunda, crosstabTagihan };
 });
 
+/* Tab Tarif: mode Edit digerbangi izin `keuangan.ubah`. `user` bisa diganti
+   per test lewat `ujiAuth`; bawaan tanpa pengguna = tabel baca-saja. */
+const ujiAuth = vi.hoisted(() => ({
+  user: null as null | {
+    id: number;
+    roles: { name: string }[];
+    lembagas: { jenjang: string; nama: string }[];
+    permissions: string[];
+  },
+}));
+
+vi.mock('@/auth/AuthContext', () => ({
+  useAuth: () => ({ user: ujiAuth.user, loading: false, setUser: () => {}, logoutLocal: async () => {} }),
+}));
+
 vi.mock('@/api/keuangan', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/api/keuangan')>();
   return {
@@ -94,7 +109,9 @@ const FILTER = {
 };
 vi.mock('@/hooks/useFilterGlobalAktif', () => ({
   useFilterGlobalAktif: () => FILTER,
-  targetTunggal: () => new Date(),
+  // Tiru implementasi asli: nilai tunggal mengembalikan isinya (bukan objek
+  // apa pun) — lingkup baris input tabel Tarif bergantung pada ini.
+  targetTunggal: (values: readonly string[]) => (values.length === 1 ? values[0] : null),
 }));
 
 /* Rail filter tingkat/kelas butuh context tingkat & kelas (halaman test ini
@@ -107,13 +124,18 @@ vi.mock('@/kelasAktif', () => ({
 }));
 vi.mock('@/api/master', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/api/master')>();
+  const paginasiKosong = async () => ({
+    pesan: 'ok',
+    data: [],
+    meta: { current_page: 1, last_page: 1, total: 0, per_page: 1000 },
+  });
   return {
     ...asli,
-    listKelas: vi.fn(async () => ({
-      pesan: 'ok',
-      data: [],
-      meta: { current_page: 1, last_page: 1, total: 0, per_page: 1000 },
-    })),
+    listKelas: vi.fn(paginasiKosong),
+    // `load()` halaman menunggu lembaga + tahun ajaran bersama daftar jenis;
+    // tanpa mock ini muat jenis menggantung dan baris uji tidak pernah tampil.
+    listLembaga: vi.fn(paginasiKosong),
+    listTahunAjaran: vi.fn(paginasiKosong),
   };
 });
 
@@ -149,6 +171,7 @@ vi.mock('react-datasheet-grid', async (importOriginal) => {
 beforeEach(() => {
   vi.clearAllMocks();
   uji.tertunda.saisi = null;
+  ujiAuth.user = null;
 });
 
 /** Buka tab Tagihan dan tunggu muat awal selesai. Halaman memakai
@@ -194,5 +217,137 @@ describe('KeuanganPage — muat crosstab', () => {
     // Balasan lama tiba belakangan: harus TIDAK menimpa tabel.
     uji.tertunda.saisi?.();
     await waitFor(() => expect(screen.queryByText('Lama 1')).not.toBeInTheDocument());
+  });
+});
+
+describe('KeuanganPage — mode Edit tabel Tarif', () => {
+  const TARIF: Tarif = {
+    id: 11, jenjang: 'MI', tahun_ajaran: '2025/2026', jenis_id: 1,
+    tingkat: null, nominal: 75000, is_active: true,
+    jenis: { id: 1, nama: 'Infaq Bulanan' },
+  };
+
+  async function bukaTabTarif() {
+    renderDenganTema(
+      <MemoryRouter initialEntries={['/keuangan']}>
+        <KeuanganPage />
+      </MemoryRouter>,
+    );
+    await userEvent.click(await screen.findByRole('tab', { name: 'Tarif' }));
+  }
+
+  it('pemegang izin keuangan.ubah bisa menyalakan mode Edit', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }],
+      lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.ubah'],
+    };
+    vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
+    await bukaTabTarif();
+
+    // Baris tampil dengan nominal terformat; switch Aktif hidup langsung.
+    // (Sel bisa muncul >1×: host pengukur lebar kolom AutoFit juga memuat teksnya.)
+    expect((await screen.findAllByText('75.000')).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Aktif')).toBeEnabled();
+
+    await userEvent.click(screen.getByLabelText('Aktifkan mode Edit'));
+    expect(await screen.findByText('Mode Edit aktif')).toBeInTheDocument();
+  });
+
+  it('tanpa izin keuangan.ubah tabel tetap baca-saja (tanpa mode Edit)', async () => {
+    vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
+    await bukaTabTarif();
+
+    expect((await screen.findAllByText('75.000')).length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText('Aktifkan mode Edit')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Aktif')).toBeDisabled();
+  });
+
+  it('pemegang izin keuangan.tambah bisa menyalakan mode Input', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }],
+      lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.tambah'],
+    };
+    vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
+    await bukaTabTarif();
+
+    await userEvent.click(await screen.findByLabelText('Tambah baris baru'));
+    expect(await screen.findByText('Mode Input aktif')).toBeInTheDocument();
+  });
+
+  it('baris input mengambil lingkup lembaga + TA dari filter (dasar penjaga duplikat)', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }],
+      lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.tambah'],
+    };
+    vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
+    await bukaTabTarif();
+    await userEvent.click(await screen.findByLabelText('Tambah baris baru'));
+    await screen.findByText('Mode Input aktif');
+
+    // Lingkup baris input = filter tunggal topBar; pasangan inilah yang
+    // diuji `tarifBentrok` sebelum POST (dropdown Jenis-nya sendiri hanya
+    // ter-render saat sel aktif, di luar jangkauan stub grid).
+    const selJenjang = document.querySelector('.simpes-dsg-row-input [data-col-key="jenjang"]');
+    const selTa = document.querySelector('.simpes-dsg-row-input [data-col-key="tahun_ajaran"]');
+    expect(selJenjang?.textContent).toBe('MI');
+    expect(selTa?.textContent).toBe('2025/2026');
+  });
+
+  it('tanpa izin keuangan.tambah mode Input tidak tersedia', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }],
+      lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.ubah'],
+    };
+    vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
+    await bukaTabTarif();
+
+    expect((await screen.findAllByText('75.000')).length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText('Tambah baris baru')).not.toBeInTheDocument();
+  });
+});
+
+describe('KeuanganPage — tabel Jenis Tagihan (mode Edit & Input)', () => {
+  const JENIS: JenisTagihan = { id: 5, nama: 'HIPA', tipe: 'non_bulanan', jenjang: 'MI', is_active: true };
+
+  /** Tab Jenis Tagihan: tab awal halaman, tapi tab tersimpan (pref) bisa
+   *  berbeda antar test — jadi diklik eksplisit seperti tab lain. */
+  async function bukaTabJenis() {
+    renderDenganTema(
+      <MemoryRouter initialEntries={['/keuangan']}>
+        <KeuanganPage />
+      </MemoryRouter>,
+    );
+    await userEvent.click(await screen.findByRole('tab', { name: 'Jenis Tagihan' }));
+  }
+
+  it('pemegang izin keuangan.ubah bisa menyalakan mode Edit', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }],
+      lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.ubah'],
+    };
+    vi.mocked(daftarJenis).mockResolvedValue([JENIS]);
+    await bukaTabJenis();
+
+    expect((await screen.findAllByText('HIPA')).length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByLabelText('Aktifkan mode Edit'));
+    expect(await screen.findByText('Mode Edit aktif')).toBeInTheDocument();
+  });
+
+  it('pemegang izin keuangan.tambah bisa menyalakan mode Input', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }],
+      lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.tambah'],
+    };
+    vi.mocked(daftarJenis).mockResolvedValue([JENIS]);
+    await bukaTabJenis();
+
+    await userEvent.click(await screen.findByLabelText('Tambah baris baru'));
+    expect(await screen.findByText('Mode Input aktif')).toBeInTheDocument();
   });
 });
