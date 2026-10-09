@@ -4,10 +4,20 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { PembayaranRow } from '@/api/keuangan';
 import type { Dispensasi } from '@/api/keuangan';
-import type { TahunAjaran } from '@/api/master';
 import { renderDenganTema } from '@/test/utils';
 import PopoverAksiTagihan, { type DataBayar, type DataTambah, type DataUbah, type TagihanAktif, type TambahCtx } from './PopoverAksiTagihan';
 
+/** jsdom tak mengimplementasikan URL blob — stub sekali untuk seluruh file
+ *  (tanpa restore: cleanup RTL meng-unmount setelah test selesai). */
+URL.createObjectURL = () => 'blob:foto-uji';
+URL.revokeObjectURL = () => {};
+
+/** Byte dokumen (avatar): bawaan PNG 4 byte, tiap test yang butuh menimpa via mock. */
+const ambilByte = vi.fn(async (_t?: unknown, _id?: unknown): Promise<Uint8Array> => new Uint8Array([137, 80, 78, 71]));
+vi.mock('@/api/dokumen', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/api/dokumen')>();
+  return { ...asli, ambilByteDokumen: (t: unknown, id: unknown) => ambilByte(t, id) };
+});
 /** Daftar dispensasi: kosong bawaan (tiap test yang butuh menimpa via mock). */
 const daftarDispen = vi.fn(async (_p?: unknown): Promise<Dispensasi[]> => []);
 const kuotaTerpakai = vi.fn(async (_ids?: unknown): Promise<Record<number, Record<number, number>>> => ({}));
@@ -20,7 +30,7 @@ function tagihan(partial: Partial<TagihanAktif> = {}): TagihanAktif {
   return {
     id: 7, nama: 'Santri Uji', label: 'Infaq Bulanan · Jul 2025',
     ayah_nama: 'Bpk. Abdul', ibu_nama: 'Siti Aminah',
-    santri_id: 7, jenisId: 1,
+    santri_id: 7, fotoDokumenId: null, kelas: '4B', jenjangRiwayat: ['MI'], jenisId: 1,
     nominal: 75000, terbayar: 20000, sisa: 55000, status: 'sebagian',
     potongan: 0, dispensasi_ids: null,
     terlambat: true, jatuhTempo: '2025-08-10', tahunAjaran: '2025/2026',
@@ -35,11 +45,6 @@ function jangkar(): HTMLElement {
   document.body.appendChild(el);
   return el;
 }
-
-const DAFTAR_TA: TahunAjaran[] = [
-  { nama: '2025/2026', is_aktif: true } as TahunAjaran,
-  { nama: '2024/2025', is_aktif: false } as TahunAjaran,
-];
 
 function pembayaran(partial: Partial<PembayaranRow> = {}): PembayaranRow {
   return {
@@ -77,7 +82,6 @@ function renderPopover(
       tagihan={t}
       tambah={null}
       anchor={jangkar()}
-      daftarTA={DAFTAR_TA}
       riwayat={riwayat.rows ?? []}
       riwayatBusy={riwayat.busy ?? false}
       riwayatError={riwayat.error ?? ''}
@@ -88,34 +92,33 @@ function renderPopover(
 }
 
 describe('ringkasan tagihan', () => {
-  it('memuat nama, ayah, ibu, tagihan, dibayar, dan sisa', () => {
+  it('memuat nama, orang tua, tagihan, dibayar, dan sisa', () => {
     renderPopover(tagihan());
     expect(screen.getByText('Santri Uji')).toBeInTheDocument();
-    expect(screen.getByText('Ayah')).toBeInTheDocument();
-    expect(screen.getByText('Bpk. Abdul')).toBeInTheDocument();
-    expect(screen.getByText('Ibu')).toBeInTheDocument();
-    expect(screen.getByText('Siti Aminah')).toBeInTheDocument();
+    expect(screen.getByText('Ayah: Bpk. Abdul')).toBeInTheDocument();
+    expect(screen.getByText('Ibu: Siti Aminah')).toBeInTheDocument();
+    expect(screen.getByText('Kelas 4B (MI)')).toBeInTheDocument();
     expect(screen.getByText('Infaq Bulanan · Jul 2025')).toBeInTheDocument();
     expect(screen.getByText('Rp 75.000')).toBeInTheDocument();
     expect(screen.getByText('Rp 20.000')).toBeInTheDocument();
     expect(screen.getByText('Rp 55.000')).toBeInTheDocument();
-    expect(screen.getByText('Jatuh tempo 10 Agu 2025')).toBeInTheDocument();
   });
 
-  it('ayah kosong ditandai garis putus, ibu tetap tampil', () => {
+  it('ayah kosong hanya menampilkan garis putus di barisnya', () => {
     renderPopover(tagihan({ ayah_nama: null, ibu_nama: 'Siti Aminah' }));
-    expect(screen.getByText('—')).toBeInTheDocument();
-    expect(screen.getByText('Siti Aminah')).toBeInTheDocument();
+    expect(screen.getByText('Ayah: —')).toBeInTheDocument();
+    expect(screen.getByText('Ibu: Siti Aminah')).toBeInTheDocument();
   });
 
-  it('ayah dan ibu kosong keduanya ditandai garis putus', () => {
+  it('ayah dan ibu kosong keduanya garis putus', () => {
     renderPopover(tagihan({ ayah_nama: null, ibu_nama: null }));
-    expect(screen.getAllByText('—')).toHaveLength(2);
+    expect(screen.getByText('Ayah: —')).toBeInTheDocument();
+    expect(screen.getByText('Ibu: —')).toBeInTheDocument();
   });
 
   it('badge status mengikuti kondisi tagihan', () => {
     const { unmount } = renderDenganTema(
-      <PopoverAksiTagihan tagihan={tagihan({ terlambat: true })} tambah={null} anchor={jangkar()} daftarTA={DAFTAR_TA}
+      <PopoverAksiTagihan tagihan={tagihan({ terlambat: true })} tambah={null} anchor={jangkar()}
         riwayat={[]} riwayatBusy={false} riwayatError=""
         onTutup={() => {}} onBayar={async () => {}} onUbah={async () => {}} onHapus={async () => {}} onHapusPembayaran={async () => {}} onMuatRiwayat={() => {}} onTambah={async () => {}} />,
     );
@@ -123,16 +126,16 @@ describe('ringkasan tagihan', () => {
     unmount();
 
     renderDenganTema(
-      <PopoverAksiTagihan tagihan={tagihan({ terlambat: false, status: 'lunas', sisa: 0 })} tambah={null} anchor={jangkar()} daftarTA={DAFTAR_TA}
+      <PopoverAksiTagihan tagihan={tagihan({ terlambat: false, status: 'lunas', sisa: 0 })} tambah={null} anchor={jangkar()}
         riwayat={[]} riwayatBusy={false} riwayatError=""
         onTutup={() => {}} onBayar={async () => {}} onUbah={async () => {}} onHapus={async () => {}} onHapusPembayaran={async () => {}} onMuatRiwayat={() => {}} onTambah={async () => {}} />,
     );
     expect(screen.getByText('Lunas')).toBeInTheDocument();
   });
 
-  it('tanpa batas jatuh tempo menampilkan keterangan itu', () => {
-    renderPopover(tagihan({ jatuhTempo: null }));
-    expect(screen.getByText('Tanpa batas jatuh tempo')).toBeInTheDocument();
+  it('jenjang ganda digabung (MI-MD)', () => {
+    renderPopover(tagihan({ kelas: '4B', jenjangRiwayat: ['MI', 'MD'] }));
+    expect(screen.getByText('Kelas 4B (MI-MD)')).toBeInTheDocument();
   });
 
   it('tombol tutup di kanan atas memanggil onTutup', async () => {
@@ -145,26 +148,50 @@ describe('ringkasan tagihan', () => {
   });
 });
 
-describe('tab aksi', () => {
-  it('memuat empat tab dengan ikon dan label', () => {
-    renderPopover(tagihan());
-    for (const label of ['Bayar', 'Ubah', 'Hapus', 'Detail']) {
-      expect(screen.getByRole('tab', { name: label })).toBeInTheDocument();
-    }
+describe('avatar santri', () => {
+  it('tanpa dokumen foto menampilkan inisial', () => {
+    renderPopover(tagihan({ fotoDokumenId: null }));
+    expect(screen.getByText('SU')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(ambilByte).not.toHaveBeenCalled();
   });
 
-  it('tab awal adalah Bayar', () => {
+  it('menampilkan foto dari dokumen Pas Foto aktif', async () => {
+    ambilByte.mockClear();
+    renderPopover(tagihan({ fotoDokumenId: 11 }));
+    const img = await screen.findByAltText('Foto Santri Uji');
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('src', 'blob:foto-uji');
+    expect(ambilByte).toHaveBeenCalledWith('santri', 11);
+  });
+
+  it('gagal muat (mis. 403) kembali ke inisial', async () => {
+    ambilByte.mockClear();
+    ambilByte.mockRejectedValueOnce(new Error('Forbidden'));
+    renderPopover(tagihan({ fotoDokumenId: 12 }));
+    expect(await screen.findByText('SU')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+});
+
+describe('tab aksi', () => {
+  it('memuat tiga tab dengan ikon dan label', () => {
     renderPopover(tagihan());
-    expect(screen.getByRole('tab', { name: 'Bayar' })).toHaveAttribute('data-state', 'active');
+    for (const label of ['Detail', 'Bayar', 'Ubah']) {
+      expect(screen.getByRole('tab', { name: label })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('tab', { name: 'Hapus' })).not.toBeInTheDocument();
+  });
+
+  it('tab awal adalah Detail', () => {
+    renderPopover(tagihan());
+    expect(screen.getByRole('tab', { name: 'Detail' })).toHaveAttribute('data-state', 'active');
   });
 
   it('berpindah tab menampilkan panel yang sesuai', async () => {
     renderPopover(tagihan());
     await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
     expect(screen.getByLabelText('Nominal')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('tab', { name: 'Hapus' }));
-    expect(screen.getByText(/tidak bisa dibatalkan/)).toBeInTheDocument();
   });
 });
 
@@ -175,6 +202,7 @@ const klikSelect = (el: Element) => userEvent.click(el, { pointerEventsCheck: 0 
 describe('panel bayar', () => {
   it('jumlah defaultnya sisa tagihan dan bisa diubah', async () => {
     const { onBayar } = renderPopover(tagihan());
+    await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     const input = screen.getByLabelText('Jumlah pembayaran');
     expect(input).toHaveValue(55000);
 
@@ -185,16 +213,18 @@ describe('panel bayar', () => {
     expect(onBayar).toHaveBeenCalledWith({ jumlah: 25000, metode: 'tunai', kas: 'tunai_tu' });
   });
 
-  it('tombol Penuh sudah dihapus — field tetap terisi sisa saat dibuka', () => {
+  it('tombol Penuh sudah dihapus — field tetap terisi sisa saat dibuka', async () => {
     // Aturan main: field nominal sudah default ke sisa tagihan saat panel dibuka,
     // jadi tombol pintas "Penuh" tidak perlu lagi (memperkecil baris input).
     renderPopover(tagihan());
+    await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     expect(screen.queryByRole('button', { name: 'Penuh' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Jumlah pembayaran')).toHaveValue(55000);
   });
 
   it('nominal melebihi sisa ditolak beserta pesan', async () => {
     const { onBayar } = renderPopover(tagihan());
+    await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     const input = screen.getByLabelText('Jumlah pembayaran');
     await userEvent.clear(input);
     await userEvent.type(input, '999999');
@@ -203,8 +233,9 @@ describe('panel bayar', () => {
     expect(onBayar).not.toHaveBeenCalled();
   });
 
-  it('label Metode dan Posisi Kas ada', () => {
+    it('label Metode dan Posisi Kas ada', async () => {
     renderPopover(tagihan());
+    await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     expect(screen.getByText('Metode')).toBeInTheDocument();
     expect(screen.getByText('Posisi Kas')).toBeInTheDocument();
     expect(screen.getByLabelText('Metode pembayaran')).toBeInTheDocument();
@@ -213,6 +244,7 @@ describe('panel bayar', () => {
 
   it('pilihan kas ikut metode: tunai hanya Kas TU', async () => {
     renderPopover(tagihan());
+    await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     await klikSelect(screen.getByLabelText('Kas tujuan'));
     const opsi = screen.getAllByRole('option').map((o) => o.textContent);
     expect(opsi).toEqual(['Kas TU']);
@@ -220,6 +252,7 @@ describe('panel bayar', () => {
 
   it('ganti ke transfer → pilihan kas jadi bank, dan kas terpilih ikut berubah', async () => {
     const { onBayar } = renderPopover(tagihan());
+    await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     expect(screen.getByLabelText('Kas tujuan')).toHaveTextContent('Kas TU');
 
     await klikSelect(screen.getByLabelText('Metode pembayaran'));
@@ -241,6 +274,7 @@ describe('panel bayar', () => {
 
   it('kembali ke tunai → kas kembali jadi Kas TU', async () => {
     renderPopover(tagihan());
+    await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     await klikSelect(screen.getByLabelText('Metode pembayaran'));
     await klikSelect(screen.getByRole('option', { name: 'Transfer' }));
     expect(screen.getByLabelText('Kas tujuan')).toHaveTextContent('Bank Pesantren');
@@ -250,8 +284,9 @@ describe('panel bayar', () => {
     expect(screen.getByLabelText('Kas tujuan')).toHaveTextContent('Kas TU');
   });
 
-  it('tagihan lunas menyembunyikan form bayar', () => {
+  it('tagihan lunas menyembunyikan form bayar', async () => {
     renderPopover(tagihan({ status: 'lunas', sisa: 0, terbayar: 75000 }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     expect(screen.queryByLabelText('Jumlah pembayaran')).toBeNull();
     expect(screen.getByText(/sudah lunas/)).toBeInTheDocument();
   });
@@ -269,8 +304,9 @@ describe('panel ubah', () => {
     await userEvent.type(nominal, '80000');
     await userEvent.click(document.getElementById('btn_ubah_simpan') as HTMLElement);
     await waitFor(() => expect(onUbah).toHaveBeenCalledTimes(1));
-    // Bulanan mengabaikan jatuh tempo manual (aturannya tanggal 10).
-    expect(onUbah).toHaveBeenCalledWith({ nominal: 80000, tahun_ajaran: '2025/2026', jatuh_tempo: null });
+    // TA & jatuh tempo dikirim ulang apa adanya (backend menghitung ulang
+    // yang bulanan; yang non-bulanan dipertahankan).
+    expect(onUbah).toHaveBeenCalledWith({ nominal: 80000, tahun_ajaran: '2025/2026', jatuh_tempo: '2025-08-10' });
   });
 
   it('nominal di bawah nilai terbayar ditolak', async () => {
@@ -284,55 +320,58 @@ describe('panel ubah', () => {
     expect(onUbah).not.toHaveBeenCalled();
   });
 
-  it('jatuh tempo otomatis untuk jenis bulanan', async () => {
-    renderPopover(tagihan({ tipe: 'bulanan' }));
+  it('ubah meneruskan tahun ajaran & jatuh tempo asli (tak bisa diubah)', async () => {
+    const { onUbah } = renderPopover(tagihan({ tipe: 'non_bulanan', jatuhTempo: '2025-09-15' }));
     await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
-    expect(screen.getByText(/otomatis: tanggal 10 bulan berjalan/)).toBeInTheDocument();
-  });
-
-  it('jatuh tempo bisa diisi untuk jenis non-bulanan', async () => {
-    const { onUbah } = renderPopover(tagihan({ tipe: 'non_bulanan', jatuhTempo: null }));
-    await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
-    const tempo = screen.getByLabelText('Jatuh Tempo');
-    await userEvent.type(tempo, '2025-09-15');
+    // Tak ada lagi kontrol Tahun Ajaran / Jatuh Tempo di tab Ubah.
+    expect(screen.queryByLabelText('Tahun ajaran')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Jatuh Tempo')).not.toBeInTheDocument();
+    const nominal = screen.getByLabelText('Nominal');
+    await userEvent.clear(nominal);
+    await userEvent.type(nominal, '80000');
     await userEvent.click(document.getElementById('btn_ubah_simpan') as HTMLElement);
     await waitFor(() => expect(onUbah).toHaveBeenCalledTimes(1));
-    expect(onUbah).toHaveBeenCalledWith({ nominal: 75000, tahun_ajaran: '2025/2026', jatuh_tempo: '2025-09-15' });
+    expect(onUbah).toHaveBeenCalledWith({ nominal: 80000, tahun_ajaran: '2025/2026', jatuh_tempo: '2025-09-15' });
   });
 });
 
-describe('panel hapus', () => {
-  it('menyatakan tindakan tak bisa dibatalkan dan meneruskan saat dikonfirmasi', async () => {
+describe('tombol hapus sejajar tab', () => {
+  it('bukan tab, melainkan tombol biasa', () => {
+    renderPopover(tagihan());
+    expect(screen.queryByRole('tab', { name: 'Hapus' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hapus tagihan' })).toBeInTheDocument();
+  });
+
+  it('klik langsung membuka konfirmasi dan meneruskan saat dikonfirmasi', async () => {
     const { onHapus } = renderPopover(tagihan());
-    await userEvent.click(screen.getByRole('tab', { name: 'Hapus' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hapus tagihan' }));
+    // Tetap di tab Detail (bukan pindah tab); konfirmasi tampil di area konten.
+    expect(screen.getByRole('tab', { name: 'Detail' })).toHaveAttribute('data-state', 'active');
     expect(screen.getByText(/tidak bisa dibatalkan/)).toBeInTheDocument();
 
     await userEvent.click(document.getElementById('btn_hapus_konfirmasi') as HTMLElement);
     await waitFor(() => expect(onHapus).toHaveBeenCalledTimes(1));
   });
 
-  it('Batal mengembalikan ke tab Bayar tanpa menghapus', async () => {
+  it('Batal menutup konfirmasi tanpa menghapus', async () => {
     const { onHapus } = renderPopover(tagihan());
-    await userEvent.click(screen.getByRole('tab', { name: 'Hapus' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hapus tagihan' }));
     await userEvent.click(screen.getByRole('button', { name: 'Batal' }));
-    expect(screen.getByRole('tab', { name: 'Bayar' })).toHaveAttribute('data-state', 'active');
+    expect(screen.getByRole('button', { name: 'Hapus tagihan' })).toBeInTheDocument();
     expect(onHapus).not.toHaveBeenCalled();
   });
 });
 
 describe('panel detail pembayaran', () => {
-  it('meminta riwayat saat tab dibuka', async () => {
+  it('meminta riwayat sekali saat popover dibuka', async () => {
     const { onMuatRiwayat } = renderPopover(tagihan());
-    expect(onMuatRiwayat).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('tab', { name: 'Detail' }));
-    expect(onMuatRiwayat).toHaveBeenCalled();
+    await waitFor(() => expect(onMuatRiwayat).toHaveBeenCalledTimes(1));
   });
 
   it('menampilkan daftar pembayaran', async () => {
     renderPopover(tagihan(), {}, {
       rows: [pembayaran(), pembayaran({ id: 2, jumlah: 35000, metode: 'transfer', kas: 'bank_lembaga', no_kwitansi: null, created_at: '2025-08-05T14:30:00' })],
     });
-    await userEvent.click(screen.getByRole('tab', { name: 'Detail' }));
     // Cakupan assertion ke daftar riwayat saja: nominal yang sama bisa muncul
     // juga di ringkasan ("Dibayar").
     const daftar = within(screen.getByRole('list'));
@@ -345,21 +384,18 @@ describe('panel detail pembayaran', () => {
 
   it('menampilkan keadaan proses', async () => {
     const { view } = renderPopover(tagihan(), {}, { busy: true });
-    await userEvent.click(screen.getByRole('tab', { name: 'Detail' }));
     expect(screen.getByText('Memuat riwayat…')).toBeInTheDocument();
     view.unmount();
   });
 
   it('menampilkan keadaan kosong', async () => {
     const { view } = renderPopover(tagihan(), {}, { busy: false });
-    await userEvent.click(screen.getByRole('tab', { name: 'Detail' }));
     expect(screen.getByText(/Belum ada pembayaran/)).toBeInTheDocument();
     view.unmount();
   });
 
   it('menampilkan pesan galat', async () => {
     renderPopover(tagihan(), {}, { error: 'Gagal memuat riwayat.' });
-    await userEvent.click(screen.getByRole('tab', { name: 'Detail' }));
     expect(screen.getByText('Gagal memuat riwayat.')).toBeInTheDocument();
   });
 });
@@ -367,7 +403,7 @@ describe('panel detail pembayaran', () => {
 describe('tanpa tagihan / jangkar', () => {
   it('tidak merender apa pun', () => {
     const { container } = renderDenganTema(
-      <PopoverAksiTagihan tagihan={null} tambah={null} anchor={null} daftarTA={DAFTAR_TA}
+      <PopoverAksiTagihan tagihan={null} tambah={null} anchor={null}
         riwayat={[]} riwayatBusy={false} riwayatError=""
         onTutup={() => {}} onBayar={async () => {}} onUbah={async () => {}} onHapus={async () => {}} onHapusPembayaran={async () => {}} onMuatRiwayat={() => {}} onTambah={async () => {}} />,
     );
@@ -391,7 +427,6 @@ describe('mode tambah (sel kosong)', () => {
         tagihan={null}
         tambah={ctx}
         anchor={jangkar()}
-        daftarTA={DAFTAR_TA}
         riwayat={[]} riwayatBusy={false} riwayatError=""
         onTutup={() => {}}
         onBayar={async () => {}}

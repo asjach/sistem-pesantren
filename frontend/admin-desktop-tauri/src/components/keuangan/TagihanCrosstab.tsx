@@ -7,12 +7,16 @@ import { cn } from '@/lib/utils';
 
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
-/** Label kolom: bulan untuk jenis bulanan, kode TA untuk non-bulanan. */
+/** Label kolom: bulan untuk jenis bulanan; kolom non-bulanan tanpa sub-label
+ *  (satu jenis = satu kolom, namanya sudah di header grup tepat di atasnya). */
 export function labelKolom(k: CrosstabKolom): string {
-  if (k.tipe === 'bulanan' && k.periode !== null && k.periode.length >= 7) {
-    return BULAN[Number(k.periode.slice(5, 7)) - 1] ?? k.periode;
+  if (k.tipe === 'bulanan') {
+    if (k.periode !== null && k.periode.length >= 7) {
+      return BULAN[Number(k.periode.slice(5, 7)) - 1] ?? k.periode;
+    }
+    return k.periode ?? 'Tagihan';
   }
-  return k.periode ?? 'Tagihan';
+  return '';
 }
 
 /** Ringkasan sel untuk judul/actions: "Infaq Bulanan · Jul 2025". */
@@ -32,7 +36,7 @@ interface Props {
    *  `anchor` = elemen sel, dipakai sebagai jangkar popover. */
   onPilih: (
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[] },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
@@ -127,7 +131,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
   kolom: CrosstabKolom[];
   onPilih: (
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[] },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
@@ -195,6 +199,8 @@ const BarisCrosstab = memo(function BarisCrosstab({
         const meta = {
           nama: baris.nama, label: labelSel(k),
           ayah_nama: baris.ayah_nama, ibu_nama: baris.ibu_nama, santri_id: baris.santri_id,
+          foto_dokumen_id: baris.foto_dokumen_id, kelas: baris.kelas,
+          jenjang_riwayat: baris.jenjang_riwayat,
         };
         return (
           <td key={k.key} className="border-b border-r p-0.5">
@@ -283,6 +289,13 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, emptyTe
   const kolom = data?.kolom ?? [];
   const baris: CrosstabBaris[] = data?.baris ?? [];
   const grup = grupKolom(kolom);
+  /* Grup non-bulanan satu kolom digabung jadi satu sel header (rowSpan=2):
+     tak ada sub-label yang perlu ditampilkan di baris kedua. */
+  const gabungKunci = new Set(
+    grup
+      .filter((g) => g.kolom.length === 1 && g.kolom[0].tipe === 'non_bulanan')
+      .map((g) => g.kolom[0].key),
+  );
 
   // Tinggi baris header grup diukur, bukan di-hardcode: baris daun harus
   // menempel tepat di bawahnya, dan salah ukur => sel data terlihat
@@ -364,7 +377,7 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, emptyTe
   const pilihStabil = useCallback(
     (
       sel: CrosstabSel,
-      meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number },
+      meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[] },
       anchor: HTMLElement,
       kolom: CrosstabKolom,
     ) => {
@@ -455,31 +468,40 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, emptyTe
     return <p className="p-8 text-center text-sm text-muted-foreground">{loading ? 'Memuat…' : emptyText}</p>;
   }
 
+  /* `-ml-px`: tepi kiri menimpa garis rail/panel supaya sambungannya 1px,
+     bukan 2px berdempetan. */
   return (
-    <div id="crosstab_tagihan_scroll" ref={scrollRef} className="relative h-full overflow-auto border bg-card">
+    <div id="crosstab_tagihan_scroll" ref={scrollRef} className="relative -ml-px h-full overflow-auto border bg-card">
       <table id="tbl_tagihan_crosstab" className="w-full border-separate border-spacing-0 text-xs">
         <thead>
           <tr ref={grupRef}>
-            <th rowSpan={2} className="sticky left-0 top-0 z-30 border-b border-r bg-muted p-2 text-left align-bottom">
+            {/* `pl-5` (20px) = `pl-2` sel + titik 6px + gap 6px: label sejajar
+                teks nama, bukan titik keaktifan. */}
+            <th rowSpan={2} className="sticky left-0 top-0 z-30 border-b border-r bg-muted py-2 pl-5 pr-2 text-left align-middle">
               Santri
             </th>
-            {grup.map((g) => (
-              <th
-                key={g.jenisId}
-                colSpan={g.kolom.length}
-                className="sticky top-0 z-20 border-b border-r bg-muted px-1.5 py-[3.5px] text-center font-medium"
-              >
-                {g.jenisNama}
-              </th>
-            ))}
-            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-bottom">Tagihan</th>
-            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-bottom">Terbayar</th>
-            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-bottom" title="Sisa tagihan yang sudah lewat jatuh tempo">
+            {grup.map((g) => {
+              const gabung = g.kolom.length === 1 && gabungKunci.has(g.kolom[0].key);
+              return (
+                <th
+                  key={g.jenisId}
+                  colSpan={gabung ? undefined : g.kolom.length}
+                  rowSpan={gabung ? 2 : undefined}
+                  title={gabung ? labelSel(g.kolom[0]) : undefined}
+                  className="sticky top-0 z-20 border-b border-r bg-muted px-1.5 py-[3.5px] text-center align-middle font-medium"
+                >
+                  {g.jenisNama}
+                </th>
+              );
+            })}
+            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-middle">Tagihan</th>
+            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-middle">Terbayar</th>
+            <th rowSpan={2} className="sticky top-0 z-20 border-b border-l bg-muted p-2 text-right align-middle" title="Sisa tagihan yang sudah lewat jatuh tempo">
               Tunggakan
             </th>
           </tr>
           <tr>
-            {kolom.map((k) => (
+            {kolom.filter((k) => !gabungKunci.has(k.key)).map((k) => (
               <th
                 key={k.key}
                 style={{ top: tinggiGrup }}

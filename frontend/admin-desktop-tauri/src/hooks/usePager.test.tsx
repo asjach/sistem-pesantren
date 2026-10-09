@@ -1,10 +1,16 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { usePager } from '@/hooks/usePager';
+import { KUNCI_PERPAGE_GLOBAL, usePager } from '@/hooks/usePager';
 import { PER_PAGE_DEFAULT } from '@/prefs';
 
 describe('usePager', () => {
+  beforeEach(() => {
+    localStorage.removeItem(KUNCI_PERPAGE_GLOBAL);
+    localStorage.removeItem('simpes_perpage_tabel_test');
+    localStorage.removeItem('simpes_perpage_tabel_lain');
+    localStorage.removeItem('simpes_page_tabel_test');
+  });
   it('nilai awal: halaman 1, per-page bawaan, belum ready', () => {
     const { result } = renderHook(() => usePager('tabel_test'));
 
@@ -15,13 +21,23 @@ describe('usePager', () => {
 
   it('menandai ready dan memuat simpanan dari pref', async () => {
     localStorage.setItem('simpes_page_tabel_test', '3');
-    localStorage.setItem('simpes_perpage_tabel_test', '100');
+    localStorage.setItem(KUNCI_PERPAGE_GLOBAL, '100');
 
     const { result } = renderHook(() => usePager('tabel_test'));
 
     await waitFor(() => expect(result.current.ready).toBe(true));
     expect(result.current.page).toBe(3);
     expect(result.current.perPage).toBe(100);
+  });
+
+  it('migrasi sekali-jalan: warisan per-tabel diangkat jadi global', async () => {
+    localStorage.setItem('simpes_perpage_tabel_test', '100');
+
+    const { result } = renderHook(() => usePager('tabel_test'));
+
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.perPage).toBe(100);
+    expect(localStorage.getItem(KUNCI_PERPAGE_GLOBAL)).toBe('100');
   });
 
   it('setPage menyimpan pref dan melarangkan nilai di bawah 1', async () => {
@@ -36,7 +52,7 @@ describe('usePager', () => {
     expect(result.current.page).toBe(1);
   });
 
-  it('setPerPage menyimpan pref dan mengembalikan halaman ke 1', async () => {
+  it('setPerPage menyimpan pref global dan mengembalikan halaman ke 1', async () => {
     const { result } = renderHook(() => usePager('tabel_test'));
     await waitFor(() => expect(result.current.ready).toBe(true));
 
@@ -45,7 +61,20 @@ describe('usePager', () => {
 
     expect(result.current.perPage).toBe(100);
     expect(result.current.page).toBe(1);
-    await waitFor(() => expect(localStorage.getItem('simpes_perpage_tabel_test')).toBe('100'));
+    await waitFor(() => expect(localStorage.getItem(KUNCI_PERPAGE_GLOBAL)).toBe('100'));
+  });
+
+  it('setPerPage di satu tabel disiarkan ke tabel lain yang mounted', async () => {
+    const satu = renderHook(() => usePager('tabel_test'));
+    const lain = renderHook(() => usePager('tabel_lain'));
+    await waitFor(() => expect(satu.result.current.ready).toBe(true));
+    await waitFor(() => expect(lain.result.current.ready).toBe(true));
+
+    act(() => satu.result.current.setPerPage(100));
+
+    expect(satu.result.current.perPage).toBe(100);
+    await waitFor(() => expect(lain.result.current.perPage).toBe(100));
+    expect(lain.result.current.page).toBe(1);
   });
 
   it('goFirst kembali ke halaman 1', async () => {

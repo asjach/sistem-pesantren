@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ActionIcon } from '@/components/RowActions';
 import { ErrorNotice } from '@/components/PageHeader';
 import Pager from '@/components/Pager';
+import { bacaPerPageGlobal, langgananPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import { rincianPeriode } from '@/lib/dispensasi';
 import { ArrowRight, Trash2, X } from '@/icons';
@@ -215,6 +216,17 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     const t = setTimeout(() => { void muatKandidat(1, perPage); }, 250);
     return () => clearTimeout(t);
   }, [open, muatKandidat, perPage]);
+
+  /* Jumlah baris mengikuti pengaturan global (lihat `usePager`): baca saat
+     dialog dibuka + ikut bila tabel lain mengubahnya selagi terbuka. Effect
+     muat di atas otomatis memuat ulang dari halaman 1. */
+  useEffect(() => {
+    if (!open) return;
+    let hidup = true;
+    void bacaPerPageGlobal().then((pp) => { if (hidup) setPerPage(pp); });
+    const berhenti = langgananPerPageGlobal((pp) => { if (hidup) setPerPage(pp); });
+    return () => { hidup = false; berhenti(); };
+  }, [open]);
 
   /** Baris kandidat yang sudah pindah ke tabel kanan disembunyikan. */
   const idTerpilih = useMemo(() => new Set(terpilih.map((r) => r.santri_id)), [terpilih]);
@@ -598,7 +610,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                       <ArrowRight data-icon="inline-start" size={14} /> Pindahkan ({checked.length})
                     </Button>
                   )}
-                pager={<Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage)} onPerPage={(pp) => setPerPage(pp)} />}
+                pager={<Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage)} onPerPage={(pp) => setPerPage(tulisPerPageGlobal(pp))} />}
                 />
               </div>
             </div>

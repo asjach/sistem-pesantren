@@ -20,6 +20,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ActionIcon } from '@/components/RowActions';
 import Pager from '@/components/Pager';
+import { bacaPerPageGlobal, langgananPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
 import { ArrowRight, Info, Loader2, Plus, Save, Search, UserCheck, Users, X } from '@/icons';
 import { type PerPage } from '@/prefs';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
@@ -208,6 +209,17 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
     const t = setTimeout(() => { void muatKandidat(1, perPage, cari); }, cari.trim() === '' ? 0 : 300);
     return () => clearTimeout(t);
   }, [open, cari, perPage, urut, arahUrut, arahKolom, muatKandidat]);
+
+  /* Jumlah baris mengikuti pengaturan global (lihat `usePager`): baca saat
+     dialog dibuka + ikut bila tabel lain mengubahnya selagi terbuka. Effect
+     muat di atas otomatis memuat ulang dari halaman 1. */
+  useEffect(() => {
+    if (!open) return;
+    let hidup = true;
+    void bacaPerPageGlobal().then((pp) => { if (hidup) setPerPage(pp); });
+    const berhenti = langgananPerPageGlobal((pp) => { if (hidup) setPerPage(pp); });
+    return () => { hidup = false; berhenti(); };
+  }, [open]);
 
   // Kandidat termuat → ganti baris nama-karangan dengan data asli.
   useEffect(() => {
@@ -454,7 +466,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                           <ArrowRight data-icon="inline-start" size={14} /> Masukkan ({checked.length})
                         </Button>
                       )}
-                    pager={<Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage, cari)} onPerPage={(pp) => setPerPage(pp)} />}
+                    pager={<Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage, cari)} onPerPage={(pp) => setPerPage(tulisPerPageGlobal(pp))} />}
                     />
                   </div>
                 </div>

@@ -147,10 +147,9 @@ export default function KeuanganPage() {
         jenjang,
         tahun_ajaran: ta,
         santri: cariTagihanTertunda === '' ? undefined : cariTagihanTertunda,
-        /* `''` = opsi "nama": tetap kirim eksplisit agar arah naik/turun
-           dihormati backend. Sebelumnya keduanya di-undefined-kan sehingga
-           tombol ASC/DESC tak berpengaruh (dan urutannya id, bukan nama). */
-        sort: [urutTagihan === '' ? 'nama' : urutTagihan],
+        /* `''` = opsi "nama": urut kelas dulu baru nama (dua token, arah
+           global berlaku untuk keduanya). */
+        sort: urutTagihan === '' ? ['kelas', 'nama'] : [urutTagihan],
         arah: arahTagihan,
         terlambat: terlambatTagihan || undefined,
         tingkat: tingkat.length ? tingkat : undefined,
@@ -264,7 +263,8 @@ export default function KeuanganPage() {
   const [selTagihan, setSelTagihan] = useState<{
     id: number; nama: string; label: string;
     ayah_nama: string | null; ibu_nama: string | null;
-    santri_id: number; nominal: number; sisa: number;
+    santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[];
+    nominal: number; sisa: number;
     status: 'belum' | 'sebagian' | 'lunas';
   } | null>(null);
 
@@ -297,6 +297,9 @@ export default function KeuanganPage() {
           ayah_nama: selTagihan.ayah_nama,
           ibu_nama: selTagihan.ibu_nama,
           santri_id: selTagihan.santri_id,
+          fotoDokumenId: selTagihan.foto_dokumen_id,
+          kelas: selTagihan.kelas,
+          jenjangRiwayat: selTagihan.jenjang_riwayat,
           jenisId: kolomTerpilih.jenis_id,
           nominal: selPenuh.nominal,
           terbayar: selPenuh.terbayar,
@@ -321,7 +324,7 @@ export default function KeuanganPage() {
   const pindahSelRef = useRef(false);
   const pilihSel = useCallback((
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[] },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => {
@@ -331,6 +334,8 @@ export default function KeuanganPage() {
     setSelTagihan({
       id: sel.id, nama: meta.nama, label: meta.label,
       ayah_nama: meta.ayah_nama, ibu_nama: meta.ibu_nama, santri_id: meta.santri_id,
+      foto_dokumen_id: meta.foto_dokumen_id, kelas: meta.kelas,
+      jenjang_riwayat: meta.jenjang_riwayat,
       nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
     });
     setSelPenuh(sel);
@@ -404,6 +409,8 @@ export default function KeuanganPage() {
         {
           nama: baris.nama, label: labelSel(kolom),
           ayah_nama: baris.ayah_nama, ibu_nama: baris.ibu_nama, santri_id: baris.santri_id,
+          foto_dokumen_id: baris.foto_dokumen_id, kelas: baris.kelas,
+          jenjang_riwayat: baris.jenjang_riwayat,
         },
         tombol,
         kolom,
@@ -571,7 +578,7 @@ export default function KeuanganPage() {
           />
         </TabsContent>
 
-        <TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-1 bg-muted/30 p-1 ${KELAS_PANEL_TAB}`}>
+        <TabsContent value="tagihan" className={`min-h-0 flex-1 flex flex-col gap-1 bg-muted/30 p-0 ${KELAS_PANEL_TAB}`}>
           <TagihanTab
             crosstab={crosstab}
             loading={loadingTagihan}
@@ -601,7 +608,6 @@ export default function KeuanganPage() {
                 tagihan={popoverTagihan}
                 tambah={tambahPop}
                 anchor={anchorSel}
-                daftarTA={daftarTA}
                 riwayat={riwayatRows}
                 riwayatBusy={riwayatBusy}
                 riwayatError={riwayatError}

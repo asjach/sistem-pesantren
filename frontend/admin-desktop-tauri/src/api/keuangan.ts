@@ -250,6 +250,11 @@ export interface CrosstabBaris {
   /** Kelas & tingkat dari riwayat belajar pada TA filter (semester genap
    *  menang; Santri MI-MD memakai kelas MI). */
   kelas: string | null; tingkat: string | null;
+  /** Jenjang terdaftar pada TA filter (MI > MD > lainnya) — label gabungan. */
+  jenjang_riwayat: string[];
+  /** Id dokumen Pas Foto aktif pada jenjang baris (null = tanpa foto);
+   *  dipakai avatar popover (byte diambil malas saat dibuka). */
+  foto_dokumen_id: number | null;
   /** `status_akhir` riwayat pada TA filter + turunannya (bukan pindah_keluar). */
   status_akhir: string | null; aktif: boolean;
   sel: Record<string, CrosstabSel>;

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { Dispensasi, PembayaranRow } from '@/api/keuangan';
 import { daftarDispensasi, kuotaPakai } from '@/api/keuangan';
-import type { TahunAjaran } from '@/api/master';
+import { ambilByteDokumen } from '@/api/dokumen';
 import { hitungDispensasi, ringkasAturan, saringDispensasi, selaraskanGrup, sisaKuota } from '@/lib/dispensasi';
 import { DeleteAction } from '@/components/RowActions';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { History, Pencil, Trash2, Wallet, X } from '@/icons';
+import { Info, Pencil, Trash2, Wallet, X } from '@/icons';
 import { cn } from '@/lib/utils';
 
 export interface TagihanAktif {
@@ -23,6 +23,12 @@ export interface TagihanAktif {
   ibu_nama: string | null;
   /** Kunci santri + jenis: dipakai memilih dispensasi yang penerimanya cocok. */
   santri_id: number;
+  /** Id dokumen Pas Foto aktif (null = tanpa foto); byte diambil malas. */
+  fotoDokumenId: number | null;
+  /** Kelas dari riwayat pada TA filter (null = tanpa patokan, mis. filter TA kosong). */
+  kelas: string | null;
+  /** Jenjang terdaftar pada TA filter (MI > MD > lainnya) — label gabungan. */
+  jenjangRiwayat: string[];
   jenisId: number;
   nominal: number;
   /** Sudah dibayar untuk tagihan ini (bukan total baris). */
@@ -79,7 +85,7 @@ export interface DataTambah {
   jatuh_tempo: string | null;
 }
 
-type TabKey = 'bayar' | 'ubah' | 'hapus' | 'detail';
+type TabKey = 'detail' | 'bayar' | 'ubah';
 
 interface Props {
   tagihan: TagihanAktif | null;
@@ -88,8 +94,6 @@ interface Props {
   tambah: TambahCtx | null;
   /** Elemen sel asal — jangkar popover. null = tertutup. */
   anchor: HTMLElement | null;
-  /** Daftar tahun ajaran sudah dimuat halaman (tak perlu fetch ulang). */
-  daftarTA: TahunAjaran[];
   riwayat: PembayaranRow[];
   riwayatBusy: boolean;
   riwayatError: string;
@@ -183,18 +187,21 @@ function rupiah(n: number): string {
  * bisa diuji sendiri), bukan inline di halaman.
  */
 export default function PopoverAksiTagihan({
-  tagihan, tambah, anchor, daftarTA, riwayat, riwayatBusy, riwayatError,
+  tagihan, tambah, anchor, riwayat, riwayatBusy, riwayatError,
   onTutup, onBayar, onUbah, onHapus, onTambah, onHapusPembayaran, onMuatRiwayat,
 }: Props) {
-  const [tab, setTab] = useState<TabKey>('bayar');
+  const [tab, setTab] = useState<TabKey>('detail');
   const [teksJumlah, setTeksJumlah] = useState('');
   const [metode, setMetode] = useState<DataBayar['metode']>('tunai');
   const [kas, setKas] = useState<DataBayar['kas']>('tunai_tu');
   const [busy, setBusy] = useState(false);
+  /* Mode konfirmasi hapus di kaki popover (ganti tombol Hapus). */
+  const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
+  /* Id tagihan yang riwayatnya sudah diminta — cegah request ulang tiap
+     render induk (callback `onMuatRiwayat` dibuat baru tiap render). */
+  const riwayatUntuk = useRef<number | null>(null);
   /* Form ubah */
   const [nominal, setNominal] = useState('');
-  const [tahunAjaran, setTahunAjaran] = useState('');
-  const [jatuhTempo, setJatuhTempo] = useState('');
   /** Pilihan dispensasi tab Ubah: undefined = belum disentuh (jalur lama),
    *  'tanpa' = lepas eksplisit, number = id paket (nominal mengikuti paket). */
   const [dispenPilih, setDispenPilih] = useState<number | 'tanpa' | undefined>(undefined);
@@ -217,10 +224,10 @@ export default function PopoverAksiTagihan({
     setMetode('tunai');
     setKas('tunai_tu');
     setNominal(String(tagihan.nominal));
-    setTahunAjaran(tagihan.tahunAjaran);
-    setJatuhTempo(tagihan.jatuhTempo ?? '');
     setDispenPilih(undefined);
-    setTab('bayar');
+    setTab('detail');
+    setKonfirmasiHapus(false);
+    riwayatUntuk.current = null;
   }, [tagihan]);
 
   // Daftar dispensasi untuk tagihan ini (dipakai combobox tab Ubah).
@@ -245,11 +252,13 @@ export default function PopoverAksiTagihan({
     setJatuhTempoBaru('');
   }, [tambah]);
 
-  // Riwayat diambil saat tab Detail benar-benar dibuka, bukan di awal — jangan
-  //ountain request untuk tab yang mungkin tak pernah dibuka.
+  // Riwayat selalu tampil di kolom info, jadi diminta saat popover dibuka
+  // (sekali per tagihan) — bukan menunggu tab dibuka.
   useEffect(() => {
-    if (tab === 'detail') onMuatRiwayat();
-  }, [tab, onMuatRiwayat]);
+    if (tagihan === null || riwayatUntuk.current === tagihan.id) return;
+    riwayatUntuk.current = tagihan.id;
+    onMuatRiwayat();
+  }, [tagihan, onMuatRiwayat]);
 
   if (tagihan === null && tambah === null) return null;
   if (anchor === null) return null;
@@ -284,6 +293,7 @@ export default function PopoverAksiTagihan({
           }}
         />
         <PopoverContent
+          id="popover_aksi_tagihan"
           align="start"
           sideOffset={6}
           collisionPadding={12}
@@ -391,8 +401,6 @@ export default function PopoverAksiTagihan({
     && jumlahAngka <= sisa;
   const jumlahSalah = teksJumlah !== '' && !jumlahValid;
   const b = badge(tagihan);
-  const bulanan = tagihan.tipe === 'bulanan';
-  const adaPembayaran = tagihan.terbayar > 0;
 
   const nominalAngka = Number(nominal);
   const nominalSalah = nominal !== ''
@@ -425,7 +433,6 @@ export default function PopoverAksiTagihan({
     : nominalSalah;
   const ubahValid = (pratinjau ? true : nominal !== '')
     && !nominalEfektifSalah
-    && tahunAjaran !== ''
     && (!busy);
   /** Nama paket jejak saat ini (id tak dikenal = paket nonaktif/dihapus). */
   const jejakNama = (tagihan.dispensasi_ids ?? []).map((id) =>
@@ -450,52 +457,58 @@ export default function PopoverAksiTagihan({
         /* `border-ring/50` (bukan `border` bawaan 12%): panel ini
            mengambang di atas crosstab yang ramai, garis tipis low-contrast
            bawaan tak terlihat di antara warna sel. */
-        className="w-[22rem] border-ring/50 p-0"
+        className="w-[32rem] max-w-[calc(100vw-24px)] border-ring/50 p-0"
+        id="popover_aksi_tagihan"
       >
-        {/* Ringkasan tagihan: nama, orang tua, dan angka nominal/dibayar/sisa. */}
-        <div className="border-b px-3 py-2.5">
-          <div className="flex items-start justify-between gap-2">
-            <p className="min-w-0 truncate text-sm font-medium">{tagihan.nama}</p>
-            <div className="flex shrink-0 items-center gap-1">
-              <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', b.kelas)}>
-                {b.teks}
-              </span>
-              {/* Jalan tutup eksplisit: popover ini terkontrol halaman, jadi
-                  tombol memanggil `onTutup` langsung (bukan PopoverClose) —
-                  sama dengan yang dilakukan klik luar & Esc. */}
-              <Button
-                id="btn_tutup_popover_tagihan"
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Tutup"
-                title="Tutup"
-                onClick={onTutup}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X size={14} />
-              </Button>
-            </div>
+        {/* Judul: status + tutup — nama pindah ke kolom data pribadi. */}
+        <div className="border-b px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', b.kelas)}>
+              {b.teks}
+            </span>
+            {/* Jalan tutup eksplisit: popover ini terkontrol halaman, jadi
+                tombol memanggil `onTutup` langsung (bukan PopoverClose) —
+                sama dengan yang dilakukan klik luar & Esc. */}
+            <Button
+              id="btn_tutup_popover_tagihan"
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Tutup"
+              title="Tutup"
+              onClick={onTutup}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <X size={14} />
+            </Button>
           </div>
-          <dl className="mt-1.5 space-y-0.5 text-xs">
-            <BarisRingkas label="Ayah" nilai={namaOrang(tagihan.ayah_nama)} />
-            <BarisRingkas label="Ibu" nilai={namaOrang(tagihan.ibu_nama)} />
-            <BarisRingkas label={tagihan.label} nilai={rupiah(tagihan.nominal)} />
-            <BarisRingkas label="Dibayar" nilai={rupiah(tagihan.terbayar)} />
-            <BarisRingkas
-              label="Sisa"
-              nilai={rupiah(sisa)}
-              nilaiKelas={lunas ? 'text-emerald-700 dark:text-emerald-300' : 'text-destructive'}
-            />
-          </dl>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {tagihan.jatuhTempo === null
-              ? 'Tanpa batas jatuh tempo'
-              : `Jatuh tempo ${tanggalPanjang(tagihan.jatuhTempo)}`}
-          </p>
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="flex flex-col">
+        <div className="grid grid-cols-[1fr_2fr]">
+          {/* Kolom data pribadi: foto, nama, orang tua, kelas pada TA filter
+              (null = tanpa patokan TA). */}
+          <div className="min-w-0">
+            <div className="flex flex-col items-center px-3 py-3 text-center">
+              <AvatarSantri dokId={tagihan.fotoDokumenId} nama={tagihan.nama} />
+              <p className="mt-2 line-clamp-2 w-full break-words text-sm font-medium">{tagihan.nama}</p>
+              <p className="mt-0.5 w-full truncate text-[11px] text-muted-foreground">
+                Ayah: {tagihan.ayah_nama?.trim() || '—'}
+              </p>
+              <p className="w-full truncate text-[11px] text-muted-foreground">
+                Ibu: {tagihan.ibu_nama?.trim() || '—'}
+              </p>
+              <p className="mt-0.5 w-full truncate text-[11px] text-muted-foreground">
+                Kelas {tagihan.kelas ?? '—'}
+                {tagihan.kelas !== null && tagihan.jenjangRiwayat.length > 0
+                  ? ` (${tagihan.jenjangRiwayat.join('-')})`
+                  : ''}
+              </p>
+            </div>
+          </div>
+
+          {/* Kolom aksi: tab Bayar + Ubah. */}
+          <div className="min-w-0 border-l">
+        <Tabs value={tab} onValueChange={(v) => { setTab(v as TabKey); setKonfirmasiHapus(false); }} className="flex flex-col">
           {/* Tab: ikon di atas, label di bawahnya. */}
           <TabsList
             variant="line"
@@ -509,15 +522,101 @@ export default function PopoverAksiTagihan({
                penanda aktif dirapatkan dari `bottom:-5px` ke `bottom-0`
                supaya menempel pada labelnya. */
             className={cn(
-              'grid h-auto! w-full gap-0 rounded-none border-b p-0 pb-1 [&_[role=tab]]:after:bottom-0',
-              adaPembayaran ? 'grid-cols-4' : 'grid-cols-3',
+              'grid h-auto! w-full grid-cols-4 gap-0 rounded-none border-b p-0 pb-1 [&_[role=tab]]:after:bottom-0',
             )}
           >
+            <TabUji ikon={<Info size={15} />} label="Detail" />
             <TabUji ikon={<Wallet size={15} />} label="Bayar" />
             <TabUji ikon={<Pencil size={15} />} label="Ubah" />
-            <TabUji ikon={<Trash2 size={15} />} label="Hapus" />
-            {adaPembayaran && <TabUji ikon={<History size={15} />} label="Detail" />}
+            {/* Bukan trigger tab Radix: sejajar tab lain tapi langsung membuka
+                konfirmasi hapus, tanpa panel tab. */}
+            <button
+              id="btn_tagihan_hapus"
+              type="button"
+              aria-label="Hapus tagihan"
+              title="Hapus tagihan"
+              onClick={() => setKonfirmasiHapus(true)}
+              className="flex h-full flex-col items-center justify-center gap-0.5 rounded-none px-1 py-1.5 text-[11px] font-normal text-destructive outline-none hover:bg-destructive/10 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              <Trash2 size={15} aria-hidden="true" />
+              <span>Hapus</span>
+            </button>
           </TabsList>
+          {konfirmasiHapus ? (
+            <div className="m-0 space-y-2 p-3">
+              <p className="text-xs">
+                Hapus tagihan <b>{tagihan.label}</b> milik <b>{tagihan.nama}</b>?
+                {tagihan.terbayar > 0 && ' Pembayaran yang sudah tercatat ikut terhapus.'}
+                {' '}Tindakan ini tidak bisa dibatalkan.
+              </p>
+              <div className="flex justify-end gap-1.5">
+                <Button id="btn_hapus_batal" type="button" variant="ghost" className="h-8" onClick={() => setKonfirmasiHapus(false)}>
+                  Batal
+                </Button>
+                <Button
+                  id="btn_hapus_konfirmasi"
+                  type="button"
+                  variant="destructive"
+                  className="h-8"
+                  disabled={busy}
+                  onClick={() => void jalankan(() => onHapus())}
+                >
+                  {busy ? '…' : 'Hapus'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+          <>
+          {/* --- Detail: info tagihan + pembayaran --- */}
+          <TabsContent value="detail" className="m-0 space-y-2 p-3">
+            <dl className="space-y-0.5 text-xs">
+              <BarisRingkas label={tagihan.label} nilai={rupiah(tagihan.nominal)} />
+              <BarisRingkas label="Dibayar" nilai={rupiah(tagihan.terbayar)} />
+              <BarisRingkas
+                label="Sisa"
+                nilai={rupiah(sisa)}
+                nilaiKelas={lunas ? 'text-emerald-700 dark:text-emerald-300' : 'text-destructive'}
+              />
+            </dl>
+            <div className="border-t pt-2">
+              <p className="mb-1.5 text-xs font-medium">Riwayat pembayaran</p>
+              {riwayatBusy ? (
+                <p className="text-xs text-muted-foreground">Memuat riwayat…</p>
+              ) : riwayatError !== '' ? (
+                <p className="text-xs text-destructive">{riwayatError}</p>
+              ) : riwayat.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Belum ada pembayaran untuk tagihan ini.</p>
+              ) : (
+                <ul className="max-h-56 space-y-1.5 overflow-y-auto">
+                  {riwayat.map((r) => (
+                    <li key={r.id} className="border-b pb-1.5 text-xs last:border-b-0 last:pb-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="tabular-nums">{waktuBayar(r.created_at)}</span>
+                        <span className="flex items-baseline gap-1">
+                          <span className={cn('font-medium tabular-nums', r.status === 'batal' && 'text-muted-foreground line-through')}>
+                            {rupiah(r.jumlah)}
+                          </span>
+                          <DeleteAction
+                            id={`btn_hapus_bayar_${r.id}`}
+                            title="Hapus pembayaran?"
+                            description="Baris pembayaran dihapus permanen dan total tagihan menyesuaikan."
+                            onConfirm={() => { void jalankan(() => onHapusPembayaran(r.id)); }}
+                          />
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {labelMetode(r.metode)} · {labelKas(r.kas)}
+                        {r.no_kwitansi !== null && ` · ${r.no_kwitansi}`}
+                        {r.status === 'batal' && ' · dibatalkan'}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* --- Bayar --- */}
 
           {/* --- Bayar --- */}
           <TabsContent value="bayar" className="m-0 space-y-2 p-3">
@@ -620,12 +719,11 @@ export default function PopoverAksiTagihan({
             )}
           </TabsContent>
 
-          {/* --- Ubah --- */}
+          {/* --- Ubah: nominal + dispensasi. Tahun ajaran & jatuh tempo
+              sengaja tak bisa diubah di sini (dikirim ulang apa adanya). */}
           <TabsContent value="ubah" className="m-0 space-y-2 p-3">
             {/* Pola sama seperti panel Bayar: satu grid, kolom label dikunci 5rem
-                supaya ketiganya rata kiri dan kontrolnya mulai di x yang sama.
-                5rem (80px) dipilih karena label terpanjang di sini "Tahun Ajaran"
-                (67px terukur) — 4rem milik panel Bayar tidak cukup. */}
+                supaya keduanya rata kiri dan kontrolnya mulai di x yang sama. */}
             <div className="grid grid-cols-[5rem_1fr] items-center gap-x-2 gap-y-1.5">
               <FieldLabel htmlFor="sel_ubah_dispen" className="text-xs">Dispensasi</FieldLabel>
               <Select
@@ -698,46 +796,6 @@ export default function PopoverAksiTagihan({
                 className={cn('h-8 w-full min-w-0 tabular-nums', nominalEfektifSalah && 'border-destructive')}
               />
 
-              <FieldLabel htmlFor="sel_ubah_ta" className="text-xs">Tahun Ajaran</FieldLabel>
-              <Select value={tahunAjaran} onValueChange={setTahunAjaran}>
-                <SelectTrigger id="sel_ubah_ta" aria-label="Tahun ajaran" className="h-8 w-full min-w-0 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* TA aktif mungkin belum ada di daftar → tetap offered. */}
-                  {!daftarTA.some((t) => t.nama === tahunAjaran) && (
-                    <SelectItem value={tahunAjaran}>{tahunAjaran}</SelectItem>
-                  )}
-                  {daftarTA.map((t) => (
-                    <SelectItem key={t.nama} value={t.nama}>
-                      {t.nama}{t.is_aktif ? ' (aktif)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <FieldLabel htmlFor="inp_ubah_jatuh_tempo" className="text-xs">Jatuh Tempo</FieldLabel>
-              {bulanan ? (
-                /* Tanggal + keterangan dipisah baris: dalam kolom kontrol yang
-                   hanya ~238px, digabung jadi satu paragraf terlihat rapat. */
-                <div className="min-w-0">
-                  <p id="inp_ubah_jatuh_tempo" className="text-xs text-muted-foreground">
-                    {tagihan.jatuhTempo ? tanggalPanjang(tagihan.jatuhTempo) : '—'}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground/80">
-                    <span>(otomatis: tanggal 10 bulan berjalan)</span>
-                  </p>
-                </div>
-              ) : (
-                <Input
-                  id="inp_ubah_jatuh_tempo"
-                  type="date"
-                  className="h-8 w-full min-w-0"
-                  value={jatuhTempo}
-                  onChange={(e) => setJatuhTempo(e.target.value)}
-                />
-              )}
-
               {nominalEfektifSalah && (
                 <p className="col-start-2 text-[11px] text-destructive">
                   Minimal Rp {tagihan.terbayar.toLocaleString('id')} (nilai yang sudah dibayar).
@@ -753,8 +811,8 @@ export default function PopoverAksiTagihan({
                 disabled={!ubahValid || busy}
                 onClick={() => void jalankan(() => onUbah({
                   nominal: nominalEfektif,
-                  tahun_ajaran: tahunAjaran,
-                  jatuh_tempo: bulanan ? null : (jatuhTempo || null),
+                  tahun_ajaran: tagihan.tahunAjaran,
+                  jatuh_tempo: tagihan.jatuhTempo,
                   ...(dispenTersentuh
                     ? { dispensasi_ids: typeof dispenPilih === 'number' ? [dispenPilih] : [] }
                     : {}),
@@ -764,70 +822,50 @@ export default function PopoverAksiTagihan({
               </Button>
             </div>
           </TabsContent>
-
-          {/* --- Hapus --- */}
-          <TabsContent value="hapus" className="m-0 space-y-2 p-3">
-            <p className="text-xs">
-              Hapus tagihan <b>{tagihan.label}</b> milik <b>{tagihan.nama}</b>?
-              {tagihan.terbayar > 0 && ' Pembayaran yang sudah tercatat ikut terhapus.'}
-              {' '}Tindakan ini tidak bisa dibatalkan.
-            </p>
-            <div className="flex justify-end gap-1.5 pt-0.5">
-              <Button id="btn_hapus_batal" type="button" variant="ghost" className="h-8" onClick={() => setTab('bayar')}>
-                Batal
-              </Button>
-              <Button
-                id="btn_hapus_konfirmasi"
-                type="button"
-                variant="destructive"
-                className="h-8"
-                disabled={busy}
-                onClick={() => void jalankan(() => onHapus())}
-              >
-                {busy ? '…' : 'Hapus'}
-              </Button>
-            </div>
-          </TabsContent>
-
-          {/* --- Detail pembayaran --- */}
-          <TabsContent value="detail" className="m-0 p-3">
-            {riwayatBusy ? (
-              <p className="text-xs text-muted-foreground">Memuat riwayat…</p>
-            ) : riwayatError !== '' ? (
-              <p className="text-xs text-destructive">{riwayatError}</p>
-            ) : riwayat.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Belum ada pembayaran untuk tagihan ini.</p>
-            ) : (
-              <ul className="max-h-56 space-y-1.5 overflow-y-auto">
-                {riwayat.map((r) => (
-                  <li key={r.id} className="border-b pb-1.5 text-xs last:border-b-0 last:pb-0">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="tabular-nums">{waktuBayar(r.created_at)}</span>
-                      <span className="flex items-baseline gap-1">
-                        <span className={cn('font-medium tabular-nums', r.status === 'batal' && 'text-muted-foreground line-through')}>
-                          {rupiah(r.jumlah)}
-                        </span>
-                        <DeleteAction
-                          id={`btn_hapus_bayar_${r.id}`}
-                          title="Hapus pembayaran?"
-                          description="Baris pembayaran dihapus permanen dan total tagihan menyesuaikan."
-                          onConfirm={() => { void jalankan(() => onHapusPembayaran(r.id)); }}
-                        />
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      {labelMetode(r.metode)} · {labelKas(r.kas)}
-                      {r.no_kwitansi !== null && ` · ${r.no_kwitansi}`}
-                      {r.status === 'batal' && ' · dibatalkan'}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </TabsContent>
-        </Tabs>
+          </>
+          )}
+          </Tabs>
+          </div>
+        </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** Inisial 1–2 huruf untuk placeholder avatar. */
+function inisialNama(nama: string): string {
+  const kata = nama.trim().split(/\s+/).filter(Boolean);
+  if (kata.length === 0) return '?';
+  return (kata[0][0] + (kata.length > 1 ? kata[kata.length - 1][0] : '')).toUpperCase();
+}
+
+/** Lingkaran foto santri: dokumen Pas Foto aktif pada jenjang baris (byte
+ *  diambil malas saat popover dibuka); tanpa foto atau gagal muat (mis. 403
+ *  untuk peran terbatas) → inisial. */
+function AvatarSantri({ dokId, nama }: { dokId: number | null; nama: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (dokId === null) { setUrl(null); return; }
+    let hidup = true;
+    let obj: string | null = null;
+    ambilByteDokumen('santri', dokId)
+      .then((bytes) => {
+        if (!hidup) return;
+        // `bytes` tampilan penuh atas buffer-nya (dari `new Uint8Array(buf)`),
+        // jadi `.buffer` tepat mewakili isi berkas.
+        obj = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer]));
+        setUrl(obj);
+      })
+      .catch(() => { if (hidup) setUrl(null); });
+    return () => { hidup = false; if (obj !== null) URL.revokeObjectURL(obj); };
+  }, [dokId]);
+  if (url !== null) {
+    return <img src={url} alt={`Foto ${nama}`} className="size-20 shrink-0 rounded-full border object-cover" />;
+  }
+  return (
+    <span aria-hidden="true" className="flex size-20 shrink-0 items-center justify-center rounded-full border bg-muted text-lg font-medium text-muted-foreground">
+      {inisialNama(nama)}
+    </span>
   );
 }
 

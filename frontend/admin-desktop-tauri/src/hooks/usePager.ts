@@ -1,12 +1,53 @@
 import { useCallback, useEffect, useState } from 'react';
 import { prefGet, prefSet } from '@/api/client';
-import { PER_PAGE_DEFAULT, normalizePerPage, type PerPage } from '@/prefs';
+import { PER_PAGE_DEFAULT, PER_PAGE_OPTIONS, normalizePerPage, type PerPage } from '@/prefs';
+
+/** Kunci global jumlah baris per halaman — SATU untuk semua tabel. */
+export const KUNCI_PERPAGE_GLOBAL = 'simpes_perpage';
+/** Kunci warisan per-tabel (tak lagi dibaca; hanya dimigrasi sekali-jalan). */
+const kunciPerpageLama = (tableKey: string) => `simpes_perpage_${tableKey}`;
+/** Event antar-instance: satu tabel ganti perPage → semua yang mounted ikut. */
+const EVENT_PERPAGE_GLOBAL = 'simpes:perpage-global';
+
+/** Nilai mentah → opsi valid, atau null bila tak dikenal (bedakan "kosong"
+ *  dari "sama dengan bawaan" untuk migrasi). */
+function cobaPerPage(v: unknown): PerPage | null {
+  const n = typeof v === 'string' ? Number(v) : (v as number);
+  return (PER_PAGE_OPTIONS as readonly number[]).includes(n) ? (n as PerPage) : null;
+}
+
+/** Baca perPage global (untuk kontrol paginasi di luar `usePager`,
+ *  mis. tabel kandidat di dalam dialog). */
+export async function bacaPerPageGlobal(): Promise<PerPage> {
+  try {
+    return normalizePerPage(await prefGet(KUNCI_PERPAGE_GLOBAL));
+  } catch {
+    return PER_PAGE_DEFAULT;
+  }
+}
+
+/** Tulis perPage global + siarkan ke semua hook/dialog yang mounted.
+ *  Mengembalikan nilai ternormalisasi yang dipakai. */
+export function tulisPerPageGlobal(pp: PerPage): PerPage {
+  const next = normalizePerPage(pp);
+  prefSet(KUNCI_PERPAGE_GLOBAL, String(next)).catch(() => {});
+  window.dispatchEvent(new CustomEvent<number>(EVENT_PERPAGE_GLOBAL, { detail: next }));
+  return next;
+}
+
+/** Langganan perubahan perPage global; mengembalikan fungsi berhenti. */
+export function langgananPerPageGlobal(cb: (pp: PerPage) => void): () => void {
+  const h = (e: Event) => cb(normalizePerPage((e as CustomEvent<unknown>).detail));
+  window.addEventListener(EVENT_PERPAGE_GLOBAL, h);
+  return () => window.removeEventListener(EVENT_PERPAGE_GLOBAL, h);
+}
 
 /**
  * Pagination bawaan SEMUA halaman tabel (baru maupun lama).
  *
- * - per_page default 50, pilihan 10/50/75/100/250/500/1000 (PER_PAGE_OPTIONS).
- * - page + perPage tersimpan permanen per tabel (per perangkat).
+ * - per_page default 50, pilihan 10/50/100/"Semua" (PER_PAGE_OPTIONS).
+ * - page tersimpan permanen per tabel; perPage SATU global untuk semua tabel
+ *   (ganti di satu tabel → semua tabel ikut).
  * - Muat simpanan sekali saat mount; `ready` menandakan nilai final
  *   sehingga halaman bisa menunda fetch pertama sampai siap.
  *
@@ -31,13 +72,24 @@ export function usePager(tableKey: string) {
     setReady(false);
     Promise.all([
       prefGet(`simpes_page_${tableKey}`),
-      prefGet(`simpes_perpage_${tableKey}`),
+      prefGet(KUNCI_PERPAGE_GLOBAL),
+      prefGet(kunciPerpageLama(tableKey)),
     ])
-      .then(([p, pp]) => {
+      .then(([p, ppGlobal, ppLama]) => {
         if (!alive) return;
         const pn = Number(p);
         setPageState(Number.isFinite(pn) && pn >= 1 ? Math.floor(pn) : 1);
-        setPerPageState(normalizePerPage(pp));
+        /* Global diutamakan. Bila belum ada (pengguna lama), angkat nilai
+           warisan per-tabel jadi global sekali-jalan supaya pengaturan yang
+           sudah ada tidak hilang diam-diam. */
+        const g = cobaPerPage(ppGlobal);
+        if (g !== null) {
+          setPerPageState(g);
+        } else {
+          const next = cobaPerPage(ppLama) ?? PER_PAGE_DEFAULT;
+          setPerPageState(next);
+          prefSet(KUNCI_PERPAGE_GLOBAL, String(next)).catch(() => {});
+        }
         setReady(true);
       })
       .catch(() => {
@@ -48,6 +100,15 @@ export function usePager(tableKey: string) {
       alive = false;
     };
   }, [tableKey]);
+
+  /* Ikut perubahan global dari tabel lain yang sedang mounted (kembali ke
+     halaman 1; effect muat-ulang induk otomatis jalan karena perPage berubah).
+     Listener tak menyiarkan ulang, jadi tak ada loop. */
+  useEffect(() => langgananPerPageGlobal((next) => {
+    setPerPageState(next);
+    setPageState(1);
+    prefSet(`simpes_page_${tableKey}`, '1').catch(() => {});
+  }), [tableKey]);
 
   const setPage = useCallback(
     (p: number) => {
@@ -60,9 +121,10 @@ export function usePager(tableKey: string) {
 
   const setPerPage = useCallback(
     (pp: PerPage) => {
-      const next = normalizePerPage(pp);
+      // Tulis global + siarkan; listener di atas (termasuk milik sendiri)
+      // menyelaraskan state — React mengabaikan nilai yang sama.
+      const next = tulisPerPageGlobal(pp);
       setPerPageState(next);
-      prefSet(`simpes_perpage_${tableKey}`, String(next)).catch(() => {});
       setPageState(1);
       prefSet(`simpes_page_${tableKey}`, '1').catch(() => {});
     },

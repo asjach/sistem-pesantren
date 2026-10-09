@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\DokumenSantri;
 use App\Models\JenisTagihan;
 use App\Models\Kelas;
 use App\Models\Lembaga;
@@ -815,6 +816,117 @@ class KeuanganTest extends TestCase
         $tanpaTa = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab')->assertStatus(200)->json('baris');
         $this->assertNull($tanpaTa[0]['kelas']);
         $this->assertFalse($tanpaTa[0]['aktif']);
+    }
+
+    public function test_crosstab_urut_kelas_lalu_nama(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $kelas4a = Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'tingkat' => '4', 'nama_kelas' => '4A']);
+        $kelas5a = Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'tingkat' => '5', 'nama_kelas' => '5A']);
+
+        /* Urutan abjad (Andi, Budi, Cici, Zaki) sengaja beda dari urutan
+           kelas (4A, 4A, 5A, tanpa kelas) supaya keduanya terbukti. */
+        $buat = function (string $nama, ?int $kelasId) use ($infaq) {
+            $s = Santri::create(['nama_lengkap' => $nama, 'jk' => 'L']);
+            DB::table('riwayat_belajar')->insert([
+                'santri_id' => $s->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI',
+                'tingkat' => '4', 'kelas_id' => $kelasId, 'semester' => '2',
+                'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            Tagihan::create(['santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
+        };
+        $buat('Zaki', $kelas4a->id);
+        $buat('Cici', $kelas4a->id);
+        $buat('Andi', $kelas5a->id);
+        $buat('Budi', null);
+
+        $ambil = fn (string $arah) => collect($this->actingAs($admin)
+            ->getJson("/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026&sort=kelas,nama&arah={$arah}")
+            ->assertStatus(200)->json('baris'))->pluck('nama')->all();
+
+        // Naik: kelas dulu (4A → 5A), nama di dalam kelas sama, tanpa kelas paling bawah.
+        $this->assertSame(['Cici', 'Zaki', 'Andi', 'Budi'], $ambil('naik'));
+        // Turun: urutan dibalik, tanpa kelas tetap paling bawah.
+        $this->assertSame(['Andi', 'Zaki', 'Cici', 'Budi'], $ambil('turun'));
+    }
+
+    public function test_crosstab_cari_nama_santri_ayah_ibu(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+
+        $target = Santri::create(['nama_lengkap' => 'Santri Target', 'jk' => 'L', 'nisn' => '9900012345', 'ayah_nama' => 'Bapak Unik', 'ibu_nama' => 'Ibu Spesial']);
+        $lain = Santri::create(['nama_lengkap' => 'Santri Lain', 'jk' => 'L']);
+        foreach ([$target, $lain] as $s) {
+            Tagihan::create(['santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
+        }
+
+        $cari = fn (string $q) => collect($this->actingAs($admin)
+            ->getJson('/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026&santri='.urlencode($q))
+            ->assertStatus(200)->json('baris'))->pluck('nama')->all();
+
+        $this->assertSame(['Santri Target'], $cari('Target'));
+        $this->assertSame(['Santri Target'], $cari('Bapak Unik'));
+        $this->assertSame(['Santri Target'], $cari('Ibu Spesial'));
+        // NISN/NIS lokal sudah tak dicari di crosstab.
+        $this->assertSame([], $cari('9900012345'));
+    }
+
+    public function test_crosstab_baris_memuat_foto_dokumen_pas_foto_aktif(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+
+        $dengan = Santri::create(['nama_lengkap' => 'Santri Berfoto', 'jk' => 'L']);
+        $tanpa = Santri::create(['nama_lengkap' => 'Santri Polos', 'jk' => 'L']);
+        $kedaluwarsa = Santri::create(['nama_lengkap' => 'Santri Kedaluwarsa', 'jk' => 'L']);
+        foreach ([$dengan, $tanpa, $kedaluwarsa] as $s) {
+            Tagihan::create(['santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
+        }
+        $foto = DokumenSantri::create(['santri_id' => $dengan->id, 'jenis_dokumen_santri' => 'Pas Foto', 'lembaga' => 'MI', 'is_active' => true, 'nama_file' => 'foto.jpg', 'penyimpanan' => 'server']);
+        DokumenSantri::create(['santri_id' => $dengan->id, 'jenis_dokumen_santri' => 'Kartu Keluarga', 'lembaga' => 'MI', 'is_active' => true, 'nama_file' => 'kk.jpg', 'penyimpanan' => 'server']);
+        DokumenSantri::create(['santri_id' => $kedaluwarsa->id, 'jenis_dokumen_santri' => 'Pas Foto', 'lembaga' => 'MI', 'is_active' => false, 'nama_file' => 'lama.jpg', 'penyimpanan' => 'server']);
+
+        $baris = collect($this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026')
+            ->assertStatus(200)->assertJsonCount(3, 'baris')->json('baris'))
+            ->keyBy('nama');
+
+        $this->assertSame($foto->id, $baris['Santri Berfoto']['foto_dokumen_id']);
+        $this->assertNull($baris['Santri Polos']['foto_dokumen_id']);
+        $this->assertNull($baris['Santri Kedaluwarsa']['foto_dokumen_id']);
+    }
+
+    public function test_crosstab_baris_memuat_jenjang_riwayat_gabungan(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+
+        $riwayat = function (int $santriId, string $jenjang) {
+            DB::table('riwayat_belajar')->insert([
+                'santri_id' => $santriId, 'tahun_ajaran' => '2025/2026', 'jenjang' => $jenjang,
+                'tingkat' => '4', 'kelas_id' => null, 'semester' => '2',
+                'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        };
+        $ganda = Santri::create(['nama_lengkap' => 'Santri Ganda', 'jk' => 'L']);
+        $riwayat($ganda->id, 'MD');
+        $riwayat($ganda->id, 'MI');
+        $tunggal = Santri::create(['nama_lengkap' => 'Santri Tunggal', 'jk' => 'L']);
+        $riwayat($tunggal->id, 'MD');
+        foreach ([$ganda, $tunggal] as $s) {
+            Tagihan::create(['santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
+        }
+
+        $baris = collect($this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026')
+            ->assertStatus(200)->assertJsonCount(2, 'baris')->json('baris'))
+            ->keyBy('nama');
+
+        // MI selalu depan walau dimasukkan belakangan; tunggal apa adanya.
+        $this->assertSame(['MI', 'MD'], $baris['Santri Ganda']['jenjang_riwayat']);
+        $this->assertSame(['MD'], $baris['Santri Tunggal']['jenjang_riwayat']);
     }
 
     public function test_crosstab_filter_tingkat_kelas_ikut_baris_yang_tampil(): void

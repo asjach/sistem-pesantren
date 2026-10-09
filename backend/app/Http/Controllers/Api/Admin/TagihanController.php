@@ -105,8 +105,8 @@ class TagihanController extends Controller
             $cari = $request->input('santri');
             $q->whereHas('santri', fn ($s) => $s
                 ->where('nama_lengkap', 'like', '%'.$cari.'%')
-                ->orWhere('nisn', 'like', '%'.$cari.'%')
-                ->orWhereHas('lembagaSantri', fn ($ls) => $ls->where('nis_lokal', 'like', '%'.$cari.'%')));
+                ->orWhere('ayah_nama', 'like', '%'.$cari.'%')
+                ->orWhere('ibu_nama', 'like', '%'.$cari.'%'));
         }
 
         /* Filter rail tingkat & kelas dipasang di `$q` (bukan di query agregat
@@ -131,6 +131,7 @@ class TagihanController extends Controller
            halaman. Sekarang hanya Santri di halaman ini yang diambil datanya. */
         $petaUrut = [
             'nama' => 's.nama_lengkap',
+            'kelas' => 'kelas_urut',
             'total' => 'total_tagihan',
             'bayar' => 'total_terbayar',
             'sisa' => 'tunggakan',
@@ -155,11 +156,32 @@ class TagihanController extends Controller
                sama. */
             ->groupBy('tagihan.santri_id', 's.nama_lengkap', 's.ayah_nama', 's.ibu_nama');
 
-        foreach ($this->kriteriaUrutan($request, $petaUrut) as [$kolom, $arah]) {
+        $kriteria = $this->kriteriaUrutan($request, $petaUrut);
+        if (in_array('kelas_urut', array_column($kriteria, 0), true)) {
+            /* Kunci urut kelas: nama_kelas dari riwayat_belajar pada TA yang
+               ditampilkan (TA pertama bila beberapa dipilih — sama patokannya
+               dengan kolom `kelas` di baris hasil). `kelas_id` tidak ada di
+               tabel `santri`, melainkan per (santri, TA) di riwayat_belajar
+               dengan aturan jenjang_utama (MI > MD > lainnya) dan semester 2
+               menang — direplikasi sebagai subkueri agar agregat tetap satu
+               baris per Santri (join langsung akan menggandakan baris sekaligus
+               nominalnya). Hanya dihitung bila diminta. */
+            $taKelas = (string) ($tahunAjaran[0] ?? '');
+            $subKelas = '(SELECT k2.nama_kelas FROM riwayat_belajar AS rb2'
+                .' LEFT JOIN kelas AS k2 ON k2.id = rb2.kelas_id'
+                .' WHERE rb2.santri_id = s.id AND rb2.tahun_ajaran = ?'
+                ." ORDER BY CASE rb2.jenjang WHEN 'MI' THEN 0 WHEN 'MD' THEN 1 ELSE 2 END,"
+                ." CASE rb2.semester WHEN '2' THEN 0 ELSE 1 END LIMIT 1)";
+            $agregat->selectRaw("{$subKelas} as kelas_urut", [$taKelas]);
+            // Santri tanpa kelas selalu paling bawah, apa pun arah urutnya
+            // (mengikuti urut bawaan endpoint daftar tagihan).
+            $agregat->orderByRaw('kelas_urut IS NULL');
+        }
+        foreach ($kriteria as [$kolom, $arah]) {
             $agregat->orderBy($kolom, $arah === 'turun' ? 'desc' : 'asc');
         }
         // Tanpa parameter urutan: urut Santri id (perilaku lama).
-        if ($this->kriteriaUrutan($request, $petaUrut) === []) {
+        if ($kriteria === []) {
             $agregat->orderBy('tagihan.santri_id');
         }
 
@@ -213,6 +235,19 @@ class TagihanController extends Controller
             : (clone $q)->with('jenis')->whereIn('santri_id', $idHalaman)
                 ->orderBy('santri_id')->orderBy('jenis_id')->get();
 
+        /* Foto lingkaran: id dokumen Pas Foto aktif untuk sehalaman Santri.
+           Satu kueri (bukan N+1); byte diambil malas saat popover dibuka.
+           Dipilih per baris dengan urutan: jenjang baris → tanpa lembaga →
+           apa saja (terbaru). */
+        $dokFoto = $idHalaman === []
+            ? collect()
+            : DB::table('dokumen_santri')
+                ->whereIn('santri_id', $idHalaman)
+                ->where('jenis_dokumen_santri', 'Pas Foto')
+                ->where('is_active', true)
+                ->orderByDesc('id')
+                ->get(['id', 'santri_id', 'lembaga']);
+
         $bulanan = fn ($t) => $t->jenis?->tipe === 'bulanan';
         $key = fn ($t) => $this->keyKolomCrosstab((int) $t->jenis_id, $bulanan($t) ? $t->periode : null, $bulanan($t));
 
@@ -251,6 +286,10 @@ class TagihanController extends Controller
                tabel sedang disaring jenjang MD, atau sebaliknya. Santri
                berjenjang tunggal (atau MTS/MLN) memakai `status_akhir`. */
             $info = $peta[(int) $santriId] ?? null;
+            /* Jenjang terdaftar pada TA filter (MI > MD > lainnya, selaras
+               jenjang_utama) — dipakai label "Kelas X (MI-MD)" di popover. */
+            $jenjangAda = array_keys($info['per_jenjang'] ?? []);
+            usort($jenjangAda, fn ($a, $b) => [$a !== 'MI', $a !== 'MD', $a] <=> [$b !== 'MI', $b !== 'MD', $b]);
             $status = null;
             $aktif = false;
             if ($info !== null) {
@@ -273,6 +312,16 @@ class TagihanController extends Controller
                 'jenjang' => (string) $kelompok->first()->jenjang,
                 'kelas' => $info['kelas'] ?? null,
                 'tingkat' => $info['tingkat'] ?? null,
+                'jenjang_riwayat' => $jenjangAda,
+                'foto_dokumen_id' => (function () use ($dokFoto, $santriId, $kelompok) {
+                    $kandidat = $dokFoto->where('santri_id', $santriId);
+                    if ($kandidat->isEmpty()) return null;
+                    $jenjangBaris = (string) $kelompok->first()->jenjang;
+                    $pilih = $kandidat->first(fn ($d) => $d->lembaga === $jenjangBaris)
+                        ?? $kandidat->first(fn ($d) => $d->lembaga === null)
+                        ?? $kandidat->first();
+                    return (int) $pilih->id;
+                })(),
                 /* `aktif` hasil hitungan MI+MD di atas — bukan `status !== 'pindah_keluar'`,
                    karena untuk MI-MD sudah aktif meski `status_akhir` (MI) pindah_keluar. */
                 'status_akhir' => $status,
