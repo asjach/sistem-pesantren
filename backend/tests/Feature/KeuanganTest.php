@@ -529,6 +529,89 @@ class KeuanganTest extends TestCase
             ->assertStatus(200)->assertJsonCount(1);
     }
 
+    public function test_store_tarif_ganda_ditolak_dengan_pesan_yang_jelas(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        TarifTagihan::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
+
+        // Bentuk yang dikirim formulir (`tingkat` NULL) — index lama tak
+        // menahannya karena NULL dianggap berbeda oleh MySQL/SQLite.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tarif', [
+            'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 80000,
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.jenis_id.0', 'Tarif untuk lembaga + tahun ajaran + jenis ini sudah ada — ubah baris yang ada, bukan menambah tarif baru.');
+        $this->assertSame(1, TarifTagihan::count());
+
+        // `tingkat` bukan bagian identitas tarif → beda tingkat pun ditolak.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tarif', [
+            'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'tingkat' => 'VII', 'nominal' => 80000,
+        ])->assertStatus(422)->assertJsonPath('errors.jenis_id.0', 'Tarif untuk lembaga + tahun ajaran + jenis ini sudah ada — ubah baris yang ada, bukan menambah tarif baru.');
+
+        // Lingkup lain tetap boleh: beda lembaga / beda tahun ajaran / beda jenis.
+        $lain = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
+        foreach ([["MD", "2025/2026", $jenis->id], ["MI", "2024/2025", $jenis->id], ["MI", "2025/2026", $lain->id]] as [$jenjang, $ta, $jenisId]) {
+            $this->actingAs($admin)->postJson('/api/admin/keuangan/tarif', [
+                'jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'jenis_id' => $jenisId, 'nominal' => 50000,
+            ])->assertStatus(201);
+        }
+        $this->assertSame(4, TarifTagihan::count());
+    }
+
+    public function test_store_tarif_ganda_tidak_membocorkan_lembaga_lain(): void
+    {
+        // Tarif MI sudah ada; admin yang hanya berwenang di MTS menembak MI
+        // (MTS bukan pasangan MI↔MD, jadi lingkupnya benar-benar terpisah).
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        TarifTagihan::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
+        Lembaga::create(['nama' => 'Tsanawiyah', 'jenjang' => 'MTS', 'is_active' => true]);
+
+        $adminMts = User::create(['name' => 'Admin MTS', 'email' => 'adminmts@example.com', 'phone' => '081234567899', 'password' => 'password']);
+        $adminMts->assignRole('admin');
+        DB::table('user_lembaga')->insert(['user_id' => $adminMts->id, 'jenjang' => 'MTS', 'created_at' => now(), 'updated_at' => now()]);
+
+        // Selalu 403 (lingkup), bukan 422 yang menandakan "ada tarif MI" —
+        // balasannya sama saja untuk yang ganda maupun yang tidak.
+        $this->actingAs($adminMts)->postJson('/api/admin/keuangan/tarif', [
+            'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 80000,
+        ])->assertStatus(403);
+        $this->actingAs($adminMts)->postJson('/api/admin/keuangan/tarif', [
+            'jenjang' => 'MI', 'tahun_ajaran' => '2024/2025', 'jenis_id' => $jenis->id, 'nominal' => 80000,
+        ])->assertStatus(403);
+
+        // Lembaganya sendiri tetap boleh membuat tarif.
+        $this->actingAs($adminMts)->postJson('/api/admin/keuangan/tarif', [
+            'jenjang' => 'MTS', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 50000,
+        ])->assertStatus(201);
+        $this->assertSame(2, TarifTagihan::count());
+    }
+
+    public function test_index_unik_tarif_menolak_ganda_di_level_database(): void
+    {
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        TarifTagihan::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 75000]);
+
+        // Penegakan terakhir: DB sendiri menolak, walau ada klien yang melewati
+        // validasi (atau dua request bersamaan).
+        $tolak = function (array $baris): bool {
+            try {
+                DB::table('tarif_tagihan')->insert($baris + ['is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+
+                return false;
+            } catch (QueryException) {
+                return true;
+            }
+        };
+
+        $dasar = ['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'nominal' => 90000];
+        $this->assertTrue($tolak($dasar + ['tingkat' => null]), 'ganda tanpa tingkat harus ditolak index');
+        $this->assertTrue($tolak($dasar + ['tingkat' => 'VII']), 'index tidak memuat tingkat → ganda tetap ditolak');
+        $this->assertFalse($tolak(array_merge($dasar, ['jenjang' => 'MD'])), 'lembaga lain bukan duplikat');
+        $this->assertFalse($tolak(array_merge($dasar, ['tahun_ajaran' => '2024/2025'])), 'tahun ajaran lain bukan duplikat');
+        $this->assertSame(3, TarifTagihan::count());
+    }
+
     public function test_hapus_tarif_ditolak_bila_sudah_dipakai(): void
     {
         $admin = $this->admin();

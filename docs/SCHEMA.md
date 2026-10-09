@@ -1100,17 +1100,20 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `jenjang`: string(50) — lembaga penerbit tagihan (santri dua lembaga tetap ditagih di primer)
 - `tahun_ajaran`: string(20) — tarif boleh berubah/tetap per tahun ajaran
 - `jenis_id`: FK → jenis_tagihan [cascade]
-- `tingkat`: string(100) [null] — scope opsional per tingkat
+- `tingkat`: string(100) [null] — sisa kolom lama; **bukan** identitas tarif (generate tak membacanya, index unik mengabaikannya)
 - `nominal`: unsignedBigInteger
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`
-- UNIQUE(`jenjang`, `tahun_ajaran`, `jenis_id`, `tingkat`) — nama `uq_tarif_tagihan`
+- UNIQUE(`jenjang`, `tahun_ajaran`, `jenis_id`) — nama `uq_tarif_tagihan`; `tingkat` tak ikut karena nullable-value unik tidak menahan baris ganda
+
 
 ### `dispensasi` (paket keringanan: N aturan jenis + daftar santri penerima)
 - `id` PK
 - `nama`: string(100) — label dispensasi (mis. Anak Pegawai, Beasiswa Yatim)
 - `keterangan`: string(255) [null]
 - `tahun_ajaran`: string(20) — FK → tahun_ajaran [cascadeOnUpdate, cascadeOnDelete]; dispensasi terikat TA
+- `kuota_bulan`: unsignedInteger [null] — kuota pemakaian per bulan (jumlah tagihan bulanan santri yang boleh memuat paket ini); null = tanpa batas
+- `grup`: string(50) [null] — grup eksklusivitas: paket se-grup tidak menumpuk dalam satu tagihan (maks 1, mis. "prestasi"); null = selalu digabung
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`
 - INDEX(`tahun_ajaran`, `is_active`)

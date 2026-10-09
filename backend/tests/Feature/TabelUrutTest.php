@@ -408,9 +408,11 @@ class TabelUrutTest extends TestCase
     public function test_keuangan_tarif_urut_nominal(): void
     {
         $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);
-        foreach ([200000, 100000] as $nominal) {
+        // Lembaga + tahun ajaran + jenis adalah identitas tarif (index unik),
+        // jadi dua baris uji ini dibedakan lewat tahun ajaran.
+        foreach ([[200000, '2026/2027'], [100000, '2025/2026']] as [$nominal, $ta]) {
             TarifTagihan::create([
-                'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027',
+                'jenjang' => 'MI', 'tahun_ajaran' => $ta,
                 'jenis_id' => $jenis->id, 'nominal' => $nominal,
             ]);
         }
