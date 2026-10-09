@@ -147,8 +147,11 @@ export default function KeuanganPage() {
         jenjang,
         tahun_ajaran: ta,
         santri: cariTagihanTertunda === '' ? undefined : cariTagihanTertunda,
-        sort: urutTagihan === '' ? undefined : [urutTagihan],
-        arah: urutTagihan === '' ? undefined : arahTagihan,
+        /* `''` = opsi "nama": tetap kirim eksplisit agar arah naik/turun
+           dihormati backend. Sebelumnya keduanya di-undefined-kan sehingga
+           tombol ASC/DESC tak berpengaruh (dan urutannya id, bukan nama). */
+        sort: [urutTagihan === '' ? 'nama' : urutTagihan],
+        arah: arahTagihan,
         terlambat: terlambatTagihan || undefined,
         tingkat: tingkat.length ? tingkat : undefined,
         kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,

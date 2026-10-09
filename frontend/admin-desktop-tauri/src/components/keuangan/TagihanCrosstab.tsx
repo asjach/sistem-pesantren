@@ -456,7 +456,7 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, emptyTe
   }
 
   return (
-    <div id="crosstab_tagihan_scroll" ref={scrollRef} className="relative h-full overflow-auto rounded-xl border bg-card">
+    <div id="crosstab_tagihan_scroll" ref={scrollRef} className="relative h-full overflow-auto border bg-card">
       <table id="tbl_tagihan_crosstab" className="w-full border-separate border-spacing-0 text-xs">
         <thead>
           <tr ref={grupRef}>

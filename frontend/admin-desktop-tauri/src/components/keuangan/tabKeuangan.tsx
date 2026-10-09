@@ -1,13 +1,15 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import FilterRail from '@/components/FilterRail';
 import TagihanCrosstab from '@/components/keuangan/TagihanCrosstab';
 import { DeleteAction, EditAction } from '@/components/RowActions';
-import { ArrowDownAZ, ArrowUpAZ, Info, Plus, RotateCcw, Search, TriangleAlert, X } from '@/icons';
+import { ArrowDownAZ, ArrowUpAZ, Check, ChevronDown, Info, Plus, RotateCcw, Search, TriangleAlert, X } from '@/icons';
 import type { PetaArahKolom } from '@/lib/urut';
 import type { PilihanLembaga } from '@/lembagaAktif';
 import type { PerPage } from '@/prefs';
@@ -491,6 +493,117 @@ export function PenerimaDispensasiTab({ rows, loading, daftar, pilihan, onPilih 
   );
 }
 
+/** Opsi urut baris crosstab Tagihan. */
+const OPSI_URUT_TAGIHAN = [
+  { value: 'nama', label: 'Nama' },
+  { value: 'total', label: 'Total tagihan' },
+  { value: 'bayar', label: 'Terbayar' },
+  { value: 'sisa', label: 'Tunggakan' },
+];
+
+/** Dropdown urut ringan pengganti Radix `Select`.
+ *
+ * Radix Select membuka secara modal (kunci scroll body + matikan
+ * pointer-events + jebak fokus + animasi) sehingga di halaman seberat
+ * crosstab Tagihan menunya terasa lambat dibuka. Dropdown ini hanya
+ * me-render div absolut tanpa menyentuh body sama sekali: buka-tutup instan.
+ * Fokus tetap di pemicu; navigasi keyboard (panah/Enter/Esc) diatur manual.
+ * `''` berarti 'nama', mengikuti konvensi state halaman. */
+function PilihUrutTagihan({ nilai, onPilih }: { nilai: string; onPilih: (v: string) => void }) {
+  const aktif = nilai === '' ? 'nama' : nilai;
+  const [buka, setBuka] = useState(false);
+  const [sorot, setSorot] = useState(0);
+  const wadahRef = useRef<HTMLDivElement>(null);
+  const tombolRef = useRef<HTMLButtonElement>(null);
+
+  const indeksAktif = OPSI_URUT_TAGIHAN.findIndex((o) => o.value === aktif);
+
+  // Klik di luar menutup menu — listener pasif, body tidak diubah.
+  useEffect(() => {
+    if (!buka) return;
+    const tutupLuar = (e: PointerEvent) => {
+      if (!wadahRef.current?.contains(e.target as Node)) setBuka(false);
+    };
+    document.addEventListener('pointerdown', tutupLuar);
+    return () => document.removeEventListener('pointerdown', tutupLuar);
+  }, [buka]);
+
+  const bukaMenu = () => {
+    setSorot(indeksAktif < 0 ? 0 : indeksAktif);
+    setBuka(true);
+  };
+
+  const pilih = (v: string) => {
+    onPilih(v === 'nama' ? '' : v);
+    setBuka(false);
+    // Kembalikan fokus tanpa menggeser guliran (seperti Radix).
+    tombolRef.current?.focus({ preventScroll: true });
+  };
+
+  const labelAktif = OPSI_URUT_TAGIHAN[indeksAktif]?.label ?? 'Nama';
+
+  return (
+    <div ref={wadahRef} className="relative">
+      <button
+        ref={tombolRef}
+        id="sel_tagihan_urut"
+        type="button"
+        role="combobox"
+        aria-expanded={buka}
+        aria-haspopup="listbox"
+        aria-controls="menu_tagihan_urut"
+        aria-activedescendant={buka ? `urut_tagihan_${OPSI_URUT_TAGIHAN[sorot].value}` : undefined}
+        aria-label="Urutkan baris"
+        title="Urutkan baris"
+        onClick={() => (buka ? setBuka(false) : bukaMenu())}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!buka) bukaMenu();
+            else setSorot((s) => (s + (e.key === 'ArrowDown' ? 1 : -1) + OPSI_URUT_TAGIHAN.length) % OPSI_URUT_TAGIHAN.length);
+          } else if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (buka) pilih(OPSI_URUT_TAGIHAN[sorot].value);
+            else bukaMenu();
+          } else if ((e.key === 'Escape' || e.key === 'Tab') && buka) {
+            setBuka(false);
+          }
+        }}
+        className="flex h-6 w-[168px] items-center justify-between gap-2 rounded-md border border-input bg-transparent px-2 py-0.5 text-xs shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      >
+        <span className="truncate">{labelAktif}</span>
+        <ChevronDown className="size-3 shrink-0 opacity-60" aria-hidden="true" />
+      </button>
+      {buka && (
+        <div
+          id="menu_tagihan_urut"
+          role="listbox"
+          aria-label="Urutkan baris"
+          className="absolute left-0 top-full z-50 mt-1 min-w-full rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+        >
+          {OPSI_URUT_TAGIHAN.map((o, i) => (
+            <div
+              key={o.value}
+              id={`urut_tagihan_${o.value}`}
+              role="option"
+              aria-selected={o.value === aktif}
+              onClick={() => pilih(o.value)}
+              onMouseEnter={() => setSorot(i)}
+              className={cn(
+                'flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs select-none',
+                i === sorot && 'bg-accent text-accent-foreground',
+              )}
+            >
+              <Check className={cn('size-3.5 shrink-0', o.value === aktif ? 'opacity-100' : 'opacity-0')} aria-hidden="true" />
+              <span className="truncate">{o.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Tab Tagihan: bilah alat (cari/urut/filter) + crosstab + pager.
  *  Popover aksi sel dititipkan lewat `popover` agar strukturnya sama seperti
  *  sebelumnya (di dalam wadah gulir crosstab) tanpa memindahkan logikanya. */
@@ -533,8 +646,45 @@ export function TagihanTab({
   return (
     <>
       {/* Bilah alat tagihan: cari | urut | filter | aksi. */}
-      <div className="rounded-xl border bg-card p-2.5 shadow-sm">
+      <div className="border bg-card p-2.5 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
+          {/* Petunjuk pakai + legenda warna pindah ke hovercard. Keduanya
+              hanya dibaca saat belajar memakai crosstab; sebagai baris tersendiri
+              keduanya memakan tinggi card tanpa menambah arti. */}
+          <HoverCard openDelay={200} closeDelay={80}>
+            <HoverCardTrigger asChild>
+              <Button
+                id="btn_tagihan_petunjuk"
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label="Petunjuk penggunaan dan arti warna sel tagihan"
+                className="shrink-0"
+              >
+                <Info size={14} />
+              </Button>
+            </HoverCardTrigger>
+            <HoverCardContent align="start" className="w-72 space-y-3 p-3 text-xs leading-relaxed">
+              <p>
+                Klik sel nominal untuk bayar, ubah, atau lihat riwayat; klik sel kosong untuk tambah tagihan.
+              </p>
+              {/* Legenda warna sel. "Sebagian" sempat hilang: sel kuning muncul
+                  tanpa keterangan sama sekali, jadi terlihat seperti warna acak.
+                  Pucat = belum lewat jatuh tempo, pekat = sudah lewat. */}
+              <div className="space-y-1.5 border-t pt-2">
+                <p className="font-medium text-foreground">Arti warna sel</p>
+                <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                  <li className="flex items-center gap-1.5"><span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />Lunas</li>
+                  <li className="flex items-center gap-1.5"><span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />Sebagian</li>
+                  <li className="flex items-center gap-1.5"><span className="h-2 w-2 shrink-0 rounded-full bg-destructive" />Tunggakan</li>
+                  <li className="flex items-center gap-1.5"><span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" />Belum Aktif</li>
+                </ul>
+                <p className="text-muted-foreground">
+                  Sel pucat belum lewat jatuh tempo, sel pekat sudah lewat.
+                </p>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
           <div className="relative">
             <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -559,26 +709,7 @@ export function TagihanTab({
           </div>
           <div aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
           <div className="flex items-center gap-1.5">
-            <Select
-              value={urut === '' ? 'nama' : urut}
-              onValueChange={(v) => onUrut(v === 'nama' ? '' : v)}
-            >
-              <SelectTrigger
-                id="sel_tagihan_urut"
-                size="sm"
-                aria-label="Urutkan baris"
-                title="Urutkan baris"
-                className="w-[168px]"
-              >
-                <SelectValue placeholder="Urutkan: nama" />
-              </SelectTrigger>
-              <SelectContent position="popper" align="start" className="contain-layout will-change-transform">
-                <SelectItem value="nama">Urutkan: nama</SelectItem>
-                <SelectItem value="total">Total tagihan</SelectItem>
-                <SelectItem value="bayar">Terbayar</SelectItem>
-                <SelectItem value="sisa">Tunggakan</SelectItem>
-              </SelectContent>
-            </Select>
+            <PilihUrutTagihan nilai={urut} onPilih={onUrut} />
             <Button
               id="btn_tagihan_arah"
               size="icon"
@@ -618,26 +749,6 @@ export function TagihanTab({
             Tagihan Aktif
           </Button>
           <Button id="btn_gen_buka" size="sm" className="gap-1.5 px-3 text-xs font-medium" onClick={onBukaGenerate}><Plus size={14} /> Tagihan</Button>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-dashed pt-2 text-[11px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Info size={13} className="shrink-0" />
-            Klik sel nominal untuk bayar, ubah, atau lihat riwayat; klik sel kosong untuk tambah tagihan.
-          </span>
-          {/* Legenda warna sel. "Sebagian" sempat hilang: sel kuning muncul
-              tanpa keterangan sama sekali, jadi terlihat seperti warna acak.
-              Pucat = belum lewat jatuh tempo, pekat = sudah lewat. */}
-          <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="Arti warna sel">
-            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Lunas</span>
-            <span className="inline-flex items-center gap-1" title="Sudah dibayar sebagian, masih ada sisa">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />Sebagian
-            </span>
-            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-destructive" />Tunggakan</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/40" />Belum Aktif</span>
-          </span>
-          <span className="ml-auto tabular-nums">
-            {total > 0 ? total + ' santri' : 'Belum ada data'}
-          </span>
         </div>
       </div>
 
