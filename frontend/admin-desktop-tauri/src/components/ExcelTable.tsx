@@ -900,7 +900,9 @@ export default function ExcelTable<T extends { id: string | number }>({
             shrink: 0,
             minWidth: CHECK_W,
             // Baris input bukan data pengguna: tidak bisa dicentang.
-            disabled: ({ rowData }: { rowData: GridRow }) => String(rowData.id) === INPUT_ROW_ID,
+            // DSG memanggil `disabled` juga dari SelectionRect tanpa rowData
+            // (baris tak ditemukan) — jangan meledak, anggap bukan baris input.
+            disabled: ({ rowData }: { rowData?: GridRow }) => String(rowData?.id) === INPUT_ROW_ID,
           },
         ];
     let idxData = 0;
@@ -910,7 +912,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       const tepiCls = iData === freezeAktif - 1 ? ' simpes-dsg-beku-tepi' : '';
       // Tanpa kolom Aksi, kolom data terakhir yang menggambar tepi kanan tabel.
       const lastCls = hideActions && iData === visibleFields.length - 1 ? ' simpes-dsg-col-last' : '';
-      const isInputRow = (rowData: GridRow) => showInput && String(rowData.id) === INPUT_ROW_ID;
+      const isInputRow = (rowData?: GridRow) => showInput && String(rowData?.id) === INPUT_ROW_ID;
       const common = {
         id: f.key,
         title: (
@@ -936,22 +938,25 @@ export default function ExcelTable<T extends { id: string | number }>({
         grow: 0,
         shrink: 0,
         minWidth: MIN_COL_W,
-        cellClassName: ({ rowData }: { rowData: GridRow }) =>
+        cellClassName: ({ rowData }: { rowData?: GridRow }) =>
           cn(
             alignClass(f.key),
             bekuCls,
             tepiCls,
             lastCls,
             isInputRow(rowData) && 'simpes-dsg-baris-input',
-            isInputRow(rowData) && f.required && !rowData[f.key] && 'simpes-dsg-wajib',
-            draftsRef.current[String(rowData.id)]?.[f.key] !== undefined && 'simpes-dsg-dirty',
+            isInputRow(rowData) && f.required && !rowData?.[f.key] && 'simpes-dsg-wajib',
+            draftsRef.current[String(rowData?.id)]?.[f.key] !== undefined && 'simpes-dsg-dirty',
             editing && (f.kind === 'static' ? 'simpes-dsg-readonly' : 'simpes-dsg-editable'),
           ),
       };
       if (f.kind === 'static') {
         // Static + inputKind: tetap baca-saja untuk baris data, tapi bisa
         // diisi pada baris input (mode Input).
-        const isInputOnly = (rowData: GridRow) => String(rowData.id) === INPUT_ROW_ID;
+        // `rowData` bisa undefined saat DSG merender SelectionRect (mis. seleksi
+        // melampaui baris terakhir) — dulu ini melempar TypeError dan memblokir
+        // seluruh halaman karena `disabled` ikut dipanggil di sana.
+        const isInputOnly = (rowData?: GridRow) => String(rowData?.id) === INPUT_ROW_ID;
         if (f.inputKind === 'select') {
           cols.push({
             ...common,
