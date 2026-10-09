@@ -92,6 +92,15 @@ export function SelectCell({ rowData, setRowData, columnData, focus, stopEditing
     ? columnData.choicesInput
     : columnData.choices;
   const label = opsi.find((c) => c.value === cur)?.label ?? cur;
+  /* Nilai sel belum ada di daftar pilihan — baris input selalu mulai kosong,
+     sel data bisa dikosongkan (Delete), dan pilihan bisa menyusut saat filter
+     lembaga berubah. Tanpa option kosong di bawah, browser menampilkan opsi
+     PERTAMA seolah terpilih padahal `value` tak cocok satu pun, sehingga
+     memilih opsi pertama itu tak memicu `change`: nilai pertama terasa tak
+     bisa dipilih. Teksnya: petunjuk `placeholder` bila sel kosong, atau nilai
+     lama yang sudah di luar daftar supaya tak tersamar jadi opsi pertama. */
+  const placeholder = cur === '' ? (columnData.placeholder ?? 'Pilih…') : cur;
+  const perluPlaceholder = !opsi.some((c) => c.value === cur);
   if (disabled || !focus) {
     return (
       <span
@@ -113,7 +122,7 @@ export function SelectCell({ rowData, setRowData, columnData, focus, stopEditing
       className="simpes-dsg-select"
       data-col-key={key}
       aria-label={key}
-      value={cur}
+      value={perluPlaceholder ? '' : cur}
       autoFocus
       onChange={(e) => {
         setRowData({ ...rowData, [key]: e.target.value });
@@ -131,6 +140,11 @@ export function SelectCell({ rowData, setRowData, columnData, focus, stopEditing
         }
       }}
     >
+      {perluPlaceholder && (
+        <option value="" disabled hidden>
+          {placeholder}
+        </option>
+      )}
       {opsi.map((c) => (
         <option key={c.value} value={c.value}>
           {c.label}

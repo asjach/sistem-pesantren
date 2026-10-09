@@ -87,6 +87,12 @@ export interface TextColData {
 export interface SelectColData {
   fieldKey: string;
   choices: ExcelChoice[];
+  /** Teks opsi kosong saat nilai sel belum ada di daftar pilihan (mis.
+   *  "Pilih jenis…"). Bawaannya `Pilih…`. Opsi kosong ini wajib ada supaya
+   *  pilihan pertama yang sebenarnya jadi perubahan saat dipilih — tanpa itu
+   *  browser menampilkannya seolah sudah terpilih sehingga klik pertama
+   *  tidak menghasilkan apa-apa. */
+  placeholder?: string;
   /** Pilihan khusus baris input (mode Input) — mis. kolom mengikuti tabel terpilih. */
   choicesInput?: ExcelChoice[];
   /** Enter saat mengedit baris input = simpan baris (mode Input).
