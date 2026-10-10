@@ -140,7 +140,7 @@ class TagihanController extends Controller
         $agregat = (clone $q)
             ->join('santri as s', 's.id', '=', 'tagihan.santri_id')
             ->select('tagihan.santri_id')
-            ->selectRaw('s.nama_lengkap, s.ayah_nama, s.ibu_nama')
+            ->selectRaw('s.nama_lengkap, s.ayah_nama, s.ibu_nama, s.foto_url')
             ->selectRaw('SUM(tagihan.nominal) as total_tagihan')
             ->selectRaw('SUM(tagihan.terbayar) as total_terbayar')
             /* Sama dengan `Tagihan::sisaTerlambat()`: sisa > 0 DAN lewat batas
@@ -154,7 +154,7 @@ class TagihanController extends Controller
                ONLY_FULL_GROUP_BY akan menolak kalau tidak. Idempoten terhadap
                `tagihan.santri_id` (satu Santri = satu baris), jadi hasil & biaya
                sama. */
-            ->groupBy('tagihan.santri_id', 's.nama_lengkap', 's.ayah_nama', 's.ibu_nama');
+            ->groupBy('tagihan.santri_id', 's.nama_lengkap', 's.ayah_nama', 's.ibu_nama', 's.foto_url');
 
         $kriteria = $this->kriteriaUrutan($request, $petaUrut);
         if (in_array('kelas_urut', array_column($kriteria, 0), true)) {
@@ -235,18 +235,18 @@ class TagihanController extends Controller
             : (clone $q)->with('jenis')->whereIn('santri_id', $idHalaman)
                 ->orderBy('santri_id')->orderBy('jenis_id')->get();
 
-        /* Foto lingkaran: id dokumen Pas Foto aktif untuk sehalaman Santri.
+        /* Foto lingkaran: id dokumen foto aktif untuk sehalaman Santri.
            Satu kueri (bukan N+1); byte diambil malas saat popover dibuka.
-           Dipilih per baris dengan urutan: jenjang baris → tanpa lembaga →
-           apa saja (terbaru). */
+           Urutan pilih per baris: Pas Foto (jenjang baris → tanpa lembaga →
+           apa saja), lalu Foto Ijazah dengan urutan sama. */
         $dokFoto = $idHalaman === []
             ? collect()
             : DB::table('dokumen_santri')
                 ->whereIn('santri_id', $idHalaman)
-                ->where('jenis_dokumen_santri', 'Pas Foto')
+                ->whereIn('jenis_dokumen_santri', ['Pas Foto', 'Foto Ijazah'])
                 ->where('is_active', true)
                 ->orderByDesc('id')
-                ->get(['id', 'santri_id', 'lembaga']);
+                ->get(['id', 'santri_id', 'jenis_dokumen_santri', 'lembaga']);
 
         $bulanan = fn ($t) => $t->jenis?->tipe === 'bulanan';
         $key = fn ($t) => $this->keyKolomCrosstab((int) $t->jenis_id, $bulanan($t) ? $t->periode : null, $bulanan($t));
@@ -317,11 +317,16 @@ class TagihanController extends Controller
                     $kandidat = $dokFoto->where('santri_id', $santriId);
                     if ($kandidat->isEmpty()) return null;
                     $jenjangBaris = (string) $kelompok->first()->jenjang;
-                    $pilih = $kandidat->first(fn ($d) => $d->lembaga === $jenjangBaris)
-                        ?? $kandidat->first(fn ($d) => $d->lembaga === null)
-                        ?? $kandidat->first();
-                    return (int) $pilih->id;
+                    foreach (['Pas Foto', 'Foto Ijazah'] as $jenis) {
+                        $sejenis = $kandidat->where('jenis_dokumen_santri', $jenis);
+                        $pilih = $sejenis->first(fn ($d) => $d->lembaga === $jenjangBaris)
+                            ?? $sejenis->first(fn ($d) => $d->lembaga === null)
+                            ?? $sejenis->first();
+                        if ($pilih !== null) return (int) $pilih->id;
+                    }
+                    return null;
                 })(),
+                'foto_profil' => ($agregatSantri->foto_url ?? '') !== '',
                 /* `aktif` hasil hitungan MI+MD di atas — bukan `status !== 'pindah_keluar'`,
                    karena untuk MI-MD sudah aktif meski `status_akhir` (MI) pindah_keluar. */
                 'status_akhir' => $status,

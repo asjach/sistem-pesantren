@@ -255,6 +255,8 @@ export interface CrosstabBaris {
   /** Id dokumen Pas Foto aktif pada jenjang baris (null = tanpa foto);
    *  dipakai avatar popover (byte diambil malas saat dibuka). */
   foto_dokumen_id: number | null;
+  /** Ada foto profil santri (`santri.foto_url`) — fallback avatar kedua. */
+  foto_profil: boolean;
   /** `status_akhir` riwayat pada TA filter + turunannya (bukan pindah_keluar). */
   status_akhir: string | null; aktif: boolean;
   sel: Record<string, CrosstabSel>;

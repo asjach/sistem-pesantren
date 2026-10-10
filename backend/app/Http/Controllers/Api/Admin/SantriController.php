@@ -27,6 +27,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -142,6 +143,17 @@ class SantriController extends Controller
             'pesan' => 'Foto santri diupload.',
             'data' => $santri->fresh(),
         ], 201);
+    }
+
+    // Byte mentah foto profil (tampil inline di <img> avatar; bukan unduhan).
+    public function lihatFoto(Santri $santri): BinaryFileResponse
+    {
+        $path = $santri->foto_url;
+        if ($path === null || $path === '' || ! Storage::disk('local')->exists($path)) {
+            abort(404, 'Santri ini belum punya foto profil.');
+        }
+
+        return response()->file(Storage::disk('local')->path($path));
     }
 
     // Upload dokumen milik santri (pasca-ACC; pola sama dengan calon di 100).

@@ -882,20 +882,32 @@ class KeuanganTest extends TestCase
         $dengan = Santri::create(['nama_lengkap' => 'Santri Berfoto', 'jk' => 'L']);
         $tanpa = Santri::create(['nama_lengkap' => 'Santri Polos', 'jk' => 'L']);
         $kedaluwarsa = Santri::create(['nama_lengkap' => 'Santri Kedaluwarsa', 'jk' => 'L']);
-        foreach ([$dengan, $tanpa, $kedaluwarsa] as $s) {
+        $ijazah = Santri::create(['nama_lengkap' => 'Santri Ijazah', 'jk' => 'L', 'foto_url' => 'dokumen/santri/foto_profil/ijazah.jpg']);
+        $ganda = Santri::create(['nama_lengkap' => 'Santri Ganda', 'jk' => 'L']);
+        foreach ([$dengan, $tanpa, $kedaluwarsa, $ijazah, $ganda] as $s) {
             Tagihan::create(['santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
         }
         $foto = DokumenSantri::create(['santri_id' => $dengan->id, 'jenis_dokumen_santri' => 'Pas Foto', 'lembaga' => 'MI', 'is_active' => true, 'nama_file' => 'foto.jpg', 'penyimpanan' => 'server']);
         DokumenSantri::create(['santri_id' => $dengan->id, 'jenis_dokumen_santri' => 'Kartu Keluarga', 'lembaga' => 'MI', 'is_active' => true, 'nama_file' => 'kk.jpg', 'penyimpanan' => 'server']);
         DokumenSantri::create(['santri_id' => $kedaluwarsa->id, 'jenis_dokumen_santri' => 'Pas Foto', 'lembaga' => 'MI', 'is_active' => false, 'nama_file' => 'lama.jpg', 'penyimpanan' => 'server']);
+        $fotoIjazah = DokumenSantri::create(['santri_id' => $ijazah->id, 'jenis_dokumen_santri' => 'Foto Ijazah', 'lembaga' => 'MI', 'is_active' => true, 'nama_file' => 'ijazah.jpg', 'penyimpanan' => 'server']);
+        $fotoPas = DokumenSantri::create(['santri_id' => $ganda->id, 'jenis_dokumen_santri' => 'Pas Foto', 'lembaga' => 'MI', 'is_active' => true, 'nama_file' => 'pas.jpg', 'penyimpanan' => 'server']);
+        DokumenSantri::create(['santri_id' => $ganda->id, 'jenis_dokumen_santri' => 'Foto Ijazah', 'lembaga' => 'MI', 'is_active' => true, 'nama_file' => 'ijazah2.jpg', 'penyimpanan' => 'server']);
 
         $baris = collect($this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026')
-            ->assertStatus(200)->assertJsonCount(3, 'baris')->json('baris'))
+            ->assertStatus(200)->assertJsonCount(5, 'baris')->json('baris'))
             ->keyBy('nama');
 
         $this->assertSame($foto->id, $baris['Santri Berfoto']['foto_dokumen_id']);
         $this->assertNull($baris['Santri Polos']['foto_dokumen_id']);
         $this->assertNull($baris['Santri Kedaluwarsa']['foto_dokumen_id']);
+        // Tanpa Pas Foto → Foto Ijazah aktif; Pas Foto menang bila keduanya ada.
+        $this->assertSame($fotoIjazah->id, $baris['Santri Ijazah']['foto_dokumen_id']);
+        $this->assertSame($fotoPas->id, $baris['Santri Ganda']['foto_dokumen_id']);
+        // Flag foto profil mengikuti santri.foto_url.
+        $this->assertTrue($baris['Santri Ijazah']['foto_profil']);
+        $this->assertFalse($baris['Santri Berfoto']['foto_profil']);
+        $this->assertFalse($baris['Santri Polos']['foto_profil']);
     }
 
     public function test_crosstab_baris_memuat_jenjang_riwayat_gabungan(): void

@@ -1,4 +1,4 @@
-import { api, apiUpload, downloadFile } from './client';
+import { ambilBerkas, api, apiUpload, downloadFile } from './client';
 import type { DataExistingPayload } from '@/lib/excelDataExisting';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
@@ -349,6 +349,11 @@ export function uploadFotoSantri(santriId: number, file: File) {
   const fd = new FormData();
   fd.set('foto', file);
   return apiUpload<{ pesan: string; data: Santri }>(`/admin/santri/${santriId}/foto`, fd);
+}
+
+/** Byte foto profil (untuk avatar; 404 bila santri tak punya foto). */
+export async function ambilFotoProfilSantri(santriId: number): Promise<Uint8Array> {
+  return new Uint8Array(await ambilBerkas(`/admin/santri/${santriId}/foto`));
 }
 
 export function uploadDokumenSantri(

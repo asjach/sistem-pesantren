@@ -358,6 +358,25 @@ class SantriFlowTest extends TestCase
         ])->assertStatus(201);
     }
 
+    public function test_15b_lihat_foto_profil(): void
+    {
+        $f = $this->baseFixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
+        $santri = $this->makeSantri('Foto Dua');
+        LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'is_active_lembaga' => 'Ya']);
+
+        // Tanpa foto → 404.
+        $this->actingAs($adminMi, 'sanctum')->get("/api/admin/santri/{$santri->id}/foto")->assertStatus(404);
+
+        $this->actingAs($adminMi, 'sanctum')->post("/api/admin/santri/{$santri->id}/foto", [
+            'foto' => UploadedFile::fake()->image('foto.jpg'),
+        ])->assertStatus(201);
+
+        $res = $this->actingAs($adminMi, 'sanctum')->get("/api/admin/santri/{$santri->id}/foto");
+        $res->assertStatus(200);
+        $this->assertStringStartsWith('image/', $res->headers->get('Content-Type'));
+    }
+
     public function test_16_daftar_santri_per_page_semua(): void
     {
         $f = $this->baseFixture();
