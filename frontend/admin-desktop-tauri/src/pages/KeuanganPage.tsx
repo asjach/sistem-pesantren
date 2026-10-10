@@ -257,6 +257,12 @@ export default function KeuanganPage() {
         .map((t) => t.jenis_id),
     );
   }, [tarif, jenjangInputTarif, genTAtopbar]);
+  /** Jenjang lembaga master ∩ akses akun — opsi popover Buat Tarif di dialog
+   *  generate agar tetap lengkap meski TA terpilih belum punya tarif. */
+  const jenjangPilihan = useMemo(
+    () => lembagas.filter((l) => pilihanLembaga.some((p) => p.jenjang === l.jenjang)).map((l) => l.jenjang),
+    [lembagas, pilihanLembaga],
+  );
   /** Sel asal popover aksi (jangkar). null = popover tertutup. */
   const [anchorSel, setAnchorSel] = useState<HTMLElement | null>(null);
   /** Tagihan terpilih dari sel crosstab (isi popover aksi). */
@@ -680,6 +686,7 @@ export default function KeuanganPage() {
         jenis={jenis}
         tarif={tarif}
         tahunAjaran={genTAtopbar}
+        jenjangs={jenjangPilihan}
         onTarifBaru={async () => { await muatUlangTarif(); }}
         onSelesai={async () => {
           await load();

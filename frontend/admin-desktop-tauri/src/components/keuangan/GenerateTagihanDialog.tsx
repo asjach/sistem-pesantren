@@ -114,6 +114,9 @@ interface Props {
   jenis: JenisTagihan[];
   tarif: Tarif[];
   tahunAjaran: string | null;
+  /** Daftar jenjang lembaga (master) — dipakai opsi popover Buat Tarif agar
+   *  tetap lengkap meski belum ada tarif di tahun ajaran terpilih. */
+  jenjangs: string[];
   onSelesai: () => void | Promise<void>;
   /** Dipanggil saat tarif baru dibuat dari popover, supaya halaman induk
    *  memuat ulang tabel Tarif (tanpa ini tarif baru hanya hidup di dialog). */
@@ -193,7 +196,7 @@ function PenunjukTahap({ aktif }: { aktif: 1 | 2 | 3 }) {
 /** Dialog generate tagihan: daftar santri kelompok langsung jadi daftar
  *  final yang akan dibuatkan tagihan; nominal default dari tarif/manual,
  *  bisa dioverride per baris. */
-export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif, tahunAjaran, onSelesai, onTarifBaru }: Props) {
+export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif, tahunAjaran, jenjangs, onSelesai, onTarifBaru }: Props) {
   const [kelompok, setKelompok] = useState<KelompokKandidat | ''>('');
   const [jenisId, setJenisId] = useState<number | ''>('');
   const [tarifId, setTarifId] = useState<number | ''>('');
@@ -237,13 +240,14 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     const ids = new Set(tarif.map((t) => t.id));
     return [...tarif, ...tarifLokal.filter((t) => !ids.has(t.id))];
   }, [tarif, tarifLokal]);
-  /** Pilihan jenjang popover: dari tarif yang ada + jenis yang berjenjang. */
+  /** Pilihan jenjang popover: master lembaga + tarif yang ada + jenis
+   *  yang berjenjang — tetap lengkap walau di TA terpilih belum ada tarif. */
   const opsiJenjangBaru = useMemo(() => {
-    const s = new Set<string>();
+    const s = new Set<string>(jenjangs);
     for (const t of daftarTarifPilih) s.add(t.jenjang);
     for (const j of jenis) if (j.jenjang !== null) s.add(j.jenjang);
     return [...s].sort((a, b) => a.localeCompare(b, 'id'));
-  }, [daftarTarifPilih, jenis]);
+  }, [jenjangs, daftarTarifPilih, jenis]);
   /** Opsi tarif untuk combobox. Tanpa entri "kosong": teks placeholder
    *  sudah menyatakan keadaan kosong, dan entri kosong akan ikut jadi nilai
    *  terpilih sehingga ikut terisi di input. */
@@ -257,6 +261,15 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   const opsiJenisBaru = useMemo(
     () => jenis.filter((j) => baruJenjang === '' || j.jenjang === null || j.jenjang === baruJenjang),
     [jenis, baruJenjang],
+  );
+  /** Opsi berobjek untuk LabeledCombobox popover (label + nilai string). */
+  const opsiJenjangItem = useMemo(
+    () => opsiJenjangBaru.map((j) => ({ label: j, nilai: j })),
+    [opsiJenjangBaru],
+  );
+  const opsiJenisItem = useMemo(
+    () => opsiJenisBaru.map((j) => ({ label: j.nama, nilai: String(j.id) })),
+    [opsiJenisBaru],
   );
 
   // Buka dialog: bersihkan pilihan; isi default periode setahun dari TA.
@@ -764,43 +777,48 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                         <form onSubmit={(e) => void simpanTarifBaru(e)} className="flex flex-col gap-2">
                           <p className="text-sm font-semibold">Tarif Baru · TA {tahunAjaran ?? '—'}</p>
                           {baruErr !== '' && <p role="alert" className="text-xs text-destructive">{baruErr}</p>}
-                          <div className="flex flex-col gap-1">
-                            <FieldLabel htmlFor="sel_tarif_baru_jenjang">Jenjang</FieldLabel>
-                            <Select
-                              value={baruJenjang}
-                              onValueChange={(v) => { setBaruJenjang(v); setBaruJenisId(''); }}
+                          <LabeledCombobox label="Jenjang" htmlFor="sel_tarif_baru_jenjang">
+                            <ComboboxRoot
+                              items={opsiJenjangItem}
+                              itemToStringLabel={(o) => o.label}
+                              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                              value={opsiJenjangItem.find((o) => o.nilai === baruJenjang) ?? null}
+                              onValueChange={(o) => { if (o !== null) { setBaruJenjang(o.nilai); setBaruJenisId(''); } }}
                             >
-                              <SelectTrigger id="sel_tarif_baru_jenjang" aria-label="Jenjang" className="h-[26px] w-full text-sm">
-                                <SelectValue placeholder="Pilih jenjang…" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="">Pilih jenjang…</SelectItem>
-                                {opsiJenjangBaru.map((j) => <SelectItem key={j} value={j}>{j}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <FieldLabel htmlFor="sel_tarif_baru_jenis">Jenis</FieldLabel>
-                            <Select
-                              value={baruJenisId === '' ? '' : String(baruJenisId)}
-                              onValueChange={(v) => setBaruJenisId(v === '' ? '' : Number(v))}
+                              <ComboboxInput id="sel_tarif_baru_jenjang" aria-label="Jenjang" placeholder="Pilih jenjang…" />
+                              <ComboboxTrigger aria-label="Buka daftar jenjang" />
+                              <ComboboxContent>
+                                <ComboboxEmpty>Belum ada jenjang.</ComboboxEmpty>
+                                <ComboboxList>
+                                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                                </ComboboxList>
+                              </ComboboxContent>
+                            </ComboboxRoot>
+                          </LabeledCombobox>
+                          <LabeledCombobox label="Jenis" htmlFor="sel_tarif_baru_jenis">
+                            <ComboboxRoot
+                              items={opsiJenisItem}
+                              itemToStringLabel={(o) => o.label}
+                              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                              value={opsiJenisItem.find((o) => o.nilai === String(baruJenisId)) ?? null}
+                              onValueChange={(o) => { if (o !== null) setBaruJenisId(Number(o.nilai)); }}
                             >
-                              <SelectTrigger id="sel_tarif_baru_jenis" aria-label="Jenis" className="h-[26px] w-full text-sm">
-                                <SelectValue placeholder="Pilih jenis…" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="">Pilih jenis…</SelectItem>
-                                {opsiJenisBaru.map((j) => <SelectItem key={j.id} value={String(j.id)}>{j.nama}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <FieldLabel htmlFor="inp_tarif_baru_nominal">Nominal</FieldLabel>
-                            <Input
-                              id="inp_tarif_baru_nominal" type="number" min={0} className="h-[26px]"
-                              value={baruNominal} onChange={(e) => setBaruNominal(e.target.value)} required
-                            />
-                          </div>
+                              <ComboboxInput id="sel_tarif_baru_jenis" aria-label="Jenis" placeholder="Pilih jenis…" />
+                              <ComboboxTrigger aria-label="Buka daftar jenis" />
+                              <ComboboxContent>
+                                <ComboboxEmpty>Belum ada jenis.</ComboboxEmpty>
+                                <ComboboxList>
+                                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                                </ComboboxList>
+                              </ComboboxContent>
+                            </ComboboxRoot>
+                          </LabeledCombobox>
+                          <LabeledTextInput
+                            label="Nominal"
+                            htmlFor="inp_tarif_baru_nominal"
+                            type="number" min={0}
+                            value={baruNominal} onChange={(e) => setBaruNominal(e.target.value)} required
+                          />
                           <Button id="btn_tarif_baru_simpan" type="submit" size="sm" className="h-[26px]" disabled={baruBusy}>
                             {baruBusy ? 'Menyimpan…' : 'Simpan Tarif'}
                           </Button>

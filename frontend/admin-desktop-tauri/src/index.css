@@ -178,6 +178,17 @@
     font-family: var(--font-mono);
     font-size: 0.92em;
   }
+  /* Input angka: sembunyikan spinner bawaan browser (panah atas/bawah) —
+     kontrol tampil seragam; nilai tetap bisa diubah dengan mengetik. */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 }
 
 /* ---------- Scrollbar: track transparan, handle mengikuti tema ----------

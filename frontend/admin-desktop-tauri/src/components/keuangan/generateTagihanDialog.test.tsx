@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import GenerateTagihanDialog from './GenerateTagihanDialog';
@@ -103,7 +104,7 @@ beforeEach(() => {
   api.pratinjau.mockReset();
 });
 
-function renderDialog() {
+function renderDialog(props: Partial<ComponentProps<typeof GenerateTagihanDialog>> = {}) {
   renderDenganTema(
     <GenerateTagihanDialog
       open
@@ -111,7 +112,9 @@ function renderDialog() {
       jenis={JENIS}
       tarif={TARIF}
       tahunAjaran="2025/2026"
+      jenjangs={['MI', 'MD', 'MTS', 'MLN']}
       onSelesai={vi.fn()}
+      {...props}
     />,
   );
 }
@@ -358,6 +361,15 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     fireEvent.submit(formTarif());
     await waitFor(() => expect(screen.getByText('Pilih jenis.')).toBeInTheDocument());
     expect(document.getElementById('pop_buat_tarif')).not.toBeNull();
+  });
+
+  it('popover Buat Tarif: jenjang tetap lengkap walau TA terpilih belum punya tarif', async () => {
+    // TA lain tanpa tarif: opsi jenjang tetap dari master lembaga (bukan kosong).
+    renderDialog({ tarif: [], tahunAjaran: '2024/2025' });
+    await userEvent.click(screen.getByRole('button', { name: 'Buat Tarif' }));
+    await waitFor(() => expect(document.getElementById('sel_tarif_baru_jenjang')).not.toBeNull());
+    await pilihOpsi('sel_tarif_baru_jenjang', 'MLN');
+    await waitFor(() => expect((document.getElementById('sel_tarif_baru_jenjang') as HTMLInputElement).value).toContain('MLN'));
   });
 
   it('tanpa tabel kandidat: pilih kelompok langsung mengisi daftar', async () => {
