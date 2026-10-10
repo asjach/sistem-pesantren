@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { PAGE_SHELL } from '@/components/PageHeader';
 import LabeledCombobox from '@/components/LabeledCombobox';
+import LabeledNominalInput from '@/components/LabeledNominalInput';
 import LabeledTextInput from '@/components/LabeledTextInput';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -15,6 +17,9 @@ const STATUS = ['Aktif', 'Tidak aktif', 'Pindah keluar', 'Lulus', 'Keluar sement
 /** Halaman workshop komponen custom (khusus super_admin): tempat merakit
  *  dan menguji komponen gabungan sebelum dipakai di halaman produksi. */
 export default function KomponenPage() {
+  const [nominalTarif, setNominalTarif] = useState('');
+  const [nominalKustom, setNominalKustom] = useState('1500000');
+  const [nominalBawaan, setNominalBawaan] = useState('');
   return (
     <div className={PAGE_SHELL}>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3">
@@ -173,6 +178,82 @@ export default function KomponenPage() {
                     <li>Tanpa ukuran yang dikunci.</li>
                     <li>Kotak selebar kolom, tinggi 26px.</li>
                     <li>Properti input biasa diteruskan (type, step, dll).</li>
+                  </ul>
+                </figcaption>
+              </figure>
+            </div>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 overflow-hidden rounded-md border border-border">
+            <div className="border-b border-border px-2 py-1.5">
+              <h2 className="text-sm font-semibold">
+                <span className="text-muted-foreground">Nama Custom Component: </span>LabeledNominalInput
+              </h2>
+              <p className="text-xs text-muted-foreground">Keterangan: input angka nominal + dua panel tombol (nominal di atas input, angka di bawahnya)</p>
+            </div>
+            <div className="grid gap-3 p-2 sm:grid-cols-3">
+              <figure className="flex flex-col overflow-hidden rounded-md border border-border">
+                <div className="border-b border-border p-2">
+                  <LabeledNominalInput
+                    label="Nominal Tarif"
+                    htmlFor="demo_nominal_tarif"
+                    lebarLabel={90}
+                    lebarInput={180}
+                    min={0}
+                    placeholder="mis. 150000"
+                    value={nominalTarif}
+                    onValueChange={setNominalTarif}
+                  />
+                </div>
+                <figcaption className="p-2">
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                    <li>Dua panel: nominal + Reset di atas input, angka di bawah.</li>
+                    <li>Nominal selalu ditambah ke nilai; ⟲ Reset mengembalikan ke 0.</li>
+                    <li>Tombol angka menempel seperti mengetik, mis. 1→0→0→0 = 1000.</li>
+                  </ul>
+                </figcaption>
+              </figure>
+
+              <figure className="flex flex-col overflow-hidden rounded-md border border-border">
+                <div className="border-b border-border p-2">
+                  <LabeledNominalInput
+                    label="Nominal Kustom"
+                    htmlFor="demo_nominal_kustom"
+                    lebarLabel={100}
+                    tinggi={34}
+                    min={0}
+                    preset={[250_000, 750_000, 1_500_000, 3_000_000]}
+                    value={nominalKustom}
+                    onValueChange={setNominalKustom}
+                  />
+                </div>
+                <figcaption className="p-2">
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                    <li>Daftar preset bagian pertama bisa diganti lewat prop `preset`.</li>
+                    <li>Mode yang dipilih juga berlaku di tinggi khusus ini.</li>
+                    <li>Nilai tetap teks, sama seperti input number biasa.</li>
+                  </ul>
+                </figcaption>
+              </figure>
+
+              <figure className="flex flex-col overflow-hidden rounded-md border border-border">
+                <div className="border-b border-border p-2">
+                  <LabeledNominalInput
+                    label="Nominal Default"
+                    htmlFor="demo_nominal_bawaan"
+                    min={0}
+                    placeholder="mis. 50000"
+                    value={nominalBawaan}
+                    onValueChange={setNominalBawaan}
+                  />
+                </div>
+                <figcaption className="p-2">
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                    <li>Tanpa ukuran dikunci: kotak selebar kolom.</li>
+                    <li>`type=number` + `inputMode` numeric dipaksa.</li>
+                    <li>Spinner bawaan browser disembunyikan.</li>
                   </ul>
                 </figcaption>
               </figure>

@@ -17,7 +17,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import PresetKolom from '@/components/PresetKolom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import LabeledCombobox from '@/components/LabeledCombobox';
-import LabeledTextInput from '@/components/LabeledTextInput';
+import LabeledNominalInput from '@/components/LabeledNominalInput';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
@@ -813,11 +813,12 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                               </ComboboxContent>
                             </ComboboxRoot>
                           </LabeledCombobox>
-                          <LabeledTextInput
+                          <LabeledNominalInput
                             label="Nominal"
                             htmlFor="inp_tarif_baru_nominal"
-                            type="number" min={0}
-                            value={baruNominal} onChange={(e) => setBaruNominal(e.target.value)} required
+                            min={0}
+                            value={baruNominal}
+                            onValueChange={setBaruNominal} required
                           />
                           <Button id="btn_tarif_baru_simpan" type="submit" size="sm" className="h-[26px]" disabled={baruBusy}>
                             {baruBusy ? 'Menyimpan…' : 'Simpan Tarif'}
@@ -856,11 +857,11 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                 </div>
                 {/* Baris 2: Nominal Default */}
                 <div className="flex flex-col gap-1">
-                  <LabeledTextInput
+                  <LabeledNominalInput
                     label="Nominal Default"
                     htmlFor="inp_gen_nominal"
-                    type="number" min={0} value={nominalDefault}
-                    onChange={(e) => ubahNominalDefault(e.target.value)}
+                    min={0} value={nominalDefault}
+                    onValueChange={ubahNominalDefault}
                     onBlur={() => setGalatNominal(validasiNominal(nominalDefault))}
                     aria-invalid={galatNominal !== null}
                     aria-describedby={galatNominal !== null ? 'galat_nominal_gen' : undefined}

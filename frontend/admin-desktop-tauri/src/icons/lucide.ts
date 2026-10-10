@@ -13,6 +13,7 @@ import IcBanLucide from '~icons/lucide/ban';
 import IcBlendLucide from '~icons/lucide/blend';
 import IcBookMarkedLucide from '~icons/lucide/book-marked';
 import IcBookOpenLucide from '~icons/lucide/book-open';
+import IcCalculatorLucide from '~icons/lucide/calculator';
 import IcCalendarCheckLucide from '~icons/lucide/calendar-check';
 import IcCalendarDaysLucide from '~icons/lucide/calendar-days';
 import IcCalendarRangeLucide from '~icons/lucide/calendar-range';
@@ -56,6 +57,7 @@ import IcPlusLucide from '~icons/lucide/plus';
 import IcPlusCircleLucide from '~icons/lucide/circle-plus';
 import IcReceiptTextLucide from '~icons/lucide/receipt-text';
 import IcRefreshCcwLucide from '~icons/lucide/refresh-ccw';
+import IcResetLucide from '~icons/lucide/rotate-ccw';
 import IcRefreshCwLucide from '~icons/lucide/refresh-cw';
 import IcRotateCcwLucide from '~icons/lucide/rotate-ccw';
 import IcRotateCwLucide from '~icons/lucide/rotate-cw';
@@ -104,6 +106,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Blend: IcBlendLucide,
   BookMarked: IcBookMarkedLucide,
   BookOpen: IcBookOpenLucide,
+  Calculator: IcCalculatorLucide,
   CalendarCheck: IcCalendarCheckLucide,
   CalendarDays: IcCalendarDaysLucide,
   CalendarRange: IcCalendarRangeLucide,
@@ -147,6 +150,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   PlusCircle: IcPlusCircleLucide,
   ReceiptText: IcReceiptTextLucide,
   RefreshCcw: IcRefreshCcwLucide,
+  Reset: IcResetLucide,
   RefreshCw: IcRefreshCwLucide,
   RotateCcw: IcRotateCcwLucide,
   RotateCw: IcRotateCwLucide,

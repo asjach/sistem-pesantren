@@ -10,6 +10,7 @@ import IcBanHeroicons from '~icons/heroicons/no-symbol';
 import IcBlendHeroicons from '~icons/heroicons/swatch';
 import IcBookMarkedHeroicons from '~icons/heroicons/bookmark';
 import IcBookOpenHeroicons from '~icons/heroicons/book-open';
+import IcCalculatorHeroicons from '~icons/heroicons/calculator';
 import IcCalendarDaysHeroicons from '~icons/heroicons/calendar-days';
 import IcCalendarRangeHeroicons from '~icons/heroicons/calendar';
 import IcCheckHeroicons from '~icons/heroicons/check';
@@ -42,6 +43,7 @@ import IcPencilHeroicons from '~icons/heroicons/pencil';
 import IcPlusHeroicons from '~icons/heroicons/plus';
 import IcPlusCircleHeroicons from '~icons/heroicons/plus-circle';
 import IcReceiptTextHeroicons from '~icons/heroicons/receipt-percent';
+import IcResetHeroicons from '~icons/heroicons/arrow-uturn-left';
 import IcRotateCcwHeroicons from '~icons/heroicons/arrow-uturn-left';
 import IcRotateCwHeroicons from '~icons/heroicons/arrow-uturn-right';
 import IcScalingHeroicons from '~icons/heroicons/scale';
@@ -73,6 +75,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Blend: IcBlendHeroicons,
   BookMarked: IcBookMarkedHeroicons,
   BookOpen: IcBookOpenHeroicons,
+  Calculator: IcCalculatorHeroicons,
   CalendarDays: IcCalendarDaysHeroicons,
   CalendarRange: IcCalendarRangeHeroicons,
   Check: IcCheckHeroicons,
@@ -105,6 +108,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Plus: IcPlusHeroicons,
   PlusCircle: IcPlusCircleHeroicons,
   ReceiptText: IcReceiptTextHeroicons,
+  Reset: IcResetHeroicons,
   RotateCcw: IcRotateCcwHeroicons,
   RotateCw: IcRotateCwHeroicons,
   Scaling: IcScalingHeroicons,

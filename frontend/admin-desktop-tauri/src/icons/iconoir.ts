@@ -13,6 +13,7 @@ import IcBanIconoir from '~icons/iconoir/cancel';
 import IcBlendIconoir from '~icons/iconoir/color-filter';
 import IcBookMarkedIconoir from '~icons/iconoir/bookmark';
 import IcBookOpenIconoir from '~icons/iconoir/book';
+import IcCalculatorIconoir from '~icons/iconoir/calculator';
 import IcCalendarCheckIconoir from '~icons/iconoir/calendar-check';
 import IcCalendarDaysIconoir from '~icons/iconoir/calendar';
 import IcCalendarRangeIconoir from '~icons/iconoir/calendar';
@@ -47,6 +48,7 @@ import IcPencilIconoir from '~icons/iconoir/edit';
 import IcPlusIconoir from '~icons/iconoir/plus';
 import IcPlusCircleIconoir from '~icons/iconoir/plus-circle';
 import IcReceiptTextIconoir from '~icons/iconoir/page';
+import IcResetIconoir from '~icons/iconoir/restart';
 import IcRotateCcwIconoir from '~icons/iconoir/refresh-double';
 import IcRotateCwIconoir from '~icons/iconoir/refresh-double';
 import IcSaveIconoir from '~icons/iconoir/floppy-disk';
@@ -82,6 +84,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Blend: IcBlendIconoir,
   BookMarked: IcBookMarkedIconoir,
   BookOpen: IcBookOpenIconoir,
+  Calculator: IcCalculatorIconoir,
   CalendarCheck: IcCalendarCheckIconoir,
   CalendarDays: IcCalendarDaysIconoir,
   CalendarRange: IcCalendarRangeIconoir,
@@ -116,6 +119,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Plus: IcPlusIconoir,
   PlusCircle: IcPlusCircleIconoir,
   ReceiptText: IcReceiptTextIconoir,
+  Reset: IcResetIconoir,
   RotateCcw: IcRotateCcwIconoir,
   RotateCw: IcRotateCwIconoir,
   Save: IcSaveIconoir,

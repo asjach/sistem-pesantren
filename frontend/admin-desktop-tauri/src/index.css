@@ -250,6 +250,17 @@
   --border: color-mix(in srgb, var(--foreground) 15%, var(--background));
 }
 
+/* Panel popover "nominal cepat" (LabeledNominalInput, dua panel: atas & bawah):
+   border tiap tombol disamakan dengan border panel & kotak pembungkusnya
+   (foreground 30%). Varian tombol `outline` memasang `dark:border-input` yang
+   letaknya lebih belakang di urutan sumber sehingga menang di mode gelap,
+   padahal --input global cuma 8–15% foreground — terlalu pudar di sini.
+   Override var-nya dilingkupi kedua panel ini saja supaya tema & tombol di
+   bagian lain tak ikut berubah. */
+.pop-nominal {
+  --input: color-mix(in oklab, var(--foreground) 30%, transparent);
+}
+
 /* ---------- Spreadsheet DSG (Pos): ikut semua tema + dark via var aplikasi ---------- */
 .simpes-dsg {
   --dsg-border-color: var(--part-tabel_sel-border, var(--border));

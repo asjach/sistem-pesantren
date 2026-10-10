@@ -12,6 +12,7 @@ import IcBadgeCheckMaterial from '~icons/material-symbols/verified';
 import IcBanMaterial from '~icons/material-symbols/block';
 import IcBookMarkedMaterial from '~icons/material-symbols/bookmark';
 import IcBookOpenMaterial from '~icons/material-symbols/book';
+import IcCalculatorMaterial from '~icons/material-symbols/calculate';
 import IcCalendarCheckMaterial from '~icons/material-symbols/calendar-check';
 import IcCalendarDaysMaterial from '~icons/material-symbols/calendar-month';
 import IcCalendarRangeMaterial from '~icons/material-symbols/date-range';
@@ -51,6 +52,7 @@ import IcPencilMaterial from '~icons/material-symbols/edit';
 import IcPlusMaterial from '~icons/material-symbols/add';
 import IcPlusCircleMaterial from '~icons/material-symbols/add-circle';
 import IcReceiptTextMaterial from '~icons/material-symbols/receipt';
+import IcResetMaterial from '~icons/material-symbols/restart-alt';
 import IcRotateCcwMaterial from '~icons/material-symbols/rotate-left';
 import IcRotateCwMaterial from '~icons/material-symbols/rotate-right';
 import IcSaveMaterial from '~icons/material-symbols/save';
@@ -92,6 +94,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Ban: IcBanMaterial,
   BookMarked: IcBookMarkedMaterial,
   BookOpen: IcBookOpenMaterial,
+  Calculator: IcCalculatorMaterial,
   CalendarCheck: IcCalendarCheckMaterial,
   CalendarDays: IcCalendarDaysMaterial,
   CalendarRange: IcCalendarRangeMaterial,
@@ -131,6 +134,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Plus: IcPlusMaterial,
   PlusCircle: IcPlusCircleMaterial,
   ReceiptText: IcReceiptTextMaterial,
+  Reset: IcResetMaterial,
   RotateCcw: IcRotateCcwMaterial,
   RotateCw: IcRotateCwMaterial,
   Save: IcSaveMaterial,

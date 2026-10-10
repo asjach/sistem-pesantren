@@ -109,6 +109,17 @@
   "bi": "book",
   "material": "book"
  },
+ "Calculator": {
+  "lucide": "calculator",
+  "tabler": "calculator",
+  "ph": "calculator",
+  "heroicons": "calculator",
+  "ri": "calculator-line",
+  "iconoir": "calculator",
+  "radix": null,
+  "bi": "calculator",
+  "material": "calculate"
+ },
  "CalendarCheck": {
   "lucide": "calendar-check",
   "tabler": "calendar-check",
@@ -581,6 +592,17 @@
   "radix": null,
   "bi": null,
   "material": null
+ },
+ "Reset": {
+  "lucide": "rotate-ccw",
+  "tabler": "restore",
+  "ph": "arrow-counter-clockwise",
+  "heroicons": "arrow-uturn-left",
+  "ri": "restart-line",
+  "iconoir": "restart",
+  "radix": "reset",
+  "bi": "arrow-counterclockwise",
+  "material": "restart-alt"
  },
  "RefreshCw": {
   "lucide": "refresh-cw",

@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 89 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 91 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -62,6 +62,7 @@ export const Ban = (p: IkonProps) => <IkonDinamis {...p} nama="Ban" />;
 export const Blend = (p: IkonProps) => <IkonDinamis {...p} nama="Blend" />;
 export const BookMarked = (p: IkonProps) => <IkonDinamis {...p} nama="BookMarked" />;
 export const BookOpen = (p: IkonProps) => <IkonDinamis {...p} nama="BookOpen" />;
+export const Calculator = (p: IkonProps) => <IkonDinamis {...p} nama="Calculator" />;
 export const CalendarCheck = (p: IkonProps) => <IkonDinamis {...p} nama="CalendarCheck" />;
 export const CalendarDays = (p: IkonProps) => <IkonDinamis {...p} nama="CalendarDays" />;
 export const CalendarRange = (p: IkonProps) => <IkonDinamis {...p} nama="CalendarRange" />;
@@ -105,6 +106,7 @@ export const Plus = (p: IkonProps) => <IkonDinamis {...p} nama="Plus" />;
 export const PlusCircle = (p: IkonProps) => <IkonDinamis {...p} nama="PlusCircle" />;
 export const ReceiptText = (p: IkonProps) => <IkonDinamis {...p} nama="ReceiptText" />;
 export const RefreshCcw = (p: IkonProps) => <IkonDinamis {...p} nama="RefreshCcw" />;
+export const Reset = (p: IkonProps) => <IkonDinamis {...p} nama="Reset" />;
 export const RefreshCw = (p: IkonProps) => <IkonDinamis {...p} nama="RefreshCw" />;
 export const RotateCcw = (p: IkonProps) => <IkonDinamis {...p} nama="RotateCcw" />;
 export const RotateCw = (p: IkonProps) => <IkonDinamis {...p} nama="RotateCw" />;

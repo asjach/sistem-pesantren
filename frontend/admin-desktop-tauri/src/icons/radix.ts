@@ -36,6 +36,7 @@ import IcPencilRadix from '~icons/radix-icons/pencil-1';
 import IcPlusRadix from '~icons/radix-icons/plus';
 import IcPlusCircleRadix from '~icons/radix-icons/plus-circled';
 import IcReceiptTextRadix from '~icons/radix-icons/file-text';
+import IcResetRadix from '~icons/radix-icons/reset';
 import IcRotateCcwRadix from '~icons/radix-icons/rotate-counter-clockwise';
 import IcRotateCwRadix from '~icons/radix-icons/reload';
 import IcSearchRadix from '~icons/radix-icons/magnifying-glass';
@@ -87,6 +88,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Plus: IcPlusRadix,
   PlusCircle: IcPlusCircleRadix,
   ReceiptText: IcReceiptTextRadix,
+  Reset: IcResetRadix,
   RotateCcw: IcRotateCcwRadix,
   RotateCw: IcRotateCwRadix,
   Search: IcSearchRadix,

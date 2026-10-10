@@ -12,6 +12,7 @@ import IcBadgeCheckPh from '~icons/ph/seal-check';
 import IcBanPh from '~icons/ph/prohibit';
 import IcBookMarkedPh from '~icons/ph/bookmark';
 import IcBookOpenPh from '~icons/ph/book-open';
+import IcCalculatorPh from '~icons/ph/calculator';
 import IcCalendarCheckPh from '~icons/ph/calendar-check';
 import IcCalendarDaysPh from '~icons/ph/calendar';
 import IcCalendarRangePh from '~icons/ph/calendar';
@@ -47,6 +48,7 @@ import IcPlusPh from '~icons/ph/plus';
 import IcPlusCirclePh from '~icons/ph/plus-circle';
 import IcReceiptTextPh from '~icons/ph/receipt';
 import IcRefreshCcwPh from '~icons/ph/arrow-counter-clockwise';
+import IcResetPh from '~icons/ph/arrow-counter-clockwise';
 import IcRefreshCwPh from '~icons/ph/arrow-clockwise';
 import IcRotateCcwPh from '~icons/ph/arrow-counter-clockwise';
 import IcRotateCwPh from '~icons/ph/arrow-clockwise';
@@ -87,6 +89,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Ban: IcBanPh,
   BookMarked: IcBookMarkedPh,
   BookOpen: IcBookOpenPh,
+  Calculator: IcCalculatorPh,
   CalendarCheck: IcCalendarCheckPh,
   CalendarDays: IcCalendarDaysPh,
   CalendarRange: IcCalendarRangePh,
@@ -122,6 +125,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   PlusCircle: IcPlusCirclePh,
   ReceiptText: IcReceiptTextPh,
   RefreshCcw: IcRefreshCcwPh,
+  Reset: IcResetPh,
   RefreshCw: IcRefreshCwPh,
   RotateCcw: IcRotateCcwPh,
   RotateCw: IcRotateCwPh,

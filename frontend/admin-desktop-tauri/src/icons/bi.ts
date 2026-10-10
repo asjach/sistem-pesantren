@@ -13,6 +13,7 @@ import IcBanBi from '~icons/bi/ban';
 import IcBlendBi from '~icons/bi/droplet';
 import IcBookMarkedBi from '~icons/bi/bookmark';
 import IcBookOpenBi from '~icons/bi/book';
+import IcCalculatorBi from '~icons/bi/calculator';
 import IcCalendarCheckBi from '~icons/bi/calendar-check';
 import IcCalendarDaysBi from '~icons/bi/calendar';
 import IcCalendarRangeBi from '~icons/bi/calendar-range';
@@ -50,6 +51,7 @@ import IcPencilBi from '~icons/bi/pencil';
 import IcPlusBi from '~icons/bi/plus';
 import IcPlusCircleBi from '~icons/bi/plus-circle';
 import IcReceiptTextBi from '~icons/bi/receipt';
+import IcResetBi from '~icons/bi/arrow-counterclockwise';
 import IcRefreshCwBi from '~icons/bi/arrow-clockwise';
 import IcRotateCcwBi from '~icons/bi/arrow-counterclockwise';
 import IcRotateCwBi from '~icons/bi/arrow-clockwise';
@@ -88,6 +90,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Blend: IcBlendBi,
   BookMarked: IcBookMarkedBi,
   BookOpen: IcBookOpenBi,
+  Calculator: IcCalculatorBi,
   CalendarCheck: IcCalendarCheckBi,
   CalendarDays: IcCalendarDaysBi,
   CalendarRange: IcCalendarRangeBi,
@@ -125,6 +128,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Plus: IcPlusBi,
   PlusCircle: IcPlusCircleBi,
   ReceiptText: IcReceiptTextBi,
+  Reset: IcResetBi,
   RefreshCw: IcRefreshCwBi,
   RotateCcw: IcRotateCcwBi,
   RotateCw: IcRotateCwBi,

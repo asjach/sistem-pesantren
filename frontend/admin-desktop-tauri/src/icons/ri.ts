@@ -13,6 +13,7 @@ import IcBanRi from '~icons/ri/prohibited-line';
 import IcBlendRi from '~icons/ri/color-filter-line';
 import IcBookMarkedRi from '~icons/ri/book-marked-line';
 import IcBookOpenRi from '~icons/ri/book-open-line';
+import IcCalculatorRi from '~icons/ri/calculator-line';
 import IcCalendarCheckRi from '~icons/ri/calendar-check-line';
 import IcCalendarDaysRi from '~icons/ri/calendar-line';
 import IcCalendarRangeRi from '~icons/ri/calendar-2-line';
@@ -54,6 +55,7 @@ import IcPencilRi from '~icons/ri/pencil-line';
 import IcPlusRi from '~icons/ri/add-line';
 import IcPlusCircleRi from '~icons/ri/add-circle-line';
 import IcReceiptTextRi from '~icons/ri/file-text-line';
+import IcResetRi from '~icons/ri/restart-line';
 import IcRotateCcwRi from '~icons/ri/restart-line';
 import IcRotateCwRi from '~icons/ri/restart-line';
 import IcSaveRi from '~icons/ri/save-fill';
@@ -91,6 +93,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Blend: IcBlendRi,
   BookMarked: IcBookMarkedRi,
   BookOpen: IcBookOpenRi,
+  Calculator: IcCalculatorRi,
   CalendarCheck: IcCalendarCheckRi,
   CalendarDays: IcCalendarDaysRi,
   CalendarRange: IcCalendarRangeRi,
@@ -132,6 +135,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Plus: IcPlusRi,
   PlusCircle: IcPlusCircleRi,
   ReceiptText: IcReceiptTextRi,
+  Reset: IcResetRi,
   RotateCcw: IcRotateCcwRi,
   RotateCw: IcRotateCwRi,
   Save: IcSaveRi,

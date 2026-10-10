@@ -13,6 +13,7 @@ import IcBanTabler from '~icons/tabler/ban';
 import IcBlendTabler from '~icons/tabler/color-filter';
 import IcBookMarkedTabler from '~icons/tabler/bookmark';
 import IcBookOpenTabler from '~icons/tabler/book';
+import IcCalculatorTabler from '~icons/tabler/calculator';
 import IcCalendarCheckTabler from '~icons/tabler/calendar-check';
 import IcCalendarDaysTabler from '~icons/tabler/calendar';
 import IcCalendarRangeTabler from '~icons/tabler/calendar-week';
@@ -53,6 +54,7 @@ import IcPencilTabler from '~icons/tabler/pencil';
 import IcPlusTabler from '~icons/tabler/plus';
 import IcPlusCircleTabler from '~icons/tabler/circle-plus';
 import IcReceiptTextTabler from '~icons/tabler/receipt';
+import IcResetTabler from '~icons/tabler/restore';
 import IcRotateCcwTabler from '~icons/tabler/reload';
 import IcRotateCwTabler from '~icons/tabler/rotate-clockwise';
 import IcSaveTabler from '~icons/tabler/device-floppy';
@@ -95,6 +97,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Blend: IcBlendTabler,
   BookMarked: IcBookMarkedTabler,
   BookOpen: IcBookOpenTabler,
+  Calculator: IcCalculatorTabler,
   CalendarCheck: IcCalendarCheckTabler,
   CalendarDays: IcCalendarDaysTabler,
   CalendarRange: IcCalendarRangeTabler,
@@ -135,6 +138,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Plus: IcPlusTabler,
   PlusCircle: IcPlusCircleTabler,
   ReceiptText: IcReceiptTextTabler,
+  Reset: IcResetTabler,
   RotateCcw: IcRotateCcwTabler,
   RotateCw: IcRotateCwTabler,
   Save: IcSaveTabler,

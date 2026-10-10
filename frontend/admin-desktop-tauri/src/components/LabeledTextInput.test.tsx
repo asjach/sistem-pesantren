@@ -48,6 +48,24 @@ describe('LabeledTextInput', () => {
     expect(input.value).toBe('24001');
   });
 
+  it('aksiKanan ditumpuk di ujung kanan & input diberi ruang kanan', () => {
+    renderDenganTema(
+      <LabeledTextInput
+        label="Nominal" htmlFor="inp_uji"
+        aksiKanan={<button type="button">Cepat</button>}
+      />,
+    );
+    const input = document.getElementById('inp_uji') as HTMLInputElement;
+    expect(input.className).toMatch(/pr-7/);
+    const aksi = screen.getByRole('button', { name: 'Cepat' });
+    expect(aksi.parentElement?.className).toMatch(/absolute/);
+  });
+
+  it('tanpa aksiKanan: input tanpa ruang kanan tambahan', () => {
+    renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    expect((document.getElementById('inp_uji') as HTMLInputElement).className).not.toMatch(/pr-7/);
+  });
+
   it('di dalam toolbar: mendaftarkan lebar ke Kelola Tabel & memakai bawaan', () => {
     const tableKey = `uji_lti_${Date.now()}`;
     renderDenganTema(
