@@ -21,7 +21,6 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizableAutoHidePanel, ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import CatatanProsesTahunAjaran from '@/components/CatatanProsesTahunAjaran';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -248,7 +247,6 @@ export default function MutasiKeluarPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
-      <CatatanProsesTahunAjaran />
       <PengaturanHalaman tampil={{ tahun_ajaran: true, semester: true, tingkat: true, kelas: true }} tabel={[{ key: 'mutasi_santri_aktif', judul: 'Santri aktif', fields: FIELDS_AKTIF }, { key: 'mutasi_arsip', judul: 'Arsip mutasi keluar', fields: FIELDS_ARSIP }]} />
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_mutasi_kolom">
         <ResizableAutoHidePanel id="panel_mutasi_santri_aktif" defaultSize="33%" minSize="20%">

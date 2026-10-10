@@ -30,7 +30,6 @@ import {
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import CatatanProsesTahunAjaran from '@/components/CatatanProsesTahunAjaran';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
 import { FileUp, Trash2, X } from '@/icons';
@@ -250,7 +249,6 @@ export default function KeaktifanPegawaiPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tampil={{ semester: false, tingkat: false }} tabel={[{ key: 'pegawai_keaktifan', judul: 'Keaktifan', fields: FIELDS }]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIP / NIPP / No. SK…" />
-      {!taTunggal && <CatatanProsesTahunAjaran />}
       <ExcelTable
         tableKey="pegawai_keaktifan"
         sumberTabel="keaktifan_pegawai"
