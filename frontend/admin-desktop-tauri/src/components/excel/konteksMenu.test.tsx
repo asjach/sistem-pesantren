@@ -123,3 +123,21 @@ describe('MenuKonteksGrid — seksi TAMPILKAN KOLOM', () => {
     expect(screen.queryByText('TAMPILKAN DI PRESET')).toBeNull();
   });
 });
+
+describe('MenuKonteksGrid — Kelola Tabel dari header kolom', () => {
+  it('menawarkan Kelola Tabel dan memanggil penanganannya', async () => {
+    const user = userEvent.setup();
+    const onKelolaTabel = vi.fn();
+    renderMenu(apiPalsu(), true, { onKelolaTabel });
+
+    await user.click(screen.getByText('Kelola Tabel'));
+
+    expect(onKelolaTabel).toHaveBeenCalledTimes(1);
+  });
+
+  it('menyembunyikan item bila penanganan tidak diberikan', () => {
+    renderMenu(apiPalsu());
+
+    expect(screen.queryByText('Kelola Tabel')).toBeNull();
+  });
+});

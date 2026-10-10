@@ -10,7 +10,7 @@ import type { PresetKolomApi } from '@/components/PresetKolom';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AlignCenter, AlignLeft, AlignRight, ChevronLeft, ChevronRight, Columns3, Copy, MoveHorizontal, Pin, PinOff, RotateCcw } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight, ChevronLeft, ChevronRight, Columns3, Copy, MoveHorizontal, NotebookTabs, Pin, PinOff, RotateCcw } from '@/icons';
 import { metaAksi } from './actions';
 import type { AksiMenu } from './types';
 
@@ -48,6 +48,10 @@ export interface MenuKonteksGridProps {
   daftarKolom: { key: string; label: string; tampil: boolean }[];
   /** Kelola preset = super_admin saja (sembunyikan seksi tampil preset). */
   bolehKelola: boolean;
+  /** Buka dialog Kelola Tabel dari klik kanan header kolom. Bila tak diberikan
+   *  (mis. bukan super_admin efektif, atau halaman tanpa registrasi tabel),
+   *  item menu tidak ditampilkan. */
+  onKelolaTabel?: () => void;
   salinBaris: (id: string | number) => void;
   salinSel: (id: string | number, key: string) => void;
   salinKolom: (key: string) => void;
@@ -89,6 +93,7 @@ export default function MenuKonteksGrid({
   presetApiRef,
   daftarKolom,
   bolehKelola,
+  onKelolaTabel,
   salinBaris,
   salinSel,
   salinKolom,
@@ -338,6 +343,20 @@ export default function MenuKonteksGrid({
             </ContextMenuCheckboxItem>
           ))}
           </>
+          )}
+          {/* Jalan pintas ke dialog pengaturan tabel (super_admin efektif,
+              halaman berregistrasi tabel) — setara klik kanan bilah judul. */}
+          {onKelolaTabel && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                id={`menu_ctx_kelola_tabel_${tableKey}`}
+                onSelect={() => onKelolaTabel()}
+              >
+                <NotebookTabs size={16} />
+                <span>Kelola Tabel</span>
+              </ContextMenuItem>
+            </>
           )}
         </>
       )}

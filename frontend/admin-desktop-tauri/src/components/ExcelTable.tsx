@@ -1490,6 +1490,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             onUbahAlign={simpanAlign}
             presetApiRef={presetApiRef}
             bolehKelola={bolehGeser}
+            onKelolaTabel={bolehKelolaHalaman ? () => setKelolaTabelOpen(true) : undefined}
             daftarKolom={daftarKolom}
             salinBaris={(id) => void salinBarisCtx(id as T['id'])}
             salinSel={(id, key) => void salinSelCtx(id as T['id'], key)}
