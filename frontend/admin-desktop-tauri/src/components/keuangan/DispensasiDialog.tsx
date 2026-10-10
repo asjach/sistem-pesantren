@@ -332,12 +332,12 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
         <div className="flex shrink-0 flex-wrap items-end gap-3 border-b bg-muted/30 px-3 py-2.5">
           <div className="flex min-w-52 flex-1 flex-col gap-1">
             <FieldLabel htmlFor="inp_dispensasi_nama">Nama Dispensasi</FieldLabel>
-            <Input id="inp_dispensasi_nama" className="h-8" value={nama} onChange={(e) => setNama(e.target.value)} placeholder="mis. Anak Pegawai" />
+            <Input id="inp_dispensasi_nama" className="h-[26px]" value={nama} onChange={(e) => setNama(e.target.value)} placeholder="mis. Anak Pegawai" />
           </div>
           <div className="flex w-52 flex-col gap-1">
             <FieldLabel htmlFor="sel_dispensasi_ta">Tahun Ajaran</FieldLabel>
             <Select value={ta} onValueChange={setTa}>
-              <SelectTrigger id="sel_dispensasi_ta" className="h-8 w-full" aria-label="Tahun ajaran">
+              <SelectTrigger id="sel_dispensasi_ta" className="h-[26px] w-full" aria-label="Tahun ajaran">
                 <SelectValue placeholder="Pilih tahun ajaran" />
               </SelectTrigger>
               <SelectContent>
@@ -351,21 +351,21 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
             <FieldLabel htmlFor="inp_dispensasi_kuota">
               Kuota Bln <span className="font-normal text-muted-foreground">(opsional)</span>
             </FieldLabel>
-            <Input id="inp_dispensasi_kuota" type="number" min={1} max={120} className="h-8" value={kuota} onChange={(e) => setKuota(e.target.value)} placeholder="mis. 6" />
+            <Input id="inp_dispensasi_kuota" type="number" min={1} max={120} className="h-[26px]" value={kuota} onChange={(e) => setKuota(e.target.value)} placeholder="mis. 6" />
           </div>
           <div className="flex w-32 flex-col gap-1">
             <FieldLabel htmlFor="inp_dispensasi_grup">
               Grup <span className="font-normal text-muted-foreground">(opsional)</span>
             </FieldLabel>
-            <Input id="inp_dispensasi_grup" className="h-8" value={grup} onChange={(e) => setGrup(e.target.value)} placeholder="mis. prestasi" />
+            <Input id="inp_dispensasi_grup" className="h-[26px]" value={grup} onChange={(e) => setGrup(e.target.value)} placeholder="mis. prestasi" />
           </div>
           <div className="flex min-w-52 flex-1 flex-col gap-1">
             <FieldLabel htmlFor="inp_dispensasi_keterangan">
               Keterangan <span className="font-normal text-muted-foreground">(opsional)</span>
             </FieldLabel>
-            <Input id="inp_dispensasi_keterangan" className="h-8" value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="Catatan tambahan…" />
+            <Input id="inp_dispensasi_keterangan" className="h-[26px]" value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="Catatan tambahan…" />
           </div>
-          <div className="flex h-8 items-center gap-2 rounded-md border bg-background px-2.5">
+          <div className="flex h-[26px] items-center gap-2 rounded-md border bg-background px-2.5">
             <Switch id="chk_dispensasi_aktif" size="sm" checked={aktif} onCheckedChange={setAktif} aria-label="Status aktif dispensasi" />
             <label htmlFor="chk_dispensasi_aktif" className="cursor-pointer text-xs select-none">Aktif</label>
           </div>
@@ -385,7 +385,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                   value={tambahJenisId === '' ? '' : String(tambahJenisId)}
                   onValueChange={(v) => setTambahJenisId(v === '' ? '' : Number(v))}
                 >
-                  <SelectTrigger id="sel_dispensasi_tambah_jenis" className="h-8 w-full" disabled={sisaJenis.length === 0} aria-label="Jenis tagihan untuk aturan baru">
+                  <SelectTrigger id="sel_dispensasi_tambah_jenis" className="h-[26px] w-full" disabled={sisaJenis.length === 0} aria-label="Jenis tagihan untuk aturan baru">
                     <SelectValue placeholder={sisaJenis.length === 0 ? 'Semua jenis sudah diatur' : 'Pilih jenis tagihan…'} />
                   </SelectTrigger>
                   <SelectContent>
@@ -395,7 +395,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="button" size="sm" variant="outline" id="btn_dispensasi_tambah_aturan" className="h-8 gap-1.5 px-2.5" onClick={tambahBaris} disabled={tambahJenisId === ''}>
+              <Button type="button" size="sm" variant="outline" id="btn_dispensasi_tambah_aturan" className="h-[26px] gap-1.5 px-2.5" onClick={tambahBaris} disabled={tambahJenisId === ''}>
                 <Plus data-icon="inline-start" size={14} /> Tambah
               </Button>
             </div>
@@ -438,7 +438,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                     </p>
                     <div className="relative">
                       <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <Input id="inp_dispensasi_cari" placeholder="Cari nama / ayah / ibu / NISN…" className="h-8 w-64 pl-8" value={cari} onChange={(e) => setCari(e.target.value)} />
+                      <Input id="inp_dispensasi_cari" placeholder="Cari nama / ayah / ibu / NISN…" className="h-[26px] w-64 pl-8" value={cari} onChange={(e) => setCari(e.target.value)} />
                     </div>
                   </div>
                   <div className="flex min-h-0 flex-1 flex-col">

@@ -11,7 +11,7 @@ import { PAGE_SHELL } from '@/components/PageHeader';
  *  trigger aktif berlatar primary, tanpa padding vertikal, dan tingginya
  *  mengisi PENUH area tab (`h-full` = 26px) sehingga seluruh area bisa diklik. */
 export const KELAS_TRIGGER =
-  'h-full py-0 text-[11px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow dark:data-[state=active]:border-primary dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground';
+  'h-full py-0 text-[11px] data-[state=active]:text-primary-foreground dark:data-[state=active]:text-primary-foreground';
 
 /** Area tab: bisa digulir bila lebih lebar dari area konten (mis. jendela
  *  sempit + sidebar terbuka), tetap di tengah halaman; tinggi tetap 26px
@@ -101,7 +101,7 @@ export default function HalamanTabs({ def }: { def: HalamanDef }) {
       >
         {/* `max-w-full overflow-x-auto`: tab bisa lebih lebar dari area konten
             (mis. jendela sempit + sidebar terbuka) — tetap bisa digulir. */}
-        <TabsList className={KELAS_LIST_TAB}>
+        <TabsList className={KELAS_LIST_TAB} indikator="primer">
           {tabs.map((t) => (
             <TabsTrigger
               key={t.to}

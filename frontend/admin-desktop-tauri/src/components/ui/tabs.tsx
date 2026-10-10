@@ -2,6 +2,7 @@ import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import { Tabs as TabsPrimitive } from "radix-ui"
+import { pakaiIndikatorGeser } from "@/components/ui/indikatorGeser";
 
 function Tabs({
   className,
@@ -40,16 +41,55 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = "default",
+  indikator = "netral",
+  ref: refLuar,
+  children,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.List> &
-  VariantProps<typeof tabsListVariants>) {
+  VariantProps<typeof tabsListVariants> & {
+    /** Warna latar indikator geser: `netral` (dialog dkk) atau `primer`
+     *  (strip tab halaman — hijaunya pindah ke indikator supaya ikut meluncur). */
+    indikator?: "netral" | "primer";
+  }) {
+  const { refWadah, geometri } = pakaiIndikatorGeser<HTMLDivElement>("active");
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
       data-variant={variant}
-      className={cn(tabsListVariants({ variant }), className)}
+      data-indikator={indikator}
+      ref={(node) => {
+        refWadah.current = node;
+        if (typeof refLuar === "function") refLuar(node);
+        else if (refLuar !== null && refLuar !== undefined && typeof refLuar === "object") {
+          (refLuar as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        }
+      }}
+      className={cn(tabsListVariants({ variant }), "relative", className)}
       {...props}
-    />
+    >
+      {/* Latar aktif yang bergeser mengikuti trigger terpilih (mengalir). */}
+      <span
+        aria-hidden="true"
+        data-slot="tabs-indicator"
+        className={cn(
+          "pointer-events-none absolute",
+          variant === "line"
+            ? "bottom-[-5px] h-0.5 bg-foreground"
+            : indikator === "primer"
+              ? "bg-primary shadow"
+              : "border border-transparent bg-background shadow-sm dark:border-input dark:bg-input/30",
+          geometri === null && "opacity-0",
+        )}
+        style={
+          geometri === null
+            ? undefined
+            : variant === "line"
+              ? { left: geometri.left, width: geometri.width }
+              : { left: geometri.left, top: geometri.top, width: geometri.width, height: geometri.height }
+        }
+      />
+      {children}
+    </TabsPrimitive.List>
   )
 }
 
@@ -61,10 +101,8 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-xs font-medium whitespace-nowrap text-foreground/60 transition-all group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 group-data-[variant=default]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none dark:text-muted-foreground dark:hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent dark:group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent dark:group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent",
-        "data-[state=active]:bg-background data-[state=active]:text-foreground dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 dark:data-[state=active]:text-foreground",
-        "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100",
+        "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent bg-transparent px-2 py-1 text-xs font-medium whitespace-nowrap text-foreground/60 transition-all group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 dark:text-muted-foreground dark:hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "data-[state=active]:text-foreground dark:data-[state=active]:text-foreground",
         className
       )}
       {...props}

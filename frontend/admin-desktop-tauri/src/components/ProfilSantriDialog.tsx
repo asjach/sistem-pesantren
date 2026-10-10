@@ -163,7 +163,7 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
                 id={`btn_lompat_${t.slug}`}
                 variant="outline"
                 size="sm"
-                className="h-7 px-2 text-xs"
+                className="h-[26px] px-2 text-xs"
                 onClick={() => lompatKeBagian(t.slug)}
               >
                 {t.judul}

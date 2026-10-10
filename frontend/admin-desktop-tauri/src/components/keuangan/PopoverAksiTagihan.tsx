@@ -340,7 +340,7 @@ export default function PopoverAksiTagihan({
                 onChange={(e) => setNominalBaru(e.target.value)}
                 aria-label="Nominal tagihan baru"
                 aria-invalid={nominalBaruSalah}
-                className={cn('h-8 w-full min-w-0 tabular-nums', nominalBaruSalah && 'border-destructive')}
+                className={cn('h-[26px] w-full min-w-0 tabular-nums', nominalBaruSalah && 'border-destructive')}
               />
               <FieldLabel htmlFor="inp_tambah_jatuh_tempo" className="text-xs">Jatuh Tempo</FieldLabel>
               {bulananBaru ? (
@@ -351,7 +351,7 @@ export default function PopoverAksiTagihan({
                 <Input
                   id="inp_tambah_jatuh_tempo"
                   type="date"
-                  className="h-8 w-full min-w-0"
+                  className="h-[26px] w-full min-w-0"
                   value={jatuhTempoBaru}
                   onChange={(e) => setJatuhTempoBaru(e.target.value)}
                 />
@@ -371,13 +371,13 @@ export default function PopoverAksiTagihan({
               Nominal mengikuti tarif bila cocok — ketik manual untuk menimpa.
             </p>
             <div className="flex justify-end gap-1.5 pt-0.5">
-              <Button id="btn_tambah_batal" type="button" variant="ghost" className="h-8" onClick={onTutup}>
+              <Button id="btn_tambah_batal" type="button" variant="ghost" className="h-[26px]" onClick={onTutup}>
                 Batal
               </Button>
               <Button
                 id="btn_tambah_simpan"
                 type="button"
-                className="h-8"
+                className="h-[26px]"
                 disabled={!nominalBaruValid || !taSiap || busy}
                 onClick={() => void jalankan(() => onTambah({
                   nominal: nBaru,
@@ -553,14 +553,14 @@ export default function PopoverAksiTagihan({
                 {' '}Tindakan ini tidak bisa dibatalkan.
               </p>
               <div className="flex justify-end gap-1.5">
-                <Button id="btn_hapus_batal" type="button" variant="ghost" className="h-8" onClick={() => setKonfirmasiHapus(false)}>
+                <Button id="btn_hapus_batal" type="button" variant="ghost" className="h-[26px]" onClick={() => setKonfirmasiHapus(false)}>
                   Batal
                 </Button>
                 <Button
                   id="btn_hapus_konfirmasi"
                   type="button"
                   variant="destructive"
-                  className="h-8"
+                  className="h-[26px]"
                   disabled={busy}
                   onClick={() => void jalankan(() => onHapus())}
                 >
@@ -663,7 +663,7 @@ export default function PopoverAksiTagihan({
                     onChange={(e) => setTeksJumlah(e.target.value)}
                     aria-label="Jumlah pembayaran"
                     aria-invalid={jumlahSalah}
-                    className={cn('h-8 w-full min-w-0 tabular-nums', jumlahSalah && 'border-destructive')}
+                    className={cn('h-[26px] w-full min-w-0 tabular-nums', jumlahSalah && 'border-destructive')}
                   />
 
 <FieldLabel htmlFor="sel_bayar_metode" className="text-xs">Metode</FieldLabel>
@@ -683,7 +683,7 @@ export default function PopoverAksiTagihan({
                       id="sel_bayar_metode"
                       aria-label="Metode pembayaran"
                       title={labelMetode(metode)}
-                      className="h-8 w-full min-w-0 text-xs"
+                      className="h-[26px] w-full min-w-0 text-xs"
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -700,7 +700,7 @@ export default function PopoverAksiTagihan({
                       id="sel_bayar_kas"
                       aria-label="Kas tujuan"
                       title={labelKas(kas)}
-                      className="h-8 w-full min-w-0 text-xs"
+                      className="h-[26px] w-full min-w-0 text-xs"
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -722,7 +722,7 @@ export default function PopoverAksiTagihan({
                   <Button
                     id="btn_bayar_simpan"
                     type="button"
-                    className="h-8"
+                    className="h-[26px]"
                     disabled={!jumlahValid || busy}
                     onClick={() => void jalankan(() => onBayar({ jumlah: jumlahAngka, metode, kas }))}
                   >
@@ -752,7 +752,7 @@ export default function PopoverAksiTagihan({
                   } else setDispenPilih(Number(v));
                 }}
               >
-                <SelectTrigger id="sel_ubah_dispen" aria-label="Dispensasi tagihan" className="h-8 w-full min-w-0 text-xs">
+                <SelectTrigger id="sel_ubah_dispen" aria-label="Dispensasi tagihan" className="h-[26px] w-full min-w-0 text-xs">
                   <SelectValue placeholder="Tanpa perubahan" />
                 </SelectTrigger>
                 <SelectContent>
@@ -806,7 +806,7 @@ export default function PopoverAksiTagihan({
                 disabled={pratinjau !== null}
                 title={pratinjau ? 'Mengikuti dispensasi terpilih' : undefined}
                 aria-invalid={nominalEfektifSalah}
-                className={cn('h-8 w-full min-w-0 tabular-nums', nominalEfektifSalah && 'border-destructive')}
+                className={cn('h-[26px] w-full min-w-0 tabular-nums', nominalEfektifSalah && 'border-destructive')}
               />
 
               {nominalEfektifSalah && (
@@ -820,7 +820,7 @@ export default function PopoverAksiTagihan({
               <Button
                 id="btn_ubah_simpan"
                 type="button"
-                className="h-8"
+                className="h-[26px]"
                 disabled={!ubahValid || busy}
                 onClick={() => void jalankan(() => onUbah({
                   nominal: nominalEfektif,

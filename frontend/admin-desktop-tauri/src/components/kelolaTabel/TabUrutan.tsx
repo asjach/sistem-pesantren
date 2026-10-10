@@ -271,7 +271,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
                 <SelectTrigger
                   id={`select_arah_urut_${tableKey}_${i}`}
                   title="Arah untuk kolom tanpa pengaturan sendiri"
-                  className="h-7 w-28 shrink-0 text-xs"
+                  className="h-[26px] w-28 shrink-0 text-xs"
                 >
                   <SelectValue />
                 </SelectTrigger>

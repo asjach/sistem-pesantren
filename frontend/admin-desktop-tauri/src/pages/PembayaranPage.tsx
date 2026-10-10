@@ -159,7 +159,7 @@ export default function PembayaranPage() {
                 required
               />
               <Select value={metode} onValueChange={(v) => setMetode(v as 'tunai' | 'transfer')}>
-                <SelectTrigger id={`sel_kasir_metode_${r.id}`} aria-label="Metode pembayaran" className="h-8 text-xs">
+                <SelectTrigger id={`sel_kasir_metode_${r.id}`} aria-label="Metode pembayaran" className="h-[26px] text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -168,7 +168,7 @@ export default function PembayaranPage() {
                 </SelectContent>
               </Select>
               <Select value={kas} onValueChange={(v) => setKas(v as typeof kas)}>
-                <SelectTrigger id={`sel_kasir_kas_${r.id}`} aria-label="Kas pembayaran" className="h-8 text-xs">
+                <SelectTrigger id={`sel_kasir_kas_${r.id}`} aria-label="Kas pembayaran" className="h-[26px] text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

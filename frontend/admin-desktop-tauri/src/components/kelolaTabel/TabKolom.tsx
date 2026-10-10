@@ -434,7 +434,7 @@ export default function TabKolom({
               maxLength={50}
               placeholder={modeBaru ? 'Nama preset baru…' : 'Nama preset'}
               aria-label="Nama preset"
-              className="h-8 flex-1"
+              className="h-[26px] flex-1"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();

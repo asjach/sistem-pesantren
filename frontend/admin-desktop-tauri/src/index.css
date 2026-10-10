@@ -733,6 +733,23 @@
 .simpes-panel-tab {
   margin-left: -1px;
 }
+
+/* Indikator geser tab (`ui/tabs.tsx`): posisi meluncur dulu (300ms),
+   ukuran menyusul (200ms + tunda 120ms) supaya terbaca bergeser dari tab
+   asal ke tab tujuan, bukan meleleh berubah bentuk. Sintaks transisi per
+   properti tak bisa diungkapkan lewat utilitas Tailwind, jadi ditulis
+   eksplisit di sini. */
+[data-slot='tabs-indicator'] {
+  transition-property: left, top, width, height, opacity;
+  transition-duration: 200ms, 200ms, 100ms, 100ms, 150ms;
+  transition-timing-function: ease-out, ease-out, ease-out, ease-out, ease;
+  transition-delay: 0ms, 0ms, 100ms, 100ms, 0ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-slot='tabs-indicator'] {
+    transition: none;
+  }
+}
 /* Tabel di dalam panel tab berbingkai (`simpes-panel-tab`): bingkai panel jatuh
    TEPAT 1px di kiri garis kiri tabel, jadi dua garis 1px berdempetan — terbaca
    sebagai satu garis 2px ("border kiri lebih tebal"). Solusinya menggeser tepi
