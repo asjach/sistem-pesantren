@@ -16,7 +16,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import FilterField from '@/components/FilterField';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -73,6 +76,11 @@ export default function PengajuanBiodataPage() {
   const [cari, setCari] = useState('');
   const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   const [badge, setBadge] = useState<Record<string, number>>({});
+  /* Opsi filter status: label memuat jumlah pengajuan per status. */
+  const opsiStatus = useMemo(
+    () => STATUS.map((s) => ({ nilai: s, label: `${s} (${badge[s] ?? 0})` })),
+    [badge],
+  );
   const [busy, setBusy] = useState(false);
   const {
     rows,
@@ -172,22 +180,24 @@ export default function PengajuanBiodataPage() {
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
         filter={(
-          <FilterField label="Status" htmlFor="select_status_pengajuan">
-          <Select value={status} onValueChange={(v) => { setStatus(v); pager.goFirst(); }}>
-            <SelectTrigger id="select_status_pengajuan" title="Filter status" aria-label="Filter status" size="sm" className="w-40">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {STATUS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s} ({badge[s] ?? 0})
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          </FilterField>
+          <LabeledCombobox label="Status" htmlFor="select_status_pengajuan">
+            <ComboboxRoot
+              items={opsiStatus}
+              itemToStringLabel={(o) => o.label}
+              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+              value={opsiStatus.find((o) => o.nilai === status) ?? opsiStatus[0]}
+              onValueChange={(o) => { if (o !== null) { setStatus(o.nilai); pager.goFirst(); } }}
+            >
+              <ComboboxInput id="select_status_pengajuan" aria-label="Filter status" placeholder="Cari status…" />
+              <ComboboxTrigger aria-label="Buka daftar status" />
+              <ComboboxContent>
+                <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                <ComboboxList>
+                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                </ComboboxList>
+              </ComboboxContent>
+            </ComboboxRoot>
+          </LabeledCombobox>
         )}
         renderActions={renderActions}
         pager={(

@@ -22,7 +22,10 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
-import FilterField from '@/components/FilterField';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -41,6 +44,13 @@ import {
   nilaiIdentitas,
   pisahProfil,
 } from '@/components/santri/kolomIdentitas';
+
+/** Opsi filter status (label yang tampil di input + nilai yang dikirim). */
+const OPSI_STATUS: { nilai: 'semua' | 'aktif' | 'nonaktif'; label: string }[] = [
+  { nilai: 'semua', label: 'Semua' },
+  { nilai: 'aktif', label: 'Aktif' },
+  { nilai: 'nonaktif', label: 'Nonaktif' },
+];
 
 /** Simpan baris: profil via PATCH santri, kolom NIS via endpoint keanggotaan. */
 function pakaiCommitBaris(rows: Santri[]) {
@@ -253,20 +263,25 @@ export default function SantriPage() {
           </>
         )}
         filter={(
-          <FilterField label="Status" htmlFor="select_status_santri">
-            <Select value={statusGlobal} onValueChange={(v) => { setStatusGlobal(v as 'semua' | 'aktif' | 'nonaktif'); pager.goFirst(); }}>
-              <SelectTrigger id="select_status_santri" title="Filter status" aria-label="Filter status" size="sm" className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="semua">Semua</SelectItem>
-                  <SelectItem value="aktif">Aktif</SelectItem>
-                  <SelectItem value="nonaktif">Nonaktif</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FilterField>
+          <LabeledCombobox label="Status" htmlFor="select_status_santri">
+            <ComboboxRoot
+              items={OPSI_STATUS}
+              autoHighlight
+                            itemToStringLabel={(o) => o.label}
+              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+              value={OPSI_STATUS.find((o) => o.nilai === statusGlobal) ?? OPSI_STATUS[0]}
+              onValueChange={(o) => { if (o !== null) { setStatusGlobal(o.nilai); pager.goFirst(); } }}
+            >
+              <ComboboxInput id="select_status_santri" aria-label="Filter status" placeholder="Cari status…" />
+              <ComboboxTrigger aria-label="Buka daftar status" />
+              <ComboboxContent>
+                <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                <ComboboxList>
+                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                </ComboboxList>
+              </ComboboxContent>
+            </ComboboxRoot>
+          </LabeledCombobox>
         )}
         addButton={(
           <>

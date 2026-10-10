@@ -19,9 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Pin } from '@/icons';
 import { toast } from 'sonner';
 import FilterField from './FilterField';
+import LabeledCombobox from './LabeledCombobox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from './ui/combobox';
 import { EVENT_PRESET_BERUBAH } from './kelolaTabel/jenis';
 
 const LENGKAP = '_lengkap';
@@ -68,12 +71,15 @@ export default function PresetKolom({
   triggerClassName,
   wrapperClassName,
   lebarTrigger,
+  gaya = 'kotak',
   sejajarLabel = false,
 }: {
   tableKey: string;
   fields: ExcelField[];
   onApply: (keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => void;
   apiRef?: MutableRefObject<PresetKolomApi | null>;
+  /** Gaya kontrol: `kotak` (LabeledCombobox, bawaan) atau `klasik` (Select). */
+  gaya?: 'klasik' | 'kotak';
   /** Timpa lebar trigger (bawaan 120px), mis. tabel sempit dua panel. */
   triggerClassName?: string;
   wrapperClassName?: string;
@@ -278,21 +284,52 @@ export default function PresetKolom({
     }
   }
 
-  /** Preset bawaan ditandai ikon pin saja (tanpa sufiks teks, tanpa tebal). */
-  const labelPreset = (p: PresetTabel) => (
-    p.id === bawaanId ? (
-      <span className="flex items-center gap-1.5">
-        <Pin size={12} className="shrink-0 text-muted-foreground" aria-label="Preset bawaan" />
-        {p.nama}
-      </span>
-    ) : p.nama
-  );
+  /* Opsi untuk combobox: "Lengkap" sistem disembunyikan bila tabel sudah punya
+     preset "Lengkap" (baris DB), supaya tidak ada dua entri bernama sama. */
+  const opsiKolom = [
+    ...(presets.some((p) => namaLengkap(p.nama)) ? [] : [{ label: 'Lengkap', nilai: LENGKAP }]),
+    ...presets.map((p) => ({ label: p.nama, nilai: String(p.id) })),
+  ];
 
   // Pemilih selalu tampil: "Lengkap" (semua kolom) adalah awalan tiap tabel,
   // jadi tabel tanpa preset pun tetap punya pilihan yang terlihat.
 
   return (
     <>
+      {gaya === 'kotak' ? (
+        /* Opsi preset sebagai objek: label untuk tampilan & pencarian, nilai
+           untuk pemicu (LENGKAP atau id preset). */
+        <LabeledCombobox
+          label="Kolom"
+          htmlFor={`select_preset_kolom_${tableKey}`}
+          kelolaLebar={false}
+          /* Lebar tersimpan = SELURUH kontrol (label + combobox). */
+          lebarLabel={Math.round((lebarTrigger ?? 120) * 0.34)}
+          lebarKombo={Math.round((lebarTrigger ?? 120) * 0.66)}
+          /* `gap-0 items-stretch`: kelas wrapper toolbar (gap-1.5 items-center)
+             untuk mode klasik; di mode kotak label & zona harus menempel dan
+             sama tinggi. */
+          className={`${wrapperClassName ?? ''} gap-0 items-stretch`}
+        >
+          <ComboboxRoot
+            items={opsiKolom}
+            autoHighlight
+            itemToStringLabel={(o) => o.label}
+            isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+            value={opsiKolom.find((o) => o.nilai === (aktifId === null ? LENGKAP : String(aktifId))) ?? opsiKolom[0]}
+            onValueChange={(o) => { if (o !== null) void pilihPreset(o.nilai); }}
+          >
+            <ComboboxInput id={`select_preset_kolom_${tableKey}`} aria-label="Preset kolom tampilan" placeholder="Cari kolom…" />
+            <ComboboxTrigger aria-label="Buka daftar kolom" />
+            <ComboboxContent className="max-h-80">
+              <ComboboxEmpty>Tidak ada preset kolom.</ComboboxEmpty>
+              <ComboboxList>
+                {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+              </ComboboxList>
+            </ComboboxContent>
+          </ComboboxRoot>
+        </LabeledCombobox>
+      ) : (
       <FilterField label="Kolom" htmlFor={`select_preset_kolom_${tableKey}`} kelolaLebar={false} className={wrapperClassName} sejajar={sejajarLabel}>
       <Select value={aktifId === null ? LENGKAP : String(aktifId)} onValueChange={(v) => void pilihPreset(v)}>
         <SelectTrigger
@@ -312,12 +349,13 @@ export default function PresetKolom({
               <SelectItem value={LENGKAP}>Lengkap</SelectItem>
             )}
             {presets.map((p) => (
-              <SelectItem key={p.id} value={String(p.id)}>{labelPreset(p)}</SelectItem>
+              <SelectItem key={p.id} value={String(p.id)}>{p.nama}</SelectItem>
             ))}
           </SelectGroup>
         </SelectContent>
       </Select>
       </FilterField>
+      )}
     </>
   );
 }

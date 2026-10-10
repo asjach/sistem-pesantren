@@ -13,7 +13,7 @@ export const KONTROL_TOOLBAR: { kunci: KontrolToolbar; label: string; ket: strin
   { kunci: 'filter', label: 'Filter halaman', ket: 'Combobox filter halaman selain Dropdown Urutkan dan Dropdown Kolom' },
 ];
 
-export const LEBAR_BAWAHAN_FILTER = 120;
+export const LEBAR_BAWAHAN_FILTER = 200;
 export const LEBAR_BAWAHAN_TOOLBAR: Record<KontrolLebar, number> = {
   urut: LEBAR_BAWAHAN_FILTER,
   kolom: LEBAR_BAWAHAN_FILTER,

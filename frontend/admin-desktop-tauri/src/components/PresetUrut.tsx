@@ -6,6 +6,10 @@ import {
   type PresetUrutData,
 } from '@/api/urutPreset';
 import FilterField from '@/components/FilterField';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import TombolIkon from '@/components/TombolIkon';
 import {
   Select,
@@ -15,7 +19,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronDown, ChevronUp, Pin } from '@/icons';
+import { Pin } from '@/icons';
+
+/** Segitiga penuh untuk tombol arah urutan (naik/turun). SVG-inline supaya
+ *  benar-benar terisi penuh — ikon garis tak cukup untuk arah sortasi. */
+function SegitigaArah({ naik }: { naik: boolean }) {
+  return (
+    <svg viewBox="0 0 10 10" className="size-2 shrink-0 opacity-70" aria-hidden="true" focusable="false"
+      style={naik ? undefined : { transform: 'rotate(180deg)' }}>
+      <path d="M5 0.8 9.6 9H0.4z" fill="currentColor" />
+    </svg>
+  );
+}
 
 const TANPA = '_tanpa';
 
@@ -31,6 +46,7 @@ export default function PresetUrut({
   onUrut,
   wrapperClassName,
   lebarTrigger,
+  gaya = 'kotak',
 }: {
   tableKey: string;
   urutAktif?: string[];
@@ -40,6 +56,8 @@ export default function PresetUrut({
   wrapperClassName?: string;
   /** Lebar trigger dropdown (px) dari tab Kontrol; kosong = 100 bawaan. */
   lebarTrigger?: number;
+  /** Gaya kontrol: `kotak` (LabeledCombobox, bawaan) atau `klasik` (Select). */
+  gaya?: 'klasik' | 'kotak';
 }) {
   const [data, setData] = useState<PresetUrutData | null>(null);
   /** table_key yang opsi bawaannya sudah diterapkan (sekali per tabel). */
@@ -107,8 +125,60 @@ export default function PresetUrut({
   const tampil = !muatSelesai || gagalMuat || opsi.length > 0 || (urutAktif ?? []).length > 0;
   if (!tampil) return null;
 
+  /* Opsi dropdown: label yang tampil + nilai pemicu (index opsi preset, atau
+     TANPA). Dipakai kedua gaya (Select klasik & Combobox kotak). */
+  const opsiItem = [
+    { label: '—', nilai: TANPA },
+    ...opsi.map((o, i) => ({ label: o.label, nilai: String(i) })),
+  ];
+
   return (
     <span className="flex items-end gap-0">
+      {gaya === 'kotak' ? (
+        <LabeledCombobox
+          label="Urutkan"
+          htmlFor={`select_urut_${tableKey}`}
+          kelolaLebar={false}
+          /* Lebar tersimpan (px) untuk SELURUH kontrol Urutkan (label +
+             combobox), sama seperti FilterField lama. */
+          lebarLabel={Math.round((lebarTrigger ?? 120) * 0.34)}
+          lebarKombo={Math.round((lebarTrigger ?? 120) * 0.66)}
+          /* `gap-0 items-stretch`: kelas wrapper bawaan (`gap-1.5 items-center`)
+            是 untuk mode klasik (label di samping kontrol). Pada mode kotak label
+             & zona harus menempel dan sama tinggi — kalau `items-center`,
+             label hanya setinggi teksnya dan sisanya memperlihatkan latar
+             kotak, sehingga pita label terlihat dua warna. */
+          className={`${wrapperClassName ?? ''} gap-0 items-stretch`}
+        >
+          <ComboboxRoot
+            items={opsiItem}
+            autoHighlight
+            itemToStringLabel={(o) => o.label}
+            isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+            value={opsiItem.find((o) => o.nilai === (nilaiSelect ?? TANPA)) ?? opsiItem[0]}
+            onValueChange={(o) => { if (o !== null) pilihNilai(o.nilai); }}
+            onOpenChange={(buka) => { if (buka) void muat(); }}
+          >
+            <ComboboxInput id={`select_urut_${tableKey}`} aria-label="Urutkan" placeholder="Urutkan…" />
+            <ComboboxTrigger aria-label="Buka daftar urutan" />
+            <ComboboxContent>
+              <ComboboxEmpty>Tidak ada opsi urutan.</ComboboxEmpty>
+              <ComboboxList>
+                {(o) => (
+                  <ComboboxItem key={o.nilai} value={o}>
+                    {o.nilai === TANPA ? o.label : (opsi[Number(o.nilai)]?.bawaan ? (
+                      <span className="flex items-center gap-1.5">
+                        <Pin size={12} className="shrink-0 text-muted-foreground" aria-label="Urutan bawaan" />
+                        {o.label}
+                      </span>
+                    ) : o.label)}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </ComboboxRoot>
+        </LabeledCombobox>
+      ) : (
       <FilterField label="Urutkan" htmlFor={`select_urut_${tableKey}`} kelolaLebar={false} className={wrapperClassName}>
         <Select
           value={nilaiSelect || undefined}
@@ -139,16 +209,22 @@ export default function PresetUrut({
           </SelectContent>
         </Select>
       </FilterField>
+      )}
       <TombolIkon
         id={`btn_arah_urut_${tableKey}`}
         variant="outline"
         size="icon-sm"
-        className="rounded-l-none border-l"
+        /* Mode kotak: tinggi & warna border ikut kotak LabeledCombobox
+           (26px + border-foreground/30), dan menempel di kanan kotak supaya
+           keduanya terbaca satu kontrol. Mode klasik: gaya lama (rounded-l-none). */
+        className={gaya === 'kotak'
+          ? 'h-[26px] w-6 rounded-l-none border-l-0 border-foreground/30 dark:border-foreground/30'
+          : 'rounded-l-none border-l'}
         tip={`Balik arah urutan (kini: ${arahUrut === 'naik' ? 'naik' : 'turun'})`}
         disabled={(urutAktif ?? []).length === 0}
         onClick={balikArah}
       >
-        {arahUrut === 'naik' ? <ChevronUp /> : <ChevronDown />}
+        {arahUrut === 'naik' ? <SegitigaArah naik /> : <SegitigaArah naik={false} />}
       </TombolIkon>
     </span>
   );

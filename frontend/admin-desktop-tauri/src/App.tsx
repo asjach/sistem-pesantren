@@ -56,6 +56,7 @@ const DaftarDokumenPegawaiPage = lazy(() => import('./pages/DaftarDokumenPegawai
 const DokumenPegawaiPage = lazy(() => import('./pages/DokumenPegawaiPage'));
 const DokumenMadrasahPage = lazy(() => import('./pages/DokumenMadrasahPage'));
 const KelolaIzinPage = lazy(() => import('./pages/KelolaIzinPage'));
+const KomponenPage = lazy(() => import('./pages/KomponenPage'));
 const PapanContohPage = lazy(() => import('./pages/PapanContohPage'));
 
 // Shell dipasang SEKALI sebagai rute induk: TopBar/ribbon + provider tetap
@@ -194,6 +195,7 @@ export default function App() {
                       <Route path="/dokumen-lembaga" element={<Navigate to="/dokumen-madrasah" replace />} />
                       <Route path="/pengaturan" element={<Navigate to="/pengaturan/izin" replace />} />
                       <Route path="/pengaturan/izin" element={<KhususIzin izin="izin.lihat"><KelolaIzinPage /></KhususIzin>} />
+                      <Route path="/komponen" element={<KhususIzin izin="izin.lihat"><KomponenPage /></KhususIzin>} />
                       <Route
                         path="/pengaturan/server"
                         element={(

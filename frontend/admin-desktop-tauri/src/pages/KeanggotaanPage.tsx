@@ -22,7 +22,10 @@ import {
 } from '@/components/santri/kolomIdentitas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import FilterField from '@/components/FilterField';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -35,6 +38,13 @@ import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { toast } from 'sonner';
 import { useAksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
+
+/** Opsi filter status keanggotaan (label tampil + nilai ke API). */
+const OPSI_STATUS_KEANGGOOTAN: { nilai: 'semua' | '1' | '0'; label: string }[] = [
+  { nilai: 'semua', label: 'Semua' },
+  { nilai: '1', label: 'Aktif' },
+  { nilai: '0', label: 'Nonaktif' },
+];
 
 /** Format tanggal sel grid: YYYY-MM-DD (kosong = boleh, berarti NULL). */
 const tglValidator = (v: string | null) =>
@@ -309,18 +319,24 @@ export default function KeanggotaanPage() {
         sumberTabel="santri"
         filter={(
           <>
-            <FilterField label="Status" htmlFor="filter_status_keanggotaan">
-              <Select value={status} onValueChange={(v) => gantiFilter({ status: v as 'semua' | '1' | '0' })}>
-                <SelectTrigger id="filter_status_keanggotaan" className="w-36"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="semua">Semua</SelectItem>
-                    <SelectItem value="1">Aktif</SelectItem>
-                    <SelectItem value="0">Nonaktif</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </FilterField>
+            <LabeledCombobox label="Status" htmlFor="filter_status_keanggotaan">
+              <ComboboxRoot
+                items={OPSI_STATUS_KEANGGOOTAN}
+                itemToStringLabel={(o) => o.label}
+                isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                value={OPSI_STATUS_KEANGGOOTAN.find((o) => o.nilai === status) ?? OPSI_STATUS_KEANGGOOTAN[0]}
+                onValueChange={(o) => { if (o !== null) gantiFilter({ status: o.nilai }); }}
+              >
+                <ComboboxInput id="filter_status_keanggotaan" aria-label="Filter status" placeholder="Cari status…" />
+                <ComboboxTrigger aria-label="Buka daftar status" />
+                <ComboboxContent>
+                  <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                  </ComboboxList>
+                </ComboboxContent>
+              </ComboboxRoot>
+            </LabeledCombobox>
           </>
         )}
         addButton={canTambah || canUbah ? (

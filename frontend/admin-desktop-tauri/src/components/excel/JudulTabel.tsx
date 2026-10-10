@@ -26,6 +26,10 @@ interface Props {
   onUrut?: (nilai: string[], arah: 'naik' | 'turun', arahKolom?: Record<string, ArahUrut>) => void;
   /** Lebar trigger dropdown Urutkan (px) dari tab Kontrol. */
   lebarUrut?: number;
+  /** Gaya kontrol Urutkan di toolbar: klasik (Select) atau kotak (LabeledCombobox). */
+  gayaUrut?: 'klasik' | 'kotak';
+  /** Gaya kontrol Kolom di toolbar: klasik (Select) atau kotak (LabeledCombobox). */
+  gayaKolom?: 'klasik' | 'kotak';
   kolomTampil: boolean;
   fields: ExcelField[];
   onApplyPreset: (keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => void;
@@ -66,6 +70,8 @@ export default function JudulTabel({
   arahUrut,
   onUrut,
   lebarUrut,
+  gayaUrut,
+  gayaKolom,
   kolomTampil,
   fields,
   onApplyPreset,
@@ -103,6 +109,7 @@ export default function JudulTabel({
                   onUrut={onUrut}
                   wrapperClassName="flex-row items-center gap-1.5"
                   lebarTrigger={lebarUrut}
+                  gaya={gayaUrut}
                 />
               ) : null}
               {kolomTampil ? (
@@ -112,6 +119,7 @@ export default function JudulTabel({
                   onApply={onApplyPreset}
                   apiRef={presetApiRef}
                   triggerClassName={presetKolomClassName}
+                  gaya={gayaKolom}
                   wrapperClassName="flex-row items-center gap-1.5"
                   lebarTrigger={lebarKolom}
                 />

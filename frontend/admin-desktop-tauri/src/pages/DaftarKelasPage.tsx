@@ -12,7 +12,10 @@ import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { ActionIcon } from '@/components/RowActions';
 import { Pencil } from '@/icons';
-import FilterField from '@/components/FilterField';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { EditSantriDialog } from '@/components/santri/EditSantriDialog';
@@ -22,6 +25,13 @@ import {
   medanDaftarKelas,
   pakaiCommitDaftarKelas,
 } from '@/components/siklus/kolomDaftarKelas';
+
+/** Opsi filter status akhir (label tampil + nilai ke API). */
+const OPSI_STATUS_AKHIR: { nilai: 'aktif' | 'nonaktif' | ''; label: string }[] = [
+  { nilai: 'aktif', label: 'Aktif' },
+  { nilai: 'nonaktif', label: 'Tidak aktif' },
+  { nilai: '', label: 'Semua status' },
+];
 
 /** Daftar Kelas: basis status_akhir (Aktif = gabungan 5 status; Tidak aktif =
  *  Pindah/Keluar) dengan opsi lintas semester dan lintas tahun ajaran.
@@ -151,20 +161,25 @@ export default function DaftarKelasPage() {
           </>
         )}
         filter={(
-          <FilterField label="Status" htmlFor="select_status_daftar_kelas">
-            <Select value={kelompok === '' ? '_semua' : kelompok} onValueChange={(v) => setKelompok(v === '_semua' ? '' : v)}>
-              <SelectTrigger id="select_status_daftar_kelas" title="Filter status akhir" aria-label="Filter status akhir" size="sm">
-                <SelectValue placeholder="Semua" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="aktif">Aktif</SelectItem>
-                  <SelectItem value="nonaktif">Tidak aktif</SelectItem>
-                  <SelectItem value="_semua">Semua status</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FilterField>
+          <LabeledCombobox label="Status" htmlFor="select_status_daftar_kelas">
+            <ComboboxRoot
+              items={OPSI_STATUS_AKHIR}
+              autoHighlight
+                            itemToStringLabel={(o) => o.label}
+              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+              value={OPSI_STATUS_AKHIR.find((o) => o.nilai === kelompok) ?? OPSI_STATUS_AKHIR[2]}
+              onValueChange={(o) => { if (o !== null) setKelompok(o.nilai); }}
+            >
+              <ComboboxInput id="select_status_daftar_kelas" aria-label="Filter status akhir" placeholder="Cari status…" />
+              <ComboboxTrigger aria-label="Buka daftar status" />
+              <ComboboxContent>
+                <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                <ComboboxList>
+                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                </ComboboxList>
+              </ComboboxContent>
+            </ComboboxRoot>
+          </LabeledCombobox>
         )}
         pager={(
           <Pager

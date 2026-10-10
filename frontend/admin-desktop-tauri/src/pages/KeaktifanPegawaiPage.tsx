@@ -23,7 +23,10 @@ import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
-import FilterField from '@/components/FilterField';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -57,6 +60,13 @@ function nilaiBaris(r: KeaktifanPegawai): Record<string, string | null> {
     tgl_sk: r.tgl_sk,
   };
 }
+
+/** Opsi filter status keaktifan (label tampil + nilai ke API). */
+const OPSI_STATUS_KEAKTIFAN: { nilai: 'semua' | 'Ya' | 'Tidak'; label: string }[] = [
+  { nilai: 'semua', label: 'Semua status' },
+  { nilai: 'Ya', label: 'Aktif' },
+  { nilai: 'Tidak', label: 'Inaktif' },
+];
 
 /** Halaman Keaktifan Pegawai: daftar guru aktif per lembaga + tahun ajaran. */
 export default function KeaktifanPegawaiPage() {
@@ -257,26 +267,26 @@ export default function KeaktifanPegawaiPage() {
         onUrut={terapkanUrut}
         onCheckedChange={setTercentang}
         filter={
-          <FilterField label="Status" htmlFor="select_status_keaktifan">
-            <Select
-              value={status}
-              onValueChange={(v) => {
-                setStatus(v as 'semua' | 'Ya' | 'Tidak');
-                pager.goFirst();
+          <LabeledCombobox label="Status" htmlFor="select_status_keaktifan">
+            <ComboboxRoot
+              items={OPSI_STATUS_KEAKTIFAN}
+              itemToStringLabel={(o) => o.label}
+              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+              value={OPSI_STATUS_KEAKTIFAN.find((o) => o.nilai === status) ?? OPSI_STATUS_KEAKTIFAN[0]}
+              onValueChange={(o) => {
+                if (o !== null) { setStatus(o.nilai); pager.goFirst(); }
               }}
             >
-              <SelectTrigger id="select_status_keaktifan" title="Status keaktifan" aria-label="Status keaktifan" size="sm" className="w-36">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="semua">Semua status</SelectItem>
-                  <SelectItem value="Ya">Aktif</SelectItem>
-                  <SelectItem value="Tidak">Inaktif</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FilterField>
+              <ComboboxInput id="select_status_keaktifan" aria-label="Status keaktifan" placeholder="Cari status…" />
+              <ComboboxTrigger aria-label="Buka daftar status" />
+              <ComboboxContent>
+                <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                <ComboboxList>
+                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                </ComboboxList>
+              </ComboboxContent>
+            </ComboboxRoot>
+          </LabeledCombobox>
         }
         addButton={
           <>

@@ -1,6 +1,7 @@
 /** Registri halaman: sumber tunggal judul/deskripsi/ikon untuk sidebar & judul. */
 import {
   BadgeCheck,
+  Blend,
   CalendarCheck,
   CalendarRange,
   ClipboardCheck,
@@ -185,6 +186,14 @@ export const HALAMAN: HalamanDef[] = [
     tab: 'pengaturan',
     icon: Server,
     permission: 'server.lihat',
+  },
+  {
+    to: '/komponen',
+    label: 'Komponen',
+    deskripsi: 'Ruang rakit komponen custom. Hanya super_admin.',
+    tab: 'pengaturan',
+    icon: Blend,
+    permission: 'izin.lihat',
   },
 ];
 

@@ -26,7 +26,10 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import FilterField from '@/components/FilterField';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -38,6 +41,13 @@ import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { FileUp, ImageUp, UserCheck } from '@/icons';
 import { toast } from 'sonner';
+
+/** Opsi filter status pegawai (label tampil + nilai ke API). */
+const OPSI_STATUS_PEGAWAI: { nilai: 'semua' | 'Ya' | 'Tidak'; label: string }[] = [
+  { nilai: 'semua', label: 'Semua' },
+  { nilai: 'Ya', label: 'Ya' },
+  { nilai: 'Tidak', label: 'Tidak' },
+];
 
 /** Seluruh kolom identitas Buku Induk Guru (cermin tabel `pegawai`). */
 const FIELDS: ExcelField[] = [
@@ -317,18 +327,24 @@ export default function PegawaiPage() {
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
         filter={(
-          <FilterField label="Status" htmlFor="select_status_pegawai">
-            <Select value={status} onValueChange={(v) => { setStatus(v as 'semua' | 'Ya' | 'Tidak'); pager.goFirst(); }}>
-              <SelectTrigger id="select_status_pegawai" title="Filter status" aria-label="Filter status" size="sm" className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent><SelectGroup>
-                <SelectItem value="semua">Semua</SelectItem>
-                <SelectItem value="Ya">Ya</SelectItem>
-                <SelectItem value="Tidak">Tidak</SelectItem>
-              </SelectGroup></SelectContent>
-            </Select>
-          </FilterField>
+          <LabeledCombobox label="Status" htmlFor="select_status_pegawai">
+            <ComboboxRoot
+              items={OPSI_STATUS_PEGAWAI}
+              itemToStringLabel={(o) => o.label}
+              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+              value={OPSI_STATUS_PEGAWAI.find((o) => o.nilai === status) ?? OPSI_STATUS_PEGAWAI[0]}
+              onValueChange={(o) => { if (o !== null) { setStatus(o.nilai); pager.goFirst(); } }}
+            >
+              <ComboboxInput id="select_status_pegawai" aria-label="Filter status" placeholder="Cari status…" />
+              <ComboboxTrigger aria-label="Buka daftar status" />
+              <ComboboxContent>
+                <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                <ComboboxList>
+                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                </ComboboxList>
+              </ComboboxContent>
+            </ComboboxRoot>
+          </LabeledCombobox>
         )}
         addButton={(canTambah || canBuatAkun) ? (
           <>
