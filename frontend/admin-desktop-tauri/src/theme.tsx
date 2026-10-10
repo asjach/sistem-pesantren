@@ -1,6 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   DEFAULT_PREFS,
+  RADIUS_DEFAULT,
+  RADIUS_MAX,
+  RADIUS_MIN,
   bacaPrefsSinkron,
   loadPrefs,
   onAccentFor,
@@ -28,6 +31,8 @@ interface ThemeState extends Prefs {
   /** Mode navigasi utama. */
   setNavigasi: (n: NavigasiName) => void;
   setDensity: (d: DensityName) => void;
+  /** Sudut membulat global (px; dijepit 0–16 pemanggil). */
+  setRadius: (px: number) => void;
   setWarnaUI: (w: WarnaUIName) => void;
   /** Set ikon antarmuka (9 koleksi Iconify). */
   setIconSet: (v: IconSetId) => void;
@@ -84,6 +89,8 @@ function applyPrefs(p: Prefs, osDark: boolean) {
   document.documentElement.classList.toggle('dark', dark);
   // Tingkat "kaya warna" UI (dibaca aturan CSS [data-warna=…]).
   document.documentElement.dataset.warna = p.warnaUI;
+  // Satu-satunya sumber radius (lihat --radius-semua di index.css).
+  document.documentElement.style.setProperty('--radius-semua', `${p.radius}px`);
   pasangWarnaTema(p.theme, dark);
   simpanCacheTema(p.theme, dark, p.warnaUI, findPreset(p.theme)[dark ? 'gelap' : 'terang'].bg);
   // Gaya atomik per bagian UI (di-generate ke <style id="simpes_part_styles">).
@@ -145,6 +152,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setSidebarLebar: (sidebarLebar) => update({ sidebarLebar }),
       setNavigasi: (navigasi) => update({ navigasi }),
       setDensity: (density) => update({ density }),
+      setRadius: (radius) => update({
+        radius: Number.isFinite(radius)
+          ? Math.min(RADIUS_MAX, Math.max(RADIUS_MIN, Math.round(radius)))
+          : RADIUS_DEFAULT,
+      }),
       setWarnaUI: (warnaUI) => update({ warnaUI }),
       setIconSet: (iconSet) => update({ iconSet }),
       setGayaBagian: (id, patch) => {

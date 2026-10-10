@@ -36,7 +36,7 @@ interface Props {
    *  `anchor` = elemen sel, dipakai sebagai jangkar popover. */
   onPilih: (
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[] },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; foto_profil: boolean; kelas: string | null; jenjang_riwayat: string[] },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
@@ -131,7 +131,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
   kolom: CrosstabKolom[];
   onPilih: (
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[] },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; foto_profil: boolean; kelas: string | null; jenjang_riwayat: string[] },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
@@ -199,8 +199,8 @@ const BarisCrosstab = memo(function BarisCrosstab({
         const meta = {
           nama: baris.nama, label: labelSel(k),
           ayah_nama: baris.ayah_nama, ibu_nama: baris.ibu_nama, santri_id: baris.santri_id,
-          foto_dokumen_id: baris.foto_dokumen_id, kelas: baris.kelas,
-          jenjang_riwayat: baris.jenjang_riwayat,
+          foto_dokumen_id: baris.foto_dokumen_id, foto_profil: baris.foto_profil,
+          kelas: baris.kelas, jenjang_riwayat: baris.jenjang_riwayat,
         };
         return (
           <td key={k.key} className="border-b border-r p-0.5">
@@ -377,7 +377,7 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, emptyTe
   const pilihStabil = useCallback(
     (
       sel: CrosstabSel,
-      meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[] },
+      meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; foto_profil: boolean; kelas: string | null; jenjang_riwayat: string[] },
       anchor: HTMLElement,
       kolom: CrosstabKolom,
     ) => {

@@ -151,6 +151,10 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   aksiLangsung?: boolean;
   /** Tabel ringkas baca-saja: sembunyikan pemilih preset kolom di toolbar. */
   hidePreset?: boolean;
+  /** Susunan kolom dikendalikan dari luar (mis. PresetKolom di luar toolbar):
+   *  menimpa preset internal sepenuhnya (termasuk label & id preset untuk
+   *  menu konteks). `undefined` (bawaan) = perilaku lama. */
+  presetLuar?: { keys: string[] | null; label?: Record<string, string> | null; presetId?: number | null };
   /** Pemanggil menggambar bar judul sendiri (mis. `TabelRingkas`): grid
    *  tidak perlu jarak `mt-2` dari pemanggil maupun margin horizontal
    *  negatif `-mx-1` yang biasanya mengimbangi padding halaman. */
@@ -239,6 +243,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   hideActions = false,
   aksiLangsung = false,
   hidePreset = false,
+  presetLuar,
   judulPemilik = false,
   presetKolomClassName,
   rail = false,
@@ -293,17 +298,23 @@ export default function ExcelTable<T extends { id: string | number }>({
   const checkedRows = useMemo(() => rows.filter((r) => checkedIds.has(r.id)), [rows, checkedIds]);
   const clearSelection = useMemo(() => () => setCheckedIds(new Set<T['id']>()), []);
 
-  const [presetKeys, setPresetKeys] = useState<string[] | null>(null);
+  const [presetKeysDalam, setPresetKeysDalam] = useState<string[] | null>(null);
   /** Id preset aktif (null = Lengkap/tanpa preset): urutan kolom mengikuti
    *  susunan preset; geser dari menu konteks menyimpan balik ke preset ini. */
-  const [presetAktifId, setPresetAktifId] = useState<number | null>(null);
+  const [presetAktifIdDalam, setPresetAktifIdDalam] = useState<number | null>(null);
   /** Nama header kustom dari preset aktif (key kolom → nama tampil). */
-  const [presetLabel, setPresetLabel] = useState<Record<string, string> | null>(null);
+  const [presetLabelDalam, setPresetLabelDalam] = useState<Record<string, string> | null>(null);
+  // Bila dikendalikan luar, ketiga nilai di atas diabaikan sepenuhnya.
+  const luar = presetLuar !== undefined;
+  const presetKeys = luar ? presetLuar.keys : presetKeysDalam;
+  const presetAktifId = luar ? (presetLuar.presetId ?? null) : presetAktifIdDalam;
+  const presetLabel = luar ? (presetLuar.label ?? null) : presetLabelDalam;
   const terapkanPreset = useCallback((keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => {
-    setPresetKeys(keys);
-    setPresetLabel(label ?? null);
-    setPresetAktifId(presetId ?? null);
-  }, []);
+    if (luar) return;
+    setPresetKeysDalam(keys);
+    setPresetLabelDalam(label ?? null);
+    setPresetAktifIdDalam(presetId ?? null);
+  }, [luar]);
 
 
   /** Nama tampilan kolom: label preset per tabel (kalau ada) > label field.
@@ -424,7 +435,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { geserKolom, kembalikanUrutan } = useUrutanKolom({
     tableKey,
     presetAktifId,
-    setPresetKeys,
+    // Saat preset dikendalikan luar, tulis ini tak berpengaruh visual (event
+    // preset-berubah memuat ulang susunan dari server); persist API di dalam
+    // hook tetap jalan sehingga tak ada yang hilang.
+    setPresetKeys: setPresetKeysDalam,
     setUrutanDb,
     getVisibleKeys: () => visibleFieldsRef.current.map((f) => f.key),
     getFieldKeys: () => fieldsRef.current.map((f) => f.key),
@@ -1144,7 +1158,7 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  kanan saat grid di-scroll horizontal (freeze pane sisi kanan). */
   const aksiColumn: Column<GridRow> = useMemo(() => ({
     id: '__aksi',
-    title: <HeaderTitle label="Aksi" colKey="__aksi" onResizeStart={startResize} onAutoFit={onAutoFit} />,
+    title: <HeaderTitle label="" colKey="__aksi" onResizeStart={startResize} onAutoFit={onAutoFit} />,
     basis: widths.__aksi ?? autoWidths.__aksi ?? ACTIONS_DEFAULT_W,
     grow: 0,
     shrink: 0,

@@ -10,6 +10,7 @@ import {
 } from '../api/master';
 import { errorMessage } from '../api/client';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import {
@@ -408,7 +409,7 @@ export default function LembagaPage() {
               </Select>
               <FieldLabel htmlFor="chk_seleksi_lembaga">Butuh seleksi</FieldLabel>
               <label htmlFor="chk_seleksi_lembaga" className="flex w-fit items-center gap-2 text-xs">
-                <input id="chk_seleksi_lembaga" type="checkbox" checked={isSeleksi} onChange={(e) => setIsSeleksi(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+                <Checkbox id="chk_seleksi_lembaga" checked={isSeleksi} onCheckedChange={(v) => setIsSeleksi(v === true)} />
               </label>
               <DialogFooter className="col-span-2">
                 <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
@@ -447,7 +448,7 @@ export default function LembagaPage() {
             ])}
             <FieldLabel htmlFor="chk_ubah_aktif_lembaga">Aktif</FieldLabel>
             <label htmlFor="chk_ubah_aktif_lembaga" className="flex w-fit items-center gap-2 text-xs">
-              <input id="chk_ubah_aktif_lembaga" type="checkbox" checked={editAktif} onChange={(e) => setEditAktif(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+              <Checkbox id="chk_ubah_aktif_lembaga" checked={editAktif} onCheckedChange={(v) => setEditAktif(v === true)} />
             </label>
             {seksi('Legalitas & Akreditasi')}
             {medan('input_ubah_npsn_lembaga', 'NPSN', 'npsn', { maxLength: 20 })}
@@ -513,7 +514,7 @@ export default function LembagaPage() {
             </Select>
             <FieldLabel htmlFor="chk_ubah_seleksi_lembaga">Butuh seleksi</FieldLabel>
             <label htmlFor="chk_ubah_seleksi_lembaga" className="flex w-fit items-center gap-2 text-xs">
-              <input id="chk_ubah_seleksi_lembaga" type="checkbox" checked={editSeleksi} onChange={(e) => setEditSeleksi(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+              <Checkbox id="chk_ubah_seleksi_lembaga" checked={editSeleksi} onCheckedChange={(v) => setEditSeleksi(v === true)} />
             </label>
           </div>
           <DialogFooter>

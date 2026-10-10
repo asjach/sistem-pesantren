@@ -7,6 +7,7 @@ import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -157,15 +158,25 @@ export default function PembayaranPage() {
                 autoFocus
                 required
               />
-              <select id={`sel_kasir_metode_${r.id}`} value={metode} onChange={(e) => setMetode(e.target.value as 'tunai' | 'transfer')} className="border rounded px-1">
-                <option value="tunai">Tunai</option>
-                <option value="transfer">Transfer</option>
-              </select>
-              <select id={`sel_kasir_kas_${r.id}`} value={kas} onChange={(e) => setKas(e.target.value as typeof kas)} className="border rounded px-1">
-                <option value="tunai_tu">Tunai TU</option>
-                <option value="bank_lembaga">Bank Lembaga</option>
-                <option value="bank_pesantren">Bank Pesantren</option>
-              </select>
+              <Select value={metode} onValueChange={(v) => setMetode(v as 'tunai' | 'transfer')}>
+                <SelectTrigger id={`sel_kasir_metode_${r.id}`} aria-label="Metode pembayaran" className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tunai">Tunai</SelectItem>
+                  <SelectItem value="transfer">Transfer</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={kas} onValueChange={(v) => setKas(v as typeof kas)}>
+                <SelectTrigger id={`sel_kasir_kas_${r.id}`} aria-label="Kas pembayaran" className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tunai_tu">Tunai TU</SelectItem>
+                  <SelectItem value="bank_lembaga">Bank Lembaga</SelectItem>
+                  <SelectItem value="bank_pesantren">Bank Pesantren</SelectItem>
+                </SelectContent>
+              </Select>
               <Input
                 id={`inp_kasir_catatan_${r.id}`}
                 placeholder="Catatan (opsional)"

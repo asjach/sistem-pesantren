@@ -263,7 +263,7 @@ export default function KeuanganPage() {
   const [selTagihan, setSelTagihan] = useState<{
     id: number; nama: string; label: string;
     ayah_nama: string | null; ibu_nama: string | null;
-    santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[];
+    santri_id: number; foto_dokumen_id: number | null; foto_profil: boolean; kelas: string | null; jenjang_riwayat: string[];
     nominal: number; sisa: number;
     status: 'belum' | 'sebagian' | 'lunas';
   } | null>(null);
@@ -298,6 +298,7 @@ export default function KeuanganPage() {
           ibu_nama: selTagihan.ibu_nama,
           santri_id: selTagihan.santri_id,
           fotoDokumenId: selTagihan.foto_dokumen_id,
+          fotoProfil: selTagihan.foto_profil,
           kelas: selTagihan.kelas,
           jenjangRiwayat: selTagihan.jenjang_riwayat,
           jenisId: kolomTerpilih.jenis_id,
@@ -324,7 +325,7 @@ export default function KeuanganPage() {
   const pindahSelRef = useRef(false);
   const pilihSel = useCallback((
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[] },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; foto_profil: boolean; kelas: string | null; jenjang_riwayat: string[] },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => {
@@ -334,8 +335,8 @@ export default function KeuanganPage() {
     setSelTagihan({
       id: sel.id, nama: meta.nama, label: meta.label,
       ayah_nama: meta.ayah_nama, ibu_nama: meta.ibu_nama, santri_id: meta.santri_id,
-      foto_dokumen_id: meta.foto_dokumen_id, kelas: meta.kelas,
-      jenjang_riwayat: meta.jenjang_riwayat,
+      foto_dokumen_id: meta.foto_dokumen_id, foto_profil: meta.foto_profil,
+      kelas: meta.kelas, jenjang_riwayat: meta.jenjang_riwayat,
       nominal: sel.nominal, sisa: sel.sisa, status: sel.status,
     });
     setSelPenuh(sel);
@@ -409,8 +410,8 @@ export default function KeuanganPage() {
         {
           nama: baris.nama, label: labelSel(kolom),
           ayah_nama: baris.ayah_nama, ibu_nama: baris.ibu_nama, santri_id: baris.santri_id,
-          foto_dokumen_id: baris.foto_dokumen_id, kelas: baris.kelas,
-          jenjang_riwayat: baris.jenjang_riwayat,
+          foto_dokumen_id: baris.foto_dokumen_id, foto_profil: baris.foto_profil,
+          kelas: baris.kelas, jenjang_riwayat: baris.jenjang_riwayat,
         },
         tombol,
         kolom,

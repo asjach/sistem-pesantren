@@ -84,7 +84,7 @@ export default function JudulTabel({
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <div className="min-w-0 flex-1 truncate">{judul}</div>
             {infoTampil ? (
-              <div className="flex max-w-full shrink-0 self-center flex-col items-center gap-0.5 rounded-full border bg-muted/60 px-4 py-1 text-center">
+              <div className="flex max-w-full shrink-0 self-center flex-col items-center gap-0.5 rounded-pil border bg-muted/60 px-4 py-1 text-center">
                 <span className="max-w-[32rem] truncate text-[11px] text-muted-foreground">{info}</span>
               </div>
             ) : null}

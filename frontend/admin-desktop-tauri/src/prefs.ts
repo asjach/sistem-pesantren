@@ -24,6 +24,19 @@ export const DENSITY_PX: Record<DensityName, number> = {
 /** Mode navigasi utama: rail kiri atau bar menu atas. */
 export type NavigasiName = 'sidebar' | 'menubar';
 
+/** Sudut membulat global (px): satu-satunya sumber radius seluruh komponen
+ *  (skala rounded-*: var(--radius-semua)). 0 = siku semua. */
+export const RADIUS_MIN = 0;
+export const RADIUS_MAX = 16;
+export const RADIUS_DEFAULT = 0;
+
+/** Jepit nilai radius ke rentang px bulat yang wajar. */
+export function normalkanRadius(v: unknown): number {
+  const n = typeof v === 'string' ? Number(v) : (v as number);
+  if (!Number.isFinite(n)) return RADIUS_DEFAULT;
+  return Math.min(RADIUS_MAX, Math.max(RADIUS_MIN, Math.round(n)));
+}
+
 /** Lebar navigasi kiri (px). Bawaan 252px (selaras `--side-w` ala Gr8r); bisa diseret. */
 export const SIDEBAR_LEBAR_DEFAULT = 252;
 /** Bawaan + bawah: di bawah ini label menu terpotong, jadi panel autogut. */
@@ -67,6 +80,7 @@ const K = {
   parts: 'simpes_parts',
   iconSet: 'simpes_icon_set',
   navigasi: 'simpes_navigasi',
+  radius: 'simpes_radius',
   // Preferensi lama (sebelum font sel disatukan ke bagian `tabel_sel`) — hanya
   // dibaca sekali untuk migrasi, lalu dihapus.
   fontLama: 'simpes_grid_font',
@@ -88,6 +102,8 @@ export interface Prefs {
   parts: PartOverrides;
   /** Set ikon antarmuka (9 koleksi, lihat src/iconSets.ts). */
   iconSet: IconSetId;
+  /** Sudut membulat global (px, 0–16). */
+  radius: number;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -100,6 +116,7 @@ export const DEFAULT_PREFS: Prefs = {
   navigasi: 'sidebar',
   parts: EMPTY_PARTS,
   iconSet: ICON_SET_DEFAULT,
+  radius: RADIUS_DEFAULT,
 };
 
 /** Luminance relatif (WCAG) 0..1 untuk hex #rrggbb. */
@@ -130,6 +147,7 @@ export interface NilaiPrefsMentah {
   parts: string | null;
   iconSet: string | null;
   navigasi: string | null;
+  radius: string | null;
 }
 
 /** Normalisasi nilai mentah → `Prefs` (dipakai jalur async & boot sinkron). */
@@ -156,6 +174,7 @@ export function normalkanPrefs(m: NilaiPrefsMentah): Prefs {
     parts,
     iconSet: ICON_SETS.some((s) => s.id === m.iconSet) ? (m.iconSet as IconSetId) : ICON_SET_DEFAULT,
     navigasi: m.navigasi === 'menubar' ? 'menubar' : 'sidebar',
+    radius: normalkanRadius(m.radius),
   };
 }
 
@@ -178,6 +197,7 @@ export function bacaPrefsSinkron(): Prefs | null {
       parts: ambil(K.parts),
       iconSet: ambil(K.iconSet),
       navigasi: ambil(K.navigasi),
+      radius: ambil(K.radius),
     });
   } catch {
     // Penyimpanan terkunci/penuh → jatuh ke jalur async (bawaan aman).
@@ -186,7 +206,7 @@ export function bacaPrefsSinkron(): Prefs | null {
 }
 
 export async function loadPrefs(): Promise<Prefs> {
-  const [theme, mode, sidebar, sidebarLebarRaw, density, warnaUI, partsRaw, iconSetRaw, navigasiRaw, fontLama, fontFamilyLama] = await Promise.all([
+  const [theme, mode, sidebar, sidebarLebarRaw, density, warnaUI, partsRaw, iconSetRaw, navigasiRaw, radiusRaw, fontLama, fontFamilyLama] = await Promise.all([
     prefGet(K.theme),
     prefGet(K.mode),
     prefGet(K.sidebar),
@@ -196,6 +216,7 @@ export async function loadPrefs(): Promise<Prefs> {
     prefGet(K.parts),
     prefGet(K.iconSet),
     prefGet(K.navigasi),
+    prefGet(K.radius),
     prefGet(K.fontLama),
     prefGet(K.fontFamilyLama),
   ]);
@@ -211,6 +232,7 @@ export async function loadPrefs(): Promise<Prefs> {
     parts: partsRaw,
     iconSet: iconSetRaw,
     navigasi: navigasiRaw,
+    radius: radiusRaw,
   });
 
   // Migrasi sekali-jalan: jenis & ukuran huruf sel dulu disimpan di pref
@@ -252,5 +274,6 @@ export async function savePrefs(p: Prefs): Promise<void> {
     prefSet(K.parts, JSON.stringify(p.parts)),
     prefSet(K.iconSet, p.iconSet),
     prefSet(K.navigasi, p.navigasi),
+    prefSet(K.radius, String(p.radius)),
   ]);
 }

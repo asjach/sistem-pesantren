@@ -1082,7 +1082,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           </div>
           </div>
           <div className="flex items-center gap-1">
-          <div role="group" aria-label="Target dial" className="flex rounded-full bg-white/10 p-1">
+          <div role="group" aria-label="Target dial" className="flex rounded-pil bg-white/10 p-1">
             {(['rotasi', 'skala'] as const).map((m) => (
               <button
                 key={m}
@@ -1091,7 +1091,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
                 aria-pressed={modeDial === m}
                 onClick={() => setModeDial(m)}
                 className={cn(
-                  'rounded-full px-4 py-0.5 text-xs transition-colors',
+                  'rounded-pil px-4 py-0.5 text-xs transition-colors',
                   modeDial === m ? 'bg-white/20 text-white ring-1 ring-white/25' : 'text-neutral-400 hover:text-white',
                 )}
               >
@@ -1172,7 +1172,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
             </TooltipContent>
           </Tooltip>
           {modeLurus && (
-            <div role="group" aria-label="Acuan penggaris" className="flex shrink-0 rounded-full bg-white/10 p-0.5">
+            <div role="group" aria-label="Acuan penggaris" className="flex shrink-0 rounded-pil bg-white/10 p-0.5">
               {(['datar', 'tegak'] as const).map((a) => (
                 <button
                   key={a}
@@ -1182,7 +1182,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
                   title={a === 'datar' ? 'Garis acuan datar (horizontal)' : 'Garis acuan tegak (vertikal)'}
                   onClick={() => setLurusTegak(a === 'tegak')}
                   className={cn(
-                    'rounded-full px-2.5 py-0.5 text-[11px] whitespace-nowrap transition-colors',
+                    'rounded-pil px-2.5 py-0.5 text-[11px] whitespace-nowrap transition-colors',
                     (a === 'tegak') === lurusTegak ? 'bg-white/20 text-white ring-1 ring-white/25' : 'text-neutral-400 hover:text-white',
                   )}
                 >
@@ -1211,7 +1211,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
                   title={c.r === null ? 'Crop bebas' : `Kunci rasio ${c.label}`}
                   onClick={() => pilihRasioCrop(c.r)}
                   className={cn(
-                    'shrink-0 rounded-full px-2.5 py-1 text-xs whitespace-nowrap transition-colors',
+                    'shrink-0 rounded-pil px-2.5 py-1 text-xs whitespace-nowrap transition-colors',
                     aktif
                       ? 'bg-primary font-medium text-primary-foreground'
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
@@ -1313,7 +1313,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           {gambar && dimensi && <span className="shrink-0">{dimensi.w} × {dimensi.h} px · {ukuranSumber}</span>}
           {kotor && (
             <>
-              <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-px font-medium text-primary">Diedit</span>
+              <span className="shrink-0 rounded-pil bg-primary/15 px-1.5 py-px font-medium text-primary">Diedit</span>
               <span className="shrink-0">{captionUkuran}{ukuranKeluar ? ` · ${ukuranKeluar}` : ''}</span>
             </>
           )}

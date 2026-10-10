@@ -1,4 +1,5 @@
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
@@ -64,7 +65,7 @@ export function DialogKegiatan({ open, edit, taTersedia, nama, ta, aktif, busy, 
           <Input id="input_nama_kegiatan_psb" value={nama} onChange={(e) => onNama(e.target.value)} required maxLength={100} placeholder="PSB 2026/2027" disabled={!ta} />
           <FieldLabel htmlFor="chk_aktif_kegiatan_psb">Aktif</FieldLabel>
           <label htmlFor="chk_aktif_kegiatan_psb" className="flex cursor-pointer items-center gap-2 text-xs">
-            <input id="chk_aktif_kegiatan_psb" type="checkbox" checked={aktif} onChange={(e) => onAktif(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+            <Checkbox id="chk_aktif_kegiatan_psb" checked={aktif} onCheckedChange={(v) => onAktif(v === true)} />
             <span className="text-muted-foreground">Jadikan kegiatan aktif (hanya satu kegiatan aktif)</span>
           </label>
           <DialogFooter className="col-span-2">
@@ -172,7 +173,7 @@ export function DialogKuota({ open, edit, terkunci, lembagaOpsi, lembagas, tipe,
           <Input id="input_kuota_psb" type="number" min={0} value={kuota} onChange={(e) => onKuota(e.target.value)} placeholder="100" />
           <FieldLabel htmlFor="chk_paket_psb">Paket MI-MD</FieldLabel>
           <label htmlFor="chk_paket_psb" className="flex cursor-pointer items-center gap-2 text-xs">
-            <input id="chk_paket_psb" type="checkbox" checked={paket} onChange={(e) => onPaket(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+            <Checkbox id="chk_paket_psb" checked={paket} onCheckedChange={(v) => onPaket(v === true)} />
             <span className="text-muted-foreground">Tawarkan paket MI-MD (baris primer MI)</span>
           </label>
           <FieldLabel htmlFor="select_seleksi_psb">Membutuhkan seleksi</FieldLabel>

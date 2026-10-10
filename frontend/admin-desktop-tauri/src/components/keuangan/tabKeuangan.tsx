@@ -514,7 +514,7 @@ export function TagihanTab({
   onTerlambat: (v: boolean) => void;
   onPilih: (
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; kelas: string | null; jenjang_riwayat: string[] },
+    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; foto_profil: boolean; kelas: string | null; jenjang_riwayat: string[] },
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => void;
@@ -534,9 +534,7 @@ export function TagihanTab({
   return (
     <>
       {/* Bilah alat tagihan: cari | urut | filter | aksi. */}
-      {/* Kontrol siku semua (`rounded-none`): menu/popover yang ter-portal
-          tak ikut karena di-render di luar card. */}
-      <div className="border bg-[var(--sidebar)] p-1 shadow-sm [&_button]:rounded-none [&_input]:rounded-none">
+      <div className="border bg-[var(--sidebar)] p-1 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           {/* Petunjuk pakai + legenda warna pindah ke hovercard. Keduanya
               hanya dibaca saat belajar memakai crosstab; sebagai baris tersendiri

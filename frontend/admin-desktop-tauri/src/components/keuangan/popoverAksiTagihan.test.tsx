@@ -18,6 +18,12 @@ vi.mock('@/api/dokumen', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/api/dokumen')>();
   return { ...asli, ambilByteDokumen: (t: unknown, id: unknown) => ambilByte(t, id) };
 });
+/** Byte foto profil: bawaan gagal (404) supaya fallback inisial teruji eksplisit. */
+const ambilFoto = vi.fn(async (_id?: unknown): Promise<Uint8Array> => { throw new Error('tak ada foto'); });
+vi.mock('@/api/santri', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/api/santri')>();
+  return { ...asli, ambilFotoProfilSantri: (id: unknown) => ambilFoto(id) };
+});
 /** Daftar dispensasi: kosong bawaan (tiap test yang butuh menimpa via mock). */
 const daftarDispen = vi.fn(async (_p?: unknown): Promise<Dispensasi[]> => []);
 const kuotaTerpakai = vi.fn(async (_ids?: unknown): Promise<Record<number, Record<number, number>>> => ({}));
@@ -30,7 +36,7 @@ function tagihan(partial: Partial<TagihanAktif> = {}): TagihanAktif {
   return {
     id: 7, nama: 'Santri Uji', label: 'Infaq Bulanan · Jul 2025',
     ayah_nama: 'Bpk. Abdul', ibu_nama: 'Siti Aminah',
-    santri_id: 7, fotoDokumenId: null, kelas: '4B', jenjangRiwayat: ['MI'], jenisId: 1,
+    santri_id: 7, fotoDokumenId: null, fotoProfil: false, kelas: '4B', jenjangRiwayat: ['MI'], jenisId: 1,
     nominal: 75000, terbayar: 20000, sisa: 55000, status: 'sebagian',
     potongan: 0, dispensasi_ids: null,
     terlambat: true, jatuhTempo: '2025-08-10', tahunAjaran: '2025/2026',
@@ -149,26 +155,44 @@ describe('ringkasan tagihan', () => {
 });
 
 describe('avatar santri', () => {
-  it('tanpa dokumen foto menampilkan inisial', () => {
-    renderPopover(tagihan({ fotoDokumenId: null }));
+  it('tanpa foto apa pun menampilkan inisial', () => {
+    ambilByte.mockClear();
+    ambilFoto.mockClear();
+    renderPopover(tagihan({ fotoDokumenId: null, fotoProfil: false }));
     expect(screen.getByText('SU')).toBeInTheDocument();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(ambilByte).not.toHaveBeenCalled();
+    expect(ambilFoto).not.toHaveBeenCalled();
   });
 
-  it('menampilkan foto dari dokumen Pas Foto aktif', async () => {
+  it('menampilkan foto dari dokumen (tingkat pertama)', async () => {
     ambilByte.mockClear();
-    renderPopover(tagihan({ fotoDokumenId: 11 }));
+    ambilFoto.mockClear();
+    renderPopover(tagihan({ fotoDokumenId: 11, fotoProfil: true }));
     const img = await screen.findByAltText('Foto Santri Uji');
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('src', 'blob:foto-uji');
     expect(ambilByte).toHaveBeenCalledWith('santri', 11);
+    // Dokumen berhasil → foto profil tak diminta.
+    expect(ambilFoto).not.toHaveBeenCalled();
   });
 
-  it('gagal muat (mis. 403) kembali ke inisial', async () => {
+  it('dokumen gagal → jatuh ke foto profil', async () => {
     ambilByte.mockClear();
+    ambilFoto.mockClear();
     ambilByte.mockRejectedValueOnce(new Error('Forbidden'));
-    renderPopover(tagihan({ fotoDokumenId: 12 }));
+    ambilFoto.mockResolvedValueOnce(new Uint8Array([137, 80, 78, 71]));
+    renderPopover(tagihan({ fotoDokumenId: 12, fotoProfil: true }));
+    expect(await screen.findByAltText('Foto Santri Uji')).toBeInTheDocument();
+    expect(ambilFoto).toHaveBeenCalledWith(7);
+  });
+
+  it('semua tingkat gagal kembali ke inisial', async () => {
+    ambilByte.mockClear();
+    ambilFoto.mockClear();
+    ambilByte.mockRejectedValueOnce(new Error('Forbidden'));
+    ambilFoto.mockRejectedValueOnce(new Error('tak ada foto'));
+    renderPopover(tagihan({ fotoDokumenId: 12, fotoProfil: true }));
     expect(await screen.findByText('SU')).toBeInTheDocument();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
@@ -398,6 +422,17 @@ describe('panel detail pembayaran', () => {
     renderPopover(tagihan(), {}, { error: 'Gagal memuat riwayat.' });
     expect(screen.getByText('Gagal memuat riwayat.')).toBeInTheDocument();
   });
+
+  it('menampilkan dispensasi yang menempel (nama + potongan)', async () => {
+    daftarDispen.mockResolvedValueOnce([{ id: 9, nama: 'Anak Pegawai' } as Dispensasi]);
+    renderPopover(tagihan({ potongan: 10000, dispensasi_ids: [9] }));
+    expect(await screen.findByText('Anak Pegawai · −Rp 10.000')).toBeInTheDocument();
+  });
+
+  it('tanpa dispensasi menampilkan garis putus', () => {
+    renderPopover(tagihan({ potongan: 0, dispensasi_ids: null }));
+    expect(screen.getByText('Dispensasi').closest('div')).toHaveTextContent('—');
+  });
 });
 
 describe('tanpa tagihan / jangkar', () => {
@@ -521,7 +556,7 @@ describe('tab Ubah — dispensasi', () => {
     expect(daftarDispen).not.toHaveBeenCalledWith(expect.objectContaining({ tahun_ajaran: expect.anything() }));
     await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
     expect(screen.getByRole('option', { name: 'Prestasi · 50%' })).toBeInTheDocument();
-    const opsi = screen.getByRole('option', { name: /Anak Pegawai.*otomatis terdaftar/ });
+    const opsi = screen.getByRole('option', { name: /Anak Pegawai/ });
     expect(opsi).not.toHaveAttribute('aria-disabled', 'true');
     await userEvent.click(opsi);
     expect(screen.getByText(/santri otomatis jadi penerima/)).toBeInTheDocument();
@@ -554,7 +589,7 @@ describe('tab Ubah — dispensasi', () => {
     await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
     // Prestasi kuota 1 sudah terpakai 1 → habis; Anak Pegawai sisa → aktif.
     expect(screen.getByRole('option', { name: /Prestasi.*kuota habis/ })).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByRole('option', { name: /Anak Pegawai.*otomatis terdaftar/ })).not.toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('option', { name: /Anak Pegawai/ })).not.toHaveAttribute('aria-disabled', 'true');
   });
 
   it('pilihan se-grup menggantikan jejak (pratinjau gabung)', async () => {

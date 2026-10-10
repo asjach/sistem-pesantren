@@ -31,6 +31,7 @@ import {
 import { listLembaga, type Lembaga, type Paginate } from '../api/master';
 import type { DokumenSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -682,12 +683,11 @@ export default function PsbPage() {
               </FilterField>
             )}
             <label htmlFor="chk_tampil_terhapus_psb" className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
-              <input
+              <Checkbox
                 id="chk_tampil_terhapus_psb"
-                type="checkbox"
+                className="size-3.5"
                 checked={tampilTerhapus}
-                onChange={(e) => { setTampilTerhapus(e.target.checked); pager.goFirst(); }}
-                className="size-3.5 accent-[var(--accent)]"
+                onCheckedChange={(v) => { setTampilTerhapus(v === true); pager.goFirst(); }}
               />
               Tampilkan terhapus
             </label>

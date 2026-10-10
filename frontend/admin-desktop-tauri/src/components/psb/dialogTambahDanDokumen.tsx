@@ -1,4 +1,5 @@
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { FieldLabel } from '@/components/ui/field';
 import {
   Select,
@@ -127,12 +128,10 @@ export function DialogTambahPendaftar({ open, gelombangs, lembagas, busy, f, set
           <Input id="input_ibu_pendaftar" value={f.ibu} onChange={(e) => set.ibu(e.target.value)} maxLength={100} />
           <FieldLabel htmlFor="check_pindahan_pendaftar">Pindahan</FieldLabel>
           <label htmlFor="check_pindahan_pendaftar" className="flex cursor-pointer items-center gap-2 text-xs">
-            <input
+            <Checkbox
               id="check_pindahan_pendaftar"
-              type="checkbox"
               checked={f.pindahan}
-              onChange={(e) => set.pindahan(e.target.checked)}
-              className="size-4 accent-[var(--accent)]"
+              onCheckedChange={(v) => set.pindahan(v === true)}
             />
             <span className="text-muted-foreground">Bukan santri baru</span>
           </label>

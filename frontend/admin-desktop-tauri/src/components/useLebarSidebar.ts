@@ -53,6 +53,8 @@ export function useLebarSidebar({ lebar, setLebar, setCollapsed }: Opsi): LebarS
     lebarAwal: SIDEBAR_LEBAR_DEFAULT,
     /** Lebar terakhir selama seretan (0..MAX, boleh < min saat mentok). */
     lebar: SIDEBAR_LEBAR_DEFAULT,
+    /** Sudah melewati ambang gerak (seretan sungguhan, bukan klik). */
+    bergerak: false,
     /** Lepaskan listener seretan sebelumnya (mis. seretan baru mulai). */
     lepas: null as null | (() => void),
   });
@@ -67,10 +69,22 @@ export function useLebarSidebar({ lebar, setLebar, setCollapsed }: Opsi): LebarS
     ref.current.mulaiX = e.clientX;
     ref.current.lebarAwal = lebar;
     ref.current.lebar = lebar;
-    setSeret(true);
-    setSeretLebar(lebar);
-    setSeretSembunyi(false);
+    ref.current.bergerak = false;
 
+    /* Seret BARU dianggap berjalan setelah pointer melewati ambang klik.
+       Tanpa ini, mousedown pada kenop lipat langsung mematikan transisi +
+       (saat terlipat) melompatkan lebar ke penuh seketika — klik buka/tutup
+       polos jadi terasa instan. Ambang sama dengan `apakahKlik` di bawah. */
+    const ambang = (ev: globalThis.MouseEvent) => {
+      if (Math.abs(ev.clientX - ref.current.mulaiX) <= AMBANG_GESER_KLIK) return;
+      ref.current.bergerak = true;
+      setSeret(true);
+      window.removeEventListener('mousemove', ambang);
+      window.addEventListener('mousemove', geser);
+      // Listener baru tak menerima event yang sedang berjalan — terapkan
+      // gerakan pemicu ini langsung, atau satu langkah seret hilang.
+      geser(ev);
+    };
     const geser = (ev: globalThis.MouseEvent) => {
       const w = Math.min(SIDEBAR_LEBAR_MAX, Math.max(0, Math.round(ref.current.lebarAwal + (ev.clientX - ref.current.mulaiX))));
       ref.current.lebar = w;
@@ -78,10 +92,14 @@ export function useLebarSidebar({ lebar, setLebar, setCollapsed }: Opsi): LebarS
       setSeretSembunyi(w <= SIDEBAR_SNAP_HIDE);
     };
     const selesai = () => {
+      window.removeEventListener('mousemove', ambang);
       window.removeEventListener('mousemove', geser);
       window.removeEventListener('mouseup', selesai);
       document.body.style.cursor = '';
       ref.current.lepas = null;
+      // Klik murni (tak melewati ambang): jangan sentuh apa pun — handler
+      // klik pemanggil (mis. lipat/buka) yang bertindak dengan transisi utuh.
+      if (!ref.current.bergerak) return;
       const w = ref.current.lebar;
       setSeret(false);
       setSeretSembunyi(false);
@@ -95,7 +113,7 @@ export function useLebarSidebar({ lebar, setLebar, setCollapsed }: Opsi): LebarS
     };
     ref.current.lepas?.();
     ref.current.lepas = selesai;
-    window.addEventListener('mousemove', geser);
+    window.addEventListener('mousemove', ambang);
     window.addEventListener('mouseup', selesai);
   }, [lebar, setLebar, setCollapsed]);
 

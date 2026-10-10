@@ -22,8 +22,7 @@ function baris(selJul: CrosstabSel, selAgu: CrosstabSel, timpa: Partial<Crosstab
   return {
     santri_id: 7, nama: 'Santri Uji', jenjang: 'MI',
     ayah_nama: 'Ayah Uji', ibu_nama: 'Ibu Uji',
-    kelas: 'IA', tingkat: '1', jenjang_riwayat: ['MI'], status_akhir: 'aktif', aktif: true,
-    foto_dokumen_id: null,
+    kelas: 'IA', tingkat: '1', jenjang_riwayat: ['MI'], foto_dokumen_id: null, foto_profil: false, status_akhir: 'aktif', aktif: true,
     sel: { '1-2025-07': selJul, '1-2025-08': selAgu },
     total_tagihan: 100000, total_terbayar: 0, tunggakan: 0,
     ...timpa,

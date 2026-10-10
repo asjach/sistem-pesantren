@@ -8,11 +8,13 @@ import {
 import type { Lembaga, TahunAjaran } from '@/api/master';
 import type { PilihanLembaga } from '@/lembagaAktif';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 /* Dialog form jenis tagihan & tarif halaman Keuangan.
  *
@@ -50,17 +52,33 @@ export function DialogTambahTarif({
         </DialogHeader>
         <form id="form_tambah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (jenisId === '') return; try { await buatTarif({ jenjang, tahun_ajaran: ta, jenis_id: Number(jenisId), nominal: Number(nominal) }); toast.success('Tarif dibuat.'); onClose(); await onSukses(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
           <FieldLabel htmlFor="sel_tarif_jenjang">Jenjang</FieldLabel>
-          <select id="sel_tarif_jenjang" className="border rounded px-2" value={jenjang} onChange={(e) => onJenjang(e.target.value)} required>
-            {lembagas.filter((l) => pilihanLembaga.some((p) => p.jenjang === l.jenjang)).map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
-          </select>
+          <Select value={jenjang} onValueChange={onJenjang}>
+            <SelectTrigger id="sel_tarif_jenjang" aria-label="Jenjang" className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {lembagas.filter((l) => pilihanLembaga.some((p) => p.jenjang === l.jenjang)).map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <FieldLabel htmlFor="sel_tarif_ta">Tahun Ajaran</FieldLabel>
-          <select id="sel_tarif_ta" className="border rounded px-2" value={ta} onChange={(e) => onTa(e.target.value)} required>
-            {daftarTA.map((x) => <option key={x.nama} value={x.nama}>{x.nama}{x.is_aktif ? ' (aktif)' : ''}</option>)}
-          </select>
+          <Select value={ta} onValueChange={onTa}>
+            <SelectTrigger id="sel_tarif_ta" aria-label="Tahun Ajaran" className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {daftarTA.map((x) => <SelectItem key={x.nama} value={x.nama}>{x.nama}{x.is_aktif ? ' (aktif)' : ''}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <FieldLabel htmlFor="sel_tarif_jenis">Jenis</FieldLabel>
-          <select id="sel_tarif_jenis" className="border rounded px-2" value={jenisId} onChange={(e) => setJenisId(e.target.value === '' ? '' : Number(e.target.value))} required>
-            <option value="">Jenis…</option>{jenis.filter((j) => j.jenjang === null || j.jenjang === jenjang).map((j) => <option key={j.id} value={j.id}>{j.nama}</option>)}
-          </select>
+          <Select value={jenisId === '' ? '' : String(jenisId)} onValueChange={(v) => setJenisId(v === '' ? '' : Number(v))}>
+            <SelectTrigger id="sel_tarif_jenis" aria-label="Jenis" className="h-8 text-sm">
+              <SelectValue placeholder="Jenis…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Jenis…</SelectItem>
+              {jenis.filter((j) => j.jenjang === null || j.jenjang === jenjang).map((j) => <SelectItem key={j.id} value={String(j.id)}>{j.nama}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <FieldLabel htmlFor="inp_tarif_nominal">Nominal</FieldLabel>
           <Input id="inp_tarif_nominal" type="number" value={nominal} onChange={(e) => setNominal(e.target.value)} required />
           <DialogFooter className="col-span-2">
@@ -98,15 +116,25 @@ export function DialogTambahJenis({
           <FieldLabel htmlFor="inp_jenis_nama">Nama</FieldLabel>
           <Input id="inp_jenis_nama" placeholder="mis. HIPA" value={nama} required onChange={(e) => setNama(e.target.value)} />
           <FieldLabel htmlFor="sel_jenis_tipe">Tipe</FieldLabel>
-          <select id="sel_jenis_tipe" className="border rounded px-2" value={tipe} onChange={(e) => setTipe(e.target.value as 'bulanan' | 'non_bulanan')}>
-            <option value="non_bulanan">Non-bulanan</option>
-            <option value="bulanan">Bulanan</option>
-          </select>
+          <Select value={tipe} onValueChange={(v) => setTipe(v as 'bulanan' | 'non_bulanan')}>
+            <SelectTrigger id="sel_jenis_tipe" aria-label="Tipe" className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="non_bulanan">Non-bulanan</SelectItem>
+              <SelectItem value="bulanan">Bulanan</SelectItem>
+            </SelectContent>
+          </Select>
           <FieldLabel htmlFor="sel_jenis_lembaga">Lembaga</FieldLabel>
-          <select id="sel_jenis_lembaga" className="border rounded px-2" value={lembaga} onChange={(e) => setLembaga(e.target.value)}>
-            {efektifSuper ? <option value="">Semua (global)</option> : null}
-            {pilihanLembaga.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
-          </select>
+          <Select value={lembaga} onValueChange={setLembaga}>
+            <SelectTrigger id="sel_jenis_lembaga" aria-label="Lembaga" className="h-8 text-sm">
+              <SelectValue placeholder="Lembaga…" />
+            </SelectTrigger>
+            <SelectContent>
+              {efektifSuper ? <SelectItem value="">Semua (global)</SelectItem> : null}
+              {pilihanLembaga.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <DialogFooter className="col-span-2">
             <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
             <Button id="btn_jenis_simpan" type="submit">Tambah</Button>
@@ -140,16 +168,27 @@ export function DialogUbahJenis({
           <FieldLabel htmlFor="inp_jenis_edit_nama">Nama</FieldLabel>
           <Input id="inp_jenis_edit_nama" value={nama} onChange={(e) => setNama(e.target.value)} required />
           <FieldLabel htmlFor="sel_jenis_edit_tipe">Tipe</FieldLabel>
-          <select id="sel_jenis_edit_tipe" className="border rounded px-2" value={tipe} onChange={(e) => setTipe(e.target.value as 'bulanan' | 'non_bulanan')}>
-            <option value="non_bulanan">Non-bulanan</option><option value="bulanan">Bulanan</option>
-          </select>
+          <Select value={tipe} onValueChange={(v) => setTipe(v as 'bulanan' | 'non_bulanan')}>
+            <SelectTrigger id="sel_jenis_edit_tipe" aria-label="Tipe" className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="non_bulanan">Non-bulanan</SelectItem>
+              <SelectItem value="bulanan">Bulanan</SelectItem>
+            </SelectContent>
+          </Select>
           <FieldLabel htmlFor="sel_jenis_edit_lembaga">Lembaga</FieldLabel>
-          <select id="sel_jenis_edit_lembaga" className="border rounded px-2" value={jenjang} onChange={(e) => setJenjang(e.target.value)}>
-            {efektifSuper ? <option value="">Semua (global)</option> : null}
-            {pilihanLembaga.map((l) => <option key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</option>)}
-          </select>
+          <Select value={jenjang} onValueChange={setJenjang}>
+            <SelectTrigger id="sel_jenis_edit_lembaga" aria-label="Lembaga" className="h-8 text-sm">
+              <SelectValue placeholder="Lembaga…" />
+            </SelectTrigger>
+            <SelectContent>
+              {efektifSuper ? <SelectItem value="">Semua (global)</SelectItem> : null}
+              {pilihanLembaga.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <FieldLabel htmlFor="chk_jenis_edit_aktif">Aktif</FieldLabel>
-          <input id="chk_jenis_edit_aktif" type="checkbox" checked={aktif} onChange={(e) => setAktif(e.target.checked)} />
+          <Checkbox id="chk_jenis_edit_aktif" aria-label="Aktif" checked={aktif} onCheckedChange={(v) => setAktif(v === true)} />
           <DialogFooter className="col-span-2">
             <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
             <Button id="btn_jenis_edit_simpan" type="submit">Simpan</Button>
@@ -179,7 +218,7 @@ export function DialogUbahTarif({
           <FieldLabel htmlFor="inp_tarif_edit_nominal">Nominal</FieldLabel>
           <Input id="inp_tarif_edit_nominal" type="number" value={nominal} onChange={(e) => setNominal(e.target.value)} required />
           <FieldLabel htmlFor="chk_tarif_edit_aktif">Aktif</FieldLabel>
-          <input id="chk_tarif_edit_aktif" type="checkbox" checked={aktif} onChange={(e) => setAktif(e.target.checked)} />
+          <Checkbox id="chk_tarif_edit_aktif" aria-label="Aktif" checked={aktif} onCheckedChange={(v) => setAktif(v === true)} />
           <DialogFooter className="col-span-2">
             <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
             <Button id="btn_tarif_edit_simpan" type="submit">Simpan</Button>

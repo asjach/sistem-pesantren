@@ -32,8 +32,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
-import { DEFAULT_PREFS, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, LogOut, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Sun, Users } from '@/icons';
+import { DEFAULT_PREFS, RADIUS_MAX, RADIUS_MIN, WARNA_UI } from '@/prefs';
+import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, Crop, LogOut, Minus, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Plus, Sun, Users } from '@/icons';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { useAksiSeretSidebar } from '@/components/SeretSidebar';
 import { apakahKlik } from '@/components/useLebarSidebar';
@@ -126,7 +126,7 @@ export default function TopBar() {
   const daftarLembaga = [...pilihan].sort((a, b) => posisiLembaga(a.jenjang) - posisiLembaga(b.jenjang));
   const classFilterLembaga = cn('relative mr-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-20 after:w-px after:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]', daftarLembaga.length === 1 ? 'w-[80px]' : 'w-[160px]');
   const taPilihanTerurut = [...taPilihan].sort((a, b) => b.nama.localeCompare(a.nama, 'id', { numeric: true }));
-  const { theme, mode, dark, iconSet, warnaUI, navigasi, collapsed, setTheme, setMode, setCollapsed, setIconSet, setWarnaUI, setNavigasi } = useTheme();
+  const { theme, mode, dark, iconSet, warnaUI, navigasi, radius, collapsed, setTheme, setMode, setCollapsed, setIconSet, setWarnaUI, setNavigasi, setRadius } = useTheme();
   /** Kenop lipat merangkap gagang seret lebar; aksinya dari seret bersama. */
   const { mulaiSeret: mulaiSeretKenop } = useAksiSeretSidebar();
   /** Tooltip kenop dikendalikan agar bisa ditutup saat seretan dimulai. */
@@ -576,6 +576,49 @@ export default function TopBar() {
                       {navigasi === m && <Check data-icon="inline-end" size={14} />}
                     </DropdownMenuItem>
                   ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger id="menu_set_radius">
+                  <Crop data-icon="inline-start" size={16} />
+                  <span className="flex-1">Sudut</span>
+                  <span className="text-xs text-muted-foreground">{radius}px</span>
+                </DropdownMenuSubTrigger>
+                {/* Stepper di dalam konten tak menutup menu (bukan item menu) —
+                    pola yang sama dengan strip Mode tampilan di atas. */}
+                <DropdownMenuSubContent className="min-w-44">
+                  <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                    <span className="text-xs text-muted-foreground">Membulat</span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        id="btn_radius_kurang"
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Kurangi sudut"
+                        title="Kurangi sudut"
+                        disabled={radius <= RADIUS_MIN}
+                        onClick={() => setRadius(radius - 1)}
+                      >
+                        <Minus size={14} />
+                      </Button>
+                      <span id="val_radius" aria-live="polite" className="w-10 text-center text-xs tabular-nums">
+                        {radius}px
+                      </span>
+                      <Button
+                        id="btn_radius_tambah"
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Tambah sudut"
+                        title="Tambah sudut"
+                        disabled={radius >= RADIUS_MAX}
+                        onClick={() => setRadius(radius + 1)}
+                      >
+                        <Plus size={14} />
+                      </Button>
+                    </div>
+                  </div>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />

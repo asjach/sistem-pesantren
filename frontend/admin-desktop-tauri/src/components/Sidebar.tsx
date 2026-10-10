@@ -109,8 +109,8 @@ function simpanGrupTutup(next: Set<string>) {
 }
 
 /** Navigasi utama aplikasi: rail kiri berisi tautan halaman per kategori.
- *  Bisa dilipat ke rail ikon (tombol atau Ctrl/Cmd+B); status di pref
- *  `simpes_sidebar`. Tautan halaman terpisah dari tools di ribbon. */
+ *  Bisa dilipat sampai 0 (tombol atau Ctrl/Cmd+B) dengan animasi; status di
+ *  pref `simpes_sidebar`. Tautan halaman terpisah dari tools di ribbon. */
 export default function Sidebar() {
   const { collapsed, sidebarLebar } = useTheme();
   // Seret-lebar dibagi dengan kenop lipat di topBar (lihat SeretSidebar).
@@ -171,9 +171,9 @@ export default function Sidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  /** Tautan halaman: rail lipat = ikon saja; anak submenu = teks menjorok
-   *  tanpa ikon; selain itu ikon + label penuh. */
-  function tautanHalaman(h: HalamanDef, ikonSaja: boolean, anak = false) {
+  /** Tautan halaman: anak submenu = teks menjorok tanpa ikon; selain itu
+   *  ikon + label penuh. */
+  function tautanHalaman(h: HalamanDef, anak = false) {
     const Icon = h.icon;
     // Aktif = halaman ini pemenang prefix-terpanjang (halamanDariPath),
     // bukan sekadar prefix (bawaan NavLink) — mis. /dokumen-santri tidak
@@ -184,10 +184,8 @@ export default function Sidebar() {
         key={h.to}
         to={h.to}
         aria-current={aktif ? 'page' : undefined}
-        title={ikonSaja ? h.label : undefined}
         className={cn(
           itemBase,
-          ikonSaja && 'justify-center px-0',
           anak && ['py-1 text-[11px]', cabang(aktif)],
           aktif
             ? 'bg-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] font-semibold text-[var(--sidebar-foreground)]'
@@ -195,7 +193,7 @@ export default function Sidebar() {
         )}
       >
         {!anak && <Icon size={16} />}
-        {!ikonSaja && <span className="truncate">{h.label}</span>}
+        <span className="truncate">{h.label}</span>
       </Link>
     );
   }
@@ -284,7 +282,7 @@ export default function Sidebar() {
                 : (idx >= 0 && gabung + 1 <= idx ? 'aksen' : 'abu');
               return (
                 <div key={h.to} className={segmenBaris(diTrail, bawah)}>
-                  {tautanHalaman(h, false, true)}
+                  {tautanHalaman(h, true)}
                 </div>
               );
             })}
@@ -298,8 +296,14 @@ export default function Sidebar() {
       data-slot="sidebar"
       aria-label="Navigasi utama"
       className={cn(
-        'relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] text-[var(--sidebar-foreground)] transition-[width] duration-200',
+        'relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] text-[var(--sidebar-foreground)]',
         seret && 'transition-none',
+        /* Buka-tutup 400ms dua arah. Buka = pegas (overshoot lalu menetap,
+           ala spring); tutup = ease-out tanpa overshoot (overshoot ke lebar
+           negatif hanya jadi sentakan). */
+        !seret && (collapsed
+          ? 'transition-[width] duration-[400ms] ease-out'
+          : 'transition-[width] duration-[400ms] ease-[cubic-bezier(0.3,1.45,0.5,1)]'),
         collapsed && !seret && 'border-r-0',
       )}
       style={{
@@ -308,7 +312,23 @@ export default function Sidebar() {
         background: 'var(--sidebar)',
       }}
     >
-      {!collapsed ? (
+      {/* Isi selalu di-render (bukan lepas-pasang) supaya buka-tutup
+          beranimasi: lebar aside + opacity isi berjalan sinkron. Buka memakai
+          kurva pegas yang sama dengan aside; tutup ease-out cepat. Lebar isi
+          dikunci selebar posisi terbuka agar teks tak reflow (melipat kata)
+          saat menyusut — aside `overflow-hidden` yang memotongnya.
+          `invisible` mengeluarkan tautan dari urutan tab saat terlipat
+          (visibility berbalik di akhir animasi tutup, di awal animasi buka). */}
+      <div
+        className={cn(
+          'flex h-full min-h-0 flex-col',
+          !seret && (collapsed
+            ? 'transition-[opacity,visibility] duration-[400ms] ease-out'
+            : 'transition-[opacity,visibility] duration-[400ms] ease-[cubic-bezier(0.3,1.45,0.5,1)]'),
+          collapsed && !seret && 'invisible opacity-0',
+        )}
+        style={{ width: lebarTampil(false) }}
+      >
         <div className="flex items-center gap-2 px-3 py-3">
           <span
             className="truncate text-xs font-semibold tracking-wide"
@@ -317,9 +337,7 @@ export default function Sidebar() {
             SIMPES
           </span>
         </div>
-      ) : null}
 
-      {!collapsed ? (
         <nav className="flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
           {NAV_GRUP.map((g) => {
           // Entri berurutan: subgrup & halaman langsung pada posisi bloknya
@@ -336,21 +354,13 @@ export default function Sidebar() {
           const semua = entri.flatMap((e) => ('sub' in e ? kumpulkan(e.sub) : [e.hal]));
           if (semua.length === 0) return null;
           const GrupIkon = g.icon;
-          // Rail lipat: semua halaman tetap terjangkau sebagai ikon datar.
-          if (collapsed) {
-            return (
-              <div key={g.id} className="mb-0.5">
-                {semua.map((h) => tautanHalaman(h, true))}
-              </div>
-            );
-          }
           // Grup satu halaman tanpa subgrup (mis. Beranda): tautan langsung,
           // kecuali grup ber-flag `paksaGrup` (mis. Madrasah) yang tetap
           // tampil sebagai baris induk collapsible.
           if (entri.length === 1 && 'hal' in entri[0] && !g.paksaGrup) {
             return (
               <div key={g.id} className="mb-0.5">
-                {tautanHalaman(entri[0].hal, false)}
+                {tautanHalaman(entri[0].hal)}
               </div>
             );
           }
@@ -398,7 +408,7 @@ export default function Sidebar() {
                       : (idxAktif >= 0 && i + 1 <= idxAktif ? 'aksen' : 'abu');
                     return (
                       <div key={e.hal.to} className={segmenBaris(diTrail, bawah)}>
-                        {tautanHalaman(e.hal, false, true)}
+                        {tautanHalaman(e.hal, true)}
                       </div>
                     );
                   })}
@@ -408,7 +418,7 @@ export default function Sidebar() {
           );
           })}
         </nav>
-      ) : null}
+      </div>
 
       {/* Gagang seret lebar navigasi: strip tipis di tepi kanan. Seret ke
           kiri-mentok menyembunyikan navigasi (lihat useLebarSidebar).

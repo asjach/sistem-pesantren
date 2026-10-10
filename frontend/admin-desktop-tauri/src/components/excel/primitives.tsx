@@ -29,7 +29,7 @@ export function PillMode({
       role="status"
       title={petunjuk}
       className={cn(
-        'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs',
+        'inline-flex items-center gap-2 rounded-pil border px-3 py-1 text-xs',
         warn ? 'border-warning/40 bg-warning/10 text-warning-foreground' : 'border-primary/40 bg-primary/10 text-foreground',
       )}
     >

@@ -41,7 +41,7 @@ export default function Pager({ page, lastPage, onPage, perPage, onPerPage }: Pr
               value={String(o)}
               aria-label={o === PER_PAGE_ALL ? 'Semua data per halaman' : `${o} data per halaman`}
               title={o === PER_PAGE_ALL ? 'Semua data per halaman' : `${o} data per halaman`}
-              className="w-7 justify-center px-0"
+              className="w-7 justify-center px-0 text-[11px]"
             >
               {o === PER_PAGE_ALL ? 'All' : o}
             </ToggleGroupItem>

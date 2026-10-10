@@ -37,13 +37,17 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   /* Radius bertingkat ala Gr8r (badge/chip bulat tetap bulat). */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
-  --radius-3xl: 16px;
+  /* Satu-satunya sumber: --radius-semua (stepper Sudut di pengaturan,
+     0px bawaan; diubah runtime via inline style di <html>). Seluruh skala
+     mengikutinya — rounded-full (lingkaran/pil) sengaja tak ikut. */
+  --radius-semua: 0px;
+  --radius-xs: var(--radius-semua);
+  --radius-sm: var(--radius-semua);
+  --radius-md: var(--radius-semua);
+  --radius-lg: var(--radius-semua);
+  --radius-xl: var(--radius-semua);
+  --radius-2xl: var(--radius-semua);
+  --radius-3xl: var(--radius-semua);
 }
 
 /* ---------- basis: nilai aman sebelum JS jalan (Hijau terang) ----------
@@ -52,7 +56,7 @@
    --foreground, --sidebar, --sidebar-deep disetel inline di <html>.
    Sisanya DITURUNKAN otomatis lewat color-mix — berlaku semua tema & mode. */
 :root {
-  --radius: 8px;
+  --radius: var(--radius-semua);
   /* Kontrol native (scrollbar, spinner input, date picker) ikut mode terang. */
   color-scheme: light;
 
@@ -223,6 +227,13 @@
    diwariskan ke semua th/td/input/select/button di dalam. Popover di-portal
    ke luar tabel sehingga butuh selektor sendiri (satu instance dalam sekali
    waktu: mode tagihan & tambah saling eksklusif). */
+
+/* Pil (badge, segmen, info) mengikuti sudut global — 0 = kotak.
+   Lingkaran sejati (avatar, titik status, thumb switch, tombol ikon bundar)
+   tetap `rounded-full` dan tak tersentuh. */
+.rounded-pil {
+  border-radius: var(--radius-semua);
+}
 #crosstab_tagihan_scroll,
 #popover_aksi_tagihan {
   --border: color-mix(in srgb, var(--foreground) 15%, var(--background));

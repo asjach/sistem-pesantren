@@ -48,7 +48,7 @@ const GARIS = 'color-mix(in srgb, var(--foreground) 14%, transparent)';
 function LencanaHitung({ anak }: { anak: ReactNode }) {
   return (
     <span
-      className="inline-flex h-5 shrink-0 items-center rounded-[5px] px-[7px] text-[11px] font-medium tabular-nums"
+      className="inline-flex h-5 shrink-0 items-center rounded-sm px-[7px] text-[11px] font-medium tabular-nums"
       style={{ background: 'var(--surface-3)', color: 'var(--muted-foreground)' }}
     >
       {anak}
@@ -68,7 +68,7 @@ function Seksi({
 }) {
   return (
     <section
-      className="mb-6 min-w-0 break-inside-avoid rounded-[10px] p-4"
+      className="mb-6 min-w-0 break-inside-avoid rounded-lg p-4"
       style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
     >
       <div
@@ -215,7 +215,7 @@ function DeretAlumni({ data }: { data: { tahun_ajaran: string; jumlah: number }[
         {data.map((d) => (
           <div key={d.tahun_ajaran} className="flex h-full min-w-0 flex-1 items-end" title={d.tahun_ajaran + ': ' + angka(d.jumlah)}>
             <div
-              className="w-full rounded-[3px]"
+              className="w-full rounded-sm"
               style={{ height: String(Math.max(6, Math.round((d.jumlah / maks) * 100))) + '%', background: ISIAN }}
             />
           </div>
@@ -261,7 +261,7 @@ export default function DashboardPage() {
         <Skeleton className="h-7 w-40" />
         <Skeleton className="mt-2 h-16 w-52" />
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
-          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-40 rounded-[10px]" />)}
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-40 rounded-lg" />)}
         </div>
       </div>
     );
@@ -306,7 +306,7 @@ export default function DashboardPage() {
     <div className="mx-auto w-full max-w-[1160px] px-6 py-7">
       {/* Angka pokok: satu-satunya tempat aksen dipakai. */}
       <section
-        className="rounded-[12px] p-6"
+        className="rounded-xl p-6"
         style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
       >
         <p className="text-[11px] text-muted-foreground">{hero.label}</p>

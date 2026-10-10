@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Dispensasi, PembayaranRow } from '@/api/keuangan';
 import { daftarDispensasi, kuotaPakai } from '@/api/keuangan';
 import { ambilByteDokumen } from '@/api/dokumen';
+import { ambilFotoProfilSantri } from '@/api/santri';
 import { hitungDispensasi, ringkasAturan, saringDispensasi, selaraskanGrup, sisaKuota } from '@/lib/dispensasi';
 import { DeleteAction } from '@/components/RowActions';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,8 @@ export interface TagihanAktif {
   santri_id: number;
   /** Id dokumen Pas Foto aktif (null = tanpa foto); byte diambil malas. */
   fotoDokumenId: number | null;
+  /** Ada foto profil santri — fallback avatar kedua. */
+  fotoProfil: boolean;
   /** Kelas dari riwayat pada TA filter (null = tanpa patokan, mis. filter TA kosong). */
   kelas: string | null;
   /** Jenjang terdaftar pada TA filter (MI > MD > lainnya) — label gabungan. */
@@ -463,7 +466,7 @@ export default function PopoverAksiTagihan({
         {/* Judul: status + tutup — nama pindah ke kolom data pribadi. */}
         <div className="border-b px-3 py-2">
           <div className="flex items-center justify-between gap-2">
-            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', b.kelas)}>
+              <span className={cn('rounded-pil px-2 py-0.5 text-[11px] font-medium', b.kelas)}>
               {b.teks}
             </span>
             {/* Jalan tutup eksplisit: popover ini terkontrol halaman, jadi
@@ -489,7 +492,7 @@ export default function PopoverAksiTagihan({
               (null = tanpa patokan TA). */}
           <div className="min-w-0">
             <div className="flex flex-col items-center px-3 py-3 text-center">
-              <AvatarSantri dokId={tagihan.fotoDokumenId} nama={tagihan.nama} />
+              <AvatarSantri dokId={tagihan.fotoDokumenId} santriId={tagihan.santri_id} punyaFotoProfil={tagihan.fotoProfil} nama={tagihan.nama} />
               <p className="mt-2 line-clamp-2 w-full break-words text-sm font-medium">{tagihan.nama}</p>
               <p className="mt-0.5 w-full truncate text-[11px] text-muted-foreground">
                 Ayah: {tagihan.ayah_nama?.trim() || '—'}
@@ -576,6 +579,17 @@ export default function PopoverAksiTagihan({
                 label="Sisa"
                 nilai={rupiah(sisa)}
                 nilaiKelas={lunas ? 'text-emerald-700 dark:text-emerald-300' : 'text-destructive'}
+              />
+              {/* Dispensasi yang menempel pada tagihan ini (bukan pratinjau):
+                  nama paket tak dikenal (nonaktif/dihapus) tampil id-nya. */}
+              <BarisRingkas
+                label="Dispensasi"
+                nilai={(() => {
+                  const nama = jejakNama.join(', ');
+                  const pot = tagihan.potongan > 0 ? `−${rupiah(tagihan.potongan)}` : null;
+                  if (nama === '' && pot === null) return '—';
+                  return [nama === '' ? null : nama, pot].filter((x): x is string => x !== null).join(' · ');
+                })()}
               />
             </dl>
             <div className="border-t pt-2">
@@ -743,16 +757,15 @@ export default function PopoverAksiTagihan({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Tanpa perubahan</SelectItem>
-                  <SelectItem value="tanpa">Tanpa dispensasi (kotor)</SelectItem>
+                  <SelectItem value="tanpa">Tanpa dispensasi</SelectItem>
                   {dispenDaftar.map((d) => {
-                    const penerima = idPenerima.has(d.id);
                     const ringkas = ringkasAturan(d, tagihan.jenisId);
                     if (ringkas === null) return null;
                     const sudahMenempel = (tagihan.dispensasi_ids ?? []).includes(d.id);
                     const kuotaHabis = (sisaKuota(d, kuotaPakaiMap[d.id] ?? 0) ?? 1) <= 0 && !sudahMenempel;
                     return (
                       <SelectItem key={d.id} value={String(d.id)} disabled={kuotaHabis}>
-                        {d.nama} · {ringkas}{penerima ? '' : ' (otomatis terdaftar)'}{kuotaHabis ? ' (kuota habis)' : ''}
+                        {d.nama} · {ringkas}{kuotaHabis ? ' (kuota habis)' : ''}
                       </SelectItem>
                     );
                   })}
@@ -839,26 +852,37 @@ function inisialNama(nama: string): string {
   return (kata[0][0] + (kata.length > 1 ? kata[kata.length - 1][0] : '')).toUpperCase();
 }
 
-/** Lingkaran foto santri: dokumen Pas Foto aktif pada jenjang baris (byte
- *  diambil malas saat popover dibuka); tanpa foto atau gagal muat (mis. 403
- *  untuk peran terbatas) → inisial. */
-function AvatarSantri({ dokId, nama }: { dokId: number | null; nama: string }) {
+/** Lingkaran foto santri — rantai fallback: dokumen foto aktif (Pas Foto
+ *  lalu Foto Ijazah, dipilih backend) → foto profil santri → inisial.
+ *  Tiap tingkat yang gagal (mis. 403/404) lanjut ke berikutnya. */
+function AvatarSantri({ dokId, santriId, punyaFotoProfil, nama }: {
+  dokId: number | null; santriId: number; punyaFotoProfil: boolean; nama: string;
+}) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (dokId === null) { setUrl(null); return; }
     let hidup = true;
     let obj: string | null = null;
-    ambilByteDokumen('santri', dokId)
-      .then((bytes) => {
-        if (!hidup) return;
-        // `bytes` tampilan penuh atas buffer-nya (dari `new Uint8Array(buf)`),
-        // jadi `.buffer` tepat mewakili isi berkas.
-        obj = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer]));
-        setUrl(obj);
-      })
-      .catch(() => { if (hidup) setUrl(null); });
+    setUrl(null);
+    void (async () => {
+      const sumber: (() => Promise<Uint8Array>)[] = [];
+      if (dokId !== null) sumber.push(() => ambilByteDokumen('santri', dokId));
+      if (punyaFotoProfil) sumber.push(() => ambilFotoProfilSantri(santriId));
+      for (const ambil of sumber) {
+        try {
+          const bytes = await ambil();
+          if (!hidup) return;
+          // `bytes` tampilan penuh atas buffer-nya, jadi `.buffer` tepat
+          // mewakili isi berkas.
+          obj = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer]));
+          setUrl(obj);
+          return;
+        } catch {
+          // Lanjut ke fallback berikutnya.
+        }
+      }
+    })();
     return () => { hidup = false; if (obj !== null) URL.revokeObjectURL(obj); };
-  }, [dokId]);
+  }, [dokId, santriId, punyaFotoProfil]);
   if (url !== null) {
     return <img src={url} alt={`Foto ${nama}`} className="size-20 shrink-0 rounded-full border object-cover" />;
   }

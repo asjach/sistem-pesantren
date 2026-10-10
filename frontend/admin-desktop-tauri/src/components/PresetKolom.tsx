@@ -68,6 +68,7 @@ export default function PresetKolom({
   triggerClassName,
   wrapperClassName,
   lebarTrigger,
+  sejajarLabel = false,
 }: {
   tableKey: string;
   fields: ExcelField[];
@@ -78,6 +79,8 @@ export default function PresetKolom({
   wrapperClassName?: string;
   /** Lebar trigger dropdown (px) dari tab Kontrol; menang atas triggerClassName. */
   lebarTrigger?: number;
+  /** Label mendatar di samping kontrol (bukan di atasnya). */
+  sejajarLabel?: boolean;
 }) {
   /** Memilih preset untuk dilihat bisa semua role (kelola via Kelola Tabel). */
   const { user } = useAuth();
@@ -290,7 +293,7 @@ export default function PresetKolom({
 
   return (
     <>
-      <FilterField label="Kolom" htmlFor={`select_preset_kolom_${tableKey}`} kelolaLebar={false} className={wrapperClassName}>
+      <FilterField label="Kolom" htmlFor={`select_preset_kolom_${tableKey}`} kelolaLebar={false} className={wrapperClassName} sejajar={sejajarLabel}>
       <Select value={aktifId === null ? LENGKAP : String(aktifId)} onValueChange={(v) => void pilihPreset(v)}>
         <SelectTrigger
           id={`select_preset_kolom_${tableKey}`}
