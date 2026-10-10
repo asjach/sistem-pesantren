@@ -36,6 +36,10 @@ export const FIELDS_JENIS: ExcelField[] = [
     validate: (v) => (!v || !v.trim() ? 'Nama jenis wajib diisi.' : null),
   },
   {
+    key: 'keterangan', label: 'Keterangan', kind: 'text', maxLength: 1000,
+    validate: (v) => ((v ?? '').length > 1000 ? 'Keterangan maksimal 1000 karakter.' : null),
+  },
+  {
     key: 'tipe', label: 'Tipe', width: 110, kind: 'select', required: true,
     choices: [
       { value: 'bulanan', label: 'Bulanan' },
@@ -152,6 +156,7 @@ export interface SortTabel {
 export function nilaiGridJenis(j: JenisTagihan): Record<string, string | null> {
   return {
     nama: j.nama,
+    keterangan: j.keterangan,
     tipe: j.tipe,
     lembaga: j.jenjang ?? 'Semua',
     aktif: j.is_active ? 'ya' : 'tidak',
@@ -162,21 +167,23 @@ export function nilaiGridJenis(j: JenisTagihan): Record<string, string | null> {
  *  ikut — pindah lembaga hanya lewat dialog Ubah; field yang tidak berubah
  *  memakai nilai baris sebab endpoint menuntut `nama` juga. */
 export function payloadUbahJenis(baris: JenisTagihan, f: Record<string, string | null>): {
-  nama: string; tipe: 'bulanan' | 'non_bulanan'; is_active: boolean;
+  nama: string; tipe: 'bulanan' | 'non_bulanan'; is_active: boolean; keterangan: string | null;
 } {
   const nama = f.nama !== undefined ? (f.nama ?? '').trim() : baris.nama;
+  const keterangan = f.keterangan !== undefined ? (f.keterangan ?? '').trim() : (baris.keterangan ?? '');
   return {
     // Validator sudah menolak nama kosong; ini jaring pengaman terakhir.
     nama: nama === '' ? baris.nama : nama,
     tipe: f.tipe !== undefined ? (f.tipe === 'bulanan' ? 'bulanan' : 'non_bulanan') : baris.tipe,
     is_active: f.aktif !== undefined ? f.aktif === 'ya' : baris.is_active,
+    keterangan: keterangan === '' ? null : keterangan,
   };
 }
 
 /** Payload `buatJenis` dari baris input: nama & tipe wajib, lingkup lembaga
  *  wajib dipilih (`JENIS_GLOBAL` = jenis global, hanya untuk super_admin). */
 export function payloadBuatJenis(f: Record<string, string | null>): {
-  nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang: string | null;
+  nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang: string | null; keterangan: string | null;
 } {
   const nama = (f.nama ?? '').trim();
   if (nama === '') throw new Error('Nama jenis wajib diisi.');
@@ -185,7 +192,8 @@ export function payloadBuatJenis(f: Record<string, string | null>): {
   if (tipe === null) throw new Error('Pilih tipe tagihan dulu.');
   const lembaga = (f.lembaga ?? '').trim();
   if (lembaga === '') throw new Error('Pilih lembaga dulu.');
-  return { nama, tipe, jenjang: lembaga === JENIS_GLOBAL ? null : lembaga };
+  const keterangan = (f.keterangan ?? '').trim();
+  return { nama, tipe, jenjang: lembaga === JENIS_GLOBAL ? null : lembaga, keterangan: keterangan === '' ? null : keterangan };
 }
 
 /** Baris tarif yang sudah memakai kombinasi (lembaga, tahun ajaran, jenis) —
@@ -234,7 +242,7 @@ const TANPA_JENIS_TERPAKAI: ReadonlySet<number> = new Set();
 /** Tab Jenis Tagihan: tabel + tombol tambah/ubah. Nama, tipe, dan status bisa
  *  diedit langsung (mode Edit, izin `keuangan.ubah`); mode Input membuat jenis
  *  baru (izin `keuangan.tambah`) dengan lingkup lembaga dipilih di baris input. */
-export function JenisTab({ rows, loading, sort, efektifSuper, pilihanLembaga, canEdit, onCommit, onSaved, onCreateRow, onTambah, onEdit }: {
+export function JenisTab({ rows, loading, sort, efektifSuper, pilihanLembaga, canEdit, onCommit, onSaved, onCreateRow, onTambah, onEdit, onHapus }: {
   rows: JenisTagihan[];
   loading: boolean;
   sort: SortTabel;
@@ -250,6 +258,7 @@ export function JenisTab({ rows, loading, sort, efektifSuper, pilihanLembaga, ca
   onCreateRow?: (fields: Record<string, string | null>) => Promise<void>;
   onTambah: () => void;
   onEdit: (j: JenisTagihan) => void;
+  onHapus: (j: JenisTagihan) => void;
 }) {
   /** Pilihan lingkup di baris input: "Semua (global)" hanya untuk super_admin
    *  efektif — sama seperti select lingkup pada dialog Tambah Jenis. */
@@ -276,7 +285,15 @@ export function JenisTab({ rows, loading, sort, efektifSuper, pilihanLembaga, ca
       onCreateRow={onCreateRow}
       renderActions={(j) => (
         (j.jenjang !== null || efektifSuper)
-          ? <EditAction id={`btn_jenis_ubah_${j.id}`} onClick={() => onEdit(j)} />
+          ? <>
+              <EditAction id={`btn_jenis_ubah_${j.id}`} onClick={() => onEdit(j)} />
+              <DeleteAction
+                id={`btn_jenis_hapus_${j.id}`}
+                title="Hapus jenis?"
+                description="Jenis dihapus permanen. Jenis yang sudah dipakai pada tarif/tagihan tidak bisa dihapus — nonaktifkan saja."
+                onConfirm={() => onHapus(j)}
+              />
+            </>
           : null
       )}
       hideCheckbox

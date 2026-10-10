@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '@/api/client';
 import {
@@ -53,7 +53,7 @@ export function DialogTambahTarif({
         <form id="form_tambah_tarif" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (jenisId === '') return; try { await buatTarif({ jenjang, tahun_ajaran: ta, jenis_id: Number(jenisId), nominal: Number(nominal) }); toast.success('Tarif dibuat.'); onClose(); await onSukses(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
           <FieldLabel htmlFor="sel_tarif_jenjang">Jenjang</FieldLabel>
           <Select value={jenjang} onValueChange={onJenjang}>
-            <SelectTrigger id="sel_tarif_jenjang" aria-label="Jenjang" className="h-8 text-sm">
+            <SelectTrigger id="sel_tarif_jenjang" aria-label="Jenjang" className="h-[26px] text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -62,7 +62,7 @@ export function DialogTambahTarif({
           </Select>
           <FieldLabel htmlFor="sel_tarif_ta">Tahun Ajaran</FieldLabel>
           <Select value={ta} onValueChange={onTa}>
-            <SelectTrigger id="sel_tarif_ta" aria-label="Tahun Ajaran" className="h-8 text-sm">
+            <SelectTrigger id="sel_tarif_ta" aria-label="Tahun Ajaran" className="h-[26px] text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -71,7 +71,7 @@ export function DialogTambahTarif({
           </Select>
           <FieldLabel htmlFor="sel_tarif_jenis">Jenis</FieldLabel>
           <Select value={jenisId === '' ? '' : String(jenisId)} onValueChange={(v) => setJenisId(v === '' ? '' : Number(v))}>
-            <SelectTrigger id="sel_tarif_jenis" aria-label="Jenis" className="h-8 text-sm">
+            <SelectTrigger id="sel_tarif_jenis" aria-label="Jenis" className="h-[26px] text-sm">
               <SelectValue placeholder="Jenis…" />
             </SelectTrigger>
             <SelectContent>
@@ -80,10 +80,10 @@ export function DialogTambahTarif({
             </SelectContent>
           </Select>
           <FieldLabel htmlFor="inp_tarif_nominal">Nominal</FieldLabel>
-          <Input id="inp_tarif_nominal" type="number" value={nominal} onChange={(e) => setNominal(e.target.value)} required />
+          <Input id="inp_tarif_nominal" type="number" className="h-[26px]" value={nominal} onChange={(e) => setNominal(e.target.value)} required />
           <DialogFooter className="col-span-2">
-            <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
-            <Button id="btn_tarif_simpan" type="submit">Tambah</Button>
+            <Button type="button" variant="outline" className="h-[26px]" onClick={onClose}>Batal</Button>
+            <Button id="btn_tarif_simpan" type="submit" className="h-[26px]">Tambah</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -104,40 +104,84 @@ export function DialogTambahJenis({
   const [nama, setNama] = useState('');
   const [tipe, setTipe] = useState<'bulanan' | 'non_bulanan'>('non_bulanan');
   const [lembaga, setLembaga] = useState(peranJenjang ?? '');
+  const [keterangan, setKeterangan] = useState('');
+  const [galat, setGalat] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const simpan = async (e: FormEvent) => {
+    e.preventDefault();
+    if (nama.trim() === '') { setGalat('Nama jenis wajib diisi.'); return; }
+    if (keterangan.length > 1000) { setGalat('Keterangan maksimal 1000 karakter.'); return; }
+    setGalat(null); setBusy(true);
+    try {
+      await buatJenis(nama.trim(), tipe, lembaga === '' ? null : lembaga, keterangan.trim() === '' ? null : keterangan.trim());
+      toast.success('Jenis dibuat.');
+      onClose();
+      await onSukses();
+    } catch (e2) { setGalat(errorMessage(e2)); } finally { setBusy(false); }
+  };
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Tambah Jenis Tagihan</DialogTitle>
           <DialogDescription className="sr-only">Formulir penambahan jenis tagihan.</DialogDescription>
         </DialogHeader>
-        <form id="form_tambah_jenis" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (!nama) return; try { await buatJenis(nama, tipe, lembaga === '' ? null : lembaga); toast.success('Jenis dibuat.'); onClose(); await onSukses(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
-          <FieldLabel htmlFor="inp_jenis_nama">Nama</FieldLabel>
-          <Input id="inp_jenis_nama" placeholder="mis. HIPA" value={nama} required onChange={(e) => setNama(e.target.value)} />
-          <FieldLabel htmlFor="sel_jenis_tipe">Tipe</FieldLabel>
-          <Select value={tipe} onValueChange={(v) => setTipe(v as 'bulanan' | 'non_bulanan')}>
-            <SelectTrigger id="sel_jenis_tipe" aria-label="Tipe" className="h-8 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="non_bulanan">Non-bulanan</SelectItem>
-              <SelectItem value="bulanan">Bulanan</SelectItem>
-            </SelectContent>
-          </Select>
-          <FieldLabel htmlFor="sel_jenis_lembaga">Lembaga</FieldLabel>
-          <Select value={lembaga} onValueChange={setLembaga}>
-            <SelectTrigger id="sel_jenis_lembaga" aria-label="Lembaga" className="h-8 text-sm">
-              <SelectValue placeholder="Lembaga…" />
-            </SelectTrigger>
-            <SelectContent>
-              {efektifSuper ? <SelectItem value="">Semua (global)</SelectItem> : null}
-              {pilihanLembaga.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <DialogFooter className="col-span-2">
-            <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
-            <Button id="btn_jenis_simpan" type="submit">Tambah</Button>
+        <form id="form_tambah_jenis" onSubmit={(e) => void simpan(e)} className="flex flex-col gap-3">
+          {galat !== null && (
+            <p role="alert" className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {galat}
+            </p>
+          )}
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="inp_jenis_nama">Nama</FieldLabel>
+            <Input
+              id="inp_jenis_nama" placeholder="mis. HIPA" value={nama} required
+              aria-invalid={galat !== null} className="h-[26px]"
+              onChange={(e) => { setNama(e.target.value); setGalat(null); }}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="sel_jenis_tipe">Tipe</FieldLabel>
+            <Select value={tipe} onValueChange={(v) => setTipe(v as 'bulanan' | 'non_bulanan')}>
+              <SelectTrigger id="sel_jenis_tipe" aria-label="Tipe" className="h-[26px] w-full text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="non_bulanan">Non-bulanan</SelectItem>
+                <SelectItem value="bulanan">Bulanan</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="min-h-4 text-xs text-muted-foreground">
+              {tipe === 'bulanan' ? 'Ditagih tiap bulan dalam rentang periode.' : 'Ditagih sekali per tahun ajaran.'}
+            </p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="sel_jenis_lembaga">Lembaga</FieldLabel>            <Select value={lembaga} onValueChange={setLembaga}>
+              <SelectTrigger id="sel_jenis_lembaga" aria-label="Lembaga" className="h-[26px] w-full text-sm">
+                <SelectValue placeholder="Lembaga…" />
+              </SelectTrigger>
+              <SelectContent>
+                {efektifSuper ? <SelectItem value="">Semua (global)</SelectItem> : null}
+                {pilihanLembaga.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {efektifSuper && (
+              <p className="text-xs text-muted-foreground">Semua (global) berlaku untuk semua lembaga.</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="inp_jenis_keterangan">Keterangan</FieldLabel>
+            <textarea
+              id="inp_jenis_keterangan" placeholder="mis. Iuran halaqoh pekanan" value={keterangan}
+              rows={3} maxLength={1000} onChange={(e) => setKeterangan(e.target.value)}
+              className="min-h-16 w-full min-w-0 rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" className="h-[26px]" disabled={busy} onClick={onClose}>Batal</Button>
+            <Button id="btn_jenis_simpan" type="submit" className="h-[26px]" disabled={busy}>{busy ? 'Menyimpan…' : 'Tambah'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -158,18 +202,19 @@ export function DialogUbahJenis({
   const [nama, setNama] = useState(item.nama);
   const [tipe, setTipe] = useState<'bulanan' | 'non_bulanan'>(item.tipe);
   const [jenjang, setJenjang] = useState(item.jenjang ?? '');
+  const [keterangan, setKeterangan] = useState(item.keterangan ?? '');
   const [aktif, setAktif] = useState(item.is_active);
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader><DialogTitle>Ubah Jenis Tagihan</DialogTitle></DialogHeader>
-        <form id="form_ubah_jenis" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); try { await ubahJenis(item.id, { nama, tipe, jenjang: jenjang === '' ? null : jenjang, is_active: aktif }); toast.success('Tersimpan.'); onClose(); await onSukses(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
+        <form id="form_ubah_jenis" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); try { await ubahJenis(item.id, { nama, tipe, jenjang: jenjang === '' ? null : jenjang, keterangan: keterangan.trim() === '' ? null : keterangan.trim(), is_active: aktif }); toast.success('Tersimpan.'); onClose(); await onSukses(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
           <FieldLabel htmlFor="inp_jenis_edit_nama">Nama</FieldLabel>
-          <Input id="inp_jenis_edit_nama" value={nama} onChange={(e) => setNama(e.target.value)} required />
+          <Input id="inp_jenis_edit_nama" value={nama} className="h-[26px]" onChange={(e) => setNama(e.target.value)} required />
           <FieldLabel htmlFor="sel_jenis_edit_tipe">Tipe</FieldLabel>
           <Select value={tipe} onValueChange={(v) => setTipe(v as 'bulanan' | 'non_bulanan')}>
-            <SelectTrigger id="sel_jenis_edit_tipe" aria-label="Tipe" className="h-8 text-sm">
+            <SelectTrigger id="sel_jenis_edit_tipe" aria-label="Tipe" className="h-[26px] text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -179,7 +224,7 @@ export function DialogUbahJenis({
           </Select>
           <FieldLabel htmlFor="sel_jenis_edit_lembaga">Lembaga</FieldLabel>
           <Select value={jenjang} onValueChange={setJenjang}>
-            <SelectTrigger id="sel_jenis_edit_lembaga" aria-label="Lembaga" className="h-8 text-sm">
+            <SelectTrigger id="sel_jenis_edit_lembaga" aria-label="Lembaga" className="h-[26px] text-sm">
               <SelectValue placeholder="Lembaga…" />
             </SelectTrigger>
             <SelectContent>
@@ -189,9 +234,15 @@ export function DialogUbahJenis({
           </Select>
           <FieldLabel htmlFor="chk_jenis_edit_aktif">Aktif</FieldLabel>
           <Checkbox id="chk_jenis_edit_aktif" aria-label="Aktif" checked={aktif} onCheckedChange={(v) => setAktif(v === true)} />
+          <FieldLabel htmlFor="inp_jenis_edit_keterangan">Keterangan</FieldLabel>
+          <textarea
+            id="inp_jenis_edit_keterangan" value={keterangan} rows={3} maxLength={1000}
+            onChange={(e) => setKeterangan(e.target.value)}
+            className="min-h-16 w-full min-w-0 rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          />
           <DialogFooter className="col-span-2">
-            <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
-            <Button id="btn_jenis_edit_simpan" type="submit">Simpan</Button>
+            <Button type="button" variant="outline" className="h-[26px]" onClick={onClose}>Batal</Button>
+            <Button id="btn_jenis_edit_simpan" type="submit" className="h-[26px]">Simpan</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -220,8 +271,8 @@ export function DialogUbahTarif({
           <FieldLabel htmlFor="chk_tarif_edit_aktif">Aktif</FieldLabel>
           <Checkbox id="chk_tarif_edit_aktif" aria-label="Aktif" checked={aktif} onCheckedChange={(v) => setAktif(v === true)} />
           <DialogFooter className="col-span-2">
-            <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
-            <Button id="btn_tarif_edit_simpan" type="submit">Simpan</Button>
+            <Button type="button" variant="outline" className="h-[26px]" onClick={onClose}>Batal</Button>
+            <Button id="btn_tarif_edit_simpan" type="submit" className="h-[26px]">Simpan</Button>
           </DialogFooter>
         </form>
       </DialogContent>

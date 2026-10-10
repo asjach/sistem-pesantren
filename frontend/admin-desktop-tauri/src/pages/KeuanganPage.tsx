@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
-  daftarJenis, daftarTarif, hapusTarif, buatJenis, ubahJenis, buatTarif, buatTagihan, ubahTarif,
+  daftarJenis, daftarTarif, hapusTarif, buatJenis, ubahJenis, hapusJenis, buatTarif, buatTagihan, ubahTarif,
   crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran,
   riwayatPembayaran, hapusPembayaran,
   type JenisTagihan, type Tarif, type PembayaranRow,
@@ -476,6 +476,15 @@ export default function KeuanganPage() {
       } catch (e2) { toast.error(errorMessage(e2)); }
     })();
   }, [loadTarif, jenjangs, tahunAjaranNames]);
+  const hapusJenisBaris = useCallback((r: JenisTagihan) => {
+    void (async () => {
+      try {
+        await hapusJenis(r.id);
+        toast.success('Jenis dihapus.');
+        await load();
+      } catch (e2) { toast.error(errorMessage(e2)); }
+    })();
+  }, [load]);
 
   /** Simpan satu baris tarif hasil edit sel (auto-save mode Edit): nominal &
    *  status aktif; field lain memakai nilai baris (endpoint minta keduanya). */
@@ -521,8 +530,8 @@ export default function KeuanganPage() {
    *  dipilih di baris input; jenis global hanya untuk super_admin (server
    *  menolak bila bukan — pesannya tampil sebagai toast baris input). */
   const createJenisRow = useCallback(async (f: Record<string, string | null>) => {
-    const { nama, tipe, jenjang } = payloadBuatJenis(f);
-    await buatJenis(nama, tipe, jenjang);
+    const { nama, tipe, jenjang, keterangan } = payloadBuatJenis(f);
+    await buatJenis(nama, tipe, jenjang, keterangan);
     toast.success('Jenis dibuat.');
     await load();
   }, [load]);
@@ -538,7 +547,7 @@ export default function KeuanganPage() {
         ]}
       />
       <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0">
-        <TabsList className={KELAS_LIST_TAB}>
+        <TabsList className={KELAS_LIST_TAB} indikator="primer">
           <TabsTrigger value="jenis" id="keu_tab_jenis" className={KELAS_TRIGGER}>Jenis Tagihan</TabsTrigger>
           <TabsTrigger value="tarif" id="keu_tab_tarif" className={KELAS_TRIGGER}>Tarif</TabsTrigger>
           <TabsTrigger value="tagihan" id="keu_tab_tagihan" className={KELAS_TRIGGER}>Tagihan</TabsTrigger>
@@ -557,6 +566,7 @@ export default function KeuanganPage() {
             onCreateRow={canTambahKeuangan ? createJenisRow : undefined}
             onTambah={bukaTambahJenis}
             onEdit={setEditJenis}
+            onHapus={hapusJenisBaris}
           />
         </TabsContent>
 

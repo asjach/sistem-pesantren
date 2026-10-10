@@ -128,9 +128,9 @@ export default function DispensasiPage() {
         ]}
       />
       <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_dispensasi_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0">
-        <TabsList className={KELAS_LIST_TAB}>
+        <TabsList className={KELAS_LIST_TAB} indikator="primer">
           <TabsTrigger value="daftar" id="keu_tab_daftar_dispensasi" className={KELAS_TRIGGER}>Daftar Dispensasi</TabsTrigger>
-          <TabsTrigger value="penerima" id="keu_tab_penerima_dispensasi" className={KELAS_TRIGGER}>Daftar Penerima Dispensasi</TabsTrigger>
+          <TabsTrigger value="penerima" id="keu_tab_penerima_dispensasi" className={KELAS_TRIGGER}>Daftar Penerima</TabsTrigger>
         </TabsList>
         <TabsContent value="daftar" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <DispensasiTab

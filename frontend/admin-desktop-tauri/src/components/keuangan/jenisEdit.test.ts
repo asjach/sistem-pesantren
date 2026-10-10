@@ -7,7 +7,7 @@ import {
 
 /** Baris jenis tagihan lengkap dengan nilai bawaan; field tertentu bisa ditimpa. */
 function jenis(partial: Partial<JenisTagihan> = {}): JenisTagihan {
-  return { id: 3, nama: 'HIPA', tipe: 'non_bulanan', jenjang: 'MI', is_active: true, ...partial };
+  return { id: 3, nama: 'HIPA', tipe: 'non_bulanan', jenjang: 'MI', keterangan: null, is_active: true, ...partial };
 }
 
 function fieldJenis(key: string) {
@@ -15,8 +15,9 @@ function fieldJenis(key: string) {
 }
 
 describe('FIELDS_JENIS — mode Edit & Input', () => {
-  it('nama, tipe, status bisa diedit; lembaga baca-saja di baris data', () => {
+  it('nama, tipe, status bisa diedit; keterangan & lembaga baca-saja di baris data', () => {
     expect(fieldJenis('nama')?.kind).toBe('text');
+    expect(fieldJenis('keterangan')?.kind).toBe('text');
     expect(fieldJenis('tipe')?.kind).toBe('select');
     expect(fieldJenis('aktif')?.kind).toBe('toggle');
     expect(fieldJenis('lembaga')?.kind).toBe('static');
@@ -45,7 +46,7 @@ describe('FIELDS_JENIS — mode Edit & Input', () => {
 describe('nilaiGridJenis', () => {
   it('tipe mentah (label dari choices), lingkup tampil "Semua", status ya/tidak', () => {
     expect(nilaiGridJenis(jenis())).toMatchObject({
-      nama: 'HIPA', tipe: 'non_bulanan', lembaga: 'MI', aktif: 'ya',
+      nama: 'HIPA', keterangan: null, tipe: 'non_bulanan', lembaga: 'MI', aktif: 'ya',
     });
     expect(nilaiGridJenis(jenis({ jenjang: null, is_active: false, tipe: 'bulanan' })))
       .toMatchObject({ tipe: 'bulanan', lembaga: 'Semua', aktif: 'tidak' });
@@ -55,31 +56,42 @@ describe('nilaiGridJenis', () => {
 describe('payloadUbahJenis', () => {
   it('ubah nama saja: di-trim, tipe & status ikut nilai baris', () => {
     expect(payloadUbahJenis(jenis(), { nama: '  HIPA 2026 ' }))
-      .toEqual({ nama: 'HIPA 2026', tipe: 'non_bulanan', is_active: true });
+      .toEqual({ nama: 'HIPA 2026', tipe: 'non_bulanan', is_active: true, keterangan: null });
   });
 
   it('ubah tipe saja & status saja', () => {
     expect(payloadUbahJenis(jenis(), { tipe: 'bulanan' }))
-      .toEqual({ nama: 'HIPA', tipe: 'bulanan', is_active: true });
+      .toEqual({ nama: 'HIPA', tipe: 'bulanan', is_active: true, keterangan: null });
     expect(payloadUbahJenis(jenis(), { aktif: 'tidak' }))
-      .toEqual({ nama: 'HIPA', tipe: 'non_bulanan', is_active: false });
+      .toEqual({ nama: 'HIPA', tipe: 'non_bulanan', is_active: false, keterangan: null });
   });
 
   it('nama kosong jatuh ke nilai baris (jaring pengaman di luar validate)', () => {
     expect(payloadUbahJenis(jenis(), { nama: '   ' }))
-      .toEqual({ nama: 'HIPA', tipe: 'non_bulanan', is_active: true });
+      .toEqual({ nama: 'HIPA', tipe: 'non_bulanan', is_active: true, keterangan: null });
+  });
+
+  it('keterangan kosong → null; terisi di-trim', () => {
+    expect(payloadUbahJenis(jenis(), { keterangan: '   ' }).keterangan).toBeNull();
+    expect(payloadUbahJenis(jenis(), { keterangan: '  Iuran pekanan ' }).keterangan).toBe('Iuran pekanan');
+    expect(payloadUbahJenis(jenis({ keterangan: 'Lama' }), {}).keterangan).toBe('Lama');
   });
 });
 
 describe('payloadBuatJenis — mode Input', () => {
   it('memetakan nama (di-trim), tipe, dan lingkup lembaga', () => {
     expect(payloadBuatJenis({ nama: '  HIPA ', tipe: 'non_bulanan', lembaga: 'MI' }))
-      .toEqual({ nama: 'HIPA', tipe: 'non_bulanan', jenjang: 'MI' });
+      .toEqual({ nama: 'HIPA', tipe: 'non_bulanan', jenjang: 'MI', keterangan: null });
+  });
+
+  it('keterangan ikut dipetakan (kosong → null)', () => {
+    expect(payloadBuatJenis({ nama: 'HIPA', tipe: 'bulanan', lembaga: 'MI', keterangan: '  Iuran pekanan ' }))
+      .toEqual({ nama: 'HIPA', tipe: 'bulanan', jenjang: 'MI', keterangan: 'Iuran pekanan' });
   });
 
   it('pilihan "Semua (global)" → jenjang null', () => {
     expect(payloadBuatJenis({ nama: 'ASAS', tipe: 'non_bulanan', lembaga: JENIS_GLOBAL }))
-      .toEqual({ nama: 'ASAS', tipe: 'non_bulanan', jenjang: null });
+      .toEqual({ nama: 'ASAS', tipe: 'non_bulanan', jenjang: null, keterangan: null });
   });
 
   it('nama/tipe/lembaga belum lengkap → ditolak dengan pesan terbaca', () => {

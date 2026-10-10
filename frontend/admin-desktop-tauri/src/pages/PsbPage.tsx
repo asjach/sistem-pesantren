@@ -612,7 +612,7 @@ export default function PsbPage() {
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'psb', judul: 'Pendaftar', fields: psbFieldsMemo }]} />
 
       <Tabs value={stage} onValueChange={(v) => navigate(`/psb/${v}`)} className="contents">
-        <TabsList id="tabs_psb" className={KELAS_LIST_TAB}>
+        <TabsList id="tabs_psb" className={KELAS_LIST_TAB} indikator="primer">
           {TAHAP_PSB.map((t) => {
             const n = t.statuses.reduce((s, st) => s + (badge[st] ?? 0), 0);
             return (
