@@ -17,6 +17,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import PresetKolom from '@/components/PresetKolom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import LabeledCombobox from '@/components/LabeledCombobox';
+import LabeledTextInput from '@/components/LabeledTextInput';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
@@ -114,6 +115,9 @@ interface Props {
   tarif: Tarif[];
   tahunAjaran: string | null;
   onSelesai: () => void | Promise<void>;
+  /** Dipanggil saat tarif baru dibuat dari popover, supaya halaman induk
+   *  memuat ulang tabel Tarif (tanpa ini tarif baru hanya hidup di dialog). */
+  onTarifBaru?: (t: Tarif) => void | Promise<void>;
 }
 
 /** Satu butir galat validasi; targetId = id elemen yang difokuskan saat diklik. */
@@ -189,7 +193,7 @@ function PenunjukTahap({ aktif }: { aktif: 1 | 2 | 3 }) {
 /** Dialog generate tagihan: daftar santri kelompok langsung jadi daftar
  *  final yang akan dibuatkan tagihan; nominal default dari tarif/manual,
  *  bisa dioverride per baris. */
-export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif, tahunAjaran, onSelesai }: Props) {
+export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif, tahunAjaran, onSelesai, onTarifBaru }: Props) {
   const [kelompok, setKelompok] = useState<KelompokKandidat | ''>('');
   const [jenisId, setJenisId] = useState<number | ''>('');
   const [tarifId, setTarifId] = useState<number | ''>('');
@@ -240,6 +244,16 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     for (const j of jenis) if (j.jenjang !== null) s.add(j.jenjang);
     return [...s].sort((a, b) => a.localeCompare(b, 'id'));
   }, [daftarTarifPilih, jenis]);
+  /** Opsi tarif untuk combobox. Tanpa entri "kosong": teks placeholder
+   *  sudah menyatakan keadaan kosong, dan entri kosong akan ikut jadi nilai
+   *  terpilih sehingga ikut terisi di input. */
+  const opsiTarif = useMemo(
+    () => daftarTarifPilih.map((t) => ({
+      label: `${t.jenjang} · ${t.jenis?.nama ?? t.jenis_id} · Rp ${t.nominal.toLocaleString('id')}`,
+      nilai: String(t.id),
+    })),
+    [daftarTarifPilih],
+  );
   const opsiJenisBaru = useMemo(
     () => jenis.filter((j) => baruJenjang === '' || j.jenjang === null || j.jenjang === baruJenjang),
     [jenis, baruJenjang],
@@ -510,6 +524,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         jenis_id: Number(baruJenisId), nominal: n,
       });
       setTarifLokal((l) => [...l, t]);
+      await onTarifBaru?.(t);
       toast.success('Tarif dibuat.');
       setPopTarif(false);
       pilihTarif(t.id, [...daftarTarifPilih, t]);
@@ -731,8 +746,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
               <div className="flex flex-col gap-3">
                 {/* Baris 1: Tarif */}
                 <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <FieldLabel htmlFor="sel_gen_tarif">Tarif (patokan nominal + jenis)</FieldLabel>
+                  <div className="flex items-center justify-end gap-2">
                     <Popover
                       open={popTarif}
                       onOpenChange={(o) => { if (baruBusy) return; if (o) resetFormTarif(); setPopTarif(o); }}
@@ -794,24 +808,40 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                       </PopoverContent>
                     </Popover>
                   </div>
-                  <Select value={tarifId === '' ? '' : String(tarifId)} onValueChange={(v) => pilihTarif(v === '' ? '' : Number(v))}>
-                    <SelectTrigger id="sel_gen_tarif" aria-label="Tarif" className="h-[26px] w-full text-sm">
-                      <SelectValue placeholder="Pilih tarif…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Pilih tarif…</SelectItem>
-                      {daftarTarifPilih.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.jenjang} · {t.jenis?.nama ?? t.jenis_id} · Rp {t.nominal.toLocaleString('id')}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <LabeledCombobox
+                    label="Tarif"
+                    htmlFor="sel_gen_tarif"
+                    bisaCari
+                    tinggi={30}
+                  >
+                    <ComboboxRoot
+                      items={opsiTarif}
+                      autoHighlight
+                      itemToStringLabel={(o) => o.label}
+                      isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                      value={opsiTarif.find((o) => o.nilai === String(tarifId)) ?? null}
+                      onValueChange={(o) => { if (o !== null) pilihTarif(Number(o.nilai)); }}
+                    >
+                      <ComboboxInput id="sel_gen_tarif" aria-label="Tarif" placeholder="Pilih tarif…" />
+                      <ComboboxTrigger aria-label="Buka daftar tarif" />
+                      <ComboboxContent>
+                        <ComboboxEmpty>Belum ada tarif.</ComboboxEmpty>
+                        <ComboboxList>
+                          {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </ComboboxRoot>
+                  </LabeledCombobox>
                   <p className="min-h-4 text-xs text-muted-foreground">
                     {jenisTerpilih !== null && `Jenis: ${jenisTerpilih.nama} · ${bulanan ? 'bulanan' : 'sekali bayar'}`}
                   </p>
                 </div>
                 {/* Baris 2: Nominal Default */}
                 <div className="flex flex-col gap-1">
-                  <FieldLabel htmlFor="inp_gen_nominal">Nominal Default</FieldLabel>
-                  <Input
-                    id="inp_gen_nominal" type="number" min={0} className="h-[26px]" value={nominalDefault}
+                  <LabeledTextInput
+                    label="Nominal Default"
+                    htmlFor="inp_gen_nominal"
+                    type="number" min={0} value={nominalDefault}
                     onChange={(e) => ubahNominalDefault(e.target.value)}
                     onBlur={() => setGalatNominal(validasiNominal(nominalDefault))}
                     aria-invalid={galatNominal !== null}

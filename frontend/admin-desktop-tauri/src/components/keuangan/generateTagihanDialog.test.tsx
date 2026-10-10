@@ -120,21 +120,16 @@ const KANDIDAT2: KandidatTagihanRow = {
   ...KANDIDAT, santri_id: 8, nama_lengkap: 'Budi Santoso', nis_lokal: '5678',
 };
 
-/* Combobox (Base UI): popup dibuka dengan fireEvent (userEvent menolak saat
-   `pointer-events: none` warisan Radix Select yang masih menempel di body). */
-async function pilihOpsiKombo(inputId: string, namaOpsi: string | RegExp) {
-  const input = document.getElementById(inputId) as HTMLElement;
-  fireEvent.pointerDown(input);
-  fireEvent.mouseDown(input);
-  fireEvent.click(input);
+/* Buka kontrol (Radix Select atau Combobox Base UI) lalu pilih opsi. `fireEvent`
+ * dipakai karena `pointer-events: none` yang ditinggalkan Radix Select membuat
+ * `userEvent` menolak klik pada kontrol berikutnya. */
+async function pilihOpsi(triggerId: string, namaOpsi: string | RegExp) {
+  const el = document.getElementById(triggerId) as HTMLElement;
+  fireEvent.pointerDown(el);
+  fireEvent.mouseDown(el);
+  fireEvent.click(el);
   await waitFor(() => expect(screen.queryByRole('option', { name: namaOpsi })).not.toBeNull());
   fireEvent.click(screen.getByRole('option', { name: namaOpsi }));
-}
-
-/* Radix Select tak bisa diisi via selectOptions: klik trigger lalu opsinya. */
-async function pilihOpsi(triggerId: string, namaOpsi: string | RegExp) {
-  await userEvent.click(document.getElementById(triggerId) as HTMLElement);
-  await userEvent.click(screen.getByRole('option', { name: namaOpsi }));
 }
 
 /** Pilih tarif (jenis+nominal mengikuti), Lanjut, lalu pilih kelompok di
@@ -424,11 +419,11 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     await pilihOpsi('sel_gen_kelompok', 'Semua (kecuali pindah keluar)');
     await waitFor(() => expect(document.getElementById('btn_gen_hapus_8')).not.toBeNull());
 
-    await pilihOpsiKombo('sel_gen_status', 'Tidak aktif');
+    await pilihOpsi('sel_gen_status', 'Tidak aktif');
     await waitFor(() => expect(document.body.textContent).not.toContain('Ahmad Fauzi'));
     expect(document.body.textContent).toContain('Budi Santoso');
 
-    await pilihOpsiKombo('sel_gen_status', 'Aktif');
+    await pilihOpsi('sel_gen_status', 'Aktif');
     await waitFor(() => expect(document.body.textContent).toContain('Ahmad Fauzi'));
     expect(document.body.textContent).not.toContain('Budi Santoso');
   });

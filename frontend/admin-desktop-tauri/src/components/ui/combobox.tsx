@@ -50,7 +50,11 @@ function ComboboxContent({ className, ...props }: React.ComponentProps<typeof Co
   return (
     <ComboboxPrimitive.Portal>
       <ComboboxPrimitive.Positioner
-        className="z-50 transition-[top,left] duration-150 ease-out"
+        /* `pointer-events-auto`: popup di-portal ke body, sedangkan dialog
+           modal (Radix) mengunci `body { pointer-events: none }` — tanpa ini
+           semua klik item diteruskan ke dialog di bawahnya (hanya keyboard
+           yang bekerja). */
+        className="z-50 pointer-events-auto transition-[top,left] duration-150 ease-out"
         sideOffset={4}
       >
         <ComboboxPrimitive.Popup

@@ -680,6 +680,7 @@ export default function KeuanganPage() {
         jenis={jenis}
         tarif={tarif}
         tahunAjaran={genTAtopbar}
+        onTarifBaru={async () => { await muatUlangTarif(); }}
         onSelesai={async () => {
           await load();
           setTagihanPage(1);
