@@ -1,5 +1,6 @@
 import { PAGE_SHELL } from '@/components/PageHeader';
 import LabeledCombobox from '@/components/LabeledCombobox';
+import LabeledTextInput from '@/components/LabeledTextInput';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
@@ -104,6 +105,77 @@ export default function KomponenPage() {
                 </ul>
               </figcaption>
             </figure>
+            </div>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 overflow-hidden rounded-md border border-border">
+            <div className="border-b border-border px-2 py-1.5">
+              <h2 className="text-sm font-semibold">
+                <span className="text-muted-foreground">Nama Custom Component: </span>LabeledTextInput
+              </h2>
+              <p className="text-xs text-muted-foreground">Keterangan: gabungan komponen label + input dalam 1 kotak</p>
+            </div>
+            <div className="grid gap-3 p-2 sm:grid-cols-3">
+              <figure className="flex flex-col overflow-hidden rounded-md border border-border">
+                <div className="border-b border-border p-2">
+                  <LabeledTextInput
+                    label="Nama Santri"
+                    htmlFor="demo_input_nama"
+                    lebarLabel={80}
+                    lebarInput={180}
+                    placeholder="mis. Ahmad Fauzi"
+                    defaultValue="Ahmad Fauzi"
+                  />
+                </div>
+                <figcaption className="p-2">
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                    <li>Lebar dikunci: label 80px + input 180px.</li>
+                    <li>Kotak rangkul isi, tak mengikuti lebar kolom.</li>
+                    <li>Teks panjang terpotong elipsis.</li>
+                  </ul>
+                </figcaption>
+              </figure>
+
+              <figure className="flex flex-col overflow-hidden rounded-md border border-border">
+                <div className="border-b border-border p-2">
+                  <LabeledTextInput
+                    label="Catatan"
+                    htmlFor="demo_input_catatan"
+                    lebarLabel={100}
+                    tinggi={34}
+                    placeholder="Keterangan tambahan…"
+                    defaultValue="Dispensasi anak pegawai"
+                  />
+                </div>
+                <figcaption className="p-2">
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                    <li>Tinggi khusus 34px (bawaan 26px).</li>
+                    <li>Label & input merentang sama tinggi.</li>
+                    <li>Input mengisi sisa ruang kolom.</li>
+                  </ul>
+                </figcaption>
+              </figure>
+
+              <figure className="flex flex-col overflow-hidden rounded-md border border-border">
+                <div className="border-b border-border p-2">
+                  <LabeledTextInput
+                    label="NIS"
+                    htmlFor="demo_input_nis"
+                    type="number"
+                    placeholder="mis. 1234"
+                    defaultValue="24001"
+                  />
+                </div>
+                <figcaption className="p-2">
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                    <li>Tanpa ukuran yang dikunci.</li>
+                    <li>Kotak selebar kolom, tinggi 26px.</li>
+                    <li>Properti input biasa diteruskan (type, step, dll).</li>
+                  </ul>
+                </figcaption>
+              </figure>
             </div>
           </div>
         </section>

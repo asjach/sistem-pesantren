@@ -25,7 +25,7 @@ import LabeledCombobox from './LabeledCombobox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from './ui/combobox';
-import { EVENT_PRESET_BERUBAH } from './kelolaTabel/jenis';
+import { EVENT_PRESET_BERUBAH, LEBAR_BAWAHAN_FILTER } from './kelolaTabel/jenis';
 
 const LENGKAP = '_lengkap';
 
@@ -303,9 +303,9 @@ export default function PresetKolom({
           label="Kolom"
           htmlFor={`select_preset_kolom_${tableKey}`}
           kelolaLebar={false}
-          /* Lebar tersimpan = SELURUH kontrol (label + combobox). */
-          lebarLabel={Math.round((lebarTrigger ?? 120) * 0.34)}
-          lebarKombo={Math.round((lebarTrigger ?? 120) * 0.66)}
+          /* Lebar tersimpan untuk SELURUH kontrol Kolom; label mengikuti
+             panjang teksnya, sisa lebar diisi combobox. */
+          lebarKotak={lebarTrigger ?? LEBAR_BAWAHAN_FILTER}
           /* `gap-0 items-stretch`: kelas wrapper toolbar (gap-1.5 items-center)
              untuk mode klasik; di mode kotak label & zona harus menempel dan
              sama tinggi. */

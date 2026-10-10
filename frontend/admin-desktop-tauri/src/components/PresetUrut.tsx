@@ -6,6 +6,7 @@ import {
   type PresetUrutData,
 } from '@/api/urutPreset';
 import FilterField from '@/components/FilterField';
+import { LEBAR_BAWAHAN_FILTER } from '@/components/kelolaTabel/jenis';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -139,10 +140,9 @@ export default function PresetUrut({
           label="Urutkan"
           htmlFor={`select_urut_${tableKey}`}
           kelolaLebar={false}
-          /* Lebar tersimpan (px) untuk SELURUH kontrol Urutkan (label +
-             combobox), sama seperti FilterField lama. */
-          lebarLabel={Math.round((lebarTrigger ?? 120) * 0.34)}
-          lebarKombo={Math.round((lebarTrigger ?? 120) * 0.66)}
+          /* Lebar tersimpan untuk SELURUH kontrol Urutkan; label mengikuti
+             panjang teksnya, sisa lebar diisi combobox. */
+          lebarKotak={lebarTrigger ?? LEBAR_BAWAHAN_FILTER}
           /* `gap-0 items-stretch`: kelas wrapper bawaan (`gap-1.5 items-center`)
             是 untuk mode klasik (label di samping kontrol). Pada mode kotak label
              & zona harus menempel dan sama tinggi — kalau `items-center`,
