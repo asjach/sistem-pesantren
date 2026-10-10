@@ -83,6 +83,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('keuangan/jenis', [JenisTarifController::class, 'indexJenis'])->middleware('permission:keuangan.lihat');
         Route::post('keuangan/jenis', [JenisTarifController::class, 'storeJenis'])->middleware('permission:keuangan.tambah');
         Route::match(['put', 'patch'], 'keuangan/jenis/{jenis}', [JenisTarifController::class, 'updateJenis'])->middleware('permission:keuangan.ubah');
+        Route::delete('keuangan/jenis/{jenis}', [JenisTarifController::class, 'destroyJenis'])->middleware('permission:keuangan.hapus');
         Route::get('keuangan/tarif', [JenisTarifController::class, 'indexTarif'])->middleware('permission:keuangan.lihat');
         Route::post('keuangan/tarif', [JenisTarifController::class, 'storeTarif'])->middleware('permission:keuangan.tambah');
         Route::match(['put', 'patch'], 'keuangan/tarif/{tarif}', [JenisTarifController::class, 'updateTarif'])->middleware('permission:keuangan.ubah');

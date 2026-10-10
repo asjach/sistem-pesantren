@@ -3,7 +3,7 @@ import type { Paginate } from './master';
 import type { Santri } from './santri';
 import { appendQueryParam, type ScalarOrArray } from './query';
 
-export interface JenisTagihan { id: number; nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang: string | null; is_active: boolean }
+export interface JenisTagihan { id: number; nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang: string | null; keterangan: string | null; is_active: boolean }
 
 export interface Tarif {
   id: number; jenjang: string; tahun_ajaran: string; jenis_id: number;
@@ -27,12 +27,16 @@ export function daftarJenis(params: { sort?: string[]; arah?: 'naik' | 'turun' }
   return api<JenisTagihan[]>(`/admin/keuangan/jenis${s ? `?${s}` : ''}`);
 }
 
-export function ubahJenis(id: number, data: { nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang?: string | null; is_active: boolean }) {
+export function ubahJenis(id: number, data: { nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang?: string | null; keterangan?: string | null; is_active: boolean }) {
   return api<JenisTagihan>(`/admin/keuangan/jenis/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
-export function buatJenis(nama: string, tipe: 'bulanan' | 'non_bulanan', jenjang?: string | null) {
-  return api<JenisTagihan>('/admin/keuangan/jenis', { method: 'POST', body: JSON.stringify({ nama, tipe, jenjang: jenjang ?? null }) });
+export function buatJenis(nama: string, tipe: 'bulanan' | 'non_bulanan', jenjang?: string | null, keterangan?: string | null) {
+  return api<JenisTagihan>('/admin/keuangan/jenis', { method: 'POST', body: JSON.stringify({ nama, tipe, jenjang: jenjang ?? null, keterangan: keterangan ?? null }) });
+}
+
+export function hapusJenis(id: number) {
+  return api<{ pesan: string }>(`/admin/keuangan/jenis/${id}`, { method: 'DELETE' });
 }
 
 export function daftarTarif(params: { jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; sort?: string[]; arah?: 'naik' | 'turun' } = {}) {

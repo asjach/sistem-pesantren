@@ -19,6 +19,7 @@ class JenisStoreRequest extends FormRequest
             'nama' => 'required|string|max:100|unique:jenis_tagihan,nama',
             'tipe' => 'in:bulanan,non_bulanan',
             'jenjang' => 'nullable|string|max:50',
+            'keterangan' => 'nullable|string|max:1000',
         ];
     }
 }

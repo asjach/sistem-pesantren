@@ -23,6 +23,7 @@ class JenisUpdateRequest extends FormRequest
             'tipe' => 'in:bulanan,non_bulanan',
             'is_active' => 'boolean',
             'jenjang' => 'nullable|string|max:50',
+            'keterangan' => 'nullable|string|max:1000',
         ];
     }
 }

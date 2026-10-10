@@ -56,7 +56,7 @@ class JenisTarifController extends Controller
             abort(403, 'Jenis global hanya boleh dibuat super_admin.');
         }
 
-        return response()->json(JenisTagihan::create(['nama' => $data['nama'], 'tipe' => $data['tipe'] ?? 'non_bulanan', 'jenjang' => $data['jenjang'] ?? null, 'is_active' => true]), 201);
+        return response()->json(JenisTagihan::create(['nama' => $data['nama'], 'tipe' => $data['tipe'] ?? 'non_bulanan', 'jenjang' => $data['jenjang'] ?? null, 'keterangan' => $data['keterangan'] ?? null, 'is_active' => true]), 201);
     }
 
     public function updateJenis(JenisUpdateRequest $request, JenisTagihan $jenis)
@@ -72,6 +72,27 @@ class JenisTarifController extends Controller
         $jenis->update($data);
 
         return response()->json($jenis);
+    }
+
+    public function destroyJenis(Request $request, JenisTagihan $jenis)
+    {
+        $actor = $request->user();
+        if (! empty($jenis->jenjang)) {
+            $this->authorizeLembaga($actor, $jenis->jenjang);
+        } elseif (! $actor->bolehSuperAdmin()) {
+            abort(403, 'Jenis global hanya boleh dihapus super_admin.');
+        }
+
+        // Jenis yang sudah dipakai tarif/tagihan tidak boleh dihapus.
+        $dipakai = TarifTagihan::where('jenis_id', $jenis->id)->exists()
+            || Tagihan::where('jenis_id', $jenis->id)->exists();
+        if ($dipakai) {
+            abort(422, 'Jenis tidak bisa dihapus karena sudah dipakai pada tarif/tagihan. Nonaktifkan saja bila tidak ingin dipakai lagi.');
+        }
+
+        $jenis->delete();
+
+        return response()->json(['pesan' => 'Jenis dihapus.']);
     }
 
     public function indexTarif(Request $request)

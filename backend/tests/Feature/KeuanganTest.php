@@ -613,6 +613,48 @@ class KeuanganTest extends TestCase
         $this->assertSame(3, TarifTagihan::count());
     }
 
+    public function test_jenis_menyimpan_keterangan(): void
+    {
+        $admin = $this->admin();
+
+        // Buat dengan keterangan → tersimpan & terbaca.
+        $res = $this->actingAs($admin)->postJson('/api/admin/keuangan/jenis', [
+            'nama' => 'HIPA', 'keterangan' => 'Iuran halaqoh pekanan',
+        ])->assertStatus(201);
+        $res->assertJsonPath('keterangan', 'Iuran halaqoh pekanan');
+        $id = $res->json('id');
+
+        // Ubah keterangan → tersimpan.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/jenis/{$id}", [
+            'nama' => 'HIPA', 'keterangan' => 'Iuran halaqoh & infaq',
+        ])->assertStatus(200);
+        $this->assertDatabaseHas('jenis_tagihan', ['id' => $id, 'keterangan' => 'Iuran halaqoh & infaq']);
+
+        // Kosongkan → null, bukan string kosong.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/jenis/{$id}", [
+            'nama' => 'HIPA', 'keterangan' => null,
+        ])->assertStatus(200);
+        $this->assertDatabaseHas('jenis_tagihan', ['id' => $id, 'keterangan' => null]);
+    }
+
+    public function test_hapus_jenis_ditolak_bila_sudah_dipakai(): void
+    {
+        $admin = $this->admin();
+        $dipakai = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $bebas = JenisTagihan::create(['nama' => 'Uang Pangkal', 'tipe' => 'non_bulanan']);
+        TarifTagihan::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $dipakai->id, 'nominal' => 75000]);
+
+        // Sudah dipakai tarif → 422, jenis tetap ada.
+        $this->actingAs($admin)->deleteJson("/api/admin/keuangan/jenis/{$dipakai->id}")
+            ->assertStatus(422);
+        $this->assertDatabaseHas('jenis_tagihan', ['id' => $dipakai->id]);
+
+        // Belum dipakai apa pun → boleh dihapus.
+        $this->actingAs($admin)->deleteJson("/api/admin/keuangan/jenis/{$bebas->id}")
+            ->assertStatus(200);
+        $this->assertDatabaseMissing('jenis_tagihan', ['id' => $bebas->id]);
+    }
+
     public function test_hapus_tarif_ditolak_bila_sudah_dipakai(): void
     {
         $admin = $this->admin();
