@@ -42,7 +42,22 @@ const rekap: RekapSantri = {
   usia_per_tingkat: [],
 };
 
-const rekapSantri = vi.fn(async (_params: { keaktifan?: string }) => rekap);
+const rekapUsia: RekapSantri = {
+  total_aktif: 2,
+  per_tahun_ajaran: [],
+  per_tingkat: [],
+  per_kelas: [],
+  usia_per_tingkat: [
+    { lembaga: 'MD', tingkat: '2', jumlah: 1, rata_usia: 9, min: 9, max: 9, kelompok: { '<7': 0, '7-9': 1, '10-12': 0, '13-15': 0, '>=16': 0 } },
+    { lembaga: 'MI', tingkat: '2', jumlah: 1, rata_usia: 9, min: 9, max: 9, kelompok: { '<7': 0, '7-9': 1, '10-12': 0, '13-15': 0, '>=16': 0 } },
+  ],
+};
+
+/** Fixture yang dikembalikan mock; tiap tes boleh menimpanya (StrictMode
+ *  memanggil efek dua kali, jadi `mockResolvedValueOnce` tak cukup). */
+let rekapAktif: RekapSantri = rekap;
+
+const rekapSantri = vi.fn(async (_params: { keaktifan?: string }) => rekapAktif);
 vi.mock('@/api/siklus', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/api/siklus')>();
   return { ...asli, rekapSantri: (params: { keaktifan?: string }) => rekapSantri(params) };
@@ -93,6 +108,7 @@ vi.mock('react-datasheet-grid', async (importOriginal) => {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  rekapAktif = rekap;
 });
 
 describe('RekapSantriPage — filter keaktifan', () => {
@@ -108,14 +124,37 @@ describe('RekapSantriPage — filter keaktifan', () => {
     renderDenganTema(<RekapSantriPage />);
     await waitFor(() => expect(rekapSantri).toHaveBeenCalledTimes(1));
 
-    await user.click(screen.getByRole('combobox', { name: 'Filter keaktifan' }));
-    await screen.findByRole('option', { name: 'Semua' });
-    // Radix Select: pilih lewat keyboard (Aktif → Tidak aktif → Semua → Enter);
-    // klik pointer tidak andal di jsdom tanpa layout.
-    await user.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+    // Combobox Base UI: daftar dibuka lewat KEYBOARD. Di jsdom klik pointer
+    // (input maupun tombol panah) tidak membuka popup — `aria-expanded` tetap
+    // false — sehingga `{ArrowDown}` pada input yang difokus jadi caranya.
+    const inp = screen.getByRole('combobox', { name: 'Filter keaktifan' });
+    inp.focus();
+    await user.keyboard('{ArrowDown}');
+    await user.click(await screen.findByRole('option', { name: 'Semua' }));
 
     await waitFor(() => {
       expect(rekapSantri.mock.calls.at(-1)?.[0]).toMatchObject({ keaktifan: 'semua' });
     });
+  });
+});
+
+describe('RekapSantriPage — tabel usia per tingkat', () => {
+  it('pisahkan baris per lembaga dan tampilkan kolom Lembaga', async () => {
+    rekapAktif = rekapUsia;
+    renderDenganTema(<RekapSantriPage />);
+
+    // Baris usia terpisah: MI dan MD sama-sama tingkat "2" tetapi tidak digabung
+    // (tabel Per tingkat/Per kelas sengaja kosong di fixture, jadi "MI"/"MD" di
+    // sini hanya mungkin berasal dari baris usia).
+    expect(await screen.findByText('MD')).toBeInTheDocument();
+    expect(screen.getByText('MI')).toBeInTheDocument();
+    // Nilai usia ikut tampil: rata/min/max 9 pada 2 baris lembaga (6 sel) +
+    // rata/min/max di baris "Jumlah" (3 sel).
+    expect(screen.getAllByText('9')).toHaveLength(9);
+
+    // Kolom Lembaga kini ada di Usia per tingkat — sama seperti tabel lain di
+    // halaman ini (Per tingkat, Per kelas, Usia).
+    expect(screen.getByText('Rata usia')).toBeInTheDocument();
+    expect(screen.getAllByText('Lembaga')).toHaveLength(3);
   });
 });

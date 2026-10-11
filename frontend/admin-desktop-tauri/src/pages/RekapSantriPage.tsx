@@ -3,13 +3,30 @@ import { errorMessage } from '../api/client';
 import { rekapSantri, type RekapSantri } from '../api/siklus';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import TabelRingkas from '@/components/TabelRingkas';
-import FilterField from '@/components/FilterField';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxRoot,
+  ComboboxTrigger,
+} from '@/components/ui/combobox';
+import LabeledCombobox from '@/components/LabeledCombobox';
 import { ResizableAutoHidePanel, ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 
-/** Rekap Santri: jumlah per tahun ajaran/tingkat/kelas + usia per kelas.
- *  "Aktif" = terdaftar di TA+semester itu dan tidak pindah keluar. */
+/** Opsi filter keaktifan rekap. */
+const OPSI_KEAKTIFAN_REKAP = [
+  { nilai: 'aktif', label: 'Aktif' },
+  { nilai: 'nonaktif', label: 'Tidak aktif' },
+  { nilai: 'semua', label: 'Semua' },
+];
+
+/** Rekap Santri: jumlah per tahun ajaran/tingkat/kelas + usia per tingkat.
+ *  "Aktif" = terdaftar di TA+semester itu dan tidak pindah keluar.
+ *  Baris usia dipisah per lembaga dan usianya dihitung pada awal TA baris itu
+ *  (bukan hari ini), jadi rekap TA historis tidak menampilkan usia masa kini. */
 export default function RekapSantriPage() {
   const {
     jenjangs,
@@ -69,21 +86,29 @@ export default function RekapSantriPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <div className="flex flex-wrap items-end gap-3">
-        <FilterField label="Keaktifan" htmlFor="select_keaktifan_rekap" sejajar className="px-2 py-2">
-          <Select value={keaktifan} onValueChange={(v) => setKeaktifan(v as 'aktif' | 'nonaktif' | 'semua')}>
-            <SelectTrigger id="select_keaktifan_rekap" title="Filter keaktifan" aria-label="Filter keaktifan" size="sm" className="w-40">
-              <SelectValue placeholder="Aktif" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="aktif">Aktif</SelectItem>
-                <SelectItem value="nonaktif">Tidak aktif</SelectItem>
-                <SelectItem value="semua">Semua</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </FilterField>
+      <div className="flex flex-wrap items-end gap-3 px-2 py-2">
+        {/* LabeledCombobox (bukan FilterField+Select) agar kotaknya bisa
+            diatur lebar/tingginya lewat popover klik-kanan. Lebar dipatok —
+            tanpa ini kotak `w-full` memenuhi baris header (dulu Select `w-40`). */}
+        <LabeledCombobox label="Keaktifan" htmlFor="select_keaktifan_rekap" lebarKotak={220}>
+          <ComboboxRoot
+            items={OPSI_KEAKTIFAN_REKAP}
+            autoHighlight
+            itemToStringLabel={(o) => o.label}
+            isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+            value={OPSI_KEAKTIFAN_REKAP.find((o) => o.nilai === keaktifan) ?? OPSI_KEAKTIFAN_REKAP[0]}
+            onValueChange={(o) => { if (o !== null) setKeaktifan(o.nilai as 'aktif' | 'nonaktif' | 'semua'); }}
+          >
+            <ComboboxInput id="select_keaktifan_rekap" aria-label="Filter keaktifan" placeholder="Pilih keaktifan…" />
+            <ComboboxTrigger aria-label="Buka daftar keaktifan" />
+            <ComboboxContent>
+              <ComboboxEmpty>Tidak ada pilihan.</ComboboxEmpty>
+              <ComboboxList>
+                {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+              </ComboboxList>
+            </ComboboxContent>
+          </ComboboxRoot>
+        </LabeledCombobox>
       </div>
 
       <ResizablePanelGroup orientation="horizontal" className="mt-0 min-h-0 flex-1" id="grup_rekap_santri">
@@ -159,7 +184,8 @@ export default function RekapSantriPage() {
                 judul="Usia per tingkat"
                 emptyText="Belum ada data usia (tgl lahir kosong)."
                 kolom={[
-                  { key: 'tingkat', label: 'Tingkat',  },
+                  { key: 'lembaga', label: 'Lembaga' },
+                  { key: 'tingkat', label: 'Tingkat' },
                   { key: 'jumlah', label: 'Jumlah' },
                   { key: 'rata', label: 'Rata usia' },
                   { key: 'min', label: 'Min' },
@@ -172,6 +198,7 @@ export default function RekapSantriPage() {
                 ]}
                 baris={[
                   ...perUsia.map((u) => [
+                    u.lembaga ?? '—',
                     u.tingkat ?? '—',
                     u.jumlah,
                     u.rata_usia,
@@ -186,6 +213,7 @@ export default function RekapSantriPage() {
                   ...(perUsia.length > 0
                     ? [[
                         'Jumlah',
+                        '',
                         totalUsia.jumlah,
                         rataUsiaTotal,
                         Number.isFinite(totalUsia.min) ? totalUsia.min : '—',

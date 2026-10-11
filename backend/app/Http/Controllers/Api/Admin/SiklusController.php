@@ -26,6 +26,7 @@ use App\Services\UrutKatalog;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -765,22 +766,45 @@ class SiklusController extends Controller
             ];
         })->values()->all();
 
-        // Usia per tingkat: rata-rata + sebaran kelompok umur (dari tgl_lahir santri).
+        // Usia per tingkat & lembaga: rata-rata + sebaran kelompok umur (dari
+        // tgl_lahir santri), dihitung pada AWAL tahun ajaran baris riwayat itu —
+        // bukan tanggal hari ini — supaya rekap TA historis menampilkan usia saat
+        // itu (sebelumnya MI 2010/2011 kelas 1 terbaca rata 22 tahun dan seluruh
+        // santri jatuh di kelompok `>=16`, jadi kolom kelompok usia muda kosong).
+        // Kunci akumulasi memuat lembaga sebab MI dan MD memakai tingkat yang
+        // sama: digabung, satu santri yang terdaftar di keduanya terhitung dua
+        // kali dan angkanya tak lagi sepadan dengan tabel "Per tingkat".
         // Diakumulasi per 500 baris (chunkById) supaya seluruh riwayat tidak masuk
         // memori sekaligus pada lembaga besar; hasilnya sama dengan groupBy lama.
-        /** @var array<string, array{jumlah: int, total: int, min: int, max: int, kelompok: array<string, int>}> $usiaAkumulasi */
+        /** @var array<string, array{lembaga: ?string, tingkat: ?string, jumlah: int, total: int, min: int, max: int, kelompok: array<string, int>}> $usiaAkumulasi */
         $usiaAkumulasi = [];
         (clone $riwayatQuery())
-            ->select(['riwayat_belajar.id', 'riwayat_belajar.tingkat', 'riwayat_belajar.santri_id'])
-            ->with(['santri:id,tgl_lahir'])
+            ->select([
+                'riwayat_belajar.id', 'riwayat_belajar.jenjang', 'riwayat_belajar.tingkat',
+                'riwayat_belajar.tahun_ajaran', 'riwayat_belajar.santri_id',
+            ])
+            ->with(['santri:id,tgl_lahir', 'lembaga:jenjang,nama', 'tahunAjaran:nama,tanggal_mulai'])
             ->chunkById(500, function ($baris) use (&$usiaAkumulasi): void {
                 foreach ($baris as $r) {
-                    $umur = $r->santri?->tgl_lahir?->age;
-                    if ($umur === null) {
+                    $tglLahir = $r->santri?->tgl_lahir;
+                    if ($tglLahir === null) {
                         continue;
                     }
-                    $kunci = (string) ($r->tingkat ?? '');
+                    // Acuan usia = awal TA baris ini (`tanggal_mulai`, atau
+                    // perkiraan 1 Juli tahun awal dari nama TA; hari ini hanya
+                    // bila TA-nya tak dikenal sama sekali).
+                    $mulai = $r->tahunAjaran?->tanggal_mulai;
+                    $acuan = $mulai !== null
+                        ? Carbon::parse($mulai)
+                        : (TahunAjaran::awalPerkiraan($r->tahun_ajaran) ?? Carbon::now());
+                    // (int) memotong pecahan → jumlah tahun penuh pada tanggal itu.
+                    $umur = (int) $tglLahir->diffInYears($acuan);
+                    $lembaga = $r->lembaga?->jenjang ?? $r->lembaga?->nama;
+                    $tingkat = $r->tingkat === null ? null : (string) $r->tingkat;
+                    $kunci = ($lembaga ?? '').'|'.($tingkat ?? '');
                     $usiaAkumulasi[$kunci] ??= [
+                        'lembaga' => $lembaga,
+                        'tingkat' => $tingkat,
                         'jumlah' => 0,
                         'total' => 0,
                         'min' => $umur,
@@ -806,9 +830,10 @@ class SiklusController extends Controller
             });
 
         $usiaPerTingkat = [];
-        foreach ($usiaAkumulasi as $tingkat => $a) {
+        foreach ($usiaAkumulasi as $a) {
             $usiaPerTingkat[] = [
-                'tingkat' => $tingkat === '' ? null : (string) $tingkat,
+                'lembaga' => $a['lembaga'],
+                'tingkat' => $a['tingkat'],
                 'jumlah' => $a['jumlah'],
                 'rata_usia' => round($a['total'] / $a['jumlah'], 1),
                 'min' => $a['min'],
@@ -816,7 +841,9 @@ class SiklusController extends Controller
                 'kelompok' => $a['kelompok'],
             ];
         }
-        usort($usiaPerTingkat, fn ($a, $b) => strnatcasecmp((string) $a['tingkat'], (string) $b['tingkat']));
+        // Urut tampil sama dengan "Per tingkat": lembaga lalu tingkat (natural).
+        usort($usiaPerTingkat, fn (array $a, array $b) => strnatcasecmp((string) $a['lembaga'], (string) $b['lembaga'])
+            ?: strnatcasecmp((string) $a['tingkat'], (string) $b['tingkat']));
 
         // Rekap per tahun ajaran = SELURUH TA (abaikan filter TA terpilih),
         // agar kolom kiri menampilkan rentang penuh dari TA awal ke akhir.

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -35,6 +36,19 @@ class TahunAjaran extends Model
         $rapi = preg_replace('/\s+/u', ' ', trim((string) $nama)) ?? '';
 
         return str_replace(' /', '/', str_replace('/ ', '/', $rapi));
+    }
+
+    /**
+     * Perkiraan awal TA (1 Juli tahun awal) dari `nama` — dipakai saat
+     * `tanggal_mulai` kosong, mis. menghitung usia pada awal TA rekap historis.
+     */
+    public static function awalPerkiraan(?string $nama): ?Carbon
+    {
+        if ($nama !== null && preg_match(self::POLA, trim($nama), $cocok) === 1) {
+            return Carbon::create((int) $cocok[1], 7, 1);
+        }
+
+        return null;
     }
 
     /** Daftar TA yang berlaku untuk satu lembaga (TA tersembunyi dibuang). */

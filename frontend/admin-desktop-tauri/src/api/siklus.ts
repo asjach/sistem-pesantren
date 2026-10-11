@@ -360,6 +360,8 @@ export interface RekapSantri {
     sisa: number | null;
   }[];
   usia_per_tingkat: {
+    /** Lembaga pemilik tingkat (MI/MD) — usia dipisah per lembaga. */
+    lembaga: string | null;
     tingkat: string | null;
     jumlah: number;
     rata_usia: number;

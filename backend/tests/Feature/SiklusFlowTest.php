@@ -1036,6 +1036,69 @@ class SiklusFlowTest extends TestCase
         $this->assertSame(2, $rekap->json('per_kelas.0.terisi'));
         $this->assertNotEmpty($rekap->json('usia_per_tingkat'));
         $this->assertArrayHasKey('kelompok', $rekap->json('usia_per_tingkat.0'));
+        $this->assertSame('1', $rekap->json('usia_per_tingkat.0.tingkat'));
+    }
+
+    /** Kueri rekap multi-lembaga untuk uji usia (bentuk array, bukan dipisah koma). */
+    protected function queryRekapUsia(array $f, array $jenjangs): string
+    {
+        return http_build_query([
+            'jenjang' => $jenjangs,
+            'tahun_ajaran' => [$f['taLama']->nama],
+            'semester' => ['1'],
+        ], '', '&', PHP_QUERY_RFC3986);
+    }
+
+    /**
+     * Usia per tingkat: acuan = AWAL tahun ajaran baris riwayat (bukan hari ini)
+     * dan barisnya dipisah per lembaga (MI & MD memakai tingkat yang sama;
+     * digabung satu santri terhitung dua kali).
+     */
+    public function test_11b_usia_per_tingkat_pakai_awal_ta_dan_pisah_lembaga(): void
+    {
+        $f = $this->baseFixture();
+        $admin = $this->makeUser('super_admin');
+
+        // taLama mulai 2025-07-01: lahir 2016-06-15 → 9 tahun saat itu
+        // (usia hari ini sudah 10, jadi angka 9 membuktikan acuannya awal TA).
+        foreach (['mi' => 'MI', 'md' => 'MD'] as $kunci => $jenjang) {
+            $s = $this->makeSantri('Usia '.$jenjang);
+            $s->update(['tgl_lahir' => '2016-06-15']);
+            $this->makeKeanggotaan($s, $f[$kunci], '2701'.($kunci === 'mi' ? '1' : '2'));
+            $this->makeRiwayat($s, $f['taLama'], $f[$kunci], '1', ['tingkat' => '2']);
+        }
+
+        $rekap = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/rekap-santri?'.$this->queryRekapUsia($f, [$f['mi']->jenjang, $f['md']->jenjang]))
+            ->assertStatus(200);
+
+        // Satu baris per lembaga (bukan satu baris tingkat 2 berisi dua santri),
+        // urut lembaga lalu tingkat seperti tabel "Per tingkat".
+        $this->assertSame(
+            [['MD', '2'], ['MI', '2']],
+            array_map(fn ($u) => [$u['lembaga'], $u['tingkat']], $rekap->json('usia_per_tingkat')),
+        );
+        foreach ($rekap->json('usia_per_tingkat') as $baris) {
+            $this->assertSame(1, $baris['jumlah']);
+            $this->assertSame(9, $baris['rata_usia']);
+            $this->assertSame(9, $baris['min']);
+            $this->assertSame(9, $baris['max']);
+            $this->assertSame(1, $baris['kelompok']['7-9']);
+            $this->assertSame(0, $baris['kelompok']['>=16']);
+        }
+        // Sepadan dengan tabel Per tingkat (jenjang sama, tingkat sama).
+        $this->assertSame(1, $rekap->json('per_tingkat.0.jumlah'));
+        $this->assertSame(1, $rekap->json('per_tingkat.1.jumlah'));
+        $this->assertSame(2, $rekap->json('total_aktif'));
+
+        // Tanpa `tanggal_mulai`, acuan diambil dari nama TA (1 Juli tahun awal)
+        // → hasil usia tak berubah (bukan jatuh ke usia hari ini).
+        $f['taLama']->update(['tanggal_mulai' => null]);
+        $tanpaTanggal = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/akademik/rekap-santri?'.$this->queryRekapUsia($f, [$f['mi']->jenjang, $f['md']->jenjang]))
+            ->assertStatus(200);
+        $this->assertSame(9, $tanpaTanggal->json('usia_per_tingkat.0.rata_usia'));
+        $this->assertSame(9, $tanpaTanggal->json('usia_per_tingkat.1.rata_usia'));
     }
 
     // ---------- 11b. rekap santri TA historis + semester (kecuali pindah keluar) ----------
