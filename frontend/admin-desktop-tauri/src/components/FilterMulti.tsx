@@ -6,7 +6,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 
 const navBase =
-  'flex items-center gap-2 rounded-none px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
+  'flex items-center gap-2 rounded-none px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]';
 const navIdle =
   'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-[var(--sidebar-foreground)]';
 

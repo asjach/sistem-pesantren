@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { ChevronDown } from '@/icons';
 
 const itemBase =
-  'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
+  'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]';
 
 /** Konektor cabang pohon: garis horizontal dari garis panduan vertikal ke
  *  baris anak (induk = wadah `pl-2`, jadi tick `-left-2`/`w-2` pas menyentuh
@@ -296,7 +296,7 @@ export default function Sidebar() {
       data-slot="sidebar"
       aria-label="Navigasi utama"
       className={cn(
-        'relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] text-[var(--sidebar-foreground)]',
+        'relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[color:var(--sidebar-border)] text-[var(--sidebar-foreground)]',
         seret && 'transition-none',
         /* Buka-tutup 400ms dua arah. Buka = pegas (overshoot lalu menetap,
            ala spring); tutup = ease-out tanpa overshoot (overshoot ke lebar
@@ -448,7 +448,7 @@ export default function Sidebar() {
         >
           <span
             className={cn(
-              'absolute inset-y-0 -right-[1px] w-px bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] transition-colors',
+              'absolute inset-y-0 -right-[1px] w-px bg-[color:var(--sidebar-border)] transition-colors',
               seretSembunyi ? 'bg-[color-mix(in_srgb,var(--sidebar-foreground)_70%,transparent)]' : 'hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)]',
             )}
           />

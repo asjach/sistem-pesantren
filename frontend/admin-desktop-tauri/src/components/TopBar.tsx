@@ -32,8 +32,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
-import { DEFAULT_PREFS, RADIUS_MAX, RADIUS_MIN, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, Crop, LogOut, Minus, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Plus, Sun, Users } from '@/icons';
+import { DEFAULT_PREFS, DENSITY_PX, DensityName, RADIUS_MAX, RADIUS_MIN, WARNA_UI } from '@/prefs';
+import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, Crop, DensityMedium, LogOut, Minus, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Plus, Sun, Users } from '@/icons';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { useAksiSeretSidebar } from '@/components/SeretSidebar';
 import { apakahKlik } from '@/components/useLebarSidebar';
@@ -60,6 +60,14 @@ const MODE_STRIP: { id: ModeName; nama: string; icon: typeof Sun }[] = [
   { id: 'sistem', nama: 'Sistem', icon: Monitor },
 ];
 
+/** Kerapatan baris grid (sama dengan DENSITY_PX): ramping 20px, sedang 24px,
+ *  nyaman 30px. Bawaan 'sedang'. Grid (ExcelTable) sudah membaca pref ini. */
+const DENSITY_UI: { id: DensityName; nama: string; px: number }[] = [
+  { id: 'ramping', nama: 'Ramping', px: DENSITY_PX.ramping },
+  { id: 'sedang', nama: 'Sedang', px: DENSITY_PX.sedang },
+  { id: 'nyaman', nama: 'Nyaman', px: DENSITY_PX.nyaman },
+];
+
 function pilihNilaiFilter(
   nilai: string,
   dipilih: readonly string[],
@@ -80,7 +88,7 @@ function nilaiDropdown(values: readonly string[], mode: ModeFilterGlobal): strin
 }
 
 const navBase =
-  'flex items-center gap-2 rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-foreground)]/60';
+  'flex items-center gap-2 rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]';
 const navIdle =
   'text-[var(--sidebar-foreground)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_14%,transparent)] hover:text-[var(--sidebar-foreground)]';
 
@@ -124,9 +132,9 @@ export default function TopBar() {
     return index === -1 ? urutanLembaga.length : index;
   };
   const daftarLembaga = [...pilihan].sort((a, b) => posisiLembaga(a.jenjang) - posisiLembaga(b.jenjang));
-  const classFilterLembaga = cn('relative mr-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-20 after:w-px after:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]', daftarLembaga.length === 1 ? 'w-[80px]' : 'w-[160px]');
+  const classFilterLembaga = cn('relative mr-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-20 after:w-px after:bg-[color:var(--sidebar-border)]', daftarLembaga.length === 1 ? 'w-[80px]' : 'w-[160px]');
   const taPilihanTerurut = [...taPilihan].sort((a, b) => b.nama.localeCompare(a.nama, 'id', { numeric: true }));
-  const { theme, mode, dark, iconSet, warnaUI, navigasi, radius, collapsed, setTheme, setMode, setCollapsed, setIconSet, setWarnaUI, setNavigasi, setRadius } = useTheme();
+  const { theme, mode, dark, iconSet, warnaUI, navigasi, radius, density, setDensity, collapsed, setTheme, setMode, setCollapsed, setIconSet, setWarnaUI, setNavigasi, setRadius } = useTheme();
   /** Kenop lipat merangkap gagang seret lebar; aksinya dari seret bersama. */
   const { mulaiSeret: mulaiSeretKenop } = useAksiSeretSidebar();
   /** Tooltip kenop dikendalikan agar bisa ditutup saat seretan dimulai. */
@@ -233,7 +241,7 @@ export default function TopBar() {
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={!bolehKelolaHalaman}>
         <header
-          className="relative shrink-0 border-b border-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] bg-[var(--sidebar)] px-0.5 pt-1 text-[var(--sidebar-foreground)]"
+          className="relative shrink-0 border-b border-[color:var(--sidebar-border)] bg-[var(--sidebar)] px-0.5 pt-1 text-[var(--sidebar-foreground)]"
           style={{ background: 'var(--sidebar)' }}
         >
       {/* Judul halaman untuk pembaca layar (visual tampil di bar judul). */}
@@ -313,7 +321,7 @@ export default function TopBar() {
                   setCollapsed(!collapsed);
                 }}
                 style={{ left: collapsed ? '-2px' : '-3px' }}
-                className="absolute -top-1 bottom-0 z-20 grid w-3 cursor-col-resize place-items-center rounded-none border-r border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-transparent text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] transition-[left,color] duration-200 before:absolute before:inset-y-0 before:left-0 before:-right-3 before:content-[''] touch-none select-none hover:border-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)] hover:text-[var(--sidebar-foreground)]"
+                className="absolute -top-1 bottom-0 z-20 grid w-3 cursor-col-resize place-items-center rounded-none border-r border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-transparent text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-[left,color] duration-200 before:absolute before:inset-y-0 before:left-0 before:-right-3 before:content-[''] touch-none select-none hover:border-[color-mix(in_srgb,var(--sidebar-foreground)_40%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
               >
                 {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
               </button>
@@ -344,7 +352,7 @@ export default function TopBar() {
         <div
           className={cn(
             'relative flex min-h-[26px] min-w-0 items-center gap-0 rounded-md border p-0',
-            adaFilterTopBar ? 'border-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)]' : 'border-transparent',
+            adaFilterTopBar ? 'border-[color:var(--sidebar-border)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_5%,transparent)]' : 'border-transparent',
           )}
         >
             {tampil.lembaga && (adaSemua || banyakPilihan) && daftarLembaga.length > 0 && (
@@ -401,7 +409,7 @@ export default function TopBar() {
               }))}
               dipilih={nilaiDropdown(semesters, modeSemester)}
               tampilkanSemua={false}
-              className="relative mr-0 w-[160px] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:z-20 before:w-px before:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)]"
+              className="relative mr-0 w-[160px] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:z-20 before:w-px before:bg-[color:var(--sidebar-border)]"
               itemClassName="min-w-0 flex-1 shrink"
               onPilih={pilihSemesterNilai}
               onSemua={() => pilihSemester(null)}
@@ -420,7 +428,7 @@ export default function TopBar() {
                   type="button"
                   aria-label={registrasi.tabel.length === 0 ? 'Kelola filter halaman' : 'Kelola tabel'}
                   onClick={bukaKelola}
-                  className="mr-1 grid size-6 place-items-center rounded-md text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)]"
+                  className="mr-1 grid size-6 place-items-center rounded-md text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
                 >
                   <NotebookTabs size={14} />
                 </button>
@@ -619,6 +627,29 @@ export default function TopBar() {
                       </Button>
                     </div>
                   </div>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger id="menu_set_density">
+                  <DensityMedium data-icon="inline-start" size={16} />
+                  <span className="flex-1">Kerapatan</span>
+                  <span className="text-xs text-muted-foreground capitalize">{density}</span>
+                </DropdownMenuSubTrigger>
+                {/* Tiga tingkat kerapatan baris grid; bukan item menu agar klik
+                    tak menutup (sama seperti strip Mode & stepper Sudut). */}
+                <DropdownMenuSubContent className="min-w-44">
+                  {DENSITY_UI.map((d) => (
+                    <DropdownMenuItem
+                      key={d.id}
+                      id={`menu_density_${d.id}`}
+                      onSelect={() => setDensity(d.id)}
+                      className="capitalize"
+                    >
+                      <span className="flex-1">{d.nama}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">{d.px}px</span>
+                      {density === d.id && <Check data-icon="inline-end" size={14} />}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />

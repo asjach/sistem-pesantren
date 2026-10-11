@@ -72,7 +72,13 @@
      --font-narrow: heading/kolom rapat opsional (Aptos Narrow).
      --font-mono: kode, ID, hex, angka tabular bila perlu. */
   --font-sans: "Aptos", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-display: "Aptos", "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", Verdana, "Segoe UI", sans-serif;
+  /* Judul/brand memakai wajah berbeda dari isi (Aptos) agar hierarki tipografi
+     nyata — sebelumnya sama persis dengan --font-sans (Aptos) sehingga tak ada
+     beda. Plus Jakarta Sans (bundel lokal, 300/400) dipakai sebagai wajah
+     display; Aptos jadi fallback. Catatan: Aptos hanya bundel 400/700, jadi
+     bobot 600 (font-semibold) di heading memang jadi bold sintetis — sama seperti
+     kondisi saat ini, tidak ada risiko baru. */
+  --font-display: "Plus Jakarta Sans", "Aptos", "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", Verdana, "Segoe UI", sans-serif;
   --font-narrow: "Aptos Narrow", "Aptos", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
@@ -133,6 +139,10 @@
      pengulangan color-mix(...) inline. Catatan: nilai per-piksel di pohon
      sidebar sengaja tetap inline agar tak menggeser garis penghubung. */
   --sidebar-border: color-mix(in srgb, var(--sidebar-foreground) 12%, transparent);
+  /* Cincin fokus seragam di chrome (sidebar/topbar/menubar/filter): satu sumber
+     supaya warnanya tak diulang sebagai color-mix(...) inline di banyak komponen.
+     Sama dengan nilai sebelumnya (sidebar-foreground 60%) — hanya dipusatkan. */
+  --chrome-ring: color-mix(in srgb, var(--sidebar-foreground) 60%, transparent);
   --hairline: color-mix(in srgb, var(--foreground) 10%, transparent);
   /* Geometri shell ala Gr8r. */
   --side-w: 252px;
