@@ -61,12 +61,12 @@ function presetKolom(jumlah: number) {
 describe('dropdown Urutkan — tampil hanya bila pilihan > 1', () => {
   it('tersembunyi saat tidak ada preset (hanya "—")', async () => {
     presetUrut([]);
-    await waitFor(() => expect(screen.queryByText('Urutkan')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Urutkan:')).toBeNull());
   });
 
   it('tetap tampil saat ada 1 preset (2 item: "—" + preset)', async () => {
     presetUrut([{ kode: ['a'], label: 'Nama' }]);
-    expect(await screen.findByText('Urutkan')).toBeInTheDocument();
+    expect(await screen.findByText('Urutkan:')).toBeInTheDocument();
   });
 
   it('tampil saat ada 2 preset', async () => {
@@ -74,24 +74,24 @@ describe('dropdown Urutkan — tampil hanya bila pilihan > 1', () => {
       { kode: ['a'], label: 'Nama' },
       { kode: ['b'], label: 'Kelas' },
     ]);
-    expect(await screen.findByText('Urutkan')).toBeInTheDocument();
+    expect(await screen.findByText('Urutkan:')).toBeInTheDocument();
   });
 
   it('tetap tampil saat urutan sedang aktif walau tanpa preset (arah bisa dibalik)', async () => {
     presetUrut([], ['a']);
-    expect(await screen.findByText('Urutkan')).toBeInTheDocument();
+    expect(await screen.findByText('Urutkan:')).toBeInTheDocument();
   });
 });
 
 describe('dropdown Kolom — selalu tampil dengan awalan "Lengkap"', () => {
   it('tetap tampil walau belum ada preset (hanya "Lengkap")', async () => {
     presetKolom(0);
-    expect(await screen.findByText('Kolom')).toBeInTheDocument();
+    expect(await screen.findByText('Kolom:')).toBeInTheDocument();
   });
 
   it('tetap tampil saat ada 1 preset (2 item: "Lengkap" + preset)', async () => {
     presetKolom(1);
-    expect(await screen.findByText('Kolom')).toBeInTheDocument();
+    expect(await screen.findByText('Kolom:')).toBeInTheDocument();
   });
 
   it('memakai preset bawaan sebagai awalan bila pengguna belum memilih', async () => {

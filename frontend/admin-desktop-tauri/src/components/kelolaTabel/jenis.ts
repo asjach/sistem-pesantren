@@ -98,9 +98,17 @@ export function bacaExpandLabelFilter(lebar: Record<string, number> | undefined)
   return bacaFlagFilter(lebar, SUFIKS_EXPAND_LABEL);
 }
 
-/** Kontrol yang labelnya TRANSPARAN (kunci htmlFor). */
+/** Kontrol yang labelnya TRANSPARAN (kunci htmlFor → boolean).
+ *  `1` = transparan, `0` = ber-bg eksplisit; absen = ikut bawaan. */
 export function bacaLabelTransparanFilter(lebar: Record<string, number> | undefined): Record<string, boolean> {
-  return bacaFlagFilter(lebar, SUFIKS_LABEL_TRANSPARAN);
+  const hasil: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(lebar ?? {})) {
+    if (!k.startsWith(AWALAN_LEBAR_FILTER) || !k.endsWith(SUFIKS_LABEL_TRANSPARAN)) continue;
+    if (v !== 0 && v !== 1) continue;
+    const kunci = k.slice(AWALAN_LEBAR_FILTER.length, -SUFIKS_LABEL_TRANSPARAN.length);
+    if (/^[a-z0-9_]{1,60}$/.test(kunci)) hasil[kunci] = v === 1;
+  }
+  return hasil;
 }
 
 function bacaFlagFilter(lebar: Record<string, number> | undefined, sufiks: string): Record<string, boolean> {

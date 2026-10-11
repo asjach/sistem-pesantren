@@ -99,10 +99,11 @@ export function useToolbarPresetState(tableKey: string) {
       if (ukuran.expandLabel === true) lebarBaru[`${kunci}${SUFIKS_EXPAND_LABEL}`] = 1;
       else delete lebarBaru[`${kunci}${SUFIKS_EXPAND_LABEL}`];
     }
-    /* Flag label transparan: sama (`= 1` = transparan; hapus = ber-bg). */
+    /* Flag label transparan: `true` = 1, `false` eksplisit = 0,
+       `null` = hapus (kembali ke bawaan). */
     if (ukuran.labelTransparan !== undefined) {
-      if (ukuran.labelTransparan === true) lebarBaru[`${kunci}${SUFIKS_LABEL_TRANSPARAN}`] = 1;
-      else delete lebarBaru[`${kunci}${SUFIKS_LABEL_TRANSPARAN}`];
+      if (ukuran.labelTransparan === null) delete lebarBaru[`${kunci}${SUFIKS_LABEL_TRANSPARAN}`];
+      else lebarBaru[`${kunci}${SUFIKS_LABEL_TRANSPARAN}`] = ukuran.labelTransparan ? 1 : 0;
     }
     lebarApiRef.current = lebarBaru;
     tinggiApiRef.current = tinggiBaru;
@@ -141,8 +142,10 @@ export function useToolbarPresetState(tableKey: string) {
   /** Kontrol yang labelnya transparan (kunci server diterjemahkan). */
   const labelTransparanFilter = useMemo(() => {
     const hasil = bacaLabelTransparanFilter(lebarApi);
-    if (lebarApi[`urut${SUFIKS_LABEL_TRANSPARAN}`] === 1) hasil[`select_urut_${tableKey}`] = true;
-    if (lebarApi[`kolom${SUFIKS_LABEL_TRANSPARAN}`] === 1) hasil[`select_preset_kolom_${tableKey}`] = true;
+    const urut = lebarApi[`urut${SUFIKS_LABEL_TRANSPARAN}`];
+    const kolom = lebarApi[`kolom${SUFIKS_LABEL_TRANSPARAN}`];
+    if (urut === 0 || urut === 1) hasil[`select_urut_${tableKey}`] = urut === 1;
+    if (kolom === 0 || kolom === 1) hasil[`select_preset_kolom_${tableKey}`] = kolom === 1;
     return hasil;
   }, [lebarApi, tableKey]);
   /** Lebar per `htmlFor` untuk konteks: filter + kontrol bawaan toolbar

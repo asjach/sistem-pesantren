@@ -33,7 +33,7 @@ describe('LabeledCombobox', () => {
         {kombo('kombo_uji')}
       </LabeledCombobox>,
     );
-    expect(screen.getByText('Kelompok').getAttribute('for')).toBe('kombo_uji');
+    expect(screen.getByText('Kelompok:').getAttribute('for')).toBe('kombo_uji');
     expect(document.getElementById('kombo_uji')).not.toBeNull();
   });
 
@@ -48,7 +48,7 @@ describe('LabeledCombobox', () => {
     expect(kotak.className).toMatch(/border-foreground\/30/);
     expect(kotak.className).toMatch(/inline-flex/);
     expect(kotak.className).toMatch(/w-max/);
-    expect(screen.getByText('Kelompok').getAttribute('style')).toContain('width: 80px');
+    expect(screen.getByText('Kelompok:').getAttribute('style')).toContain('width: 80px');
     const zona = document.getElementById('kombo_uji')?.closest('span') as HTMLElement;
     expect(zona.style.width).toBe('180px');
     expect(zona.style.flex).toBe('0 0 auto');
@@ -63,7 +63,7 @@ describe('LabeledCombobox', () => {
     const kotak = container.firstElementChild as HTMLElement;
     expect(kotak.className).toMatch(/w-full/);
     expect(kotak.className).toMatch(/focus-within:ring-1/);
-    expect(screen.getByText('Kelompok').className).toMatch(/w-max/);
+    expect(screen.getByText('Kelompok:').className).toMatch(/w-max/);
   });
 
   it('input melebar penuh, tanpa border sendiri & tanpa cincin fokus', () => {
@@ -428,7 +428,7 @@ describe('LabeledCombobox', () => {
     expect(ukuranKombo(kunci)).toEqual({ lebar: 80, lebarLabel: 40, lebarKontrol: 40 });
   });
 
-  it('label transparan: tanpa bg + titik dua, bisa dikembalikan', async () => {
+  it('label transparan bawaan: tanpa bg + titik dua, pil bisa mengembalikan', async () => {
     const kunci = `uji_ukuran_transparan_${Date.now()}`;
     const { container } = renderDenganTema(
       <LabeledCombobox label="Kelompok" htmlFor={kunci}>
@@ -437,26 +437,29 @@ describe('LabeledCombobox', () => {
     );
     const teksLabel = () => (container.querySelector(`label[for="${kunci}"]`) as HTMLElement);
 
-    // Bawaan: ber-bg, tanpa titik dua.
-    expect(teksLabel().textContent).toBe('Kelompok');
-    expect(teksLabel().className).toMatch(/bg-muted\/70/);
-
-    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    await userEvent.click(screen.getByRole('button', { name: 'Label transparan' }));
-
-    expect(ukuranKombo(kunci).labelTransparan).toBe(true);
+    // Bawaan: transparan (pil tertekan).
     expect(teksLabel().textContent).toBe('Kelompok:');
     expect(teksLabel().className).toMatch(/bg-transparent/);
 
-    // Pilih lagi → kembali ber-bg.
-    await userEvent.click(screen.getByRole('button', { name: 'Label transparan' }));
-    expect(ukuranKombo(kunci).labelTransparan).toBeUndefined();
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    const pil = screen.getByRole('button', { name: 'Label transparan' });
+    expect(pil).toHaveAttribute('aria-pressed', 'true');
+
+    // Pilih → ber-bg eksplisit (false tersimpan, bukan dihapus).
+    await userEvent.click(pil);
+    expect(ukuranKombo(kunci).labelTransparan).toBe(false);
     expect(teksLabel().textContent).toBe('Kelompok');
+
+    // Pilih lagi → kembali transparan.
+    await userEvent.click(pil);
+    expect(ukuranKombo(kunci).labelTransparan).toBe(true);
+    expect(teksLabel().textContent).toBe('Kelompok:');
   });
 
   it('normalkanUkuran menjepit nilai & membuang kunci asing', () => {
     expect(normalkanUkuran({ tinggi: 5, lebar: 99999, lain: 1 })).toEqual({ tinggi: 20, lebar: 1200 });
     expect(normalkanUkuran({ lebarLabel: 9, lebarKontrol: 9999 })).toEqual({ lebarLabel: 40, lebarKontrol: 1200 });
+    expect(normalkanUkuran({ labelTransparan: false })).toEqual({ labelTransparan: false });
     expect(normalkanUkuran(null)).toEqual({});
     expect(normalkanUkuran({ tinggi: 'abc' })).toEqual({});
   });

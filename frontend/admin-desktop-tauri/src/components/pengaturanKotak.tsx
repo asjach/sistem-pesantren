@@ -26,12 +26,13 @@ import {
  *  toolbar tabel disimpan ke SERVER (global per tabel); di luar itu disimpan
  *  per perangkat. Tanpa `htmlFor`, kotak tak punya identitas → fitur mati
  *  (hanya ukuran dari pemanggil yang dipakai). */
-export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 'combobox', labelTransparan = false, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26 }: {
+export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 'combobox', labelTransparan = true, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26 }: {
   htmlFor?: string;
   kelolaLebar?: boolean;
   label: string;
   /** Kata ganti jenis kotak di judul & aria popover. */
   nama?: string;
+  /** Bawaan label transparan; simpanan menang atas prop. */
   labelTransparan?: boolean;
   lebarLabel?: number | string;
   /** Lebar KONTROL terkunci (`lebarKombo`/`lebarInput`/`lebarStepper`). */
@@ -166,9 +167,9 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
           adaLebarLabel={ukuran.lebarLabel !== undefined}
           adaLebarKontrol={ukuran.lebarKontrol !== undefined}
           adaExpand={ukuran.expandLabel === true}
-          adaLabelTransparan={ukuran.labelTransparan === true}
+          adaLabelTransparan={ukuran.labelTransparan !== undefined}
           expandLabel={ukuran.expandLabel === true}
-          labelTransparan={ukuran.labelTransparan === true}
+          labelTransparan={labelTransparanEfektif}
           onUbah={ubahUkuran}
           onReset={resetUkuran}
           onResetBaris={resetBaris}

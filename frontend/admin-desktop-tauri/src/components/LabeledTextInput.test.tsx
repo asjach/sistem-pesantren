@@ -10,7 +10,7 @@ import { renderDenganTema } from '@/test/utils';
 describe('LabeledTextInput', () => {
   it('label terhubung ke input via for ↔ id', () => {
     renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
-    expect(screen.getByText('Nama').getAttribute('for')).toBe('inp_uji');
+    expect(screen.getByText('Nama:').getAttribute('for')).toBe('inp_uji');
     expect(document.getElementById('inp_uji')).not.toBeNull();
   });
 
@@ -22,7 +22,7 @@ describe('LabeledTextInput', () => {
     expect(kotak.style.height).toBe('34px');
     expect(kotak.className).toMatch(/inline-flex/);
     expect(kotak.className).toMatch(/w-max/);
-    expect(screen.getByText('Nama').getAttribute('style')).toContain('width: 80px');
+    expect(screen.getByText('Nama:').getAttribute('style')).toContain('width: 80px');
     const zona = document.getElementById('inp_uji')?.closest('span') as HTMLElement;
     expect(zona.style.width).toBe('180px');
     expect(zona.style.flex).toBe('0 0 auto');
@@ -97,22 +97,33 @@ describe('LabeledTextInput', () => {
     expect(hitungLebarInput(60, 80, 180)).toBe(40);
   });
 
-  it('labelTransparan: kotak memakai bg kontrol agar keduanya sama', () => {
+  it('labelTransparan bawaan transparan; false eksplisit ber-bg', () => {
     const { container, unmount } = renderDenganTema(
-      <LabeledTextInput label="Nama" htmlFor="inp_transparan" labelTransparan />,
+      <LabeledTextInput label="Nama" htmlFor="inp_transparan" />,
     );
+    // Bawaan: transparan + titik dua + bg kotak kontrol.
+    expect((container.querySelector('label[for="inp_transparan"]') as HTMLElement).textContent).toBe('Nama:');
     expect((container.firstElementChild as HTMLElement).className).toMatch(/dark:bg-input\/30/);
-    // Zona kontrol: bg gelap input dinetralkan (1 lapis, sama dengan label).
-    const zona = document.getElementById('inp_transparan')?.closest('span') as HTMLElement;
-    expect(zona.className).toMatch(/dark:bg-transparent/);
-    // Teks kontrol rapat ke ":" (±2 spasi): kanan label + kiri input dipangkas.
-    const labelEl = container.querySelector('label[for="inp_transparan"]') as HTMLElement;
-    expect(labelEl.className).toMatch(/(^|\s)pr-1(\s|$)/);
-    expect(zona.className).toMatch(/pl-1/);
     unmount();
 
-    const kedua = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_biasa" />);
+    const kedua = renderDenganTema(
+      <LabeledTextInput label="Nama" htmlFor="inp_biasa" labelTransparan={false} />,
+    );
+    expect((kedua.container.querySelector('label[for="inp_biasa"]') as HTMLElement).textContent).toBe('Nama');
     expect((kedua.container.firstElementChild as HTMLElement).className).not.toMatch(/dark:bg-input\/30/);
+  });
+
+  it('labelTransparan tersimpan: kotak 1 lapis + teks rapat ke titik dua', () => {
+    const { container } = renderDenganTema(
+      <LabeledTextInput label="Nama" htmlFor="inp_transparan2" labelTransparan />,
+    );
+    // Zona kontrol: bg gelap input dinetralkan (1 lapis, sama dengan label).
+    const zona = document.getElementById('inp_transparan2')?.closest('span') as HTMLElement;
+    expect(zona.className).toMatch(/dark:bg-transparent/);
+    // Teks kontrol rapat ke ":" (±2 spasi): kanan label + kiri input dipangkas.
+    const labelEl = container.querySelector('label[for="inp_transparan2"]') as HTMLElement;
+    expect(labelEl.className).toMatch(/(^|\s)pr-1(\s|$)/);
+    expect(zona.className).toMatch(/pl-1/);
   });
 
   it('klik kanan membuka popover ukuran (judul input): total menaut & pil transparan', async () => {
@@ -126,9 +137,11 @@ describe('LabeledTextInput', () => {
     // Total +10 (bawaan kontrol mengembang): kontrol 120→130, label tetap.
     await userEvent.click(await screen.findByLabelText('Lebar kotak input (px) tambah'));
     expect(ukuranKombo(kunci)).toEqual({ lebar: 210, lebarKontrol: 130 });
-    // Pil transparan: label bertitik dua.
-    await userEvent.click(screen.getByRole('button', { name: 'Label transparan' }));
-    expect(ukuranKombo(kunci).labelTransparan).toBe(true);
-    expect((container.querySelector(`label[for="${kunci}"]`) as HTMLElement).textContent).toBe('Nama:');
+    // Pil transparan: bawaan tertekan; pilih → ber-bg eksplisit.
+    const pil = screen.getByRole('button', { name: 'Label transparan' });
+    expect(pil).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(pil);
+    expect(ukuranKombo(kunci).labelTransparan).toBe(false);
+    expect((container.querySelector(`label[for="${kunci}"]`) as HTMLElement).textContent).toBe('Nama');
   });
 });

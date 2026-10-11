@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
  *    secara absolut; input diberi ruang kanan agar teks tak tertimpa.
  *  - KLIK KANAN pada kotak membuka popover pengaturan ukuran KOTAK (sama
  *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas. */
-export default function LabeledTextInput({ label, htmlFor, labelTransparan = false, nama = 'input', lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
+export default function LabeledTextInput({ label, htmlFor, labelTransparan = true, nama = 'input', lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
   label: string;
   htmlFor?: string;
   /** Label transparan (tanpa bg, teks bertitik dua); simpanan popover menang. */

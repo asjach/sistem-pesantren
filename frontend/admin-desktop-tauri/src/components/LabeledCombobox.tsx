@@ -45,7 +45,7 @@ function suntikGaya(node: ReactNode, jenis: unknown, kelas: string, gaya?: Recor
  *    tabel, lihat `useToolbarPreset`); di luar itu disimpan per perangkat
  *    (`ukuranKombo.ts`).
  *  - Anak idealnya satu `ComboboxRoot`; kontrol lain dirender apa adanya. */
-export default function LabeledCombobox({ label, htmlFor, labelTransparan = false, lebarLabel, lebarKombo, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, bisaCari = false }: {
+export default function LabeledCombobox({ label, htmlFor, labelTransparan = true, lebarLabel, lebarKombo, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, bisaCari = false }: {
   label: string;
   htmlFor?: string;
   /** Label transparan (tanpa bg, teks bertitik dua); bisa juga diatur per

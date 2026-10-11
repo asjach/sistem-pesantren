@@ -37,7 +37,7 @@ export interface KotakLabelProps {
   label: string;
   htmlFor?: string;
   /** Label transparan (tanpa bg): teks diakhiri titik dua ("Keaktifan:").
-   *  Bawaan false = label ber-bg. */
+   *  Bawaan true. */
   labelTransparan?: boolean;
   lebarLabel?: number | string;
   lebarKontrol?: number | string;
@@ -58,7 +58,7 @@ export interface KotakLabelProps {
  *  dropdown pada LabeledCombobox); ref-nya digabung dengan ref pengukuran
  *  internal agar keduanya menunjuk elemen yang sama. */
 const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLabel({
-  label, htmlFor, labelTransparan = false, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, onContextMenu,
+  label, htmlFor, labelTransparan = true, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, onContextMenu,
 }, refDepan) {
   const kontrolKunci = lebarKontrol !== undefined;
   /* Ruang tersisa di induk setelah label & border: kontrol menyusut agar kotak

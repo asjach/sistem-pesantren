@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
  *  - Tombol ber-id `<id>_kurang`/`<id>_tambah` (snake_case, ikut `htmlFor`).
  *  - KLIK KANAN pada kotak membuka popover pengaturan ukuran KOTAK (sama
  *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas. */
-export default function LabeledStepper({ label, htmlFor, labelTransparan = false, lebarLabel, lebarStepper, lebarKotak, tinggi = 26, className, kelolaLebar = true, value, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER, step = 1, disabled = false, onChange, ...props }: {
+export default function LabeledStepper({ label, htmlFor, labelTransparan = true, lebarLabel, lebarStepper, lebarKotak, tinggi = 26, className, kelolaLebar = true, value, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER, step = 1, disabled = false, onChange, ...props }: {
   label: string;
   htmlFor?: string;
   /** Label transparan (tanpa bg, teks bertitik dua); simpanan popover menang. */
