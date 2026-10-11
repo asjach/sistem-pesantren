@@ -1,20 +1,18 @@
-import { Children, cloneElement, isValidElement, useEffect, useRef, type CSSProperties, type ReactElement, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useRef, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Select, SelectTrigger } from '@/components/ui/select';
 import ComboCari from './ComboCari';
 import { LEBAR_BAWAHAN_FILTER } from './kelolaTabel/jenis';
-import { daftarkanFilter, hapusFilter, pakaiLebarFilter } from './excel/lebarFilter';
+import { pakaiLebarFilter } from './excel/lebarFilter';
 
 /** Pembungkus kontrol filter toolbar tabel: label kecil di atas kontrol.
  *
  *  Bila ter-render di dalam toolbar tabel (konteks lebar tersedia), punya
- *  `htmlFor`, dan `kelolaLebar` tidak dimatikan, filter otomatis terdaftar
- *  di section Toolbar dialog Kelola Tabel (kunci = `htmlFor`) dengan lebar bawaan
- *  terukur — dan override lebar tersimpan diterapkan ke kontrol anak via
- *  `style`. Tanpa override, anak Select/ComboCari diseragamkan 120px (bawaan toolbar);
- *  anak selain combobox (mis. input tanggal) memakai lebar alami. Kontrol
- *  bawaan toolbar (Urutkan, Kolom) mematikan ini karena lebarnya sudah
- *  diatur lewat jalur kontrol. Di luar toolbar: polos seperti semula. */
+ *  `htmlFor`, dan `kelolaLebar` tidak dimatikan, override lebar tersimpan
+ *  (dari popover klik-kanan kontrol) diterapkan ke kontrol anak via `style`.
+ *  Tanpa override, anak Select/ComboCari memakai `LEBAR_BAWAHAN_FILTER`;
+ *  anak selain combobox (mis. input tanggal) memakai lebar alami. Di luar
+ *  toolbar: polos seperti semula. */
 export default function FilterField({ label, htmlFor, children, className, kelolaLebar = true, sejajar = false }: {
   label: string;
   htmlFor?: string;
@@ -34,16 +32,6 @@ export default function FilterField({ label, htmlFor, children, className, kelol
   const anakCombobox = anakTunggal?.type === Select || anakTunggal?.type === ComboCari;
   const kunci = konteks && htmlFor && kelolaLebar && anakCombobox ? htmlFor : '';
   const override = kunci ? konteks?.lebar[kunci] : undefined;
-
-  useEffect(() => {
-    if (!konteks || !kunci) return;
-    const kontrol = ref.current?.querySelector<HTMLElement>('[data-slot="select-trigger"], [role="combobox"]');
-    const px = override === undefined && ref.current
-      ? Math.round(kontrol?.getBoundingClientRect().width ?? ref.current.offsetWidth)
-      : undefined;
-    daftarkanFilter(konteks.tableKey, kunci, label, px && px > 0 ? px : undefined);
-    return () => hapusFilter(konteks.tableKey, kunci);
-  }, [konteks, kunci, label, override]);
 
   let isi = children;
   const lebarBawaan = kunci && anakTunggal && anakCombobox ? LEBAR_BAWAHAN_FILTER : undefined;

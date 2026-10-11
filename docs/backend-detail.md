@@ -562,6 +562,9 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   Kolom (PresetUrut/PresetKolom) dilepas dari Kelola Tabel**: tak lagi muncul
   sebagai baris kontrol dan setelannya per perangkat; flag
   `urut_preset.opsi[].bawaan` & `preset_tabel.is_default` tak lagi dibaca.
+  **Tab "Toolbar" dialog Kelola Tabel dihapus** (semua kontrol kini tampil bila
+  halaman menyediakannya): `toolbar_preset.visibilitas` tak lagi ditulis/dibaca
+  frontend; lebar/tinggi tiap kontrol diatur dari popover klik-kanan.
 * Preset urut daftar (v2.73): allowlist kode urut = satu sumber di
   `App\Services\UrutKatalog` (`table_key` grid → `kode` → kolom ORDER BY),
   dipakai `UrutDaftar::parseUrut` semua controller sekaligus endpoint

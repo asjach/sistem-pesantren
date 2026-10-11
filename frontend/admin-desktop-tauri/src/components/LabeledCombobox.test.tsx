@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import LabeledCombobox, { hitungLebarKombo } from './LabeledCombobox';
-import { KonteksLebarFilter, daftarFilter } from '@/components/excel/lebarFilter';
+import { KonteksLebarFilter } from '@/components/excel/lebarFilter';
 import { jepitLebar, normalkanUkuran, simpanUkuranKombo, ukuranKombo } from '@/components/ukuranKombo';
 import {
   ComboboxContent, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -107,7 +107,7 @@ describe('LabeledCombobox', () => {
     expect(hitungLebarKombo(60, 80, 180)).toBe(40);
   });
 
-  it('di dalam toolbar: mendaftarkan lebar ke Kelola Tabel & memakai bawaan 160px', () => {
+  it('di dalam toolbar: kotak memakai lebar bawaan (160px)', () => {
     const tableKey = `uji_lc_${Date.now()}`;
     renderDenganTema(
       <KonteksLebarFilter.Provider value={{ tableKey, lebar: {} }}>
@@ -116,8 +116,7 @@ describe('LabeledCombobox', () => {
         </LabeledCombobox>
       </KonteksLebarFilter.Provider>,
     );
-    expect(daftarFilter(tableKey).map((f) => f.label)).toContain('Kelompok');
-    // LebarKelola Tabel applies ke KOTAK (label + combobox), bukan ke zona.
+    // Lebar bawaan berlaku ke KOTAK (label + combobox), bukan ke zona.
     const kotak = document.getElementById('kombo_uji')?.closest('span')?.parentElement as HTMLElement;
     expect(kotak.style.width).toBe('160px');
   });
@@ -135,7 +134,7 @@ describe('LabeledCombobox', () => {
     expect(kotak.style.width).toBe('240px');
   });
 
-  it('kelolaLebar={false}: tak terdaftar & lebar bebas', () => {
+  it('kelolaLebar={false}: lebar bebas (tanpa bawaan filter)', () => {
     const tableKey = `uji_lc_off_${Date.now()}`;
     renderDenganTema(
       <KonteksLebarFilter.Provider value={{ tableKey, lebar: {} }}>
@@ -144,7 +143,6 @@ describe('LabeledCombobox', () => {
         </LabeledCombobox>
       </KonteksLebarFilter.Provider>,
     );
-    expect(daftarFilter(tableKey)).toHaveLength(0);
     const kotak = document.getElementById('kombo_uji')?.closest('span')?.parentElement as HTMLElement;
     expect(kotak.style.width).toBe('');
   });

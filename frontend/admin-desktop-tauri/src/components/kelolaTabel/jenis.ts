@@ -1,22 +1,11 @@
 import { NILAI_DEFAULT_MAKS } from '@/components/ukuranKombo';
 
-/** Kunci kontrol toolbar generik yang bisa ditampil/sembunyikan per tabel.
- *  Kotak cari tidak ada lagi (pencarian tunggal di topBar). */
-export type KontrolToolbar = 'info' | 'urut' | 'kolom' | 'filter';
-
 export type AlignKolom = 'left' | 'center' | 'right';
-
-export const KONTROL_TOOLBAR: { kunci: KontrolToolbar; label: string; ket: string }[] = [
-  { kunci: 'filter', label: 'Filter halaman', ket: 'Combobox filter halaman' },
-];
 
 /** Lebar total BAWAAN kotak combobox filter (px) saat belum ada setelan
  *  tersimpan: dipakai `KotakLabel` (tanpa override) dan dropdown
  *  Urutkan/Kolom (`PresetUrut`/`PresetKolom`). */
 export const LEBAR_BAWAHAN_FILTER = 160;
-
-/** Status tampil per kontrol; absen/true/null = tampil, hanya false = sembunyi. */
-export type VisToolbar = Record<KontrolToolbar, boolean>;
 
 /** Prefiks kunci lebar filter halaman di peta `lebar` preset. */
 export const AWALAN_LEBAR_FILTER = 'filter.';
@@ -134,15 +123,6 @@ function bacaLebarSufiks(lebar: Record<string, number> | undefined, sufiks: stri
     if (/^[a-z0-9_]{1,60}$/.test(kunci)) hasil[kunci] = Math.min(maks, Math.max(min, Math.round(v)));
   }
   return hasil;
-}
-
-export function bacaVisToolbar(vis: Record<string, boolean> | undefined): VisToolbar {
-  return {
-    info: true,
-    urut: vis?.urut !== false,
-    kolom: vis?.kolom !== false,
-    filter: vis?.filter !== false,
-  };
 }
 
 /** Perataan kolom tersimpan (key kolom → left|center|right); kunci asing

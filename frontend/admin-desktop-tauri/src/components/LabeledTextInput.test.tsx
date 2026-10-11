@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 import LabeledTextInput, { hitungLebarInput } from './LabeledTextInput';
-import { KonteksLebarFilter, daftarFilter } from '@/components/excel/lebarFilter';
+import { KonteksLebarFilter } from '@/components/excel/lebarFilter';
 import { ukuranKombo } from '@/components/ukuranKombo';
 import { renderDenganTema } from '@/test/utils';
 
@@ -68,14 +68,13 @@ describe('LabeledTextInput', () => {
     expect((document.getElementById('inp_uji') as HTMLInputElement).className).not.toMatch(/pr-7/);
   });
 
-  it('di dalam toolbar: mendaftarkan lebar ke Kelola Tabel & memakai bawaan', () => {
+  it('di dalam toolbar: kotak memakai lebar bawaan (160px)', () => {
     const tableKey = `uji_lti_${Date.now()}`;
     renderDenganTema(
       <KonteksLebarFilter.Provider value={{ tableKey, lebar: {} }}>
         <LabeledTextInput label="Nama" htmlFor="inp_uji" />
       </KonteksLebarFilter.Provider>,
     );
-    expect(daftarFilter(tableKey).map((f) => f.label)).toContain('Nama');
     const kotak = document.getElementById('inp_uji')?.closest('span')?.parentElement as HTMLElement;
     expect(kotak.style.width).toBe('160px');
   });

@@ -289,7 +289,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
-  const { visToolbar, alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -1305,15 +1305,15 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const hasFilter = filter !== undefined;
   const hasUrut = !!onUrut;
-  const filterTampil = visToolbar.filter && hasFilter;
-  // Urutkan & Kolom tak lagi diatur dari Kelola Tabel: tampil selama halaman
-  // menyediakannya (komponennya sendiri menyembunyikan diri bila tak ada opsi).
+  // Kontrol toolbar tak lagi diatur dari Kelola Tabel (tab Toolbar dihapus) —
+  // semuanya tampil selama halaman menyediakannya.
+  const filterTampil = hasFilter;
   const urutTampil = hasUrut;
   const kolomTampil = !hidePreset;
   const aksiMassal = renderBulkActions && checkedRows.length > 0
     ? renderBulkActions(checkedRows, clearSelection)
     : null;
-  const infoHeader = visToolbar.info ? tengah ?? null : null;
+  const infoHeader = tengah ?? null;
   const adaKontrolJudul = aksiMassal != null
     || awalanToolbar !== undefined
     || akhirToolbar !== undefined

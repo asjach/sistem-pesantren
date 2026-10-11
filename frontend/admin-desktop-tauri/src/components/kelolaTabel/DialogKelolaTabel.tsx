@@ -33,7 +33,6 @@ import type { ExcelField } from '../excel/types';
 import TabKolom, { type TabKolomProps } from './TabKolom';
 import TabNamaPerataan from './TabNamaPerataan';
 import TabUrutan from './TabUrutan';
-import TabKontrol from './TabKontrol';
 import TabFilterTabel from './TabFilterTabel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVENT_PRESET_BERUBAH } from './jenis';
@@ -302,9 +301,9 @@ export default function DialogKelolaTabel({
   }, []);
   const registri = useRegistriBagian(lapor, daftarSimpan, daftarAksi);
   /** Urutan simpan: preset kolom dulu (membuat id bila preset baru),
-   *  lalu nama & perataan, urutan, toolbar; filter terakhir agar penanda
+   *  lalu nama & perataan, urutan; filter terakhir agar penanda
    *  halaman disegarkan setelah setelan lain selesai. */
-  const URUTAN_BAGIAN = ['kolom', 'tampilan', 'urutan', 'kontrol', 'filter'] as const;
+  const URUTAN_BAGIAN = ['kolom', 'tampilan', 'urutan', 'filter'] as const;
 
   /** Simpan semua bagian yang berubah, berurutan. Sukses semua = keluar
    *  dialog; ada yang gagal = tetap buka (galat sudah di-toast bagian). */
@@ -365,7 +364,7 @@ export default function DialogKelolaTabel({
   }, [adaFilter, tab]);
   /** Jumlah bagian yang belum tersimpan — dipakai badge di tab + footer. */
   const jumlahKotor = useMemo(
-    () => ['kolom', 'tampilan', 'urutan', 'kontrol', 'filter'].filter((id) => kotorBagian[id]).length,
+    () => ['kolom', 'tampilan', 'urutan', 'filter'].filter((id) => kotorBagian[id]).length,
     [kotorBagian],
   );
 
@@ -376,7 +375,7 @@ export default function DialogKelolaTabel({
           <DialogHeader className="shrink-0 gap-1 border-b px-4 py-3">
             <DialogTitle>Kelola tabel: {judul}</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Atur kolom, nama & perataan, urutan, toolbar, dan filter tabel ini. Setiap tab tersimpan
+              Atur kolom, nama & perataan, urutan, dan filter tabel ini. Setiap tab tersimpan
               sendiri lewat tombol Simpan di bawah.
             </DialogDescription>
           </DialogHeader>
@@ -386,7 +385,6 @@ export default function DialogKelolaTabel({
               <TabBagian id="kolom" label="Kolom" kotor={!!kotorBagian.kolom} />
               <TabBagian id="tampilan" label="Nama & Perataan" kotor={!!kotorBagian.tampilan} />
               <TabBagian id="urutan" label="Urutan" kotor={!!kotorBagian.urutan} />
-              <TabBagian id="kontrol" label="Toolbar" kotor={!!kotorBagian.kontrol} />
               {adaFilter && <TabBagian id="filter" label="Filter" kotor={!!kotorBagian.filter} />}
             </TabsList>
 
@@ -419,12 +417,6 @@ export default function DialogKelolaTabel({
             <TabsContent value="urutan" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
               <Bagian id="bagian_urutan_tabel" judul="Urutan">
                 <TabUrutan key={tableKey} tableKey={tableKey} />
-              </Bagian>
-            </TabsContent>
-
-            <TabsContent value="kontrol" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
-              <Bagian id="bagian_toolbar_tabel" judul="Toolbar" aksi={aksiBagian.kontrol}>
-                <TabKontrol key={tableKey} tableKey={tableKey} />
               </Bagian>
             </TabsContent>
 

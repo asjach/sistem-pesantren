@@ -114,7 +114,7 @@ describe('DialogKelolaTabel — navigasi tab', () => {
   it('menampilkan tab untuk tiap bagian, dan tab Filter hanya bila ada filter', async () => {
     renderDialog();
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent?.replace(/\s+/g, ' ').trim());
-    expect(tabs).toEqual(['Kolom', 'Nama & Perataan', 'Urutan', 'Toolbar']);
+    expect(tabs).toEqual(['Kolom', 'Nama & Perataan', 'Urutan']);
 
     await waitFor(() => expect(screen.getByLabelText('Kolom')).toBeInTheDocument());
   });

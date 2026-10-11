@@ -676,7 +676,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 ### `toolbar_preset` (visibilitas/lebar/tinggi/urutan/perataan toolbar & kolom, global per `table_key`)
 - `id` PK
 - `table_key`: string(60) [unik]
-- `visibilitas`: json — peta kontrol → bool; hanya `false` yang menyembunyikan (absen = tampil)
+- `visibilitas`: json — peta kontrol → bool; hanya `false` yang menyembunyikan (absen = tampil). **Tak lagi ditulis/dibaca frontend** (tab Toolbar dialog Kelola Tabel dihapus — kontrol selalu tampil); data lama diabaikan
 - `lebar`: json [null] — peta kontrol → lebar px (kunci `filter.<htmlFor>`; kunci lama `urut`/`kolom` tak lagi ditulis); absen = bawaan frontend. Ditulis dari popover klik-kanan combobox (semua pengguna), bukan hanya super_admin
 - `tinggi`: json [null] — peta kontrol → tinggi px (kunci sama dengan `lebar`); absen = tinggi bawaan komponen (26px). Juga ditulis dari popover klik-kanan combobox
 - `nilai_default`: json [null] — peta kontrol → label opsi yang jadi nilai AWAL combobox (kunci sama dengan `lebar`); absen = pakai nilai dari pemanggil. Ditulis dari popover klik-kanan combobox (semua pengguna)

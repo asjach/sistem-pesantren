@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useLayoutEffect, useRef, useState, type MutableRefObject, type MouseEventHandler, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { LEBAR_BAWAHAN_FILTER } from '@/components/kelolaTabel/jenis';
-import { daftarkanFilter, hapusFilter, pakaiLebarFilter } from '@/components/excel/lebarFilter';
+import { pakaiLebarFilter } from '@/components/excel/lebarFilter';
 
 /** Satuan CSS: angka = px, string dipakai apa adanya. */
 export function keCss(v: number | string): string {
@@ -98,22 +98,12 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
     ? (lebarEfektif === null ? keCss(lebarKontrol) : `${lebarEfektif}px`)
     : undefined;
 
-  /* Pendaftaran ke Kelola Tabel: di dalam toolbar tabel (ada konteks), lebar
-     KOTAK (label + kontrol) dapat override tersimpan per filter (kunci =
-     htmlFor). Tanpa override, diseragamkan LEBAR_BAWAHAN_FILTER (sama
+  /* Override lebar KOTAK dari Kelola Tabel (di dalam toolbar tabel, kunci =
+     `htmlFor`). Tanpa override, kotak memakai LEBAR_BAWAHAN_FILTER (sama
      seperti FilterField). Lebar yang dikunci eksplisit tetap menang. */
   const konteks = pakaiLebarFilter();
   const kunci = konteks && htmlFor && kelolaLebar ? htmlFor : '';
   const override = kunci ? konteks?.lebar[kunci] : undefined;
-  useLayoutEffect(() => {
-    if (!konteks || kunci === '') return;
-    const kotak = refKotak.current;
-    const px = override === undefined && kotak !== null
-      ? Math.round(kotak.getBoundingClientRect().width)
-      : undefined;
-    daftarkanFilter(konteks.tableKey, kunci, label, px && px > 0 ? px : undefined);
-    return () => hapusFilter(konteks.tableKey, kunci);
-  }, [konteks, kunci, label, override]);
   const lebarKotakEfektif = lebarKotak ?? (kunci === '' || kontrolKunci
     ? undefined
     : override ?? LEBAR_BAWAHAN_FILTER);

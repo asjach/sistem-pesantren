@@ -18,25 +18,21 @@ import {
   bacaLebarLabelFilter,
   bacaNilaiDefault,
   bacaTinggiFilter,
-  bacaVisToolbar,
   kabariToolbar,
   kunciUkuranServer,
   type AlignKolom,
-  type VisToolbar,
 } from '@/components/kelolaTabel/jenis';
 
 /**
- * State + pemuatan preset toolbar per tabel: visibilitas kontrol (info/filter),
- * urutan kolom tersimpan di DB, perataan kolom global, dan setelan ukuran
- * combobox filter halaman. Dimuat ulang otomatis saat event
- * EVENT_TOOLBAR_BERUBAH untuk tableKey yang sama.
+ * State + pemuatan preset toolbar per tabel: urutan kolom tersimpan di DB,
+ * perataan kolom global, dan setelan ukuran combobox filter halaman. Dimuat
+ * ulang otomatis saat event EVENT_TOOLBAR_BERUBAH untuk tableKey yang sama.
  *
- * Dropdown Urutkan & Kolom (PresetUrut/PresetKolom) SENGAJA tidak lagi dikelola
- * di sini: setelan kotaknya per perangkat (`ukuranKombo.ts`), bukan server.
+ * Tab Toolbar (visibilitas kontrol) sudah dihapus: tampil/sembunyi kontrol tak
+ * lagi diatur dari Kelola Tabel, dan dropdown Urutkan & Kolom (PresetUrut/
+ * PresetKolom) setelannya per perangkat (`ukuranKombo.ts`).
  */
 export function useToolbarPresetState(tableKey: string) {
-  /** Visibilitas kontrol toolbar generik (section Toolbar dialog Kelola Tabel). */
-  const [visToolbar, setVisToolbar] = useState<VisToolbar>({ info: true, urut: true, kolom: true, filter: true });
   /** Lebar filter halaman tersimpan (kunci → px); absen = bawaan halaman. */
   const [lebarFilter, setLebarFilter] = useState<Record<string, number>>({});
   /** Peta lebar MENTAH dari server (kunci `urut`/`kolom`/`filter.<htmlFor>`),
@@ -153,7 +149,6 @@ export function useToolbarPresetState(tableKey: string) {
       try {
         const res = await muatToolbarPreset(tableKey);
         if (batal) return;
-        setVisToolbar(bacaVisToolbar(res.data.visibilitas));
         setLebarFilter(bacaLebarFilter(res.data.lebar));
         setTinggiApi(res.data.tinggi ?? {});
         setLebarApi(res.data.lebar ?? {});
@@ -166,7 +161,6 @@ export function useToolbarPresetState(tableKey: string) {
         setUrutanDb(Array.isArray(res.data.urutan) ? res.data.urutan : []);
       } catch {
         if (batal) return;
-        setVisToolbar({ info: true, urut: true, kolom: true, filter: true });
         setLebarFilter({});
         setTinggiApi({});
         setLebarApi({});
@@ -221,5 +215,5 @@ export function useToolbarPresetState(tableKey: string) {
       });
   }, [tableKey]);
 
-  return { visToolbar, lebarFilter, alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter };
+  return { lebarFilter, alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter };
 }
