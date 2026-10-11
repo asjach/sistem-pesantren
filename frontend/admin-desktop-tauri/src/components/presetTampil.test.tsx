@@ -29,6 +29,7 @@ vi.mock('@/api/preset', async (importOriginal) => {
 
 import PresetUrut from './PresetUrut';
 import PresetKolom from './PresetKolom';
+import { simpanUkuranKombo } from './ukuranKombo';
 
 const FIELDS = [{ key: 'a', label: 'A' }] as ExcelField[];
 
@@ -80,6 +81,25 @@ describe('dropdown Urutkan — tampil hanya bila pilihan > 1', () => {
   it('tetap tampil saat urutan sedang aktif walau tanpa preset (arah bisa dibalik)', async () => {
     presetUrut([], ['a']);
     expect(await screen.findByText('Urutkan:')).toBeInTheDocument();
+  });
+});
+
+describe('dropdown Urutkan — nilai awal dari popover', () => {
+  it('menerapkan nilai awal saat preset termuat (bukan hanya tampilannya)', async () => {
+    const tableKey = `uji_awal_${Date.now()}`;
+    simpanUkuranKombo(`select_urut_${tableKey}`, { nilaiDefault: 'Kelas' });
+    const onUrut = vi.fn();
+    muatUrutPreset.mockResolvedValue({
+      pesan: 'ok',
+      data: {
+        table_key: tableKey,
+        opsi: [{ kode: ['a'], label: 'Nama' }, { kode: ['b'], label: 'Kelas' }],
+        tersedia: [],
+      },
+    });
+    renderDenganTema(<PresetUrut tableKey={tableKey} urutAktif={[]} arahUrut="naik" onUrut={onUrut} />);
+
+    await waitFor(() => expect(onUrut).toHaveBeenCalledWith(['b'], 'naik', undefined));
   });
 });
 

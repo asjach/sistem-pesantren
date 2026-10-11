@@ -68,6 +68,14 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>(awalArah);
   /** Arah per kode urut (dari preset dengan arah_kolom) — menyertai urut aktif. */
   const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
+  /* Cermin SINKRON state urut & pencarian. `load` bisa dipanggil dari closure
+     lama (mis. efek muat awal yang sudah terjadwal sebelum nilai default
+     diterapkan) — tanpa cermin ini, muat itu memakai urut KOSONG dan menimpa
+     hasil yang sudah urut default (bug: nilai awal tak bertahan saat refresh). */
+  const urutRef = useRef(urut);
+  const arahRef = useRef(arahUrut);
+  const arahKolomRef = useRef(arahKolom);
+  const searchRef = useRef(searchTertunda);
   const [rows, setRows] = useState<T[]>([]);
   const pager = usePager(tableKey);
   const [lastPage, setLastPage] = useState(1);
@@ -81,6 +89,11 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   ambilRef.current = ambil;
   const onDataRef = useRef(onData);
   onDataRef.current = onData;
+  // Sinkronkan cermin tiap render (nilai default/urut terbaru).
+  urutRef.current = urut;
+  arahRef.current = arahUrut;
+  arahKolomRef.current = arahKolom;
+  searchRef.current = searchTertunda;
 
   const load = useCallback(
     async function loadPage(p = pager.page, pp = pager.perPage, o?: OpsiMuatUrut) {
@@ -92,15 +105,15 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
       setErr('');
       setLoading(true);
       try {
-        const u = o?.urut ?? urut;
-        const a = o?.arah ?? arahUrut;
-        const ak = o?.arahKolom ?? arahKolom;
+        const u = o?.urut ?? urutRef.current;
+        const a = o?.arah ?? arahRef.current;
+        const ak = o?.arahKolom ?? arahKolomRef.current;
         // Arah per kode ditokenkan ke `sort` (`kode:naik`/`kode:turun`) —
         // backend mengenali sufiks sehingga halaman tak perlu meneruskan
         // field terpisah; kode tanpa pengaturan mengikuti `arah` global.
         const token = tokenUrut(u, ak);
         const res = await ambilRef.current({
-          search: searchTertunda, page: p, perPage: pp, urut: token, arah: a, arahKolom: ak, signal: ac.signal,
+          search: searchRef.current, page: p, perPage: pp, urut: token, arah: a, arahKolom: ak, signal: ac.signal,
         });
         if (req !== reqRef.current) return;
         const fix = pager.sync(res.current_page, res.last_page);
@@ -121,16 +134,21 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [searchTertunda, urut, arahUrut, arahKolom, pager.page, pager.perPage, pager.sync],
+    [pager.page, pager.perPage, pager.sync],
   );
 
   /**
    * Ubah urutan (dropdown Urutkan / header): simpan lalu muat ulang halaman 1.
    * `arahKolom` opsional = arah per kode dari preset (menimpa arah global).
+   * Cermin ref diisi SINKRON agar muat berikutnya (termasuk dari closure lama)
+   * langsung memakai urutan baru.
    */
   const terapkanUrut = useCallback(
     (nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) => {
       const peta = nilai.length > 0 ? arahKolomBaru : undefined;
+      urutRef.current = nilai;
+      arahRef.current = arah;
+      arahKolomRef.current = peta;
       setUrut(nilai);
       setArahUrut(arah);
       setArahKolom(peta);
