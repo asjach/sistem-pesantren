@@ -212,7 +212,7 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
             </Button>
           </PopoverClose>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
         <BarisUkuran
           id={`set_tinggi_kombo_${kunci}`}
           teks="Tinggi"
@@ -231,27 +231,6 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
               title={`Tinggi kotak ${nama} (px)`}
               ariaLabel={`Tinggi kotak ${nama} (px)`}
               onChange={(n) => onUbah({ tinggi: n })}
-            />
-          }
-        />
-        <BarisUkuran
-          id={`set_lebar_kombo_${kunci}`}
-          teks="Total"
-          resetId={`btn_reset_lebar_kombo_${kunci}`}
-          resetLabel="Kembalikan lebar total ke bawaan"
-          adaAturan={adaLebar}
-          onReset={() => onResetBaris('lebar')}
-          stepper={
-            <SpinBox
-              id={`set_lebar_kombo_${kunci}`}
-              value={lebar}
-              min={LEBAR_KOMBO_MIN}
-              max={LEBAR_KOMBO_MAKS}
-              step={LANGKAH_LEBAR}
-              lebar={LEBAR_STEPPER}
-              title={`Lebar total kotak ${nama} — label + kontrol (px)`}
-              ariaLabel={`Lebar kotak ${nama} (px)`}
-              onChange={ubahTotal}
             />
           }
         />
@@ -297,6 +276,27 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
             />
           }
         />
+        <BarisUkuran
+          id={`set_lebar_kombo_${kunci}`}
+          teks="Total"
+          resetId={`btn_reset_lebar_kombo_${kunci}`}
+          resetLabel="Kembalikan lebar total ke bawaan"
+          adaAturan={adaLebar}
+          onReset={() => onResetBaris('lebar')}
+          stepper={
+            <SpinBox
+              id={`set_lebar_kombo_${kunci}`}
+              value={lebar}
+              min={LEBAR_KOMBO_MIN}
+              max={LEBAR_KOMBO_MAKS}
+              step={LANGKAH_LEBAR}
+              lebar={LEBAR_STEPPER}
+              title={`Lebar total kotak ${nama} — label + kontrol (px)`}
+              ariaLabel={`Lebar kotak ${nama} (px)`}
+              onChange={ubahTotal}
+            />
+          }
+        />
         </div>
         <div aria-hidden className="border-t border-foreground/10" />
         <div className="flex min-h-6 flex-wrap items-center gap-1.5">
@@ -315,6 +315,11 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
             aktif={!expandLabel}
             onPilih={() => onUbah({ expandLabel: false })}
           />
+        </div>
+        {/* "Label transparan" dikelompokkan di bawah tema Mengembang, pada baris
+            tersendiri yang bertanda "Warna Label:". */}
+        <div className="flex items-center gap-1.5">
+          <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground">Warna Label:</span>
           <Pil
             id={`set_label_transparan_kombo_${kunci}`}
             teks="Label transparan"
