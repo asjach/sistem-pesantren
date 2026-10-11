@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import LabeledTextInput from '@/components/LabeledTextInput';
 import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -526,32 +525,25 @@ export default function UsersPage() {
                   <p className="text-xs text-muted-foreground">
                     {isSuper ? 'Pilih 1 atau lebih (5 opsi).' : 'Pilih 1 atau lebih (5 opsi — termasuk admin untuk lembaga Anda).'}
                   </p>
-                  {/* Chip Role memakai ToggleGroup (type="multiple"): status
-                      seleksi lewat `data-state=on` + `aria-pressed` bawaan Radix
-                      — TIDAK bergantung pada `<form>` seperti `has-checked:`
-                      (yang butuh input tersembunyi Radix Checkbox). `spacing={2}`
-                      + `rounded-full`: bawaan `spacing=0` menyatukan item
-                      (`rounded-none`) sehingga tak lagi berbentuk pil. */}
-                  <ToggleGroup
-                    id="group_role_baru"
-                    type="multiple"
-                    spacing={2}
-                    value={newRoles}
-                    onValueChange={setNewRoles}
-                    aria-label="Role"
-                    className="w-full flex-wrap"
-                  >
+                  {/* Chip pil: `<label>` + `Checkbox` Radix, status aktif lewat
+                      `has-checked:` (butuh `<form>` leluhur agar Radix merender
+                      input tersembunyinya — di sini ada, `form_tambah_user`).
+                      Sama persis dengan chip Lembaga di bawah. */}
+                  <div id="group_role_baru" className="flex flex-wrap gap-2">
                     {creatable.map((r) => (
-                      <ToggleGroupItem
+                      <label
                         key={r}
-                        id={`check_role_baru_${r}`}
-                        value={r}
-                        className="h-6 rounded-full border bg-card px-3 py-0 text-xs font-normal data-[state=on]:border-primary data-[state=on]:bg-accent data-[state=on]:font-semibold"
+                        htmlFor={`check_role_baru_${r}`}
+                        className="inline-flex h-6 min-w-32 cursor-pointer items-center gap-2 rounded-pil border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                       >
-                        {r}
-                      </ToggleGroupItem>
+                        <Checkbox
+                          id={`check_role_baru_${r}`}
+                          checked={newRoles.includes(r)}
+                          onCheckedChange={() => setNewRoles((s) => toggle(s, r))}
+                        /> {r}
+                      </label>
                     ))}
-                  </ToggleGroup>
+                  </div>
                 </div>
 
                 <FieldLabel className="self-start pt-1.5">Lembaga</FieldLabel>
@@ -562,7 +554,7 @@ export default function UsersPage() {
                       <label
                         key={l.jenjang}
                         htmlFor={`check_lembaga_baru_${l.jenjang}`}
-                        className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                        className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-pil border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                       >
                         <Checkbox
                           id={`check_lembaga_baru_${l.jenjang}`}
@@ -676,7 +668,7 @@ export default function UsersPage() {
                   <label
                     key={r}
                     htmlFor={`check_ubah_role_${r}`}
-                    className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                    className="inline-flex h-6 min-w-32 cursor-pointer items-center gap-2 rounded-pil border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                   >
                     <Checkbox
                       id={`check_ubah_role_${r}`}
@@ -693,7 +685,7 @@ export default function UsersPage() {
                 <label
                   key={l.jenjang}
                   htmlFor={`check_ubah_lembaga_${l.jenjang}`}
-                  className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-full border bg-card px-3.5 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                  className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-pil border bg-card px-3.5 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
                 >
                   <Checkbox
                     id={`check_ubah_lembaga_${l.jenjang}`}

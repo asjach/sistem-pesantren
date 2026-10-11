@@ -16,7 +16,16 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxRoot,
+  ComboboxTrigger,
+} from '@/components/ui/combobox';
+import LabeledCombobox from '@/components/LabeledCombobox';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -39,6 +48,13 @@ const FIELDS_RIWAYAT: ExcelField[] = [
   { key: 'status_awal', label: 'status_awal', width: 130, kind: 'static' },
   { key: 'status_akhir', label: 'status_akhir', width: 130, kind: 'static' },
   { key: 'is_active_riwayat', label: 'AKTIF', width: 130, kind: 'static',  },
+];
+
+/** Opsi filter keaktifan (berdasar `status_akhir`). */
+const OPSI_KEAKTIFAN = [
+  { nilai: 'semua', label: 'Semua' },
+  { nilai: 'aktif', label: 'Aktif' },
+  { nilai: 'nonaktif', label: 'Tidak aktif' },
 ];
 
 function riwayatBelajarValues(r: RiwayatRow): Record<string, string | null> {
@@ -314,21 +330,28 @@ export default function RiwayatBelajarPage() {
                tableKey="riwayat_belum_masuk"
                rail
                  header={<span>Semester Ganjil</span>}
-                 filter={(
-                   <FilterField label="Keaktifan" htmlFor="select_keaktifan_riwayat_belajar">
-                     <Select value={keaktifan} onValueChange={ubahKeaktifan}>
-                       <SelectTrigger id="select_keaktifan_riwayat_belajar" title="Filter status akhir" aria-label="Filter keaktifan" size="sm">
-                         <SelectValue />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectGroup>
-                           <SelectItem value="semua">Semua</SelectItem>
-                           <SelectItem value="aktif">Aktif</SelectItem>
-                           <SelectItem value="nonaktif">Tidak aktif</SelectItem>
-                         </SelectGroup>
-                       </SelectContent>
-                     </Select>
-                   </FilterField>
+                 /* LabeledCombobox (bukan FilterField+Select) agar kotaknya bisa
+                   diatur lebar/tingginya lewat popover klik-kanan. */
+                filter={(
+                   <LabeledCombobox label="Keaktifan" htmlFor="select_keaktifan_riwayat_belajar">
+                     <ComboboxRoot
+                       items={OPSI_KEAKTIFAN}
+                       autoHighlight
+                       itemToStringLabel={(o) => o.label}
+                       isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                       value={OPSI_KEAKTIFAN.find((o) => o.nilai === keaktifan) ?? OPSI_KEAKTIFAN[0]}
+                       onValueChange={(o) => { if (o !== null) ubahKeaktifan(o.nilai); }}
+                     >
+                       <ComboboxInput id="select_keaktifan_riwayat_belajar" aria-label="Filter keaktifan" placeholder="Pilih keaktifan…" />
+                       <ComboboxTrigger aria-label="Buka daftar keaktifan" />
+                       <ComboboxContent>
+                         <ComboboxEmpty>Tidak ada pilihan.</ComboboxEmpty>
+                         <ComboboxList>
+                           {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                         </ComboboxList>
+                       </ComboboxContent>
+                     </ComboboxRoot>
+                   </LabeledCombobox>
                  )}
                   addButton={canPindah ? (
                     <Tooltip>

@@ -33,18 +33,19 @@ import type { DokumenSantri } from '../api/santri';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxRoot,
+  ComboboxTrigger,
+} from '@/components/ui/combobox';
+import LabeledCombobox from '@/components/LabeledCombobox';
 import ExcelTable from '@/components/ExcelTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
-import FilterField from '@/components/FilterField';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -82,6 +83,13 @@ import {
 import { DialogBulkHasil, DialogBulkKonfirmasi } from '@/components/psb/dialogBulk';
 import { DialogDokumenCalon, DialogTambahPendaftar } from '@/components/psb/dialogTambahDanDokumen';
 import { DialogImportPsb } from '@/components/psb/dialogImport';
+
+/** Opsi filter status pendaftar; `_semua` = tanpa filter (nilai bawaan ''). */
+const OPSI_SUBSTATUS = [
+  { nilai: '_semua', label: 'Semua' },
+  { nilai: 'baru', label: 'Baru' },
+  { nilai: 'waiting_list', label: 'Waiting list' },
+];
 
 // 100 PSB: antrean per tahapan timeline + verifikasi/seleksi/ACC/tolak/promosi + dokumen + import.
 // Satu halaman dengan 6 tab tahap (rute memasok `tahap`; tab mengubah rute).
@@ -663,24 +671,28 @@ export default function PsbPage() {
         ) : undefined}
         filter={(
           <>
+            {/* LabeledCombobox (bukan FilterField+Select) agar kotaknya bisa
+                diatur lebar/tingginya lewat popover klik-kanan. */}
             {stage === 'pendaftar' && (
-              <FilterField label="Status pendaftar" htmlFor="select_substatus_pendaftar">
-              <Select
-                value={subStatus === '' ? '_semua' : subStatus}
-                onValueChange={(v) => { setSubStatus(v); pager.goFirst(); }}
-              >
-                <SelectTrigger id="select_substatus_pendaftar" title="Filter status pendaftar" aria-label="Filter status pendaftar" size="sm" className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="_semua">Semua</SelectItem>
-                    <SelectItem value="baru">Baru</SelectItem>
-                    <SelectItem value="waiting_list">Waiting list</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              </FilterField>
+              <LabeledCombobox label="Status pendaftar" htmlFor="select_substatus_pendaftar">
+                <ComboboxRoot
+                  items={OPSI_SUBSTATUS}
+                  autoHighlight
+                  itemToStringLabel={(o) => o.label}
+                  isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                  value={OPSI_SUBSTATUS.find((o) => o.nilai === (subStatus === '' ? '_semua' : subStatus)) ?? OPSI_SUBSTATUS[0]}
+                  onValueChange={(o) => { if (o !== null) { setSubStatus(o.nilai); pager.goFirst(); } }}
+                >
+                  <ComboboxInput id="select_substatus_pendaftar" aria-label="Filter status pendaftar" placeholder="Pilih status…" />
+                  <ComboboxTrigger aria-label="Buka daftar status pendaftar" />
+                  <ComboboxContent>
+                    <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </ComboboxRoot>
+              </LabeledCombobox>
             )}
             <label htmlFor="chk_tampil_terhapus_psb" className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
               <Checkbox

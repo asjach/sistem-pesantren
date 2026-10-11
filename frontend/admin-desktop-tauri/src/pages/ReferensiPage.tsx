@@ -18,17 +18,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldDescription, FieldLabel } from '@/components/ui/field';
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxRoot,
+  ComboboxTrigger,
+} from '@/components/ui/combobox';
+/* Masih dipakai Select di form dialog "Tambah entri" (bukan filter toolbar). */
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
-import FilterField from '@/components/FilterField';
+import LabeledCombobox from '@/components/LabeledCombobox';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -395,22 +398,30 @@ export default function ReferensiPage() {
         onSaved={reload}
         filter={(
           <>
-            <FilterField label="Tipe kamus" htmlFor="select_tipe">
-             <Select value={tipe} onValueChange={(v) => {
-               setTipe(v);
-               setSearch('');
-               prefSet(TIPE_AKTIF_KEY, v).catch(() => {});
-             }}>
-              <SelectTrigger id="select_tipe" title="Tipe kamus" aria-label="Tipe kamus" size="sm" className="w-44">
-                <SelectValue placeholder="Pilih tipe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {types.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            </FilterField>
+            {/* LabeledCombobox (bukan FilterField+Select) agar kotaknya bisa
+                diatur lebar/tingginya lewat popover klik-kanan. */}
+            <LabeledCombobox label="Tipe kamus" htmlFor="select_tipe">
+              <ComboboxRoot
+                items={types}
+                autoHighlight
+                value={tipe}
+                onValueChange={(v) => {
+                  if (v === null) return;
+                  setTipe(v);
+                  setSearch('');
+                  prefSet(TIPE_AKTIF_KEY, v).catch(() => {});
+                }}
+              >
+                <ComboboxInput id="select_tipe" aria-label="Tipe kamus" placeholder="Pilih tipe" />
+                <ComboboxTrigger aria-label="Buka daftar tipe kamus" />
+                <ComboboxContent>
+                  <ComboboxEmpty>Tidak ada tipe.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(t) => <ComboboxItem key={t} value={t}>{t}</ComboboxItem>}
+                  </ComboboxList>
+                </ComboboxContent>
+              </ComboboxRoot>
+            </LabeledCombobox>
           </>
         )}
         addButton={bisa(me, 'referensi.tambah') ? (
