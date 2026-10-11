@@ -488,6 +488,8 @@ describe('LabeledCombobox', () => {
     const input = document.getElementById(kunci) as HTMLInputElement;
     // Nilai awal menang atas `value` pemanggil ("Opsi A").
     expect(input.value).toBe('Opsi B');
+    // Nilai awal juga DITERAPKAN ke pemanggil sekali (jadi penentu default).
+    await waitFor(() => expect(padaUbah).toHaveBeenCalledWith('Opsi B'));
 
     // Pengguna tetap bisa mengubah; perubahan diteruskan ke pemanggil.
     await userEvent.click(input);

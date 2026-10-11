@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   arahKolomDariOpsi,
   muatUrutPreset,
@@ -11,7 +11,6 @@ import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
 import TombolIkon from '@/components/TombolIkon';
-import { Pin } from '@/icons';
 
 /** Segitiga penuh untuk tombol arah urutan (naik/turun). SVG-inline supaya
  *  benar-benar terisi penuh — ikon garis tak cukup untuk arah sortasi. */
@@ -30,14 +29,16 @@ const TANPA = '_tanpa';
  *  Pengelolaan opsi hanya lewat dialog Kelola Tabel (section Urutan).
  *  Opsi dengan `arah_kolom` mengirim arah per kode ke `onUrut` (token
  *  `kode:arah`) sehingga tiap kolom bisa beda orientasi (mis. aktif DESC,
- *  nama ASC). */ 
+ *  nama ASC).
+ *  Nilai AWAL (urutan yang dipakai saat halaman dibuka) ditentukan lewat
+ *  "Nilai awal" di popover pengaturan kotak (klik-kanan), BUKAN lewat preset
+ *  `bawaan`. */ 
 export default function PresetUrut({
   tableKey,
   urutAktif,
   arahUrut = 'naik',
   onUrut,
   wrapperClassName,
-  lebarTrigger,
 }: {
   tableKey: string;
   urutAktif?: string[];
@@ -45,12 +46,8 @@ export default function PresetUrut({
   /** `arahKolom` = arah per kode (bila opsi preset punya pengaturan sendiri). */
   onUrut?: (nilai: string[], arah: 'naik' | 'turun', arahKolom?: Record<string, ArahUrut>) => void;
   wrapperClassName?: string;
-  /** Lebar trigger dropdown (px) dari tab Kontrol; kosong = 100 bawaan. */
-  lebarTrigger?: number;
 }) {
   const [data, setData] = useState<PresetUrutData | null>(null);
-  /** table_key yang opsi bawaannya sudah diterapkan (sekali per tabel). */
-  const sudahRef = useRef('');
   /** Sudah selesai muat pertama? Dipakai gerbang tampil/sembunyi dropdown. */
   const [muatSelesai, setMuatSelesai] = useState(false);
   const [gagalMuat, setGagalMuat] = useState(false);
@@ -72,27 +69,12 @@ export default function PresetUrut({
 
   useEffect(() => {
     void muat();
-    sudahRef.current = '';
   }, [muat]);
 
   const opsi = data?.opsi ?? [];
   const kunciAktif = (urutAktif ?? []).join(',');
   const idxAktif = opsi.findIndex((o) => o.kode.join(',') === kunciAktif);
   const nilaiSelect = idxAktif >= 0 ? String(idxAktif) : kunciAktif === '' ? TANPA : '';
-
-  // Terapkan opsi bawaan sekali saat preset termuat & halaman belum punya urutan.
-  // (Bila hook data sudah membenihkan urutan yang sama, penjaga urutAktif
-  // di bawah membuatnya nir-op: tidak ada muat ulang kedua.)
-  useEffect(() => {
-    if (!data || !onUrut) return;
-    if ((urutAktif ?? []).length > 0 || sudahRef.current === tableKey) return;
-    sudahRef.current = tableKey;
-    const bawaan = data.opsi.find((o) => o.bawaan);
-    if (bawaan) {
-      const globalArah = bawaan.arah ?? arahUrut ?? 'naik';
-      onUrut(bawaan.kode, globalArah, arahKolomDariOpsi(bawaan));
-    }
-  }, [data, tableKey, urutAktif, arahUrut, onUrut]);
 
   function pilihNilai(v: string) {
     if (v === TANPA) {
@@ -127,8 +109,10 @@ export default function PresetUrut({
       htmlFor={`select_urut_${tableKey}`}
       kelolaLebar={false}
       /* Lebar tersimpan untuk SELURUH kontrol Urutkan; label mengikuti
-         panjang teksnya, sisa lebar diisi combobox. */
-      lebarKotak={lebarTrigger ?? LEBAR_BAWAHAN_FILTER}
+         panjang teksnya, sisa lebar diisi combobox. Lebar tak lagi dari
+         preset toolbar (lepas dari Kelola Tabel) — bawaan tetap, bisa
+         diubah per perangkat lewat popover klik-kanan. */
+      lebarKotak={LEBAR_BAWAHAN_FILTER}
       /* `gap-0 items-stretch`: kelas wrapper bawaan (`gap-1.5 items-center`)
          untuk mode klasik (label di samping kontrol). Label & zona harus
          menempel dan sama tinggi — kalau `items-center`, label hanya setinggi
@@ -166,16 +150,7 @@ export default function PresetUrut({
         <ComboboxContent>
           <ComboboxEmpty>Tidak ada opsi urutan.</ComboboxEmpty>
           <ComboboxList>
-            {(o) => (
-              <ComboboxItem key={o.nilai} value={o}>
-                {o.nilai === TANPA ? o.label : (opsi[Number(o.nilai)]?.bawaan ? (
-                  <span className="flex items-center gap-1.5">
-                    <Pin size={12} className="shrink-0 text-muted-foreground" aria-label="Urutan bawaan" />
-                    {o.label}
-                  </span>
-                ) : o.label)}
-              </ComboboxItem>
-            )}
+            {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
           </ComboboxList>
         </ComboboxContent>
       </ComboboxRoot>

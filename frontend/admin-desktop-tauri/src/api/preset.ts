@@ -72,10 +72,3 @@ export function setPresetAktif(
     }),
   });
 }
-
-export function setPresetBawaan(id: number, bawaan: boolean) {
-  return api<{ pesan: string }>(`/admin/preset-tabel/${id}/bawaan`, {
-    method: 'POST',
-    body: JSON.stringify({ bawaan }),
-  });
-}

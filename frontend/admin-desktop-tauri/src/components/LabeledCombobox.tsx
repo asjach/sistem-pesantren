@@ -41,9 +41,11 @@ function suntikGaya(node: ReactNode, jenis: unknown, kelas: string, gaya?: Recor
  *  - `bisaCari` mengaktifkan pengetikan untuk mencari; bawaan mati (input
  *    read-only, tanpa caret berkedip).
  *  - KLIK KANAN pada kotak membuka popover pengaturan ukuran KOTAK (tinggi &
- *    lebar). Di dalam toolbar tabel nilainya disimpan ke SERVER (global per
- *    tabel, lihat `useToolbarPreset`); di luar itu disimpan per perangkat
- *    (`ukuranKombo.ts`).
+ *    lebar) + "Nilai awal": opsi yang dipakai sebagai default combobox ini.
+ *    Nilai awal menentukan default (diterapkan ke pemanggil sekali), lalu
+ *    pengguna tetap bisa mengubahnya. Di dalam toolbar tabel nilainya disimpan
+ *    ke SERVER (global per tabel, lihat `useToolbarPreset`); di luar itu
+ *    disimpan per perangkat (`ukuranKombo.ts`).
  *  - Anak idealnya satu `ComboboxRoot`; kontrol lain dirender apa adanya. */
 export default function LabeledCombobox({ label, htmlFor, labelTransparan = true, lebarLabel, lebarKombo, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, bisaCari = false, tambahan }: {
   label: string;
@@ -115,6 +117,18 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
   const nilaiTampil = nilaiLokal !== undefined
     ? nilaiLokal
     : (itemAwal !== undefined && ikutAwal ? itemAwal : nilaiProp);
+
+  /* Terapkan nilai awal ke PEMANGGIL sekali: nilai awal = penentu default,
+     jadi halaman harus benar-benar memakainya (bukan sekadar tampilannya).
+     Callback disimpan di ref agar efek bergantung hanya pada nilai. */
+  const cbUbahRef = useRef(propsAnak.onValueChange);
+  cbUbahRef.current = propsAnak.onValueChange;
+  const sudahTerapkanRef = useRef(false);
+  useEffect(() => {
+    if (sudahTerapkanRef.current || !ikutAwal || itemAwal === undefined) return;
+    sudahTerapkanRef.current = true;
+    if (nilaiProp !== itemAwal) cbUbahRef.current?.(itemAwal);
+  }, [ikutAwal, itemAwal, nilaiProp]);
 
   if (anakTunggal === null || anakTunggal.type !== ComboboxRoot) {
     // Tanpa akar Combobox: tetap dirender di dalam kotak (tanpa suntikan gaya).

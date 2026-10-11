@@ -53,7 +53,6 @@ function kabariPreset(tableKey: string) {
  *  lewat `nonce` saat preset dibuka ulang. */
 function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelField[] }) {
   const [presets, setPresets] = useState<PresetTabel[]>([]);
-  const [bawaanId, setBawaanId] = useState<number | null>(null);
   /** Preset yang dibuka + mulai-lengkap + penanda remount (agar state lokal
    *  TabKolom ter-reset). */
   // `lengkap: true` = mode "Lengkap (semua kolom)": keadaan awal sebelum data
@@ -78,7 +77,6 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
     try {
       const res = await listPresetTabel(tableKey);
       setPresets(res.data.presets);
-      setBawaanId(res.data.default_preset_id);
       // Buka pada susunan yang benar-benar dipakai halaman ini: preset aktif,
       // kalau tidak "Lengkap (semua kolom)"/"Lengkap kustom" — cermin
       // `PresetKolom`. Dialog jadi mencerminkan isi tabel, bukan daftar kosong.
@@ -94,7 +92,6 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
       setKelola((s) => ({ preset: aktif, lengkap: aktif === null, kolomAwal: kolomKustom, nonce: s.nonce + 1 }));
     } catch (e) {
       setPresets([]);
-      setBawaanId(null);
       setLabel({});
       labelAwalRef.current = kanonLabel({});
       toast.error(errorMessage(e));
@@ -159,7 +156,6 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
       kolomAwal: kelola.kolomAwal,
       presetAwal: kelola.preset,
       mulaiLengkap: kelola.lengkap,
-      bawaanId,
       label,
       setLabel,
       labelAwalRef,

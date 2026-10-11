@@ -289,7 +289,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
-  const { visToolbar, lebarToolbar, lebarKolomDb, alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { visToolbar, alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -1306,8 +1306,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   const hasFilter = filter !== undefined;
   const hasUrut = !!onUrut;
   const filterTampil = visToolbar.filter && hasFilter;
-  const urutTampil = visToolbar.urut && hasUrut;
-  const kolomTampil = visToolbar.kolom && !hidePreset;
+  // Urutkan & Kolom tak lagi diatur dari Kelola Tabel: tampil selama halaman
+  // menyediakannya (komponennya sendiri menyembunyikan diri bila tak ada opsi).
+  const urutTampil = hasUrut;
+  const kolomTampil = !hidePreset;
   const aksiMassal = renderBulkActions && checkedRows.length > 0
     ? renderBulkActions(checkedRows, clearSelection)
     : null;
@@ -1362,13 +1364,11 @@ export default function ExcelTable<T extends { id: string | number }>({
             urutAktif={urutAktif}
             arahUrut={arahUrut}
             onUrut={onUrut}
-            lebarUrut={lebarToolbar.urut}
             kolomTampil={kolomTampil}
             fields={fields}
             onApplyPreset={terapkanPreset}
             presetApiRef={presetApiRef}
             presetKolomClassName={presetKolomClassName}
-            lebarKolom={lebarKolomDb}
             addButton={addButton}
             addButtonLangsung={addButtonLangsung}
             bolehKelola={bolehKelolaHalaman}

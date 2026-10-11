@@ -5,7 +5,6 @@ import {
   createPresetTabel,
   listPresetTabel,
   setPresetAktif,
-  setPresetBawaan,
   updatePresetTabel,
   type PresetTabel,
 } from '../api/preset';
@@ -61,7 +60,6 @@ export default function PresetKolom({
   apiRef,
   triggerClassName,
   wrapperClassName,
-  lebarTrigger,
 }: {
   tableKey: string;
   fields: ExcelField[];
@@ -70,8 +68,6 @@ export default function PresetKolom({
   /** Timpa lebar trigger (bawaan 120px), mis. tabel sempit dua panel. */
   triggerClassName?: string;
   wrapperClassName?: string;
-  /** Lebar trigger dropdown (px) dari tab Kontrol; menang atas triggerClassName. */
-  lebarTrigger?: number;
 }) {
   /** Memilih preset untuk dilihat bisa semua role (kelola via Kelola Tabel). */
   const { user } = useAuth();
@@ -82,8 +78,6 @@ export default function PresetKolom({
 
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   const [aktifId, setAktifId] = useState<number | null>(null);
-  /** Preset bawaan tabel (dipakai bila user belum memilih dan ada preset). */
-  const [bawaanId, setBawaanId] = useState<number | null>(null);
   const fieldKeys = useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
 
   /** Susunan yang sedang dipakai (diungkap ke API agar menu konteks tahu
@@ -116,38 +110,32 @@ export default function PresetKolom({
     try {
       const res = await listPresetTabel(tableKey);
       let daftar = res.data.presets;
-      let bawaan = res.data.default_preset_id;
 
-      // Tiap tabel wajib punya preset "Lengkap" (semua kolom) sebagai bawaan.
+      // Tiap tabel wajib punya preset "Lengkap" (semua kolom) sebagai awalan.
       // Dibuat sekali saat tabel pertama dibuka oleh pengelola preset; tabel
       // yang belum sempat dibuatkan tetap memakai "Lengkap" bawaan sistem.
       if (bolehKelola && !sudahPastikan.current.has(tableKey) && !daftar.some((p) => namaLengkap(p.nama))) {
         sudahPastikan.current.add(tableKey);
         try {
-          const dibuat = await createPresetTabel({
+          await createPresetTabel({
             table_key: tableKey,
             nama: NAMA_LENGKAP,
             kolom: [...fieldKeys],
           });
-          const idBaru = dibuat.data[0]?.id ?? null;
-          if (idBaru !== null) await setPresetBawaan(idBaru, true);
-          const ulang = await listPresetTabel(tableKey);
-          daftar = ulang.data.presets;
-          bawaan = ulang.data.default_preset_id;
+          daftar = (await listPresetTabel(tableKey)).data.presets;
         } catch {
           // Tanpa izin atau gagal: pakai "Lengkap" bawaan sistem.
         }
       }
 
       setPresets(daftar);
-      setBawaanId(bawaan);
 
       const targetId = pilihId !== undefined ? pilihId : res.data.aktif_preset_id;
       let target = targetId === null ? null : daftar.find((p) => p.id === targetId) ?? null;
 
       // Susunan pribadi tersimpan (preset_id null + kolom) = pilihan eksplisit
-      // terakhir pengguna, jadi menang atas preset bawaan. Hanya pada muat
-      // alami — saat pemanggil menentukan `pilihId`, pilihan itu yang berlaku.
+      // terakhir pengguna. Hanya pada muat alami — saat pemanggil menentukan
+      // `pilihId`, pilihan itu yang berlaku.
       const kolomKustom = pilihId === undefined && target === null ? res.data.aktif_kolom : null;
       if (kolomKustom && kolomKustom.length > 0) {
         setAktifId(null);
@@ -155,11 +143,9 @@ export default function PresetKolom({
         return;
       }
 
-      // Belum ada pilihan pengguna: pakai preset bawaan — idealnya "Lengkap"
-      // yang dibuat di atas — lalu jatuh ke preset bernama "Lengkap" bila ada.
-      if (target === null && bawaan !== null) {
-        target = daftar.find((p) => p.id === bawaan) ?? null;
-      }
+      // Belum ada pilihan pengguna: jatuh ke preset bernama "Lengkap".
+      // (Nilai awal kini ditentukan lewat popover "Nilai awal", bukan preset
+      // bawaan tabel.)
       if (target === null) {
         target = daftar.find((p) => namaLengkap(p.nama)) ?? null;
       }
@@ -168,7 +154,6 @@ export default function PresetKolom({
     } catch (e) {
       setPresets([]);
       setAktifId(null);
-      setBawaanId(null);
       terapkan(null);
       toast.error(errorMessage(e));
     }
@@ -288,7 +273,7 @@ export default function PresetKolom({
       kelolaLebar={false}
       /* Lebar tersimpan untuk SELURUH kontrol Kolom; label mengikuti
          panjang teksnya, sisa lebar diisi combobox. */
-      lebarKotak={lebarTrigger ?? LEBAR_BAWAHAN_FILTER}
+      lebarKotak={LEBAR_BAWAHAN_FILTER}
       /* `gap-0 items-stretch`: label & zona harus menempel dan sama tinggi
          — kalau `items-center`, label hanya setinggi teksnya dan sisanya
          memperlihatkan latar kotak, sehingga pita label terlihat dua warna. */

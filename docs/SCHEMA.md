@@ -649,7 +649,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `nama`: string(50) — nama preset (mis. 'default', 'nama saja'); 'lengkap' dipakai bawaan sistem
 - `kolom`: json — array key kolom yang ditampilkan **berurutan** (urutan array = urutan tampil kolom, mis. `["nama","lembaga"]`); tiap preset boleh beda urutan
 - `label`: json [null] — nama header kustom per kolom (key = key kolom; kosong = label bawaan)
-- `is_default`: bool [default false] — satu preset bawaan per `table_key` (eksklusivitas dijaga service)
+- `is_default`: bool [default false] — satu preset bawaan per `table_key` (eksklusivitas dijaga service). **Tak lagi dibaca frontend** — nilai awal combobox kini ditentukan lewat popover "Nilai awal"
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
 - INDEX(`jenjang`, `table_key`)
@@ -668,7 +668,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 ### `urut_preset`
 - `id` PK
 - `table_key`: string(60) [unik] — kunci tabel grid (mis. `santri`, `keanggotaan`)
-- `opsi`: json — daftar opsi urut `[{ kode: string[], label, arah: 'naik'|'turun'|null, bawaan: bool }]`; `kode` = allowlist backend (`UrutKatalog`), `bawaan` maks satu
+- `opsi`: json — daftar opsi urut `[{ kode: string[], label, arah: 'naik'|'turun'|null, bawaan: bool }]`; `kode` = allowlist backend (`UrutKatalog`). `bawaan` (maks satu) **tak lagi dikirim/dibaca frontend** — nilai awal ditentukan lewat popover "Nilai awal"
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`) — satu daftar opsi global per tabel
@@ -677,7 +677,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `id` PK
 - `table_key`: string(60) [unik]
 - `visibilitas`: json — peta kontrol → bool; hanya `false` yang menyembunyikan (absen = tampil)
-- `lebar`: json [null] — peta kontrol → lebar px (kunci `urut`/`kolom`/`filter.<htmlFor>`); absen = bawaan frontend. Ditulis dari popover klik-kanan combobox (semua pengguna), bukan hanya super_admin
+- `lebar`: json [null] — peta kontrol → lebar px (kunci `filter.<htmlFor>`; kunci lama `urut`/`kolom` tak lagi ditulis); absen = bawaan frontend. Ditulis dari popover klik-kanan combobox (semua pengguna), bukan hanya super_admin
 - `tinggi`: json [null] — peta kontrol → tinggi px (kunci sama dengan `lebar`); absen = tinggi bawaan komponen (26px). Juga ditulis dari popover klik-kanan combobox
 - `nilai_default`: json [null] — peta kontrol → label opsi yang jadi nilai AWAL combobox (kunci sama dengan `lebar`); absen = pakai nilai dari pemanggil. Ditulis dari popover klik-kanan combobox (semua pengguna)
 - `urutan`: json [null] — array key kolom data; absen = urutan fields halaman

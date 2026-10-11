@@ -15,10 +15,9 @@ const { pengguna } = vi.hoisted(() => ({
 }));
 vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user: pengguna.current }) }));
 
-const { listPresetTabel, createPresetTabel, setPresetBawaan, setPresetAktif, updatePresetTabel } = vi.hoisted(() => ({
+const { listPresetTabel, createPresetTabel, setPresetAktif, updatePresetTabel } = vi.hoisted(() => ({
   listPresetTabel: vi.fn(),
   createPresetTabel: vi.fn(),
-  setPresetBawaan: vi.fn(),
   setPresetAktif: vi.fn(),
   updatePresetTabel: vi.fn(),
 }));
@@ -28,7 +27,6 @@ vi.mock('@/api/preset', async (importOriginal) => {
     ...asli,
     listPresetTabel,
     createPresetTabel,
-    setPresetBawaan,
     setPresetAktif,
     updatePresetTabel,
   };
@@ -42,15 +40,15 @@ const KOSONG = {
   data: { presets: [], aktif_preset_id: null, aktif_kolom: null, aktif_label: null, default_preset_id: null },
 };
 
-/** Balasan index setelah preset "Lengkap" terpasang sebagai bawaan. */
+/** Balasan index saat tabel sudah punya preset "Lengkap". */
 const ADA_LENGKAP = {
   pesan: 'ok',
   data: {
-    presets: [{ id: 11, nama: 'Lengkap', kolom: ['nama', 'jk'], is_default: true }],
+    presets: [{ id: 11, nama: 'Lengkap', kolom: ['nama', 'jk'], is_default: false }],
     aktif_preset_id: null,
     aktif_kolom: null,
     aktif_label: null,
-    default_preset_id: 11,
+    default_preset_id: null,
   },
 };
 
@@ -58,12 +56,11 @@ beforeEach(() => {
   pengguna.current = { permissions: ['preset_tabel.tambah'], roles: [{ name: 'super_admin' }] };
   vi.clearAllMocks();
   setPresetAktif.mockResolvedValue({ pesan: 'ok' });
-  setPresetBawaan.mockResolvedValue({ pesan: 'ok' });
   updatePresetTabel.mockResolvedValue({ pesan: 'ok' });
 });
 
 describe('PresetKolom — preset "Lengkap" sungguhan', () => {
-  it('membuat preset "Lengkap" berisi semua kolom lalu menjadikannya bawaan', async () => {
+  it('membuat preset "Lengkap" berisi semua kolom lalu memakainya', async () => {
     listPresetTabel.mockResolvedValueOnce(KOSONG).mockResolvedValueOnce(ADA_LENGKAP);
     createPresetTabel.mockResolvedValue({
       pesan: 'ok',
@@ -80,7 +77,6 @@ describe('PresetKolom — preset "Lengkap" sungguhan', () => {
         kolom: ['nama', 'jk'],
       }),
     );
-    await waitFor(() => expect(setPresetBawaan).toHaveBeenCalledWith(11, true));
     // Susunan "Lengkap" langsung dipakai tabel.
     await waitFor(() => expect(onApply).toHaveBeenCalledWith(['nama', 'jk'], null, 11));
   });
@@ -93,7 +89,6 @@ describe('PresetKolom — preset "Lengkap" sungguhan', () => {
 
     await waitFor(() => expect(onApply).toHaveBeenCalledWith(['nama', 'jk'], null, 11));
     expect(createPresetTabel).not.toHaveBeenCalled();
-    expect(setPresetBawaan).not.toHaveBeenCalled();
   });
 
   it('tidak membuat preset bila pengguna tanpa izin kelola', async () => {

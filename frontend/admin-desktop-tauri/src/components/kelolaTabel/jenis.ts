@@ -6,26 +6,14 @@ export type KontrolToolbar = 'info' | 'urut' | 'kolom' | 'filter';
 
 export type AlignKolom = 'left' | 'center' | 'right';
 
-/** Kunci kontrol yang punya pengaturan lebar (px). */
-export type KontrolLebar = 'urut' | 'kolom';
-
-export const KONTROL_TOOLBAR: { kunci: KontrolToolbar; label: string; ket: string; lebar?: boolean }[] = [
-  { kunci: 'urut', label: 'Dropdown Urutkan', ket: 'Pemilih urutan + tombol arah', lebar: true },
-  { kunci: 'kolom', label: 'Dropdown Kolom', ket: 'Pemilih preset kolom', lebar: true },
-  { kunci: 'filter', label: 'Filter halaman', ket: 'Combobox filter halaman selain Dropdown Urutkan dan Dropdown Kolom' },
+export const KONTROL_TOOLBAR: { kunci: KontrolToolbar; label: string; ket: string }[] = [
+  { kunci: 'filter', label: 'Filter halaman', ket: 'Combobox filter halaman' },
 ];
 
 export const LEBAR_BAWAHAN_FILTER = 200;
-export const LEBAR_BAWAHAN_TOOLBAR: Record<KontrolLebar, number> = {
-  urut: LEBAR_BAWAHAN_FILTER,
-  kolom: LEBAR_BAWAHAN_FILTER,
-};
 
 /** Status tampil per kontrol; absen/true/null = tampil, hanya false = sembunyi. */
 export type VisToolbar = Record<KontrolToolbar, boolean>;
-
-/** Lebar efektif per kontrol (px); kunci absen = bawaan. */
-export type LebarToolbar = Record<KontrolLebar, number>;
 
 /** Prefiks kunci lebar filter halaman di peta `lebar` preset. */
 export const AWALAN_LEBAR_FILTER = 'filter.';
@@ -46,11 +34,9 @@ export function bacaLebarFilter(lebar: Record<string, number> | undefined): Reco
 export const TINGGI_KONTROL_MIN = 20;
 export const TINGGI_KONTROL_MAKS = 120;
 
-/** Kunci peta ukuran (`lebar`/`tinggi`) di server untuk sebuah kontrol
- *  combobox (dikenali dari `htmlFor`-nya). */
+/** Kunci peta ukuran (`lebar`/`tinggi`/`nilai_default`) di server untuk sebuah
+ *  combobox filter halaman berdasarkan `htmlFor`-nya. */
 export function kunciUkuranServer(htmlFor: string): string {
-  if (htmlFor.startsWith('select_urut_')) return 'urut';
-  if (htmlFor.startsWith('select_preset_kolom_')) return 'kolom';
   return `${AWALAN_LEBAR_FILTER}${htmlFor}`;
 }
 
@@ -145,15 +131,6 @@ function bacaLebarSufiks(lebar: Record<string, number> | undefined, sufiks: stri
     if (/^[a-z0-9_]{1,60}$/.test(kunci)) hasil[kunci] = Math.min(maks, Math.max(min, Math.round(v)));
   }
   return hasil;
-}
-
-export function bacaLebarToolbar(lebar: Record<string, number> | undefined): LebarToolbar {
-  const px = (v: unknown, min = 40, maks = 480): number | null =>
-    typeof v === 'number' && Number.isFinite(v) && v >= min && v <= maks ? Math.round(v) : null;
-  return {
-    urut: px(lebar?.urut) ?? LEBAR_BAWAHAN_TOOLBAR.urut,
-    kolom: px(lebar?.kolom) ?? LEBAR_BAWAHAN_TOOLBAR.kolom,
-  };
 }
 
 export function bacaVisToolbar(vis: Record<string, boolean> | undefined): VisToolbar {

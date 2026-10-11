@@ -3,7 +3,6 @@ import { errorMessage } from '../../api/client';
 import {
   createPresetTabel,
   deletePresetTabel,
-  setPresetBawaan,
   updatePresetTabel,
   type PresetTabel,
 } from '../../api/preset';
@@ -17,7 +16,7 @@ import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Check, Eye, EyeOff, GripVertical, Pencil, Pin, Plus, Trash2, X } from '@/icons';
+import { Check, Eye, EyeOff, GripVertical, Pencil, Plus, Trash2, X } from '@/icons';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 
@@ -49,9 +48,6 @@ export interface TabKolomProps {
   mulaiLengkap: boolean;
   /** Minta induk membuka entri "Lengkap" (remount + reset state). */
   onPilihLengkap: () => void;
-  /** Id preset bawaan tabel (null = Lengkap); diubah via tombol pin,
-   *  tersimpan bersama tombol Simpan (boleh tanpa bawaan). */
-  bawaanId: number | null;
   /** Minta induk membuka preset lain / preset baru (remount + reset state). */
   onPilihPreset: (preset: PresetTabel | null) => void;
   /** Preset tersimpan → induk menyegarkan daftar + menetapkannya aktif. */
@@ -80,7 +76,6 @@ export default function TabKolom({
   presetAwal,
   mulaiLengkap,
   onPilihLengkap,
-  bawaanId,
   onPilihPreset,
   onTersimpan,
   onPakaiLengkap,
@@ -92,9 +87,6 @@ export default function TabKolom({
   const { efektifSuper: bolehUbah } = useLembagaAktif();
   const [editId, setEditId] = useState<number | null>(presetAwal?.id ?? null);
   const [nama, setNama] = useState(presetAwal?.nama ?? '');
-  /** Status bawaan = bagian form (tersimpan via Simpan, boleh dikosongkan). */
-  const [bawaan, setBawaan] = useState(presetAwal ? presetAwal.id === bawaanId : false);
-  const awalBawaan = useRef(presetAwal ? presetAwal.id === bawaanId : false);
   /** Input nama preset terlihat: untuk preset baru, atau saat mode ubah nama. */
   const [ubahNama, setUbahNama] = useState(false);
   /** Kolom terpilih BERURUTAN: urutan array = urutan tampil kolom (disimpan
@@ -114,10 +106,9 @@ export default function TabKolom({
   const awalKolomRef = useRef(kolom);
   const kotorPreset = useCallback(() => (
     nama !== awalNamaRef.current ||
-    bawaan !== awalBawaan.current ||
     kolom.length !== awalKolomRef.current.length ||
     kolom.some((k, i) => k !== awalKolomRef.current[i])
-  ), [nama, bawaan, kolom]);
+  ), [nama, kolom]);
   const kotorLabel = useCallback(
     () => kanonLabel(label) !== labelAwalRef.current,
     [label, labelAwalRef],
@@ -260,11 +251,6 @@ export default function TabKolom({
       if (!saved) {
         throw new Error('Preset gagal disimpan.');
       }
-      // Status bawaan ikut tersimpan (boleh dikosongkan = tanpa bawaan).
-      if (bawaan !== awalBawaan.current) {
-        await setPresetBawaan(saved.id, bawaan);
-        awalBawaan.current = bawaan;
-      }
       toast.success(pesan);
       setEditId(saved.id);
       setUbahNama(false);
@@ -391,7 +377,7 @@ export default function TabKolom({
       onSubmit={simpan}
       className="flex flex-col gap-2"
     >
-      {/* Bar preset: pilih preset aktif, klaim bawaan, tambah, ubah nama, hapus. */}
+      {/* Bar preset: pilih preset aktif, tambah, ubah nama, hapus. */}
       <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-2 py-1.5">
         <span className="shrink-0 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
           Preset
@@ -418,7 +404,7 @@ export default function TabKolom({
               {kustomAwal ? <SelectItem value={PRESET_KUSTOM}>Lengkap (kustom)</SelectItem> : null}
               {presets.map((p) => (
                 <SelectItem key={p.id} value={String(p.id)}>
-                  {p.id === bawaanId ? `${p.nama} (bawaan)` : p.nama}
+                  {p.nama}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -464,25 +450,6 @@ export default function TabKolom({
             ) : null}
           </div>
         ) : null}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant={bawaan ? 'secondary' : 'ghost'}
-              size="icon-sm"
-              id={`btn_preset_bawaan_${tableKey}`}
-              aria-label={bawaan ? 'Preset bawaan aktif' : 'Jadikan preset bawaan'}
-              aria-pressed={bawaan}
-              disabled={modeLengkap}
-              onClick={() => setBawaan((v) => !v)}
-            >
-              <Pin size={14} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Preset ini dipakai otomatis bila user belum memilih preset</p>
-          </TooltipContent>
-        </Tooltip>
         <Button
           id={`btn_preset_baru_${tableKey}`}
           type="button"

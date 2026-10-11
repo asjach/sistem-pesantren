@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import type { Paginate } from '../api/master';
 import { tokenUrut, type PetaArahKolom } from '../lib/urut';
-import { arahKolomDariOpsi, muatUrutPreset } from '../api/urutPreset';
 import { usePager } from './usePager';
 
 export interface ArgsMuat {
@@ -69,8 +68,6 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>(awalArah);
   /** Arah per kode urut (dari preset dengan arah_kolom) — menyertai urut aktif. */
   const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
-  /** Gerbang muat awal: ditahan sampai benih urutan bawaan selesai (di bawah). */
-  const [benihSiap, setBenihSiap] = useState(() => awalUrut.length > 0);
   const [rows, setRows] = useState<T[]>([]);
   const pager = usePager(tableKey);
   const [lastPage, setLastPage] = useState(1);
@@ -158,46 +155,15 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   // Batalkan request yang masih jalan saat komponen dilepas.
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  // Benih urutan bawaan: preset dimuat DULU (cache janji bersama dropdown
-  // PresetUrut) agar muat awal langsung memakai sort final — tanpa fetch
-  // tanpa-sort yang terbuang. Pilihan pengguna yang sudah ada tak ditimpa
-  // (pembaruan fungsional di bawah membaca state terbaru).
   useEffect(() => {
-    let batal = false;
-    if (awalUrut.length > 0) {
-      setBenihSiap(true);
-      return;
-    }
-    setBenihSiap(false);
-    // Termemo per tabel: request yang sama dipakai dropdown PresetUrut.
-    void muatUrutPreset(tableKey).then(
-      (res) => res.data,
-      () => null,
-    ).then((data) => {
-      if (batal) return;
-      const bawaan = data?.opsi.find((o) => o.bawaan);
-      if (bawaan) {
-        setUrut((prev) => (prev.length > 0 ? prev : bawaan.kode));
-        setArahUrut((prev) => (prev !== awalArah ? prev : (bawaan.arah ?? awalArah)));
-        setArahKolom((prev) => (prev !== undefined ? prev : arahKolomDariOpsi(bawaan)));
-      }
-      setBenihSiap(true);
-    });
-    return () => {
-      batal = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableKey]);
-
-  useEffect(() => {
-    if (pager.ready && benihSiap) void load(pager.page);
+    if (pager.ready) void load(pager.page);
     // Kunci ISI deps (bukan identitas array): turunan filter seperti
     // `kelasFilterIds` (hasil map/filter) berganti identitas tiap render
     // walau isinya sama — tanpa kunci ini tabel memuat 2× (satu diabort)
     // setiap identitas berganti. Konvensi: `deps` hanya berisi data
     // ter-JSON-kan (string/boolean/array), bukan fungsi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, benihSiap, searchTertunda, JSON.stringify(deps)]);
+  }, [pager.ready, searchTertunda, JSON.stringify(deps)]);
 
   const onSearchChange = useCallback(
     (v: string) => {

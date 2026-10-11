@@ -94,7 +94,7 @@ describe('dropdown Kolom — selalu tampil dengan awalan "Lengkap"', () => {
     expect(await screen.findByText('Kolom:')).toBeInTheDocument();
   });
 
-  it('memakai preset bawaan sebagai awalan bila pengguna belum memilih', async () => {
+  it('jatuh ke preset "Lengkap" bila pengguna belum memilih (bukan preset bawaan)', async () => {
     const onApply = vi.fn();
     listPresetTabel.mockResolvedValue({
       pesan: 'ok',
@@ -103,7 +103,7 @@ describe('dropdown Kolom — selalu tampil dengan awalan "Lengkap"', () => {
         aktif_preset_id: null,
         aktif_kolom: null,
         aktif_label: null,
-        default_preset_id: 9,
+        default_preset_id: null,
       },
     });
     renderDenganTema(<PresetKolom tableKey="uji" fields={FIELDS} onApply={onApply} />);

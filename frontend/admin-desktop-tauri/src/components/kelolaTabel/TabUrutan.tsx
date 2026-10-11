@@ -15,7 +15,6 @@ import MultiSelect from '@/components/MultiSelect';
 import { Button } from '@/components/ui/button';
 import TombolIkon from '@/components/TombolIkon';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { DialogFooter } from '@/components/ui/dialog';
 import {
@@ -115,10 +114,6 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
     }));
   }
 
-  function setBawaan(i: number) {
-    setDraft((d) => d.map((o, j) => ({ ...o, bawaan: j === i })));
-  }
-
   /** Seret-untuk-memindah posisi opsi: indeks sumber via ref, target via hover. */
   const seretRef = useRef<number | null>(null);
   const [tujuanSeret, setTujuanSeret] = useState<number | null>(null);
@@ -148,7 +143,6 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
         label: o.label.trim() || labelKode(o.kode),
         arah: o.arah,
         arah_kolom: o.arah_kolom && Object.keys(o.arah_kolom).length > 0 ? o.arah_kolom : null,
-        bawaan: o.bawaan,
       });
     }
     setBusy(true);
@@ -283,18 +277,6 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
                   </SelectGroup>
                 </SelectContent>
               </Select>
-              <label
-                className="flex shrink-0 cursor-pointer items-center gap-1 text-xs whitespace-nowrap"
-                title="Jadikan urutan bawaan saat halaman dibuka"
-              >
-                <Checkbox
-                  id={`check_bawaan_urut_${tableKey}_${i}`}
-                  checked={o.bawaan}
-                  disabled={!bolehSimpan}
-                  onCheckedChange={() => setBawaan(i)}
-                />
-                Bawaan
-              </label>
               <TombolIkon
                 type="button" variant="outline" size="icon-sm"
                 id={`btn_urut_hapus_${tableKey}_${i}`}
@@ -364,7 +346,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
             variant="outline"
             id={`btn_urut_tambah_${tableKey}`}
             disabled={!bolehSimpan}
-            onClick={() => setDraft((d) => [...d, { kode: [], label: '', arah: null, arah_kolom: null, bawaan: d.length === 0 }])}
+            onClick={() => setDraft((d) => [...d, { kode: [], label: '', arah: null, arah_kolom: null }])}
           >
             <Plus size={14} /> Opsi
           </Button>

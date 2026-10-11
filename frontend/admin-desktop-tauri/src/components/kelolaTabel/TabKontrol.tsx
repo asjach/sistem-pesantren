@@ -11,7 +11,7 @@ import { labelKolom } from '@/lib/labelKolom';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { KONTROL_TOOLBAR, LEBAR_BAWAHAN_FILTER, LEBAR_BAWAHAN_TOOLBAR, bacaLebarFilter, bacaLebarToolbar, bacaVisToolbar, kabariToolbar, type KontrolLebar, type VisToolbar, type LebarToolbar } from './jenis';
+import { KONTROL_TOOLBAR, LEBAR_BAWAHAN_FILTER, bacaLebarFilter, bacaVisToolbar, kabariToolbar, type VisToolbar } from './jenis';
 import { daftarFilter, kunciFilterBawaan } from '@/components/excel/lebarFilter';
 
 /** Peringatan khusus kontrol "Filter halaman" (dipindah ke tooltip agar tidak
@@ -28,8 +28,6 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
   const { efektifSuper: bolehUbah } = useLembagaAktif();
 
   const [vis, setVis] = useState<VisToolbar>({ info: true, urut: true, kolom: true, filter: true });
-  /** Lebar kontrol (px); nilai awal = bawaan meski belum ada preset tersimpan. */
-  const [lebar, setLebar] = useState<LebarToolbar>({ ...LEBAR_BAWAHAN_TOOLBAR });
   /** Lebar filter halaman tersimpan (kunci → px), untuk daftar + gabung simpan. */
   const [lebarFilterSimpan, setLebarFilterSimpan] = useState<Record<string, number>>({});
   /** Isian lebar filter (string; kosong = hapus override → bawaan halaman). */
@@ -48,7 +46,6 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
    *  sebelum permintaan muat selesai. */
   const acuanRef = useRef(JSON.stringify({
     vis: { info: true, urut: true, kolom: true, filter: true },
-    lebar: { ...LEBAR_BAWAHAN_TOOLBAR },
     filterW: {},
   }));
 
@@ -56,11 +53,9 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
     try {
       const res = await muatToolbarPreset(tableKey);
       const visBaru = bacaVisToolbar(res.data.visibilitas);
-      const lebarBaru = bacaLebarToolbar(res.data.lebar);
       const tersimpan = bacaLebarFilter(res.data.lebar);
       const filterWBaru = Object.fromEntries(Object.entries(tersimpan).map(([k, v]) => [k, String(v)]));
       setVis(visBaru);
-      setLebar(lebarBaru);
       setLebarFilterSimpan(tersimpan);
       setFilterW(filterWBaru);
       setAdaSimpanan(
@@ -69,16 +64,14 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
         || (res.data.urutan?.length ?? 0) > 0
         || Object.keys(res.data.align ?? {}).length > 0,
       );
-      acuanRef.current = JSON.stringify({ vis: visBaru, lebar: lebarBaru, filterW: filterWBaru });
+      acuanRef.current = JSON.stringify({ vis: visBaru, filterW: filterWBaru });
     } catch {
       const visBawaan = { info: true, urut: true, kolom: true, filter: true };
-      const lebarBawaan = { ...LEBAR_BAWAHAN_TOOLBAR };
       setVis(visBawaan);
-      setLebar(lebarBawaan);
       setLebarFilterSimpan({});
       setFilterW({});
       setAdaSimpanan(false);
-      acuanRef.current = JSON.stringify({ vis: visBawaan, lebar: lebarBawaan, filterW: {} });
+      acuanRef.current = JSON.stringify({ vis: visBawaan, filterW: {} });
     }
   }, [tableKey]);
 
@@ -99,8 +92,8 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
   }, [muat]);
 
   useEffect(() => {
-    laporKotor(JSON.stringify({ vis, lebar, filterW }) !== acuanRef.current);
-  }, [vis, lebar, filterW, laporKotor]);
+    laporKotor(JSON.stringify({ vis, filterW }) !== acuanRef.current);
+  }, [vis, filterW, laporKotor]);
 
   /** Kabari grid tabel terkait agar memuat ulang preset toolbar-nya. */
   function kabariBerubah() {
@@ -112,20 +105,11 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
     return Math.min(480, Math.max(40, Math.round(n)));
   }
 
-  function ubahLebar(kunci: KontrolLebar, mentah: string) {
-    const n = parseInt(mentah, 10);
-    if (Number.isNaN(n)) return;
-    setLebar((v) => ({ ...v, [kunci]: n }));
-  }
-
   async function simpan(): Promise<boolean> {
     if (!bolehUbah) return true;
     setBusy(true);
     try {
-      const lebarKirim: Record<string, number> = {
-        urut: jepit(lebar.urut),
-        kolom: jepit(lebar.kolom),
-      };
+      const lebarKirim: Record<string, number> = {};
       const bersihFilter: Record<string, string> = {};
       for (const [k, s] of Object.entries(filterW)) {
         if (s.trim() === '') continue;
@@ -135,7 +119,6 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
         bersihFilter[k] = String(jepit(n));
       }
       const res = await simpanToolbarPreset(tableKey, { ...vis }, lebarKirim);
-      setLebar((v) => ({ urut: jepit(v.urut), kolom: jepit(v.kolom) }));
       setFilterW(bersihFilter);
       await muat();
       toast.success(res.pesan);
@@ -174,7 +157,7 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
         </p>
       ) : null}
       <div className="flex flex-col gap-1 rounded-md border p-1">
-        {KONTROL_TOOLBAR.map(({ kunci, label, ket, lebar: punyaLebar }) => (
+        {KONTROL_TOOLBAR.map(({ kunci, label, ket }) => (
           <div
             key={kunci}
             className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-accent/40"
@@ -197,25 +180,6 @@ export default function TabKontrol({ tableKey }: { tableKey: string }) {
             >
               {label}
             </span>
-            {punyaLebar ? (
-              <span className="flex shrink-0 items-center gap-1" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                <Input
-                  id={`input_lebar_toolbar_${tableKey}_${kunci}`}
-                  type="number"
-                  min={40}
-                  max={480}
-                  step={4}
-                  value={lebar[kunci as KontrolLebar]}
-                  disabled={!bolehUbah || busy}
-                  onChange={(e) => ubahLebar(kunci as KontrolLebar, e.target.value)}
-                  onBlur={(e) => setLebar((v) => ({ ...v, [kunci]: jepit(Number(e.target.value) || v[kunci as KontrolLebar]) }))}
-                  aria-label={`Lebar ${label} (px)`}
-                  title={`Lebar ${label} dalam px (40–480)`}
-                  className="h-6 w-16 text-right text-xs"
-                />
-                <span className="text-xs text-muted-foreground">px</span>
-              </span>
-            ) : null}
           </div>
         ))}
       </div>

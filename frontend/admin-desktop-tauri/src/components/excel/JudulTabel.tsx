@@ -24,15 +24,11 @@ interface Props {
   urutAktif?: string[];
   arahUrut?: 'naik' | 'turun';
   onUrut?: (nilai: string[], arah: 'naik' | 'turun', arahKolom?: Record<string, ArahUrut>) => void;
-  /** Lebar trigger dropdown Urutkan (px) dari tab Kontrol. */
-  lebarUrut?: number;
   kolomTampil: boolean;
   fields: ExcelField[];
   onApplyPreset: (keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => void;
   presetApiRef: MutableRefObject<PresetKolomApi | null>;
   presetKolomClassName?: string;
-  /** Lebar trigger dropdown Kolom (px); menang atas kelas halaman. */
-  lebarKolom?: number;
   addButton?: ReactNode;
   addButtonLangsung: boolean;
   /** Boleh membuka dialog Kelola Tabel (super_admin efektif). */
@@ -65,13 +61,11 @@ export default function JudulTabel({
   urutAktif,
   arahUrut,
   onUrut,
-  lebarUrut,
   kolomTampil,
   fields,
   onApplyPreset,
   presetApiRef,
   presetKolomClassName,
-  lebarKolom,
   addButton,
   addButtonLangsung,
   bolehKelola,
@@ -102,7 +96,6 @@ export default function JudulTabel({
                   arahUrut={arahUrut}
                   onUrut={onUrut}
                   wrapperClassName="flex-row items-center gap-1.5"
-                  lebarTrigger={lebarUrut}
                 />
               ) : null}
               {kolomTampil ? (
@@ -113,7 +106,6 @@ export default function JudulTabel({
                   apiRef={presetApiRef}
                   triggerClassName={presetKolomClassName}
                   wrapperClassName="flex-row items-center gap-1.5"
-                  lebarTrigger={lebarKolom}
                 />
               ) : null}
             </div>

@@ -3,14 +3,13 @@ import { api } from './client';
 export type ArahUrut = 'naik' | 'turun';
 
 /** Satu opsi urut yang tampil di dropdown: kode backend berurut + label +
- *  arah bawaan + penanda bawaan (dipakai saat halaman pertama dibuka).
- *  `arah_kolom` = arah per kode (opsional); kode tak tercantum mengikuti `arah`. */
+ *  arah bawaan. Nilai AWAL (opsi terpilih saat halaman dibuka) ditentukan
+ *  lewat popover "Nilai awal", bukan flag di preset. */
 export interface OpsiUrut {
   kode: string[];
   label: string;
   arah: ArahUrut | null;
   arah_kolom?: Record<string, ArahUrut> | null;
-  bawaan: boolean;
 }
 
 /** Kode urut yang diizinkan backend + kolom DB-nya (untuk dialog pengelolaan). */

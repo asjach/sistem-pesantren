@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { Popover, PopoverAnchor } from '@/components/ui/popover';
 import PopoverUkuranKombo from '@/components/PopoverUkuranKombo';
-import { kunciFilterBawaan, pakaiLebarFilter } from '@/components/excel/lebarFilter';
+import { pakaiLebarFilter } from '@/components/excel/lebarFilter';
 import {
   LEBAR_KOMBO_BAWAAN,
   LEBAR_KONTROL_BAWAAN,
@@ -49,10 +49,10 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
   const kunciUkuran = htmlFor ?? '';
   const konteks = pakaiLebarFilter();
   /* Di dalam toolbar tabel (ada konteks preset): ukuran disimpan di SERVER,
-     kunci = `htmlFor`. Kontrol bawaan toolbar (Urutkan/Kolom) memakai
-     `kelolaLebar={false}` tetapi tetap milik server; kontrol FORM di dalam
-     area toolbar tidak — itu preferensi perangkat. */
-  const milikToolbar = kunciUkuran !== '' && (kelolaLebar || kunciFilterBawaan(kunciUkuran));
+     kunci = `htmlFor`. Hanya kontrol FORM di dalam area toolbar yang
+     memakainya; kontrol bawaan toolbar (Urutkan/Kolom, `kelolaLebar={false}`)
+     TIDAK — setelannya per perangkat. */
+  const milikToolbar = kunciUkuran !== '' && kelolaLebar;
   const kunciServer = konteks !== null && milikToolbar ? kunciUkuran : '';
   /** Store perangkat hanya dipakai di luar toolbar (kunci '' = tak berefek). */
   const ukuranLokal = useUkuranKombo(kunciServer === '' ? kunciUkuran : '');
