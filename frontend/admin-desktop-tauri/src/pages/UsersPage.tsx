@@ -357,6 +357,8 @@ export default function UsersPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari pengguna (nama/email/username/phone/role)…" />
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'users', judul: 'Pengguna', fields }]} />
+      {/* Tombol "+ Pengguna" tampil langsung di bilah judul (bukan di balik
+          tombol hamburger `MenuAksiToolbar`): aksi utama halaman ini. */}
       <ExcelTable
         tableKey="users"
         sumberTabel="users"
@@ -373,6 +375,7 @@ export default function UsersPage() {
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
+        addButtonLangsung
         addButton={canTambah ? (
           <Button id="btn_buka_tambah_user" onClick={() => setTambahOpen(true)}>
             + Pengguna
