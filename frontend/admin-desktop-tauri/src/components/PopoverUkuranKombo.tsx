@@ -2,6 +2,9 @@ import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { PopoverClose, PopoverContent } from '@/components/ui/popover';
 import SpinBox from '@/components/SpinBox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import { RotateCcw, X as XIcon } from '@/icons';
 import {
   LEBAR_KOMBO_MAKS,
@@ -100,7 +103,7 @@ const jepit = (n: number, min: number, maks: number) => Math.min(maks, Math.max(
  *  Popover TIDAK menutup saat klik di luar atau Escape — hanya tombol × yang
  *  menutupnya — supaya pengguna bisa membuka dropdown combobox dan mengecek
  *  hasilnya tanpa kehilangan panel pengaturan ini. */
-export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, expandLabel, labelTransparan, onUbah, onReset, onResetBaris }: {
+export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
   kunci: string;
   /** Label kotak yang sedang diatur — ditampilkan agar jelas komponen mana
    *  yang berubah. */
@@ -124,14 +127,20 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
   adaExpand: boolean;
   /** Ada flag label transparan tersimpan? */
   adaLabelTransparan: boolean;
+  /** Ada nilai awal combobox tersimpan? */
+  adaNilaiDefault: boolean;
   /** True = LABEL mengembang saat total diubah; false = KONTROL (bawaan). */
   expandLabel: boolean;
   /** True = label TRANSPARAN (tanpa bg, teks bertitik dua). */
   labelTransparan: boolean;
+  /** Daftar label opsi combobox; kosong = baris "nilai awal" disembunyikan. */
+  opsi?: string[];
+  /** Label opsi yang jadi nilai AWAL combobox; absen = ikut nilai pemanggil. */
+  nilaiDefault?: string;
   onUbah: (ukuran: UbahUkuranKombo) => void;
   onReset: () => void;
   /** Kembalikan SATU baris ke bawaan. */
-  onResetBaris: (bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol') => void;
+  onResetBaris: (bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol' | 'nilaiDefault') => void;
 }) {
   /** Ubah label → kontrol menyesuaikan, total tetap. Batas label dirapatkan
    *  agar kontrol tak keluar dari rentangnya. */
@@ -311,13 +320,67 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
             onPilih={() => onUbah({ labelTransparan: !labelTransparan })}
           />
         </div>
+        {opsi !== undefined && opsi.length > 0 ? (
+          <>
+            <div aria-hidden className="border-t border-foreground/10" />
+            {/* Nilai AWAL combobox: pilih salah satu opsi yang ada. Dipakai
+                sebagai nilai awal yang ditampilkan; pengguna tetap bisa
+                menggantinya, dan nilai pemanggil menang saat berubah. */}
+            <div className="flex items-center gap-1.5">
+              <label
+                htmlFor={`set_nilai_awal_kombo_${kunci}`}
+                className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
+                style={{ width: LEBAR_LABEL_BARIS }}
+              >
+                Nilai awal
+              </label>
+              <div className="relative min-w-0 flex-1">
+                <ComboboxRoot
+                  items={opsi}
+                  value={nilaiDefault ?? null}
+                  onValueChange={(v) => onUbah({ nilaiDefault: typeof v === 'string' ? v : null })}
+                >
+                  <ComboboxInput
+                    id={`set_nilai_awal_kombo_${kunci}`}
+                    className="pr-7"
+                    aria-label="Nilai awal combobox"
+                    placeholder="Nilai awal…"
+                  />
+                  <ComboboxTrigger
+                    className="absolute top-1/2 right-0 -translate-y-1/2"
+                    aria-label="Buka daftar nilai"
+                  />
+                  <ComboboxContent>
+                    <ComboboxEmpty>Tidak ada nilai.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(o) => <ComboboxItem key={o} value={o}>{o}</ComboboxItem>}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </ComboboxRoot>
+              </div>
+              <Button
+                id={`btn_reset_nilai_awal_kombo_${kunci}`}
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                disabled={!adaNilaiDefault}
+                onClick={() => onResetBaris('nilaiDefault')}
+                aria-label="Kembalikan nilai awal ke bawaan"
+                title="Kembalikan nilai awal ke bawaan"
+                className="shrink-0 text-muted-foreground"
+              >
+                <RotateCcw />
+              </Button>
+            </div>
+          </>
+        ) : null}
         <div aria-hidden className="border-t border-foreground/10" />
         <Button
           id={`btn_reset_ukuran_kombo_${kunci}`}
           type="button"
           variant="ghost"
           size="sm"
-          disabled={!(adaTinggi || adaLebar || adaLebarLabel || adaLebarKontrol || adaExpand || adaLabelTransparan)}
+          disabled={!(adaTinggi || adaLebar || adaLebarLabel || adaLebarKontrol || adaExpand || adaLabelTransparan || adaNilaiDefault)}
           onClick={onReset}
           className="-mx-1 justify-start px-1 text-muted-foreground"
         >

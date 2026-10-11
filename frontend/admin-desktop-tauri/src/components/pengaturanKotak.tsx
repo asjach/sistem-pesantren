@@ -26,7 +26,7 @@ import {
  *  toolbar tabel disimpan ke SERVER (global per tabel); di luar itu disimpan
  *  per perangkat. Tanpa `htmlFor`, kotak tak punya identitas → fitur mati
  *  (hanya ukuran dari pemanggil yang dipakai). */
-export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 'combobox', labelTransparan = true, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26 }: {
+export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 'combobox', labelTransparan = true, opsi = [], lebarLabel, lebarKontrol, lebarKotak, tinggi = 26 }: {
   htmlFor?: string;
   kelolaLebar?: boolean;
   label: string;
@@ -34,6 +34,9 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
   nama?: string;
   /** Bawaan label transparan; simpanan menang atas prop. */
   labelTransparan?: boolean;
+  /** Daftar label opsi combobox — untuk pemilih "nilai awal" di popover.
+   *  Kosong = baris itu tidak tampil (mis. input/stepper tanpa opsi). */
+  opsi?: string[];
   lebarLabel?: number | string;
   /** Lebar KONTROL terkunci (`lebarKombo`/`lebarInput`/`lebarStepper`). */
   lebarKontrol?: number | string;
@@ -62,6 +65,7 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
       lebarKontrol: konteks?.lebarKontrol?.[kunciServer],
       expandLabel: konteks?.expandLabel?.[kunciServer],
       labelTransparan: konteks?.labelTransparan?.[kunciServer],
+      nilaiDefault: konteks?.nilaiDefault?.[kunciServer],
     };
 
   const refKotak = useRef<HTMLSpanElement | null>(null);
@@ -109,12 +113,12 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
 
   /** Kembalikan ke bawaan: hapus kunci di server, atau kosongkan store lokal. */
   const resetUkuran = useCallback(() => {
-    if (kunciServer !== '' && konteks?.simpanUkuran) konteks.simpanUkuran(kunciServer, { tinggi: null, lebar: null, lebarLabel: null, lebarKontrol: null, expandLabel: null, labelTransparan: null });
+    if (kunciServer !== '' && konteks?.simpanUkuran) konteks.simpanUkuran(kunciServer, { tinggi: null, lebar: null, lebarLabel: null, lebarKontrol: null, expandLabel: null, labelTransparan: null, nilaiDefault: null });
     else kosongkanUkuranKombo(kunciUkuran);
   }, [kunciServer, konteks, kunciUkuran]);
 
-  /** Kembalikan SATU baris ke bawaan (lebar label/kontrol/tinggi/total). */
-  const resetBaris = useCallback((bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol') => {
+  /** Kembalikan SATU baris ke bawaan (lebar label/kontrol/tinggi/total/nilai). */
+  const resetBaris = useCallback((bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol' | 'nilaiDefault') => {
     if (kunciServer !== '' && konteks?.simpanUkuran) konteks.simpanUkuran(kunciServer, { [bidang]: null });
     else simpanUkuranKombo(kunciUkuran, { [bidang]: null });
   }, [kunciServer, konteks, kunciUkuran]);
@@ -125,6 +129,8 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
   const lebarLabelEfektif = ukuran.lebarLabel ?? lebarLabel;
   const lebarKontrolEfektif = ukuran.lebarKontrol ?? lebarKontrol;
   const labelTransparanEfektif = ukuran.labelTransparan ?? labelTransparan;
+  /** Nilai awal combobox (label opsi terpilih); absen = ikut nilai pemanggil. */
+  const nilaiDefaultEfektif = ukuran.nilaiDefault;
 
   /** Bungkus kotak dalam popover pengaturan (klik-kanan). Tanpa `htmlFor`,
    *  kotak dikembalikan apa adanya. */
@@ -168,8 +174,11 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
           adaLebarKontrol={ukuran.lebarKontrol !== undefined}
           adaExpand={ukuran.expandLabel === true}
           adaLabelTransparan={ukuran.labelTransparan !== undefined}
+          adaNilaiDefault={ukuran.nilaiDefault !== undefined}
           expandLabel={ukuran.expandLabel === true}
           labelTransparan={labelTransparanEfektif}
+          opsi={opsi}
+          nilaiDefault={nilaiDefaultEfektif}
           onUbah={ubahUkuran}
           onReset={resetUkuran}
           onResetBaris={resetBaris}
@@ -186,6 +195,7 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
     lebarLabelEfektif,
     lebarKontrolEfektif,
     labelTransparanEfektif,
+    nilaiDefaultEfektif,
     bungkus,
   };
 }

@@ -12,6 +12,10 @@ export type TinggiToolbarApi = Record<string, number>;
 /** Peta key kolom → perataan (satu nilai per kolom per tabel, bukan per preset). */
 export type AlignKolomApi = Record<string, 'left' | 'center' | 'right'>;
 
+/** Peta kontrol → label opsi yang jadi nilai AWAL combobox (kunci sama dengan
+ *  `lebar`: `urut`/`kolom`/`filter.<htmlFor>`). */
+export type NilaiDefaultApi = Record<string, string>;
+
 export interface ToolbarPresetData {
   table_key: string;
   visibilitas: VisibilitasToolbar;
@@ -22,6 +26,8 @@ export interface ToolbarPresetData {
   urutan: string[];
   /** Perataan kolom (absen = tengah). */
   align: AlignKolomApi;
+  /** Nilai awal combobox per kontrol (absen = pakai nilai pemanggil). */
+  nilai_default: NilaiDefaultApi;
 }
 
 export function muatToolbarPreset(tableKey: string) {
@@ -32,8 +38,8 @@ export function muatToolbarPreset(tableKey: string) {
 
 /** `tinggi` ditaruh paling AKHIR supaya pemanggil lama (posisional) tak
  *  bergeser. Kirim peta LENGKAP untuk `lebar`/`tinggi`: server mengganti
- *  seluruh peta, bukan menggabung. */
-export function simpanToolbarPreset(tableKey: string, visibilitas?: VisibilitasToolbar, lebar?: LebarToolbarApi, urutan?: string[], align?: AlignKolomApi, tinggi?: TinggiToolbarApi) {
+ *  seluruh peta, bukan menggabung. `nilaiDefault` sama: kirim peta lengkap. */
+export function simpanToolbarPreset(tableKey: string, visibilitas?: VisibilitasToolbar, lebar?: LebarToolbarApi, urutan?: string[], align?: AlignKolomApi, tinggi?: TinggiToolbarApi, nilaiDefault?: NilaiDefaultApi) {
   return api<{ pesan: string; data: unknown }>('/admin/toolbar-preset', {
     method: 'PUT',
     body: JSON.stringify({
@@ -43,6 +49,7 @@ export function simpanToolbarPreset(tableKey: string, visibilitas?: VisibilitasT
       ...(tinggi ? { tinggi } : {}),
       ...(urutan ? { urutan } : {}),
       ...(align ? { align } : {}),
+      ...(nilaiDefault ? { nilai_default: nilaiDefault } : {}),
     }),
   });
 }

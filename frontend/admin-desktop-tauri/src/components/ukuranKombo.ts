@@ -18,6 +18,9 @@ export interface UkuranKombo {
   /** True = label TRANSPARAN (tanpa bg, teks bertitik dua); absen = ikut
    *  bawaan (transparan). `false` tersimpan eksplisit = label ber-bg. */
   labelTransparan?: boolean;
+  /** Label opsi yang dipakai sebagai nilai AWAL combobox (dari opsi yang
+   *  ada). Absen = pakai nilai dari pemanggil. */
+  nilaiDefault?: string;
 }
 
 /** Nilai `null` = hapus kunci itu (kembali ke bawaan); dipakai reset per-baris. */
@@ -28,7 +31,11 @@ export type UbahUkuranKombo = {
   lebarKontrol?: number | null;
   expandLabel?: boolean | null;
   labelTransparan?: boolean | null;
+  nilaiDefault?: string | null;
 };
+
+/** Batas panjang nilai default (selaras validasi backend `nilai_default.*`). */
+export const NILAI_DEFAULT_MAKS = 100;
 
 /** Bawaan tinggi kotak = tinggi kontrol proyek (26px). */
 export const TINGGI_KOMBO_BAWAAN = 26;
@@ -100,6 +107,10 @@ export function normalkanUkuran(v: unknown): UkuranKombo {
   if (o.expandLabel === true) hasil.expandLabel = true;
   // Absen = ikut bawaan (transparan); `false` eksplisit = label ber-bg.
   if (typeof o.labelTransparan === 'boolean') hasil.labelTransparan = o.labelTransparan;
+  // Nilai default: hanya string tak kosong; dipotong ke batas backend.
+  if (typeof o.nilaiDefault === 'string' && o.nilaiDefault.trim() !== '') {
+    hasil.nilaiDefault = o.nilaiDefault.trim().slice(0, NILAI_DEFAULT_MAKS);
+  }
   return hasil;
 }
 

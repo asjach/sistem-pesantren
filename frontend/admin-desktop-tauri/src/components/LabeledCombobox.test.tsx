@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import LabeledCombobox, { hitungLebarKombo } from './LabeledCombobox';
 import { KonteksLebarFilter, daftarFilter } from '@/components/excel/lebarFilter';
@@ -460,8 +460,40 @@ describe('LabeledCombobox', () => {
     expect(normalkanUkuran({ tinggi: 5, lebar: 99999, lain: 1 })).toEqual({ tinggi: 20, lebar: 1200 });
     expect(normalkanUkuran({ lebarLabel: 9, lebarKontrol: 9999 })).toEqual({ lebarLabel: 40, lebarKontrol: 1200 });
     expect(normalkanUkuran({ labelTransparan: false })).toEqual({ labelTransparan: false });
+    expect(normalkanUkuran({ nilaiDefault: '  Nama  ' })).toEqual({ nilaiDefault: 'Nama' });
+    expect(normalkanUkuran({ nilaiDefault: '   ' })).toEqual({});
+    expect(normalkanUkuran({ nilaiDefault: 7 })).toEqual({});
     expect(normalkanUkuran(null)).toEqual({});
     expect(normalkanUkuran({ tinggi: 'abc' })).toEqual({});
+  });
+
+  it('nilai awal dari pengaturan kotak: dipakai sebagai nilai tampil & tetap bisa diubah', async () => {
+    const kunci = `uji_nilai_awal_${Date.now()}`;
+    // Nilai awal tersimpan (mis. dari popover) = "Opsi B".
+    simpanUkuranKombo(kunci, { nilaiDefault: 'Opsi B' });
+    const padaUbah = vi.fn();
+    renderDenganTema(
+      <LabeledCombobox label="Kelompok" htmlFor={kunci}>
+        <ComboboxRoot items={OPSI} value="Opsi A" onValueChange={padaUbah}>
+          <ComboboxInput id={kunci} aria-label="Demo" />
+          <ComboboxTrigger aria-label="Buka daftar" />
+          <ComboboxContent>
+            <ComboboxList>
+              {(o) => <ComboboxItem key={o} value={o}>{o}</ComboboxItem>}
+            </ComboboxList>
+          </ComboboxContent>
+        </ComboboxRoot>
+      </LabeledCombobox>,
+    );
+    const input = document.getElementById(kunci) as HTMLInputElement;
+    // Nilai awal menang atas `value` pemanggil ("Opsi A").
+    expect(input.value).toBe('Opsi B');
+
+    // Pengguna tetap bisa mengubah; perubahan diteruskan ke pemanggil.
+    await userEvent.click(input);
+    await userEvent.click(await screen.findByRole('option', { name: 'Opsi A' }));
+    expect(padaUbah).toHaveBeenCalledWith('Opsi A');
+    expect(input.value).toBe('Opsi A');
   });
 
   it('jepitLebar: nilai di luar rentang dijepit ke batas stepper', () => {

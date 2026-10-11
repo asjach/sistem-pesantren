@@ -53,9 +53,12 @@ export interface KonteksLebarFilter {
   expandLabel?: Record<string, boolean>;
   /** Label TRANSPARAN (kunci htmlFor → true). Absen = label ber-bg (bawaan). */
   labelTransparan?: Record<string, boolean>;
+  /** Nilai AWAL combobox (kunci htmlFor → label opsi). Absen = pakai nilai
+   *  dari pemanggil. */
+  nilaiDefault?: Record<string, string>;
   /** Simpan ukuran satu kontrol ke SERVER (dipakai popover klik-kanan).
    *  Disediakan `useToolbarPresetState`; absen = hanya simpan per perangkat. */
-  simpanUkuran?: (htmlFor: string, ukuran: { lebar?: number | null; tinggi?: number | null; lebarLabel?: number | null; lebarKontrol?: number | null; expandLabel?: boolean | null; labelTransparan?: boolean | null }) => void;
+  simpanUkuran?: (htmlFor: string, ukuran: { lebar?: number | null; tinggi?: number | null; lebarLabel?: number | null; lebarKontrol?: number | null; expandLabel?: boolean | null; labelTransparan?: boolean | null; nilaiDefault?: string | null }) => void;
 }
 
 export const KonteksLebarFilter = createContext<KonteksLebarFilter | null>(null);

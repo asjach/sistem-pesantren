@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * peta key kolom → 'left'|'center'|'right'; absen = bawaan frontend.
  * `lebar` & `tinggi` = ukuran kotak kontrol toolbar per tabel, peta kunci
  * kontrol (`urut`, `kolom`, `filter.<htmlFor>`) → px; absen = bawaan komponen.
+ * `nilai_default` = peta kunci kontrol yang sama → label opsi yang jadi nilai
+ * AWAL combobox (dipilih dari popover klik-kanan); absen = nilai pemanggil.
  * Peta `lebar` juga memuat lebar label/kontrol terkunci (`<kunci>.label` /
  * `<kunci>.kontrol`) dan penanda `<kunci>.expand` (1 = label mengembang)
  * serta `<kunci>.labeltransparan` (1 = transparan, 0 = ber-bg eksplisit).
@@ -21,12 +23,13 @@ class ToolbarPreset extends Model
 {
     protected $table = 'toolbar_preset';
 
-    protected $fillable = ['table_key', 'visibilitas', 'lebar', 'tinggi', 'urutan', 'align', 'dibuat_oleh'];
+    protected $fillable = ['table_key', 'visibilitas', 'lebar', 'tinggi', 'nilai_default', 'urutan', 'align', 'dibuat_oleh'];
 
     protected $casts = [
         'visibilitas' => 'array',
         'lebar' => 'array',
         'tinggi' => 'array',
+        'nilai_default' => 'array',
         'urutan' => 'array',
         'align' => 'array',
     ];

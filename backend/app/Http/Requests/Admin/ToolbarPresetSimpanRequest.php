@@ -35,6 +35,10 @@ class ToolbarPresetSimpanRequest extends FormRequest
             'urutan.*' => ['string', 'max:80', 'regex:/^[a-z0-9_]{1,80}$/'],
             'align' => ['sometimes', 'array', 'max:200'],
             'align.*' => ['string', Rule::in(['left', 'center', 'right'])],
+            // Nilai awal combobox: peta kunci kontrol → label opsi (teks bebas,
+            // maks 100 karakter). Kunci dibatasi di controller (sama seperti lebar).
+            'nilai_default' => ['sometimes', 'array', 'max:60'],
+            'nilai_default.*' => ['string', 'max:100'],
         ];
     }
 }

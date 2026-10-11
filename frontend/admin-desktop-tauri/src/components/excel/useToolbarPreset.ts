@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { errorMessage } from '@/api/client';
-import { muatToolbarPreset, simpanToolbarPreset, type AlignKolomApi, type LebarToolbarApi, type TinggiToolbarApi } from '@/api/toolbarPreset';
+import { muatToolbarPreset, simpanToolbarPreset, type AlignKolomApi, type LebarToolbarApi, type NilaiDefaultApi, type TinggiToolbarApi } from '@/api/toolbarPreset';
 import {
+  AWALAN_LEBAR_FILTER,
   EVENT_TOOLBAR_BERUBAH,
   LEBAR_BAWAHAN_TOOLBAR,
   SUFIKS_EXPAND_LABEL,
@@ -17,6 +18,7 @@ import {
   bacaLebarKontrolFilter,
   bacaLebarLabelFilter,
   bacaLebarToolbar,
+  bacaNilaiDefault,
   bacaTinggiFilter,
   bacaVisToolbar,
   kabariToolbar,
@@ -52,6 +54,9 @@ export function useToolbarPresetState(tableKey: string) {
   /** Tinggi kotak kontrol tersimpan, peta MENTAH dari server (kunci `urut` /
    *  `kolom` / `filter.<htmlFor>`) — dipakai untuk tulis read-modify-write. */
   const [tinggiApi, setTinggiApi] = useState<TinggiToolbarApi>({});
+  /** Nilai AWAL combobox tersimpan, peta MENTAH dari server (kunci sama
+   *  dengan `lebar`) — dipakai untuk tulis read-modify-write. */
+  const [nilaiDefaultApi, setNilaiDefaultApi] = useState<NilaiDefaultApi>({});
   /** Perataan kolom global per tabel (absen = tengah). */
   const [alignDb, setAlignDb] = useState<Partial<Record<string, AlignKolom>>>({});
   /** Urutan kolom tersimpan di DB (null = belum dimuat; [] = bawaan halaman). */
@@ -60,6 +65,7 @@ export function useToolbarPresetState(tableKey: string) {
    *  jadi kunci lain wajib ikut dikirim). */
   const lebarApiRef = useRef<LebarToolbarApi>({});
   const tinggiApiRef = useRef<TinggiToolbarApi>({});
+  const nilaiDefaultApiRef = useRef<NilaiDefaultApi>({});
   /** Tinggi kotak kontrol per `htmlFor` (kunci server diterjemahkan), supaya
    *  LabeledCombobox bisa membacanya tanpa prop tambahan. */
   const tinggiFilter = useMemo(() => {
@@ -73,10 +79,11 @@ export function useToolbarPresetState(tableKey: string) {
    *  optimistis, kirim peta LENGKAP, lalu kabari grid lain. `null` = hapus
    *  kunci itu (kembali ke bawaan). Lebar label/kontrol terkunci memakai kunci
    *  sufiks (`<kunci>.label` / `<kunci>.kontrol`) di peta `lebar` yang sama. */
-  const simpanUkuran = useCallback((htmlFor: string, ukuran: { lebar?: number | null; tinggi?: number | null; lebarLabel?: number | null; lebarKontrol?: number | null; expandLabel?: boolean | null; labelTransparan?: boolean | null }) => {
+  const simpanUkuran = useCallback((htmlFor: string, ukuran: { lebar?: number | null; tinggi?: number | null; lebarLabel?: number | null; lebarKontrol?: number | null; expandLabel?: boolean | null; labelTransparan?: boolean | null; nilaiDefault?: string | null }) => {
     const kunci = kunciUkuranServer(htmlFor);
     const lebarBaru: LebarToolbarApi = { ...lebarApiRef.current };
     const tinggiBaru: TinggiToolbarApi = { ...tinggiApiRef.current };
+    const nilaiDefaultBaru: NilaiDefaultApi = { ...nilaiDefaultApiRef.current };
     if (ukuran.lebar !== undefined) {
       if (ukuran.lebar === null) delete lebarBaru[kunci];
       else lebarBaru[kunci] = ukuran.lebar;
@@ -105,15 +112,22 @@ export function useToolbarPresetState(tableKey: string) {
       if (ukuran.labelTransparan === null) delete lebarBaru[`${kunci}${SUFIKS_LABEL_TRANSPARAN}`];
       else lebarBaru[`${kunci}${SUFIKS_LABEL_TRANSPARAN}`] = ukuran.labelTransparan ? 1 : 0;
     }
+    /* Nilai awal combobox: `null` = hapus (kembali ke nilai pemanggil). */
+    if (ukuran.nilaiDefault !== undefined) {
+      if (ukuran.nilaiDefault === null) delete nilaiDefaultBaru[kunci];
+      else nilaiDefaultBaru[kunci] = ukuran.nilaiDefault;
+    }
     lebarApiRef.current = lebarBaru;
     tinggiApiRef.current = tinggiBaru;
+    nilaiDefaultApiRef.current = nilaiDefaultBaru;
     setLebarApi(lebarBaru);
     setTinggiApi(tinggiBaru);
+    setNilaiDefaultApi(nilaiDefaultBaru);
     setLebarFilter(bacaLebarFilter(lebarBaru));
     setLebarToolbar(bacaLebarToolbar(lebarBaru));
     const kolomDb = lebarBaru.kolom;
     setLebarKolomDb(typeof kolomDb === 'number' && kolomDb >= LEBAR_KOLOM_MIN && kolomDb <= LEBAR_KOLOM_MAKS ? kolomDb : undefined);
-    void simpanToolbarPreset(tableKey, undefined, lebarBaru, undefined, undefined, tinggiBaru)
+    void simpanToolbarPreset(tableKey, undefined, lebarBaru, undefined, undefined, tinggiBaru, nilaiDefaultBaru)
       .then(() => kabariToolbar(tableKey))
       .catch((e: unknown) => toast.error(errorMessage(e)));
   }, [tableKey]);
@@ -148,6 +162,16 @@ export function useToolbarPresetState(tableKey: string) {
     if (kolom === 0 || kolom === 1) hasil[`select_preset_kolom_${tableKey}`] = kolom === 1;
     return hasil;
   }, [lebarApi, tableKey]);
+  /** Nilai awal combobox per `htmlFor` (kunci server diterjemahkan). */
+  const nilaiDefaultFilter = useMemo(() => {
+    const hasil: Record<string, string> = {};
+    for (const [k, v] of Object.entries(nilaiDefaultApi)) {
+      if (k === 'urut') hasil[`select_urut_${tableKey}`] = v;
+      else if (k === 'kolom') hasil[`select_preset_kolom_${tableKey}`] = v;
+      else if (k.startsWith(AWALAN_LEBAR_FILTER)) hasil[k.slice(AWALAN_LEBAR_FILTER.length)] = v;
+    }
+    return hasil;
+  }, [nilaiDefaultApi, tableKey]);
   /** Lebar per `htmlFor` untuk konteks: filter + kontrol bawaan toolbar
    *  (Urutkan/Kolom) yang tersimpan, supaya popover tahu nilai berlakunya. */
   const lebarKonteks = useMemo(() => {
@@ -165,8 +189,9 @@ export function useToolbarPresetState(tableKey: string) {
     lebarKontrol: lebarKontrolFilter,
     expandLabel: expandLabelFilter,
     labelTransparan: labelTransparanFilter,
+    nilaiDefault: nilaiDefaultFilter,
     simpanUkuran,
-  }), [tableKey, lebarKonteks, tinggiFilter, lebarLabelFilter, lebarKontrolFilter, expandLabelFilter, labelTransparanFilter, simpanUkuran]);
+  }), [tableKey, lebarKonteks, tinggiFilter, lebarLabelFilter, lebarKontrolFilter, expandLabelFilter, labelTransparanFilter, nilaiDefaultFilter, simpanUkuran]);
 
   useEffect(() => {
     let batal = false;
@@ -181,6 +206,9 @@ export function useToolbarPresetState(tableKey: string) {
         setLebarApi(res.data.lebar ?? {});
         lebarApiRef.current = res.data.lebar ?? {};
         tinggiApiRef.current = res.data.tinggi ?? {};
+        const nilaiAwal = bacaNilaiDefault(res.data.nilai_default);
+        setNilaiDefaultApi(nilaiAwal);
+        nilaiDefaultApiRef.current = nilaiAwal;
         setAlignDb(bacaAlign(res.data.align));
         setUrutanDb(Array.isArray(res.data.urutan) ? res.data.urutan : []);
         const tersimpan = res.data.lebar?.kolom;
@@ -194,6 +222,8 @@ export function useToolbarPresetState(tableKey: string) {
         setLebarApi({});
         lebarApiRef.current = {};
         tinggiApiRef.current = {};
+        setNilaiDefaultApi({});
+        nilaiDefaultApiRef.current = {};
         setAlignDb({});
         setUrutanDb([]);
         setLebarKolomDb(undefined);

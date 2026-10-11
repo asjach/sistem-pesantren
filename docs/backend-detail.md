@@ -553,6 +553,12 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   Format isi sel pindah ke `ExcelField.format` (`angka`/`tanggal`/`ya_tidak`);
   lebar & visibilitas milik preset tabel; perataan: preferensi pribadi
   pengguna > perataan global tabel (`toolbar_preset.align`).
+* Setelan kotak kontrol toolbar (dari popover klik-kanan combobox):
+  `toolbar_preset.lebar`/`.tinggi` (px per kontrol `urut`/`kolom`/`filter.<htmlFor>`),
+  penanda `<kunci>.expand` & `<kunci>.labeltransparan` (= 0/1) di peta `lebar`,
+  dan `toolbar_preset.nilai_default` (label opsi yang jadi nilai AWAL combobox;
+  absen = pakai nilai dari pemanggil). Di luar toolbar, setelan yang sama
+  disimpan per perangkat (`ukuranKombo.ts`).
 * Preset urut daftar (v2.73): allowlist kode urut = satu sumber di
   `App\Services\UrutKatalog` (`table_key` grid → `kode` → kolom ORDER BY),
   dipakai `UrutDaftar::parseUrut` semua controller sekaligus endpoint

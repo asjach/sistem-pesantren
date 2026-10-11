@@ -431,4 +431,55 @@ class ToolbarPresetTest extends TestCase
             'align' => ['Kolom Asing!' => 'left'],
         ])->assertStatus(422)->assertJsonValidationErrors(['align']);
     }
+
+    /** Nilai AWAL combobox (peta kunci kontrol → label opsi) ditulis dari
+     *  popover klik-kanan: semua pengguna boleh, kunci asing ditolak. */
+    public function test_simpan_dan_baca_nilai_default(): void
+    {
+        $admin = $this->makeUser('admin');
+
+        // Belum ada baris: peta kosong (frontend memakai nilai pemanggil).
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.nilai_default', []);
+
+        // Admin biasa boleh menyimpan (satu kategori dengan lebar/tinggi).
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'nilai_default' => [
+                'filter.select_status_santri' => 'Aktif',
+                'urut' => 'Nama',
+            ],
+        ])->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.nilai_default', [
+                'filter.select_status_santri' => 'Aktif',
+                'urut' => 'Nama',
+            ]);
+
+        // Kunci asing ditolak.
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'nilai_default' => ['info' => 'X'],
+        ])->assertStatus(422)->assertJsonValidationErrors(['nilai_default']);
+
+        // Nilai kosong diabaikan; peta kosong = hapus (kembali ke pemanggil).
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'nilai_default' => [],
+        ])->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.nilai_default', []);
+
+        // Nilai terlalu panjang ditolak aturan request (>100).
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'nilai_default' => ['urut' => str_repeat('a', 101)],
+        ])->assertStatus(422)->assertJsonValidationErrors(['nilai_default.urut']);
+    }
 }

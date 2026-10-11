@@ -1,3 +1,5 @@
+import { NILAI_DEFAULT_MAKS } from '@/components/ukuranKombo';
+
 /** Kunci kontrol toolbar generik yang bisa ditampil/sembunyikan per tabel.
  *  Kotak cari tidak ada lagi (pencarian tunggal di topBar). */
 export type KontrolToolbar = 'info' | 'urut' | 'kolom' | 'filter';
@@ -107,6 +109,18 @@ export function bacaLabelTransparanFilter(lebar: Record<string, number> | undefi
     if (v !== 0 && v !== 1) continue;
     const kunci = k.slice(AWALAN_LEBAR_FILTER.length, -SUFIKS_LABEL_TRANSPARAN.length);
     if (/^[a-z0-9_]{1,60}$/.test(kunci)) hasil[kunci] = v === 1;
+  }
+  return hasil;
+}
+
+/** Nilai awal combobox tersimpan (kunci kontrol → label opsi). Kunci hanya
+ *  `urut`/`kolom`/`filter.<htmlFor>`; nilai string tak kosong dipotong ke batas. */
+export function bacaNilaiDefault(peta: Record<string, unknown> | undefined): Record<string, string> {
+  const hasil: Record<string, string> = {};
+  for (const [k, v] of Object.entries(peta ?? {})) {
+    if (!/^(urut|kolom|filter\.[a-z0-9_]{1,60})$/.test(k)) continue;
+    if (typeof v !== 'string' || v.trim() === '') continue;
+    hasil[k] = v.trim().slice(0, NILAI_DEFAULT_MAKS);
   }
   return hasil;
 }

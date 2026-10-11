@@ -97,6 +97,7 @@ class ToolbarPresetController extends Controller
                 'tinggi' => $row?->tinggi ?? [],
                 'urutan' => $row?->urutan ?? [],
                 'align' => $row?->align ?? [],
+                'nilai_default' => $row?->nilai_default ?? [],
             ],
         ]);
     }
@@ -107,15 +108,15 @@ class ToolbarPresetController extends Controller
     {
         $data = $request->validated();
 
-        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('lebar', $data) && ! array_key_exists('tinggi', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data)) {
+        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('lebar', $data) && ! array_key_exists('tinggi', $data) && ! array_key_exists('nilai_default', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data)) {
             throw ValidationException::withMessages([
-                'table_key' => 'Kirim minimal satu dari visibilitas, lebar, tinggi, urutan, atau align.',
+                'table_key' => 'Kirim minimal satu dari visibilitas, lebar, tinggi, nilai_default, urutan, atau align.',
             ]);
         }
 
-        // Hanya LEBAR/TINGGI kotak kontrol yang dibuka untuk semua pengguna
-        // (diatur dari popover klik-kanan combobox). Visibilitas, urutan
-        // kolom, dan perataan tetap khusus super_admin.
+        // Hanya LEBAR/TINGGI/NILAI AWAL kotak kontrol yang dibuka untuk semua
+        // pengguna (diatur dari popover klik-kanan combobox). Visibilitas,
+        // urutan kolom, dan perataan tetap khusus super_admin.
         $khususSuperAdmin = array_intersect(['visibilitas', 'urutan', 'align'], array_keys($data));
         if ($khususSuperAdmin !== [] && ! $request->user()->bolehSuperAdmin()) {
             abort(403, 'Hanya ukuran (lebar/tinggi) kotak kontrol yang dapat diubah pengguna biasa.');
@@ -147,6 +148,25 @@ class ToolbarPresetController extends Controller
 
         if (array_key_exists('tinggi', $data)) {
             $row->tinggi = self::normalisasiUkuran($data['tinggi'], 'tinggi');
+        }
+
+        if (array_key_exists('nilai_default', $data)) {
+            $nilaiAwal = [];
+            foreach ($data['nilai_default'] as $kunci => $nilai) {
+                $kunci = (string) $kunci;
+                $isFilter = preg_match('/^filter\.[a-z0-9_]{1,60}$/', $kunci) === 1;
+                if (! in_array($kunci, self::KUNCI_UKURAN, true) && ! $isFilter) {
+                    throw ValidationException::withMessages([
+                        'nilai_default' => "Kunci nilai default \"{$kunci}\" tidak dikenal.",
+                    ]);
+                }
+                $teks = trim((string) $nilai);
+                if ($teks === '') {
+                    continue;
+                }
+                $nilaiAwal[$kunci] = mb_substr($teks, 0, 100);
+            }
+            $row->nilai_default = $nilaiAwal === [] ? null : $nilaiAwal;
         }
 
         if (array_key_exists('urutan', $data)) {

@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { ComboboxContent, ComboboxInput, ComboboxRoot, ComboboxTrigger } from '@/components/ui/combobox';
 import { usePengaturanKotak } from '@/components/pengaturanKotak';
@@ -68,17 +68,54 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
    *  urut) — diteruskan ke `KotakLabel`. */
   tambahan?: ReactNode;
 }) {
-  const {
-    refKotak, onContextMenu, tinggiEfektif, lebarKotakEfektif,
-    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif, bungkus,
-  } = usePengaturanKotak({
-    htmlFor, kelolaLebar, label, labelTransparan,
-    lebarLabel, lebarKontrol: lebarKombo, lebarKotak, tinggi,
-  });
-
   const anakTunggal = Children.count(children) === 1 && isValidElement(children)
     ? (children as ReactElement)
     : null;
+
+  /* Props anak (bila tepat satu `ComboboxRoot`): `items` dipakai popover untuk
+     memilih nilai awal; `value`/`onValueChange` untuk menerapkan nilai awal. */
+  const propsAnak = (anakTunggal?.type === ComboboxRoot ? anakTunggal.props : {}) as {
+    children?: ReactNode;
+    items?: unknown;
+    itemToStringLabel?: (o: unknown) => string;
+    value?: unknown;
+    onValueChange?: (v: unknown) => void;
+  };
+  const items = Array.isArray(propsAnak.items) ? propsAnak.items : [];
+  const labelItem = (o: unknown): string => (
+    typeof propsAnak.itemToStringLabel === 'function'
+      ? propsAnak.itemToStringLabel(o)
+      : typeof o === 'string' ? o : String(o)
+  );
+  const opsi = items.map(labelItem);
+
+  const {
+    refKotak, onContextMenu, tinggiEfektif, lebarKotakEfektif,
+    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif,
+    nilaiDefaultEfektif, bungkus,
+  } = usePengaturanKotak({
+    htmlFor, kelolaLebar, label, labelTransparan, opsi,
+    lebarLabel, lebarKontrol: lebarKombo, lebarKotak, tinggi,
+  });
+
+  /* Nilai AWAL dari popover → jadi nilai yang DITAMPILKAN sampai pengguna
+     atau pemanggil mengubahnya (`ikutAwal` mati begitu salah satunya berubah). */
+  const itemAwal = nilaiDefaultEfektif === undefined
+    ? undefined
+    : items.find((o) => labelItem(o) === nilaiDefaultEfektif);
+  const nilaiProp = propsAnak.value;
+  const nilaiMount = useRef(nilaiProp);
+  const [nilaiLokal, setNilaiLokal] = useState<unknown>(undefined);
+  const [ikutAwal, setIkutAwal] = useState(true);
+  useEffect(() => {
+    if (nilaiProp === nilaiMount.current) return;
+    setNilaiLokal(nilaiProp);
+    setIkutAwal(false);
+  }, [nilaiProp]);
+  const nilaiTampil = nilaiLokal !== undefined
+    ? nilaiLokal
+    : (itemAwal !== undefined && ikutAwal ? itemAwal : nilaiProp);
+
   if (anakTunggal === null || anakTunggal.type !== ComboboxRoot) {
     // Tanpa akar Combobox: tetap dirender di dalam kotak (tanpa suntikan gaya).
     return (
@@ -88,7 +125,6 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
     );
   }
 
-  const propsAnak = anakTunggal.props as { children?: ReactNode };
   /* `pr-6`: ruang kanan untuk tombol panah yang menumpuk. `readOnly` (bawaan)
      membuat input hanya menampilkan nilai terpilih — tanpa caret berkedip
      dan tanpa pengetikan, klik/panah tetap membuka daftar. */
@@ -101,6 +137,19 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
   isi = suntikGaya(isi, ComboboxTrigger, 'absolute top-1/2 right-0 -translate-y-1/2');
   // Popup: border sama dengan kotak pembungkus.
   isi = suntikGaya(isi, ComboboxContent, 'border-foreground/30');
+
+  const propsGabung: Record<string, unknown> = { ...(anakTunggal.props as object), children: isi };
+  if (itemAwal !== undefined) {
+    /* Nilai dikendalikan agar nilai awal benar-benar tampil; perubahan tetap
+       diteruskan ke pemanggil dan menghentikan mode ikut-awal. */
+    propsGabung.value = nilaiTampil;
+    propsGabung.defaultValue = undefined;
+    propsGabung.onValueChange = (v: unknown) => {
+      setNilaiLokal(v);
+      setIkutAwal(false);
+      propsAnak.onValueChange?.(v);
+    };
+  }
 
   const kotak = (
     <KotakLabel
@@ -117,7 +166,7 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
       onContextMenu={onContextMenu}
       tambahan={tambahan}
     >
-      {() => cloneElement(anakTunggal, { ...(anakTunggal.props as object), children: isi })}
+      {() => cloneElement(anakTunggal, propsGabung)}
     </KotakLabel>
   );
 

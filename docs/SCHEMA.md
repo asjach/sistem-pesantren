@@ -679,6 +679,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `visibilitas`: json — peta kontrol → bool; hanya `false` yang menyembunyikan (absen = tampil)
 - `lebar`: json [null] — peta kontrol → lebar px (kunci `urut`/`kolom`/`filter.<htmlFor>`); absen = bawaan frontend. Ditulis dari popover klik-kanan combobox (semua pengguna), bukan hanya super_admin
 - `tinggi`: json [null] — peta kontrol → tinggi px (kunci sama dengan `lebar`); absen = tinggi bawaan komponen (26px). Juga ditulis dari popover klik-kanan combobox
+- `nilai_default`: json [null] — peta kontrol → label opsi yang jadi nilai AWAL combobox (kunci sama dengan `lebar`); absen = pakai nilai dari pemanggil. Ditulis dari popover klik-kanan combobox (semua pengguna)
 - `urutan`: json [null] — array key kolom data; absen = urutan fields halaman
 - `align`: json [null] — peta key kolom → 'left'|'center'|'right' (satu nilai per kolom, bukan per preset); absen = preferensi pribadi pengguna, lalu tengah
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
