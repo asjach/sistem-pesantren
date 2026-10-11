@@ -1016,7 +1016,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                   fields={FIELDS_TERPILIH}
                   onApply={terapkanKolomLuar}
                   triggerClassName="h-[26px] w-32 text-xs"
-                  sejajarLabel
                 />
               </div>
               <p className="text-xs text-muted-foreground">

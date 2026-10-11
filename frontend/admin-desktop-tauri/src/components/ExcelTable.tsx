@@ -165,10 +165,6 @@ export interface ExcelTableProps<T extends { id: string | number }> {
    *  tabel, sejajar judul kolom). Pakai hanya pada tabel utama halaman —
    *  satu rel per halaman. */
   rail?: boolean;
-  /** Gaya kontrol Urutkan & Kolom di toolbar. Bawaan `kotak` (LabeledCombobox);
-   *  `klasik` mengembalikan Select lama. */
-  gayaUrut?: 'klasik' | 'kotak';
-  gayaKolom?: 'klasik' | 'kotak';
   /** Kabarkan baris tercentang setiap seleksi berubah (opsional). */
   onCheckedChange?: (rows: T[]) => void;
   /** Daftar nilai urut aktif berurutan (maks 3) + arah global. */
@@ -251,8 +247,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   judulPemilik = false,
   presetKolomClassName,
   rail = false,
-  gayaUrut = 'kotak',
-  gayaKolom = 'kotak',
   onCheckedChange,
   urutAktif,
   arahUrut = 'naik',
@@ -1360,8 +1354,6 @@ export default function ExcelTable<T extends { id: string | number }>({
             arahUrut={arahUrut}
             onUrut={onUrut}
             lebarUrut={lebarToolbar.urut}
-            gayaUrut={gayaUrut}
-            gayaKolom={gayaKolom}
             kolomTampil={kolomTampil}
             fields={fields}
             onApplyPreset={terapkanPreset}

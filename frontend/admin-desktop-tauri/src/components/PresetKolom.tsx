@@ -11,16 +11,7 @@ import {
 } from '../api/preset';
 import { useAuth } from '../auth/AuthContext';
 import type { ExcelField } from './ExcelTable';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toast } from 'sonner';
-import FilterField from './FilterField';
 import LabeledCombobox from './LabeledCombobox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -71,22 +62,16 @@ export default function PresetKolom({
   triggerClassName,
   wrapperClassName,
   lebarTrigger,
-  gaya = 'kotak',
-  sejajarLabel = false,
 }: {
   tableKey: string;
   fields: ExcelField[];
   onApply: (keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => void;
   apiRef?: MutableRefObject<PresetKolomApi | null>;
-  /** Gaya kontrol: `kotak` (LabeledCombobox, bawaan) atau `klasik` (Select). */
-  gaya?: 'klasik' | 'kotak';
   /** Timpa lebar trigger (bawaan 120px), mis. tabel sempit dua panel. */
   triggerClassName?: string;
   wrapperClassName?: string;
   /** Lebar trigger dropdown (px) dari tab Kontrol; menang atas triggerClassName. */
   lebarTrigger?: number;
-  /** Label mendatar di samping kontrol (bukan di atasnya). */
-  sejajarLabel?: boolean;
 }) {
   /** Memilih preset untuk dilihat bisa semua role (kelola via Kelola Tabel). */
   const { user } = useAuth();
@@ -295,67 +280,37 @@ export default function PresetKolom({
   // jadi tabel tanpa preset pun tetap punya pilihan yang terlihat.
 
   return (
-    <>
-      {gaya === 'kotak' ? (
-        /* Opsi preset sebagai objek: label untuk tampilan & pencarian, nilai
-           untuk pemicu (LENGKAP atau id preset). */
-        <LabeledCombobox
-          label="Kolom"
-          htmlFor={`select_preset_kolom_${tableKey}`}
-          kelolaLebar={false}
-          /* Lebar tersimpan untuk SELURUH kontrol Kolom; label mengikuti
-             panjang teksnya, sisa lebar diisi combobox. */
-          lebarKotak={lebarTrigger ?? LEBAR_BAWAHAN_FILTER}
-          /* `gap-0 items-stretch`: kelas wrapper toolbar (gap-1.5 items-center)
-             untuk mode klasik; di mode kotak label & zona harus menempel dan
-             sama tinggi. */
-          className={`${wrapperClassName ?? ''} gap-0 items-stretch`}
-        >
-          <ComboboxRoot
-            items={opsiKolom}
-            autoHighlight
-            itemToStringLabel={(o) => o.label}
-            isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-            value={opsiKolom.find((o) => o.nilai === (aktifId === null ? LENGKAP : String(aktifId))) ?? opsiKolom[0]}
-            onValueChange={(o) => { if (o !== null) void pilihPreset(o.nilai); }}
-          >
-            <ComboboxInput id={`select_preset_kolom_${tableKey}`} aria-label="Preset kolom tampilan" placeholder="Cari kolom…" />
-            <ComboboxTrigger aria-label="Buka daftar kolom" />
-            <ComboboxContent className="max-h-80">
-              <ComboboxEmpty>Tidak ada preset kolom.</ComboboxEmpty>
-              <ComboboxList>
-                {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
-              </ComboboxList>
-            </ComboboxContent>
-          </ComboboxRoot>
-        </LabeledCombobox>
-      ) : (
-      <FilterField label="Kolom" htmlFor={`select_preset_kolom_${tableKey}`} kelolaLebar={false} className={wrapperClassName} sejajar={sejajarLabel}>
-      <Select value={aktifId === null ? LENGKAP : String(aktifId)} onValueChange={(v) => void pilihPreset(v)}>
-        <SelectTrigger
-          id={`select_preset_kolom_${tableKey}`}
-          title="Preset kolom tampilan"
-          aria-label="Preset kolom tampilan"
-          className={triggerClassName}
-           style={lebarTrigger !== undefined ? { width: `${lebarTrigger}px` } : triggerClassName ? undefined : { width: '120px' }}
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {/* Bila tabel sudah punya preset "Lengkap" (baris DB), opsi bawaan
-                sistem disembunyikan supaya tidak ada dua entri "Lengkap". */}
-            {presets.some((p) => namaLengkap(p.nama)) ? null : (
-              <SelectItem value={LENGKAP}>Lengkap</SelectItem>
-            )}
-            {presets.map((p) => (
-              <SelectItem key={p.id} value={String(p.id)}>{p.nama}</SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      </FilterField>
-      )}
-    </>
+    /* Opsi preset sebagai objek: label untuk tampilan & pencarian, nilai
+       untuk pemicu (LENGKAP atau id preset). */
+    <LabeledCombobox
+      label="Kolom"
+      htmlFor={`select_preset_kolom_${tableKey}`}
+      kelolaLebar={false}
+      /* Lebar tersimpan untuk SELURUH kontrol Kolom; label mengikuti
+         panjang teksnya, sisa lebar diisi combobox. */
+      lebarKotak={lebarTrigger ?? LEBAR_BAWAHAN_FILTER}
+      /* `gap-0 items-stretch`: label & zona harus menempel dan sama tinggi
+         — kalau `items-center`, label hanya setinggi teksnya dan sisanya
+         memperlihatkan latar kotak, sehingga pita label terlihat dua warna. */
+      className={`${wrapperClassName ?? ''} gap-0 items-stretch`}
+    >
+      <ComboboxRoot
+        items={opsiKolom}
+        autoHighlight
+        itemToStringLabel={(o) => o.label}
+        isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+        value={opsiKolom.find((o) => o.nilai === (aktifId === null ? LENGKAP : String(aktifId))) ?? opsiKolom[0]}
+        onValueChange={(o) => { if (o !== null) void pilihPreset(o.nilai); }}
+      >
+        <ComboboxInput id={`select_preset_kolom_${tableKey}`} aria-label="Preset kolom tampilan" placeholder="Cari kolom…" />
+        <ComboboxTrigger aria-label="Buka daftar kolom" />
+        <ComboboxContent className="max-h-80">
+          <ComboboxEmpty>Tidak ada preset kolom.</ComboboxEmpty>
+          <ComboboxList>
+            {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+          </ComboboxList>
+        </ComboboxContent>
+      </ComboboxRoot>
+    </LabeledCombobox>
   );
 }

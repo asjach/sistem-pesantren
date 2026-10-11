@@ -297,9 +297,12 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::put('urut-preset', [UrutPresetController::class, 'simpan'])->middleware('permission:urut_preset.tambah|urut_preset.ubah');
         Route::delete('urut-preset', [UrutPresetController::class, 'hapus'])->middleware('permission:urut_preset.hapus');
 
-        // Visibilitas kontrol toolbar (global per tabel; tulis super_admin saja).
+        // Kontrol toolbar (global per tabel). Visibilitas = super_admin saja.
+        // Ukuran (lebar/tinggi) kotak kontrol ditulis dari popover klik-kanan
+        // combobox oleh pengguna mana pun → PUT cukup terautentikasi; batas
+        // super_admin untuk `visibilitas` ditegakkan di controller.
         Route::get('toolbar-preset', [ToolbarPresetController::class, 'index'])->middleware('permission:toolbar_preset.lihat');
-        Route::put('toolbar-preset', [ToolbarPresetController::class, 'simpan'])->middleware('permission:toolbar_preset.tambah|toolbar_preset.ubah');
+        Route::put('toolbar-preset', [ToolbarPresetController::class, 'simpan']);
         Route::delete('toolbar-preset', [ToolbarPresetController::class, 'hapus'])->middleware('permission:toolbar_preset.hapus');
 
         // Visibilitas filter topBar (global per tabel; tulis super_admin saja).

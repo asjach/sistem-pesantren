@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import SpinBox from '@/components/SpinBox';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -17,72 +18,6 @@ import {
 } from '@/components/GridPrefs';
 import { useTheme } from '@/theme';
 import { RotateCcw, Settings } from '@/icons';
-
-/** Spinbox angka ringkas (−/+, commit saat blur/Enter/±) — versi netral untuk
- *  popover pengaturan (dulu dipakai ribbon bertema sidebar). */
-function SpinBox({
-  id,
-  value,
-  min,
-  max,
-  title,
-  ariaLabel,
-  onChange,
-}: {
-  id: string;
-  value: number;
-  min: number;
-  max: number;
-  title: string;
-  ariaLabel: string;
-  onChange: (n: number) => void;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const jepit = (n: number) => Math.min(max, Math.max(min, Math.round(n)));
-  const commit = (raw: string | null) => {
-    setDraft(null);
-    if (raw === null || raw.trim() === '') return;
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return;
-    onChange(jepit(n));
-  };
-  const stepBy = (d: number) => {
-    const typed = draft !== null && draft.trim() !== '' && Number.isFinite(Number(draft))
-      ? Number(draft)
-      : value;
-    setDraft(null);
-    onChange(jepit(typed + d));
-  };
-  const tombol = 'grid w-5 shrink-0 place-items-center text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40';
-  const teks = draft ?? String(value);
-  const lebarIsi = `calc(${Math.max(2, teks.length)}ch + 8px)`;
-  return (
-    <div
-      title={title}
-      data-part="spinbox"
-      className="flex h-6 items-stretch overflow-hidden rounded-md border border-input focus-within:ring-2 focus-within:ring-ring/30"
-    >
-      <button type="button" id={`${id}_kurang`} aria-label={`${ariaLabel} kurang`} disabled={value <= min} className={tombol} onClick={() => stepBy(-1)}>
-        <span aria-hidden className="text-sm leading-none">−</span>
-      </button>
-      <input
-        id={id}
-        type="text"
-        inputMode="numeric"
-        aria-label={ariaLabel}
-        className="border-x border-input bg-transparent px-0 text-center text-xs outline-none"
-        style={{ width: lebarIsi }}
-        value={draft ?? String(value)}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => commit(draft)}
-        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-      />
-      <button type="button" id={`${id}_tambah`} aria-label={`${ariaLabel} tambah`} disabled={value >= max} className={tombol} onClick={() => stepBy(1)}>
-        <span aria-hidden className="text-sm leading-none">+</span>
-      </button>
-    </div>
-  );
-}
 
 /** Pemilih jenis huruf (dipakai isi tabel & header tabel). */
 function PilihFont({ id, value, onChange, title, ariaLabel }: {
