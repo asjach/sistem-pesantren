@@ -96,6 +96,7 @@ export default function LabeledNominalInput({ preset = PRESET_NOMINAL, value, on
     <LabeledTextInput
       type="number"
       inputMode="numeric"
+      nama="nominal"
       {...props}
       value={value}
       onChange={(e) => onValueChange(e.target.value)}

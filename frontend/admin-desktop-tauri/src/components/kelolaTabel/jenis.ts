@@ -69,6 +69,10 @@ export function bacaTinggiFilter(tinggi: Record<string, number> | undefined): Re
 /** Sufiks kunci lebar label/kontrol terkunci di peta `lebar` preset. */
 export const SUFIKS_LEBAR_LABEL = '.label';
 export const SUFIKS_LEBAR_KONTROL = '.kontrol';
+/** Sufiks penanda LABEL yang mengembang (`= 1`; absen = kontrol mengembang). */
+export const SUFIKS_EXPAND_LABEL = '.expand';
+/** Sufiks penanda label TRANSPARAN (`= 1`; absen = label ber-bg). */
+export const SUFIKS_LABEL_TRANSPARAN = '.labeltransparan';
 
 /** Rentang lebar label/kontrol terkunci (px) — selaras dengan `ukuranKombo`
  *  dan validasi backend. */
@@ -86,6 +90,28 @@ export function bacaLebarLabelFilter(lebar: Record<string, number> | undefined):
 /** Lebar kontrol terkunci per kontrol (kunci htmlFor → px). */
 export function bacaLebarKontrolFilter(lebar: Record<string, number> | undefined): Record<string, number> {
   return bacaLebarSufiks(lebar, SUFIKS_LEBAR_KONTROL, LEBAR_KONTROL_MIN, LEBAR_KONTROL_MAKS);
+}
+
+/** Kontrol yang LABEL-nya mengembang saat total diubah (kunci htmlFor).
+ *  Kunci asing dan nilai selain `1` diabaikan; prefiks `filter.` dibuang. */
+export function bacaExpandLabelFilter(lebar: Record<string, number> | undefined): Record<string, boolean> {
+  return bacaFlagFilter(lebar, SUFIKS_EXPAND_LABEL);
+}
+
+/** Kontrol yang labelnya TRANSPARAN (kunci htmlFor). */
+export function bacaLabelTransparanFilter(lebar: Record<string, number> | undefined): Record<string, boolean> {
+  return bacaFlagFilter(lebar, SUFIKS_LABEL_TRANSPARAN);
+}
+
+function bacaFlagFilter(lebar: Record<string, number> | undefined, sufiks: string): Record<string, boolean> {
+  const hasil: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(lebar ?? {})) {
+    if (!k.startsWith(AWALAN_LEBAR_FILTER) || !k.endsWith(sufiks)) continue;
+    if (v !== 1) continue;
+    const kunci = k.slice(AWALAN_LEBAR_FILTER.length, -sufiks.length);
+    if (/^[a-z0-9_]{1,60}$/.test(kunci)) hasil[kunci] = true;
+  }
+  return hasil;
 }
 
 function bacaLebarSufiks(lebar: Record<string, number> | undefined, sufiks: string, min: number, maks: number): Record<string, number> {

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import LabeledNominalInput, { PRESET_NOMINAL } from './LabeledNominalInput';
+import { ukuranKombo } from '@/components/ukuranKombo';
 import { renderDenganTema } from '@/test/utils';
 
 /** Harness terkontrol: meniru pemakaian nyata (`value` + `onValueChange`). */
@@ -203,5 +204,16 @@ describe('LabeledNominalInput', () => {
 
   it('preset bawaan berisi nominal rupiah umum', () => {
     expect(PRESET_NOMINAL).toEqual([1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]);
+  });
+
+  it('klik kanan membuka popover ukuran (judul nominal) di samping panel kalkulator', async () => {
+    const { container } = renderDenganTema(<Contoh />);
+
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    expect(await screen.findByLabelText('Tinggi kotak nominal (px)')).not.toBeNull();
+    // Panel kalkulator tetap bisa dibuka (popover independen).
+    await bukaPopover();
+    await waitFor(() => expect(panel('nominal')).not.toBeNull());
+    expect(panel('angka')).not.toBeNull();
   });
 });

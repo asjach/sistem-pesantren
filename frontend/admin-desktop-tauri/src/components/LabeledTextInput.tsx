@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import KotakLabel, { hitungLebarKontrol, keCss } from '@/components/kotakLabel';
+import { usePengaturanKotak } from '@/components/pengaturanKotak';
 import { cn } from '@/lib/utils';
 
 /** Gabungan label + input teks dalam satu kotak tanpa padding.
@@ -18,10 +19,16 @@ import { cn } from '@/lib/utils';
  *  - `type`, `placeholder`, `value`, `onChange`, dan seterusnya diteruskan ke
  *    `Input`; `className` tambahan digabung di atas kelas bawaan.
  *  - `aksiKanan` menempelkan konten (mis. tombol) di ujung kanan zona kontrol
- *    secara absolut; input diberi ruang kanan agar teks tak tertimpa. */
-export default function LabeledTextInput({ label, htmlFor, lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
+ *    secara absolut; input diberi ruang kanan agar teks tak tertimpa.
+ *  - KLIK KANAN pada kotak membuka popover pengaturan ukuran KOTAK (sama
+ *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas. */
+export default function LabeledTextInput({ label, htmlFor, labelTransparan = false, nama = 'input', lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
   label: string;
   htmlFor?: string;
+  /** Label transparan (tanpa bg, teks bertitik dua); simpanan popover menang. */
+  labelTransparan?: boolean;
+  /** Kata ganti jenis kotak di judul & aria popover (bawaan 'input'). */
+  nama?: string;
   lebarLabel?: number | string;
   lebarInput?: number | string;
   /** Lebar TOTAL kotak (label + input); input mengisi sisa ruang. */
@@ -33,16 +40,26 @@ export default function LabeledTextInput({ label, htmlFor, lebarLabel, lebarInpu
   /** Konten di ujung kanan zona kontrol (tombol dsb), ditumpuk absolut. */
   aksiKanan?: ReactNode;
 } & Omit<React.ComponentProps<typeof Input>, 'className' | 'style'>) {
-  return (
+  const {
+    refKotak, onContextMenu, tinggiEfektif, lebarKotakEfektif,
+    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif, bungkus,
+  } = usePengaturanKotak({
+    htmlFor, kelolaLebar, label, nama, labelTransparan,
+    lebarLabel, lebarKontrol: lebarInput, lebarKotak, tinggi,
+  });
+  const kotak = (
     <KotakLabel
+      ref={refKotak}
       label={label}
       htmlFor={htmlFor}
-      lebarLabel={lebarLabel}
-      lebarKontrol={lebarInput}
-      lebarKotak={lebarKotak}
-      tinggi={tinggi}
+      labelTransparan={labelTransparanEfektif}
+      lebarLabel={lebarLabelEfektif}
+      lebarKontrol={lebarKontrolEfektif}
+      lebarKotak={lebarKotakEfektif}
+      tinggi={tinggiEfektif}
       className={className}
       kelolaLebar={kelolaLebar}
+      onContextMenu={onContextMenu}
     >
       {(kelasKontrol) => (
         <>
@@ -58,6 +75,7 @@ export default function LabeledTextInput({ label, htmlFor, lebarLabel, lebarInpu
       )}
     </KotakLabel>
   );
+  return bungkus(kotak);
 }
 
 export { hitungLebarKontrol as hitungLebarInput, keCss };

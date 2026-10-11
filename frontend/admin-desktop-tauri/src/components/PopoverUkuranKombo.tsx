@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { PopoverClose, PopoverContent } from '@/components/ui/popover';
-import LabeledStepper from '@/components/LabeledStepper';
+import SpinBox from '@/components/SpinBox';
 import { RotateCcw, X as XIcon } from '@/icons';
 import {
   LEBAR_KOMBO_MAKS,
@@ -20,12 +20,15 @@ const LANGKAH_TINGGI = 2;
 const LANGKAH_LEBAR = 10;
 const LANGKAH_LABEL = 4;
 
-/** Lebar label (px) — SAMA untuk semua baris supaya kolomnya rata. */
-const LEBAR_LABEL = 52;
+/** Lebar label baris (px) — SAMA semua baris supaya stepper sejajar. */
+const LEBAR_LABEL_BARIS = 48;
+/** Lebar kotak stepper (px) — SAMA semua baris; cukup untuk 4 digit. */
+const LEBAR_STEPPER = 84;
 
-/** Baris alat: stepper berlabel mengisi baris, satuan "px" + tombol reset
- *  per-baris di kanan. */
-function BarisUkuran({ stepper, resetId, resetLabel, adaAturan, onReset }: {
+/** Baris alat: label polos + stepper kompak + tombol reset per-baris. */
+function BarisUkuran({ id, teks, stepper, resetId, resetLabel, adaAturan, onReset }: {
+  id: string;
+  teks: string;
   stepper: ReactNode;
   resetId: string;
   resetLabel: string;
@@ -34,8 +37,8 @@ function BarisUkuran({ stepper, resetId, resetLabel, adaAturan, onReset }: {
 }) {
   return (
     <div className="flex items-center gap-1.5">
+      <label htmlFor={id} className="shrink-0 text-xs whitespace-nowrap text-muted-foreground" style={{ width: LEBAR_LABEL_BARIS }}>{teks}</label>
       <div className="min-w-0 flex-1">{stepper}</div>
-      <span className="shrink-0 text-xs text-muted-foreground">px</span>
       <Button
         id={resetId}
         type="button"
@@ -53,8 +56,42 @@ function BarisUkuran({ stepper, resetId, resetLabel, adaAturan, onReset }: {
   );
 }
 
+/** Pil toggle (segmented): aktif = terisi, mati = outline. */
+function Pil({ id, teks, nama, aktif, onPilih }: {
+  id: string;
+  teks: string;
+  nama: string;
+  aktif: boolean;
+  onPilih: () => void;
+}) {
+  return (
+    <Button
+      id={id}
+      type="button"
+      variant={aktif ? 'default' : 'outline'}
+      aria-label={nama}
+      aria-pressed={aktif}
+      onClick={onPilih}
+      className="h-6 rounded-full px-2 text-xs"
+    >
+      {teks}
+    </Button>
+  );
+}
+
+/** Jepit ke rentang (px bulat). */
+const jepit = (n: number, min: number, maks: number) => Math.min(maks, Math.max(min, Math.round(n)));
+
 /** Isi popover pengaturan ukuran KOTAK combobox — dibuka lewat KLIK KANAN
  *  pada kotak `LabeledCombobox` (lihat `LabeledCombobox`).
+ *
+ *  Total, label, dan kontrol SALING TERHUBUNG: total = label + kontrol.
+ *  - Ubah label → kontrol menyesuaikan (total tetap); ubah kontrol → label
+ *    menyesuaikan. Sisi lawan dijepit ke rentangnya, jadi sisi yang diubah
+ *    pun tertahan bila lawan mentok.
+ *  - Ubah total → sisi yang BERTANDA expanding yang terdampak (bawaan:
+ *    kontrol); total tertulis mengikuti hasil aktual bila sisi itu mentok.
+ *  - Tepat satu sisi mengembang (dua checkbox saling lepas).
  *
  *  Komponen ini "bodoh": ia hanya menampilkan nilai & memanggil balik. Sumber
  *  penyimpanannya ditentukan pemanggil — SERVER (saat combobox hidup di
@@ -63,11 +100,13 @@ function BarisUkuran({ stepper, resetId, resetLabel, adaAturan, onReset }: {
  *  Popover TIDAK menutup saat klik di luar atau Escape — hanya tombol × yang
  *  menutupnya — supaya pengguna bisa membuka dropdown combobox dan mengecek
  *  hasilnya tanpa kehilangan panel pengaturan ini. */
-export default function PopoverUkuranKombo({ kunci, label, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, onUbah, onReset, onResetBaris }: {
+export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, expandLabel, labelTransparan, onUbah, onReset, onResetBaris }: {
   kunci: string;
-  /** Label combobox yang sedang diatur — ditampilkan agar jelas komponen mana
+  /** Label kotak yang sedang diatur — ditampilkan agar jelas komponen mana
    *  yang berubah. */
   label?: string;
+  /** Kata ganti jenis kotak di judul & aria ("combobox", "input", ...). */
+  nama?: string;
   /** Nilai tinggi kotak yang ditampilkan (px). */
   tinggi: number;
   /** Nilai lebar total kotak yang ditampilkan (px). */
@@ -81,11 +120,42 @@ export default function PopoverUkuranKombo({ kunci, label, tinggi, lebar, lebarL
   adaLebar: boolean;
   adaLebarLabel: boolean;
   adaLebarKontrol: boolean;
+  /** Ada flag expanding tersimpan? (ikut menentukan tombol reset global). */
+  adaExpand: boolean;
+  /** Ada flag label transparan tersimpan? */
+  adaLabelTransparan: boolean;
+  /** True = LABEL mengembang saat total diubah; false = KONTROL (bawaan). */
+  expandLabel: boolean;
+  /** True = label TRANSPARAN (tanpa bg, teks bertitik dua). */
+  labelTransparan: boolean;
   onUbah: (ukuran: UbahUkuranKombo) => void;
   onReset: () => void;
   /** Kembalikan SATU baris ke bawaan. */
   onResetBaris: (bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol') => void;
 }) {
+  /** Ubah label → kontrol menyesuaikan, total tetap. Batas label dirapatkan
+   *  agar kontrol tak keluar dari rentangnya. */
+  const ubahLabel = (n: number) => {
+    const labelBaru = jepit(n, Math.max(LEBAR_LABEL_MIN, lebar - LEBAR_KONTROL_MAKS), Math.min(LEBAR_LABEL_MAKS, lebar - LEBAR_KONTROL_MIN));
+    onUbah({ lebarLabel: labelBaru, lebarKontrol: lebar - labelBaru });
+  };
+  /** Ubah kontrol → label menyesuaikan, total tetap. */
+  const ubahKontrol = (n: number) => {
+    const kontrolBaru = jepit(n, Math.max(LEBAR_KONTROL_MIN, lebar - LEBAR_LABEL_MAKS), Math.min(LEBAR_KONTROL_MAKS, lebar - LEBAR_LABEL_MIN));
+    onUbah({ lebarKontrol: kontrolBaru, lebarLabel: lebar - kontrolBaru });
+  };
+  /** Ubah total → sisi yang mengembang yang terdampak; total tertulis
+   *  mengikuti hasil aktual bila sisi itu mentok di batasnya. */
+  const ubahTotal = (n: number) => {
+    const delta = jepit(n, LEBAR_KOMBO_MIN, LEBAR_KOMBO_MAKS) - lebar;
+    if (expandLabel) {
+      const labelBaru = jepit(lebarLabel + delta, LEBAR_LABEL_MIN, LEBAR_LABEL_MAKS);
+      onUbah({ lebar: labelBaru + lebarKontrol, lebarLabel: labelBaru });
+    } else {
+      const kontrolBaru = jepit(lebarKontrol + delta, LEBAR_KONTROL_MIN, LEBAR_KONTROL_MAKS);
+      onUbah({ lebar: lebarLabel + kontrolBaru, lebarKontrol: kontrolBaru });
+    }
+  };
   return (
     <PopoverContent
       align="start"
@@ -94,7 +164,7 @@ export default function PopoverUkuranKombo({ kunci, label, tinggi, lebar, lebarL
       /* Ukuran popover TETAP dan tak bergantung pada combobox: lebar dipatok
          (min = max) sehingga melebar/menyempitnya kotak combobox tak pernah
          ikut mengubah popover ini. */
-      className="w-[248px] min-w-[248px] max-w-[248px] p-3 border-foreground/30"
+      className="w-[372px] min-w-[372px] max-w-[372px] p-3 border-foreground/30"
       /* Popover ini SENGAJA hanya bisa ditutup lewat tombol ×: klik di luar
          (termasuk membuka dropdown combobox untuk mengecek hasilnya) dan
          tombol Escape tidak menutupnya. Tanpa ini popover hilang begitu
@@ -106,7 +176,7 @@ export default function PopoverUkuranKombo({ kunci, label, tinggi, lebar, lebarL
         <div className="flex items-start gap-1">
           <div className="flex min-w-0 flex-1 flex-col">
             <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Ukuran kotak combobox
+              Ukuran kotak {nama}
             </p>
             {label ? (
               <p className="truncate text-[11px] text-muted-foreground" title={label}>
@@ -130,101 +200,126 @@ export default function PopoverUkuranKombo({ kunci, label, tinggi, lebar, lebarL
             </Button>
           </PopoverClose>
         </div>
+        <div className="grid grid-cols-2 gap-2">
         <BarisUkuran
+          id={`set_tinggi_kombo_${kunci}`}
+          teks="Tinggi"
           resetId={`btn_reset_tinggi_kombo_${kunci}`}
           resetLabel="Kembalikan tinggi ke bawaan"
           adaAturan={adaTinggi}
           onReset={() => onResetBaris('tinggi')}
           stepper={
-            <LabeledStepper
-              label="Tinggi"
-              htmlFor={`set_tinggi_kombo_${kunci}`}
-              lebarLabel={LEBAR_LABEL}
-              kelolaLebar={false}
+            <SpinBox
+              id={`set_tinggi_kombo_${kunci}`}
               value={tinggi}
               min={TINGGI_KOMBO_MIN}
               max={TINGGI_KOMBO_MAKS}
               step={LANGKAH_TINGGI}
-              title="Tinggi kotak combobox (px)"
-              aria-label="Tinggi kotak combobox (px)"
+              lebar={LEBAR_STEPPER}
+              title={`Tinggi kotak ${nama} (px)`}
+              ariaLabel={`Tinggi kotak ${nama} (px)`}
               onChange={(n) => onUbah({ tinggi: n })}
             />
           }
         />
         <BarisUkuran
+          id={`set_lebar_kombo_${kunci}`}
+          teks="Total"
           resetId={`btn_reset_lebar_kombo_${kunci}`}
           resetLabel="Kembalikan lebar total ke bawaan"
           adaAturan={adaLebar}
           onReset={() => onResetBaris('lebar')}
           stepper={
-            <LabeledStepper
-              label="Total"
-              htmlFor={`set_lebar_kombo_${kunci}`}
-              lebarLabel={LEBAR_LABEL}
-              kelolaLebar={false}
+            <SpinBox
+              id={`set_lebar_kombo_${kunci}`}
               value={lebar}
               min={LEBAR_KOMBO_MIN}
               max={LEBAR_KOMBO_MAKS}
               step={LANGKAH_LEBAR}
-              title="Lebar total kotak combobox — label + kontrol (px)"
-              aria-label="Lebar kotak combobox (px)"
-              onChange={(n) => onUbah({ lebar: n })}
+              lebar={LEBAR_STEPPER}
+              title={`Lebar total kotak ${nama} — label + kontrol (px)`}
+              ariaLabel={`Lebar kotak ${nama} (px)`}
+              onChange={ubahTotal}
             />
           }
         />
         <BarisUkuran
+          id={`set_lebar_label_kombo_${kunci}`}
+          teks="Label"
           resetId={`btn_reset_label_kombo_${kunci}`}
           resetLabel="Kembalikan lebar label ke bawaan"
           adaAturan={adaLebarLabel}
           onReset={() => onResetBaris('lebarLabel')}
           stepper={
-            <LabeledStepper
-              label="Label"
-              htmlFor={`set_lebar_label_kombo_${kunci}`}
-              lebarLabel={LEBAR_LABEL}
-              kelolaLebar={false}
+            <SpinBox
+              id={`set_lebar_label_kombo_${kunci}`}
               value={lebarLabel}
               min={LEBAR_LABEL_MIN}
               max={LEBAR_LABEL_MAKS}
               step={LANGKAH_LABEL}
+              lebar={LEBAR_STEPPER}
               title="Lebar label terkunci (px)"
-              aria-label="Lebar label combobox (px)"
-              onChange={(n) => onUbah({ lebarLabel: n })}
+              ariaLabel={`Lebar label ${nama} (px)`}
+              onChange={ubahLabel}
             />
           }
         />
         <BarisUkuran
+          id={`set_lebar_kontrol_kombo_${kunci}`}
+          teks="Kontrol"
           resetId={`btn_reset_kontrol_kombo_${kunci}`}
           resetLabel="Kembalikan lebar kontrol ke bawaan"
           adaAturan={adaLebarKontrol}
           onReset={() => onResetBaris('lebarKontrol')}
           stepper={
-            <LabeledStepper
-              label="Kontrol"
-              htmlFor={`set_lebar_kontrol_kombo_${kunci}`}
-              lebarLabel={LEBAR_LABEL}
-              kelolaLebar={false}
+            <SpinBox
+              id={`set_lebar_kontrol_kombo_${kunci}`}
               value={lebarKontrol}
               min={LEBAR_KONTROL_MIN}
               max={LEBAR_KONTROL_MAKS}
               step={LANGKAH_LEBAR}
+              lebar={LEBAR_STEPPER}
               title="Lebar kontrol terkunci (px)"
-              aria-label="Lebar kontrol combobox (px)"
-              onChange={(n) => onUbah({ lebarKontrol: n })}
+              ariaLabel={`Lebar kontrol ${nama} (px)`}
+              onChange={ubahKontrol}
             />
           }
         />
-        <p className="text-[11px] text-muted-foreground">
-          Bila lebar kontrol dikunci, lebar total diabaikan (kotak rangkul isi).
-        </p>
+        </div>
+        <div aria-hidden className="border-t border-foreground/10" />
+        <div className="flex min-h-6 flex-wrap items-center gap-1.5">
+          <span className="shrink-0 text-xs text-muted-foreground">Mengembang:</span>
+          <Pil
+            id={`set_expand_label_kombo_${kunci}`}
+            teks="Label"
+            nama="Label mengembang"
+            aktif={expandLabel}
+            onPilih={() => onUbah({ expandLabel: true })}
+          />
+          <Pil
+            id={`set_expand_kontrol_kombo_${kunci}`}
+            teks="Kontrol"
+            nama="Kontrol mengembang"
+            aktif={!expandLabel}
+            onPilih={() => onUbah({ expandLabel: false })}
+          />
+          <Pil
+            id={`set_label_transparan_kombo_${kunci}`}
+            teks="Label transparan"
+            nama="Label transparan"
+            aktif={labelTransparan}
+            onPilih={() => onUbah({ labelTransparan: !labelTransparan })}
+          />
+        </div>
+        <div aria-hidden className="border-t border-foreground/10" />
         <Button
           id={`btn_reset_ukuran_kombo_${kunci}`}
           type="button"
           variant="ghost"
           size="sm"
-          disabled={!(adaTinggi || adaLebar || adaLebarLabel || adaLebarKontrol)}
+          disabled={!(adaTinggi || adaLebar || adaLebarLabel || adaLebarKontrol || adaExpand || adaLabelTransparan)}
           onClick={onReset}
-          className="justify-start px-1 text-muted-foreground"
+          className="-mx-1 justify-start px-1 text-muted-foreground"
         >
           <RotateCcw />
           Kembalikan ke bawaan

@@ -7,10 +7,13 @@ use Illuminate\Validation\Rule;
 
 class ToolbarPresetSimpanRequest extends FormRequest
 {
-    /** Visibilitas kontrol hanya dikelola super_admin (403 sebelum validasi). */
+    /** Ukuran (lebar/tinggi) kotak kontrol toolbar kini diatur dari popover
+     *  klik-kanan combobox, jadi semua pengguna terautentikasi boleh menulis.
+     *  Visibilitas/urutan/align tetap khusus super_admin — dicek di controller
+     *  (butuh data ter-validasi, jadi tidak bisa di sini). */
     public function authorize(): bool
     {
-        return $this->user()?->bolehSuperAdmin() ?? false;
+        return $this->user() !== null;
     }
 
     public function rules(): array
@@ -19,8 +22,15 @@ class ToolbarPresetSimpanRequest extends FormRequest
             'table_key' => ['required', 'string', 'max:60'],
             'visibilitas' => ['sometimes', 'array', 'max:20'],
             'visibilitas.*' => ['boolean'],
-            'lebar' => ['sometimes', 'array', 'max:20'],
-            'lebar.*' => ['integer', 'min:40', 'max:480'],
+            'lebar' => ['sometimes', 'array', 'max:60'],
+            // Batas atas disamakan dengan popover (LEBAR_KOMBO_MAKS = 1200):
+            // combobox yang membentang penuh bisa jauh di atas 480px.
+            // Batas bawah longgar (min 1): rentang per jenis kunci (total /
+            // label / kontrol / penanda expanding) ditegakkan di controller
+            // agar kunci galatnya tetap `lebar.<kunci>`.
+            'lebar.*' => ['integer', 'min:1', 'max:1200'],
+            'tinggi' => ['sometimes', 'array', 'max:60'],
+            'tinggi.*' => ['integer', 'min:20', 'max:120'],
             'urutan' => ['sometimes', 'array', 'max:300'],
             'urutan.*' => ['string', 'max:80', 'regex:/^[a-z0-9_]{1,80}$/'],
             'align' => ['sometimes', 'array', 'max:200'],

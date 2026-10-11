@@ -1,8 +1,10 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 import LabeledTextInput, { hitungLebarInput } from './LabeledTextInput';
 import { KonteksLebarFilter, daftarFilter } from '@/components/excel/lebarFilter';
+import { ukuranKombo } from '@/components/ukuranKombo';
 import { renderDenganTema } from '@/test/utils';
 
 describe('LabeledTextInput', () => {
@@ -93,5 +95,40 @@ describe('LabeledTextInput', () => {
     expect(hitungLebarInput(180, 80, 180)).toBe(100);
     expect(hitungLebarInput(1000, 80, 180)).toBe(180);
     expect(hitungLebarInput(60, 80, 180)).toBe(40);
+  });
+
+  it('labelTransparan: kotak memakai bg kontrol agar keduanya sama', () => {
+    const { container, unmount } = renderDenganTema(
+      <LabeledTextInput label="Nama" htmlFor="inp_transparan" labelTransparan />,
+    );
+    expect((container.firstElementChild as HTMLElement).className).toMatch(/dark:bg-input\/30/);
+    // Zona kontrol: bg gelap input dinetralkan (1 lapis, sama dengan label).
+    const zona = document.getElementById('inp_transparan')?.closest('span') as HTMLElement;
+    expect(zona.className).toMatch(/dark:bg-transparent/);
+    // Teks kontrol rapat ke ":" (±2 spasi): kanan label + kiri input dipangkas.
+    const labelEl = container.querySelector('label[for="inp_transparan"]') as HTMLElement;
+    expect(labelEl.className).toMatch(/(^|\s)pr-1(\s|$)/);
+    expect(zona.className).toMatch(/pl-1/);
+    unmount();
+
+    const kedua = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_biasa" />);
+    expect((kedua.container.firstElementChild as HTMLElement).className).not.toMatch(/dark:bg-input\/30/);
+  });
+
+  it('klik kanan membuka popover ukuran (judul input): total menaut & pil transparan', async () => {
+    const kunci = `uji_input_pop_${Date.now()}`;
+    const { container } = renderDenganTema(
+      <LabeledTextInput label="Nama" htmlFor={kunci} />,
+    );
+
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    expect(await screen.findByLabelText('Tinggi kotak input (px)')).not.toBeNull();
+    // Total +10 (bawaan kontrol mengembang): kontrol 120→130, label tetap.
+    await userEvent.click(await screen.findByLabelText('Lebar kotak input (px) tambah'));
+    expect(ukuranKombo(kunci)).toEqual({ lebar: 210, lebarKontrol: 130 });
+    // Pil transparan: label bertitik dua.
+    await userEvent.click(screen.getByRole('button', { name: 'Label transparan' }));
+    expect(ukuranKombo(kunci).labelTransparan).toBe(true);
+    expect((container.querySelector(`label[for="${kunci}"]`) as HTMLElement).textContent).toBe('Nama:');
   });
 });

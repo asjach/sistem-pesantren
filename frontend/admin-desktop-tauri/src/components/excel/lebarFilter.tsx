@@ -48,9 +48,14 @@ export interface KonteksLebarFilter {
   /** Override LEBAR KONTROL terkunci (kunci htmlFor → px). Absen = ikut prop
    *  `lebarKombo` pemanggil. */
   lebarKontrol?: Record<string, number>;
+  /** LABEL mengembang saat total diubah (kunci htmlFor → true). Absen =
+   *  KONTROL yang mengembang (bawaan). */
+  expandLabel?: Record<string, boolean>;
+  /** Label TRANSPARAN (kunci htmlFor → true). Absen = label ber-bg (bawaan). */
+  labelTransparan?: Record<string, boolean>;
   /** Simpan ukuran satu kontrol ke SERVER (dipakai popover klik-kanan).
    *  Disediakan `useToolbarPresetState`; absen = hanya simpan per perangkat. */
-  simpanUkuran?: (htmlFor: string, ukuran: { lebar?: number | null; tinggi?: number | null; lebarLabel?: number | null; lebarKontrol?: number | null }) => void;
+  simpanUkuran?: (htmlFor: string, ukuran: { lebar?: number | null; tinggi?: number | null; lebarLabel?: number | null; lebarKontrol?: number | null; expandLabel?: boolean | null; labelTransparan?: boolean | null }) => void;
 }
 
 export const KonteksLebarFilter = createContext<KonteksLebarFilter | null>(null);

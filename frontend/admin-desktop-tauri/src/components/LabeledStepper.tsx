@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import KotakLabel, { hitungLebarKontrol, keCss } from '@/components/kotakLabel';
+import { usePengaturanKotak } from '@/components/pengaturanKotak';
 import { cn } from '@/lib/utils';
 
 /** Gabungan label + stepper angka (−/+) dalam satu kotak tanpa padding.
@@ -18,10 +19,14 @@ import { cn } from '@/lib/utils';
  *  - Nilai yang diketik disimpan sebagai draf selama fokus (seperti `SpinBox`)
  *    supaya pengguna bisa menghapus isinya; commit saat blur/Enter dan selalu
  *    dijepit ke rentang `min`..`max`.
- *  - Tombol ber-id `<id>_kurang`/`<id>_tambah` (snake_case, ikut `htmlFor`). */
-export default function LabeledStepper({ label, htmlFor, lebarLabel, lebarStepper, lebarKotak, tinggi = 26, className, kelolaLebar = true, value, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER, step = 1, disabled = false, onChange, ...props }: {
+ *  - Tombol ber-id `<id>_kurang`/`<id>_tambah` (snake_case, ikut `htmlFor`).
+ *  - KLIK KANAN pada kotak membuka popover pengaturan ukuran KOTAK (sama
+ *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas. */
+export default function LabeledStepper({ label, htmlFor, labelTransparan = false, lebarLabel, lebarStepper, lebarKotak, tinggi = 26, className, kelolaLebar = true, value, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER, step = 1, disabled = false, onChange, ...props }: {
   label: string;
   htmlFor?: string;
+  /** Label transparan (tanpa bg, teks bertitik dua); simpanan popover menang. */
+  labelTransparan?: boolean;
   lebarLabel?: number | string;
   lebarStepper?: number | string;
   /** Lebar TOTAL kotak (label + stepper); stepper mengisi sisa ruang. */
@@ -60,16 +65,26 @@ export default function LabeledStepper({ label, htmlFor, lebarLabel, lebarSteppe
     onChange(jepit(dasar + d));
   };
   const tombol = 'grid w-6 shrink-0 place-items-center text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40';
-  return (
+  const {
+    refKotak, onContextMenu, tinggiEfektif, lebarKotakEfektif,
+    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif, bungkus,
+  } = usePengaturanKotak({
+    htmlFor, kelolaLebar, label, nama: 'stepper', labelTransparan,
+    lebarLabel, lebarKontrol: lebarStepper, lebarKotak, tinggi,
+  });
+  return bungkus(
     <KotakLabel
+      ref={refKotak}
       label={label}
       htmlFor={htmlFor}
-      lebarLabel={lebarLabel}
-      lebarKontrol={lebarStepper}
-      lebarKotak={lebarKotak}
-      tinggi={tinggi}
+      labelTransparan={labelTransparanEfektif}
+      lebarLabel={lebarLabelEfektif}
+      lebarKontrol={lebarKontrolEfektif}
+      lebarKotak={lebarKotakEfektif}
+      tinggi={tinggiEfektif}
       className={className}
       kelolaLebar={kelolaLebar}
+      onContextMenu={onContextMenu}
     >
       {() => (
         <span className="flex h-full w-full items-stretch">

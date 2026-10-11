@@ -194,9 +194,9 @@ describe('LabeledCombobox', () => {
     const pop = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
 
     // Lebar dipatok (w = min = max) → tak mengikuti lebar kotak combobox (700px).
-    expect(pop.className).toMatch(/w-\[248px\]/);
-    expect(pop.className).toMatch(/min-w-\[248px\]/);
-    expect(pop.className).toMatch(/max-w-\[248px\]/);
+    expect(pop.className).toMatch(/w-\[372px\]/);
+    expect(pop.className).toMatch(/min-w-\[372px\]/);
+    expect(pop.className).toMatch(/max-w-\[372px\]/);
     // Border bawaan `--border` cuma 8% foreground (nyaris tak terlihat) → diganti.
     expect(pop.className).toMatch(/border-foreground\/30/);
   });
@@ -215,16 +215,14 @@ describe('LabeledCombobox', () => {
     const inpLabel = screen.getByLabelText('Lebar label combobox (px)');
     const inpKontrol = screen.getByLabelText('Lebar kontrol combobox (px)');
 
-    // Stepper berlabel (LabeledStepper) mengisi penuh lebar popover — kotak
-    // selebar induk, bukan mengikuti panjang angka ("26" vs "160").
+    // Baris kompak: label polos sama lebar (48px) + stepper tetap 84px.
     const baris = [`set_tinggi_kombo_${kunci}`, `set_lebar_kombo_${kunci}`, `set_lebar_label_kombo_${kunci}`, `set_lebar_kontrol_kombo_${kunci}`];
     const inputs = [inpTinggi, inpLebar, inpLabel, inpKontrol];
     baris.forEach((id, i) => {
-      const kotak = document.querySelector(`label[for="${id}"]`)?.parentElement as HTMLElement;
-      expect(kotak.className).toMatch(/w-full/);
-      expect(kotak.contains(inputs[i])).toBe(true);
-      // Label semua baris sama lebar.
-      expect((kotak.firstElementChild as HTMLElement).style.width).toBe('52px');
+      const lab = document.querySelector(`label[for="${id}"]`) as HTMLElement;
+      expect(lab.style.width).toBe('48px');
+      expect(lab.parentElement?.contains(inputs[i])).toBe(true);
+      expect((document.getElementById(id)?.parentElement as HTMLElement).style.width).toBe('84px');
     });
   });
 
@@ -284,7 +282,7 @@ describe('LabeledCombobox', () => {
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     // jsdom tak menghitung layout → ukuran terukur 0 → titik awal = bawaan 26.
     // Satu klik "+" = +2px (langkah tinggi).
-    await userEvent.click(await screen.findByLabelText('Tinggi tambah'));
+    await userEvent.click(await screen.findByLabelText('Tinggi kotak combobox (px) tambah'));
 
     expect(ukuranKombo(kunci).tinggi).toBe(28);
     // Komponen lain tak ikut terpengaruh.
@@ -320,7 +318,7 @@ describe('LabeledCombobox', () => {
 
   it('tombol "Kembalikan ke bawaan" menghapus ukuran tersimpan', async () => {
     const kunci = `uji_ukuran_reset_${Date.now()}`;
-    simpanUkuranKombo(kunci, { tinggi: 40, lebar: 300, lebarLabel: 60, lebarKontrol: 150 });
+    simpanUkuranKombo(kunci, { tinggi: 40, lebar: 300, lebarLabel: 60, lebarKontrol: 150, expandLabel: true, labelTransparan: true });
     const { container } = renderDenganTema(
       <LabeledCombobox label="Kelompok" htmlFor={kunci}>
         {kombo(kunci)}
@@ -348,7 +346,7 @@ describe('LabeledCombobox', () => {
     expect(ukuranKombo(kunci)).toEqual({ tinggi: 40, lebar: 300, lebarKontrol: 150 });
   });
 
-  it('stepper label/kontrol menyimpan & dipakai kotak (lebar total diabaikan)', async () => {
+  it('stepper label/kontrol saling menyesuaikan (total tetap)', async () => {
     const kunci = `uji_ukuran_label_kontrol_${Date.now()}`;
     const { container } = renderDenganTema(
       <LabeledCombobox label="Kelompok" htmlFor={kunci}>
@@ -357,20 +355,103 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    // Titik awal label = bawaan 80 → satu klik "+" (langkah 4) = 84.
-    await userEvent.click(await screen.findByLabelText('Label tambah'));
-    // Titik awal kontrol = bawaan 120 → satu klik "+" (langkah 10) = 130.
-    await userEvent.click(await screen.findByLabelText('Kontrol tambah'));
-
-    expect(ukuranKombo(kunci).lebarLabel).toBe(84);
-    expect(ukuranKombo(kunci).lebarKontrol).toBe(130);
+    // Titik awal: total 200, label 80, kontrol 120.
+    // Label +4 → kontrol menyusut 4 (total tetap 200).
+    await userEvent.click(await screen.findByLabelText('Lebar label combobox (px) tambah'));
+    expect(ukuranKombo(kunci)).toEqual({ lebarLabel: 84, lebarKontrol: 116 });
+    // Kontrol −10 → label membesar 10.
+    await userEvent.click(await screen.findByLabelText('Lebar kontrol combobox (px) kurang'));
+    expect(ukuranKombo(kunci)).toEqual({ lebarLabel: 94, lebarKontrol: 106 });
 
     // Kontrol terkunci → kotak rangkul isi (tanpa lebar total), label & zona
     // kontrol memakai lebar tersimpan.
     const kotak = container.firstElementChild as HTMLElement;
     expect(kotak.style.width).toBe('');
-    expect((kotak.firstElementChild as HTMLElement).style.width).toBe('84px');
-    expect((kotak.children[1] as HTMLElement).style.width).toBe('130px');
+    expect((kotak.firstElementChild as HTMLElement).style.width).toBe('94px');
+    expect((kotak.children[1] as HTMLElement).style.width).toBe('106px');
+  });
+
+  it('ubah total menggeser sisi yang mengembang (bawaan: kontrol)', async () => {
+    const kunci = `uji_ukuran_total_${Date.now()}`;
+    const { container } = renderDenganTema(
+      <LabeledCombobox label="Kelompok" htmlFor={kunci}>
+        {kombo(kunci)}
+      </LabeledCombobox>,
+    );
+
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    // Bawaan: kontrol mengembang (pil kontrol tertekan).
+    expect(screen.getByRole('button', { name: 'Kontrol mengembang' })).toHaveAttribute('aria-pressed', 'true');
+    // Total +10 → kontrol 120→130, label tetap 80.
+    await userEvent.click(await screen.findByLabelText('Lebar kotak combobox (px) tambah'));
+    expect(ukuranKombo(kunci)).toEqual({ lebar: 210, lebarKontrol: 130 });
+  });
+
+  it('flag expanding: tepat satu tercentang & total mengikuti flag', async () => {
+    const kunci = `uji_ukuran_expand_${Date.now()}`;
+    const { container } = renderDenganTema(
+      <LabeledCombobox label="Kelompok" htmlFor={kunci}>
+        {kombo(kunci)}
+      </LabeledCombobox>,
+    );
+
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    const pilLabel = screen.getByRole('button', { name: 'Label mengembang' });
+    const pilKontrol = screen.getByRole('button', { name: 'Kontrol mengembang' });
+    // Pilih label → kontrol lepas; flag tersimpan.
+    await userEvent.click(pilLabel);
+    expect(pilLabel).toHaveAttribute('aria-pressed', 'true');
+    expect(pilKontrol).toHaveAttribute('aria-pressed', 'false');
+    expect(ukuranKombo(kunci).expandLabel).toBe(true);
+    // Total +10 kini menggeser label (80→90), kontrol tetap.
+    await userEvent.click(await screen.findByLabelText('Lebar kotak combobox (px) tambah'));
+    expect(ukuranKombo(kunci)).toMatchObject({ lebar: 210, lebarLabel: 90 });
+    // Pilih kontrol → label lepas.
+    await userEvent.click(pilKontrol);
+    expect(pilLabel).toHaveAttribute('aria-pressed', 'false');
+    expect(pilKontrol).toHaveAttribute('aria-pressed', 'true');
+    expect(ukuranKombo(kunci).expandLabel).toBeUndefined();
+  });
+
+  it('tautan dijepit: sisi lawan mentok → sisi yang diubah tertahan', async () => {
+    const kunci = `uji_ukuran_jepit_${Date.now()}`;
+    simpanUkuranKombo(kunci, { lebar: 80, lebarLabel: 40, lebarKontrol: 40 });
+    const { container } = renderDenganTema(
+      <LabeledCombobox label="Kelompok" htmlFor={kunci}>
+        {kombo(kunci)}
+      </LabeledCombobox>,
+    );
+
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    // Total sudah minimal (40+40): label tak bisa membesar (kontrol mentok).
+    await userEvent.click(await screen.findByLabelText('Lebar label combobox (px) tambah'));
+    expect(ukuranKombo(kunci)).toEqual({ lebar: 80, lebarLabel: 40, lebarKontrol: 40 });
+  });
+
+  it('label transparan: tanpa bg + titik dua, bisa dikembalikan', async () => {
+    const kunci = `uji_ukuran_transparan_${Date.now()}`;
+    const { container } = renderDenganTema(
+      <LabeledCombobox label="Kelompok" htmlFor={kunci}>
+        {kombo(kunci)}
+      </LabeledCombobox>,
+    );
+    const teksLabel = () => (container.querySelector(`label[for="${kunci}"]`) as HTMLElement);
+
+    // Bawaan: ber-bg, tanpa titik dua.
+    expect(teksLabel().textContent).toBe('Kelompok');
+    expect(teksLabel().className).toMatch(/bg-muted\/70/);
+
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await userEvent.click(screen.getByRole('button', { name: 'Label transparan' }));
+
+    expect(ukuranKombo(kunci).labelTransparan).toBe(true);
+    expect(teksLabel().textContent).toBe('Kelompok:');
+    expect(teksLabel().className).toMatch(/bg-transparent/);
+
+    // Pilih lagi → kembali ber-bg.
+    await userEvent.click(screen.getByRole('button', { name: 'Label transparan' }));
+    expect(ukuranKombo(kunci).labelTransparan).toBeUndefined();
+    expect(teksLabel().textContent).toBe('Kelompok');
   });
 
   it('normalkanUkuran menjepit nilai & membuang kunci asing', () => {

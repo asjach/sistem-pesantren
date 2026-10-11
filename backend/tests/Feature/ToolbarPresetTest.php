@@ -320,6 +320,60 @@ class ToolbarPresetTest extends TestCase
             'table_key' => 'santri',
             'lebar' => ['info.label' => 100],
         ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
+
+        // Rentang total tetap dijaga di controller (batas bawah longgar di request).
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => ['urut' => 10],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar.urut']);
+
+        // Penanda expanding: = 1 diterima (label mengembang), selain itu ditolak.
+        // Catatan: peta `lebar` yang dikirim MENGGANTI utuh, jadi kirim
+        // ulang kunci yang sudah ada.
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => [
+                'filter.select_status_santri.label' => 64,
+                'filter.select_status_santri.kontrol' => 180,
+                'filter.select_status_santri.expand' => 1,
+            ],
+        ])->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.lebar', [
+                'filter.select_status_santri.label' => 64,
+                'filter.select_status_santri.kontrol' => 180,
+                'filter.select_status_santri.expand' => 1,
+            ]);
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => ['filter.select_status_santri.expand' => 2],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar.filter.select_status_santri.expand']);
+
+        // Penanda label transparan: = 1 diterima, selain itu ditolak.
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => [
+                'filter.select_status_santri.label' => 64,
+                'filter.select_status_santri.kontrol' => 180,
+                'filter.select_status_santri.expand' => 1,
+                'filter.select_status_santri.labeltransparan' => 1,
+            ],
+        ])->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.lebar', [
+                'filter.select_status_santri.label' => 64,
+                'filter.select_status_santri.kontrol' => 180,
+                'filter.select_status_santri.expand' => 1,
+                'filter.select_status_santri.labeltransparan' => 1,
+            ]);
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => ['filter.select_status_santri.labeltransparan' => 0],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar.filter.select_status_santri.labeltransparan']);
     }
 
     public function test_simpan_dan_baca_align_kolom(): void

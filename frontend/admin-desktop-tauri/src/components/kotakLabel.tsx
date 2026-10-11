@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { forwardRef, useCallback, useLayoutEffect, useRef, useState, type MutableRefObject, type MouseEventHandler, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { LEBAR_BAWAHAN_FILTER } from '@/components/kelolaTabel/jenis';
 import { daftarkanFilter, hapusFilter, pakaiLebarFilter } from '@/components/excel/lebarFilter';
@@ -33,9 +33,12 @@ export function hitungLebarKontrol(tersedia: number, labelPx: number, diminta: n
  *    bawaannya LEBAR_BAWAHAN_FILTER.
  *  - Lebar yang dikunci eksplisit: kotak rangkul isi, dan kontrol menyusut
  *    bila ruang induk tak cukup. */
-export default function KotakLabel({ label, htmlFor, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, children, className, kelolaLebar = true }: {
+export interface KotakLabelProps {
   label: string;
   htmlFor?: string;
+  /** Label transparan (tanpa bg): teks diakhiri titik dua ("Keaktifan:").
+   *  Bawaan false = label ber-bg. */
+  labelTransparan?: boolean;
   lebarLabel?: number | string;
   lebarKontrol?: number | string;
   /** Lebar TOTAL kotak (label + kontrol). Kontrol mengisi sisa ruang; dipakai
@@ -47,12 +50,27 @@ export default function KotakLabel({ label, htmlFor, lebarLabel, lebarKontrol, l
   className?: string;
   /** Matikan pendaftaran ke Kelola Tabel (kontrol bawaan toolbar). */
   kelolaLebar?: boolean;
-}) {
+  /** Klik kanan pada kotak (mis. membuka pengaturan ukuran dropdown). */
+  onContextMenu?: MouseEventHandler<HTMLSpanElement>;
+}
+
+/** `forwardRef` supaya kotak bisa jadi jangkar popover (mis. pengaturan ukuran
+ *  dropdown pada LabeledCombobox); ref-nya digabung dengan ref pengukuran
+ *  internal agar keduanya menunjuk elemen yang sama. */
+const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLabel({
+  label, htmlFor, labelTransparan = false, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, onContextMenu,
+}, refDepan) {
   const kontrolKunci = lebarKontrol !== undefined;
   /* Ruang tersisa di induk setelah label & border: kontrol menyusut agar kotak
      tak meluber (mis. induk 200px + padding 20px, label 80px → 100px). */
   const [lebarEfektif, setLebarEfektif] = useState<number | null>(null);
   const refKotak = useRef<HTMLSpanElement | null>(null);
+  /* Ref gabungan: pengukuran internal + ref dari luar (mis. jangkar popover). */
+  const pasangRef = useCallback((el: HTMLSpanElement | null) => {
+    refKotak.current = el;
+    if (typeof refDepan === 'function') refDepan(el);
+    else if (refDepan != null) (refDepan as MutableRefObject<HTMLSpanElement | null>).current = el;
+  }, [refDepan]);
   useLayoutEffect(() => {
     if (!kontrolKunci) { setLebarEfektif(null); return; }
     const kotak = refKotak.current;
@@ -99,9 +117,13 @@ export default function KotakLabel({ label, htmlFor, lebarLabel, lebarKontrol, l
 
   return (
     <span
-      ref={refKotak}
+      ref={pasangRef}
+      onContextMenu={onContextMenu}
       className={cn(
         'items-stretch overflow-hidden rounded-md border border-foreground/30 bg-transparent',
+        /* Label transparan: kotak memakai bg kontrol (`dark:bg-input/30`)
+           agar bg label & kontrol SAMA di kedua mode. */
+        labelTransparan && 'dark:bg-input/30',
         // Lebar kontrol terkunci → kotak rangkul isi; lebar kotak terkunci →
         // lebar tetap; selain itu kotak mengikuti induk.
         kontrolKunci ? 'inline-flex w-max' : 'flex w-full',
@@ -116,17 +138,29 @@ export default function KotakLabel({ label, htmlFor, lebarLabel, lebarKontrol, l
     >
       <label
         htmlFor={htmlFor}
-        className="flex w-max shrink-0 items-center bg-muted/70 px-2 text-xs whitespace-nowrap text-muted-foreground dark:bg-foreground/10"
+        className={cn(
+          'flex w-max shrink-0 items-center px-2 text-xs whitespace-nowrap text-muted-foreground',
+          labelTransparan ? 'bg-transparent pr-1' : 'bg-muted/70 dark:bg-foreground/10',
+        )}
         style={lebarLabel === undefined ? undefined : { width: keCss(lebarLabel) }}
       >
-        {label}
+        {labelTransparan && !label.endsWith(':') ? `${label}:` : label}
       </label>
       <span
-        className="relative flex min-w-0 flex-1 items-stretch"
+        className={cn(
+          'relative flex min-w-0 flex-1 items-stretch',
+          /* Label transparan: bg kontrol (dark:bg-input/30 bawaan Input)
+             dinetralkan agar kotak hanya 1 lapis — sama dengan zona label;
+             padding kiri input dirapatkan agar teks dekat ":" (±2 spasi). */
+          labelTransparan && '[&_input]:dark:bg-transparent',
+          labelTransparan && '[&_input]:pl-1',
+        )}
         style={lebarKontrolEfektif !== undefined ? { width: lebarKontrolEfektif, flex: 'none' } : undefined}
       >
         {children('h-full w-full min-w-0 rounded-none border-0 shadow-none focus-visible:ring-0 focus-visible:shadow-none')}
       </span>
     </span>
   );
-}
+});
+
+export default KotakLabel;

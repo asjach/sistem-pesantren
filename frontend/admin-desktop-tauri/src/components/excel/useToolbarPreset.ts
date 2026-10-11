@@ -6,9 +6,13 @@ import { muatToolbarPreset, simpanToolbarPreset, type AlignKolomApi, type LebarT
 import {
   EVENT_TOOLBAR_BERUBAH,
   LEBAR_BAWAHAN_TOOLBAR,
+  SUFIKS_EXPAND_LABEL,
+  SUFIKS_LABEL_TRANSPARAN,
   SUFIKS_LEBAR_KONTROL,
   SUFIKS_LEBAR_LABEL,
   bacaAlign,
+  bacaExpandLabelFilter,
+  bacaLabelTransparanFilter,
   bacaLebarFilter,
   bacaLebarKontrolFilter,
   bacaLebarLabelFilter,
@@ -69,7 +73,7 @@ export function useToolbarPresetState(tableKey: string) {
    *  optimistis, kirim peta LENGKAP, lalu kabari grid lain. `null` = hapus
    *  kunci itu (kembali ke bawaan). Lebar label/kontrol terkunci memakai kunci
    *  sufiks (`<kunci>.label` / `<kunci>.kontrol`) di peta `lebar` yang sama. */
-  const simpanUkuran = useCallback((htmlFor: string, ukuran: { lebar?: number | null; tinggi?: number | null; lebarLabel?: number | null; lebarKontrol?: number | null }) => {
+  const simpanUkuran = useCallback((htmlFor: string, ukuran: { lebar?: number | null; tinggi?: number | null; lebarLabel?: number | null; lebarKontrol?: number | null; expandLabel?: boolean | null; labelTransparan?: boolean | null }) => {
     const kunci = kunciUkuranServer(htmlFor);
     const lebarBaru: LebarToolbarApi = { ...lebarApiRef.current };
     const tinggiBaru: TinggiToolbarApi = { ...tinggiApiRef.current };
@@ -88,6 +92,17 @@ export function useToolbarPresetState(tableKey: string) {
     if (ukuran.lebarKontrol !== undefined) {
       if (ukuran.lebarKontrol === null) delete lebarBaru[`${kunci}${SUFIKS_LEBAR_KONTROL}`];
       else lebarBaru[`${kunci}${SUFIKS_LEBAR_KONTROL}`] = ukuran.lebarKontrol;
+    }
+    /* Flag expanding: `true` = tulis penanda `= 1`; `false`/`null` = hapus
+       (kembali ke bawaan: kontrol mengembang). */
+    if (ukuran.expandLabel !== undefined) {
+      if (ukuran.expandLabel === true) lebarBaru[`${kunci}${SUFIKS_EXPAND_LABEL}`] = 1;
+      else delete lebarBaru[`${kunci}${SUFIKS_EXPAND_LABEL}`];
+    }
+    /* Flag label transparan: sama (`= 1` = transparan; hapus = ber-bg). */
+    if (ukuran.labelTransparan !== undefined) {
+      if (ukuran.labelTransparan === true) lebarBaru[`${kunci}${SUFIKS_LABEL_TRANSPARAN}`] = 1;
+      else delete lebarBaru[`${kunci}${SUFIKS_LABEL_TRANSPARAN}`];
     }
     lebarApiRef.current = lebarBaru;
     tinggiApiRef.current = tinggiBaru;
@@ -116,6 +131,20 @@ export function useToolbarPresetState(tableKey: string) {
     if (typeof lebarApi[`kolom${SUFIKS_LEBAR_KONTROL}`] === 'number') hasil[`select_preset_kolom_${tableKey}`] = lebarApi[`kolom${SUFIKS_LEBAR_KONTROL}`];
     return hasil;
   }, [lebarApi, tableKey]);
+  /** Kontrol yang labelnya mengembang (kunci server diterjemahkan). */
+  const expandLabelFilter = useMemo(() => {
+    const hasil = bacaExpandLabelFilter(lebarApi);
+    if (lebarApi[`urut${SUFIKS_EXPAND_LABEL}`] === 1) hasil[`select_urut_${tableKey}`] = true;
+    if (lebarApi[`kolom${SUFIKS_EXPAND_LABEL}`] === 1) hasil[`select_preset_kolom_${tableKey}`] = true;
+    return hasil;
+  }, [lebarApi, tableKey]);
+  /** Kontrol yang labelnya transparan (kunci server diterjemahkan). */
+  const labelTransparanFilter = useMemo(() => {
+    const hasil = bacaLabelTransparanFilter(lebarApi);
+    if (lebarApi[`urut${SUFIKS_LABEL_TRANSPARAN}`] === 1) hasil[`select_urut_${tableKey}`] = true;
+    if (lebarApi[`kolom${SUFIKS_LABEL_TRANSPARAN}`] === 1) hasil[`select_preset_kolom_${tableKey}`] = true;
+    return hasil;
+  }, [lebarApi, tableKey]);
   /** Lebar per `htmlFor` untuk konteks: filter + kontrol bawaan toolbar
    *  (Urutkan/Kolom) yang tersimpan, supaya popover tahu nilai berlakunya. */
   const lebarKonteks = useMemo(() => {
@@ -131,8 +160,10 @@ export function useToolbarPresetState(tableKey: string) {
     tinggi: tinggiFilter,
     lebarLabel: lebarLabelFilter,
     lebarKontrol: lebarKontrolFilter,
+    expandLabel: expandLabelFilter,
+    labelTransparan: labelTransparanFilter,
     simpanUkuran,
-  }), [tableKey, lebarKonteks, tinggiFilter, lebarLabelFilter, lebarKontrolFilter, simpanUkuran]);
+  }), [tableKey, lebarKonteks, tinggiFilter, lebarLabelFilter, lebarKontrolFilter, expandLabelFilter, labelTransparanFilter, simpanUkuran]);
 
   useEffect(() => {
     let batal = false;

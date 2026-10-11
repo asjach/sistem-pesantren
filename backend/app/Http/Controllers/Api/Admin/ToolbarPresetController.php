@@ -27,15 +27,21 @@ class ToolbarPresetController extends Controller
     public const KUNCI_UKURAN = ['urut', 'kolom'];
 
     /** Sufiks lebar label/kontrol terkunci di peta `lebar` + batas atasnya
-     *  (batas bawah 40px ikut aturan `lebar.*`; selaras frontend). */
+     *  (batas bawah 40px untuk semua jenis; selaras frontend). */
     public const SUFIKS_UKURAN = ['label' => 400, 'kontrol' => 1200];
+
+    /** Sufiks penanda boolean di peta `lebar` (nilai harus = 1): label
+     *  mengembang dan label transparan. */
+    public const SUFIKS_PENANDA = ['expand', 'labeltransparan'];
 
     /** Normalisasi peta ukuran (lebar/tinggi): hanya kunci kontrol yang
      *  dikenal — `urut`, `kolom`, atau `filter.<htmlFor>` — yang diterima;
      *  peta kosong disimpan sebagai NULL (kembali ke bawaan komponen).
      *  Peta `lebar` juga menerima kunci sufiks `<kunci>.label` /
-     *  `<kunci>.kontrol` untuk lebar label & kontrol yang dikunci terpisah
-     *  dari popover klik-kanan combobox. */
+     *  `<kunci>.kontrol` (lebar terkunci, 40px sampai batas sufiks) dan
+     *  penanda `<kunci>.expand` / `<kunci>.labeltransparan` (= 1) dari
+     *  popover klik-kanan combobox. Rentang per jenis kunci dijaga di sini
+     *  agar kunci galatnya tetap `lebar.<kunci>`. */
     private static function normalisasiUkuran(array $peta, string $nama): ?array
     {
         $hasil = [];
@@ -43,7 +49,7 @@ class ToolbarPresetController extends Controller
             $kunci = (string) $kunci;
             $sufiks = null;
             $dasar = $kunci;
-            if ($nama === 'lebar' && preg_match('/^(.*)\.(label|kontrol)$/', $kunci, $m) === 1) {
+            if ($nama === 'lebar' && preg_match('/^(.*)\.(label|kontrol|expand|labeltransparan)$/', $kunci, $m) === 1) {
                 $dasar = $m[1];
                 $sufiks = $m[2];
             }
@@ -54,10 +60,20 @@ class ToolbarPresetController extends Controller
                 ]);
             }
             $nilai = (int) $nilai;
-            if ($sufiks !== null && $nilai > self::SUFIKS_UKURAN[$sufiks]) {
-                throw ValidationException::withMessages([
-                    "{$nama}.{$kunci}" => "Lebar {$sufiks} \"{$kunci}\" maksimal ".self::SUFIKS_UKURAN[$sufiks].'px.',
-                ]);
+            if (in_array($sufiks, self::SUFIKS_PENANDA, true)) {
+                if ($nilai !== 1) {
+                    throw ValidationException::withMessages([
+                        "{$nama}.{$kunci}" => "Penanda \"{$kunci}\" harus 1.",
+                    ]);
+                }
+            } elseif ($nama === 'lebar') {
+                // Rentang peta `tinggi` dijaga aturan request (`tinggi.*`).
+                $maks = $sufiks === null ? 1200 : self::SUFIKS_UKURAN[$sufiks];
+                if ($nilai < 40 || $nilai > $maks) {
+                    throw ValidationException::withMessages([
+                        "{$nama}.{$kunci}" => "Lebar \"{$kunci}\" harus 40–{$maks}px.",
+                    ]);
+                }
             }
             $hasil[$kunci] = $nilai;
         }

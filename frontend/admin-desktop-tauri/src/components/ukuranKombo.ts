@@ -12,6 +12,12 @@ export interface UkuranKombo {
   lebar?: number;
   lebarLabel?: number;
   lebarKontrol?: number;
+  /** True = LABEL yang mengembang saat total diubah; absen/false = KONTROL
+   *  (bawaan). Hanya `true` yang disimpan. */
+  expandLabel?: boolean;
+  /** True = label TRANSPARAN (tanpa bg, teks bertitik dua); absen/false =
+   *  label ber-bg (bawaan). Hanya `true` yang disimpan. */
+  labelTransparan?: boolean;
 }
 
 /** Nilai `null` = hapus kunci itu (kembali ke bawaan); dipakai reset per-baris. */
@@ -20,6 +26,8 @@ export type UbahUkuranKombo = {
   lebar?: number | null;
   lebarLabel?: number | null;
   lebarKontrol?: number | null;
+  expandLabel?: boolean | null;
+  labelTransparan?: boolean | null;
 };
 
 /** Bawaan tinggi kotak = tinggi kontrol proyek (26px). */
@@ -88,6 +96,9 @@ export function normalkanUkuran(v: unknown): UkuranKombo {
   if (lebar !== undefined) hasil.lebar = lebar;
   if (lebarLabel !== undefined) hasil.lebarLabel = lebarLabel;
   if (lebarKontrol !== undefined) hasil.lebarKontrol = lebarKontrol;
+  // Absen = kontrol mengembang & label ber-bg (bawaan); hanya `true` yang disimpan.
+  if (o.expandLabel === true) hasil.expandLabel = true;
+  if (o.labelTransparan === true) hasil.labelTransparan = true;
   return hasil;
 }
 
