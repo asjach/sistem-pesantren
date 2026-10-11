@@ -14,8 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `lebar` & `tinggi` = ukuran kotak kontrol toolbar per tabel, peta kunci
  * kontrol (`urut`, `kolom`, `filter.<htmlFor>`) → px; absen = bawaan komponen.
  * Peta `lebar` juga memuat lebar label/kontrol terkunci (`<kunci>.label` /
- * `<kunci>.kontrol`) dan penanda `<kunci>.expand` (= 1, label mengembang)
- * serta `<kunci>.labeltransparan` (= 1, label tanpa bg).
+ * `<kunci>.kontrol`) dan penanda `<kunci>.expand` (1 = label mengembang)
+ * serta `<kunci>.labeltransparan` (1 = transparan, 0 = ber-bg eksplisit).
  */
 class ToolbarPreset extends Model
 {

@@ -25,10 +25,10 @@ class ToolbarPresetSimpanRequest extends FormRequest
             'lebar' => ['sometimes', 'array', 'max:60'],
             // Batas atas disamakan dengan popover (LEBAR_KOMBO_MAKS = 1200):
             // combobox yang membentang penuh bisa jauh di atas 480px.
-            // Batas bawah longgar (min 1): rentang per jenis kunci (total /
-            // label / kontrol / penanda expanding) ditegakkan di controller
-            // agar kunci galatnya tetap `lebar.<kunci>`.
-            'lebar.*' => ['integer', 'min:1', 'max:1200'],
+            // Batas bawah longgar (min 0): rentang per jenis kunci (total /
+            // label / kontrol / penanda) ditegakkan di controller agar kunci
+            // galatnya tetap `lebar.<kunci>`.
+            'lebar.*' => ['integer', 'min:0', 'max:1200'],
             'tinggi' => ['sometimes', 'array', 'max:60'],
             'tinggi.*' => ['integer', 'min:20', 'max:120'],
             'urutan' => ['sometimes', 'array', 'max:300'],

@@ -351,14 +351,15 @@ class ToolbarPresetTest extends TestCase
             'lebar' => ['filter.select_status_santri.expand' => 2],
         ])->assertStatus(422)->assertJsonValidationErrors(['lebar.filter.select_status_santri.expand']);
 
-        // Penanda label transparan: = 1 diterima, selain itu ditolak.
+        // Penanda label transparan: 1 (transparan) & 0 (ber-bg eksplisit)
+        // diterima, selain itu ditolak.
         $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'lebar' => [
                 'filter.select_status_santri.label' => 64,
                 'filter.select_status_santri.kontrol' => 180,
                 'filter.select_status_santri.expand' => 1,
-                'filter.select_status_santri.labeltransparan' => 1,
+                'filter.select_status_santri.labeltransparan' => 0,
             ],
         ])->assertStatus(200);
         $this->actingAs($admin, 'sanctum')
@@ -368,11 +369,11 @@ class ToolbarPresetTest extends TestCase
                 'filter.select_status_santri.label' => 64,
                 'filter.select_status_santri.kontrol' => 180,
                 'filter.select_status_santri.expand' => 1,
-                'filter.select_status_santri.labeltransparan' => 1,
+                'filter.select_status_santri.labeltransparan' => 0,
             ]);
         $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'lebar' => ['filter.select_status_santri.labeltransparan' => 0],
+            'lebar' => ['filter.select_status_santri.labeltransparan' => 2],
         ])->assertStatus(422)->assertJsonValidationErrors(['lebar.filter.select_status_santri.labeltransparan']);
     }
 

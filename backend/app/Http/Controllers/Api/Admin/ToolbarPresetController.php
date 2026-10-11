@@ -30,8 +30,8 @@ class ToolbarPresetController extends Controller
      *  (batas bawah 40px untuk semua jenis; selaras frontend). */
     public const SUFIKS_UKURAN = ['label' => 400, 'kontrol' => 1200];
 
-    /** Sufiks penanda boolean di peta `lebar` (nilai harus = 1): label
-     *  mengembang dan label transparan. */
+    /** Sufiks penanda boolean di peta `lebar` (`0`/`1`): label mengembang
+     *  dan label transparan. */
     public const SUFIKS_PENANDA = ['expand', 'labeltransparan'];
 
     /** Normalisasi peta ukuran (lebar/tinggi): hanya kunci kontrol yang
@@ -61,9 +61,9 @@ class ToolbarPresetController extends Controller
             }
             $nilai = (int) $nilai;
             if (in_array($sufiks, self::SUFIKS_PENANDA, true)) {
-                if ($nilai !== 1) {
+                if (! in_array($nilai, [0, 1], true)) {
                     throw ValidationException::withMessages([
-                        "{$nama}.{$kunci}" => "Penanda \"{$kunci}\" harus 1.",
+                        "{$nama}.{$kunci}" => "Penanda \"{$kunci}\" harus 0 atau 1.",
                     ]);
                 }
             } elseif ($nama === 'lebar') {
