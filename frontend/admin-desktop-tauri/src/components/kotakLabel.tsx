@@ -52,13 +52,16 @@ export interface KotakLabelProps {
   kelolaLebar?: boolean;
   /** Klik kanan pada kotak (mis. membuka pengaturan ukuran dropdown). */
   onContextMenu?: MouseEventHandler<HTMLSpanElement>;
+  /** Node tambahan di dalam kotak SETELAH zona kontrol (mis. tombol arah
+   *  urut). Dipisah garis tipis agar terbaca satu kontrol berbagi kotak. */
+  tambahan?: ReactNode;
 }
 
 /** `forwardRef` supaya kotak bisa jadi jangkar popover (mis. pengaturan ukuran
  *  dropdown pada LabeledCombobox); ref-nya digabung dengan ref pengukuran
  *  internal agar keduanya menunjuk elemen yang sama. */
 const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLabel({
-  label, htmlFor, labelTransparan = true, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, onContextMenu,
+  label, htmlFor, labelTransparan = true, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, onContextMenu, tambahan,
 }, refDepan) {
   const kontrolKunci = lebarKontrol !== undefined;
   /* Ruang tersisa di induk setelah label & border: kontrol menyusut agar kotak
@@ -159,6 +162,9 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
       >
         {children('h-full w-full min-w-0 rounded-none border-0 shadow-none focus-visible:ring-0 focus-visible:shadow-none')}
       </span>
+      {tambahan != null && (
+        <span className="flex shrink-0 items-stretch border-l border-foreground/30">{tambahan}</span>
+      )}
     </span>
   );
 });

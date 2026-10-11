@@ -45,7 +45,7 @@ function suntikGaya(node: ReactNode, jenis: unknown, kelas: string, gaya?: Recor
  *    tabel, lihat `useToolbarPreset`); di luar itu disimpan per perangkat
  *    (`ukuranKombo.ts`).
  *  - Anak idealnya satu `ComboboxRoot`; kontrol lain dirender apa adanya. */
-export default function LabeledCombobox({ label, htmlFor, labelTransparan = true, lebarLabel, lebarKombo, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, bisaCari = false }: {
+export default function LabeledCombobox({ label, htmlFor, labelTransparan = true, lebarLabel, lebarKombo, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, bisaCari = false, tambahan }: {
   label: string;
   htmlFor?: string;
   /** Label transparan (tanpa bg, teks bertitik dua); bisa juga diatur per
@@ -64,6 +64,9 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
    *  menampilkan nilai terpilih (tanpa caret berkedip), klik/panah tetap
    *  membuka daftar. */
   bisaCari?: boolean;
+  /** Node tambahan di dalam kotak setelah zona combobox (mis. tombol arah
+   *  urut) — diteruskan ke `KotakLabel`. */
+  tambahan?: ReactNode;
 }) {
   const {
     refKotak, onContextMenu, tinggiEfektif, lebarKotakEfektif,
@@ -79,7 +82,7 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
   if (anakTunggal === null || anakTunggal.type !== ComboboxRoot) {
     // Tanpa akar Combobox: tetap dirender di dalam kotak (tanpa suntikan gaya).
     return (
-      <KotakLabel label={label} htmlFor={htmlFor} labelTransparan={labelTransparanEfektif} lebarLabel={lebarLabelEfektif} lebarKontrol={lebarKontrolEfektif} lebarKotak={lebarKotakEfektif} tinggi={tinggiEfektif} className={className} kelolaLebar={kelolaLebar}>
+      <KotakLabel label={label} htmlFor={htmlFor} labelTransparan={labelTransparanEfektif} lebarLabel={lebarLabelEfektif} lebarKontrol={lebarKontrolEfektif} lebarKotak={lebarKotakEfektif} tinggi={tinggiEfektif} className={className} kelolaLebar={kelolaLebar} tambahan={tambahan}>
         {() => children}
       </KotakLabel>
     );
@@ -112,6 +115,7 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
       className={className}
       kelolaLebar={kelolaLebar}
       onContextMenu={onContextMenu}
+      tambahan={tambahan}
     >
       {() => cloneElement(anakTunggal, { ...(anakTunggal.props as object), children: isi })}
     </KotakLabel>

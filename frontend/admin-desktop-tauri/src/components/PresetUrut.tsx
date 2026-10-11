@@ -122,63 +122,63 @@ export default function PresetUrut({
   ];
 
   return (
-    <span className="flex items-end gap-0">
-      <LabeledCombobox
-        label="Urutkan"
-        htmlFor={`select_urut_${tableKey}`}
-        kelolaLebar={false}
-        /* Lebar tersimpan untuk SELURUH kontrol Urutkan; label mengikuti
-           panjang teksnya, sisa lebar diisi combobox. */
-        lebarKotak={lebarTrigger ?? LEBAR_BAWAHAN_FILTER}
-        /* `gap-0 items-stretch`: kelas wrapper bawaan (`gap-1.5 items-center`)
-           untuk mode klasik (label di samping kontrol). Label & zona harus
-           menempel dan sama tinggi — kalau `items-center`, label hanya setinggi
-           teksnya dan sisanya memperlihatkan latar kotak, sehingga pita label
-           terlihat dua warna. */
-        className={`${wrapperClassName ?? ''} gap-0 items-stretch`}
-      >
-        <ComboboxRoot
-          items={opsiItem}
-          autoHighlight
-          itemToStringLabel={(o) => o.label}
-          isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-          value={opsiItem.find((o) => o.nilai === (nilaiSelect ?? TANPA)) ?? opsiItem[0]}
-          onValueChange={(o) => { if (o !== null) pilihNilai(o.nilai); }}
-          onOpenChange={(buka) => { if (buka) void muat(); }}
+    <LabeledCombobox
+      label="Urutkan"
+      htmlFor={`select_urut_${tableKey}`}
+      kelolaLebar={false}
+      /* Lebar tersimpan untuk SELURUH kontrol Urutkan; label mengikuti
+         panjang teksnya, sisa lebar diisi combobox. */
+      lebarKotak={lebarTrigger ?? LEBAR_BAWAHAN_FILTER}
+      /* `gap-0 items-stretch`: kelas wrapper bawaan (`gap-1.5 items-center`)
+         untuk mode klasik (label di samping kontrol). Label & zona harus
+         menempel dan sama tinggi — kalau `items-center`, label hanya setinggi
+         teksnya dan sisanya memperlihatkan latar kotak, sehingga pita label
+         terlihat dua warna. */
+      className={`${wrapperClassName ?? ''} gap-0 items-stretch`}
+      /* Tombol arah kini DI DALAM kotak sebagai segmen kanan (dipisah garis
+         oleh `KotakLabel.tambahan`) supaya label + combobox + arah terbaca
+         satu kontrol berbagi kotak. */
+      tambahan={(
+        <TombolIkon
+          id={`btn_arah_urut_${tableKey}`}
+          variant="ghost"
+          size="icon-sm"
+          className="h-full w-6 rounded-none text-muted-foreground hover:text-foreground"
+          tip={`Balik arah urutan (kini: ${arahUrut === 'naik' ? 'naik' : 'turun'})`}
+          disabled={(urutAktif ?? []).length === 0}
+          onClick={balikArah}
         >
-          <ComboboxInput id={`select_urut_${tableKey}`} aria-label="Urutkan" placeholder="Urutkan…" />
-          <ComboboxTrigger aria-label="Buka daftar urutan" />
-          <ComboboxContent>
-            <ComboboxEmpty>Tidak ada opsi urutan.</ComboboxEmpty>
-            <ComboboxList>
-              {(o) => (
-                <ComboboxItem key={o.nilai} value={o}>
-                  {o.nilai === TANPA ? o.label : (opsi[Number(o.nilai)]?.bawaan ? (
-                    <span className="flex items-center gap-1.5">
-                      <Pin size={12} className="shrink-0 text-muted-foreground" aria-label="Urutan bawaan" />
-                      {o.label}
-                    </span>
-                  ) : o.label)}
-                </ComboboxItem>
-              )}
-            </ComboboxList>
-          </ComboboxContent>
-        </ComboboxRoot>
-      </LabeledCombobox>
-      <TombolIkon
-        id={`btn_arah_urut_${tableKey}`}
-        variant="outline"
-        size="icon-sm"
-        /* Tinggi & warna border ikut kotak LabeledCombobox (26px +
-           border-foreground/30), dan menempel di kanan kotak supaya keduanya
-           terbaca satu kontrol. */
-        className="h-[26px] w-6 rounded-l-none border-l-0 border-foreground/30 dark:border-foreground/30"
-        tip={`Balik arah urutan (kini: ${arahUrut === 'naik' ? 'naik' : 'turun'})`}
-        disabled={(urutAktif ?? []).length === 0}
-        onClick={balikArah}
+          {arahUrut === 'naik' ? <SegitigaArah naik /> : <SegitigaArah naik={false} />}
+        </TombolIkon>
+      )}
+    >
+      <ComboboxRoot
+        items={opsiItem}
+        autoHighlight
+        itemToStringLabel={(o) => o.label}
+        isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+        value={opsiItem.find((o) => o.nilai === (nilaiSelect ?? TANPA)) ?? opsiItem[0]}
+        onValueChange={(o) => { if (o !== null) pilihNilai(o.nilai); }}
+        onOpenChange={(buka) => { if (buka) void muat(); }}
       >
-        {arahUrut === 'naik' ? <SegitigaArah naik /> : <SegitigaArah naik={false} />}
-      </TombolIkon>
-    </span>
+        <ComboboxInput id={`select_urut_${tableKey}`} aria-label="Urutkan" placeholder="Urutkan…" />
+        <ComboboxTrigger aria-label="Buka daftar urutan" />
+        <ComboboxContent>
+          <ComboboxEmpty>Tidak ada opsi urutan.</ComboboxEmpty>
+          <ComboboxList>
+            {(o) => (
+              <ComboboxItem key={o.nilai} value={o}>
+                {o.nilai === TANPA ? o.label : (opsi[Number(o.nilai)]?.bawaan ? (
+                  <span className="flex items-center gap-1.5">
+                    <Pin size={12} className="shrink-0 text-muted-foreground" aria-label="Urutan bawaan" />
+                    {o.label}
+                  </span>
+                ) : o.label)}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </ComboboxRoot>
+    </LabeledCombobox>
   );
 }
