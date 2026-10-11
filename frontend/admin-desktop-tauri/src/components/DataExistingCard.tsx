@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Card } from '@/components/ui/card';
 import { errorMessage } from '@/api/client';
 import { listLembaga, type Lembaga } from '@/api/master';
 import { Button } from '@/components/ui/button';
@@ -70,7 +71,7 @@ export default function DataExistingCard({
   const terkunci = lembagas.length <= 1;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">
+    <Card className="flex flex-col gap-2 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{judul}</p>
       <p className="text-xs text-muted-foreground">{deskripsi}</p>
       <div className="flex flex-nowrap items-center gap-2">
@@ -131,6 +132,6 @@ export default function DataExistingCard({
           </TooltipContent>
         </Tooltip>
       </div>
-    </div>
+    </Card>
   );
 }

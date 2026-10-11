@@ -127,6 +127,13 @@
   --shadow-card: 0 1px 2px rgb(28 25 20 / 0.05), 0 0 0 1px var(--border);
   --shadow-pop: 0 12px 32px -8px rgb(28 25 20 / 0.16), 0 2px 6px -2px rgb(28 25 20 / 0.06), 0 0 0 1px var(--border);
   --shadow-drag: 0 16px 36px -10px rgb(28 25 20 / 0.28), 0 0 0 1px var(--border-strong);
+  /* Bayangan kartu saat hover (angkat lembut, ring sedikit lebih tegas). */
+  --shadow-card-hover: 0 4px 14px -2px rgb(28 25 20 / 0.10), 0 0 0 1px var(--border-strong);
+  /* Garis rambut seragam untuk chrome (sidebar/topbar) — calon pengganti
+     pengulangan color-mix(...) inline. Catatan: nilai per-piksel di pohon
+     sidebar sengaja tetap inline agar tak menggeser garis penghubung. */
+  --sidebar-border: color-mix(in srgb, var(--sidebar-foreground) 12%, transparent);
+  --hairline: color-mix(in srgb, var(--foreground) 10%, transparent);
   /* Geometri shell ala Gr8r. */
   --side-w: 252px;
   --topbar-h: 46px;
@@ -910,6 +917,21 @@
   white-space: nowrap;
   opacity: 0;
   transition: opacity 80ms ease-out;
+}
+
+/* ---------- Kartu permukaan seragam (Card) ----------
+   Latar, bayangan, dan angkat-hover terpusat di sini supaya seluruh kartu
+   di aplikasi seragam — pengganti inline style background/boxShadow yang
+   selama ini diulang di DashboardPage, DataExistingCard, ExcelTable, dll.
+   `hover` lewat kelas (bukan utilitas Tailwind) agar menimpa box-shadow
+   inline bawaan kartu. */
+.kartu {
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--dur) var(--ease);
+}
+.kartu:hover {
+  box-shadow: var(--shadow-card-hover);
 }
 
 /* ---------- Kaya warna UI (Pengaturan → Tampilan) ----------

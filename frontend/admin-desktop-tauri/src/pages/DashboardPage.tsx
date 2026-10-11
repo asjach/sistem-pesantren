@@ -8,6 +8,8 @@ import { errorMessage } from '../api/client';
 import { useLembagaAktif } from '../lembagaAktif';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorNotice } from '@/components/PageHeader';
 import { TAHAP_PSB } from '@/components/psb/bersama';
 
@@ -67,10 +69,7 @@ function Seksi({
   children: ReactNode;
 }) {
   return (
-    <section
-      className="mb-6 min-w-0 break-inside-avoid rounded-lg p-4"
-      style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
-    >
+    <Card className="mb-6 min-w-0 break-inside-avoid p-4">
       <div
         className="flex items-center justify-between gap-3 pb-2.5"
         style={{ borderBottom: '1px solid var(--divider)' }}
@@ -79,7 +78,7 @@ function Seksi({
         {keterangan ? <LencanaHitung anak={keterangan} /> : null}
       </div>
       <div className="pt-3">{children}</div>
-    </section>
+    </Card>
   );
 }
 
@@ -176,7 +175,7 @@ function Komposisi({
 /** Sebaran tingkat sebagai tabel rekap ringkas, bukan bagan batang. */
 function TabelTingkat({ data }: { data: StatistikTingkat[] }) {
   if (data.length === 0) {
-    return <p className="text-[11px] text-muted-foreground">Belum ada sebaran tingkat.</p>;
+    return <EmptyState className="py-4" title="Belum ada sebaran tingkat" />;
   }
   const tingkat = Array.from(new Set(data.map((d) => d.tingkat ?? '—'))).sort((a, b) =>
     a.localeCompare(b, 'id', { numeric: true }),
@@ -305,10 +304,7 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto w-full max-w-[1160px] px-6 py-7">
       {/* Angka pokok: satu-satunya tempat aksen dipakai. */}
-      <section
-        className="rounded-xl p-6"
-        style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
-      >
+      <Card className="rounded-lg p-6">
         <p className="text-[11px] text-muted-foreground">{hero.label}</p>
         <p
           id="dashboard_angka_pokok"
@@ -330,7 +326,7 @@ export default function DashboardPage() {
             </div>
           ))}
         </dl>
-      </section>
+      </Card>
 
       {/* Kartu-kartu ringkasan ala Gr8r dalam dua kolom. */}
       <div className="gap-6 pt-8 lg:columns-2">
@@ -439,9 +435,7 @@ export default function DashboardPage() {
         {psb ? (
           <Seksi judul="Antrean PSB" keterangan={angka(psb.total) + ' calon'}>
             {psb.total === 0 ? (
-              <p className="py-1 text-[11px] text-muted-foreground">
-                Belum ada calon pada lingkup ini.
-              </p>
+              <EmptyState className="py-4" title="Belum ada calon pada lingkup ini" />
             ) : (
               perTahapPsb.map((t) => (
                 <BarisLedger key={t.id} label={t.label} nilai={t.jumlah} maks={maksPsb} />
