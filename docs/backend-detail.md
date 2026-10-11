@@ -559,9 +559,13 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   `GET/PUT/DELETE /api/admin/urut-preset` (`urut_preset`, global satu baris per
   `table_key`; `opsi` json = kode+label+arah+`bawaan`). Baca bebas
   (`urut_preset.lihat`), tulis admin pesantren (PUT `urut_preset.tambah|ubah`,
-  DELETE `urut_preset.hapus`). Kode di luar katalog → 422. Urutan tanpa `sort`
-  tetap `$bawaan` literal controller; opsi `bawaan` diterapkan frontend sekali
-  saat halaman dibuka.
+  DELETE `urut_preset.hapus`). Kode di luar katalog → 422. Tabel boleh punya
+  lebih dari satu `table_key` bila bentuk barisnya beda: crosstab tagihan
+  memakai `keuangan_tagihan_crosstab` (kolom **agregat per Santri** —
+  `total_tagihan`/`total_terbayar`/`tunggakan` plus alias subkueri `kelas_urut`),
+  terpisah dari `keuangan_tagihan` milik daftar tagihan. Urutan tanpa `sort`
+  tetap `$bawaan` literal controller (crosstab: `kelas` lalu `nama`); opsi
+  `bawaan` diterapkan frontend sekali saat halaman dibuka.
 * See live contract: `php artisan route:list --path=api` (155 routes, 112 di grup admin).
 
 ### 9. Non-functional requirements

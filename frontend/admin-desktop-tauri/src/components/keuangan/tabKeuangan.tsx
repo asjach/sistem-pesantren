@@ -7,8 +7,9 @@ import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/Exce
 import Pager from '@/components/Pager';
 import FilterRail from '@/components/FilterRail';
 import TagihanCrosstab from '@/components/keuangan/TagihanCrosstab';
+import PresetUrut from '@/components/PresetUrut';
 import { DeleteAction, EditAction } from '@/components/RowActions';
-import { ArrowDownAZ, ArrowUpAZ, Info, Plus, RotateCcw, Search, TriangleAlert, X } from '@/icons';
+import { Info, Plus, RotateCcw, Search, TriangleAlert, X } from '@/icons';
 import type { PetaArahKolom } from '@/lib/urut';
 import type { PilihanLembaga } from '@/lembagaAktif';
 import type { PerPage } from '@/prefs';
@@ -514,7 +515,7 @@ export function PenerimaDispensasiTab({ rows, loading, daftar, pilihan, onPilih 
  *  sebelumnya (di dalam wadah gulir crosstab) tanpa memindahkan logikanya. */
 export function TagihanTab({
   crosstab, loading, terpilihId, total,
-  cari, onCari, urut, onUrut, arah, onArah, terlambat, onTerlambat,
+  cari, onCari, sort, terlambat, onTerlambat,
   onPilih, onTambah, onReset, onBukaGenerate, pager, popover,
 }: {
   crosstab: CrosstabTagihan | null;
@@ -523,10 +524,8 @@ export function TagihanTab({
   total: number;
   cari: string;
   onCari: (v: string) => void;
-  urut: string;
-  onUrut: (v: string) => void;
-  arah: 'naik' | 'turun';
-  onArah: (v: 'naik' | 'turun') => void;
+  /** Urut baris (kode + arah) dari Preset Urut `keuangan_tagihan_crosstab`. */
+  sort: SortTabel;
   terlambat: boolean;
   onTerlambat: (v: boolean) => void;
   onPilih: (
@@ -613,40 +612,15 @@ export function TagihanTab({
             )}
           </div>
           <div aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
-          <div className="flex items-center gap-1.5">
-            <Select
-              value={urut === '' ? 'nama' : urut}
-              onValueChange={(v) => onUrut(v === 'nama' ? '' : v)}
-            >
-              <SelectTrigger
-                id="sel_tagihan_urut"
-                size="sm"
-                aria-label="Urutkan baris"
-                title="Urutkan baris"
-                className="w-[168px]"
-              >
-                <SelectValue placeholder="Nama" />
-              </SelectTrigger>
-              <SelectContent position="popper" align="start" className="contain-layout will-change-transform">
-                <SelectItem value="nama">Nama</SelectItem>
-                <SelectItem value="total">Total tagihan</SelectItem>
-                <SelectItem value="bayar">Terbayar</SelectItem>
-                <SelectItem value="sisa">Tunggakan</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              id="btn_tagihan_arah"
-              size="icon"
-              variant="outline"
-              aria-label={arah === 'naik' ? 'Arah urutan: naik' : 'Arah urutan: turun'}
-              title={arah === 'naik' ? 'Arah: naik (klik untuk turun)' : 'Arah: turun (klik untuk naik)'}
-              onClick={() => onArah(arah === 'naik' ? 'turun' : 'naik')}
-            >
-              {arah === 'naik' ? <ArrowUpAZ size={14} /> : <ArrowDownAZ size={14} />}
-            </Button>
-          </div>
+          <PresetUrut
+            tableKey="keuangan_tagihan_crosstab"
+            urutAktif={sort.urut}
+            arahUrut={sort.arah}
+            onUrut={sort.terapkan}
+            wrapperClassName="flex-row items-center gap-1.5"
+          />
           <div className="flex-1" />
-          {(cari !== '' || urut !== '' || arah !== 'naik' || terlambat) && (
+          {(cari !== '' || sort.urut.length > 0 || sort.arah !== 'naik' || terlambat) && (
             <Button
               id="btn_tagihan_reset"
               type="button"

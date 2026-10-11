@@ -218,6 +218,18 @@ class UrutKatalog
             'status' => ['tagihan.status'],
             'id' => ['tagihan.id'],
         ],
+        /* Crosstab tagihan: satu baris = satu Santri dengan kolom agregat
+           (total/terbayar/tunggakan), jadi kode & kolomnya BEDA dari daftar
+           tagihan di atas. `kelas` = alias subkueri `kelas_urut` (nama kelas
+           pada TA tampil) yang dihitung controller, bukan kolom tabel. */
+        'keuangan_tagihan_crosstab' => [
+            'nama' => ['s.nama_lengkap'],
+            'kelas' => ['kelas_urut'],
+            'total' => ['total_tagihan'],
+            'bayar' => ['total_terbayar'],
+            'sisa' => ['tunggakan'],
+            'id' => ['tagihan.santri_id'],
+        ],
         'keuangan_jenis' => [
             'nama' => ['jenis_tagihan.nama'],
             'tipe' => ['jenis_tagihan.tipe'],

@@ -552,7 +552,7 @@ class KeuanganTest extends TestCase
 
         // Lingkup lain tetap boleh: beda lembaga / beda tahun ajaran / beda jenis.
         $lain = JenisTagihan::create(['nama' => 'HIPA', 'tipe' => 'non_bulanan']);
-        foreach ([["MD", "2025/2026", $jenis->id], ["MI", "2024/2025", $jenis->id], ["MI", "2025/2026", $lain->id]] as [$jenjang, $ta, $jenisId]) {
+        foreach ([['MD', '2025/2026', $jenis->id], ['MI', '2024/2025', $jenis->id], ['MI', '2025/2026', $lain->id]] as [$jenjang, $ta, $jenisId]) {
             $this->actingAs($admin)->postJson('/api/admin/keuangan/tarif', [
                 'jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'jenis_id' => $jenisId, 'nominal' => 50000,
             ])->assertStatus(201);
@@ -892,6 +892,37 @@ class KeuanganTest extends TestCase
         $this->assertSame(['Cici', 'Zaki', 'Andi', 'Budi'], $ambil('naik'));
         // Turun: urutan dibalik, tanpa kelas tetap paling bawah.
         $this->assertSame(['Andi', 'Zaki', 'Cici', 'Budi'], $ambil('turun'));
+    }
+
+    public function test_crosstab_urut_bawaan_kelas_lalu_nama(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $kelas4a = Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'tingkat' => '4', 'nama_kelas' => '4A']);
+        $kelas5a = Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'tingkat' => '5', 'nama_kelas' => '5A']);
+
+        $buat = function (string $nama, ?int $kelasId) use ($infaq) {
+            $s = Santri::create(['nama_lengkap' => $nama, 'jk' => 'L']);
+            DB::table('riwayat_belajar')->insert([
+                'santri_id' => $s->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI',
+                'tingkat' => '4', 'kelas_id' => $kelasId, 'semester' => '2',
+                'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            Tagihan::create(['santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'jenis_id' => $infaq->id, 'periode' => '2025-07', 'nominal' => 50000]);
+        };
+        $buat('Zaki', $kelas4a->id);
+        $buat('Cici', $kelas4a->id);
+        $buat('Andi', $kelas5a->id);
+        $buat('Budi', null);
+
+        $urut = fn (string $query) => array_column($this->actingAs($admin)
+            ->getJson('/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026'.$query)
+            ->assertStatus(200)->json('baris'), 'nama');
+
+        // Tanpa `sort` = urutan bawaan kelas lalu nama (bukan urut id).
+        $this->assertSame(['Cici', 'Zaki', 'Andi', 'Budi'], $urut(''));
+        $this->assertSame($urut('&sort=kelas,nama&arah=naik'), $urut(''));
     }
 
     public function test_crosstab_cari_nama_santri_ayah_ibu(): void

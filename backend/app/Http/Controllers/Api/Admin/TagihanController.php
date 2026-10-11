@@ -129,14 +129,14 @@ class TagihanController extends Controller
            memori lalu di-group dan di-`array_slice` di PHP: tumbuh linier
            dengan data dan menahan memori meski tabel hanya menampilkan satu
            halaman. Sekarang hanya Santri di halaman ini yang diambil datanya. */
-        $petaUrut = [
-            'nama' => 's.nama_lengkap',
-            'kelas' => 'kelas_urut',
-            'total' => 'total_tagihan',
-            'bayar' => 'total_terbayar',
-            'sisa' => 'tunggakan',
-            'id' => 'tagihan.santri_id',
-        ];
+        /* Allowlist kode urut crosstab = katalog `keuangan_tagihan_crosstab`
+           (satu sumber bersama dialog Kelola Tabel). Nilai katalog = satu
+           ekspresi ORDER BY per kode (agregat alias), jadi diratakan ke token
+           → kolom tunggal untuk `kriteriaUrutan`. */
+        $petaUrut = array_map(
+            static fn (array $kolom): string => $kolom[0],
+            UrutKatalog::peta('keuangan_tagihan_crosstab'),
+        );
         $agregat = (clone $q)
             ->join('santri as s', 's.id', '=', 'tagihan.santri_id')
             ->select('tagihan.santri_id')
@@ -157,6 +157,12 @@ class TagihanController extends Controller
             ->groupBy('tagihan.santri_id', 's.nama_lengkap', 's.ayah_nama', 's.ibu_nama', 's.foto_url');
 
         $kriteria = $this->kriteriaUrutan($request, $petaUrut);
+        /* Tanpa `sort`: kelas lalu nama — urutan bawaan lama yang dulu selalu
+           dikirim frontend, supaya tampilan awal tak berubah saat tabel belum
+           punya preset urut. */
+        if ($kriteria === []) {
+            $kriteria = [['kelas_urut', 'naik'], ['s.nama_lengkap', 'naik']];
+        }
         if (in_array('kelas_urut', array_column($kriteria, 0), true)) {
             /* Kunci urut kelas: nama_kelas dari riwayat_belajar pada TA yang
                ditampilkan (TA pertama bila beberapa dipilih — sama patokannya
@@ -179,10 +185,6 @@ class TagihanController extends Controller
         }
         foreach ($kriteria as [$kolom, $arah]) {
             $agregat->orderBy($kolom, $arah === 'turun' ? 'desc' : 'asc');
-        }
-        // Tanpa parameter urutan: urut Santri id (perilaku lama).
-        if ($kriteria === []) {
-            $agregat->orderBy('tagihan.santri_id');
         }
 
         $totalSantri = (int) (clone $q)->join('santri as s', 's.id', '=', 'tagihan.santri_id')
@@ -315,15 +317,20 @@ class TagihanController extends Controller
                 'jenjang_riwayat' => $jenjangAda,
                 'foto_dokumen_id' => (function () use ($dokFoto, $santriId, $kelompok) {
                     $kandidat = $dokFoto->where('santri_id', $santriId);
-                    if ($kandidat->isEmpty()) return null;
+                    if ($kandidat->isEmpty()) {
+                        return null;
+                    }
                     $jenjangBaris = (string) $kelompok->first()->jenjang;
                     foreach (['Pas Foto', 'Foto Ijazah'] as $jenis) {
                         $sejenis = $kandidat->where('jenis_dokumen_santri', $jenis);
                         $pilih = $sejenis->first(fn ($d) => $d->lembaga === $jenjangBaris)
                             ?? $sejenis->first(fn ($d) => $d->lembaga === null)
                             ?? $sejenis->first();
-                        if ($pilih !== null) return (int) $pilih->id;
+                        if ($pilih !== null) {
+                            return (int) $pilih->id;
+                        }
                     }
+
                     return null;
                 })(),
                 'foto_profil' => ($agregatSantri->foto_url ?? '') !== '',

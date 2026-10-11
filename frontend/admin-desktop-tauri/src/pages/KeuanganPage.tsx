@@ -93,6 +93,8 @@ export default function KeuanganPage() {
   /** Urut header tiap tabel (perubahan memicu muat ulang via effect). */
   const uJenis = useUrutTabel();
   const uTarif = useUrutTabel();
+  /** Crosstab Tagihan: urut dari Preset Urut (`keuangan_tagihan_crosstab`). */
+  const uTagihan = useUrutTabel();
 
   /** Crosstab tagihan: baris = santri, kolom = jenis (bulanan per bulan). */
   const [crosstab, setCrosstab] = useState<CrosstabTagihan | null>(null);
@@ -100,8 +102,6 @@ export default function KeuanganPage() {
   /** Pencarian yang benar-benar dipakai saat muat: ditunda 400 ms supaya tak
    *  memanggil API tiap ketikan (pola sama dengan `useDaftarTabel`). */
   const [cariTagihanTertunda, setCariTagihanTertunda] = useState('');
-  const [urutTagihan, setUrutTagihan] = useState('');
-  const [arahTagihan, setArahTagihan] = useState<'naik' | 'turun'>('naik');
   /** Tab Tagihan: hanya sel yang sudah lewat jatuh tempo. */
   const [terlambatTagihan, setTerlambatTagihan] = useState(false);
 
@@ -147,10 +147,10 @@ export default function KeuanganPage() {
         jenjang,
         tahun_ajaran: ta,
         santri: cariTagihanTertunda === '' ? undefined : cariTagihanTertunda,
-        /* `''` = opsi "nama": urut kelas dulu baru nama (dua token, arah
-           global berlaku untuk keduanya). */
-        sort: urutTagihan === '' ? ['kelas', 'nama'] : [urutTagihan],
-        arah: arahTagihan,
+        /* Kosong = bawaan backend (kelas lalu nama). Token `kode:arah` ditulis
+           `tokenUrut` bila preset punya arah per kolom. */
+        sort: uTagihan.urut.length ? tokenUrut(uTagihan.urut, uTagihan.arahKolom) : undefined,
+        arah: uTagihan.urut.length ? uTagihan.arah : undefined,
         terlambat: terlambatTagihan || undefined,
         tingkat: tingkat.length ? tingkat : undefined,
         kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
@@ -169,7 +169,7 @@ export default function KeuanganPage() {
     } finally {
       if (req === crosstabReqRef.current) setLoadingTagihan(false);
     }
-  }, [cariTagihanTertunda, urutTagihan, arahTagihan, terlambatTagihan, tingkat, kelasFilterIds]);
+  }, [cariTagihanTertunda, uTagihan.urut, uTagihan.arah, uTagihan.arahKolom, terlambatTagihan, tingkat, kelasFilterIds]);
 
   // Ketikan pencarian → tunggu 400 ms baru jadi nilai muat.
   useEffect(() => {
@@ -182,7 +182,7 @@ export default function KeuanganPage() {
   useEffect(() => {
     if (filterLoading || jenjangs.length === 0) { if (!filterLoading && jenjangs.length === 0) setCrosstab(null); return; }
     void loadCrosstab(1, tagihanPerPage, jenjangs, tahunAjaranNames);
-  }, [filterLoading, jenjangs, tahunAjaranNames, tagihanPerPage, cariTagihanTertunda, urutTagihan, arahTagihan, terlambatTagihan, loadCrosstab]);
+  }, [filterLoading, jenjangs, tahunAjaranNames, tagihanPerPage, cariTagihanTertunda, uTagihan.urut, uTagihan.arah, uTagihan.arahKolom, terlambatTagihan, loadCrosstab]);
 
   // Batalkan request yang masih jalan saat halaman dilepas.
   useEffect(() => () => crosstabAbortRef.current?.abort(), []);
@@ -550,6 +550,7 @@ export default function KeuanganPage() {
         tabel={[
           { key: 'keuangan_jenis', judul: 'Jenis Tagihan', fields: FIELDS_JENIS },
           { key: 'keuangan_tarif', judul: 'Tarif', fields: FIELDS_TARIF },
+          { key: 'keuangan_tagihan_crosstab', judul: 'Tagihan' },
         ]}
       />
       <Tabs value={tab} onValueChange={(v) => { setTab(v); prefSet('simpes_keuangan_tab', v).catch(() => {}); }} className="flex min-h-0 flex-1 flex-col gap-0">
@@ -603,15 +604,12 @@ export default function KeuanganPage() {
             total={tagihanTotal}
             cari={cariTagihan}
             onCari={setCariTagihan}
-            urut={urutTagihan}
-            onUrut={setUrutTagihan}
-            arah={arahTagihan}
-            onArah={setArahTagihan}
+            sort={uTagihan}
             terlambat={terlambatTagihan}
             onTerlambat={(v) => { setTerlambatTagihan(v); setTagihanPage(1); }}
             onPilih={pilihSel}
             onTambah={tambahDariSel}
-            onReset={() => { setCariTagihan(''); setUrutTagihan(''); setArahTagihan('naik'); setTerlambatTagihan(false); setTagihanPage(1); }}
+            onReset={() => { setCariTagihan(''); uTagihan.terapkan([], 'naik'); setTerlambatTagihan(false); setTagihanPage(1); }}
             onBukaGenerate={() => setGenerateOpen(true)}
             pager={{
               page: tagihanPage,

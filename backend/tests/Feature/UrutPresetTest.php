@@ -231,6 +231,7 @@ class UrutPresetTest extends TestCase
         foreach ([
             'pembayaran_kasir',
             'keuangan_tagihan',
+            'keuangan_tagihan_crosstab',
             'keuangan_jenis',
             'keuangan_tarif',
             'keuangan_dispensasi',
