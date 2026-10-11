@@ -554,6 +554,15 @@ export default function ExcelTable<T extends { id: string | number }>({
   // dengan tinggi tebakan awal lalu melompat ke tinggi asli. Observer tetap
   // terpasang pada elemen wrapper yang sama (tidak perlu dipasang ulang saat
   // loading/rows berubah) agar tinggi stabil saat pagination/refetch.
+  //
+  // Yang diukur wrapper-nya sendiri: wrapper mode isi-penuh memakai
+  // `min-h-0 flex-1` (tanpa lantai tinggi tetap) sehingga `clientHeight`-nya
+  // persis ruang tersedia. Dua jebakan yang membuat kartu melewati dasar panel
+  // (bagian bawah tabel terpotong/meluber ke bawah area aplikasi):
+  // (1) lantai `min-h-[280px]` menahan wrapper di 280 px saat panel resizable
+  // lebih pendek dari itu; (2) mengukur PARENT-nya (root ExcelTable) malah ikut
+  // menghitung bilah judul tabel (±28 px) yang bersaudara dengan wrapper —
+  // kartu jadi lebih tinggi dari ruangnya sebesar tinggi judul itu.
   useLayoutEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
@@ -1403,7 +1412,10 @@ export default function ExcelTable<T extends { id: string | number }>({
           // judul, `border-top` itu tetap jadi tepi atas tabel.
           headerTampil && 'simpes-dsg-bilah-judul',
           !headerTampil && !judulPemilik && '-mx-1 simpes-dsg-bleed',
-          maxRows === undefined ? 'min-h-[280px] flex-1' : 'shrink-0',
+          // Tanpa lantai tinggi tetap: tinggi kartu sudah eksplisit
+          // (`gridHeight`), dan lantai 280 px lebih tinggi dari panel resizable
+          // membuat kartu beserta tabelnya meluber di bawah panel.
+          maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
         )}
       >

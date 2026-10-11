@@ -241,6 +241,57 @@ describe('ExcelTable — tombol ikon kaki tabel', () => {
   });
 });
 
+describe('ExcelTable — tinggi grid mengisi sisa ruang', () => {
+  /** jsdom tak punya layout; tiru tinggi elemen lewat getter `clientHeight`.
+   *  Wrapper grid (`.simpes-dsg`) 203 px, elemen lain 231 px — selisih 28 px itu
+   *  tinggi bilah judul yang jadi jebakan saat mengukur PARENT. */
+  async function denganTinggiTiruan(fn: () => Promise<void>) {
+    const asli = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.classList.contains('simpes-dsg') ? 203 : 231;
+      },
+    });
+    try {
+      await fn();
+    } finally {
+      if (asli) Object.defineProperty(HTMLElement.prototype, 'clientHeight', asli);
+    }
+  }
+
+  it('pakai ruang wrapper, bukan parent yang ikut menghitung bilah judul', async () => {
+    await denganTinggiTiruan(async () => {
+      // `container`: pengukuran AutoFit juga memakai simpul `.simpes-dsg` di luar
+      // pohon ini, jadi kueri harus dibatasi ke wadah hasil render.
+      const { container } = renderTabel();
+      const wrap = container.querySelector('.simpes-dsg') as HTMLElement;
+      const kartu = wrap.querySelector('.simpes-dsg-kartu') as HTMLElement;
+
+      // Tinggi kartu = ruang wrapper (203), bukan tinggi parent (231, sudah
+      // termasuk bilah judul) — kalau 231 dipakai, 28 px tabel meluber ke bawah.
+      await waitFor(() => expect(kartu.style.height).toBe('203px'));
+    });
+  });
+
+  it('wrapper mode isi-penuh tanpa lantai tinggi tetap', () => {
+    const { container } = renderTabel();
+    const kelas = (container.querySelector('.simpes-dsg') as HTMLElement).className;
+
+    // Lantai `min-h-[280px]` menahan wrapper saat panel resizable lebih pendek
+    // dari 280 px sehingga kartu melewati dasar panel.
+    expect(kelas).not.toContain('min-h-[280px]');
+    expect(kelas).toContain('min-h-0');
+    expect(kelas).toContain('flex-1');
+  });
+
+  it('tabel kompak (maxRows) tetap mengikuti isi, bukan ruang kosong', () => {
+    const { container } = renderTabel({ maxRows: 3 });
+    const kelas = (container.querySelector('.simpes-dsg') as HTMLElement).className;
+    expect(kelas).toContain('shrink-0');
+  });
+});
+
 describe('ExcelTable — klik ganda sel', () => {
   it('klik ganda sel memunculkan pill Mode Edit', async () => {
     renderTabel();
