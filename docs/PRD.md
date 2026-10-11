@@ -454,6 +454,8 @@
 
 | 2.380 | 2026-10-11 | **Halaman PTK Aktif: aksi "Nonaktifkan" di kolom aksi dihapus.** `KeaktifanPegawaiPage` tak lagi menampilkan tombol ikon `btn_nonaktif_keaktifan_*` (dan handler `onNonaktif`/impor `ActionIcon` + ikon `X` dibuang); kolom aksi kini hanya berisi Hapus (sesuai izin `pegawai.hapus`). Penonaktifan tetap tersedia lewat **switch kolom Aktif** (toggle `onToggleStatus` → `nonaktifkanKeaktifan`) sehingga fungsi backend tak berubah. Verifikasi: typecheck + build hijau, FE 542 tes hijau. |
 
+| 2.381 | 2026-10-11 | **Pengecekan CI/CD GitHub dihapus.** Berkas `.github/workflows/ci.yml` (4 job: backend SQLite, backend MySQL 8, frontend typecheck+build, Pint berkas berubah) dihapus; verifikasi kini **manual** (jalankan `php artisan test`, `npm run typecheck`, `npm run build`, `vendor/bin/pint` sebelum commit). Required status checks di pengaturan branch protection GitHub (jika pernah diaktifkan) harus dicabut manual lewat UI GitHub. |
+
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.
