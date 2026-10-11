@@ -254,6 +254,26 @@ class UrutPresetTest extends TestCase
         }
     }
 
+    public function test_preset_seed_keuangan_tagihan_crosstab(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        $res = $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/urut-preset?table_key=keuangan_tagihan_crosstab')
+            ->assertOk();
+
+        // Ada seed → kontrol "Urutkan" tampil (PresetUrut sembunyi bila kosong).
+        $opsi = $res->json('data.opsi');
+        $this->assertNotEmpty($opsi);
+        $this->assertTrue($opsi[0]['bawaan']);
+        $this->assertSame(['kelas', 'nama'], $opsi[0]['kode']);
+
+        $kode = array_column($res->json('data.tersedia'), 'kode');
+        foreach (['nama', 'kelas', 'total', 'bayar', 'sisa'] as $k) {
+            $this->assertContains($k, $kode);
+        }
+    }
+
     public function test_admin_scoped_hanya_boleh_membaca(): void
     {
         $root = Lembaga::create([
