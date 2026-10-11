@@ -11,16 +11,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * yang menyembunyikan; kunci absen/true/null = tampil.
  * Perataan kolom per tabel (satu nilai per kolom, bukan per preset):
  * peta key kolom → 'left'|'center'|'right'; absen = bawaan frontend.
+ * `lebar` & `tinggi` = ukuran kotak kontrol toolbar per tabel, peta kunci
+ * kontrol (`urut`, `kolom`, `filter.<htmlFor>`) → px; absen = bawaan komponen.
+ * Peta `lebar` juga memuat lebar label/kontrol terkunci (`<kunci>.label` /
+ * `<kunci>.kontrol`); bila lebar kontrol dikunci, lebar total diabaikan.
  */
 class ToolbarPreset extends Model
 {
     protected $table = 'toolbar_preset';
 
-    protected $fillable = ['table_key', 'visibilitas', 'lebar', 'urutan', 'align', 'dibuat_oleh'];
+    protected $fillable = ['table_key', 'visibilitas', 'lebar', 'tinggi', 'urutan', 'align', 'dibuat_oleh'];
 
     protected $casts = [
         'visibilitas' => 'array',
         'lebar' => 'array',
+        'tinggi' => 'array',
         'urutan' => 'array',
         'align' => 'array',
     ];

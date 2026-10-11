@@ -11,9 +11,10 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Visibilitas toolbar global per table_key: baca bebas semua admin, tulis
- * khusus super_admin, kunci kontrol tak dikenal dan nilai non-boolean
- * ditolak.
+ * Kontrol toolbar global per table_key: baca bebas semua admin. Tulis:
+ * ukuran kotak kontrol (lebar/tinggi) terbuka untuk semua pengguna, sedangkan
+ * visibilitas/urutan/align khusus super_admin. Kunci kontrol tak dikenal dan
+ * nilai di luar rentang ditolak.
  */
 class ToolbarPresetTest extends TestCase
 {
@@ -221,6 +222,103 @@ class ToolbarPresetTest extends TestCase
             'table_key' => 'santri',
             'visibilitas' => ['info' => true],
             'lebar' => ['filter.besar!' => 100],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
+    }
+
+    /** Ukuran kotak kontrol (lebar/tinggi) diatur dari popover klik-kanan
+     *  combobox, jadi semua pengguna boleh menulisnya — sedangkan visibilitas,
+     *  urutan, dan perataan tetap khusus super_admin. */
+    public function test_ukuran_boleh_ditulis_semua_pengguna(): void
+    {
+        $scoped = $this->makeUser('admin');
+
+        $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => ['filter.select_status_santri' => 300],
+            'tinggi' => ['filter.select_status_santri' => 34],
+        ])->assertStatus(200);
+
+        // Kunci peta memuat titik (`filter.<htmlFor>`) → bandingkan peta utuh,
+        // sebab `assertJsonPath` memperlakukan titik sebagai path bersarang.
+        $this->actingAs($scoped, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.lebar', ['filter.select_status_santri' => 300])
+            ->assertJsonPath('data.tinggi', ['filter.select_status_santri' => 34]);
+
+        // Sisanya tetap tertutup untuk admin biasa.
+        foreach ([['visibilitas' => ['info' => false]], ['urutan' => ['a']], ['align' => ['nisn' => 'left']]] as $kirim) {
+            $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+                'table_key' => 'santri',
+                ...$kirim,
+            ])->assertStatus(403);
+        }
+
+        // Batas lebar disamakan dengan popover (40–1200).
+        $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => ['filter.select_status_santri' => 900],
+        ])->assertStatus(200);
+        $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => ['filter.select_status_santri' => 1201],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar.filter.select_status_santri']);
+
+        // Tinggi: kunci dikenal & rentang 20–120 dijaga.
+        $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'tinggi' => ['info' => 30],
+        ])->assertStatus(422)->assertJsonValidationErrors(['tinggi']);
+        $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'tinggi' => ['urut' => 500],
+        ])->assertStatus(422)->assertJsonValidationErrors(['tinggi.urut']);
+
+        // Simpan tinggi saja tak menghapus lebar yang sudah ada.
+        $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'tinggi' => ['urut' => 30],
+        ])->assertStatus(200);
+        $this->actingAs($scoped, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.lebar', ['filter.select_status_santri' => 900])
+            ->assertJsonPath('data.tinggi', ['urut' => 30]);
+    }
+
+    /** Lebar label/kontrol terkunci (`<kunci>.label` / `<kunci>.kontrol`)
+     *  disimpan di peta `lebar` yang sama; label di atas 400px ditolak. */
+    public function test_simpan_dan_baca_lebar_label_kontrol(): void
+    {
+        $admin = $this->makeUser('admin');
+
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => [
+                'filter.select_status_santri.label' => 64,
+                'filter.select_status_santri.kontrol' => 180,
+            ],
+        ])->assertStatus(200);
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.lebar', [
+                'filter.select_status_santri.label' => 64,
+                'filter.select_status_santri.kontrol' => 180,
+            ]);
+
+        // Label di atas 400px ditolak; sufiks asing & kunci asing ditolak.
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => ['filter.select_status_santri.label' => 500],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar.filter.select_status_santri.label']);
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => ['filter.select_status_santri.asing' => 100],
+        ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
+        $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'lebar' => ['info.label' => 100],
         ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
     }
 

@@ -39,6 +39,66 @@ export function bacaLebarFilter(lebar: Record<string, number> | undefined): Reco
   return hasil;
 }
 
+/** Rentang tinggi kotak kontrol (px) — selaras dengan validasi backend
+ *  (`tinggi.*` integer 20–120) dan popover. */
+export const TINGGI_KONTROL_MIN = 20;
+export const TINGGI_KONTROL_MAKS = 120;
+
+/** Kunci peta ukuran (`lebar`/`tinggi`) di server untuk sebuah kontrol
+ *  combobox (dikenali dari `htmlFor`-nya). */
+export function kunciUkuranServer(htmlFor: string): string {
+  if (htmlFor.startsWith('select_urut_')) return 'urut';
+  if (htmlFor.startsWith('select_preset_kolom_')) return 'kolom';
+  return `${AWALAN_LEBAR_FILTER}${htmlFor}`;
+}
+
+/** Tinggi kotak kontrol tersimpan (kunci htmlFor → px); kunci asing diabaikan.
+ *  Prefiks `filter.` dibuang agar sejajar dengan `bacaLebarFilter`. */
+export function bacaTinggiFilter(tinggi: Record<string, number> | undefined): Record<string, number> {
+  const hasil: Record<string, number> = {};
+  for (const [k, v] of Object.entries(tinggi ?? {})) {
+    if (!k.startsWith(AWALAN_LEBAR_FILTER) || typeof v !== 'number' || !Number.isFinite(v)) continue;
+    const kunci = k.slice(AWALAN_LEBAR_FILTER.length);
+    if (/^[a-z0-9_]{1,60}$/.test(kunci)) {
+      hasil[kunci] = Math.min(TINGGI_KONTROL_MAKS, Math.max(TINGGI_KONTROL_MIN, Math.round(v)));
+    }
+  }
+  return hasil;
+}
+
+/** Sufiks kunci lebar label/kontrol terkunci di peta `lebar` preset. */
+export const SUFIKS_LEBAR_LABEL = '.label';
+export const SUFIKS_LEBAR_KONTROL = '.kontrol';
+
+/** Rentang lebar label/kontrol terkunci (px) — selaras dengan `ukuranKombo`
+ *  dan validasi backend. */
+export const LEBAR_LABEL_MIN = 40;
+export const LEBAR_LABEL_MAKS = 400;
+export const LEBAR_KONTROL_MIN = 40;
+export const LEBAR_KONTROL_MAKS = 1200;
+
+/** Lebar label terkunci per kontrol (kunci htmlFor → px). Kunci asing dan
+ *  kunci lebar total diabaikan; prefiks `filter.` dibuang. */
+export function bacaLebarLabelFilter(lebar: Record<string, number> | undefined): Record<string, number> {
+  return bacaLebarSufiks(lebar, SUFIKS_LEBAR_LABEL, LEBAR_LABEL_MIN, LEBAR_LABEL_MAKS);
+}
+
+/** Lebar kontrol terkunci per kontrol (kunci htmlFor → px). */
+export function bacaLebarKontrolFilter(lebar: Record<string, number> | undefined): Record<string, number> {
+  return bacaLebarSufiks(lebar, SUFIKS_LEBAR_KONTROL, LEBAR_KONTROL_MIN, LEBAR_KONTROL_MAKS);
+}
+
+function bacaLebarSufiks(lebar: Record<string, number> | undefined, sufiks: string, min: number, maks: number): Record<string, number> {
+  const hasil: Record<string, number> = {};
+  for (const [k, v] of Object.entries(lebar ?? {})) {
+    if (!k.startsWith(AWALAN_LEBAR_FILTER) || !k.endsWith(sufiks)) continue;
+    if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+    const kunci = k.slice(AWALAN_LEBAR_FILTER.length, -sufiks.length);
+    if (/^[a-z0-9_]{1,60}$/.test(kunci)) hasil[kunci] = Math.min(maks, Math.max(min, Math.round(v)));
+  }
+  return hasil;
+}
+
 export function bacaLebarToolbar(lebar: Record<string, number> | undefined): LebarToolbar {
   const px = (v: unknown, min = 40, maks = 480): number | null =>
     typeof v === 'number' && Number.isFinite(v) && v >= min && v <= maks ? Math.round(v) : null;

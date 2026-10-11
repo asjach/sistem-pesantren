@@ -38,6 +38,19 @@ export interface KonteksLebarFilter {
   tableKey: string;
   /** Override lebar tersimpan: kunci filter → px. Absen = bawaan halaman. */
   lebar: Record<string, number>;
+  /** Override TINGGI kotak kontrol tersimpan (kunci htmlFor → px). Absen =
+   *  ikut prop `tinggi` pemanggil. Opsional agar pemakai konteks lama (mis.
+   *  tes komponen) tak wajib mengisinya. */
+  tinggi?: Record<string, number>;
+  /** Override LEBAR LABEL terkunci (kunci htmlFor → px). Absen = ikut prop
+   *  `lebarLabel` pemanggil. */
+  lebarLabel?: Record<string, number>;
+  /** Override LEBAR KONTROL terkunci (kunci htmlFor → px). Absen = ikut prop
+   *  `lebarKombo` pemanggil. */
+  lebarKontrol?: Record<string, number>;
+  /** Simpan ukuran satu kontrol ke SERVER (dipakai popover klik-kanan).
+   *  Disediakan `useToolbarPresetState`; absen = hanya simpan per perangkat. */
+  simpanUkuran?: (htmlFor: string, ukuran: { lebar?: number | null; tinggi?: number | null; lebarLabel?: number | null; lebarKontrol?: number | null }) => void;
 }
 
 export const KonteksLebarFilter = createContext<KonteksLebarFilter | null>(null);
