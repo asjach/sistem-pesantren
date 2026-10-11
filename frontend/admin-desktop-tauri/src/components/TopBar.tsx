@@ -423,15 +423,17 @@ export default function TopBar() {
           {registrasi && efektifSuper ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
                   id="btn_kelola_halaman"
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   aria-label={registrasi.tabel.length === 0 ? 'Kelola filter halaman' : 'Kelola tabel'}
                   onClick={bukaKelola}
-                  className="mr-1 grid size-6 place-items-center rounded-md text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
+                  className="mr-1 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
                 >
                   <NotebookTabs size={14} />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>

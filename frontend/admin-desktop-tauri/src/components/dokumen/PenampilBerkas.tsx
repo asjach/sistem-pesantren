@@ -945,16 +945,16 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
                     className="absolute cursor-move border-2 border-primary bg-primary/20"
                     style={{ left: rectTampil.x, top: rectTampil.y, width: rectTampil.w, height: rectTampil.h }}
                   >
-                    <span className="absolute -top-1.5 -left-1.5 h-3 w-3 cursor-nwse-resize rounded-sm border border-white bg-primary" />
-                    <span className="absolute -top-1.5 -right-1.5 h-3 w-3 cursor-nesw-resize rounded-sm border border-white bg-primary" />
-                    <span className="absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-nwse-resize rounded-sm border border-white bg-primary" />
-                    <span className="absolute -bottom-1.5 -left-1.5 h-3 w-3 cursor-nesw-resize rounded-sm border border-white bg-primary" />
+                    <span className="absolute -top-2 -left-2 h-4 w-4 cursor-nwse-resize rounded-sm border border-white bg-primary" />
+                    <span className="absolute -top-2 -right-2 h-4 w-4 cursor-nesw-resize rounded-sm border border-white bg-primary" />
+                    <span className="absolute -right-2 -bottom-2 h-4 w-4 cursor-nwse-resize rounded-sm border border-white bg-primary" />
+                    <span className="absolute -bottom-2 -left-2 h-4 w-4 cursor-nesw-resize rounded-sm border border-white bg-primary" />
                     {rasioCrop === null && (
                       <>
-                        <span className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 cursor-ns-resize rounded-sm border border-white bg-primary" />
-                        <span className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 cursor-ns-resize rounded-sm border border-white bg-primary" />
-                        <span className="absolute top-1/2 -left-1.5 h-3 w-3 -translate-y-1/2 cursor-ew-resize rounded-sm border border-white bg-primary" />
-                        <span className="absolute top-1/2 -right-1.5 h-3 w-3 -translate-y-1/2 cursor-ew-resize rounded-sm border border-white bg-primary" />
+                        <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 cursor-ns-resize rounded-sm border border-white bg-primary" />
+                        <span className="absolute -bottom-2 left-1/2 h-4 w-4 -translate-x-1/2 cursor-ns-resize rounded-sm border border-white bg-primary" />
+                        <span className="absolute top-1/2 -left-2 h-4 w-4 -translate-y-1/2 cursor-ew-resize rounded-sm border border-white bg-primary" />
+                        <span className="absolute top-1/2 -right-2 h-4 w-4 -translate-y-1/2 cursor-ew-resize rounded-sm border border-white bg-primary" />
                       </>
                     )}
                   </div>

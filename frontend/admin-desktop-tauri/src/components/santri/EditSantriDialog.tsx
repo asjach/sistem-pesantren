@@ -342,11 +342,15 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
               </>
             )}
             <Button id="btn_simpan_edit_santri" type="button" size="sm" disabled={busy} onClick={() => void simpan()}>Simpan</Button>
-            <DialogClose
-              aria-label="Tutup"
-              className="flex size-6 shrink-0 items-center justify-center rounded-xs text-destructive ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-            >
-              <X size={16} />
+            <DialogClose asChild>
+              <Button
+                aria-label="Tutup"
+                variant="ghost"
+                size="icon"
+                className="shrink-0 text-destructive hover:bg-destructive/10"
+              >
+                <X size={16} />
+              </Button>
             </DialogClose>
           </div>
         </DialogHeader>

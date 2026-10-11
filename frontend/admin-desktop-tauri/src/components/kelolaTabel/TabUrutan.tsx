@@ -303,8 +303,10 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
                         <span className="max-w-40 truncate">{labelKode([k])}</span>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button
+                            <Button
                               type="button"
+                              size="icon-xs"
+                              variant="ghost"
                               id={`btn_arah_kolom_${tableKey}_${i}_${k.replace(/[^a-z0-9_]/gi, '_')}`}
                               aria-label={`Arah kolom ${labelKode([k])}: ${arahIni === 'turun' ? 'turun' : arahIni === 'naik' ? 'naik' : 'ikut global'}`}
                               disabled={!bolehSimpan}
@@ -313,7 +315,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
                                 setArahKolom(i, k, arahIni === null ? 'naik' : arahIni === 'naik' ? 'turun' : null);
                               }}
                               className={cn(
-                                'grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-50',
+                                'rounded hover:bg-accent disabled:opacity-50',
                                 arahIni === 'turun' && 'text-blue-600 dark:text-blue-400',
                                 arahIni === 'naik' && 'text-emerald-600 dark:text-emerald-400',
                               )}
@@ -323,7 +325,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
                                 : arahIni === 'naik'
                                   ? <ArrowUpAZ size={12} />
                                   : <span className="text-[10px] text-muted-foreground">ikut</span>}
-                            </button>
+                            </Button>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>{arahIni === null ? `Arah ${labelKode([k])}: ikut global (${o.arah === 'turun' ? 'turun' : 'naik'}) — klik untuk ganti` : `Arah ${labelKode([k])}: ${arahIni} — klik untuk ganti`}</p>

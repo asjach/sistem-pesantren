@@ -10,6 +10,7 @@ import { kanonLabel, labelKolom } from '@/lib/labelKolom';
 import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { cn } from '@/lib/utils';
+import TombolIkon from '@/components/TombolIkon';
 import { AlignCenter, AlignLeft, AlignRight } from '@/icons';
 import { bacaAlign, kabariToolbar, type AlignKolom } from './jenis';
 import { toast } from 'sonner';
@@ -199,19 +200,20 @@ export default function TabNamaPerataan({
                 className={cn('h-6 min-w-0 flex-[2] text-xs', !kustom && 'text-muted-foreground')}
               />
               {/* Kolom 3: perataan. */}
-              <button
-                type="button"
+              <TombolIkon
+                tip={`Perataan: ${labelAlign} — klik untuk ganti (tengah = ikut preferensi pengguna)`}
+                size="icon-xs"
+                variant="ghost"
                 id={`btn_align_tampilan_${tableKey}_${f.key}`}
                 aria-label={`Perataan ${teks}: ${labelAlign} — klik untuk ganti`}
-                title={`Perataan: ${labelAlign} — klik untuk ganti (tengah = ikut preferensi pengguna)`}
                 onClick={() => sikulAlign(f.key)}
                 className={cn(
-                  'grid size-5 shrink-0 place-items-center rounded hover:bg-accent hover:text-foreground',
+                  'shrink-0 rounded hover:bg-accent hover:text-foreground',
                   a === 'center' ? 'text-muted-foreground/60' : 'text-foreground',
                 )}
               >
                 <IkonAlign size={14} />
-              </button>
+              </TombolIkon>
             </div>
           );
         })}

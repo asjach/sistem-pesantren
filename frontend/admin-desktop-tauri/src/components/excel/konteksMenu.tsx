@@ -9,6 +9,7 @@ import {
 import type { PresetKolomApi } from '@/components/PresetKolom';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlignCenter, AlignLeft, AlignRight, ChevronLeft, ChevronRight, Columns3, Copy, MoveHorizontal, NotebookTabs, Pin, PinOff, RotateCcw } from '@/icons';
 import { metaAksi } from './actions';
@@ -18,8 +19,6 @@ export interface KonteksHeader {
   colKey: string;
 }
 
-/** Gaya tombol ikon dalam baris menu header (tanpa label teks). */
-const ikonBtn = 'grid size-6 place-items-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground';
 
 export interface KonteksRow {
   rowId: string | number;
@@ -142,16 +141,16 @@ export default function MenuKonteksGrid({
               return (
                 <Tooltip key={nilai}>
                   <TooltipTrigger asChild>
-                    <button
+                    <Button variant="ghost" size="icon"
                       type="button"
                       id={`btn_ctx_align_${nilai}_${tableKey}`}
                       aria-label={`Rata ${label.toLowerCase()}`}
                       aria-pressed={aktif}
                       onClick={() => onUbahAlign(header.colKey, nilai)}
-                      className={cn(ikonBtn, aktif && 'bg-accent text-foreground')}
+                      className={cn( aktif && 'bg-accent text-foreground')}
                     >
                       <Icon size={16} />
-                    </button>
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>{`Rata ${label.toLowerCase()} (berlaku semua tabel)`}</p>
@@ -162,15 +161,14 @@ export default function MenuKonteksGrid({
             <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button variant="ghost" size="icon"
                   type="button"
                   id={`btn_ctx_autofit_kolom_${tableKey}`}
                   aria-label="Sesuaikan lebar kolom ini"
                   onClick={() => onAutoFit(header.colKey)}
-                  className={ikonBtn}
-                >
+                                  >
                   <MoveHorizontal size={16} />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>Sesuaikan lebar kolom ini</p>
@@ -178,15 +176,14 @@ export default function MenuKonteksGrid({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button variant="ghost" size="icon"
                   type="button"
                   id={`btn_ctx_autofit_semua_${tableKey}`}
                   aria-label="Sesuaikan lebar semua kolom"
                   onClick={() => onAutoFitAll()}
-                  className={ikonBtn}
-                >
+                                  >
                   <Columns3 size={16} />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>Sesuaikan lebar semua kolom</p>
@@ -195,16 +192,16 @@ export default function MenuKonteksGrid({
             <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button variant="ghost" size="icon"
                   type="button"
                   id={`btn_ctx_bekukan_${tableKey}`}
                   aria-label="Freeze Column"
                   disabled={headerIdx < 0 || freezeAktif >= headerIdx + 1}
                   onClick={() => headerIdx >= 0 && ubahFreeze(headerIdx + 1)}
-                  className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
+                  className={cn( 'disabled:pointer-events-none disabled:opacity-40')}
                 >
                   <Pin size={16} />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>Freeze Column</p>
@@ -213,15 +210,14 @@ export default function MenuKonteksGrid({
             {freezeAktif > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button variant="ghost" size="icon"
                     type="button"
                     id={`btn_ctx_lepas_bekukan_${tableKey}`}
                     aria-label="Lepas Semua Beku"
                     onClick={() => ubahFreeze(0)}
-                    className={ikonBtn}
-                  >
+                                      >
                     <PinOff size={16} />
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Lepas Semua Beku</p>
@@ -231,15 +227,14 @@ export default function MenuKonteksGrid({
             <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button variant="ghost" size="icon"
                   type="button"
                   id={`btn_ctx_salin_kolom_${tableKey}`}
                   aria-label="Salin kolom (TSV)"
                   onClick={() => salinKolom(header.colKey)}
-                  className={ikonBtn}
-                >
+                                  >
                   <Copy size={16} />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>Salin kolom (TSV)</p>
@@ -250,16 +245,16 @@ export default function MenuKonteksGrid({
                 <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
+                    <Button variant="ghost" size="icon"
                       type="button"
                       id={`btn_ctx_geser_kiri_${tableKey}`}
                       aria-label="Geser kolom ke kiri"
                       disabled={headerIdx <= 0}
                       onClick={onGeserKiri}
-                      className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
+                      className={cn( 'disabled:pointer-events-none disabled:opacity-40')}
                     >
                       <ChevronLeft size={16} />
-                    </button>
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Geser kolom ke kiri (global)</p>
@@ -267,16 +262,16 @@ export default function MenuKonteksGrid({
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
+                    <Button variant="ghost" size="icon"
                       type="button"
                       id={`btn_ctx_geser_kanan_${tableKey}`}
                       aria-label="Geser kolom ke kanan"
                       disabled={headerIdx < 0 || headerIdx >= jumlahKolom - 1}
                       onClick={onGeserKanan}
-                      className={cn(ikonBtn, 'disabled:pointer-events-none disabled:opacity-40')}
+                      className={cn( 'disabled:pointer-events-none disabled:opacity-40')}
                     >
                       <ChevronRight size={16} />
-                    </button>
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Geser kolom ke kanan (global)</p>

@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export interface MultiSelectOption {
@@ -94,15 +95,17 @@ export default function MultiSelect({
                 <span className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button
+                      <Button
                         type="button"
+                        size="icon-xs"
+                        variant="ghost"
                         aria-label={`Geser ${o.label} ke kiri`}
                         disabled={disabled || pos === 0}
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMove(pos, pos - 1); }}
-                        className="grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-30"
+                        className="rounded hover:bg-accent disabled:opacity-30"
                       >
                         <ChevronLeft size={12} />
-                      </button>
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Geser ke kiri (lebih utama)</p>
@@ -110,15 +113,17 @@ export default function MultiSelect({
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button
+                      <Button
                         type="button"
+                        size="icon-xs"
+                        variant="ghost"
                         aria-label={`Geser ${o.label} ke kanan`}
                         disabled={disabled || pos === values.length - 1}
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMove(pos, pos + 1); }}
-                        className="grid size-5 place-items-center rounded hover:bg-accent disabled:opacity-30"
+                        className="rounded hover:bg-accent disabled:opacity-30"
                       >
                         <ChevronRight size={12} />
-                      </button>
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Geser ke kanan</p>

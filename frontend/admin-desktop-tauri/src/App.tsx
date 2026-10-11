@@ -12,6 +12,7 @@ import { TingkatAktifProvider } from './tingkatAktif';
 import { KelasAktifProvider } from './kelasAktif';
 import { ThemeProvider } from './theme';
 import Layout from './components/Layout';
+import CommandPalette from './components/CommandPalette';
 import ProtectedRoute from './components/ProtectedRoute';
 import HalamanTabs, { ArahHalamanTabs } from './components/HalamanTabs';
 import { HALAMAN_AKADEMIK, HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN, HALAMAN_PENEMPATAN_PEGAWAI, HALAMAN_SANTRI_AKTIF, halamanDariPath } from './lib/halaman';
@@ -122,6 +123,7 @@ export default function App() {
             <ThemeProvider>
               <BrowserRouter>
                   <Toaster richColors position="bottom-center" />
+                  <CommandPalette />
                   <Routes>
                     <Route path="/login" element={<LoginPage />} />
                     <Route element={<Shell />}>

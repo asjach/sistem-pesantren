@@ -266,10 +266,9 @@ export default function PanelDokumen({
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   id={id.btnAksi(row.id)}
-                                  size="sm"
+                                  size="icon"
                                   variant="ghost"
                                   title="Aksi dokumen"
-                                  className="size-6 px-0"
                                 >
                                   <MoreVertical size={14} />
                                 </Button>
@@ -345,7 +344,6 @@ export default function PanelDokumen({
                     id={id.btnReset}
                     size="icon"
                     variant="ghost"
-                    className="size-6"
                     disabled={d.busy}
                     onClick={d.resetEdit}
                   >
@@ -356,7 +354,6 @@ export default function PanelDokumen({
                     id={id.btnSimpanInfo}
                     size="icon"
                     variant="ghost"
-                    className="size-6"
                     disabled={d.busy || d.editJenis.trim() === '' || !d.infoBisaUbah}
                     onClick={() => void d.onUbah()}
                   >

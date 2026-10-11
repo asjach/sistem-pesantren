@@ -959,15 +959,17 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     {cari !== '' && (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
                             type="button"
+                            size="icon-xs"
+                            variant="ghost"
                             id="btn_hapus_cari_gen"
                             aria-label="Bersihkan pencarian"
                             onClick={() => setCari('')}
-                            className="absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+                            className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground hover:bg-accent hover:text-foreground"
                           >
                             <X size={12} />
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Bersihkan pencarian</p>
