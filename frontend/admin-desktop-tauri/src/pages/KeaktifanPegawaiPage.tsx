@@ -31,8 +31,8 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Checkbox } from '@/components/ui/checkbox';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
-import { ActionIcon, DeleteAction } from '@/components/RowActions';
-import { FileUp, Trash2, X } from '@/icons';
+import { DeleteAction } from '@/components/RowActions';
+import { FileUp, Trash2 } from '@/icons';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { toast } from 'sonner';
@@ -120,16 +120,6 @@ export default function KeaktifanPegawaiPage() {
     }
   }, [jenjangTunggal, taTunggal, pager, load]);
 
-  const onNonaktif = useCallback(async (r: KeaktifanPegawai) => {
-    try {
-      await nonaktifkanKeaktifan(r.id);
-      toast.success('Keaktifan dinonaktifkan.');
-      await load();
-    } catch (e) {
-      toast.error(errorMessage(e));
-    }
-  }, [load]);
-
   /** Toggle Aktif: nyala → simpan status aktif; padam → nonaktifkan baris. */
   const onToggleStatus = useCallback(async (r: KeaktifanPegawai, aktif: boolean) => {
     if (aktif) {
@@ -177,16 +167,6 @@ export default function KeaktifanPegawaiPage() {
 
   const renderActions = useCallback((r: KeaktifanPegawai) => (
     <>
-      {canUbah && r.status_keaktifan === 'Ya' && (
-        <ActionIcon
-          id={`btn_nonaktif_keaktifan_${r.id}`}
-          title="Nonaktifkan"
-          aria-label={`Nonaktifkan ${r.pegawai?.nama_lengkap}`}
-          onClick={() => void onNonaktif(r)}
-        >
-          <X size={16} />
-        </ActionIcon>
-      )}
       {canHapus && (
         <DeleteAction
           id={`btn_hapus_keaktifan_${r.id}`}
@@ -196,7 +176,7 @@ export default function KeaktifanPegawaiPage() {
         />
       )}
     </>
-  ), [canUbah, canHapus, onNonaktif, onHapus]);
+  ), [canHapus, onHapus]);
 
   // Bulk hapus: baris tercentang dilaporkan via onCheckedChange, tombolnya
   // hidup di hamburger aksi tabel (addButton, setelah combobox Kolom).
