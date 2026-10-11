@@ -176,7 +176,7 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
       /* Ukuran popover TETAP dan tak bergantung pada combobox: lebar dipatok
          (min = max) sehingga melebar/menyempitnya kotak combobox tak pernah
          ikut mengubah popover ini. */
-      className="w-[372px] min-w-[372px] max-w-[372px] p-3 border-foreground/30"
+      className="w-[240px] min-w-[240px] max-w-[240px] p-3 border-foreground/30"
       /* Popover ini SENGAJA hanya bisa ditutup lewat tombol ×: klik di luar
          (termasuk membuka dropdown combobox untuk mengecek hasilnya) dan
          tombol Escape tidak menutupnya. Tanpa ini popover hilang begitu

@@ -192,9 +192,9 @@ describe('LabeledCombobox', () => {
     const pop = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
 
     // Lebar dipatok (w = min = max) → tak mengikuti lebar kotak combobox (700px).
-    expect(pop.className).toMatch(/w-\[372px\]/);
-    expect(pop.className).toMatch(/min-w-\[372px\]/);
-    expect(pop.className).toMatch(/max-w-\[372px\]/);
+    expect(pop.className).toMatch(/w-\[240px\]/);
+    expect(pop.className).toMatch(/min-w-\[240px\]/);
+    expect(pop.className).toMatch(/max-w-\[240px\]/);
     // Border bawaan `--border` cuma 8% foreground (nyaris tak terlihat) → diganti.
     expect(pop.className).toMatch(/border-foreground\/30/);
   });

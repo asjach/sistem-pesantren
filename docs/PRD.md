@@ -464,6 +464,8 @@
 
 | 2.385 | 2026-10-11 | **Popover ukuran: opsi "Label transparan" dikelompokkan di bawah tema Mengembang pada baris tersendiri bertanda "Warna Label:".** Toggle "Label transparan" dikeluarkan dari baris Mengembang (tersisa "Label mengembang"/"Kontrol mengembang") dan diletakkan di baris baru di bawahnya — "Warna Label:" [toggle]. Tetap simpan `label_transparan` (perangkat). Hanya penataan di `PopoverUkuranKombo.tsx`; tidak ada perubahan logika/verifikasi penyimpanan. Verifikasi: typecheck + build hijau, FE 543 tes hijau. |
 
+| 2.386 | 2026-10-11 | **Popover ukuran: lebar tetap diperkecil 372 → 240px.** `PopoverContent` pakai `w/min-w/max-w-[240px]`; tetap dipatok (w=min=max) jadi tak mengikuti kotak combobox. Stepper 1 kolom tetap muat (label 48 + spinner 84 + reset 16 = 158 ≤ 240). Tes lebar dipatok di `LabeledCombobox.test.tsx` diperbarui 372→240. Verifikasi: typecheck + build hijau, FE 543 tes hijau. |
+
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.
