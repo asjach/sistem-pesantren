@@ -10,7 +10,10 @@ export const KONTROL_TOOLBAR: { kunci: KontrolToolbar; label: string; ket: strin
   { kunci: 'filter', label: 'Filter halaman', ket: 'Combobox filter halaman' },
 ];
 
-export const LEBAR_BAWAHAN_FILTER = 200;
+/** Lebar total BAWAAN kotak combobox filter (px) saat belum ada setelan
+ *  tersimpan: dipakai `KotakLabel` (tanpa override) dan dropdown
+ *  Urutkan/Kolom (`PresetUrut`/`PresetKolom`). */
+export const LEBAR_BAWAHAN_FILTER = 160;
 
 /** Status tampil per kontrol; absen/true/null = tampil, hanya false = sembunyi. */
 export type VisToolbar = Record<KontrolToolbar, boolean>;

@@ -107,7 +107,7 @@ describe('LabeledCombobox', () => {
     expect(hitungLebarKombo(60, 80, 180)).toBe(40);
   });
 
-  it('di dalam toolbar: mendaftarkan lebar ke Kelola Tabel & memakai bawaan 200px', () => {
+  it('di dalam toolbar: mendaftarkan lebar ke Kelola Tabel & memakai bawaan 160px', () => {
     const tableKey = `uji_lc_${Date.now()}`;
     renderDenganTema(
       <KonteksLebarFilter.Provider value={{ tableKey, lebar: {} }}>
@@ -119,7 +119,7 @@ describe('LabeledCombobox', () => {
     expect(daftarFilter(tableKey).map((f) => f.label)).toContain('Kelompok');
     // LebarKelola Tabel applies ke KOTAK (label + combobox), bukan ke zona.
     const kotak = document.getElementById('kombo_uji')?.closest('span')?.parentElement as HTMLElement;
-    expect(kotak.style.width).toBe('200px');
+    expect(kotak.style.width).toBe('160px');
   });
 
   it('lebar override dari Kelola Tabel dipakai pada zona combobox', () => {
@@ -355,20 +355,20 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    // Titik awal: total 200, label 80, kontrol 120.
-    // Label +4 → kontrol menyusut 4 (total tetap 200).
+    // Titik awal: total 160, label 80, kontrol 80.
+    // Label +4 → kontrol menyusut 4 (total tetap 160).
     await userEvent.click(await screen.findByLabelText('Lebar label combobox (px) tambah'));
-    expect(ukuranKombo(kunci)).toEqual({ lebarLabel: 84, lebarKontrol: 116 });
+    expect(ukuranKombo(kunci)).toEqual({ lebarLabel: 84, lebarKontrol: 76 });
     // Kontrol −10 → label membesar 10.
     await userEvent.click(await screen.findByLabelText('Lebar kontrol combobox (px) kurang'));
-    expect(ukuranKombo(kunci)).toEqual({ lebarLabel: 94, lebarKontrol: 106 });
+    expect(ukuranKombo(kunci)).toEqual({ lebarLabel: 94, lebarKontrol: 66 });
 
     // Kontrol terkunci → kotak rangkul isi (tanpa lebar total), label & zona
     // kontrol memakai lebar tersimpan.
     const kotak = container.firstElementChild as HTMLElement;
     expect(kotak.style.width).toBe('');
     expect((kotak.firstElementChild as HTMLElement).style.width).toBe('94px');
-    expect((kotak.children[1] as HTMLElement).style.width).toBe('106px');
+    expect((kotak.children[1] as HTMLElement).style.width).toBe('66px');
   });
 
   it('ubah total menggeser sisi yang mengembang (bawaan: kontrol)', async () => {
@@ -382,9 +382,9 @@ describe('LabeledCombobox', () => {
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     // Bawaan: kontrol mengembang (pil kontrol tertekan).
     expect(screen.getByRole('button', { name: 'Kontrol mengembang' })).toHaveAttribute('aria-pressed', 'true');
-    // Total +10 → kontrol 120→130, label tetap 80.
+    // Total +10 → kontrol 80→90, label tetap 80.
     await userEvent.click(await screen.findByLabelText('Lebar kotak combobox (px) tambah'));
-    expect(ukuranKombo(kunci)).toEqual({ lebar: 210, lebarKontrol: 130 });
+    expect(ukuranKombo(kunci)).toEqual({ lebar: 170, lebarKontrol: 90 });
   });
 
   it('flag expanding: tepat satu tercentang & total mengikuti flag', async () => {
@@ -405,7 +405,7 @@ describe('LabeledCombobox', () => {
     expect(ukuranKombo(kunci).expandLabel).toBe(true);
     // Total +10 kini menggeser label (80→90), kontrol tetap.
     await userEvent.click(await screen.findByLabelText('Lebar kotak combobox (px) tambah'));
-    expect(ukuranKombo(kunci)).toMatchObject({ lebar: 210, lebarLabel: 90 });
+    expect(ukuranKombo(kunci)).toMatchObject({ lebar: 170, lebarLabel: 90 });
     // Pilih kontrol → label lepas.
     await userEvent.click(pilKontrol);
     expect(pilLabel).toHaveAttribute('aria-pressed', 'false');

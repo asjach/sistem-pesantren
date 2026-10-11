@@ -454,7 +454,7 @@ export default function UsersPage() {
                     `kelolaLebar={false}` WAJIB: form ini hidup di dalam toolbar
                     ExcelTable yang menyediakan konteks Kelola Tabel — tanpa itu
                     tiap field ikut terdaftar sebagai "filter" tabel `users`
-                    dan lebarnya dipatok LEBAR_BAWAHAN_FILTER (200px). */}
+                    dan lebarnya dipatok LEBAR_BAWAHAN_FILTER (160px). */}
                 <LabeledTextInput
                   className="col-span-2"
                   label="Nama"

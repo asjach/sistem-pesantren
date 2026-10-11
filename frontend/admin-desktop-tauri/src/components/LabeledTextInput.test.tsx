@@ -77,7 +77,7 @@ describe('LabeledTextInput', () => {
     );
     expect(daftarFilter(tableKey).map((f) => f.label)).toContain('Nama');
     const kotak = document.getElementById('inp_uji')?.closest('span')?.parentElement as HTMLElement;
-    expect(kotak.style.width).toBe('200px');
+    expect(kotak.style.width).toBe('160px');
   });
 
   it('lebar override Kelola Tabel dipakai pada kotak', () => {
@@ -134,9 +134,9 @@ describe('LabeledTextInput', () => {
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     expect(await screen.findByLabelText('Tinggi kotak input (px)')).not.toBeNull();
-    // Total +10 (bawaan kontrol mengembang): kontrol 120→130, label tetap.
+    // Total +10 (bawaan kontrol mengembang): kontrol 80→90, label tetap.
     await userEvent.click(await screen.findByLabelText('Lebar kotak input (px) tambah'));
-    expect(ukuranKombo(kunci)).toEqual({ lebar: 210, lebarKontrol: 130 });
+    expect(ukuranKombo(kunci)).toEqual({ lebar: 170, lebarKontrol: 90 });
     // Pil transparan: bawaan tertekan; pilih → ber-bg eksplisit.
     const pil = screen.getByRole('button', { name: 'Label transparan' });
     expect(pil).toHaveAttribute('aria-pressed', 'true');

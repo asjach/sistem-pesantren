@@ -54,9 +54,12 @@ export const LEBAR_LABEL_BAWAAN = 80;
 /** Lebar kontrol terkunci: batas bawah = `MIN_LEBAR_KONTROL` KotakLabel. */
 export const LEBAR_KONTROL_MIN = 40;
 export const LEBAR_KONTROL_MAKS = LEBAR_KOMBO_MAKS;
-export const LEBAR_KONTROL_BAWAAN = 120;
-/** Titik awal stepper lebar bila kotak tak terukur (mis. di jsdom). */
-export const LEBAR_KOMBO_BAWAAN = 200;
+/** Bawaan lebar kontrol terkunci — `LEBAR_KOMBO_BAWAAN` − `LEBAR_LABEL_BAWAAN`
+ *  (160 − 80), supaya titik awal popover konsisten dengan total bawaannya. */
+export const LEBAR_KONTROL_BAWAAN = 80;
+/** Titik awal stepper "Total" di popover bila kotak tak terukur (mis. jsdom);
+ *  selaras dengan lebar total bawaan kotak (`LEBAR_BAWAHAN_FILTER`). */
+export const LEBAR_KOMBO_BAWAAN = 160;
 
 /** Kunci simpanan preferensi perangkat (peta: kunci komponen → ukuran). */
 export const KUNCI_UKURAN_KOMBO = 'simpes_ukuran_kombo';

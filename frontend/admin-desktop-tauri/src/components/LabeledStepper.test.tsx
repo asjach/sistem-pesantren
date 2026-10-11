@@ -62,8 +62,8 @@ describe('LabeledStepper', () => {
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     expect(await screen.findByLabelText('Tinggi kotak stepper (px)')).not.toBeNull();
-    // Label +4 → kontrol menyusut 4 (total tetap 200).
+    // Label +4 → kontrol menyusut 4 (total tetap 160).
     await userEvent.click(await screen.findByLabelText('Lebar label stepper (px) tambah'));
-    expect(ukuranKombo(kunci)).toEqual({ lebarLabel: 84, lebarKontrol: 116 });
+    expect(ukuranKombo(kunci)).toEqual({ lebarLabel: 84, lebarKontrol: 76 });
   });
 });
