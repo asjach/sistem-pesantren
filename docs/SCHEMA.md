@@ -673,11 +673,12 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`) — satu daftar opsi global per tabel
 
-### `toolbar_preset` (visibilitas/lebar/urutan/perataan toolbar & kolom, global per `table_key`)
+### `toolbar_preset` (visibilitas/lebar/tinggi/urutan/perataan toolbar & kolom, global per `table_key`)
 - `id` PK
 - `table_key`: string(60) [unik]
 - `visibilitas`: json — peta kontrol → bool; hanya `false` yang menyembunyikan (absen = tampil)
-- `lebar`: json [null] — peta kontrol → lebar px; absen = bawaan frontend
+- `lebar`: json [null] — peta kontrol → lebar px (kunci `urut`/`kolom`/`filter.<htmlFor>`); absen = bawaan frontend. Ditulis dari popover klik-kanan combobox (semua pengguna), bukan hanya super_admin
+- `tinggi`: json [null] — peta kontrol → tinggi px (kunci sama dengan `lebar`); absen = tinggi bawaan komponen (26px). Juga ditulis dari popover klik-kanan combobox
 - `urutan`: json [null] — array key kolom data; absen = urutan fields halaman
 - `align`: json [null] — peta key kolom → 'left'|'center'|'right' (satu nilai per kolom, bukan per preset); absen = preferensi pribadi pengguna, lalu tengah
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
