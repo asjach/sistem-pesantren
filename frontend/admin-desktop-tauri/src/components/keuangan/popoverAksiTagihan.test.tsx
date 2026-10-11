@@ -237,6 +237,40 @@ describe('panel bayar', () => {
     expect(onBayar).toHaveBeenCalledWith({ jumlah: 25000, metode: 'tunai', kas: 'tunai_tu' });
   });
 
+  it('nominal bayar memakai LabeledNominalInput: panel nominal cepat menambah nilai tanpa menutup popover', async () => {
+    const { onBayar, onTutup } = renderPopover(tagihan());
+    await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
+
+    // Kotak nominal: label "Bayar" menyatu di dalam kotak + tombol kalkulator
+    // (id diturunkan dari htmlFor).
+    const tombolPreset = document.getElementById('btn_preset_inp_bayar_jumlah');
+    expect(tombolPreset).not.toBeNull();
+    const input = screen.getByLabelText('Jumlah pembayaran');
+    expect(input).toHaveValue(55000);
+
+    // Turunkan dulu ke Rp 20.000 agar penambahan preset tetap di bawah sisa
+    // (Rp 55.000) — di atas sisa tombol Simpan memang dinonaktifkan.
+    await userEvent.clear(input);
+    await userEvent.type(input, '20000');
+
+    // Buka panel nominal cepat (popover BERSARANG di dalam popover aksi) lalu
+    // tambah Rp 5.000 — nominal selalu ditambahkan ke nilai berjalan.
+    await userEvent.click(tombolPreset as HTMLElement);
+    const cepat = await screen.findByRole('group', { name: 'Nominal cepat' });
+    await userEvent.click(within(cepat).getByRole('button', { name: '5.000' }));
+
+    await waitFor(() => expect(input).toHaveValue(25000));
+    // Interaksi di panel bersarang tidak boleh menutup popover aksi (klik luar
+    // Radix soal "branch") — popover terkontrol, jadi tertutup = onTutup jalan.
+    expect(onTutup).not.toHaveBeenCalled();
+
+    // Nilai hasil tombol tetap terkirim lewat jalur normal.
+    await userEvent.click(document.getElementById('btn_bayar_simpan') as HTMLElement);
+    await waitFor(() => expect(onBayar).toHaveBeenCalledWith(
+      expect.objectContaining({ jumlah: 25000 }),
+    ));
+  });
+
   it('tombol Penuh sudah dihapus — field tetap terisi sisa saat dibuka', async () => {
     // Aturan main: field nominal sudah default ke sisa tagihan saat panel dibuka,
     // jadi tombol pintas "Penuh" tidak perlu lagi (memperkecil baris input).

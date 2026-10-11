@@ -6,6 +6,7 @@ import { ambilByteDokumen } from '@/api/dokumen';
 import { ambilFotoProfilSantri } from '@/api/santri';
 import { hitungDispensasi, ringkasAturan, saringDispensasi, selaraskanGrup, sisaKuota } from '@/lib/dispensasi';
 import { DeleteAction } from '@/components/RowActions';
+import LabeledNominalInput from '@/components/LabeledNominalInput';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -647,23 +648,24 @@ export default function PopoverAksiTagihan({
                     kontrolnya mulai di x berbeda-beda). 4rem cukup untuk
                     label terpanjang "Posisi Kas" (~52px) plus jarak. */}
                 <div className="grid grid-cols-[4rem_1fr] items-center gap-x-2 gap-y-1.5">
-                  <FieldLabel htmlFor="inp_bayar_jumlah" className="text-xs">Bayar</FieldLabel>
-                  {/* Prefix "Rp" sengaja dihapus: Tanpanya baris ini dimulai
-                      rata dengan select di bawahnya; dengan prefix, kolom
-                      kontrolnya meleset 22px ke kanan. */}
-                  <Input
-                    /* autoFocus (bukan ref): komponen Input tidak forwardRef. */
+                  {/* Nominal bayar memakai LabeledNominalInput: label "Bayar"
+                      menyatu di dalam kotak + panel nominal cepat & tombol
+                      angka. Karena labelnya kini bagian dari kotak (bukan
+                      kolom label 4rem terpisah), kotaknya membentang kedua
+                      kolom grid; baris Metode/Posisi Kas di bawahnya tetap
+                      memakai kolom label. */}
+                  <LabeledNominalInput
+                    /* autoFocus (bukan ref): LabeledTextInput tidak forwardRef. */
                     autoFocus
-                    id="inp_bayar_jumlah"
-                    type="number"
-                    inputMode="numeric"
+                    label="Bayar"
+                    htmlFor="inp_bayar_jumlah"
                     min={1}
                     max={sisa}
                     value={teksJumlah}
-                    onChange={(e) => setTeksJumlah(e.target.value)}
+                    onValueChange={setTeksJumlah}
                     aria-label="Jumlah pembayaran"
                     aria-invalid={jumlahSalah}
-                    className={cn('h-[26px] w-full min-w-0 tabular-nums', jumlahSalah && 'border-destructive')}
+                    className={cn('col-span-2', jumlahSalah && 'border-destructive')}
                   />
 
 <FieldLabel htmlFor="sel_bayar_metode" className="text-xs">Metode</FieldLabel>
@@ -712,7 +714,7 @@ export default function PopoverAksiTagihan({
                   </Select>
 
                   {jumlahSalah && (
-                    <p id="galat_bayar_jumlah" className="col-start-2 text-[11px] text-destructive">
+                    <p id="galat_bayar_jumlah" className="col-span-2 text-[11px] text-destructive">
                       Isi Rp 1 sampai Rp {sisa.toLocaleString('id')} (sisa tagihan).
                     </p>
                   )}
