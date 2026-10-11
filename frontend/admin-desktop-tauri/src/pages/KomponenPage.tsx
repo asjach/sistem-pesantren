@@ -4,6 +4,9 @@ import LabeledCombobox from '@/components/LabeledCombobox';
 import LabeledNominalInput from '@/components/LabeledNominalInput';
 import LabeledStepper from '@/components/LabeledStepper';
 import LabeledTextInput from '@/components/LabeledTextInput';
+import PresetKolom from '@/components/PresetKolom';
+import PresetUrut from '@/components/PresetUrut';
+import type { ExcelField } from '@/components/excel/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Info } from '@/icons';
@@ -12,6 +15,25 @@ import {
 } from '@/components/ui/combobox';
 
 const STATUS = ['Aktif', 'Tidak aktif', 'Pindah keluar', 'Lulus', 'Keluar sementara'];
+
+/** Field contoh untuk demo PresetKolom: key-nya sengaja sama dengan kolom
+ *  tabel `keanggotaan` supaya preset tabel itu ("ringkas"/"Lengkap") benar-benar
+ *  terpetakan saat dipilih. */
+const FIELD_KEANGGOTAAN: ExcelField[] = [
+  { key: 'nama', label: 'Nama', kind: 'static' },
+  { key: 'nik', label: 'NIK', kind: 'static' },
+  { key: 'nisn', label: 'NISN', kind: 'static' },
+  { key: 'jk', label: 'JK', kind: 'static' },
+  { key: 'tmp_lahir', label: 'Tempat Lahir', kind: 'static' },
+  { key: 'tgl_lahir', label: 'Tanggal Lahir', kind: 'static' },
+  { key: 'alamat', label: 'Alamat', kind: 'static' },
+  { key: 'lembaga', label: 'Lembaga', kind: 'static' },
+  { key: 'nis_lokal', label: 'NIS Lokal', kind: 'static' },
+  { key: 'nis_kemenag', label: 'NIS Kemenag', kind: 'static' },
+  { key: 'aktif', label: 'Aktif', kind: 'static' },
+  { key: 'masuk', label: 'Masuk', kind: 'static' },
+  { key: 'selesai', label: 'Selesai', kind: 'static' },
+];
 
 /** Ikon info di akhir nama komponen: keterangan tampil dalam popover. */
 function InfoKeterangan({ id, keterangan, rincian }: { id: string; keterangan: string; rincian: string[] }) {
@@ -47,6 +69,9 @@ function InfoKeterangan({ id, keterangan, rincian }: { id: string; keterangan: s
 export default function KomponenPage() {
   const [nominalBawaan, setNominalBawaan] = useState('');
   const [jumlahSantri, setJumlahSantri] = useState(32);
+  const [urutAktif, setUrutAktif] = useState<string[]>([]);
+  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
+  const [kolomTerpakai, setKolomTerpakai] = useState<string[] | null>(null);
   return (
     <div className={PAGE_SHELL}>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3">
@@ -147,7 +172,7 @@ export default function KomponenPage() {
             </div>
           </div>
 
-          <div className="grid gap-3 p-2 sm:grid-cols-[240px_1fr]">
+          <div className="grid gap-3 border-b border-border p-2 sm:grid-cols-[240px_1fr]">
             <div>
               <h2 className="flex items-center gap-1 text-sm font-semibold">
                 LabeledStepper
@@ -171,6 +196,63 @@ export default function KomponenPage() {
                 value={jumlahSantri}
                 onChange={setJumlahSantri}
               />
+            </div>
+          </div>
+
+          <div className="grid gap-3 border-b border-border p-2 sm:grid-cols-[240px_1fr]">
+            <div>
+              <h2 className="flex items-center gap-1 text-sm font-semibold">
+                PresetUrut
+                <InfoKeterangan
+                  id="info_preset_urut"
+                  keterangan="dropdown Urutkan yang opsinya berasal dari Preset Urut global per tabel"
+                  rincian={[
+                    'Sumber opsi: endpoint urut-preset; kelola lewat Kelola Tabel → Urutan.',
+                    'Menyembunyikan diri bila tabel belum punya opsi preset.',
+                    'Demo memakai tabel keanggotaan (sudah ada opsi seed).',
+                  ]}
+                />
+              </h2>
+            </div>
+            <div className="flex flex-col gap-2 rounded-md border border-border p-2">
+              <PresetUrut
+                tableKey="keanggotaan"
+                urutAktif={urutAktif}
+                arahUrut={arahUrut}
+                onUrut={(nilai, arah) => { setUrutAktif(nilai); setArahUrut(arah); }}
+                wrapperClassName="flex-row items-center gap-1.5"
+              />
+              <p className="text-xs text-muted-foreground">
+                Terpilih: {urutAktif.length > 0 ? `${urutAktif.join(' → ')} (${arahUrut})` : '—'}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 p-2 sm:grid-cols-[240px_1fr]">
+            <div>
+              <h2 className="flex items-center gap-1 text-sm font-semibold">
+                PresetKolom
+                <InfoKeterangan
+                  id="info_preset_kolom"
+                  keterangan="dropdown preset kolom tampilan tabel (Lengkap / preset tersimpan)"
+                  rincian={[
+                    'Sumber opsi: endpoint preset; kelola lewat Kelola Tabel → Kolom.',
+                    'Memilih preset menyimpan pilihan aktif pengguna untuk tabel itu.',
+                    'Demo memakai tabel keanggotaan dan field contoh yang cocok.',
+                  ]}
+                />
+              </h2>
+            </div>
+            <div className="flex flex-col gap-2 rounded-md border border-border p-2">
+              <PresetKolom
+                tableKey="keanggotaan"
+                fields={FIELD_KEANGGOTAAN}
+                onApply={(keys) => setKolomTerpakai(keys)}
+                wrapperClassName="flex-row items-center gap-1.5"
+              />
+              <p className="text-xs text-muted-foreground">
+                Kolom aktif: {kolomTerpakai === null ? 'semua' : `${kolomTerpakai.length} kolom`}
+              </p>
             </div>
           </div>
         </section>
