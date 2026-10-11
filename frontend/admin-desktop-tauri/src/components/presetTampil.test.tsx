@@ -101,6 +101,30 @@ describe('dropdown Urutkan — nilai awal dari popover', () => {
 
     await waitFor(() => expect(onUrut).toHaveBeenCalledWith(['b'], 'naik', undefined));
   });
+
+  it('nilai awal yang tiba BELAKANGAN (setelah preset termuat) tetap diterapkan', async () => {
+    const tableKey = `uji_telat_${Date.now()}`;
+    const onUrut = vi.fn();
+    muatUrutPreset.mockResolvedValue({
+      pesan: 'ok',
+      data: {
+        table_key: tableKey,
+        opsi: [{ kode: ['a'], label: 'Nama' }, { kode: ['b'], label: 'Kelas' }],
+        tersedia: [],
+      },
+    });
+    renderDenganTema(<PresetUrut tableKey={tableKey} urutAktif={[]} arahUrut="naik" onUrut={onUrut} />);
+
+    // Preset (isi dropdown) termuat dulu — di app nyata ini memicu re-render
+    // dengan identitas `value` baru (opsiItem dibangun ulang tiap render).
+    await waitFor(() => expect(muatUrutPreset).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 50));
+
+    // BARU nilai awal datang dari penyimpanan perangkat (async di app nyata).
+    simpanUkuranKombo(`select_urut_${tableKey}`, { nilaiDefault: 'Kelas' });
+
+    await waitFor(() => expect(onUrut).toHaveBeenCalledWith(['b'], 'naik', undefined));
+  });
 });
 
 describe('dropdown Kolom — selalu tampil dengan awalan "Lengkap"', () => {

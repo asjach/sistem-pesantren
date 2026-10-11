@@ -106,14 +106,21 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
     ? undefined
     : items.find((o) => labelItem(o) === nilaiDefaultEfektif);
   const nilaiProp = propsAnak.value;
-  const nilaiMount = useRef(nilaiProp);
+  /* Kunci nilai = LABEL-nya (lewat `itemToStringLabel`/String). Identitas objek
+     item sering berganti tiap render (array `items` dibangun ulang pemanggil,
+     mis. `opsiItem` di PresetUrut), jadi membandingkan identitas salah menganggap
+     nilai pemanggil "berubah" — itu mematikan mode ikut-awal SEBELUM nilai awal
+     (yang dimuat async) sempat diterapkan. */
+  const kunciProp = nilaiProp === undefined || nilaiProp === null ? '' : labelItem(nilaiProp);
+  const kunciMount = useRef(kunciProp);
   const [nilaiLokal, setNilaiLokal] = useState<unknown>(undefined);
   const [ikutAwal, setIkutAwal] = useState(true);
   useEffect(() => {
-    if (nilaiProp === nilaiMount.current) return;
+    if (kunciProp === kunciMount.current) return;
     setNilaiLokal(nilaiProp);
     setIkutAwal(false);
-  }, [nilaiProp]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kunciProp]);
   const nilaiTampil = nilaiLokal !== undefined
     ? nilaiLokal
     : (itemAwal !== undefined && ikutAwal ? itemAwal : nilaiProp);
@@ -125,10 +132,10 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
   cbUbahRef.current = propsAnak.onValueChange;
   const sudahTerapkanRef = useRef(false);
   useEffect(() => {
-    if (sudahTerapkanRef.current || !ikutAwal || itemAwal === undefined) return;
+    if (sudahTerapkanRef.current || !ikutAwal || itemAwal === undefined || nilaiDefaultEfektif === undefined) return;
     sudahTerapkanRef.current = true;
-    if (nilaiProp !== itemAwal) cbUbahRef.current?.(itemAwal);
-  }, [ikutAwal, itemAwal, nilaiProp]);
+    if (kunciProp !== nilaiDefaultEfektif) cbUbahRef.current?.(itemAwal);
+  }, [ikutAwal, itemAwal, nilaiDefaultEfektif, kunciProp]);
 
   if (anakTunggal === null || anakTunggal.type !== ComboboxRoot) {
     // Tanpa akar Combobox: tetap dirender di dalam kotak (tanpa suntikan gaya).
