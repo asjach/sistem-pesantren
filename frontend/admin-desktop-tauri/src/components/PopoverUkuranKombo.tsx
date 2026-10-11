@@ -153,16 +153,19 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
     const kontrolBaru = jepit(n, Math.max(LEBAR_KONTROL_MIN, lebar - LEBAR_LABEL_MAKS), Math.min(LEBAR_KONTROL_MAKS, lebar - LEBAR_LABEL_MIN));
     onUbah({ lebarKontrol: kontrolBaru, lebarLabel: lebar - kontrolBaru });
   };
-  /** Ubah total → sisi yang mengembang yang terdampak; total tertulis
-   *  mengikuti hasil aktual bila sisi itu mentok di batasnya. */
+  /** Ubah total → sisi yang mengembang yang terdampak. Yang DITULIS adalah
+   *  `lebar` = total baru PERSIS (bukan `label + kontrol`): hasil pengukuran
+   *  label+kontrol bisa beda beberapa px dari lebar kotak (border/rounding),
+   *  sehingga menjumlahkan keduanya membuat stepper meleset dari ±step. */
   const ubahTotal = (n: number) => {
-    const delta = jepit(n, LEBAR_KOMBO_MIN, LEBAR_KOMBO_MAKS) - lebar;
+    const totalBaru = jepit(n, LEBAR_KOMBO_MIN, LEBAR_KOMBO_MAKS);
+    const delta = totalBaru - lebar;
     if (expandLabel) {
       const labelBaru = jepit(lebarLabel + delta, LEBAR_LABEL_MIN, LEBAR_LABEL_MAKS);
-      onUbah({ lebar: labelBaru + lebarKontrol, lebarLabel: labelBaru });
+      onUbah({ lebar: totalBaru, lebarLabel: labelBaru });
     } else {
       const kontrolBaru = jepit(lebarKontrol + delta, LEBAR_KONTROL_MIN, LEBAR_KONTROL_MAKS);
-      onUbah({ lebar: lebarLabel + kontrolBaru, lebarKontrol: kontrolBaru });
+      onUbah({ lebar: totalBaru, lebarKontrol: kontrolBaru });
     }
   };
   return (

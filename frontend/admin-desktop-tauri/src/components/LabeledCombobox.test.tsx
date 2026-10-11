@@ -385,6 +385,39 @@ describe('LabeledCombobox', () => {
     expect(ukuranKombo(kunci)).toEqual({ lebar: 170, lebarKontrol: 90 });
   });
 
+  it('stepper Total memakai lebar kotak (bukan jumlah label+kontrol)', async () => {
+    const kunci = `uji_total_terukur_${Date.now()}`;
+    const { container } = renderDenganTema(
+      <LabeledCombobox label="Kelompok" htmlFor={kunci}>
+        {kombo(kunci)}
+      </LabeledCombobox>,
+    );
+    // Geometri nyata: kotak 160px, tapi label(90) + kontrol(58) = 148 (border
+    // & rounding) — dulu Total menulis label+kontrol sehingga (+10) = 158.
+    const kotak = container.firstElementChild as HTMLElement;
+    const labelEl = kotak.children[0] as HTMLElement;
+    const kontrolEl = kotak.children[1] as HTMLElement;
+    const rect = (width: number) => ({
+      width, height: 26, left: 0, top: 0, right: width, bottom: 26, x: 0, y: 0, toJSON: () => ({}),
+    }) as DOMRect;
+    const asli = Element.prototype.getBoundingClientRect;
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this === kotak) return rect(160);
+      if (this === labelEl) return rect(90);
+      if (this === kontrolEl) return rect(58);
+      return asli.call(this);
+    });
+
+    fireEvent.contextMenu(kotak);
+    await userEvent.click(await screen.findByLabelText('Lebar kotak combobox (px) tambah'));
+    spy.mockRestore();
+    expect(ukuranKombo(kunci)).toEqual({ lebar: 170, lebarKontrol: 68 });
+
+    // (−) dari 170 → 160 (bukan 148).
+    await userEvent.click(screen.getByLabelText('Lebar kotak combobox (px) kurang'));
+    expect(ukuranKombo(kunci)).toEqual({ lebar: 160, lebarKontrol: 58 });
+  });
+
   it('flag expanding: tepat satu tercentang & total mengikuti flag', async () => {
     const kunci = `uji_ukuran_expand_${Date.now()}`;
     const { container } = renderDenganTema(
