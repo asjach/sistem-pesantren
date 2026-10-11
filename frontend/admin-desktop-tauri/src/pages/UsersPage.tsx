@@ -14,9 +14,10 @@ import {
 import { listLembaga, type Lembaga } from '../api/master';
 import { errorMessage } from '../api/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import LabeledTextInput from '@/components/LabeledTextInput';
 import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -30,6 +31,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { ActionIcon, DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
@@ -51,6 +60,12 @@ const PERAN_LEMBAGA_OPSI = ['admin', 'guru', 'orang_tua', 'santri'];
 // Khusus dialog Tambah pengguna: admin boleh membuat role `admin` (lembaga
 // dibatasi backend). Dialog Ubah role & filter tetap memakai ADMIN_ROLES.
 const ADMIN_CREATE_ROLES = ['admin', ...ADMIN_ROLES];
+
+/** Lebar label seragam untuk SELURUH kontrol form Tambah Pengguna: kotak label
+ *  `LabeledTextInput` (prop `lebarLabel`) dan kolom label grid Role/Lembaga
+ *  memakai angka yang sama, sehingga semua label selebar ini dan semua kontrol
+ *  mulai di x yang sama. Dipatok dari label terpanjang, "Kata sandi (min 8)". */
+const LEBAR_LABEL_FORM = 140;
 
 const emailRule = (v: string | null) =>
   v && !v.includes('@') ? 'Email tidak valid.' : null;
@@ -173,7 +188,12 @@ export default function UsersPage() {
   });
 
   const [name, setName] = useState('');
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [username, setUsername] = useState('');
+  /** Galat khusus form Tambah Pengguna — ditampilkan DI DALAM sheet, sebab
+   *  `err` halaman tampil di balik overlay sheet (tak terlihat). */
+  const [errTambah, setErrTambah] = useState('');
   const [password, setPassword] = useState('');
   const [newRoles, setNewRoles] = useState<string[]>(['orang_tua']);
   const [newLembaga, setNewLembaga] = useState<string[]>([]);
@@ -261,21 +281,44 @@ export default function UsersPage() {
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
-    setErr('');
+    setErrTambah('');
     if (newRoles.length === 0) {
-      setErr('Pilih minimal 1 role.');
+      setErrTambah('Pilih minimal 1 role.');
+      return;
+    }
+    /* Identitas kini tiga kolom terpisah (email / phone / username), sama
+       seperti baris input grid. Aturan "minimal salah satu" mencerminkan
+       backend (`email` = required_without_all:phone,username). */
+    const emailIsi = email.trim();
+    const phoneIsi = phone.trim();
+    const usernameIsi = username.trim();
+    if (!emailIsi && !phoneIsi && !usernameIsi) {
+      setErrTambah('Isi minimal salah satu: Email, No. HP, atau Nama Pengguna.');
+      return;
+    }
+    const salahEmail = emailRule(emailIsi || null);
+    if (salahEmail) {
+      setErrTambah(salahEmail);
       return;
     }
     try {
-      const field = identifier.includes('@') ? { email: identifier } : { username: identifier };
-      await createUser({ name, password, roles: newRoles, jenjangs: newLembaga, ...field });
+      await createUser({
+        name,
+        password,
+        roles: newRoles,
+        jenjangs: newLembaga,
+        ...(emailIsi ? { email: emailIsi } : {}),
+        ...(phoneIsi ? { phone: phoneIsi } : {}),
+        ...(usernameIsi ? { username: usernameIsi } : {}),
+      });
       toast.success(`Pengguna dibuat (${newRoles.join(', ')}).`);
-      setName(''); setIdentifier(''); setPassword(''); setNewRoles(['orang_tua']); setNewLembaga([]);
+      setName(''); setEmail(''); setPhone(''); setUsername(''); setPassword('');
+      setNewRoles(['orang_tua']); setNewLembaga([]);
       setTambahOpen(false);
       pager.goFirst();
       await load(1);
     } catch (e2) {
-      setErr(errorMessage(e2));
+      setErrTambah(errorMessage(e2));
     }
   }
 
@@ -377,9 +420,167 @@ export default function UsersPage() {
         onUrut={terapkanUrut}
         addButtonLangsung
         addButton={canTambah ? (
-          <Button id="btn_buka_tambah_user" onClick={() => setTambahOpen(true)}>
-            + Pengguna
-          </Button>
+          /* Tambah pengguna sebagai SHEET: panel penuh tinggi yang menggeser
+             masuk dari tepi kanan, jadi tabel tetap terlihat di belakangnya.
+             Tombol jadi SheetTrigger — status buka tetap state `tambahOpen`. */
+          <Sheet open={tambahOpen} onOpenChange={setTambahOpen}>
+            <SheetTrigger asChild>
+              <Button id="btn_buka_tambah_user">+ Pengguna</Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-xl">
+              <SheetHeader>
+                <SheetTitle>Tambah pengguna</SheetTitle>
+                <SheetDescription className="sr-only">
+                  Buat akun pengguna baru beserta role dan lembaganya.
+                </SheetDescription>
+              </SheetHeader>
+              {/* Kolom label grid (Role/Lembaga) memakai LEBAR_LABEL_FORM yang
+                  sama dengan `lebarLabel` tiap LabeledTextInput → semua label
+                  seragam. Ditulis lewat `style` supaya angkanya satu sumber. */}
+              <form
+                id="form_tambah_user"
+                onSubmit={onCreate}
+                autoComplete="off"
+                className="grid items-center gap-x-4 gap-y-4"
+                style={{ gridTemplateColumns: `${LEBAR_LABEL_FORM}px 1fr` }}
+              >
+                {errTambah && (
+                  <p id="galat_tambah_user" className="col-span-2 text-xs text-destructive">
+                    {errTambah}
+                  </p>
+                )}
+                {/* Field teks memakai LabeledTextInput (label menyatu di dalam
+                    kotak) — membentang kedua kolom grid karena labelnya kini
+                    bagian dari kotak, bukan kolom label terpisah.
+                    `kelolaLebar={false}` WAJIB: form ini hidup di dalam toolbar
+                    ExcelTable yang menyediakan konteks Kelola Tabel — tanpa itu
+                    tiap field ikut terdaftar sebagai "filter" tabel `users`
+                    dan lebarnya dipatok LEBAR_BAWAHAN_FILTER (200px). */}
+                <LabeledTextInput
+                  className="col-span-2"
+                  label="Nama"
+                  htmlFor="input_nama"
+                  kelolaLebar={false}
+                  lebarLabel={LEBAR_LABEL_FORM}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  autoComplete="off"
+                />
+
+                {/* Identitas = tiga kolom terpisah (sama seperti baris input
+                    grid): minimal salah satu diisi, sisanya boleh kosong.
+                    Urutan mengikuti urutan kolom grid. */}
+                <LabeledTextInput
+                  className="col-span-2"
+                  label="Email"
+                  htmlFor="input_email"
+                  kelolaLebar={false}
+                  lebarLabel={LEBAR_LABEL_FORM}
+                  maxLength={255}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="off"
+                />
+
+                <LabeledTextInput
+                  className="col-span-2"
+                  label="No. HP"
+                  htmlFor="input_phone"
+                  kelolaLebar={false}
+                  lebarLabel={LEBAR_LABEL_FORM}
+                  maxLength={20}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  autoComplete="off"
+                />
+
+                <LabeledTextInput
+                  className="col-span-2"
+                  label="Nama Pengguna"
+                  htmlFor="input_username"
+                  kelolaLebar={false}
+                  lebarLabel={LEBAR_LABEL_FORM}
+                  maxLength={50}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="off"
+                />
+
+                <LabeledTextInput
+                  className="col-span-2"
+                  label="Kata sandi (min 8)"
+                  htmlFor="input_password_baru"
+                  kelolaLebar={false}
+                  lebarLabel={LEBAR_LABEL_FORM}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+
+                <FieldLabel className="self-start pt-1.5">Role</FieldLabel>
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    {isSuper ? 'Pilih 1 atau lebih (5 opsi).' : 'Pilih 1 atau lebih (5 opsi — termasuk admin untuk lembaga Anda).'}
+                  </p>
+                  {/* Chip Role memakai ToggleGroup (type="multiple"): status
+                      seleksi lewat `data-state=on` + `aria-pressed` bawaan Radix
+                      — TIDAK bergantung pada `<form>` seperti `has-checked:`
+                      (yang butuh input tersembunyi Radix Checkbox). `spacing={2}`
+                      + `rounded-full`: bawaan `spacing=0` menyatukan item
+                      (`rounded-none`) sehingga tak lagi berbentuk pil. */}
+                  <ToggleGroup
+                    id="group_role_baru"
+                    type="multiple"
+                    spacing={2}
+                    value={newRoles}
+                    onValueChange={setNewRoles}
+                    aria-label="Role"
+                    className="w-full flex-wrap"
+                  >
+                    {creatable.map((r) => (
+                      <ToggleGroupItem
+                        key={r}
+                        id={`check_role_baru_${r}`}
+                        value={r}
+                        className="h-6 rounded-full border bg-card px-3 py-0 text-xs font-normal data-[state=on]:border-primary data-[state=on]:bg-accent data-[state=on]:font-semibold"
+                      >
+                        {r}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+
+                <FieldLabel className="self-start pt-1.5">Lembaga</FieldLabel>
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-muted-foreground">Kosong = ikut pivot saya bila scoped.</p>
+                  <div id="group_lembaga_baru" className="flex flex-wrap gap-2">
+                    {lembagas.map((l) => (
+                      <label
+                        key={l.jenjang}
+                        htmlFor={`check_lembaga_baru_${l.jenjang}`}
+                        className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
+                      >
+                        <Checkbox
+                          id={`check_lembaga_baru_${l.jenjang}`}
+                          checked={newLembaga.includes(l.jenjang)}
+                          onCheckedChange={() => setNewLembaga((s) => toggleId(s, l.jenjang))}
+                        /> {l.jenjang} — {l.nama}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="col-span-2 flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
+                  <Button id="btn_tambah_user" type="submit">Tambah</Button>
+                </div>
+              </form>
+            </SheetContent>
+          </Sheet>
         ) : undefined}
         renderActions={renderActions}
         pager={(
@@ -393,73 +594,6 @@ export default function UsersPage() {
           />
         )}
       />
-      <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Tambah pengguna</DialogTitle>
-            <DialogDescription className="sr-only">
-              Buat akun pengguna baru beserta role dan lembaganya.
-            </DialogDescription>
-          </DialogHeader>
-          <form id="form_tambah_user" onSubmit={onCreate} autoComplete="off" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <FieldLabel htmlFor="input_nama">Nama</FieldLabel>
-            <Input id="input_nama" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="off" />
-
-            <FieldLabel htmlFor="input_identitas">Email atau username</FieldLabel>
-            <Input id="input_identitas" value={identifier} onChange={(e) => setIdentifier(e.target.value)} required autoComplete="off" />
-
-            <FieldLabel htmlFor="input_password_baru">Kata sandi (min 8)</FieldLabel>
-            <Input id="input_password_baru" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
-
-            <FieldLabel className="self-start pt-1.5">Role</FieldLabel>
-            <div className="flex flex-col gap-2">
-              <p className="text-xs text-muted-foreground">
-                {isSuper ? 'Pilih 1 atau lebih (5 opsi).' : 'Pilih 1 atau lebih (5 opsi — termasuk admin untuk lembaga Anda).'}
-              </p>
-              <div id="group_role_baru" className="flex flex-wrap gap-2">
-                {creatable.map((r) => (
-                  <label
-                    key={r}
-                    htmlFor={`check_role_baru_${r}`}
-                    className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
-                  >
-                    <Checkbox
-                      id={`check_role_baru_${r}`}
-                      checked={newRoles.includes(r)}
-                      onCheckedChange={() => setNewRoles((s) => toggle(s, r))}
-                    /> {r}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <FieldLabel className="self-start pt-1.5">Lembaga</FieldLabel>
-            <div className="flex flex-col gap-2">
-              <p className="text-xs text-muted-foreground">Kosong = ikut pivot saya bila scoped.</p>
-              <div id="group_lembaga_baru" className="flex flex-wrap gap-2">
-                {lembagas.map((l) => (
-                  <label
-                    key={l.jenjang}
-                    htmlFor={`check_lembaga_baru_${l.jenjang}`}
-                    className="inline-flex h-6 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 py-0 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold"
-                  >
-                    <Checkbox
-                      id={`check_lembaga_baru_${l.jenjang}`}
-                      checked={newLembaga.includes(l.jenjang)}
-                      onCheckedChange={() => setNewLembaga((s) => toggleId(s, l.jenjang))}
-                    /> {l.jenjang} — {l.nama}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <DialogFooter className="col-span-2">
-              <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
-              <Button id="btn_tambah_user" type="submit">Tambah</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
       <UserViewDialog
         open={viewRow !== null}
         onOpenChange={(o) => { if (!o) setViewRow(null); }}
