@@ -378,8 +378,8 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    // Bawaan: kontrol mengembang (pil kontrol tertekan).
-    expect(screen.getByRole('button', { name: 'Kontrol mengembang' })).toHaveAttribute('aria-pressed', 'true');
+    // Bawaan: tidak dicentang → kontrol yang mengembang.
+    expect(screen.getByRole('checkbox', { name: 'Mengembang label' })).not.toBeChecked();
     // Total +10 → kontrol 80→90, label tetap 80.
     await userEvent.click(await screen.findByLabelText('Lebar kotak combobox (px) tambah'));
     expect(ukuranKombo(kunci)).toEqual({ lebar: 170, lebarKontrol: 90 });
@@ -418,7 +418,7 @@ describe('LabeledCombobox', () => {
     expect(ukuranKombo(kunci)).toEqual({ lebar: 160, lebarKontrol: 58 });
   });
 
-  it('flag expanding: tepat satu tercentang & total mengikuti flag', async () => {
+  it('flag expanding: checkbox mengendalikan sisi yang mengembang', async () => {
     const kunci = `uji_ukuran_expand_${Date.now()}`;
     const { container } = renderDenganTema(
       <LabeledCombobox label="Kelompok" htmlFor={kunci}>
@@ -427,20 +427,17 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    const pilLabel = screen.getByRole('button', { name: 'Label mengembang' });
-    const pilKontrol = screen.getByRole('button', { name: 'Kontrol mengembang' });
-    // Pilih label → kontrol lepas; flag tersimpan.
-    await userEvent.click(pilLabel);
-    expect(pilLabel).toHaveAttribute('aria-pressed', 'true');
-    expect(pilKontrol).toHaveAttribute('aria-pressed', 'false');
+    const cb = await screen.findByRole('checkbox', { name: 'Mengembang label' });
+    // Dicentang → label yang mengembang; flag tersimpan; Total +10 menggeser label
+    // (80→90), kontrol tetap.
+    await userEvent.click(cb);
+    expect(cb).toBeChecked();
     expect(ukuranKombo(kunci).expandLabel).toBe(true);
-    // Total +10 kini menggeser label (80→90), kontrol tetap.
     await userEvent.click(await screen.findByLabelText('Lebar kotak combobox (px) tambah'));
     expect(ukuranKombo(kunci)).toMatchObject({ lebar: 170, lebarLabel: 90 });
-    // Pilih kontrol → label lepas.
-    await userEvent.click(pilKontrol);
-    expect(pilLabel).toHaveAttribute('aria-pressed', 'false');
-    expect(pilKontrol).toHaveAttribute('aria-pressed', 'true');
+    // Tidak dicentang → kontrol yang mengembang (flag false → dihapus saat dibaca).
+    await userEvent.click(cb);
+    expect(cb).not.toBeChecked();
     expect(ukuranKombo(kunci).expandLabel).toBeUndefined();
   });
 

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { PopoverClose, PopoverContent } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import SpinBox from '@/components/SpinBox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -299,21 +300,19 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
         />
         </div>
         <div aria-hidden className="border-t border-foreground/10" />
-        <div className="flex min-h-6 flex-wrap items-center gap-1.5">
-          <span className="shrink-0 text-xs text-muted-foreground">Mengembang:</span>
-          <Pil
-            id={`set_expand_label_kombo_${kunci}`}
-            teks="Label"
-            nama="Label mengembang"
-            aktif={expandLabel}
-            onPilih={() => onUbah({ expandLabel: true })}
-          />
-          <Pil
-            id={`set_expand_kontrol_kombo_${kunci}`}
-            teks="Kontrol"
-            nama="Kontrol mengembang"
-            aktif={!expandLabel}
-            onPilih={() => onUbah({ expandLabel: false })}
+        <div className="flex items-center gap-1.5">
+          <label
+            htmlFor={`set_expand_kombo_${kunci}`}
+            className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
+            title="Dicentang: label yang mengembang lebar (kontrol tetap). Tidak dicentang: kontrol yang mengembang (label tetap)."
+          >
+            Mengembang (label)
+          </label>
+          <Checkbox
+            id={`set_expand_kombo_${kunci}`}
+            checked={expandLabel}
+            onCheckedChange={(c) => onUbah({ expandLabel: !!c })}
+            aria-label="Mengembang label"
           />
         </div>
         {/* "Label transparan" dikelompokkan di bawah tema Mengembang, pada baris

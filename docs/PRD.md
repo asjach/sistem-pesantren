@@ -466,6 +466,8 @@
 
 | 2.386 | 2026-10-11 | **Popover ukuran: lebar tetap diperkecil 372 → 240px.** `PopoverContent` pakai `w/min-w/max-w-[240px]`; tetap dipatok (w=min=max) jadi tak mengikuti kotak combobox. Stepper 1 kolom tetap muat (label 48 + spinner 84 + reset 16 = 158 ≤ 240). Tes lebar dipatok di `LabeledCombobox.test.tsx` diperbarui 372→240. Verifikasi: typecheck + build hijau, FE 543 tes hijau. |
 
+| 2.387 | 2026-10-11 | **Popover ukuran: grup "Mengembang" ubah dari segmented toggle (Label/Kontrol) jadi satu Checkbox "Mengembang (label)".** Dicentang → `expandLabel=true` (label yang mengembang); tidak dicentang → kontrol yang mengembang (bawaan). "Label transparan" dikeluarkan dari grup tersebut dan diletakkan di baris tersendiri di bawah bertanda "Warna Label:" (tetap grup tema Mengembang). Implementasi di `PopoverUkuranKombo.tsx` (import `Checkbox`, `onUbah({ expandLabel: !!c })`); tiada perubahan data. Tes `LabeledCombobox.test.tsx` ("ubah total menggeser sisi yang mengembang" & "flag expanding") diupdate ke asersi checkbox. Verifikasi: typecheck + build hijau, FE 543 tes hijau. |
+
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.
