@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import PopoverKalender from '@/components/PopoverKalender';
+import { diDalamPanel, kelasPanel, KELAS_TOMBOL, OFFSET_RATA, OFFSET_SISI } from '@/components/panelMenempel';
 import { cn } from '@/lib/utils';
 import { tanggalDariTampilan, tanggalKeTampilan, tanggalLengkap, maskTanggal } from '@/lib/tanggal';
 import { Calculator, Reset } from '@/icons';
@@ -160,46 +161,11 @@ export const PRESET_NOMINAL = [
  *  menambah nol di belakang, bukan nominal 0. */
 const TOMBOL_ANGKA = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '00', '000'];
 
-/** Kelas tiap panel: `.pop-nominal` jadi jangkar override `--input` di `index.css`
- *  (border tombol ikut sewarna kotak pembungkus di mode gelap) sekaligus penanda
- *  panel saat pengujian. */
-const KELAS_PANEL = 'pop-nominal pointer-events-auto w-60 border-foreground/30 p-2';
-
-/** Border 1px tiap tombol — disamakan dengan border kotak pembungkus.
- *
- *  `-ml-px -mt-px`: tombol rapat (tanpa `gap`), jadi tanpa geseran ini dua
- *  border yang bersentuhan tampak 2px di garis dalam. Dengan margin negatif 1px
- *  border kiri/atas tiap tombol bertindihan tepat di atas border kanan/bawah
- *  tombol sebelumnya — persinggungan tetap 1px. Grid & flex `stretch` membuat
- *  tepi kanan/bawah baris terakhir tak bergeser, jadi sisi luar panel tetap rapi
- *  (kelebihan 1px hanya masuk ke padding panel).
- *
- *  Karena itu tombol selebar baris memakai `self-stretch`, BUKAN `w-full`: pada
- *  elemen berlebar eksplisit margin kiri negatif hanya menggeser kotaknya
- *  sehingga tepi kanannya kurang 1px; dengan lebar `auto` + stretch, kotaknya
- *  ikut melebar dan kedua tepinya tetap sejajar. */
-const KELAS_TOMBOL = 'border border-foreground/30 -ml-px -mt-px';
+/** Kelas panel nominal (lihat `panelMenempel.ts` untuk geometrinya). */
+const KELAS_PANEL = kelasPanel('pop-nominal');
 
 const PANEL_NOMINAL = 'nominal';
 const PANEL_ANGKA = 'angka';
-
-/** Geometri panel terhadap kontrol.
- *
- *  Anchor-nya tombol kalkulator, dan tombol itu duduk 1px DI DALAM kotak
- *  (kotak punya border 1px), jadi tepi anchor tidak sama dengan tepi kotak:
- *  - `sideOffset: 0` → sisi panel jatuh tepat di garis border kotak sehingga
- *    keduanya bertindihan (sela 1px, bukan 2px).
- *  - `alignOffset: -1` → menggeser panel 1px ke kanan (tanda negatif ke arah
- *    sebaliknya pada `align="end"`, diukur di browser) agar tepi kanannya rata
- *    dengan tepi luar kotak, bukan 1px di dalamnya.
- *
- *  Diukur di browser (Playwright): sela panel↔kontrol 1px, kanan 0px. */
-const OFFSET_SISI = 0;
-const OFFSET_RATA = -1;
-
-/** Apakah target interaksi berada di dalam panel berpenanda `panel`. */
-const diDalamPanel = (target: EventTarget | null, panel: string) =>
-  target instanceof Element && target.closest(`[data-panel="${panel}"]`) !== null;
 
 /** Tombol kalkulator + dua panel (nominal cepat & papan angka) untuk tipe
  *  `nominal` (rupiah).

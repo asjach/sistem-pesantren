@@ -4,14 +4,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { CalendarDays, ChevronLeft, ChevronRight, Reset } from '@/icons';
 import {
-  geserBulan, hariIniIso, hariPertamaBulan, jumlahHari,
+  hariIniIso, hariPertamaBulan, jumlahHari,
   NAMA_BULAN, NAMA_BULAN_SINGKAT, NAMA_HARI, NAMA_HARI_SINGKAT,
   pecahIso, rakitIso,
 } from '@/lib/tanggal';
+import { diDalamPanel, kelasPanel, KELAS_TOMBOL, OFFSET_RATA, OFFSET_SISI } from '@/components/panelMenempel';
 import type { KonteksTipeInput } from '@/components/tipeInput';
 
-/** Tombol kalender + popover pemilih tanggal (tahun | bulan | hari) untuk tipe
- *  `tanggal` — pasangan `aksiKanan` dari `FORMAT_TANGGAL`.
+/** Tombol kalender + DUA panel pemilih tanggal untuk tipe `tanggal` — pasangan
+ *  `aksiKanan` dari `FORMAT_TANGGAL`, dengan tata letak seperti panel nominal
+ *  (lihat `panelMenempel.ts`): panel ATAS untuk TAHUN & BULAN, panel BAWAH
+ *  untuk TANGGAL.
  *
  *  Kotak tanggal SENGAJA bukan `input type="date"`: tampilan & popover
  *  pemilihnya milik webview (ikut locale, tak bisa distyle/dites), jadi
@@ -19,26 +22,33 @@ import type { KonteksTipeInput } from '@/components/tipeInput';
  *  ber-mask `dd/mm/yyyy` (`FORMAT_TANGGAL`) dan pemilihnya milik kita —
  *  nilainya TETAP ISO `YYYY-MM-DD`, sama seperti input native.
  *
- *  Isi popover: grid hari dengan navigasi bulan, tampilan pilih bulan & tahun
- *  (klik judul bulan), plus "Hari ini" & "Kosongkan". Semua tanggal dihitung
- *  dari komponen UTC-nya supaya tak bergeser karena zona waktu. */
+ *  Semua tanggal dihitung dari komponen UTC-nya supaya tak bergeser karena zona
+ *  waktu. */
 export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTipeInput) {
   const [buka, setBuka] = useState(false);
-  /** Tampilan popover: grid hari, atau pemilih bulan+tahun. */
-  const [lihat, setLihat] = useState<'hari' | 'bulan'>('hari');
+  /** Bulan & tahun yang ditampilkan grid TANGGAL (panel bawah). */
   const [tampil, setTampil] = useState(() => bulanDari(nilai));
+  /** Tahun pertama blok tahun di panel atas. */
+  const [awalBlok, setAwalBlok] = useState(() => awalBlokUntuk(bulanDari(nilai).tahun));
 
-  /* Nilai berubah dari LUAR (mis. pemanggil mereset form) → ikuti bulannya. */
+  /* Nilai berubah (dari luar, atau hasil pilih di panel) → ikuti bulannya;
+     blok tahun ikut bergeser HANYA bila tahunnya di luar blok, supaya daftar
+     tahun tak melompat saat pengguna sedang menelusuri. */
   useEffect(() => {
-    if (pecahIso(nilai) !== null) setTampil(bulanDari(nilai));
+    const p = pecahIso(nilai);
+    if (p === null) return;
+    setTampil({ tahun: p.tahun, bulan: p.bulan });
+    setAwalBlok((awal) => (p.tahun < awal || p.tahun > awal + TAHUN_PER_BLOK - 1 ? awalBlokUntuk(p.tahun) : awal));
   }, [nilai]);
 
-  /** Selalu dibuka di grid hari, pada bulan nilai terpilih (atau bulan ini). */
+  /** Selalu dibuka pada bulan nilai terpilih (atau bulan ini), dengan tahun
+   *  aktif di tengah baris pertama blok tahun. */
   const ubahBuka = (baru: boolean) => {
     setBuka(baru);
     if (!baru) return;
-    setLihat('hari');
-    setTampil(bulanDari(nilai));
+    const acuan = bulanDari(nilai);
+    setTampil(acuan);
+    setAwalBlok(awalBlokUntuk(acuan.tahun));
   };
 
   /** Pilih tanggal → tulis ISO ke pemanggil lalu tutup. */
@@ -49,8 +59,10 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
 
   const { tahun, bulan } = tampil;
   const hariIni = hariIniIso();
+  const kini = pecahIso(hariIni);
   const dipilih = pecahIso(nilai);
   const nilaiIso = dipilih === null ? '' : rakitIso(dipilih.tahun, dipilih.bulan, dipilih.hari) ?? '';
+  const akhirBlok = awalBlok + TAHUN_PER_BLOK - 1;
 
   return (
     <Popover open={buka} onOpenChange={ubahBuka}>
@@ -68,124 +80,158 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
         </Button>
       </PopoverTrigger>
 
-      {/* Geometri sama dengan panel nominal: tombolnya duduk 1px di dalam kotak
-          (kotak ber-border), jadi `sideOffset: 0` menempelkan sisi panel tepat
-          di garis border kotak dan `alignOffset: -1` meratakan tepi kanannya. */}
+      {/* Panel ATAS: tahun (2 baris × 5) + bulan (2 baris × 6). Tiap panel
+          mencegah penutupan bila sasarannya panel sebelah — tanpa itu menekan
+          tombol di satu panel menutup panel lainnya. */}
       <PopoverContent
-        data-panel="kalender"
-        side="bottom"
+        data-panel={PANEL_ATAS}
+        side="top"
         align="end"
-        sideOffset={0}
-        alignOffset={-1}
+        sideOffset={OFFSET_SISI}
+        alignOffset={OFFSET_RATA}
         avoidCollisions={false}
-        className="pop-kalender pointer-events-auto w-60 border-foreground/30 p-2"
+        className={KELAS_PANEL}
+        onInteractOutside={(e) => { if (diDalamPanel(e.target, PANEL_BAWAH)) e.preventDefault(); }}
       >
-        {lihat === 'bulan' ? (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1">
-              <TombolGeser arah="kiri" label="Tahun sebelumnya" onClick={() => setTampil({ tahun: tahun - 1, bulan })} />
-              <span className="flex-1 text-center text-xs font-medium tabular-nums">{tahun}</span>
-              <TombolGeser arah="kanan" label="Tahun berikutnya" onClick={() => setTampil({ tahun: tahun + 1, bulan })} />
-            </div>
-            <div role="group" aria-label={`Bulan tahun ${tahun}`} className="grid grid-cols-3 gap-1">
-              {NAMA_BULAN.map((nama, i) => (
+        <div className="flex flex-col">
+          {/* Rentang tahun yang tampil + penggeser blok (10 tahun sekali) —
+              tanpa ini tahun di luar blok (mis. tanggal lahir lama) tak
+              terjangkau. */}
+          <div className="flex items-center gap-1 pb-1">
+            <TombolGeser
+              arah="kiri"
+              label={`${TAHUN_PER_BLOK} tahun sebelumnya`}
+              onClick={() => setAwalBlok(awalBlok - TAHUN_PER_BLOK)}
+            />
+            <span className="flex-1 text-center text-xs font-medium tabular-nums">{awalBlok}–{akhirBlok}</span>
+            <TombolGeser
+              arah="kanan"
+              label={`${TAHUN_PER_BLOK} tahun berikutnya`}
+              onClick={() => setAwalBlok(awalBlok + TAHUN_PER_BLOK)}
+            />
+          </div>
+
+          <div role="group" aria-label={`Tahun ${awalBlok}–${akhirBlok}`} className="grid grid-cols-5">
+            {Array.from({ length: TAHUN_PER_BLOK }, (_, i) => awalBlok + i).map((pilihan) => {
+              const iniDipilih = pilihan === tahun;
+              return (
+                <Button
+                  key={pilihan}
+                  type="button"
+                  variant={iniDipilih ? 'default' : 'outline'}
+                  size="sm"
+                  className={cn(KELAS_TOMBOL, 'h-7 px-0 tabular-nums', !iniDipilih && pilihan === kini?.tahun && 'font-semibold text-primary')}
+                  aria-pressed={iniDipilih}
+                  data-terpilih={iniDipilih ? 'ya' : undefined}
+                  title={pilihan === kini?.tahun ? `${pilihan} (tahun ini)` : String(pilihan)}
+                  onClick={() => setTampil({ tahun: pilihan, bulan })}
+                >
+                  {pilihan}
+                </Button>
+              );
+            })}
+          </div>
+
+          <div role="group" aria-label={`Bulan ${tahun}`} className="grid grid-cols-6">
+            {NAMA_BULAN_SINGKAT.map((nama, i) => {
+              const iniDipilih = i + 1 === bulan;
+              const iniBulanIni = tahun === kini?.tahun && i + 1 === kini?.bulan;
+              return (
                 <Button
                   key={nama}
                   type="button"
-                  variant={i + 1 === bulan ? 'default' : 'ghost'}
+                  variant={iniDipilih ? 'default' : 'outline'}
                   size="sm"
-                  className="h-7"
-                  aria-label={`${nama} ${tahun}`}
-                  data-terpilih={i + 1 === bulan ? 'ya' : undefined}
-                  onClick={() => { setTampil({ tahun, bulan: i + 1 }); setLihat('hari'); }}
+                  className={cn(KELAS_TOMBOL, 'h-7 px-0', !iniDipilih && iniBulanIni && 'font-semibold text-primary')}
+                  aria-label={`${NAMA_BULAN[i]} ${tahun}`}
+                  aria-pressed={iniDipilih}
+                  data-terpilih={iniDipilih ? 'ya' : undefined}
+                  onClick={() => setTampil({ tahun, bulan: i + 1 })}
                 >
-                  {NAMA_BULAN_SINGKAT[i]}
-                </Button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1">
-              <TombolGeser arah="kiri" label="Bulan sebelumnya" onClick={() => setTampil(geserBulan(tahun, bulan, -1))} />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="flex-1 font-medium"
-                aria-label="Pilih bulan dan tahun"
-                title="Pilih bulan dan tahun"
-                onClick={() => setLihat('bulan')}
-              >
-                {NAMA_BULAN[bulan - 1]} {tahun}
-              </Button>
-              <TombolGeser arah="kanan" label="Bulan berikutnya" onClick={() => setTampil(geserBulan(tahun, bulan, 1))} />
-            </div>
-
-            <div role="group" aria-label={`Tanggal ${NAMA_BULAN[bulan - 1]} ${tahun}`} className="grid grid-cols-7 gap-1">
-              {NAMA_HARI_SINGKAT.map((nama) => (
-                <span key={nama} className="flex h-5 items-center justify-center text-[10px] text-muted-foreground">
                   {nama}
-                </span>
-              ))}
-              {/* Sel kosong sebelum tanggal 1 supaya kolomnya sejajar nama hari. */}
-              {Array.from({ length: hariPertamaBulan(tahun, bulan) }, (_, i) => (
-                <span key={`kosong_${i}`} aria-hidden="true" />
-              ))}
-              {Array.from({ length: jumlahHari(tahun, bulan) }, (_, i) => i + 1).map((hari) => {
-                const iso = rakitIso(tahun, bulan, hari) ?? '';
-                const iniDipilih = iso === nilaiIso;
-                const namaHari = NAMA_HARI[new Date(Date.UTC(tahun, bulan - 1, hari)).getUTCDay()];
-                return (
-                  <Button
-                    key={iso}
-                    type="button"
-                    variant={iniDipilih ? 'default' : 'ghost'}
-                    size="icon-sm"
-                    className={cn('h-7 w-full tabular-nums', !iniDipilih && iso === hariIni && 'font-semibold text-primary')}
-                    aria-label={`${hari} ${NAMA_BULAN[bulan - 1]} ${tahun}`}
-                    aria-current={iso === hariIni ? 'date' : undefined}
-                    data-terpilih={iniDipilih ? 'ya' : undefined}
-                    title={`${namaHari}, ${hari} ${NAMA_BULAN[bulan - 1]} ${tahun}`}
-                    onClick={() => pilih(iso)}
-                  >
-                    {hari}
-                  </Button>
-                );
-              })}
-            </div>
+                </Button>
+              );
+            })}
           </div>
-        )}
+        </div>
+      </PopoverContent>
 
-        <div className="mt-1 flex items-stretch gap-1 border-t border-foreground/30 pt-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={() => pilih(hariIni)}
-          >
-            Hari ini
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            aria-label="Kosongkan tanggal"
-            title="Kosongkan tanggal"
-            onClick={() => pilih('')}
-          >
-            <Reset className="size-4" />
-            Kosongkan
-          </Button>
+      {/* Panel BAWAH: grid tanggal bulan yang sedang tampil. */}
+      <PopoverContent
+        data-panel={PANEL_BAWAH}
+        side="bottom"
+        align="end"
+        sideOffset={OFFSET_SISI}
+        alignOffset={OFFSET_RATA}
+        avoidCollisions={false}
+        className={KELAS_PANEL}
+        onInteractOutside={(e) => { if (diDalamPanel(e.target, PANEL_ATAS)) e.preventDefault(); }}
+      >
+        <div className="flex flex-col gap-1">
+          <div role="group" aria-label={`Tanggal ${NAMA_BULAN[bulan - 1]} ${tahun}`} className="grid grid-cols-7 gap-1">
+            {NAMA_HARI_SINGKAT.map((nama) => (
+              <span key={nama} className="flex h-5 items-center justify-center text-[10px] text-muted-foreground">
+                {nama}
+              </span>
+            ))}
+            {/* Sel kosong sebelum tanggal 1 supaya kolomnya sejajar nama hari. */}
+            {Array.from({ length: hariPertamaBulan(tahun, bulan) }, (_, i) => (
+              <span key={`kosong_${i}`} aria-hidden="true" />
+            ))}
+            {Array.from({ length: jumlahHari(tahun, bulan) }, (_, i) => i + 1).map((hari) => {
+              const iso = rakitIso(tahun, bulan, hari) ?? '';
+              const iniDipilih = iso === nilaiIso;
+              const namaHari = NAMA_HARI[new Date(Date.UTC(tahun, bulan - 1, hari)).getUTCDay()];
+              return (
+                <Button
+                  key={iso}
+                  type="button"
+                  variant={iniDipilih ? 'default' : 'ghost'}
+                  size="icon-sm"
+                  className={cn('h-7 w-full tabular-nums', !iniDipilih && iso === hariIni && 'font-semibold text-primary')}
+                  aria-label={`${hari} ${NAMA_BULAN[bulan - 1]} ${tahun}`}
+                  aria-current={iso === hariIni ? 'date' : undefined}
+                  aria-pressed={iniDipilih}
+                  data-terpilih={iniDipilih ? 'ya' : undefined}
+                  title={`${namaHari}, ${hari} ${NAMA_BULAN[bulan - 1]} ${tahun}`}
+                  onClick={() => pilih(iso)}
+                >
+                  {hari}
+                </Button>
+              );
+            })}
+          </div>
+
+          <div className="mt-1 flex items-stretch gap-1 border-t border-foreground/30 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => pilih(hariIni)}
+            >
+              Hari ini
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              aria-label="Kosongkan tanggal"
+              title="Kosongkan tanggal"
+              onClick={() => pilih('')}
+            >
+              <Reset className="size-4" />
+              Kosongkan
+            </Button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>
   );
 }
 
-/** Tombol navigasi ‹ › di header panel (satu langkah bulan atau tahun). */
+/** Tombol navigasi ‹ › (menggeser blok tahun di panel atas). */
 function TombolGeser({ arah, label, onClick }: { arah: 'kiri' | 'kanan'; label: string; onClick: () => void }) {
   const Ikon = arah === 'kiri' ? ChevronLeft : ChevronRight;
   return (
@@ -194,6 +240,18 @@ function TombolGeser({ arah, label, onClick }: { arah: 'kiri' | 'kanan'; label: 
     </Button>
   );
 }
+
+const PANEL_ATAS = 'kalender_atas';
+const PANEL_BAWAH = 'kalender_bawah';
+const KELAS_PANEL = kelasPanel('pop-kalender');
+
+/** Blok tahun panel atas: 2 baris × 5 tahun, tahun acuan di TENGAH baris
+ *  pertama (2 tahun sebelumnya di kiri, 2 berikutnya di kanan) → 10 tahun. */
+const TAHUN_PER_BARIS = 5;
+const TAHUN_PER_BLOK = TAHUN_PER_BARIS * 2;
+
+/** Tahun pertama blok bila `tahun` jadi acuan. */
+const awalBlokUntuk = (tahun: number): number => tahun - (TAHUN_PER_BARIS - 1) / 2;
 
 /** Bulan yang ditampilkan grid: bulan nilai terpilih, atau bulan hari ini. */
 function bulanDari(iso: string): { tahun: number; bulan: number } {
