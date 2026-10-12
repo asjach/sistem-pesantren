@@ -32,9 +32,12 @@ function Harness({ awal = '' }: { awal?: string }) {
 
 const hariIni = hariIniIso();
 const ini = pecahIso(hariIni) as { tahun: number; bulan: number; hari: number };
-/** Blok tahun dibuka dengan tahun aktif di tengah baris pertama: 2 tahun
- *  sebelumnya di kiri, 2 berikutnya di kanan (total 10 tahun = 2 baris). */
-const awalBlokAwal = ini.tahun - 2;
+/** Blok tahun dibuka dengan tahun aktif di TENGAH baris KEDUA: baris pertama
+ *  memuat 5 tahun sebelumnya, lalu 2 tahun sebelumnya + tahun aktif + 2 tahun
+ *  berikutnya (total 10 tahun = 2 baris × 5). */
+const TAHUN_PER_BARIS = 5;
+const indeksTahunAktif = TAHUN_PER_BARIS + (TAHUN_PER_BARIS - 1) / 2;
+const awalBlokAwal = ini.tahun - indeksTahunAktif;
 const nilaiTerpilih = () => document.querySelector('[data-uji="nilai"]')?.textContent;
 const panel = (nama: 'kalender_atas' | 'kalender_bawah') =>
   document.querySelector(`[data-panel="${nama}"]`) as HTMLElement | null;
@@ -74,7 +77,7 @@ describe('PopoverKalender — dua panel (seperti panel nominal)', () => {
 });
 
 describe('PopoverKalender — panel atas: tahun & bulan', () => {
-  it('tahun: 2 baris × 5, tahun aktif di TENGAH baris pertama', async () => {
+  it('tahun: 2 baris × 5, tahun aktif di TENGAH baris KEDUA', async () => {
     renderDenganTema(<Harness />);
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
@@ -86,9 +89,14 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
     expect(tombolTahun.map((t) => t.textContent)).toEqual(
       Array.from({ length: 10 }, (_, i) => String(awalBlokAwal + i)),
     );
-    // Tengah baris pertama = tahun aktif sistem, dan ditandai sebagai tahun ini.
-    expect(tombolTahun[2].textContent).toBe(String(ini.tahun));
-    expect(tombolTahun[2].title).toBe(`${ini.tahun} (tahun ini)`);
+    // Tengah baris KEDUA (indeks 5..9) = tahun aktif sistem, ditandai tahun ini.
+    expect(tombolTahun[indeksTahunAktif].textContent).toBe(String(ini.tahun));
+    expect(tombolTahun[indeksTahunAktif].title).toBe(`${ini.tahun} (tahun ini)`);
+    // Dua tahun sebelumnya di kiri, dua berikutnya di kanan.
+    expect(tombolTahun[indeksTahunAktif - 1].textContent).toBe(String(ini.tahun - 1));
+    expect(tombolTahun[indeksTahunAktif + 1].textContent).toBe(String(ini.tahun + 1));
+    // Baris pertama = 5 tahun sebelum blok baris kedua.
+    expect(tombolTahun[0].textContent).toBe(String(ini.tahun - 7));
     // Rentang yang tampil ditulis di header panel.
     expect(screen.getByText(`${awalBlokAwal}–${awalBlokAwal + 9}`)).toBeInTheDocument();
   });
@@ -209,8 +217,9 @@ describe('PopoverKalender — panel bawah: tanggal', () => {
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
 
-    // 1998 jadi acuan blok → 2 tahun sebelumnya di kiri baris pertama.
-    expect(screen.getByRole('group', { name: 'Tahun 1996–2005' })).toBeInTheDocument();
+    // 1998 jadi acuan blok: 5 tahun sebelumnya di baris pertama, 1998 di
+    // tengah baris kedua.
+    expect(screen.getByRole('group', { name: 'Tahun 1991–2000' })).toBeInTheDocument();
     expect(within(gridBulan(1998)).getByRole('button', { name: 'Mei 1998' }).getAttribute('data-terpilih')).toBe('ya');
     expect(hari('20 Mei 1998').getAttribute('data-terpilih')).toBe('ya');
   });
@@ -225,7 +234,7 @@ describe('PopoverKalender — panel bawah: tanggal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'set-luar' }));
 
     await buka();
-    await waitFor(() => expect(screen.getByRole('group', { name: 'Tahun 2021–2030' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Tahun 2016–2025' })).toBeInTheDocument());
     expect(gridTanggal(5, 2023)).toBeInTheDocument();
     expect(hari('20 Mei 2023').getAttribute('data-terpilih')).toBe('ya');
   });
