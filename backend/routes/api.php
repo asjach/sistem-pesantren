@@ -310,11 +310,15 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         // table_key + komponen). Terpisah dari toolbar_preset karena setelannya
         // milik komponen, bukan tabel — komponen di luar tabel (dialog/form)
         // ikut punya setelan. Diatur dari popover klik-kanan komponen, jadi
-        // baca & tulis cukup terautentikasi.
+        // gerbangnya izin modul `komponen_custom`.
         // Izin modul `komponen_custom` TIDAK eksklusif super_admin (lihat
         // `IzinKatalog::EKSKLUSIF_SUPER_ADMIN`): setelan diatur dari popover
         // klik-kanan komponen, sama seperti ukuran kotak kontrol, jadi admin
         // juga boleh menulis.
+        // PENTING: izin katalog BARU harus ikut dibuat di DB lewat migrasi
+        // penyelaras (`App\Services\SinkronIzin`). Modul yang ada di katalog
+        // tapi belum ada izinnya di DB membuat rute di bawah menolak SEMUA
+        // peran dengan "User does not have the right permissions.".
         Route::get('komponen-custom', [KomponenCustomController::class, 'index'])->middleware('permission:komponen_custom.lihat');
         Route::put('komponen-custom', [KomponenCustomController::class, 'simpan'])->middleware('permission:komponen_custom.tambah|komponen_custom.ubah');
         Route::delete('komponen-custom', [KomponenCustomController::class, 'hapus'])->middleware('permission:komponen_custom.hapus');

@@ -3,19 +3,21 @@
 namespace Database\Seeders;
 
 use App\Services\IzinKatalog;
+use App\Services\SinkronIzin;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class PermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        foreach (IzinKatalog::semua() as $nama) {
-            Permission::firstOrCreate(['name' => $nama, 'guard_name' => 'sanctum']);
-        }
+        /* Pembuatan izin memakai jalur bersama dengan migrasi penyelaras
+           (`SinkronIzin`) supaya keduanya tak bisa berbeda daftar. */
+        SinkronIzin::buatIzinHilang();
 
-        foreach (Role::where('guard_name', 'sanctum')->get() as $role) {
+        /* Seeder MENYETEL ULANG peran ke bawaan katalog (beda dari migrasi yang
+           aditif): dipakai saat menyiapkan DB dari nol. */
+        foreach (Role::where('guard_name', SinkronIzin::GUARD)->get() as $role) {
             $role->syncPermissions(IzinKatalog::untukRole($role->name));
         }
     }

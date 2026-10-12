@@ -2,6 +2,8 @@ import { useCallback, useRef, useState, type MouseEvent as ReactMouseEvent, type
 import { Popover, PopoverAnchor } from '@/components/ui/popover';
 import PopoverUkuranKombo from '@/components/PopoverUkuranKombo';
 import { pakaiLebarFilter } from '@/components/excel/lebarFilter';
+import { bisa } from '@/api/auth';
+import { useAuth } from '@/auth/AuthContext';
 import {
   definisiTipe,
   KUNCI_TIPE_INPUT,
@@ -73,6 +75,16 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
   /** Kunci setelan = id kontrol. Tanpa id, kotak tak punya identitas untuk
    *  menyimpan setelannya → fitur dimatikan. */
   const kunciUkuran = htmlFor ?? '';
+  /* Menyetel komponen = MENULIS ke server (`komponen_custom`). Tanpa izin
+     tulis, popovernya disembunyikan supaya pengguna tak menabrak 403
+     "User does not have the right permissions." — lebih baik fitur tak
+     ditawarkan daripada gagal saat dipakai. `user === null` = sesi belum
+     termuat (atau tanpa konteks auth, mis. di tes): jangan memblokir. */
+  const { user } = useAuth();
+  const bolehSetel = user === null
+    || bisa(user, 'komponen_custom.tambah')
+    || bisa(user, 'komponen_custom.ubah');
+  const bolehBukaPengaturan = kunciUkuran !== '' && bolehSetel;
   const konteks = pakaiLebarFilter();
   /* Tabel tempat komponen hidup; komponen di luar tabel memakai string kosong
      supaya tetap punya identitas di server. */
@@ -201,7 +213,7 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
   /** Bungkus kotak dalam popover pengaturan (klik-kanan). Tanpa `htmlFor`,
    *  kotak dikembalikan apa adanya. */
   const bungkus = (kotak: ReactNode) => {
-    if (kunciUkuran === '') return kotak;
+    if (!bolehBukaPengaturan) return kotak;
     return (
       <Popover open={bukaUkuran} onOpenChange={setBukaUkuran}>
         {kotak}
@@ -262,7 +274,7 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
 
   return {
     refKotak,
-    onContextMenu: kunciUkuran === '' ? undefined : bukaPengaturan,
+    onContextMenu: bolehBukaPengaturan ? bukaPengaturan : undefined,
     tinggiEfektif,
     lebarKotakEfektif,
     lebarLabelEfektif,
