@@ -183,6 +183,9 @@ TBD (tidak dikunci): enkripsi SQLite, bentuk endpoint delta, LAN-fallback, UAT c
   sementara di root repo boleh tanpa konfirmasi.
 - Backend: ikuti panduan Laravel Boost (`backend/AGENTS.md`); migrasi via
   `php artisan make:*`; gaya via Pint; uji via PHPUnit (narrowest dulu).
+- Aturan test global: HANYA perubahan logika yang wajib test (tidak ada file
+  yang otomatis mewajibkan test). Copy/teks, styling, layout TIDAK PERNAH
+  wajib test. Bila test logika berlaku, jalankan yang tersempit + pastikan hijau.
 
 ### G.2 Slash command lokal (`command/`)
 - `/ui-review` — proses anotasi visual UI + console error lalu perbaiki per nomor;

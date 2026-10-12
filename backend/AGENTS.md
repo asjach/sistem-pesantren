@@ -103,12 +103,13 @@ Before relying on a package's API, confirm its installed version:
 
 === tests rules ===
 
-# Test Enforcement
+# Test Enforcement — hanya logika
 
-- Add or update tests for behavior and logic changes when a test provides meaningful regression coverage.
-- Pure copy, styling, and layout-only changes do not require new or updated tests.
-- When test coverage applies, run the affected tests and ensure they pass.
-- Test the changed behavior and its important failure modes, but do not add tests beyond them.
+- Tambah/perbarui test HANYA untuk perubahan logika (percabangan, validasi, komputasi, query/policy, transformasi data, transisi state) yang memberi regression coverage bermakna.
+- Tidak ada file yang otomatis mewajibkan test; yang mewajibkan adalah logika yang berubah di dalamnya.
+- Perubahan non-logika TIDAK PERNAH wajib test: copy/teks, styling, layout, rename/pindah tanpa ubah alur, boilerplate config.
+- Perubahan perilaku tanpa logika (mis. wording label, tweak piksel/style) tidak wajib test.
+- Bila test logika berlaku, jalankan test tersempit yang terdampak dan pastikan hijau; uji logika yang berubah + failure mode pentingnya, tidak lebih.
 - Read the `testing-best-practices` skill before writing tests.
 
 === laravel/core rules ===

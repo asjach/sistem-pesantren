@@ -1,5 +1,11 @@
 # AGENTS.md — Frontend SIMPES (`admin-desktop-tauri`)
 
+## Aturan test (hanya logika)
+- Tambah/perbarui `*.test.ts(x)` HANYA untuk perubahan logika (`src/lib`, `src/api`, hooks, transformasi/validasi/komputasi, state/filter/preset/toolbar yang bercabang).
+- Tidak ada file yang otomatis mewajibkan test.
+- Copy/teks, styling, layout TIDAK PERNAH wajib test.
+- Bila test logika berlaku: `npm run test` tersempit + `npm run typecheck` hijau.
+
 ## Akun reviewer (AKTIF — jangan dibuat ulang/dihapus)
 - Email: `reviewer.tmp@example.com`
 - Password: `rahayu45` (sama seperti seeder `AkunSeeder`; semua akun dev memakai ini)
