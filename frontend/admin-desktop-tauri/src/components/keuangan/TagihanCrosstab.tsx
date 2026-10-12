@@ -369,6 +369,10 @@ const BarisCrosstab = memo(function BarisCrosstab({
               }}
               onPointerUp={(e) => {
                 if (e.button !== 0) return;
+                // Gestur seleksi selesai → tutup kartu info sel; kartu yang
+                // mengikuti kursor hanya akan menutupi popover aksi yang
+                // muncul di sel ini.
+                onHoverKeluar();
                 // Klik kiri mouse di sini (bukan onClick, lihat komentar
                 // di atas). Klik susulan setelah geser: abaikan (blok sudah
                 // diperbarui via onPointerEnter).
@@ -425,8 +429,11 @@ const BarisCrosstab = memo(function BarisCrosstab({
                 if (e.shiftKey && tgtEl) onSeleksiRilis?.(tgtEl);
               }}
               onFocus={() => { activeRef.current = { santriId: baris.santri_id, key: k.key }; }}
-              onMouseEnter={(e) => onHoverMasuk(isiTooltip, e.currentTarget)}
-              onMouseMove={(e) => onHoverGerak(isiTooltip, e)}
+              /* Kartu info sel dimatikan selama drag bulk-selection: pointer
+                 melintasi banyak sel dan kartu yang mengikuti kursor hanya
+                 menutupi sel yang sedang dipilih. */
+              onMouseEnter={(e) => { if (draggingRef.current) return; onHoverMasuk(isiTooltip, e.currentTarget); }}
+              onMouseMove={(e) => { if (draggingRef.current) return; onHoverGerak(isiTooltip, e); }}
               onMouseLeave={onHoverKeluar}
               aria-describedby="tip_tagihan_sel"
               aria-pressed={selection?.has(sel.id) ?? false}
@@ -510,29 +517,6 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, selecti
   const draggingRef = useRef(false);
   const dragStartRef = useRef<CellRef | null>(null);
   const dragMovedRef = useRef(false);
-  /* Akhiri drag bila pointer dilepas di luar sel (mis. di luar tabel).
-     Pelepasan DI LUAR wadah tak diterima sel mana pun, sehingga gestur esai
-     blok bisa selesai tanpa sinyal rilis — kabari dari sini, memakai sel awal
-     geser sebagai jangkar popover aksi. Pelepasan di dalam wadah sudah
-     ditangani `onPointerUp` milik sel. */
-  useEffect(() => {
-    const akhiri = (ev: PointerEvent) => {
-      if (!draggingRef.current) return;
-      const wadah = scrollRef.current;
-      const diLuar = wadah !== null && !(ev.target instanceof Node && wadah.contains(ev.target));
-      if (diLuar && dragStartRef.current !== null) {
-        const mulai = dragStartRef.current;
-        const baris = data?.baris.find((b) => b.santri_id === mulai.santriId);
-        const selMulai = baris?.sel[mulai.key];
-        const el = selMulai ? document.getElementById(`btn_tagihan_sel_${selMulai.id}`) : null;
-        if (el !== null) onSeleksiRilis?.(el);
-      }
-      draggingRef.current = false;
-      dragMovedRef.current = false;
-    };
-    window.addEventListener('pointerup', akhiri);
-    return () => window.removeEventListener('pointerup', akhiri);
-  }, [data, onSeleksiRilis]);
   /* Grup non-bulanan satu kolom digabung jadi satu sel header (rowSpan=2):
      tak ada sub-label yang perlu ditampilkan di baris kedua. */
   const gabungKunci = new Set(
@@ -652,6 +636,36 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, selecti
     if (tutupRef.current !== null) clearTimeout(tutupRef.current);
     tutupRef.current = setTimeout(() => setHover(null), 400);
   }, []);
+
+  /* Akhiri drag bila pointer dilepas di luar sel (mis. di luar tabel).
+     Pelepasan DI LUAR wadah tak diterima sel mana pun, sehingga gestur geser
+     blok bisa selesai tanpa sinyal rilis — kabari dari sini, memakai sel awal
+     geser sebagai jangkar popover aksi (dan tutup kartu info). Pelepasan di
+     dalam wadah sudah ditangani `onPointerUp` milik sel.
+
+     Ditaruh setelah `hoverKeluar`: array dependensinya memakainya, dan array
+     dievaluasi saat render — bila effect berada di atas deklarasinya akan
+     kena TDZ. */
+  useEffect(() => {
+    const akhiri = (ev: PointerEvent) => {
+      if (!draggingRef.current) return;
+      // Geser selesai → kartu info sel ditutup (lihat catatan di onPointerUp).
+      hoverKeluar();
+      const wadah = scrollRef.current;
+      const diLuar = wadah !== null && !(ev.target instanceof Node && wadah.contains(ev.target));
+      if (diLuar && dragStartRef.current !== null) {
+        const mulai = dragStartRef.current;
+        const baris = data?.baris.find((b) => b.santri_id === mulai.santriId);
+        const selMulai = baris?.sel[mulai.key];
+        const el = selMulai ? document.getElementById(`btn_tagihan_sel_${selMulai.id}`) : null;
+        if (el !== null) onSeleksiRilis?.(el);
+      }
+      draggingRef.current = false;
+      dragMovedRef.current = false;
+    };
+    window.addEventListener('pointerup', akhiri);
+    return () => window.removeEventListener('pointerup', akhiri);
+  }, [data, onSeleksiRilis, hoverKeluar]);
 
   /* Radix HoverCard tidak punya virtualRef seperti PopoverAnchor, jadi
      jangkarnya harus elemen nyata. Kita taruh satu elemen tak terlihat persis

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type ComponentProps } from 'vitest';
 
 import { renderDenganTema } from '@/test/utils';
 import type { CrosstabBaris, CrosstabKolom, CrosstabSel } from '@/api/keuangan';
@@ -29,7 +29,15 @@ function baris(selJul: CrosstabSel, selAgu: CrosstabSel, timpa: Partial<Crosstab
   };
 }
 
-function renderCrosstab(b: CrosstabBaris, onPilih = () => {}, terpilihId: number | null = null, onTambah?: (baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => void) {
+type EkstraProps = Partial<ComponentProps<typeof TagihanCrosstab>>;
+
+function renderCrosstab(
+  b: CrosstabBaris,
+  onPilih = () => {},
+  terpilihId: number | null = null,
+  onTambah?: (baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => void,
+  extra: EkstraProps = {},
+) {
   return renderDenganTema(
     <TagihanCrosstab
       data={{ kolom: KOLOM, baris: [b], total: 1, per_page: 25, current_page: 1, last_page: 1 }}
@@ -38,21 +46,38 @@ function renderCrosstab(b: CrosstabBaris, onPilih = () => {}, terpilihId: number
       onPilih={onPilih}
       onTambah={onTambah}
       emptyText="Kosong"
+      {...extra}
     />,
   );
+}
+
+/** Sel terisi adalah teks biasa (span), bukan tombol — jadi query-nya lewat
+ *  teks nominal, bukan role 'button'. Dua sel bernominal sama → urutannya
+ *  mengikuti kolom (Jul index 0, Agu index 1). */
+function selUji(i: number): HTMLElement {
+  return screen.getAllByText('50.000')[i];
+}
+
+/** jsdom tak punya PointerEvent; MouseEvent bertipe pointer* dipakai supaya
+ *  properti `button`/`ctrlKey`/`shiftKey` terbaca seperti di browser. */
+function pointerEv(el: Element, tipe: 'pointerdown' | 'pointerup', o: { button?: number; ctrlKey?: boolean; shiftKey?: boolean } = {}) {
+  fireEvent(el, new MouseEvent(tipe, {
+    bubbles: true, cancelable: true,
+    button: o.button ?? 0, ctrlKey: o.ctrlKey ?? false, shiftKey: o.shiftKey ?? false,
+  }));
 }
 
 describe('warna sel crosstab menurut jatuh tempo', () => {
   it('terlambat merah + tebal', () => {
     renderCrosstab(baris(sel({ terlambat: true }), sel({ id: 2 })));
-    const merah = screen.getAllByRole('button', { name: '50.000' })[0];
+    const merah = selUji(0);
     expect(merah.className).toContain('text-destructive');
     expect(merah.className).toContain('font-semibold');
   });
 
   it('belum jatuh tempo dibuat samar, bukan merah', () => {
     renderCrosstab(baris(sel({ terlambat: true }), sel({ id: 2 })));
-    const netral = screen.getAllByRole('button', { name: '50.000' })[1];
+    const netral = selUji(1);
     expect(netral.className).not.toContain('text-destructive');
     // Samar: teks pudar, bukan warna penuh seperti sel tunggakan.
     expect(netral.className).toContain('text-muted-foreground/50');
@@ -64,17 +89,17 @@ describe('warna sel crosstab menurut jatuh tempo', () => {
       sel({ status: 'lunas', sisa: 0, terbayar: 50000 }),
       sel({ id: 2, status: 'lunas', sisa: 0, terbayar: 50000 }),
     ));
-    for (const tombol of screen.getAllByRole('button')) {
-      expect(tombol.className).toContain('text-emerald-700');
-      expect(tombol.className).not.toContain('text-destructive');
+    expect(screen.getAllByText('50.000')).toHaveLength(2);
+    for (const teks of screen.getAllByText('50.000')) {
+      expect(teks.className).toContain('text-emerald-700');
+      expect(teks.className).not.toContain('text-destructive');
     }
   });
 });
 
 describe('tooltip hover sel crosstab', () => {
   async function hoverSel(i: number) {
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[i];
-    await userEvent.hover(tombol);
+    await userEvent.hover(selUji(i));
     return screen.getByRole('tooltip');
   }
 
@@ -91,50 +116,64 @@ describe('tooltip hover sel crosstab', () => {
 
 });
 
-describe('klik sel tetap meneruskan data', () => {
-  it('memanggil onPilih dengan nama & label', () => {
-    const onPilih = vi.fn();
-    renderCrosstab(baris(sel({ terlambat: true }), sel({ id: 2 })), onPilih);
-    screen.getAllByRole('button', { name: '50.000' })[0].click();
-    expect(onPilih).toHaveBeenCalledTimes(1);
-    expect(onPilih.mock.calls[0][1]).toMatchObject({ nama: 'Santri Uji' });
-  });
-});
-describe('sel tagihan: klik kiri = klik kanan', () => {
-  it('klik kiri melaporkan sel + jangkar elemen sel', async () => {
+describe('onPilih meneruskan data (keyboard)', () => {
+  /* Klik kiri sudah dipakai untuk seleksi, jadi aksi per tagihan hanya lewat
+     klik kanan (lihat describe berikut) atau aktivasi keyboard (Enter/Spasi). */
+  it('Enter pada sel memanggil onPilih dengan nama & label', () => {
     const onPilih = vi.fn();
     renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[1];
-    await userEvent.click(tombol);
+    const selAgustus = selUji(1);
+    selAgustus.focus();
+    fireEvent.keyDown(selAgustus, { key: 'Enter' });
     expect(onPilih).toHaveBeenCalledTimes(1);
     expect(onPilih.mock.calls[0][0].id).toBe(2);
     expect(onPilih.mock.calls[0][1]).toMatchObject({ nama: 'Santri Uji', label: 'Infaq Bulanan · Agu 2025' });
     // Argumen ketiga = elemen sel, dipakai halaman sebagai jangkar popover.
-    expect(onPilih.mock.calls[0][2]).toBe(tombol);
+    expect(onPilih.mock.calls[0][2]).toBe(selAgustus);
   });
+});
 
-  it('klik kanan melapor dengan cara yang sama', () => {
+describe('sel tagihan: klik kanan = aksi, klik kiri = seleksi', () => {
+  it('klik kanan melaporkan sel + jangkar elemen sel', () => {
     const onPilih = vi.fn();
     renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
-    fireEvent.contextMenu(tombol);
+    const selJuli = selUji(0);
+    fireEvent.contextMenu(selJuli);
     expect(onPilih).toHaveBeenCalledTimes(1);
     expect(onPilih.mock.calls[0][0].id).toBe(1);
-    expect(onPilih.mock.calls[0][2]).toBe(tombol);
+    expect(onPilih.mock.calls[0][2]).toBe(selJuli);
+  });
+
+  it('klik kanan sekaligus men-select sel itu saja (onPilihSatu)', () => {
+    const onPilihSatu = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onPilihSatu });
+    fireEvent.contextMenu(selUji(0));
+    expect(onPilihSatu).toHaveBeenCalledTimes(1);
+    expect(onPilihSatu.mock.calls[0][0].id).toBe(1);
+    expect(onPilihSatu.mock.calls[0][1]).toBe(1); // jenis_id kolom
   });
 
   it('klik kanan tidak memunculkan menu browser (preventDefault)', () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })));
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
     const peristiwa = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
-    fireEvent(tombol, peristiwa);
+    fireEvent(selUji(0), peristiwa);
     expect(peristiwa.defaultPrevented).toBe(true);
   });
 
-  /* Cincin sel terpilih digambar sebagai satu overlay, bukan class ring di
-     tiap sel. Mengoper `terpilihId` ke baris membuat props SEMUA baris
-     berubah tiap klik, sehingga memo tak berlaku dan ribuan tombol dirender
-     ulang -- itu yang membuat popover terlambat ~250ms. */
+  it('klik kiri biasa hanya memilih satu sel, tidak membuka aksi per tagihan', () => {
+    const onPilih = vi.fn();
+    const onPilihSatu = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih, null, undefined, { onPilihSatu });
+    pointerEv(selUji(0), 'pointerup');
+    expect(onPilihSatu).toHaveBeenCalledTimes(1);
+    expect(onPilihSatu.mock.calls[0][0].id).toBe(1);
+    expect(onPilih).not.toHaveBeenCalled();
+  });
+
+  /* Cincin sel aktif (dari klik kanan) digambar sebagai satu overlay, bukan
+     class ring di tiap sel. Mengoper `terpilihId` ke baris membuat props SEMUA
+     baris berubah tiap klik, sehingga memo tak berlaku dan ribuan elemen
+     dirender ulang -- itu yang membuat popover terlambat ~250ms. */
   it('sel terpilih digarisbawahi overlay tunggal, bukan class ring di sel', () => {
     render(
       <TagihanCrosstab
@@ -145,7 +184,7 @@ describe('sel tagihan: klik kiri = klik kanan', () => {
         emptyText="Kosong"
       />,
     );
-    const selTerpilih = screen.getAllByRole('button', { name: '50.000' })[1];
+    const selTerpilih = selUji(1);
     expect(selTerpilih.className).not.toContain('ring-2');
 
     const cincin = document.getElementById('cincin_sel_tagihan');
@@ -163,46 +202,47 @@ describe('sel tagihan: klik kiri = klik kanan', () => {
 describe('kartu hovervs popover: tak boleh menumpuk', () => {
   it('klik kiri menutup kartu hover', async () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })));
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
-    await userEvent.hover(tombol);
+    const selJuli = selUji(0);
+    await userEvent.hover(selJuli);
     expect(await screen.findByRole('tooltip')).toBeInTheDocument();
 
-    await userEvent.click(tombol);
+    await userEvent.click(selJuli);
     await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
   });
 
   it('klik kanan juga menutup kartu hover', async () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })));
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
-    await userEvent.hover(tombol);
+    const selJuli = selUji(0);
+    await userEvent.hover(selJuli);
     expect(await screen.findByRole('tooltip')).toBeInTheDocument();
 
-    fireEvent.contextMenu(tombol);
+    fireEvent.contextMenu(selJuli);
     await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
   });
 
   it('kartu tak muncul lagi karena jitter kecil, tapi muncul setelah pointer bergerak jauh', async () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })));
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
+    const selJuli = selUji(0);
     // jsdom tak punya layout -> semua rect 0,0. Beri rect palsu supaya
     // ambang "pointer harus bergerak jauh" benar-benar teruji.
-    tombol.getBoundingClientRect = () => ({
+    selJuli.getBoundingClientRect = () => ({
       left: 570, top: 190, width: 60, height: 20, right: 630, bottom: 210, x: 570, y: 190,
       toJSON: () => ({}),
     }) as DOMRect;
-    await userEvent.hover(tombol);
+    await userEvent.hover(selJuli);
     await screen.findByRole('tooltip');
 
-    fireEvent.click(tombol);
+    // Klik kanan membuka popover → kartu ditutup dan posisi klik dicatat.
+    fireEvent.contextMenu(selJuli);
     await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
 
     // Gerak < 6px dari titik klik → masih ditekan.
-    fireEvent.mouseMove(tombol, { clientX: 601, clientY: 200 });
+    fireEvent.mouseMove(selJuli, { clientX: 601, clientY: 200 });
     await new Promise((r) => setTimeout(r, 30));
     expect(screen.queryByRole('tooltip')).toBeNull();
 
     // Gerak jauh → kartu hidup lagi.
-    fireEvent.mouseMove(tombol, { clientX: 640, clientY: 200 });
+    fireEvent.mouseMove(selJuli, { clientX: 640, clientY: 200 });
     expect(await screen.findByRole('tooltip')).toBeInTheDocument();
   });
 });
@@ -210,61 +250,72 @@ describe('kartu hovervs popover: tak boleh menumpuk', () => {
 describe('popover terbuka mematikan kartu hover', () => {
   it('kartu tak muncul saat popover untuk sel lain sedang terbuka', async () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, 99);
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
-
-    await userEvent.hover(tombol);
+    await userEvent.hover(selUji(0));
     await new Promise((r) => setTimeout(r, 30));
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
   it('kartu muncul lagi setelah popover ditutup (terpilihId null)', async () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null);
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
-
-    await userEvent.hover(tombol);
+    await userEvent.hover(selUji(0));
     expect(await screen.findByRole('tooltip')).toBeInTheDocument();
   });
 });
 
-describe('pemilihan sel pada pointerdown (bukan click)', () => {
-  /* jsdom tak punya PointerEvent; fireEvent.pointerDown membuat Event biasa
-     tanpa `button`. Pakai MouseEvent bertipe pointerdown supaya `button`
-     terbaca seperti di browser. */
-  const pointerDown = (el: Element, button: number) =>
-    fireEvent(el, new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button }));
+describe('pemilihan sel lewat pointer (bukan onClick)', () => {
+  it('klik kiri (pointerup) memanggil onPilihSatu', () => {
+    const onPilihSatu = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onPilihSatu });
+    pointerEv(selUji(1), 'pointerup');
+    expect(onPilihSatu).toHaveBeenCalledTimes(1);
+    expect(onPilihSatu.mock.calls[0][0].id).toBe(2);
+  });
 
-  /* Radix DismissableLayer membatalkan pointerdown saat popover sudah terbuka,
-     sehingga browser tak melempar `click` → pindah sel harus terjadi di
-     pointerdown, kalau tidak pengguna harus klik dua kali. */
-  it('pointerdown tombol kiri langsung memanggil onPilih', () => {
+  it('Ctrl+Klik memanggil onTogglePilih (tambah/lepas satu sel)', () => {
+    const onTogglePilih = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onTogglePilih });
+    pointerEv(selUji(1), 'pointerup', { ctrlKey: true });
+    expect(onTogglePilih).toHaveBeenCalledTimes(1);
+    expect(onTogglePilih.mock.calls[0][0].id).toBe(2);
+  });
+
+  it('Shift+Klik memilih blok dari anchor (onPilihBlok)', () => {
+    const onPilihBlok = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onPilihBlok });
+    pointerEv(selUji(0), 'pointerup'); // klik biasa dulu → anchor di Jul
+    pointerEv(selUji(1), 'pointerup', { shiftKey: true });
+    expect(onPilihBlok).toHaveBeenCalledTimes(1);
+    // Blok persegi dari Jul ke Agu = kedua sel.
+    expect(onPilihBlok.mock.calls[0][0]).toHaveLength(2);
+  });
+
+  it('tahan-geser memilih blok, bukan pilih satu sel', () => {
+    const onPilihBlok = vi.fn();
+    const onPilihSatu = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onPilihBlok, onPilihSatu });
+    const [jul, agu] = screen.getAllByText('50.000');
+    pointerEv(jul, 'pointerdown');
+    fireEvent.pointerEnter(agu); // masuk ke sel lain → geser = blok
+    pointerEv(agu, 'pointerup');
+    expect(onPilihBlok).toHaveBeenCalledTimes(1);
+    expect(onPilihSatu).not.toHaveBeenCalled();
+  });
+
+  it('klik keyboard (Enter) tetap membuka aksi per tagihan', () => {
     const onPilih = vi.fn();
     renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
-    pointerDown(screen.getAllByRole('button', { name: '50.000' })[0], 0);
+    fireEvent.keyDown(selUji(0), { key: 'Enter' });
     expect(onPilih).toHaveBeenCalledTimes(1);
   });
 
-  it('pointerdown + click dalam satu gesture tetap satu pemanggilan', () => {
+  it('tombol tengah/kanan tidak memicu seleksi', () => {
+    const onPilihSatu = vi.fn();
     const onPilih = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
-    pointerDown(tombol, 0);
-    fireEvent.click(tombol);
-    expect(onPilih).toHaveBeenCalledTimes(1);
-  });
-
-  it('klik keyboard (tanpa pointerdown) tetap memilih', () => {
-    const onPilih = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
-    fireEvent.click(screen.getAllByRole('button', { name: '50.000' })[0]);
-    expect(onPilih).toHaveBeenCalledTimes(1);
-  });
-
-  it('tombol tengah/kanan tidak memicu pemilihan di pointerdown', () => {
-    const onPilih = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
-    const tombol = screen.getAllByRole('button', { name: '50.000' })[0];
-    pointerDown(tombol, 1);
-    pointerDown(tombol, 2);
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih, null, undefined, { onPilihSatu });
+    const selJuli = selUji(0);
+    pointerEv(selJuli, 'pointerup', { button: 1 });
+    pointerEv(selJuli, 'pointerup', { button: 2 });
+    expect(onPilihSatu).not.toHaveBeenCalled();
     expect(onPilih).not.toHaveBeenCalled();
   });
 });
