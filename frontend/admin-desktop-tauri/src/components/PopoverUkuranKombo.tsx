@@ -168,7 +168,7 @@ const diDalamDaftarOpsi = (target: EventTarget | null) =>
  *  Popover tak punya tombol tutup: KLIK KIRI DI LUAR menutupnya (kecuali klik
  *  pada daftar opsi combobox di dalamnya, yang ber-portal ke `body`). Escape
  *  sengaja tak menutup supaya mengetik di isian panel tak berarti keluar. */
-export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
+export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
   kunci: string;
   /** Ref elemen KOTAK yang sedang diatur. Isi kotak (label + kontrol) berada
    *  di luar DOM panel ini, jadi perlu rujukan untuk membedakan "pengguna
@@ -185,6 +185,8 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
   opsiTipe?: { label: string; nilai: string }[];
   /** Ada tipe kontrol tersimpan? (menentukan tombol reset baris & reset global) */
   adaTipeKontrol?: boolean;
+  /** Simpan tipe kontrol (setelan komponen custom di server — bukan ukuran). */
+  onUbahTipeKontrol?: (tipeBaru: string | null) => void;
   /** Nilai tinggi kotak yang ditampilkan (px). */
   tinggi: number;
   /** Nilai lebar total kotak yang ditampilkan (px). */
@@ -300,7 +302,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
               nilai={tipeKontrol ?? opsiTipe[0].nilai}
               placeholder="Pilih tipe…"
               namaDaftar="Buka daftar tipe input"
-              onPilih={(v) => onUbah({ tipeKontrol: v })}
+              onPilih={(v) => onUbahTipeKontrol?.(v)}
               resetId={`btn_reset_tipe_kombo_${kunci}`}
               resetLabel="Kembalikan tipe input ke bawaan"
               adaAturan={adaTipeKontrol === true}

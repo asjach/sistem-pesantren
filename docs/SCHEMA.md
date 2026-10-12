@@ -686,6 +686,15 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`)
 
+### `komponen_custom` (setelan komponen custom, global; satu baris per komponen)
+- `id` PK
+- `table_key`: string(60), default `''` — tabel tempat komponen hidup; string KOSONG untuk komponen di luar tabel (dialog/form/popover). String kosong (bukan NULL) karena MySQL menganggap NULL berbeda pada indeks UNIQUE
+- `komponen`: string(60) — `htmlFor` komponen (snake_case)
+- `setelan`: json [null] — peta setelan → nilai; contoh `{"tipeKontrol":"nominal"}`. Ditulis dari popover klik-kanan komponen (semua pengguna ter-autentikasi, bukan hanya super_admin)
+- `dibuat_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+- UNIQUE(`table_key`, `komponen`)
+
 ### `pengaturan_tabel` (visibilitas + mode filter topBar, global per `table_key`; halaman tanpa tabel memakai page_key)
 - `id` PK
 - `table_key`: string(60) [unik]

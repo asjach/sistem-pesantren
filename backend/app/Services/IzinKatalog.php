@@ -45,6 +45,7 @@ class IzinKatalog
         'preset_tabel' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'urut_preset' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'toolbar_preset' => ['lihat', 'tambah', 'ubah', 'hapus'],
+        'komponen_custom' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'pengaturan_halaman' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'keuangan' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'server' => ['lihat'],

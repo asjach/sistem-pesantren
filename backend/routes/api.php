@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\Admin\SemesterAktifController;
 use App\Http\Controllers\Api\Admin\SiklusController;
 use App\Http\Controllers\Api\Admin\TagihanController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
+use App\Http\Controllers\Api\Admin\KomponenCustomController;
 use App\Http\Controllers\Api\Admin\ToolbarPresetController;
 use App\Http\Controllers\Api\Admin\UrutPresetController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
@@ -304,6 +305,19 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('toolbar-preset', [ToolbarPresetController::class, 'index'])->middleware('permission:toolbar_preset.lihat');
         Route::put('toolbar-preset', [ToolbarPresetController::class, 'simpan']);
         Route::delete('toolbar-preset', [ToolbarPresetController::class, 'hapus'])->middleware('permission:toolbar_preset.hapus');
+
+        // Setelan komponen CUSTOM (global; satu baris per komponen, kunci
+        // table_key + komponen). Terpisah dari toolbar_preset karena setelannya
+        // milik komponen, bukan tabel — komponen di luar tabel (dialog/form)
+        // ikut punya setelan. Diatur dari popover klik-kanan komponen, jadi
+        // baca & tulis cukup terautentikasi.
+        // Izin modul `komponen_custom` TIDAK eksklusif super_admin (lihat
+        // `IzinKatalog::EKSKLUSIF_SUPER_ADMIN`): setelan diatur dari popover
+        // klik-kanan komponen, sama seperti ukuran kotak kontrol, jadi admin
+        // juga boleh menulis.
+        Route::get('komponen-custom', [KomponenCustomController::class, 'index'])->middleware('permission:komponen_custom.lihat');
+        Route::put('komponen-custom', [KomponenCustomController::class, 'simpan'])->middleware('permission:komponen_custom.tambah|komponen_custom.ubah');
+        Route::delete('komponen-custom', [KomponenCustomController::class, 'hapus'])->middleware('permission:komponen_custom.hapus');
 
         // Visibilitas filter topBar (global per tabel; tulis super_admin saja).
         Route::get('pengaturan-tabel', [PengaturanTabelController::class, 'index'])->middleware('permission:pengaturan_halaman.lihat');

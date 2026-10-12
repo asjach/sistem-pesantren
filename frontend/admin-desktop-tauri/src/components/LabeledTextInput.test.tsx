@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import LabeledTextInput, { hitungLebarInput } from './LabeledTextInput';
 import { KonteksLebarFilter } from '@/components/excel/lebarFilter';
 import { ukuranKombo } from '@/components/ukuranKombo';
+import { resetSetelanKomponen, setelanKomponen } from '@/components/komponenCustom';
 import { renderDenganTema } from '@/test/utils';
 
 describe('LabeledTextInput', () => {
@@ -144,6 +145,7 @@ describe('LabeledTextInput', () => {
     expect(ukuranKombo(kunci).labelTransparan).toBe(false);
     expect((container.querySelector(`label[for="${kunci}"]`) as HTMLElement).textContent).toBe('Nama');
   });
+
   it('tipe bawaan dari pemanggil: type="date" → baris Tipe input = Tanggal', async () => {
     const kunci = `uji_tipe_bawaan_${Date.now()}`;
     const { container } = renderDenganTema(
@@ -170,8 +172,8 @@ describe('LabeledTextInput', () => {
     await userEvent.click(tipe);
     await userEvent.click(await screen.findByRole('option', { name: 'Nominal (Uang)' }));
 
-    // Tipe tersimpan per perangkat + kontrol ikut berubah.
-    expect(ukuranKombo(kunci).tipeKontrol).toBe('nominal');
+    // Tipe tersimpan sebagai SETELAN KOMPONEN (server), bukan ukuran perangkat.
+    expect(setelanKomponen('', kunci)).toEqual({ tipeKontrol: 'nominal' });
     expect(input().type).toBe('number');
     expect(screen.getByLabelText('Pilih nominal cepat')).not.toBeNull();
     // Nilai tak terkontrol tetap utuh (tipe baru tak mengosongkan isian).
@@ -179,7 +181,7 @@ describe('LabeledTextInput', () => {
 
     // Reset baris tipe → kembali ke tipe bawaan pemanggil (teks, tanpa kalkulator).
     await userEvent.click(screen.getByLabelText('Kembalikan tipe input ke bawaan'));
-    expect(ukuranKombo(kunci).tipeKontrol).toBeUndefined();
+    expect(setelanKomponen('', kunci)).toEqual({});
     expect(input().type).toBe('text');
     expect(screen.queryByLabelText('Pilih nominal cepat')).toBeNull();
   });

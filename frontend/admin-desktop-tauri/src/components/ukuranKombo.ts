@@ -21,10 +21,6 @@ export interface UkuranKombo {
   /** Label opsi yang dipakai sebagai nilai AWAL combobox (dari opsi yang
    *  ada). Absen = pakai nilai dari pemanggil. */
   nilaiDefault?: string;
-  /** Kunci tipe kontrol yang dipilih dari popover (lihat `tipeInput.tsx`).
-   *  Hanya berlaku untuk kotak input teks (`LabeledTextInput`); absen = ikut
-   *  tipe dari pemanggil. */
-  tipeKontrol?: string;
 }
 
 /** Nilai `null` = hapus kunci itu (kembali ke bawaan); dipakai reset per-baris. */
@@ -36,14 +32,10 @@ export type UbahUkuranKombo = {
   expandLabel?: boolean | null;
   labelTransparan?: boolean | null;
   nilaiDefault?: string | null;
-  tipeKontrol?: string | null;
 };
 
 /** Batas panjang nilai default (selaras validasi backend `nilai_default.*`). */
 export const NILAI_DEFAULT_MAKS = 100;
-
-/** Batas panjang kunci tipe kontrol (registry tipe punya nama pendek). */
-export const TIPE_KONTROL_MAKS = 32;
 
 /** Bawaan tinggi kotak = tinggi kontrol proyek (26px). */
 export const TINGGI_KOMBO_BAWAAN = 26;
@@ -121,12 +113,6 @@ export function normalkanUkuran(v: unknown): UkuranKombo {
   // Nilai default: hanya string tak kosong; dipotong ke batas backend.
   if (typeof o.nilaiDefault === 'string' && o.nilaiDefault.trim() !== '') {
     hasil.nilaiDefault = o.nilaiDefault.trim().slice(0, NILAI_DEFAULT_MAKS);
-  }
-  // Tipe kontrol: hanya string tak kosong. Kunci tak dikenal TIDAK dibuang di
-  // sini supaya registry tipe yang menilainya (popover hanya menawarkan tipe
-  // yang terdaftar).
-  if (typeof o.tipeKontrol === 'string' && o.tipeKontrol.trim() !== '') {
-    hasil.tipeKontrol = o.tipeKontrol.trim().slice(0, TIPE_KONTROL_MAKS);
   }
   return hasil;
 }
