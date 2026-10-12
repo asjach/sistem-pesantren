@@ -1,6 +1,7 @@
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
@@ -432,6 +433,56 @@ const PENGATURAN_FORMAT_TANGGAL: PengaturanTipe = {
   },
 };
 
+/** Telepon: nilai sebenarnya = digit nomor (tanpa kode negara). Tampilan bisa
+ *  menyertakan kode negara "+62" bila pengguna menyalakan setelan "Kode Negara"
+ *  di popover (lihat `PENGATURAN_KODE_NEGARA_TELEPON`) — yang menyisipkan awalan
+ *  "+62 " dan mengelompokkan digit per empat.
+ *
+ *  Tanpa `ketik`: kotak selalu menampilkan `tampil(nilai())` (pemisah spasi antar
+ *  segmen). `nilai()` mengembalikan digit mentah — saat setelan kode negara
+ *  MENYALA, awalan "62" hasil pengetikan "+62 …" dibuang supaya nilai tetap nomor
+ *  nasional (tanpa duplikat kode negara di database). */
+function kelompokkanTelepon(digit: string): string {
+  return digit.replace(/(\d{4})(?=\d)/g, '$1 ');
+}
+
+export const FORMAT_TELEPON = (denganKodeNegara: boolean): FormatNilai => ({
+  tampil: (nilai) => {
+    const digit = nilai.replace(/\D/g, '');
+    if (digit === '') return nilai;
+    const berkelompok = kelompokkanTelepon(digit);
+    return denganKodeNegara ? `+62 ${berkelompok}` : berkelompok;
+  },
+  nilai: (teks) => {
+    let digit = teks.replace(/\D/g, '');
+    if (denganKodeNegara && digit.startsWith('62')) digit = digit.slice(2);
+    return digit;
+  },
+});
+
+/** Pengaturan tipe `telepon`: menyertakan kode negara "+62" di tampilan kotak
+ *  atau tidak. Bawaan MATI (hanya nomor nasional yang tampak); nilai yang
+ *  dikirim ke server tetap digit nomor tanpa kode negara apa pun. */
+const PENGATURAN_KODE_NEGARA_TELEPON: PengaturanTipe = {
+  kunci: 'kodeNegara',
+  label: 'Kode Negara',
+  judul: 'Sertakan kode negara "+62" di tampilan nomor telepon. Nilai yang dikirim ke server tetap digit nomor tanpa kode negara.',
+  bawaan: false,
+  render: ({ htmlFor, nilai, setNilai }) => (
+    <div className="flex items-center gap-2">
+      <Switch id={htmlFor} checked={nilai === true} onCheckedChange={(v) => setNilai(v ? true : null)} />
+      <span className="text-xs text-muted-foreground">{nilai === true ? 'Dengan +62' : 'Tanpa kode negara'}</span>
+    </div>
+  ),
+  terapkan: (setelan) => {
+    const denganKodeNegara = setelan === true;
+    return {
+      format: FORMAT_TELEPON(denganKodeNegara),
+      attrs: { inputMode: 'tel' },
+    };
+  },
+};
+
 /** Tipe input yang tersedia (urutan = urutan di combobox popover). Tipe tanpa
  *  `aksiKanan`/`attrs` khusus tetap memakai `Input` bawaan. */
 const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
@@ -478,7 +529,11 @@ const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
   tanggal_waktu: { label: 'Tanggal & Waktu', type: 'datetime-local' },
   email: { label: 'Email', type: 'email' },
   pencarian: { label: 'Pencarian', type: 'search' },
-  telepon: { label: 'Telepon', type: 'tel' },
+  telepon: {
+    label: 'Telepon',
+    type: 'tel',
+    pengaturan: PENGATURAN_KODE_NEGARA_TELEPON,
+  },
   url: { label: 'URL', type: 'url' },
 };
 
