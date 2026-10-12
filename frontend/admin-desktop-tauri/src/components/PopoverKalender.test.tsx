@@ -140,7 +140,7 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
     expect(pembatas.compareDocumentPosition(gridBulan(ini.tahun)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('border sel tahun & bulan lebih samar (foreground 15%), bukan 30%', async () => {
+  it('border sel tahun & bulan lebih samar (15% terang, 8% gelap)', async () => {
     renderDenganTema(<Harness />);
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
@@ -152,8 +152,8 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
     expect(selSamar).toHaveLength(22); // 10 tahun + 12 bulan
     for (const sel of selSamar) {
       expect(sel.className).toMatch(/border-foreground\/15/);
-      // Varian gelap ikut samar (tombol `outline` memasang `dark:border-input`).
-      expect(sel.className).toMatch(/dark:border-foreground\/15/);
+      // Mode gelap lebih pudar lagi — `foreground` di sana hampir putih.
+      expect(sel.className).toMatch(/dark:border-foreground\/8/);
       expect(sel.className).not.toMatch(/border-foreground\/30/);
     }
     // Tombol lain tak ikut berubah: footer & grid tanggal.

@@ -35,11 +35,14 @@ export const KELAS_TOMBOL = 'border border-foreground/30 -ml-px -mt-px';
 /** Border SAMAR untuk tombol grid yang bukan fokus utama panel (mis. daftar
  *  tahun & bulan di kalender) — tetap sewarna, hanya lebih pudar.
  *
+ *  Di mode gelap lebih pudar lagi: `foreground` di sana hampir putih, jadi
+ *  persentase yang sama terlihat jauh lebih tegas di atas panel yang gelap.
+ *
  *  Varian gelapnya ditulis eksplisit karena tombol `outline` memasang
  *  `dark:border-input`, yang nilainya di-override per panel lewat `--input`
  *  (lihat `index.css`) sehingga tanpa `dark:…` border ini kembali tebal di
  *  mode gelap. */
-export const KELAS_BORDER_SAMAR = 'border-foreground/15 dark:border-foreground/15';
+export const KELAS_BORDER_SAMAR = 'border-foreground/15 dark:border-foreground/8';
 
 /** Geometri panel terhadap kontrol.
  *
