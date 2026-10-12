@@ -79,12 +79,12 @@ describe('KomponenPage — pengelompokan komponen', () => {
     expect(komponen('info_preset_kolom')).not.toBeNull();
     expect(screen.getAllByText('varian dari LabeledCombobox')).toHaveLength(2);
 
-    // Teks: LabeledTextInput + varian LabeledNominalInput.
+    // Teks: LabeledTextInput + contoh tipe `nominal` (bukan komponen baru).
     await klik.click(screen.getByRole('tab', { name: 'LabeledTextInput' }));
     expect(komponen('info_labeled_text_input')).not.toBeNull();
-    expect(komponen('info_labeled_nominal_input')).not.toBeNull();
+    expect(komponen('info_tipe_nominal')).not.toBeNull();
     expect(komponen('info_preset_urut')).toBeNull();
-    expect(screen.getAllByText('varian dari LabeledTextInput')).toHaveLength(1);
+    expect(screen.getByText('tipe `nominal`, bukan komponen terpisah')).toBeInTheDocument();
 
     // Stepper: tanpa varian.
     await klik.click(screen.getByRole('tab', { name: 'Stepper' }));

@@ -23,6 +23,11 @@ export interface SetelanKomponen {
   nilaiDefault?: string;
   /** Tipe kontrol input (registry `tipeInput.tsx`), mis. `nominal`. */
   tipeKontrol?: string;
+  /** PENGATURAN khusus tipe aktif (mis. `preset` nominal cepat pada tipe
+   *  `nominal`): kunci pengaturan → nilai. Bentuknya bebas per tipe — registry
+   *  `tipeInput.tsx` yang tahu artinya; server hanya membatasi kedalamannya
+   *  (skalar atau larik skalar, maks 20 kunci). */
+  tipe?: Record<string, unknown>;
 }
 
 /** Setelan + tanda "hapus kunci ini" (`null`) — bentuk kiriman dari UI. */

@@ -2,11 +2,19 @@ import { useCallback, useRef, useState, type MouseEvent as ReactMouseEvent, type
 import { Popover, PopoverAnchor } from '@/components/ui/popover';
 import PopoverUkuranKombo from '@/components/PopoverUkuranKombo';
 import { pakaiLebarFilter } from '@/components/excel/lebarFilter';
-import { definisiTipe, KUNCI_TIPE_INPUT, OPSI_TIPE_INPUT, type KunciTipeInput } from '@/components/tipeInput';
+import {
+  definisiTipe,
+  KUNCI_TIPE_INPUT,
+  nilaiPengaturanTipe,
+  normalkanSetelanTipe,
+  OPSI_TIPE_INPUT,
+  type KunciTipeInput,
+} from '@/components/tipeInput';
 import {
   gabungSetelanKomponen,
   hapusSetelanKomponen,
   simpanSetelanKomponen,
+  ubahPengaturanTipe,
   useSetelanKomponen,
 } from '@/components/komponenCustom';
 import {
@@ -33,7 +41,7 @@ import {
  *  toolbar tabel disimpan ke SERVER (global per tabel); di luar itu disimpan
  *  per perangkat. Tanpa `htmlFor`, kotak tak punya identitas → fitur mati
  *  (hanya ukuran dari pemanggil yang dipakai). */
-export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 'combobox', labelTransparan = true, opsi = [], tipeKontrol, pilihanTipe, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26 }: {
+export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 'combobox', labelTransparan = true, opsi = [], tipeKontrol, pilihanTipe, tipeTerkunci = false, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26 }: {
   htmlFor?: string;
   kelolaLebar?: boolean;
   label: string;
@@ -51,6 +59,10 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
    *  tipe bila `tipeKontrol` diberikan, kosong (baris disembunyikan) bila
    *  `tipeKontrol` absen — mis. combobox & stepper tak punya tipe input. */
   pilihanTipe?: KunciTipeInput[];
+  /** Kunci tipe dari kode: baris "Tipe input:" disembunyikan DAN setelan tipe
+   *  tersimpan diabaikan. Untuk kotak yang tipenya bagian dari kontrak
+   *  (mis. jatuh tempo harus `tanggal`, nominal bayar harus `nominal`). */
+  tipeTerkunci?: boolean;
   lebarLabel?: number | string;
   /** Lebar KONTROL terkunci (`lebarKombo`/`lebarInput`/`lebarStepper`). */
   lebarKontrol?: number | string;
@@ -143,21 +155,48 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
   const labelTransparanEfektif = ukuran.labelTransparan ?? labelTransparan;
   /** Nilai awal combobox (label opsi terpilih); absen = ikut nilai pemanggil. */
   const nilaiDefaultEfektif = ukuran.nilaiDefault;
-  /** Tipe kontrol: setelan tersimpan MANG atas tipe dari pemanggil; nilai tak
-   *  dikenal (mis. versi lama registry) → bawaan pemanggil. */
-  const tipeTersimpan = ukuran.tipeKontrol;
-  const tipeKontrolEfektif = definisiTipe(tipeTersimpan) !== undefined
-    ? tipeTersimpan as KunciTipeInput
-    : tipeKontrol;
   const simpanTipeKontrol = useCallback((tipeBaru: string | null) => {
     gabungSetelanKomponen(tableKey, kunciUkuran, {
       tipeKontrol: tipeBaru !== null && definisiTipe(tipeBaru) !== undefined ? tipeBaru : null,
     });
   }, [tableKey, kunciUkuran]);
   /** Baris "Tipe input:" di popover — hanya untuk kontrol yang memang punya
-   *  tipe input (dikirim `LabeledTextInput`). */
-  const barisTipe = pilihanTipe ?? (tipeKontrol === undefined ? [] : KUNCI_TIPE_INPUT);
+   *  tipe input (dikirim `LabeledTextInput`). `tipeTerkunci` mematikannya. */
+  const barisTipe = tipeTerkunci ? [] : (pilihanTipe ?? (tipeKontrol === undefined ? [] : KUNCI_TIPE_INPUT));
   const opsiTipe = barisTipe.map((n) => OPSI_TIPE_INPUT.find((o) => o.nilai === n)).filter((o) => o !== undefined);
+  /** Whitelist berisi SATU tipe = terkunci: pilihan lain memang tak tersedia,
+   *  jadi setelan tipe tersimpan tak boleh menang. */
+  const tipeDipatok = tipeTerkunci || barisTipe.length === 1;
+  const tipeTersimpan = ukuran.tipeKontrol;
+  /** Tipe kontrol: setelan tersimpan MANG atas tipe dari pemanggil — kecuali
+   *  saat tipe dipatok dari kode; nilai tak dikenal (mis. versi lama registry)
+   *  → bawaan pemanggil. */
+  const tipeKontrolEfektif = tipeDipatok
+    ? (tipeKontrol ?? barisTipe[0])
+    : (definisiTipe(tipeTersimpan) !== undefined ? tipeTersimpan as KunciTipeInput : tipeKontrol);
+
+  /** Pengaturan khusus tipe AKTIF (mis. preset nominal cepat pada tipe
+   *  `nominal`): baris di popover, nilainya disimpan per kotak. */
+  const setelanTipe = normalkanSetelanTipe(ukuran.tipe);
+  const defTipeAktif = definisiTipe(tipeKontrolEfektif);
+  /** Nilai pengaturan tipe yang berlaku (setelan tersimpan, atau bawaan tipe). */
+  const nilaiTipe = nilaiPengaturanTipe(defTipeAktif, setelanTipe);
+  /** Definisi tipe aktif SESUDAH pengaturan diterapkan — inilah yang dipakai
+   *  kotak (mis. `aksiKanan` ber-preset milik pengguna). */
+  const defTipeEfektif = definisiTipe(tipeKontrolEfektif, nilaiTipe);
+  const pengaturanAktif = defTipeAktif?.pengaturan;
+  const idPengaturan = pengaturanAktif === undefined ? '' : `${kunciUkuran}_tipe_${pengaturanAktif.kunci}`;
+  const pengaturanTipe = pengaturanAktif === undefined ? undefined : {
+    id: idPengaturan,
+    label: pengaturanAktif.label,
+    judul: pengaturanAktif.judul,
+    isi: pengaturanAktif.render({
+      htmlFor: idPengaturan,
+      nilai: nilaiTipe,
+      setNilai: (v) => ubahPengaturanTipe(tableKey, kunciUkuran, pengaturanAktif.kunci, v),
+    }),
+  };
+  const adaPengaturanTipe = Object.keys(setelanTipe).length > 0;
 
   /** Bungkus kotak dalam popover pengaturan (klik-kanan). Tanpa `htmlFor`,
    *  kotak dikembalikan apa adanya. */
@@ -204,8 +243,10 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
           adaLabelTransparan={ukuran.labelTransparan !== undefined}
           adaNilaiDefault={ukuran.nilaiDefault !== undefined}
           adaTipeKontrol={definisiTipe(tipeTersimpan) !== undefined}
+          adaPengaturanTipe={adaPengaturanTipe}
           tipeKontrol={tipeKontrolEfektif}
           opsiTipe={opsiTipe}
+          pengaturanTipe={pengaturanTipe}
           expandLabel={ukuran.expandLabel === true}
           labelTransparan={labelTransparanEfektif}
           opsi={opsi}
@@ -229,6 +270,7 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
     labelTransparanEfektif,
     nilaiDefaultEfektif,
     tipeKontrolEfektif,
+    defTipeEfektif,
     bungkus,
   };
 }

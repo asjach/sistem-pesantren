@@ -9,6 +9,7 @@ import {
   type SetelanKomponen,
   type UbahSetelanKomponen,
 } from '@/api/komponenCustom';
+import { normalkanSetelanTipe } from '@/components/tipeInput';
 
 /** Setelan komponen CUSTOM — SATU-SATUNYA tempat setelan komponen kustom
  *  dibaca & ditulis (dulu: `toolbar_preset` untuk yang di dalam toolbar tabel,
@@ -73,6 +74,16 @@ export function gabungSetelanKomponen(tableKey: string, komponen: string, ubah: 
   const setelan = gabung(ubah, setelanKomponen(tableKey, komponen));
   if (Object.keys(setelan).length === 0) hapusSetelanKomponen(tableKey, komponen);
   else simpanSetelanKomponen(tableKey, komponen, setelan);
+}
+
+/** Ubah SATU kunci pengaturan tipe aktif (mis. `preset` pada tipe `nominal`).
+ *  `null` = hapus kunci itu; bila `tipe` jadi kosong, kuncinya ikut dibuang
+ *  supaya setelan komponen tak menyimpan objek hampa. */
+export function ubahPengaturanTipe(tableKey: string, komponen: string, kunci: string, nilai: unknown): void {
+  const tipe = { ...normalkanSetelanTipe(setelanKomponen(tableKey, komponen).tipe) };
+  if (nilai === null || nilai === undefined) delete tipe[kunci];
+  else tipe[kunci] = nilai;
+  gabungSetelanKomponen(tableKey, komponen, { tipe: Object.keys(tipe).length === 0 ? null : tipe });
 }
 
 /** Tulis setelan satu komponen: dulu lokal (UI responsif), lalu ke server.

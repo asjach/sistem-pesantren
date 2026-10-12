@@ -2,12 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import KotakLabel, { hitungLebarKontrol, keCss } from '@/components/kotakLabel';
 import { usePengaturanKotak } from '@/components/pengaturanKotak';
-import {
-  definisiTipe,
-  kunciDariTypeNative,
-  type DefinisiTipeInput,
-  type KunciTipeInput,
-} from '@/components/tipeInput';
+import { kunciDariTypeNative, type DefinisiTipeInput, type KunciTipeInput } from '@/components/tipeInput';
 import { cn } from '@/lib/utils';
 
 /** Gabungan label + input teks dalam satu kotak tanpa padding.
@@ -15,6 +10,12 @@ import { cn } from '@/lib/utils';
  *  Styling, penskalaan lebar, dan pendaftaran ke Kelola Tabel identik dengan
  *  `LabeledCombobox` (keduanya memakai shell `KotakLabel`) — bedanya hanya
  *  jenis kontrolnya: input teks yang bisa diketik bebas.
+ *
+ *  JENIS inputnya tidak dipecah jadi komponen terpisah: registry
+ *  `tipeInput.tsx` memuat bawaan tiap tipe (atribut, tombol di ujung kanan,
+ *  pengaturan yang bisa diubah pengguna), dan tipe aktif dipilih dari baris
+ *  "Tipe input:" pada popover klik-kanan. Jadi "nominal" cukup tipe, bukan
+ *  komponen `LabeledNominalInput` tersendiri.
  *
  *  - Label segaris (inline) di dalam kotak; tanpa ukuran, kotak selebar induk
  *    dan input mengisi sisa ruang. Di dalam toolbar tabel lebarnya mengikuti
@@ -28,7 +29,7 @@ import { cn } from '@/lib/utils';
  *    secara absolut; input diberi ruang kanan agar teks tak tertimpa.
  *  - KLIK KANAN pada kotak membuka popover pengaturan ukuran KOTAK (sama
  *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas. */
-export default function LabeledTextInput({ label, htmlFor, labelTransparan = true, nama = 'input', tipeKontrol, pilihanTipe, bawaanTipe, lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
+export default function LabeledTextInput({ label, htmlFor, labelTransparan = true, nama = 'input', tipeKontrol, pilihanTipe, tipeTerkunci, bawaanTipe, lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
   label: string;
   htmlFor?: string;
   /** Label transparan (tanpa bg, teks bertitik dua); simpanan popover menang. */
@@ -40,10 +41,15 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
    *  tipe tak terdaftar tetap memakai `Input` bawaan. */
   tipeKontrol?: KunciTipeInput;
   /** Tipe yang boleh dipilih di popover; absen = baris "Tipe input:"
-   *  disembunyikan (kontrol yang bukan input teks, mis. combobox). */
+   *  disembunyikan (kontrol yang bukan input teks, mis. combobox). Berisi
+   *  SATU tipe = terkunci ke tipe itu. */
   pilihanTipe?: KunciTipeInput[];
+  /** Kunci tipe ini dari kode: baris "Tipe input:" disembunyikan DAN setelan
+   *  tipe tersimpan diabaikan. Untuk kotak yang tipenya bagian dari kontrak
+   *  (mis. jatuh tempo harus `tanggal`). */
+  tipeTerkunci?: boolean;
   /** Pengimpaan bawaan tipe AKTIF untuk kotak ini saja (mis. daftar preset
-   *  nominal berbeda). Berlapis di atas bawaan registry. */
+   *  nominal berbeda). Berlapis di ATAS bawaan registry + pengaturan tipe. */
   bawaanTipe?: Partial<DefinisiTipeInput>;
   lebarLabel?: number | string;
   /** Lebar input terkunci (`lebarKotak`/`lebarInput`); menyusut bila ruang
@@ -61,15 +67,16 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
   const {
     refKotak, onContextMenu, tinggiEfektif, lebarKotakEfektif,
     lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif,
-    tipeKontrolEfektif, bungkus,
+    defTipeEfektif, bungkus,
   } = usePengaturanKotak({
     htmlFor, kelolaLebar, label, nama, labelTransparan,
     lebarLabel, lebarKontrol: lebarInput, lebarKotak, tinggi,
-    tipeKontrol: tipeKontrol ?? kunciDariTypeNative(props.type), pilihanTipe,
+    tipeKontrol: tipeKontrol ?? kunciDariTypeNative(props.type), pilihanTipe, tipeTerkunci,
   });
   /* Bawaan tipe (atribut + aksiKanan) digabung BAWAH props: yang menentukan
-     pemanggil tetap menang. Tipe tak dikenal → `Input` bawaan apa adanya. */
-  const bawaan = { ...definisiTipe(tipeKontrolEfektif), ...bawaanTipe };
+     pemanggil tetap menang. Bawaan sudah termasuk pengaturan tipe tersimpan
+     (mis. preset nominal milik pengguna). Tipe tak dikenal → `Input` bawaan. */
+  const bawaan = { ...defTipeEfektif, ...bawaanTipe };
   /* Input yang TIDAK dikendalikan pemanggil (tanpa `value`/`onChange`) tetap
      tak-terkontrol agar `defaultValue` pemanggil tetap berlaku — kecuali tipe
      aktif punya `aksiKanan` bawaan (mis. kalkulator rupiah) yang butuh menulis

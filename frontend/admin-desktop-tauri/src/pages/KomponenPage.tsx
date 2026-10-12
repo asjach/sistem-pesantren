@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import { PAGE_SHELL } from '@/components/PageHeader';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import LabeledCombobox from '@/components/LabeledCombobox';
-import LabeledNominalInput from '@/components/LabeledNominalInput';
 import LabeledStepper from '@/components/LabeledStepper';
 import LabeledTextInput from '@/components/LabeledTextInput';
 import PresetKolom from '@/components/PresetKolom';
@@ -94,15 +93,19 @@ function BarisKomponen({ id, nama, keterangan, rincian, contoh, catatan }: {
 }
 
 /** Satu tab: satu komponen utama + varian-variannya. Varian adalah turunan
- *  dari komponen utama (LabeledNominalInput membungkus LabeledTextInput;
- *  PresetUrut/PresetKolom membungkus LabeledCombobox), karena itu diletakkan
- *  dalam tab yang sama supaya mudah dibandingkan.
+ *  dari komponen utama (mis. PresetUrut/PresetKolom membungkus
+ *  LabeledCombobox), karena itu diletakkan dalam tab yang sama supaya mudah
+ *  dibandingkan.
+ *
+ *  Bukan semua perbedaan jadi komponen baru: jenis input `LabeledTextInput`
+ *  ditentukan TIPE di registry (`components/tipeInput.tsx`) lewat popover
+ *  klik-kanan, jadi "nominal" cukup baris contoh, bukan komponen tersendiri.
  *
  *  Tanpa bingkai sendiri: bingkai panel tab (`KELAS_PANEL_TAB`) sudah jadi
  *  tepi daftar — pola sama dengan tabel di halaman lain. */
 function IsiTab({ utama, varian }: {
   utama: { id: string; nama: string; keterangan: string; rincian: string[]; contoh: ReactNode };
-  varian: { id: string; nama: string; keterangan: string; rincian: string[]; contoh: ReactNode }[];
+  varian: { id: string; nama: string; keterangan: string; rincian: string[]; contoh: ReactNode; catatan?: string }[];
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
@@ -112,7 +115,7 @@ function IsiTab({ utama, varian }: {
       </div>
       <BarisKomponen {...utama} />
       {varian.map((v) => (
-        <BarisKomponen key={v.id} {...v} catatan={`varian dari ${utama.nama}`} />
+        <BarisKomponen key={v.id} {...v} catatan={v.catatan ?? `varian dari ${utama.nama}`} />
       ))}
       {varian.length === 0 && (
         <p className="p-2 text-xs text-muted-foreground">Belum ada varian dari {utama.nama}.</p>
@@ -221,51 +224,56 @@ export default function KomponenPage() {
           />
         </TabsContent>
 
-        <TabsContent value="teks" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <IsiTab
-            utama={{
-              id: 'info_labeled_text_input',
-              nama: 'LabeledTextInput',
-              keterangan: 'gabungan komponen label + input dalam 1 kotak',
-              rincian: [
-                'Tanpa ukuran yang dikunci.',
-                'Kotak selebar kolom, tinggi 26px.',
-                'Properti input biasa diteruskan (type, step, dll).',
-              ],
-              contoh: (
-                <LabeledTextInput
-                  label="NIS"
-                  htmlFor="demo_input_nis"
-                  type="number"
-                  placeholder="mis. 1234"
-                  defaultValue="24001"
-                />
-              ),
-            }}
-            varian={[
-              {
-                id: 'info_labeled_nominal_input',
-                nama: 'LabeledNominalInput',
-                keterangan: 'input angka nominal + dua panel tombol (nominal di atas input, angka di bawahnya)',
+          <TabsContent value="teks" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+            <IsiTab
+              utama={{
+                id: 'info_labeled_text_input',
+                nama: 'LabeledTextInput',
+                keterangan: 'gabungan komponen label + input dalam 1 kotak; JENIS inputnya dipilih dari baris "Tipe input:" di popover klik-kanan (registry tipeInput.tsx)',
                 rincian: [
-                  'Tanpa ukuran dikunci: kotak selebar kolom.',
-                  '`type=number` + `inputMode` numeric dipaksa.',
-                  'Spinner bawaan browser disembunyikan.',
+                  'Tanpa ukuran yang dikunci.',
+                  'Kotak selebar kolom, tinggi 26px.',
+                  'Properti input biasa diteruskan (type, step, dll).',
+                  'Klik kanan kotak → baris "Tipe input:" + pengaturan khusus tipe aktif.',
                 ],
                 contoh: (
-                  <LabeledNominalInput
-                    label="Nominal Default"
-                    htmlFor="demo_nominal_bawaan"
-                    min={0}
-                    placeholder="mis. 50000"
-                    value={nominalBawaan}
-                    onValueChange={setNominalBawaan}
+                  <LabeledTextInput
+                    label="NIS"
+                    htmlFor="demo_input_nis"
+                    type="number"
+                    placeholder="mis. 1234"
+                    defaultValue="24001"
                   />
                 ),
-              },
-            ]}
-          />
-        </TabsContent>
+              }}
+              varian={[
+                {
+                  id: 'info_tipe_nominal',
+                  nama: 'LabeledTextInput — tipe Nominal',
+                  keterangan: 'tipe `nominal` dari registry: input angka + panel nominal cepat & papan angka di ujung kanan kotak',
+                  rincian: [
+                    'BUKAN komponen tersendiri — cukup `tipeKontrol="nominal"`.',
+                    'Preset nominalnya diatur dari popover klik-kanan kotak ini (baris "Preset cepat").',
+                    'Setelan disimpan per kotak, jadi tiap pemakaian bisa punya preset berbeda.',
+                    'Pemakaian di kotak kontrak (mis. nominal bayar) memakai `tipeTerkunci`: tipe tak bisa diubah, preset tetap bisa.',
+                  ],
+                  catatan: 'tipe `nominal`, bukan komponen terpisah',
+                  contoh: (
+                    <LabeledTextInput
+                      nama="nominal"
+                      tipeKontrol="nominal"
+                      label="Nominal Default"
+                      htmlFor="demo_nominal_bawaan"
+                      min={0}
+                      placeholder="mis. 50000"
+                      value={nominalBawaan}
+                      onChange={(e) => setNominalBawaan(e.target.value)}
+                    />
+                  ),
+                },
+              ]}
+            />
+          </TabsContent>
 
         <TabsContent value="stepper" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <IsiTab

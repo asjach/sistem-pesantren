@@ -461,6 +461,10 @@ export default function UsersPage() {
                   htmlFor="input_nama"
                   kelolaLebar={false}
                   lebarLabel={LEBAR_LABEL_FORM}
+                  /* Nama selalu teks: baris "Tipe input:" disembunyikan supaya
+                     setelan tersimpan (server, berlaku semua user) tak bisa
+                     mengubahnya jadi tanggal/nominal. */
+                  tipeTerkunci
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -476,6 +480,8 @@ export default function UsersPage() {
                   htmlFor="input_email"
                   kelolaLebar={false}
                   lebarLabel={LEBAR_LABEL_FORM}
+                  tipeKontrol="email"
+                  pilihanTipe={['email', 'teks']}
                   maxLength={255}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -488,6 +494,8 @@ export default function UsersPage() {
                   htmlFor="input_phone"
                   kelolaLebar={false}
                   lebarLabel={LEBAR_LABEL_FORM}
+                  tipeKontrol="telepon"
+                  pilihanTipe={['telepon', 'teks']}
                   maxLength={20}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -500,6 +508,7 @@ export default function UsersPage() {
                   htmlFor="input_username"
                   kelolaLebar={false}
                   lebarLabel={LEBAR_LABEL_FORM}
+                  tipeTerkunci
                   maxLength={50}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -513,6 +522,9 @@ export default function UsersPage() {
                   kelolaLebar={false}
                   lebarLabel={LEBAR_LABEL_FORM}
                   type="password"
+                  /* Sandi wajib tetap sandi — jangan sampai bisa diubah jadi
+                     teks biasa dari popover. */
+                  tipeTerkunci
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

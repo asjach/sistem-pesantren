@@ -168,7 +168,7 @@ const diDalamDaftarOpsi = (target: EventTarget | null) =>
  *  Popover tak punya tombol tutup: KLIK KIRI DI LUAR menutupnya (kecuali klik
  *  pada daftar opsi combobox di dalamnya, yang ber-portal ke `body`). Escape
  *  sengaja tak menutup supaya mengetik di isian panel tak berarti keluar. */
-export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
+export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, pengaturanTipe, adaPengaturanTipe, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
   kunci: string;
   /** Ref elemen KOTAK yang sedang diatur. Isi kotak (label + kontrol) berada
    *  di luar DOM panel ini, jadi perlu rujukan untuk membedakan "pengguna
@@ -185,6 +185,12 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
   opsiTipe?: { label: string; nilai: string }[];
   /** Ada tipe kontrol tersimpan? (menentukan tombol reset baris & reset global) */
   adaTipeKontrol?: boolean;
+  /** Pengaturan khusus tipe aktif (mis. "Preset cepat" pada tipe `nominal`).
+   *  `id` dipakai `htmlFor` label baris — harus sama dengan id kontrol yang
+   *  dirender `isi`. */
+  pengaturanTipe?: { id: string; label: string; judul?: string; isi: ReactNode };
+  /** Ada pengaturan tipe tersimpan? (ikut menentukan reset global) */
+  adaPengaturanTipe?: boolean;
   /** Simpan tipe kontrol (setelan komponen custom di server — bukan ukuran). */
   onUbahTipeKontrol?: (tipeBaru: string | null) => void;
   /** Nilai tinggi kotak yang ditampilkan (px). */
@@ -292,7 +298,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
           </div>
         </div>
         <div className="flex flex-col gap-2">
-        {opsiTipe !== undefined && opsiTipe.length > 0 ? (
+        {opsiTipe !== undefined && opsiTipe.length > 1 ? (
           <>
             <BarisPilihan
               id={`set_tipe_kombo_${kunci}`}
@@ -308,6 +314,25 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
               adaAturan={adaTipeKontrol === true}
               onReset={() => onResetBaris('tipeKontrol')}
             />
+            <div aria-hidden className="border-t border-foreground/10" />
+          </>
+        ) : null}
+        {/* Pengaturan khusus tipe AKTIF — hanya muncul untuk tipe yang
+            memilikinya (mis. "Preset cepat" pada Nominal). Label memakai lebar
+            grup "Mengembang" supaya sejajar dengan baris pilihan di atasnya. */}
+        {pengaturanTipe !== undefined ? (
+          <>
+            <div className="flex items-center gap-1.5">
+              <label
+                htmlFor={pengaturanTipe.id}
+                className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
+                style={{ width: LEBAR_LABEL_GRUP_MENGEMBANG }}
+                title={pengaturanTipe.judul}
+              >
+                {pengaturanTipe.label}
+              </label>
+              <div className="min-w-0 flex-1">{pengaturanTipe.isi}</div>
+            </div>
             <div aria-hidden className="border-t border-foreground/10" />
           </>
         ) : null}
@@ -482,7 +507,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
           type="button"
           variant="ghost"
           size="sm"
-          disabled={!(adaTinggi || adaLebar || adaLebarLabel || adaLebarKontrol || adaExpand || adaLabelTransparan || adaNilaiDefault)}
+          disabled={!(adaTinggi || adaLebar || adaLebarLabel || adaLebarKontrol || adaExpand || adaLabelTransparan || adaNilaiDefault || adaPengaturanTipe === true)}
           onClick={onReset}
           className="-mx-1 justify-start px-1 text-muted-foreground"
         >

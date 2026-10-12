@@ -17,7 +17,6 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import PresetKolom from '@/components/PresetKolom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import LabeledCombobox from '@/components/LabeledCombobox';
-import LabeledNominalInput from '@/components/LabeledNominalInput';
 import LabeledTextInput from '@/components/LabeledTextInput';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -817,12 +816,15 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                             </ComboboxContent>
                           </ComboboxRoot>
                         </LabeledCombobox>
-                        <LabeledNominalInput
+                        <LabeledTextInput
+                          nama="nominal"
+                          tipeKontrol="nominal"
+                          tipeTerkunci
                           label="Nominal"
                           htmlFor="inp_tarif_baru_nominal"
                           min={0}
                           value={baruNominal}
-                          onValueChange={setBaruNominal} required
+                          onChange={(e) => setBaruNominal(e.target.value)} required
                         />
                         <Button id="btn_tarif_baru_simpan" type="submit" size="sm" className="h-[26px]" disabled={baruBusy}>
                           {baruBusy ? 'Menyimpan…' : 'Simpan Tarif'}
@@ -862,11 +864,14 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     </p>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <LabeledNominalInput
+                    <LabeledTextInput
+                      nama="nominal"
+                      tipeKontrol="nominal"
+                      tipeTerkunci
                       label="Nominal Default"
                       htmlFor="inp_gen_nominal"
                       min={0} value={nominalDefault}
-                      onValueChange={ubahNominalDefault}
+                      onChange={(e) => ubahNominalDefault(e.target.value)}
                       onBlur={() => setGalatNominal(validasiNominal(nominalDefault))}
                       aria-invalid={galatNominal !== null}
                       aria-describedby={galatNominal !== null ? 'galat_nominal_gen' : undefined}
@@ -897,12 +902,16 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     di dalam kotak, sama seperti Tarif dan Nominal Default.
                     Bulanan: input DIMATIKAN karena tanggalnya otomatis (tgl 10
                     bulan berjalan, ditentukan backend) — kotak tetap tampil agar
-                    tata letaknya sama. */}
+                    tata letaknya sama.
+                    Tipe DIKUNCI ke `tanggal`: nilainya dikirim sebagai tanggal
+                    ISO, jadi tak boleh diubah jadi teks/angka dari popover. */}
                 <div className="flex flex-col gap-1">
                   <LabeledTextInput
                     label="Jatuh Tempo"
                     htmlFor="inp_gen_jatuh_tempo"
                     type="date"
+                    tipeKontrol="tanggal"
+                    tipeTerkunci
                     disabled={bulanan}
                     placeholder={bulanan ? 'Otomatis tanggal 10' : undefined}
                     value={jatuhTempo}

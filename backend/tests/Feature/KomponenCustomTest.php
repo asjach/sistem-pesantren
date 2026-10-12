@@ -195,6 +195,35 @@ class KomponenCustomTest extends TestCase
         $this->assertSame(['tinggi' => 30], $setelan);
     }
 
+    public function test_simpan_setelan_per_tipe(): void
+    {
+        $user = $this->makeUser('admin');
+
+        // Setelan khusus tipe aktif (mis. preset nominal cepat pada tipe
+        // `nominal`) — bentuk nilainya bebas per tipe, jadi server hanya
+        // membatasi bentuk & ukurannya.
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'table_key' => 'keuangan_tagihan',
+            'komponen' => 'inp_bayar_jumlah',
+            'setelan' => [
+                'tipeKontrol' => 'nominal',
+                'tipe' => ['preset' => [1000, 2500]],
+            ],
+        ])->assertStatus(200)
+            ->assertJsonPath('data.setelan.tipe.preset.0', 1000)
+            ->assertJsonPath('data.setelan.tipe.preset.1', 2500);
+
+        // Peta, bukan daftar.
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'inp_x', 'setelan' => ['tipe' => [1, 2]],
+        ])->assertStatus(422)->assertJsonValidationErrors('setelan.tipe');
+
+        // Larik harus sedalam satu tingkat (skalar saja).
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'inp_x', 'setelan' => ['tipe' => ['preset' => [['dalam']]]],
+        ])->assertStatus(422)->assertJsonValidationErrors('setelan.tipe.preset');
+    }
+
     public function test_tolak_ukuran_di_luar_rentang(): void
     {
         $user = $this->makeUser('admin');

@@ -44,6 +44,41 @@ export interface KonteksTipeInput {
   setNilai: (nilaiBaru: string) => void;
 }
 
+/** Konteks yang diteruskan ke `render` sebuah pengaturan tipe. */
+export interface KonteksPengaturanTipe<T = unknown> {
+  /** Id kontrol (`htmlFor`) supaya isian di panel punya id unik. */
+  htmlFor?: string;
+  /** Nilai yang berlaku sekarang (setelan tersimpan, atau `bawaan` tipe). */
+  nilai: T;
+  /** Tulis nilai baru; `null` = hapus setelan → kembali ke `bawaan` tipe. */
+  setNilai: (nilaiBaru: T | null) => void;
+}
+
+/** PENGATURAN khusus milik satu tipe: baris di popover pengaturan kotak yang
+ *  muncul HANYA saat tipe itu aktif, dan yang mengubah bawaan tipe itu sendiri
+ *  (mis. daftar nominal cepat pada tipe `nominal`).
+ *
+ *  Bedanya dengan `attrs`/`aksiKanan`: keduanya konstanta di kode, sedangkan
+ *  `pengaturan` bisa DIUBAH PENGGUNA dari popover dan disimpan per kotak
+ *  (tabel `komponen_custom`, kunci `setelan.tipe.<kunci>`). */
+export interface PengaturanTipe<T = unknown> {
+  /** Kunci di `setelan.tipe` — dipakai menyimpan nilai per kotak. */
+  kunci: string;
+  /** Teks label baris di popover. */
+  label: string;
+  /** Tooltip penjelas di label. */
+  judul?: string;
+  /** Nilai bawaan tipe; dipakai bila kotak belum punya setelan. */
+  bawaan: T;
+  /** Isian baris di popover (nilai berlaku + penulisnya). Ditulis sebagai
+   *  METHOD (bukan properti fungsi) supaya `PengaturanTipe<number[]>` tetap
+   *  assignable ke `PengaturanTipe<unknown>` di `DefinisiTipeInput`. */
+  render(ctx: KonteksPengaturanTipe<T>): ReactNode;
+  /** Turunkan bawaan tipe dari nilai pengaturan (mis. `aksiKanan` ber-preset
+   *  milik pengguna). Dipanggil `definisiTipe`; absen = tak ada turunan. */
+  terapkan?(nilai: T | undefined): Partial<DefinisiTipeInput>;
+}
+
 /** Bawaan satu tipe input. */
 export interface DefinisiTipeInput {
   /** Teks di combobox "Tipe input:" pada popover pengaturan. */
@@ -54,6 +89,8 @@ export interface DefinisiTipeInput {
   attrs?: Partial<Omit<ComponentProps<typeof Input>, 'className' | 'style' | 'type'>>;
   /** Konten di ujung kanan zona kontrol (mis. kalkulator rupiah). */
   aksiKanan?: (ctx: KonteksTipeInput) => ReactNode;
+  /** Pengaturan yang bisa diubah pengguna dari popover (opsional per tipe). */
+  pengaturan?: PengaturanTipe<unknown>;
 }
 
 /** Nominal cepat bawaan (rupiah) — 9 tombol, tampil 3 per baris. */
@@ -227,6 +264,67 @@ export function AksiKananNominal({ htmlFor, nilai, setNilai, preset = PRESET_NOM
   );
 }
 
+/** Isian daftar nominal cepat (teks dipisah koma) untuk baris pengaturan tipe
+ *  `nominal` di popover. Di-commit saat blur/Enter; kosong = hapus setelan
+ *  (kembali ke `PRESET_NOMINAL`). Titik/ruang dipakai sebagai pemisah juga,
+ *  supaya "1.000 5.000" dari kebiasaan mengetik tetap terbaca. */
+function IsianPresetNominal({ id, nilai, setNilai }: { id?: string; nilai: number[]; setNilai: (v: number[] | null) => void }) {
+  const [draf, setDraf] = useState<string | null>(null);
+  const commit = () => {
+    if (draf === null) return;
+    const angka = draf
+      .split(/[^\d]+/)
+      .filter((t) => t !== '')
+      .map((t) => Number(t))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    setDraf(null);
+    setNilai(angka.length === 0 ? null : angka);
+  };
+  return (
+    <Input
+      id={id}
+      value={draf ?? nilai.join(', ')}
+      placeholder="1000, 5000, 10000"
+      aria-label="Preset nominal cepat"
+      className="h-[26px] text-xs"
+      onChange={(e) => setDraf(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
+    />
+  );
+}
+
+/** Baca nilai pengaturan sebagai daftar nominal positif. Nilai dari server
+ *  dianggap tak tepercaya, jadi disaring ulang di sini. */
+function sebagaiPreset(v: unknown): number[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const angka = v.filter((n): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0);
+  return angka.length === 0 ? undefined : angka;
+}
+
+/** Pengaturan tipe `nominal`: daftar nominal cepat di panel kalkulator. */
+const PENGATURAN_PRESET_NOMINAL: PengaturanTipe = {
+  kunci: 'preset',
+  label: 'Preset cepat',
+  judul: 'Nominal yang tampil di panel kalkulator. Pisahkan dengan koma; kosongkan untuk kembali ke bawaan.',
+  bawaan: PRESET_NOMINAL,
+  render: ({ htmlFor, nilai, setNilai }) => (
+    <IsianPresetNominal
+      id={htmlFor}
+      nilai={sebagaiPreset(nilai) ?? PRESET_NOMINAL}
+      setNilai={(v) => setNilai(v)}
+    />
+  ),
+  /* Hanya turunkan `aksiKanan` bila pengguna memang menyetel presetsendiri;
+     tanpa itu bawaan tipe (kalkulator ber-`PRESET_NOMINAL`) yang dipakai. */
+  terapkan: (preset) => {
+    const angka = sebagaiPreset(preset);
+    return angka === undefined
+      ? {}
+      : { aksiKanan: (ctx) => <AksiKananNominal {...ctx} preset={angka} /> };
+  },
+};
+
 /** Tipe input yang tersedia (urutan = urutan di combobox popover). Tipe tanpa
  *  `aksiKanan`/`attrs` khusus tetap memakai `Input` bawaan. */
 const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
@@ -238,6 +336,7 @@ const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
     type: 'number',
     attrs: { inputMode: 'numeric' },
     aksiKanan: (ctx) => <AksiKananNominal {...ctx} />,
+    pengaturan: PENGATURAN_PRESET_NOMINAL,
   },
   tanggal: { label: 'Tanggal', type: 'date' },
   bulan: { label: 'Bulan', type: 'month' },
@@ -255,10 +354,52 @@ export const KUNCI_TIPE_INPUT = Object.keys(DAFTAR) as KunciTipeInput[];
 /** Baris pilihan untuk combobox "Tipe input:" (label + nilai registry). */
 export const OPSI_TIPE_INPUT = KUNCI_TIPE_INPUT.map((nilai) => ({ label: DAFTAR[nilai].label, nilai }));
 
-/** Definisi satu tipe; `undefined` bila kunci tak dikenal → `Input` bawaan. */
-export function definisiTipe(kunci: string | undefined): DefinisiTipeInput | undefined {
+/** Definisi satu tipe; `undefined` bila kunci tak dikenal → `Input` bawaan.
+ *  `nilaiPengaturan` (setelan `setelan.tipe` kotak ini) menurunkan bawaan tipe
+ *  lewat `pengaturan.terapkan`, mis. `nominal` dengan preset milik pengguna. */
+export function definisiTipe(kunci: string | undefined, nilaiPengaturan?: unknown): DefinisiTipeInput | undefined {
   if (kunci === undefined) return undefined;
-  return DAFTAR[kunci as KunciTipeInput];
+  const def = DAFTAR[kunci as KunciTipeInput];
+  if (def === undefined) return undefined;
+  const terapkan = def.pengaturan?.terapkan;
+  if (terapkan === undefined) return def;
+  return { ...def, ...(terapkan as (v: unknown) => Partial<DefinisiTipeInput>)(nilaiPengaturan) };
+}
+
+/** Setelan per-tipe satu komponen: kunci pengaturan → nilai. */
+export type SetelanTipe = Record<string, unknown>;
+
+/** Nilai pengaturan tipe yang berlaku: setelan tersimpan, atau `bawaan` tipe. */
+export function nilaiPengaturanTipe(def: DefinisiTipeInput | undefined, setelan: SetelanTipe): unknown {
+  const p = def?.pengaturan;
+  if (p === undefined) return undefined;
+  const tersimpan = setelan[p.kunci];
+  return tersimpan === undefined ? p.bawaan : tersimpan;
+}
+
+/** Batas jumlah kunci setelan tipe (selaras validasi backend `setelan.tipe`). */
+export const MAKS_KUNCI_TIPE = 20;
+
+/** Normalisasi setelan per-tipe dari simpanan/server: kunci asing dibuang,
+ *  nilai harus skalar atau larik skalar (kedalaman 1) dengan panjang wajar. */
+export function normalkanSetelanTipe(v: unknown): SetelanTipe {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return {};
+  const hasil: SetelanTipe = {};
+  for (const [kunci, nilai] of Object.entries(v as Record<string, unknown>)) {
+    if (Object.keys(hasil).length >= MAKS_KUNCI_TIPE) break;
+    if (kunci === '' || kunci.length > 40) continue;
+    if (Array.isArray(nilai)) {
+      if (nilai.length > 50) continue;
+      if (nilai.every((n) => typeof n === 'string' || typeof n === 'number' || typeof n === 'boolean')) {
+        hasil[kunci] = nilai;
+      }
+      continue;
+    }
+    if (typeof nilai === 'string' || typeof nilai === 'number' || typeof nilai === 'boolean') {
+      hasil[kunci] = nilai;
+    }
+  }
+  return hasil;
 }
 
 /** Kunci tipe bawaan untuk `type` native yang diteruskan pemanggil. */

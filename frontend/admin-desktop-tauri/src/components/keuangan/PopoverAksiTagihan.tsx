@@ -6,7 +6,7 @@ import { ambilByteDokumen } from '@/api/dokumen';
 import { ambilFotoProfilSantri } from '@/api/santri';
 import { hitungDispensasi, ringkasAturan, saringDispensasi, selaraskanGrup, sisaKuota } from '@/lib/dispensasi';
 import { DeleteAction } from '@/components/RowActions';
-import LabeledNominalInput from '@/components/LabeledNominalInput';
+import LabeledTextInput from '@/components/LabeledTextInput';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -648,21 +648,28 @@ export default function PopoverAksiTagihan({
                     kontrolnya mulai di x berbeda-beda). 4rem cukup untuk
                     label terpanjang "Posisi Kas" (~52px) plus jarak. */}
                 <div className="grid grid-cols-[4rem_1fr] items-center gap-x-2 gap-y-1.5">
-                  {/* Nominal bayar memakai LabeledNominalInput: label "Bayar"
-                      menyatu di dalam kotak + panel nominal cepat & tombol
-                      angka. Karena labelnya kini bagian dari kotak (bukan
+                  {/* Nominal bayar = `LabeledTextInput` bertipe `nominal`
+                      (registry `tipeInput.tsx`): label "Bayar" menyatu di dalam
+                      kotak + panel nominal cepat & tombol angka. Tipenya
+                      DIKUNCI (`tipeTerkunci`) karena ini kotak kontrak —
+                      nominal bayar tak boleh diganti jadi teks/tanggal — tapi
+                      preset nominalnya tetap bisa diatur dari popover
+                      klik-kanan. Karena labelnya kini bagian dari kotak (bukan
                       kolom label 4rem terpisah), kotaknya membentang kedua
                       kolom grid; baris Metode/Posisi Kas di bawahnya tetap
                       memakai kolom label. */}
-                  <LabeledNominalInput
+                  <LabeledTextInput
                     /* autoFocus (bukan ref): LabeledTextInput tidak forwardRef. */
                     autoFocus
+                    nama="nominal"
+                    tipeKontrol="nominal"
+                    tipeTerkunci
                     label="Bayar"
                     htmlFor="inp_bayar_jumlah"
                     min={1}
                     max={sisa}
                     value={teksJumlah}
-                    onValueChange={setTeksJumlah}
+                    onChange={(e) => setTeksJumlah(e.target.value)}
                     aria-label="Jumlah pembayaran"
                     aria-invalid={jumlahSalah}
                     className={cn('col-span-2', jumlahSalah && 'border-destructive')}

@@ -267,7 +267,8 @@
   --border: color-mix(in srgb, var(--foreground) 15%, var(--background));
 }
 
-/* Panel popover "nominal cepat" (LabeledNominalInput, dua panel: atas & bawah):
+/* Panel popover "nominal cepat" (tipe `nominal` di tipeInput.tsx, dua panel:
+   atas & bawah):
    border tiap tombol disamakan dengan border panel & kotak pembungkusnya
    (foreground 30%). Varian tombol `outline` memasang `dark:border-input` yang
    letaknya lebih belakang di urutan sumber sehingga menang di mode gelap,

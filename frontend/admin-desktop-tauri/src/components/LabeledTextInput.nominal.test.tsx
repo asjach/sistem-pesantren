@@ -3,9 +3,10 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import LabeledNominalInput, { PRESET_NOMINAL } from './LabeledNominalInput';
+import LabeledTextInput from './LabeledTextInput';
+import { PRESET_NOMINAL } from './tipeInput';
 import { renderDenganTema } from '@/test/utils';
-import { resetSetelanKomponen, setelanKomponen, simpanSetelanKomponen } from '@/components/komponenCustom';
+import { resetSetelanKomponen } from '@/components/komponenCustom';
 
 /* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
    menyemai setelan lewat store klien tanpa jaringan. */
@@ -19,13 +20,17 @@ beforeEach(() => {
   resetSetelanKomponen();
 });
 
-/** Harness terkontrol: meniru pemakaian nyata (`value` + `onValueChange`). */
-function Contoh({ preset, awal = '' }: { preset?: number[]; awal?: string }) {
+/** Harness terkontrol: meniru pemakaian nyata (`value` + `onChange`).
+ *
+ *  Nominal bukan komponen tersendiri lagi: cukup `LabeledTextInput` dengan
+ *  `tipeKontrol="nominal"` (registry `tipeInput.tsx`). */
+function Contoh({ awal = '' }: { awal?: string }) {
   const [nilai, setNilai] = useState(awal);
   return (
-    <LabeledNominalInput
-      label="Nominal" htmlFor="inp_nom" preset={preset}
-      value={nilai} onValueChange={setNilai}
+    <LabeledTextInput
+      nama="nominal" tipeKontrol="nominal"
+      label="Nominal" htmlFor="inp_nom"
+      value={nilai} onChange={(e) => setNilai(e.target.value)}
     />
   );
 }
@@ -37,7 +42,7 @@ const klik = async (nama: string) => userEvent.click(await screen.findByRole('bu
 /** Panel terpisah (portal ke body) — ditandai `data-panel` oleh komponen. */
 const panel = (nama: string) => document.querySelector(`[data-panel="${nama}"]`) as HTMLElement | null;
 
-describe('LabeledNominalInput', () => {
+describe('LabeledTextInput tipe nominal', () => {
   it('memaksa tipe number & menyediakan tombol popover', () => {
     renderDenganTema(<Contoh />);
     const input = document.getElementById('inp_nom') as HTMLInputElement;
@@ -161,25 +166,19 @@ describe('LabeledNominalInput', () => {
     await waitFor(() => expect(nilaiInput()).toBe('5'));
   });
 
-  it('mengetik manual juga lewat onValueChange (satu jalur nilai)', async () => {
+  it('mengetik manual juga lewat onChange (satu jalur nilai)', async () => {
     renderDenganTema(<Contoh />);
     await userEvent.type(document.getElementById('inp_nom') as HTMLInputElement, '75000');
     expect(nilaiInput()).toBe('75000');
   });
 
-  it('klik tombol memanggil onValueChange & popover tetap terbuka', async () => {
-    const onValueChange = vi.fn();
-    renderDenganTema(<LabeledNominalInput label="Nominal" htmlFor="inp_nom" value="" onValueChange={onValueChange} />);
+  it('klik tombol memanggil onChange & popover tetap terbuka', async () => {
+    const onChange = vi.fn();
+    renderDenganTema(<LabeledTextInput nama="nominal" tipeKontrol="nominal" label="Nominal" htmlFor="inp_nom" value="" onChange={onChange} />);
     await bukaPopover();
     await klik('100.000');
-    expect(onValueChange).toHaveBeenCalledWith('100000');
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ value: '100000' }) }));
     expect(screen.getByRole('group', { name: 'Nominal cepat' })).not.toBeNull();
-  });
-
-  it('preset bagian pertama bisa diganti pemanggil', async () => {
-    renderDenganTema(<Contoh preset={[1_500]} />);
-    await bukaPopover();
-    expect(await screen.findByRole('button', { name: '1.500' })).toBeTruthy();
   });
 
   it('border popover sama dengan kotak pembungkus (foreground/30)', async () => {
@@ -227,5 +226,55 @@ describe('LabeledNominalInput', () => {
     await bukaPopover();
     await waitFor(() => expect(panel('nominal')).not.toBeNull());
     expect(panel('angka')).not.toBeNull();
+  });
+});
+
+describe('LabeledTextInput tipe nominal — pengaturan tipe', () => {
+  /** Isi baris "Preset cepat" di popover pengaturan lalu commit (blur). */
+  const isiPreset = async (teks: string) => {
+    const isian = document.getElementById('inp_nom_tipe_preset') as HTMLInputElement;
+    expect(isian).not.toBeNull();
+    fireEvent.change(isian, { target: { value: teks } });
+    fireEvent.blur(isian);
+  };
+
+  it('baris "Preset cepat" muncul di popover pengaturan tipe nominal', async () => {
+    const { container } = renderDenganTema(<Contoh />);
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    expect(await screen.findByText('Preset cepat')).not.toBeNull();
+    expect(document.getElementById('inp_nom_tipe_preset')).not.toBeNull();
+  });
+
+  it('preset yang disetel pengguna mengubah tombol nominal cepat', async () => {
+    const { container } = renderDenganTema(<Contoh />);
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await screen.findByText('Preset cepat');
+    await isiPreset('1500, 2500');
+
+    await bukaPopover();
+    expect(await screen.findByRole('button', { name: '1.500' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '2.500' })).toBeTruthy();
+    // Preset bawaan sudah tidak dipakai.
+    expect(screen.queryByRole('button', { name: '5.000' })).toBeNull();
+  });
+
+  it('preset dikosongkan → kembali ke preset bawaan', async () => {
+    const { container } = renderDenganTema(<Contoh />);
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await screen.findByText('Preset cepat');
+    await isiPreset('1500');
+    await isiPreset('');
+
+    await bukaPopover();
+    expect(await screen.findByRole('button', { name: '5.000' })).toBeTruthy();
+  });
+
+  it('tipeTerkunci: baris "Tipe input:" disembunyikan, baris preset tetap ada', async () => {
+    const { container } = renderDenganTema(
+      <LabeledTextInput nama="nominal" tipeKontrol="nominal" tipeTerkunci label="Bayar" htmlFor="inp_bayar" value="" onChange={() => {}} />,
+    );
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await screen.findByText('Preset cepat');
+    expect(screen.queryByText('Tipe input:')).toBeNull();
   });
 });

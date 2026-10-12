@@ -45,6 +45,13 @@ class KomponenCustomController extends Controller
     ];
 
     /**
+     * Batas setelan per-tipe (`setelan.tipe`) — WAJIB sama dengan
+     * `MAKS_KUNCI_TIPE`/`MAKS_NILAI_TIPE` di `src/components/tipeInput.tsx`.
+     */
+    public const MAKS_KUNCI_TIPE = 20;
+    public const MAKS_NILAI_TIPE = 50;
+
+    /**
      * Normalisasi peta setelan: kunci tak dikenal atau nilai tak sah ditolak
      * dengan pesan yang menyebut kuncinya (mis. `setelan.lebar`).
      *
@@ -83,6 +90,12 @@ class KomponenCustomController extends Controller
                 continue;
             }
 
+            if ($kunci === 'tipe') {
+                $hasil[$kunci] = self::normalisasiSetelanTipe($nilai);
+
+                continue;
+            }
+
             if ($kunci === 'expandLabel' || $kunci === 'labelTransparan') {
                 if (! is_bool($nilai)) {
                     throw ValidationException::withMessages([
@@ -110,6 +123,68 @@ class KomponenCustomController extends Controller
             throw ValidationException::withMessages([
                 'setelan' => "Kunci setelan \"{$kunci}\" tidak dikenal.",
             ]);
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Setelan khusus tipe input aktif (`setelan.tipe`): peta kunci pengaturan →
+     * nilai. Bentuk nilainya BEBAS per tipe — registry frontend
+     * (`src/components/tipeInput.tsx`) yang tahu artinya, mis. `preset` berisi
+     * daftar nominal cepat untuk tipe `nominal`. Karena itu server hanya
+     * membatasi BENTUK & UKURANNYA, bukan nama kuncinya: skalar (angka/teks/
+     * boolean) atau larik skalar satu tingkat.
+     *
+     * @throws ValidationException
+     */
+    private static function normalisasiSetelanTipe(mixed $nilai): array
+    {
+        if (! is_array($nilai) || (count($nilai) > 0 && array_is_list($nilai))) {
+            throw ValidationException::withMessages([
+                'setelan.tipe' => 'Setelan tipe harus berupa peta kunci → nilai.',
+            ]);
+        }
+
+        if (count($nilai) > self::MAKS_KUNCI_TIPE) {
+            throw ValidationException::withMessages([
+                'setelan.tipe' => 'Setelan tipe maks '.self::MAKS_KUNCI_TIPE.' kunci.',
+            ]);
+        }
+
+        $hasil = [];
+        foreach ($nilai as $kunci => $v) {
+            $kunci = (string) $kunci;
+            if ($kunci === '' || mb_strlen($kunci) > 40) {
+                throw ValidationException::withMessages([
+                    'setelan.tipe' => "Kunci pengaturan \"{$kunci}\" tidak sah.",
+                ]);
+            }
+
+            if (is_array($v)) {
+                if (count($v) > self::MAKS_NILAI_TIPE) {
+                    throw ValidationException::withMessages([
+                        "setelan.tipe.{$kunci}" => 'Daftar maks '.self::MAKS_NILAI_TIPE.' nilai.',
+                    ]);
+                }
+                foreach ($v as $item) {
+                    if (! is_scalar($item)) {
+                        throw ValidationException::withMessages([
+                            "setelan.tipe.{$kunci}" => 'Nilai daftar harus angka, teks, atau boolean.',
+                        ]);
+                    }
+                }
+                $hasil[$kunci] = array_values($v);
+
+                continue;
+            }
+
+            if (! is_scalar($v)) {
+                throw ValidationException::withMessages([
+                    "setelan.tipe.{$kunci}" => 'Nilai harus angka, teks, boolean, atau daftar skalar.',
+                ]);
+            }
+            $hasil[$kunci] = $v;
         }
 
         return $hasil;
