@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { CalendarDays, ChevronLeft, ChevronRight, Reset } from '@/icons';
+import { CalendarDays, Reset } from '@/icons';
 import {
   hariIniIso, hariPertamaBulan, jumlahHari,
   NAMA_BULAN, NAMA_BULAN_SINGKAT, NAMA_HARI, NAMA_HARI_SINGKAT,
@@ -63,6 +63,49 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
   const dipilih = pecahIso(nilai);
   const nilaiIso = dipilih === null ? '' : rakitIso(dipilih.tahun, dipilih.bulan, dipilih.hari) ?? '';
   const akhirBlok = awalBlok + TAHUN_PER_BLOK - 1;
+  /** Tahun acuan blok: tahun nilai terpilih, atau tahun ini. */
+  const tahunAcuan = (dipilih ?? kini)?.tahun ?? tahun;
+
+  /* DAFTAR TAHUN digeser dengan gulir mouse: satu gulungan = satu baris
+     (`TAHUN_PER_BARIS` tahun), bukan satu blok 20 tahun seperti tombol ‹ ›
+     yang dulu ada.
+
+     Listener dipasang langsung pada elemen (bukan `onWheel` React) dengan
+     `{ passive: false }` karena React memasang wheel secara PASIF — di dalam
+     listener pasif `preventDefault` diabaikan browser, sementara di sini
+     gulir halaman memang harus berhenti selama daftar tahun bergerak.
+
+     Elemennya ditahan di STATE (bukan `useRef`) dan efek bergantung padanya:
+     grid tahun baru muncul saat panel terbuka, dan itu terjadi lewat presence
+     Radix yang bisa jadi SATU COMMIT di belakang state `buka` — dengan
+     bergantung `buka`, listener sempat dipasang saat elemennya belum ada. */
+  const [elTahun, setElTahun] = useState<HTMLDivElement | null>(null);
+  const pasangRefTahun = useCallback((node: HTMLDivElement | null) => setElTahun(node), []);
+  useEffect(() => {
+    if (elTahun === null) return;
+    const onGulir = (ev: WheelEvent) => {
+      if (ev.deltaY === 0) return;
+      ev.preventDefault();
+      setAwalBlok((awal) => awal + Math.sign(ev.deltaY) * TAHUN_PER_BARIS);
+    };
+    elTahun.addEventListener('wheel', onGulir, { passive: false });
+    return () => elTahun.removeEventListener('wheel', onGulir);
+  }, [elTahun]);
+
+  /* Paging tahun tanpa mouse (tombol ‹ › sudah dihapus): satu baris per
+     PageUp/PageDown, Home = kembali ke tahun acuan. */
+  const onKeyDownTahun = (e: KeyboardEvent<HTMLDivElement>) => {
+    const geser = e.key === 'PageUp' ? -TAHUN_PER_BARIS : e.key === 'PageDown' ? TAHUN_PER_BARIS : 0;
+    if (geser !== 0) {
+      e.preventDefault();
+      setAwalBlok((awal) => awal + geser);
+      return;
+    }
+    if (e.key === 'Home') {
+      e.preventDefault();
+      setAwalBlok(awalBlokUntuk(tahunAcuan));
+    }
+  };
 
   return (
     <Popover open={buka} onOpenChange={ubahBuka}>
@@ -94,24 +137,20 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
         onInteractOutside={(e) => { if (diDalamPanel(e.target, PANEL_BAWAH)) e.preventDefault(); }}
       >
         <div className="flex flex-col">
-          {/* Rentang tahun yang tampil + penggeser blok (10 tahun sekali) —
-              tanpa ini tahun di luar blok (mis. tanggal lahir lama) tak
-              terjangkau. */}
-          <div className="flex items-center gap-1 pb-1">
-            <TombolGeser
-              arah="kiri"
-              label={`${TAHUN_PER_BLOK} tahun sebelumnya`}
-              onClick={() => setAwalBlok(awalBlok - TAHUN_PER_BLOK)}
-            />
-            <span className="flex-1 text-center text-xs font-medium tabular-nums">{awalBlok}–{akhirBlok}</span>
-            <TombolGeser
-              arah="kanan"
-              label={`${TAHUN_PER_BLOK} tahun berikutnya`}
-              onClick={() => setAwalBlok(awalBlok + TAHUN_PER_BLOK)}
-            />
-          </div>
+          {/* Rentang tahun yang tampil sekarang. Daftar tahunnya digeser dengan
+              gulir mouse satu baris sekali (bukan seblok 20 tahun), jadi tak
+              ada lagi tombol ‹ › di sini. */}
+          <div className="pb-1 text-center text-xs font-medium tabular-nums">{awalBlok}–{akhirBlok}</div>
 
-          <div role="group" aria-label={`Tahun ${awalBlok}–${akhirBlok}`} className="grid grid-cols-5">
+          <div
+            ref={pasangRefTahun}
+            role="group"
+            aria-label={`Tahun ${awalBlok}–${akhirBlok}`}
+            tabIndex={0}
+            title="Gulir untuk memindahkan daftar tahun (PageUp/PageDown; Home = kembali ke tahun aktif)"
+            onKeyDown={onKeyDownTahun}
+            className="grid grid-cols-5"
+          >
             {Array.from({ length: TAHUN_PER_BLOK }, (_, i) => awalBlok + i).map((pilihan) => {
               const iniDipilih = pilihan === tahun;
               return (
@@ -233,16 +272,6 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
         </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-/** Tombol navigasi ‹ › (menggeser blok tahun di panel atas). */
-function TombolGeser({ arah, label, onClick }: { arah: 'kiri' | 'kanan'; label: string; onClick: () => void }) {
-  const Ikon = arah === 'kiri' ? ChevronLeft : ChevronRight;
-  return (
-    <Button type="button" variant="ghost" size="icon-sm" aria-label={label} title={label} onClick={onClick}>
-      <Ikon className="size-4" />
-    </Button>
   );
 }
 

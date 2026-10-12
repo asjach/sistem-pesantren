@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -48,6 +48,12 @@ const buka = () => userEvent.click(screen.getByRole('button', { name: 'Pilih tan
 const hari = (teks: string) => screen.getByRole('button', { name: teks });
 const gridTahun = () =>
   screen.getByRole('group', { name: `Tahun ${awalBlokAwal}–${awalBlokAwal + TAHUN_PER_BLOK - 1}` });
+/** Grid tahun untuk blok yang MULAI di `mulai` (20 tahun). */
+const lihatRentang = (mulai: number) =>
+  screen.getByRole('group', { name: `Tahun ${mulai}–${mulai + TAHUN_PER_BLOK - 1}` });
+/** Grid TAHUN aktif apa pun rentangnya (labelnya ikut bergeser saat digulir,
+ *  jadi tidak bisa dipakai sebagai pencari setelah rentangnya berubah). */
+const gridTahunAktif = () => document.querySelector<HTMLElement>('[role="group"][aria-label^="Tahun "]');
 const gridBulan = (tahun: number) => screen.getByRole('group', { name: `Bulan ${tahun}` });
 const gridTanggal = (bulan: number, tahun: number) =>
   screen.getByRole('group', { name: `Tanggal ${NAMA_BULAN[bulan - 1]} ${tahun}` });
@@ -191,19 +197,56 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
     expect(screen.getByRole('button', { name: `${NAMA_BULAN[ini.bulan - 1]} ${ini.tahun}` }).getAttribute('data-terpilih')).toBe('ya');
   });
 
-  it('menggeser blok tahun 20 tahun sekali', async () => {
+  it('gulir mouse menggeser daftar tahun SATU BARIS (5 tahun), bukan seblok 20 tahun', async () => {
     renderDenganTema(<Harness />);
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
 
-    await userEvent.click(screen.getByRole('button', { name: `${TAHUN_PER_BLOK} tahun sebelumnya` }));
-    const mundur = awalBlokAwal - TAHUN_PER_BLOK;
-    expect(screen.getByRole('group', { name: `Tahun ${mundur}–${mundur + TAHUN_PER_BLOK - 1}` })).toBeInTheDocument();
+    // Satu gulungan ke bawah = satu baris (5 tahun berikutnya).
+    fireEvent.wheel(gridTahunAktif() as HTMLElement, { deltaY: 100 });
+    expect(lihatRentang(awalBlokAwal + TAHUN_PER_BARIS)).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: `${TAHUN_PER_BLOK} tahun berikutnya` }));
-    await userEvent.click(screen.getByRole('button', { name: `${TAHUN_PER_BLOK} tahun berikutnya` }));
-    const maju = awalBlokAwal + TAHUN_PER_BLOK;
-    expect(screen.getByRole('group', { name: `Tahun ${maju}–${maju + TAHUN_PER_BLOK - 1}` })).toBeInTheDocument();
+    // Dua gulungan lagi = dua baris (total +15 tahun), BUKAN satu blok 20 tahun.
+    fireEvent.wheel(gridTahunAktif() as HTMLElement, { deltaY: 100 });
+    fireEvent.wheel(gridTahunAktif() as HTMLElement, { deltaY: 100 });
+    expect(lihatRentang(awalBlokAwal + 3 * TAHUN_PER_BARIS)).toBeInTheDocument();
+
+    // Gulir ke atas kembali satu baris.
+    fireEvent.wheel(gridTahunAktif() as HTMLElement, { deltaY: -100 });
+    expect(lihatRentang(awalBlokAwal + 2 * TAHUN_PER_BARIS)).toBeInTheDocument();
+  });
+
+  it('gulir di atas daftar tahun tidak ikut menggeser halaman', async () => {
+    renderDenganTema(<Harness />);
+    await buka();
+    await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
+
+    // `cancelable: true` + listener non-pasif → preventDefault benar-benar
+    // dipanggil (`fireEvent` mengembalikan false saat event dibatalkan).
+    const ev = fireEvent.wheel(gridTahunAktif() as HTMLElement, { deltaY: 100, cancelable: true });
+
+    expect(ev).toBe(false);
+    expect(lihatRentang(awalBlokAwal + TAHUN_PER_BARIS)).toBeInTheDocument();
+  });
+
+  it('tanpa mouse: PageUp/PageDown satu baris, Home kembali ke tahun aktif', async () => {
+    renderDenganTema(<Harness />);
+    await buka();
+    await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
+    const grid = gridTahunAktif() as HTMLElement;
+
+    fireEvent.keyDown(grid, { key: 'PageDown' });
+    expect(lihatRentang(awalBlokAwal + TAHUN_PER_BARIS)).toBeInTheDocument();
+    fireEvent.keyDown(grid, { key: 'PageUp' });
+    expect(lihatRentang(awalBlokAwal)).toBeInTheDocument();
+
+    // Jauh ke bawah, lalu Home → kembali ke blok tahun aktif.
+    fireEvent.keyDown(grid, { key: 'PageDown' });
+    fireEvent.keyDown(grid, { key: 'PageDown' });
+    fireEvent.keyDown(grid, { key: 'PageDown' });
+    expect(lihatRentang(awalBlokAwal + 3 * TAHUN_PER_BARIS)).toBeInTheDocument();
+    fireEvent.keyDown(grid, { key: 'Home' });
+    expect(lihatRentang(awalBlokAwal)).toBeInTheDocument();
   });
 
   it('tahun di luar blok tetap terjangkau (mis. tanggal lahir lama)', async () => {
@@ -211,10 +254,11 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
 
-    // 1998 ada di blok ke-N ke belakang; geser sebanyak yang perlu lalu pilih.
-    const langkah = Math.ceil((awalBlokAwal - 1998) / TAHUN_PER_BLOK);
+    // 1998 ada beberapa baris di belakang; geser ke atas sebanyak yang perlu
+    // (satu gulungan = satu baris) lalu pilih.
+    const langkah = Math.ceil((awalBlokAwal - 1998) / TAHUN_PER_BARIS);
     for (let i = 0; i < langkah; i += 1) {
-      await userEvent.click(screen.getByRole('button', { name: `${TAHUN_PER_BLOK} tahun sebelumnya` }));
+      fireEvent.wheel(gridTahunAktif() as HTMLElement, { deltaY: -100 });
     }
     await userEvent.click(screen.getByRole('button', { name: '1998' }));
 
@@ -292,13 +336,15 @@ describe('PopoverKalender — panel bawah: tanggal', () => {
     expect(hari('20 Mei 2023').getAttribute('data-terpilih')).toBe('ya');
   });
 
-  it('tanggal yang dipilih dari blok lain tetap memakai tahun pilihannya', async () => {
+  it('tanggal yang dipilih dari tahun lain tetap memakai tahun pilihannya', async () => {
     renderDenganTema(<Harness />);
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
 
-    await userEvent.click(screen.getByRole('button', { name: `${TAHUN_PER_BLOK} tahun sebelumnya` }));
-    const tahunLain = awalBlokAwal - TAHUN_PER_BLOK;
+    // Satu gulungan ke atas = satu baris (5 tahun sebelumnya), lalu pilih
+    // tahun pertama baris tersebut.
+    fireEvent.wheel(gridTahun(), { deltaY: -100 });
+    const tahunLain = awalBlokAwal - TAHUN_PER_BARIS;
     await userEvent.click(within(screen.getByRole('group', { name: `Tahun ${tahunLain}–${tahunLain + TAHUN_PER_BLOK - 1}` }))
       .getByRole('button', { name: String(tahunLain) }));
     await userEvent.click(hari(`1 ${NAMA_BULAN[ini.bulan - 1]} ${tahunLain}`));
