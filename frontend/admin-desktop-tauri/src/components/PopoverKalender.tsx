@@ -42,7 +42,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
   }, [nilai]);
 
   /** Selalu dibuka pada bulan nilai terpilih (atau bulan ini), dengan tahun
-   *  aktif di tengah baris kedua blok tahun. */
+   *  aktif di tengah baris paling bawah blok tahun. */
   const ubahBuka = (baru: boolean) => {
     setBuka(baru);
     if (!baru) return;
@@ -250,14 +250,15 @@ const PANEL_ATAS = 'kalender_atas';
 const PANEL_BAWAH = 'kalender_bawah';
 const KELAS_PANEL = kelasPanel('pop-kalender');
 
-/** Blok tahun panel atas: 2 baris × 5 tahun. Tahun acuan (tahun aktif) duduk di
- *  TENGAH baris KEDUA — 2 tahun sebelumnya di kiri, 2 berikutnya di kanan,
- *  sedangkan baris pertama memuat 5 tahun sebelumnya → total 10 tahun. */
+/** Blok tahun panel atas: 4 baris × 5 tahun = 20 tahun. Tahun acuan (tahun
+ *  aktif) duduk di TENGAH baris PALING BAWAH — 2 tahun sebelumnya di kiri, 2
+ *  berikutnya di kanan — sedangkan tiga baris di atasnya memuat 15 tahun
+ *  sebelumnya. */
 const TAHUN_PER_BARIS = 5;
-const BARIS_TAHUN = 2;
+const BARIS_TAHUN = 4;
 const TAHUN_PER_BLOK = TAHUN_PER_BARIS * BARIS_TAHUN;
 /** Baris (0 = paling atas) yang memuat tahun acuan. */
-const BARIS_ACUAN = 1;
+const BARIS_ACUAN = BARIS_TAHUN - 1;
 
 /** Tahun pertama blok bila `tahun` jadi acuan. */
 const awalBlokUntuk = (tahun: number): number =>

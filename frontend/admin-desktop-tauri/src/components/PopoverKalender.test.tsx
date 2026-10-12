@@ -32,11 +32,13 @@ function Harness({ awal = '' }: { awal?: string }) {
 
 const hariIni = hariIniIso();
 const ini = pecahIso(hariIni) as { tahun: number; bulan: number; hari: number };
-/** Blok tahun dibuka dengan tahun aktif di TENGAH baris KEDUA: baris pertama
- *  memuat 5 tahun sebelumnya, lalu 2 tahun sebelumnya + tahun aktif + 2 tahun
- *  berikutnya (total 10 tahun = 2 baris × 5). */
+/** Blok tahun dibuka dengan tahun aktif di TENGAH baris PALING BAWAH: tiga baris
+ *  di atasnya memuat 15 tahun sebelumnya, lalu baris terakhir berisi 2 tahun
+ *  sebelumnya + tahun aktif + 2 tahun berikutnya (total 20 tahun = 4 baris × 5). */
 const TAHUN_PER_BARIS = 5;
-const indeksTahunAktif = TAHUN_PER_BARIS + (TAHUN_PER_BARIS - 1) / 2;
+const BARIS_TAHUN = 4;
+const TAHUN_PER_BLOK = TAHUN_PER_BARIS * BARIS_TAHUN;
+const indeksTahunAktif = (BARIS_TAHUN - 1) * TAHUN_PER_BARIS + (TAHUN_PER_BARIS - 1) / 2;
 const awalBlokAwal = ini.tahun - indeksTahunAktif;
 const nilaiTerpilih = () => document.querySelector('[data-uji="nilai"]')?.textContent;
 const panel = (nama: 'kalender_atas' | 'kalender_bawah') =>
@@ -44,7 +46,8 @@ const panel = (nama: 'kalender_atas' | 'kalender_bawah') =>
 const buka = () => userEvent.click(screen.getByRole('button', { name: 'Pilih tanggal' }));
 /** Tombol hari di grid (nama aksesibel "12 Oktober 2026"). */
 const hari = (teks: string) => screen.getByRole('button', { name: teks });
-const gridTahun = () => screen.getByRole('group', { name: `Tahun ${awalBlokAwal}–${awalBlokAwal + 9}` });
+const gridTahun = () =>
+  screen.getByRole('group', { name: `Tahun ${awalBlokAwal}–${awalBlokAwal + TAHUN_PER_BLOK - 1}` });
 const gridBulan = (tahun: number) => screen.getByRole('group', { name: `Bulan ${tahun}` });
 const gridTanggal = (bulan: number, tahun: number) =>
   screen.getByRole('group', { name: `Tanggal ${NAMA_BULAN[bulan - 1]} ${tahun}` });
@@ -91,7 +94,7 @@ describe('PopoverKalender — dua panel (seperti panel nominal)', () => {
 });
 
 describe('PopoverKalender — panel atas: tahun & bulan', () => {
-  it('tahun: 2 baris × 5, tahun aktif di TENGAH baris KEDUA', async () => {
+  it('tahun: 4 baris × 5, tahun aktif di TENGAH baris PALING BAWAH', async () => {
     renderDenganTema(<Harness />);
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
@@ -99,20 +102,22 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
     const grid = gridTahun();
     expect(grid.className).toMatch(/grid-cols-5/);
     const tombolTahun = within(grid).getAllByRole('button');
-    expect(tombolTahun).toHaveLength(10);
+    expect(tombolTahun).toHaveLength(TAHUN_PER_BLOK);
+    expect(TAHUN_PER_BLOK).toBe(20);
     expect(tombolTahun.map((t) => t.textContent)).toEqual(
-      Array.from({ length: 10 }, (_, i) => String(awalBlokAwal + i)),
+      Array.from({ length: TAHUN_PER_BLOK }, (_, i) => String(awalBlokAwal + i)),
     );
-    // Tengah baris KEDUA (indeks 5..9) = tahun aktif sistem, ditandai tahun ini.
+    // Baris terakhir (indeks 15..19) = 2 tahun sebelumnya + tahun aktif + 2 berikutnya.
     expect(tombolTahun[indeksTahunAktif].textContent).toBe(String(ini.tahun));
     expect(tombolTahun[indeksTahunAktif].title).toBe(`${ini.tahun} (tahun ini)`);
-    // Dua tahun sebelumnya di kiri, dua berikutnya di kanan.
     expect(tombolTahun[indeksTahunAktif - 1].textContent).toBe(String(ini.tahun - 1));
     expect(tombolTahun[indeksTahunAktif + 1].textContent).toBe(String(ini.tahun + 1));
-    // Baris pertama = 5 tahun sebelum blok baris kedua.
-    expect(tombolTahun[0].textContent).toBe(String(ini.tahun - 7));
+    expect(tombolTahun[TAHUN_PER_BLOK - TAHUN_PER_BARIS].textContent).toBe(String(ini.tahun - 2));
+    expect(tombolTahun[TAHUN_PER_BLOK - 1].textContent).toBe(String(ini.tahun + 2));
+    // Tiga baris di atasnya = 15 tahun sebelumnya.
+    expect(tombolTahun[0].textContent).toBe(String(ini.tahun - 17));
     // Rentang yang tampil ditulis di header panel.
-    expect(screen.getByText(`${awalBlokAwal}–${awalBlokAwal + 9}`)).toBeInTheDocument();
+    expect(screen.getByText(`${awalBlokAwal}–${awalBlokAwal + TAHUN_PER_BLOK - 1}`)).toBeInTheDocument();
   });
 
   it('bulan: 2 baris × 6, semua bulan dengan nama singkat Jan…Des', async () => {
@@ -149,7 +154,7 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
       ...within(gridTahun()).getAllByRole('button'),
       ...within(gridBulan(ini.tahun)).getAllByRole('button'),
     ];
-    expect(selSamar).toHaveLength(22); // 10 tahun + 12 bulan
+    expect(selSamar).toHaveLength(TAHUN_PER_BLOK + 12); // 20 tahun + 12 bulan
     for (const sel of selSamar) {
       expect(sel.className).toMatch(/border-foreground\/15/);
       // Mode gelap lebih pudar lagi — `foreground` di sana hampir putih.
@@ -186,19 +191,19 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
     expect(screen.getByRole('button', { name: `${NAMA_BULAN[ini.bulan - 1]} ${ini.tahun}` }).getAttribute('data-terpilih')).toBe('ya');
   });
 
-  it('menggeser blok tahun 10 tahun sekali', async () => {
+  it('menggeser blok tahun 20 tahun sekali', async () => {
     renderDenganTema(<Harness />);
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
 
-    await userEvent.click(screen.getByRole('button', { name: '10 tahun sebelumnya' }));
-    const mundur = awalBlokAwal - 10;
-    expect(screen.getByRole('group', { name: `Tahun ${mundur}–${mundur + 9}` })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: `${TAHUN_PER_BLOK} tahun sebelumnya` }));
+    const mundur = awalBlokAwal - TAHUN_PER_BLOK;
+    expect(screen.getByRole('group', { name: `Tahun ${mundur}–${mundur + TAHUN_PER_BLOK - 1}` })).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: '10 tahun berikutnya' }));
-    await userEvent.click(screen.getByRole('button', { name: '10 tahun berikutnya' }));
-    const maju = awalBlokAwal + 10;
-    expect(screen.getByRole('group', { name: `Tahun ${maju}–${maju + 9}` })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: `${TAHUN_PER_BLOK} tahun berikutnya` }));
+    await userEvent.click(screen.getByRole('button', { name: `${TAHUN_PER_BLOK} tahun berikutnya` }));
+    const maju = awalBlokAwal + TAHUN_PER_BLOK;
+    expect(screen.getByRole('group', { name: `Tahun ${maju}–${maju + TAHUN_PER_BLOK - 1}` })).toBeInTheDocument();
   });
 
   it('tahun di luar blok tetap terjangkau (mis. tanggal lahir lama)', async () => {
@@ -206,10 +211,11 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
 
-    // 1998 ada 3 blok di belakang blok awal → geser mundur lalu pilih.
-    await userEvent.click(screen.getByRole('button', { name: '10 tahun sebelumnya' }));
-    await userEvent.click(screen.getByRole('button', { name: '10 tahun sebelumnya' }));
-    await userEvent.click(screen.getByRole('button', { name: '10 tahun sebelumnya' }));
+    // 1998 ada di blok ke-N ke belakang; geser sebanyak yang perlu lalu pilih.
+    const langkah = Math.ceil((awalBlokAwal - 1998) / TAHUN_PER_BLOK);
+    for (let i = 0; i < langkah; i += 1) {
+      await userEvent.click(screen.getByRole('button', { name: `${TAHUN_PER_BLOK} tahun sebelumnya` }));
+    }
     await userEvent.click(screen.getByRole('button', { name: '1998' }));
 
     await userEvent.click(screen.getByRole('button', { name: 'Mei 1998' }));
@@ -264,9 +270,9 @@ describe('PopoverKalender — panel bawah: tanggal', () => {
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
 
-    // 1998 jadi acuan blok: 5 tahun sebelumnya di baris pertama, 1998 di
-    // tengah baris kedua.
-    expect(screen.getByRole('group', { name: 'Tahun 1991–2000' })).toBeInTheDocument();
+    // 1998 jadi acuan blok: 15 tahun sebelumnya di tiga baris atas, 1998 di
+    // tengah baris paling bawah.
+    expect(screen.getByRole('group', { name: 'Tahun 1981–2000' })).toBeInTheDocument();
     expect(within(gridBulan(1998)).getByRole('button', { name: 'Mei 1998' }).getAttribute('data-terpilih')).toBe('ya');
     expect(hari('20 Mei 1998').getAttribute('data-terpilih')).toBe('ya');
   });
@@ -281,7 +287,7 @@ describe('PopoverKalender — panel bawah: tanggal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'set-luar' }));
 
     await buka();
-    await waitFor(() => expect(screen.getByRole('group', { name: 'Tahun 2016–2025' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Tahun 2006–2025' })).toBeInTheDocument());
     expect(gridTanggal(5, 2023)).toBeInTheDocument();
     expect(hari('20 Mei 2023').getAttribute('data-terpilih')).toBe('ya');
   });
@@ -291,9 +297,9 @@ describe('PopoverKalender — panel bawah: tanggal', () => {
     await buka();
     await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
 
-    await userEvent.click(screen.getByRole('button', { name: '10 tahun sebelumnya' }));
-    const tahunLain = awalBlokAwal - 10;
-    await userEvent.click(within(screen.getByRole('group', { name: `Tahun ${tahunLain}–${tahunLain + 9}` }))
+    await userEvent.click(screen.getByRole('button', { name: `${TAHUN_PER_BLOK} tahun sebelumnya` }));
+    const tahunLain = awalBlokAwal - TAHUN_PER_BLOK;
+    await userEvent.click(within(screen.getByRole('group', { name: `Tahun ${tahunLain}–${tahunLain + TAHUN_PER_BLOK - 1}` }))
       .getByRole('button', { name: String(tahunLain) }));
     await userEvent.click(hari(`1 ${NAMA_BULAN[ini.bulan - 1]} ${tahunLain}`));
 
