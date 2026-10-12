@@ -6,6 +6,7 @@ import LabeledStepper from '@/components/LabeledStepper';
 import LabeledTextInput from '@/components/LabeledTextInput';
 import PresetKolom from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
+import { definisiTipe, KUNCI_TIPE_INPUT, type KunciTipeInput } from '@/components/tipeInput';
 import type { ExcelField } from '@/components/excel/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -35,6 +36,63 @@ const FIELD_KEANGGOTAAN: ExcelField[] = [
   { key: 'masuk', label: 'Masuk', kind: 'static' },
   { key: 'selesai', label: 'Selesai', kind: 'static' },
 ];
+
+/** Nilai contoh tiap tipe supaya kotaknya tak kosong saat halaman dibuka —
+ *  `tanggal` langsung tampil sebagai tanggal, `teks_rahasia` bertitik, dst. */
+const CONTOH_NILAI_TIPE: Record<KunciTipeInput, string> = {
+  teks: 'Ahmad Fauzi',
+  teks_rahasia: 'rahasia123',
+  angka: '32',
+  nominal: '50000',
+  tanggal: '2026-07-14',
+  bulan: '2026-07',
+  waktu: '08:30',
+  tanggal_waktu: '2026-07-14T08:30',
+  email: 'ustadz@pesantren.id',
+  pencarian: 'cari santri…',
+  telepon: '081234567890',
+  url: 'https://pesantren.id',
+};
+
+/** Rincian keterangan satu tipe, DITURUNKAN dari registry (`tipeInput.tsx`)
+ *  supaya halaman ini tak pernah basi saat registry berubah. */
+function rincianTipe(kunci: KunciTipeInput): string[] {
+  const def = definisiTipe(kunci);
+  const inputMode = def?.attrs?.inputMode;
+  const baris = [
+    `Atribut native: type="${def?.type ?? 'text'}"${inputMode === undefined ? '' : `, inputMode="${inputMode}"`}.`,
+  ];
+  if (def?.aksiKanan !== undefined) {
+    baris.push('Punya aksi di ujung kanan kotak (`aksiKanan`) — mis. tombol kalkulator rupiah.');
+  }
+  if (def?.pengaturan !== undefined) {
+    baris.push(`Punya pengaturan sendiri di popover: baris "${def.pengaturan.label}".`);
+  }
+  baris.push('Klik kanan kotak → baris "Tipe input:" (muncul bila ada lebih dari satu pilihan).');
+  return baris;
+}
+
+/** Satu baris varian per TIPE input: kotak yang sama, tipe dipatok dari kode.
+ *  SELURUH tipe di registry ikut tampil, jadi menambah tipe baru cukup di
+ *  `tipeInput.tsx` — daftar di sini mengikuti sendiri (tanpa daftar ganda). */
+const VARIAN_TIPE_TEKS = KUNCI_TIPE_INPUT.map((kunci) => {
+  const nama = definisiTipe(kunci)?.label ?? kunci;
+  return {
+    id: `info_tipe_${kunci}`,
+    nama: `LabeledTextInput — ${nama}`,
+    keterangan: `tipe \`${kunci}\` dari registry tipeInput.tsx: satu komponen, tipe dipatok lewat prop tipeKontrol`,
+    rincian: rincianTipe(kunci),
+    catatan: `tipe \`${kunci}\` — varian dari LabeledTextInput`,
+    contoh: (
+      <LabeledTextInput
+        label={nama}
+        htmlFor={`demo_tipe_${kunci}`}
+        tipeKontrol={kunci}
+        defaultValue={CONTOH_NILAI_TIPE[kunci]}
+      />
+    ),
+  };
+});
 
 /** Ikon info di akhir nama komponen: keterangan tampil dalam popover. */
 function InfoKeterangan({ id, keterangan, rincian }: { id: string; keterangan: string; rincian: string[] }) {
@@ -132,7 +190,6 @@ function IsiTab({ utama, varian }: {
  *  (`KELAS_LIST_TAB`/`KELAS_TRIGGER`/`KELAS_PANEL_TAB`) supaya tampak sama
  *  dengan mis. Santri Aktif → Daftar Kelas. */
 export default function KomponenPage() {
-  const [nominalBawaan, setNominalBawaan] = useState('');
   const [jumlahSantri, setJumlahSantri] = useState(32);
   const [urutAktif, setUrutAktif] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
@@ -235,43 +292,17 @@ export default function KomponenPage() {
                   'Kotak selebar kolom, tinggi 26px.',
                   'Properti input biasa diteruskan (type, step, dll).',
                   'Klik kanan kotak → baris "Tipe input:" + pengaturan khusus tipe aktif.',
+                  'Tiap tipe punya baris varian sendiri di bawah ini.',
                 ],
                 contoh: (
                   <LabeledTextInput
-                    label="NIS"
-                    htmlFor="demo_input_nis"
-                    type="number"
-                    placeholder="mis. 1234"
-                    defaultValue="24001"
+                    label="Contoh"
+                    htmlFor="demo_input_bebas"
+                    placeholder="Klik kanan untuk memilih tipe…"
                   />
                 ),
               }}
-              varian={[
-                {
-                  id: 'info_tipe_nominal',
-                  nama: 'LabeledTextInput — tipe Nominal',
-                  keterangan: 'tipe `nominal` dari registry: input angka + panel nominal cepat & papan angka di ujung kanan kotak',
-                  rincian: [
-                    'BUKAN komponen tersendiri — cukup `tipeKontrol="nominal"`.',
-                    'Preset nominalnya diatur dari popover klik-kanan kotak ini (baris "Preset cepat").',
-                    'Setelan disimpan per kotak, jadi tiap pemakaian bisa punya preset berbeda.',
-                    'Pemakaian di kotak kontrak (mis. nominal bayar) memakai `tipeTerkunci`: tipe tak bisa diubah, preset tetap bisa.',
-                  ],
-                  catatan: 'tipe `nominal`, bukan komponen terpisah',
-                  contoh: (
-                    <LabeledTextInput
-                      nama="nominal"
-                      tipeKontrol="nominal"
-                      label="Nominal Default"
-                      htmlFor="demo_nominal_bawaan"
-                      min={0}
-                      placeholder="mis. 50000"
-                      value={nominalBawaan}
-                      onChange={(e) => setNominalBawaan(e.target.value)}
-                    />
-                  ),
-                },
-              ]}
+              varian={VARIAN_TIPE_TEKS}
             />
           </TabsContent>
 

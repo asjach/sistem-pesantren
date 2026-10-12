@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import KomponenPage from './KomponenPage';
+import { definisiTipe, KUNCI_TIPE_INPUT } from '@/components/tipeInput';
 import { renderDenganTema } from '@/test/utils';
 
 /** Halaman workshop komponen butuh pengguna super_admin. */
@@ -79,16 +80,36 @@ describe('KomponenPage — pengelompokan komponen', () => {
     expect(komponen('info_preset_kolom')).not.toBeNull();
     expect(screen.getAllByText('varian dari LabeledCombobox')).toHaveLength(2);
 
-    // Teks: LabeledTextInput + contoh tipe `nominal` (bukan komponen baru).
+    // Teks: LabeledTextInput + satu baris varian per TIPE di registry.
     await klik.click(screen.getByRole('tab', { name: 'LabeledTextInput' }));
     expect(komponen('info_labeled_text_input')).not.toBeNull();
     expect(komponen('info_tipe_nominal')).not.toBeNull();
     expect(komponen('info_preset_urut')).toBeNull();
-    expect(screen.getByText('tipe `nominal`, bukan komponen terpisah')).toBeInTheDocument();
+    expect(screen.getAllByText(/^tipe `\w+` — varian dari LabeledTextInput$/))
+      .toHaveLength(KUNCI_TIPE_INPUT.length);
 
     // Stepper: tanpa varian.
     await klik.click(screen.getByRole('tab', { name: 'Stepper' }));
     expect(komponen('info_labeled_stepper')).not.toBeNull();
     expect(screen.getByText('Belum ada varian dari LabeledStepper.')).toBeInTheDocument();
+  });
+
+  it('tab LabeledTextInput memuat contoh SELURUH tipe registry', async () => {
+    const klik = userEvent.setup();
+    renderDenganTema(<KomponenPage />);
+    await klik.click(screen.getByRole('tab', { name: 'LabeledTextInput' }));
+
+    for (const kunci of KUNCI_TIPE_INPUT) {
+      // Tiap tipe = satu baris varian dengan tombol keterangan sendiri.
+      expect(komponen(`info_tipe_${kunci}`)).not.toBeNull();
+      // Contohnya kotak hidup dengan atribut native tipe itu.
+      const input = document.getElementById(`demo_tipe_${kunci}`);
+      expect(input).not.toBeNull();
+      expect(input?.getAttribute('type')).toBe(definisiTipe(kunci)?.type ?? 'text');
+    }
+
+    // Tipe dengan aksi kanan (nominal) memakai tombol kalkulator; tipe polos tidak.
+    expect(document.getElementById('btn_preset_demo_tipe_nominal')).not.toBeNull();
+    expect(document.getElementById('btn_preset_demo_tipe_teks')).toBeNull();
   });
 });

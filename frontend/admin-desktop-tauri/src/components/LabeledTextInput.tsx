@@ -80,7 +80,8 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
   /* Input yang TIDAK dikendalikan pemanggil (tanpa `value`/`onChange`) tetap
      tak-terkontrol agar `defaultValue` pemanggil tetap berlaku — kecuali tipe
      aktif punya `aksiKanan` bawaan (mis. kalkulator rupiah) yang butuh menulis
-     nilai; baru nilai disimpan internal. */
+     nilai; baru nilai disimpan internal (lihat penanganan `key`/`defaultValue`
+     pada `Input` di bawah). */
   const terkendaliPemanggil = props.value !== undefined || props.onChange !== undefined;
   const pakaiNilaiInternal = !terkendaliPemanggil && bawaan?.aksiKanan !== undefined;
   const [nilaiInternal, setNilaiInternal] = useState(props.defaultValue === undefined ? '' : String(props.defaultValue));
@@ -112,7 +113,15 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
             {...props}
             id={props.id ?? htmlFor}
             type={props.type ?? bawaan?.type}
+            /* Saat nilai dikelola internal: kotak TERKENDALI oleh state itu —
+               `defaultValue` jangan diteruskan (React menolak value +
+               defaultValue sekaligus) dan `onChange` WAJIB ada supaya isinya
+               masih bisa diketik. `key` memisah kedua mode agar React tak
+               mengeluh saat tipe aktif berubah dari polos ke ber-aksiKanan. */
+            key={pakaiNilaiInternal ? 'nilai_internal' : 'nilai_bebas'}
             value={terkendaliPemanggil ? props.value : pakaiNilaiInternal ? nilaiInternal : undefined}
+            defaultValue={pakaiNilaiInternal ? undefined : props.defaultValue}
+            onChange={pakaiNilaiInternal ? (e) => setNilai(e.target.value) : props.onChange}
             className={cn(kelasKontrol, aksiKananEfektif !== undefined && 'pr-7')}
           />
           {aksiKananEfektif !== undefined && (

@@ -217,6 +217,25 @@ describe('LabeledTextInput tipe nominal', () => {
     expect(PRESET_NOMINAL).toEqual([1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]);
   });
 
+  it('tanpa value/onChange: nilai dikelola internal & isinya tetap bisa diketik', async () => {
+    renderDenganTema(
+      <LabeledTextInput nama="nominal" tipeKontrol="nominal" label="Nominal" htmlFor="inp_lepas" defaultValue="50000" />,
+    );
+    const input = document.getElementById('inp_lepas') as HTMLInputElement;
+    expect(input.value).toBe('50000');
+    // Kotak terkendali state internal — BUKAN read-only.
+    expect(input.readOnly).toBe(false);
+
+    await userEvent.clear(input);
+    await userEvent.type(input, '75000');
+    expect(input.value).toBe('75000');
+
+    // Tombol nominal cepat menulis ke nilai yang sama (satu jalur nilai).
+    await bukaPopover();
+    await klik('5.000');
+    await waitFor(() => expect(input.value).toBe('80000'));
+  });
+
   it('klik kanan membuka popover ukuran (judul nominal) di samping panel kalkulator', async () => {
     const { container } = renderDenganTema(<Contoh />);
 
