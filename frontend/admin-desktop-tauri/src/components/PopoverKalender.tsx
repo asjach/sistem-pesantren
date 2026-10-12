@@ -8,7 +8,7 @@ import {
   NAMA_BULAN, NAMA_BULAN_SINGKAT, NAMA_HARI, NAMA_HARI_SINGKAT,
   pecahIso, rakitIso,
 } from '@/lib/tanggal';
-import { diDalamPanel, kelasPanel, KELAS_TOMBOL, OFFSET_RATA, OFFSET_SISI } from '@/components/panelMenempel';
+import { diDalamPanel, kelasPanel, KELAS_BORDER_SAMAR, KELAS_TOMBOL, OFFSET_RATA, OFFSET_SISI } from '@/components/panelMenempel';
 import type { KonteksTipeInput } from '@/components/tipeInput';
 
 /** Tombol kalender + DUA panel pemilih tanggal untuk tipe `tanggal` — pasangan
@@ -120,7 +120,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
                   type="button"
                   variant={iniDipilih ? 'default' : 'outline'}
                   size="sm"
-                  className={cn(KELAS_TOMBOL, 'h-6 px-0 tabular-nums', !iniDipilih && pilihan === kini?.tahun && 'font-semibold text-primary')}
+                  className={cn(KELAS_TOMBOL, KELAS_BORDER_SAMAR, 'h-6 px-0 tabular-nums', !iniDipilih && pilihan === kini?.tahun && 'font-semibold text-primary')}
                   aria-pressed={iniDipilih}
                   data-terpilih={iniDipilih ? 'ya' : undefined}
                   title={pilihan === kini?.tahun ? `${pilihan} (tahun ini)` : String(pilihan)}
@@ -147,7 +147,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
                   type="button"
                   variant={iniDipilih ? 'default' : 'outline'}
                   size="sm"
-                  className={cn(KELAS_TOMBOL, 'h-6 px-0', !iniDipilih && iniBulanIni && 'font-semibold text-primary')}
+                  className={cn(KELAS_TOMBOL, KELAS_BORDER_SAMAR, 'h-6 px-0', !iniDipilih && iniBulanIni && 'font-semibold text-primary')}
                   aria-label={`${NAMA_BULAN[i]} ${tahun}`}
                   aria-pressed={iniDipilih}
                   data-terpilih={iniDipilih ? 'ya' : undefined}

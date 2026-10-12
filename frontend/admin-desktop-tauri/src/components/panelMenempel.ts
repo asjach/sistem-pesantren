@@ -32,6 +32,15 @@ export function kelasPanel(penanda: string): string {
  *  ikut melebar dan kedua tepinya tetap sejajar. */
 export const KELAS_TOMBOL = 'border border-foreground/30 -ml-px -mt-px';
 
+/** Border SAMAR untuk tombol grid yang bukan fokus utama panel (mis. daftar
+ *  tahun & bulan di kalender) — tetap sewarna, hanya lebih pudar.
+ *
+ *  Varian gelapnya ditulis eksplisit karena tombol `outline` memasang
+ *  `dark:border-input`, yang nilainya di-override per panel lewat `--input`
+ *  (lihat `index.css`) sehingga tanpa `dark:…` border ini kembali tebal di
+ *  mode gelap. */
+export const KELAS_BORDER_SAMAR = 'border-foreground/15 dark:border-foreground/15';
+
 /** Geometri panel terhadap kontrol.
  *
  *  Anchor-nya tombol `aksiKanan`, dan tombol itu duduk 1px DI DALAM kotak
