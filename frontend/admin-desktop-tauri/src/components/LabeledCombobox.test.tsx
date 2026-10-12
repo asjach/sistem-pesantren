@@ -220,11 +220,12 @@ describe('LabeledCombobox', () => {
     const pop = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
 
     /* Lebar dipatok (w = min = max) → tak mengikuti lebar kotak combobox
-       (700px). 200px = padding 2×12 + kolom ukuran 176px: kolom kedua
-       ("Lainnya") bawaan tertutup, jadi panel hanya selebar kolom pertama. */
-    expect(pop.className).toMatch(/w-\[200px\]/);
-    expect(pop.className).toMatch(/min-w-\[200px\]/);
-    expect(pop.className).toMatch(/max-w-\[200px\]/);
+       (700px). 370px = border 2×1 + padding 2×12 + grid ukuran 2 kolom
+       (2 sel 168px + celah 8px); bagian "Lainnya" di bawah grid juga selebar
+       panel, jadi membukanya tak mengubah lebar ini. */
+    expect(pop.className).toMatch(/w-\[370px\]/);
+    expect(pop.className).toMatch(/min-w-\[370px\]/);
+    expect(pop.className).toMatch(/max-w-\[370px\]/);
     // Border bawaan `--border` cuma 8% foreground (nyaris tak terlihat) → diganti.
     expect(pop.className).toMatch(/border-foreground\/30/);
   });

@@ -78,49 +78,71 @@ describe('popover pengaturan komponen — gerbang izin', () => {
   });
 });
 
-describe('popover pengaturan komponen — kolom kedua ("Lainnya")', () => {
+describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () => {
   /** Baris label+combobox: label lalu pembungkus combobox. */
   const barisDari = (teks: string) => {
     const label = screen.getByText(teks) as HTMLLabelElement;
     return { label, pembungkus: label.nextElementSibling as HTMLElement };
   };
-  /** Buka kolom kedua — bawaan TERTUTUP, jadi semua baris di sana baru ada
-   *  setelah tombol kepala panel ditekan. */
+  /** Buka bagian "Lainnya" — bawaan TERTUTUP, jadi semua baris di sana baru
+   *  ada setelah tombol kepala panel ditekan. */
   const bukaLainnya = () => userEvent.click(screen.getByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
   /** Panel popover pengaturan (ber-portal ke `body`). */
   const panel = () => document.querySelector('[data-slot="popover-content"]') as HTMLElement;
 
-  it('bawaan: kolom kedua tertutup & panel selebar kolom ukuran saja', async () => {
+  it('ukuran tersusun GRID 2 kolom: Tinggi/Total di atas, Label/Kontrol di bawah', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
     const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
 
-    // Ringkas: 200px = border 2×1 + padding 2×12 + kolom ukuran 174px;
-    // baris "Lainnya" belum dirender.
-    expect(panel().className).toMatch(/w-\[200px\]/);
+    // Stepper → pembungkus `min-w-0 flex-1` → baris (label + stepper + reset).
+    const sel = [...document.querySelectorAll('[data-part="spinbox"]')].map(
+      (s) => ((s as HTMLElement).parentElement as HTMLElement).parentElement as HTMLElement,
+    );
+    const induk = sel[0].parentElement as HTMLElement;
+    // `grid-cols-2`: 2 sel per baris, dipisah bukan dengan flex-row.
+    expect(induk.className).toMatch(/grid/);
+    expect(induk.className).toMatch(/grid-cols-2/);
+    expect(sel).toHaveLength(4);
+    // Urutan baca kiri→kanan, atas→bawah: Tinggi, Total, Label, Kontrol.
+    expect(sel.map((s) => s.querySelector('label')?.textContent)).toEqual(
+      ['Tinggi', 'Total', 'Label', 'Kontrol'],
+    );
+  });
+
+  it('bawaan: bagian "Lainnya" tertutup', async () => {
+    pengguna.current = sesi(['komponen_custom.ubah']);
+    const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await screen.findByLabelText('Tinggi kotak input (px)');
+
+    // Ringkas: 370px = border 2×1 + padding 2×12 + 2 sel grid 168px + celah 8px.
+    expect(panel().className).toMatch(/w-\[370px\]/);
     expect(document.getElementById('panel_lainnya_kombo_inp_uji')).toBeNull();
     expect(screen.queryByText('Tipe')).toBeNull();
   });
 
-  it('tombol kepala panel membuka kolom kedua (panel melebar) lalu menutupnya lagi', async () => {
+  it('tombol kepala panel membuka bagian "Lainnya" TANPA melebarkan panel, lalu menutupnya lagi', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
     const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
+    // Lebar panel tak boleh berubah-ubah: patokannya sama sebelum & sesudah.
+    expect(panel().className).toMatch(/w-\[370px\]/);
 
     await bukaLainnya();
 
-    // 487px = 200 + celah 2×8 + pemisah 1 + kolom "Lainnya" 270px.
-    expect(panel().className).toMatch(/w-\[487px\]/);
-    const kolomLainnya = document.getElementById('panel_lainnya_kombo_inp_uji') as HTMLElement;
-    expect(kolomLainnya.className).toMatch(/w-\[270px\]/);
+    expect(panel().className).toMatch(/w-\[370px\]/);
+    const bagianLainnya = document.getElementById('panel_lainnya_kombo_inp_uji') as HTMLElement;
+    // Lembar penuh (bukan kolom bermeter) → tak ada lebar terpatok di sini.
+    expect(bagianLainnya.className).not.toMatch(/w-\[/);
     expect(screen.getByText('Tipe')).not.toBeNull();
 
     await userEvent.click(screen.getByRole('button', { name: 'Sembunyikan pengaturan lainnya' }));
 
     expect(document.getElementById('panel_lainnya_kombo_inp_uji')).toBeNull();
-    expect(panel().className).toMatch(/w-\[200px\]/);
+    expect(panel().className).toMatch(/w-\[370px\]/);
   });
 
   it('semua baris pilihan berlabel sama lebar (84px) supaya combobox rata kiri', async () => {
@@ -131,7 +153,7 @@ describe('popover pengaturan komponen — kolom kedua ("Lainnya")', () => {
     await bukaLainnya();
 
     const { label, pembungkus } = barisDari('Tipe');
-    // Berlabel terkunci (bukan selebar teksnya) → satu kolom pengaturan rata kiri.
+    // Berlabel terkunci (bukan selebar teksnya) → baris pengaturan rata kiri.
     expect(label.tagName).toBe('LABEL');
     expect(label.style.width).toBe('84px');
     expect(barisDari('Mengembang').label.style.width).toBe('84px');
