@@ -120,7 +120,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
                   type="button"
                   variant={iniDipilih ? 'default' : 'outline'}
                   size="sm"
-                  className={cn(KELAS_TOMBOL, 'h-7 px-0 tabular-nums', !iniDipilih && pilihan === kini?.tahun && 'font-semibold text-primary')}
+                  className={cn(KELAS_TOMBOL, 'h-6 px-0 tabular-nums', !iniDipilih && pilihan === kini?.tahun && 'font-semibold text-primary')}
                   aria-pressed={iniDipilih}
                   data-terpilih={iniDipilih ? 'ya' : undefined}
                   title={pilihan === kini?.tahun ? `${pilihan} (tahun ini)` : String(pilihan)}
@@ -142,7 +142,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
                   type="button"
                   variant={iniDipilih ? 'default' : 'outline'}
                   size="sm"
-                  className={cn(KELAS_TOMBOL, 'h-7 px-0', !iniDipilih && iniBulanIni && 'font-semibold text-primary')}
+                  className={cn(KELAS_TOMBOL, 'h-6 px-0', !iniDipilih && iniBulanIni && 'font-semibold text-primary')}
                   aria-label={`${NAMA_BULAN[i]} ${tahun}`}
                   aria-pressed={iniDipilih}
                   data-terpilih={iniDipilih ? 'ya' : undefined}
@@ -188,7 +188,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
                   type="button"
                   variant={iniDipilih ? 'default' : 'ghost'}
                   size="icon-sm"
-                  className={cn('h-7 w-full tabular-nums', !iniDipilih && iso === hariIni && 'font-semibold text-primary')}
+                  className={cn('h-6 w-full tabular-nums', !iniDipilih && iso === hariIni && 'font-semibold text-primary')}
                   aria-label={`${hari} ${NAMA_BULAN[bulan - 1]} ${tahun}`}
                   aria-current={iso === hariIni ? 'date' : undefined}
                   aria-pressed={iniDipilih}

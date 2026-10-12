@@ -74,6 +74,20 @@ describe('PopoverKalender — dua panel (seperti panel nominal)', () => {
       expect(p.className).toMatch(/border-foreground\/30/);
     }
   });
+
+  it('semua sel grid seragam 24px (h-6): tahun, bulan, dan tanggal', async () => {
+    renderDenganTema(<Harness />);
+    await buka();
+    await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
+
+    const semuaSel = [
+      ...within(gridTahun()).getAllByRole('button'),
+      ...within(gridBulan(ini.tahun)).getAllByRole('button'),
+      ...within(gridTanggal(ini.bulan, ini.tahun)).getAllByRole('button'),
+    ];
+    expect(semuaSel.length).toBeGreaterThan(40); // 10 tahun + 12 bulan + hari
+    for (const sel of semuaSel) expect(sel.className).toMatch(/h-6/);
+  });
 });
 
 describe('PopoverKalender — panel atas: tahun & bulan', () => {
