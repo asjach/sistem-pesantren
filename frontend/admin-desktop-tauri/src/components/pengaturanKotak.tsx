@@ -4,6 +4,7 @@ import PopoverUkuranKombo from '@/components/PopoverUkuranKombo';
 import { pakaiLebarFilter } from '@/components/excel/lebarFilter';
 import { definisiTipe, KUNCI_TIPE_INPUT, OPSI_TIPE_INPUT, type KunciTipeInput } from '@/components/tipeInput';
 import {
+  gabungSetelanKomponen,
   hapusSetelanKomponen,
   simpanSetelanKomponen,
   useSetelanKomponen,
@@ -17,9 +18,6 @@ import {
   jepitLebarKontrol,
   jepitLebarLabel,
   jepitTinggi,
-  kosongkanUkuranKombo,
-  simpanUkuranKombo,
-  useUkuranKombo,
   type UbahUkuranKombo,
 } from '@/components/ukuranKombo';
 
@@ -60,33 +58,18 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
   lebarKotak?: number | string;
   tinggi?: number | string;
 }) {
-  /** Kunci pengaturan ukuran = id kontrol. Tanpa id, kotak tak punya
-   *  identitas untuk menyimpan ukurannya → fitur dimatikan. */
+  /** Kunci setelan = id kontrol. Tanpa id, kotak tak punya identitas untuk
+   *  menyimpan setelannya → fitur dimatikan. */
   const kunciUkuran = htmlFor ?? '';
   const konteks = pakaiLebarFilter();
-  /* Di dalam toolbar tabel (ada konteks preset): ukuran disimpan di SERVER,
-     kunci = `htmlFor`. Hanya kontrol FORM di dalam area toolbar yang
-     memakainya; kontrol bawaan toolbar (Urutkan/Kolom, `kelolaLebar={false}`)
-     TIDAK — setelannya per perangkat. */
-  const milikToolbar = kunciUkuran !== '' && kelolaLebar;
-  const kunciServer = konteks !== null && milikToolbar ? kunciUkuran : '';
-  /** Store perangkat hanya dipakai di luar toolbar (kunci '' = tak berefek). */
-  const ukuranLokal = useUkuranKombo(kunciServer === '' ? kunciUkuran : '');
-  /* Setelan komponen custom (tipe input) disimpan di SERVER, terpisah dari
-     Kelola Tabel: kuncinya `table_key` + `htmlFor`, dan komponen di luar
-     tabel memakai `tableKey` kosong. */
-  const setelan = useSetelanKomponen(konteks?.tableKey ?? '', kunciUkuran);
-  const ukuran = kunciServer === ''
-    ? ukuranLokal
-    : {
-      lebar: konteks?.lebar[kunciServer],
-      tinggi: konteks?.tinggi?.[kunciServer],
-      lebarLabel: konteks?.lebarLabel?.[kunciServer],
-      lebarKontrol: konteks?.lebarKontrol?.[kunciServer],
-      expandLabel: konteks?.expandLabel?.[kunciServer],
-      labelTransparan: konteks?.labelTransparan?.[kunciServer],
-      nilaiDefault: konteks?.nilaiDefault?.[kunciServer],
-    };
+  /* Tabel tempat komponen hidup; komponen di luar tabel memakai string kosong
+     supaya tetap punya identitas di server. */
+  const tableKey = konteks?.tableKey ?? '';
+  /* SETELAN komponen: ukuran (tinggi/lebar/label/kontrol), sisi yang
+     mengembang, warna label, nilai awal, dan tipe kontrol — semuanya dari
+     server, tabel `komponen_custom` (satu entri per komponen). Tak ada lagi
+     percabangan "di dalam toolbar → server, selain itu → perangkat". */
+  const ukuran = useSetelanKomponen(tableKey, kunciUkuran);
 
   const refKotak = useRef<HTMLSpanElement | null>(null);
   const [bukaUkuran, setBukaUkuran] = useState(false);
@@ -135,29 +118,22 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
     if (pemicu instanceof HTMLElement) pemicu.click();
   }, []);
 
-  /** Simpan sebagian ukuran: ke server (toolbar) atau ke store perangkat. */
+  /** Simpan sebagian setelan komponen (ukuran, sisi yang mengembang, warna
+   *  label, nilai awal, tipe kontrol). `null` untuk sebuah kunci berarti hapus
+   *  kunci itu (kembali ke bawaan pemanggil). */
   const ubahUkuran = useCallback((ubah: UbahUkuranKombo) => {
-    if (kunciServer !== '' && konteks?.simpanUkuran) konteks.simpanUkuran(kunciServer, ubah);
-    else simpanUkuranKombo(kunciUkuran, ubah);
-  }, [kunciServer, konteks, kunciUkuran]);
+    gabungSetelanKomponen(tableKey, kunciUkuran, ubah);
+  }, [tableKey, kunciUkuran]);
 
-  /** Kembalikan ke bawaan: hapus kunci di server, atau kosongkan store lokal. */
+  /** Kembalikan ke bawaan: hapus seluruh setelan komponen ini. */
   const resetUkuran = useCallback(() => {
-    if (kunciServer !== '' && konteks?.simpanUkuran) konteks.simpanUkuran(kunciServer, { tinggi: null, lebar: null, lebarLabel: null, lebarKontrol: null, expandLabel: null, labelTransparan: null, nilaiDefault: null });
-    else kosongkanUkuranKombo(kunciUkuran);
-    /* Setelan komponen custom ikut ke bawaan (terpisah dari ukuran toolbar). */
-    hapusSetelanKomponen(konteks?.tableKey ?? '', kunciUkuran);
-  }, [kunciServer, konteks, kunciUkuran]);
+    hapusSetelanKomponen(tableKey, kunciUkuran);
+  }, [tableKey, kunciUkuran]);
 
   /** Kembalikan SATU baris ke bawaan (tinggi/total/label/kontrol/nilai/tipe). */
   const resetBaris = useCallback((bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol' | 'nilaiDefault' | 'tipeKontrol') => {
-    if (bidang === 'tipeKontrol') {
-      hapusSetelanKomponen(konteks?.tableKey ?? '', kunciUkuran);
-      return;
-    }
-    if (kunciServer !== '' && konteks?.simpanUkuran) konteks.simpanUkuran(kunciServer, { [bidang]: null });
-    else simpanUkuranKombo(kunciUkuran, { [bidang]: null });
-  }, [kunciServer, konteks, kunciUkuran]);
+    gabungSetelanKomponen(tableKey, kunciUkuran, { [bidang]: null });
+  }, [tableKey, kunciUkuran]);
 
   /* Ukuran tersimpan (bila ada) menang atas nilai dari pemanggil. */
   const tinggiEfektif = ukuran.tinggi ?? tinggi;
@@ -167,20 +143,17 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
   const labelTransparanEfektif = ukuran.labelTransparan ?? labelTransparan;
   /** Nilai awal combobox (label opsi terpilih); absen = ikut nilai pemanggil. */
   const nilaiDefaultEfektif = ukuran.nilaiDefault;
-  /** Tipe kontrol: setelan komponen custom (server) MANG atas tipe dari
-   *  pemanggil; nilai tak dikenal (mis. versi lama registry) → bawaan. */
-  const tipeTersimpan = setelan.tipeKontrol;
+  /** Tipe kontrol: setelan tersimpan MANG atas tipe dari pemanggil; nilai tak
+   *  dikenal (mis. versi lama registry) → bawaan pemanggil. */
+  const tipeTersimpan = ukuran.tipeKontrol;
   const tipeKontrolEfektif = definisiTipe(tipeTersimpan) !== undefined
     ? tipeTersimpan as KunciTipeInput
     : tipeKontrol;
-  /** Simpan tipe kontrol ke server sebagai setelan komponen custom. */
   const simpanTipeKontrol = useCallback((tipeBaru: string | null) => {
-    if (tipeBaru === null || definisiTipe(tipeBaru) === undefined) {
-      hapusSetelanKomponen(konteks?.tableKey ?? '', kunciUkuran);
-      return;
-    }
-    simpanSetelanKomponen(konteks?.tableKey ?? '', kunciUkuran, { ...setelan, tipeKontrol: tipeBaru });
-  }, [konteks, kunciUkuran, setelan]);
+    gabungSetelanKomponen(tableKey, kunciUkuran, {
+      tipeKontrol: tipeBaru !== null && definisiTipe(tipeBaru) !== undefined ? tipeBaru : null,
+    });
+  }, [tableKey, kunciUkuran]);
   /** Baris "Tipe input:" di popover — hanya untuk kontrol yang memang punya
    *  tipe input (dikirim `LabeledTextInput`). */
   const barisTipe = pilihanTipe ?? (tipeKontrol === undefined ? [] : KUNCI_TIPE_INPUT);

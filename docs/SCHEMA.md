@@ -677,9 +677,9 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `id` PK
 - `table_key`: string(60) [unik]
 - `visibilitas`: json — peta kontrol → bool; hanya `false` yang menyembunyikan (absen = tampil). **Tak lagi ditulis/dibaca frontend** (tab Toolbar dialog Kelola Tabel dihapus — kontrol selalu tampil); data lama diabaikan
-- `lebar`: json [null] — peta kontrol → lebar px (kunci `filter.<htmlFor>`; kunci lama `urut`/`kolom` tak lagi ditulis); absen = bawaan frontend. Ditulis dari popover klik-kanan combobox (semua pengguna), bukan hanya super_admin
-- `tinggi`: json [null] — peta kontrol → tinggi px (kunci sama dengan `lebar`); absen = tinggi bawaan komponen (26px). Juga ditulis dari popover klik-kanan combobox
-- `nilai_default`: json [null] — peta kontrol → label opsi yang jadi nilai AWAL combobox (kunci sama dengan `lebar`); absen = pakai nilai dari pemanggil. Ditulis dari popover klik-kanan combobox (semua pengguna)
+- `lebar`: json [null] — SISA peta lama kontrol tabel (`urut`/`kolom`); setelan komponen custom (kunci `filter.<htmlFor>`) sudah dipindah ke `komponen_custom`. Ditulis dari dialog Kelola Tabel
+- `tinggi`: json [null] — **deprecated**, sudah kosong setelah migrasi ke `komponen_custom`
+- `nilai_default`: json [null] — **deprecated**, sudah kosong setelah migrasi ke `komponen_custom`
 - `urutan`: json [null] — array key kolom data; absen = urutan fields halaman
 - `align`: json [null] — peta key kolom → 'left'|'center'|'right' (satu nilai per kolom, bukan per preset); absen = preferensi pribadi pengguna, lalu tengah
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
@@ -690,7 +690,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `id` PK
 - `table_key`: string(60), default `''` — tabel tempat komponen hidup; string KOSONG untuk komponen di luar tabel (dialog/form/popover). String kosong (bukan NULL) karena MySQL menganggap NULL berbeda pada indeks UNIQUE
 - `komponen`: string(60) — `htmlFor` komponen (snake_case)
-- `setelan`: json [null] — peta setelan → nilai; contoh `{"tipeKontrol":"nominal"}`. Ditulis dari popover klik-kanan komponen (semua pengguna ter-autentikasi, bukan hanya super_admin)
+- `setelan`: json [null] — peta setelan → nilai; kunci yang dikenal: `tinggi` (20–120px), `lebar` (80–1200px), `lebarLabel` (40–400px), `lebarKontrol` (40–1200px), `expandLabel`/`labelTransparan` (bool), `nilaiDefault` (≤100 karakter), `tipeKontrol` (registry tipe input). Ditulis dari popover klik-kanan komponen (semua pengguna ter-autentikasi, bukan hanya super_admin). Kunci yang absen = bawaan pemanggil; menambah kunci baru cukup menambah aturan validasi, tanpa migrasi
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`, `komponen`)

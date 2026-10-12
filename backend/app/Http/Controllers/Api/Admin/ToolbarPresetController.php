@@ -11,11 +11,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Visibilitas & ukuran kontrol toolbar generik, GLOBAL per `table_key`
- * (satu baris = peta kontrol → boolean/px). Baca bebas (semua admin, agar
- * semua peramban merender sama). Visibilitas tetap khusus super_admin;
- * LEBAR/TINGGI kotak kontrol boleh ditulis semua pengguna karena diatur
- * langsung dari popover klik-kanan combobox.
+ * Setelan TABEL per `table_key` (satu baris): visibilitas kontrol toolbar,
+ * urutan kolom, dan perataan kolom. Baca bebas (semua admin, agar semua
+ * peramban merender sama); visibilitas/urutan/perataan ditulis super_admin.
+ *
+ * Ukuran kotak kontrol (tinggi/lebar/label/kontrol), warna label, nilai awal
+ * combobox, dan tipe input TIDAK lagi lewat endpoint ini: semuanya milik
+ * komponen dan disimpan di `KomponenCustomController` (tabel `komponen_custom`).
  */
 class ToolbarPresetController extends Controller
 {
@@ -23,63 +25,11 @@ class ToolbarPresetController extends Controller
      *  Kotak cari tidak ada lagi (pencarian tunggal di topBar). */
     public const KUNCI = ['info', 'urut', 'kolom', 'filter'];
 
-    /** Kunci kontrol yang punya pengaturan ukuran (lebar & tinggi, px). */
-    public const KUNCI_UKURAN = ['urut', 'kolom'];
-
-    /** Sufiks lebar label/kontrol terkunci di peta `lebar` + batas atasnya
-     *  (batas bawah 40px untuk semua jenis; selaras frontend). */
-    public const SUFIKS_UKURAN = ['label' => 400, 'kontrol' => 1200];
-
-    /** Sufiks penanda boolean di peta `lebar` (`0`/`1`): label mengembang
-     *  dan label transparan. */
-    public const SUFIKS_PENANDA = ['expand', 'labeltransparan'];
-
-    /** Normalisasi peta ukuran (lebar/tinggi): hanya kunci kontrol yang
-     *  dikenal — `urut`, `kolom`, atau `filter.<htmlFor>` — yang diterima;
-     *  peta kosong disimpan sebagai NULL (kembali ke bawaan komponen).
-     *  Peta `lebar` juga menerima kunci sufiks `<kunci>.label` /
-     *  `<kunci>.kontrol` (lebar terkunci, 40px sampai batas sufiks) dan
-     *  penanda `<kunci>.expand` / `<kunci>.labeltransparan` (= 1) dari
-     *  popover klik-kanan combobox. Rentang per jenis kunci dijaga di sini
-     *  agar kunci galatnya tetap `lebar.<kunci>`. */
-    private static function normalisasiUkuran(array $peta, string $nama): ?array
-    {
-        $hasil = [];
-        foreach ($peta as $kunci => $nilai) {
-            $kunci = (string) $kunci;
-            $sufiks = null;
-            $dasar = $kunci;
-            if ($nama === 'lebar' && preg_match('/^(.*)\.(label|kontrol|expand|labeltransparan)$/', $kunci, $m) === 1) {
-                $dasar = $m[1];
-                $sufiks = $m[2];
-            }
-            $isFilter = preg_match('/^filter\.[a-z0-9_]{1,60}$/', $dasar) === 1;
-            if (! in_array($dasar, self::KUNCI_UKURAN, true) && ! $isFilter) {
-                throw ValidationException::withMessages([
-                    $nama => "Kunci {$nama} \"{$kunci}\" tidak dikenal.",
-                ]);
-            }
-            $nilai = (int) $nilai;
-            if (in_array($sufiks, self::SUFIKS_PENANDA, true)) {
-                if (! in_array($nilai, [0, 1], true)) {
-                    throw ValidationException::withMessages([
-                        "{$nama}.{$kunci}" => "Penanda \"{$kunci}\" harus 0 atau 1.",
-                    ]);
-                }
-            } elseif ($nama === 'lebar') {
-                // Rentang peta `tinggi` dijaga aturan request (`tinggi.*`).
-                $maks = $sufiks === null ? 1200 : self::SUFIKS_UKURAN[$sufiks];
-                if ($nilai < 40 || $nilai > $maks) {
-                    throw ValidationException::withMessages([
-                        "{$nama}.{$kunci}" => "Lebar \"{$kunci}\" harus 40–{$maks}px.",
-                    ]);
-                }
-            }
-            $hasil[$kunci] = $nilai;
-        }
-
-        return $hasil === [] ? null : $hasil;
-    }
+    /** Setelan yang dulu diterima endpoint ini; kini milik komponen
+     *  (`komponen_custom`) dan DITOLAK dengan pesan yang menunjuk ke sana
+     *  (lihat migrasi `pindahkan_setelan_komponen_dari_toolbar_preset` dan
+     *  `pindahkan_lebar_urut_kolom_ke_komponen_custom`). */
+    public const SETELAN_KOMPONEN_PINDAH = ['lebar', 'tinggi', 'nilai_default'];
 
     /** GET /api/admin/toolbar-preset?table_key=santri */
     public function index(ToolbarPresetIndexRequest $request): JsonResponse
@@ -89,10 +39,12 @@ class ToolbarPresetController extends Controller
         $row = ToolbarPreset::where('table_key', $data['table_key'])->first();
 
         return response()->json([
-            'pesan' => 'Visibilitas toolbar dimuat.',
+            'pesan' => 'Setelan toolbar dimuat.',
             'data' => [
                 'table_key' => $data['table_key'],
                 'visibilitas' => $row?->visibilitas ?? [],
+                // Peta lama: masih dikembalikan agar klien lama tak rusak,
+                // tapi sudah kosong sejak migrasi ke `komponen_custom`.
                 'lebar' => $row?->lebar ?? [],
                 'tinggi' => $row?->tinggi ?? [],
                 'urutan' => $row?->urutan ?? [],
@@ -103,23 +55,34 @@ class ToolbarPresetController extends Controller
     }
 
     /** PUT /api/admin/toolbar-preset — upsert gabung: hanya kunci yang
-     *  dikirim yang ditimpa (visibilitas/lebar/urutan/align independen). */
+     *  dikirim yang ditimpa (visibilitas/urutan/align independen). */
     public function simpan(ToolbarPresetSimpanRequest $request): JsonResponse
     {
         $data = $request->validated();
 
-        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('lebar', $data) && ! array_key_exists('tinggi', $data) && ! array_key_exists('nilai_default', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data)) {
+        /* Ukuran kotak & nilai awal komponen sudah pindah ke
+           `KomponenCustomController` (tabel `komponen_custom`): endpoint ini
+           hanya menyimpan apa yang milik tabel. Cek ini duluan supaya pesannya
+           tepat (bukan "kirim minimal satu setelan"). */
+        foreach (self::SETELAN_KOMPONEN_PINDAH as $kunci) {
+            if (array_key_exists($kunci, $data)) {
+                throw ValidationException::withMessages([
+                    $kunci => 'Ukuran & nilai awal komponen kini milik komponen (tabel komponen_custom), bukan tabel.',
+                ]);
+            }
+        }
+
+        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data)) {
             throw ValidationException::withMessages([
-                'table_key' => 'Kirim minimal satu dari visibilitas, lebar, tinggi, nilai_default, urutan, atau align.',
+                'table_key' => 'Kirim minimal satu dari visibilitas, urutan, atau align.',
             ]);
         }
 
-        // Hanya LEBAR/TINGGI/NILAI AWAL kotak kontrol yang dibuka untuk semua
-        // pengguna (diatur dari popover klik-kanan combobox). Visibilitas,
-        // urutan kolom, dan perataan tetap khusus super_admin.
-        $khususSuperAdmin = array_intersect(['visibilitas', 'urutan', 'align'], array_keys($data));
-        if ($khususSuperAdmin !== [] && ! $request->user()->bolehSuperAdmin()) {
-            abort(403, 'Hanya ukuran (lebar/tinggi) kotak kontrol yang dapat diubah pengguna biasa.');
+        // Hanya setelan TABEL yang boleh ditulis, dan semuanya khusus
+        // super_admin (visibilitas/urutan/perataan dikelola dari dialog Kelola
+        // Tabel; setelan komponen lewat `komponen-custom`).
+        if (! $request->user()->bolehSuperAdmin()) {
+            abort(403, 'Setelan tabel hanya dapat diubah super_admin.');
         }
 
         $row = ToolbarPreset::firstOrNew(['table_key' => $data['table_key']]);
@@ -140,33 +103,6 @@ class ToolbarPresetController extends Controller
                 $normal[$kunci] = (bool) $nilai;
             }
             $row->visibilitas = $normal;
-        }
-
-        if (array_key_exists('lebar', $data)) {
-            $row->lebar = self::normalisasiUkuran($data['lebar'], 'lebar');
-        }
-
-        if (array_key_exists('tinggi', $data)) {
-            $row->tinggi = self::normalisasiUkuran($data['tinggi'], 'tinggi');
-        }
-
-        if (array_key_exists('nilai_default', $data)) {
-            $nilaiAwal = [];
-            foreach ($data['nilai_default'] as $kunci => $nilai) {
-                $kunci = (string) $kunci;
-                $isFilter = preg_match('/^filter\.[a-z0-9_]{1,60}$/', $kunci) === 1;
-                if (! in_array($kunci, self::KUNCI_UKURAN, true) && ! $isFilter) {
-                    throw ValidationException::withMessages([
-                        'nilai_default' => "Kunci nilai default \"{$kunci}\" tidak dikenal.",
-                    ]);
-                }
-                $teks = trim((string) $nilai);
-                if ($teks === '') {
-                    continue;
-                }
-                $nilaiAwal[$kunci] = mb_substr($teks, 0, 100);
-            }
-            $row->nilai_default = $nilaiAwal === [] ? null : $nilaiAwal;
         }
 
         if (array_key_exists('urutan', $data)) {
@@ -196,7 +132,7 @@ class ToolbarPresetController extends Controller
         $row->dibuat_oleh = $request->user()->id;
         $row->save();
 
-        return response()->json(['pesan' => 'Toolbar disimpan.', 'data' => $row]);
+        return response()->json(['pesan' => 'Setelan tabel disimpan.', 'data' => $row]);
     }
 
     /** DELETE /api/admin/toolbar-preset?table_key=santri — kembali tampil semua. */
@@ -206,6 +142,6 @@ class ToolbarPresetController extends Controller
 
         ToolbarPreset::where('table_key', $data['table_key'])->delete();
 
-        return response()->json(['pesan' => 'Visibilitas toolbar dikembalikan ke bawaan (semua tampil).']);
+        return response()->json(['pesan' => 'Setelan toolbar dikembalikan ke bawaan (semua tampil).']);
     }
 }

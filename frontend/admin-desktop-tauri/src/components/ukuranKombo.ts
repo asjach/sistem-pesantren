@@ -1,5 +1,11 @@
-import { useEffect, useSyncExternalStore } from 'react';
-import { prefGet, prefSet } from '@/api/client';
+/**
+ * Tipe, batas, dan alat bantu UKURAN kotak komponen kustom.
+ *
+ *  Tipe & batasnya dipakai bersama oleh popover pengaturan dan validasi backend
+ *  (`KomponenCustomController`). PENYIMPANANNYA tak ada di file ini: setelan
+ *  komponen hidup di server, tabel `komponen_custom` (lihat
+ *  `components/komponenCustom.ts`) — dulu pernah per perangkat lewat store ini.
+ */
 
 /** Ukuran KOTAK `LabeledCombobox` (label + zona kontrol) per komponen:
  *  tinggi & lebar TOTAL kotak dalam px, plus lebar LABEL dan lebar KONTROL
@@ -61,16 +67,9 @@ export const LEBAR_KONTROL_BAWAAN = 80;
  *  selaras dengan lebar total bawaan kotak (`LEBAR_BAWAHAN_FILTER`). */
 export const LEBAR_KOMBO_BAWAAN = 160;
 
-/** Kunci simpanan preferensi perangkat (peta: kunci komponen → ukuran). */
-export const KUNCI_UKURAN_KOMBO = 'simpes_ukuran_kombo';
-
-/** Snapshot stabil untuk komponen tanpa ukuran tersimpan (wajib: nilai yang
- *  dikembalikan `getSnapshot` tak boleh berubah identitas tiap panggilan). */
+/** Snapshot stabil untuk komponen tanpa setelan (nilai yang dikembalikan
+ *  `getSnapshot` tak boleh berubah identitas tiap panggilan). */
 const KOSONG: UkuranKombo = Object.freeze({});
-
-/** Registri modul: kunci komponen (htmlFor combobox) → ukuran tersimpan. */
-const peta = new Map<string, UkuranKombo>();
-const pendengar = new Set<() => void>();
 
 /** Jepit nilai apa pun ke rentang; non-angka → undefined (dibuang). */
 function jepitKetat(v: unknown, min: number, maks: number): number | undefined {
@@ -115,75 +114,4 @@ export function normalkanUkuran(v: unknown): UkuranKombo {
     hasil.nilaiDefault = o.nilaiDefault.trim().slice(0, NILAI_DEFAULT_MAKS);
   }
   return hasil;
-}
-
-function beritahu() {
-  for (const f of pendengar) f();
-}
-
-function langganan(f: () => void): () => void {
-  pendengar.add(f);
-  return () => {
-    pendengar.delete(f);
-  };
-}
-
-let janjiMuat: Promise<void> | null = null;
-
-/** Muat peta ukuran dari penyimpanan SEKALI (Tauri store di desktop,
- *  localStorage di browser — keduanya lewat `prefGet`). */
-export function muatUkuranKombo(): Promise<void> {
-  if (janjiMuat === null) {
-    janjiMuat = (async () => {
-      try {
-        const mentah = await prefGet(KUNCI_UKURAN_KOMBO);
-        if (mentah === null || mentah.trim() === '') return;
-        const obj: unknown = JSON.parse(mentah);
-        if (obj === null || typeof obj !== 'object') return;
-        for (const [kunci, nilai] of Object.entries(obj as Record<string, unknown>)) {
-          const ukuran = normalkanUkuran(nilai);
-          if (Object.keys(ukuran).length > 0) peta.set(kunci, ukuran);
-        }
-        beritahu();
-      } catch {
-        /* simpanan rusak / penyimpanan tak tersedia: pakai bawaan */
-      }
-    })();
-  }
-  return janjiMuat;
-}
-
-function simpanKePenyimpanan(): void {
-  const obj: Record<string, UkuranKombo> = {};
-  for (const [kunci, ukuran] of peta) obj[kunci] = ukuran;
-  void prefSet(KUNCI_UKURAN_KOMBO, JSON.stringify(obj));
-}
-
-/** Ukuran tersimpan sebuah komponen (absen = ikut nilai dari pemanggil). */
-export function ukuranKombo(kunci: string): UkuranKombo {
-  return peta.get(kunci) ?? KOSONG;
-}
-
-/** Simpan sebagian ukuran (nilai di luar rentang dijepit, `null` menghapus
- *  kunci itu — dipakai reset per-baris popover). */
-export function simpanUkuranKombo(kunci: string, ubah: UbahUkuranKombo): void {
-  if (kunci === '') return;
-  peta.set(kunci, normalkanUkuran({ ...ukuranKombo(kunci), ...ubah }));
-  beritahu();
-  simpanKePenyimpanan();
-}
-
-/** Hapus ukuran tersimpan → kotak kembali ke ukuran dari pemanggil. */
-export function kosongkanUkuranKombo(kunci: string): void {
-  if (!peta.delete(kunci)) return;
-  beritahu();
-  simpanKePenyimpanan();
-}
-
-/** Hook: ukuran sebuah komponen; ikut berubah begitu diatur dari popover. */
-export function useUkuranKombo(kunci: string): UkuranKombo {
-  useEffect(() => {
-    void muatUkuranKombo();
-  }, []);
-  return useSyncExternalStore(langganan, () => ukuranKombo(kunci), () => KOSONG);
 }

@@ -1,9 +1,22 @@
 import { waitFor } from '@testing-library/react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import PresetUrut from '@/components/PresetUrut';
-import { simpanUkuranKombo } from '@/components/ukuranKombo';
 import { renderDenganTema } from '@/test/utils';
+import { muatKomponenCustom } from '@/api/komponenCustom';
+import { resetSetelanKomponen, setelanKomponen, simpanSetelanKomponen } from '@/components/komponenCustom';
+
+/* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
+   menyemai setelan lewat store klien tanpa jaringan. */
+vi.mock('@/api/komponenCustom', () => ({
+  muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
+  simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
+  hapusKomponenCustom: vi.fn(async () => ({ pesan: '' })),
+}));
+
+beforeEach(() => {
+  resetSetelanKomponen();
+});
 import { useDaftarTabel } from './useDaftarTabel';
 
 beforeAll(() => {
@@ -57,7 +70,11 @@ function Harness({ dicatat }: { dicatat: (urut: string[]) => void }) {
 
 describe('useDaftarTabel + PresetUrut — nilai awal dari popover', () => {
   it('muat terakhir memakai urutan nilai awal', async () => {
-    simpanUkuranKombo('select_urut_uji_int', { nilaiDefault: 'Kelas' });
+    // Server sudah menyimpan nilai awal; komponen memuatnya sekali saat tampil.
+    vi.mocked(muatKomponenCustom).mockResolvedValueOnce({
+      pesan: 'ok',
+      data: { peta: { '|select_urut_uji_int': { nilaiDefault: 'Kelas' } } },
+    });
     const calls: string[][] = [];
     renderDenganTema(<Harness dicatat={(u) => calls.push(u)} />);
 

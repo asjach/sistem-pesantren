@@ -6,6 +6,7 @@ use App\Models\KomponenCustom;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -160,5 +161,115 @@ class KomponenCustomTest extends TestCase
             ->assertStatus(200);
 
         $this->assertDatabaseMissing('komponen_custom', ['komponen' => 'sel_a']);
+    }
+
+    public function test_simpan_ukuran_komponen_dan_nilai_awal(): void
+    {
+        $user = $this->makeUser('admin');
+
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'table_key' => 'santri',
+            'komponen' => 'sel_status',
+            'setelan' => [
+                'tinggi' => 34,
+                'lebar' => 320,
+                'lebarLabel' => 60,
+                'lebarKontrol' => 150,
+                'expandLabel' => true,
+                'labelTransparan' => false,
+                'nilaiDefault' => 'Aktif',
+                'tipeKontrol' => 'nominal',
+            ],
+        ])->assertStatus(200)->assertJsonPath('data.setelan.lebarLabel', 60)
+            ->assertJsonPath('data.setelan.expandLabel', true)
+            ->assertJsonPath('data.setelan.labelTransparan', false);
+
+        // Simpan ulang menyalin HANYA kunci yang dikirim (server menimpa utuh).
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'table_key' => 'santri',
+            'komponen' => 'sel_status',
+            'setelan' => ['tinggi' => 30],
+        ])->assertStatus(200);
+
+        $setelan = KomponenCustom::where('komponen', 'sel_status')->firstOrFail()->setelan;
+        $this->assertSame(['tinggi' => 30], $setelan);
+    }
+
+    public function test_tolak_ukuran_di_luar_rentang(): void
+    {
+        $user = $this->makeUser('admin');
+
+        // Tinggi di bawah batas bawah (20px) dan lebar total di bawah 80px.
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'inp_a', 'setelan' => ['tinggi' => 5],
+        ])->assertStatus(422)->assertJsonValidationErrors('setelan.tinggi');
+
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'inp_a', 'setelan' => ['lebar' => 40],
+        ])->assertStatus(422)->assertJsonValidationErrors('setelan.lebar');
+
+        // Lebar label melebihi batas atas 400px.
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'inp_a', 'setelan' => ['lebarLabel' => 900],
+        ])->assertStatus(422)->assertJsonValidationErrors('setelan.lebarLabel');
+
+        // Penanda harus boolean.
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'inp_a', 'setelan' => ['expandLabel' => 1],
+        ])->assertStatus(422)->assertJsonValidationErrors('setelan.expandLabel');
+
+        // Nilai awal kosong tidak menghasilkan setelan yang bisa disimpan.
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'inp_a', 'setelan' => ['nilaiDefault' => '   '],
+        ])->assertStatus(422)->assertJsonValidationErrors('setelan');
+    }
+
+    public function test_migrasi_data_memindahkan_setelan_komponen_dari_toolbar_preset(): void
+    {
+        $user = $this->makeUser('admin');
+
+        // Data lama: peta komponen (bersufiks) bercampur dengan kunci tabel.
+        DB::table('toolbar_preset')->insert([
+            'table_key' => 'santri',
+            'visibilitas' => json_encode([]),
+            'lebar' => json_encode([
+                'filter.sel_a' => 300,
+                'filter.sel_a.label' => 60,
+                'filter.sel_a.kontrol' => 150,
+                'filter.sel_a.expand' => 1,
+                'filter.sel_a.labeltransparan' => 0,
+                'urut' => 150,
+                'kolom' => 150,
+            ]),
+            'tinggi' => json_encode(['filter.sel_a' => 34]),
+            'nilai_default' => json_encode(['filter.sel_a' => 'Kelas']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $migrasi = require database_path('migrations/2026_10_12_100000_pindahkan_setelan_komponen_dari_toolbar_preset.php');
+        $migrasi->up();
+
+        // Satu baris per komponen, kunci camelCase seperti frontend.
+        $baris = KomponenCustom::where('table_key', 'santri')->where('komponen', 'sel_a')->firstOrFail();
+        $this->assertSame([
+            'lebar' => 300,
+            'lebarLabel' => 60,
+            'lebarKontrol' => 150,
+            'expandLabel' => true,
+            'labelTransparan' => false,
+            'tinggi' => 34,
+            'nilaiDefault' => 'Kelas',
+        ], $baris->setelan);
+
+        // Peta lama dibersihkan dari komponen; kunci tabel tetap utuh.
+        $toolbar = DB::table('toolbar_preset')->where('table_key', 'santri')->first();
+        $this->assertSame(['urut' => 150, 'kolom' => 150], json_decode((string) $toolbar->lebar, true));
+        $this->assertNull($toolbar->tinggi);
+        $this->assertNull($toolbar->nilai_default);
+
+        // Endpoint membaca hasil migrasi.
+        $this->actingAs($user, 'sanctum')->getJson('/api/admin/komponen-custom')
+            ->assertJsonPath('data.peta.santri|sel_a.lebar', 300);
     }
 }

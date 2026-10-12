@@ -54,7 +54,7 @@ export function useUrutanKolom({
     }
     setUrutanDb(keys);
     tundaSimpanUrutan.current = window.setTimeout(() => {
-      simpanToolbarPreset(tableKey, undefined, undefined, keys)
+      simpanToolbarPreset(tableKey, undefined, keys)
         .then(() => {
           toast.success(keys.length === 0 ? 'Urutan kolom dikembalikan ke bawaan.' : 'Urutan kolom disimpan (berlaku semua).');
           window.dispatchEvent(new CustomEvent(EVENT_TOOLBAR_BERUBAH, { detail: { tableKey } }));

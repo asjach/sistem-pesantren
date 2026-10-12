@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useLayoutEffect, useRef, useState, type Mutabl
 import { cn } from '@/lib/utils';
 import { LEBAR_BAWAHAN_FILTER } from '@/components/kelolaTabel/jenis';
 import { pakaiLebarFilter } from '@/components/excel/lebarFilter';
+import { useSetelanKomponen } from '@/components/komponenCustom';
 
 /** Satuan CSS: angka = px, string dipakai apa adanya. */
 export function keCss(v: number | string): string {
@@ -98,12 +99,12 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
     ? (lebarEfektif === null ? keCss(lebarKontrol) : `${lebarEfektif}px`)
     : undefined;
 
-  /* Override lebar KOTAK dari Kelola Tabel (di dalam toolbar tabel, kunci =
-     `htmlFor`). Tanpa override, kotak memakai LEBAR_BAWAHAN_FILTER (sama
-     seperti FilterField). Lebar yang dikunci eksplisit tetap menang. */
+  /* Lebar KOTAK: dari setelan komponen (server, tabel `komponen_custom`) bila
+     ada; tanpa itu, di dalam toolbar tabel memakai LEBAR_BAWAHAN_FILTER (sama
+     dengan FilterField). Lebar yang dikunci eksplisit tetap menang. */
   const konteks = pakaiLebarFilter();
   const kunci = konteks && htmlFor && kelolaLebar ? htmlFor : '';
-  const override = kunci ? konteks?.lebar[kunci] : undefined;
+  const override = useSetelanKomponen(konteks?.tableKey ?? '', kunci).lebar;
   const lebarKotakEfektif = lebarKotak ?? (kunci === '' || kontrolKunci
     ? undefined
     : override ?? LEBAR_BAWAHAN_FILTER);

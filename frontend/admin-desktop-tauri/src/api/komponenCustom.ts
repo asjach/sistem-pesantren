@@ -1,8 +1,32 @@
 import { api } from './client';
 
-/** Peta setelan satu komponen (kunci setelan → nilai), contoh
- *  `{ tipeKontrol: 'nominal' }`. */
-export type SetelanKomponen = Record<string, string>;
+/** Setelan satu komponen kustom. Semua nilai opsional: yang absen = bawaan
+ *  pemanggil (lihat `ukuranKombo.ts` untuk batas px-nya).
+ *
+ *  Tipe `null` hanya dipakai di sisi klien saat MENYIMPAN perubahan: `null`
+ *  berarti hapus kunci itu (kembali ke bawaan). Payload ke server tak pernah
+ *  memuat `null`. */
+export interface SetelanKomponen {
+  /** Tinggi kotak (px). */
+  tinggi?: number;
+  /** Lebar TOTAL kotak (px). */
+  lebar?: number;
+  /** Lebar label terkunci (px). */
+  lebarLabel?: number;
+  /** Lebar kontrol terkunci (px). */
+  lebarKontrol?: number;
+  /** True = sisi yang mengembang saat total diubah adalah LABEL. */
+  expandLabel?: boolean;
+  /** True = label transparan (tanpa latar, teks bertitik dua). */
+  labelTransparan?: boolean;
+  /** Label opsi yang jadi nilai AWAL combobox. */
+  nilaiDefault?: string;
+  /** Tipe kontrol input (registry `tipeInput.tsx`), mis. `nominal`. */
+  tipeKontrol?: string;
+}
+
+/** Setelan + tanda "hapus kunci ini" (`null`) — bentuk kiriman dari UI. */
+export type UbahSetelanKomponen = { [K in keyof SetelanKomponen]?: SetelanKomponen[K] | null };
 
 export interface KomponenCustomRow {
   table_key: string;

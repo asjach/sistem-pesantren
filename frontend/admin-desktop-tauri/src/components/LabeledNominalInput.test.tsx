@@ -1,11 +1,23 @@
 import { useState } from 'react';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import LabeledNominalInput, { PRESET_NOMINAL } from './LabeledNominalInput';
-import { ukuranKombo } from '@/components/ukuranKombo';
 import { renderDenganTema } from '@/test/utils';
+import { resetSetelanKomponen, setelanKomponen, simpanSetelanKomponen } from '@/components/komponenCustom';
+
+/* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
+   menyemai setelan lewat store klien tanpa jaringan. */
+vi.mock('@/api/komponenCustom', () => ({
+  muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
+  simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
+  hapusKomponenCustom: vi.fn(async () => ({ pesan: '' })),
+}));
+
+beforeEach(() => {
+  resetSetelanKomponen();
+});
 
 /** Harness terkontrol: meniru pemakaian nyata (`value` + `onValueChange`). */
 function Contoh({ preset, awal = '' }: { preset?: number[]; awal?: string }) {

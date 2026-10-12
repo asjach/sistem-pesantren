@@ -4,12 +4,14 @@ import { Select, SelectTrigger } from '@/components/ui/select';
 import ComboCari from './ComboCari';
 import { LEBAR_BAWAHAN_FILTER } from './kelolaTabel/jenis';
 import { pakaiLebarFilter } from './excel/lebarFilter';
+import { useSetelanKomponen } from './komponenCustom';
 
 /** Pembungkus kontrol filter toolbar tabel: label kecil di atas kontrol.
  *
- *  Bila ter-render di dalam toolbar tabel (konteks lebar tersedia), punya
- *  `htmlFor`, dan `kelolaLebar` tidak dimatikan, override lebar tersimpan
- *  (dari popover klik-kanan kontrol) diterapkan ke kontrol anak via `style`.
+ *  Bila ter-render di dalam toolbar tabel (konteks tersedia), punya
+ *  `htmlFor`, dan `kelolaLebar` tidak dimatikan, lebar tersimpan pada setelan
+ *  komponen (dari popover klik-kanan kontrol) diterapkan ke kontrol anak via
+ *  `style`.
  *  Tanpa override, anak Select/ComboCari memakai `LEBAR_BAWAHAN_FILTER`;
  *  anak selain combobox (mis. input tanggal) memakai lebar alami. Di luar
  *  toolbar: polos seperti semula. */
@@ -31,7 +33,8 @@ export default function FilterField({ label, htmlFor, children, className, kelol
     : null;
   const anakCombobox = anakTunggal?.type === Select || anakTunggal?.type === ComboCari;
   const kunci = konteks && htmlFor && kelolaLebar && anakCombobox ? htmlFor : '';
-  const override = kunci ? konteks?.lebar[kunci] : undefined;
+  // Lebar tersimpan = setelan komponen (server), bukan peta tabel.
+  const override = useSetelanKomponen(konteks?.tableKey ?? '', kunci).lebar;
 
   let isi = children;
   const lebarBawaan = kunci && anakTunggal && anakCombobox ? LEBAR_BAWAHAN_FILTER : undefined;

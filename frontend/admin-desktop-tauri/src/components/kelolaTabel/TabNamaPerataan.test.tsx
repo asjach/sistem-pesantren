@@ -110,7 +110,7 @@ describe('TabNamaPerataan — perataan kolom', () => {
       simpanRef.current?.();
     });
     await waitFor(() => expect(simpanToolbarPreset).toHaveBeenCalledWith(
-      'uji', undefined, undefined, undefined, { nama: 'left' },
+      'uji', undefined, undefined, { nama: 'left' },
     ));
   });
 });

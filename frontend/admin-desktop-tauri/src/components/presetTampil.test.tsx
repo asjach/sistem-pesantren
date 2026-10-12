@@ -1,7 +1,21 @@
 import { screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderDenganTema } from '@/test/utils';
+import { muatKomponenCustom } from '@/api/komponenCustom';
+import { resetSetelanKomponen, setelanKomponen, simpanSetelanKomponen } from '@/components/komponenCustom';
+
+/* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
+   menyemai setelan lewat store klien tanpa jaringan. */
+vi.mock('@/api/komponenCustom', () => ({
+  muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
+  simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
+  hapusKomponenCustom: vi.fn(async () => ({ pesan: '' })),
+}));
+
+beforeEach(() => {
+  resetSetelanKomponen();
+});
 import type { ExcelField } from './ExcelTable';
 
 // ---- Mock API preset (unit test tidak boleh memanggil fetch nyata) ----
@@ -29,7 +43,6 @@ vi.mock('@/api/preset', async (importOriginal) => {
 
 import PresetUrut from './PresetUrut';
 import PresetKolom from './PresetKolom';
-import { simpanUkuranKombo } from './ukuranKombo';
 
 const FIELDS = [{ key: 'a', label: 'A' }] as ExcelField[];
 
@@ -87,7 +100,11 @@ describe('dropdown Urutkan — tampil hanya bila pilihan > 1', () => {
 describe('dropdown Urutkan — nilai awal dari popover', () => {
   it('menerapkan nilai awal saat preset termuat (bukan hanya tampilannya)', async () => {
     const tableKey = `uji_awal_${Date.now()}`;
-    simpanUkuranKombo(`select_urut_${tableKey}`, { nilaiDefault: 'Kelas' });
+    // Server sudah menyimpan nilai awal; komponen memuatnya sekali saat tampil.
+    vi.mocked(muatKomponenCustom).mockResolvedValueOnce({
+      pesan: 'ok',
+      data: { peta: { [`|select_urut_${tableKey}`]: { nilaiDefault: 'Kelas' } } },
+    });
     const onUrut = vi.fn();
     muatUrutPreset.mockResolvedValue({
       pesan: 'ok',
@@ -120,8 +137,8 @@ describe('dropdown Urutkan — nilai awal dari popover', () => {
     await waitFor(() => expect(muatUrutPreset).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 50));
 
-    // BARU nilai awal datang dari penyimpanan perangkat (async di app nyata).
-    simpanUkuranKombo(`select_urut_${tableKey}`, { nilaiDefault: 'Kelas' });
+    // BARU nilai awal datang dari server (async di app nyata).
+    simpanSetelanKomponen('', `select_urut_${tableKey}`, { nilaiDefault: 'Kelas' });
 
     await waitFor(() => expect(onUrut).toHaveBeenCalledWith(['b'], 'naik', undefined));
   });

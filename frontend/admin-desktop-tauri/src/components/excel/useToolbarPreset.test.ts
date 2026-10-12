@@ -10,8 +10,10 @@ const server = vi.hoisted(() => {
     pesan: 'ok',
     data: { table_key: 'uji', visibilitas: {}, lebar: {}, urutan: [], align: { ...state.align } },
   }));
+  // Signature baru: (table_key, visibilitas?, urutan?, align?) — ukuran &
+  // nilai awal komponen sudah pindah ke `komponen-custom`.
   const simpan = vi.fn(
-    async (_t: string, _v?: unknown, _l?: unknown, _u?: unknown, a?: Record<string, string>) => {
+    async (_t: string, _v?: unknown, _u?: unknown, a?: Record<string, string>) => {
       state.align = { ...(a ?? {}) };
       return { pesan: 'ok', data: null };
     },
@@ -52,7 +54,7 @@ describe('useToolbarPresetState.simpanAlign — klik-kanan tulis DB global', () 
     expect(result.current.alignDb).toEqual({ nama: 'left', kode: 'right' });
 
     await waitFor(() => expect(server.simpan).toHaveBeenCalledWith(
-      'uji', undefined, undefined, undefined, { nama: 'left', kode: 'right' },
+      'uji', undefined, undefined, { nama: 'left', kode: 'right' },
     ));
     // Muat ulang via event membaca balik yang baru disimpan.
     await waitFor(() => expect(server.muat.mock.calls.length).toBeGreaterThan(1));

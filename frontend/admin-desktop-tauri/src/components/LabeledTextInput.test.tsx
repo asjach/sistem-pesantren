@@ -1,12 +1,23 @@
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import LabeledTextInput, { hitungLebarInput } from './LabeledTextInput';
 import { KonteksLebarFilter } from '@/components/excel/lebarFilter';
-import { ukuranKombo } from '@/components/ukuranKombo';
-import { resetSetelanKomponen, setelanKomponen } from '@/components/komponenCustom';
 import { renderDenganTema } from '@/test/utils';
+import { resetSetelanKomponen, setelanKomponen, simpanSetelanKomponen } from '@/components/komponenCustom';
+
+/* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
+   menyemai setelan lewat store klien tanpa jaringan. */
+vi.mock('@/api/komponenCustom', () => ({
+  muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
+  simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
+  hapusKomponenCustom: vi.fn(async () => ({ pesan: '' })),
+}));
+
+beforeEach(() => {
+  resetSetelanKomponen();
+});
 
 describe('LabeledTextInput', () => {
   it('label terhubung ke input via for ↔ id', () => {
@@ -72,7 +83,7 @@ describe('LabeledTextInput', () => {
   it('di dalam toolbar: kotak memakai lebar bawaan (160px)', () => {
     const tableKey = `uji_lti_${Date.now()}`;
     renderDenganTema(
-      <KonteksLebarFilter.Provider value={{ tableKey, lebar: {} }}>
+      <KonteksLebarFilter.Provider value={{ tableKey }}>
         <LabeledTextInput label="Nama" htmlFor="inp_uji" />
       </KonteksLebarFilter.Provider>,
     );
@@ -80,10 +91,12 @@ describe('LabeledTextInput', () => {
     expect(kotak.style.width).toBe('160px');
   });
 
-  it('lebar override Kelola Tabel dipakai pada kotak', () => {
+  it('lebar tersimpan pada setelan komponen dipakai pada kotak', () => {
     const tableKey = `uji_lti_ovr_${Date.now()}`;
+    // Lebar kotak milik komponen (server), bukan peta Kelola Tabel.
+    simpanSetelanKomponen(tableKey, 'inp_uji', { lebar: 260 });
     renderDenganTema(
-      <KonteksLebarFilter.Provider value={{ tableKey, lebar: { inp_uji: 260 } }}>
+      <KonteksLebarFilter.Provider value={{ tableKey }}>
         <LabeledTextInput label="Nama" htmlFor="inp_uji" />
       </KonteksLebarFilter.Provider>,
     );
@@ -136,13 +149,13 @@ describe('LabeledTextInput', () => {
     expect(await screen.findByLabelText('Tinggi kotak input (px)')).not.toBeNull();
     // Total +10 (bawaan kontrol mengembang): kontrol 80→90, label tetap.
     await userEvent.click(await screen.findByLabelText('Lebar kotak input (px) tambah'));
-    expect(ukuranKombo(kunci)).toEqual({ lebar: 170, lebarKontrol: 90 });
+    expect(setelanKomponen('', kunci)).toEqual({ lebar: 170, lebarKontrol: 90 });
     // Warna label: bawaan "Transparan"; pilih "Tidak Transparan" → ber-bg.
     const warna = screen.getByRole('combobox', { name: 'Warna Label:' });
     expect(warna).toHaveValue('Transparan');
     await userEvent.click(warna);
     await userEvent.click(await screen.findByRole('option', { name: 'Tidak Transparan' }));
-    expect(ukuranKombo(kunci).labelTransparan).toBe(false);
+    expect(setelanKomponen('', kunci).labelTransparan).toBe(false);
     expect((container.querySelector(`label[for="${kunci}"]`) as HTMLElement).textContent).toBe('Nama');
   });
 

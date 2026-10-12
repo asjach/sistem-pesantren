@@ -1,9 +1,21 @@
 import { useState } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderDenganTema } from '@/test/utils';
-import { ukuranKombo } from '@/components/ukuranKombo';
+import { resetSetelanKomponen, setelanKomponen, simpanSetelanKomponen } from '@/components/komponenCustom';
+
+/* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
+   menyemai setelan lewat store klien tanpa jaringan. */
+vi.mock('@/api/komponenCustom', () => ({
+  muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
+  simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
+  hapusKomponenCustom: vi.fn(async () => ({ pesan: '' })),
+}));
+
+beforeEach(() => {
+  resetSetelanKomponen();
+});
 import LabeledStepper from '@/components/LabeledStepper';
 
 function Contoh({ min = 0, max = 10, step = 1, awal = 4 }: { min?: number; max?: number; step?: number; awal?: number }) {
@@ -64,6 +76,6 @@ describe('LabeledStepper', () => {
     expect(await screen.findByLabelText('Tinggi kotak stepper (px)')).not.toBeNull();
     // Label +4 → kontrol menyusut 4 (total tetap 160).
     await userEvent.click(await screen.findByLabelText('Lebar label stepper (px) tambah'));
-    expect(ukuranKombo(kunci)).toEqual({ lebarLabel: 84, lebarKontrol: 76 });
+    expect(setelanKomponen('', kunci)).toEqual({ lebarLabel: 84, lebarKontrol: 76 });
   });
 });

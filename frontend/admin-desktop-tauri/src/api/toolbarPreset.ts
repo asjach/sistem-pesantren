@@ -3,31 +3,23 @@ import { api } from './client';
 /** Peta kontrol → tampil (true/absen) atau sembunyi (false). */
 export type VisibilitasToolbar = Record<string, boolean>;
 
-/** Peta kontrol → lebar px (urut/kolom/filter.*). */
-export type LebarToolbarApi = Record<string, number>;
-
-/** Peta kontrol → tinggi px; KUNCI-nya sama dengan lebar. */
-export type TinggiToolbarApi = Record<string, number>;
-
 /** Peta key kolom → perataan (satu nilai per kolom per tabel, bukan per preset). */
 export type AlignKolomApi = Record<string, 'left' | 'center' | 'right'>;
-
-/** Peta kontrol → label opsi yang jadi nilai AWAL combobox (kunci sama dengan
- *  `lebar`: `urut`/`kolom`/`filter.<htmlFor>`). */
-export type NilaiDefaultApi = Record<string, string>;
 
 export interface ToolbarPresetData {
   table_key: string;
   visibilitas: VisibilitasToolbar;
-  lebar: LebarToolbarApi;
-  /** Tinggi kotak kontrol (px); kunci sama dengan `lebar`. */
-  tinggi: TinggiToolbarApi;
+  /** DEPRECATED: peta lebar komponen. Sudah pindah ke `komponen_custom` dan tak
+   *  lagi ditulis backend; tetap dikembalikan agar klien lama tak rusak. */
+  lebar: Record<string, number>;
+  /** @see ToolbarPresetData.lebar */
+  tinggi: Record<string, number>;
   /** Urutan key kolom data (global); kosong = urutan bawaan halaman. */
   urutan: string[];
   /** Perataan kolom (absen = tengah). */
   align: AlignKolomApi;
-  /** Nilai awal combobox per kontrol (absen = pakai nilai pemanggil). */
-  nilai_default: NilaiDefaultApi;
+  /** @see ToolbarPresetData.lebar */
+  nilai_default: Record<string, string>;
 }
 
 export function muatToolbarPreset(tableKey: string) {
@@ -36,20 +28,20 @@ export function muatToolbarPreset(tableKey: string) {
   );
 }
 
-/** `tinggi` ditaruh paling AKHIR supaya pemanggil lama (posisional) tak
- *  bergeser. Kirim peta LENGKAP untuk `lebar`/`tinggi`: server mengganti
- *  seluruh peta, bukan menggabung. `nilaiDefault` sama: kirim peta lengkap. */
-export function simpanToolbarPreset(tableKey: string, visibilitas?: VisibilitasToolbar, lebar?: LebarToolbarApi, urutan?: string[], align?: AlignKolomApi, tinggi?: TinggiToolbarApi, nilaiDefault?: NilaiDefaultApi) {
+/**
+ * Simpan setelan TABEL. `lebar`/`tinggi`/`nilai_default` tak lagi diterima
+ * backend — setelan komponen pindah ke `komponenCustom.ts`.
+ *
+ * `align` ditaruh paling AKHIR supaya pemanggil lama (posisional) tak bergeser.
+ */
+export function simpanToolbarPreset(tableKey: string, visibilitas?: VisibilitasToolbar, urutan?: string[], align?: AlignKolomApi) {
   return api<{ pesan: string; data: unknown }>('/admin/toolbar-preset', {
     method: 'PUT',
     body: JSON.stringify({
       table_key: tableKey,
       ...(visibilitas ? { visibilitas } : {}),
-      ...(lebar ? { lebar } : {}),
-      ...(tinggi ? { tinggi } : {}),
       ...(urutan ? { urutan } : {}),
       ...(align ? { align } : {}),
-      ...(nilaiDefault ? { nilai_default: nilaiDefault } : {}),
     }),
   });
 }

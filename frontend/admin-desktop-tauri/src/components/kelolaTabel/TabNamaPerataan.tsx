@@ -135,7 +135,7 @@ export default function TabNamaPerataan({
       if (v !== undefined && fieldKeys.has(k)) bersih[k] = v;
     }
     try {
-      await simpanToolbarPreset(tableKey, undefined, undefined, undefined, bersih);
+      await simpanToolbarPreset(tableKey, undefined, undefined, bersih);
       alignAwalRef.current = kanonAlign(bersih);
       kabariToolbar(tableKey);
       laporKotor(false);

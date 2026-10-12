@@ -109,9 +109,9 @@ export default function PresetUrut({
       htmlFor={`select_urut_${tableKey}`}
       kelolaLebar={false}
       /* Lebar tersimpan untuk SELURUH kontrol Urutkan; label mengikuti
-         panjang teksnya, sisa lebar diisi combobox. Lebar tak lagi dari
-         preset toolbar (lepas dari Kelola Tabel) — bawaan tetap, bisa
-         diubah per perangkat lewat popover klik-kanan. */
+         panjang teksnya, sisa lebar diisi combobox. Lebar tak lagi milik
+         Kelola Tabel — ia milik komponen ini (tabel `komponen_custom`, kunci
+         `select_urut_<tableKey>`), diubah lewat popover klik-kanan. */
       lebarKotak={LEBAR_BAWAHAN_FILTER}
       /* `gap-0 items-stretch`: kelas wrapper bawaan (`gap-1.5 items-center`)
          untuk mode klasik (label di samping kontrol). Label & zona harus

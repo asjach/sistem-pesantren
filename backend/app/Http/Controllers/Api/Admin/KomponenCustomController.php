@@ -23,7 +23,8 @@ class KomponenCustomController extends Controller
 {
     /**
      * Kunci setelan yang dikenal + validasinya. Daftar tipe input diselaraskan
-     * dengan registry frontend `src/components/tipeInput.tsx`.
+     * dengan registry frontend `src/components/tipeInput.tsx`; kunci ukuran
+     * dengan `ukuranKombo.ts`.
      */
     public const TIPE_INPUT = [
         'teks', 'teks_rahasia', 'angka', 'nominal', 'tanggal', 'bulan',
@@ -31,8 +32,26 @@ class KomponenCustomController extends Controller
     ];
 
     /**
+     * Rentang ukuran kotak komponen (px) — WAJIB sama dengan popover
+     * pengaturan (`ukuranKombo.ts`): tinggi 20–120, lebar total 80–1200
+     * (di bawah 80px label + kontrol tak terbaca), lebar label 40–400,
+     * lebar kontrol 40–1200.
+     */
+    public const BATAS_PX = [
+        'tinggi' => [20, 120],
+        'lebar' => [80, 1200],
+        'lebarLabel' => [40, 400],
+        'lebarKontrol' => [40, 1200],
+    ];
+
+    /**
      * Normalisasi peta setelan: kunci tak dikenal atau nilai tak sah ditolak
-     * dengan pesan yang menyebut kuncinya (mis. `setelan.tipeKontrol`).
+     * dengan pesan yang menyebut kuncinya (mis. `setelan.lebar`).
+     *
+     * Semua setelan milik komponen ini AWALNYA bercampur di `toolbar_preset`
+     * (lebar/tinggi/nilai_default + sufiks `.label`/`.kontrol`/`.expand`/
+     * `.labeltransparan`) atau di store perangkat; sekarang dikumpulkan di
+     * sini supaya menambah setelan cukup menambah aturan validasi.
      *
      * @throws ValidationException
      */
@@ -41,6 +60,7 @@ class KomponenCustomController extends Controller
         $hasil = [];
         foreach ($setelan as $kunci => $nilai) {
             $kunci = (string) $kunci;
+
             if ($kunci === 'tipeKontrol') {
                 $tipe = trim((string) $nilai);
                 if (! in_array($tipe, self::TIPE_INPUT, true)) {
@@ -49,6 +69,40 @@ class KomponenCustomController extends Controller
                     ]);
                 }
                 $hasil[$kunci] = $tipe;
+
+                continue;
+            }
+
+            if ($kunci === 'nilaiDefault') {
+                $teks = trim((string) $nilai);
+                if ($teks === '') {
+                    continue;
+                }
+                $hasil[$kunci] = mb_substr($teks, 0, 100);
+
+                continue;
+            }
+
+            if ($kunci === 'expandLabel' || $kunci === 'labelTransparan') {
+                if (! is_bool($nilai)) {
+                    throw ValidationException::withMessages([
+                        "setelan.{$kunci}" => "Penanda \"{$kunci}\" harus true atau false.",
+                    ]);
+                }
+                $hasil[$kunci] = $nilai;
+
+                continue;
+            }
+
+            if (isset(self::BATAS_PX[$kunci])) {
+                [$min, $maks] = self::BATAS_PX[$kunci];
+                $px = (int) $nilai;
+                if ($px < $min || $px > $maks) {
+                    throw ValidationException::withMessages([
+                        "setelan.{$kunci}" => "{$kunci} harus {$min}–{$maks}px.",
+                    ]);
+                }
+                $hasil[$kunci] = $px;
 
                 continue;
             }

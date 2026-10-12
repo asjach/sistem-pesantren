@@ -1,22 +1,28 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 
+import { errorMessage } from '@/api/client';
 import {
   hapusKomponenCustom,
   muatKomponenCustom,
   simpanKomponenCustom,
   type SetelanKomponen,
+  type UbahSetelanKomponen,
 } from '@/api/komponenCustom';
-import { errorMessage } from '@/api/client';
 
-/** Setelan komponen CUSTOM, satu entri per komponen: kunci = `tableKey` +
- *  `komponen` (htmlFor). Berbeda dengan ukuran toolbox, setelan ini milik
- *  komponen dan disimpan di SERVER (tabel `komponen_custom`), jadi ikut saat
- *  tabel dibuka di perangkat lain; komponen di luar tabel memakai `tableKey`
- *  kosong.
+/** Setelan komponen CUSTOM — SATU-SATUNYA tempat setelan komponen kustom
+ *  dibaca & ditulis (dulu: `toolbar_preset` untuk yang di dalam toolbar tabel,
+ *  dan store perangkat `ukuranKombo` untuk sisanya).
  *
- *  Tidak perlu izin khusus: setelannya diatur dari popover klik-kanan
- *  komponen, seperti ukuran kotak kontrol. */
+ *  Satu entri per komponen, kunci = `tableKey` + `komponen` (htmlFor),
+ *  disimpan di server (tabel `komponen_custom`). `tableKey` kosong untuk
+ *  komponen di luar tabel (dialog, form, popover), sehingga komponen yang
+ *  sama tetap punya setelannya di mana pun dipakai.
+ *
+ *  Baca: satu permintaan untuk seluruh peta (muatan kecil — hanya komponen yang
+ *  benar-benar disetel), lalu nilai diambil sinkron dari cache. Tulis:
+ *  KEADAAN LOKAL DULU supaya UI responsif, baru ke server; bila server menolak,
+ *  nilai dikembalikan seperti semula + toast. */
 const peta = new Map<string, SetelanKomponen>();
 const pendengar = new Set<() => void>();
 /** Setelan kosong yang selalu bernilai sama (dipakai `getSnapshot` bawaan). */
@@ -62,8 +68,15 @@ export function setelanKomponen(tableKey: string, komponen: string): SetelanKomp
   return peta.get(kunciSetelan(tableKey, komponen)) ?? KOSONG;
 }
 
-/** Tulis setelan satu komponen: duluan lokal (UI responsif), lalu ke server.
- *  Kegagalan server dikembalikan ke setelan sebelumnya + toast. */
+/** Gabung perubahan ke setelan satu komponen lalu kirim ke server. */
+export function gabungSetelanKomponen(tableKey: string, komponen: string, ubah: UbahSetelanKomponen): void {
+  const setelan = gabung(ubah, setelanKomponen(tableKey, komponen));
+  if (Object.keys(setelan).length === 0) hapusSetelanKomponen(tableKey, komponen);
+  else simpanSetelanKomponen(tableKey, komponen, setelan);
+}
+
+/** Tulis setelan satu komponen: dulu lokal (UI responsif), lalu ke server.
+ *  Kegagalan server mengembalikan nilai sebelumnya + toast. */
 export function simpanSetelanKomponen(tableKey: string, komponen: string, setelan: SetelanKomponen): void {
   const kunci = kunciSetelan(tableKey, komponen);
   const sebelumnya = peta.get(kunci);
@@ -109,4 +122,23 @@ export function useSetelanKomponen(tableKey: string, komponen: string): SetelanK
 export function resetSetelanKomponen(): void {
   peta.clear();
   janjiMuat = null;
+}
+
+/**
+ * Terapkan perubahan pada setelan.
+ *
+ *  - `null`/`undefined` untuk sebuah kunci = HAPUS kunci itu (kembali ke bawaan),
+ *    mis. reset baris "Lebar".
+ *  - `expandLabel: false` juga berarti hapus: yang disimpan hanya `true`, karena
+ *    bawaannya sudah "kontrol yang mengembang" — menyimpan `false` hanya menambah
+ *    data tanpa mengubah tampilan. `labelTransparan` berbeda: `false` DISIMPAN
+ *    karena itu arti tersendiri (label ber-bg, bukan transparan).
+ */
+export function gabung(ubah: UbahSetelanKomponen, setelan: SetelanKomponen): SetelanKomponen {
+  const hasil = { ...setelan };
+  for (const [kunci, nilai] of Object.entries(ubah) as [keyof SetelanKomponen, unknown][]) {
+    if (nilai === null || nilai === undefined || (kunci === 'expandLabel' && nilai === false)) delete hasil[kunci];
+    else Object.assign(hasil, { [kunci]: nilai });
+  }
+  return hasil;
 }
