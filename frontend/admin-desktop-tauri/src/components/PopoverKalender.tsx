@@ -28,8 +28,8 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
   const [buka, setBuka] = useState(false);
   /** Bulan & tahun yang ditampilkan grid TANGGAL (panel bawah). */
   const [tampil, setTampil] = useState(() => bulanDari(nilai));
-  /** Tahun pertama blok tahun di panel atas. */
-  const [awalBlok, setAwalBlok] = useState(() => awalBlokUntuk(bulanDari(nilai).tahun));
+  /** Tahun pertama blok tahun di panel atas (dibatas 1900–2100). */
+  const [awalBlok, setAwalBlok] = useState(() => batasAwalBlok(awalBlokUntuk(bulanDari(nilai).tahun)));
 
   /* Nilai berubah (dari luar, atau hasil pilih di panel) → ikuti bulannya;
      blok tahun ikut bergeser HANYA bila tahunnya di luar blok, supaya daftar
@@ -38,7 +38,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
     const p = pecahIso(nilai);
     if (p === null) return;
     setTampil({ tahun: p.tahun, bulan: p.bulan });
-    setAwalBlok((awal) => (p.tahun < awal || p.tahun > awal + TAHUN_PER_BLOK - 1 ? awalBlokUntuk(p.tahun) : awal));
+    setAwalBlok((awal) => batasAwalBlok(p.tahun < awal || p.tahun > awal + TAHUN_PER_BLOK - 1 ? awalBlokUntuk(p.tahun) : awal));
   }, [nilai]);
 
   /** Selalu dibuka pada bulan nilai terpilih (atau bulan ini), dengan tahun
@@ -48,7 +48,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
     if (!baru) return;
     const acuan = bulanDari(nilai);
     setTampil(acuan);
-    setAwalBlok(awalBlokUntuk(acuan.tahun));
+    setAwalBlok(batasAwalBlok(awalBlokUntuk(acuan.tahun)));
   };
 
   /** Pilih tanggal → tulis ISO ke pemanggil lalu tutup. */
@@ -86,7 +86,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
     const onGulir = (ev: WheelEvent) => {
       if (ev.deltaY === 0) return;
       ev.preventDefault();
-      setAwalBlok((awal) => awal + Math.sign(ev.deltaY) * TAHUN_PER_BARIS);
+      setAwalBlok((awal) => batasAwalBlok(awal + Math.sign(ev.deltaY) * TAHUN_PER_BARIS));
     };
     elTahun.addEventListener('wheel', onGulir, { passive: false });
     return () => elTahun.removeEventListener('wheel', onGulir);
@@ -98,12 +98,12 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
     const geser = e.key === 'PageUp' ? -TAHUN_PER_BARIS : e.key === 'PageDown' ? TAHUN_PER_BARIS : 0;
     if (geser !== 0) {
       e.preventDefault();
-      setAwalBlok((awal) => awal + geser);
+      setAwalBlok((awal) => batasAwalBlok(awal + geser));
       return;
     }
     if (e.key === 'Home') {
       e.preventDefault();
-      setAwalBlok(awalBlokUntuk(tahunAcuan));
+      setAwalBlok(batasAwalBlok(awalBlokUntuk(tahunAcuan)));
     }
   };
 
@@ -289,9 +289,19 @@ const TAHUN_PER_BLOK = TAHUN_PER_BARIS * BARIS_TAHUN;
 /** Baris (0 = paling atas) yang memuat tahun acuan. */
 const BARIS_ACUAN = BARIS_TAHUN - 1;
 
-/** Tahun pertama blok bila `tahun` jadi acuan. */
+/** Tahun pertama blok bika `tahun` jadi acuan. */
 const awalBlokUntuk = (tahun: number): number =>
   tahun - BARIS_ACUAN * TAHUN_PER_BARIS - (TAHUN_PER_BARIS - 1) / 2;
+
+/** Batas tahun yang boleh dipilih lewat kalender ini. */
+const TAHUN_MIN = 1900;
+const TAHUN_MAX = 2100;
+/** Batas `awalBlok` supaya seluruh blok 20 tahun tetap dalam [1900, 2100]:
+ *  `awalBlok >= 1900` dan `awalBlok + TAHUN_PER_BLOK - 1 <= 2100`. */
+const AWAL_BLOK_MIN = TAHUN_MIN;
+const AWAL_BLOK_MAX = TAHUN_MAX - TAHUN_PER_BLOK + 1;
+const batasAwalBlok = (awal: number): number =>
+  Math.min(Math.max(awal, AWAL_BLOK_MIN), AWAL_BLOK_MAX);
 
 /** Bulan yang ditampilkan grid: bulan nilai terpilih, atau bulan hari ini. */
 function bulanDari(iso: string): { tahun: number; bulan: number } {

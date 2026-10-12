@@ -267,6 +267,48 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
 
     expect(nilaiTerpilih()).toBe('1998-05-20');
   });
+
+  it('gulir mouse berhenti di batas 1900 & 2100 (tak keluar rentang)', async () => {
+    renderDenganTema(<Harness />);
+    await buka();
+    await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
+    const grid = gridTahunAktif() as HTMLElement;
+
+    // Gulir ke atas berkali-kali → berhenti di batas bawah 1900–1919.
+    for (let i = 0; i < 100; i += 1) fireEvent.wheel(grid, { deltaY: -100 });
+    expect(lihatRentang(1900)).toBeInTheDocument();
+    const tahunBawah = within(grid).getAllByRole('button').map((b) => Number(b.textContent));
+    expect(Math.min(...tahunBawah)).toBe(1900);
+    // Gulir ke atas lagi tak mengubah apa-apa (tetap di 1900).
+    fireEvent.wheel(grid, { deltaY: -100 });
+    expect(lihatRentang(1900)).toBeInTheDocument();
+
+    // Gulir ke bawah berkali-kali → berhenti di batas atas 2081–2100.
+    for (let i = 0; i < 100; i += 1) fireEvent.wheel(grid, { deltaY: 100 });
+    expect(lihatRentang(2081)).toBeInTheDocument();
+    const tahunAtas = within(grid).getAllByRole('button').map((b) => Number(b.textContent));
+    expect(Math.max(...tahunAtas)).toBe(2100);
+    fireEvent.wheel(grid, { deltaY: 100 });
+    expect(lihatRentang(2081)).toBeInTheDocument();
+  });
+
+  it('nilai di batas bawah 1900 dari luar tetap dalam rentang blok', async () => {
+    // 1900 di luar blok alami (awalBlokUntuk = 1883) → dibatas ke 1900–1919.
+    renderDenganTema(<Harness awal="1900-05-20" />);
+    await buka();
+    await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
+    expect(screen.getByRole('group', { name: 'Tahun 1900–1919' })).toBeInTheDocument();
+    expect((within(gridTahunAktif() as HTMLElement).getByRole('button', { name: '1900' }).getAttribute('data-terpilih'))).toBe('ya');
+  });
+
+  it('nilai di batas atas 2100 dari luar tetap dalam rentang blok', async () => {
+    // 2100 di luar blok alami (awalBlokUntuk = 2083) → dibatas ke 2081–2100.
+    renderDenganTema(<Harness awal="2100-05-20" />);
+    await buka();
+    await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
+    expect(screen.getByRole('group', { name: 'Tahun 2081–2100' })).toBeInTheDocument();
+    expect((within(gridTahunAktif() as HTMLElement).getByRole('button', { name: '2100' }).getAttribute('data-terpilih'))).toBe('ya');
+  });
 });
 
 describe('PopoverKalender — panel bawah: tanggal', () => {
