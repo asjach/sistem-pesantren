@@ -173,6 +173,24 @@ class IzinMatriksTest extends TestCase
     }
 
     /**
+     * Endpoint yang SENGAJA tanpa middleware `permission:` karena gerbangnya
+     * ada di controller, bukan di route — supaya pengguna tanpa izin tetap
+     * mendapat pesan yang menjelaskan, bukan 403 generik.
+     *
+     * Format sama dengan `$tanpaIzin` di bawah: `METHOD uri`.
+     *
+     * @var list<string>
+     */
+    private const TANPA_MIDDLEWARE_SENGAJA = [
+        // `ToolbarPresetController::simpan` menegakkan super_admin SETELAH
+        // validasi kunci setelan-komponen: admin yang masih mengirim `lebar`/
+        // `tinggi`/`nilai_default` harus tetap dapat 422 yang menunjuk ke
+        // `komponen_custom` (lihat ToolbarPresetTest). Middleware di route akan
+        // memotongnya jadi 403 lebih dulu dan pesan penuntun itu hilang.
+        'PUT api/admin/toolbar-preset',
+    ];
+
+    /**
      * Setiap endpoint ber-auth di luar portal/kamus/publik wajib punya
      * middleware `permission:` — route admin baru tanpa izin = suite merah.
      */
@@ -196,9 +214,13 @@ class IzinMatriksTest extends TestCase
             if ($skip) {
                 continue;
             }
+            $tanda = implode('|', $route->methods())." {$uri}";
+            if (in_array($tanda, self::TANPA_MIDDLEWARE_SENGAJA, true)) {
+                continue;
+            }
             $ada = collect($mw)->contains(fn ($m) => is_string($m) && str_starts_with($m, 'permission:'));
             if (! $ada) {
-                $tanpaIzin[] = implode('|', $route->methods())." {$uri}";
+                $tanpaIzin[] = $tanda;
             }
         }
 

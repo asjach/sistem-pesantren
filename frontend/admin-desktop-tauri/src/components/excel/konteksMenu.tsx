@@ -132,33 +132,42 @@ export default function MenuKonteksGrid({
         <>
           <ContextMenuLabel>KOLOM: {headerLabel}</ContextMenuLabel>
           <div className="flex items-center gap-1 px-2 pb-1 pt-0.5">
-            {([
-              { nilai: 'left' as const, label: 'Kiri', Icon: AlignLeft },
-              { nilai: 'center' as const, label: 'Tengah', Icon: AlignCenter },
-              { nilai: 'right' as const, label: 'Kanan', Icon: AlignRight },
-            ]).map(({ nilai, label, Icon }) => {
-              const aktif = (align[header.colKey] ?? 'center') === nilai;
-              return (
-                <Tooltip key={nilai}>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon"
-                      type="button"
-                      id={`btn_ctx_align_${nilai}_${tableKey}`}
-                      aria-label={`Rata ${label.toLowerCase()}`}
-                      aria-pressed={aktif}
-                      onClick={() => onUbahAlign(header.colKey, nilai)}
-                      className={cn( aktif && 'bg-accent text-foreground')}
-                    >
-                      <Icon size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{`Rata ${label.toLowerCase()} (berlaku semua tabel)`}</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-            <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
+            {/* Perataan = setelan TABEL yang ditulis ke SERVER, super_admin
+                efektif. Tanpa `bolehKelola` tombolnya disembunyikan supaya
+                pengguna tak menabrak 403 "Setelan tabel hanya dapat diubah
+                super_admin." — tombol lebar/beku di sebelahnya tetap lokal
+                jadi tetap tampil untuk semua pengguna. */}
+            {bolehKelola && (
+            <>
+              {([
+                { nilai: 'left' as const, label: 'Kiri', Icon: AlignLeft },
+                { nilai: 'center' as const, label: 'Tengah', Icon: AlignCenter },
+                { nilai: 'right' as const, label: 'Kanan', Icon: AlignRight },
+              ]).map(({ nilai, label, Icon }) => {
+                const aktif = (align[header.colKey] ?? 'center') === nilai;
+                return (
+                  <Tooltip key={nilai}>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon"
+                        type="button"
+                        id={`btn_ctx_align_${nilai}_${tableKey}`}
+                        aria-label={`Rata ${label.toLowerCase()}`}
+                        aria-pressed={aktif}
+                        onClick={() => onUbahAlign(header.colKey, nilai)}
+                        className={cn( aktif && 'bg-accent text-foreground')}
+                      >
+                        <Icon size={16} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{`Rata ${label.toLowerCase()} (berlaku semua tabel)`}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+              <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
+            </>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon"

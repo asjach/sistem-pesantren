@@ -73,7 +73,9 @@ describe('DashboardPage — statistik', () => {
     expect(screen.getByText('Per tingkat, 2026/2027')).toBeInTheDocument();
     expect(screen.getAllByText('Ibtidaiyah (MI)').length).toBeGreaterThan(0);
     expect(screen.getByText('Alumni per tahun ajaran')).toBeInTheDocument();
-    expect(screen.getByText('Belum ada calon pada lingkup ini.')).toBeInTheDocument();
+    // Judul `EmptyState` (bukan kalimat) — tanpa titik, sama seperti
+    // "Belum ada sebaran tingkat" di blok lain.
+    expect(screen.getByText('Belum ada calon pada lingkup ini')).toBeInTheDocument();
   });
 
   it('menyembunyikan blok santri/PTK bila akun tidak berizin modulnya', async () => {

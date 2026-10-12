@@ -141,3 +141,28 @@ describe('MenuKonteksGrid — Kelola Tabel dari header kolom', () => {
     expect(screen.queryByText('Kelola Tabel')).toBeNull();
   });
 });
+
+describe('MenuKonteksGrid — perataan kolom digerbang izin kelola', () => {
+  const TOMBOL_RATA = ['Rata kiri', 'Rata tengah', 'Rata kanan'];
+
+  it('dengan izin kelola: tombol perataan tampil', () => {
+    renderMenu(apiPalsu(), true);
+
+    for (const nama of TOMBOL_RATA) {
+      expect(screen.getByRole('button', { name: nama })).toBeInTheDocument();
+    }
+  });
+
+  /** Perataan ditulis ke SERVER dan hanya super_admin efektif yang boleh
+   *  (`ToolbarPresetController::simpan`) — tanpa gerbang di sini, pengguna lain
+   *  menabrak 403 "Setelan tabel hanya dapat diubah super_admin." */
+  it('tanpa izin kelola: tombol perataan disembunyikan, tombol lokal tetap ada', () => {
+    renderMenu(apiPalsu(), false);
+
+    for (const nama of TOMBOL_RATA) {
+      expect(screen.queryByRole('button', { name: nama })).toBeNull();
+    }
+    // Lebar kolom & beku bersifat lokal (tak menulis ke server) → tetap tampil.
+    expect(screen.getByRole('button', { name: 'Sesuaikan lebar kolom ini' })).toBeInTheDocument();
+  });
+});
