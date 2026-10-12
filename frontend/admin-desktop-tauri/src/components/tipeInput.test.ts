@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   definisiTipe,
   FORMAT_RIBUAN,
+  FORMAT_TANGGAL,
   KUNCI_TIPE_INPUT,
   kunciDariTypeNative,
   OPSI_TIPE_INPUT,
@@ -47,6 +48,43 @@ describe('registry tipe input', () => {
     // Angka biasa tetap polos (tanpa papan rupiah & tanpa pemisah ribuan).
     expect(definisiTipe('angka')?.aksiKanan).toBeUndefined();
     expect(definisiTipe('angka')?.format).toBeUndefined();
+  });
+
+  it('tipe tanggal: teks ber-mask + kalender, bukan `date` native', () => {
+    const tanggal = definisiTipe('tanggal');
+    // `text`: `dd/mm/yyyy` bukan isi yang sah untuk `date` native.
+    expect(tanggal?.type).toBe('text');
+    expect(tanggal?.attrs?.inputMode).toBe('numeric');
+    expect(tanggal?.attrs?.placeholder).toBe('dd/mm/yyyy');
+    expect(typeof tanggal?.aksiKanan).toBe('function');
+    expect(tanggal?.format).toBe(FORMAT_TANGGAL);
+    // `type="date"` dari pemanggil lama tetap terbaca sebagai tipe ini.
+    expect(tanggal?.typeNative).toContain('date');
+    // Tipe tanggal lain tetap native (belum punya kalender sendiri).
+    expect(definisiTipe('bulan')?.type).toBe('month');
+    expect(definisiTipe('tanggal_waktu')?.format).toBeUndefined();
+  });
+
+  it('FORMAT_TANGGAL: tampil dd/mm/yyyy, nilai kembali ISO', () => {
+    expect(FORMAT_TANGGAL.tampil('2026-10-12')).toBe('12/10/2026');
+    expect(FORMAT_TANGGAL.tampil('')).toBe('');
+    expect(FORMAT_TANGGAL.nilai('12/10/2026')).toBe('2026-10-12');
+    // Belum lengkap / tak ada di kalender → kosong (bukan nilai asal-asalan).
+    expect(FORMAT_TANGGAL.nilai('12/1')).toBe('');
+    expect(FORMAT_TANGGAL.nilai('31/02/2026')).toBe('');
+  });
+
+  it('FORMAT_TANGGAL.ketik: mask menyisipkan "/" & menerima tempelan ISO', () => {
+    expect(FORMAT_TANGGAL.ketik?.('121')).toBe('12/1');
+    expect(FORMAT_TANGGAL.ketik?.('12102026')).toBe('12/10/2026');
+    expect(FORMAT_TANGGAL.ketik?.('2026-10-12')).toBe('12/10/2026');
+  });
+
+  it('FORMAT_TANGGAL.takSah: hanya teks LENGKAP yang salah yang ditandai', () => {
+    expect(FORMAT_TANGGAL.takSah?.('31/02/2026')).toBe(true);
+    expect(FORMAT_TANGGAL.takSah?.('12/10/2026')).toBe(false);
+    // Sambil diketik belum lengkap → belum boleh ditandai.
+    expect(FORMAT_TANGGAL.takSah?.('12/1')).toBe(false);
   });
 
   it('FORMAT_RIBUAN: tampil berformat, nilai kembali ke digit mentah', () => {

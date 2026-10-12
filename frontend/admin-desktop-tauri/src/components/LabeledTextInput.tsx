@@ -1,4 +1,4 @@
-import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import KotakLabel, { hitungLebarKontrol, keCss } from '@/components/kotakLabel';
 import { usePengaturanKotak } from '@/components/pengaturanKotak';
@@ -25,6 +25,11 @@ import { cn } from '@/lib/utils';
  *  - Tinggi label & input mengikuti tinggi kotak (`tinggi`, bawaan 26px).
  *  - `type`, `placeholder`, `value`, `onChange`, dan seterusnya diteruskan ke
  *    `Input`; `className` tambahan digabung di atas kelas bawaan.
+ *  - Tipe ber-`format` (mis. `nominal` → "50.000", `tanggal` → "12/10/2026")
+ *    menampilkan teks yang BEDA dari nilainya; yang diteruskan ke
+ *    `onChange`/`aksiKanan` — dan pada akhirnya dikirim ke server — tetap nilai
+ *    sebenarnya (digit mentah / ISO). Format ber-`ketik` (mask, mis. tanggal)
+ *    menyimpan ketikan yang belum jadi nilai supaya tetap terlihat di kotak.
  *  - `aksiKanan` menempelkan konten (mis. tombol) di ujung kanan zona kontrol
  *    secara absolut; input diberi ruang kanan agar teks tak tertimpa.
  *  - KLIK KANAN pada kotak membuka popover pengaturan ukuran KOTAK (sama
@@ -78,6 +83,9 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
      (mis. preset nominal milik pengguna). Tipe tak dikenal → `Input` bawaan. */
   const bawaan = { ...defTipeEfektif, ...bawaanTipe };
   const format = bawaan?.format;
+  /** Format ini punya mask ketikan (mis. tanggal) — teks kotak tak selalu bisa
+   *  diturunkan dari nilai, jadi ketikan yang belum lengkap disimpan terpisah. */
+  const adaMask = format?.ketik !== undefined;
   /* Input yang TIDAK dikendalikan pemanggil (tanpa `value`/`onChange`) tetap
      tak-terkontrol agar `defaultValue` pemanggil tetap berlaku — kecuali tipe
      aktif punya `aksiKanan` bawaan (mis. kalkulator rupiah) atau `format`
@@ -87,30 +95,58 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
   const pakaiNilaiInternal = !terkendaliPemanggil
     && (bawaan?.aksiKanan !== undefined || format !== undefined);
   const [nilaiInternal, setNilaiInternal] = useState(props.defaultValue === undefined ? '' : String(props.defaultValue));
-  /** Nilai SEBENARNYA (digit mentah). Inilah yang dipakai `aksiKanan`, diteruskan
-   *  ke `onChange` pemanggil, dan pada akhirnya dikirim ke server — TIDAK PERNAH
-   *  teks berformat. */
+  /** Nilai SEBENARNYA (mis. digit mentah, ISO `YYYY-MM-DD`). Inilah yang dipakai
+   *  `aksiKanan`, diteruskan ke `onChange` pemanggil, dan pada akhirnya dikirim
+   *  ke server — TIDAK PERNAH teks berformat. */
   const nilai = terkendaliPemanggil ? String(props.value ?? '') : nilaiInternal;
+  /** Teks KETIKAN yang belum jadi nilai (mis. "12/1" pada tanggal) — hanya
+   *  hidup selama nilainya masih kosong; begitu nilainya sah, tampilan kembali
+   *  diturunkan dari nilai lewat `format.tampil`. */
+  const [draf, setDraf] = useState<string | null>(null);
   /** Teks yang DITAMPILKAN di kotak; hanya berbeda dari `nilai` bila tipe aktif
-   *  punya `format` (mis. nominal → "50.000"). */
-  const teksTampil = format === undefined ? nilai : format.tampil(nilai);
+   *  punya `format` (mis. nominal → "50.000", tanggal → "12/10/2026"). */
+  const teksTampil = draf ?? (format === undefined ? nilai : format.tampil(nilai));
   const setNilai = (nilaiBaru: string) => {
     if (terkendaliPemanggil) props.onChange?.({ target: { value: nilaiBaru } } as React.ChangeEvent<HTMLInputElement>);
     else setNilaiInternal(nilaiBaru);
   };
+  /* Ketikan disimpan hanya selama SEPADAN dengan nilainya. Begitu nilainya
+     datang dari sumber lain (kalender, pemanggil, reset), ketikan yang belum
+     jadi nilai itu dibuang. */
+  useEffect(() => {
+    if (draf === null) return;
+    if (format === undefined || format.nilai(draf) !== nilai) setDraf(null);
+  }, [draf, nilai, format]);
+  /** Teks kotak sudah lengkap tapi bukan nilai sah (mis. 31/02/2026) — ditandai
+   *  `aria-invalid` supaya salah ketik tak diam-diam jadi nilai kosong. */
+  const takSah = adaMask && draf !== null && format?.takSah?.(draf) === true;
+  /* Props yang eksplisit `undefined` (mis. `placeholder={bulanan ? 'x' : undefined}`)
+     jangan menimpa bawaan tipe — JSX tetap menuliskan kuncinya. */
+  const propsTerpakai = Object.fromEntries(
+    Object.entries(props).filter(([, v]) => v !== undefined),
+  ) as typeof props;
 
-  /* Kursor: menyisipkan pemisah ribuan menggeser indeks karakter, jadi posisi
-     kursor dipulihkan berdasarkan JUMLAH DIGIT di kirinya (bukan indeks teks).
-     Diambil saat mengetik, dipakai setelah React menulis ulang nilainya. */
+  /* Kursor: menyisipkan pemisah menggeser indeks karakter, jadi posisi kursor
+     dipulihkan berdasarkan JUMLAH DIGIT di kirinya (bukan indeks teks). Diambil
+     saat mengetik, dipakai setelah React menulis ulang nilainya. */
   const refInput = useRef<HTMLInputElement | null>(null);
   const digitKiriRef = useRef<number | null>(null);
   const gantiTeks = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (format === undefined) {
-      setNilai(e.target.value);
-      return;
-    }
     const el = e.target;
     digitKiriRef.current = (el.value.slice(0, el.selectionStart ?? el.value.length).match(/\d/g) ?? []).length;
+    if (adaMask) {
+      const teks = format!.ketik!(el.value);
+      const nilaiBaru = format!.nilai(teks);
+      setNilai(nilaiBaru);
+      /* Teksnya ditampilkan apa adanya selama belum jadi nilai sah — tanpa itu,
+         ketikan yang belum lengkap langsung "hilang" dari kotak. */
+      setDraf(nilaiBaru === '' ? teks : null);
+      return;
+    }
+    if (format === undefined) {
+      setNilai(el.value);
+      return;
+    }
     setNilai(format.nilai(el.value));
   };
   useLayoutEffect(() => {
@@ -142,10 +178,13 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
         <>
           <Input
             {...bawaan?.attrs}
-            {...props}
+            {...propsTerpakai}
             ref={refInput}
             id={props.id ?? htmlFor}
-            type={props.type ?? bawaan?.type}
+            /* Tipe ber-`format` menentukan `type` kontrolnya sendiri: teks
+               berformat (pemisah ribuan, `dd/mm/yyyy`) tak akan tampil di
+               `number`/`date` native. */
+            type={format !== undefined ? bawaan?.type : props.type ?? bawaan?.type}
             /* Saat nilai dikelola internal: kotak TERKENDALI oleh state itu —
                `defaultValue` jangan diteruskan (React menolak value +
                defaultValue sekaligus) dan `onChange` WAJIB ada supaya isinya
@@ -155,6 +194,8 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
             value={terkendaliPemanggil ? teksTampil : pakaiNilaiInternal ? teksTampil : undefined}
             defaultValue={pakaiNilaiInternal ? undefined : props.defaultValue}
             onChange={format !== undefined ? gantiTeks : pakaiNilaiInternal ? gantiTeks : props.onChange}
+            aria-invalid={props['aria-invalid'] ?? (takSah ? true : undefined)}
+            title={props.title ?? (takSah ? 'Tanggal tidak ada di kalender' : undefined)}
             className={cn(kelasKontrol, aksiKananEfektif !== undefined && 'pr-7')}
           />
           {aksiKananEfektif !== undefined && (

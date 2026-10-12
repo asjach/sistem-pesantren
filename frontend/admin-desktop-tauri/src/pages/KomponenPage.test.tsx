@@ -108,8 +108,13 @@ describe('KomponenPage — pengelompokan komponen', () => {
       expect(input?.getAttribute('type')).toBe(definisiTipe(kunci)?.type ?? 'text');
     }
 
-    // Tipe dengan aksi kanan (nominal) memakai tombol kalkulator; tipe polos tidak.
+    // Tipe dengan aksi kanan memakai tombolnya sendiri; tipe polos tidak.
     expect(document.getElementById('btn_preset_demo_tipe_nominal')).not.toBeNull();
+    expect(document.getElementById('btn_kalender_demo_tipe_tanggal')).not.toBeNull();
     expect(document.getElementById('btn_preset_demo_tipe_teks')).toBeNull();
+    expect(document.getElementById('btn_kalender_demo_tipe_teks')).toBeNull();
+
+    // Contoh tanggal = kotak ber-mask: nilai ISO contohnya tampil dd/mm/yyyy.
+    expect((document.getElementById('demo_tipe_tanggal') as HTMLInputElement).value).toBe('14/07/2026');
   });
 });

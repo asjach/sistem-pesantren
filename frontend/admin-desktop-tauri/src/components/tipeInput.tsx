@@ -2,7 +2,9 @@ import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import PopoverKalender from '@/components/PopoverKalender';
 import { cn } from '@/lib/utils';
+import { tanggalDariTampilan, tanggalKeTampilan, tanggalLengkap, maskTanggal } from '@/lib/tanggal';
 import { Calculator, Reset } from '@/icons';
 
 /** Registry TIPE kontrol input untuk `LabeledTextInput`.
@@ -57,14 +59,25 @@ export interface KonteksPengaturanTipe<T = unknown> {
 /** Format TAMPILAN nilai input + kebalikannya.
  *
  *  Dipakai tipe yang teks di kotaknya BEDA dari nilai sebenarnya (mis. pemisah
- *  ribuan pada `nominal`). Aturannya: yang dipakai aplikasi — dan dikirim ke
- *  server — SELALU hasil `nilai()` (digit mentah), tidak pernah yang tampak di
- *  kotak. `tampil()` hanya untuk mata pengguna. */
+ *  ribuan pada `nominal`, `dd/mm/yyyy` pada `tanggal`). Aturannya: yang dipakai
+ *  aplikasi — dan dikirim ke server — SELALU hasil `nilai()`, tidak pernah yang
+ *  tampak di kotak. `tampil()` hanya untuk mata pengguna. */
 export interface FormatNilai {
   /** Nilai sebenarnya → teks yang ditampilkan di kotak. */
   tampil: (nilai: string) => string;
   /** Teks di kotak (ketikan/tempelan pengguna) → nilai sebenarnya. */
   nilai: (teks: string) => string;
+  /** Penyaring KETIKAN (mask) untuk format yang tak bisa dibalik sambil
+   *  diketik — mis. tanggal: "12/1" belum tanggal sah sehingga `nilai()`-nya
+   *  kosong, padahal ketikan itu harus tetap terlihat di kotak. Menerima teks
+   *  kotak apa adanya, mengembalikan teks yang seharusnya ada di sana
+   *  (mis. "121" → "12/1"). Absen = kotak selalu menampilkan `tampil(nilai())`
+   *  (seperti pemisah ribuan). */
+  ketik?: (teks: string) => string;
+  /** Teks kotak yang sudah LENGKAP tapi bukan nilai sah (mis. "31/02/2026").
+   *  Dipakai menandai kotaknya (`aria-invalid`) supaya salah ketik tak
+   *  diam-diam jadi nilai kosong. Absen = tak ada teks yang ditandai. */
+  takSah?: (teks: string) => boolean;
 }
 
 /** Pemisah ribuan gaya Indonesia: `50000` ⇄ `50.000`.
@@ -75,6 +88,19 @@ export interface FormatNilai {
 export const FORMAT_RIBUAN: FormatNilai = {
   tampil: (nilai) => (/^\d+$/.test(nilai) ? Number(nilai).toLocaleString('id') : nilai),
   nilai: (teks) => teks.replace(/\D/g, '').replace(/^0+(?=\d)/, ''),
+};
+
+/** Tanggal: nilai sebenarnya ISO `YYYY-MM-DD`, yang tampak `dd/mm/yyyy`.
+ *
+ *  Berbeda dengan pemisah ribuan, format ini TAK bisa dibalik sambil diketik
+ *  ("12/1" bukan nilai sah) — karena itu ada `ketik` (mask) yang menyisipkan
+ *  "/" sendiri dan membaca tempelan ISO apa adanya. Nilai yang diteruskan ke
+ *  pemanggil tetap ISO, sama seperti `input type="date"`. */
+export const FORMAT_TANGGAL: FormatNilai = {
+  tampil: tanggalKeTampilan,
+  nilai: tanggalDariTampilan,
+  ketik: maskTanggal,
+  takSah: (teks) => tanggalLengkap(teks) && tanggalDariTampilan(teks) === '',
 };
 
 /** PENGATURAN khusus milik satu tipe: baris di popover pengaturan kotak yang
@@ -110,13 +136,19 @@ export interface DefinisiTipeInput {
   type?: string;
   /** Atribut bawaan tipe ini (bila pemanggil tak menentukan). */
   attrs?: Partial<Omit<ComponentProps<typeof Input>, 'className' | 'style' | 'type'>>;
-  /** Konten di ujung kanan zona kontrol (mis. kalkulator rupiah). */
+  /** Konten di ujung kanan zona kontrol (mis. kalkulator rupiah, kalender). */
   aksiKanan?: (ctx: KonteksTipeInput) => ReactNode;
   /** Pengaturan yang bisa diubah pengguna dari popover (opsional per tipe). */
   pengaturan?: PengaturanTipe<unknown>;
-  /** Format tampilan nilai (mis. pemisah ribuan). Bila ada, `type` native
-   *  tak bisa `number` (pemisah ribuan bukan angka yang sah di sana). */
+  /** Format tampilan nilai (mis. pemisah ribuan, tanggal). Bila ada, `type`
+   *  native ikut ditentukan tipe ini — pemisah ribuan/`dd/mm/yyyy` bukan isi
+   *  yang sah untuk `number`/`date` sehingga teksnya tak akan tampil. */
   format?: FormatNilai;
+  /** `type` native yang tetap DIMENGERTI sebagai tipe ini walau `type` kotaknya
+   *  berbeda — mis. `tanggal` memakai kotak teks ber-mask, tapi pemanggil yang
+   *  menulis `type="date"` tetap terbaca sebagai Tanggal (baris "Tipe" & tombol
+   *  kalendernya ikut muncul). Dipakai `kunciDariTypeNative`. */
+  typeNative?: string[];
 }
 
 /** Nominal cepat bawaan (rupiah) — 9 tombol, tampil 3 per baris. */
@@ -368,7 +400,18 @@ const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
     pengaturan: PENGATURAN_PRESET_NOMINAL,
     format: FORMAT_RIBUAN,
   },
-  tanggal: { label: 'Tanggal', type: 'date' },
+  tanggal: {
+    label: 'Tanggal',
+    /* Kotak teks ber-mask `dd/mm/yyyy` + kalender sendiri, BUKAN `date` native:
+       tampilan & popover pemilihnya milik webview (ikut locale, tak bisa
+       distyle/dites). Nilai yang dipakai aplikasi & dikirim ke server tetap ISO
+       `YYYY-MM-DD` lewat `format` — sama seperti `input type="date"`. */
+    type: 'text',
+    attrs: { inputMode: 'numeric', placeholder: 'dd/mm/yyyy' },
+    format: FORMAT_TANGGAL,
+    aksiKanan: (ctx) => <PopoverKalender {...ctx} />,
+    typeNative: ['date'],
+  },
   bulan: { label: 'Bulan', type: 'month' },
   waktu: { label: 'Waktu', type: 'time' },
   tanggal_waktu: { label: 'Tanggal & Waktu', type: 'datetime-local' },
@@ -432,9 +475,13 @@ export function normalkanSetelanTipe(v: unknown): SetelanTipe {
   return hasil;
 }
 
-/** Kunci tipe bawaan untuk `type` native yang diteruskan pemanggil. */
+/** Kunci tipe bawaan untuk `type` native yang diteruskan pemanggil. Selain
+ *  mencocokkan `type` definisi, `typeNative` tipe juga diakui — mis.
+ *  `type="date"` → `tanggal` walau kotaknya kini teks ber-mask. */
 export function kunciDariTypeNative(type: string | undefined): KunciTipeInput | undefined {
   if (type === undefined) return 'teks';
-  const cocok = KUNCI_TIPE_INPUT.find((k) => DAFTAR[k].type === type);
+  const cocok = KUNCI_TIPE_INPUT.find(
+    (k) => DAFTAR[k].type === type || DAFTAR[k].typeNative?.includes(type) === true,
+  );
   return cocok ?? 'teks';
 }

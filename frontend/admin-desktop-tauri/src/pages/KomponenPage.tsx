@@ -62,8 +62,11 @@ function rincianTipe(kunci: KunciTipeInput): string[] {
   const baris = [
     `Atribut native: type="${def?.type ?? 'text'}"${inputMode === undefined ? '' : `, inputMode="${inputMode}"`}.`,
   ];
+  if (def?.format !== undefined) {
+    baris.push('Nilai di kotak DIFORMAT (`format`) — yang dipakai aplikasi & dikirim ke server tetap nilai sebenarnya.');
+  }
   if (def?.aksiKanan !== undefined) {
-    baris.push('Punya aksi di ujung kanan kotak (`aksiKanan`) — mis. tombol kalkulator rupiah.');
+    baris.push('Punya aksi di ujung kanan kotak (`aksiKanan`) — mis. tombol kalkulator rupiah (nominal) atau kalender (tanggal).');
   }
   if (def?.pengaturan !== undefined) {
     baris.push(`Punya pengaturan sendiri di popover: baris "${def.pengaturan.label}".`);

@@ -267,15 +267,16 @@
   --border: color-mix(in srgb, var(--foreground) 15%, var(--background));
 }
 
-/* Panel popover "nominal cepat" (tipe `nominal` di tipeInput.tsx, dua panel:
-   atas & bawah):
+/* Panel popover yang MENEMPEL pada kotak kontrolnya — "nominal cepat" (tipe
+   `nominal`) dan kalender (tipe `tanggal`):
    border tiap tombol disamakan dengan border panel & kotak pembungkusnya
    (foreground 30%). Varian tombol `outline` memasang `dark:border-input` yang
    letaknya lebih belakang di urutan sumber sehingga menang di mode gelap,
    padahal --input global cuma 8–15% foreground — terlalu pudar di sini.
-   Override var-nya dilingkupi kedua panel ini saja supaya tema & tombol di
-   bagian lain tak ikut berubah. */
-.pop-nominal {
+   Override var-nya dilingkupi panel ini saja supaya tema & tombol di bagian
+   lain tak ikut berubah. */
+.pop-nominal,
+.pop-kalender {
   --input: color-mix(in oklab, var(--foreground) 30%, transparent);
 }
 

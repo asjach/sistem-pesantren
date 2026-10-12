@@ -159,12 +159,15 @@ describe('LabeledTextInput', () => {
     expect((container.querySelector(`label[for="${kunci}"]`) as HTMLElement).textContent).toBe('Nama');
   });
 
-  it('tipe bawaan dari pemanggil: type="date" → baris Tipe = Tanggal', async () => {
+  it('tipe bawaan dari pemanggil: type="date" → baris Tipe = Tanggal (kotak ber-mask + kalender)', async () => {
     const kunci = `uji_tipe_bawaan_${Date.now()}`;
     const { container } = renderDenganTema(
       <LabeledTextInput label="Jatuh Tempo" htmlFor={kunci} type="date" />,
     );
-    expect((document.getElementById(kunci) as HTMLInputElement).type).toBe('date');
+    // Tipe `tanggal` memakai kotak teks ber-mask `dd/mm/yyyy` + tombol kalender
+    // sendiri, BUKAN `date` native (tampilan & popover pemilihnya milik webview).
+    expect((document.getElementById(kunci) as HTMLInputElement).type).toBe('text');
+    expect(document.getElementById(`btn_kalender_${kunci}`)).not.toBeNull();
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     const tipe = await screen.findByRole('combobox', { name: 'Tipe' });

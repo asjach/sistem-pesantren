@@ -18,6 +18,7 @@ import PresetKolom from '@/components/PresetKolom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import LabeledTextInput from '@/components/LabeledTextInput';
+import { tanggalKeTampilan } from '@/lib/tanggal';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
@@ -671,7 +672,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   const hitungManual = terpilih.filter((r) => r.nominalManual).length;
   const teksPeriode = bulanan
     ? (periodeSampai !== '' ? `${periodeDari} s.d. ${periodeSampai}` : periodeDari)
-    : `TA ${tahunAjaran ?? '—'}${jatuhTempo !== '' ? ` · JT ${jatuhTempo}` : ' · tanpa JT (langsung tunggakan)'}`;
+    : `TA ${tahunAjaran ?? '—'}${jatuhTempo !== '' ? ` · JT ${tanggalKeTampilan(jatuhTempo)}` : ' · tanpa JT (langsung tunggakan)'}`;
 
   const tahap = hasil !== null ? 3 : langkah;
 
@@ -904,12 +905,13 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     bulan berjalan, ditentukan backend) — kotak tetap tampil agar
                     tata letaknya sama.
                     Tipe DIKUNCI ke `tanggal`: nilainya dikirim sebagai tanggal
-                    ISO, jadi tak boleh diubah jadi teks/angka dari popover. */}
+                    ISO, jadi tak boleh diubah jadi teks/angka dari popover.
+                    Kotaknya teks ber-mask `dd/mm/yyyy` + tombol kalender
+                    (bukan `type="date"` native) — nilai yang dikirim tetap ISO. */}
                 <div className="flex flex-col gap-1">
                   <LabeledTextInput
                     label="Jatuh Tempo"
                     htmlFor="inp_gen_jatuh_tempo"
-                    type="date"
                     tipeKontrol="tanggal"
                     tipeTerkunci
                     disabled={bulanan}
