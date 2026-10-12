@@ -461,7 +461,7 @@ export default function UsersPage() {
                   htmlFor="input_nama"
                   kelolaLebar={false}
                   lebarLabel={LEBAR_LABEL_FORM}
-                  /* Nama selalu teks: baris "Tipe input:" disembunyikan supaya
+                  /* Nama selalu teks: baris "Tipe" disembunyikan supaya
                      setelan tersimpan (server, berlaku semua user) tak bisa
                      mengubahnya jadi tanggal/nominal. */
                   tipeTerkunci

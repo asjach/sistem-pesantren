@@ -76,3 +76,35 @@ describe('popover pengaturan komponen — gerbang izin', () => {
     expect(screen.queryByLabelText('Tinggi kotak input (px)')).toBeNull();
   });
 });
+
+describe('popover pengaturan komponen — lebar baris "Tipe"', () => {
+  /** Baris label+combobox: label lalu pembungkus combobox. */
+  const barisDari = (teks: string) => {
+    const label = screen.getByText(teks) as HTMLLabelElement;
+    return { label, pembungkus: label.nextElementSibling as HTMLElement };
+  };
+
+  it('label "Tipe" hanya selebar teksnya, combobox mengisi sisanya', async () => {
+    pengguna.current = sesi(['komponen_custom.ubah']);
+    const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await screen.findByLabelText('Tinggi kotak input (px)');
+
+    const { label, pembungkus } = barisDari('Tipe');
+    // Tanpa lebar terpatok → tak ada ruang label yang terbuang.
+    expect(label.tagName).toBe('LABEL');
+    expect(label.style.width).toBe('');
+    // Pembungkus combobox mengambil seluruh sisa baris.
+    expect(pembungkus.className).toMatch(/flex-1/);
+    expect(pembungkus.className).toMatch(/min-w-0/);
+  });
+
+  it('baris sekelompok ("Mengembang") tetap berlabel lebar terkunci agar rata', async () => {
+    pengguna.current = sesi(['komponen_custom.ubah']);
+    const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await screen.findByLabelText('Tinggi kotak input (px)');
+
+    expect(barisDari('Mengembang').label.style.width).toBe('84px');
+  });
+});

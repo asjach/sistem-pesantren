@@ -159,7 +159,7 @@ describe('LabeledTextInput', () => {
     expect((container.querySelector(`label[for="${kunci}"]`) as HTMLElement).textContent).toBe('Nama');
   });
 
-  it('tipe bawaan dari pemanggil: type="date" → baris Tipe input = Tanggal', async () => {
+  it('tipe bawaan dari pemanggil: type="date" → baris Tipe = Tanggal', async () => {
     const kunci = `uji_tipe_bawaan_${Date.now()}`;
     const { container } = renderDenganTema(
       <LabeledTextInput label="Jatuh Tempo" htmlFor={kunci} type="date" />,
@@ -167,7 +167,7 @@ describe('LabeledTextInput', () => {
     expect((document.getElementById(kunci) as HTMLInputElement).type).toBe('date');
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    const tipe = await screen.findByRole('combobox', { name: 'Tipe input:' });
+    const tipe = await screen.findByRole('combobox', { name: 'Tipe' });
     expect(tipe).toHaveValue('Tanggal');
   });
 
@@ -181,7 +181,7 @@ describe('LabeledTextInput', () => {
     expect(screen.queryByLabelText('Pilih nominal cepat')).toBeNull();
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    const tipe = await screen.findByRole('combobox', { name: 'Tipe input:' });
+    const tipe = await screen.findByRole('combobox', { name: 'Tipe' });
     await userEvent.click(tipe);
     await userEvent.click(await screen.findByRole('option', { name: 'Nominal (Uang)' }));
 
@@ -201,10 +201,10 @@ describe('LabeledTextInput', () => {
     expect(screen.queryByLabelText('Pilih nominal cepat')).toBeNull();
   });
 
-  it('pilihanTipe kosong: baris Tipe input tak muncul (kontrol non-input)', () => {
+  it('pilihanTipe kosong: baris Tipe tak muncul (kontrol non-input)', () => {
     renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_tanpa_tipe" pilihanTipe={[]} />);
     fireEvent.contextMenu(document.querySelector('#inp_tanpa_tipe')?.closest('span')?.parentElement as HTMLElement);
-    expect(screen.queryByRole('combobox', { name: 'Tipe input:' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Tipe' })).toBeNull();
   });
 
   it('bawaanTipe mengimpa aksiKanan tipe aktif untuk kotak ini saja', () => {

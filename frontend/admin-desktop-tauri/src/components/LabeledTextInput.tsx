@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
  *  JENIS inputnya tidak dipecah jadi komponen terpisah: registry
  *  `tipeInput.tsx` memuat bawaan tiap tipe (atribut, tombol di ujung kanan,
  *  pengaturan yang bisa diubah pengguna), dan tipe aktif dipilih dari baris
- *  "Tipe input:" pada popover klik-kanan. Jadi "nominal" cukup tipe, bukan
+ *  "Tipe" pada popover klik-kanan. Jadi "nominal" cukup tipe, bukan
  *  komponen `LabeledNominalInput` tersendiri.
  *
  *  - Label segaris (inline) di dalam kotak; tanpa ukuran, kotak selebar induk
@@ -40,11 +40,11 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
    *  (`date` → `tanggal`, dst). Pilihan di popover MANG atas nilai ini, dan
    *  tipe tak terdaftar tetap memakai `Input` bawaan. */
   tipeKontrol?: KunciTipeInput;
-  /** Tipe yang boleh dipilih di popover; absen = baris "Tipe input:"
+  /** Tipe yang boleh dipilih di popover; absen = baris "Tipe"
    *  disembunyikan (kontrol yang bukan input teks, mis. combobox). Berisi
    *  SATU tipe = terkunci ke tipe itu. */
   pilihanTipe?: KunciTipeInput[];
-  /** Kunci tipe ini dari kode: baris "Tipe input:" disembunyikan DAN setelan
+  /** Kunci tipe ini dari kode: baris "Tipe" disembunyikan DAN setelan
    *  tipe tersimpan diabaikan. Untuk kotak yang tipenya bagian dari kontrak
    *  (mis. jatuh tempo harus `tanggal`). */
   tipeTerkunci?: boolean;

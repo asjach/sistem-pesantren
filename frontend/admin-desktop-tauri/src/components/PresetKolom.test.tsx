@@ -69,7 +69,7 @@ function presetRingkas(kolom: string[]) {
 /* Holder ref: `apiRef.current` diganti objek BARU tiap state PresetKolom
    berubah, jadi tes wajib membaca `.current` segar (bukan pegangan closure
    lama) sebelum memanggil maupun menegaskan `terapan`. */
-function tungguApi(): Promise<{ current: PresetKolomApi | null }> {
+async function tungguApi(): Promise<{ current: PresetKolomApi | null }> {
   const api: { current: PresetKolomApi | null } = { current: null };
   renderDenganTema(
     <PresetKolom
@@ -79,10 +79,17 @@ function tungguApi(): Promise<{ current: PresetKolomApi | null }> {
       apiRef={api}
     />,
   );
-  return waitFor(() => {
+  await waitFor(() => {
     if (api.current === null) throw new Error('api belum siap');
     return api;
   });
+  /* `api.current` terpasang pada render PERTAMA, sedangkan `terapan` baru
+     terisi setelah `listPresetTabel` selesai (async). Tanpa menunggu di sini,
+     assert `terapan`/`toggleKolomAktif` bisa balapan dengan `muat()` — itulah
+     penyebab tes ini sempat flaky saat suite dijalankan penuh. */
+  await waitFor(() => expect(apiUji.listPresetTabel).toHaveBeenCalled());
+  await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  return api;
 }
 
 describe('PresetKolom — toggleKolomAktif', () => {

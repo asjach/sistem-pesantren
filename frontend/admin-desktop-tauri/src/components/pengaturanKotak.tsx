@@ -57,11 +57,11 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
   /** Tipe kontrol bawaan dari pemanggil (registry `tipeInput.tsx`); absen =
    *  `Input` polos / ikut `type` yang diteruskan. */
   tipeKontrol?: KunciTipeInput;
-  /** Tipe yang boleh dipilih di popover (baris "Tipe input:"). Default: semua
+  /** Tipe yang boleh dipilih di popover (baris "Tipe"). Default: semua
    *  tipe bila `tipeKontrol` diberikan, kosong (baris disembunyikan) bila
    *  `tipeKontrol` absen — mis. combobox & stepper tak punya tipe input. */
   pilihanTipe?: KunciTipeInput[];
-  /** Kunci tipe dari kode: baris "Tipe input:" disembunyikan DAN setelan tipe
+  /** Kunci tipe dari kode: baris "Tipe" disembunyikan DAN setelan tipe
    *  tersimpan diabaikan. Untuk kotak yang tipenya bagian dari kontrak
    *  (mis. jatuh tempo harus `tanggal`, nominal bayar harus `nominal`). */
   tipeTerkunci?: boolean;
@@ -172,7 +172,7 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
       tipeKontrol: tipeBaru !== null && definisiTipe(tipeBaru) !== undefined ? tipeBaru : null,
     });
   }, [tableKey, kunciUkuran]);
-  /** Baris "Tipe input:" di popover — hanya untuk kontrol yang memang punya
+  /** Baris "Tipe" di popover — hanya untuk kontrol yang memang punya
    *  tipe input (dikirim `LabeledTextInput`). `tipeTerkunci` mematikannya. */
   const barisTipe = tipeTerkunci ? [] : (pilihanTipe ?? (tipeKontrol === undefined ? [] : KUNCI_TIPE_INPUT));
   const opsiTipe = barisTipe.map((n) => OPSI_TIPE_INPUT.find((o) => o.nilai === n)).filter((o) => o !== undefined);

@@ -9,7 +9,7 @@ import { Calculator, Reset } from '@/icons';
  *
  *  Tiap tipe punya bawaannya sendiri; tipe yang tak terdaftar (atau tak ada
  *  pilihannya) tetap memakai `Input` bawaan apa adanya. Pengguna memilih
- *  tipe dari baris "Tipe input:" pada popover pengaturan kotak (klik-kanan),
+ *  tipe dari baris "Tipe" pada popover pengaturan kotak (klik-kanan),
  *  jadi satu komponen bisa dipakai untuk beberapa kebutuhan tanpa membuat
  *  komponen baru per jenis data.
  *
@@ -104,7 +104,7 @@ export interface PengaturanTipe<T = unknown> {
 
 /** Bawaan satu tipe input. */
 export interface DefinisiTipeInput {
-  /** Teks di combobox "Tipe input:" pada popover pengaturan. */
+  /** Teks di combobox "Tipe" pada popover pengaturan. */
   label: string;
   /** Atribut native untuk `Input`; absen = `text`. */
   type?: string;
@@ -381,7 +381,7 @@ const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
 /** Kunci tipe yang terdaftar; dipakai untuk memvalidasi nilai dari simpanan. */
 export const KUNCI_TIPE_INPUT = Object.keys(DAFTAR) as KunciTipeInput[];
 
-/** Baris pilihan untuk combobox "Tipe input:" (label + nilai registry). */
+/** Baris pilihan untuk combobox "Tipe" (label + nilai registry). */
 export const OPSI_TIPE_INPUT = KUNCI_TIPE_INPUT.map((nilai) => ({ label: DAFTAR[nilai].label, nilai }));
 
 /** Definisi satu tipe; `undefined` bila kunci tak dikenal → `Input` bawaan.

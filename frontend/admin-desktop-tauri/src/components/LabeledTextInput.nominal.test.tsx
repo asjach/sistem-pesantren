@@ -382,12 +382,12 @@ describe('LabeledTextInput tipe nominal — pengaturan tipe', () => {
     expect(await screen.findByRole('button', { name: '5.000' })).toBeTruthy();
   });
 
-  it('tipeTerkunci: baris "Tipe input:" disembunyikan, baris preset tetap ada', async () => {
+  it('tipeTerkunci: baris "Tipe" disembunyikan, baris preset tetap ada', async () => {
     const { container } = renderDenganTema(
       <LabeledTextInput nama="nominal" tipeKontrol="nominal" tipeTerkunci label="Bayar" htmlFor="inp_bayar" value="" onChange={() => {}} />,
     );
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByText('Preset cepat');
-    expect(screen.queryByText('Tipe input:')).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Tipe' })).toBeNull();
   });
 });

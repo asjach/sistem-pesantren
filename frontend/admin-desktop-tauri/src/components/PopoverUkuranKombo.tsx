@@ -69,13 +69,17 @@ function BarisUkuran({ id, teks, stepper, resetId, resetLabel, adaAturan, onRese
 }
 
 /** Baris "label + combobox" untuk pilihan bernama (baris "Mengembang",
- *  "Warna Label:", dan "Tipe input:"). Label jadi nama aksesibel kontrol lewat
+ *  "Warna Label:", dan "Tipe"). Label jadi nama aksesibel kontrol lewat
  *  `htmlFor` — tanpa `aria-label` yang bisa bentrok dengan teks yang terlihat.
  *
- *  `labelOpsi` memetakan nilai → teks yang ditampilkan (baris "Tipe input:"
+ *  `lebarLabel` mengunci lebar label (px) supaya kontrol baris-baris
+ *  sekelompok rata kiri. Absen = label hanya selebar teksnya, sisanya
+ *  diberikan ke combobox (dipakai baris "Tipe" yang labelnya pendek).
+ *
+ *  `labelOpsi` memetakan nilai → teks yang ditampilkan (baris "Tipe"
  *  menampilkan "Nominal (Uang)", bukan kunci `nominal`). Tanpa itu, nilai
  *  ditampilkan apa adanya. */
-function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, onPilih, resetId, resetLabel, adaAturan, onReset }: {
+function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, onPilih, lebarLabel, resetId, resetLabel, adaAturan, onReset }: {
   id: string;
   teks: string;
   /** Tooltip penjelas di label. */
@@ -89,6 +93,8 @@ function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, o
   namaDaftar: string;
   /** Menyimpan nilai pilihan baru (label sudah diterjemahkan pemanggil). */
   onPilih: (nilaiBaru: string) => void;
+  /** Lebar label terkunci (px); absen = selebar teksnya. */
+  lebarLabel?: number;
   resetId?: string;
   resetLabel?: string;
   /** Ada setelan tersimpan untuk baris ini? (menentukan tombol reset) */
@@ -100,7 +106,7 @@ function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, o
       <label
         htmlFor={id}
         className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
-        style={{ width: LEBAR_LABEL_GRUP_MENGEMBANG }}
+        style={lebarLabel === undefined ? undefined : { width: lebarLabel }}
         title={judul}
       >
         {teks}
@@ -179,7 +185,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
   label?: string;
   /** Kata ganti jenis kotak di judul & aria ("combobox", "input", ...). */
   nama?: string;
-  /** Tipe kontrol aktif (registry `tipeInput.tsx`); dipakai baris "Tipe input:". */
+  /** Tipe kontrol aktif (registry `tipeInput.tsx`); dipakai baris "Tipe". */
   tipeKontrol?: string;
   /** Tipe yang boleh dipilih (baris disembunyikan bila kosong/tak ada). */
   opsiTipe?: { label: string; nilai: string }[];
@@ -302,7 +308,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
           <>
             <BarisPilihan
               id={`set_tipe_kombo_${kunci}`}
-              teks="Tipe input:"
+              teks="Tipe"
               judul="Tipe kontrol: menentukan format isi, tombol bawaan, dan cara mengetik (mis. Nominal punya papan rupiah)."
               opsi={opsiTipe}
               nilai={tipeKontrol ?? opsiTipe[0].nilai}
@@ -434,6 +440,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
           placeholder="Pilih sisi…"
           namaDaftar="Buka daftar sisi yang mengembang"
           onPilih={(v) => onUbah({ expandLabel: v === 'Label' })}
+          lebarLabel={LEBAR_LABEL_GRUP_MENGEMBANG}
         />
         {/* "Label transparan" dikelompokkan di bawah tema Mengembang, pada baris
             tersendiri yang bertanda "Warna Label:". */}
@@ -446,6 +453,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
           placeholder="Pilih warna label…"
           namaDaftar="Buka daftar warna label"
           onPilih={(v) => onUbah({ labelTransparan: v === 'Transparan' })}
+          lebarLabel={LEBAR_LABEL_GRUP_MENGEMBANG}
         />
         {opsi !== undefined && opsi.length > 0 ? (
           <>

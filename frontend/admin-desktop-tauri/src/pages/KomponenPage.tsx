@@ -68,7 +68,7 @@ function rincianTipe(kunci: KunciTipeInput): string[] {
   if (def?.pengaturan !== undefined) {
     baris.push(`Punya pengaturan sendiri di popover: baris "${def.pengaturan.label}".`);
   }
-  baris.push('Klik kanan kotak → baris "Tipe input:" (muncul bila ada lebih dari satu pilihan).');
+  baris.push('Klik kanan kotak → baris "Tipe" (muncul bila ada lebih dari satu pilihan).');
   return baris;
 }
 
@@ -286,12 +286,12 @@ export default function KomponenPage() {
               utama={{
                 id: 'info_labeled_text_input',
                 nama: 'LabeledTextInput',
-                keterangan: 'gabungan komponen label + input dalam 1 kotak; JENIS inputnya dipilih dari baris "Tipe input:" di popover klik-kanan (registry tipeInput.tsx)',
+                keterangan: 'gabungan komponen label + input dalam 1 kotak; JENIS inputnya dipilih dari baris "Tipe" di popover klik-kanan (registry tipeInput.tsx)',
                 rincian: [
                   'Tanpa ukuran yang dikunci.',
                   'Kotak selebar kolom, tinggi 26px.',
                   'Properti input biasa diteruskan (type, step, dll).',
-                  'Klik kanan kotak → baris "Tipe input:" + pengaturan khusus tipe aktif.',
+                  'Klik kanan kotak → baris "Tipe" + pengaturan khusus tipe aktif.',
                   'Tiap tipe punya baris varian sendiri di bawah ini.',
                 ],
                 contoh: (
