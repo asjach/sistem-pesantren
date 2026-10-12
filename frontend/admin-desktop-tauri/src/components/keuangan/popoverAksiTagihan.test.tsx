@@ -228,7 +228,7 @@ describe('panel bayar', () => {
     const { onBayar } = renderPopover(tagihan());
     await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     const input = screen.getByLabelText('Jumlah pembayaran');
-    expect(input).toHaveValue(55000);
+    expect(input).toHaveValue('55.000');
 
     await userEvent.clear(input);
     await userEvent.type(input, '25000');
@@ -246,7 +246,7 @@ describe('panel bayar', () => {
     const tombolPreset = document.getElementById('btn_preset_inp_bayar_jumlah');
     expect(tombolPreset).not.toBeNull();
     const input = screen.getByLabelText('Jumlah pembayaran');
-    expect(input).toHaveValue(55000);
+    expect(input).toHaveValue('55.000');
 
     // Turunkan dulu ke Rp 20.000 agar penambahan preset tetap di bawah sisa
     // (Rp 55.000) — di atas sisa tombol Simpan memang dinonaktifkan.
@@ -259,7 +259,7 @@ describe('panel bayar', () => {
     const cepat = await screen.findByRole('group', { name: 'Nominal cepat' });
     await userEvent.click(within(cepat).getByRole('button', { name: '5.000' }));
 
-    await waitFor(() => expect(input).toHaveValue(25000));
+    await waitFor(() => expect(input).toHaveValue('25.000'));
     // Interaksi di panel bersarang tidak boleh menutup popover aksi (klik luar
     // Radix soal "branch") — popover terkontrol, jadi tertutup = onTutup jalan.
     expect(onTutup).not.toHaveBeenCalled();
@@ -277,7 +277,7 @@ describe('panel bayar', () => {
     renderPopover(tagihan());
     await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     expect(screen.queryByRole('button', { name: 'Penuh' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Jumlah pembayaran')).toHaveValue(55000);
+    expect(screen.getByLabelText('Jumlah pembayaran')).toHaveValue('55.000');
   });
 
   it('nominal melebihi sisa ditolak beserta pesan', async () => {

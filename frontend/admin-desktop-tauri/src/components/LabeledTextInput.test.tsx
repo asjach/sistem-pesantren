@@ -187,10 +187,12 @@ describe('LabeledTextInput', () => {
 
     // Tipe tersimpan sebagai SETELAN KOMPONEN (server), bukan ukuran perangkat.
     expect(setelanKomponen('', kunci)).toEqual({ tipeKontrol: 'nominal' });
-    expect(input().type).toBe('number');
+    expect(input().type).toBe('text');
+    expect(input().inputMode).toBe('numeric');
     expect(screen.getByLabelText('Pilih nominal cepat')).not.toBeNull();
-    // Nilai tak terkontrol tetap utuh (tipe baru tak mengosongkan isian).
-    expect(input().value).toBe('1000');
+    // Nilai tak terkontrol tetap utuh (tipe baru tak mengosongkan isian), kini
+    // TAMPIL dengan pemisah ribuan.
+    expect(input().value).toBe('1.000');
 
     // Reset baris tipe → kembali ke tipe bawaan pemanggil (teks, tanpa kalkulator).
     await userEvent.click(screen.getByLabelText('Kembalikan tipe input ke bawaan'));

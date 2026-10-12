@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import KotakLabel, { hitungLebarKontrol, keCss } from '@/components/kotakLabel';
 import { usePengaturanKotak } from '@/components/pengaturanKotak';
@@ -77,19 +77,51 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
      pemanggil tetap menang. Bawaan sudah termasuk pengaturan tipe tersimpan
      (mis. preset nominal milik pengguna). Tipe tak dikenal → `Input` bawaan. */
   const bawaan = { ...defTipeEfektif, ...bawaanTipe };
+  const format = bawaan?.format;
   /* Input yang TIDAK dikendalikan pemanggil (tanpa `value`/`onChange`) tetap
      tak-terkontrol agar `defaultValue` pemanggil tetap berlaku — kecuali tipe
-     aktif punya `aksiKanan` bawaan (mis. kalkulator rupiah) yang butuh menulis
-     nilai; baru nilai disimpan internal (lihat penanganan `key`/`defaultValue`
-     pada `Input` di bawah). */
+     aktif punya `aksiKanan` bawaan (mis. kalkulator rupiah) atau `format`
+     (mis. pemisah ribuan) yang keduanya butuh MENULIS nilai; baru nilai
+     disimpan internal (lihat penanganan `key`/`defaultValue` pada `Input`). */
   const terkendaliPemanggil = props.value !== undefined || props.onChange !== undefined;
-  const pakaiNilaiInternal = !terkendaliPemanggil && bawaan?.aksiKanan !== undefined;
+  const pakaiNilaiInternal = !terkendaliPemanggil
+    && (bawaan?.aksiKanan !== undefined || format !== undefined);
   const [nilaiInternal, setNilaiInternal] = useState(props.defaultValue === undefined ? '' : String(props.defaultValue));
+  /** Nilai SEBENARNYA (digit mentah). Inilah yang dipakai `aksiKanan`, diteruskan
+   *  ke `onChange` pemanggil, dan pada akhirnya dikirim ke server — TIDAK PERNAH
+   *  teks berformat. */
   const nilai = terkendaliPemanggil ? String(props.value ?? '') : nilaiInternal;
+  /** Teks yang DITAMPILKAN di kotak; hanya berbeda dari `nilai` bila tipe aktif
+   *  punya `format` (mis. nominal → "50.000"). */
+  const teksTampil = format === undefined ? nilai : format.tampil(nilai);
   const setNilai = (nilaiBaru: string) => {
     if (terkendaliPemanggil) props.onChange?.({ target: { value: nilaiBaru } } as React.ChangeEvent<HTMLInputElement>);
     else setNilaiInternal(nilaiBaru);
   };
+
+  /* Kursor: menyisipkan pemisah ribuan menggeser indeks karakter, jadi posisi
+     kursor dipulihkan berdasarkan JUMLAH DIGIT di kirinya (bukan indeks teks).
+     Diambil saat mengetik, dipakai setelah React menulis ulang nilainya. */
+  const refInput = useRef<HTMLInputElement | null>(null);
+  const digitKiriRef = useRef<number | null>(null);
+  const gantiTeks = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (format === undefined) {
+      setNilai(e.target.value);
+      return;
+    }
+    const el = e.target;
+    digitKiriRef.current = (el.value.slice(0, el.selectionStart ?? el.value.length).match(/\d/g) ?? []).length;
+    setNilai(format.nilai(el.value));
+  };
+  useLayoutEffect(() => {
+    const el = refInput.current;
+    const digitKiri = digitKiriRef.current;
+    if (el === null || digitKiri === null) return;
+    digitKiriRef.current = null;
+    const posisi = posisiSetelahDigit(el.value, digitKiri);
+    el.setSelectionRange(posisi, posisi);
+  });
+
   const aksiKananEfektif = aksiKanan
     ?? (bawaan?.aksiKanan === undefined ? undefined : bawaan.aksiKanan({ htmlFor, nilai, setNilai }));
   const kotak = (
@@ -111,6 +143,7 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
           <Input
             {...bawaan?.attrs}
             {...props}
+            ref={refInput}
             id={props.id ?? htmlFor}
             type={props.type ?? bawaan?.type}
             /* Saat nilai dikelola internal: kotak TERKENDALI oleh state itu —
@@ -119,9 +152,9 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
                masih bisa diketik. `key` memisah kedua mode agar React tak
                mengeluh saat tipe aktif berubah dari polos ke ber-aksiKanan. */
             key={pakaiNilaiInternal ? 'nilai_internal' : 'nilai_bebas'}
-            value={terkendaliPemanggil ? props.value : pakaiNilaiInternal ? nilaiInternal : undefined}
+            value={terkendaliPemanggil ? teksTampil : pakaiNilaiInternal ? teksTampil : undefined}
             defaultValue={pakaiNilaiInternal ? undefined : props.defaultValue}
-            onChange={pakaiNilaiInternal ? (e) => setNilai(e.target.value) : props.onChange}
+            onChange={format !== undefined ? gantiTeks : pakaiNilaiInternal ? gantiTeks : props.onChange}
             className={cn(kelasKontrol, aksiKananEfektif !== undefined && 'pr-7')}
           />
           {aksiKananEfektif !== undefined && (
@@ -132,6 +165,19 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
     </KotakLabel>
   );
   return bungkus(kotak);
+}
+
+/** Indeks kursor setelah `jumlah` digit pertama dari kiri (`0` = paling kiri). */
+export function posisiSetelahDigit(teks: string, jumlah: number): number {
+  if (jumlah <= 0) return 0;
+  let digit = 0;
+  for (let i = 0; i < teks.length; i += 1) {
+    if (/\d/.test(teks[i])) {
+      digit += 1;
+      if (digit === jumlah) return i + 1;
+    }
+  }
+  return teks.length;
 }
 
 export { hitungLebarKontrol as hitungLebarInput, keCss };

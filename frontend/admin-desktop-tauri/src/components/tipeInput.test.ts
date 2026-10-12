@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   definisiTipe,
+  FORMAT_RIBUAN,
   KUNCI_TIPE_INPUT,
   kunciDariTypeNative,
   OPSI_TIPE_INPUT,
@@ -37,13 +38,26 @@ describe('registry tipe input', () => {
     expect(kunciDariTypeNative('waktu-tua')).toBe('teks');
   });
 
-  it('tipe nominal: number + inputMode numeric + kalkulator', () => {
+  it('tipe nominal: teks + inputMode numeric + kalkulator + pemisah ribuan', () => {
     const nominal = definisiTipe('nominal');
-    expect(nominal?.type).toBe('number');
+    // `text` (bukan `number`): pemisah ribuan tak sah di `type=number`.
+    expect(nominal?.type).toBe('text');
     expect(nominal?.attrs?.inputMode).toBe('numeric');
     expect(typeof nominal?.aksiKanan).toBe('function');
-    // Angka biasa tetap polos (tanpa papan rupiah).
+    // Angka biasa tetap polos (tanpa papan rupiah & tanpa pemisah ribuan).
     expect(definisiTipe('angka')?.aksiKanan).toBeUndefined();
+    expect(definisiTipe('angka')?.format).toBeUndefined();
+  });
+
+  it('FORMAT_RIBUAN: tampil berformat, nilai kembali ke digit mentah', () => {
+    expect(FORMAT_RIBUAN.tampil('50000')).toBe('50.000');
+    expect(FORMAT_RIBUAN.tampil('0')).toBe('0');
+    expect(FORMAT_RIBUAN.tampil('')).toBe('');
+    // Kebalikannya: titik/spasi/teks lain dibuang, nol di depan dibuang.
+    expect(FORMAT_RIBUAN.nilai('50.000')).toBe('50000');
+    expect(FORMAT_RIBUAN.nilai('Rp 1 234 567')).toBe('1234567');
+    expect(FORMAT_RIBUAN.nilai('007')).toBe('7');
+    expect(FORMAT_RIBUAN.nilai('abc')).toBe('');
   });
 
   it('preset nominal bawaan naik dan berakhir 1 juta', () => {

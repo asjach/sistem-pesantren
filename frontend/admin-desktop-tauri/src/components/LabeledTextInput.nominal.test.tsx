@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import LabeledTextInput from './LabeledTextInput';
+import LabeledTextInput, { posisiSetelahDigit } from './LabeledTextInput';
 import { PRESET_NOMINAL } from './tipeInput';
 import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
@@ -35,7 +35,8 @@ function Contoh({ awal = '' }: { awal?: string }) {
   );
 }
 
-const nilaiInput = () => (document.getElementById('inp_nom') as HTMLInputElement).value;
+/** Teks yang TAMPIL di kotak (berformat, mis. "50.000") — bukan nilai mentah. */
+const teksKotak = () => (document.getElementById('inp_nom') as HTMLInputElement).value;
 const bukaPopover = () => userEvent.click(screen.getByRole('button', { name: 'Pilih nominal cepat' }));
 /** Klik tombol di popover (nama aksesibel persis, mis. "1.000" atau "000"). */
 const klik = async (nama: string) => userEvent.click(await screen.findByRole('button', { name: nama }));
@@ -43,10 +44,12 @@ const klik = async (nama: string) => userEvent.click(await screen.findByRole('bu
 const panel = (nama: string) => document.querySelector(`[data-panel="${nama}"]`) as HTMLElement | null;
 
 describe('LabeledTextInput tipe nominal', () => {
-  it('memaksa tipe number & menyediakan tombol popover', () => {
+  it('memakai input teks + papan ketik angka & menyediakan tombol popover', () => {
     renderDenganTema(<Contoh />);
     const input = document.getElementById('inp_nom') as HTMLInputElement;
-    expect(input.type).toBe('number');
+    // `text`, BUKAN `number`: pemisah ribuan tak sah di `type=number`.
+    expect(input.type).toBe('text');
+    expect(input.inputMode).toBe('numeric');
     expect(input.className).toMatch(/pr-7/);
     expect(document.getElementById('btn_preset_inp_nom')).not.toBeNull();
   });
@@ -77,7 +80,7 @@ describe('LabeledTextInput tipe nominal', () => {
     renderDenganTema(<Contoh awal="50" />);
     await bukaPopover();
     await klik('0');
-    await waitFor(() => expect(nilaiInput()).toBe('500'));
+    await waitFor(() => expect(teksKotak()).toBe('500'));
     expect(panel('nominal')).not.toBeNull();
     expect(panel('angka')).not.toBeNull();
   });
@@ -86,7 +89,7 @@ describe('LabeledTextInput tipe nominal', () => {
     renderDenganTema(<Contoh awal="50" />);
     await bukaPopover();
     await klik('1.000');
-    await waitFor(() => expect(nilaiInput()).toBe('1050'));
+    await waitFor(() => expect(teksKotak()).toBe('1.050'));
     expect(panel('angka')).not.toBeNull();
   });
 
@@ -121,23 +124,23 @@ describe('LabeledTextInput tipe nominal', () => {
     renderDenganTema(<Contoh awal="50000" />);
     await bukaPopover();
     await klik('1.000');
-    await waitFor(() => expect(nilaiInput()).toBe('51000'));
+    await waitFor(() => expect(teksKotak()).toBe('51.000'));
     await klik('250.000');
-    await waitFor(() => expect(nilaiInput()).toBe('301000'));
+    await waitFor(() => expect(teksKotak()).toBe('301.000'));
   });
 
   it('nominal ditambahkan di atas nilai kosong (= nominal itu sendiri)', async () => {
     renderDenganTema(<Contoh />);
     await bukaPopover();
     await klik('5.000');
-    await waitFor(() => expect(nilaiInput()).toBe('5000'));
+    await waitFor(() => expect(teksKotak()).toBe('5.000'));
   });
 
   it('tombol reset mengembalikan nilai ke 0', async () => {
     renderDenganTema(<Contoh awal="50000" />);
     await bukaPopover();
     await klik('Reset ke 0');
-    await waitFor(() => expect(nilaiInput()).toBe('0'));
+    await waitFor(() => expect(teksKotak()).toBe('0'));
   });
 
   it('tombol angka menempel seperti mengetik: 1,0,0,0 → 1000', async () => {
@@ -147,29 +150,29 @@ describe('LabeledTextInput tipe nominal', () => {
     await klik('0');
     await klik('0');
     await klik('0');
-    await waitFor(() => expect(nilaiInput()).toBe('1000'));
+    await waitFor(() => expect(teksKotak()).toBe('1.000'));
   });
 
   it('tombol 000 menempel tiga nol di belakang nilai', async () => {
     renderDenganTema(<Contoh awal="50" />);
     await bukaPopover();
     await klik('000');
-    await waitFor(() => expect(nilaiInput()).toBe('50000'));
+    await waitFor(() => expect(teksKotak()).toBe('50.000'));
   });
 
   it('nol di depan dibuang saat menempel angka', async () => {
     renderDenganTema(<Contoh />);
     await bukaPopover();
     await klik('00');
-    await waitFor(() => expect(nilaiInput()).toBe('0'));
+    await waitFor(() => expect(teksKotak()).toBe('0'));
     await klik('5');
-    await waitFor(() => expect(nilaiInput()).toBe('5'));
+    await waitFor(() => expect(teksKotak()).toBe('5'));
   });
 
   it('mengetik manual juga lewat onChange (satu jalur nilai)', async () => {
     renderDenganTema(<Contoh />);
     await userEvent.type(document.getElementById('inp_nom') as HTMLInputElement, '75000');
-    expect(nilaiInput()).toBe('75000');
+    expect(teksKotak()).toBe('75.000');
   });
 
   it('klik tombol memanggil onChange & popover tetap terbuka', async () => {
@@ -222,18 +225,18 @@ describe('LabeledTextInput tipe nominal', () => {
       <LabeledTextInput nama="nominal" tipeKontrol="nominal" label="Nominal" htmlFor="inp_lepas" defaultValue="50000" />,
     );
     const input = document.getElementById('inp_lepas') as HTMLInputElement;
-    expect(input.value).toBe('50000');
+    expect(input.value).toBe('50.000');
     // Kotak terkendali state internal — BUKAN read-only.
     expect(input.readOnly).toBe(false);
 
     await userEvent.clear(input);
     await userEvent.type(input, '75000');
-    expect(input.value).toBe('75000');
+    expect(input.value).toBe('75.000');
 
     // Tombol nominal cepat menulis ke nilai yang sama (satu jalur nilai).
     await bukaPopover();
     await klik('5.000');
-    await waitFor(() => expect(input.value).toBe('80000'));
+    await waitFor(() => expect(input.value).toBe('80.000'));
   });
 
   it('klik kanan membuka popover ukuran (judul nominal) di samping panel kalkulator', async () => {
@@ -245,6 +248,97 @@ describe('LabeledTextInput tipe nominal', () => {
     await bukaPopover();
     await waitFor(() => expect(panel('nominal')).not.toBeNull());
     expect(panel('angka')).not.toBeNull();
+  });
+});
+
+describe('LabeledTextInput tipe nominal — tampilan vs nilai', () => {
+  /** Harness yang MEREKAM nilai mentah yang diterima pemanggil. */
+  function Perekam({ awal = '' }: { awal?: string }) {
+    const [nilai, setNilai] = useState(awal);
+    return (
+      <div>
+        <LabeledTextInput
+          nama="nominal" tipeKontrol="nominal"
+          label="Nominal" htmlFor="inp_rekam"
+          value={nilai} onChange={(e) => setNilai(e.target.value)}
+        />
+        <span data-uji="mentah">{nilai}</span>
+      </div>
+    );
+  }
+  const kotak = () => document.getElementById('inp_rekam') as HTMLInputElement;
+  const mentah = () => document.querySelector('[data-uji="mentah"]')?.textContent;
+
+  it('nilai pemanggil tetap DIGIT MENTAH walau kotak menampilkan pemisah ribuan', async () => {
+    renderDenganTema(<Perekam />);
+
+    await userEvent.type(kotak(), '50000');
+
+    expect(kotak().value).toBe('50.000');   // yang dilihat pengguna
+    expect(mentah()).toBe('50000');         // yang dipakai aplikasi & dikirim ke DB
+  });
+
+  it('menempel teks berformat (mis. "Rp 1.234.567") tersimpan sebagai digit saja', async () => {
+    renderDenganTema(<Perekam />);
+
+    fireEvent.change(kotak(), { target: { value: 'Rp 1.234.567' } });
+
+    expect(mentah()).toBe('1234567');
+    expect(kotak().value).toBe('1.234.567');
+  });
+
+  it('nilai awal dari pemanggil ditampilkan berformat tanpa mengubah nilainya', () => {
+    renderDenganTema(
+      <LabeledTextInput
+        nama="nominal" tipeKontrol="nominal"
+        label="Nominal" htmlFor="inp_rekam" value="50000" onChange={() => {}}
+      />,
+    );
+
+    expect(kotak().value).toBe('50.000');
+  });
+
+  it('tombol nominal cepat menambah nilai MENTAH, bukan teks berformat', async () => {
+    // 50000 + 1000 = 51000 → tampil '51.000'. Kalau yang ditambah teks
+    // berformat ('50.000' + 1000), hasilnya '50.001.000'.
+    renderDenganTema(<Perekam awal="50000" />);
+    await userEvent.click(screen.getByRole('button', { name: 'Pilih nominal cepat' }));
+    await userEvent.click(await screen.findByRole('button', { name: '1.000' }));
+
+    await waitFor(() => expect(mentah()).toBe('51000'));
+    expect(kotak().value).toBe('51.000');
+  });
+
+  it('nol di depan dibuang saat diketik (bukan hanya di layar)', async () => {
+    renderDenganTema(<Perekam />);
+
+    await userEvent.type(kotak(), '007');
+
+    expect(mentah()).toBe('7');
+    expect(kotak().value).toBe('7');
+  });
+
+  it('posisi kursor dipertahankan saat menyisipkan di tengah', async () => {
+    renderDenganTema(<Perekam />);
+    await userEvent.type(kotak(), '50000');
+    expect(kotak().value).toBe('50.000');
+
+    // Sisipkan '9' setelah digit ke-2 (yaitu sebelum titik pemisah).
+    const el = kotak();
+    await userEvent.type(el, '9', { initialSelectionStart: 2, initialSelectionEnd: 2 });
+
+    // Digit jadi 509000 → tampil '509.000'; kursor tetap setelah digit ke-3.
+    expect(mentah()).toBe('509000');
+    expect(el.value).toBe('509.000');
+    expect(el.selectionStart).toBe(3);
+  });
+
+  it('posisiSetelahDigit: indeks kursor setelah n digit pertama', () => {
+    expect(posisiSetelahDigit('50.000', 0)).toBe(0);
+    expect(posisiSetelahDigit('50.000', 2)).toBe(2);
+    expect(posisiSetelahDigit('50.000', 3)).toBe(4);
+    expect(posisiSetelahDigit('50.000', 5)).toBe(6);
+    expect(posisiSetelahDigit('', 3)).toBe(0);
   });
 });
 

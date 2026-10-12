@@ -54,6 +54,29 @@ export interface KonteksPengaturanTipe<T = unknown> {
   setNilai: (nilaiBaru: T | null) => void;
 }
 
+/** Format TAMPILAN nilai input + kebalikannya.
+ *
+ *  Dipakai tipe yang teks di kotaknya BEDA dari nilai sebenarnya (mis. pemisah
+ *  ribuan pada `nominal`). Aturannya: yang dipakai aplikasi — dan dikirim ke
+ *  server — SELALU hasil `nilai()` (digit mentah), tidak pernah yang tampak di
+ *  kotak. `tampil()` hanya untuk mata pengguna. */
+export interface FormatNilai {
+  /** Nilai sebenarnya → teks yang ditampilkan di kotak. */
+  tampil: (nilai: string) => string;
+  /** Teks di kotak (ketikan/tempelan pengguna) → nilai sebenarnya. */
+  nilai: (teks: string) => string;
+}
+
+/** Pemisah ribuan gaya Indonesia: `50000` ⇄ `50.000`.
+ *
+ *  Hanya DIGIT yang dianggap angka — titik, spasi, atau `Rp` yang ikut tersalin
+ *  dari tempat lain dibuang; nol di depan dibuang seperti tombol papan angka
+ *  (supaya `007` → `7`, bukan `7` di layar tapi `007` di database). */
+export const FORMAT_RIBUAN: FormatNilai = {
+  tampil: (nilai) => (/^\d+$/.test(nilai) ? Number(nilai).toLocaleString('id') : nilai),
+  nilai: (teks) => teks.replace(/\D/g, '').replace(/^0+(?=\d)/, ''),
+};
+
 /** PENGATURAN khusus milik satu tipe: baris di popover pengaturan kotak yang
  *  muncul HANYA saat tipe itu aktif, dan yang mengubah bawaan tipe itu sendiri
  *  (mis. daftar nominal cepat pada tipe `nominal`).
@@ -91,6 +114,9 @@ export interface DefinisiTipeInput {
   aksiKanan?: (ctx: KonteksTipeInput) => ReactNode;
   /** Pengaturan yang bisa diubah pengguna dari popover (opsional per tipe). */
   pengaturan?: PengaturanTipe<unknown>;
+  /** Format tampilan nilai (mis. pemisah ribuan). Bila ada, `type` native
+   *  tak bisa `number` (pemisah ribuan bukan angka yang sah di sana). */
+  format?: FormatNilai;
 }
 
 /** Nominal cepat bawaan (rupiah) — 9 tombol, tampil 3 per baris. */
@@ -333,10 +359,14 @@ const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
   angka: { label: 'Angka', type: 'number', attrs: { inputMode: 'numeric' } },
   nominal: {
     label: 'Nominal (Uang)',
-    type: 'number',
+    /* `text`, BUKAN `number`: pemisah ribuan ("50.000") bukan angka yang sah di
+       `type=number` sehingga teksnya tak akan tampil. Papan ketik angka tetap
+       diminta lewat `inputMode` di `attrs`. */
+    type: 'text',
     attrs: { inputMode: 'numeric' },
     aksiKanan: (ctx) => <AksiKananNominal {...ctx} />,
     pengaturan: PENGATURAN_PRESET_NOMINAL,
+    format: FORMAT_RIBUAN,
   },
   tanggal: { label: 'Tanggal', type: 'date' },
   bulan: { label: 'Bulan', type: 'month' },

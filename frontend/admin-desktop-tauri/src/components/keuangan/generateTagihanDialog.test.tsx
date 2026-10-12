@@ -365,10 +365,15 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
     api.pratinjau.mockResolvedValue([]);
 
-    renderDialog();
-    await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
+    /* Nilai tak sah kini hanya bisa datang dari DATA, bukan ketikan: kotak
+       nominal (tipe `nominal`) menyaring apa pun selain digit — "-5" jadi "5",
+       desimal jadi bilangan bulat. Tarif dengan nominal negatif dipakai untuk
+       tetap menguji guard `validasiNominal`. */
+    renderDialog({
+      tarif: [{ id: 5, jenjang: 'MI', tahun_ajaran: '2025/2026', jenis_id: 1, tingkat: '1', nominal: -5, is_active: true }],
+    });
+    await pilihOpsi('sel_gen_tarif', /Rp -5/);
     const nominal = document.getElementById('inp_gen_nominal') as HTMLInputElement;
-    fireEvent.change(nominal, { target: { value: '-5' } });
     fireEvent.blur(nominal);
     await waitFor(() => expect(screen.getByText(/bilangan bulat ≥ 0/)).toBeInTheDocument());
 
