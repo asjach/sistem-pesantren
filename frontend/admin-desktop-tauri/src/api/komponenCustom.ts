@@ -54,18 +54,29 @@ export function muatKomponenCustom(tableKey?: string) {
 
 /** Simpan setelan satu komponen. `setelan` dikirim LENGKAP untuk komponen itu
  *  (server menimpa, bukan menggabung), jadi kunci yang tak dikirim kembali ke
- *  bawaan. */
+ *  bawaan.
+ *
+ *  `tableKey` KOSONG = komponen di luar tabel (dialog/form/popover): kuncinya
+ *  diHILANGKAN dari payload, bukan dikirim sebagai string kosong — server
+ *  memperlakukan ketiadaan kunci itu sebagai lingkup global, dan string kosong
+ *  bisa berubah jadi `null` di jalur validasi. */
 export function simpanKomponenCustom(komponen: string, setelan: SetelanKomponen, tableKey = '') {
   return api<{ pesan: string; data: KomponenCustomRow }>('/admin/komponen-custom', {
     method: 'PUT',
-    body: JSON.stringify({ table_key: tableKey, komponen, setelan }),
+    body: JSON.stringify({
+      ...(tableKey === '' ? {} : { table_key: tableKey }),
+      komponen,
+      setelan,
+    }),
   });
 }
 
-/** Hapus setelan satu komponen → kembali ke bawaan pemanggil. */
+/** Hapus setelan satu komponen → kembali ke bawaan pemanggil. Sama seperti
+ *  `simpanKomponenCustom`, `table_key` kosong tak ikut dikirim. */
 export function hapusKomponenCustom(komponen: string, tableKey = '') {
+  const kunci = tableKey === '' ? '' : `table_key=${encodeURIComponent(tableKey)}&`;
   return api<{ pesan: string }>(
-    `/admin/komponen-custom?table_key=${encodeURIComponent(tableKey)}&komponen=${encodeURIComponent(komponen)}`,
+    `/admin/komponen-custom?${kunci}komponen=${encodeURIComponent(komponen)}`,
     { method: 'DELETE' },
   );
 }

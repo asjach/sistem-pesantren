@@ -163,6 +163,40 @@ class KomponenCustomTest extends TestCase
         $this->assertDatabaseMissing('komponen_custom', ['komponen' => 'sel_a']);
     }
 
+    /**
+     * Komponen di luar tabel: klien boleh mengirim `table_key` KOSONG, bukan
+     * hanya menghilangkannya. Laravel mengubah string kosong jadi `null`
+     * (`ConvertEmptyStringsToNull`), jadi aturannya wajib `nullable` — tanpa itu
+     * setiap setelan komponen di dialog/form/popover (mis. halaman Komponen)
+     * ditolak dengan "The table key field must be a string.".
+     */
+    public function test_table_key_kosong_diterima_sebagai_komponen_global(): void
+    {
+        $user = $this->makeUser('admin');
+
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'table_key' => '',
+            'komponen' => 'demo_input_bebas',
+            'setelan' => ['tipeKontrol' => 'nominal'],
+        ])->assertStatus(200);
+
+        $this->assertDatabaseHas('komponen_custom', [
+            'table_key' => '', 'komponen' => 'demo_input_bebas',
+        ]);
+
+        // GET dengan `table_key=` kosong = lingkup global (bukan semua tabel).
+        $this->actingAs($user, 'sanctum')->getJson('/api/admin/komponen-custom?table_key=')
+            ->assertStatus(200)
+            ->assertJsonPath('data.peta.|demo_input_bebas.tipeKontrol', 'nominal');
+
+        // DELETE dengan `table_key=` kosong juga harus lolos.
+        $this->actingAs($user, 'sanctum')
+            ->deleteJson('/api/admin/komponen-custom?table_key=&komponen=demo_input_bebas')
+            ->assertStatus(200);
+
+        $this->assertDatabaseMissing('komponen_custom', ['komponen' => 'demo_input_bebas']);
+    }
+
     public function test_simpan_ukuran_komponen_dan_nilai_awal(): void
     {
         $user = $this->makeUser('admin');

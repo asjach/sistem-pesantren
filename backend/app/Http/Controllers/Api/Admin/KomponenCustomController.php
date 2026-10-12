@@ -194,9 +194,9 @@ class KomponenCustomController extends Controller
      * GET /api/admin/komponen-custom[?table_key=santri]
      *
      * Tanpa `table_key` semua baris dikembalikan (muatan kecil: hanya
-     * komponen yang benar-benar disetel). Peta = `table_key|komponen` →
-     * setelan, supaya klien bisa melakukan cache satu kali untuk seluruh
-     * tabel sekaligus.
+     * komponen yang benar-benar disetel). `?table_key=` (kosong) = lingkup
+     * komponen di luar tabel. Peta = `table_key|komponen` → setelan, supaya
+     * klien bisa melakukan cache satu kali untuk seluruh tabel sekaligus.
      */
     public function index(KomponenCustomIndexRequest $request): JsonResponse
     {
@@ -204,7 +204,9 @@ class KomponenCustomController extends Controller
 
         $query = KomponenCustom::query();
         if (array_key_exists('table_key', $data)) {
-            $query->where('table_key', $data['table_key']);
+            /* `null` = string kosong yang dinormalkan Laravel
+               (`ConvertEmptyStringsToNull`), bukan "tanpa filter". */
+            $query->where('table_key', (string) ($data['table_key'] ?? ''));
         }
         $baris = $query->get(['table_key', 'komponen', 'setelan']);
 
