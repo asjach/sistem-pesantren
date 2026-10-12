@@ -24,6 +24,7 @@ import IcChevronLeftLucide from '~icons/lucide/chevron-left';
 import IcChevronRightLucide from '~icons/lucide/chevron-right';
 import IcClipboardCheckLucide from '~icons/lucide/clipboard-check';
 import IcClipboardListLucide from '~icons/lucide/clipboard-list';
+import IcClipboardPasteLucide from '~icons/lucide/clipboard-paste';
 import IcCopyLucide from '~icons/lucide/copy';
 import IcCropLucide from '~icons/lucide/crop';
 import IcEyeLucide from '~icons/lucide/eye';
@@ -117,6 +118,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ChevronRight: IcChevronRightLucide,
   ClipboardCheck: IcClipboardCheckLucide,
   ClipboardList: IcClipboardListLucide,
+  ClipboardPaste: IcClipboardPasteLucide,
   Copy: IcCopyLucide,
   Crop: IcCropLucide,
   Eye: IcEyeLucide,

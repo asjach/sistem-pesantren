@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { toast } from 'sonner';
 import { Popover, PopoverAnchor } from '@/components/ui/popover';
 import PopoverUkuranKombo from '@/components/PopoverUkuranKombo';
+import { setelanUntukTujuan, simpanSalinan, useSalinan } from '@/components/salinSetelan';
 import { pakaiLebarFilter } from '@/components/excel/lebarFilter';
 import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
@@ -15,6 +17,7 @@ import {
 import {
   gabungSetelanKomponen,
   hapusSetelanKomponen,
+  setelanKomponen,
   simpanSetelanKomponen,
   ubahPengaturanTipe,
   useSetelanKomponen,
@@ -159,6 +162,15 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
     gabungSetelanKomponen(tableKey, kunciUkuran, { [bidang]: null });
   }, [tableKey, kunciUkuran]);
 
+  /** Papan salin setelan (isi tombol "Salin setelan" kotak lain). */
+  const salinan = useSalinan();
+  /** Ada setelan tersimpan apa pun? → tombol "Salin setelan" hidup. */
+  const bisaSalin = bolehBukaPengaturan && Object.keys(ukuran).length > 0;
+  /** Sebutan kotak di pesan toast: labelnya bila ada, kalau tidak jenisnya. */
+  const sebutan = label === '' ? nama : label;
+  /** Nama kotak sumber di tooltip tombol "Tempel setelan". */
+  const asalSalinan = salinan === null ? undefined : (salinan.label === '' ? salinan.nama : salinan.label);
+
   /* Ukuran tersimpan (bila ada) menang atas nilai dari pemanggil. */
   const tinggiEfektif = ukuran.tinggi ?? tinggi;
   const lebarKotakEfektif = ukuran.lebar ?? lebarKotak;
@@ -209,6 +221,44 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
     }),
   };
   const adaPengaturanTipe = Object.keys(setelanTipe).length > 0;
+
+  /** Salin setelan kotak ini ke papan salin (ikon di kepala popover). Isinya
+   *  hidup di memori aplikasi, jadi bisa ditempel ke kotak di halaman lain. */
+  const aksiSalin = useCallback(() => {
+    if (!bisaSalin) return;
+    simpanSalinan({ setelan: { ...ukuran }, label, nama });
+    toast.success(`Setelan ${sebutan} disalin. Buka kotak lain, lalu tekan "Tempel setelan".`);
+  }, [bisaSalin, ukuran, label, nama, sebutan]);
+
+  /** Terapkan isi papan salin ke kotak ini; kunci yang tak didukung kotak ini
+   *  dilewati (lihat `setelanUntukTujuan`) dan disebut di pesan. Server ditulis
+   *  lewat store setelan komponen, lengkap dengan tombol "Batalkan". */
+  const aksiTempel = useCallback(() => {
+    if (salinan === null || !bolehBukaPengaturan) return;
+    const sebelumnya = setelanKomponen(tableKey, kunciUkuran);
+    const { setelan: baru, dilewati } = setelanUntukTujuan(salinan.setelan, {
+      opsi,
+      tipeDiizinkan: opsiTipe.map((o) => o.nilai),
+      tipeSekarang: tipeKontrolEfektif,
+      setelanSekarang: sebelumnya,
+    });
+    if (Object.keys(baru).length === 0) hapusSetelanKomponen(tableKey, kunciUkuran);
+    else simpanSetelanKomponen(tableKey, kunciUkuran, baru);
+    const dari = salinan.label === '' ? salinan.nama : salinan.label;
+    toast.success(
+      `Setelan dari "${dari}" diterapkan ke ${sebutan}.`
+        + (dilewati.length === 0 ? '' : ` Dilewati (tak didukung kotak ini): ${dilewati.join(', ')}.`),
+      {
+        action: {
+          label: 'Batalkan',
+          onClick: () => {
+            if (Object.keys(sebelumnya).length === 0) hapusSetelanKomponen(tableKey, kunciUkuran);
+            else simpanSetelanKomponen(tableKey, kunciUkuran, sebelumnya);
+          },
+        },
+      },
+    );
+  }, [salinan, bolehBukaPengaturan, opsi, opsiTipe, tipeKontrolEfektif, tableKey, kunciUkuran, sebutan]);
 
   /** Bungkus kotak dalam popover pengaturan (klik-kanan). Tanpa `htmlFor`,
    *  kotak dikembalikan apa adanya. */
@@ -267,6 +317,10 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
           onUbahTipeKontrol={simpanTipeKontrol}
           onReset={resetUkuran}
           onResetBaris={resetBaris}
+          onSalin={aksiSalin}
+          onTempel={aksiTempel}
+          bisaSalin={bisaSalin}
+          asalSalinan={asalSalinan}
         />
       </Popover>
     );

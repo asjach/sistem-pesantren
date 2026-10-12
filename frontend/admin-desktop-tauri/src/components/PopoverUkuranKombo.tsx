@@ -5,7 +5,7 @@ import SpinBox from '@/components/SpinBox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
-import { ChevronRight, RotateCcw } from '@/icons';
+import { ChevronRight, ClipboardPaste, Copy, RotateCcw } from '@/icons';
 import { cn } from '@/lib/utils';
 import {
   LEBAR_KOMBO_MAKS,
@@ -193,10 +193,13 @@ const diDalamDaftarOpsi = (target: EventTarget | null) =>
  *  penyimpanannya ditentukan pemanggil — SERVER (saat combobox hidup di
  *  toolbar tabel, berlaku global) atau perangkat (combobox form biasa).
  *
+ *  Di kepalanya ada ikon SALIN & TEMPEL setelan: salin kotak ini, lalu tempel
+ *  ke kotak lain (termasuk kotak di halaman lain) — lihat `salinSetelan.ts`.
+ *
  *  Popover tak punya tombol tutup: KLIK KIRI DI LUAR menutupnya (kecuali klik
  *  pada daftar opsi combobox di dalamnya, yang ber-portal ke `body`). Escape
  *  sengaja tak menutup supaya mengetik di isian panel tak berarti keluar. */
-export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, pengaturanTipe, adaPengaturanTipe, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
+export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, onSalin, onTempel, bisaSalin, asalSalinan, pengaturanTipe, adaPengaturanTipe, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
   kunci: string;
   /** Ref elemen KOTAK yang sedang diatur. Isi kotak (label + kontrol) berada
    *  di luar DOM panel ini, jadi perlu rujukan untuk membedakan "pengguna
@@ -213,6 +216,15 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
   opsiTipe?: { label: string; nilai: string }[];
   /** Ada tipe kontrol tersimpan? (menentukan tombol reset baris & reset global) */
   adaTipeKontrol?: boolean;
+  /** Simpan setelan kotak ini ke papan salin (ikon "Salin setelan"). */
+  onSalin?: () => void;
+  /** Terapkan isi papan salin ke kotak ini (ikon "Tempel setelan"). */
+  onTempel?: () => void;
+  /** Ada setelan tersimpan yang bisa disalin? (ikon Salin nonaktif bila tidak) */
+  bisaSalin?: boolean;
+  /** Nama kotak asal salinan; `undefined` = papan salin kosong → ikon Tempel
+   *  tak ditampilkan sama sekali. */
+  asalSalinan?: string;
   /** Pengaturan khusus tipe aktif (mis. "Preset cepat" pada tipe `nominal`).
    *  `id` dipakai `htmlFor` label baris — harus sama dengan id kontrol yang
    *  dirender `isi`. */
@@ -335,6 +347,41 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
               </p>
             ) : null}
           </div>
+          {/* SALIN & TEMPEL setelan antar kotak — dua langkah, tanpa daftar
+              tujuan: salin di kotak asal (ikon Dokumen), lalu tempel di kotak
+              lain (ikon Papan Tempel, muncul hanya bila papan salin berisi).
+              Isinya hidup di memori aplikasi, jadi bisa lintas halaman. */}
+          {onSalin !== undefined && (
+            <Button
+              id={`btn_salin_setelan_kombo_${kunci}`}
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              disabled={bisaSalin !== true}
+              onClick={onSalin}
+              aria-label="Salin setelan kotak ini"
+              title={bisaSalin === true
+                ? `Salin setelan ${nama} ini, lalu tempel ke kotak lain`
+                : 'Belum ada setelan tersimpan untuk disalin'}
+              className="shrink-0 text-muted-foreground"
+            >
+              <Copy />
+            </Button>
+          )}
+          {onTempel !== undefined && asalSalinan !== undefined && (
+            <Button
+              id={`btn_tempel_setelan_kombo_${kunci}`}
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={onTempel}
+              aria-label={`Tempel setelan dari ${asalSalinan}`}
+              title={`Tempel setelan dari "${asalSalinan}" ke ${nama} ini`}
+              className="shrink-0 text-muted-foreground"
+            >
+              <ClipboardPaste />
+            </Button>
+          )}
           {/* Kembalikan SELURUH setelan komponen ini ke bawaan. Dulu baris penuh
               di bawah panel; kini ikon di kepala panel sehingga tingginya hemat
               satu baris + pemisah (±40px) — sejalan dengan tombol reset

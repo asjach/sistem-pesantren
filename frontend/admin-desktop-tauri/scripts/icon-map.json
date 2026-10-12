@@ -230,6 +230,17 @@
   "bi": "clipboard",
   "material": "assignment"
  },
+ "ClipboardPaste": {
+  "lucide": "clipboard-paste",
+  "tabler": "clipboard-text",
+  "ph": "clipboard-text",
+  "heroicons": null,
+  "ri": null,
+  "iconoir": "clipboard-check",
+  "radix": null,
+  "bi": "clipboard-check",
+  "material": "content-paste"
+ },
  "Copy": {
   "lucide": "copy",
   "tabler": "copy",

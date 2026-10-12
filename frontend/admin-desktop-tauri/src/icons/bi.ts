@@ -24,6 +24,7 @@ import IcChevronLeftBi from '~icons/bi/chevron-left';
 import IcChevronRightBi from '~icons/bi/chevron-right';
 import IcClipboardCheckBi from '~icons/bi/clipboard-check';
 import IcClipboardListBi from '~icons/bi/clipboard';
+import IcClipboardPasteBi from '~icons/bi/clipboard-check';
 import IcCopyBi from '~icons/bi/copy';
 import IcCropBi from '~icons/bi/crop';
 import IcEyeBi from '~icons/bi/eye';
@@ -101,6 +102,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ChevronRight: IcChevronRightBi,
   ClipboardCheck: IcClipboardCheckBi,
   ClipboardList: IcClipboardListBi,
+  ClipboardPaste: IcClipboardPasteBi,
   Copy: IcCopyBi,
   Crop: IcCropBi,
   Eye: IcEyeBi,

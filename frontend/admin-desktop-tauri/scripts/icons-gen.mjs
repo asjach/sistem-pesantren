@@ -50,6 +50,7 @@ const IKON = {
   ChevronRight: ['chevron-right', 'caret-right', 'chevron-forward', 'angle-right', 'arrow-ios-forward', 'right', 'arrow-right-s-line', 'nav-arrow-right'],
   ClipboardCheck: ['clipboard-check', 'clipboard-checked', 'clipboard-ok', 'task', 'clipboard-verify', 'clipboard-document-check'],
   ClipboardList: ['clipboard-list', 'clipboard', 'task-list', 'clipboard-notes', 'clipboard-text', 'clipboard-document-list', 'assignment'],
+  ClipboardPaste: ['clipboard-paste', 'content-paste', 'clipboard-text', 'paste', 'clipboard-import', 'clipboard-check'],
   Copy: ['copy', 'copy-simple', 'duplicate', 'content-copy', 'clipboard-copy', 'files', 'document-duplicate', 'file-copy-line'],
   Crop: ['crop'],
   Eye: ['eye', 'eye-open', 'eye-2', 'view', 'visibility', 'show', 'eye-line'],

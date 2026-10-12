@@ -22,6 +22,7 @@ import IcChevronDownPh from '~icons/ph/caret-down';
 import IcChevronLeftPh from '~icons/ph/caret-left';
 import IcChevronRightPh from '~icons/ph/caret-right';
 import IcClipboardListPh from '~icons/ph/clipboard';
+import IcClipboardPastePh from '~icons/ph/clipboard-text';
 import IcCopyPh from '~icons/ph/copy';
 import IcCropPh from '~icons/ph/crop';
 import IcEyePh from '~icons/ph/eye';
@@ -99,6 +100,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ChevronLeft: IcChevronLeftPh,
   ChevronRight: IcChevronRightPh,
   ClipboardList: IcClipboardListPh,
+  ClipboardPaste: IcClipboardPastePh,
   Copy: IcCopyPh,
   Crop: IcCropPh,
   Eye: IcEyePh,

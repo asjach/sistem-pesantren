@@ -24,6 +24,7 @@ import IcChevronLeftTabler from '~icons/tabler/chevron-left';
 import IcChevronRightTabler from '~icons/tabler/chevron-right';
 import IcClipboardCheckTabler from '~icons/tabler/clipboard-check';
 import IcClipboardListTabler from '~icons/tabler/clipboard-list';
+import IcClipboardPasteTabler from '~icons/tabler/clipboard-text';
 import IcCopyTabler from '~icons/tabler/copy';
 import IcCropTabler from '~icons/tabler/crop';
 import IcEyeTabler from '~icons/tabler/eye';
@@ -108,6 +109,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ChevronRight: IcChevronRightTabler,
   ClipboardCheck: IcClipboardCheckTabler,
   ClipboardList: IcClipboardListTabler,
+  ClipboardPaste: IcClipboardPasteTabler,
   Copy: IcCopyTabler,
   Crop: IcCropTabler,
   Eye: IcEyeTabler,

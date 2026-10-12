@@ -23,6 +23,7 @@ import IcChevronLeftMaterial from '~icons/material-symbols/chevron-left';
 import IcChevronRightMaterial from '~icons/material-symbols/chevron-right';
 import IcClipboardCheckMaterial from '~icons/material-symbols/task';
 import IcClipboardListMaterial from '~icons/material-symbols/assignment';
+import IcClipboardPasteMaterial from '~icons/material-symbols/content-paste';
 import IcCopyMaterial from '~icons/material-symbols/content-copy';
 import IcCropMaterial from '~icons/material-symbols/crop';
 import IcEyeMaterial from '~icons/material-symbols/visibility';
@@ -105,6 +106,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ChevronRight: IcChevronRightMaterial,
   ClipboardCheck: IcClipboardCheckMaterial,
   ClipboardList: IcClipboardListMaterial,
+  ClipboardPaste: IcClipboardPasteMaterial,
   Copy: IcCopyMaterial,
   Crop: IcCropMaterial,
   Eye: IcEyeMaterial,

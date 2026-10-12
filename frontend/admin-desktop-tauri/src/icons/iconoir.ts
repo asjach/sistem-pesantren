@@ -24,6 +24,7 @@ import IcChevronLeftIconoir from '~icons/iconoir/nav-arrow-left';
 import IcChevronRightIconoir from '~icons/iconoir/nav-arrow-right';
 import IcClipboardCheckIconoir from '~icons/iconoir/clipboard-check';
 import IcClipboardListIconoir from '~icons/iconoir/task-list';
+import IcClipboardPasteIconoir from '~icons/iconoir/clipboard-check';
 import IcCopyIconoir from '~icons/iconoir/copy';
 import IcCropIconoir from '~icons/iconoir/crop';
 import IcEyeIconoir from '~icons/iconoir/eye';
@@ -95,6 +96,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   ChevronRight: IcChevronRightIconoir,
   ClipboardCheck: IcClipboardCheckIconoir,
   ClipboardList: IcClipboardListIconoir,
+  ClipboardPaste: IcClipboardPasteIconoir,
   Copy: IcCopyIconoir,
   Crop: IcCropIconoir,
   Eye: IcEyeIconoir,
