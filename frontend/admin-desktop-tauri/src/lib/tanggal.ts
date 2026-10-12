@@ -281,3 +281,64 @@ export function tanggalLengkap(teks: string): boolean {
 export function maskTanggal(teks: string): string {
   return FORMAT_DDMMYYYY.ketik(teks);
 }
+
+/* ---------- Kotak bulan: teks `mm/yyyy` ⇄ nilai `YYYY-MM` ---------- */
+
+/** Bulan ini menurut zona waktu LOKAL — `YYYY-MM`. */
+export function bulanIni(): string {
+  return hariIniIso().slice(0, 7);
+}
+
+/** Pecah `YYYY-MM` (`YYYY-MM-DD`/datetime dipotong) jadi angkanya; `null` bila
+ *  tak sah — termasuk bulan di luar 1–12. */
+export function pecahBulan(nilai: string | null | undefined): { tahun: number; bulan: number } | null {
+  if (nilai == null) return null;
+  const m = /^(\d{4})-(\d{1,2})(?:-\d{1,2})?/.exec(nilai.trim());
+  if (m === null) return null;
+  const tahun = Number(m[1]);
+  const bulan = Number(m[2]);
+  if (tahun < TAHUN_MIN || tahun > TAHUN_MAX) return null;
+  if (bulan < 1 || bulan > 12) return null;
+  return { tahun, bulan };
+}
+
+/** Rakit nilai bulan `YYYY-MM` dari angkanya; `null` bila di luar rentang.
+ *  Sama seperti `input type="month"`: TANPA bagian hari. */
+export function rakitBulan(tahun: number, bulan: number): string | null {
+  if (tahun < TAHUN_MIN || tahun > TAHUN_MAX) return null;
+  if (bulan < 1 || bulan > 12) return null;
+  return `${String(tahun).padStart(4, '0')}-${pad2(bulan)}`;
+}
+
+/** Nilai `YYYY-MM` → teks kotak `mm/yyyy`. Nilai yang bukan bulan dikenali
+ *  dibiarkan apa adanya supaya isian lama/aneh tak diam-diam dikosongkan. */
+export function bulanKeTampilan(nilai: string): string {
+  const b = pecahBulan(nilai);
+  return b === null ? nilai : `${pad2(b.bulan)}/${b.tahun}`;
+}
+
+/** Teks kotak `mm/yyyy` → `YYYY-MM`; `''` bila belum lengkap atau bulannya tak
+ *  ada (mis. `13/2026`). Inilah satu-satunya nilai yang dipakai aplikasi. */
+export function bulanDariTampilan(teks: string): string {
+  const m = /^(\d{1,2})\/(\d{4})$/.exec(teks.trim());
+  if (m === null) return '';
+  return rakitBulan(Number(m[2]), Number(m[1])) ?? '';
+}
+
+/** Teks kotak sudah lengkap `mm/yyyy` (terlepas sah atau tidak)? */
+export function bulanLengkap(teks: string): boolean {
+  return /^\d{2}\/\d{4}$/.test(teks.trim());
+}
+
+/** Mask ketikan kotak bulan: hanya digit, "/" disisipkan setelah bulan.
+ *
+ *  Tempelan ISO ("2026-10", mis. dari Excel atau DB) dibaca sebagai bulan itu —
+ *  tanpa ini, digitnya akan dimask jadi "20/2610". Tanggal penuh ("2026-10-12")
+ *  pun terbaca sebagai bulannya saja. */
+export function maskBulan(teks: string): string {
+  const iso = /^\s*(\d{4})[-/.](\d{1,2})/.exec(teks);
+  if (iso !== null) return `${pad2(Number(iso[2]))}/${iso[1]}`;
+  const digit = teks.replace(/\D/g, '').slice(0, 6);
+  if (digit.length <= 2) return digit;
+  return `${digit.slice(0, 2)}/${digit.slice(2)}`;
+}

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bulanDariTampilan,
+  bulanIni,
+  bulanKeTampilan,
+  bulanLengkap,
   FORMAT_TANGGAL_BAWAAN,
+  maskBulan,
+  pecahBulan,
+  rakitBulan,
   formatTanggalPola,
   geserBulan,
   hariIniIso,
@@ -183,6 +190,62 @@ describe('formatTanggalPola', () => {
     expect(f.nilai('12 Xyz 2026')).toBe('');
     expect(f.takSah('12 Xyz 2026')).toBe(true);
     expect(f.takSah('12 Okt 2026')).toBe(false);
+  });
+});
+
+describe('kotak bulan: teks `mm/yyyy` ⇄ nilai `YYYY-MM`', () => {
+  it('pecahBulan: membaca YYYY-MM (tanggal penuh dipotong), menolak yang tak sah', () => {
+    expect(pecahBulan('2026-10')).toEqual({ tahun: 2026, bulan: 10 });
+    expect(pecahBulan('2026-10-12')).toEqual({ tahun: 2026, bulan: 10 });
+    expect(pecahBulan('2026-1')).toEqual({ tahun: 2026, bulan: 1 });
+    expect(pecahBulan('')).toBeNull();
+    expect(pecahBulan(null)).toBeNull();
+    expect(pecahBulan(undefined)).toBeNull();
+    expect(pecahBulan('10/2026')).toBeNull();
+    expect(pecahBulan('2026-13')).toBeNull();
+    expect(pecahBulan('2026-00')).toBeNull();
+    expect(pecahBulan('1899-10')).toBeNull();
+  });
+
+  it('rakitBulan: nilai TANPA bagian hari, di luar rentang ditolak', () => {
+    expect(rakitBulan(2026, 1)).toBe('2026-01');
+    expect(rakitBulan(2026, 12)).toBe('2026-12');
+    expect(rakitBulan(2026, 13)).toBeNull();
+    expect(rakitBulan(2026, 0)).toBeNull();
+    expect(rakitBulan(1800, 1)).toBeNull();
+  });
+
+  it('bulanIni memakai bulan LOKAL berformat YYYY-MM', () => {
+    expect(bulanIni()).toBe(hariIniIso().slice(0, 7));
+  });
+
+  it('bulanKeTampilan: YYYY-MM → mm/yyyy; nilai yang bukan bulan dibiarkan', () => {
+    expect(bulanKeTampilan('2026-10')).toBe('10/2026');
+    expect(bulanKeTampilan('')).toBe('');
+    expect(bulanKeTampilan('entah')).toBe('entah');
+  });
+
+  it('bulanDariTampilan: mm/yyyy → YYYY-MM; kosong selama belum lengkap/tak sah', () => {
+    expect(bulanDariTampilan('10/2026')).toBe('2026-10');
+    expect(bulanDariTampilan('1/2026')).toBe('2026-01');
+    expect(bulanDariTampilan('10/26')).toBe('');
+    expect(bulanDariTampilan('')).toBe('');
+    expect(bulanDariTampilan('13/2026')).toBe('');
+    expect(bulanLengkap('13/2026')).toBe(true);
+    expect(bulanLengkap('10/2')).toBe(false);
+  });
+
+  it('maskBulan: menyisipkan "/" sendiri & menerima tempelan ISO', () => {
+    expect(maskBulan('1')).toBe('1');
+    expect(maskBulan('10')).toBe('10');
+    expect(maskBulan('102')).toBe('10/2');
+    expect(maskBulan('102026')).toBe('10/2026');
+    expect(maskBulan('2026-10')).toBe('10/2026');
+    expect(maskBulan('2026-10-12')).toBe('10/2026');
+    expect(maskBulan('abc')).toBe('');
+    // Idempoten & dipotong setelah 6 digit (mm + yyyy).
+    expect(maskBulan('10/2026')).toBe('10/2026');
+    expect(maskBulan('1234567')).toBe('12/3456');
   });
 });
 

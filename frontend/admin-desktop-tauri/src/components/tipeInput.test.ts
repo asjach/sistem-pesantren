@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   definisiTipe,
+  FORMAT_BULAN,
   FORMAT_RIBUAN,
   FORMAT_TANGGAL,
   KUNCI_TIPE_INPUT,
@@ -62,9 +63,33 @@ describe('registry tipe input', () => {
     expect(tanggal?.format).toBe(FORMAT_TANGGAL);
     // `type="date"` dari pemanggil lama tetap terbaca sebagai tipe ini.
     expect(tanggal?.typeNative).toContain('date');
-    // Tipe tanggal lain tetap native (belum punya kalender sendiri).
-    expect(definisiTipe('bulan')?.type).toBe('month');
+    // Waktu masih native (belum punya pemilih sendiri).
     expect(definisiTipe('tanggal_waktu')?.format).toBeUndefined();
+  });
+
+  it('tipe bulan: teks ber-mask mm/yyyy + pemilih bulan sendiri, bukan `month` native', () => {
+    const bulanDef = definisiTipe('bulan');
+    // `text`: `mm/yyyy` bukan isi yang sah untuk `month` native.
+    expect(bulanDef?.type).toBe('text');
+    expect(bulanDef?.attrs?.inputMode).toBe('numeric');
+    expect(bulanDef?.attrs?.placeholder).toBe('mm/yyyy');
+    expect(bulanDef?.format).toBe(FORMAT_BULAN);
+    expect(typeof bulanDef?.aksiKanan).toBe('function');
+    // `type="month"` dari pemanggil lama tetap terbaca sebagai tipe ini.
+    expect(bulanDef?.typeNative).toContain('month');
+    expect(kunciDariTypeNative('month')).toBe('bulan');
+  });
+
+  it('FORMAT_BULAN: tampil mm/yyyy, nilai kembali YYYY-MM, pesan salahnya sendiri', () => {
+    expect(FORMAT_BULAN.tampil('2026-10')).toBe('10/2026');
+    expect(FORMAT_BULAN.tampil('')).toBe('');
+    expect(FORMAT_BULAN.nilai('10/2026')).toBe('2026-10');
+    expect(FORMAT_BULAN.ketik?.('102026')).toBe('10/2026');
+    expect(FORMAT_BULAN.ketik?.('2026-10-12')).toBe('10/2026');
+    expect(FORMAT_BULAN.takSah?.('13/2026')).toBe(true);
+    expect(FORMAT_BULAN.takSah?.('12/2026')).toBe(false);
+    // Kotak bulan tak boleh memakai pesan bawaan yang menyebut tanggal.
+    expect(FORMAT_BULAN.judulTakSah).toBe('Bulan tidak ada di kalender (01–12)');
   });
 
   it('tipe tanggal: baris pengaturan "Format" berisi seluruh pola tanggal', () => {

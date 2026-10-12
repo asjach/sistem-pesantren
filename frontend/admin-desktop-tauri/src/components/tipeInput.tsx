@@ -6,9 +6,13 @@ import {
 } from '@/components/ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import PopoverKalender from '@/components/PopoverKalender';
+import PopoverBulan from '@/components/PopoverBulan';
 import { diDalamPanel, kelasPanel, KELAS_TOMBOL, OFFSET_RATA, OFFSET_SISI } from '@/components/panelMenempel';
 import { cn } from '@/lib/utils';
-import { FORMAT_TANGGAL_BAWAAN, formatTanggalPola, POLA_FORMAT_TANGGAL, polaTanggal } from '@/lib/tanggal';
+import {
+  bulanDariTampilan, bulanKeTampilan, bulanLengkap, FORMAT_TANGGAL_BAWAAN, formatTanggalPola,
+  maskBulan, POLA_FORMAT_TANGGAL, polaTanggal,
+} from '@/lib/tanggal';
 import { Calculator, Reset } from '@/icons';
 
 /** Registry TIPE kontrol input untuk `LabeledTextInput`.
@@ -82,6 +86,9 @@ export interface FormatNilai {
    *  Dipakai menandai kotaknya (`aria-invalid`) supaya salah ketik tak
    *  diam-diam jadi nilai kosong. Absen = tak ada teks yang ditandai. */
   takSah?: (teks: string) => boolean;
+  /** Judul (`title`) kotak saat teksnya ditandai `takSah` — bawaannya menyebut
+   *  tanggal, jadi format lain (mis. bulan) memakai kalimatnya sendiri. */
+  judulTakSah?: string;
 }
 
 /** Pemisah ribuan gaya Indonesia: `50000` ⇄ `50.000`.
@@ -103,6 +110,19 @@ export const FORMAT_RIBUAN: FormatNilai = {
  *  pemisah sendiri dan membaca tempelan ISO apa adanya. Nilai yang diteruskan
  *  ke pemanggil tetap ISO, sama seperti `input type="date"`. */
 export const FORMAT_TANGGAL: FormatNilai = formatTanggalPola(FORMAT_TANGGAL_BAWAAN);
+
+/** Bulan: nilai sebenarnya `YYYY-MM`, yang tampak `mm/yyyy`.
+ *
+ *  Sama seperti `FORMAT_TANGGAL` (mask ketikan + tak bisa dibalik sambil
+ *  diketik) — bedanya tanpa bagian hari, jadi nilainya TETAP `YYYY-MM` seperti
+ *  `input type="month"`. */
+export const FORMAT_BULAN: FormatNilai = {
+  tampil: bulanKeTampilan,
+  nilai: bulanDariTampilan,
+  ketik: maskBulan,
+  takSah: (teks) => bulanLengkap(teks) && bulanDariTampilan(teks) === '',
+  judulTakSah: 'Bulan tidak ada di kalender (01–12)',
+};
 
 /** PENGATURAN khusus milik satu tipe: baris di popover pengaturan kotak yang
  *  muncul HANYA saat tipe itu aktif, dan yang mengubah bawaan tipe itu sendiri
@@ -439,7 +459,18 @@ const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
     typeNative: ['date'],
     pengaturan: PENGATURAN_FORMAT_TANGGAL,
   },
-  bulan: { label: 'Bulan', type: 'month' },
+  bulan: {
+    label: 'Bulan',
+    /* Kotak teks ber-mask `mm/yyyy` + pemilih bulan sendiri, BUKAN `month`
+       native: alasannya sama dengan `tanggal` — tampilan & popover pemilihnya
+       milik webview (ikut locale, tak bisa distyle/dites). Nilai yang dipakai
+       aplikasi & dikirim ke server tetap `YYYY-MM`, sama seperti input native. */
+    type: 'text',
+    attrs: { inputMode: 'numeric', placeholder: 'mm/yyyy' },
+    format: FORMAT_BULAN,
+    aksiKanan: (ctx) => <PopoverBulan {...ctx} />,
+    typeNative: ['month'],
+  },
   waktu: { label: 'Waktu', type: 'time' },
   tanggal_waktu: { label: 'Tanggal & Waktu', type: 'datetime-local' },
   email: { label: 'Email', type: 'email' },

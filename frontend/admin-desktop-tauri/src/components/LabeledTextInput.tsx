@@ -36,7 +36,10 @@ import { cn } from '@/lib/utils';
  *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas.
  *  - Tipe `tanggal` menambah baris "Format" di popover itu: pola tampilan kotak
  *    (`dd/mm/yyyy`, `yyyy-mm-dd`, ...) yang sekaligus menentukan mask ketikan
- *    dan placeholder-nya — nilai yang dikirim ke server tetap ISO. */
+ *    dan placeholder-nya — nilai yang dikirim ke server tetap ISO.
+ *  - Tipe `bulan` juga berkotak teks ber-mask (`mm/yyyy`) dengan pemilih
+ *    bulannya sendiri, dan nilainya tetap `YYYY-MM` seperti `input type="month"`;
+ *    pesan `title` saat isiannya tak sah ikut dari formatnya (`judulTakSah`). */
 export default function LabeledTextInput({ label, htmlFor, labelTransparan = true, nama = 'input', tipeKontrol, pilihanTipe, tipeTerkunci, bawaanTipe, lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
   label: string;
   htmlFor?: string;
@@ -199,7 +202,7 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
             defaultValue={pakaiNilaiInternal ? undefined : props.defaultValue}
             onChange={format !== undefined ? gantiTeks : pakaiNilaiInternal ? gantiTeks : props.onChange}
             aria-invalid={props['aria-invalid'] ?? (takSah ? true : undefined)}
-            title={props.title ?? (takSah ? 'Tanggal tidak ada di kalender' : undefined)}
+            title={props.title ?? (takSah ? format?.judulTakSah ?? 'Tanggal tidak ada di kalender' : undefined)}
             className={cn(kelasKontrol, aksiKananEfektif !== undefined && 'pr-7')}
           />
           {aksiKananEfektif !== undefined && (
