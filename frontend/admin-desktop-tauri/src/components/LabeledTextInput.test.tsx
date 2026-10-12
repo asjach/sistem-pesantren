@@ -144,4 +144,64 @@ describe('LabeledTextInput', () => {
     expect(ukuranKombo(kunci).labelTransparan).toBe(false);
     expect((container.querySelector(`label[for="${kunci}"]`) as HTMLElement).textContent).toBe('Nama');
   });
+  it('tipe bawaan dari pemanggil: type="date" → baris Tipe input = Tanggal', async () => {
+    const kunci = `uji_tipe_bawaan_${Date.now()}`;
+    const { container } = renderDenganTema(
+      <LabeledTextInput label="Jatuh Tempo" htmlFor={kunci} type="date" />,
+    );
+    expect((document.getElementById(kunci) as HTMLInputElement).type).toBe('date');
+
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    const tipe = await screen.findByRole('combobox', { name: 'Tipe input:' });
+    expect(tipe).toHaveValue('Tanggal');
+  });
+
+  it('popover: pilih tipe Nominal (Uang) → number + kalkulator, reset baris mengembalikan', async () => {
+    const kunci = `uji_tipe_nominal_${Date.now()}`;
+    const { container } = renderDenganTema(
+      <LabeledTextInput label="Jumlah" htmlFor={kunci} defaultValue="1000" />,
+    );
+    const input = () => document.getElementById(kunci) as HTMLInputElement;
+    expect(input().type).toBe('text');
+    expect(screen.queryByLabelText('Pilih nominal cepat')).toBeNull();
+
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    const tipe = await screen.findByRole('combobox', { name: 'Tipe input:' });
+    await userEvent.click(tipe);
+    await userEvent.click(await screen.findByRole('option', { name: 'Nominal (Uang)' }));
+
+    // Tipe tersimpan per perangkat + kontrol ikut berubah.
+    expect(ukuranKombo(kunci).tipeKontrol).toBe('nominal');
+    expect(input().type).toBe('number');
+    expect(screen.getByLabelText('Pilih nominal cepat')).not.toBeNull();
+    // Nilai tak terkontrol tetap utuh (tipe baru tak mengosongkan isian).
+    expect(input().value).toBe('1000');
+
+    // Reset baris tipe → kembali ke tipe bawaan pemanggil (teks, tanpa kalkulator).
+    await userEvent.click(screen.getByLabelText('Kembalikan tipe input ke bawaan'));
+    expect(ukuranKombo(kunci).tipeKontrol).toBeUndefined();
+    expect(input().type).toBe('text');
+    expect(screen.queryByLabelText('Pilih nominal cepat')).toBeNull();
+  });
+
+  it('pilihanTipe kosong: baris Tipe input tak muncul (kontrol non-input)', () => {
+    renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_tanpa_tipe" pilihanTipe={[]} />);
+    fireEvent.contextMenu(document.querySelector('#inp_tanpa_tipe')?.closest('span')?.parentElement as HTMLElement);
+    expect(screen.queryByRole('combobox', { name: 'Tipe input:' })).toBeNull();
+  });
+
+  it('bawaanTipe mengimpa aksiKanan tipe aktif untuk kotak ini saja', () => {
+    renderDenganTema(
+      <LabeledTextInput
+        label="Nominal"
+        htmlFor="inp_preset"
+        tipeKontrol="nominal"
+        value="0"
+        onChange={() => {}}
+        bawaanTipe={{ aksiKanan: () => <button type="button">Cepat</button> }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Cepat' })).not.toBeNull();
+    expect(screen.queryByLabelText('Pilih nominal cepat')).toBeNull();
+  });
 });

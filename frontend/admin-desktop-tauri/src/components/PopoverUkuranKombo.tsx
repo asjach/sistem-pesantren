@@ -33,9 +33,9 @@ const LEBAR_LABEL_GRUP_MENGEMBANG = 84;
 const LEBAR_STEPPER = 84;
 
 /** Pilihan sisi yang mengembang saat lebar total diubah (baris "Mengembang"). */
-const OPSI_MENGEMBANG = ['Label', 'Kontrol'];
+const OPSI_MENGEMBANG = [{ label: 'Label', nilai: 'Label' }, { label: 'Kontrol', nilai: 'Kontrol' }];
 /** Pilihan gaya label (baris "Warna Label:"). */
-const OPSI_WARNA_LABEL = ['Transparan', 'Tidak Transparan'];
+const OPSI_WARNA_LABEL = [{ label: 'Transparan', nilai: 'Transparan' }, { label: 'Tidak Transparan', nilai: 'Tidak Transparan' }];
 
 /** Baris alat: label polos + stepper kompak + tombol reset per-baris. */
 function BarisUkuran({ id, teks, stepper, resetId, resetLabel, adaAturan, onReset }: {
@@ -68,23 +68,32 @@ function BarisUkuran({ id, teks, stepper, resetId, resetLabel, adaAturan, onRese
   );
 }
 
-/** Baris "label + combobox" untuk pilihan bernama (baris "Mengembang" dan
- *  "Warna Label:"). Label jadi nama aksesibel kontrol lewat `htmlFor` — tanpa
- *  `aria-label` yang bisa bentrok dengan teks yang terlihat. */
-function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, onPilih }: {
+/** Baris "label + combobox" untuk pilihan bernama (baris "Mengembang",
+ *  "Warna Label:", dan "Tipe input:"). Label jadi nama aksesibel kontrol lewat
+ *  `htmlFor` — tanpa `aria-label` yang bisa bentrok dengan teks yang terlihat.
+ *
+ *  `labelOpsi` memetakan nilai → teks yang ditampilkan (baris "Tipe input:"
+ *  menampilkan "Nominal (Uang)", bukan kunci `nominal`). Tanpa itu, nilai
+ *  ditampilkan apa adanya. */
+function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, onPilih, resetId, resetLabel, adaAturan, onReset }: {
   id: string;
   teks: string;
   /** Tooltip penjelas di label. */
   judul: string;
-  opsi: string[];
+  /** Pilihan: `label` untuk tampilan, `nilai` untuk disimpan. */
+  opsi: { label: string; nilai: string }[];
   /** Pilihan yang sedang aktif (harus salah satu dari `opsi`). */
   nilai: string;
   placeholder: string;
   /** Nama aksi membuka daftar (aria-label tombol chevron). */
   namaDaftar: string;
-  /** Nilai `null` = input dikosongkan; pemanggil memperlakukannya sebagai
-   *  pilihan bawaan (tidak bisa menyimpan nilai kosong). */
-  onPilih: (nilaiBaru: string | null) => void;
+  /** Menyimpan nilai pilihan baru (label sudah diterjemahkan pemanggil). */
+  onPilih: (nilaiBaru: string) => void;
+  resetId?: string;
+  resetLabel?: string;
+  /** Ada setelan tersimpan untuk baris ini? (menentukan tombol reset) */
+  adaAturan?: boolean;
+  onReset?: () => void;
 }) {
   return (
     <div className="flex items-center gap-1.5">
@@ -97,17 +106,38 @@ function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, o
         {teks}
       </label>
       <div className="relative min-w-0 flex-1">
-        <ComboboxRoot items={opsi} value={nilai} onValueChange={onPilih}>
+        <ComboboxRoot
+          items={opsi}
+          itemToStringLabel={(o) => o.label}
+          isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+          value={opsi.find((o) => o.nilai === nilai) ?? null}
+          onValueChange={(o) => { if (o !== null) onPilih(o.nilai); }}
+        >
           <ComboboxInput id={id} className="pr-7" placeholder={placeholder} />
           <ComboboxTrigger className="absolute top-1/2 right-0 -translate-y-1/2" aria-label={namaDaftar} />
           <ComboboxContent>
             <ComboboxEmpty>Tidak ada pilihan.</ComboboxEmpty>
             <ComboboxList>
-              {(o) => <ComboboxItem key={o} value={o}>{o}</ComboboxItem>}
+              {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
             </ComboboxList>
           </ComboboxContent>
         </ComboboxRoot>
       </div>
+      {onReset !== undefined && (
+        <Button
+          id={resetId}
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          disabled={!adaAturan}
+          onClick={onReset}
+          aria-label={resetLabel}
+          title={resetLabel}
+          className="shrink-0 text-muted-foreground"
+        >
+          <RotateCcw />
+        </Button>
+      )}
     </div>
   );
 }
@@ -138,7 +168,7 @@ const diDalamDaftarOpsi = (target: EventTarget | null) =>
  *  Popover tak punya tombol tutup: KLIK KIRI DI LUAR menutupnya (kecuali klik
  *  pada daftar opsi combobox di dalamnya, yang ber-portal ke `body`). Escape
  *  sengaja tak menutup supaya mengetik di isian panel tak berarti keluar. */
-export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
+export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
   kunci: string;
   /** Ref elemen KOTAK yang sedang diatur. Isi kotak (label + kontrol) berada
    *  di luar DOM panel ini, jadi perlu rujukan untuk membedakan "pengguna
@@ -149,6 +179,12 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
   label?: string;
   /** Kata ganti jenis kotak di judul & aria ("combobox", "input", ...). */
   nama?: string;
+  /** Tipe kontrol aktif (registry `tipeInput.tsx`); dipakai baris "Tipe input:". */
+  tipeKontrol?: string;
+  /** Tipe yang boleh dipilih (baris disembunyikan bila kosong/tak ada). */
+  opsiTipe?: { label: string; nilai: string }[];
+  /** Ada tipe kontrol tersimpan? (menentukan tombol reset baris & reset global) */
+  adaTipeKontrol?: boolean;
   /** Nilai tinggi kotak yang ditampilkan (px). */
   tinggi: number;
   /** Nilai lebar total kotak yang ditampilkan (px). */
@@ -179,7 +215,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
   onUbah: (ukuran: UbahUkuranKombo) => void;
   onReset: () => void;
   /** Kembalikan SATU baris ke bawaan. */
-  onResetBaris: (bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol' | 'nilaiDefault') => void;
+  onResetBaris: (bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol' | 'nilaiDefault' | 'tipeKontrol') => void;
 }) {
   /** Interaksi di dalam KOTAK yang sedang diatur ATAU daftar opsi di dalam
    *  panel tidak menutup panel (lihat catatan pada `onInteractOutside`). */
@@ -254,6 +290,25 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
           </div>
         </div>
         <div className="flex flex-col gap-2">
+        {opsiTipe !== undefined && opsiTipe.length > 0 ? (
+          <>
+            <BarisPilihan
+              id={`set_tipe_kombo_${kunci}`}
+              teks="Tipe input:"
+              judul="Tipe kontrol: menentukan format isi, tombol bawaan, dan cara mengetik (mis. Nominal punya papan rupiah)."
+              opsi={opsiTipe}
+              nilai={tipeKontrol ?? opsiTipe[0].nilai}
+              placeholder="Pilih tipe…"
+              namaDaftar="Buka daftar tipe input"
+              onPilih={(v) => onUbah({ tipeKontrol: v })}
+              resetId={`btn_reset_tipe_kombo_${kunci}`}
+              resetLabel="Kembalikan tipe input ke bawaan"
+              adaAturan={adaTipeKontrol === true}
+              onReset={() => onResetBaris('tipeKontrol')}
+            />
+            <div aria-hidden className="border-t border-foreground/10" />
+          </>
+        ) : null}
         <BarisUkuran
           id={`set_tinggi_kombo_${kunci}`}
           teks="Tinggi"
