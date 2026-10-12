@@ -128,6 +128,18 @@ describe('PopoverKalender — panel atas: tahun & bulan', () => {
     expect(within(grid).getByRole('button', { name: `Oktober ${ini.tahun}` })).toBeInTheDocument();
   });
 
+  it('ada pembatas antara grid tahun dan grid bulan', async () => {
+    renderDenganTema(<Harness />);
+    await buka();
+    await waitFor(() => expect(panel('kalender_atas')).not.toBeNull());
+
+    const pembatas = within(panel('kalender_atas') as HTMLElement).getByRole('separator');
+    expect(pembatas.className).toMatch(/border-foreground\/30/);
+    // Letaknya di ANTARA keduanya: setelah grid tahun, sebelum grid bulan.
+    expect(gridTahun().compareDocumentPosition(pembatas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(pembatas.compareDocumentPosition(gridBulan(ini.tahun)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('memilih tahun/bulan hanya memindahkan grid tanggal — nilai belum berubah', async () => {
     renderDenganTema(<Harness />);
     await buka();

@@ -132,6 +132,11 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
             })}
           </div>
 
+          {/* Pembatas antara blok TAHUN & blok BULAN: tanpa ini kedua grid
+              berimpit jadi satu blok (border-nya saling menindih) sehingga
+              batas antara tahun dan bulan kabur. */}
+          <hr className="my-1 shrink-0 border-t border-foreground/30" />
+
           <div role="group" aria-label={`Bulan ${tahun}`} className="grid grid-cols-6">
             {NAMA_BULAN_SINGKAT.map((nama, i) => {
               const iniDipilih = i + 1 === bulan;
