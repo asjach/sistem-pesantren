@@ -764,7 +764,6 @@ export default function KeuanganPage() {
             onLepasBlok={lepasBlok}
             onAksiBatch={bukaBatch}
             batchBusy={batchBusy}
-            onReset={() => { setCariTagihan(''); uTagihan.terapkan([], 'naik'); setTerlambatTagihan(false); setTagihanPage(1); }}
             onBukaGenerate={() => setGenerateOpen(true)}
             pager={{
               page: tagihanPage,
