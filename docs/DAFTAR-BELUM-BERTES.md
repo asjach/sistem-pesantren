@@ -1,8 +1,11 @@
 # DAFTAR MODUL BELUM BERTES — SIMPES
 
-> Dibuat: sesi audit. **Status tes: SUSPEND AKTIF** (lihat `AGENTS.md` root).
+> Dibuat: sesi audit. **Status tes: AKTIF kembali** (suspend dicabut 2026-10-13;
+> bagian "SUSPEND TES" di `AGENTS.md` root ditandai NON-AKTIF, isinya disimpan
+> sebagai arsip bila pengguna mau men-suspend lagi).
 > Dokumen ini **daftar kerja**, bukan perintah menjalankan tes. Tes dijalankan
-> hanya bila pengguna memerintahkan secara eksplisit.
+> seperti biasa sekarang; berkas ini tinggal inventaris modul yang belum
+> punya test untuk dibereskan berdasarkan prioritas.
 >
 > Cara pakai: saat pengguna minta "buatkan test X", cari X di daftar ini,
 > ambil "Logika yang perlu diuji" + "Failure mode", lalu tulis test tersempit.

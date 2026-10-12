@@ -42,16 +42,33 @@ Contoh kalimat saat suspend aktif:
 > permintaan Anda. Verifikasi pakai `npm run typecheck` + `vendor/bin/pint
 > --dirty`. Bilang saja bila mau saya cabut suspend-nya."
 
+Contoh kalimat saat tes aktif:
+> "Pengingat rutin: tes FE & BE **aktif kembali** (suspend dicabut 2026-10-13),
+> dijalankan seperti biasa. Verifikasi tetap boleh pakai `npm run typecheck` +
+> `vendor/bin/pint --dirty`. Bilang saja bila mau saya suspend lagi."
+
 Saat suspend dicabut: sebutkan tes sudah aktif kembali dan dijalankan seperti
 biasa. Pemberitahuan ini WAJIB muncul di respons, bukan hanya di ringkasan
 internal.
 
-## SUSPEND TES — SEMENTARA (berlaku sampai dicabut)
+## SUSPEND TES — SEMENTARA (NON-AKTIF sejak 2026-10-13 — dicabut, ISI DISIMPAN)
 
-Status: **AKTIF sejak 2026-02-14** — tes frontend & backend dijeda atas
-permintaan pengguna (dianggap memperlambat pengembangan). Tes tidak berjalan
-otomatis di repo ini (tidak ada hook/CI/watch wajib); larangan ini berlaku pada
-agen agar tidak menjalankannya atas inisiatif sendiri.
+**Status sekarang: TES AKTIF KEMBALI.** Bagian ini TIDAK dihapus atas permintaan
+pengguna (2026-10-13) — "jangan dihapus, karena mungkin nanti saya suspend
+lagi". Isinya disimpan sebagai arsip siap-pakai: untuk men-suspend TES lagi,
+ubah baris "Riwayat" di bawah jadi "Status: **AKTIF**" + tanggal hari itu, lalu
+terapkan kembali larangan pada daftar arsip.
+
+Riwayat: suspend **AKTIF sejak 2026-02-14**, dicabut (tes diaktifkan kembali)
+**2026-10-13**. Saat pencabutan, tes penuh dijalankan sekali untuk memeriksa
+regresi yang menumpuk selama suspend.
+
+--- ARSIP (berlaku hanya bila suspend diaktifkan lagi) ---
+
+Aturan saat suspend AKTIF: tes frontend & backend dijeda atas permintaan
+pengguna (dianggap memperlambat pengembangan). Tes tidak berjalan otomatis di
+repo ini (tidak ada hook/CI/watch wajib); larangan ini berlaku pada agen agar
+tidak menjalankannya atas inisiatif sendiri.
 
 - **Dilarang menjalankan** atas inisiatif sendiri: `npm run test` (vitest) di
   `frontend/admin-desktop-tauri`, `php artisan test`/`vendor/bin/phpunit` di
@@ -67,6 +84,8 @@ agen agar tidak menjalankannya atas inisiatif sendiri.
 - **Cara mencabut**: hapus seluruh bagian ini, lalu kembali ke aturan test di
   `frontend/AGENTS.md` dan `backend/AGENTS.md`. Saat mencabut, jalankan tes
   penuh sekali untuk memastikan perubahan selama suspend tidak menumpuk regresi.
+  --- (2026-10-13: dicabut dengan cara berbeda — bagian ditandai NON-AKTIF dan
+  isinya disimpan atas permintaan pengguna; tes dijalankan penuh sekali) ---
 
 ## STATUS BUILD TAURI — pemberitahuan rutin
 
@@ -106,6 +125,10 @@ memicu langkah itu atas inisiatif sendiri.
 ## CATATAN FITUR BELUM BERTES — wajib dicatat, TIDAK wajib diuji
 
 Status: **WAJIB dicatat; DILARANG dijadikan alasan menjalankan tes.**
+Berlaku hanya saat SUSPEND TES aktif — sekarang **tidak** (tes aktif kembali
+sejak 2026-10-13), jadi pencatatan entri baru tidak wajib. Entri lama di
+`docs/DAFTAR-BELUM-BERTES.md` tetap ada sebagai inventaris untuk dibereskan
+berdasarkan prioritas.
 
 Selama suspend, setiap fitur/logika baru yang dibuat tanpa test **wajib dicatat**
 ke `docs/DAFTAR-BELUM-BERTES.md`. Mencatat **bukan** perintah menguji — tes tetap
