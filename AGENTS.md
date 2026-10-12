@@ -31,6 +31,21 @@ pesan commit) hanya bila `git status` kotor DAN salah satu pemicu ini terjadi:
   kredensial, screenshot sementara, dan artefak build.
 - Setelah commit: laporkan hash + ringkasan singkat.
 
+## STATUS TES — pemberitahuan rutin
+
+**Setiap sesi, beri tahu pengguna status tes** (suspend atau aktif), sama
+seperti pengingat akun reviewer. Sertakan: apakah tes sedang dijeda, apa yang
+tetap dijalankan sebagai verifikasi, dan cara mencabutnya.
+
+Contoh kalimat saat suspend aktif:
+> "Pengingat rutin: tes FE & BE sedang **dijeda (suspend aktif)** atas
+> permintaan Anda. Verifikasi pakai `npm run typecheck` + `vendor/bin/pint
+> --dirty`. Bilang saja bila mau saya cabut suspend-nya."
+
+Saat suspend dicabut: sebutkan tes sudah aktif kembali dan dijalankan seperti
+biasa. Pemberitahuan ini WAJIB muncul di respons, bukan hanya di ringkasan
+internal.
+
 ## SUSPEND TES — SEMENTARA (berlaku sampai dicabut)
 
 Status: **AKTIF sejak 2026-02-14** — tes frontend & backend dijeda atas
@@ -54,6 +69,11 @@ agen agar tidak menjalankannya atas inisiatif sendiri.
   penuh sekali untuk memastikan perubahan selama suspend tidak menumpuk regresi.
 
 ## Akun reviewer (AKTIF — jangan dibuat ulang/dihapus)
+- **Setiap sesi, beri tahu pengguna bahwa akun reviewer ini aktif** — sertakan
+  email, password, dan role-nya (contoh kalimat: "Pengingat rutin: akun reviewer
+  `reviewer.tmp@example.com` / `rahayu45` (`super_admin`) masih aktif untuk
+  sesi ini."). Pemberitahuan ini WAJIB muncul di respons, bukan hanya di
+  ringkasan internal.
 - Email: `reviewer.tmp@example.com`
 - Password: `rahayu45` (sama seperti seeder `AkunSeeder`; semua akun dev memakai ini)
 - Nama: `Reviewer Sementara` — role `super_admin` (akses semua halaman).

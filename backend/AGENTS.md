@@ -110,6 +110,8 @@ Tes sedang **dijeda sementara** (permintaan pengguna). Jangan jalankan
 `tests/**/*Test.php` atas inisiatif sendiri. Verifikasi memakai
 `vendor/bin/pint --dirty`. Detail + cara mencabut: bagian "SUSPEND TES" di
 `AGENTS.md` root. Aturan di bawah berlaku lagi setelah suspend dicabut.
+**Setiap sesi, beri tahu pengguna status tes** (suspend aktif/tidak) — sama
+seperti pengingat akun reviewer; lihat bagian "STATUS TES" di root.
 
 # Test Enforcement — hanya logika
 
