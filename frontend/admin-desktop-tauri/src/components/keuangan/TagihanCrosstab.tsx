@@ -32,7 +32,8 @@ interface Props {
   loading: boolean;
   /** Id tagihan sel yang sedang aktif (dilingkasi di tabel). */
   terpilihId: number | null;
-  /** Sel diklik (kiri maupun kanan) → halaman membuka popover aksi pada sel itu.
+  /** Sel diklik kanan (atau diaktifkan lewat keyboard) → halaman membuka
+   *  popover aksi pada sel itu. Klik kiri disiapkan untuk fitur lain.
    *  `anchor` = elemen sel, dipakai sebagai jangkar popover. */
   onPilih: (
     sel: CrosstabSel,
@@ -207,19 +208,18 @@ const BarisCrosstab = memo(function BarisCrosstab({
             <button
               type="button"
               id={`btn_tagihan_sel_${sel.id}`}
-              /* Klik kiri dan klik kanan sama-sama membuka popover aksi. */
-              /* Pemilihan harus di pointerdown, bukan click: selama popover
-                 terbuka, Radix DismissableLayer memanggil preventDefault()
-                 pada pointerdown di luar (agar fokus tak bergeser), dan
-                 membatalkan pointerdown berarti browser tak lagi melempar
-                 `click`. Kalau menunggu `click`, klik di sel lain hanya
-                 memunculkan "tutup" dan popover baru butuh klik kedua. */
-              onPointerDown={(e) => {
-                if (e.button !== 0) return;
+              /* Popover aksi HANYA di klik kanan. Klik kiri disiapkan untuk
+                 fitur lain, jadi tidak membuka popover.
+                 - onContextMenu: klik kanan → buka popover (preventDefault
+                   menekan menu konteks browser).
+                 - onClick: buka popover HANYA bila aktivasi keyboard
+                   (Enter/Space pada tombol fokus, `detail === 0`). Klik mouse
+                   kiri punya `detail > 0` → dilewati agar tak membuka popover. */
+              onContextMenu={(e) => { e.preventDefault(); onPilih(sel, meta, e.currentTarget, k); }}
+              onClick={(e) => {
+                if (e.detail !== 0) return;
                 onPilih(sel, meta, e.currentTarget, k);
               }}
-              onClick={(e) => onPilih(sel, meta, e.currentTarget, k)}
-              onContextMenu={(e) => { e.preventDefault(); onPilih(sel, meta, e.currentTarget, k); }}
               onMouseEnter={(e) => onHoverMasuk(isiTooltip, e.currentTarget)}
               onMouseMove={(e) => onHoverGerak(isiTooltip, e)}
               onMouseLeave={onHoverKeluar}
@@ -283,8 +283,9 @@ function IsiKartuTagihan({ data }: { data: TooltipSel }) {
 }
 
 /** Tabel silang tagihan: baris = santri, kolom = jenis (bulanan per bulan).
- *  Sel berisi nominal dengan warna status; klik sel (kiri maupun kanan)
- *  melaporkan tagihan terpilih ke halaman, yang membuka popover aksi. */
+ *  Sel berisi nominal dengan warna status; klik kanan sel (atau Enter keyboard)
+ *  melaporkan tagihan terpilih ke halaman, yang membuka popover aksi. Klik kiri
+ *  disiapkan untuk fitur lain. */
 function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, emptyText }: Props) {
   const kolom = data?.kolom ?? [];
   const baris: CrosstabBaris[] = data?.baris ?? [];
@@ -387,7 +388,8 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, emptyTe
       baruPilihRef.current = true;
       setTimeout(() => { baruPilihRef.current = false; }, 0);
 
-      // Klik kiri/kanan membuka popover aksi → tutup kartu hover seketika,
+      // Klik kanan / Enter keyboard membuka popover aksi → tutup kartu hover
+      // seketika,
       // jangan sampai dua-duanya menumpuk di atas sel yang sama. Pointer tak
       // bergerak lagi, jadi mouseenter tak akan menyalakannya kembali.
       if (tutupRef.current !== null) { clearTimeout(tutupRef.current); tutupRef.current = null; }
