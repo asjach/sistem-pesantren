@@ -111,7 +111,10 @@ export const FORMAT_RIBUAN: FormatNilai = {
  *  ke pemanggil tetap ISO, sama seperti `input type="date"`. */
 export const FORMAT_TANGGAL: FormatNilai = formatTanggalPola(FORMAT_TANGGAL_BAWAAN);
 
-/** Bulan: nilai sebenarnya `YYYY-MM`, yang tampak `mm/yyyy`.
+/** Bulan: nilai sebenarnya `YYYY-MM`, yang tampak `mm/yyyy`. Selain digit,
+ *  kotaknya menerima KETIKAN CEPAT nama bulan — `okt 2026`, `okt26` (dua digit
+ *  tahun: `26` = 2026, `98` = 1998), `september26` — yang tetap terlihat saat
+ *  diketik lalu dibakukan jadi `mm/yyyy` begitu kotaknya ditinggalkan.
  *
  *  Sama seperti `FORMAT_TANGGAL` (mask ketikan + tak bisa dibalik sambil
  *  diketik) — bedanya tanpa bagian hari, jadi nilainya TETAP `YYYY-MM` seperti
@@ -121,7 +124,7 @@ export const FORMAT_BULAN: FormatNilai = {
   nilai: bulanDariTampilan,
   ketik: maskBulan,
   takSah: (teks) => bulanLengkap(teks) && bulanDariTampilan(teks) === '',
-  judulTakSah: 'Bulan tidak ada di kalender (01–12)',
+  judulTakSah: 'Bulan tidak dikenal (mis. 10/2026 atau "okt 2026")',
 };
 
 /** PENGATURAN khusus milik satu tipe: baris di popover pengaturan kotak yang

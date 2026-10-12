@@ -89,7 +89,20 @@ describe('registry tipe input', () => {
     expect(FORMAT_BULAN.takSah?.('13/2026')).toBe(true);
     expect(FORMAT_BULAN.takSah?.('12/2026')).toBe(false);
     // Kotak bulan tak boleh memakai pesan bawaan yang menyebut tanggal.
-    expect(FORMAT_BULAN.judulTakSah).toBe('Bulan tidak ada di kalender (01–12)');
+    expect(FORMAT_BULAN.judulTakSah).toBe('Bulan tidak dikenal (mis. 10/2026 atau "okt 2026")');
+  });
+
+  it('FORMAT_BULAN: ketikan cepat nama bulan tetap terlihat, nilainya YYYY-MM', () => {
+    expect(FORMAT_BULAN.ketik?.('okt26')).toBe('Okt 26');
+    expect(FORMAT_BULAN.ketik?.('okt 2026')).toBe('Okt 2026');
+    expect(FORMAT_BULAN.nilai('Okt 26')).toBe('2026-10');
+    // Tempelan tanggal penuh dari dokumen: mask-nya jatuh ke bulan itu, dan
+    // nilai dibaca dari teks kotak hasil mask (memang begitu jalurnya).
+    expect(FORMAT_BULAN.ketik?.('12 Okt 2026')).toBe('Okt 2026');
+    expect(FORMAT_BULAN.nilai(FORMAT_BULAN.ketik?.('12 Okt 2026') ?? '')).toBe('2026-10');
+    // Nama bulan tak dikenal tetap ditandai, bukan diam-diam jadi nilai lain.
+    expect(FORMAT_BULAN.takSah?.('Xyz 26')).toBe(true);
+    expect(FORMAT_BULAN.nilai('Xyz 26')).toBe('');
   });
 
   it('tipe tanggal: baris pengaturan "Format" berisi seluruh pola tanggal', () => {

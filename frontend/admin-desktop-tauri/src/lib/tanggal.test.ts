@@ -242,10 +242,56 @@ describe('kotak bulan: teks `mm/yyyy` ⇄ nilai `YYYY-MM`', () => {
     expect(maskBulan('102026')).toBe('10/2026');
     expect(maskBulan('2026-10')).toBe('10/2026');
     expect(maskBulan('2026-10-12')).toBe('10/2026');
-    expect(maskBulan('abc')).toBe('');
     // Idempoten & dipotong setelah 6 digit (mm + yyyy).
     expect(maskBulan('10/2026')).toBe('10/2026');
     expect(maskBulan('1234567')).toBe('12/3456');
+  });
+});
+
+describe('kotak bulan — ketikan cepat nama bulan', () => {
+  it('maskBulan menjaga hurufnya & membesarkan huruf pertama', () => {
+    expect(maskBulan('o')).toBe('O');
+    expect(maskBulan('okt')).toBe('Okt');
+    expect(maskBulan('OKT')).toBe('Okt');
+    expect(maskBulan('oktober')).toBe('Oktober');
+    // Tahun menempel di belakang nama, sampai 4 digit (tak terpotong di 2).
+    expect(maskBulan('okt26')).toBe('Okt 26');
+    expect(maskBulan('okt 2026')).toBe('Okt 2026');
+    expect(maskBulan('okt202')).toBe('Okt 202');
+    expect(maskBulan('okt2026')).toBe('Okt 2026');
+    expect(maskBulan('okt20261')).toBe('Okt 2026');
+    // Tempelan tanggal ber-nama bulan dari dokumen.
+    expect(maskBulan('12 Okt 2026')).toBe('Okt 2026');
+    expect(maskBulan('1-sep-2025')).toBe('Sep 2025');
+  });
+
+  it('bulanDariTampilan membaca nama bulan (boleh dipotong) + tahun', () => {
+    expect(bulanDariTampilan('okt 2026')).toBe('2026-10');
+    expect(bulanDariTampilan('okt2026')).toBe('2026-10');
+    expect(bulanDariTampilan('Oktober 2026')).toBe('2026-10');
+    expect(bulanDariTampilan('sept26')).toBe('2026-09');
+    expect(bulanDariTampilan('mei-2025')).toBe('2025-05');
+    expect(bulanDariTampilan('jan/2020')).toBe('2020-01');
+  });
+
+  it('tahun dua digit: <= 49 dibaca 20yy, sisanya 19yy', () => {
+    expect(bulanDariTampilan('okt26')).toBe('2026-10');
+    expect(bulanDariTampilan('okt49')).toBe('2049-10');
+    expect(bulanDariTampilan('okt50')).toBe('1950-10');
+    expect(bulanDariTampilan('okt98')).toBe('1998-10');
+  });
+
+  it('nama bulan tak dikenal / belum penuh → kosong, tapi tetap dinilai lengkap', () => {
+    expect(bulanDariTampilan('Xyz 2026')).toBe('');
+    // Minimal tiga huruf: semua nama bulan Indonesia beda sejak huruf ketiga.
+    expect(bulanDariTampilan('ju 2026')).toBe('');
+    // Tahun harus 2 atau 4 digit — "okt 2" bukan nilai yang setengah jadi.
+    expect(bulanDariTampilan('okt 2')).toBe('');
+    expect(bulanDariTampilan('okt 202')).toBe('');
+    expect(bulanLengkap('okt 26')).toBe(true);
+    expect(bulanLengkap('Xyz 2026')).toBe(true); // lengkap, tapi tak sah → ditandai
+    expect(bulanLengkap('okt 2')).toBe(false);
+    expect(bulanLengkap('okt')).toBe(false);
   });
 });
 

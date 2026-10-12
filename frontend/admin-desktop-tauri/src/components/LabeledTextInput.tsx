@@ -37,9 +37,10 @@ import { cn } from '@/lib/utils';
  *  - Tipe `tanggal` menambah baris "Format" di popover itu: pola tampilan kotak
  *    (`dd/mm/yyyy`, `yyyy-mm-dd`, ...) yang sekaligus menentukan mask ketikan
  *    dan placeholder-nya — nilai yang dikirim ke server tetap ISO.
- *  - Tipe `bulan` juga berkotak teks ber-mask (`mm/yyyy`) dengan pemilih
- *    bulannya sendiri, dan nilainya tetap `YYYY-MM` seperti `input type="month"`;
- *    pesan `title` saat isiannya tak sah ikut dari formatnya (`judulTakSah`). */
+ *  - Tipe `bulan` juga berkotak teks ber-mask (`mm/yyyy`, atau ketikan cepat
+ *    nama bulan seperti `okt26`) dengan pemilih bulannya sendiri, dan nilainya
+ *    tetap `YYYY-MM` seperti `input type="month"`; pesan `title` saat isiannya
+ *    tak sah ikut dari formatnya (`judulTakSah`). */
 export default function LabeledTextInput({ label, htmlFor, labelTransparan = true, nama = 'input', tipeKontrol, pilihanTipe, tipeTerkunci, bawaanTipe, lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
   label: string;
   htmlFor?: string;
@@ -105,9 +106,12 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
    *  `aksiKanan`, diteruskan ke `onChange` pemanggil, dan pada akhirnya dikirim
    *  ke server — TIDAK PERNAH teks berformat. */
   const nilai = terkendaliPemanggil ? String(props.value ?? '') : nilaiInternal;
-  /** Teks KETIKAN yang belum jadi nilai (mis. "12/1" pada tanggal) — hanya
-   *  hidup selama nilainya masih kosong; begitu nilainya sah, tampilan kembali
-   *  diturunkan dari nilai lewat `format.tampil`. */
+  /** Teks KETIKAN apa adanya (mis. "12/1" pada tanggal, "okt 26" pada bulan) —
+   *  hidup selama masih SEPADAN dengan nilainya (`format.nilai(draf)`), jadi
+   *  ketikan cepat yang belum (atau bukan) berbentuk baku tetap terlihat di
+   *  kotak. Begitu nilainya datang dari sumber lain (kalender, pemilih,
+   *  pemanggil, reset) atau kotak ditinggalkan, tampilan kembali diturunkan dari
+   *  nilai lewat `format.tampil`. */
   const [draf, setDraf] = useState<string | null>(null);
   /** Teks yang DITAMPILKAN di kotak; hanya berbeda dari `nilai` bila tipe aktif
    *  punya `format` (mis. nominal → "50.000", tanggal → "12/10/2026"). */
@@ -117,8 +121,8 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
     else setNilaiInternal(nilaiBaru);
   };
   /* Ketikan disimpan hanya selama SEPADAN dengan nilainya. Begitu nilainya
-     datang dari sumber lain (kalender, pemanggil, reset), ketikan yang belum
-     jadi nilai itu dibuang. */
+     datang dari sumber lain (kalender, pemanggil, reset), ketikan yang tak lagi
+     mewakili nilai itu dibuang. */
   useEffect(() => {
     if (draf === null) return;
     if (format === undefined || format.nilai(draf) !== nilai) setDraf(null);
@@ -145,9 +149,11 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
       const teks = format!.ketik!(el.value);
       const nilaiBaru = format!.nilai(teks);
       setNilai(nilaiBaru);
-      /* Teksnya ditampilkan apa adanya selama belum jadi nilai sah — tanpa itu,
-         ketikan yang belum lengkap langsung "hilang" dari kotak. */
-      setDraf(nilaiBaru === '' ? teks : null);
+      /* Teksnya SELALU ditampilkan apa adanya selama sepada dengan nilainya —
+         tanpa itu, ketikan yang belum lengkap langsung "hilang" dari kotak, dan
+         ketikan cepat yang bukan bentuk baku ("okt 26" → 2026-10) berubah di
+         tengah jalan sehingga digit lanjutannya tak bisa masuk. */
+      setDraf(teks);
       return;
     }
     if (format === undefined) {
@@ -164,6 +170,14 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
     const posisi = posisiSetelahDigit(el.value, digitKiri);
     el.setSelectionRange(posisi, posisi);
   });
+
+  /** Kotak ditinggalkan: ketikan yang SUDAH jadi nilai (mis. "okt 26" →
+   *  2026-10) ditampilkan kembali dalam bentuk baku `format.tampil`; ketikan
+   *  yang belum/bukan nilai dibiarkan apa adanya supaya bisa dibetulkan. */
+  const padaBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (draf !== null && nilai !== '') setDraf(null);
+    props.onBlur?.(e);
+  };
 
   const aksiKananEfektif = aksiKanan
     ?? (bawaan?.aksiKanan === undefined ? undefined : bawaan.aksiKanan({ htmlFor, nilai, setNilai }));
@@ -201,6 +215,10 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
             value={terkendaliPemanggil ? teksTampil : pakaiNilaiInternal ? teksTampil : undefined}
             defaultValue={pakaiNilaiInternal ? undefined : props.defaultValue}
             onChange={format !== undefined ? gantiTeks : pakaiNilaiInternal ? gantiTeks : props.onChange}
+            /* Sesudah `{...propsTerpakai}`: `onBlur` pemanggil tetap dipanggil
+               DI DALAM handler ini, jadi bentuk baku tidak mengorbankan
+               callback pemanggil. */
+            onBlur={padaBlur}
             aria-invalid={props['aria-invalid'] ?? (takSah ? true : undefined)}
             title={props.title ?? (takSah ? format?.judulTakSah ?? 'Tanggal tidak ada di kalender' : undefined)}
             className={cn(kelasKontrol, aksiKananEfektif !== undefined && 'pr-7')}

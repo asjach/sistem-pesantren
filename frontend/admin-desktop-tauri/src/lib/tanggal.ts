@@ -146,10 +146,19 @@ function regexBagian(t: { bagian: BagianPola; lebar: number }, terakhir: boolean
   return '\\d{1,2}';
 }
 
-/** Nama bulan singkat → nomor bulan 1–12; `0` bila tak dikenal. */
+/** Nama bulan yang DIKETIK → nomor bulan 1–12; `0` bila tak dikenal.
+ *
+ *  Boleh dipotong & huruf besar-kecil tak peduli, asal minimal TIGA huruf: semua
+ *  nama bulan Indonesia sudah berbeda sejak huruf ketiga (Mei/Juni/Juli, dst.),
+ *  jadi tiga huruf cukup untuk memastikan satu bulan — dipakai baik oleh pola
+ *  `Mmm` ("Okt") maupun ketikan cepat kotak bulan ("sept", "september"). */
 function bulanDariNama(teks: string): number {
   const kunci = teks.trim().toLowerCase();
-  return NAMA_BULAN_SINGKAT.findIndex((n) => n.toLowerCase() === kunci) + 1;
+  if (kunci.length < 3) return 0;
+  const kandidat = NAMA_BULAN
+    .map((nama, i) => ({ nama, nomor: i + 1 }))
+    .filter(({ nama }) => nama.toLowerCase().startsWith(kunci));
+  return kandidat.length === 1 ? kandidat[0].nomor : 0;
 }
 
 const escapeRegex = (teks: string): string => teks.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -317,25 +326,65 @@ export function bulanKeTampilan(nilai: string): string {
   return b === null ? nilai : `${pad2(b.bulan)}/${b.tahun}`;
 }
 
-/** Teks kotak `mm/yyyy` → `YYYY-MM`; `''` bila belum lengkap atau bulannya tak
- *  ada (mis. `13/2026`). Inilah satu-satunya nilai yang dipakai aplikasi. */
+/** Ketikan cepat "nama bulan + tahun" (mis. `okt 2026`, `okt26`, `oktober26`).
+ *  Tahunnya 2 digit (lihat `tahunDariSingkatan`) atau 4 digit penuh. */
+const POLA_NAMA_BULAN = /^([A-Za-z]{3,9})[\s\-./]*(\d{2}|\d{4})$/;
+
+/** Dua digit tahun: `50` jadi pivotnya — periode sekolah ada di sekitar
+ *  sekarang, jadi `26` berarti 2026 dan `98` berarti 1998. */
+const PIVOT_TAHUN_SINGKAT = 50;
+
+/** Tahun dari ketikan cepat: 4 digit apa adanya, 2 digit lewat pivot. */
+function tahunDariSingkatan(digit: string): number {
+  const angka = Number(digit);
+  if (digit.length === 4) return angka;
+  return angka < PIVOT_TAHUN_SINGKAT ? 2000 + angka : 1900 + angka;
+}
+
+/** Rapikan nama bulan yang diketik: huruf pertama besar, sisanya kecil. */
+const rapikanNama = (huruf: string): string =>
+  huruf === '' ? '' : huruf[0].toUpperCase() + huruf.slice(1).toLowerCase();
+
+/** Teks kotak `mm/yyyy` — atau ketikan cepat nama bulan (`okt 2026`, `okt26`) —
+ *  → `YYYY-MM`; `''` bila belum lengkap atau bulannya tak ada (mis. `13/2026`,
+ *  `Xyz 2026`, `ju 2026`). Inilah satu-satunya nilai yang dipakai aplikasi. */
 export function bulanDariTampilan(teks: string): string {
+  const nama = POLA_NAMA_BULAN.exec(teks.trim());
+  if (nama !== null) {
+    const bulan = bulanDariNama(nama[1]);
+    return bulan === 0 ? '' : rakitBulan(tahunDariSingkatan(nama[2]), bulan) ?? '';
+  }
   const m = /^(\d{1,2})\/(\d{4})$/.exec(teks.trim());
   if (m === null) return '';
   return rakitBulan(Number(m[2]), Number(m[1])) ?? '';
 }
 
-/** Teks kotak sudah lengkap `mm/yyyy` (terlepas sah atau tidak)? */
+/** Teks kotak sudah lengkap `mm/yyyy` ATAU "nama bulan + tahun" (terlepas sah
+ *  atau tidak)? Dipakai menandai salah ketik yang sudah penuh. */
 export function bulanLengkap(teks: string): boolean {
-  return /^\d{2}\/\d{4}$/.test(teks.trim());
+  const t = teks.trim();
+  return /^\d{2}\/\d{4}$/.test(t) || POLA_NAMA_BULAN.test(t);
 }
 
-/** Mask ketikan kotak bulan: hanya digit, "/" disisipkan setelah bulan.
+/** Mask ketikan kotak bulan: `mm/yyyy` (hanya digit, "/" disisipkan setelah
+ *  bulan) atau ketikan cepat nama bulan ("okt 2026").
  *
  *  Tempelan ISO ("2026-10", mis. dari Excel atau DB) dibaca sebagai bulan itu —
- *  tanpa ini, digitnya akan dimask jadi "20/2610". Tanggal penuh ("2026-10-12")
- *  pun terbaca sebagai bulannya saja. */
+ *  tanpa ini, digitnya akan dimask jadi "20/2610". Tanggal penuh ("2026-10-12",
+ *  atau "12 Okt 2026" dari dokumen) pun terbaca sebagai bulannya saja. */
 export function maskBulan(teks: string): string {
+  const tanggalNama = /^\s*\d{1,2}[\s\-./]+([A-Za-z]{3,9})[\s\-./]+(\d{4})\s*$/.exec(teks);
+  if (tanggalNama !== null) return `${rapikanNama(tanggalNama[1])} ${tanggalNama[2]}`;
+  /* Ada HURUF = pengguna mengetik nama bulan; hurufnya dibiarkan (huruf pertama
+     dibesarkan) supaya ketikan cepat tetap terlihat, tahunnya menempel di
+     belakang. Tahun yang masih ditambah digit demi digit pun tetap utuh —
+     beda dengan mask digit yang akan memotong "2026" jadi "20". */
+  if (/[A-Za-z]/.test(teks)) {
+    const huruf = (teks.match(/[A-Za-z]/g) ?? []).join('').slice(0, 9);
+    const angka = (teks.match(/\d/g) ?? []).join('').slice(0, 4);
+    const nama = rapikanNama(huruf);
+    return angka === '' ? nama : `${nama} ${angka}`;
+  }
   const iso = /^\s*(\d{4})[-/.](\d{1,2})/.exec(teks);
   if (iso !== null) return `${pad2(Number(iso[2]))}/${iso[1]}`;
   const digit = teks.replace(/\D/g, '').slice(0, 6);

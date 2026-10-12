@@ -98,7 +98,7 @@ describe('LabeledTextInput tipe bulan — tampilan vs nilai', () => {
     expect(nilai()).toBe('');
     expect(kotak().value).toBe('13/2026'); // tetap terlihat supaya bisa diperbaiki
     expect(kotak().getAttribute('aria-invalid')).toBe('true');
-    expect(kotak().title).toBe('Bulan tidak ada di kalender (01–12)');
+    expect(kotak().title).toBe('Bulan tidak dikenal (mis. 10/2026 atau "okt 2026")');
 
     // Diperbaiki → tanda hilang & nilainya masuk.
     fireEvent.change(kotak(), { target: { value: '12/2026' } });
@@ -115,6 +115,60 @@ describe('LabeledTextInput tipe bulan — tampilan vs nilai', () => {
 
     await waitFor(() => expect(kotak().value).toBe('02/2020'));
     expect(nilai()).toBe('2020-02');
+  });
+});
+
+describe('LabeledTextInput tipe bulan — ketikan cepat nama bulan', () => {
+  it('mengetik "okt2026" tetap terlihat saat diketik; dibakukan saat kotak ditinggalkan', async () => {
+    renderDenganTema(<Contoh />);
+
+    await userEvent.type(kotak(), 'okt2026');
+
+    // Ketikan cepat tampil apa adanya (huruf pertama dibesarkan) — bentuk baku
+    // baru dipakai begitu kotaknya ditinggalkan.
+    expect(kotak().value).toBe('Okt 2026');
+    expect(nilai()).toBe('2026-10');
+
+    fireEvent.blur(kotak());
+
+    await waitFor(() => expect(kotak().value).toBe('10/2026'));
+    expect(nilai()).toBe('2026-10');
+  });
+
+  it('tahun dua digit: "okt26" → Oktober 2026', async () => {
+    renderDenganTema(<Contoh />);
+
+    await userEvent.type(kotak(), 'okt26');
+
+    expect(kotak().value).toBe('Okt 26');
+    expect(nilai()).toBe('2026-10');
+  });
+
+  it('nama bulan panjang & spasi ikut terbaca; "/" dari ketikan digit tak mengganggu', async () => {
+    renderDenganTema(<Contoh />);
+
+    await userEvent.type(kotak(), 'september 2025');
+    expect(kotak().value).toBe('September 2025');
+    expect(nilai()).toBe('2025-09');
+
+    // Ganti isi dengan bentuk digit: mask digit tetap berlaku seperti semula.
+    await userEvent.clear(kotak());
+    await userEvent.type(kotak(), '032025');
+    expect(kotak().value).toBe('03/2025');
+    expect(nilai()).toBe('2025-03');
+  });
+
+  it('nama bulan tak dikenal ditandai (aria-invalid) dan tak jadi nilai', async () => {
+    renderDenganTema(<Contoh />);
+
+    await userEvent.type(kotak(), 'xyz26');
+
+    expect(kotak().value).toBe('Xyz 26');
+    expect(nilai()).toBe('');
+    expect(kotak().getAttribute('aria-invalid')).toBe('true');
+    // Blur tak menghapus ketikan yang belum jadi nilai — masih bisa dibetulkan.
+    fireEvent.blur(kotak());
+    expect(kotak().value).toBe('Xyz 26');
   });
 });
 
