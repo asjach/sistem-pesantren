@@ -68,6 +68,41 @@ agen agar tidak menjalankannya atas inisiatif sendiri.
   `frontend/AGENTS.md` dan `backend/AGENTS.md`. Saat mencabut, jalankan tes
   penuh sekali untuk memastikan perubahan selama suspend tidak menumpuk regresi.
 
+## STATUS BUILD TAURI — pemberitahuan rutin
+
+**Setiap sesi, beri tahu pengguna bahwa rebuild native Tauri sedang dijeda**
+(sama seperti pengingat tes & akun reviewer). Sertakan: build Tauri
+(`tauri build` / `cargo` / bundling native) tidak dijalankan selama
+verifikasi, dan cara mencabutnya.
+
+Contoh kalimat saat suspend aktif:
+> "Pengingat rutin: rebuild Tauri **dijeda (suspend aktif)** atas permintaan
+> Anda — verifikasi pakai `npm run typecheck` + `vendor/bin/pint --dirty`
+> (build web Vite diperbolehkan, bundling native Tauri tidak). Bilang saja
+> bila mau saya cabut suspend-nya."
+
+## SUSPEND BUILD TAURI — SEMENTARA (berlaku sampai dicabut)
+
+Status: **AKTIF sejak 2026-10-13** — rebuild native Tauri dijeda atas
+permintaan pengguna (memperlambat pengembangan frontend karena harus menunggu
+kompilasi Rust + bundling). Larangan ini berlaku pada agen agar tidak
+memicu langkah itu atas inisiatif sendiri.
+
+- **Dilarang menjalankan** atas inisiatif sendiri: `tauri build`, `tauri dev`
+  (bila tujuannya membundle/mengompilasi sisi native), `cargo build`, atau
+  perintah lain yang mengompilasi Rust / membungkus binary Tauri.
+- **Tetap jalan** (bukan rebuild native, tidak boleh ikut dijeda):
+  `npm run typecheck`, `npm run audit:bagian`, `npm run audit:izin`,
+  `vendor/bin/pint --dirty`, dan `npm run build` (build web Vite —
+  diperbolehkan namun tidak wajib; `typecheck` sudah cukup untuk verifikasi
+  cepat). Untuk verifikasi, utamakan `npm run typecheck` agar tidak memicu
+  build apa pun.
+- **Pengecualian**: hanya bila pengguna **secara eksplisit** meminta build/
+  jalankan Tauri pada permintaan itu — sebutkan bahwa suspend masih aktif.
+- **Cara mencabut**: hapus seluruh bagian ini, lalu kembali ke alur build
+  normal (jalankan `tauri build`/`tauri dev` seperti biasa saat rilis/ujicoba
+  native).
+
 ## CATATAN FITUR BELUM BERTES — wajib dicatat, TIDAK wajib diuji
 
 Status: **WAJIB dicatat; DILARANG dijadikan alasan menjalankan tes.**
