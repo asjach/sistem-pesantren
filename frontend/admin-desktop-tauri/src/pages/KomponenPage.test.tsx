@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -116,5 +116,110 @@ describe('KomponenPage — pengelompokan komponen', () => {
 
     // Contoh tanggal = kotak ber-mask: nilai ISO contohnya tampil dd/mm/yyyy.
     expect((document.getElementById('demo_tipe_tanggal') as HTMLInputElement).value).toBe('14/07/2026');
+  });
+});
+
+describe('KomponenPage — lebar kolom daftar', () => {
+  /** Wadah daftar tab aktif: satu-satunya yang memasang variabel lebar kolom. */
+  const wadah = () => document.querySelector<HTMLElement>('[style*="--lebar-kolom-nama"]');
+  /** Lebar kolom nama yang sedang dipakai (dibaca dari variabel CSS-nya). */
+  const lebarTampil = () => wadah()?.style.getPropertyValue('--lebar-kolom-nama');
+  const gagang = () => screen.getByRole('separator', { name: 'Lebar kolom nama komponen' });
+
+  it('header & setiap baris memakai template kolom yang sama', () => {
+    renderDenganTema(<KomponenPage />);
+
+    const gridKolom = [...(screen.getByRole('tabpanel').querySelectorAll<HTMLElement>('div'))]
+      .filter((d) => d.className.includes('var(--lebar-kolom-nama)'));
+    // Header + komponen utama + 2 varian di tab Combobox.
+    expect(gridKolom).toHaveLength(4);
+    for (const g of gridKolom) {
+      expect(g.className).toContain('sm:grid-cols-[var(--lebar-kolom-nama)_1fr]');
+      expect(g.className).toContain('gap-3');
+    }
+  });
+
+  it('gagang duduk di batas kolom: selebar celah & ikut padding header', () => {
+    renderDenganTema(<KomponenPage />);
+    const header = wadah()?.firstElementChild as HTMLElement;
+    const g = gagang();
+
+    // Anak header (jadi setinggi header) & header-nya sendiri jangkar posisinya.
+    expect(header.contains(g)).toBe(true);
+    expect(header.className).toContain('relative');
+    expect(g.className).toContain('inset-y-0');
+    // Lebarnya = celah antar kolom (gap-3) sehingga hanya menutupi celah.
+    expect(g.className).toContain('w-3');
+    // Batas kolom = lebar kolom + padding kiri header (p-2 = 0.5rem).
+    expect(g.style.left).toContain('0.5rem');
+    expect(header.className).toContain('p-2');
+  });
+
+  it('gagang digeser mouse mengubah lebar kolom (dan kursor jadi col-resize)', () => {
+    renderDenganTema(<KomponenPage />);
+    const g = gagang();
+    expect(lebarTampil()).toBe('240px');
+    expect(g).toHaveAttribute('aria-valuenow', '240');
+    expect(g).toHaveAttribute('aria-valuemin', '120');
+    expect(g).toHaveAttribute('aria-valuemax', '480');
+
+    fireEvent.mouseDown(g, { button: 0, clientX: 300 });
+    expect(document.body.style.cursor).toBe('col-resize');
+    fireEvent.mouseMove(window, { clientX: 360 });
+    expect(lebarTampil()).toBe('300px'); // 240 + 60
+
+    fireEvent.mouseUp(window);
+    expect(document.body.style.cursor).toBe('');
+    expect(gagang()).toHaveAttribute('aria-valuenow', '300');
+  });
+
+  it('lebar dijepit ke rentang yang masuk akal saat diseret jauh', () => {
+    renderDenganTema(<KomponenPage />);
+
+    fireEvent.mouseDown(gagang(), { button: 0, clientX: 300 });
+    fireEvent.mouseMove(window, { clientX: 0 });
+    expect(lebarTampil()).toBe('120px');
+    fireEvent.mouseMove(window, { clientX: 5000 });
+    expect(lebarTampil()).toBe('480px');
+    fireEvent.mouseUp(window);
+  });
+
+  it('panah menggeser 16px (Shift 48px), Home mengembalikan bawaan', () => {
+    renderDenganTema(<KomponenPage />);
+    const g = gagang();
+
+    fireEvent.keyDown(g, { key: 'ArrowRight' });
+    expect(lebarTampil()).toBe('256px');
+    fireEvent.keyDown(g, { key: 'ArrowRight', shiftKey: true });
+    expect(lebarTampil()).toBe('304px');
+    fireEvent.keyDown(g, { key: 'ArrowLeft' });
+    expect(lebarTampil()).toBe('288px');
+    fireEvent.keyDown(g, { key: 'Home' });
+    expect(lebarTampil()).toBe('240px');
+  });
+
+  it('klik dua kali mengembalikan lebar bawaan', () => {
+    renderDenganTema(<KomponenPage />);
+
+    fireEvent.mouseDown(gagang(), { button: 0, clientX: 300 });
+    fireEvent.mouseMove(window, { clientX: 400 });
+    fireEvent.mouseUp(window);
+    expect(lebarTampil()).toBe('340px');
+
+    fireEvent.doubleClick(gagang());
+    expect(lebarTampil()).toBe('240px');
+  });
+
+  it('lebar yang disetel berlaku juga di tab lain', async () => {
+    const klik = userEvent.setup();
+    renderDenganTema(<KomponenPage />);
+
+    fireEvent.mouseDown(gagang(), { button: 0, clientX: 300 });
+    fireEvent.mouseMove(window, { clientX: 350 });
+    fireEvent.mouseUp(window);
+    expect(lebarTampil()).toBe('290px');
+
+    await klik.click(screen.getByRole('tab', { name: 'Stepper' }));
+    expect(lebarTampil()).toBe('290px');
   });
 });

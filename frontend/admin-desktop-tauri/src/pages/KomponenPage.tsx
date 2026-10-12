@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { PAGE_SHELL } from '@/components/PageHeader';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import LabeledCombobox from '@/components/LabeledCombobox';
@@ -17,6 +17,108 @@ import {
 } from '@/components/ui/combobox';
 
 const STATUS = ['Aktif', 'Tidak aktif', 'Pindah keluar', 'Lulus', 'Keluar sementara'];
+
+/* ---------- Lebar kolom daftar (dapat digeser) ---------- */
+
+/** Lebar kolom nama saat halaman dibuka (px) — sama dengan lebar lama yang
+ *  dipatok di kelas grid. */
+const LEBAR_NAMA_BAWAAN = 240;
+const LEBAR_NAMA_MIN = 120;
+const LEBAR_NAMA_MAX = 480;
+/** Langkah panah saat gagang difokus (px); Shift = langkah lebar. */
+const LANGKAH_PANAH = 16;
+const LANGKAH_PANAH_LEBAR = 48;
+
+/** Nama variabel CSS lebar kolom nama; dipasang di wadah daftar supaya header
+ *  DAN seluruh baris memakai lebar yang sama (satu sumber, bukan per baris). */
+const VAR_LEBAR_NAMA = '--lebar-kolom-nama';
+
+/** Kelas grid tiap baris & header daftar: kolom nama selebar variabel di atas,
+ *  kolom contoh mengisi sisanya. Di bawah `sm` keduanya bertumpuk. */
+const KELAS_GRID_BARIS = 'grid gap-3 sm:grid-cols-[var(--lebar-kolom-nama)_1fr]';
+
+/** Jepit lebar kolom ke rentang yang masuk akal (mis. saat diseret jauh). */
+function jepitLebarNama(px: number): number {
+  if (!Number.isFinite(px)) return LEBAR_NAMA_BAWAAN;
+  return Math.min(LEBAR_NAMA_MAX, Math.max(LEBAR_NAMA_MIN, Math.round(px)));
+}
+
+/** Gagang penggeser lebar kolom: garis pemisah tipis di header daftar.
+ *
+ *  Anak header yang ber-`relative`, jadi `inset-y-0` = setinggi header (termasuk
+ *  paddingnya) dan `left` diukur dari tepi dalam border. Karena isi grid mulai
+ *  setelah padding kiri header (`p-2` = 0.5rem), batas kolom ada di
+ *  `lebar + 0.5rem`; gagang selebar celah (`w-3` = gap-3) ditaruh tepat di
+ *  tengahnya. Jadi ia hanya menutupi celah antar kolom, bukan isi kolom.
+ *
+ *  Bisa diseret dengan mouse maupun digeser dengan panah (pola separator ARIA,
+ *  sama seperti gagang lebar navigasi di Sidebar). */
+function GagangLebarKolom({ lebar, setLebar }: { lebar: number; setLebar: (px: number) => void }) {
+  const lepasRef = useRef<null | (() => void)>(null);
+  /* Seretan yang belum dilepas saat halaman ditinggalkan (mis. pindah tab
+     dengan tombol mouse masih tertahan) jangan meninggalkan listener. */
+  useEffect(() => () => { lepasRef.current?.(); }, []);
+
+  const mulaiSeret = (e: MouseEvent<HTMLElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const mulaiX = e.clientX;
+    const lebarAwal = lebar;
+    /* Kursor dipasang di <body>: pointer gampang keluar dari gagang yang tipis
+       saat diseret cepat, dan tanpa ini kursornya berkedip balik ke panah. */
+    document.body.style.cursor = 'col-resize';
+    const geser = (ev: globalThis.MouseEvent) => setLebar(jepitLebarNama(lebarAwal + (ev.clientX - mulaiX)));
+    const selesai = () => {
+      window.removeEventListener('mousemove', geser);
+      window.removeEventListener('mouseup', selesai);
+      document.body.style.cursor = '';
+      lepasRef.current = null;
+    };
+    lepasRef.current?.();
+    lepasRef.current = selesai;
+    window.addEventListener('mousemove', geser);
+    window.addEventListener('mouseup', selesai);
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    const langkah = e.shiftKey ? LANGKAH_PANAH_LEBAR : LANGKAH_PANAH;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setLebar(jepitLebarNama(lebar - langkah));
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setLebar(jepitLebarNama(lebar + langkah));
+      return;
+    }
+    if (e.key === 'Home') {
+      e.preventDefault();
+      setLebar(LEBAR_NAMA_BAWAAN);
+    }
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Lebar kolom nama komponen"
+      aria-valuenow={lebar}
+      aria-valuemin={LEBAR_NAMA_MIN}
+      aria-valuemax={LEBAR_NAMA_MAX}
+      tabIndex={0}
+      title="Seret untuk mengubah lebar kolom (klik dua kali = lebar bawaan)"
+      onMouseDown={mulaiSeret}
+      onDoubleClick={() => setLebar(LEBAR_NAMA_BAWAAN)}
+      onKeyDown={onKeyDown}
+      className="absolute inset-y-0 z-10 w-3 max-sm:hidden cursor-col-resize touch-none select-none"
+      /* `0.5rem` = padding kiri header (`p-2`): batas kolom = lebar + padding. */
+      style={{ left: `calc(var(${VAR_LEBAR_NAMA}, ${LEBAR_NAMA_BAWAAN}px) + 0.5rem)` }}
+    >
+      <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors hover:bg-muted-foreground/60" />
+    </div>
+  );
+}
 
 /** Field contoh untuk demo PresetKolom: key-nya sengaja sama dengan kolom
  *  tabel `keanggotaan` supaya preset tabel itu ("ringkas"/"Lengkap") benar-benar
@@ -138,7 +240,7 @@ function BarisKomponen({ id, nama, keterangan, rincian, contoh, catatan }: {
   catatan?: string;
 }) {
   return (
-    <div className="grid gap-3 border-b border-border p-2 sm:grid-cols-[240px_1fr]">
+    <div className={`${KELAS_GRID_BARIS} border-b border-border p-2`}>
       <div>
         <h3 className="flex items-center gap-1 text-sm font-semibold">
           <span className="truncate">{nama}</span>
@@ -163,16 +265,26 @@ function BarisKomponen({ id, nama, keterangan, rincian, contoh, catatan }: {
  *  klik-kanan, jadi "nominal" cukup baris contoh, bukan komponen tersendiri.
  *
  *  Tanpa bingkai sendiri: bingkai panel tab (`KELAS_PANEL_TAB`) sudah jadi
- *  tepi daftar — pola sama dengan tabel di halaman lain. */
-function IsiTab({ utama, varian }: {
+ *  tepi daftar — pola sama dengan tabel di halaman lain.
+ *
+ *  Lebar kolom nama diatur lewat variabel CSS di wadah daftar (`VAR_LEBAR_NAMA`)
+ *  supaya header & SELURUH baris ikut bergerak bersama; nilainya dari state
+ *  halaman, jadi lebar yang disetel di satu tab berlaku untuk semua tab. */
+function IsiTab({ utama, varian, lebarNama, setLebarNama }: {
   utama: { id: string; nama: string; keterangan: string; rincian: string[]; contoh: ReactNode };
   varian: { id: string; nama: string; keterangan: string; rincian: string[]; contoh: ReactNode; catatan?: string }[];
+  lebarNama: number;
+  setLebarNama: (px: number) => void;
 }) {
   return (
-    <div className="min-h-0 flex-1 overflow-auto">
-      <div className="grid gap-3 border-b border-border bg-muted/40 p-2 text-xs font-semibold sm:grid-cols-[240px_1fr]">
-        <div>Nama Custom Component</div>
+    <div
+      className="relative min-h-0 flex-1 overflow-auto"
+      style={{ [VAR_LEBAR_NAMA]: `${lebarNama}px` } as CSSProperties}
+    >
+      <div className={`${KELAS_GRID_BARIS} relative border-b border-border bg-muted/40 p-2 text-xs font-semibold`}>
+        <div className="truncate">Nama Custom Component</div>
         <div>Contoh Component</div>
+        <GagangLebarKolom lebar={lebarNama} setLebar={setLebarNama} />
       </div>
       <BarisKomponen {...utama} />
       {varian.map((v) => (
@@ -197,6 +309,9 @@ export default function KomponenPage() {
   const [urutAktif, setUrutAktif] = useState<string[]>([]);
   const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
   const [kolomTerpakai, setKolomTerpakai] = useState<string[] | null>(null);
+  /** Lebar kolom nama (px) — dipakai bersama ketiga tab, diatur lewat gagang
+   *  geser di header daftar. */
+  const [lebarNama, setLebarNama] = useState(LEBAR_NAMA_BAWAAN);
   return (
     <div className={PAGE_SHELL}>
       <Tabs defaultValue="combobox" className="flex min-h-0 flex-1 flex-col gap-0">
@@ -281,6 +396,8 @@ export default function KomponenPage() {
                 ),
               },
             ]}
+            lebarNama={lebarNama}
+            setLebarNama={setLebarNama}
           />
         </TabsContent>
 
@@ -306,6 +423,8 @@ export default function KomponenPage() {
                 ),
               }}
               varian={VARIAN_TIPE_TEKS}
+              lebarNama={lebarNama}
+              setLebarNama={setLebarNama}
             />
           </TabsContent>
 
@@ -332,6 +451,8 @@ export default function KomponenPage() {
               ),
             }}
             varian={[]}
+            lebarNama={lebarNama}
+            setLebarNama={setLebarNama}
           />
         </TabsContent>
       </Tabs>
