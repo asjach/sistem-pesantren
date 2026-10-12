@@ -1,11 +1,12 @@
-import type { ReactNode, RefObject } from 'react';
+import { useState, type ReactNode, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { PopoverContent } from '@/components/ui/popover';
 import SpinBox from '@/components/SpinBox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
-import { RotateCcw } from '@/icons';
+import { ChevronRight, RotateCcw } from '@/icons';
+import { cn } from '@/lib/utils';
 import {
   LEBAR_KOMBO_MAKS,
   LEBAR_KOMBO_MIN,
@@ -23,12 +24,29 @@ const LANGKAH_TINGGI = 2;
 const LANGKAH_LEBAR = 10;
 const LANGKAH_LABEL = 4;
 
+/* LEBAR KOLOM panel (px) — dipatok, bukan `flex-1`, supaya stepper di kolom
+   ukuran tak bergeser saat kolom "Lainnya" dibuka-tutup:
+   - Kolom UKURAN 174px = label baris (48) + stepper (84) + tombol reset ikon
+     (24) + 2 celah 6px = 168, sisa 6px jadi kelonggaran.
+   - Kolom "LAINNYA" 270px = label 84 + combobox + tombol reset (24) + 2 celah
+     6px → menyisakan ~150px untuk combobox "Tipe". Angka itu SENGAJA sebesar
+     hasil perbaikan lama (baris "Tipe" dulu berlabel pendek) supaya label
+     baris yang kini seragam 84px tak memakan ruang combobox-nya.
+
+   Angka lebar PANEL ditulis literal di kelas Tailwind (`w-[200px]`, …) karena
+   pemindai Tailwind hanya menemukan kelas yang tertulis utuh di sumber. Isi
+   panel = 200 − border 2×1 − padding p-3 (2×12) = 174px, jadi:
+   200px saat kolom kedua tertutup, 200 + 8 + 1 (pemisah) + 8 + 270 = 487px saat
+   terbuka. */
+
 /** Lebar label baris (px) — SAMA semua baris supaya stepper sejajar. */
 const LEBAR_LABEL_BARIS = 48;
-/** Lebar label baris di grup "Mengembang" (px) — lebih longgar karena
- *  "Mengembang"/"Warna Label:" lebih panjang dari "Tinggi"/"Total"; kalau
- *  dipatok 48px teksnya meluber dan ketimpa kontrol di sebelahnya. */
-const LEBAR_LABEL_GRUP_MENGEMBANG = 84;
+/** Lebar label baris COMBOBOX (px) — SAMA semua baris pilihan ("Tipe",
+ *  "Format", "Mengembang", "Warna Label:", "Nilai awal") supaya combobox-nya
+ *  rata kiri. Lebih longgar dari baris stepper karena "Mengembang"/"Warna
+ *  Label:" lebih panjang dari "Tinggi"/"Total"; kalau dipatok 48px teksnya
+ *  meluber dan ketimpa kontrol di sebelahnya. */
+const LEBAR_LABEL_KOMBO = 84;
 /** Lebar kotak stepper (px) — SAMA semua baris; cukup untuk 4 digit. */
 const LEBAR_STEPPER = 84;
 
@@ -69,17 +87,18 @@ function BarisUkuran({ id, teks, stepper, resetId, resetLabel, adaAturan, onRese
 }
 
 /** Baris "label + combobox" untuk pilihan bernama (baris "Mengembang",
- *  "Warna Label:", dan "Tipe"). Label jadi nama aksesibel kontrol lewat
- *  `htmlFor` — tanpa `aria-label` yang bisa bentrok dengan teks yang terlihat.
+ *  "Warna Label:", "Tipe", dan "Nilai awal"; baris "Format" dari pengaturan
+ *  tipe memakai lebar yang sama supaya combobox-nya rata kiri). Label jadi
+ *  nama aksesibel kontrol lewat `htmlFor` — tanpa `aria-label` yang bisa
+ *  bentrok dengan teks yang terlihat.
  *
- *  `lebarLabel` mengunci lebar label (px) supaya kontrol baris-baris
- *  sekelompok rata kiri. Absen = label hanya selebar teksnya, sisanya
- *  diberikan ke combobox (dipakai baris "Tipe" yang labelnya pendek).
+ *  `lebarLabel` mengunci lebar label (px); bawaan = selebar baris combobox
+ *  lain (`LEBAR_LABEL_KOMBO`) supaya kontrolnya rata kiri.
  *
  *  `labelOpsi` memetakan nilai → teks yang ditampilkan (baris "Tipe"
  *  menampilkan "Nominal (Uang)", bukan kunci `nominal`). Tanpa itu, nilai
  *  ditampilkan apa adanya. */
-function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, onPilih, lebarLabel, resetId, resetLabel, adaAturan, onReset }: {
+function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, onPilih, lebarLabel = LEBAR_LABEL_KOMBO, resetId, resetLabel, adaAturan, onReset }: {
   id: string;
   teks: string;
   /** Tooltip penjelas di label. */
@@ -93,7 +112,8 @@ function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, o
   namaDaftar: string;
   /** Menyimpan nilai pilihan baru (label sudah diterjemahkan pemanggil). */
   onPilih: (nilaiBaru: string) => void;
-  /** Lebar label terkunci (px); absen = selebar teksnya. */
+  /** Lebar label terkunci (px); bawaan = `LEBAR_LABEL_KOMBO` supaya
+   *  combobox semua baris rata kiri. */
   lebarLabel?: number;
   resetId?: string;
   resetLabel?: string;
@@ -106,7 +126,7 @@ function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, o
       <label
         htmlFor={id}
         className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
-        style={lebarLabel === undefined ? undefined : { width: lebarLabel }}
+        style={{ width: lebarLabel }}
         title={judul}
       >
         {teks}
@@ -158,6 +178,11 @@ const diDalamDaftarOpsi = (target: EventTarget | null) =>
 
 /** Isi popover pengaturan ukuran KOTAK combobox — dibuka lewat KLIK KANAN
  *  pada kotak `LabeledCombobox` (lihat `LabeledCombobox`).
+ *
+ *  Tata letak DUA KOLOM:
+ *  - Kolom pertama (selalu terlihat): Tinggi, Label, Kontrol, Total.
+ *  - Kolom kedua ("Lainnya": Tipe, pengaturan tipe, Mengembang, Warna Label,
+ *    Nilai awal) BISA DILIPAT — bawaan TERTUTUP supaya popover tetap ringkas.
  *
  *  Total, label, dan kontrol SALING TERHUBUNG: total = label + kontrol.
  *  - Ubah label → kontrol menyesuaikan (total tetap); ubah kontrol → label
@@ -261,6 +286,13 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
       onUbah({ lebar: totalBaru, lebarKontrol: kontrolBaru });
     }
   };
+  /** Panel "Lainnya" (kolom kedua) dibuka atau tidak — bawaan TERTUTUP supaya
+   *  popover tetap ringkas; hanya ukuran (kolom pertama) yang langsung
+   *  terlihat. */
+  const [lainnyaBuka, setLainnyaBuka] = useState(false);
+  /** Ada setelan tersimpan apa pun? → tombol "Kembalikan ke bawaan" hidup. */
+  const adaSetelan = adaTinggi || adaLebar || adaLebarLabel || adaLebarKontrol
+    || adaExpand || adaLabelTransparan || adaNilaiDefault || adaPengaturanTipe === true;
   return (
     <PopoverContent
       /* Di SESARANG kotak (bukan di bawahnya): panel setinggi mungkin perlu
@@ -274,8 +306,9 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
       collisionPadding={8}
       /* Ukuran popover TETAP dan tak bergantung pada combobox: lebar dipatok
          (min = max) sehingga melebar/menyempitnya kotak combobox tak pernah
-         ikut mengubah popover ini. */
-      className="w-[240px] min-w-[240px] max-w-[240px] p-3 border-foreground/30"
+         ikut mengubahnya. Panel hanya dilebarkan saat kolom "Lainnya" dibuka
+         (lihat hitungan di konstanta lebar kolom di atas). */
+      className={lainnyaBuka ? 'w-[487px] min-w-[487px] max-w-[487px] p-3 border-foreground/30' : 'w-[200px] min-w-[200px] max-w-[200px] p-3 border-foreground/30'}
       /* Klik KIRI di luar → popover tertutup (bawaan Radix). Yang DIKECUALIKAN
          adalah interaksi pada (a) daftar opsi di dalam panel dan (b) KOTAK yang
          sedang diatur — pengguna memakai kontrol yang sama dengan yang ia atur,
@@ -293,8 +326,11 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
       <div className="flex flex-col gap-2">
         <div className="flex items-start gap-1">
           <div className="flex min-w-0 flex-1 flex-col">
-            <p className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-              Ukuran kotak {nama}
+            {/* Tanpa nama jenis kotak: kontrol yang diatur jelas dari kotak yang
+                baru saja diklik-kanan, dan judul pendek membuat panel 200px
+                tetap satu baris. */}
+            <p className="truncate text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Ukuran kotak
             </p>
             {label ? (
               <p className="truncate text-[11px] text-muted-foreground" title={label}>
@@ -302,226 +338,253 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
               </p>
             ) : null}
           </div>
+          {/* Kembalikan SELURUH setelan komponen ini ke bawaan. Dulu baris penuh
+              di bawah panel; kini ikon di kepala panel sehingga tingginya hemat
+              satu baris + pemisah (±40px) — sejalan dengan tombol reset
+              per-baris yang juga ikon. */}
+          <Button
+            id={`btn_reset_ukuran_kombo_${kunci}`}
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            disabled={!adaSetelan}
+            onClick={onReset}
+            aria-label="Kembalikan ke bawaan"
+            title="Kembalikan ke bawaan"
+            className="shrink-0 text-muted-foreground"
+          >
+            <RotateCcw />
+          </Button>
+          {/* Pengalih panel "Lainnya" (kolom kedua) — bawaan TERTUTUP. Panah
+              berputar 90° saat terbuka; `aria-expanded` untuk aksesibilitas. */}
+          <Button
+            id={`btn_lainnya_kombo_${kunci}`}
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setLainnyaBuka((b) => !b)}
+            aria-expanded={lainnyaBuka}
+            aria-controls={`panel_lainnya_kombo_${kunci}`}
+            aria-label={lainnyaBuka ? 'Sembunyikan pengaturan lainnya' : 'Tampilkan pengaturan lainnya'}
+            title={lainnyaBuka ? 'Sembunyikan pengaturan lainnya' : 'Tampilkan pengaturan lainnya'}
+            className="shrink-0 text-muted-foreground"
+          >
+            <ChevronRight className={cn('transition-transform', lainnyaBuka && 'rotate-90')} />
+          </Button>
         </div>
-        <div className="flex flex-col gap-2">
-        {opsiTipe !== undefined && opsiTipe.length > 1 ? (
-          <>
-            <BarisPilihan
-              id={`set_tipe_kombo_${kunci}`}
-              teks="Tipe"
-              judul="Tipe kontrol: menentukan format isi, tombol bawaan, dan cara mengetik (mis. Nominal punya papan rupiah)."
-              opsi={opsiTipe}
-              nilai={tipeKontrol ?? opsiTipe[0].nilai}
-              placeholder="Pilih tipe…"
-              namaDaftar="Buka daftar tipe input"
-              onPilih={(v) => onUbahTipeKontrol?.(v)}
-              resetId={`btn_reset_tipe_kombo_${kunci}`}
-              resetLabel="Kembalikan tipe input ke bawaan"
-              adaAturan={adaTipeKontrol === true}
-              onReset={() => onResetBaris('tipeKontrol')}
-            />
-            <div aria-hidden className="border-t border-foreground/10" />
-          </>
-        ) : null}
-        {/* Pengaturan khusus tipe AKTIF — hanya muncul untuk tipe yang
-            memilikinya (mis. "Preset cepat" pada Nominal). Label memakai lebar
-            grup "Mengembang" supaya sejajar dengan baris pilihan di atasnya. */}
-        {pengaturanTipe !== undefined ? (
-          <>
-            <div className="flex items-center gap-1.5">
-              <label
-                htmlFor={pengaturanTipe.id}
-                className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
-                style={{ width: LEBAR_LABEL_GRUP_MENGEMBANG }}
-                title={pengaturanTipe.judul}
-              >
-                {pengaturanTipe.label}
-              </label>
-              <div className="min-w-0 flex-1">{pengaturanTipe.isi}</div>
-            </div>
-            <div aria-hidden className="border-t border-foreground/10" />
-          </>
-        ) : null}
-        <BarisUkuran
-          id={`set_tinggi_kombo_${kunci}`}
-          teks="Tinggi"
-          resetId={`btn_reset_tinggi_kombo_${kunci}`}
-          resetLabel="Kembalikan tinggi ke bawaan"
-          adaAturan={adaTinggi}
-          onReset={() => onResetBaris('tinggi')}
-          stepper={
-            <SpinBox
+        {/* DUA KOLOM: kolom pertama = ukuran (Tinggi/Label/Kontrol/Total) yang
+            selalu terlihat, kolom kedua = "Lainnya" (Tipe, pengaturan tipe,
+            Mengembang, Warna Label, Nilai awal) yang bisa dilipat — bawaan
+            tertutup supaya popover tetap ringkas. Lebarnya dipatok (174px /
+            270px, lihat konstanta di atas) dan celahnya rapat (6px antar baris,
+            8px antar kolom). */}
+        <div className="flex items-start gap-2">
+          <div className="flex w-[174px] shrink-0 flex-col gap-1.5">
+            <BarisUkuran
               id={`set_tinggi_kombo_${kunci}`}
-              value={tinggi}
-              min={TINGGI_KOMBO_MIN}
-              max={TINGGI_KOMBO_MAKS}
-              step={LANGKAH_TINGGI}
-              lebar={LEBAR_STEPPER}
-              title={`Tinggi kotak ${nama} (px)`}
-              ariaLabel={`Tinggi kotak ${nama} (px)`}
-              onChange={(n) => onUbah({ tinggi: n })}
+              teks="Tinggi"
+              resetId={`btn_reset_tinggi_kombo_${kunci}`}
+              resetLabel="Kembalikan tinggi ke bawaan"
+              adaAturan={adaTinggi}
+              onReset={() => onResetBaris('tinggi')}
+              stepper={
+                <SpinBox
+                  id={`set_tinggi_kombo_${kunci}`}
+                  value={tinggi}
+                  min={TINGGI_KOMBO_MIN}
+                  max={TINGGI_KOMBO_MAKS}
+                  step={LANGKAH_TINGGI}
+                  lebar={LEBAR_STEPPER}
+                  title={`Tinggi kotak ${nama} (px)`}
+                  ariaLabel={`Tinggi kotak ${nama} (px)`}
+                  onChange={(n) => onUbah({ tinggi: n })}
+                />
+              }
             />
-          }
-        />
-        <BarisUkuran
-          id={`set_lebar_label_kombo_${kunci}`}
-          teks="Label"
-          resetId={`btn_reset_label_kombo_${kunci}`}
-          resetLabel="Kembalikan lebar label ke bawaan"
-          adaAturan={adaLebarLabel}
-          onReset={() => onResetBaris('lebarLabel')}
-          stepper={
-            <SpinBox
+            <BarisUkuran
               id={`set_lebar_label_kombo_${kunci}`}
-              value={lebarLabel}
-              min={LEBAR_LABEL_MIN}
-              max={LEBAR_LABEL_MAKS}
-              step={LANGKAH_LABEL}
-              lebar={LEBAR_STEPPER}
-              title="Lebar label terkunci (px)"
-              ariaLabel={`Lebar label ${nama} (px)`}
-              onChange={ubahLabel}
+              teks="Label"
+              resetId={`btn_reset_label_kombo_${kunci}`}
+              resetLabel="Kembalikan lebar label ke bawaan"
+              adaAturan={adaLebarLabel}
+              onReset={() => onResetBaris('lebarLabel')}
+              stepper={
+                <SpinBox
+                  id={`set_lebar_label_kombo_${kunci}`}
+                  value={lebarLabel}
+                  min={LEBAR_LABEL_MIN}
+                  max={LEBAR_LABEL_MAKS}
+                  step={LANGKAH_LABEL}
+                  lebar={LEBAR_STEPPER}
+                  title="Lebar label terkunci (px)"
+                  ariaLabel={`Lebar label ${nama} (px)`}
+                  onChange={ubahLabel}
+                />
+              }
             />
-          }
-        />
-        <BarisUkuran
-          id={`set_lebar_kontrol_kombo_${kunci}`}
-          teks="Kontrol"
-          resetId={`btn_reset_kontrol_kombo_${kunci}`}
-          resetLabel="Kembalikan lebar kontrol ke bawaan"
-          adaAturan={adaLebarKontrol}
-          onReset={() => onResetBaris('lebarKontrol')}
-          stepper={
-            <SpinBox
+            <BarisUkuran
               id={`set_lebar_kontrol_kombo_${kunci}`}
-              value={lebarKontrol}
-              min={LEBAR_KONTROL_MIN}
-              max={LEBAR_KONTROL_MAKS}
-              step={LANGKAH_LEBAR}
-              lebar={LEBAR_STEPPER}
-              title="Lebar kontrol terkunci (px)"
-              ariaLabel={`Lebar kontrol ${nama} (px)`}
-              onChange={ubahKontrol}
+              teks="Kontrol"
+              resetId={`btn_reset_kontrol_kombo_${kunci}`}
+              resetLabel="Kembalikan lebar kontrol ke bawaan"
+              adaAturan={adaLebarKontrol}
+              onReset={() => onResetBaris('lebarKontrol')}
+              stepper={
+                <SpinBox
+                  id={`set_lebar_kontrol_kombo_${kunci}`}
+                  value={lebarKontrol}
+                  min={LEBAR_KONTROL_MIN}
+                  max={LEBAR_KONTROL_MAKS}
+                  step={LANGKAH_LEBAR}
+                  lebar={LEBAR_STEPPER}
+                  title="Lebar kontrol terkunci (px)"
+                  ariaLabel={`Lebar kontrol ${nama} (px)`}
+                  onChange={ubahKontrol}
+                />
+              }
             />
-          }
-        />
-        <BarisUkuran
-          id={`set_lebar_kombo_${kunci}`}
-          teks="Total"
-          resetId={`btn_reset_lebar_kombo_${kunci}`}
-          resetLabel="Kembalikan lebar total ke bawaan"
-          adaAturan={adaLebar}
-          onReset={() => onResetBaris('lebar')}
-          stepper={
-            <SpinBox
+            <BarisUkuran
               id={`set_lebar_kombo_${kunci}`}
-              value={lebar}
-              min={LEBAR_KOMBO_MIN}
-              max={LEBAR_KOMBO_MAKS}
-              step={LANGKAH_LEBAR}
-              lebar={LEBAR_STEPPER}
-              title={`Lebar total kotak ${nama} — label + kontrol (px)`}
-              ariaLabel={`Lebar kotak ${nama} (px)`}
-              onChange={ubahTotal}
+              teks="Total"
+              resetId={`btn_reset_lebar_kombo_${kunci}`}
+              resetLabel="Kembalikan lebar total ke bawaan"
+              adaAturan={adaLebar}
+              onReset={() => onResetBaris('lebar')}
+              stepper={
+                <SpinBox
+                  id={`set_lebar_kombo_${kunci}`}
+                  value={lebar}
+                  min={LEBAR_KOMBO_MIN}
+                  max={LEBAR_KOMBO_MAKS}
+                  step={LANGKAH_LEBAR}
+                  lebar={LEBAR_STEPPER}
+                  title={`Lebar total kotak ${nama} — label + kontrol (px)`}
+                  ariaLabel={`Lebar kotak ${nama} (px)`}
+                  onChange={ubahTotal}
+                />
+              }
             />
-          }
-        />
-        </div>
-        <div aria-hidden className="border-t border-foreground/10" />
-        {/* Sisi yang mengembang saat "Total" diubah — combobox (bukan
-            centang) supaya kedua sisi tampil sebagai pilihan bernama: pilot
-            "Kontrol" atau "Label". */}
-        <BarisPilihan
-          id={`set_expand_kombo_${kunci}`}
-          teks="Mengembang"
-          judul="Pilih sisi yang ikut melebar saat lebar total diubah: label atau kontrol."
-          opsi={OPSI_MENGEMBANG}
-          nilai={expandLabel ? 'Label' : 'Kontrol'}
-          placeholder="Pilih sisi…"
-          namaDaftar="Buka daftar sisi yang mengembang"
-          onPilih={(v) => onUbah({ expandLabel: v === 'Label' })}
-          lebarLabel={LEBAR_LABEL_GRUP_MENGEMBANG}
-        />
-        {/* "Label transparan" dikelompokkan di bawah tema Mengembang, pada baris
-            tersendiri yang bertanda "Warna Label:". */}
-        <BarisPilihan
-          id={`set_label_transparan_kombo_${kunci}`}
-          teks="Warna Label:"
-          judul="Transparan: label tanpa latar, teks bertitik dua. Tidak transparan: label berlatar penuh."
-          opsi={OPSI_WARNA_LABEL}
-          nilai={labelTransparan ? 'Transparan' : 'Tidak Transparan'}
-          placeholder="Pilih warna label…"
-          namaDaftar="Buka daftar warna label"
-          onPilih={(v) => onUbah({ labelTransparan: v === 'Transparan' })}
-          lebarLabel={LEBAR_LABEL_GRUP_MENGEMBANG}
-        />
-        {opsi !== undefined && opsi.length > 0 ? (
-          <>
-            <div aria-hidden className="border-t border-foreground/10" />
-            {/* Nilai AWAL combobox: pilih salah satu opsi yang ada. Dipakai
-                sebagai nilai awal yang ditampilkan; pengguna tetap bisa
-                menggantinya, dan nilai pemanggil menang saat berubah. */}
-            <div className="flex items-center gap-1.5">
-              <label
-                htmlFor={`set_nilai_awal_kombo_${kunci}`}
-                className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
-                style={{ width: LEBAR_LABEL_BARIS }}
-              >
-                Nilai awal
-              </label>
-              <div className="relative min-w-0 flex-1">
-                <ComboboxRoot
-                  items={opsi}
-                  value={nilaiDefault ?? null}
-                  onValueChange={(v) => onUbah({ nilaiDefault: typeof v === 'string' ? v : null })}
-                >
-                  <ComboboxInput
-                    id={`set_nilai_awal_kombo_${kunci}`}
-                    className="pr-7"
-                    aria-label="Nilai awal combobox"
-                    placeholder="Nilai awal…"
+          </div>
+          {/* Kolom kedua "Lainnya" — dilipat, bawaan tertutup. Berisi Tipe,
+              pengaturan tipe (mis. "Format"), Mengembang, Warna Label, dan
+              Nilai awal. Pemisah vertikal menggantikan garis horizontal antar
+              kelompok. */}
+          {lainnyaBuka ? (
+            <>
+              <div aria-hidden className="w-px self-stretch bg-foreground/10" />
+              <div id={`panel_lainnya_kombo_${kunci}`} className="flex w-[270px] shrink-0 flex-col gap-1.5">
+                {/* Tipe + pengaturan khusus tipe AKTIF (mis. "Format" pada
+                    Tanggal). Label memakai `LEBAR_LABEL_KOMBO` supaya
+                    combobox-nya rata kiri. */}
+                {opsiTipe !== undefined && opsiTipe.length > 1 ? (
+                  <BarisPilihan
+                    id={`set_tipe_kombo_${kunci}`}
+                    teks="Tipe"
+                    judul="Tipe kontrol: menentukan format isi, tombol bawaan, dan cara mengetik (mis. Nominal punya papan rupiah)."
+                    opsi={opsiTipe}
+                    nilai={tipeKontrol ?? opsiTipe[0].nilai}
+                    placeholder="Pilih tipe…"
+                    namaDaftar="Buka daftar tipe input"
+                    onPilih={(v) => onUbahTipeKontrol?.(v)}
+                    resetId={`btn_reset_tipe_kombo_${kunci}`}
+                    resetLabel="Kembalikan tipe input ke bawaan"
+                    adaAturan={adaTipeKontrol === true}
+                    onReset={() => onResetBaris('tipeKontrol')}
                   />
-                  <ComboboxTrigger
-                    className="absolute top-1/2 right-0 -translate-y-1/2"
-                    aria-label="Buka daftar nilai"
-                  />
-                  <ComboboxContent>
-                    <ComboboxEmpty>Tidak ada nilai.</ComboboxEmpty>
-                    <ComboboxList>
-                      {(o) => <ComboboxItem key={o} value={o}>{o}</ComboboxItem>}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </ComboboxRoot>
+                ) : null}
+                {pengaturanTipe !== undefined ? (
+                  <div className="flex items-center gap-1.5">
+                    <label
+                      htmlFor={pengaturanTipe.id}
+                      className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
+                      style={{ width: LEBAR_LABEL_KOMBO }}
+                      title={pengaturanTipe.judul}
+                    >
+                      {pengaturanTipe.label}
+                    </label>
+                    <div className="min-w-0 flex-1">{pengaturanTipe.isi}</div>
+                  </div>
+                ) : null}
+                {/* Sisi yang mengembang saat "Total" diubah — combobox (bukan
+                    centang) supaya kedua sisi tampil sebagai pilihan bernama: pilot
+                    "Kontrol" atau "Label". */}
+                <BarisPilihan
+                  id={`set_expand_kombo_${kunci}`}
+                  teks="Mengembang"
+                  judul="Pilih sisi yang ikut melebar saat lebar total diubah: label atau kontrol."
+                  opsi={OPSI_MENGEMBANG}
+                  nilai={expandLabel ? 'Label' : 'Kontrol'}
+                  placeholder="Pilih sisi…"
+                  namaDaftar="Buka daftar sisi yang mengembang"
+                  onPilih={(v) => onUbah({ expandLabel: v === 'Label' })}
+                />
+                {/* "Label transparan" dikelompokkan di bawah tema Mengembang, pada baris
+                    tersendiri yang bertanda "Warna Label:". */}
+                <BarisPilihan
+                  id={`set_label_transparan_kombo_${kunci}`}
+                  teks="Warna Label:"
+                  judul="Transparan: label tanpa latar, teks bertitik dua. Tidak transparan: label berlatar penuh."
+                  opsi={OPSI_WARNA_LABEL}
+                  nilai={labelTransparan ? 'Transparan' : 'Tidak Transparan'}
+                  placeholder="Pilih warna label…"
+                  namaDaftar="Buka daftar warna label"
+                  onPilih={(v) => onUbah({ labelTransparan: v === 'Transparan' })}
+                />
+                {opsi !== undefined && opsi.length > 0 ? (
+                  <div className="flex items-center gap-1.5">
+                    {/* Nilai AWAL combobox: pilih salah satu opsi yang ada. Dipakai
+                        sebagai nilai awal yang ditampilkan; pengguna tetap bisa
+                        menggantinya, dan nilai pemanggil menang saat berubah. */}
+                    <label
+                      htmlFor={`set_nilai_awal_kombo_${kunci}`}
+                      className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
+                      style={{ width: LEBAR_LABEL_KOMBO }}
+                    >
+                      Nilai awal
+                    </label>
+                    <div className="relative min-w-0 flex-1">
+                      <ComboboxRoot
+                        items={opsi}
+                        value={nilaiDefault ?? null}
+                        onValueChange={(v) => onUbah({ nilaiDefault: typeof v === 'string' ? v : null })}
+                      >
+                        <ComboboxInput
+                          id={`set_nilai_awal_kombo_${kunci}`}
+                          className="pr-7"
+                          aria-label="Nilai awal combobox"
+                          placeholder="Nilai awal…"
+                        />
+                        <ComboboxTrigger
+                          className="absolute top-1/2 right-0 -translate-y-1/2"
+                          aria-label="Buka daftar nilai"
+                        />
+                        <ComboboxContent>
+                          <ComboboxEmpty>Tidak ada nilai.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(o) => <ComboboxItem key={o} value={o}>{o}</ComboboxItem>}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </ComboboxRoot>
+                    </div>
+                    <Button
+                      id={`btn_reset_nilai_awal_kombo_${kunci}`}
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      disabled={!adaNilaiDefault}
+                      onClick={() => onResetBaris('nilaiDefault')}
+                      aria-label="Kembalikan nilai awal ke bawaan"
+                      title="Kembalikan nilai awal ke bawaan"
+                      className="shrink-0 text-muted-foreground"
+                    >
+                      <RotateCcw />
+                    </Button>
+                  </div>
+                ) : null}
               </div>
-              <Button
-                id={`btn_reset_nilai_awal_kombo_${kunci}`}
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                disabled={!adaNilaiDefault}
-                onClick={() => onResetBaris('nilaiDefault')}
-                aria-label="Kembalikan nilai awal ke bawaan"
-                title="Kembalikan nilai awal ke bawaan"
-                className="shrink-0 text-muted-foreground"
-              >
-                <RotateCcw />
-              </Button>
-            </div>
-          </>
-        ) : null}
-        <div aria-hidden className="border-t border-foreground/10" />
-        <Button
-          id={`btn_reset_ukuran_kombo_${kunci}`}
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={!(adaTinggi || adaLebar || adaLebarLabel || adaLebarKontrol || adaExpand || adaLabelTransparan || adaNilaiDefault || adaPengaturanTipe === true)}
-          onClick={onReset}
-          className="-mx-1 justify-start px-1 text-muted-foreground"
-        >
-          <RotateCcw />
-          Kembalikan ke bawaan
-        </Button>
+            </>
+          ) : null}
+        </div>
       </div>
     </PopoverContent>
   );

@@ -19,6 +19,14 @@ beforeEach(() => {
   resetSetelanKomponen();
 });
 
+/** Buka popover pengaturan (klik kanan) SEKALIGUS kolom kedua ("Lainnya"):
+ *  baris "Tipe" & pengaturan tipe ada di kolom itu, dan kolomnya bawaan
+ *  TERTUTUP. */
+async function bukaPengaturanLengkap(kotak: HTMLElement) {
+  fireEvent.contextMenu(kotak);
+  await userEvent.click(await screen.findByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
+}
+
 describe('LabeledTextInput', () => {
   it('label terhubung ke input via for ↔ id', () => {
     renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
@@ -145,7 +153,7 @@ describe('LabeledTextInput', () => {
       <LabeledTextInput label="Nama" htmlFor={kunci} />,
     );
 
-    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await bukaPengaturanLengkap(container.firstElementChild as HTMLElement);
     expect(await screen.findByLabelText('Tinggi kotak input (px)')).not.toBeNull();
     // Total +10 (bawaan kontrol mengembang): kontrol 80→90, label tetap.
     await userEvent.click(await screen.findByLabelText('Lebar kotak input (px) tambah'));
@@ -169,7 +177,7 @@ describe('LabeledTextInput', () => {
     expect((document.getElementById(kunci) as HTMLInputElement).type).toBe('text');
     expect(document.getElementById(`btn_kalender_${kunci}`)).not.toBeNull();
 
-    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await bukaPengaturanLengkap(container.firstElementChild as HTMLElement);
     const tipe = await screen.findByRole('combobox', { name: 'Tipe' });
     expect(tipe).toHaveValue('Tanggal');
   });
@@ -183,7 +191,7 @@ describe('LabeledTextInput', () => {
     expect(input().type).toBe('text');
     expect(screen.queryByLabelText('Pilih nominal cepat')).toBeNull();
 
-    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await bukaPengaturanLengkap(container.firstElementChild as HTMLElement);
     const tipe = await screen.findByRole('combobox', { name: 'Tipe' });
     await userEvent.click(tipe);
     await userEvent.click(await screen.findByRole('option', { name: 'Nominal (Uang)' }));
@@ -204,9 +212,11 @@ describe('LabeledTextInput', () => {
     expect(screen.queryByLabelText('Pilih nominal cepat')).toBeNull();
   });
 
-  it('pilihanTipe kosong: baris Tipe tak muncul (kontrol non-input)', () => {
+  it('pilihanTipe kosong: baris Tipe tak muncul (kontrol non-input)', async () => {
     renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_tanpa_tipe" pilihanTipe={[]} />);
-    fireEvent.contextMenu(document.querySelector('#inp_tanpa_tipe')?.closest('span')?.parentElement as HTMLElement);
+    // Panel dibuka (termasuk kolom keduanya) supaya "tak muncul" benar-benar
+    // berarti barisnya tak dirender, bukan sekadar tersembunyi di kolom tertutup.
+    await bukaPengaturanLengkap(document.querySelector('#inp_tanpa_tipe')?.closest('span')?.parentElement as HTMLElement);
     expect(screen.queryByRole('combobox', { name: 'Tipe' })).toBeNull();
   });
 

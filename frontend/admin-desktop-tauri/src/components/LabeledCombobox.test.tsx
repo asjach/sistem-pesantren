@@ -219,10 +219,12 @@ describe('LabeledCombobox', () => {
     await screen.findByLabelText('Tinggi kotak combobox (px)');
     const pop = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
 
-    // Lebar dipatok (w = min = max) → tak mengikuti lebar kotak combobox (700px).
-    expect(pop.className).toMatch(/w-\[240px\]/);
-    expect(pop.className).toMatch(/min-w-\[240px\]/);
-    expect(pop.className).toMatch(/max-w-\[240px\]/);
+    /* Lebar dipatok (w = min = max) → tak mengikuti lebar kotak combobox
+       (700px). 200px = padding 2×12 + kolom ukuran 176px: kolom kedua
+       ("Lainnya") bawaan tertutup, jadi panel hanya selebar kolom pertama. */
+    expect(pop.className).toMatch(/w-\[200px\]/);
+    expect(pop.className).toMatch(/min-w-\[200px\]/);
+    expect(pop.className).toMatch(/max-w-\[200px\]/);
     // Border bawaan `--border` cuma 8% foreground (nyaris tak terlihat) → diganti.
     expect(pop.className).toMatch(/border-foreground\/30/);
   });
@@ -305,7 +307,9 @@ describe('LabeledCombobox', () => {
     expect(screen.queryByLabelText('Tutup pengaturan ukuran')).toBeNull();
 
     /* Klik pada daftar opsi (popup ber-portal ke `body`, jadi di luar DOM
-       panel) tidak menutup panel pengaturan. */
+       panel) tidak menutup panel pengaturan. Panel "Lainnya" bawaan tertutup
+       → buka dulu. */
+    await userEvent.click(screen.getByRole('button', { ...DALAM_PANEL, name: 'Tampilkan pengaturan lainnya' }));
     const sisi = screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Mengembang' });
     await userEvent.click(sisi);
     const opsi = await screen.findByRole('option', { name: 'Label' });
@@ -453,6 +457,8 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    // Panel "Lainnya" bawaan tertutup → buka dulu.
+    await userEvent.click(screen.getByRole('button', { ...DALAM_PANEL, name: 'Tampilkan pengaturan lainnya' }));
     // Bawaan: "Kontrol" → kontrol yang mengembang.
     expect(screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Mengembang' })).toHaveValue('Kontrol');
     // Total +10 → kontrol 80→90, label tetap 80.
@@ -502,6 +508,8 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    // Panel "Lainnya" bawaan tertutup → buka dulu.
+    await userEvent.click(screen.getByRole('button', { ...DALAM_PANEL, name: 'Tampilkan pengaturan lainnya' }));
     const cb = screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Mengembang' });
     // Pilih "Label" → label yang mengembang; flag tersimpan; Total +10
     // menggeser label (80→90), kontrol tetap.
@@ -548,6 +556,8 @@ describe('LabeledCombobox', () => {
     expect(teksLabel().className).toMatch(/bg-transparent/);
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    // Panel "Lainnya" bawaan tertutup → buka dulu.
+    await userEvent.click(screen.getByRole('button', { ...DALAM_PANEL, name: 'Tampilkan pengaturan lainnya' }));
     const warna = screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Warna Label:' });
     expect(warna).toHaveValue('Transparan');
 

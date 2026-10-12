@@ -1,4 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import LabeledTextInput from './LabeledTextInput';
@@ -77,34 +78,65 @@ describe('popover pengaturan komponen — gerbang izin', () => {
   });
 });
 
-describe('popover pengaturan komponen — lebar baris "Tipe"', () => {
+describe('popover pengaturan komponen — kolom kedua ("Lainnya")', () => {
   /** Baris label+combobox: label lalu pembungkus combobox. */
   const barisDari = (teks: string) => {
     const label = screen.getByText(teks) as HTMLLabelElement;
     return { label, pembungkus: label.nextElementSibling as HTMLElement };
   };
+  /** Buka kolom kedua — bawaan TERTUTUP, jadi semua baris di sana baru ada
+   *  setelah tombol kepala panel ditekan. */
+  const bukaLainnya = () => userEvent.click(screen.getByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
+  /** Panel popover pengaturan (ber-portal ke `body`). */
+  const panel = () => document.querySelector('[data-slot="popover-content"]') as HTMLElement;
 
-  it('label "Tipe" hanya selebar teksnya, combobox mengisi sisanya', async () => {
+  it('bawaan: kolom kedua tertutup & panel selebar kolom ukuran saja', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
     const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
 
-    const { label, pembungkus } = barisDari('Tipe');
-    // Tanpa lebar terpatok → tak ada ruang label yang terbuang.
-    expect(label.tagName).toBe('LABEL');
-    expect(label.style.width).toBe('');
-    // Pembungkus combobox mengambil seluruh sisa baris.
-    expect(pembungkus.className).toMatch(/flex-1/);
-    expect(pembungkus.className).toMatch(/min-w-0/);
+    // Ringkas: 200px = border 2×1 + padding 2×12 + kolom ukuran 174px;
+    // baris "Lainnya" belum dirender.
+    expect(panel().className).toMatch(/w-\[200px\]/);
+    expect(document.getElementById('panel_lainnya_kombo_inp_uji')).toBeNull();
+    expect(screen.queryByText('Tipe')).toBeNull();
   });
 
-  it('baris sekelompok ("Mengembang") tetap berlabel lebar terkunci agar rata', async () => {
+  it('tombol kepala panel membuka kolom kedua (panel melebar) lalu menutupnya lagi', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
     const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
 
+    await bukaLainnya();
+
+    // 487px = 200 + celah 2×8 + pemisah 1 + kolom "Lainnya" 270px.
+    expect(panel().className).toMatch(/w-\[487px\]/);
+    const kolomLainnya = document.getElementById('panel_lainnya_kombo_inp_uji') as HTMLElement;
+    expect(kolomLainnya.className).toMatch(/w-\[270px\]/);
+    expect(screen.getByText('Tipe')).not.toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sembunyikan pengaturan lainnya' }));
+
+    expect(document.getElementById('panel_lainnya_kombo_inp_uji')).toBeNull();
+    expect(panel().className).toMatch(/w-\[200px\]/);
+  });
+
+  it('semua baris pilihan berlabel sama lebar (84px) supaya combobox rata kiri', async () => {
+    pengguna.current = sesi(['komponen_custom.ubah']);
+    const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await screen.findByLabelText('Tinggi kotak input (px)');
+    await bukaLainnya();
+
+    const { label, pembungkus } = barisDari('Tipe');
+    // Berlabel terkunci (bukan selebar teksnya) → satu kolom pengaturan rata kiri.
+    expect(label.tagName).toBe('LABEL');
+    expect(label.style.width).toBe('84px');
     expect(barisDari('Mengembang').label.style.width).toBe('84px');
+    // Pembungkus combobox tetap mengambil seluruh sisa baris.
+    expect(pembungkus.className).toMatch(/flex-1/);
+    expect(pembungkus.className).toMatch(/min-w-0/);
   });
 });

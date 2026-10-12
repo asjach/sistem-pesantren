@@ -120,9 +120,12 @@ describe('LabeledTextInput tipe tanggal — tampilan vs nilai', () => {
 });
 
 describe('LabeledTextInput tipe tanggal — pengaturan format', () => {
-  /** Klik kanan pada KOTAK (bukan induknya) = buka popover pengaturan. */
-  const bukaPengaturan = () => {
+  /** Klik kanan pada KOTAK (bukan induknya) = buka popover pengaturan,
+   *  SEKALIGUS kolom kedua ("Lainnya") yang memuat baris "Format" — kolom itu
+   *  bawaan TERTUTUP. */
+  const bukaPengaturan = async () => {
     fireEvent.contextMenu(document.getElementById('inp_tgl')?.closest('span')?.parentElement as HTMLElement);
+    await userEvent.click(await screen.findByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
   };
   /** Combobox pola format di dalam popover (id: `<htmlFor>_tipe_format`). */
   const kotakFormat = () => document.getElementById('inp_tgl_tipe_format') as HTMLInputElement;
@@ -135,7 +138,7 @@ describe('LabeledTextInput tipe tanggal — pengaturan format', () => {
   it('baris "Format" tampil dengan combobox pola tanggal (bawaan dd/mm/yyyy)', async () => {
     renderDenganTema(<Contoh awal="2026-10-12" />);
 
-    bukaPengaturan();
+    await bukaPengaturan();
 
     expect(await screen.findByText('Format')).not.toBeNull();
     expect(kotakFormat().value).toBe('dd/mm/yyyy');
@@ -146,7 +149,7 @@ describe('LabeledTextInput tipe tanggal — pengaturan format', () => {
 
   it('pola lain mengubah tampilan & placeholder kotak, nilai tetap ISO', async () => {
     renderDenganTema(<Contoh awal="2026-10-12" />);
-    bukaPengaturan();
+    await bukaPengaturan();
     await screen.findByText('Format');
 
     await pilihFormat('dd-mm-yyyy');
@@ -159,7 +162,7 @@ describe('LabeledTextInput tipe tanggal — pengaturan format', () => {
 
   it('mask ketikan ikut pola baru: bulan diketik sebagai nama singkat', async () => {
     renderDenganTema(<Contoh />);
-    bukaPengaturan();
+    await bukaPengaturan();
     await screen.findByText('Format');
     await pilihFormat('dd Mmm yyyy');
 

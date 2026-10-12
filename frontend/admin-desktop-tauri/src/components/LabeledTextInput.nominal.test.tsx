@@ -343,6 +343,12 @@ describe('LabeledTextInput tipe nominal — tampilan vs nilai', () => {
 });
 
 describe('LabeledTextInput tipe nominal — pengaturan tipe', () => {
+  /** Buka popover pengaturan (klik kanan) SEKALIGUS kolom kedua ("Lainnya") —
+   *  baris "Preset cepat" ada di kolom itu, dan kolomnya bawaan TERTUTUP. */
+  const bukaPengaturan = async (kotak: HTMLElement) => {
+    fireEvent.contextMenu(kotak);
+    await userEvent.click(await screen.findByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
+  };
   /** Isi baris "Preset cepat" di popover pengaturan lalu commit (blur). */
   const isiPreset = async (teks: string) => {
     const isian = document.getElementById('inp_nom_tipe_preset') as HTMLInputElement;
@@ -353,14 +359,14 @@ describe('LabeledTextInput tipe nominal — pengaturan tipe', () => {
 
   it('baris "Preset cepat" muncul di popover pengaturan tipe nominal', async () => {
     const { container } = renderDenganTema(<Contoh />);
-    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await bukaPengaturan(container.firstElementChild as HTMLElement);
     expect(await screen.findByText('Preset cepat')).not.toBeNull();
     expect(document.getElementById('inp_nom_tipe_preset')).not.toBeNull();
   });
 
   it('preset yang disetel pengguna mengubah tombol nominal cepat', async () => {
     const { container } = renderDenganTema(<Contoh />);
-    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await bukaPengaturan(container.firstElementChild as HTMLElement);
     await screen.findByText('Preset cepat');
     await isiPreset('1500, 2500');
 
@@ -373,7 +379,7 @@ describe('LabeledTextInput tipe nominal — pengaturan tipe', () => {
 
   it('preset dikosongkan → kembali ke preset bawaan', async () => {
     const { container } = renderDenganTema(<Contoh />);
-    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await bukaPengaturan(container.firstElementChild as HTMLElement);
     await screen.findByText('Preset cepat');
     await isiPreset('1500');
     await isiPreset('');
@@ -386,7 +392,7 @@ describe('LabeledTextInput tipe nominal — pengaturan tipe', () => {
     const { container } = renderDenganTema(
       <LabeledTextInput nama="nominal" tipeKontrol="nominal" tipeTerkunci label="Bayar" htmlFor="inp_bayar" value="" onChange={() => {}} />,
     );
-    fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+    await bukaPengaturan(container.firstElementChild as HTMLElement);
     await screen.findByText('Preset cepat');
     expect(screen.queryByRole('combobox', { name: 'Tipe' })).toBeNull();
   });
