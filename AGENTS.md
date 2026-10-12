@@ -31,6 +31,28 @@ pesan commit) hanya bila `git status` kotor DAN salah satu pemicu ini terjadi:
   kredensial, screenshot sementara, dan artefak build.
 - Setelah commit: laporkan hash + ringkasan singkat.
 
+## SUSPEND TES — SEMENTARA (berlaku sampai dicabut)
+
+Status: **AKTIF sejak 2026-02-14** — tes frontend & backend dijeda atas
+permintaan pengguna (dianggap memperlambat pengembangan). Tes tidak berjalan
+otomatis di repo ini (tidak ada hook/CI/watch wajib); larangan ini berlaku pada
+agen agar tidak menjalankannya atas inisiatif sendiri.
+
+- **Dilarang menjalankan** atas inisiatif sendiri: `npm run test` (vitest) di
+  `frontend/admin-desktop-tauri`, `php artisan test`/`vendor/bin/phpunit` di
+  `backend`, termasuk versi tersempit/terfilter.
+- **Dilarang** membuat/memperbarui file `*.test.ts(x)` atau
+  `tests/**/*Test.php` selama suspend.
+- **Dilarang** menawarkan commit dengan alasan "menunggu tes hijau".
+- **Tetap jalan** (bukan tes, tidak boleh ikut dijeda): `npm run typecheck`,
+  `npm run build`, `npm run audit:bagian`, `npm run audit:izin`,
+  `vendor/bin/pint --dirty`. Verifikasi perubahan memakai ini + tinjauan manual.
+- **Pengecualian**: hanya bila pengguna **secara eksplisit** meminta tes
+  dijalankan pada permintaan itu — sebutkan bahwa suspend masih aktif.
+- **Cara mencabut**: hapus seluruh bagian ini, lalu kembali ke aturan test di
+  `frontend/AGENTS.md` dan `backend/AGENTS.md`. Saat mencabut, jalankan tes
+  penuh sekali untuk memastikan perubahan selama suspend tidak menumpuk regresi.
+
 ## Akun reviewer (AKTIF — jangan dibuat ulang/dihapus)
 - Email: `reviewer.tmp@example.com`
 - Password: `rahayu45` (sama seperti seeder `AkunSeeder`; semua akun dev memakai ini)

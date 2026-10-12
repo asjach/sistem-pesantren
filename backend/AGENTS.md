@@ -103,6 +103,14 @@ Before relying on a package's API, confirm its installed version:
 
 === tests rules ===
 
+# ⚠️ SUSPEND TES AKTIF
+
+Tes sedang **dijeda sementara** (permintaan pengguna). Jangan jalankan
+`php artisan test`/`vendor/bin/phpunit` atau membuat/memperbarui
+`tests/**/*Test.php` atas inisiatif sendiri. Verifikasi memakai
+`vendor/bin/pint --dirty`. Detail + cara mencabut: bagian "SUSPEND TES" di
+`AGENTS.md` root. Aturan di bawah berlaku lagi setelah suspend dicabut.
+
 # Test Enforcement — hanya logika
 
 - Tambah/perbarui test HANYA untuk perubahan logika (percabangan, validasi, komputasi, query/policy, transformasi data, transisi state) yang memberi regression coverage bermakna.
