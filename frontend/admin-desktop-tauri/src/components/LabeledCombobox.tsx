@@ -115,8 +115,11 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
   const kunciMount = useRef(kunciProp);
   const [nilaiLokal, setNilaiLokal] = useState<unknown>(undefined);
   const [ikutAwal, setIkutAwal] = useState(true);
-  /** Nilai awal sudah diterapkan ke pemanggil (sekali per pemasangan). */
-  const sudahTerapkanRef = useRef(false);
+  /** Nilai awal yang SUDAH diterapkan ke pemanggil (`null` = belum).
+   *  Di-key ke NILAI-nya, bukan sekali per pemasangan: mengubah nilai awal dari
+   *  popover saat halaman sedang terbuka harus LANGSUNG berlaku, bukan menunggu
+   *  halaman dimuat ulang. */
+  const sudahTerapkanRef = useRef<string | null>(null);
   /* Perubahan `value` dari PEMANGGIL = nilai pemanggil yang menang.
      KECUALI selama nilai awal belum sempat diterapkan: pemanggil (mis.
      `PresetKolom`) sering mengisi `value`-nya sendiri secara ASYNC — mula-mula
@@ -127,7 +130,7 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
   useEffect(() => {
     if (kunciProp === kunciMount.current) return;
     kunciMount.current = kunciProp;
-    if (!sudahTerapkanRef.current && nilaiDefaultEfektif !== undefined) return;
+    if (sudahTerapkanRef.current === null && nilaiDefaultEfektif !== undefined) return;
     setNilaiLokal(nilaiProp);
     setIkutAwal(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,13 +139,18 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
     ? nilaiLokal
     : (itemAwal !== undefined && ikutAwal ? itemAwal : nilaiProp);
 
-  /* Terapkan nilai awal ke PEMANGGIL sekali: nilai awal = penentu default,
-     jadi halaman harus benar-benar memakainya (bukan sekadar tampilannya).
+  /* Terapkan nilai awal ke PEMANGGIL: nilai awal = penentu default, jadi
+     halaman harus benar-benar memakainya (bukan sekadar tampilannya).
      Callback disimpan di ref agar efek bergantung hanya pada nilai. */
   const cbUbahRef = useRef(propsAnak.onValueChange);
   cbUbahRef.current = propsAnak.onValueChange;
   useEffect(() => {
-    if (sudahTerapkanRef.current || !ikutAwal || itemAwal === undefined || nilaiDefaultEfektif === undefined) return;
+    /* Nilai awal dihapus → siap diterapkan lagi bila nanti diisi ulang. */
+    if (nilaiDefaultEfektif === undefined) {
+      sudahTerapkanRef.current = null;
+      return;
+    }
+    if (itemAwal === undefined || sudahTerapkanRef.current === nilaiDefaultEfektif) return;
     /* Pemanggil sudah memakai nilai itu (mis. PresetUrut yang urutannya memang
        = nilai awal) → tak perlu memanggil balik. TAPI jangan tandai "sudah
        diterapkan": `kunciProp` bisa masih berupa FALLBACK pemanggil yang
@@ -150,9 +158,12 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
        preset termuat), sehingga penerapan yang sebenarnya justru tak akan
        pernah terjadi. */
     if (kunciProp === nilaiDefaultEfektif) return;
-    sudahTerapkanRef.current = true;
+    sudahTerapkanRef.current = nilaiDefaultEfektif;
     cbUbahRef.current?.(itemAwal);
-  }, [ikutAwal, itemAwal, nilaiDefaultEfektif, kunciProp]);
+    /* `ikutAwal` sengaja BUKAN gerbang di sini: mengubah nilai awal dari popover
+       adalah perintah eksplisit, jadi harus berlaku walau pengguna sudah memilih
+       nilai lain pada sesi ini. Pengulangan dicegah oleh penanda di atas. */
+  }, [itemAwal, nilaiDefaultEfektif, kunciProp]);
 
   if (anakTunggal === null || anakTunggal.type !== ComboboxRoot) {
     // Tanpa akar Combobox: tetap dirender di dalam kotak (tanpa suntikan gaya).

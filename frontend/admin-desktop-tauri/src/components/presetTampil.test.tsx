@@ -256,4 +256,21 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
     // Penerapan TERAKHIR harus preset nilai awal (9), bukan preset aktif (7).
     await waitFor(() => expect(onApply).toHaveBeenLastCalledWith(['a'], null, 9));
   });
+
+  it('mengubah nilai awal saat halaman terbuka langsung diterapkan (tanpa refresh)', async () => {
+    const tableKey = `uji_kolom_ubah_${Date.now()}`;
+    vi.mocked(muatKomponenCustom).mockResolvedValueOnce({
+      pesan: 'ok',
+      data: { peta: { [`|select_preset_kolom_${tableKey}`]: { nilaiDefault: 'Lengkap' } } },
+    });
+    const onApply = vi.fn();
+    presetDua();
+    renderDenganTema(<PresetKolom tableKey={tableKey} fields={FIELDS} onApply={onApply} />);
+    await waitFor(() => expect(onApply).toHaveBeenCalled());
+
+    // Pengguna mengganti nilai awal lewat popover klik-kanan → berlaku seketika.
+    simpanSetelanKomponen('', `select_preset_kolom_${tableKey}`, { nilaiDefault: 'Ringkas' });
+
+    await waitFor(() => expect(onApply).toHaveBeenLastCalledWith(['a'], null, 7));
+  });
 });
