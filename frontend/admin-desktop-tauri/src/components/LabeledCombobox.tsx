@@ -115,12 +115,23 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
   const kunciMount = useRef(kunciProp);
   const [nilaiLokal, setNilaiLokal] = useState<unknown>(undefined);
   const [ikutAwal, setIkutAwal] = useState(true);
+  /** Nilai awal sudah diterapkan ke pemanggil (sekali per pemasangan). */
+  const sudahTerapkanRef = useRef(false);
+  /* Perubahan `value` dari PEMANGGIL = nilai pemanggil yang menang.
+     KECUALI selama nilai awal belum sempat diterapkan: pemanggil (mis.
+     `PresetKolom`) sering mengisi `value`-nya sendiri secara ASYNC — mula-mula
+     opsi fallback (mis. "Lengkap"), baru preset aktif tersimpan. Perubahan itu
+     BUKAN pilihan pengguna; kalau dianggap pembatalan, `ikutAwal` mati sebelum
+     nilai awal sempat dipakai sehingga setelan "Nilai awal" tak pernah berefek
+     (keluhan: "nilai default tidak otomatis"). */
   useEffect(() => {
     if (kunciProp === kunciMount.current) return;
+    kunciMount.current = kunciProp;
+    if (!sudahTerapkanRef.current && nilaiDefaultEfektif !== undefined) return;
     setNilaiLokal(nilaiProp);
     setIkutAwal(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kunciProp]);
+  }, [kunciProp, nilaiDefaultEfektif]);
   const nilaiTampil = nilaiLokal !== undefined
     ? nilaiLokal
     : (itemAwal !== undefined && ikutAwal ? itemAwal : nilaiProp);
@@ -130,11 +141,17 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
      Callback disimpan di ref agar efek bergantung hanya pada nilai. */
   const cbUbahRef = useRef(propsAnak.onValueChange);
   cbUbahRef.current = propsAnak.onValueChange;
-  const sudahTerapkanRef = useRef(false);
   useEffect(() => {
     if (sudahTerapkanRef.current || !ikutAwal || itemAwal === undefined || nilaiDefaultEfektif === undefined) return;
+    /* Pemanggil sudah memakai nilai itu (mis. PresetUrut yang urutannya memang
+       = nilai awal) → tak perlu memanggil balik. TAPI jangan tandai "sudah
+       diterapkan": `kunciProp` bisa masih berupa FALLBACK pemanggil yang
+       kebetulan berlabel sama (PresetKolom menampilkan "Lengkap" sebelum daftar
+       preset termuat), sehingga penerapan yang sebenarnya justru tak akan
+       pernah terjadi. */
+    if (kunciProp === nilaiDefaultEfektif) return;
     sudahTerapkanRef.current = true;
-    if (kunciProp !== nilaiDefaultEfektif) cbUbahRef.current?.(itemAwal);
+    cbUbahRef.current?.(itemAwal);
   }, [ikutAwal, itemAwal, nilaiDefaultEfektif, kunciProp]);
 
   if (anakTunggal === null || anakTunggal.type !== ComboboxRoot) {

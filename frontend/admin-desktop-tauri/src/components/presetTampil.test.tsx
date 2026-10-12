@@ -172,3 +172,88 @@ describe('dropdown Kolom — selalu tampil dengan awalan "Lengkap"', () => {
     await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], null, 9));
   });
 });
+
+describe('dropdown Kolom — nilai awal dari popover', () => {
+  /** Preset "Lengkap" + satu preset lain; tanpa pilihan aktif pengguna. */
+  const presetDua = (tambahan: Record<string, unknown> = {}) => listPresetTabel.mockResolvedValue({
+    pesan: 'ok',
+    data: {
+      presets: [
+        { id: 9, nama: 'Lengkap', kolom: ['a'] },
+        { id: 7, nama: 'Ringkas', kolom: ['a'] },
+      ],
+      aktif_preset_id: null,
+      aktif_kolom: null,
+      aktif_label: null,
+      default_preset_id: null,
+      ...tambahan,
+    },
+  });
+
+  it('menerapkan nilai awal saat preset termuat (bukan hanya tampilannya)', async () => {
+    const tableKey = `uji_kolom_${Date.now()}`;
+    // Server sudah menyimpan nilai awal; komponen memuatnya sekali saat tampil.
+    vi.mocked(muatKomponenCustom).mockResolvedValueOnce({
+      pesan: 'ok',
+      data: { peta: { [`|select_preset_kolom_${tableKey}`]: { nilaiDefault: 'Ringkas' } } },
+    });
+    const onApply = vi.fn();
+    presetDua();
+    renderDenganTema(<PresetKolom tableKey={tableKey} fields={FIELDS} onApply={onApply} />);
+
+    // Nilai awal = preset "Ringkas" (id 7), bukan "Lengkap" (id 9).
+    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], null, 7));
+  });
+
+  it('nilai awal yang tiba BELAKANGAN (setelah preset termuat) tetap diterapkan', async () => {
+    const tableKey = `uji_kolom_telat_${Date.now()}`;
+    const onApply = vi.fn();
+    presetDua();
+    renderDenganTema(<PresetKolom tableKey={tableKey} fields={FIELDS} onApply={onApply} />);
+
+    await waitFor(() => expect(listPresetTabel).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 50));
+
+    // BARU nilai awal datang dari server (async di app nyata).
+    simpanSetelanKomponen('', `select_preset_kolom_${tableKey}`, { nilaiDefault: 'Ringkas' });
+
+    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], null, 7));
+  });
+
+  /**
+   * Keluhan nyata: "ketika saya tentukan nilai default, nilainya tidak otomatis,
+   * baik ketika dipilih maupun setelah refresh halaman".
+   *
+   *  Sebabnya: pengguna pernah memilih preset dari dropdown → tersimpan sebagai
+   *  `aktif_preset_id`. Saat halaman dibuka, `PresetKolom` mengisi `value`-nya
+   *  sendiri secara async (fallback "Lengkap" → preset aktif), dan perubahan itu
+   *  dulu mematikan mode ikut-awal sehingga setelan "Nilai awal" tak pernah
+   *  diterapkan.
+   */
+  it('nilai awal tetap diterapkan walau pengguna punya preset aktif tersimpan', async () => {
+    const tableKey = `uji_kolom_aktif_${Date.now()}`;
+    vi.mocked(muatKomponenCustom).mockResolvedValueOnce({
+      pesan: 'ok',
+      data: { peta: { [`|select_preset_kolom_${tableKey}`]: { nilaiDefault: 'Lengkap' } } },
+    });
+    const onApply = vi.fn();
+    // Preset aktif tersimpan = "Ringkas" (id 7); nilai awal = "Lengkap" (id 9).
+    listPresetTabel.mockResolvedValue({
+      pesan: 'ok',
+      data: {
+        presets: [
+          { id: 9, nama: 'Lengkap', kolom: ['a'] },
+          { id: 7, nama: 'Ringkas', kolom: ['a'] },
+        ],
+        aktif_preset_id: 7,
+        aktif_kolom: null,
+        aktif_label: null,
+        default_preset_id: null,
+      },
+    });
+    renderDenganTema(<PresetKolom tableKey={tableKey} fields={FIELDS} onApply={onApply} />);
+
+    // Penerapan TERAKHIR harus preset nilai awal (9), bukan preset aktif (7).
+    await waitFor(() => expect(onApply).toHaveBeenLastCalledWith(['a'], null, 9));
+  });
+});

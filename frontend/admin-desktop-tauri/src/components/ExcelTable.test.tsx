@@ -2,6 +2,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import ExcelTable, { diCornerButton, type ExcelTableProps } from './ExcelTable';
+import { resetSetelanKomponen } from './komponenCustom';
+import { listPresetTabel } from '@/api/preset';
+import { muatKomponenCustom } from '@/api/komponenCustom';
 import { renderDenganTema } from '@/test/utils';
 
 // ---- Mock API (unit test tidak boleh memanggil fetch nyata) ----
@@ -28,6 +31,14 @@ vi.mock('@/api/urutPreset', () => ({
   simpanUrutPreset: vi.fn(),
   hapusUrutPreset: vi.fn(),
   arahKolomDariOpsi: vi.fn(() => undefined),
+}));
+
+/* Setelan komponen custom (mis. "Nilai awal" preset kolom) disimpan di server;
+   API-nya dimock agar tes bisa menyemai setelan lewat store klien. */
+vi.mock('@/api/komponenCustom', () => ({
+  muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
+  simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
+  hapusKomponenCustom: vi.fn(async () => ({ pesan: '' })),
 }));
 
 // ---- Stub jsdom untuk react-datasheet-grid ----
@@ -80,6 +91,48 @@ function renderTabel(props: Partial<ExcelTableProps<Baris>> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+});
+
+describe('ExcelTable — nilai awal preset kolom dari popover', () => {
+  /** Preset "Lengkap" (semua kolom) + "Ringkas" (hanya Nama). */
+  const presetDua = () => vi.mocked(listPresetTabel).mockResolvedValueOnce({
+    pesan: 'ok',
+    data: {
+      presets: [
+        { id: 9, jenjang: null, table_key: 'uji', nama: 'Lengkap', kolom: ['nama', 'kode'], is_default: true },
+        { id: 7, jenjang: null, table_key: 'uji', nama: 'Ringkas', kolom: ['nama'], is_default: false },
+      ],
+      aktif_preset_id: null,
+      default_preset_id: 9,
+      aktif_kolom: null,
+      aktif_label: null,
+    },
+  });
+
+  it('menerapkan preset "nilai awal" saat tabel dimuat', async () => {
+    resetSetelanKomponen();
+    vi.mocked(muatKomponenCustom).mockResolvedValueOnce({
+      pesan: 'ok',
+      // Kunci setelan = `tableKey|komponen` (komponen hidup di toolbar tabel).
+      data: { peta: { 'uji|select_preset_kolom_uji': { nilaiDefault: 'Ringkas' } } },
+    });
+    presetDua();
+
+    renderTabel();
+
+    // "Ringkas" hanya memuat kolom Nama → header Kode tak ikut tampil.
+    await waitFor(() => expect(screen.getByText('Nama')).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Kode')).toBeNull());
+  });
+
+  it('tanpa nilai awal: jatuh ke preset bawaan "Lengkap" (semua kolom)', async () => {
+    resetSetelanKomponen();
+    presetDua();
+
+    renderTabel();
+
+    await waitFor(() => expect(screen.getAllByText('Kode').length).toBeGreaterThan(0));
+  });
 });
 
 describe('ExcelTable — corner button (sudut kiri-atas)', () => {
