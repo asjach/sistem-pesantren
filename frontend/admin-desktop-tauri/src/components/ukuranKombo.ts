@@ -27,6 +27,9 @@ export interface UkuranKombo {
   /** Label opsi yang dipakai sebagai nilai AWAL combobox (dari opsi yang
    *  ada). Absen = pakai nilai dari pemanggil. */
   nilaiDefault?: string;
+  /** Langkah tombol −/+ stepper angka (interval perubahan nilai). Absen =
+   *  ikut prop `step` pemanggil (bawaan 1). Hanya dipakai `LabeledStepper`. */
+  langkah?: number;
 }
 
 /** Nilai `null` = hapus kunci itu (kembali ke bawaan); dipakai reset per-baris. */
@@ -38,6 +41,7 @@ export type UbahUkuranKombo = {
   expandLabel?: boolean | null;
   labelTransparan?: boolean | null;
   nilaiDefault?: string | null;
+  langkah?: number | null;
 };
 
 /** Batas panjang nilai default (selaras validasi backend `nilai_default.*`). */
@@ -67,6 +71,14 @@ export const LEBAR_KONTROL_BAWAAN = 80;
  *  selaras dengan lebar total bawaan kotak (`LEBAR_BAWAHAN_FILTER`). */
 export const LEBAR_KOMBO_BAWAAN = 160;
 
+/** Langkah tombol −/+ stepper ANGKA: bilangan bulat ≥ 1 (0 membuat tombol tak
+ * berpengaruh; pecahan tak mungkin karena nilai stepper selalu dibulatkan).
+ * Batas atas 1000 cukup untuk interval besar. Selaras validasi backend
+ * (`KomponenCustomController`, `langkah` 1–1000). */
+export const LANGKAH_STEPPER_BAWAAN = 1;
+export const LANGKAH_STEPPER_MIN = 1;
+export const LANGKAH_STEPPER_MAKS = 1000;
+
 /** Snapshot stabil untuk komponen tanpa setelan (nilai yang dikembalikan
  *  `getSnapshot` tak boleh berubah identitas tiap panggilan). */
 const KOSONG: UkuranKombo = Object.freeze({});
@@ -92,6 +104,11 @@ export function jepitLebarKontrol(v: number): number {
   return jepitKetat(v, LEBAR_KONTROL_MIN, LEBAR_KONTROL_MAKS) ?? LEBAR_KONTROL_MIN;
 }
 
+/** Jepit langkah stepper ke rentang sah (≥ 1). */
+export function jepitLangkah(v: number): number {
+  return jepitKetat(v, LANGKAH_STEPPER_MIN, LANGKAH_STEPPER_MAKS) ?? LANGKAH_STEPPER_BAWAAN;
+}
+
 /** Normalisasi satu entri: kunci asing dibuang, angka dijepit ke rentang. */
 export function normalkanUkuran(v: unknown): UkuranKombo {
   if (v === null || typeof v !== 'object') return KOSONG;
@@ -113,5 +130,8 @@ export function normalkanUkuran(v: unknown): UkuranKombo {
   if (typeof o.nilaiDefault === 'string' && o.nilaiDefault.trim() !== '') {
     hasil.nilaiDefault = o.nilaiDefault.trim().slice(0, NILAI_DEFAULT_MAKS);
   }
+  // Langkah stepper: angka apa pun (termasuk string angka) dijepit ke rentang.
+  const langkah = jepitKetat(o.langkah, LANGKAH_STEPPER_MIN, LANGKAH_STEPPER_MAKS);
+  if (langkah !== undefined) hasil.langkah = langkah;
   return hasil;
 }

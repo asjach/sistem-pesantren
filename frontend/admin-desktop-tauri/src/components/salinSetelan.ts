@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 
 import type { SetelanKomponen } from '@/api/komponenCustom';
 import {
+  jepitLangkah,
   jepitLebar,
   jepitLebarKontrol,
   jepitLebarLabel,
@@ -74,6 +75,10 @@ export interface KemampuanTujuan {
   tipeDiizinkan?: readonly string[];
   /** Tipe kontrol efektif kotak tujuan SEKARANG (sebelum ditempeli). */
   tipeSekarang?: string;
+  /** True = kotak tujuan punya baris "Langkah" (stepper angka) — langkah
+   *  sumber boleh ikut disalin; kotak lain tak punya tombol ± yang
+   *  intervalnya bisa diatur. */
+  aturLangkah?: boolean;
   /** Setelan kotak tujuan saat ini; jadi titik awal kunci yang "salin hanya
    *  bila sah" (`tipeKontrol`, `tipe`, `nilaiDefault`) supaya tak terhapus. */
   setelanSekarang?: SetelanKomponen;
@@ -110,6 +115,10 @@ export interface HasilTempel {
  *     Kunci yang tak sah DIBIARKAN apa adanya (tak dihapus): membuang tipe atau
  *     nilai awal kotak tujuan diam-diam akan mengubah perilakunya, padahal
  *     keduanya bukan sekadar gaya tampilan.
+ *
+ *  `langkah` (interval tombol −/+ stepper) juga bergantung ISI kotak: hanya
+ *  kotak stepper yang punya baris "Langkah" (`aturLangkah`), jadi di kotak lain
+ *  kunci itu tak pernah ada untuk disalin.
  */
 export function setelanUntukTujuan(
   sumber: SetelanKomponen,
@@ -131,6 +140,14 @@ export function setelanUntukTujuan(
   /* (2) Mulai dari nilai kotak tujuan untuk kunci yang "salin hanya bila sah". */
   if (sekarang.tipeKontrol !== undefined) hasil.tipeKontrol = sekarang.tipeKontrol;
   if (sekarang.nilaiDefault !== undefined) hasil.nilaiDefault = sekarang.nilaiDefault;
+
+  /* Langkah stepper: MIRROR seperti ukuran, tapi hanya bila kotak tujuan
+     memang punya baris "Langkah" (stepper) — di combobox/input kunci itu tak
+     relevan. Sumber tanpa langkah → langkah tujuan hilang (kembali bawaan). */
+  if (typeof sumber.langkah === 'number') {
+    if (tujuan.aturLangkah === true) hasil.langkah = jepitLangkah(sumber.langkah);
+    else dilewati.push('langkah');
+  }
 
   /* Tipe input: diganti hanya bila kotak tujuan boleh memilihnya. */
   const tipeDiizinkan = tujuan.tipeDiizinkan ?? [];

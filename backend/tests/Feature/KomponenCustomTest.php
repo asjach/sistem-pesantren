@@ -217,7 +217,6 @@ class KomponenCustomTest extends TestCase
         ])->assertStatus(200)->assertJsonPath('data.setelan.lebarLabel', 60)
             ->assertJsonPath('data.setelan.expandLabel', true)
             ->assertJsonPath('data.setelan.labelTransparan', false);
-
         // Simpan ulang menyalin HANYA kunci yang dikirim (server menimpa utuh).
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'table_key' => 'santri',
@@ -227,6 +226,21 @@ class KomponenCustomTest extends TestCase
 
         $setelan = KomponenCustom::where('komponen', 'sel_status')->firstOrFail()->setelan;
         $this->assertSame(['tinggi' => 30], $setelan);
+    }
+
+    public function test_simpan_langkah_stepper(): void
+    {
+        $user = $this->makeUser('admin');
+
+        // Langkah tombol −/+ stepper angka (interval perubahan nilai).
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'stp_jumlah', 'setelan' => ['langkah' => 5],
+        ])->assertStatus(200)->assertJsonPath('data.setelan.langkah', 5);
+
+        // Nilai string angka dari isian popover tetap diterima sebagai bilangan.
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'stp_jumlah', 'setelan' => ['langkah' => '25'],
+        ])->assertStatus(200)->assertJsonPath('data.setelan.langkah', 25);
     }
 
     public function test_simpan_setelan_per_tipe(): void
@@ -285,6 +299,21 @@ class KomponenCustomTest extends TestCase
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_a', 'setelan' => ['nilaiDefault' => '   '],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan');
+    }
+
+    public function test_tolak_langkah_di_luar_rentang(): void
+    {
+        $user = $this->makeUser('admin');
+
+        // Langkah 0 membuat tombol −/+ tak berpengaruh sama sekali.
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'stp_a', 'setelan' => ['langkah' => 0],
+        ])->assertStatus(422)->assertJsonValidationErrors('setelan.langkah');
+
+        // Batas atas 1000 (selaras `LANGKAH_STEPPER_MAKS` di frontend).
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'komponen' => 'stp_a', 'setelan' => ['langkah' => 5000],
+        ])->assertStatus(422)->assertJsonValidationErrors('setelan.langkah');
     }
 
     public function test_migrasi_data_memindahkan_setelan_komponen_dari_toolbar_preset(): void

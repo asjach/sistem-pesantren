@@ -45,10 +45,19 @@ class KomponenCustomController extends Controller
     ];
 
     /**
+     * Rentang langkah tombol −/+ stepper angka (`setelan.langkah`) — WAJIB
+     * sama dengan `LANGKAH_STEPPER_MIN`/`_MAKS` di `ukuranKombo.ts`. Bilangan
+     * bulat ≥ 1: nilai stepper selalu dibulatkan, jadi langkah pecahan atau 0
+     * tak ada artinya.
+     */
+    public const BATAS_LANGKAH = [1, 1000];
+
+    /**
      * Batas setelan per-tipe (`setelan.tipe`) — WAJIB sama dengan
      * `MAKS_KUNCI_TIPE`/`MAKS_NILAI_TIPE` di `src/components/tipeInput.tsx`.
      */
     public const MAKS_KUNCI_TIPE = 20;
+
     public const MAKS_NILAI_TIPE = 50;
 
     /**
@@ -103,6 +112,19 @@ class KomponenCustomController extends Controller
                     ]);
                 }
                 $hasil[$kunci] = $nilai;
+
+                continue;
+            }
+
+            if ($kunci === 'langkah') {
+                [$min, $maks] = self::BATAS_LANGKAH;
+                $langkah = (int) $nilai;
+                if ($langkah < $min || $langkah > $maks) {
+                    throw ValidationException::withMessages([
+                        "setelan.{$kunci}" => "Langkah harus {$min}–{$maks}.",
+                    ]);
+                }
+                $hasil[$kunci] = $langkah;
 
                 continue;
             }

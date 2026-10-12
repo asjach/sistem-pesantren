@@ -1,19 +1,23 @@
 import { useState } from 'react';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderDenganTema } from '@/test/utils';
-import { resetSetelanKomponen, setelanKomponen, simpanSetelanKomponen } from '@/components/komponenCustom';
+import { resetSetelanKomponen, setelanKomponen } from '@/components/komponenCustom';
 
 /* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
    menyemai setelan lewat store klien tanpa jaringan. */
+const { petaServer } = vi.hoisted(() => ({
+  petaServer: { current: {} as Record<string, unknown> },
+}));
 vi.mock('@/api/komponenCustom', () => ({
-  muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
+  muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: petaServer.current } })),
   simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
   hapusKomponenCustom: vi.fn(async () => ({ pesan: '' })),
 }));
 
 beforeEach(() => {
+  petaServer.current = {};
   resetSetelanKomponen();
 });
 import LabeledStepper from '@/components/LabeledStepper';
@@ -77,5 +81,71 @@ describe('LabeledStepper', () => {
     // Label +4 → kontrol menyusut 4 (total tetap 160).
     await userEvent.click(await screen.findByLabelText('Lebar label stepper (px) tambah'));
     expect(setelanKomponen('', kunci)).toEqual({ lebarLabel: 84, lebarKontrol: 76 });
+  });
+
+  /* Baris "Langkah" di bagian "Lainnya" popover: interval perubahan nilai
+     tombol −/+. Bawaan tertutup, jadi barisnya baru ada setelah pengalih
+     kepala panel ditekan. */
+  describe('popover: pengaturan langkah', () => {
+    const kunci = 'uji_stepper_langkah';
+    function ContohLangkah() {
+      const [nilai, setNilai] = useState(4);
+      return (
+        <LabeledStepper label="Jumlah" htmlFor={kunci} min={0} max={100} value={nilai} onChange={setNilai} />
+      );
+    }
+    const bukaPopover = async () => {
+      const { container } = renderDenganTema(<ContohLangkah />);
+      fireEvent.contextMenu(container.firstElementChild as HTMLElement);
+      await screen.findByLabelText('Tinggi kotak stepper (px)');
+      await userEvent.click(screen.getByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
+    };
+    const tutupPopover = () => userEvent.click(document.body);
+
+    it('langkah dari popover jadi interval tombol kurang/tambah & tersimpan', async () => {
+      await bukaPopover();
+
+      const langkah = screen.getByLabelText('Langkah stepper');
+      expect(langkah).toHaveValue('1');
+      await userEvent.click(screen.getByRole('button', { name: 'Langkah stepper tambah' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Langkah stepper tambah' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Langkah stepper tambah' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Langkah stepper tambah' }));
+      expect(langkah).toHaveValue('5');
+      // Tersimpan sebagai setelan komponen (server via store klien di tes).
+      expect(setelanKomponen('', kunci).langkah).toBe(5);
+
+      await tutupPopover();
+
+      // Tombol stepper kini menggeser 5 per klik (4 → 9 → 4).
+      fireEvent.click(screen.getByRole('button', { name: 'Jumlah tambah' }));
+      expect(screen.getByRole('textbox', { name: 'Jumlah' })).toHaveValue('9');
+      fireEvent.click(screen.getByRole('button', { name: 'Jumlah kurang' }));
+      expect(screen.getByRole('textbox', { name: 'Jumlah' })).toHaveValue('4');
+    });
+
+    it('langkah tersimpan dibaca saat kotak dimuat ulang', async () => {
+      petaServer.current = { '|uji_stepper_langkah': { langkah: 5 } };
+      renderDenganTema(<ContohLangkah />);
+
+      // Tunggu setelan dari "server" termuat ke store klien.
+      await waitFor(() => expect(setelanKomponen('', kunci).langkah).toBe(5));
+      fireEvent.click(screen.getByRole('button', { name: 'Jumlah tambah' }));
+      expect(screen.getByRole('textbox', { name: 'Jumlah' })).toHaveValue('9');
+    });
+
+    it('reset baris Langkah mengembalikan interval ke prop pemanggil', async () => {
+      petaServer.current = { '|uji_stepper_langkah': { langkah: 5 } };
+      renderDenganTema(<ContohLangkah />);
+      fireEvent.contextMenu(document.querySelector(`#${kunci}`)?.closest('span')?.parentElement as HTMLElement);
+      await screen.findByLabelText('Tinggi kotak stepper (px)');
+      await userEvent.click(screen.getByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
+
+      // Nilai tersimpan tampil di stepper popover (bukan bawaan 1).
+      await waitFor(() => expect(screen.getByLabelText('Langkah stepper')).toHaveValue('5'));
+      await userEvent.click(screen.getByRole('button', { name: 'Kembalikan langkah ke bawaan' }));
+      expect(setelanKomponen('', kunci).langkah).toBeUndefined();
+      expect(screen.getByLabelText('Langkah stepper')).toHaveValue('1');
+    });
   });
 });

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { isiSalinan, kosongkanSalinan, setelanUntukTujuan, simpanSalinan } from './salinSetelan';
 import {
+  LANGKAH_STEPPER_MAKS,
   LEBAR_KOMBO_MIN,
   LEBAR_KONTROL_MIN,
   LEBAR_LABEL_MAKS,
@@ -122,6 +123,29 @@ describe('setelanUntukTujuan', () => {
     // Nilai awal kotak tujuan sendiri dipertahankan, sumbernya cuma dicatat lewat.
     expect(takAda.setelan.nilaiDefault).toBe('Opsi A');
     expect(takAda.dilewati).toContain('nilaiDefault');
+  });
+
+  it('langkah ikut disalin ke kotak stepper & dilewati di kotak lain', () => {
+    // Tujuan stepper: langkah sumber ikut (MIRROR seperti ukuran).
+    const keStepper = setelanUntukTujuan(
+      { tinggi: 30, langkah: 5 },
+      { aturLangkah: true, setelanSekarang: { langkah: 3 } },
+    );
+    expect(keStepper.setelan).toEqual({ tinggi: 30, langkah: 5 });
+
+    // Sumber tanpa langkah → langkah tujuan hilang (kembali bawaan pemanggil).
+    const tanpaLangkah = setelanUntukTujuan({ tinggi: 30 }, { aturLangkah: true });
+    expect(tanpaLangkah.setelan).toEqual({ tinggi: 30 });
+
+    // Tujuan bukan stepper (combobox/input): langkah tak relevan → dilewati.
+    const keCombo = setelanUntukTujuan({ tinggi: 30, langkah: 5 }, {});
+    expect(keCombo.setelan).toEqual({ tinggi: 30 });
+    expect(keCombo.dilewati).toEqual(['langkah']);
+  });
+
+  it('langkah dari sumber dijepit ke rentang sah', () => {
+    const { setelan } = setelanUntukTujuan({ langkah: 99999 }, { aturLangkah: true });
+    expect(setelan.langkah).toBe(LANGKAH_STEPPER_MAKS);
   });
 });
 

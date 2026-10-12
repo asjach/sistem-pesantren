@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import KotakLabel, { hitungLebarKontrol, keCss } from '@/components/kotakLabel';
+import { LANGKAH_STEPPER_BAWAAN } from '@/components/ukuranKombo';
 import { usePengaturanKotak } from '@/components/pengaturanKotak';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +22,9 @@ import { cn } from '@/lib/utils';
  *    dijepit ke rentang `min`..`max`.
  *  - Tombol ber-id `<id>_kurang`/`<id>_tambah` (snake_case, ikut `htmlFor`).
  *  - KLIK KANAN pada kotak membuka popover pengaturan ukuran KOTAK (sama
- *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas. */
+ *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas. Selain
+ *    ukuran, popover stepper punya baris **Langkah** — interval perubahan
+ *    nilai per klik tombol −/+ (bawaan: prop `step`). */
 export default function LabeledStepper({ label, htmlFor, labelTransparan = true, lebarLabel, lebarStepper, lebarKotak, tinggi = 26, className, kelolaLebar = true, value, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER, step = 1, disabled = false, onChange, ...props }: {
   label: string;
   htmlFor?: string;
@@ -41,7 +44,8 @@ export default function LabeledStepper({ label, htmlFor, labelTransparan = true,
   min?: number;
   /** Batas atas (bawaan: tak dibatasi). */
   max?: number;
-  /** Langkah tombol −/+ (bawaan 1). */
+  /** Langkah tombol −/+ (bawaan 1). Bisa ditimpa per kotak lewat baris
+   *  "Langkah" di popover klik-kanan (setelan tersimpan menang atas prop). */
   step?: number;
   disabled?: boolean;
   /** Dipanggil tiap nilai berubah — tombol, atau ketikan yang di-commit. */
@@ -67,11 +71,14 @@ export default function LabeledStepper({ label, htmlFor, labelTransparan = true,
   const tombol = 'grid w-6 shrink-0 place-items-center text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40';
   const {
     refKotak, onContextMenu, tinggiEfektif, lebarKotakEfektif,
-    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif, bungkus,
+    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif, langkahEfektif, bungkus,
   } = usePengaturanKotak({
     htmlFor, kelolaLebar, label, nama: 'stepper', labelTransparan,
-    lebarLabel, lebarKontrol: lebarStepper, lebarKotak, tinggi,
+    lebarLabel, lebarKontrol: lebarStepper, lebarKotak, tinggi, langkah: step,
   });
+  /* Langkah tombol −/+ yang berlaku: setelan popover (bila ada) menang atas
+     prop `step`; keduanya sudah dijepit ke rentang sah oleh hook. */
+  const langkah = langkahEfektif ?? LANGKAH_STEPPER_BAWAAN;
   return bungkus(
     <KotakLabel
       ref={refKotak}
@@ -95,7 +102,7 @@ export default function LabeledStepper({ label, htmlFor, labelTransparan = true,
             title={`Kurangi ${label}`}
             disabled={disabled || value <= min}
             className={tombol}
-            onClick={() => geser(-step)}
+            onClick={() => geser(-langkah)}
           >
             <span aria-hidden className="text-sm leading-none">−</span>
           </button>
@@ -122,7 +129,7 @@ export default function LabeledStepper({ label, htmlFor, labelTransparan = true,
             title={`Tambah ${label}`}
             disabled={disabled || value >= max}
             className={tombol}
-            onClick={() => geser(step)}
+            onClick={() => geser(langkah)}
           >
             <span aria-hidden className="text-sm leading-none">+</span>
           </button>

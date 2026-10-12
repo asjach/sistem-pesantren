@@ -5,8 +5,7 @@ import SpinBox from '@/components/SpinBox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
-import { ChevronRight, ClipboardPaste, Copy, RotateCcw } from '@/icons';
-import { cn } from '@/lib/utils';
+import { ChevronDown, ChevronUp, ClipboardPaste, Copy, RotateCcw } from '@/icons';
 import {
   LEBAR_KOMBO_MAKS,
   LEBAR_KOMBO_MIN,
@@ -14,6 +13,8 @@ import {
   LEBAR_KONTROL_MIN,
   LEBAR_LABEL_MAKS,
   LEBAR_LABEL_MIN,
+  LANGKAH_STEPPER_MAKS,
+  LANGKAH_STEPPER_MIN,
   TINGGI_KOMBO_MAKS,
   TINGGI_KOMBO_MIN,
   type UbahUkuranKombo,
@@ -177,9 +178,10 @@ const diDalamDaftarOpsi = (target: EventTarget | null) =>
  *  Tata letaknya dua tingkat:
  *  - GRID UKURAN 2 KOLOM (selalu terlihat): baris atas = ukuran kotak
  *    (Tinggi, Total), baris bawah = pembagian lebarnya (Label, Kontrol).
- *  - "Lainnya" (Tipe, pengaturan tipe, Mengembang, Warna Label, Nilai awal)
- *    ada DI BAWAH grid itu dan BISA DILIPAT — bawaan TERTUTUP supaya popover
- *    tetap ringkas. Ia selebar panel, jadi membukanya tak melebarkan panel.
+ *  - "Lainnya" (Tipe, Langkah, pengaturan tipe, Mengembang, Warna Label,
+ *    Nilai awal) ada DI BAWAH grid itu dan BISA DILIPAT — bawaan TERTUTUP
+ *    supaya popover tetap ringkas. Ia selebar panel, jadi membukanya tak
+ *    melebarkan panel.
  *
  *  Total, label, dan kontrol SALING TERHUBUNG: total = label + kontrol.
  *  - Ubah label → kontrol menyesuaikan (total tetap); ubah kontrol → label
@@ -199,7 +201,7 @@ const diDalamDaftarOpsi = (target: EventTarget | null) =>
  *  Popover tak punya tombol tutup: KLIK KIRI DI LUAR menutupnya (kecuali klik
  *  pada daftar opsi combobox di dalamnya, yang ber-portal ke `body`). Escape
  *  sengaja tak menutup supaya mengetik di isian panel tak berarti keluar. */
-export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, onSalin, onTempel, bisaSalin, asalSalinan, pengaturanTipe, adaPengaturanTipe, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
+export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, onSalin, onTempel, bisaSalin, asalSalinan, pengaturanTipe, adaPengaturanTipe, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, langkah, adaLangkah, onUbah, onReset, onResetBaris }: {
   kunci: string;
   /** Ref elemen KOTAK yang sedang diatur. Isi kotak (label + kontrol) berada
    *  di luar DOM panel ini, jadi perlu rujukan untuk membedakan "pengguna
@@ -260,10 +262,15 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
   opsi?: string[];
   /** Label opsi yang jadi nilai AWAL combobox; absen = ikut nilai pemanggil. */
   nilaiDefault?: string;
+  /** Langkah tombol −/+ stepper angka; absen = baris "Langkah" disembunyikan
+   *  (kotak yang bukan stepper). */
+  langkah?: number;
+  /** Ada langkah tersimpan? (menentukan tombol reset baris & reset global) */
+  adaLangkah?: boolean;
   onUbah: (ukuran: UbahUkuranKombo) => void;
   onReset: () => void;
   /** Kembalikan SATU baris ke bawaan. */
-  onResetBaris: (bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol' | 'nilaiDefault' | 'tipeKontrol') => void;
+  onResetBaris: (bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol' | 'nilaiDefault' | 'tipeKontrol' | 'langkah') => void;
 }) {
   /** Interaksi di dalam KOTAK yang sedang diatur ATAU daftar opsi di dalam
    *  panel tidak menutup panel (lihat catatan pada `onInteractOutside`). */
@@ -301,7 +308,8 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
   const [lainnyaBuka, setLainnyaBuka] = useState(false);
   /** Ada setelan tersimpan apa pun? → tombol "Kembalikan ke bawaan" hidup. */
   const adaSetelan = adaTinggi || adaLebar || adaLebarLabel || adaLebarKontrol
-    || adaExpand || adaLabelTransparan || adaNilaiDefault || adaPengaturanTipe === true;
+    || adaExpand || adaLabelTransparan || adaNilaiDefault || adaLangkah === true
+    || adaPengaturanTipe === true;
   return (
     <PopoverContent
       /* Di SESARANG kotak (bukan di bawahnya): panel setinggi mungkin perlu
@@ -399,8 +407,11 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
           >
             <RotateCcw />
           </Button>
-          {/* Pengalih panel "Lainnya" (kolom kedua) — bawaan TERTUTUP. Panah
-              berputar 90° saat terbuka; `aria-expanded` untuk aksesibilitas. */}
+          {/* Pengalih bagian "Lainnya" — bawaan TERTUTUP. Panahnya BERGANTI,
+              bukan berputar: panah BAWAH saat tertutup (isinya terbuka ke
+              bawah) dan panah ATAS saat terbuka (isinya dilipat ke atas),
+              jadi arahnya selalu menunjukkan apa yang akan terjadi.
+              `aria-expanded` untuk aksesibilitas. */}
           <Button
             id={`btn_lainnya_kombo_${kunci}`}
             type="button"
@@ -413,7 +424,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
             title={lainnyaBuka ? 'Sembunyikan pengaturan lainnya' : 'Tampilkan pengaturan lainnya'}
             className="shrink-0 text-muted-foreground"
           >
-            <ChevronRight className={cn('transition-transform', lainnyaBuka && 'rotate-90')} />
+            {lainnyaBuka ? <ChevronUp /> : <ChevronDown />}
           </Button>
         </div>
         {/* GRID UKURAN 2 KOLOM × 2 BARIS: baris atas = ukuran kotak (Tinggi,
@@ -514,6 +525,33 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
           <>
             <div aria-hidden className="border-t border-foreground/10" />
             <div id={`panel_lainnya_kombo_${kunci}`} className="flex flex-col gap-1.5">
+              {/* Langkah tombol −/+ stepper ANGKA — interval perubahan nilai
+                  per klik. Hanya untuk kotak stepper (`langkah` dikirim
+                  pemanggil); stepper di popover ini sendiri pakai langkah 1
+                  karena langkah yang diatur cuma butuh ketelitian 1-1. */}
+              {langkah !== undefined ? (
+                <BarisUkuran
+                  id={`set_langkah_kombo_${kunci}`}
+                  teks="Langkah"
+                  resetId={`btn_reset_langkah_kombo_${kunci}`}
+                  resetLabel="Kembalikan langkah ke bawaan"
+                  adaAturan={adaLangkah === true}
+                  onReset={() => onResetBaris('langkah')}
+                  stepper={
+                    <SpinBox
+                      id={`set_langkah_kombo_${kunci}`}
+                      value={langkah}
+                      min={LANGKAH_STEPPER_MIN}
+                      max={LANGKAH_STEPPER_MAKS}
+                      step={1}
+                      lebar={LEBAR_STEPPER}
+                      title={`Langkah perubahan nilai ${nama} (interval tombol kurang/tambah)`}
+                      ariaLabel={`Langkah ${nama}`}
+                      onChange={(n) => onUbah({ langkah: n })}
+                    />
+                  }
+                />
+              ) : null}
               {/* Tipe + pengaturan khusus tipe AKTIF (mis. "Format" pada
                   Tanggal). Label memakai `LEBAR_LABEL_KOMBO` supaya
                   combobox-nya rata kiri. */}

@@ -21,6 +21,9 @@ export interface SetelanKomponen {
   labelTransparan?: boolean;
   /** Label opsi yang jadi nilai AWAL combobox. */
   nilaiDefault?: string;
+  /** Langkah tombol −/+ stepper angka (mis. 5 → tiap klik geser 5). Absen =
+   *  ikut prop `step` pemanggil. */
+  langkah?: number;
   /** Tipe kontrol input (registry `tipeInput.tsx`), mis. `nominal`. */
   tipeKontrol?: string;
   /** PENGATURAN khusus tipe aktif (mis. `preset` nominal cepat pada tipe
