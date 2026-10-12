@@ -516,7 +516,8 @@ export function PenerimaDispensasiTab({ rows, loading, daftar, pilihan, onPilih 
 export function TagihanTab({
   crosstab, loading, terpilihId, total,
   cari, onCari, sort, terlambat, onTerlambat,
-  onPilih, onTambah, onReset, onBukaGenerate, pager, popover,
+  onPilih, onTambah, onReset, onBukaGenerate,
+  selection, onTogglePilih, onPilihBlok, onBatalPilih, onLepasBlok, onAksiBatch, batchBusy, pager, popover,
 }: {
   crosstab: CrosstabTagihan | null;
   loading: boolean;
@@ -538,6 +539,20 @@ export function TagihanTab({
   onTambah?: (baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => void;
   onReset: () => void;
   onBukaGenerate: () => void;
+  /** Id tagihan terpilih (klik kiri) untuk aksi batch. */
+  selection: ReadonlySet<number>;
+  /** Klik kiri biasa pada sel TERPILIH → batalkan pilihan. */
+  onTogglePilih: (sel: CrosstabSel, jenisId: number) => void;
+  /** Blok pilihan (Ctrl/Klik, geser, Shift+Klik, Shift+panah). */
+  onPilihBlok: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  /** Kosongkan seluruh pilihan. */
+  onBatalPilih: () => void;
+  /** Lepas (kurangi) blok tagihan dari pilihan — Ctrl/Cmd+tahan-geser. */
+  onLepasBlok: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  /** Buka dialog konfirmasi aksi batch untuk pilihan saat ini. */
+  onAksiBatch: (aksi: 'bayar' | 'hapus_tagihan' | 'hapus_riwayat' | 'ubah') => void;
+  /** Salah satu aksi batch sedang berjalan (tombol dinonaktifkan). */
+  batchBusy?: boolean;
   pager: {
     page: number;
     lastPage: number;
@@ -570,7 +585,7 @@ export function TagihanTab({
             </HoverCardTrigger>
             <HoverCardContent align="start" className="w-72 space-y-3 p-3 text-xs leading-relaxed">
               <p>
-                Klik sel nominal untuk bayar, ubah, atau lihat riwayat; klik sel kosong untuk tambah tagihan.
+                Pilih banyak tagihan ala Excel: Ctrl/Klik untuk tambah-lepas satu sel, tahan lalu geser untuk blok, atau Shift+Klik / Shift+panah untuk blok persegi panjang. Klik kiri biasa pada sel terpilih membatalkan pilihannya. Klik kanan untuk aksi per tagihan; klik sel kosong untuk tambah tagihan.
               </p>
               {/* Legenda warna sel. "Sebagian" sempat hilang: sel kuning muncul
                   tanpa keterangan sama sekali, jadi terlihat seperti warna acak.
@@ -653,6 +668,70 @@ export function TagihanTab({
       {/* Rail filter tingkat & kelas di kiri crosstab — pola yang sama seperti
           tabel Santri (lihat `ExcelTable` berprop `rail`). Bilah alat tetap
           penuh lebar di atas, rail hanya membagi ruang tabel. */}
+      {/* Bilah pilihan: muncul bila ada tagihan terpilih lewat klik kiri.
+          Tiga aksi batch + batal; masing-masing membuka dialog konfirmasi
+          di halaman (KeuanganPage). */}
+      {selection.size > 0 && (
+        <div className="flex items-center gap-2 border-b bg-primary/5 px-2 py-1 text-xs">
+          <span className="font-medium">{selection.size} tagihan dipilih</span>
+          <div className="flex-1" />
+          <Button
+            id="btn_batch_bayar"
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs"
+            disabled={batchBusy}
+            onClick={() => onAksiBatch('bayar')}
+          >
+            Bayar
+          </Button>
+          <Button
+            id="btn_batch_ubah"
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs"
+            disabled={batchBusy}
+            onClick={() => onAksiBatch('ubah')}
+          >
+            Ubah
+          </Button>
+          <Button
+            id="btn_batch_hapus_tagihan"
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+            disabled={batchBusy}
+            onClick={() => onAksiBatch('hapus_tagihan')}
+          >
+            Hapus Tagihan
+          </Button>
+          <Button
+            id="btn_batch_hapus_riwayat"
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+            disabled={batchBusy}
+            onClick={() => onAksiBatch('hapus_riwayat')}
+          >
+            Hapus Riwayat
+          </Button>
+          <Button
+            id="btn_batch_batal"
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            onClick={onBatalPilih}
+          >
+            Batal
+          </Button>
+        </div>
+      )}
+
       <div className="flex min-h-0 flex-1">
         <FilterRail />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -664,6 +743,11 @@ export function TagihanTab({
               emptyText="Belum ada tagihan."
               onPilih={onPilih}
               onTambah={onTambah}
+              selection={selection}
+              onTogglePilih={onTogglePilih}
+              onPilihBlok={onPilihBlok}
+              onBatalPilih={onBatalPilih}
+              onLepasBlok={onLepasBlok}
             />
             {popover}
           </div>

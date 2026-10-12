@@ -4,9 +4,9 @@ import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
   daftarJenis, daftarTarif, hapusTarif, buatJenis, ubahJenis, hapusJenis, buatTarif, buatTagihan, ubahTarif,
-  crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran,
+  crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran, daftarDispensasi,
   riwayatPembayaran, hapusPembayaran,
-  type JenisTagihan, type Tarif, type PembayaranRow,
+  type JenisTagihan, type Tarif, type PembayaranRow, type Dispensasi,
   type CrosstabBaris, type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
 import { labelSel } from '@/components/keuangan/TagihanCrosstab';
@@ -27,6 +27,7 @@ import {
   JenisTab, TagihanTab, TarifTab,
   pastikanTarifBaru, payloadBuatJenis, payloadBuatTarif, payloadUbahJenis, payloadUbahTarif,
 } from '@/components/keuangan/tabKeuangan';
+import BatchAksiTagihan, { type AksiBatch } from '@/components/keuangan/BatchAksiTagihan';
 import {
   DialogTambahJenis, DialogTambahTarif, DialogUbahJenis, DialogUbahTarif,
 } from '@/components/keuangan/jenisTarifDialogs';
@@ -323,6 +324,146 @@ export default function KeuanganPage() {
     [selTagihan, selPenuh, kolomTerpilih],
   );
 
+  /* ---- Pilihan ganda (klik kiri) untuk aksi batch ---- */
+  /** Tagihan terpilih klik kiri: id → snapshot sel + jenis_id kolomnya.
+   *  Snapshot dipakai menjalankan aksi batch tanpa bergantung pada halaman
+   *  crosstab saat ini (pilihan bisa lintas halaman). */
+  const [pilihanTerpilih, setPilihanTerpilih] = useState<Map<number, { sel: CrosstabSel; jenisId: number }>>(new Map());
+  /** Aksi batch yang sedang dikonfirmasi (null = dialog tertutup). */
+  const [batchDialog, setBatchDialog] = useState<AksiBatch | null>(null);
+  const [batchBusy, setBatchBusy] = useState(false);
+  /** Form dialog bayar. */
+  const [batchMetode, setBatchMetode] = useState<'tunai' | 'transfer'>('tunai');
+  const [batchKas, setBatchKas] = useState<'tunai_tu' | 'bank_lembaga' | 'bank_pesantren'>('tunai_tu');
+  /** Form dialog ubah. */
+  const [ubahPakaiJatuhTempo, setUbahPakaiJatuhTempo] = useState(false);
+  const [ubahJatuhTempo, setUbahJatuhTempo] = useState('');
+  /** '' = tanpa perubahan, 'tanpa' = lepas dispensasi, number = id paket. */
+  const [ubahDispen, setUbahDispen] = useState<number | 'tanpa' | ''>('');
+  const [daftarDispenBatch, setDaftarDispenBatch] = useState<Dispensasi[]>([]);
+
+  /** Set id terpilih (untuk menandai cincin sel di crosstab). */
+  const selectionSet = useMemo(() => new Set(pilihanTerpilih.keys()), [pilihanTerpilih]);
+  /** Total sisa tagihan yang masih bisa dibayar (dialog bayar). */
+  const totalSisaTerpilih = useMemo(() => {
+    let t = 0;
+    for (const v of pilihanTerpilih.values()) if (v.sel.sisa > 0) t += v.sel.sisa;
+    return t;
+  }, [pilihanTerpilih]);
+
+  /** Klik kiri sel → toggle pilihan. */
+  const togglePilih = useCallback((sel: CrosstabSel, jenisId: number) => {
+    setPilihanTerpilih((prev) => {
+      const n = new Map(prev);
+      if (n.has(sel.id)) n.delete(sel.id);
+      else n.set(sel.id, { sel, jenisId });
+      return n;
+    });
+  }, []);
+  /** Kosongkan seluruh pilihan. */
+  const batalPilih = useCallback(() => setPilihanTerpilih(new Map()), []);
+  /** Ganti seluruh pilihan dengan blok tagihan (Ctrl/Klik, geser, Shift). */
+  const pilihBlok = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+    const m = new Map<number, { sel: CrosstabSel; jenisId: number }>();
+    for (const it of items) m.set(it.sel.id, { sel: it.sel, jenisId: it.jenisId });
+    setPilihanTerpilih(m);
+  }, []);
+  /** Kurangi blok tagihan dari pilihan (Ctrl/Cmd+tahan-geser). */
+  const lepasBlok = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+    setPilihanTerpilih((prev) => {
+      const n = new Map(prev);
+      for (const it of items) n.delete(it.sel.id);
+      return n;
+    });
+  }, []);
+  /** Buka dialog konfirmasi salah satu aksi batch. */
+  const bukaBatch = useCallback((aksi: AksiBatch) => {
+    if (aksi === 'bayar') { setBatchMetode('tunai'); setBatchKas('tunai_tu'); }
+    if (aksi === 'ubah') {
+      setUbahPakaiJatuhTempo(false); setUbahJatuhTempo(''); setUbahDispen(''); setDaftarDispenBatch([]);
+      daftarDispensasi({ is_active: true })
+        .then((d) => setDaftarDispenBatch(d))
+        .catch(() => setDaftarDispenBatch([]));
+    }
+    setBatchDialog(aksi);
+  }, []);
+  /** Jalankan aksi batch yang sedang dikonfirmasi. */
+  const jalankanBatch = useCallback(async () => {
+    const aksi = batchDialog;
+    if (aksi === null) return;
+    const entries = [...pilihanTerpilih.entries()];
+    if (entries.length === 0) { setBatchDialog(null); return; }
+    setBatchBusy(true);
+    try {
+      if (aksi === 'bayar') {
+        const bisa = entries.filter(([, v]) => v.sel.sisa > 0);
+        if (bisa.length === 0) {
+          toast.warning('Tidak ada tagihan dengan sisa yang bisa dibayar.');
+          setBatchDialog(null);
+          return;
+        }
+        let sukses = 0;
+        for (const [id, v] of bisa) {
+          try {
+            await catatPembayaran({ tagihan_id: id, jumlah: v.sel.sisa, metode: batchMetode, kas: batchKas });
+            sukses += 1;
+          } catch { /* lanjut; ringkasan di akhir */ }
+        }
+        toast.success(`${sukses} tagihan dibayar lunas.`);
+      } else if (aksi === 'hapus_tagihan') {
+        let sukses = 0;
+        for (const [id] of entries) {
+          try { await hapusTagihan(id); sukses += 1; } catch { /* lanjut */ }
+        }
+        toast.success(`${sukses} tagihan dihapus.`);
+      } else if (aksi === 'hapus_riwayat') {
+        let dihapus = 0;
+        for (const [id] of entries) {
+          try {
+            const riwayat = await riwayatPembayaran(id);
+            for (const r of riwayat) {
+              try { await hapusPembayaran(r.id); dihapus += 1; } catch { /* lanjut */ }
+            }
+          } catch { /* lanjut */ }
+        }
+        toast.success(`${dihapus} baris riwayat dihapus.`);
+      } else if (aksi === 'ubah') {
+        const pkg = ubahDispen !== '' && ubahDispen !== 'tanpa'
+          ? daftarDispenBatch.find((d) => d.id === ubahDispen) ?? null
+          : null;
+        let sukses = 0;
+        for (const [id, v] of entries) {
+          // Dispensasi hanya untuk tagihan yang jenisnya cocok dengan paket
+          // (paket mungkin mencakup beberapa jenis lewat `aturan`); selebihnya
+          // dibiarkan tetap (tidak diubah). 'tanpa' = lepas.
+          const cocokJenis = pkg ? pkg.aturan.some((a) => a.jenis_id === v.jenisId) : false;
+          const dispenIds = pkg && cocokJenis
+            ? [pkg.id]
+            : ubahDispen === 'tanpa' ? [] : undefined;
+          try {
+            await ubahTagihan(id, {
+              nominal: v.sel.nominal,
+              tahun_ajaran: v.sel.tahun_ajaran,
+              jatuh_tempo: ubahPakaiJatuhTempo ? (ubahJatuhTempo || null) : v.sel.jatuh_tempo,
+              ...(dispenIds !== undefined ? { dispensasi_ids: dispenIds } : {}),
+            });
+            sukses += 1;
+          } catch { /* lanjut */ }
+        }
+        toast.success(`${sukses} tagihan diubah.`);
+      }
+      await load();
+      await muatCrosstabSekarang();
+      setPilihanTerpilih(new Map());
+      setBatchDialog(null);
+    } catch (e) {
+      toast.error(errorMessage(e));
+      // Biarkan dialog terbuka agar pengguna bisa mencoba lagi.
+    } finally {
+      setBatchBusy(false);
+    }
+  }, [batchDialog, pilihanTerpilih, batchMetode, batchKas, ubahPakaiJatuhTempo, ubahJatuhTempo, ubahDispen, daftarDispenBatch, load, muatCrosstabSekarang]);
+
   /* Menandai "gesture ini sedang memilih sel baru". Radix DismissableLayer
      menutup popover di pointerdown pertama, lalu memilih sel baru di
      pointerdown yang sama; tanpa penanda ini, pindah sel akan menutup popover
@@ -609,6 +750,13 @@ export default function KeuanganPage() {
             onTerlambat={(v) => { setTerlambatTagihan(v); setTagihanPage(1); }}
             onPilih={pilihSel}
             onTambah={tambahDariSel}
+            selection={selectionSet}
+            onTogglePilih={togglePilih}
+            onPilihBlok={pilihBlok}
+            onBatalPilih={batalPilih}
+            onLepasBlok={lepasBlok}
+            onAksiBatch={bukaBatch}
+            batchBusy={batchBusy}
             onReset={() => { setCariTagihan(''); uTagihan.terapkan([], 'naik'); setTerlambatTagihan(false); setTagihanPage(1); }}
             onBukaGenerate={() => setGenerateOpen(true)}
             pager={{
@@ -673,6 +821,25 @@ export default function KeuanganPage() {
                 }}
               />
             }
+          />
+          <BatchAksiTagihan
+            aksi={batchDialog}
+            jumlah={pilihanTerpilih.size}
+            totalSisa={totalSisaTerpilih}
+            busy={batchBusy}
+            metode={batchMetode}
+            kas={batchKas}
+            onMetode={setBatchMetode}
+            onKas={setBatchKas}
+            pakaiJatuhTempo={ubahPakaiJatuhTempo}
+            jatuhTempo={ubahJatuhTempo}
+            onPakaiJatuhTempo={setUbahPakaiJatuhTempo}
+            onJatuhTempo={setUbahJatuhTempo}
+            dispen={ubahDispen}
+            onDispen={setUbahDispen}
+            daftarDispen={daftarDispenBatch}
+            onBatal={() => setBatchDialog(null)}
+            onKonfirmasi={jalankanBatch}
           />
         </TabsContent>
 
