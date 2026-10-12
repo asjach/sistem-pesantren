@@ -362,10 +362,16 @@ export default function KeuanganPage() {
   }, []);
   /** Kosongkan seluruh pilihan. */
   const batalPilih = useCallback(() => setPilihanTerpilih(new Map()), []);
-  /** Ganti seluruh pilihan dengan blok tagihan (Ctrl/Klik, geser, Shift). */
+  /** Ganti seluruh pilihan dengan blok tagihan (tahan-geser, Shift). */
   const pilihBlok = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
     const m = new Map<number, { sel: CrosstabSel; jenisId: number }>();
     for (const it of items) m.set(it.sel.id, { sel: it.sel, jenisId: it.jenisId });
+    setPilihanTerpilih(m);
+  }, []);
+  /** Pilih SATU sel saja (ganti seluruh pilihan) — klik kiri biasa ala Excel. */
+  const pilihSatu = useCallback((sel: CrosstabSel, jenisId: number) => {
+    const m = new Map<number, { sel: CrosstabSel; jenisId: number }>();
+    m.set(sel.id, { sel, jenisId });
     setPilihanTerpilih(m);
   }, []);
   /** Kurangi blok tagihan dari pilihan (Ctrl/Cmd+tahan-geser). */
@@ -753,6 +759,7 @@ export default function KeuanganPage() {
             selection={selectionSet}
             onTogglePilih={togglePilih}
             onPilihBlok={pilihBlok}
+            onPilihSatu={pilihSatu}
             onBatalPilih={batalPilih}
             onLepasBlok={lepasBlok}
             onAksiBatch={bukaBatch}

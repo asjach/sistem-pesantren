@@ -517,7 +517,7 @@ export function TagihanTab({
   crosstab, loading, terpilihId, total,
   cari, onCari, sort, terlambat, onTerlambat,
   onPilih, onTambah, onReset, onBukaGenerate,
-  selection, onTogglePilih, onPilihBlok, onBatalPilih, onLepasBlok, onAksiBatch, batchBusy, pager, popover,
+  selection, onTogglePilih, onPilihBlok, onPilihSatu, onBatalPilih, onLepasBlok, onAksiBatch, batchBusy, pager, popover,
 }: {
   crosstab: CrosstabTagihan | null;
   loading: boolean;
@@ -541,10 +541,13 @@ export function TagihanTab({
   onBukaGenerate: () => void;
   /** Id tagihan terpilih (klik kiri) untuk aksi batch. */
   selection: ReadonlySet<number>;
-  /** Klik kiri biasa pada sel TERPILIH → batalkan pilihan. */
+  /** Ctrl/Cmd+Klik pada sel → toggle (tambah bila tak terpilih, lepas bila
+   *  terpilih). */
   onTogglePilih: (sel: CrosstabSel, jenisId: number) => void;
   /** Blok pilihan (Ctrl/Klik, geser, Shift+Klik, Shift+panah). */
   onPilihBlok: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  /** Klik kiri biasa → pilih SATU sel itu saja (ganti seluruh pilihan). */
+  onPilihSatu: (sel: CrosstabSel, jenisId: number) => void;
   /** Kosongkan seluruh pilihan. */
   onBatalPilih: () => void;
   /** Lepas (kurangi) blok tagihan dari pilihan — Ctrl/Cmd+tahan-geser. */
@@ -585,7 +588,7 @@ export function TagihanTab({
             </HoverCardTrigger>
             <HoverCardContent align="start" className="w-72 space-y-3 p-3 text-xs leading-relaxed">
               <p>
-                Pilih banyak tagihan ala Excel: Ctrl/Klik untuk tambah-lepas satu sel, tahan lalu geser untuk blok, atau Shift+Klik / Shift+panah untuk blok persegi panjang. Klik kiri biasa pada sel terpilih membatalkan pilihannya. Klik kanan untuk aksi per tagihan; klik sel kosong untuk tambah tagihan.
+                Pilih banyak tagihan ala Excel: klik untuk pilih satu sel, tahan lalu geser untuk blok, Shift+Klik / Shift+panah untuk blok persegi panjang, dan Ctrl+Klik untuk menambah atau melepas sel satu per satu. Klik kanan untuk aksi per tagihan; klik sel kosong untuk tambah tagihan.
               </p>
               {/* Legenda warna sel. "Sebagian" sempat hilang: sel kuning muncul
                   tanpa keterangan sama sekali, jadi terlihat seperti warna acak.
@@ -609,7 +612,7 @@ export function TagihanTab({
             <Input
               id="inp_tagihan_cari"
               placeholder="Cari nama / ayah / ibu…"
-              className="w-64 pl-8 pr-8"
+              className="w-48 pl-8 pr-8"
               value={cari}
               onChange={(e) => onCari(e.target.value)}
             />
@@ -746,7 +749,7 @@ export function TagihanTab({
               selection={selection}
               onTogglePilih={onTogglePilih}
               onPilihBlok={onPilihBlok}
-              onBatalPilih={onBatalPilih}
+              onPilihSatu={onPilihSatu}
               onLepasBlok={onLepasBlok}
             />
             {popover}

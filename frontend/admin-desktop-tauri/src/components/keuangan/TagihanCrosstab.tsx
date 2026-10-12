@@ -108,13 +108,14 @@ interface Props {
   selection?: ReadonlySet<number>;
   /** Ctrl/Cmd+Klik pada sel → toggle (tambah bila tak terpilih, lepas bila
    *  terpilih). `jenisId` kolom diikutkan supaya halaman bisa menyimpan info
-   *  lengkap. Klik kiri biasa membatalkan SELURUH pilihan (lihat `onBatalPilih`). */
+   *  lengkap. */
   onTogglePilih?: (sel: CrosstabSel, jenisId: number) => void;
   /** Blok (tahan-geser, Shift+Klik, Shift+panah) → ganti seluruh pilihan
    *  dengan tagihan dalam persegi panjang grid. */
   onPilihBlok?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
-  /** Kosongkan seluruh pilihan (klik kiri biasa di mana saja). */
-  onBatalPilih?: () => void;
+  /** Klik kiri biasa → pilih SATU sel itu saja (ganti seluruh pilihan),
+   *  seperti mengklik sel di Excel. */
+  onPilihSatu?: (sel: CrosstabSel, jenisId: number) => void;
   /** Lepas (kurangi) blok tagihan dari pilihan — Ctrl/Cmd+tahan-geser. */
   onLepasBlok?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
   emptyText: string;
@@ -200,7 +201,7 @@ function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
  *  baris yang di-hover yang dirender ulang, bukan seluruh tabel (ratusan sel). */
 const BarisCrosstab = memo(function BarisCrosstab({
   baris, kolom, data, onPilih, onTambah, onHoverMasuk, onHoverGerak, onHoverKeluar,
-  selection, onTogglePilih, onPilihBlok, onBatalPilih, onLepasBlok,
+  selection, onTogglePilih, onPilihBlok, onPilihSatu, onLepasBlok,
   anchorRef, activeRef, draggingRef, dragStartRef, dragMovedRef,
 }: {
   baris: CrosstabBaris;
@@ -223,8 +224,8 @@ const BarisCrosstab = memo(function BarisCrosstab({
   onTogglePilih?: (sel: CrosstabSel, jenisId: number) => void;
   /** Blok pilihan (geser, Shift+Klik, Shift+panah). */
   onPilihBlok?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
-  /** Klik kiri biasa → batalkan SELURUH pilihan. */
-  onBatalPilih?: () => void;
+  /** Klik kiri biasa → pilih SATU sel (ganti seluruh pilihan). */
+  onPilihSatu?: (sel: CrosstabSel, jenisId: number) => void;
   /** Ctrl/Cmd+geser → lepas blok dari pilihan. */
   onLepasBlok?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
   /** Ref bersama untuk status memblok (dipegang induk agar stabil). */
@@ -322,12 +323,11 @@ const BarisCrosstab = memo(function BarisCrosstab({
                  (ditangani manual di onKeyDown karena elemen kini teks, bukan
                  tombol) agar aksi detail/ubah/hapus tetap bisa dijangkau.
                  Pemilihan ganda ala Excel:
-                 - Ctrl/Cmd+Klik → toggle satu sel (tambah bila tak terpilih,
-                   lepas bila terpilih).
+                 - Klik kiri biasa → pilih satu sel (ganti seluruh pilihan).
+                 - Ctrl/Cmd+Klik → tambah/lepas satu sel (pilihan acak).
                  - Tahan-geser (pointerdown → enter sel lain → up) → blok pilih.
                  - Ctrl/Cmd+tahan-geser → blok lepas (kurangi dari pilihan).
                  - Shift+Klik / Shift+panah → blok persegi panjang dari anchor.
-                 - Klik kiri biasa → batalkan SELURUH pilihan (satu klik).
                  Logika pilih/batalkan ada di `onPointerUp`, BUKAN `onClick`:
                  `preventDefault` di `onPointerDown` menekan event `click` di
                  banyak browser, sehingga mengandalkan `onClick` membuat toggle
@@ -368,8 +368,9 @@ const BarisCrosstab = memo(function BarisCrosstab({
                   const d = data;
                   if (a && d) onPilihBlok?.(blokTagihan(d, a, ref));
                 } else {
-                  // Klik kiri biasa → batalkan SELURUH pilihan (satu klik).
-                  onBatalPilih?.();
+                  // Klik kiri biasa → pilih SATU sel itu (ganti seluruh
+                  // pilihan), seperti mengklik sel di Excel.
+                  onPilihSatu?.(sel, k.jenis_id);
                 }
                 anchorRef.current = ref;
                 activeRef.current = ref;
@@ -470,12 +471,12 @@ function IsiKartuTagihan({ data }: { data: TooltipSel }) {
 
 /** Tabel silang tagihan: baris = santri, kolom = jenis (bulanan per bulan).
  *  Sel berisi nominal dengan warna status. Klik kanan (atau Enter keyboard)
- *  membuka popover aksi per tagihan. Pemilihan ganda ala Excel:
- *  - Ctrl/Cmd+Klik → toggle satu sel (tambah/lepas).
- *  - Tahan-geser → blok pilih; Ctrl/Cmd+tahan-geser → blok lepas (kurangi).
- *  - Shift+Klik / Shift+panah → blok persegi panjang dari anchor.
- *  - Klik kiri biasa → batalkan SELURUH pilihan (satu klik). */
-function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, selection, onTogglePilih, onPilihBlok, onBatalPilih, onLepasBlok, emptyText }: Props) {
+ *  membuka popover aksi per tagihan. Pemilihan sel gaya Excel:
+ *  - klik kiri biasa → pilih satu sel (ganti pilihan);
+ *  - Ctrl/Cmd+Klik → tambah/lepas sel (pilihan acak);
+ *  - tahan-geser → blok pilih; Ctrl/Cmd+tahan-geser → blok lepas (kurangi);
+ *  - Shift+Klik / Shift+panah → blok persegi panjang dari anchor. */
+function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, selection, onTogglePilih, onPilihBlok, onPilihSatu, onLepasBlok, emptyText }: Props) {
   const kolom = data?.kolom ?? [];
   const baris: CrosstabBaris[] = data?.baris ?? [];
   const grup = grupKolom(kolom);
@@ -732,7 +733,7 @@ function TagihanCrosstab({ data, loading, terpilihId, onPilih, onTambah, selecti
               selection={selection}
               onTogglePilih={onTogglePilih}
               onPilihBlok={onPilihBlok}
-              onBatalPilih={onBatalPilih}
+              onPilihSatu={onPilihSatu}
               onLepasBlok={onLepasBlok}
               anchorRef={anchorRef}
               activeRef={activeRef}
