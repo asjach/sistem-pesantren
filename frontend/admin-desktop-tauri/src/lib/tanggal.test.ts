@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FORMAT_TANGGAL_BAWAAN,
+  formatTanggalPola,
   geserBulan,
   hariIniIso,
   hariPertamaBulan,
   jumlahHari,
   maskTanggal,
   pecahIso,
+  polaTanggal,
+  POLA_FORMAT_TANGGAL,
   rakitIso,
   tanggalDariTampilan,
   tanggalKeTampilan,
@@ -136,5 +140,58 @@ describe('tanggalLengkap', () => {
     expect(tanggalLengkap('12/10/2026')).toBe(true);
     expect(tanggalLengkap('12/1')).toBe(false);
     expect(tanggalLengkap('')).toBe(false);
+  });
+});
+
+describe('formatTanggalPola', () => {
+  it('pola bawaan berperilaku sama dengan fungsi dd/mm/yyyy lama', () => {
+    const f = formatTanggalPola(FORMAT_TANGGAL_BAWAAN);
+    expect(f.tampil('2026-10-12')).toBe('12/10/2026');
+    expect(f.nilai('12/10/2026')).toBe('2026-10-12');
+    expect(f.ketik('12102026')).toBe('12/10/2026');
+    expect(f.ketik('2026-10-12')).toBe('12/10/2026');
+    expect(f.lengkap('31/02/2026')).toBe(true);
+    expect(f.takSah('31/02/2026')).toBe(true);
+    expect(f.takSah('12/10/2026')).toBe(false);
+  });
+
+  it('pola yyyy-mm-dd: tampil ISO & hari 1 digit belum jadi nilai', () => {
+    const f = formatTanggalPola('yyyy-mm-dd');
+    expect(f.tampil('2026-10-12')).toBe('2026-10-12');
+    expect(f.nilai('2026-10-12')).toBe('2026-10-12');
+    expect(f.ketik('20261012')).toBe('2026-10-12');
+    /* Ketikan yang baru sampai hari ("2026-10-1") BELUM jadi nilai supaya digit
+       berikutnya masih bisa masuk membentuk hari 12 — bukan terkunci jadi 01. */
+    expect(f.ketik('2026101')).toBe('2026-10-1');
+    expect(f.nilai('2026-10-1')).toBe('');
+    expect(f.nilai(`${f.ketik('2026101')}2`)).toBe('2026-10-12');
+  });
+
+  it('tempelan ISO dibaca sebagai ISO di pola apa pun', () => {
+    expect(formatTanggalPola('dd-mm-yyyy').ketik('2026-10-12')).toBe('12-10-2026');
+    expect(formatTanggalPola('dd.mm.yyyy').ketik('2026-10-12T08:30')).toBe('12.10.2026');
+    expect(formatTanggalPola('yyyy-mm-dd').ketik('2026-1-5')).toBe('2026-01-05');
+  });
+
+  it('pola ber-nama bulan: dd Mmm yyyy', () => {
+    const f = formatTanggalPola('dd Mmm yyyy');
+    expect(f.tampil('2026-10-12')).toBe('12 Okt 2026');
+    expect(f.nilai('12 Okt 2026')).toBe('2026-10-12');
+    expect(f.nilai('12 okt 2026')).toBe('2026-10-12'); // tak peduli huruf besar-kecil
+    expect(f.ketik('12okt2026')).toBe('12 Okt 2026');
+    // Bulan yang tak ada → kosong & ditandai (bukan nilai asal-asalan).
+    expect(f.nilai('12 Xyz 2026')).toBe('');
+    expect(f.takSah('12 Xyz 2026')).toBe(true);
+    expect(f.takSah('12 Okt 2026')).toBe(false);
+  });
+});
+
+describe('polaTanggal', () => {
+  it('hanya menerima pola terdaftar; sisanya kembali ke bawaan', () => {
+    expect(POLA_FORMAT_TANGGAL[0].kunci).toBe(FORMAT_TANGGAL_BAWAAN);
+    expect(polaTanggal('dd.mm.yyyy')).toBe('dd.mm.yyyy');
+    expect(polaTanggal('mm-dd-yyyy')).toBe(FORMAT_TANGGAL_BAWAAN);
+    expect(polaTanggal(undefined)).toBe(FORMAT_TANGGAL_BAWAAN);
+    expect(polaTanggal(7)).toBe(FORMAT_TANGGAL_BAWAAN);
   });
 });

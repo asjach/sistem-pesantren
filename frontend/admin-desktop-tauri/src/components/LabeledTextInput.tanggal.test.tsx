@@ -119,6 +119,57 @@ describe('LabeledTextInput tipe tanggal — tampilan vs nilai', () => {
   });
 });
 
+describe('LabeledTextInput tipe tanggal — pengaturan format', () => {
+  /** Klik kanan pada KOTAK (bukan induknya) = buka popover pengaturan. */
+  const bukaPengaturan = () => {
+    fireEvent.contextMenu(document.getElementById('inp_tgl')?.closest('span')?.parentElement as HTMLElement);
+  };
+  /** Combobox pola format di dalam popover (id: `<htmlFor>_tipe_format`). */
+  const kotakFormat = () => document.getElementById('inp_tgl_tipe_format') as HTMLInputElement;
+  /** Buka daftar format lalu pilih satu pola. */
+  const pilihFormat = async (nama: string) => {
+    await userEvent.click(kotakFormat());
+    await userEvent.click(await screen.findByRole('option', { name: nama }));
+  };
+
+  it('baris "Format" tampil dengan combobox pola tanggal (bawaan dd/mm/yyyy)', async () => {
+    renderDenganTema(<Contoh awal="2026-10-12" />);
+
+    bukaPengaturan();
+
+    expect(await screen.findByText('Format')).not.toBeNull();
+    expect(kotakFormat().value).toBe('dd/mm/yyyy');
+    // Tanpa pilihan lain, kotaknya tetap seperti semula.
+    expect(kotak().value).toBe('12/10/2026');
+    expect(kotak().placeholder).toBe('dd/mm/yyyy');
+  });
+
+  it('pola lain mengubah tampilan & placeholder kotak, nilai tetap ISO', async () => {
+    renderDenganTema(<Contoh awal="2026-10-12" />);
+    bukaPengaturan();
+    await screen.findByText('Format');
+
+    await pilihFormat('dd-mm-yyyy');
+
+    await waitFor(() => expect(kotak().value).toBe('12-10-2026'));
+    expect(kotak().placeholder).toBe('dd-mm-yyyy');
+    expect(nilai()).toBe('2026-10-12');
+    expect(kotakFormat().value).toBe('dd-mm-yyyy');
+  });
+
+  it('mask ketikan ikut pola baru: bulan diketik sebagai nama singkat', async () => {
+    renderDenganTema(<Contoh />);
+    bukaPengaturan();
+    await screen.findByText('Format');
+    await pilihFormat('dd Mmm yyyy');
+
+    await userEvent.type(kotak(), '12okt2026');
+
+    await waitFor(() => expect(nilai()).toBe('2026-10-12'));
+    expect(kotak().value).toBe('12 Okt 2026');
+  });
+});
+
 describe('LabeledTextInput tipe tanggal — tombol kalender', () => {
   it('memilih dari kalender menulis ISO ke pemanggil & menampilkannya di kotak', async () => {
     renderDenganTema(<Contoh />);

@@ -1,11 +1,14 @@
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import PopoverKalender from '@/components/PopoverKalender';
 import { diDalamPanel, kelasPanel, KELAS_TOMBOL, OFFSET_RATA, OFFSET_SISI } from '@/components/panelMenempel';
 import { cn } from '@/lib/utils';
-import { tanggalDariTampilan, tanggalKeTampilan, tanggalLengkap, maskTanggal } from '@/lib/tanggal';
+import { FORMAT_TANGGAL_BAWAAN, formatTanggalPola, POLA_FORMAT_TANGGAL, polaTanggal } from '@/lib/tanggal';
 import { Calculator, Reset } from '@/icons';
 
 /** Registry TIPE kontrol input untuk `LabeledTextInput`.
@@ -91,18 +94,15 @@ export const FORMAT_RIBUAN: FormatNilai = {
   nilai: (teks) => teks.replace(/\D/g, '').replace(/^0+(?=\d)/, ''),
 };
 
-/** Tanggal: nilai sebenarnya ISO `YYYY-MM-DD`, yang tampak `dd/mm/yyyy`.
+/** Tanggal: nilai sebenarnya ISO `YYYY-MM-DD`, yang tampak mengikuti POLA
+ *  format kotak — bawaan `dd/mm/yyyy`, bisa diganti pengguna dari baris
+ *  "Format" di popover (lihat `PENGATURAN_FORMAT_TANGGAL`).
  *
  *  Berbeda dengan pemisah ribuan, format ini TAK bisa dibalik sambil diketik
  *  ("12/1" bukan nilai sah) — karena itu ada `ketik` (mask) yang menyisipkan
- *  "/" sendiri dan membaca tempelan ISO apa adanya. Nilai yang diteruskan ke
- *  pemanggil tetap ISO, sama seperti `input type="date"`. */
-export const FORMAT_TANGGAL: FormatNilai = {
-  tampil: tanggalKeTampilan,
-  nilai: tanggalDariTampilan,
-  ketik: maskTanggal,
-  takSah: (teks) => tanggalLengkap(teks) && tanggalDariTampilan(teks) === '',
-};
+ *  pemisah sendiri dan membaca tempelan ISO apa adanya. Nilai yang diteruskan
+ *  ke pemanggil tetap ISO, sama seperti `input type="date"`. */
+export const FORMAT_TANGGAL: FormatNilai = formatTanggalPola(FORMAT_TANGGAL_BAWAAN);
 
 /** PENGATURAN khusus milik satu tipe: baris di popover pengaturan kotak yang
  *  muncul HANYA saat tipe itu aktif, dan yang mengubah bawaan tipe itu sendiri
@@ -349,6 +349,66 @@ const PENGATURAN_PRESET_NOMINAL: PengaturanTipe = {
   },
 };
 
+/** Pilihan pola format tanggal untuk baris "Format" pada kotak bertipe
+ *  `tanggal` (label = polanya sendiri, mis. `dd-mm-yyyy`). */
+export const OPSI_FORMAT_TANGGAL = POLA_FORMAT_TANGGAL.map((p) => ({ label: p.label, nilai: p.kunci }));
+
+/** Combobox pola format tanggal di popover pengaturan kotak bertipe `tanggal`.
+ *  Yang disimpan = polanya (mis. `dd-mm-yyyy`), bukan teks tanggalnya. */
+function ComboboxFormatTanggal({ id, nilai, setNilai }: {
+  id?: string;
+  /** Pola yang sedang berlaku; sudah divalidasi `polaTanggal`. */
+  nilai: string;
+  setNilai: (nilaiBaru: string) => void;
+}) {
+  return (
+    <div className="relative min-w-0">
+      <ComboboxRoot
+        items={OPSI_FORMAT_TANGGAL}
+        itemToStringLabel={(o) => o.label}
+        isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+        value={OPSI_FORMAT_TANGGAL.find((o) => o.nilai === nilai) ?? OPSI_FORMAT_TANGGAL[0]}
+        onValueChange={(o) => { if (o !== null) setNilai(o.nilai); }}
+      >
+        <ComboboxInput id={id} className="pr-7" placeholder="Pilih format…" />
+        <ComboboxTrigger className="absolute top-1/2 right-0 -translate-y-1/2" aria-label="Buka daftar format tanggal" />
+        <ComboboxContent>
+          <ComboboxEmpty>Tidak ada format.</ComboboxEmpty>
+          <ComboboxList>
+            {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+          </ComboboxList>
+        </ComboboxContent>
+      </ComboboxRoot>
+    </div>
+  );
+}
+
+/** Pengaturan tipe `tanggal`: pola format kotak (tampilan, mask ketikan, dan
+ *  placeholder). Yang dikirim ke server TETAP ISO `YYYY-MM-DD` apa pun
+ *  pilihannya, jadi menyimpan nilainya tak bergantung pada format tampilan. */
+const PENGATURAN_FORMAT_TANGGAL: PengaturanTipe = {
+  kunci: 'format',
+  label: 'Format',
+  judul: 'Pola tampilan tanggal di kotak (mis. 12-10-2026 atau 2026-10-12). Nilai yang dikirim ke server tetap ISO YYYY-MM-DD.',
+  bawaan: FORMAT_TANGGAL_BAWAAN,
+  render: ({ htmlFor, nilai, setNilai }) => (
+    <ComboboxFormatTanggal id={htmlFor} nilai={polaTanggal(nilai)} setNilai={setNilai} />
+  ),
+  /* Pola bawaan tak perlu diturunkan: `FORMAT_TANGGAL` memang sudah persis pola
+     itu (termasuk placeholder "dd/mm/yyyy" milik definisi tipe). Jadi hanya pola
+     LAIN yang mengganti format + placeholder kotaknya. */
+  terapkan: (format) => {
+    const pola = polaTanggal(format);
+    if (pola === FORMAT_TANGGAL_BAWAAN) return {};
+    return {
+      format: formatTanggalPola(pola),
+      /* `attrs` digantikan UTUH: placeholder harus ikut pola yang dipilih, dan
+         papan angka hanya cocok untuk pola tanpa nama bulan. */
+      attrs: { inputMode: pola.includes('Mmm') ? undefined : 'numeric', placeholder: pola },
+    };
+  },
+};
+
 /** Tipe input yang tersedia (urutan = urutan di combobox popover). Tipe tanpa
  *  `aksiKanan`/`attrs` khusus tetap memakai `Input` bawaan. */
 const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
@@ -377,6 +437,7 @@ const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
     format: FORMAT_TANGGAL,
     aksiKanan: (ctx) => <PopoverKalender {...ctx} />,
     typeNative: ['date'],
+    pengaturan: PENGATURAN_FORMAT_TANGGAL,
   },
   bulan: { label: 'Bulan', type: 'month' },
   waktu: { label: 'Waktu', type: 'time' },

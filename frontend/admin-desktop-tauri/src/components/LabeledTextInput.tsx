@@ -33,7 +33,10 @@ import { cn } from '@/lib/utils';
  *  - `aksiKanan` menempelkan konten (mis. tombol) di ujung kanan zona kontrol
  *    secara absolut; input diberi ruang kanan agar teks tak tertimpa.
  *  - KLIK KANAN pada kotak membuka popover pengaturan ukuran KOTAK (sama
- *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas. */
+ *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas.
+ *  - Tipe `tanggal` menambah baris "Format" di popover itu: pola tampilan kotak
+ *    (`dd/mm/yyyy`, `yyyy-mm-dd`, ...) yang sekaligus menentukan mask ketikan
+ *    dan placeholder-nya — nilai yang dikirim ke server tetap ISO. */
 export default function LabeledTextInput({ label, htmlFor, labelTransparan = true, nama = 'input', tipeKontrol, pilihanTipe, tipeTerkunci, bawaanTipe, lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
   label: string;
   htmlFor?: string;
@@ -127,13 +130,14 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
   ) as typeof props;
 
   /* Kursor: menyisipkan pemisah menggeser indeks karakter, jadi posisi kursor
-     dipulihkan berdasarkan JUMLAH DIGIT di kirinya (bukan indeks teks). Diambil
-     saat mengetik, dipakai setelah React menulis ulang nilainya. */
+     dipulihkan berdasarkan JUMLAH KARAKTER ISINYA di kiri (angka/huruf — digit
+     untuk pemisah ribuan & tanggal, huruf untuk nama bulan; bukan indeks teks).
+     Diambil saat mengetik, dipakai setelah React menulis ulang nilainya. */
   const refInput = useRef<HTMLInputElement | null>(null);
   const digitKiriRef = useRef<number | null>(null);
   const gantiTeks = (e: React.ChangeEvent<HTMLInputElement>) => {
     const el = e.target;
-    digitKiriRef.current = (el.value.slice(0, el.selectionStart ?? el.value.length).match(/\d/g) ?? []).length;
+    digitKiriRef.current = (el.value.slice(0, el.selectionStart ?? el.value.length).match(/[0-9A-Za-z]/g) ?? []).length;
     if (adaMask) {
       const teks = format!.ketik!(el.value);
       const nilaiBaru = format!.nilai(teks);
@@ -208,14 +212,19 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
   return bungkus(kotak);
 }
 
-/** Indeks kursor setelah `jumlah` digit pertama dari kiri (`0` = paling kiri). */
+/** Indeks kursor setelah `jumlah` karakter ISI pertama dari kiri (`0` = paling
+ *  kiri). Yang dihitung HANYA angka & huruf — pemisah yang disisipkan mask
+ *  (titik ribuan, `/`, spasi) tak ikut, karena jumlahnya berubah-ubah sambil
+ *  diketik. Huruf penting untuk pola ber-nama bulan (`12 Okt 2026`): dengan
+ *  menghitung angka saja, huruf yang baru diketik sesudahnya akan disisipkan di
+ *  posisi yang salah (`12 TKO 026`). */
 export function posisiSetelahDigit(teks: string, jumlah: number): number {
   if (jumlah <= 0) return 0;
-  let digit = 0;
+  let isi = 0;
   for (let i = 0; i < teks.length; i += 1) {
-    if (/\d/.test(teks[i])) {
-      digit += 1;
-      if (digit === jumlah) return i + 1;
+    if (/[0-9A-Za-z]/.test(teks[i])) {
+      isi += 1;
+      if (isi === jumlah) return i + 1;
     }
   }
   return teks.length;

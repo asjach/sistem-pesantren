@@ -6,9 +6,11 @@ import {
   FORMAT_TANGGAL,
   KUNCI_TIPE_INPUT,
   kunciDariTypeNative,
+  OPSI_FORMAT_TANGGAL,
   OPSI_TIPE_INPUT,
   PRESET_NOMINAL,
 } from '@/components/tipeInput';
+import { FORMAT_TANGGAL_BAWAAN, POLA_FORMAT_TANGGAL } from '@/lib/tanggal';
 
 describe('registry tipe input', () => {
   it('setiap kunci punya label & opsi popover memetakan 1:1', () => {
@@ -63,6 +65,36 @@ describe('registry tipe input', () => {
     // Tipe tanggal lain tetap native (belum punya kalender sendiri).
     expect(definisiTipe('bulan')?.type).toBe('month');
     expect(definisiTipe('tanggal_waktu')?.format).toBeUndefined();
+  });
+
+  it('tipe tanggal: baris pengaturan "Format" berisi seluruh pola tanggal', () => {
+    const tanggal = definisiTipe('tanggal');
+    expect(tanggal?.pengaturan?.kunci).toBe('format');
+    expect(tanggal?.pengaturan?.bawaan).toBe(FORMAT_TANGGAL_BAWAAN);
+    expect(OPSI_FORMAT_TANGGAL).toHaveLength(POLA_FORMAT_TANGGAL.length);
+    expect(OPSI_FORMAT_TANGGAL[0]).toEqual({ label: 'dd/mm/yyyy', nilai: 'dd/mm/yyyy' });
+    // Tipe lain tak punya baris pengaturan apa pun.
+    expect(definisiTipe('angka')?.pengaturan).toBeUndefined();
+  });
+
+  it('tipe tanggal: pola tersimpan mengubah format, mask, & placeholder kotak', () => {
+    const kolom = definisiTipe('tanggal', 'yyyy-mm-dd');
+    // Tetap kotak teks ber-mask — hanya polanya yang berbeda.
+    expect(kolom?.type).toBe('text');
+    expect(kolom?.attrs?.placeholder).toBe('yyyy-mm-dd');
+    expect(kolom?.attrs?.inputMode).toBe('numeric');
+    expect(kolom?.format?.tampil('2026-10-12')).toBe('2026-10-12');
+    expect(kolom?.format?.nilai('2026-10-12')).toBe('2026-10-12');
+    expect(kolom?.format?.ketik?.('20261012')).toBe('2026-10-12');
+    // Pola ber-nama bulan: papan angka dimatikan (huruf perlu diketik).
+    expect(definisiTipe('tanggal', 'dd Mmm yyyy')?.attrs?.inputMode).toBeUndefined();
+  });
+
+  it('tipe tanggal: pola bawaan/tak dikenal tetap memakai FORMAT_TANGGAL', () => {
+    expect(definisiTipe('tanggal')?.format).toBe(FORMAT_TANGGAL);
+    expect(definisiTipe('tanggal', FORMAT_TANGGAL_BAWAAN)?.format).toBe(FORMAT_TANGGAL);
+    expect(definisiTipe('tanggal', 'gaya-bebas')?.format).toBe(FORMAT_TANGGAL);
+    expect(definisiTipe('tanggal', 7)?.attrs?.placeholder).toBe('dd/mm/yyyy');
   });
 
   it('FORMAT_TANGGAL: tampil dd/mm/yyyy, nilai kembali ISO', () => {
