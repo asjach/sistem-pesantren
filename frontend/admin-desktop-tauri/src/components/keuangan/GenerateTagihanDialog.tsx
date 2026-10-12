@@ -18,6 +18,7 @@ import PresetKolom from '@/components/PresetKolom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import LabeledNominalInput from '@/components/LabeledNominalInput';
+import LabeledTextInput from '@/components/LabeledTextInput';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
@@ -757,119 +758,124 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
               <h3 id="judul_kriteria_gen" className="text-sm font-semibold">Kriteria Tagihan</h3>
               <RingkasanGalat id="ringkas_galat_gen" daftar={galat} />
               <div className="flex flex-col gap-3">
-                {/* Baris 1: Tarif */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-end gap-2">
-                    <Popover
-                      open={popTarif}
-                      onOpenChange={(o) => { if (baruBusy) return; if (o) resetFormTarif(); setPopTarif(o); }}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          id="btn_buat_tarif" type="button" variant="outline" size="sm"
-                          className="h-[26px] text-xs" disabled={tahunAjaran === null}
-                          title={tahunAjaran === null ? 'Pilih tahun ajaran dulu' : 'Buat tarif baru'}
-                        >
-                          Buat Tarif
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent id="pop_buat_tarif" align="end" className="pointer-events-auto w-72 p-3">
-                        <form onSubmit={(e) => void simpanTarifBaru(e)} className="flex flex-col gap-2">
-                          <p className="text-sm font-semibold">Tarif Baru · TA {tahunAjaran ?? '—'}</p>
-                          {baruErr !== '' && <p role="alert" className="text-xs text-destructive">{baruErr}</p>}
-                          <LabeledCombobox label="Jenjang" htmlFor="sel_tarif_baru_jenjang">
-                            <ComboboxRoot
-                              items={opsiJenjangItem}
-                              itemToStringLabel={(o) => o.label}
-                              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-                              value={opsiJenjangItem.find((o) => o.nilai === baruJenjang) ?? null}
-                              onValueChange={(o) => { if (o !== null) { setBaruJenjang(o.nilai); setBaruJenisId(''); } }}
-                            >
-                              <ComboboxInput id="sel_tarif_baru_jenjang" aria-label="Jenjang" placeholder="Pilih jenjang…" />
-                              <ComboboxTrigger aria-label="Buka daftar jenjang" />
-                              <ComboboxContent>
-                                <ComboboxEmpty>Belum ada jenjang.</ComboboxEmpty>
-                                <ComboboxList>
-                                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
-                                </ComboboxList>
-                              </ComboboxContent>
-                            </ComboboxRoot>
-                          </LabeledCombobox>
-                          <LabeledCombobox label="Jenis" htmlFor="sel_tarif_baru_jenis">
-                            <ComboboxRoot
-                              items={opsiJenisItem}
-                              itemToStringLabel={(o) => o.label}
-                              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-                              value={opsiJenisItem.find((o) => o.nilai === String(baruJenisId)) ?? null}
-                              onValueChange={(o) => { if (o !== null) setBaruJenisId(Number(o.nilai)); }}
-                            >
-                              <ComboboxInput id="sel_tarif_baru_jenis" aria-label="Jenis" placeholder="Pilih jenis…" />
-                              <ComboboxTrigger aria-label="Buka daftar jenis" />
-                              <ComboboxContent>
-                                <ComboboxEmpty>Belum ada jenis.</ComboboxEmpty>
-                                <ComboboxList>
-                                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
-                                </ComboboxList>
-                              </ComboboxContent>
-                            </ComboboxRoot>
-                          </LabeledCombobox>
-                          <LabeledNominalInput
-                            label="Nominal"
-                            htmlFor="inp_tarif_baru_nominal"
-                            min={0}
-                            value={baruNominal}
-                            onValueChange={setBaruNominal} required
-                          />
-                          <Button id="btn_tarif_baru_simpan" type="submit" size="sm" className="h-[26px]" disabled={baruBusy}>
-                            {baruBusy ? 'Menyimpan…' : 'Simpan Tarif'}
-                          </Button>
-                        </form>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <LabeledCombobox
-                    label="Tarif"
-                    htmlFor="sel_gen_tarif"
-                    bisaCari
-                    tinggi={30}
+                {/* Baris 1: Tarif (kiri) + Nominal Default (kanan) — berdampingan
+                    karena keduanya berpasangan: tarif terpilih mengisi nominal
+                    default. Tombol "Buat Tarif" DIPINDAH ke atas grid (tak ada
+                    lagi di dalam kolom tarif) supaya kotak Nominal Default
+                    sejajar tinggi dengan kotak Tarif. */}
+                <div className="flex items-center justify-end gap-2">
+                  <Popover
+                    open={popTarif}
+                    onOpenChange={(o) => { if (baruBusy) return; if (o) resetFormTarif(); setPopTarif(o); }}
                   >
-                    <ComboboxRoot
-                      items={opsiTarif}
-                      autoHighlight
-                      itemToStringLabel={(o) => o.label}
-                      isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-                      value={opsiTarif.find((o) => o.nilai === String(tarifId)) ?? null}
-                      onValueChange={(o) => { if (o !== null) pilihTarif(Number(o.nilai)); }}
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="btn_buat_tarif" type="button" variant="outline" size="sm"
+                        className="h-[26px] text-xs" disabled={tahunAjaran === null}
+                        title={tahunAjaran === null ? 'Pilih tahun ajaran dulu' : 'Buat tarif baru'}
+                      >
+                        Buat Tarif
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent id="pop_buat_tarif" align="end" className="pointer-events-auto w-72 p-3">
+                      <form onSubmit={(e) => void simpanTarifBaru(e)} className="flex flex-col gap-2">
+                        <p className="text-sm font-semibold">Tarif Baru · TA {tahunAjaran ?? '—'}</p>
+                        {baruErr !== '' && <p role="alert" className="text-xs text-destructive">{baruErr}</p>}
+                        <LabeledCombobox label="Jenjang" htmlFor="sel_tarif_baru_jenjang">
+                          <ComboboxRoot
+                            items={opsiJenjangItem}
+                            itemToStringLabel={(o) => o.label}
+                            isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                            value={opsiJenjangItem.find((o) => o.nilai === baruJenjang) ?? null}
+                            onValueChange={(o) => { if (o !== null) { setBaruJenjang(o.nilai); setBaruJenisId(''); } }}
+                          >
+                            <ComboboxInput id="sel_tarif_baru_jenjang" aria-label="Jenjang" placeholder="Pilih jenjang…" />
+                            <ComboboxTrigger aria-label="Buka daftar jenjang" />
+                            <ComboboxContent>
+                              <ComboboxEmpty>Belum ada jenjang.</ComboboxEmpty>
+                              <ComboboxList>
+                                {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                              </ComboboxList>
+                            </ComboboxContent>
+                          </ComboboxRoot>
+                        </LabeledCombobox>
+                        <LabeledCombobox label="Jenis" htmlFor="sel_tarif_baru_jenis">
+                          <ComboboxRoot
+                            items={opsiJenisItem}
+                            itemToStringLabel={(o) => o.label}
+                            isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                            value={opsiJenisItem.find((o) => o.nilai === String(baruJenisId)) ?? null}
+                            onValueChange={(o) => { if (o !== null) setBaruJenisId(Number(o.nilai)); }}
+                          >
+                            <ComboboxInput id="sel_tarif_baru_jenis" aria-label="Jenis" placeholder="Pilih jenis…" />
+                            <ComboboxTrigger aria-label="Buka daftar jenis" />
+                            <ComboboxContent>
+                              <ComboboxEmpty>Belum ada jenis.</ComboboxEmpty>
+                              <ComboboxList>
+                                {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                              </ComboboxList>
+                            </ComboboxContent>
+                          </ComboboxRoot>
+                        </LabeledCombobox>
+                        <LabeledNominalInput
+                          label="Nominal"
+                          htmlFor="inp_tarif_baru_nominal"
+                          min={0}
+                          value={baruNominal}
+                          onValueChange={setBaruNominal} required
+                        />
+                        <Button id="btn_tarif_baru_simpan" type="submit" size="sm" className="h-[26px]" disabled={baruBusy}>
+                          {baruBusy ? 'Menyimpan…' : 'Simpan Tarif'}
+                        </Button>
+                      </form>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="grid grid-cols-2 items-start gap-3">
+                  <div className="flex flex-col gap-1">
+                    <LabeledCombobox
+                      label="Tarif"
+                      htmlFor="sel_gen_tarif"
+                      bisaCari
+                      tinggi={30}
                     >
-                      <ComboboxInput id="sel_gen_tarif" aria-label="Tarif" placeholder="Pilih tarif…" />
-                      <ComboboxTrigger aria-label="Buka daftar tarif" />
-                      <ComboboxContent>
-                        <ComboboxEmpty>Belum ada tarif.</ComboboxEmpty>
-                        <ComboboxList>
-                          {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
-                        </ComboboxList>
-                      </ComboboxContent>
-                    </ComboboxRoot>
-                  </LabeledCombobox>
-                  <p className="min-h-4 text-xs text-muted-foreground">
-                    {jenisTerpilih !== null && `Jenis: ${jenisTerpilih.nama} · ${bulanan ? 'bulanan' : 'sekali bayar'}`}
-                  </p>
+                      <ComboboxRoot
+                        items={opsiTarif}
+                        autoHighlight
+                        itemToStringLabel={(o) => o.label}
+                        isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                        value={opsiTarif.find((o) => o.nilai === String(tarifId)) ?? null}
+                        onValueChange={(o) => { if (o !== null) pilihTarif(Number(o.nilai)); }}
+                      >
+                        <ComboboxInput id="sel_gen_tarif" aria-label="Tarif" placeholder="Pilih tarif…" />
+                        <ComboboxTrigger aria-label="Buka daftar tarif" />
+                        <ComboboxContent>
+                          <ComboboxEmpty>Belum ada tarif.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </ComboboxRoot>
+                    </LabeledCombobox>
+                    <p className="min-h-4 text-xs text-muted-foreground">
+                      {jenisTerpilih !== null && `Jenis: ${jenisTerpilih.nama} · ${bulanan ? 'bulanan' : 'sekali bayar'}`}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <LabeledNominalInput
+                      label="Nominal Default"
+                      htmlFor="inp_gen_nominal"
+                      min={0} value={nominalDefault}
+                      onValueChange={ubahNominalDefault}
+                      onBlur={() => setGalatNominal(validasiNominal(nominalDefault))}
+                      aria-invalid={galatNominal !== null}
+                      aria-describedby={galatNominal !== null ? 'galat_nominal_gen' : undefined}
+                      required
+                    />
+                    <p id="galat_nominal_gen" className="min-h-4 text-xs text-destructive">{galatNominal ?? ''}</p>
+                  </div>
                 </div>
-                {/* Baris 2: Nominal Default */}
-                <div className="flex flex-col gap-1">
-                  <LabeledNominalInput
-                    label="Nominal Default"
-                    htmlFor="inp_gen_nominal"
-                    min={0} value={nominalDefault}
-                    onValueChange={ubahNominalDefault}
-                    onBlur={() => setGalatNominal(validasiNominal(nominalDefault))}
-                    aria-invalid={galatNominal !== null}
-                    aria-describedby={galatNominal !== null ? 'galat_nominal_gen' : undefined}
-                    required
-                  />
-                  <p id="galat_nominal_gen" className="min-h-4 text-xs text-destructive">{galatNominal ?? ''}</p>
-                </div>
-                {/* Baris 3: Periode */}
+                {/* Baris 2: Periode */}
                 <div className="flex flex-col gap-1">
                   <p className="text-sm font-medium leading-none">Periode</p>
                   {bulanan ? (
@@ -887,16 +893,22 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     <p id="info_gen_periode" className="flex h-[26px] items-center text-sm">Otomatis {tahunAjaran ?? '—'}</p>
                   )}
                 </div>
-                {/* Baris 4: Jatuh Tempo */}
+                {/* Baris 3: Jatuh Tempo — `LabeledTextInput` supaya labelnya segaris
+                    di dalam kotak, sama seperti Tarif dan Nominal Default.
+                    Bulanan: input DIMATIKAN karena tanggalnya otomatis (tgl 10
+                    bulan berjalan, ditentukan backend) — kotak tetap tampil agar
+                    tata letaknya sama. */}
                 <div className="flex flex-col gap-1">
-                  <FieldLabel htmlFor={bulanan ? 'info_gen_jatuh_tempo' : 'inp_gen_jatuh_tempo'}>Jatuh Tempo</FieldLabel>
-                  {bulanan ? (
-                    <p id="info_gen_jatuh_tempo" className="flex h-[26px] items-center text-sm text-muted-foreground">
-                      Otomatis tanggal 10
-                    </p>
-                  ) : (
-                    <Input id="inp_gen_jatuh_tempo" type="date" className="h-[26px]" value={jatuhTempo} onChange={(e) => setJatuhTempo(e.target.value)} aria-describedby="ket_gen_jatuh_tempo" />
-                  )}
+                  <LabeledTextInput
+                    label="Jatuh Tempo"
+                    htmlFor="inp_gen_jatuh_tempo"
+                    type="date"
+                    disabled={bulanan}
+                    placeholder={bulanan ? 'Otomatis tanggal 10' : undefined}
+                    value={jatuhTempo}
+                    onChange={(e) => setJatuhTempo(e.target.value)}
+                    aria-describedby="ket_gen_jatuh_tempo"
+                  />
                 </div>
                 {bulanan ? (
                   <p className="text-xs text-muted-foreground">

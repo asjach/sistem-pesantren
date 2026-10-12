@@ -315,6 +315,52 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     expect(api.kandidat).toHaveBeenCalledWith(expect.objectContaining({ kelompok: 'aktif' }));
   });
 
+  it('tarif & nominal default berdampingan: nominal di kolom kanan grid yang sama', () => {
+    renderDialog();
+    const tarif = document.getElementById('sel_gen_tarif') as HTMLElement;
+    const nominal = document.getElementById('inp_gen_nominal') as HTMLElement;
+    // Satu induk grid 2 kolom memuat keduanya (bukan dua baris bertumpuk).
+    let grid: HTMLElement | null = tarif.parentElement;
+    while (grid !== null && !grid.className.includes('grid-cols-2')) grid = grid.parentElement;
+    expect(grid).not.toBeNull();
+    expect(grid?.contains(nominal)).toBe(true);
+    // Dua kolom: tarif kiri, nominal kanan.
+    const kolom = [...(grid?.children ?? [])] as HTMLElement[];
+    expect(kolom).toHaveLength(2);
+    expect(kolom[0].contains(tarif)).toBe(true);
+    expect(kolom[1].contains(nominal)).toBe(true);
+    // Tombol "Buat Tarif" di LUAR kolom tarif — kalau tetap di dalam, kolom
+    // kiri mulai lebih tinggi dan kotak Nominal Default tak sejajar dengan Tarif.
+    expect(kolom[0].contains(document.getElementById('btn_buat_tarif') as HTMLElement)).toBe(false);
+    expect(grid?.previousElementSibling?.contains(document.getElementById('btn_buat_tarif') as HTMLElement)).toBe(true);
+  });
+
+  it('jatuh tempo: kotak LabeledTextInput, dimatikan untuk bulanan & aktif untuk sekali bayar', async () => {
+    api.kandidat.mockResolvedValue({ data: [], current_page: 1, last_page: 1, total: 0, per_page: 50 });
+    api.pratinjau.mockResolvedValue([]);
+    renderDialog({
+      jenis: [...JENIS, { id: 2, nama: 'Uang Pangkal', tipe: 'non_bulanan', jenjang: null, keterangan: null, is_active: true }],
+      tarif: [...TARIF, { id: 6, jenjang: 'MI', tahun_ajaran: '2025/2026', jenis_id: 2, tingkat: '1', nominal: 500000, is_active: true }],
+    });
+
+    const jatuhTempo = () => document.getElementById('inp_gen_jatuh_tempo') as HTMLInputElement;
+
+    // Belum pilih tarif → aktif (belum ada jenis bulanan).
+    expect(jatuhTempo()).not.toBeDisabled();
+    // Label tetap terhubung ke input lewat for ↔ id (LabeledTextInput; label
+    // transparan → teksnya ber titik dua).
+    expect(document.querySelector('label[for="inp_gen_jatuh_tempo"]')?.textContent).toBe('Jatuh Tempo:');
+
+    // Tarif bulanan → tanggal otomatis, input dimatikan (tak bisa diketik).
+    await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
+    await waitFor(() => expect(jatuhTempo()).toBeDisabled());
+    expect(jatuhTempo().placeholder).toBe('Otomatis tanggal 10');
+
+    // Tarif sekali bayar → aktif lagi.
+    await pilihOpsi('sel_gen_tarif', /Rp 500\.000/);
+    await waitFor(() => expect(jatuhTempo()).not.toBeDisabled());
+  });
+
   it('nominal tak valid tampil inline saat blur + menahan Lanjut', async () => {
     api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
     api.pratinjau.mockResolvedValue([]);
