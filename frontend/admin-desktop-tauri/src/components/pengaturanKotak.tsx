@@ -22,6 +22,9 @@ import {
  *  memakai shell `KotakLabel` sehingga DOM terukurnya sama: anak pertama =
  *  label, anak kedua = zona kontrol).
  *
+ *  Popover pengaturan TIDAK punya tombol tutup; KLIK KIRI DI LUAR menutupnya,
+ *  sementara Escape sengaja tidak (lihat `PopoverUkuranKombo`).
+ *
  *  Ukuran tersimpan (bila ada) menang atas nilai dari pemanggil. Di dalam
  *  toolbar tabel disimpan ke SERVER (global per tabel); di luar itu disimpan
  *  per perangkat. Tanpa `htmlFor`, kotak tak punya identitas → fitur mati
@@ -77,6 +80,8 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
   const refJangkar = useRef<HTMLSpanElement | null>(null);
   const [jangkar, setJangkar] = useState({ left: 0, top: 0, width: 0, height: 0 });
 
+  /** Klik-kanan pada kotak: buka popover pengaturan. Penutupanhandled Radix
+   *  (klik kiri di luar panel). */
   const bukaPengaturan = useCallback((e: ReactMouseEvent<HTMLSpanElement>) => {
     // Tahan menu konteks bawaan (di dalam input: potong/salin/tempel) supaya
     // popover pengaturan yang muncul, bukan menu peramban.
@@ -103,6 +108,14 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
       });
     }
     setBukaUkuran(true);
+    /* Buka daftar opsi kontrol yang diklik-kanan, supaya pengguna langsung
+       melihat dampak perubahan dari panel pengaturan tanpa klik lagi.
+       Yang diklik PANAH pemicu daftar (bukan input): Base UI membuka daftar
+       dari sana, sedangkan input tak merespons `click()` sintetis. `click()`
+       sintetis juga tak memunculkan `pointerdown`, jadi tak dihitung
+       "interaksi di luar" yang menutup panel. */
+    const pemicu = refKotak.current?.querySelector('[data-slot="combobox-trigger"]');
+    if (pemicu instanceof HTMLElement) pemicu.click();
   }, []);
 
   /** Simpan sebagian ukuran: ke server (toolbar) atau ke store perangkat. */
@@ -159,6 +172,7 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
         <PopoverAnchor virtualRef={refJangkar} />
         <PopoverUkuranKombo
           kunci={kunciUkuran}
+          refKotak={refKotak}
           label={label}
           nama={nama}
           /* Titik awal stepper = ukuran tersimpan, atau ukuran kotak yang

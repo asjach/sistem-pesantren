@@ -1,12 +1,11 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { Button } from '@/components/ui/button';
-import { PopoverClose, PopoverContent } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
+import { PopoverContent } from '@/components/ui/popover';
 import SpinBox from '@/components/SpinBox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
-import { RotateCcw, X as XIcon } from '@/icons';
+import { RotateCcw } from '@/icons';
 import {
   LEBAR_KOMBO_MAKS,
   LEBAR_KOMBO_MIN,
@@ -26,8 +25,17 @@ const LANGKAH_LABEL = 4;
 
 /** Lebar label baris (px) — SAMA semua baris supaya stepper sejajar. */
 const LEBAR_LABEL_BARIS = 48;
+/** Lebar label baris di grup "Mengembang" (px) — lebih longgar karena
+ *  "Mengembang"/"Warna Label:" lebih panjang dari "Tinggi"/"Total"; kalau
+ *  dipatok 48px teksnya meluber dan ketimpa kontrol di sebelahnya. */
+const LEBAR_LABEL_GRUP_MENGEMBANG = 84;
 /** Lebar kotak stepper (px) — SAMA semua baris; cukup untuk 4 digit. */
 const LEBAR_STEPPER = 84;
+
+/** Pilihan sisi yang mengembang saat lebar total diubah (baris "Mengembang"). */
+const OPSI_MENGEMBANG = ['Label', 'Kontrol'];
+/** Pilihan gaya label (baris "Warna Label:"). */
+const OPSI_WARNA_LABEL = ['Transparan', 'Tidak Transparan'];
 
 /** Baris alat: label polos + stepper kompak + tombol reset per-baris. */
 function BarisUkuran({ id, teks, stepper, resetId, resetLabel, adaAturan, onReset }: {
@@ -60,31 +68,57 @@ function BarisUkuran({ id, teks, stepper, resetId, resetLabel, adaAturan, onRese
   );
 }
 
-/** Pil toggle (segmented): aktif = terisi, mati = outline. */
-function Pil({ id, teks, nama, aktif, onPilih }: {
+/** Baris "label + combobox" untuk pilihan bernama (baris "Mengembang" dan
+ *  "Warna Label:"). Label jadi nama aksesibel kontrol lewat `htmlFor` — tanpa
+ *  `aria-label` yang bisa bentrok dengan teks yang terlihat. */
+function BarisPilihan({ id, teks, judul, opsi, nilai, placeholder, namaDaftar, onPilih }: {
   id: string;
   teks: string;
-  nama: string;
-  aktif: boolean;
-  onPilih: () => void;
+  /** Tooltip penjelas di label. */
+  judul: string;
+  opsi: string[];
+  /** Pilihan yang sedang aktif (harus salah satu dari `opsi`). */
+  nilai: string;
+  placeholder: string;
+  /** Nama aksi membuka daftar (aria-label tombol chevron). */
+  namaDaftar: string;
+  /** Nilai `null` = input dikosongkan; pemanggil memperlakukannya sebagai
+   *  pilihan bawaan (tidak bisa menyimpan nilai kosong). */
+  onPilih: (nilaiBaru: string | null) => void;
 }) {
   return (
-    <Button
-      id={id}
-      type="button"
-      variant={aktif ? 'default' : 'outline'}
-      aria-label={nama}
-      aria-pressed={aktif}
-      onClick={onPilih}
-      className="h-6 rounded-full px-2 text-xs"
-    >
-      {teks}
-    </Button>
+    <div className="flex items-center gap-1.5">
+      <label
+        htmlFor={id}
+        className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
+        style={{ width: LEBAR_LABEL_GRUP_MENGEMBANG }}
+        title={judul}
+      >
+        {teks}
+      </label>
+      <div className="relative min-w-0 flex-1">
+        <ComboboxRoot items={opsi} value={nilai} onValueChange={onPilih}>
+          <ComboboxInput id={id} className="pr-7" placeholder={placeholder} />
+          <ComboboxTrigger className="absolute top-1/2 right-0 -translate-y-1/2" aria-label={namaDaftar} />
+          <ComboboxContent>
+            <ComboboxEmpty>Tidak ada pilihan.</ComboboxEmpty>
+            <ComboboxList>
+              {(o) => <ComboboxItem key={o} value={o}>{o}</ComboboxItem>}
+            </ComboboxList>
+          </ComboboxContent>
+        </ComboboxRoot>
+      </div>
+    </div>
   );
 }
 
 /** Jepit ke rentang (px bulat). */
 const jepit = (n: number, min: number, maks: number) => Math.min(maks, Math.max(min, Math.round(n)));
+
+/** Apakah target interaksi berada di dalam popup daftar opsi (ber-portal ke
+ *  `body`, jadi di luar DOM panel)? */
+const diDalamDaftarOpsi = (target: EventTarget | null) =>
+  target instanceof Element && target.closest('[data-slot="combobox-content"]') !== null;
 
 /** Isi popover pengaturan ukuran KOTAK combobox — dibuka lewat KLIK KANAN
  *  pada kotak `LabeledCombobox` (lihat `LabeledCombobox`).
@@ -95,17 +129,21 @@ const jepit = (n: number, min: number, maks: number) => Math.min(maks, Math.max(
  *    pun tertahan bila lawan mentok.
  *  - Ubah total → sisi yang BERTANDA expanding yang terdampak (bawaan:
  *    kontrol); total tertulis mengikuti hasil aktual bila sisi itu mentok.
- *  - Tepat satu sisi mengembang (dua checkbox saling lepas).
+ *  - Tepat satu sisi mengembang (satu baris pilihan "Mengembang": Label ↔ Kontrol).
  *
  *  Komponen ini "bodoh": ia hanya menampilkan nilai & memanggil balik. Sumber
  *  penyimpanannya ditentukan pemanggil — SERVER (saat combobox hidup di
  *  toolbar tabel, berlaku global) atau perangkat (combobox form biasa).
  *
- *  Popover TIDAK menutup saat klik di luar atau Escape — hanya tombol × yang
- *  menutupnya — supaya pengguna bisa membuka dropdown combobox dan mengecek
- *  hasilnya tanpa kehilangan panel pengaturan ini. */
-export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
+ *  Popover tak punya tombol tutup: KLIK KIRI DI LUAR menutupnya (kecuali klik
+ *  pada daftar opsi combobox di dalamnya, yang ber-portal ke `body`). Escape
+ *  sengaja tak menutup supaya mengetik di isian panel tak berarti keluar. */
+export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, onUbah, onReset, onResetBaris }: {
   kunci: string;
+  /** Ref elemen KOTAK yang sedang diatur. Isi kotak (label + kontrol) berada
+   *  di luar DOM panel ini, jadi perlu rujukan untuk membedakan "pengguna
+   *  masih memakai kontrol yang sedang ia atur" dari "klik di luar". */
+  refKotak?: RefObject<HTMLElement | null>;
   /** Label kotak yang sedang diatur — ditampilkan agar jelas komponen mana
    *  yang berubah. */
   label?: string;
@@ -143,6 +181,10 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
   /** Kembalikan SATU baris ke bawaan. */
   onResetBaris: (bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol' | 'nilaiDefault') => void;
 }) {
+  /** Interaksi di dalam KOTAK yang sedang diatur ATAU daftar opsi di dalam
+   *  panel tidak menutup panel (lihat catatan pada `onInteractOutside`). */
+  const interaksiDiKotak = (target: EventTarget | null) =>
+    diDalamDaftarOpsi(target) || (target instanceof Node && refKotak?.current?.contains(target) === true);
   /** Ubah label → kontrol menyesuaikan, total tetap. Batas label dirapatkan
    *  agar kontrol tak keluar dari rentangnya. */
   const ubahLabel = (n: number) => {
@@ -171,18 +213,31 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
   };
   return (
     <PopoverContent
-      align="start"
-      side="bottom"
+      /* Di SESARANG kotak (bukan di bawahnya): panel setinggi mungkin perlu
+         ruang vertikal penuh (daftar opsi yang panjang), sedangkan meletakkannya
+         di bawah menyembunyikan isi panel saat kotak berada di baris paling
+         bawah. Radix membalik ke sisi sebaliknya (kiri) otomatis bila ruang
+         di kanan tak cukup — jadi penempatannya mengikuti "view". */
+      side="right"
+      align="center"
       sideOffset={6}
+      collisionPadding={8}
       /* Ukuran popover TETAP dan tak bergantung pada combobox: lebar dipatok
          (min = max) sehingga melebar/menyempitnya kotak combobox tak pernah
          ikut mengubah popover ini. */
       className="w-[240px] min-w-[240px] max-w-[240px] p-3 border-foreground/30"
-      /* Popover ini SENGAJA hanya bisa ditutup lewat tombol ×: klik di luar
-         (termasuk membuka dropdown combobox untuk mengecek hasilnya) dan
-         tombol Escape tidak menutupnya. Tanpa ini popover hilang begitu
-         pengguna mengklik combobox untuk memeriksa lebarnya. */
-      onInteractOutside={(e) => e.preventDefault()}
+      /* Klik KIRI di luar → popover tertutup (bawaan Radix). Yang DIKECUALIKAN
+         adalah interaksi pada (a) daftar opsi di dalam panel dan (b) KOTAK yang
+         sedang diatur — pengguna memakai kontrol yang sama dengan yang ia atur,
+         jadi panel tak boleh hilang saat ia mengklik atau memberi fokus pada
+         kontrol itu. (b) penting bagi klik-kanan di LABEL: membuka daftar opsi
+         memindahkan fokus ke input, dan tanpa pengecualian ini panel ikut
+         tertutup. Radix memeriksa fokus di luar lewat `onFocusOutside`, jadi
+         kedua handler perlu guard yang sama. */
+      onInteractOutside={(e) => { if (interaksiDiKotak(e.target)) e.preventDefault(); }}
+      onFocusOutside={(e) => { if (interaksiDiKotak(e.target)) e.preventDefault(); }}
+      /* Escape sengaja tak menutup: pengguna sering sedang mengetik di salah
+         satu isian panel; menutupnyaralekan ketikan itu. */
       onEscapeKeyDown={(e) => e.preventDefault()}
     >
       <div className="flex flex-col gap-2">
@@ -197,21 +252,6 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
               </p>
             ) : null}
           </div>
-          <PopoverClose asChild>
-            <Button
-              id={`btn_tutup_ukuran_kombo_${kunci}`}
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Tutup pengaturan ukuran"
-              title="Tutup"
-              /* Merah (destruktif) mengikuti konvensi tombol ikon "tutup/hapus"
-                 di project ini — lihat KenaikanKelasPage/KelulusanPage. */
-              className="-mr-1 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            >
-              <XIcon />
-            </Button>
-          </PopoverClose>
         </div>
         <div className="flex flex-col gap-2">
         <BarisUkuran
@@ -300,33 +340,31 @@ export default function PopoverUkuranKombo({ kunci, label, nama = 'combobox', ti
         />
         </div>
         <div aria-hidden className="border-t border-foreground/10" />
-        <div className="flex items-center gap-1.5">
-          <label
-            htmlFor={`set_expand_kombo_${kunci}`}
-            className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"
-            title="Dicentang: label yang mengembang lebar (kontrol tetap). Tidak dicentang: kontrol yang mengembang (label tetap)."
-          >
-            Mengembang (label)
-          </label>
-          <Checkbox
-            id={`set_expand_kombo_${kunci}`}
-            checked={expandLabel}
-            onCheckedChange={(c) => onUbah({ expandLabel: !!c })}
-            aria-label="Mengembang label"
-          />
-        </div>
+        {/* Sisi yang mengembang saat "Total" diubah — combobox (bukan
+            centang) supaya kedua sisi tampil sebagai pilihan bernama: pilot
+            "Kontrol" atau "Label". */}
+        <BarisPilihan
+          id={`set_expand_kombo_${kunci}`}
+          teks="Mengembang"
+          judul="Pilih sisi yang ikut melebar saat lebar total diubah: label atau kontrol."
+          opsi={OPSI_MENGEMBANG}
+          nilai={expandLabel ? 'Label' : 'Kontrol'}
+          placeholder="Pilih sisi…"
+          namaDaftar="Buka daftar sisi yang mengembang"
+          onPilih={(v) => onUbah({ expandLabel: v === 'Label' })}
+        />
         {/* "Label transparan" dikelompokkan di bawah tema Mengembang, pada baris
             tersendiri yang bertanda "Warna Label:". */}
-        <div className="flex items-center gap-1.5">
-          <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground">Warna Label:</span>
-          <Pil
-            id={`set_label_transparan_kombo_${kunci}`}
-            teks="Label transparan"
-            nama="Label transparan"
-            aktif={labelTransparan}
-            onPilih={() => onUbah({ labelTransparan: !labelTransparan })}
-          />
-        </div>
+        <BarisPilihan
+          id={`set_label_transparan_kombo_${kunci}`}
+          teks="Warna Label:"
+          judul="Transparan: label tanpa latar, teks bertitik dua. Tidak transparan: label berlatar penuh."
+          opsi={OPSI_WARNA_LABEL}
+          nilai={labelTransparan ? 'Transparan' : 'Tidak Transparan'}
+          placeholder="Pilih warna label…"
+          namaDaftar="Buka daftar warna label"
+          onPilih={(v) => onUbah({ labelTransparan: v === 'Transparan' })}
+        />
         {opsi !== undefined && opsi.length > 0 ? (
           <>
             <div aria-hidden className="border-t border-foreground/10" />

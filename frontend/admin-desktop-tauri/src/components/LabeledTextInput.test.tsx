@@ -125,7 +125,7 @@ describe('LabeledTextInput', () => {
     expect(zona.className).toMatch(/pl-1/);
   });
 
-  it('klik kanan membuka popover ukuran (judul input): total menaut & pil transparan', async () => {
+  it('klik kanan membuka popover ukuran (judul input): total menaut & pilihan warna label', async () => {
     const kunci = `uji_input_pop_${Date.now()}`;
     const { container } = renderDenganTema(
       <LabeledTextInput label="Nama" htmlFor={kunci} />,
@@ -136,10 +136,11 @@ describe('LabeledTextInput', () => {
     // Total +10 (bawaan kontrol mengembang): kontrol 80→90, label tetap.
     await userEvent.click(await screen.findByLabelText('Lebar kotak input (px) tambah'));
     expect(ukuranKombo(kunci)).toEqual({ lebar: 170, lebarKontrol: 90 });
-    // Pil transparan: bawaan tertekan; pilih → ber-bg eksplisit.
-    const pil = screen.getByRole('button', { name: 'Label transparan' });
-    expect(pil).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(pil);
+    // Warna label: bawaan "Transparan"; pilih "Tidak Transparan" → ber-bg.
+    const warna = screen.getByRole('combobox', { name: 'Warna Label:' });
+    expect(warna).toHaveValue('Transparan');
+    await userEvent.click(warna);
+    await userEvent.click(await screen.findByRole('option', { name: 'Tidak Transparan' }));
     expect(ukuranKombo(kunci).labelTransparan).toBe(false);
     expect((container.querySelector(`label[for="${kunci}"]`) as HTMLElement).textContent).toBe('Nama');
   });

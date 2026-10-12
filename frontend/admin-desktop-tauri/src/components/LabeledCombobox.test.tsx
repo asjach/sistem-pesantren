@@ -12,6 +12,12 @@ import { renderDenganTema } from '@/test/utils';
 
 const OPSI = ['Opsi A', 'Opsi B'];
 
+/* Opsi `hidden: true` untuk query peran di dalam panel pengaturan: klik-kanan
+ * membuka daftar opsi, dan Base UI menandai isi lain halaman (termasuk panel)
+ * `aria-hidden` selama daftar terbuka — jadi query peran biasa tak menemukannya
+ * meski elemennya ada. */
+const DALAM_PANEL = { hidden: true } as const;
+
 function kombo(id: string) {
   return (
     <ComboboxRoot items={OPSI}>
@@ -224,8 +230,8 @@ describe('LabeledCombobox', () => {
     });
   });
 
-  it('popover ukuran punya tombol × dan hanya itu yang menutupnya', async () => {
-    const kunci = `uji_ukuran_tutup_${Date.now()}`;
+  it('klik kanan membuka daftar opsi, jadi perubahan panel langsung terlihat', async () => {
+    const kunci = `uji_ukuran_daftar_${Date.now()}`;
     const { container } = renderDenganTema(
       <LabeledCombobox label="Kelompok" htmlFor={kunci}>
         {kombo(kunci)}
@@ -233,13 +239,60 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    const tombolTutup = await screen.findByLabelText('Tutup pengaturan ukuran');
-    const pop = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
-    expect(pop.contains(tombolTutup)).toBe(true);
-    // Merah (destruktif), mengikuti konvensi tombol ikon tutup/hapus project.
-    expect(tombolTutup.className).toMatch(/text-destructive/);
+    await screen.findByLabelText('Tinggi kotak combobox (px)');
+    // Daftar opsi terbuka tanpa perlu klik lagi, dan panel pengaturan tetap
+    // terbuka saat dipakai.
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Opsi A' })).toBeTruthy();
+    });
+    expect(document.querySelector('[data-slot="popover-content"]')).not.toBeNull();
+  });
 
-    await userEvent.click(tombolTutup);
+  it('klik kanan di LABEL: daftar tetap terbuka & panel tak ikut hilang', async () => {
+    const kunci = `uji_ukuran_label_${Date.now()}`;
+    const { container } = renderDenganTema(
+      <LabeledCombobox label="Kelompok" htmlFor={kunci}>
+        {kombo(kunci)}
+      </LabeledCombobox>,
+    );
+    const kotak = container.firstElementChild as HTMLElement;
+    const labelEl = kotak.firstElementChild as HTMLElement;
+
+    // Sama seperti klik kanan di kontrol: panel bertahan dan daftar terbuka
+    // (fokus pindah ke input tak boleh dibaca sebagai "keluar" dari panel).
+    fireEvent.contextMenu(labelEl);
+    await screen.findByLabelText('Tinggi kotak combobox (px)');
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Opsi A' })).toBeTruthy();
+    });
+    expect(document.querySelector('[data-slot="popover-content"]')).not.toBeNull();
+  });
+
+  it('popover tanpa tombol tutup; klik kiri di luar menutup, klik daftar opsi tidak', async () => {
+    const kunci = `uji_ukuran_tutup_${Date.now()}`;
+    const { container } = renderDenganTema(
+      <LabeledCombobox label="Kelompok" htmlFor={kunci}>
+        {kombo(kunci)}
+      </LabeledCombobox>,
+    );
+    const kotak = container.firstElementChild as HTMLElement;
+
+    fireEvent.contextMenu(kotak);
+    await screen.findByLabelText('Tinggi kotak combobox (px)');
+    // Tak ada tombol tutup di panel.
+    expect(screen.queryByLabelText('Tutup pengaturan ukuran')).toBeNull();
+
+    /* Klik pada daftar opsi (popup ber-portal ke `body`, jadi di luar DOM
+       panel) tidak menutup panel pengaturan. */
+    const sisi = screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Mengembang' });
+    await userEvent.click(sisi);
+    const opsi = await screen.findByRole('option', { name: 'Label' });
+    await userEvent.click(opsi);
+    expect(ukuranKombo(kunci).expandLabel).toBe(true);
+    expect(document.querySelector('[data-slot="popover-content"]')).not.toBeNull();
+
+    // Klik kiri di luar → tertutup.
+    await userEvent.click(document.body);
     await waitFor(() => {
       expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
     });
@@ -324,7 +377,7 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    await userEvent.click(await screen.findByRole('button', { name: /kembalikan ke bawaan/i }));
+    await userEvent.click(await screen.findByRole('button', { ...DALAM_PANEL, name: /kembalikan ke bawaan/i }));
 
     expect(ukuranKombo(kunci)).toEqual({});
   });
@@ -378,8 +431,8 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    // Bawaan: tidak dicentang → kontrol yang mengembang.
-    expect(screen.getByRole('checkbox', { name: 'Mengembang label' })).not.toBeChecked();
+    // Bawaan: "Kontrol" → kontrol yang mengembang.
+    expect(screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Mengembang' })).toHaveValue('Kontrol');
     // Total +10 → kontrol 80→90, label tetap 80.
     await userEvent.click(await screen.findByLabelText('Lebar kotak combobox (px) tambah'));
     expect(ukuranKombo(kunci)).toEqual({ lebar: 170, lebarKontrol: 90 });
@@ -418,7 +471,7 @@ describe('LabeledCombobox', () => {
     expect(ukuranKombo(kunci)).toEqual({ lebar: 160, lebarKontrol: 58 });
   });
 
-  it('flag expanding: checkbox mengendalikan sisi yang mengembang', async () => {
+  it('flag expanding: pilihan sisi menentukan sisi yang mengembang', async () => {
     const kunci = `uji_ukuran_expand_${Date.now()}`;
     const { container } = renderDenganTema(
       <LabeledCombobox label="Kelompok" htmlFor={kunci}>
@@ -427,17 +480,20 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    const cb = await screen.findByRole('checkbox', { name: 'Mengembang label' });
-    // Dicentang → label yang mengembang; flag tersimpan; Total +10 menggeser label
-    // (80→90), kontrol tetap.
+    const cb = screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Mengembang' });
+    // Pilih "Label" → label yang mengembang; flag tersimpan; Total +10
+    // menggeser label (80→90), kontrol tetap.
     await userEvent.click(cb);
-    expect(cb).toBeChecked();
+    await userEvent.click(await screen.findByRole('option', { name: 'Label' }));
+    expect(cb).toHaveValue('Label');
     expect(ukuranKombo(kunci).expandLabel).toBe(true);
     await userEvent.click(await screen.findByLabelText('Lebar kotak combobox (px) tambah'));
     expect(ukuranKombo(kunci)).toMatchObject({ lebar: 170, lebarLabel: 90 });
-    // Tidak dicentang → kontrol yang mengembang (flag false → dihapus saat dibaca).
+    // Kembali ke "Kontrol" → kontrol yang mengembang (flag false → dihapus
+    // saat dibaca).
     await userEvent.click(cb);
-    expect(cb).not.toBeChecked();
+    await userEvent.click(await screen.findByRole('option', { name: 'Kontrol' }));
+    expect(cb).toHaveValue('Kontrol');
     expect(ukuranKombo(kunci).expandLabel).toBeUndefined();
   });
 
@@ -456,7 +512,7 @@ describe('LabeledCombobox', () => {
     expect(ukuranKombo(kunci)).toEqual({ lebar: 80, lebarLabel: 40, lebarKontrol: 40 });
   });
 
-  it('label transparan bawaan: tanpa bg + titik dua, pil bisa mengembalikan', async () => {
+  it('label transparan bawaan: tanpa bg + titik dua, pilihan bisa mengembalikan', async () => {
     const kunci = `uji_ukuran_transparan_${Date.now()}`;
     const { container } = renderDenganTema(
       <LabeledCombobox label="Kelompok" htmlFor={kunci}>
@@ -465,21 +521,23 @@ describe('LabeledCombobox', () => {
     );
     const teksLabel = () => (container.querySelector(`label[for="${kunci}"]`) as HTMLElement);
 
-    // Bawaan: transparan (pil tertekan).
+    // Bawaan: transparan.
     expect(teksLabel().textContent).toBe('Kelompok:');
     expect(teksLabel().className).toMatch(/bg-transparent/);
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    const pil = screen.getByRole('button', { name: 'Label transparan' });
-    expect(pil).toHaveAttribute('aria-pressed', 'true');
+    const warna = screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Warna Label:' });
+    expect(warna).toHaveValue('Transparan');
 
-    // Pilih → ber-bg eksplisit (false tersimpan, bukan dihapus).
-    await userEvent.click(pil);
+    // Pilih "Tidak Transparan" → ber-bg eksplisit (false tersimpan, bukan dihapus).
+    await userEvent.click(warna);
+    await userEvent.click(await screen.findByRole('option', { name: 'Tidak Transparan' }));
     expect(ukuranKombo(kunci).labelTransparan).toBe(false);
     expect(teksLabel().textContent).toBe('Kelompok');
 
-    // Pilih lagi → kembali transparan.
-    await userEvent.click(pil);
+    // Pilih lagi "Transparan" → kembali transparan.
+    await userEvent.click(warna);
+    await userEvent.click(await screen.findByRole('option', { name: 'Transparan' }));
     expect(ukuranKombo(kunci).labelTransparan).toBe(true);
     expect(teksLabel().textContent).toBe('Kelompok:');
   });
