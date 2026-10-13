@@ -2,15 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import FilterRail from '@/components/FilterRail';
-import TagihanCrosstab from '@/components/keuangan/TagihanCrosstab';
+import TagihanCrosstab, { type MetaSel } from '@/components/keuangan/TagihanCrosstab';
 import PresetUrut from '@/components/PresetUrut';
 import { DeleteAction, EditAction } from '@/components/RowActions';
-import { ChevronDown, Info, Pencil, Plus, Search, Trash2, TriangleAlert, Wallet, X } from '@/icons';
+import { Info, Plus, Search, Trash2, TriangleAlert, X } from '@/icons';
 import type { PetaArahKolom } from '@/lib/urut';
 import type { PilihanLembaga } from '@/lembagaAktif';
 import type { PerPage } from '@/prefs';
@@ -515,16 +514,11 @@ export function PenerimaDispensasiTab({ rows, loading, daftar, pilihan, onPilih 
  *  Popover aksi sel dititipkan lewat `popover` agar strukturnya sama seperti
  *  sebelumnya (di dalam wadah gulir crosstab) tanpa memindahkan logikanya. */
 
-/** Metadata sel crosstab yang dikirim ke `onPilih` (isi popover aksi sel). */
-type MetaSel = {
-  nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number;
-  foto_dokumen_id: number | null; foto_profil: boolean; kelas: string | null; jenjang_riwayat: string[];
-};
 export function TagihanTab({
   crosstab, loading, terpilihId, total,
   cari, onCari, sort, terlambat, onTerlambat,
-  onPilih, onTambah, onBukaGenerate,
-  selection, onTogglePilih, onPilihBlok, onPilihSatu, onBatalPilih, onLepasBlok, onAksiBatch, batchBusy, pager, popover,
+  onPilih, aksiSel, onAksiSel, onTambah, onBukaGenerate,
+  selection, onTogglePilih, onPilihBlok, onKlikSel, onPilihIrisan, onMulaiGeser, onGeserSelesai, onTambahBlok, onLepasBlok, pager, popover,
 }: {
   crosstab: CrosstabTagihan | null;
   loading: boolean;
@@ -535,12 +529,11 @@ export function TagihanTab({
   sort: SortTabel;
   terlambat: boolean;
   onTerlambat: (v: boolean) => void;
-  onPilih: (
-    sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; foto_profil: boolean; kelas: string | null; jenjang_riwayat: string[] },
-    anchor: HTMLElement,
-    kolom: CrosstabKolom,
-  ) => void;
+  onPilih: (sel: CrosstabSel, meta: MetaSel, anchor: HTMLElement, kolom: CrosstabKolom) => void;
+  /** Permintaan aksi per tagihan dari crosstab (klik kanan / Enter) — halaman
+   *  menyimpannya, crosstab memetakannya kembali ke elemen sel. */
+  aksiSel: { sel: CrosstabSel; meta: MetaSel; kolom: CrosstabKolom; jangkar: DOMRect } | null;
+  onAksiSel: (sel: CrosstabSel, meta: MetaSel, kolom: CrosstabKolom, kotak: DOMRect) => void;
   /** Diteruskan ke sel kosong crosstab (tombol tambah). */
   onTambah?: (baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => void;
   onBukaGenerate: () => void;
@@ -549,18 +542,21 @@ export function TagihanTab({
   /** Ctrl/Cmd+Klik pada sel → toggle (tambah bila tak terpilih, lepas bila
    *  terpilih). */
   onTogglePilih: (sel: CrosstabSel, jenisId: number) => void;
-  /** Blok pilihan (Ctrl/Klik, geser, Shift+Klik, Shift+panah). */
+  /** Blok pilihan (geser, Shift+Klik, Shift+panah). */
   onPilihBlok: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
-  /** Klik kiri biasa → pilih SATU sel itu saja (ganti seluruh pilihan). */
-  onPilihSatu: (sel: CrosstabSel, jenisId: number) => void;
-  /** Kosongkan seluruh pilihan. */
-  onBatalPilih: () => void;
-  /** Lepas (kurangi) blok tagihan dari pilihan — Ctrl/Cmd+tahan-geser. */
+  /** Klik kiri biasa → sorotan/anchor pindah ke satu sel (ganti pilihan). */
+  onKlikSel: (sel: CrosstabSel, jenisId: number, kunci: string) => void;
+  /** Tahan-geser DIMULAI di sel `idAwal` → halaman menentukan mode gesture
+   *  (irisan bila sel awal sudah terpilih, selain itu seleksi baru). */
+  onMulaiGeser: (idAwal: number) => void;
+  /** Gesture geser berakhir (tombol dilepas) → halaman melepas mode irisan. */
+  onGeserSelesai?: () => void;
+  /** Tahan-geser → blok MENTAH; halaman mengiriskan dengan pilihan lama. */
+  onPilihIrisan: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  /** Ctrl/Cmd+tahan-geser → blok baru ditambahkan ke pilihan lama. */
+  onTambahBlok: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  /** Lepas (kurangi) blok tagihan dari pilihan — Alt/Option+tahan-geser. */
   onLepasBlok: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
-  /** Buka dialog konfirmasi aksi batch untuk pilihan saat ini. */
-  onAksiBatch: (aksi: 'bayar' | 'hapus_tagihan' | 'hapus_riwayat' | 'ubah') => void;
-  /** Salah satu aksi batch sedang berjalan (tombol dinonaktifkan). */
-  batchBusy?: boolean;
   pager: {
     page: number;
     lastPage: number;
@@ -570,42 +566,15 @@ export function TagihanTab({
   };
   popover?: ReactNode;
 }) {
-  /* Popover aksi batch: muncul otomatis saat gesture seleksi selesai
-     (pointer dilepas / blok keyboard), memakai sel pelepasan sebagai
-     jangkar. Ditutup saat pilihan kosong; chip "N tagihan dipilih" di
-     bilah pilihan jadi pemicu untuk membukanya lagi.
-
-     Saat geser, `selection` berubah tiap sel yang dilewati sehingga effect
-     bisa jalan SEBELUM pointer dilepas (jangkar belum ada). `rilisTick`
-     memastikan pelepasan itu sendiri ikut memicu effect — menulis ref saja
-     tidak memicu render ulang. */
-  const [popAksiEl, setPopAksiEl] = useState<HTMLElement | null>(null);
-  const [popAksiBuka, setPopAksiBuka] = useState(false);
-  const [rilisTick, setRilisTick] = useState(0);
-  const jangkarAksiRef = useRef<HTMLElement | null>(null);
-  const seleksiDirilis = useCallback((el: HTMLElement) => {
-    jangkarAksiRef.current = el;
-    setRilisTick((n) => n + 1);
-  }, []);
-  /* Klik kanan → hanya popover aksi per tagihan. Jangkar popover batch dibuang
-     supaya effect seleksi (pilih satu sel hasil klik kanan) tidak membukanya;
-     tanpa ini dua popover bisa tampil bersamaan. `onPilih` dibungkus ref agar
+  /* Tak ada bilah pilihan maupun popover aksi batch: seleksi sel hanya untuk
+     menyorot/menandai, dan seluruh aksi per tagihan dibuka dari KLIK KANAN
+     pada sel (atau Enter saat sel disorot). `onPilih` dibungkus ref agar
      identitasnya stabil — prop langsung akan merusak memo crosstab. */
   const onPilihRef = useRef(onPilih);
   onPilihRef.current = onPilih;
   const pilihSelStabil = useCallback((sel: CrosstabSel, meta: MetaSel, anchor: HTMLElement, kolom: CrosstabKolom) => {
-    jangkarAksiRef.current = null;
-    setPopAksiBuka(false);
     onPilihRef.current(sel, meta, anchor, kolom);
   }, []);
-  useEffect(() => {
-    if (selection.size > 0 && jangkarAksiRef.current !== null) {
-      setPopAksiEl(jangkarAksiRef.current);
-      setPopAksiBuka(true);
-    } else {
-      setPopAksiBuka(false);
-    }
-  }, [selection, rilisTick]);
 
   return (
     <>
@@ -630,7 +599,7 @@ export function TagihanTab({
             </HoverCardTrigger>
             <HoverCardContent align="start" className="w-72 space-y-3 p-3 text-xs leading-relaxed">
               <p>
-                Pilih banyak tagihan ala Excel: klik untuk pilih satu sel, tahan lalu geser untuk blok, Shift+Klik / Shift+panah untuk blok persegi panjang, dan Ctrl+Klik untuk menambah atau melepas sel satu per satu. Aksi batch muncul otomatis setelah seleksi selesai. Klik kanan hanya memilih sel itu dan membuka aksi per tagihan; klik sel kosong untuk tambah tagihan.
+                Klik kiri untuk memilih sel ala Excel (satu sel, tahan-geser untuk blok, Ctrl+Klik untuk menambah/melepas sel satu per satu, Shift+Klik / Shift+panah untuk blok persegi panjang). Aksi batch dibuka dari chip jumlah tagihan di bilah pilihan. Klik kanan membuka aksi per tagihan; klik sel kosong untuk tambah tagihan.
               </p>
               {/* Legenda warna sel. "Sebagian" sempat hilang: sel kuning muncul
                   tanpa keterangan sama sekali, jadi terlihat seperti warna acak.
@@ -699,109 +668,6 @@ export function TagihanTab({
       {/* Rail filter tingkat & kelas di kiri crosstab — pola yang sama seperti
           tabel Santri (lihat `ExcelTable` berprop `rail`). Bilah alat tetap
           penuh lebar di atas, rail hanya membagi ruang tabel. */}
-      {/* Bilah pilihan: muncul bila ada tagihan terpilih. Tombol aksi batch
-          kini di dalam popover yang otomatis terbuka saat gesture seleksi
-          dilepas; chip jumlah dipakai untuk membukanya lagi. */}
-      {selection.size > 0 && (
-        <div className="flex items-center gap-2 border-b bg-primary/5 px-2 py-1 text-xs">
-          <Popover open={popAksiBuka} onOpenChange={setPopAksiBuka}>
-            {popAksiEl !== null && (
-              <PopoverAnchor
-                virtualRef={{ current: { getBoundingClientRect: () => popAksiEl.getBoundingClientRect() } }}
-              />
-            )}
-            <PopoverTrigger asChild>
-              <Button
-                id="btn_batch_pilih_aksi"
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1.5 px-2 text-xs font-medium"
-                title="Tampilkan aksi untuk tagihan terpilih"
-              >
-                {selection.size} tagihan dipilih
-                <ChevronDown size={13} className="text-muted-foreground" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              id="popover_aksi_batch"
-              align="start"
-              side="bottom"
-              sideOffset={6}
-              collisionPadding={12}
-              className="w-48 p-1.5"
-              /* Fokus dibiarkan di sel crosstab supaya Shift+panah bisa
-                 langsung melanjutkan seleksi tanpa klik ulang. */
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-              <div className="flex flex-col">
-                <Button
-                  id="btn_batch_bayar"
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 justify-start gap-2 px-2 text-xs"
-                  disabled={batchBusy}
-                  onClick={() => { setPopAksiBuka(false); onAksiBatch('bayar'); }}
-                >
-                  <Wallet size={14} />
-                  Bayar
-                </Button>
-                <Button
-                  id="btn_batch_ubah"
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 justify-start gap-2 px-2 text-xs"
-                  disabled={batchBusy}
-                  onClick={() => { setPopAksiBuka(false); onAksiBatch('ubah'); }}
-                >
-                  <Pencil size={14} />
-                  Ubah
-                </Button>
-                <Button
-                  id="btn_batch_hapus_tagihan"
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:text-destructive"
-                  disabled={batchBusy}
-                  onClick={() => { setPopAksiBuka(false); onAksiBatch('hapus_tagihan'); }}
-                >
-                  <Trash2 size={14} />
-                  Hapus Tagihan
-                </Button>
-                <Button
-                  id="btn_batch_hapus_riwayat"
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:text-destructive"
-                  disabled={batchBusy}
-                  onClick={() => { setPopAksiBuka(false); onAksiBatch('hapus_riwayat'); }}
-                >
-                  <Trash2 size={14} />
-                  Hapus Riwayat
-                </Button>
-                <div className="my-1 h-px bg-border" />
-                <Button
-                  id="btn_batch_batal"
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 justify-start gap-2 px-2 text-xs"
-                  onClick={() => { setPopAksiBuka(false); onBatalPilih(); }}
-                >
-                  <X size={14} />
-                  Batal Pilih
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-          <div className="flex-1" />
-          <span className="pr-1 text-muted-foreground">klik kanan sel untuk aksi per tagihan</span>
-        </div>
-      )}
 
       <div className="flex min-h-0 flex-1">
         <FilterRail />
@@ -813,13 +679,18 @@ export function TagihanTab({
               terpilihId={terpilihId}
               emptyText="Belum ada tagihan."
               onPilih={pilihSelStabil}
+              aksi={aksiSel}
               onTambah={onTambah}
               selection={selection}
               onTogglePilih={onTogglePilih}
               onPilihBlok={onPilihBlok}
-              onPilihSatu={onPilihSatu}
+              onKlikSel={onKlikSel}
+              onPilihIrisan={onPilihIrisan}
+              onMulaiGeser={onMulaiGeser}
+              onGeserSelesai={onGeserSelesai}
+              onTambahBlok={onTambahBlok}
               onLepasBlok={onLepasBlok}
-              onSeleksiRilis={seleksiDirilis}
+              onAksiKanan={onAksiSel}
             />
             {popover}
           </div>

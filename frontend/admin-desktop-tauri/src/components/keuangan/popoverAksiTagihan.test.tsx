@@ -70,6 +70,10 @@ function renderPopover(
     onHapusPembayaran: (id: number) => Promise<void>;
     onMuatRiwayat: () => void;
     onTambah: (d: DataTambah) => Promise<void>;
+    jumlahTerpilih: number;
+    totalSisaTerpilih: number;
+    onAksiBatch: (aksi: 'bayar' | 'hapus_tagihan' | 'hapus_riwayat' | 'ubah') => void;
+    batchBusy: boolean;
   }> = {},
   riwayat: Partial<{ rows: PembayaranRow[]; busy: boolean; error: string }> = {},
 ) {
@@ -96,6 +100,41 @@ function renderPopover(
   );
   return { ...p, view };
 }
+
+describe('mode batch (banyak sel terpilih)', () => {
+  /* Bilah pilihan sudah dihapus; aksi massal kini muncul di popover yang
+     dibuka lewat KLIK KANAN saat lebih dari satu sel terpilih. */
+  const onAksiBatch = vi.fn();
+
+  it('>1 sel terpilih menampilkan aksi batch, bukan panel tagihan tunggal', () => {
+    renderPopover(tagihan(), { jumlahTerpilih: 3, totalSisaTerpilih: 165000, onAksiBatch });
+    expect(screen.getByText('3 tagihan dipilih')).toBeInTheDocument();
+    expect(screen.getByText('Total sisa Rp 165.000')).toBeInTheDocument();
+    // Aksi massal tersedia…
+    expect(screen.getByText('Bayar')).toBeInTheDocument();
+    expect(screen.getByText('Ubah')).toBeInTheDocument();
+    expect(screen.getByText('Hapus Tagihan')).toBeInTheDocument();
+    expect(screen.getByText('Hapus Riwayat')).toBeInTheDocument();
+    // …dan panel tagihan tunggal tidak dirender.
+    expect(screen.queryByText('Santri Uji')).toBeNull();
+  });
+
+  it('klik aksi batch meneruskan aksinya ke pemanggil', async () => {
+    renderPopover(tagihan(), { jumlahTerpilih: 3, totalSisaTerpilih: 165000, onAksiBatch });
+    await userEvent.click(screen.getByText('Bayar'));
+    expect(onAksiBatch).toHaveBeenCalledWith('bayar');
+    await userEvent.click(screen.getByText('Ubah'));
+    expect(onAksiBatch).toHaveBeenCalledWith('ubah');
+    await userEvent.click(screen.getByText('Hapus Riwayat'));
+    expect(onAksiBatch).toHaveBeenCalledWith('hapus_riwayat');
+  });
+
+  it('satu sel terpilih tetap memakai panel tagihan tunggal', () => {
+    renderPopover(tagihan(), { jumlahTerpilih: 1, totalSisaTerpilih: 55000, onAksiBatch });
+    expect(screen.queryByText(/tagihan dipilih/)).toBeNull();
+    expect(screen.getByText('Santri Uji')).toBeInTheDocument();
+  });
+});
 
 describe('ringkasan tagihan', () => {
   it('memuat nama, orang tua, tagihan, dibayar, dan sisa', () => {

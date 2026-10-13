@@ -366,6 +366,12 @@ function selCell(id: number): HTMLElement {
   return document.getElementById(`btn_tagihan_sel_${id}`) as HTMLElement;
 }
 
+/** Apakah sel bergaris seleksi? Garis seleksi digambar sebagai boxShadow inline
+ *  (lihat `bayangSeleksi`), jadi kehadirannya = sel itu ada di pilihan. */
+function sorot(id: number): boolean {
+  return (selCell(id).style.boxShadow ?? '') !== '';
+}
+
 /** jsdom tak punya PointerEvent; MouseEvent bertipe pointer* dipakai supaya
  *  properti `button`/`ctrlKey`/`shiftKey` terbaca seperti di browser. */
 function pointerEv(el: Element, tipe: 'pointerdown' | 'pointerup', o: { button?: number; ctrlKey?: boolean; shiftKey?: boolean } = {}) {
@@ -376,104 +382,251 @@ function pointerEv(el: Element, tipe: 'pointerdown' | 'pointerup', o: { button?:
 }
 
 describe('KeuanganPage — pilihan ganda (klik kiri) & aksi batch', () => {
-  /* Menutupi handler batch halaman (pilihSatu/togglePilih/pilihBlok/
-     lepasBlok/batalPilih/bukaBatch) lewat interaksi sel sungguhan — bukan
-     memanggil closure secara langsung, sehingga wiring prop & Map status
+  /* Menutupi handler batch halaman (pilihAnchorSatu/togglePilih/pilihBlok/
+     pilihIrisan/lepasBlok/batalPilih/bukaBatch) lewat interaksi sel sungguhan —
+     bukan memanggil closure secara langsung, sehingga wiring prop & Map status
      ikut teruji. */
 
-  it('klik kiri memilih satu sel (chip tampil)', async () => {
+  /* Tanpa bilah pilihan: jumlah terpilih diverifikasi lewat sorotan sel
+     (boxShadow) karena tak ada lagi chip "N tagihan dipilih". */
+
+  it('klik kiri memilih satu sel', async () => {
     await bukaTabTagihan();
     pointerEv(selCell(1), 'pointerup');
-    expect(await screen.findByText('1 tagihan dipilih')).toBeInTheDocument();
+    await waitFor(() => expect(sorot(1)).toBe(true));
+    expect(sorot(2)).toBe(false);
   });
 
   it('Ctrl+klik menambah sel ke pilihan (akumulasi)', async () => {
     await bukaTabTagihan();
     pointerEv(selCell(1), 'pointerup');
-    pointerEv(selCell(2), 'pointerup', { ctrlKey: true });
-    pointerEv(selCell(3), 'pointerup', { ctrlKey: true });
-    expect(await screen.findByText('3 tagihan dipilih')).toBeInTheDocument();
+    for (const n of [2, 3]) {
+      pointerEv(selCell(n), 'pointerdown');
+      pointerEv(selCell(n), 'pointerup', { ctrlKey: true });
+    }
+    await waitFor(() => expect(sorot(3)).toBe(true));
+    expect(sorot(1)).toBe(true);
+    expect(sorot(2)).toBe(true);
   });
 
   it('Ctrl+klik pada sel terpilih melepasnya (toggle)', async () => {
     await bukaTabTagihan();
     pointerEv(selCell(1), 'pointerup');
+    pointerEv(selCell(2), 'pointerdown');
     pointerEv(selCell(2), 'pointerup', { ctrlKey: true });
-    expect(await screen.findByText('2 tagihan dipilih')).toBeInTheDocument();
+    await waitFor(() => expect(sorot(2)).toBe(true));
     // Ctrl+klik lagi pada sel yang sudah terpilih → lepas (toggle).
+    pointerEv(selCell(2), 'pointerdown');
     pointerEv(selCell(2), 'pointerup', { ctrlKey: true });
-    expect(await screen.findByText('1 tagihan dipilih')).toBeInTheDocument();
+    await waitFor(() => expect(sorot(2)).toBe(false));
+    expect(sorot(1)).toBe(true);
   });
 
   it('klik kiri pada sel lain mengganti pilihan (bukan menumpuk)', async () => {
     await bukaTabTagihan();
-    pointerEv(selCell(1), 'pointerup', { ctrlKey: true });
+    pointerEv(selCell(1), 'pointerup');
+    pointerEv(selCell(2), 'pointerdown');
     pointerEv(selCell(2), 'pointerup', { ctrlKey: true });
-    expect(await screen.findByText('2 tagihan dipilih')).toBeInTheDocument();
+    await waitFor(() => expect(sorot(2)).toBe(true));
     // Klik kiri biasa → ganti seluruh pilihan dengan satu sel itu.
+    pointerEv(selCell(5), 'pointerdown');
     pointerEv(selCell(5), 'pointerup');
-    expect(await screen.findByText('1 tagihan dipilih')).toBeInTheDocument();
+    await waitFor(() => expect(sorot(5)).toBe(true));
+    expect(sorot(1)).toBe(false);
+    expect(sorot(2)).toBe(false);
   });
 
-  it('tahan-geser memilih blok (pilihBlok)', async () => {
+  it('klik lalu tahan-geser dari sel yang sama memblok sampai ujung drag', async () => {
+    /* Dulu tes ini mengunci perilaku sebaliknya ("irisan tetap 1"), yang
+       justru jadi bug: setelah klik satu sel, drag dari sel itu tersaring
+       oleh pilihan 1 sel sehingga tak ada blok terbentuk. Pilihan 1 sel
+       sekarang diperlakukan sebagai seleksi baru. */
     await bukaTabTagihan();
+    pointerEv(selCell(1), 'pointerup');
+    await waitFor(() => expect(sorot(1)).toBe(true));
     pointerEv(selCell(1), 'pointerdown');
-    fireEvent.pointerEnter(selCell(2));
-    pointerEv(selCell(2), 'pointerup');
-    expect(await screen.findByText('2 tagihan dipilih')).toBeInTheDocument();
+    fireEvent.pointerEnter(selCell(3));
+    pointerEv(selCell(3), 'pointerup');
+    await waitFor(() => expect(sorot(3)).toBe(true));
+    expect(sorot(1)).toBe(true);
+    expect(sorot(2)).toBe(true);
   });
 
-  it('tombol Batal Pilih mengosongkan pilihan', async () => {
+  it('klik kiri TIDAK membuka aksi batch', async () => {
     await bukaTabTagihan();
     pointerEv(selCell(1), 'pointerup');
+    await waitFor(() => expect(sorot(1)).toBe(true));
+    expect(screen.queryByText('Hapus Riwayat')).toBeNull();
+    expect(screen.queryByText('Batal Pilih')).toBeNull();
+  });
+
+  it('klik kanan saat >1 sel terpilih membuka aksi batch', async () => {
+    await bukaTabTagihan();
+    // Bangun pilihan 2 sel (klik biasa + Ctrl+klik).
+    pointerEv(selCell(1), 'pointerup');
+    pointerEv(selCell(2), 'pointerdown');
     pointerEv(selCell(2), 'pointerup', { ctrlKey: true });
-    await screen.findByText('2 tagihan dipilih');
-    await userEvent.click(screen.getByText('Batal Pilih'));
-    await waitFor(() => expect(screen.queryByText('2 tagihan dipilih')).not.toBeInTheDocument());
-  });
-
-  it('klik Bayar membuka dialog konfirmasi aksi batch', async () => {
-    await bukaTabTagihan();
-    pointerEv(selCell(1), 'pointerup');
-    await screen.findByText('1 tagihan dipilih');
-    await userEvent.click(screen.getByText('Bayar'));
-    expect(await screen.findByText(/Bayar 1 tagihan\?/)).toBeInTheDocument();
+    await waitFor(() => expect(sorot(2)).toBe(true));
+    expect(sorot(1)).toBe(true);
+    // Klik kanan di dalam range TIDAK mengubah pilihan — justru itu yang
+    // membuat aksi batch bisa dibuka untuk seluruh range.
+    fireEvent.contextMenu(selCell(2));
+    expect(await screen.findByText('2 tagihan dipilih')).toBeInTheDocument();
+    await userEvent.click(await screen.findByText('Bayar'));
+    expect(await screen.findByText(/Bayar 2 tagihan\?/)).toBeInTheDocument();
   });
 });
 
-describe('KeuanganPage — popover aksi batch otomatis saat seleksi (TagihanTab)', () => {
-  /* Perilaku popover aksi batch ada di `TagihanTab` (tabKeuangan.tsx):
-     muncul otomatis saat gesture seleksi selesai (pointer dilepas / blok
-     keyboard) memakai sel pelepasan sebagai jangkar; tertutup saat pilihan
-     kosong; klik kanan hanya membuka popover per-tagihan. */
+describe('KeuanganPage — geser blok bertahap (regresi multi-select)', () => {
+  /* Fixture halaman hanya punya SATU kolom, jadi "blok" di sini = rentang
+     BARIS. Drag nyata melewati sel satu per satu (satu onPointerEnter per
+     sel); itulah bentuk yang mengungkap dua bug lama:
+       1. blok menyusut sel demi sel (irisan diukur lawan hasil berjalan);
+       2. drag KEDUA di luar pilihan pertama menghasilkan pilihan KOSONG
+          (irisan masih diukur lawan pilihan gesture sebelumnya). */
 
-  it('klik kiri membuka popover aksi batch secara otomatis', async () => {
+  it('satu gesture: blok tumbuh penuh, bukan berhenti di sel kedua', async () => {
     await bukaTabTagihan();
-    pointerEv(selCell(1), 'pointerup');
-    // Tombol khas popover batch: "Batal Pilih" & "Hapus Riwayat" (tidak ada di
-    // popover per-tagihan) → kehadirannya membuktikan popover otomatis muncul.
-    expect(await screen.findByText('Batal Pilih')).toBeInTheDocument();
-    expect(screen.getByText('Hapus Riwayat')).toBeInTheDocument();
+    pointerEv(selCell(10), 'pointerdown');
+    fireEvent.pointerEnter(selCell(11));
+    // Langkah kedua sudah harus memblok dua sel (bukan satu).
+    await waitFor(() => expect(sorot(11)).toBe(true));
+    expect(sorot(10)).toBe(true);
+    fireEvent.pointerEnter(selCell(12));
+    await waitFor(() => expect(sorot(12)).toBe(true));
+    expect(sorot(10)).toBe(true);
+    pointerEv(selCell(12), 'pointerup');
   });
 
-  it('popover batch baru muncul SETELAH dilepas (bukan saat drag)', async () => {
+  it('drag kedua dari luar pilihan pertama = seleksi BARU (dulu kosong)', async () => {
+    await bukaTabTagihan();
+    // Gesture 1: blok baris 10–12.
+    pointerEv(selCell(10), 'pointerdown');
+    fireEvent.pointerEnter(selCell(12));
+    pointerEv(selCell(12), 'pointerup');
+    await waitFor(() => expect(sorot(12)).toBe(true));
+
+    // Gesture 2 dimulai dari sel di LUAR pilihan (20) → seleksi baru,
+    // bukan irisan dengan {10,11,12} yang menghasilkan nol sel.
+    pointerEv(selCell(20), 'pointerdown');
+    fireEvent.pointerEnter(selCell(21));
+    pointerEv(selCell(21), 'pointerup');
+    await waitFor(() => expect(sorot(21)).toBe(true));
+    expect(sorot(20)).toBe(true);
+    expect(sorot(10)).toBe(false);
+    expect(sorot(12)).toBe(false);
+  });
+
+  it('klik lalu DRAG dari sel yang sama (pilihan 1 sel) tetap menyeleksi blok', async () => {
+    /* Bug: klik kiri memilih satu sel; drag yang dimulai SESAAAT setelahnya
+       dari sel itu dianggap "menggeser seleksi lama" (mode irisan). Karena
+       pilihan lama hanya berisi sel itu, blok tersaring jadi satu sel dan
+       seluruh drag terbuang — tak ada seleksi. Pilihan 1 sel harus
+       diperlakukan sebagai seleksi BARU. */
+    await bukaTabTagihan();
+    pointerEv(selCell(10), 'pointerup'); // klik tunggal → pilihan {10}
+    await waitFor(() => expect(sorot(10)).toBe(true));
+
+    pointerEv(selCell(10), 'pointerdown'); // drag dimulai dari sel yang sama
+    fireEvent.pointerEnter(selCell(11));
+    fireEvent.pointerEnter(selCell(12));
+    pointerEv(selCell(12), 'pointerup');
+    await waitFor(() => expect(sorot(12)).toBe(true));
+    expect(sorot(10)).toBe(true);
+    expect(sorot(11)).toBe(true);
+  });
+
+  it('drag di dalam pilihan BANYAK tetap mengiris (perilaku Excel dipertahankan)', async () => {
+    /* Aturan irisan hanya di-nonaktifkan untuk pilihan 1 sel. Dari dalam
+       pilihan multi-sel, drag tetap menyusutkan seleksi ke irisan blok. */
+    await bukaTabTagihan();
+    pointerEv(selCell(10), 'pointerdown');
+    fireEvent.pointerEnter(selCell(11));
+    fireEvent.pointerEnter(selCell(12));
+    fireEvent.pointerEnter(selCell(13));
+    pointerEv(selCell(13), 'pointerup');
+    await waitFor(() => expect(sorot(13)).toBe(true));
+    expect(sorot(10)).toBe(true);
+
+    // Drag dari tengah pilihan (11) ke 12 → irisan {11,12} saja.
+    pointerEv(selCell(11), 'pointerdown');
+    fireEvent.pointerEnter(selCell(12));
+    pointerEv(selCell(12), 'pointerup');
+    await waitFor(() => expect(sorot(12)).toBe(true));
+    expect(sorot(11)).toBe(true);
+    expect(sorot(10)).toBe(false);
+    expect(sorot(13)).toBe(false);
+  });
+});
+
+describe('KeuanganPage — klik kiri seleksi, klik kanan aksi', () => {
+  /* Klik kiri murni seleksi sel (tanpa popover apa pun); aksi per tagihan
+     hanya dari klik kanan/Enter. Bilah pilihan sudah dihapus, jadi tak ada
+     chip jumlah maupun "Batal Pilih". */
+
+  it('klik kiri TIDAK membuka popover apa pun', async () => {
     await bukaTabTagihan();
     pointerEv(selCell(1), 'pointerdown');
-    fireEvent.pointerEnter(selCell(2)); // geser → pilihan 2, tapi belum release
-    // Saat ini popover batch BELUM terbuka: rilisTick belum naik & jangkar nol,
-    // meski selection sudah berisi 2 sel (fix perbaikan auto-open drag).
+    pointerEv(selCell(1), 'pointerup');
+    await waitFor(() => expect(sorot(1)).toBe(true));
+    // Tak ada popover batch (Bayar/Ubah/Hapus Riwayat) maupun popover aksi
+    // per tagihan (Detail/Ubah/Hapus).
+    expect(screen.queryByText('Hapus Riwayat')).toBeNull();
     expect(screen.queryByText('Batal Pilih')).toBeNull();
-    expect(screen.getByText('2 tagihan dipilih')).toBeInTheDocument();
-    pointerEv(selCell(2), 'pointerup'); // release → onSeleksiRilis
-    expect(await screen.findByText('Batal Pilih')).toBeInTheDocument();
+    expect(screen.queryByText(/Tambah tagihan ·/)).toBeNull();
+    expect(screen.queryByText('Detail')).toBeNull();
+    expect(screen.queryByText('Ubah')).toBeNull();
+    expect(screen.queryByText('Hapus')).toBeNull();
   });
 
-  it('klik kanan membuka popover per-tagihan (bukan popover batch)', async () => {
+  it('tak ada bilah pilihan / chip jumlah sama sekali', async () => {
+    await bukaTabTagihan();
+    pointerEv(selCell(1), 'pointerup');
+    await waitFor(() => expect(sorot(1)).toBe(true));
+    expect(screen.queryByText(/tagihan dipilih/)).toBeNull();
+    expect(document.getElementById('btn_batch_pilih_aksi')).toBeNull();
+  });
+
+  it('geser dari keadaan KOSONG memblok banyak sel, bukan berhenti di sel kedua', async () => {
+    await bukaTabTagihan();
+    // Fixture hanya 1 kolom, jadi blok = rentang BARIS. Drag nyata melewati
+    // sel SATU PER SATU (satu onPointerEnter per sel) — itulah yang memicu
+    // bug lama: cabang "pilihan kosong" benar di sel pertama, lalu langkah
+    // berikutnya jatuh ke irisan dan blok menyusut jadi 1 sel.
+    pointerEv(selCell(10), 'pointerdown');
+    for (let n = 11; n <= 20; n++) fireEvent.pointerEnter(selCell(n));
+    pointerEv(selCell(20), 'pointerup');
+    // Sel 10..20 tersorot semua (11 sel).
+    await waitFor(() => expect(sorot(20)).toBe(true));
+    for (const n of [10, 15, 20]) expect(sorot(n)).toBe(true);
+    expect(sorot(9)).toBe(false);
+    expect(sorot(21)).toBe(false);
+  });
+
+  it('sorotan hanya pada sel yang benar-benar terpilih', async () => {
+    await bukaTabTagihan();
+    pointerEv(selCell(10), 'pointerdown');
+    pointerEv(selCell(10), 'pointerup');
+    await waitFor(() => expect(sorot(10)).toBe(true));
+    // Sel terpilih bergaris seleksi (boxShadow inline), yang lain tidak.
+    expect(sorot(11)).toBe(false);
+    expect(sorot(9)).toBe(false);
+  });
+
+  it('klik kanan dua kali berturut-turut tetap membuka popover', async () => {
     await bukaTabTagihan();
     fireEvent.contextMenu(selCell(1));
-    // Klik kanan → onPilihSatu (seleksi jadi 1) tapi popover batch ditutup
-    // (pilihSelStabil membuang jangkar batch).
-    expect(await screen.findByText('1 tagihan dipilih')).toBeInTheDocument();
-    expect(screen.queryByText('Batal Pilih')).toBeNull();
+    expect(await screen.findByText('Detail')).toBeInTheDocument();
+    // Klik kanan sel lain → popover pindah ke sel itu (tetap terbuka).
+    fireEvent.contextMenu(selCell(2));
+    expect(await screen.findByText('Detail')).toBeInTheDocument();
+  });
+
+  it('klik kanan satu sel membuka aksi per-tagihan', async () => {
+    await bukaTabTagihan();
+    fireEvent.contextMenu(selCell(1));
+    expect(await screen.findByText('Detail')).toBeInTheDocument();
+    // Satu sel → bukan mode batch.
+    expect(screen.queryByText(/tagihan dipilih/)).toBeNull();
   });
 });

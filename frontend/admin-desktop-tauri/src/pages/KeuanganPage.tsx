@@ -9,7 +9,7 @@ import {
   type JenisTagihan, type Tarif, type PembayaranRow, type Dispensasi,
   type CrosstabBaris, type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
-import { labelSel } from '@/components/keuangan/TagihanCrosstab';
+import { labelSel, type MetaSel } from '@/components/keuangan/TagihanCrosstab';
 import { listKelas, listLembaga, listTahunAjaran, type Kelas, type Lembaga, type TahunAjaran } from '../api/master';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
@@ -342,7 +342,7 @@ export default function KeuanganPage() {
   const [ubahDispen, setUbahDispen] = useState<number | 'tanpa' | ''>('');
   const [daftarDispenBatch, setDaftarDispenBatch] = useState<Dispensasi[]>([]);
 
-  /** Set id terpilih (untuk menandai cincin sel di crosstab). */
+  /** Set id tagihan terpilih — crosstab menggambar garis seleksinya. */
   const selectionSet = useMemo(() => new Set(pilihanTerpilih.keys()), [pilihanTerpilih]);
   /** Total sisa tagihan yang masih bisa dibayar (dialog bayar). */
   const totalSisaTerpilih = useMemo(() => {
@@ -351,37 +351,112 @@ export default function KeuanganPage() {
     return t;
   }, [pilihanTerpilih]);
 
+  /** Cermin sinkron pilihan terkini. Dibaca dari callback ber-identitas stabil
+   *  (mis. `mulaiGeser` saat gesture berikutnya dimulai). Ditulis LANGSUNG
+   *  saat pilihan diubah — BUKAN lewat `useEffect`, sebab effect berjalan
+   *  setelah render: nilainya masih basi ketika gesture baru dimulai dalam
+   *  frame yang sama, sehingga sel yang jelas terpilih tak dikenali dan mode
+   *  irisan salah ditentukan. */
+  const pilihRef = useRef<ReadonlySet<number>>(new Set());
+  /** Satu-satunya pintu perubahan pilihan: state + cermin diperbarui bersama. */
+  const setPilih = useCallback((
+    berikut: (prev: ReadonlyMap<number, { sel: CrosstabSel; jenisId: number }>) =>
+      Map<number, { sel: CrosstabSel; jenisId: number }>,
+  ) => {
+    setPilihanTerpilih((prev) => {
+      const n = berikut(prev);
+      pilihRef.current = new Set(n.keys());
+      return n;
+    });
+  }, []);
   /** Klik kiri sel → toggle pilihan. */
   const togglePilih = useCallback((sel: CrosstabSel, jenisId: number) => {
-    setPilihanTerpilih((prev) => {
+    setPilih((prev) => {
       const n = new Map(prev);
       if (n.has(sel.id)) n.delete(sel.id);
       else n.set(sel.id, { sel, jenisId });
       return n;
     });
-  }, []);
-  /** Kosongkan seluruh pilihan. */
-  const batalPilih = useCallback(() => setPilihanTerpilih(new Map()), []);
+  }, [setPilih]);
   /** Ganti seluruh pilihan dengan blok tagihan (tahan-geser, Shift). */
   const pilihBlok = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
-    const m = new Map<number, { sel: CrosstabSel; jenisId: number }>();
-    for (const it of items) m.set(it.sel.id, { sel: it.sel, jenisId: it.jenisId });
-    setPilihanTerpilih(m);
+    setPilih(() => {
+      const m = new Map<number, { sel: CrosstabSel; jenisId: number }>();
+      for (const it of items) m.set(it.sel.id, { sel: it.sel, jenisId: it.jenisId });
+      return m;
+    });
+  }, [setPilih]);
+  /** Klik kiri biasa: sorotan (anchor) pindah ke satu sel. Pilihan diserahkan
+   *  ke sel terpilih itu sendiri (ganti seluruh pilihan) ala Excel. */
+  const pilihAnchorSatu = useCallback((sel: CrosstabSel, jenisId: number) => {
+    setPilih(() => {
+      const m = new Map<number, { sel: CrosstabSel; jenisId: number }>();
+      m.set(sel.id, { sel, jenisId });
+      return m;
+    });
+  }, [setPilih]);
+  /** Pilihan BEKAS yang jadi acuan irisan untuk gesture geser yang sedang
+   *  berjalan; `null` = gesture ini memulai seleksi baru (blok dipakai utuh).
+   *
+   *  Irisan hanya diukur terhadap pilihan yang dibuat oleh gesture ITU
+   *  sendiri — bukan terhadap pilihan dari gesture sebelumnya. Dua akibat yang
+   *  ingin dihindari:
+   *   - mengukur terhadap hasil langkah sebelumnya membuat blok menyusut sel
+   *     demi sel ("geser cuma memblok satu sel");
+   *   - mengukur terhadap pilihan gesture sebelumnya membuat drag kedua di
+   *     luar pilihan pertama menghasilkan pilihan KOSONG (drag tampak mati).
+   *
+   *  Aturannya mengikuti Excel: drag yang DIMULAI dari sel yang sudah terpilih
+   *  = menggeser/menyusutkan seleksi itu (irisan); drag yang dimulai dari sel
+   *  di luar seleksi = seleksi baru yang menggantikan. */
+  const pilihAwalRef = useRef<Set<number> | null>(null);
+  /** Tahan-geser dimulai di sel `idAwal` → putuskan mode gesture ini.
+   *
+   *  Irisan (geser/susutkan seleksi lama ala Excel) HANYA bila pilihan lama
+   *  benar-benar "sebuah blok", yaitu memuat lebih dari satu sel. Bila pilihan
+   *  lama cuma SATU sel — persis kondisi setelah klik kiri lalu drag cepat dari
+   *  sel yang sama — gesture ini diperlakukan sebagai seleksi BARU: kalau
+   *  memakai irisan, blok yang digeser disaring oleh himpunan berisi satu sel
+   *  itu saja, sehingga seluruh drag terbuang dan tak ada seleksi yang
+   *  terbentuk (laporan bug: "klik lalu klik-geser di sel itu tidak
+   *  menyeleksi"). Drag dari dalam pilihan banyak tetap mengiris seperti
+   *  sebelumnya. */
+  const mulaiGeser = useCallback((idAwal: number) => {
+    const sekarang = pilihRef.current;
+    pilihAwalRef.current = sekarang.size > 1 && sekarang.has(idAwal) ? new Set(sekarang) : null;
   }, []);
-  /** Pilih SATU sel saja (ganti seluruh pilihan) — klik kiri biasa ala Excel. */
-  const pilihSatu = useCallback((sel: CrosstabSel, jenisId: number) => {
-    const m = new Map<number, { sel: CrosstabSel; jenisId: number }>();
-    m.set(sel.id, { sel, jenisId });
-    setPilihanTerpilih(m);
+  /** Gesture geser berakhir → lupakan acuan. Gesture berikutnya memutuskan
+   *  mode-nya sendiri lewat `mulaiGeser`. */
+  const geserSelesai = useCallback(() => {
+    pilihAwalRef.current = null;
   }, []);
-  /** Kurangi blok tagihan dari pilihan (Ctrl/Cmd+tahan-geser). */
+  /** Tahan-geser biasa — lihat `pilihAwalRef` untuk aturan irisannya. */
+  const pilihIrisan = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+    const awal = pilihAwalRef.current;
+    setPilih(() => {
+      const n = new Map<number, { sel: CrosstabSel; jenisId: number }>();
+      for (const it of items) {
+        if (awal === null || awal.has(it.sel.id)) n.set(it.sel.id, { sel: it.sel, jenisId: it.jenisId });
+      }
+      return n;
+    });
+  }, [setPilih]);
+  /** Ctrl/Cmd+tahan-geser: blok baru ditambahkan ke pilihan yang sudah ada. */
+  const tambahBlok = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+    setPilih((prev) => {
+      const n = new Map(prev);
+      for (const it of items) n.set(it.sel.id, { sel: it.sel, jenisId: it.jenisId });
+      return n;
+    });
+  }, [setPilih]);
+  /** Kurangi blok tagihan dari pilihan (Alt/Option+tahan-geser). */
   const lepasBlok = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
-    setPilihanTerpilih((prev) => {
+    setPilih((prev) => {
       const n = new Map(prev);
       for (const it of items) n.delete(it.sel.id);
       return n;
     });
-  }, []);
+  }, [setPilih]);
   /** Buka dialog konfirmasi salah satu aksi batch. */
   const bukaBatch = useCallback((aksi: AksiBatch) => {
     if (aksi === 'bayar') { setBatchMetode('tunai'); setBatchKas('tunai_tu'); }
@@ -460,7 +535,7 @@ export default function KeuanganPage() {
       }
       await load();
       await muatCrosstabSekarang();
-      setPilihanTerpilih(new Map());
+      setPilih(() => new Map());
       setBatchDialog(null);
     } catch (e) {
       toast.error(errorMessage(e));
@@ -468,22 +543,29 @@ export default function KeuanganPage() {
     } finally {
       setBatchBusy(false);
     }
-  }, [batchDialog, pilihanTerpilih, batchMetode, batchKas, ubahPakaiJatuhTempo, ubahJatuhTempo, ubahDispen, daftarDispenBatch, load, muatCrosstabSekarang]);
+  }, [batchDialog, pilihanTerpilih, batchMetode, batchKas, ubahPakaiJatuhTempo, ubahJatuhTempo, ubahDispen, daftarDispenBatch, load, muatCrosstabSekarang, setPilih]);
 
-  /* Menandai "gesture ini sedang memilih sel baru". Radix DismissableLayer
-     menutup popover di pointerdown pertama, lalu memilih sel baru di
-     pointerdown yang sama; tanpa penanda ini, pindah sel akan menutup popover
-     sepenuhnya (tak ada sel terpilih) dan pengguna harus klik dua kali. Direset di task berikutnya supaya tak hinggap bila tak ada
-     dismiss yang menyusul (mis. popover sedang tertutup). */
-  const pindahSelRef = useRef(false);
+  /** Permintaan aksi per tagihan dari crosstab (klik kanan / Enter): sel yang
+   *  diminta + rect sel saat permintaan dibuat (koordinat layar). Crosstab
+   *  memetakannya kembali ke elemen sel setelah render selesai — jadi popover
+   *  tak pernah menempel pada baris yang salah ketika tabel bergeser. */
+  const [aksiSel, setAksiSel] = useState<{
+    sel: CrosstabSel; meta: MetaSel; kolom: CrosstabKolom; jangkar: DOMRect;
+  } | null>(null);
+
+  /** Penanda "popover per-tagihan baru dipasang". Radix DismissableLayer
+   *  menutup popover yang baru dipasang bila mendeteksi event klik/kanan yang
+   *  sama sudah lewat (klik kanan dari crosstab) — popover lalu berkedip
+   *  buka-tutup. Dismiss pertama sesudah pemasangan itu diabaikan SEKALI;
+   *  penutupan berikutnya (Escape, klik di luar) tetap dihormati. */
+  const abaikanTutupRef = useRef(false);
   const pilihSel = useCallback((
     sel: CrosstabSel,
-    meta: { nama: string; label: string; ayah_nama: string | null; ibu_nama: string | null; santri_id: number; foto_dokumen_id: number | null; foto_profil: boolean; kelas: string | null; jenjang_riwayat: string[] },
+    meta: MetaSel,
     anchor: HTMLElement,
     kolom: CrosstabKolom,
   ) => {
-    pindahSelRef.current = true;
-    setTimeout(() => { pindahSelRef.current = false; }, 0);
+    abaikanTutupRef.current = true;
     setTambahCtx(null);
     setSelTagihan({
       id: sel.id, nama: meta.nama, label: meta.label,
@@ -497,9 +579,19 @@ export default function KeuanganPage() {
     setAnchorSel(anchor);
   }, []);
 
+  /** Klik kanan / Enter pada sel → serahkan permintaan ke crosstab. Rect sel
+   *  dipakai mencari elemen yang sama setelah render (tabel bisa bergeser). */
+  const mintaAksiSel = useCallback((
+    sel: CrosstabSel, meta: MetaSel, kolom: CrosstabKolom, kotak: DOMRect,
+  ) => {
+    setAksiSel({ sel, meta, kolom, jangkar: kotak });
+  }, []);
+
   const tutupPopover = useCallback(() => {
-    // Gesture pindah sel → biarkan popover tetap terbuka di sel baru.
-    if (pindahSelRef.current) { pindahSelRef.current = false; return; }
+    // Dismiss pertama sesudah popover per-tagihan dipasang adalah gema dari
+    // event klik-kanan yang membukanya — abaikan sekali, bukan penutupan user.
+    if (abaikanTutupRef.current) { abaikanTutupRef.current = false; return; }
+    setAksiSel(null);
     setAnchorSel(null);
     setSelTagihan(null);
     setSelPenuh(null);
@@ -755,15 +847,18 @@ export default function KeuanganPage() {
             terlambat={terlambatTagihan}
             onTerlambat={(v) => { setTerlambatTagihan(v); setTagihanPage(1); }}
             onPilih={pilihSel}
+            aksiSel={aksiSel}
+            onAksiSel={mintaAksiSel}
             onTambah={tambahDariSel}
             selection={selectionSet}
             onTogglePilih={togglePilih}
             onPilihBlok={pilihBlok}
-            onPilihSatu={pilihSatu}
-            onBatalPilih={batalPilih}
+            onKlikSel={pilihAnchorSatu}
+            onPilihIrisan={pilihIrisan}
+            onMulaiGeser={mulaiGeser}
+            onGeserSelesai={geserSelesai}
+            onTambahBlok={tambahBlok}
             onLepasBlok={lepasBlok}
-            onAksiBatch={bukaBatch}
-            batchBusy={batchBusy}
             onBukaGenerate={() => setGenerateOpen(true)}
             pager={{
               page: tagihanPage,
@@ -781,6 +876,10 @@ export default function KeuanganPage() {
                 riwayatBusy={riwayatBusy}
                 riwayatError={riwayatError}
                 onTutup={tutupPopover}
+                jumlahTerpilih={pilihanTerpilih.size}
+                totalSisaTerpilih={totalSisaTerpilih}
+                onAksiBatch={bukaBatch}
+                batchBusy={batchBusy}
                 onMuatRiwayat={() => { if (selTagihan !== null) void muatRiwayat(selTagihan.id); }}
                 onBayar={async (d) => {
                   if (selTagihan === null) return;

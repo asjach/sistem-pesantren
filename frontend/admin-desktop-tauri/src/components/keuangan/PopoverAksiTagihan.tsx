@@ -111,6 +111,16 @@ interface Props {
   onHapusPembayaran: (id: number) => Promise<void>;
   /** Minta halaman memuat riwayat pembayaran (dipanggil saat tab Detail dibuka). */
   onMuatRiwayat: () => void;
+  /** Banyak sel sedang terpilih. Bila > 1, popover menampilkan aksi BATCH untuk
+   *  seluruh pilihan (bukan aksi tagihan tunggal), karena bilah pilihan sudah
+   *  dihapus dan klik kanan kini menjadi satu-satunya jalan ke aksi massal. */
+  jumlahTerpilih?: number;
+  /** Total sisa (Rp) dari seluruh tagihan terpilih — ringkasan di mode batch. */
+  totalSisaTerpilih?: number;
+  /** Jalankan aksi batch: halaman membuka dialog konfirmasinya. */
+  onAksiBatch?: (aksi: 'bayar' | 'hapus_tagihan' | 'hapus_riwayat' | 'ubah') => void;
+  /** Salah satu aksi batch sedang berjalan (tombol dinonaktifkan). */
+  batchBusy?: boolean;
 }
 
 const METODE: { value: DataBayar['metode']; label: string }[] = [
@@ -193,7 +203,11 @@ function rupiah(n: number): string {
 export default function PopoverAksiTagihan({
   tagihan, tambah, anchor, riwayat, riwayatBusy, riwayatError,
   onTutup, onBayar, onUbah, onHapus, onTambah, onHapusPembayaran, onMuatRiwayat,
+  jumlahTerpilih = 0, totalSisaTerpilih = 0, onAksiBatch, batchBusy = false,
 }: Props) {
+  /* Mode batch: beberapa sel terpilih → popover menampilkan aksi massal.
+     Dihitung dari prop (bukan state lokal) supaya mengikuti seleksi terkini. */
+  const modeBatch = jumlahTerpilih > 1 && onAksiBatch !== undefined;
   const [tab, setTab] = useState<TabKey>('detail');
   const [teksJumlah, setTeksJumlah] = useState('');
   const [metode, setMetode] = useState<DataBayar['metode']>('tunai');
@@ -464,6 +478,84 @@ export default function PopoverAksiTagihan({
         className="w-[32rem] max-w-[calc(100vw-24px)] border-ring/50 p-0"
         id="popover_aksi_tagihan"
       >
+        {modeBatch && (
+          /* Mode batch: banyak sel terpilih → aksi massal untuk seluruh
+             pilihan. Muncul menggantikan panel tagihan tunggal supaya tak ada
+             dua konteks aksi dalam satu popover. */
+          <div className="flex flex-col" id="batch_aksi_tagihan">
+            <div className="border-b px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold">{jumlahTerpilih} tagihan dipilih</span>
+                <Button
+                  id="btn_tutup_batch_tagihan"
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  title="Tutup"
+                  aria-label="Tutup"
+                  onClick={onTutup}
+                >
+                  <X size={15} />
+                </Button>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                Total sisa {rupiah(totalSisaTerpilih)}
+              </span>
+            </div>
+            <div className="flex flex-col p-1.5">
+              <Button
+                id="btn_batch_bayar"
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 justify-start gap-2 px-2 text-xs"
+                disabled={batchBusy}
+                onClick={() => onAksiBatch?.('bayar')}
+              >
+                <Wallet size={14} />
+                Bayar
+              </Button>
+              <Button
+                id="btn_batch_ubah"
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 justify-start gap-2 px-2 text-xs"
+                disabled={batchBusy}
+                onClick={() => onAksiBatch?.('ubah')}
+              >
+                <Pencil size={14} />
+                Ubah
+              </Button>
+              <Button
+                id="btn_batch_hapus_tagihan"
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:text-destructive"
+                disabled={batchBusy}
+                onClick={() => onAksiBatch?.('hapus_tagihan')}
+              >
+                <Trash2 size={14} />
+                Hapus Tagihan
+              </Button>
+              <Button
+                id="btn_batch_hapus_riwayat"
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:text-destructive"
+                disabled={batchBusy}
+                onClick={() => onAksiBatch?.('hapus_riwayat')}
+              >
+                <Trash2 size={14} />
+                Hapus Riwayat
+              </Button>
+            </div>
+          </div>
+        )}
+        {!modeBatch && (
+        <>
         {/* Judul: status + tutup — nama pindah ke kolom data pribadi. */}
         <div className="border-b px-3 py-2">
           <div className="flex items-center justify-between gap-2">
@@ -849,6 +941,8 @@ export default function PopoverAksiTagihan({
           </Tabs>
           </div>
         </div>
+        </>
+        )}
       </PopoverContent>
     </Popover>
   );

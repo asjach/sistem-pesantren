@@ -68,6 +68,14 @@ function pointerEv(el: Element, tipe: 'pointerdown' | 'pointerup', o: { button?:
   }));
 }
 
+/** Masuk ke sel lain saat tahan-geser.
+ *  `fireEvent.pointerEnter` adalah satu-satunya bentuk yang sampai ke handler
+ *  React `onPointerEnter` di jsdom ini; modifier (ctrl/alt) TIDAK terbaca
+ *  (selalu null) — cabang modifier diuji lewat helper murni, bukan DOM. */
+function pointerMasuk(el: Element) {
+  fireEvent.pointerEnter(el);
+}
+
 describe('warna sel crosstab menurut jatuh tempo', () => {
   it('terlambat merah + tebal', () => {
     renderCrosstab(baris(sel({ terlambat: true }), sel({ id: 2 })));
@@ -117,41 +125,92 @@ describe('tooltip hover sel crosstab', () => {
 
 });
 
-describe('onPilih meneruskan data (keyboard)', () => {
-  /* Klik kiri sudah dipakai untuk seleksi, jadi aksi per tagihan hanya lewat
-     klik kanan (lihat describe berikut) atau aktivasi keyboard (Enter/Spasi). */
-  it('Enter pada sel memanggil onPilih dengan nama & label', () => {
-    const onPilih = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
+describe('aksi per tagihan lewat keyboard', () => {
+  /* Klik kiri murni seleksi, jadi aksi per tagihan hanya lewat klik kanan atau
+     aktivasi keyboard (Enter/Spasi) saat sel disorot. */
+  it('Enter pada sel melaporkan aksi dengan nama & label', () => {
+    const onAksiKanan = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onAksiKanan });
     const selAgustus = selUji(1);
     selAgustus.focus();
     fireEvent.keyDown(selAgustus, { key: 'Enter' });
-    expect(onPilih).toHaveBeenCalledTimes(1);
-    expect(onPilih.mock.calls[0][0].id).toBe(2);
-    expect(onPilih.mock.calls[0][1]).toMatchObject({ nama: 'Santri Uji', label: 'Infaq Bulanan · Agu 2025' });
-    // Argumen ketiga = elemen sel, dipakai halaman sebagai jangkar popover.
-    expect(onPilih.mock.calls[0][2]).toBe(selAgustus);
+    expect(onAksiKanan).toHaveBeenCalledTimes(1);
+    expect(onAksiKanan.mock.calls[0][0].id).toBe(2);
+    expect(onAksiKanan.mock.calls[0][1]).toMatchObject({ nama: 'Santri Uji', label: 'Infaq Bulanan · Agu 2025' });
+    // Argumen keempat = rect sel (halaman memetakannya kembali ke elemen).
+    expect(onAksiKanan.mock.calls[0][3]).toMatchObject({ left: expect.any(Number), top: expect.any(Number) });
   });
 });
 
 describe('sel tagihan: klik kanan = aksi, klik kiri = seleksi', () => {
-  it('klik kanan melaporkan sel + jangkar elemen sel', () => {
-    const onPilih = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
+  it('klik kanan melaporkan sel + kolom + rect selnya', () => {
+    const onAksiKanan = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onAksiKanan });
     const selJuli = selUji(0);
     fireEvent.contextMenu(selJuli);
-    expect(onPilih).toHaveBeenCalledTimes(1);
-    expect(onPilih.mock.calls[0][0].id).toBe(1);
-    expect(onPilih.mock.calls[0][2]).toBe(selJuli);
+    expect(onAksiKanan).toHaveBeenCalledTimes(1);
+    expect(onAksiKanan.mock.calls[0][0].id).toBe(1);
+    expect(onAksiKanan.mock.calls[0][2].key).toBe('1-2025-07');
+    expect(onAksiKanan.mock.calls[0][3]).toMatchObject({ left: expect.any(Number), top: expect.any(Number) });
   });
 
-  it('klik kanan sekaligus men-select sel itu saja (onPilihSatu)', () => {
-    const onPilihSatu = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onPilihSatu });
+  it('klik kanan TIDAK mengubah pilihan — hanya melaporkan aksi per tagihan', () => {
+    const onAksiKanan = vi.fn();
+    const onKlikSel = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onAksiKanan, onKlikSel });
     fireEvent.contextMenu(selUji(0));
-    expect(onPilihSatu).toHaveBeenCalledTimes(1);
-    expect(onPilihSatu.mock.calls[0][0].id).toBe(1);
-    expect(onPilihSatu.mock.calls[0][1]).toBe(1); // jenis_id kolom
+    expect(onAksiKanan).toHaveBeenCalledTimes(1);
+    expect(onAksiKanan.mock.calls[0][0].id).toBe(1);
+    expect(onAksiKanan.mock.calls[0][1]).toMatchObject({ nama: 'Santri Uji' });
+    expect(onAksiKanan.mock.calls[0][2].jenis_id).toBe(1);
+    // Pilihan yang sudah terbangun (mis. range hasil drag) harus UTUH, supaya
+    // klik kanan di dalamnya bisa membuka aksi batch untuk seluruh range.
+    expect(onKlikSel).not.toHaveBeenCalled();
+  });
+
+  it('tak ada penanda ring di sel mana pun, termasuk setelah klik kiri/kanan', () => {
+    /* Penanda ring titik-awal dihapus atas permintaan — ia hanya informatif
+       dan tampak sebagai border mengganggu. State anchor tetap ada sebagai
+       logika, tapi tak boleh bocor ke tampilan. */
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, {});
+    fireEvent(selUji(0), new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+    fireEvent(selUji(0), new MouseEvent('pointerup', { bubbles: true, cancelable: true, button: 0 }));
+    expect(selUji(0).className).not.toContain('ring-1');
+    fireEvent.contextMenu(selUji(1));
+    expect(selUji(0).className).not.toContain('ring-1');
+    expect(selUji(1).className).not.toContain('ring-1');
+  });
+
+  it('memulai drag di sel lain melepas titik-awal milik klik kiri sebelumnya', () => {
+    /* Anchor tetap state logika walau penanda ring-nya tak lagi digambar:
+       gesture baru harus membatalkan titik-awal lama supaya acuan blok tidak
+       memakai sel yang keliru. Diverifikasi lewat class ring yang kini tak
+       pernah muncul, jadi tes ini mengunci "tak ada sel bergincin" sekaligus
+       bahwa perilaku seleksinya tetap jalan. */
+    // Dua baris, masing-masing punya sel Jul/Agu → 4 sel untuk A, B, dst.
+    renderDenganTema(
+      <TagihanCrosstab
+        data={{
+          kolom: KOLOM,
+          baris: [baris(sel({}), sel({ id: 2 })), baris(sel({ id: 3 }), sel({ id: 4 }), { santri_id: 8, nama: 'Santri Dua' })],
+          total: 2, per_page: 25, current_page: 1, last_page: 1,
+        }}
+        loading={false}
+        terpilihId={null}
+        onPilih={() => {}}
+        emptyText="Kosong"
+      />,
+    );
+    // getAllByText('50.000') → urutan: baris1-Jul, baris1-Agu, baris2-Jul, baris2-Agu.
+    const A = selUji(0), B = selUji(2);
+    // Klik kiri sel A → A jadi titik-awal (tak lagi divisualkan).
+    fireEvent(A, new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+    fireEvent(A, new MouseEvent('pointerup', { bubbles: true, cancelable: true, button: 0 }));
+    expect(A.className).not.toContain('ring-1');
+    // Mulai drag baru di sel B → tak ada sel yang bergincin.
+    fireEvent(B, new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+    expect(A.className).not.toContain('ring-1');
+    expect(B.className).not.toContain('ring-1');
   });
 
   it('klik kanan tidak memunculkan menu browser (preventDefault)', () => {
@@ -165,19 +224,25 @@ describe('sel tagihan: klik kanan = aksi, klik kiri = seleksi', () => {
      Ctrl+Klik dimaksudkan untuk toggle seleksi, contextmenu ber-ctrl/meta
      harus diabaikan supaya toggle di pointerup yang jalan. */
   it('Ctrl+klik (contextmenu macOS) tidak membuka aksi per tagihan', () => {
-    const onPilih = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
+    const onAksiKanan = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onAksiKanan });
     fireEvent(selUji(0), new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ctrlKey: true }));
-    expect(onPilih).not.toHaveBeenCalled();
+    expect(onAksiKanan).not.toHaveBeenCalled();
   });
 
-  it('klik kiri biasa hanya memilih satu sel, tidak membuka aksi per tagihan', () => {
+  it('klik kiri biasa hanya memindah anchor, tidak membuka aksi per tagihan', () => {
     const onPilih = vi.fn();
-    const onPilihSatu = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih, null, undefined, { onPilihSatu });
+    const onAksiKanan = vi.fn();
+    const onKlikSel = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih, null, undefined, { onAksiKanan, onKlikSel });
     pointerEv(selUji(0), 'pointerup');
-    expect(onPilihSatu).toHaveBeenCalledTimes(1);
-    expect(onPilihSatu.mock.calls[0][0].id).toBe(1);
+    expect(onKlikSel).toHaveBeenCalledTimes(1);
+    expect(onKlikSel.mock.calls[0][0].id).toBe(1);
+    expect(onKlikSel.mock.calls[0][1]).toBe(1); // jenis_id kolom
+    // Kunci anchor = `santriId:key` sel yang diklik.
+    expect(onKlikSel.mock.calls[0][2]).toBe(['7', '1-2025-07'].join('\u0000'));
+    // KLIK KIRI tidak boleh memunculkan aksi apa pun.
+    expect(onAksiKanan).not.toHaveBeenCalled();
     expect(onPilih).not.toHaveBeenCalled();
   });
 
@@ -185,7 +250,11 @@ describe('sel tagihan: klik kanan = aksi, klik kiri = seleksi', () => {
      class ring di tiap sel. Mengoper `terpilihId` ke baris membuat props SEMUA
      baris berubah tiap klik, sehingga memo tak berlaku dan ribuan elemen
      dirender ulang -- itu yang membuat popover terlambat ~250ms. */
-  it('sel terpilih digarisbawahi overlay tunggal, bukan class ring di sel', () => {
+  it('tak ada overlay cincin ber-radius di atas sel (dihapus atas permintaan)', () => {
+    /* Dulu sel yang aksinya terbuka ditandai overlay #cincin_sel_tagihan
+       (absolute, rounded, ring-2). Overlay itu tampak sebagai kotak membulat
+       yang mengambang di atas sel bersudut siku, jadi dihapus; penanda sel
+       aktif kini cukup dari garis seleksi sel itu sendiri. */
     render(
       <TagihanCrosstab
         data={{ kolom: KOLOM, baris: [baris(sel({}), sel({ id: 2 }))], total: 1, per_page: 25, current_page: 1, last_page: 1 }}
@@ -195,18 +264,89 @@ describe('sel tagihan: klik kanan = aksi, klik kiri = seleksi', () => {
         emptyText="Kosong"
       />,
     );
-    const selTerpilih = selUji(1);
-    expect(selTerpilih.className).not.toContain('ring-2');
-
-    const cincin = document.getElementById('cincin_sel_tagihan');
-    expect(cincin).not.toBeNull();
-    // Tak boleh menutupi selnya sendiri, atau sel tak bisa diklik.
-    expect(cincin?.className).toContain('pointer-events-none');
+    expect(document.getElementById('cincin_sel_tagihan')).toBeNull();
+    // Sel juga tak memakai ring-2 (dulu pun bukan di sel, tapi dikunci di sini
+    // supaya penanda tak diam-diam kembali lewat class).
+    expect(selUji(1).className).not.toContain('ring-2');
   });
 
-  it('tanpa terpilihId tidak ada overlay', () => {
+  it('tanpa terpilihId juga tidak ada overlay', () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })));
     expect(document.getElementById('cincin_sel_tagihan')).toBeNull();
+  });
+
+  it('sel tagihan tak pernah ber-border-radius (penanda membulat tak kembali)', () => {
+    /* Penanda yang mengganggu secara visual dulu berupa elemen BER-RADIUS.
+       Dikunci di sini pada level class: sel memakai sudut siku, jadi tak ada
+       varian `rounded-*` yang boleh muncul lagi — baik saat diam, setelah
+       klik kiri, maupun setelah klik kanan. */
+    const berRadius = (el: Element) => /(^|\s)rounded(-|\s|$)/.test(el.className);
+    const { container } = render(
+      <TagihanCrosstab
+        data={{ kolom: KOLOM, baris: [baris(sel({}), sel({ id: 2 }))], total: 1, per_page: 25, current_page: 1, last_page: 1 }}
+        loading={false}
+        terpilihId={2}
+        onPilih={() => {}}
+        emptyText="Kosong"
+      />,
+    );
+    const selBerRadius = () => [...container.querySelectorAll('[id^="btn_tagihan_sel_"]')]
+      .filter(berRadius)
+      .map((e) => e.id);
+    expect(selBerRadius()).toEqual([]);
+
+    fireEvent(selUji(0), new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+    fireEvent(selUji(0), new MouseEvent('pointerup', { bubbles: true, cancelable: true, button: 0 }));
+    expect(selBerRadius()).toEqual([]);
+
+    fireEvent.contextMenu(selUji(1));
+    expect(selBerRadius()).toEqual([]);
+    // Overlay mengambang ber-radius pun tetap tidak ada.
+    expect(document.getElementById('cincin_sel_tagihan')).toBeNull();
+  });
+
+  it('sel terpilih diberi overlay latar, sel tak terpilih tidak', () => {
+    /* Overlay range: seluruh sel terpilih dapat bidang warna tipis supaya blok
+       terbaca sebagai satu kesatuan, bukan cuma garis tepi. Digambar lewat
+       background-IMAGE agar warna status tagihan (background-color dari class)
+       tetap terlihat di bawahnya. */
+    render(
+      <TagihanCrosstab
+        data={{ kolom: KOLOM, baris: [baris(sel({}), sel({ id: 2 }))], total: 1, per_page: 25, current_page: 1, last_page: 1 }}
+        loading={false}
+        terpilihId={null}
+        onPilih={() => {}}
+        emptyText="Kosong"
+      />,
+    );
+    // Belum ada pilihan → tak ada overlay sama sekali.
+    expect(selUji(0).style.backgroundImage).toBe('');
+    expect(selUji(1).style.backgroundImage).toBe('');
+
+    // Klik kiri sel pertama → hanya sel itu yang ber-overlay.
+    fireEvent(selUji(0), new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+    fireEvent(selUji(0), new MouseEvent('pointerup', { bubbles: true, cancelable: true, button: 0 }));
+    expect(selUji(0).style.backgroundImage).toContain('linear-gradient');
+    expect(selUji(1).style.backgroundImage).toBe('');
+    // Overlay TIDAK boleh menimpa warna status: background-color tetap kosong
+    // (warna status dipegang class), jadi tak ada sel terpilih yang kehilangan
+    // penanda lunas/sebagian/terlambat.
+    expect(selUji(0).style.backgroundColor).toBe('');
+  });
+
+  it('blok yang sedang digeser memakai overlay tipis yang sama, bukan latar pekat', () => {
+    /* Latar accent penuh saat drag membuat teks nominal tak terbaca. Pratinjau
+       harus setipis overlay seleksi — sama-sama lewat background-image — dan
+       tetap tidak menyentuh warna status. */
+    renderCrosstab(baris(sel({}), sel({ id: 2 })));
+    fireEvent(selUji(0), new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+    fireEvent.pointerEnter(selUji(1));
+    // Kedua sel (awal + tujuan geser) ber-overlay tipis.
+    expect(selUji(0).style.backgroundImage).toContain('linear-gradient');
+    expect(selUji(1).style.backgroundImage).toContain('linear-gradient');
+    // Tak ada latar pekat: background-color dibiarkan ke class warna status.
+    expect(selUji(0).style.backgroundColor).toBe('');
+    expect(selUji(1).style.backgroundColor).toBe('');
   });
 });
 
@@ -274,12 +414,12 @@ describe('popover terbuka mematikan kartu hover', () => {
 });
 
 describe('pemilihan sel lewat pointer (bukan onClick)', () => {
-  it('klik kiri (pointerup) memanggil onPilihSatu', () => {
-    const onPilihSatu = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onPilihSatu });
+  it('klik kiri (pointerup) memanggil onKlikSel (anchor pindah)', () => {
+    const onKlikSel = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onKlikSel });
     pointerEv(selUji(1), 'pointerup');
-    expect(onPilihSatu).toHaveBeenCalledTimes(1);
-    expect(onPilihSatu.mock.calls[0][0].id).toBe(2);
+    expect(onKlikSel).toHaveBeenCalledTimes(1);
+    expect(onKlikSel.mock.calls[0][0].id).toBe(2);
   });
 
   it('Ctrl+Klik memanggil onTogglePilih (tambah/lepas satu sel)', () => {
@@ -300,34 +440,160 @@ describe('pemilihan sel lewat pointer (bukan onClick)', () => {
     expect(onPilihBlok.mock.calls[0][0]).toHaveLength(2);
   });
 
-  it('tahan-geser memilih blok, bukan pilih satu sel', () => {
-    const onPilihBlok = vi.fn();
-    const onPilihSatu = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onPilihBlok, onPilihSatu });
+  it('tahan-geser memilih blok (irisan), bukan memindah anchor', () => {
+    const onPilihIrisan = vi.fn();
+    const onKlikSel = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onPilihIrisan, onKlikSel });
     const [jul, agu] = screen.getAllByText('50.000');
     pointerEv(jul, 'pointerdown');
     fireEvent.pointerEnter(agu); // masuk ke sel lain → geser = blok
     pointerEv(agu, 'pointerup');
-    expect(onPilihBlok).toHaveBeenCalledTimes(1);
-    expect(onPilihSatu).not.toHaveBeenCalled();
+    expect(onPilihIrisan).toHaveBeenCalledTimes(1);
+    // Anchor TIDAK berpindah: posisinya ditentukan pointerdown, bukan pointerup.
+    expect(onKlikSel).not.toHaveBeenCalled();
   });
 
   it('klik keyboard (Enter) tetap membuka aksi per tagihan', () => {
-    const onPilih = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
+    const onAksiKanan = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onAksiKanan });
     fireEvent.keyDown(selUji(0), { key: 'Enter' });
-    expect(onPilih).toHaveBeenCalledTimes(1);
+    expect(onAksiKanan).toHaveBeenCalledTimes(1);
   });
 
   it('tombol tengah/kanan tidak memicu seleksi', () => {
-    const onPilihSatu = vi.fn();
+    const onKlikSel = vi.fn();
     const onPilih = vi.fn();
-    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih, null, undefined, { onPilihSatu });
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih, null, undefined, { onKlikSel });
     const selJuli = selUji(0);
     pointerEv(selJuli, 'pointerup', { button: 1 });
     pointerEv(selJuli, 'pointerup', { button: 2 });
-    expect(onPilihSatu).not.toHaveBeenCalled();
+    expect(onKlikSel).not.toHaveBeenCalled();
     expect(onPilih).not.toHaveBeenCalled();
+  });
+
+  it('tahan-geser tanpa modifier memakai irisan (bukan menambah/mengurangi)', () => {
+    const onPilihIrisan = vi.fn();
+    const onTambahBlok = vi.fn();
+    const onLepasBlok = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onPilihIrisan, onTambahBlok, onLepasBlok });
+    const [jul, agu] = screen.getAllByText('50.000');
+
+    pointerEv(jul, 'pointerdown');
+    pointerMasuk(agu);
+    expect(onPilihIrisan).toHaveBeenCalledTimes(1);
+    expect(onTambahBlok).not.toHaveBeenCalled();
+    expect(onLepasBlok).not.toHaveBeenCalled();
+    pointerEv(agu, 'pointerup');
+  });
+
+  it('pelepasan setelah geser melapor sekali sebagai multi-select', () => {
+    const onSeleksiRilis = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onSeleksiRilis });
+    const [jul, agu] = screen.getAllByText('50.000');
+    pointerEv(jul, 'pointerdown');
+    pointerMasuk(agu);
+    pointerEv(agu, 'pointerup');
+    // Sekali saja (bukan dobel dari listener window + onPointerUp), dan
+    // ditandai multi = true supaya popover batch muncul.
+    expect(onSeleksiRilis).toHaveBeenCalledTimes(1);
+    expect(onSeleksiRilis.mock.calls[0][1]).toBe(true);
+  });
+
+  it('klik tunggal (tanpa geser) melapor multi = false', () => {
+    const onSeleksiRilis = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onSeleksiRilis });
+    const [jul] = screen.getAllByText('50.000');
+    pointerEv(jul, 'pointerdown');
+    pointerEv(jul, 'pointerup');
+    // Hanya SATU laporan (dari onPointerUp sel). Listener window pointerup
+    // pernah ikut melapor sebagai multi-select walau tak ada geseran, dan itu
+    // memunculkan popover aksi batch hanya karena mengklik.
+    expect(onSeleksiRilis).toHaveBeenCalledTimes(1);
+    expect(onSeleksiRilis.mock.calls[0][1]).toBe(false);
+  });
+
+  it('pointerdown mengabari pemanggil bahwa drag dimulai', () => {
+    const onMulaiGeser = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onMulaiGeser });
+    pointerEv(selUji(0), 'pointerdown');
+    expect(onMulaiGeser).toHaveBeenCalledTimes(1);
+  });
+
+  it('sorotan mengikuti prop selection, bukan blok mentah yang digeser', () => {
+    // Halaman sudah mengiriskan blok → hanya sel 1 yang tersisa terpilih,
+    // walau blok yang digeser mencakup 1..2. Crosstab harus memakai prop
+    // `selection` sebagai kebenaran, bukan menghitung sendiri dari blok.
+    const onPilihIrisan = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, {
+      onPilihIrisan,
+      selection: new Set([1]),
+    });
+    const [jul, agu] = screen.getAllByText('50.000');
+    pointerEv(jul, 'pointerdown');
+    pointerMasuk(agu);
+    expect(onPilihIrisan).toHaveBeenCalled();
+    // Sel 2 ada di blok mentah tapi TIDAK ada di selection → tak boleh tersorot.
+    expect(agu.style.boxShadow).toBe('');
+    expect(jul.style.boxShadow).not.toBe('');
+  });
+
+  it('geser menyerahkan blok MENTAH ke onPilihIrisan (halaman yang mengiriskan)', () => {
+    const onPilihIrisan = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onPilihIrisan });
+    const [jul, agu] = screen.getAllByText('50.000');
+    pointerEv(jul, 'pointerdown');
+    pointerMasuk(agu);
+    // Blok = sel awal + sel yang dilewati, apa adanya. Crosstab tidak boleh
+    // menyaringnya sendiri: itu tugas halaman, yang tahu pilihan lama.
+    expect(onPilihIrisan).toHaveBeenCalledTimes(1);
+    expect(onPilihIrisan.mock.calls[0][0].map((x: { sel: { id: number } }) => x.sel.id)).toEqual([1, 2]);
+  });
+
+  it('pelepasan drag tidak memanggil onKlikSel (blok tidak diganti satu sel)', () => {
+    const onKlikSel = vi.fn();
+    const onSeleksiRilis = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onKlikSel, onSeleksiRilis });
+    const [jul, agu] = screen.getAllByText('50.000');
+    pointerEv(jul, 'pointerdown');
+    pointerMasuk(agu);
+    pointerEv(agu, 'pointerup');
+    // Pelepasan setelah geser adalah akhir gesture blok: sorotan tidak boleh
+    // dipindah ke satu sel (itu hanya untuk klik tunggal).
+    expect(onKlikSel).not.toHaveBeenCalled();
+    expect(onSeleksiRilis.mock.calls[0][1]).toBe(true);
+  });
+
+  it('klik tunggal melapor sebagai BUKAN multi-select', () => {
+    const onSeleksiRilis = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onSeleksiRilis });
+    pointerEv(selUji(0), 'pointerup');
+    expect(onSeleksiRilis).toHaveBeenCalledTimes(1);
+    expect(onSeleksiRilis.mock.calls[0][1]).toBe(false);
+  });
+
+  it('geser menggambar pratinjau persegi panjang, termasuk sel kosong', () => {
+    const onPratinjau = vi.fn();
+    /* Baris dengan sel Agustus KOSONG → pratinjau tetap mencakup koordinat
+       grid-nya selama persegi panjang, bukan hanya sel berisi tagihan. */
+    const b = baris(sel({}), sel({ id: 2 }));
+    renderCrosstab({ ...b, sel: { '1-2025-07': b.sel['1-2025-07'] } }, () => {}, null, () => {}, { onPratinjau });
+    const jul = screen.getAllByText('50.000')[0];
+    pointerEv(jul, 'pointerdown');
+    // Sel Agustus kosong dirender sebagai tombol tambah, bukan teks nominal.
+    const aguKosong = screen.getByRole('button', { name: /Tambah tagihan/ });
+    pointerMasuk(aguKosong);
+    // Grid persegi panjang Jul..Agu = dua koordinat, walau Agu tak bertagihan.
+    expect(onPratinjau).toHaveBeenCalled();
+    const grid = onPratinjau.mock.calls[0][0] as { santriId: number; key: string }[];
+    expect(grid.map((g) => g.key)).toEqual(['1-2025-07', '1-2025-08']);
+  });
+
+  it('Ctrl+Klik memanggil onTogglePilih (tambah/lepas satu sel)', () => {
+    const onTogglePilih = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onTogglePilih });
+    pointerEv(selUji(1), 'pointerup', { ctrlKey: true });
+    expect(onTogglePilih).toHaveBeenCalledTimes(1);
+    expect(onTogglePilih.mock.calls[0][0].id).toBe(2);
   });
 });
 
