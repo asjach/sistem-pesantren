@@ -13,12 +13,6 @@
       "skillPath": ".ai/laravel/skill/laravel-best-practices/SKILL.md",
       "computedHash": "54d8f34265f521a2fd9d5e810564bc287a1ff4ceed040d26ac25254f5492a034"
     },
-    "shadcn": {
-      "source": "shadcn/ui",
-      "sourceType": "github",
-      "skillPath": "skills/shadcn/SKILL.md",
-      "computedHash": "f615de216e085a84e31593ad0fa9062232adc40cd87b7c7ab2b8e49abf6500be"
-    },
     "tauri-v2": {
       "source": "nodnarbnitram/claude-code-extensions",
       "sourceType": "github",
