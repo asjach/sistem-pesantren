@@ -8,9 +8,9 @@ import {
 import { listKelas } from '../../api/master';
 import { listSantri, type Santri } from '../../api/santri';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import LabeledInput from '@/components/LabeledInput';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
@@ -18,7 +18,7 @@ import { ErrorNotice } from '@/components/PageHeader';
 import { targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { bacaPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
 import type { PerPage } from '@/prefs';
-import { Plus, Search, Users, X } from '@/icons';
+import { ArrowRight, Plus, Users, X } from '@/icons';
 
 const FIELDS_GRUP: ExcelField[] = [
   { key: 'nama', label: 'Grup', kind: 'text', required: true, width: 180 },
@@ -86,7 +86,7 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
   const atasRef = useRef<HTMLDivElement | null>(null);
   const geserVertikalRef = useRef<{ y: number; h: number } | null>(null);
 
-  /** Pencarian lokal daftar santri (toolbar tabel). */
+  /** Pencarian topBar: berlaku untuk tabel grup DAN daftar santri. */
   const [cari, setCari] = useState('');
 
   /** Opsi kelas lingkup topBar (untuk rail global + petakan nama → id). */
@@ -107,6 +107,13 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
   const [baruBusy, setBaruBusy] = useState(false);
 
   const grupAktif = grup.find((g) => g.id === grupAktifId) ?? null;
+  /** Grup tersaring pencarian (nama/keterangan); santri memakai `q` server. */
+  const grupTampil = grup.filter((g) => {
+    const q = cari.trim().toLowerCase();
+    return q === ''
+      || g.nama.toLowerCase().includes(q)
+      || (g.keterangan ?? '').toLowerCase().includes(q);
+  });
   const idAnggota = new Set((grupAktif?.santri ?? []).map((s) => s.id));
   /** Kandidat yang belum jadi anggota (tanpa request ulang). */
   const kandidatTampil = kandidat.filter((s) => !idAnggota.has(s.id));
@@ -269,6 +276,7 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
 
   return (
     <div className="flex min-h-0 flex-1">
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari grup / nama / NIS…" />
       {/* Kiri (bawaan 500px, bisa digeser): tabel grup + daftar santri. */}
       <div style={{ width: lebarKiri }} className="flex min-h-0 shrink-0 flex-col gap-2">
         <div
@@ -282,11 +290,11 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
             hidePreset
             header={(
               <span id="judul_grup_custom" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
-                Grup Santri Custom ({grup.length})
+                Grup Santri Custom ({grupTampil.length}{cari.trim() !== '' ? ` dari ${grup.length}` : ''})
               </span>
             )}
             fields={FIELDS_GRUP}
-            rows={grup}
+            rows={grupTampil}
             getValues={(g) => ({
               nama: g.nama,
               keterangan: g.keterangan,
@@ -376,14 +384,6 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
           onPointerCancel={selesaiGeserVertikal}
         />
         <div className="flex min-h-0 flex-1 flex-col gap-2">
-        <div className="relative min-w-0 flex-1 self-end">
-          <Search size={14} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="inp_grup_custom_cari" aria-label="Cari santri" placeholder="Cari nama / NIS…"
-            className="h-[26px] w-full pl-8" value={cari}
-            onChange={(e) => setCari(e.target.value)}
-          />
-        </div>
         <div className="flex min-h-0 flex-1 flex-col">
           <ExcelTable<Santri>
             tableKey="grup_custom_kandidat"
@@ -406,12 +406,12 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
             aksiLangsung
             renderActions={grupAktif === null ? () => null : (r) => (
               <ActionIcon id={`btn_grup_custom_tambah_${r.id}`} title={`Masukkan ${r.nama_lengkap} ke ${grupAktif.nama}`} onClick={() => tambahAnggota([r.id])}>
-                <Plus size={16} />
+                <ArrowRight size={16} />
               </ActionIcon>
             )}
             renderBulkActions={grupAktif === null ? undefined : (checked, clear) => checked.length === 0 ? null : (
               <Button id="btn_grup_custom_tambah_banyak" size="sm" disabled={busy} onClick={() => { tambahAnggota(checked.map((r) => r.id)); clear(); }}>
-                <Plus data-icon="inline-start" size={14} /> Masukkan ({checked.length})
+                <ArrowRight data-icon="inline-start" size={14} /> Masukkan ({checked.length})
               </Button>
             )}
             pager={<Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage, cari)} onPerPage={(pp) => setPerPage(tulisPerPageGlobal(pp))} />}

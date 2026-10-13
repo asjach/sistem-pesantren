@@ -1,8 +1,11 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SantriCustomTab from './tabSantriCustom';
 import type { GrupSantriCustom } from '@/api/grupCustom';
+import { TopBarSearchProvider, useTopBarSearchCtx } from '@/components/TopBarSearch';
+import { CariGlobalProvider } from '@/hooks/useCariGlobal';
 import { renderDenganTema } from '@/test/utils';
 
 /* API dimock: grup + santri + kelas + referensi tanpa jaringan. */
@@ -108,12 +111,23 @@ beforeEach(() => {
   api.ref.mockResolvedValue([{ id: 1, nama: '3', is_active: true, urutan: 3 }]);
 });
 
-/* ExcelTable memvirtualkan baris berdasar tinggi wadah — wadah eksplisit. */
+/* ExcelTable memvirtualkan baris berdasar tinggi wadah — wadah eksplisit.
+ *  TopBarSearch dipasang ke slot tiruan (di app nyata dipasang TopBar). */
+function SlotCari() {
+  const ctx = useTopBarSearchCtx();
+  return <div ref={(el) => ctx?.setEl(el)} />;
+}
+
 function renderTab() {
   renderDenganTema(
-    <div style={{ height: 900 }} className="flex flex-col">
-      <SantriCustomTab canEdit canTambah {...PROPS} />
-    </div>,
+    <CariGlobalProvider>
+      <TopBarSearchProvider>
+        <SlotCari />
+        <div style={{ height: 900 }} className="flex flex-col">
+          <SantriCustomTab canEdit canTambah {...PROPS} />
+        </div>
+      </TopBarSearchProvider>
+    </CariGlobalProvider>,
   );
 }
 
@@ -129,7 +143,9 @@ describe('SantriCustomTab', () => {
     expect(document.getElementById('filter_rail_tingkat_kelas')).not.toBeNull();
     expect(document.getElementById('sel_sc_tingkat')).toBeNull();
     expect(document.getElementById('sel_sc_kelas')).toBeNull();
-    expect(document.getElementById('inp_grup_custom_cari')).not.toBeNull();
+    // Cari lokal dihapus: pencarian lewat topBar (input_cari_topbar).
+    expect(document.getElementById('inp_grup_custom_cari')).toBeNull();
+    expect(document.getElementById('input_cari_topbar')).not.toBeNull();
   });
 
   it('pivot kanan: anggota tampil + tambah/keluarkan', async () => {
@@ -161,6 +177,26 @@ describe('SantriCustomTab', () => {
     expect(document.body.textContent).toContain('Pilih grup dulu');
   });
 
+  it('cari topBar menyaring grup + daftar santri', async () => {
+    renderTab();
+    const kotak = await waitFor(() => document.getElementById('input_cari_topbar') as HTMLInputElement);
+    await waitFor(() => expect(document.getElementById('btn_grup_custom_anggota_1')).not.toBeNull());
+
+    // Ketik "olim" (dari keterangan Olimpiade).
+    fireEvent.change(kotak, { target: { value: 'olim' } });
+    // Grup tetap tampil (cocok keterangan); santri diminta dengan q.
+    await waitFor(() => expect(document.getElementById('btn_grup_custom_anggota_1')).not.toBeNull());
+    await waitFor(() => {
+      const terakhir = api.santri.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+      expect(terakhir).toMatchObject({ q: 'olim' });
+    });
+
+    // Ketik yang tak cocok → grup hilang dari tabel.
+    fireEvent.change(kotak, { target: { value: 'olimzzz' } });
+    await waitFor(() => expect(document.getElementById('btn_grup_custom_anggota_1')).toBeNull());
+    expect(document.body.textContent).toContain('0 dari 1');
+  });
+
   it('buat grup via popover (bukan dialog): nama + lingkup topBar', async () => {
     api.buat.mockResolvedValue({ ...GRUP, id: 2, nama: 'Ekskul MTK', santri: [] });
 
@@ -190,9 +226,13 @@ describe('SantriCustomTab', () => {
 
   it('tanpa izin tambah: tombol buat grup tidak tampil', async () => {
     renderDenganTema(
-      <div style={{ height: 900 }} className="flex flex-col">
-        <SantriCustomTab canEdit={false} canTambah={false} {...PROPS} />
-      </div>,
+      <CariGlobalProvider>
+        <TopBarSearchProvider>
+          <div style={{ height: 900 }} className="flex flex-col">
+            <SantriCustomTab canEdit={false} canTambah={false} {...PROPS} />
+          </div>
+        </TopBarSearchProvider>
+      </CariGlobalProvider>,
     );
     await waitFor(() => expect(document.getElementById('judul_grup_custom')).not.toBeNull());
     expect(document.getElementById('btn_grup_custom_tambah')).toBeNull();
