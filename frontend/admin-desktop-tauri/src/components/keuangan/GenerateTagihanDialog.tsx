@@ -8,22 +8,21 @@ import {
 } from '../../api/keuangan';
 import RincianBulanKartu from './RincianBulanKartu';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/field';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import PresetKolom from '@/components/PresetKolom';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import PresetUrut from '@/components/PresetUrut';
 import LabeledCombobox from '@/components/LabeledCombobox';
-import LabeledTextInput from '@/components/LabeledTextInput';
+import LabeledInput from '@/components/LabeledInput';
 import { tanggalKeTampilan } from '@/lib/tanggal';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ActionIcon } from '@/components/RowActions';
 import { ErrorNotice } from '@/components/PageHeader';
 import { rincianPeriode } from '@/lib/dispensasi';
@@ -31,7 +30,7 @@ import { Trash2, X } from '@/icons';
 
 const OPSI_KELOMPOK: { value: KelompokKandidat | ''; label: string }[] = [
   { value: '', label: 'Pilih kelompok…' },
-  { value: 'aktif', label: 'Semua (kecuali pindah keluar)' },
+  { value: 'aktif', label: 'Semua Santri Aktif' },
   { value: 'mi', label: 'MI (MI + MI-MD)' },
   { value: 'md', label: 'MD (MD + MI-MD)' },
   { value: 'mi_saja', label: 'MI Saja (tanpa MD)' },
@@ -132,6 +131,42 @@ interface GalatIsian {
 
 /** Ringkasan galat di atas form: fokus pindah ke sini setelah validasi gagal,
  *  tiap butir menaut ke isiannya (pengganti toast yang tak bisa diklik). */
+/** Penanda langkah bernomor untuk baris kriteria di dialog Buat Tagihan.
+ *  Angka + judul kecil; `aria-hidden` karena urutan kolom sudah menyiratkan
+ *  urutan, sedangkan nama tiap langkah dibacakan lewat teks judulnya. */
+function LangkahNomor({ n, judul }: { n: number; judul: string }) {
+  return (
+    <div className="flex h-[26px] shrink-0 items-center gap-1.5" aria-hidden="true">
+      <span className="grid size-5 shrink-0 place-items-center rounded-full border text-[11px] font-semibold leading-none">
+        {n}
+      </span>
+      <span className="text-xs font-medium text-muted-foreground">{judul}</span>
+    </div>
+  );
+}
+/** Kerangka kartu langkah yang BELUM aktif (menunggu tarif/kelompok dipilih).
+ *
+ *  Tanpa ini area atas terlihat kosong sebelum ada yang dipilih — padahal
+ *  kartunya empat. Kerangka memakai bentuk & lebar yang SAMA dengan kartu
+ *  aslinya (240px; 300px untuk kartu 2; 120px untuk Generate) supaya tata letak tidak melompat
+ *  saat kartu sungguhan muncul. Tinggi tiap slot mengikuti kartu aslinya
+ *  (diukur di browser: kartu 2 & 3 = 152px) agar tak ada pergeseran.
+ *
+ *  Tanpa nomor langkah: kerangka murni penanda ruang, bukan informasi. */
+function KartuKerangka({ lebar, tinggi, baris }: { lebar: number; tinggi: number; baris: number[] }) {
+  return (
+    <Card
+      className="flex shrink-0 flex-col gap-2 p-3"
+      style={{ width: lebar, height: tinggi }}
+      aria-hidden="true"
+    >
+      {baris.map((h, i) => (
+        <Skeleton key={i} className="w-full" style={{ height: h }} />
+      ))}
+    </Card>
+  );
+}
+
 function RingkasanGalat({ id, daftar }: { id: string; daftar: GalatIsian[] }) {
   if (daftar.length === 0) return null;
   return (
@@ -219,7 +254,12 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
    *  terpilih sehingga ikut terisi di input. */
   const opsiTarif = useMemo(
     () => daftarTarifPilih.map((t) => ({
+      /* `label` dipakai Base UI untuk pencarian & nilai terpilih, jadi ia tetap
+         memuat seluruh teks agar ketikan "MI" / "Infaq" / nominal tetap
+         menemukan baris ini. `keterangan` hanya tampilan. */
       label: `${t.jenjang} · ${t.jenis?.nama ?? t.jenis_id} · Rp ${t.nominal.toLocaleString('id')}`,
+      nama: `${t.jenjang} · ${t.jenis?.nama ?? t.jenis_id}`,
+      keterangan: `Rp ${t.nominal.toLocaleString('id')} · ${t.tahun_ajaran}`,
       nilai: String(t.id),
     })),
     [daftarTarifPilih],
@@ -281,7 +321,10 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   /** Cari hanya menyaring tampilan (tanpa request): daftar generate tetap
    *  seluruh `terpilih` — analog pencarian kandidat dulu yang tak menyentuh
    *  daftar generate. */
-  const [urutDaftar, setUrutDaftar] = useState<'nama' | 'aktif'>('nama');
+  /** Urutan dari PresetUrut (kode kolom berurutan + arah). Kosong = urutan
+   *  bawaan (kelas A-Z lalu nama A-Z). */
+  const [urutKolom, setUrutKolom] = useState<string[]>([]);
+  const [arahUrutKolom, setArahUrutKolom] = useState<'naik' | 'turun'>('naik');
   const [statusFilter, setStatusFilter] = useState<'' | 'aktif' | 'nonaktif'>('');
   /** Susunan kolom dari PresetKolom card filter (tersimpan backend). */
   const [presetLuar, setPresetLuar] = useState<{
@@ -308,14 +351,27 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
       kunciKelas(a.kelas).localeCompare(kunciKelas(b.kelas), 'id')
       || a.nama_lengkap.localeCompare(b.nama_lengkap, 'id');
     const rows = [...saring];
-    if (urutDaftar === 'aktif') {
-      rows.sort((a, b) =>
-        Number(b.status_akhir === 'aktif') - Number(a.status_akhir === 'aktif') || bandingNama(a, b));
-    } else {
+    if (urutKolom.length === 0) {
       rows.sort(bandingNama);
+      return rows;
     }
+    // Urut berjenjang mengikuti kode kolom dari PresetUrut; nilai dibandingkan
+    // sebagai teks supaya kunci apa pun (nama, kelas, status) aman.
+    const nilaiKolom = (r: BarisTerpilih, k: string): string => {
+      if (k === 'nama') return r.nama_lengkap;
+      if (k === 'kelas') return [r.tingkat, r.kelas].filter(Boolean).join(' / ');
+      if (k === 'status_akhir') return r.status_akhir ?? '';
+      return String((r as unknown as Record<string, unknown>)[k] ?? '');
+    };
+    rows.sort((a, b) => {
+      for (const k of urutKolom) {
+        const c = nilaiKolom(a, k).localeCompare(nilaiKolom(b, k), 'id');
+        if (c !== 0) return arahUrutKolom === 'turun' ? -c : c;
+      }
+      return 0;
+    });
     return rows;
-  }, [terpilih, cari, statusFilter, urutDaftar]);
+  }, [terpilih, cari, statusFilter, urutKolom, arahUrutKolom]);
 
   /** Berapa periode yang akan digenerate — dipakai ringkasan "N/M bulan" + konsumsi kuota. */
   const jumlahPeriode = useMemo(
@@ -481,6 +537,12 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   };
 
   /** Buka popover: isian di-reset (kosong = belum pilih). */
+  /** Terapkan urutan dari PresetUrut (kode kolom + arah). */
+  const terapkanUrutKolom = (nilai: string[], arah: 'naik' | 'turun') => {
+    setUrutKolom(nilai);
+    setArahUrutKolom(arah);
+  };
+
   const resetFormTarif = () => {
     setBaruJenjang('');
     setBaruJenisId(''); setBaruNominal(''); setBaruErr('');
@@ -719,278 +781,315 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     Tagihan yang sudah ada tidak diduplikasi: yang nominalnya sama tetap, yang berubah diperbarui, yang tak layak dilewati beserta sebabnya.
                     {hitungManual > 0 ? ` ${hitungManual} baris memakai nominal manual (dispensasi tak diterapkan).` : ''}
                   </p>
+                  {/* Rekap angka ikut ke popup konfirmasi supaya angka yang
+                      disetujui terbaca tepat di sebelah tombolnya. */}
+                  <p id="rekap_konfirmasi_gen" className="text-sm text-muted-foreground">
+                    {terpilih.length} santri × {jumlahPeriode} bulan = {ringkasan.baris} tagihan · estimasi Rp {ringkasan.total.toLocaleString('id')}
+                  </p>
                 </div>
                 ) : (
                 <>
-                  <h3 id="judul_kriteria_gen" tabIndex={-1} className="text-sm font-semibold focus:outline-none">Kriteria &amp; Daftar Santri</h3>
                   <RingkasanGalat id="ringkas_galat_gen" daftar={galat} />
-              <div className="flex flex-col gap-3">
-                {/* Baris 1: Tarif (kiri) + Nominal Default (kanan) — berdampingan
-                    karena keduanya berpasangan: tarif terpilih mengisi nominal
-                    default. Tombol "Buat Tarif" DIPINDAH ke atas grid (tak ada
-                    lagi di dalam kolom tarif) supaya kotak Nominal Default
-                    sejajar tinggi dengan kotak Tarif. */}
-                <div className="flex items-center justify-end gap-2">
-                  <Popover
-                    open={popTarif}
-                    onOpenChange={(o) => { if (baruBusy) return; if (o) resetFormTarif(); setPopTarif(o); }}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="btn_buat_tarif" type="button" variant="outline" size="sm"
-                        className="h-[26px] text-xs" disabled={tahunAjaran === null}
-                        title={tahunAjaran === null ? 'Pilih tahun ajaran dulu' : 'Buat tarif baru'}
-                      >
-                        Buat Tarif
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent id="pop_buat_tarif" align="end" className="pointer-events-auto w-72 p-3">
-                      <form onSubmit={(e) => void simpanTarifBaru(e)} className="flex flex-col gap-2">
-                        <p className="text-sm font-semibold">Tarif Baru · TA {tahunAjaran ?? '—'}</p>
-                        {baruErr !== '' && <p role="alert" className="text-xs text-destructive">{baruErr}</p>}
-                        <LabeledCombobox label="Jenjang" htmlFor="sel_tarif_baru_jenjang">
-                          <ComboboxRoot
-                            items={opsiJenjangItem}
-                            itemToStringLabel={(o) => o.label}
-                            isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-                            value={opsiJenjangItem.find((o) => o.nilai === baruJenjang) ?? null}
-                            onValueChange={(o) => { if (o !== null) { setBaruJenjang(o.nilai); setBaruJenisId(''); } }}
-                          >
-                            <ComboboxInput id="sel_tarif_baru_jenjang" aria-label="Jenjang" placeholder="Pilih jenjang…" />
-                            <ComboboxTrigger aria-label="Buka daftar jenjang" />
-                            <ComboboxContent>
-                              <ComboboxEmpty>Belum ada jenjang.</ComboboxEmpty>
-                              <ComboboxList>
-                                {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
-                              </ComboboxList>
-                            </ComboboxContent>
-                          </ComboboxRoot>
-                        </LabeledCombobox>
-                        <LabeledCombobox label="Jenis" htmlFor="sel_tarif_baru_jenis">
-                          <ComboboxRoot
-                            items={opsiJenisItem}
-                            itemToStringLabel={(o) => o.label}
-                            isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-                            value={opsiJenisItem.find((o) => o.nilai === String(baruJenisId)) ?? null}
-                            onValueChange={(o) => { if (o !== null) setBaruJenisId(Number(o.nilai)); }}
-                          >
-                            <ComboboxInput id="sel_tarif_baru_jenis" aria-label="Jenis" placeholder="Pilih jenis…" />
-                            <ComboboxTrigger aria-label="Buka daftar jenis" />
-                            <ComboboxContent>
-                              <ComboboxEmpty>Belum ada jenis.</ComboboxEmpty>
-                              <ComboboxList>
-                                {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
-                              </ComboboxList>
-                            </ComboboxContent>
-                          </ComboboxRoot>
-                        </LabeledCombobox>
-                        <LabeledTextInput
-                          nama="nominal"
-                          tipeKontrol="nominal"
-                          tipeTerkunci
-                          label="Nominal"
-                          htmlFor="inp_tarif_baru_nominal"
-                          min={0}
-                          value={baruNominal}
-                          onChange={(e) => setBaruNominal(e.target.value)} required
-                        />
-                        <Button id="btn_tarif_baru_simpan" type="submit" size="sm" className="h-[26px]" disabled={baruBusy}>
-                          {baruBusy ? 'Menyimpan…' : 'Simpan Tarif'}
-                        </Button>
-                      </form>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="grid grid-cols-2 items-start gap-3">
-                  <div className="flex flex-col gap-1">
-                    <LabeledCombobox
-                      label="Tarif"
-                      htmlFor="sel_gen_tarif"
-                      bisaCari
-                      tinggi={30}
+
+              {/* Empat kartu sejajar: (1) tarif & nominal, (2) periode &
+                  jatuh tempo, (3) kelompok santri, (4) generate. */}
+              <div className="flex flex-wrap items-stretch gap-3">
+
+                {/* -- Kartu 1: Tarif + Nominal -- */}
+                <Card className="flex w-[240px] shrink-0 flex-col gap-2 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <LangkahNomor n={1} judul="Tarif" />
+                    <Popover
+                      open={popTarif}
+                      onOpenChange={(o) => { if (baruBusy) return; if (o) resetFormTarif(); setPopTarif(o); }}
                     >
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="btn_buat_tarif" type="button" variant="outline" size="sm"
+                          className="h-[26px] text-xs" disabled={tahunAjaran === null}
+                          title={tahunAjaran === null ? 'Pilih tahun ajaran dulu' : 'Buat tarif baru'}
+                        >
+                          Buat Tarif
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent id="pop_buat_tarif" align="end" className="pointer-events-auto w-72 p-3">
+                        <form onSubmit={(e) => void simpanTarifBaru(e)} className="flex flex-col gap-2">
+                          <p className="text-sm font-semibold">Tarif Baru · TA {tahunAjaran ?? '—'}</p>
+                          {baruErr !== '' && <p role="alert" className="text-xs text-destructive">{baruErr}</p>}
+                          <LabeledCombobox label="Jenjang" htmlFor="sel_tarif_baru_jenjang">
+                            <ComboboxRoot
+                              items={opsiJenjangItem}
+                              itemToStringLabel={(o) => o.label}
+                              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                              value={opsiJenjangItem.find((o) => o.nilai === baruJenjang) ?? null}
+                              onValueChange={(o) => { if (o !== null) { setBaruJenjang(o.nilai); setBaruJenisId(''); } }}
+                            >
+                              <ComboboxInput id="sel_tarif_baru_jenjang" aria-label="Jenjang" placeholder="Pilih jenjang…" />
+                              <ComboboxTrigger aria-label="Buka daftar jenjang" />
+                              <ComboboxContent>
+                                <ComboboxEmpty>Belum ada jenjang.</ComboboxEmpty>
+                                <ComboboxList>
+                                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                                </ComboboxList>
+                              </ComboboxContent>
+                            </ComboboxRoot>
+                          </LabeledCombobox>
+                          <LabeledCombobox label="Jenis" htmlFor="sel_tarif_baru_jenis">
+                            <ComboboxRoot
+                              items={opsiJenisItem}
+                              itemToStringLabel={(o) => o.label}
+                              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                              value={opsiJenisItem.find((o) => o.nilai === String(baruJenisId)) ?? null}
+                              onValueChange={(o) => { if (o !== null) setBaruJenisId(Number(o.nilai)); }}
+                            >
+                              <ComboboxInput id="sel_tarif_baru_jenis" aria-label="Jenis" placeholder="Pilih jenis…" />
+                              <ComboboxTrigger aria-label="Buka daftar jenis" />
+                              <ComboboxContent>
+                                <ComboboxEmpty>Belum ada jenis.</ComboboxEmpty>
+                                <ComboboxList>
+                                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                                </ComboboxList>
+                              </ComboboxContent>
+                            </ComboboxRoot>
+                          </LabeledCombobox>
+                          <LabeledInput
+                            nama="nominal"
+                            tipeKontrol="nominal"
+                            tipeTerkunci
+                            label="Nominal"
+                            htmlFor="inp_tarif_baru_nominal"
+                            min={0}
+                            value={baruNominal}
+                            onChange={(e) => setBaruNominal(e.target.value)} required
+                          />
+                          <Button id="btn_tarif_baru_simpan" type="submit" size="sm" className="h-[26px]">
+                            {baruBusy ? 'Menyimpan…' : 'Simpan Tarif'}
+                          </Button>
+                        </form>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <LabeledCombobox
+                    label="Tarif"
+                    htmlFor="sel_gen_tarif"
+                    bisaCari
+                    tinggi={30}
+                    kelolaLebar={false}
+                    className="w-full"
+                  >
+                    <ComboboxRoot
+                      items={opsiTarif}
+                      autoHighlight
+                      /* Base UI memakai prop ini untuk DUA hal: teks kotak
+                         input DAN kunci penyaringan — jadi keduanya tak bisa
+                         dibedakan. Dipilih NAMA saja: kotak bersih, pencarian
+                         cukup pada nama tarif. Keterangan (nominal, tahun)
+                         hanya tampil di baris kedua tiap item. */
+                      itemToStringLabel={(o) => o.nama}
+                      isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                      value={opsiTarif.find((o) => o.nilai === String(tarifId)) ?? null}
+                      onValueChange={(o) => { if (o !== null) pilihTarif(Number(o.nilai)); }}
+                    >
+                      <ComboboxInput id="sel_gen_tarif" aria-label="Tarif" placeholder="Pilih tarif…" />
+                      <ComboboxTrigger aria-label="Buka daftar tarif" />
+                      <ComboboxContent>
+                        <ComboboxEmpty>Belum ada tarif.</ComboboxEmpty>
+                        <ComboboxList>
+                          {(o) => (
+                            <ComboboxItem key={o.nilai} value={o} className="flex-col items-start gap-0">
+                              <span>{o.nama}</span>
+                              <span className="text-[11px] text-muted-foreground">{o.keterangan}</span>
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </ComboboxRoot>
+                  </LabeledCombobox>
+                  <LabeledInput
+                    nama="nominal"
+                    tipeKontrol="nominal"
+                    tipeTerkunci
+                    label="Nominal"
+                    kelolaLebar={false}
+                    className="w-full"
+                    htmlFor="inp_gen_nominal"
+                    min={0} value={nominalDefault}
+                    onChange={(e) => ubahNominalDefault(e.target.value)}
+                    onBlur={() => setGalatNominal(validasiNominal(nominalDefault))}
+                    aria-invalid={galatNominal !== null}
+                    aria-describedby={galatNominal !== null ? 'galat_nominal_gen' : undefined}
+                    required
+                  />
+                  <p id="galat_nominal_gen" className="min-h-4 text-xs text-destructive">{galatNominal ?? ''}</p>
+                </Card>
+
+                {tarifId === '' ? (
+                <>
+                  {/* Kartu 2 & 3 belum bisa diisi (periode & kelompok
+                      bergantung pada tarif), jadi ruangnya ditandai kerangka
+                      — bukan dibiarkan kosong. Bentuknya: tiga baris kontrol,
+                      tinggi mengikuti kartu aslinya (152px). */}
+                  <KartuKerangka lebar={300} tinggi={152} baris={[26, 26, 26, 16]} />
+                  <KartuKerangka lebar={240} tinggi={152} baris={[26, 26, 26, 16]} />
+                </>
+                ) : (
+                <>
+                {/* -- Kartu 2: Periode + Jatuh Tempo -- */}
+                <Card className="flex w-[300px] shrink-0 flex-col gap-2 p-3">
+                  <LangkahNomor n={2} judul="Periode & Jatuh Tempo" />
+                  {/* Periode. Bulanan = dua baris (Awal / Akhir) bertumpuk;
+                      non-bulanan = satu baris keterangan. Slot yang sama. */}
+                  {bulanan ? (
+                    <div className="flex items-center gap-1">
+                      <LabeledInput
+                        label="Periode"
+                        lebarLabel={52} tinggi={26}
+                        htmlFor="inp_gen_dari"
+                        tipeKontrol="bulan" tipeTerkunci
+                        value={periodeDari}
+                        onChange={(e) => setPeriodeDari(e.target.value)}
+                        kelolaLebar={false} className="min-w-0 flex-1"
+                      />
+                      <span className="shrink-0 text-xs text-muted-foreground" aria-hidden="true">-</span>
+                      <LabeledInput
+                        label="Sampai Bulan"
+                        tanpaLabel
+                        tinggi={26}
+                        htmlFor="inp_gen_sampai"
+                        tipeKontrol="bulan" tipeTerkunci
+                        value={periodeSampai}
+                        onChange={(e) => setPeriodeSampai(e.target.value)}
+                        kelolaLebar={false} className="min-w-0 flex-1"
+                      />
+                    </div>
+                  ) : (
+                    <LabeledInput
+                      label="Periode"
+                      lebarLabel={52} tinggi={26}
+                      htmlFor="info_gen_periode"
+                      tipeKontrol="teks" tipeTerkunci
+                      value={'Otomatis ' + (tahunAjaran ?? '—')}
+                      disabled
+                      kelolaLebar={false} className="w-full"
+                    />
+                  )}
+                  {/* Baris 2: Jatuh Tempo. Bulanan = otomatis (mati); non-bulanan
+                      = bisa diisi. Slot sama, kontrol bergantian. */}
+                  <LabeledInput
+                    label="Jatuh Tempo"
+                    lebarLabel={56} tinggi={26}
+                    htmlFor="inp_gen_jatuh_tempo"
+                    tipeKontrol="tanggal" tipeTerkunci
+                    disabled={bulanan}
+                    placeholder={bulanan ? 'Otomatis tanggal 10' : undefined}
+                    value={jatuhTempo}
+                    onChange={(e) => setJatuhTempo(e.target.value)}
+                    lebarKotak="100%" kelolaLebar={false}
+                  />
+                </Card>
+
+                {/* -- Kartu 3: Kelompok Santri -- */}
+                <Card className="flex w-[240px] shrink-0 flex-col gap-2 p-3">
+                  <LangkahNomor n={3} judul="Kelompok Santri" />
+                  <LabeledCombobox label="Kelompok" htmlFor="sel_gen_kelompok" tinggi={26} kelolaLebar={false} className="w-full">
+                    <ComboboxRoot
+                      items={OPSI_KELOMPOK}
+                      itemToStringLabel={(o) => o.label}
+                      isItemEqualToValue={(a, b) => a.value === b.value}
+                      value={OPSI_KELOMPOK.find((o) => o.value === kelompok) ?? OPSI_KELOMPOK[0]}
+                      onValueChange={(o) => { if (o !== null) setKelompok(o.value); }}
+                    >
+                      <ComboboxInput id="sel_gen_kelompok" aria-label="Kelompok Santri" placeholder="Pilih kelompok…" />
+                      <ComboboxTrigger aria-label="Buka daftar kelompok" />
+                      <ComboboxContent>
+                        <ComboboxEmpty>Belum ada kelompok.</ComboboxEmpty>
+                        <ComboboxList>
+                          {(o) => <ComboboxItem key={o.value} value={o}>{o.label}</ComboboxItem>}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </ComboboxRoot>
+                  </LabeledCombobox>
+                </Card>
+                </>
+                )}
+
+                {kelompok === '' ? (
+                /* Kartu 4 menunggu kelompok dipilih; kerangka lebarnya sama
+                   (120px) supaya tata letak tidak melompat saat muncul. */
+                <KartuKerangka lebar={120} tinggi={96} baris={[26, 16]} />
+                ) : (
+                <Card className="flex w-[120px] shrink-0 flex-col gap-2 p-3">
+                  <LangkahNomor n={4} judul="Generate" />
+                  <Button
+                    id="btn_gen_generate" type="button" className="h-[26px]"
+                    disabled={busy || terpilih.length === 0}
+                    aria-describedby={terpilih.length === 0 ? 'ket_gen_generate' : undefined}
+                    onClick={mintaKonfirmasi}
+                  >
+                    Generate
+                  </Button>
+                  <p id="ket_gen_generate" className="min-h-4 text-xs text-muted-foreground">
+                    {terpilih.length === 0
+                      ? 'Belum ada santri pada kelompok ini.'
+                      : `${ringkasan.baris} tagihan siap dibuat.`}
+                  </p>
+                </Card>
+                )}
+              </div>
+              <RingkasanGalat id="ringkas_galat_daftar" daftar={galatDaftar} />
+              {err !== '' && <ErrorNotice>{err}</ErrorNotice>}
+              <div className="flex min-h-0 flex-1 flex-col">
+                <ExcelTable<BarisTerpilih & { id: number }>
+                  tableKey="keuangan_gen_terpilih"
+                  header={(
+                    <span id="judul_daftar_gen" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
+                      Daftar Santri ({terpilih.length}{cari.trim() !== '' || statusFilter !== '' ? `, tampil ${tampil.length}` : ''})
+                    </span>
+                  )}
+                  awalanToolbar={(
+                    <>
+                    <LabeledInput
+                      label="Cari"
+                      lebarLabel={32} tinggi={26}
+                      htmlFor="inp_gen_cari"
+                      tipeKontrol="pencarian" tipeTerkunci
+                      placeholder="Cari nama / NIS…"
+                      value={cari}
+                      onChange={(e) => setCari(e.target.value)}
+                      lebarKotak={160}
+                    />
+                    <LabeledCombobox label="Status" htmlFor="sel_gen_status" tinggi={26}>
                       <ComboboxRoot
-                        items={opsiTarif}
-                        autoHighlight
+                        items={OPSI_STATUS_GEN}
                         itemToStringLabel={(o) => o.label}
                         isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-                        value={opsiTarif.find((o) => o.nilai === String(tarifId)) ?? null}
-                        onValueChange={(o) => { if (o !== null) pilihTarif(Number(o.nilai)); }}
+                        value={OPSI_STATUS_GEN.find((o) => o.nilai === statusFilter) ?? OPSI_STATUS_GEN[0]}
+                        onValueChange={(o) => { if (o !== null) setStatusFilter(o.nilai); }}
                       >
-                        <ComboboxInput id="sel_gen_tarif" aria-label="Tarif" placeholder="Pilih tarif…" />
-                        <ComboboxTrigger aria-label="Buka daftar tarif" />
+                        <ComboboxInput id="sel_gen_status" aria-label="Status" placeholder="Cari status…" />
+                        <ComboboxTrigger aria-label="Buka daftar status" />
                         <ComboboxContent>
-                          <ComboboxEmpty>Belum ada tarif.</ComboboxEmpty>
+                          <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
                           <ComboboxList>
                             {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
                           </ComboboxList>
                         </ComboboxContent>
                       </ComboboxRoot>
                     </LabeledCombobox>
-                    <p className="min-h-4 text-xs text-muted-foreground">
-                      {jenisTerpilih !== null && `Jenis: ${jenisTerpilih.nama} · ${bulanan ? 'bulanan' : 'sekali bayar'}`}
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <LabeledTextInput
-                      nama="nominal"
-                      tipeKontrol="nominal"
-                      tipeTerkunci
-                      label="Nominal Default"
-                      htmlFor="inp_gen_nominal"
-                      min={0} value={nominalDefault}
-                      onChange={(e) => ubahNominalDefault(e.target.value)}
-                      onBlur={() => setGalatNominal(validasiNominal(nominalDefault))}
-                      aria-invalid={galatNominal !== null}
-                      aria-describedby={galatNominal !== null ? 'galat_nominal_gen' : undefined}
-                      required
+                    <PresetUrut
+                      tableKey="keuangan_gen_terpilih"
+                      urutAktif={urutKolom}
+                      arahUrut={arahUrutKolom}
+                      onUrut={terapkanUrutKolom}
                     />
-                    <p id="galat_nominal_gen" className="min-h-4 text-xs text-destructive">{galatNominal ?? ''}</p>
-                  </div>
-                </div>
-                {/* Baris 2: Periode */}
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium leading-none">Periode</p>
-                  {bulanan ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <FieldLabel htmlFor="inp_gen_dari">Dari Bulan</FieldLabel>
-                        <Input id="inp_gen_dari" type="month" className="h-[26px]" value={periodeDari} onChange={(e) => setPeriodeDari(e.target.value)} />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <FieldLabel htmlFor="inp_gen_sampai">Sampai Bulan</FieldLabel>
-                        <Input id="inp_gen_sampai" type="month" className="h-[26px]" value={periodeSampai} onChange={(e) => setPeriodeSampai(e.target.value)} />
-                      </div>
-                    </div>
-                  ) : (
-                    <p id="info_gen_periode" className="flex h-[26px] items-center text-sm">Otomatis {tahunAjaran ?? '—'}</p>
+                    <PresetKolom
+                      tableKey="keuangan_gen_terpilih"
+                      fields={FIELDS_TERPILIH}
+                      onApply={terapkanKolomLuar}
+                      triggerClassName="h-[26px] w-24 text-xs"
+                    />
+                    </>
                   )}
-                </div>
-                {/* Baris 3: Jatuh Tempo — `LabeledTextInput` supaya labelnya segaris
-                    di dalam kotak, sama seperti Tarif dan Nominal Default.
-                    Bulanan: input DIMATIKAN karena tanggalnya otomatis (tgl 10
-                    bulan berjalan, ditentukan backend) — kotak tetap tampil agar
-                    tata letaknya sama.
-                    Tipe DIKUNCI ke `tanggal`: nilainya dikirim sebagai tanggal
-                    ISO, jadi tak boleh diubah jadi teks/angka dari popover.
-                    Kotaknya teks ber-mask `dd/mm/yyyy` + tombol kalender
-                    (bukan `type="date"` native) — nilai yang dikirim tetap ISO. */}
-                <div className="flex flex-col gap-1">
-                  <LabeledTextInput
-                    label="Jatuh Tempo"
-                    htmlFor="inp_gen_jatuh_tempo"
-                    tipeKontrol="tanggal"
-                    tipeTerkunci
-                    disabled={bulanan}
-                    placeholder={bulanan ? 'Otomatis tanggal 10' : undefined}
-                    value={jatuhTempo}
-                    onChange={(e) => setJatuhTempo(e.target.value)}
-                    aria-describedby="ket_gen_jatuh_tempo"
-                  />
-                </div>
-                {bulanan ? (
-                  <p className="text-xs text-muted-foreground">
-                    Tunggakan dihitung setelah tgl 10 lewat · TA {tahunAjaran ?? '—'}.
-                  </p>
-                ) : (
-                  <p id="ket_gen_jatuh_tempo" className="text-xs text-muted-foreground">
-                    Kosongkan jatuh tempo = langsung tunggakan · nominal per baris bisa diketik ulang di langkah Daftar (manual menang).
-                  </p>
-                )}
-              </div>
-                  <div className="mt-1 border-t pt-2">
-                    <h3 id="judul_daftar_gen" tabIndex={-1} className="mb-1 text-sm font-semibold focus:outline-none">
-                      Daftar Santri ({terpilih.length}{cari.trim() !== '' || statusFilter !== '' ? `, tampil ${tampil.length}` : ''})
-                    </h3>
-                    <RingkasanGalat id="ringkas_galat_daftar" daftar={galatDaftar} />
-                    {err !== '' && <ErrorNotice>{err}</ErrorNotice>}
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <div className="flex items-center gap-2">
-                    <FieldLabel htmlFor="sel_gen_kelompok">Kelompok Santri</FieldLabel>
-                    <Select value={kelompok} onValueChange={(v) => setKelompok(v as KelompokKandidat | '')}>
-                      <SelectTrigger id="sel_gen_kelompok" aria-label="Kelompok Santri" className="h-[26px] text-sm">
-                        <SelectValue placeholder="Pilih kelompok…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {OPSI_KELOMPOK.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FieldLabel htmlFor="inp_gen_cari">Cari</FieldLabel>
-                    <div className="relative">
-                      <Input id="inp_gen_cari" placeholder="Cari nama / NIS…" className="h-[26px] w-56 pr-7" value={cari} onChange={(e) => setCari(e.target.value)} />
-                      {cari !== '' && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              type="button"
-                              size="icon-xs"
-                              variant="ghost"
-                              id="btn_hapus_cari_gen"
-                              aria-label="Bersihkan pencarian"
-                              onClick={() => setCari('')}
-                              className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground hover:bg-accent hover:text-foreground"
-                            >
-                              <X size={12} />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Bersihkan pencarian</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </div>
-                  <LabeledCombobox label="Status" htmlFor="sel_gen_status">
-                    <ComboboxRoot
-                      items={OPSI_STATUS_GEN}
-                      itemToStringLabel={(o) => o.label}
-                      isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-                      value={OPSI_STATUS_GEN.find((o) => o.nilai === statusFilter) ?? OPSI_STATUS_GEN[0]}
-                      onValueChange={(o) => { if (o !== null) setStatusFilter(o.nilai); }}
-                    >
-                      <ComboboxInput id="sel_gen_status" aria-label="Status" placeholder="Cari status…" />
-                      <ComboboxTrigger aria-label="Buka daftar status" />
-                      <ComboboxContent>
-                        <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
-                        <ComboboxList>
-                          {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
-                        </ComboboxList>
-                      </ComboboxContent>
-                    </ComboboxRoot>
-                  </LabeledCombobox>
-                  <div className="flex items-center gap-2">
-                    <FieldLabel htmlFor="sel_gen_urut">Urutkan</FieldLabel>
-                    <Select value={urutDaftar} onValueChange={(v) => setUrutDaftar(v as 'nama' | 'aktif')}>
-                      <SelectTrigger
-                        id="sel_gen_urut"
-                        aria-label="Urutkan"
-                        title="Nama: kelas A-Z lalu nama A-Z; Keaktifan: aktif dulu"
-                        className="h-[26px] text-sm"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nama">Nama</SelectItem>
-                        <SelectItem value="aktif">Keaktifan</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <PresetKolom
-                    tableKey="keuangan_gen_terpilih"
-                    fields={FIELDS_TERPILIH}
-                    onApply={terapkanKolomLuar}
-                    triggerClassName="h-[26px] w-32 text-xs"
-                  />
-                </div>
-                  </div>
-              <p className="text-xs text-muted-foreground">
-                Klik sel Nominal baru untuk mengetik ulang (● = manual, menang atas hitungan otomatis; dispensasi tak diterapkan). Tombol Auto mengembalikan ke hitungan otomatis.
-              </p>
-              <div className="flex min-h-0 flex-1 flex-col">
-                <ExcelTable<BarisTerpilih & { id: number }>
-                  tableKey="keuangan_gen_terpilih"
                   fields={FIELDS_TERPILIH}
                   hidePreset
                   presetLuar={presetLuar}
@@ -1042,9 +1141,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                 )}
               </div>
               <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-2 py-2 sm:justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {terpilih.length} santri × {jumlahPeriode} bulan = {ringkasan.baris} tagihan · estimasi Rp {ringkasan.total.toLocaleString('id')}
-                </p>
                 {konfirmasi ? (
                 <div className="flex gap-2">
                   <Button id="btn_gen_periksa" type="button" variant="outline" className="h-[26px]" disabled={busy} onClick={() => setKonfirmasi(false)}>Periksa lagi</Button>
@@ -1052,28 +1148,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     {busy ? 'Memproses…' : `Ya, buat ${ringkasan.baris} tagihan`}
                   </Button>
                 </div>
-                ) : (
-                <div className="flex items-center gap-2">
-                  {/* Q6=A: tombol Generate selalu tampil; saat daftar kosong ia
-                      mati dan alasannya ditulis di sebelahnya. */}
-                  {terpilih.length === 0 && (
-                    <p id="ket_gen_generate" className="text-xs text-muted-foreground">
-                      {kelompok === ''
-                        ? 'Pilih kelompok santri untuk mengisi daftar.'
-                        : 'Belum ada santri pada kelompok ini.'}
-                    </p>
-                  )}
-                  <Button id="btn_gen_batal" type="button" variant="ghost" className="h-[26px]" disabled={busy} onClick={() => onOpenChange(false)}>Batal</Button>
-                  <Button
-                    id="btn_gen_generate" type="button" className="h-[26px]"
-                    disabled={busy || terpilih.length === 0}
-                    aria-describedby={terpilih.length === 0 ? 'ket_gen_generate' : undefined}
-                    onClick={mintaKonfirmasi}
-                  >
-                    Generate
-                  </Button>
-                </div>
-                )}
+                ) : null}
               </DialogFooter>
             </div>
           </>
