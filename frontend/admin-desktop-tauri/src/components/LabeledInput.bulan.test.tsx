@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import LabeledTextInput from './LabeledTextInput';
+import LabeledInput from './LabeledInput';
 import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
 import { bulanIni, bulanKeTampilan, NAMA_BULAN, pecahBulan } from '@/lib/tanggal';
@@ -26,7 +26,7 @@ function Contoh({ awal = '' }: { awal?: string }) {
   const [nilai, setNilai] = useState(awal);
   return (
     <div>
-      <LabeledTextInput
+      <LabeledInput
         nama="input" tipeKontrol="bulan"
         label="Bulan" htmlFor="inp_bln"
         value={nilai} onChange={(e) => setNilai(e.target.value)}
@@ -45,7 +45,7 @@ const bukaPemilih = () => userEvent.click(screen.getByRole('button', { name: 'Pi
 
 const ini = pecahBulan(bulanIni()) as { tahun: number; bulan: number };
 
-describe('LabeledTextInput tipe bulan — kotak', () => {
+describe('LabeledInput tipe bulan — kotak', () => {
   it('memakai teks ber-mask mm/yyyy + pemilih bulan, bukan `month` native', () => {
     renderDenganTema(<Contoh />);
 
@@ -68,7 +68,7 @@ describe('LabeledTextInput tipe bulan — kotak', () => {
   });
 });
 
-describe('LabeledTextInput tipe bulan — tampilan vs nilai', () => {
+describe('LabeledInput tipe bulan — tampilan vs nilai', () => {
   it('mengetik digit menambah "/" sendiri; nilai pemanggil tetap YYYY-MM', async () => {
     renderDenganTema(<Contoh />);
 
@@ -118,7 +118,7 @@ describe('LabeledTextInput tipe bulan — tampilan vs nilai', () => {
   });
 });
 
-describe('LabeledTextInput tipe bulan — ketikan cepat nama bulan', () => {
+describe('LabeledInput tipe bulan — ketikan cepat nama bulan', () => {
   it('mengetik "okt2026" tetap terlihat saat diketik; dibakukan saat kotak ditinggalkan', async () => {
     renderDenganTema(<Contoh />);
 
@@ -172,7 +172,7 @@ describe('LabeledTextInput tipe bulan — ketikan cepat nama bulan', () => {
   });
 });
 
-describe('LabeledTextInput tipe bulan — pemilih bulan', () => {
+describe('LabeledInput tipe bulan — pemilih bulan', () => {
   it('memilih dari pemilih menulis YYYY-MM ke pemanggil & menampilkannya di kotak', async () => {
     renderDenganTema(<Contoh />);
 

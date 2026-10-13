@@ -3,7 +3,7 @@ import { PAGE_SHELL } from '@/components/PageHeader';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import LabeledStepper from '@/components/LabeledStepper';
-import LabeledTextInput from '@/components/LabeledTextInput';
+import LabeledInput from '@/components/LabeledInput';
 import PresetKolom from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import { definisiTipe, KUNCI_TIPE_INPUT, type KunciTipeInput } from '@/components/tipeInput';
@@ -184,12 +184,12 @@ const VARIAN_TIPE_TEKS = KUNCI_TIPE_INPUT.map((kunci) => {
   const nama = definisiTipe(kunci)?.label ?? kunci;
   return {
     id: `info_tipe_${kunci}`,
-    nama: `LabeledTextInput — ${nama}`,
+    nama: `LabeledInput — ${nama}`,
     keterangan: `tipe \`${kunci}\` dari registry tipeInput.tsx: satu komponen, tipe dipatok lewat prop tipeKontrol`,
     rincian: rincianTipe(kunci),
-    catatan: `tipe \`${kunci}\` — varian dari LabeledTextInput`,
+    catatan: `tipe \`${kunci}\` — varian dari LabeledInput`,
     contoh: (
-      <LabeledTextInput
+      <LabeledInput
         label={nama}
         htmlFor={`demo_tipe_${kunci}`}
         tipeKontrol={kunci}
@@ -260,7 +260,7 @@ function BarisKomponen({ id, nama, keterangan, rincian, contoh, catatan }: {
  *  LabeledCombobox), karena itu diletakkan dalam tab yang sama supaya mudah
  *  dibandingkan.
  *
- *  Bukan semua perbedaan jadi komponen baru: jenis input `LabeledTextInput`
+ *  Bukan semua perbedaan jadi komponen baru: jenis input `LabeledInput`
  *  ditentukan TIPE di registry (`components/tipeInput.tsx`) lewat popover
  *  klik-kanan, jadi "nominal" cukup baris contoh, bukan komponen tersendiri.
  *
@@ -317,7 +317,7 @@ export default function KomponenPage() {
       <Tabs defaultValue="combobox" className="flex min-h-0 flex-1 flex-col gap-0">
         <TabsList className={KELAS_LIST_TAB} indikator="primer">
           <TabsTrigger value="combobox" id="tab_komponen_combobox" className={KELAS_TRIGGER}>Combobox</TabsTrigger>
-          <TabsTrigger value="teks" id="tab_komponen_teks" className={KELAS_TRIGGER}>LabeledTextInput</TabsTrigger>
+          <TabsTrigger value="teks" id="tab_komponen_teks" className={KELAS_TRIGGER}>LabeledInput</TabsTrigger>
           <TabsTrigger value="stepper" id="tab_komponen_stepper" className={KELAS_TRIGGER}>Stepper</TabsTrigger>
         </TabsList>
 
@@ -405,7 +405,7 @@ export default function KomponenPage() {
             <IsiTab
               utama={{
                 id: 'info_labeled_text_input',
-                nama: 'LabeledTextInput',
+                nama: 'LabeledInput',
                 keterangan: 'gabungan komponen label + input dalam 1 kotak; JENIS inputnya dipilih dari baris "Tipe" di popover klik-kanan (registry tipeInput.tsx)',
                 rincian: [
                   'Tanpa ukuran yang dikunci.',
@@ -415,7 +415,7 @@ export default function KomponenPage() {
                   'Tiap tipe punya baris varian sendiri di bawah ini.',
                 ],
                 contoh: (
-                  <LabeledTextInput
+                  <LabeledInput
                     label="Contoh"
                     htmlFor="demo_input_bebas"
                     placeholder="Klik kanan untuk memilih tipe…"

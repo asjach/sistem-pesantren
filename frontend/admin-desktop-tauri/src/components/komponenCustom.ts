@@ -148,7 +148,7 @@ export function resetSetelanKomponen(): void {
 export function gabung(ubah: UbahSetelanKomponen, setelan: SetelanKomponen): SetelanKomponen {
   const hasil = { ...setelan };
   for (const [kunci, nilai] of Object.entries(ubah) as [keyof SetelanKomponen, unknown][]) {
-    if (nilai === null || nilai === undefined || (kunci === 'expandLabel' && nilai === false)) delete hasil[kunci];
+    if (nilai === null || nilai === undefined || ((kunci === 'expandLabel' || kunci === 'tanpaLabel') && nilai === false)) delete hasil[kunci];
     else Object.assign(hasil, { [kunci]: nilai });
   }
   return hasil;

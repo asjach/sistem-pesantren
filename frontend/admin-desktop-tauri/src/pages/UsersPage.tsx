@@ -14,7 +14,7 @@ import {
 import { listLembaga, type Lembaga } from '../api/master';
 import { errorMessage } from '../api/client';
 import { Button } from '@/components/ui/button';
-import LabeledTextInput from '@/components/LabeledTextInput';
+import LabeledInput from '@/components/LabeledInput';
 import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
@@ -61,7 +61,7 @@ const PERAN_LEMBAGA_OPSI = ['admin', 'guru', 'orang_tua', 'santri'];
 const ADMIN_CREATE_ROLES = ['admin', ...ADMIN_ROLES];
 
 /** Lebar label seragam untuk SELURUH kontrol form Tambah Pengguna: kotak label
- *  `LabeledTextInput` (prop `lebarLabel`) dan kolom label grid Role/Lembaga
+ *  `LabeledInput` (prop `lebarLabel`) dan kolom label grid Role/Lembaga
  *  memakai angka yang sama, sehingga semua label selebar ini dan semua kontrol
  *  mulai di x yang sama. Dipatok dari label terpanjang, "Kata sandi (min 8)". */
 const LEBAR_LABEL_FORM = 140;
@@ -434,7 +434,7 @@ export default function UsersPage() {
                 </SheetDescription>
               </SheetHeader>
               {/* Kolom label grid (Role/Lembaga) memakai LEBAR_LABEL_FORM yang
-                  sama dengan `lebarLabel` tiap LabeledTextInput → semua label
+                  sama dengan `lebarLabel` tiap LabeledInput → semua label
                   seragam. Ditulis lewat `style` supaya angkanya satu sumber. */}
               <form
                 id="form_tambah_user"
@@ -448,14 +448,14 @@ export default function UsersPage() {
                     {errTambah}
                   </p>
                 )}
-                {/* Field teks memakai LabeledTextInput (label menyatu di dalam
+                {/* Field teks memakai LabeledInput (label menyatu di dalam
                     kotak) — membentang kedua kolom grid karena labelnya kini
                     bagian dari kotak, bukan kolom label terpisah.
                     `kelolaLebar={false}` WAJIB: form ini hidup di dalam toolbar
                     ExcelTable yang menyediakan konteks Kelola Tabel — tanpa itu
                     tiap field ikut terdaftar sebagai "filter" tabel `users`
                     dan lebarnya dipatok LEBAR_BAWAHAN_FILTER (160px). */}
-                <LabeledTextInput
+                <LabeledInput
                   className="col-span-2"
                   label="Nama"
                   htmlFor="input_nama"
@@ -474,7 +474,7 @@ export default function UsersPage() {
                 {/* Identitas = tiga kolom terpisah (sama seperti baris input
                     grid): minimal salah satu diisi, sisanya boleh kosong.
                     Urutan mengikuti urutan kolom grid. */}
-                <LabeledTextInput
+                <LabeledInput
                   className="col-span-2"
                   label="Email"
                   htmlFor="input_email"
@@ -488,7 +488,7 @@ export default function UsersPage() {
                   autoComplete="off"
                 />
 
-                <LabeledTextInput
+                <LabeledInput
                   className="col-span-2"
                   label="No. HP"
                   htmlFor="input_phone"
@@ -502,7 +502,7 @@ export default function UsersPage() {
                   autoComplete="off"
                 />
 
-                <LabeledTextInput
+                <LabeledInput
                   className="col-span-2"
                   label="Nama Pengguna"
                   htmlFor="input_username"
@@ -515,7 +515,7 @@ export default function UsersPage() {
                   autoComplete="off"
                 />
 
-                <LabeledTextInput
+                <LabeledInput
                   className="col-span-2"
                   label="Kata sandi (min 8)"
                   htmlFor="input_password_baru"

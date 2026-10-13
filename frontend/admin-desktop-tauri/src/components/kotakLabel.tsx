@@ -22,7 +22,7 @@ export function hitungLebarKontrol(tersedia: number, labelPx: number, diminta: n
 /** Shell "1 kotak": label inline di kiri + zona kontrol di kanan.
  *
  *  Dipakai bersama oleh komponen custom yang menggabungkan label + kontrol
- *  (LabeledCombobox, LabeledTextInput). `children` berupa render-prop yang
+ *  (LabeledCombobox, LabeledInput). `children` berupa render-prop yang
  *  menerima kelas untuk diterapkan pada kontrol — shell再也不 tahu detail
  *  kontrolnya (input, select trigger, dsb).
  *
@@ -40,6 +40,9 @@ export interface KotakLabelProps {
   /** Label transparan (tanpa bg): teks diakhiri titik dua ("Keaktifan:").
    *  Bawaan true. */
   labelTransparan?: boolean;
+  /** Sembunyikan label sepenuhnya: zona label tak dirender dan kontrol mengisi
+   *  penuh kotak. Bawaan false (label tampil). */
+  tanpaLabel?: boolean;
   lebarLabel?: number | string;
   lebarKontrol?: number | string;
   /** Lebar TOTAL kotak (label + kontrol). Kontrol mengisi sisa ruang; dipakai
@@ -62,7 +65,7 @@ export interface KotakLabelProps {
  *  dropdown pada LabeledCombobox); ref-nya digabung dengan ref pengukuran
  *  internal agar keduanya menunjuk elemen yang sama. */
 const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLabel({
-  label, htmlFor, labelTransparan = true, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, onContextMenu, tambahan,
+  label, htmlFor, labelTransparan = true, tanpaLabel = false, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, onContextMenu, tambahan,
 }, refDepan) {
   const kontrolKunci = lebarKontrol !== undefined;
   /* Ruang tersisa di induk setelah label & border: kontrol menyusut agar kotak
@@ -130,16 +133,23 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
         ...(lebarKotakEfektif !== undefined ? { width: keCss(lebarKotakEfektif), flex: 'none' } : {}),
       }}
     >
-      <label
-        htmlFor={htmlFor}
-        className={cn(
-          'flex w-max shrink-0 items-center px-2 text-xs whitespace-nowrap text-muted-foreground',
-          labelTransparan ? 'bg-transparent pr-1' : 'bg-muted/70 dark:bg-foreground/10',
-        )}
-        style={lebarLabel === undefined ? undefined : { width: keCss(lebarLabel) }}
-      >
-        {labelTransparan && !label.endsWith(':') ? `${label}:` : label}
-      </label>
+      {tanpaLabel ? (
+        /* Label disembunyikan secara VISUAL, tapi tetap ada di pohon
+           aksesibilitas supaya kontrolnya masih punya nama yang terbaca
+           pembaca layar (dulu label itulah satu-satunya penamaan). */
+        label === '' ? null : <label htmlFor={htmlFor} className="sr-only">{label}</label>
+      ) : (
+        <label
+          htmlFor={htmlFor}
+          className={cn(
+            'flex w-max shrink-0 items-center px-2 text-xs whitespace-nowrap text-muted-foreground',
+            labelTransparan ? 'bg-transparent pr-1' : 'bg-muted/70 dark:bg-foreground/10',
+          )}
+          style={lebarLabel === undefined ? undefined : { width: keCss(lebarLabel) }}
+        >
+          {labelTransparan && !label.endsWith(':') ? `${label}:` : label}
+        </label>
+      )}
       <span
         className={cn(
           'relative flex min-w-0 flex-1 items-stretch',

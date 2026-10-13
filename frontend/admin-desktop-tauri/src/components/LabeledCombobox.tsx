@@ -47,12 +47,14 @@ function suntikGaya(node: ReactNode, jenis: unknown, kelas: string, gaya?: Recor
  *    ke SERVER (global per tabel, lihat `useToolbarPreset`); di luar itu
  *    disimpan per perangkat (`ukuranKombo.ts`).
  *  - Anak idealnya satu `ComboboxRoot`; kontrol lain dirender apa adanya. */
-export default function LabeledCombobox({ label, htmlFor, labelTransparan = true, lebarLabel, lebarKombo, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, bisaCari = false, tambahan }: {
+export default function LabeledCombobox({ label, htmlFor, labelTransparan = true, tanpaLabel = false, lebarLabel, lebarKombo, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, bisaCari = false, tambahan }: {
   label: string;
   htmlFor?: string;
   /** Label transparan (tanpa bg, teks bertitik dua); bisa juga diatur per
    *  komponen dari popover klik-kanan (simpanan menang atas prop). */
   labelTransparan?: boolean;
+  /** Sembunyikan label (kontrol mengisi penuh kotak). */
+  tanpaLabel?: boolean;
   lebarLabel?: number | string;
   lebarKombo?: number | string;
   /** Lebar TOTAL kotak (label + combobox); combobox mengisi sisa ruang. */
@@ -93,10 +95,10 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
 
   const {
     refKotak, onContextMenu, tinggiEfektif, lebarKotakEfektif,
-    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif,
+    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif, tanpaLabelEfektif,
     nilaiDefaultEfektif, bungkus,
   } = usePengaturanKotak({
-    htmlFor, kelolaLebar, label, labelTransparan, opsi,
+    htmlFor, kelolaLebar, label, labelTransparan, tanpaLabel, opsi,
     lebarLabel, lebarKontrol: lebarKombo, lebarKotak, tinggi,
   });
 
@@ -206,6 +208,7 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
       label={label}
       htmlFor={htmlFor}
       labelTransparan={labelTransparanEfektif}
+      tanpaLabel={tanpaLabelEfektif}
       lebarLabel={lebarLabelEfektif}
       lebarKontrol={lebarKontrolEfektif}
       lebarKotak={lebarKotakEfektif}

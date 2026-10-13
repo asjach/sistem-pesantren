@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import LabeledTextInput, { posisiSetelahDigit } from './LabeledTextInput';
+import LabeledInput, { posisiSetelahDigit } from './LabeledInput';
 import { PRESET_NOMINAL } from './tipeInput';
 import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
@@ -22,12 +22,12 @@ beforeEach(() => {
 
 /** Harness terkontrol: meniru pemakaian nyata (`value` + `onChange`).
  *
- *  Nominal bukan komponen tersendiri lagi: cukup `LabeledTextInput` dengan
+ *  Nominal bukan komponen tersendiri lagi: cukup `LabeledInput` dengan
  *  `tipeKontrol="nominal"` (registry `tipeInput.tsx`). */
 function Contoh({ awal = '' }: { awal?: string }) {
   const [nilai, setNilai] = useState(awal);
   return (
-    <LabeledTextInput
+    <LabeledInput
       nama="nominal" tipeKontrol="nominal"
       label="Nominal" htmlFor="inp_nom"
       value={nilai} onChange={(e) => setNilai(e.target.value)}
@@ -43,7 +43,7 @@ const klik = async (nama: string) => userEvent.click(await screen.findByRole('bu
 /** Panel terpisah (portal ke body) — ditandai `data-panel` oleh komponen. */
 const panel = (nama: string) => document.querySelector(`[data-panel="${nama}"]`) as HTMLElement | null;
 
-describe('LabeledTextInput tipe nominal', () => {
+describe('LabeledInput tipe nominal', () => {
   it('memakai input teks + papan ketik angka & menyediakan tombol popover', () => {
     renderDenganTema(<Contoh />);
     const input = document.getElementById('inp_nom') as HTMLInputElement;
@@ -177,7 +177,7 @@ describe('LabeledTextInput tipe nominal', () => {
 
   it('klik tombol memanggil onChange & popover tetap terbuka', async () => {
     const onChange = vi.fn();
-    renderDenganTema(<LabeledTextInput nama="nominal" tipeKontrol="nominal" label="Nominal" htmlFor="inp_nom" value="" onChange={onChange} />);
+    renderDenganTema(<LabeledInput nama="nominal" tipeKontrol="nominal" label="Nominal" htmlFor="inp_nom" value="" onChange={onChange} />);
     await bukaPopover();
     await klik('100.000');
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ value: '100000' }) }));
@@ -222,7 +222,7 @@ describe('LabeledTextInput tipe nominal', () => {
 
   it('tanpa value/onChange: nilai dikelola internal & isinya tetap bisa diketik', async () => {
     renderDenganTema(
-      <LabeledTextInput nama="nominal" tipeKontrol="nominal" label="Nominal" htmlFor="inp_lepas" defaultValue="50000" />,
+      <LabeledInput nama="nominal" tipeKontrol="nominal" label="Nominal" htmlFor="inp_lepas" defaultValue="50000" />,
     );
     const input = document.getElementById('inp_lepas') as HTMLInputElement;
     expect(input.value).toBe('50.000');
@@ -251,13 +251,13 @@ describe('LabeledTextInput tipe nominal', () => {
   });
 });
 
-describe('LabeledTextInput tipe nominal — tampilan vs nilai', () => {
+describe('LabeledInput tipe nominal — tampilan vs nilai', () => {
   /** Harness yang MEREKAM nilai mentah yang diterima pemanggil. */
   function Perekam({ awal = '' }: { awal?: string }) {
     const [nilai, setNilai] = useState(awal);
     return (
       <div>
-        <LabeledTextInput
+        <LabeledInput
           nama="nominal" tipeKontrol="nominal"
           label="Nominal" htmlFor="inp_rekam"
           value={nilai} onChange={(e) => setNilai(e.target.value)}
@@ -289,7 +289,7 @@ describe('LabeledTextInput tipe nominal — tampilan vs nilai', () => {
 
   it('nilai awal dari pemanggil ditampilkan berformat tanpa mengubah nilainya', () => {
     renderDenganTema(
-      <LabeledTextInput
+      <LabeledInput
         nama="nominal" tipeKontrol="nominal"
         label="Nominal" htmlFor="inp_rekam" value="50000" onChange={() => {}}
       />,
@@ -342,7 +342,7 @@ describe('LabeledTextInput tipe nominal — tampilan vs nilai', () => {
   });
 });
 
-describe('LabeledTextInput tipe nominal — pengaturan tipe', () => {
+describe('LabeledInput tipe nominal — pengaturan tipe', () => {
   /** Buka popover pengaturan (klik kanan) SEKALIGUS kolom kedua ("Lainnya") —
    *  baris "Preset cepat" ada di kolom itu, dan kolomnya bawaan TERTUTUP. */
   const bukaPengaturan = async (kotak: HTMLElement) => {
@@ -390,7 +390,7 @@ describe('LabeledTextInput tipe nominal — pengaturan tipe', () => {
 
   it('tipeTerkunci: baris "Tipe" disembunyikan, baris preset tetap ada', async () => {
     const { container } = renderDenganTema(
-      <LabeledTextInput nama="nominal" tipeKontrol="nominal" tipeTerkunci label="Bayar" htmlFor="inp_bayar" value="" onChange={() => {}} />,
+      <LabeledInput nama="nominal" tipeKontrol="nominal" tipeTerkunci label="Bayar" htmlFor="inp_bayar" value="" onChange={() => {}} />,
     );
     await bukaPengaturan(container.firstElementChild as HTMLElement);
     await screen.findByText('Preset cepat');

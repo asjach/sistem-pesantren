@@ -40,6 +40,8 @@ export type UbahUkuranKombo = {
   lebarKontrol?: number | null;
   expandLabel?: boolean | null;
   labelTransparan?: boolean | null;
+  /** Sembunyikan label kotak (kontrol mengisi penuh). */
+  tanpaLabel?: boolean | null;
   nilaiDefault?: string | null;
   langkah?: number | null;
 };

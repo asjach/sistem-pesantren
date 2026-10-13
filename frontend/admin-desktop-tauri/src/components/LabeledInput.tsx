@@ -41,11 +41,13 @@ import { cn } from '@/lib/utils';
  *    nama bulan seperti `okt26`) dengan pemilih bulannya sendiri, dan nilainya
  *    tetap `YYYY-MM` seperti `input type="month"`; pesan `title` saat isiannya
  *    tak sah ikut dari formatnya (`judulTakSah`). */
-export default function LabeledTextInput({ label, htmlFor, labelTransparan = true, nama = 'input', tipeKontrol, pilihanTipe, tipeTerkunci, bawaanTipe, lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
+export default function LabeledInput({ label, htmlFor, labelTransparan = true, tanpaLabel = false, nama = 'input', tipeKontrol, pilihanTipe, tipeTerkunci, bawaanTipe, lebarLabel, lebarInput, lebarKotak, tinggi = 26, className, kelolaLebar = true, aksiKanan, ...props }: {
   label: string;
   htmlFor?: string;
   /** Label transparan (tanpa bg, teks bertitik dua); simpanan popover menang. */
   labelTransparan?: boolean;
+  /** Sembunyikan label (kontrol mengisi penuh kotak); simpanan popover menang. */
+  tanpaLabel?: boolean;
   /** Kata ganti jenis kotak di judul & aria popover (bawaan 'input'). */
   nama?: string;
   /** Tipe bawaan dari pemanggil; bila absen diturunkan dari `type` native
@@ -78,10 +80,10 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
 } & Omit<React.ComponentProps<typeof Input>, 'className' | 'style'>) {
   const {
     refKotak, onContextMenu, tinggiEfektif, lebarKotakEfektif,
-    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif,
+    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif, tanpaLabelEfektif,
     defTipeEfektif, bungkus,
   } = usePengaturanKotak({
-    htmlFor, kelolaLebar, label, nama, labelTransparan,
+    htmlFor, kelolaLebar, label, nama, labelTransparan, tanpaLabel,
     lebarLabel, lebarKontrol: lebarInput, lebarKotak, tinggi,
     tipeKontrol: tipeKontrol ?? kunciDariTypeNative(props.type), pilihanTipe, tipeTerkunci,
   });
@@ -187,6 +189,7 @@ export default function LabeledTextInput({ label, htmlFor, labelTransparan = tru
       label={label}
       htmlFor={htmlFor}
       labelTransparan={labelTransparanEfektif}
+      tanpaLabel={tanpaLabelEfektif}
       lebarLabel={lebarLabelEfektif}
       lebarKontrol={lebarKontrolEfektif}
       lebarKotak={lebarKotakEfektif}

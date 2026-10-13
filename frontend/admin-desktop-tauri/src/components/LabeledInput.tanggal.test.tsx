@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import LabeledTextInput from './LabeledTextInput';
+import LabeledInput from './LabeledInput';
 import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
 import { hariIniIso, tanggalKeTampilan } from '@/lib/tanggal';
@@ -26,7 +26,7 @@ function Contoh({ awal = '' }: { awal?: string }) {
   const [nilai, setNilai] = useState(awal);
   return (
     <div>
-      <LabeledTextInput
+      <LabeledInput
         nama="input" tipeKontrol="tanggal"
         label="Tanggal" htmlFor="inp_tgl"
         value={nilai} onChange={(e) => setNilai(e.target.value)}
@@ -43,7 +43,7 @@ const kotak = () => document.getElementById('inp_tgl') as HTMLInputElement;
 const nilai = () => document.querySelector('[data-uji="nilai"]')?.textContent;
 const bukaKalender = () => userEvent.click(screen.getByRole('button', { name: 'Pilih tanggal' }));
 
-describe('LabeledTextInput tipe tanggal — kotak', () => {
+describe('LabeledInput tipe tanggal — kotak', () => {
   it('memakai teks ber-mask + papan angka, dengan tombol kalender di ujung kanan', () => {
     renderDenganTema(<Contoh />);
     const el = kotak();
@@ -64,7 +64,7 @@ describe('LabeledTextInput tipe tanggal — kotak', () => {
   });
 });
 
-describe('LabeledTextInput tipe tanggal — tampilan vs nilai', () => {
+describe('LabeledInput tipe tanggal — tampilan vs nilai', () => {
   it('mengetik digit menambah "/" sendiri; nilai pemanggil tetap ISO', async () => {
     renderDenganTema(<Contoh />);
 
@@ -119,7 +119,7 @@ describe('LabeledTextInput tipe tanggal — tampilan vs nilai', () => {
   });
 });
 
-describe('LabeledTextInput tipe tanggal — pengaturan format', () => {
+describe('LabeledInput tipe tanggal — pengaturan format', () => {
   /** Klik kanan pada KOTAK (bukan induknya) = buka popover pengaturan,
    *  SEKALIGUS kolom kedua ("Lainnya") yang memuat baris "Format" — kolom itu
    *  bawaan TERTUTUP. */
@@ -173,7 +173,7 @@ describe('LabeledTextInput tipe tanggal — pengaturan format', () => {
   });
 });
 
-describe('LabeledTextInput tipe tanggal — tombol kalender', () => {
+describe('LabeledInput tipe tanggal — tombol kalender', () => {
   it('memilih dari kalender menulis ISO ke pemanggil & menampilkannya di kotak', async () => {
     renderDenganTema(<Contoh />);
 

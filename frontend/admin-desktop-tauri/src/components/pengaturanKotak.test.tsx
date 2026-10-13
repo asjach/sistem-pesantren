@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import LabeledTextInput from './LabeledTextInput';
+import LabeledInput from './LabeledInput';
 import { resetSetelanKomponen, setelanKomponen } from '@/components/komponenCustom';
 import { isiSalinan, kosongkanSalinan } from '@/components/salinSetelan';
 import { renderDenganTema } from '@/test/utils';
@@ -53,7 +53,7 @@ const klikKanan = () => fireEvent.contextMenu(
 describe('popover pengaturan komponen — gerbang izin', () => {
   it('user tanpa izin tulis: popover TIDAK dibuka (bukan error 403)', () => {
     pengguna.current = sesi(['santri.lihat', 'santri.ubah']);
-    renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
 
     klikKanan();
 
@@ -62,7 +62,7 @@ describe('popover pengaturan komponen — gerbang izin', () => {
 
   it('user dengan komponen_custom.ubah: popover terbuka', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
-    renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
 
     klikKanan();
 
@@ -71,7 +71,7 @@ describe('popover pengaturan komponen — gerbang izin', () => {
 
   it('user dengan komponen_custom.tambah saja: popover tetap terbuka', async () => {
     pengguna.current = sesi(['komponen_custom.tambah']);
-    renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
 
     klikKanan();
 
@@ -80,7 +80,7 @@ describe('popover pengaturan komponen — gerbang izin', () => {
 
   it('sesi belum termuat (user null): tidak diblokir', async () => {
     pengguna.current = null;
-    renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
 
     klikKanan();
 
@@ -89,7 +89,7 @@ describe('popover pengaturan komponen — gerbang izin', () => {
 
   it('tanpa htmlFor: popover tetap tak dibuka (kotak tanpa identitas)', () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
-    const { container } = renderDenganTema(<LabeledTextInput label="Nama" />);
+    const { container } = renderDenganTema(<LabeledInput label="Nama" />);
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
 
@@ -111,7 +111,7 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
 
   it('ukuran tersusun GRID 2 kolom: Tinggi/Total di atas, Label/Kontrol di bawah', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
-    const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    const { container } = renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
 
@@ -132,7 +132,7 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
 
   it('bawaan: bagian "Lainnya" tertutup', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
-    const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    const { container } = renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
 
@@ -144,7 +144,7 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
 
   it('tombol kepala panel membuka bagian "Lainnya" TANPA melebarkan panel, lalu menutupnya lagi', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
-    const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    const { container } = renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
     // Lebar panel tak boleh berubah-ubah: patokannya sama sebelum & sesudah.
@@ -178,7 +178,7 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
 
   it('semua baris pilihan berlabel sama lebar (84px) supaya combobox rata kiri', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
-    const { container } = renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_uji" />);
+    const { container } = renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
     await bukaLainnya();
@@ -208,7 +208,7 @@ describe('popover pengaturan komponen — salin & tempel setelan', () => {
 
   it('ikon Salin nonaktif selama kotak belum punya setelan tersimpan', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
-    renderDenganTema(<LabeledTextInput label="Nama" htmlFor="inp_a" />);
+    renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_a" />);
 
     buka('inp_a');
     await screen.findByLabelText('Tinggi kotak input (px)');
@@ -226,8 +226,8 @@ describe('popover pengaturan komponen — salin & tempel setelan', () => {
     };
     renderDenganTema(
       <div>
-        <LabeledTextInput label="Nama" htmlFor="inp_a" />
-        <LabeledTextInput label="Julian" htmlFor="inp_b" />
+        <LabeledInput label="Nama" htmlFor="inp_a" />
+        <LabeledInput label="Julian" htmlFor="inp_b" />
       </div>,
     );
 
@@ -264,10 +264,10 @@ describe('popover pengaturan komponen — salin & tempel setelan', () => {
     };
     renderDenganTema(
       <div>
-        <LabeledTextInput label="Sumber" htmlFor="inp_src" tipeKontrol="teks" />
+        <LabeledInput label="Sumber" htmlFor="inp_src" tipeKontrol="teks" />
         {/* `pilihanTipe={[]}` = kotak tujuan tanpa baris "Tipe" (mis. combobox),
             jadi tipe sumber memang tak bisa diterima di sini. */}
-        <LabeledTextInput label="Tujuan" htmlFor="inp_dst" pilihanTipe={[]} />
+        <LabeledInput label="Tujuan" htmlFor="inp_dst" pilihanTipe={[]} />
       </div>,
     );
 

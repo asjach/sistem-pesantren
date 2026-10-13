@@ -16,7 +16,7 @@ import {
 } from '@/lib/tanggal';
 import { Calculator, Reset } from '@/icons';
 
-/** Registry TIPE kontrol input untuk `LabeledTextInput`.
+/** Registry TIPE kontrol input untuk `LabeledInput`.
  *
  *  Tiap tipe punya bawaannya sendiri; tipe yang tak terdaftar (atau tak ada
  *  pilihannya) tetap memakai `Input` bawaan apa adanya. Pengguna memilih
@@ -51,7 +51,7 @@ export interface KonteksTipeInput {
   /** Nilai berjalan; `''` bila input tak terkontrol. */
   nilai: string;
   /** Tulis nilai baru lewat `onChange` pemanggil; tanpa `onChange` = input
-   *  dikendalikan `LabeledTextInput` secara internal (uncontrolled). */
+   *  dikendalikan `LabeledInput` secara internal (uncontrolled). */
   setNilai: (nilaiBaru: string) => void;
 }
 

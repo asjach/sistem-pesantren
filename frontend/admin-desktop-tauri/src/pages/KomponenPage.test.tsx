@@ -50,7 +50,7 @@ describe('KomponenPage — kerangka tab', () => {
 
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
       'Combobox',
-      'LabeledTextInput',
+      'LabeledInput',
       'Stepper',
     ]);
     // Id elemen snake_case (NFR-05).
@@ -80,12 +80,12 @@ describe('KomponenPage — pengelompokan komponen', () => {
     expect(komponen('info_preset_kolom')).not.toBeNull();
     expect(screen.getAllByText('varian dari LabeledCombobox')).toHaveLength(2);
 
-    // Teks: LabeledTextInput + satu baris varian per TIPE di registry.
-    await klik.click(screen.getByRole('tab', { name: 'LabeledTextInput' }));
+    // Teks: LabeledInput + satu baris varian per TIPE di registry.
+    await klik.click(screen.getByRole('tab', { name: 'LabeledInput' }));
     expect(komponen('info_labeled_text_input')).not.toBeNull();
     expect(komponen('info_tipe_nominal')).not.toBeNull();
     expect(komponen('info_preset_urut')).toBeNull();
-    expect(screen.getAllByText(/^tipe `\w+` — varian dari LabeledTextInput$/))
+    expect(screen.getAllByText(/^tipe `\w+` — varian dari LabeledInput$/))
       .toHaveLength(KUNCI_TIPE_INPUT.length);
 
     // Stepper: tanpa varian.
@@ -94,10 +94,10 @@ describe('KomponenPage — pengelompokan komponen', () => {
     expect(screen.getByText('Belum ada varian dari LabeledStepper.')).toBeInTheDocument();
   });
 
-  it('tab LabeledTextInput memuat contoh SELURUH tipe registry', async () => {
+  it('tab LabeledInput memuat contoh SELURUH tipe registry', async () => {
     const klik = userEvent.setup();
     renderDenganTema(<KomponenPage />);
-    await klik.click(screen.getByRole('tab', { name: 'LabeledTextInput' }));
+    await klik.click(screen.getByRole('tab', { name: 'LabeledInput' }));
 
     for (const kunci of KUNCI_TIPE_INPUT) {
       // Tiap tipe = satu baris varian dengan tombol keterangan sendiri.

@@ -50,6 +50,8 @@ const LEBAR_STEPPER = 84;
 const OPSI_MENGEMBANG = [{ label: 'Label', nilai: 'Label' }, { label: 'Kontrol', nilai: 'Kontrol' }];
 /** Pilihan gaya label (baris "Warna Label:"). */
 const OPSI_WARNA_LABEL = [{ label: 'Transparan', nilai: 'Transparan' }, { label: 'Tidak Transparan', nilai: 'Tidak Transparan' }];
+/** Tampil/sembunyi label kotak. */
+const OPSI_LABEL_TAMPIL = [{ label: 'Tampil', nilai: 'Tampil' }, { label: 'Sembunyi', nilai: 'Sembunyi' }];
 
 /** Baris alat: label polos + stepper kompak + tombol reset per-baris. */
 function BarisUkuran({ id, teks, stepper, resetId, resetLabel, adaAturan, onReset }: {
@@ -201,7 +203,7 @@ const diDalamDaftarOpsi = (target: EventTarget | null) =>
  *  Popover tak punya tombol tutup: KLIK KIRI DI LUAR menutupnya (kecuali klik
  *  pada daftar opsi combobox di dalamnya, yang ber-portal ke `body`). Escape
  *  sengaja tak menutup supaya mengetik di isian panel tak berarti keluar. */
-export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, onSalin, onTempel, bisaSalin, asalSalinan, pengaturanTipe, adaPengaturanTipe, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, opsi, nilaiDefault, langkah, adaLangkah, onUbah, onReset, onResetBaris }: {
+export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, onSalin, onTempel, bisaSalin, asalSalinan, pengaturanTipe, adaPengaturanTipe, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaTanpaLabel, adaNilaiDefault, expandLabel, labelTransparan, tanpaLabel, opsi, nilaiDefault, langkah, adaLangkah, onUbah, onReset, onResetBaris }: {
   kunci: string;
   /** Ref elemen KOTAK yang sedang diatur. Isi kotak (label + kontrol) berada
    *  di luar DOM panel ini, jadi perlu rujukan untuk membedakan "pengguna
@@ -252,12 +254,16 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
   adaExpand: boolean;
   /** Ada flag label transparan tersimpan? */
   adaLabelTransparan: boolean;
+  /** Ada setelan "label disembunyikan" tersimpan (untuk tombol kembalikan). */
+  adaTanpaLabel?: boolean;
   /** Ada nilai awal combobox tersimpan? */
   adaNilaiDefault: boolean;
   /** True = LABEL mengembang saat total diubah; false = KONTROL (bawaan). */
   expandLabel: boolean;
   /** True = label TRANSPARAN (tanpa bg, teks bertitik dua). */
   labelTransparan: boolean;
+  /** Label disembunyikan: kontrol mengisi penuh kotak. */
+  tanpaLabel?: boolean;
   /** Daftar label opsi combobox; kosong = baris "nilai awal" disembunyikan. */
   opsi?: string[];
   /** Label opsi yang jadi nilai AWAL combobox; absen = ikut nilai pemanggil. */
@@ -270,7 +276,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
   onUbah: (ukuran: UbahUkuranKombo) => void;
   onReset: () => void;
   /** Kembalikan SATU baris ke bawaan. */
-  onResetBaris: (bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol' | 'nilaiDefault' | 'tipeKontrol' | 'langkah') => void;
+  onResetBaris: (bidang: 'tinggi' | 'lebar' | 'lebarLabel' | 'lebarKontrol' | 'nilaiDefault' | 'tipeKontrol' | 'langkah' | 'tanpaLabel') => void;
 }) {
   /** Interaksi di dalam KOTAK yang sedang diatur ATAU daftar opsi di dalam
    *  panel tidak menutup panel (lihat catatan pada `onInteractOutside`). */
@@ -608,6 +614,18 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
                 placeholder="Pilih warna label…"
                 namaDaftar="Buka daftar warna label"
                 onPilih={(v) => onUbah({ labelTransparan: v === 'Transparan' })}
+              />
+              {/* Tampil/sembunyi label. Saat disembunyikan, zona label tak
+                  dirender sama sekali dan kontrol mengisi penuh kotak. */}
+              <BarisPilihan
+                id={`set_label_tampil_kombo_${kunci}`}
+                teks="Label:"
+                judul="Tampil: label seperti biasa. Sembunyi: label dihilangkan, kontrol mengisi penuh kotak (nama tetap terbaca pembaca layar)."
+                opsi={OPSI_LABEL_TAMPIL}
+                nilai={tanpaLabel ? 'Sembunyi' : 'Tampil'}
+                placeholder="Pilih tampilan label…"
+                namaDaftar="Buka daftar tampilan label"
+                onPilih={(v) => onUbah({ tanpaLabel: v === 'Sembunyi' })}
               />
               {opsi !== undefined && opsi.length > 0 ? (
                 <div className="flex items-center gap-1.5">

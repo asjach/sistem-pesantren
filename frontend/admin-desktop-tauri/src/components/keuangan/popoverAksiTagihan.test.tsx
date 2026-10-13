@@ -313,7 +313,7 @@ describe('panel bayar', () => {
     expect(onBayar).toHaveBeenCalledWith({ jumlah: 25000, metode: 'tunai', kas: 'tunai_tu' });
   });
 
-  it('nominal bayar = LabeledTextInput tipe nominal: panel nominal cepat menambah nilai tanpa menutup popover', async () => {
+  it('nominal bayar = LabeledInput tipe nominal: panel nominal cepat menambah nilai tanpa menutup popover', async () => {
     const { onBayar, onTutup } = renderPopover(tagihan());
     await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
 

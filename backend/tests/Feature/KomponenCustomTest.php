@@ -197,6 +197,19 @@ class KomponenCustomTest extends TestCase
         $this->assertDatabaseMissing('komponen_custom', ['komponen' => 'demo_input_bebas']);
     }
 
+    public function test_tolak_penanda_tanpa_label_yang_bukan_boolean(): void
+    {
+        $user = $this->makeUser('admin');
+
+        $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
+            'table_key' => 'santri',
+            'komponen' => 'sel_status',
+            'setelan' => ['tanpaLabel' => 'ya'],
+        ])->assertStatus(422)->assertJsonValidationErrors('setelan.tanpaLabel');
+
+        $this->assertDatabaseMissing('komponen_custom', ['komponen' => 'sel_status']);
+    }
+
     public function test_simpan_ukuran_komponen_dan_nilai_awal(): void
     {
         $user = $this->makeUser('admin');
@@ -211,12 +224,14 @@ class KomponenCustomTest extends TestCase
                 'lebarKontrol' => 150,
                 'expandLabel' => true,
                 'labelTransparan' => false,
+                'tanpaLabel' => true,
                 'nilaiDefault' => 'Aktif',
                 'tipeKontrol' => 'nominal',
             ],
         ])->assertStatus(200)->assertJsonPath('data.setelan.lebarLabel', 60)
             ->assertJsonPath('data.setelan.expandLabel', true)
-            ->assertJsonPath('data.setelan.labelTransparan', false);
+            ->assertJsonPath('data.setelan.labelTransparan', false)
+            ->assertJsonPath('data.setelan.tanpaLabel', true);
         // Simpan ulang menyalin HANYA kunci yang dikirim (server menimpa utuh).
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'table_key' => 'santri',

@@ -11,7 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Setelan komponen CUSTOM (LabeledCombobox, LabeledTextInput, dst) — satu
+ * Setelan komponen CUSTOM (LabeledCombobox, LabeledInput, dst) — satu
  * baris per komponen, kunci `table_key` + `komponen` (htmlFor). Terpisah dari
  * `toolbar_preset` karena setelan ini milik komponen, bukan milik tabel: satu
  * komponen yang sama di luar tabel (dialog/form) tetap punya setelannya.
@@ -105,7 +105,7 @@ class KomponenCustomController extends Controller
                 continue;
             }
 
-            if ($kunci === 'expandLabel' || $kunci === 'labelTransparan') {
+            if ($kunci === 'expandLabel' || $kunci === 'labelTransparan' || $kunci === 'tanpaLabel') {
                 if (! is_bool($nilai)) {
                     throw ValidationException::withMessages([
                         "setelan.{$kunci}" => "Penanda \"{$kunci}\" harus true atau false.",

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 /** Gabungan label + stepper angka (−/+) dalam satu kotak tanpa padding.
  *
  *  Styling, penskalaan lebar, dan pendaftaran ke Kelola Tabel identik dengan
- *  `LabeledCombobox`/`LabeledTextInput` (ketiganya memakai shell `KotakLabel`)
+ *  `LabeledCombobox`/`LabeledInput` (ketiganya memakai shell `KotakLabel`)
  *  — bedanya hanya jenis kontrolnya: angka yang bisa diubah lewat tombol
  *  kurang/tambah atau diketik langsung.
  *
@@ -25,11 +25,13 @@ import { cn } from '@/lib/utils';
  *    seperti `LabeledCombobox`); butuh `htmlFor` sebagai identitas. Selain
  *    ukuran, popover stepper punya baris **Langkah** — interval perubahan
  *    nilai per klik tombol −/+ (bawaan: prop `step`). */
-export default function LabeledStepper({ label, htmlFor, labelTransparan = true, lebarLabel, lebarStepper, lebarKotak, tinggi = 26, className, kelolaLebar = true, value, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER, step = 1, disabled = false, onChange, ...props }: {
+export default function LabeledStepper({ label, htmlFor, labelTransparan = true, tanpaLabel = false, lebarLabel, lebarStepper, lebarKotak, tinggi = 26, className, kelolaLebar = true, value, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER, step = 1, disabled = false, onChange, ...props }: {
   label: string;
   htmlFor?: string;
   /** Label transparan (tanpa bg, teks bertitik dua); simpanan popover menang. */
   labelTransparan?: boolean;
+  /** Sembunyikan label (kontrol mengisi penuh kotak). */
+  tanpaLabel?: boolean;
   lebarLabel?: number | string;
   lebarStepper?: number | string;
   /** Lebar TOTAL kotak (label + stepper); stepper mengisi sisa ruang. */
@@ -71,9 +73,9 @@ export default function LabeledStepper({ label, htmlFor, labelTransparan = true,
   const tombol = 'grid w-6 shrink-0 place-items-center text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40';
   const {
     refKotak, onContextMenu, tinggiEfektif, lebarKotakEfektif,
-    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif, langkahEfektif, bungkus,
+    lebarLabelEfektif, lebarKontrolEfektif, labelTransparanEfektif, tanpaLabelEfektif, langkahEfektif, bungkus,
   } = usePengaturanKotak({
-    htmlFor, kelolaLebar, label, nama: 'stepper', labelTransparan,
+    htmlFor, kelolaLebar, label, nama: 'stepper', labelTransparan, tanpaLabel,
     lebarLabel, lebarKontrol: lebarStepper, lebarKotak, tinggi, langkah: step,
   });
   /* Langkah tombol −/+ yang berlaku: setelan popover (bila ada) menang atas
@@ -85,6 +87,7 @@ export default function LabeledStepper({ label, htmlFor, labelTransparan = true,
       label={label}
       htmlFor={htmlFor}
       labelTransparan={labelTransparanEfektif}
+      tanpaLabel={tanpaLabelEfektif}
       lebarLabel={lebarLabelEfektif}
       lebarKontrol={lebarKontrolEfektif}
       lebarKotak={lebarKotakEfektif}

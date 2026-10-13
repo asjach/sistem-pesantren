@@ -19,6 +19,9 @@ export interface SetelanKomponen {
   expandLabel?: boolean;
   /** True = label transparan (tanpa latar, teks bertitik dua). */
   labelTransparan?: boolean;
+  /** True = label DISEMBUNYIKAN; kontrol mengisi penuh kotak (tanpa zona
+   *  label sama sekali). Bawaannya label tampil. */
+  tanpaLabel?: boolean;
   /** Label opsi yang jadi nilai AWAL combobox. */
   nilaiDefault?: string;
   /** Langkah tombol −/+ stepper angka (mis. 5 → tiap klik geser 5). Absen =

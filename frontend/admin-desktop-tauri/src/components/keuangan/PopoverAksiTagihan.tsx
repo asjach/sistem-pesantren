@@ -6,7 +6,7 @@ import { ambilByteDokumen } from '@/api/dokumen';
 import { ambilFotoProfilSantri } from '@/api/santri';
 import { hitungDispensasi, ringkasAturan, saringDispensasi, selaraskanGrup, sisaKuota } from '@/lib/dispensasi';
 import { DeleteAction } from '@/components/RowActions';
-import LabeledTextInput from '@/components/LabeledTextInput';
+import LabeledInput from '@/components/LabeledInput';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -793,7 +793,7 @@ export default function PopoverAksiTagihan({
                     kontrolnya mulai di x berbeda-beda). 4rem cukup untuk
                     label terpanjang "Posisi Kas" (~52px) plus jarak. */}
                 <div className="grid grid-cols-[4rem_1fr] items-center gap-x-2 gap-y-1.5">
-                  {/* Nominal bayar = `LabeledTextInput` bertipe `nominal`
+                  {/* Nominal bayar = `LabeledInput` bertipe `nominal`
                       (registry `tipeInput.tsx`): label "Bayar" menyatu di dalam
                       kotak + panel nominal cepat & tombol angka. Tipenya
                       DIKUNCI (`tipeTerkunci`) karena ini kotak kontrak —
@@ -803,8 +803,8 @@ export default function PopoverAksiTagihan({
                       kolom label 4rem terpisah), kotaknya membentang kedua
                       kolom grid; baris Metode/Posisi Kas di bawahnya tetap
                       memakai kolom label. */}
-                  <LabeledTextInput
-                    /* autoFocus (bukan ref): LabeledTextInput tidak forwardRef. */
+                  <LabeledInput
+                    /* autoFocus (bukan ref): LabeledInput tidak forwardRef. */
                     autoFocus
                     nama="nominal"
                     tipeKontrol="nominal"

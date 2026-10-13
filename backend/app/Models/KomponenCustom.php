@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Setelan komponen CUSTOM (LabeledCombobox, LabeledTextInput, dst): satu
+ * Setelan komponen CUSTOM (LabeledCombobox, LabeledInput, dst): satu
  * baris per komponen, kunci = `table_key` + `komponen` (htmlFor).
  *
  * Berbeda dengan `ToolbarPreset`, kolom `setelan` JSON bebas kunci baru:

@@ -2,7 +2,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 /** `forwardRef`: elemen input perlu dipegang langsung oleh pemanggil yang
- *  menulis ulang teksnya sendiri (mis. pemisah ribuan pada `LabeledTextInput`
+ *  menulis ulang teksnya sendiri (mis. pemisah ribuan pada `LabeledInput`
  *  yang harus memulihkan posisi kursor setelah nilai diformat ulang). */
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   function Input({ className, type, ...props }, ref) {
