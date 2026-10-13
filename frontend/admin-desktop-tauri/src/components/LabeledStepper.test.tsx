@@ -84,8 +84,7 @@ describe('LabeledStepper', () => {
   });
 
   /* Baris "Langkah" di bagian "Lainnya" popover: interval perubahan nilai
-     tombol −/+. Bawaan tertutup, jadi barisnya baru ada setelah pengalih
-     kepala panel ditekan. */
+     tombol −/+. Bagian itu bawaan terbuka, jadi barisnya langsung ada. */
   describe('popover: pengaturan langkah', () => {
     const kunci = 'uji_stepper_langkah';
     function ContohLangkah() {
@@ -98,7 +97,6 @@ describe('LabeledStepper', () => {
       const { container } = renderDenganTema(<ContohLangkah />);
       fireEvent.contextMenu(container.firstElementChild as HTMLElement);
       await screen.findByLabelText('Tinggi kotak stepper (px)');
-      await userEvent.click(screen.getByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
     };
     const tutupPopover = () => userEvent.click(document.body);
 
@@ -139,7 +137,6 @@ describe('LabeledStepper', () => {
       renderDenganTema(<ContohLangkah />);
       fireEvent.contextMenu(document.querySelector(`#${kunci}`)?.closest('span')?.parentElement as HTMLElement);
       await screen.findByLabelText('Tinggi kotak stepper (px)');
-      await userEvent.click(screen.getByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
 
       // Nilai tersimpan tampil di stepper popover (bukan bawaan 1).
       await waitFor(() => expect(screen.getByLabelText('Langkah stepper')).toHaveValue('5'));

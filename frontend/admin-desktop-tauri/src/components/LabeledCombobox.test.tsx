@@ -88,7 +88,7 @@ describe('LabeledCombobox', () => {
     );
     const kotak = container.firstElementChild as HTMLElement;
     expect(kotak.className).toMatch(/w-full/);
-    expect(kotak.className).toMatch(/focus-within:ring-1/);
+    expect(kotak.className).toMatch(/focus-within:border-ring/);
     expect(screen.getByText('Kelompok:').className).toMatch(/w-max/);
   });
 
@@ -308,9 +308,7 @@ describe('LabeledCombobox', () => {
     expect(screen.queryByLabelText('Tutup pengaturan ukuran')).toBeNull();
 
     /* Klik pada daftar opsi (popup ber-portal ke `body`, jadi di luar DOM
-       panel) tidak menutup panel pengaturan. Panel "Lainnya" bawaan tertutup
-       → buka dulu. */
-    await userEvent.click(screen.getByRole('button', { ...DALAM_PANEL, name: 'Tampilkan pengaturan lainnya' }));
+       panel) tidak menutup panel pengaturan. */
     const sisi = screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Mengembang' });
     await userEvent.click(sisi);
     const opsi = await screen.findByRole('option', { name: 'Label' });
@@ -458,8 +456,6 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    // Panel "Lainnya" bawaan tertutup → buka dulu.
-    await userEvent.click(screen.getByRole('button', { ...DALAM_PANEL, name: 'Tampilkan pengaturan lainnya' }));
     // Bawaan: "Kontrol" → kontrol yang mengembang.
     expect(screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Mengembang' })).toHaveValue('Kontrol');
     // Total +10 → kontrol 80→90, label tetap 80.
@@ -509,8 +505,6 @@ describe('LabeledCombobox', () => {
     );
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    // Panel "Lainnya" bawaan tertutup → buka dulu.
-    await userEvent.click(screen.getByRole('button', { ...DALAM_PANEL, name: 'Tampilkan pengaturan lainnya' }));
     const cb = screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Mengembang' });
     // Pilih "Label" → label yang mengembang; flag tersimpan; Total +10
     // menggeser label (80→90), kontrol tetap.
@@ -557,8 +551,6 @@ describe('LabeledCombobox', () => {
     expect(teksLabel().className).toMatch(/bg-transparent/);
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
-    // Panel "Lainnya" bawaan tertutup → buka dulu.
-    await userEvent.click(screen.getByRole('button', { ...DALAM_PANEL, name: 'Tampilkan pengaturan lainnya' }));
     const warna = screen.getByRole('combobox', { ...DALAM_PANEL, name: 'Warna Label:' });
     expect(warna).toHaveValue('Transparan');
 

@@ -181,9 +181,9 @@ const diDalamDaftarOpsi = (target: EventTarget | null) =>
  *  - GRID UKURAN 2 KOLOM (selalu terlihat): baris atas = ukuran kotak
  *    (Tinggi, Total), baris bawah = pembagian lebarnya (Label, Kontrol).
  *  - "Lainnya" (Tipe, Langkah, pengaturan tipe, Mengembang, Warna Label,
- *    Nilai awal) ada DI BAWAH grid itu dan BISA DILIPAT — bawaan TERTUTUP
- *    supaya popover tetap ringkas. Ia selebar panel, jadi membukanya tak
- *    melebarkan panel.
+ *    Nilai awal) ada DI BAWAH grid itu dan BISA DILIPAT — bawaan TERBUKA
+ *    supaya seluruh pengaturan langsung terlihat. Ia selebar panel, jadi
+ *    keadaannya tak melebarkan panel.
  *
  *  Total, label, dan kontrol SALING TERHUBUNG: total = label + kontrol.
  *  - Ubah label → kontrol menyesuaikan (total tetap); ubah kontrol → label
@@ -308,10 +308,9 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
       onUbah({ lebar: totalBaru, lebarKontrol: kontrolBaru });
     }
   };
-  /** Panel "Lainnya" (kolom kedua) dibuka atau tidak — bawaan TERTUTUP supaya
-   *  popover tetap ringkas; hanya ukuran (kolom pertama) yang langsung
-   *  terlihat. */
-  const [lainnyaBuka, setLainnyaBuka] = useState(false);
+  /** Panel "Lainnya" dibuka atau tidak — bawaan TERBUKA supaya seluruh
+   *  pengaturan langsung terlihat tanpa satu klik ekstra. */
+  const [lainnyaBuka, setLainnyaBuka] = useState(true);
   /** Ada setelan tersimpan apa pun? → tombol "Kembalikan ke bawaan" hidup. */
   const adaSetelan = adaTinggi || adaLebar || adaLebarLabel || adaLebarKontrol
     || adaExpand || adaLabelTransparan || adaNilaiDefault || adaLangkah === true
@@ -413,7 +412,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
           >
             <RotateCcw />
           </Button>
-          {/* Pengalih bagian "Lainnya" — bawaan TERTUTUP. Panahnya BERGANTI,
+          {/* Pengalih bagian "Lainnya" — bawaan TERBUKA. Panahnya BERGANTI,
               bukan berputar: panah BAWAH saat tertutup (isinya terbuka ke
               bawah) dan panah ATAS saat terbuka (isinya dilipat ke atas),
               jadi arahnya selalu menunjukkan apa yang akan terjadi.
@@ -525,7 +524,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
         </div>
         {/* "Lainnya" — DI BAWAH grid ukuran (bukan di sampingnya), jadi panel
             tak ikut melebar. Berisi Tipe, pengaturan tipe (mis. "Format"),
-            Mengembang, Warna Label, dan Nilai awal; bawaan tertutup. Garis
+            Mengembang, Warna Label, dan Nilai awal; bawaan terbuka. Garis
             horizontal memisahkan kelompok ukuran dari kelompok pengaturan. */}
         {lainnyaBuka ? (
           <>

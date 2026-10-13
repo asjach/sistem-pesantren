@@ -103,10 +103,9 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
     const label = screen.getByText(teks) as HTMLLabelElement;
     return { label, pembungkus: label.nextElementSibling as HTMLElement };
   };
-  /** Buka bagian "Lainnya" — bawaan TERTUTUP, jadi semua baris di sana baru
-   *  ada setelah tombol kepala panel ditekan. */
-  const bukaLainnya = () => userEvent.click(screen.getByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
-  /** Panel popover pengaturan (ber-portal ke `body`). */
+  /** Panel popover pengaturan (ber-portal ke `body`). Bagian "Lainnya"
+   *  bawaan TERBUKA, jadi baris di sana langsung ada tanpa menekan tombol
+   *  kepala panel. */
   const panel = () => document.querySelector('[data-slot="popover-content"]') as HTMLElement;
 
   it('ukuran tersusun GRID 2 kolom: Tinggi/Total di atas, Label/Kontrol di bawah', async () => {
@@ -130,7 +129,7 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
     );
   });
 
-  it('bawaan: bagian "Lainnya" tertutup', async () => {
+  it('bawaan: bagian "Lainnya" terbuka', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
     const { container } = renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
@@ -138,31 +137,22 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
 
     // Ringkas: 370px = border 2×1 + padding 2×12 + 2 sel grid 168px + celah 8px.
     expect(panel().className).toMatch(/w-\[370px\]/);
-    expect(document.getElementById('panel_lainnya_kombo_inp_uji')).toBeNull();
-    expect(screen.queryByText('Tipe')).toBeNull();
+    expect(document.getElementById('panel_lainnya_kombo_inp_uji')).not.toBeNull();
+    expect(screen.getByText('Tipe')).not.toBeNull();
   });
 
-  it('tombol kepala panel membuka bagian "Lainnya" TANPA melebarkan panel, lalu menutupnya lagi', async () => {
+  it('tombol kepala panel menutup bagian "Lainnya" TANPA melebarkan panel, lalu membukanya lagi', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
     const { container } = renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
     // Lebar panel tak boleh berubah-ubah: patokannya sama sebelum & sesudah.
     expect(panel().className).toMatch(/w-\[370px\]/);
-    // Ikon pengalih = panah BAWAH (isinya terbuka ke bawah), bukan panah
-    // samping yang diputar: tak boleh ada kelas putaran.
-    const pengalihTertutup = screen.getByRole('button', { name: 'Tampilkan pengaturan lainnya' });
-    expect(pengalihTertutup.querySelector('svg')).not.toBeNull();
-    expect(pengalihTertutup.innerHTML).not.toMatch(/rotate/);
-    const ikonTertutup = pengalihTertutup.innerHTML;
-
-    await bukaLainnya();
-
-    expect(panel().className).toMatch(/w-\[370px\]/);
-    // Ikonnya benar-benar BERGANTI jadi panah ATAS saat bagiannya terbuka.
+    // Bawaan terbuka: pengalih = panah ATAS, tanpa kelas putaran.
     const pengalihBuka = screen.getByRole('button', { name: 'Sembunyikan pengaturan lainnya' });
+    expect(pengalihBuka.querySelector('svg')).not.toBeNull();
     expect(pengalihBuka.innerHTML).not.toMatch(/rotate/);
-    expect(pengalihBuka.innerHTML).not.toBe(ikonTertutup);
+    const ikonBuka = pengalihBuka.innerHTML;
     const bagianLainnya = document.getElementById('panel_lainnya_kombo_inp_uji') as HTMLElement;
     // Lembar penuh (bukan kolom bermeter) → tak ada lebar terpatok di sini.
     expect(bagianLainnya.className).not.toMatch(/w-\[/);
@@ -170,9 +160,18 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
     // Baris "Langkah" khusus stepper — tak ada di kotak input teks.
     expect(screen.queryByText('Langkah')).toBeNull();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Sembunyikan pengaturan lainnya' }));
+    await userEvent.click(pengalihBuka);
 
+    expect(panel().className).toMatch(/w-\[370px\]/);
+    // Ikonnya benar-benar BERGANTI jadi panah BAWAH saat bagiannya tertutup.
+    const pengalihTertutup = screen.getByRole('button', { name: 'Tampilkan pengaturan lainnya' });
+    expect(pengalihTertutup.innerHTML).not.toMatch(/rotate/);
+    expect(pengalihTertutup.innerHTML).not.toBe(ikonBuka);
     expect(document.getElementById('panel_lainnya_kombo_inp_uji')).toBeNull();
+
+    await userEvent.click(pengalihTertutup);
+
+    expect(document.getElementById('panel_lainnya_kombo_inp_uji')).not.toBeNull();
     expect(panel().className).toMatch(/w-\[370px\]/);
   });
 
@@ -181,7 +180,6 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
     const { container } = renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
-    await bukaLainnya();
 
     const { label, pembungkus } = barisDari('Tipe');
     // Berlabel terkunci (bukan selebar teksnya) → baris pengaturan rata kiri.

@@ -343,11 +343,11 @@ describe('LabeledInput tipe nominal — tampilan vs nilai', () => {
 });
 
 describe('LabeledInput tipe nominal — pengaturan tipe', () => {
-  /** Buka popover pengaturan (klik kanan) SEKALIGUS kolom kedua ("Lainnya") —
-   *  baris "Preset cepat" ada di kolom itu, dan kolomnya bawaan TERTUTUP. */
+  /** Buka popover pengaturan (klik kanan) — baris "Preset cepat" ada di
+   *  bagian "Lainnya" yang bawaan TERBUKA. */
   const bukaPengaturan = async (kotak: HTMLElement) => {
     fireEvent.contextMenu(kotak);
-    await userEvent.click(await screen.findByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
+    await screen.findByRole('button', { name: 'Sembunyikan pengaturan lainnya' });
   };
   /** Isi baris "Preset cepat" di popover pengaturan lalu commit (blur). */
   const isiPreset = async (teks: string) => {

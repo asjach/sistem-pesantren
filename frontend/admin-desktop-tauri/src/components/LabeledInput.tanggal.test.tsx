@@ -120,12 +120,11 @@ describe('LabeledInput tipe tanggal — tampilan vs nilai', () => {
 });
 
 describe('LabeledInput tipe tanggal — pengaturan format', () => {
-  /** Klik kanan pada KOTAK (bukan induknya) = buka popover pengaturan,
-   *  SEKALIGUS kolom kedua ("Lainnya") yang memuat baris "Format" — kolom itu
-   *  bawaan TERTUTUP. */
+  /** Klik kanan pada KOTAK (bukan induknya) = buka popover pengaturan;
+   *  bagian "Lainnya" yang memuat baris "Format" bawaan TERBUKA. */
   const bukaPengaturan = async () => {
     fireEvent.contextMenu(document.getElementById('inp_tgl')?.closest('span')?.parentElement as HTMLElement);
-    await userEvent.click(await screen.findByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
+    await screen.findByRole('button', { name: 'Sembunyikan pengaturan lainnya' });
   };
   /** Combobox pola format di dalam popover (id: `<htmlFor>_tipe_format`). */
   const kotakFormat = () => document.getElementById('inp_tgl_tipe_format') as HTMLInputElement;

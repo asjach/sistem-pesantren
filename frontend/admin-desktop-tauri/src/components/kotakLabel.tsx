@@ -125,7 +125,7 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
         // lebar tetap; selain itu kotak mengikuti induk.
         kontrolKunci ? 'inline-flex w-max' : 'flex w-full',
         lebarKotak !== undefined && kontrolKunci === false && 'w-full',
-        'focus-within:ring-1 focus-within:ring-ring/60',
+        'focus-within:border-ring',
         className,
       )}
       style={{

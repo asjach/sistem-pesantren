@@ -19,12 +19,11 @@ beforeEach(() => {
   resetSetelanKomponen();
 });
 
-/** Buka popover pengaturan (klik kanan) SEKALIGUS kolom kedua ("Lainnya"):
- *  baris "Tipe" & pengaturan tipe ada di kolom itu, dan kolomnya bawaan
- *  TERTUTUP. */
+/** Buka popover pengaturan (klik kanan): bagian "Lainnya" (baris "Tipe" &
+ *  pengaturan tipe) bawaan TERBUKA, jadi langsung bisa dipakai. */
 async function bukaPengaturanLengkap(kotak: HTMLElement) {
   fireEvent.contextMenu(kotak);
-  await userEvent.click(await screen.findByRole('button', { name: 'Tampilkan pengaturan lainnya' }));
+  await screen.findByRole('button', { name: 'Sembunyikan pengaturan lainnya' });
 }
 
 describe('LabeledInput', () => {
@@ -52,7 +51,7 @@ describe('LabeledInput', () => {
     const { container } = renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
     const kotak = container.firstElementChild as HTMLElement;
     expect(kotak.className).toMatch(/w-full/);
-    expect(kotak.className).toMatch(/focus-within:ring-1/);
+    expect(kotak.className).toMatch(/focus-within:border-ring/);
     const kelas = document.getElementById('inp_uji')?.className ?? '';
     expect(kelas).toMatch(/h-full/);
     expect(kelas).toMatch(/w-full/);
