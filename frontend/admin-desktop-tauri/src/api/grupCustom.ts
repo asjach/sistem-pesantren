@@ -1,31 +1,50 @@
 import { api } from './client';
 
 /** Grup santri custom: kelompok bentukan manual (mis. peserta ekskul). */
+export interface AnggotaGrupCustom {
+  id: number;
+  nama_lengkap: string;
+  jk: string | null;
+  /** NIS lokal (dari riwayat TA tampil; null bila tak ada). */
+  nis: string | null;
+  /** Kelas pada TA tampil (null bila tak ada). */
+  kelas: string | null;
+  /** Jenjang pada TA tampil (null bila tak ada). */
+  jenjang: string | null;
+}
+
 export interface GrupSantriCustom {
   id: number;
   nama: string;
   keterangan: string | null;
+  jenjang: string | null;
+  tahun_ajaran: string | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
-  /** Anggota (santri pilihan manual). */
-  santri: { id: number; nama_lengkap: string }[];
+  /** Anggota (diperkaya nis/kelas/jenjang dari riwayat TA tampil). */
+  santri: AnggotaGrupCustom[];
 }
 
-/** Daftar grup + anggotanya. */
-export function daftarGrupCustom() {
-  return api<GrupSantriCustom[]>('/admin/keuangan/grup-custom');
+/** Daftar grup + anggotanya (saring lingkup bila diisi). */
+export function daftarGrupCustom(params: { jenjang?: string; tahun_ajaran?: string } = {}) {
+  const q = new URLSearchParams();
+  if (params.jenjang) q.set('jenjang', params.jenjang);
+  if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
+  const qs = q.toString();
+  return api<GrupSantriCustom[]>(`/admin/keuangan/grup-custom${qs ? `?${qs}` : ''}`);
 }
 
 /** Buat grup baru. */
-export function buatGrupCustom(data: { nama: string; keterangan?: string | null }) {
+export function buatGrupCustom(data: { nama: string; keterangan?: string | null; jenjang?: string | null; tahun_ajaran?: string | null; is_active?: boolean }) {
   return api<GrupSantriCustom>('/admin/keuangan/grup-custom', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-/** Ubah nama/keterangan grup. */
-export function ubahGrupCustom(id: number, data: { nama: string; keterangan?: string | null }) {
+/** Ubah grup (nama wajib; sisanya mengikuti yang dikirim). */
+export function ubahGrupCustom(id: number, data: { nama: string; keterangan?: string | null; jenjang?: string | null; tahun_ajaran?: string | null; is_active?: boolean }) {
   return api<GrupSantriCustom>(`/admin/keuangan/grup-custom/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),

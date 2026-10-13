@@ -11,6 +11,8 @@ class GrupSantriCustom extends Model
 
     protected $guarded = ['id'];
 
+    protected $casts = ['is_active' => 'boolean'];
+
     /** Anggota grup (santri pilihan manual). */
     public function santri(): BelongsToMany
     {
