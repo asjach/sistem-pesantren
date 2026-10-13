@@ -18,7 +18,7 @@ import PresetKolom from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import LabeledInput from '@/components/LabeledInput';
-import { tanggalKeTampilan } from '@/lib/tanggal';
+import { hariIniIso, tanggalKeTampilan } from '@/lib/tanggal';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
@@ -28,18 +28,30 @@ import { ErrorNotice } from '@/components/PageHeader';
 import { rincianPeriode } from '@/lib/dispensasi';
 import { Trash2, X } from '@/icons';
 
-const OPSI_KELOMPOK: { value: KelompokKandidat | ''; label: string }[] = [
+const OPSI_KELOMPOK: { value: KelompokKandidat | ''; label: string; keterangan?: string }[] = [
   { value: '', label: 'Pilih kelompok…' },
-  { value: 'aktif', label: 'Semua Santri Aktif' },
-  { value: 'mi', label: 'MI (MI + MI-MD)' },
-  { value: 'md', label: 'MD (MD + MI-MD)' },
-  { value: 'mi_saja', label: 'MI Saja (tanpa MD)' },
-  { value: 'md_saja', label: 'MD Saja (tanpa MI)' },
-  { value: 'mi_md', label: 'MI-MD' },
+  { value: 'aktif', label: 'Semua Santri MI-MD', keterangan: 'Semua santri MI-MD yang aktif' },
+  { value: 'mi', label: 'MI (MI + MI-MD)', keterangan: 'Santri yang aktif di MI' },
+  { value: 'md', label: 'MD (MD + MI-MD)', keterangan: 'Santri yang aktif di MD' },
+  { value: 'mi_saja', label: 'MI Saja (tanpa MD)', keterangan: 'Santri yang aktif di MI Saja' },
+  { value: 'md_saja', label: 'MD Saja (tanpa MI)', keterangan: 'Santri yang aktif di MD Saja' },
+  { value: 'mi_md', label: 'MI-MD', keterangan: 'Santri yang aktif di MI sekaligus MD' },
+  /* Keterangan dua terbawah dinamis (tingkat akhir mengikuti filter lembaga
+     topBar) — diisi `opsiKelompok` di dalam komponen. */
   { value: 'kelas_akhir', label: 'Kelas Akhir' },
   { value: 'selain_kelas_akhir', label: 'Selain Kelas Akhir' },
-  { value: 'custom', label: 'Custom' },
+  /* Pilih manual per santri (mis. peserta ekskul) — rancangan, belum
+     diimplementasikan: memilihnya kini sama dengan semua santri. */
+  { value: 'custom', label: 'Custom', keterangan: 'Pilih manual (belum tersedia)' },
 ];
+
+/** Tingkat akhir per jenjang (cermin backend `TINGKAT_AKHIR` + KelulusanPage). */
+const TINGKAT_AKHIR_JENJANG: Record<string, string> = {
+  MI: '6',
+  MD: '6',
+  MTS: '9',
+  MLN: '12',
+};
 
 /** Opsi filter status daftar Santri (label tampil + nilai ke state). */
 const OPSI_STATUS_GEN: { nilai: '' | 'aktif' | 'nonaktif'; label: string }[] = [
@@ -137,7 +149,7 @@ interface GalatIsian {
 function LangkahNomor({ n, judul }: { n: number; judul: string }) {
   return (
     <div className="flex h-[26px] shrink-0 items-center gap-1.5" aria-hidden="true">
-      <span className="grid size-5 shrink-0 place-items-center rounded-full border text-[11px] font-semibold leading-none">
+      <span className="grid size-5 shrink-0 place-items-center rounded-full border border-foreground/40 text-[11px] font-semibold leading-none">
         {n}
       </span>
       <span className="text-xs font-medium text-muted-foreground">{judul}</span>
@@ -148,15 +160,15 @@ function LangkahNomor({ n, judul }: { n: number; judul: string }) {
  *
  *  Tanpa ini area atas terlihat kosong sebelum ada yang dipilih — padahal
  *  kartunya empat. Kerangka memakai bentuk & lebar yang SAMA dengan kartu
- *  aslinya (240px; 300px untuk kartu 2; 120px untuk Generate) supaya tata letak tidak melompat
- *  saat kartu sungguhan muncul. Tinggi tiap slot mengikuti kartu aslinya
- *  (diukur di browser: kartu 2 & 3 = 152px) agar tak ada pergeseran.
+ *  aslinya (240px kartu 1; 300px kartu 2 & 3; 120px Generate) supaya tata letak tidak melompat
+ *  saat kartu sungguhan muncul. Tinggi tiap slot SAMA dengan kartu aslinya
+ *  (keempatnya 136px, dipatok di tiap `Card`) agar tak ada pergeseran.
  *
  *  Tanpa nomor langkah: kerangka murni penanda ruang, bukan informasi. */
 function KartuKerangka({ lebar, tinggi, baris }: { lebar: number; tinggi: number; baris: number[] }) {
   return (
     <Card
-      className="flex shrink-0 flex-col gap-2 p-3"
+      className="flex shrink-0 flex-col gap-2 p-2"
       style={{ width: lebar, height: tinggi }}
       aria-hidden="true"
     >
@@ -235,6 +247,19 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
   const jenisTerpilih = useMemo(() => jenis.find((j) => j.id === jenisId) ?? null, [jenis, jenisId]);
   const bulanan = jenisTerpilih?.tipe === 'bulanan';
+
+  /** Keterangan dinamis dua opsi kelas akhir: tingkat akhir dari jenjang yang
+   *  terpilih di filter lembaga topBar (mis. MI → "6", MI+MTS → "6/9"). */
+  const tingkatAkhirKet = useMemo(() => {
+    const daftar = jenjangs.length > 0 ? jenjangs : Object.keys(TINGKAT_AKHIR_JENJANG);
+    const unik = [...new Set(daftar.map((j) => TINGKAT_AKHIR_JENJANG[j]).filter((t) => t !== undefined))];
+    return unik.length > 0 ? unik.join('/') : 'akhir';
+  }, [jenjangs]);
+  const opsiKelompok = useMemo(() => OPSI_KELOMPOK.map((o) => {
+    if (o.value === 'kelas_akhir') return { ...o, keterangan: `Santri tingkat ${tingkatAkhirKet}` };
+    if (o.value === 'selain_kelas_akhir') return { ...o, keterangan: `Santri selain tingkat ${tingkatAkhirKet}` };
+    return o;
+  }), [tingkatAkhirKet]);
 
   /** Opsi tarif = bawaan induk + yang baru dibuat di popover (anti-duplikat id). */
   const daftarTarifPilih = useMemo(() => {
@@ -525,7 +550,9 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     setGalatNominal(null);
   };
 
-  /** Tarif = patokan: nominal default + jenis (+tipe bulanan) mengikutinya. */
+  /** Tarif = patokan: nominal default + jenis (+tipe bulanan) mengikutinya.
+   *  Non-bulanan: jatuh tempo bawaan = hari ini (masih bisa diubah atau
+   *  dikosongkan); bulanan: dikosongkan (otomatis tanggal 10 per periode). */
   const pilihTarif = (id: number | '', daftar: Tarif[] = daftarTarifPilih) => {
     setTarifId(id);
     if (id === '') { setJenisId(''); return; }
@@ -533,6 +560,11 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     if (t) {
       ubahNominalDefault(String(t.nominal));
       setJenisId(t.jenis_id);
+      if (jenis.find((j) => j.id === t.jenis_id)?.tipe === 'bulanan') {
+        setJatuhTempo('');
+      } else {
+        setJatuhTempo((lama) => (lama === '' ? hariIniIso() : lama));
+      }
     }
   };
 
@@ -796,7 +828,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
               <div className="flex flex-wrap items-stretch gap-3">
 
                 {/* -- Kartu 1: Tarif + Nominal -- */}
-                <Card className="flex w-[240px] shrink-0 flex-col gap-2 p-3">
+                <Card className="flex h-[136px] w-[240px] shrink-0 flex-col gap-2 p-2">
                   <div className="flex items-start justify-between gap-2">
                     <LangkahNomor n={1} judul="Tarif" />
                     <Popover
@@ -927,15 +959,15 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                 <>
                   {/* Kartu 2 & 3 belum bisa diisi (periode & kelompok
                       bergantung pada tarif), jadi ruangnya ditandai kerangka
-                      — bukan dibiarkan kosong. Bentuknya: tiga baris kontrol,
-                      tinggi mengikuti kartu aslinya (152px). */}
-                  <KartuKerangka lebar={300} tinggi={152} baris={[26, 26, 26, 16]} />
-                  <KartuKerangka lebar={240} tinggi={152} baris={[26, 26, 26, 16]} />
+                      — bukan dibiarkan kosong. Ukurannya SAMA dengan kartu
+                      asli (lebar tiap kartu, tinggi 136px). */}
+                  <KartuKerangka lebar={300} tinggi={136} baris={[26, 26, 26, 16]} />
+                  <KartuKerangka lebar={300} tinggi={136} baris={[26, 26, 26, 16]} />
                 </>
                 ) : (
                 <>
                 {/* -- Kartu 2: Periode + Jatuh Tempo -- */}
-                <Card className="flex w-[300px] shrink-0 flex-col gap-2 p-3">
+                <Card className="flex h-[136px] w-[300px] shrink-0 flex-col gap-2 p-2">
                   <LangkahNomor n={2} judul="Periode & Jatuh Tempo" />
                   {/* Periode. Bulanan = dua baris (Awal / Akhir) bertumpuk;
                       non-bulanan = satu baris keterangan. Slot yang sama. */}
@@ -989,14 +1021,14 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                 </Card>
 
                 {/* -- Kartu 3: Kelompok Santri -- */}
-                <Card className="flex w-[240px] shrink-0 flex-col gap-2 p-3">
+                <Card className="flex h-[136px] w-[300px] shrink-0 flex-col gap-2 p-2">
                   <LangkahNomor n={3} judul="Kelompok Santri" />
                   <LabeledCombobox label="Kelompok" htmlFor="sel_gen_kelompok" tinggi={26} kelolaLebar={false} className="w-full">
                     <ComboboxRoot
-                      items={OPSI_KELOMPOK}
+                      items={opsiKelompok}
                       itemToStringLabel={(o) => o.label}
                       isItemEqualToValue={(a, b) => a.value === b.value}
-                      value={OPSI_KELOMPOK.find((o) => o.value === kelompok) ?? OPSI_KELOMPOK[0]}
+                      value={opsiKelompok.find((o) => o.value === kelompok) ?? opsiKelompok[0]}
                       onValueChange={(o) => { if (o !== null) setKelompok(o.value); }}
                     >
                       <ComboboxInput id="sel_gen_kelompok" aria-label="Kelompok Santri" placeholder="Pilih kelompok…" />
@@ -1004,7 +1036,14 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                       <ComboboxContent>
                         <ComboboxEmpty>Belum ada kelompok.</ComboboxEmpty>
                         <ComboboxList>
-                          {(o) => <ComboboxItem key={o.value} value={o}>{o.label}</ComboboxItem>}
+                          {(o) => (
+                            <ComboboxItem key={o.value} value={o} className="flex-col items-start gap-0">
+                              <span>{o.label}</span>
+                              {o.keterangan !== undefined && (
+                                <span className="text-[11px] text-muted-foreground">{o.keterangan}</span>
+                              )}
+                            </ComboboxItem>
+                          )}
                         </ComboboxList>
                       </ComboboxContent>
                     </ComboboxRoot>
@@ -1016,9 +1055,9 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                 {kelompok === '' ? (
                 /* Kartu 4 menunggu kelompok dipilih; kerangka lebarnya sama
                    (120px) supaya tata letak tidak melompat saat muncul. */
-                <KartuKerangka lebar={120} tinggi={96} baris={[26, 16]} />
+                <KartuKerangka lebar={120} tinggi={136} baris={[26, 26, 16]} />
                 ) : (
-                <Card className="flex w-[120px] shrink-0 flex-col gap-2 p-3">
+                <Card className="flex h-[136px] w-[120px] shrink-0 flex-col gap-2 p-2">
                   <LangkahNomor n={4} judul="Generate" />
                   <Button
                     id="btn_gen_generate" type="button" className="h-[26px]"
