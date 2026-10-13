@@ -445,14 +445,28 @@ const BarisCrosstab = memo(function BarisCrosstab({
             /* Tanda seleksi: garis 1px accent hanya di sisi LUAR blok (bukan
                antar sel terpilih) supaya garis di dalam blok tak jadi dobel.
                Grid bawaan (border-b/border-r) tetap menjadi satu garis pada
-               sisi antar sel terpilih. Hover memakai OUTLINE (bukan ring/
-               box-shadow) supaya tidak saling menimpa dengan boxShadow
-               seleksi yang memakai properti sama. */
+               sisi antar sel terpilih.
+
+               Hover TIDAK memakai outline lagi (dulu hover:outline-1 +
+               hover:outline-ring). Outline digambar di LUAR border-box,
+               sedangkan garis seleksi digambar di DALAM lewat inset
+               box-shadow. Pada sel yang terpilih lalu di-hover, keduanya
+               jatuh berdampingan (1 piksel seleksi + 1 piksel outline) dan
+               tampak sebagai DUA garis yang menempel. Sekarang hover digambar
+               di dalam memakai inset box-shadow yang sama seperti seleksi,
+               sehingga pada sel terpilih garisnya menempati piksel yang SAMA
+               dan tetap terbaca satu garis. */
             /* anchorKunci TIDAK dipakai untuk menandai sel secara visual: atas
                permintaan, penanda ring-nya dihapus. Ia tetap jadi state logika
                (acuan blok geser / Shift), supaya perilaku seleksi tak berubah. */
             className={cn(
-              'relative cursor-default border-b border-r p-0.5 text-right tabular-nums hover:z-10 hover:outline hover:outline-1 hover:outline-ring',
+              'relative cursor-default border-b border-r p-0.5 text-right tabular-nums hover:z-10',
+              /* Saat TIDAK terpilih: hover menggambar garis ring 1px di dalam
+                 (arbitrary box-shadow, lihat BAYANG_HOVER). Saat terpilih
+                 kelas ini tidak dipasang — garisnya sudah dari bayangSeleksi,
+                 dan menumpuk keduanya (inset outline vs inset shadow pada
+                 sisi sama) membuat garis tampak menebal/bergeser. */
+              selection?.has(sel.id) ? '' : `hover:shadow-[inset_0_0_0_1px_var(--ring)]`,
               kelasSel(sel),
               sel.terlambat ? 'font-semibold' : '',
             )}

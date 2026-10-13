@@ -305,6 +305,32 @@ describe('sel tagihan: klik kanan = aksi, klik kiri = seleksi', () => {
     expect(document.getElementById('cincin_sel_tagihan')).toBeNull();
   });
 
+  it('hover memakai garis DALAM (inset), bukan outline luar — pemilih ganda saat sel terpilih lalu di-hover', () => {
+    /* Bug: sel terpilih lalu di-hover tampak punya DUA garis. Sebabnya garis
+       seleksi digambar inset (di dalam border-box), sementara hover dulu
+       memakai `hover:outline-1 hover:outline-ring` yang digambar di LUAR
+       border-box — dua garis 1px berdempetan. Sekarang hover memakai inset
+       box-shadow (`hover:shadow-[inset_0_0_0_1px_var(--ring)]`), jadi pada
+       sel terpilih garisnya menempati piksel yang sama dan tetap satu garis.
+       Dikunci di level class karena inilah bedanya "di dalam" vs "di luar". */
+    const selUji = (i: number) => document.querySelectorAll<HTMLElement>('[id^="btn_tagihan_sel_"]')[i];
+    renderCrosstab(baris(sel({}), sel({ id: 2 })));
+
+    // Sel tak terpilih: hover memakai inset shadow, dan TIDAK ada outline.
+    expect(selUji(0).className).not.toContain('hover:outline');
+    expect(selUji(0).className).toContain('hover:shadow-[inset_0_0_0_1px_var(--ring)]');
+    expect(selUji(1).className).not.toContain('hover:outline');
+
+    // Sel terpilih: kelas inset-hover dilepas (garisnya sudah dari bayangSeleksi),
+    // supaya tidak ada dua garis pada sisi yang sama.
+    fireEvent(selUji(0), new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }));
+    fireEvent(selUji(0), new MouseEvent('pointerup', { bubbles: true, cancelable: true, button: 0 }));
+    expect(selUji(0).style.boxShadow).not.toBe('');
+    expect(selUji(0).className).not.toContain('hover:shadow-[inset');
+    // Sel terpilih tetap tak boleh memakai outline hover.
+    expect(selUji(0).className).not.toContain('hover:outline');
+  });
+
   it('sel terpilih diberi overlay latar, sel tak terpilih tidak', () => {
     /* Overlay range: seluruh sel terpilih dapat bidang warna tipis supaya blok
        terbaca sebagai satu kesatuan, bukan cuma garis tepi. Digambar lewat
