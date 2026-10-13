@@ -232,7 +232,7 @@ export function AksiKananNominal({ htmlFor, nilai, setNilai, preset = PRESET_NOM
           size="icon-sm"
           aria-label="Pilih nominal cepat"
           title="Pilih nominal cepat"
-          className="h-full rounded-none text-muted-foreground"
+          className="h-full rounded-none text-muted-foreground/60"
         >
           <Calculator className="size-4" />
         </Button>

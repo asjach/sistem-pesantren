@@ -117,7 +117,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
           size="icon-sm"
           aria-label="Pilih tanggal"
           title="Pilih tanggal"
-          className="h-full rounded-none text-muted-foreground"
+          className="h-full rounded-none text-muted-foreground/60"
         >
           <CalendarDays className="size-4" />
         </Button>

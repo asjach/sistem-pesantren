@@ -115,7 +115,7 @@ export default function PopoverBulan({ htmlFor, nilai, setNilai }: KonteksTipeIn
           size="icon-sm"
           aria-label="Pilih bulan"
           title="Pilih bulan"
-          className="h-full rounded-none text-muted-foreground"
+          className="h-full rounded-none text-muted-foreground/60"
         >
           <CalendarRange className="size-4" />
         </Button>
