@@ -160,6 +160,16 @@ describe('sel tagihan: klik kanan = aksi, klik kiri = seleksi', () => {
     expect(peristiwa.defaultPrevented).toBe(true);
   });
 
+  /* Di macOS, Ctrl+Klik memicu contextmenu (gestur klik-kanan sistem). Karena
+     Ctrl+Klik dimaksudkan untuk toggle seleksi, contextmenu ber-ctrl/meta
+     harus diabaikan supaya toggle di pointerup yang jalan. */
+  it('Ctrl+klik (contextmenu macOS) tidak membuka aksi per tagihan', () => {
+    const onPilih = vi.fn();
+    renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih);
+    fireEvent(selUji(0), new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ctrlKey: true }));
+    expect(onPilih).not.toHaveBeenCalled();
+  });
+
   it('klik kiri biasa hanya memilih satu sel, tidak membuka aksi per tagihan', () => {
     const onPilih = vi.fn();
     const onPilihSatu = vi.fn();

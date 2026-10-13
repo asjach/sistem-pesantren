@@ -339,6 +339,13 @@ const BarisCrosstab = memo(function BarisCrosstab({
                  banyak browser, sehingga mengandalkan `onClick` membuat toggle
                  & batal pilihan tak pernah terpicu. */
               onContextMenu={(e) => {
+                // Di macOS, Ctrl+Klik = gestur klik-kanan sistem: browser
+                // memicu `contextmenu` walau tombol fisiknya kiri. Karena
+                // Ctrl/Cmd+Klik dimaksudkan untuk toggle seleksi (bukan menu
+                // konteks), acungkan dulu — biar pointerup yang memproses
+                // toggle. Klik kanan sungguhan (tanpa ctrl/meta) tetap
+                // membuka aksi per tagihan.
+                if (e.ctrlKey || e.metaKey) return;
                 e.preventDefault();
                 // Klik kanan → pilih SATU sel itu (seleksi jadi sel ini saja),
                 // lalu buka popover aksi per tagihan. Popover aksi batch tidak
