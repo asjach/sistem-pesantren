@@ -161,39 +161,6 @@ function RingkasanGalat({ id, daftar }: { id: string; daftar: GalatIsian[] }) {
   );
 }
 
-const TAHAP = ['Kriteria', 'Daftar', 'Hasil'] as const;
-
-/** Penunjuk langkah di header: nomor + label, tahap aktif ditandai. */
-function PenunjukTahap({ aktif }: { aktif: 1 | 2 | 3 }) {
-  return (
-    <ol aria-label="Langkah" className="flex items-center gap-1 text-xs">
-      {TAHAP.map((label, i) => {
-        const n = (i + 1) as 1 | 2 | 3;
-        const selesai = n < aktif;
-        const jalan = n === aktif;
-        return (
-          <li key={label} className="flex items-center gap-1" aria-current={jalan ? 'step' : undefined}>
-            {i > 0 && <span aria-hidden="true" className="mx-0.5 h-px w-3 bg-border" />}
-            <span
-              aria-hidden="true"
-              className={
-                jalan
-                  ? 'grid size-4 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground'
-                  : selesai
-                    ? 'grid size-4 place-items-center rounded-full bg-primary/20 text-[10px] font-bold text-primary'
-                    : 'grid size-4 place-items-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground'
-              }
-            >
-              {n}
-            </span>
-            <span className={jalan ? 'font-semibold text-foreground' : 'text-muted-foreground'}>{label}</span>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
 /** Dialog generate tagihan: daftar santri kelompok langsung jadi daftar
  *  final yang akan dibuatkan tagihan; nominal default dari tarif/manual,
  *  bisa dioverride per baris. */
@@ -214,8 +181,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   const [busy, setBusy] = useState(false);
   /** Hasil generate terakhir (panel persisten; null = mode susun). */
   const [hasil, setHasil] = useState<HasilGenerate | null>(null);
-  /** Langkah wizard: 1 = kriteria, 2 = daftar (3 = hasil, mengikuti `hasil`). */
-  const [langkah, setLangkah] = useState<1 | 2>(1);
   /** Konfirmasi generate: panel cek-ulang sebelum eksekusi. */
   const [konfirmasi, setKonfirmasi] = useState(false);
   /** Galat validasi langkah kriteria + langkah daftar. */
@@ -278,7 +243,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     if (!open) return;
     setTerpilih([]); setCari(''); setKelompok(''); setJenisId(''); setTarifId('');
     setNominalDefault(''); setJatuhTempo(''); setErr(''); setHasil(null);
-    setLangkah(1); setGalat([]); setGalatDaftar([]); setGalatNominal(null);
+    setGalat([]); setGalatDaftar([]); setGalatNominal(null);
     setKonfirmasi(false); setTarifLokal([]); setPopTarif(false);
     const m = (tahunAjaran ?? '').match(/^(\d{4})\/(\d{4})$/);
     if (m) { setPeriodeDari(`${m[1]}-07`); setPeriodeSampai(`${m[2]}-06`); }
@@ -569,21 +534,12 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     return g;
   };
 
-  /** Kriteria valid → maju ke daftar. */
-  const lanjut = () => {
-    const g = validasiKriteria();
-    setGalat(g);
-    if (g.length > 0) return;
-    setGalatDaftar([]);
-    setLangkah(2);
-    setTimeout(() => document.getElementById('judul_daftar_gen')?.focus(), 0);
-  };
-
   /** Validasi siap-generate (dipakai tombol Generate & eksekusi). */
   const siapGenerate = (): boolean => {
-    // Kriteria dirusak via Kembali → kembalikan ke langkah 1 + tunjukkan galat.
+    // Layar tunggal: kriteria & daftar berdampingan, jadi galat ditampilkan
+    // apa adanya tanpa memindahkan layar.
     const g = validasiKriteria();
-    if (g.length > 0) { setGalat(g); setLangkah(1); return false; }
+    if (g.length > 0) { setGalat(g); return false; }
     if (kelompok === '') {
       setGalatDaftar([{ pesan: 'Pilih kelompok santri pada filter daftar.', targetId: 'sel_gen_kelompok' }]);
       return false;
@@ -605,6 +561,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
   /** Tombol Generate: lolos validasi → tampilkan panel konfirmasi. */
   const mintaKonfirmasi = () => {
+    // Gagal validasi: cukup kembalikan galat — masing-masing RingkasanGalat
+    // sudah memindahkan fokus ke dirinya lewat efeknya sendiri.
     if (!siapGenerate()) return;
     setKonfirmasi(true);
     setTimeout(() => document.getElementById('judul_konfirmasi_gen')?.focus(), 0);
@@ -674,26 +632,18 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     ? (periodeSampai !== '' ? `${periodeDari} s.d. ${periodeSampai}` : periodeDari)
     : `TA ${tahunAjaran ?? '—'}${jatuhTempo !== '' ? ` · JT ${tanggalKeTampilan(jatuhTempo)}` : ' · tanpa JT (langsung tunggakan)'}`;
 
-  const tahap = hasil !== null ? 3 : langkah;
-
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
       <DialogContent
         showCloseButton={false}
         onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
-        className={
-          tahap === 1
-            // Kriteria isinya pendek: kartu kompak di tengah, bukan selebar layar.
-            ? 'flex w-[calc(100vw-3rem)] max-w-2xl flex-col gap-0 overflow-hidden rounded-xl p-0'
-            : 'flex h-[calc(100dvh-3rem)] max-h-[calc(100dvh-3rem)] w-[calc(100vw-3rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none'
-        }
+        className="flex h-[calc(100dvh-3rem)] max-h-[calc(100dvh-3rem)] w-[calc(100vw-3rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none"
       >
         <DialogHeader className="flex-row items-center justify-between gap-2 border-b px-2 py-2">
           <div className="flex items-center gap-3">
             <DialogTitle>Buat Tagihan</DialogTitle>
-            <PenunjukTahap aktif={tahap} />
           </div>
-          <DialogDescription className="sr-only">Tiga langkah: isi kriteria tagihan, periksa daftar santri, lalu generate.</DialogDescription>
+          <DialogDescription className="sr-only">Satu layar: isi kriteria, pilih kelompok santri, periksa daftar, lalu generate.</DialogDescription>
           <DialogClose asChild>
             <Button variant="ghost" size="icon" aria-label="Tutup" id="btn_gen_tutup"><X size={14} /></Button>
           </DialogClose>
@@ -748,15 +698,32 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
             )}
           </div>
           <DialogFooter className="flex-row items-center justify-end gap-2 border-t px-2 py-2 sm:justify-end">
-            <Button type="button" variant="outline" className="h-[26px]" disabled={busy} onClick={() => { setHasil(null); setLangkah(2); setKonfirmasi(false); }}>Kembali ke Daftar</Button>
+            <Button type="button" variant="outline" className="h-[26px]" disabled={busy} onClick={() => { setHasil(null); setKonfirmasi(false); }}>Kembali ke Daftar</Button>
             <Button type="button" className="h-[26px]" disabled={busy} onClick={() => onOpenChange(false)}>Tutup</Button>
           </DialogFooter>
           </>
-        ) : tahap === 1 ? (
+        ) : (
           <>
-            <div className="flex flex-col gap-3 p-3">
-              <h3 id="judul_kriteria_gen" className="text-sm font-semibold">Kriteria Tagihan</h3>
-              <RingkasanGalat id="ringkas_galat_gen" daftar={galat} />
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-3">
+                {/* Konfirmasi ringkas: satu paragraf + tombol. Rekap angka tak
+                    diulang karena footer sudah menampilkannya. */}
+                {konfirmasi ? (
+                <div className="flex flex-col gap-3">
+                  <h3 id="judul_konfirmasi_gen" tabIndex={-1} className="text-sm font-semibold focus:outline-none">Konfirmasi Generate</h3>
+                  <p className="max-w-prose text-sm">
+                    Akan dibuat <span className="font-semibold">{ringkasan.baris} tagihan</span>
+                    {teksPeriode !== '' ? ` untuk ${teksPeriode}` : ''}
+                    {tarifTerpilih !== null ? ` (${tarifTerpilih.jenjang} · ${tarifTerpilih.jenis?.nama ?? tarifTerpilih.jenis_id})` : ''}
+                    , estimasi <span className="font-semibold">Rp {ringkasan.total.toLocaleString('id')}</span>.
+                    Tagihan yang sudah ada tidak diduplikasi: yang nominalnya sama tetap, yang berubah diperbarui, yang tak layak dilewati beserta sebabnya.
+                    {hitungManual > 0 ? ` ${hitungManual} baris memakai nominal manual (dispensasi tak diterapkan).` : ''}
+                  </p>
+                </div>
+                ) : (
+                <>
+                  <h3 id="judul_kriteria_gen" tabIndex={-1} className="text-sm font-semibold focus:outline-none">Kriteria &amp; Daftar Santri</h3>
+                  <RingkasanGalat id="ringkas_galat_gen" daftar={galat} />
               <div className="flex flex-col gap-3">
                 {/* Baris 1: Tarif (kiri) + Nominal Default (kanan) — berdampingan
                     karena keduanya berpasangan: tarif terpilih mengisi nominal
@@ -931,118 +898,93 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                   </p>
                 )}
               </div>
-            </div>
-            <DialogFooter className="flex-row items-center justify-end gap-2 border-t px-2 py-2 sm:justify-end">
-              <Button type="button" variant="outline" className="h-[26px]" disabled={busy} onClick={() => onOpenChange(false)}>Batal</Button>
-              <Button id="btn_gen_lanjut" type="button" className="h-[26px]" disabled={busy} onClick={lanjut}>Lanjut</Button>
-            </DialogFooter>
-          </>
-        ) : (
-          <>
-            {konfirmasi ? (
-            <div className="flex flex-col gap-3 p-3">
-              <h3 id="judul_konfirmasi_gen" tabIndex={-1} className="text-sm font-semibold focus:outline-none">Konfirmasi Generate</h3>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-                <dt className="text-muted-foreground">Tarif</dt>
-                <dd>{tarifTerpilih !== null ? `${tarifTerpilih.jenjang} · ${tarifTerpilih.jenis?.nama ?? tarifTerpilih.jenis_id} · Rp ${tarifTerpilih.nominal.toLocaleString('id')}` : '—'}</dd>
-                <dt className="text-muted-foreground">Periode</dt>
-                <dd>{teksPeriode}</dd>
-                <dt className="text-muted-foreground">Santri</dt>
-                <dd>{terpilih.length} ({terpilih.length - hitungManual} otomatis · {hitungManual} manual)</dd>
-                <dt className="text-muted-foreground">Akan dibuat</dt>
-                <dd className="font-semibold">{ringkasan.baris} tagihan · estimasi Rp {ringkasan.total.toLocaleString('id')}</dd>
-              </dl>
-              <p className="text-xs text-muted-foreground">
-                Tagihan yang sudah ada tidak diduplikasi: yang nominalnya sama tetap, yang berubah diperbarui, yang tak layak dilewati beserta sebabnya.
-              </p>
-            </div>
-            ) : (
-            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-3">
-              <h3 id="judul_daftar_gen" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
-                Daftar Santri ({terpilih.length}{cari.trim() !== '' || statusFilter !== '' ? `, tampil ${tampil.length}` : ''})
-              </h3>
-              <RingkasanGalat id="ringkas_galat_daftar" daftar={galatDaftar} />
-              {err !== '' && <ErrorNotice>{err}</ErrorNotice>}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <div className="flex items-center gap-2">
-                  <FieldLabel htmlFor="sel_gen_kelompok">Kelompok Santri</FieldLabel>
-                  <Select value={kelompok} onValueChange={(v) => setKelompok(v as KelompokKandidat | '')}>
-                    <SelectTrigger id="sel_gen_kelompok" aria-label="Kelompok Santri" className="h-[26px] text-sm">
-                      <SelectValue placeholder="Pilih kelompok…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {OPSI_KELOMPOK.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <FieldLabel htmlFor="inp_gen_cari">Cari</FieldLabel>
-                  <div className="relative">
-                    <Input id="inp_gen_cari" placeholder="Cari nama / NIS…" className="h-[26px] w-56 pr-7" value={cari} onChange={(e) => setCari(e.target.value)} />
-                    {cari !== '' && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            size="icon-xs"
-                            variant="ghost"
-                            id="btn_hapus_cari_gen"
-                            aria-label="Bersihkan pencarian"
-                            onClick={() => setCari('')}
-                            className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground hover:bg-accent hover:text-foreground"
-                          >
-                            <X size={12} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Bersihkan pencarian</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
+                  <div className="mt-1 border-t pt-2">
+                    <h3 id="judul_daftar_gen" tabIndex={-1} className="mb-1 text-sm font-semibold focus:outline-none">
+                      Daftar Santri ({terpilih.length}{cari.trim() !== '' || statusFilter !== '' ? `, tampil ${tampil.length}` : ''})
+                    </h3>
+                    <RingkasanGalat id="ringkas_galat_daftar" daftar={galatDaftar} />
+                    {err !== '' && <ErrorNotice>{err}</ErrorNotice>}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <div className="flex items-center gap-2">
+                    <FieldLabel htmlFor="sel_gen_kelompok">Kelompok Santri</FieldLabel>
+                    <Select value={kelompok} onValueChange={(v) => setKelompok(v as KelompokKandidat | '')}>
+                      <SelectTrigger id="sel_gen_kelompok" aria-label="Kelompok Santri" className="h-[26px] text-sm">
+                        <SelectValue placeholder="Pilih kelompok…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {OPSI_KELOMPOK.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-                <LabeledCombobox label="Status" htmlFor="sel_gen_status">
-                  <ComboboxRoot
-                    items={OPSI_STATUS_GEN}
-                    itemToStringLabel={(o) => o.label}
-                    isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-                    value={OPSI_STATUS_GEN.find((o) => o.nilai === statusFilter) ?? OPSI_STATUS_GEN[0]}
-                    onValueChange={(o) => { if (o !== null) setStatusFilter(o.nilai); }}
-                  >
-                    <ComboboxInput id="sel_gen_status" aria-label="Status" placeholder="Cari status…" />
-                    <ComboboxTrigger aria-label="Buka daftar status" />
-                    <ComboboxContent>
-                      <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
-                      <ComboboxList>
-                        {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
-                      </ComboboxList>
-                    </ComboboxContent>
-                  </ComboboxRoot>
-                </LabeledCombobox>
-                <div className="flex items-center gap-2">
-                  <FieldLabel htmlFor="sel_gen_urut">Urutkan</FieldLabel>
-                  <Select value={urutDaftar} onValueChange={(v) => setUrutDaftar(v as 'nama' | 'aktif')}>
-                    <SelectTrigger
-                      id="sel_gen_urut"
-                      aria-label="Urutkan"
-                      title="Nama: kelas A-Z lalu nama A-Z; Keaktifan: aktif dulu"
-                      className="h-[26px] text-sm"
+                  <div className="flex items-center gap-2">
+                    <FieldLabel htmlFor="inp_gen_cari">Cari</FieldLabel>
+                    <div className="relative">
+                      <Input id="inp_gen_cari" placeholder="Cari nama / NIS…" className="h-[26px] w-56 pr-7" value={cari} onChange={(e) => setCari(e.target.value)} />
+                      {cari !== '' && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              size="icon-xs"
+                              variant="ghost"
+                              id="btn_hapus_cari_gen"
+                              aria-label="Bersihkan pencarian"
+                              onClick={() => setCari('')}
+                              className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                            >
+                              <X size={12} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Bersihkan pencarian</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </div>
+                  <LabeledCombobox label="Status" htmlFor="sel_gen_status">
+                    <ComboboxRoot
+                      items={OPSI_STATUS_GEN}
+                      itemToStringLabel={(o) => o.label}
+                      isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                      value={OPSI_STATUS_GEN.find((o) => o.nilai === statusFilter) ?? OPSI_STATUS_GEN[0]}
+                      onValueChange={(o) => { if (o !== null) setStatusFilter(o.nilai); }}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="nama">Nama</SelectItem>
-                      <SelectItem value="aktif">Keaktifan</SelectItem>
-                    </SelectContent>
-                  </Select>
+                      <ComboboxInput id="sel_gen_status" aria-label="Status" placeholder="Cari status…" />
+                      <ComboboxTrigger aria-label="Buka daftar status" />
+                      <ComboboxContent>
+                        <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                        <ComboboxList>
+                          {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </ComboboxRoot>
+                  </LabeledCombobox>
+                  <div className="flex items-center gap-2">
+                    <FieldLabel htmlFor="sel_gen_urut">Urutkan</FieldLabel>
+                    <Select value={urutDaftar} onValueChange={(v) => setUrutDaftar(v as 'nama' | 'aktif')}>
+                      <SelectTrigger
+                        id="sel_gen_urut"
+                        aria-label="Urutkan"
+                        title="Nama: kelas A-Z lalu nama A-Z; Keaktifan: aktif dulu"
+                        className="h-[26px] text-sm"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nama">Nama</SelectItem>
+                        <SelectItem value="aktif">Keaktifan</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <PresetKolom
+                    tableKey="keuangan_gen_terpilih"
+                    fields={FIELDS_TERPILIH}
+                    onApply={terapkanKolomLuar}
+                    triggerClassName="h-[26px] w-32 text-xs"
+                  />
                 </div>
-                <PresetKolom
-                  tableKey="keuangan_gen_terpilih"
-                  fields={FIELDS_TERPILIH}
-                  onApply={terapkanKolomLuar}
-                  triggerClassName="h-[26px] w-32 text-xs"
-                />
-              </div>
+                  </div>
               <p className="text-xs text-muted-foreground">
                 Klik sel Nominal baru untuk mengetik ulang (● = manual, menang atas hitungan otomatis; dispensasi tak diterapkan). Tombol Auto mengembalikan ke hitungan otomatis.
               </p>
@@ -1090,35 +1032,50 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                       </span>
                     )}
                   />
-              </div>
-            </div>
-            )}
-
-            {pratinjauGagal && !konfirmasi && (
-              <p className="border-t px-2 py-1 text-[11px] text-muted-foreground">
-                Pratinjau potongan gagal dimuat — nominal tampil sebelum dispensasi. Angka final dihitung saat Generate.
-              </p>
-            )}
-
-            <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-2 py-2 sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                {terpilih.length} santri × {jumlahPeriode} bulan = {ringkasan.baris} tagihan · estimasi Rp {ringkasan.total.toLocaleString('id')}
-              </p>
-              {konfirmasi ? (
-              <div className="flex gap-2">
-                <Button id="btn_gen_periksa" type="button" variant="outline" className="h-[26px]" disabled={busy} onClick={() => setKonfirmasi(false)}>Periksa lagi</Button>
-                <Button id="btn_gen_ya" type="button" className="h-[26px]" disabled={busy} onClick={() => void simpan()}>
-                  {busy ? 'Memproses…' : `Ya, buat ${ringkasan.baris} tagihan`}
-                </Button>
-              </div>
-              ) : (
-              <div className="flex gap-2">
-                <Button id="btn_gen_kembali" type="button" variant="outline" className="h-[26px]" disabled={busy} onClick={() => setLangkah(1)}>Kembali</Button>
-                <Button id="btn_gen_batal" type="button" variant="ghost" className="h-[26px]" disabled={busy} onClick={() => onOpenChange(false)}>Batal</Button>
-                <Button id="btn_gen_generate" type="button" className="h-[26px]" disabled={busy || terpilih.length === 0} onClick={mintaKonfirmasi}>Generate</Button>
-              </div>
+                </div>
+              {pratinjauGagal && !konfirmasi && (
+                <p className="border-t px-2 py-1 text-[11px] text-muted-foreground">
+                  Pratinjau potongan gagal dimuat — nominal tampil sebelum dispensasi. Angka final dihitung saat Generate.
+                </p>
               )}
-            </DialogFooter>
+                </>
+                )}
+              </div>
+              <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-2 py-2 sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {terpilih.length} santri × {jumlahPeriode} bulan = {ringkasan.baris} tagihan · estimasi Rp {ringkasan.total.toLocaleString('id')}
+                </p>
+                {konfirmasi ? (
+                <div className="flex gap-2">
+                  <Button id="btn_gen_periksa" type="button" variant="outline" className="h-[26px]" disabled={busy} onClick={() => setKonfirmasi(false)}>Periksa lagi</Button>
+                  <Button id="btn_gen_ya" type="button" className="h-[26px]" disabled={busy} onClick={() => void simpan()}>
+                    {busy ? 'Memproses…' : `Ya, buat ${ringkasan.baris} tagihan`}
+                  </Button>
+                </div>
+                ) : (
+                <div className="flex items-center gap-2">
+                  {/* Q6=A: tombol Generate selalu tampil; saat daftar kosong ia
+                      mati dan alasannya ditulis di sebelahnya. */}
+                  {terpilih.length === 0 && (
+                    <p id="ket_gen_generate" className="text-xs text-muted-foreground">
+                      {kelompok === ''
+                        ? 'Pilih kelompok santri untuk mengisi daftar.'
+                        : 'Belum ada santri pada kelompok ini.'}
+                    </p>
+                  )}
+                  <Button id="btn_gen_batal" type="button" variant="ghost" className="h-[26px]" disabled={busy} onClick={() => onOpenChange(false)}>Batal</Button>
+                  <Button
+                    id="btn_gen_generate" type="button" className="h-[26px]"
+                    disabled={busy || terpilih.length === 0}
+                    aria-describedby={terpilih.length === 0 ? 'ket_gen_generate' : undefined}
+                    onClick={mintaKonfirmasi}
+                  >
+                    Generate
+                  </Button>
+                </div>
+                )}
+              </DialogFooter>
+            </div>
           </>
         )}
       </DialogContent>

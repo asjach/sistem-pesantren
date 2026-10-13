@@ -135,13 +135,12 @@ async function pilihOpsi(triggerId: string, namaOpsi: string | RegExp) {
   fireEvent.click(screen.getByRole('option', { name: namaOpsi }));
 }
 
-/** Pilih tarif (jenis+nominal mengikuti), Lanjut, lalu pilih kelompok di
- *  langkah Daftar sampai baris tampil. */
+/** Layar tunggal: pilih tarif (jenis+nominal mengikuti) + kelompok; tabel
+ *  santri ada di layar yang sama, jadi tak ada tombol pemindah langkah. */
 async function siapkanSatuBaris() {
   renderDialog();
   await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
   fireEvent.change(document.getElementById('inp_gen_nominal') as HTMLInputElement, { target: { value: '100000' } });
-  await userEvent.click(screen.getByRole('button', { name: 'Lanjut' }));
   await pilihOpsi('sel_gen_kelompok', 'Semua (kecuali pindah keluar)');
   // Baris langsung ada di tabel daftar (tanpa panel kandidat).
   await waitFor(() => expect(document.getElementById('btn_gen_hapus_7')).not.toBeNull());
@@ -265,16 +264,17 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     ).toBeInTheDocument());
   });
 
-  it('menampilkan penunjuk tahap, filter daftar, ringkasan aksi, dan penanda baris manual', async () => {
+  it('layar tunggal: kriteria + filter daftar + ringkasan aksi + penanda baris manual', async () => {
     api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
     api.pratinjau.mockResolvedValue([PRATINJAU]);
 
     await siapkanSatuBaris();
     await waitFor(() => expect(api.pratinjau).toHaveBeenCalled());
 
-    // Penunjuk tahap + filter langkah Daftar (cari, urut, status, kolom).
-    expect(screen.getByText('Kriteria')).toBeInTheDocument();
-    expect(screen.getByText('Daftar')).toBeInTheDocument();
+    // Tak ada lagi penunjuk tahap / tombol "Lanjut": kriteria & daftar satu layar.
+    expect(screen.queryByText('Lanjut')).toBeNull();
+    expect(document.getElementById('judul_kriteria_gen')).not.toBeNull();
+    expect(document.getElementById('judul_daftar_gen')).not.toBeNull();
     expect(document.getElementById('inp_gen_cari')).not.toBeNull();
     expect(document.getElementById('sel_gen_urut')).not.toBeNull();
     expect(document.getElementById('sel_gen_status')).not.toBeNull();
@@ -285,28 +285,29 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     expect(document.body.textContent).toContain('Mode');
   });
 
-  it('awal: Lanjut tanpa kriteria menampilkan ringkasan galat, tanpa request', async () => {
+  it('daftar kosong: tombol Generate mati + alasannya tampil (Q6=A)', async () => {
     api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
     api.pratinjau.mockResolvedValue([]);
 
     renderDialog();
-    await userEvent.click(screen.getByRole('button', { name: 'Lanjut' }));
-    // Ringkasan galat tampil (fokus pindah ke sana), tanpa request kandidat.
-    await waitFor(() => expect(screen.getByText('Ada yang perlu diperbaiki')).toBeInTheDocument());
-    expect(screen.getByText('Pilih tarif.')).toBeInTheDocument();
-    expect(screen.getByText('Nominal default wajib diisi.')).toBeInTheDocument();
-    expect(api.kandidat).not.toHaveBeenCalled();
-    expect(api.pratinjau).not.toHaveBeenCalled();
+    // Layar tunggal: penunjuk tahap & tombol "Lanjut" tak ada lagi.
+    expect(screen.queryByText('Lanjut')).toBeNull();
+    expect(screen.queryByText('Kriteria')).toBeNull();
+    // Tombol Generate selalu tampil, tapi mati selama belum ada santri...
+    const gen = screen.getByRole('button', { name: 'Generate' }) as HTMLButtonElement;
+    expect(gen).toBeDisabled();
+    // ...dan alasan singkatnya menyebut kelompok belum dipilih.
+    expect(screen.getByText('Pilih kelompok santri untuk mengisi daftar.')).toBeInTheDocument();
+    expect(gen.getAttribute('aria-describedby')).toBe('ket_gen_generate');
   });
 
-  it('kelompok di langkah Daftar: daftar kosong sampai kelompok dipilih', async () => {
+  it('daftar kosong sampai kelompok dipilih (layar tunggal)', async () => {
     api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
     api.pratinjau.mockResolvedValue([]);
 
     renderDialog();
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
-    await userEvent.click(screen.getByRole('button', { name: 'Lanjut' }));
-    // Ajakan pilih kelompok; belum ada request.
+    // Kelompok ada di layar yang sama; sebelum dipilih tak ada request.
     await waitFor(() => expect(screen.getByText('Pilih kelompok santri untuk memuat daftar.')).toBeInTheDocument());
     expect(api.kandidat).not.toHaveBeenCalled();
 
@@ -361,7 +362,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     await waitFor(() => expect(jatuhTempo()).not.toBeDisabled());
   });
 
-  it('nominal tak valid tampil inline saat blur + menahan Lanjut', async () => {
+  it('nominal tak valid tampil inline saat blur dan menahan Generate', async () => {
     api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
     api.pratinjau.mockResolvedValue([]);
 
@@ -377,10 +378,12 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     fireEvent.blur(nominal);
     await waitFor(() => expect(screen.getByText(/bilangan bulat ≥ 0/)).toBeInTheDocument());
 
-    await userEvent.click(screen.getByRole('button', { name: 'Lanjut' }));
-    // Tetap di langkah Kriteria: ringkasan galat menaut ke isian nominal.
-    await waitFor(() => expect(screen.getByText('Ada yang perlu diperbaiki')).toBeInTheDocument());
-    expect(document.getElementById('judul_daftar_gen')).toBeNull();
+    // Tombol Generate mati selama daftar kosong, jadi eksekusi memang tak
+    // mungkin: galat nominal sudah tampil inline dan validasi kriteria akan
+    // menahannya begitu daftar terisi.
+    const gen = screen.getByRole('button', { name: 'Generate' }) as HTMLButtonElement;
+    expect(gen).toBeDisabled();
+    expect(screen.getByText(/bilangan bulat ≥ 0/)).toBeInTheDocument();
   });
 
   it('Generate meminta konfirmasi berisi ringkasan sebelum mengeksekusi', async () => {
@@ -459,7 +462,6 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
 
     renderDialog();
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
-    await userEvent.click(screen.getByRole('button', { name: 'Lanjut' }));
     await pilihOpsi('sel_gen_kelompok', 'Semua (kecuali pindah keluar)');
     await waitFor(() => expect(document.getElementById('btn_gen_hapus_8')).not.toBeNull());
     expect(screen.getByText(/2 santri ×/)).toBeInTheDocument();
@@ -478,7 +480,6 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
 
     renderDialog();
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
-    await userEvent.click(screen.getByRole('button', { name: 'Lanjut' }));
     await pilihOpsi('sel_gen_kelompok', 'Semua (kecuali pindah keluar)');
     await waitFor(() => expect(document.getElementById('btn_gen_hapus_8')).not.toBeNull());
 
@@ -499,7 +500,6 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
 
     renderDialog();
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
-    await userEvent.click(screen.getByRole('button', { name: 'Lanjut' }));
     await pilihOpsi('sel_gen_kelompok', 'Semua (kecuali pindah keluar)');
     await waitFor(() => expect(document.getElementById('btn_gen_hapus_8')).not.toBeNull());
     // Bawaan (Nama): kelas 1A dulu walau namanya belakangan.
@@ -518,7 +518,6 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
 
     renderDialog();
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
-    await userEvent.click(screen.getByRole('button', { name: 'Lanjut' }));
     await pilihOpsi('sel_gen_kelompok', 'Semua (kecuali pindah keluar)');
     expect(await screen.findByLabelText('Preset kolom tampilan')).toBeInTheDocument();
   });

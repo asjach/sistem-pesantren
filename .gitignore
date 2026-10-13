@@ -20,3 +20,5 @@ __pycache__/
 .kilocode/
 .commandcode/
 .workbuddy-ai/
+# Sesi wawancara grill-with-ui (artefak lokal, bukan bagian project).
+.tmp-grill/
