@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import {
   buatGrupCustom, daftarGrupCustom, hapusAnggotaGrup, hapusGrupCustom,
   tambahAnggotaGrup, ubahGrupCustom, type AnggotaGrupCustom, type GrupSantriCustom,
 } from '../../api/grupCustom';
-import { listKelas, listLembaga, listTahunAjaran } from '../../api/master';
+import { listKelas } from '../../api/master';
 import { listSantri, type Santri } from '../../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,10 +13,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
 import { ErrorNotice } from '@/components/PageHeader';
-import LabeledCombobox from '@/components/LabeledCombobox';
-import {
-  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
-} from '@/components/ui/combobox';
+import { targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { bacaPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
 import type { PerPage } from '@/prefs';
 import { Plus, Search, Users, X } from '@/icons';
@@ -24,8 +21,8 @@ import { Plus, Search, Users, X } from '@/icons';
 const FIELDS_GRUP: ExcelField[] = [
   { key: 'nama', label: 'Grup', kind: 'text', required: true, width: 180 },
   { key: 'keterangan', label: 'Keterangan', kind: 'text', width: 200 },
-  { key: 'jenjang', label: 'Lembaga', kind: 'static', inputKind: 'select', width: 90 },
-  { key: 'tahun_ajaran', label: 'TA', kind: 'static', inputKind: 'select', width: 110 },
+  { key: 'jenjang', label: 'Lembaga', kind: 'static', width: 90 },
+  { key: 'tahun_ajaran', label: 'TA', kind: 'static', width: 120 },
   { key: 'status', label: 'Status', kind: 'toggle', width: 80 },
 ];
 
@@ -44,35 +41,6 @@ const FIELDS_PIVOT: ExcelField[] = [
   { key: 'jenjang', label: 'Jenjang', kind: 'static', width: 90 },
 ];
 
-interface Opsi { label: string; nilai: string }
-
-/** Combobox filter ringkas (label + daftar opsi ber-nilai string). */
-function Pilihan({ id, label, opsi, nilai, onPilih, placeholder }: {
-  id: string; label: string; opsi: Opsi[]; nilai: string;
-  onPilih: (nilai: string) => void; placeholder?: string;
-}) {
-  return (
-    <LabeledCombobox label={label} htmlFor={id} tinggi={26} kelolaLebar={false} className="min-w-0 flex-1">
-      <ComboboxRoot
-        items={opsi}
-        itemToStringLabel={(o) => o.label}
-        isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-        value={opsi.find((o) => o.nilai === nilai) ?? null}
-        onValueChange={(o) => { if (o !== null) onPilih(o.nilai); }}
-      >
-        <ComboboxInput id={id} aria-label={label} placeholder={placeholder ?? `Pilih ${label.toLowerCase()}…`} />
-        <ComboboxTrigger aria-label={`Buka daftar ${label.toLowerCase()}`} />
-        <ComboboxContent>
-          <ComboboxEmpty>Belum ada pilihan.</ComboboxEmpty>
-          <ComboboxList>
-            {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
-          </ComboboxList>
-        </ComboboxContent>
-      </ComboboxRoot>
-    </LabeledCombobox>
-  );
-}
-
 /** NIS tampil: NIS lokal lebih dulu (cermin kolom NIS Daftar Kelas). */
 function nisTampil(s: Santri): string | null {
   const daftar = [...new Set((s.lembaga_aktif ?? []).map((l) => l.nis_lokal).filter((n): n is string => n !== null && n !== ''))];
@@ -85,21 +53,23 @@ function jenjangTampil(s: Santri): string | null {
   return unik.length > 0 ? unik.join(', ') : null;
 }
 
-const OPSI_SEMESTER: Opsi[] = [
-  { label: 'Semua semester', nilai: '' },
-  { label: 'Ganjil (1)', nilai: '1' },
-  { label: 'Genap (2)', nilai: '2' },
-];
-
 /** Tab Santri Custom: grup bentukan manual (kiri: tabel grup + daftar santri,
- *  kanan: pivot anggota grup terpilih). Mandiri (datanya sendiri) karena tidak
- *  tergantung filter halaman; izin mengikuti pola tab lain (`keuangan.ubah` =
- *  edit, `keuangan.tambah` = baris input). */
-export default function SantriCustomTab({ canEdit, canTambah }: {
+ *  kanan: pivot anggota grup terpilih). Filter Lembaga/TA/Semester MENGIKUTI
+ *  topBar; Tingkat/Kelas memakai rail global (prop `rail`, sama seperti
+ *  halaman santri); Cari tetap lokal di toolbar tabel. Izin mengikuti pola
+ *  tab lain (`keuangan.ubah` = edit, `keuangan.tambah` = baris input). */
+export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAjaranNames, semesters, tingkat, kelas }: {
   /** Gerbang izin `keuangan.ubah`: menyalakan mode Edit + toggle Status. */
   canEdit: boolean;
   /** Gerbang izin `keuangan.tambah`: menyalakan baris input grup baru. */
   canTambah: boolean;
+  /** Filter topBar: lembaga + tahun ajaran + semester aktif. */
+  jenjangs: readonly string[];
+  tahunAjaranNames: readonly string[];
+  semesters: readonly string[];
+  /** Rail global: tingkat + kelas aktif (nama). */
+  tingkat: readonly string[];
+  kelas: readonly string[];
 }) {
   const [grup, setGrup] = useState<GrupSantriCustom[]>([]);
   const [loading, setLoading] = useState(false);
@@ -109,20 +79,15 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
   /** Lebar panel kiri (px); gagang di tengah bisa menggesernya. */
   const [lebarKiri, setLebarKiri] = useState(500);
   const geserRef = useRef<{ x: number; w: number } | null>(null);
+  /** Tinggi bagian atas kiri (tabel grup, px); bawaan 320, bisa digeser. */
+  const [tinggiAtas, setTinggiAtas] = useState<number>(320);
+  const atasRef = useRef<HTMLDivElement | null>(null);
+  const geserVertikalRef = useRef<{ y: number; h: number } | null>(null);
 
-  /** Filter tabel grup. */
-  const [fJenjang, setFJenjang] = useState('');
-  const [fTA, setFTA] = useState('');
-  /** Filter daftar santri. */
-  const [sJenjang, setSJenjang] = useState('');
-  const [sTA, setSTA] = useState('');
-  const [sSemester, setSSemester] = useState('');
-  const [sTingkat, setSTingkat] = useState('');
-  const [sKelas, setSKelas] = useState('');
+  /** Pencarian lokal daftar santri (toolbar tabel). */
   const [cari, setCari] = useState('');
 
-  const [lembagaOpsi, setLembagaOpsi] = useState<Opsi[]>([]);
-  const [taOpsi, setTaOpsi] = useState<Opsi[]>([]);
+  /** Opsi kelas lingkup topBar (untuk rail global + petakan nama → id). */
   const [kelasOpsi, setKelasOpsi] = useState<{ id: number; nama_kelas: string; tingkat: string | null }[]>([]);
 
   const [kandidat, setKandidat] = useState<Santri[]>([]);
@@ -137,87 +102,48 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
   const idAnggota = new Set((grupAktif?.santri ?? []).map((s) => s.id));
   /** Kandidat yang belum jadi anggota (tanpa request ulang). */
   const kandidatTampil = kandidat.filter((s) => !idAnggota.has(s.id));
+  /** Nama kelas rail → id (endpoint minta id). */
+  const kelasIds = useMemo(
+    () => kelasOpsi.filter((k) => kelas.includes(k.nama_kelas)).map((k) => k.id),
+    [kelasOpsi, kelas],
+  );
 
-  const tingkatOpsi: Opsi[] = [
-    { label: 'Semua tingkat', nilai: '' },
-    ...[...new Set(kelasOpsi.map((k) => k.tingkat).filter((t): t is string => t !== null && t !== ''))]
-      .sort().map((t) => ({ label: `Tingkat ${t}`, nilai: t })),
-  ];
-  const opsiKelas: Opsi[] = [
-    { label: 'Semua kelas', nilai: '' },
-    ...kelasOpsi
-      .filter((k) => sTingkat === '' || k.tingkat === sTingkat)
-      .map((k) => ({ label: k.nama_kelas, nilai: String(k.id) })),
-  ];
-
-  // Opsi master (lembaga, TA) sekali saat tab dibuka.
-  useEffect(() => {
-    let hidup = true;
-    void (async () => {
-      try {
-        const [lem, tas] = await Promise.all([
-          listLembaga({ per_page: 100 }),
-          listTahunAjaran({ per_page: 100 }),
-        ]);
-        if (!hidup) return;
-        setLembagaOpsi([
-          { label: 'Semua lembaga', nilai: '' },
-          ...lem.data.map((l) => ({ label: `${l.jenjang} — ${l.nama}`, nilai: l.jenjang })),
-        ]);
-        setTaOpsi([
-          { label: 'Semua tahun ajaran', nilai: '' },
-          ...tas.data.map((t) => ({ label: t.nama, nilai: t.nama })),
-        ]);
-      } catch (e) { if (hidup) setErr(errorMessage(e)); }
-    })();
-    return () => { hidup = false; };
-  }, []);
-
-  const muatGrup = useCallback(async (jenjang: string, ta: string) => {
+  const muatGrup = useCallback(async () => {
     setErr('');
     setLoading(true);
     try {
-      const daftar = await daftarGrupCustom({
-        jenjang: jenjang === '' ? undefined : jenjang,
-        tahun_ajaran: ta === '' ? undefined : ta,
-      });
+      const daftar = await daftarGrupCustom({ jenjang: jenjangs, tahun_ajaran: tahunAjaranNames });
       setGrup(daftar);
+      // Grup aktif yang tersaring keluar ikut ditutup.
       setGrupAktifId((id) => (id !== null && daftar.some((g) => g.id === id) ? id : null));
     } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
-  }, []);
+  }, [jenjangs, tahunAjaranNames]);
 
-  useEffect(() => { void muatGrup(fJenjang, fTA); }, [muatGrup, fJenjang, fTA]);
+  useEffect(() => { void muatGrup(); }, [muatGrup]);
   useEffect(() => { void bacaPerPageGlobal().then((pp) => setPerPage(pp)); }, []);
 
-  // Opsi kelas mengikuti filter jenjang + TA santri.
+  // Opsi kelas mengikuti lingkup topBar (pemetaan nama rail → id).
   useEffect(() => {
     let hidup = true;
-    setSKelas('');
     void (async () => {
       try {
-        const res = await listKelas({
-          jenjang: sJenjang === '' ? undefined : sJenjang,
-          tahun_ajaran: sTA === '' ? undefined : sTA,
-          per_page: 100,
-        });
+        const res = await listKelas({ jenjang: jenjangs, tahun_ajaran: tahunAjaranNames, per_page: 100 });
         if (hidup) setKelasOpsi(res.data);
       } catch (e) { if (hidup) setErr(errorMessage(e)); }
     })();
     return () => { hidup = false; };
-  }, [sJenjang, sTA]);
+  }, [jenjangs, tahunAjaranNames]);
 
-  const muatKandidat = useCallback(async (
-    p: number, pp: number, f: { jenjang: string; ta: string; semester: string; tingkat: string; kelas: string; q: string },
-  ) => {
+  const muatKandidat = useCallback(async (p: number, pp: number, q: string) => {
     setLoadingKandidat(true);
     try {
       const res = await listSantri({
-        jenjang: f.jenjang === '' ? undefined : f.jenjang,
-        tahun_ajaran: f.ta === '' ? undefined : f.ta,
-        semester: f.semester === '' ? undefined : f.semester,
-        tingkat: f.tingkat === '' ? undefined : f.tingkat,
-        kelas_id: f.kelas === '' ? undefined : Number(f.kelas),
-        q: f.q === '' ? undefined : f.q,
+        jenjang: jenjangs,
+        tahun_ajaran: tahunAjaranNames,
+        semester: semesters,
+        tingkat,
+        kelas_id: kelasIds,
+        q: q === '' ? undefined : q,
         page: p, per_page: pp,
       });
       setKandidat(res.data);
@@ -225,16 +151,14 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); } finally { setLoadingKandidat(false); }
-  }, []);
+  }, [jenjangs, tahunAjaranNames, semesters, tingkat, kelasIds]);
 
-  // Filter/pencarian santri berubah → muat ulang dari halaman 1 (tahan 250ms).
+  // Lingkup topBar / pencarian berubah → muat ulang dari halaman 1 (tahan 250ms).
   useEffect(() => {
     setPage(1);
-    const t = setTimeout(() => {
-      void muatKandidat(1, perPage, { jenjang: sJenjang, ta: sTA, semester: sSemester, tingkat: sTingkat, kelas: sKelas, q: cari });
-    }, 250);
+    const t = setTimeout(() => { void muatKandidat(1, perPage, cari); }, 250);
     return () => clearTimeout(t);
-  }, [sJenjang, sTA, sSemester, sTingkat, sKelas, cari, perPage, muatKandidat]);
+  }, [cari, perPage, muatKandidat]);
 
   const tambahAnggota = async (ids: number[]) => {
     if (grupAktif === null || ids.length === 0) return;
@@ -242,7 +166,7 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
     try {
       await tambahAnggotaGrup(grupAktif.id, ids);
       toast.success(`${ids.length} santri masuk grup ${grupAktif.nama}.`);
-      await muatGrup(fJenjang, fTA);
+      await muatGrup();
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
   };
 
@@ -252,7 +176,7 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
     try {
       for (const id of ids) await hapusAnggotaGrup(grupAktif.id, id);
       toast.success(`${ids.length} santri keluar dari grup ${grupAktif.nama}.`);
-      await muatGrup(fJenjang, fTA);
+      await muatGrup();
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
   };
 
@@ -260,16 +184,15 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
     try {
       await hapusGrupCustom(g.id);
       toast.success('Grup dihapus.');
-      await muatGrup(fJenjang, fTA);
+      await muatGrup();
     } catch (e) { toast.error(errorMessage(e)); }
   };
 
-  /** Payload buat/ubah grup: nama wajib; lingkup mengikuti filter (buat) atau
-   *  baris (ubah); duplikat ditolak server. */
+  /** Payload buat/ubah grup: nama wajib; lingkup mengikuti topBar (grup baru)
+   *  atau baris (ubah); duplikat ditolak server. */
   const payloadGrup = (
     baris: Partial<GrupSantriCustom>,
     f: Record<string, string | null>,
-    lingkupBawaan: { jenjang: string | null; tahun_ajaran: string | null },
   ): { nama: string; keterangan: string | null; jenjang: string | null; tahun_ajaran: string | null; is_active: boolean } => {
     const nama = (f.nama ?? baris.nama ?? '').trim();
     if (nama === '') throw new Error('Nama grup wajib diisi.');
@@ -277,8 +200,8 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
     return {
       nama,
       keterangan: keterangan === '' ? null : keterangan,
-      jenjang: f.jenjang ?? baris.jenjang ?? lingkupBawaan.jenjang,
-      tahun_ajaran: f.tahun_ajaran ?? baris.tahun_ajaran ?? lingkupBawaan.tahun_ajaran,
+      jenjang: baris.jenjang ?? targetTunggal(jenjangs),
+      tahun_ajaran: baris.tahun_ajaran ?? targetTunggal(tahunAjaranNames),
       is_active: f.status !== undefined ? f.status === 'ya' : (baris.is_active ?? true),
     };
   };
@@ -293,24 +216,37 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
     setLebarKiri(Math.min(800, Math.max(320, Math.round(awal.w + (e.clientX - awal.x)))));
   };
   const selesaiGeser = () => { geserRef.current = null; };
+  const mulaiGeserVertikal = (e: React.PointerEvent) => {
+    const h = atasRef.current?.getBoundingClientRect().height ?? 300;
+    geserVertikalRef.current = { y: e.clientY, h };
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const selamaGeserVertikal = (e: React.PointerEvent) => {
+    const awal = geserVertikalRef.current;
+    if (awal === null) return;
+    setTinggiAtas(Math.min(900, Math.max(200, Math.round(awal.h + (e.clientY - awal.y)))));
+  };
+  const selesaiGeserVertikal = () => { geserVertikalRef.current = null; };
 
   return (
     <div className="flex min-h-0 flex-1">
       {/* Kiri (bawaan 500px, bisa digeser): tabel grup + daftar santri. */}
       <div style={{ width: lebarKiri }} className="flex min-h-0 shrink-0 flex-col gap-2">
-        <div className="flex gap-1">
-          <Pilihan id="sel_grup_custom_lembaga" label="Lembaga" opsi={lembagaOpsi} nilai={fJenjang} onPilih={setFJenjang} />
-          <Pilihan id="sel_grup_custom_ta" label="Tahun Ajaran" opsi={taOpsi} nilai={fTA} onPilih={setFTA} />
-        </div>
+        <div
+          ref={atasRef}
+          style={{ height: tinggiAtas }}
+          className="flex min-h-0 shrink-0 flex-col gap-2"
+        >
         <div className="flex min-h-0 flex-1 flex-col">
           <ExcelTable<GrupSantriCustom & { id: number }>
             tableKey="keuangan_grup_custom"
+            hidePreset
             header={(
               <span id="judul_grup_custom" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
                 Grup Santri Custom ({grup.length})
               </span>
             )}
-            fields={fieldsGrup(lembagaOpsi, taOpsi)}
+            fields={FIELDS_GRUP}
             rows={grup}
             getValues={(g) => ({
               nama: g.nama,
@@ -320,21 +256,18 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
               status: g.is_active ? 'ya' : 'tidak',
             })}
             loading={loading}
-            emptyText="Belum ada grup. Buat grup untuk peserta ekskul, binaan khusus, dan sejenisnya."
+            emptyText="Belum ada grup pada lingkup ini. Buat grup untuk peserta ekskul, binaan khusus, dan sejenisnya."
             canEdit={canEdit}
             onCommit={async (id, f) => {
               const baris = grup.find((g) => g.id === id);
               if (!baris) return;
-              await ubahGrupCustom(id, payloadGrup(baris, f, { jenjang: null, tahun_ajaran: null }));
-              await muatGrup(fJenjang, fTA);
+              await ubahGrupCustom(id, payloadGrup(baris, f));
+              await muatGrup();
             }}
             onSaved={() => {}}
             onCreateRow={canTambah ? async (f) => {
-              await buatGrupCustom(payloadGrup(
-                {}, f,
-                { jenjang: fJenjang === '' ? null : fJenjang, tahun_ajaran: fTA === '' ? null : fTA },
-              ));
-              await muatGrup(fJenjang, fTA);
+              await buatGrupCustom(payloadGrup({}, f));
+              await muatGrup();
             } : undefined}
             renderActions={(g) => (
               <>
@@ -357,24 +290,32 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
             hideCheckbox
           />
         </div>
-        <div className="grid grid-cols-3 gap-1">
-          <Pilihan id="sel_sc_lembaga" label="Lembaga" opsi={lembagaOpsi} nilai={sJenjang} onPilih={setSJenjang} />
-          <Pilihan id="sel_sc_ta" label="Tahun Ajaran" opsi={taOpsi} nilai={sTA} onPilih={setSTA} />
-          <Pilihan id="sel_sc_semester" label="Semester" opsi={OPSI_SEMESTER} nilai={sSemester} onPilih={setSSemester} />
-          <Pilihan id="sel_sc_tingkat" label="Tingkat" opsi={tingkatOpsi} nilai={sTingkat} onPilih={setSTingkat} />
-          <Pilihan id="sel_sc_kelas" label="Kelas" opsi={opsiKelas} nilai={sKelas} onPilih={setSKelas} />
-          <div className="relative min-w-0 flex-1 self-end">
-            <Search size={14} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="inp_grup_custom_cari" aria-label="Cari santri" placeholder="Cari nama / NIS…"
-              className="h-[26px] w-full pl-8" value={cari}
-              onChange={(e) => setCari(e.target.value)}
-            />
-          </div>
+        </div>
+        {/* Gagang geser tinggi tabel grup vs daftar santri. */}
+        <div
+          id="gagang_tabel_grup_custom"
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Atur tinggi tabel grup dan daftar santri"
+          className="h-1.5 shrink-0 cursor-row-resize hover:bg-accent"
+          onPointerDown={mulaiGeserVertikal}
+          onPointerMove={selamaGeserVertikal}
+          onPointerUp={selesaiGeserVertikal}
+          onPointerCancel={selesaiGeserVertikal}
+        />
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+        <div className="relative min-w-0 flex-1 self-end">
+          <Search size={14} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="inp_grup_custom_cari" aria-label="Cari santri" placeholder="Cari nama / NIS…"
+            className="h-[26px] w-full pl-8" value={cari}
+            onChange={(e) => setCari(e.target.value)}
+          />
         </div>
         <div className="flex min-h-0 flex-1 flex-col">
           <ExcelTable<Santri>
             tableKey="grup_custom_kandidat"
+            rail
             header={(
               <span id="judul_sc_santri" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
                 Daftar Santri ({total})
@@ -401,8 +342,9 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
                 <Plus data-icon="inline-start" size={14} /> Masukkan ({checked.length})
               </Button>
             )}
-            pager={<Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage, { jenjang: sJenjang, ta: sTA, semester: sSemester, tingkat: sTingkat, kelas: sKelas, q: cari })} onPerPage={(pp) => setPerPage(tulisPerPageGlobal(pp))} />}
+            pager={<Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage, cari)} onPerPage={(pp) => setPerPage(tulisPerPageGlobal(pp))} />}
           />
+        </div>
         </div>
       </div>
 
@@ -457,22 +399,4 @@ export default function SantriCustomTab({ canEdit, canTambah }: {
       </div>
     </div>
   );
-}
-
-/** Kolom tabel grup: lingkup (lembaga/TA) baca-saja di grid, dipilih lewat
- *  dropdown pada baris input (cermin kolom kunci Tarif). */
-function fieldsGrup(lembaga: Opsi[], tas: Opsi[]): ExcelField[] {
-  return [
-    { key: 'nama', label: 'Grup', kind: 'text', required: true, width: 180 },
-    { key: 'keterangan', label: 'Keterangan', kind: 'text', width: 200 },
-    {
-      key: 'jenjang', label: 'Lembaga', kind: 'static', inputKind: 'select', width: 110,
-      inputChoices: [{ value: '', label: 'Semua lembaga' }, ...lembaga.filter((l) => l.nilai !== '').map((l) => ({ value: l.nilai, label: l.label }))],
-    },
-    {
-      key: 'tahun_ajaran', label: 'TA', kind: 'static', inputKind: 'select', width: 120,
-      inputChoices: [{ value: '', label: 'Semua TA' }, ...tas.filter((t) => t.nilai !== '').map((t) => ({ value: t.nilai, label: t.label }))],
-    },
-    { key: 'status', label: 'Status', kind: 'toggle', width: 80 },
-  ];
 }

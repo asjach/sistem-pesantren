@@ -84,7 +84,7 @@ export default function KeuanganPage() {
   const { page: tagihanPage, perPage: tagihanPerPage, setPage: setTagihanPage, setPerPage: setTagihanPerPage } = usePager('keuangan_tagihan');
   const [tagihanLastPage, setTagihanLastPage] = useState(1);
   const [tagihanTotal, setTagihanTotal] = useState(0);
-  const { jenjangs, tahunAjaranNames, tingkat, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
+  const { jenjangs, tahunAjaranNames, semesters, tingkat, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
   /** Jenis global (Semua) hanya untuk super_admin efektif — mati saat bertindak. */
   const { efektifSuper, peranJenjang, pilihan: pilihanLembaga } = useLembagaAktif();
   const { user } = useAuth();
@@ -951,7 +951,11 @@ export default function KeuanganPage() {
         </TabsContent>
 
         <TabsContent value="custom" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <SantriCustomTab canEdit={canUbahKeuangan} canTambah={canTambahKeuangan} />
+          <SantriCustomTab
+            canEdit={canUbahKeuangan} canTambah={canTambahKeuangan}
+            jenjangs={jenjangs} tahunAjaranNames={tahunAjaranNames} semesters={semesters}
+            tingkat={tingkat} kelas={kelasAktif}
+          />
         </TabsContent>
 
       </Tabs>

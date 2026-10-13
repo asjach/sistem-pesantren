@@ -26,12 +26,17 @@ class GrupCustomController extends Controller
     public function indexGrup(Request $request)
     {
         $daftar = GrupSantriCustom::with('santri:id,nama_lengkap,jk')
-            ->when($request->filled('jenjang'), fn ($q) => $q->where('jenjang', $request->query('jenjang')))
-            ->when($request->filled('tahun_ajaran'), fn ($q) => $q->where('tahun_ajaran', $request->query('tahun_ajaran')))
+            ->when($request->filled('jenjang'), fn ($q) => $q->whereIn('jenjang', (array) $request->query('jenjang')))
+            ->when($request->filled('tahun_ajaran'), fn ($q) => $q->whereIn('tahun_ajaran', (array) $request->query('tahun_ajaran')))
             ->orderBy('nama')
             ->get();
 
-        return response()->json($this->sertakanRiwayat($daftar, $request->query('tahun_ajaran') ?: TahunAjaran::aktif()?->nama));
+        /* Pengayaan anggota butuh SATU TA: bila topBar multi-pilih, pakai TA
+           aktif (riwayat per TA berbeda; gabungan multi-TA tidak bermakna). */
+        $diminta = $request->query('tahun_ajaran');
+        $tunggal = is_array($diminta) ? (count($diminta) === 1 ? $diminta[0] : null) : $diminta;
+
+        return response()->json($this->sertakanRiwayat($daftar, $tunggal ?: TahunAjaran::aktif()?->nama));
     }
 
     /**

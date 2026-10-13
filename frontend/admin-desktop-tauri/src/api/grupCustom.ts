@@ -1,4 +1,5 @@
 import { api } from './client';
+import { appendQueryParam, type ScalarOrArray } from './query';
 
 /** Grup santri custom: kelompok bentukan manual (mis. peserta ekskul). */
 export interface AnggotaGrupCustom {
@@ -26,11 +27,11 @@ export interface GrupSantriCustom {
   santri: AnggotaGrupCustom[];
 }
 
-/** Daftar grup + anggotanya (saring lingkup bila diisi). */
-export function daftarGrupCustom(params: { jenjang?: string; tahun_ajaran?: string } = {}) {
+/** Daftar grup + anggotanya (saring lingkup topBar bila diisi). */
+export function daftarGrupCustom(params: { jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string> } = {}) {
   const q = new URLSearchParams();
-  if (params.jenjang) q.set('jenjang', params.jenjang);
-  if (params.tahun_ajaran) q.set('tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
   const qs = q.toString();
   return api<GrupSantriCustom[]>(`/admin/keuangan/grup-custom${qs ? `?${qs}` : ''}`);
 }

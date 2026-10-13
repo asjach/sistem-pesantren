@@ -5,7 +5,7 @@ import SantriCustomTab from './tabSantriCustom';
 import type { GrupSantriCustom } from '@/api/grupCustom';
 import { renderDenganTema } from '@/test/utils';
 
-/* API dimock: grup + santri + master tanpa jaringan. */
+/* API dimock: grup + santri + kelas + referensi tanpa jaringan. */
 const api = vi.hoisted(() => ({
   daftar: vi.fn(),
   buat: vi.fn(),
@@ -14,9 +14,10 @@ const api = vi.hoisted(() => ({
   tambah: vi.fn(),
   keluarkan: vi.fn(),
   santri: vi.fn(),
-  lembaga: vi.fn(),
-  ta: vi.fn(),
   kelas: vi.fn(),
+  ref: vi.fn(),
+  pilihTingkat: vi.fn(),
+  pilihKelas: vi.fn(),
 }));
 
 vi.mock('@/api/grupCustom', () => ({
@@ -33,10 +34,48 @@ vi.mock('@/api/santri', () => ({
 }));
 
 vi.mock('@/api/master', () => ({
-  listLembaga: (...a: unknown[]) => api.lembaga(...a),
-  listTahunAjaran: (...a: unknown[]) => api.ta(...a),
   listKelas: (...a: unknown[]) => api.kelas(...a),
+  referensiList: (...a: unknown[]) => api.ref(...a),
 }));
+
+/* Rail global dimock: tingkat/kelas + visibilitasnya tanpa provider. */
+vi.mock('@/hooks/useFilterGlobalAktif', () => ({
+  useFilterGlobalAktif: () => ({
+    jenjangs: ['MI'], tahunAjaranNames: ['2025/2026'], semesters: ['1'],
+    tingkat: [], kelas: [], loading: false,
+  }),
+  targetTunggal: (v: readonly string[]) => (v.length === 1 ? v[0] : null),
+}));
+
+vi.mock('@/tingkatAktif', () => ({
+  useTingkatAktif: () => ({ tingkat: [], pilih: (...a: unknown[]) => api.pilihTingkat(...a), loading: false }),
+}));
+
+vi.mock('@/kelasAktif', () => ({
+  useKelasAktif: () => ({ kelas: [], pilih: (...a: unknown[]) => api.pilihKelas(...a), loading: false }),
+}));
+
+vi.mock('@/components/VisibilitasFilter', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/components/VisibilitasFilter')>();
+  return {
+    ...asli,
+    useVisibilitasFilter: () => ({
+      tampil: { lembaga: true, tahun_ajaran: true, semester: true, tingkat: true, kelas: true },
+      setTampil: vi.fn(),
+      mode: { lembaga: 'single', tahun_ajaran: 'single', semester: 'single', tingkat: 'single', kelas: 'single' },
+      setMode: vi.fn(),
+      siap: true,
+      filterRelevan: ['tingkat', 'kelas'],
+      registrasi: null,
+      setRegistrasi: vi.fn(),
+    }),
+  };
+});
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('react-router-dom')>();
+  return { ...asli, useLocation: () => ({ pathname: '/keuangan', search: '', hash: '', state: null, key: 'uji' }) };
+});
 
 vi.mock('react-datasheet-grid', async (importOriginal) => {
   const asli = await importOriginal<typeof import('react-datasheet-grid')>();
@@ -56,41 +95,44 @@ const CALON = {
   lembaga_aktif: [{ jenjang: 'MI', nis_lokal: '88001' }],
 };
 
+const PROPS = {
+  jenjangs: ['MI'], tahunAjaranNames: ['2025/2026'], semesters: ['1'],
+  tingkat: [], kelas: [],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   api.daftar.mockResolvedValue([GRUP]);
   api.santri.mockResolvedValue({ data: [CALON], current_page: 1, last_page: 1, per_page: 10, total: 1 });
-  api.lembaga.mockResolvedValue({ data: [{ id: 'MI', jenjang: 'MI', nama: 'Madrasah Ibtidaiyah' }], current_page: 1, last_page: 1, per_page: 100, total: 1 });
-  api.ta.mockResolvedValue({ data: [{ nama: '2025/2026' }], current_page: 1, last_page: 1, per_page: 100, total: 1 });
   api.kelas.mockResolvedValue({ data: [{ id: 3, nama_kelas: '3A', tingkat: '3' }], current_page: 1, last_page: 1, per_page: 100, total: 1 });
+  api.ref.mockResolvedValue([{ id: 1, nama: '3', is_active: true, urutan: 3 }]);
 });
 
 /* ExcelTable memvirtualkan baris berdasar tinggi wadah — wadah eksplisit. */
 function renderTab() {
   renderDenganTema(
     <div style={{ height: 900 }} className="flex flex-col">
-      <SantriCustomTab canEdit canTambah />
+      <SantriCustomTab canEdit canTambah {...PROPS} />
     </div>,
   );
 }
 
 describe('SantriCustomTab', () => {
-  it('memuat grup + filter lembaga/TA memicu muat ulang berlingkup', async () => {
+  it('filter topBar diteruskan ke API grup + santri; rail tingkat/kelas tampil', async () => {
     renderTab();
     await waitFor(() => expect(document.getElementById('judul_grup_custom')).not.toBeNull());
-    expect(api.daftar).toHaveBeenCalledWith({});
-    await waitFor(() => expect(document.getElementById('btn_grup_custom_anggota_1')).not.toBeNull());
-
-    // Filter Lembaga = MI → daftar dimuat ulang berlingkup.
-    const el = document.getElementById('sel_grup_custom_lembaga') as HTMLElement;
-    fireEvent.pointerDown(el);
-    fireEvent.mouseDown(el);
-    fireEvent.click(el);
-    fireEvent.click(await screen.findByRole('option', { name: /MI —/ }));
-    await waitFor(() => expect(api.daftar).toHaveBeenCalledWith({ jenjang: 'MI', tahun_ajaran: undefined }));
+    await waitFor(() => expect(api.daftar).toHaveBeenCalledWith({ jenjang: ['MI'], tahun_ajaran: ['2025/2026'] }));
+    await waitFor(() => expect(api.santri).toHaveBeenCalled());
+    const panggilSantri = api.santri.mock.calls[0][0] as Record<string, unknown>;
+    expect(panggilSantri).toMatchObject({ jenjang: ['MI'], tahun_ajaran: ['2025/2026'], semester: ['1'] });
+    // Rail global (bukan combobox lokal) untuk tingkat & kelas.
+    expect(document.getElementById('filter_rail_tingkat_kelas')).not.toBeNull();
+    expect(document.getElementById('sel_sc_tingkat')).toBeNull();
+    expect(document.getElementById('sel_sc_kelas')).toBeNull();
+    expect(document.getElementById('inp_grup_custom_cari')).not.toBeNull();
   });
 
-  it('pivot kanan: anggota tampil dengan nis/kelas/jenjang + tambah/keluarkan', async () => {
+  it('pivot kanan: anggota tampil + tambah/keluarkan', async () => {
     const sesudahTambah: GrupSantriCustom = {
       ...GRUP, santri: [...GRUP.santri, { id: 11, nama_lengkap: 'Budi', jk: 'L', nis: '88001', kelas: '3A', jenjang: 'MI' }],
     };
@@ -100,17 +142,14 @@ describe('SantriCustomTab', () => {
     renderTab();
     await waitFor(() => expect(document.getElementById('btn_grup_custom_anggota_1')).not.toBeNull());
 
-    // Buka pivot: kolom nis/kelas/jenjang dari pengayaan backend tampil.
     fireEvent.click(document.getElementById('btn_grup_custom_anggota_1') as HTMLElement);
     expect(await screen.findByText('77001')).not.toBeNull();
     expect(document.body.textContent).toContain('Anggota Ekskul MTK (1)');
 
-    // Kandidat Budi (belum anggota) bisa dimasukkan.
     expect(await screen.findByText('88001')).not.toBeNull();
     fireEvent.click(document.getElementById('btn_grup_custom_tambah_11') as HTMLElement);
     await waitFor(() => expect(api.tambah).toHaveBeenCalledWith(1, [11]));
 
-    // Keluarkan Ahmad dari pivot.
     fireEvent.click(document.getElementById('btn_grup_custom_keluarkan_10') as HTMLElement);
     await waitFor(() => expect(api.keluarkan).toHaveBeenCalledWith(1, 10));
   });

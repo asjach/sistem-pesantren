@@ -71,6 +71,8 @@ class GrupCustomTest extends TestCase
         $this->assertCount(0, $kosong('?jenjang=MD'));
         $this->assertCount(0, $kosong('?tahun_ajaran=2024/2025'));
         $this->assertCount(1, $kosong('?jenjang=MI&tahun_ajaran=2025/2026'));
+        // Filter array (dari topBar multi-pilih) juga didukung.
+        $this->assertCount(1, $kosong('?jenjang[]=MI&jenjang[]=MD'));
 
         // Anggota diperkaya nis/kelas/jenjang dari riwayat TA filter.
         DB::table('riwayat_belajar')->insert([
@@ -85,6 +87,12 @@ class GrupCustomTest extends TestCase
         $anggota = collect($isi()[0]['santri'])->keyBy('id');
         $this->assertSame('MI', $anggota[$s2->id]['jenjang']);
         $this->assertSame('77001', $anggota[$s2->id]['nis']);
+        // TA multi-pilih: pengayaan anggota memakai TA aktif, tanpa galat.
+        $multi = $this->actingAs($admin)
+            ->getJson('/api/admin/keuangan/grup-custom?tahun_ajaran[]=2025/2026')
+            ->assertStatus(200)->json();
+        $this->assertCount(1, $multi);
+        $this->assertSame('MI', collect($multi[0]['santri'])->firstWhere('id', $s2->id)['jenjang']);
 
         // Santri tak dikenal ditolak.
         $this->actingAs($admin)->postJson("/api/admin/keuangan/grup-custom/{$grup['id']}/anggota", [
