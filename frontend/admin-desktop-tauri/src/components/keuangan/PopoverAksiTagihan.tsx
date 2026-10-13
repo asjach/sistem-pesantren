@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Info, Pencil, Trash2, Wallet, X } from '@/icons';
+import { CalendarRange, CircleCheck, History, Info, Pencil, Trash2, Wallet, X } from '@/icons';
 import { cn } from '@/lib/utils';
 
 export interface TagihanAktif {
@@ -474,18 +474,42 @@ export default function PopoverAksiTagihan({
         collisionPadding={12}
         /* `border-ring/50` (bukan `border` bawaan 12%): panel ini
            mengambang di atas crosstab yang ramai, garis tipis low-contrast
-           bawaan tak terlihat di antara warna sel. */
-        className="w-[32rem] max-w-[calc(100vw-24px)] border-ring/50 p-0"
+           bawaan tak terlihat di antara warna sel.
+
+           Lebar mengikuti MODE. Panel tunggal butuh 32rem (foto + tab aksi);
+           panel batch hanya menu, jadi 32rem membuat tombolnya terentang
+           selebar ruang kosong. Lebarnya diserahkan ke isi (`w-auto`) dan
+           tiap panel memasang lebar sendiri (batch: w-64, tunggal: w-[32rem]). */
+        className={cn(
+          'max-w-[calc(100vw-24px)] border-ring/50 p-0',
+          modeBatch ? 'w-auto' : 'w-[32rem]',
+        )}
         id="popover_aksi_tagihan"
       >
         {modeBatch && (
           /* Mode batch: banyak sel terpilih → aksi massal untuk seluruh
              pilihan. Muncul menggantikan panel tagihan tunggal supaya tak ada
-             dua konteks aksi dalam satu popover. */
-          <div className="flex flex-col" id="batch_aksi_tagihan">
+             dua konteks aksi dalam satu popover.
+
+             Tata letak sengaja dipisah dari panel tunggal: panel ini BUKAN
+             form, jadi tak butuh lebar 32rem milik panel tunggal yang memuat
+             foto + tab. Barisnya diberi batas lebar sendiri supaya popover
+             menyusut jadi selebar menu (lihat `w-auto` di PopoverContent),
+             dan tiap tombol mengisi penuh lebar itu — bukan tombol raksasa
+             498px yang tersebar di ruang kosong. */
+          <div className="flex w-64 flex-col" id="batch_aksi_tagihan">
             <div className="border-b px-3 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold">{jumlahTerpilih} tagihan dipilih</span>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  {/* Angka + satuan dulu ("3 tagihan"), nominal di baris kedua:
+                      lebih cepat dipindai daripada satu kalimat panjang. */}
+                  <span className="block text-sm font-semibold">
+                    {jumlahTerpilih} tagihan dipilih
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                    Total sisa <span className="tabular-nums text-foreground">{rupiah(totalSisaTerpilih)}</span>
+                  </span>
+                </div>
                 <Button
                   id="btn_tutup_batch_tagihan"
                   type="button"
@@ -493,69 +517,98 @@ export default function PopoverAksiTagihan({
                   size="icon-sm"
                   title="Tutup"
                   aria-label="Tutup"
+                  className="shrink-0"
                   onClick={onTutup}
                 >
-                  <X size={15} />
+                  <X size={14} />
                 </Button>
               </div>
-              <span className="text-xs text-muted-foreground">
-                Total sisa {rupiah(totalSisaTerpilih)}
-              </span>
             </div>
+
+            {/* Kelompok "ubah data": dua aksi yang tidak menghancurkan apa pun. */}
             <div className="flex flex-col p-1.5">
               <Button
                 id="btn_batch_bayar"
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-8 justify-start gap-2 px-2 text-xs"
+                className="h-9 justify-start gap-2 px-2 text-xs font-normal"
                 disabled={batchBusy}
                 onClick={() => onAksiBatch?.('bayar')}
               >
-                <Wallet size={14} />
-                Bayar
+                <CircleCheck size={15} className="shrink-0" />
+                <span className="flex flex-col items-start">
+                  Bayar Lunas
+                  <span className="text-[10px] font-normal text-muted-foreground">
+                    Catat sisa {jumlahTerpilih} tagihan lunas
+                  </span>
+                </span>
               </Button>
               <Button
                 id="btn_batch_ubah"
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-8 justify-start gap-2 px-2 text-xs"
+                className="h-9 justify-start gap-2 px-2 text-xs font-normal"
                 disabled={batchBusy}
                 onClick={() => onAksiBatch?.('ubah')}
               >
-                <Pencil size={14} />
-                Ubah
+                <CalendarRange size={15} className="shrink-0" />
+                <span className="flex flex-col items-start">
+                  Ubah Massal
+                  <span className="text-[10px] font-normal text-muted-foreground">
+                    Jatuh tempo & dispensasi
+                  </span>
+                </span>
               </Button>
+            </div>
+
+            {/* Kelompok merusak: dipisah garis + label kecil supaya tidak
+                sekadar sebaris dengan aksi aman. Sengaja tetap di dalam panel
+                (bukan submenu) karena jumlahnya cuma dua. */}
+            <div className="mt-0.5 flex flex-col border-t p-1.5">
+              <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Menghapus permanen
+              </span>
               <Button
                 id="btn_batch_hapus_tagihan"
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:text-destructive"
+                className="h-9 justify-start gap-2 px-2 text-xs font-normal text-destructive hover:bg-destructive/10 hover:text-destructive"
                 disabled={batchBusy}
                 onClick={() => onAksiBatch?.('hapus_tagihan')}
               >
-                <Trash2 size={14} />
-                Hapus Tagihan
+                <Trash2 size={15} className="shrink-0" />
+                <span className="flex flex-col items-start">
+                  Hapus Tagihan
+                  <span className="text-[10px] font-normal text-muted-foreground">
+                    Beserta pembayarannya
+                  </span>
+                </span>
               </Button>
               <Button
                 id="btn_batch_hapus_riwayat"
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:text-destructive"
+                className="h-9 justify-start gap-2 px-2 text-xs font-normal text-destructive hover:bg-destructive/10 hover:text-destructive"
                 disabled={batchBusy}
                 onClick={() => onAksiBatch?.('hapus_riwayat')}
               >
-                <Trash2 size={14} />
-                Hapus Riwayat
+                <History size={15} className="shrink-0" />
+                <span className="flex flex-col items-start">
+                  Hapus Riwayat Bayar
+                  <span className="text-[10px] font-normal text-muted-foreground">
+                    Tagihan tetap, riwayat kosong
+                  </span>
+                </span>
               </Button>
             </div>
           </div>
         )}
         {!modeBatch && (
-        <>
+        <div className="flex w-[32rem] flex-col">
         {/* Judul: status + tutup — nama pindah ke kolom data pribadi. */}
         <div className="border-b px-3 py-2">
           <div className="flex items-center justify-between gap-2">
@@ -941,7 +994,7 @@ export default function PopoverAksiTagihan({
           </Tabs>
           </div>
         </div>
-        </>
+        </div>
         )}
       </PopoverContent>
     </Popover>

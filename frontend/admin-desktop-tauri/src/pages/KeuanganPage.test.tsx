@@ -456,7 +456,7 @@ describe('KeuanganPage — pilihan ganda (klik kiri) & aksi batch', () => {
     await bukaTabTagihan();
     pointerEv(selCell(1), 'pointerup');
     await waitFor(() => expect(sorot(1)).toBe(true));
-    expect(screen.queryByText('Hapus Riwayat')).toBeNull();
+    expect(screen.queryByText('Hapus Riwayat Bayar')).toBeNull();
     expect(screen.queryByText('Batal Pilih')).toBeNull();
   });
 
@@ -472,7 +472,7 @@ describe('KeuanganPage — pilihan ganda (klik kiri) & aksi batch', () => {
     // membuat aksi batch bisa dibuka untuk seluruh range.
     fireEvent.contextMenu(selCell(2));
     expect(await screen.findByText('2 tagihan dipilih')).toBeInTheDocument();
-    await userEvent.click(await screen.findByText('Bayar'));
+    await userEvent.click(await screen.findByText('Bayar Lunas'));
     expect(await screen.findByText(/Bayar 2 tagihan\?/)).toBeInTheDocument();
   });
 });
@@ -571,7 +571,7 @@ describe('KeuanganPage — klik kiri seleksi, klik kanan aksi', () => {
     await waitFor(() => expect(sorot(1)).toBe(true));
     // Tak ada popover batch (Bayar/Ubah/Hapus Riwayat) maupun popover aksi
     // per tagihan (Detail/Ubah/Hapus).
-    expect(screen.queryByText('Hapus Riwayat')).toBeNull();
+    expect(screen.queryByText('Hapus Riwayat Bayar')).toBeNull();
     expect(screen.queryByText('Batal Pilih')).toBeNull();
     expect(screen.queryByText(/Tambah tagihan ·/)).toBeNull();
     expect(screen.queryByText('Detail')).toBeNull();

@@ -109,24 +109,61 @@ describe('mode batch (banyak sel terpilih)', () => {
   it('>1 sel terpilih menampilkan aksi batch, bukan panel tagihan tunggal', () => {
     renderPopover(tagihan(), { jumlahTerpilih: 3, totalSisaTerpilih: 165000, onAksiBatch });
     expect(screen.getByText('3 tagihan dipilih')).toBeInTheDocument();
-    expect(screen.getByText('Total sisa Rp 165.000')).toBeInTheDocument();
+    // Nominal dipisah dari labelnya (satu simpul teks sendiri) supaya bisa
+    // diberi tabular-nums & warna lebih tegas; dijaga di sini agar nilainya
+    // tetap terbaca berpasangan dengan label "Total sisa".
+    expect(screen.getByText('Total sisa')).toBeInTheDocument();
+    expect(screen.getByText('Rp 165.000')).toBeInTheDocument();
     // Aksi massal tersedia…
-    expect(screen.getByText('Bayar')).toBeInTheDocument();
-    expect(screen.getByText('Ubah')).toBeInTheDocument();
+    expect(screen.getByText('Bayar Lunas')).toBeInTheDocument();
+    expect(screen.getByText('Ubah Massal')).toBeInTheDocument();
     expect(screen.getByText('Hapus Tagihan')).toBeInTheDocument();
-    expect(screen.getByText('Hapus Riwayat')).toBeInTheDocument();
+    expect(screen.getByText('Hapus Riwayat Bayar')).toBeInTheDocument();
     // …dan panel tagihan tunggal tidak dirender.
     expect(screen.queryByText('Santri Uji')).toBeNull();
   });
 
   it('klik aksi batch meneruskan aksinya ke pemanggil', async () => {
     renderPopover(tagihan(), { jumlahTerpilih: 3, totalSisaTerpilih: 165000, onAksiBatch });
-    await userEvent.click(screen.getByText('Bayar'));
+    await userEvent.click(screen.getByText('Bayar Lunas'));
     expect(onAksiBatch).toHaveBeenCalledWith('bayar');
-    await userEvent.click(screen.getByText('Ubah'));
+    await userEvent.click(screen.getByText('Ubah Massal'));
     expect(onAksiBatch).toHaveBeenCalledWith('ubah');
-    await userEvent.click(screen.getByText('Hapus Riwayat'));
+    await userEvent.click(screen.getByText('Hapus Riwayat Bayar'));
     expect(onAksiBatch).toHaveBeenCalledWith('hapus_riwayat');
+  });
+
+  it('aksi merusak dipisah dari aksi aman dan diberi label peringatan', () => {
+    /* Empat aksi dulu sederet tanpa pembeda, sehingga "Hapus Tagihan" gampang
+       terklik saat niatnya "Bayar". Sekarang ada garis pemisah + label
+       kelompok sebelum dua aksi yang menghapus permanen. */
+    renderPopover(tagihan(), { jumlahTerpilih: 2, totalSisaTerpilih: 110000, onAksiBatch });
+    expect(screen.getByText('Menghapus permanen')).toBeInTheDocument();
+
+    const panel = document.getElementById('batch_aksi_tagihan')!;
+    const baris = ['btn_batch_bayar', 'btn_batch_ubah', 'btn_batch_hapus_tagihan', 'btn_batch_hapus_riwayat']
+      .map((id) => panel.querySelector(`#${id}`)!);
+    expect(baris.every((el) => el !== null)).toBe(true);
+    // Dua aksi terakhir bergaya destructive, dua pertama tidak.
+    expect(baris[0].className).not.toContain('text-destructive');
+    expect(baris[1].className).not.toContain('text-destructive');
+    expect(baris[2].className).toContain('text-destructive');
+    expect(baris[3].className).toContain('text-destructive');
+    // Tiap aksi punya keterangan satu baris (bayar/ubah tidak boleh sekadar
+    // satu kata tanpa konteks).
+    expect(screen.getByText('Catat sisa 2 tagihan lunas')).toBeInTheDocument();
+    expect(screen.getByText('Jatuh tempo & dispensasi')).toBeInTheDocument();
+  });
+
+  it('panel batch memakai lebar sendiri, bukan 32rem milik panel tunggal', () => {
+    /* Panel tunggal butuh 32rem (foto + tab). Panel batch hanya menu; kalau
+       ikut 32rem, tombolnya terentang ~500px di ruang kosong. Lebar kini
+       diserahkan ke isi + wadah berlebar sendiri. */
+    renderPopover(tagihan(), { jumlahTerpilih: 3, totalSisaTerpilih: 165000, onAksiBatch });
+    const pop = document.getElementById('popover_aksi_tagihan')!;
+    expect(pop.className).toContain('w-auto');
+    expect(pop.className).not.toContain('w-[32rem]');
+    expect(document.getElementById('batch_aksi_tagihan')!.className).toContain('w-64');
   });
 
   it('satu sel terpilih tetap memakai panel tagihan tunggal', () => {
