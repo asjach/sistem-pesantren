@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, type ComponentProps } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { ComponentProps } from 'react';
 
 import { renderDenganTema } from '@/test/utils';
 import type { CrosstabBaris, CrosstabKolom, CrosstabSel } from '@/api/keuangan';
