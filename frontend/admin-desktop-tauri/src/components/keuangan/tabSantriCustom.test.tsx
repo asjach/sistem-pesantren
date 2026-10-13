@@ -160,4 +160,41 @@ describe('SantriCustomTab', () => {
     expect(document.querySelector('[id^="btn_grup_custom_tambah_"]')).toBeNull();
     expect(document.body.textContent).toContain('Pilih grup dulu');
   });
+
+  it('buat grup via popover (bukan dialog): nama + lingkup topBar', async () => {
+    api.buat.mockResolvedValue({ ...GRUP, id: 2, nama: 'Ekskul MTK', santri: [] });
+
+    renderTab();
+    await waitFor(() => expect(document.getElementById('judul_grup_custom')).not.toBeNull());
+
+    // Buka popover: lingkup mengikuti topBar, isian kosong.
+    fireEvent.click(document.getElementById('btn_grup_custom_tambah') as HTMLElement);
+    expect(await screen.findByText('Lingkup: MI · 2025/2026')).not.toBeNull();
+    const nama = document.getElementById('inp_grup_custom_nama') as HTMLInputElement;
+    expect(nama.value).toBe('');
+
+    // Simpan kosong → galat inline, tanpa request.
+    fireEvent.click(document.getElementById('btn_grup_custom_simpan') as HTMLElement);
+    expect(await screen.findByText('Nama grup wajib diisi.')).not.toBeNull();
+    expect(api.buat).not.toHaveBeenCalled();
+
+    // Isi + simpan → API dipanggil dengan lingkup topBar, daftar dimuat ulang.
+    fireEvent.change(nama, { target: { value: 'Ekskul MTK' } });
+    fireEvent.change(document.getElementById('inp_grup_custom_keterangan') as HTMLInputElement, { target: { value: 'Olimpiade' } });
+    fireEvent.click(document.getElementById('btn_grup_custom_simpan') as HTMLElement);
+    await waitFor(() => expect(api.buat).toHaveBeenCalledWith({
+      nama: 'Ekskul MTK', keterangan: 'Olimpiade', jenjang: 'MI', tahun_ajaran: '2025/2026',
+    }));
+    await waitFor(() => expect(api.daftar).toHaveBeenCalledTimes(2));
+  });
+
+  it('tanpa izin tambah: tombol buat grup tidak tampil', async () => {
+    renderDenganTema(
+      <div style={{ height: 900 }} className="flex flex-col">
+        <SantriCustomTab canEdit={false} canTambah={false} {...PROPS} />
+      </div>,
+    );
+    await waitFor(() => expect(document.getElementById('judul_grup_custom')).not.toBeNull());
+    expect(document.getElementById('btn_grup_custom_tambah')).toBeNull();
+  });
 });

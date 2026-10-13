@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import {
@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
+import LabeledInput from '@/components/LabeledInput';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ActionIcon, DeleteAction } from '@/components/RowActions';
 import { ErrorNotice } from '@/components/PageHeader';
 import { targetTunggal } from '@/hooks/useFilterGlobalAktif';
@@ -97,6 +99,12 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
   const [perPage, setPerPage] = useState<PerPage>(10);
   const [loadingKandidat, setLoadingKandidat] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** Popover Buat Grup + isiannya (pengganti baris input tabel). */
+  const [popGrup, setPopGrup] = useState(false);
+  const [baruNama, setBaruNama] = useState('');
+  const [baruKet, setBaruKet] = useState('');
+  const [baruErr, setBaruErr] = useState('');
+  const [baruBusy, setBaruBusy] = useState(false);
 
   const grupAktif = grup.find((g) => g.id === grupAktifId) ?? null;
   const idAnggota = new Set((grupAktif?.santri ?? []).map((s) => s.id));
@@ -188,6 +196,37 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
     } catch (e) { toast.error(errorMessage(e)); }
   };
 
+  /** Lingkup grup baru (ditampilkan di popover, mengikuti topBar). */
+  const lingkupBaru = `${targetTunggal(jenjangs) ?? 'Semua lembaga'} · ${targetTunggal(tahunAjaranNames) ?? 'Semua TA'}`;
+
+  /** Buka popover: isian di-reset (kosong = belum diisi). */
+  const resetFormGrup = () => {
+    setBaruNama('');
+    setBaruKet('');
+    setBaruErr('');
+  };
+
+  /** Simpan grup baru dari popover → muat ulang daftar. */
+  const simpanGrupBaru = async (e: FormEvent) => {
+    e.preventDefault();
+    const nama = baruNama.trim();
+    if (nama === '') { setBaruErr('Nama grup wajib diisi.'); return; }
+    const keterangan = baruKet.trim();
+    setBaruErr('');
+    setBaruBusy(true);
+    try {
+      await buatGrupCustom({
+        nama,
+        keterangan: keterangan === '' ? null : keterangan,
+        jenjang: targetTunggal(jenjangs),
+        tahun_ajaran: targetTunggal(tahunAjaranNames),
+      });
+      toast.success('Grup dibuat.');
+      setPopGrup(false);
+      await muatGrup();
+    } catch (e2) { setBaruErr(errorMessage(e2)); } finally { setBaruBusy(false); }
+  };
+
   /** Payload buat/ubah grup: nama wajib; lingkup mengikuti topBar (grup baru)
    *  atau baris (ubah); duplikat ditolak server. */
   const payloadGrup = (
@@ -265,10 +304,44 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
               await muatGrup();
             }}
             onSaved={() => {}}
-            onCreateRow={canTambah ? async (f) => {
-              await buatGrupCustom(payloadGrup({}, f));
-              await muatGrup();
-            } : undefined}
+            hideCheckbox
+            addButtonLangsung
+            addButton={canTambah ? (
+              <Popover
+                open={popGrup}
+                onOpenChange={(o) => { if (baruBusy) return; if (o) resetFormGrup(); setPopGrup(o); }}
+              >
+                <PopoverTrigger asChild>
+                  <Button id="btn_grup_custom_tambah" type="button" size="sm" className="gap-1.5 px-3 text-xs font-medium">
+                    <Plus size={14} /> Grup Santri
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent id="pop_grup_custom_baru" align="end" className="pointer-events-auto w-72 p-3">
+                  <form onSubmit={(e) => void simpanGrupBaru(e)} className="flex flex-col gap-2">
+                    <p className="text-sm font-semibold">Grup Baru</p>
+                    <p className="text-xs text-muted-foreground">Lingkup: {lingkupBaru}</p>
+                    {baruErr !== '' && <p role="alert" className="text-xs text-destructive">{baruErr}</p>}
+                    <LabeledInput
+                      label="Nama"
+                      htmlFor="inp_grup_custom_nama"
+                      value={baruNama}
+                      onChange={(e) => setBaruNama(e.target.value)}
+                      placeholder="mis. Ekskul Matematika"
+                    />
+                    <LabeledInput
+                      label="Keterangan"
+                      htmlFor="inp_grup_custom_keterangan"
+                      value={baruKet}
+                      onChange={(e) => setBaruKet(e.target.value)}
+                      placeholder="opsional"
+                    />
+                    <Button id="btn_grup_custom_simpan" type="submit" size="sm" className="h-[26px]" disabled={baruBusy}>
+                      {baruBusy ? 'Menyimpan…' : 'Simpan Grup'}
+                    </Button>
+                  </form>
+                </PopoverContent>
+              </Popover>
+            ) : undefined}
             renderActions={(g) => (
               <>
                 <ActionIcon
@@ -287,7 +360,6 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
                 />
               </>
             )}
-            hideCheckbox
           />
         </div>
         </div>
