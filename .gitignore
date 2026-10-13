@@ -13,6 +13,9 @@ frontend/*/src-tauri/WixTools/
 *.log
 .playwright-mcp/
 .opencode/
+# Artefak Python dari skill di .agents/skills (dibuat ulang tiap script dijalankan).
+__pycache__/
+*.pyc
 .kilo/
 .kilocode/
 .commandcode/
