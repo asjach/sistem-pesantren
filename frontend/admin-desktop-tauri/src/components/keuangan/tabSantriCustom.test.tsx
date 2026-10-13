@@ -156,9 +156,9 @@ describe('SantriCustomTab', () => {
     api.keluarkan.mockImplementation(async () => GRUP);
 
     renderTab();
-    await waitFor(() => expect(document.getElementById('btn_grup_custom_anggota_1')).not.toBeNull());
+    await waitFor(() => expect(document.getElementById('row_grup_custom_1')).not.toBeNull());
 
-    fireEvent.click(document.getElementById('btn_grup_custom_anggota_1') as HTMLElement);
+    fireEvent.click(document.getElementById('row_grup_custom_1') as HTMLElement);
     expect(await screen.findByText('77001')).not.toBeNull();
     expect(document.body.textContent).toContain('Anggota Ekskul MTK (1)');
 
@@ -177,15 +177,44 @@ describe('SantriCustomTab', () => {
     expect(document.body.textContent).toContain('Pilih grup dulu');
   });
 
+  it('klik baris memilih grup (pivot kanan terbuka)', async () => {
+    renderTab();
+    await waitFor(() => expect(document.getElementById('row_grup_custom_1')).not.toBeNull());
+    fireEvent.click(document.getElementById('row_grup_custom_1') as HTMLElement);
+    expect(await screen.findByText('Anggota Ekskul MTK (1)')).not.toBeNull();
+  });
+
+  it('ubah grup sebaris: pensil → input → simpan', async () => {
+    api.ubah.mockResolvedValue({ ...GRUP, nama: 'Ekskul MTK Baru' });
+    renderTab();
+    await waitFor(() => expect(document.getElementById('row_grup_custom_1')).not.toBeNull());
+    fireEvent.click(document.getElementById('btn_grup_custom_ubah_1') as HTMLElement);
+    const nama = document.getElementById('inp_grup_custom_ubah_nama') as HTMLInputElement;
+    expect(nama.value).toBe('Ekskul MTK');
+    fireEvent.change(nama, { target: { value: 'Ekskul MTK Baru' } });
+    fireEvent.click(document.getElementById('btn_grup_custom_ubah_simpan') as HTMLElement);
+    await waitFor(() => expect(api.ubah).toHaveBeenCalledWith(1, expect.objectContaining({ nama: 'Ekskul MTK Baru' })));
+  });
+
+  it('sakelar status mengubah is_active', async () => {
+    api.ubah.mockResolvedValue({ ...GRUP, is_active: false });
+    renderTab();
+    await waitFor(() => expect(document.getElementById('row_grup_custom_1')).not.toBeNull());
+    const sw = document.getElementById('sw_grup_custom_status_1') as HTMLElement;
+    expect(sw.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(sw);
+    await waitFor(() => expect(api.ubah).toHaveBeenCalledWith(1, expect.objectContaining({ is_active: false })));
+  });
+
   it('cari topBar menyaring grup + daftar santri', async () => {
     renderTab();
     const kotak = await waitFor(() => document.getElementById('input_cari_topbar') as HTMLInputElement);
-    await waitFor(() => expect(document.getElementById('btn_grup_custom_anggota_1')).not.toBeNull());
+    await waitFor(() => expect(document.getElementById('row_grup_custom_1')).not.toBeNull());
 
     // Ketik "olim" (dari keterangan Olimpiade).
     fireEvent.change(kotak, { target: { value: 'olim' } });
     // Grup tetap tampil (cocok keterangan); santri diminta dengan q.
-    await waitFor(() => expect(document.getElementById('btn_grup_custom_anggota_1')).not.toBeNull());
+    await waitFor(() => expect(document.getElementById('row_grup_custom_1')).not.toBeNull());
     await waitFor(() => {
       const terakhir = api.santri.mock.calls.at(-1)?.[0] as Record<string, unknown>;
       expect(terakhir).toMatchObject({ q: 'olim' });
@@ -193,7 +222,7 @@ describe('SantriCustomTab', () => {
 
     // Ketik yang tak cocok → grup hilang dari tabel.
     fireEvent.change(kotak, { target: { value: 'olimzzz' } });
-    await waitFor(() => expect(document.getElementById('btn_grup_custom_anggota_1')).toBeNull());
+    await waitFor(() => expect(document.getElementById('row_grup_custom_1')).toBeNull());
     expect(document.body.textContent).toContain('0 dari 1');
   });
 

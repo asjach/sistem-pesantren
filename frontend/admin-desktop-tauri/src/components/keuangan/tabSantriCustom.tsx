@@ -8,25 +8,20 @@ import {
 import { listKelas } from '../../api/master';
 import { listSantri, type Santri } from '../../api/santri';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import LabeledInput from '@/components/LabeledInput';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ActionIcon, DeleteAction } from '@/components/RowActions';
+import { ActionIcon, DeleteAction, EditAction } from '@/components/RowActions';
 import { ErrorNotice } from '@/components/PageHeader';
+import { cn } from '@/lib/utils';
 import { targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { bacaPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
 import type { PerPage } from '@/prefs';
-import { ArrowRight, Plus, Users, X } from '@/icons';
-
-const FIELDS_GRUP: ExcelField[] = [
-  { key: 'nama', label: 'Grup', kind: 'text', required: true, width: 180 },
-  { key: 'keterangan', label: 'Keterangan', kind: 'text', width: 200 },
-  { key: 'jenjang', label: 'Lembaga', kind: 'static', width: 90 },
-  { key: 'tahun_ajaran', label: 'TA', kind: 'static', width: 120 },
-  { key: 'status', label: 'Status', kind: 'toggle', width: 80 },
-];
+import { ArrowRight, Plus, X } from '@/icons';
 
 const FIELDS_SANTRI: ExcelField[] = [
   { key: 'nama_lengkap', label: 'Nama Lengkap', kind: 'static', width: 200 },
@@ -105,6 +100,10 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
   const [baruKet, setBaruKet] = useState('');
   const [baruErr, setBaruErr] = useState('');
   const [baruBusy, setBaruBusy] = useState(false);
+  /** Baris grup yang sedang diubah + draft isiannya. */
+  const [editId, setEditId] = useState<number | null>(null);
+  const [ubahNama, setUbahNama] = useState('');
+  const [ubahKet, setUbahKet] = useState('');
 
   const grupAktif = grup.find((g) => g.id === grupAktifId) ?? null;
   /** Grup tersaring pencarian (nama/keterangan); santri memakai `q` server. */
@@ -234,22 +233,46 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
     } catch (e2) { setBaruErr(errorMessage(e2)); } finally { setBaruBusy(false); }
   };
 
-  /** Payload buat/ubah grup: nama wajib; lingkup mengikuti topBar (grup baru)
-   *  atau baris (ubah); duplikat ditolak server. */
-  const payloadGrup = (
-    baris: Partial<GrupSantriCustom>,
-    f: Record<string, string | null>,
-  ): { nama: string; keterangan: string | null; jenjang: string | null; tahun_ajaran: string | null; is_active: boolean } => {
-    const nama = (f.nama ?? baris.nama ?? '').trim();
-    if (nama === '') throw new Error('Nama grup wajib diisi.');
-    const keterangan = (f.keterangan ?? baris.keterangan ?? '').trim();
-    return {
-      nama,
-      keterangan: keterangan === '' ? null : keterangan,
-      jenjang: baris.jenjang ?? targetTunggal(jenjangs),
-      tahun_ajaran: baris.tahun_ajaran ?? targetTunggal(tahunAjaranNames),
-      is_active: f.status !== undefined ? f.status === 'ya' : (baris.is_active ?? true),
-    };
+  /** Mulai ubah baris: draft diisi dari baris. */
+  const mulaiUbah = (g: GrupSantriCustom) => {
+    setEditId(g.id);
+    setUbahNama(g.nama);
+    setUbahKet(g.keterangan ?? '');
+  };
+
+  /** Simpan ubahan baris (nama wajib; lingkup & status ikut baris). */
+  const simpanUbah = async () => {
+    const baris = grup.find((g) => g.id === editId);
+    if (!baris) return;
+    const nama = ubahNama.trim();
+    if (nama === '') { toast.error('Nama grup wajib diisi.'); return; }
+    const keterangan = ubahKet.trim();
+    try {
+      await ubahGrupCustom(baris.id, {
+        nama,
+        keterangan: keterangan === '' ? null : keterangan,
+        jenjang: baris.jenjang,
+        tahun_ajaran: baris.tahun_ajaran,
+        is_active: baris.is_active,
+      });
+      toast.success('Grup diubah.');
+      setEditId(null);
+      await muatGrup();
+    } catch (e) { toast.error(errorMessage(e)); }
+  };
+
+  /** Alih status langsung dari baris. */
+  const ubahStatus = async (g: GrupSantriCustom, v: boolean) => {
+    try {
+      await ubahGrupCustom(g.id, {
+        nama: g.nama,
+        keterangan: g.keterangan,
+        jenjang: g.jenjang,
+        tahun_ajaran: g.tahun_ajaran,
+        is_active: v,
+      });
+      await muatGrup();
+    } catch (e) { toast.error(errorMessage(e)); }
   };
 
   const mulaiGeser = (e: React.PointerEvent) => {
@@ -284,37 +307,12 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
           style={{ height: tinggiAtas }}
           className="flex min-h-0 shrink-0 flex-col gap-2"
         >
-        <div className="flex min-h-0 flex-1 flex-col">
-          <ExcelTable<GrupSantriCustom & { id: number }>
-            tableKey="keuangan_grup_custom"
-            hidePreset
-            header={(
-              <span id="judul_grup_custom" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
-                Grup Santri Custom ({grupTampil.length}{cari.trim() !== '' ? ` dari ${grup.length}` : ''})
-              </span>
-            )}
-            fields={FIELDS_GRUP}
-            rows={grupTampil}
-            getValues={(g) => ({
-              nama: g.nama,
-              keterangan: g.keterangan,
-              jenjang: g.jenjang,
-              tahun_ajaran: g.tahun_ajaran,
-              status: g.is_active ? 'ya' : 'tidak',
-            })}
-            loading={loading}
-            emptyText="Belum ada grup pada lingkup ini. Buat grup untuk peserta ekskul, binaan khusus, dan sejenisnya."
-            canEdit={canEdit}
-            onCommit={async (id, f) => {
-              const baris = grup.find((g) => g.id === id);
-              if (!baris) return;
-              await ubahGrupCustom(id, payloadGrup(baris, f));
-              await muatGrup();
-            }}
-            onSaved={() => {}}
-            hideCheckbox
-            addButtonLangsung
-            addButton={canTambah ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <span id="judul_grup_custom" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
+              Grup Santri Custom ({grupTampil.length}{cari.trim() !== '' ? ` dari ${grup.length}` : ''})
+            </span>
+            {canTambah ? (
               <Popover
                 open={popGrup}
                 onOpenChange={(o) => { if (baruBusy) return; if (o) resetFormGrup(); setPopGrup(o); }}
@@ -349,26 +347,91 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
                   </form>
                 </PopoverContent>
               </Popover>
-            ) : undefined}
-            renderActions={(g) => (
-              <>
-                <ActionIcon
-                  id={`btn_grup_custom_anggota_${g.id}`}
-                  title={`Kelola anggota ${g.nama}`}
-                  aria-label={`Kelola anggota ${g.nama}`}
-                  onClick={() => setGrupAktifId(g.id)}
-                >
-                  <Users size={16} />
-                </ActionIcon>
-                <DeleteAction
-                  id={`btn_grup_custom_hapus_${g.id}`}
-                  title={`Hapus grup ${g.nama}?`}
-                  description="Grup dihapus permanen beserta keanggotaannya (tagihan yang sudah dibuat tidak ikut terhapus)."
-                  onConfirm={() => hapusGrup(g)}
-                />
-              </>
-            )}
-          />
+            ) : null}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-muted">
+                <tr className="text-left">
+                  <th className="px-2 py-1 font-medium">Grup</th>
+                  <th className="px-2 py-1 font-medium">Keterangan</th>
+                  <th className="px-2 py-1 font-medium">Lembaga</th>
+                  <th className="px-2 py-1 font-medium">TA</th>
+                  <th className="px-2 py-1 font-medium">Status</th>
+                  <th className="px-2 py-1"><span className="sr-only">Aksi</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={6} className="px-2 py-1 text-center text-muted-foreground">Memuat…</td></tr>
+                ) : grupTampil.length === 0 ? (
+                  <tr><td colSpan={6} className="px-2 py-1 text-center text-muted-foreground">Belum ada grup pada lingkup ini. Buat grup untuk peserta ekskul, binaan khusus, dan sejenisnya.</td></tr>
+                ) : grupTampil.map((g) => {
+                  const aktif = g.id === grupAktifId;
+                  const sedangUbah = g.id === editId;
+                  return (
+                    <tr
+                      key={g.id}
+                      id={`row_grup_custom_${g.id}`}
+                      onClick={() => setGrupAktifId(g.id)}
+                      title="Klik untuk memilih"
+                      aria-selected={aktif}
+                      className={cn(
+                        'cursor-pointer border-t',
+                        aktif ? 'bg-accent font-medium' : 'hover:bg-muted/60',
+                      )}
+                    >
+                      {sedangUbah ? (
+                        <>
+                          <td className="px-2 py-1" onClick={(e) => e.stopPropagation()}>
+                            <Input id="inp_grup_custom_ubah_nama" aria-label="Nama grup" className="h-[26px]" value={ubahNama} onChange={(e) => setUbahNama(e.target.value)} />
+                          </td>
+                          <td className="px-2 py-1" onClick={(e) => e.stopPropagation()}>
+                            <Input id="inp_grup_custom_ubah_keterangan" aria-label="Keterangan grup" className="h-[26px]" value={ubahKet} onChange={(e) => setUbahKet(e.target.value)} />
+                          </td>
+                          <td className="px-2 py-1 text-muted-foreground">{g.jenjang ?? '—'}</td>
+                          <td className="px-2 py-1 text-muted-foreground">{g.tahun_ajaran ?? '—'}</td>
+                          <td className="px-2 py-1 text-muted-foreground">{g.is_active ? 'Aktif' : 'Nonaktif'}</td>
+                          <td className="px-2 py-1 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <Button id="btn_grup_custom_ubah_simpan" type="button" size="sm" className="h-[26px]" onClick={() => simpanUbah()}>Simpan</Button>
+                            <ActionIcon id="btn_grup_custom_ubah_batal" title="Batalkan ubahan" onClick={() => setEditId(null)}>
+                              <X size={16} />
+                            </ActionIcon>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-2 py-1">{g.nama}</td>
+                          <td className="px-2 py-1 text-muted-foreground">{g.keterangan ?? '—'}</td>
+                          <td className="px-2 py-1 text-muted-foreground">{g.jenjang ?? '—'}</td>
+                          <td className="px-2 py-1 text-muted-foreground">{g.tahun_ajaran ?? '—'}</td>
+                          <td className="px-2 py-1" onClick={(e) => e.stopPropagation()}>
+                            <Switch
+                              id={`sw_grup_custom_status_${g.id}`}
+                              size="2xs"
+                              checked={g.is_active}
+                              onCheckedChange={(v) => ubahStatus(g, v)}
+                              disabled={!canEdit}
+                              aria-label={`Status ${g.nama}`}
+                            />
+                          </td>
+                          <td className="px-2 py-1 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <EditAction id={`btn_grup_custom_ubah_${g.id}`} onClick={() => mulaiUbah(g)} />
+                            <DeleteAction
+                              id={`btn_grup_custom_hapus_${g.id}`}
+                              title={`Hapus grup ${g.nama}?`}
+                              description="Grup dihapus permanen beserta keanggotaannya (tagihan yang sudah dibuat tidak ikut terhapus)."
+                              onConfirm={() => hapusGrup(g)}
+                            />
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
         </div>
         {/* Gagang geser tinggi tabel grup vs daftar santri. */}
