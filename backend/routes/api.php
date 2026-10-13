@@ -3,10 +3,12 @@
 use App\Http\Controllers\Api\Admin\AlumniArsipController;
 use App\Http\Controllers\Api\Admin\DispensasiController;
 use App\Http\Controllers\Api\Admin\DokumenController;
+use App\Http\Controllers\Api\Admin\GrupCustomController;
 use App\Http\Controllers\Api\Admin\IzinController;
 use App\Http\Controllers\Api\Admin\JenisTarifController;
 use App\Http\Controllers\Api\Admin\KeaktifanPegawaiController;
 use App\Http\Controllers\Api\Admin\KelasController;
+use App\Http\Controllers\Api\Admin\KomponenCustomController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaPegawaiController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
@@ -25,7 +27,6 @@ use App\Http\Controllers\Api\Admin\SemesterAktifController;
 use App\Http\Controllers\Api\Admin\SiklusController;
 use App\Http\Controllers\Api\Admin\TagihanController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
-use App\Http\Controllers\Api\Admin\KomponenCustomController;
 use App\Http\Controllers\Api\Admin\ToolbarPresetController;
 use App\Http\Controllers\Api\Admin\UrutPresetController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
@@ -104,6 +105,12 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         // Buat Tagihan supaya aturan grup/kuota hanya hidup di backend).
         Route::post('keuangan/tagihan/pratinjau', [TagihanController::class, 'pratinjauTagihan'])->middleware('permission:keuangan.tambah');
         Route::get('keuangan/tagihan/kandidat', [TagihanController::class, 'kandidatTagihan'])->middleware('permission:keuangan.tambah');
+        Route::get('keuangan/grup-custom', [GrupCustomController::class, 'indexGrup'])->middleware('permission:keuangan.lihat');
+        Route::post('keuangan/grup-custom', [GrupCustomController::class, 'storeGrup'])->middleware('permission:keuangan.tambah');
+        Route::match(['put', 'patch'], 'keuangan/grup-custom/{grup}', [GrupCustomController::class, 'updateGrup'])->middleware('permission:keuangan.ubah');
+        Route::delete('keuangan/grup-custom/{grup}', [GrupCustomController::class, 'destroyGrup'])->middleware('permission:keuangan.hapus');
+        Route::post('keuangan/grup-custom/{grup}/anggota', [GrupCustomController::class, 'tambahAnggota'])->middleware('permission:keuangan.ubah');
+        Route::delete('keuangan/grup-custom/{grup}/anggota/{santri}', [GrupCustomController::class, 'hapusAnggota'])->middleware('permission:keuangan.ubah');
         Route::post('keuangan/pembayaran', [PembayaranController::class, 'storePembayaran'])->middleware('permission:keuangan.tambah');
         Route::post('keuangan/pembayaran/{pembayaran}/batal', [PembayaranController::class, 'batalPembayaran'])->middleware('permission:keuangan.ubah');
         Route::delete('keuangan/pembayaran/{pembayaran}', [PembayaranController::class, 'destroyPembayaran'])->middleware('permission:keuangan.hapus');

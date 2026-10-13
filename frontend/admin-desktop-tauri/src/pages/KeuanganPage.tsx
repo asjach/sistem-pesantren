@@ -28,11 +28,12 @@ import {
   pastikanTarifBaru, payloadBuatJenis, payloadBuatTarif, payloadUbahJenis, payloadUbahTarif,
 } from '@/components/keuangan/tabKeuangan';
 import BatchAksiTagihan, { type AksiBatch } from '@/components/keuangan/BatchAksiTagihan';
+import SantriCustomTab from '@/components/keuangan/tabSantriCustom';
 import {
   DialogTambahJenis, DialogTambahTarif, DialogUbahJenis, DialogUbahTarif,
 } from '@/components/keuangan/jenisTarifDialogs';
 
-const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan'] as const;
+const TAB_KEUANGAN = ['jenis', 'tarif', 'tagihan', 'custom'] as const;
 
 /** State urut satu tabel; perubahan state memicu muat ulang via effect. */
 function useUrutTabel() {
@@ -797,6 +798,7 @@ export default function KeuanganPage() {
           <TabsTrigger value="jenis" id="keu_tab_jenis" className={KELAS_TRIGGER}>Jenis Tagihan</TabsTrigger>
           <TabsTrigger value="tarif" id="keu_tab_tarif" className={KELAS_TRIGGER}>Tarif</TabsTrigger>
           <TabsTrigger value="tagihan" id="keu_tab_tagihan" className={KELAS_TRIGGER}>Tagihan</TabsTrigger>
+          <TabsTrigger value="custom" id="keu_tab_custom" className={KELAS_TRIGGER}>Santri Custom</TabsTrigger>
         </TabsList>
 
         <TabsContent value="jenis" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
@@ -946,6 +948,10 @@ export default function KeuanganPage() {
             onBatal={() => setBatchDialog(null)}
             onKonfirmasi={jalankanBatch}
           />
+        </TabsContent>
+
+        <TabsContent value="custom" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+          <SantriCustomTab canEdit={canUbahKeuangan} canTambah={canTambahKeuangan} />
         </TabsContent>
 
       </Tabs>
