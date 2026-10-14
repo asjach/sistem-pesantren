@@ -9,6 +9,8 @@ import { useSemesterAktif } from '@/semesterAktif';
 import { useVisibilitasFilter, TAMPIL_BAWAAN } from '@/components/VisibilitasFilter';
 import DialogKelolaHalaman from '@/components/kelolaHalaman/DialogKelolaHalaman';
 import { EVENT_KELOLA_HALAMAN } from '@/components/kelolaHalaman/event';
+import DialogStandarTampilan from '@/components/kelolaTampilan/DialogStandarTampilan';
+import { EVENT_STANDAR_TAMPILAN } from '@/components/kelolaTampilan/event';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 import { FilterSelect, FilterToggleGroup } from '@/components/FilterMulti';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
@@ -180,6 +182,8 @@ export default function TopBar() {
     window.addEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
     return () => window.removeEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
   }, [bukaKelolaHalaman]);
+  /** Standar tampilan bersama untuk semua pengguna (super_admin). */
+  const [standarOpen, setStandarOpen] = useState(false);
   /** "Kelola Tabel" — kolom/nama/urutan tabel tertentu. Halaman tanpa tabel
    *  tidak punya tabel untuk diatur. */
   const bukaKelolaTabel = useCallback(() => {
@@ -453,6 +457,26 @@ export default function TopBar() {
               <p>Pengaturan tampilan tabel (berlaku semua tabel)</p>
             </TooltipContent>
           </Tooltip>
+          {efektifSuper ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  id="btn_standar_tampilan"
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Standar tampilan"
+                  onClick={() => setStandarOpen(true)}
+                  className="mr-1 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
+                >
+                  <Settings size={14} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Standar tampilan (berlaku semua pengguna)</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
           {defTabs && efektifSuper ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -763,6 +787,8 @@ export default function TopBar() {
         open={pengaturanTampilanOpen}
         onOpenChange={setPengaturanTampilanOpen}
       />
+
+      <DialogStandarTampilan open={standarOpen} onOpenChange={setStandarOpen} />
 
       {/* Kelola Halaman: urutan + tampil/sembunyi tab halaman gabungan. */}
       {defTabs && efektifSuper ? (

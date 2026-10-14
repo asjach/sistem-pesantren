@@ -47,8 +47,9 @@ export default function SheetPengaturanTampilan({ open, onOpenChange }: {
         <SheetHeader>
           <SheetTitle>Pengaturan tampilan tabel</SheetTitle>
           <SheetDescription>
-            Berlaku untuk <strong>semua tabel</strong> di semua halaman. Tersimpan di
-            perangkat ini.
+            Berlaku untuk <strong>semua tabel</strong> di semua halaman. Ini setelan
+            pribadi Anda di perangkat ini; bila belum diubah, nilai mengikuti standar
+            pesantren.
           </SheetDescription>
         </SheetHeader>
         <IsiPengaturanTampilan />
