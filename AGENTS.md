@@ -143,6 +143,38 @@ Saat suspend dicabut: sebutkan tes sudah aktif kembali dan dijalankan seperti
 biasa. Pemberitahuan ini WAJIB muncul di respons, bukan hanya di ringkasan  
 internal.
 
+## KEBIJAKAN MENJALANKAN TES — penilaian dampak
+
+**Default: tes tersempit** yang terdampak (aturan test di `frontend/AGENTS.md`  
+& `backend/AGENTS.md` tetap berlaku). Jangan menjalankan suite penuh otomatis  
+tiap perubahan.
+
+Suite penuh **direkomendasikan** — tawarkan ke pengguna lebih dulu, jangan  
+dijalankan diam-diam maupun dilewati diam-diam — bila perubahan menyentuh  
+**modul bersama**:
+
+- **Frontend**: `components/ExcelTable.tsx` + `components/excel/**`, `api/*`,  
+  `index.css`, `components/ui/**`, `hooks/**`, `lib/**`, `auth/**`,  
+  `lembagaAktif`, `theme`, dan stub tes `components/excel/_dsgStubDom.tsx`.
+- **Backend**: `Services/UrutKatalog.php`, `Concerns/*`, `Support/*`,  
+  model/relasi bersama, migrasi, dan endpoint yang dipakai beberapa halaman.
+
+Cukup **tes tersempit** bila dampaknya sempit: satu halaman + komponennya  
+sendiri, copy/teks, styling atau layout lokal, satu tab/dialog.
+
+- **"Hijau" = tak ada gagal BARU.** Kegagalan yang sudah ada (bukan regresi,  
+  jangan dihitung ulang sebagai milik perubahan): FE 2 di  
+  `src/pages/KeuanganPage.test.tsx` (placeholder pencarian tab Tagihan yang  
+  sudah pindah ke search topBar), BE 1 di  
+  `SchemaDocTest::test_tabel_dan_kolom_db_ikut_terdokumentasi` (tabel  
+  `grup_santri_custom` & `anggota_grup_santri_custom` belum ada di  
+  `docs/SCHEMA.md`).
+- **Jangan menjalankan dua runner vitest bersamaan** (tes tersempit + suite  
+  penuh) — pernah kena SIGTERM/OOM (`exit 137`) karena rebutan memori.
+- `npm run build` **selalu gagal di sandbox agen**: shim safe-delete memblokir  
+  hapus `dist/assets` (bukan error kode). Verifikasi build pakai  
+  `npx vite build --outDir /tmp/<nama>` lalu hapus direktori itu.
+
 ## SUSPEND TES — SEMENTARA (NON-AKTIF sejak 2026-10-13 — dicabut, ISI DISIMPAN)
 
 **Status sekarang: TES AKTIF KEMBALI.** Bagian ini TIDAK dihapus atas permintaan  

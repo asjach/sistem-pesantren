@@ -120,6 +120,7 @@ seperti pengingat akun reviewer; lihat bagian "STATUS TES" di root.
 - Perubahan non-logika TIDAK PERNAH wajib test: copy/teks, styling, layout, rename/pindah tanpa ubah alur, boilerplate config.
 - Perubahan perilaku tanpa logika (mis. wording label, tweak piksel/style) tidak wajib test.
 - Bila test logika berlaku, jalankan test tersempit yang terdampak dan pastikan hijau; uji logika yang berubah + failure mode pentingnya, tidak lebih.
+- Bila perubahan menyentuh **modul bersama** (mis. `Services/UrutKatalog.php`, `Concerns/*`, `Support/*`, model/relasi bersama, migrasi, endpoint lintas halaman), **tawarkan suite penuh** ke pengguna lebih dulu — lihat "KEBIJAKAN MENJALANKAN TES" di `AGENTS.md` root.
 - Read the `testing-best-practices` skill before writing tests.
 
 === laravel/core rules ===

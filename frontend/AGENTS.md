@@ -13,6 +13,10 @@ seperti pengingat akun reviewer; lihat bagian "STATUS TES" di root.
 - Tidak ada file yang otomatis mewajibkan test.
 - Copy/teks, styling, layout TIDAK PERNAH wajib test.
 - Bila test logika berlaku: `npm run test` tersempit + `npm run typecheck` hijau.
+- Bila perubahan menyentuh **modul bersama** (mis. `components/ExcelTable.tsx`,
+  `components/excel/**`, `api/*`, `index.css`, `components/ui/**`, `hooks/**`),
+  **tawarkan suite penuh** ke pengguna lebih dulu — lihat "KEBIJAKAN
+  MENJALANKAN TES" di `AGENTS.md` root.
 
 ## Akun reviewer (AKTIF — jangan dibuat ulang/dihapus)
 - Email: `reviewer.tmp@example.com`
