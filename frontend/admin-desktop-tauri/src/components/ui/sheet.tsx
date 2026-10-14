@@ -6,6 +6,10 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 /** Sisi tempat panel Sheet menempel keluar dari tepi layar. */
 export type SisiSheet = "top" | "right" | "bottom" | "left"
 
+/** Panel yang menggeser masuk dari tepi layar. Bawaannya MODAL (ada penggelap
+ *  + fokus terkunci). Untuk panel non-modal (mis. pengaturan tampilan yang
+ *  perlu memperlihatkan tabel di belakangnya berubah), pakai
+ *  `<Sheet modal={false}>` + `<SheetContent overlay={false}>`. */
 function Sheet({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -61,15 +65,20 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  overlay = true,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   /** Tepi layar tempat panel keluar (bawaan: kanan). */
   side?: SisiSheet
   showCloseButton?: boolean
+  /** Tampilkan penggelap latar. Setel false untuk panel NON-MODAL (mis.
+   *  pengaturan tampilan) agar tabel di belakangnya tetap terlihat berubah
+   *  saat nilainya disetel. Pasangkan dengan modal={false} pada Sheet. */
+  overlay?: boolean
 }) {
   return (
     <SheetPortal data-slot="sheet-portal">
-      <SheetOverlay />
+      {overlay && <SheetOverlay />}
       <DialogPrimitive.Content
         data-slot="sheet-content"
         className={cn(

@@ -33,12 +33,13 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, DENSITY_PX, DensityName, RADIUS_MAX, RADIUS_MIN, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, Crop, DensityMedium, LogOut, Minus, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Plus, Sun, Users } from '@/icons';
+import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, Crop, DensityMedium, LogOut, Minus, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Plus, Settings, Sun, Users } from '@/icons';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { useAksiSeretSidebar } from '@/components/SeretSidebar';
 import { apakahKlik } from '@/components/useLebarSidebar';
 import BannerBertindak from '@/components/BannerBertindak';
 import DialogFilterHalaman from '@/components/kelolaHalaman/DialogFilterHalaman';
+import SheetPengaturanTampilan from '@/components/pengaturan/SheetPengaturanTampilan';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import { Button } from '@/components/ui/button';
 import {
@@ -161,6 +162,8 @@ export default function TopBar() {
   const [tabelKelola, setTabelKelola] = useState<string | null>(null);
   const [pilihTabelOpen, setPilihTabelOpen] = useState(false);
   const [filterHalamanOpen, setFilterHalamanOpen] = useState(false);
+  /** Panel geser pengaturan tampilan GLOBAL (tinggi baris, huruf, warna). */
+  const [pengaturanTampilanOpen, setPengaturanTampilanOpen] = useState(false);
   const bukaKelola = useCallback(() => {
     if (!registrasi || !efektifSuper) return;
     if (registrasi.tabel.length === 0) {
@@ -420,6 +423,26 @@ export default function TopBar() {
 
         {/* Kolom kanan: area akun. */}
         <div data-part="area_akun" className="flex min-w-0 items-center justify-end gap-0.5">
+          {/* Pengaturan tampilan GLOBAL (semua tabel, semua halaman) — panel
+              geser non-modal supaya tabel di belakangnya terlihat berubah. */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                id="btn_pengaturan_tampilan"
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Pengaturan tampilan tabel"
+                onClick={() => setPengaturanTampilanOpen(true)}
+                className="mr-1 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
+              >
+                <Settings size={14} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Pengaturan tampilan tabel (berlaku semua tabel)</p>
+            </TooltipContent>
+          </Tooltip>
           {registrasi && efektifSuper ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -713,6 +736,11 @@ export default function TopBar() {
           </DialogContent>
         </Dialog>
       ) : null}
+
+      <SheetPengaturanTampilan
+        open={pengaturanTampilanOpen}
+        onOpenChange={setPengaturanTampilanOpen}
+      />
 
       {registrasi && efektifSuper && registrasi.tabel.length === 0 ? (
         <DialogFilterHalaman

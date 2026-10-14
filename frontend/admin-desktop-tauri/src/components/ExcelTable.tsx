@@ -17,8 +17,8 @@ import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import FilterRail from '@/components/FilterRail';
-import PopoverSettingTabel from './excel/PopoverSettingTabel';
 import TombolTinggiBaris from './excel/TombolTinggiBaris';
+import { bukaPengaturanTampilan } from './pengaturan/SheetPengaturanTampilan';
 import ScrollbarMelayang from './excel/ScrollbarMelayang';
 import { gabungUrutan } from './excel/urutanKolom';
 import { judulTabel } from './excel/judul';
@@ -39,7 +39,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ActionIcon } from '@/components/RowActions';
-import { Pencil, Plus, PlusCircle, Save } from '@/icons';
+import { Pencil, Plus, PlusCircle, Save, Settings } from '@/icons';
 
 /** Klik kanan di "corner button" (sel header gutter di sudut kiri-atas,
  *  bertanda segitiga `.dsg-corner-indicator`) → menu salin seluruh tabel. */
@@ -1630,7 +1630,20 @@ export default function ExcelTable<T extends { id: string | number }>({
             bingkai menyatu — garis dalam dibagi seperti kelompok jumlah baris
             di pager. */}
         <div data-part="grup_aksi" className="flex items-center">
-          <PopoverSettingTabel tableKey={tableKey} headerHeight={headerEfektifH} />
+          {/* Pengaturan tampilan = GLOBAL (semua tabel). Tombolnya tetap di sini
+              sebagai jalan pintas, tetapi membuka panel di TopBar — bukan lagi
+              popover berisi kontrol, supaya tidak terkesan per tabel. */}
+          <Button
+            id={`btn_pengaturan_tabel_${tableKey}`}
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Pengaturan tampilan tabel (berlaku semua tabel)"
+            title="Pengaturan tampilan tabel (berlaku semua tabel)"
+            onClick={() => bukaPengaturanTampilan()}
+          >
+            <Settings size={14} />
+          </Button>
           <TombolTinggiBaris tableKey={tableKey} />
           {inputEnabled && !showInput && (
             <Button
