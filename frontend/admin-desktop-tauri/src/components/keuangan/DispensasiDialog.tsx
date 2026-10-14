@@ -7,13 +7,16 @@ import {
 } from '../../api/keuangan';
 import { type TahunAjaran } from '../../api/master';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/field';
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
+import LabeledInput from '@/components/LabeledInput';
+import LabeledCombobox from '@/components/LabeledCombobox';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ActionIcon } from '@/components/RowActions';
 import { Info, Loader2, Plus, Save, X } from '@/icons';
@@ -164,24 +167,28 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
   };
 
   const sisaJenis = jenis.filter((j) => !baris.some((b) => b.jenisId === j.id));
+  /** Teks opsi tahun ajaran (dipakai combobox identitas). */
+  const labelTA = (x: TahunAjaran) => `${x.nama}${x.is_aktif ? ' (aktif)' : ''}`;
 
   /* Dialog ringkas, bukan layar penuh: sejak daftar penerima dipindah ke
      halaman Dispensasi, isinya tinggal identitas paket + tabel aturan jenis.
      Tinggi TETAP (bukan `h-auto`) karena ExcelTable mengukur tinggi
      wrapper-nya sendiri lewat ResizeObserver — tanpa tinggi pasti grid-nya
-     runtuh. 42rem cukup untuk ±12 baris aturan sebelum scroll. */
+     runtuh. 36rem cukup untuk ±12 baris aturan sebelum scroll. */
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
       <DialogContent
         showCloseButton={false}
         onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
-        className="flex h-[min(78dvh,42rem)] w-[min(94vw,68rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none"
+        className="flex h-[min(74dvh,36rem)] w-[min(94vw,62rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none"
       >
-        <DialogHeader className="flex-row items-center justify-between gap-3 border-b px-3 py-2.5">
-          <div className="min-w-0">
-            <DialogTitle>{editing ? 'Ubah Dispensasi' : 'Tambah Dispensasi'}</DialogTitle>
-            <DialogDescription className="mt-0.5">
-              Keringanan tagihan per jenis. Daftar penerima diatur di halaman Dispensasi (kolom Daftar Penerima).
+        {/* Judul + keterangan sebaris (bukan dua baris) supaya tak memakan
+            tinggi; keterangan dipotong bila ruang sempit. */}
+        <DialogHeader className="flex-row items-center justify-between gap-3 border-b px-3 py-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <DialogTitle className="shrink-0">{editing ? 'Ubah Dispensasi' : 'Tambah Dispensasi'}</DialogTitle>
+            <DialogDescription className="min-w-0 truncate">
+              Keringanan tagihan per jenis — penerima diatur di halaman Dispensasi.
             </DialogDescription>
           </div>
           <DialogClose asChild>
@@ -189,117 +196,129 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
           </DialogClose>
         </DialogHeader>
 
-        {/* Identitas dispensasi: nama, tahun ajaran, kuota, grup, keterangan,
-            status aktif. */}
-        <div className="flex shrink-0 flex-wrap items-end gap-3 border-b bg-muted/30 px-3 py-2.5">
-          <div className="flex min-w-52 flex-1 flex-col gap-1">
-            <FieldLabel htmlFor="inp_dispensasi_nama">Nama Dispensasi</FieldLabel>
-            <Input id="inp_dispensasi_nama" className="h-[26px]" value={nama} onChange={(e) => setNama(e.target.value)} placeholder="mis. Anak Pegawai" />
-          </div>
-          <div className="flex w-52 flex-col gap-1">
-            <FieldLabel htmlFor="sel_dispensasi_ta">Tahun Ajaran</FieldLabel>
-            <Select value={ta} onValueChange={setTa}>
-              <SelectTrigger id="sel_dispensasi_ta" className="h-[26px] w-full" aria-label="Tahun ajaran">
-                <SelectValue placeholder="Pilih tahun ajaran" />
-              </SelectTrigger>
-              <SelectContent>
-                {daftarTA.map((x) => (
-                  <SelectItem key={x.nama} value={x.nama}>{x.nama}{x.is_aktif ? ' (aktif)' : ''}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex w-28 flex-col gap-1">
-            <FieldLabel htmlFor="inp_dispensasi_kuota">
-              Kuota Bln <span className="font-normal text-muted-foreground">(opsional)</span>
-            </FieldLabel>
-            <Input id="inp_dispensasi_kuota" type="number" min={1} max={120} className="h-[26px]" value={kuota} onChange={(e) => setKuota(e.target.value)} placeholder="mis. 6" />
-          </div>
-          <div className="flex w-32 flex-col gap-1">
-            <FieldLabel htmlFor="inp_dispensasi_grup">
-              Grup <span className="font-normal text-muted-foreground">(opsional)</span>
-            </FieldLabel>
-            <Input id="inp_dispensasi_grup" className="h-[26px]" value={grup} onChange={(e) => setGrup(e.target.value)} placeholder="mis. prestasi" />
-          </div>
-          <div className="flex min-w-52 flex-1 flex-col gap-1">
-            <FieldLabel htmlFor="inp_dispensasi_keterangan">
-              Keterangan <span className="font-normal text-muted-foreground">(opsional)</span>
-            </FieldLabel>
-            <Input id="inp_dispensasi_keterangan" className="h-[26px]" value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="Catatan tambahan…" />
-          </div>
-          <div className="flex h-[26px] items-center gap-2 rounded-md border bg-background px-2.5">
+        {/* Identitas paket: SATU baris padat. Label menempel DI DALAM kotak
+            (LabeledInput/LabeledCombobox) sehingga tak perlu baris label
+            sendiri-sendiri seperti `FieldLabel` di atas input. */}
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-muted/30 px-2.5 py-2">
+          <LabeledInput
+            label="Nama" htmlFor="inp_dispensasi_nama" tinggi={26} lebarKotak={190}
+            value={nama} onChange={(e) => setNama(e.target.value)} placeholder="mis. Anak Pegawai"
+          />
+          <LabeledCombobox label="TA" htmlFor="sel_dispensasi_ta" tinggi={26} lebarKotak={165}>
+            <ComboboxRoot
+              items={daftarTA}
+              itemToStringLabel={labelTA}
+              isItemEqualToValue={(a, b) => a.nama === b.nama}
+              value={daftarTA.find((x) => x.nama === ta) ?? null}
+              onValueChange={(x) => { if (x !== null) setTa(x.nama); }}
+            >
+              <ComboboxInput id="sel_dispensasi_ta" aria-label="Tahun ajaran" placeholder="Pilih TA…" />
+              <ComboboxTrigger aria-label="Buka daftar tahun ajaran" />
+              <ComboboxContent>
+                <ComboboxEmpty>Tidak ada tahun ajaran.</ComboboxEmpty>
+                <ComboboxList>
+                  {(x) => <ComboboxItem key={x.nama} value={x}>{labelTA(x)}</ComboboxItem>}
+                </ComboboxList>
+              </ComboboxContent>
+            </ComboboxRoot>
+          </LabeledCombobox>
+          <LabeledInput
+            label="Kuota" htmlFor="inp_dispensasi_kuota" tinggi={26} lebarKotak={125}
+            tipeKontrol="angka" tipeTerkunci min={1} max={120} title="Opsional (1–120 bulan)"
+            value={kuota} onChange={(e) => setKuota(e.target.value)} placeholder="mis. 6"
+          />
+          <LabeledInput
+            label="Grup" htmlFor="inp_dispensasi_grup" tinggi={26} lebarKotak={135}
+            title="Opsional" value={grup} onChange={(e) => setGrup(e.target.value)} placeholder="mis. prestasi"
+          />
+          <LabeledInput
+            label="Keterangan" htmlFor="inp_dispensasi_keterangan" tinggi={26}
+            className="min-w-40 flex-1"
+            title="Opsional" value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="Catatan tambahan…"
+          />
+          <span className="flex h-[26px] shrink-0 items-center gap-2 rounded-md border border-foreground/30 px-2.5">
             <Switch id="chk_dispensasi_aktif" size="sm" checked={aktif} onCheckedChange={setAktif} aria-label="Status aktif dispensasi" />
             <label htmlFor="chk_dispensasi_aktif" className="cursor-pointer text-xs select-none">Aktif</label>
-          </div>
+          </span>
         </div>
 
-        {/* Aturan potongan per jenis tagihan. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-3">
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2">
-            <FieldLabel htmlFor="sel_dispensasi_tambah_jenis" className="shrink-0">Jenis Tagihan</FieldLabel>
-            <div className="min-w-64 flex-1 sm:max-w-80">
-              <Select
-                value={tambahJenisId === '' ? '' : String(tambahJenisId)}
-                onValueChange={(v) => setTambahJenisId(v === '' ? '' : Number(v))}
-              >
-                <SelectTrigger id="sel_dispensasi_tambah_jenis" className="h-[26px] w-full" disabled={sisaJenis.length === 0} aria-label="Jenis tagihan untuk aturan baru">
-                  <SelectValue placeholder={sisaJenis.length === 0 ? 'Semua jenis sudah diatur' : 'Pilih jenis tagihan…'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {sisaJenis.map((j) => (
-                    <SelectItem key={j.id} value={String(j.id)}>{j.nama}{j.jenjang ? ` (${j.jenjang})` : ''}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="button" size="sm" variant="outline" id="btn_dispensasi_tambah_aturan" className="h-[26px] gap-1.5 px-2.5" onClick={tambahBaris} disabled={tambahJenisId === ''}>
-              <Plus data-icon="inline-start" size={14} /> Tambah
-            </Button>
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col">
-            <ExcelTable<BarisAturan & { id: number }>
-              tableKey="dispensasi_aturan"
-              fields={FIELDS_ATURAN}
-              rows={baris.map((b) => ({ ...b, id: b.jenisId }))}
-              getValues={(r) => ({ jenis: namaJenis(r.jenisId), tipe: r.tipe, nilai: r.nilai })}
-              emptyText="Belum ada aturan jenis."
-              canEdit
-              onCommit={async (id, fields) => {
-                setBaris((lama) => lama.map((x) => x.jenisId === id
-                  ? {
-                    ...x,
-                    tipe: (fields.tipe as TipeDispensasi | null) ?? x.tipe,
-                    nilai: fields.nilai ?? x.nilai,
-                  }
-                  : x));
-              }}
-              onSaved={() => {}}
-              aksiLangsung
-              hideCheckbox
-              renderActions={(r) => (
-                <ActionIcon id={`btn_dispensasi_hapus_aturan_${r.jenisId}`} title={`Hapus ${namaJenis(r.jenisId)}`} onClick={() => setBaris((lama) => lama.filter((x) => x.jenisId !== r.jenisId))}>
-                  <X size={16} />
-                </ActionIcon>
-              )}
-            />
-          </div>
+        {/* Aturan potongan per jenis tagihan. Kontrol "tambah jenis" TIDAK lagi
+            baris sendiri di atas tabel: dititipkan ke bilah judul tabel
+            (`awalanToolbar`) supaya hemat satu baris. */}
+        <div className="flex min-h-0 flex-1 flex-col p-2.5">
+          <ExcelTable<BarisAturan & { id: number }>
+            tableKey="dispensasi_aturan"
+            header="Aturan Potongan"
+            awalanToolbar={(
+              <>
+                <Select
+                  value={tambahJenisId === '' ? '' : String(tambahJenisId)}
+                  onValueChange={(v) => setTambahJenisId(v === '' ? '' : Number(v))}
+                >
+                  <SelectTrigger
+                    id="sel_dispensasi_tambah_jenis"
+                    size="sm"
+                    className="w-[230px]"
+                    disabled={sisaJenis.length === 0}
+                    aria-label="Jenis tagihan untuk aturan baru"
+                    title="Jenis tagihan"
+                  >
+                    <SelectValue placeholder={sisaJenis.length === 0 ? 'Semua jenis sudah diatur' : 'Tambah jenis tagihan…'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sisaJenis.map((j) => (
+                      <SelectItem key={j.id} value={String(j.id)}>{j.nama}{j.jenjang ? ` (${j.jenjang})` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button" size="sm" variant="outline" id="btn_dispensasi_tambah_aturan"
+                  className="h-[26px] gap-1.5 px-2.5" onClick={tambahBaris} disabled={tambahJenisId === ''}
+                >
+                  <Plus data-icon="inline-start" size={14} /> Tambah
+                </Button>
+              </>
+            )}
+            fields={FIELDS_ATURAN}
+            rows={baris.map((b) => ({ ...b, id: b.jenisId }))}
+            getValues={(r) => ({ jenis: namaJenis(r.jenisId), tipe: r.tipe, nilai: r.nilai })}
+            emptyText="Belum ada aturan jenis."
+            canEdit
+            onCommit={async (id, fields) => {
+              setBaris((lama) => lama.map((x) => x.jenisId === id
+                ? {
+                  ...x,
+                  tipe: (fields.tipe as TipeDispensasi | null) ?? x.tipe,
+                  nilai: fields.nilai ?? x.nilai,
+                }
+                : x));
+            }}
+            onSaved={() => {}}
+            aksiLangsung
+            hideCheckbox
+            renderActions={(r) => (
+              <ActionIcon id={`btn_dispensasi_hapus_aturan_${r.jenisId}`} title={`Hapus ${namaJenis(r.jenisId)}`} onClick={() => setBaris((lama) => lama.filter((x) => x.jenisId !== r.jenisId))}>
+                <X size={16} />
+              </ActionIcon>
+            )}
+          />
         </div>
 
-        <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-3 py-2.5 sm:justify-between">
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-3 py-2 sm:justify-between">
+          <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <Info size={13} className="shrink-0" />
-            <span>
+            <span className="truncate">
               {baris.length > 0 ? `${baris.length} aturan jenis` : 'Belum ada aturan jenis'}
               {' · '}
               {editing
-                ? `${(editing.santri_ids ?? []).length} penerima (diatur di halaman Dispensasi)`
+                ? `${(editing.santri_ids ?? []).length} penerima`
                 : santriAwal === null
                   ? 'penerima diatur di halaman Dispensasi'
                   : `penerima awal ${santriAwal.nama_lengkap}`}
-              {' · bebas penuh → tagihan bernominal 0.'}
+              {' · bebas penuh → tagihan Rp 0.'}
             </span>
           </p>
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
             <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Batal</Button>
             <Button id="btn_dispensasi_simpan" type="button" className="gap-1.5" disabled={busy} onClick={() => void simpan()}>
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
