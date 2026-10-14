@@ -377,9 +377,14 @@ export default function DialogKelolaTabel({
         overlay={!nonModal}
         onInteractOutside={nonModal ? (e) => e.preventDefault() : undefined}
         aria-label={`Pengaturan tabel ${typeof judul === 'string' ? judul : 'ini'}`}
-        /* Lebar tetap 600px (bukan `max-w`): panel ini menemani tabel di
-           belakang, jadi lebarnya tak perlu ikut melebar di layar besar. */
-        className="!flex w-full flex-col gap-0 !p-0 sm:w-[600px] sm:max-w-[600px]"
+        /* - Lebar tetap 600px (bukan `max-w`): panel ini menemani tabel di
+             belakang, jadi lebarnya tak perlu ikut melebar di layar besar.
+           - `!overflow-hidden` WAJIB: SheetContent bawaan ber-`overflow-y-auto`,
+             sehingga yang menggulir adalah SELURUH panel - header (judul + tab)
+             dan footer (status + Tutup) ikut terbuang ke luar layar begitu
+             digulir, dan daftar kolom yang panjang membuat panel setinggi
+             2904px. Yang boleh menggulir hanya isi tab (lihat TabsContent). */
+        className="!flex h-dvh w-full flex-col gap-0 !overflow-hidden !p-0 sm:w-[600px] sm:max-w-[600px]"
       >
         <BagianProvider value={registri}>
           <SheetHeader className="shrink-0 gap-1 border-b px-4 py-3">
