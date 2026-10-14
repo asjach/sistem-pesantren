@@ -8,6 +8,7 @@ import PresetKolom from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import { definisiTipe, KUNCI_TIPE_INPUT, type KunciTipeInput } from '@/components/tipeInput';
 import type { ExcelField } from '@/components/excel/types';
+import TabExcelTable from '@/components/excel/TabExcelTable';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -314,8 +315,11 @@ export default function KomponenPage() {
   const [lebarNama, setLebarNama] = useState(LEBAR_NAMA_BAWAAN);
   return (
     <div className={PAGE_SHELL}>
-      <Tabs defaultValue="combobox" className="flex min-h-0 flex-1 flex-col gap-0">
+      {/* ExcelTable jadi tab PERTAMA (default) — ia komponen paling besar dan
+          paling sering dipakai, jadi peta-fiturnya paling sering dibutuhkan. */}
+      <Tabs defaultValue="excel_table" className="flex min-h-0 flex-1 flex-col gap-0">
         <TabsList className={KELAS_LIST_TAB} indikator="primer">
+          <TabsTrigger value="excel_table" id="tab_komponen_excel_table" className={KELAS_TRIGGER}>ExcelTable</TabsTrigger>
           <TabsTrigger value="combobox" id="tab_komponen_combobox" className={KELAS_TRIGGER}>Combobox</TabsTrigger>
           <TabsTrigger value="teks" id="tab_komponen_teks" className={KELAS_TRIGGER}>LabeledInput</TabsTrigger>
           <TabsTrigger value="stepper" id="tab_komponen_stepper" className={KELAS_TRIGGER}>Stepper</TabsTrigger>
@@ -454,6 +458,14 @@ export default function KomponenPage() {
             lebarNama={lebarNama}
             setLebarNama={setLebarNama}
           />
+        </TabsContent>
+
+        {/* Tab peta ExcelTable: denah area + inventaris fitur + contoh hidup.
+            Bukan <IsiTab> karena isinya tiga blok bertingkat, bukan satu
+            komponen utama + varian. Lebar kolom nama (gagang) tidak berlaku
+            di tab ini. */}
+        <TabsContent value="excel_table" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+          <TabExcelTable />
         </TabsContent>
       </Tabs>
     </div>
