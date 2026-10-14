@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -19,12 +18,31 @@ import LabeledInput from '@/components/LabeledInput';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ActionIcon } from '@/components/RowActions';
-import { Info, Loader2, Plus, Save, X } from '@/icons';
+import { ArrowRight, Info, Loader2, Save, X } from '@/icons';
 
-interface BarisAturan {
+export interface BarisAturan {
   jenisId: number;
   tipe: TipeDispensasi;
   nilai: string;
+}
+
+/** Tabel KIRI: daftar tagihan (jenis) yang bisa dijadikan aturan. Tiap baris
+ *  punya aksi `→` untuk memindahkannya ke tabel aturan di kanan. */
+const FIELDS_TAGIHAN: ExcelField[] = [
+  { key: 'jenis', label: 'Jenis Tagihan', kind: 'static' },
+  { key: 'sifat', label: 'Tipe', kind: 'static', width: 90 },
+];
+
+/** Tipe & nilai bawaan aturan baru: **Persen 0%** — keringanan "kosong" yang
+ *  aman; angkanya diisi belakangan di tabel aturan. */
+export const ATURAN_BAWAAN: Pick<BarisAturan, 'tipe' | 'nilai'> = { tipe: 'persen', nilai: '0' };
+
+/** Tambah satu jenis tagihan ke daftar aturan (aksi `→` tabel Tagihan).
+ *  Jenis yang sudah punya aturan diabaikan — barisnya memang sudah tak muncul
+ *  di tabel kiri, jadi ini jaring pengaman terakhir. */
+export function tambahAturan(lama: BarisAturan[], jenisId: number): BarisAturan[] {
+  if (lama.some((b) => b.jenisId === jenisId)) return lama;
+  return [...lama, { jenisId, ...ATURAN_BAWAAN }];
 }
 
 const FIELDS_ATURAN: ExcelField[] = [
@@ -87,13 +105,11 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
   const [aktif, setAktif] = useState(true);
 
   const [baris, setBaris] = useState<BarisAturan[]>([]);
-  const [tambahJenisId, setTambahJenisId] = useState<number | ''>('');
   const [busy, setBusy] = useState(false);
 
   // Buka dialog: isi dari data ubah atau kosongkan.
   useEffect(() => {
     if (!open) return;
-    setTambahJenisId('');
     if (editing) {
       setNama(editing.nama); setKeterangan(editing.keterangan ?? ''); setTa(editing.tahun_ajaran);
       setKuota(editing.kuota_bulan === null ? '' : String(editing.kuota_bulan));
@@ -110,15 +126,10 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
     }
   }, [open, editing, daftarTA, santriAwal, taBawaan]);
 
+  const labelJenis = (j: JenisTagihan) => `${j.nama}${j.jenjang ? ` (${j.jenjang})` : ''}`;
   const namaJenis = (id: number) => {
     const j = jenis.find((x) => x.id === id);
-    return j ? `${j.nama}${j.jenjang ? ` (${j.jenjang})` : ''}` : `Jenis #${id}`;
-  };
-
-  const tambahBaris = () => {
-    if (tambahJenisId === '' || baris.some((b) => b.jenisId === tambahJenisId)) return;
-    setBaris((lama) => [...lama, { jenisId: tambahJenisId, tipe: 'nominal', nilai: '' }]);
-    setTambahJenisId('');
+    return j ? labelJenis(j) : `Jenis #${id}`;
   };
 
   const validasiNilai = (tipe: TipeDispensasi, teks: string): number | null => {
@@ -166,21 +177,24 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
   };
 
-  const sisaJenis = jenis.filter((j) => !baris.some((b) => b.jenisId === j.id));
+  /** Jenis tagihan yang BELUM punya aturan → isi tabel kiri. Yang sudah
+   *  diatur hanya tampil di tabel kanan supaya satu jenis tak muncul dua kali
+   *  (dan aksi `→`-nya selalu bisa ditekan). */
+  const belumDiatur = jenis.filter((j) => !baris.some((b) => b.jenisId === j.id));
   /** Teks opsi tahun ajaran (dipakai combobox identitas). */
   const labelTA = (x: TahunAjaran) => `${x.nama}${x.is_aktif ? ' (aktif)' : ''}`;
 
   /* Dialog ringkas, bukan layar penuh: sejak daftar penerima dipindah ke
-     halaman Dispensasi, isinya tinggal identitas paket + tabel aturan jenis.
-     Tinggi TETAP (bukan `h-auto`) karena ExcelTable mengukur tinggi
-     wrapper-nya sendiri lewat ResizeObserver — tanpa tinggi pasti grid-nya
-     runtuh. 36rem cukup untuk ±12 baris aturan sebelum scroll. */
+     halaman Dispensasi, isinya tinggal identitas paket + dua tabel (tagihan
+     & aturan). Tinggi TETAP (bukan `h-auto`) karena ExcelTable mengukur
+     tinggi wrapper-nya sendiri lewat ResizeObserver — tanpa tinggi pasti
+     grid-nya runtuh. 36rem cukup untuk ±12 baris sebelum scroll. */
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
       <DialogContent
         showCloseButton={false}
         onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
-        className="flex h-[min(74dvh,36rem)] w-[min(94vw,62rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none"
+        className="flex h-[min(74dvh,36rem)] w-[min(94vw,68rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none"
       >
         {/* Judul + keterangan sebaris (bukan dua baris) supaya tak memakan
             tinggi; keterangan dipotong bila ruang sempit. */}
@@ -242,66 +256,64 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
           </span>
         </div>
 
-        {/* Aturan potongan per jenis tagihan. Kontrol "tambah jenis" TIDAK lagi
-            baris sendiri di atas tabel: dititipkan ke bilah judul tabel
-            (`awalanToolbar`) supaya hemat satu baris. */}
-        <div className="flex min-h-0 flex-1 flex-col p-2.5">
-          <ExcelTable<BarisAturan & { id: number }>
-            tableKey="dispensasi_aturan"
-            header="Aturan Potongan"
-            awalanToolbar={(
-              <>
-                <Select
-                  value={tambahJenisId === '' ? '' : String(tambahJenisId)}
-                  onValueChange={(v) => setTambahJenisId(v === '' ? '' : Number(v))}
+        {/* Dua tabel berdampingan: KIRI daftar tagihan (jenis) yang bisa
+            dijadikan aturan, KANAN aturan yang sudah dibuat. Cara menambah =
+            tekan aksi `→` pada baris tabel kiri (bawaan Persen 0%), cara
+            menghapus = aksi `×` pada baris tabel kanan. */}
+        <div className="flex min-h-0 flex-1 gap-2 p-2.5">
+          <div className="flex min-h-0 w-[36%] min-w-56 flex-col">
+            <ExcelTable<JenisTagihan>
+              tableKey="dispensasi_tagihan"
+              header={`Tagihan (${belumDiatur.length})`}
+              fields={FIELDS_TAGIHAN}
+              rows={belumDiatur}
+              getValues={(j) => ({ jenis: labelJenis(j), sifat: j.tipe === 'bulanan' ? 'Bulanan' : 'Non-bulanan' })}
+              emptyText="Semua jenis tagihan sudah punya aturan."
+              canEdit={false}
+              onCommit={async () => {}}
+              onSaved={() => {}}
+              aksiLangsung
+              hideCheckbox
+              hidePreset
+              renderActions={(j) => (
+                <ActionIcon
+                  id={`btn_dispensasi_tambah_${j.id}`}
+                  title={`Tambahkan ${labelJenis(j)} ke aturan dispensasi`}
+                  onClick={() => setBaris((lama) => tambahAturan(lama, j.id))}
                 >
-                  <SelectTrigger
-                    id="sel_dispensasi_tambah_jenis"
-                    size="sm"
-                    className="w-[230px]"
-                    disabled={sisaJenis.length === 0}
-                    aria-label="Jenis tagihan untuk aturan baru"
-                    title="Jenis tagihan"
-                  >
-                    <SelectValue placeholder={sisaJenis.length === 0 ? 'Semua jenis sudah diatur' : 'Tambah jenis tagihan…'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sisaJenis.map((j) => (
-                      <SelectItem key={j.id} value={String(j.id)}>{j.nama}{j.jenjang ? ` (${j.jenjang})` : ''}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button" size="sm" variant="outline" id="btn_dispensasi_tambah_aturan"
-                  className="h-[26px] gap-1.5 px-2.5" onClick={tambahBaris} disabled={tambahJenisId === ''}
-                >
-                  <Plus data-icon="inline-start" size={14} /> Tambah
-                </Button>
-              </>
-            )}
-            fields={FIELDS_ATURAN}
-            rows={baris.map((b) => ({ ...b, id: b.jenisId }))}
-            getValues={(r) => ({ jenis: namaJenis(r.jenisId), tipe: r.tipe, nilai: r.nilai })}
-            emptyText="Belum ada aturan jenis."
-            canEdit
-            onCommit={async (id, fields) => {
-              setBaris((lama) => lama.map((x) => x.jenisId === id
-                ? {
-                  ...x,
-                  tipe: (fields.tipe as TipeDispensasi | null) ?? x.tipe,
-                  nilai: fields.nilai ?? x.nilai,
-                }
-                : x));
-            }}
-            onSaved={() => {}}
-            aksiLangsung
-            hideCheckbox
-            renderActions={(r) => (
-              <ActionIcon id={`btn_dispensasi_hapus_aturan_${r.jenisId}`} title={`Hapus ${namaJenis(r.jenisId)}`} onClick={() => setBaris((lama) => lama.filter((x) => x.jenisId !== r.jenisId))}>
-                <X size={16} />
-              </ActionIcon>
-            )}
-          />
+                  <ArrowRight size={16} />
+                </ActionIcon>
+              )}
+            />
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ExcelTable<BarisAturan & { id: number }>
+              tableKey="dispensasi_aturan"
+              header={`Aturan Dispensasi (${baris.length})`}
+              fields={FIELDS_ATURAN}
+              rows={baris.map((b) => ({ ...b, id: b.jenisId }))}
+              getValues={(r) => ({ jenis: namaJenis(r.jenisId), tipe: r.tipe, nilai: r.nilai })}
+              emptyText="Belum ada aturan — tekan → pada tabel Tagihan."
+              canEdit
+              onCommit={async (id, fields) => {
+                setBaris((lama) => lama.map((x) => x.jenisId === id
+                  ? {
+                    ...x,
+                    tipe: (fields.tipe as TipeDispensasi | null) ?? x.tipe,
+                    nilai: fields.nilai ?? x.nilai,
+                  }
+                  : x));
+              }}
+              onSaved={() => {}}
+              aksiLangsung
+              hideCheckbox
+              renderActions={(r) => (
+                <ActionIcon id={`btn_dispensasi_hapus_aturan_${r.jenisId}`} title={`Hapus ${namaJenis(r.jenisId)}`} onClick={() => setBaris((lama) => lama.filter((x) => x.jenisId !== r.jenisId))}>
+                  <X size={16} />
+                </ActionIcon>
+              )}
+            />
+          </div>
         </div>
 
         <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-3 py-2 sm:justify-between">

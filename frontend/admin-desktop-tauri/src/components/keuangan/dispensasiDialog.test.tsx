@@ -1,11 +1,12 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Dispensasi, JenisTagihan } from '@/api/keuangan';
 import type { TahunAjaran } from '@/api/master';
 import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
-import DispensasiDialog, { santriIdsUntuk } from './DispensasiDialog';
+import DispensasiDialog, { santriIdsUntuk, tambahAturan } from './DispensasiDialog';
 
 // ---- Mock API (unit test tidak boleh memanggil fetch nyata) ----
 // Sama dengan `ExcelTable.test.tsx`: dialog ini menanam ExcelTable, dan
@@ -77,7 +78,7 @@ describe('santriIdsUntuk', () => {
   });
 });
 
-// ---- Tata letak ringkas: dialog tak lagi layar penuh & hemat baris ----
+// ---- Dua tabel: Tagihan (kiri) -> Aturan Dispensasi (kanan) ----
 
 const JENIS: JenisTagihan[] = [
   { id: 1, nama: 'Infaq Bulanan', tipe: 'bulanan', jenjang: null, keterangan: null, urutan: 0, is_active: true },
@@ -102,7 +103,20 @@ function renderDialog(editing: Dispensasi | null = null) {
   );
 }
 
-describe('DispensasiDialog — tata letak ringkas', () => {
+/* Aksi `→` di tabel Tagihan adalah satu-satunya jalan menambah aturan, jadi
+   tipe & nilai bawaannya dikunci di sini: Persen 0%. */
+describe('tambahAturan', () => {
+  it('aturan baru memakai bawaan Persen 0%', () => {
+    expect(tambahAturan([], 5)).toEqual([{ jenisId: 5, tipe: 'persen', nilai: '0' }]);
+  });
+
+  it('jenis yang sudah punya aturan tidak digandakan', () => {
+    const lama = [{ jenisId: 5, tipe: 'nominal' as const, nilai: '25000' }];
+    expect(tambahAturan(lama, 5)).toBe(lama);
+  });
+});
+
+describe('DispensasiDialog — dua tabel tagihan & aturan', () => {
   it('merender seluruh isian identitas paket + aksi simpan', () => {
     resetSetelanKomponen();
     renderDialog();
@@ -121,17 +135,29 @@ describe('DispensasiDialog — tata letak ringkas', () => {
     }
   });
 
-  it('menitipkan kontrol tambah aturan di bilah judul tabel, bukan baris sendiri', () => {
+  it('tabel Tagihan hanya memuat jenis yang BELUM punya aturan', () => {
+    resetSetelanKomponen();
+    renderDialog(paket({ aturan: [{ id: 1, dispensasi_id: 2, jenis_id: 1, tipe: 'persen', nilai: 50 }] }));
+
+    expect(screen.getByText('Aturan Dispensasi (1)')).toBeInTheDocument();
+    expect(screen.getByText('Tagihan (1)')).toBeInTheDocument();
+    // Jenis 1 sudah diatur → tak muncul lagi di kiri, tombol →-nya pun tak ada.
+    expect(document.getElementById('btn_dispensasi_tambah_2')).not.toBeNull();
+    expect(document.getElementById('btn_dispensasi_tambah_1')).toBeNull();
+    expect(document.getElementById('btn_dispensasi_hapus_aturan_1')).not.toBeNull();
+  });
+
+  it('menekan → memindahkan tagihan ke tabel aturan', async () => {
     resetSetelanKomponen();
     renderDialog();
+    expect(screen.getByText('Tagihan (2)')).toBeInTheDocument();
+    expect(screen.getByText('Aturan Dispensasi (0)')).toBeInTheDocument();
 
-    const jenis = document.getElementById('sel_dispensasi_tambah_jenis');
-    const tambah = document.getElementById('btn_dispensasi_tambah_aturan');
-    expect(jenis).not.toBeNull();
-    expect(tambah).not.toBeNull();
-    // Keduanya sebaris dengan judul tabel ("Aturan Potongan").
-    expect(jenis?.closest('[data-part="header_tabel"]')).not.toBeNull();
-    expect(tambah?.closest('[data-part="header_tabel"]')).not.toBeNull();
-    expect(screen.getByText('Aturan Potongan')).toBeInTheDocument();
+    await userEvent.click(document.getElementById('btn_dispensasi_tambah_2') as HTMLElement);
+
+    expect(screen.getByText('Aturan Dispensasi (1)')).toBeInTheDocument();
+    expect(screen.getByText('Tagihan (1)')).toBeInTheDocument();
+    expect(document.getElementById('btn_dispensasi_tambah_2')).toBeNull();
+    expect(document.getElementById('btn_dispensasi_hapus_aturan_2')).not.toBeNull();
   });
 });
