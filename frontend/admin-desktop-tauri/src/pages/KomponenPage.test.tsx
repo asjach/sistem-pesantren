@@ -311,7 +311,10 @@ describe('KomponenPage — tab ExcelTable', () => {
     expect(screen.getByText('Pengaturan global vs per-tabel tidak dibedakan di UI')).toBeInTheDocument();
     expect(screen.getByText('GridPrefs.tsx:33-35 (GLOBAL_ROWH_KEY / GLOBAL_HEADER_H_KEY)')).toBeInTheDocument();
     // Tiap temuan punya usulan konkret (teks panjang di dalam <p>).
-    expect(screen.getByText(/Beri penanda di popover: kelompok yang global diberi label/)).toBeInTheDocument();
+    expect(screen.getByText(/Beri penanda: kelompok yang global diberi label/)).toBeInTheDocument();
+    // Temuan yang sudah dikerjakan menampilkan statusnya (label "Status:"
+    // berada di span terpisah, jadi dicocokkan lewat isinya).
+    expect(screen.getByText(/SELESAI: 10 setelan global dipindah ke panel Sheet/)).toBeInTheDocument();
     expect(screen.getByText(/Tambahkan tombol kecil berlabel/)).toBeInTheDocument();
   });
 

@@ -33,7 +33,6 @@ import type { ExcelField } from '../excel/types';
 import TabKolom, { type TabKolomProps } from './TabKolom';
 import TabNamaPerataan from './TabNamaPerataan';
 import TabUrutan from './TabUrutan';
-import TabFilterTabel from './TabFilterTabel';
 import TabFilterToolbar from './TabFilterToolbar';
 import type { KunciFilterToolbar } from '@/components/excel/filterTabel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -245,11 +244,7 @@ export default function DialogKelolaTabel({
   tableKey,
   judul,
   fields,
-  filterRelevan = [],
-  filterBawaan,
-  filterModeBawaan,
   filterTersedia = [],
-  jumlahTabel = 1,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -258,14 +253,8 @@ export default function DialogKelolaTabel({
   judul: ReactNode;
   /** Fields tabel (dari grid); tanpa fields section Kolom diganti keterangan. */
   fields?: ExcelField[];
-  /** Konteks filter halaman (dari registrasi halaman, bila ada). */
-  filterRelevan?: readonly KunciFilterGlobal[];
-  filterBawaan?: TampilFilterGlobal;
-  filterModeBawaan?: ModeSemuaFilterGlobal;
   /** Filter toolbar milik tabel ini (dihitung ExcelTable dari props-nya). */
   filterTersedia?: readonly KunciFilterToolbar[];
-  /** Jumlah tabel halaman (untuk catatan merge filter). */
-  jumlahTabel?: number;
 }) {
   /** Status kotor per bagian (dipakai badge di tab + penanda simpan). */
   const [kotorBagian, setKotorBagian] = useState<Record<string, boolean>>({});
@@ -308,7 +297,7 @@ export default function DialogKelolaTabel({
   /** Urutan simpan: preset kolom dulu (membuat id bila preset baru),
    *  lalu nama & perataan, urutan; filter topBar & filter toolbar terakhir
    *  agar penanda halaman disegarkan setelah setelan lain selesai. */
-  const URUTAN_BAGIAN = ['kolom', 'tampilan', 'urutan', 'filter', 'filterToolbar'] as const;
+  const URUTAN_BAGIAN = ['kolom', 'tampilan', 'urutan', 'filterToolbar'] as const;
 
   /** Simpan semua bagian yang berubah, berurutan. Sukses semua = keluar
    *  dialog; ada yang gagal = tetap buka (galat sudah di-toast bagian). */
@@ -342,11 +331,9 @@ export default function DialogKelolaTabel({
     setAksiTertunda(null);
   }, [open, tableKey]);
 
-  const adaFilter = filterRelevan.length > 0 && !!filterBawaan && !!filterModeBawaan;
   const adaFilterToolbar = filterTersedia.length > 0;
-  /** Ada isi untuk tab Filter? Filter topBar dan filter toolbar duduk di tab
-   *  yang sama, jadi tabnya tetap ada walau salah satunya kosong. */
-  const adaTabFilter = adaFilter || adaFilterToolbar;
+  /** Tab Filter Tabel hanya ada bila tabel ini punya filter toolbar. */
+  const adaTabFilter = adaFilterToolbar;
   // Hook tetap dipanggil tanpa syarat: `fields` boleh undefined (tab Kolom
   // lalu menampilkan keterangan), tapi state Kolom/Nama & Perataan harus
   // hidup terus supaya tidak hilang saat pindah tabel.
@@ -372,7 +359,7 @@ export default function DialogKelolaTabel({
   }, [adaTabFilter, tab]);
   /** Jumlah bagian yang belum tersimpan — dipakai badge di tab + footer. */
   const jumlahKotor = useMemo(
-    () => ['kolom', 'tampilan', 'urutan', 'filter', 'filterToolbar'].filter((id) => kotorBagian[id]).length,
+    () => ['kolom', 'tampilan', 'urutan', 'filterToolbar'].filter((id) => kotorBagian[id]).length,
     [kotorBagian],
   );
 
@@ -393,7 +380,7 @@ export default function DialogKelolaTabel({
               <TabBagian id="kolom" label="Kolom" kotor={!!kotorBagian.kolom} />
               <TabBagian id="tampilan" label="Nama & Perataan" kotor={!!kotorBagian.tampilan} />
               <TabBagian id="urutan" label="Urutan" kotor={!!kotorBagian.urutan} />
-              {adaTabFilter && <TabBagian id="filter" label="Filter" kotor={!!kotorBagian.filter || !!kotorBagian.filterToolbar} />}
+              {adaTabFilter && <TabBagian id="filter" label="Filter Tabel" kotor={!!kotorBagian.filterToolbar} />}
             </TabsList>
 
             {/* Semua panel `forceMount`: pindah tab tidak boleh membuang state
@@ -430,25 +417,18 @@ export default function DialogKelolaTabel({
 
             {adaTabFilter ? (
               <TabsContent value="filter" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
+                {/* Filter topBar (halaman) TIDAK lagi di sini: ia disimpan per
+                    page_key dan dipakai bersama seluruh tabel halaman, jadi
+                    rumahnya dialog Kelola Halaman. Yang tersisa di sini hanya
+                    Filter Tabel (toolbar) — milik tabel ini sendiri. */}
                 <div className="flex flex-col gap-3">
-                  {adaFilter ? (
-                    <Bagian id="bagian_filter_tabel" judul="Filter Halaman (topBar)" aksi={aksiBagian.filter}>
-                      <TabFilterTabel
-                        tableKey={tableKey}
-                        filterRelevan={filterRelevan}
-                        bawaan={filterBawaan}
-                        modeBawaan={filterModeBawaan}
-                        catatan={jumlahTabel > 1
-                          ? 'Filter topBar dipakai bersama seluruh tabel halaman ini — digabung: tampil bila ada tabel yang mengaktifkan, mode Jamak menang.'
-                          : undefined}
-                      />
-                    </Bagian>
-                  ) : null}
-                  {adaFilterToolbar ? (
-                    <Bagian id="bagian_filter_toolbar_tabel" judul="Filter Tabel (toolbar)" aksi={aksiBagian.filterToolbar}>
-                      <TabFilterToolbar tableKey={tableKey} filterTersedia={filterTersedia} />
-                    </Bagian>
-                  ) : null}
+                  <Bagian id="bagian_filter_toolbar_tabel" judul="Filter Tabel (toolbar)" aksi={aksiBagian.filterToolbar}>
+                    <TabFilterToolbar tableKey={tableKey} filterTersedia={filterTersedia} />
+                  </Bagian>
+                  <p className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                    Filter halaman (topBar) kini diatur dari <strong>Kelola Halaman</strong> —
+                    nilainya berlaku untuk seluruh halaman, bukan tabel ini saja.
+                  </p>
                 </div>
               </TabsContent>
             ) : null}

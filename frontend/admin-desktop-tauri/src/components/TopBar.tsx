@@ -33,7 +33,7 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, DENSITY_PX, DensityName, RADIUS_MAX, RADIUS_MIN, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, Crop, DensityMedium, LogOut, Minus, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Plus, Settings, Sun, Users } from '@/icons';
+import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Crop, DensityMedium, LogOut, Minus, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Plus, Settings, Sun, Users } from '@/icons';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { useAksiSeretSidebar } from '@/components/SeretSidebar';
 import { apakahKlik } from '@/components/useLebarSidebar';
@@ -164,12 +164,16 @@ export default function TopBar() {
   const [filterHalamanOpen, setFilterHalamanOpen] = useState(false);
   /** Panel geser pengaturan tampilan GLOBAL (tinggi baris, huruf, warna). */
   const [pengaturanTampilanOpen, setPengaturanTampilanOpen] = useState(false);
-  const bukaKelola = useCallback(() => {
+  /** "Kelola Halaman" — filter topBar halaman ini (semua halaman, bertabel
+   *  atau tidak). Disimpan per `page_key` di server. */
+  const bukaKelolaHalaman = useCallback(() => {
     if (!registrasi || !efektifSuper) return;
-    if (registrasi.tabel.length === 0) {
-      setFilterHalamanOpen(true);
-      return;
-    }
+    setFilterHalamanOpen(true);
+  }, [registrasi, efektifSuper]);
+  /** "Kelola Tabel" — kolom/nama/urutan tabel tertentu. Halaman tanpa tabel
+   *  tidak punya tabel untuk diatur. */
+  const bukaKelolaTabel = useCallback(() => {
+    if (!registrasi || !efektifSuper || registrasi.tabel.length === 0) return;
     if (registrasi.tabel.length === 1) {
       setTabelKelola(registrasi.tabel[0].key);
       return;
@@ -177,9 +181,9 @@ export default function TopBar() {
     setPilihTabelOpen(true);
   }, [registrasi, efektifSuper]);
   useEffect(() => {
-    window.addEventListener(EVENT_KELOLA_HALAMAN, bukaKelola);
-    return () => window.removeEventListener(EVENT_KELOLA_HALAMAN, bukaKelola);
-  }, [bukaKelola]);
+    window.addEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
+    return () => window.removeEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
+  }, [bukaKelolaHalaman]);
   function pilihLembagaNilai(v: string) {
     pilihNilaiFilter(v, jenjangs, modeLembaga, pilihBanyakLembaga, pilihLembaga);
   }
@@ -443,6 +447,26 @@ export default function TopBar() {
               <p>Pengaturan tampilan tabel (berlaku semua tabel)</p>
             </TooltipContent>
           </Tooltip>
+          {registrasi && efektifSuper && registrasi.tabel.length > 0 ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  id="btn_kelola_tabel"
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Kelola tabel"
+                  onClick={bukaKelolaTabel}
+                  className="mr-1 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
+                >
+                  <Columns3 size={14} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Kelola tabel (kolom, nama, urutan)</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
           {registrasi && efektifSuper ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -451,19 +475,15 @@ export default function TopBar() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  aria-label={registrasi.tabel.length === 0 ? 'Kelola filter halaman' : 'Kelola tabel'}
-                  onClick={bukaKelola}
+                  aria-label="Kelola halaman"
+                  onClick={bukaKelolaHalaman}
                   className="mr-1 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
                 >
                   <NotebookTabs size={14} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>
-                  {registrasi.tabel.length === 0
-                    ? 'Kelola filter halaman'
-                    : 'Kelola tabel (kolom, urutan, toolbar, filter)'}
-                </p>
+                <p>Kelola halaman (filter topBar)</p>
               </TooltipContent>
             </Tooltip>
           ) : null}
@@ -700,10 +720,6 @@ export default function TopBar() {
           tableKey={tabelKelolaData.key}
           judul={tabelKelolaData.judul ?? tabelKelolaData.key}
           fields={tabelKelolaData.fields}
-          filterRelevan={registrasi.filterRelevan}
-          filterBawaan={registrasi.bawaan}
-          filterModeBawaan={registrasi.modeBawaan}
-          jumlahTabel={registrasi.tabel.length}
         />
       ) : null}
 
@@ -742,7 +758,10 @@ export default function TopBar() {
         onOpenChange={setPengaturanTampilanOpen}
       />
 
-      {registrasi && efektifSuper && registrasi.tabel.length === 0 ? (
+      {/* Kelola Halaman: SATU pintu untuk semua halaman (bertabel maupun tidak).
+          Halaman tanpa tabel memakai page_key langsung; halaman bertabel
+          menampilkan daftar tabelnya supaya cakupan filter jelas. */}
+      {registrasi && efektifSuper ? (
         <DialogFilterHalaman
           open={filterHalamanOpen}
           onOpenChange={setFilterHalamanOpen}
@@ -751,6 +770,7 @@ export default function TopBar() {
           filterRelevan={registrasi.filterRelevan}
           bawaan={registrasi.bawaan}
           modeBawaan={registrasi.modeBawaan}
+          daftarTabel={registrasi.tabel.map((t) => t.judul ?? t.key)}
         />
       ) : null}
         </header>

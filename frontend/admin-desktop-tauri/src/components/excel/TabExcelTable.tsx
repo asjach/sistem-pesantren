@@ -354,7 +354,7 @@ const CAKUPAN: Record<Cakupan, BarisCakupan[]> = {
     { apa: 'Jumlah baris per halaman', kontrol: 'Footer — grup "10|25|50|All"', simpan: 'pref perangkat (usePager.ts:6 KUNCI_PERPAGE_GLOBAL)', catatan: 'Kunci "_GLOBAL" tapi ada jalur lama per tabel yang dimigrasi.' },
   ],
   halaman: [
-    { apa: 'Filter mana yang tampil (topBar)', kontrol: 'Dialog Kelola Tabel → tab Filter', simpan: 'SERVER — pengaturan_tabel per table_key/page_key', catatan: 'Halaman tanpa tabel memakai page_key (DialogFilterHalaman.tsx:30).' },
+    { apa: 'Filter mana yang tampil (topBar)', kontrol: 'TopBar → Kelola Halaman (semua halaman)', simpan: 'SERVER — pengaturan_tabel per page_key', catatan: 'Sudah SATU pintu: filter topBar dikeluarkan dari dialog Kelola Tabel.' },
     { apa: 'Mode filter (tunggal/jamak)', kontrol: 'Dialog Kelola Tabel → tab Filter', simpan: 'SERVER — pengaturan_tabel.filter_mode', catatan: 'Untuk filter berjenjang (tingkat/kelas).' },
     { apa: 'Sakelar filter toolbar tabel', kontrol: 'Dialog Kelola Tabel → tab Filter → "Filter Tabel"', simpan: 'SERVER — toolbar_preset.visibilitas per tabel', catatan: 'Menyembunyikan dropdown Urutkan/Kolom di bilah judul.' },
     { apa: 'Tab terakhir yang dibuka', kontrol: '(otomatis, tanpa kontrol)', simpan: 'pref perangkat — simpes_<rute>_tab', catatan: 'Halaman gabungan mengingat tab terakhir.' },
@@ -930,7 +930,7 @@ const KLASIFIKASI: BarisKlasifikasi[] = [
   { apa: 'Matriks izin role × modul', nilai: 'centang per modul', kunci: 'SERVER — izin role', rumah: 'global', status: 'benar', catatan: 'Sudah punya halaman sendiri (/pengaturan/izin).' },
 
   /* ---------- HALAMAN ---------- */
-  { apa: 'Filter mana yang tampil (topBar)', nilai: 'sembunyi/tampil per kunci filter', kunci: 'SERVER — pengaturan_tabel.filter (table_key atau page_key)', rumah: 'halaman', status: 'benar', catatan: 'Halaman tanpa tabel memakai page_key — sudah diakomodasi.' },
+  { apa: 'Filter mana yang tampil (topBar)', nilai: 'sembunyi/tampil per kunci filter', kunci: 'SERVER — pengaturan_tabel.filter per page_key', rumah: 'halaman', status: 'benar', catatan: 'Sudah satu pintu: TopBar → Kelola Halaman, untuk halaman bertabel maupun tidak.' },
   { apa: 'Mode filter (tunggal/jamak)', nilai: 'per filter berjenjang', kunci: 'SERVER — pengaturan_tabel.filter_mode', rumah: 'halaman', status: 'benar' },
   { apa: 'Tab terakhir yang dibuka', nilai: 'nama tab', kunci: 'pref perangkat — simpes_<rute>_tab', rumah: 'halaman', status: 'benar', catatan: 'Otomatis, tanpa kontrol UI.' },
 
@@ -1231,6 +1231,8 @@ interface Temuan {
   masalah: string;
   /** Usulan perbaikan yang konkret. */
   usulan: string;
+  /** Bila sudah dikerjakan: apa yang berubah. Absen = belum dikerjakan. */
+  selesai?: string;
 }
 
 /** Temuan dari pemetaan 2026-10-13: hal-hal yang membingungkan di pengaturan
@@ -1247,23 +1249,26 @@ const TEMUAN: Temuan[] = [
       + 'Mengubahnya di satu tabel diam-diam mengubah seluruh tabel lain — biasanya baru '
       + 'disadari setelah tabel lain "tiba-tiba berubah".',
     usulan:
-      'Beri penanda di popover: kelompok yang global diberi label "Berlaku semua tabel" '
-      + '(mis. teks kecil atau ikon globe), dan yang per-tabel diberi "Tabel ini saja". '
-      + 'Alternatif: tombol gerigi hanya di satu tempat global, bukan di tiap footer tabel.',
+      'Beri penanda: kelompok yang global diberi label "Berlaku semua tabel", yang '
+      + 'per-tabel diberi "Tabel ini saja". Alternatif: tombol gerigi hanya di satu '
+      + 'tempat global, bukan di tiap footer tabel.',
+    selesai: 'SELESAI: 10 setelan global dipindah ke panel Sheet di TopBar; tombol gerigi '
+      + 'footer kini hanya MEMBUKA panel itu, jadi tidak lagi menyamar setelan per tabel.',
   },
   {
-    judul: 'Ada tiga dialog pengaturan, bukan satu',
+    judul: 'Tiga dialog pengaturan dengan nama mirip',
     tingkat: 'sedang',
-    bukti: 'DialogKelolaTabel.tsx · DialogFilterHalaman.tsx:28 · TopBar.tsx:687',
+    bukti: 'DialogKelolaTabel.tsx:384 · DialogFilterHalaman.tsx:95 · TopBar.tsx:733',
     masalah:
-      'Pengguna melihat tiga dialog berbeda dengan nama mirip: (1) Kelola Tabel (halaman '
-      + 'bertabel), (2) Kelola Filter Halaman (halaman TANPA tabel), (3) pemilih tabel bila '
-      + 'halaman punya >1 tabel. Dari sisi pengguna, semuanya tampak "pengaturan tabel" '
-      + 'padahal isinya berbeda.',
+      'Pengguna melihat tiga dialog berbeda: (1) "Kelola Tabel", (2) "Kelola Halaman" '
+      + '(dulu "Filter halaman"), (3) pemilih tabel bila halaman punya >1 tabel. '
+      + 'Dari sisi pengguna semuanya tampak "pengaturan", padahal isinya berbeda.',
     usulan:
-      'Samakan kerangka ketiganya (judul, deskripsi, susunan tab) dan beri judul yang '
-      + 'membedakan konteksnya, mis. "Kelola tabel: Santri" vs "Kelola filter: Dokumen". '
-      + 'Pastikan keduanya menyebut dengan jelas apa yang TIDAK bisa diatur di situ.',
+      'Judulnya sudah dibedakan tegas: "Kelola halaman: X" (filter) vs "Kelola tabel: X" '
+      + '(kolom/nama/urutan), dan pintunya kini dua tombol terpisah di TopBar. '
+      + 'Sisa: pemilih tabel (3) masih dialog polos tanpa penjelasan bedanya.',
+    selesai: 'Sebagian: pintu Kelola Halaman & Kelola Tabel dipisah + diberi judul tegas. '
+      + 'Pemilih tabel untuk halaman multi-tabel belum diseragamkan.',
   },
   {
     judul: 'Jalan masuk kelola tabel hanya lewat klik kanan (tak terlihat)',
@@ -1329,6 +1334,13 @@ function BlokRekomendasi() {
             <span className="font-semibold text-primary">Usulan: </span>
             {t.usulan}
           </p>
+          {t.selesai ? (
+            <p className="mt-1 rounded-sm border border-emerald-600/40 bg-emerald-600/5 px-1.5 py-1 text-[11px]">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                Status: </span>
+              {t.selesai}
+            </p>
+          ) : null}
         </div>
       ))}
     </div>

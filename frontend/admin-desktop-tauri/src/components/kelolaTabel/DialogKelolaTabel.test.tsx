@@ -93,9 +93,6 @@ function renderDialog(
       tableKey="uji"
       judul="Santri"
       fields={fields}
-      filterRelevan={filterRelevan}
-      filterBawaan={tampil}
-      filterModeBawaan={mode}
       filterTersedia={opts.filterTersedia ?? []}
     />,
   );
@@ -146,10 +143,12 @@ describe('DialogKelolaTabel — navigasi tab', () => {
     await waitFor(() => expect(screen.getByLabelText('Kolom')).toBeInTheDocument());
   });
 
-  it('menampilkan tab Filter bila halaman punya filter relevan', async () => {
+  it('TIDAK menampilkan tab Filter karena filter topBar kini milik Kelola Halaman', async () => {
+    // Filter topBar disimpan per page_key dan dipakai bersama seluruh tabel
+    // halaman, jadi rumahnya dialog Kelola Halaman — bukan dialog tabel.
     renderDialog(['lembaga']);
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent?.trim());
-    expect(tabs).toContain('Filter');
+    expect(tabs).toEqual(['Kolom', 'Nama & Perataan', 'Urutan']);
   });
 
   it('hanya menampilkan isi tab yang aktif', async () => {
@@ -227,19 +226,25 @@ describe('DialogKelolaTabel — Simpan terpadu', () => {
 describe('DialogKelolaTabel — section Filter Tabel (toolbar)', () => {
   const simpanToolbar = vi.mocked(simpanToolbarPreset);
 
-  it('tab Filter muncul walau halaman tak punya filter topBar, asalkan tabel punya filter toolbar', async () => {
+  it('tab "Filter Tabel" muncul bila tabel punya filter toolbar', async () => {
     renderDialog([], { filterTersedia: ['urutan', 'kolom'] });
-    await waitFor(() => expect(screen.getAllByRole('tab').map((t) => t.textContent?.trim())).toContain('Filter'));
+    await waitFor(() => expect(screen.getAllByRole('tab').map((t) => t.textContent?.trim())).toContain('Filter Tabel'));
 
-    await userEvent.click(screen.getByRole('tab', { name: /Filter/ }));
+    await userEvent.click(screen.getByRole('tab', { name: /Filter Tabel/ }));
     await waitFor(() => expect(screen.getByText('Filter Tabel (toolbar)')).toBeInTheDocument());
-    // Section filter topBar tidak ikut tampil saat tak relevan.
+    // Filter topBar sudah pindah ke dialog Kelola Halaman.
     expect(screen.queryByText('Filter Halaman (topBar)')).toBeNull();
+  });
+
+  it('mengarahkan filter topBar ke Kelola Halaman lewat keterangan', async () => {
+    renderDialog([], { filterTersedia: ['urutan'] });
+    await userEvent.click(screen.getByRole('tab', { name: /Filter Tabel/ }));
+    await waitFor(() => expect(screen.getByText('Kelola Halaman', { selector: 'strong' })).toBeInTheDocument());
   });
 
   it('mematikan Kolom lalu Simpan → menulis peta visibilitas lengkap', async () => {
     renderDialog([], { filterTersedia: ['urutan', 'kolom'] });
-    await userEvent.click(screen.getByRole('tab', { name: /Filter/ }));
+    await userEvent.click(screen.getByRole('tab', { name: /Filter Tabel/ }));
     await waitFor(() => expect(screen.getByLabelText('Tampilkan filter Kolom')).toBeChecked());
 
     await userEvent.click(screen.getByLabelText('Tampilkan filter Kolom'));
@@ -256,7 +261,7 @@ describe('DialogKelolaTabel — section Filter Tabel (toolbar)', () => {
     // simpanan milik tabel ini.
     serverToolbar.state.visibilitas = { kolom: false, legacy: false };
     renderDialog([], { filterTersedia: ['urutan', 'kolom'] });
-    await userEvent.click(screen.getByRole('tab', { name: /Filter/ }));
+    await userEvent.click(screen.getByRole('tab', { name: /Filter Tabel/ }));
     await waitFor(() => expect(screen.getByLabelText('Tampilkan filter Kolom')).not.toBeChecked());
 
     await userEvent.click(screen.getByRole('button', { name: 'Kembalikan ke bawaan tabel' }));
@@ -266,12 +271,14 @@ describe('DialogKelolaTabel — section Filter Tabel (toolbar)', () => {
     await waitFor(() => expect(screen.getByLabelText('Tampilkan filter Kolom')).toBeChecked());
   });
 
-  it('section toolbar dan section topBar hidup berdampingan di tab yang sama', async () => {
+  it('hanya berisi filter toolbar walau halaman punya filter topBar', async () => {
+    // Dulu keduanya berdampingan; sekarang topBar pindah ke Kelola Halaman
+    // supaya satu setelan tidak punya dua pintu.
     renderDialog(['lembaga'], { filterTersedia: ['urutan'] });
-    await userEvent.click(screen.getByRole('tab', { name: /Filter/ }));
+    await userEvent.click(screen.getByRole('tab', { name: /Filter Tabel/ }));
     await waitFor(() => {
-      expect(screen.getByText('Filter Halaman (topBar)')).toBeInTheDocument();
       expect(screen.getByText('Filter Tabel (toolbar)')).toBeInTheDocument();
+      expect(screen.queryByText('Filter Halaman (topBar)')).toBeNull();
     });
   });
 });

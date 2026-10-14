@@ -1682,10 +1682,6 @@ export default function ExcelTable<T extends { id: string | number }>({
           tableKey={tableKey}
           judul={judulHeader}
           fields={fields}
-          filterRelevan={visHalaman.registrasi.filterRelevan}
-          filterBawaan={visHalaman.registrasi.bawaan}
-          filterModeBawaan={visHalaman.registrasi.modeBawaan}
-          jumlahTabel={visHalaman.registrasi.tabel.length}
           filterTersedia={filterTersedia}
         />
       ) : null}

@@ -25,9 +25,13 @@ import TabFilterTabel from '@/components/kelolaTabel/TabFilterTabel';
 import type { KunciFilterGlobal } from '@/components/VisibilitasFilter';
 import type { ModeSemuaFilterGlobal, TampilFilterGlobal } from '@/lib/filterHalaman';
 
-/** Dialog filter untuk halaman TANPA tabel (mis. Dokumen Santri Lihat):
- *  halaman bertabel memakai dialog Kelola Tabel masing-masing. Memakai
- *  `page_key` sebagai kunci penyimpanan. */
+/** Dialog pengaturan HALAMAN — filter topBar (tampil + mode jamak) untuk
+ *  halaman ini, disimpan per `page_key` (server, berlaku semua pengguna).
+ *
+ *  Dipakai SEMUA halaman, baik yang punya tabel maupun tidak. Halaman
+ *  bertabel: nilainya digabung untuk seluruh tabel di halaman itu (tampil =
+ *  OR, mode Jamak menang), dan daftar tabelnya ditampilkan supaya cakupannya
+ *  jelas. Halaman tanpa tabel: langsung memakai `page_key`. */
 export default function DialogFilterHalaman({
   open,
   onOpenChange,
@@ -36,6 +40,8 @@ export default function DialogFilterHalaman({
   filterRelevan,
   bawaan,
   modeBawaan,
+  /** Judul tabel di halaman ini (kosong = halaman tanpa tabel). */
+  daftarTabel = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +50,7 @@ export default function DialogFilterHalaman({
   filterRelevan: readonly KunciFilterGlobal[];
   bawaan: TampilFilterGlobal;
   modeBawaan: ModeSemuaFilterGlobal;
+  daftarTabel?: readonly string[];
 }) {
   const [kotor, setKotor] = useState(false);
   const kotorRef = useRef(false);
@@ -92,9 +99,10 @@ export default function DialogFilterHalaman({
       <DialogContent className="!flex max-h-[85dvh] flex-col !overflow-hidden !p-2 sm:max-w-xl [&>[data-slot=dialog-close]]:top-2 [&>[data-slot=dialog-close]]:right-2">
         <BagianProvider value={registri}>
           <DialogHeader className="shrink-0">
-            <DialogTitle>Filter halaman: {judul}</DialogTitle>
-            <DialogDescription className="sr-only">
-              Atur visibilitas dan mode filter topBar halaman ini.
+            <DialogTitle>Kelola halaman: {judul}</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Atur filter topBar halaman ini. Berlaku untuk semua pengguna dan tersimpan di
+              server.
             </DialogDescription>
           </DialogHeader>
 
@@ -123,6 +131,17 @@ export default function DialogFilterHalaman({
                 </Tooltip>
               ) : null}
             </div>
+            {daftarTabel.length > 1 ? (
+              <p
+                id="info_cakupan_filter_halaman"
+                className="rounded-md border border-amber-500/40 bg-amber-500/5 px-2 py-1.5 text-[11px] text-muted-foreground"
+              >
+                Filter ini dipakai bersama{' '}
+                <strong className="text-foreground">{daftarTabel.length} tabel</strong> di halaman
+                ini — {daftarTabel.join(' · ')}. Digabung dengan aturan: filter tampil bila
+                <em> ada</em> tabel yang mengaktifkannya, dan mode <strong>Jamak</strong> menang.
+              </p>
+            ) : null}
             <TabFilterTabel
               tableKey={pageKey}
               filterRelevan={filterRelevan}
