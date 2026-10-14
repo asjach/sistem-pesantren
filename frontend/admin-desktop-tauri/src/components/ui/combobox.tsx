@@ -47,6 +47,17 @@ function ComboboxTrigger({ className, ...props }: React.ComponentProps<typeof Co
 }
 
 function ComboboxContent({ className, ...props }: React.ComponentProps<typeof ComboboxPrimitive.Popup>) {
+  /* Popup di-portal ke body: wheel-nya menggelembung sampai `document` dan
+     dicegat kunci-scroll dialog modal (Radix/remove-scroll, fase bubble —
+     `defaultPrevented` masih false saat event di popup, jadi tak bisa jadi
+     gerbang). Hentikan propagasi di elemen agar scroll bawaan tetap jalan. */
+  const [elPopup, setElPopup] = React.useState<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    if (elPopup === null) return;
+    const hentikan = (e: WheelEvent) => { e.stopPropagation(); };
+    elPopup.addEventListener('wheel', hentikan);
+    return () => { elPopup.removeEventListener('wheel', hentikan); };
+  }, [elPopup]);
   return (
     <ComboboxPrimitive.Portal>
       <ComboboxPrimitive.Positioner
@@ -60,6 +71,7 @@ function ComboboxContent({ className, ...props }: React.ComponentProps<typeof Co
         <ComboboxPrimitive.Popup
           data-slot="combobox-content"
           {...props}
+          ref={setElPopup}
           className={cn(
             "max-h-[min(20rem,var(--available-height))] w-(--anchor-width) min-w-(--anchor-width) max-w-(--available-width) origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-md border border-foreground/30 bg-popover text-popover-foreground shadow-md transition-[opacity,transform] duration-150 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0",
             className
