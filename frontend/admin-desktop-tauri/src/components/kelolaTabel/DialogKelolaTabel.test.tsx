@@ -98,9 +98,10 @@ function renderDialog(
   );
 }
 
-/** Panel tab "Nama & Perataan" (input edit nama kolom pertama). */
+/** Panel tab "Kolom" — kini memuat pilihan kolom SEKALIGUS nama & perataan,
+ *  karena keduanya setelan per tabel (bukan per preset). */
 function panelNamaPerataan() {
-  return screen.getByLabelText('Nama & Perataan');
+  return screen.getByLabelText('Kolom');
 }
 
 beforeEach(() => {
@@ -138,7 +139,7 @@ describe('DialogKelolaTabel — navigasi tab', () => {
   it('menampilkan tab untuk tiap bagian, dan tab Filter hanya bila ada filter', async () => {
     renderDialog();
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent?.replace(/\s+/g, ' ').trim());
-    expect(tabs).toEqual(['Kolom', 'Nama & Perataan', 'Urutan']);
+    expect(tabs).toEqual(['Kolom', 'Urutan']);
 
     await waitFor(() => expect(screen.getByLabelText('Kolom')).toBeInTheDocument());
   });
@@ -148,7 +149,7 @@ describe('DialogKelolaTabel — navigasi tab', () => {
     // halaman, jadi rumahnya dialog Kelola Halaman — bukan dialog tabel.
     renderDialog(['lembaga']);
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent?.trim());
-    expect(tabs).toEqual(['Kolom', 'Nama & Perataan', 'Urutan']);
+    expect(tabs).toEqual(['Kolom', 'Urutan']);
   });
 
   it('hanya menampilkan isi tab yang aktif', async () => {
@@ -169,13 +170,13 @@ describe('DialogKelolaTabel — navigasi tab', () => {
     renderDialog();
     await waitFor(() => expect(screen.getByLabelText('Kolom')).toBeInTheDocument());
     // Radix TabsTrigger aktif pada mousedown, bukan click — pakai userEvent.
-    await userEvent.click(screen.getByRole('tab', { name: /Nama & Perataan/ }));
-    await waitFor(() => expect(panelNamaPerataan()).toBeVisible());
+    await userEvent.click(screen.getByRole('tab', { name: /Urutan/ }));
+    await waitFor(() => expect(screen.getByLabelText('Urutan')).toBeVisible());
     expect(screen.getByLabelText('Kolom').closest('[data-slot="tabs-content"]'))
       .toHaveAttribute('data-state', 'inactive');
   });
 
-  it('state tiap tab bertahan saat pindah tab (perubahan tidak hilang)', async () => {
+  it('state tab bertahan saat pindah tab (perubahan tidak hilang)', async () => {
     renderDialog();
     await waitFor(() => expect(panelNamaPerataan()).toBeInTheDocument());
     const input = within(panelNamaPerataan()).getAllByRole('textbox')[0];
@@ -183,7 +184,7 @@ describe('DialogKelolaTabel — navigasi tab', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: /Urutan/ }));
     await waitFor(() => expect(screen.getByLabelText('Urutan')).toBeVisible());
-    await userEvent.click(screen.getByRole('tab', { name: /Nama & Perataan/ }));
+    await userEvent.click(screen.getByRole('tab', { name: /Kolom/ }));
     await waitFor(() => expect(panelNamaPerataan()).toBeVisible());
 
     expect(within(panelNamaPerataan()).getAllByRole('textbox')[0]).toHaveValue('Nama Baru');
@@ -214,11 +215,11 @@ describe('DialogKelolaTabel — Simpan terpadu', () => {
     const input = within(panelNamaPerataan()).getAllByRole('textbox')[0];
     fireEvent.change(input, { target: { value: 'Nama Baru' } });
 
-    // Nama kolom disimpan section Kolom (preset), tapi user mengetiknya di tab
-    // Nama & Perataan — kedua tab menyala supaya tidak bingung mana yang berubah.
+    // Nama & perataan kini DI TAB YANG SAMA dengan pilihan kolom, jadi satu
+    // penanda saja yang menyala - tak ada lagi dua tab yang menyala bersamaan.
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /Nama & Perataan \(belum tersimpan\)/ })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /^Kolom \(belum tersimpan\)/ })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /Nama & Perataan/ })).not.toBeInTheDocument();
     });
   });
 });

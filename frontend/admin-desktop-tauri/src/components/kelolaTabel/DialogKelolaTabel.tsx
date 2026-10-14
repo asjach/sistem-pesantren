@@ -31,7 +31,6 @@ import { bersihLabel, kanonLabel } from '@/lib/labelKolom';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 import TabKolom, { type TabKolomProps } from './TabKolom';
-import TabNamaPerataan from './TabNamaPerataan';
 import TabUrutan from './TabUrutan';
 import TabFilterToolbar from './TabFilterToolbar';
 import type { KunciFilterToolbar } from '@/components/excel/filterTabel';
@@ -146,7 +145,7 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
   return {
     /** Muat ulang daftar preset (dipakai listener `EVENT_PRESET_BERUBAH`). */
     muat,
-    /** `key` untuk TabKolom & TabNamaPerataan: naik tiap preset dibuka ulang. */
+    /** `key` untuk TabKolom: naik tiap preset dibuka ulang. */
     nonce: kelola.nonce,
     kolom: {
       tableKey,
@@ -165,7 +164,6 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
       onPakaiLengkap: pakaiLengkap,
       onDihapus: dihapus,
     } satisfies TabKolomProps,
-    namaPerataan: { tableKey, fields, fieldKeys, label, setLabel, labelAwalRef },
   };
 }
 
@@ -297,7 +295,7 @@ export default function DialogKelolaTabel({
   /** Urutan simpan: preset kolom dulu (membuat id bila preset baru),
    *  lalu nama & perataan, urutan; filter topBar & filter toolbar terakhir
    *  agar penanda halaman disegarkan setelah setelan lain selesai. */
-  const URUTAN_BAGIAN = ['kolom', 'tampilan', 'urutan', 'filterToolbar'] as const;
+  const URUTAN_BAGIAN = ['kolom', 'urutan', 'filterToolbar'] as const;
 
   /** Simpan semua bagian yang berubah, berurutan. Sukses semua = keluar
    *  dialog; ada yang gagal = tetap buka (galat sudah di-toast bagian). */
@@ -359,7 +357,7 @@ export default function DialogKelolaTabel({
   }, [adaTabFilter, tab]);
   /** Jumlah bagian yang belum tersimpan — dipakai badge di tab + footer. */
   const jumlahKotor = useMemo(
-    () => ['kolom', 'tampilan', 'urutan', 'filterToolbar'].filter((id) => kotorBagian[id]).length,
+    () => ['kolom', 'urutan', 'filterToolbar'].filter((id) => kotorBagian[id]).length,
     [kotorBagian],
   );
 
@@ -378,7 +376,6 @@ export default function DialogKelolaTabel({
           <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
             <TabsList variant="line" className="h-auto w-full shrink-0 justify-start gap-1 border-b px-3 py-1.5">
               <TabBagian id="kolom" label="Kolom" kotor={!!kotorBagian.kolom} />
-              <TabBagian id="tampilan" label="Nama & Perataan" kotor={!!kotorBagian.tampilan} />
               <TabBagian id="urutan" label="Urutan" kotor={!!kotorBagian.urutan} />
               {adaTabFilter && <TabBagian id="filter" label="Filter Tabel" kotor={!!kotorBagian.filterToolbar} />}
             </TabsList>
@@ -399,15 +396,6 @@ export default function DialogKelolaTabel({
               </Bagian>
             </TabsContent>
 
-            <TabsContent value="tampilan" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
-              <Bagian id="bagian_nama_perataan_tabel" judul="Nama & Perataan">
-                {fields
-                  ? <TabNamaPerataan key={`${tableKey}-${kolom.nonce}`} {...kolom.namaPerataan} />
-                  : <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-                      Tabel “{judul}” tidak memakai preset kolom — nama header & perataan diatur dari toolbar tabel.
-                    </p>}
-              </Bagian>
-            </TabsContent>
 
             <TabsContent value="urutan" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
               <Bagian id="bagian_urutan_tabel" judul="Urutan">

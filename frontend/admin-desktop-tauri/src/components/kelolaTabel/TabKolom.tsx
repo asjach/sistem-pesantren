@@ -11,6 +11,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Input } from '@/components/ui/input';
 import { labelKolom, bersihLabel, kanonLabel } from '@/lib/labelKolom';
 import { useAksiBagian, useBagian } from '@/components/kelolaHalaman/kotor';
+import { muatToolbarPreset, simpanToolbarPreset, type AlignKolomApi } from '@/api/toolbarPreset';
+import { AlignCenter, AlignLeft, AlignRight } from '@/icons';
+import TombolIkon from '@/components/TombolIkon';
+import { bacaAlign, kabariToolbar, type AlignKolom } from './jenis';
+
+/** Bandingkan peta perataan tanpa peduli urutan kunci. */
+function kanonAlign(o: Partial<Record<string, AlignKolom>>): string {
+  return JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
+}
 import { useLembagaAktif } from '@/lembagaAktif';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -99,6 +108,54 @@ export default function TabKolom({
   });
   /** Susunan yang dimuat memang "Lengkap kustom" (bukan semua kolom). */
   const kustomAwal = editId === null && !!kolomAwal && kolomAwal.length > 0;
+  /** Perataan kolom: per TABEL (bukan per preset), jadi tidak ikut berubah
+   *  saat preset berganti. Dulu tinggal di tab Nama & Perataan terpisah. */
+  const [align, setAlign] = useState<Partial<Record<string, AlignKolom>>>({});
+  const alignAwalRef = useRef<string>(kanonAlign({}));
+  const muatAlign = useCallback(async () => {
+    try {
+      const res = await muatToolbarPreset(tableKey);
+      const bersih = bacaAlign(res.data.align);
+      setAlign(bersih);
+      alignAwalRef.current = kanonAlign(bersih);
+    } catch {
+      setAlign({});
+      alignAwalRef.current = kanonAlign({});
+    }
+  }, [tableKey]);
+  useEffect(() => { void muatAlign(); }, [muatAlign]);
+  const kotorAlign = useCallback(() => kanonAlign(align) !== alignAwalRef.current, [align]);
+  /** Siklus perataan: tengah → kiri → kanan → tengah (absen = ikut bawaan). */
+  function sikulAlign(key: string) {
+    setAlign((prev) => {
+      const cur = prev[key] ?? 'center';
+      const next: AlignKolom | undefined = cur === 'center' ? 'left' : cur === 'left' ? 'right' : undefined;
+      const hasil = { ...prev };
+      if (next === undefined) delete hasil[key];
+      else hasil[key] = next;
+      return hasil;
+    });
+  }
+  /** Ubah nama header satu baris; mentah hingga blur supaya spasi di tengah
+   *  tidak terpotong saat mengetik. */
+  function ubahLabelBaris(key: string, nilai: string) {
+    const t = nilai.slice(0, 60);
+    setLabel((prev) => (prev[key] === t ? prev : { ...prev, [key]: t }));
+  }
+  /** Rapikan saat blur: trim, kosong = kembali ke label bawaan. */
+  function rapiLabelBaris(key: string, nilai: string) {
+    const t = nilai.trim().slice(0, 60);
+    setLabel((prev) => {
+      if (t === '') {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      if (prev[key] === t) return prev;
+      return { ...prev, [key]: t };
+    });
+  }
   const [, setBusy] = useState(false);
   const laporKotor = useBagian('kolom', () => simpanPreset());
   /** Acuan "tersimpan" untuk mendeteksi perubahan belum disimpan. */
@@ -114,8 +171,8 @@ export default function TabKolom({
     [label, labelAwalRef],
   );
   useEffect(() => {
-    laporKotor(kotorPreset() || kotorLabel());
-  }, [kotorPreset, kotorLabel, laporKotor]);
+    laporKotor(kotorPreset() || kotorLabel() || kotorAlign());
+  }, [kotorPreset, kotorLabel, kotorAlign, laporKotor]);
   /** Mode Lengkap (tanpa preset): perubahan disimpan sebagai "Lengkap kustom". */
   const modeLengkap = mulaiLengkap && editId === null;
   /** Mode preset baru: belum punya id, nama wajib diisi saat Simpan. */
@@ -215,17 +272,36 @@ export default function TabKolom({
       toast.error('Pilih minimal satu kolom.');
       return false;
     }
-    // Nama header kustom yang ikut tersimpan (null = tanpa kustom).
+    /* Label & perataan kini milik TABEL (`toolbar_preset.label`/`.align`),
+       BUKAN preset: preset hanya menyimpan kolom mana yang tampil. Karena itu
+       keduanya disimpan sekali di sini, terlepas dari preset yang dipakai -
+       dan preset yang dibuat TIDAK mengirim label lagi. */
     const labelSimpan = bersihLabel(label, fieldKeys);
-    const labelKirim = Object.keys(labelSimpan).length > 0 ? labelSimpan : null;
+    const alignSimpan: AlignKolomApi = {};
+    for (const [k, v] of Object.entries(align)) {
+      if (v !== undefined && fieldKeys.has(k)) alignSimpan[k] = v;
+    }
+    /** Simpan setelan per tabel (label + perataan). Kembalikan false bila gagal. */
+    const simpanSetelanTabel = async (): Promise<boolean> => {
+      if (!kotorLabel() && !kotorAlign()) return true;
+      try {
+        await simpanToolbarPreset(tableKey, undefined, undefined, alignSimpan, labelSimpan);
+        labelAwalRef.current = kanonLabel(labelSimpan);
+        alignAwalRef.current = kanonAlign(alignSimpan);
+        kabariToolbar(tableKey);
+        return true;
+      } catch (err) {
+        toast.error(errorMessage(err));
+        return false;
+      }
+    };
     if (!nama.trim()) {
       // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
       if (modeLengkap) {
-        onPakaiLengkap(kolom, labelSimpan);
-        // Sudah diterapkan: preset + label kembali bersih.
-        labelAwalRef.current = kanonLabel(labelSimpan);
+        onPakaiLengkap(kolom, {});
+        const okSetelan = await simpanSetelanTabel();
         laporKotor(false);
-        return true;
+        return okSetelan;
       }
       toast.error('Nama preset wajib diisi.');
       return false;
@@ -235,7 +311,7 @@ export default function TabKolom({
       let saved: PresetTabel | undefined;
       let pesan = 'Preset kolom disimpan.';
       if (editId) {
-        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom, label: labelKirim });
+        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom, label: null });
         saved = res.data[0];
         pesan = res.pesan;
       } else {
@@ -243,7 +319,8 @@ export default function TabKolom({
           table_key: tableKey,
           nama: nama.trim(),
           kolom,
-          label: labelKirim,
+          // Label bukan milik preset lagi; disimpan per tabel di bawah.
+          label: null,
         });
         saved = res.data[0];
         pesan = res.pesan;
@@ -251,12 +328,13 @@ export default function TabKolom({
       if (!saved) {
         throw new Error('Preset gagal disimpan.');
       }
+      // Setelan per tabel (label + perataan) disimpan terpisah dari preset:
+      // preset hanya menentukan kolom mana yang TAMPIL.
+      if (!(await simpanSetelanTabel())) return false;
       toast.success(pesan);
       setEditId(saved.id);
       setUbahNama(false);
       await onTersimpan(saved.id);
-      // Induk me-remount section ini; laporkan sisa kotor (label).
-      labelAwalRef.current = kanonLabel(labelSimpan);
       laporKotor(false);
       return true;
     } catch (e2) {
@@ -283,10 +361,18 @@ export default function TabKolom({
     }
   }
 
-  /** Satu baris kolom; baris tersembunyi diklik untuk menampilkan. */
+  /** Satu baris kolom; baris tersembunyi diklik untuk menampilkan.
+   *  Kolom TAMPIL juga bisa menyunting nama header + perataan langsung di
+   *  barisnya: keduanya setelan per TABEL (bukan per preset), jadi tidak ikut
+   *  berubah saat preset berganti - dan menaruhnya sebaris menghapus keperluan
+   *  mencocokkan nama kolom antar dua daftar terpisah. Kolom tersembunyi tak
+   *  perlu nama tampil karena tak muncul di tabel. */
   function renderBaris(f: ExcelField, tampil: boolean, indeks: number | null) {
     const teks = labelOf(f);
     const kustom = label[f.key] !== undefined;
+    const nilaiAlign = align[f.key] ?? 'center';
+    const IkonAlign = nilaiAlign === 'left' ? AlignLeft : nilaiAlign === 'right' ? AlignRight : AlignCenter;
+    const teksAlign = nilaiAlign === 'left' ? 'kiri' : nilaiAlign === 'right' ? 'kanan' : 'tengah';
     return (
       <div
         key={f.key}
@@ -345,11 +431,45 @@ export default function TabKolom({
           aria-label={tampil ? `Sembunyikan ${teks}` : `Tampilkan ${teks}`}
         />
         <span
-          className={cn('min-w-0 flex-1 truncate text-xs', kustom && 'font-medium text-foreground')}
-          title={kustom ? `${teks} → ${label[f.key]} (diubah di Nama & Perataan)` : teks}
+          className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
+          title={`Nama bawaan: ${teks}`}
         >
-          {label[f.key] ?? teks}
+          {teks}
         </span>
+        {tampil ? (
+          <>
+            <Input
+              id={`input_nama_tampilan_${tableKey}_${f.key}`}
+              value={label[f.key] ?? ''}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => ubahLabelBaris(f.key, e.target.value)}
+              onBlur={(e) => rapiLabelBaris(f.key, e.target.value)}
+              maxLength={60}
+              placeholder="—"
+              aria-label={`Nama tampilan ${teks} (kosongkan untuk bawaan)`}
+              className={cn('h-6 min-w-0 flex-[1.4] text-xs', !kustom && 'text-muted-foreground')}
+            />
+            <TombolIkon
+              tip={`Perataan: ${teksAlign} — klik untuk ganti`}
+              size="icon-xs"
+              variant="ghost"
+              id={`btn_align_tampilan_${tableKey}_${f.key}`}
+              aria-label={`Perataan ${teks}: ${teksAlign} — klik untuk ganti`}
+              /* Jangan teruskan ke baris: klik baris = togol tampil/sembunyi, jadi
+                 tanpa ini menekan tombol perataan malah menyembunyikan kolomnya. */
+              onClick={(e) => {
+                e.stopPropagation();
+                sikulAlign(f.key);
+              }}
+              className={cn(
+                'shrink-0 rounded hover:bg-accent hover:text-foreground',
+                nilaiAlign === 'center' ? 'text-muted-foreground/60' : 'text-foreground',
+              )}
+            >
+              <IkonAlign size={14} />
+            </TombolIkon>
+          </>
+        ) : null}
       </div>
     );
   }

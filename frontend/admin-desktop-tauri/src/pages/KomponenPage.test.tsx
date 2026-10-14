@@ -161,7 +161,7 @@ describe('KomponenPage — tab ExcelTable', () => {
     expect(screen.getByText('11. Contoh hidup')).toBeInTheDocument();
   });
 
-  it('memetakan empat jalan masuk pengaturan + 4 tab dialog Kelola Tabel', async () => {
+  it('memetakan empat jalan masuk pengaturan + 3 tab dialog Kelola Tabel', async () => {
     const klik = userEvent.setup();
     renderDenganTema(<KomponenPage />);
     await klik.click(screen.getByRole('tab', { name: 'ExcelTable' }));
@@ -172,11 +172,13 @@ describe('KomponenPage — tab ExcelTable', () => {
     expect(screen.getByText('Klik kanan header/baris')).toBeInTheDocument();
     expect(screen.getByText('TopBar — menu "Kelola tabel"')).toBeInTheDocument();
 
-    // Isi dialog: 4 tab dengan komponen sumbernya.
+    // Isi dialog: 3 tab dengan komponen sumbernya. Tab "Nama & Perataan" dulu
+    // terpisah; kini dilebur ke "Kolom" karena keduanya mengatur setelan per
+    // TABEL (bukan per preset), jadi satu penanda cukup.
     expect(screen.getByText('Tab "Kolom"')).toBeInTheDocument();
-    expect(screen.getByText('Tab "Nama & Perataan"')).toBeInTheDocument();
     expect(screen.getByText('Tab "Urutan"')).toBeInTheDocument();
     expect(screen.getByText('Tab "Filter Tabel"')).toBeInTheDocument();
+    expect(screen.queryByText('Tab "Nama & Perataan"')).not.toBeInTheDocument();
     expect(screen.getAllByText('TabKolom.tsx')).toHaveLength(1);
 
     // Tabel pengaturan: jalan masuk + isi dialog (denah & inventaris bukan <table>).

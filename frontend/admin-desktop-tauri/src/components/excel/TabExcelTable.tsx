@@ -268,10 +268,11 @@ const PENGATURAN: BarisPengaturan[] = [
   },
 ];
 
-/** Isi tab di dalam DialogKelolaTabel (satu dialog, empat bagian). */
+/** Isi tab di dalam DialogKelolaTabel (satu dialog, tiga bagian).
+ *  Dulu empat: tab "Nama & Perataan" dilebur ke "Kolom" karena keduanya
+ *  mengatur setelan per TABEL (bukan per preset), jadi satu penanda saja. */
 const TAB_KELOLA: BarisPengaturan[] = [
-  { tempat: 'Tab "Kolom"', sumber: 'TabKolom.tsx', isi: 'Simpan preset kolom (baru/duplikat/hapus), pilih kolom mana yang tampil, jadikan preset bawaan.', akses: 'super_admin efektif' },
-  { tempat: 'Tab "Nama & Perataan"', sumber: 'TabNamaPerataan.tsx', isi: 'Ubah nama header per kolom (mengganti label mentah) dan perataannya (kiri/tengah/kanan).', akses: 'super_admin efektif' },
+  { tempat: 'Tab "Kolom"', sumber: 'TabKolom.tsx', isi: 'Simpan preset kolom (baru/duplikat/hapus), pilih kolom mana yang tampil, jadikan preset bawaan. Per kolom yang tampil: ubah nama header dan perataannya (kiri/tengah/kanan) - keduanya setelan PER TABEL, jadi tetap walau preset berganti.', akses: 'super_admin efektif' },
   { tempat: 'Tab "Urutan"', sumber: 'TabUrutan.tsx', isi: 'Preset urutan: kolom yang bisa diurutkan, urutan berlapis (maks 3), dan arah naik/turun.', akses: 'super_admin efektif' },
   { tempat: 'Tab "Filter Tabel"', sumber: 'TabFilterToolbar.tsx', isi: 'Sakelar filter toolbar TABEL INI (Urutkan/Kolom/Filter). Filter topBar sudah dihapus dari sini.', akses: 'super_admin efektif' },
 ];
