@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { useRef, useState } from 'react';
 
 import TabKolom from './TabKolom';
 import { renderDenganTema } from '@/test/utils';
@@ -36,26 +37,36 @@ const fields = [
 
 /** Tab Kolom kini memuat nama & perataan sekaligus: keduanya setelan per
  *  TABEL (bukan per preset), jadi tetap walau preset berganti. */
-function renderKolom() {
-  return renderDenganTema(
+/** Harness dengan state label nyata: mengubah nama harus benar-benar
+ *  terlihat, bukan sekadar memanggil setter kosong. */
+function HarnessKolom(opsi: { label?: Record<string, string>; mulaiLengkap?: boolean; kolomAwal?: string[] | null }) {
+  const [label, setLabel] = useState<Record<string, string>>(opsi.label ?? {});
+  const labelAwalRef = useRef(
+    JSON.stringify(Object.keys(opsi.label ?? {}).sort().map((k) => [k, (opsi.label ?? {})[k]])),
+  );
+  return (
     <TabKolom
       tableKey="uji"
       fields={fields}
       fieldKeys={new Set(['nama', 'kode'])}
       presets={[]}
-      kolomAwal={null}
+      kolomAwal={opsi.kolomAwal ?? null}
       presetAwal={null}
-      mulaiLengkap
-      label={{}}
-      setLabel={() => {}}
-      labelAwalRef={{ current: '[]' }}
+      mulaiLengkap={opsi.mulaiLengkap ?? true}
+      label={label}
+      setLabel={setLabel}
+      labelAwalRef={labelAwalRef}
       onPilihLengkap={() => {}}
       onPilihPreset={() => {}}
       onTersimpan={async () => {}}
       onPakaiLengkap={() => {}}
       onDihapus={async () => {}}
-    />,
+    />
   );
+}
+
+function renderKolom(opsi: { label?: Record<string, string>; mulaiLengkap?: boolean; kolomAwal?: string[] | null } = {}) {
+  return renderDenganTema(<HarnessKolom {...opsi} />);
 }
 
 beforeEach(() => {
@@ -86,5 +97,27 @@ describe('TabKolom — nama & perataan per TABEL', () => {
     const panggilan = vi.mocked(simpanToolbarPreset).mock.calls.at(-1);
     expect(panggilan?.[0]).toBe('uji');
     expect(panggilan?.[3]).toEqual({ nama: 'left' });
+  });
+});
+
+describe('TabKolom — kolom TERSEMBUNYI juga bisa disiapkan namanya', () => {
+  it('menyediakan kotak nama & tombol perataan untuk kolom tersembunyi', async () => {
+    // Susunan hanya memuat 'nama' -> 'kode' masuk grup Tersembunyi.
+    renderKolom({ label: { nama: 'Nama Santri' }, kolomAwal: ['nama'] });
+    const inputKode = await screen.findByLabelText(/Nama tampilan Kode/);
+    expect(inputKode).toBeInTheDocument();
+    expect(screen.getByText(/Tersembunyi/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Perataan Kode: tengah/ })).toBeInTheDocument();
+  });
+
+  it('mengubah nama kolom tersembunyi tanpa menampilkannya', async () => {
+    renderKolom({ label: { nama: 'Nama Santri' }, kolomAwal: ['nama'] });
+    const inputKode = await screen.findByLabelText(/Nama tampilan Kode/);
+    // Klik pada input tidak boleh menogol tampil/sembunyi kolomnya.
+    fireEvent.click(inputKode);
+    fireEvent.change(inputKode, { target: { value: 'Kode Santri' } });
+    expect(inputKode).toHaveValue('Kode Santri');
+    // Masih tersembunyi: checkbox-nya belum tercentang.
+    expect(screen.getAllByRole('checkbox')[1]).not.toBeChecked();
   });
 });

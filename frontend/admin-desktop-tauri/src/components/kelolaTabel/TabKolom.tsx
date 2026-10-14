@@ -436,40 +436,41 @@ export default function TabKolom({
         >
           {teks}
         </span>
-        {tampil ? (
-          <>
-            <Input
-              id={`input_nama_tampilan_${tableKey}_${f.key}`}
-              value={label[f.key] ?? ''}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => ubahLabelBaris(f.key, e.target.value)}
-              onBlur={(e) => rapiLabelBaris(f.key, e.target.value)}
-              maxLength={60}
-              placeholder="—"
-              aria-label={`Nama tampilan ${teks} (kosongkan untuk bawaan)`}
-              className={cn('h-6 min-w-0 flex-[1.4] text-xs', !kustom && 'text-muted-foreground')}
-            />
-            <TombolIkon
-              tip={`Perataan: ${teksAlign} — klik untuk ganti`}
-              size="icon-xs"
-              variant="ghost"
-              id={`btn_align_tampilan_${tableKey}_${f.key}`}
-              aria-label={`Perataan ${teks}: ${teksAlign} — klik untuk ganti`}
-              /* Jangan teruskan ke baris: klik baris = togol tampil/sembunyi, jadi
-                 tanpa ini menekan tombol perataan malah menyembunyikan kolomnya. */
-              onClick={(e) => {
-                e.stopPropagation();
-                sikulAlign(f.key);
-              }}
-              className={cn(
-                'shrink-0 rounded hover:bg-accent hover:text-foreground',
-                nilaiAlign === 'center' ? 'text-muted-foreground/60' : 'text-foreground',
-              )}
-            >
-              <IkonAlign size={14} />
-            </TombolIkon>
-          </>
-        ) : null}
+        {/* Nama & perataan tersedia untuk kolom TAMPIL MAUPUN TERSEMBUNYI:
+            keduanya setelan per tabel yang wajar disiapkan sebelum kolomnya
+            ditampilkan. Baris tersembunyi punya ruang itu menganggur, jadi
+            menampilkannya justru menyejajarkan kedua grup. Kontrol di sini
+            menahan klik agar tidak menogol tampil/sembunyi (klik baris). */}
+        <Input
+          id={`input_nama_tampilan_${tableKey}_${f.key}`}
+          value={label[f.key] ?? ''}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => ubahLabelBaris(f.key, e.target.value)}
+          onBlur={(e) => rapiLabelBaris(f.key, e.target.value)}
+          maxLength={60}
+          placeholder="—"
+          aria-label={`Nama tampilan ${teks} (kosongkan untuk bawaan)`}
+          className={cn('h-6 min-w-0 flex-[1.4] text-xs', !kustom && 'text-muted-foreground')}
+        />
+        <TombolIkon
+          tip={`Perataan: ${teksAlign} — klik untuk ganti`}
+          size="icon-xs"
+          variant="ghost"
+          id={`btn_align_tampilan_${tableKey}_${f.key}`}
+          aria-label={`Perataan ${teks}: ${teksAlign} — klik untuk ganti`}
+          /* Jangan teruskan ke baris: klik baris = togol tampil/sembunyi, jadi
+             tanpa ini menekan tombol perataan malah menogol kolomnya. */
+          onClick={(e) => {
+            e.stopPropagation();
+            sikulAlign(f.key);
+          }}
+          className={cn(
+            'shrink-0 rounded hover:bg-accent hover:text-foreground',
+            nilaiAlign === 'center' ? 'text-muted-foreground/60' : 'text-foreground',
+          )}
+        >
+          <IkonAlign size={14} />
+        </TombolIkon>
       </div>
     );
   }
