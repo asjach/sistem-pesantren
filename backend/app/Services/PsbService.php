@@ -209,7 +209,9 @@ class PsbService
                 $catatanSistem[] = 'NIK ganda dengan calon lain (nama/tgl_lahir beda, kemungkinan NIK fiktif) — perlu verifikasi admin';
             }
 
-            $statusAwal = $this->kuotaPenuh((int) $data['gelombang_id'], $targets[0]['lembaga']->jenjang, $data['tipe_santri'] ?? null)
+            /* Kunci baris kuota sampai transaksi selesai: dua pendaftar yang
+               masuk bersamaan tak boleh sama-sama membaca satu kursi terakhir. */
+            $statusAwal = $this->kuotaPenuh((int) $data['gelombang_id'], $targets[0]['lembaga']->jenjang, $data['tipe_santri'] ?? null, true)
                 ? 'waiting_list'
                 : 'baru';
 
@@ -293,10 +295,11 @@ class PsbService
         }
     }
 
-    /** Kuota POOL GABUNGAN per kelompok PSB (delegasi ke PsbGelombangService). waiting_list tidak memakan kursi. */
-    public function kuotaPenuh(int $gelombangId, string $jenjang, ?string $tipeSantri = null): bool
+    /** Kuota POOL GABUNGAN per kelompok PSB (delegasi ke PsbGelombangService). waiting_list tidak memakan kursi.
+     *  $kunci = true memakai SELECT ... FOR UPDATE; hanya berguna di dalam transaksi. */
+    public function kuotaPenuh(int $gelombangId, string $jenjang, ?string $tipeSantri = null, bool $kunci = false): bool
     {
-        return $this->gelombang->sisaKuota($gelombangId, $jenjang, $tipeSantri) === 0;
+        return $this->gelombang->sisaKuota($gelombangId, $jenjang, $tipeSantri, $kunci) === 0;
     }
 
     public function verifikasi(int $id, int $adminId): PsbCalonSantri

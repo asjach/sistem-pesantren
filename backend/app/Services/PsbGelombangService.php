@@ -73,8 +73,16 @@ class PsbGelombangService
      * Angka pool dibaca dari baris psb_kuota_biaya lembaga PRIMER kelompok (combo_mi_md -> MI).
      * Pemakaian = calon aktif yang punya baris lembaga di kelompok tsb (distinct calon, 1 calon = 1 baris).
      * null = tanpa batas (kuota kosong/0).
+     *
+     * $kunci = true: kunci baris kuota (SELECT ... FOR UPDATE) sebelum menghitung.
+     * WAJIB dipanggil di dalam transaksi saat hasilnya menentukan apakah pendaftar
+     * masuk kursi atau waiting_list. Tanpa kunci, dua pendaftar yang masuk
+     * bersamaan sama-sama membaca sisa kursi terakhir dan dua-duanya lolos -
+     * kuota terlampaui. Yang dikunci baris KUOTA-nya (bukan calon), karena
+     * baris itulah titik temu semua pendaftar pada pool yang sama; SELECT
+     * FOR UPDATE pada baris kuota juga mengunci pool MI-MD secara utuh.
      */
-    public function sisaKuota(int $gelombangId, string $jenjang, ?string $tipeSantri = null): ?int
+    public function sisaKuota(int $gelombangId, string $jenjang, ?string $tipeSantri = null, bool $kunci = false): ?int
     {
         $lembaga = Lembaga::find($jenjang);
         if (! $lembaga || ! $lembaga->kelompok_psb) {
@@ -85,9 +93,14 @@ class PsbGelombangService
             ? (Lembaga::whereKey(PsbService::PAKET_MI_MD['primer'])->first() ?? $lembaga)
             : $lembaga;
         $q = PsbKuotaBiaya::where('gelombang_id', $gelombangId)->where('jenjang', $primer->jenjang);
-        $kuota = $tipeSantri
-            ? (clone $q)->whereIn('tipe_santri', [$tipeSantri, 'semua'])->sum('kuota')
-            : $q->sum('kuota');
+        if ($tipeSantri) {
+            $q->whereIn('tipe_santri', [$tipeSantri, 'semua']);
+        }
+        /* Ambil BARISNYA dulu (bukan `sum()` langsung): MySQL mengabaikan
+           FOR UPDATE pada query ber-agregat, jadi `->sum()` akan membatalkan
+           kuncinya tanpa peringatan. Jumlahnya dihitung di PHP. */
+        $baris = $kunci ? $q->lockForUpdate()->get(['kuota']) : $q->get(['kuota']);
+        $kuota = (int) $baris->sum('kuota');
         if (! $kuota) {
             return null;
         }

@@ -491,6 +491,42 @@ class PsbFlowTest extends TestCase
         $this->assertEquals('baru', PsbCalonSantri::find($id2)->status_pendaftaran);
     }
 
+    /** Kunci baris kuota: dua pendaftar yang masuk bersamaan dulu sama-sama
+     *  membaca kursi terakhir dan dua-duanya lolos. Perbaikannya: baris kuota
+     *  dibaca dengan SELECT ... FOR UPDATE di dalam transaksi.
+     *
+     *  CATATAN: tes berjalan di SQLite, yang TIDAK mendukung FOR UPDATE
+     *  (Laravel membuangnya dari SQL tanpa peringatan), jadi kuncinya sendiri
+     *  tak bisa diamati dari SQL di sini. Yang bisa dan tetap bermakna diuji:
+     *  baris kuota dibaca sebagai BARIS, bukan agregat. Itu prasyarat mutlak
+     *  kuncinya - MySQL mengabaikan FOR UPDATE pada query ber-agregat, jadi
+     *  pemakaian sum() diam-diam membatalkan penguncian. */
+    public function test_08b_baris_kuota_dibaca_sebagai_baris_bukan_agregat(): void
+    {
+        $f = $this->baseFixture();
+        $this->makeKuota($f['gel'], $f['mi'], $f['ta'], ['membutuhkan_seleksi' => false, 'kuota' => 1]);
+
+        $sql = [];
+        DB::listen(function ($q) use (&$sql) {
+            $sql[] = $q->sql;
+        });
+
+        $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000011', 'Kunci Satu', 'kunci1@example.com', '081888888883'
+        ))->assertStatus(201);
+
+        $baca = collect($sql)->first(fn ($s) => str_contains($s, 'psb_kuota_biaya'));
+        $this->assertNotNull($baca, 'Kuota harus dibaca saat menentukan status awal.');
+        $this->assertStringNotContainsString('count(*)', $baca, 'Kuota tak boleh dibaca lewat agregat.');
+
+        // Kursi terpakai: pendaftar kedua masuk waiting_list.
+        $c2 = $this->postJson('/api/psb/daftar', $this->daftarPayload(
+            $f['gel'], $f['mi'], '1100000000000012', 'Kunci Dua', 'kunci2@example.com', '081888888884'
+        ));
+        $c2->assertStatus(201);
+        $this->assertEquals('waiting_list', $c2->json('data.calon.status_pendaftaran'));
+    }
+
     // ---------- 9. tenant lintas lembaga ----------
 
     public function test_09_tenant_lintas_lembaga_ditolak(): void
