@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
+import { hariIniIso } from '@/lib/tanggal';
 import {
   daftarJenis, daftarTarif, hapusTarif, buatJenis, ubahJenis, hapusJenis, buatTarif, buatTagihan, ubahTarif,
   crosstabTagihan, hapusTagihan, ubahTagihan, catatPembayaran, daftarDispensasi,
-  riwayatPembayaran, hapusPembayaran,
+  riwayatPembayaran, hapusPembayaran, generateTagihan,
   type JenisTagihan, type Tarif, type PembayaranRow, type Dispensasi,
   type CrosstabBaris, type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
@@ -345,6 +346,13 @@ export default function KeuanganPage() {
   /** '' = tanpa perubahan, 'tanpa' = lepas dispensasi, number = id paket. */
   const [ubahDispen, setUbahDispen] = useState<number | 'tanpa' | ''>('');
   const [daftarDispenBatch, setDaftarDispenBatch] = useState<Dispensasi[]>([]);
+  /** Form dialog buat massal. */
+  const [buatSasaran, setBuatSasaran] = useState<'terpilih' | 'tampil'>('terpilih');
+  const [buatJenisId, setBuatJenisId] = useState<number | ''>('');
+  const [buatPeriode, setBuatPeriode] = useState('');
+  const [buatNominal, setBuatNominal] = useState('');
+  const [buatJt, setBuatJt] = useState('');
+  const [galatBuat, setGalatBuat] = useState<string | null>(null);
 
   /** Set id tagihan terpilih — crosstab menggambar garis seleksinya. */
   const selectionSet = useMemo(() => new Set(pilihanTerpilih.keys()), [pilihanTerpilih]);
@@ -354,6 +362,48 @@ export default function KeuanganPage() {
     for (const v of pilihanTerpilih.values()) if (v.sel.sisa > 0) t += v.sel.sisa;
     return t;
   }, [pilihanTerpilih]);
+  /** Baris crosstab per santri (sasaran + pratinjau buat massal). */
+  const barisPerSantri = useMemo(() => {
+    const m = new Map<number, CrosstabBaris>();
+    for (const b of crosstab?.baris ?? []) m.set(b.santri_id, b);
+    return m;
+  }, [crosstab]);
+  /** Tagihan terpilih → santri_id (pilihan dipegang per sel tagihan). */
+  const santriDariTerpilih = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const b of crosstab?.baris ?? []) {
+      for (const k of Object.keys(b.sel)) m.set(b.sel[k].id, b.santri_id);
+    }
+    return m;
+  }, [crosstab]);
+  /** Sasaran buat massal (aktif saja; nonaktif dilewati generate). */
+  const sasaranBuat = useMemo(() => {
+    const ids = buatSasaran === 'terpilih'
+      ? [...new Set([...pilihanTerpilih.keys()].map((id) => santriDariTerpilih.get(id)).filter((v): v is number => v !== undefined))]
+      : (crosstab?.baris ?? []).map((b) => b.santri_id);
+    const aktif = ids.filter((id) => barisPerSantri.get(id)?.aktif !== false);
+    return { ids: aktif, nonaktif: ids.length - aktif.length };
+  }, [buatSasaran, pilihanTerpilih, santriDariTerpilih, crosstab, barisPerSantri]);
+  /** Jumlah per sumber sasaran (label radio; aktif saja). */
+  const jmlSasaran = useMemo(() => {
+    const dariPilih = [...new Set([...pilihanTerpilih.keys()].map((id) => santriDariTerpilih.get(id)).filter((v): v is number => v !== undefined))]
+      .filter((id) => barisPerSantri.get(id)?.aktif !== false).length;
+    const tampil = (crosstab?.baris ?? []).filter((b) => b.aktif !== false).length;
+    return { terpilih: dariPilih, tampil };
+  }, [pilihanTerpilih, santriDariTerpilih, crosstab, barisPerSantri]);
+  /** Target buat massal + pratinjau buat/ulang (kunci sel cermin backend). */
+  const jenisBuat = useMemo(() => jenis.find((j) => j.id === buatJenisId) ?? null, [jenis, buatJenisId]);
+  const pratinjauBuat = useMemo(() => {
+    if (jenisBuat === null) return { baru: 0, ulang: 0 };
+    const kunci = jenisBuat.tipe === 'bulanan' && buatPeriode !== ''
+      ? `${jenisBuat.id}-${buatPeriode}` : `jenis-${jenisBuat.id}`;
+    let baru = 0, ulang = 0;
+    for (const id of sasaranBuat.ids) {
+      if (barisPerSantri.get(id)?.sel[kunci] !== undefined) ulang += 1;
+      else baru += 1;
+    }
+    return { baru, ulang };
+  }, [jenisBuat, buatPeriode, sasaranBuat, barisPerSantri]);
 
   /** Cermin sinkron pilihan terkini. Dibaca dari callback ber-identitas stabil
    *  (mis. `mulaiGeser` saat gesture berikutnya dimulai). Ditulis LANGSUNG
@@ -470,6 +520,10 @@ export default function KeuanganPage() {
         .then((d) => setDaftarDispenBatch(d))
         .catch(() => setDaftarDispenBatch([]));
     }
+    if (aksi === 'buat') {
+      setBuatSasaran('terpilih'); setBuatJenisId(''); setBuatPeriode('');
+      setBuatNominal(''); setBuatJt(hariIniIso()); setGalatBuat(null);
+    }
     setBatchDialog(aksi);
   }, []);
   /** Jalankan aksi batch yang sedang dikonfirmasi. */
@@ -536,6 +590,34 @@ export default function KeuanganPage() {
           } catch { /* lanjut */ }
         }
         toast.success(`${sukses} tagihan diubah.`);
+      } else if (aksi === 'buat') {
+        const ta = genTAtopbar;
+        if (ta === null) { setGalatBuat('Pilih satu tahun ajaran pada filter di atas.'); return; }
+        const jns = jenis.find((j) => j.id === buatJenisId) ?? null;
+        if (jns === null) { setGalatBuat('Pilih jenis tagihan.'); return; }
+        const n = Number(buatNominal);
+        if (buatNominal.trim() === '' || !Number.isInteger(n) || n < 0) {
+          setGalatBuat('Nominal harus bilangan bulat ≥ 0.'); return;
+        }
+        let periode: string | null = null;
+        if (jns.tipe === 'bulanan') {
+          if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(buatPeriode)) {
+            setGalatBuat('Isi periode bulan (YYYY-MM).'); return;
+          }
+          periode = buatPeriode;
+        }
+        if (sasaranBuat.ids.length === 0) {
+          setGalatBuat('Tidak ada santri sasaran yang aktif.'); return;
+        }
+        setGalatBuat(null);
+        try {
+          const r = await generateTagihan({
+            tahun_ajaran: ta, jenis_id: jns.id, periode, periode_sampai: null,
+            jatuh_tempo: jns.tipe === 'bulanan' ? null : (buatJt || null),
+            nominal: n, santri: sasaranBuat.ids.map((id) => ({ santri_id: id })),
+          });
+          toast.success(`Dibuat ${r.dibuat}${r.diperbarui > 0 ? `, diperbarui ${r.diperbarui}` : ''}${r.dilewati > 0 ? `, dilewati ${r.dilewati}` : ''}.`);
+        } catch (e2) { setGalatBuat(errorMessage(e2)); return; }
       }
       await load();
       await muatCrosstabSekarang();
@@ -547,7 +629,7 @@ export default function KeuanganPage() {
     } finally {
       setBatchBusy(false);
     }
-  }, [batchDialog, pilihanTerpilih, batchMetode, batchKas, ubahPakaiJatuhTempo, ubahJatuhTempo, ubahDispen, daftarDispenBatch, load, muatCrosstabSekarang, setPilih]);
+  }, [batchDialog, pilihanTerpilih, batchMetode, batchKas, ubahPakaiJatuhTempo, ubahJatuhTempo, ubahDispen, daftarDispenBatch, jenis, buatJenisId, buatNominal, buatPeriode, buatJt, sasaranBuat, genTAtopbar, load, muatCrosstabSekarang, setPilih]);
 
   /** Permintaan aksi per tagihan dari crosstab (klik kanan / Enter): sel yang
    *  diminta + rect sel saat permintaan dibuat (koordinat layar). Crosstab
@@ -950,6 +1032,24 @@ export default function KeuanganPage() {
             dispen={ubahDispen}
             onDispen={setUbahDispen}
             daftarDispen={daftarDispenBatch}
+            sasaran={buatSasaran}
+            onSasaran={setBuatSasaran}
+            jmlSasaranTerpilih={jmlSasaran.terpilih}
+            jmlSasaranTampil={jmlSasaran.tampil}
+            nonaktifDilewati={sasaranBuat.nonaktif}
+            buatBaru={pratinjauBuat.baru}
+            buatUlang={pratinjauBuat.ulang}
+            daftarJenis={jenis}
+            buatJenisId={buatJenisId}
+            onBuatJenisId={setBuatJenisId}
+            buatPeriode={buatPeriode}
+            onBuatPeriode={setBuatPeriode}
+            buatBulanan={jenisBuat?.tipe === 'bulanan'}
+            buatNominal={buatNominal}
+            onBuatNominal={setBuatNominal}
+            buatJt={buatJt}
+            onBuatJt={setBuatJt}
+            galatBuat={galatBuat}
             onBatal={() => setBatchDialog(null)}
             onKonfirmasi={jalankanBatch}
           />

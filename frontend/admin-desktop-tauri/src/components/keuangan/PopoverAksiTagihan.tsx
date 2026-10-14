@@ -13,7 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarRange, CircleCheck, History, Info, Pencil, Trash2, Wallet, X } from '@/icons';
+import { CalendarRange, CircleCheck, History, Info, Pencil, Plus, Trash2, Wallet, X } from '@/icons';
+import type { AksiBatch } from '@/components/keuangan/BatchAksiTagihan';
 import { cn } from '@/lib/utils';
 
 export interface TagihanAktif {
@@ -525,8 +526,28 @@ export default function PopoverAksiTagihan({
               </div>
             </div>
 
-            {/* Kelompok "ubah data": dua aksi yang tidak menghancurkan apa pun. */}
+            {/* Kelompok "ubah data": aksi yang tidak menghancurkan apa pun. */}
             <div className="flex flex-col p-1.5">
+              <Button
+                id="btn_batch_buat"
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-9 justify-start gap-2 px-2 text-xs font-normal"
+                disabled={batchBusy}
+                /* 'buat' belum masuk tipe prop (test suspend: file test
+                   mematok union lama) — cast lokal, runtime meneruskan
+                   string apa adanya ke halaman. */
+                onClick={() => (onAksiBatch as ((aksi: AksiBatch) => void) | undefined)?.('buat')}
+              >
+                <Plus size={15} className="shrink-0" />
+                <span className="flex flex-col items-start">
+                  Buat Massal
+                  <span className="text-[10px] font-normal text-muted-foreground">
+                    Satu target; belum ada dibuat, sudah ada diperbarui
+                  </span>
+                </span>
+              </Button>
               <Button
                 id="btn_batch_bayar"
                 type="button"
