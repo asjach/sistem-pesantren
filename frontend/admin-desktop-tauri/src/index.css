@@ -522,6 +522,13 @@
 .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell-gutter {
   background-color: color-mix(in srgb, var(--accent) 14%, var(--card));
 }
+/* Baris aktif (tabel yang memakai `onBarisKlik`, mis. Daftar Dispensasi):
+   sorot lebih tegas daripada centang karena baris ini menentukan isi panel
+   lain. */
+.simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell,
+.simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell-gutter {
+  background-color: color-mix(in srgb, var(--primary) 16%, var(--card));
+}
 /* Sel header tanpa padding agar judul rata tengah persis di lebar kolom. */
 .simpes-dsg .dsg-row-header .dsg-cell {
   padding-left: 0;

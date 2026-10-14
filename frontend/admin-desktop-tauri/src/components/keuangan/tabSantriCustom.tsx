@@ -38,14 +38,15 @@ const FIELDS_PIVOT: ExcelField[] = [
   { key: 'jenjang', label: 'Jenjang', kind: 'static', width: 90 },
 ];
 
-/** NIS tampil: NIS lokal lebih dulu (cermin kolom NIS Daftar Kelas). */
-function nisTampil(s: Santri): string | null {
+/** NIS tampil: NIS lokal lebih dulu (cermin kolom NIS Daftar Kelas). Dipakai
+ *  juga halaman Dispensasi untuk daftar santrinya. */
+export function nisTampil(s: Santri): string | null {
   const daftar = [...new Set((s.lembaga_aktif ?? []).map((l) => l.nis_lokal).filter((n): n is string => n !== null && n !== ''))];
   return daftar.length > 0 ? daftar.join(', ') : null;
 }
 
 /** Jenjang tampil: gabungan unik keanggotaan aktif. */
-function jenjangTampil(s: Santri): string | null {
+export function jenjangTampil(s: Santri): string | null {
   const unik = [...new Set((s.lembaga_aktif ?? []).map((l) => l.jenjang).filter(Boolean))];
   return unik.length > 0 ? unik.join(', ') : null;
 }

@@ -36,6 +36,12 @@ function renderKolom(kolom: KolomStub, row: GridRow | null) {
   return <div className="dsg-cell">{isi}</div>;
 }
 
+/** Jembatan untuk tes: stub tak merender grid interaktif, jadi callback sel
+ *  aktif DSG dititipkan di sini agar tes bisa meniru klik baris. */
+export const dsgStub = {
+  aktifSel: null as ((opts: { cell: { row: number } | null }) => void) | null,
+};
+
 /** ExcelTable memberi ref ke DSG (DataSheetGridRef) — stub terima dan abaikan. */
 export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGridStub(
   {
@@ -45,6 +51,7 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     stickyRightColumn,
     rowHeight,
     headerRowHeight,
+    onActiveCellChange,
   }: {
     columns: Column<GridRow>[];
     value: GridRow[];
@@ -52,9 +59,11 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     stickyRightColumn?: Column<GridRow>;
     rowHeight?: number;
     headerRowHeight?: number;
+    onActiveCellChange?: (opts: { cell: { row: number } | null }) => void;
   },
   _ref,
 ) {
+  dsgStub.aktifSel = onActiveCellChange ?? null;
   const semua: KolomStub[] = [
     ...(columns as KolomStub[]),
     ...(stickyRightColumn ? [stickyRightColumn as KolomStub] : []),

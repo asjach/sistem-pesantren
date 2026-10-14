@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import ExcelTable, { diCornerButton, type ExcelTableProps } from './ExcelTable';
 import { resetSetelanKomponen } from './komponenCustom';
+import { dsgStub } from './excel/_dsgStubDom';
 import { listPresetTabel } from '@/api/preset';
 import { muatKomponenCustom } from '@/api/komponenCustom';
 import { renderDenganTema } from '@/test/utils';
@@ -91,6 +92,43 @@ function renderTabel(props: Partial<ExcelTableProps<Baris>> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+});
+
+describe('ExcelTable — baris dipilih (onBarisKlik)', () => {
+  /* Fitur opt-in: tabel pemilih (mis. Daftar Dispensasi) memakai baris aktif
+     DSG untuk memilih baris; tabel lain tak boleh terpengaruh. */
+  it('sel aktif memanggil onBarisKlik dengan baris pada indeks itu', () => {
+    const onBarisKlik = vi.fn();
+    renderTabel({ onBarisKlik });
+
+    dsgStub.aktifSel?.({ cell: { row: 1 } });
+    expect(onBarisKlik).toHaveBeenCalledWith(rows[1]);
+
+    dsgStub.aktifSel?.({ cell: { row: 0 } });
+    expect(onBarisKlik).toHaveBeenLastCalledWith(rows[0]);
+  });
+
+  it('indeks di luar baris (mis. baris input) diabaikan, sel null juga', () => {
+    const onBarisKlik = vi.fn();
+    renderTabel({ onBarisKlik });
+
+    dsgStub.aktifSel?.({ cell: null });
+    dsgStub.aktifSel?.({ cell: { row: 99 } });
+    expect(onBarisKlik).not.toHaveBeenCalled();
+  });
+
+  it('barisAktifId menyorot hanya baris itu', () => {
+    renderTabel({ onBarisKlik: () => {}, barisAktifId: '2' });
+
+    const disorot = document.querySelectorAll('.simpes-dsg-row-aktif');
+    expect(disorot).toHaveLength(1);
+    expect(disorot[0].textContent).toContain('Budi');
+  });
+
+  it('tanpa barisAktifId tak ada baris tersorot', () => {
+    renderTabel({ onBarisKlik: () => {} });
+    expect(document.querySelectorAll('.simpes-dsg-row-aktif')).toHaveLength(0);
+  });
 });
 
 describe('ExcelTable — nilai awal preset kolom dari popover', () => {

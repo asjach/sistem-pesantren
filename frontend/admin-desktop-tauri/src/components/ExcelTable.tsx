@@ -167,6 +167,14 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   rail?: boolean;
   /** Kabarkan baris tercentang setiap seleksi berubah (opsional). */
   onCheckedChange?: (rows: T[]) => void;
+  /** Baris dipilih lewat klik sel (bukan centang): dipanggil saat sel aktif
+   *  berpindah ke baris lain — termasuk lewat panah keyboard. Dipakai tabel
+   *  pemilih yang isi panel sebelahnya mengikuti baris terpilih (mis. Daftar
+   *  Dispensasi). Absen (bawaan) = perilaku lama, tanpa seleksi baris. */
+  onBarisKlik?: (row: T) => void;
+  /** Id baris yang sedang dipilih → barisnya disorot (`simpes-dsg-row-aktif`).
+   *  Hanya berarti bila `onBarisKlik` dipakai. */
+  barisAktifId?: T['id'] | null;
   /** Daftar nilai urut aktif berurutan (maks 3) + arah global. */
   urutAktif?: string[];
   arahUrut?: 'naik' | 'turun';
@@ -248,6 +256,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   presetKolomClassName,
   rail = false,
   onCheckedChange,
+  onBarisKlik,
+  barisAktifId = null,
   urutAktif,
   arahUrut = 'naik',
   onUrut,
@@ -889,15 +899,27 @@ export default function ExcelTable<T extends { id: string | number }>({
   const handleSelectionStable = useCallback(({ selection }: { selection: GridSelection | null }) => {
     setRange(selection);
   }, []);
+  /** Baris dipilih lewat sel aktif (opt-in `onBarisKlik`): DSG melaporkan sel
+   *  aktif, barisnya dipetakan lewat indeks ke `rows` — baris input selalu di
+   *  paling bawah, jadi indeks baris data tetap sejajar. Pembungkus dibuat
+   *  stabil (baca handler terbaru dari ref) supaya memo DSG tidak jebol. */
+  const onBarisKlikRef = useRef(onBarisKlik);
+  onBarisKlikRef.current = onBarisKlik;
+  const handleActiveCellStable = useCallback(({ cell }: { cell: { row: number } | null }) => {
+    if (cell === null) return;
+    const r = rowsRef.current[cell.row];
+    if (r) onBarisKlikRef.current?.(r);
+  }, []);
   const rowClassNameStable = useCallback(({ rowIndex }: { rowIndex: number }) => {
     const r = gridValue[rowIndex];
     return cn(
       rowIndex === gridValue.length - 1 && 'simpes-dsg-row-last',
       r && String(r.id) === INPUT_ROW_ID && 'simpes-dsg-row-input',
       r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
+      r && barisAktifId !== null && String(r.id) === String(barisAktifId) && 'simpes-dsg-row-aktif',
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gridValue, checkedIds]);
+  }, [gridValue, checkedIds, barisAktifId]);
 
   /** Draft baris input saja (dropdown bertingkat): identitasnya stabil selama
    *  yang berubah hanya draft baris data — lihat deps `dsgColumns`. */
@@ -1462,6 +1484,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     disableContextMenu
                     rowClassName={rowClassNameStable}
                     onSelectionChange={handleSelectionStable}
+                    onActiveCellChange={handleActiveCellStable}
                     onScroll={handleScrollStable}
                   />
                 </CheckAllContext.Provider>

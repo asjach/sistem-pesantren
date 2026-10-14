@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import FilterRail from '@/components/FilterRail';
@@ -10,8 +9,8 @@ import { ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxLi
 import { TopBarSearch } from '@/components/TopBarSearch';
 import TagihanCrosstab, { type MetaSel, type SelBlok } from '@/components/keuangan/TagihanCrosstab';
 import PresetUrut from '@/components/PresetUrut';
-import { DeleteAction, EditAction } from '@/components/RowActions';
-import { Info, Plus, Trash2, TriangleAlert } from '@/icons';
+import { ActionIcon, DeleteAction, EditAction } from '@/components/RowActions';
+import { Info, Plus, Trash2, TriangleAlert, X } from '@/icons';
 import type { PetaArahKolom } from '@/lib/urut';
 import type { PilihanLembaga } from '@/lembagaAktif';
 import type { PerPage } from '@/prefs';
@@ -431,14 +430,18 @@ export function TarifTab({ rows, loading, sort, jenis, jenjangFilter, jenisTerpa
   );
 }
 
-/** Tab Dispensasi: tabel + tombol tambah/ubah/hapus. */
-export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus }: {
+/** Tab Dispensasi: tabel + tombol tambah/ubah/hapus. Baris bisa DIPILIH
+ *  (klik sel) — halaman memakai baris terpilih untuk mengisi panel penerima. */
+export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, aktifId, onPilih }: {
   rows: Dispensasi[];
   loading: boolean;
   sort: SortTabel;
   onTambah: () => void;
   onEdit: (d: Dispensasi) => void;
   onHapus: (d: Dispensasi) => void;
+  /** Baris dispensasi yang sedang dipilih (disorot). */
+  aktifId: number | null;
+  onPilih: (d: Dispensasi) => void;
 }) {
   return (
     <ExcelTable<Dispensasi & { id: number }>
@@ -448,6 +451,8 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus }
       urutAktif={sort.urut}
       arahUrut={sort.arah}
       onUrut={sort.terapkan}
+      onBarisKlik={onPilih}
+      barisAktifId={aktifId}
       getValues={(r) => ({
         nama: r.nama,
         aturan: (r.aturan ?? []).map((a) => `${a.jenis?.nama ?? 'Semua jenis'}: ${a.tipe === 'persen' ? `${a.nilai}%` : a.tipe === 'bebas' ? 'bebas' : `Rp ${a.nilai.toLocaleString('id')}`}`).join(' · '),
@@ -478,21 +483,27 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus }
   );
 }
 
-/** Tab Daftar Penerima Dispensasi: tabel santri penerima + combobox paket
- *  dispensasi sebagai filter. Filter dipegang halaman (state hilang saat tab
- *  tidak aktif dilepas Radix). */
-export function PenerimaDispensasiTab({ rows, loading, daftar, pilihan, onPilih }: {
+/** Panel Daftar Penerima SATU dispensasi (kanan halaman Dispensasi): santri
+ *  penerima paket yang sedang dipilih di tabel kiri + aksi mengeluarkan.
+ *  Combobox filter lama dihapus — paketnya sudah ditentukan baris terpilih. */
+export function PenerimaDispensasiPanel({ rows, loading, nama, busy, bolehUbah, onKeluarkan }: {
   rows: BarisPenerima[];
   loading: boolean;
-  /** Opsi combobox: seluruh paket dispensasi. */
-  daftar: Dispensasi[];
-  /** Id paket terpilih; `'semua'` = tanpa filter. */
-  pilihan: number | 'semua';
-  onPilih: (v: number | 'semua') => void;
+  /** Nama paket terpilih (judul panel). */
+  nama: string;
+  busy: boolean;
+  /** Gerbang izin `keuangan.ubah`: tanpa ini panel baca-saja. */
+  bolehUbah: boolean;
+  onKeluarkan: (santriIds: number[]) => void;
 }) {
   return (
     <ExcelTable<BarisPenerima>
       tableKey="keuangan_penerima_dispensasi"
+      header={(
+        <span id="judul_penerima_dispensasi" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
+          Daftar Penerima {nama} ({rows.length})
+        </span>
+      )}
       fields={FIELDS_PENERIMA}
       rows={rows}
       getValues={(r) => ({
@@ -503,33 +514,32 @@ export function PenerimaDispensasiTab({ rows, loading, daftar, pilihan, onPilih 
         tahun_ajaran: r.tahun_ajaran,
       })}
       loading={loading}
-      emptyText="Belum ada penerima dispensasi."
+      emptyText="Belum ada penerima — masukkan santri dari daftar di kiri."
       canEdit={false}
       onCommit={async () => {}}
       onSaved={() => {}}
-      renderActions={() => null}
-      hideCheckbox
-      filter={(
-        <Select
-          value={pilihan === 'semua' ? 'semua' : String(pilihan)}
-          onValueChange={(v) => onPilih(v === 'semua' ? 'semua' : Number(v))}
-        >
-          <SelectTrigger
-            id="sel_penerima_dispensasi"
-            size="sm"
-            aria-label="Filter daftar dispensasi"
-            title="Filter daftar dispensasi"
-            className="w-[220px]"
+      aksiLangsung
+      renderActions={bolehUbah
+        ? (r) => (
+          <ActionIcon
+            id={`btn_penerima_dispensasi_keluar_${r.santri_id}`}
+            title={`Keluarkan ${r.nama}`}
+            onClick={() => onKeluarkan([r.santri_id])}
           >
-            <SelectValue placeholder="Daftar Dispensasi" />
-          </SelectTrigger>
-          <SelectContent position="popper" align="start" className="contain-layout will-change-transform">
-            <SelectItem value="semua">Daftar Dispensasi: semua</SelectItem>
-            {daftar.map((d) => (
-              <SelectItem key={d.id} value={String(d.id)}>{`${d.nama} · ${d.tahun_ajaran}`}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <X size={16} />
+          </ActionIcon>
+        )
+        : () => null}
+      renderBulkActions={!bolehUbah ? undefined : (checked, clear) => checked.length === 0 ? null : (
+        <Button
+          id="btn_penerima_dispensasi_keluar_banyak"
+          size="sm"
+          variant="destructive"
+          disabled={busy}
+          onClick={() => { onKeluarkan(checked.map((r) => r.santri_id)); clear(); }}
+        >
+          <X data-icon="inline-start" size={14} /> Keluarkan ({checked.length})
+        </Button>
       )}
     />
   );
