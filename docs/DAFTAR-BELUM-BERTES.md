@@ -199,34 +199,32 @@ Berdasarkan endpoint yang muncul di test vs daftar rute, **belum terlihat tersen
 
 *Sudah ada:* `client.test.ts`, `filterSemua.test.ts`, `komponenCustom.test.ts`, `query.test.ts`.
 
-## B0. 🐞 BUG ditemukan saat menulis test (belum diperbaiki)
+## B0. ✅ BUG ditemukan & SUDAH DIPERBAIKI
 
-### B0-1. `formatNilai(v, 'angka')` salah baca angka ber-titik ribuan
-File: `frontend/admin-desktop-tauri/src/lib/nilaiTampil.ts:5-8`
-- **Perilaku sekarang:** pembersih `replace(/[^\d.-]/g, '')` MEMBIARKAN titik,
-  padahal titik adalah pemisah RIBUAN gaya Indonesia.
-  `'Rp 2.500'` → `'2.500'` → `Number` 2.5 → tampil **"2,5"**.
-  Nilai rupiah 2500 tampil sebagai 2,5 (salah baca jadi desimal).
-- **Akibat:** sel kolom angka berisi nominal rupiah bisa tampil 1000× lebih kecil.
-- **Perbaikan yang mungkin:** buang titik sebagai pemisah ribuan sebelum `Number()`,
-  atau pakai parser yang sadar locale.
-- **Dikunci di:** `src/lib/nilaiTampil.test.ts` (test bertanda BUG) — ubah test itu
-  lebih dulu saat memperbaiki.
+Keduanya di `formatNilai(v, 'angka')` (`src/lib/nilaiTampil.ts`), ditemukan saat
+menulis test pertama. Perbaikannya lewat helper `angkaDari()`.
 
-### B0-2. `formatNilai(v, 'angka')` mengubah teks asing jadi "0"
-File: `frontend/admin-desktop-tauri/src/lib/nilaiTampil.ts:6-7`
-- **Perilaku sekarang:** `'abc'` → bersih `''` → `Number('')` = **0** → tampil **"0"**.
-  Cabang `Number.isFinite` dimaksudkan mengembalikan nilai asli saat parse gagal,
-  tapi `Number('')` justru 0 (finite), jadi teks berubah jadi angka nol.
-- **Akibat:** data teks tak valid tampil sebagai angka 0, bukan apa adanya —
-  menyesatkan saat memeriksa data.
-- **Perbaikan yang mungkin:** kembalikan `String(v)` bila digitnya kosong,
-  sebelum memanggil `Number()`.
-- **Dikunci di:** `src/lib/nilaiTampil.test.ts` (test bertanda BUG).
+**B0-1. Titik salah dibaca sebagai desimal** — dulu `Rp 2.500` → `2.500` →
+`Number` 2.5 → tampil `2,5` (nominal 2500 tampil 1000× lebih kecil).
+Kini titik = pemisah RIBUAN (`2.500`), koma = desimal (`1,5`).
+
+**B0-2. Teks tanpa digit jadi "0"** — dulu `abc` → `Number('')` = 0 → tampil
+`0`. Kini dikembalikan apa adanya lewat `null` sebagai penanda gagal parse.
+
+**Ambiguitas yang diputuskan:** `20.5` → **205** (titik = ribuan), mengikuti
+locale `id-ID` yang dipakai seluruh aplikasi. Angka desimal ditulis dengan koma
+(`20,5`). Ini pilihan sadar, bukan kelalaian — dikunci di test.
+
+**Catatan dampak:** saat diperbaiki, TIDAK ADA kolom yang memakai
+`format: 'angka'` (dicek di kode FE & DB), jadi perbaikan ini belum mengubah
+satu pun tampilan yang ada — risikonya nol, tapi bugnya nyata bila nanti dipakai.
+
+**Dikunci di:** `src/lib/nilaiTampil.test.ts` (21 tes, termasuk uji idempoten:
+keluaran `1.234.567` diformat ulang tetap `1.234.567`).
 
 ## B2. `src/lib` — 3 dari 17 tanpa test
 
-✅ Selesai: `nilaiTampil.ts` (`nilaiTampil.test.ts`, 18 tes),
+✅ Selesai: `nilaiTampil.ts` (`nilaiTampil.test.ts`, 21 tes — 2 bug diperbaiki),
 `urut.ts` (`urut.test.ts`, 12 tes). ✅ `api/query.ts` (`query.test.ts`, 10 tes).
 
 | File | Export | Yang layak diuji |

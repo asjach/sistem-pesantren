@@ -21,27 +21,41 @@ describe('formatNilai', () => {
     expect(formatNilai('2500', 'angka')).toBe('2.500');
   });
 
-  /* DUA JEBAKAN di bawah ini bukan sekadar "edge case": keduanya bug tampilan
-     yang nyata, dan tes ini menguncinya supaya tak diam-diam berubah.
+  /* Dua tes di bawah mengunci PERBAIKAN dua bug tampilan (dulu keduanya
+     ditandai BUG di sini sebagai perilaku yang salah):
 
-     Penyebabnya sama - pembersih `replace(/[^\d.-]/g, '')` MEMBIARKAN titik,
-     padahal titik adalah pemisah RIBUAN gaya Indonesia:
-
-     1. 'Rp 2.500' -> '2.500' -> Number 2.5 -> tampil "2,5". Nilai rupiah
-        ber-titik jadi salah baca (desimal), bukan 2500.
-     2. 'abc' -> '' -> Number('') = 0 -> tampil "0". Teks asing berubah jadi
-        angka nol, padahal cabang `Number.isFinite` dimaksudkan mengembalikan
-        nilai asli saat parse gagal.
-
-     Bila nanti diperbaiki, tes ini yang harus diubah lebih dulu. */
-  it('angka: titik ribuan gaya Indonesia salah dibaca sebagai desimal (BUG)', () => {
-    expect(formatNilai('Rp 2.500', 'angka')).toBe('2,5');
-    expect(formatNilai('1.234.567', 'angka')).toBe('1.234.567'); // NaN -> apa adanya
+     1. Titik dibaca sebagai pemisah RIBUAN, bukan desimal.
+        Dulu 'Rp 2.500' -> '2.500' -> Number 2.5 -> tampil "2,5"
+        (nominal 2500 tampil 1000x lebih kecil).
+     2. Teks tanpa digit dikembalikan APA ADANYA, bukan jadi "0".
+        Dulu 'abc' -> Number('') = 0 -> tampil "0". */
+  it('angka: titik dibaca sebagai pemisah RIBUAN (perbaikan)', () => {
+    expect(formatNilai('Rp 2.500', 'angka')).toBe('2.500');
+    expect(formatNilai('1.234.567', 'angka')).toBe('1.234.567');
+    expect(formatNilai('Rp 1.500.000', 'angka')).toBe('1.500.000');
   });
 
-  it('angka: teks asing berubah jadi "0", bukan dikembalikan (BUG)', () => {
-    expect(formatNilai('abc', 'angka')).toBe('0');
-    expect(formatNilai('-', 'angka')).toBe('-'); // NaN -> apa adanya
+  it('angka: teks tanpa digit dikembalikan apa adanya (perbaikan)', () => {
+    expect(formatNilai('abc', 'angka')).toBe('abc');
+    expect(formatNilai('-', 'angka')).toBe('-');
+    expect(formatNilai('Rp', 'angka')).toBe('Rp');
+  });
+
+  it('angka: koma adalah pemisah DESIMAL', () => {
+    expect(formatNilai('1,5', 'angka')).toBe('1,5');
+    expect(formatNilai('1.234,56', 'angka')).toBe('1.234,56');
+  });
+
+  /* Ambiguitas yang disengaja: seluruh aplikasi memakai locale `id-ID`, jadi
+     titik diperlakukan sebagai ribuan. Angka desimal ditulis dengan koma. */
+  it('angka: "20.5" diperlakukan sebagai ribuan (205), konsisten id-ID', () => {
+    expect(formatNilai('20.5', 'angka')).toBe('205');
+  });
+
+  it('angka: keluaran format ini stabil bila diformat ulang (idempoten)', () => {
+    const sekali = formatNilai('1234567', 'angka');
+    expect(sekali).toBe('1.234.567');
+    expect(formatNilai(sekali, 'angka')).toBe('1.234.567');
   });
 
   it('tanggal: ISO -> dd/mm/yyyy, sisanya apa adanya', () => {

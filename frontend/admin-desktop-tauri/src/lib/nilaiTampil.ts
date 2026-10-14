@@ -1,10 +1,38 @@
+/** Baca angka dari teks gaya INDONESIA, atau `null` bila memang bukan angka.
+
+ *  Aturan (seluruh aplikasi memakai locale `id-ID`):
+  - titik = pemisah RIBUAN  -> dibuang       (`2.500` -> 2500)
+  - koma = pemisah DESIMAL  -> jadi titik    (`1,5`   -> 1.5)
+  - hanya digit/titik/koma/minus yang dipakai; sisanya (`Rp`, spasi) dibuang
+
+ *  Mengembalikan `null` - BUKAN 0 - saat tak ada digit tersisa, supaya pemanggil
+ *  bisa menampilkan nilai aslinya. Dulu cabang ini memakai `Number('')` yang
+ *  bernilai 0, sehingga teks seperti `abc` tampil sebagai "0".
+
+ *  Ambiguitas `20.5`: diperlakukan sebagai ribuan (205) mengikuti locale `id-ID`,
+ *  konsisten dengan seluruh tampilan lain. Angka desimal dari aplikasi ini
+ *  ditulis dengan koma (`20,5`).
+ */
+function angkaDari(v: string | number): number | null {
+  const s = String(v)
+    .replace(/[^\d.,-]/g, '')
+    .replace(/\./g, '')
+    .replace(/,/g, '.');
+  /* Setelah pembersihan, sisa seperti '', '-', '.', '-,.' bukan angka. */
+  if (!/^-?\d+(\.\d+)?$/.test(s)) {
+    return null;
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Format isi sel kolom (bawaan: apa adanya). */
 export function formatNilai(v: string | null | undefined, format: string | null | undefined): string {
   if (v == null || v === '') return '';
   switch (format) {
     case 'angka': {
-      const n = Number(String(v).replace(/[^\d.-]/g, ''));
-      return Number.isFinite(n) ? new Intl.NumberFormat('id-ID').format(n) : String(v);
+      const n = angkaDari(v);
+      return n === null ? String(v) : new Intl.NumberFormat('id-ID').format(n);
     }
     case 'tanggal': {
       const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
