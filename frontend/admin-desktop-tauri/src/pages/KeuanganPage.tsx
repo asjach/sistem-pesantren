@@ -106,6 +106,8 @@ export default function KeuanganPage() {
   const [cariTagihanTertunda, setCariTagihanTertunda] = useState('');
   /** Tab Tagihan: hanya sel yang sudah lewat jatuh tempo. */
   const [terlambatTagihan, setTerlambatTagihan] = useState(false);
+  /** Tab Tagihan: keaktifan santri ('' = semua). */
+  const [keaktifanTagihan, setKeaktifanTagihan] = useState<'' | 'aktif' | 'nonaktif'>('');
 
   /** Opsi kelas lingkup: rail bekerja dengan NAMA kelas (filter global),
    *  sedangkan endpoint crosstab minta ID — jadi dipetakan di sini. */
@@ -154,6 +156,7 @@ export default function KeuanganPage() {
         sort: uTagihan.urut.length ? tokenUrut(uTagihan.urut, uTagihan.arahKolom) : undefined,
         arah: uTagihan.urut.length ? uTagihan.arah : undefined,
         terlambat: terlambatTagihan || undefined,
+        keaktifan: keaktifanTagihan || undefined,
         tingkat: tingkat.length ? tingkat : undefined,
         kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
         signal: ac.signal,
@@ -171,7 +174,7 @@ export default function KeuanganPage() {
     } finally {
       if (req === crosstabReqRef.current) setLoadingTagihan(false);
     }
-  }, [cariTagihanTertunda, uTagihan.urut, uTagihan.arah, uTagihan.arahKolom, terlambatTagihan, tingkat, kelasFilterIds]);
+  }, [cariTagihanTertunda, uTagihan.urut, uTagihan.arah, uTagihan.arahKolom, terlambatTagihan, keaktifanTagihan, tingkat, kelasFilterIds]);
 
   // Ketikan pencarian → tunggu 400 ms baru jadi nilai muat.
   useEffect(() => {
@@ -184,7 +187,7 @@ export default function KeuanganPage() {
   useEffect(() => {
     if (filterLoading || jenjangs.length === 0) { if (!filterLoading && jenjangs.length === 0) setCrosstab(null); return; }
     void loadCrosstab(1, tagihanPerPage, jenjangs, tahunAjaranNames);
-  }, [filterLoading, jenjangs, tahunAjaranNames, tagihanPerPage, cariTagihanTertunda, uTagihan.urut, uTagihan.arah, uTagihan.arahKolom, terlambatTagihan, loadCrosstab]);
+  }, [filterLoading, jenjangs, tahunAjaranNames, tagihanPerPage, cariTagihanTertunda, uTagihan.urut, uTagihan.arah, uTagihan.arahKolom, terlambatTagihan, keaktifanTagihan, loadCrosstab]);
 
   // Batalkan request yang masih jalan saat halaman dilepas.
   useEffect(() => () => crosstabAbortRef.current?.abort(), []);
@@ -848,6 +851,8 @@ export default function KeuanganPage() {
             sort={uTagihan}
             terlambat={terlambatTagihan}
             onTerlambat={(v) => { setTerlambatTagihan(v); setTagihanPage(1); }}
+            keaktifan={keaktifanTagihan}
+            onKeaktifan={(v) => { setKeaktifanTagihan(v); setTagihanPage(1); }}
             onPilih={pilihSel}
             aksiSel={aksiSel}
             onAksiSel={mintaAksiSel}

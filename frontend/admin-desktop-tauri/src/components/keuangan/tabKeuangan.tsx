@@ -5,6 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import FilterRail from '@/components/FilterRail';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import { ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger } from '@/components/ui/combobox';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import TagihanCrosstab, { type MetaSel } from '@/components/keuangan/TagihanCrosstab';
 import PresetUrut from '@/components/PresetUrut';
@@ -514,9 +516,16 @@ export function PenerimaDispensasiTab({ rows, loading, daftar, pilihan, onPilih 
  *  Popover aksi sel dititipkan lewat `popover` agar strukturnya sama seperti
  *  sebelumnya (di dalam wadah gulir crosstab) tanpa memindahkan logikanya. */
 
+/** Opsi filter keaktifan santri (label tampil + nilai ke state). */
+const OPSI_KEAKTIFAN: { nilai: '' | 'aktif' | 'nonaktif'; label: string }[] = [
+  { nilai: '', label: 'Semua status' },
+  { nilai: 'aktif', label: 'Aktif' },
+  { nilai: 'nonaktif', label: 'Tidak aktif' },
+];
+
 export function TagihanTab({
   crosstab, loading, terpilihId, total,
-  cari, onCari, sort, terlambat, onTerlambat,
+  cari, onCari, sort, terlambat, onTerlambat, keaktifan, onKeaktifan,
   onPilih, aksiSel, onAksiSel, onTambah, onBukaGenerate,
   selection, onTogglePilih, onPilihBlok, onKlikSel, onPilihIrisan, onMulaiGeser, onGeserSelesai, onTambahBlok, onLepasBlok, pager, popover,
 }: {
@@ -529,6 +538,9 @@ export function TagihanTab({
   sort: SortTabel;
   terlambat: boolean;
   onTerlambat: (v: boolean) => void;
+  /** Keaktifan santri ('' = semua; cermin penanda merah baris). */
+  keaktifan: '' | 'aktif' | 'nonaktif';
+  onKeaktifan: (v: '' | 'aktif' | 'nonaktif') => void;
   onPilih: (sel: CrosstabSel, meta: MetaSel, anchor: HTMLElement, kolom: CrosstabKolom) => void;
   /** Permintaan aksi per tagihan dari crosstab (klik kanan / Enter) — halaman
    *  menyimpannya, crosstab memetakannya kembali ke elemen sel. */
@@ -630,6 +642,25 @@ export function TagihanTab({
             onUrut={sort.terapkan}
             wrapperClassName="flex-row items-center gap-1.5"
           />
+          {/* Status tepat di sebelah Urutkan (satu grup filter baris). */}
+          <LabeledCombobox label="Status" htmlFor="sel_tagihan_keaktifan" tinggi={26} lebarKombo={120} kelolaLebar={false}>
+            <ComboboxRoot
+              items={OPSI_KEAKTIFAN}
+              itemToStringLabel={(o) => o.label}
+              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+              value={OPSI_KEAKTIFAN.find((o) => o.nilai === keaktifan) ?? OPSI_KEAKTIFAN[0]}
+              onValueChange={(o) => { if (o !== null) onKeaktifan(o.nilai); }}
+            >
+              <ComboboxInput id="sel_tagihan_keaktifan" aria-label="Status keaktifan" placeholder="Semua status" />
+              <ComboboxTrigger aria-label="Buka daftar status keaktifan" />
+              <ComboboxContent>
+                <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                <ComboboxList>
+                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                </ComboboxList>
+              </ComboboxContent>
+            </ComboboxRoot>
+          </LabeledCombobox>
           <div className="flex-1" />
           <Button
             id="btn_tagihan_terlambat"

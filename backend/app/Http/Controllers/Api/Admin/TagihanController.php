@@ -82,6 +82,71 @@ class TagihanController extends Controller
         });
     }
 
+    /**
+     * Saring santri berdasarkan keaktifan — cermin aturan penanda merah baris
+     * crosstab (bukan `is_active` mentah): Santri MI-MD nonaktif HANYA bila
+     * `status_akhir` MI dan MD sama-sama `pindah_keluar`; sisanya memakai
+     * `status_akhir` jenjang utama (MI > MD > lainnya).
+     *
+     * Tanpa `tahun_ajaran` tak ada patokan status yang benar (sama seperti
+     * kolom status di baris), jadi filter diabaikan — bukan diam-diam
+     * menyaring semua.
+     */
+    private function applyFilterKeaktifan($q, string $ta, bool $mauAktif): void
+    {
+        if ($ta === '') {
+            return;
+        }
+        /* Status pemenang per (santri, jenjang): semester 2 menang (satu baris
+           per jenjang; duplikat semester 2 ganda diabaikan lewat agregat). */
+        $menang = DB::table('riwayat_belajar as rb')
+            ->where('rb.tahun_ajaran', $ta)
+            ->whereNotExists(function ($g) {
+                $g->selectRaw('1')->from('riwayat_belajar as rb_genap')
+                    ->whereColumn('rb_genap.santri_id', 'rb.santri_id')
+                    ->whereColumn('rb_genap.jenjang', 'rb.jenjang')
+                    ->whereColumn('rb_genap.tahun_ajaran', 'rb.tahun_ajaran')
+                    ->where('rb_genap.semester', '2')
+                    ->where('rb.semester', '<>', '2');
+            })
+            ->groupBy('rb.santri_id', 'rb.jenjang')
+            ->select('rb.santri_id', 'rb.jenjang')
+            ->selectRaw('MAX(rb.status_akhir) as status');
+        /* Nonaktif = (MI & MD sama-sama pindah_keluar) ATAU (bukan keduanya
+           dan status jenjang utama null/pindah_keluar). */
+        $nonaktif = DB::query()->fromSub($menang, 'm')
+            ->groupBy('m.santri_id')
+            ->select('m.santri_id')
+            ->havingRaw("SUM(m.jenjang = 'MI' AND m.status = 'pindah_keluar') > 0"
+                ." AND SUM(m.jenjang = 'MD' AND m.status = 'pindah_keluar') > 0")
+            ->orHavingRaw("NOT (SUM(m.jenjang = 'MI') > 0 AND SUM(m.jenjang = 'MD') > 0)"
+                ." AND (COALESCE(MAX(CASE WHEN m.jenjang = 'MI' THEN m.status END),"
+                ." MAX(CASE WHEN m.jenjang = 'MD' THEN m.status END),"
+                .' MAX(m.status)) IS NULL'
+                ." OR COALESCE(MAX(CASE WHEN m.jenjang = 'MI' THEN m.status END),"
+                ." MAX(CASE WHEN m.jenjang = 'MD' THEN m.status END),"
+                ." MAX(m.status)) = 'pindah_keluar')");
+        if ($mauAktif) {
+            $q->whereNotIn('tagihan.santri_id', $nonaktif);
+            // Tanpa riwayat pada TA patokan = nonaktif di baris (info null),
+            // jadi ikut tersaring keluar.
+            $q->whereExists(function ($e) use ($ta) {
+                $e->selectRaw('1')->from('riwayat_belajar as rb_ada')
+                    ->whereColumn('rb_ada.santri_id', 'tagihan.santri_id')
+                    ->where('rb_ada.tahun_ajaran', $ta);
+            });
+        } else {
+            $q->where(function ($w) use ($nonaktif, $ta) {
+                $w->whereIn('tagihan.santri_id', $nonaktif)
+                    ->orWhereNotExists(function ($e) use ($ta) {
+                        $e->selectRaw('1')->from('riwayat_belajar as rb_ada')
+                            ->whereColumn('rb_ada.santri_id', 'tagihan.santri_id')
+                            ->where('rb_ada.tahun_ajaran', $ta);
+                    });
+            });
+        }
+    }
+
     public function crosstabTagihan(TagihanCrosstabRequest $request)
     {
         $q = Tagihan::with(['jenis', 'santri']);
@@ -114,6 +179,9 @@ class TagihanController extends Controller
           terpisah) supaya ikut memotong paginasi, total, daftar kolom, dan sel. */
         $tahunAjaran = $this->nilaiFilter($request, 'tahun_ajaran');
         $jenjang = $this->nilaiFilter($request, 'jenjang');
+        if ($request->filled('keaktifan')) {
+            $this->applyFilterKeaktifan($q, (string) ($tahunAjaran[0] ?? ''), $request->input('keaktifan') === 'aktif');
+        }
         $this->applyFilterKelasTampil(
             $q,
             $tahunAjaran,
