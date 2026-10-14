@@ -176,7 +176,7 @@ describe('KomponenPage — tab ExcelTable', () => {
     expect(screen.getByText('Tab "Kolom"')).toBeInTheDocument();
     expect(screen.getByText('Tab "Nama & Perataan"')).toBeInTheDocument();
     expect(screen.getByText('Tab "Urutan"')).toBeInTheDocument();
-    expect(screen.getByText('Tab "Filter"')).toBeInTheDocument();
+    expect(screen.getByText('Tab "Filter Tabel"')).toBeInTheDocument();
     expect(screen.getAllByText('TabKolom.tsx')).toHaveLength(1);
 
     // Tabel pengaturan: jalan masuk + isi dialog (denah & inventaris bukan <table>).
@@ -248,7 +248,8 @@ describe('KomponenPage — tab ExcelTable', () => {
     await klik.click(screen.getByRole('tab', { name: 'ExcelTable' }));
 
     expect(screen.getByText('Pengaturan Aplikasi (global)')).toBeInTheDocument();
-    expect(screen.getByText('Kelola Halaman')).toBeInTheDocument();
+    // Halaman kini bukan rumah ber-DB: setelannya murni dari kode.
+    expect(screen.getByText('Halaman (KODE, bukan DB)')).toBeInTheDocument();
     expect(screen.getByText('Kelola Tabel')).toBeInTheDocument();
 
     // Aturan kunci: kunci penyimpanan yang menentukan rumahnya.

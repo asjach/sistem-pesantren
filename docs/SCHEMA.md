@@ -695,15 +695,6 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`, `komponen`)
 
-### `pengaturan_tabel` (visibilitas + mode filter topBar, global per `table_key`; halaman tanpa tabel memakai page_key)
-- `id` PK
-- `table_key`: string(60) [unik]
-- `filter`: json — peta filter → bool (visibilitas)
-- `filter_mode`: json [null] — peta filter → 'single'|'multiple'; absen = bawaan kode halaman
-- `dibuat_oleh`: FK → users [null, nullOnDelete]
-- `created_at`, `updated_at`
-- UNIQUE(`table_key`)
-
 ## BLOK 4 — Kepegawaian lanjutan (Modul 200 Kepegawaian)
 
 ### `pegawai_pendidikan`

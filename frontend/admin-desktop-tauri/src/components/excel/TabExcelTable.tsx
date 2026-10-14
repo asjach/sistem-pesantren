@@ -273,7 +273,7 @@ const TAB_KELOLA: BarisPengaturan[] = [
   { tempat: 'Tab "Kolom"', sumber: 'TabKolom.tsx', isi: 'Simpan preset kolom (baru/duplikat/hapus), pilih kolom mana yang tampil, jadikan preset bawaan.', akses: 'super_admin efektif' },
   { tempat: 'Tab "Nama & Perataan"', sumber: 'TabNamaPerataan.tsx', isi: 'Ubah nama header per kolom (mengganti label mentah) dan perataannya (kiri/tengah/kanan).', akses: 'super_admin efektif' },
   { tempat: 'Tab "Urutan"', sumber: 'TabUrutan.tsx', isi: 'Preset urutan: kolom yang bisa diurutkan, urutan berlapis (maks 3), dan arah naik/turun.', akses: 'super_admin efektif' },
-  { tempat: 'Tab "Filter"', sumber: 'TabFilterTabel.tsx + TabFilterToolbar.tsx', isi: 'Filter yang tampil di halaman (topBar) DAN sakelar filter toolbar tabel ini (Urutkan/Kolom).', akses: 'super_admin efektif' },
+  { tempat: 'Tab "Filter Tabel"', sumber: 'TabFilterToolbar.tsx', isi: 'Sakelar filter toolbar TABEL INI (Urutkan/Kolom/Filter). Filter topBar sudah dihapus dari sini.', akses: 'super_admin efektif' },
 ];
 
 function TabelPengaturan({ baris, kolomTempat }: { baris: BarisPengaturan[]; kolomTempat: string }) {
@@ -749,20 +749,21 @@ const RUMAH: Rumah[] = [
       + ' mengubahnya SEKALI di satu tempat, bukan tersandung di tabel mana pun yang kebetulan dibuka.',
   },
   {
-    nama: 'Kelola Halaman',
-    letak: 'Dialog dari TopBar (sudah ada) · akses: super_admin efektif',
+    nama: 'Halaman (KODE, bukan DB)',
+    letak: 'src/lib/filterHalaman.ts + <PengaturanHalaman tampil={...}> · tanpa dialog',
     isi: [
       'Filter mana yang tampil di halaman (topBar)',
-      'Mode filter (tunggal/jamak)',
-      'Susunan filter berjenjang',
-      'Untuk halaman TANPA tabel: page_key sebagai kunci',
+      'Mode filter (tunggal/jamak) — kini keadaan sesi, bukan simpanan',
+      'Susunan filter berjenjang per halaman',
+      'Daftar tabel halaman (untuk dialog Kelola Tabel)',
     ],
     bukan:
       'Kolom/urutan/nama header tabel. Halaman boleh punya banyak tabel; setelan per tabel'
       + ' BUKAN urusan halaman.',
     alasan:
-      'Ini satu-satunya setelan yang benar-benar milik HALAMAN. Halaman tanpa tabel (Dokumen,'
-      + ' Dokumen Pegawai) tetap bisa memakainya — sudah diakomodasi DialogFilterHalaman.',
+      'Setelan halaman didefinisikan di KODE (KONFIGURASI_FILTER_HALAMAN), bukan disimpan.'
+      + ' Lapisan DB-nya (pengaturan_tabel) sudah DIHAPUS karena tak pernah dipakai:'
+      + ' kelima barisnya berisi filter kosong = identik dengan bawaan kode.',
   },
   {
     nama: 'Kelola Tabel',
@@ -1258,7 +1259,7 @@ const TEMUAN: Temuan[] = [
   {
     judul: 'Tiga dialog pengaturan dengan nama mirip',
     tingkat: 'sedang',
-    bukti: 'DialogKelolaTabel.tsx:384 · DialogFilterHalaman.tsx:95 · TopBar.tsx:733',
+    bukti: 'DialogKelolaTabel.tsx:384 · TopBar.tsx:730 (dialog pemilih tabel)',
     masalah:
       'Pengguna melihat tiga dialog berbeda: (1) "Kelola Tabel", (2) "Kelola Halaman" '
       + '(dulu "Filter halaman"), (3) pemilih tabel bila halaman punya >1 tabel. '

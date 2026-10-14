@@ -6,7 +6,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
 import { useSemesterAktif } from '@/semesterAktif';
-import { useVisibilitasFilter, EVENT_KELOLA_HALAMAN, TAMPIL_BAWAAN } from '@/components/VisibilitasFilter';
+import { useVisibilitasFilter, TAMPIL_BAWAAN } from '@/components/VisibilitasFilter';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 import { FilterSelect, FilterToggleGroup } from '@/components/FilterMulti';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
@@ -38,7 +38,6 @@ import { useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { useAksiSeretSidebar } from '@/components/SeretSidebar';
 import { apakahKlik } from '@/components/useLebarSidebar';
 import BannerBertindak from '@/components/BannerBertindak';
-import DialogFilterHalaman from '@/components/kelolaHalaman/DialogFilterHalaman';
 import SheetPengaturanTampilan from '@/components/pengaturan/SheetPengaturanTampilan';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import { Button } from '@/components/ui/button';
@@ -161,15 +160,8 @@ export default function TopBar() {
    *  (halaman tanpa tabel). */
   const [tabelKelola, setTabelKelola] = useState<string | null>(null);
   const [pilihTabelOpen, setPilihTabelOpen] = useState(false);
-  const [filterHalamanOpen, setFilterHalamanOpen] = useState(false);
   /** Panel geser pengaturan tampilan GLOBAL (tinggi baris, huruf, warna). */
   const [pengaturanTampilanOpen, setPengaturanTampilanOpen] = useState(false);
-  /** "Kelola Halaman" — filter topBar halaman ini (semua halaman, bertabel
-   *  atau tidak). Disimpan per `page_key` di server. */
-  const bukaKelolaHalaman = useCallback(() => {
-    if (!registrasi || !efektifSuper) return;
-    setFilterHalamanOpen(true);
-  }, [registrasi, efektifSuper]);
   /** "Kelola Tabel" — kolom/nama/urutan tabel tertentu. Halaman tanpa tabel
    *  tidak punya tabel untuk diatur. */
   const bukaKelolaTabel = useCallback(() => {
@@ -180,10 +172,6 @@ export default function TopBar() {
     }
     setPilihTabelOpen(true);
   }, [registrasi, efektifSuper]);
-  useEffect(() => {
-    window.addEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
-    return () => window.removeEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
-  }, [bukaKelolaHalaman]);
   function pilihLembagaNilai(v: string) {
     pilihNilaiFilter(v, jenjangs, modeLembaga, pilihBanyakLembaga, pilihLembaga);
   }
@@ -467,26 +455,6 @@ export default function TopBar() {
               </TooltipContent>
             </Tooltip>
           ) : null}
-          {registrasi && efektifSuper ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  id="btn_kelola_halaman"
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Kelola halaman"
-                  onClick={bukaKelolaHalaman}
-                  className="mr-1 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
-                >
-                  <NotebookTabs size={14} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Kelola halaman (filter topBar)</p>
-              </TooltipContent>
-            </Tooltip>
-          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -757,32 +725,16 @@ export default function TopBar() {
         open={pengaturanTampilanOpen}
         onOpenChange={setPengaturanTampilanOpen}
       />
-
-      {/* Kelola Halaman: SATU pintu untuk semua halaman (bertabel maupun tidak).
-          Halaman tanpa tabel memakai page_key langsung; halaman bertabel
-          menampilkan daftar tabelnya supaya cakupan filter jelas. */}
-      {registrasi && efektifSuper ? (
-        <DialogFilterHalaman
-          open={filterHalamanOpen}
-          onOpenChange={setFilterHalamanOpen}
-          pageKey={registrasi.pageKey}
-          judul={halaman?.label ?? registrasi.pageKey}
-          filterRelevan={registrasi.filterRelevan}
-          bawaan={registrasi.bawaan}
-          modeBawaan={registrasi.modeBawaan}
-          daftarTabel={registrasi.tabel.map((t) => t.judul ?? t.key)}
-        />
-      ) : null}
         </header>
       </ContextMenuTrigger>
       {bolehKelolaHalaman ? (
         <ContextMenuContent>
           <ContextMenuItem
-            id="menu_kelola_halaman"
-            onSelect={() => window.dispatchEvent(new CustomEvent(EVENT_KELOLA_HALAMAN))}
+            id="menu_kelola_tabel"
+            onSelect={bukaKelolaTabel}
           >
             <NotebookTabs data-icon="inline-start" size={16} />
-            {registrasi?.tabel.length === 0 ? 'Kelola Filter Halaman' : 'Kelola Tabel'}
+            Kelola Tabel
           </ContextMenuItem>
         </ContextMenuContent>
       ) : null}

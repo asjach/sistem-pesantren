@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { errorMessage } from '@/api/client';
-import { simpanPengaturanTabel, type FilterModeTabel } from '@/api/pengaturanTabel';
 import { listKelas, referensiList, type Kelas, type ReferensiRow } from '@/api/master';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useKelasAktif } from '@/kelasAktif';
@@ -115,25 +114,13 @@ export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
     || (showTingkat && tingkatReferensi === null)
     || (showKelas && kelasTersedia === null);
 
-  async function ubahMode(group: RailGroup, next: ModeFilterGlobal) {
+  /** Mode tunggal/jamak kini murni keadaan halaman — dulu disimpan ke
+   *  `pengaturan_tabel`, tetapi lapisan itu sudah dihapus. Berlaku sampai
+   *  halaman ditinggalkan, lalu kembali ke bawaan kode. */
+  function ubahMode(group: RailGroup, next: ModeFilterGlobal) {
     const current = group === 'tingkat' ? modeTingkat : modeKelas;
-    if (!bolehUbahMode || !setMode || current === next || modeBusy) return;
-    const previous = current;
+    if (!bolehUbahMode || !setMode || current === next) return;
     setMode((values) => ({ ...values, [group]: next }));
-    setModeBusy(group);
-    const changes: FilterModeTabel = group === 'tingkat' ? { tingkat: next } : { kelas: next };
-    // Filter disimpan per tabel; halaman tanpa tabel memakai pageKey.
-    const kunciSimpan = filter?.registrasi?.tabel.length
-      ? filter.registrasi.tabel.map((t) => t.key)
-      : [pageKey];
-    try {
-      await Promise.all(kunciSimpan.map((kunci) => simpanPengaturanTabel(kunci, {}, changes)));
-    } catch (error) {
-      setMode((values) => ({ ...values, [group]: previous }));
-      toast.error(errorMessage(error));
-    } finally {
-      setModeBusy(null);
-    }
   }
 
   useEffect(() => {
