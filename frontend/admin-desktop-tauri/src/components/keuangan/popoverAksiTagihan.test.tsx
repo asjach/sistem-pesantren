@@ -6,6 +6,7 @@ import type { PembayaranRow } from '@/api/keuangan';
 import type { Dispensasi } from '@/api/keuangan';
 import { renderDenganTema } from '@/test/utils';
 import PopoverAksiTagihan, { type DataBayar, type DataTambah, type DataUbah, type TagihanAktif, type TambahCtx } from './PopoverAksiTagihan';
+import type { AksiBatch } from './BatchAksiTagihan';
 
 /** jsdom tak mengimplementasikan URL blob — stub sekali untuk seluruh file
  *  (tanpa restore: cleanup RTL meng-unmount setelah test selesai). */
@@ -71,9 +72,11 @@ function renderPopover(
     onMuatRiwayat: () => void;
     onTambah: (d: DataTambah) => Promise<void>;
     jumlahTerpilih: number;
+    jumlahTagihan: number;
     totalSisaTerpilih: number;
-    onAksiBatch: (aksi: 'bayar' | 'hapus_tagihan' | 'hapus_riwayat' | 'ubah') => void;
+    onAksiBatch: (aksi: AksiBatch) => void;
     batchBusy: boolean;
+    paksaBatch: boolean;
   }> = {},
   riwayat: Partial<{ rows: PembayaranRow[]; busy: boolean; error: string }> = {},
 ) {
@@ -108,7 +111,7 @@ describe('mode batch (banyak sel terpilih)', () => {
 
   it('>1 sel terpilih menampilkan aksi batch, bukan panel tagihan tunggal', () => {
     renderPopover(tagihan(), { jumlahTerpilih: 3, totalSisaTerpilih: 165000, onAksiBatch });
-    expect(screen.getByText('3 tagihan dipilih')).toBeInTheDocument();
+    expect(screen.getByText('3 sel dipilih')).toBeInTheDocument();
     // Nominal dipisah dari labelnya (satu simpul teks sendiri) supaya bisa
     // diberi tabular-nums & warna lebih tegas; dijaga di sini agar nilainya
     // tetap terbaca berpasangan dengan label "Total sisa".
@@ -137,7 +140,7 @@ describe('mode batch (banyak sel terpilih)', () => {
     /* Empat aksi dulu sederet tanpa pembeda, sehingga "Hapus Tagihan" gampang
        terklik saat niatnya "Bayar". Sekarang ada garis pemisah + label
        kelompok sebelum dua aksi yang menghapus permanen. */
-    renderPopover(tagihan(), { jumlahTerpilih: 2, totalSisaTerpilih: 110000, onAksiBatch });
+    renderPopover(tagihan(), { jumlahTerpilih: 2, jumlahTagihan: 2, totalSisaTerpilih: 110000, onAksiBatch });
     expect(screen.getByText('Menghapus permanen')).toBeInTheDocument();
 
     const panel = document.getElementById('batch_aksi_tagihan')!;

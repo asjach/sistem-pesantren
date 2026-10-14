@@ -471,7 +471,7 @@ describe('KeuanganPage — pilihan ganda (klik kiri) & aksi batch', () => {
     // Klik kanan di dalam range TIDAK mengubah pilihan — justru itu yang
     // membuat aksi batch bisa dibuka untuk seluruh range.
     fireEvent.contextMenu(selCell(2));
-    expect(await screen.findByText('2 tagihan dipilih')).toBeInTheDocument();
+    expect(await screen.findByText('2 sel dipilih')).toBeInTheDocument();
     await userEvent.click(await screen.findByText('Bayar Lunas'));
     expect(await screen.findByText(/Bayar 2 tagihan\?/)).toBeInTheDocument();
   });

@@ -237,10 +237,11 @@ describe('sel tagihan: klik kanan = aksi, klik kiri = seleksi', () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })), onPilih, null, undefined, { onAksiKanan, onKlikSel });
     pointerEv(selUji(0), 'pointerup');
     expect(onKlikSel).toHaveBeenCalledTimes(1);
-    expect(onKlikSel.mock.calls[0][0].id).toBe(1);
-    expect(onKlikSel.mock.calls[0][1]).toBe(1); // jenis_id kolom
+    expect(onKlikSel.mock.calls[0][0].sel.id).toBe(1);
+    expect(onKlikSel.mock.calls[0][0].jenisId).toBe(1); // jenis_id kolom
     // Kunci anchor = `santriId:key` sel yang diklik.
-    expect(onKlikSel.mock.calls[0][2]).toBe(['7', '1-2025-07'].join('\u0000'));
+    expect(onKlikSel.mock.calls[0][0].santriId).toBe(7);
+    expect(onKlikSel.mock.calls[0][0].key).toBe('1-2025-07');
     // KLIK KIRI tidak boleh memunculkan aksi apa pun.
     expect(onAksiKanan).not.toHaveBeenCalled();
     expect(onPilih).not.toHaveBeenCalled();
@@ -445,7 +446,7 @@ describe('pemilihan sel lewat pointer (bukan onClick)', () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onKlikSel });
     pointerEv(selUji(1), 'pointerup');
     expect(onKlikSel).toHaveBeenCalledTimes(1);
-    expect(onKlikSel.mock.calls[0][0].id).toBe(2);
+    expect(onKlikSel.mock.calls[0][0].sel.id).toBe(2);
   });
 
   it('Ctrl+Klik memanggil onTogglePilih (tambah/lepas satu sel)', () => {
@@ -453,7 +454,7 @@ describe('pemilihan sel lewat pointer (bukan onClick)', () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onTogglePilih });
     pointerEv(selUji(1), 'pointerup', { ctrlKey: true });
     expect(onTogglePilih).toHaveBeenCalledTimes(1);
-    expect(onTogglePilih.mock.calls[0][0].id).toBe(2);
+    expect(onTogglePilih.mock.calls[0][0].sel.id).toBe(2);
   });
 
   it('Shift+Klik memilih blok dari anchor (onPilihBlok)', () => {
@@ -474,7 +475,11 @@ describe('pemilihan sel lewat pointer (bukan onClick)', () => {
     pointerEv(jul, 'pointerdown');
     fireEvent.pointerEnter(agu); // masuk ke sel lain → geser = blok
     pointerEv(agu, 'pointerup');
-    expect(onPilihIrisan).toHaveBeenCalledTimes(1);
+    // Blok dilaporkan saat pointerenter DAN sekali lagi saat pelepasan
+    // (komit di titik akhir, idempoten) — yang penting bloknya benar.
+    expect(onPilihIrisan).toHaveBeenCalled();
+    const blok = onPilihIrisan.mock.calls.at(-1)![0] as { key: string }[];
+    expect(blok.map((g) => g.key)).toEqual(['1-2025-07', '1-2025-08']);
     // Anchor TIDAK berpindah: posisinya ditentukan pointerdown, bukan pointerup.
     expect(onKlikSel).not.toHaveBeenCalled();
   });
@@ -552,7 +557,7 @@ describe('pemilihan sel lewat pointer (bukan onClick)', () => {
     const onPilihIrisan = vi.fn();
     renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, {
       onPilihIrisan,
-      selection: new Set([1]),
+      selection: new Set([`7\u00001-2025-07`]),
     });
     const [jul, agu] = screen.getAllByText('50.000');
     pointerEv(jul, 'pointerdown');
@@ -605,8 +610,8 @@ describe('pemilihan sel lewat pointer (bukan onClick)', () => {
     renderCrosstab({ ...b, sel: { '1-2025-07': b.sel['1-2025-07'] } }, () => {}, null, () => {}, { onPratinjau });
     const jul = screen.getAllByText('50.000')[0];
     pointerEv(jul, 'pointerdown');
-    // Sel Agustus kosong dirender sebagai tombol tambah, bukan teks nominal.
-    const aguKosong = screen.getByRole('button', { name: /Tambah tagihan/ });
+    // Sel Agustus kosong dirender sebagai titik inert (tanpa tombol tambah).
+    const aguKosong = document.getElementById('td_tagihan_kosong_7_1-2025-08')!;
     pointerMasuk(aguKosong);
     // Grid persegi panjang Jul..Agu = dua koordinat, walau Agu tak bertagihan.
     expect(onPratinjau).toHaveBeenCalled();
@@ -619,7 +624,7 @@ describe('pemilihan sel lewat pointer (bukan onClick)', () => {
     renderCrosstab(baris(sel({}), sel({ id: 2 })), () => {}, null, undefined, { onTogglePilih });
     pointerEv(selUji(1), 'pointerup', { ctrlKey: true });
     expect(onTogglePilih).toHaveBeenCalledTimes(1);
-    expect(onTogglePilih.mock.calls[0][0].id).toBe(2);
+    expect(onTogglePilih.mock.calls[0][0].sel.id).toBe(2);
   });
 });
 
@@ -655,27 +660,32 @@ describe('TagihanCrosstab — kolom Santri', () => {
   });
 });
 
-describe('TagihanCrosstab — sel kosong bisa tambah tagihan', () => {
+describe('TagihanCrosstab — sel kosong tanpa tombol tambah', () => {
   /** Baris dengan sel Agustus kosong (tanpa tagihan). */
   function barisKosongAgu(): CrosstabBaris {
     const b = baris(sel({}), sel({ id: 2 }));
     return { ...b, sel: { '1-2025-07': b.sel['1-2025-07'] } };
   }
 
-  it('tanpa onTambah: sel kosong tetap titik inert', () => {
+  it('sel kosong tetap titik inert (tambah satuan diganti Buat Massal)', () => {
     renderCrosstab(barisKosongAgu());
     expect(screen.getByText('·')).toBeInTheDocument();
+    // Tombol "+" per sel dihapus: tambah satuan kini lewat seleksi + klik kanan
+    // (Buat Massal), jadi tak ada tombol "Tambah tagihan" di sel kosong.
     expect(screen.queryByRole('button', { name: /Tambah tagihan/ })).not.toBeInTheDocument();
+    // Klaim id tetap terpasang agar seleksi & klik kanan bisa menyasar sel ini.
+    expect(document.getElementById('td_tagihan_kosong_7_1-2025-08')).not.toBeNull();
   });
 
-  it('dengan onTambah: tombol tambah memanggil dengan baris + kolom + jangkar', () => {
-    const onTambah = vi.fn();
-    renderCrosstab(barisKosongAgu(), () => {}, null, onTambah);
-    const tombol = screen.getByRole('button', { name: 'Tambah tagihan Infaq Bulanan · Agu 2025 untuk Santri Uji' });
-    fireEvent.click(tombol);
-    expect(onTambah).toHaveBeenCalledTimes(1);
-    expect(onTambah.mock.calls[0][0]).toMatchObject({ santri_id: 7, nama: 'Santri Uji' });
-    expect(onTambah.mock.calls[0][1]).toMatchObject({ jenis_id: 1, periode: '2025-08' });
-    expect(onTambah.mock.calls[0][2]).toBe(tombol);
+  it('klik kanan sel kosong memanggil onAksiKosong dengan sel + kolom + jangkar', () => {
+    const onAksiKosong = vi.fn();
+    renderCrosstab(barisKosongAgu(), () => {}, null, undefined, { onAksiKosong });
+    const td = document.getElementById('td_tagihan_kosong_7_1-2025-08')!;
+    fireEvent.contextMenu(td);
+    expect(onAksiKosong).toHaveBeenCalledTimes(1);
+    const [sel, kolom, jangkar] = onAksiKosong.mock.calls[0];
+    expect(sel).toMatchObject({ santriId: 7, key: '1-2025-08', jenisId: 1 });
+    expect(kolom).toMatchObject({ jenis_id: 1, periode: '2025-08' });
+    expect(jangkar).toBe(td);
   });
 });

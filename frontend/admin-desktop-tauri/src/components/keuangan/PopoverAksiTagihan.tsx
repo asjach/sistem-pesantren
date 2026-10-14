@@ -122,9 +122,12 @@ interface Props {
   /** Total sisa (Rp) dari seluruh tagihan terpilih — ringkasan di mode batch. */
   totalSisaTerpilih?: number;
   /** Jalankan aksi batch: halaman membuka dialog konfirmasinya. */
-  onAksiBatch?: (aksi: 'bayar' | 'hapus_tagihan' | 'hapus_riwayat' | 'ubah') => void;
+  onAksiBatch?: (aksi: AksiBatch) => void;
   /** Salah satu aksi batch sedang berjalan (tombol dinonaktifkan). */
   batchBusy?: boolean;
+  /** Tampilkan panel batch walau pilihan tinggal 1 sel (klik kanan sel
+   *  kosong memilih sel itu lalu membuka batch — tak ada panel tunggal). */
+  paksaBatch?: boolean;
 }
 
 const METODE: { value: DataBayar['metode']; label: string }[] = [
@@ -208,10 +211,11 @@ export default function PopoverAksiTagihan({
   tagihan, tambah, anchor, riwayat, riwayatBusy, riwayatError,
   onTutup, onBayar, onUbah, onHapus, onTambah, onHapusPembayaran, onMuatRiwayat,
   jumlahTerpilih = 0, jumlahTagihan = 0, totalSisaTerpilih = 0, onAksiBatch, batchBusy = false,
+  paksaBatch = false,
 }: Props) {
   /* Mode batch: beberapa sel terpilih → popover menampilkan aksi massal.
      Dihitung dari prop (bukan state lokal) supaya mengikuti seleksi terkini. */
-  const modeBatch = jumlahTerpilih > 1 && onAksiBatch !== undefined;
+  const modeBatch = (jumlahTerpilih > 1 || paksaBatch) && onAksiBatch !== undefined;
   const [tab, setTab] = useState<TabKey>('detail');
   const [teksJumlah, setTeksJumlah] = useState('');
   const [metode, setMetode] = useState<DataBayar['metode']>('tunai');
@@ -236,7 +240,7 @@ export default function PopoverAksiTagihan({
   const [nominalBaru, setNominalBaru] = useState('');
   const [jatuhTempoBaru, setJatuhTempoBaru] = useState('');
 
-  const terbuka = anchor !== null && (tagihan !== null || tambah !== null || modeBatch);
+  const terbuka = anchor !== null;
 
   // Sel baru → isi ulang seluruh form; jumlah defaultnya sisa tagihan (kasus
   // paling umum adalah membayar penuh, dan nilainya masih bisa dikoreksi).
@@ -282,7 +286,7 @@ export default function PopoverAksiTagihan({
     onMuatRiwayat();
   }, [tagihan, onMuatRiwayat]);
 
-  if (tagihan === null && tambah === null) return null;
+  if (tagihan === null && tambah === null && !modeBatch) return null;
   if (anchor === null) return null;
 
   const tambahAktif = tambah !== null && tagihan === null;
@@ -412,95 +416,32 @@ export default function PopoverAksiTagihan({
     );
   }
 
-  if (tagihan === null) return null;
-
-  const sisa = tagihan.sisa;
-  const lunas = tagihan.status === 'lunas' || sisa <= 0;
-  const jumlahAngka = Number(teksJumlah);
-  const jumlahValid = teksJumlah !== ''
-    && Number.isInteger(jumlahAngka)
-    && jumlahAngka >= 1
-    && jumlahAngka <= sisa;
-  const jumlahSalah = teksJumlah !== '' && !jumlahValid;
-  const b = badge(tagihan);
-
-  const nominalAngka = Number(nominal);
-  const nominalSalah = nominal !== ''
-    && (!Number.isInteger(nominalAngka) || nominalAngka < 0 || nominalAngka < tagihan.terbayar);
-
-  /** Nominal kotor = nominal tersimpan + potongan tercatat (tepat, karena
-   *  potongan selalu `awal − akhir`). Dasar pratinjau & hitung backend. */
-  const nominalKotor = tagihan.nominal + tagihan.potongan;
-  /** Id paket yang santrinya sudah penerima (label saja — memilih paket
-   *  lain otomatis mendaftarkan santri sebagai penerima saat Simpan). */
-  const idPenerima = new Set(saringDispensasi(dispenDaftar, tagihan.santri_id).map((d) => d.id));
-  const paketPilih = typeof dispenPilih === 'number'
-    ? (dispenDaftar.find((d) => d.id === dispenPilih) ?? null)
-    : null;
-  /** Jejak menempel (model dikenal) — digabung dengan pilihan (pilihan
-   *  menang se-grup), cermin `selaraskan` backend. */
-  const jejakModel = (tagihan.dispensasi_ids ?? [])
-    .map((id) => dispenDaftar.find((d) => d.id === id))
-    .filter((d): d is Dispensasi => d !== undefined);
-  const paketFinal = paketPilih ? selaraskanGrup([paketPilih], jejakModel) : [];
-  /** Pratinjau hasil paket terpilih (cerminan hitung backend). */
-  const pratinjau = paketPilih
-    ? hitungDispensasi(nominalKotor, paketFinal, tagihan.jenisId)
-    : null;
-  const dispenTersentuh = dispenPilih !== undefined;
-  /** Nominal efektif terkirim: pratinjau paket, atau ketikan manual. */
-  const nominalEfektif = pratinjau ? pratinjau.nominal : nominalAngka;
-  const nominalEfektifSalah = pratinjau
-    ? pratinjau.nominal < tagihan.terbayar
-    : nominalSalah;
-  const ubahValid = (pratinjau ? true : nominal !== '')
-    && !nominalEfektifSalah
-    && (!busy);
-  /** Nama paket jejak saat ini (id tak dikenal = paket nonaktif/dihapus). */
-  const jejakNama = (tagihan.dispensasi_ids ?? []).map((id) =>
-    dispenDaftar.find((d) => d.id === id)?.nama ?? `paket #${id}`,
-  );
-
-  return (
-    <Popover
-      open={terbuka}
-      onOpenChange={(o) => { if (!o) onTutup(); }}
-    >
-      {/* Jangkar virtual: satu popover untuk seluruh tabel, bukan per sel. */}
-      <PopoverAnchor
-        virtualRef={{
-          current: { getBoundingClientRect: () => anchor.getBoundingClientRect() },
-        }}
-      />
-      <PopoverContent
-        align="start"
-        sideOffset={6}
-        collisionPadding={12}
-        /* `border-ring/50` (bukan `border` bawaan 12%): panel ini
-           mengambang di atas crosstab yang ramai, garis tipis low-contrast
-           bawaan tak terlihat di antara warna sel.
-
-           Lebar mengikuti MODE. Panel tunggal butuh 32rem (foto + tab aksi);
-           panel batch hanya menu, jadi 32rem membuat tombolnya terentang
-           selebar ruang kosong. Lebarnya diserahkan ke isi (`w-auto`) dan
-           tiap panel memasang lebar sendiri (batch: w-64, tunggal: w-[32rem]). */
-        className={cn(
-          'max-w-[calc(100vw-24px)] border-ring/50 p-0',
-          modeBatch ? 'w-auto' : 'w-[32rem]',
-        )}
-        id="popover_aksi_tagihan"
+  /* Mode batch: banyak sel terpilih (termasuk sel kosong) → popover menampilkan
+     aksi massal untuk seluruh pilihan. WAJIB punya jalur render sendiri di
+     sini (di atas penjagaan `tagihan === null` di bawah): pilihan massal bisa
+     seluruhnya sel kosong (tanpa tagihan), jadi panel aksi tunggal yang
+     bergantung pada `tagihan` tak akan pernah tampil. */
+  if (modeBatch) {
+    return (
+      <Popover
+        open={terbuka}
+        onOpenChange={(o) => { if (!o) onTutup(); }}
       >
-        {modeBatch && (
-          /* Mode batch: banyak sel terpilih → aksi massal untuk seluruh
-             pilihan. Muncul menggantikan panel tagihan tunggal supaya tak ada
-             dua konteks aksi dalam satu popover.
-
-             Tata letak sengaja dipisah dari panel tunggal: panel ini BUKAN
-             form, jadi tak butuh lebar 32rem milik panel tunggal yang memuat
-             foto + tab. Barisnya diberi batas lebar sendiri supaya popover
-             menyusut jadi selebar menu (lihat `w-auto` di PopoverContent),
-             dan tiap tombol mengisi penuh lebar itu — bukan tombol raksasa
-             498px yang tersebar di ruang kosong. */
+        <PopoverAnchor
+          virtualRef={{
+            current: { getBoundingClientRect: () => anchor.getBoundingClientRect() },
+          }}
+        />
+        <PopoverContent
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          /* Panel batch hanya menu, jadi lebarnya diserahkan ke isi (`w-auto`)
+             dan isinya memasang lebar sendiri (w-64) — bukan 32rem panel
+             tunggal yang memuat foto + tab. */
+          className="max-w-[calc(100vw-24px)] w-auto border-ring/50 p-0"
+          id="popover_aksi_tagihan"
+        >
           <div className="flex w-64 flex-col" id="batch_aksi_tagihan">
             <div className="border-b px-3 py-2">
               <div className="flex items-start justify-between gap-2">
@@ -538,16 +479,13 @@ export default function PopoverAksiTagihan({
                 variant="ghost"
                 className="h-9 justify-start gap-2 px-2 text-xs font-normal"
                 disabled={batchBusy}
-                /* 'buat' belum masuk tipe prop (test suspend: file test
-                   mematok union lama) — cast lokal, runtime meneruskan
-                   string apa adanya ke halaman. */
-                onClick={() => (onAksiBatch as ((aksi: AksiBatch) => void) | undefined)?.('buat')}
+                onClick={() => onAksiBatch?.('buat')}
               >
                 <Plus size={15} className="shrink-0" />
                 <span className="flex flex-col items-start">
                   Buat Massal
                   <span className="text-[10px] font-normal text-muted-foreground">
-                    Satu target; belum ada dibuat, sudah ada diperbarui
+                    Satu target; hanya sel yang belum punya
                   </span>
                 </span>
               </Button>
@@ -630,8 +568,82 @@ export default function PopoverAksiTagihan({
               </Button>
             </div>
           </div>
-        )}
-        {!modeBatch && (
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  if (tagihan === null) return null;
+
+  const sisa = tagihan.sisa;
+  const lunas = tagihan.status === 'lunas' || sisa <= 0;
+  const jumlahAngka = Number(teksJumlah);
+  const jumlahValid = teksJumlah !== ''
+    && Number.isInteger(jumlahAngka)
+    && jumlahAngka >= 1
+    && jumlahAngka <= sisa;
+  const jumlahSalah = teksJumlah !== '' && !jumlahValid;
+  const b = badge(tagihan);
+
+  const nominalAngka = Number(nominal);
+  const nominalSalah = nominal !== ''
+    && (!Number.isInteger(nominalAngka) || nominalAngka < 0 || nominalAngka < tagihan.terbayar);
+
+  /** Nominal kotor = nominal tersimpan + potongan tercatat (tepat, karena
+   *  potongan selalu `awal − akhir`). Dasar pratinjau & hitung backend. */
+  const nominalKotor = tagihan.nominal + tagihan.potongan;
+  /** Id paket yang santrinya sudah penerima (label saja — memilih paket
+   *  lain otomatis mendaftarkan santri sebagai penerima saat Simpan). */
+  const idPenerima = new Set(saringDispensasi(dispenDaftar, tagihan.santri_id).map((d) => d.id));
+  const paketPilih = typeof dispenPilih === 'number'
+    ? (dispenDaftar.find((d) => d.id === dispenPilih) ?? null)
+    : null;
+  /** Jejak menempel (model dikenal) — digabung dengan pilihan (pilihan
+   *  menang se-grup), cermin `selaraskan` backend. */
+  const jejakModel = (tagihan.dispensasi_ids ?? [])
+    .map((id) => dispenDaftar.find((d) => d.id === id))
+    .filter((d): d is Dispensasi => d !== undefined);
+  const paketFinal = paketPilih ? selaraskanGrup([paketPilih], jejakModel) : [];
+  /** Pratinjau hasil paket terpilih (cerminan hitung backend). */
+  const pratinjau = paketPilih
+    ? hitungDispensasi(nominalKotor, paketFinal, tagihan.jenisId)
+    : null;
+  const dispenTersentuh = dispenPilih !== undefined;
+  /** Nominal efektif terkirim: pratinjau paket, atau ketikan manual. */
+  const nominalEfektif = pratinjau ? pratinjau.nominal : nominalAngka;
+  const nominalEfektifSalah = pratinjau
+    ? pratinjau.nominal < tagihan.terbayar
+    : nominalSalah;
+  const ubahValid = (pratinjau ? true : nominal !== '')
+    && !nominalEfektifSalah
+    && (!busy);
+  /** Nama paket jejak saat ini (id tak dikenal = paket nonaktif/dihapus). */
+  const jejakNama = (tagihan.dispensasi_ids ?? []).map((id) =>
+    dispenDaftar.find((d) => d.id === id)?.nama ?? `paket #${id}`,
+  );
+
+  return (
+    <Popover
+      open={terbuka}
+      onOpenChange={(o) => { if (!o) onTutup(); }}
+    >
+      {/* Jangkar virtual: satu popover untuk seluruh tabel, bukan per sel. */}
+      <PopoverAnchor
+        virtualRef={{
+          current: { getBoundingClientRect: () => anchor.getBoundingClientRect() },
+        }}
+      />
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+        /* `border-ring/50` (bukan `border` bawaan 12%): panel ini
+           mengambang di atas crosstab yang ramai, garis tipis low-contrast
+           bawaan tak terlihat di antara warna sel. Panel tunggal butuh 32rem
+           (foto + tab aksi). */
+        className="max-w-[calc(100vw-24px)] w-[32rem] border-ring/50 p-0"
+        id="popover_aksi_tagihan"
+      >
         <div className="flex w-[32rem] flex-col">
         {/* Judul: status + tutup — nama pindah ke kolom data pribadi. */}
         <div className="border-b px-3 py-2">
@@ -1019,7 +1031,6 @@ export default function PopoverAksiTagihan({
           </div>
         </div>
         </div>
-        )}
       </PopoverContent>
     </Popover>
   );

@@ -672,6 +672,7 @@ export default function KeuanganPage() {
     kolom: CrosstabKolom,
   ) => {
     abaikanTutupRef.current = true;
+    setPaksaBatch(false);
     setTambahCtx(null);
     setSelTagihan({
       id: sel.id, nama: meta.nama, label: meta.label,
@@ -685,10 +686,36 @@ export default function KeuanganPage() {
     setAnchorSel(anchor);
   }, []);
 
-  /** Klik kanan sel kosong → buka panel batch bila pilihan > 1 sel. */
-  const mintaAksiKosong = useCallback((_sel: SelBlok, _kolom: CrosstabKolom, anchor: HTMLElement) => {
-    if (pilihanTerpilih.size > 1) setAnchorSel(anchor);
-  }, [pilihanTerpilih]);
+  /** Klik kanan sel kosong: sel ini dipilih (ganti) bila belum ada di
+   *  pilihan, lalu panel batch dibuka — walau tinggal 1 sel (tak ada panel
+   *  tunggal untuk sel kosong). */
+  const [paksaBatch, setPaksaBatch] = useState(false);
+  /** Permintaan panel batch dari sel kosong (diproses effect di bawah). */
+  const [aksiKosongReq, setAksiKosongReq] = useState<{ cell: SelBlok; anchor: HTMLElement } | null>(null);
+  const mintaAksiKosong = useCallback((cell: SelBlok, _kolom: CrosstabKolom, anchor: HTMLElement) => {
+    setAksiKosongReq({ cell, anchor });
+  }, []);
+  /** Buka panel batch untuk sel kosong LEWAT effect (persis jalur terisi via
+   *  `aksiSel`): panel dibuka di luar dispatch klik-kanan, setelah React
+   *  merender seleksi. Sel diambil ulang dari DOM karena render seleksi bisa
+   *  mengganti elemen tangkapan event. */
+  useEffect(() => {
+    if (aksiKosongReq === null) return;
+    const { cell, anchor } = aksiKosongReq;
+    const kunci = kunciSel(cell);
+    if (!pilihanTerpilih.has(kunci)) {
+      setPilih(() => new Map<string, { santriId: number; key: string; jenisId: number; sel?: CrosstabSel }>([
+        [kunci, { santriId: cell.santriId, key: cell.key, jenisId: cell.jenisId }],
+      ]));
+    }
+    // Sama seperti pilihSel: dismiss pertama sesudah pemasangan adalah gema
+    // klik-kanan pembuka — abaikan sekali agar panel tak berkedip tutup.
+    abaikanTutupRef.current = true;
+    const segar = document.getElementById(`td_tagihan_kosong_${cell.santriId}_${cell.key}`);
+    setAnchorSel(segar ?? anchor);
+    setPaksaBatch(true);
+    setAksiKosongReq(null);
+  }, [aksiKosongReq, pilihanTerpilih, setPilih]);
   /** Klik kanan / Enter pada sel → serahkan permintaan ke crosstab. Rect sel
    *  dipakai mencari elemen yang sama setelah render (tabel bisa bergeser). */
   const mintaAksiSel = useCallback((
@@ -707,6 +734,7 @@ export default function KeuanganPage() {
     setSelPenuh(null);
     setKolomTerpilih(null);
     setTambahCtx(null);
+    setPaksaBatch(false);
   }, []);
 
   /** Konteks tambah dari sel kosong (santri + kolom): popover dibuka dalam
@@ -992,6 +1020,7 @@ export default function KeuanganPage() {
                 onTutup={tutupPopover}
                 jumlahTerpilih={pilihanTerpilih.size}
                 jumlahTagihan={jmlTagihanTerpilih}
+                paksaBatch={paksaBatch}
                 totalSisaTerpilih={totalSisaTerpilih}
                 onAksiBatch={bukaBatch}
                 batchBusy={batchBusy}
