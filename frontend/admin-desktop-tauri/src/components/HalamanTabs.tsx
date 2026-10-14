@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { bisa } from '@/api/auth';
 import { prefGet, prefSet } from '@/api/client';
+import { muatPengaturanHalaman } from '@/api/pengaturanHalaman';
 import { useAuth } from '@/auth/AuthContext';
 import type { HalamanDef, TabHalamanDef } from '@/lib/halaman';
+import { susunTab } from '@/lib/urutanTab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PAGE_SHELL } from '@/components/PageHeader';
 
@@ -40,9 +42,35 @@ function kunciTab(def: HalamanDef): string {
   return `simpes_${idRute(def.to)}_tab`;
 }
 
-/** Tab halaman gabungan yang diizinkan untuk user (urutan tetap). */
+/** Kunci setelan halaman dari rute halaman gabungan (`/data-induk` →
+ *  `data_induk`). Sama dengan `pageKeyDariPath` di VisibilitasFilter. */
+export function pageKeyHalaman(def: HalamanDef): string {
+  return idRute(def.to);
+}
+
+/** Tab halaman gabungan yang diizinkan untuk user (urutan dari setelan
+ *  halaman, lalu disaring izin). */
 function tabBoleh(def: HalamanDef, bisaLihat: (tab: TabHalamanDef) => boolean): TabHalamanDef[] {
   return (def.tabHalaman ?? []).filter(bisaLihat);
+}
+
+/** Muat setelan urutan/sembunyi satu halaman. `null` selama memuat;
+ *  kegagalan diperlakukan sebagai bawaan kode supaya tab tetap tampil. */
+export function useSetelanTab(def: HalamanDef) {
+  const pageKey = pageKeyHalaman(def);
+  const [setelan, setSetelan] = useState<{ urutan: string[]; sembunyi: string[] } | null>(null);
+  useEffect(() => {
+    let hidup = true;
+    muatPengaturanHalaman([pageKey])
+      .then((res) => {
+        if (!hidup) return;
+        const d = res.data.peta[pageKey];
+        setSetelan({ urutan: d?.urutan ?? [], sembunyi: d?.sembunyi ?? [] });
+      })
+      .catch(() => { if (hidup) setSetelan({ urutan: [], sembunyi: [] }); });
+    return () => { hidup = false; };
+  }, [pageKey]);
+  return setelan;
 }
 
 /** Rute halaman gabungan (mis. `/data-induk`, `/penempatan`): arahkan ke tab
@@ -51,25 +79,25 @@ function tabBoleh(def: HalamanDef, bisaLihat: (tab: TabHalamanDef) => boolean): 
 export function ArahHalamanTabs({ def }: { def: HalamanDef }) {
   const { user } = useAuth();
   const kunciPref = kunciTab(def);
+  const setelan = useSetelanTab(def);
   const kunciIzin = useMemo(
     () => tabBoleh(def, (t) => bisa(user, t.permission)).map((t) => t.to).join('|'),
     [def, user],
   );
   const [tujuan, setTujuan] = useState<string | null>(null);
   useEffect(() => {
+    if (setelan === null) return;
     const boleh = kunciIzin === '' ? [] : kunciIzin.split('|');
+    const { tampil } = susunTab(def.tabHalaman ?? [], setelan.urutan, setelan.sembunyi);
+    const urutBoleh = tampil.filter((t) => boleh.includes(t.to)).map((t) => t.to);
     let hidup = true;
     const pilih = (tersimpan: string | null) => {
       if (!hidup) return;
-      setTujuan(tersimpan !== null && boleh.includes(tersimpan) ? tersimpan : boleh[0] ?? '/');
+      setTujuan(tersimpan !== null && urutBoleh.includes(tersimpan) ? tersimpan : urutBoleh[0] ?? '/');
     };
-    prefGet(kunciPref)
-      .then(pilih)
-      .catch(() => pilih(null));
-    return () => {
-      hidup = false;
-    };
-  }, [kunciIzin, kunciPref]);
+    prefGet(kunciPref).then(pilih).catch(() => pilih(null));
+    return () => { hidup = false; };
+  }, [setelan, kunciIzin, kunciPref, def]);
   if (tujuan === null) return null;
   return <Navigate to={tujuan} replace />;
 }
@@ -84,13 +112,28 @@ export default function HalamanTabs({ def }: { def: HalamanDef }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const kunciPref = kunciTab(def);
-  const tabs = useMemo(() => tabBoleh(def, (t) => bisa(user, t.permission)), [def, user]);
+  const setelan = useSetelanTab(def);
+  /** Saat memuat, pakai urutan kode agar tab tidak berkedip kosong. */
+  const susunan = useMemo(
+    () => susunTab(def.tabHalaman ?? [], setelan?.urutan ?? [], setelan?.sembunyi ?? []),
+    [def, setelan],
+  );
+  const tabs = useMemo(
+    () => susunan.tampil.filter((t) => bisa(user, t.permission)),
+    [susunan, user],
+  );
   const aktif = tabs.find((t) => pathname === t.to || pathname.startsWith(`${t.to}/`))?.to;
 
   // Ingat tab terakhir agar tautan halaman (rute mis. `/data-induk`) kembali ke sana.
   useEffect(() => {
     if (aktif) prefSet(kunciPref, aktif).catch(() => {});
   }, [aktif, kunciPref]);
+
+  // Tab aktif disembunyikan / izinnya dicabut → pindah ke tab tampil pertama.
+  useEffect(() => {
+    if (setelan === null || aktif !== undefined || tabs.length === 0) return;
+    navigate(tabs[0].to, { replace: true });
+  }, [setelan, aktif, tabs, navigate]);
 
   return (
     <div className={PAGE_SHELL}>

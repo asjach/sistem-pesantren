@@ -695,6 +695,15 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`, `komponen`)
 
+### `pengaturan_halaman` (urutan + tampil/sembunyi tab halaman gabungan; global semua pengguna)
+- `id` PK
+- `page_key`: string(60) [unik] — kunci halaman gabungan dari rute (`/data-induk` → `data_induk`)
+- `urutan`: json [null] — daftar rute tab sesuai urutan tampil (mis. `["/users", "/lembaga"]`). Rute tab didefinisikan di KODE (`src/lib/halaman.ts` `tabHalaman`), jadi daftar ini hanya mengatur posisi tab yang sudah terdaftar — tidak bisa membuat tab baru. Rute yang lahir di kode tapi belum ada di sini ditempatkan mengikuti urutan kode setelah rute yang sudah diatur (tidak hilang, lihat `susunTab` di `src/lib/urutanTab.ts`); rute di sini yang tak lagi ada di kode dibuang
+- `sembunyi`: json [null] — daftar rute yang disembunyikan. Disimpan TERPISAH dari `urutan` supaya menyembunyikan lalu menampilkan lagi mengembalikan posisi aslinya
+- `diubah_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+- UNIQUE(`page_key`)
+
 ## BLOK 4 — Kepegawaian lanjutan (Modul 200 Kepegawaian)
 
 ### `pegawai_pendidikan`

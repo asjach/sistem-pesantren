@@ -1,5 +1,5 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -26,6 +26,15 @@ vi.mock('@/api/client', () => ({
   prefGet: async (kunci: string) => status.pref[kunci] ?? null,
   prefSet: async (kunci: string, nilai: string) => {
     status.pref[kunci] = nilai;
+  },
+}));
+
+/** Setelan urutan tab dari server (kosong = pakai urutan kode). */
+const server = vi.hoisted(() => ({ peta: {} as Record<string, unknown>, muat: vi.fn() }));
+vi.mock('@/api/pengaturanHalaman', () => ({
+  muatPengaturanHalaman: async (keys: string[]) => {
+    server.muat(keys);
+    return { pesan: 'ok', data: { peta: server.peta } };
   },
 }));
 
@@ -108,13 +117,14 @@ beforeEach(() => {
     ],
   };
   for (const kunci of Object.keys(status.pref)) delete status.pref[kunci];
+  server.peta = {};
 });
 
 describe('HalamanTabs — Data Induk', () => {
-  it('menampilkan tujuh tab dan isi tab aktif', () => {
+  it('menampilkan tujuh tab dan isi tab aktif', async () => {
     render(<Halaman path="/kelas" />);
 
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+    expect(await screen.findAllByRole('tab').then((ts) => ts.map((t) => t.textContent))).toEqual([
       'Pengguna',
       'Lembaga',
       'Tahun Ajaran',
@@ -132,11 +142,11 @@ describe('HalamanTabs — Data Induk', () => {
     );
   });
 
-  it('hanya menampilkan tab yang diizinkan', () => {
+  it('hanya menampilkan tab yang diizinkan', async () => {
     status.user = { permissions: ['referensi.lihat'] };
     render(<Halaman path="/referensi" />);
 
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Referensi']);
+    expect(await screen.findAllByRole('tab').then((ts) => ts.map((t) => t.textContent))).toEqual(['Referensi']);
     expect(screen.getByText('ISI REFERENSI')).toBeInTheDocument();
   });
 
@@ -152,10 +162,10 @@ describe('HalamanTabs — Data Induk', () => {
 });
 
 describe('HalamanTabs — Penempatan', () => {
-  it('menampilkan tiga tab dan isi tab aktif', () => {
+  it('menampilkan tiga tab dan isi tab aktif', async () => {
     render(<Halaman path="/riwayat-belajar" />);
 
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+    expect(await screen.findAllByRole('tab').then((ts) => ts.map((t) => t.textContent))).toEqual([
       'Santri Per Lembaga',
       'MI-MD',
       'Riwayat Belajar',
@@ -168,11 +178,11 @@ describe('HalamanTabs — Penempatan', () => {
     expect(screen.getByRole('tab', { name: 'MI-MD' })).toHaveAttribute('id', 'tab_penempatan_mi_md');
   });
 
-  it('hanya menampilkan tab yang diizinkan', () => {
+  it('hanya menampilkan tab yang diizinkan', async () => {
     status.user = { permissions: ['rekap_santri.lihat'] };
     render(<Halaman path="/mi-md" />);
 
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['MI-MD']);
+    expect(await screen.findAllByRole('tab').then((ts) => ts.map((t) => t.textContent))).toEqual(['MI-MD']);
     expect(screen.getByText('ISI MI-MD')).toBeInTheDocument();
   });
 
@@ -188,10 +198,10 @@ describe('HalamanTabs — Penempatan', () => {
 });
 
 describe('HalamanTabs — Santri Aktif', () => {
-  it('menampilkan tiga tab dan isi tab aktif', () => {
+  it('menampilkan tiga tab dan isi tab aktif', async () => {
     render(<Halaman path="/rekap-santri" />);
 
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+    expect(await screen.findAllByRole('tab').then((ts) => ts.map((t) => t.textContent))).toEqual([
       'Daftar Kelas',
       'Rekap',
       'Pengajuan Biodata',
@@ -216,10 +226,10 @@ describe('HalamanTabs — Santri Aktif', () => {
 });
 
 describe('HalamanTabs — Penempatan (Pegawai)', () => {
-  it('menampilkan tiga tab dan isi tab aktif', () => {
+  it('menampilkan tiga tab dan isi tab aktif', async () => {
     render(<Halaman path="/pegawai-penempatan" />);
 
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+    expect(await screen.findAllByRole('tab').then((ts) => ts.map((t) => t.textContent))).toEqual([
       'Buku Induk PTK',
       'PTK Per Jenjang',
       'Akun PTK',
@@ -247,10 +257,10 @@ describe('HalamanTabs — Penempatan (Pegawai)', () => {
 });
 
 describe('HalamanTabs — Akademik', () => {
-  it('menampilkan empat tab dan isi tab aktif', () => {
+  it('menampilkan empat tab dan isi tab aktif', async () => {
     render(<Halaman path="/kelulusan" />);
 
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+    expect(await screen.findAllByRole('tab').then((ts) => ts.map((t) => t.textContent))).toEqual([
       'Pindah Kelas',
       'Mutasi Keluar',
       'Kenaikan Kelas',
@@ -274,12 +284,61 @@ describe('HalamanTabs — Akademik', () => {
     expect(status.pref.simpes_akademik_tab).toBe('/kenaikan');
   });
 
-  it('hanya menampilkan tab yang diizinkan', () => {
+  it('hanya menampilkan tab yang diizinkan', async () => {
     status.user = { permissions: ['kenaikan.lihat'] };
     render(<Halaman path="/kenaikan" />);
 
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Kenaikan Kelas']);
+    expect(await screen.findAllByRole('tab').then((ts) => ts.map((t) => t.textContent))).toEqual(['Kenaikan Kelas']);
     expect(screen.getByText('ISI KENAIKAN KELAS')).toBeInTheDocument();
+  });
+});
+
+describe('HalamanTabs — urutan dari server', () => {
+  it('memakai urutan tersimpan, bukan urutan kode', async () => {
+    server.peta = { data_induk: { page_key: 'data_induk', urutan: ['/kelas', '/referensi'], sembunyi: [] } };
+    render(<Halaman path="/kelas" />);
+
+    // Dua rute diatur lebih dulu; sisanya menyusul menurut urutan kode.
+    await waitFor(() => {
+      expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+        'Kelas',
+        'Referensi',
+        'Pengguna',
+        'Lembaga',
+        'Tahun Ajaran',
+        'Semester',
+        'Buku Induk',
+      ]);
+    });
+  });
+
+  it('menyembunyikan tab dari setelan server', async () => {
+    server.peta = { data_induk: { page_key: 'data_induk', urutan: [], sembunyi: ['/referensi'] } };
+    render(<Halaman path="/kelas" />);
+
+    await waitFor(() => {
+      const nama = screen.getAllByRole('tab').map((t) => t.textContent);
+      expect(nama).not.toContain('Referensi');
+      expect(nama).toHaveLength(6);
+    });
+  });
+
+  it('kegagalan memuat setelan tetap menampilkan tab (bawaan kode)', async () => {
+    server.muat.mockImplementationOnce(() => {
+      throw new Error('jaringan mati');
+    });
+    render(<Halaman path="/kelas" />);
+
+    const nama = await screen.findAllByRole('tab').then((ts) => ts.map((t) => t.textContent));
+    expect(nama).toEqual([
+      'Pengguna',
+      'Lembaga',
+      'Tahun Ajaran',
+      'Semester',
+      'Kelas',
+      'Buku Induk',
+      'Referensi',
+    ]);
   });
 });
 

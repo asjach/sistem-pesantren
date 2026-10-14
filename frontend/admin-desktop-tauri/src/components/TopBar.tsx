@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri } from '@/api/client';
@@ -7,6 +7,8 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
 import { useSemesterAktif } from '@/semesterAktif';
 import { useVisibilitasFilter, TAMPIL_BAWAAN } from '@/components/VisibilitasFilter';
+import DialogKelolaHalaman from '@/components/kelolaHalaman/DialogKelolaHalaman';
+import { EVENT_KELOLA_HALAMAN } from '@/components/kelolaHalaman/event';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 import { FilterSelect, FilterToggleGroup } from '@/components/FilterMulti';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';
@@ -160,8 +162,24 @@ export default function TopBar() {
    *  (halaman tanpa tabel). */
   const [tabelKelola, setTabelKelola] = useState<string | null>(null);
   const [pilihTabelOpen, setPilihTabelOpen] = useState(false);
+  const [kelolaHalamanOpen, setKelolaHalamanOpen] = useState(false);
   /** Panel geser pengaturan tampilan GLOBAL (tinggi baris, huruf, warna). */
   const [pengaturanTampilanOpen, setPengaturanTampilanOpen] = useState(false);
+  /** Halaman gabungan (punya tab) yang sedang dibuka, mis. Data Induk.
+   *  "Kelola Halaman" hanya ada bila halaman ini punya tab untuk diatur. */
+  const defTabs = useMemo(() => {
+    const d = halamanDariPath(pathname);
+    return d && (d.tabHalaman?.length ?? 0) > 0 ? d : null;
+  }, [pathname]);
+  /** "Kelola Halaman" — urutan + tampil/sembunyi tab halaman gabungan. */
+  const bukaKelolaHalaman = useCallback(() => {
+    if (!defTabs || !efektifSuper) return;
+    setKelolaHalamanOpen(true);
+  }, [defTabs, efektifSuper]);
+  useEffect(() => {
+    window.addEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
+    return () => window.removeEventListener(EVENT_KELOLA_HALAMAN, bukaKelolaHalaman);
+  }, [bukaKelolaHalaman]);
   /** "Kelola Tabel" — kolom/nama/urutan tabel tertentu. Halaman tanpa tabel
    *  tidak punya tabel untuk diatur. */
   const bukaKelolaTabel = useCallback(() => {
@@ -435,6 +453,26 @@ export default function TopBar() {
               <p>Pengaturan tampilan tabel (berlaku semua tabel)</p>
             </TooltipContent>
           </Tooltip>
+          {defTabs && efektifSuper ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  id="btn_kelola_halaman"
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Kelola halaman"
+                  onClick={bukaKelolaHalaman}
+                  className="mr-1 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
+                >
+                  <NotebookTabs size={14} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Kelola halaman (urutan & tampil tab)</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
           {registrasi && efektifSuper && registrasi.tabel.length > 0 ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -725,17 +763,37 @@ export default function TopBar() {
         open={pengaturanTampilanOpen}
         onOpenChange={setPengaturanTampilanOpen}
       />
+
+      {/* Kelola Halaman: urutan + tampil/sembunyi tab halaman gabungan. */}
+      {defTabs && efektifSuper ? (
+        <DialogKelolaHalaman
+          open={kelolaHalamanOpen}
+          onOpenChange={setKelolaHalamanOpen}
+          def={defTabs}
+        />
+      ) : null}
         </header>
       </ContextMenuTrigger>
       {bolehKelolaHalaman ? (
         <ContextMenuContent>
-          <ContextMenuItem
-            id="menu_kelola_tabel"
-            onSelect={bukaKelolaTabel}
-          >
-            <NotebookTabs data-icon="inline-start" size={16} />
-            Kelola Tabel
-          </ContextMenuItem>
+          {defTabs ? (
+            <ContextMenuItem
+              id="menu_kelola_halaman"
+              onSelect={bukaKelolaHalaman}
+            >
+              <NotebookTabs data-icon="inline-start" size={16} />
+              Kelola Halaman
+            </ContextMenuItem>
+          ) : null}
+          {registrasi.tabel.length > 0 ? (
+            <ContextMenuItem
+              id="menu_kelola_tabel"
+              onSelect={bukaKelolaTabel}
+            >
+              <Columns3 data-icon="inline-start" size={16} />
+              Kelola Tabel
+            </ContextMenuItem>
+          ) : null}
         </ContextMenuContent>
       ) : null}
     </ContextMenu>

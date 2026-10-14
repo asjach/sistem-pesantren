@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\Admin\MiMdController;
 use App\Http\Controllers\Api\Admin\MutasiKeluarArsipController;
 use App\Http\Controllers\Api\Admin\PegawaiController;
 use App\Http\Controllers\Api\Admin\PembayaranController;
+use App\Http\Controllers\Api\Admin\PengaturanHalamanController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
 use App\Http\Controllers\Api\Admin\PsbKegiatanController;
@@ -328,6 +329,12 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('komponen-custom', [KomponenCustomController::class, 'index'])->middleware('permission:komponen_custom.lihat');
         Route::put('komponen-custom', [KomponenCustomController::class, 'simpan'])->middleware('permission:komponen_custom.tambah|komponen_custom.ubah');
         Route::delete('komponen-custom', [KomponenCustomController::class, 'hapus'])->middleware('permission:komponen_custom.hapus');
+
+        // Urutan + tampil/sembunyi tab halaman gabungan (global semua pengguna;
+        // tulis super_admin, baca bebas agar semua peramban merender sama).
+        Route::get('pengaturan-halaman', [PengaturanHalamanController::class, 'index'])->middleware('permission:pengaturan_halaman.lihat');
+        Route::put('pengaturan-halaman', [PengaturanHalamanController::class, 'simpan'])->middleware('permission:pengaturan_halaman.tambah|pengaturan_halaman.ubah');
+        Route::delete('pengaturan-halaman', [PengaturanHalamanController::class, 'hapus'])->middleware('permission:pengaturan_halaman.hapus');
 
         // Master modul PSB: kegiatan -> gelombang -> kuota/biaya pendaftaran per lembaga,
         // plus biaya masuk/asrama per lembaga (lintas gelombang).
