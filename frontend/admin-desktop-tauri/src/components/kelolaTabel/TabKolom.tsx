@@ -14,7 +14,7 @@ import { useAksiBagian, useBagian } from '@/components/kelolaHalaman/kotor';
 import { muatToolbarPreset, simpanToolbarPreset, type AlignKolomApi } from '@/api/toolbarPreset';
 import { AlignCenter, AlignLeft, AlignRight } from '@/icons';
 import TombolIkon from '@/components/TombolIkon';
-import { bacaAlign, kabariToolbar, type AlignKolom } from './jenis';
+import { bacaAlign, type AlignKolom } from './jenis';
 
 /** Bandingkan peta perataan tanpa peduli urutan kunci. */
 function kanonAlign(o: Partial<Record<string, AlignKolom>>): string {
@@ -281,20 +281,35 @@ export default function TabKolom({
     for (const [k, v] of Object.entries(align)) {
       if (v !== undefined && fieldKeys.has(k)) alignSimpan[k] = v;
     }
-    /** Simpan setelan per tabel (label + perataan). Kembalikan false bila gagal. */
+    /** Simpan setelan per tabel (label + perataan). Kembalikan false bila gagal.
+     *
+     *  PENTING: TIDAK memanggil `kabariToolbar`. Peristiwa itu memicu
+     *  `muat()` di dialog, yang me-remount baris (`nonce`) - dan karena
+     *  autosave berjalan pada SETIAP ketikan, hasilnya adalah lingkaran
+     *  simpan-muat-remount: ketikan berikutnya mendarat di kolom yang baru
+     *  dibuat ulang, sehingga huruf yang baru diketik hilang. Cukup perbarui
+     *  acuan "tersimpan" di sini; tabel yang memakai nilainya membaca ulang
+     *  saat dibuka/di-refresh. */
     const simpanSetelanTabel = async (): Promise<boolean> => {
       if (!kotorLabel() && !kotorAlign()) return true;
       try {
         await simpanToolbarPreset(tableKey, undefined, undefined, alignSimpan, labelSimpan);
         labelAwalRef.current = kanonLabel(labelSimpan);
         alignAwalRef.current = kanonAlign(alignSimpan);
-        kabariToolbar(tableKey);
         return true;
       } catch (err) {
         toast.error(errorMessage(err));
         return false;
       }
     };
+    /* Jalur cepat: bila yang berubah HANYA nama/perataan (susunan preset &
+       namanya tidak), jangan sentuh preset sama sekali. Menulis preset di
+       sini akan memanggil `onTersimpan` -> `muat()` -> remount baris, dan
+       karena autosave jalan tiap ketikan, huruf berikutnya hilang. Ini juga
+       menghindari banyak permintaan PUT yang tak perlu tiap ketikan. */
+    if (!kotorPreset()) {
+      return simpanSetelanTabel();
+    }
     if (!nama.trim()) {
       // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
       if (modeLengkap) {
@@ -377,6 +392,46 @@ export default function TabKolom({
       <div
         key={f.key}
         onClick={() => togolKolom(f.key, !tampil)}
+        /* SELURUH baris yang diseret, bukan hanya ikon handle: drag image
+           bawaan browser mengangkat elemen `draggable`, jadi menaruh atribut
+           itu di baris membuat barisnya sendiri yang terangkat - bukan ikon
+           20px. Urutannya jadi terbaca sambil diseret, bukan sesudah jatuh. */
+        draggable={tampil}
+        onDragStart={tampil ? (e) => {
+          /* Kontrol di dalam baris (kotak nama, centang, tombol perataan)
+             TIDAK boleh memicu seret: menyeret untuk menyeleksi teks di kotak
+             nama akan mengangkat barisnya, dan menekan tombol pun bisa
+             dianggap awal seret. Hanya area baris sendiri yang memulai. */
+          if (e.target instanceof HTMLElement && e.target.closest('input,button,label,[role=checkbox]')) {
+            e.preventDefault();
+            return;
+          }
+          seretRef.current = f.key;
+          e.dataTransfer.effectAllowed = 'move';
+          /* Firefox butuh setData agar seret benar-benar dimulai. */
+          e.dataTransfer.setData('text/plain', f.key);
+          /* Drag image bawaan browser memakai elemen apa adanya; pada baris
+             selebar panel ia tampak wajar, tapi di baris yang melar (mis.
+             karena teks panjang) bisa terpotong. Ukur elemennya sekali dan
+             buat ghost eksplisit supaya bentuknya selalu sama dengan baris
+             yang sedang diseret. */
+          const baris = e.currentTarget;
+          const lebar = baris.getBoundingClientRect().width;
+          const ghost = baris.cloneNode(true) as HTMLElement;
+          ghost.style.width = `${lebar}px`;
+          ghost.style.opacity = '0.85';
+          ghost.style.background = 'var(--card)';
+          ghost.style.position = 'fixed';
+          ghost.style.top = '-1000px';
+          ghost.style.left = '0';
+          ghost.style.pointerEvents = 'none';
+          document.body.appendChild(ghost);
+          e.dataTransfer.setDragImage(ghost, 12, 12);
+          /* Baris ghost harus dilepas SETELAH browser sempat memotretnya;
+             menghapusnya langsung membuat drag image kosong di sebagian
+             peramban. */
+          requestAnimationFrame(() => ghost.remove());
+        } : undefined}
         onDragOver={tampil ? (e) => { e.preventDefault(); setTujuanSeret(f.key); } : undefined}
         onDrop={tampil ? (e) => { e.preventDefault(); jatuhSeret(f.key, false); } : undefined}
         onDragEnd={() => {
@@ -385,23 +440,22 @@ export default function TabKolom({
         }}
         className={cn(
           'flex cursor-pointer items-center gap-1.5 border-b px-1.5 py-0.5 last:border-0 transition-colors',
-          tampil ? 'hover:bg-accent/30' : 'bg-muted/30 text-muted-foreground hover:bg-accent/20',
+          tampil ? 'cursor-grab hover:bg-accent/30 active:cursor-grabbing' : 'bg-muted/30 text-muted-foreground hover:bg-accent/20',
           tujuanSeret === f.key && seretRef.current !== f.key && 'bg-accent/30 ring-1 ring-inset ring-accent',
         )}
       >
         {tampil && indeks !== null ? (
           <>
+            {/* Penanda urutan + jalur KEYBOARD. Bukan lagi `draggable` -
+               barisnya sendiri yang diseret (lihat div pembungkus), jadi
+               ikon ini hanya menandai "di sini tempat memegangnya" dan
+               menyediakan naik/turun lewat panah/WASD. */}
             <span
               role="button"
               tabIndex={0}
-              aria-label={`Seret untuk memindah ${teks}`}
-              title="Seret untuk memindah posisi kolom"
-              draggable
+              aria-label={`Pindahkan ${teks} (seret baris, atau panah atas/bawah)`}
+              title="Seret baris untuk memindah posisi kolom (atau panah atas/bawah)"
               onClick={(e) => e.stopPropagation()}
-              onDragStart={(e) => {
-                seretRef.current = f.key;
-                e.dataTransfer.effectAllowed = 'move';
-              }}
               onKeyDown={(e) => {
                 if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
                 e.preventDefault();
