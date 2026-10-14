@@ -375,14 +375,23 @@ const BarisCrosstab = memo(function BarisCrosstab({
             if (!draggingRef.current) return;
             const d = data;
             if (!d || !dragStartRef.current) return;
-            const gridGeser = selGrid(d, dragStartRef.current, { santriId: baris.santri_id, key: k.key });
+            const sampaiKosong: CellRef = { santriId: baris.santri_id, key: k.key };
+            const gridGeser = selGrid(d, dragStartRef.current, sampaiKosong);
             onPratinjau?.(gridGeser);
             laporkanPratinjau?.(gridGeser);
+            activeRef.current = sampaiKosong;
+            // Sama seperti sel terisi: laporkan blok mentah (termasuk sel
+            // kosong) agar pilihan ikut terisi saat drag dimulai/dilewati
+            // sel kosong — bukan cuma pratinjaunya yang digambar.
+            const blok = blokTagihan(d, dragStartRef.current, sampaiKosong);
+            if (e.ctrlKey || e.metaKey) { onTambahBlok?.(blok); return; }
+            if (e.altKey) { onLepasBlok?.(blok); return; }
             // Geser dari/ke sel kosong tetap dihitung sebagai drag: pelepasan
             // tak boleh berubah jadi "pilih satu sel" (mode irisan) maupun
             // dilaporkan sebagai klik tunggal (tidak ada multi-select).
             if (!e.ctrlKey && !e.metaKey && !e.altKey) dragMovedRef.current = true;
             pernahGeserRef.current = true;
+            onPilihIrisan?.(blok);
           };
           // Sel kosong: TANPA tombol tambah (disengaja — tambah satuan diganti
           // Buat Massal lewat seleksi + klik kanan). Klik biasa memilih satu
@@ -396,6 +405,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
           return (
             <td
               key={k.key}
+              id={`td_tagihan_kosong_${baris.santri_id}_${k.key}`}
               className="group border-b border-r p-0.5 text-center"
               onPointerEnter={lewatiKosong}
               onPointerDown={(e) => {
@@ -410,8 +420,14 @@ const BarisCrosstab = memo(function BarisCrosstab({
                 activeRef.current = refKosong;
               }}
               onPointerUp={(e) => {
-                if (e.button !== 0 || dragMovedRef.current) return;
+                if (e.button !== 0) return;
                 onHoverKeluar();
+                if (dragMovedRef.current) {
+                  dragMovedRef.current = false;
+                  anchorRef.current = refKosong;
+                  activeRef.current = refKosong;
+                  return;
+                }
                 if (e.ctrlKey || e.metaKey) {
                   onTogglePilih?.(selKosong);
                   anchorRef.current = refKosong;
@@ -590,6 +606,9 @@ const BarisCrosstab = memo(function BarisCrosstab({
               const gridGeser = selGrid(d, dragStartRef.current, sampaiRef);
               onPratinjau?.(gridGeser);
               laporkanPratinjau?.(gridGeser);
+              // Sel aktif mengikuti posisi terakhir (dipakai komit pelepasan
+              // di listener window + navigasi panah sesudah geser).
+              activeRef.current = sampaiRef;
               const blok = blokTagihan(d, dragStartRef.current, sampaiRef);
               // Ctrl/Cmd tahan-geser = menambah ke pilihan ala Excel: blok
               // baru ditaruh di ATAS pilihan lama (union), bukan menggantinya.
@@ -828,6 +847,14 @@ function TagihanCrosstab({
   rilisRef.current = onSeleksiRilis;
   const onGeserSelesaiRef = useRef(onGeserSelesai);
   onGeserSelesaiRef.current = onGeserSelesai;
+  /* Cermin untuk komit pelepasan di listener window (butuh identitas stabil
+     tanpa menambah dependensi effect). */
+  const irisanRef = useRef(onPilihIrisan);
+  irisanRef.current = onPilihIrisan;
+  const tambahBlokRef = useRef(onTambahBlok);
+  tambahBlokRef.current = onTambahBlok;
+  const lepasBlokRef = useRef(onLepasBlok);
+  lepasBlokRef.current = onLepasBlok;
 
   /** Lepas sorotan titik-awal (dipakai klik kanan yang beralih ke sel lain). */
   const lepasAnchor = useCallback(() => {
@@ -1041,6 +1068,17 @@ function TagihanCrosstab({
       const wadah = scrollRef.current;
       const mulai = dragStartRef.current;
       if (mulai !== null && pernahGeserRef.current) {
+        // Komit blok sampai sel AKTIF terakhir (bukan cuma yang sempat
+        // pointerenter): pelepasan di atas tooltip/overlay tak mengenai sel
+        // mana pun, tapi bloknya tetap harus lengkap. Idempoten.
+        const d = data;
+        const akhir = activeRef.current ?? mulai;
+        if (d !== null) {
+          const blok = blokTagihan(d, mulai, akhir);
+          if (ev.ctrlKey || ev.metaKey) { tambahBlokRef.current?.(blok); }
+          else if (ev.altKey) { lepasBlokRef.current?.(blok); }
+          else { irisanRef.current?.(blok); }
+        }
         const didalam = wadah !== null && ev.target instanceof Node && wadah.contains(ev.target);
         let el: HTMLElement | null = null;
         if (didalam && ev.target instanceof Element) {
