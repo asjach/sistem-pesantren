@@ -12,6 +12,7 @@ use App\Http\Requests\Admin\TagihanKandidatRequest;
 use App\Http\Requests\Admin\TagihanStoreRequest;
 use App\Http\Requests\Admin\TagihanUpdateRequest;
 use App\Models\Dispensasi;
+use App\Models\GrupSantriCustom;
 use App\Models\JenisTagihan;
 use App\Models\Tagihan;
 use App\Services\DispensasiService;
@@ -561,8 +562,18 @@ class TagihanController extends Controller
             : [];
 
         $hasil = [];
+        /* Kelompok custom + grup dipilih = hanya anggota grup itu. Tanpa grup
+           (kompatibel lama) = semua, sama seperti 'aktif'. */
+        $anggotaCustom = null;
+        if ($data['kelompok'] === 'custom' && isset($data['grup_custom_id'])) {
+            $anggotaCustom = array_flip(GrupSantriCustom::find($data['grup_custom_id'])
+                ?->santri()->pluck('santri.id')->map(fn ($v) => (int) $v)->all() ?? []);
+        }
         foreach ($peta as $id => $info) {
             if (! $this->lolosKelompok($info, $data['kelompok'])) {
+                continue;
+            }
+            if ($anggotaCustom !== null && ! isset($anggotaCustom[$id])) {
                 continue;
             }
             if (! $actor->canAccessLembaga($info['jenjang_utama'])) {

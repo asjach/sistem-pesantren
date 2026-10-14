@@ -18,6 +18,7 @@ class TagihanKandidatRequest extends FormRequest
         return [
             'tahun_ajaran' => 'required|string|max:9',
             'kelompok' => 'required|string|in:mi_saja,md_saja,mi,md,mi_md,aktif,kelas_akhir,selain_kelas_akhir,custom',
+            'grup_custom_id' => 'nullable|integer|exists:grup_santri_custom,id',
             'jenis_id' => 'nullable|integer|exists:jenis_tagihan,id',
             'periode' => 'nullable|string|max:20',
             'periode_sampai' => 'nullable|string|max:20',

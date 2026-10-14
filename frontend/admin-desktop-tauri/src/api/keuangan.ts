@@ -150,10 +150,13 @@ export interface KandidatTagihanRow {
 export function kandidatTagihan(params: {
   tahun_ajaran: string; kelompok: KelompokKandidat; jenis_id?: number | ''; periode?: string;
   periode_sampai?: string; q?: string; page?: number; per_page?: string; sort?: string[]; arah?: 'naik' | 'turun';
+  /** Wajib diisi bila kelompok = custom (id grup santri custom). */
+  grup_custom_id?: number | '';
 }) {
   const q = new URLSearchParams();
   q.set('tahun_ajaran', params.tahun_ajaran);
   q.set('kelompok', params.kelompok);
+  if (params.grup_custom_id !== undefined && params.grup_custom_id !== '') q.set('grup_custom_id', String(params.grup_custom_id));
   if (params.jenis_id !== undefined && params.jenis_id !== '') q.set('jenis_id', String(params.jenis_id));
   if (params.periode) q.set('periode', params.periode);
   if (params.periode_sampai) q.set('periode_sampai', params.periode_sampai);

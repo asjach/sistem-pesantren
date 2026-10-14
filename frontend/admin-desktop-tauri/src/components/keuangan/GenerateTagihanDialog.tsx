@@ -6,6 +6,7 @@ import {
   type JenisTagihan, type KandidatTagihanRow, type KelompokKandidat, type PratinjauBaris,
   type Tarif, type PratinjauSantri,
 } from '../../api/keuangan';
+import { daftarGrupCustom, type GrupSantriCustom } from '../../api/grupCustom';
 import RincianBulanKartu from './RincianBulanKartu';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -40,9 +41,8 @@ const OPSI_KELOMPOK: { value: KelompokKandidat | ''; label: string; keterangan?:
      topBar) — diisi `opsiKelompok` di dalam komponen. */
   { value: 'kelas_akhir', label: 'Kelas Akhir' },
   { value: 'selain_kelas_akhir', label: 'Selain Kelas Akhir' },
-  /* Pilih manual per santri (mis. peserta ekskul) — rancangan, belum
-     diimplementasikan: memilihnya kini sama dengan semua santri. */
-  { value: 'custom', label: 'Custom', keterangan: 'Pilih manual (belum tersedia)' },
+  /* Anggota grup santri custom pilihan (daftar dari tab Santri Custom). */
+  { value: 'custom', label: 'Custom', keterangan: 'Anggota grup custom pilihan' },
 ];
 
 /** Tingkat akhir per jenjang (cermin backend `TINGKAT_AKHIR` + KelulusanPage). */
@@ -213,6 +213,11 @@ function RingkasanGalat({ id, daftar }: { id: string; daftar: GalatIsian[] }) {
  *  bisa dioverride per baris. */
 export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif, tahunAjaran, jenjangs, onSelesai, onTarifBaru }: Props) {
   const [kelompok, setKelompok] = useState<KelompokKandidat | ''>('');
+  /** Grup custom terpilih (hanya dipakai bila kelompok = custom). */
+  const [grupCustomId, setGrupCustomId] = useState<number | ''>('');
+  /** Daftar grup custom lingkup topBar (dimuat saat kelompok = custom). */
+  const [daftarGrup, setDaftarGrup] = useState<GrupSantriCustom[]>([]);
+  const [loadingGrup, setLoadingGrup] = useState(false);
   const [jenisId, setJenisId] = useState<number | ''>('');
   const [tarifId, setTarifId] = useState<number | ''>('');
   const [nominalDefault, setNominalDefault] = useState('');
@@ -261,6 +266,25 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     return o;
   }), [tingkatAkhirKet]);
 
+  /** Opsi combobox grup custom (label = nama; keterangan = anggota). */
+  const opsiGrupCustom = useMemo(() => daftarGrup.map((g) => ({
+    label: g.nama,
+    keterangan: `${g.santri.length} santri${g.keterangan ? ` · ${g.keterangan}` : ''}`,
+    nilai: String(g.id),
+  })), [daftarGrup]);
+
+  // Kelompok = custom → muat daftar grup lingkup topBar untuk combobox kedua.
+  useEffect(() => {
+    if (!open || kelompok !== 'custom') return;
+    let hidup = true;
+    setLoadingGrup(true);
+    daftarGrupCustom({ jenjang: jenjangs, tahun_ajaran: tahunAjaran ?? undefined })
+      .then((d) => { if (hidup) setDaftarGrup(d); })
+      .catch(() => { if (hidup) setDaftarGrup([]); })
+      .finally(() => { if (hidup) setLoadingGrup(false); });
+    return () => { hidup = false; };
+  }, [open, kelompok, jenjangs, tahunAjaran]);
+
   /** Opsi tarif = bawaan induk + yang baru dibuat di popover (anti-duplikat id). */
   const daftarTarifPilih = useMemo(() => {
     const ids = new Set(tarif.map((t) => t.id));
@@ -306,7 +330,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   // Buka dialog: bersihkan pilihan; isi default periode setahun dari TA.
   useEffect(() => {
     if (!open) return;
-    setTerpilih([]); setCari(''); setKelompok(''); setJenisId(''); setTarifId('');
+    setTerpilih([]); setCari(''); setKelompok(''); setGrupCustomId(''); setDaftarGrup([]);
+    setJenisId(''); setTarifId('');
     setNominalDefault(''); setJatuhTempo(''); setErr(''); setHasil(null);
     setGalat([]); setGalatDaftar([]); setGalatNominal(null);
     setKonfirmasi(false); setTarifLokal([]); setPopTarif(false);
@@ -321,7 +346,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     if (!open) return;
     setHasil(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, terpilih, jenisId, nominalDefault, periodeDari, periodeSampai, jatuhTempo, tarifId, kelompok]);
+  }, [open, terpilih, jenisId, nominalDefault, periodeDari, periodeSampai, jatuhTempo, tarifId, kelompok, grupCustomId]);
 
   // Validasi gagal → fokus pindah ke ringkasan galat (sekali per perubahan).
   const galatKunci = galat.map((g) => g.pesan).join('|');
@@ -510,11 +535,14 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     if (!open || tahunAjaran === null) return;
     // Belum pilih kelompok → daftar kosong, tanpa request.
     if (kelompok === '') { setTerpilih([]); return; }
+    // Custom tanpa grup terpilih → daftar kosong, tanpa request.
+    if (kelompok === 'custom' && grupCustomId === '') { setTerpilih([]); return; }
     setErr(''); setLoading(true);
     try {
       const res = await kandidatTagihan({
         tahun_ajaran: tahunAjaran,
         kelompok,
+        grup_custom_id: kelompok === 'custom' ? grupCustomId : undefined,
         jenis_id: jenisId,
         periode: bulanan ? (periodeDari || undefined) : undefined,
         periode_sampai: bulanan ? (periodeSampai || undefined) : undefined,
@@ -536,7 +564,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         });
       });
     } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
-  }, [open, tahunAjaran, kelompok, jenisId, bulanan, periodeDari, periodeSampai]);
+  }, [open, tahunAjaran, kelompok, grupCustomId, jenisId, bulanan, periodeDari, periodeSampai]);
 
   // Buka dialog / kriteria berubah → muat ulang (tahan 250ms).
   useEffect(() => {
@@ -636,6 +664,10 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     if (g.length > 0) { setGalat(g); return false; }
     if (kelompok === '') {
       setGalatDaftar([{ pesan: 'Pilih kelompok santri pada filter daftar.', targetId: 'sel_gen_kelompok' }]);
+      return false;
+    }
+    if (kelompok === 'custom' && grupCustomId === '') {
+      setGalatDaftar([{ pesan: 'Pilih grup custom pada filter daftar.', targetId: 'sel_gen_grup_custom' }]);
       return false;
     }
     if (terpilih.length === 0) {
@@ -1029,7 +1061,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                       itemToStringLabel={(o) => o.label}
                       isItemEqualToValue={(a, b) => a.value === b.value}
                       value={opsiKelompok.find((o) => o.value === kelompok) ?? opsiKelompok[0]}
-                      onValueChange={(o) => { if (o !== null) setKelompok(o.value); }}
+                      onValueChange={(o) => { if (o !== null) { setKelompok(o.value); setGrupCustomId(''); } }}
                     >
                       <ComboboxInput id="sel_gen_kelompok" aria-label="Kelompok Santri" placeholder="Pilih kelompok…" />
                       <ComboboxTrigger aria-label="Buka daftar kelompok" />
@@ -1048,6 +1080,37 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                       </ComboboxContent>
                     </ComboboxRoot>
                   </LabeledCombobox>
+                  {/* Custom → combobox kedua: pilih grupnya; daftar santri
+                      dimuat dari anggotanya. */}
+                  {kelompok === 'custom' && (
+                    <LabeledCombobox label="Grup" htmlFor="sel_gen_grup_custom" tinggi={26} kelolaLebar={false} className="w-full">
+                      <ComboboxRoot
+                        items={opsiGrupCustom}
+                        itemToStringLabel={(o) => o.label}
+                        isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                        value={opsiGrupCustom.find((o) => o.nilai === String(grupCustomId)) ?? null}
+                        onValueChange={(o) => { if (o !== null) setGrupCustomId(Number(o.nilai)); }}
+                      >
+                        <ComboboxInput
+                          id="sel_gen_grup_custom"
+                          aria-label="Grup custom"
+                          placeholder={loadingGrup ? 'Memuat grup…' : 'Pilih grup…'}
+                        />
+                        <ComboboxTrigger aria-label="Buka daftar grup custom" />
+                        <ComboboxContent>
+                          <ComboboxEmpty>{loadingGrup ? 'Memuat…' : 'Belum ada grup pada lingkup ini.'}</ComboboxEmpty>
+                          <ComboboxList>
+                            {(o) => (
+                              <ComboboxItem key={o.nilai} value={o} className="flex-col items-start gap-0">
+                                <span>{o.label}</span>
+                                <span className="text-[11px] text-muted-foreground">{o.keterangan}</span>
+                              </ComboboxItem>
+                            )}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </ComboboxRoot>
+                    </LabeledCombobox>
+                  )}
                 </Card>
                 </>
                 )}
