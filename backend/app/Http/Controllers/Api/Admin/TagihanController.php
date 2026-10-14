@@ -18,6 +18,7 @@ use App\Models\Tagihan;
 use App\Services\DispensasiService;
 use App\Services\UrutKatalog;
 use App\Support\JatuhTempo;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -37,52 +38,6 @@ class TagihanController extends Controller
      * lunas/belum. Label bulan FE yang membentuk (dari `periode`).
      */
     /**
-     * Saring Santri berdasarkan tingkat & kelas pada baris riwayat yang DIPAKAI
-     * tampil di baris crosstab (genap menang atas ganjil pada jenjang + TA yang
-     * sama) — bukan baris riwayat mana pun.
-     *
-     * Kalau hanya "ada riwayat yang cocok", Santri naik kelas di tengah tahun
-     * akan muncul di kelas yang tak tercantum pada barisnya. Jadi saringan dibuat
-     * sama dengan kolom "Kelas" di tabel.
-     *
-     * Tanpa `tahun_ajaran` tak ada patokan kelas yang benar (sama seperti peta
-     * kelas di baris), jadi filter diabaikan — bukan diam-diam menyaring semua.
-     *
-     * @param  list<string>  $tahunAjaran
-     * @param  list<string>  $jenjang
-     * @param  list<string>  $tingkat
-     * @param  list<string>  $kelasId
-     */
-    private function applyFilterKelasTampil($q, array $tahunAjaran, array $jenjang, array $tingkat, array $kelasId): void
-    {
-        if ($tahunAjaran === [] || ($tingkat === [] && $kelasId === [])) {
-            return;
-        }
-        $q->whereHas('santri.riwayatBelajar', function ($rb) use ($tahunAjaran, $jenjang, $tingkat, $kelasId) {
-            $rb->whereIn('tahun_ajaran', [$tahunAjaran[0]]);
-            if ($jenjang !== []) {
-                $rb->whereIn('jenjang', $jenjang);
-            }
-            if ($tingkat !== []) {
-                $rb->whereIn('tingkat', $tingkat);
-            }
-            if ($kelasId !== []) {
-                $rb->whereIn('kelas_id', array_map('intval', $kelasId));
-            }
-            // Genap menang atas ganjil: baris ganjil gugur begitu ada baris
-            // semester 2 pada (santri, jenjang, tahun ajaran) yang sama.
-            $rb->whereNotExists(function ($g) {
-                $g->selectRaw('1')->from('riwayat_belajar as rb_genap')
-                    ->whereColumn('rb_genap.santri_id', 'riwayat_belajar.santri_id')
-                    ->whereColumn('rb_genap.jenjang', 'riwayat_belajar.jenjang')
-                    ->whereColumn('rb_genap.tahun_ajaran', 'riwayat_belajar.tahun_ajaran')
-                    ->where('rb_genap.semester', '2')
-                    ->where('riwayat_belajar.semester', '<>', '2');
-            });
-        });
-    }
-
-    /**
      * Saring santri berdasarkan keaktifan — cermin aturan penanda merah baris
      * crosstab (bukan `is_active` mentah): Santri MI-MD nonaktif HANYA bila
      * `status_akhir` MI dan MD sama-sama `pindah_keluar`; sisanya memakai
@@ -92,7 +47,7 @@ class TagihanController extends Controller
      * kolom status di baris), jadi filter diabaikan — bukan diam-diam
      * menyaring semua.
      */
-    private function applyFilterKeaktifan($q, string $ta, bool $mauAktif): void
+    private function applyFilterKeaktifan($q, string $ta, bool $mauAktif, string $kolom = 'tagihan.santri_id'): void
     {
         if ($ta === '') {
             return;
@@ -127,24 +82,102 @@ class TagihanController extends Controller
                 ." MAX(CASE WHEN m.jenjang = 'MD' THEN m.status END),"
                 ." MAX(m.status)) = 'pindah_keluar')");
         if ($mauAktif) {
-            $q->whereNotIn('tagihan.santri_id', $nonaktif);
+            $q->whereNotIn($kolom, $nonaktif);
             // Tanpa riwayat pada TA patokan = nonaktif di baris (info null),
             // jadi ikut tersaring keluar.
-            $q->whereExists(function ($e) use ($ta) {
+            $q->whereExists(function ($e) use ($ta, $kolom) {
                 $e->selectRaw('1')->from('riwayat_belajar as rb_ada')
-                    ->whereColumn('rb_ada.santri_id', 'tagihan.santri_id')
+                    ->whereColumn('rb_ada.santri_id', $kolom)
                     ->where('rb_ada.tahun_ajaran', $ta);
             });
         } else {
-            $q->where(function ($w) use ($nonaktif, $ta) {
-                $w->whereIn('tagihan.santri_id', $nonaktif)
-                    ->orWhereNotExists(function ($e) use ($ta) {
+            $q->where(function ($w) use ($nonaktif, $ta, $kolom) {
+                $w->whereIn($kolom, $nonaktif)
+                    ->orWhereNotExists(function ($e) use ($ta, $kolom) {
                         $e->selectRaw('1')->from('riwayat_belajar as rb_ada')
-                            ->whereColumn('rb_ada.santri_id', 'tagihan.santri_id')
+                            ->whereColumn('rb_ada.santri_id', $kolom)
                             ->where('rb_ada.tahun_ajaran', $ta);
                     });
             });
         }
+    }
+
+    /**
+     * Roster santri crosstab: santri dalam lingkup (riwayat TA + rail +
+     * keaktifan + cari) digabung pemegang tagihan lingkup. Baris tampil
+     * untuk seluruh roster walau belum punya tagihan (LEFT JOIN di agregat).
+     *
+     * Tanpa `tahun_ajaran` tak ada patokan roster (sama seperti kolom
+     * status/kelas di baris) → hanya pemegang tagihan (perilaku lama).
+     *
+     * @param  Builder  $tagihanScope
+     * @param  list<string>  $tahunAjaran
+     * @param  list<string>  $jenjang
+     * @return \Illuminate\Database\Query\Builder
+     */
+    private function rosterSantriCrosstab($tagihanScope, TagihanCrosstabRequest $request, array $tahunAjaran, array $jenjang)
+    {
+        $pemegang = (clone $tagihanScope)->toBase()->select('tagihan.santri_id as id')->distinct();
+        $gabung = $pemegang;
+        if ($tahunAjaran !== []) {
+            $dariRiwayat = DB::table('santri as rs')->select('rs.id')
+                ->whereExists(function ($e) use ($tahunAjaran, $jenjang) {
+                    $e->selectRaw('1')->from('riwayat_belajar as rb_r')
+                        ->whereColumn('rb_r.santri_id', 'rs.id')
+                        ->whereIn('rb_r.tahun_ajaran', $tahunAjaran);
+                    if ($jenjang !== []) {
+                        $e->whereIn('rb_r.jenjang', $jenjang);
+                    }
+                });
+            $gabung = $dariRiwayat->union($pemegang);
+        }
+        $roster = DB::query()->fromSub($gabung, 'g')->select('g.id')->distinct();
+        if ($tahunAjaran === []) {
+            return $roster;
+        }
+
+        // Rail tingkat & kelas: baris riwayat yang DIPAKAI tampil (genap
+        // menang) — patokan sama dengan kolom "Kelas" di baris.
+        $tingkat = $this->nilaiFilter($request, 'tingkat');
+        $kelasId = array_map('intval', $this->nilaiFilter($request, 'kelas_id'));
+        if ($tingkat !== [] || $kelasId !== []) {
+            $roster->whereExists(function ($e) use ($tahunAjaran, $jenjang, $tingkat, $kelasId) {
+                $e->selectRaw('1')->from('riwayat_belajar as rb_t')
+                    ->whereColumn('rb_t.santri_id', 'g.id')
+                    ->whereIn('rb_t.tahun_ajaran', [$tahunAjaran[0]]);
+                if ($jenjang !== []) {
+                    $e->whereIn('rb_t.jenjang', $jenjang);
+                }
+                if ($tingkat !== []) {
+                    $e->whereIn('rb_t.tingkat', $tingkat);
+                }
+                if ($kelasId !== []) {
+                    $e->whereIn('rb_t.kelas_id', $kelasId);
+                }
+                $e->whereNotExists(function ($g) {
+                    $g->selectRaw('1')->from('riwayat_belajar as rb_genap')
+                        ->whereColumn('rb_genap.santri_id', 'rb_t.santri_id')
+                        ->whereColumn('rb_genap.jenjang', 'rb_t.jenjang')
+                        ->whereColumn('rb_genap.tahun_ajaran', 'rb_t.tahun_ajaran')
+                        ->where('rb_genap.semester', '2')
+                        ->where('rb_t.semester', '<>', '2');
+                });
+            });
+        }
+
+        if ($request->filled('keaktifan')) {
+            $this->applyFilterKeaktifan($roster, (string) ($tahunAjaran[0] ?? ''), $request->input('keaktifan') === 'aktif', 'g.id');
+        }
+        if ($request->filled('santri')) {
+            $cari = (string) $request->input('santri');
+            $roster->join('santri as s_cari', 's_cari.id', '=', 'g.id')
+                ->where(fn ($w) => $w
+                    ->where('s_cari.nama_lengkap', 'like', '%'.$cari.'%')
+                    ->orWhere('s_cari.ayah_nama', 'like', '%'.$cari.'%')
+                    ->orWhere('s_cari.ibu_nama', 'like', '%'.$cari.'%'));
+        }
+
+        return $roster;
     }
 
     public function crosstabTagihan(TagihanCrosstabRequest $request)
@@ -175,29 +208,51 @@ class TagihanController extends Controller
                 ->orWhere('ibu_nama', 'like', '%'.$cari.'%'));
         }
 
-        /* Filter rail tingkat & kelas dipasang di `$q` (bukan di query agregat
-          terpisah) supaya ikut memotong paginasi, total, daftar kolom, dan sel. */
+        /* Filter rail/keaktifan/cari dipasang di ROSTER (bukan `$q`) supaya
+           ikut memotong paginasi, total, dan baris — termasuk santri yang
+           belum punya tagihan. `$q` hanya melingkupi data tagihan (sel,
+           agregat, kolom). */
         $tahunAjaran = $this->nilaiFilter($request, 'tahun_ajaran');
         $jenjang = $this->nilaiFilter($request, 'jenjang');
-        if ($request->filled('keaktifan')) {
-            $this->applyFilterKeaktifan($q, (string) ($tahunAjaran[0] ?? ''), $request->input('keaktifan') === 'aktif');
-        }
-        $this->applyFilterKelasTampil(
-            $q,
-            $tahunAjaran,
-            $jenjang,
-            $this->nilaiFilter($request, 'tingkat'),
-            $this->nilaiFilter($request, 'kelas_id'),
-        );
+        $roster = $this->rosterSantriCrosstab($q, $request, $tahunAjaran, $jenjang);
 
         $page = max(1, (int) $request->input('page', 1));
         $perPage = $this->perPage($request);
 
-        /* Agregat per Santri + urutan + paginasi dilakukan di SQL. Sebelumnya
-           seluruh tagihan (7.602 baris di dev DB untuk TA 2026/2027) dimuat ke
-           memori lalu di-group dan di-`array_slice` di PHP: tumbuh linier
-           dengan data dan menahan memori meski tabel hanya menampilkan satu
-           halaman. Sekarang hanya Santri di halaman ini yang diambil datanya. */
+        /* Agregat per santri roster + urutan + paginasi di SQL. Tagihan
+           digabung LEFT JOIN: santri tanpa tagihan tetap tampil dengan sel
+           kosong (total 0). Filter atribut tagihan (jenis/status/terlambat)
+           butuh baris tagihan → JOIN biasa saat salah satunya aktif. */
+        $butuhTagihan = $request->filled('jenis_id') || $request->filled('status')
+            || $request->boolean('belum_lunas') || $request->boolean('terlambat');
+        $cakupanTagihan = (clone $q)->toBase()->select(
+            'tagihan.santri_id',
+            'tagihan.nominal',
+            'tagihan.terbayar',
+            'tagihan.jatuh_tempo'
+        );
+        $agregat = DB::table('santri as s')->whereIn('s.id', $roster);
+        if ($butuhTagihan) {
+            $agregat->joinSub($cakupanTagihan, 't', 't.santri_id', '=', 's.id');
+        } else {
+            $agregat->leftJoinSub($cakupanTagihan, 't', 't.santri_id', '=', 's.id');
+        }
+        $agregat
+            ->select('s.id as santri_id')
+            ->selectRaw('s.nama_lengkap, s.ayah_nama, s.ibu_nama, s.foto_url')
+            ->selectRaw('SUM(t.nominal) as total_tagihan')
+            ->selectRaw('SUM(t.terbayar) as total_terbayar')
+            /* Sama dengan `Tagihan::sisaTerlambat()`: sisa > 0 DAN lewat batas
+               waktu; jatuh tempo kosong = tanpa batas = lewat. */
+            ->selectRaw(
+                'SUM(CASE WHEN (t.nominal - t.terbayar) > 0'
+                .' AND (t.jatuh_tempo IS NULL OR t.jatuh_tempo < ?) THEN (t.nominal - t.terbayar) ELSE 0 END) as tunggakan',
+                [today()->toDateString()]
+            )
+            /* `s` di-group: kolomnya ikut dipilih, jadi MySQL dengan
+               ONLY_FULL_GROUP_BY akan menolak kalau tidak. */
+            ->groupBy('s.id', 's.nama_lengkap', 's.ayah_nama', 's.ibu_nama', 's.foto_url');
+
         /* Allowlist kode urut crosstab = katalog `keuangan_tagihan_crosstab`
            (satu sumber bersama dialog Kelola Tabel). Nilai katalog = satu
            ekspresi ORDER BY per kode (agregat alias), jadi diratakan ke token
@@ -206,25 +261,6 @@ class TagihanController extends Controller
             static fn (array $kolom): string => $kolom[0],
             UrutKatalog::peta('keuangan_tagihan_crosstab'),
         );
-        $agregat = (clone $q)
-            ->join('santri as s', 's.id', '=', 'tagihan.santri_id')
-            ->select('tagihan.santri_id')
-            ->selectRaw('s.nama_lengkap, s.ayah_nama, s.ibu_nama, s.foto_url')
-            ->selectRaw('SUM(tagihan.nominal) as total_tagihan')
-            ->selectRaw('SUM(tagihan.terbayar) as total_terbayar')
-            /* Sama dengan `Tagihan::sisaTerlambat()`: sisa > 0 DAN lewat batas
-               waktu; jatuh tempo kosong = tanpa batas = lewat. */
-            ->selectRaw(
-                'SUM(CASE WHEN (tagihan.nominal - tagihan.terbayar) > 0'
-                .' AND (tagihan.jatuh_tempo IS NULL OR tagihan.jatuh_tempo < ?) THEN (tagihan.nominal - tagihan.terbayar) ELSE 0 END) as tunggakan',
-                [today()->toDateString()]
-            )
-            /* `santri` di-group juga: kolomnya ikut dipilih, jadi MySQL dengan
-               ONLY_FULL_GROUP_BY akan menolak kalau tidak. Idempoten terhadap
-               `tagihan.santri_id` (satu Santri = satu baris), jadi hasil & biaya
-               sama. */
-            ->groupBy('tagihan.santri_id', 's.nama_lengkap', 's.ayah_nama', 's.ibu_nama', 's.foto_url');
-
         $kriteria = $this->kriteriaUrutan($request, $petaUrut);
         /* Tanpa `sort`: kelas lalu nama — urutan bawaan lama yang dulu selalu
            dikirim frontend, supaya tampilan awal tak berubah saat tabel belum
@@ -256,8 +292,7 @@ class TagihanController extends Controller
             $agregat->orderBy($kolom, $arah === 'turun' ? 'desc' : 'asc');
         }
 
-        $totalSantri = (int) (clone $q)->join('santri as s', 's.id', '=', 'tagihan.santri_id')
-            ->distinct()->count('tagihan.santri_id');
+        $totalSantri = (int) (clone $roster)->distinct()->count('g.id');
 
         $perPageSql = $perPage >= self::PER_PAGE_ALL ? $totalSantri : $perPage;
         $halaman = $agregat
@@ -380,7 +415,10 @@ class TagihanController extends Controller
                 'nama' => $agregatSantri->nama_lengkap ?? 'Tidak dikenal',
                 'ayah_nama' => $agregatSantri->ayah_nama ?? null,
                 'ibu_nama' => $agregatSantri->ibu_nama ?? null,
-                'jenjang' => (string) $kelompok->first()->jenjang,
+                /* Tanpa tagihan: pakai jenjang terdaftar pertama (MI > MD >
+                   lainnya) agar alur tambah dari sel kosong tetap punya
+                   jenjang yang sah. */
+                'jenjang' => (string) ($kelompok->first()?->jenjang ?? $jenjangAda[0] ?? ''),
                 'kelas' => $info['kelas'] ?? null,
                 'tingkat' => $info['tingkat'] ?? null,
                 'jenjang_riwayat' => $jenjangAda,
@@ -389,7 +427,7 @@ class TagihanController extends Controller
                     if ($kandidat->isEmpty()) {
                         return null;
                     }
-                    $jenjangBaris = (string) $kelompok->first()->jenjang;
+                    $jenjangBaris = (string) ($kelompok->first()?->jenjang ?? $jenjangAda[0] ?? '');
                     foreach (['Pas Foto', 'Foto Ijazah'] as $jenis) {
                         $sejenis = $kandidat->where('jenis_dokumen_santri', $jenis);
                         $pilih = $sejenis->first(fn ($d) => $d->lembaga === $jenjangBaris)
