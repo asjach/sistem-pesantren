@@ -485,7 +485,7 @@ export default function PopoverAksiTagihan({
                 <span className="flex flex-col items-start">
                   Buat Massal
                   <span className="text-[10px] font-normal text-muted-foreground">
-                    Satu target; hanya sel yang belum punya
+                    Tiap sel kosong: kolom & baris terpilih
                   </span>
                 </span>
               </Button>

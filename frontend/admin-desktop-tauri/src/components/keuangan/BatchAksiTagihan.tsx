@@ -6,9 +6,29 @@ import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Dispensasi } from '@/api/keuangan';
+import type { CrosstabKolom, Dispensasi } from '@/api/keuangan';
+import { labelSel } from '@/components/keuangan/TagihanCrosstab';
 
 export type AksiBatch = 'bayar' | 'hapus_tagihan' | 'hapus_riwayat' | 'ubah' | 'buat';
+
+/** Satu kolom target Buat Massal: kolom crosstab (jenis + periode) beserta
+ *  santri yang selnya masih KOSONG pada kolom itu. Jenis & periode tagihan
+ *  yang dibuat datang dari KOLOM yang terseleksi — tak ada pilihan manual,
+ *  jadi satu sel kosong terpilih = satu tagihan (baris × kolom). */
+export interface TargetBuatKolom {
+  /** Kunci kolom crosstab (mis. `12-2026-11` bulanan, `jenis-3` sekali). */
+  key: string;
+  /** Kolomnya sendiri — sumber label (`labelSel`) & jenis/periode kiriman. */
+  kolom: CrosstabKolom;
+  /** Santri (baris) yang selnya kosong di kolom ini, urut seperti tabel. */
+  santriIds: number[];
+}
+
+/** Kunci kolom → penggalan id elemen. NFR-05 minta id snake_case, sedangkan
+ *  kunci kolom memuat tanda hubung (`12-2026-11`) → dijadikan garis bawah. */
+function kunciId(key: string): string {
+  return key.replace(/[^a-zA-Z0-9]+/g, '_');
+}
 
 type Metode = 'tunai' | 'transfer';
 type Kas = 'tunai_tu' | 'bank_lembaga' | 'bank_pesantren';
@@ -27,22 +47,21 @@ const KAS_PER_METODE: Record<Metode, { value: Kas; label: string }[]> = {
   ],
 };
 
-/** Dialog konfirmasi aksi sekaligus untuk banyak tagihan terpilih (klik kiri).
+/** Dialog konfirmasi aksi sekaligus untuk banyak sel terpilih (klik kiri).
  *  Lima aksi: bayar lunas, ubah (jatuh tempo + dispensasi), hapus tagihan,
- *  hapus riwayat pembayaran, dan buat massal (santri terpilih/tampil × satu
- *  target jenis+periode; yang belum punya dibuat, yang sudah ada diperbarui).
- *  State form ditahan halaman (KeuanganPage). */
+ *  hapus riwayat pembayaran, dan buat massal. Buat massal bekerja PER SEL:
+ *  tiap sel KOSONG yang terseleksi dibuatkan satu tagihan dengan jenis +
+ *  periode dari kolomnya dan santri dari barisnya; sel yang sudah punya
+ *  tagihan tidak disentuh. Nominal tiap kolom terisi dari tarif jenisnya dan
+ *  masih bisa diubah. State form ditahan halaman (KeuanganPage). */
 export default function BatchAksiTagihan({
   aksi, jumlah, totalSisa, busy,
   metode, kas, onMetode, onKas,
   pakaiJatuhTempo, jatuhTempo, onPakaiJatuhTempo, onJatuhTempo,
   dispen, onDispen, daftarDispen,
-  sasaran, onSasaran, jmlSasaranTerpilih, jmlSasaranTampil, nonaktifDilewati,
-  buatBaru,
-  daftarJenis, buatJenisId, onBuatJenisId,
-  buatPeriode, onBuatPeriode, buatBulanan,
-  buatNominal, onBuatNominal,
-  buatJt, onBuatJt,
+  targetBuat, nonaktifDilewati,
+  nominalBuat, onNominalBuat,
+  jatuhTempoBuat, onJatuhTempoBuat,
   galatBuat,
   onBatal, onKonfirmasi,
 }: {
@@ -63,33 +82,31 @@ export default function BatchAksiTagihan({
   dispen: number | 'tanpa' | '';
   onDispen: (v: number | 'tanpa' | '') => void;
   daftarDispen: Dispensasi[];
-  /** Sasaran buat massal: santri dari sel terpilih / santri tampil. */
-  sasaran: 'terpilih' | 'tampil';
-  onSasaran: (v: 'terpilih' | 'tampil') => void;
-  /** Jumlah santri sasaran (aktif saja; nonaktif dihitung terpisah). */
-  jmlSasaranTerpilih: number;
-  jmlSasaranTampil: number;
-  /** Santri nonaktif yang dilewati pada sasaran aktif. */
+  /** Target buat massal: satu entri per kolom crosstab yang selnya KOSONG
+   *  terseleksi. Jenis + periode datang dari kolom itu sendiri. */
+  targetBuat: TargetBuatKolom[];
+  /** Sel terpilih yang dilewati karena santrinya nonaktif pada TA filter. */
   nonaktifDilewati: number;
-  /** Pratinjau target aktif: akan dibuat (yang sudah punya dilewati). */
-  buatBaru: number;
-  daftarJenis: { id: number; nama: string; tipe: 'bulanan' | 'non_bulanan' }[];
-  buatJenisId: number | '';
-  onBuatJenisId: (v: number | '') => void;
-  buatPeriode: string;
-  onBuatPeriode: (v: string) => void;
-  /** Jenis terpilih bertipe bulanan (periode wajib). */
-  buatBulanan: boolean;
-  buatNominal: string;
-  onBuatNominal: (v: string) => void;
-  buatJt: string;
-  onBuatJt: (v: string) => void;
+  /** Nominal per kolom target (key = kunci kolom); terisi awal dari tarif
+   *  jenis kolom itu, boleh diubah. */
+  nominalBuat: Record<string, string>;
+  onNominalBuat: (key: string, v: string) => void;
+  /** Jatuh tempo per kolom target — hanya dipakai kolom non-bulanan
+   *  (bulanan selalu tanggal 10 bulan periode). */
+  jatuhTempoBuat: Record<string, string>;
+  onJatuhTempoBuat: (key: string, v: string) => void;
   /** Galat validasi/eksekusi buat massal (null = tak ada). */
   galatBuat: string | null;
   onBatal: () => void;
   onKonfirmasi: () => void;
 }) {
   const terbuka = aksi !== null;
+
+  /** Tagihan yang akan dibuat = seluruh sel KOSONG terpilih (per kolom). */
+  const totalBuat = targetBuat.reduce((t, k) => t + k.santriIds.length, 0);
+  /** Sel terpilih yang sudah punya tagihan → dilewati. Sisanya (bila ada)
+   *  adalah sel santri nonaktif, yang dihitung terpisah. */
+  const sudahAdaBuat = Math.max(0, jumlah - totalBuat - nonaktifDilewati);
 
   const judul =
     aksi === 'bayar' ? `Bayar ${jumlah} tagihan?`
@@ -108,7 +125,7 @@ export default function BatchAksiTagihan({
     : aksi === 'hapus_riwayat'
       ? 'Seluruh baris riwayat pembayaran pada tagihan terpilih dihapus permanen. Tindakan tidak bisa dibatalkan.'
       : aksi === 'buat'
-      ? `Satu target untuk santri sasaran yang belum punya — akan dibuat ${buatBaru} tagihan. Yang sudah punya tidak disentuh.`
+      ? `Tiap sel kosong yang terseleksi dibuatkan satu tagihan menurut kolomnya (jenis & periode dari kolom, santri dari baris). Sel yang sudah punya tagihan tidak disentuh.`
     : '';
   const labelAksi =
     aksi === 'bayar' ? 'Bayar' : aksi === 'ubah' ? 'Ubah' : aksi === 'hapus_tagihan' ? 'Hapus Tagihan' : aksi === 'hapus_riwayat' ? 'Hapus Riwayat' : 'Buat';
@@ -208,92 +225,63 @@ export default function BatchAksiTagihan({
         )}
 
         {aksi === 'buat' && (
-          <div className="grid grid-cols-[6rem_1fr] items-center gap-x-2 gap-y-2">
+          <div className="flex flex-col gap-2">
             {galatBuat !== null && (
-              <p role="alert" className="col-span-2 text-xs text-destructive">{galatBuat}</p>
+              <p role="alert" className="text-xs text-destructive">{galatBuat}</p>
             )}
-            <span className="text-xs" id="label_batch_sasaran">Sasaran</span>
-            <div role="radiogroup" aria-labelledby="label_batch_sasaran" className="flex flex-col gap-1">
-              <label className="flex items-center gap-1.5 text-xs">
-                <input
-                  id="radio_batch_sasaran_terpilih"
-                  type="radio"
-                  name="sasaran_buat"
-                  checked={sasaran === 'terpilih'}
-                  onChange={() => onSasaran('terpilih')}
-                  className="size-3.5 accent-primary"
-                />
-                Santri terpilih ({jmlSasaranTerpilih})
-              </label>
-              <label className="flex items-center gap-1.5 text-xs">
-                <input
-                  id="radio_batch_sasaran_tampil"
-                  type="radio"
-                  name="sasaran_buat"
-                  checked={sasaran === 'tampil'}
-                  onChange={() => onSasaran('tampil')}
-                  className="size-3.5 accent-primary"
-                />
-                Santri tampil ({jmlSasaranTampil})
-              </label>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{totalBuat} tagihan</span> akan dibuat dari
+              sel kosong yang terseleksi
+              {sudahAdaBuat > 0 ? `; ${sudahAdaBuat} sel sudah punya tagihan dilewati` : ''}.
+            </p>
             {nonaktifDilewati > 0 && (
-              <p className="col-start-2 text-[11px] text-muted-foreground">
-                {nonaktifDilewati} santri nonaktif dilewati.
+              <p className="text-[11px] text-muted-foreground">
+                {nonaktifDilewati} sel santri nonaktif dilewati.
               </p>
             )}
-            <FieldLabel htmlFor="sel_batch_buat_jenis" className="text-xs">Jenis</FieldLabel>
-            <Select
-              value={buatJenisId === '' ? undefined : String(buatJenisId)}
-              onValueChange={(v) => onBuatJenisId(Number(v))}
-            >
-              <SelectTrigger id="sel_batch_buat_jenis" className="h-[26px] w-full min-w-0 text-xs">
-                <SelectValue placeholder="Pilih jenis…" />
-              </SelectTrigger>
-              <SelectContent>
-                {daftarJenis.map((j) => (
-                  <SelectItem key={j.id} value={String(j.id)}>
-                    {j.nama}{j.tipe === 'bulanan' ? '' : ' (sekali)'}
-                  </SelectItem>
+            {targetBuat.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">
+                Tak ada sel kosong pada kolom yang terseleksi.
+              </p>
+            ) : (
+              /* Satu kartu per kolom target: nominal diisi dari tarif jenis
+                 kolom itu (boleh diubah); jatuh tempo hanya untuk non-bulanan,
+                 karena bulanan selalu tanggal 10 bulan periode. */
+              <div className="flex max-h-72 flex-col gap-1.5 overflow-auto pr-0.5">
+                {targetBuat.map((t) => (
+                  <div key={t.key} className="border p-2">
+                    <p className="text-xs font-medium">{labelSel(t.kolom)}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      {t.santriIds.length} santri ·{' '}
+                      {t.kolom.tipe === 'bulanan' ? 'jatuh tempo otomatis (tgl 10)' : 'jatuh tempo manual'}
+                    </p>
+                    <div className="mt-1.5 grid grid-cols-[5rem_1fr] items-center gap-x-2 gap-y-1">
+                      <FieldLabel htmlFor={`inp_batch_buat_nominal_${kunciId(t.key)}`} className="text-xs">Nominal</FieldLabel>
+                      <Input
+                        id={`inp_batch_buat_nominal_${kunciId(t.key)}`}
+                        inputMode="numeric"
+                        value={nominalBuat[t.key] ?? ''}
+                        onChange={(e) => onNominalBuat(t.key, e.target.value)}
+                        placeholder="mis. 75000"
+                        className="h-[26px] w-full min-w-0"
+                      />
+                      {t.kolom.tipe !== 'bulanan' && (
+                        <>
+                          <FieldLabel htmlFor={`inp_batch_buat_jt_${kunciId(t.key)}`} className="text-xs">Jatuh Tempo</FieldLabel>
+                          <Input
+                            id={`inp_batch_buat_jt_${kunciId(t.key)}`}
+                            type="date"
+                            value={jatuhTempoBuat[t.key] ?? ''}
+                            onChange={(e) => onJatuhTempoBuat(t.key, e.target.value)}
+                            className="h-[26px] w-full min-w-0"
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
-            {buatBulanan && (
-              <>
-                <FieldLabel htmlFor="inp_batch_buat_periode" className="text-xs">Periode</FieldLabel>
-                <Input
-                  id="inp_batch_buat_periode"
-                  type="month"
-                  value={buatPeriode}
-                  onChange={(e) => onBuatPeriode(e.target.value)}
-                  className="h-[26px] w-full min-w-0"
-                />
-              </>
+              </div>
             )}
-            <FieldLabel htmlFor="inp_batch_buat_nominal" className="text-xs">Nominal</FieldLabel>
-            <Input
-              id="inp_batch_buat_nominal"
-              inputMode="numeric"
-              value={buatNominal}
-              onChange={(e) => onBuatNominal(e.target.value)}
-              placeholder="mis. 75000"
-              className="h-[26px] w-full min-w-0"
-            />
-            {!buatBulanan && (
-              <>
-                <FieldLabel htmlFor="inp_batch_buat_jt" className="text-xs">Jatuh Tempo</FieldLabel>
-                <Input
-                  id="inp_batch_buat_jt"
-                  type="date"
-                  value={buatJt}
-                  onChange={(e) => onBuatJt(e.target.value)}
-                  className="h-[26px] w-full min-w-0"
-                />
-              </>
-            )}
-            <p className="col-start-2 text-[11px] text-muted-foreground">
-              Akan dibuat {buatBaru} tagihan.
-            </p>
           </div>
         )}
 
