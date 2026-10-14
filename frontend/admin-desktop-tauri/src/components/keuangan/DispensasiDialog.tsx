@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import {
-  buatDispensasi, kuotaPakai, ubahDispensasi,
+  buatDispensasi, ubahDispensasi,
   type Dispensasi, type DispensasiInput, type JenisTagihan, type TipeDispensasi,
 } from '../../api/keuangan';
 import { type TahunAjaran } from '../../api/master';
-import { listSantri, type Santri } from '../../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
@@ -15,15 +14,9 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ActionIcon } from '@/components/RowActions';
-import Pager from '@/components/Pager';
-import { bacaPerPageGlobal, langgananPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
-import { ArrowRight, Info, Loader2, Plus, Save, Search, UserCheck, Users, X } from '@/icons';
-import { type PerPage } from '@/prefs';
-import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
+import { Info, Loader2, Plus, Save, X } from '@/icons';
 
 interface BarisAturan {
   jenisId: number;
@@ -47,39 +40,22 @@ const FIELDS_ATURAN: ExcelField[] = [
   },
 ];
 
-/** Kolom tabel santri kandidat & penerima (identik, sengaja satu konstanta). */
-const FIELDS_SANTRI: ExcelField[] = [
-  { key: 'nama', label: 'Santri', kind: 'static' },
-  { key: 'nis_lokal', label: 'NIS Lokal', kind: 'static', width: 110 },
-  { key: 'ayah', label: 'Ayah', kind: 'static', width: 140 },
-  { key: 'ibu', label: 'Ibu', kind: 'static', width: 140 },
-];
-
-interface Penerima {
-  id: number;
-  nama: string;
-  nisLokal: string | null;
-  ayah: string | null;
-  ibu: string | null;
-  /** Nama karangan (id tanpa relasi) — digantikan saat kandidat termuat. */
-  namaSemu?: boolean;
-}
-
-/** Baris penerima awal mode ubah: nama asli dari relasi termuat bila ada,
- *  selebihnya penanda karangan (digantikan saat kandidat termuat). */
-export function penerimaAwal(d: Dispensasi): Penerima[] {
-  const termuat = new Map((d.santri_tambahan ?? []).map((s) => [s.id, s]));
-  return (d.santri_ids ?? []).map((id) => {
-    const s = termuat.get(id);
-    if (!s) return { id, nama: `Santri #${id}`, nisLokal: null, ayah: null, ibu: null, namaSemu: true };
-    return { id, nama: s.nama_lengkap, nisLokal: nisLokalTampil(s), ayah: s.ayah_nama ?? null, ibu: s.ibu_nama ?? null };
-  });
-}
-
-/** NIS lokal tampil: gabungan unik keanggotaan aktif (tanpa duplikat). */
-function nisLokalTampil(s: Santri): string | null {
-  const daftar = [...new Set((s.lembaga_aktif ?? []).map((l) => l.nis_lokal).filter((n): n is string => n !== null && n !== ''))];
-  return daftar.length > 0 ? daftar.join(', ') : null;
+/**
+ * Daftar penerima yang dikirim saat simpan.
+ *
+ * Dialog ini TIDAK lagi mengelola penerima (dipindah ke halaman Dispensasi,
+ * kolom Daftar Penerima), jadi dua hal wajib dijaga:
+ * - mode UBAH: pakai daftar yang sudah ada apa adanya. Mengirim `null` berarti
+ *   backend `sync([])` → SELURUH penerima paket terhapus;
+ * - mode TAMBAH dari profil santri (`santriAwal`): santri itu jadi penerima
+ *   pertama, karena dialah alasan dialog dibuka.
+ */
+export function santriIdsUntuk(
+  editing: Dispensasi | null,
+  santriAwal: { id: number } | null,
+): number[] | null {
+  if (editing) return editing.santri_ids ?? null;
+  return santriAwal === null ? null : [santriAwal.id];
 }
 
 interface Props {
@@ -95,8 +71,10 @@ interface Props {
   onSaved: () => void | Promise<void>;
 }
 
-/** Form tambah/ubah dispensasi (layar penuh): satu paket berisi N aturan per
- *  jenis tagihan + dua tabel santri (aktif → penerima via panah/centang). */
+/** Form tambah/ubah dispensasi: identitas paket + N aturan potongan per jenis
+ *  tagihan. Daftar penerima TIDAK diatur di sini — dikelola di halaman
+ *  Dispensasi (kolom Daftar Penerima), jadi paket lama tidak kehilangan
+ *  penerimanya saat diubah dari dialog. */
 export default function DispensasiDialog({ open, onOpenChange, editing, jenis, daftarTA, santriAwal = null, taBawaan = null, onSaved }: Props) {
   const [nama, setNama] = useState('');
   const [keterangan, setKeterangan] = useState('');
@@ -107,67 +85,12 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
 
   const [baris, setBaris] = useState<BarisAturan[]>([]);
   const [tambahJenisId, setTambahJenisId] = useState<number | ''>('');
-
-  const [santriPilih, setSantriPilih] = useState<Penerima[]>([]);
-  const [cari, setCari] = useState('');
-  const [kandidat, setKandidat] = useState<Santri[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState<PerPage>(50);
-  const [lastPage, setLastPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<'jenis' | 'santri'>('jenis');
-  /** Urut header tabel santri aktif (perubahan memicu muat ulang via effect). */
-  const [urut, setUrut] = useState<string[]>([]);
-  const [arahUrut, setArahUrut] = useState<'naik' | 'turun'>('naik');
-  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
-
-  /** Kuota terpakai per penerima (santri_id → bulan) — mode ubah + berkuota. */
-  const [kuotaPakaiMap, setKuotaPakaiMap] = useState<Record<number, number>>({});
-  const kuotaAngka = kuota.trim() === '' ? null : Number(kuota);
-  const kuotaAktif = kuotaAngka !== null && Number.isInteger(kuotaAngka) && kuotaAngka >= 1;
-
-  // Mode ubah berkuota: muat pemakaian agar kolom sisa terisi.
-  useEffect(() => {
-    if (!open || !editing || !kuotaAktif) { setKuotaPakaiMap({}); return; }
-    let hidup = true;
-    const ids = (editing.santri_ids ?? []);
-    if (ids.length === 0) { setKuotaPakaiMap({}); return; }
-    void (async () => {
-      try {
-        const m = await kuotaPakai(ids);
-        if (!hidup) return;
-        const perSantri: Record<number, number> = {};
-        for (const [sid, pakai] of Object.entries(m)) perSantri[Number(sid)] = pakai[editing.id] ?? 0;
-        setKuotaPakaiMap(perSantri);
-      } catch { if (hidup) setKuotaPakaiMap({}); }
-    })();
-    return () => { hidup = false; };
-  }, [open, editing, kuotaAktif]);
-
-  /** Kolom penerima + sisa kuota (bila paket berkuota): "terpakai/kuota". */
-  const fieldsPenerima: ExcelField[] = useMemo(
-    () => kuotaAktif
-      ? [...FIELDS_SANTRI, { key: 'sisa', label: 'Sisa Kuota', kind: 'static', width: 90 }]
-      : FIELDS_SANTRI,
-    [kuotaAktif],
-  );
-  /** Klik header: kolom NIS lokal hanya tampilan (tanpa urut server) → abaikan. */
-  function terapkanUrut(nilai: string[], arah: 'naik' | 'turun', peta?: PetaArahKolom) {
-    const bersih = nilai.filter((k) => k !== 'nis_lokal');
-    if (bersih.length === 0) return;
-    const petaBersih = peta === undefined ? undefined : Object.fromEntries(Object.entries(peta).filter(([k]) => k !== 'nis_lokal'));
-    setUrut(bersih);
-    setArahUrut(arah);
-    setArahKolom(bersih.length > 0 ? petaBersih : undefined);
-    setPage(1);
-  }
 
   // Buka dialog: isi dari data ubah atau kosongkan.
   useEffect(() => {
     if (!open) return;
-    setCari(''); setPage(1); setTambahJenisId(''); setTab('jenis');
+    setTambahJenisId('');
     if (editing) {
       setNama(editing.nama); setKeterangan(editing.keterangan ?? ''); setTa(editing.tahun_ajaran);
       setKuota(editing.kuota_bulan === null ? '' : String(editing.kuota_bulan));
@@ -175,81 +98,14 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
       setAktif(editing.is_active);
       const aturan = editing.aturan ?? [];
       setBaris(aturan.filter((a) => a.jenis_id !== null).map((a) => ({ jenisId: a.jenis_id as number, tipe: a.tipe, nilai: String(a.nilai) })));
-      setSantriPilih(penerimaAwal(editing));
     } else {
       const bawaan = taBawaan !== null && daftarTA.some((x) => x.nama === taBawaan)
         ? taBawaan
         : (daftarTA.find((x) => x.is_aktif)?.nama ?? daftarTA[0]?.nama ?? '');
       setNama(''); setKeterangan(''); setTa(bawaan); setKuota(''); setGrup(''); setAktif(true);
       setBaris([]);
-      setSantriPilih(santriAwal ? [{ id: santriAwal.id, nama: santriAwal.nama_lengkap, nisLokal: null, ayah: null, ibu: null }] : []);
     }
   }, [open, editing, daftarTA, santriAwal, taBawaan]);
-
-  const muatKandidat = useCallback(async (p: number, pp: PerPage, q: string) => {
-    setLoading(true);
-    try {
-      const res = await listSantri({
-        is_active_pst: true, q: q.trim() === '' ? undefined : q.trim(), page: p, per_page: pp,
-        sort: urut.length ? tokenUrut(urut, arahKolom) : undefined,
-        arah: urut.length ? arahUrut : undefined,
-      });
-      setKandidat(res.data);
-      setLastPage(res.last_page);
-      setTotal(res.total);
-      setPage(res.current_page);
-    } catch {
-      setKandidat([]); setLastPage(1); setTotal(0);
-    } finally { setLoading(false); }
-  }, [urut, arahUrut, arahKolom]);
-
-  // Buka dialog / cari / urut berubah (debounce) → muat ulang dari halaman 1.
-  useEffect(() => {
-    if (!open) return;
-    const t = setTimeout(() => { void muatKandidat(1, perPage, cari); }, cari.trim() === '' ? 0 : 300);
-    return () => clearTimeout(t);
-  }, [open, cari, perPage, urut, arahUrut, arahKolom, muatKandidat]);
-
-  /* Jumlah baris mengikuti pengaturan global (lihat `usePager`): baca saat
-     dialog dibuka + ikut bila tabel lain mengubahnya selagi terbuka. Effect
-     muat di atas otomatis memuat ulang dari halaman 1. */
-  useEffect(() => {
-    if (!open) return;
-    let hidup = true;
-    void bacaPerPageGlobal().then((pp) => { if (hidup) setPerPage(pp); });
-    const berhenti = langgananPerPageGlobal((pp) => { if (hidup) setPerPage(pp); });
-    return () => { hidup = false; berhenti(); };
-  }, [open]);
-
-  // Kandidat termuat → ganti baris nama-karangan dengan data asli.
-  useEffect(() => {
-    if (!open || kandidat.length === 0) return;
-    setSantriPilih((lama) => {
-      if (!lama.some((p) => p.namaSemu)) return lama;
-      const peta = new Map(kandidat.map((s) => [s.id, s]));
-      let berubah = false;
-      const hasil = lama.map((p) => {
-        const s = p.namaSemu ? peta.get(p.id) : undefined;
-        if (!s) return p;
-        berubah = true;
-        return { id: p.id, nama: s.nama_lengkap, nisLokal: nisLokalTampil(s), ayah: s.ayah_nama ?? null, ibu: s.ibu_nama ?? null };
-      });
-      return berubah ? hasil : lama;
-    });
-  }, [open, kandidat]);
-
-  const tambahPenerima = useCallback((rows: Santri[]) => {
-    setSantriPilih((lama) => {
-      const ada = new Set(lama.map((x) => x.id));
-      const baru: Penerima[] = rows.filter((r) => !ada.has(r.id)).map((r) => ({
-        id: r.id, nama: r.nama_lengkap, nisLokal: nisLokalTampil(r), ayah: r.ayah_nama ?? null, ibu: r.ibu_nama ?? null,
-      }));
-      return baru.length === 0 ? lama : [...lama, ...baru];
-    });
-  }, []);
-
-  const idPilih = new Set(santriPilih.map((x) => x.id));
-  const kandidatTampil = kandidat.filter((s) => !idPilih.has(s.id));
 
   const namaJenis = (id: number) => {
     const j = jenis.find((x) => x.id === id);
@@ -293,7 +149,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
       kuota_bulan: kuota.trim() === '' ? null : Number(kuota),
       grup: grup.trim() === '' ? null : grup.trim(),
       aturan,
-      santri_ids: santriPilih.length > 0 ? santriPilih.map((s) => s.id) : null,
+      santri_ids: santriIdsUntuk(editing, santriAwal),
       is_active: aktif,
     };
 
@@ -320,7 +176,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
           <div className="min-w-0">
             <DialogTitle>{editing ? 'Ubah Dispensasi' : 'Tambah Dispensasi'}</DialogTitle>
             <DialogDescription className="mt-0.5">
-              Keringanan tagihan per jenis, berlaku untuk santri penerima yang dipilih.
+              Keringanan tagihan per jenis. Daftar penerima diatur di halaman Dispensasi (kolom Daftar Penerima).
             </DialogDescription>
           </div>
           <DialogClose asChild>
@@ -328,7 +184,8 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
           </DialogClose>
         </DialogHeader>
 
-        {/* Identitas dispensasi: nama, tahun ajaran, keterangan, status aktif. */}
+        {/* Identitas dispensasi: nama, tahun ajaran, kuota, grup, keterangan,
+            status aktif. */}
         <div className="flex shrink-0 flex-wrap items-end gap-3 border-b bg-muted/30 px-3 py-2.5">
           <div className="flex min-w-52 flex-1 flex-col gap-1">
             <FieldLabel htmlFor="inp_dispensasi_nama">Nama Dispensasi</FieldLabel>
@@ -371,152 +228,71 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
           </div>
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as 'jenis' | 'santri')} className="flex min-h-0 flex-1 flex-col">
-          <TabsList variant="line" className="h-8 shrink-0 justify-start rounded-none border-b bg-transparent px-2">
-            <TabsTrigger value="jenis" id="tab_dispensasi_jenis">Jenis Tagihan ({baris.length})</TabsTrigger>
-            <TabsTrigger value="santri" id="tab_dispensasi_santri">Daftar Santri ({santriPilih.length})</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="jenis" className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-3">
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2">
-              <FieldLabel htmlFor="sel_dispensasi_tambah_jenis" className="shrink-0">Jenis Tagihan</FieldLabel>
-              <div className="min-w-64 flex-1 sm:max-w-80">
-                <Select
-                  value={tambahJenisId === '' ? '' : String(tambahJenisId)}
-                  onValueChange={(v) => setTambahJenisId(v === '' ? '' : Number(v))}
-                >
-                  <SelectTrigger id="sel_dispensasi_tambah_jenis" className="h-[26px] w-full" disabled={sisaJenis.length === 0} aria-label="Jenis tagihan untuk aturan baru">
-                    <SelectValue placeholder={sisaJenis.length === 0 ? 'Semua jenis sudah diatur' : 'Pilih jenis tagihan…'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sisaJenis.map((j) => (
-                      <SelectItem key={j.id} value={String(j.id)}>{j.nama}{j.jenjang ? ` (${j.jenjang})` : ''}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="button" size="sm" variant="outline" id="btn_dispensasi_tambah_aturan" className="h-[26px] gap-1.5 px-2.5" onClick={tambahBaris} disabled={tambahJenisId === ''}>
-                <Plus data-icon="inline-start" size={14} /> Tambah
-              </Button>
+        {/* Aturan potongan per jenis tagihan. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-3">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2">
+            <FieldLabel htmlFor="sel_dispensasi_tambah_jenis" className="shrink-0">Jenis Tagihan</FieldLabel>
+            <div className="min-w-64 flex-1 sm:max-w-80">
+              <Select
+                value={tambahJenisId === '' ? '' : String(tambahJenisId)}
+                onValueChange={(v) => setTambahJenisId(v === '' ? '' : Number(v))}
+              >
+                <SelectTrigger id="sel_dispensasi_tambah_jenis" className="h-[26px] w-full" disabled={sisaJenis.length === 0} aria-label="Jenis tagihan untuk aturan baru">
+                  <SelectValue placeholder={sisaJenis.length === 0 ? 'Semua jenis sudah diatur' : 'Pilih jenis tagihan…'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {sisaJenis.map((j) => (
+                    <SelectItem key={j.id} value={String(j.id)}>{j.nama}{j.jenjang ? ` (${j.jenjang})` : ''}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col">
-              <ExcelTable<BarisAturan & { id: number }>
-                tableKey="dispensasi_aturan"
-                fields={FIELDS_ATURAN}
-                rows={baris.map((b) => ({ ...b, id: b.jenisId }))}
-                getValues={(r) => ({ jenis: namaJenis(r.jenisId), tipe: r.tipe, nilai: r.nilai })}
-                emptyText="Belum ada aturan jenis."
-                canEdit
-                onCommit={async (id, fields) => {
-                  setBaris((lama) => lama.map((x) => x.jenisId === id
-                    ? {
-                      ...x,
-                      tipe: (fields.tipe as TipeDispensasi | null) ?? x.tipe,
-                      nilai: fields.nilai ?? x.nilai,
-                    }
-                    : x));
-                }}
-                onSaved={() => {}}
-                aksiLangsung
-                hideCheckbox
-                renderActions={(r) => (
-                  <ActionIcon id={`btn_dispensasi_hapus_aturan_${r.jenisId}`} title={`Hapus ${namaJenis(r.jenisId)}`} onClick={() => setBaris((lama) => lama.filter((x) => x.jenisId !== r.jenisId))}>
-                    <X size={16} />
-                  </ActionIcon>
-                )}
-              />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="santri" className="min-h-0 flex-1 overflow-hidden">
-            <ResizablePanelGroup orientation="horizontal" id="grup_dispensasi_santri" className="h-full min-h-0 overflow-hidden">
-              <ResizablePanel defaultSize="50%" minSize="25%" id="panel_dispensasi_aktif" className="min-h-0 min-w-0">
-                <div className="flex h-full min-h-0 flex-col gap-1 p-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="flex items-center gap-1.5 text-xs font-semibold">
-                      <Users size={14} className="text-muted-foreground" /> Santri Aktif
-                    </p>
-                    <div className="relative">
-                      <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                      <Input id="inp_dispensasi_cari" placeholder="Cari nama / ayah / ibu / NISN…" className="h-[26px] w-64 pl-8" value={cari} onChange={(e) => setCari(e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <ExcelTable<Santri>
-                      tableKey="dispensasi_santri_aktif"
-                      fields={FIELDS_SANTRI}
-                      rows={kandidatTampil}
-                      urutAktif={urut}
-                      arahUrut={arahUrut}
-                      onUrut={terapkanUrut}
-                      getValues={(r) => ({ nama: r.nama_lengkap, nis_lokal: nisLokalTampil(r), ayah: r.ayah_nama ?? null, ibu: r.ibu_nama ?? null })}
-                      loading={loading}
-                      emptyText="Tidak ada santri aktif."
-                      canEdit={false}
-                      onCommit={async () => {}}
-                      onSaved={() => {}}
-                      aksiLangsung
-                      renderActions={(r) => (
-                        <ActionIcon id={`btn_dispensasi_pindah_${r.id}`} title="Masukkan ke penerima" onClick={() => tambahPenerima([r])}>
-                          <ArrowRight size={16} />
-                        </ActionIcon>
-                      )}
-                      renderBulkActions={(checked, clear) => checked.length === 0 ? null : (
-                        <Button id="btn_dispensasi_pindah" size="sm" disabled={busy} onClick={() => { tambahPenerima(checked); clear(); }}>
-                          <ArrowRight data-icon="inline-start" size={14} /> Masukkan ({checked.length})
-                        </Button>
-                      )}
-                    pager={<Pager page={page} lastPage={lastPage} total={total} perPage={perPage} onPage={(p) => void muatKandidat(p, perPage, cari)} onPerPage={(pp) => setPerPage(tulisPerPageGlobal(pp))} />}
-                    />
-                  </div>
-                </div>
-              </ResizablePanel>
-              <ResizableHandle orientation="horizontal" withHandle id="gagang_dispensasi_santri" aria-label="Atur lebar daftar santri aktif dan penerima" />
-              <ResizablePanel defaultSize="50%" minSize="25%" id="panel_dispensasi_penerima" className="min-h-0 min-w-0">
-                <div className="flex h-full min-h-0 flex-col gap-1 p-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="flex items-center gap-1.5 text-xs font-semibold">
-                      <UserCheck size={14} className="text-muted-foreground" /> Penerima ({santriPilih.length})
-                    </p>
-                  </div>
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <ExcelTable<Penerima>
-                      tableKey="dispensasi_santri_penerima"
-                      fields={fieldsPenerima}
-                      rows={santriPilih}
-                      getValues={(r) => ({
-                        nama: r.nama, nis_lokal: r.nisLokal, ayah: r.ayah, ibu: r.ibu,
-                        sisa: kuotaAktif && kuotaAngka !== null
-                          ? `${Math.max(0, kuotaAngka - (kuotaPakaiMap[r.id] ?? 0))}/${kuotaAngka}`
-                          : null,
-                      })}
-                      emptyText="Masukkan santri dari daftar kiri (centang lalu Masukkan, atau ikon →)."
-                      canEdit={false}
-                      onCommit={async () => {}}
-                      onSaved={() => {}}
-                      aksiLangsung
-                      renderActions={(r) => (
-                        <ActionIcon id={`btn_dispensasi_hapus_santri_${r.id}`} title={`Keluarkan ${r.nama}`} onClick={() => setSantriPilih((lama) => lama.filter((x) => x.id !== r.id))}>
-                          <X size={16} />
-                        </ActionIcon>
-                      )}
-                      renderBulkActions={(checked, clear) => checked.length === 0 ? null : (
-                        <Button id="btn_dispensasi_keluarkan" size="sm" disabled={busy} onClick={() => { const keluar = new Set(checked.map((r) => r.id)); setSantriPilih((lama) => lama.filter((x) => !keluar.has(x.id))); clear(); }}>
-                          <X data-icon="inline-start" size={14} /> Keluarkan ({checked.length})
-                        </Button>
-                      )}
-                    />
-                  </div>
-                </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </TabsContent>
-        </Tabs>
+            <Button type="button" size="sm" variant="outline" id="btn_dispensasi_tambah_aturan" className="h-[26px] gap-1.5 px-2.5" onClick={tambahBaris} disabled={tambahJenisId === ''}>
+              <Plus data-icon="inline-start" size={14} /> Tambah
+            </Button>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ExcelTable<BarisAturan & { id: number }>
+              tableKey="dispensasi_aturan"
+              fields={FIELDS_ATURAN}
+              rows={baris.map((b) => ({ ...b, id: b.jenisId }))}
+              getValues={(r) => ({ jenis: namaJenis(r.jenisId), tipe: r.tipe, nilai: r.nilai })}
+              emptyText="Belum ada aturan jenis."
+              canEdit
+              onCommit={async (id, fields) => {
+                setBaris((lama) => lama.map((x) => x.jenisId === id
+                  ? {
+                    ...x,
+                    tipe: (fields.tipe as TipeDispensasi | null) ?? x.tipe,
+                    nilai: fields.nilai ?? x.nilai,
+                  }
+                  : x));
+              }}
+              onSaved={() => {}}
+              aksiLangsung
+              hideCheckbox
+              renderActions={(r) => (
+                <ActionIcon id={`btn_dispensasi_hapus_aturan_${r.jenisId}`} title={`Hapus ${namaJenis(r.jenisId)}`} onClick={() => setBaris((lama) => lama.filter((x) => x.jenisId !== r.jenisId))}>
+                  <X size={16} />
+                </ActionIcon>
+              )}
+            />
+          </div>
+        </div>
 
         <DialogFooter className="flex-row items-center justify-between gap-2 border-t px-3 py-2.5 sm:justify-between">
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Info size={13} className="shrink-0" />
-            <span>{baris.length > 0 ? `${baris.length} aturan jenis` : 'Belum ada aturan jenis'} · {santriPilih.length} penerima · bebas penuh → tagihan bernominal 0.</span>
+            <span>
+              {baris.length > 0 ? `${baris.length} aturan jenis` : 'Belum ada aturan jenis'}
+              {' · '}
+              {editing
+                ? `${(editing.santri_ids ?? []).length} penerima (diatur di halaman Dispensasi)`
+                : santriAwal === null
+                  ? 'penerima diatur di halaman Dispensasi'
+                  : `penerima awal ${santriAwal.nama_lengkap}`}
+              {' · bebas penuh → tagihan bernominal 0.'}
+            </span>
           </p>
           <div className="flex gap-2">
             <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Batal</Button>

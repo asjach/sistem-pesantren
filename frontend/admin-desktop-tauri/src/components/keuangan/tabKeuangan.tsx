@@ -485,17 +485,30 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, 
 
 /** Panel Daftar Penerima SATU dispensasi (kanan halaman Dispensasi): santri
  *  penerima paket yang sedang dipilih di tabel kiri + aksi mengeluarkan.
- *  Combobox filter lama dihapus — paketnya sudah ditentukan baris terpilih. */
-export function PenerimaDispensasiPanel({ rows, loading, nama, busy, bolehUbah, onKeluarkan }: {
+ *  Combobox filter lama dihapus — paketnya sudah ditentukan baris terpilih.
+ *  Kolom "Sisa Kuota" (terpakai/kuota) muncul hanya untuk paket berkuota —
+ *  dipindah dari tab Daftar Santri di dialog yang kini dihapus. */
+export function PenerimaDispensasiPanel({ rows, loading, nama, kuota, terpakai, busy, bolehUbah, onKeluarkan }: {
   rows: BarisPenerima[];
   loading: boolean;
   /** Nama paket terpilih (judul panel). */
   nama: string;
+  /** Kuota bulan paket terpilih; null = tanpa batas (kolom sisa disembunyikan). */
+  kuota: number | null;
+  /** Bulan terpakai per santri untuk paket ini (`kuotaPakai`). */
+  terpakai: Record<number, number>;
   busy: boolean;
   /** Gerbang izin `keuangan.ubah`: tanpa ini panel baca-saja. */
   bolehUbah: boolean;
   onKeluarkan: (santriIds: number[]) => void;
 }) {
+  const fields = useMemo(
+    () => kuota === null
+      ? FIELDS_PENERIMA
+      : [...FIELDS_PENERIMA, { key: 'sisa', label: 'Sisa Kuota', kind: 'static' as const, width: 90 }],
+    [kuota],
+  );
+
   return (
     <ExcelTable<BarisPenerima>
       tableKey="keuangan_penerima_dispensasi"
@@ -504,7 +517,7 @@ export function PenerimaDispensasiPanel({ rows, loading, nama, busy, bolehUbah, 
           Daftar Penerima {nama} ({rows.length})
         </span>
       )}
-      fields={FIELDS_PENERIMA}
+      fields={fields}
       rows={rows}
       getValues={(r) => ({
         nama: r.nama,
@@ -512,6 +525,7 @@ export function PenerimaDispensasiPanel({ rows, loading, nama, busy, bolehUbah, 
         lembaga: r.lembaga,
         dispensasi: r.dispensasi,
         tahun_ajaran: r.tahun_ajaran,
+        sisa: kuota === null ? null : `${Math.max(0, kuota - (terpakai[r.santri_id] ?? 0))}/${kuota}`,
       })}
       loading={loading}
       emptyText="Belum ada penerima — masukkan santri dari daftar di kiri."

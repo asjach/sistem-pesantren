@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Dispensasi } from '@/api/keuangan';
-import { penerimaAwal } from './DispensasiDialog';
+import { santriIdsUntuk } from './DispensasiDialog';
 
 function paket(partial: Partial<Dispensasi> = {}): Dispensasi {
   return {
@@ -11,28 +11,22 @@ function paket(partial: Partial<Dispensasi> = {}): Dispensasi {
   };
 }
 
-describe('penerimaAwal', () => {
-  it('memakai nama asli dari relasi termuat', () => {
-    const hasil = penerimaAwal(paket({
-      santri_ids: [2445],
-      santri_tambahan: [{
-        id: 2445, nama_lengkap: 'AZKAYRA KIRANA', nama_singkat: null, nik: null, nisn: null,
-        ayah_nama: 'Bpk. Kirana', ibu_nama: 'Ibu Kirana', tmp_lahir: null, tgl_lahir: null,
-        jk: null, tipe_santri: null, is_active_pst: 'Ya',
-        lembaga_aktif: [{ nis_lokal: '1234' }] as never,
-      }],
-    }));
-    expect(hasil).toEqual([{
-      id: 2445, nama: 'AZKAYRA KIRANA', nisLokal: '1234',
-      ayah: 'Bpk. Kirana', ibu: 'Ibu Kirana',
-    }]);
+/* Dialog tidak lagi mengelola penerima (pindah ke halaman Dispensasi), jadi
+   satu-satunya hal yang tersisa soal penerima adalah nilai `santri_ids` yang
+   dikirim saat simpan — dan salah di sini artinya kehilangan data. */
+describe('santriIdsUntuk', () => {
+  it('mode ubah mempertahankan daftar penerima yang ada (bukan null)', () => {
+    expect(santriIdsUntuk(paket({ santri_ids: [1, 2] }), null)).toEqual([1, 2]);
+    // Paket tanpa penerima tetap null (tak ada yang perlu dijaga).
+    expect(santriIdsUntuk(paket(), null)).toBeNull();
   });
 
-  it('penanda karangan bila relasi tak ada, kosong bila tanpa penerima', () => {
-    const hasil = penerimaAwal(paket({ santri_ids: [2445] }));
-    expect(hasil).toEqual([{
-      id: 2445, nama: 'Santri #2445', nisLokal: null, ayah: null, ibu: null, namaSemu: true,
-    }]);
-    expect(penerimaAwal(paket())).toEqual([]);
+  it('mode tambah: kosong, atau santri awal saat dibuka dari profil santri', () => {
+    expect(santriIdsUntuk(null, null)).toBeNull();
+    expect(santriIdsUntuk(null, { id: 7 })).toEqual([7]);
+  });
+
+  it('santri awal diabaikan saat mengubah paket yang sudah ada', () => {
+    expect(santriIdsUntuk(paket({ santri_ids: [3] }), { id: 9 })).toEqual([3]);
   });
 });

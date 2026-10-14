@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { errorMessage } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
-  daftarDispensasi, daftarJenis, hapusDispensasi, ubahDispensasi,
+  daftarDispensasi, daftarJenis, hapusDispensasi, kuotaPakai, ubahDispensasi,
   type Dispensasi, type DispensasiInput, type JenisTagihan,
 } from '../api/keuangan';
 import { listKelas, listTahunAjaran, type Kelas, type TahunAjaran } from '../api/master';
@@ -118,6 +118,9 @@ export default function DispensasiPage() {
   const [total, setTotal] = useState(0);
   const [perPage, setPerPage] = useState<PerPage>(10);
   const [loadingKandidat, setLoadingKandidat] = useState(false);
+  /** Bulan terpakai per penerima paket terpilih (hanya paket berkuota) —
+   *  dasar kolom "Sisa Kuota" di panel kanan. */
+  const [kuotaTerpakai, setKuotaTerpakai] = useState<Record<number, number>>({});
 
   const aktif = useMemo(() => dispensasi.find((d) => d.id === aktifId) ?? null, [dispensasi, aktifId]);
   /** Baris penerima paket terpilih (satu baris per santri). */
@@ -170,6 +173,25 @@ export default function DispensasiPage() {
   }, [load]);
 
   useEffect(() => { void bacaPerPageGlobal().then((pp) => setPerPage(pp)); }, []);
+
+  /* Paket berkuota: muat pemakaian bulan per penerima supaya kolom "Sisa
+     Kuota" terisi. Tanpa kuota / tanpa penerima → kolomnya disembunyikan. */
+  useEffect(() => {
+    const ids = aktif?.santri_ids ?? [];
+    const kuota = aktif?.kuota_bulan ?? null;
+    if (kuota === null || ids.length === 0) { setKuotaTerpakai({}); return; }
+    let hidup = true;
+    void (async () => {
+      try {
+        const m = await kuotaPakai(ids);
+        if (!hidup) return;
+        const per: Record<number, number> = {};
+        for (const [sid, pakai] of Object.entries(m)) per[Number(sid)] = pakai[aktif?.id ?? 0] ?? 0;
+        setKuotaTerpakai(per);
+      } catch { if (hidup) setKuotaTerpakai({}); }
+    })();
+    return () => { hidup = false; };
+  }, [aktif]);
 
   // Opsi kelas mengikuti lingkup topBar (pemetaan nama rail → id).
   useEffect(() => {
@@ -405,6 +427,8 @@ export default function DispensasiPage() {
               rows={penerima}
               loading={loading}
               nama={aktif.nama}
+              kuota={aktif.kuota_bulan}
+              terpakai={kuotaTerpakai}
               busy={busy}
               bolehUbah={bolehUbah}
               onKeluarkan={(ids) => void keluarkan(ids)}
