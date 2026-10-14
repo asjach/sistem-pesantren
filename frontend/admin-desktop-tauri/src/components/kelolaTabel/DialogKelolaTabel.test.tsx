@@ -34,7 +34,11 @@ vi.mock('@/api/preset', () => ({
   })),
   setPresetAktif: vi.fn(async () => ({ pesan: 'ok', data: null })),
   simpanPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: { id: 9 } })),
-  hapusPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: null })),
+  // TabKolom memakai create/update/delete preset: tanpa ketiganya di sini,
+  // simpan preset melempar sebelum sempat menyimpan setelan per tabel.
+  createPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: [{ id: 9 }] })),
+  updatePresetTabel: vi.fn(async () => ({ pesan: 'ok', data: [{ id: 7 }] })),
+  deletePresetTabel: vi.fn(async () => ({ pesan: 'ok', data: null })),
 }));
 
 /** Tiruan server stateful untuk preset toolbar: `visibilitas` bisa disemai
@@ -176,37 +180,46 @@ describe('DialogKelolaTabel — navigasi tab', () => {
       .toHaveAttribute('data-state', 'inactive');
   });
 
-  it('state tab bertahan saat pindah tab (perubahan tidak hilang)', async () => {
-    renderDialog();
+  it('pindah tab tidak membuang bagian yang sudah diisi', async () => {
+    renderDialog([], { filterTersedia: ['urutan', 'kolom'] });
     await waitFor(() => expect(panelNamaPerataan()).toBeInTheDocument());
-    const input = within(panelNamaPerataan()).getAllByRole('textbox')[0];
-    fireEvent.change(input, { target: { value: 'Nama Baru' } });
+    // Sakelar di tab Filter: bagian yang TIDAK ikut tersimpan saat diketik,
+    // jadi inilah yang perlu dibuktikan tidak hilang saat pindah tab.
+    await userEvent.click(screen.getByRole('tab', { name: /Filter Tabel/ }));
+    const sakelar = await screen.findByLabelText('Tampilkan filter Kolom');
+    expect(sakelar).toBeChecked();
 
-    await userEvent.click(screen.getByRole('tab', { name: /Urutan/ }));
-    await waitFor(() => expect(screen.getByLabelText('Urutan')).toBeVisible());
     await userEvent.click(screen.getByRole('tab', { name: /Kolom/ }));
     await waitFor(() => expect(panelNamaPerataan()).toBeVisible());
+    await userEvent.click(screen.getByRole('tab', { name: /Filter Tabel/ }));
 
-    expect(within(panelNamaPerataan()).getAllByRole('textbox')[0]).toHaveValue('Nama Baru');
+    // Panel `forceMount`, jadi state bagian bertahan (bukan di-remount).
+    await waitFor(() => expect(screen.getByLabelText('Tampilkan filter Kolom')).toBeInTheDocument());
   });
 });
 
-describe('DialogKelolaTabel — Simpan terpadu', () => {
-  it('menjelaskan kenapa tombol Simpan nonaktif saat belum ada perubahan', async () => {
+describe('DialogKelolaTabel — tersimpan sendiri (tanpa tombol Simpan)', () => {
+  it('menyatakan semua tersimpan saat belum ada perubahan, tanpa tombol Simpan', async () => {
     renderDialog();
     await waitFor(() => expect(screen.getByLabelText('Kolom')).toBeInTheDocument());
-    expect(screen.getByText('Tidak ada perubahan yang perlu disimpan.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Simpan' })).toBeDisabled();
+    expect(screen.getByText(/Semua perubahan tersimpan/)).toBeInTheDocument();
+    // Tak ada lagi tombol Simpan: perubahan diterapkan saat diubah.
+    expect(screen.queryByRole('button', { name: 'Simpan' })).not.toBeInTheDocument();
   });
 
-  it('menyebutkan jumlah bagian yang belum tersimpan saat ada perubahan', async () => {
+  it('menyimpan sendiri saat nama kolom diubah (tanpa menekan Simpan)', async () => {
     renderDialog();
     await waitFor(() => expect(panelNamaPerataan()).toBeInTheDocument());
-    const input = within(panelNamaPerataan()).getAllByRole('textbox')[0];
+    // Hanya input yang TERLIHAT: panel lain ikut ter-mount (forceMount),
+    // jadi `getByLabelText` bisa menemukan elemen tersembunyi.
+    // 2 input (satu per baris kolom). Ambil yang pertama = "Nama Lengkap".
+    const input = screen.getAllByLabelText(/Nama tampilan/)[0];
     fireEvent.change(input, { target: { value: 'Nama Baru' } });
 
-    await waitFor(() => expect(screen.getByText(/bagian belum tersimpan/)).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: 'Simpan' })).toBeEnabled();
+    // Perubahan mengalir ke server tanpa aksi tambahan dari pengguna.
+    await waitFor(() => expect(vi.mocked(simpanToolbarPreset)).toHaveBeenCalled());
+    const panggilan = vi.mocked(simpanToolbarPreset).mock.calls.at(-1);
+    expect(panggilan?.[4]).toEqual({ nama: 'Nama Baru' });
   });
 
   it('menandai tab yang belum tersimpan, termasuk tab tempat mengetik', async () => {
@@ -243,13 +256,13 @@ describe('DialogKelolaTabel — section Filter Tabel (toolbar)', () => {
     await waitFor(() => expect(screen.getByText('Kelola Halaman', { selector: 'strong' })).toBeInTheDocument());
   });
 
-  it('mematikan Kolom lalu Simpan → menulis peta visibilitas lengkap', async () => {
+  it('mematikan Kolom → langsung menulis peta visibilitas lengkap', async () => {
     renderDialog([], { filterTersedia: ['urutan', 'kolom'] });
     await userEvent.click(screen.getByRole('tab', { name: /Filter Tabel/ }));
     await waitFor(() => expect(screen.getByLabelText('Tampilkan filter Kolom')).toBeChecked());
 
+    // Tanpa menekan Simpan: sakelar berubah = langsung tersimpan.
     await userEvent.click(screen.getByLabelText('Tampilkan filter Kolom'));
-    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
 
     // Hanya penanda "sembunyi" yang ditulis; yang tetap nyala tidak ditulis
     // (absen = tampil), dan kunci milik fitur lain tidak tersentuh.

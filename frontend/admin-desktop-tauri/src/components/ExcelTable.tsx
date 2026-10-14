@@ -1699,6 +1699,10 @@ export default function ExcelTable<T extends { id: string | number }>({
           judul={judulHeader}
           fields={fields}
           filterTersedia={filterTersedia}
+          /* Panel menyetel tabel yang SEDANG dilihat: biarkan tabelnya tetap
+             tampak & hidup di belakang supaya hasil setelannya langsung
+             terlihat. Dari topBar tetap modal (tabelnya tidak di belakang). */
+          nonModal
         />
       ) : null}
     </div>

@@ -233,9 +233,10 @@ describe('KomponenPage — tab ExcelTable', () => {
     renderDenganTema(<KomponenPage />);
     await klik.click(screen.getByRole('tab', { name: 'ExcelTable' }));
 
-    // Empat sumbu dinilai "perlu", dua "tidak perlu".
-    expect(screen.getAllByText('perlu').length).toBeGreaterThanOrEqual(4);
-    expect(screen.getAllByText('tidak perlu').length).toBe(2);
+    // Tiga sumbu dinilai "perlu", tiga "tidak perlu" — sumbu "kapan berlaku"
+    // tak lagi perlu penanda sejak dialog Kelola Tabel tersimpan sendiri.
+    expect(screen.getAllByText('perlu').length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByText('tidak perlu').length).toBe(3);
 
     // Sifat perubahan (mengubah DATA) = prioritas tertinggi.
     expect(screen.getByText('Sifat perubahan (tampilan vs mengubah DATA)')).toBeInTheDocument();

@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
  *
  *  1. DENAH  — replika visual ExcelTable yang setiap areanya bisa diklik untuk
  *              melihat prop/Komponen sumbernya (bukan tabel hidup: ini peta).
- *  2. PENGATURAN — empat jalan masuk pengaturan + isi 4 tab dialog Kelola Tabel.
+ *  2. PENGATURAN — empat jalan masuk pengaturan + isi 3 tab dialog Kelola Tabel.
  *  3. CAKUPAN — klasifikasi pengaturan: global / halaman / tabel ini.
  *  4. SUMBU — lima sumbu klasifikasi lain (siapa, di mana, objek, kapan, sifat).
  *  5. VISUAL — sumbu mana yang perlu penanda visual, plus usulannya.
@@ -232,9 +232,11 @@ interface BarisPengaturan {
 
 /** Empat jalan masuk pengaturan + isi masing-masing.
  *
- *  Ada DUA DialogKelolaTabel yang bisa terbuka — yang di dalam ExcelTable
- *  (klik kanan bilah judul) dan yang di TopBar (menu "Kelola tabel"). Keduanya
- *  komponen yang sama, hanya berbeda cara membuka. */
+ *  Ada DUA DialogKelolaTabel yang bisa terbuka, komponen yang sama tapi beda
+ *  sifat: dari ExcelTable (gerigi kanan bawah tabel) tampil NON-MODAL supaya
+ *  tabel di belakang tetap terlihat & hidup, sedangkan dari TopBar (menu
+ *  "Kelola tabel", untuk memilih tabel lebih dulu) tetap modal karena tak ada
+ *  tabel di belakang yang layak dilihat. */
 const PENGATURAN: BarisPengaturan[] = [
   {
     tempat: 'Footer — tombol gerigi',
@@ -257,7 +259,7 @@ const PENGATURAN: BarisPengaturan[] = [
   {
     tempat: 'Klik kanan bilah judul → "Kelola Tabel"',
     sumber: 'kelolaTabel/DialogKelolaTabel.tsx',
-    isi: 'Dialog penuh — 4 tab: Kolom · Nama & Perataan · Urutan · Filter (lihat di bawah).',
+    isi: 'Panel samping non-modal — 3 tab: Kolom (termasuk nama & perataan) · Urutan · Filter. Tabel di belakang tetap terlihat & hidup; tiap bagian tersimpan sendiri.',
     akses: 'super_admin efektif + halaman mendaftarkan tabel',
   },
   {
@@ -494,13 +496,14 @@ const SUMBU: Sumbu[] = [
     tanya: 'Apakah langsung terlihat atau perlu tindakan lain?',
     nilai: [
       { label: 'langsung (optimistis)', contoh: 'tinggi baris, lebar kolom, toggle sel, freeze' },
-      { label: 'perlu Simpan di dialog', contoh: 'preset kolom, nama header, urutan, filter' },
+      { label: 'tersimpan sendiri di dialog', contoh: 'preset kolom, nama header, urutan, filter' },
       { label: 'perlu refetch dari server', contoh: 'urut aktif (halaman memuat ulang data)' },
     ],
     kenapa:
-      'Setelan dialog TIDAK langsung tersimpan — ada tombol Simpan terpadu, dan perubahan'
-      + ' yang belum disimpan bisa hilang bila dialog ditutup. Sebaliknya tinggi baris langsung'
-      + ' berlaku tanpa konfirmasi.',
+      'Setelan dialog TIDAK lagi memakai tombol Simpan terpadu: tiap bagian tersimpan'
+      + ' sendiri begitu nilainya berubah, jadi menutup dialog tak bisa membuang'
+      + ' pekerjaan. Footer hanya menjadi STATUS (Menyimpan… / Semua perubahan'
+      + ' tersimpan / gagal), bukan aksi.',
   },
   {
     nama: 'Sifat perubahan',
@@ -604,18 +607,18 @@ const VISUAL: PenilaianVisual[] = [
   },
   {
     sumbu: 'Kapan berlaku (langsung vs perlu Simpan)',
-    perlu: true,
-    prioritas: 'sedang',
+    perlu: false,
+    prioritas: '—',
     alasan:
-      'Pengguna mengira perubahan sudah tersimpan padahal belum, lalu menutup dialog dan '
-      + 'kehilangan pekerjaan. Ini kerugian nyata (kerja ulang), bukan sekadar kebingungan.',
+      'Dulu pengguna bisa mengira perubahan sudah tersimpan padahal belum, lalu menutup '
+      + 'dialog dan kehilangan pekerjaan.',
     usulan:
-      'Tampak: badge jumlah perubahan belum disimpan di footer dialog + tombol Simpan '
-      + 'yang menyala. Konfirmasi seragam di SEMUA jalur keluar (Esc, overlay, tombol X).',
+      'Tak ada lagi pekerjaan yang menunggu: setiap bagian tersimpan sendiri saat diubah, '
+      + 'jadi tak ada yang bisa hilang saat dialog ditutup.',
     sudah:
-      'Sebagian: badge kotor per tab (DialogKelolaTabel.tsx:393-396) & nomor di footer. '
-      + 'Kekurangan: jalur keluar Esc/overlay tak selalu lewat konfirmasi (coba() hanya '
-      + 'pada aksi tertentu).',
+      'Selesai: autosave per bagian (lapor() di DialogKelolaTabel menjalankan simpan '
+      + 'bagian), footer jadi status aria-live, dan konfirmasi "buang perubahan" '
+      + 'dihapus karena tak lagi ada perubahan tertunda.',
   },
   {
     sumbu: 'Siapa yang boleh mengubah',
@@ -1393,7 +1396,7 @@ const INVENTARIS: BarisFitur[] = [
   { fitur: 'Paginasi di kaki', sumber: 'pager', dipakai: '19 halaman', catatan: 'ExcelTable tak menghitung halaman; halaman meng-inject <Pager/>.' },
   { fitur: 'Pengaturan tampilan tabel', sumber: 'SheetPengaturanTampilan (TopBar)', dipakai: 'selalu (footer memicu)', catatan: 'Tinggi sel/header, font/ukuran/warna header & sel. Semua GLOBAL.' },
   { fitur: 'Tombol tinggi baris', sumber: 'TombolTinggiBaris', dipakai: 'selalu (footer)', catatan: 'Siklus 20→24→28→32px; nilai GLOBAL semua tabel.' },
-  { fitur: 'Dialog Kelola Tabel', sumber: 'DialogKelolaTabel', dipakai: 'halaman berregistrasi', catatan: 'Dibuka dari 2 tempat: klik kanan bilah judul & menu TopBar. 4 tab.' },
+  { fitur: 'Panel Kelola Tabel', sumber: 'DialogKelolaTabel', dipakai: 'halaman berregistrasi', catatan: 'Dibuka dari 2 tempat: gerigi kanan bawah tabel (Sheet non-modal) & menu TopBar (modal). 3 tab, tersimpan sendiri.' },
   { fitur: 'Menu klik kanan 4 area', sumber: 'MenuKonteksGrid', dipakai: 'selalu', catatan: 'Tabel / Kolom / Baris / sudut — isi berbeda per area.' },
   { fitur: 'Salin TSV (baris/sel/kolom/semua)', sumber: 'useSalinTabel + Ctrl+C', dipakai: 'selalu', catatan: 'Termasuk tombol salin di corner button.' },
   { fitur: 'Scrollbar melayang', sumber: 'ScrollbarMelayang ×2', dipakai: 'selalu', catatan: 'Mengganti scrollbar bawaan yang disembunyikan.' },

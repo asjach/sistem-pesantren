@@ -6,27 +6,18 @@ import {
   type PresetTabel,
 } from '@/api/preset';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { BagianProvider, useRegistriBagian, type AksiBagian, type HasilSimpan } from '@/components/kelolaHalaman/kotor';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { RotateCcw } from '@/icons';
+import { Check, Loader2, RotateCcw, TriangleAlert } from '@/icons';
+import { cn } from '@/lib/utils';
 import { bersihLabel, kanonLabel } from '@/lib/labelKolom';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
@@ -243,6 +234,7 @@ export default function DialogKelolaTabel({
   judul,
   fields,
   filterTersedia = [],
+  nonModal = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -253,6 +245,10 @@ export default function DialogKelolaTabel({
   fields?: ExcelField[];
   /** Filter toolbar milik tabel ini (dihitung ExcelTable dari props-nya). */
   filterTersedia?: readonly KunciFilterToolbar[];
+  /** Panel melayang di samping tabel yang sedang dilihat (Sheet non-modal),
+   *  bukan dialog modal. Dipakai jalur tabel; dari topBar tetap modal karena
+   *  tak jelas tabel mana yang "di belakang". */
+  nonModal?: boolean;
 }) {
   /** Status kotor per bagian (dipakai badge di tab + penanda simpan). */
   const [kotorBagian, setKotorBagian] = useState<Record<string, boolean>>({});
@@ -263,18 +259,52 @@ export default function DialogKelolaTabel({
   const simpanBagianRef = useRef<Record<string, () => HasilSimpan>>({});
   /** Aksi ikon tiap bagian (mis. kembalikan bawaan). */
   const [aksiBagian, setAksiBagian] = useState<Record<string, AksiBagian>>({});
-  const [menyimpan, setMenyimpan] = useState(false);
-  /** Aksi tertunda yang menunggu konfirmasi "buang perubahan?". */
-  const [aksiTertunda, setAksiTertunda] = useState<(() => void) | null>(null);
 
-  /** Ada perubahan belum tersimpan di bagian mana pun. */
+  /** Ada perubahan BELUM TERSIMPAN di bagian mana pun. Bagian menyimpan
+   *  sendiri saat berubah, jadi ini hanya jendela sesaat antara ketikan dan
+   *  balasan server - bukan tumpukan pekerjaan yang menunggu tombol Simpan. */
   const adaKotor = Object.values(kotorBagian).some(Boolean);
   /** Cermin `adaKotor` untuk keputusan sinkron (state React baru terlihat
    *  pada render berikutnya). */
   const kotorRef = useRef(false);
   kotorRef.current = adaKotor;
+
+  /** Bagian yang gagal disimpan otomatis sejak pembukaan terakhir. Dipakai
+   *  footer untuk berhenti bilang "tersimpan" bila ada yang gagal. */
+  const [adaGagal, setAdaGagal] = useState(false);
+  /** Penanda antre: nomor urut permintaan simpan terakhir yang dimulai. */
+  const antreRef = useRef(0);
+  /** Bagian yang sedang disimpan (untuk indikator "Menyimpan…"). */
+  const [sedangSimpan, setSedangSimpan] = useState<string[]>([]);
+
   const lapor = useCallback((id: string, v: boolean) => {
     setKotorBagian((prev) => (prev[id] === v ? prev : { ...prev, [id]: v }));
+    /* TERAPKAN LANGSUNG: bagian melaporkan "kotor" tepat saat nilainya
+       berubah, jadi di situlah penyimpanan dijalankan - tanpa menunggu
+       tombol. Bagian yang gagal tetap ditandai kotor supaya percobaan
+       berikutnya (ketikan berikutnya) bisa mengulang; kegagalannya juga
+       dicatat agar footer berhenti mengaku "tersimpan". */
+    if (!v) return;
+    const fn = simpanBagianRef.current[id];
+    if (!fn) return;
+    const nomor = (antreRef.current += 1);
+    setSedangSimpan((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    void (async () => {
+      let ok: boolean | void = true;
+      try {
+        ok = await fn();
+      } catch {
+        ok = false;
+      } finally {
+        // Hanya permintaan TERAKHIR yang boleh membersihkan indikator:
+        // yang lama bisa selesai belakangan (balapan) dan mematikan
+        // indikator milik yang baru.
+        if (nomor === antreRef.current) {
+          setSedangSimpan((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev));
+        }
+      }
+      if (ok === false) setAdaGagal(true);
+    })();
   }, []);
   const daftarSimpan = useCallback((id: string, simpan: (() => void) | null) => {
     if (simpan) simpanBagianRef.current[id] = simpan;
@@ -292,41 +322,16 @@ export default function DialogKelolaTabel({
     });
   }, []);
   const registri = useRegistriBagian(lapor, daftarSimpan, daftarAksi);
-  /** Urutan simpan: preset kolom dulu (membuat id bila preset baru),
-   *  lalu nama & perataan, urutan; filter topBar & filter toolbar terakhir
-   *  agar penanda halaman disegarkan setelah setelan lain selesai. */
-  const URUTAN_BAGIAN = ['kolom', 'urutan', 'filterToolbar'] as const;
+  /* Tak ada lagi perubahan tertunda: tiap bagian menyimpan sendiri saat
+     diubah, jadi menutup dialog tak bisa membuang pekerjaan - dan
+     konfirmasi "buang perubahan?" tak lagi punya alasan. */
+  const tutup = useCallback(() => onOpenChange(false), [onOpenChange]);
 
-  /** Simpan semua bagian yang berubah, berurutan. Sukses semua = keluar
-   *  dialog; ada yang gagal = tetap buka (galat sudah di-toast bagian). */
-  const simpanSemua = useCallback(async () => {
-    setMenyimpan(true);
-    try {
-      for (const id of URUTAN_BAGIAN) {
-        if (!kotorBagian[id]) continue;
-        const fn = simpanBagianRef.current[id];
-        if (!fn) continue;
-        const ok = await fn();
-        if (ok === false) return;
-      }
-      onOpenChange(false);
-    } finally {
-      setMenyimpan(false);
-    }
-  }, [kotorBagian, onOpenChange]);
-  /** Jalankan aksi, tapi tanya dulu bila ada perubahan belum tersimpan. */
-  const coba = useCallback((aksi: () => void) => {
-    if (kotorRef.current) setAksiTertunda(() => aksi);
-    else aksi();
-  }, []);
-
-  const tutup = useCallback(() => coba(() => onOpenChange(false)), [coba, onOpenChange]);
-
-  // Saat dibuka: bersihkan penanda kotor dan aksi tertunda.
+  // Saat dibuka: bersihkan penanda kotor dan catatan gagal.
   useEffect(() => {
     if (!open) return;
     setKotorBagian({});
-    setAksiTertunda(null);
+    setAdaGagal(false);
   }, [open, tableKey]);
 
   const adaFilterToolbar = filterTersedia.length > 0;
@@ -362,16 +367,26 @@ export default function DialogKelolaTabel({
   );
 
   return (
-    <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())}>
-      <DialogContent className="!flex h-[85dvh] max-h-[85dvh] flex-col !gap-0 !overflow-hidden !p-0 sm:max-w-2xl lg:max-w-4xl [&>[data-slot=dialog-close]]:top-2.5 [&>[data-slot=dialog-close]]:right-2.5">
+    <Sheet open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())} modal={!nonModal}>
+      <SheetContent
+        side="right"
+        /* Saat dibuka dari TABEL yang sedang dilihat: non-modal + tanpa
+           overlay, supaya tabelnya tetap terlihat dan hidup - itulah alasan
+           panel ini ada. Dari topBar (tabel di halaman lain) tetap modal:
+           tak ada tabel di belakang yang layak dilihat. */
+        overlay={!nonModal}
+        onInteractOutside={nonModal ? (e) => e.preventDefault() : undefined}
+        aria-label={`Pengaturan tabel ${typeof judul === 'string' ? judul : 'ini'}`}
+        className="!flex w-full flex-col gap-0 !p-0 sm:max-w-2xl lg:max-w-4xl"
+      >
         <BagianProvider value={registri}>
-          <DialogHeader className="shrink-0 gap-1 border-b px-4 py-3">
-            <DialogTitle>Kelola tabel: {judul}</DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Atur kolom, nama & perataan, urutan, dan filter tabel ini. Setiap tab tersimpan
-              sendiri lewat tombol Simpan di bawah.
-            </DialogDescription>
-          </DialogHeader>
+          <SheetHeader className="shrink-0 gap-1 border-b px-4 py-3">
+            <SheetTitle>Kelola tabel: {judul}</SheetTitle>
+            <SheetDescription className="text-xs text-muted-foreground">
+              Atur kolom, nama & perataan, urutan, dan filter tabel ini. Perubahan
+              tersimpan sendiri saat diubah.
+            </SheetDescription>
+          </SheetHeader>
 
           <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
             <TabsList variant="line" className="h-auto w-full shrink-0 justify-start gap-1 border-b px-3 py-1.5">
@@ -422,55 +437,30 @@ export default function DialogKelolaTabel({
             ) : null}
           </Tabs>
 
-          <DialogFooter className="shrink-0 items-center gap-2 border-t px-4 py-3">
-            {/* Simpan nonaktif tanpa keterangan = form yang terlihat rusak;
-                beri tahu apa yang perlu dilakukan (atau belum ada apa-apa). */}
-            <p className="mr-auto text-xs text-muted-foreground" id="petunjuk_simpan_kelola_tabel">
-              {adaKotor
-                ? `${jumlahKotor} bagian belum tersimpan.`
-                : 'Tidak ada perubahan yang perlu disimpan.'}
+          <SheetFooter className="shrink-0 flex-row items-center gap-2 border-t px-4 py-3">
+            {/* Perubahan tersimpan sendiri saat diubah, jadi tak ada tombol
+                Simpan - yang perlu diketahui pengguna hanyalah SEDANG apa
+                datanya sekarang. Ini status, bukan aksi. */}
+            <p
+              className={cn('mr-auto flex items-center gap-1.5 text-xs', adaGagal ? 'text-destructive' : 'text-muted-foreground')}
+              id="status_simpan_kelola_tabel"
+              role="status"
+              aria-live="polite"
+            >
+              {adaGagal ? (
+                <><TriangleAlert size={13} /> Ada perubahan yang gagal disimpan.</>
+              ) : sedangSimpan.length > 0 || adaKotor ? (
+                <><Loader2 size={13} className="animate-spin" /> Menyimpan…</>
+              ) : (
+                <><Check size={13} /> Semua perubahan tersimpan.</>
+              )}
             </p>
             <Button type="button" variant="outline" id="btn_tutup_kelola_tabel" onClick={tutup}>
               Tutup
             </Button>
-            <Button
-              type="button"
-              id="btn_simpan_kelola_tabel"
-              aria-describedby="petunjuk_simpan_kelola_tabel"
-              disabled={!adaKotor || menyimpan}
-              onClick={() => void simpanSemua()}
-            >
-              {menyimpan ? 'Menyimpan…' : 'Simpan'}
-            </Button>
-          </DialogFooter>
+          </SheetFooter>
         </BagianProvider>
-      </DialogContent>
-
-      {/* Konfirmasi sebelum perubahan belum tersimpan dibuang. */}
-      <AlertDialog open={aksiTertunda !== null} onOpenChange={(o) => { if (!o) setAksiTertunda(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Perubahan belum disimpan</AlertDialogTitle>
-            <AlertDialogDescription>
-              Perubahan yang belum disimpan akan hilang bila dilanjutkan. Pilih Batal lalu tekan
-              Simpan untuk menyimpannya.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              id="btn_buang_perubahan_kelola_tabel"
-              onClick={() => {
-                const lanjut = aksiTertunda;
-                setAksiTertunda(null);
-                lanjut?.();
-              }}
-            >
-              Buang perubahan
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
