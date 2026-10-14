@@ -16,6 +16,18 @@ export function bacaAlign(align: Record<string, unknown> | undefined): Partial<R
   return hasil;
 }
 
+/** Label nama header kolom tersimpan (key kolom → teks pengganti); kunci
+ *  asing dan nilai kosong diabaikan. Absen = pakai label field/bawaan. */
+export function bacaLabel(label: Record<string, unknown> | undefined): Record<string, string> {
+  const hasil: Record<string, string> = {};
+  for (const [k, v] of Object.entries(label ?? {})) {
+    if (!/^[a-z0-9_]{1,60}$/.test(k)) continue;
+    const teks = typeof v === 'string' ? v.trim() : '';
+    if (teks !== '') hasil[k] = teks;
+  }
+  return hasil;
+}
+
 /** Event jendela setelah setelan tabel tersimpan: tiap grid dengan tableKey
  *  sama memuat ulang. */
 export const EVENT_TOOLBAR_BERUBAH = 'simpes:toolbar-berubah';

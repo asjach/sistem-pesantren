@@ -9,11 +9,10 @@ import PresetKolom, { type PresetKolomApi } from './PresetKolom';
 interface AmplopDaftar {
   pesan: string;
   data: {
-    presets: { id: number; jenjang: string | null; table_key: string; nama: string; kolom: string[]; label?: Record<string, string> | null; is_default: boolean }[];
+    presets: { id: number; jenjang: string | null; table_key: string; nama: string; kolom: string[]; is_default: boolean }[];
     aktif_preset_id: number | null;
     default_preset_id: number | null;
     aktif_kolom: string[] | null;
-    aktif_label: Record<string, string> | null;
   };
 }
 
@@ -25,7 +24,6 @@ const apiUji = vi.hoisted(() => {
       aktif_preset_id: null,
       default_preset_id: null,
       aktif_kolom: null,
-      aktif_label: null,
     },
   });
   return {
@@ -61,7 +59,6 @@ function presetRingkas(kolom: string[]) {
       aktif_preset_id: 7,
       default_preset_id: null,
       aktif_kolom: null,
-      aktif_label: null,
     },
   };
 }
@@ -98,12 +95,12 @@ describe('PresetKolom — toggleKolomAktif', () => {
   beforeEach(() => { vi.clearAllMocks(); });
   it('tanpa preset aktif: menyimpan susunan "Lengkap" pribadi', async () => {
     const ref = await tungguApi();
-    expect(ref.current?.terapan).toEqual({ kolom: null, label: null, presetId: null });
+    expect(ref.current?.terapan).toEqual({ kolom: null, presetId: null });
 
     await act(async () => { await ref.current?.toggleKolomAktif('kode', false); });
 
     // Kolom tersisa ditulis apa adanya (urutan field), BUKAN susunan preset.
-    expect(apiUji.setPresetAktif).toHaveBeenCalledWith('uji', null, ['nama'], null);
+    expect(apiUji.setPresetAktif).toHaveBeenCalledWith('uji', null, ['nama']);
     expect(apiUji.updatePresetTabel).not.toHaveBeenCalled();
   });
 

@@ -164,7 +164,7 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   /** Susunan kolom dikendalikan dari luar (mis. PresetKolom di luar toolbar):
    *  menimpa preset internal sepenuhnya (termasuk label & id preset untuk
    *  menu konteks). `undefined` (bawaan) = perilaku lama. */
-  presetLuar?: { keys: string[] | null; label?: Record<string, string> | null; presetId?: number | null };
+  presetLuar?: { keys: string[] | null; presetId?: number | null };
   /** Pemanggil menggambar bar judul sendiri (mis. `TabelRingkas`): grid
    *  tidak perlu jarak `mt-2` dari pemanggil maupun margin horizontal
    *  negatif `-mx-1` yang biasanya mengimbangi padding halaman. */
@@ -311,7 +311,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
-  const { visibilitas, alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { visibilitas, alignDb, urutanDb, setUrutanDb, labelDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -324,27 +324,26 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Id preset aktif (null = Lengkap/tanpa preset): urutan kolom mengikuti
    *  susunan preset; geser dari menu konteks menyimpan balik ke preset ini. */
   const [presetAktifIdDalam, setPresetAktifIdDalam] = useState<number | null>(null);
-  /** Nama header kustom dari preset aktif (key kolom → nama tampil). */
-  const [presetLabelDalam, setPresetLabelDalam] = useState<Record<string, string> | null>(null);
-  // Bila dikendalikan luar, ketiga nilai di atas diabaikan sepenuhnya.
+  // Bila dikendalikan luar, kedua nilai di atas diabaikan sepenuhnya.
   const luar = presetLuar !== undefined;
   const presetKeys = luar ? presetLuar.keys : presetKeysDalam;
   const presetAktifId = luar ? (presetLuar.presetId ?? null) : presetAktifIdDalam;
-  const presetLabel = luar ? (presetLuar.label ?? null) : presetLabelDalam;
-  const terapkanPreset = useCallback((keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => {
+  /* Nama header kolom bukan urusan preset: itu setelan per TABEL dari DB
+     (`toolbar_preset.label`, lihat `useKelolaKolom`/`labelDb`). Dulu label ikut
+     preset; sekarang sumbernya tinggal satu. */
+  const terapkanPreset = useCallback((keys: string[] | null, presetId?: number | null) => {
     if (luar) return;
     setPresetKeysDalam(keys);
-    setPresetLabelDalam(label ?? null);
     setPresetAktifIdDalam(presetId ?? null);
   }, [luar]);
 
 
-  /** Nama tampilan kolom: label preset per tabel (kalau ada) > label field.
+  /** Nama tampilan kolom: label per TABEL dari DB (kalau ada) > label field.
    *  Label berupa nama kolom mentah di-humanize supaya header tidak pernah
    *  tampil apa adanya; lihat `lib/labelKolom`. */
   const labelKolom = useCallback((key: string, bawaan: string) => (
-    labelKolomTeks(presetLabel?.[key]?.trim() || bawaan || key)
-  ), [presetLabel]);
+    labelKolomTeks(labelDb?.[key]?.trim() || bawaan || key)
+  ), [labelDb]);
   /** Perataan efektif = standar global per tabel (DB; satu sumber dengan
    *  dialog Kelola Tabel); absen = tengah. */
   const alignEfektif = useCallback((key: string): AlignKolom => (

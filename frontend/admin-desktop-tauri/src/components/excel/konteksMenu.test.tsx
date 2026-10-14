@@ -8,7 +8,7 @@ import type { PresetKolomApi } from '@/components/PresetKolom';
 import { renderDenganTema } from '@/test/utils';
 import MenuKonteksGrid, { type MenuKonteksGridProps } from './konteksMenu';
 
-function apiPalsu(terapan: PresetKolomApi['terapan'] = { kolom: null, label: null, presetId: null }) {
+function apiPalsu(terapan: PresetKolomApi['terapan'] = { kolom: null, presetId: null }) {
   return {
     presets: [],
     terapan,

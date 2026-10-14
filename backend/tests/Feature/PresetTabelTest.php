@@ -152,29 +152,34 @@ class PresetTabelTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors(['kolom']);
     }
 
-    public function test_preset_menyimpan_label_kustom_per_kolom(): void
+    /** Preset HANYA menentukan kolom mana yang tampil. Nama header kolom adalah
+     *  setelan per TABEL (`toolbar_preset.label`), jadi `label` yang dulu ikut
+     *  preset tak lagi diterima - dikirim pun harus diabaikan, bukan tersimpan
+     *  diam-diam, karena itu akan menghidupkan lagi sumber label kedua. */
+    public function test_preset_tidak_lagi_menyimpan_label(): void
     {
         $pusat = $this->makeUser('super_admin');
 
-        // Label tersimpan; key di luar kolom + string kosong dibuang.
         $res = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
             'table_key' => 'keanggotaan', 'nama' => 'ringkas',
             'kolom' => ['santri', 'jk'],
-            'label' => ['santri' => 'Nama Santri', 'jk' => '  ', 'kolom_asing' => 'X'],
+            'label' => ['santri' => 'Nama Santri'],
         ]);
         $res->assertStatus(201);
         $id = (int) $res->json('data.0.id');
-        $this->assertEquals(['santri' => 'Nama Santri'], PresetTabel::findOrFail($id)->label);
 
-        // Index memuat label; ubah via PUT (null = hapus semua label kustom).
+        // Kolom tetap tersimpan; label diabaikan.
+        $this->assertEquals(['santri', 'jk'], PresetTabel::findOrFail($id)->kolom);
+        $this->assertNull(PresetTabel::findOrFail($id)->label);
+
+        // Index tak lagi menyajikan `label`.
         $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=keanggotaan')
-            ->assertJsonPath('data.presets.0.label', ['santri' => 'Nama Santri']);
+            ->assertStatus(200)
+            ->assertJsonMissingPath('data.presets.0.label');
+
+        // PUT pun mengabaikannya.
         $this->actingAs($pusat, 'sanctum')->putJson("/api/admin/preset-tabel/{$id}", [
             'label' => ['jk' => 'Jenis Kelamin'],
-        ])->assertStatus(200);
-        $this->assertEquals(['jk' => 'Jenis Kelamin'], PresetTabel::findOrFail($id)->label);
-        $this->actingAs($pusat, 'sanctum')->putJson("/api/admin/preset-tabel/{$id}", [
-            'label' => null,
         ])->assertStatus(200);
         $this->assertNull(PresetTabel::findOrFail($id)->label);
     }

@@ -27,7 +27,7 @@ const { muatUrutPreset, listPresetTabel } = vi.hoisted(() => ({
   })),
   listPresetTabel: vi.fn((..._a: unknown[]): Promise<unknown> => Promise.resolve({
     pesan: 'ok',
-    data: { presets: [], aktif_preset_id: null, aktif_kolom: null, aktif_label: null, default_preset_id: null },
+    data: { presets: [], aktif_preset_id: null, aktif_kolom: null, default_preset_id: null },
   })),
 }));
 
@@ -63,7 +63,6 @@ function presetKolom(jumlah: number) {
       presets: Array.from({ length: jumlah }, (_, i) => ({ id: i + 1, nama: `Preset ${i + 1}`, kolom: ['a'] })),
       aktif_preset_id: null,
       aktif_kolom: null,
-      aktif_label: null,
       default_preset_id: null,
     },
   });
@@ -163,13 +162,12 @@ describe('dropdown Kolom — selalu tampil dengan awalan "Lengkap"', () => {
         presets: [{ id: 9, nama: 'Lengkap', kolom: ['a'] }],
         aktif_preset_id: null,
         aktif_kolom: null,
-        aktif_label: null,
         default_preset_id: null,
       },
     });
     renderDenganTema(<PresetKolom tableKey="uji" fields={FIELDS} onApply={onApply} />);
 
-    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], null, 9));
+    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], 9));
   });
 });
 
@@ -184,7 +182,6 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
       ],
       aktif_preset_id: null,
       aktif_kolom: null,
-      aktif_label: null,
       default_preset_id: null,
       ...tambahan,
     },
@@ -202,7 +199,7 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
     renderDenganTema(<PresetKolom tableKey={tableKey} fields={FIELDS} onApply={onApply} />);
 
     // Nilai awal = preset "Ringkas" (id 7), bukan "Lengkap" (id 9).
-    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], null, 7));
+    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], 7));
   });
 
   it('nilai awal yang tiba BELAKANGAN (setelah preset termuat) tetap diterapkan', async () => {
@@ -217,7 +214,7 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
     // BARU nilai awal datang dari server (async di app nyata).
     simpanSetelanKomponen('', `select_preset_kolom_${tableKey}`, { nilaiDefault: 'Ringkas' });
 
-    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], null, 7));
+    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], 7));
   });
 
   /**
@@ -247,14 +244,13 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
         ],
         aktif_preset_id: 7,
         aktif_kolom: null,
-        aktif_label: null,
         default_preset_id: null,
       },
     });
     renderDenganTema(<PresetKolom tableKey={tableKey} fields={FIELDS} onApply={onApply} />);
 
     // Penerapan TERAKHIR harus preset nilai awal (9), bukan preset aktif (7).
-    await waitFor(() => expect(onApply).toHaveBeenLastCalledWith(['a'], null, 9));
+    await waitFor(() => expect(onApply).toHaveBeenLastCalledWith(['a'], 9));
   });
 
   it('mengubah nilai awal saat halaman terbuka langsung diterapkan (tanpa refresh)', async () => {
@@ -271,6 +267,6 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
     // Pengguna mengganti nilai awal lewat popover klik-kanan → berlaku seketika.
     simpanSetelanKomponen('', `select_preset_kolom_${tableKey}`, { nilaiDefault: 'Ringkas' });
 
-    await waitFor(() => expect(onApply).toHaveBeenLastCalledWith(['a'], null, 7));
+    await waitFor(() => expect(onApply).toHaveBeenLastCalledWith(['a'], 7));
   });
 });

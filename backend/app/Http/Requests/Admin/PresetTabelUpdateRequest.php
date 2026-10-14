@@ -18,8 +18,6 @@ class PresetTabelUpdateRequest extends FormRequest
             'nama' => ['sometimes', 'string', 'max:50'],
             'kolom' => ['sometimes', 'array', 'min:1', 'max:200'],
             'kolom.*' => ['string', 'max:60'],
-            'label' => ['sometimes', 'nullable', 'array', 'max:200'],
-            'label.*' => ['nullable', 'string', 'max:60'],
         ];
     }
 }

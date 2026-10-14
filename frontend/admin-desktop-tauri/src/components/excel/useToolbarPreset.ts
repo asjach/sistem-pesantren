@@ -11,6 +11,7 @@ import {
 import {
   EVENT_TOOLBAR_BERUBAH,
   bacaAlign,
+  bacaLabel,
   kabariToolbar,
   type AlignKolom,
 } from '@/components/kelolaTabel/jenis';
@@ -57,6 +58,8 @@ export function useToolbarPresetState(tableKey: string) {
   const [alignDb, setAlignDb] = useState<Partial<Record<string, AlignKolom>>>({});
   /** Urutan kolom tersimpan di DB (null = belum dimuat; [] = bawaan halaman). */
   const [urutanDb, setUrutanDb] = useState<string[] | null>(null);
+  /** Peta `label`/`align` dari `LabelKolomApi` -> peta perataan saja. */
+  const [labelDb, setLabelDb] = useState<Record<string, string>>({});
 
   /** Konteks "di dalam toolbar tabel": tinggal identitas tabel. */
   const konteksLebarFilter = useMemo(() => ({ tableKey }), [tableKey]);
@@ -70,11 +73,13 @@ export function useToolbarPresetState(tableKey: string) {
         setVisibilitas(visibilitasBersih(res.data.visibilitas));
         setAlignDb(bacaAlign(res.data.align));
         setUrutanDb(Array.isArray(res.data.urutan) ? res.data.urutan : []);
+        setLabelDb(bacaLabel(res.data.label));
       } catch {
         if (batal) return;
         setVisibilitas({});
         setAlignDb({});
         setUrutanDb([]);
+        setLabelDb({});
       }
     };
     void muat();
@@ -120,5 +125,5 @@ export function useToolbarPresetState(tableKey: string) {
       });
   }, [tableKey]);
 
-  return { visibilitas, alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter };
+  return { visibilitas, alignDb, urutanDb, setUrutanDb, labelDb, simpanAlign, konteksLebarFilter };
 }

@@ -12,7 +12,9 @@ class PresetTabel extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = ['kolom' => 'array', 'label' => 'array', 'is_default' => 'boolean'];
+    /* `label` tak lagi di-cast: nama header kolom kini setelan per TABEL di
+     * `toolbar_preset.label`, bukan per preset. */
+    protected $casts = ['kolom' => 'array', 'is_default' => 'boolean'];
 
     public function lembaga(): BelongsTo
     {

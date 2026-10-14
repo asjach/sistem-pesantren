@@ -18,7 +18,7 @@ import { BagianProvider, useRegistriBagian, type AksiBagian, type HasilSimpan } 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Check, Loader2, RotateCcw, TriangleAlert } from '@/icons';
 import { cn } from '@/lib/utils';
-import { bersihLabel, kanonLabel } from '@/lib/labelKolom';
+import { kanonLabel } from '@/lib/labelKolom';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 import TabKolom, { type TabKolomProps } from './TabKolom';
@@ -75,10 +75,10 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
         ? null
         : res.data.presets.find((p) => p.id === aktifId) ?? null;
       const kolomKustom = aktif === null ? res.data.aktif_kolom ?? null : null;
-      const labelKustom = aktif === null ? res.data.aktif_label ?? null : null;
-      const labelBersih = bersihLabel(aktif ? (aktif.label ?? null) : labelKustom, fieldKeys);
-      setLabel(labelBersih);
-      labelAwalRef.current = kanonLabel(labelBersih);
+      /* Label SENGAJA tidak disentuh di sini: nama header kolom adalah setelan
+         per TABEL (`toolbar_preset.label`) yang sudah dimuat `useKelolaKolom`.
+         Dulu label ikut preset; menimpanya sekarang akan mengembalikan label
+         tabel ke nilai preset lama setiap kali dialog dibuka. */
       setKelola((s) => ({ preset: aktif, lengkap: aktif === null, kolomAwal: kolomKustom, nonce: s.nonce + 1 }));
     } catch (e) {
       setPresets([]);
@@ -96,14 +96,11 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
   }, [muat]);
 
   /** Simpan susunan "Lengkap kustom" (tanpa preset bernama) ke server supaya
-   *  bertahan antar muat ulang, lalu minta grid memuatnya. */
-  const pakaiLengkap = useCallback((keys: string[], label: Record<string, string>) => {
+   *  bertahan antar muat ulang, lalu minta grid memuatnya. Label tidak dikirim:
+   *  nama header kolom disimpan per TABEL oleh `TabKolom`. */
+  const pakaiLengkap = useCallback((keys: string[]) => {
     const efektif = keys.filter((k) => fieldKeys.has(k));
-    const labelBersih: Record<string, string> = {};
-    for (const [k, v] of Object.entries(label)) {
-      if (fieldKeys.has(k) && v.trim() !== '') labelBersih[k] = v.trim();
-    }
-    void setPresetAktif(tableKey, null, efektif, Object.keys(labelBersih).length > 0 ? labelBersih : null)
+    void setPresetAktif(tableKey, null, efektif)
       .then(() => {
         kabariPreset(tableKey);
         toast.success('Susunan kolom disimpan.');
@@ -117,11 +114,10 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
     setKelola((s) => ({ preset: null, lengkap: true, kolomAwal: null, nonce: s.nonce + 1 }));
   }, []);
   const pilihPreset = useCallback((p: PresetTabel | null) => {
-    const bersih = bersihLabel(p?.label ?? null, fieldKeys);
-    setLabel(bersih);
-    labelAwalRef.current = kanonLabel(bersih);
+    /* Label tabel dibiarkan apa adanya: preset mengubah kolom mana yang TAMPIL,
+       bukan cara kolom dinamai. */
     setKelola((s) => ({ preset: p, lengkap: false, kolomAwal: null, nonce: s.nonce + 1 }));
-  }, [fieldKeys]);
+  }, []);
   const tersimpan = useCallback(async (id: number) => {
     await setPresetAktif(tableKey, id);
     kabariPreset(tableKey);

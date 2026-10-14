@@ -28,7 +28,7 @@ vi.mock('@/api/toolbarPreset', () => ({
 vi.mock('@/api/preset', () => ({
   listPresetTabel: vi.fn(async () => ({
     pesan: 'ok',
-    data: { presets: [], aktif_preset_id: null, default_preset_id: null, aktif_kolom: null, aktif_label: null },
+    data: { presets: [], aktif_preset_id: null, default_preset_id: null, aktif_kolom: null,  },
   })),
   createPresetTabel: vi.fn(),
   updatePresetTabel: vi.fn(),

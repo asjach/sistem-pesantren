@@ -157,7 +157,6 @@ describe('ExcelTable — nilai awal preset kolom dari popover', () => {
       aktif_preset_id: null,
       default_preset_id: 9,
       aktif_kolom: null,
-      aktif_label: null,
     },
   });
 

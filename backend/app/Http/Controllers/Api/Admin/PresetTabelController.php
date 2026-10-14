@@ -26,10 +26,13 @@ class PresetTabelController extends Controller
         $data = $request->validated();
         $user = $request->user();
 
+        /* Kolom dipilih eksplisit: `label` adalah sisa jalur lama yang tak lagi
+           dipakai preset (nama header kini per TABEL). Tanpa ini, `->get()`
+           mengirim seluruh kolom model termasuk `label` yang selalu null. */
         $presets = $this->queryEfektif($data['table_key'])
             ->with('lembaga:jenjang,nama')
             ->orderBy('nama')
-            ->get();
+            ->get(['id', 'jenjang', 'table_key', 'nama', 'kolom', 'is_default']);
 
         $aktif = PresetTabelAktif::where('user_id', $user->id)
             ->where('table_key', $data['table_key'])
@@ -47,22 +50,22 @@ class PresetTabelController extends Controller
                 'default_preset_id' => $bawaan ? (int) $bawaan : null,
                 // Susunan "Lengkap kustom" (kolom sebagian) saat tanpa preset.
                 'aktif_kolom' => $aktif && $aktif->preset_id === null ? $aktif->kolom : null,
-                'aktif_label' => $aktif && $aktif->preset_id === null ? $aktif->label : null,
             ],
         ]);
     }
 
-    /** POST /api/admin/preset-tabel — simpan preset GLOBAL (satu baris per nama). */
+    /** POST /api/admin/preset-tabel — simpan preset GLOBAL (satu baris per nama).
+     *  Preset hanya menentukan kolom mana yang TAMPIL; nama header & perataan
+     *  kolom adalah setelan per TABEL (`toolbar_preset.label`/`.align`). */
     public function store(PresetTabelStoreRequest $request): JsonResponse
     {
         $this->pastikanSuperAdmin($request->user());
         $data = $request->validated();
 
         $kolom = array_values(array_unique($data['kolom']));
-        $label = $this->bersihkanLabel($data['label'] ?? null, $kolom);
         $preset = PresetTabel::updateOrCreate(
             ['jenjang' => null, 'table_key' => $data['table_key'], 'nama' => $data['nama']],
-            ['kolom' => $kolom, 'label' => $label, 'dibuat_oleh' => $request->user()->id],
+            ['kolom' => $kolom, 'dibuat_oleh' => $request->user()->id],
         )->load('lembaga:jenjang,nama');
 
         return response()->json([
@@ -93,9 +96,6 @@ class PresetTabelController extends Controller
         $preset->update([
             'nama' => $nama,
             'kolom' => $kolom,
-            'label' => array_key_exists('label', $data)
-                ? $this->bersihkanLabel($data['label'], $kolom)
-                : $this->bersihkanLabel($preset->label, $kolom),
         ]);
 
         return response()->json([
@@ -135,16 +135,14 @@ class PresetTabelController extends Controller
         // bertahan antar muat ulang. Saat memilih preset, susunan kustom
         // dibersihkan karena preset yang menentukan kolomnya.
         $kolom = null;
-        $label = null;
         if ($presetId === null) {
             $kolomMentah = array_values(array_unique($data['kolom'] ?? []));
             $kolom = $kolomMentah === [] ? null : $kolomMentah;
-            $label = $kolom === null ? null : ($this->bersihkanLabel($data['label'] ?? null, $kolom) ?: null);
         }
 
         PresetTabelAktif::updateOrCreate(
             ['user_id' => $request->user()->id, 'table_key' => $data['table_key']],
-            ['preset_id' => $presetId, 'kolom' => $kolom, 'label' => $label],
+            ['preset_id' => $presetId, 'kolom' => $kolom],
         );
 
         return response()->json(['pesan' => 'Preset aktif disimpan.']);
@@ -196,32 +194,5 @@ class PresetTabelController extends Controller
         if ($q->exists()) {
             throw ValidationException::withMessages(['nama' => 'Nama preset sudah dipakai untuk tabel ini.']);
         }
-    }
-
-    /**
-     * Bersihkan peta label kustom: hanya key yang ada di kolom, trim, buang
-     * yang kosong. Mengembalikan null bila tak ada label kustom tersisa.
-     *
-     * @param  array<string, string|null>|null  $label
-     * @param  string[]  $kolom
-     */
-    protected function bersihkanLabel(mixed $label, array $kolom): ?array
-    {
-        if (! is_array($label)) {
-            return null;
-        }
-        $boleh = array_flip($kolom);
-        $bersih = [];
-        foreach ($label as $key => $nama) {
-            if (! isset($boleh[$key])) {
-                continue;
-            }
-            $nama = trim((string) $nama);
-            if ($nama !== '') {
-                $bersih[$key] = mb_substr($nama, 0, 60);
-            }
-        }
-
-        return $bersih === [] ? null : $bersih;
     }
 }

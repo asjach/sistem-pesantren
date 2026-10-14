@@ -46,8 +46,6 @@ export interface PresetKolomApi {
 export interface SusunanBerlaku {
   /** Key kolom yang tampil; `null` = semua kolom (mode Lengkap). */
   kolom: string[] | null;
-  /** Label kustom per key (ikut tersimpan bila susunan tanpa preset). */
-  label: Record<string, string> | null;
   /** Id preset sumber susunan; `null` = susunan "Lengkap" tanpa preset. */
   presetId: number | null;
 }
@@ -63,7 +61,7 @@ export default function PresetKolom({
 }: {
   tableKey: string;
   fields: ExcelField[];
-  onApply: (keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => void;
+  onApply: (keys: string[] | null, presetId?: number | null) => void;
   apiRef?: MutableRefObject<PresetKolomApi | null>;
   /** Timpa lebar trigger (bawaan 120px), mis. tabel sempit dua panel. */
   triggerClassName?: string;
@@ -82,28 +80,29 @@ export default function PresetKolom({
 
   /** Susunan yang sedang dipakai (diungkap ke API agar menu konteks tahu
    *  sumber kolom: preset aktif atau "Lengkap" tanpa preset). */
-  const [terapan, setTerapan] = useState<SusunanBerlaku>({ kolom: null, label: null, presetId: null });
+  const [terapan, setTerapan] = useState<SusunanBerlaku>({ kolom: null, presetId: null });
 
-  const terapkan = useCallback((preset: PresetTabel | null) => {
+  /** Pilih preset dari daftar (punya `nama`/`id`), atau terapkan susunan yang
+   *  sudah tersimpan tanpa preset (`presetId`). Keduanya berbagi `kolom`. */
+  const terapkan = useCallback((preset: PresetTabel | null | { kolom: string[]; presetId: number | null }) => {
     if (!preset) {
-      onApply(null, null, null);
-      setTerapan({ kolom: null, label: null, presetId: null });
+      onApply(null, null);
+      setTerapan({ kolom: null, presetId: null });
       return;
     }
     const dikenal = preset.kolom.filter((k) => fieldKeys.has(k));
     // Preset "Lengkap" = semua kolom: kolom baru yang belum tersimpan ikut
     // tampil di akhir (tanpa mengubah simpanan). Preset kustom lain
     // menghormati sembunyian eksplisit penggunanya.
-    const keys = namaLengkap(preset.nama ?? '')
+    const nama = 'nama' in preset ? preset.nama : null;
+    const keys = namaLengkap(nama ?? '')
       ? [...dikenal, ...[...fieldKeys].filter((k) => !dikenal.includes(k))]
       : dikenal;
-    const label: Record<string, string> = {};
-    for (const [k, v] of Object.entries(preset.label ?? {})) {
-      if (fieldKeys.has(k) && v.trim() !== '') label[k] = v.trim();
-    }
-    const labelHasil = Object.keys(label).length > 0 ? label : null;
-    onApply(keys.length > 0 ? keys : null, labelHasil, preset.id);
-    setTerapan({ kolom: keys.length > 0 ? keys : null, label: labelHasil, presetId: preset.id ?? null });
+    /* Preset hanya menentukan kolom mana yang TAMPIL; nama header kolom adalah
+       setelan per TABEL (`toolbar_preset.label`) dan tak ikut preset. */
+    const idAktif = 'id' in preset ? preset.id : preset.presetId;
+    onApply(keys.length > 0 ? keys : null, idAktif ?? null);
+    setTerapan({ kolom: keys.length > 0 ? keys : null, presetId: idAktif ?? null });
   }, [fieldKeys, onApply]);
 
   const muat = useCallback(async (pilihId?: number | null) => {
@@ -139,7 +138,7 @@ export default function PresetKolom({
       const kolomKustom = pilihId === undefined && target === null ? res.data.aktif_kolom : null;
       if (kolomKustom && kolomKustom.length > 0) {
         setAktifId(null);
-        terapkan({ kolom: kolomKustom, label: res.data.aktif_label ?? {} } as PresetTabel);
+        terapkan({ kolom: kolomKustom, presetId: null });
         return;
       }
 
@@ -178,7 +177,7 @@ export default function PresetKolom({
    *  "Lengkap kustom" pribadi bila tanpa preset. Simpan langsung ke DB, lalu
    *  segarkan + terapkan ulang. */
   const simpanSusunan = useCallback(async (
-    targetPresetId: number | null, next: Set<string>, label: Record<string, string> | null,
+    targetPresetId: number | null, next: Set<string>,
     pesanSukses: string,
   ) => {
     if (next.size === 0) {
@@ -191,9 +190,9 @@ export default function PresetKolom({
         // role boleh memakainya. DITERAPKAN LOKAL, bukan `muat()` ulang:
         // muat dengan pilihan eksplisit tidak membaca `aktif_kolom`
         // (lihat `muat`), sehingga tabel akan snap-back ke semua kolom.
-        await setPresetAktif(tableKey, null, [...next], label);
+        await setPresetAktif(tableKey, null, [...next]);
         toast.success(pesanSukses);
-        terapkan({ kolom: [...next], label: label ?? {} } as PresetTabel);
+        terapkan({ kolom: [...next], presetId: null });
       } else {
         await updatePresetTabel(targetPresetId, { kolom: [...next] });
         toast.success(pesanSukses);
@@ -216,7 +215,7 @@ export default function PresetKolom({
     const next = new Set(p.kolom);
     if (tampil) next.add(key);
     else next.delete(key);
-    await simpanSusunan(p.id, next, null,
+    await simpanSusunan(p.id, next,
       tampil ? 'Kolom ditampilkan pada preset.' : 'Kolom disembunyikan dari preset.');
   }, [presets, simpanSusunan]);
 
@@ -228,7 +227,7 @@ export default function PresetKolom({
     const next = new Set(dasar);
     if (tampil) next.add(key);
     else next.delete(key);
-    await simpanSusunan(terapan.presetId, next, terapan.label,
+    await simpanSusunan(terapan.presetId, next,
       tampil ? 'Kolom ditampilkan.' : 'Kolom disembunyikan.');
   }, [terapan, fieldKeys, simpanSusunan]);
 

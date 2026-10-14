@@ -355,7 +355,7 @@ export default function TabKolom({
       let saved: PresetTabel | undefined;
       let pesan = 'Preset kolom disimpan.';
       if (editId) {
-        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom, label: null });
+        const res = await updatePresetTabel(editId, { nama: nama.trim(), kolom });
         saved = res.data[0];
         pesan = res.pesan;
       } else {
@@ -363,8 +363,6 @@ export default function TabKolom({
           table_key: tableKey,
           nama: nama.trim(),
           kolom,
-          // Label bukan milik preset lagi; disimpan per tabel di bawah.
-          label: null,
         });
         saved = res.data[0];
         pesan = res.pesan;

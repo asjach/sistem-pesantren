@@ -52,8 +52,9 @@ beforeEach(() => {
 describe('useToolbarPresetState.simpanAlign — klik-kanan tulis DB global', () => {
   it('memuat alignDb dari server saat mount', async () => {
     const { result } = renderHook(() => useToolbarPresetState('uji'));
-    await waitFor(() => expect(server.muat).toHaveBeenCalled());
-    expect(result.current.alignDb).toEqual({ nama: 'left' });
+    /* Tunggu NILAI-nya, bukan efek samping "muat sudah dipanggil": promise
+       `muat` bisa sudah tercatat sementara `setAlignDb` belum sempat render. */
+    await waitFor(() => expect(result.current.alignDb).toEqual({ nama: 'left' }));
   });
 
   it('optimistis + kirim peta gabungan penuh lalu konvergen', async () => {

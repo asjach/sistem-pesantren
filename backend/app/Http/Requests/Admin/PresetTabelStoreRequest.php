@@ -19,8 +19,6 @@ class PresetTabelStoreRequest extends FormRequest
             'nama' => ['required', 'string', 'max:50'],
             'kolom' => ['required', 'array', 'min:1', 'max:200'],
             'kolom.*' => ['string', 'max:60'],
-            'label' => ['nullable', 'array', 'max:200'],
-            'label.*' => ['nullable', 'string', 'max:60'],
         ];
     }
 }

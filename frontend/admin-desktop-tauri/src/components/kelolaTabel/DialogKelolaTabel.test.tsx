@@ -29,7 +29,6 @@ vi.mock('@/api/preset', () => ({
       aktif_preset_id: 7,
       default_preset_id: null,
       aktif_kolom: null,
-      aktif_label: null,
     },
   })),
   setPresetAktif: vi.fn(async () => ({ pesan: 'ok', data: null })),

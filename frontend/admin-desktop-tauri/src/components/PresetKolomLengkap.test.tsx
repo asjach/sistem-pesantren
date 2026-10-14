@@ -37,7 +37,7 @@ const FIELDS = [{ key: 'nama', label: 'Nama' }, { key: 'jk', label: 'JK' }] as E
 /** Balasan index saat tabel belum punya preset sama sekali. */
 const KOSONG = {
   pesan: 'ok',
-  data: { presets: [], aktif_preset_id: null, aktif_kolom: null, aktif_label: null, default_preset_id: null },
+  data: { presets: [], aktif_preset_id: null, aktif_kolom: null, default_preset_id: null },
 };
 
 /** Balasan index saat tabel sudah punya preset "Lengkap". */
@@ -47,7 +47,6 @@ const ADA_LENGKAP = {
     presets: [{ id: 11, nama: 'Lengkap', kolom: ['nama', 'jk'], is_default: false }],
     aktif_preset_id: null,
     aktif_kolom: null,
-    aktif_label: null,
     default_preset_id: null,
   },
 };
@@ -78,7 +77,7 @@ describe('PresetKolom — preset "Lengkap" sungguhan', () => {
       }),
     );
     // Susunan "Lengkap" langsung dipakai tabel.
-    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['nama', 'jk'], null, 11));
+    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['nama', 'jk'], 11));
   });
 
   it('tidak membuat ulang bila preset "Lengkap" sudah ada', async () => {
@@ -87,7 +86,7 @@ describe('PresetKolom — preset "Lengkap" sungguhan', () => {
 
     renderDenganTema(<PresetKolom tableKey="uji" fields={FIELDS} onApply={onApply} />);
 
-    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['nama', 'jk'], null, 11));
+    await waitFor(() => expect(onApply).toHaveBeenCalledWith(['nama', 'jk'], 11));
     expect(createPresetTabel).not.toHaveBeenCalled();
   });
 
@@ -98,7 +97,7 @@ describe('PresetKolom — preset "Lengkap" sungguhan', () => {
 
     renderDenganTema(<PresetKolom tableKey="uji" fields={FIELDS} onApply={onApply} />);
 
-    await waitFor(() => expect(onApply).toHaveBeenCalledWith(null, null, null));
+    await waitFor(() => expect(onApply).toHaveBeenCalledWith(null, null));
     expect(createPresetTabel).not.toHaveBeenCalled();
   });
 

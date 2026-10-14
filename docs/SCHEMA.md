@@ -648,7 +648,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `table_key`: string(60) — kunci tabel (mis. `psb`, `kegiatan_psb_dokumen`)
 - `nama`: string(50) — nama preset (mis. 'default', 'nama saja'); 'lengkap' dipakai bawaan sistem
 - `kolom`: json — array key kolom yang ditampilkan **berurutan** (urutan array = urutan tampil kolom, mis. `["nama","lembaga"]`); tiap preset boleh beda urutan
-- `label`: json [null] — **jalur mati yang belum dibersihkan.** Sejak migrasi `2026_10_15_120000`, label kolom disimpan per TABEL di `toolbar_preset.label` dan itulah yang dibaca frontend. Kolom ini MASIH ditulis/dibaca backend (`PresetTabelController`, `preset_tabel_aktif.label`), jadi **belum boleh dijatuhkan**. Dulu ditandai "aman dihapus" - itu keliru: `PresetTabelTest::test_preset_menyimpan_label_kustom_per_kolom` masih menulis lewat jalur ini. Membersihkannya = hapus endpoint label di controller + request + `preset_tabel_aktif.label`, baru jatuhkan kolomnya
+- `label`: json [null] — **MATI sejak jalur label dibersihkan.** Endpoint preset (`PresetTabelController` + `PresetTabel*Request`) tak lagi menerima/menulis/membaca `label`, dan frontend sudah memakainya dari `toolbar_preset.label` (setelan per TABEL). Kolomnya sengaja **belum dijatuhkan** — cukup satu migrasi kapan saja; tak ada kode yang menyentuhnya. (Sebelumnya sempat salah ditandai "aman dihapus" padahal jalurnya masih hidup; lihat commit `292840c2` lalu pembersihannya.)
 - `is_default`: bool [default false] — satu preset bawaan per `table_key` (eksklusivitas dijaga service). **Tak lagi dibaca frontend** — nilai awal combobox kini ditentukan lewat popover "Nilai awal"
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`

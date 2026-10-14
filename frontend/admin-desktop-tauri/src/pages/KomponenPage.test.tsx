@@ -20,7 +20,7 @@ vi.mock('@/api/preset', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/api/preset')>();
   return {
     ...asli,
-    listPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: { presets: [], aktif_preset_id: null, aktif_kolom: null, aktif_label: null, default_preset_id: null } })),
+    listPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: { presets: [], aktif_preset_id: null, aktif_kolom: null, default_preset_id: null } })),
     listPresetTampil: vi.fn(async () => ({ pesan: 'ok', data: { opsi: [], tersedia: [] } })),
   };
 });

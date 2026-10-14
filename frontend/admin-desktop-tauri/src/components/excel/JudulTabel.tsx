@@ -26,7 +26,7 @@ interface Props {
   onUrut?: (nilai: string[], arah: 'naik' | 'turun', arahKolom?: Record<string, ArahUrut>) => void;
   kolomTampil: boolean;
   fields: ExcelField[];
-  onApplyPreset: (keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => void;
+  onApplyPreset: (keys: string[] | null, presetId?: number | null) => void;
   presetApiRef: MutableRefObject<PresetKolomApi | null>;
   presetKolomClassName?: string;
   addButton?: ReactNode;

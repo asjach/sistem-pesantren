@@ -378,11 +378,11 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   const [statusFilter, setStatusFilter] = useState<'' | 'aktif' | 'nonaktif'>('');
   /** Susunan kolom dari PresetKolom card filter (tersimpan backend). */
   const [presetLuar, setPresetLuar] = useState<{
-    keys: string[] | null; label: Record<string, string> | null; presetId: number | null;
+    keys: string[] | null; presetId: number | null;
   } | undefined>(undefined);
   const terapkanKolomLuar = useCallback(
-    (keys: string[] | null, label?: Record<string, string> | null, presetId?: number | null) => {
-      setPresetLuar({ keys, label: label ?? null, presetId: presetId ?? null });
+    (keys: string[] | null, presetId?: number | null) => {
+      setPresetLuar({ keys, presetId: presetId ?? null });
     },
     [],
   );
