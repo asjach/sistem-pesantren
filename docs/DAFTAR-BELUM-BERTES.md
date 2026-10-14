@@ -15,7 +15,7 @@
 | Cakupan | Sudah ada test | Total modul | Belum ada test |
 |---|---|---|---|
 | Backend — Service | 2 (implisit) | 27 | **25** |
-| Backend — Support/helper | 5 (`JatuhTempo`, `NikFlag`, `Tanggal`, `Telepon`) | 5 | **0** ✅ |
+| Backend — Support/helper | 6 (`JatuhTempo`, `NikFlag`, `NamaBerkasDokumen`, `Tanggal`, `Telepon`) | 6 | **0** ✅ |
 | Backend — Import/Export | 8 (via Feature) | 8 + 12 | sebagian |
 | Backend — Console command | 1 (`DevReset`) | 3 | **2** |
 | Frontend — `src/api` | 4 | 20 | **16** |
@@ -28,8 +28,11 @@
 
 ## A1. Service tanpa test sama sekali (prioritas tertinggi)
 
-### A1-1. `PsbGelombangService.php`
+### ✅ A1-1. `PsbGelombangService.php`
 File: `backend/app/Services/PsbGelombangService.php`
+Test: `tests/Feature/PsbGelombangServiceTest.php` (15 tes) — `cekBukaDanKuota`,
+`gelombangAktif` (prioritas kegiatan aktif, batas tanggal, filter kegiatan),
+`validasiRentang` (rentang terbalik, tumpang tindih, abaikan diri sendiri, batas kegiatan).
 - **Logika belum diuji:**
   - `sisaKuota()` (baris 77) — hitung sisa kuota gelombang; pool gabungan MI↔MD;
     `tipeSantri='semua'`; kuota `null` = tak terbatas.
@@ -66,8 +69,10 @@ File: `backend/app/Services/KelasService.php`
   satu pegawai jadi walas di dua kelas sejenis. **`KelasWalasTest.php` ada** — perlu
   dicek apakah menutup ketiga failure mode ini.
 
-### A1-5. `SinkronIzin.php`
+### ✅ A1-5. `SinkronIzin.php`
 File: `backend/app/Services/SinkronIzin.php`
+Test: `tests/Feature/SinkronIzinTest.php` (7 tes) — termasuk sifat ADITIF
+(izin yang dipangkas admin tidak dihidupkan ulang) dan idempotensi.
 - **Logika:** sinkronkan katalog izin (`IzinKatalog`) ke tabel `permissions`/`role_has_permissions`.
 - **Failure mode:** izin baru di katalog belum ada di DB → semua rute `permission:` menolak
   SEMUA peran. Ini pitfall yang **sudah tercatat** di komentar `routes/api.php:318-321`,
@@ -90,7 +95,7 @@ File: `backend/app/Services/RefService.php` (tidak punya `public function` terde
 | `Support/NikFlag.php` | ✅ `tests/Unit/NikFlagTest.php` (9 tes) |
 | `Support/Tanggal.php` | ✅ `tests/Unit/TanggalTest.php` (15 tes) |
 | `Support/Telepon.php` | ✅ `tests/Unit/TeleponTest.php` (17 tes) |
-| `Support/NamaBerkasDokumen.php` | ❌ belum — `slug()` (27), `buat()` (35), `unik()` (53), `direktori()` (73), `jalur()` (82), `simpan()` (94). Failure mode: nama bentrok harus jadi unik; karakter ilegal; `direktori` untuk tipe asing; **path traversal** |
+| `Support/NamaBerkasDokumen.php` | ✅ `tests/Unit/NamaBerkasDokumenTest.php` (23 tes) — termasuk pembuktian `jalur()` menahan path traversal |
 | `Support/JatuhTempo.php` | ✅ `tests/Unit/JatuhTempoTest.php` |
 
 Sisa satu: `NamaBerkasDokumen` — paling layak karena menyentuh nama berkas di disk
@@ -123,8 +128,10 @@ dan jumlah/urutan kolom tidak berubah tanpa sengaja.
 `MutasiKeluarImporService`, `PegawaiImporService`, `PenempatanPegawaiImporService`,
 `PenggunaImporService`, `RiwayatBelajarImporService`, `SantriImporService`, `PsbImporService`,
 `ImporPotongan` (inti mekanisme potong).
-→ **Celah nyata:** `ImporPotongan` adalah inti semua import bertahap tapi belum ada test unit
-khusus untuk mode kering, transaksi per potongan, dan resume setelah batal.
+→ ✅ **Selesai untuk intinya:** `ImporPotongan` kini bertes
+(`tests/Unit/ImporPotonganTest.php`, 10 tes): penomoran absolut, mode kering tanpa
+transaksi, dan mode tulis yang menggulung seluruh potongan saat galat.
+Layanan turunan (`*ImporService`) tetap belum bertes sendiri.
 
 ## A4. Console command
 
@@ -222,9 +229,44 @@ satu pun tampilan yang ada — risikonya nol, tapi bugnya nyata bila nanti dipak
 **Dikunci di:** `src/lib/nilaiTampil.test.ts` (21 tes, termasuk uji idempoten:
 keluaran `1.234.567` diformat ulang tetap `1.234.567`).
 
+### ☑ B0-3. TIGA BUG di `useDaftarTabel.ts` (ditemukan & diperbaiki)
+File: `frontend/admin-desktop-tauri/src/hooks/useDaftarTabel.ts`
+Ditemukan saat menulis `useDaftarTabel.test.tsx`. Ketiganya nyata dan berdampak
+ke SEMUA halaman tabel (hook ini dipakai bersama).
+
+**B0-3a. Halaman tersimpan selalu ditendang ke 1.**
+Efek live-search (dulu baris 164-171) memanggil `pager.goFirst()` dan
+bergantung pada `pager.perPage`. `usePager` memuat per-baris tersimpan
+secara ASYNC, jadi `perPage` bergerak `50` → nilai tersimpan sesaat setelah
+mount; transisi itu menjalankan ulang efek lalu mereset halaman. Akibatnya
+membuka tabel dengan `per_baris` non-bawaan SELALU mulai dari halaman 1,
+walau pengguna sedang di halaman 9. Diperbaiki dua tahap: dependensi
+`pager.perPage` dibuang (perubahan perPage sudah ditangani `usePager`), lalu
+`goFirst()` dilewati pada pemanggilan pertama (mount) - tak ada pencarian yang
+berubah saat mount, jadi tak ada alasan mereset.
+Terbukti: `dipanggil: [9,2]` → `pager.page: 1` (dulu) menjadi `2` (kini).
+
+**B0-3b. Pencarian tak di-trim sebelum dikirim ke API.**
+`searchEfektif.trim()` hanya dipakai MENGHITUNG JEDA, lalu nilai MENTAH
+disimpan (`setSearchTertunda(searchEfektif)`). Akibatnya `"budi  "` dan
+`"budi"` dianggap berbeda, tiap perubahan spasi memicu permintaan yang isinya
+sama, dan query spasi (`"   "`) ikut terkirim ke backend. Kini yang disimpan
+versi ter-trim, sehingga state kanonis dan `setState` pada nilai yang sama
+tak menghasilkan render - permintaan sia-sia ikut hilang.
+Terbukti: `awal=1 akhir=2` (dulu) menjadi `awal=1 akhir=1` (kini).
+
+**B0-3c. Dua tes `KeuanganPage` yang lama gagal ternyata bug tes, bukan app.**
+Keduanya mencari `getByPlaceholderText(/Cari nama/i)`, padahal `TopBarSearch`
+TIDAK memasang atribut `placeholder` - teksnya dipasang sebagai `aria-label`,
+dan inputnya di-PORTAL ke TopBar sehingga butuh provider + slot tiruan.
+Tes diperbaiki: dibungkus `CariGlobalProvider` + `TopBarSearchProvider` +
+`SlotCari`, dan pencarian lewat `getByLabelText`. `KeuanganPage.test.tsx`
+kini 27/27 - FE hijau penuh (938/938) untuk pertama kalinya.
+
 ## B2. `src/lib` — 3 dari 17 tanpa test
 
-✅ Selesai: `nilaiTampil.ts` (`nilaiTampil.test.ts`, 21 tes — 2 bug diperbaiki),
+✅ Selesai: `useDaftarTabel.ts` (`useDaftarTabel.test.tsx`, 14 tes — 3 bug diperbaiki, B0-3),
+`nilaiTampil.ts` (`nilaiTampil.test.ts`, 21 tes — 2 bug diperbaiki),
 `urut.ts` (`urut.test.ts`, 12 tes). ✅ `api/query.ts` (`query.test.ts`, 10 tes).
 
 | File | Export | Yang layak diuji |
@@ -240,8 +282,7 @@ keluaran `1.234.567` diformat ulang tetap `1.234.567`).
 
 | File | Yang layak diuji |
 |---|---|
-| `useDaftarTabel.ts` (214 baris) | **prioritas** — debounce 400 ms (166), AbortController + token request (103), 
-  penjaga balapan balasan, dependency yang sengaja dikunci (183-184) |
+| ~~`useDaftarTabel.ts`~~ | ✅ `useDaftarTabel.test.tsx` (14 tes) — **3 bug ditemukan & diperbaiki**, lihat B0-3 |
 | `useFilterGlobalAktif.ts` | `targetTunggal()` (59) — 0/1/banyak nilai; resolusi target filter |
 | `useCariGlobal.tsx` | provider + konsumen; pencarian global lintas halaman |
 
@@ -265,12 +306,14 @@ Saat pengguna meminta tes, kerjakan dari atas ke bawah (dampak ÷ usaha):
 
 1. ✅ `src/lib/nilaiTampil.ts` + `src/lib/urut.ts` — 30 tes. **2 bug ditemukan** (B0).
 2. ✅ `src/api/query.ts` — 10 tes.
-3. ✅ `Support/NikFlag`, `Support/Telepon`, `Support/Tanggal` — 41 tes (helper murni tuntas).
-   Sisa: `Support/NamaBerkasDokumen`.
-4. `PsbGelombangService.sisaKuota` — logika bisnis paling berisiko (race kuota).
-5. `SinkronIzin` — pitfall "izin katalog belum di DB".
-6. `ImporPotongan` — inti semua import bertahap.
-7. `hooks/useDaftarTabel.ts` — debounce + race, inti semua halaman tabel.
+3. ✅ `Support/NikFlag`, `Support/Telepon`, `Support/Tanggal`, `NamaBerkasDokumen` —
+   64 tes. **Seluruh `Support/*` tuntas.**
+4. ✅ `PsbGelombangService` — 15 tes (`cekBukaDanKuota`, `gelombangAktif`,
+   `validasiRentang`). Catatan: `sisaKuota` sudah dikunci lebih dulu lewat
+   test kunci baris kuota (lihat riwayat commit).
+5. ✅ `SinkronIzin` — 7 tes (pitfall "izin katalog belum di DB" + sifat aditif).
+6. ✅ `ImporPotongan` — 10 tes (mode kering, transaksi per potongan).
+7. ✅ `hooks/useDaftarTabel.ts` — 14 tes. **3 bug ditemukan & diperbaiki** (B0-3).
 8. `NisKemenagService.generate` + `PenerimaanService.samakanNisSatu`.
 9. Exporter template — kontrak header kolom.
 10. `Console/Commands/SinkronAktifRiwayat` + `DokumenRapikanNama`.

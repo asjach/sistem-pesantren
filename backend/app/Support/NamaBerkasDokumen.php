@@ -72,12 +72,25 @@ class NamaBerkasDokumen
      */
     public static function direktori(string $tipe, string $lokasi = 'server'): string
     {
+        /* `$lokasi` SENGAJA tak dipakai: sejak unifikasi storage, byte server
+           selalu di bawah `dokumen/{tipe}` (arsip perangkat tak punya byte di
+           sini). Parameter dipertahankan demi pemanggil lama. */
         return "dokumen/{$tipe}";
     }
 
     /**
      * Path relatif storage dari nama berkas (null bila tanpa berkas).
      * Satu-satunya cara membaca lokasi fisik pasca-unifikasi.
+     *
+     * Nama disanitasi di SINI, bukan di pemanggil: dulu `basename()` harus
+     * diingat setiap pemanggil, dan `nama_file` bisa datang dari input yang
+     * hanya divalidasi `string|max:255`. Nilai seperti `../../.env` lolos ke
+     * `dokumen/santri/../../../.env`; yang menahannya cuma deteksi traversal
+     * Flysystem - dan itu melempar exception (500), bukan 404 rapi.
+     *
+     * `basename()` + buang nama relatif (`.`/`..`) membuat jalur SELALU di
+     * dalam direktori tipe, sehingga pertahanannya tak bergantung lapisan
+     * bawah dan pemanggil tak perlu ingat apa pun.
      */
     public static function jalur(string $tipe, ?string $nama): ?string
     {
@@ -85,7 +98,12 @@ class NamaBerkasDokumen
             return null;
         }
 
-        return self::direktori($tipe).'/'.ltrim($nama, '/');
+        $aman = basename(str_replace('\\', '/', trim($nama)));
+        if ($aman === '' || $aman === '.' || $aman === '..') {
+            return null;
+        }
+
+        return self::direktori($tipe).'/'.$aman;
     }
 
     /**

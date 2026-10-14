@@ -161,14 +161,42 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   // Live search: terapkan setelah jeda 400 ms (langsung saat dikosongkan).
   // Semua panjang query dipakai (termasuk 1 karakter) agar pencarian pendek
   // seperti nama kelas ("7") tetap berfungsi.
+  //
+  // Dulu efek ini ikut bergantung pada `pager.perPage`, dan itu BUG:
+  // `usePager` memuat per-baris tersimpan secara async, jadi `perPage`
+  // bergerak bawaan -> tersimpan sesaat setelah mount. Transisi itu
+  // menjalankan ulang efek lalu memanggil `goFirst()`, sehingga halaman
+  // tersimpan ditendang ke 1 - tabel SELALU mulai dari halaman 1 setiap
+  // dimuat ulang, walau pengguna sedang di halaman lain.
+  //
+  // Perubahan `perPage` oleh pengguna tidak perlu ditangani di sini:
+  // `usePager.setPerPage` sudah mengembalikan ke halaman 1 sendiri.
+  //
+  // `goFirst()` DILEWATI pada pemanggilan pertama (mount): tak ada pencarian
+  // yang berubah, jadi tak ada alasan mereset halaman. Tanpa penjaga ini,
+  // halaman tersimpan (mis. 9) ditendang ke 1 sesaat setelah dipulihkan
+  // `usePager`, sehingga tabel sesungguhnya tak pernah bertahan di halaman
+  // selain 1. Hanya perubahan pencarian SESUDAHNYA yang mereset.
+  const lewatMountRef = useRef(false);
   useEffect(() => {
     const bersih = searchEfektif.trim();
+    const pertama = !lewatMountRef.current;
+    lewatMountRef.current = true;
     const t = setTimeout(() => {
-      setSearchTertunda(searchEfektif);
-      pager.goFirst();
+      // Simpan versi TER-TRIM, bukan mentah: dulu `trim()` hanya dipakai
+      // menghitung jeda, lalu nilai mentah disimpan - sehingga `"budi  "`
+      // dianggap berbeda dari `"budi"` dan tiap perubahan spasi memicu
+      // permintaan yang isinya sama (query spasi ikut terkirim ke API).
+      // Karena state-nya kini kanonis, `setSearchTertunda` pada nilai yang
+      // sama tak menghasilkan render - permintaan sia-sia ikut hilang.
+      setSearchTertunda(bersih);
+      if (!pertama) {
+        pager.goFirst();
+      }
     }, bersih === '' ? 0 : 400);
     return () => clearTimeout(t);
-  }, [searchEfektif, pager.perPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchEfektif]);
 
   // Batalkan request yang masih jalan saat komponen dilepas.
   useEffect(() => () => abortRef.current?.abort(), []);

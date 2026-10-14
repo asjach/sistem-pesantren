@@ -250,8 +250,11 @@ class DokumenController extends Controller
             // aktif ada di tabel santri & pegawai.
             'lembaga' => $tipe === 'santri' ? ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'] : ['prohibited'],
             'is_active' => in_array($tipe, ['santri', 'pegawai'], true) ? ['sometimes', 'boolean'] : ['prohibited'],
-            // Nama berkas hasil tulis arsip perangkat (disanitasi
-            // basename; byte ditulis langsung oleh aplikasi desktop).
+            // Nama berkas hasil tulis arsip perangkat (byte ditulis langsung
+            // aplikasi desktop). Nilai ini DISANITASI ke basename saat dipakai
+            // (lihat `basename(trim(...))` pada update di bawah), bukan ditolak
+            // - klien lama boleh mengirim path lengkap dan tetap diterima.
+            // Penyaringan lapis kedua ada di `NamaBerkasDokumen::jalur()`.
             'nama_file' => ['sometimes', 'string', 'max:255'],
             // Lokasi byte (edit data langsung; tanpa memindah berkas).
             'penyimpanan' => ['sometimes', 'in:server,lokal,test'],

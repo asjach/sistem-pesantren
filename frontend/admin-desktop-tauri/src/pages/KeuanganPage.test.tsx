@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import KeuanganPage from './KeuanganPage';
+import { CariGlobalProvider } from '@/hooks/useCariGlobal';
+import { TopBarSearchProvider, useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { renderDenganTema } from '@/test/utils';
 import { daftarJenis, daftarTarif, type CrosstabTagihan, type JenisTagihan, type Tarif } from '@/api/keuangan';
 
@@ -182,15 +184,32 @@ beforeEach(() => {
 });
 
 /** Buka tab Tagihan dan tunggu muat awal selesai. Halaman memakai
- *  `useLocation` (VisibilitasFilter), jadi dibungkus Router. */
+ *  `useLocation` (VisibilitasFilter), jadi dibungkus Router.
+ *
+ *  Input pencarian di-portal ke TopBar (satu slot per halaman), jadi tes
+ *  wajib menyediakan provider + slot tiruan - di app nyata slot itu milik
+ *  `TopBar`. Tanpa keduanya input tak ter-render sama sekali; itulah
+ *  sebabnya tes lama gagal menemukan placeholder. */
+function SlotCari() {
+  const ctx = useTopBarSearchCtx();
+  return <div ref={(el) => ctx?.setEl(el)} />;
+}
+
 async function bukaTabTagihan() {
   renderDenganTema(
-    <MemoryRouter initialEntries={['/keuangan']}>
-      <KeuanganPage />
-    </MemoryRouter>,
+    <CariGlobalProvider>
+      <TopBarSearchProvider>
+        <SlotCari />
+        <MemoryRouter initialEntries={['/keuangan']}>
+          <KeuanganPage />
+        </MemoryRouter>
+      </TopBarSearchProvider>
+    </CariGlobalProvider>,
   );
   await userEvent.click(await screen.findByRole('tab', { name: 'Tagihan' }));
   await waitFor(() => expect(screen.getByText('Baru 1')).toBeInTheDocument());
+  // Diagnostik sementara: pastikan input pencarian benar-benar ter-portal.
+  await waitFor(() => expect(screen.getByLabelText(/Cari nama/i)).toBeInTheDocument());
 }
 
 describe('KeuanganPage — muat crosstab', () => {
@@ -202,7 +221,9 @@ describe('KeuanganPage — muat crosstab', () => {
   it('menunda pencarian 400 ms sebelum memanggil API', async () => {
     await bukaTabTagihan();
     const sebelum = uji.crosstabTagihan.mock.calls.length;
-    await userEvent.type(screen.getByPlaceholderText(/Cari nama/i), 'a');
+    /* Pencarian ada di topBar dan memakai `aria-label`, bukan `placeholder`
+       (`TopBarSearch` memasang teksnya sebagai aria-label). */
+    await userEvent.type(screen.getByLabelText(/Cari nama/i), 'a');
     // Tiba-tiba belum ada request baru: nilai masih ditunda.
     expect(uji.crosstabTagihan.mock.calls.length).toBe(sebelum);
     await waitFor(() => expect(uji.crosstabTagihan.mock.calls.length).toBeGreaterThan(sebelum));
@@ -210,7 +231,7 @@ describe('KeuanganPage — muat crosstab', () => {
 
   it('mengabaikan balasan lama yang tiba setelah balasan baru', async () => {
     await bukaTabTagihan();
-    const input = screen.getByPlaceholderText(/Cari nama/i);
+    const input = screen.getByLabelText(/Cari nama/i);
 
     await userEvent.type(input, 'a');
     // Tunggu debounce 400 ms agar request "a" benar-benar terkirim.
