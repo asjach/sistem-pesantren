@@ -15,11 +15,11 @@
 | Cakupan | Sudah ada test | Total modul | Belum ada test |
 |---|---|---|---|
 | Backend — Service | 2 (implisit) | 27 | **25** |
-| Backend — Support/helper | 1 (`JatuhTempo`) | 5 | **4** |
+| Backend — Support/helper | 5 (`JatuhTempo`, `NikFlag`, `Tanggal`, `Telepon`) | 5 | **0** ✅ |
 | Backend — Import/Export | 8 (via Feature) | 8 + 12 | sebagian |
 | Backend — Console command | 1 (`DevReset`) | 3 | **2** |
-| Frontend — `src/api` | 3 | 20 | **17** |
-| Frontend — `src/lib` | 12 | 17 | **5** |
+| Frontend — `src/api` | 4 | 20 | **16** |
+| Frontend — `src/lib` | 14 | 17 | **3** |
 | Frontend — `src/hooks` | 2 | 6 | **4** |
 
 ---
@@ -83,16 +83,18 @@ File: `backend/app/Services/PsbSummaryNotificationService.php`
 File: `backend/app/Services/RefService.php` (tidak punya `public function` terdeteksi pola umum — cek manual).
 - Sudah ada `ReferensiCrudTest.php`; tentukan apakah service ini punya cabang yang belum tercakup.
 
-## A2. Support/helper tanpa test
+## A2. Support/helper
 
-| File | Fungsi | Failure mode yang perlu diuji |
-|---|---|---|
-| `Support/NikFlag.php` | `tandai()` (14), `valid()` (27) | NIK fiktif ditandai `X-...`; string kosong; angka murni 16 digit; tanda jadi ganda |
-| `Support/NamaBerkasDokumen.php` | `slug()` (27), `buat()` (35), `unik()` (53), `direktori()` (73), `jalur()` (82), `simpan()` (94) | nama bentrok → harus jadi unik; karakter ilegal; `direktori` untuk tipe asing; path traversal |
-| `Support/Tanggal.php` | `adalahTanggalNol()` (15), `parse()` (29) | `0000-00-00`; format Indonesia; input null; **catatan:** `parse()` menelan exception tanpa log |
-| `Support/Telepon.php` | `normalisasi()` (19), `varian()` (55) | `08xx` → `62xx`; spasi/strip; kode negara; input non-nomor |
+| File | Status |
+|---|---|
+| `Support/NikFlag.php` | ✅ `tests/Unit/NikFlagTest.php` (9 tes) |
+| `Support/Tanggal.php` | ✅ `tests/Unit/TanggalTest.php` (15 tes) |
+| `Support/Telepon.php` | ✅ `tests/Unit/TeleponTest.php` (17 tes) |
+| `Support/NamaBerkasDokumen.php` | ❌ belum — `slug()` (27), `buat()` (35), `unik()` (53), `direktori()` (73), `jalur()` (82), `simpan()` (94). Failure mode: nama bentrok harus jadi unik; karakter ilegal; `direktori` untuk tipe asing; **path traversal** |
+| `Support/JatuhTempo.php` | ✅ `tests/Unit/JatuhTempoTest.php` |
 
-*Sudah ada:* `JatuhTempo` (via `tests/Unit/JatuhTempoTest.php`).
+Sisa satu: `NamaBerkasDokumen` — paling layak karena menyentuh nama berkas di disk
+(path traversal & bentrok nama).
 
 ## A3. Import / Export
 
@@ -193,16 +195,44 @@ Berdasarkan endpoint yang muncul di test vs daftar rute, **belum terlihat tersen
 | `pengajuan.ts` | 4 | ajukan/batalkan pengajuan biodata |
 | `izin.ts` | 4 | baca/ubah matriks izin |
 | `semesterAktif.ts` | 3 | upsert |
-| `query.ts` | 2 | **paling mudah** — builder query param (`appendQueryParam`) |
+| ~~`query.ts`~~ | ✅ | `query.test.ts` — 10 tes (array `kunci[]`, `set` vs `append`, 0 tetap dikirim) |
 
-*Sudah ada:* `client.test.ts`, `filterSemua.test.ts`, `komponenCustom.test.ts`.
+*Sudah ada:* `client.test.ts`, `filterSemua.test.ts`, `komponenCustom.test.ts`, `query.test.ts`.
 
-## B2. `src/lib` — 5 dari 17 tanpa test
+## B0. 🐞 BUG ditemukan saat menulis test (belum diperbaiki)
+
+### B0-1. `formatNilai(v, 'angka')` salah baca angka ber-titik ribuan
+File: `frontend/admin-desktop-tauri/src/lib/nilaiTampil.ts:5-8`
+- **Perilaku sekarang:** pembersih `replace(/[^\d.-]/g, '')` MEMBIARKAN titik,
+  padahal titik adalah pemisah RIBUAN gaya Indonesia.
+  `'Rp 2.500'` → `'2.500'` → `Number` 2.5 → tampil **"2,5"**.
+  Nilai rupiah 2500 tampil sebagai 2,5 (salah baca jadi desimal).
+- **Akibat:** sel kolom angka berisi nominal rupiah bisa tampil 1000× lebih kecil.
+- **Perbaikan yang mungkin:** buang titik sebagai pemisah ribuan sebelum `Number()`,
+  atau pakai parser yang sadar locale.
+- **Dikunci di:** `src/lib/nilaiTampil.test.ts` (test bertanda BUG) — ubah test itu
+  lebih dulu saat memperbaiki.
+
+### B0-2. `formatNilai(v, 'angka')` mengubah teks asing jadi "0"
+File: `frontend/admin-desktop-tauri/src/lib/nilaiTampil.ts:6-7`
+- **Perilaku sekarang:** `'abc'` → bersih `''` → `Number('')` = **0** → tampil **"0"**.
+  Cabang `Number.isFinite` dimaksudkan mengembalikan nilai asli saat parse gagal,
+  tapi `Number('')` justru 0 (finite), jadi teks berubah jadi angka nol.
+- **Akibat:** data teks tak valid tampil sebagai angka 0, bukan apa adanya —
+  menyesatkan saat memeriksa data.
+- **Perbaikan yang mungkin:** kembalikan `String(v)` bila digitnya kosong,
+  sebelum memanggil `Number()`.
+- **Dikunci di:** `src/lib/nilaiTampil.test.ts` (test bertanda BUG).
+
+## B2. `src/lib` — 3 dari 17 tanpa test
+
+✅ Selesai: `nilaiTampil.ts` (`nilaiTampil.test.ts`, 18 tes),
+`urut.ts` (`urut.test.ts`, 12 tes). ✅ `api/query.ts` (`query.test.ts`, 10 tes).
 
 | File | Export | Yang layak diuji |
 |---|---|---|
-| `nilaiTampil.ts` | `formatNilai` (2), `formatStatus` (27), `namaTahunAjaran` (37), `namaLembaga` (47) | null/undefined; format kosong; objek tahun ajaran/lembaga tak lengkap |
-| `urut.ts` | `tokenUrut` (11), `jenjangTampilSantri` (20), `urutSantriFilter` (36) | **logika bercabang** — urutan token, arah kolom, santri lintas jenjang |
+| ~~`nilaiTampil.ts`~~ | ✅ `nilaiTampil.test.ts` — 18 tes (2 bug ditemukan, lihat B0) |
+| ~~`urut.ts`~~ | ✅ `urut.test.ts` — 12 tes |
 | `utils.ts` | (periksa — mungkin `cn` kelas Tailwind, nilai rendah) | — |
 
 *Sudah ada:* `arsipDokumen`, `clipboard`, `dispensasi`, `excelDataExisting`, `filterHalaman`,
@@ -235,9 +265,10 @@ Berdasarkan endpoint yang muncul di test vs daftar rute, **belum terlihat tersen
 
 Saat pengguna meminta tes, kerjakan dari atas ke bawah (dampak ÷ usaha):
 
-1. `src/lib/nilaiTampil.ts` + `src/lib/urut.ts` — murni, cepat, bercabang.
-2. `src/api/query.ts` — builder query, trivial.
-3. `Support/NikFlag`, `Support/Telepon`, `Support/Tanggal` — helper murni.
+1. ✅ `src/lib/nilaiTampil.ts` + `src/lib/urut.ts` — 30 tes. **2 bug ditemukan** (B0).
+2. ✅ `src/api/query.ts` — 10 tes.
+3. ✅ `Support/NikFlag`, `Support/Telepon`, `Support/Tanggal` — 41 tes (helper murni tuntas).
+   Sisa: `Support/NamaBerkasDokumen`.
 4. `PsbGelombangService.sisaKuota` — logika bisnis paling berisiko (race kuota).
 5. `SinkronIzin` — pitfall "izin katalog belum di DB".
 6. `ImporPotongan` — inti semua import bertahap.
