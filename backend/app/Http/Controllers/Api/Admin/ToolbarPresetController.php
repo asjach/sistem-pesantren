@@ -12,8 +12,12 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Setelan TABEL per `table_key` (satu baris): visibilitas kontrol toolbar,
- * urutan kolom, dan perataan kolom. Baca bebas (semua admin, agar semua
- * peramban merender sama); visibilitas/urutan/perataan ditulis super_admin.
+ * urutan kolom, perataan kolom, dan label kolom. Baca bebas (semua admin,
+ * agar semua peramban merender sama); semuanya ditulis super_admin.
+ *
+ * Perataan DAN label sengaja per TABEL, bukan per preset: yang berubah saat
+ * preset berganti hanyalah kolom mana yang TAMPIL, sedangkan cara kolom
+ * dinamai & diratakan tidak ikut berubah.
  *
  * Ukuran kotak kontrol (tinggi/lebar/label/kontrol), warna label, nilai awal
  * combobox, dan tipe input TIDAK lagi lewat endpoint ini: semuanya milik
@@ -49,6 +53,9 @@ class ToolbarPresetController extends Controller
                 'tinggi' => $row?->tinggi ?? [],
                 'urutan' => $row?->urutan ?? [],
                 'align' => $row?->align ?? [],
+                // Label kolom per TABEL (bukan per preset): tetap walau preset
+                // berganti, sejalan dengan `align`.
+                'label' => $row?->label ?? [],
                 'nilai_default' => $row?->nilai_default ?? [],
             ],
         ]);
@@ -72,9 +79,9 @@ class ToolbarPresetController extends Controller
             }
         }
 
-        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data)) {
+        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data) && ! array_key_exists('label', $data)) {
             throw ValidationException::withMessages([
-                'table_key' => 'Kirim minimal satu dari visibilitas, urutan, atau align.',
+                'table_key' => 'Kirim minimal satu dari visibilitas, urutan, align, atau label.',
             ]);
         }
 
@@ -127,6 +134,23 @@ class ToolbarPresetController extends Controller
                 $align[$kunci] = $nilai;
             }
             $row->align = $align === [] ? null : $align;
+        }
+
+        if (array_key_exists('label', $data)) {
+            $label = [];
+            foreach ($data['label'] as $kunci => $nilai) {
+                if (preg_match('/^[a-z0-9_]{1,60}$/', (string) $kunci) !== 1) {
+                    throw ValidationException::withMessages([
+                        'label' => "Kunci label \"{$kunci}\" tidak dikenal.",
+                    ]);
+                }
+                // Label kosong = hapus override (kembali ke label bawaan kode).
+                $teks = trim((string) $nilai);
+                if ($teks !== '') {
+                    $label[$kunci] = mb_substr($teks, 0, 100);
+                }
+            }
+            $row->label = $label === [] ? null : $label;
         }
 
         $row->dibuat_oleh = $request->user()->id;

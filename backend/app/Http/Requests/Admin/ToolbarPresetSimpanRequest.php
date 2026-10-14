@@ -9,7 +9,7 @@ class ToolbarPresetSimpanRequest extends FormRequest
 {
     /** Ukuran (lebar/tinggi) kotak kontrol toolbar kini diatur dari popover
      *  klik-kanan combobox, jadi semua pengguna terautentikasi boleh menulis.
-     *  Visibilitas/urutan/align tetap khusus super_admin — dicek di controller
+     *  Visibilitas/urutan/align/label tetap khusus super_admin — dicek di controller
      *  (butuh data ter-validasi, jadi tidak bisa di sini). */
     public function authorize(): bool
     {
@@ -35,6 +35,10 @@ class ToolbarPresetSimpanRequest extends FormRequest
             'urutan.*' => ['string', 'max:80', 'regex:/^[a-z0-9_]{1,80}$/'],
             'align' => ['sometimes', 'array', 'max:200'],
             'align.*' => ['string', Rule::in(['left', 'center', 'right'])],
+            // Label kolom per tabel: peta key kolom -> teks bebas (maks 100).
+            // Kunci dibatasi di controller agar galatnya `label.<kunci>`.
+            'label' => ['sometimes', 'array', 'max:200'],
+            'label.*' => ['nullable', 'string', 'max:100'],
             // Nilai awal combobox: peta kunci kontrol → label opsi (teks bebas,
             // maks 100 karakter). Kunci dibatasi di controller (sama seperti lebar).
             'nilai_default' => ['sometimes', 'array', 'max:60'],

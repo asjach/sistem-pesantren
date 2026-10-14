@@ -673,7 +673,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`) — satu daftar opsi global per tabel
 
-### `toolbar_preset` (visibilitas/lebar/tinggi/urutan/perataan toolbar & kolom, global per `table_key`)
+### `toolbar_preset` (visibilitas/lebar/tinggi/urutan/perataan & label kolom, global per `table_key`)
 - `id` PK
 - `table_key`: string(60) [unik]
 - `visibilitas`: json — peta kontrol → bool; hanya `false` yang menyembunyikan (absen = tampil). **Tak lagi ditulis/dibaca frontend** (tab Toolbar dialog Kelola Tabel dihapus — kontrol selalu tampil); data lama diabaikan
@@ -682,6 +682,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `nilai_default`: json [null] — **deprecated**, sudah kosong setelah migrasi ke `komponen_custom`
 - `urutan`: json [null] — array key kolom data; absen = urutan fields halaman
 - `align`: json [null] — peta key kolom → 'left'|'center'|'right' (satu nilai per kolom, bukan per preset); absen = preferensi pribadi pengguna, lalu tengah
+- `label`: json [null] — peta key kolom → label header tampil (≤100 karakter, satu nilai per kolom, **bukan** per preset); absen = label bawaan kode. Dipindah ke sini dari `preset_tabel.label` (migrasi `2026_10_15_120000`) karena preset hanya mengubah kolom mana yang TAMPIL, bukan cara kolom dinamai
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`)
