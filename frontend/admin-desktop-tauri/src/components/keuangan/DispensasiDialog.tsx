@@ -165,12 +165,17 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
 
   const sisaJenis = jenis.filter((j) => !baris.some((b) => b.jenisId === j.id));
 
+  /* Dialog ringkas, bukan layar penuh: sejak daftar penerima dipindah ke
+     halaman Dispensasi, isinya tinggal identitas paket + tabel aturan jenis.
+     Tinggi TETAP (bukan `h-auto`) karena ExcelTable mengukur tinggi
+     wrapper-nya sendiri lewat ResizeObserver — tanpa tinggi pasti grid-nya
+     runtuh. 42rem cukup untuk ±12 baris aturan sebelum scroll. */
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
       <DialogContent
         showCloseButton={false}
         onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
-        className="flex h-[calc(100dvh-3rem)] max-h-[calc(100dvh-3rem)] w-[calc(100vw-3rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none"
+        className="flex h-[min(78dvh,42rem)] w-[min(94vw,68rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none"
       >
         <DialogHeader className="flex-row items-center justify-between gap-3 border-b px-3 py-2.5">
           <div className="min-w-0">
