@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import ExcelTable, { diCornerButton, type ExcelTableProps } from './ExcelTable';
@@ -452,5 +453,33 @@ describe('ExcelTable — klik ganda sel', () => {
     // Mode Edit dinyalakan lewat klik ganda sel.
     fireEvent.doubleClick(screen.getByText('Ahmad'));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Edit aktif'));
+  });
+});
+
+/* Pintu SATU untuk semua pengaturan: ikon gerigi di kanan bawah tiap tabel.
+   Isinya memisahkan setelan per tabel dari setelan global supaya tidak
+   tertukar - sebelumnya tombol ini hanya membuka panel global. */
+describe('ExcelTable — pintu gerigi (satu pintu pengaturan)', () => {
+  /** Radix DropdownMenu butuh userEvent (bukan fireEvent.click) agar terbuka. */
+  async function bukaGerigi() {
+    const pengguna = userEvent.setup();
+    const gerigi = await screen.findByRole('button', { name: 'Pengaturan tabel' });
+    await pengguna.click(gerigi);
+  }
+
+  it('membuka menu berisi kelompok per tabel dan global', async () => {
+    renderTabel({});
+    await bukaGerigi();
+
+    expect(await screen.findByText('Tabel ini')).toBeInTheDocument();
+    expect(screen.getByText('Semua tabel')).toBeInTheDocument();
+    expect(screen.getByText('Tampilan global')).toBeInTheDocument();
+  });
+
+  it('menyediakan pintu kolom/urutan/filter untuk tabel ini', async () => {
+    renderTabel({});
+    await bukaGerigi();
+
+    expect(await screen.findByText('Kolom, urutan & filter')).toBeInTheDocument();
   });
 });

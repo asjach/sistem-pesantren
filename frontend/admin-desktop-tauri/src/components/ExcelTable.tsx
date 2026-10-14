@@ -39,7 +39,16 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ActionIcon } from '@/components/RowActions';
-import { Pencil, Plus, PlusCircle, Save, Settings } from '@/icons';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Columns3, Paintbrush, Pencil, Plus, PlusCircle, Save, Settings } from '@/icons';
+import { bukaStandarTampilan } from './kelolaTampilan/event';
 
 /** Klik kanan di "corner button" (sel header gutter di sudut kiri-atas,
  *  bertanda segitiga `.dsg-corner-indicator`) → menu salin seluruh tabel. */
@@ -297,6 +306,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   const presetApiRef = useRef<PresetKolomApi | null>(null);
   /** Geser urutan kolom = super_admin EFEKTIF (global; mati saat bertindak). */
   const { efektifSuper: bolehGeser } = useLembagaAktif();
+  /** Super_admin efektif — menentukan apakah pintu "Standar pesantren" tampil. */
+  const efektifSuper = bolehGeser;
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
@@ -1630,20 +1641,63 @@ export default function ExcelTable<T extends { id: string | number }>({
             bingkai menyatu — garis dalam dibagi seperti kelompok jumlah baris
             di pager. */}
         <div data-part="grup_aksi" className="flex items-center">
-          {/* Pengaturan tampilan = GLOBAL (semua tabel). Tombolnya tetap di sini
-              sebagai jalan pintas, tetapi membuka panel di TopBar — bukan lagi
-              popover berisi kontrol, supaya tidak terkesan per tabel. */}
-          <Button
-            id={`btn_pengaturan_tabel_${tableKey}`}
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            aria-label="Pengaturan tampilan tabel (berlaku semua tabel)"
-            title="Pengaturan tampilan tabel (berlaku semua tabel)"
-            onClick={() => bukaPengaturanTampilan()}
-          >
-            <Settings size={14} />
-          </Button>
+          {/* SATU PINTU pengaturan, ikon gerigi di kanan bawah tiap tabel.
+              Isinya memisahkan dua rumah setelan supaya tidak tertukar: yang
+              PER TABEL ini (kolom/urutan/filter/preset) dan yang GLOBAL (berlaku
+              semua tabel: tampilan global + standar pesantren). Sebelumnya hanya
+              pintu global yang ada di sini, sehingga setelan per tabel harus
+              dicari lewat menu klik kanan atau TopBar. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                id={`btn_pengaturan_tabel_${tableKey}`}
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Pengaturan tabel"
+                title="Pengaturan tabel"
+              >
+                <Settings size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="w-64">
+              <DropdownMenuLabel>Tabel ini</DropdownMenuLabel>
+              {/* Dialog per tabel hanya ada bila halaman ini mendaftarkan tabel
+                  ke registrasi; tanpa itu menunya akan membuka dialog kosong. */}
+              {visHalaman?.registrasi ? (
+                <DropdownMenuItem
+                  id={`menu_kelola_tabel_${tableKey}`}
+                  onSelect={() => setKelolaTabelOpen(true)}
+                >
+                  <Columns3 data-icon="inline-start" size={16} />
+                  Kolom, urutan & filter
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem disabled id={`menu_kelola_tabel_mati_${tableKey}`}>
+                  <Columns3 data-icon="inline-start" size={16} />
+                  Kolom, urutan & filter
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Semua tabel</DropdownMenuLabel>
+              <DropdownMenuItem
+                id={`menu_tampilan_global_${tableKey}`}
+                onSelect={() => bukaPengaturanTampilan()}
+              >
+                <Paintbrush data-icon="inline-start" size={16} />
+                Tampilan global
+              </DropdownMenuItem>
+              {efektifSuper ? (
+                <DropdownMenuItem
+                  id={`menu_standar_tampilan_${tableKey}`}
+                  onSelect={() => bukaStandarTampilan()}
+                >
+                  <Settings data-icon="inline-start" size={16} />
+                  Standar pesantren
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <TombolTinggiBaris tableKey={tableKey} />
           {inputEnabled && !showInput && (
             <Button
