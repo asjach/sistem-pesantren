@@ -648,7 +648,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `table_key`: string(60) — kunci tabel (mis. `psb`, `kegiatan_psb_dokumen`)
 - `nama`: string(50) — nama preset (mis. 'default', 'nama saja'); 'lengkap' dipakai bawaan sistem
 - `kolom`: json — array key kolom yang ditampilkan **berurutan** (urutan array = urutan tampil kolom, mis. `["nama","lembaga"]`); tiap preset boleh beda urutan
-- `label`: json [null] — nama header kustom per kolom (key = key kolom; kosong = label bawaan)
+- `label`: json [null] — **MATI, sengaja belum dijatuhkan.** Dulu nama header kustom per kolom; sejak migrasi `2026_10_15_120000` pindah ke `toolbar_preset.label` (setelan per TABEL, bukan per preset) dan **tidak ada kode yang membacanya lagi**. Datanya sudah diangkat ke sana; kolom ini tinggal sisa yang aman dihapus kapan saja
 - `is_default`: bool [default false] — satu preset bawaan per `table_key` (eksklusivitas dijaga service). **Tak lagi dibaca frontend** — nilai awal combobox kini ditentukan lewat popover "Nilai awal"
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`

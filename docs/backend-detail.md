@@ -543,16 +543,18 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   pengajuan-biodata, antrean PSB, lembaga-santri. Tabel kecil non-halaman
   (referensi, kegiatan, kuota, grup MI-MD, tabel kerja daftar-kelas) tetap
   urutan bawaan.
-* Nama header kolom TIDAK lagi disimpan di server (Kamus Label dihapus pada
-  v2.278). Label ditulis di kode tiap halaman sebagai `ExcelField.label`
-  (prosa langsung; konvensi `tabel.kolom` dihapus pada v2.321); nama kolom
-  mentah yang tersisa di-humanize di frontend (`lib/labelKolom.ts`:
+* Presedensi nama header kolom: nama kustom tabel di `toolbar_preset.label`
+  (diatur lewat dialog Kelola Tabel, tab Kolom; setelan per TABEL - bukan per
+  preset, dan bisa disiapkan untuk kolom yang sedang tersembunyi) → label
+  bawaan dari `ExcelField.label` di kode halaman (Kamus Label dihapus pada
+  v2.278; prosa langsung, konvensi `tabel.kolom` dihapus pada v2.321) →
+  humanize key kolom mentah di frontend (`lib/labelKolom.ts`:
   `nama_lengkap` → `Nama Lengkap`, singkatan seperti `nip`/`nis` tetap
-  kapital). Tidak ada query label saat memuat tabel. Presedensi: label
-  preset per tabel (bila diatur lewat dialog Kelola Tabel) → label field.
+  kapital). Tidak ada query label tambahan saat memuat tabel: label kustom
+  ikut terangkut di muatan setelan tabel yang sama.
   Format isi sel pindah ke `ExcelField.format` (`angka`/`tanggal`/`ya_tidak`);
-  lebar & visibilitas milik preset tabel; perataan: preferensi pribadi
-  pengguna > perataan global tabel (`toolbar_preset.align`).
+  kolom yang tampil & urutannya milik preset tabel; perataan: preferensi
+  pribadi pengguna > perataan tabel (`toolbar_preset.align`).
 * Setelan kotak kontrol toolbar (dari popover klik-kanan combobox):
   `toolbar_preset.lebar`/`.tinggi` (px per kontrol `filter.<htmlFor>`),
   penanda `<kunci>.expand` & `<kunci>.labeltransparan` (= 0/1) di peta `lebar`,

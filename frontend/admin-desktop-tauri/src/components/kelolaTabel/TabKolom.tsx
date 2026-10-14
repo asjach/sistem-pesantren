@@ -69,8 +69,8 @@ export interface TabKolomProps {
   presets: PresetTabel[];
   /** Susunan "Lengkap kustom" tersimpan (null = semua kolom). */
   kolomAwal?: string[] | null;
-  /** Nama header kustom susunan yang dibuka (milik induk; diedit di section
-   *  Nama & Perataan, dipakai section ini saat simpan preset). */
+  /** Nama header kustom susunan yang dibuka (milik induk; diedit di kotak
+   *  nama tiap baris di sini, dipakai saat simpan). */
   label: Record<string, string>;
   setLabel: Dispatch<SetStateAction<Record<string, string>>>;
   /** Acuan label tersimpan (milik induk) untuk deteksi kotor. */
@@ -96,9 +96,10 @@ export interface TabKolomProps {
 /** Section Kolom dialog Kelola Tabel: preset kolom GLOBAL (satu definisi untuk
  *  semua lembaga), dikelola super_admin. Bar preset di atas (pilih/klaim
  *  bawaan/tambah/ubah nama/hapus), body dua grup: kolom tampil (berurut,
- *  seret untuk menggeser) dan kolom tersembunyi (klik untuk menampilkan).
- *  Nama header kustom & perataan dikelola di section Nama & Perataan; state
- *  nama (`label`) diangkat ke induk agar simpan preset menyertakannya. */
+ *  seret untuk menggeser) dan kolom tersembunyi (bisa dilipat, bawaan
+ *  TERTUTUP; pilihan diingat per perangkat). Nama header kustom & perataan
+ *  ikut di sini - keduanya setelan per TABEL, tersedia untuk kolom tampil
+ *  MAUPUN tersembunyi. State nama (`label`) diangkat ke induk. */
 export default function TabKolom({
   tableKey,
   fields,
@@ -135,7 +136,7 @@ export default function TabKolom({
   /** Susunan yang dimuat memang "Lengkap kustom" (bukan semua kolom). */
   const kustomAwal = editId === null && !!kolomAwal && kolomAwal.length > 0;
   /** Perataan kolom: per TABEL (bukan per preset), jadi tidak ikut berubah
-   *  saat preset berganti. Dulu tinggal di tab Nama & Perataan terpisah. */
+   *  saat preset berganti. Dulu tinggal di tab terpisah. */
   const [align, setAlign] = useState<Partial<Record<string, AlignKolom>>>({});
   const alignAwalRef = useRef<string>(kanonAlign({}));
   const muatAlign = useCallback(async () => {

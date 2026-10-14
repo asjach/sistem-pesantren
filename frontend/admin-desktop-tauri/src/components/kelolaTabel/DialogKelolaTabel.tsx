@@ -35,7 +35,7 @@ function kabariPreset(tableKey: string) {
   window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey } }));
 }
 
-/** State bersama tab Kolom + Nama & Perataan untuk satu tabel: preset kolom
+/** State bersama tab Kolom untuk satu tabel: preset kolom
  *  (cermin logika `PresetKolom`, tanpa dropdown pemilih) plus editor nama
  *  header & perataan. Keduanya mengedit hal yang sama (susunan kolom + nama
  *  header kustom) dan sekarang duduk di tab berbeda, jadi state-nya harus
@@ -57,7 +57,7 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
   }>({ preset: null, lengkap: true, kolomAwal: null, nonce: 0 });
 
   /** Nama header kustom susunan yang dibuka (satu nilai per kolom, dipakai
-   *  section Kolom saat simpan + diedit di section Nama & Perataan). */
+   *  tab Kolom saat simpan + diedit di kotak nama tiap baris). */
   const [label, setLabel] = useState<Record<string, string>>({});
   const labelAwalRef = useRef(kanonLabel({}));
 
@@ -214,7 +214,7 @@ function TabBagian({ id, label, kotor }: { id: string; label: string; kotor: boo
       {kotor ? (
         <>
           {/* Spasi eksplisit: `{label}` dan node ini berdempetan, tanpa
-              spasi keduanya menempel jadi "Nama & Perataan(belum tersimpan)". */}
+              spasi keduanya menempel jadi "Kolom(belum tersimpan)". */}
           {' '}
           <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
           <span className="sr-only">(belum tersimpan)</span>
@@ -338,8 +338,8 @@ export default function DialogKelolaTabel({
   /** Tab Filter Tabel hanya ada bila tabel ini punya filter toolbar. */
   const adaTabFilter = adaFilterToolbar;
   // Hook tetap dipanggil tanpa syarat: `fields` boleh undefined (tab Kolom
-  // lalu menampilkan keterangan), tapi state Kolom/Nama & Perataan harus
-  // hidup terus supaya tidak hilang saat pindah tabel.
+  // lalu menampilkan keterangan), tapi state Kolom harus hidup terus supaya
+  // tidak hilang saat pindah tabel.
   const { muat, ...kolom } = useKelolaKolom({ tableKey, fields: fields ?? [] });
 
   // Ikut menyegarkan diri saat susunan preset diubah dari luar (mis. menu klik

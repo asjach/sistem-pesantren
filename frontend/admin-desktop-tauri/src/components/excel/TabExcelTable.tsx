@@ -274,7 +274,7 @@ const PENGATURAN: BarisPengaturan[] = [
  *  Dulu empat: tab "Nama & Perataan" dilebur ke "Kolom" karena keduanya
  *  mengatur setelan per TABEL (bukan per preset), jadi satu penanda saja. */
 const TAB_KELOLA: BarisPengaturan[] = [
-  { tempat: 'Tab "Kolom"', sumber: 'TabKolom.tsx', isi: 'Simpan preset kolom (baru/duplikat/hapus), pilih kolom mana yang tampil, jadikan preset bawaan. Per kolom yang tampil: ubah nama header dan perataannya (kiri/tengah/kanan) - keduanya setelan PER TABEL, jadi tetap walau preset berganti.', akses: 'super_admin efektif' },
+  { tempat: 'Tab "Kolom"', sumber: 'TabKolom.tsx', isi: 'Simpan preset kolom (baru/duplikat/hapus), pilih kolom mana yang tampil, jadikan preset bawaan. Nama header & perataan (kiri/tengah/kanan) diatur per kolom di barisnya - keduanya setelan PER TABEL, jadi tetap walau preset berganti, dan tersedia juga untuk kolom TERSEMBUNYI (grupnya bisa dilipat, bawaan TERTUTUP, pilihan diingat per perangkat). Barisnya sendiri bisa diseret untuk menggeser urutan.', akses: 'super_admin efektif' },
   { tempat: 'Tab "Urutan"', sumber: 'TabUrutan.tsx', isi: 'Preset urutan: kolom yang bisa diurutkan, urutan berlapis (maks 3), dan arah naik/turun.', akses: 'super_admin efektif' },
   { tempat: 'Tab "Filter Tabel"', sumber: 'TabFilterToolbar.tsx', isi: 'Sakelar filter toolbar TABEL INI (Urutkan/Kolom/Filter). Filter topBar sudah dihapus dari sini.', akses: 'super_admin efektif' },
 ];
@@ -366,7 +366,7 @@ const CAKUPAN: Record<Cakupan, BarisCakupan[]> = {
   tabel: [
     { apa: 'Preset kolom tampilan', kontrol: 'Toolbar — dropdown Kolom', simpan: 'SERVER — preset per table_key', catatan: 'Daftar preset & kolom aktif.' },
     { apa: 'Urutan kolom tersimpan', kontrol: 'Dialog → Urutan · seret di menu konteks', simpan: 'SERVER — toolbar_preset.urutan per tabel', catatan: 'Kolom yang tak ada di simpanan menempel di akhir.' },
-    { apa: 'Nama header kustom per kolom', kontrol: 'Dialog → tab Nama & Perataan', simpan: 'SERVER — preset label per table_key', catatan: 'Menimpa label mentah dari kode.' },
+    { apa: 'Nama header kustom per kolom', kontrol: 'Dialog → tab Kolom (kotak di tiap baris)', simpan: 'SERVER — toolbar_preset.label per table_key', catatan: 'Menimpa label mentah dari kode. Berlaku juga untuk kolom yang sedang TERSEMBUNYI.' },
     { apa: 'Preset urutan (opsi & arah)', kontrol: 'Dialog → tab Urutan', simpan: 'SERVER — urut_preset per table_key', catatan: 'Opsi dropdown Urutkan; maks 3 lapis.' },
     { apa: 'Pilih preset urutan aktif', kontrol: 'Toolbar — dropdown Urutkan', simpan: 'state halaman (onUrut → refetch)', catatan: 'Nilai urut aktif dikelola halaman, bukan persist tabel.' },
     { apa: 'Kolom beku (freeze pane)', kontrol: 'Klik kanan header → Bekukan kolom', simpan: 'pref perangkat — freezeKey(tableKey)', catatan: 'Per tabel, tersimpan per perangkat.' },
@@ -941,8 +941,8 @@ const KLASIFIKASI: BarisKlasifikasi[] = [
 
   /* ---------- TABEL ---------- */
   { apa: 'Preset kolom (kolom mana tampil)', nilai: 'daftar preset + preset aktif', kunci: 'SERVER — preset per table_key', rumah: 'tabel', status: 'benar' },
-  { apa: 'Nama header kustom per kolom', nilai: 'teks pengganti label', kunci: 'SERVER — preset label per table_key', rumah: 'tabel', status: 'benar' },
-  { apa: 'Perataan kolom', nilai: 'kiri / tengah / kanan (absen = tengah)', kunci: 'SERVER — toolbar_preset.align per table_key', rumah: 'tabel', status: 'benar', catatan: 'Ada DUA pintu: dialog tab Nama & Perataan dan menu klik kanan (jalan pintas).' },
+  { apa: 'Nama header kustom per kolom', nilai: 'teks pengganti label', kunci: 'SERVER — toolbar_preset.label per table_key', rumah: 'tabel', status: 'benar' },
+  { apa: 'Perataan kolom', nilai: 'kiri / tengah / kanan (absen = tengah)', kunci: 'SERVER — toolbar_preset.align per table_key', rumah: 'tabel', status: 'benar', catatan: 'Ada DUA pintu: dialog tab Kolom dan menu klik kanan (jalan pintas).' },
   { apa: 'Urutan kolom', nilai: 'daftar key kolom', kunci: 'SERVER — toolbar_preset.urutan per table_key', rumah: 'tabel', status: 'benar' },
   { apa: 'Preset urutan (opsi & arah)', nilai: 'maks 3 kolom berlapis + arah', kunci: 'SERVER — urut_preset per table_key', rumah: 'tabel', status: 'benar' },
   { apa: 'Preset urutan aktif', nilai: 'satu pilihan', kunci: 'state halaman (bukan persist tabel)', rumah: 'tabel', status: 'benar', catatan: 'Dikelola halaman lewat onUrut; tidak tersimpan antar kunjungan.' },
