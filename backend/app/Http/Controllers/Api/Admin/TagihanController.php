@@ -15,6 +15,7 @@ use App\Models\Dispensasi;
 use App\Models\GrupSantriCustom;
 use App\Models\JenisTagihan;
 use App\Models\Tagihan;
+use App\Models\TarifTagihan;
 use App\Services\DispensasiService;
 use App\Services\UrutKatalog;
 use App\Support\JatuhTempo;
@@ -301,28 +302,39 @@ class TagihanController extends Controller
             ->get();
 
         // Kolom: per jenis; bulanan dipecah satu kolom per bulan (periode).
-        /* Kolom cukup dari kombinasi (jenis, periode) yang ADA, jadi diambil
-          distinct di SQL — bukan semua baris tagihan._baris sebelumnya satu baris
-           per tagihan (7.602 di dev DB) hanya dirangkum jadi daftar kolom. */
-        $kolom = [];
+        /* Kolom = GABUNGAN dua sumber:
+           1) kombinasi (jenis, periode) yang sudah ADA di tabel tagihan —
+              diambil distinct di SQL, sebab satu baris per tagihan (7.602 di
+              dev DB) hanya dirangkum jadi daftar kolom;
+           2) seluruh TARIF aktif dalam lingkup filter — supaya jenis yang
+              belum punya satu tagihan pun tetap punya kolom, sehingga sel
+              kosongnya bisa diisi lewat Buat Massal. */
+        $petaKolom = [];
         foreach ((clone $q)->join('jenis_tagihan as jt', 'jt.id', '=', 'tagihan.jenis_id')
             ->select('tagihan.jenis_id', 'tagihan.periode')
             ->selectRaw('MIN(jt.nama) as jenis_nama, MIN(jt.tipe) as tipe')
             ->groupBy('tagihan.jenis_id', 'tagihan.periode')
-            ->orderBy('tagihan.jenis_id')
-            ->orderBy('tagihan.periode')
             ->get() as $barisKolom) {
             $jenisId = (int) $barisKolom->jenis_id;
             $bulanan = $barisKolom->tipe === 'bulanan';
             $p = $bulanan ? $barisKolom->periode : null;
-            $kolom[] = [
-                'key' => $this->keyKolomCrosstab($jenisId, $p, $bulanan),
+            $kunci = $this->keyKolomCrosstab($jenisId, $p, $bulanan);
+            $petaKolom[$kunci] = [
+                'key' => $kunci,
                 'jenis_id' => $jenisId,
                 'jenis_nama' => $barisKolom->jenis_nama ?? 'Jenis #'.$jenisId,
                 'tipe' => $barisKolom->tipe ?? 'non_bulanan',
                 'periode' => $p,
             ];
         }
+        foreach ($this->kolomDariTarif($request, $tahunAjaran) as $kunci => $k) {
+            $petaKolom[$kunci] ??= $k;
+        }
+        /* Urut seperti kueri lama: jenis lalu periode (periode NULL =
+           non-bulanan lebih dulu, sama dengan urutan ASC MySQL). */
+        $kolom = array_values($petaKolom);
+        usort($kolom, static fn (array $a, array $b): int => [$a['jenis_id'], (string) ($a['periode'] ?? '')]
+            <=> [$b['jenis_id'], (string) ($b['periode'] ?? '')]);
 
         /* Kelas & status keaktifan per Santri, diambil dari riwayat TA yang
            sama dengan filter topBar: semester 2 (genap) menang, dan Santri
@@ -468,6 +480,92 @@ class TagihanController extends Controller
         return $bulanan && $periode !== null
             ? $jenisId.'-'.$periode
             : 'jenis-'.$jenisId;
+    }
+
+    /**
+     * Kolom crosstab dari SELURUH tarif aktif dalam lingkup filter — supaya
+     * jenis yang belum punya satu tagihan pun tetap tampil sebagai kolom
+     * (sel kosongnya bisa diisi lewat Buat Massal).
+     *
+     * Lingkup mengikuti filter yang sama dengan kueri tagihan: `jenjang`,
+     * `tahun_ajaran`, dan `jenis_id`. Hanya tarif & jenis berstatus aktif yang
+     * dipakai; tarif nonaktif sengaja disembunyikan (bukan ditawarkan).
+     *
+     * Wajib ada filter `tahun_ajaran`: dari sanalah rentang bulan jenis
+     * bulanan diturunkan, dan tanpa TA patokan roster crosstab sendiri sudah
+     * kosong (lihat `rosterSantriCrosstab`). Tanpa TA → daftar kosong, kolom
+     * kembali seperti sebelumnya (dari tagihan yang ada).
+     *
+     * @param  list<string>  $tahunAjaran
+     * @return array<string, array{key:string, jenis_id:int, jenis_nama:string, tipe:string, periode:?string}>
+     */
+    private function kolomDariTarif(Request $request, array $tahunAjaran): array
+    {
+        if ($tahunAjaran === []) {
+            return [];
+        }
+
+        $q = TarifTagihan::query()->with('jenis')
+            ->where('is_active', true)
+            ->whereHas('jenis', fn ($j) => $j->where('is_active', true));
+        $this->applyFilter($q, $request, 'jenjang', 'tarif_tagihan.jenjang');
+        $this->applyFilter($q, $request, 'tahun_ajaran', 'tarif_tagihan.tahun_ajaran');
+        if ($request->filled('jenis_id')) {
+            $q->where('tarif_tagihan.jenis_id', (int) $request->input('jenis_id'));
+        }
+
+        $kolom = [];
+        foreach ($q->get() as $tarif) {
+            $jenis = $tarif->jenis;
+            if ($jenis === null) {
+                continue;
+            }
+            $jenisId = (int) $jenis->id;
+            $bulanan = $jenis->tipe === 'bulanan';
+            foreach ($this->periodeKolomTarif($bulanan, (string) $tarif->tahun_ajaran) as $p) {
+                $kunci = $this->keyKolomCrosstab($jenisId, $p, $bulanan);
+                $kolom[$kunci] = [
+                    'key' => $kunci,
+                    'jenis_id' => $jenisId,
+                    'jenis_nama' => (string) $jenis->nama,
+                    'tipe' => (string) $jenis->tipe,
+                    'periode' => $p,
+                ];
+            }
+        }
+
+        return $kolom;
+    }
+
+    /**
+     * Bulan yang dicakup satu tarif: jenis bulanan memakai SELURUH bulan tahun
+     * ajarannya (Juli TA mulai → Juni TA akhir, sama seperti rentang default
+     * dialog Buat Tagihan); non-bulanan satu kolom per jenis (periode null,
+     * karena kolom crosstab non-bulanan memang tanpa periode).
+     *
+     * TA yang tidak berbentuk `YYYY/YYYY` → `[null]`: tak ada rentang bulan
+     * yang sah, kolomnya jatuh ke kunci `jenis-<id>` seperti perilaku lama.
+     *
+     * @return list<?string>
+     */
+    private function periodeKolomTarif(bool $bulanan, string $tahunAjaran): array
+    {
+        if (! $bulanan) {
+            return [null];
+        }
+        if (! preg_match('/^(\d{4})\/(\d{4})$/', trim($tahunAjaran), $m)) {
+            return [null];
+        }
+
+        $akhir = new \DateTime($m[2].'-06-01');
+        $b = new \DateTime($m[1].'-07-01');
+        $periodes = [];
+        while ($b <= $akhir && count($periodes) < 24) {
+            $periodes[] = $b->format('Y-m');
+            $b->modify('+1 month');
+        }
+
+        return $periodes;
     }
 
     public function indexTagihan(Request $request)
