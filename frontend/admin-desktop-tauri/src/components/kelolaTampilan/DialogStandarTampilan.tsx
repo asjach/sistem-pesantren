@@ -12,12 +12,18 @@ import {
   hapusPengaturanGlobal, muatPengaturanGlobal, simpanPengaturanGlobal,
   type KunciGlobal, type PetaGlobal,
 } from '@/api/pengaturanGlobal';
+import { PER_PAGE_DEFAULT } from '@/prefs';
 import { RotateCcw } from '@/icons';
 
 /** Batas & label tiap kunci — sejajar `KUNCI` di PengaturanGlobalController. */
-const KETERANGAN: Record<KunciGlobal, { label: string; min: number; maks: number; bawaan: number }> = {
-  tinggi_baris: { label: 'Tinggi baris sel', min: MIN_ROW_H, maks: MAX_ROW_H, bawaan: 26 },
-  tinggi_header: { label: 'Tinggi baris header', min: MIN_HEADER_H, maks: MAX_HEADER_H, bawaan: DEFAULT_HEADER_H },
+const KETERANGAN: Record<
+  KunciGlobal,
+  { label: string; min: number; maks: number; bawaan: number; satuan?: string }
+> = {
+  tinggi_baris: { label: 'Tinggi baris sel', min: MIN_ROW_H, maks: MAX_ROW_H, bawaan: 26, satuan: 'px' },
+  tinggi_header: { label: 'Tinggi baris header', min: MIN_HEADER_H, maks: MAX_HEADER_H, bawaan: DEFAULT_HEADER_H, satuan: 'px' },
+  // Dijepit ke opsi terdekat; server menolak nilai di luar daftar sah.
+  baris_per_halaman: { label: 'Baris per halaman', min: PER_PAGE_DEFAULT, maks: 500, bawaan: PER_PAGE_DEFAULT, satuan: 'baris' },
 };
 
 /**
@@ -109,7 +115,7 @@ export default function DialogStandarTampilan({ open, onOpenChange }: {
                     title={nilai == null
                       ? `${k.label} — belum ada standar`
                       : `${k.label} — standar aktif`}
-                    ariaLabel={`Standar ${k.label.toLowerCase()} (px)`}
+                    ariaLabel={`Standar ${k.label.toLowerCase()} (${k.satuan ?? 'px'})`}
                     onChange={(n) => setel(kunci, n)}
                   />
                   {nilai == null ? (

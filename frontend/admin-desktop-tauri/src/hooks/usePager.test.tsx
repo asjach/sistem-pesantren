@@ -1,8 +1,18 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KUNCI_PERPAGE_GLOBAL, usePager } from '@/hooks/usePager';
 import { PER_PAGE_DEFAULT } from '@/prefs';
+
+/** Standar server yang bisa disemai per tes (mock stateful, bukan doMock:
+ *  modul sudah di-cache saat tes berjalan, jadi doMock terlambat). */
+const standarServer = vi.hoisted(() => ({ peta: {} as Record<string, number>, gagal: false }));
+vi.mock('@/api/pengaturanGlobal', () => ({
+  muatPengaturanGlobal: async () => {
+    if (standarServer.gagal) throw new Error('jaringan mati');
+    return { pesan: 'ok', data: { peta: { ...standarServer.peta } } };
+  },
+}));
 
 describe('usePager', () => {
   beforeEach(() => {
@@ -108,5 +118,41 @@ describe('usePager', () => {
       koreksi = result.current.sync(3, 3);
     });
     expect(koreksi).toBeNull();
+  });
+});
+
+/* Standar server ikut dibaca BERTINGKAT: perangkat menang bila sudah diubah,
+   standar mengisi saat belum. Berlaku agar penetapan super_admin tidak
+   mengubah perilaku pengguna yang sudah menyetel sendiri. */
+describe('usePager — baris per halaman mengikuti standar server', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    standarServer.peta = {};
+    standarServer.gagal = false;
+  });
+
+  it('memakai standar server saat perangkat belum diubah', async () => {
+    standarServer.peta = { baris_per_halaman: 100 };
+    const { result } = renderHook(() => usePager('tabel_standar'));
+
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.perPage).toBe(100);
+  });
+
+  it('nilai perangkat MENANG atas standar server', async () => {
+    localStorage.setItem(KUNCI_PERPAGE_GLOBAL, '10');
+    standarServer.peta = { baris_per_halaman: 100 };
+    const { result } = renderHook(() => usePager('tabel_menang'));
+
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.perPage).toBe(10);
+  });
+
+  it('jatuh ke bawaan saat standar gagal dimuat', async () => {
+    standarServer.gagal = true;
+    const { result } = renderHook(() => usePager('tabel_gagal'));
+
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.perPage).toBe(PER_PAGE_DEFAULT);
   });
 });

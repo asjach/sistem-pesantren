@@ -1641,63 +1641,25 @@ export default function ExcelTable<T extends { id: string | number }>({
             bingkai menyatu — garis dalam dibagi seperti kelompok jumlah baris
             di pager. */}
         <div data-part="grup_aksi" className="flex items-center">
-          {/* SATU PINTU pengaturan, ikon gerigi di kanan bawah tiap tabel.
-              Isinya memisahkan dua rumah setelan supaya tidak tertukar: yang
-              PER TABEL ini (kolom/urutan/filter/preset) dan yang GLOBAL (berlaku
-              semua tabel: tampilan global + standar pesantren). Sebelumnya hanya
-              pintu global yang ada di sini, sehingga setelan per tabel harus
-              dicari lewat menu klik kanan atau TopBar. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                id={`btn_pengaturan_tabel_${tableKey}`}
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                aria-label="Pengaturan tabel"
-                title="Pengaturan tabel"
-              >
-                <Settings size={14} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="top" className="w-64">
-              <DropdownMenuLabel>Tabel ini</DropdownMenuLabel>
-              {/* Dialog per tabel hanya ada bila halaman ini mendaftarkan tabel
-                  ke registrasi; tanpa itu menunya akan membuka dialog kosong. */}
-              {visHalaman?.registrasi ? (
-                <DropdownMenuItem
-                  id={`menu_kelola_tabel_${tableKey}`}
-                  onSelect={() => setKelolaTabelOpen(true)}
-                >
-                  <Columns3 data-icon="inline-start" size={16} />
-                  Kolom, urutan & filter
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem disabled id={`menu_kelola_tabel_mati_${tableKey}`}>
-                  <Columns3 data-icon="inline-start" size={16} />
-                  Kolom, urutan & filter
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Semua tabel</DropdownMenuLabel>
-              <DropdownMenuItem
-                id={`menu_tampilan_global_${tableKey}`}
-                onSelect={() => bukaPengaturanTampilan()}
-              >
-                <Paintbrush data-icon="inline-start" size={16} />
-                Tampilan global
-              </DropdownMenuItem>
-              {efektifSuper ? (
-                <DropdownMenuItem
-                  id={`menu_standar_tampilan_${tableKey}`}
-                  onSelect={() => bukaStandarTampilan()}
-                >
-                  <Settings data-icon="inline-start" size={16} />
-                  Standar pesantren
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Gerigi KANAN BAWAH = pengaturan KHUSUS TABEL INI saja
+              (kolom, urutan, filter, preset) untuk tableKey ini.
+              Jangan masukkan setelan global ke sini: pengaturan yang berlaku
+              aplikasi/semua tabel punya pintunya sendiri, yaitu gerigi di
+              TopBar. Mencampur keduanya membuat jangkauan pilihan tak jelas.
+              Nonaktif bila halaman ini tak mendaftarkan tabelnya ke registrasi
+              (dialognya tak akan terisi). */}
+          <Button
+            id={`btn_pengaturan_tabel_${tableKey}`}
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Pengaturan tabel ini"
+            title="Pengaturan tabel ini (kolom, urutan, filter)"
+            disabled={!visHalaman?.registrasi}
+            onClick={() => setKelolaTabelOpen(true)}
+          >
+            <Settings size={14} />
+          </Button>
           <TombolTinggiBaris tableKey={tableKey} />
           {inputEnabled && !showInput && (
             <Button

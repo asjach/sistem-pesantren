@@ -456,30 +456,22 @@ describe('ExcelTable — klik ganda sel', () => {
   });
 });
 
-/* Pintu SATU untuk semua pengaturan: ikon gerigi di kanan bawah tiap tabel.
-   Isinya memisahkan setelan per tabel dari setelan global supaya tidak
-   tertukar - sebelumnya tombol ini hanya membuka panel global. */
-describe('ExcelTable — pintu gerigi (satu pintu pengaturan)', () => {
-  /** Radix DropdownMenu butuh userEvent (bukan fireEvent.click) agar terbuka. */
-  async function bukaGerigi() {
-    const pengguna = userEvent.setup();
-    const gerigi = await screen.findByRole('button', { name: 'Pengaturan tabel' });
-    await pengguna.click(gerigi);
-  }
-
-  it('membuka menu berisi kelompok per tabel dan global', async () => {
+/* Gerigi KANAN BAWAH = pengaturan khusus TABEL INI saja. Setelan global
+   punya pintunya sendiri di TopBar; keduanya sengaja dipisah supaya
+   jangkauannya jelas. */
+describe('ExcelTable — gerigi pengaturan tabel', () => {
+  it('menonaktifkan gerigi bila halaman ini tak mendaftarkan tabelnya', async () => {
+    // Tanpa registrasi, DialogKelolaTabel tak akan terisi - jadi pintunya
+    // dimatikan daripada membuka dialog kosong.
     renderTabel({});
-    await bukaGerigi();
-
-    expect(await screen.findByText('Tabel ini')).toBeInTheDocument();
-    expect(screen.getByText('Semua tabel')).toBeInTheDocument();
-    expect(screen.getByText('Tampilan global')).toBeInTheDocument();
+    const gerigi = await screen.findByRole('button', { name: 'Pengaturan tabel ini' });
+    expect(gerigi).toBeDisabled();
   });
 
-  it('menyediakan pintu kolom/urutan/filter untuk tabel ini', async () => {
+  it('tidak menawarkan setelan global di kaki tabel', async () => {
+    // Setelan global ada di gerigi TopBar; menu di sini akan menyesatkan.
     renderTabel({});
-    await bukaGerigi();
-
-    expect(await screen.findByText('Kolom, urutan & filter')).toBeInTheDocument();
+    expect(screen.queryByText('Semua tabel')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tampilan global')).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { prefGet, prefSet } from '@/api/client';
+import { muatPengaturanGlobal, type PetaGlobal } from '@/api/pengaturanGlobal';
+import { nilaiBerlapis } from '@/lib/setelanGlobal';
 import { PER_PAGE_DEFAULT, PER_PAGE_OPTIONS, normalizePerPage, type PerPage } from '@/prefs';
 
 /** Kunci global jumlah baris per halaman — SATU untuk semua tabel. */
@@ -74,22 +76,31 @@ export function usePager(tableKey: string) {
       prefGet(`simpes_page_${tableKey}`),
       prefGet(KUNCI_PERPAGE_GLOBAL),
       prefGet(kunciPerpageLama(tableKey)),
+      /* Standar server: kegagalan diperlakukan sebagai "tidak ada standar"
+         supaya tabel tetap jalan dengan nilai perangkat/bawaan. */
+      muatPengaturanGlobal()
+        .then((r) => r.data.peta)
+        .catch(() => ({} as PetaGlobal)),
     ])
-      .then(([p, ppGlobal, ppLama]) => {
+      .then(([p, ppGlobal, ppLama, standar]) => {
         if (!alive) return;
         const pn = Number(p);
         setPageState(Number.isFinite(pn) && pn >= 1 ? Math.floor(pn) : 1);
-        /* Global diutamakan. Bila belum ada (pengguna lama), angkat nilai
-           warisan per-tabel jadi global sekali-jalan supaya pengaturan yang
-           sudah ada tidak hilang diam-diam. */
-        const g = cobaPerPage(ppGlobal);
-        if (g !== null) {
-          setPerPageState(g);
-        } else {
-          const next = cobaPerPage(ppLama) ?? PER_PAGE_DEFAULT;
-          setPerPageState(next);
-          prefSet(KUNCI_PERPAGE_GLOBAL, String(next)).catch(() => {});
+        /* BERTINGKAT: perangkat menang bila sudah pernah diubah; standar server
+           mengisi saat belum. Bila belum ada (pengguna lama), angkat nilai
+           warisan per-tabel jadi perangkat sekali-jalan supaya pengaturan yang
+           sudah ada tidak hilang diam-diam - dan itu MENANG atas standar. */
+        let perangkat = cobaPerPage(ppGlobal);
+        if (perangkat === null) {
+          perangkat = cobaPerPage(ppLama);
+          if (perangkat !== null) {
+            prefSet(KUNCI_PERPAGE_GLOBAL, String(perangkat)).catch(() => {});
+          }
         }
+        const dariStandar = cobaPerPage(standar.baris_per_halaman);
+        setPerPageState(
+          (nilaiBerlapis(dariStandar, perangkat) as PerPage | null) ?? PER_PAGE_DEFAULT,
+        );
         setReady(true);
       })
       .catch(() => {

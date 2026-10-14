@@ -437,46 +437,43 @@ export default function TopBar() {
 
         {/* Kolom kanan: area akun. */}
         <div data-part="area_akun" className="flex min-w-0 items-center justify-end gap-0.5">
-          {/* Pengaturan tampilan GLOBAL (semua tabel, semua halaman) — panel
-              geser non-modal supaya tabel di belakangnya terlihat berubah. */}
-          <Tooltip>
-            <TooltipTrigger asChild>
+          {/* Gerigi TOPBAR = pengaturan GLOBAL APLIKASI, termasuk tampilan
+              tabel: berlaku semua tabel & semua halaman. Ini pintu yang
+              BERBEDA dari gerigi di kanan bawah tiap tabel (yang khusus tabel
+              itu saja) - sengaja dipisah supaya jangkauan pilihan jelas. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
-                id="btn_pengaturan_tampilan"
+                id="btn_pengaturan_global"
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label="Pengaturan tampilan tabel"
-                onClick={() => setPengaturanTampilanOpen(true)}
+                aria-label="Pengaturan global aplikasi"
                 className="mr-1 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
               >
                 <Settings size={14} />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Pengaturan tampilan tabel (berlaku semua tabel)</p>
-            </TooltipContent>
-          </Tooltip>
-          {efektifSuper ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  id="btn_standar_tampilan"
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Standar tampilan"
-                  onClick={() => setStandarOpen(true)}
-                  className="mr-1 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>Semua tabel</DropdownMenuLabel>
+              <DropdownMenuItem
+                id="menu_pengaturan_tampilan"
+                onSelect={() => setPengaturanTampilanOpen(true)}
+              >
+                <Paintbrush data-icon="inline-start" size={16} />
+                Tampilan tabel
+              </DropdownMenuItem>
+              {efektifSuper ? (
+                <DropdownMenuItem
+                  id="menu_standar_tampilan"
+                  onSelect={() => setStandarOpen(true)}
                 >
-                  <Settings size={14} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Standar tampilan (berlaku semua pengguna)</p>
-              </TooltipContent>
-            </Tooltip>
-          ) : null}
+                  <Settings data-icon="inline-start" size={16} />
+                  Standar pesantren
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {defTabs && efektifSuper ? (
             <Tooltip>
               <TooltipTrigger asChild>

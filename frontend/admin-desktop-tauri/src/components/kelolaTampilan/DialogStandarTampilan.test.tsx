@@ -37,16 +37,17 @@ describe('DialogStandarTampilan', () => {
     toastError.mockClear();
   });
 
-  it('menampilkan kedua kontrol standar', async () => {
+  it('menampilkan ketiga kontrol standar', async () => {
     render();
     expect(await screen.findByLabelText('Standar tinggi baris sel (px)')).toBeInTheDocument();
     expect(screen.getByLabelText('Standar tinggi baris header (px)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Standar baris per halaman (baris)')).toBeInTheDocument();
   });
 
   it('menandai belum ada standar untuk SETIAP kunci saat peta kosong', async () => {
     render();
-    // Satu penanda per kunci — keduanya harus muncul.
-    expect(await screen.findAllByText('belum ada')).toHaveLength(2);
+    // Satu penanda per kunci: tinggi baris, tinggi header, baris per halaman.
+    expect(await screen.findAllByText('belum ada')).toHaveLength(3);
   });
 
   it('menyimpan standar saat nilai diubah', async () => {

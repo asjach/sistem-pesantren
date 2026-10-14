@@ -2,7 +2,7 @@ import { api } from './client';
 
 /** Kunci setelan global yang boleh punya standar server. WAJIB selaras
  *  dengan `KUNCI` di `PengaturanGlobalController.php`. */
-export type KunciGlobal = 'tinggi_baris' | 'tinggi_header';
+export type KunciGlobal = 'tinggi_baris' | 'tinggi_header' | 'baris_per_halaman';
 
 /** Standar server: kunci → nilai. Absen = tidak ada standar (pakai bawaan). */
 export type PetaGlobal = Partial<Record<KunciGlobal, number>>;

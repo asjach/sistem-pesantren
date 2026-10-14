@@ -103,6 +103,25 @@ class PengaturanGlobalTest extends TestCase
         $this->assertArrayNotHasKey('tinggi_baris', $res->json('data.peta'));
     }
 
+    public function test_baris_per_halaman_hanya_menerima_opsi_sah(): void
+    {
+        $admin = $this->superAdmin();
+
+        // 777 bukan opsi mana pun di PER_PAGE_OPTIONS.
+        $this->actingAs($admin)->putJson('/api/admin/pengaturan-global', [
+            'kunci' => 'baris_per_halaman',
+            'nilai' => 777,
+        ])->assertJsonValidationErrors(['nilai']);
+
+        // 0 = "Semua", sah dan BUKAN dianggap kosong.
+        $this->actingAs($admin)->putJson('/api/admin/pengaturan-global', [
+            'kunci' => 'baris_per_halaman',
+            'nilai' => 0,
+        ])->assertOk();
+
+        $this->assertSame(0, PengaturanGlobal::where('kunci', 'baris_per_halaman')->firstOrFail()->nilai);
+    }
+
     public function test_bukan_super_admin_tidak_boleh_menyimpan(): void
     {
         $user = User::create([
