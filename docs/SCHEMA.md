@@ -1156,6 +1156,22 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `created_at`, `updated_at`
 - UNIQUE(`dispensasi_id`, `santri_id`), INDEX(`santri_id`)
 
+### `grup_santri_custom`
+- `id` PK
+- `nama`: string(100) UNIQUE — nama kelompok bentukan manual (mis. peserta ekskul)
+- `keterangan`: string(1000) [null]
+- `jenjang`: string(50) [null] — lingkup lembaga (polos, tanpa FK; skema grup masih berkembang)
+- `tahun_ajaran`: string(20) [null] — lingkup tahun ajaran
+- `is_active`: bool [default true]
+- `created_at`, `updated_at`
+
+### `anggota_grup_santri_custom` (pivot anggota grup)
+- `id` PK
+- `grup_id`: FK → grup_santri_custom [cascadeOnDelete]
+- `santri_id`: FK → santri [cascadeOnDelete]
+- `created_at`, `updated_at`
+- UNIQUE(`grup_id`, `santri_id`), INDEX(`santri_id`)
+
 ### `tagihan`
 - `id` PK
 - `santri_id`: FK → santri [cascade]
