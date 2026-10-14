@@ -123,9 +123,17 @@ describe('TabKolom — nama & perataan per TABEL', () => {
 });
 
 describe('TabKolom — kolom TERSEMBUNYI juga bisa disiapkan namanya', () => {
+  /** Buka grup Tersembunyi sebelum menelusuri isinya: sejak grupnya bisa
+   *  dilipat (bawaan TERTUTUP), isi tersembunyi tak ada di DOM sampai dibuka. */
+  async function bukaTersembunyi() {
+    const pemicu = await screen.findByRole('button', { name: /Kolom tersembunyi/ });
+    if (pemicu.getAttribute('data-state') === 'closed') fireEvent.click(pemicu);
+    await waitFor(() => expect(pemicu).toHaveAttribute('data-state', 'open'));
+  }
   it('menyediakan kotak nama & tombol perataan untuk kolom tersembunyi', async () => {
     // Susunan hanya memuat 'nama' -> 'kode' masuk grup Tersembunyi.
     renderKolom({ label: { nama: 'Nama Santri' }, kolomAwal: ['nama'] });
+    await bukaTersembunyi();
     const inputKode = await screen.findByLabelText(/Nama tampilan Kode/);
     expect(inputKode).toBeInTheDocument();
     expect(screen.getByText(/Tersembunyi/)).toBeInTheDocument();
@@ -134,6 +142,7 @@ describe('TabKolom — kolom TERSEMBUNYI juga bisa disiapkan namanya', () => {
 
   it('mengubah nama kolom tersembunyi tanpa menampilkannya', async () => {
     renderKolom({ label: { nama: 'Nama Santri' }, kolomAwal: ['nama'] });
+    await bukaTersembunyi();
     const inputKode = await screen.findByLabelText(/Nama tampilan Kode/);
     // Klik pada input tidak boleh menogol tampil/sembunyi kolomnya.
     fireEvent.click(inputKode);
@@ -216,5 +225,38 @@ describe('TabKolom — setelan label disimpan tanpa memuat ulang baris', () => {
     await waitFor(() => expect(simpanToolbarPreset).toHaveBeenCalled());
     // Hanya `simpanToolbarPreset` yang jalan; helper preset tak dipanggil.
     expect(simpanToolbarPreset).toHaveBeenCalled();
+  });
+});
+
+describe('TabKolom — grup Tersembunyi bisa dilipat', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('bawaan TERTUTUP saat setelan belum pernah dibuat', async () => {
+    renderKolom({ kolomAwal: ['nama'] });
+    const pemicu = await screen.findByRole('button', { name: /Kolom tersembunyi \(1\)/ });
+    // Tanpa setelan tersimpan, grup mulai tertutup.
+    expect(pemicu).toHaveAttribute('data-state', 'closed');
+  });
+
+  it('membuka lalu menutup, dan pilihannya disimpan', async () => {
+    renderKolom({ kolomAwal: ['nama'] });
+    const pemicu = await screen.findByRole('button', { name: /Kolom tersembunyi \(1\)/ });
+    expect(pemicu).toHaveAttribute('data-state', 'closed');
+
+    fireEvent.click(pemicu);
+    await waitFor(() => expect(pemicu).toHaveAttribute('data-state', 'open'));
+    // '0' = terbuka, diingat untuk panel berikutnya.
+    expect(localStorage.getItem('simpes_kelola_tabel_tersembunyi_tutup')).toBe('0');
+
+    fireEvent.click(pemicu);
+    await waitFor(() => expect(pemicu).toHaveAttribute('data-state', 'closed'));
+    expect(localStorage.getItem('simpes_kelola_tabel_tersembunyi_tutup')).toBe('1');
+  });
+
+  it('menghormati pilihan tersimpan saat panel dibuka lagi', async () => {
+    localStorage.setItem('simpes_kelola_tabel_tersembunyi_tutup', '0');
+    renderKolom({ kolomAwal: ['nama'] });
+    const pemicu = await screen.findByRole('button', { name: /Kolom tersembunyi \(1\)/ });
+    expect(pemicu).toHaveAttribute('data-state', 'open');
   });
 });

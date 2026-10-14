@@ -16,6 +16,31 @@ import { AlignCenter, AlignLeft, AlignRight } from '@/icons';
 import TombolIkon from '@/components/TombolIkon';
 import { bacaAlign, type AlignKolom } from './jenis';
 
+/** Status lipat grup "Tersembunyi". Diingat per PERANGKAT (localStorage),
+ *  bukan per tabel - sudut pandangnya soal ruang layar pengguna, bukan
+ *  isi tabel. Default: TERTUTUP, karena daftar kolom tersembunyi bisa
+ *  jauh lebih panjang daripada yang tampil. */
+const KUNCI_TERSEMBUNYI_TUTUP = 'simpes_kelola_tabel_tersembunyi_tutup';
+
+function bacaTersembunyiTutup(): boolean {
+  try {
+    const mentah = localStorage.getItem(KUNCI_TERSEMBUNYI_TUTUP);
+    // Belum pernah diubah = TERTUTUP (bawaan). Hanya '0' yang membukanya.
+    return mentah === null ? true : mentah !== '0';
+  } catch {
+    // Penyimpanan tak terbaca: pakai bawaan TERTUTUP.
+    return true;
+  }
+}
+
+function simpanTersembunyiTutup(tutup: boolean) {
+  try {
+    localStorage.setItem(KUNCI_TERSEMBUNYI_TUTUP, tutup ? '1' : '0');
+  } catch {
+    /* penyimpanan penuh/terkunci: status lipat tak persist */
+  }
+}
+
 /** Bandingkan peta perataan tanpa peduli urutan kunci. */
 function kanonAlign(o: Partial<Record<string, AlignKolom>>): string {
   return JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
@@ -25,7 +50,8 @@ import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Check, Eye, EyeOff, GripVertical, Pencil, Plus, Trash2, X } from '@/icons';
+import { ChevronDown, Check, Eye, EyeOff, GripVertical, Pencil, Plus, Trash2, X } from '@/icons';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 
@@ -157,6 +183,8 @@ export default function TabKolom({
     });
   }
   const [, setBusy] = useState(false);
+  /* Default TERTUTUP; pilihan terakhir diingat (lihat bacaTersembunyiTutup). */
+  const [tersembunyiTutup, setTersembunyiTutup] = useState(bacaTersembunyiTutup);
   const laporKotor = useBagian('kolom', () => simpanPreset());
   /** Acuan "tersimpan" untuk mendeteksi perubahan belum disimpan. */
   const awalNamaRef = useRef(presetAwal?.nama ?? '');
@@ -693,15 +721,35 @@ export default function TabKolom({
               </>
             ) : null}
             {barisKolom.sembunyi.length > 0 ? (
-              <>
-                <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-card/95 px-2 py-1 backdrop-blur-sm">
-                  <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              <Collapsible
+                open={!tersembunyiTutup}
+                onOpenChange={(buka) => {
+                  setTersembunyiTutup(!buka);
+                  simpanTersembunyiTutup(!buka);
+                }}
+              >
+                {/* Pemicu lipat = header grupnya sendiri, supaya tak ada
+                    baris tambahan yang memakan ruang. */}
+                <CollapsibleTrigger
+                  id={`btn_lipat_tersembunyi_${tableKey}`}
+                  className="sticky top-0 z-10 flex w-full items-center justify-between gap-2 border-b bg-card/95 px-2 py-1 text-left backdrop-blur-sm hover:bg-accent/30"
+                  aria-label={`Kolom tersembunyi (${barisKolom.sembunyi.length}) - klik untuk ${tersembunyiTutup ? 'tampilkan daftar' : 'sembunyikan daftar'}`}
+                >
+                  <span className="flex items-center gap-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    <ChevronDown
+                      size={12}
+                      className={cn('transition-transform', tersembunyiTutup && '-rotate-90')}
+                    />
                     Tersembunyi · {barisKolom.sembunyi.length}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">klik untuk menampilkan</span>
-                </div>
-                {barisKolom.sembunyi.map((f) => renderBaris(f, false, null))}
-              </>
+                  <span className="text-[11px] text-muted-foreground">
+                    {tersembunyiTutup ? 'klik untuk membuka' : 'klik untuk menampilkan'}
+                  </span>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  {barisKolom.sembunyi.map((f) => renderBaris(f, false, null))}
+                </CollapsibleContent>
+              </Collapsible>
             ) : null}
           </>
         )}
