@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import FilterRail from '@/components/FilterRail';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import TagihanCrosstab, { type MetaSel } from '@/components/keuangan/TagihanCrosstab';
 import PresetUrut from '@/components/PresetUrut';
 import { DeleteAction, EditAction } from '@/components/RowActions';
-import { Info, Plus, Search, Trash2, TriangleAlert, X } from '@/icons';
+import { Info, Plus, Trash2, TriangleAlert } from '@/icons';
 import type { PetaArahKolom } from '@/lib/urut';
 import type { PilihanLembaga } from '@/lembagaAktif';
 import type { PerPage } from '@/prefs';
@@ -578,7 +578,11 @@ export function TagihanTab({
 
   return (
     <>
-      {/* Bilah alat tagihan: cari | urut | filter | aksi. */}
+      {/* Pencarian pindah ke topBar (satu slot per halaman; tab nonaktif
+          di-unmount Radix sehingga tak bentrok dengan tab Santri Custom).
+          State + debounce tetap milik halaman via `cari`/`onCari`. */}
+      <TopBarSearch value={cari} onChange={onCari} placeholder="Cari nama / ayah / ibu…" />
+      {/* Bilah alat tagihan: urut | filter | aksi. */}
       <div className="border bg-[var(--sidebar)] p-1 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           {/* Petunjuk pakai + legenda warna pindah ke hovercard. Keduanya
@@ -618,28 +622,6 @@ export function TagihanTab({
               </div>
             </HoverCardContent>
           </HoverCard>
-          <div className="relative">
-            <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="inp_tagihan_cari"
-              placeholder="Cari nama / ayah / ibu…"
-              className="w-48 pl-8 pr-8"
-              value={cari}
-              onChange={(e) => onCari(e.target.value)}
-            />
-            {cari !== '' && (
-              <button
-                type="button"
-                id="btn_tagihan_cari_bersih"
-                aria-label="Bersihkan pencarian"
-                title="Bersihkan pencarian"
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                onClick={() => onCari('')}
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
           <div aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
           <PresetUrut
             tableKey="keuangan_tagihan_crosstab"
