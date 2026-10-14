@@ -312,7 +312,7 @@ class TagihanController extends Controller
         $petaKolom = [];
         foreach ((clone $q)->join('jenis_tagihan as jt', 'jt.id', '=', 'tagihan.jenis_id')
             ->select('tagihan.jenis_id', 'tagihan.periode')
-            ->selectRaw('MIN(jt.nama) as jenis_nama, MIN(jt.tipe) as tipe')
+            ->selectRaw('MIN(jt.nama) as jenis_nama, MIN(jt.tipe) as tipe, MIN(jt.urutan) as jenis_urutan')
             ->groupBy('tagihan.jenis_id', 'tagihan.periode')
             ->get() as $barisKolom) {
             $jenisId = (int) $barisKolom->jenis_id;
@@ -325,16 +325,33 @@ class TagihanController extends Controller
                 'jenis_nama' => $barisKolom->jenis_nama ?? 'Jenis #'.$jenisId,
                 'tipe' => $barisKolom->tipe ?? 'non_bulanan',
                 'periode' => $p,
+                'urutan' => (int) $barisKolom->jenis_urutan,
             ];
         }
         foreach ($this->kolomDariTarif($request, $tahunAjaran) as $kunci => $k) {
             $petaKolom[$kunci] ??= $k;
         }
-        /* Urut seperti kueri lama: jenis lalu periode (periode NULL =
-           non-bulanan lebih dulu, sama dengan urutan ASC MySQL). */
+        /* Urut kolom: yang PUNYA angka `urutan` lebih dulu menurut angkanya,
+           yang belum diatur (`urutan` = 0) menyusul dan kembali ke urutan
+           `id`. Di dalam satu jenis, periode tetap menaik (periode NULL =
+           non-bulanan lebih dulu, sama dengan urutan ASC MySQL). Tanpa angka
+           yang diisi sama sekali, hasilnya persis seperti sebelum kolom
+           `urutan` ada. */
         $kolom = array_values($petaKolom);
-        usort($kolom, static fn (array $a, array $b): int => [$a['jenis_id'], (string) ($a['periode'] ?? '')]
-            <=> [$b['jenis_id'], (string) ($b['periode'] ?? '')]);
+        usort($kolom, static function (array $a, array $b): int {
+            $aBelum = $a['urutan'] === 0 ? 1 : 0;
+            $bBelum = $b['urutan'] === 0 ? 1 : 0;
+
+            return [$aBelum, $a['urutan'], $a['jenis_id'], (string) ($a['periode'] ?? '')]
+                <=> [$bBelum, $b['urutan'], $b['jenis_id'], (string) ($b['periode'] ?? '')];
+        });
+        /* `urutan` cuma alat sortir — jangan bocor ke respons (bentuk kolom
+           crosstab tetap seperti semula). */
+        $kolom = array_map(static function (array $k): array {
+            unset($k['urutan']);
+
+            return $k;
+        }, $kolom);
 
         /* Kelas & status keaktifan per Santri, diambil dari riwayat TA yang
            sama dengan filter topBar: semester 2 (genap) menang, dan Santri
@@ -496,8 +513,11 @@ class TagihanController extends Controller
      * kosong (lihat `rosterSantriCrosstab`). Tanpa TA → daftar kosong, kolom
      * kembali seperti sebelumnya (dari tagihan yang ada).
      *
+     * `urutan` ikut dibawa sebagai alat sortir saja (dibuang dari respons oleh
+     * pemanggil).
+     *
      * @param  list<string>  $tahunAjaran
-     * @return array<string, array{key:string, jenis_id:int, jenis_nama:string, tipe:string, periode:?string}>
+     * @return array<string, array{key:string, jenis_id:int, jenis_nama:string, tipe:string, periode:?string, urutan:int}>
      */
     private function kolomDariTarif(Request $request, array $tahunAjaran): array
     {
@@ -530,6 +550,7 @@ class TagihanController extends Controller
                     'jenis_nama' => (string) $jenis->nama,
                     'tipe' => (string) $jenis->tipe,
                     'periode' => $p,
+                    'urutan' => (int) $jenis->urutan,
                 ];
             }
         }

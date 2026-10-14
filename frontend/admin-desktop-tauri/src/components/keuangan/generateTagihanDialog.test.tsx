@@ -86,7 +86,7 @@ beforeAll(() => {
   HTMLCanvasElement.prototype.getContext = (() => null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 });
 
-const JENIS: JenisTagihan[] = [{ id: 1, nama: 'Infaq Bulanan', tipe: 'bulanan', jenjang: null, keterangan: null, is_active: true }];
+const JENIS: JenisTagihan[] = [{ id: 1, nama: 'Infaq Bulanan', tipe: 'bulanan', jenjang: null, keterangan: null, urutan: 0, is_active: true }];
 
 /** Tarif patokan: nominal 100.000 untuk jenis 1 (bulanan). */
 const TARIF: Tarif[] = [
@@ -423,7 +423,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     api.kandidat.mockResolvedValue({ data: [], current_page: 1, last_page: 1, total: 0, per_page: 50 });
     api.pratinjau.mockResolvedValue([]);
     renderDialog({
-      jenis: [...JENIS, { id: 2, nama: 'Uang Pangkal', tipe: 'non_bulanan', jenjang: null, keterangan: null, is_active: true }],
+      jenis: [...JENIS, { id: 2, nama: 'Uang Pangkal', tipe: 'non_bulanan', jenjang: null, keterangan: null, urutan: 0, is_active: true }],
       tarif: [...TARIF, { id: 6, jenjang: 'MI', tahun_ajaran: '2025/2026', jenis_id: 2, tingkat: '1', nominal: 500000, is_active: true }],
     });
 

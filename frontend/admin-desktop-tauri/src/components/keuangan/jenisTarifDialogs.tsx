@@ -15,6 +15,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { urutanDariTeks } from './tabKeuangan';
 
 /* Dialog form jenis tagihan & tarif halaman Keuangan.
  *
@@ -105,6 +106,7 @@ export function DialogTambahJenis({
   const [tipe, setTipe] = useState<'bulanan' | 'non_bulanan'>('non_bulanan');
   const [lembaga, setLembaga] = useState(peranJenjang ?? '');
   const [keterangan, setKeterangan] = useState('');
+  const [urutan, setUrutan] = useState('');
   const [galat, setGalat] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -112,9 +114,15 @@ export function DialogTambahJenis({
     e.preventDefault();
     if (nama.trim() === '') { setGalat('Nama jenis wajib diisi.'); return; }
     if (keterangan.length > 1000) { setGalat('Keterangan maksimal 1000 karakter.'); return; }
+    if (urutan.trim() !== '' && !/^\d+$/.test(urutan.trim())) { setGalat('Urutan harus angka bulat ≥ 0.'); return; }
     setGalat(null); setBusy(true);
     try {
-      await buatJenis(nama.trim(), tipe, lembaga === '' ? null : lembaga, keterangan.trim() === '' ? null : keterangan.trim());
+      await buatJenis({
+        nama: nama.trim(), tipe,
+        jenjang: lembaga === '' ? null : lembaga,
+        keterangan: keterangan.trim() === '' ? null : keterangan.trim(),
+        urutan: urutanDariTeks(urutan, 0),
+      });
       toast.success('Jenis dibuat.');
       onClose();
       await onSukses();
@@ -172,6 +180,17 @@ export function DialogTambahJenis({
             )}
           </div>
           <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor="inp_jenis_urutan">Urutan</FieldLabel>
+            <Input
+              id="inp_jenis_urutan" inputMode="numeric" placeholder="mis. 10" value={urutan}
+              maxLength={5} className="h-[26px]"
+              onChange={(e) => { setUrutan(e.target.value); setGalat(null); }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Urutan kolom di tabel Tagihan. Kosong = 0 (mengikuti urutan id).
+            </p>
+          </div>
+          <div className="flex flex-col gap-1">
             <FieldLabel htmlFor="inp_jenis_keterangan">Keterangan</FieldLabel>
             <textarea
               id="inp_jenis_keterangan" placeholder="mis. Iuran halaqoh pekanan" value={keterangan}
@@ -204,12 +223,13 @@ export function DialogUbahJenis({
   const [jenjang, setJenjang] = useState(item.jenjang ?? '');
   const [keterangan, setKeterangan] = useState(item.keterangan ?? '');
   const [aktif, setAktif] = useState(item.is_active);
+  const [urutan, setUrutan] = useState(item.urutan === 0 ? '' : String(item.urutan));
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader><DialogTitle>Ubah Jenis Tagihan</DialogTitle></DialogHeader>
-        <form id="form_ubah_jenis" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); try { await ubahJenis(item.id, { nama, tipe, jenjang: jenjang === '' ? null : jenjang, keterangan: keterangan.trim() === '' ? null : keterangan.trim(), is_active: aktif }); toast.success('Tersimpan.'); onClose(); await onSukses(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
+        <form id="form_ubah_jenis" className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4" onSubmit={async (e) => { e.preventDefault(); if (urutan.trim() !== '' && !/^\d+$/.test(urutan.trim())) { toast.error('Urutan harus angka bulat ≥ 0.'); return; } try { await ubahJenis(item.id, { nama, tipe, jenjang: jenjang === '' ? null : jenjang, keterangan: keterangan.trim() === '' ? null : keterangan.trim(), urutan: urutanDariTeks(urutan, item.urutan), is_active: aktif }); toast.success('Tersimpan.'); onClose(); await onSukses(); } catch (e2) { toast.error(errorMessage(e2)); } }}>
           <FieldLabel htmlFor="inp_jenis_edit_nama">Nama</FieldLabel>
           <Input id="inp_jenis_edit_nama" value={nama} className="h-[26px]" onChange={(e) => setNama(e.target.value)} required />
           <FieldLabel htmlFor="sel_jenis_edit_tipe">Tipe</FieldLabel>
@@ -232,6 +252,11 @@ export function DialogUbahJenis({
               {pilihanLembaga.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
             </SelectContent>
           </Select>
+          <FieldLabel htmlFor="inp_jenis_edit_urutan">Urutan</FieldLabel>
+          <Input
+            id="inp_jenis_edit_urutan" inputMode="numeric" placeholder="mis. 10" value={urutan}
+            maxLength={5} className="h-[26px]" onChange={(e) => setUrutan(e.target.value)}
+          />
           <FieldLabel htmlFor="chk_jenis_edit_aktif">Aktif</FieldLabel>
           <Checkbox id="chk_jenis_edit_aktif" aria-label="Aktif" checked={aktif} onCheckedChange={(v) => setAktif(v === true)} />
           <FieldLabel htmlFor="inp_jenis_edit_keterangan">Keterangan</FieldLabel>

@@ -196,6 +196,52 @@ class CrosstabPaginasiTest extends TestCase
         $this->assertSame('Santri 15', $semua['baris'][14]['nama']);
     }
 
+    /* Kolom crosstab mengikuti `jenis_tagihan.urutan`: yang sudah diberi angka
+       tampil lebih dulu menurut angkanya, yang belum diatur (0) menyusul dan
+       kembali ke urutan `id` — jadi tampilan lama tak berubah sebelum ada yang
+       diisi. Di dalam satu jenis, periode tetap menaik. */
+    public function test_kolom_crosstab_mengikuti_urutan_jenis(): void
+    {
+        $admin = $this->admin();
+        $infaq = JenisTagihan::create(['nama' => 'Infaq', 'tipe' => 'bulanan']);
+        $asas = JenisTagihan::create(['nama' => 'ASAS', 'tipe' => 'non_bulanan']);
+        $ujian = JenisTagihan::create(['nama' => 'Ujian', 'tipe' => 'non_bulanan']);
+
+        $s = Santri::create(['nama_lengkap' => 'Santri 01', 'jk' => 'L']);
+        foreach ([[$infaq->id, '2025-07'], [$asas->id, '2025/2026'], [$ujian->id, '2025/2026']] as [$jenisId, $periode]) {
+            Tagihan::create([
+                'santri_id' => $s->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
+                'jenis_id' => $jenisId, 'periode' => $periode, 'nominal' => 10000,
+            ]);
+        }
+
+        $kunci = fn (): array => array_column(
+            $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?per_page=all')->json('kolom'),
+            'key',
+        );
+
+        // Belum ada angka urutan → perilaku lama: id jenis lalu periode.
+        $this->assertSame(['1-2025-07', 'jenis-'.$asas->id, 'jenis-'.$ujian->id], $kunci());
+
+        // Satu jenis diberi angka → naik ke depan; sisanya tetap urut id.
+        $ujian->update(['urutan' => 1]);
+        $this->assertSame(['jenis-'.$ujian->id, '1-2025-07', 'jenis-'.$asas->id], $kunci());
+
+        // Angka lebih besar menyusul setelahnya; yang belum diatur tetap paling belakang.
+        $asas->update(['urutan' => 2]);
+        $this->assertSame(['jenis-'.$ujian->id, 'jenis-'.$asas->id, '1-2025-07'], $kunci());
+
+        // Angka seri dipecah `id` supaya urutannya tetap pasti.
+        $asas->update(['urutan' => 1]);
+        $this->assertSame(['jenis-'.$asas->id, 'jenis-'.$ujian->id, '1-2025-07'], $kunci());
+
+        // `urutan` cuma alat sortir: tak boleh muncul di bentuk kolom respons.
+        $kolomPertama = $this->actingAs($admin)
+            ->getJson('/api/admin/keuangan/tagihan/crosstab?per_page=all')
+            ->json('kolom.0');
+        $this->assertSame(['key', 'jenis_id', 'jenis_nama', 'tipe', 'periode'], array_keys($kolomPertama));
+    }
+
     /* aggregate columns must hold on every page, not just the first. */
     public function test_agregat_halaman_ikut_benar(): void
     {

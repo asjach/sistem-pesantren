@@ -637,6 +637,38 @@ class KeuanganTest extends TestCase
         $this->assertDatabaseHas('jenis_tagihan', ['id' => $id, 'keterangan' => null]);
     }
 
+    public function test_jenis_menyimpan_urutan(): void
+    {
+        $admin = $this->admin();
+
+        // Bawaan 0 = belum diatur (kolom crosstab kembali ke urutan id).
+        $res = $this->actingAs($admin)->postJson('/api/admin/keuangan/jenis', ['nama' => 'HIPA'])->assertStatus(201);
+        $id = (int) $res->json('id');
+        $this->assertSame(0, (int) $res->json('urutan'), 'urutan bawaan harus 0');
+
+        // Dibuat dengan urutan → tersimpan.
+        $lain = $this->actingAs($admin)->postJson('/api/admin/keuangan/jenis', ['nama' => 'ASAS', 'urutan' => 20])
+            ->assertStatus(201);
+        $this->assertDatabaseHas('jenis_tagihan', ['id' => (int) $lain->json('id'), 'urutan' => 20]);
+
+        // Diubah → tersimpan.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/jenis/{$id}", ['nama' => 'HIPA', 'urutan' => 10])
+            ->assertStatus(200);
+        $this->assertDatabaseHas('jenis_tagihan', ['id' => $id, 'urutan' => 10]);
+
+        // Bukan angka bulat ≥ 0 → ditolak, nilai lama tak berubah.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/jenis/{$id}", ['nama' => 'HIPA', 'urutan' => -1])
+            ->assertStatus(422)->assertJsonValidationErrors(['urutan']);
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/jenis/{$id}", ['nama' => 'HIPA', 'urutan' => 'abc'])
+            ->assertStatus(422)->assertJsonValidationErrors(['urutan']);
+        $this->assertDatabaseHas('jenis_tagihan', ['id' => $id, 'urutan' => 10]);
+
+        // Field tak dikirim (dialog Ubah versi lama) → nilai lama tetap, bukan reset 0.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/jenis/{$id}", ['nama' => 'HIPA Baru'])
+            ->assertStatus(200);
+        $this->assertDatabaseHas('jenis_tagihan', ['id' => $id, 'urutan' => 10, 'nama' => 'HIPA Baru']);
+    }
+
     public function test_hapus_jenis_ditolak_bila_sudah_dipakai(): void
     {
         $admin = $this->admin();

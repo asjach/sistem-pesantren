@@ -154,9 +154,9 @@ describe('pastikanTarifBaru — penjaga sebelum POST', () => {
 
 describe('opsiJenisTarif — dropdown baris input', () => {
   const jenis: JenisTagihan[] = [
-    { id: 1, nama: 'SPP', tipe: 'bulanan', jenjang: 'MI', keterangan: null, is_active: true },
-    { id: 2, nama: 'Infaq', tipe: 'bulanan', jenjang: null, keterangan: null, is_active: true },
-    { id: 3, nama: 'Daftar Ulang', tipe: 'non_bulanan', jenjang: 'MTs', keterangan: null, is_active: true },
+    { id: 1, nama: 'SPP', tipe: 'bulanan', jenjang: 'MI', keterangan: null, urutan: 0, is_active: true },
+    { id: 2, nama: 'Infaq', tipe: 'bulanan', jenjang: null, keterangan: null, urutan: 0, is_active: true },
+    { id: 3, nama: 'Daftar Ulang', tipe: 'non_bulanan', jenjang: 'MTs', keterangan: null, urutan: 0, is_active: true },
   ];
 
   it('jenis global + jenis lembaga filter saja (pola dialog Tambah Tarif)', () => {

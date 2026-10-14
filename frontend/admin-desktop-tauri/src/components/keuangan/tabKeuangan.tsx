@@ -52,6 +52,13 @@ export const FIELDS_JENIS: ExcelField[] = [
     validate: (v) => (v === 'bulanan' || v === 'non_bulanan' ? null : 'Tipe harus Bulanan atau Non-bulanan.'),
   },
   { key: 'lembaga', label: 'Lembaga', width: 130, kind: 'static', inputKind: 'select', required: true },
+  // Urutan tampil KOLOM crosstab Tagihan (jenis lalu periode). Kosong = 0 →
+  // kolomnya mengikuti urutan id, jadi tampilan lama tak berubah sampai diisi.
+  {
+    key: 'urutan', label: 'Urutan', width: 80, kind: 'text', maxLength: 5,
+    validate: (v) => ((v ?? '').trim() === '' || /^\d+$/.test((v ?? '').trim())
+      ? null : 'Urutan harus angka bulat ≥ 0.'),
+  },
   // Switch status tersimpan langsung (tanpa Mode Edit), seperti kolom is_active lain.
   { key: 'aktif', label: 'Status', width: 80, kind: 'toggle' },
 ];
@@ -62,6 +69,15 @@ function nominalDariTeks(v: string | null | undefined): number | null {
   const s = (v ?? '').trim();
   if (!/^(\d+|\d{1,3}(\.\d{3})+)$/.test(s)) return null;
   return Number(s.replace(/\./g, ''));
+}
+
+/** Angka urutan dari teks sel grid. Sel kosong (atau dihapus) = 0 alias
+ *  "belum diatur"; teks tak sah → nilai lama supaya tak diam-diam mereset.
+ *  Dipakai juga dialog Tambah/Ubah Jenis. */
+export function urutanDariTeks(v: string | null | undefined, lama: number): number {
+  const s = (v ?? '').trim();
+  if (s === '') return 0;
+  return /^\d+$/.test(s) ? Number(s) : lama;
 }
 
 /** Jenjang + TA + jenis adalah kunci baris tarif — sel itu baca-saja; hanya
@@ -162,6 +178,8 @@ export function nilaiGridJenis(j: JenisTagihan): Record<string, string | null> {
     keterangan: j.keterangan,
     tipe: j.tipe,
     lembaga: j.jenjang ?? 'Semua',
+    // 0 = belum diatur → sel dibiarkan kosong (bukan "0" yang ramai).
+    urutan: j.urutan === 0 ? null : String(j.urutan),
     aktif: j.is_active ? 'ya' : 'tidak',
   };
 }
@@ -170,7 +188,7 @@ export function nilaiGridJenis(j: JenisTagihan): Record<string, string | null> {
  *  ikut — pindah lembaga hanya lewat dialog Ubah; field yang tidak berubah
  *  memakai nilai baris sebab endpoint menuntut `nama` juga. */
 export function payloadUbahJenis(baris: JenisTagihan, f: Record<string, string | null>): {
-  nama: string; tipe: 'bulanan' | 'non_bulanan'; is_active: boolean; keterangan: string | null;
+  nama: string; tipe: 'bulanan' | 'non_bulanan'; is_active: boolean; keterangan: string | null; urutan: number;
 } {
   const nama = f.nama !== undefined ? (f.nama ?? '').trim() : baris.nama;
   const keterangan = f.keterangan !== undefined ? (f.keterangan ?? '').trim() : (baris.keterangan ?? '');
@@ -180,13 +198,14 @@ export function payloadUbahJenis(baris: JenisTagihan, f: Record<string, string |
     tipe: f.tipe !== undefined ? (f.tipe === 'bulanan' ? 'bulanan' : 'non_bulanan') : baris.tipe,
     is_active: f.aktif !== undefined ? f.aktif === 'ya' : baris.is_active,
     keterangan: keterangan === '' ? null : keterangan,
+    urutan: f.urutan !== undefined ? urutanDariTeks(f.urutan, baris.urutan) : baris.urutan,
   };
 }
 
 /** Payload `buatJenis` dari baris input: nama & tipe wajib, lingkup lembaga
  *  wajib dipilih (`JENIS_GLOBAL` = jenis global, hanya untuk super_admin). */
 export function payloadBuatJenis(f: Record<string, string | null>): {
-  nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang: string | null; keterangan: string | null;
+  nama: string; tipe: 'bulanan' | 'non_bulanan'; jenjang: string | null; keterangan: string | null; urutan: number;
 } {
   const nama = (f.nama ?? '').trim();
   if (nama === '') throw new Error('Nama jenis wajib diisi.');
@@ -196,7 +215,11 @@ export function payloadBuatJenis(f: Record<string, string | null>): {
   const lembaga = (f.lembaga ?? '').trim();
   if (lembaga === '') throw new Error('Pilih lembaga dulu.');
   const keterangan = (f.keterangan ?? '').trim();
-  return { nama, tipe, jenjang: lembaga === JENIS_GLOBAL ? null : lembaga, keterangan: keterangan === '' ? null : keterangan };
+  return {
+    nama, tipe, jenjang: lembaga === JENIS_GLOBAL ? null : lembaga,
+    keterangan: keterangan === '' ? null : keterangan,
+    urutan: urutanDariTeks(f.urutan, 0),
+  };
 }
 
 /** Baris tarif yang sudah memakai kombinasi (lembaga, tahun ajaran, jenis) —

@@ -956,8 +956,7 @@ export default function KeuanganPage() {
    *  dipilih di baris input; jenis global hanya untuk super_admin (server
    *  menolak bila bukan — pesannya tampil sebagai toast baris input). */
   const createJenisRow = useCallback(async (f: Record<string, string | null>) => {
-    const { nama, tipe, jenjang, keterangan } = payloadBuatJenis(f);
-    await buatJenis(nama, tipe, jenjang, keterangan);
+    await buatJenis(payloadBuatJenis(f));
     toast.success('Jenis dibuat.');
     await load();
   }, [load]);

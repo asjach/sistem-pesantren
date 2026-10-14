@@ -234,6 +234,9 @@ class UrutKatalog
             'nama' => ['jenis_tagihan.nama'],
             'tipe' => ['jenis_tagihan.tipe'],
             'lembaga' => ['jenis_tagihan.jenjang'],
+            // Kode `urutan` = urutan tampil kolom crosstab Tagihan; sama dengan
+            // key kolom grid di tab Jenis supaya dropdown Urutkan mengenalinya.
+            'urutan' => ['jenis_tagihan.urutan'],
             'aktif' => ['jenis_tagihan.is_active'],
             'id' => ['jenis_tagihan.id'],
         ],

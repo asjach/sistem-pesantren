@@ -1102,6 +1102,7 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `nama`: string — unik, daftar jenis (Infaq Bulanan, ASAS, ASAT, Ujian, HIPA, Pendaftaran, Biaya Masuk, …)
 - `tipe`: enum('bulanan','non_bulanan') [default 'non_bulanan'] — frekuensi: bulanan/rutin vs non-bulanan (satu periode per generate; ASAS/ASAT berkala, Ujian tingkat akhir, HIPA setahun, tarif masuk/daftar)
 - `jenjang`: string(50) [null] — null = berlaku semua lembaga; terisi = khusus lembaga itu
+- `urutan`: unsignedInteger [default 0] — urutan tampil jenis; mengurutkan KOLOM crosstab Tagihan (jenis lalu periode). 0 = belum diatur → kolomnya jatuh ke BELAKANG yang sudah diatur, lalu kembali ke urutan `id` — jadi tampilan lama tidak berubah sampai angkanya diisi. Tidak unik (boleh seri; seri dipecah `id`) supaya penomoran 10/20/30 tetap mungkin
 - `keterangan`: text [null] — catatan bebas jenis tagihan (kolom "Keterangan" di tab Jenis Tagihan); divalidasi maks 1000 karakter
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`

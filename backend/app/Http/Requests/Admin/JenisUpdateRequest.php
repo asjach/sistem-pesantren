@@ -24,6 +24,9 @@ class JenisUpdateRequest extends FormRequest
             'is_active' => 'boolean',
             'jenjang' => 'nullable|string|max:50',
             'keterangan' => 'nullable|string|max:1000',
+            // `sometimes`: dialog Ubah yang belum mengenal urutan tak mengirimnya,
+            // dan nilainya harus tetap (bukan ter-reset 0).
+            'urutan' => 'sometimes|integer|min:0',
         ];
     }
 }

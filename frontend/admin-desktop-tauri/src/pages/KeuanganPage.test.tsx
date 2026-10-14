@@ -318,7 +318,7 @@ describe('KeuanganPage — mode Edit tabel Tarif', () => {
 });
 
 describe('KeuanganPage — tabel Jenis Tagihan (mode Edit & Input)', () => {
-  const JENIS: JenisTagihan = { id: 5, nama: 'HIPA', tipe: 'non_bulanan', jenjang: 'MI', keterangan: null, is_active: true };
+  const JENIS: JenisTagihan = { id: 5, nama: 'HIPA', tipe: 'non_bulanan', jenjang: 'MI', keterangan: null, urutan: 0, is_active: true };
 
   /** Tab Jenis Tagihan: tab awal halaman, tapi tab tersimpan (pref) bisa
    *  berbeda antar test — jadi diklik eksplisit seperti tab lain. */

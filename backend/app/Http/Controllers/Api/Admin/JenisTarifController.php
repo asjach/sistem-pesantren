@@ -56,7 +56,7 @@ class JenisTarifController extends Controller
             abort(403, 'Jenis global hanya boleh dibuat super_admin.');
         }
 
-        return response()->json(JenisTagihan::create(['nama' => $data['nama'], 'tipe' => $data['tipe'] ?? 'non_bulanan', 'jenjang' => $data['jenjang'] ?? null, 'keterangan' => $data['keterangan'] ?? null, 'is_active' => true]), 201);
+        return response()->json(JenisTagihan::create(['nama' => $data['nama'], 'tipe' => $data['tipe'] ?? 'non_bulanan', 'jenjang' => $data['jenjang'] ?? null, 'keterangan' => $data['keterangan'] ?? null, 'urutan' => $data['urutan'] ?? 0, 'is_active' => true]), 201);
     }
 
     public function updateJenis(JenisUpdateRequest $request, JenisTagihan $jenis)
