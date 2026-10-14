@@ -8,7 +8,7 @@ import FilterRail from '@/components/FilterRail';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import { ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger } from '@/components/ui/combobox';
 import { TopBarSearch } from '@/components/TopBarSearch';
-import TagihanCrosstab, { type MetaSel } from '@/components/keuangan/TagihanCrosstab';
+import TagihanCrosstab, { type MetaSel, type SelBlok } from '@/components/keuangan/TagihanCrosstab';
 import PresetUrut from '@/components/PresetUrut';
 import { DeleteAction, EditAction } from '@/components/RowActions';
 import { Info, Plus, Trash2, TriangleAlert } from '@/icons';
@@ -526,7 +526,7 @@ const OPSI_KEAKTIFAN: { nilai: '' | 'aktif' | 'nonaktif'; label: string }[] = [
 export function TagihanTab({
   crosstab, loading, terpilihId, total,
   cari, onCari, sort, terlambat, onTerlambat, keaktifan, onKeaktifan,
-  onPilih, aksiSel, onAksiSel, onTambah, onBukaGenerate,
+  onPilih, aksiSel, onAksiSel, onAksiKosong, onTambah, onBukaGenerate,
   selection, onTogglePilih, onPilihBlok, onKlikSel, onPilihIrisan, onMulaiGeser, onGeserSelesai, onTambahBlok, onLepasBlok, pager, popover,
 }: {
   crosstab: CrosstabTagihan | null;
@@ -546,29 +546,31 @@ export function TagihanTab({
    *  menyimpannya, crosstab memetakannya kembali ke elemen sel. */
   aksiSel: { sel: CrosstabSel; meta: MetaSel; kolom: CrosstabKolom; jangkar: DOMRect } | null;
   onAksiSel: (sel: CrosstabSel, meta: MetaSel, kolom: CrosstabKolom, kotak: DOMRect) => void;
+  /** Klik kanan sel kosong → halaman membuka panel batch (bila pilihan > 1). */
+  onAksiKosong: (sel: SelBlok, kolom: CrosstabKolom, anchor: HTMLElement) => void;
   /** Diteruskan ke sel kosong crosstab (tombol tambah). */
   onTambah?: (baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => void;
   onBukaGenerate: () => void;
-  /** Id tagihan terpilih (klik kiri) untuk aksi batch. */
-  selection: ReadonlySet<number>;
+  /** Kunci sel terpilih (klik kiri, termasuk sel kosong) untuk aksi batch. */
+  selection: ReadonlySet<string>;
   /** Ctrl/Cmd+Klik pada sel → toggle (tambah bila tak terpilih, lepas bila
    *  terpilih). */
-  onTogglePilih: (sel: CrosstabSel, jenisId: number) => void;
+  onTogglePilih: (sel: SelBlok) => void;
   /** Blok pilihan (geser, Shift+Klik, Shift+panah). */
-  onPilihBlok: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onPilihBlok: (items: SelBlok[]) => void;
   /** Klik kiri biasa → sorotan/anchor pindah ke satu sel (ganti pilihan). */
-  onKlikSel: (sel: CrosstabSel, jenisId: number, kunci: string) => void;
+  onKlikSel: (sel: SelBlok) => void;
   /** Tahan-geser DIMULAI di sel `idAwal` → halaman menentukan mode gesture
    *  (irisan bila sel awal sudah terpilih, selain itu seleksi baru). */
-  onMulaiGeser: (idAwal: number) => void;
+  onMulaiGeser: (kunciAwal: string) => void;
   /** Gesture geser berakhir (tombol dilepas) → halaman melepas mode irisan. */
   onGeserSelesai?: () => void;
   /** Tahan-geser → blok MENTAH; halaman mengiriskan dengan pilihan lama. */
-  onPilihIrisan: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onPilihIrisan: (items: SelBlok[]) => void;
   /** Ctrl/Cmd+tahan-geser → blok baru ditambahkan ke pilihan lama. */
-  onTambahBlok: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onTambahBlok: (items: SelBlok[]) => void;
   /** Lepas (kurangi) blok tagihan dari pilihan — Alt/Option+tahan-geser. */
-  onLepasBlok: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onLepasBlok: (items: SelBlok[]) => void;
   pager: {
     page: number;
     lastPage: number;
@@ -704,6 +706,7 @@ export function TagihanTab({
               onTambahBlok={onTambahBlok}
               onLepasBlok={onLepasBlok}
               onAksiKanan={onAksiSel}
+              onAksiKosong={onAksiKosong}
             />
             {popover}
           </div>

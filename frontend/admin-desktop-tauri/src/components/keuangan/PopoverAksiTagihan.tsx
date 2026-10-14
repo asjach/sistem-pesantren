@@ -112,10 +112,13 @@ interface Props {
   onHapusPembayaran: (id: number) => Promise<void>;
   /** Minta halaman memuat riwayat pembayaran (dipanggil saat tab Detail dibuka). */
   onMuatRiwayat: () => void;
-  /** Banyak sel sedang terpilih. Bila > 1, popover menampilkan aksi BATCH untuk
-   *  seluruh pilihan (bukan aksi tagihan tunggal), karena bilah pilihan sudah
-   *  dihapus dan klik kanan kini menjadi satu-satunya jalan ke aksi massal. */
+  /** Banyak sel sedang terpilih (termasuk sel kosong). Bila > 1, popover
+   *  menampilkan aksi BATCH untuk seluruh pilihan (bukan aksi tagihan
+   *  tunggal), karena bilah pilihan sudah dihapus dan klik kanan kini
+   *  menjadi satu-satunya jalan ke aksi massal. */
   jumlahTerpilih?: number;
+  /** Banyak sel terpilih yang punya tagihan (aksi bayar/ubah/hapus). */
+  jumlahTagihan?: number;
   /** Total sisa (Rp) dari seluruh tagihan terpilih — ringkasan di mode batch. */
   totalSisaTerpilih?: number;
   /** Jalankan aksi batch: halaman membuka dialog konfirmasinya. */
@@ -204,7 +207,7 @@ function rupiah(n: number): string {
 export default function PopoverAksiTagihan({
   tagihan, tambah, anchor, riwayat, riwayatBusy, riwayatError,
   onTutup, onBayar, onUbah, onHapus, onTambah, onHapusPembayaran, onMuatRiwayat,
-  jumlahTerpilih = 0, totalSisaTerpilih = 0, onAksiBatch, batchBusy = false,
+  jumlahTerpilih = 0, jumlahTagihan = 0, totalSisaTerpilih = 0, onAksiBatch, batchBusy = false,
 }: Props) {
   /* Mode batch: beberapa sel terpilih → popover menampilkan aksi massal.
      Dihitung dari prop (bukan state lokal) supaya mengikuti seleksi terkini. */
@@ -233,7 +236,7 @@ export default function PopoverAksiTagihan({
   const [nominalBaru, setNominalBaru] = useState('');
   const [jatuhTempoBaru, setJatuhTempoBaru] = useState('');
 
-  const terbuka = anchor !== null && (tagihan !== null || tambah !== null);
+  const terbuka = anchor !== null && (tagihan !== null || tambah !== null || modeBatch);
 
   // Sel baru → isi ulang seluruh form; jumlah defaultnya sisa tagihan (kasus
   // paling umum adalah membayar penuh, dan nilainya masih bisa dikoreksi).
@@ -505,7 +508,7 @@ export default function PopoverAksiTagihan({
                   {/* Angka + satuan dulu ("3 tagihan"), nominal di baris kedua:
                       lebih cepat dipindai daripada satu kalimat panjang. */}
                   <span className="block text-sm font-semibold">
-                    {jumlahTerpilih} tagihan dipilih
+                    {jumlahTerpilih} sel dipilih
                   </span>
                   <span className="mt-0.5 block text-[11px] text-muted-foreground">
                     Total sisa <span className="tabular-nums text-foreground">{rupiah(totalSisaTerpilih)}</span>
@@ -561,7 +564,7 @@ export default function PopoverAksiTagihan({
                 <span className="flex flex-col items-start">
                   Bayar Lunas
                   <span className="text-[10px] font-normal text-muted-foreground">
-                    Catat sisa {jumlahTerpilih} tagihan lunas
+                    Catat sisa {jumlahTagihan} tagihan lunas
                   </span>
                 </span>
               </Button>

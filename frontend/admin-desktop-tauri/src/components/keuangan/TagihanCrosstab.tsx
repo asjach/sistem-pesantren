@@ -11,9 +11,15 @@ const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'O
  *  ada bila sel berisi). Dipakai menyimpan anchor/active saat memblok. */
 export interface CellRef { santriId: number; key: string }
 
+/** Satu sel pilihan: santri × kolom. `sel` absen = sel kosong (santri belum
+ *  punya tagihan pada kolom itu) — tetap bisa dipilih untuk Buat Massal. */
+export interface SelBlok {
+  santriId: number; key: string; jenisId: number; sel?: CrosstabSel;
+}
+
 /** Tagihan dalam persegi panjang grid antara dua sel (inklusif). Sel kosong
- *  (tanpa tagihan) dilewati. Baris & kolom diurutkan seperti tampilan. */
-function blokTagihan(d: CrosstabTagihan, a: CellRef, b: CellRef): { sel: CrosstabSel; jenisId: number }[] {
+ *  (tanpa tagihan) ikut. Baris & kolom diurutkan seperti tampilan. */
+function blokTagihan(d: CrosstabTagihan, a: CellRef, b: CellRef): SelBlok[] {
   const rA = d.baris.findIndex((x) => x.santri_id === a.santriId);
   const cA = d.kolom.findIndex((x) => x.key === a.key);
   const rB = d.baris.findIndex((x) => x.santri_id === b.santriId);
@@ -21,13 +27,12 @@ function blokTagihan(d: CrosstabTagihan, a: CellRef, b: CellRef): { sel: Crossta
   if (rA < 0 || cA < 0 || rB < 0 || cB < 0) return [];
   const r0 = Math.min(rA, rB), r1 = Math.max(rA, rB);
   const c0 = Math.min(cA, cB), c1 = Math.max(cA, cB);
-  const out: { sel: CrosstabSel; jenisId: number }[] = [];
+  const out: SelBlok[] = [];
   for (let r = r0; r <= r1; r++) {
     const baris = d.baris[r];
     for (let c = c0; c <= c1; c++) {
       const k = d.kolom[c];
-      const sel = baris.sel[k.key];
-      if (sel) out.push({ sel, jenisId: k.jenis_id });
+      out.push({ santriId: baris.santri_id, key: k.key, jenisId: k.jenis_id, sel: baris.sel[k.key] });
     }
   }
   return out;
@@ -38,15 +43,14 @@ function blokTagihan(d: CrosstabTagihan, a: CellRef, b: CellRef): { sel: Crossta
  *  terpilih tidak menjadi dobel. */
 function tetanggaTerpilih(
   d: CrosstabTagihan | null,
-  sel: ReadonlySet<number> | undefined,
+  sel: ReadonlySet<string> | undefined,
   r: number, c: number, dr: number, dc: number,
 ): boolean {
   if (d === null) return false;
   const nr = r + dr;
   const nc = c + dc;
   if (nr < 0 || nc < 0 || nr >= d.baris.length || nc >= d.kolom.length) return false;
-  const s = d.baris[nr].sel[d.kolom[nc].key];
-  return s ? sel?.has(s.id) ?? false : false;
+  return sel?.has(kunciSel({ santriId: d.baris[nr].santri_id, key: d.kolom[nc].key })) ?? false;
 }
 
 /** Sel grid dalam persegi panjang antara dua sel (inklusif) — TERMASUK sel
@@ -68,7 +72,7 @@ function selGrid(d: CrosstabTagihan, a: CellRef, b: CellRef): CellRef[] {
 }
 
 /** Kunci `santriId\u0000key` untuk Set sel grid. */
-function kunciSel(ref: CellRef): string {
+export function kunciSel(ref: CellRef): string {
   return `${ref.santriId}\u0000${ref.key}`;
 }
 
@@ -78,7 +82,7 @@ function kunciSel(ref: CellRef): string {
  *  satu garis di dalam seleksi (tidak dobel). */
 function bayangSeleksi(
   d: CrosstabTagihan | null,
-  sel: ReadonlySet<number> | undefined,
+  sel: ReadonlySet<string> | undefined,
   r: number, c: number,
 ): string {
   const sisi: string[] = [];
@@ -132,30 +136,30 @@ interface Props {
   /** Sel KOSONG diklik → halaman membuka alur tambah tagihan (mis. dialog
    *  Buat Tagihan terisi santri+jenis+periode). Absen = sel kosong inert. */
   onTambah?: (baris: CrosstabBaris, kolom: CrosstabKolom, anchor: HTMLElement) => void;
-  /** Id tagihan yang sedang dipilih (klik kiri). Dipakai menandai sel terpilih
-   *  dan menggerakkan aksi batch (bayar/hapus) di bilah pilihan halaman. */
-  selection?: ReadonlySet<number>;
+  /** Kunci sel terpilih (klik kiri, termasuk sel kosong). Dipakai menandai
+   *  sel terpilih dan menggerakkan aksi batch di bilah pilihan halaman. */
+  selection?: ReadonlySet<string>;
   /** Ctrl/Cmd+Klik pada sel → toggle (tambah bila tak terpilih, lepas bila
    *  terpilih). `jenisId` kolom diikutkan supaya halaman bisa menyimpan info
    *  lengkap. */
-  onTogglePilih?: (sel: CrosstabSel, jenisId: number) => void;
+  onTogglePilih?: (sel: SelBlok) => void;
   /** Blok (tahan-geser, Shift+Klik, Shift+panah) → ganti seluruh pilihan
    *  dengan tagihan dalam persegi panjang grid. */
-  onPilihBlok?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onPilihBlok?: (items: SelBlok[]) => void;
   /** Klik kiri biasa → jadikan sel itu anchor (titik awal blok), seperti
    *  mengklik sel di Excel.
    *  `kunci` = `santriId:key` sel yang diklik, supaya penyorotnya pindah. */
-  onKlikSel?: (sel: CrosstabSel, jenisId: number, kunci: string) => void;
+  onKlikSel?: (sel: SelBlok) => void;
   /** Tahan-geser DIMULAI (pointerdown) → pemanggil mencatat keadaan pilihan saat
    *  itu, supaya satu gesture drag memakai satu mode irisan dari awal ke akhir. */
-  onMulaiGeser?: (idAwal: number) => void;
+  onMulaiGeser?: (kunciAwal: string) => void;
   /** Tahan-geser (tanpa modifier) → blok MENTAH; halaman mengiriskan dengan
    *  pilihan lama lalu mengirim hasilnya balik lewat prop `selection`. */
-  onPilihIrisan?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onPilihIrisan?: (items: SelBlok[]) => void;
   /** Ctrl/Cmd+tahan-geser → blok baru ditaruh di ATAS pilihan lama. */
-  onTambahBlok?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onTambahBlok?: (items: SelBlok[]) => void;
   /** Lepas (kurangi) blok tagihan dari pilihan — Alt/Option+tahan-geser. */
-  onLepasBlok?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onLepasBlok?: (items: SelBlok[]) => void;
   /** Gesture seleksi selesai (pointer dilepas / blok lewat keyboard) →
    *  elemen sel tempat pelepasan + apakah gesture itu MEMILIH BANYAK
    *  (geser/Ctrl/Shift). Dipakai halaman menampilkan popover aksi batch di
@@ -170,6 +174,8 @@ interface Props {
   /** Klik KANAN pada sel → halaman membuka aksi per tagihan tanpa tabel harus
    *  memegang state popover (dilaporkan beserta rect sel, dalam koordinat layar). */
   onAksiKanan?: (sel: CrosstabSel, meta: MetaSel, kolom: CrosstabKolom, kotak: DOMRect) => void;
+  /** Klik kanan sel KOSONG → halaman membuka panel batch (bila pilihan > 1). */
+  onAksiKosong?: (sel: SelBlok, kolom: CrosstabKolom, anchor: HTMLElement) => void;
   /** Geser menyentuh sel baru → laporkan persegi panjang yang disorot. */
   onPratinjau?: (grid: CellRef[]) => void;
   emptyText: string;
@@ -263,7 +269,7 @@ function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
 const BarisCrosstab = memo(function BarisCrosstab({
   baris, kolom, data, onPilih, onTambah, onHoverMasuk, onHoverGerak, onHoverKeluar,
   selection, onTogglePilih, onPilihBlok, onKlikSel, onPilihIrisan, onMulaiGeser, onTambahBlok, onLepasBlok, onSeleksiRilis, onGeserSelesai,
-  onAksiKanan, onPratinjau, laporkanPratinjau, closeHover, agarJauhRef, pratinjau, anchorKunci, onLepasAnchor,
+  onAksiKanan, onAksiKosong, onPratinjau, laporkanPratinjau, closeHover, agarJauhRef, pratinjau, anchorKunci, onLepasAnchor,
   anchorRef, activeRef, draggingRef, dragStartRef, dragMovedRef, pernahGeserRef,
 }: {
   baris: CrosstabBaris;
@@ -281,31 +287,33 @@ const BarisCrosstab = memo(function BarisCrosstab({
   onHoverGerak: (isi: TooltipSel, e: React.MouseEvent<HTMLElement>) => void;
   onHoverKeluar: () => void;
   /** Id tagihan terpilih (klik kiri); null = tak ada. */
-  selection?: ReadonlySet<number>;
+  selection?: ReadonlySet<string>;
   /** Ctrl/Cmd+Klik → toggle satu sel (tambah/lepas). */
-  onTogglePilih?: (sel: CrosstabSel, jenisId: number) => void;
+  onTogglePilih?: (sel: SelBlok) => void;
   /** Blok pilihan (geser, Shift+Klik, Shift+panah). */
-  onPilihBlok?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onPilihBlok?: (items: SelBlok[]) => void;
   /** Klik kiri biasa → jadikan sel anchor (ganti sorotan). */
-  onKlikSel?: (sel: CrosstabSel, jenisId: number, kunci: string) => void;
+  onKlikSel?: (sel: SelBlok) => void;
   /** Tahan-geser DIMULAI (pointerdown) → pemanggil mencatat keadaan pilihan
    *  saat itu, supaya satu gesture drag memakai satu mode irisan yang konsisten
    *  dari sel pertama sampai terakhir. */
-  onMulaiGeser?: (idAwal: number) => void;
+  onMulaiGeser?: (kunciAwal: string) => void;
   /** Tahan-geser biasa → blok MENTAH; pemanggil yang mengiriskan dengan pilihan
    *  lama (ia pemegang pilihan otoritatif lalu mengirim hasilnya balik lewat
    *  prop `selection`). */
-  onPilihIrisan?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onPilihIrisan?: (items: SelBlok[]) => void;
   /** Ctrl/Cmd+tahan-geser → blok baru ditaruh di atas pilihan lama. */
-  onTambahBlok?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onTambahBlok?: (items: SelBlok[]) => void;
   /** Alt/Option+tahan-geser → lepas blok dari pilihan. */
-  onLepasBlok?: (items: { sel: CrosstabSel; jenisId: number }[]) => void;
+  onLepasBlok?: (items: SelBlok[]) => void;
   /** Gesture seleksi selesai → elemen sel pelepasan + penanda multi-select. */
   onSeleksiRilis?: (anchor: HTMLElement, multi: boolean) => void;
   /** Gesture geser benar-benar berakhir (tombol dilepas). */
   onGeserSelesai?: () => void;
   /** Klik kanan sel → halaman membuka aksi per tagihan. */
   onAksiKanan?: (sel: CrosstabSel, meta: MetaSel, kolom: CrosstabKolom, kotak: DOMRect) => void;
+  /** Klik kanan sel KOSONG → halaman membuka panel batch (bila pilihan > 1). */
+  onAksiKosong?: (sel: SelBlok, kolom: CrosstabKolom, anchor: HTMLElement) => void;
   /** Geser menyentuh sel baru → gambar persegi panjang sebagai sorotan. */
   onPratinjau?: (grid: CellRef[]) => void;
   /** Geser menyentuh sel baru → laporkan persegi panjang ke pemanggil. */
@@ -383,16 +391,68 @@ const BarisCrosstab = memo(function BarisCrosstab({
           };
           // Sel kosong: tombol tambah samar (muncul saat hover/fokus) —
           // mengekliknya membuka alur tambah tagihan untuk santri × kolom ini.
+          // Sel kosong juga bisa ikut PILIHAN (Buat Massal): Ctrl/Cmd+Klik
+          // toggle, Shift+Klik blok dari anchor, klik kanan membuka panel
+          // batch bila pilihan > 1, dan gesture geser bisa dimulai dari sini.
+          const refKosong: CellRef = { santriId: baris.santri_id, key: k.key };
+          const kunciKosong = kunciSel(refKosong);
+          const kosongTerpilih = selection?.has(kunciKosong) ?? false;
           return (
-            <td key={k.key} className="group border-b border-r p-0.5 text-center" onPointerEnter={lewatiKosong}>
+            <td
+              key={k.key}
+              className="group border-b border-r p-0.5 text-center"
+              onPointerEnter={lewatiKosong}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                onLepasAnchor?.();
+                onMulaiGeser?.(kunciKosong);
+                draggingRef.current = true;
+                dragMovedRef.current = false;
+                pernahGeserRef.current = false;
+                dragStartRef.current = refKosong;
+                activeRef.current = refKosong;
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                closeHover();
+                onLepasAnchor?.();
+                onAksiKosong?.(
+                  { santriId: baris.santri_id, key: k.key, jenisId: k.jenis_id },
+                  k,
+                  e.currentTarget,
+                );
+              }}
+              style={kosongTerpilih ? { boxShadow: bayangSeleksi(data, selection, rIdx, idxC) } : undefined}
+            >
               {onTambah ? (
                 <button
                   type="button"
                   id={`btn_tagihan_tambah_${baris.santri_id}_${k.key}`}
                   title={`Tambah tagihan ${label} untuk ${baris.nama}`}
                   aria-label={`Tambah tagihan ${label} untuk ${baris.nama}`}
+                  aria-pressed={kosongTerpilih}
                   onPointerEnter={lewatiKosong}
-                  onClick={(e) => onTambah(baris, k, e.currentTarget)}
+                  onClick={(e) => {
+                    // Modifier = seleksi, bukan tambah (pola sel terisi).
+                    if (e.ctrlKey || e.metaKey) {
+                      onTogglePilih?.({ santriId: baris.santri_id, key: k.key, jenisId: k.jenis_id });
+                      anchorRef.current = refKosong;
+                      activeRef.current = refKosong;
+                      onSeleksiRilis?.(e.currentTarget, true);
+                      return;
+                    }
+                    if (e.shiftKey) {
+                      const a = anchorRef.current;
+                      const d = data;
+                      if (a && d) onPilihBlok?.(blokTagihan(d, a, refKosong));
+                      anchorRef.current = refKosong;
+                      activeRef.current = refKosong;
+                      onSeleksiRilis?.(e.currentTarget, true);
+                      return;
+                    }
+                    onTambah(baris, k, e.currentTarget);
+                  }}
                   className="inline-flex w-full items-center justify-center rounded px-1.5 py-0.5 text-muted-foreground/40 opacity-0 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring group-hover:opacity-100"
                 >
                   <Plus size={13} />
@@ -466,12 +526,12 @@ const BarisCrosstab = memo(function BarisCrosstab({
                  kelas ini tidak dipasang — garisnya sudah dari bayangSeleksi,
                  dan menumpuk keduanya (inset outline vs inset shadow pada
                  sisi sama) membuat garis tampak menebal/bergeser. */
-              selection?.has(sel.id) ? '' : `hover:shadow-[inset_0_0_0_1px_var(--ring)]`,
+              selection?.has(kunciSel({ santriId: baris.santri_id, key: k.key })) ? '' : `hover:shadow-[inset_0_0_0_1px_var(--ring)]`,
               kelasSel(sel),
               sel.terlambat ? 'font-semibold' : '',
             )}
             style={{
-              boxShadow: selection?.has(sel.id)
+              boxShadow: selection?.has(kunciSel({ santriId: baris.santri_id, key: k.key }))
                 ? bayangSeleksi(data, selection, rIdx, idxC)
                 : undefined,
               /* Overlay RANGE terpilih DAN blok yang sedang digeser memakai
@@ -483,7 +543,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
                      terbaca saat menggeser, jadi pratinjau pun memakai
                      ketipisan yang sama seperti seleksi biasa. Bedanya hanya
                      pada garis tepi blok, yang tetap digambar seleksi ini. */
-              backgroundImage: (selection?.has(sel.id) || pratinjau?.has(`${baris.santri_id}\u0000${k.key}`))
+              backgroundImage: (selection?.has(kunciSel({ santriId: baris.santri_id, key: k.key })) || pratinjau?.has(`${baris.santri_id}\u0000${k.key}`))
                 ? 'linear-gradient(color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 14%, transparent))'
                 : undefined,
             }}
@@ -529,7 +589,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
               onLepasAnchor?.();
               // Catat keadaan pilihan DI AWAL gesture (dipakai memilih mode
               // irisan yang konsisten selama drag).
-              onMulaiGeser?.(sel.id);
+              onMulaiGeser?.(kunciSel({ santriId: baris.santri_id, key: k.key }));
               draggingRef.current = true;
               dragMovedRef.current = false;
               pernahGeserRef.current = false;
@@ -584,7 +644,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
               }
               if (e.ctrlKey || e.metaKey) {
                 // Ctrl/Cmd+Klik → toggle satu sel (tambah/lepas) = multi-select.
-                onTogglePilih?.(sel, k.jenis_id);
+                onTogglePilih?.({ santriId: baris.santri_id, key: k.key, jenisId: k.jenis_id, sel });
                 anchorRef.current = ref;
                 activeRef.current = ref;
                 onSeleksiRilis?.(e.currentTarget, true);
@@ -599,7 +659,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
                 // Klik kiri biasa → geser sorotan ke sel ini (ganti seluruh
                 // pilihan), seperti mengklik sel di Excel. Ini BUKAN
                 // multi-select: popover batch tidak dibuka.
-                onKlikSel?.(sel, k.jenis_id, kunciSel(ref));
+                onKlikSel?.({ santriId: baris.santri_id, key: k.key, jenisId: k.jenis_id, sel });
                 anchorRef.current = ref;
                 activeRef.current = ref;
                 onSeleksiRilis?.(e.currentTarget, false);
@@ -652,7 +712,7 @@ const BarisCrosstab = memo(function BarisCrosstab({
             onMouseMove={(e) => { if (draggingRef.current) return; onHoverGerak(isiTooltip, e); }}
             onMouseLeave={onHoverKeluar}
               aria-describedby="tip_tagihan_sel"
-              aria-pressed={selection?.has(sel.id) ?? false}
+              aria-pressed={selection?.has(kunciSel({ santriId: baris.santri_id, key: k.key })) ?? false}
             >
               {sel.nominal.toLocaleString('id')}
             </td>
@@ -724,7 +784,7 @@ function IsiKartuTagihan({ data }: { data: TooltipSel }) {
 function TagihanCrosstab({
   data, loading, terpilihId, aksi, onPilih, onTambah,
   selection: pilihanLuar, onTogglePilih, onPilihBlok, onKlikSel, onPilihIrisan, onMulaiGeser, onTambahBlok, onLepasBlok,
-  onSeleksiRilis, onGeserSelesai, onAksiKanan, onPratinjau, emptyText,
+  onSeleksiRilis, onGeserSelesai, onAksiKanan, onAksiKosong, onPratinjau, emptyText,
 }: Props) {
   const kolom = data?.kolom ?? [];
   const baris: CrosstabBaris[] = data?.baris ?? [];
@@ -752,9 +812,9 @@ function TagihanCrosstab({
   /* Pilihan bendera lokal: sel yang dipilih sebelum halaman sempat
      memperbaruinya (mis. langsung Shift+Klik dua kali berturut-turut).
      Selama tak kosong, ia yang menang atas `selection` dari halaman. */
-  const [pilihanLokal, setPilihanLokal] = useState<Set<number> | null>(null);
+  const [pilihanLokal, setPilihanLokal] = useState<Set<string> | null>(null);
   const pilihan = pilihanLokal ?? selection;
-  const pilihanRef = useRef<ReadonlySet<number>>(pilihan);
+  const pilihanRef = useRef<ReadonlySet<string>>(pilihan);
   pilihanRef.current = pilihan;
   /** Pembuang pilihan lokal SETELAH pilihan halaman ikut berubah, supaya tak
    *  ada render yang sempat menampilkan pilihan kosong. */
@@ -792,13 +852,14 @@ function TagihanCrosstab({
     setAnchorKunci(null);
   }, []);
   /** Klik kiri: sorotan (dan anchor) pindah ke sel itu; pilihan diganti. */
-  const klikSel = useCallback((sel: CrosstabSel, jenisId: number, kunci: string) => {
+  const klikSel = useCallback((sel: SelBlok) => {
+    const kunci = kunciSel(sel);
     setAnchorKunci(kunci);
-    const dulu = new Set<number>([sel.id]);
+    const dulu = new Set<string>([kunci]);
     setPilihanLokal(dulu);
     pilihanRef.current = dulu;
     buangLokalRef.current = true;
-    klikSelRef.current?.(sel, jenisId, kunci);
+    klikSelRef.current?.(sel);
   }, []);
   /** Tahan-geser biasa: blok mentah diserahkan ke halaman, yang mengiriskan
    *  dengan pilihan lama dan mengirim hasilnya kembali lewat prop `selection`.
@@ -806,30 +867,30 @@ function TagihanCrosstab({
    *  menyorot sel di luar pilihan lama dan membuat mode irisan tak konsisten.
    *  Selama gesture, pilihan lokal dibiarkan kosong agar pilihan otoritatif
    *  halaman yang tampil. */
-  const geserIrisan = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+  const geserIrisan = useCallback((items: SelBlok[]) => {
     onPilihIrisan?.(items);
   }, [onPilihIrisan]);
   /** Ctrl/Cmd+tahan-geser: blok baru ditambahkan ke pilihan lama. */
-  const geserTambah = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+  const geserTambah = useCallback((items: SelBlok[]) => {
     const baru = new Set(pilihanRef.current);
-    for (const it of items) baru.add(it.sel.id);
+    for (const it of items) baru.add(kunciSel(it));
     setPilihanLokal(baru);
     pilihanRef.current = baru;
     buangLokalRef.current = true;
     onTambahBlok?.(items);
   }, [onTambahBlok]);
   /** Shift+Klik / Shift+panah: blok persegi panjang dari anchor. */
-  const geserBlok = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
-    const baru = new Set(items.map((it) => it.sel.id));
+  const geserBlok = useCallback((items: SelBlok[]) => {
+    const baru = new Set(items.map((it) => kunciSel(it)));
     setPilihanLokal(baru);
     pilihanRef.current = baru;
     buangLokalRef.current = true;
     pilihBlokRef.current?.(items);
   }, []);
   /** Lepas blok dari pilihan (Alt/Option+tahan-geser). */
-  const geserLepas = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+  const geserLepas = useCallback((items: SelBlok[]) => {
     const baru = new Set(pilihanRef.current);
-    for (const it of items) baru.delete(it.sel.id);
+    for (const it of items) baru.delete(kunciSel(it));
     setPilihanLokal(baru);
     pilihanRef.current = baru;
     buangLokalRef.current = true;
@@ -1148,6 +1209,7 @@ function TagihanCrosstab({
               onLepasBlok={geserLepas}
               onSeleksiRilis={seleksiRilis}
               onAksiKanan={onAksiKanan}
+              onAksiKosong={onAksiKosong}
               onPratinjau={pratampak}
               laporkanPratinjau={onPratinjau}
               closeHover={hoverKeluarSeketika}

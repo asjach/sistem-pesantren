@@ -10,7 +10,7 @@ import {
   type JenisTagihan, type Tarif, type PembayaranRow, type Dispensasi,
   type CrosstabBaris, type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
-import { labelSel, type MetaSel } from '@/components/keuangan/TagihanCrosstab';
+import { kunciSel, labelSel, type MetaSel, type SelBlok } from '@/components/keuangan/TagihanCrosstab';
 import { listKelas, listLembaga, listTahunAjaran, type Kelas, type Lembaga, type TahunAjaran } from '../api/master';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
@@ -333,7 +333,7 @@ export default function KeuanganPage() {
   /** Tagihan terpilih klik kiri: id → snapshot sel + jenis_id kolomnya.
    *  Snapshot dipakai menjalankan aksi batch tanpa bergantung pada halaman
    *  crosstab saat ini (pilihan bisa lintas halaman). */
-  const [pilihanTerpilih, setPilihanTerpilih] = useState<Map<number, { sel: CrosstabSel; jenisId: number }>>(new Map());
+  const [pilihanTerpilih, setPilihanTerpilih] = useState<Map<string, { santriId: number; key: string; jenisId: number; sel?: CrosstabSel }>>(new Map());
   /** Aksi batch yang sedang dikonfirmasi (null = dialog tertutup). */
   const [batchDialog, setBatchDialog] = useState<AksiBatch | null>(null);
   const [batchBusy, setBatchBusy] = useState(false);
@@ -359,38 +359,36 @@ export default function KeuanganPage() {
   /** Total sisa tagihan yang masih bisa dibayar (dialog bayar). */
   const totalSisaTerpilih = useMemo(() => {
     let t = 0;
-    for (const v of pilihanTerpilih.values()) if (v.sel.sisa > 0) t += v.sel.sisa;
+    for (const v of pilihanTerpilih.values()) if ((v.sel?.sisa ?? 0) > 0) t += v.sel!.sisa;
     return t;
   }, [pilihanTerpilih]);
+  /** Cacah sel terpilih yang punya tagihan (aksi bayar/ubah/hapus). */
+  const jmlTagihanTerpilih = useMemo(
+    () => [...pilihanTerpilih.values()].filter((v) => v.sel !== undefined).length,
+    [pilihanTerpilih],
+  );
   /** Baris crosstab per santri (sasaran + pratinjau buat massal). */
   const barisPerSantri = useMemo(() => {
     const m = new Map<number, CrosstabBaris>();
     for (const b of crosstab?.baris ?? []) m.set(b.santri_id, b);
     return m;
   }, [crosstab]);
-  /** Tagihan terpilih → santri_id (pilihan dipegang per sel tagihan). */
-  const santriDariTerpilih = useMemo(() => {
-    const m = new Map<number, number>();
-    for (const b of crosstab?.baris ?? []) {
-      for (const k of Object.keys(b.sel)) m.set(b.sel[k].id, b.santri_id);
-    }
-    return m;
-  }, [crosstab]);
+
   /** Sasaran buat massal (aktif saja; nonaktif dilewati generate). */
   const sasaranBuat = useMemo(() => {
     const ids = buatSasaran === 'terpilih'
-      ? [...new Set([...pilihanTerpilih.keys()].map((id) => santriDariTerpilih.get(id)).filter((v): v is number => v !== undefined))]
+      ? [...new Set([...pilihanTerpilih.values()].map((v) => v.santriId))]
       : (crosstab?.baris ?? []).map((b) => b.santri_id);
     const aktif = ids.filter((id) => barisPerSantri.get(id)?.aktif !== false);
     return { ids: aktif, nonaktif: ids.length - aktif.length };
-  }, [buatSasaran, pilihanTerpilih, santriDariTerpilih, crosstab, barisPerSantri]);
+  }, [buatSasaran, pilihanTerpilih, crosstab, barisPerSantri]);
   /** Jumlah per sumber sasaran (label radio; aktif saja). */
   const jmlSasaran = useMemo(() => {
-    const dariPilih = [...new Set([...pilihanTerpilih.keys()].map((id) => santriDariTerpilih.get(id)).filter((v): v is number => v !== undefined))]
+    const dariPilih = [...new Set([...pilihanTerpilih.values()].map((v) => v.santriId))]
       .filter((id) => barisPerSantri.get(id)?.aktif !== false).length;
     const tampil = (crosstab?.baris ?? []).filter((b) => b.aktif !== false).length;
     return { terpilih: dariPilih, tampil };
-  }, [pilihanTerpilih, santriDariTerpilih, crosstab, barisPerSantri]);
+  }, [pilihanTerpilih, crosstab, barisPerSantri]);
   /** Target buat massal + pratinjau buat/ulang (kunci sel cermin backend). */
   const jenisBuat = useMemo(() => jenis.find((j) => j.id === buatJenisId) ?? null, [jenis, buatJenisId]);
   const pratinjauBuat = useMemo(() => {
@@ -411,11 +409,11 @@ export default function KeuanganPage() {
    *  setelah render: nilainya masih basi ketika gesture baru dimulai dalam
    *  frame yang sama, sehingga sel yang jelas terpilih tak dikenali dan mode
    *  irisan salah ditentukan. */
-  const pilihRef = useRef<ReadonlySet<number>>(new Set());
+  const pilihRef = useRef<ReadonlySet<string>>(new Set());
   /** Satu-satunya pintu perubahan pilihan: state + cermin diperbarui bersama. */
   const setPilih = useCallback((
-    berikut: (prev: ReadonlyMap<number, { sel: CrosstabSel; jenisId: number }>) =>
-      Map<number, { sel: CrosstabSel; jenisId: number }>,
+    berikut: (prev: ReadonlyMap<string, { santriId: number; key: string; jenisId: number; sel?: CrosstabSel }>) =>
+      Map<string, { santriId: number; key: string; jenisId: number; sel?: CrosstabSel }>,
   ) => {
     setPilihanTerpilih((prev) => {
       const n = berikut(prev);
@@ -423,29 +421,31 @@ export default function KeuanganPage() {
       return n;
     });
   }, []);
-  /** Klik kiri sel → toggle pilihan. */
-  const togglePilih = useCallback((sel: CrosstabSel, jenisId: number) => {
+  /** Klik kiri sel → toggle pilihan (termasuk sel kosong). */
+  const togglePilih = useCallback((cell: SelBlok) => {
+    const kunci = kunciSel(cell);
     setPilih((prev) => {
       const n = new Map(prev);
-      if (n.has(sel.id)) n.delete(sel.id);
-      else n.set(sel.id, { sel, jenisId });
+      if (n.has(kunci)) n.delete(kunci);
+      else n.set(kunci, { santriId: cell.santriId, key: cell.key, jenisId: cell.jenisId, sel: cell.sel });
       return n;
     });
   }, [setPilih]);
-  /** Ganti seluruh pilihan dengan blok tagihan (tahan-geser, Shift). */
-  const pilihBlok = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+  /** Ganti seluruh pilihan dengan blok sel (tahan-geser, Shift) — termasuk
+   *  sel kosong agar santri tanpa tagihan ikut sasaran Buat Massal. */
+  const pilihBlok = useCallback((items: SelBlok[]) => {
     setPilih(() => {
-      const m = new Map<number, { sel: CrosstabSel; jenisId: number }>();
-      for (const it of items) m.set(it.sel.id, { sel: it.sel, jenisId: it.jenisId });
+      const m = new Map<string, { santriId: number; key: string; jenisId: number; sel?: CrosstabSel }>();
+      for (const it of items) m.set(kunciSel(it), { santriId: it.santriId, key: it.key, jenisId: it.jenisId, sel: it.sel });
       return m;
     });
   }, [setPilih]);
   /** Klik kiri biasa: sorotan (anchor) pindah ke satu sel. Pilihan diserahkan
    *  ke sel terpilih itu sendiri (ganti seluruh pilihan) ala Excel. */
-  const pilihAnchorSatu = useCallback((sel: CrosstabSel, jenisId: number) => {
+  const pilihAnchorSatu = useCallback((cell: SelBlok) => {
     setPilih(() => {
-      const m = new Map<number, { sel: CrosstabSel; jenisId: number }>();
-      m.set(sel.id, { sel, jenisId });
+      const m = new Map<string, { santriId: number; key: string; jenisId: number; sel?: CrosstabSel }>();
+      m.set(kunciSel(cell), { santriId: cell.santriId, key: cell.key, jenisId: cell.jenisId, sel: cell.sel });
       return m;
     });
   }, [setPilih]);
@@ -463,7 +463,7 @@ export default function KeuanganPage() {
    *  Aturannya mengikuti Excel: drag yang DIMULAI dari sel yang sudah terpilih
    *  = menggeser/menyusutkan seleksi itu (irisan); drag yang dimulai dari sel
    *  di luar seleksi = seleksi baru yang menggantikan. */
-  const pilihAwalRef = useRef<Set<number> | null>(null);
+  const pilihAwalRef = useRef<Set<string> | null>(null);
   /** Tahan-geser dimulai di sel `idAwal` → putuskan mode gesture ini.
    *
    *  Irisan (geser/susutkan seleksi lama ala Excel) HANYA bila pilihan lama
@@ -475,9 +475,9 @@ export default function KeuanganPage() {
    *  terbentuk (laporan bug: "klik lalu klik-geser di sel itu tidak
    *  menyeleksi"). Drag dari dalam pilihan banyak tetap mengiris seperti
    *  sebelumnya. */
-  const mulaiGeser = useCallback((idAwal: number) => {
+  const mulaiGeser = useCallback((kunciAwal: string) => {
     const sekarang = pilihRef.current;
-    pilihAwalRef.current = sekarang.size > 1 && sekarang.has(idAwal) ? new Set(sekarang) : null;
+    pilihAwalRef.current = sekarang.size > 1 && sekarang.has(kunciAwal) ? new Set(sekarang) : null;
   }, []);
   /** Gesture geser berakhir → lupakan acuan. Gesture berikutnya memutuskan
    *  mode-nya sendiri lewat `mulaiGeser`. */
@@ -485,29 +485,31 @@ export default function KeuanganPage() {
     pilihAwalRef.current = null;
   }, []);
   /** Tahan-geser biasa — lihat `pilihAwalRef` untuk aturan irisannya. */
-  const pilihIrisan = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+  const pilihIrisan = useCallback((items: SelBlok[]) => {
     const awal = pilihAwalRef.current;
     setPilih(() => {
-      const n = new Map<number, { sel: CrosstabSel; jenisId: number }>();
+      const n = new Map<string, { santriId: number; key: string; jenisId: number; sel?: CrosstabSel }>();
       for (const it of items) {
-        if (awal === null || awal.has(it.sel.id)) n.set(it.sel.id, { sel: it.sel, jenisId: it.jenisId });
+        if (awal === null || awal.has(kunciSel(it))) {
+          n.set(kunciSel(it), { santriId: it.santriId, key: it.key, jenisId: it.jenisId, sel: it.sel });
+        }
       }
       return n;
     });
   }, [setPilih]);
   /** Ctrl/Cmd+tahan-geser: blok baru ditambahkan ke pilihan yang sudah ada. */
-  const tambahBlok = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+  const tambahBlok = useCallback((items: SelBlok[]) => {
     setPilih((prev) => {
       const n = new Map(prev);
-      for (const it of items) n.set(it.sel.id, { sel: it.sel, jenisId: it.jenisId });
+      for (const it of items) n.set(kunciSel(it), { santriId: it.santriId, key: it.key, jenisId: it.jenisId, sel: it.sel });
       return n;
     });
   }, [setPilih]);
   /** Kurangi blok tagihan dari pilihan (Alt/Option+tahan-geser). */
-  const lepasBlok = useCallback((items: { sel: CrosstabSel; jenisId: number }[]) => {
+  const lepasBlok = useCallback((items: SelBlok[]) => {
     setPilih((prev) => {
       const n = new Map(prev);
-      for (const it of items) n.delete(it.sel.id);
+      for (const it of items) n.delete(kunciSel(it));
       return n;
     });
   }, [setPilih]);
@@ -532,34 +534,48 @@ export default function KeuanganPage() {
     if (aksi === null) return;
     const entries = [...pilihanTerpilih.entries()];
     if (entries.length === 0) { setBatchDialog(null); return; }
+    /* Aksi per-tagihan hanya menyentuh sel yang punya tagihan; sel kosong
+       dalam pilihan dilewati (sasaran Buat Massal). */
+    type EntriAda = [string, { santriId: number; key: string; jenisId: number; sel: CrosstabSel }];
+    const ada = entries.filter(([, v]) => v.sel !== undefined) as EntriAda[];
     setBatchBusy(true);
     try {
       if (aksi === 'bayar') {
-        const bisa = entries.filter(([, v]) => v.sel.sisa > 0);
+        const bisa = ada.filter(([, v]) => v.sel.sisa > 0);
         if (bisa.length === 0) {
           toast.warning('Tidak ada tagihan dengan sisa yang bisa dibayar.');
           setBatchDialog(null);
           return;
         }
         let sukses = 0;
-        for (const [id, v] of bisa) {
+        for (const [, v] of bisa) {
           try {
-            await catatPembayaran({ tagihan_id: id, jumlah: v.sel.sisa, metode: batchMetode, kas: batchKas });
+            await catatPembayaran({ tagihan_id: v.sel.id, jumlah: v.sel.sisa, metode: batchMetode, kas: batchKas });
             sukses += 1;
           } catch { /* lanjut; ringkasan di akhir */ }
         }
         toast.success(`${sukses} tagihan dibayar lunas.`);
       } else if (aksi === 'hapus_tagihan') {
+        if (ada.length === 0) {
+          toast.warning('Tidak ada tagihan terpilih.');
+          setBatchDialog(null);
+          return;
+        }
         let sukses = 0;
-        for (const [id] of entries) {
-          try { await hapusTagihan(id); sukses += 1; } catch { /* lanjut */ }
+        for (const [, v] of ada) {
+          try { await hapusTagihan(v.sel.id); sukses += 1; } catch { /* lanjut */ }
         }
         toast.success(`${sukses} tagihan dihapus.`);
       } else if (aksi === 'hapus_riwayat') {
+        if (ada.length === 0) {
+          toast.warning('Tidak ada tagihan terpilih.');
+          setBatchDialog(null);
+          return;
+        }
         let dihapus = 0;
-        for (const [id] of entries) {
+        for (const [, v] of ada) {
           try {
-            const riwayat = await riwayatPembayaran(id);
+            const riwayat = await riwayatPembayaran(v.sel.id);
             for (const r of riwayat) {
               try { await hapusPembayaran(r.id); dihapus += 1; } catch { /* lanjut */ }
             }
@@ -570,8 +586,13 @@ export default function KeuanganPage() {
         const pkg = ubahDispen !== '' && ubahDispen !== 'tanpa'
           ? daftarDispenBatch.find((d) => d.id === ubahDispen) ?? null
           : null;
+        if (ada.length === 0) {
+          toast.warning('Tidak ada tagihan terpilih.');
+          setBatchDialog(null);
+          return;
+        }
         let sukses = 0;
-        for (const [id, v] of entries) {
+        for (const [, v] of ada) {
           // Dispensasi hanya untuk tagihan yang jenisnya cocok dengan paket
           // (paket mungkin mencakup beberapa jenis lewat `aturan`); selebihnya
           // dibiarkan tetap (tidak diubah). 'tanpa' = lepas.
@@ -580,7 +601,7 @@ export default function KeuanganPage() {
             ? [pkg.id]
             : ubahDispen === 'tanpa' ? [] : undefined;
           try {
-            await ubahTagihan(id, {
+            await ubahTagihan(v.sel.id, {
               nominal: v.sel.nominal,
               tahun_ajaran: v.sel.tahun_ajaran,
               jatuh_tempo: ubahPakaiJatuhTempo ? (ubahJatuhTempo || null) : v.sel.jatuh_tempo,
@@ -665,6 +686,10 @@ export default function KeuanganPage() {
     setAnchorSel(anchor);
   }, []);
 
+  /** Klik kanan sel kosong → buka panel batch bila pilihan > 1 sel. */
+  const mintaAksiKosong = useCallback((_sel: SelBlok, _kolom: CrosstabKolom, anchor: HTMLElement) => {
+    if (pilihanTerpilih.size > 1) setAnchorSel(anchor);
+  }, [pilihanTerpilih]);
   /** Klik kanan / Enter pada sel → serahkan permintaan ke crosstab. Rect sel
    *  dipakai mencari elemen yang sama setelah render (tabel bisa bergeser). */
   const mintaAksiSel = useCallback((
@@ -938,6 +963,7 @@ export default function KeuanganPage() {
             onPilih={pilihSel}
             aksiSel={aksiSel}
             onAksiSel={mintaAksiSel}
+            onAksiKosong={mintaAksiKosong}
             onTambah={tambahDariSel}
             selection={selectionSet}
             onTogglePilih={togglePilih}
@@ -966,6 +992,7 @@ export default function KeuanganPage() {
                 riwayatError={riwayatError}
                 onTutup={tutupPopover}
                 jumlahTerpilih={pilihanTerpilih.size}
+                jumlahTagihan={jmlTagihanTerpilih}
                 totalSisaTerpilih={totalSisaTerpilih}
                 onAksiBatch={bukaBatch}
                 batchBusy={batchBusy}
