@@ -38,7 +38,7 @@ export default function BatchAksiTagihan({
   pakaiJatuhTempo, jatuhTempo, onPakaiJatuhTempo, onJatuhTempo,
   dispen, onDispen, daftarDispen,
   sasaran, onSasaran, jmlSasaranTerpilih, jmlSasaranTampil, nonaktifDilewati,
-  buatBaru, buatUlang,
+  buatBaru,
   daftarJenis, buatJenisId, onBuatJenisId,
   buatPeriode, onBuatPeriode, buatBulanan,
   buatNominal, onBuatNominal,
@@ -71,9 +71,8 @@ export default function BatchAksiTagihan({
   jmlSasaranTampil: number;
   /** Santri nonaktif yang dilewati pada sasaran aktif. */
   nonaktifDilewati: number;
-  /** Pratinjau target aktif: akan dibuat / diperbarui. */
+  /** Pratinjau target aktif: akan dibuat (yang sudah punya dilewati). */
   buatBaru: number;
-  buatUlang: number;
   daftarJenis: { id: number; nama: string; tipe: 'bulanan' | 'non_bulanan' }[];
   buatJenisId: number | '';
   onBuatJenisId: (v: number | '') => void;
@@ -109,7 +108,7 @@ export default function BatchAksiTagihan({
     : aksi === 'hapus_riwayat'
       ? 'Seluruh baris riwayat pembayaran pada tagihan terpilih dihapus permanen. Tindakan tidak bisa dibatalkan.'
       : aksi === 'buat'
-      ? `Satu target untuk seluruh sasaran: yang belum punya dibuat, yang sudah ada diperbarui (tidak diduplikasi). Akan dibuat ${buatBaru} · diperbarui ${buatUlang}.`
+      ? `Satu target untuk santri sasaran yang belum punya — akan dibuat ${buatBaru} tagihan. Yang sudah punya tidak disentuh.`
     : '';
   const labelAksi =
     aksi === 'bayar' ? 'Bayar' : aksi === 'ubah' ? 'Ubah' : aksi === 'hapus_tagihan' ? 'Hapus Tagihan' : aksi === 'hapus_riwayat' ? 'Hapus Riwayat' : 'Buat';
@@ -293,7 +292,7 @@ export default function BatchAksiTagihan({
               </>
             )}
             <p className="col-start-2 text-[11px] text-muted-foreground">
-              Akan dibuat {buatBaru} · diperbarui {buatUlang}.
+              Akan dibuat {buatBaru} tagihan.
             </p>
           </div>
         )}

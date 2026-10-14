@@ -374,34 +374,33 @@ export default function KeuanganPage() {
     return m;
   }, [crosstab]);
 
-  /** Sasaran buat massal (aktif saja; nonaktif dilewati generate). */
+  /** Target buat massal + kunci selnya (cermin backend). */
+  const jenisBuat = useMemo(() => jenis.find((j) => j.id === buatJenisId) ?? null, [jenis, buatJenisId]);
+  const kunciBuat = useMemo(() => {
+    if (jenisBuat === null) return null;
+    return jenisBuat.tipe === 'bulanan' && buatPeriode !== ''
+      ? `${jenisBuat.id}-${buatPeriode}` : `jenis-${jenisBuat.id}`;
+  }, [jenisBuat, buatPeriode]);
+  /** Sasaran buat massal: aktif saja (nonaktif dilewati generate) DAN belum
+   *  punya target (yang sudah punya tidak disentuh). */
   const sasaranBuat = useMemo(() => {
     const ids = buatSasaran === 'terpilih'
       ? [...new Set([...pilihanTerpilih.values()].map((v) => v.santriId))]
       : (crosstab?.baris ?? []).map((b) => b.santri_id);
     const aktif = ids.filter((id) => barisPerSantri.get(id)?.aktif !== false);
-    return { ids: aktif, nonaktif: ids.length - aktif.length };
-  }, [buatSasaran, pilihanTerpilih, crosstab, barisPerSantri]);
-  /** Jumlah per sumber sasaran (label radio; aktif saja). */
+    const nonaktif = ids.length - aktif.length;
+    const belum = kunciBuat === null
+      ? [] as number[]
+      : aktif.filter((id) => barisPerSantri.get(id)?.sel[kunciBuat] === undefined);
+    return { ids: belum, nonaktif };
+  }, [buatSasaran, pilihanTerpilih, crosstab, barisPerSantri, kunciBuat]);
+  /** Jumlah per sumber sasaran (label radio; aktif saja, sebelum saring target). */
   const jmlSasaran = useMemo(() => {
     const dariPilih = [...new Set([...pilihanTerpilih.values()].map((v) => v.santriId))]
       .filter((id) => barisPerSantri.get(id)?.aktif !== false).length;
     const tampil = (crosstab?.baris ?? []).filter((b) => b.aktif !== false).length;
     return { terpilih: dariPilih, tampil };
   }, [pilihanTerpilih, crosstab, barisPerSantri]);
-  /** Target buat massal + pratinjau buat/ulang (kunci sel cermin backend). */
-  const jenisBuat = useMemo(() => jenis.find((j) => j.id === buatJenisId) ?? null, [jenis, buatJenisId]);
-  const pratinjauBuat = useMemo(() => {
-    if (jenisBuat === null) return { baru: 0, ulang: 0 };
-    const kunci = jenisBuat.tipe === 'bulanan' && buatPeriode !== ''
-      ? `${jenisBuat.id}-${buatPeriode}` : `jenis-${jenisBuat.id}`;
-    let baru = 0, ulang = 0;
-    for (const id of sasaranBuat.ids) {
-      if (barisPerSantri.get(id)?.sel[kunci] !== undefined) ulang += 1;
-      else baru += 1;
-    }
-    return { baru, ulang };
-  }, [jenisBuat, buatPeriode, sasaranBuat, barisPerSantri]);
 
   /** Cermin sinkron pilihan terkini. Dibaca dari callback ber-identitas stabil
    *  (mis. `mulaiGeser` saat gesture berikutnya dimulai). Ditulis LANGSUNG
@@ -628,7 +627,7 @@ export default function KeuanganPage() {
           periode = buatPeriode;
         }
         if (sasaranBuat.ids.length === 0) {
-          setGalatBuat('Tidak ada santri sasaran yang aktif.'); return;
+          setGalatBuat('Tidak ada santri sasaran yang belum punya target ini.'); return;
         }
         setGalatBuat(null);
         try {
@@ -637,7 +636,7 @@ export default function KeuanganPage() {
             jatuh_tempo: jns.tipe === 'bulanan' ? null : (buatJt || null),
             nominal: n, santri: sasaranBuat.ids.map((id) => ({ santri_id: id })),
           });
-          toast.success(`Dibuat ${r.dibuat}${r.diperbarui > 0 ? `, diperbarui ${r.diperbarui}` : ''}${r.dilewati > 0 ? `, dilewati ${r.dilewati}` : ''}.`);
+          toast.success(`Dibuat ${r.dibuat} tagihan${r.dilewati > 0 ? `, dilewati ${r.dilewati}` : ''}.`);
         } catch (e2) { setGalatBuat(errorMessage(e2)); return; }
       }
       await load();
@@ -1064,8 +1063,7 @@ export default function KeuanganPage() {
             jmlSasaranTerpilih={jmlSasaran.terpilih}
             jmlSasaranTampil={jmlSasaran.tampil}
             nonaktifDilewati={sasaranBuat.nonaktif}
-            buatBaru={pratinjauBuat.baru}
-            buatUlang={pratinjauBuat.ulang}
+            buatBaru={sasaranBuat.ids.length}
             daftarJenis={jenis}
             buatJenisId={buatJenisId}
             onBuatJenisId={setBuatJenisId}

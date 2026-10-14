@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import { Plus } from '@/icons';
 import type { CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan } from '../../api/keuangan';
 import { cn } from '@/lib/utils';
 
@@ -370,12 +369,8 @@ const BarisCrosstab = memo(function BarisCrosstab({
       {kolom.map((k, idxC) => {
         const sel = baris.sel[k.key];
         if (!sel) {
-          const label = labelSel(k);
-          /* Sel kosong tetap bagian dari GRID untuk seleksi: menggeser
-             melewatinya harus ikut menggambar pratinjau (walau tak ada tagihan
-             yang bisa dipilih), dan Ctrl+geser ke lewatnya tak mengubah
-             apa pun. Tanpa handler ini, geser "menembus" sel kosong dan
-             persegi panjang pratinjaunya bolong. */
+          /* Sel kosong ikut grid seleksi: dilewati saat menggeser (pratinjau
+             + pilihan, untuk Buat Massal). */
           const lewatiKosong = (e: React.PointerEvent<HTMLElement>) => {
             if (!draggingRef.current) return;
             const d = data;
@@ -389,14 +384,15 @@ const BarisCrosstab = memo(function BarisCrosstab({
             if (!e.ctrlKey && !e.metaKey && !e.altKey) dragMovedRef.current = true;
             pernahGeserRef.current = true;
           };
-          // Sel kosong: tombol tambah samar (muncul saat hover/fokus) —
-          // mengekliknya membuka alur tambah tagihan untuk santri × kolom ini.
-          // Sel kosong juga bisa ikut PILIHAN (Buat Massal): Ctrl/Cmd+Klik
-          // toggle, Shift+Klik blok dari anchor, klik kanan membuka panel
-          // batch bila pilihan > 1, dan gesture geser bisa dimulai dari sini.
+          // Sel kosong: TANPA tombol tambah (disengaja — tambah satuan diganti
+          // Buat Massal lewat seleksi + klik kanan). Klik biasa memilih satu
+          // sel ini, Ctrl/Cmd+Klik toggle, Shift+Klik blok dari anchor,
+          // klik kanan membuka panel batch bila pilihan > 1, dan gesture
+          // geser bisa dimulai dari sini.
           const refKosong: CellRef = { santriId: baris.santri_id, key: k.key };
           const kunciKosong = kunciSel(refKosong);
           const kosongTerpilih = selection?.has(kunciKosong) ?? false;
+          const selKosong: SelBlok = { santriId: baris.santri_id, key: k.key, jenisId: k.jenis_id };
           return (
             <td
               key={k.key}
@@ -413,53 +409,39 @@ const BarisCrosstab = memo(function BarisCrosstab({
                 dragStartRef.current = refKosong;
                 activeRef.current = refKosong;
               }}
+              onPointerUp={(e) => {
+                if (e.button !== 0 || dragMovedRef.current) return;
+                onHoverKeluar();
+                if (e.ctrlKey || e.metaKey) {
+                  onTogglePilih?.(selKosong);
+                  anchorRef.current = refKosong;
+                  activeRef.current = refKosong;
+                  onSeleksiRilis?.(e.currentTarget, true);
+                  return;
+                }
+                if (e.shiftKey) {
+                  const a = anchorRef.current;
+                  const d = data;
+                  if (a && d) onPilihBlok?.(blokTagihan(d, a, refKosong));
+                  anchorRef.current = refKosong;
+                  activeRef.current = refKosong;
+                  onSeleksiRilis?.(e.currentTarget, true);
+                  return;
+                }
+                onPilihBlok?.([selKosong]);
+                anchorRef.current = refKosong;
+                activeRef.current = refKosong;
+                onSeleksiRilis?.(e.currentTarget, false);
+              }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 closeHover();
                 onLepasAnchor?.();
-                onAksiKosong?.(
-                  { santriId: baris.santri_id, key: k.key, jenisId: k.jenis_id },
-                  k,
-                  e.currentTarget,
-                );
+                onAksiKosong?.(selKosong, k, e.currentTarget);
               }}
               style={kosongTerpilih ? { boxShadow: bayangSeleksi(data, selection, rIdx, idxC) } : undefined}
             >
-              {onTambah ? (
-                <button
-                  type="button"
-                  id={`btn_tagihan_tambah_${baris.santri_id}_${k.key}`}
-                  title={`Tambah tagihan ${label} untuk ${baris.nama}`}
-                  aria-label={`Tambah tagihan ${label} untuk ${baris.nama}`}
-                  aria-pressed={kosongTerpilih}
-                  onPointerEnter={lewatiKosong}
-                  onClick={(e) => {
-                    // Modifier = seleksi, bukan tambah (pola sel terisi).
-                    if (e.ctrlKey || e.metaKey) {
-                      onTogglePilih?.({ santriId: baris.santri_id, key: k.key, jenisId: k.jenis_id });
-                      anchorRef.current = refKosong;
-                      activeRef.current = refKosong;
-                      onSeleksiRilis?.(e.currentTarget, true);
-                      return;
-                    }
-                    if (e.shiftKey) {
-                      const a = anchorRef.current;
-                      const d = data;
-                      if (a && d) onPilihBlok?.(blokTagihan(d, a, refKosong));
-                      anchorRef.current = refKosong;
-                      activeRef.current = refKosong;
-                      onSeleksiRilis?.(e.currentTarget, true);
-                      return;
-                    }
-                    onTambah(baris, k, e.currentTarget);
-                  }}
-                  className="inline-flex w-full items-center justify-center rounded px-1.5 py-0.5 text-muted-foreground/40 opacity-0 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring group-hover:opacity-100"
-                >
-                  <Plus size={13} />
-                </button>
-              ) : (
-                <span className="text-muted-foreground/40" onPointerEnter={lewatiKosong}>·</span>
-              )}
+              <span className="text-muted-foreground/40" onPointerEnter={lewatiKosong}>·</span>
             </td>
           );
         }
