@@ -137,9 +137,17 @@ export default function IsiPengaturanTampilan({ idPrefix = '' }: {
   idPrefix?: string;
 }) {
   const { dark, density, parts, setGayaBagian, setWarnaBagian } = useTheme();
-  const { rowH, headerH, fontPx, fontFamily, setRowH, setHeaderH, setFontPx, setFontFamily } = useGridPrefs();
-  const headerHManual = headerH != null;
-  const rowHManual = rowH != null;
+  const {
+    rowH, headerH, fontPx, fontFamily, sumberRowH, sumberHeaderH,
+    setRowH, setHeaderH, setFontPx, setFontFamily,
+  } = useGridPrefs();
+  // "Manual" = ada nilai perangkat (lapisan yang bisa direset pengguna).
+  const headerHManual = sumberHeaderH === 'perangkat';
+  const rowHManual = sumberRowH === 'perangkat';
+  /** Keterangan asal nilai: penting supaya pengguna tahu kenapa angkanya
+   *  berubah sendiri saat super_admin menetapkan standar. */
+  const asal = (sumber: string, manual: string, standar: string, otomatis: string) =>
+    sumber === 'perangkat' ? manual : sumber === 'server' ? standar : otomatis;
 
   const mode = dark ? 'gelap' : 'terang';
   const gayaHeader = parts.gaya.tabel_header;
@@ -157,6 +165,18 @@ export default function IsiPengaturanTampilan({ idPrefix = '' }: {
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
   const p = idPrefix;
 
+  /** Penanda asal nilai: hanya tampil saat standar server benar-benar dipakai,
+   *  supaya pengguna paham angkanya bukan berasal dari setelannya sendiri. */
+  const penandaStandar = (sumber: string) =>
+    sumber === 'server' ? (
+      <span
+        className="rounded-sm border border-border px-1 py-0.5 text-[10px] text-muted-foreground"
+        id={p + 'penanda_standar'}
+      >
+        standar pesantren
+      </span>
+    ) : null;
+
   return (
     <div className="flex flex-col gap-2" data-part="isi_pengaturan_tampilan">
       <Judul>Baris tabel</Judul>
@@ -166,16 +186,20 @@ export default function IsiPengaturanTampilan({ idPrefix = '' }: {
           value={rowH ?? DENSITY_PX[density]}
           min={MIN_ROW_H}
           max={MAX_ROW_H}
-          title={rowHManual
-            ? 'Tinggi baris sel (manual, berlaku semua tabel)'
-            : 'Tinggi baris sel (otomatis mengikuti kerapatan)'}
+          title={asal(
+            sumberRowH,
+            'Tinggi baris sel (diatur sendiri, berlaku semua tabel)',
+            'Tinggi baris sel (mengikuti standar pesantren)',
+            'Tinggi baris sel (otomatis mengikuti kerapatan)',
+          )}
           ariaLabel="Tinggi baris sel (px)"
           onChange={setRowH}
         />
+        {penandaStandar(sumberRowH)}
         <TombolReset
           id={p + 'set_reset_tinggi_sel'}
-          label="Kembalikan tinggi baris sel ke otomatis"
-          disabled={!rowHManual}
+          label="Kembalikan tinggi baris sel ke bawaan"
+          disabled={!rowHManual && sumberRowH !== 'server'}
           onClick={() => setRowH(null)}
         />
       </Baris>
@@ -185,16 +209,20 @@ export default function IsiPengaturanTampilan({ idPrefix = '' }: {
           value={headerH ?? DEFAULT_HEADER_H}
           min={MIN_HEADER_H}
           max={MAX_HEADER_H}
-          title={headerHManual
-            ? 'Tinggi baris header (manual, berlaku semua tabel)'
-            : 'Tinggi baris header (otomatis mengikuti judul)'}
+          title={asal(
+            sumberHeaderH,
+            'Tinggi baris header (diatur sendiri, berlaku semua tabel)',
+            'Tinggi baris header (mengikuti standar pesantren)',
+            'Tinggi baris header (otomatis mengikuti judul)',
+          )}
           ariaLabel="Tinggi baris header (px)"
           onChange={setHeaderH}
         />
+        {penandaStandar(sumberHeaderH)}
         <TombolReset
           id={p + 'set_reset_tinggi_header'}
-          label="Kembalikan tinggi header ke otomatis"
-          disabled={!headerHManual}
+          label="Kembalikan tinggi header ke bawaan"
+          disabled={!headerHManual && sumberHeaderH !== 'server'}
           onClick={() => setHeaderH(null)}
         />
       </Baris>

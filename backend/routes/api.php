@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\Admin\MiMdController;
 use App\Http\Controllers\Api\Admin\MutasiKeluarArsipController;
 use App\Http\Controllers\Api\Admin\PegawaiController;
 use App\Http\Controllers\Api\Admin\PembayaranController;
+use App\Http\Controllers\Api\Admin\PengaturanGlobalController;
 use App\Http\Controllers\Api\Admin\PengaturanHalamanController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
@@ -329,6 +330,11 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('komponen-custom', [KomponenCustomController::class, 'index'])->middleware('permission:komponen_custom.lihat');
         Route::put('komponen-custom', [KomponenCustomController::class, 'simpan'])->middleware('permission:komponen_custom.tambah|komponen_custom.ubah');
         Route::delete('komponen-custom', [KomponenCustomController::class, 'hapus'])->middleware('permission:komponen_custom.hapus');
+
+        // Standar tampilan global (key-value) — diatur super_admin, dibaca bebas.
+        Route::get('pengaturan-global', [PengaturanGlobalController::class, 'index'])->middleware('permission:pengaturan_halaman.lihat');
+        Route::put('pengaturan-global', [PengaturanGlobalController::class, 'simpan'])->middleware('permission:pengaturan_halaman.tambah|pengaturan_halaman.ubah');
+        Route::delete('pengaturan-global', [PengaturanGlobalController::class, 'hapus'])->middleware('permission:pengaturan_halaman.hapus');
 
         // Urutan + tampil/sembunyi tab halaman gabungan (global semua pengguna;
         // tulis super_admin, baca bebas agar semua peramban merender sama).

@@ -8,8 +8,10 @@ import {
   type ReactNode,
 } from 'react';
 import { prefGet, prefSet } from '@/api/client';
+import { muatPengaturanGlobal, type PetaGlobal } from '@/api/pengaturanGlobal';
 import { useTheme } from '@/theme';
 import { FONT_FAMILY_DEFAULT, FONT_OPTIONS, FONT_TABEL_DEFAULT } from '@/fonts';
+import { nilaiBerlapis, sumberNilai } from '@/lib/setelanGlobal';
 
 /** Tinggi baris grid (px). */
 export const MIN_ROW_H = 20;
@@ -34,7 +36,9 @@ const GLOBAL_ROWH_KEY = 'simpes_grid_rowh';
 /** Tinggi baris header tunggal untuk SELURUH tabel (bukan per tabel). */
 const GLOBAL_HEADER_H_KEY = 'simpes_grid_headerh';
 
-/** Kunci pribadi untuk tinggi (menang atas standar lembaga). */
+/** Sumber nilai efektif sebuah setelan — untuk menyatakan di UI apakah
+ *  nilainya mengikuti standar server atau diatur sendiri di perangkat ini. */
+export type SumberSetelan = 'perangkat' | 'server' | 'bawaan';
 
 async function loadRowH(): Promise<number | null> {
   try {
@@ -61,10 +65,14 @@ async function loadHeaderH(): Promise<number | null> {
 }
 
 interface GridPrefsState {
+  /** Nilai efektif hasil resolusi bertingkat (server → perangkat → bawaan). */
   rowH: number | null;
   headerH: number | null;
   fontPx: number | null;
   fontFamily: string;
+  /** Dari lapisan mana nilai tinggi baris/header berasal. */
+  sumberRowH: SumberSetelan;
+  sumberHeaderH: SumberSetelan;
   setRowH: (n: number | null) => void;
   setHeaderH: (n: number | null) => void;
   setFontPx: (n: number | null) => void;
@@ -73,12 +81,15 @@ interface GridPrefsState {
 
 const Ctx = createContext<GridPrefsState | null>(null);
 
-/** Preferensi tampilan tabel global (berlaku semua tabel, tersimpan perangkat).
- *  Disediakan di Layout agar kontrol di top bar dan grid berbagi state sama. */
+/** Preferensi tampilan tabel global (berlaku semua tabel). Dua lapisan:
+ *  standar server dari super_admin, lalu preferensi perangkat yang menang
+ *  bila ada. Disediakan di Layout agar kontrol di top bar dan grid berbagi
+ *  state yang sama. */
 export function GridPrefsProvider({ children }: { children: ReactNode }) {
   const { parts, setGayaBagian } = useTheme();
   const [rowHDevice, setRowHState] = useState<number | null>(null);
   const [headerHDevice, setHeaderHState] = useState<number | null>(null);
+  const [server, setServer] = useState<PetaGlobal>({});
 
   // Jenis & ukuran huruf sel memakai SATU sumber dengan halaman Tampilan:
   // bagian UI `tabel_sel` (bukan preferensi terpisah), sehingga perubahan di
@@ -90,15 +101,24 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadRowH().then(setRowHState);
     loadHeaderH().then(setHeaderHState);
+    // Standar server: kegagalan diperlakukan sebagai "tidak ada standar"
+    // supaya grid tetap tampil dengan bawaan, bukan kosong.
+    muatPengaturanGlobal()
+      .then((res) => setServer(res.data.peta))
+      .catch(() => setServer({}));
   }, []);
 
-  // Preferensi tabel global = setelan perangkat pengguna.
-  const rowH = rowHDevice;
-  const headerH = headerHDevice;
+  // Bertingkat: perangkat menang bila sudah diubah sendiri.
+  // null = tak ada nilai di lapisan mana pun -> pemanggil memakai jalur
+  // cadangannya sendiri (density DSG), jadi jangan diisi angka bawaan.
+  const rowH = nilaiBerlapis(server.tinggi_baris, rowHDevice);
+  const headerH = nilaiBerlapis(server.tinggi_header, headerHDevice);
+  const sumberRowH = sumberNilai(server.tinggi_baris, rowHDevice);
+  const sumberHeaderH = sumberNilai(server.tinggi_header, headerHDevice);
 
   const setRowH = useCallback((n: number | null) => {
     setRowHState(n);
-    // `null` = kembali ke bawaan.
+    // `null` = kembali mengikuti lapisan bawah (standar server/bawaan).
     prefSet(GLOBAL_ROWH_KEY, n != null ? String(n) : '').catch(() => {});
   }, []);
 
@@ -117,8 +137,19 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
   }, [setGayaBagian]);
 
   const value = useMemo<GridPrefsState>(
-    () => ({ rowH, headerH, fontPx, fontFamily, setRowH, setHeaderH, setFontPx, setFontFamily }),
-    [rowH, headerH, fontPx, fontFamily, setRowH, setHeaderH, setFontPx, setFontFamily],
+    () => ({
+      rowH,
+      headerH,
+      fontPx,
+      fontFamily,
+      sumberRowH,
+      sumberHeaderH,
+      setRowH,
+      setHeaderH,
+      setFontPx,
+      setFontFamily,
+    }),
+    [rowH, headerH, fontPx, fontFamily, sumberRowH, sumberHeaderH, setRowH, setHeaderH, setFontPx, setFontFamily],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -704,6 +704,16 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`page_key`)
 
+### `pengaturan_global` (standar tampilan global, key-value; satu baris per kunci)
+- `id` PK
+- `kunci`: string(60) [unik] — kunci setelan yang dikenal: `tinggi_baris` (20–200px), `tinggi_header` (20–120px). Kunci lain DITOLAK; sengaja sempit, hanya setelan yang bermakna sebagai standar bersama. Setelan yang mengikuti ukuran layar (lebar sidebar, mode navigasi) TIDAK boleh masuk sini
+- `nilai`: json [null] — nilai setelan (angka). `null` = tidak ada standar, dipakai bawaan kode
+- `diubah_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+- UNIQUE(`kunci`)
+
+Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangkatnya sendiri (`GridPrefs` di frontend membaca server → perangkat → bawaan; perangkat menang). Karena itu tabel ini tidak mengunci preferensi siapa pun.
+
 ## BLOK 4 — Kepegawaian lanjutan (Modul 200 Kepegawaian)
 
 ### `pegawai_pendidikan`
