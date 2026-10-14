@@ -24,6 +24,7 @@ import { gabungUrutan } from './excel/urutanKolom';
 import { judulTabel } from './excel/judul';
 import { useToolbarPresetState } from './excel/useToolbarPreset';
 import { useUrutanKolom } from './excel/useUrutanKolom';
+import { filterAktif, filterToolbarTersedia } from './excel/filterTabel';
 import { useLebarKolom } from './excel/useLebarKolom';
 import { useTinggiBaris } from './excel/useTinggiBaris';
 import { useTinggiBarisSatuan } from './excel/useTinggiBarisSatuan';
@@ -299,7 +300,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
-  const { alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { visibilitas, alignDb, urutanDb, setUrutanDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -1327,11 +1328,23 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   const hasFilter = filter !== undefined;
   const hasUrut = !!onUrut;
-  // Kontrol toolbar tak lagi diatur dari Kelola Tabel (tab Toolbar dihapus) —
-  // semuanya tampil selama halaman menyediakannya.
+  /** Filter toolbar yang benar-benar tersedia di tabel ini — dipakai dialog
+   *  Kelola Tabel untuk menyajikan sakelar per filter (hanya yang ada). */
+  const filterTersedia = useMemo(
+    () => filterToolbarTersedia({
+      adaUrut: hasUrut,
+      adaKolom: !hidePreset,
+      // "cari" & "keaktifan" menyusul: pencarian tabel & dropdown status
+      // belum jadi kontrol standar, jadi belum didaftarkan sebagai tersedia.
+    }),
+    [hasUrut, hidePreset],
+  );
+  // Sakelar dari Kelola Tabel (`toolbar_preset.visibilitas`): absen/true =
+  // tampil, false = disembunyikan. Tabel yang belum pernah disetel berperilaku
+  // persis seperti sebelumnya.
   const filterTampil = hasFilter;
-  const urutTampil = hasUrut;
-  const kolomTampil = !hidePreset;
+  const urutTampil = hasUrut && filterAktif(visibilitas, 'urutan');
+  const kolomTampil = !hidePreset && filterAktif(visibilitas, 'kolom');
   const aksiMassal = renderBulkActions && checkedRows.length > 0
     ? renderBulkActions(checkedRows, clearSelection)
     : null;
@@ -1341,7 +1354,11 @@ export default function ExcelTable<T extends { id: string | number }>({
     || akhirToolbar !== undefined
     || infoHeader != null;
   const headerKontrolTampil = filterTampil || urutTampil || kolomTampil || (addButton !== undefined && addButton !== null) || adaKontrolJudul;
-  const headerTampil = header !== undefined || headerKontrolTampil;
+  /** Tabel yang punya filter toolbar (meski sekarang semuanya dimatikan lewat
+   *  Kelola Tabel) tetap mempertahankan bilah judul: yang hilang hanya dua
+   *  dropdown-nya, bukan nama tabelnya. Tanpa ini, mematikan Urutan + Kolom
+   *  sekaligus membuat judul tabel menghilang karena tak ada kontrol lain. */
+  const headerTampil = header !== undefined || headerKontrolTampil || filterTersedia.length > 0;
   const judulHeader = header ?? judulTabel(tableKey);
 
   // Data context menu per area (header kolom / baris).
@@ -1656,6 +1673,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           filterBawaan={visHalaman.registrasi.bawaan}
           filterModeBawaan={visHalaman.registrasi.modeBawaan}
           jumlahTabel={visHalaman.registrasi.tabel.length}
+          filterTersedia={filterTersedia}
         />
       ) : null}
     </div>

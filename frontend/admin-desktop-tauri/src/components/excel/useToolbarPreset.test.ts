@@ -5,16 +5,28 @@ import { useToolbarPresetState } from './useToolbarPreset';
 
 /** tiruan server stateful: simpan benar-benar mengubah yang dibaca muat. */
 const server = vi.hoisted(() => {
-  const state = { align: { nama: 'left' } as Record<string, string> };
+  const state = {
+    align: { nama: 'left' } as Record<string, string>,
+    visibilitas: {} as Record<string, boolean>,
+  };
   const muat = vi.fn(async () => ({
     pesan: 'ok',
-    data: { table_key: 'uji', visibilitas: {}, lebar: {}, urutan: [], align: { ...state.align } },
+    data: {
+      table_key: 'uji',
+      visibilitas: { ...state.visibilitas },
+      lebar: {},
+      urutan: [],
+      align: { ...state.align },
+    },
   }));
   // Signature baru: (table_key, visibilitas?, urutan?, align?) — ukuran &
   // nilai awal komponen sudah pindah ke `komponen-custom`.
   const simpan = vi.fn(
-    async (_t: string, _v?: unknown, _u?: unknown, a?: Record<string, string>) => {
-      state.align = { ...(a ?? {}) };
+    async (_t: string, v?: Record<string, boolean>, _u?: unknown, a?: Record<string, string>) => {
+      // Absen = jangan sentuh (cermin perilaku backend yang hanya menyentuh
+      // field yang dikirim).
+      if (v !== undefined) state.visibilitas = { ...v };
+      if (a !== undefined) state.align = { ...a };
       return { pesan: 'ok', data: null };
     },
   );
@@ -33,6 +45,7 @@ vi.mock('sonner', () => ({
 
 beforeEach(() => {
   server.state.align = { nama: 'left' };
+  server.state.visibilitas = {};
   vi.clearAllMocks();
 });
 
@@ -89,5 +102,36 @@ describe('useToolbarPresetState.simpanAlign — klik-kanan tulis DB global', () 
     await waitFor(() => expect(server.simpan).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(result.current.alignDb).toEqual({ nama: 'left', kode: 'right' }));
     expect(server.state.align).toEqual({ nama: 'left', kode: 'right' });
+  });
+});
+
+describe('useToolbarPresetState — visibilitas filter toolbar', () => {
+  it('memuat visibilitas dari server (absen = tampil)', async () => {
+    server.state.visibilitas = { urutan: false, kolom: true };
+    const { result } = renderHook(() => useToolbarPresetState('uji'));
+
+    await waitFor(() => expect(server.muat).toHaveBeenCalled());
+    expect(result.current.visibilitas).toEqual({ urutan: false, kolom: true });
+  });
+
+  it('peta rusak (kunci/k nilai tak sah) dibersihkan saat dibaca', async () => {
+    server.state.visibilitas = {
+      urutan: false,
+      'Kunci-Salah': false, // huruf besar + tanda hubung → dibuang
+      kolom: 'ya' as unknown as boolean, // bukan boolean → dibuang
+      cari: false,
+    };
+    const { result } = renderHook(() => useToolbarPresetState('uji'));
+
+    await waitFor(() => expect(server.muat).toHaveBeenCalled());
+    expect(result.current.visibilitas).toEqual({ urutan: false, cari: false });
+  });
+
+  it('gagal muat → peta kosong (semua filter tampil = bawaan)', async () => {
+    server.muat.mockRejectedValueOnce(new Error('koneksi putus'));
+    const { result } = renderHook(() => useToolbarPresetState('uji'));
+
+    await waitFor(() => expect(result.current.alignDb).toEqual({}));
+    expect(result.current.visibilitas).toEqual({});
   });
 });

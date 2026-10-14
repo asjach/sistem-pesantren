@@ -34,6 +34,8 @@ import TabKolom, { type TabKolomProps } from './TabKolom';
 import TabNamaPerataan from './TabNamaPerataan';
 import TabUrutan from './TabUrutan';
 import TabFilterTabel from './TabFilterTabel';
+import TabFilterToolbar from './TabFilterToolbar';
+import type { KunciFilterToolbar } from '@/components/excel/filterTabel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVENT_PRESET_BERUBAH } from './jenis';
 import type { KunciFilterGlobal } from '@/components/VisibilitasFilter';
@@ -246,6 +248,7 @@ export default function DialogKelolaTabel({
   filterRelevan = [],
   filterBawaan,
   filterModeBawaan,
+  filterTersedia = [],
   jumlahTabel = 1,
 }: {
   open: boolean;
@@ -259,6 +262,8 @@ export default function DialogKelolaTabel({
   filterRelevan?: readonly KunciFilterGlobal[];
   filterBawaan?: TampilFilterGlobal;
   filterModeBawaan?: ModeSemuaFilterGlobal;
+  /** Filter toolbar milik tabel ini (dihitung ExcelTable dari props-nya). */
+  filterTersedia?: readonly KunciFilterToolbar[];
   /** Jumlah tabel halaman (untuk catatan merge filter). */
   jumlahTabel?: number;
 }) {
@@ -301,9 +306,9 @@ export default function DialogKelolaTabel({
   }, []);
   const registri = useRegistriBagian(lapor, daftarSimpan, daftarAksi);
   /** Urutan simpan: preset kolom dulu (membuat id bila preset baru),
-   *  lalu nama & perataan, urutan; filter terakhir agar penanda
-   *  halaman disegarkan setelah setelan lain selesai. */
-  const URUTAN_BAGIAN = ['kolom', 'tampilan', 'urutan', 'filter'] as const;
+   *  lalu nama & perataan, urutan; filter topBar & filter toolbar terakhir
+   *  agar penanda halaman disegarkan setelah setelan lain selesai. */
+  const URUTAN_BAGIAN = ['kolom', 'tampilan', 'urutan', 'filter', 'filterToolbar'] as const;
 
   /** Simpan semua bagian yang berubah, berurutan. Sukses semua = keluar
    *  dialog; ada yang gagal = tetap buka (galat sudah di-toast bagian). */
@@ -322,7 +327,6 @@ export default function DialogKelolaTabel({
       setMenyimpan(false);
     }
   }, [kotorBagian, onOpenChange]);
-
   /** Jalankan aksi, tapi tanya dulu bila ada perubahan belum tersimpan. */
   const coba = useCallback((aksi: () => void) => {
     if (kotorRef.current) setAksiTertunda(() => aksi);
@@ -339,6 +343,10 @@ export default function DialogKelolaTabel({
   }, [open, tableKey]);
 
   const adaFilter = filterRelevan.length > 0 && !!filterBawaan && !!filterModeBawaan;
+  const adaFilterToolbar = filterTersedia.length > 0;
+  /** Ada isi untuk tab Filter? Filter topBar dan filter toolbar duduk di tab
+   *  yang sama, jadi tabnya tetap ada walau salah satunya kosong. */
+  const adaTabFilter = adaFilter || adaFilterToolbar;
   // Hook tetap dipanggil tanpa syarat: `fields` boleh undefined (tab Kolom
   // lalu menampilkan keterangan), tapi state Kolom/Nama & Perataan harus
   // hidup terus supaya tidak hilang saat pindah tabel.
@@ -360,11 +368,11 @@ export default function DialogKelolaTabel({
   // Tab Filter tidak ada untuk tabel tanpa filter — jangan sampai panelnya
   // yang sedang aktif lenyap (dialog tampak kosong).
   useEffect(() => {
-    if (tab === 'filter' && !adaFilter) setTab('kolom');
-  }, [adaFilter, tab]);
+    if (tab === 'filter' && !adaTabFilter) setTab('kolom');
+  }, [adaTabFilter, tab]);
   /** Jumlah bagian yang belum tersimpan — dipakai badge di tab + footer. */
   const jumlahKotor = useMemo(
-    () => ['kolom', 'tampilan', 'urutan', 'filter'].filter((id) => kotorBagian[id]).length,
+    () => ['kolom', 'tampilan', 'urutan', 'filter', 'filterToolbar'].filter((id) => kotorBagian[id]).length,
     [kotorBagian],
   );
 
@@ -385,7 +393,7 @@ export default function DialogKelolaTabel({
               <TabBagian id="kolom" label="Kolom" kotor={!!kotorBagian.kolom} />
               <TabBagian id="tampilan" label="Nama & Perataan" kotor={!!kotorBagian.tampilan} />
               <TabBagian id="urutan" label="Urutan" kotor={!!kotorBagian.urutan} />
-              {adaFilter && <TabBagian id="filter" label="Filter" kotor={!!kotorBagian.filter} />}
+              {adaTabFilter && <TabBagian id="filter" label="Filter" kotor={!!kotorBagian.filter || !!kotorBagian.filterToolbar} />}
             </TabsList>
 
             {/* Semua panel `forceMount`: pindah tab tidak boleh membuang state
@@ -420,19 +428,28 @@ export default function DialogKelolaTabel({
               </Bagian>
             </TabsContent>
 
-            {adaFilter ? (
+            {adaTabFilter ? (
               <TabsContent value="filter" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
-                <Bagian id="bagian_filter_tabel" judul="Filter" aksi={aksiBagian.filter}>
-                  <TabFilterTabel
-                    tableKey={tableKey}
-                    filterRelevan={filterRelevan}
-                    bawaan={filterBawaan}
-                    modeBawaan={filterModeBawaan}
-                    catatan={jumlahTabel > 1
-                      ? 'Filter topBar dipakai bersama seluruh tabel halaman ini — digabung: tampil bila ada tabel yang mengaktifkan, mode Jamak menang.'
-                      : undefined}
-                  />
-                </Bagian>
+                <div className="flex flex-col gap-3">
+                  {adaFilter ? (
+                    <Bagian id="bagian_filter_tabel" judul="Filter Halaman (topBar)" aksi={aksiBagian.filter}>
+                      <TabFilterTabel
+                        tableKey={tableKey}
+                        filterRelevan={filterRelevan}
+                        bawaan={filterBawaan}
+                        modeBawaan={filterModeBawaan}
+                        catatan={jumlahTabel > 1
+                          ? 'Filter topBar dipakai bersama seluruh tabel halaman ini — digabung: tampil bila ada tabel yang mengaktifkan, mode Jamak menang.'
+                          : undefined}
+                      />
+                    </Bagian>
+                  ) : null}
+                  {adaFilterToolbar ? (
+                    <Bagian id="bagian_filter_toolbar_tabel" judul="Filter Tabel (toolbar)" aksi={aksiBagian.filterToolbar}>
+                      <TabFilterToolbar tableKey={tableKey} filterTersedia={filterTersedia} />
+                    </Bagian>
+                  ) : null}
+                </div>
               </TabsContent>
             ) : null}
           </Tabs>

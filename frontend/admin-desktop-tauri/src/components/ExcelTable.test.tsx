@@ -10,12 +10,24 @@ import { renderDenganTema } from '@/test/utils';
 
 // ---- Mock API (unit test tidak boleh memanggil fetch nyata) ----
 
-vi.mock('@/api/toolbarPreset', () => ({
-  muatToolbarPreset: vi.fn(async () => ({
+/** Tiruan server stateful untuk preset toolbar: `visibilitas` bisa disemai
+ *  per tes, dan `simpan` benar-benar mengubah yang dibaca `muat`. */
+const serverToolbar = vi.hoisted(() => {
+  const state = { visibilitas: {} as Record<string, boolean> };
+  const muat = vi.fn(async () => ({
     pesan: 'ok',
-    data: { table_key: 'uji', visibilitas: {}, lebar: {}, urutan: [] },
-  })),
-  simpanToolbarPreset: vi.fn(async () => ({ pesan: 'ok', data: null })),
+    data: { table_key: 'uji', visibilitas: { ...state.visibilitas }, lebar: {}, urutan: [], align: {} },
+  }));
+  const simpan = vi.fn(async (_t: string, v?: Record<string, boolean>) => {
+    if (v !== undefined) state.visibilitas = { ...v };
+    return { pesan: 'ok', data: null };
+  });
+  return { state, muat, simpan };
+});
+
+vi.mock('@/api/toolbarPreset', () => ({
+  muatToolbarPreset: serverToolbar.muat,
+  simpanToolbarPreset: serverToolbar.simpan,
 }));
 
 vi.mock('@/api/preset', () => ({
@@ -90,6 +102,7 @@ function renderTabel(props: Partial<ExcelTableProps<Baris>> = {}) {
 }
 
 beforeEach(() => {
+  serverToolbar.state.visibilitas = {};
   vi.clearAllMocks();
   localStorage.clear();
 });
@@ -249,6 +262,54 @@ describe('ExcelTable', () => {
     expect(header).toHaveTextContent('Awal uji');
     expect(header).toHaveTextContent('Akhir uji');
     expect(header).toHaveTextContent('Info tengah uji');
+  });
+});
+
+/* Filter toolbar (Urutan & Kolom) bisa dinyalakan/dimatikan per tabel dari
+   dialog Kelola Tabel; setelannya disimpan di toolbar_preset.visibilitas. */
+describe('ExcelTable — filter toolbar mengikuti setelan Kelola Tabel', () => {
+  const onUrut = vi.fn();
+
+  it('bawaan (tak ada penanda): Urutan & Kolom tampil seperti sebelumnya', async () => {
+    renderTabel({ onUrut });
+    await waitFor(() => expect(document.getElementById('select_urut_uji')).not.toBeNull());
+    expect(document.getElementById('select_preset_kolom_uji')).not.toBeNull();
+  });
+
+  it('urutan disembunyikan → dropdown Urutan hilang, Kolom tetap', async () => {
+    serverToolbar.state.visibilitas = { urutan: false };
+    renderTabel({ onUrut });
+    await waitFor(() => expect(document.getElementById('select_urut_uji')).toBeNull());
+    expect(document.getElementById('select_preset_kolom_uji')).not.toBeNull();
+  });
+
+  it('kolom disembunyikan → dropdown Kolom hilang, Urutan tetap', async () => {
+    serverToolbar.state.visibilitas = { kolom: false };
+    renderTabel({ onUrut });
+    await waitFor(() => expect(document.getElementById('select_urut_uji')).not.toBeNull());
+    expect(document.getElementById('select_preset_kolom_uji')).toBeNull();
+  });
+
+  it('keduanya disembunyikan → tak ada kontrol filter di bilah judul', async () => {
+    serverToolbar.state.visibilitas = { urutan: false, kolom: false };
+    renderTabel({ onUrut });
+    await waitFor(() => expect(document.getElementById('select_urut_uji')).toBeNull());
+    expect(document.getElementById('select_preset_kolom_uji')).toBeNull();
+    // Judul tabel tetap ada (baris judul tak ikut hilang).
+    expect(screen.getByText('Uji')).toBeInTheDocument();
+  });
+
+  it('tabel tanpa onUrut tak punya dropdown Urutan sejak awal', async () => {
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(document.getElementById('select_urut_uji')).toBeNull();
+  });
+
+  it('hidePreset: tanpa Kolom, dan setelannya tak menghidupkannya kembali', async () => {
+    serverToolbar.state.visibilitas = { kolom: false };
+    renderTabel({ onUrut, hidePreset: true });
+    await waitFor(() => expect(document.getElementById('select_urut_uji')).not.toBeNull());
+    expect(document.getElementById('select_preset_kolom_uji')).toBeNull();
   });
 });
 

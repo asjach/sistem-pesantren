@@ -3,10 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import DialogKelolaTabel from './DialogKelolaTabel';
-import { listPresetTabel } from '@/api/preset';
+import { listPresetTabel, setPresetAktif } from '@/api/preset';
+import { simpanToolbarPreset } from '@/api/toolbarPreset';
 import { renderDenganTema } from '@/test/utils';
 import type { ModeSemuaFilterGlobal, TampilFilterGlobal } from '@/lib/filterHalaman';
 import type { KunciFilterGlobal } from '@/components/VisibilitasFilter';
+import type { KunciFilterToolbar } from '@/components/excel/filterTabel';
 
 vi.mock('@/api/preset', () => ({
   listPresetTabel: vi.fn(async () => ({
@@ -35,12 +37,24 @@ vi.mock('@/api/preset', () => ({
   hapusPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: null })),
 }));
 
-vi.mock('@/api/toolbarPreset', () => ({
-  muatToolbarPreset: vi.fn(async () => ({
+/** Tiruan server stateful untuk preset toolbar: `visibilitas` bisa disemai
+ *  per tes, dan `simpan` benar-benar mengubah yang dibaca `muat`. */
+const serverToolbar = vi.hoisted(() => {
+  const state = { visibilitas: {} as Record<string, boolean> };
+  const muat = vi.fn(async () => ({
     pesan: 'ok',
-    data: { table_key: 'uji', visibilitas: {}, lebar: {}, urutan: [], align: {} },
-  })),
-  simpanToolbarPreset: vi.fn(async () => ({ pesan: 'ok', data: null })),
+    data: { table_key: 'uji', visibilitas: { ...state.visibilitas }, lebar: {}, urutan: [], align: {} },
+  }));
+  const simpan = vi.fn(async (_t: string, v?: Record<string, boolean>) => {
+    if (v !== undefined) state.visibilitas = { ...v };
+    return { pesan: 'ok', data: null };
+  });
+  return { state, muat, simpan };
+});
+
+vi.mock('@/api/toolbarPreset', () => ({
+  muatToolbarPreset: serverToolbar.muat,
+  simpanToolbarPreset: serverToolbar.simpan,
 }));
 
 vi.mock('@/lembagaAktif', async (asli) => ({
@@ -48,12 +62,23 @@ vi.mock('@/lembagaAktif', async (asli) => ({
   useLembagaAktif: () => ({ efektifSuper: true }),
 }));
 
+const toastSuccessMock = vi.fn();
+vi.mock('sonner', () => ({
+  toast: {
+    success: (...a: unknown[]) => toastSuccessMock(...a),
+    error: vi.fn(),
+  },
+}));
+
 const fields = [
   { key: 'nama', label: 'Nama Lengkap', kind: 'static' as const },
   { key: 'kode', label: 'Kode', kind: 'static' as const },
 ];
 
-function renderDialog(filterRelevan: KunciFilterGlobal[] = []) {
+function renderDialog(
+  filterRelevan: KunciFilterGlobal[] = [],
+  opts: { filterTersedia?: KunciFilterToolbar[] } = {},
+) {
   const tampil = (Object.fromEntries(
     filterRelevan.map((k) => [k, true]),
   ) ?? {}) as TampilFilterGlobal;
@@ -71,6 +96,7 @@ function renderDialog(filterRelevan: KunciFilterGlobal[] = []) {
       filterRelevan={filterRelevan}
       filterBawaan={tampil}
       filterModeBawaan={mode}
+      filterTersedia={opts.filterTersedia ?? []}
     />,
   );
 }
@@ -81,6 +107,7 @@ function panelNamaPerataan() {
 }
 
 beforeEach(() => {
+  serverToolbar.state.visibilitas = {};
   vi.clearAllMocks();
 });
 
@@ -193,6 +220,58 @@ describe('DialogKelolaTabel — Simpan terpadu', () => {
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: /Nama & Perataan \(belum tersimpan\)/ })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /^Kolom \(belum tersimpan\)/ })).toBeInTheDocument();
+    });
+  });
+});
+
+describe('DialogKelolaTabel — section Filter Tabel (toolbar)', () => {
+  const simpanToolbar = vi.mocked(simpanToolbarPreset);
+
+  it('tab Filter muncul walau halaman tak punya filter topBar, asalkan tabel punya filter toolbar', async () => {
+    renderDialog([], { filterTersedia: ['urutan', 'kolom'] });
+    await waitFor(() => expect(screen.getAllByRole('tab').map((t) => t.textContent?.trim())).toContain('Filter'));
+
+    await userEvent.click(screen.getByRole('tab', { name: /Filter/ }));
+    await waitFor(() => expect(screen.getByText('Filter Tabel (toolbar)')).toBeInTheDocument());
+    // Section filter topBar tidak ikut tampil saat tak relevan.
+    expect(screen.queryByText('Filter Halaman (topBar)')).toBeNull();
+  });
+
+  it('mematikan Kolom lalu Simpan → menulis peta visibilitas lengkap', async () => {
+    renderDialog([], { filterTersedia: ['urutan', 'kolom'] });
+    await userEvent.click(screen.getByRole('tab', { name: /Filter/ }));
+    await waitFor(() => expect(screen.getByLabelText('Tampilkan filter Kolom')).toBeChecked());
+
+    await userEvent.click(screen.getByLabelText('Tampilkan filter Kolom'));
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+
+    // Hanya penanda "sembunyi" yang ditulis; yang tetap nyala tidak ditulis
+    // (absen = tampil), dan kunci milik fitur lain tidak tersentuh.
+    await waitFor(() => expect(simpanToolbar).toHaveBeenCalledWith('uji', { kolom: false }));
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+  });
+
+  it("Kembalikan ke bawaan → menghapus penanda milik tabel ini saja", async () => {
+    // Sudah ada penanda tersimpan: tombol Kembalikan baru aktif bila ada
+    // simpanan milik tabel ini.
+    serverToolbar.state.visibilitas = { kolom: false, legacy: false };
+    renderDialog([], { filterTersedia: ['urutan', 'kolom'] });
+    await userEvent.click(screen.getByRole('tab', { name: /Filter/ }));
+    await waitFor(() => expect(screen.getByLabelText('Tampilkan filter Kolom')).not.toBeChecked());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Kembalikan ke bawaan tabel' }));
+
+    // Penanda tabel ini dibuang; kunci milik fitur lain ('legacy') dipertahankan.
+    await waitFor(() => expect(serverToolbar.simpan).toHaveBeenCalledWith('uji', { legacy: false }));
+    await waitFor(() => expect(screen.getByLabelText('Tampilkan filter Kolom')).toBeChecked());
+  });
+
+  it('section toolbar dan section topBar hidup berdampingan di tab yang sama', async () => {
+    renderDialog(['lembaga'], { filterTersedia: ['urutan'] });
+    await userEvent.click(screen.getByRole('tab', { name: /Filter/ }));
+    await waitFor(() => {
+      expect(screen.getByText('Filter Halaman (topBar)')).toBeInTheDocument();
+      expect(screen.getByText('Filter Tabel (toolbar)')).toBeInTheDocument();
     });
   });
 });
