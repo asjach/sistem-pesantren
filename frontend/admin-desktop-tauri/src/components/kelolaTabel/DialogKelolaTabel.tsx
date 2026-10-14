@@ -377,9 +377,9 @@ export default function DialogKelolaTabel({
         overlay={!nonModal}
         onInteractOutside={nonModal ? (e) => e.preventDefault() : undefined}
         aria-label={`Pengaturan tabel ${typeof judul === 'string' ? judul : 'ini'}`}
-        /* Lebar tetap 500px (bukan `max-w`): panel ini menemani tabel di
+        /* Lebar tetap 600px (bukan `max-w`): panel ini menemani tabel di
            belakang, jadi lebarnya tak perlu ikut melebar di layar besar. */
-        className="!flex w-full flex-col gap-0 !p-0 sm:w-[500px] sm:max-w-[500px]"
+        className="!flex w-full flex-col gap-0 !p-0 sm:w-[600px] sm:max-w-[600px]"
       >
         <BagianProvider value={registri}>
           <SheetHeader className="shrink-0 gap-1 border-b px-4 py-3">
