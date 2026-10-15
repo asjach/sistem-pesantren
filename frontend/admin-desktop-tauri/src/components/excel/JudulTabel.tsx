@@ -92,7 +92,11 @@ export default function JudulTabel({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={!bolehKelola}>
-        <div data-part="header_tabel" className="flex min-h-8 shrink-0 items-center justify-between gap-2 border-b border-border px-3 text-xs font-medium">
+        {/* Padding: kiri tetap 12px (judul tidak sesempit tepi card), kanan
+            ditipiskan ke 4px karena tepi kanan bilah tempat kontrol paling
+            kanan (gerigi Pengaturan tabel / tombol aksi) berdiri — jarak
+            12px di sana membuat kontrol terlihat "mengambang" dari tepi. */}
+        <div data-part="header_tabel" className="flex min-h-8 shrink-0 items-center justify-between gap-2 border-b border-border pr-1 pl-3 text-xs font-medium">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {/* Div tetap ada walau teksnya dimatikan (sakelar "Judul tabel"):
                 ia yang memberi ruang `flex-1`, jadi pil info & kontrol tak

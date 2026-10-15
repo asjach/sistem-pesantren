@@ -65,12 +65,14 @@ describe('TabelRingkas — jarak judul vs tabel', () => {
     expect(section.className).not.toMatch(/\bp[xytblr]?-\d/);
     /* Bilah judul TIDAK lagi <header> milik TabelRingkas — ia bilah judul
        ExcelTable (yang juga menampung gerigi Pengaturan tabel ini). Yang penting
-       tetap sama: padding horizontal dijaga supaya judul tidak sesempit tepi
-       card — ini yang dikoreksi pengguna setelah padding dihapus — dan tinggi
-      -nya dikunci `min-h-8`, bukan padding vertikal. */
+       tetap sama: padding kiri dijaga supaya judul tidak sesempit tepi card —
+       ini yang dikoreksi pengguna setelah padding dihapus — sementara padding
+       kanan ditipiskan ke 4px (kontrol paling kanan di tepi), dan tingginya
+       dikunci `min-h-8`, bukan padding vertikal. */
     const bilah = container.querySelector<HTMLElement>('[data-part="header_tabel"]');
     expect(bilah).not.toBeNull();
-    expect(bilah?.className).toMatch(/\bpx-3\b/);
+    expect(bilah?.className).toMatch(/\bpl-3\b/);
+    expect(bilah?.className).toMatch(/\bpr-1\b/);
     expect(bilah?.className).toMatch(/\bmin-h-8\b/);
     // Judul kartu sentence case (tanpa UPPERCASE) — diselaraskan dengan bilah
     // judul ExcelTable dan bahasa "buku induk" (skill frontend-design melarang
