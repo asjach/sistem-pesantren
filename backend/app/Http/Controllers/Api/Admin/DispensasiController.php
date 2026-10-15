@@ -60,7 +60,7 @@ class DispensasiController extends Controller
                 return response()->json([]);
             }
             $this->canLembaga($request->user(), $info['jenjang_utama']) || abort(403);
-            $daftar = app(DispensasiService::class)->saring($daftar, (int) $data['santri_id']);
+            $daftar = app(DispensasiService::class)->saring($daftar, (int) $data['santri_id'], $info['jenjang_utama']);
         }
 
         return response()->json($daftar->values());
@@ -154,8 +154,37 @@ class DispensasiController extends Controller
                 abort(422, 'Nilai persen maksimal 100.');
             }
         }
+        $this->pastikanAturanSelarasJenjang($data);
 
         return $data;
+    }
+
+    /**
+     * Paket berlingkup lembaga hanya boleh memakai jenis lembaga itu (atau
+     * jenis global, `jenjang` null) — mencegah paket MI memotong jenis MD.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function pastikanAturanSelarasJenjang(array $data): void
+    {
+        $jenjang = $data['jenjang'] ?? null;
+        if (! is_string($jenjang) || $jenjang === '') {
+            return;
+        }
+        $ids = array_values(array_unique(array_filter(
+            array_map(fn ($a) => $a['jenis_id'] ?? null, $data['aturan']),
+            fn ($id) => $id !== null,
+        )));
+        if ($ids === []) {
+            return;
+        }
+        $salah = JenisTagihan::whereIn('id', $ids)
+            ->whereNotNull('jenjang')
+            ->where('jenjang', '!=', $jenjang)
+            ->pluck('nama')->all();
+        if ($salah !== []) {
+            abort(422, 'Jenis tagihan '.implode(', ', $salah)." bukan milik lembaga {$jenjang} — ganti jenisnya atau kosongkan lingkup jenjang.");
+        }
     }
 
     /**
@@ -198,12 +227,17 @@ class DispensasiController extends Controller
     /**
      * Lingkup lembaga mengikuti jenis tagihan yang dipilih: aturan semua
      * jenis atau seluruh jenis berjenjang global → super_admin saja;
-     * selain itu tiap jenjang jenis wajib boleh diakses.
+     * selain itu tiap jenjang jenis wajib boleh diakses. Lingkup paket
+     * (`jenjang`) sendiri juga wajib boleh diakses pembuatnya.
      *
      * @param  array<string, mixed>  $data
      */
     private function authorizeDispensasi($actor, array $data): void
     {
+        $jenjangPaket = $data['jenjang'] ?? null;
+        if (is_string($jenjangPaket) && $jenjangPaket !== '') {
+            $this->authorizeLembaga($actor, $jenjangPaket);
+        }
         $aturan = $data['aturan'] ?? [];
         if (array_any($aturan, fn ($a) => ($a['jenis_id'] ?? null) === null)) {
             $actor->bolehSuperAdmin() || abort(403, 'Dispensasi semua jenis hanya boleh dibuat super_admin.');

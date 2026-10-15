@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Dispensasi, JenisTagihan } from '@/api/keuangan';
 import type { TahunAjaran } from '@/api/master';
+import type { PilihanLembaga } from '@/lembagaAktif';
 import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
 import DispensasiDialog, { santriIdsUntuk, tambahAturan } from './DispensasiDialog';
@@ -90,18 +91,33 @@ const DAFTAR_TA: TahunAjaran[] = [
   { nama: '2025/2026', tanggal_mulai: null, tanggal_selesai: null, is_aktif: false },
 ];
 
-function renderDialog(editing: Dispensasi | null = null) {
+/** Lingkup jenjang yang boleh dipakai pembuat paket (dari perannya). */
+const PILIHAN_LEMBAGA: PilihanLembaga[] = [
+  { jenjang: 'MI', nama: 'Madrasah Ibtidaiyah' },
+  { jenjang: 'MD', nama: 'Madrasah Diniyah' },
+];
+
+function renderDialog(editing: Dispensasi | null = null, jenis: JenisTagihan[] = JENIS) {
   return renderDenganTema(
     <DispensasiDialog
       open
       onOpenChange={() => {}}
       editing={editing}
-      jenis={JENIS}
+      jenis={jenis}
       daftarTA={DAFTAR_TA}
+      pilihanLembaga={PILIHAN_LEMBAGA}
       onSaved={() => {}}
     />,
   );
 }
+
+/** Jenis lintas lembaga: satu global, satu MI, satu MD — untuk menguji
+ *  penyaringan daftar kiri oleh lingkup jenjang paket. */
+const JENIS_LINTAS: JenisTagihan[] = [
+  { id: 1, nama: 'Infaq Bulanan', tipe: 'bulanan', jenjang: null, keterangan: null, urutan: 0, is_active: true },
+  { id: 2, nama: 'Uang Pangkal', tipe: 'non_bulanan', jenjang: 'MI', keterangan: null, urutan: 0, is_active: true },
+  { id: 3, nama: 'SPP MD', tipe: 'bulanan', jenjang: 'MD', keterangan: null, urutan: 0, is_active: true },
+];
 
 /* Aksi `→` di tabel Tagihan adalah satu-satunya jalan menambah aturan, jadi
    tipe & nilai bawaannya dikunci di sini: Persen 0%. */
@@ -125,6 +141,7 @@ describe('DispensasiDialog — dua tabel tagihan & aturan', () => {
     for (const id of [
       'inp_dispensasi_nama',
       'sel_dispensasi_ta',
+      'sel_dispensasi_jenjang',
       'inp_dispensasi_kuota',
       'inp_dispensasi_grup',
       'inp_dispensasi_keterangan',
@@ -133,6 +150,34 @@ describe('DispensasiDialog — dua tabel tagihan & aturan', () => {
     ]) {
       expect(document.getElementById(id), id).not.toBeNull();
     }
+  });
+
+  it('lingkup jenjang paket menyembunyikan jenis lembaga lain', () => {
+    resetSetelanKomponen();
+    renderDialog(paket({ jenjang: 'MI' }), JENIS_LINTAS);
+
+    // Lingkup MI: hanya jenis global + MI yang ditawarkan (MD disembunyikan).
+    expect(screen.getByText('Tagihan (2)')).toBeInTheDocument();
+    expect(document.getElementById('btn_dispensasi_tambah_1')).not.toBeNull();
+    expect(document.getElementById('btn_dispensasi_tambah_2')).not.toBeNull();
+    expect(document.getElementById('btn_dispensasi_tambah_3')).toBeNull();
+  });
+
+  it('paket berlingkup di luar wewenang tak menyamar jadi semua lembaga', () => {
+    resetSetelanKomponen();
+    renderDialog(paket({ jenjang: 'MTS' }));
+
+    // PILIHAN_LEMBAGA hanya MI & MD — nilai lama tetap tampil apa adanya,
+    // bukan jatuh ke "Semua lembaga".
+    expect(document.getElementById('sel_dispensasi_jenjang')).toHaveValue('MTS — di luar lingkup Anda');
+  });
+
+  it('paket tanpa lingkup jenjang menawarkan seluruh jenis', () => {
+    resetSetelanKomponen();
+    renderDialog(paket({ jenjang: null }), JENIS_LINTAS);
+
+    expect(screen.getByText('Tagihan (3)')).toBeInTheDocument();
+    expect(document.getElementById('btn_dispensasi_tambah_3')).not.toBeNull();
   });
 
   it('tabel Tagihan hanya memuat jenis yang BELUM punya aturan', () => {

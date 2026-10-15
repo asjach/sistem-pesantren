@@ -11,6 +11,7 @@ import {
   type CrosstabBaris, type CrosstabTagihan, type CrosstabSel, type CrosstabKolom,
 } from '../api/keuangan';
 import { kunciSel, labelSel, type MetaSel, type SelBlok } from '@/components/keuangan/TagihanCrosstab';
+import { lingkupCocokJenjang } from '@/lib/dispensasi';
 import { listKelas, listLembaga, listTahunAjaran, type Kelas, type Lembaga, type TahunAjaran } from '../api/master';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
@@ -312,6 +313,7 @@ export default function KeuanganPage() {
           fotoDokumenId: selTagihan.foto_dokumen_id,
           fotoProfil: selTagihan.foto_profil,
           kelas: selTagihan.kelas,
+          jenjang: selPenuh.jenjang ?? null,
           jenjangRiwayat: selTagihan.jenjang_riwayat,
           jenisId: kolomTerpilih.jenis_id,
           nominal: selPenuh.nominal,
@@ -611,14 +613,20 @@ export default function KeuanganPage() {
           return;
         }
         let sukses = 0;
+        /** Sel yang paketnya tak berlaku (jenis/lembaga beda) — dilaporkan
+         *  supaya pemilihan paket berlingkup lain tak diam-diam tanpa hasil. */
+        let lewatDispen = 0;
         for (const [, v] of ada) {
           // Dispensasi hanya untuk tagihan yang jenisnya cocok dengan paket
-          // (paket mungkin mencakup beberapa jenis lewat `aturan`); selebihnya
+          // (paket mungkin mencakup beberapa jenis lewat `aturan`) DAN
+          // lingkup lembaga paketnya cocok dengan lembaga tagihan; selebihnya
           // dibiarkan tetap (tidak diubah). 'tanpa' = lepas.
           const cocokJenis = pkg ? pkg.aturan.some((a) => a.jenis_id === v.jenisId) : false;
-          const dispenIds = pkg && cocokJenis
+          const cocokLingkup = pkg ? lingkupCocokJenjang(pkg.jenjang, v.sel.jenjang) : false;
+          const dispenIds = pkg && cocokJenis && cocokLingkup
             ? [pkg.id]
             : ubahDispen === 'tanpa' ? [] : undefined;
+          if (pkg && dispenIds === undefined) lewatDispen += 1;
           try {
             await ubahTagihan(v.sel.id, {
               nominal: v.sel.nominal,
@@ -629,7 +637,7 @@ export default function KeuanganPage() {
             sukses += 1;
           } catch { /* lanjut */ }
         }
-        toast.success(`${sukses} tagihan diubah.`);
+        toast.success(`${sukses} tagihan diubah${lewatDispen > 0 ? `, ${lewatDispen} dilewati (paket tidak berlaku untuk jenis/lembaga tagihan itu)` : ''}.`);
       } else if (aksi === 'buat') {
         const ta = genTAtopbar;
         if (ta === null) { setGalatBuat('Pilih satu tahun ajaran pada filter di atas.'); return; }
@@ -831,7 +839,7 @@ export default function KeuanganPage() {
           id: dibuat.id, nominal: dibuat.nominal, terbayar: dibuat.terbayar,
           sisa: Math.max(dibuat.nominal - dibuat.terbayar, 0), status: dibuat.status,
           jatuh_tempo: jt, terlambat: dibuat.status !== 'lunas' && !!jt && jt < hariIni,
-          tahun_ajaran: dibuat.tahun_ajaran,
+          tahun_ajaran: dibuat.tahun_ajaran, jenjang: dibuat.jenjang,
         },
         {
           nama: baris.nama, label: labelSel(kolom),

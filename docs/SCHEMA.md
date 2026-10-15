@@ -1134,11 +1134,12 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `nama`: string(100) — label dispensasi (mis. Anak Pegawai, Beasiswa Yatim)
 - `keterangan`: string(255) [null]
 - `tahun_ajaran`: string(20) — FK → tahun_ajaran [cascadeOnUpdate, cascadeOnDelete]; dispensasi terikat TA
+- `jenjang`: FK → lembaga [cascadeOnUpdate, restrictOnDelete] — varchar(20) [null], lingkup lembaga paket (null = berlaku semua lembaga); aturan paket hanya boleh memakai jenis lembaga ini atau jenis global (`jenjang` null), dan saat generate/pratinjau paket hanya berlaku untuk tagihan jenjang ini (`DispensasiService::saring` membandingkan dengan jenjang utama santri — santri dua lembaga ditagih di primer); pemilihan paket manual di tab Ubah dijaga aturan yang sama (`DispensasiService::lingkupCocok` — paket lembaga lain ditolak 422, sel crosstab membawa `jenjang` agar klien menyembunyikannya lebih dulu)
 - `kuota_bulan`: unsignedInteger [null] — kuota pemakaian per bulan (jumlah tagihan bulanan santri yang boleh memuat paket ini); null = tanpa batas
 - `grup`: string(50) [null] — grup eksklusivitas: paket se-grup tidak menumpuk dalam satu tagihan (maks 1, mis. "prestasi"); null = selalu digabung
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`
-- INDEX(`tahun_ajaran`, `is_active`)
+- INDEX(`tahun_ajaran`, `is_active`) · INDEX(`jenjang`)
 
 ### `dispensasi_aturan` (aturan potongan per jenis dalam satu paket)
 - `id` PK

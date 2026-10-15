@@ -6,6 +6,7 @@ import {
   type Dispensasi, type JenisTagihan,
 } from '../../api/keuangan';
 import { listTahunAjaran, type TahunAjaran } from '../../api/master';
+import { useLembagaAktif } from '../../lembagaAktif';
 import { Button } from '@/components/ui/button';
 import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
 import { teksAturanPaket } from '@/lib/dispensasi';
@@ -17,6 +18,8 @@ export default function DispensasiSantriPanel({ santri }: { santri: { id: number
   const { user } = useAuth();
   const bolehLihat = bisa(user, 'keuangan.lihat');
   const bolehTambah = bisa(user, 'keuangan.tambah');
+  /** Lingkup jenjang yang boleh dipakai di dialog dispensasi (peran pengguna). */
+  const { pilihan: pilihanLembaga } = useLembagaAktif();
 
   const [ta, setTa] = useState<string | null>(null);
   const [daftar, setDaftar] = useState<Dispensasi[]>([]);
@@ -81,6 +84,7 @@ export default function DispensasiSantriPanel({ santri }: { santri: { id: number
         editing={null}
         jenis={jenis}
         daftarTA={daftarTA}
+        pilihanLembaga={pilihanLembaga}
         santriAwal={{ id: santri.id, nama_lengkap: santri.nama_lengkap }}
         onSaved={muat}
       />

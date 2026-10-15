@@ -91,7 +91,11 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   kelulusan: buatKonfigurasi(FILTER_KELULUSAN),
   // Degree + kelas dipakai rail filter tab Tagihan (crosstab), bukan TopBar.
   keuangan: buatKonfigurasi(FILTER_AKADEMIK, { tingkat: true, kelas: true }),
-  keuangan_dispensasi: buatKonfigurasi([]),
+  // Halaman Dispensasi: Jenjang (lembaga) + Tahun Ajaran tampil di TopBar —
+  // dipakai daftar SANTRI-nya; tingkat & kelas masuk daftar relevan supaya
+  // rail tabel santri hidup (lihat FilterRail: `tampil` saja tak cukup).
+  // Daftar DISPENSASI-nya sendiri tetap tak disaring (paket tak terikat TA).
+  keuangan_dispensasi: buatKonfigurasi(FILTER_AKADEMIK, { tingkat: true, kelas: true }),
   pembayaran: buatKonfigurasi(FILTER_KELULUSAN),
   rekap_santri: buatKonfigurasi(FILTER_REKAP),
   pengajuan_biodata: buatKonfigurasi([]),

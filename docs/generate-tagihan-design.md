@@ -133,7 +133,12 @@ Ditetapkan dengan membaca kode, bukan dengan bertanya:
 - Semantik backend yang **tidak boleh** berubah: generate tidak pernah membuat
   duplikat; tagihan bulanan yang sudah dibayar **dilewati**; non-bulanan
   dilewati bila nominal baru < terbayar; dispensasi aktif otomatis tiap
-  generate; kuota dialokasikan ke N bulan pertama per santri; se-grup tak
+  generate (**hanya paket yang penerimanya memuat santri itu dan lingkup
+  `dispensasi.jenjang`-nya cocok** dengan jenjang tagihan — null = semua
+  lembaga; aturan lingkup yang sama juga berlaku saat paket dipilih manual di
+  tab Ubah: dropdown hanya menawarkan paket selembaga + paket tanpa lingkup,
+  dan `updateTagihan` menolak paket lembaga lain dengan 422, jadi hasilnya tak
+  bisa berbeda dari generate); kuota dialokasikan ke N bulan pertama per santri; se-grup tak
   menumpuk ("menempel menang"); **generate tak pernah menambah penerima**.
 - Test yang menyentuh area ini: `generateTagihanDialog.test.tsx`,
   `KeuanganPage.test.tsx`.

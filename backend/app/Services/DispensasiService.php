@@ -13,15 +13,34 @@ use Illuminate\Support\Collection;
 class DispensasiService
 {
     /**
+     * Lingkup selembaga: lingkup kosong (semua lembaga), jenjang tanpa
+     * patokan, atau jenjang yang sama. Dipakai `saring()` (generate &
+     * pratinjau) dan penjaga pemilihan paket manual di `TagihanController`.
+     */
+    public function lingkupCocok(?string $lingkup, ?string $jenjang): bool
+    {
+        return $jenjang === null || $lingkup === null || $lingkup === $jenjang;
+    }
+
+    /**
      * Saring dispensasi yang berlaku untuk satu santri: santri tercatat
-     * di pivot penerima. Relasi `santriTambahan` sebaiknya eager-loaded.
+     * di pivot penerima DAN lingkup lembaga paketnya cocok. Relasi
+     * `santriTambahan` sebaiknya eager-loaded.
+     *
+     * `$jenjang` = jenjang tagihan yang sedang dihitung (generate selalu
+     * memakai `jenjang_utama` santri — santri dua lembaga tetap ditagih di
+     * primer). Paket berlingkup (`dispensasi.jenjang`) hanya berlaku untuk
+     * jenjang itu; null di sisi mana pun = tanpa batas.
      *
      * @param  Collection<int, Dispensasi>  $daftar
      * @return Collection<int, Dispensasi>
      */
-    public function saring(Collection $daftar, int $santriId): Collection
+    public function saring(Collection $daftar, int $santriId, ?string $jenjang = null): Collection
     {
-        return $daftar->filter(function (Dispensasi $d) use ($santriId) {
+        return $daftar->filter(function (Dispensasi $d) use ($santriId, $jenjang) {
+            if (! $this->lingkupCocok($d->jenjang, $jenjang)) {
+                return false;
+            }
             $ids = $d->santri_ids ?? [];
 
             return in_array($santriId, $ids, true);

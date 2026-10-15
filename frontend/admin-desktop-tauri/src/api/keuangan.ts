@@ -194,6 +194,8 @@ export interface DispensasiAturan {
 
 export interface Dispensasi {
   id: number; nama: string; keterangan: string | null; tahun_ajaran: string;
+  /** Lingkup lembaga paket; null = berlaku semua lembaga. */
+  jenjang?: string | null;
   /** Kuota bulan (tagihan bulanan per santri); null = tanpa batas. */
   kuota_bulan: number | null;
   /** Grup eksklusivitas (maks 1 per tagihan); null = selalu digabung. */
@@ -210,6 +212,8 @@ export interface DispensasiAturanInput {
 
 export interface DispensasiInput {
   nama: string; keterangan?: string | null; tahun_ajaran: string;
+  /** Lingkup lembaga; null/absen = semua lembaga. */
+  jenjang?: string | null;
   kuota_bulan?: number | null;
   grup?: string | null;
   aturan: DispensasiAturanInput[]; santri_ids?: number[] | null;
@@ -256,6 +260,8 @@ export interface CrosstabSel {
   /** Sudah lewat jatuh tempo & belum lunas (dasar hitungan tunggakan). */
   terlambat: boolean;
   tahun_ajaran: string;
+  /** Lembaga penagih baris ini — dipakai menyaring paket dispensasi berlingkup. */
+  jenjang?: string | null;
   /** Jejak dispensasi dari generate (0/null bila manual/tanpa). */
   potongan?: number;
   dispensasi_ids?: number[] | null;

@@ -1,4 +1,4 @@
-import type { Dispensasi, PratinjauBaris } from '@/api/keuangan';
+import type { Dispensasi, JenisTagihan, PratinjauBaris } from '@/api/keuangan';
 
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
@@ -100,10 +100,27 @@ export function aturanUntukJenis(
   return umum;
 }
 
-/** Dispensasi yang cocok untuk satu santri (terdaftar sebagai penerima).
- *  Cerminan `DispensasiService::saring` di backend. */
-export function saringDispensasi(daftar: Dispensasi[], santriId: number): Dispensasi[] {
-  return daftar.filter((d) => (d.santri_ids ?? []).includes(santriId));
+/** Lingkup selembaga: lingkup kosong (semua lembaga), jenjang tanpa patokan,
+ *  atau jenjang yang sama. Cermin penjaga lingkup di backend (`saring` saat
+ *  generate dan penjaga `updateTagihan` saat memilih paket manual). */
+export function lingkupCocokJenjang(
+  lingkup: string | null | undefined,
+  jenjang: string | null | undefined,
+): boolean {
+  return jenjang == null || lingkup == null || lingkup === jenjang;
+}
+
+/** Dispensasi yang cocok untuk satu santri: terdaftar sebagai penerima DAN
+ *  lingkup lembaganya cocok. Cerminan `DispensasiService::saring` di backend —
+ *  `jenjang` = jenjang tagihan (generate memakai jenjang utama santri); paket
+ *  berlingkup hanya berlaku untuk jenjang itu, null di sisi mana pun = bebas. */
+export function saringDispensasi(
+  daftar: Dispensasi[],
+  santriId: number,
+  jenjang: string | null = null,
+): Dispensasi[] {
+  return daftar.filter((d) => lingkupCocokJenjang(d.jenjang, jenjang)
+    && (d.santri_ids ?? []).includes(santriId));
 }
 
 /** Saring baris penerima dengan kotak pencarian topBar: cocok pada nama ATAU
@@ -119,6 +136,32 @@ export function saringPenerima<T extends { nama: string; nis: string | null }>(
   if (kunci === '') return baris;
   return baris.filter((r) => r.nama.toLowerCase().includes(kunci)
     || (r.nis ?? '').toLowerCase().includes(kunci));
+}
+
+/** Jenis tagihan cocok dengan lingkup jenjang paket: lingkup kosong (semua
+ *  lembaga), jenis global (`jenjang` null), atau jenis lembaga itu sendiri.
+ *  Cermin penjaga backend `pastikanAturanSelarasJenjang`. */
+export function jenisCocokJenjang(
+  j: Pick<JenisTagihan, 'jenjang'>,
+  jenjang: string | null,
+): boolean {
+  return lingkupCocokJenjang(j.jenjang, jenjang);
+}
+
+/** Buang aturan yang jenisnya tak lagi cocok setelah lingkup jenjang berubah
+ *  (aturan yang jenisnya tak dikenal DIPERTAHANKAN — biar backend yang
+ *  menolak, bukan hilang senyap di klien). Lingkup null = tak ada yang dibuang. */
+export function saringAturanJenjang<T extends { jenisId: number }>(
+  baris: T[],
+  jenis: readonly Pick<JenisTagihan, 'id' | 'jenjang'>[],
+  jenjang: string | null,
+): T[] {
+  if (jenjang === null) return baris;
+  const peta = new Map(jenis.map((j) => [j.id, j.jenjang]));
+  return baris.filter((b) => {
+    const j = peta.get(b.jenisId);
+    return j === undefined || j === null || j === jenjang;
+  });
 }
 
 /** Akumulatif urut id — sama dengan DispensasiService di backend. */

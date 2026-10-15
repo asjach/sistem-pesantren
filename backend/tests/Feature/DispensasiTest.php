@@ -203,6 +203,49 @@ class DispensasiTest extends TestCase
         $this->assertNull($biasaTagihan->dispensasi_ids);
     }
 
+    /** Lingkup jenjang paket ikut menyaring GENERATE: paket MI tak memotong
+     *  tagihan santri MD dan sebaliknya. Penerimanya sengaja disilang supaya
+     *  yang diuji benar-benar lingkupnya, bukan daftar penerima. */
+    public function test_generate_menghormati_lingkup_jenjang_paket(): void
+    {
+        $admin = $this->admin();
+        DB::table('lembaga')->insert(['nama' => 'MD', 'jenjang' => 'MD', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santriMi = $this->santriDenganRiwayat('Santri MI', 'MI');
+        $santriMd = $this->santriDenganRiwayat('Santri MD', 'MD');
+
+        $paketMi = $this->paket($jenis, 'Khusus MI', 'bebas', 0, $santriMi, $santriMd);
+        $paketMi->update(['jenjang' => 'MI']);
+        $paketMd = $this->paket($jenis, 'Khusus MD', 'bebas', 0, $santriMd, $santriMi);
+        $paketMd->update(['jenjang' => 'MD']);
+
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-07',
+            'nominal' => 100000,
+            'santri' => [['santri_id' => $santriMi->id], ['santri_id' => $santriMd->id]],
+        ])->assertStatus(200)->assertJson(['dibuat' => 2]);
+
+        // Tiap santri hanya kena paket sejenjang dirinya.
+        $tagihanMi = Tagihan::where('santri_id', $santriMi->id)->firstOrFail();
+        $this->assertSame([$paketMi->id], $tagihanMi->dispensasi_ids);
+        $this->assertSame(0, $tagihanMi->nominal);
+
+        $tagihanMd = Tagihan::where('santri_id', $santriMd->id)->firstOrFail();
+        $this->assertSame([$paketMd->id], $tagihanMd->dispensasi_ids);
+        $this->assertSame(0, $tagihanMd->nominal);
+
+        // Paket tanpa lingkup tetap berlaku untuk siapa pun penerimanya.
+        $paketMi->update(['jenjang' => null]);
+        $paketMd->update(['jenjang' => null]);
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', [
+            'tahun_ajaran' => '2025/2026', 'jenis_id' => $jenis->id, 'periode' => '2025-08',
+            'nominal' => 100000,
+            'santri' => [['santri_id' => $santriMi->id]],
+        ])->assertStatus(200)->assertJson(['dibuat' => 1]);
+        $agustus = Tagihan::where('santri_id', $santriMi->id)->where('periode', '2025-08')->firstOrFail();
+        $this->assertSame([$paketMi->id, $paketMd->id], $agustus->dispensasi_ids);
+    }
+
     public function test_generate_kuota_membatasi_n_bulan_pertama(): void
     {
         $admin = $this->admin();
@@ -706,5 +749,134 @@ class DispensasiTest extends TestCase
         $tagihan->refresh();
         $this->assertSame(10000, $tagihan->potongan);
         $this->assertSame([$d->id], $tagihan->dispensasi_ids);
+    }
+
+    /** Lingkup lembaga paket (`dispensasi.jenjang`): null = semua lembaga,
+     *  jenjang tak dikenal ditolak validasi, dan aturan paket berlingkup wajib
+     *  memakai jenis lembaga itu (atau jenis global). */
+    public function test_lingkup_jenjang_paket_dan_keselarasan_aturan(): void
+    {
+        $admin = $this->admin();
+        DB::table('lembaga')->insert(['nama' => 'MD', 'jenjang' => 'MD', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $jenisMi = JenisTagihan::create(['nama' => 'SPP MI', 'tipe' => 'bulanan', 'jenjang' => 'MI']);
+        $jenisMd = JenisTagihan::create(['nama' => 'SPP MD', 'tipe' => 'bulanan', 'jenjang' => 'MD']);
+        $jenisGlobal = JenisTagihan::create(['nama' => 'Daftar', 'tipe' => 'non_bulanan', 'jenjang' => null]);
+
+        // Tanpa jenjang (bawaan) = berlaku semua lembaga.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/dispensasi', [
+            'nama' => 'Semua Lembaga', 'tahun_ajaran' => '2025/2026',
+            'aturan' => [['jenis_id' => $jenisGlobal->id, 'tipe' => 'persen', 'nilai' => 10]],
+        ])->assertStatus(201)->assertJsonPath('jenjang', null);
+
+        // Berlingkup MI + jenis MI/global: boleh, jenjangnya tersimpan.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/dispensasi', [
+            'nama' => 'Khusus MI', 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI',
+            'aturan' => [
+                ['jenis_id' => $jenisMi->id, 'tipe' => 'persen', 'nilai' => 50],
+                ['jenis_id' => $jenisGlobal->id, 'tipe' => 'nominal', 'nilai' => 5000],
+            ],
+        ])->assertStatus(201)->assertJsonPath('jenjang', 'MI');
+        $this->assertDatabaseHas('dispensasi', ['nama' => 'Khusus MI', 'jenjang' => 'MI']);
+
+        // Jenis MD pada paket MI ditolak (aturan harus selaras lingkupnya).
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/dispensasi', [
+            'nama' => 'Campur', 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI',
+            'aturan' => [['jenis_id' => $jenisMd->id, 'tipe' => 'persen', 'nilai' => 50]],
+        ])->assertStatus(422);
+
+        // Jenjang yang tak ada di tabel lembaga ditolak validasi.
+        $this->actingAs($admin)->postJson('/api/admin/keuangan/dispensasi', [
+            'nama' => 'Salah Jenjang', 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MTS',
+            'aturan' => [['jenis_id' => $jenisGlobal->id, 'tipe' => 'persen', 'nilai' => 10]],
+        ])->assertStatus(422);
+
+        // Ubah paket: lingkup bisa dikosongkan lagi (kembali semua lembaga).
+        $id = Dispensasi::where('nama', 'Khusus MI')->value('id');
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/dispensasi/{$id}", [
+            'nama' => 'Khusus MI', 'tahun_ajaran' => '2025/2026', 'jenjang' => null,
+            'aturan' => [['jenis_id' => $jenisMi->id, 'tipe' => 'persen', 'nilai' => 50]],
+        ])->assertStatus(200)->assertJsonPath('jenjang', null);
+    }
+
+    /** Jalur Ubah manual (pilih paket di popover) juga menghormati lingkup:
+     *  paket berlingkup lembaga lain ditolak 422 dan jejak tagihan tak berubah
+     *  — cermin penjaga `DispensasiService::lingkupCocok`, supaya hasilnya sama
+     *  dengan generate yang menyaring lewat `saring()`. */
+    public function test_ubah_menolak_paket_berlingkup_lembaga_lain(): void
+    {
+        $admin = $this->admin();
+        DB::table('lembaga')->insert(['nama' => 'MD', 'jenjang' => 'MD', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        // Jenis global supaya tak ada aturan yang menghalangi lebih dulu
+        // (lingkup paket vs jenis sudah dijaga `pastikanAturanSelarasJenjang`).
+        $jenis = JenisTagihan::create(['nama' => 'Daftar', 'tipe' => 'non_bulanan', 'jenjang' => null]);
+        $santri = $this->santriDenganRiwayat('Santri Ubah Lingkup');
+        $tagihan = $this->tagihanManual($santri, $jenis);
+        $tagihan->update(['jenjang' => 'MI']);
+
+        $paketMd = $this->paket($jenis, 'Khusus MD', 'persen', 50, $santri);
+        $paketMd->update(['jenjang' => 'MD']);
+        $paketMi = $this->paket($jenis, 'Khusus MI', 'persen', 50, $santri);
+        $paketMi->update(['jenjang' => 'MI']);
+
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [
+            'nominal' => 50000, 'tahun_ajaran' => '2025/2026', 'dispensasi_ids' => [$paketMd->id],
+        ])->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'Khusus MD'));
+        $tagihan->refresh();
+        $this->assertSame(100000, $tagihan->nominal);
+        $this->assertNull($tagihan->dispensasi_ids);
+
+        // Paket selembaga tetap bisa; santri otomatis terdaftar penerima.
+        $this->actingAs($admin)->putJson("/api/admin/keuangan/tagihan/{$tagihan->id}", [
+            'nominal' => 50000, 'tahun_ajaran' => '2025/2026', 'dispensasi_ids' => [$paketMi->id],
+        ])->assertStatus(200);
+        $tagihan->refresh();
+        $this->assertSame(50000, $tagihan->nominal);
+        $this->assertSame([$paketMi->id], $tagihan->dispensasi_ids);
+    }
+
+    /** Popover tab Ubah memilih paket dari crosstab, jadi sel tagihan wajib
+     *  membawa `jenjang` (lembaga penagih) — dasar penyaringan paket di klien. */
+    public function test_crosstab_sel_membawa_jenjang_tagihan(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq Bulanan', 'tipe' => 'bulanan']);
+        $santri = $this->santriDenganRiwayat('Santri Sel');
+        Tagihan::create([
+            'santri_id' => $santri->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
+            'jenis_id' => $jenis->id, 'periode' => '2025-07', 'nominal' => 100000,
+        ]);
+
+        $res = $this->actingAs($admin)->getJson('/api/admin/keuangan/tagihan/crosstab?tahun_ajaran=2025/2026')
+            ->assertStatus(200);
+        $sel = $res->json('baris.0.sel');
+        $pertama = reset($sel);
+        $this->assertSame('MI', $pertama['jenjang']);
+    }
+
+    /** Lingkup jenjang ikut dijaga izin lembaga: admin MTS tak boleh membuat
+     *  paket berlingkup MI. Dipakai MTS (bukan MD) karena pasangan MI↔MD
+     *  sengaja saling boleh (lihat `User::canAccessLembaga`). */
+    public function test_lingkup_jenjang_paket_dijaga_izin_lembaga(): void
+    {
+        DB::table('lembaga')->insert(['nama' => 'MTS', 'jenjang' => 'MTS', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        $jenisMts = JenisTagihan::create(['nama' => 'SPP MTS', 'tipe' => 'bulanan', 'jenjang' => 'MTS']);
+        $jenisMi = JenisTagihan::create(['nama' => 'SPP MI', 'tipe' => 'bulanan', 'jenjang' => 'MI']);
+        $adminMts = User::create(['name' => 'Admin MTS', 'email' => 'admin_mts@example.com', 'phone' => '081234567891', 'password' => 'password']);
+        $adminMts->assignRole('admin');
+        DB::table('user_lembaga')->insert([
+            'user_id' => $adminMts->id, 'jenjang' => 'MTS', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($adminMts)->postJson('/api/admin/keuangan/dispensasi', [
+            'nama' => 'Paket MTS', 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MTS',
+            'aturan' => [['jenis_id' => $jenisMts->id, 'tipe' => 'persen', 'nilai' => 10]],
+        ])->assertStatus(201);
+
+        // Jenis MI dipakai supaya aturan tetap SELARAS dengan lingkup paketnya
+        // — yang menolak benar-benar gerbang lembaga (403), bukan 422 aturan.
+        $this->actingAs($adminMts)->postJson('/api/admin/keuangan/dispensasi', [
+            'nama' => 'Paket MI', 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI',
+            'aturan' => [['jenis_id' => $jenisMi->id, 'tipe' => 'persen', 'nilai' => 10]],
+        ])->assertStatus(403);
     }
 }

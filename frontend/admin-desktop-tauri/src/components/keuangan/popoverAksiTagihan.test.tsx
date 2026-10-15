@@ -37,7 +37,7 @@ function tagihan(partial: Partial<TagihanAktif> = {}): TagihanAktif {
   return {
     id: 7, nama: 'Santri Uji', label: 'Infaq Bulanan · Jul 2025',
     ayah_nama: 'Bpk. Abdul', ibu_nama: 'Siti Aminah',
-    santri_id: 7, fotoDokumenId: null, fotoProfil: false, kelas: '4B', jenjangRiwayat: ['MI'], jenisId: 1,
+    santri_id: 7, fotoDokumenId: null, fotoProfil: false, kelas: '4B', jenjang: 'MI', jenjangRiwayat: ['MI'], jenisId: 1,
     nominal: 75000, terbayar: 20000, sisa: 55000, status: 'sebagian',
     potongan: 0, dispensasi_ids: null,
     terlambat: true, jatuhTempo: '2025-08-10', tahunAjaran: '2025/2026',
@@ -725,6 +725,20 @@ describe('tab Ubah — dispensasi', () => {
     expect(p.onUbah).toHaveBeenCalledWith(expect.objectContaining({
       nominal: 0, dispensasi_ids: [22],
     }));
+  });
+
+  it('paket berlingkup lembaga lain tidak ditawarkan', async () => {
+    daftarDispen.mockResolvedValue([
+      { ...PAKET[0], jenjang: 'MI' },
+      { ...PAKET[1], jenjang: 'MD' },
+      { ...PAKET[0], id: 13, nama: 'Semua Lembaga', jenjang: null },
+    ]);
+    await bukaUbah();
+    await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
+    // Tagihan MI: paket MI + paket tanpa lingkup ikut tampil, MD tidak.
+    expect(screen.getByRole('option', { name: 'Prestasi · 50%' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Semua Lembaga · 50%' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Anak Pegawai/ })).not.toBeInTheDocument();
   });
 
   it('tanpa dispensasi mengembalikan kotor dan mengirim ids kosong', async () => {

@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/combobox';
 import LabeledInput from '@/components/LabeledInput';
 import LabeledCombobox from '@/components/LabeledCombobox';
+import { jenisCocokJenjang, saringAturanJenjang } from '@/lib/dispensasi';
+import type { PilihanLembaga } from '@/lembagaAktif';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight, Info, Loader2, Save, X } from '@/icons';
@@ -85,6 +87,8 @@ interface Props {
   editing: Dispensasi | null;
   jenis: JenisTagihan[];
   daftarTA: TahunAjaran[];
+  /** Lingkup jenjang yang boleh dipilih pengguna (dari peran/lingkupnya). */
+  pilihanLembaga: PilihanLembaga[];
   /** Prefill santri penerima saat membuka dari profil santri (mode tambah). */
   santriAwal?: { id: number; nama_lengkap: string } | null;
   /** Prefill TA saat membuka dari halaman Keuangan (mengikuti filter topbar). */
@@ -92,14 +96,16 @@ interface Props {
   onSaved: () => void | Promise<void>;
 }
 
-/** Form tambah/ubah dispensasi: identitas paket + N aturan potongan per jenis
- *  tagihan. Daftar penerima TIDAK diatur di sini — dikelola di halaman
- *  Dispensasi (kolom Daftar Penerima), jadi paket lama tidak kehilangan
- *  penerimanya saat diubah dari dialog. */
-export default function DispensasiDialog({ open, onOpenChange, editing, jenis, daftarTA, santriAwal = null, taBawaan = null, onSaved }: Props) {
+/** Form tambah/ubah dispensasi: identitas paket (termasuk lingkup **jenjang**)
+ *  + N aturan potongan per jenis tagihan. Daftar penerima TIDAK diatur di sini —
+ *  dikelola di halaman Dispensasi (kolom Daftar Penerima), jadi paket lama
+ *  tidak kehilangan penerimanya saat diubah dari dialog. */
+export default function DispensasiDialog({ open, onOpenChange, editing, jenis, daftarTA, pilihanLembaga, santriAwal = null, taBawaan = null, onSaved }: Props) {
   const [nama, setNama] = useState('');
   const [keterangan, setKeterangan] = useState('');
   const [ta, setTa] = useState('');
+  /** Lingkup lembaga paket; null = berlaku semua lembaga. */
+  const [jenjang, setJenjang] = useState<string | null>(null);
   const [kuota, setKuota] = useState('');
   const [grup, setGrup] = useState('');
   const [aktif, setAktif] = useState(true);
@@ -112,6 +118,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
     if (!open) return;
     if (editing) {
       setNama(editing.nama); setKeterangan(editing.keterangan ?? ''); setTa(editing.tahun_ajaran);
+      setJenjang(editing.jenjang ?? null);
       setKuota(editing.kuota_bulan === null ? '' : String(editing.kuota_bulan));
       setGrup(editing.grup ?? '');
       setAktif(editing.is_active);
@@ -121,7 +128,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
       const bawaan = taBawaan !== null && daftarTA.some((x) => x.nama === taBawaan)
         ? taBawaan
         : (daftarTA.find((x) => x.is_aktif)?.nama ?? daftarTA[0]?.nama ?? '');
-      setNama(''); setKeterangan(''); setTa(bawaan); setKuota(''); setGrup(''); setAktif(true);
+      setNama(''); setKeterangan(''); setTa(bawaan); setJenjang(null); setKuota(''); setGrup(''); setAktif(true);
       setBaris([]);
     }
   }, [open, editing, daftarTA, santriAwal, taBawaan]);
@@ -160,6 +167,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
       nama: nama.trim(),
       keterangan: keterangan.trim() === '' ? null : keterangan.trim(),
       tahun_ajaran: ta,
+      jenjang,
       kuota_bulan: kuota.trim() === '' ? null : Number(kuota),
       grup: grup.trim() === '' ? null : grup.trim(),
       aturan,
@@ -177,10 +185,34 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
     } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
   };
 
+  /** Opsi lingkup jenjang: "Semua lembaga" (null) + lembaga yang boleh diakses.
+   *  Paket berlingkup di luar lingkup pengguna tetap ditampilkan apa adanya —
+   *  kalau tidak, kotaknya jatuh ke pilihan pertama dan tampak seperti paket
+   *  semua lembaga (menyimpannya tetap ditolak izin lembaga). */
+  const opsiJenjang: { nilai: string | null; label: string }[] = [
+    { nilai: null, label: 'Semua lembaga' },
+    ...pilihanLembaga.map((l) => ({ nilai: l.jenjang, label: `${l.jenjang} — ${l.nama}` })),
+  ];
+  if (jenjang !== null && !opsiJenjang.some((o) => o.nilai === jenjang)) {
+    opsiJenjang.push({ nilai: jenjang, label: `${jenjang} — di luar lingkup Anda` });
+  }
+
+  /** Ganti lingkup jenjang: aturan yang jenisnya tak lagi cocok DILEPAS
+   *  (tak bisa disimpan) dengan pemberitahuan, bukan gagal saat menyimpan. */
+  const ubahJenjang = (baru: string | null) => {
+    setJenjang(baru);
+    const sisa = saringAturanJenjang(baris, jenis, baru);
+    if (sisa.length !== baris.length) {
+      toast.info(`${baris.length - sisa.length} aturan jenis dilepas — bukan milik lembaga ${baru}.`);
+      setBaris(sisa);
+    }
+  };
+
   /** Jenis tagihan yang BELUM punya aturan → isi tabel kiri. Yang sudah
    *  diatur hanya tampil di tabel kanan supaya satu jenis tak muncul dua kali
-   *  (dan aksi `→`-nya selalu bisa ditekan). */
-  const belumDiatur = jenis.filter((j) => !baris.some((b) => b.jenisId === j.id));
+   *  (dan aksi `→`-nya selalu bisa ditekan). Jenis di luar lingkup jenjang
+   *  paket disembunyikan supaya tak pernah masuk sebagai aturan. */
+  const belumDiatur = jenis.filter((j) => jenisCocokJenjang(j, jenjang) && !baris.some((b) => b.jenisId === j.id));
   /** Teks opsi tahun ajaran (dipakai combobox identitas). */
   const labelTA = (x: TahunAjaran) => `${x.nama}${x.is_aktif ? ' (aktif)' : ''}`;
 
@@ -236,6 +268,24 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
               </ComboboxContent>
             </ComboboxRoot>
           </LabeledCombobox>
+          <LabeledCombobox label="Jenjang" htmlFor="sel_dispensasi_jenjang" tinggi={26} lebarKotak={185}>
+            <ComboboxRoot
+              items={opsiJenjang}
+              itemToStringLabel={(o) => o.label}
+              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+              value={opsiJenjang.find((o) => o.nilai === jenjang) ?? opsiJenjang[0]}
+              onValueChange={(o) => { if (o !== null) ubahJenjang(o.nilai); }}
+            >
+              <ComboboxInput id="sel_dispensasi_jenjang" aria-label="Lingkup jenjang" placeholder="Semua lembaga" />
+              <ComboboxTrigger aria-label="Buka daftar jenjang" />
+              <ComboboxContent>
+                <ComboboxEmpty>Tidak ada jenjang.</ComboboxEmpty>
+                <ComboboxList>
+                  {(o) => <ComboboxItem key={o.label} value={o}>{o.label}</ComboboxItem>}
+                </ComboboxList>
+              </ComboboxContent>
+            </ComboboxRoot>
+          </LabeledCombobox>
           <LabeledInput
             label="Kuota" htmlFor="inp_dispensasi_kuota" tinggi={26} lebarKotak={125}
             tipeKontrol="angka" tipeTerkunci min={1} max={120} title="Opsional (1–120 bulan)"
@@ -268,7 +318,9 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
               fields={FIELDS_TAGIHAN}
               rows={belumDiatur}
               getValues={(j) => ({ jenis: labelJenis(j), sifat: j.tipe === 'bulanan' ? 'Bulanan' : 'Non-bulanan' })}
-              emptyText="Semua jenis tagihan sudah punya aturan."
+              emptyText={jenjang === null
+                ? 'Semua jenis tagihan sudah punya aturan.'
+                : `Tidak ada jenis tagihan lembaga ${jenjang} (atau jenis global) yang bisa diatur.`}
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}

@@ -4,9 +4,12 @@ import type { Dispensasi, PratinjauBaris } from '@/api/keuangan';
 import {
   aturanUntukJenis,
   hitungDispensasi,
+  jenisCocokJenjang,
   labelBulan,
+  lingkupCocokJenjang,
   rincianPeriode,
   ringkasAturan,
+  saringAturanJenjang,
   saringDispensasi,
   saringPenerima,
   selaraskanGrup,
@@ -45,14 +48,22 @@ describe('aturanUntukJenis', () => {
 });
 
 describe('saringDispensasi', () => {
+  const daftar = () => [
+    paket({ id: 1, jenjang: 'MI' }, [], [7]),
+    paket({ id: 2, jenjang: null }, [], [7]),
+    paket({ id: 3 }, [], null),
+  ];
+
   it('hanya penerima terdaftar; null tak cocok siapa pun', () => {
-    const daftar = [
-      paket({ id: 1 }, [], [7]),
-      paket({ id: 2 }, [], null),
-      paket({ id: 3 }, [], [8]),
-    ];
-    expect(saringDispensasi(daftar, 7).map((d) => d.id)).toEqual([1]);
-    expect(saringDispensasi(daftar, 9)).toEqual([]);
+    expect(saringDispensasi(daftar(), 7).map((d) => d.id)).toEqual([1, 2]);
+    expect(saringDispensasi(daftar(), 9)).toEqual([]);
+  });
+
+  it('lingkup jenjang: paket berjenis lain dibuang; null = bebas', () => {
+    // Tagihan MI → hanya paket MI + yang tanpa lingkup.
+    expect(saringDispensasi(daftar(), 7, 'MI').map((d) => d.id)).toEqual([1, 2]);
+    // Tagihan MD → paket MI dibuang (pangkas 1).
+    expect(saringDispensasi(daftar(), 7, 'MD').map((d) => d.id)).toEqual([2]);
   });
 });
 
@@ -77,6 +88,53 @@ describe('saringPenerima', () => {
   it('kata kunci kosong = daftar apa adanya; tak ada yang cocok = kosong', () => {
     expect(saringPenerima(baris, '   ')).toEqual(baris);
     expect(saringPenerima(baris, 'zzz')).toEqual([]);
+  });
+});
+
+describe('lingkupCocokJenjang', () => {
+  it('lingkup kosong atau jenjang tanpa patokan = bebas', () => {
+    expect(lingkupCocokJenjang(null, 'MI')).toBe(true);
+    expect(lingkupCocokJenjang(undefined, 'MI')).toBe(true);
+    expect(lingkupCocokJenjang('MD', null)).toBe(true);
+    expect(lingkupCocokJenjang(undefined, undefined)).toBe(true);
+  });
+
+  it('lingkup terisi hanya cocok dengan jenjang yang sama', () => {
+    expect(lingkupCocokJenjang('MI', 'MI')).toBe(true);
+    expect(lingkupCocokJenjang('MD', 'MI')).toBe(false);
+  });
+
+  it('saringDispensasi menerima jenjang tagihan yang belum diketahui', () => {
+    const daftar = [paket({ id: 1, jenjang: 'MD' }, [], [7])];
+    expect(saringDispensasi(daftar, 7, null).map((d) => d.id)).toEqual([1]);
+    expect(saringDispensasi(daftar, 7, undefined).map((d) => d.id)).toEqual([1]);
+  });
+});
+
+describe('jenisCocokJenjang & saringAturanJenjang', () => {
+  const jenis = [
+    { id: 1, jenjang: null },
+    { id: 2, jenjang: 'MI' },
+    { id: 3, jenjang: 'MD' },
+  ];
+
+  it('lingkup kosong menerima semua jenis', () => {
+    expect(jenis.every((j) => jenisCocokJenjang(j, null))).toBe(true);
+    const baris = [{ jenisId: 2 }, { jenisId: 3 }];
+    expect(saringAturanJenjang(baris, jenis, null)).toEqual(baris);
+  });
+
+  it('lingkup terisi menerima jenis selembaga + jenis global saja', () => {
+    expect(jenisCocokJenjang(jenis[0], 'MI')).toBe(true);
+    expect(jenisCocokJenjang(jenis[1], 'MI')).toBe(true);
+    expect(jenisCocokJenjang(jenis[2], 'MI')).toBe(false);
+  });
+
+  it('aturan jenis lain dilepas, jenis tak dikenal dipertahankan', () => {
+    expect(saringAturanJenjang([{ jenisId: 2 }, { jenisId: 3 }, { jenisId: 1 }], jenis, 'MI'))
+      .toEqual([{ jenisId: 2 }, { jenisId: 1 }]);
+    // Jenis yang tak ada di daftar (mis. sudah dihapus) tidak dihilangkan.
+    expect(saringAturanJenjang([{ jenisId: 99 }], jenis, 'MI')).toEqual([{ jenisId: 99 }]);
   });
 });
 

@@ -106,6 +106,7 @@ export const FIELDS_DISPENSASI: ExcelField[] = [
   { key: 'nama', label: 'Dispensasi', kind: 'static' },
   { key: 'aturan', label: 'Aturan per Jenis', kind: 'static' },
   { key: 'santri', label: 'Santri', kind: 'static', width: 90 },
+  { key: 'jenjang', label: 'Jenjang', kind: 'static', width: 90 },
   { key: 'tahun_ajaran', label: 'TA', kind: 'static', width: 100 },
   { key: 'status', label: 'Status', kind: 'static', width: 80 },
 ];
@@ -461,6 +462,7 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, 
         nama: r.nama,
         aturan: teksAturanPaket(r),
         santri: `${(r.santri_ids ?? []).length} santri`,
+        jenjang: r.jenjang ?? 'Semua',
         tahun_ajaran: r.tahun_ajaran,
         status: r.is_active ? 'Aktif' : 'Nonaktif',
       })}
@@ -545,6 +547,7 @@ export function KartuDispensasiTerpilih({ d, jumlahPenerima }: {
       {/* Isi: label–nilai sejajar kolom (lebar label = label terpanjang). */}
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-0.5 px-2.5 py-1.5">
         {baris('Tahun ajaran', d.tahun_ajaran, 'kartu_dispensasi_ta')}
+        {baris('Jenjang', d.jenjang ?? 'Semua lembaga', 'kartu_dispensasi_jenjang', d.jenjang == null)}
         {baris(
           'Kuota',
           d.kuota_bulan == null ? 'Tanpa batas' : `${d.kuota_bulan} bulan`,

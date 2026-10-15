@@ -400,6 +400,9 @@ class TagihanController extends Controller
             foreach ($kelompok as $t) {
                 $sel[$key($t)] = [
                     'id' => (int) $t->id,
+                    // Lembaga penagih baris ini — dipakai popover agar paket
+                    // dispensasi berlingkup lembaga lain tak ditawarkan.
+                    'jenjang' => (string) $t->jenjang,
                     'nominal' => (int) $t->nominal,
                     'potongan' => (int) ($t->potongan ?? 0),
                     'dispensasi_ids' => $t->dispensasi_ids ?? null,
@@ -683,6 +686,9 @@ class TagihanController extends Controller
                     abort(422, 'Dispensasi tidak valid atau sudah nonaktif.');
                 }
                 foreach ($paket as $d) {
+                    if (! $aturanSvc->lingkupCocok($d->jenjang, $tagihan->jenjang)) {
+                        abort(422, "Dispensasi '{$d->nama}' hanya berlaku untuk lembaga {$d->jenjang}.");
+                    }
                     if ($aturanSvc->aturanUntukJenis($d, (int) $tagihan->jenis_id) === null) {
                         abort(422, "Dispensasi '{$d->nama}' tidak punya aturan untuk jenis tagihan ini.");
                     }
@@ -924,7 +930,7 @@ class TagihanController extends Controller
                 } else {
                     // Generate tak pernah mendaftarkan penerima baru —
                     // itu wewenang dialog Dispensasi / Ubah per tagihan.
-                    $paketDasar = $aturan->saring($daftarDispensasi, (int) $santriId)
+                    $paketDasar = $aturan->saring($daftarDispensasi, (int) $santriId, $info['jenjang_utama'])
                         ->sortBy('id')->values();
                     // Kuota terpakai per paket (tagihan bulanan santri ini
                     // yang sudah memuat paket) — alokasi per baris di bawah.
@@ -1111,7 +1117,7 @@ class TagihanController extends Controller
                 $pakaiKuota = [];
                 $grupMap = collect();
             } else {
-                $paketDasar = $aturan->saring($daftarDispensasi, (int) $santriId)->sortBy('id')->values();
+                $paketDasar = $aturan->saring($daftarDispensasi, (int) $santriId, $info['jenjang_utama'])->sortBy('id')->values();
                 $pakaiKuota = $this->pakaiKuota($paketDasar, (int) $santriId);
                 $grupMap = $this->grupMenempel((int) $santriId);
                 $nominalManual = null;

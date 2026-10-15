@@ -25,6 +25,7 @@ import {
 } from '@/components/keuangan/tabKeuangan';
 import { jenjangTampil, nisTampil } from '@/components/keuangan/tabSantriCustom';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import { useLembagaAktif } from '@/lembagaAktif';
 import { saringPenerima } from '@/lib/dispensasi';
 import { bacaPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
 import type { PerPage } from '@/prefs';
@@ -80,11 +81,12 @@ function payloadDari(d: Dispensasi, santriIds: number[]): DispensasiInput {
  *
  * Catatan lingkup: daftar DISPENSASI sengaja tak disaring filter topBar —
  * paket tidak terikat tahun ajaran (kolom `tahun_ajaran` hanya label arsip),
- * jadi penyaringan itu tak akan mengubah apa pun. Filter topBar dipakai oleh
- * daftar SANTRI, seperti di tab Santri Custom. Pencarian topBar juga hanya
- * berlaku untuk DUA tabel santri — **Daftar Santri** (lewat server `q`) dan
- * **Daftar Penerima** (disaring di klien) — bukan daftar dispensasi, supaya
- * mencari nama santri tak mengosongkan daftar paket yang jadi sumber pilihan.
+ * jadi penyaringan itu tak akan mengubah apa pun. Filter topBar (jenjang +
+ * tahun ajaran) & rail (tingkat + kelas) dipakai oleh daftar SANTRI, seperti
+ * di tab Santri Custom. Pencarian topBar juga hanya berlaku untuk DUA tabel
+ * santri — **Daftar Santri** (lewat server `q`) dan **Daftar Penerima**
+ * (disaring di klien) — bukan daftar dispensasi, supaya mencari nama santri
+ * tak mengosongkan daftar paket yang jadi sumber pilihan.
  */
 export default function DispensasiPage() {
   const { user } = useAuth();
@@ -98,6 +100,8 @@ export default function DispensasiPage() {
   const [loading, setLoading] = useState(false);
   const uDispensasi = useUrutTabel();
   const { jenjangs, tahunAjaranNames, semesters, tingkat, kelas: kelasAktif } = useFilterGlobalAktif();
+  /** Lingkup jenjang yang boleh dipakai di dialog dispensasi (peran pengguna). */
+  const { pilihan: pilihanLembaga } = useLembagaAktif();
 
   const [dispensasiOpen, setDispensasiOpen] = useState(false);
   const [editDispensasi, setEditDispensasi] = useState<Dispensasi | null>(null);
@@ -312,8 +316,11 @@ export default function DispensasiPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman
-        /* Filter topBar dipakai daftar SANTRI (lingkup lingkup santri); daftar
-           dispensasi sendiri tak disaring karena paket tak terikat TA. */
+        /* Filter halaman ini: **Jenjang (lembaga) + Tahun Ajaran** tampil di
+           topBar, **tingkat & kelas** di rail tabel santri (lihat
+           `KONFIGURASI_FILTER_HALAMAN.keuangan_dispensasi`). Keempatnya
+           dipakai daftar SANTRI; daftar DISPENSASI sendiri tak disaring karena
+           paket tak terikat TA. */
         tampil={{ lembaga: true, tahun_ajaran: true, tingkat: true, kelas: true }}
         tabel={[
           { key: 'keuangan_dispensasi', judul: 'Daftar Dispensasi', fields: FIELDS_DISPENSASI },
@@ -459,6 +466,7 @@ export default function DispensasiPage() {
         editing={editDispensasi}
         jenis={jenis}
         daftarTA={daftarTA}
+        pilihanLembaga={pilihanLembaga}
         taBawaan={taBawaan}
         onSaved={load}
       />

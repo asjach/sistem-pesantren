@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Appends;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -18,7 +19,7 @@ class Dispensasi extends Model
     protected $table = 'dispensasi';
 
     protected $fillable = [
-        'nama', 'keterangan', 'tahun_ajaran', 'kuota_bulan', 'grup', 'is_active',
+        'nama', 'keterangan', 'tahun_ajaran', 'jenjang', 'kuota_bulan', 'grup', 'is_active',
     ];
 
     protected $casts = [
@@ -30,6 +31,12 @@ class Dispensasi extends Model
     public function aturan(): HasMany
     {
         return $this->hasMany(DispensasiAturan::class, 'dispensasi_id');
+    }
+
+    /** Lingkup lembaga paket (null = semua lembaga). */
+    public function lembaga(): BelongsTo
+    {
+        return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
     }
 
     /** Santri penerima via pivot `santri_dispensasi`. */

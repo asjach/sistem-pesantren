@@ -17,6 +17,16 @@ describe('konfigurasiFilterHalaman', () => {
     expect(k.tampil).toMatchObject({ tingkat: true, kelas: true, semester: false });
   });
 
+  // Halaman Dispensasi: jenjang + TA tampil di TopBar, tingkat & kelas di rail
+  // tabel santrinya (halaman mendeklarasikan `rail` + keempat kunci ini).
+  it('dispensasi menampilkan jenjang & tahun ajaran, plus rail tingkat & kelas', () => {
+    const k = konfigurasiFilterHalaman('keuangan_dispensasi');
+    expect(k.filter).toEqual(['lembaga', 'tahun_ajaran', 'tingkat', 'kelas']);
+    expect(k.tampil).toMatchObject({
+      lembaga: true, tahun_ajaran: true, tingkat: true, kelas: true, semester: false,
+    });
+  });
+
   it('halaman tanpa konfigurasi tampil tanpa filter', () => {
     const k = konfigurasiFilterHalaman('halaman_tidak_dikenal');
     expect(k.filter).toEqual([]);

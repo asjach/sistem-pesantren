@@ -4,7 +4,7 @@ import type { Dispensasi, PembayaranRow } from '@/api/keuangan';
 import { daftarDispensasi, kuotaPakai } from '@/api/keuangan';
 import { ambilByteDokumen } from '@/api/dokumen';
 import { ambilFotoProfilSantri } from '@/api/santri';
-import { hitungDispensasi, ringkasAturan, saringDispensasi, selaraskanGrup, sisaKuota } from '@/lib/dispensasi';
+import { hitungDispensasi, lingkupCocokJenjang, ringkasAturan, saringDispensasi, selaraskanGrup, sisaKuota } from '@/lib/dispensasi';
 import { DeleteAction } from '@/components/RowActions';
 import LabeledInput from '@/components/LabeledInput';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,9 @@ export interface TagihanAktif {
   fotoProfil: boolean;
   /** Kelas dari riwayat pada TA filter (null = tanpa patokan, mis. filter TA kosong). */
   kelas: string | null;
+  /** Lembaga penagih tagihan ini — paket dispensasi berlingkup lembaga lain
+   *  tidak berlaku (cermin `DispensasiService::lingkupCocok`). */
+  jenjang: string | null;
   /** Jenjang terdaftar pada TA filter (MI > MD > lainnya) — label gabungan. */
   jenjangRiwayat: string[];
   jenisId: number;
@@ -594,7 +597,10 @@ export default function PopoverAksiTagihan({
   const nominalKotor = tagihan.nominal + tagihan.potongan;
   /** Id paket yang santrinya sudah penerima (label saja — memilih paket
    *  lain otomatis mendaftarkan santri sebagai penerima saat Simpan). */
-  const idPenerima = new Set(saringDispensasi(dispenDaftar, tagihan.santri_id).map((d) => d.id));
+  const idPenerima = new Set(saringDispensasi(dispenDaftar, tagihan.santri_id, tagihan.jenjang).map((d) => d.id));
+  /** Paket yang boleh dipilih untuk tagihan ini: lingkupnya (jenjang) cocok —
+   *  paket lembaga lain disembunyikan, sebab backend menolaknya. */
+  const paketBerlaku = dispenDaftar.filter((d) => lingkupCocokJenjang(d.jenjang, tagihan.jenjang));
   const paketPilih = typeof dispenPilih === 'number'
     ? (dispenDaftar.find((d) => d.id === dispenPilih) ?? null)
     : null;
@@ -948,7 +954,7 @@ export default function PopoverAksiTagihan({
                 <SelectContent>
                   <SelectItem value="">Tanpa perubahan</SelectItem>
                   <SelectItem value="tanpa">Tanpa dispensasi</SelectItem>
-                  {dispenDaftar.map((d) => {
+                  {paketBerlaku.map((d) => {
                     const ringkas = ringkasAturan(d, tagihan.jenisId);
                     if (ringkas === null) return null;
                     const sudahMenempel = (tagihan.dispensasi_ids ?? []).includes(d.id);
