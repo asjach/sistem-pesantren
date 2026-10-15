@@ -44,7 +44,6 @@ class PresetKolomSeeder extends Seeder
             'table_key' => 'keanggotaan',
             'nama' => 'ringkas',
             'kolom' => json_encode(self::KOLOM),
-            'label' => null,
             'is_default' => true,
             'dibuat_oleh' => null,
             'created_at' => now(),
