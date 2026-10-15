@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { errorMessage } from '@/api/client';
 import {
   listPresetTabel,
@@ -148,6 +148,93 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
   };
 }
 
+/** Lebar panel Kelola Tabel bisa diseret lewat gagang di tepi kirinya.
+ *  Bawaan 600px; disimpan per perangkat (bukan setelan tabel, jadi tak ikut
+ *  ke server). */
+const SHEET_LEBAR_BAWAN = 600;
+const SHEET_LEBAR_MIN = 420;
+const SHEET_LEBAR_MAX = 960;
+const SHEET_LEBAR_KUNCI = 'lebar_sheet_kelola_tabel';
+
+function jepitLebarSheet(n: unknown): number {
+  const v = typeof n === 'string' ? Number(n) : typeof n === 'number' ? n : NaN;
+  if (!Number.isFinite(v)) return SHEET_LEBAR_BAWAN;
+  return Math.min(SHEET_LEBAR_MAX, Math.max(SHEET_LEBAR_MIN, Math.round(v)));
+}
+
+function simpanLebarSheet(v: number) {
+  try {
+    localStorage.setItem(SHEET_LEBAR_KUNCI, String(v));
+  } catch {
+    /* Penyimpanan boleh gagal (mode privat) — lebar sesi ini tetap jalan. */
+  }
+}
+
+/** Lebar sheet + gagang seret tepi kiri. Versi ramping pola `useLebarSidebar`:
+ *  tanpa lipat/sembunyi — panel pengaturan tak perlu dilipat, cukup dibatasi
+ *  MIN..MAX. Nilai final ditulis ke localStorage sekali, saat seretan lepas
+ *  (bukan tiap mousemove). */
+function useLebarSheet() {
+  const [lebar, setLebar] = useState(() => {
+    try {
+      return jepitLebarSheet(localStorage.getItem(SHEET_LEBAR_KUNCI));
+    } catch {
+      return SHEET_LEBAR_BAWAN;
+    }
+  });
+  const [seret, setSeret] = useState(false);
+  const seretRef = useRef({ mulaiX: 0, lebarAwal: SHEET_LEBAR_BAWAN });
+
+  const mulaiSeret = useCallback((e: MouseEvent<HTMLElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    // Kursor seret dipasang di <body>: pointer gampang keluar dari gagang
+    // yang tipis saat diseret cepat (pola yang sama di `useLebarSidebar`).
+    document.body.style.cursor = 'col-resize';
+    seretRef.current = { mulaiX: e.clientX, lebarAwal: lebar };
+    setSeret(true);
+    const geser = (ev: globalThis.MouseEvent) => {
+      // Panel menempel kanan: pointer ke kiri = melebar.
+      setLebar(jepitLebarSheet(seretRef.current.lebarAwal + (seretRef.current.mulaiX - ev.clientX)));
+    };
+    const selesai = () => {
+      window.removeEventListener('mousemove', geser);
+      window.removeEventListener('mouseup', selesai);
+      document.body.style.cursor = '';
+      setSeret(false);
+      setLebar((w) => {
+        simpanLebarSheet(w);
+        return w;
+      });
+    };
+    window.addEventListener('mousemove', geser);
+    window.addEventListener('mouseup', selesai);
+  }, [lebar]);
+
+  const kembalikan = useCallback(() => {
+    setLebar(SHEET_LEBAR_BAWAN);
+    simpanLebarSheet(SHEET_LEBAR_BAWAN);
+  }, []);
+
+  const onKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
+    // Pola separator ARIA (sama seperti gagang Sidebar): ← melebar, → menyempit.
+    const langkah = e.shiftKey ? 48 : 16;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const w = jepitLebarSheet(lebar + (e.key === 'ArrowLeft' ? langkah : -langkah));
+      setLebar(w);
+      simpanLebarSheet(w);
+      return;
+    }
+    if (e.key === 'Home') {
+      e.preventDefault();
+      kembalikan();
+    }
+  }, [lebar, kembalikan]);
+
+  return { lebar, seret, mulaiSeret, onKeyDown, kembalikan };
+}
+
 /** Bagian dialog: judul + isi, tanpa tab.
  *  WAJIB di scope modul: kalau didefinisikan di dalam komponen, identitasnya
  *  berubah tiap render sehingga isi bagian di-remount dan state lokalnya
@@ -251,6 +338,8 @@ export default function DialogKelolaTabel({
   const [tab, setTab] = useState('umum');
   /** Fungsi simpan tiap bagian, dipakai tombol Simpan terpadu. */
   const simpanBagianRef = useRef<Record<string, () => HasilSimpan>>({});
+  /** Lebar panel (bisa diseret lewat gagang di tepi kiri). */
+  const { lebar, seret, mulaiSeret, onKeyDown, kembalikan } = useLebarSheet();
   /** Aksi ikon tiap bagian (mis. kembalikan bawaan). */
   const [aksiBagian, setAksiBagian] = useState<Record<string, AksiBagian>>({});
 
@@ -364,15 +453,42 @@ export default function DialogKelolaTabel({
         overlay={!nonModal}
         onInteractOutside={nonModal ? (e) => e.preventDefault() : undefined}
         aria-label={`Pengaturan tabel ${typeof judul === 'string' ? judul : 'ini'}`}
-        /* - Lebar tetap 600px (bukan `max-w`): panel ini menemani tabel di
-             belakang, jadi lebarnya tak perlu ikut melebar di layar besar.
+        /* - Lebar mengikuti state `lebar` (bisa diseret lewat gagang tepi
+             kiri, 420–960px, ingat per perangkat). `maxWidth: 100dvw`
+             menjaga panel tetap di layar kecil walau simpanan lebarnya
+             lebih besar dari viewport.
            - `!overflow-hidden` WAJIB: SheetContent bawaan ber-`overflow-y-auto`,
              sehingga yang menggulir adalah SELURUH panel - header (judul + tab)
              dan footer (status + Tutup) ikut terbuang ke luar layar begitu
              digulir, dan daftar kolom yang panjang membuat panel setinggi
              2904px. Yang boleh menggulir hanya isi tab (lihat TabsContent). */
-        className="!flex h-dvh w-full flex-col gap-0 !overflow-hidden !p-0 sm:w-[600px] sm:max-w-[600px]"
+        className="!flex h-dvh w-full flex-col gap-0 !overflow-hidden !p-0"
+        style={{ width: lebar, maxWidth: '100dvw' }}
       >
+        {/* Gagang seret lebar panel: strip di tepi kiri. Seret kiri =
+            melebar, kanan = menyempit; klik-ganda = kembali 600px. */}
+        <div
+          id="gagang_lebar_kelola_tabel"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Lebar panel pengaturan tabel"
+          aria-valuenow={lebar}
+          aria-valuemin={SHEET_LEBAR_MIN}
+          aria-valuemax={SHEET_LEBAR_MAX}
+          tabIndex={0}
+          title="Seret untuk mengubah lebar panel"
+          onMouseDown={mulaiSeret}
+          onDoubleClick={kembalikan}
+          onKeyDown={onKeyDown}
+          className="absolute inset-y-0 left-0 z-10 w-2 cursor-col-resize touch-none select-none"
+        >
+          <span
+            className={cn(
+              'absolute inset-y-0 left-0 w-px bg-border transition-colors hover:bg-foreground/40',
+              seret && 'bg-foreground/40',
+            )}
+          />
+        </div>
         <BagianProvider value={registri}>
           <SheetHeader className="shrink-0 gap-1 border-b px-4 py-3">
             <SheetTitle>Kelola tabel: {judul}</SheetTitle>
