@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import ConfirmDelete from '@/components/ConfirmDelete';
+import LabeledStepper from '@/components/LabeledStepper';
 import { RotateCcw } from '@/icons';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -245,39 +246,43 @@ export default function TabUmum({
             className="h-7 w-20"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <label htmlFor={`input_tinggi_baris_${tableKey}`} className="min-w-0 flex-1 truncate text-xs">
-            Tinggi baris
-            <span className="block text-[11px] text-muted-foreground">
-              {tinggiDasar === null ? `Mengikuti bawaan ${tinggiBawaan}px` : 'Atur tabel ini saja'}
-            </span>
-          </label>
-          <Input
-            id={`input_tinggi_baris_${tableKey}`}
-            type="number"
-            min={MIN_BARIS_H}
-            max={MAX_BARIS_H}
-            value={tinggiEfektif}
-            disabled={sibukPerangkat}
-            onChange={(e) => {
-              const kosong = e.target.value.trim() === '';
-              ubahTinggi(kosong ? null : Number(e.target.value));
-            }}
-            className="h-7 w-20"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            id={`btn_reset_tinggi_baris_${tableKey}`}
-            aria-label="Kembalikan tinggi baris ke bawaan"
-            title="Kembalikan tinggi baris ke bawaan"
-            disabled={sibukPerangkat || tinggiDasar === null}
-            onClick={() => ubahTinggi(null)}
-            className="shrink-0 text-muted-foreground"
-          >
-            <RotateCcw size={13} />
-          </Button>
+        {/* `LabeledStepper`: label + angka + tombol −/+ dalam satu kotak, sama
+            seperti kontrol lain. `kelolaLebar={false}` karena kotak ini bukan
+            bagian toolbar tabel — lebar simpanannya tak relevan. */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            <LabeledStepper
+              id={`tinggi_baris_${tableKey}`}
+              htmlFor={`tinggi_baris_${tableKey}`}
+              kelolaLebar={false}
+              label="Tinggi baris"
+              min={MIN_BARIS_H}
+              max={MAX_BARIS_H}
+              value={tinggiEfektif}
+              disabled={sibukPerangkat}
+              title="Tinggi baris tabel ini (px)"
+              aria-label="Tinggi baris tabel ini (px)"
+              onChange={(n) => ubahTinggi(n)}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              id={`btn_reset_tinggi_baris_${tableKey}`}
+              aria-label="Kembalikan tinggi baris ke bawaan"
+              title="Kembalikan tinggi baris ke bawaan"
+              disabled={sibukPerangkat || tinggiDasar === null}
+              onClick={() => ubahTinggi(null)}
+              className="shrink-0 text-muted-foreground"
+            >
+              <RotateCcw size={13} />
+            </Button>
+          </div>
+          <p className="px-1 text-[11px] text-muted-foreground">
+            {tinggiDasar === null
+              ? `Mengikuti bawaan ${tinggiBawaan}px.`
+              : 'Atur tabel ini saja, tidak berlaku ke tabel lain.'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor={`sakelar_ikut_isi_${tableKey}`} className="min-w-0 flex-1 text-xs">
