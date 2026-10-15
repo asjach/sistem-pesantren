@@ -7,8 +7,6 @@ import {
   type DataSheetGridRef,
 } from 'react-datasheet-grid';
 import 'react-datasheet-grid/dist/style.css';
-import { DENSITY_PX } from '@/prefs';
-import { useTheme } from '@/theme';
 import { isTauri, prefSet } from '@/api/client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
@@ -29,6 +27,7 @@ import { komponenAktif, type InfoKomponenTabel } from './excel/komponenTabel';
 import { useLebarKolom } from './excel/useLebarKolom';
 import { useTinggiBaris } from './excel/useTinggiBaris';
 import { useTinggiBarisSatuan } from './excel/useTinggiBarisSatuan';
+import { TINGGI_BARIS_BAWAAN } from './excel/tinggiBaris';
 import { useSalinTabel } from './excel/useSalinTabel';
 import { useSalinClipboard } from './excel/useSalinClipboard';
 import { useInteraksiSel } from './excel/useInteraksiSel';
@@ -274,9 +273,9 @@ export default function ExcelTable<T extends { id: string | number }>({
   onUrut,
   pager,
 }: ExcelTableProps<T>) {
-  const { density } = useTheme();
-  const densityPx = DENSITY_PX[density];
-  // Preferensi tampilan tabel global (dikontrol dari top bar).
+  // Preferensi tampilan tabel global (dikontrol dari top bar). `rowH` di sini
+  // kini berarti BAWAAN — tinggi per tabel (lihat `useTinggiBaris`) yang
+  // menang, jadi nilainya tak memaksa tabel mana pun.
   const { rowH, headerH, fontPx, fontFamily } = useGridPrefs();
   // Standar tampilan lembaga: lebar & kolom beku bawaan (bisa ditimpa user).
 
@@ -560,12 +559,15 @@ export default function ExcelTable<T extends { id: string | number }>({
     return () => clearTimeout(t);
   }, [tampilGrid, tableKey]);
 
-  /** Tinggi baris per tabel: ikut isi + seret batas bawah baris (manual). */
+  /** Tinggi baris per tabel: tinggi dasar + ikut isi + seret batas bawah
+   *  baris (manual). */
   const {
     manual: tinggiBarisManual,
     sigManual: sigTinggiBarisManual,
     autoIkut: barisIkutIsi,
     setAutoIkut: setBarisIkutIsi,
+    dasar: tinggiBarisDasar,
+    setDasar: setTinggiBarisDasar,
     resetBaris: resetTinggiBaris,
     resetSemua: resetSemuaTinggiBaris,
     mulaiSeret: mulaiSeretBaris,
@@ -697,7 +699,11 @@ export default function ExcelTable<T extends { id: string | number }>({
 
 
 
-  const effectiveH = rowH ?? densityPx;
+  /* Tinggi baris seragam, berlapis: tinggi dasar TABEL INI → slider global
+     (perangkat/standar bootloader, kini berarti "bawaan") → 24px. Kerapatan
+     tak lagi jadi sumber: nilai bakunya tetap, jadi Tabellen yang tak pernah
+     disetel seragam 24px apa pun mode kerapatan. */
+  const effectiveH = tinggiBarisDasar ?? rowH ?? TINGGI_BARIS_BAWAAN;
 
   /** Tinggi satu baris grid: manual → ikut isi → dasar kerapatan. */
   const tinggiBarisSatuan = useTinggiBarisSatuan({
@@ -1669,10 +1675,18 @@ export default function ExcelTable<T extends { id: string | number }>({
             barisIkutIsi={barisIkutIsi}
             onUbahBarisIkutIsi={setBarisIkutIsi}
             onResetTinggiBaris={(rowId) => {
-              if (rowId === null) resetSemuaTinggiBaris();
-              else resetTinggiBaris(String(rowId));
+              if (rowId === null) {
+                // "Seluruh tabel" = tinggi dasar tabel ini ikut kembali ke
+                // bawaan, bukan cuma tinggi seret per baris.
+                resetSemuaTinggiBaris();
+                setTinggiBarisDasar(null);
+              } else {
+                resetTinggiBaris(String(rowId));
+              }
             }}
-            barisManualAda={Object.keys(tinggiBarisManual).length > 0}
+            barisManualAda={
+              Object.keys(tinggiBarisManual).length > 0 || tinggiBarisDasar !== null
+            }
             barisManualBarisIni={ctxRow ? tinggiBarisManual[String(ctxRow.rowId)] !== undefined : false}
           />
         </ContextMenu>

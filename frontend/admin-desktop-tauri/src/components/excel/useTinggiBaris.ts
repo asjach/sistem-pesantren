@@ -13,6 +13,20 @@ export function autoBarisKey(tableKey: string) {
   return `simpes_grid_${tableKey}_rowauto`;
 }
 
+/** Pref tinggi baris DASAR per tabel (px) — tinggi seragam semua baris tabel
+ *  ini, terpisah dari tinggi manual per baris di `tinggiBarisKey`. */
+export function tinggiDasarKey(tableKey: string) {
+  return `simpes_grid_${tableKey}_rowh_dasar`;
+}
+
+/** Baca angka dari pref, dijepit ke rentang; hasil tak terbaca = null. */
+function bacaAngka(v: string | null, min: number, maks: number): number | null {
+  if (v === null || v.trim() === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  return Math.min(maks, Math.max(min, Math.round(n)));
+}
+
 function bacaPeta(v: string | null): Record<string, number> {
   if (v === null || v.trim() === '') return {};
   try {
@@ -53,6 +67,8 @@ function serialPeta(peta: Record<string, number>): string {
 export function useTinggiBaris(tableKey: string) {
   const [manual, setManual] = useState<Record<string, number>>({});
   const [autoIkut, setAutoIkutState] = useState(false);
+  /** Tinggi dasar tabel ini (null = belum diatur → pakai bawaan global/24px). */
+  const [dasar, setDasarState] = useState<number | null>(null);
   /** Serial peta manual — dipakai ExcelTable sebagai tanda remount grid. */
   const [sigManual, setSigManual] = useState('');
   const refs = useRef({
@@ -80,6 +96,9 @@ export function useTinggiBaris(tableKey: string) {
         // pernah menyalakan tetap ON; yang belum pernah atur ikut bawaan baru).
         .then((v) => { if (hidup) setAutoIkutState(v === '1'); })
         .catch(() => { /* bawaan: tidak ikut isi */ });
+      prefGet(tinggiDasarKey(tableKey))
+        .then((v) => { if (hidup) setDasarState(bacaAngka(v, MIN_BARIS_H, MAX_BARIS_H)); })
+        .catch(() => { /* belum diatur → bawaan global/24px */ });
     };
     muat();
     // Tab Umum dialog Kelola Tabel mengubah pref yang sama dari luar grid
@@ -116,6 +135,13 @@ export function useTinggiBaris(tableKey: string) {
   const setAutoIkut = useCallback((nyawa: boolean) => {
     setAutoIkutState(nyawa);
     prefSet(autoBarisKey(tableKey), nyawa ? '1' : '0').catch(() => {});
+  }, [tableKey]);
+
+  /** Atur/reset tinggi dasar tabel ini. `null` = kembali ke bawaan global. */
+  const setDasar = useCallback((n: number | null) => {
+    const v = n == null ? null : Math.min(MAX_BARIS_H, Math.max(MIN_BARIS_H, Math.round(n)));
+    setDasarState(v);
+    prefSet(tinggiDasarKey(tableKey), v == null ? '' : String(v)).catch(() => {});
   }, [tableKey]);
 
   /** Seret batas bawah baris: hanya baris ini yang berubah. */
@@ -161,5 +187,16 @@ export function useTinggiBaris(tableKey: string) {
     if (refs.current.timer !== null) clearTimeout(refs.current.timer);
   }, []);
 
-  return { manual, sigManual, autoIkut, setAutoIkut, setBaris, resetBaris, resetSemua, mulaiSeret };
+  return {
+    manual,
+    sigManual,
+    autoIkut,
+    setAutoIkut,
+    dasar,
+    setDasar,
+    setBaris,
+    resetBaris,
+    resetSemua,
+    mulaiSeret,
+  };
 }

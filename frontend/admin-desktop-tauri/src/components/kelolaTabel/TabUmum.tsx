@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage, prefGet, prefSet } from '@/api/client';
-import { hapusToolbarPreset, muatToolbarPreset } from '@/api/toolbarPreset';
+import { hapusToolbarPreset } from '@/api/toolbarPreset';
 import { listPresetTabel, setPresetAktif } from '@/api/preset';
-import { useBagian, useAksiBagian } from '@/components/kelolaHalaman/kotor';
+import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { freezeKey, loadFreeze, widthsKey, writeWidthCache } from '@/components/excel/helpers';
-import { autoBarisKey, tinggiBarisKey } from '@/components/excel/useTinggiBaris';
+import { autoBarisKey, tinggiBarisKey, tinggiDasarKey } from '@/components/excel/useTinggiBaris';
+import { MAX_BARIS_H, MIN_BARIS_H, TINGGI_BARIS_BAWAAN } from '@/components/excel/tinggiBaris';
+import { useGridPrefs } from '@/components/GridPrefs';
 import {
   EVENT_PRESET_BERUBAH,
   EVENT_TAMPILAN_PERANGKAT_BERUBAH,
-  EVENT_TOOLBAR_BERUBAH,
   kabariPreset,
   kabariTampilanPerangkat,
   kabariToolbar,
@@ -18,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import ConfirmDelete from '@/components/ConfirmDelete';
+import { RotateCcw } from '@/icons';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
@@ -84,18 +86,33 @@ export default function TabUmum({
   const [beku, setBeku] = useState(0);
   const [ikutIsi, setIkutIsi] = useState(false);
   const [sibukPerangkat, setSibukPerangkat] = useState(false);
+  /** Tinggi dasar tabel ini; null = mengikuti bawaan global (atau 24px). */
+  const [tinggiDasar, setTinggiDasar] = useState<number | null>(null);
+  /** Bawaan global — hanya untuk menampilkan nilai saat tabel belum diatur. */
+  const rowHGlobal = useGridPrefs().rowH;
+  const tinggiBawaan = rowHGlobal ?? TINGGI_BARIS_BAWAAN;
+  /** Yang benar-benar dipakai tabel ini sekarang. */
+  const tinggiEfektif = tinggiDasar ?? tinggiBawaan;
 
   const muatPerangkat = useCallback(async () => {
     try {
-      const [f, a] = await Promise.all([
+      const [f, a, h] = await Promise.all([
         loadFreeze(freezeKey(tableKey)),
         prefGet(autoBarisKey(tableKey)),
+        prefGet(tinggiDasarKey(tableKey)),
       ]);
       setBeku(jepitBeku(f, jumlahKolom));
       setIkutIsi(a === '1');
+      const n = Number(h);
+      setTinggiDasar(
+        h != null && h.trim() !== '' && Number.isFinite(n)
+          ? Math.min(MAX_BARIS_H, Math.max(MIN_BARIS_H, Math.round(n)))
+          : null,
+      );
     } catch {
       setBeku(0);
       setIkutIsi(false);
+      setTinggiDasar(null);
     }
   }, [tableKey, jumlahKolom]);
 
@@ -122,47 +139,35 @@ export default function TabUmum({
       .finally(() => setSibukPerangkat(false));
     kabariTampilanPerangkat(tableKey);
   }
+
+  /** Ubah tinggi dasar tabel ini. Kosong = kembali ke bawaan global. */
+  function ubahTinggi(n: number | null) {
+    const v = n == null
+      ? null
+      : Math.min(MAX_BARIS_H, Math.max(MIN_BARIS_H, Math.round(n)));
+    setTinggiDasar(v);
+    setSibukPerangkat(true);
+    prefSet(tinggiDasarKey(tableKey), v == null ? '' : String(v))
+      .catch(() => toast.error('Gagal menyimpan tinggi baris.'))
+      .finally(() => setSibukPerangkat(false));
+    kabariTampilanPerangkat(tableKey);
+  }
   const [sibukReset, setSibukReset] = useState(false);
-  const [adaSetelanServer, setAdaSetelanServer] = useState(false);
   const laporKotor = useBagian('umum', () => Promise.resolve(true));
-  useAksiBagian('umum', {
-    label: 'Kembalikan bawaan tabel',
-    onClick: () => void kembalikanSemua(),
-    disabled: sibukReset || (!adaSetelanServer && !bolehResetServer),
-  });
+  /* Reset total TIDAK lagi didaftarkan sebagai aksi bagian (tombol ↺ di judul
+     bagian). Aksi destruktif tanpa konfirmasi, dan tombolnya justru sering
+     mati untuk non-super_admin — satu-satunya pintu reset adalah bagian
+     "Kembalikan bawaan" di bawah, yang selalu minta konfirmasi. */
   const laporKotorRef = useRef(laporKotor);
   laporKotorRef.current = laporKotor;
 
-  const muatSetelanServer = useCallback(async () => {
-    try {
-      const res = await muatToolbarPreset(tableKey);
-      const d = res.data;
-      setAdaSetelanServer(
-        Object.keys(d.visibilitas ?? {}).length > 0
-        || (d.urutan ?? []).length > 0
-        || Object.keys(d.align ?? {}).length > 0
-        || Object.keys(d.label ?? {}).length > 0,
-      );
-    } catch {
-      setAdaSetelanServer(false);
-    }
-  }, [tableKey]);
-
   useEffect(() => {
-    void muatSetelanServer();
-    const segarkanToolbar = (e: Event) => {
-      if ((e as CustomEvent).detail?.tableKey === tableKey) void muatSetelanServer();
-    };
     const segarkanPerangkat = (e: Event) => {
       if ((e as CustomEvent).detail?.tableKey === tableKey) void muatPerangkat();
     };
-    window.addEventListener(EVENT_TOOLBAR_BERUBAH, segarkanToolbar);
     window.addEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkanPerangkat);
-    return () => {
-      window.removeEventListener(EVENT_TOOLBAR_BERUBAH, segarkanToolbar);
-      window.removeEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkanPerangkat);
-    };
-  }, [tableKey, muatSetelanServer, muatPerangkat]);
+    return () => window.removeEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkanPerangkat);
+  }, [tableKey, muatPerangkat]);
 
   async function kembalikanSemua(): Promise<boolean> {
     setSibukReset(true);
@@ -176,13 +181,13 @@ export default function TabUmum({
         prefSet(widthsKey(tableKey), '{}'),
         prefSet(freezeKey(tableKey), '0'),
         prefSet(tinggiBarisKey(tableKey), '{}'),
+        prefSet(tinggiDasarKey(tableKey), ''),
         prefSet(autoBarisKey(tableKey), '0'),
         prefSet(`simpes_page_${tableKey}`, '1'),
       ]);
       writeWidthCache(tableKey, { widths: {}, autoWidths: {} });
       setBeku(0);
       setIkutIsi(false);
-      setAdaSetelanServer(false);
       toast.success('Tabel dikembalikan ke bawaan.');
       kabariToolbar(tableKey);
       kabariPreset(tableKey);
@@ -239,6 +244,40 @@ export default function TabUmum({
             onChange={(e) => ubahBeku(Number(e.target.value))}
             className="h-7 w-20"
           />
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor={`input_tinggi_baris_${tableKey}`} className="min-w-0 flex-1 truncate text-xs">
+            Tinggi baris
+            <span className="block text-[11px] text-muted-foreground">
+              {tinggiDasar === null ? `Mengikuti bawaan ${tinggiBawaan}px` : 'Atur tabel ini saja'}
+            </span>
+          </label>
+          <Input
+            id={`input_tinggi_baris_${tableKey}`}
+            type="number"
+            min={MIN_BARIS_H}
+            max={MAX_BARIS_H}
+            value={tinggiEfektif}
+            disabled={sibukPerangkat}
+            onChange={(e) => {
+              const kosong = e.target.value.trim() === '';
+              ubahTinggi(kosong ? null : Number(e.target.value));
+            }}
+            className="h-7 w-20"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            id={`btn_reset_tinggi_baris_${tableKey}`}
+            aria-label="Kembalikan tinggi baris ke bawaan"
+            title="Kembalikan tinggi baris ke bawaan"
+            disabled={sibukPerangkat || tinggiDasar === null}
+            onClick={() => ubahTinggi(null)}
+            className="shrink-0 text-muted-foreground"
+          >
+            <RotateCcw size={13} />
+          </Button>
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor={`sakelar_ikut_isi_${tableKey}`} className="min-w-0 flex-1 text-xs">
