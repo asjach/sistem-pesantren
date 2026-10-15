@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * yang menyembunyikan; kunci absen/true/null = tampil.
  * Perataan kolom per tabel (satu nilai per kolom, bukan per preset):
  * peta key kolom → 'left'|'center'|'right'; absen = bawaan frontend.
+ * Judul tabel yang bisa diisi pengguna (teks biasa, bukan peta): NULL =
+ * pakai judul bawaan dari kode.
  * Label kolom per tabel (juga bukan per preset, sejalan dengan perataan):
  * peta key kolom → teks label tampil; absen = label bawaan dari kode.
  * Keduanya per tabel karena preset hanya mengubah kolom mana yang TAMPIL,
@@ -27,7 +29,7 @@ class ToolbarPreset extends Model
 {
     protected $table = 'toolbar_preset';
 
-    protected $fillable = ['table_key', 'visibilitas', 'lebar', 'tinggi', 'nilai_default', 'urutan', 'align', 'label', 'dibuat_oleh'];
+    protected $fillable = ['table_key', 'visibilitas', 'lebar', 'tinggi', 'nilai_default', 'urutan', 'align', 'label', 'judul', 'dibuat_oleh'];
 
     protected $casts = [
         'visibilitas' => 'array',

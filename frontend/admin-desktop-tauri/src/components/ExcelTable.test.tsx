@@ -20,10 +20,17 @@ vi.mock('@/components/FilterRail', () => ({
 /** Tiruan server stateful untuk preset toolbar: `visibilitas` bisa disemai
  *  per tes, dan `simpan` benar-benar mengubah yang dibaca `muat`. */
 const serverToolbar = vi.hoisted(() => {
-  const state = { visibilitas: {} as Record<string, boolean> };
+  const state = { visibilitas: {} as Record<string, boolean>, judul: null as string | null };
   const muat = vi.fn(async () => ({
     pesan: 'ok',
-    data: { table_key: 'uji', visibilitas: { ...state.visibilitas }, lebar: {}, urutan: [], align: {} },
+    data: {
+      table_key: 'uji',
+      visibilitas: { ...state.visibilitas },
+      lebar: {},
+      urutan: [],
+      align: {},
+      judul: state.judul,
+    },
   }));
   const simpan = vi.fn(async (_t: string, v?: Record<string, boolean>) => {
     if (v !== undefined) state.visibilitas = { ...v };
@@ -232,6 +239,25 @@ describe('ExcelTable', () => {
 
     expect(screen.getByText('Judul Kustom')).toBeInTheDocument();
     expect(screen.queryByText('Uji')).not.toBeInTheDocument();
+  });
+  it('judul isian pengguna menang atas prop header', async () => {
+    // Judul dinamis dari halaman (mis. "Daftar Santri (12)") boleh ditimpa
+    // lewat Kelola Tabel — itu tujuan fiturnya, jadi isian pengguna yang
+    // menang, bukan prop `header`.
+    serverToolbar.state.judul = 'Buku Induk';
+    renderTabel({ header: <span>Judul Halaman</span> });
+
+    await waitFor(() => expect(screen.getByText('Buku Induk')).toBeInTheDocument());
+    expect(screen.queryByText('Judul Halaman')).not.toBeInTheDocument();
+  });
+
+  it('judul kosong kembali ke rantai bawaan (header → judulTabel)', async () => {
+    serverToolbar.state.judul = null;
+    renderTabel({ header: <span>Judul Halaman</span> });
+
+    // Menunggu muat selesai dulu supaya pengecekan bukan sekadar kondisi awal.
+    await waitFor(() => expect(serverToolbar.muat).toHaveBeenCalled());
+    expect(screen.getByText('Judul Halaman')).toBeInTheDocument();
   });
 
   it('menampilkan emptyText saat rows kosong', () => {

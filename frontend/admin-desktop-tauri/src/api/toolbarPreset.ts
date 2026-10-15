@@ -24,6 +24,9 @@ export interface ToolbarPresetData {
   align: AlignKolomApi;
   /** Label kolom khusus (absen = label bawaan kode). */
   label: LabelKolomApi;
+  /** Judul tabel yang diisi pengguna; `null` = pakai judul bawaan kode
+   *  (prop `header` halaman → peta `judulTabel()` → table_key). */
+  judul: string | null;
   /** @see ToolbarPresetData.lebar */
   nilai_default: Record<string, string>;
 }
@@ -47,6 +50,7 @@ export function simpanToolbarPreset(
   urutan?: string[],
   align?: AlignKolomApi,
   label?: LabelKolomApi,
+  judul?: string,
 ) {
   return api<{ pesan: string; data: unknown }>('/admin/toolbar-preset', {
     method: 'PUT',
@@ -56,6 +60,9 @@ export function simpanToolbarPreset(
       ...(urutan ? { urutan } : {}),
       ...(align ? { align } : {}),
       ...(label !== undefined ? { label } : {}),
+      // Selalu kirim bila diberikan (termasuk ''): string kosong ADALAH
+      // perintah menghapus override, jadi `!== undefined`, bukan truthy.
+      ...(judul !== undefined ? { judul } : {}),
     }),
   });
 }

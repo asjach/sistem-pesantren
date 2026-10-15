@@ -99,6 +99,9 @@ class ToolbarPresetController extends Controller
                 // Label kolom per TABEL (bukan per preset): tetap walau preset
                 // berganti, sejalan dengan `align`.
                 'label' => $row?->label ?? [],
+                // Judul tabel milik pengguna; null = pakai judul bawaan kode
+                // (prop `header` halaman → peta `judulTabel()` → table_key).
+                'judul' => $row?->judul,
                 'nilai_default' => $row?->nilai_default ?? [],
             ],
         ]);
@@ -122,9 +125,9 @@ class ToolbarPresetController extends Controller
             }
         }
 
-        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data) && ! array_key_exists('label', $data)) {
+        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data) && ! array_key_exists('label', $data) && ! array_key_exists('judul', $data)) {
             throw ValidationException::withMessages([
-                'table_key' => 'Kirim minimal satu dari visibilitas, urutan, align, atau label.',
+                'table_key' => 'Kirim minimal satu dari visibilitas, urutan, align, label, atau judul.',
             ]);
         }
 
@@ -194,6 +197,13 @@ class ToolbarPresetController extends Controller
                 }
             }
             $row->label = $label === [] ? null : $label;
+        }
+
+        if (array_key_exists('judul', $data)) {
+            // Judul kosong = hapus override (kembali ke judul bawaan kode),
+            // sama seperti label. Itu yang membuat input boleh dikosongkan.
+            $teks = trim((string) $data['judul']);
+            $row->judul = $teks === '' ? null : mb_substr($teks, 0, 100);
         }
 
         $row->dibuat_oleh = $request->user()->id;

@@ -18,6 +18,7 @@ import {
 } from '@/components/excel/komponenTabel';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
 /** Section "Visibilitas komponen tabel" di tab Umum dialog Kelola Tabel:
@@ -41,16 +42,23 @@ import { toast } from 'sonner';
 export default function TabVisibilitasKomponen({
   tableKey,
   info,
+  judulBawaan = '',
 }: {
   tableKey: string;
   /** Komponen mana yang benar-benar ada di tabel ini. */
   info: InfoKomponenTabel;
+  /** Judul bawaan tabel (teks) — dipakai sebagai placeholder input judul. */
+  judulBawaan?: string;
 }) {
   /** Sakelar per komponen: `true` = tampil (bawaan), `false` = disembunyikan. */
   const [nilai, setNilai] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   /** Ada penanda "sembunyi" milik komponen tabel di DB (acuan tombol Kembalikan). */
   const [adaSimpanan, setAdaSimpanan] = useState(false);
+  /** Judul tabel isian pengguna ('' = pakai judul bawaan kode). */
+  const [judul, setJudul] = useState('');
+  /** Judul tersimpan terakhir — acuan deteksi kotor. */
+  const judulAcuanRef = useRef('');
 
   /** Grup + komponen yang tersedia di tabel ini — yang tak ada disembunyikan
    *  dari dialog supaya tak ada sakelar mati. */
@@ -75,6 +83,9 @@ export default function TabVisibilitasKomponen({
       setNilai(peta);
       setAdaSimpanan(semua.some((k) => server[k] === false));
       acuanRef.current = JSON.stringify(peta);
+      const judulServer = res.data.judul ?? '';
+      setJudul(judulServer);
+      judulAcuanRef.current = judulServer;
     } catch {
       // Gagal muat = anggap bawaan (semua tampil), sama seperti grid.
       const bawaan: Record<string, boolean> = {};
@@ -82,6 +93,8 @@ export default function TabVisibilitasKomponen({
       setNilai(bawaan);
       setAdaSimpanan(false);
       acuanRef.current = JSON.stringify(bawaan);
+      setJudul('');
+      judulAcuanRef.current = '';
     }
   }, [tableKey, kunciMilik]);
 
@@ -96,9 +109,13 @@ export default function TabVisibilitasKomponen({
     setBusy(true);
     try {
       const gabung = gabungVisibilitas(serverRef.current, nilai);
-      await simpanToolbarPreset(tableKey, gabung);
+      // Judul ikut ditulis dalam penyimpanan yang sama. Handler `kotor` hanya
+      // bisa mengembalikan boolean, jadi memisahkannya berarti user harus
+      // menekan Simpan dua kali untuk satu perubahan yang terlihat satu.
+      await simpanToolbarPreset(tableKey, gabung, undefined, undefined, undefined, judul);
       serverRef.current = gabung;
       acuanRef.current = JSON.stringify(nilai);
+      judulAcuanRef.current = judul;
       setAdaSimpanan(kunciMilik.some((k) => nilai[k] === false));
       toast.success('Visibilitas komponen tabel disimpan.');
       kabariToolbar(tableKey);
@@ -109,13 +126,16 @@ export default function TabVisibilitasKomponen({
     } finally {
       setBusy(false);
     }
-  }, [kunciMilik, nilai, tableKey]);
+  }, [kunciMilik, nilai, judul, tableKey]);
 
   const laporKotor = useBagian('visibilitas', simpan);
 
   useEffect(() => {
-    laporKotor(JSON.stringify(nilai) !== acuanRef.current);
-  }, [nilai, laporKotor]);
+    laporKotor(
+      JSON.stringify(nilai) !== acuanRef.current
+      || judul !== judulAcuanRef.current,
+    );
+  }, [nilai, judul, laporKotor]);
 
   async function kembalikan() {
     setBusy(true);
@@ -123,12 +143,16 @@ export default function TabVisibilitasKomponen({
       // Buang penanda milik komponen tabel saja; kunci lain (versi lama, atau
       // fitur lain yang berbagi peta) dibiarkan — tabel kembali ke bawaan kode.
       const gabung = buangKunciVisibilitas(serverRef.current, kunciMilik);
-      await simpanToolbarPreset(tableKey, gabung);
+      // Judul ikut dikosongkan: tombol ini mengembalikan tabel ke bawaan kode,
+      // dan judul bawaan itu bagian dari tampilan bawaan.
+      await simpanToolbarPreset(tableKey, gabung, undefined, undefined, undefined, '');
       serverRef.current = gabung;
       const bawaan: Record<string, boolean> = {};
       for (const k of kunciMilik) bawaan[k] = true;
       setNilai(bawaan);
       acuanRef.current = JSON.stringify(bawaan);
+      setJudul('');
+      judulAcuanRef.current = '';
       setAdaSimpanan(false);
       laporKotor(false);
       toast.success('Visibilitas komponen tabel dikembalikan ke bawaan.');
@@ -157,6 +181,24 @@ export default function TabVisibilitasKomponen({
         >
           Kembalikan ke bawaan
         </Button>
+      </div>
+      {/* Judul tabel: kosong = pakai judul bawaan kode (prop `header` halaman →
+          peta `judulTabel()` → table_key). Placeholder-nya bukan keterangan
+          tambahan, tapi judul bawaan yang sedang berlaku. */}
+      <div className="flex items-center gap-2 rounded-md border px-2 py-1">
+        <label htmlFor={`input_judul_tabel_${tableKey}`} className="shrink-0 text-xs">
+          Judul
+        </label>
+        <Input
+          id={`input_judul_tabel_${tableKey}`}
+          value={judul}
+          disabled={busy}
+          maxLength={100}
+          aria-label="Judul tabel"
+          placeholder={judulBawaan || 'Judul bawaan'}
+          onChange={(e) => setJudul(e.target.value)}
+          className="h-6 min-w-0 flex-1 text-xs"
+        />
       </div>
       {grup.length === 0 ? (
         <p className="px-1 text-xs text-muted-foreground">

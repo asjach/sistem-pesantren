@@ -60,6 +60,8 @@ export function useToolbarPresetState(tableKey: string) {
   const [urutanDb, setUrutanDb] = useState<string[] | null>(null);
   /** Peta `label`/`align` dari `LabelKolomApi` -> peta perataan saja. */
   const [labelDb, setLabelDb] = useState<Record<string, string>>({});
+  /** Judul tabel yang diisi pengguna. `null` = pakai judul bawaan kode. */
+  const [judulDb, setJudulDb] = useState<string | null>(null);
 
   /** Konteks "di dalam toolbar tabel": tinggal identitas tabel. */
   const konteksLebarFilter = useMemo(() => ({ tableKey }), [tableKey]);
@@ -74,12 +76,14 @@ export function useToolbarPresetState(tableKey: string) {
         setAlignDb(bacaAlign(res.data.align));
         setUrutanDb(Array.isArray(res.data.urutan) ? res.data.urutan : []);
         setLabelDb(bacaLabel(res.data.label));
+        setJudulDb(res.data.judul ?? null);
       } catch {
         if (batal) return;
         setVisibilitas({});
         setAlignDb({});
         setUrutanDb([]);
         setLabelDb({});
+        setJudulDb(null);
       }
     };
     void muat();
@@ -99,6 +103,11 @@ export function useToolbarPresetState(tableKey: string) {
   /** Monoton: hanya tulis terakhir yang boleh kabari/rollback (anti balapan
    *  klik cepat). */
   const versiAlignRef = useRef(0);
+
+  /** Cermin judulDb untuk tulis optimistis (pola sama dengan align). */
+  const judulDbRef = useRef(judulDb);
+  judulDbRef.current = judulDb;
+  const versiJudulRef = useRef(0);
 
   /** Tulis perataan satu kolom ke DB global (satu sumber dengan dialog Kelola
    *  Tabel; dipakai menu klik-kanan): optimistis, rollback saat gagal. */
@@ -125,5 +134,25 @@ export function useToolbarPresetState(tableKey: string) {
       });
   }, [tableKey]);
 
-  return { visibilitas, alignDb, urutanDb, setUrutanDb, labelDb, simpanAlign, konteksLebarFilter };
+  /** Tulis judul tabel ke DB (satu sumber dengan dialog Kelola Tabel).
+   *  Optimistis + rollback, pola sama dengan `simpanAlign`. */
+  const simpanJudul = useCallback((teks: string) => {
+    const versi = ++versiJudulRef.current;
+    const sebelum = judulDbRef.current;
+    const bersih = teks.trim();
+    judulDbRef.current = bersih === '' ? null : bersih;
+    setJudulDb(bersih === '' ? null : bersih);
+    void simpanToolbarPreset(tableKey, undefined, undefined, undefined, undefined, teks)
+      .then(() => {
+        if (versi === versiJudulRef.current) kabariToolbar(tableKey);
+      })
+      .catch((e: unknown) => {
+        if (versi !== versiJudulRef.current) return;
+        judulDbRef.current = sebelum;
+        setJudulDb(sebelum);
+        toast.error(errorMessage(e));
+      });
+  }, [tableKey]);
+
+  return { visibilitas, alignDb, urutanDb, setUrutanDb, labelDb, judulDb, simpanJudul, simpanAlign, konteksLebarFilter };
 }

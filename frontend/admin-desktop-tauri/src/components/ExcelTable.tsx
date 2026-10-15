@@ -301,7 +301,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
-  const { visibilitas, alignDb, urutanDb, setUrutanDb, labelDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { visibilitas, alignDb, urutanDb, setUrutanDb, labelDb, judulDb, simpanJudul, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /* Sakelar komponen tabel (tab Umum Kelola Tabel, SERVER per tabel): setiap
      komponen tabel punya sakelarnya sendiri. Semua sakelar absen = tampil, jadi
      tabel yang belum pernah disetel berperilaku persis seperti sebelumnya.
@@ -1405,7 +1405,13 @@ export default function ExcelTable<T extends { id: string | number }>({
     || tombolAksiTampil
     || tombolPengaturanTampil;
   const headerTampil = adaBilahJudul && isiBilahTampil;
-  const judulHeader = header ?? judulTabel(tableKey);
+  /* Prioritas judul: isian pengguna (Kelola Tabel) → prop `header` halaman →
+     peta `judulTabel()` → kapitalisasi `table_key`. Isian pengguna sengaja
+     MENANG atas `header` — itu tujuan fiturnya, dan banyak halaman mengirim
+     judul dinamis (mis. "Daftar Santri (12)") yang boleh ditimpa. Kosong =
+     kembali ke rantai bawaan, jadi input yang dikosongkan tak pernah
+     menghasilkan bilah tanpa judul. */
+  const judulHeader = judulDb?.trim() || header || judulTabel(tableKey);
   /** Kaki tabel dirender selama masih ada SATU pun komponennya. */
   const kakiTabelTampil = pagerTampil
     || tombolTambahTampil

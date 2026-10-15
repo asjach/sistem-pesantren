@@ -42,16 +42,41 @@ vi.mock('@/api/preset', () => ({
 /** Tiruan server stateful untuk preset toolbar: `visibilitas` bisa disemai
  *  per tes, dan `simpan` benar-benar mengubah yang dibaca `muat`. */
 const serverToolbar = vi.hoisted(() => {
-  const state = { visibilitas: {} as Record<string, boolean> };
+  const state = { visibilitas: {} as Record<string, boolean>, judul: null as string | null };
+  /** Bila diisi, `simpan` MENUNGGU promise ini selesai sebelum kembali.
+   *  Dipakai tes indikator untuk mengatur urutan penyelesaian (balapan). */
+  let tahan: Promise<void> | null = null;
+  let lepasTahan: (() => void) | null = null;
   const muat = vi.fn(async () => ({
     pesan: 'ok',
-    data: { table_key: 'uji', visibilitas: { ...state.visibilitas }, lebar: {}, urutan: [], align: {} },
+    data: {
+      table_key: 'uji',
+      visibilitas: { ...state.visibilitas },
+      lebar: {},
+      urutan: [],
+      align: {},
+      judul: state.judul,
+    },
   }));
-  const simpan = vi.fn(async (_t: string, v?: Record<string, boolean>) => {
+  const simpan = vi.fn(async (
+    _t: string,
+    v?: Record<string, boolean>,
+    _u?: string[],
+    _a?: unknown,
+    _l?: unknown,
+    judul?: string,
+  ) => {
     if (v !== undefined) state.visibilitas = { ...v };
+    if (judul !== undefined) state.judul = judul.trim() === '' ? null : judul.trim();
+    if (tahan) await tahan;
     return { pesan: 'ok', data: null };
   });
-  return { state, muat, simpan };
+  /** Tahan semua simpan berikutnya sampai `lepas()` dipanggil. */
+  const tahanSimpan = () => {
+    tahan = new Promise<void>((resolve) => { lepasTahan = resolve; });
+  };
+  const lepas = () => { const r = lepasTahan; tahan = null; lepasTahan = null; r?.(); };
+  return { state, muat, simpan, tahanSimpan, lepas };
 });
 
 vi.mock('@/api/toolbarPreset', () => ({
@@ -395,7 +420,9 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
 
     await userEvent.click(screen.getByLabelText('Tampilkan Header kolom (kepala kolom)'));
 
-    await waitFor(() => expect(simpanToolbar).toHaveBeenCalledWith('uji', {
+    // Argumen ke-2 = peta visibilitas; argumen ke-6 = judul tabel. Judul
+    // ikut dalam penyimpanan yang sama, jadi diperiksa terpisah.
+    await waitFor(() => expect(simpanToolbar.mock.calls.at(-1)?.[1]).toEqual({
       urut: false,
       header_kolom: false,
     }));
@@ -409,7 +436,7 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
     await userEvent.click(screen.getByLabelText('Tampilkan Tombol Edit'));
 
     // Absen = tampil, jadi kuncinya dihapus, bukan ditulis `true`.
-    await waitFor(() => expect(simpanToolbar).toHaveBeenCalledWith('uji', {}));
+    await waitFor(() => expect(simpanToolbar.mock.calls.at(-1)?.[1]).toEqual({}));
   });
 
   it('Kembalikan ke bawaan → membuang hanya kunci milik komponen tabel', async () => {
@@ -420,7 +447,7 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
     await userEvent.click(screen.getByRole('button', { name: 'Kembalikan ke bawaan' }));
 
     // Penanda komponen tabel dibuang; penanda versi lama dipertahankan.
-    await waitFor(() => expect(simpanToolbar).toHaveBeenCalledWith('uji', { urut: false }));
+    await waitFor(() => expect(simpanToolbar.mock.calls.at(-1)?.[1]).toEqual({ urut: false }));
     await waitFor(() => expect(screen.getByLabelText('Tampilkan Judul tabel')).toBeChecked());
   });
 
@@ -457,5 +484,27 @@ describe('DialogKelolaTabel — menutup panel', () => {
     await userEvent.click(document.body);
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+  it('input judul tersimpan dan judul kosong mengembalikan ke bawaan', async () => {
+    serverToolbar.state.visibilitas = {};
+    serverToolbar.state.judul = null;
+    renderDialog();
+    await waitFor(() => expect(screen.getByLabelText('Judul tabel')).toBeInTheDocument());
+
+    const input = screen.getByLabelText('Judul tabel');
+    // Kosong = pakai judul bawaan kode, jadi inputnya mulai kosong juga.
+    expect(input).toHaveValue('');
+    // Placeholder = judul bawaan yang sedang berlaku, penanda bagi user
+    // bahwa mengosongkan berarti "kembali ke ini".
+    expect(input).toHaveAttribute('placeholder', 'Santri');
+
+    // Tak ada tombol Simpan: bagian yang kotor menulis sendiri lewat
+    // registri `useBagian`, sama seperti sakelar visibilitas.
+    await userEvent.type(input, 'Buku Induk Santri');
+    await waitFor(() => expect(serverToolbar.state.judul).toBe('Buku Induk Santri'));
+
+    // Dikosongkan = kembali ke bawaan: server menyimpan null, bukan ''.
+    await userEvent.clear(input);
+    await waitFor(() => expect(serverToolbar.state.judul).toBeNull());
   });
 });

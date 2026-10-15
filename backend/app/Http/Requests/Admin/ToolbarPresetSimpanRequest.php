@@ -39,6 +39,10 @@ class ToolbarPresetSimpanRequest extends FormRequest
             // Kunci dibatasi di controller agar galatnya `label.<kunci>`.
             'label' => ['sometimes', 'array', 'max:200'],
             'label.*' => ['nullable', 'string', 'max:100'],
+            // Judul tabel yang bisa diisi pengguna. Boleh dikosongkan (dan
+            // `nullable` supaya null eksplisit juga lolos) — controller
+            // menerjemahkan kosong/null jadi "pakai judul bawaan kode".
+            'judul' => ['sometimes', 'nullable', 'string', 'max:100'],
             // Nilai awal combobox: peta kunci kontrol → label opsi (teks bebas,
             // maks 100 karakter). Kunci dibatasi di controller (sama seperti lebar).
             'nilai_default' => ['sometimes', 'array', 'max:60'],

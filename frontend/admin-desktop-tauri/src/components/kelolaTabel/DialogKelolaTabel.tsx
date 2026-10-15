@@ -27,6 +27,7 @@ import TabVisibilitasKomponen from './TabVisibilitasKomponen';
 import { KOMPONEN_INFO_BEKAL, type InfoKomponenTabel } from '@/components/excel/komponenTabel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVENT_PRESET_BERUBAH, kabariPreset } from './jenis';
+import { buatAntrePerBagian, selesaikanSimpan } from '@/lib/antreSimpan';
 
 /** State bersama tab Kolom untuk satu tabel: preset kolom
  *  (cermin logika `PresetKolom`, tanpa dropdown pemilih) plus editor nama
@@ -354,8 +355,17 @@ export default function DialogKelolaTabel({
   /** Bagian yang gagal disimpan otomatis sejak pembukaan terakhir. Dipakai
    *  footer untuk berhenti bilang "tersimpan" bila ada yang gagal. */
   const [adaGagal, setAdaGagal] = useState(false);
-  /** Penanda antre: nomor urut permintaan simpan terakhir yang dimulai. */
-  const antreRef = useRef(0);
+  /** Penanda antre PER BAGIAN (lihat `lib/antreSimpan`).
+   *
+   *  Dulu ini satu counter GLOBAL, dan itu bug: dua bagian berbeda yang
+   *  menyimpan bersamaan membuat yang selesai lebih dulu melihat nomornya
+   *  bukan lagi yang terakhir, sehingga namanya TIDAK PERNAH dibuang dari
+   *  `sedangSimpan`. Akibatnya footer terus berbunyi "Menyimpan…" sampai
+   *  dialog ditutup (keluhan nyata: mengubah judul lalu sakelar).
+   *
+   *  Yang memang perlu dijaga hanyalah balapan pada bagian YANG SAMA (dua
+   *  ketikan cepat → dua permintaan), jadi penandanya harus per bagian. */
+  const antreRef = useRef(buatAntrePerBagian());
   /** Bagian yang sedang disimpan (untuk indikator "Menyimpan…"). */
   const [sedangSimpan, setSedangSimpan] = useState<string[]>([]);
 
@@ -369,7 +379,7 @@ export default function DialogKelolaTabel({
     if (!v) return;
     const fn = simpanBagianRef.current[id];
     if (!fn) return;
-    const nomor = (antreRef.current += 1);
+    const nomor = antreRef.current.mulai(id);
     setSedangSimpan((prev) => (prev.includes(id) ? prev : [...prev, id]));
     void (async () => {
       let ok: boolean | void = true;
@@ -378,12 +388,12 @@ export default function DialogKelolaTabel({
       } catch {
         ok = false;
       } finally {
-        // Hanya permintaan TERAKHIR yang boleh membersihkan indikator:
-        // yang lama bisa selesai belakangan (balapan) dan mematikan
-        // indikator milik yang baru.
-        if (nomor === antreRef.current) {
-          setSedangSimpan((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev));
-        }
+        // Hanya permintaan TERAKHIR bagian INI yang boleh membersihkan
+        // indikatornya: yang lama bisa selesai belakangan (balapan) dan
+        // mematikan indikator milik yang baru. Bagian lain punya nomornya
+        // sendiri, jadi tak saling memblokir.
+        const terakhir = antreRef.current.terakhir(id, nomor);
+        setSedangSimpan((prev) => selesaikanSimpan(prev, id, terakhir) as string[]);
       }
       if (ok === false) setAdaGagal(true);
     })();
@@ -511,7 +521,15 @@ export default function DialogKelolaTabel({
             <TabsContent value="umum" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
               <Bagian id="bagian_umum_tabel" judul="Umum" aksi={aksiBagian.umum}>
                 <div className="flex flex-col gap-3">
-                  <TabVisibilitasKomponen tableKey={tableKey} info={infoKomponen} />
+                  <TabVisibilitasKomponen
+                    tableKey={tableKey}
+                    info={infoKomponen}
+                    // Placeholder input judul: hanya masuk akal bila judul
+                    // bawaannya memang teks. Judul berupa node dinamis
+                    // (mis. "Daftar Santri (12)") tak bisa jadi placeholder,
+                    // jadi jatuh ke teks netral.
+                    judulBawaan={typeof judul === 'string' ? judul : ''}
+                  />
                   <TabUmum tableKey={tableKey} judul={judul} fields={fields} />
                 </div>
               </Bagian>
