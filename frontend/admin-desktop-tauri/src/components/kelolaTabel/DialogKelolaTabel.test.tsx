@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import DialogKelolaTabel from './DialogKelolaTabel';
+import { prefSet } from '@/api/client';
 import { listPresetTabel, setPresetAktif } from '@/api/preset';
 import { simpanToolbarPreset } from '@/api/toolbarPreset';
 import { renderDenganTema } from '@/test/utils';
@@ -59,10 +60,24 @@ vi.mock('@/api/toolbarPreset', () => ({
   hapusToolbarPreset: vi.fn(async () => ({ pesan: 'ok', data: null })),
 }));
 
+/** Tiruan pref PERANGKAT yang stateful (seperti `serverToolbar` di bawah):
+ *  nilai yang ditulis `prefSet` benar-benar terbaca `prefGet`. Tanpa ini,
+ *  event "tampilan perangkat berubah" (yang dikirim tiap perubahan kolom
+ *  beku/tinggi baris) memuat ulang pref dan mengembalikan nilainya ke 0. */
+const serverPref = vi.hoisted(() => {
+  const state: Record<string, string> = {};
+  return {
+    state,
+    get: vi.fn(async (k: string) => state[k] ?? null),
+    set: vi.fn(async (k: string, v: string) => { state[k] = v; }),
+    bersihkan: () => { for (const k of Object.keys(state)) delete state[k]; },
+  };
+});
+
 vi.mock('@/api/client', async (asli) => ({
   ...(await asli()),
-  prefGet: vi.fn(async () => null),
-  prefSet: vi.fn(async () => {}),
+  prefGet: serverPref.get,
+  prefSet: serverPref.set,
 }));
 
 vi.mock('@/lembagaAktif', async (asli) => ({
@@ -122,6 +137,7 @@ const LENGKAP: InfoKomponenTabel = {
 
 beforeEach(() => {
   serverToolbar.state.visibilitas = {};
+  serverPref.bersihkan();
   vi.clearAllMocks();
 });
 
@@ -139,9 +155,33 @@ describe('DialogKelolaTabel — tab Umum', () => {
   it('menampilkan kontrol tampilan perangkat: kolom beku + baris ikut isi', async () => {
     renderDialog();
     await waitFor(() => expect(screen.getByLabelText('Kolom beku dari kiri')).toBeInTheDocument());
-    expect(screen.getByLabelText('Kolom beku dari kiri')).toHaveValue(0);
+    // Kontrolnya `LabeledStepper` (kotak teks + tombol −/+), bukan input angka.
+    expect(screen.getByLabelText('Kolom beku dari kiri')).toHaveValue('0');
+    expect(document.getElementById('input_beku_uji_kurang')).not.toBeNull();
+    expect(document.getElementById('input_beku_uji_tambah')).not.toBeNull();
     expect(screen.getByRole('switch', { name: /Baris ikut isi/ })).not.toBeChecked();
     expect(screen.getByText('Hanya di perangkat ini — pengguna lain tidak ikut berubah.')).toBeInTheDocument();
+  });
+
+  it('stepper kolom beku menyimpan pref tiap klik dan mati di batas jumlah kolom', async () => {
+    renderDialog();
+    const input = await screen.findByLabelText('Kolom beku dari kiri');
+    const tombolTambah = () => document.getElementById('input_beku_uji_tambah') as HTMLButtonElement;
+    /* `sibukPerangkat` mematikan kontrol sesaat saat menyimpan; tunggu hidup
+       lagi supaya klik berikutnya tidak ditelan (React menahan klik pada
+       tombol yang disabled). */
+    const klikTambah = async () => {
+      await waitFor(() => expect(tombolTambah()).not.toBeDisabled());
+      fireEvent.click(tombolTambah());
+    };
+
+    // `fields` di atas = 2 kolom → batas atas stepper 2.
+    await klikTambah();
+    await waitFor(() => expect(prefSet).toHaveBeenCalledWith('simpes_grid_uji_freeze', '1'));
+    await klikTambah();
+    await waitFor(() => expect(prefSet).toHaveBeenCalledWith('simpes_grid_uji_freeze', '2'));
+    expect(input).toHaveValue('2');
+    await waitFor(() => expect(tombolTambah()).toBeDisabled());
   });
 
   it('menampilkan tombol kembalikan bawaan dengan konfirmasi', async () => {

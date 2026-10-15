@@ -16,7 +16,6 @@ import {
 } from './jenis';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import ConfirmDelete from '@/components/ConfirmDelete';
 import LabeledStepper from '@/components/LabeledStepper';
@@ -231,24 +230,26 @@ export default function TabUmum({
         <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           Tampilan di perangkat ini
         </p>
-        <div className="flex items-center gap-2">
-          <label htmlFor={`input_beku_${tableKey}`} className="min-w-0 flex-1 truncate text-xs">
-            Kolom beku dari kiri
-          </label>
-          <Input
-            id={`input_beku_${tableKey}`}
-            type="number"
-            min={0}
-            max={jumlahKolom}
-            value={beku}
-            disabled={sibukPerangkat || jumlahKolom === 0}
-            onChange={(e) => ubahBeku(Number(e.target.value))}
-            className="h-7 w-20"
-          />
-        </div>
         {/* `LabeledStepper`: label + angka + tombol −/+ dalam satu kotak, sama
-            seperti kontrol lain. `kelolaLebar={false}` karena kotak ini bukan
-            bagian toolbar tabel — lebar simpanannya tak relevan. */}
+            seperti "Tinggi baris" di bawah. `kelolaLebar={false}` karena kotak
+            ini bukan bagian toolbar tabel — lebar simpanannya tak relevan.
+            Labelnya dipendekkan ("Kolom beku") agar tak memakan ruang kotak;
+            "dari kiri" pindah ke `title`/`aria-label`. */}
+        <LabeledStepper
+          id={`input_beku_${tableKey}`}
+          htmlFor={`input_beku_${tableKey}`}
+          kelolaLebar={false}
+          label="Kolom beku"
+          min={0}
+          max={jumlahKolom}
+          value={beku}
+          disabled={sibukPerangkat || jumlahKolom === 0}
+          title="Kolom beku dari kiri"
+          aria-label="Kolom beku dari kiri"
+          onChange={(n) => ubahBeku(n)}
+        />
+        {/* Tinggi baris: stepper yang sama, plus tombol ↺ untuk kembali ke
+            bawaan global tabel lain. */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1.5">
             <LabeledStepper

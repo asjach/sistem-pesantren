@@ -8,7 +8,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
@@ -494,10 +493,6 @@ export default function DialogKelolaTabel({
         <BagianProvider value={registri}>
           <SheetHeader className="shrink-0 gap-1 border-b px-4 py-3">
             <SheetTitle>Kelola tabel: {judul}</SheetTitle>
-            <SheetDescription className="text-xs text-muted-foreground">
-              Atur tampilan, kolom, dan urutan tabel ini. Perubahan
-              tersimpan sendiri saat diubah.
-            </SheetDescription>
           </SheetHeader>
 
           <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
