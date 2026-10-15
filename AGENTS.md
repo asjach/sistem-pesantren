@@ -162,13 +162,11 @@ dijalankan diam-diam maupun dilewati diam-diam — bila perubahan menyentuh
 Cukup **tes tersempit** bila dampaknya sempit: satu halaman + komponennya  
 sendiri, copy/teks, styling atau layout lokal, satu tab/dialog.
 
-- **"Hijau" = tak ada gagal BARU.** Kegagalan yang sudah ada (bukan regresi,  
-  jangan dihitung ulang sebagai milik perubahan): FE 2 di  
-  `src/pages/KeuanganPage.test.tsx` (placeholder pencarian tab Tagihan yang  
-  sudah pindah ke search topBar), BE 1 di  
-  `SchemaDocTest::test_tabel_dan_kolom_db_ikut_terdokumentasi` (tabel  
-  `grup_santri_custom` & `anggota_grup_santri_custom` belum ada di  
-  `docs/SCHEMA.md`).
+- **"Hijau" = tak ada gagal BARU.** Per 2026-10-15 **baseline bersih**: kedua  
+  kegagalan lama sudah hilang — `src/pages/KeuanganPage.test.tsx` 27/27 hijau,  
+  dan `SchemaDocTest::test_tabel_dan_kolom_db_ikut_terdokumentasi` hijau.  
+  Jadi kegagalan apa pun yang muncul sekarang adalah regresi, bukan warisan —  
+  jangan diabaikan dengan alasan "sudah ada sebelumnya".
 - **Jangan menjalankan dua runner vitest bersamaan** (tes tersempit + suite  
   penuh) — pernah kena SIGTERM/OOM (`exit 137`) karena rebutan memori.
 - `npm run build` **selalu gagal di sandbox agen**: shim safe-delete memblokir  

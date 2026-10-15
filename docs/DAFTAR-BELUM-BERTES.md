@@ -78,15 +78,25 @@ Test: `tests/Feature/SinkronIzinTest.php` (7 tes) — termasuk sifat ADITIF
   SEMUA peran. Ini pitfall yang **sudah tercatat** di komentar `routes/api.php:318-321`,
   jadi justru paling layak dikunci test.
 
-### A1-6. `PsbSummaryNotificationService.php`
+### A1-6. `PsbSummaryNotificationService.php` — ✅ SELESAI (1 bug diperbaiki)
 File: `backend/app/Services/PsbSummaryNotificationService.php`
+Test: `tests/Feature/PsbSummaryNotificationServiceTest.php` (5 tes).
+- **BUG ditemukan & diperbaiki:** `scopeTenant()` menyaring `s.jenjang` padahal tabel
+  `santri` **tidak punya kolom `jenjang`** (lembaga = keanggotaan `lembaga_santri`).
+  Setiap admin ber-scope memicu `SQLSTATE[HY000]: no such column: s.jenjang`.
+  Kini memakai subquery `lembaga_santri` + pengecualian tanpa-keanggotaan (arsip
+  pusat), mengikuti pola `PengajuanBiodataController`. Service dorman (belum ada
+  pemanggil), jadi dampaknya laten — tapi meledak begitu dipanggil.
 - **Logika:** `refreshBiodata()` (19), `refreshDaftarUlang()` (33) — hitung & kirim notifikasi;
-  `scopeTenant()` (54) + `scopeCalon()` (65) — batasi hitungan ke tenant admin.
-- **Failure mode:** **kebocoran tenant** — admin lembaga A menerima hitungan lembaga B.
+  `scopeTenant()` (53) + `scopeCalon()` — batasi hitungan ke tenant admin.
+- **Catatan:** `admin` tanpa pivot = admin full (sengaja lintas lembaga), BUKAN nol.
 
-### A1-7. `RefService.php` — periksa isi, kemungkinan CRUD referensi murni
-File: `backend/app/Services/RefService.php` (tidak punya `public function` terdeteksi pola umum — cek manual).
-- Sudah ada `ReferensiCrudTest.php`; tentukan apakah service ini punya cabang yang belum tercakup.
+### A1-7. `RefService.php` — ✅ DIPERIKSA (sudah cukup tercakup)
+File: `backend/app/Services/RefService.php`
+- Cabang berlogika (cache efektif per jenjang, overrid lembaga, `kodeAktif()`
+  menyaring baris non-aktif, `sifatStatusAkhir()`) sudah tersentuh
+  `tests/Feature/ReferensiCrudTest.php` + `GlobalFilterTest.php`.
+- Sisanya murni CRUD/passthrough — tidak ada failure mode baru yang layak test.
 
 ## A2. Support/helper
 
@@ -116,12 +126,13 @@ Sisa satu: `NamaBerkasDokumen` — paling layak karena menyentuh nama berkas di 
 | `PsbImport` | `ImportPotongPsbTest` | regenerate nomor saat bentrok 1062 |
 | `DokumenImport` | `DokumenHalamanTest` | — |
 
-**Exporter (12) — TIDAK ada test:** `AlumniTemplateExport`, `DokumenTemplateExport`,
-`KeaktifanTemplateExport`, `KelasNamaExport`, `KelasTemplateExport`,
-`MutasiKeluarTemplateExport`, `PegawaiTemplateExport`, `PenempatanPegawaiTemplateExport`,
-`PsbTemplateExport`, `RiwayatBelajarTemplateExport`, `SantriLembagaTemplateExport`, `SantriTemplateExport`.
-→ **Yang layak diuji:** header kolom template stabil (kontrak dengan pengguna Excel),
-dan jumlah/urutan kolom tidak berubah tanpa sengaja.
+**Exporter (12) — ✅ KONTRAK HEADER DIKUNCI** (`tests/Feature/TemplateHeaderKontrakTest.php`,
+9 tes / 122 asersi). Empat yang sebelumnya **nol** cakupan kini bertes:
+`DokumenTemplateExport` (kolom per tipe + heading + baris contoh sejajar),
+`KeaktifanTemplateExport`, `PenempatanPegawaiTemplateExport`, `SantriTemplateExport`.
+Sisanya sudah bertes lewat `TemplateWarnaTest`/`DataExistingJsonTest`/test modulnya.
+→ Kontrak: header = daftar kolom, kolom wajib ⊆ kolom, baris contoh sejajar kolom —
+semuanya gagal-terlihat bila urutan berubah tanpa sengaja.
 
 **Service impor per-entitas tanpa test unit:**
 `AlumniImporService`, `DokumenImporService`, `KeaktifanImporService`, `KelasImporService`,
@@ -138,8 +149,8 @@ Layanan turunan (`*ImporService`) tetap belum bertes sendiri.
 | Command | Status |
 |---|---|
 | `DevReset` | ✅ ada (`DevResetCommandTest`) |
-| `SinkronAktifRiwayat` | ❌ belum — sinkronkan `santri.is_active_pst` turunan dari riwayat aktif |
-| `DokumenRapikanNama` | ❌ belum — rapikan nama berkas dokumen; risiko rename massal merusak referensi |
+| `SinkronAktifRiwayat` | ✅ `tests/Feature/SinkronAktifRiwayatCommandTest.php` (7 tes) — invarian maks-1-aktif per (santri,jenjang), status ganjil→`lanjut`, opsi `--santri`/`--jenjang`, idempoten |
+| `DokumenRapikanNama` | ✅ **DIHAPUS 2026-10-15.** Dulu menyaring `whereNotNull('path_file')` padahal kolom `path_file` sudah **dicabut** (diverifikasi langsung dari skema DB: `dokumen_santri`/`dokumen_pegawai`/`dokumen_lembaga` hanya punya `nama_file`; tak ada migrasi mana pun yang pernah punya `path_file`), sehingga perintah **pasti** galat `SQLSTATE[42S22] Unknown column 'path_file'`. Tak ada pemanggil (scheduler/rute) dan tak ada tes. Backfill satu-kali-nya sudah selesai; logikanya kini digantikan rename di `DokumenController`. File dihapus; tak ada entri tes yang perlu dibuat. |
 
 ## A5. Policy & middleware
 
@@ -171,11 +182,19 @@ Berdasarkan endpoint yang muncul di test vs daftar rute, **belum terlihat tersen
 
 ## A7. Validasi & keamanan (butuh test kontrak)
 
+- ✅ **Tenant choke-point `tenantScope()`** — `tests/Feature/TenantScopeFailClosedTest.php`
+  (12 tes). Dikunci: peran non-admin → nol di Lembaga/Kelas/Alumni/MutasiKeluar;
+  admin scoped hanya jenjangnya (MTS tak bocor); pasangan MI↔MD memang saling terlihat
+  (`lembagaIdsDenganPasangan`); admin tanpa data → nol; Santri menyertakan arsip pusat
+  (tanpa keanggotaan) tapi bukan lembaga lain; daftar pengguna 403 untuk non-admin
+  (dijaga middleware izin `pengguna.lihat`) dan dibatasi tenant untuk admin scoped.
+- ✅ **Catatan penting (bukan bug):** `LembagaPegawai::tenantScope` sengaja TIDAK
+  memaksa nol untuk non-admin — penempatan adalah data dirinya sendiri dan tetap
+  tersaring ke jenjangnya; gerbang aksesnya di lapisan izin, bukan di scope.
 - **`PsbPublikController::cekNik`** — harus tetap membalas boolean saja (anti-enumerasi NIK).
 - **`AuthController::login`** — peran non-admin ditolak device `admin-desktop-tauri`;
   audit `LoginAudit` tertulis baik sukses maupun gagal.
 - **Throttle** — `login` 6/menit; **perhatikan** `Limit::none()` saat `isLocal()`.
-- **Tenant choke-point `TenantGuard`** — `scopeLembaga` fail-closed (`1 = 0`) saat tanpa lembaga.
 - **Mass assignment** — model dengan `guarded = ['id']` pada jalur import.
 
 ---
@@ -314,10 +333,13 @@ Saat pengguna meminta tes, kerjakan dari atas ke bawah (dampak ÷ usaha):
 5. ✅ `SinkronIzin` — 7 tes (pitfall "izin katalog belum di DB" + sifat aditif).
 6. ✅ `ImporPotongan` — 10 tes (mode kering, transaksi per potongan).
 7. ✅ `hooks/useDaftarTabel.ts` — 14 tes. **3 bug ditemukan & diperbaiki** (B0-3).
-8. `NisKemenagService.generate` + `PenerimaanService.samakanNisSatu`.
-9. Exporter template — kontrak header kolom.
-10. `Console/Commands/SinkronAktifRiwayat` + `DokumenRapikanNama`.
-11. `PsbSummaryNotificationService` — kebocoran tenant.
+8. ✅ `NisKemenagService.generate` (13 tes) + `PenerimaanService` (15 tes) +
+   `KelasService::cariPegawai` (5 tes).
+9. ✅ Exporter template — kontrak header kolom (`TemplateHeaderKontrakTest`, 9 tes).
+10. ✅ `Console/Commands/SinkronAktifRiwayat` (7 tes); `DokumenRapikanNama` ✅ dihapus (kode mati, lihat tabel A)
+    kode mati (`path_file` sudah dicabut) — usul hapus, bukan dites.
+11. ✅ `PsbSummaryNotificationService` — **1 bug ditemukan & diperbaiki** + 5 tes.
+    (Bonus A7: `tenantScope` fail-closed — 12 tes.)
 12. Sisa `src/api/*` — kontrak respons, dilakukan bertahap per modul.
 
 ---

@@ -19,7 +19,6 @@ class PsbSummaryNotificationService
     public function refreshBiodata(User $admin): int
     {
         $count = DB::table('pengajuan_biodata_santri as p')
-            ->join('santri as s', 's.id', '=', 'p.santri_id')
             ->where('p.status', 'diajukan')
             ->where(function ($q) use ($admin) {
                 $this->scopeTenant($q, $admin);
@@ -56,9 +55,24 @@ class PsbSummaryNotificationService
         if ($admin->bolehPesantren()) {
             return;
         }
-        // Single-tenant: tenant = lembaga via pivot user_lembaga.
-        // Kolom jenjang hanya ada di tabel santri (s) pada join ini.
-        $q->whereIn('s.jenjang', $admin->lembagaIds() ?: [-1]);
+        /* Lembaga santri = sumber kebenaran, tersimpan di keanggotaan
+           (tabel lembaga_santri), BUKAN kolom santri.jenjang — kolom itu
+           tidak ada sehingga saringan lama meledak 'no such column:
+           s.jenjang'. Tanpa keanggotaan = arsip pusat/pra-penerimaan → ikut
+           terlihat admin scoped (sama seperti PengajuanBiodataController). */
+        $ids = $admin->lembagaIds();
+        $q->where(function ($sub) use ($ids) {
+            $sub->whereExists(function ($inner) use ($ids) {
+                $inner->select(DB::raw(1))
+                    ->from('lembaga_santri as ls')
+                    ->whereColumn('ls.santri_id', 'p.santri_id')
+                    ->whereIn('ls.jenjang', $ids);
+            })->orWhereNotExists(function ($inner) {
+                $inner->select(DB::raw(1))
+                    ->from('lembaga_santri as ls2')
+                    ->whereColumn('ls2.santri_id', 'p.santri_id');
+            });
+        });
     }
 
     // Alias scopeTenant untuk query PsbCalonSantri langsung (pola sama, nama beda agar jelas di refreshDaftarUlang).
