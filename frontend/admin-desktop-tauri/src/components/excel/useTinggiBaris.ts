@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { prefGet, prefSet } from '@/api/client';
+import { EVENT_TAMPILAN_PERANGKAT_BERUBAH } from '@/components/kelolaTabel/jenis';
 import { MAX_BARIS_H, MIN_BARIS_H } from './tinggiBaris';
 
 /** Pref tinggi baris manual per baris (JSON peta rowKey → px) per tabel. */
@@ -65,20 +66,32 @@ export function useTinggiBaris(tableKey: string) {
 
   useEffect(() => {
     let hidup = true;
-    prefGet(tinggiBarisKey(tableKey))
-      .then((v) => {
-        if (!hidup) return;
-        const peta = bacaPeta(v);
-        setManual(peta);
-        setSigManual(serialPeta(peta));
-      })
-      .catch(() => { /* tanpa tinggi manual bila pref gagal dibaca */ });
-    prefGet(autoBarisKey(tableKey))
-      // Bawaan MATI: hanya nilai eksplisit '1' yang menyalakan (pengguna yang
-      // pernah menyalakan tetap ON; yang belum pernah atur ikut bawaan baru).
-      .then((v) => { if (hidup) setAutoIkutState(v === '1'); })
-      .catch(() => { /* bawaan: tidak ikut isi */ });
-    return () => { hidup = false; };
+    const muat = () => {
+      prefGet(tinggiBarisKey(tableKey))
+        .then((v) => {
+          if (!hidup) return;
+          const peta = bacaPeta(v);
+          setManual(peta);
+          setSigManual(serialPeta(peta));
+        })
+        .catch(() => { /* tanpa tinggi manual bila pref gagal dibaca */ });
+      prefGet(autoBarisKey(tableKey))
+        // Bawaan MATI: hanya nilai eksplisit '1' yang menyalakan (pengguna yang
+        // pernah menyalakan tetap ON; yang belum pernah atur ikut bawaan baru).
+        .then((v) => { if (hidup) setAutoIkutState(v === '1'); })
+        .catch(() => { /* bawaan: tidak ikut isi */ });
+    };
+    muat();
+    // Tab Umum dialog Kelola Tabel mengubah pref yang sama dari luar grid
+    // (sakelar baris-ikut-isi, reset total) — baca ulang tanpa reload.
+    const segarkan = (e: Event) => {
+      if ((e as CustomEvent).detail?.tableKey === tableKey) muat();
+    };
+    window.addEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
+    return () => {
+      hidup = false;
+      window.removeEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
+    };
   }, [tableKey]);
 
   const simpanManual = useCallback((next: Record<string, number>) => {

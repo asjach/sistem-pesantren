@@ -22,18 +22,14 @@ import { kanonLabel } from '@/lib/labelKolom';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
 import TabKolom, { type TabKolomProps } from './TabKolom';
+import TabUmum from './TabUmum';
 import TabUrutan from './TabUrutan';
 import TabFilterToolbar from './TabFilterToolbar';
 import type { KunciFilterToolbar } from '@/components/excel/filterTabel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { EVENT_PRESET_BERUBAH } from './jenis';
+import { EVENT_PRESET_BERUBAH, kabariPreset } from './jenis';
 import type { KunciFilterGlobal } from '@/components/VisibilitasFilter';
 import type { ModeSemuaFilterGlobal, TampilFilterGlobal } from '@/lib/filterHalaman';
-
-/** Kabari grid tabel terkait agar memuat ulang preset/susunan kolomnya. */
-function kabariPreset(tableKey: string) {
-  window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey } }));
-}
 
 /** State bersama tab Kolom untuk satu tabel: preset kolom
  *  (cermin logika `PresetKolom`, tanpa dropdown pemilih) plus editor nama
@@ -220,7 +216,7 @@ function TabBagian({ id, label, kotor }: { id: string; label: string; kotor: boo
   );
 }
 
-/** Satu pintu pengaturan satu tabel: filter topBar + preset kolom + nama &
+/** Satu pintu pengaturan satu tabel: umum + preset kolom + nama &
  *  perataan + preset urutan + visibilitas toolbar. Dibuka dari tabel terkait
  *  (menu konteks header) atau dari topBar halaman yang hanya punya satu tabel. */
 export default function DialogKelolaTabel({
@@ -248,9 +244,10 @@ export default function DialogKelolaTabel({
 }) {
   /** Status kotor per bagian (dipakai badge di tab + penanda simpan). */
   const [kotorBagian, setKotorBagian] = useState<Record<string, boolean>>({});
-  /** Tab aktif. Cada bagian punya tab sendiri supaya tidak perlu scroll jauh
-   *  mencari bagian; isi tab tetap ter-mount semua (lihat catatan TabsContent). */
-  const [tab, setTab] = useState('kolom');
+  /** Tab aktif. Tab Umum paling depan dan jadi bawaan saat dialog dibuka.
+   *  Tiap bagian punya tab sendiri supaya tidak perlu scroll jauh mencari
+   *  bagian; isi tab tetap ter-mount semua (lihat catatan TabsContent). */
+  const [tab, setTab] = useState('umum');
   /** Fungsi simpan tiap bagian, dipakai tombol Simpan terpadu. */
   const simpanBagianRef = useRef<Record<string, () => HasilSimpan>>({});
   /** Aksi ikon tiap bagian (mis. kembalikan bawaan). */
@@ -352,13 +349,14 @@ export default function DialogKelolaTabel({
   }, [tableKey, muat]);
 
   // Tab Filter tidak ada untuk tabel tanpa filter — jangan sampai panelnya
-  // yang sedang aktif lenyap (dialog tampak kosong).
+  // yang sedang aktif lenyap (dialog tampak kosong). Jatuh ke Umum, bukan
+  // Kolom, karena Umum kini tab pertama.
   useEffect(() => {
-    if (tab === 'filter' && !adaTabFilter) setTab('kolom');
+    if (tab === 'filter' && !adaTabFilter) setTab('umum');
   }, [adaTabFilter, tab]);
   /** Jumlah bagian yang belum tersimpan — dipakai badge di tab + footer. */
   const jumlahKotor = useMemo(
-    () => ['kolom', 'urutan', 'filterToolbar'].filter((id) => kotorBagian[id]).length,
+    () => ['umum', 'kolom', 'urutan', 'filterToolbar'].filter((id) => kotorBagian[id]).length,
     [kotorBagian],
   );
 
@@ -386,13 +384,14 @@ export default function DialogKelolaTabel({
           <SheetHeader className="shrink-0 gap-1 border-b px-4 py-3">
             <SheetTitle>Kelola tabel: {judul}</SheetTitle>
             <SheetDescription className="text-xs text-muted-foreground">
-              Atur kolom, nama & perataan, urutan, dan filter tabel ini. Perubahan
+              Atur umum, kolom, urutan, dan filter tabel ini. Perubahan
               tersimpan sendiri saat diubah.
             </SheetDescription>
           </SheetHeader>
 
           <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
             <TabsList variant="line" className="h-auto w-full shrink-0 justify-start gap-1 border-b px-3 py-1.5">
+              <TabBagian id="umum" label="Umum" kotor={!!kotorBagian.umum} />
               <TabBagian id="kolom" label="Kolom" kotor={!!kotorBagian.kolom} />
               <TabBagian id="urutan" label="Urutan" kotor={!!kotorBagian.urutan} />
               {adaTabFilter && <TabBagian id="filter" label="Filter Tabel" kotor={!!kotorBagian.filterToolbar} />}
@@ -401,6 +400,12 @@ export default function DialogKelolaTabel({
             {/* Semua panel `forceMount`: pindah tab tidak boleh membuang state
                 lokal tiap bagian (centang, penanda kotor) — kalau ter-unmount,
                 bagian yang sudah dikotori diam-diam tak ikut tersimpan. */}
+            <TabsContent value="umum" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
+              <Bagian id="bagian_umum_tabel" judul="Umum" aksi={aksiBagian.umum}>
+                <TabUmum tableKey={tableKey} judul={judul} fields={fields} />
+              </Bagian>
+            </TabsContent>
+
             <TabsContent value="kolom" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
               <Bagian id="bagian_kolom_tabel" judul="Kolom" aksi={aksiBagian.kolom}>
                 {fields ? (

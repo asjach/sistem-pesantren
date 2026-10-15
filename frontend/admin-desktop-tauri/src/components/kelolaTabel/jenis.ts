@@ -37,6 +37,22 @@ export function kabariToolbar(tableKey: string) {
   window.dispatchEvent(new CustomEvent(EVENT_TOOLBAR_BERUBAH, { detail: { tableKey } }));
 }
 
+/** Event jendela setelah tampilan PERANGKAT sebuah tabel berubah (kolom beku,
+ *  baris-ikut-isi, lebar, tinggi manual): grid dengan tableKey sama membaca
+ *  ulang pref-nya tanpa reload. Terpisah dari `EVENT_TOOLBAR_BERUBAH` yang
+ *  khusus setelan server, supaya grid tak me-refetch DB sia-sia. */
+export const EVENT_TAMPILAN_PERANGKAT_BERUBAH = 'simpes:tampilan-perangkat-berubah';
+
+/** Sebarkan perubahan tampilan perangkat agar grid terkait membaca ulang pref. */
+export function kabariTampilanPerangkat(tableKey: string) {
+  window.dispatchEvent(new CustomEvent(EVENT_TAMPILAN_PERANGKAT_BERUBAH, { detail: { tableKey } }));
+}
+
 /** Event jendela setelah susunan kolom sebuah preset berubah (mis. dari seret
  *  kolom di grid): pemilih preset tabel terkait memuat ulang daftarnya. */
 export const EVENT_PRESET_BERUBAH = 'simpes:preset-berubah';
+
+/** Kabari grid tabel terkait agar memuat ulang preset/susunan kolomnya. */
+export function kabariPreset(tableKey: string) {
+  window.dispatchEvent(new CustomEvent(EVENT_PRESET_BERUBAH, { detail: { tableKey } }));
+}

@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 import { prefSet } from '@/api/client';
+import { EVENT_TAMPILAN_PERANGKAT_BERUBAH } from '@/components/kelolaTabel/jenis';
 import { DEFAULT_HEADER_H, MAX_HEADER_H } from '@/components/GridPrefs';
 import { toast } from 'sonner';
 
@@ -710,16 +711,26 @@ export function useLebarKolom<T extends { id: string | number }>({
     return stabil;
   }, [tableKey, rows, visibleFields, effectiveFont, fontStack, fontStackWeight, labelKolom, getValuesRef]);
 
-  /** Reset bagian lebar dari "kembalikan tampilan bawaan" (ribbon): buang
-   *  lebar simpanan, hitung ulang AutoFit penuh. Seleksi & toast tetap di
-   *  ExcelTable (onResetView). */
-  function resetLebar() {
+  const resetLebarInternal = useCallback(() => {
     setWidths({});
     prefSet(widthsKey(tableKey), '{}').catch(() => {});
     // Kembali ke bawaan = lebar menyesuaikan isi (dihitung ulang).
     fittedRef.current = null;
     setAutoWidths(computeAutoWidths(true));
-  }
+  }, [tableKey, computeAutoWidths]);
+
+  // Reset lebar dari tab Umum dialog Kelola Tabel (tombol "kembalikan
+  // bawaan" total): cache sesi ikut dibuang supaya grid langsung AutoFit
+  // ulang tanpa reload halaman.
+  useEffect(() => {
+    const segarkan = (e: Event) => {
+      if ((e as CustomEvent).detail?.tableKey !== tableKey) return;
+      writeWidthCache(tableKey, { widths: {}, autoWidths: {} });
+      resetLebarInternal();
+    };
+    window.addEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
+    return () => window.removeEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
+  }, [tableKey, resetLebarInternal]);
 
   return {
     widths,
@@ -734,6 +745,9 @@ export function useLebarKolom<T extends { id: string | number }>({
     onAutoFit,
     onAutoFitAll,
     fitActionsIfNeeded,
-    resetLebar,
+    /** Reset bagian lebar dari "kembalikan tampilan bawaan" (ribbon):
+     *  buang lebar simpanan, hitung ulang AutoFit penuh. Seleksi & toast
+     *  tetap di ExcelTable (onResetView). */
+    resetLebar: resetLebarInternal,
   };
 }

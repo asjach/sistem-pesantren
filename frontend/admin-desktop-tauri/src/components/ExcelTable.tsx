@@ -15,7 +15,7 @@ import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, u
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
-import type { AlignKolom } from '@/components/kelolaTabel/jenis';
+import { EVENT_TAMPILAN_PERANGKAT_BERUBAH, type AlignKolom } from '@/components/kelolaTabel/jenis';
 import FilterRail from '@/components/FilterRail';
 import TombolTinggiBaris from './excel/TombolTinggiBaris';
 import { bukaPengaturanTampilan } from './pengaturan/SheetPengaturanTampilan';
@@ -430,13 +430,24 @@ export default function ExcelTable<T extends { id: string | number }>({
   const gridRef = useRef<DataSheetGridRef>(null);
 
   // Muat jumlah kolom beku tabel ini; clamp bila preset menyembunyikan kolom.
+  // Dibaca ulang juga saat tab Umum dialog Kelola Tabel mengubah tampilan
+  // perangkat (freeze / baris-ikut-isi), supaya grid di belakang ikut berubah
+  // tanpa reload halaman.
   useEffect(() => {
     let batal = false;
-    loadFreeze(freezeKey(tableKey)).then((n) => {
-      if (!batal) setFreeze(n);
-    });
+    const muat = () => {
+      loadFreeze(freezeKey(tableKey)).then((n) => {
+        if (!batal) setFreeze(n);
+      });
+    };
+    muat();
+    const segarkan = (e: Event) => {
+      if ((e as CustomEvent).detail?.tableKey === tableKey) muat();
+    };
+    window.addEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
     return () => {
       batal = true;
+      window.removeEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
     };
   }, [tableKey]);
 

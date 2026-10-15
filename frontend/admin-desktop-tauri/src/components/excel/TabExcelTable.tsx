@@ -259,7 +259,7 @@ const PENGATURAN: BarisPengaturan[] = [
   {
     tempat: 'Klik kanan bilah judul → "Kelola Tabel"',
     sumber: 'kelolaTabel/DialogKelolaTabel.tsx',
-    isi: 'Panel samping non-modal — 3 tab: Kolom (termasuk nama & perataan) · Urutan · Filter. Tabel di belakang tetap terlihat & hidup; tiap bagian tersimpan sendiri.',
+    isi: 'Panel samping non-modal — 4 tab: Umum (info tabel, tampilan perangkat, kembalikan bawaan) · Kolom (termasuk nama & perataan) · Urutan · Filter. Tabel di belakang tetap terlihat & hidup; tiap bagian tersimpan sendiri.',
     akses: 'super_admin efektif + halaman mendaftarkan tabel',
   },
   {
@@ -270,10 +270,12 @@ const PENGATURAN: BarisPengaturan[] = [
   },
 ];
 
-/** Isi tab di dalam DialogKelolaTabel (satu dialog, tiga bagian).
- *  Dulu empat: tab "Nama & Perataan" dilebur ke "Kolom" karena keduanya
- *  mengatur setelan per TABEL (bukan per preset), jadi satu penanda saja. */
+/** Isi tab di dalam DialogKelolaTabel (satu dialog, empat bagian).
+ *  Tab "Umum" paling depan: info tabel + tampilan perangkat + kembalikan
+ *  bawaan total. Dulu tiga: tab "Nama & Perataan" dilebur ke "Kolom" karena
+ *  keduanya mengatur setelan per TABEL (bukan per preset), jadi satu penanda saja. */
 const TAB_KELOLA: BarisPengaturan[] = [
+  { tempat: 'Tab "Umum"', sumber: 'TabUmum.tsx', isi: 'Identitas tabel (kunci, preset aktif/bawaan); kolom beku + baris-ikut-isi per perangkat; kembalikan bawaan total (server + perangkat).', akses: 'info & perangkat: semua pengguna; reset server: super_admin efektif' },
   { tempat: 'Tab "Kolom"', sumber: 'TabKolom.tsx', isi: 'Simpan preset kolom (baru/duplikat/hapus), pilih kolom mana yang tampil, jadikan preset bawaan. Nama header & perataan (kiri/tengah/kanan) diatur per kolom di barisnya - keduanya setelan PER TABEL, jadi tetap walau preset berganti, dan tersedia juga untuk kolom TERSEMBUNYI (grupnya bisa dilipat, bawaan TERTUTUP, pilihan diingat per perangkat). Barisnya sendiri bisa diseret untuk menggeser urutan.', akses: 'super_admin efektif' },
   { tempat: 'Tab "Urutan"', sumber: 'TabUrutan.tsx', isi: 'Preset urutan: kolom yang bisa diurutkan, urutan berlapis (maks 3), dan arah naik/turun.', akses: 'super_admin efektif' },
   { tempat: 'Tab "Filter Tabel"', sumber: 'TabFilterToolbar.tsx', isi: 'Sakelar filter toolbar TABEL INI (Urutkan/Kolom/Filter). Filter topBar sudah dihapus dari sini.', akses: 'super_admin efektif' },

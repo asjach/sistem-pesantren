@@ -58,6 +58,13 @@ const serverToolbar = vi.hoisted(() => {
 vi.mock('@/api/toolbarPreset', () => ({
   muatToolbarPreset: serverToolbar.muat,
   simpanToolbarPreset: serverToolbar.simpan,
+  hapusToolbarPreset: vi.fn(async () => ({ pesan: 'ok', data: null })),
+}));
+
+vi.mock('@/api/client', async (asli) => ({
+  ...(await asli()),
+  prefGet: vi.fn(async () => null),
+  prefSet: vi.fn(async () => {}),
 }));
 
 vi.mock('@/lembagaAktif', async (asli) => ({
@@ -112,39 +119,79 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe('DialogKelolaTabel — tab Umum', () => {
+  it('menampilkan identitas tabel: kunci, jumlah kolom, preset aktif & bawaan', async () => {
+    renderDialog();
+    await waitFor(() => expect(document.getElementById('nilai_umum_kunci_uji')).toBeInTheDocument());
+    expect(document.getElementById('nilai_umum_kunci_uji')).toHaveTextContent('uji');
+    expect(document.getElementById('nilai_umum_jumlah_kolom_uji')).toHaveTextContent('2');
+    // Preset aktif = id 7 "Preset Uji"; bawaan = null → '—'.
+    await waitFor(() => expect(document.getElementById('nilai_umum_preset_aktif_uji')).toHaveTextContent('Preset Uji'));
+    expect(document.getElementById('nilai_umum_preset_bawaan_uji')).toHaveTextContent('—');
+  });
+
+  it('menampilkan kontrol tampilan perangkat: kolom beku + baris ikut isi', async () => {
+    renderDialog();
+    await waitFor(() => expect(screen.getByLabelText('Kolom beku dari kiri')).toBeInTheDocument());
+    expect(screen.getByLabelText('Kolom beku dari kiri')).toHaveValue(0);
+    expect(screen.getByRole('switch', { name: /Baris ikut isi/ })).not.toBeChecked();
+    expect(screen.getByText('Hanya di perangkat ini — pengguna lain tidak ikut berubah.')).toBeInTheDocument();
+  });
+
+  it('menampilkan tombol kembalikan bawaan dengan konfirmasi', async () => {
+    renderDialog();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Kembalikan tabel ini' })).toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Kembalikan tabel ini' }));
+    // ConfirmDelete membuka alertdialog berisi deskripsi + tombol Kembalikan.
+    await waitFor(() => expect(screen.getByRole('alertdialog')).toBeInTheDocument());
+    expect(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Kembalikan' })).toBeInTheDocument();
+  });
+});
+
 describe('DialogKelolaTabel — sinkronisasi preset dari luar', () => {
   it('memuat ulang daftar preset saat menerima EVENT_PRESET_BERUBAH tabel ini', async () => {
     const muat = vi.mocked(listPresetTabel);
     renderDialog();
-    await waitFor(() => expect(muat).toHaveBeenCalledTimes(1));
+    // Dialog (useKelolaKolom) + tab Umum masing-masing memuat sekali.
+    await waitFor(() => expect(muat).toHaveBeenCalledTimes(2));
 
     await act(async () => {
       window.dispatchEvent(new CustomEvent('simpes:preset-berubah', { detail: { tableKey: 'uji' } }));
     });
 
-    await waitFor(() => expect(muat).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(muat).toHaveBeenCalledTimes(4));
   });
 
   it('mengabaikan event dari tabel lain', async () => {
     const muat = vi.mocked(listPresetTabel);
     renderDialog();
-    await waitFor(() => expect(muat).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(muat).toHaveBeenCalledTimes(2));
 
     await act(async () => {
       window.dispatchEvent(new CustomEvent('simpes:preset-berubah', { detail: { tableKey: 'tabel_lain' } }));
     });
 
-    expect(muat).toHaveBeenCalledTimes(1);
+    expect(muat).toHaveBeenCalledTimes(2);
   });
 });
 
 describe('DialogKelolaTabel — navigasi tab', () => {
-  it('menampilkan tab untuk tiap bagian, dan tab Filter hanya bila ada filter', async () => {
+  it('menampilkan tab Umum paling depan, lalu tiap bagian — dan tab Filter hanya bila ada filter', async () => {
     renderDialog();
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent?.replace(/\s+/g, ' ').trim());
-    expect(tabs).toEqual(['Kolom', 'Urutan']);
+    expect(tabs).toEqual(['Umum', 'Kolom', 'Urutan']);
 
-    await waitFor(() => expect(screen.getByLabelText('Kolom')).toBeInTheDocument());
+    // Tab Umum aktif bawaan dan menampilkan identitas tabelnya.
+    await waitFor(() => expect(screen.getByLabelText('Umum')).toBeInTheDocument());
+    expect(document.getElementById('nilai_umum_kunci_uji')).toBeInTheDocument();
+    expect(screen.getByLabelText('Umum').closest('[data-slot="tabs-content"]'))
+      .toHaveAttribute('data-state', 'active');
+  });
+
+  it('menampilkan tab Filter di belakang bila tabel punya filter toolbar', async () => {
+    renderDialog([], { filterTersedia: ['urutan', 'kolom'] });
+    const tabs = screen.getAllByRole('tab').map((t) => t.textContent?.replace(/\s+/g, ' ').trim());
+    expect(tabs).toEqual(['Umum', 'Kolom', 'Urutan', 'Filter Tabel']);
   });
 
   it('TIDAK menampilkan tab Filter karena filter topBar kini milik Kelola Halaman', async () => {
@@ -152,12 +199,13 @@ describe('DialogKelolaTabel — navigasi tab', () => {
     // halaman, jadi rumahnya dialog Kelola Halaman — bukan dialog tabel.
     renderDialog(['lembaga']);
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent?.trim());
-    expect(tabs).toEqual(['Kolom', 'Urutan']);
+    expect(tabs).toEqual(['Umum', 'Kolom', 'Urutan']);
   });
 
   it('hanya menampilkan isi tab yang aktif', async () => {
     renderDialog();
-    await waitFor(() => expect(screen.getByLabelText('Kolom')).toBeInTheDocument());
+    // Tab Umum aktif bawaan; panel Kolom ikut ter-mount tapi tidak aktif.
+    await waitFor(() => expect(screen.getByLabelText('Umum')).toBeInTheDocument());
     const kolom = screen.getByLabelText('Kolom');
     expect(within(kolom).getByText(/Nama Lengkap/)).toBeInTheDocument();
     // Panel tab lain tetap ter-render (forceMount, supaya state tidak hilang)
@@ -165,17 +213,20 @@ describe('DialogKelolaTabel — navigasi tab', () => {
     const panel = screen.getByLabelText('Urutan').closest('[data-slot="tabs-content"]');
     expect(panel).toHaveAttribute('data-state', 'inactive');
     expect(panel?.className).toContain('data-[state=inactive]:hidden');
-    expect(screen.getByLabelText('Kolom').closest('[data-slot="tabs-content"]'))
+    // Tab aktif bawaan kini Umum, bukan Kolom.
+    expect(screen.getByLabelText('Umum').closest('[data-slot="tabs-content"]'))
       .toHaveAttribute('data-state', 'active');
+    expect(screen.getByLabelText('Kolom').closest('[data-slot="tabs-content"]'))
+      .toHaveAttribute('data-state', 'inactive');
   });
 
   it('berpindah tab saat tab lain diklik', async () => {
     renderDialog();
-    await waitFor(() => expect(screen.getByLabelText('Kolom')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText('Umum')).toBeInTheDocument());
     // Radix TabsTrigger aktif pada mousedown, bukan click — pakai userEvent.
-    await userEvent.click(screen.getByRole('tab', { name: /Urutan/ }));
-    await waitFor(() => expect(screen.getByLabelText('Urutan')).toBeVisible());
-    expect(screen.getByLabelText('Kolom').closest('[data-slot="tabs-content"]'))
+    await userEvent.click(screen.getByRole('tab', { name: /^Kolom/ }));
+    await waitFor(() => expect(screen.getByLabelText('Kolom')).toBeVisible());
+    expect(screen.getByLabelText('Umum').closest('[data-slot="tabs-content"]'))
       .toHaveAttribute('data-state', 'inactive');
   });
 
