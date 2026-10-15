@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Api\Admin\ToolbarPresetController;
 use App\Models\Lembaga;
 use App\Models\ToolbarPreset;
 use App\Models\User;
@@ -176,47 +177,50 @@ class ToolbarPresetTest extends TestCase
     }
 
     /**
-     * Peta `visibilitas` dipakai DUA fitur yang berbagi satu kolom JSON:
-     * filter toolbar (`cari`/`urutan`/`kolom`/`keaktifan`) dan visibilitas
-     * bagian tabel (`bilah_judul`/`info_tengah`/`header_kolom`/`rel_filter`/
-     * `kaki_tabel`). Keduanya harus bisa ditulis, bersama-samapun.
+     * Sakelar "Visibilitas komponen tabel" (tab Umum Kelola Tabel) menyimpan
+     * SEMUA komponen tabel per group di satu peta JSON yang sama dengan filter
+     * toolbar. Semua kunci grup itu harus bisa ditulis dalam satu permintaan.
      */
-    public function test_visibilitas_mencakup_filter_toolbar_dan_bagian_tabel(): void
+    public function test_visibilitas_mencakup_semua_komponen_tabel(): void
     {
         $pusat = $this->makeUser('super_admin');
 
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'visibilitas' => [
-                // Filter toolbar.
-                'cari' => false, 'urutan' => false, 'kolom' => false, 'keaktifan' => false,
-                // Visibilitas bagian tabel.
-                'bilah_judul' => false, 'info_tengah' => false,
-                'header_kolom' => false, 'rel_filter' => false, 'kaki_tabel' => false,
+                // Bilah judul.
+                'judul_tabel' => false, 'info_tengah' => false, 'filter' => false,
+                'cari' => false, 'keaktifan' => false, 'urutan' => false,
+                'kolom' => false, 'tombol_aksi' => false,
+                // Kepala tabel.
+                'header_kolom' => false, 'rel_filter' => false,
+                // Kaki tabel.
+                'pager' => false, 'tombol_pengaturan' => false,
+                'tombol_tinggi_baris' => false, 'tombol_tambah' => false,
+                'tombol_edit' => false,
             ],
         ])->assertStatus(200);
 
-        $this->actingAs($pusat, 'sanctum')
+        $res = $this->actingAs($pusat, 'sanctum')
             ->getJson('/api/admin/toolbar-preset?table_key=santri')
-            ->assertStatus(200)
-            ->assertJsonPath('data.visibilitas.cari', false)
-            ->assertJsonPath('data.visibilitas.urutan', false)
-            ->assertJsonPath('data.visibilitas.keaktifan', false)
-            ->assertJsonPath('data.visibilitas.bilah_judul', false)
-            ->assertJsonPath('data.visibilitas.info_tengah', false)
-            ->assertJsonPath('data.visibilitas.header_kolom', false)
-            ->assertJsonPath('data.visibilitas.rel_filter', false)
-            ->assertJsonPath('data.visibilitas.kaki_tabel', false);
+            ->assertStatus(200);
+        foreach (ToolbarPresetController::KUNCI as $kunci) {
+            if ($kunci === 'info' || $kunci === 'urut' || $kunci === 'bilah_judul' || $kunci === 'kaki_tabel') {
+                continue;
+            }
+            $this->assertFalse($res->json("data.visibilitas.{$kunci}"), "Kunci {$kunci} tak tersimpan.");
+        }
     }
 
     /**
-     * Kunci versi lama (`info`/`urut`/`filter`) WAJIB tetap diterima.
+     * Kunci versi lama (`info`/`urut`/`bilah_judul`/`kaki_tabel`) WAJIB tetap
+     * diterima.
      *
      * Frontend menulis dengan MERGE di atas peta yang dibaca dari server, jadi
      * begitu satu penanda lama masih tersimpan di baris tabel itu, setiap
      * penyimpanan berikutnya ikut mengirimkannya. Kalau daftar kunci menutup
-     * `info`/`urut`/`filter`, tabel yang sudah punya penanda lama ditolak 422
-     * selamanya — tak bisa disetel lagi sama sekali.
+     * kunci lama, tabel yang sudah punya penanda lama ditolak 422 selamanya —
+     * tak bisa disetel lagi sama sekali.
      */
     public function test_penanda_visibilitas_lama_tetap_boleh_ditulis(): void
     {

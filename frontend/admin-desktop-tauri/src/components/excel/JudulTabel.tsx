@@ -11,6 +11,9 @@ interface Props {
   tableKey: string;
   /** Judul tabel (teks header bawaan atau milik halaman). */
   judul: ReactNode;
+  /** Tampilkan teks judul (sakelar "Judul tabel"). Div kosongnya tetap dirender
+   *  supaya pil info tengah & kontrol tak lompat ke tepi saat judul dimatikan. */
+  judulTampil: boolean;
   /** Tampilkan info tengah (dari visibilitas toolbar). */
   infoTampil: boolean;
   info: ReactNode;
@@ -30,6 +33,8 @@ interface Props {
   presetApiRef: MutableRefObject<PresetKolomApi | null>;
   presetKolomClassName?: string;
   addButton?: ReactNode;
+  /** Tampilkan blok tombol aksi utama (sakelar "Tombol aksi utama"). */
+  tombolAksiTampil: boolean;
   addButtonLangsung: boolean;
   /** Boleh membuka dialog Kelola Tabel (super_admin efektif). */
   bolehKelola: boolean;
@@ -50,6 +55,7 @@ interface Props {
 export default function JudulTabel({
   tableKey,
   judul,
+  judulTampil,
   infoTampil,
   info,
   filterTampil,
@@ -67,6 +73,7 @@ export default function JudulTabel({
   presetApiRef,
   presetKolomClassName,
   addButton,
+  tombolAksiTampil,
   addButtonLangsung,
   bolehKelola,
   onKelolaTabel,
@@ -76,7 +83,10 @@ export default function JudulTabel({
       <ContextMenuTrigger asChild disabled={!bolehKelola}>
         <div data-part="header_tabel" className="flex min-h-8 shrink-0 items-center justify-between gap-2 border-b border-border px-3 text-xs font-medium">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <div className="min-w-0 flex-1 truncate">{judul}</div>
+            {/* Div tetap ada walau teksnya dimatikan (sakelar "Judul tabel"):
+                ia yang memberi ruang `flex-1`, jadi pil info & kontrol tak
+                lompat ke tepi kiri. */}
+            <div className="min-w-0 flex-1 truncate">{judulTampil ? judul : null}</div>
             {infoTampil ? (
               <div className="flex max-w-full shrink-0 self-center flex-col items-center gap-0.5 rounded-pil border bg-muted/60 px-4 py-1 text-center">
                 <span className="max-w-[32rem] truncate text-[11px] text-muted-foreground">{info}</span>
@@ -109,7 +119,7 @@ export default function JudulTabel({
                 />
               ) : null}
             </div>
-            {addButton ? (
+            {tombolAksiTampil && addButton ? (
               addButtonLangsung
                 ? <div className="shrink-0">{addButton}</div>
                 : <div className="shrink-0"><MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar></div>

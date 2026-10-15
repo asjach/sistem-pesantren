@@ -27,34 +27,45 @@ class ToolbarPresetController extends Controller
 {
     /** Kunci visibilitas yang dikenal frontend (di luar ini ditolak).
      *
-     *  Peta ini dipakai DUA fitur di sisi FE yang berbagi satu kolom JSON:
-     *  - Filter toolbar → `filterTabel.ts` (`KunciFilterToolbar`):
-     *    `cari`, `urutan`, `kolom`, `keaktifan`.
-     *  - Visibilitas bagian tabel → `bagianTabel.ts` (`KunciBagianTabel`):
-     *    `bilah_judul`, `info_tengah`, `header_kolom`, `rel_filter`, `kaki_tabel`.
+     *  Satu peta JSON dipakai FE untuk sakelar VISIBILITAS KOMPONEN TABEL
+     *  (registri `components/excel/komponenTabel.ts`, section "Visibilitas
+     *  komponen tabel" di tab Umum Kelola Tabel):
+     *  - Bilah judul: judul_tabel, info_tengah, filter, cari, keaktifan,
+     *    urut, kolom, tombol_aksi.
+     *  - Kepala tabel: header_kolom, rel_filter.
+     *  - Kaki tabel: pager, tombol_pengaturan, tombol_tinggi_baris,
+     *    tombol_tambah, tombol_edit.
      *
-     *  Kunci versi lama (`info`, `urut`, `filter`) sengaja DIJAGA: pembacaan
-     *  memetakan utuh isi kolom ke FE, dan saat menulis FE melakukan MERGE di
-     *  atas peta server — jadi kunci lama yang masih tersimpan ikut terkirim.
-     *  Kalau tidak ada di daftar ini, satu penanda lama membuat setiap
-     *  penyimpanan tabel tersebut ditolak 422 selamanya.
+     *  Kunci lama (`info`, `urut`, `bilah_judul`, `kaki_tabel`) SENGAJA
+     *  DIJAGA meski tak lagi dihasilkan FE: pembacaan memetakan utuh isi kolom
+     *  ke FE, dan saat menulis FE melakukan MERGE di atas peta server — kunci lama
+     *  yang masih tersimpan ikut terkirim. Kalau ditutup, satu penanda lama
+     *  membuat setiap penyimpanan tabel tersebut ditolak 422 selamanya.
      */
     public const KUNCI = [
-        // Versi lama (tetap dibaca & ditulis, tapi tak lagi dihasilkan FE).
+        // Versi lama — tak lagi dihasilkan FE, tapi tetap ditulis balik.
         'info',
         'urut',
+        'bilah_judul',
+        'kaki_tabel',
+        // Bilah judul.
+        'judul_tabel',
+        'info_tengah',
         'filter',
-        // Filter toolbar tabel.
         'cari',
+        'keaktifan',
         'urutan',
         'kolom',
-        'keaktifan',
-        // Visibilitas bagian tabel (tab Umum Kelola Tabel).
-        'bilah_judul',
-        'info_tengah',
+        'tombol_aksi',
+        // Kepala tabel.
         'header_kolom',
         'rel_filter',
-        'kaki_tabel',
+        // Kaki tabel.
+        'pager',
+        'tombol_pengaturan',
+        'tombol_tinggi_baris',
+        'tombol_tambah',
+        'tombol_edit',
     ];
 
     /** Setelan yang dulu diterima endpoint ini; kini milik komponen

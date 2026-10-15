@@ -270,16 +270,17 @@ const PENGATURAN: BarisPengaturan[] = [
   },
 ];
 
-/** Isi tab di dalam DialogKelolaTabel (satu dialog, empat bagian).
- *  Tab "Umum" paling depan: info tabel + tampilan perangkat + kembalikan
- *  bawaan total. Dulu tiga: tab "Nama & Perataan" dilebur ke "Kolom" karena
- *  keduanya mengatur setelan per TABEL (bukan per preset), jadi satu penanda saja. */
+/** Isi tab di dalam DialogKelolaTabel (satu dialog, tiga tab).
+ *  Tab "Umum" paling depan: visibilitas komponen + info tabel + tampilan
+ *  perangkat + kembalikan bawaan total. Dulu empat: tab "Filter Tabel" dilebur
+ *  ke Umum karena sakelar filter toolbar itu sebenarnya sakelar komponen
+ *  tabel, dan tab "Nama & Perataan" dilebur ke "Kolom" karena keduanya mengatur
+ *  setelan per TABEL (bukan per preset), jadi satu penanda saja. */
 const TAB_KELOLA: BarisPengaturan[] = [
-  { tempat: 'Tab "Umum" → Visibilitas bagian tabel', sumber: 'TabBagianTabel.tsx', isi: 'Sakelar tampil/sembunyi POTONGAN tabel ini: bilah judul, info tengah, header kolom, rel filter, kaki tabel. Beda dari tab Filter Tabel (menyembunyikan kontrol toolbar, bukan tabelnya). Sakelar untuk bagian yang tak ada di halaman ini tak ditampilkan.', akses: 'super_admin efektif' },
+  { tempat: 'Tab "Umum" → Visibilitas komponen tabel', sumber: 'TabVisibilitasKomponen.tsx', isi: 'Sakelar tampil/sembunyi per komponen tabel, dikelompokkan: Bilah judul (judul tabel, info tengah, filter, pencarian, keaktifan, urut, kolom, tombol aksi utama) · Kepala tabel (header kolom, rel filter) · Kaki tabel (pager, pengaturan tabel, tinggi baris, tambah, edit). Sakelar komponen yang tak ada di halaman ini tak ditampilkan. Kontrol milik halaman (awalan/akhir toolbar, aksi massal) tak punya sakelar.', akses: 'super_admin efektif' },
   { tempat: 'Tab "Umum"', sumber: 'TabUmum.tsx', isi: 'Identitas tabel (kunci, preset aktif/bawaan); kolom beku + baris-ikut-isi per perangkat; kembalikan bawaan total (server + perangkat).', akses: 'info & perangkat: semua pengguna; reset server: super_admin efektif' },
   { tempat: 'Tab "Kolom"', sumber: 'TabKolom.tsx', isi: 'Simpan preset kolom (baru/duplikat/hapus), pilih kolom mana yang tampil, jadikan preset bawaan. Nama header & perataan (kiri/tengah/kanan) diatur per kolom di barisnya - keduanya setelan PER TABEL, jadi tetap walau preset berganti, dan tersedia juga untuk kolom TERSEMBUNYI (grupnya bisa dilipat, bawaan TERTUTUP, pilihan diingat per perangkat). Barisnya sendiri bisa diseret untuk menggeser urutan.', akses: 'super_admin efektif' },
   { tempat: 'Tab "Urutan"', sumber: 'TabUrutan.tsx', isi: 'Preset urutan: kolom yang bisa diurutkan, urutan berlapis (maks 3), dan arah naik/turun.', akses: 'super_admin efektif' },
-  { tempat: 'Tab "Filter Tabel"', sumber: 'TabFilterToolbar.tsx', isi: 'Sakelar filter toolbar TABEL INI (Urutkan/Kolom/Filter). Filter topBar sudah dihapus dari sini.', akses: 'super_admin efektif' },
 ];
 
 function TabelPengaturan({ baris, kolomTempat }: { baris: BarisPengaturan[]; kolomTempat: string }) {
@@ -361,9 +362,8 @@ const CAKUPAN: Record<Cakupan, BarisCakupan[]> = {
   ],
   halaman: [
     { apa: 'Filter mana yang tampil (topBar)', kontrol: 'TopBar → Kelola Halaman (semua halaman)', simpan: 'SERVER — pengaturan_tabel per page_key', catatan: 'Sudah SATU pintu: filter topBar dikeluarkan dari dialog Kelola Tabel.' },
-    { apa: 'Mode filter (tunggal/jamak)', kontrol: 'Dialog Kelola Tabel → tab Filter', simpan: 'SERVER — pengaturan_tabel.filter_mode', catatan: 'Untuk filter berjenjang (tingkat/kelas).' },
-    { apa: 'Sakelar filter toolbar tabel', kontrol: 'Dialog Kelola Tabel → tab Filter → "Filter Tabel"', simpan: 'SERVER — toolbar_preset.visibilitas per tabel', catatan: 'Menyembunyikan dropdown Urutkan/Kolom di bilah judul.' },
-    { apa: 'Sakelar bagian tabel (bilah judul, info tengah, header kolom, rel filter, kaki tabel)', kontrol: 'Dialog Kelola Tabel → tab Umum → "Visibilitas bagian tabel"', simpan: 'SERVER — toolbar_preset.visibilitas per tabel (peta yang SAMA dengan filter toolbar)', catatan: 'Menyembunyikan POTONGAN tabel, bukan kontrolnya. Bilah judul + kaki tabel dimatikan dua-duanya = tabel kehilangan gerigi "Pengaturan tabel".' },
+    { apa: 'Mode filter (tunggal/jamak)', kontrol: 'TopBar → Kelola Halaman', simpan: 'SERVER — pengaturan_tabel.filter_mode', catatan: 'Untuk filter berjenjang (tingkat/kelas); tak lagi ditulis FE.' },
+    { apa: 'Visibilitas komponen tabel (sakelar per komponen)', kontrol: 'Dialog Kelola Tabel → tab Umum → "Visibilitas komponen tabel"', simpan: 'SERVER — toolbar_preset.visibilitas per tabel', catatan: 'Menyembunyikan komponen tabel tertentu (judul tabel, filter, Urutan, Kolom, tombol aksi, header kolom, rel filter, pager, tombol kaki). Kontrol milik halaman tak punya sakelar. Mematikan "Tombol Pengaturan tabel" = tabel kehilangan pintu Kelola Tabel dari dirinya sendiri.' },
     { apa: 'Tab terakhir yang dibuka', kontrol: '(otomatis, tanpa kontrol)', simpan: 'pref perangkat — simpes_<rute>_tab', catatan: 'Halaman gabungan mengingat tab terakhir.' },
     { apa: 'Halaman aktif (Pager)', kontrol: 'Footer — tombol ‹ ›', simpan: 'pref perangkat — simpes_page_<tableKey>', catatan: 'Per tabel, tapi ikut konteks halaman saat filter berubah.' },
   ],
@@ -781,7 +781,7 @@ const RUMAH: Rumah[] = [
       'Nama header kustom per kolom',
       'Perataan kolom',
       'Urutan kolom & preset urutan',
-      'Sakelar filter toolbar tabel ini (Urutkan/Kolom)',
+      'Sakelar visibilitas komponen tabel (judul, filter, Urutan, Kolom, tombol)',
       'Bawaan preset kolom halaman',
     ],
     bukan:
@@ -950,8 +950,8 @@ const KLASIFIKASI: BarisKlasifikasi[] = [
   { apa: 'Urutan kolom', nilai: 'daftar key kolom', kunci: 'SERVER — toolbar_preset.urutan per table_key', rumah: 'tabel', status: 'benar' },
   { apa: 'Preset urutan (opsi & arah)', nilai: 'maks 3 kolom berlapis + arah', kunci: 'SERVER — urut_preset per table_key', rumah: 'tabel', status: 'benar' },
   { apa: 'Preset urutan aktif', nilai: 'satu pilihan', kunci: 'state halaman (bukan persist tabel)', rumah: 'tabel', status: 'benar', catatan: 'Dikelola halaman lewat onUrut; tidak tersimpan antar kunjungan.' },
-  { apa: 'Sakelar filter toolbar (Urutkan/Kolom)', nilai: 'tampil/sembunyi per kontrol', kunci: 'SERVER — toolbar_preset.visibilitas per table_key', rumah: 'tabel', status: 'benar' },
-  { apa: 'Sakelar bagian tabel', nilai: 'tampil/sembunyi per potongan tabel (bilah judul, info tengah, header kolom, rel filter, kaki tabel)', kunci: 'SERVER — toolbar_preset.visibilitas per table_key', rumah: 'tabel', status: 'benar', catatan: 'Berbagi peta dengan sakelar filter toolbar, jadi keduanya wajib merge saat menulis.' },
+  { apa: 'Sakelar filter toolbar (Urutkan/Kolom)', nilai: 'tampil/sembunyi per kontrol', kunci: 'SERVER — toolbar_preset.visibilitas per table_key', rumah: 'tabel', status: 'pindah', catatan: 'Dilebur ke "Sakelar visibilitas komponen tabel" di tab Umum; filter toolbar memang komponen tabel.' },
+  { apa: 'Sakelar visibilitas komponen tabel', nilai: 'tampil/sembunyi per komponen (judul tabel, info tengah, filter, pencarian, keaktifan, urut, kolom, tombol aksi, header kolom, rel filter, pager, tombol kaki)', kunci: 'SERVER — toolbar_preset.visibilitas per table_key', rumah: 'tabel', status: 'benar', catatan: 'Berbagi peta dengan penanda versi lama, jadi WAJIB merge saat menulis.' },
   { apa: 'Bawaan preset kolom tabel', nilai: 'satu preset ditandai bawaan', kunci: 'SERVER — preset default per table_key', rumah: 'tabel', status: 'benar' },
   { apa: 'Kolom beku (freeze pane)', nilai: 'jumlah kolom dari kiri', kunci: 'pref perangkat — freezeKey(tableKey)', rumah: 'tabel', status: 'benar', catatan: 'Per perangkat, bukan server.' },
   { apa: 'Lebar kolom', nilai: 'px per kolom + hasil AutoFit', kunci: 'pref perangkat — widthsKey(tableKey)', rumah: 'tabel', status: 'benar' },

@@ -12,55 +12,52 @@ import {
   gabungVisibilitas,
 } from '@/components/excel/filterTabel';
 import {
-  bagianTersedia,
-  type InfoBagianTabel,
-} from '@/components/excel/bagianTabel';
+  grupTersedia,
+  kunciTersedia,
+  type InfoKomponenTabel,
+} from '@/components/excel/komponenTabel';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 
-/** Section "Visibilitas bagian tabel" di tab Umum dialog Kelola Tabel:
- *  nyala/mati potongan tabel ini saja (bilah judul, info tengah, header kolom,
- *  rel filter, kaki tabel).
+/** Section "Visibilitas komponen tabel" di tab Umum dialog Kelola Tabel:
+ *  sakelar tampil/sembunyi per komponen tabel, dikelompokkan (Bilah judul ·
+ *  Kepala tabel · Kaki tabel).
  *
- *  Disimpan di `toolbar_preset.visibilitas` — peta yang SAMA dipakai filter
- *  toolbar, jadi tanpa migrasi dan grid membaca ulang lewat
+ *  Disimpan di `toolbar_preset.visibilitas` — peta yang sama dipakai fitur
+ *  visibilitas lain, jadi tanpa migrasi dan grid membaca ulang lewat
  *  `EVENT_TOOLBAR_BERUBAH`.
  *
  *  WAJIB merge: `simpanToolbarPreset` menimpa SATU PETA utuh, jadi kunci milik
- *  filter toolbar (atau fitur lain) harus dibaca ulang lalu digabung —
- *  menulis sebagian tanpa merge akan MENGHAPUS yang tidak ikut ditulis.
+ *  komponen yang tak tersentuh (dan penanda versi lama) harus dibaca ulang lalu
+ *  digabung — menulis sebagian tanpa merge akan MENGHAPUS yang tak ikut ditulis.
  *
- *  Id bagian di registri `kotor` bernama `visibilitasBagian`, bukan `umum`:
- *  satu id hanya bisa didaftarkan satu kali, dan tab Umum punya bagian lain
- *  (tampilan perangkat) yang juga terdaftar. Cangkang menampilkan titiknya
- *  pada tab "Umum".
+ *  Id bagian di registri `kotor` bernama `visibilitas`, satu-satunya di tab
+ *  Umum selain bagian "Umum" itu sendiri; cangkang menampilkan titiknya pada
+ *  tab "Umum".
  *
- *  Tanpa teks penjelasan di bawah daftar sakelar: aturan proyek
- *  `.ai/rules/src.md` melarang menambah keterangan/deskripsi UI atas inisiatif
- *  sendiri. Konsekuensinya, mematikan "Bilah judul" + "Kaki tabel" berdua
- *  menghapus pintu "Kelola Tabel" milik tabel itu tanpa peringatan — kalau
- *  peringatan dibutuhkan, itu permintaan eksplisit pengguna. */
-export default function TabBagianTabel({
+ *  Tanpa teks penjelasan di bawah daftar: aturan proyek `.ai/rules/src.md`
+ *  melarang menambah keterangan/deskripsi UI atas inisiatif sendiri. */
+export default function TabVisibilitasKomponen({
   tableKey,
   info,
 }: {
   tableKey: string;
-  /** Bagian mana yang benar-benar ada di tabel ini. */
-  info: InfoBagianTabel;
+  /** Komponen mana yang benar-benar ada di tabel ini. */
+  info: InfoKomponenTabel;
 }) {
-  /** Sakelar per bagian: `true` = tampil (bawaan), `false` = disembunyikan. */
+  /** Sakelar per komponen: `true` = tampil (bawaan), `false` = disembunyikan. */
   const [nilai, setNilai] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
-  /** Ada penanda "sembunyi" milik bagian tabel di DB (acuan tombol Kembalikan). */
+  /** Ada penanda "sembunyi" milik komponen tabel di DB (acuan tombol Kembalikan). */
   const [adaSimpanan, setAdaSimpanan] = useState(false);
 
-  /** Bagian yang bisa dimatikan pada tabel ini — yang tak ada disembunyikan
+  /** Grup + komponen yang tersedia di tabel ini — yang tak ada disembunyikan
    *  dari dialog supaya tak ada sakelar mati. */
-  const tampil = useMemo(() => bagianTersedia(info), [info]);
+  const grup = useMemo(() => grupTersedia(info), [info]);
   /** Kunci yang boleh ditulis/dibuang section ini — bukan semua kunci server,
-   *  karena `visibilitas` juga menyimpan filter toolbar. */
-  const kunciMilik = useMemo(() => tampil.map((b) => b.kunci), [tampil]);
+   *  karena `visibilitas` juga menyimpan penanda versi lama. */
+  const kunciMilik = useMemo(() => kunciTersedia(info), [info]);
 
   /** Peta visibilitas persis seperti di server (untuk merge saat menulis). */
   const serverRef = useRef<VisibilitasToolbar>({});
@@ -94,7 +91,7 @@ export default function TabBagianTabel({
 
   /** Tulis ke server. Dipakai sebagai fungsi simpan bagian di registri `kotor`:
    *  begitu sakelar berubah dan bagian melaporkan "kotor", cangkang memanggil
-   *  ini sendiri (pola yang sama dengan `TabFilterToolbar`). */
+   *  ini sendiri (pola yang sama dengan section lain di dialog ini). */
   const simpan = useCallback(async (): Promise<boolean> => {
     setBusy(true);
     try {
@@ -103,7 +100,7 @@ export default function TabBagianTabel({
       serverRef.current = gabung;
       acuanRef.current = JSON.stringify(nilai);
       setAdaSimpanan(kunciMilik.some((k) => nilai[k] === false));
-      toast.success('Visibilitas bagian tabel disimpan.');
+      toast.success('Visibilitas komponen tabel disimpan.');
       kabariToolbar(tableKey);
       return true;
     } catch (e) {
@@ -114,7 +111,7 @@ export default function TabBagianTabel({
     }
   }, [kunciMilik, nilai, tableKey]);
 
-  const laporKotor = useBagian('visibilitasBagian', simpan);
+  const laporKotor = useBagian('visibilitas', simpan);
 
   useEffect(() => {
     laporKotor(JSON.stringify(nilai) !== acuanRef.current);
@@ -123,8 +120,8 @@ export default function TabBagianTabel({
   async function kembalikan() {
     setBusy(true);
     try {
-      // Buang penanda milik bagian tabel saja; kunci filter toolbar dibiarkan
-      // — tabel kembali ke bawaan kode untuk bagian-bagian ini.
+      // Buang penanda milik komponen tabel saja; kunci lain (versi lama, atau
+      // fitur lain yang berbagi peta) dibiarkan — tabel kembali ke bawaan kode.
       const gabung = buangKunciVisibilitas(serverRef.current, kunciMilik);
       await simpanToolbarPreset(tableKey, gabung);
       serverRef.current = gabung;
@@ -134,7 +131,7 @@ export default function TabBagianTabel({
       acuanRef.current = JSON.stringify(bawaan);
       setAdaSimpanan(false);
       laporKotor(false);
-      toast.success('Visibilitas bagian tabel dikembalikan ke bawaan.');
+      toast.success('Visibilitas komponen tabel dikembalikan ke bawaan.');
       kabariToolbar(tableKey);
     } catch (e) {
       toast.error(errorMessage(e));
@@ -147,13 +144,13 @@ export default function TabBagianTabel({
     <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
       <div className="flex items-center gap-2">
         <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-          Visibilitas bagian tabel
+          Visibilitas komponen tabel
         </p>
         <Button
           type="button"
           variant="ghost"
           size="xs"
-          id={`btn_kembalikan_bagian_${tableKey}`}
+          id={`btn_kembalikan_komponen_${tableKey}`}
           className="ml-auto gap-1.5 text-muted-foreground"
           disabled={busy || !adaSimpanan}
           onClick={() => void kembalikan()}
@@ -161,32 +158,39 @@ export default function TabBagianTabel({
           Kembalikan ke bawaan
         </Button>
       </div>
-      {tampil.length === 0 ? (
+      {grup.length === 0 ? (
         <p className="px-1 text-xs text-muted-foreground">
-          Tabel ini tidak punya bagian yang bisa disembunyikan.
+          Tabel ini tidak punya komponen yang bisa diatur.
         </p>
       ) : (
-        <div className="flex flex-col rounded-md border">
-          {tampil.map(({ kunci, label, ket }) => (
-            <div
-              key={kunci}
-              className="flex items-center gap-2 border-b px-2 py-1 last:border-0 hover:bg-accent/40"
-            >
-              <Checkbox
-                id={`chk_bagian_${tableKey}_${kunci}`}
-                checked={nilai[kunci] !== false}
-                disabled={busy}
-                aria-label={`Tampilkan ${label}`}
-                title={`Tampilkan ${label} — ${nilai[kunci] === false ? 'tersembunyi' : 'tampil'}`}
-                onCheckedChange={(c) => setNilai((v) => ({ ...v, [kunci]: !!c }))}
-              />
-              <span className="min-w-0 flex-1 truncate text-xs" title={ket}>
-                {label}
-              </span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
-                {nilai[kunci] === false ? 'Mati' : 'Nyala'}
-              </span>
-            </div>
+        <div className="flex flex-col gap-2">
+          {grup.map(({ grup: g, items }) => (
+            <fieldset key={g.id} id={`grup_komponen_${g.id}_${tableKey}`} className="flex flex-col gap-1">
+              <legend className="px-1 text-[11px] font-medium text-muted-foreground">
+                {g.label}
+              </legend>
+              <div className="flex flex-col rounded-md border">
+                {items.map(({ kunci, label }) => (
+                  <div
+                    key={kunci}
+                    className="flex items-center gap-2 border-b px-2 py-1 last:border-0 hover:bg-accent/40"
+                  >
+                    <Checkbox
+                      id={`chk_komponen_${tableKey}_${kunci}`}
+                      checked={nilai[kunci] !== false}
+                      disabled={busy}
+                      aria-label={`Tampilkan ${label}`}
+                      title={`Tampilkan ${label} — ${nilai[kunci] === false ? 'tersembunyi' : 'tampil'}`}
+                      onCheckedChange={(c) => setNilai((v) => ({ ...v, [kunci]: !!c }))}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-xs">{label}</span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {nilai[kunci] === false ? 'Mati' : 'Nyala'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </fieldset>
           ))}
         </div>
       )}

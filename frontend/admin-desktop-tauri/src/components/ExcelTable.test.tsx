@@ -319,7 +319,7 @@ describe('ExcelTable — filter toolbar mengikuti setelan Kelola Tabel', () => {
   });
 });
 
-describe('ExcelTable — visibilitas bagian tabel (setelan Kelola Tabel → Umum)', () => {
+describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Umum)', () => {
   /** `FilterRail` (rel tingkat-kelas) butuh Router + provider tahun ajaran, jadi
  *  diganti stub ringan: yang diuji di sini cuma apakah ExcelTable merendernya
  *  atau tidak. */
@@ -341,20 +341,48 @@ describe('ExcelTable — visibilitas bagian tabel (setelan Kelola Tabel → Umum
     return '(tak ada)';
   }
 
-  it('bawaan (tak ada penanda): semua bagian tampil seperti sebelumnya', async () => {
-    const { container } = renderTabel({ tengah: <span>Info tengah uji</span> });
+  it('bawaan (tak ada penanda): semua komponen tampil seperti sebelumnya', async () => {
+    const { container } = renderTabel({
+      tengah: <span>Info tengah uji</span>,
+      pager: <span>Pager uji</span>,
+      filter: <span>Filter uji</span>,
+    });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
     expect(container.querySelector('[data-part="header_tabel"]')).not.toBeNull();
+    expect(screen.getByText('Uji')).toBeInTheDocument();
     expect(screen.getByText('Info tengah uji')).toBeInTheDocument();
+    expect(screen.getByText('Filter uji')).toBeInTheDocument();
+    expect(screen.getByText('Pager uji')).toBeInTheDocument();
     expect(container.querySelector('[data-part="kaki_tabel"]')).not.toBeNull();
     // Kepala kolom tetap setinggi DEFAULT_HEADER_H (26), jadi baris data
     // pertama digeser sebesar itu.
     expect(topBarisPertama()).toBe('26px');
   });
 
-  it('bilah judul dimatikan → seluruh baris judul hilang', async () => {
-    serverToolbar.state.visibilitas = { bilah_judul: false };
+  it('judul tabel dimatikan → teks judul hilang, bilah & komponen lain tetap', async () => {
+    serverToolbar.state.visibilitas = { judul_tabel: false };
     const { container } = renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(screen.queryByText('Uji')).toBeNull();
+    expect(container.querySelector('[data-part="header_tabel"]')).not.toBeNull();
+    expect(document.getElementById('select_preset_kolom_uji')).not.toBeNull();
+  });
+
+  it('slot filter dimatikan → hanya slot filter yang hilang, bukan bilah judul', async () => {
+    serverToolbar.state.visibilitas = { filter: false };
+    const { container } = renderTabel({ filter: <span>Filter uji</span> });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(screen.queryByText('Filter uji')).toBeNull();
+    expect(container.querySelector('[data-part="header_tabel"]')).not.toBeNull();
+    expect(screen.getByText('Uji')).toBeInTheDocument();
+  });
+
+  it('seluruh komponen bilah judul dimatikan → bilah judul ikut hilang', async () => {
+    // Bilah tak perlu dibungkus kalau isinya sudah tak ada satu pun.
+    serverToolbar.state.visibilitas = {
+      judul_tabel: false, urutan: false, kolom: false, filter: false, tombol_aksi: false,
+    };
+    const { container } = renderTabel({ onUrut: vi.fn(), filter: <span>Filter uji</span> });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
     expect(container.querySelector('[data-part="header_tabel"]')).toBeNull();
     expect(screen.queryByText('Uji')).toBeNull();
@@ -367,15 +395,6 @@ describe('ExcelTable — visibilitas bagian tabel (setelan Kelola Tabel → Umum
     expect(screen.queryByText('Info tengah uji')).toBeNull();
     expect(container.querySelector('[data-part="header_tabel"]')).not.toBeNull();
     expect(screen.getByText('Uji')).toBeInTheDocument();
-  });
-
-  it('kaki tabel dimatikan → pager + tombol Pengaturan tabel hilang', async () => {
-    serverToolbar.state.visibilitas = { kaki_tabel: false };
-    const { container } = renderTabel({ pager: <span>Pager uji</span> });
-    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
-    expect(container.querySelector('[data-part="kaki_tabel"]')).toBeNull();
-    expect(screen.queryByText('Pager uji')).toBeNull();
-    expect(document.getElementById('btn_pengaturan_tabel_uji')).toBeNull();
   });
 
   it('rel filter dimatikan → rel tingkat-kelas hilang', async () => {
@@ -398,6 +417,54 @@ describe('ExcelTable — visibilitas bagian tabel (setelan Kelola Tabel → Umum
     // membuat DSG asli tak merender kepala kolom sama sekali (bukan sekadar
     // tak terlihat, yang menyisakan celah setinggi header di atas grid).
     expect(topBarisPertama()).toBe('0px');
+  });
+
+  it('pager dimatikan → hanya pager hilang, tombol kaki tabel tetap', async () => {
+    serverToolbar.state.visibilitas = { pager: false };
+    const { container } = renderTabel({ pager: <span>Pager uji</span> });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(screen.queryByText('Pager uji')).toBeNull();
+    expect(container.querySelector('[data-part="kaki_tabel"]')).not.toBeNull();
+    expect(document.getElementById('btn_pengaturan_tabel_uji')).not.toBeNull();
+  });
+
+  it('setiap tombol kaki tabel punya sakelarnya sendiri', async () => {
+    // Mematikan "Tinggi baris" tak boleh ikut menghilangkan tombol lain.
+    serverToolbar.state.visibilitas = { tombol_tinggi_baris: false };
+    renderTabel({ onCreateRow: vi.fn(async () => {}) });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(screen.queryByTitle(/Tinggi baris/)).toBeNull();
+    expect(document.getElementById('btn_pengaturan_tabel_uji')).not.toBeNull();
+    expect(document.getElementById('btn_tambah_baris_uji')).not.toBeNull();
+    expect(document.getElementById('btn_mode_edit_uji')).not.toBeNull();
+  });
+
+  it('seluruh komponen kaki tabel dimatikan → kaki tabel ikut hilang', async () => {
+    serverToolbar.state.visibilitas = {
+      pager: false, tombol_pengaturan: false, tombol_tinggi_baris: false,
+      tombol_tambah: false, tombol_edit: false,
+    };
+    const { container } = renderTabel({ pager: <span>Pager uji</span> });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(container.querySelector('[data-part="kaki_tabel"]')).toBeNull();
+    expect(document.getElementById('btn_pengaturan_tabel_uji')).toBeNull();
+    expect(screen.queryByTitle(/Tinggi baris/)).toBeNull();
+  });
+
+  it('kontrol milik halaman di bilah judul tak bisa dimatikan lewat sakelar tabel', async () => {
+    // `awalanToolbar` milik halaman, tak punya sakelar — bilah judul tetap ada
+    // walau seluruh komponen tabelnya dimatikan, jangan sampai kontrol
+    // halaman ikut hilang diam-diam.
+    serverToolbar.state.visibilitas = {
+      judul_tabel: false, urutan: false, kolom: false, filter: false, tombol_aksi: false,
+    };
+    const { container } = renderTabel({
+      onUrut: vi.fn(),
+      awalanToolbar: <span>Awalan halaman</span>,
+    });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(container.querySelector('[data-part="header_tabel"]')).not.toBeNull();
+    expect(screen.getByText('Awalan halaman')).toBeInTheDocument();
   });
 });
 

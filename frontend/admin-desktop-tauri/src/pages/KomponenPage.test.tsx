@@ -172,12 +172,15 @@ describe('KomponenPage — tab ExcelTable', () => {
     expect(screen.getByText('Klik kanan header/baris')).toBeInTheDocument();
     expect(screen.getByText('TopBar — menu "Kelola tabel"')).toBeInTheDocument();
 
-    // Isi dialog: 3 tab dengan komponen sumbernya. Tab "Nama & Perataan" dulu
+    // Isi dialog: tab dengan komponen sumbernya. Tab "Nama & Perataan" dulu
     // terpisah; kini dilebur ke "Kolom" karena keduanya mengatur setelan per
-    // TABEL (bukan per preset), jadi satu penanda cukup.
+    // TABEL (bukan per preset), jadi satu penanda cukup. Tab "Filter Tabel"
+    // ikut hilang karena sakelar filter toolbar kini jadi sakelar komponen
+    // tabel di tab "Umum".
+    expect(screen.getByText('Tab "Umum"')).toBeInTheDocument();
     expect(screen.getByText('Tab "Kolom"')).toBeInTheDocument();
     expect(screen.getByText('Tab "Urutan"')).toBeInTheDocument();
-    expect(screen.getByText('Tab "Filter Tabel"')).toBeInTheDocument();
+    expect(screen.queryByText('Tab "Filter Tabel"')).not.toBeInTheDocument();
     expect(screen.queryByText('Tab "Nama & Perataan"')).not.toBeInTheDocument();
     expect(screen.getAllByText('TabKolom.tsx')).toHaveLength(1);
 

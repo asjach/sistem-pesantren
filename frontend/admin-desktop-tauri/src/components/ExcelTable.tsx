@@ -24,8 +24,8 @@ import { gabungUrutan } from './excel/urutanKolom';
 import { judulTabel } from './excel/judul';
 import { useToolbarPresetState } from './excel/useToolbarPreset';
 import { useUrutanKolom } from './excel/useUrutanKolom';
-import { filterAktif, filterToolbarTersedia } from './excel/filterTabel';
-import { bagianAktif, type InfoBagianTabel } from './excel/bagianTabel';
+import { filterToolbarTersedia } from './excel/filterTabel';
+import { komponenAktif, type InfoKomponenTabel } from './excel/komponenTabel';
 import { useLebarKolom } from './excel/useLebarKolom';
 import { useTinggiBaris } from './excel/useTinggiBaris';
 import { useTinggiBarisSatuan } from './excel/useTinggiBarisSatuan';
@@ -313,15 +313,14 @@ export default function ExcelTable<T extends { id: string | number }>({
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
   const { visibilitas, alignDb, urutanDb, setUrutanDb, labelDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
-  /* Sakelar "Visibilitas bagian tabel" (tab Umum Kelola Tabel, SERVER per
-     tabel): memotong POTONGAN tabel, bukan kontrol filter/kolom yang tampil.
-     Semua sakelar absen = tampil, jadi tabel yang belum pernah disetel
-     berperilaku persis seperti sebelumnya.
+  /* Sakelar komponen tabel (tab Umum Kelola Tabel, SERVER per tabel): setiap
+     komponen tabel punya sakelarnya sendiri. Semua sakelar absen = tampil, jadi
+     tabel yang belum pernah disetel berperilaku persis seperti sebelumnya.
      Hitung DI SINA (bukan di dekat markup) karena `headerEfektifH` ikut
      memakainya: kepala kolom yang disembunyikan harus benar-benar setinggi 0,
      bukan sekadar tak terlihat — kalau tidak, tinggi tabel kompak meleset
      sebesar tinggi header dan hitungan indeks baris ikut meleset. */
-  const headerKolomTampil = bagianAktif(visibilitas, 'header_kolom');
+  const headerKolomTampil = komponenAktif(visibilitas, 'header_kolom');
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -1375,44 +1374,87 @@ export default function ExcelTable<T extends { id: string | number }>({
   // Sakelar dari Kelola Tabel (`toolbar_preset.visibilitas`): absen/true =
   // tampil, false = disembunyikan. Tabel yang belum pernah disetel berperilaku
   // persis seperti sebelumnya.
-  const filterTampil = hasFilter;
-  const urutTampil = hasUrut && filterAktif(visibilitas, 'urutan');
-  const kolomTampil = !hidePreset && filterAktif(visibilitas, 'kolom');
   const aksiMassal = renderBulkActions && checkedRows.length > 0
     ? renderBulkActions(checkedRows, clearSelection)
     : null;
   const infoHeader = tengah ?? null;
+  /** Kontrol milik HALAMAN (bukan komponen tabel): tak punya sakelar, jadi tak
+   *  ikut hilang saat "Visibilitas komponen tabel" dimatikan. Info tengah TIDAK
+   *  termasuk — itu komponen tabel dengan sakelarnya sendiri. */
   const adaKontrolJudul = aksiMassal != null
     || awalanToolbar !== undefined
-    || akhirToolbar !== undefined
-    || infoHeader != null;
-  const headerKontrolTampil = filterTampil || urutTampil || kolomTampil || (addButton !== undefined && addButton !== null) || adaKontrolJudul;
-  /** Bilah judul ADA di tabel ini? (setelan visibilitas belum ikut dihitung —
-   *  dialog Kelola Tabel butuh tahu apa adanya untuk menaruh sakelar yang
-   *  benar-benar berarti.) */
-  const adaBilahJudul = header !== undefined || headerKontrolTampil || filterTersedia.length > 0;
-  /** Sakelar "Visibilitas bagian tabel" (tab Umum Kelola Tabel, SERVER per
-   *  tabel): memotong POTONGAN tabel, bukan kontrol filter/kolom yang tampil.
-   *  Semua absen = tampil, jadi tabel yang belum pernah disetel tak berubah.
-   *  Tabel yang punya filter toolbar (meski semuanya dimatikan lewat Kelola
-   *  Tabel) tetap mempertahankan bilah judul: yang hilang hanya dua dropdown
-   * -nya, bukan nama tabelnya — tanpa `adaBilahJudul` di atas, mematikan Urutan
-   *  + Kolom sekaligus akan membuat judul tabel menghilang karena tak ada
-   *  kontrol lain. */
-  const headerTampil = adaBilahJudul && bagianAktif(visibilitas, 'bilah_judul');
-  const infoTengahTampil = infoHeader != null && bagianAktif(visibilitas, 'info_tengah');
-  const relFilterTampil = rail && bagianAktif(visibilitas, 'rel_filter');
-  const kakiTabelTampil = bagianAktif(visibilitas, 'kaki_tabel');
-  const judulHeader = header ?? judulTabel(tableKey);
+    || akhirToolbar !== undefined;
+  const adaTombolAksi = addButton !== undefined && addButton !== null;
 
-  /** Bagian mana yang benar-benar ada — dikirim ke dialog Kelola Tabel supaya
+  // — Sakelar komponen tabel (server, per tabel). Semua absen = tampil. —
+  const judulTampil = komponenAktif(visibilitas, 'judul_tabel');
+  const infoTengahTampil = infoHeader != null && komponenAktif(visibilitas, 'info_tengah');
+  const filterTampil = hasFilter && komponenAktif(visibilitas, 'filter');
+  const urutTampil = hasUrut && komponenAktif(visibilitas, 'urutan');
+  const kolomTampil = !hidePreset && komponenAktif(visibilitas, 'kolom');
+  const tombolAksiTampil = adaTombolAksi && komponenAktif(visibilitas, 'tombol_aksi');
+  const relFilterTampil = rail && komponenAktif(visibilitas, 'rel_filter');
+  const pagerTampil = pager != null && komponenAktif(visibilitas, 'pager');
+  const tombolPengaturanTampil = komponenAktif(visibilitas, 'tombol_pengaturan');
+  const tombolTinggiBarisTampil = komponenAktif(visibilitas, 'tombol_tinggi_baris');
+  const tombolTambahTampil = inputEnabled && komponenAktif(visibilitas, 'tombol_tambah');
+  const tombolEditTampil = canEdit && komponenAktif(visibilitas, 'tombol_edit');
+
+  /** Bilah judul ADA di tabel ini? Ini fakta KEMAMPUAN (setelan visibilitas
+   *  belum ikut dihitung) — dialog Kelola Tabel butuh tahu ini untuk menaruh
+   *  sakelar yang benar-benar berarti, dan sakelar komponen yang sudah
+   *  dimatikan pun harus tetap bisa dimunculkan lagi. */
+  const adaBilahJudul = header !== undefined
+    || adaKontrolJudul
+    || adaTombolAksi
+    || filterTersedia.length > 0;
+  /** Bilah judul dirender selama masih ada SATU pun isinya. Mematikan seluruh
+   *  komponennya membuat bilah judul hilang, bukan sisanya menggantung;
+   *  kontrol milik halaman (awalan/akhir toolbar, aksi massal) tetap
+   *  mempertahankan bilah karena tak punya sakelar untuk dimatikan. */
+  const isiBilahTampil = adaKontrolJudul
+    || judulTampil
+    || infoTengahTampil
+    || filterTampil
+    || urutTampil
+    || kolomTampil
+    || tombolAksiTampil;
+  const headerTampil = adaBilahJudul && isiBilahTampil;
+  const judulHeader = header ?? judulTabel(tableKey);
+  /** Kaki tabel dirender selama masih ada SATU pun komponennya. */
+  const kakiTabelTampil = pagerTampil
+    || tombolPengaturanTampil
+    || tombolTinggiBarisTampil
+    || tombolTambahTampil
+    || tombolEditTampil;
+
+  /** Komponen mana yang benar-benar ada — dikirim ke dialog Kelola Tabel supaya
    *  sakelar visibilitas yang tak berarti tak pernah tampil. Memoized supaya
-   *  identitasnya stabil (tak memicu render ulang dialog tiap render grid). */
-  const infoBagian = useMemo<InfoBagianTabel>(() => ({
-    adaBilahJudul,
-    adaInfoTengah: infoHeader != null,
-    adaRelFilter: rail,
-  }), [adaBilahJudul, infoHeader, rail]);
+   *  identitasnya stabil (tak memicu render ulang dialog tiap render grid).
+   *
+   *  PENTING: yang dikirim adalah fakta "tabel ini PUNYA komponen itu", bukan
+   *  "komponen itu sedang tampil" — jadi sakelar untuk komponen yang sudah
+   *  dimatikan pun tetap muncul (memcheckbox-nya harus bisa balikkan). */
+  const infoKomponen = useMemo<InfoKomponenTabel>(() => ({
+    adaBilahJudul: header !== undefined
+    || adaKontrolJudul
+    || adaTombolAksi
+    || filterTersedia.length > 0,
+    infoTengah: infoHeader != null,
+    filter: hasFilter,
+    cari: filterTersedia.includes('cari'),
+    keaktifan: filterTersedia.includes('keaktifan'),
+    urut: hasUrut,
+    kolom: !hidePreset,
+    tombolAksi: adaTombolAksi,
+    relFilter: rail,
+    pager: pager != null,
+    tombolTambah: inputEnabled,
+    tombolEdit: canEdit,
+  }), [
+    adaBilahJudul, adaKontrolJudul, adaTombolAksi, canEdit, filterTersedia,
+    hasFilter, hasUrut, header, hidePreset, infoHeader, inputEnabled, pager, rail,
+  ]);
 
   // Data context menu per area (header kolom / baris).
   const ctxHeader = ctx.area === 'header' ? ctx : null;
@@ -1445,6 +1487,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           <JudulTabel
             tableKey={tableKey}
             judul={judulHeader}
+            judulTampil={judulTampil}
             infoTampil={infoTengahTampil}
             info={tengah}
             filterTampil={filterTampil}
@@ -1462,6 +1505,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             presetApiRef={presetApiRef}
             presetKolomClassName={presetKolomClassName}
             addButton={addButton}
+            tombolAksiTampil={tombolAksiTampil}
             addButtonLangsung={addButtonLangsung}
             bolehKelola={bolehKelolaHalaman}
             onKelolaTabel={() => setKelolaTabelOpen(true)}
@@ -1686,12 +1730,13 @@ export default function ExcelTable<T extends { id: string | number }>({
       {/* Kaki tabel: kontrol paginasi (bila ada) sebaris dengan tombol tinggi
           baris dan tombol ikon mode (tambah baris / edit). Nilai tinggi baris
           global, tetapi tombolnya tampil di tiap tabel.
-          Sakelar "Kaki tabel" (visibilitas server) bisa menyembunyikan seluruh
-          baris ini — termasuk gerigi "Pengaturan tabel", jadi pintu Kelola
-          Tabel dari tabel ikut hilang (dialog menandainya sebagai peringatan). */}
+          Tiap komponen punya sakelar sendiri ("Visibilitas komponen tabel" di
+          tab Umum Kelola Tabel, server per tabel); blok ini hilang kalau tak
+          satu pun komponennya menyala. Mematikan "Tombol Pengaturan tabel"
+          menghilangkan pintu Kelola Tabel dari tabel ini. */}
       {kakiTabelTampil ? (
       <div data-part="kaki_tabel" className="mt-0 flex shrink-0 items-center gap-0">
-        {pager ? <div className="min-w-0 flex-1">{pager}</div> : <div className="flex-1" />}
+        {pagerTampil && pager ? <div className="min-w-0 flex-1">{pager}</div> : <div className="flex-1" />}
         {/* Grup aksi (pengaturan tabel / tinggi baris / tambah baris / edit):
             bingkai menyatu — garis dalam dibagi seperti kelompok jumlah baris
             di pager. */}
@@ -1703,20 +1748,22 @@ export default function ExcelTable<T extends { id: string | number }>({
               TopBar. Mencampur keduanya membuat jangkauan pilihan tak jelas.
               Nonaktif bila halaman ini tak mendaftarkan tabelnya ke registrasi
               (dialognya tak akan terisi). */}
-          <Button
-            id={`btn_pengaturan_tabel_${tableKey}`}
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            aria-label="Pengaturan tabel ini"
-            title="Pengaturan tabel ini (kolom, urutan, filter)"
-            disabled={!visHalaman?.registrasi}
-            onClick={() => setKelolaTabelOpen(true)}
-          >
-            <Settings size={14} />
-          </Button>
-          <TombolTinggiBaris tableKey={tableKey} />
-          {inputEnabled && !showInput && (
+          {tombolPengaturanTampil ? (
+            <Button
+              id={`btn_pengaturan_tabel_${tableKey}`}
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Pengaturan tabel ini"
+              title="Pengaturan tabel ini (kolom, urutan, filter)"
+              disabled={!visHalaman?.registrasi}
+              onClick={() => setKelolaTabelOpen(true)}
+            >
+              <Settings size={14} />
+            </Button>
+          ) : null}
+          {tombolTinggiBarisTampil ? <TombolTinggiBaris tableKey={tableKey} /> : null}
+          {tombolTambahTampil && !showInput && (
             <Button
               id={`btn_tambah_baris_${tableKey}`}
               type="button"
@@ -1729,7 +1776,7 @@ export default function ExcelTable<T extends { id: string | number }>({
               <Plus size={14} />
             </Button>
           )}
-          {canEdit && !editing && (
+          {tombolEditTampil && !editing && (
             <Button
               id={`btn_mode_edit_${tableKey}`}
               type="button"
@@ -1754,8 +1801,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           tableKey={tableKey}
           judul={judulHeader}
           fields={fields}
-          filterTersedia={filterTersedia}
-          infoBagian={infoBagian}
+          infoKomponen={infoKomponen}
           /* Panel menyetel tabel yang SEDANG dilihat: biarkan tabelnya tetap
              tampak & hidup di belakang supaya hasil setelannya langsung
              terlihat. Dari topBar tetap modal (tabelnya tidak di belakang). */
