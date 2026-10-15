@@ -9,6 +9,7 @@ import { renderDenganTema } from '@/test/utils';
 import type { ModeSemuaFilterGlobal, TampilFilterGlobal } from '@/lib/filterHalaman';
 import type { KunciFilterGlobal } from '@/components/VisibilitasFilter';
 import type { KunciFilterToolbar } from '@/components/excel/filterTabel';
+import type { InfoBagianTabel } from '@/components/excel/bagianTabel';
 
 vi.mock('@/api/preset', () => ({
   listPresetTabel: vi.fn(async () => ({
@@ -87,7 +88,7 @@ const fields = [
 
 function renderDialog(
   filterRelevan: KunciFilterGlobal[] = [],
-  opts: { filterTersedia?: KunciFilterToolbar[] } = {},
+  opts: { filterTersedia?: KunciFilterToolbar[]; infoBagian?: InfoBagianTabel } = {},
 ) {
   const tampil = (Object.fromEntries(
     filterRelevan.map((k) => [k, true]),
@@ -104,6 +105,7 @@ function renderDialog(
       judul="Santri"
       fields={fields}
       filterTersedia={opts.filterTersedia ?? []}
+      infoBagian={opts.infoBagian}
     />,
   );
 }
@@ -284,6 +286,95 @@ describe('DialogKelolaTabel — tersimpan sendiri (tanpa tombol Simpan)', () => 
       expect(screen.getByRole('tab', { name: /^Kolom \(belum tersimpan\)/ })).toBeInTheDocument();
       expect(screen.queryByRole('tab', { name: /Nama & Perataan/ })).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('DialogKelolaTabel — section Visibilitas bagian tabel (tab Umum)', () => {
+  const simpanToolbar = vi.mocked(simpanToolbarPreset);
+  const lengkap: InfoBagianTabel = {
+    adaBilahJudul: true,
+    adaInfoTengah: true,
+    adaRelFilter: true,
+  };
+  const BILAH = 'Tampilkan Bilah judul (judul + toolbar)';
+  const HEADER = 'Tampilkan Header kolom (kepala kolom)';
+  const KAKI = 'Tampilkan Kaki tabel (pager + tombol)';
+
+  it('menampilkan sakelar tiap bagian tabel', async () => {
+    renderDialog([], { infoBagian: lengkap });
+    for (const label of [
+      BILAH,
+      'Tampilkan Info tengah di bilah judul',
+      HEADER,
+      'Tampilkan Rel filter di kiri grid',
+      KAKI,
+    ]) {
+      await waitFor(() => expect(screen.getByLabelText(label)).toBeChecked());
+    }
+    // Status tiap bagian terbaca langsung di barisnya ("Nyala"/"Mati").
+    await waitFor(() => expect(screen.getAllByText('Nyala')).toHaveLength(5));
+  });
+
+  it('menyembunyikan sakelar bagian yang tak ada di tabel ini', async () => {
+    renderDialog([], {
+      infoBagian: { adaBilahJudul: false, adaInfoTengah: true, adaRelFilter: false },
+    });
+    await waitFor(() => expect(screen.getByText('Visibilitas bagian tabel')).toBeInTheDocument());
+    expect(screen.queryByLabelText(BILAH)).toBeNull();
+    expect(screen.queryByLabelText('Tampilkan Info tengah di bilah judul')).toBeNull();
+    expect(screen.queryByLabelText('Tampilkan Rel filter di kiri grid')).toBeNull();
+    // Header kolom & kaki tabel ada di semua tabel.
+    expect(screen.getByLabelText(HEADER)).toBeInTheDocument();
+    expect(screen.getByLabelText(KAKI)).toBeInTheDocument();
+  });
+
+  it('mematikan bagian → langsung menulis peta merge, kunci filter lain utuh', async () => {
+    // Peta server sudah punya penanda filter toolbar; penulisan visibilitas
+    // bagian tak boleh menghapusnya (satu peta JSON dipakai dua fitur).
+    serverToolbar.state.visibilitas = { urut: false };
+    renderDialog([], { infoBagian: lengkap });
+    await waitFor(() => expect(screen.getByLabelText(HEADER)).toBeChecked());
+
+    await userEvent.click(screen.getByLabelText(HEADER));
+
+    await waitFor(() => expect(simpanToolbar).toHaveBeenCalledWith('uji', {
+      urut: false,
+      header_kolom: false,
+    }));
+  });
+
+  it('menyalakan lagi bagian → penanda "sembunyi" dihapus dari peta', async () => {
+    serverToolbar.state.visibilitas = { kaki_tabel: false };
+    renderDialog([], { infoBagian: lengkap });
+    await waitFor(() => expect(screen.getByLabelText(KAKI)).not.toBeChecked());
+
+    await userEvent.click(screen.getByLabelText(KAKI));
+
+    // Absen = tampil, jadi kuncinya dihapus, bukan ditulis `true`.
+    await waitFor(() => expect(simpanToolbar).toHaveBeenCalledWith('uji', {}));
+  });
+
+  it('Kembalikan ke bawaan → membuang hanya kunci bagian tabel', async () => {
+    serverToolbar.state.visibilitas = { bilah_judul: false, header_kolom: false, urut: false };
+    renderDialog([], { infoBagian: lengkap });
+    await waitFor(() => expect(screen.getByLabelText(BILAH)).not.toBeChecked());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Kembalikan ke bawaan' }));
+
+    // Penanda bagian tabel dibuang; penanda filter toolbar dipertahankan.
+    await waitFor(() => expect(simpanToolbar).toHaveBeenCalledWith('uji', { urut: false }));
+    await waitFor(() => expect(screen.getByLabelText(BILAH)).toBeChecked());
+  });
+
+  it('menandai tab Umum belum tersimpan saat sakelar visibilitas berubah', async () => {
+    renderDialog([], { infoBagian: lengkap });
+    await waitFor(() => expect(screen.getByLabelText(KAKI)).toBeChecked());
+
+    await userEvent.click(screen.getByLabelText(KAKI));
+
+    await waitFor(() => expect(
+      screen.getByRole('tab', { name: /^Umum \(belum tersimpan\)/ }),
+    ).toBeInTheDocument());
   });
 });
 

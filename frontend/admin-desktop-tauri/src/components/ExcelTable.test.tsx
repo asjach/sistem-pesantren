@@ -9,6 +9,12 @@ import { listPresetTabel } from '@/api/preset';
 import { muatKomponenCustom } from '@/api/komponenCustom';
 import { renderDenganTema } from '@/test/utils';
 
+// Rel tingkat-kelas butuh Router + provider tahun ajaran; yang diuji cuma
+// apakah ExcelTable merendernya, jadi diganti stub ringan.
+vi.mock('@/components/FilterRail', () => ({
+  default: () => <div data-testid="rel_filter" />,
+}));
+
 // ---- Mock API (unit test tidak boleh memanggil fetch nyata) ----
 
 /** Tiruan server stateful untuk preset toolbar: `visibilitas` bisa disemai
@@ -310,6 +316,88 @@ describe('ExcelTable — filter toolbar mengikuti setelan Kelola Tabel', () => {
     renderTabel({ onUrut, hidePreset: true });
     await waitFor(() => expect(document.getElementById('select_urut_uji')).not.toBeNull());
     expect(document.getElementById('select_preset_kolom_uji')).toBeNull();
+  });
+});
+
+describe('ExcelTable — visibilitas bagian tabel (setelan Kelola Tabel → Umum)', () => {
+  /** `FilterRail` (rel tingkat-kelas) butuh Router + provider tahun ajaran, jadi
+ *  diganti stub ringan: yang diuji di sini cuma apakah ExcelTable merendernya
+ *  atau tidak. */
+  function renderTabelRel() {
+    return renderTabel({ rail: true });
+  }
+
+  /** `style.top` baris data pertama pada stub DSG = tinggi header + indeks×
+   *  tinggi baris. Stub tak merapikan apa pun saat `headerRowHeight` 0 — DSG
+   *  asli yang berhenti merender kepala kolom — jadi yang diperiksa di sini
+   *  justru nilai prop itu lewat `top`. */
+  function topBarisPertama(): string {
+    const semua = document.querySelectorAll('.dsg-row');
+    // Lewati baris kepala kolom (index 0) dan cari baris data pertama yang
+    // punya `top` — skeleton "TabelMemuat" juga memakai kelas `dsg-row`.
+    for (const el of Array.from(semua) as HTMLElement[]) {
+      if (el.style.top !== '') return el.style.top;
+    }
+    return '(tak ada)';
+  }
+
+  it('bawaan (tak ada penanda): semua bagian tampil seperti sebelumnya', async () => {
+    const { container } = renderTabel({ tengah: <span>Info tengah uji</span> });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(container.querySelector('[data-part="header_tabel"]')).not.toBeNull();
+    expect(screen.getByText('Info tengah uji')).toBeInTheDocument();
+    expect(container.querySelector('[data-part="kaki_tabel"]')).not.toBeNull();
+    // Kepala kolom tetap setinggi DEFAULT_HEADER_H (26), jadi baris data
+    // pertama digeser sebesar itu.
+    expect(topBarisPertama()).toBe('26px');
+  });
+
+  it('bilah judul dimatikan → seluruh baris judul hilang', async () => {
+    serverToolbar.state.visibilitas = { bilah_judul: false };
+    const { container } = renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(container.querySelector('[data-part="header_tabel"]')).toBeNull();
+    expect(screen.queryByText('Uji')).toBeNull();
+  });
+
+  it('info tengah dimatikan → pil info hilang, judul & toolbar tetap', async () => {
+    serverToolbar.state.visibilitas = { info_tengah: false };
+    const { container } = renderTabel({ tengah: <span>Info tengah uji</span> });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(screen.queryByText('Info tengah uji')).toBeNull();
+    expect(container.querySelector('[data-part="header_tabel"]')).not.toBeNull();
+    expect(screen.getByText('Uji')).toBeInTheDocument();
+  });
+
+  it('kaki tabel dimatikan → pager + tombol Pengaturan tabel hilang', async () => {
+    serverToolbar.state.visibilitas = { kaki_tabel: false };
+    const { container } = renderTabel({ pager: <span>Pager uji</span> });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(container.querySelector('[data-part="kaki_tabel"]')).toBeNull();
+    expect(screen.queryByText('Pager uji')).toBeNull();
+    expect(document.getElementById('btn_pengaturan_tabel_uji')).toBeNull();
+  });
+
+  it('rel filter dimatikan → rel tingkat-kelas hilang', async () => {
+    serverToolbar.state.visibilitas = { rel_filter: false };
+    renderTabelRel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(screen.queryByTestId('rel_filter')).toBeNull();
+  });
+
+  it('rel filter tetap tampil pada tabel yang punya rel dan tak ada penanda', async () => {
+    renderTabelRel();
+    await waitFor(() => expect(screen.getByTestId('rel_filter')).toBeInTheDocument());
+  });
+
+  it('header kolom dimatikan → tinggi kepala kolom 0, jadi DSG tak merendernya', async () => {
+    serverToolbar.state.visibilitas = { header_kolom: false };
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    // `top` baris data pertama jadi 0 → `headerRowHeight` 0, dan itulah yang
+    // membuat DSG asli tak merender kepala kolom sama sekali (bukan sekadar
+    // tak terlihat, yang menyisakan celah setinggi header di atas grid).
+    expect(topBarisPertama()).toBe('0px');
   });
 });
 

@@ -25,9 +25,37 @@ use Illuminate\Validation\ValidationException;
  */
 class ToolbarPresetController extends Controller
 {
-    /** Kunci kontrol yang dikenal frontend (di luar ini ditolak).
-     *  Kotak cari tidak ada lagi (pencarian tunggal di topBar). */
-    public const KUNCI = ['info', 'urut', 'kolom', 'filter'];
+    /** Kunci visibilitas yang dikenal frontend (di luar ini ditolak).
+     *
+     *  Peta ini dipakai DUA fitur di sisi FE yang berbagi satu kolom JSON:
+     *  - Filter toolbar → `filterTabel.ts` (`KunciFilterToolbar`):
+     *    `cari`, `urutan`, `kolom`, `keaktifan`.
+     *  - Visibilitas bagian tabel → `bagianTabel.ts` (`KunciBagianTabel`):
+     *    `bilah_judul`, `info_tengah`, `header_kolom`, `rel_filter`, `kaki_tabel`.
+     *
+     *  Kunci versi lama (`info`, `urut`, `filter`) sengaja DIJAGA: pembacaan
+     *  memetakan utuh isi kolom ke FE, dan saat menulis FE melakukan MERGE di
+     *  atas peta server — jadi kunci lama yang masih tersimpan ikut terkirim.
+     *  Kalau tidak ada di daftar ini, satu penanda lama membuat setiap
+     *  penyimpanan tabel tersebut ditolak 422 selamanya.
+     */
+    public const KUNCI = [
+        // Versi lama (tetap dibaca & ditulis, tapi tak lagi dihasilkan FE).
+        'info',
+        'urut',
+        'filter',
+        // Filter toolbar tabel.
+        'cari',
+        'urutan',
+        'kolom',
+        'keaktifan',
+        // Visibilitas bagian tabel (tab Umum Kelola Tabel).
+        'bilah_judul',
+        'info_tengah',
+        'header_kolom',
+        'rel_filter',
+        'kaki_tabel',
+    ];
 
     /** Setelan yang dulu diterima endpoint ini; kini milik komponen
      *  (`komponen_custom`) dan DITOLAK dengan pesan yang menunjuk ke sana

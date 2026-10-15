@@ -25,6 +25,8 @@ import TabKolom, { type TabKolomProps } from './TabKolom';
 import TabUmum from './TabUmum';
 import TabUrutan from './TabUrutan';
 import TabFilterToolbar from './TabFilterToolbar';
+import TabBagianTabel from './TabBagianTabel';
+import { BAGIAN_INFO_BEKAL, type InfoBagianTabel } from '@/components/excel/bagianTabel';
 import type { KunciFilterToolbar } from '@/components/excel/filterTabel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVENT_PRESET_BERUBAH, kabariPreset } from './jenis';
@@ -226,6 +228,7 @@ export default function DialogKelolaTabel({
   judul,
   fields,
   filterTersedia = [],
+  infoBagian = BAGIAN_INFO_BEKAL,
   nonModal = false,
 }: {
   open: boolean;
@@ -237,6 +240,10 @@ export default function DialogKelolaTabel({
   fields?: ExcelField[];
   /** Filter toolbar milik tabel ini (dihitung ExcelTable dari props-nya). */
   filterTersedia?: readonly KunciFilterToolbar[];
+  /** Bagian tabel yang benar-benar ada (dihitung ExcelTable) — menentukan
+   *  sakelar visibilitas mana yang ditawarkan di tab Umum. Bawaan dipakai
+   *  jalur dari TopBar yang tak punya grid di belakang. */
+  infoBagian?: InfoBagianTabel;
   /** Panel melayang di samping tabel yang sedang dilihat (Sheet non-modal),
    *  bukan dialog modal. Dipakai jalur tabel; dari topBar tetap modal karena
    *  tak jelas tabel mana yang "di belakang". */
@@ -356,7 +363,8 @@ export default function DialogKelolaTabel({
   }, [adaTabFilter, tab]);
   /** Jumlah bagian yang belum tersimpan — dipakai badge di tab + footer. */
   const jumlahKotor = useMemo(
-    () => ['umum', 'kolom', 'urutan', 'filterToolbar'].filter((id) => kotorBagian[id]).length,
+    () => ['umum', 'visibilitasBagian', 'kolom', 'urutan', 'filterToolbar']
+      .filter((id) => kotorBagian[id]).length,
     [kotorBagian],
   );
 
@@ -391,7 +399,9 @@ export default function DialogKelolaTabel({
 
           <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
             <TabsList variant="line" className="h-auto w-full shrink-0 justify-start gap-1 border-b px-3 py-1.5">
-              <TabBagian id="umum" label="Umum" kotor={!!kotorBagian.umum} />
+              {/* Titik "belum tersimpan" tab Umum juga naik dari section visibilitas
+                  bagian (id sendiri, satu tab bisa punya >1 bagian terdaftar). */}
+              <TabBagian id="umum" label="Umum" kotor={!!kotorBagian.umum || !!kotorBagian.visibilitasBagian} />
               <TabBagian id="kolom" label="Kolom" kotor={!!kotorBagian.kolom} />
               <TabBagian id="urutan" label="Urutan" kotor={!!kotorBagian.urutan} />
               {adaTabFilter && <TabBagian id="filter" label="Filter Tabel" kotor={!!kotorBagian.filterToolbar} />}
@@ -402,7 +412,10 @@ export default function DialogKelolaTabel({
                 bagian yang sudah dikotori diam-diam tak ikut tersimpan. */}
             <TabsContent value="umum" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
               <Bagian id="bagian_umum_tabel" judul="Umum" aksi={aksiBagian.umum}>
-                <TabUmum tableKey={tableKey} judul={judul} fields={fields} />
+                <div className="flex flex-col gap-3">
+                  <TabBagianTabel tableKey={tableKey} info={infoBagian} />
+                  <TabUmum tableKey={tableKey} judul={judul} fields={fields} />
+                </div>
               </Bagian>
             </TabsContent>
 

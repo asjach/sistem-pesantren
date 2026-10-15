@@ -25,6 +25,7 @@ import { judulTabel } from './excel/judul';
 import { useToolbarPresetState } from './excel/useToolbarPreset';
 import { useUrutanKolom } from './excel/useUrutanKolom';
 import { filterAktif, filterToolbarTersedia } from './excel/filterTabel';
+import { bagianAktif, type InfoBagianTabel } from './excel/bagianTabel';
 import { useLebarKolom } from './excel/useLebarKolom';
 import { useTinggiBaris } from './excel/useTinggiBaris';
 import { useTinggiBarisSatuan } from './excel/useTinggiBarisSatuan';
@@ -312,6 +313,15 @@ export default function ExcelTable<T extends { id: string | number }>({
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
   const { visibilitas, alignDb, urutanDb, setUrutanDb, labelDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  /* Sakelar "Visibilitas bagian tabel" (tab Umum Kelola Tabel, SERVER per
+     tabel): memotong POTONGAN tabel, bukan kontrol filter/kolom yang tampil.
+     Semua sakelar absen = tampil, jadi tabel yang belum pernah disetel
+     berperilaku persis seperti sebelumnya.
+     Hitung DI SINA (bukan di dekat markup) karena `headerEfektifH` ikut
+     memakainya: kepala kolom yang disembunyikan harus benar-benar setinggi 0,
+     bukan sekadar tak terlihat — kalau tidak, tinggi tabel kompak meleset
+     sebesar tinggi header dan hitungan indeks baris ikut meleset. */
+  const headerKolomTampil = bagianAktif(visibilitas, 'header_kolom');
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -697,7 +707,9 @@ export default function ExcelTable<T extends { id: string | number }>({
   // Tinggi header efektif (manual → terukur → bawaan). Dipakai untuk tinggi
   // tabel kompak agar header yang membungkus 2 baris (judul panjang) ikut
   // terhitung — dulu dipatok 1 baris sehingga tabel kompak kena scrollbar.
-  const headerEfektifH = headerH ?? headerAutoH ?? DEFAULT_HEADER_H;
+  // Sakelar "Header kolom" ikut dihitung: kepala kolom yang dimatikan = tinggi
+  // 0 (bukan sekadar tak terlihat), agar tinggi di bawahnya tak menyisakan celah.
+  const headerEfektifH = headerKolomTampil ? (headerH ?? headerAutoH ?? DEFAULT_HEADER_H) : 0;
   // Tabel halaman (tanpa maxRows) mengisi penuh sisa tinggi wrapper sehingga
   // kartu menutupi seluruh area vertikal. Tabel kompak ber-maxRows berhenti
   // tepat di baris terakhir (+ baris input bila mode Input aktif); versi
@@ -1375,12 +1387,32 @@ export default function ExcelTable<T extends { id: string | number }>({
     || akhirToolbar !== undefined
     || infoHeader != null;
   const headerKontrolTampil = filterTampil || urutTampil || kolomTampil || (addButton !== undefined && addButton !== null) || adaKontrolJudul;
-  /** Tabel yang punya filter toolbar (meski sekarang semuanya dimatikan lewat
-   *  Kelola Tabel) tetap mempertahankan bilah judul: yang hilang hanya dua
-   *  dropdown-nya, bukan nama tabelnya. Tanpa ini, mematikan Urutan + Kolom
-   *  sekaligus membuat judul tabel menghilang karena tak ada kontrol lain. */
-  const headerTampil = header !== undefined || headerKontrolTampil || filterTersedia.length > 0;
+  /** Bilah judul ADA di tabel ini? (setelan visibilitas belum ikut dihitung —
+   *  dialog Kelola Tabel butuh tahu apa adanya untuk menaruh sakelar yang
+   *  benar-benar berarti.) */
+  const adaBilahJudul = header !== undefined || headerKontrolTampil || filterTersedia.length > 0;
+  /** Sakelar "Visibilitas bagian tabel" (tab Umum Kelola Tabel, SERVER per
+   *  tabel): memotong POTONGAN tabel, bukan kontrol filter/kolom yang tampil.
+   *  Semua absen = tampil, jadi tabel yang belum pernah disetel tak berubah.
+   *  Tabel yang punya filter toolbar (meski semuanya dimatikan lewat Kelola
+   *  Tabel) tetap mempertahankan bilah judul: yang hilang hanya dua dropdown
+   * -nya, bukan nama tabelnya — tanpa `adaBilahJudul` di atas, mematikan Urutan
+   *  + Kolom sekaligus akan membuat judul tabel menghilang karena tak ada
+   *  kontrol lain. */
+  const headerTampil = adaBilahJudul && bagianAktif(visibilitas, 'bilah_judul');
+  const infoTengahTampil = infoHeader != null && bagianAktif(visibilitas, 'info_tengah');
+  const relFilterTampil = rail && bagianAktif(visibilitas, 'rel_filter');
+  const kakiTabelTampil = bagianAktif(visibilitas, 'kaki_tabel');
   const judulHeader = header ?? judulTabel(tableKey);
+
+  /** Bagian mana yang benar-benar ada — dikirim ke dialog Kelola Tabel supaya
+   *  sakelar visibilitas yang tak berarti tak pernah tampil. Memoized supaya
+   *  identitasnya stabil (tak memicu render ulang dialog tiap render grid). */
+  const infoBagian = useMemo<InfoBagianTabel>(() => ({
+    adaBilahJudul,
+    adaInfoTengah: infoHeader != null,
+    adaRelFilter: rail,
+  }), [adaBilahJudul, infoHeader, rail]);
 
   // Data context menu per area (header kolom / baris).
   const ctxHeader = ctx.area === 'header' ? ctx : null;
@@ -1413,7 +1445,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           <JudulTabel
             tableKey={tableKey}
             judul={judulHeader}
-            infoTampil={infoHeader != null}
+            infoTampil={infoTengahTampil}
             info={tengah}
             filterTampil={filterTampil}
             filter={filter}
@@ -1440,9 +1472,10 @@ export default function ExcelTable<T extends { id: string | number }>({
           judul tabel sehingga bagian atasnya sejajar judul kolom grid.
           Label rel diberi tinggi header tabel efektif (`headerEfektifH`) agar
           sejajar walau tinggi header diubah (pengaturan tabel) atau otomatis.
-          Tanpa `rail`, kontainer `contents` tidak mengubah tata letak. */}
-      <div className={cn(rail ? 'flex min-h-0 flex-1' : 'contents')}>
-        {rail ? <FilterRail tinggiLabel={headerEfektifH} /> : null}
+          Tanpa `rail`, kontainer `contents` tidak mengubah tata letak.
+          `rel_filterTampil` = sakelar "Visibilitas bagian tabel" (server). */}
+      <div className={cn(relFilterTampil ? 'flex min-h-0 flex-1' : 'contents')}>
+        {relFilterTampil ? <FilterRail tinggiLabel={headerEfektifH} /> : null}
       <div
         ref={wrapRef}
         style={
@@ -1516,7 +1549,15 @@ export default function ExcelTable<T extends { id: string | number }>({
                     rowKey="id"
                     height={gridHeight}
                     rowHeight={gridRowHeight}
-                    headerRowHeight={headerH ?? headerAutoH ?? DEFAULT_HEADER_H}
+                    /* Sakelar "Header kolom" (visibilitas server): `headerRowHeight={0}`
+                       membuat react-datasheet-grid tak merender baris kepala
+                       kolom sama sekali. WAJIB lewat prop ini — DSG menggeser
+                       baris data sebesar `headerRowHeight`, jadi menyembunyikan
+                       kepala kolom lewat CSS hanya akan menyisakan celah di
+                       atas grid. */
+                    headerRowHeight={headerKolomTampil
+                      ? (headerH ?? headerAutoH ?? DEFAULT_HEADER_H)
+                      : 0}
                     lockRows
                     addRowsComponent={false}
                     disableContextMenu
@@ -1644,7 +1685,11 @@ export default function ExcelTable<T extends { id: string | number }>({
 
       {/* Kaki tabel: kontrol paginasi (bila ada) sebaris dengan tombol tinggi
           baris dan tombol ikon mode (tambah baris / edit). Nilai tinggi baris
-          global, tetapi tombolnya tampil di tiap tabel. */}
+          global, tetapi tombolnya tampil di tiap tabel.
+          Sakelar "Kaki tabel" (visibilitas server) bisa menyembunyikan seluruh
+          baris ini — termasuk gerigi "Pengaturan tabel", jadi pintu Kelola
+          Tabel dari tabel ikut hilang (dialog menandainya sebagai peringatan). */}
+      {kakiTabelTampil ? (
       <div data-part="kaki_tabel" className="mt-0 flex shrink-0 items-center gap-0">
         {pager ? <div className="min-w-0 flex-1">{pager}</div> : <div className="flex-1" />}
         {/* Grup aksi (pengaturan tabel / tinggi baris / tambah baris / edit):
@@ -1699,6 +1744,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           )}
         </div>
       </div>
+      ) : null}
 
       {/* Dialog pengaturan tabel ini: kolom, urutan, toolbar, dan filter. */}
       {visHalaman?.registrasi ? (
@@ -1709,6 +1755,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           judul={judulHeader}
           fields={fields}
           filterTersedia={filterTersedia}
+          infoBagian={infoBagian}
           /* Panel menyetel tabel yang SEDANG dilihat: biarkan tabelnya tetap
              tampak & hidup di belakang supaya hasil setelannya langsung
              terlihat. Dari topBar tetap modal (tabelnya tidak di belakang). */

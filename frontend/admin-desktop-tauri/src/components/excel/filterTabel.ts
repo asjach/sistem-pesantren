@@ -87,11 +87,13 @@ export function gabungVisibilitas(
   return gabung;
 }
 
-/** Peta server tanpa kunci milik tabel ini (dipakai aksi "kembalikan ke
- *  bawaan": hapus penanda tabel ini, kunci lain dibiarkan). */
+/** Peta server tanpa kunci milik fitur ini (dipakai aksi "kembalikan ke
+ *  bawaan": hapus penanda fitur ini, kunci lain dibiarkan). Kunci dibatasi
+ *  `string` karena peta `visibilitas` dipakai bersama filter toolbar DAN bagian
+ *  tabel (`bagianTabel.ts`) — keduanya menimpa peta yang sama. */
 export function buangKunciVisibilitas(
   server: Record<string, boolean>,
-  kunci: readonly KunciFilterToolbar[],
+  kunci: readonly string[],
 ): Record<string, boolean> {
   const gabung: Record<string, boolean> = { ...server };
   for (const k of kunci) delete gabung[k];

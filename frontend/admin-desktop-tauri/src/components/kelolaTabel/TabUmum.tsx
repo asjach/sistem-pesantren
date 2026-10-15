@@ -38,7 +38,10 @@ function jepitBeku(n: number, maks: number): number {
  *    lewat event agar tabel di belakang ikut berubah tanpa reload.
  *  - "Kembalikan bawaan": reset server (super_admin efektif) + reset
  *    perangkat (semua pengguna), di balik konfirmasi karena merusak.
- */
+ *
+ *  Section "Visibilitas bagian tabel" (server) adalah SAUDARA komponen ini,
+ *  bukan anaknya: ia daftar/simpan sendiri di tab yang sama (lihat
+ *  `TabBagianTabel`) supaya satu tab bisa punya dua bagian terdaftar. */
 export default function TabUmum({
   tableKey,
   judul,

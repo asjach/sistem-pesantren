@@ -161,17 +161,87 @@ class ToolbarPresetTest extends TestCase
             'table_key' => 'santri',
             'visibilitas' => ['tombol_asing' => true],
         ])->assertStatus(422)->assertJsonValidationErrors(['visibilitas']);
-
-        // Kotak cari dihapus: kunci lama ditolak di visibilitas maupun lebar.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
-            'visibilitas' => ['cari' => true],
+            'visibilitas' => ['visibilitas_tabel' => true],
         ])->assertStatus(422)->assertJsonValidationErrors(['visibilitas']);
+
+        // Kunci `lebar` versi lama ditolak di sana: ukurannya pindah ke
+        // `komponen_custom` (lihat test_setelan_komponen_ditolak_di_endpoint_ini).
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'visibilitas' => ['info' => true],
             'lebar' => ['cari' => 100],
         ])->assertStatus(422)->assertJsonValidationErrors(['lebar']);
+    }
+
+    /**
+     * Peta `visibilitas` dipakai DUA fitur yang berbagi satu kolom JSON:
+     * filter toolbar (`cari`/`urutan`/`kolom`/`keaktifan`) dan visibilitas
+     * bagian tabel (`bilah_judul`/`info_tengah`/`header_kolom`/`rel_filter`/
+     * `kaki_tabel`). Keduanya harus bisa ditulis, bersama-samapun.
+     */
+    public function test_visibilitas_mencakup_filter_toolbar_dan_bagian_tabel(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'santri',
+            'visibilitas' => [
+                // Filter toolbar.
+                'cari' => false, 'urutan' => false, 'kolom' => false, 'keaktifan' => false,
+                // Visibilitas bagian tabel.
+                'bilah_judul' => false, 'info_tengah' => false,
+                'header_kolom' => false, 'rel_filter' => false, 'kaki_tabel' => false,
+            ],
+        ])->assertStatus(200);
+
+        $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=santri')
+            ->assertStatus(200)
+            ->assertJsonPath('data.visibilitas.cari', false)
+            ->assertJsonPath('data.visibilitas.urutan', false)
+            ->assertJsonPath('data.visibilitas.keaktifan', false)
+            ->assertJsonPath('data.visibilitas.bilah_judul', false)
+            ->assertJsonPath('data.visibilitas.info_tengah', false)
+            ->assertJsonPath('data.visibilitas.header_kolom', false)
+            ->assertJsonPath('data.visibilitas.rel_filter', false)
+            ->assertJsonPath('data.visibilitas.kaki_tabel', false);
+    }
+
+    /**
+     * Kunci versi lama (`info`/`urut`/`filter`) WAJIB tetap diterima.
+     *
+     * Frontend menulis dengan MERGE di atas peta yang dibaca dari server, jadi
+     * begitu satu penanda lama masih tersimpan di baris tabel itu, setiap
+     * penyimpanan berikutnya ikut mengirimkannya. Kalau daftar kunci menutup
+     * `info`/`urut`/`filter`, tabel yang sudah punya penanda lama ditolak 422
+     * selamanya — tak bisa disetel lagi sama sekali.
+     */
+    public function test_penanda_visibilitas_lama_tetap_boleh_ditulis(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        // Baris versi lama: peta berisi kunci versi pertama.
+        ToolbarPreset::create([
+            'table_key' => 'pegawai_lembaga',
+            'visibilitas' => ['info' => true, 'urut' => true, 'kolom' => true, 'filter' => true],
+        ]);
+
+        // FE merge: peta lama ikut terkirim bersama kunci baru.
+        $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
+            'table_key' => 'pegawai_lembaga',
+            'visibilitas' => [
+                'info' => true, 'urut' => true, 'kolom' => true, 'filter' => true,
+                'kaki_tabel' => false,
+            ],
+        ])->assertStatus(200);
+
+        $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/toolbar-preset?table_key=pegawai_lembaga')
+            ->assertStatus(200)
+            ->assertJsonPath('data.visibilitas.urut', true)
+            ->assertJsonPath('data.visibilitas.kaki_tabel', false);
     }
 
     public function test_simpan_dan_baca_align_kolom(): void
