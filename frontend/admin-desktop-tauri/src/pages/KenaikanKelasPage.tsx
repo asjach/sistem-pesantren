@@ -407,7 +407,6 @@ export default function KenaikanKelasPage() {
                   )}
                 </>
               )}
-               hidePreset
                emptyText="Tidak ada Santri semester 2 aktif pada tahun ajaran ini."
             />
           </div>
@@ -522,7 +521,6 @@ function PanelDaftar({
           ) : null}
             </>
           )}
-           hidePreset
            emptyText="Belum ada."
         />
       </div>

@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\DispensasiRequest;
 use App\Models\Dispensasi;
 use App\Models\JenisTagihan;
 use App\Models\Tagihan;
+use App\Models\TarifTagihan;
 use App\Services\DispensasiService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
@@ -119,6 +120,13 @@ class DispensasiController extends Controller
      *
      * Lingkup: hanya lembaga yang boleh diakses pengguna (`scopeLembaga`),
      * plus filter `tahun_ajaran`/`jenjang` yang sama dengan tabel tagihan.
+     *
+     * Selain angka dampak, tiap baris membawa konteks nominal: `total_kotor`
+     * (jumlah `nominal + potongan` baris-barisnya), `tarif` (nominal master
+     * `tarif_tagihan` untuk jenjang/TA/jenis itu; null bila belum diatur),
+     * dan `persen` (potongan ÷ kotor, dibulatkan). `tarif` hanya PEMBANDING:
+     * nominal yang benar-benar ditagih ada di `total_kotor`, sehingga tarif
+     * yang berubah setelah tagihan dibuat tidak membuat persen melenceng.
      */
     public function rekapDispensasi(Request $request)
     {
@@ -128,6 +136,7 @@ class DispensasiController extends Controller
             'jenjang' => 'nullable|array',
             'jenjang.*' => 'string|max:20',
             'dispensasi_id' => 'nullable|integer|exists:dispensasi,id',
+            'bentuk' => 'nullable|in:daftar,crosstab',
         ]);
 
         // Hanya tagihan yang BENAR-BENAR memuat paket: `dispensasi_ids` null
@@ -212,18 +221,48 @@ class DispensasiController extends Controller
                     'jumlah_tagihan' => 0,
                     'jumlah_penerima' => 0,
                     'total_potongan' => 0,
+                    'total_kotor' => 0,
                     'santri' => [],
                 ];
                 $kumpulan[$kunci]['jumlah_tagihan']++;
                 $kumpulan[$kunci]['santri'][$santriId] = true;
                 $kumpulan[$kunci]['total_potongan'] += $nilai[$i];
+                // Nominal KOTOR (`nominal + potongan`) dijumlahkan agar persen
+                // potongan dihitung dari basis yang sama dengan hitung ulang.
+                $kumpulan[$kunci]['total_kotor'] += (int) $t->nominal + (int) $t->potongan;
             }
+        }
+
+        /* Tarif master per (jenjang, TA, jenis): pembanding nominal kotor
+           tersimpan. Dimuat SEKALI untuk semua baris yang tampil (bukan query
+           per baris). Bila tarif sudah berubah atau belum diatur, `tarif` null;
+           nominal kotor tetap dilaporkan apa adanya agar persennya konsisten
+           dengan potongan tersimpan. */
+        $kunciTarif = fn (string $jenjang, string $ta, int $jenisId) => "{$jenjang}|{$ta}|{$jenisId}";
+        $jenjangTampil = [];
+        foreach ($kumpulan as $g) {
+            $jenjangTampil[$g['jenjang']] = true;
+        }
+        $petaTarif = [];
+        foreach (
+            TarifTagihan::query()
+                ->whereIn('jenjang', array_keys($jenjangTampil))
+                ->get(['jenjang', 'tahun_ajaran', 'jenis_id', 'nominal']) as $tf
+        ) {
+            $petaTarif[$kunciTarif($tf->jenjang, $tf->tahun_ajaran, (int) $tf->jenis_id)] = (int) $tf->nominal;
         }
 
         $baris = [];
         foreach ($kumpulan as $g) {
             $g['jumlah_penerima'] = count($g['santri']);
             unset($g['santri']);
+            $kotor = (int) $g['total_kotor'];
+            $g['total_kotor'] = $kotor;
+            $g['tarif'] = $petaTarif[$kunciTarif($g['jenjang'], $g['tahun_ajaran'], (int) $g['jenis_id'])] ?? null;
+            // Persen potongan terhadap nominal kotor (dibulatkan): basis yang
+            // sama dengan hitung ulang, jadi totalnya bisa > 100% bila beberapa
+            // paket menumpuk pada satu baris tagihan.
+            $g['persen'] = $kotor > 0 ? (int) round($g['total_potongan'] / $kotor * 100) : 0;
             $baris[] = $g;
         }
 
@@ -236,7 +275,10 @@ class DispensasiController extends Controller
             'paket' => 'paket',
             'tagihan' => 'jenis',
             'penerima' => 'jumlah_penerima',
+            'kotor' => 'total_kotor',
+            'tarif' => 'tarif',
             'potongan' => 'total_potongan',
+            'persen' => 'persen',
             'id' => 'id',
         ]);
         if ($tanpaSort) {
@@ -244,7 +286,78 @@ class DispensasiController extends Controller
                 <=> [$b['jenjang'], $b['tahun_ajaran'], $b['paket'], $b['jenis']]);
         }
 
+        /* Bentuk crosstab: sumbu baris = paket (dengan lembaga & TA sebagai
+           identitasnya), sumbu kolom = JENIS TAGIHAN. Sel = total potongan
+           paket pada jenis itu — angka yang sama dengan `total_potongan`
+           pada bentuk daftar, hanya diputar. `tarif` disertakan di sel
+           supaya FE bisa menampilkan pembandingnya sebagai tooltip. */
+        if ($request->input('bentuk') === 'crosstab') {
+            return response()->json($this->bentukCrosstab($baris));
+        }
+
         return response()->json(['data' => $baris]);
+    }
+
+    /**
+     * Putar baris rekap (paket × jenis) menjadi crosstab paket × jenis.
+     *
+     * Baris = kombinasi (lembaga, TA, paket) — paket yang sama di lembaga/TA
+     * berbeda tetap baris terpisah karena potongannya pun berbeda. Kolom =
+     * hanya jenis yang BENAR-BENAR terdampak pada lingkup filter (kalau semua
+     * jenis tagihan dipaksakan, sebagian besar sel kosong dan tabelnya jadi
+     * tak terbaca). Urutan kolom mengikuti id jenis agar stabil antar request.
+     *
+     * @param  list<array<string, mixed>>  $baris
+     * @return array{baris: list<array<string, mixed>>, kolom: list<array<string, mixed>>}
+     */
+    private function bentukCrosstab(array $baris): array
+    {
+        $kolom = [];
+        $kelompok = [];
+        foreach ($baris as $b) {
+            $jenisId = (int) $b['jenis_id'];
+            $kolom[$jenisId] = ['key' => "jenis-{$jenisId}", 'jenis_id' => $jenisId, 'jenis_nama' => $b['jenis']];
+
+            $kunci = "{$b['jenjang']}|{$b['tahun_ajaran']}|{$b['paket_id']}";
+            $kelompok[$kunci] ??= [
+                'id' => $kunci,
+                'jenjang' => $b['jenjang'],
+                'tahun_ajaran' => $b['tahun_ajaran'],
+                'paket_id' => (int) $b['paket_id'],
+                'paket' => $b['paket'],
+                'total_potongan' => 0,
+                'total_kotor' => 0,
+                'jumlah_tagihan' => 0,
+                'jumlah_penerima' => 0,
+                'sel' => [],
+            ];
+            $kelompok[$kunci]['total_potongan'] += (int) $b['total_potongan'];
+            $kelompok[$kunci]['total_kotor'] += (int) $b['total_kotor'];
+            $kelompok[$kunci]['jumlah_tagihan'] += (int) $b['jumlah_tagihan'];
+            /* Penerima dijumlahkan antar jenis: satu santri yang terdampak di
+               dua jenis terhitung dua kali di sini — ini angka per baris
+               paket, bukan jumlah santri unik (yang tersedia di bentuk daftar
+               per jenis). Diberi nama `jumlah_penerima_jenis` supaya tidak
+               terbaca sebagai hitungan unik. */
+            $kelompok[$kunci]['jumlah_penerima'] += (int) $b['jumlah_penerima'];
+            $kelompok[$kunci]['sel']["jenis-{$jenisId}"] = [
+                'potongan' => (int) $b['total_potongan'],
+                'kotor' => (int) $b['total_kotor'],
+                'tarif' => $b['tarif'],
+                'persen' => (int) $b['persen'],
+                'jumlah_tagihan' => (int) $b['jumlah_tagihan'],
+            ];
+        }
+
+        $kelompok = array_values($kelompok);
+        // Urut bawaan sama dengan bentuk daftar: lembaga → TA → paket.
+        usort($kelompok, fn ($a, $b) => [$a['jenjang'], $a['tahun_ajaran'], $a['paket']]
+            <=> [$b['jenjang'], $b['tahun_ajaran'], $b['paket']]);
+
+        $kolom = array_values($kolom);
+        usort($kolom, fn ($a, $b) => $a['jenis_id'] <=> $b['jenis_id']);
+
+        return ['baris' => $kelompok, 'kolom' => $kolom];
     }
 
     /**

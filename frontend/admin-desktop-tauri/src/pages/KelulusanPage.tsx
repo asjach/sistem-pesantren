@@ -437,7 +437,6 @@ export default function KelulusanPage() {
               onSaved={() => {}}
               renderActions={(r) => aksiProfil(r.santri_id, { prefix: 'tingkat_akhir', daftar: daftarTingkatAkhir })}
                onCheckedChange={(rows) => setPilih(new Set(rows.map((r) => r.santri_id)))}
-               hidePreset
                emptyText="Tidak ada santri tingkat akhir aktif pada tahun ajaran ini."
             />
           </div>
@@ -552,7 +551,6 @@ export default function KelulusanPage() {
                   </>
                 )}
                 onCheckedChange={setTercentangTidakLulus}
-                 hidePreset
                  emptyText="Belum ada."
               />
             </div>

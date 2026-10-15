@@ -379,7 +379,6 @@ export default function RiwayatBelajarPage() {
                canEdit={false}
                hideCheckbox
                hideActions
-               hidePreset
                onCommit={noopCommit}
                onSaved={noopCommit}
                renderActions={(r) => aksiProfil(r.santri_id, { prefix: 'ganjil', daftar: daftarGanjil })}
@@ -448,7 +447,6 @@ export default function RiwayatBelajarPage() {
                canEdit={false}
                hideCheckbox
                hideActions
-               hidePreset
                onCommit={noopCommit}
                onSaved={noopCommit}
                renderActions={(r) => aksiProfil(r.santri_id, { prefix: 'genap', daftar: daftarGenap })}

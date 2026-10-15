@@ -250,36 +250,57 @@ export function kuotaPakai(santriIds: number[]) {
   return api<Record<number, Record<number, number>>>(`/admin/keuangan/dispensasi/kuota-pakai${s ? `?${s}` : ''}`);
 }
 
-/** Satu baris rekap dampak dispensasi per **paket × jenis tagihan**
- *  (lembaga & tahun ajaran sebagai konteks). Lembaga/jenis/TA tanpa tagihan
- *  berdispensasi tidak dikirim sebagai baris nol. */
-export interface RekapDispensasi {
-  /** `jenjang|ta|jenis_id|paket_id` — `ExcelTable` butuh id unik. */
-  id: string;
-  jenjang: string;
-  tahun_ajaran: string;
-  jenis_id: number;
-  /** Nama jenis tagihan (mis. "Infaq Bulanan"). */
-  jenis: string;
-  paket_id: number;
-  /** Nama paket dispensasi. */
-  paket: string;
-  /** Tagihan yang benar-benar memuat paket pada jenis ini. */
-  jumlah_tagihan: number;
-  /** Santri berbeda pemilik tagihan itu. */
-  jumlah_penerima: number;
-  /** Potongan paket ini tercatat pada tagihan-tagihan itu (porsi paket,
-   *  bukan total gabungan baris tagihan). */
-  total_potongan: number;
-}
-
 /** Dampak dispensasi per paket × jenis tagihan, dihitung dari BARIS TAGIHAN.
  *  Mengikuti lingkup pengguna + filter topBar; `dispensasi_id` menelusuri satu
  *  paket. Potongan tiap paket dihitung ulang dari nominal kotor (baris
  *  multi-paket tidak dihitung dobel). */
-export function rekapDispensasi(params: {
+/** Sel crosstab rekap: potongan paket pada satu jenis tagihan, plus konteks
+ *  nominal yang dipakai tooltip (tarif master, kotor, persen). */
+export interface SelRekapCrosstab {
+  potongan: number;
+  kotor: number;
+  /** Tarif master jenis ini pada (jenjang, TA); `null` bila belum diatur. */
+  tarif: number | null;
+  persen: number;
+  jumlah_tagihan: number;
+}
+
+/** Satu baris crosstab rekap: satu paket pada satu lembaga & TA. */
+export interface BarisRekapCrosstab {
+  id: string;
+  jenjang: string;
+  tahun_ajaran: string;
+  paket_id: number;
+  paket: string;
+  total_potongan: number;
+  total_kotor: number;
+  jumlah_tagihan: number;
+  /** Dijumlah antar jenis — santri yang terdampak di dua jenis terhitung
+   *  dua kali, jadi ini bukan jumlah santri unik. */
+  jumlah_penerima: number;
+  /** Sel per kunci kolom (`jenis-<id>`); absen = jenis itu tak terdampak. */
+  sel: Record<string, SelRekapCrosstab>;
+}
+
+/** Kolom crosstab rekap: satu jenis tagihan yang terdampak. */
+export interface KolomRekapCrosstab {
+  key: string;
+  jenis_id: number;
+  jenis_nama: string;
+}
+
+export interface RekapDispensasiCrosstab {
+  baris: BarisRekapCrosstab[];
+  kolom: KolomRekapCrosstab[];
+}
+
+/** Dampak dispensasi sebagai CROSSTAB: baris = paket (× lembaga × TA),
+ *  kolom = jenis tagihan yang terdampak, sel = total potongan paket di jenis
+ *  itu. Bentuk ringkas untuk melihat sebaran satu paket ke semua jenisnya.
+ *  `bentuk=crosstab` memilih keluaran ini; tanpa itu response berbentuk daftar. */
+export function rekapDispensasiCrosstab(params: {
   tahun_ajaran?: ScalarOrArray<string>; jenjang?: ScalarOrArray<string>;
-  dispensasi_id?: number | ''; sort?: string[]; arah?: 'naik' | 'turun';
+  dispensasi_id?: number | '';
 } = {}) {
   const q = new URLSearchParams();
   appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
@@ -287,10 +308,8 @@ export function rekapDispensasi(params: {
   if (params.dispensasi_id !== undefined && params.dispensasi_id !== '') {
     q.set('dispensasi_id', String(params.dispensasi_id));
   }
-  if (params.sort?.length) q.set('sort', params.sort.join(','));
-  if (params.arah) q.set('arah', params.arah);
-  const s = q.toString();
-  return api<{ data: RekapDispensasi[] }>(`/admin/keuangan/dispensasi/rekap${s ? `?${s}` : ''}`);
+  q.set('bentuk', 'crosstab');
+  return api<RekapDispensasiCrosstab>(`/admin/keuangan/dispensasi/rekap?${q.toString()}`);
 }
 
 export function hapusDispensasi(id: number) {
