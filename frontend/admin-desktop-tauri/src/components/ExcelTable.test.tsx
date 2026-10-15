@@ -378,14 +378,28 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
   });
 
   it('seluruh komponen bilah judul dimatikan → bilah judul ikut hilang', async () => {
-    // Bilah tak perlu dibungkus kalau isinya sudah tak ada satu pun.
+    // Bilah tak perlu dibungkus kalau isinya sudah tak ada satu pun. Gerigi
+    // "Pengaturan tabel ini" juga harus ikut dimatikan — dialah satu-satunya
+    // pintu Kelola Tabel dari tabel ini.
     serverToolbar.state.visibilitas = {
-      judul_tabel: false, urutan: false, kolom: false, filter: false, tombol_aksi: false,
+      judul_tabel: false, urutan: false, kolom: false, filter: false,
+      tombol_aksi: false, tombol_pengaturan: false,
     };
     const { container } = renderTabel({ onUrut: vi.fn(), filter: <span>Filter uji</span> });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
     expect(container.querySelector('[data-part="header_tabel"]')).toBeNull();
     expect(screen.queryByText('Uji')).toBeNull();
+  });
+
+  it('gerigi Pengaturan tabel menyalakan bilah judul lagi walau semua komponen mati', async () => {
+    serverToolbar.state.visibilitas = {
+      judul_tabel: false, urutan: false, kolom: false, filter: false, tombol_aksi: false,
+    };
+    const { container } = renderTabel({ onUrut: vi.fn(), filter: <span>Filter uji</span> });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    // Gerigi hidup → bilah judul tetap ada walau isinya cuma gerigi itu.
+    expect(container.querySelector('[data-part="header_tabel"]')).not.toBeNull();
+    expect(document.getElementById('btn_pengaturan_tabel_uji')).not.toBeNull();
   });
 
   it('info tengah dimatikan → pil info hilang, judul & toolbar tetap', async () => {
@@ -424,31 +438,41 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
     const { container } = renderTabel({ pager: <span>Pager uji</span> });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
     expect(screen.queryByText('Pager uji')).toBeNull();
+    // Tombol Edit (halaman uji `canEdit`) masih mengisi kaki tabel. Gerigi
+    // Pengaturan tabel tak lagi ada di kaki — ia di bilah judul.
     expect(container.querySelector('[data-part="kaki_tabel"]')).not.toBeNull();
+    expect(document.getElementById('btn_mode_edit_uji')).not.toBeNull();
+    expect(container.querySelector('[data-part="kaki_tabel"]')?.querySelector('#btn_pengaturan_tabel_uji')).toBeNull();
     expect(document.getElementById('btn_pengaturan_tabel_uji')).not.toBeNull();
   });
 
-  it('setiap tombol kaki tabel punya sakelarnya sendiri', async () => {
-    // Mematikan "Tinggi baris" tak boleh ikut menghilangkan tombol lain.
-    serverToolbar.state.visibilitas = { tombol_tinggi_baris: false };
+  it('gerigi Pengaturan tabel dimatikan → hanya gerigi hilang', async () => {
+    serverToolbar.state.visibilitas = { tombol_pengaturan: false };
     renderTabel({ onCreateRow: vi.fn(async () => {}) });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
-    expect(screen.queryByTitle(/Tinggi baris/)).toBeNull();
-    expect(document.getElementById('btn_pengaturan_tabel_uji')).not.toBeNull();
+    expect(document.getElementById('btn_pengaturan_tabel_uji')).toBeNull();
     expect(document.getElementById('btn_tambah_baris_uji')).not.toBeNull();
     expect(document.getElementById('btn_mode_edit_uji')).not.toBeNull();
   });
 
+  it('setiap tombol kaki tabel punya sakelarnya sendiri', async () => {
+    // Mematikan "Edit" tak boleh ikut menghilangkan tombol tambah.
+    serverToolbar.state.visibilitas = { tombol_edit: false };
+    renderTabel({ onCreateRow: vi.fn(async () => {}) });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(document.getElementById('btn_tambah_baris_uji')).not.toBeNull();
+    expect(document.getElementById('btn_mode_edit_uji')).toBeNull();
+  });
+
   it('seluruh komponen kaki tabel dimatikan → kaki tabel ikut hilang', async () => {
     serverToolbar.state.visibilitas = {
-      pager: false, tombol_pengaturan: false, tombol_tinggi_baris: false,
-      tombol_tambah: false, tombol_edit: false,
+      pager: false, tombol_tambah: false, tombol_edit: false,
     };
-    const { container } = renderTabel({ pager: <span>Pager uji</span> });
+    const { container } = renderTabel({ pager: <span>Pager uji</span>, canEdit: false });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
     expect(container.querySelector('[data-part="kaki_tabel"]')).toBeNull();
-    expect(document.getElementById('btn_pengaturan_tabel_uji')).toBeNull();
-    expect(screen.queryByTitle(/Tinggi baris/)).toBeNull();
+    // Gerigi tetap ada karena ia hidup di bilah judul.
+    expect(document.getElementById('btn_pengaturan_tabel_uji')).not.toBeNull();
   });
 
   it('kontrol milik halaman di bilah judul tak bisa dimatikan lewat sakelar tabel', async () => {
@@ -653,8 +677,8 @@ describe('ExcelTable — klik ganda sel', () => {
   });
 });
 
-/* Gerigi KANAN BAWAH = pengaturan khusus TABEL INI saja. Setelan global
-   punya pintunya sendiri di TopBar; keduanya sengaja dipisah supaya
+/* Gerigi PALING KANAN bilah judul = pengaturan khusus TABEL INI saja. Setelan
+   global punya pintunya sendiri di TopBar; keduanya sengaja dipisah supaya
    jangkauannya jelas. */
 describe('ExcelTable — gerigi pengaturan tabel', () => {
   it('menonaktifkan gerigi bila halaman ini tak mendaftarkan tabelnya', async () => {

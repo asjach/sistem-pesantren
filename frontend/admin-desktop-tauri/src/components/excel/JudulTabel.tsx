@@ -4,7 +4,8 @@ import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import type { ArahUrut } from '@/api/urutPreset';
-import { NotebookTabs } from '@/icons';
+import { NotebookTabs, Settings } from '@/icons';
+import { Button } from '@/components/ui/button';
 import type { ExcelField } from './types';
 
 interface Props {
@@ -36,6 +37,13 @@ interface Props {
   /** Tampilkan blok tombol aksi utama (sakelar "Tombol aksi utama"). */
   tombolAksiTampil: boolean;
   addButtonLangsung: boolean;
+  /** Tampilkan gerigi "Pengaturan tabel ini" (sakelar "Tombol Pengaturan
+   *  tabel"). Dulu tombol ini ada di kaki tabel; sekarang jadi kontrol paling
+   *  kanan di bilah judul. */
+  tombolPengaturanTampil: boolean;
+  /** Halaman ini mendaftarkan tabelnya ke registrasi — kalau tidak, dialognya
+   *  tak akan terisi sehingga gerigi dinonaktifkan. */
+  tabelTerdaftar: boolean;
   /** Boleh membuka dialog Kelola Tabel (super_admin efektif). */
   bolehKelola: boolean;
   onKelolaTabel: () => void;
@@ -43,8 +51,9 @@ interface Props {
 
 /**
  * Bilah judul tabel: judul + info tengah, kontrol toolbar (filter, aksi massal,
- * awalan/akhir halaman, Urutkan, Kolom), tombol aksi utama, dan menu klik-kanan
- * "Kelola Tabel". Id elemen dipertahankan agar halaman/tes tetap menemukannya.
+ * awalan/akhir halaman, Urutkan, Kolom), tombol aksi utama, gerigi pengaturan
+ * tabel di ujung kanan, dan menu klik-kanan "Kelola Tabel". Id elemen
+ * dipertahankan agar halaman/tes tetap menemukannya.
  *
  * `min-h-8` (border-box, sudah termasuk `border-b` 1px) menjaga tinggi
  * bilah tetap sama walau tabel tanpa kontrol toolbar: semua kontrol
@@ -75,6 +84,8 @@ export default function JudulTabel({
   addButton,
   tombolAksiTampil,
   addButtonLangsung,
+  tombolPengaturanTampil,
+  tabelTerdaftar,
   bolehKelola,
   onKelolaTabel,
 }: Props) {
@@ -123,6 +134,31 @@ export default function JudulTabel({
               addButtonLangsung
                 ? <div className="shrink-0">{addButton}</div>
                 : <div className="shrink-0"><MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar></div>
+            ) : null}
+            {/* Gerigi PALING KANAN bilah = pengaturan KHUSUS TABEL INI saja
+                (kolom, urutan, filter, preset) untuk tableKey ini. Dulu ia di
+                kaki tabel; sekarang di sini supaya kontrol tabel & pengaturan
+                tabelnya bertemu di satu bilah. Jangan masukkan setelan global
+                ke sini: pengaturan yang berlaku aplikasi/semua tabel punya
+                pintunya sendiri, yaitu gerigi di TopBar — mencampur keduanya
+                membuat jangkauan pilihan tak jelas.
+                Nonaktif bila halaman ini tak mendaftarkan tabelnya ke
+                registrasi (dialognya tak akan terisi). */}
+            {tombolPengaturanTampil ? (
+              <div className="shrink-0">
+                <Button
+                  id={`btn_pengaturan_tabel_${tableKey}`}
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Pengaturan tabel ini"
+                  title="Pengaturan tabel ini (kolom, urutan, filter)"
+                  disabled={!tabelTerdaftar}
+                  onClick={onKelolaTabel}
+                >
+                  <Settings size={14} />
+                </Button>
+              </div>
             ) : null}
           </div>
         </div>

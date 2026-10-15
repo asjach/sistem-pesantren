@@ -233,8 +233,8 @@ interface BarisPengaturan {
 /** Empat jalan masuk pengaturan + isi masing-masing.
  *
  *  Ada DUA DialogKelolaTabel yang bisa terbuka, komponen yang sama tapi beda
- *  sifat: dari ExcelTable (gerigi kanan bawah tabel) tampil NON-MODAL supaya
- *  tabel di belakang tetap terlihat & hidup, sedangkan dari TopBar (menu
+ *  sifat: dari ExcelTable (gerigi paling kanan bilah judul) tampil NON-MODAL
+ *  supaya tabel di belakang tetap terlihat & hidup, sedangkan dari TopBar (menu
  *  "Kelola tabel", untuk memilih tabel lebih dulu) tetap modal karena tak ada
  *  tabel di belakang yang layak dilihat. */
 const PENGATURAN: BarisPengaturan[] = [
@@ -1402,7 +1402,7 @@ const INVENTARIS: BarisFitur[] = [
   { fitur: 'Paginasi di kaki', sumber: 'pager', dipakai: '19 halaman', catatan: 'ExcelTable tak menghitung halaman; halaman meng-inject <Pager/>.' },
   { fitur: 'Pengaturan tampilan tabel', sumber: 'SheetPengaturanTampilan (TopBar)', dipakai: 'selalu (footer memicu)', catatan: 'Tinggi sel/header, font/ukuran/warna header & sel. Semua GLOBAL.' },
   { fitur: 'Tombol tinggi baris', sumber: '— (dihapus)', dipakai: '—', catatan: 'Tombol siklus di kaki tabel dihapus; tinggi baris per tabel diatur di Kelola Tabel → Umum.' },
-  { fitur: 'Panel Kelola Tabel', sumber: 'DialogKelolaTabel', dipakai: 'halaman berregistrasi', catatan: 'Dibuka dari 2 tempat: gerigi kanan bawah tabel (Sheet non-modal) & menu TopBar (modal). 3 tab, tersimpan sendiri.' },
+  { fitur: 'Panel Kelola Tabel', sumber: 'DialogKelolaTabel', dipakai: 'halaman berregistrasi', catatan: 'Dibuka dari 2 tempat: gerigi paling kanan bilah judul (Sheet non-modal) & menu TopBar (modal). 3 tab, tersimpan sendiri.' },
   { fitur: 'Menu klik kanan 4 area', sumber: 'MenuKonteksGrid', dipakai: 'selalu', catatan: 'Tabel / Kolom / Baris / sudut — isi berbeda per area.' },
   { fitur: 'Salin TSV (baris/sel/kolom/semua)', sumber: 'useSalinTabel + Ctrl+C', dipakai: 'selalu', catatan: 'Termasuk tombol salin di corner button.' },
   { fitur: 'Scrollbar melayang', sumber: 'ScrollbarMelayang ×2', dipakai: 'selalu', catatan: 'Mengganti scrollbar bawaan yang disembunyikan.' },

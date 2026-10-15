@@ -1425,19 +1425,22 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Bilah judul dirender selama masih ada SATU pun isinya. Mematikan seluruh
    *  komponennya membuat bilah judul hilang, bukan sisanya menggantung;
    *  kontrol milik halaman (awalan/akhir toolbar, aksi massal) tetap
-   *  mempertahankan bilah karena tak punya sakelar untuk dimatikan. */
+   *  mempertahankan bilah karena tak punya sakelar untuk dimatikan.
+   *  `tombolPengaturanTampil` ikut dihitung supaya gerigi "Pengaturan tabel
+   *  ini" — satu-satunya pintu Kelola Tabel dari tabel — tak ikut hilang
+   *  bersama bilahnya saat semua komponen lain dimatikan. */
   const isiBilahTampil = adaKontrolJudul
     || judulTampil
     || infoTengahTampil
     || filterTampil
     || urutTampil
     || kolomTampil
-    || tombolAksiTampil;
+    || tombolAksiTampil
+    || tombolPengaturanTampil;
   const headerTampil = adaBilahJudul && isiBilahTampil;
   const judulHeader = header ?? judulTabel(tableKey);
   /** Kaki tabel dirender selama masih ada SATU pun komponennya. */
   const kakiTabelTampil = pagerTampil
-    || tombolPengaturanTampil
     || tombolTambahTampil
     || tombolEditTampil;
 
@@ -1523,6 +1526,8 @@ export default function ExcelTable<T extends { id: string | number }>({
             addButton={addButton}
             tombolAksiTampil={tombolAksiTampil}
             addButtonLangsung={addButtonLangsung}
+            tombolPengaturanTampil={tombolPengaturanTampil}
+            tabelTerdaftar={visHalaman?.registrasi != null}
             bolehKelola={bolehKelolaHalaman}
             onKelolaTabel={() => setKelolaTabelOpen(true)}
           />
@@ -1751,41 +1756,18 @@ export default function ExcelTable<T extends { id: string | number }>({
       </div>
       </div>
 
-      {/* Kaki tabel: kontrol paginasi (bila ada) sebaris dengan tombol tinggi
-          baris dan tombol ikon mode (tambah baris / edit). Nilai tinggi baris
-          global, tetapi tombolnya tampil di tiap tabel.
+      {/* Kaki tabel: kontrol paginasi (bila ada) sebaris dengan tombol ikon
+          mode (tambah baris / edit).
           Tiap komponen punya sakelar sendiri ("Visibilitas komponen tabel" di
           tab Umum Kelola Tabel, server per tabel); blok ini hilang kalau tak
-          satu pun komponennya menyala. Mematikan "Tombol Pengaturan tabel"
-          menghilangkan pintu Kelola Tabel dari tabel ini. */}
+          satu pun komponennya menyala. Gerigi "Pengaturan tabel ini" tak ada
+          di sini lagi — ia pindah ke ujung kanan bilah judul. */}
       {kakiTabelTampil ? (
       <div data-part="kaki_tabel" className="mt-0 flex shrink-0 items-center gap-0">
         {pagerTampil && pager ? <div className="min-w-0 flex-1">{pager}</div> : <div className="flex-1" />}
-        {/* Grup aksi (pengaturan tabel / tinggi baris / tambah baris / edit):
-            bingkai menyatu — garis dalam dibagi seperti kelompok jumlah baris
-            di pager. */}
+        {/* Grup aksi (tambah baris / edit): bingkai menyatu — garis dalam
+            dibagi seperti kelompok jumlah baris di pager. */}
         <div data-part="grup_aksi" className="flex items-center">
-          {/* Gerigi KANAN BAWAH = pengaturan KHUSUS TABEL INI saja
-              (kolom, urutan, filter, preset) untuk tableKey ini.
-              Jangan masukkan setelan global ke sini: pengaturan yang berlaku
-              aplikasi/semua tabel punya pintunya sendiri, yaitu gerigi di
-              TopBar. Mencampur keduanya membuat jangkauan pilihan tak jelas.
-              Nonaktif bila halaman ini tak mendaftarkan tabelnya ke registrasi
-              (dialognya tak akan terisi). */}
-          {tombolPengaturanTampil ? (
-            <Button
-              id={`btn_pengaturan_tabel_${tableKey}`}
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label="Pengaturan tabel ini"
-              title="Pengaturan tabel ini (kolom, urutan, filter)"
-              disabled={!visHalaman?.registrasi}
-              onClick={() => setKelolaTabelOpen(true)}
-            >
-              <Settings size={14} />
-            </Button>
-          ) : null}
           {tombolTambahTampil && !showInput && (
             <Button
               id={`btn_tambah_baris_${tableKey}`}

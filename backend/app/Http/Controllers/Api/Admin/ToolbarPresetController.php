@@ -31,9 +31,9 @@ class ToolbarPresetController extends Controller
      *  (registri `components/excel/komponenTabel.ts`, section "Visibilitas
      *  komponen tabel" di tab Umum Kelola Tabel):
      *  - Bilah judul: judul_tabel, info_tengah, filter, cari, keaktifan,
-     *    urut, kolom, tombol_aksi.
+     *    urut, kolom, tombol_aksi, tombol_pengaturan.
      *  - Kepala tabel: header_kolom, rel_filter.
-     *  - Kaki tabel: pager, tombol_pengaturan, tombol_tambah, tombol_edit.
+     *  - Kaki tabel: pager, tombol_tambah, tombol_edit.
      *
      *  Kunci lama (`info`, `urut`, `bilah_judul`, `kaki_tabel`,
      *  `tombol_tinggi_baris`) SENGAJA DIJAGA meski tak lagi dihasilkan FE:
@@ -59,6 +59,7 @@ class ToolbarPresetController extends Controller
         'urutan',
         'kolom',
         'tombol_aksi',
+        'tombol_pengaturan',
         // Kepala tabel.
         'header_kolom',
         'rel_filter',
@@ -67,7 +68,6 @@ class ToolbarPresetController extends Controller
         'kolom_aksi',
         // Kaki tabel.
         'pager',
-        'tombol_pengaturan',
         'tombol_tambah',
         'tombol_edit',
     ];

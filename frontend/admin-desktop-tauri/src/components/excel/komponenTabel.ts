@@ -39,6 +39,9 @@ export type KunciKomponenTabel =
   | 'kolom'
   /** Tombol aksi utama di kanan bilah judul (Tambah & sejenisnya). */
   | 'tombol_aksi'
+  /** Gerigi "Pengaturan tabel" — paling kanan di bilah judul (pintu dialog
+   *  Kelola Tabel dari tabel ini; dulunya berada di kaki tabel). */
+  | 'tombol_pengaturan'
   // — Kepala tabel —
   /** Baris nama kolom di atas grid. */
   | 'header_kolom'
@@ -52,8 +55,6 @@ export type KunciKomponenTabel =
   // — Kaki tabel —
   /** Pager + jumlah baris per halaman. */
   | 'pager'
-  /** Gerigi "Pengaturan tabel" (pintu dialog Kelola Tabel dari tabel). */
-  | 'tombol_pengaturan'
   /** Tombol "Tambah baris" (mode Input). */
   | 'tombol_tambah'
   /** Tombol "Edit" (mode Edit). */
@@ -87,6 +88,7 @@ export const GRUP_KOMPONEN_TABEL: readonly GrupKomponenTabel[] = [
       { kunci: 'urutan', label: 'Urutan', tersedia: (i) => i.urut },
       { kunci: 'kolom', label: 'Kolom', tersedia: (i) => i.kolom },
       { kunci: 'tombol_aksi', label: 'Tombol aksi utama', tersedia: (i) => i.tombolAksi },
+      { kunci: 'tombol_pengaturan', label: 'Tombol Pengaturan tabel' },
     ],
   },
   {
@@ -120,7 +122,6 @@ export const GRUP_KOMPONEN_TABEL: readonly GrupKomponenTabel[] = [
     label: 'Kaki tabel',
     items: [
       { kunci: 'pager', label: 'Pager / jumlah baris', tersedia: (i) => i.pager },
-      { kunci: 'tombol_pengaturan', label: 'Tombol Pengaturan tabel' },
       { kunci: 'tombol_tambah', label: 'Tombol tambah baris', tersedia: (i) => i.tombolTambah },
       { kunci: 'tombol_edit', label: 'Tombol Edit', tersedia: (i) => i.tombolEdit },
     ],

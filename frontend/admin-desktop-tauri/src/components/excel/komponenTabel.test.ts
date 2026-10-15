@@ -75,19 +75,38 @@ describe('grupTersedia', () => {
   });
 
   it('grup yang tak punya komponen satupun tidak dirender', () => {
-    // Tanpa `adaBilahJudul` seluruh grup "Bilah judul" kosong (judul & info tengah
-    // bergantung padanya), tapi kakinya masih punya header kolom.
+    // Tanpa `adaBilahJudul` dan tanpa filter/urut/kolom, grup "Bilah judul"
+    // tak kosong lagi: sakelar "Tombol Pengaturan tabel" selalu tersedia
+    // (geriginya ada di bilah judul tanpa syarat). Yang benar-benar kosong
+    // di sini: kolom tetap & kaki tabel.
     const info: InfoKomponenTabel = {
       ...KOMPONEN_INFO_BEKAL,
       adaBilahJudul: false,
       filter: false,
+      cari: false,
+      keaktifan: false,
       urut: false,
       kolom: false,
+      tombolAksi: false,
+      kolomCentang: false,
+      kolomAksi: false,
+      pager: false,
+      tombolTambah: false,
+      tombolEdit: false,
     };
     const ids = grupTersedia(info).map((g) => g.grup.id);
-    expect(ids).not.toContain('bilah_judul');
+    expect(ids).toContain('bilah_judul');
     expect(ids).toContain('kepala_tabel');
-    expect(ids).toContain('kaki_tabel');
+    expect(ids).not.toContain('kolom_tetap');
+    expect(ids).not.toContain('kaki_tabel');
+  });
+
+  it('sakelar Tombol Pengaturan tabel tetap ada walau tabel tak punya bilah judul', () => {
+    // Sakelarnya tak punya syarat `tersedia`: gerigi selalu dirender di
+    // bilah judul, jadi switch-nya harus selalu bisa ditemukan.
+    const kunci = grupTersedia({ ...KOMPONEN_INFO_BEKAL, adaBilahJudul: false })
+      .flatMap(({ items }) => items.map((i) => i.kunci));
+    expect(kunci).toContain('tombol_pengaturan');
   });
 
   it('grup kolom tetap hilang kalau halaman memang memaksa keduanya sembunyi', () => {
