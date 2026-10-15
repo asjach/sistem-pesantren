@@ -1,8 +1,13 @@
 # Skema Database — SIMPES (dokumentasi, bukan kode)
 
-> Sumber: 40 file migrasi (32 create + 8 data/seed). Seluruh migrasi alter
-> 2026-09-17…2026-10-01 telah disatukan ke file create masing-masing
-> (konsolidasi 2026-10-01), jadi kolom di bawah = skema final hasil `migrate:fresh`.
+> Sumber: 58 file migrasi (42 create + 16 data/seed/pemindahan). SELURUH migrasi
+> alter sudah disatukan ke file create masing-masing — tak ada lagi migrasi
+> "tambah/ubah kolom" yang berdiri sendiri, jadi kolom di bawah = skema final
+> hasil `migrate:fresh`. Satu-satunya pengecualian yang sah: blok FK
+> `jenjang` → `lembaga` di dalam `create_keuangan_tables` yang dijaga
+> `if (DB::getDriverName() === 'mysql')` (SQLite tak mendukung ADD FOREIGN KEY
+> via ALTER, dan banyak tes membuat tagihan untuk jenjang tanpa baris
+> `lembaga`).
 > Bahasa Indonesia persis DB. Tipe logis umum.
 > Keputusan: single-pesantren via `lembaga` + pivot `user_lembaga` (no.40);
 > 34 `ref_*` global+shadow (no.50); seed no.51; pitfall multi-NULL MySQL →
@@ -671,7 +676,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`) — satu daftar opsi global per tabel
 
-### `toolbar_preset` (visibilitas/lebar/tinggi/urutan/perataan & label kolom, global per `table_key`)
+### `toolbar_preset` (visibilitas/lebar/tinggi/urutan/perataan, label kolom & judul tabel, global per `table_key`)
 - `id` PK
 - `table_key`: string(60) [unik]
 - `visibilitas`: json — peta kontrol → bool; hanya `false` yang menyembunyikan (absen = tampil). **Tak lagi ditulis/dibaca frontend** (tab Toolbar dialog Kelola Tabel dihapus — kontrol selalu tampil); data lama diabaikan
@@ -680,7 +685,8 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `nilai_default`: json [null] — **deprecated**, sudah kosong setelah migrasi ke `komponen_custom`
 - `urutan`: json [null] — array key kolom data; absen = urutan fields halaman
 - `align`: json [null] — peta key kolom → 'left'|'center'|'right' (satu nilai per kolom, bukan per preset); absen = preferensi pribadi pengguna, lalu tengah
-- `label`: json [null] — peta key kolom → label header tampil (≤100 karakter, satu nilai per kolom, **bukan** per preset); absen = label bawaan kode. Dipindah ke sini dari `preset_tabel.label` (migrasi `2026_10_15_120000`) karena preset hanya mengubah kolom mana yang TAMPIL, bukan cara kolom dinamai
+- `label`: json [null] — peta key kolom → label header tampil (≤100 karakter, satu nilai per kolom, **bukan** per preset); absen = label bawaan kode. Dulunya dari `preset_tabel.label` (kini di sini juga, menyatu di `create_toolbar_preset_table`) karena preset hanya mengubah kolom mana yang TAMPIL, bukan cara kolom dinamai
+- `judul`: string(100) [null] — judul tabel isian pengguna, per `table_key` (bukan per preset); `NULL`/kosong = pakai judul bawaan kode (prop `header` halaman → peta `judulTabel()` → kapitalisasi `table_key`). Diisi dari input "Judul" di tab Umum dialog Kelola Tabel; isian pengguna MENANG atas `header` halaman
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`)

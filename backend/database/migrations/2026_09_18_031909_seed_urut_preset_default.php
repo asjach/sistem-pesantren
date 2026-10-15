@@ -29,6 +29,10 @@ return new class extends Migration
                 $pilihan('jk', 'JK'),
                 $pilihan('tipe', 'Tipe Santri'),
                 $pilihan('status', 'Status'),
+                // Bukan kolom `santri`, tapi diurutkan lewat subquery di
+                // `SantriController::urutKelasJenjang` (lihat catatan di sana).
+                $pilihan('kelas', 'Kelas'),
+                $pilihan('jenjang', 'Jenjang'),
             ],
             'keanggotaan' => [
                 $pilihan('nama', 'Nama'),

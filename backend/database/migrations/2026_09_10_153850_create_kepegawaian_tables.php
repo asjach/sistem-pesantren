@@ -64,9 +64,17 @@ return new class extends Migration
             $table->id();
             $table->foreignId('pegawai_id')->constrained('pegawai')->cascadeOnDelete();
             $table->string('jenis_dokumen_pegawai')->nullable(); // ref_jenis_dokumen_pegawai
+            // Status aktif dokumen terakhir. `status_verifikasi` TIDAK ada di
+            // sini: dulu ditambahkan lalu dicabut (status hanya tersisa di
+            // `dokumen_lembaga`). `lembaga` juga tidak ada — konteks pemakaian
+            // per lembaga hanya berlaku untuk santri; kunci rangkap pegawai
+            // cukup (pegawai, jenis).
+            $table->boolean('is_active')->default(true);
             $table->string('nama_file')->nullable(); // nama template berkas (tampil/unduh)
+            // Pelacak sinkron cermin dua arah (lokal ↔ server).
+            $table->string('sinkron_hash', 64)->nullable();
+            $table->timestamp('tersinkron_pada')->nullable();
             $table->string('penyimpanan', 10)->default('server'); // lokasi byte: server|lokal|test
-            $table->enum('status_verifikasi', ['menunggu', 'valid', 'ditolak'])->default('menunggu');
             $table->text('catatan')->nullable();
             $table->timestamps();
 

@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Schema;
  * dipakai opsi "Custom" pada dialog Buat Tagihan. Anggota disimpan di tabel
  * pivot (FK cascade kedua sisi, unik per pasangan) supaya hapus grup/santri
  * otomatis membersihkan keanggotaan.
+ *
+ * Kolom lingkup (`jenjang`, `tahun_ajaran`, `is_active`) DULU ditambahkan
+ * migrasi terpisah `2026_10_13_090000_tambah_scope_ke_grup_santri_custom`;
+ * kini menyatu di sini supaya definisi tabelnya utuh di satu tempat.
  */
 return new class extends Migration
 {
@@ -18,6 +22,12 @@ return new class extends Migration
             $table->id();
             $table->string('nama', 100)->unique();
             $table->string('keterangan', 1000)->nullable();
+            // Lingkup lembaga + tahun ajaran (untuk filter halaman Santri
+            // Custom) dan status aktif. Kolom polos tanpa FK karena skema
+            // grup masih berkembang.
+            $table->string('jenjang', 50)->nullable();
+            $table->string('tahun_ajaran', 20)->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
 

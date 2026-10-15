@@ -5,10 +5,22 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Dispensasi (keringanan) tagihan per TA: target kriteria akademik
- * (paket/tingkat/kelas multi) atau tambahan santri individual, tipe
- * persen/nominal/bebas, akumulatif urut prioritas. Tagihan menyimpan
- * potongan + id dispensasi yang diterapkan sebagai jejak.
+ * Dispensasi (keringanan) tagihan per TA: satu paket (nama + TA + lingkup
+ * lembaga + kuota + grup) dengan N aturan per jenis tagihan di
+ * `dispensasi_aturan`, plus daftar penerima individual di `santri_dispensasi`.
+ * Tagihan menyimpan potongan + id dispensasi yang diterapkan sebagai jejak.
+ *
+ * Menggabungkan alter lama: `kuota_bulan` (2026_10_08), `grup` (2026_10_08),
+ * `jenjang` (2026_10_15), dan pembuangan kolom sasaran lama
+ * (`jenis_id`, `paket`, `tingkat`, `kelas_id`, `santri_ids`, `tipe`, `nilai`,
+ * `prioritas`) yang dulu dikonversi 1:1 ke `dispensasi_aturan` +
+ * `santri_dispensasi` oleh `2026_10_05_202348` dan `2026_10_05_200945`.
+ * Karena bentuk antaranya hanya sempat hidup beberapa jam, kolomnya tidak
+ * dipertahankan sama sekali. Kolom `sifat` juga tidak ada: ditambahkan lalu
+ * dicabut di hari yang sama (2026_10_08_183619).
+ *
+ * Kolom `potongan` + `dispensasi_ids` yang dulu ditambahkan ke `tagihan`
+ * dari sini kini menyatu di `create_keuangan_tables` bersama tabelnya.
  */
 return new class extends Migration
 {
@@ -19,33 +31,28 @@ return new class extends Migration
             $table->string('nama', 100);
             $table->string('keterangan', 255)->nullable();
             $table->string('tahun_ajaran', 20);
-            $table->foreignId('jenis_id')->nullable()->constrained('jenis_tagihan')->nullOnDelete();
-            $table->json('paket')->nullable();
-            $table->json('tingkat')->nullable();
-            $table->json('kelas_id')->nullable();
-            $table->json('santri_ids')->nullable();
-            $table->enum('tipe', ['persen', 'nominal', 'bebas'])->default('nominal');
-            $table->unsignedInteger('nilai')->default(0);
-            $table->integer('prioritas')->default(0);
+            // Lingkup lembaga: null = berlaku semua lembaga (perilaku lama).
+            // `restrict` saat lembaga dihapus — menghapus lembaga tak boleh
+            // diam-diam meluaskan paket ke semua lembaga; lingkup uang harus
+            // eksplisit. Mengikuti pola `jenis_tagihan.jenjang`.
+            $table->string('jenjang', 20)->nullable();
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')
+                ->cascadeOnUpdate()->restrictOnDelete();
+            $table->index('jenjang');
+            // Kuota potongan per bulan (null = tanpa batas).
+            $table->unsignedInteger('kuota_bulan')->nullable();
+            // Nama grup paket (pengelompokan tampilan).
+            $table->string('grup', 50)->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')->cascadeOnUpdate()->cascadeOnDelete();
             $table->index(['tahun_ajaran', 'is_active']);
         });
-
-        Schema::table('tagihan', function (Blueprint $table) {
-            $table->unsignedBigInteger('potongan')->default(0)->after('nominal');
-            $table->json('dispensasi_ids')->nullable()->after('potongan');
-        });
     }
 
     public function down(): void
     {
-        Schema::table('tagihan', function (Blueprint $table) {
-            $table->dropColumn(['potongan', 'dispensasi_ids']);
-        });
-
         Schema::dropIfExists('dispensasi');
     }
 };

@@ -176,7 +176,18 @@ return new class extends Migration
             $table->foreignId('santri_id')->nullable()->constrained('santri')->cascadeOnDelete();
             $table->foreignId('psb_calon_santri_id')->nullable()->constrained('psb_calon_santri')->cascadeOnDelete();
             $table->string('jenis_dokumen_santri')->nullable(); // ref_jenis_dokumen_santri
+            // Konteks pemakaian (mis. Pas Foto MI dipakai di MI): satu santri
+            // boleh punya >1 berkas sejenis. Kunci rangkap (santri, jenis,
+            // lembaga) dijaga level aplikasi (impor/upload), BUKAN unique DB,
+            // mengikuti pola dedup service yang sudah ada.
+            $table->string('lembaga', 20)->nullable();
+            $table->foreign('lembaga')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
+            $table->boolean('is_active')->default(true); // dokumen terakhir/aktif
             $table->string('nama_file')->nullable(); // nama template berkas (tampil/unduh)
+            // Pelacak sinkron cermin dua arah (lokal ↔ server): hash isi terakhir
+            // yang diketahui sama di kedua sisi + waktu penyamaan.
+            $table->string('sinkron_hash', 64)->nullable();
+            $table->timestamp('tersinkron_pada')->nullable();
             $table->string('penyimpanan', 10)->default('server'); // lokasi byte: server|lokal|test
             $table->text('catatan')->nullable();
             $table->timestamps();

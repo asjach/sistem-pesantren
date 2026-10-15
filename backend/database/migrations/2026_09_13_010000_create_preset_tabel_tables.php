@@ -6,7 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /** Preset kolom tabel (per lembaga, null = global admin pesantren) + pilihan terakhir per user. */
+    /**
+     * Preset kolom tabel (per lembaga, null = global admin pesantren) + pilihan
+     * terakhir per user.
+     *
+     * Menggabungkan alter lama:
+     *  - `preset_tabel_aktif.kolom` (dulu migrasi `2026_10_02_130000`) ikut di
+     *    sini; susunan "Lengkap kustom" per user per tabel disimpan saat
+     *    `preset_id` null, tanpa membuat preset bernama baru.
+     *  - `preset_tabel.label` dan `preset_tabel_aktif.label` TIDAK ada di sini:
+     *    keduanya sempat ditambahkan lalu dijatuhkan (`2026_10_16_110000`)
+     *    karena nama header kolom kini satu sumber di `toolbar_preset.label`.
+     *    Yang netto nol tidak dipertahankan.
+     */
     public function up(): void
     {
         Schema::create('preset_tabel', function (Blueprint $table) {
@@ -16,8 +28,6 @@ return new class extends Migration
             $table->string('table_key', 60);
             $table->string('nama', 50);
             $table->json('kolom');
-            // Nama header kustom per kolom (key = key kolom grid); kosong = label bawaan.
-            $table->json('label')->nullable();
             // Satu preset bawaan per table_key (eksklusivitas dijaga service).
             $table->boolean('is_default')->default(false);
             $table->foreignId('dibuat_oleh')->nullable()->constrained('users')->nullOnDelete();
@@ -31,6 +41,9 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('table_key', 60);
             $table->foreignId('preset_id')->nullable()->constrained('preset_tabel')->cascadeOnDelete();
+            // Susunan kolom "Lengkap kustom" per user per tabel (dipakai saat
+            // `preset_id` null, tanpa membuat preset bernama baru).
+            $table->json('kolom')->nullable();
             $table->timestamps();
 
             $table->unique(['user_id', 'table_key']);
