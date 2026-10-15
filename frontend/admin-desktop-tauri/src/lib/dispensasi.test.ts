@@ -8,6 +8,7 @@ import {
   rincianPeriode,
   ringkasAturan,
   saringDispensasi,
+  saringPenerima,
   selaraskanGrup,
   sisaKuota,
   teksAturan,
@@ -52,6 +53,30 @@ describe('saringDispensasi', () => {
     ];
     expect(saringDispensasi(daftar, 7).map((d) => d.id)).toEqual([1]);
     expect(saringDispensasi(daftar, 9)).toEqual([]);
+  });
+});
+
+describe('saringPenerima', () => {
+  const baris = [
+    { nama: 'Ahmad Fauzi', nis: '111' },
+    { nama: 'Budi Santoso', nis: null },
+    { nama: 'Cici Amelia', nis: 'K-999' },
+  ];
+
+  it('cocok pada nama, tanpa peduli besar-kecil huruf & spasi tepi', () => {
+    expect(saringPenerima(baris, 'ahmad').map((r) => r.nama)).toEqual(['Ahmad Fauzi']);
+    expect(saringPenerima(baris, '  AMELIA  ').map((r) => r.nama)).toEqual(['Cici Amelia']);
+  });
+
+  it('cocok pada NIS; NIS null tidak bikin error', () => {
+    expect(saringPenerima(baris, '111').map((r) => r.nama)).toEqual(['Ahmad Fauzi']);
+    expect(saringPenerima(baris, 'k-99').map((r) => r.nama)).toEqual(['Cici Amelia']);
+    expect(saringPenerima(baris, 'budi').map((r) => r.nama)).toEqual(['Budi Santoso']);
+  });
+
+  it('kata kunci kosong = daftar apa adanya; tak ada yang cocok = kosong', () => {
+    expect(saringPenerima(baris, '   ')).toEqual(baris);
+    expect(saringPenerima(baris, 'zzz')).toEqual([]);
   });
 });
 

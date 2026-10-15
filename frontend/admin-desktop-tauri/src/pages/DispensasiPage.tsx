@@ -25,6 +25,7 @@ import {
 } from '@/components/keuangan/tabKeuangan';
 import { jenjangTampil, nisTampil } from '@/components/keuangan/tabSantriCustom';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import { saringPenerima } from '@/lib/dispensasi';
 import { bacaPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
 import type { PerPage } from '@/prefs';
 
@@ -78,7 +79,10 @@ function payloadDari(d: Dispensasi, santriIds: number[]): DispensasiInput {
  * Catatan lingkup: daftar DISPENSASI sengaja tak disaring filter topBar —
  * paket tidak terikat tahun ajaran (kolom `tahun_ajaran` hanya label arsip),
  * jadi penyaringan itu tak akan mengubah apa pun. Filter topBar dipakai oleh
- * daftar SANTRI, seperti di tab Santri Custom.
+ * daftar SANTRI, seperti di tab Santri Custom. Pencarian topBar juga hanya
+ * berlaku untuk DUA tabel santri — **Daftar Santri** (lewat server `q`) dan
+ * **Daftar Penerima** (disaring di klien) — bukan daftar dispensasi, supaya
+ * mencari nama santri tak mengosongkan daftar paket yang jadi sumber pilihan.
  */
 export default function DispensasiPage() {
   const { user } = useAuth();
@@ -99,8 +103,9 @@ export default function DispensasiPage() {
   const [aktifId, setAktifId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
-  /** Pencarian topBar: menyaring tabel dispensasi (nama/keterangan) DAN
-   *  daftar santri (nama/NIS, lewat server). */
+  /** Pencarian topBar: menyaring DUA tabel santri — Daftar Santri (nama/NIS,
+   *  lewat server) dan Daftar Penerima (nama/NIS, di klien). Tabel Daftar
+   *  Dispensasi sengaja tak ikut disaring. */
   const [cari, setCari] = useState('');
 
   /** Lebar panel kiri (px); gagang di tengah bisa menggesernya. */
@@ -132,13 +137,11 @@ export default function DispensasiPage() {
     () => kandidat.filter((s) => !idPenerima.has(s.id)),
     [kandidat, idPenerima],
   );
-  /** Daftar dispensasi tersaring pencarian (server tak punya param `q`). */
-  const dispensasiTampil = useMemo(() => {
-    const q = cari.trim().toLowerCase();
-    if (q === '') return dispensasi;
-    return dispensasi.filter((d) => d.nama.toLowerCase().includes(q)
-      || (d.keterangan ?? '').toLowerCase().includes(q));
-  }, [dispensasi, cari]);
+  /** Daftar penerima tersaring pencarian (nama/NIS) — server hanya menyaring
+   *  kandidat, sedangkan panel kanan memuat seluruh penerima paket terpilih. */
+  const penerimaTampil = useMemo(() => saringPenerima(penerima, cari), [penerima, cari]);
+  /** Ada pencarian aktif? Dipakai pesan kosong tiap tabel. */
+  const adaCari = cari.trim() !== '';
   /** Nama kelas rail → id (endpoint santri minta id). */
   const kelasIds = useMemo(
     () => kelasOpsi.filter((k) => kelasAktif.includes(k.nama_kelas)).map((k) => k.id),
@@ -317,7 +320,7 @@ export default function DispensasiPage() {
       />
 
       <div className="flex min-h-0 flex-1">
-        <TopBarSearch value={cari} onChange={setCari} placeholder="Cari dispensasi / nama / NIS…" />
+        <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIS…" />
 
         {/* Kiri (bawaan 500px, bisa digeser): tabel dispensasi + daftar santri. */}
         <div style={{ width: lebarKiri }} className="flex min-h-0 shrink-0 flex-col gap-2">
@@ -327,7 +330,7 @@ export default function DispensasiPage() {
             className="flex min-h-0 shrink-0 flex-col"
           >
             <DispensasiTab
-              rows={dispensasiTampil}
+              rows={dispensasi}
               loading={loading}
               sort={uDispensasi}
               onTambah={bukaTambahDispensasi}
@@ -364,9 +367,11 @@ export default function DispensasiPage() {
               rows={kandidatTampil}
               getValues={(r) => ({ nama_lengkap: r.nama_lengkap, nis: nisTampil(r), jk: r.jk, jenjang: jenjangTampil(r) })}
               loading={loadingKandidat}
-              emptyText={aktif === null
-                ? 'Pilih dispensasi dulu di tabel atas, lalu masukkan santri dari daftar ini.'
-                : 'Tidak ada santri (yang belum jadi penerima).'}
+              emptyText={adaCari
+                ? 'Tidak ada santri yang cocok dengan pencarian.'
+                : aktif === null
+                  ? 'Pilih dispensasi dulu di tabel atas, lalu masukkan santri dari daftar ini.'
+                  : 'Tidak ada santri (yang belum jadi penerima).'}
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
@@ -430,13 +435,14 @@ export default function DispensasiPage() {
               <KartuDispensasiTerpilih d={aktif} jumlahPenerima={penerima.length} />
               <div className="flex min-h-0 flex-1 flex-col">
                 <PenerimaDispensasiPanel
-                  rows={penerima}
+                  rows={penerimaTampil}
                   loading={loading}
                   nama={aktif.nama}
                   kuota={aktif.kuota_bulan}
                   terpakai={kuotaTerpakai}
                   busy={busy}
                   bolehUbah={bolehUbah}
+                  emptyText={adaCari ? 'Tidak ada penerima yang cocok dengan pencarian.' : undefined}
                   onKeluarkan={(ids) => void keluarkan(ids)}
                 />
               </div>

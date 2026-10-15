@@ -106,6 +106,21 @@ export function saringDispensasi(daftar: Dispensasi[], santriId: number): Dispen
   return daftar.filter((d) => (d.santri_ids ?? []).includes(santriId));
 }
 
+/** Saring baris penerima dengan kotak pencarian topBar: cocok pada nama ATAU
+ *  NIS, tanpa peduli besar-kecil huruf; `q` kosong = daftar apa adanya.
+ *  Sereaksi dengan penyaringan SERVER pada Daftar Santri (`q` di `listSantri`)
+ *  supaya dua tabel santri di halaman Dispensasi menanggapi satu kotak
+ *  pencarian dengan cara yang sama. */
+export function saringPenerima<T extends { nama: string; nis: string | null }>(
+  baris: T[],
+  q: string,
+): T[] {
+  const kunci = q.trim().toLowerCase();
+  if (kunci === '') return baris;
+  return baris.filter((r) => r.nama.toLowerCase().includes(kunci)
+    || (r.nis ?? '').toLowerCase().includes(kunci));
+}
+
 /** Akumulatif urut id — sama dengan DispensasiService di backend. */
 export function hitungDispensasi(
   nominalAwal: number,

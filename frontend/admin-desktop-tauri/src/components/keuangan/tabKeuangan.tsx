@@ -587,7 +587,7 @@ export function KartuDispensasiTerpilih({ d, jumlahPenerima }: {
  *  Combobox filter lama dihapus — paketnya sudah ditentukan baris terpilih.
  *  Kolom "Sisa Kuota" (terpakai/kuota) muncul hanya untuk paket berkuota —
  *  dipindah dari tab Daftar Santri di dialog yang kini dihapus. */
-export function PenerimaDispensasiPanel({ rows, loading, nama, kuota, terpakai, busy, bolehUbah, onKeluarkan }: {
+export function PenerimaDispensasiPanel({ rows, loading, nama, kuota, terpakai, busy, bolehUbah, emptyText, onKeluarkan }: {
   rows: BarisPenerima[];
   loading: boolean;
   /** Nama paket terpilih (judul panel). */
@@ -599,6 +599,9 @@ export function PenerimaDispensasiPanel({ rows, loading, nama, kuota, terpakai, 
   busy: boolean;
   /** Gerbang izin `keuangan.ubah`: tanpa ini panel baca-saja. */
   bolehUbah: boolean;
+  /** Pesan saat tabel kosong — halaman menimpanya ketika pencarian aktif,
+   *  supaya "belum ada penerima" tidak menyesatkan saat barisnya tersaring. */
+  emptyText?: string;
   onKeluarkan: (santriIds: number[]) => void;
 }) {
   const fields = useMemo(
@@ -627,7 +630,7 @@ export function PenerimaDispensasiPanel({ rows, loading, nama, kuota, terpakai, 
         sisa: kuota === null ? null : `${Math.max(0, kuota - (terpakai[r.santri_id] ?? 0))}/${kuota}`,
       })}
       loading={loading}
-      emptyText="Belum ada penerima — masukkan santri dari daftar di kiri."
+      emptyText={emptyText ?? 'Belum ada penerima — masukkan santri dari daftar di kiri.'}
       canEdit={false}
       onCommit={async () => {}}
       onSaved={() => {}}
