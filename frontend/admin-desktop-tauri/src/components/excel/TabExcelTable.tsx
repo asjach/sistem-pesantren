@@ -253,8 +253,8 @@ const PENGATURAN: BarisPengaturan[] = [
   {
     tempat: 'Klik kanan header/baris',
     sumber: 'excel/konteksMenu.tsx',
-    isi: 'Bekukan kolom, AutoFit, perataan, tampilkan/sembunyikan kolom, geser urutan, tinggi baris, salin TSV.',
-    akses: 'geser kolom & Kelola Tabel: super_admin efektif',
+    isi: 'Bekukan kolom, AutoFit, perataan, tinggi baris, salin TSV, Kelola Tabel.',
+    akses: 'Kelola Tabel: super_admin efektif',
   },
   {
     tempat: 'Klik kanan bilah judul → "Kelola Tabel"',
@@ -369,7 +369,7 @@ const CAKUPAN: Record<Cakupan, BarisCakupan[]> = {
   ],
   tabel: [
     { apa: 'Preset kolom tampilan', kontrol: 'Toolbar — dropdown Kolom', simpan: 'SERVER — preset per table_key', catatan: 'Daftar preset & kolom aktif.' },
-    { apa: 'Urutan kolom tersimpan', kontrol: 'Dialog → Urutan · seret di menu konteks', simpan: 'SERVER — toolbar_preset.urutan per tabel', catatan: 'Kolom yang tak ada di simpanan menempel di akhir.' },
+    { apa: 'Urutan kolom tersimpan', kontrol: 'Dialog → tab Kolom (seret baris)', simpan: 'SERVER — toolbar_preset.urutan per tabel', catatan: 'Kolom yang tak ada di simpanan menempel di akhir.' },
     { apa: 'Nama header kustom per kolom', kontrol: 'Dialog → tab Kolom (kotak di tiap baris)', simpan: 'SERVER — toolbar_preset.label per table_key', catatan: 'Menimpa label mentah dari kode. Berlaku juga untuk kolom yang sedang TERSEMBUNYI.' },
     { apa: 'Preset urutan (opsi & arah)', kontrol: 'Dialog → tab Urutan', simpan: 'SERVER — urut_preset per table_key', catatan: 'Opsi dropdown Urutkan; maks 3 lapis.' },
     { apa: 'Pilih preset urutan aktif', kontrol: 'Toolbar — dropdown Urutkan', simpan: 'state halaman (onUrut → refetch)', catatan: 'Nilai urut aktif dikelola halaman, bukan persist tabel.' },

@@ -1,8 +1,7 @@
-import { act, waitFor } from '@testing-library/react';
+import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MutableRefObject } from 'react';
 
-import PresetKolom, { type PresetKolomApi } from './PresetKolom';
+import PresetKolom from './PresetKolom';
 import type { ExcelField } from './ExcelTable';
 import { renderDenganTema } from '@/test/utils';
 
@@ -15,11 +14,10 @@ const { pengguna } = vi.hoisted(() => ({
 }));
 vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user: pengguna.current }) }));
 
-const { listPresetTabel, createPresetTabel, setPresetAktif, updatePresetTabel } = vi.hoisted(() => ({
+const { listPresetTabel, createPresetTabel, setPresetAktif } = vi.hoisted(() => ({
   listPresetTabel: vi.fn(),
   createPresetTabel: vi.fn(),
   setPresetAktif: vi.fn(),
-  updatePresetTabel: vi.fn(),
 }));
 vi.mock('@/api/preset', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/api/preset')>();
@@ -28,7 +26,6 @@ vi.mock('@/api/preset', async (importOriginal) => {
     listPresetTabel,
     createPresetTabel,
     setPresetAktif,
-    updatePresetTabel,
   };
 });
 
@@ -55,7 +52,6 @@ beforeEach(() => {
   pengguna.current = { permissions: ['preset_tabel.tambah'], roles: [{ name: 'super_admin' }] };
   vi.clearAllMocks();
   setPresetAktif.mockResolvedValue({ pesan: 'ok' });
-  updatePresetTabel.mockResolvedValue({ pesan: 'ok' });
 });
 
 describe('PresetKolom — preset "Lengkap" sungguhan', () => {
@@ -99,32 +95,5 @@ describe('PresetKolom — preset "Lengkap" sungguhan', () => {
 
     await waitFor(() => expect(onApply).toHaveBeenCalledWith(null, null));
     expect(createPresetTabel).not.toHaveBeenCalled();
-  });
-
-  it('memancarkan EVENT_PRESET_BERUBAH setelah susunan disimpan dari menu konteks', async () => {
-    listPresetTabel.mockResolvedValue(ADA_LENGKAP);
-    const apiRef = { current: null } as MutableRefObject<PresetKolomApi | null>;
-    const dengar = vi.fn();
-    window.addEventListener('simpes:preset-berubah', dengar);
-
-    renderDenganTema(
-      <PresetKolom tableKey="uji" fields={FIELDS} onApply={() => {}} apiRef={apiRef} />,
-    );
-    await waitFor(() => expect(apiRef.current).not.toBeNull());
-
-    await act(async () => {
-      await apiRef.current?.toggleKolomAktif('jk', false);
-    });
-
-    // Preset "Lengkap" yang sedang aktif itulah yang ditulis (bukan susunan pribadi).
-    expect(updatePresetTabel).toHaveBeenCalledWith(11, { kolom: ['nama'] });
-    expect(setPresetAktif).not.toHaveBeenCalled();
-    await waitFor(() =>
-      expect(dengar).toHaveBeenCalledWith(
-        expect.objectContaining({ detail: { tableKey: 'uji', sumber: 'presetKolom' } }),
-      ),
-    );
-
-    window.removeEventListener('simpes:preset-berubah', dengar);
   });
 });

@@ -20,7 +20,6 @@ import ScrollbarMelayang from './excel/ScrollbarMelayang';
 import { gabungUrutan } from './excel/urutanKolom';
 import { judulTabel } from './excel/judul';
 import { useToolbarPresetState } from './excel/useToolbarPreset';
-import { useUrutanKolom } from './excel/useUrutanKolom';
 import { filterToolbarTersedia } from './excel/filterTabel';
 import { komponenAktif, type InfoKomponenTabel } from './excel/komponenTabel';
 import { useLebarKolom } from './excel/useLebarKolom';
@@ -96,7 +95,6 @@ import {
 } from './excel/cells';
 import { HeaderTitle } from './excel/header';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
-import type { PresetKolomApi } from '@/components/PresetKolom';
 import JudulTabel from './excel/JudulTabel';
 import { ActionsCell, flattenAksi } from './excel/actions';
 import MenuKonteksGrid from './excel/konteksMenu';
@@ -296,8 +294,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     | { area: 'grid' }
   >({ area: 'grid' });
   const [ctxKonfirmasi, setCtxKonfirmasi] = useState<AksiMenu['konfirmasi'] | null>(null);
-  /** API preset kolom (dipakai menu klik kanan header: show/hide kolom). */
-  const presetApiRef = useRef<PresetKolomApi | null>(null);
   /** Geser urutan kolom = super_admin EFEKTIF (global; mati saat bertindak). */
   const { efektifSuper: bolehGeser } = useLembagaAktif();
   /** Super_admin efektif — menentukan apakah pintu "Standar pesantren" tampil. */
@@ -333,20 +329,15 @@ export default function ExcelTable<T extends { id: string | number }>({
   const clearSelection = useMemo(() => () => setCheckedIds(new Set<T['id']>()), []);
 
   const [presetKeysDalam, setPresetKeysDalam] = useState<string[] | null>(null);
-  /** Id preset aktif (null = Lengkap/tanpa preset): urutan kolom mengikuti
-   *  susunan preset; geser dari menu konteks menyimpan balik ke preset ini. */
-  const [presetAktifIdDalam, setPresetAktifIdDalam] = useState<number | null>(null);
-  // Bila dikendalikan luar, kedua nilai di atas diabaikan sepenuhnya.
+  // Bila dikendalikan luar, nilai di atas diabaikan sepenuhnya.
   const luar = presetLuar !== undefined;
   const presetKeys = luar ? presetLuar.keys : presetKeysDalam;
-  const presetAktifId = luar ? (presetLuar.presetId ?? null) : presetAktifIdDalam;
   /* Nama header kolom bukan urusan preset: itu setelan per TABEL dari DB
      (`toolbar_preset.label`, lihat `useKelolaKolom`/`labelDb`). Dulu label ikut
      preset; sekarang sumbernya tinggal satu. */
-  const terapkanPreset = useCallback((keys: string[] | null, presetId?: number | null) => {
+  const terapkanPreset = useCallback((keys: string[] | null, _presetId?: number | null) => {
     if (luar) return;
     setPresetKeysDalam(keys);
-    setPresetAktifIdDalam(presetId ?? null);
   }, [luar]);
 
 
@@ -433,12 +424,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     return dasar;
   }, [fields, presetKeys, urutanDb]);
   const visibleFieldsRef = useRef(visibleFields);
-  /** Semua kolom beserta label efektif & status tampil — dipakai menu klik
-   *  kanan header agar kolom bisa ditampilkan/disembunyikan dari sana. */
-  const daftarKolom = useMemo(() => {
-    const tampil = new Set(visibleFields.map((f) => f.key));
-    return fields.map((f) => ({ key: f.key, label: labelKolom(f.key, f.label), tampil: tampil.has(f.key) }));
-  }, [fields, visibleFields, labelKolom]);
   const gridRef = useRef<DataSheetGridRef>(null);
 
   // Muat jumlah kolom beku tabel ini; clamp bila preset menyembunyikan kolom.
@@ -474,19 +459,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   );
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
-
-  /** Geser & simpan urutan kolom dari menu konteks header. */
-  const { geserKolom, kembalikanUrutan } = useUrutanKolom({
-    tableKey,
-    presetAktifId,
-    // Saat preset dikendalikan luar, tulis ini tak berpengaruh visual (event
-    // preset-berubah memuat ulang susunan dari server); persist API di dalam
-    // hook tetap jalan sehingga tak ada yang hilang.
-    setPresetKeys: setPresetKeysDalam,
-    setUrutanDb,
-    getVisibleKeys: () => visibleFieldsRef.current.map((f) => f.key),
-    getFieldKeys: () => fieldsRef.current.map((f) => f.key),
-  });
 
   // Ukuran huruf efektif + font stack (dibaca hook lebar & render).
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
@@ -1516,7 +1488,6 @@ export default function ExcelTable<T extends { id: string | number }>({
             kolomTampil={kolomTampil}
             fields={fields}
             onApplyPreset={terapkanPreset}
-            presetApiRef={presetApiRef}
             presetKolomClassName={presetKolomClassName}
             addButton={addButton}
             tombolAksiTampil={tombolAksiTampil}
@@ -1654,21 +1625,14 @@ export default function ExcelTable<T extends { id: string | number }>({
             onAutoFitAll={onAutoFitAll}
             align={alignDb}
             onUbahAlign={simpanAlign}
-            presetApiRef={presetApiRef}
             bolehKelola={bolehGeser}
             onKelolaTabel={bolehKelolaHalaman ? () => setKelolaTabelOpen(true) : undefined}
-            daftarKolom={daftarKolom}
             salinBaris={(id) => void salinBarisCtx(id as T['id'])}
             salinSel={(id, key) => void salinSelCtx(id as T['id'], key)}
             salinKolom={(key) => void salinKolomCtx(key)}
             sudut={ctx.area === 'sudut'}
             onSalinSemua={() => void salinSemuaCtx()}
             onKonfirmasi={setCtxKonfirmasi}
-            bolehGeser={bolehGeser}
-            jumlahKolom={visibleFields.length}
-            onGeserKiri={() => ctxHeader && geserKolom(ctxHeader.colKey, -1)}
-            onGeserKanan={() => ctxHeader && geserKolom(ctxHeader.colKey, 1)}
-            onResetUrutan={() => kembalikanUrutan()}
             barisIkutIsi={barisIkutIsi}
             onUbahBarisIkutIsi={setBarisIkutIsi}
             onResetTinggiBaris={(rowId) => {

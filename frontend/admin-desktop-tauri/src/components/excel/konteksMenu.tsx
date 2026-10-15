@@ -1,4 +1,4 @@
-import type { MutableRefObject, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import {
   ContextMenuCheckboxItem,
   ContextMenuContent,
@@ -6,12 +6,11 @@ import {
   ContextMenuLabel,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
-import type { PresetKolomApi } from '@/components/PresetKolom';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AlignCenter, AlignLeft, AlignRight, ChevronLeft, ChevronRight, Columns3, Copy, MoveHorizontal, NotebookTabs, Pin, PinOff, RotateCcw } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight, Columns3, Copy, MoveHorizontal, NotebookTabs, Pin, PinOff, RotateCcw } from '@/icons';
 import { metaAksi } from './actions';
 import type { AksiMenu } from './types';
 
@@ -41,11 +40,7 @@ export interface MenuKonteksGridProps {
   align: Partial<Record<string, AlignKolom>>;
   /** Tulis perataan ke DB global (jalan pintas dialog Kelola Tabel). */
   onUbahAlign: (key: string, a: AlignKolom) => void;
-  presetApiRef: MutableRefObject<PresetKolomApi | null>;
-  /** Semua kolom beserta label efektif & status tampil — dipakai seksi
-   *  TAMPILKAN KOLOM pada menu klik kanan header. */
-  daftarKolom: { key: string; label: string; tampil: boolean }[];
-  /** Kelola preset = super_admin saja (sembunyikan seksi tampil preset). */
+  /** Kelola preset = super_admin saja (tombol perataan disembunyikan). */
   bolehKelola: boolean;
   /** Buka dialog Kelola Tabel dari klik kanan header kolom. Bila tak diberikan
    *  (mis. bukan super_admin efektif, atau halaman tanpa registrasi tabel),
@@ -59,12 +54,6 @@ export interface MenuKonteksGridProps {
   /** Salin seluruh tabel (label header + semua baris) sebagai TSV. */
   onSalinSemua: () => void;
   onKonfirmasi: (konfirmasi: AksiMenu['konfirmasi']) => void;
-  /** Geser posisi kolom (super_admin efektif; global tersimpan otomatis). */
-  bolehGeser: boolean;
-  jumlahKolom: number;
-  onGeserKiri: () => void;
-  onGeserKanan: () => void;
-  onResetUrutan: () => void;
   /** Tinggi baris: mode "ikut isi" + ada/tidaknya tinggi manual. */
   barisIkutIsi: boolean;
   onUbahBarisIkutIsi: (nyawa: boolean) => void;
@@ -74,8 +63,10 @@ export interface MenuKonteksGridProps {
   barisManualBarisIni: boolean;
 }
 
-/** Isi menu klik-kanan grid: area header (AutoFit, beku, perataan, tampil di
- *  preset) dan area baris (aksi halaman + salin TSV). */
+/** Isi menu klik-kanan grid: area header (AutoFit, beku, perataan, urutan,
+ *  Kelola Tabel) dan area baris (aksi halaman, tinggi baris, salin TSV).
+ *  Visibilitas kolom TIDAK ada di sini — diatur di tab Kolom dialog Kelola
+ *  Tabel (atau dropdown preset "Kolom" di bilah judul). */
 export default function MenuKonteksGrid({
   tableKey,
   header,
@@ -89,8 +80,6 @@ export default function MenuKonteksGrid({
   onAutoFitAll,
   align,
   onUbahAlign,
-  presetApiRef,
-  daftarKolom,
   bolehKelola,
   onKelolaTabel,
   salinBaris,
@@ -99,11 +88,6 @@ export default function MenuKonteksGrid({
   sudut,
   onSalinSemua,
   onKonfirmasi,
-  bolehGeser,
-  jumlahKolom,
-  onGeserKiri,
-  onGeserKanan,
-  onResetUrutan,
   barisIkutIsi,
   onUbahBarisIkutIsi,
   onResetTinggiBaris,
@@ -127,7 +111,7 @@ export default function MenuKonteksGrid({
         </>
       )}
       {/* Area header kolom: semua tombol dalam SATU baris ikon tanpa label
-          (perataan | lebar | beku); preset tetap daftar centang. */}
+          (perataan | lebar | beku | salin). */}
       {header && (
         <>
           <ContextMenuLabel>KOLOM: {headerLabel}</ContextMenuLabel>
@@ -249,110 +233,12 @@ export default function MenuKonteksGrid({
                 <p>Salin kolom (TSV)</p>
               </TooltipContent>
             </Tooltip>
-            {bolehGeser && (
-              <>
-                <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon"
-                      type="button"
-                      id={`btn_ctx_geser_kiri_${tableKey}`}
-                      aria-label="Geser kolom ke kiri"
-                      disabled={headerIdx <= 0}
-                      onClick={onGeserKiri}
-                      className={cn( 'disabled:pointer-events-none disabled:opacity-40')}
-                    >
-                      <ChevronLeft size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Geser kolom ke kiri (global)</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon"
-                      type="button"
-                      id={`btn_ctx_geser_kanan_${tableKey}`}
-                      aria-label="Geser kolom ke kanan"
-                      disabled={headerIdx < 0 || headerIdx >= jumlahKolom - 1}
-                      onClick={onGeserKanan}
-                      className={cn( 'disabled:pointer-events-none disabled:opacity-40')}
-                    >
-                      <ChevronRight size={16} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Geser kolom ke kanan (global)</p>
-                  </TooltipContent>
-                </Tooltip>
-              </>
-            )}
           </div>
           <ContextMenuSeparator />
-          {bolehGeser && (
-            <>
-              <ContextMenuItem
-                id={`menu_ctx_kembalikan_urutan_${tableKey}`}
-                onSelect={onResetUrutan}
-              >
-                <RotateCcw size={16} />
-                <span>Kembalikan urutan bawaan</span>
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-            </>
-          )}
-          {bolehKelola && (
-          <>
-          {/* Centang kolom yang tampil pada susunan yang sedang berlaku
-              (preset aktif bila ada, simpanan "Lengkap" bila tidak): toggle
-              menulis ke sumber itu juga, jadi tabel + dropdown Kolom langsung
-              mencerminkan pilihan baru. */}
-          <ContextMenuLabel>TAMPILKAN KOLOM</ContextMenuLabel>
-          {daftarKolom.length === 0 ? (
-            <ContextMenuItem disabled>Tidak ada kolom</ContextMenuItem>
-          ) : (
-            <div className="max-h-64 overflow-y-auto">
-              {daftarKolom.map((k) => (
-                <ContextMenuCheckboxItem
-                  key={k.key}
-                  id={`menu_ctx_tampil_kolom_${k.key}_${tableKey}`}
-                  checked={k.tampil}
-                  onSelect={(e) => e.preventDefault()}
-                  onCheckedChange={(c) =>
-                    void presetApiRef.current?.toggleKolomAktif(k.key, !!c)
-                  }
-                >
-                  {k.label}
-                </ContextMenuCheckboxItem>
-              ))}
-            </div>
-          )}
-          <ContextMenuSeparator />
-          <ContextMenuLabel>TAMPILKAN DI PRESET</ContextMenuLabel>
-          {(presetApiRef.current?.presets.length ?? 0) === 0 ? (
-            <ContextMenuItem disabled>Belum ada preset</ContextMenuItem>
-          ) : presetApiRef.current?.presets.map((p) => (
-            <ContextMenuCheckboxItem
-              key={p.id}
-              checked={p.kolom.includes(header.colKey)}
-              onSelect={(e) => e.preventDefault()}
-              onCheckedChange={(c) =>
-                void presetApiRef.current?.toggleKolom(p.id, header.colKey, !!c)
-              }
-            >
-              {p.jenjang === null
-                ? p.nama
-                : `${p.nama} (${p.lembaga?.nama ?? p.jenjang})`}
-            </ContextMenuCheckboxItem>
-          ))}
-          </>
-          )}
           {/* Jalan pintas ke dialog pengaturan tabel (super_admin efektif,
               halaman berregistrasi tabel) — setara klik kanan bilah judul. */}
           {onKelolaTabel && (
             <>
-              <ContextMenuSeparator />
               <ContextMenuItem
                 id={`menu_ctx_kelola_tabel_${tableKey}`}
                 onSelect={() => onKelolaTabel()}

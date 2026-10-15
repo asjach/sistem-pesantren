@@ -1,7 +1,7 @@
-import type { MutableRefObject, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import MenuAksiToolbar from '@/components/MenuAksiToolbar';
-import PresetKolom, { type PresetKolomApi } from '@/components/PresetKolom';
+import PresetKolom from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import type { ArahUrut } from '@/api/urutPreset';
 import { NotebookTabs, Settings } from '@/icons';
@@ -31,7 +31,6 @@ interface Props {
   kolomTampil: boolean;
   fields: ExcelField[];
   onApplyPreset: (keys: string[] | null, presetId?: number | null) => void;
-  presetApiRef: MutableRefObject<PresetKolomApi | null>;
   presetKolomClassName?: string;
   addButton?: ReactNode;
   /** Tampilkan blok tombol aksi utama (sakelar "Tombol aksi utama"). */
@@ -79,7 +78,6 @@ export default function JudulTabel({
   kolomTampil,
   fields,
   onApplyPreset,
-  presetApiRef,
   presetKolomClassName,
   addButton,
   tombolAksiTampil,
@@ -128,7 +126,6 @@ export default function JudulTabel({
                   tableKey={tableKey}
                   fields={fields}
                   onApply={onApplyPreset}
-                  apiRef={presetApiRef}
                   triggerClassName={presetKolomClassName}
                   wrapperClassName="flex-row items-center gap-1.5"
                 />
