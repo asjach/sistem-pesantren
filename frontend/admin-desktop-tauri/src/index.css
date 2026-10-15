@@ -805,14 +805,16 @@
    `animation-duration: var(--tw-animation-duration, var(--tw-duration, .15s))`
    dan tak ada kelas `duration-*` pada elemen-elemen itu, jadi tanpa aturan di
    sini semuanya selesai dalam 150ms — terasa buram-tiba, terutama panel
-   besar seperti sheet pengaturan tabel. 250ms memberi motion yang
-   terbaca tanpa membuat menunggu lama.
+   besar seperti sheet pengaturan tabel. 500ms dipakai karena panel-panel ini
+   besar (sheet pengaturan tabel selebar 600px+) sehingga gerak masuk/keluarnya
+   justru terbaca jelas; untuk popover/menu kecil efeknya hanya sedikit lebih
+   lama, masih wajar.
    Rules-rule ini SENGAJA tak terlapis (tidak di dalam `@layer`): pada Tailwind v4
    aturan tak terlapis menang atas utility yang terlapis, jadi cukup menimpa
    durasi dari `animate-in`/`animate-out` tanpa `!important`.
    Slot `*-overlay` ikut ikut supaya gelapnya tak lebih cepat daripada panelnya.
    Tooltip TIDAK ikut: muncul mengikuti hover, jadi 150ms bawaan justru terasa
-   responsif; 250ms di sana akan terasa lambat. */
+   responsif; 500ms di sana akan terasa sangat lambat. */
 [data-slot='sheet-content'],
 [data-slot='sheet-overlay'],
 [data-slot='dialog-content'],
@@ -823,7 +825,7 @@
 [data-slot='dropdown-menu-content'],
 [data-slot='select-content'],
 [data-slot='context-menu-content'] {
-  animation-duration: 250ms;
+  animation-duration: 500ms;
 }
 @media (prefers-reduced-motion: reduce) {
   [data-slot='tabs-indicator'] {
