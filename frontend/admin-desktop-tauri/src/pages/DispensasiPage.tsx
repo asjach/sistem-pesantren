@@ -29,11 +29,13 @@ import { saringPenerima } from '@/lib/dispensasi';
 import { bacaPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
 import type { PerPage } from '@/prefs';
 
-/** Kolom daftar santri — sama dengan tabel kandidat di tab Santri Custom. */
+/** Kolom daftar santri — sama dengan tabel kandidat di tab Santri Custom,
+ *  plus **Kelas** (nama rombel TA acuan; diisi endpoint daftar santri). */
 const FIELDS_SANTRI: ExcelField[] = [
   { key: 'nama_lengkap', label: 'Nama Lengkap', kind: 'static', width: 200 },
   { key: 'nis', label: 'NIS', kind: 'static', width: 110 },
   { key: 'jk', label: 'JK', kind: 'static', width: 60 },
+  { key: 'kelas', label: 'Kelas', kind: 'static', width: 100 },
   { key: 'jenjang', label: 'Jenjang', kind: 'static', width: 90 },
 ];
 
@@ -365,7 +367,7 @@ export default function DispensasiPage() {
               )}
               fields={FIELDS_SANTRI}
               rows={kandidatTampil}
-              getValues={(r) => ({ nama_lengkap: r.nama_lengkap, nis: nisTampil(r), jk: r.jk, jenjang: jenjangTampil(r) })}
+              getValues={(r) => ({ nama_lengkap: r.nama_lengkap, nis: nisTampil(r), jk: r.jk, kelas: r.kelas ?? null, jenjang: jenjangTampil(r) })}
               loading={loadingKandidat}
               emptyText={adaCari
                 ? 'Tidak ada santri yang cocok dengan pencarian.'

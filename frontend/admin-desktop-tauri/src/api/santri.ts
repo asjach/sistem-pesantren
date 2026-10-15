@@ -62,7 +62,11 @@ export function listKeanggotaan(params: {
   return api<Paginate<LembagaSantri>>(`/admin/lembaga-santri?${q.toString()}`);
 }
 
-/** Identitas santri — tanpa kolom relasional (lembaga/kelas ada di keanggotaan/riwayat). */
+/** Identitas santri — tanpa kolom relasional (lembaga ada di keanggotaan).
+ *  Pengecualian: `kelas` (nama rombel) HANYA diisi endpoint daftar
+ *  (`GET /admin/santri`), dihitung dari riwayat belajar TA acuan (filter
+ *  `tahun_ajaran`, atau TA aktif) — semester 2 menang, jenjang utama MI > MD.
+ *  Null bila santri tak punya riwayat pada TA itu (atau sudah pindah keluar). */
 export interface Santri {
   id: number;
   nama_lengkap: string;
@@ -79,6 +83,8 @@ export interface Santri {
   is_active_pst: string;
   foto_url?: string | null;
   lembaga_aktif?: LembagaSantri[];
+  /** Nama kelas pada TA acuan daftar (hanya endpoint daftar yang mengisi). */
+  kelas?: string | null;
 }
 
 /** Seluruh kolom profil `santri` (cermin `Santri::KOLOM_PROFIL` backend).

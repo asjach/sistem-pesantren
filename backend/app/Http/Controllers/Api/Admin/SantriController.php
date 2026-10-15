@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Exports\SantriLembagaTemplateExport;
+use App\Http\Controllers\Api\Admin\Concerns\PetaSantriRiwayat;
 use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Api\Concerns\UrutDaftar;
@@ -16,6 +17,7 @@ use App\Models\DokumenSantri;
 use App\Models\ImportSesi;
 use App\Models\Lembaga;
 use App\Models\Santri;
+use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Services\Impor\DataSantri;
 use App\Services\PenerimaanService;
@@ -25,10 +27,11 @@ use App\Services\UrutKatalog;
 use App\Support\NamaBerkasDokumen;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Buku Induk santri — identitas murni (`santri`).
@@ -38,12 +41,14 @@ use Maatwebsite\Excel\Facades\Excel;
 class SantriController extends Controller
 {
     use ImporBertahap;
+    use PetaSantriRiwayat;
     use TenantGuard;
     use UrutDaftar;
 
     private const SORT_NULLABLE = ['santri.nik', 'santri.nisn'];
 
-    /** GET /api/admin/santri — daftar buku induk (identitas + keanggotaan aktif). */
+    /** GET /api/admin/santri — daftar buku induk (identitas + keanggotaan aktif
+     *  + kolom `kelas` dari riwayat TA acuan). */
     public function index(Request $request)
     {
         $this->authorize('viewAny', Santri::class);
@@ -87,7 +92,41 @@ class SantriController extends Controller
             ['santri.jk', 'naik'], ['santri.nama_lengkap', 'naik'],
         ], self::SORT_NULLABLE);
 
-        return response()->json($query->paginate($this->perPage($request)));
+        $halaman = $query->paginate($this->perPage($request));
+        $this->sertakanKelas($halaman->getCollection(), $this->taKelas($request));
+
+        return response()->json($halaman);
+    }
+
+    /** TA acuan kolom `kelas`: filter `tahun_ajaran` topBar bila ada (nilai
+     *  pertama bila lebih dari satu), selain itu TA yang sedang aktif. */
+    private function taKelas(Request $request): ?string
+    {
+        $ta = $this->nilaiFilter($request, 'tahun_ajaran');
+
+        return $ta === [] ? TahunAjaran::aktif()?->nama : (string) $ta[0];
+    }
+
+    /**
+     * Tempelkan kolom `kelas` ke baris halaman: nama kelas dari
+     * `riwayat_belajar` TA acuan — semester 2 menang, jenjang utama MI > MD
+     * (aturan sama dengan peta keuangan, lihat `PetaSantriRiwayat`). Santri
+     * tanpa riwayat pada TA itu (atau yang `pindah_keluar`) bernilai null.
+     *
+     * @param  Collection<int, Santri>  $santri
+     */
+    private function sertakanKelas($santri, ?string $ta): void
+    {
+        if ($ta === null || $santri->isEmpty()) {
+            return;
+        }
+        $peta = $this->petaSantriGenerate(
+            $ta,
+            $santri->pluck('id')->map(fn ($v) => (int) $v)->all(),
+        );
+        foreach ($santri as $s) {
+            $s->setAttribute('kelas', $peta[(int) $s->id]['kelas'] ?? null);
+        }
     }
 
     /** POST /api/admin/santri — input manual identitas + keanggotaan (wajib 1 jenjang). */
