@@ -1,4 +1,11 @@
 @import "tailwindcss";
+/* Utility animasi overlay (animate-in, animate-out, fade, slide, zoom) yang
+   dipakai komponen `ui/*` (dialog, sheet, popover, dropdown, select,
+   context-menu). Tanpa ini kelas-kelas itu tak terdefinisi, Radix tak
+   menemukan `animation-name`, dan panel langsung hilang tanpa gerak —
+   termasuk sheet pengaturan tabel saat ditutup. Impor WAJIB setelah
+   `tailwindcss` (utility paket ini bergantung pada base Tailwind). */
+@import "tw-animate-css";
 /* Google Fonts disimpan lokal (offline) — lihat scripts/fonts-offline.py */
 @import "./assets/fonts/fonts-offline.css";
 /* Aptos & Aptos Narrow (bundel lokal, dari instalasi Office) — lihat src/assets/fonts/aptos.css */
@@ -796,6 +803,23 @@
 @media (prefers-reduced-motion: reduce) {
   [data-slot='tabs-indicator'] {
     transition: none;
+  }
+  /* Matikan animasi masuk/keluar overlay (utility `animate-in`/`animate-out`
+     dari `tw-animate-css`). `animation-name: none` bukan sekadar tak terlihat:
+     Radix memakainya untuk memutuskan kapan panel dilepas, jadi tanpa
+     `animation` panel justru LEBIH cepat hilang — bukan menggantung di layar. */
+  [data-slot='sheet-content'],
+  [data-slot='sheet-overlay'],
+  [data-slot='dialog-content'],
+  [data-slot='dialog-overlay'],
+  [data-slot='alert-dialog-content'],
+  [data-slot='alert-dialog-overlay'],
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='select-content'],
+  [data-slot='context-menu-content'],
+  [data-slot='tooltip-content'] {
+    animation: none !important;
   }
 }
 /* Tabel di dalam panel tab berbingkai (`simpes-panel-tab`): bingkai panel jatuh
