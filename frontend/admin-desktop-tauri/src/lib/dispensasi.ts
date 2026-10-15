@@ -145,6 +145,25 @@ export function ringkasAturan(
   return `Rp ${a.nilai.toLocaleString('id')}`;
 }
 
+/** Teks satu baris aturan potongan: "50%", "Rp 10.000", "Bebas". Beda dengan
+ *  `ringkasAturan` (pasangan paket × jenis): ini bekerja pada aturan itu
+ *  sendiri, jadi bisa dipakai tanpa tahu jenisnya. */
+export function teksAturan(a: Pick<Dispensasi['aturan'][number], 'tipe' | 'nilai'>): string {
+  if (a.tipe === 'persen') return `${a.nilai}%`;
+  if (a.tipe === 'bebas') return 'Bebas';
+  return `Rp ${a.nilai.toLocaleString('id')}`;
+}
+
+/** Seluruh aturan satu paket jadi satu baris: "Yatim: 50% · Semua jenis: Rp 5.000".
+ *  Aturan tanpa jenis (berlaku semua jenis tagihan) ditulis "Semua jenis".
+ *  Satu sumber untuk kolom tabel Dispensasi, kartu paket terpilih, dan panel
+ *  dispensasi di profil santri. */
+export function teksAturanPaket(d: Pick<Dispensasi, 'aturan'>): string {
+  return (d.aturan ?? [])
+    .map((a) => `${a.jenis?.nama ?? 'Semua jenis'}: ${teksAturan(a)}`)
+    .join(' · ');
+}
+
 /** Gabung dua daftar paket per grup — cermin `DispensasiService::selaraskan`:
  *  `$utama` menang dalam grupnya, daftar pertama menang bila se-grup ganda
  *  (termasuk di dalam `$utama` — menormalkan jejak legacy); grup null

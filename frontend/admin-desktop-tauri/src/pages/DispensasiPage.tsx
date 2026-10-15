@@ -20,8 +20,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight } from '@/icons';
 import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
 import {
-  barisPenerima, DispensasiTab, FIELDS_DISPENSASI, FIELDS_PENERIMA, PenerimaDispensasiPanel,
-  type BarisPenerima,
+  barisPenerima, DispensasiTab, FIELDS_DISPENSASI, FIELDS_PENERIMA, KartuDispensasiTerpilih,
+  PenerimaDispensasiPanel, type BarisPenerima,
 } from '@/components/keuangan/tabKeuangan';
 import { jenjangTampil, nisTampil } from '@/components/keuangan/tabSantriCustom';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -71,8 +71,9 @@ function payloadDari(d: Dispensasi, santriIds: number[]): DispensasiInput {
  * Kiri: baris 1 tabel **Daftar Dispensasi** (barisnya bisa dipilih), baris 2
  * tabel **Daftar Santri** (lingkup filter topBar + rail; santri yang sudah
  * menjadi penerima paket terpilih disembunyikan) dengan aksi `→` untuk
- * memasukkannya. Kanan: **Daftar Penerima** paket terpilih, dengan aksi
- * mengeluarkan. Lebar panel kiri & tinggi bagian atasnya bisa digeser.
+ * memasukkannya. Kanan: **kartu informasi** paket terpilih (nama, status, TA,
+ * kuota, grup, keterangan, aturan) lalu **Daftar Penerima** paket itu dengan
+ * aksi mengeluarkan. Lebar panel kiri & tinggi bagian atasnya bisa digeser.
  *
  * Catatan lingkup: daftar DISPENSASI sengaja tak disaring filter topBar —
  * paket tidak terikat tahun ajaran (kolom `tahun_ajaran` hanya label arsip),
@@ -416,23 +417,30 @@ export default function DispensasiPage() {
           onPointerCancel={selesaiGeser}
         />
 
-        {/* Kanan: daftar penerima paket terpilih. */}
-        <div className="flex min-h-0 flex-1 flex-col">
+        {/* Kanan: kartu informasi paket terpilih + daftar penerimanya. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
           {aktif === null ? (
             <p className="grid flex-1 place-items-center text-sm text-muted-foreground">
               Pilih dispensasi di tabel kiri untuk melihat daftar penerimanya.
             </p>
           ) : (
-            <PenerimaDispensasiPanel
-              rows={penerima}
-              loading={loading}
-              nama={aktif.nama}
-              kuota={aktif.kuota_bulan}
-              terpakai={kuotaTerpakai}
-              busy={busy}
-              bolehUbah={bolehUbah}
-              onKeluarkan={(ids) => void keluarkan(ids)}
-            />
+            <>
+              {/* Kartu info paket terpilih — ditaruh di ATAS tabel penerima
+                  supaya daftar santrinya tetap terlihat di bawah. */}
+              <KartuDispensasiTerpilih d={aktif} jumlahPenerima={penerima.length} />
+              <div className="flex min-h-0 flex-1 flex-col">
+                <PenerimaDispensasiPanel
+                  rows={penerima}
+                  loading={loading}
+                  nama={aktif.nama}
+                  kuota={aktif.kuota_bulan}
+                  terpakai={kuotaTerpakai}
+                  busy={busy}
+                  bolehUbah={bolehUbah}
+                  onKeluarkan={(ids) => void keluarkan(ids)}
+                />
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
@@ -11,6 +13,8 @@ import TagihanCrosstab, { type MetaSel, type SelBlok } from '@/components/keuang
 import PresetUrut from '@/components/PresetUrut';
 import { ActionIcon, DeleteAction, EditAction } from '@/components/RowActions';
 import { Info, Plus, Trash2, TriangleAlert, X } from '@/icons';
+import { cn } from '@/lib/utils';
+import { teksAturan, teksAturanPaket } from '@/lib/dispensasi';
 import type { PetaArahKolom } from '@/lib/urut';
 import type { PilihanLembaga } from '@/lembagaAktif';
 import type { PerPage } from '@/prefs';
@@ -455,7 +459,7 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, 
       barisAktifId={aktifId}
       getValues={(r) => ({
         nama: r.nama,
-        aturan: (r.aturan ?? []).map((a) => `${a.jenis?.nama ?? 'Semua jenis'}: ${a.tipe === 'persen' ? `${a.nilai}%` : a.tipe === 'bebas' ? 'bebas' : `Rp ${a.nilai.toLocaleString('id')}`}`).join(' · '),
+        aturan: teksAturanPaket(r),
         santri: `${(r.santri_ids ?? []).length} santri`,
         tahun_ajaran: r.tahun_ajaran,
         status: r.is_active ? 'Aktif' : 'Nonaktif',
@@ -480,6 +484,86 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, 
       addButtonLangsung
       addButton={<Button id="btn_dispensasi_tambah_buka" size="icon" variant="outline" aria-label="Tambah dispensasi" title="Tambah dispensasi" onClick={onTambah}><Plus size={16} /></Button>}
     />
+  );
+}
+
+/** Kartu informasi paket dispensasi TERPILIH (halaman Dispensasi, kolom
+ *  kanan) — diletakkan di ATAS tabel Daftar Penerima supaya santri yang
+ *  sedang dikelola tetap terlihat tanpa menggulir. Isinya mengikuti baris
+ *  yang diklik di tabel Daftar Dispensasi (kolom kiri): status, TA, jumlah
+ *  penerima, kuota, grup, keterangan, dan seluruh aturan potongannya.
+ *
+ *  Murni presentasional (tanpa fetch): halaman sudah memegang paketnya. */
+export function KartuDispensasiTerpilih({ d, jumlahPenerima }: {
+  /** Paket terpilih — sumber seluruh isi kartu. */
+  d: Dispensasi;
+  /** Banyaknya penerima paket ini (panjang tabel di bawahnya). */
+  jumlahPenerima: number;
+}) {
+  const aturan = d.aturan ?? [];
+  return (
+    <Card id="kartu_dispensasi_terpilih" className="shrink-0 gap-1.5 p-2.5 text-xs">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span id="kartu_dispensasi_nama" className="text-xs font-semibold">{d.nama}</span>
+        <Badge
+          id="kartu_dispensasi_status"
+          variant={d.is_active ? 'secondary' : 'outline'}
+          className={cn('text-[10px]', !d.is_active && 'text-muted-foreground')}
+        >
+          {d.is_active ? 'Aktif' : 'Nonaktif'}
+        </Badge>
+        <span className="text-muted-foreground">
+          <span id="kartu_dispensasi_penerima" className="tabular-nums">{jumlahPenerima}</span> penerima
+        </span>
+        <span className="text-muted-foreground">
+          TA <span id="kartu_dispensasi_ta">{d.tahun_ajaran}</span>
+        </span>
+      </div>
+
+      <dl className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <dt>Kuota</dt>
+          <dd id="kartu_dispensasi_kuota" className="text-foreground">
+            {d.kuota_bulan == null ? 'Tanpa batas' : `${d.kuota_bulan} bulan`}
+          </dd>
+        </div>
+        <div className="flex items-center gap-1">
+          <dt>Grup</dt>
+          <dd id="kartu_dispensasi_grup" className="text-foreground">{d.grup ?? '—'}</dd>
+        </div>
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          <dt className="shrink-0">Keterangan</dt>
+          <dd
+            id="kartu_dispensasi_keterangan"
+            className="min-w-0 truncate text-foreground"
+            title={d.keterangan ?? undefined}
+          >
+            {d.keterangan ?? '—'}
+          </dd>
+        </div>
+      </dl>
+
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-muted-foreground">Aturan</span>
+        {aturan.length === 0 ? (
+          <span id="kartu_dispensasi_aturan_kosong" className="text-muted-foreground">
+            — belum ada aturan jenis
+          </span>
+        ) : (
+          aturan.map((a) => (
+            <span
+              key={a.id}
+              id={`kartu_dispensasi_aturan_${a.id}`}
+              className="border border-foreground/20 px-1.5 py-px"
+              title={`${a.jenis?.nama ?? 'Semua jenis tagihan'}: ${teksAturan(a)}`}
+            >
+              <span className="text-muted-foreground">{a.jenis?.nama ?? 'Semua jenis'}:</span>{' '}
+              <span className="tabular-nums">{teksAturan(a)}</span>
+            </span>
+          ))
+        )}
+      </div>
+    </Card>
   );
 }
 

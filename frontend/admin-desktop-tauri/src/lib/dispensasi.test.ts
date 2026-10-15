@@ -10,6 +10,8 @@ import {
   saringDispensasi,
   selaraskanGrup,
   sisaKuota,
+  teksAturan,
+  teksAturanPaket,
 } from './dispensasi';
 
 function paket(
@@ -78,6 +80,27 @@ describe('ringkasAturan', () => {
     expect(ringkasAturan(paket({ id: 2 }, [aturan(1, 1, 'nominal', 10000)]), 1)).toBe('Rp 10.000');
     expect(ringkasAturan(paket({ id: 3 }, [aturan(1, 1, 'bebas', 0)]), 1)).toBe('Bebas');
     expect(ringkasAturan(paket({ id: 4 }, [aturan(1, 2, 'persen', 10)]), 1)).toBeNull();
+  });
+});
+
+describe('teksAturan & teksAturanPaket', () => {
+  it('satu aturan: persen, nominal, bebas', () => {
+    expect(teksAturan(aturan(1, 1, 'persen', 50))).toBe('50%');
+    expect(teksAturan(aturan(2, 1, 'nominal', 10000))).toBe('Rp 10.000');
+    expect(teksAturan(aturan(3, 1, 'bebas', 0))).toBe('Bebas');
+  });
+
+  it('paket: semua aturan berurutan, tanpa jenis = "Semua jenis"', () => {
+    const d = paket({ id: 1 }, [
+      { ...aturan(1, 7, 'persen', 25), jenis: { id: 7, nama: 'SPP' } },
+      aturan(2, null, 'nominal', 5000),
+    ]);
+    expect(teksAturanPaket(d)).toBe('SPP: 25% · Semua jenis: Rp 5.000');
+  });
+
+  it('paket tanpa aturan → teks kosong', () => {
+    expect(teksAturanPaket(paket({ id: 2 }))).toBe('');
+    expect(teksAturanPaket({} as Pick<Dispensasi, 'aturan'>)).toBe('');
   });
 });
 

@@ -8,6 +8,7 @@ import {
 import { listTahunAjaran, type TahunAjaran } from '../../api/master';
 import { Button } from '@/components/ui/button';
 import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
+import { teksAturanPaket } from '@/lib/dispensasi';
 import { Plus } from '@/icons';
 
 /** Bagian profil santri: dispensasi yang berlaku untuk santri ini pada TA
@@ -65,7 +66,7 @@ export default function DispensasiSantriPanel({ santri }: { santri: { id: number
                 <tr key={d.id} className="border-t">
                   <td className="p-1.5">{d.nama}</td>
                   <td className="p-1.5">
-                    {(d.aturan ?? []).map((a) => `${a.jenis?.nama ?? 'Semua jenis'}: ${a.tipe === 'persen' ? `${a.nilai}%` : a.tipe === 'bebas' ? 'bebas' : `Rp ${a.nilai.toLocaleString('id')}`}`).join(' · ')}
+                    {teksAturanPaket(d)}
                   </td>
                   <td className="p-1.5 text-right">{(d.santri_ids ?? []).length} santri</td>
                 </tr>
