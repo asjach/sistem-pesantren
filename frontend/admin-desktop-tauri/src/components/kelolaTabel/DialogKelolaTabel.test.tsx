@@ -116,6 +116,8 @@ const LENGKAP: InfoKomponenTabel = {
   pager: true,
   tombolTambah: true,
   tombolEdit: true,
+  kolomCentang: true,
+  kolomAksi: true,
 };
 
 beforeEach(() => {
@@ -285,7 +287,7 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
     await waitFor(() => expect(screen.getByText('Visibilitas komponen tabel')).toBeInTheDocument());
 
     // Tiga grup, dan tiap komponen punya sakelarnya sendiri.
-    for (const grup of ['Bilah judul', 'Kepala tabel', 'Kaki tabel']) {
+    for (const grup of ['Bilah judul', 'Kepala tabel', 'Kolom tetap', 'Kaki tabel']) {
       await waitFor(() => expect(screen.getByText(grup)).toBeInTheDocument());
     }
     for (const label of [
@@ -299,6 +301,8 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
       'Tampilkan Tombol aksi utama',
       'Tampilkan Header kolom (kepala kolom)',
       'Tampilkan Rel filter di kiri grid',
+      'Tampilkan Kolom centang',
+      'Tampilkan Kolom Aksi',
       'Tampilkan Pager / jumlah baris',
       'Tampilkan Tombol Pengaturan tabel',
       'Tampilkan Tombol tinggi baris',
@@ -324,6 +328,8 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
       pager: false,
       tombolTambah: false,
       tombolEdit: false,
+      kolomCentang: false,
+      kolomAksi: false,
     });
     await waitFor(() => expect(screen.getByText('Visibilitas komponen tabel')).toBeInTheDocument());
     expect(screen.queryByLabelText('Tampilkan Info tengah')).toBeNull();
@@ -331,6 +337,10 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
     expect(screen.queryByLabelText('Tampilkan Rel filter di kiri grid')).toBeNull();
     expect(screen.queryByLabelText('Tampilkan Pager / jumlah baris')).toBeNull();
     expect(screen.queryByLabelText('Tampilkan Tombol tambah baris')).toBeNull();
+    // Kolom centang & Aksi tak bisa dimatikan kalau halaman memang memaksa
+    // sembunyi lewat prop `hideCheckbox`/`hideActions` — sakelarnya tak tampil.
+    expect(screen.queryByLabelText('Tampilkan Kolom centang')).toBeNull();
+    expect(screen.queryByLabelText('Tampilkan Kolom Aksi')).toBeNull();
     // Yang tetap ada: Urutan, Kolom, Judul, header kolom, dan 3 tombol kaki.
     expect(screen.getByLabelText('Tampilkan Urutan')).toBeInTheDocument();
     expect(screen.getByLabelText('Tampilkan Header kolom (kepala kolom)')).toBeInTheDocument();

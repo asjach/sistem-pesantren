@@ -321,6 +321,16 @@ export default function ExcelTable<T extends { id: string | number }>({
      bukan sekadar tak terlihat — kalau tidak, tinggi tabel kompak meleset
      sebesar tinggi header dan hitungan indeks baris ikut meleset. */
   const headerKolomTampil = komponenAktif(visibilitas, 'header_kolom');
+  /* Kolom centang & kolom Aksi punya DUA sumber penyembunyian: prop halaman
+     (`hideCheckbox`/`hideActions`) dan sakelar tabel ini. Prop menang dulu.
+     Sakelarnya tetap ditampilkan walau tabel punya aksi massal — mematikan
+     kolom centang di sana membuat aksi massal tak terjangkau, dan itu
+     konsekuensi yang disetujui, bukan hal yang perlu dicegah.
+     Nilai EFEKTIF ini dipakai di mana pun kolom itu harus benar-benar hilang:
+     definisi kolom DSG, kolom beku (kolom centang ikut beku), lebar otomatis,
+     dan salin. */
+  const sembunyiCentang = hideCheckbox || !komponenAktif(visibilitas, 'kolom_centang');
+  const sembunyiAksi = hideActions || !komponenAktif(visibilitas, 'kolom_aksi');
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
    *  Tidak bergantung mode Edit: halaman boleh mendukung create saja. */
   const inputEnabled = !!onCreateRow;
@@ -525,8 +535,8 @@ export default function ExcelTable<T extends { id: string | number }>({
     wrapRef,
     getSelectedColumnKeys: () => selectedColumnKeys(),
     labelKolom,
-    hideActions,
-    hideCheckbox,
+    hideActions: sembunyiAksi,
+    hideCheckbox: sembunyiCentang,
     loading,
     headerH,
     fontPx,
@@ -573,8 +583,8 @@ export default function ExcelTable<T extends { id: string | number }>({
     salinFisik,
     teksSalinan,
   } = useSalinTabel<T>({
-    hideCheckbox,
-    hideActions,
+    hideCheckbox: sembunyiCentang,
+    hideActions: sembunyiAksi,
     visibleFieldsRef,
     fieldsRef,
     rowsRef,
@@ -965,7 +975,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         : alignEfektif(key) === 'left'
           ? ''
           : 'simpes-dsg-align-center';
-    const cols: Column<GridRow>[] = hideCheckbox
+    const cols: Column<GridRow>[] = sembunyiCentang
       ? []
       : [
           {
@@ -989,7 +999,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       const bekuCls = iData < freezeAktif ? ' simpes-dsg-beku' : '';
       const tepiCls = iData === freezeAktif - 1 ? ' simpes-dsg-beku-tepi' : '';
       // Tanpa kolom Aksi, kolom data terakhir yang menggambar tepi kanan tabel.
-      const lastCls = hideActions && iData === visibleFields.length - 1 ? ' simpes-dsg-col-last' : '';
+      const lastCls = sembunyiAksi && iData === visibleFields.length - 1 ? ' simpes-dsg-col-last' : '';
       const isInputRow = (rowData?: GridRow) => showInput && String(rowData?.id) === INPUT_ROW_ID;
       const common = {
         id: f.key,
@@ -1200,7 +1210,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     // adalah draft BARIS INPUT (dropdown bertingkat, via `inputDraft`);
     // ketikan edit baris data tak perlu membangun ulang definisi kolom.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, showInput, freezeAktif, hideCheckbox, labelKolom, alignEfektif, inputDraft]);
+  }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, showInput, freezeAktif, sembunyiCentang, labelKolom, alignEfektif, inputDraft]);
 
   /** Logika baris input (mode Input): draft, validasi, simpan, kursor. */
   const {
@@ -1263,7 +1273,7 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   /** Interaksi sel: drag centang, toggle centang, tutup editor saat pindah sel. */
   const { downPosRef, cegahSeleksiSelCentang, toggleCheckByCell, closeEditorOnOtherCell } = useInteraksiSel<T>({
-    hideCheckbox,
+    hideCheckbox: sembunyiCentang,
     wrapRef,
     rowsRef,
     editing,
@@ -1451,9 +1461,12 @@ export default function ExcelTable<T extends { id: string | number }>({
     pager: pager != null,
     tombolTambah: inputEnabled,
     tombolEdit: canEdit,
+    kolomCentang: !hideCheckbox,
+    kolomAksi: !hideActions,
   }), [
     adaBilahJudul, adaKontrolJudul, adaTombolAksi, canEdit, filterTersedia,
-    hasFilter, hasUrut, header, hidePreset, infoHeader, inputEnabled, pager, rail,
+    hasFilter, hasUrut, header, hideActions, hideCheckbox, hidePreset,
+    infoHeader, inputEnabled, pager, rail,
   ]);
 
   // Data context menu per area (header kolom / baris).
@@ -1588,8 +1601,8 @@ export default function ExcelTable<T extends { id: string | number }>({
                     onChange={handleChangeStable}
                     columns={dsgColumns}
                     gutterColumn={GUTTER_COLUMN}
-                    stickyLeftColumnCount={freezeAktif > 0 ? freezeAktif + (hideCheckbox ? 0 : 1) : 0}
-                    stickyRightColumn={hideActions ? undefined : aksiColumn}
+                    stickyLeftColumnCount={freezeAktif > 0 ? freezeAktif + (sembunyiCentang ? 0 : 1) : 0}
+                    stickyRightColumn={sembunyiAksi ? undefined : aksiColumn}
                     rowKey="id"
                     height={gridHeight}
                     rowHeight={gridRowHeight}

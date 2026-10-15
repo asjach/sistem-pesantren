@@ -60,6 +60,9 @@ class ToolbarPresetController extends Controller
         // Kepala tabel.
         'header_kolom',
         'rel_filter',
+        // Kolom tetap (mengapit grid).
+        'kolom_centang',
+        'kolom_aksi',
         // Kaki tabel.
         'pager',
         'tombol_pengaturan',

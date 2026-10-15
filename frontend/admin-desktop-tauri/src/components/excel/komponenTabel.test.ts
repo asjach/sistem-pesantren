@@ -26,6 +26,8 @@ const LENGKAP: InfoKomponenTabel = {
   pager: true,
   tombolTambah: true,
   tombolEdit: true,
+  kolomCentang: true,
+  kolomAksi: true,
 };
 
 describe('komponenAktif', () => {
@@ -51,8 +53,13 @@ describe('komponenAktif', () => {
 });
 
 describe('grupTersedia', () => {
-  it('tabel yang punya semuanya → tiga grup, seluruh komponen', () => {
-    expect(grupTersedia(LENGKAP).map((g) => g.grup.id)).toEqual(['bilah_judul', 'kepala_tabel', 'kaki_tabel']);
+  it('tabel yang punya semuanya → empat grup, seluruh komponen', () => {
+    expect(grupTersedia(LENGKAP).map((g) => g.grup.id)).toEqual([
+      'bilah_judul',
+      'kepala_tabel',
+      'kolom_tetap',
+      'kaki_tabel',
+    ]);
     expect(grupTersedia(LENGKAP).flatMap(({ items }) => items.map((i) => i.kunci))).toEqual(SEMUA);
   });
 
@@ -81,6 +88,23 @@ describe('grupTersedia', () => {
     expect(ids).not.toContain('bilah_judul');
     expect(ids).toContain('kepala_tabel');
     expect(ids).toContain('kaki_tabel');
+  });
+
+  it('grup kolom tetap hilang kalau halaman memang memaksa keduanya sembunyi', () => {
+    // Kolom centang & Aksi yang memang tak ada juga tak punya sakelar — tak
+    // ada tempat menampilkan.
+    const info: InfoKomponenTabel = { ...LENGKAP, kolomCentang: false, kolomAksi: false };
+    const kunci = grupTersedia(info).flatMap(({ items }) => items.map((i) => i.kunci));
+    expect(kunci).not.toContain('kolom_centang');
+    expect(kunci).not.toContain('kolom_aksi');
+    expect(grupTersedia(info).map((g) => g.grup.id)).not.toContain('kolom_tetap');
+  });
+
+  it('satu dari dua kolom tetap masih punya sakelar', () => {
+    const kunci = grupTersedia({ ...LENGKAP, kolomCentang: false })
+      .flatMap(({ items }) => items.map((i) => i.kunci));
+    expect(kunci).not.toContain('kolom_centang');
+    expect(kunci).toContain('kolom_aksi');
   });
 
   it('info tengah tak ditawarkan bila tabel tak punya bilah judul', () => {

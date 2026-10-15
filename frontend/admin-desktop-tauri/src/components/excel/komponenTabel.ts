@@ -14,7 +14,12 @@
  *  Cakupan sakelar ini adalah komponen yang DIMILIKI TABEL. Kontrol milik
  *  halaman yang diselipkan lewat `awalanToolbar`/`akhirToolbar`/`renderBulkActions`
  *  sengaja tak punya sakelar — menyembunyikannya berarti menyembunyikan kontrol
- *  halaman yang tak punya tempat disetel di dialog ini. */
+ *  halaman yang tak punya tempat disetel di dialog ini.
+ *
+ *  `kolom_centang`/`kolom_aksi` berbeda: halaman memang tak memaksa
+ *  menyembunyikannya, jadi super_admin boleh — dan tabel yang punya aksi
+ *  massal jadi kehilangan jalan ke aksi itu. Itu konsekuensi yang disetujui,
+ *  bukan bug yang dicegah. */
 
 export type KunciKomponenTabel =
   // — Bilah judul —
@@ -39,6 +44,11 @@ export type KunciKomponenTabel =
   | 'header_kolom'
   /** Rel/filter tingkat-kelas yang menempel di kiri grid. */
   | 'rel_filter'
+  // — Kolom tetap (mengapit grid) —
+  /** Kolom centang baris (memilih baris untuk aksi massal). */
+  | 'kolom_centang'
+  /** Kolom Aksi di kanan tiap baris. */
+  | 'kolom_aksi'
   // — Kaki tabel —
   /** Pager + jumlah baris per halaman. */
   | 'pager'
@@ -90,6 +100,24 @@ export const GRUP_KOMPONEN_TABEL: readonly GrupKomponenTabel[] = [
     ],
   },
   {
+    id: 'kolom_tetap',
+    label: 'Kolom tetap',
+    items: [
+      {
+        kunci: 'kolom_centang',
+        label: 'Kolom centang',
+        // Sakelar tak ditampilkan kalau HALAMAN sudah memaksa sembunyi lewat
+        // prop `hideCheckbox` (TabelRingkas, tabel baca-saja).
+        tersedia: (i) => i.kolomCentang,
+      },
+      {
+        kunci: 'kolom_aksi',
+        label: 'Kolom Aksi',
+        tersedia: (i) => i.kolomAksi,
+      },
+    ],
+  },
+  {
     id: 'kaki_tabel',
     label: 'Kaki tabel',
     items: [
@@ -123,6 +151,10 @@ export interface InfoKomponenTabel {
   tombolAksi: boolean;
   /** Tabel punya rel/filter di kiri grid (prop `rail`). */
   relFilter: boolean;
+  /** Halaman TIDAK memaksa sembunyikan kolom centang (prop `hideCheckbox`). */
+  kolomCentang: boolean;
+  /** Halaman TIDAK memaksa sembunyikan kolom Aksi (prop `hideActions`). */
+  kolomAksi: boolean;
   /** Ada pager di kaki tabel (prop `pager`). */
   pager: boolean;
   /** Tombol tambah baris tersedia (prop `onCreateRow` + halaman boleh tambah). */
@@ -144,6 +176,8 @@ export const KOMPONEN_INFO_BEKAL: InfoKomponenTabel = {
   kolom: true,
   tombolAksi: false,
   relFilter: false,
+  kolomCentang: true,
+  kolomAksi: true,
   pager: false,
   tombolTambah: false,
   tombolEdit: false,

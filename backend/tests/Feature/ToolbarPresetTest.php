@@ -194,6 +194,8 @@ class ToolbarPresetTest extends TestCase
                 'kolom' => false, 'tombol_aksi' => false,
                 // Kepala tabel.
                 'header_kolom' => false, 'rel_filter' => false,
+                // Kolom tetap.
+                'kolom_centang' => false, 'kolom_aksi' => false,
                 // Kaki tabel.
                 'pager' => false, 'tombol_pengaturan' => false,
                 'tombol_tinggi_baris' => false, 'tombol_tambah' => false,

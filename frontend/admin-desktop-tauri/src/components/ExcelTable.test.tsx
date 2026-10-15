@@ -466,6 +466,49 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
     expect(container.querySelector('[data-part="header_tabel"]')).not.toBeNull();
     expect(screen.getByText('Awalan halaman')).toBeInTheDocument();
   });
+
+  /** Jumlah checkbox per baris (`CheckCell` merender `input.dsg-checkbox`) —
+   *  kolom centang punya satu per baris, kolom lain tak punya. */
+  function kotakCentang(): number {
+    return document.querySelectorAll('input.dsg-checkbox').length;
+  }
+
+  it('bawaannya kolom centang & Aksi tampil', async () => {
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    // 2 baris data → 2 checkbox centang + "pilih semua" di kepala kolom.
+    expect(kotakCentang()).toBe(2);
+    expect(screen.getByLabelText('Pilih semua baris')).toBeInTheDocument();
+    expect(screen.getAllByText('Aksi-uji')).toHaveLength(2);
+  });
+
+  it('sakelar kolom centang & Aksi menyembunyikan kolomnya', async () => {
+    serverToolbar.state.visibilitas = { kolom_centang: false, kolom_aksi: false };
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    // Kolom centang: tak ada checkbox baris maupun "pilih semua" di header.
+    expect(kotakCentang()).toBe(0);
+    expect(screen.queryByLabelText('Pilih semua baris')).toBeNull();
+    // Kolom Aksi: tombol aksi per baris ikut hilang.
+    expect(screen.queryByText('Aksi-uji')).toBeNull();
+  });
+
+  it('mematikan hanya kolom centang tak ikut menghilangkan kolom Aksi', async () => {
+    serverToolbar.state.visibilitas = { kolom_centang: false };
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(kotakCentang()).toBe(0);
+    expect(screen.getAllByText('Aksi-uji')).toHaveLength(2);
+  });
+
+  it('prop hideCheckbox halaman menang atas sakelar tabel', async () => {
+    // Halaman sudah memaksa sembunyi, jadi sakelarnya tak ada artinya dan
+    // kolom centang tetap tak dirender walau peta server kosong.
+    renderTabel({ hideCheckbox: true });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(kotakCentang()).toBe(0);
+    expect(screen.getAllByText('Aksi-uji')).toHaveLength(2);
+  });
 });
 
 describe('ExcelTable — klik kanan baris', () => {
