@@ -29,9 +29,13 @@ const uji = vi.hoisted(() => {
       aturan: [],
     },
   ] as unknown as Dispensasi[];
-  /** Satu baris rekap: MI dengan 2 tagihan senilai Rp 50.000. */
+  /** Satu baris rekap: MI, paket Khusus MI, jenis Infaq Bulanan. */
   const REKAP = [
-    { id: 'MI', jenjang: 'MI', jumlah_tagihan: 2, jumlah_penerima: 1, total_potongan: 50000, jumlah_paket: 1 },
+    {
+      id: 'MI|2025/2026|1|11', jenjang: 'MI', tahun_ajaran: '2025/2026',
+      jenis_id: 1, jenis: 'Infaq Bulanan', paket_id: 11, paket: 'Khusus MI',
+      jumlah_tagihan: 2, jumlah_penerima: 1, total_potongan: 50000,
+    },
   ] as unknown as RekapDispensasi[];
   return {
     DISPENSASI,
@@ -210,12 +214,12 @@ describe('DispensasiPage — tab Kelola / Rekap', () => {
     // Tab bawaan = Kelola: area kerja dua kolom tampil, tabel rekap belum ada.
     expect(await screen.findByText('Daftar Santri (0)')).toBeInTheDocument();
     expect(screen.getByText('Khusus MI')).toBeInTheDocument();
-    expect(screen.queryByText('Rekap Dampak per Lembaga')).toBeNull();
+    expect(screen.queryByText('Rekap Dampak per Paket')).toBeNull();
 
     await userEvent.click(screen.getByRole('tab', { name: 'Rekap Dispensasi' }));
 
-    // Tab Rekap: laporan per lembaga selebar panel, area kerja disembunyikan.
-    expect(await screen.findByText('Rekap Dampak per Lembaga')).toBeInTheDocument();
+    // Tab Rekap: laporan per paket selebar panel, area kerja disembunyikan.
+    expect(await screen.findByText('Rekap Dampak per Paket')).toBeInTheDocument();
     expect(await screen.findByText('MI')).toBeInTheDocument();
     // Sel grid muncul dua kali di jsdom (salinan ukur stub), jadi pakai *All*.
     expect((await screen.findAllByText('Rp 50.000')).length).toBeGreaterThan(0);
@@ -230,7 +234,7 @@ describe('DispensasiPage — tab Kelola / Rekap', () => {
     localStorage.setItem(KUNCI_TAB, 'rekap');
     renderHalaman();
 
-    expect(await screen.findByText('Rekap Dampak per Lembaga')).toBeInTheDocument();
+    expect(await screen.findByText('Rekap Dampak per Paket')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Rekap Dispensasi' })).toHaveAttribute('data-state', 'active');
 
     await userEvent.click(screen.getByRole('tab', { name: 'Kelola Dispensasi' }));
@@ -244,6 +248,6 @@ describe('DispensasiPage — tab Kelola / Rekap', () => {
     await tabSiap();
 
     expect(await screen.findByText('Daftar Santri (0)')).toBeInTheDocument();
-    expect(screen.queryByText('Rekap Dampak per Lembaga')).toBeNull();
+    expect(screen.queryByText('Rekap Dampak per Paket')).toBeNull();
   });
 });

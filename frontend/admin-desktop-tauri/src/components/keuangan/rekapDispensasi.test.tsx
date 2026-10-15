@@ -47,8 +47,9 @@ vi.mock('react-datasheet-grid', async (importOriginal) => {
 
 function baris(partial: Partial<RekapDispensasi> = {}): RekapDispensasi {
   return {
-    id: 'MI', jenjang: 'MI',
-    jumlah_tagihan: 2, jumlah_penerima: 2, total_potongan: 50000, jumlah_paket: 2,
+    id: 'MI|2025/2026|1|11', jenjang: 'MI', tahun_ajaran: '2025/2026',
+    jenis_id: 1, jenis: 'Infaq Bulanan', paket_id: 11, paket: 'Khusus MI',
+    jumlah_tagihan: 2, jumlah_penerima: 2, total_potongan: 50000,
     ...partial,
   };
 }
@@ -86,20 +87,22 @@ function renderRekap(
   return { onPaket, view };
 }
 
-/** Rekap dampak dispensasi per lembaga: angka dari baris tagihan (bukan dari
- *  definisi paket), jadi paket berlingkup lembaga lain kelihatan di sini. */
+/** Rekap dampak dispensasi per paket × jenis tagihan: angka dari baris tagihan
+ *  (bukan dari definisi paket), jadi potongan tiap paket adalah porsinya. */
 describe('RekapDispensasiTab', () => {
-  it('menampilkan angka per lembaga + ringkasan lintas lembaga', async () => {
+  it('menampilkan angka per paket + ringkasan lintas baris', async () => {
     renderRekap([
-      baris({ id: 'MI', jenjang: 'MI', jumlah_tagihan: 2, jumlah_penerima: 2, total_potongan: 50000, jumlah_paket: 2 }),
-      baris({ id: 'MD', jenjang: 'MD', jumlah_tagihan: 1, jumlah_penerima: 1, total_potongan: 10000, jumlah_paket: 1 }),
+      baris({ id: 'MI|2025/2026|1|11', jenjang: 'MI', jenis: 'Infaq Bulanan', paket: 'Khusus MI', jumlah_tagihan: 2, jumlah_penerima: 2, total_potongan: 50000 }),
+      baris({ id: 'MD|2025/2026|2|12', jenjang: 'MD', tahun_ajaran: '2026/2027', jenis_id: 2, jenis: 'Biaya Masuk', paket_id: 12, paket: 'Semua Lembaga', jumlah_tagihan: 1, jumlah_penerima: 1, total_potongan: 10000 }),
     ]);
 
-    expect(screen.getByText('Rekap Dampak per Lembaga')).toBeInTheDocument();
+    expect(screen.getByText('Rekap Dampak per Paket')).toBeInTheDocument();
     // Ringkasan = jumlah baris yang tampil (bukan kolom dari server).
     expect(await screen.findByText('3 tagihan · Rp 60.000')).toBeInTheDocument();
-    // Angka rupiah dipisah ribuan, jumlah paket apa adanya.
-    expect(await screen.findByText('Rp 50.000')).toBeInTheDocument();
+    // Nama paket & jenis tagihan tampil apa adanya; rupiah dipisah ribuan.
+    expect(await screen.findByText('Khusus MI')).toBeInTheDocument();
+    expect(await screen.findByText('Biaya Masuk')).toBeInTheDocument();
+    expect((await screen.findAllByText('Rp 50.000')).length).toBeGreaterThan(0);
   });
 
   it('pemilih paket memuat opsi halaman dan mengabarkan pilihan', async () => {

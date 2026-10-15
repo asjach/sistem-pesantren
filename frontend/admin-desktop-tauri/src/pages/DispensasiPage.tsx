@@ -80,7 +80,7 @@ function payloadDari(d: Dispensasi, santriIds: number[]): DispensasiInput {
 /**
  * Halaman Dispensasi — dua tab: **Kelola Dispensasi** (area kerja, tata letak
  * dua kolom mengikuti tab Santri Custom) dan **Rekap Dispensasi** (laporan
- * dampak per lembaga).
+ * dampak per paket × jenis tagihan).
  *
  * Tab Kelola — kiri: baris 1 tabel **Daftar Dispensasi** (barisnya bisa
  * dipilih), baris 2 tabel **Daftar Santri** (lingkup filter topBar + rail;
@@ -90,12 +90,14 @@ function payloadDari(d: Dispensasi, santriIds: number[]): DispensasiInput {
  * itu dengan aksi mengeluarkan. Lebar panel kiri & tinggi bagian atasnya bisa
  * digeser.
  *
- * Tab Rekap — **Rekap Dampak per Lembaga**: angka dari baris tagihan (jumlah
- * tagihan, penerima, total potongan, jumlah paket) dengan pemilih paket;
- * bawaannya mengikuti paket yang dipilih di tab Kelola sehingga sebaran satu
- * paket ke tiap lembaga bisa ditelusuri langsung (pilih paket di sana, buka
- * tab ini). Kartu pengaturan halaman & filter topBar tetap di luar tab supaya
- * lingkup filter sama untuk kedua laporan.
+ * Tab Rekap — **Rekap Dampak per Paket**: barisnya = lembaga · tahun ajaran ·
+ * nama paket · jenis tagihan (kolom "Tagihan") · penerima · total potongan.
+ * Angkanya dari baris TAGIHAN, jadi tiap paket terlihat berdampak di lembaga
+ * dan TA mana saja; potongan tiap baris adalah PORSINYA paket itu (bukan total
+ * gabungan tagihan). Pemilih paket bawaannya mengikuti paket yang dipilih di
+ * tab Kelola sehingga sebaran satu paket bisa ditelusuri langsung (pilih paket
+ * di sana, buka tab ini). Kartu pengaturan halaman & filter topBar tetap di
+ * luar tab supaya lingkup filter sama untuk kedua laporan.
  *
  * Catatan lingkup: daftar DISPENSASI sengaja tak disaring filter topBar —
  * paket tidak terikat tahun ajaran (kolom `tahun_ajaran` hanya label arsip),
@@ -404,7 +406,7 @@ export default function DispensasiPage() {
         tabel={[
           { key: 'keuangan_dispensasi', judul: 'Daftar Dispensasi', fields: FIELDS_DISPENSASI },
           { key: 'keuangan_penerima_dispensasi', judul: 'Daftar Penerima Dispensasi', fields: FIELDS_PENERIMA },
-          { key: 'keuangan_rekap_dispensasi', judul: 'Rekap Dampak per Lembaga', fields: FIELDS_REKAP_DISPENSASI },
+          { key: 'keuangan_rekap_dispensasi', judul: 'Rekap Dampak per Paket', fields: FIELDS_REKAP_DISPENSASI },
         ]}
       />
 

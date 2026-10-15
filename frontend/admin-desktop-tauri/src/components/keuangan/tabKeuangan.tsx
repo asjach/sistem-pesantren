@@ -111,15 +111,16 @@ export const FIELDS_DISPENSASI: ExcelField[] = [
   { key: 'status', label: 'Status', kind: 'static', width: 80 },
 ];
 
-/** Kolom rekap dampak dispensasi per lembaga — semuanya baca-saja; key
- *  kolom = kode urut yang dikenal endpoint `rekap` (UrutKatalog) sekaligus
- *  kunci nilai dari `getValues`. */
+/** Kolom rekap dampak dispensasi per paket × jenis tagihan — semuanya
+ *  baca-saja; key kolom = kode urut yang dikenal endpoint `rekap`
+ *  (UrutKatalog) sekaligus kunci nilai dari `getValues`. */
 export const FIELDS_REKAP_DISPENSASI: ExcelField[] = [
-  { key: 'lembaga', label: 'Lembaga', kind: 'static', width: 100 },
-  { key: 'tagihan', label: 'Tagihan', kind: 'static', width: 90 },
+  { key: 'lembaga', label: 'Lembaga', kind: 'static', width: 90 },
+  { key: 'ta', label: 'TA', kind: 'static', width: 100 },
+  { key: 'paket', label: 'Paket', kind: 'static', width: 160 },
+  { key: 'tagihan', label: 'Tagihan', kind: 'static', width: 150 },
   { key: 'penerima', label: 'Penerima', kind: 'static', width: 90 },
   { key: 'potongan', label: 'Total Potongan', kind: 'static', width: 140 },
-  { key: 'paket', label: 'Paket', kind: 'static', width: 80 },
 ];
 
 export const FIELDS_PENERIMA: ExcelField[] = [
@@ -680,12 +681,13 @@ function angkaRekap(nilai: number): string {
   return nilai.toLocaleString('id');
 }
 
-/** Rekap dampak dispensasi per lembaga (tab Rekap Dispensasi halaman
- *  Dispensasi): angka dihitung dari BARIS TAGIHAN, jadi lingkup paket bisa
- *  ditelusuri — pilih satu paket di kotak "Paket" lalu lihat lembaga mana saja
- *  yang memuatnya. Barisnya murni hasil agregat (tanpa aksi), jadi baca-saja:
- *  tanpa centang & aksi. Tingginya mengisi panel tab (`flex`), tanpa batas
- *  baris, karena tabelnya kini selebar area konten. */
+/** Rekap dampak dispensasi per **paket × jenis tagihan** (tab Rekap Dispensasi
+ *  halaman Dispensasi): angka dihitung dari BARIS TAGIHAN, jadi tiap paket
+ *  terlihat berdampak di lembaga/TA/jenis mana saja — pilih satu paket di kotak
+ *  "Paket" lalu lihat sebarannya. Potongan tiap baris adalah PORSINYA paket
+ *  (bukan total gabungan tagihan). Barisnya murni hasil agregat (tanpa aksi),
+ *  jadi baca-saja: tanpa centang & aksi. Tingginya mengisi panel tab (`flex`),
+ *  tanpa batas baris, karena tabelnya kini selebar area konten. */
 export function RekapDispensasiTab({ rows, loading, sort, paket, opsiPaket, onPaket, ringkas }: {
   rows: RekapDispensasi[];
   loading: boolean;
@@ -695,7 +697,7 @@ export function RekapDispensasiTab({ rows, loading, sort, paket, opsiPaket, onPa
   /** Paket yang bisa dipilih (dari daftar dispensasi halaman). */
   opsiPaket: { nilai: number | null; label: string }[];
   onPaket: (nilai: number | null) => void;
-  /** Total lintas lembaga dari baris yang TAMPIL (dihitung halaman). */
+  /** Total lintas baris yang TAMPIL (dihitung halaman). */
   ringkas: { tagihan: number; potongan: number };
 }) {
   return (
@@ -703,7 +705,7 @@ export function RekapDispensasiTab({ rows, loading, sort, paket, opsiPaket, onPa
       tableKey="keuangan_rekap_dispensasi"
       header={(
         <span id="judul_rekap_dispensasi" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
-          Rekap Dampak per Lembaga
+          Rekap Dampak per Paket
           <span className="ml-1.5 font-normal tabular-nums text-muted-foreground">
             {angkaRekap(ringkas.tagihan)} tagihan · {ringkas.potongan === 0 ? 'Rp 0' : `Rp ${angkaRekap(ringkas.potongan)}`}
           </span>
@@ -738,10 +740,11 @@ export function RekapDispensasiTab({ rows, loading, sort, paket, opsiPaket, onPa
       rows={rows}
       getValues={(r) => ({
         lembaga: r.jenjang,
-        tagihan: angkaRekap(r.jumlah_tagihan),
+        ta: r.tahun_ajaran,
+        paket: r.paket,
+        tagihan: r.jenis,
         penerima: angkaRekap(r.jumlah_penerima),
         potongan: `Rp ${angkaRekap(r.total_potongan)}`,
-        paket: angkaRekap(r.jumlah_paket),
       })}
       loading={loading}
       emptyText={paket === null

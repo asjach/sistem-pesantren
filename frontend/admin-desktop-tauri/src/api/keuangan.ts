@@ -250,24 +250,33 @@ export function kuotaPakai(santriIds: number[]) {
   return api<Record<number, Record<number, number>>>(`/admin/keuangan/dispensasi/kuota-pakai${s ? `?${s}` : ''}`);
 }
 
-/** Satu baris rekap dampak dispensasi per lembaga (lembaga tanpa tagihan
- *  berdispensasi tidak dikirim sebagai baris nol). */
+/** Satu baris rekap dampak dispensasi per **paket × jenis tagihan**
+ *  (lembaga & tahun ajaran sebagai konteks). Lembaga/jenis/TA tanpa tagihan
+ *  berdispensasi tidak dikirim sebagai baris nol. */
 export interface RekapDispensasi {
-  /** Id baris = jenjang (`ExcelTable` butuh id unik). */
+  /** `jenjang|ta|jenis_id|paket_id` — `ExcelTable` butuh id unik. */
   id: string;
   jenjang: string;
-  /** Tagihan yang benar-benar memuat paket. */
+  tahun_ajaran: string;
+  jenis_id: number;
+  /** Nama jenis tagihan (mis. "Infaq Bulanan"). */
+  jenis: string;
+  paket_id: number;
+  /** Nama paket dispensasi. */
+  paket: string;
+  /** Tagihan yang benar-benar memuat paket pada jenis ini. */
   jumlah_tagihan: number;
   /** Santri berbeda pemilik tagihan itu. */
   jumlah_penerima: number;
-  /** Total potongan tercatat pada tagihan-tagihan itu. */
+  /** Potongan paket ini tercatat pada tagihan-tagihan itu (porsi paket,
+   *  bukan total gabungan baris tagihan). */
   total_potongan: number;
-  /** Paket berbeda yang tercatat di lembaga itu (`dispensasi_id` unik). */
-  jumlah_paket: number;
 }
 
-/** Dampak dispensasi per lembaga, dihitung dari BARIS TAGIHAN. Mengikuti
- *  lingkup pengguna + filter topBar; `dispensasi_id` menelusuri satu paket. */
+/** Dampak dispensasi per paket × jenis tagihan, dihitung dari BARIS TAGIHAN.
+ *  Mengikuti lingkup pengguna + filter topBar; `dispensasi_id` menelusuri satu
+ *  paket. Potongan tiap paket dihitung ulang dari nominal kotor (baris
+ *  multi-paket tidak dihitung dobel). */
 export function rekapDispensasi(params: {
   tahun_ajaran?: ScalarOrArray<string>; jenjang?: ScalarOrArray<string>;
   dispensasi_id?: number | ''; sort?: string[]; arah?: 'naik' | 'turun';

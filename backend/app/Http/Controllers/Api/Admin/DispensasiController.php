@@ -14,6 +14,7 @@ use App\Models\Tagihan;
 use App\Services\DispensasiService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /** Keuangan: dispensasi (keringanan) tagihan. */
@@ -104,11 +105,17 @@ class DispensasiController extends Controller
     }
 
     /**
-     * Dampak dispensasi per lembaga: berapa tagihan yang benar-benar memuat
-     * paket + total potongannya, dihitung dari data tagihan (bukan definisi
-     * paket). `dispensasi_id` opsional untuk menelusuri sebaran SATU paket
-     * ke tiap lembaga — paket berlingkup MI yang muncul di baris MD langsung
-     * kelihatan dari angkanya.
+     * Rekap dampak dispensasi per **paket × jenis tagihan**: berapa tagihan
+     * yang benar-benar memuat paket + total potongannya, dihitung dari data
+     * tagihan (bukan definisi paket). Barisnya = (lembaga, tahun ajaran,
+     * paket, jenis tagihan), jadi sebaran satu paket ke tiap lembaga/TA/jenis
+     * bisa ditelusuri — `dispensasi_id` mempersempit ke satu paket saja.
+     *
+     * Potongan tiap paket **dihitung ulang** dari nominal kotor
+     * (`nominal + potongan`) memakai aturan akumulatif yang sama seperti
+     * generate. Satu baris tagihan bisa memuat beberapa paket, dan `potongan`
+     * di tabel tagihan adalah total GABUNGAN baris itu — tanpa hitung ulang,
+     * potongan yang sama akan terhitung di tiap paket (total membengkak).
      *
      * Lingkup: hanya lembaga yang boleh diakses pengguna (`scopeLembaga`),
      * plus filter `tahun_ajaran`/`jenjang` yang sama dengan tabel tagihan.
@@ -129,62 +136,166 @@ class DispensasiController extends Controller
         $q = Tagihan::query()->whereJsonLength('dispensasi_ids', '>', 0);
         $this->scopeLembaga($q, $request->user(), $request, 'tagihan.jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tagihan.tahun_ajaran');
+        $filterPaket = null;
         if ($request->filled('dispensasi_id')) {
-            $q->whereJsonContains('dispensasi_ids', (int) $request->input('dispensasi_id'));
+            $filterPaket = (int) $request->input('dispensasi_id');
+            $q->whereJsonContains('dispensasi_ids', $filterPaket);
         }
 
-        $agregat = (clone $q)->toBase()
-            ->groupBy('tagihan.jenjang')
-            ->selectRaw('tagihan.jenjang as jenjang')
-            ->selectRaw('COUNT(*) as jumlah_tagihan')
-            ->selectRaw('COUNT(DISTINCT tagihan.santri_id) as jumlah_penerima')
-            ->selectRaw('COALESCE(SUM(tagihan.potongan), 0) as total_potongan')
-            ->get();
+        // Kolom seperlunya: kontribusi tiap paket dihitung ulang dari nominal
+        // kotor, jadi butuh `nominal` + `potongan` tiap baris. `dispensasi_ids`
+        // berupa larik JSON per baris sehingga pengelompokan per paket
+        // dikerjakan di PHP — tetap portabel di MySQL & SQLite (tak ada
+        // JSON_TABLE/json_each).
+        $tagihan = $q->select([
+            'tagihan.jenjang', 'tagihan.tahun_ajaran', 'tagihan.jenis_id',
+            'tagihan.santri_id', 'tagihan.nominal', 'tagihan.potongan', 'tagihan.dispensasi_ids',
+        ])->get();
 
-        /* Jumlah paket berbeda per lembaga: id-nya tersimpan sebagai larik JSON
-           per baris, jadi dihitung di PHP dari pasangan (jenjang, ids) unik —
-           tetap portabel di MySQL & SQLite (tak ada JSON_TABLE/json_each). */
-        $paketPerLembaga = [];
-        $pasangan = (clone $q)->toBase()
-            ->select('tagihan.jenjang', 'tagihan.dispensasi_ids')->distinct()->get();
-        foreach ($pasangan as $p) {
-            $ids = is_string($p->dispensasi_ids)
-                ? (json_decode($p->dispensasi_ids, true) ?? [])
-                : (array) ($p->dispensasi_ids ?? []);
-            foreach ($ids as $id) {
-                $paketPerLembaga[(string) $p->jenjang][(int) $id] = true;
+        $namaJenis = JenisTagihan::whereIn('id', $tagihan->pluck('jenis_id')->unique()->all())
+            ->pluck('nama', 'id');
+        $paketIds = $tagihan
+            ->flatMap(fn ($t) => array_map('intval', (array) ($t->dispensasi_ids ?? [])))
+            ->unique()->values()->all();
+        /** @var Collection<int, Dispensasi> $paket */
+        $paket = Dispensasi::with('aturan')->whereIn('id', $paketIds)->get()->keyBy('id');
+        $aturanSvc = app(DispensasiService::class);
+
+        /** @var array<string, array<string, mixed>> $kumpulan */
+        $kumpulan = [];
+        foreach ($tagihan as $t) {
+            $jenjang = (string) $t->jenjang;
+            $ta = (string) $t->tahun_ajaran;
+            $jenisId = (int) $t->jenis_id;
+            $santriId = (int) $t->santri_id;
+
+            $ids = array_values(array_unique(array_map('intval', (array) ($t->dispensasi_ids ?? []))));
+            sort($ids);
+            if ($ids === []) {
+                continue;
+            }
+
+            // Kontribusi tiap paket dihitung ulang dengan aturan akumulatif
+            // yang sama seperti generate (urut id), dari nominal KOTOR —
+            // potongan paket dalam baris multi-paket bergantung urutan, jadi
+            // hitung ulang harus memakai baris apa adanya meski tabel sedang
+            // disaring ke satu paket.
+            $cocok = collect($ids)->map(fn (int $id) => $paket->get($id))->filter()->values();
+            $hitung = $aturanSvc->terapkan((int) $t->nominal + (int) $t->potongan, $cocok, $jenisId);
+            $perId = [];
+            foreach ($hitung['langkah'] as $l) {
+                $perId[(int) $l['id']] = (int) $l['potongan'];
+            }
+            $nilai = array_map(fn (int $id) => $perId[$id] ?? 0, $ids);
+
+            // Aturan paket bisa berubah setelah tagihan dibuat (atau paketnya
+            // hilang) sehingga jumlah hasil hitung ulang tak lagi sama dengan
+            // `potongan` tersimpan. Bagi potongan TERSIMPAN proporsional supaya
+            // total per baris tetap sama dengan data tagihan.
+            if (array_sum($nilai) !== (int) $t->potongan) {
+                $nilai = $this->bagiProporsional($nilai, (int) $t->potongan);
+            }
+
+            foreach ($ids as $i => $paketId) {
+                if ($filterPaket !== null && $paketId !== $filterPaket) {
+                    continue;
+                }
+                $kunci = "{$jenjang}|{$ta}|{$jenisId}|{$paketId}";
+                $kumpulan[$kunci] ??= [
+                    'id' => $kunci,
+                    'jenjang' => $jenjang,
+                    'tahun_ajaran' => $ta,
+                    'jenis_id' => $jenisId,
+                    'jenis' => (string) ($namaJenis[$jenisId] ?? "#{$jenisId}"),
+                    'paket_id' => $paketId,
+                    'paket' => (string) ($paket->get($paketId)?->nama ?? "#{$paketId}"),
+                    'jumlah_tagihan' => 0,
+                    'jumlah_penerima' => 0,
+                    'total_potongan' => 0,
+                    'santri' => [],
+                ];
+                $kumpulan[$kunci]['jumlah_tagihan']++;
+                $kumpulan[$kunci]['santri'][$santriId] = true;
+                $kumpulan[$kunci]['total_potongan'] += $nilai[$i];
             }
         }
 
         $baris = [];
-        foreach ($agregat as $a) {
-            $jenjang = (string) $a->jenjang;
-            $baris[] = [
-                'id' => $jenjang,
-                'jenjang' => $jenjang,
-                'jumlah_tagihan' => (int) $a->jumlah_tagihan,
-                'jumlah_penerima' => (int) $a->jumlah_penerima,
-                'total_potongan' => (int) $a->total_potongan,
-                'jumlah_paket' => count($paketPerLembaga[$jenjang] ?? []),
-            ];
+        foreach ($kumpulan as $g) {
+            $g['jumlah_penerima'] = count($g['santri']);
+            unset($g['santri']);
+            $baris[] = $g;
         }
 
-        /* Urut bawaan: jenjang menaik. Param `sort` menimpa — kodenya sama
-           dengan yang didaftarkan di `UrutKatalog` (dialog Preset Urut). */
+        /* Urut bawaan: lembaga → TA → paket → jenis. Param `sort` menimpa —
+           kodenya sama dengan yang didaftarkan di `UrutKatalog`. */
         $tanpaSort = in_array($request->input('sort'), [null, '', []], true);
         $baris = $this->terapkanUrutKoleksi($request, $baris, [
             'lembaga' => 'jenjang',
-            'tagihan' => 'jumlah_tagihan',
+            'ta' => 'tahun_ajaran',
+            'paket' => 'paket',
+            'tagihan' => 'jenis',
             'penerima' => 'jumlah_penerima',
             'potongan' => 'total_potongan',
-            'paket' => 'jumlah_paket',
-            'id' => 'jenjang',
+            'id' => 'id',
         ]);
         if ($tanpaSort) {
-            usort($baris, fn ($a, $b) => $a['jenjang'] <=> $b['jenjang']);
+            usort($baris, fn ($a, $b) => [$a['jenjang'], $a['tahun_ajaran'], $a['paket'], $a['jenis']]
+                <=> [$b['jenjang'], $b['tahun_ajaran'], $b['paket'], $b['jenis']]);
         }
 
         return response()->json(['data' => $baris]);
+    }
+
+    /**
+     * Bagi `$target` menurut bobot `$bobot` (bulat >= 0) memakai metode sisa
+     * terbesar, sehingga jumlah hasil SELALU tepat `$target`. Semua bobot nol
+     * → seluruh target ke bobot pertama (satu-satunya atribusi yang masuk
+     * akal: tak ada dasar untuk membagi).
+     *
+     * @param  list<int>  $bobot
+     * @return list<int>
+     */
+    private function bagiProporsional(array $bobot, int $target): array
+    {
+        $n = count($bobot);
+        if ($n === 0) {
+            return [];
+        }
+        $target = max(0, $target);
+        $total = array_sum($bobot);
+        if ($total <= 0) {
+            $hasil = array_fill(0, $n, 0);
+            if ($target > 0) {
+                $hasil[0] = $target;
+            }
+
+            return $hasil;
+        }
+
+        $hasil = [];
+        $sisa = [];
+        $terpakai = 0;
+        foreach (array_values($bobot) as $i => $b) {
+            $dasar = intdiv($b * $target, $total);
+            $hasil[$i] = $dasar;
+            $sisa[$i] = ($b * $target) % $total;
+            $terpakai += $dasar;
+        }
+        // Selisih pembulatan dibagikan ke sisa terbesar (deterministik:
+        // tie-break indeks terkecil) supaya jumlahnya pas.
+        for ($kurang = $target - $terpakai; $kurang > 0; $kurang--) {
+            $pilih = array_key_first($sisa);
+            foreach ($sisa as $i => $r) {
+                if ($r > $sisa[$pilih]) {
+                    $pilih = $i;
+                }
+            }
+            $hasil[$pilih]++;
+            $sisa[$pilih] = -1; // sudah kebagian, jangan dipilih lagi
+        }
+
+        return $hasil;
     }
 
     public function storeDispensasi(DispensasiRequest $request)
