@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import SpinBox from '@/components/SpinBox';
+import LabeledStepper from '@/components/LabeledStepper';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DEFAULT_FONT_PX,
@@ -17,7 +18,7 @@ import {
   MIN_ROW_H,
   useGridPrefs,
 } from '@/components/GridPrefs';
-import { DENSITY_PX } from '@/prefs';
+import { TINGGI_BARIS_BAWAAN } from '@/components/excel/tinggiBaris';
 import { useTheme } from '@/theme';
 import { RotateCcw } from '@/icons';
 
@@ -126,9 +127,12 @@ function Judul({ children }: { children: ReactNode }) {
 /** Isi kontrol tampilan tabel GLOBAL — tinggi baris sel & header, jenis/ukuran
  *  huruf, serta warna huruf/latar untuk header maupun sel.
  *
- *  SEMUA nilai di sini BERLAKU UNTUK SELURUH TABEL, bukan per tabel:
- *  - Tinggi baris: pref perangkat (GridPrefs, GLOBAL_ROWH_KEY/GLOBAL_HEADER_H_KEY).
- *  - Huruf & warna: bagian tema tabel_header / tabel_sel (theme.tsx).
+ *  Yang di sini berlaku untuk SELURUH TABEL:
+ *  - Tinggi HEADER baris & jenis/ukuran huruf & warna: pref perangkat
+ *    (GridPrefs) dan bagian tema tabel_header / tabel_sel (theme.tsx).
+ *  - Tinggi SEL baris: BAWAAN. Tiap tabel boleh punya tinggi sendiri lewat
+ *    tombol tinggi baris di kakinya (pref `simpes_grid_<tableKey>_rowh_dasar`),
+ *    dan nilai itu menang atas bawaan di sini.
  *
  *  Karena itu isi ini TIDAK diletakkan di dalam tabel. Dipakai bersama oleh
  *  panel Pengaturan Tampilan (Sheet di TopBar). `idPrefix` hanya untuk
@@ -136,7 +140,7 @@ function Judul({ children }: { children: ReactNode }) {
 export default function IsiPengaturanTampilan({ idPrefix = '' }: {
   idPrefix?: string;
 }) {
-  const { dark, density, parts, setGayaBagian, setWarnaBagian } = useTheme();
+  const { dark, parts, setGayaBagian, setWarnaBagian } = useTheme();
   const {
     rowH, headerH, fontPx, fontFamily, sumberRowH, sumberHeaderH,
     setRowH, setHeaderH, setFontPx, setFontFamily,
@@ -180,29 +184,39 @@ export default function IsiPengaturanTampilan({ idPrefix = '' }: {
   return (
     <div className="flex flex-col gap-2" data-part="isi_pengaturan_tampilan">
       <Judul>Baris tabel</Judul>
-      <Baris label="Tinggi sel">
-        <SpinBox
+      {/* "Tinggi sel" memakai `LabeledStepper` — label + angka + tombol −/+ dalam
+          satu kotak, sama dengan kontrol lain di aplikasi. Baris lain di sini
+          masih memakai kolom label `Baris`; sengaja tak dirapikan sekaligus
+          agar perubahan ini tetap satu hal: hanya kontrol ini yang berganti
+          jenis. */}
+      <div className="flex items-center gap-1.5">
+        <LabeledStepper
           id={p + 'set_tinggi_sel'}
-          value={rowH ?? DENSITY_PX[density]}
+          htmlFor={p + 'set_tinggi_sel'}
+          /* `kelolaLebar={false}`: kotak ini hidup di panel Pengaturan, bukan
+             di toolbar tabel, jadi lebar simpanannya tak relevan. */
+          kelolaLebar={false}
+          label="Tinggi sel bawaan"
           min={MIN_ROW_H}
           max={MAX_ROW_H}
+          value={rowH ?? TINGGI_BARIS_BAWAAN}
           title={asal(
             sumberRowH,
-            'Tinggi baris sel (diatur sendiri, berlaku semua tabel)',
-            'Tinggi baris sel (mengikuti standar pesantren)',
-            'Tinggi baris sel (otomatis mengikuti kerapatan)',
+            'Bawaan tinggi baris sel (tabel yang punya tinggi sendiri tidak ikut)',
+            'Bawaan tinggi baris sel (mengikuti standar pesantren)',
+            'Bawaan tinggi baris sel (24px)',
           )}
-          ariaLabel="Tinggi baris sel (px)"
+          aria-label="Tinggi baris sel (px)"
           onChange={setRowH}
         />
         {penandaStandar(sumberRowH)}
         <TombolReset
           id={p + 'set_reset_tinggi_sel'}
-          label="Kembalikan tinggi baris sel ke bawaan"
+          label="Kembalikan bawaan tinggi baris sel ke 24px"
           disabled={!rowHManual && sumberRowH !== 'server'}
           onClick={() => setRowH(null)}
         />
-      </Baris>
+      </div>
       <Baris label="Tinggi header">
         <SpinBox
           id={p + 'set_tinggi_header'}
