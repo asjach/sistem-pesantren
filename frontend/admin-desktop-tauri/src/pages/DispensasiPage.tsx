@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { errorMessage } from '../api/client';
+import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
   daftarDispensasi, daftarJenis, hapusDispensasi, kuotaPakai, rekapDispensasi, ubahDispensasi,
@@ -12,7 +12,9 @@ import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
+import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { TopBarSearch } from '@/components/TopBarSearch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import { ActionIcon } from '@/components/RowActions';
@@ -29,6 +31,12 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { paketRekapEfektif, saringPenerima } from '@/lib/dispensasi';
 import { bacaPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
 import type { PerPage } from '@/prefs';
+
+/** Nilai tab halaman (urut tampil); pref perangkat menyimpannya sebagai teks,
+ *  jadi nilai lama yang tak dikenal diabaikan saat memulihkan. */
+const TAB_DISPENSASI = ['kelola', 'rekap'] as const;
+/** Kunci pref tab terakhir halaman (pola sama dengan `simpes_keuangan_tab`). */
+const KUNCI_TAB = 'simpes_dispensasi_tab';
 
 /** Kolom daftar santri — sama dengan tabel kandidat di tab Santri Custom,
  *  plus **Kelas** (nama rombel TA acuan; diisi endpoint daftar santri). */
@@ -70,19 +78,24 @@ function payloadDari(d: Dispensasi, santriIds: number[]): DispensasiInput {
 }
 
 /**
- * Halaman Dispensasi — tata letak dua kolom mengikuti tab Santri Custom.
+ * Halaman Dispensasi — dua tab: **Kelola Dispensasi** (area kerja, tata letak
+ * dua kolom mengikuti tab Santri Custom) dan **Rekap Dispensasi** (laporan
+ * dampak per lembaga).
  *
- * Kiri: baris 1 tabel **Daftar Dispensasi** (barisnya bisa dipilih), baris 2
- * tabel **Daftar Santri** (lingkup filter topBar + rail; santri yang sudah
- * menjadi penerima paket terpilih disembunyikan) dengan aksi `→` untuk
- * memasukkannya. Kanan: **kartu informasi** paket terpilih (nama, status, TA,
- * kuota, grup, keterangan, aturan) lalu **Daftar Penerima** paket itu dengan
- * aksi mengeluarkan. Lebar panel kiri & tinggi bagian atasnya bisa digeser.
+ * Tab Kelola — kiri: baris 1 tabel **Daftar Dispensasi** (barisnya bisa
+ * dipilih), baris 2 tabel **Daftar Santri** (lingkup filter topBar + rail;
+ * santri yang sudah menjadi penerima paket terpilih disembunyikan) dengan aksi
+ * `→` untuk memasukkannya. Kanan: **kartu informasi** paket terpilih (nama,
+ * status, TA, kuota, grup, keterangan, aturan) lalu **Daftar Penerima** paket
+ * itu dengan aksi mengeluarkan. Lebar panel kiri & tinggi bagian atasnya bisa
+ * digeser.
  *
- * Bawah kanan: **Rekap Dampak per Lembaga** — angka dari baris tagihan
- * (jumlah tagihan, penerima, total potongan, jumlah paket) dengan pemilih
- * paket; bawaannya mengikuti paket yang dipilih di tabel kiri sehingga
- * sebaran satu paket ke tiap lembaga bisa ditelusuri langsung.
+ * Tab Rekap — **Rekap Dampak per Lembaga**: angka dari baris tagihan (jumlah
+ * tagihan, penerima, total potongan, jumlah paket) dengan pemilih paket;
+ * bawaannya mengikuti paket yang dipilih di tab Kelola sehingga sebaran satu
+ * paket ke tiap lembaga bisa ditelusuri langsung (pilih paket di sana, buka
+ * tab ini). Kartu pengaturan halaman & filter topBar tetap di luar tab supaya
+ * lingkup filter sama untuk kedua laporan.
  *
  * Catatan lingkup: daftar DISPENSASI sengaja tak disaring filter topBar —
  * paket tidak terikat tahun ajaran (kolom `tahun_ajaran` hanya label arsip),
@@ -108,6 +121,9 @@ export default function DispensasiPage() {
   const { jenjangs, tahunAjaranNames, semesters, tingkat, kelas: kelasAktif } = useFilterGlobalAktif();
   /** Lingkup jenjang yang boleh dipakai di dialog dispensasi (peran pengguna). */
   const { pilihan: pilihanLembaga } = useLembagaAktif();
+
+  /** Tab aktif (Kelola / Rekap); dipulihkan dari pref perangkat. */
+  const [tab, setTab] = useState<string>('kelola');
 
   const [dispensasiOpen, setDispensasiOpen] = useState(false);
   const [editDispensasi, setEditDispensasi] = useState<Dispensasi | null>(null);
@@ -145,6 +161,16 @@ export default function DispensasiPage() {
   /** Paket yang disaring di rekap: `undefined` = ikut paket terpilih,
    *  `null` = semua paket (pilihan eksplisit), number = paket itu. */
   const [paketRekap, setPaketRekap] = useState<number | null | undefined>(undefined);
+
+  /** Pulihkan tab terakhir yang dibuka (pref perangkat); nilai tak dikenal
+   *  (mis. tab yang sudah dihapus) diabaikan sehingga jatuh ke tab pertama. */
+  useEffect(() => {
+    let hidup = true;
+    prefGet(KUNCI_TAB).then((v) => {
+      if (hidup && v !== null && (TAB_DISPENSASI as readonly string[]).includes(v)) setTab(v);
+    }).catch(() => {});
+    return () => { hidup = false; };
+  }, []);
 
   const aktif = useMemo(() => dispensasi.find((d) => d.id === aktifId) ?? null, [dispensasi, aktifId]);
   /** Paket efektif rekap: bawaan mengikuti baris yang dipilih di tabel kiri. */
@@ -382,153 +408,169 @@ export default function DispensasiPage() {
         ]}
       />
 
-      <div className="flex min-h-0 flex-1">
-        <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIS…" />
+      <Tabs
+        value={tab}
+        onValueChange={(v) => { setTab(v); prefSet(KUNCI_TAB, v).catch(() => {}); }}
+        className="flex min-h-0 flex-1 flex-col gap-0"
+      >
+        <TabsList className={KELAS_LIST_TAB} indikator="primer">
+          <TabsTrigger value="kelola" id="disp_tab_kelola" className={KELAS_TRIGGER}>Kelola Dispensasi</TabsTrigger>
+          <TabsTrigger value="rekap" id="disp_tab_rekap" className={KELAS_TRIGGER}>Rekap Dispensasi</TabsTrigger>
+        </TabsList>
 
-        {/* Kiri (bawaan 500px, bisa digeser): tabel dispensasi + daftar santri. */}
-        <div style={{ width: lebarKiri }} className="flex min-h-0 shrink-0 flex-col gap-2">
-          <div
-            ref={atasRef}
-            style={{ height: tinggiAtas }}
-            className="flex min-h-0 shrink-0 flex-col"
-          >
-            <DispensasiTab
-              rows={dispensasi}
-              loading={loading}
-              sort={uDispensasi}
-              onTambah={bukaTambahDispensasi}
-              onEdit={bukaUbahDispensasi}
-              onHapus={hapusDispensasiBaris}
-              aktifId={aktifId}
-              onPilih={(d) => setAktifId(d.id)}
-            />
-          </div>
+        {/* Panel tab Kelola: dua kolom (daftar + penerima) berikut gagang
+            gesernya. Pencarian topBar hidup di dalam panel ini karena
+            menyaring dua tabel santri di sini, bukan rekap. */}
+        <TabsContent value="kelola" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+          <div className="flex min-h-0 flex-1">
+            <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIS…" />
 
-          {/* Gagang geser tinggi tabel dispensasi vs daftar santri. */}
-          <div
-            id="gagang_tabel_dispensasi"
-            role="separator"
-            aria-orientation="horizontal"
-            aria-label="Atur tinggi tabel dispensasi dan daftar santri"
-            className="h-1.5 shrink-0 cursor-row-resize hover:bg-accent"
-            onPointerDown={mulaiGeserVertikal}
-            onPointerMove={selamaGeserVertikal}
-            onPointerUp={selesaiGeserVertikal}
-            onPointerCancel={selesaiGeserVertikal}
-          />
-
-          <div className="flex min-h-0 flex-1 flex-col">
-            <ExcelTable<Santri>
-              tableKey="dispensasi_kandidat"
-              rail
-              header={(
-                <span id="judul_dispensasi_santri" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
-                  Daftar Santri ({total})
-                </span>
-              )}
-              fields={FIELDS_SANTRI}
-              rows={kandidatTampil}
-              getValues={(r) => ({ nama_lengkap: r.nama_lengkap, nis: nisTampil(r), jk: r.jk, kelas: r.kelas ?? null, jenjang: jenjangTampil(r) })}
-              loading={loadingKandidat}
-              emptyText={adaCari
-                ? 'Tidak ada santri yang cocok dengan pencarian.'
-                : aktif === null
-                  ? 'Pilih dispensasi dulu di tabel atas, lalu masukkan santri dari daftar ini.'
-                  : 'Tidak ada santri (yang belum jadi penerima).'}
-              canEdit={false}
-              onCommit={async () => {}}
-              onSaved={() => {}}
-              aksiLangsung
-              renderActions={!bolehUbah || aktif === null ? () => null : (r) => (
-                <ActionIcon
-                  id={`btn_dispensasi_masukkan_${r.id}`}
-                  title={`Masukkan ${r.nama_lengkap} ke ${aktif.nama}`}
-                  onClick={() => void masukkan([r.id])}
-                >
-                  <ArrowRight size={16} />
-                </ActionIcon>
-              )}
-              renderBulkActions={!bolehUbah || aktif === null ? undefined : (checked, clear) => checked.length === 0 ? null : (
-                <Button
-                  id="btn_dispensasi_masukkan_banyak"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => { void masukkan(checked.map((r) => r.id)); clear(); }}
-                >
-                  <ArrowRight data-icon="inline-start" size={14} /> Masukkan ({checked.length})
-                </Button>
-              )}
-              pager={(
-                <Pager
-                  page={page}
-                  lastPage={lastPage}
-                  total={total}
-                  perPage={perPage}
-                  onPage={(p) => void muatKandidat(p, perPage, cari)}
-                  onPerPage={(pp) => setPerPage(tulisPerPageGlobal(pp))}
-                />
-              )}
-            />
-          </div>
-        </div>
-
-        {/* Gagang geser antar panel. */}
-        <div
-          id="gagang_dispensasi"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Atur lebar panel kiri"
-          className="w-1.5 shrink-0 cursor-col-resize self-stretch hover:bg-accent"
-          onPointerDown={mulaiGeser}
-          onPointerMove={selamaGeser}
-          onPointerUp={selesaiGeser}
-          onPointerCancel={selesaiGeser}
-        />
-
-        {/* Kanan: kartu informasi paket terpilih + daftar penerimanya. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-2">
-          {aktif === null ? (
-            <p className="grid flex-1 place-items-center text-sm text-muted-foreground">
-              Pilih dispensasi di tabel kiri untuk melihat daftar penerimanya.
-            </p>
-          ) : (
-            <>
-              {/* Kartu info paket terpilih — ditaruh di ATAS tabel penerima
-                  supaya daftar santrinya tetap terlihat di bawah. */}
-              <KartuDispensasiTerpilih d={aktif} jumlahPenerima={penerima.length} />
-              <div className="flex min-h-0 flex-1 flex-col">
-                <PenerimaDispensasiPanel
-                  rows={penerimaTampil}
+            {/* Kiri (bawaan 500px, bisa digeser): tabel dispensasi + daftar santri. */}
+            <div style={{ width: lebarKiri }} className="flex min-h-0 shrink-0 flex-col gap-2">
+              <div
+                ref={atasRef}
+                style={{ height: tinggiAtas }}
+                className="flex min-h-0 shrink-0 flex-col"
+              >
+                <DispensasiTab
+                  rows={dispensasi}
                   loading={loading}
-                  nama={aktif.nama}
-                  kuota={aktif.kuota_bulan}
-                  terpakai={kuotaTerpakai}
-                  busy={busy}
-                  bolehUbah={bolehUbah}
-                  emptyText={adaCari ? 'Tidak ada penerima yang cocok dengan pencarian.' : undefined}
-                  onKeluarkan={(ids) => void keluarkan(ids)}
+                  sort={uDispensasi}
+                  onTambah={bukaTambahDispensasi}
+                  onEdit={bukaUbahDispensasi}
+                  onHapus={hapusDispensasiBaris}
+                  aktifId={aktifId}
+                  onPilih={(d) => setAktifId(d.id)}
                 />
               </div>
-            </>
-          )}
 
-          {/* Rekap dampak (bawah kolom kanan, selalu tampil): angka dari baris
-              TAGIHAN, jadi paket berlingkup lembaga lain ketahuan di sini.
-              Tingginya MENGIKUTI ISI (maks 6 baris — `maxRows`), supaya panel
-              tak menyisakan ruang kosong saat paketnya cuma dipakai 1 lembaga. */}
-          <div className="flex min-h-0 shrink-0 flex-col">
-            <RekapDispensasiTab
-              rows={rekap}
-              loading={loadingRekap}
-              sort={uRekap}
-              paket={paketRekapTerpilih}
-              opsiPaket={opsiPaketRekap}
-              onPaket={setPaketRekap}
-              ringkas={ringkasRekap}
+              {/* Gagang geser tinggi tabel dispensasi vs daftar santri. */}
+              <div
+                id="gagang_tabel_dispensasi"
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Atur tinggi tabel dispensasi dan daftar santri"
+                className="h-1.5 shrink-0 cursor-row-resize hover:bg-accent"
+                onPointerDown={mulaiGeserVertikal}
+                onPointerMove={selamaGeserVertikal}
+                onPointerUp={selesaiGeserVertikal}
+                onPointerCancel={selesaiGeserVertikal}
+              />
+
+              <div className="flex min-h-0 flex-1 flex-col">
+                <ExcelTable<Santri>
+                  tableKey="dispensasi_kandidat"
+                  rail
+                  header={(
+                    <span id="judul_dispensasi_santri" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
+                      Daftar Santri ({total})
+                    </span>
+                  )}
+                  fields={FIELDS_SANTRI}
+                  rows={kandidatTampil}
+                  getValues={(r) => ({ nama_lengkap: r.nama_lengkap, nis: nisTampil(r), jk: r.jk, kelas: r.kelas ?? null, jenjang: jenjangTampil(r) })}
+                  loading={loadingKandidat}
+                  emptyText={adaCari
+                    ? 'Tidak ada santri yang cocok dengan pencarian.'
+                    : aktif === null
+                      ? 'Pilih dispensasi dulu di tabel atas, lalu masukkan santri dari daftar ini.'
+                      : 'Tidak ada santri (yang belum jadi penerima).'}
+                  canEdit={false}
+                  onCommit={async () => {}}
+                  onSaved={() => {}}
+                  aksiLangsung
+                  renderActions={!bolehUbah || aktif === null ? () => null : (r) => (
+                    <ActionIcon
+                      id={`btn_dispensasi_masukkan_${r.id}`}
+                      title={`Masukkan ${r.nama_lengkap} ke ${aktif.nama}`}
+                      onClick={() => void masukkan([r.id])}
+                    >
+                      <ArrowRight size={16} />
+                    </ActionIcon>
+                  )}
+                  renderBulkActions={!bolehUbah || aktif === null ? undefined : (checked, clear) => checked.length === 0 ? null : (
+                    <Button
+                      id="btn_dispensasi_masukkan_banyak"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => { void masukkan(checked.map((r) => r.id)); clear(); }}
+                    >
+                      <ArrowRight data-icon="inline-start" size={14} /> Masukkan ({checked.length})
+                    </Button>
+                  )}
+                  pager={(
+                    <Pager
+                      page={page}
+                      lastPage={lastPage}
+                      total={total}
+                      perPage={perPage}
+                      onPage={(p) => void muatKandidat(p, perPage, cari)}
+                      onPerPage={(pp) => setPerPage(tulisPerPageGlobal(pp))}
+                    />
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Gagang geser antar panel. */}
+            <div
+              id="gagang_dispensasi"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Atur lebar panel kiri"
+              className="w-1.5 shrink-0 cursor-col-resize self-stretch hover:bg-accent"
+              onPointerDown={mulaiGeser}
+              onPointerMove={selamaGeser}
+              onPointerUp={selesaiGeser}
+              onPointerCancel={selesaiGeser}
             />
+
+            {/* Kanan: kartu informasi paket terpilih + daftar penerimanya. */}
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
+              {aktif === null ? (
+                <p className="grid flex-1 place-items-center text-sm text-muted-foreground">
+                  Pilih dispensasi di tabel kiri untuk melihat daftar penerimanya.
+                </p>
+              ) : (
+                <>
+                  {/* Kartu info paket terpilih — ditaruh di ATAS tabel penerima
+                      supaya daftar santrinya tetap terlihat di bawah. */}
+                  <KartuDispensasiTerpilih d={aktif} jumlahPenerima={penerima.length} />
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <PenerimaDispensasiPanel
+                      rows={penerimaTampil}
+                      loading={loading}
+                      nama={aktif.nama}
+                      kuota={aktif.kuota_bulan}
+                      terpakai={kuotaTerpakai}
+                      busy={busy}
+                      bolehUbah={bolehUbah}
+                      emptyText={adaCari ? 'Tidak ada penerima yang cocok dengan pencarian.' : undefined}
+                      onKeluarkan={(ids) => void keluarkan(ids)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+
+        {/* Tab Rekap: laporan dampak per lembaga selebar area konten (bukan
+            lagi panel sempit di kolom kanan), jadi semua kolomnya terbaca.
+            Angkanya dari baris TAGIHAN, jadi paket berlingkup lembaga lain pun
+            ketahuan di sini; pemilih paketnya mewarisi pilihan di tab Kelola. */}
+        <TabsContent value="rekap" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+          <RekapDispensasiTab
+            rows={rekap}
+            loading={loadingRekap}
+            sort={uRekap}
+            paket={paketRekapTerpilih}
+            opsiPaket={opsiPaketRekap}
+            onPaket={setPaketRekap}
+            ringkas={ringkasRekap}
+          />
+        </TabsContent>
+      </Tabs>
 
       <DispensasiDialog
         open={dispensasiOpen}

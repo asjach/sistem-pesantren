@@ -680,10 +680,12 @@ function angkaRekap(nilai: number): string {
   return nilai.toLocaleString('id');
 }
 
-/** Rekap dampak dispensasi per lembaga (halaman Dispensasi): angka dihitung
- *  dari BARIS TAGIHAN, jadi lingkup paket bisa ditelusuri — pilih satu paket
- *  di kotak "Paket" lalu lihat lembaga mana saja yang memuatnya. Barisnya
- *  murni hasil agregat (tanpa aksi), jadi baca-saja: tanpa centang & aksi. */
+/** Rekap dampak dispensasi per lembaga (tab Rekap Dispensasi halaman
+ *  Dispensasi): angka dihitung dari BARIS TAGIHAN, jadi lingkup paket bisa
+ *  ditelusuri — pilih satu paket di kotak "Paket" lalu lihat lembaga mana saja
+ *  yang memuatnya. Barisnya murni hasil agregat (tanpa aksi), jadi baca-saja:
+ *  tanpa centang & aksi. Tingginya mengisi panel tab (`flex`), tanpa batas
+ *  baris, karena tabelnya kini selebar area konten. */
 export function RekapDispensasiTab({ rows, loading, sort, paket, opsiPaket, onPaket, ringkas }: {
   rows: RekapDispensasi[];
   loading: boolean;
@@ -754,7 +756,6 @@ export function RekapDispensasiTab({ rows, loading, sort, paket, opsiPaket, onPa
       renderActions={() => null}
       hideCheckbox
       hideActions
-      maxRows={6}
     />
   );
 }
