@@ -493,6 +493,11 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, 
  *  yang diklik di tabel Daftar Dispensasi (kolom kiri): status, TA, jumlah
  *  penerima, kuota, grup, keterangan, dan seluruh aturan potongannya.
  *
+ *  Tata letak mengikuti idiom kartu detail aplikasi (lihat
+ *  `DialogLihatLembaga`): kepala berisi identitas + badge status, lalu
+ *  pasangan label–nilai yang SEJAJAR KOLOM (grid dua kolom) supaya mata bisa
+ *  memindai ke bawah, bukan membaca satu baris panjang yang membungkus.
+ *
  *  Murni presentasional (tanpa fetch): halaman sudah memegang paketnya. */
 export function KartuDispensasiTerpilih({ d, jumlahPenerima }: {
   /** Paket terpilih — sumber seluruh isi kartu. */
@@ -501,65 +506,75 @@ export function KartuDispensasiTerpilih({ d, jumlahPenerima }: {
   jumlahPenerima: number;
 }) {
   const aturan = d.aturan ?? [];
+  /** Satu baris label–nilai; `kosong` memudarkan nilai "—". */
+  const baris = (label: string, isi: ReactNode, idNilai: string, kosong = false, title?: string) => (
+    <>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd
+        id={idNilai}
+        className={cn('min-w-0 truncate', kosong && 'text-muted-foreground')}
+        title={title}
+      >
+        {isi}
+      </dd>
+    </>
+  );
+
   return (
-    <Card id="kartu_dispensasi_terpilih" className="shrink-0 gap-1.5 p-2.5 text-xs">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span id="kartu_dispensasi_nama" className="text-xs font-semibold">{d.nama}</span>
+    <Card id="kartu_dispensasi_terpilih" className="shrink-0 gap-0 p-0 text-xs">
+      {/* Kepala: identitas paket + status; jumlah penerima menempel kanan. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-2.5 py-1.5">
+        <span id="kartu_dispensasi_nama" className="min-w-0 truncate text-xs font-semibold" title={d.nama}>
+          {d.nama}
+        </span>
         <Badge
           id="kartu_dispensasi_status"
-          variant={d.is_active ? 'secondary' : 'outline'}
-          className={cn('text-[10px]', !d.is_active && 'text-muted-foreground')}
+          variant={d.is_active ? 'default' : 'destructive'}
+          className="text-[10px]"
         >
           {d.is_active ? 'Aktif' : 'Nonaktif'}
         </Badge>
-        <span className="text-muted-foreground">
-          <span id="kartu_dispensasi_penerima" className="tabular-nums">{jumlahPenerima}</span> penerima
-        </span>
-        <span className="text-muted-foreground">
-          TA <span id="kartu_dispensasi_ta">{d.tahun_ajaran}</span>
+        <span className="ml-auto shrink-0 text-muted-foreground">
+          <span id="kartu_dispensasi_penerima" className="font-medium tabular-nums text-foreground">
+            {jumlahPenerima}
+          </span>{' '}
+          penerima
         </span>
       </div>
 
-      <dl className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <dt>Kuota</dt>
-          <dd id="kartu_dispensasi_kuota" className="text-foreground">
-            {d.kuota_bulan == null ? 'Tanpa batas' : `${d.kuota_bulan} bulan`}
-          </dd>
-        </div>
-        <div className="flex items-center gap-1">
-          <dt>Grup</dt>
-          <dd id="kartu_dispensasi_grup" className="text-foreground">{d.grup ?? '—'}</dd>
-        </div>
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          <dt className="shrink-0">Keterangan</dt>
-          <dd
-            id="kartu_dispensasi_keterangan"
-            className="min-w-0 truncate text-foreground"
-            title={d.keterangan ?? undefined}
-          >
-            {d.keterangan ?? '—'}
-          </dd>
-        </div>
+      {/* Isi: label–nilai sejajar kolom (lebar label = label terpanjang). */}
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-0.5 px-2.5 py-1.5">
+        {baris('Tahun ajaran', d.tahun_ajaran, 'kartu_dispensasi_ta')}
+        {baris(
+          'Kuota',
+          d.kuota_bulan == null ? 'Tanpa batas' : `${d.kuota_bulan} bulan`,
+          'kartu_dispensasi_kuota',
+          d.kuota_bulan == null,
+        )}
+        {baris('Grup', d.grup ?? '—', 'kartu_dispensasi_grup', d.grup == null)}
+        {baris('Keterangan', d.keterangan ?? '—', 'kartu_dispensasi_keterangan', d.keterangan == null, d.keterangan ?? undefined)}
       </dl>
 
-      <div className="flex flex-wrap items-center gap-1">
+      {/* Aturan potongan: satu baris sendiri agar chip bisa membungkus bebas. */}
+      <div className="flex flex-wrap items-center gap-1 border-t px-2.5 py-1.5">
         <span className="text-muted-foreground">Aturan</span>
         {aturan.length === 0 ? (
           <span id="kartu_dispensasi_aturan_kosong" className="text-muted-foreground">
-            — belum ada aturan jenis
+            belum ada aturan jenis
           </span>
         ) : (
           aturan.map((a) => (
-            <span
+            <Badge
               key={a.id}
               id={`kartu_dispensasi_aturan_${a.id}`}
-              className="border border-foreground/20 px-1.5 py-px"
+              variant="outline"
+              className="gap-1 px-1.5 py-px text-[11px] font-normal"
               title={`${a.jenis?.nama ?? 'Semua jenis tagihan'}: ${teksAturan(a)}`}
+              aria-label={`${a.jenis?.nama ?? 'Semua jenis tagihan'}: ${teksAturan(a)}`}
             >
-              <span className="text-muted-foreground">{a.jenis?.nama ?? 'Semua jenis'}:</span>{' '}
-              <span className="tabular-nums">{teksAturan(a)}</span>
-            </span>
+              <span className="text-muted-foreground">{a.jenis?.nama ?? 'Semua jenis'}</span>
+              <span className="font-medium tabular-nums">{teksAturan(a)}</span>
+            </Badge>
           ))
         )}
       </div>
