@@ -449,9 +449,11 @@ export default function DialogKelolaTabel({
         /* Saat dibuka dari TABEL yang sedang dilihat: non-modal + tanpa
            overlay, supaya tabelnya tetap terlihat dan hidup - itulah alasan
            panel ini ada. Dari topBar (tabel di halaman lain) tetap modal:
-           tak ada tabel di belakang yang layak dilihat. */
+           tak ada tabel di belakang yang layak dilihat.
+           Menutup panel: klik di area luar panel, tombol X, tombol "Tutup",
+           atau Esc — semuanya lewat `tutup()`. Tak ada konfirmasi karena tiap
+           bagian sudah menyimpan sendiri saat diubah. */
         overlay={!nonModal}
-        onInteractOutside={nonModal ? (e) => e.preventDefault() : undefined}
         aria-label={`Pengaturan tabel ${typeof judul === 'string' ? judul : 'ini'}`}
         /* - Lebar mengikuti state `lebar` (bisa diseret lewat gagang tepi
              kiri, 420–960px, ingat per perangkat). `maxWidth: 100dvw`

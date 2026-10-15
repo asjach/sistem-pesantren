@@ -395,3 +395,27 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
     ).toBeInTheDocument());
   });
 });
+
+describe('DialogKelolaTabel — menutup panel', () => {
+  it('klik di luar panel menutupnya (varian non-modal dari tabel)', async () => {
+    // Varian dari tabel tidak punya overlay, jadi "di luar panel" = seluruh
+    // tabel di belakangnya pun. Tak ada konfirmasi: tiap bagian sudah
+    // menyimpan sendiri saat diubah.
+    const onOpenChange = vi.fn();
+    renderDenganTema(
+      <DialogKelolaTabel
+        open
+        onOpenChange={onOpenChange}
+        tableKey="uji"
+        judul="Santri"
+        fields={fields}
+        nonModal
+      />,
+    );
+    await waitFor(() => expect(screen.getByLabelText('Pengaturan tabel Santri')).toBeInTheDocument());
+
+    await userEvent.click(document.body);
+
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+});
