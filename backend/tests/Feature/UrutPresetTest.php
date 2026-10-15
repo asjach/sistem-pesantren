@@ -247,6 +247,7 @@ class UrutPresetTest extends TestCase
             'kegiatan_psb_gelombang',
             'kegiatan_psb_kuota',
             'semester_aktif',
+            'referensi',
         ] as $tableKey) {
             $res = $this->actingAs($pusat, 'sanctum')
                 ->getJson("/api/admin/urut-preset?table_key={$tableKey}")
@@ -297,5 +298,29 @@ class UrutPresetTest extends TestCase
             'opsi' => [['kode' => ['nama'], 'label' => 'Nama']],
         ])->assertStatus(403);
         $this->assertSame($lama, UrutPreset::where('table_key', 'santri')->value('opsi'));
+    }
+
+    /**
+     * Referensi punya dropdown Urutkan meski urutannya diterapkan di klien.
+     *
+     * Kodenya tetap wajib terdaftar di katalog: tanpa entri itu token `sort`
+     * ditolak 422 dan dropdown-nya tak pernah tersaji.
+     */
+    public function test_preset_seed_referensi(): void
+    {
+        $pusat = $this->makeUser('super_admin');
+
+        $res = $this->actingAs($pusat, 'sanctum')
+            ->getJson('/api/admin/urut-preset?table_key=referensi')
+            ->assertOk();
+
+        $opsi = $res->json('data.opsi');
+        $this->assertNotEmpty($opsi);
+        $this->assertSame('nama', $opsi[0]['kode'][0]);
+
+        $kode = array_column($res->json('data.tersedia'), 'kode');
+        foreach (['nama', 'kode', 'urutan', 'sumber', 'tampil'] as $k) {
+            $this->assertContains($k, $kode);
+        }
     }
 }

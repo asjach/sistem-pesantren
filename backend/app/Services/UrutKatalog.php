@@ -23,7 +23,37 @@ class UrutKatalog
             'jk' => ['santri.jk'],
             'tipe' => ['santri.tipe_santri'],
             'status' => ['santri.is_active_pst'],
+            // Pseudo-kolom: bukan kolom DB, tapi ekspresi subquery yang
+            // ditangani `SantriController::urutKelasJenjang` (kelas/jenjang
+            // dipilih dari banyak baris riwayat, jadi butuh aturan pilih yang
+            // sama dengan yang menampilkannya). Nilainya penanda, bukan nama
+            // kolom — jangan dipakai `terapkanUrut`.
+            'kelas' => ['kelas-sub'],
+            'jenjang' => ['jenjang-sub'],
             'id' => ['santri.id'],
+        ],
+        // Daftar Santri di tab Kelola Dispensasi: sumbernya endpoint `santri`
+        // yang sama, jadi katalognya ikut persis (kolomnya pun sama). Dipisah
+        // karena preset urut disimpan per `table_key` — halaman ini boleh punya
+        // opsi bawaan sendiri tanpa mengubah preset halaman Santri.
+        'dispensasi_kandidat' => [
+            'nama' => ['santri.nama_lengkap'],
+            'nisn' => ['santri.nisn'],
+            'jk' => ['santri.jk'],
+            'kelas' => ['kelas-sub'],
+            'jenjang' => ['jenjang-sub'],
+            'id' => ['santri.id'],
+        ],
+        // Kamus referensi: halaman `ReferensiPage` memuat SEMUA baris sekaligus
+        // (endpoint mengembalikan array, bukan halaman), jadi urutannya
+        // diterapkan di KLIEN — kode di sini hanya untuk validasi token & isi
+        // dropdown, tak ada kolom DB yang di-`ORDER BY`.
+        'referensi' => [
+            'nama' => ['referensi.nama'],
+            'kode' => ['referensi.kode'],
+            'urutan' => ['referensi.urutan'],
+            'sumber' => ['referensi.jenjang'],
+            'tampil' => ['referensi.is_active'],
         ],
         'keanggotaan' => [
             'nama' => ['santri.nama_lengkap'],
@@ -264,7 +294,10 @@ class UrutKatalog
             'paket' => ['paket'],
             'tagihan' => ['jenis'],
             'penerima' => ['jumlah_penerima'],
+            'kotor' => ['total_kotor'],
+            'tarif' => ['tarif'],
             'potongan' => ['total_potongan'],
+            'persen' => ['persen'],
             'id' => ['id'],
         ],
         'keuangan_gen_kandidat' => [

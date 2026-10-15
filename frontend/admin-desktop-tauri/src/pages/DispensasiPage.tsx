@@ -3,8 +3,8 @@ import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
-  daftarDispensasi, daftarJenis, hapusDispensasi, kuotaPakai, rekapDispensasi, ubahDispensasi,
-  type Dispensasi, type DispensasiInput, type JenisTagihan, type RekapDispensasi,
+  daftarDispensasi, daftarJenis, hapusDispensasi, kuotaPakai, rekapDispensasiCrosstab, ubahDispensasi,
+  type Dispensasi, type DispensasiInput, type JenisTagihan, type RekapDispensasiCrosstab as TipeRekapCrosstab,
 } from '../api/keuangan';
 import { listKelas, listTahunAjaran, type Kelas, type TahunAjaran } from '../api/master';
 import { listSantri, type Santri } from '../api/santri';
@@ -21,9 +21,12 @@ import { ActionIcon } from '@/components/RowActions';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from '@/icons';
 import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
+import RekapDispensasiCrosstab from '@/components/keuangan/RekapDispensasiCrosstab';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import { ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger } from '@/components/ui/combobox';
 import {
-  barisPenerima, DispensasiTab, FIELDS_DISPENSASI, FIELDS_PENERIMA, FIELDS_REKAP_DISPENSASI,
-  KartuDispensasiTerpilih, PenerimaDispensasiPanel, RekapDispensasiTab, type BarisPenerima,
+  barisPenerima, DispensasiTab, FIELDS_DISPENSASI, FIELDS_PENERIMA,
+  KartuDispensasiTerpilih, PenerimaDispensasiPanel, type BarisPenerima,
 } from '@/components/keuangan/tabKeuangan';
 import { jenjangTampil, nisTampil } from '@/components/keuangan/tabSantriCustom';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -108,6 +111,23 @@ function payloadDari(d: Dispensasi, santriIds: number[]): DispensasiInput {
  * (disaring di klien) — bukan daftar dispensasi, supaya mencari nama santri
  * tak mengosongkan daftar paket yang jadi sumber pilihan.
  */
+
+/**
+ * Status keaktifan santri yang ditawarkan di daftar kandidat tab Kelola
+ * Dispensasi. Bawaannya **Aktif**: memberi keringanan biaya ke santri yang
+ * sudah nonaktif hampir selalu keliru, jadi yang nonaktif disembunyikan
+ * sampai diminta.
+ *
+ * `'semua'` tetap DIKIRIM eksplisit (bukan dihilangkan dari query) supaya
+ * niatnya terbaca — backend memperlakukan parameter yang absen sebagai
+ * "jangan saring sama sekali", jadi absen itu ≠ semua.
+ */
+const OPSI_STATUS_KANDIDAT: { nilai: 'semua' | 'aktif' | 'nonaktif'; label: string }[] = [
+  { nilai: 'aktif', label: 'Aktif' },
+  { nilai: 'semua', label: 'Semua' },
+  { nilai: 'nonaktif', label: 'Nonaktif' },
+];
+
 export default function DispensasiPage() {
   const { user } = useAuth();
   /** Gerbang izin `keuangan.ubah`: aksi memasukkan/mengeluarkan penerima. */
@@ -119,7 +139,7 @@ export default function DispensasiPage() {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   const uDispensasi = useUrutTabel();
-  const uRekap = useUrutTabel();
+  const uKandidat = useUrutTabel();
   const { jenjangs, tahunAjaranNames, semesters, tingkat, kelas: kelasAktif } = useFilterGlobalAktif();
   /** Lingkup jenjang yang boleh dipakai di dialog dispensasi (peran pengguna). */
   const { pilihan: pilihanLembaga } = useLembagaAktif();
@@ -157,8 +177,11 @@ export default function DispensasiPage() {
   /** Bulan terpakai per penerima paket terpilih (hanya paket berkuota) —
    *  dasar kolom "Sisa Kuota" di panel kanan. */
   const [kuotaTerpakai, setKuotaTerpakai] = useState<Record<number, number>>({});
-  /** Baris rekap dampak per lembaga (lingkup filter topBar). */
-  const [rekap, setRekap] = useState<RekapDispensasi[]>([]);
+  /** Status keaktifan yang disaring di daftar kandidat (bawaan: aktif saja). */
+  const [statusKandidat, setStatusKandidat] = useState<'semua' | 'aktif' | 'nonaktif'>('aktif');
+
+  /** Rekap dampak sebagai crosstab paket × jenis (lingkup filter topBar). */
+  const [rekap, setRekap] = useState<TipeRekapCrosstab | null>(null);
   const [loadingRekap, setLoadingRekap] = useState(false);
   /** Paket yang disaring di rekap: `undefined` = ikut paket terpilih,
    *  `null` = semua paket (pilihan eksplisit), number = paket itu. */
@@ -177,9 +200,9 @@ export default function DispensasiPage() {
   const aktif = useMemo(() => dispensasi.find((d) => d.id === aktifId) ?? null, [dispensasi, aktifId]);
   /** Paket efektif rekap: bawaan mengikuti baris yang dipilih di tabel kiri. */
   const paketRekapTerpilih = paketRekapEfektif(paketRekap, aktifId);
-  /** Ringkasan rekap dari baris yang tampil (bukan query terpisah). */
+  /** Ringkasan rekap dari baris crosstab yang tampil (bukan query terpisah). */
   const ringkasRekap = useMemo(
-    () => rekap.reduce(
+    () => (rekap?.baris ?? []).reduce(
       (a, r) => ({ tagihan: a.tagihan + r.jumlah_tagihan, potongan: a.potongan + r.total_potongan }),
       { tagihan: 0, potongan: 0 },
     ),
@@ -273,30 +296,28 @@ export default function DispensasiPage() {
     return () => { hidup = false; };
   }, [jenjangs, tahunAjaranNames]);
 
-  /* Rekap dampak: lingkup topBar (TA + jenjang) + paket yang sedang dipilih
-     + urutan tabelnya. Gagal memuat → pesannya masuk ErrorNotice halaman
-     (bukan panel kosong yang menyamar "belum ada data"). */
+  /* Rekap dampak (crosstab): lingkup topBar (TA + jenjang) + paket yang sedang
+     dipilih. Gagal memuat → pesannya masuk ErrorNotice halaman (bukan panel
+     kosong yang menyamar "belum ada data"). */
   useEffect(() => {
     let hidup = true;
     setLoadingRekap(true);
     void (async () => {
       try {
-        const res = await rekapDispensasi({
+        const res = await rekapDispensasiCrosstab({
           tahun_ajaran: tahunAjaranNames,
           jenjang: jenjangs,
           dispensasi_id: paketRekapTerpilih ?? '',
-          sort: uRekap.urut.length ? tokenUrut(uRekap.urut, uRekap.arahKolom) : undefined,
-          arah: uRekap.urut.length ? uRekap.arah : undefined,
         });
-        if (hidup) setRekap(res.data);
+        if (hidup) setRekap(res);
       } catch (e) {
-        if (hidup) { setRekap([]); setErr(errorMessage(e)); }
+        if (hidup) { setRekap(null); setErr(errorMessage(e)); }
       } finally { if (hidup) setLoadingRekap(false); }
     })();
     return () => { hidup = false; };
-  }, [jenjangs, tahunAjaranNames, paketRekapTerpilih, uRekap.urut, uRekap.arah, uRekap.arahKolom]);
+  }, [jenjangs, tahunAjaranNames, paketRekapTerpilih]);
 
-  const muatKandidat = useCallback(async (p: number, pp: number, q: string) => {
+  const muatKandidat = useCallback(async (p: number, pp: number, q: string, urut: string[] = []) => {
     setLoadingKandidat(true);
     try {
       const res = await listSantri({
@@ -305,7 +326,10 @@ export default function DispensasiPage() {
         semester: semesters,
         tingkat,
         kelas_id: kelasIds,
+        // `'semua'` dikirim apa adanya: absen ≠ semua bagi backend.
+        is_active_pst: statusKandidat === 'semua' ? 'semua' : statusKandidat === 'aktif',
         q: q === '' ? undefined : q,
+        sort: urut.length ? urut : undefined,
         page: p, per_page: pp,
       });
       setKandidat(res.data);
@@ -313,14 +337,21 @@ export default function DispensasiPage() {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); } finally { setLoadingKandidat(false); }
-  }, [jenjangs, tahunAjaranNames, semesters, tingkat, kelasIds]);
+  }, [jenjangs, tahunAjaranNames, semesters, tingkat, kelasIds, statusKandidat]);
 
-  // Lingkup topBar / pencarian berubah → muat ulang dari halaman 1 (tahan 250ms).
+  /** Token `sort` kandidat dari dropdown Urutkan (kosong = urutan bawaan). */
+  const sortKandidat = uKandidat.urut.length
+    ? tokenUrut(uKandidat.urut, uKandidat.arahKolom)
+    : [];
+
+  // Lingkup topBar / pencarian / urutan berubah → muat ulang dari halaman 1
+  // (tahan 250ms). Urutan ikut di-reset ke halaman 1 supaya tak ada halaman
+  // yang terlewat akibat basis urut yang bergeser.
   useEffect(() => {
     setPage(1);
-    const t = setTimeout(() => { void muatKandidat(1, perPage, cari); }, 250);
+    const t = setTimeout(() => { void muatKandidat(1, perPage, cari, sortKandidat); }, 250);
     return () => clearTimeout(t);
-  }, [cari, perPage, muatKandidat]);
+  }, [cari, perPage, muatKandidat, sortKandidat.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bukaTambahDispensasi = useCallback(() => {
     setEditDispensasi(null);
@@ -406,7 +437,10 @@ export default function DispensasiPage() {
         tabel={[
           { key: 'keuangan_dispensasi', judul: 'Daftar Dispensasi', fields: FIELDS_DISPENSASI },
           { key: 'keuangan_penerima_dispensasi', judul: 'Daftar Penerima Dispensasi', fields: FIELDS_PENERIMA },
-          { key: 'keuangan_rekap_dispensasi', judul: 'Rekap Dampak per Paket', fields: FIELDS_REKAP_DISPENSASI },
+          // Daftar Santri ikut didaftarkan supaya kolomnya (termasuk Jenjang &
+          // Kelas) bisa diatur lewat Kelola Tabel — tanpa entri ini tabelnya
+          // tak punya pintu pengaturan kolom sama sekali.
+          { key: 'dispensasi_kandidat', judul: 'Daftar Santri', fields: FIELDS_SANTRI },
         ]}
       />
 
@@ -477,6 +511,33 @@ export default function DispensasiPage() {
                     : aktif === null
                       ? 'Pilih dispensasi dulu di tabel atas, lalu masukkan santri dari daftar ini.'
                       : 'Tidak ada santri (yang belum jadi penerima).'}
+                  urutAktif={uKandidat.urut}
+                  arahUrut={uKandidat.arah}
+                  onUrut={uKandidat.terapkan}
+                  filter={(
+                    <LabeledCombobox label="Status" htmlFor="sel_status_dispensasi_santri">
+                      <ComboboxRoot
+                        items={OPSI_STATUS_KANDIDAT}
+                        itemToStringLabel={(o) => o.label}
+                        isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                        value={OPSI_STATUS_KANDIDAT.find((o) => o.nilai === statusKandidat) ?? OPSI_STATUS_KANDIDAT[0]}
+                        onValueChange={(o) => {
+                          if (o === null) return;
+                          setStatusKandidat(o.nilai);
+                          void muatKandidat(1, perPage, cari, sortKandidat);
+                        }}
+                      >
+                        <ComboboxInput id="sel_status_dispensasi_santri" aria-label="Filter status keaktifan santri" placeholder="Cari status…" />
+                        <ComboboxTrigger aria-label="Buka daftar status" />
+                        <ComboboxContent>
+                          <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </ComboboxRoot>
+                    </LabeledCombobox>
+                  )}
                   canEdit={false}
                   onCommit={async () => {}}
                   onSaved={() => {}}
@@ -506,7 +567,7 @@ export default function DispensasiPage() {
                       lastPage={lastPage}
                       total={total}
                       perPage={perPage}
-                      onPage={(p) => void muatKandidat(p, perPage, cari)}
+                      onPage={(p) => void muatKandidat(p, perPage, cari, sortKandidat)}
                       onPerPage={(pp) => setPerPage(tulisPerPageGlobal(pp))}
                     />
                   )}
@@ -557,19 +618,50 @@ export default function DispensasiPage() {
           </div>
         </TabsContent>
 
-        {/* Tab Rekap: laporan dampak per lembaga selebar area konten (bukan
-            lagi panel sempit di kolom kanan), jadi semua kolomnya terbaca.
-            Angkanya dari baris TAGIHAN, jadi paket berlingkup lembaga lain pun
-            ketahuan di sini; pemilih paketnya mewarisi pilihan di tab Kelola. */}
+        {/* Tab Rekap: crosstab dampak — baris = paket (× lembaga × TA), kolom =
+            jenis tagihan, sel = total potongan paket di jenis itu. Lebih ringkas
+            dari tabel panjang: sebaran satu paket ke semua jenisnya terbaca
+            dalam satu baris pandang. Angkanya dari baris TAGIHAN, jadi paket
+            berlingkup lembaga lain pun ketahuan; pemilih paketnya mewarisi
+            pilihan di tab Kelola. */}
         <TabsContent value="rekap" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <RekapDispensasiTab
-            rows={rekap}
+          <div className="flex flex-wrap items-center gap-3">
+            <span id="judul_rekap_dispensasi" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
+              Rekap Dampak per Paket
+              <span className="ml-1.5 font-normal tabular-nums text-muted-foreground">
+                {ringkasRekap.tagihan.toLocaleString('id')} tagihan · {ringkasRekap.potongan === 0 ? 'Rp 0' : `Rp ${ringkasRekap.potongan.toLocaleString('id')}`}
+              </span>
+            </span>
+            <LabeledCombobox label="Paket" htmlFor="sel_rekap_dispensasi_paket" tinggi={26} lebarKombo={190} kelolaLebar={false}>
+              <ComboboxRoot
+                items={opsiPaketRekap}
+                itemToStringLabel={(o) => o.label}
+                isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                value={opsiPaketRekap.find((o) => o.nilai === paketRekapTerpilih) ?? opsiPaketRekap[0]}
+                onValueChange={(o) => { if (o !== null) setPaketRekap(o.nilai); }}
+              >
+                <ComboboxInput
+                  id="sel_rekap_dispensasi_paket"
+                  aria-label="Paket dispensasi rekap"
+                  placeholder="Semua paket"
+                  title="Bawaan: mengikuti paket yang dipilih di tabel kiri"
+                />
+                <ComboboxTrigger aria-label="Buka daftar paket rekap" />
+                <ComboboxContent>
+                  <ComboboxEmpty>Tidak ada paket.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(o) => <ComboboxItem key={o.label} value={o}>{o.label}</ComboboxItem>}
+                  </ComboboxList>
+                </ComboboxContent>
+              </ComboboxRoot>
+            </LabeledCombobox>
+          </div>
+          <RekapDispensasiCrosstab
+            data={rekap}
             loading={loadingRekap}
-            sort={uRekap}
-            paket={paketRekapTerpilih}
-            opsiPaket={opsiPaketRekap}
-            onPaket={setPaketRekap}
-            ringkas={ringkasRekap}
+            emptyText={paketRekapTerpilih === null
+              ? 'Belum ada tagihan yang memuat dispensasi pada lingkup filter ini.'
+              : 'Paket ini belum dipakai satu tagihan pun pada lingkup filter ini.'}
           />
         </TabsContent>
       </Tabs>

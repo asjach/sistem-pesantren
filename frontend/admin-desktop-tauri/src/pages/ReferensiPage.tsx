@@ -12,6 +12,8 @@ import {
   type ReferensiRow,
 } from '../api/master';
 import { errorMessage, prefGet, prefSet } from '../api/client';
+import type { PetaArahKolom } from '../lib/urut';
+import { urutkanReferensi } from '../lib/referensiUrut';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { Button } from '@/components/ui/button';
@@ -80,6 +82,17 @@ export default function ReferensiPage() {
   const { jenjangs } = useFilterGlobalAktif();
   const targetJenjang = targetTunggal(jenjangs);
   const [rows, setRows] = useState<ReferensiRow[]>([]);
+  /** Urutan aktif dari dropdown Urutkan. Halaman ini memuat seluruh baris
+   *  sekaligus (endpoint mengembalikan array, bukan halaman), jadi urutannya
+   *  diterapkan di klien — bukan dikirim sebagai `sort` ke server. */
+  const [urut, setUrut] = useState<string[]>([]);
+  const [arah, setArah] = useState<'naik' | 'turun'>('naik');
+  const [arahKolom, setArahKolom] = useState<PetaArahKolom | undefined>(undefined);
+  const terapkanUrut = useCallback((nilai: string[], a: 'naik' | 'turun', peta?: PetaArahKolom) => {
+    setUrut(nilai);
+    setArah(a);
+    setArahKolom(nilai.length > 0 ? peta : undefined);
+  }, []);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -215,11 +228,17 @@ export default function ReferensiPage() {
   }), [lembagaName]);
 
   const q = search.trim().toLowerCase();
-  const visibleRows = q
-    ? rows.filter((r) =>
-        [r.nama, r.kode].some((v) => (v ?? '').toLowerCase().includes(q)),
-      )
-    : rows;
+  const visibleRows = useMemo(() => {
+    const dasar = q
+      ? rows.filter((r) =>
+          [r.nama, r.kode].some((v) => (v ?? '').toLowerCase().includes(q)),
+        )
+      : rows;
+
+    // Pengurutnya di `lib/referensiUrut` supaya logikanya bisa diuji tanpa
+    // merender halaman (halaman ini butuh auth + beberapa context).
+    return urutkanReferensi(dasar, urut, arah, arahKolom, lembagaName);
+  }, [rows, q, urut, arah, arahKolom, lembagaName]);
 
   const openTambah = useCallback(() => {
     setFNama(''); setFKode(''); setFUrutan('0');
@@ -391,6 +410,9 @@ export default function ReferensiPage() {
         fields={fields}
         rows={visibleRows}
         getValues={gridValues}
+        urutAktif={urut}
+        arahUrut={arah}
+        onUrut={terapkanUrut}
         loading={loading}
         emptyText="Belum ada entri."
         canEdit={false}

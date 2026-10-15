@@ -624,6 +624,11 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     renderDialog();
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
     await pilihOpsi('sel_gen_kelompok', /Semua Santri MI-MD/);
-    expect(await screen.findByLabelText('Preset kolom tampilan')).toBeInTheDocument();
+    // Kolom tabel pratinjau ("terpilih") punya kontrolnya sendiri. Dicari
+    // lewat `id` — `aria-label`-nya sama dengan toolbar tabel lain di dialog,
+    // jadi pencarian berbasis label jadi ambigu begitu keduanya tampil.
+    await waitFor(() => {
+      expect(document.getElementById('select_preset_kolom_keuangan_gen_terpilih')).not.toBeNull();
+    });
   });
 });

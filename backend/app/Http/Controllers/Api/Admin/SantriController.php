@@ -88,6 +88,7 @@ class SantriController extends Controller
                 ->orWhere('nama_lengkap', 'like', "%{$q}%"));
         }
 
+        $this->urutKelasJenjang($query, $urut, $this->taKelas($request));
         $this->terapkanUrut($query, $urut, [
             ['santri.jk', 'naik'], ['santri.nama_lengkap', 'naik'],
         ], self::SORT_NULLABLE);
@@ -105,6 +106,130 @@ class SantriController extends Controller
         $ta = $this->nilaiFilter($request, 'tahun_ajaran');
 
         return $ta === [] ? TahunAjaran::aktif()?->nama : (string) $ta[0];
+    }
+
+    /** Kelas & jenjang TIDAK ada sebagai kolom di tabel `santri`, jadi tak bisa
+     *  di-`orderBy` langsung: keduanya hasil pemilihan dari banyak baris
+     *  `riwayat_belajar`/`lembaga_santri` (aturan sama dengan yang MENAMPILKAN
+     *  nilainya). Supaya opsi urut tetap jujur, keduanya diurutkan lewat
+     *  subquery skalar yang memakai aturan pilih yang sama.
+     *
+     *  Dipisah dari `terapkanUrut` karena yang itu hanya bisa `orderBy` nama
+     *  kolom mentah, sedangkan di sini perlu ekspresi. Token yang ditangani di
+     *  sini dibuang dari `$urut` supaya tidak ikut di-`orderBy` sebagai kolom.
+     *
+     *  Aturan pilih (samakan dengan `PetaSantriRiwayat::petaSantriGenerate`):
+     *  semester 2 menang, `pindah_keluar` dibuang, jenjang utama MI > MD > lain.
+     *
+     * @param  array{arah: array<string, 'naik'|'turun'>, kunci: list<string>}|null  $urut
+     * @param  string|null  $ta  TA acuan kelas (sama dengan `sertakanKelas`).
+     */
+    private function urutKelasJenjang(mixed $query, ?array &$urut, ?string $ta): void
+    {
+        if ($urut === null) {
+            return;
+        }
+
+        $ditangani = [];
+
+        foreach ($urut['kunci'] as $i => $kolom) {
+            if ($kolom !== 'kelas-sub' && $kolom !== 'jenjang-sub') {
+                continue;
+            }
+            $arahKolom = $urut['arah'][$kolom] ?? 'naik';
+
+            if ($kolom === 'kelas-sub') {
+                // Nama kelas ('1A' < '2A') memang urut secara leksikografis,
+                // jadi nilainya sendiri sudah jadi kunci urut yang benar.
+                $ekspresi = $this->subqueryKelas($ta);
+                $kunciUrut = $ekspresi;
+            } else {
+                // Jenjang BUKAN kunci urut yang benar: urut abjad menaruh MD
+                // sebelum MI. Yang diinginkan urutan baku MI > MD > lain, jadi
+                // yang diurutkan adalah PERINGKAT-nya, bukan namanya.
+                // `subqueryJenjang` tetap dipakai untuk uji NULL (punya riwayat
+                // atau tidak); peringkatnya diturunkan dari nilai itu.
+                $ekspresi = $this->subqueryJenjang($ta);
+                $kunciUrut = "CASE ({$ekspresi}) WHEN 'MI' THEN 0 WHEN 'MD' THEN 1".
+                    " WHEN 'MTS' THEN 2 ELSE 3 END";
+            }
+
+            $arahSql = $arahKolom === 'naik' ? 'asc' : 'desc';
+
+            // NULL selalu di bawah agar santri tanpa riwayat tidak menumpuk di atas.
+            $query->orderByRaw("({$ekspresi}) IS NULL");
+            $query->orderByRaw("({$kunciUrut}) {$arahSql}");
+
+            $ditangani[] = $i;
+        }
+
+        if ($ditangani === []) {
+            return;
+        }
+
+        // Buang token yang sudah ditangani agar `terapkanUrut` tidak mencoba
+        // meng-`orderBy` nama pseudo-kolomnya.
+        $kunci = [];
+        foreach ($urut['kunci'] as $i => $kolom) {
+            if (! in_array($i, $ditangani, true)) {
+                $kunci[] = $kolom;
+            }
+        }
+        $urut['kunci'] = $kunci;
+    }
+
+    /**
+     * Subquery nama kelas acuan satu santri (NULL bila tak ada riwayat hidup).
+     *
+     * Nilai TA & status disisipkan sebagai literal berkutip, BUKAN parameter
+     * bind: `orderByRaw` tidak menerima binding, sedangkan `toSql()`
+     * mengembalikan placeholder `?` — subquerynya jadi membandingkan NULL dan
+     * diam-diam tidak mengurutkan apa pun. Karena itu semua nilai di sini
+     * WAJIB lolos `quote()` (bukan disisipkan mentah dari input pengguna).
+     */
+    private function subqueryKelas(?string $ta): string
+    {
+        if ($ta === null) {
+            return 'NULL';
+        }
+
+        $taSql = DB::getPdo()->quote($ta);
+        $pindah = DB::getPdo()->quote('pindah_keluar');
+
+        return DB::table('riwayat_belajar as rb_k')
+            ->join('kelas as k_k', 'k_k.id', '=', 'rb_k.kelas_id')
+            ->whereColumn('rb_k.santri_id', 'santri.id')
+            ->whereRaw("rb_k.tahun_ajaran = {$taSql}")
+            ->whereRaw("rb_k.status_akhir != {$pindah}")
+            ->orderByRaw("CASE WHEN rb_k.semester = '2' THEN 0 ELSE 1 END")
+            ->orderByRaw("CASE rb_k.jenjang WHEN 'MI' THEN 0 WHEN 'MD' THEN 1 ELSE 2 END")
+            ->limit(1)
+            ->select('k_k.nama_kelas')
+            ->toSql();
+    }
+
+    /**
+     * Subquery jenjang utama satu santri (MI > MD > lain).
+     *
+     * Sama seperti `subqueryKelas`: nilai disisipkan sebagai literal berkutip
+     * karena `orderByRaw` tak menerima binding (lihat catatan di sana).
+     */
+    private function subqueryJenjang(?string $ta): string
+    {
+        $pindah = DB::getPdo()->quote('pindah_keluar');
+
+        $q = DB::table('riwayat_belajar as rb_j')
+            ->whereColumn('rb_j.santri_id', 'santri.id')
+            ->whereRaw("rb_j.status_akhir != {$pindah}");
+        if ($ta !== null) {
+            $q->whereRaw('rb_j.tahun_ajaran = '.DB::getPdo()->quote($ta));
+        }
+
+        return $q
+            ->orderByRaw("CASE rb_j.jenjang WHEN 'MI' THEN 0 WHEN 'MD' THEN 1 ELSE 2 END")
+            ->limit(1)
+            ->select('rb_j.jenjang')
+            ->toSql();
     }
 
     /**

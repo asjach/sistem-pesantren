@@ -1193,7 +1193,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     </>
                   )}
                   fields={FIELDS_TERPILIH}
-                  hidePreset
                   presetLuar={presetLuar}
                   rows={tampil.map((r) => ({ ...r, id: r.santri_id }))}
                   getValues={(r) => ({

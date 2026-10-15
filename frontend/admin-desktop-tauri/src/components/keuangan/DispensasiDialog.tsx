@@ -326,7 +326,6 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
               onSaved={() => {}}
               aksiLangsung
               hideCheckbox
-              hidePreset
               renderActions={(j) => (
                 <ActionIcon
                   id={`btn_dispensasi_tambah_${j.id}`}
