@@ -800,6 +800,31 @@
   transition-timing-function: ease-out, ease-out, ease-out, ease-out, ease;
   transition-delay: 0ms, 0ms, 100ms, 100ms, 0ms;
 }
+/* Durasi animasi masuk/keluar SELURUH overlay (sheet, dialog, popover,
+   dropdown, select, menu konteks). `tw-animate-css` memakai
+   `animation-duration: var(--tw-animation-duration, var(--tw-duration, .15s))`
+   dan tak ada kelas `duration-*` pada elemen-elemen itu, jadi tanpa aturan di
+   sini semuanya selesai dalam 150ms — terasa buram-tiba, terutama panel
+   besar seperti sheet pengaturan tabel. 250ms memberi motion yang
+   terbaca tanpa membuat menunggu lama.
+   Rules-rule ini SENGAJA tak terlapis (tidak di dalam `@layer`): pada Tailwind v4
+   aturan tak terlapis menang atas utility yang terlapis, jadi cukup menimpa
+   durasi dari `animate-in`/`animate-out` tanpa `!important`.
+   Slot `*-overlay` ikut ikut supaya gelapnya tak lebih cepat daripada panelnya.
+   Tooltip TIDAK ikut: muncul mengikuti hover, jadi 150ms bawaan justru terasa
+   responsif; 250ms di sana akan terasa lambat. */
+[data-slot='sheet-content'],
+[data-slot='sheet-overlay'],
+[data-slot='dialog-content'],
+[data-slot='dialog-overlay'],
+[data-slot='alert-dialog-content'],
+[data-slot='alert-dialog-overlay'],
+[data-slot='popover-content'],
+[data-slot='dropdown-menu-content'],
+[data-slot='select-content'],
+[data-slot='context-menu-content'] {
+  animation-duration: 250ms;
+}
 @media (prefers-reduced-motion: reduce) {
   [data-slot='tabs-indicator'] {
     transition: none;
