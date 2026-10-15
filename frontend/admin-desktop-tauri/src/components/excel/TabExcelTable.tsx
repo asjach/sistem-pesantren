@@ -350,7 +350,7 @@ const CAKUPAN_INFO: Record<Cakupan, { label: string; arti: string; warna: string
  *  dan tempat NILAI-nya disimpan — dua hal yang sering tertukar. */
 const CAKUPAN: Record<Cakupan, BarisCakupan[]> = {
   global: [
-    { apa: 'Tinggi baris sel', kontrol: 'Footer — TombolTinggiBaris (siklus 20→32px)', simpan: 'pref perangkat (GridPrefs.tsx:33 GLOBAL_ROWH_KEY)', catatan: 'Klik di tabel mana pun → SEMUA tabel ikut berubah.' },
+    { apa: 'Bawaan tinggi baris sel', kontrol: 'Pengaturan → Tampilan tabel → stepper "Tinggi sel bawaan"', simpan: 'pref perangkat (GridPrefs.tsx:33 GLOBAL_ROWH_KEY)', catatan: 'Hanya bawaan: tabel yang punya tinggi sendiri di Kelola Tabel → Umum tidak ikut.' },
     { apa: 'Tinggi baris header', kontrol: 'Footer — gerigi → "Tinggi header"', simpan: 'pref perangkat (GridPrefs.tsx:35 GLOBAL_HEADER_H_KEY)', catatan: 'Sama: global walau tombolnya ada di tiap tabel.' },
     { apa: 'Jenis huruf sel', kontrol: 'Footer — gerigi → Sel → Font', simpan: 'pref perangkat (GridPrefs)', catatan: 'Berlaku semua tabel.' },
     { apa: 'Ukuran huruf sel', kontrol: 'Footer — gerigi → Sel → Ukuran', simpan: 'pref perangkat (GridPrefs)', catatan: 'Berlaku semua tabel.' },
@@ -607,7 +607,8 @@ const VISUAL: PenilaianVisual[] = [
       'TIDAK KONSISTEN: dari 9 kontrol di popover yang SEMUANYA global, hanya 3 yang '
       + 'menyebut "berlaku semua tabel" (dulu PopoverSettingTabel.tsx), dan itu pun '
       + 'hanya di title/tooltip. 6 lainnya (font+ukuran+2 warna header, 2 warna sel) '
-      + 'diam-diam global. TombolTinggiBaris.tsx:23 sudah menyebut di tooltip.',
+      + 'diam-diam global. (Tombol tinggi baris di footer sudah dihapus; '
+      + 'tinggi baris kini per tabel di Kelola Tabel → Umum.)',
   },
   {
     sumbu: 'Kapan berlaku (langsung vs perlu Simpan)',
@@ -1400,7 +1401,7 @@ const INVENTARIS: BarisFitur[] = [
   { fitur: 'Seleksi tercentang dikabarkan', sumber: 'onCheckedChange', dipakai: '20 halaman', catatan: 'Halaman memakai daftar id tercentang.' },
   { fitur: 'Paginasi di kaki', sumber: 'pager', dipakai: '19 halaman', catatan: 'ExcelTable tak menghitung halaman; halaman meng-inject <Pager/>.' },
   { fitur: 'Pengaturan tampilan tabel', sumber: 'SheetPengaturanTampilan (TopBar)', dipakai: 'selalu (footer memicu)', catatan: 'Tinggi sel/header, font/ukuran/warna header & sel. Semua GLOBAL.' },
-  { fitur: 'Tombol tinggi baris', sumber: 'TombolTinggiBaris', dipakai: 'selalu (footer)', catatan: 'Siklus 20→24→28→32px; nilai GLOBAL semua tabel.' },
+  { fitur: 'Tombol tinggi baris', sumber: '— (dihapus)', dipakai: '—', catatan: 'Tombol siklus di kaki tabel dihapus; tinggi baris per tabel diatur di Kelola Tabel → Umum.' },
   { fitur: 'Panel Kelola Tabel', sumber: 'DialogKelolaTabel', dipakai: 'halaman berregistrasi', catatan: 'Dibuka dari 2 tempat: gerigi kanan bawah tabel (Sheet non-modal) & menu TopBar (modal). 3 tab, tersimpan sendiri.' },
   { fitur: 'Menu klik kanan 4 area', sumber: 'MenuKonteksGrid', dipakai: 'selalu', catatan: 'Tabel / Kolom / Baris / sudut — isi berbeda per area.' },
   { fitur: 'Salin TSV (baris/sel/kolom/semua)', sumber: 'useSalinTabel + Ctrl+C', dipakai: 'selalu', catatan: 'Termasuk tombol salin di corner button.' },
@@ -1595,7 +1596,7 @@ const DENAH: AreaDenah[] = [
   { no: 15, nama: 'Aksi per baris', sumber: 'renderActions(row) — ikon Lihat/Ubah/Hapus', keterangan: 'Isi kolom Aksi tiap baris. Bila jumlah aksi > 3, otomatis diganti satu tombol hamburger (aksiRingkas).' },
   { no: 16, nama: 'Paginasi', sumber: 'pager (slot dari halaman)', keterangan: 'ExcelTable TIDAK menghitung jumlah baris/halaman — halaman meng-inject <Pager/>. Dipakai 19 halaman.' },
   { no: 17, nama: 'Pengaturan tampilan', sumber: 'IsiPengaturanTampilan (sheet TopBar)', keterangan: 'Tinggi sel/header, font/ukuran/warna header & sel — GLOBAL. Tombol di sini membuka panel di TopBar.' },
-  { no: 18, nama: 'Tinggi baris', sumber: 'TombolTinggiBaris', keterangan: 'Siklus 20→24→28→32 px. Nilainya GLOBAL untuk seluruh tabel, walau tombolnya tampil di tiap tabel.' },
+  { no: 18, nama: 'Tinggi baris', sumber: 'Kelola Tabel → Umum → "Tampilan di perangkat ini"', keterangan: 'Stepper angka 18..240px per tabel, plus bawaan global (Pengaturan → Tampilan) lalu 24px. Tombol siklus di kaki tabel sudah dihapus.' },
   { no: 19, nama: 'Tambah baris', sumber: 'onCreateRow + setInputMode(true)', keterangan: 'Tampil hanya bila halaman menyediakan onCreateRow (7 halaman). Menyalakan mode Input.' },
   { no: 20, nama: 'Mode Edit', sumber: 'canEdit + setEditMode(true)', keterangan: 'Tampil bila canEdit. Mode Edit & Input saling eksklusif; Esc keluar.' },
 ];

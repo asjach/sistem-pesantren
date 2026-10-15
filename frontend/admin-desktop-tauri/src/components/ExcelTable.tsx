@@ -15,7 +15,6 @@ import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import { EVENT_TAMPILAN_PERANGKAT_BERUBAH, type AlignKolom } from '@/components/kelolaTabel/jenis';
 import FilterRail from '@/components/FilterRail';
-import TombolTinggiBaris from './excel/TombolTinggiBaris';
 import { bukaPengaturanTampilan } from './pengaturan/SheetPengaturanTampilan';
 import ScrollbarMelayang from './excel/ScrollbarMelayang';
 import { gabungUrutan } from './excel/urutanKolom';
@@ -1412,7 +1411,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   const relFilterTampil = rail && komponenAktif(visibilitas, 'rel_filter');
   const pagerTampil = pager != null && komponenAktif(visibilitas, 'pager');
   const tombolPengaturanTampil = komponenAktif(visibilitas, 'tombol_pengaturan');
-  const tombolTinggiBarisTampil = komponenAktif(visibilitas, 'tombol_tinggi_baris');
   const tombolTambahTampil = inputEnabled && komponenAktif(visibilitas, 'tombol_tambah');
   const tombolEditTampil = canEdit && komponenAktif(visibilitas, 'tombol_edit');
 
@@ -1440,7 +1438,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Kaki tabel dirender selama masih ada SATU pun komponennya. */
   const kakiTabelTampil = pagerTampil
     || tombolPengaturanTampil
-    || tombolTinggiBarisTampil
     || tombolTambahTampil
     || tombolEditTampil;
 
@@ -1789,7 +1786,6 @@ export default function ExcelTable<T extends { id: string | number }>({
               <Settings size={14} />
             </Button>
           ) : null}
-          {tombolTinggiBarisTampil ? <TombolTinggiBaris tableKey={tableKey} /> : null}
           {tombolTambahTampil && !showInput && (
             <Button
               id={`btn_tambah_baris_${tableKey}`}

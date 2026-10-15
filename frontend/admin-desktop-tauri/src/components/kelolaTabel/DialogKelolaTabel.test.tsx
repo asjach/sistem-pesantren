@@ -305,7 +305,6 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
       'Tampilkan Kolom Aksi',
       'Tampilkan Pager / jumlah baris',
       'Tampilkan Tombol Pengaturan tabel',
-      'Tampilkan Tombol tinggi baris',
       'Tampilkan Tombol tambah baris',
       'Tampilkan Tombol Edit',
     ]) {
@@ -387,9 +386,9 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
 
   it('menandai tab Umum belum tersimpan saat sakelar visibilitas berubah', async () => {
     renderDialog(LENGKAP);
-    await waitFor(() => expect(screen.getByLabelText('Tampilkan Tombol tinggi baris')).toBeChecked());
+    await waitFor(() => expect(screen.getByLabelText('Tampilkan Tombol Pengaturan tabel')).toBeChecked());
 
-    await userEvent.click(screen.getByLabelText('Tampilkan Tombol tinggi baris'));
+    await userEvent.click(screen.getByLabelText('Tampilkan Tombol Pengaturan tabel'));
 
     await waitFor(() => expect(
       screen.getByRole('tab', { name: /^Umum \(belum tersimpan\)/ }),

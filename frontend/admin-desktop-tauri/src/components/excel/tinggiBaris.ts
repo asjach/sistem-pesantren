@@ -6,23 +6,9 @@ export const MIN_BARIS_H = 18;
  *  memakan seluruh tinggi tabel. */
 export const MAX_BARIS_H = 240;
 
-/** Pilihan cepat tinggi baris (px) untuk tombol putar di footer tabel:
- *  setiap klik berpindah ke nilai berikutnya (melingkar). */
-export const TINGGI_BARIS_OPSI = [20, 24, 28, 32] as const;
-
 /** Tinggi baris bawaan tabel (px) — dipakai saat tabel belum punya tinggi
  *  sendiri, dan slider global pun belum disetel. */
 export const TINGGI_BARIS_BAWAAN = 24;
-
-/** Nilai berikut saat tombol tinggi baris diputar: pilihan setelah `sekarang`
- *  (melingkar). Nilai di luar daftar (mis. bawaan kerapatan 30px) → pilihan
- *  terkecil yang lebih besar, atau pilihan pertama bila sudah melewati semua. */
-export function tinggiBarisBerikut(sekarang: number): number {
-  const opsi: readonly number[] = TINGGI_BARIS_OPSI;
-  const i = opsi.indexOf(sekarang);
-  if (i >= 0) return opsi[(i + 1) % opsi.length];
-  return opsi.find((v) => v > sekarang) ?? opsi[0];
-}
 
 /** Padding sel mendatar (px) — cerminan `--part-tabel_sel-padx` bawaan. */
 export const PAD_X_SEL = 16;

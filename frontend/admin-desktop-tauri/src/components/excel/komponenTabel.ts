@@ -54,8 +54,6 @@ export type KunciKomponenTabel =
   | 'pager'
   /** Gerigi "Pengaturan tabel" (pintu dialog Kelola Tabel dari tabel). */
   | 'tombol_pengaturan'
-  /** Tombol siklus tinggi baris. */
-  | 'tombol_tinggi_baris'
   /** Tombol "Tambah baris" (mode Input). */
   | 'tombol_tambah'
   /** Tombol "Edit" (mode Edit). */
@@ -123,7 +121,6 @@ export const GRUP_KOMPONEN_TABEL: readonly GrupKomponenTabel[] = [
     items: [
       { kunci: 'pager', label: 'Pager / jumlah baris', tersedia: (i) => i.pager },
       { kunci: 'tombol_pengaturan', label: 'Tombol Pengaturan tabel' },
-      { kunci: 'tombol_tinggi_baris', label: 'Tombol tinggi baris' },
       { kunci: 'tombol_tambah', label: 'Tombol tambah baris', tersedia: (i) => i.tombolTambah },
       { kunci: 'tombol_edit', label: 'Tombol Edit', tersedia: (i) => i.tombolEdit },
     ],

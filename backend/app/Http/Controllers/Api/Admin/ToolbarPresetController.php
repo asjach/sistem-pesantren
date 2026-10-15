@@ -33,14 +33,16 @@ class ToolbarPresetController extends Controller
      *  - Bilah judul: judul_tabel, info_tengah, filter, cari, keaktifan,
      *    urut, kolom, tombol_aksi.
      *  - Kepala tabel: header_kolom, rel_filter.
-     *  - Kaki tabel: pager, tombol_pengaturan, tombol_tinggi_baris,
-     *    tombol_tambah, tombol_edit.
+     *  - Kaki tabel: pager, tombol_pengaturan, tombol_tambah, tombol_edit.
      *
-     *  Kunci lama (`info`, `urut`, `bilah_judul`, `kaki_tabel`) SENGAJA
-     *  DIJAGA meski tak lagi dihasilkan FE: pembacaan memetakan utuh isi kolom
-     *  ke FE, dan saat menulis FE melakukan MERGE di atas peta server — kunci lama
-     *  yang masih tersimpan ikut terkirim. Kalau ditutup, satu penanda lama
-     *  membuat setiap penyimpanan tabel tersebut ditolak 422 selamanya.
+     *  Kunci lama (`info`, `urut`, `bilah_judul`, `kaki_tabel`,
+     *  `tombol_tinggi_baris`) SENGAJA DIJAGA meski tak lagi dihasilkan FE:
+     *  pembacaan memetakan utuh isi kolom ke FE, dan saat menulis FE melakukan
+     *  MERGE di atas peta server — kunci lama yang masih tersimpan ikut
+     *  terkirim. Kalau ditutup, satu penanda lama membuat setiap penyimpanan
+     *  tabel tersebut ditolak 422 selamanya. `tombol_tinggi_baris` berasal dari
+     *  tombol tinggi baris di kaki tabel yang kini sudah dihapus (tinggi baris
+     *  diatur di Kelola Tabel → Umum).
      */
     public const KUNCI = [
         // Versi lama — tak lagi dihasilkan FE, tapi tetap ditulis balik.
@@ -66,7 +68,6 @@ class ToolbarPresetController extends Controller
         // Kaki tabel.
         'pager',
         'tombol_pengaturan',
-        'tombol_tinggi_baris',
         'tombol_tambah',
         'tombol_edit',
     ];

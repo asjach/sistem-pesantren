@@ -198,8 +198,7 @@ class ToolbarPresetTest extends TestCase
                 'kolom_centang' => false, 'kolom_aksi' => false,
                 // Kaki tabel.
                 'pager' => false, 'tombol_pengaturan' => false,
-                'tombol_tinggi_baris' => false, 'tombol_tambah' => false,
-                'tombol_edit' => false,
+                'tombol_tambah' => false, 'tombol_edit' => false,
             ],
         ])->assertStatus(200);
 
