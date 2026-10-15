@@ -1396,7 +1396,7 @@ const INVENTARIS: BarisFitur[] = [
   { fitur: 'Klik baris memilih (bukan centang)', sumber: 'onBarisKlik + barisAktifId', dipakai: '0 halaman', catatan: 'Ditulis "0" karena hanya dipakai via wrapper lain.' },
   { fitur: 'Batas tinggi N baris', sumber: 'maxRows', dipakai: '2 halaman', catatan: 'Tanpa maxRows = tabel mengisi penuh ruang.' },
   { fitur: 'Susunan kolom dari luar', sumber: 'presetLuar', dipakai: '0 halaman', catatan: 'Menimpa preset internal sepenuhnya.' },
-  { fitur: 'Header ditanggung pemanggil', sumber: 'judulPemilik', dipakai: 'via TabelRingkas', catatan: 'Tanpa jarak mt-2 & margin negatif.' },
+  { fitur: 'Judul di bilah ExcelTable', sumber: 'prop `header`', dipakai: 'TabelRingkas', catatan: 'TabelRingkas tak menggambar <header> sendiri; judulnya diserahkan ke bilah judul ExcelTable supaya gerigi Pengaturan tabel tetap ada di ujung kanan.' },
   { fitur: 'Lebar dropdown Kolom', sumber: 'presetKolomClassName', dipakai: 'beberapa halaman', catatan: 'Bawaan w-44; ditimpa untuk tabel sempit.' },
   { fitur: 'Seleksi tercentang dikabarkan', sumber: 'onCheckedChange', dipakai: '20 halaman', catatan: 'Halaman memakai daftar id tercentang.' },
   { fitur: 'Paginasi di kaki', sumber: 'pager', dipakai: '19 halaman', catatan: 'ExcelTable tak menghitung halaman; halaman meng-inject <Pager/>.' },

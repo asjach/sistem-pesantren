@@ -29,7 +29,11 @@ interface TabelRingkasProps {
 
 /** Tabel ringkas baca-saja (rekap/laporan) memakai grid standar ExcelTable
  *  tanpa kolom centang & Aksi, agar seluruh kontrol ribbon "Tabel" berlaku
- *  (ukuran huruf sel, tinggi baris, header, beku kolom, AutoFit, salin TSV). */
+ *  (ukuran huruf sel, tinggi baris, header, beku kolom, AutoFit, salin TSV).
+ *
+ *  Judul tabel dan konten `aksi` diserahkan ke bilah judul ExcelTable — bukan
+ *  digambar `<header>` sendiri — supaya gerigi "Pengaturan tabel ini" punya
+ *  tempat di ujung kanan dan Kelola Tabel tetap terjangkau. */
 export default function TabelRingkas({
   tableKey,
   judul,
@@ -68,13 +72,16 @@ export default function TabelRingkas({
 
   return (
     <section className={cn('flex min-w-0 flex-col', className)}>
-      <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-xs font-medium">
-        <span>{judul}</span>
-        {aksi}
-      </header>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <ExcelTable
           tableKey={tableKey}
+          /* Judul TIDAK lagi digambar `<header>` sendiri: ia diserahkan ke
+             bilah judul ExcelTable supaya tabel ini punya tempat untuk gerigi
+             "Pengaturan tabel ini" di ujung kanan — kalau judul digambar
+             sendiri, bilah judul ExcelTable tak pernah dirender (tak ada
+             header/filter/kontrol lain) sehingga geriginya hilang. */
+          header={<span>{judul}</span>}
+          akhirToolbar={aksi}
           fields={fields}
           rows={rows}
           getValues={getValues}
@@ -87,7 +94,6 @@ export default function TabelRingkas({
           hideCheckbox
           hideActions
           hidePreset
-          judulPemilik
         />
       </div>
     </section>

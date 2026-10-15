@@ -164,10 +164,6 @@ export interface ExcelTableProps<T extends { id: string | number }> {
    *  menimpa preset internal sepenuhnya (termasuk label & id preset untuk
    *  menu konteks). `undefined` (bawaan) = perilaku lama. */
   presetLuar?: { keys: string[] | null; presetId?: number | null };
-  /** Pemanggil menggambar bar judul sendiri (mis. `TabelRingkas`): grid
-   *  tidak perlu jarak `mt-2` dari pemanggil maupun margin horizontal
-   *  negatif `-mx-1` yang biasanya mengimbangi padding halaman. */
-  judulPemilik?: boolean;
   /** Timpa lebar trigger dropdown Kolom (bawaan `w-44`), mis. tabel sempit. */
   presetKolomClassName?: string;
   /** Tampilkan rel filter Tingkat/Kelas di kiri grid (di bawah bar judul
@@ -261,7 +257,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   aksiLangsung = false,
   hidePreset = false,
   presetLuar,
-  judulPemilik = false,
   presetKolomClassName,
   rail = false,
   onCheckedChange,
@@ -1498,7 +1493,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   return (
     <div className={cn(
       'flex flex-col',
-      !headerTampil && !judulPemilik && 'mt-2',
+      !headerTampil && 'mt-2',
       maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0',
     )}>
       <KonteksLebarFilter.Provider value={konteksLebarFilter}>
@@ -1569,7 +1564,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           // membuat CSS mematikan garis itu (index.css); tanpa bilah
           // judul, `border-top` itu tetap jadi tepi atas tabel.
           headerTampil && 'simpes-dsg-bilah-judul',
-          !headerTampil && !judulPemilik && '-mx-1 simpes-dsg-bleed',
+          !headerTampil && '-mx-1 simpes-dsg-bleed',
           // Tanpa lantai tinggi tetap: tinggi kartu sudah eksplisit
           // (`gridHeight`), dan lantai 280 px lebih tinggi dari panel resizable
           // membuat kartu beserta tabelnya meluber di bawah panel.

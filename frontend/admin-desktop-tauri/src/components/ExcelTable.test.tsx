@@ -583,11 +583,6 @@ describe('penanda kelas grid yang dibaca CSS', () => {
     expect(kelasGrid(container)).not.toContain('simpes-dsg-bleed');
   });
 
-  it('pemilik judul (judulPemilik): tak bleed walau tanpa bar judul', () => {
-    const { container } = renderTabel({ hidePreset: true, judulPemilik: true });
-    expect(kelasGrid(container)).not.toContain('-mx-1');
-    expect(kelasGrid(container)).not.toContain('simpes-dsg-bleed');
-  });
 });
 
 describe('ExcelTable — tombol ikon kaki tabel', () => {
