@@ -19,7 +19,7 @@ import type { PetaArahKolom } from '@/lib/urut';
 import type { PilihanLembaga } from '@/lembagaAktif';
 import type { PerPage } from '@/prefs';
 import type {
-  CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan, Dispensasi, JenisTagihan, Tarif,
+  CrosstabBaris, CrosstabKolom, CrosstabSel, CrosstabTagihan, Dispensasi, JenisTagihan, RekapDispensasi, Tarif,
 } from '@/api/keuangan';
 import type { Santri } from '@/api/santri';
 
@@ -109,6 +109,17 @@ export const FIELDS_DISPENSASI: ExcelField[] = [
   { key: 'jenjang', label: 'Jenjang', kind: 'static', width: 90 },
   { key: 'tahun_ajaran', label: 'TA', kind: 'static', width: 100 },
   { key: 'status', label: 'Status', kind: 'static', width: 80 },
+];
+
+/** Kolom rekap dampak dispensasi per lembaga — semuanya baca-saja; key
+ *  kolom = kode urut yang dikenal endpoint `rekap` (UrutKatalog) sekaligus
+ *  kunci nilai dari `getValues`. */
+export const FIELDS_REKAP_DISPENSASI: ExcelField[] = [
+  { key: 'lembaga', label: 'Lembaga', kind: 'static', width: 100 },
+  { key: 'tagihan', label: 'Tagihan', kind: 'static', width: 90 },
+  { key: 'penerima', label: 'Penerima', kind: 'static', width: 90 },
+  { key: 'potongan', label: 'Total Potongan', kind: 'static', width: 140 },
+  { key: 'paket', label: 'Paket', kind: 'static', width: 80 },
 ];
 
 export const FIELDS_PENERIMA: ExcelField[] = [
@@ -660,6 +671,90 @@ export function PenerimaDispensasiPanel({ rows, loading, nama, kuota, terpakai, 
           <X data-icon="inline-start" size={14} /> Keluarkan ({checked.length})
         </Button>
       )}
+    />
+  );
+}
+
+/** Angka polos untuk sel rekap: dipisah ribuan, tanpa awalan "Rp". */
+function angkaRekap(nilai: number): string {
+  return nilai.toLocaleString('id');
+}
+
+/** Rekap dampak dispensasi per lembaga (halaman Dispensasi): angka dihitung
+ *  dari BARIS TAGIHAN, jadi lingkup paket bisa ditelusuri — pilih satu paket
+ *  di kotak "Paket" lalu lihat lembaga mana saja yang memuatnya. Barisnya
+ *  murni hasil agregat (tanpa aksi), jadi baca-saja: tanpa centang & aksi. */
+export function RekapDispensasiTab({ rows, loading, sort, paket, opsiPaket, onPaket, ringkas }: {
+  rows: RekapDispensasi[];
+  loading: boolean;
+  sort: SortTabel;
+  /** Id paket yang disaring; `null` = semua paket (ikut `opsiPaket`). */
+  paket: number | null;
+  /** Paket yang bisa dipilih (dari daftar dispensasi halaman). */
+  opsiPaket: { nilai: number | null; label: string }[];
+  onPaket: (nilai: number | null) => void;
+  /** Total lintas lembaga dari baris yang TAMPIL (dihitung halaman). */
+  ringkas: { tagihan: number; potongan: number };
+}) {
+  return (
+    <ExcelTable<RekapDispensasi>
+      tableKey="keuangan_rekap_dispensasi"
+      header={(
+        <span id="judul_rekap_dispensasi" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
+          Rekap Dampak per Lembaga
+          <span className="ml-1.5 font-normal tabular-nums text-muted-foreground">
+            {angkaRekap(ringkas.tagihan)} tagihan · {ringkas.potongan === 0 ? 'Rp 0' : `Rp ${angkaRekap(ringkas.potongan)}`}
+          </span>
+        </span>
+      )}
+      akhirToolbar={(
+        <LabeledCombobox label="Paket" htmlFor="sel_rekap_dispensasi_paket" tinggi={26} lebarKombo={190} kelolaLebar={false}>
+          <ComboboxRoot
+            items={opsiPaket}
+            itemToStringLabel={(o) => o.label}
+            isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+            value={opsiPaket.find((o) => o.nilai === paket) ?? opsiPaket[0]}
+            onValueChange={(o) => { if (o !== null) onPaket(o.nilai); }}
+          >
+            <ComboboxInput
+              id="sel_rekap_dispensasi_paket"
+              aria-label="Paket dispensasi rekap"
+              placeholder="Semua paket"
+              title="Bawaan: mengikuti paket yang dipilih di tabel kiri"
+            />
+            <ComboboxTrigger aria-label="Buka daftar paket rekap" />
+            <ComboboxContent>
+              <ComboboxEmpty>Tidak ada paket.</ComboboxEmpty>
+              <ComboboxList>
+                {(o) => <ComboboxItem key={o.label} value={o}>{o.label}</ComboboxItem>}
+              </ComboboxList>
+            </ComboboxContent>
+          </ComboboxRoot>
+        </LabeledCombobox>
+      )}
+      fields={FIELDS_REKAP_DISPENSASI}
+      rows={rows}
+      getValues={(r) => ({
+        lembaga: r.jenjang,
+        tagihan: angkaRekap(r.jumlah_tagihan),
+        penerima: angkaRekap(r.jumlah_penerima),
+        potongan: `Rp ${angkaRekap(r.total_potongan)}`,
+        paket: angkaRekap(r.jumlah_paket),
+      })}
+      loading={loading}
+      emptyText={paket === null
+        ? 'Belum ada tagihan yang memuat dispensasi pada lingkup filter ini.'
+        : 'Paket ini belum dipakai satu tagihan pun pada lingkup filter ini.'}
+      canEdit={false}
+      onCommit={async () => {}}
+      onSaved={() => {}}
+      urutAktif={sort.urut}
+      arahUrut={sort.arah}
+      onUrut={sort.terapkan}
+      renderActions={() => null}
+      hideCheckbox
+      hideActions
+      maxRows={6}
     />
   );
 }

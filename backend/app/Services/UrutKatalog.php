@@ -254,6 +254,18 @@ class UrutKatalog
             'aktif' => ['dispensasi.is_active'],
             'id' => ['dispensasi.id'],
         ],
+        // Rekap dampak dispensasi per lembaga: barisnya hasil agregat (bukan
+        // baris tabel), jadi "kolom" di sini = alias kolom keluaran yang
+        // dipakai `DispensasiController::rekapDispensasi` untuk mengurutkan
+        // koleksi di PHP.
+        'keuangan_rekap_dispensasi' => [
+            'lembaga' => ['jenjang'],
+            'tagihan' => ['jumlah_tagihan'],
+            'penerima' => ['jumlah_penerima'],
+            'potongan' => ['total_potongan'],
+            'paket' => ['jumlah_paket'],
+            'id' => ['jenjang'],
+        ],
         'keuangan_gen_kandidat' => [
             'nama' => ['kandidat.nama_lengkap'],
             'jk' => ['kandidat.jk'],

@@ -19,6 +19,7 @@ const JUDUL_TABEL: Record<string, string> = {
   pegawai: 'Pegawai',
   keuangan_dispensasi: 'Daftar Dispensasi',
   keuangan_penerima_dispensasi: 'Daftar Penerima Dispensasi',
+  keuangan_rekap_dispensasi: 'Rekap Dampak per Lembaga',
 };
 
 /** Judul header tabel: pemetaan khusus, atau kapitalisasi tableKey. */

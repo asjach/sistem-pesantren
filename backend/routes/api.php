@@ -93,6 +93,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::delete('keuangan/tarif/{tarif}', [JenisTarifController::class, 'destroyTarif'])->middleware('permission:keuangan.hapus');
         Route::get('keuangan/dispensasi', [DispensasiController::class, 'indexDispensasi'])->middleware('permission:keuangan.lihat');
         Route::get('keuangan/dispensasi/kuota-pakai', [DispensasiController::class, 'kuotaPakai'])->middleware('permission:keuangan.lihat');
+        Route::get('keuangan/dispensasi/rekap', [DispensasiController::class, 'rekapDispensasi'])->middleware('permission:keuangan.lihat');
         Route::post('keuangan/dispensasi', [DispensasiController::class, 'storeDispensasi'])->middleware('permission:keuangan.tambah');
         Route::match(['put', 'patch'], 'keuangan/dispensasi/{dispensasi}', [DispensasiController::class, 'updateDispensasi'])->middleware('permission:keuangan.ubah');
         Route::delete('keuangan/dispensasi/{dispensasi}', [DispensasiController::class, 'destroyDispensasi'])->middleware('permission:keuangan.hapus');

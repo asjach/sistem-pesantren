@@ -164,6 +164,16 @@ export function saringAturanJenjang<T extends { jenisId: number }>(
   });
 }
 
+/** Paket yang disaring di rekap dampak per lembaga: `undefined` = ikut paket
+ *  yang sedang dipilih di tabel (bawaan halaman, supaya sebaran satu paket
+ *  bisa ditelusuri sekali klik), `null` = semua paket, number = paket itu. */
+export function paketRekapEfektif(
+  pilihan: number | null | undefined,
+  aktifId: number | null,
+): number | null {
+  return pilihan === undefined ? aktifId : pilihan;
+}
+
 /** Akumulatif urut id — sama dengan DispensasiService di backend. */
 export function hitungDispensasi(
   nominalAwal: number,

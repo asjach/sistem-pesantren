@@ -250,6 +250,40 @@ export function kuotaPakai(santriIds: number[]) {
   return api<Record<number, Record<number, number>>>(`/admin/keuangan/dispensasi/kuota-pakai${s ? `?${s}` : ''}`);
 }
 
+/** Satu baris rekap dampak dispensasi per lembaga (lembaga tanpa tagihan
+ *  berdispensasi tidak dikirim sebagai baris nol). */
+export interface RekapDispensasi {
+  /** Id baris = jenjang (`ExcelTable` butuh id unik). */
+  id: string;
+  jenjang: string;
+  /** Tagihan yang benar-benar memuat paket. */
+  jumlah_tagihan: number;
+  /** Santri berbeda pemilik tagihan itu. */
+  jumlah_penerima: number;
+  /** Total potongan tercatat pada tagihan-tagihan itu. */
+  total_potongan: number;
+  /** Paket berbeda yang tercatat di lembaga itu (`dispensasi_id` unik). */
+  jumlah_paket: number;
+}
+
+/** Dampak dispensasi per lembaga, dihitung dari BARIS TAGIHAN. Mengikuti
+ *  lingkup pengguna + filter topBar; `dispensasi_id` menelusuri satu paket. */
+export function rekapDispensasi(params: {
+  tahun_ajaran?: ScalarOrArray<string>; jenjang?: ScalarOrArray<string>;
+  dispensasi_id?: number | ''; sort?: string[]; arah?: 'naik' | 'turun';
+} = {}) {
+  const q = new URLSearchParams();
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  if (params.dispensasi_id !== undefined && params.dispensasi_id !== '') {
+    q.set('dispensasi_id', String(params.dispensasi_id));
+  }
+  if (params.sort?.length) q.set('sort', params.sort.join(','));
+  if (params.arah) q.set('arah', params.arah);
+  const s = q.toString();
+  return api<{ data: RekapDispensasi[] }>(`/admin/keuangan/dispensasi/rekap${s ? `?${s}` : ''}`);
+}
+
 export function hapusDispensasi(id: number) {
   return api<{ pesan: string }>(`/admin/keuangan/dispensasi/${id}`, { method: 'DELETE' });
 }

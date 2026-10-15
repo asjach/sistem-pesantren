@@ -103,6 +103,90 @@ class DispensasiController extends Controller
         return $hasil;
     }
 
+    /**
+     * Dampak dispensasi per lembaga: berapa tagihan yang benar-benar memuat
+     * paket + total potongannya, dihitung dari data tagihan (bukan definisi
+     * paket). `dispensasi_id` opsional untuk menelusuri sebaran SATU paket
+     * ke tiap lembaga — paket berlingkup MI yang muncul di baris MD langsung
+     * kelihatan dari angkanya.
+     *
+     * Lingkup: hanya lembaga yang boleh diakses pengguna (`scopeLembaga`),
+     * plus filter `tahun_ajaran`/`jenjang` yang sama dengan tabel tagihan.
+     */
+    public function rekapDispensasi(Request $request)
+    {
+        $request->validate([
+            'tahun_ajaran' => 'nullable',
+            'tahun_ajaran.*' => 'string|max:20',
+            'jenjang' => 'nullable|array',
+            'jenjang.*' => 'string|max:20',
+            'dispensasi_id' => 'nullable|integer|exists:dispensasi,id',
+        ]);
+
+        // Hanya tagihan yang BENAR-BENAR memuat paket: `dispensasi_ids` null
+        // atau larik kosong bukan "punya dispensasi" (jalur tulis selalu null,
+        // tapi baris lama tetap dijaga lewat `whereJsonLength`).
+        $q = Tagihan::query()->whereJsonLength('dispensasi_ids', '>', 0);
+        $this->scopeLembaga($q, $request->user(), $request, 'tagihan.jenjang');
+        $this->applyFilter($q, $request, 'tahun_ajaran', 'tagihan.tahun_ajaran');
+        if ($request->filled('dispensasi_id')) {
+            $q->whereJsonContains('dispensasi_ids', (int) $request->input('dispensasi_id'));
+        }
+
+        $agregat = (clone $q)->toBase()
+            ->groupBy('tagihan.jenjang')
+            ->selectRaw('tagihan.jenjang as jenjang')
+            ->selectRaw('COUNT(*) as jumlah_tagihan')
+            ->selectRaw('COUNT(DISTINCT tagihan.santri_id) as jumlah_penerima')
+            ->selectRaw('COALESCE(SUM(tagihan.potongan), 0) as total_potongan')
+            ->get();
+
+        /* Jumlah paket berbeda per lembaga: id-nya tersimpan sebagai larik JSON
+           per baris, jadi dihitung di PHP dari pasangan (jenjang, ids) unik —
+           tetap portabel di MySQL & SQLite (tak ada JSON_TABLE/json_each). */
+        $paketPerLembaga = [];
+        $pasangan = (clone $q)->toBase()
+            ->select('tagihan.jenjang', 'tagihan.dispensasi_ids')->distinct()->get();
+        foreach ($pasangan as $p) {
+            $ids = is_string($p->dispensasi_ids)
+                ? (json_decode($p->dispensasi_ids, true) ?? [])
+                : (array) ($p->dispensasi_ids ?? []);
+            foreach ($ids as $id) {
+                $paketPerLembaga[(string) $p->jenjang][(int) $id] = true;
+            }
+        }
+
+        $baris = [];
+        foreach ($agregat as $a) {
+            $jenjang = (string) $a->jenjang;
+            $baris[] = [
+                'id' => $jenjang,
+                'jenjang' => $jenjang,
+                'jumlah_tagihan' => (int) $a->jumlah_tagihan,
+                'jumlah_penerima' => (int) $a->jumlah_penerima,
+                'total_potongan' => (int) $a->total_potongan,
+                'jumlah_paket' => count($paketPerLembaga[$jenjang] ?? []),
+            ];
+        }
+
+        /* Urut bawaan: jenjang menaik. Param `sort` menimpa — kodenya sama
+           dengan yang didaftarkan di `UrutKatalog` (dialog Preset Urut). */
+        $tanpaSort = in_array($request->input('sort'), [null, '', []], true);
+        $baris = $this->terapkanUrutKoleksi($request, $baris, [
+            'lembaga' => 'jenjang',
+            'tagihan' => 'jumlah_tagihan',
+            'penerima' => 'jumlah_penerima',
+            'potongan' => 'total_potongan',
+            'paket' => 'jumlah_paket',
+            'id' => 'jenjang',
+        ]);
+        if ($tanpaSort) {
+            usort($baris, fn ($a, $b) => $a['jenjang'] <=> $b['jenjang']);
+        }
+
+        return response()->json(['data' => $baris]);
+    }
+
     public function storeDispensasi(DispensasiRequest $request)
     {
         $data = $this->validasiDispensasi($request);

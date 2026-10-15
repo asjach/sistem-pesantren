@@ -7,6 +7,7 @@ import {
   jenisCocokJenjang,
   labelBulan,
   lingkupCocokJenjang,
+  paketRekapEfektif,
   rincianPeriode,
   ringkasAturan,
   saringAturanJenjang,
@@ -88,6 +89,18 @@ describe('saringPenerima', () => {
   it('kata kunci kosong = daftar apa adanya; tak ada yang cocok = kosong', () => {
     expect(saringPenerima(baris, '   ')).toEqual(baris);
     expect(saringPenerima(baris, 'zzz')).toEqual([]);
+  });
+});
+
+describe('paketRekapEfektif', () => {
+  it('belum disentuh = ikut paket terpilih di tabel', () => {
+    expect(paketRekapEfektif(undefined, 5)).toBe(5);
+    expect(paketRekapEfektif(undefined, null)).toBeNull();
+  });
+
+  it('pilihan eksplisit menang, termasuk "semua paket"', () => {
+    expect(paketRekapEfektif(9, 5)).toBe(9);
+    expect(paketRekapEfektif(null, 5)).toBeNull();
   });
 });
 

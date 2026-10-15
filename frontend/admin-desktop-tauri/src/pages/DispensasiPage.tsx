@@ -3,8 +3,8 @@ import { toast } from 'sonner';
 import { errorMessage } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import {
-  daftarDispensasi, daftarJenis, hapusDispensasi, kuotaPakai, ubahDispensasi,
-  type Dispensasi, type DispensasiInput, type JenisTagihan,
+  daftarDispensasi, daftarJenis, hapusDispensasi, kuotaPakai, rekapDispensasi, ubahDispensasi,
+  type Dispensasi, type DispensasiInput, type JenisTagihan, type RekapDispensasi,
 } from '../api/keuangan';
 import { listKelas, listTahunAjaran, type Kelas, type TahunAjaran } from '../api/master';
 import { listSantri, type Santri } from '../api/santri';
@@ -20,13 +20,13 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight } from '@/icons';
 import DispensasiDialog from '@/components/keuangan/DispensasiDialog';
 import {
-  barisPenerima, DispensasiTab, FIELDS_DISPENSASI, FIELDS_PENERIMA, KartuDispensasiTerpilih,
-  PenerimaDispensasiPanel, type BarisPenerima,
+  barisPenerima, DispensasiTab, FIELDS_DISPENSASI, FIELDS_PENERIMA, FIELDS_REKAP_DISPENSASI,
+  KartuDispensasiTerpilih, PenerimaDispensasiPanel, RekapDispensasiTab, type BarisPenerima,
 } from '@/components/keuangan/tabKeuangan';
 import { jenjangTampil, nisTampil } from '@/components/keuangan/tabSantriCustom';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useLembagaAktif } from '@/lembagaAktif';
-import { saringPenerima } from '@/lib/dispensasi';
+import { paketRekapEfektif, saringPenerima } from '@/lib/dispensasi';
 import { bacaPerPageGlobal, tulisPerPageGlobal } from '@/hooks/usePager';
 import type { PerPage } from '@/prefs';
 
@@ -79,6 +79,11 @@ function payloadDari(d: Dispensasi, santriIds: number[]): DispensasiInput {
  * kuota, grup, keterangan, aturan) lalu **Daftar Penerima** paket itu dengan
  * aksi mengeluarkan. Lebar panel kiri & tinggi bagian atasnya bisa digeser.
  *
+ * Bawah kanan: **Rekap Dampak per Lembaga** — angka dari baris tagihan
+ * (jumlah tagihan, penerima, total potongan, jumlah paket) dengan pemilih
+ * paket; bawaannya mengikuti paket yang dipilih di tabel kiri sehingga
+ * sebaran satu paket ke tiap lembaga bisa ditelusuri langsung.
+ *
  * Catatan lingkup: daftar DISPENSASI sengaja tak disaring filter topBar —
  * paket tidak terikat tahun ajaran (kolom `tahun_ajaran` hanya label arsip),
  * jadi penyaringan itu tak akan mengubah apa pun. Filter topBar (jenjang +
@@ -99,6 +104,7 @@ export default function DispensasiPage() {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
   const uDispensasi = useUrutTabel();
+  const uRekap = useUrutTabel();
   const { jenjangs, tahunAjaranNames, semesters, tingkat, kelas: kelasAktif } = useFilterGlobalAktif();
   /** Lingkup jenjang yang boleh dipakai di dialog dispensasi (peran pengguna). */
   const { pilihan: pilihanLembaga } = useLembagaAktif();
@@ -133,8 +139,32 @@ export default function DispensasiPage() {
   /** Bulan terpakai per penerima paket terpilih (hanya paket berkuota) —
    *  dasar kolom "Sisa Kuota" di panel kanan. */
   const [kuotaTerpakai, setKuotaTerpakai] = useState<Record<number, number>>({});
+  /** Baris rekap dampak per lembaga (lingkup filter topBar). */
+  const [rekap, setRekap] = useState<RekapDispensasi[]>([]);
+  const [loadingRekap, setLoadingRekap] = useState(false);
+  /** Paket yang disaring di rekap: `undefined` = ikut paket terpilih,
+   *  `null` = semua paket (pilihan eksplisit), number = paket itu. */
+  const [paketRekap, setPaketRekap] = useState<number | null | undefined>(undefined);
 
   const aktif = useMemo(() => dispensasi.find((d) => d.id === aktifId) ?? null, [dispensasi, aktifId]);
+  /** Paket efektif rekap: bawaan mengikuti baris yang dipilih di tabel kiri. */
+  const paketRekapTerpilih = paketRekapEfektif(paketRekap, aktifId);
+  /** Ringkasan rekap dari baris yang tampil (bukan query terpisah). */
+  const ringkasRekap = useMemo(
+    () => rekap.reduce(
+      (a, r) => ({ tagihan: a.tagihan + r.jumlah_tagihan, potongan: a.potongan + r.total_potongan }),
+      { tagihan: 0, potongan: 0 },
+    ),
+    [rekap],
+  );
+  /** Opsi pemilih paket rekap: "Semua paket" + daftar dispensasi halaman. */
+  const opsiPaketRekap = useMemo(
+    () => [
+      { nilai: null, label: 'Semua paket' },
+      ...dispensasi.map((d) => ({ nilai: d.id as number | null, label: d.nama })),
+    ],
+    [dispensasi],
+  );
   /** Baris penerima paket terpilih (satu baris per santri). */
   const penerima = useMemo(() => (aktif === null ? [] : barisPenerima([aktif])), [aktif]);
   /** Id santri yang SUDAH penerima paket terpilih (disembunyikan di daftar). */
@@ -214,6 +244,29 @@ export default function DispensasiPage() {
     })();
     return () => { hidup = false; };
   }, [jenjangs, tahunAjaranNames]);
+
+  /* Rekap dampak: lingkup topBar (TA + jenjang) + paket yang sedang dipilih
+     + urutan tabelnya. Gagal memuat → pesannya masuk ErrorNotice halaman
+     (bukan panel kosong yang menyamar "belum ada data"). */
+  useEffect(() => {
+    let hidup = true;
+    setLoadingRekap(true);
+    void (async () => {
+      try {
+        const res = await rekapDispensasi({
+          tahun_ajaran: tahunAjaranNames,
+          jenjang: jenjangs,
+          dispensasi_id: paketRekapTerpilih ?? '',
+          sort: uRekap.urut.length ? tokenUrut(uRekap.urut, uRekap.arahKolom) : undefined,
+          arah: uRekap.urut.length ? uRekap.arah : undefined,
+        });
+        if (hidup) setRekap(res.data);
+      } catch (e) {
+        if (hidup) { setRekap([]); setErr(errorMessage(e)); }
+      } finally { if (hidup) setLoadingRekap(false); }
+    })();
+    return () => { hidup = false; };
+  }, [jenjangs, tahunAjaranNames, paketRekapTerpilih, uRekap.urut, uRekap.arah, uRekap.arahKolom]);
 
   const muatKandidat = useCallback(async (p: number, pp: number, q: string) => {
     setLoadingKandidat(true);
@@ -325,6 +378,7 @@ export default function DispensasiPage() {
         tabel={[
           { key: 'keuangan_dispensasi', judul: 'Daftar Dispensasi', fields: FIELDS_DISPENSASI },
           { key: 'keuangan_penerima_dispensasi', judul: 'Daftar Penerima Dispensasi', fields: FIELDS_PENERIMA },
+          { key: 'keuangan_rekap_dispensasi', judul: 'Rekap Dampak per Lembaga', fields: FIELDS_REKAP_DISPENSASI },
         ]}
       />
 
@@ -457,6 +511,22 @@ export default function DispensasiPage() {
               </div>
             </>
           )}
+
+          {/* Rekap dampak (bawah kolom kanan, selalu tampil): angka dari baris
+              TAGIHAN, jadi paket berlingkup lembaga lain ketahuan di sini.
+              Tingginya MENGIKUTI ISI (maks 6 baris — `maxRows`), supaya panel
+              tak menyisakan ruang kosong saat paketnya cuma dipakai 1 lembaga. */}
+          <div className="flex min-h-0 shrink-0 flex-col">
+            <RekapDispensasiTab
+              rows={rekap}
+              loading={loadingRekap}
+              sort={uRekap}
+              paket={paketRekapTerpilih}
+              opsiPaket={opsiPaketRekap}
+              onPaket={setPaketRekap}
+              ringkas={ringkasRekap}
+            />
+          </div>
         </div>
       </div>
 
