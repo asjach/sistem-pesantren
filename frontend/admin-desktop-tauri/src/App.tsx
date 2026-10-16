@@ -1,5 +1,5 @@
 import { Suspense, lazy, type ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AuthProvider, useAuth } from './auth/AuthContext';
@@ -14,6 +14,7 @@ import { ThemeProvider } from './theme';
 import Layout from './components/Layout';
 import CommandPalette from './components/CommandPalette';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import HalamanTabs, { ArahHalamanTabs } from './components/HalamanTabs';
 import { HALAMAN_AKADEMIK, HALAMAN_DATA_INDUK, HALAMAN_PENEMPATAN, HALAMAN_PENEMPATAN_PEGAWAI, HALAMAN_SANTRI_AKTIF, halamanDariPath } from './lib/halaman';
 import { DENSITY_PX, bacaPrefsSinkron } from './prefs';
@@ -72,12 +73,22 @@ const PapanContohPage = lazy(() => import('./pages/PapanContohPage'));
 // mounted saat pindah halaman. Suspense ada di dalam area konten sehingga
 // memuat halaman lazy hanya menukar isi <main>, bukan seluruh kerangka.
 function Shell() {
+  /* Batas galat per HALAMAN: galat render di isi halaman terkurung di dalam
+     <main>, jadi sidebar/topbar tetap hidup dan pengguna bisa pindah menu
+     untuk melanjutkan (sebelumnya satu galat melepas SELURUH pohon React →
+     jendela kosong). `key` = path rute supaya berpindah halaman otomatis
+     melepas batasnya dan render berikutnya dicoba bersih lagi — pengguna tak
+     perlu menekan apa pun. Batas ditaruh DI LUAR `Suspense` agar kegagalan
+     memuat potongan halaman (lazy chunk) ikut tertangkap. */
+  const lokasi = useLocation();
   return (
     <ProtectedRoute>
       <Layout>
-        <Suspense fallback={<PageFallback />}>
-          <Outlet />
-        </Suspense>
+        <ErrorBoundary key={lokasi.pathname}>
+          <Suspense fallback={<PageFallback />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
       </Layout>
     </ProtectedRoute>
   );
@@ -245,9 +256,14 @@ export default function App() {
                       element={(
                         <ProtectedRoute>
                           <KhususIzin izin="santri.lihat">
-                            <Suspense fallback={<PageFallback />}>
-                              <ProfilSantriPage />
-                            </Suspense>
+                            {/* Tanpa kerangka aplikasi → batas galat memenuhi
+                                jendela (tak ada area konten yang bisa dipakai
+                                lagi bila halamannya gagal). */}
+                            <ErrorBoundary penuhLayar>
+                              <Suspense fallback={<PageFallback />}>
+                                <ProfilSantriPage />
+                              </Suspense>
+                            </ErrorBoundary>
                           </KhususIzin>
                         </ProtectedRoute>
                       )}

@@ -507,6 +507,22 @@ export default function ExcelTable<T extends { id: string | number }>({
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
 
+  /* Kolom MENYUSUT (ganti preset/susunan kolom) = bahaya nyata: DSG membaca
+     `columns[selAktif.col + 1].disabled` saat merender SelectionRect. Bila
+     daftar kolom memendek sementara sel AKTIF masih menunjuk kolom di luar
+     daftar baru, pembacaan itu melempar TypeError dan SELURUH halaman jadi
+     blank (aplikasi ini tak punya error boundary). Karena itu grid di-remount
+     pada render yang SAMA saat jumlah kolom berkurang: perubahan state di
+     tengah render membuat React mengulang render `ExcelTable` sebelum commit,
+     sehingga instance DSG lama tak pernah dirender dengan kolom yang lebih
+     pendek. Bertambahnya kolom aman (indeks lama tetap ada). */
+  const jumlahKolomLalu = useRef(visibleFields.length);
+  const [generasiKolom, setGenerasiKolom] = useState(0);
+  if (visibleFields.length < jumlahKolomLalu.current) {
+    setGenerasiKolom((g) => g + 1);
+  }
+  jumlahKolomLalu.current = visibleFields.length;
+
   // Ukuran huruf efektif + font stack (dibaca hook lebar & render).
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
   // "keluarga|ketebalan"; bawaan = pakai font & ketebalan aplikasi.
@@ -1695,7 +1711,7 @@ export default function ExcelTable<T extends { id: string | number }>({
               ) : (
                 <CheckAllContext.Provider value={checkAllState}>
                   <DataSheetGrid
-                    key={`baris-${sigAktif}`}
+                    key={`baris-${sigAktif}-kolom-${generasiKolom}`}
                     ref={gridRef}
                     value={gridValue}
                     onChange={handleChangeStable}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dxPerKolom, indeksSisip, lepasSah, pindahKolom, tandaSisip } from './seretKolom';
+import { dxPerKolom, indeksSisip, lepasSah, pindahKolom, sisipKePenuh, tandaSisip } from './seretKolom';
 
 const A = ['a', 'b', 'c', 'd'];
 
@@ -195,6 +195,47 @@ describe('indeksSisip', () => {
 
   it('tanpa kolom → 0', () => {
     expect(indeksSisip([], [], 100)).toBe(0);
+  });
+});
+
+describe('sisipKePenuh — indeks potongan terlihat → daftar penuh', () => {
+  /* Kasus nyata: daftar 20 kolom, DSG hanya merender potongan indeks 12..16.
+     Kursor di kiri potongan memberi indeks lokal 0 — yang dulu dipakai
+     langsung sebagai indeks daftar penuh sehingga kolom meloncat ke awal. */
+  const IFULL = [12, 13, 14, 15, 16];
+
+  it('sisip sebelum kolom terukur pertama = indeks kolom itu di daftar penuh', () => {
+    expect(sisipKePenuh(IFULL, 0)).toBe(12);
+  });
+
+  it('sisip di tengah potongan memakai indeks daftar penuh kolom acuannya', () => {
+    expect(sisipKePenuh(IFULL, 2)).toBe(14);
+    expect(sisipKePenuh(IFULL, 4)).toBe(16);
+  });
+
+  it('sisip di ujung kanan potongan = SESUDAH kolom terakhir yang terukur', () => {
+    expect(sisipKePenuh(IFULL, 5)).toBe(17);
+  });
+
+  it('potongan berawal di indeks 0 (semua kolom terlihat) = indeks apa adanya', () => {
+    expect(sisipKePenuh([0, 1, 2, 3], 3)).toBe(3);
+    expect(sisipKePenuh([0, 1, 2, 3], 4)).toBe(4);
+  });
+
+  it('potongan tak berurutan tetap memakai indeks kolom acuannya', () => {
+    // Terjadi bila ada kolom tersembunyi di antara yang terlihat.
+    expect(sisipKePenuh([2, 5, 9], 1)).toBe(5);
+    expect(sisipKePenuh([2, 5, 9], 3)).toBe(10);
+  });
+
+  it('indeks di luar rentang dijepit, nilai aneh aman', () => {
+    expect(sisipKePenuh(IFULL, -5)).toBe(12);
+    expect(sisipKePenuh(IFULL, 99)).toBe(17);
+    expect(sisipKePenuh(IFULL, Number.NaN)).toBe(12);
+  });
+
+  it('tanpa kolom terukur → 0', () => {
+    expect(sisipKePenuh([], 3)).toBe(0);
   });
 });
 

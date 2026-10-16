@@ -47,6 +47,30 @@ export function pindahKolom(
 }
 
 /**
+ * Terjemahkan indeks sisip pada POTONGAN kolom yang terukur menjadi indeks
+ * sisip pada DAFTAR PENUH kolom.
+ *
+ * Perlu karena DSG mem-`virtualize` kolom secara mendatar: hanya kolom yang
+ * sedang terlihat (plus sedikit cadangan) yang ada di DOM. Penyeret judul
+ * karena itu hanya bisa mengukur potongan itu, sementara hasil geseran harus
+ * ditulis ke daftar penuh — tanpa terjemahan ini, `indeksSisip` yang bernilai
+ * kecil (mis. 0 saat kursor di kiri potongan) dipakai langsung sebagai indeks
+ * daftar penuh, dan kolom dari ujung kanan tabel meloncat ke kolom awal.
+ *
+ * `iFull[j]` = indeks kolom ke-j dari potongan di daftar penuh. Indeks di
+ * ujung kanan potongan (`j === iFull.length`) berarti "sesudah kolom terakhir
+ * yang terukur" → satu langkah setelah indeksnya.
+ *
+ * @param iFull        Indeks di daftar penuh, sejajar kolom yang terukur.
+ * @param sisipLokal   Indeks sisip di dalam potongan (0..jumlah terukur).
+ */
+export function sisipKePenuh(iFull: readonly number[], sisipLokal: number): number {
+  if (iFull.length === 0) return 0;
+  const j = jepit(Number.isFinite(sisipLokal) ? sisipLokal : 0, iFull.length);
+  return j >= iFull.length ? iFull[iFull.length - 1] + 1 : iFull[j];
+}
+
+/**
  * Indeks sisip dari posisi kursor X relatif terhadap daftar kolom.
  *
  * `batas[i]` = offset kiri kolom ke-i; `lebar[i]` = lebarnya. Kursor sebelum

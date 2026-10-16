@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { dxPerKolom, indeksSisip, lepasSah, pindahKolom, tandaSisip } from './seretKolom';
+import { dxPerKolom, indeksSisip, lepasSah, pindahKolom, sisipKePenuh, tandaSisip } from './seretKolom';
 
 /** Sisi garis indikator sisip. */
 export type SisiSisip = 'kiri' | 'kanan';
@@ -96,6 +96,14 @@ interface GeometriAwal {
   /** Kiri baris header (koordinat viewport) saat seret dimulai. */
   kiriBaris: number;
   keys: string[];
+  /** Indeks tiap kolom TERUKUR di DAFTAR PENUH kolom (sejajar `keys`).
+   *
+   *  Wajib ada karena DSG mem-`virtualize` kolom mendatar: yang terukur hanya
+   *  potongan yang terlihat. Geseran kursor dinyatakan dulu sebagai indeks di
+   *  dalam potongan itu, lalu diterjemahkan ke indeks daftar penuh
+   *  (`sisipKePenuh`) — tanpa itu, kolom dari ujung kanan tabel meloncat ke
+   *  kolom awal begitu tombol dilepas. */
+  iFull: number[];
   /** Kiri TATA LETAK tiap kolom (tanpa transform), sejajar `keys`. */
   kiri: number[];
   lebar: number[];
@@ -199,16 +207,18 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       if (key) peta.set(key, sel.getBoundingClientRect());
     });
     const keys: string[] = [];
+    const iFull: number[] = [];
     const kiri: number[] = [];
     const lebar: number[] = [];
     for (const k of terlihatRef.current) {
       const r = peta.get(k);
       if (!r) continue;
       keys.push(k);
+      iFull.push(terlihatRef.current.indexOf(k));
       kiri.push(r.left);
       lebar.push(r.width);
     }
-    return { kiriBaris: kotak.left, keys, kiri, lebar };
+    return { kiriBaris: kotak.left, keys, iFull, kiri, lebar };
   }, [wrapRef]);
 
   /** Selisih gulir grid sejak seret dimulai (baris header ikut isi yang digulir). */
@@ -225,10 +235,17 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
     /* PENTING: diukur SEBELUM transform apa pun dipasang (lihat `GeometriAwal`). */
     const awal = ukurAwal();
     if (!awal || awal.keys.length === 0) return;
-    const { keys: keys0, kiri: kiri0, lebar: lebar0 } = awal;
+    const { keys: keys0, iFull, kiri: kiri0, lebar: lebar0 } = awal;
     const lebarKey: Record<string, number> = {};
     const kiriKey: Record<string, number> = {};
     keys0.forEach((k, i) => { lebarKey[k] = lebar0[i]; kiriKey[k] = kiri0[i]; });
+    /* Seluruh daftar kolom yang bisa disusun. Hasil geser SELALU dinyatakan
+       sebagai urutan daftar penuh ini — bukan potongan yang terukur — supaya
+       tak ada kolom yang hilang saat hasilnya disimpan (daftar yang menyusut
+       membuat DSG membaca kolom yang tak ada lagi dan menggagalkan render). */
+    const penuh = [...terlihatRef.current];
+    const asalPenuh = penuh.indexOf(key);
+    if (asalPenuh < 0) return;
     /** Slot = posisi tata letak kolom (tetap sepanjang seret; hanya bergeser
      *  bila grid digulir horizontal). */
     const slot = [...kiri0];
@@ -244,12 +261,17 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       /* Kursor dikembalikan ke koordinat TATA LETAK: seluruh slot ikut bergeser
          saat grid digulir, dan transform pratinjau tidak mengubah tata letak. */
       const x = e.clientX - geserGulir(awal);
-      const dari = pratinjauRef.current ?? keys0;
-      const sisip = indeksSisip(slot, dari.map((k) => lebarKey[k] ?? 0), x);
+      const dari = pratinjauRef.current ?? penuh;
+      /* Kolom yang terukur (terlihat di layar) dalam susunan pratinjau: itulah
+         slot yang bisa dicocokkan dengan posisi kursor. `indeksSisip` di sini
+         HANYA sah untuk potongan ini, jadi hasilnya diterjemahkan ke indeks
+         daftar penuh sebelum dipakai menyusun ulang. */
+      const terukur = dari.filter((k) => lebarKey[k] !== undefined);
+      const sisipLokal = indeksSisip(slot, terukur.map((k) => lebarKey[k] ?? 0), x);
+      const sisip = sisipKePenuh(iFull, sisipLokal);
       const tanda = tandaSisip(dari.length, sisip);
       setStatus({ dari: key, sisip, tanda });
-      const baru = pindahKolom(dari, dari.indexOf(key), sisip);
-      if (dari.indexOf(key) < 0) return;
+      const baru = pindahKolom(penuh, asalPenuh, sisip);
       if (!baru.every((k, i) => k === dari[i])) {
         wrap?.classList.add(KELAS_HIDUP);
         lukisGeser(wrap, dxPerKolom(kiriKey, lebarKey, baru), key);
@@ -260,10 +282,10 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
          tidak selalu dihitung ulang saat state seret berubah, sehingga kelas
          dari prop tak pernah muncul. Menulis kelas di sini selalu bekerja
          dan memang tepat untuk umpan balik sesaat.
-         Daftar kolom yang dipakai = PRATINJAU (bukan urutan tersimpan):
-         indeks `sisip` dihitung pada susunan yang sedang terlihat, jadi
-         garisnya harus mengikuti susunan itu pula. */
-      lukisIndikator(wrap, pratinjauRef.current ?? keys0, key, tanda);
+         Kolom acuan garis = POTONGAN yang terukur (kolom di luar layar tak
+         punya sel untuk ditempeli kelas), jadi indeksnya dipakai dalam bentuk
+         LOKAL — bukan indeks daftar penuh seperti pada `status`. */
+      lukisIndikator(wrap, terukur, key, tandaSisip(terukur.length, sisipLokal));
       e.preventDefault();
     };
 
@@ -299,7 +321,9 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       // Seret yang belum melewati ambang = klik biasa; lepas di luar area
       // header = niat batal, bukan menyusun ulang.
       if (!jalan || !lepasMasihSah(e)) return;
-      const baru = pratinjau ?? terlihatRef.current;
+      /* Pratinjau = urutan daftar penuh (lihat `penuh`); jatuh ke daftar yang
+         tersimpan bila tak ada pratinjau (mis. seret tak sempat menggeser). */
+      const baru = pratinjau ?? penuh;
       // Tak ada perubahan nyata → jangan tulis apa pun ke server.
       if (baru.every((k, i) => k === terlihatRef.current[i])) return;
       onPindahRef.current([...baru]);
