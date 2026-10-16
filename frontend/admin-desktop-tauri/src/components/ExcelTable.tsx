@@ -7,13 +7,14 @@ import {
   type DataSheetGridRef,
 } from 'react-datasheet-grid';
 import 'react-datasheet-grid/dist/style.css';
-import { isTauri, prefSet } from '@/api/client';
+import { errorMessage, isTauri, prefSet } from '@/api/client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
-import { EVENT_TAMPILAN_PERANGKAT_BERUBAH, kabariTampilanPerangkat, type AlignKolom } from '@/components/kelolaTabel/jenis';
+import { EVENT_TAMPILAN_PERANGKAT_BERUBAH, kabariPreset, kabariTampilanPerangkat, type AlignKolom } from '@/components/kelolaTabel/jenis';
+import { updatePresetTabel } from '@/api/preset';
 import FilterRail from '@/components/FilterRail';
 import { bukaPengaturanTampilan } from './pengaturan/SheetPengaturanTampilan';
 import ScrollbarMelayang from './excel/ScrollbarMelayang';
@@ -80,8 +81,10 @@ import {
   INPUT_ROW_ID,
   MIN_COL_W,
   freezeKey,
+  geserHeaderKey,
   hasOpenEditor,
   loadFreeze,
+  loadGeserHeader,
   tinggiCache,
 } from './excel/helpers';
 import {
@@ -94,6 +97,7 @@ import {
   ToggleCell,
 } from './excel/cells';
 import { HeaderTitle } from './excel/header';
+import { useSeretKolomHeader } from './excel/useSeretKolomHeader';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
 import JudulTabel from './excel/JudulTabel';
 import { ActionsCell, flattenAksi } from './excel/actions';
@@ -464,6 +468,41 @@ export default function ExcelTable<T extends { id: string | number }>({
     [tableKey, visibleFields.length],
   );
 
+  /* Sakelar "geser judul kolom": TERSIMPAN PER PERANGKAT (seperti freeze),
+     dan MATI secara bawaan supaya perilaku lama tetap utuh. Dibaca ulang via
+     event yang sama dengan freeze, jadi mengubahnya di Kelola Tabel langsung
+     berlaku tanpa reload. */
+  const [geserHeader, setGeserHeader] = useState(false);
+  useEffect(() => {
+    let batal = false;
+    const muat = () => {
+      loadGeserHeader(geserHeaderKey(tableKey)).then((v) => {
+        if (!batal) setGeserHeader(v);
+      });
+    };
+    muat();
+    const segarkan = (e: Event) => {
+      if ((e as CustomEvent).detail?.tableKey === tableKey) muat();
+    };
+    window.addEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
+    return () => {
+      batal = true;
+      window.removeEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
+    };
+  }, [tableKey]);
+
+  /* Sakelar bisa diubah dari menu klik-kanan header (yang hidup di PORTAL,
+     di luar pohon React grid). Karena itu kabari lewat event yang sama
+     dengan freeze: grid memuat ulang pref-nya sendiri. Tanpa ini, nilai
+     tersimpan benar tapi `data-seret` tak pernah menyala sampai reload. */
+  const ubahGeserHeader = useCallback(
+    (aktif: boolean) => {
+      setGeserHeader(aktif);
+      prefSet(geserHeaderKey(tableKey), aktif ? '1' : '').catch(() => {});
+      kabariTampilanPerangkat(tableKey);
+    },
+    [tableKey],
+  );
 
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -477,6 +516,43 @@ export default function ExcelTable<T extends { id: string | number }>({
       ? fontChoice.value.split('|')
       : ['', ''];
 
+  /* Seret judul kolom: hasil geser ditulis ke URUTAN yang sama dengan Kelola
+     Tabel (toolbar_preset.urutan), jadi kedua tempat selalu sinkron. */
+  /** Tulis urutan hasil geser ke SUMBER YANG SEDANG AKTIF, supaya tabel dan
+   *  Kelola Tabel selalu sinkron:
+   *  - preset kolom aktif  -> susunan `kolom` preset itu (tab Kolom);
+   *  - tanpa preset        -> `toolbar_preset.urutan` global (garis besar
+   *    "Lengkap"), yang juga dibaca `visibleFields` di atas. */
+  const simpanUrutanKolom = useCallback(
+    (urutan: string[]) => {
+      if (presetIdAktif !== null && presetKeys !== null) {
+        void updatePresetTabel(presetIdAktif, { kolom: urutan })
+          .then(() => {
+            /* Perbarui susunan aktif tanpa muat ulang daftar: preset yang
+               sedang dipakai langsung memakai urutan barunya. */
+            setPresetKeysDalam(urutan);
+            kabariPreset(tableKey);
+            kabariTampilanPerangkat(tableKey);
+          })
+          .catch((e: unknown) => toast.error(errorMessage(e)));
+        // Optimistis: tampilkan urutan baru seketika.
+        setPresetKeysDalam(urutan);
+        return;
+      }
+      simpanUrutan(urutan);
+    },
+    [presetIdAktif, presetKeys, tableKey, simpanUrutan],
+  );
+
+  const { status: statusSeret, mulai: mulaiSeretKolom } = useSeretKolomHeader({
+    terlihat: visibleFields.map((f) => f.key),
+    wrapRef,
+    aktif: geserHeader,
+    onPindah: simpanUrutanKolom,
+  });
+
+
+  (window as unknown as Record<string, number>).__rend = ((window as unknown as Record<string, number>).__rend ?? 0) + 1;
 
   /** Diisi di bawah setelah tanda tinggi baris dihitung; dibaca gerbang lebar
    *  kolom agar tampilan pertama menunggu remount grid selesai (anti kedip). */
@@ -997,9 +1073,26 @@ export default function ExcelTable<T extends { id: string | number }>({
                 : undefined
             }
             onAutoFit={onAutoFit}
+            /* Pegangan seret = seluruh area judul; hanya saat sakelarnya hidup
+               supaya klik judul biasa tak berubah perilakunya. */
+            seretAktif={geserHeader}
+            sedangDiseret={statusSeret?.dari === f.key}
           />
         ),
-        headerClassName: cn(alignClass(f.key), bekuCls, tepiCls, lastCls),
+        headerClassName: cn(
+          alignClass(f.key),
+          bekuCls,
+          tepiCls,
+          lastCls,
+          /* Garis indikator sisip. Ditaruh di `headerClassName` (dipakai DSG
+             langsung saat render) — BUKAN di elemen `title`, karena judul
+             header DSG tidak dirender ulang saat state seret berubah. */
+          statusSeret?.tanda?.indeks === iData
+            ? statusSeret.tanda.sisi === 'kiri'
+              ? ' simpes-dsg-sisip-kiri'
+              : ' simpes-dsg-sisip-kanan'
+            : '',
+        ),
         basis: widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
         // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
         // seret atau di-AutoFit, persis seperti Excel. Sisa ruang di kanan
@@ -1634,6 +1727,8 @@ export default function ExcelTable<T extends { id: string | number }>({
             rowAksi={ctxRowAksi}
             freezeAktif={freezeAktif}
             ubahFreeze={ubahFreeze}
+            geserHeader={geserHeader}
+            onUbahGeserHeader={ubahGeserHeader}
             onAutoFit={onAutoFit}
             onAutoFitAll={onAutoFitAll}
             align={alignDb}

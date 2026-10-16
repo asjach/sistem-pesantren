@@ -154,5 +154,33 @@ export function useToolbarPresetState(tableKey: string) {
       });
   }, [tableKey]);
 
-  return { visibilitas, alignDb, urutanDb, setUrutanDb, labelDb, judulDb, simpanJudul, simpanAlign, konteksLebarFilter };
+  /** Cermin terbaru urutanDb untuk tulis optimistis (pola sama dengan align). */
+  const urutanDbRef = useRef(urutanDb);
+  urutanDbRef.current = urutanDb;
+  const versiUrutanRef = useRef(0);
+
+  /** Tulis URUTAN kolom ke DB global (satu sumber dengan dialog Kelola Tabel
+   *  -> tab Kolom). Dipakai seret judul kolom: optimistis + rollback.
+   *
+   *  `kabariToolbar` sengaja DIPANGGIL saat sukses supaya dialog Kelola Tabel
+   *  (bila sedang terbuka) ikut memuat ulang susunannya - itulah yang membuat
+   *  geser di tabel dan susunan di pengaturan tetap sinkron dua arah. */
+  const simpanUrutan = useCallback((urutan: string[]) => {
+    const versi = ++versiUrutanRef.current;
+    const sebelum = urutanDbRef.current;
+    urutanDbRef.current = urutan;
+    setUrutanDb(urutan);
+    void simpanToolbarPreset(tableKey, undefined, urutan)
+      .then(() => {
+        if (versi === versiUrutanRef.current) kabariToolbar(tableKey);
+      })
+      .catch((e: unknown) => {
+        if (versi !== versiUrutanRef.current) return;
+        urutanDbRef.current = sebelum;
+        setUrutanDb(sebelum);
+        toast.error(errorMessage(e));
+      });
+  }, [tableKey]);
+
+  return { visibilitas, alignDb, urutanDb, setUrutanDb, simpanUrutan, labelDb, judulDb, simpanJudul, simpanAlign, konteksLebarFilter };
 }

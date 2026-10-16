@@ -19,6 +19,9 @@ export function HeaderTitle({
   onResizeStart,
   onResizePrev,
   onAutoFit,
+  seretAktif,
+  sedangDiseret,
+  sisip,
 }: {
   label: string;
   colKey: string;
@@ -29,9 +32,29 @@ export function HeaderTitle({
    *  (gagang kanan tertutup oleh sel beku di sebelahnya). */
   onResizePrev?: (e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
   onAutoFit: (key: string) => void;
+  /** Seret-untuk-menyusun posisi kolom AKTIF: menandai judul sebagai pegangan
+   *  (kursor grab) + jangkar bagi listener capture di wadah grid.
+   *  Absen = fitur mati (bawaan), dan tak ada perubahan perilaku klik.
+   *
+   *  Handler TIDAK dipasang di sini sebagai prop React: grid memasang
+   *  listener `pointerdown` native fase CAPTURE di wadahnya (lihat
+   *  useSeretKolomHeader) karena react-datasheet-grid memanggil
+   *  `preventDefault()` pada `mousedown` level dokumen sehingga event React
+   *  di dalam grid tak sampai ke penanganan kita. */
+  seretAktif?: boolean;
+  /** Kolom ini sedang diangkat: diberi peredupan sebagai umpan balik. */
+  sedangDiseret?: boolean;
+  /** Garis indikator posisi sisip pada kolom ini (kiri/kanan). */
+  sisip?: 'kiri' | 'kanan';
 }) {
   return (
-    <span className="simpes-dsg-headtitle" data-col-key={colKey}>
+    <span
+      className={`simpes-dsg-headtitle${sedangDiseret ? ' simpes-dsg-headtitle-diserd' : ''}${sisip === 'kiri' ? ' simpes-dsg-sisip-kiri' : sisip === 'kanan' ? ' simpes-dsg-sisip-kanan' : ''}`}
+      data-col-key={colKey}
+      /* Pegangan seret = SELURUH area judul (lihat useSeretKolomHeader),
+         dan tombol kiri saja supaya klik kanan (menu konteks) tetap bebas. */
+      data-seret={seretAktif ? 'aktif' : undefined}
+    >
       <span className="simpes-dsg-teks-judul">{label}</span>
       {required ? (
         <span className="simpes-dsg-wajib-tanda" title="Wajib diisi pada mode Input">

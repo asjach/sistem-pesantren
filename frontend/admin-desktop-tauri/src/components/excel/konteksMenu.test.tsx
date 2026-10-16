@@ -1,10 +1,11 @@
-import { screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ContextMenu } from '@/components/ui/context-menu';
 import { renderDenganTema } from '@/test/utils';
 import MenuKonteksGrid, { type MenuKonteksGridProps } from './konteksMenu';
+import { tenggangMenu } from './kelolaTabelDariMenu';
 
 function renderMenu(
   bolehKelola = true,
@@ -19,6 +20,8 @@ function renderMenu(
     rowAksi: [],
     freezeAktif: 0,
     ubahFreeze: () => {},
+    geserHeader: false,
+    onUbahGeserHeader: () => {},
     onAutoFit: () => {},
     onAutoFitAll: () => {},
     align: {},
@@ -69,7 +72,40 @@ describe('MenuKonteksGrid — Kelola Tabel dari header kolom', () => {
 
     await user.click(screen.getByText('Kelola Tabel'));
 
+    /* Pintu ini lewat `bukaDariMenu`, yang menandai jendela tenggang supaya
+       panel non-modal tak langsung tertutup oleh sisa interaksi/fokus gestur
+       menu. Penandanya sinkron, tapi tetap ditunggu agar tak rapuh. */
+    await waitFor(() => expect(onKelolaTabel).toHaveBeenCalledTimes(1));
+  });
+
+  it('tidak memanggil penanganan lebih dari sekali', async () => {
+    const user = userEvent.setup();
+    const onKelolaTabel = vi.fn();
+    renderMenu(true, { onKelolaTabel });
+
+    await user.click(screen.getByText('Kelola Tabel'));
+    await waitFor(() => expect(onKelolaTabel).toHaveBeenCalledTimes(1));
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 320)); });
     expect(onKelolaTabel).toHaveBeenCalledTimes(1);
+  });
+
+  it('menandai jendela tenggang supaya panel non-modal tidak langsung tertutup', async () => {
+    const user = userEvent.setup();
+    const onKelolaTabel = vi.fn();
+    renderMenu(true, { onKelolaTabel });
+
+    /* Perilaku dismiss Radix tak bisa ditiru jsdom, jadi yang dijaga di sini
+       adalah KONTRAK-nya: penanda tenggang harus aktif saat pembuka dipanggil.
+       Perilaku nyatanya diverifikasi lewat browser (Playwright).
+
+       CATATAN: tenggangMenu adalah singleton modul, jadi jangan mengandaikan
+       keadaannya mati di awal - tes lain di berkas ini bisa saja baru
+       menyalakannya. Yang penting: SETELAH dibuka, jendelanya menyala. */
+    await user.click(screen.getByText('Kelola Tabel'));
+
+    await waitFor(() => expect(onKelolaTabel).toHaveBeenCalledTimes(1));
+    expect(tenggangMenu.lagiTenggang()).toBe(true);
   });
 
   it('menyembunyikan item bila penanganan tidak diberikan', () => {
@@ -79,6 +115,35 @@ describe('MenuKonteksGrid — Kelola Tabel dari header kolom', () => {
   });
 });
 
+
+describe('MenuKonteksGrid — sakelar geser judul kolom', () => {
+  it('menampilkan sakelar dalam keadaan mati secara bawaan', () => {
+    renderMenu();
+
+    // Bawaan non-aktif: perilaku klik judul lama tetap utuh.
+    expect(screen.getByText('Geser judul untuk menyusun kolom')).toBeTruthy();
+  });
+
+  it('menyalakan sakelar lewat penanganannya', async () => {
+    const user = userEvent.setup();
+    const onUbahGeserHeader = vi.fn();
+    renderMenu(true, { geserHeader: false, onUbahGeserHeader });
+
+    await user.click(screen.getByText('Geser judul untuk menyusun kolom'));
+
+    expect(onUbahGeserHeader).toHaveBeenCalledWith(true);
+  });
+
+  it('mematikan sakelar bila sebelumnya menyala', async () => {
+    const user = userEvent.setup();
+    const onUbahGeserHeader = vi.fn();
+    renderMenu(true, { geserHeader: true, onUbahGeserHeader });
+
+    await user.click(screen.getByText('Geser judul untuk menyusun kolom'));
+
+    expect(onUbahGeserHeader).toHaveBeenCalledWith(false);
+  });
+});
 describe('MenuKonteksGrid — perataan kolom digerbang izin kelola', () => {
   const TOMBOL_RATA = ['Rata kiri', 'Rata tengah', 'Rata kanan'];
 

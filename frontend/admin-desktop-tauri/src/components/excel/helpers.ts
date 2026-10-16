@@ -45,6 +45,22 @@ export function freezeKey(tableKey: string) {
   return `simpes_grid_${tableKey}_freeze`;
 }
 
+/** Pref sakelar "geser judul kolom" per tabel. MATI secara bawaan supaya
+ *  perilaku lama (klik judul = pilih kolom) tetap utuh sampai pengguna
+ *  menyalakannya di Kelola Tabel -> Umum. */
+export function geserHeaderKey(tableKey: string) {
+  return `simpes_grid_${tableKey}_geser_header`;
+}
+
+/** Baca sakelar geser judul: hanya nilai eksplisit '1' yang menyalakan. */
+export async function loadGeserHeader(key: string): Promise<boolean> {
+  try {
+    return (await prefGet(key)) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export async function loadFreeze(key: string): Promise<number> {
   try {
     const v = await prefGet(key);

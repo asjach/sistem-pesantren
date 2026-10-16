@@ -554,10 +554,12 @@
 .simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell-gutter {
   background-color: color-mix(in srgb, var(--primary) 16%, var(--card));
 }
-/* Sel header tanpa padding agar judul rata tengah persis di lebar kolom. */
+/* Sel header tanpa padding agar judul rata tengah persis di lebar kolom.
+   `position: relative` = jangkar garis indikator sisip saat geser kolom. */
 .simpes-dsg .dsg-row-header .dsg-cell {
   padding-left: 0;
   padding-right: 0;
+  position: relative;
 }
 /* Tabel tanpa baris data: garis bawah header tidak tergambar karena garis
    normal berasal dari border-top baris data di bawahnya (tidak ada) dan sel
@@ -584,6 +586,43 @@
   padding-right: 8px;
   padding-top: 4px;
   padding-bottom: 4px;
+}
+/* --- Seret judul untuk menyusun posisi kolom (sakelar per perangkat) ---
+   Pegangannya = seluruh area judul, jadi kursor "grab" dipasang di wadah
+   judul, bukan pada gagang tersendiri. Gagang ubah-lebar tetap punya
+   kursor sendiri (ew-resize) dan menang karena lebih spesifik. */
+.simpes-dsg-headtitle[data-seret='aktif'] {
+  cursor: grab;
+}
+.simpes-dsg-headtitle[data-seret='aktif']:active {
+  cursor: grabbing;
+}
+/* Kolom yang sedang diangkat: diredupkan sebagai umpan balik. */
+.simpes-dsg-headtitle-diserd {
+  opacity: 0.4;
+}
+/* Garis indikator posisi sisip. Ditaruh di sel header (bukan judul) agar
+   tingginya penuh dan menempel tepat di garis batas kolom. */
+.simpes-dsg-sisip-kiri::before,
+.simpes-dsg-sisip-kanan::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent-foreground, var(--primary));
+  z-index: 20;
+  pointer-events: none;
+}
+.simpes-dsg-sisip-kiri::before {
+  left: 0;
+}
+.simpes-dsg-sisip-kanan::after {
+  right: 0;
+}
+/* Saat seret judul aktif, matikan seleksi teks agar tak ikut tersorot. */
+.simpes-dsg .dsg-row-header {
+  user-select: none;
 }
 /* Gagang resize tepi kiri: khusus kolom beku, untuk mengubah lebar kolom di
    sebelah kirinya (gagang kanan kolom itu tertutup oleh sel beku berikutnya). */
@@ -632,7 +671,7 @@
   align-self: stretch;
   display: flex;
   align-items: center;
-  /* Jangkar pegangan seret tinggi baris (konteks nearest = sel, bukan
+  /* Jangkar elemen absolut di dalam sel (konteks nearest = sel, bukan
      .dsg-container yang juga position: relative). */
   position: relative;
 }

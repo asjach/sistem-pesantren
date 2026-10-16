@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { bukaDariMenu } from './kelolaTabelDariMenu';
 import {
   ContextMenuCheckboxItem,
   ContextMenuContent,
@@ -18,7 +19,6 @@ export interface KonteksHeader {
   colKey: string;
 }
 
-
 export interface KonteksRow {
   rowId: string | number;
   rowLabel: string;
@@ -34,6 +34,10 @@ export interface MenuKonteksGridProps {
   rowAksi: ReactElement[];
   freezeAktif: number;
   ubahFreeze: (n: number) => void;
+  /** Sakelar geser judul kolom untuk menyusun posisi kolom (per perangkat,
+   *  MATI bawaan). Tersedia di sini sebagai jalan pintas dari area tabel. */
+  geserHeader: boolean;
+  onUbahGeserHeader: (nyala: boolean) => void;
   onAutoFit: (key: string) => void;
   onAutoFitAll: () => void;
   /** Perataan global per tabel (DB; satu sumber dengan Kelola Tabel). */
@@ -76,6 +80,8 @@ export default function MenuKonteksGrid({
   rowAksi,
   freezeAktif,
   ubahFreeze,
+  geserHeader,
+  onUbahGeserHeader,
   onAutoFit,
   onAutoFitAll,
   align,
@@ -94,6 +100,7 @@ export default function MenuKonteksGrid({
   barisManualAda,
   barisManualBarisIni,
 }: MenuKonteksGridProps) {
+
   return (
     <ContextMenuContent>
       {/* Sudut kiri-atas (kotak centang pilih semua): salin seluruh tabel. */}
@@ -241,13 +248,29 @@ export default function MenuKonteksGrid({
             <>
               <ContextMenuItem
                 id={`menu_ctx_kelola_tabel_${tableKey}`}
-                onSelect={() => onKelolaTabel()}
+                /* Lewat `bukaDariMenu`: menandai jendela tenggang supaya panel
+                   non-modal tak langsung tertutup oleh sisa fokus/interaksi
+                   gestur menu (hanya jalur klik kanan; tombol gerigi tidak
+                   melewati menu sehingga tak terpengaruh). Lihat
+                   `./kelolaTabelDariMenu`. */
+                onSelect={() => bukaDariMenu(() => onKelolaTabel())}
               >
                 <NotebookTabs size={16} />
                 <span>Kelola Tabel</span>
               </ContextMenuItem>
             </>
           )}
+          {/* Susun posisi kolom dengan seret judul. Checkbox (bukan tombol
+              ikon) supaya status aktif/matinya jelas terbaca. Per perangkat,
+              MATI bawaan — perilaku klik judul lama tetap utuh. */}
+          <ContextMenuSeparator />
+          <ContextMenuCheckboxItem
+            id={`menu_ctx_geser_header_${tableKey}`}
+            checked={geserHeader}
+            onCheckedChange={(c) => onUbahGeserHeader(!!c)}
+          >
+            <span>Geser judul untuk menyusun kolom</span>
+          </ContextMenuCheckboxItem>
         </>
       )}
 
@@ -276,7 +299,6 @@ export default function MenuKonteksGrid({
               })}
             </>
           )}
-          <ContextMenuSeparator />
           <ContextMenuLabel>TINGGI BARIS</ContextMenuLabel>
           <ContextMenuCheckboxItem
             id={`menu_ctx_baris_ikut_isi_${tableKey}`}

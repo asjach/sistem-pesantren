@@ -177,7 +177,7 @@ describe('DialogKelolaTabel — tab Umum', () => {
     expect(document.getElementById('nilai_umum_preset_bawaan_uji')).toHaveTextContent('—');
   });
 
-  it('menampilkan kontrol tampilan perangkat: kolom beku + baris ikut isi', async () => {
+  it('menampilkan kontrol tampilan perangkat: kolom beku + baris ikut isi + geser judul', async () => {
     renderDialog();
     await waitFor(() => expect(screen.getByLabelText('Kolom beku dari kiri')).toBeInTheDocument());
     // Kontrolnya `LabeledStepper` (kotak teks + tombol −/+), bukan input angka.
@@ -185,7 +185,20 @@ describe('DialogKelolaTabel — tab Umum', () => {
     expect(document.getElementById('input_beku_uji_kurang')).not.toBeNull();
     expect(document.getElementById('input_beku_uji_tambah')).not.toBeNull();
     expect(screen.getByRole('switch', { name: /Baris ikut isi/ })).not.toBeChecked();
-    expect(screen.getByText('Hanya di perangkat ini — pengguna lain tidak ikut berubah.')).toBeInTheDocument();
+    // Geser judul kolom: MATI secara bawaan (perilaku lama tetap utuh).
+    expect(screen.getByRole('switch', { name: /Geser judul kolom/ })).not.toBeChecked();
+    expect(screen.getByText(
+      /Keduanya hanya di perangkat ini/,
+    )).toBeInTheDocument();
+  });
+
+  it('sakelar geser judul menyimpan pref perangkat dan memberitahu grid', async () => {
+    renderDialog();
+    const sakelar = await screen.findByRole('switch', { name: /Geser judul kolom/ });
+
+    await userEvent.click(sakelar);
+
+    await waitFor(() => expect(prefSet).toHaveBeenCalledWith('simpes_grid_uji_geser_header', '1'));
   });
 
   it('stepper kolom beku menyimpan pref tiap klik dan mati di batas jumlah kolom', async () => {
