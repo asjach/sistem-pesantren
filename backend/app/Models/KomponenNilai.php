@@ -4,33 +4,40 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Master komponen penilaian per jenjang (UH, Tugas, PTS, ASAS/UAP/UJIAN/UM).
- * Sekolah bebas menambah/menonaktifkan komponen; bobot per TA ada di
- * `komponen_nilai_bobot`.
+ * Komponen penilaian MILIK SATU PERISTIWA (daftar komponen terpisah tiap
+ * peristiwa — keputusan pengguna 2026-10-16). Bobot jadi kolom karena
+ * peristiwa sudah terikat tahun ajaran.
+ *
+ *  `sumber='rapor_otomatis'` = skor dihitung otomatis dari rata-rata rapor
+ *  `jumlah_tingkat_rapor` tingkat sebelumnya (mis. komponen "Rata-rata Rapor"
+ *  pada peristiwa UJIAN); nilai otomatis itu boleh ditimpa manual lewat impor.
  */
 class KomponenNilai extends Model
 {
+    public const MANUAL = 'manual';
+
+    public const RAPOR_OTOMATIS = 'rapor_otomatis';
+
     protected $table = 'komponen_nilai';
 
     protected $guarded = ['id'];
 
-    protected $casts = ['is_active' => 'boolean', 'urutan' => 'integer'];
+    protected $casts = [
+        'is_active' => 'boolean',
+        'urutan' => 'integer',
+        'bobot' => 'float',
+        'jumlah_tingkat_rapor' => 'integer',
+    ];
 
-    public function lembaga(): BelongsTo
+    public function peristiwa(): BelongsTo
     {
-        return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
+        return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_id');
     }
 
-    public function bobot(): HasMany
+    public function otomatisDariRapor(): bool
     {
-        return $this->hasMany(KomponenNilaiBobot::class);
-    }
-
-    public function kkm(): HasMany
-    {
-        return $this->hasMany(KkmKegiatan::class);
+        return $this->sumber === self::RAPOR_OTOMATIS;
     }
 }

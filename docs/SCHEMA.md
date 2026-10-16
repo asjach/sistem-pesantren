@@ -897,6 +897,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `pengampu_mapel_id`: FK → pengampu_mapel [cascade]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `semester`: string(2) — '1' atau '2'
+- `peristiwa_id`: FK → peristiwa_nilai [cascade] — nilai akhir PER PERISTIWA
 - `nilai_formatif`: decimal(5, 2) [default 0]
 - `nilai_sumatif`: decimal(5, 2) [default 0]
 - `nilai_akhir`: decimal(5, 2) [default 0]
@@ -904,7 +905,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `predikat`: string(2) [null] — A, B, C, D
 - `catatan_capaian`: text [null]
 - `created_at`, `updated_at`
-- UNIQUE(`santri_id`, `pengampu_mapel_id`, `tahun_ajaran`, `semester`, `unique_nilai_santri`)
+- UNIQUE(`santri_id`, `pengampu_mapel_id`, `tahun_ajaran`, `semester`, `peristiwa_id`, `uq_nilai_santri_peristiwa`)
 
 ### `rapor_catatan_wali`
 - `id` PK
@@ -921,43 +922,49 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `created_at`, `updated_at`
 - UNIQUE(`santri_id`, `kelas_id`, `tahun_ajaran`, `semester`, `unique_catatan_wali`)
 
-### `komponen_nilai` (master komponen penilaian per jenjang)
+### `peristiwa_nilai` (master peristiwa penilaian per jenjang + TA)
 - `id` PK
 - `jenjang`: varchar(20) FK → lembaga.jenjang [cascade update + delete]
-- `nama`: string — mis. UH, Tugas, PTS, ASAS
-- `kode`: varchar(20) [null]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `kode`: varchar(20) — kanonis: `ASAS` | `ASAT` | `UJIAN` | `UAP` (bebas ditambah)
+- `nama`: varchar(100)
+- `cakupan`: enum('semua','kecuali_akhir','tingkat_akhir') [default 'semua'] — peserta (tingkat akhir dari `ref_tingkat.urutan` tertinggi)
+- `kurikulum`: enum('kemenag','pesantren','keduanya') [default 'keduanya']
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`
-- UNIQUE(`jenjang`, `nama`)
+- UNIQUE(`jenjang`, `tahun_ajaran`, `kode`, `uq_peristiwa_nilai`)
+- Catatan: peristiwa TIDAK dikaitkan semester (permintaan pengguna) — semester tetap dimensi instans di `nilai_santri`. Rapor & leger dicetak PER PERISTIWA.
 
-### `komponen_nilai_bobot` (bobot komponen per tahun ajaran)
+### `komponen_nilai` (komponen MILIK SATU peristiwa; bobot jadi kolom)
 - `id` PK
-- `komponen_nilai_id`: FK → komponen_nilai [cascade]
-- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `nama`: string
+- `kode`: varchar(20) [null]
 - `bobot`: decimal(5, 2) [default 0]
+- `sumber`: enum('manual','rapor_otomatis') [default 'manual'] — `rapor_otomatis` = dihitung dari rata-rata rapor N tingkat sebelumnya (boleh ditimpa lewat impor)
+- `jumlah_tingkat_rapor`: tinyint unsigned [null] — N (2/3), hanya bermakna bila `sumber='rapor_otomatis'`
+- `urutan`: int [default 0]
+- `is_active`: bool [default true]
 - `created_at`, `updated_at`
-- UNIQUE(`komponen_nilai_id`, `tahun_ajaran`, `uq_komponen_bobot`)
+- UNIQUE(`peristiwa_id`, `nama`, `uq_komponen_peristiwa`)
 
 ### `kkm_kegiatan` (KKM per peristiwa; satu baris khusus `AKHIR`)
 - `id` PK
-- `jenjang`: varchar(20) FK → lembaga.jenjang [cascade update + delete]
-- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
-- `komponen_nilai_id`: FK → komponen_nilai [null, cascade] — null pada baris `AKHIR`
+- `peristiwa_id`: FK → peristiwa_nilai [cascade]
 - `kegiatan`: varchar(50) — nama komponen, atau `AKHIR` untuk KKM nilai akhir
 - `kkm`: decimal(5, 2) [default 0]
 - `created_at`, `updated_at`
-- UNIQUE(`jenjang`, `tahun_ajaran`, `kegiatan`, `uq_kkm_kegiatan`)
+- UNIQUE(`peristiwa_id`, `kegiatan`, `uq_kkm_peristiwa`)
 
-### `rentang_predikat` (predikat berjangkar ke KKM `AKHIR`)
+### `rentang_predikat` (predikat berjangkar ke KKM `AKHIR` per peristiwa)
 - `id` PK
-- `jenjang`: varchar(20) FK → lembaga.jenjang [cascade update + delete]
-- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `peristiwa_id`: FK → peristiwa_nilai [cascade]
 - `predikat`: string(2) — A, B, C, D
 - `offset_bawah`: decimal(5, 2) [null] — berlaku bila nilai ≥ KKM + offset; null = tanpa batas bawah
 - `keterangan`: string [null]
 - `created_at`, `updated_at`
-- UNIQUE(`jenjang`, `tahun_ajaran`, `predikat`, `uq_rentang_predikat`)
+- UNIQUE(`peristiwa_id`, `predikat`, `uq_predikat_peristiwa`)
 
 ### `nilai_komponen` (skor per komponen — jalur HITUNG)
 - `id` PK

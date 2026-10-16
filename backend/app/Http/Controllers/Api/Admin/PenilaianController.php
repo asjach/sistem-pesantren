@@ -12,14 +12,17 @@ use App\Models\Ekstrakurikuler;
 use App\Models\ImportSesi;
 use App\Models\KkmKegiatan;
 use App\Models\KomponenNilai;
-use App\Models\KomponenNilaiBobot;
 use App\Models\NilaiSantri;
+use App\Models\PengampuMapel;
+use App\Models\PeristiwaNilai;
 use App\Models\PredikatEkskul;
 use App\Models\PrestasiSantri;
 use App\Models\RentangPredikat;
 use App\Services\PenilaianImporService;
+use App\Services\PenilaianService;
 use App\Support\NilaiRapor;
 use App\Support\Terbilang;
+use App\Support\TingkatJenjang;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,107 +30,113 @@ use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
- * Modul Penilaian: master (komponen+bobot, KKM, predikat, ekskul, prestasi),
- * leger (crosstab santri × mapel), rapor per santri, dan impor 4 template.
+ * Modul Penilaian — nilai diikat PERISTIWA (ASAS, ASAT, UJIAN, UAP).
  *
- *  Dua jalur nilai: HITUNG (komponen × bobot) dan IMPOR leger — lihat
- *  `PenilaianImporService` + `App\Support\NilaiRapor`.
+ *  Peristiwa milik (jenjang, tahun ajaran), bukan semester; semester tetap
+ *  dimensi instans pencatatan skor. Rapor & leger dicetak PER PERISTIWA.
+ *  Cakupan peserta peristiwa (`semua` / `kecuali_akhir` / `tingkat_akhir`)
+ *  disaring memakai tingkat akhir jenjang dari `ref_tingkat.urutan`.
  */
 class PenilaianController extends Controller
 {
     use ImporBertahap;
     use TenantGuard;
 
-    // =========================================================== MASTER
+    /** Bawaan peristiwa per jenjang (UJIAN dilewati untuk MD — jalur Kemenag). */
+    private const PERISTIWA_BAWAAN = [
+        ['kode' => 'ASAS', 'nama' => 'Asesmen Sumatif Akhir Semester', 'cakupan' => 'semua', 'kurikulum' => 'keduanya', 'urutan' => 1, 'kemenag' => true],
+        ['kode' => 'ASAT', 'nama' => 'Asesmen Sumatif Akhir Tahun', 'cakupan' => 'kecuali_akhir', 'kurikulum' => 'keduanya', 'urutan' => 2, 'kemenag' => true],
+        ['kode' => 'UJIAN', 'nama' => 'Ujian Madrasah (Kemenag)', 'cakupan' => 'tingkat_akhir', 'kurikulum' => 'kemenag', 'urutan' => 3, 'kemenag' => false],
+        ['kode' => 'UAP', 'nama' => 'Ujian Akhir Pesantren', 'cakupan' => 'tingkat_akhir', 'kurikulum' => 'pesantren', 'urutan' => 4, 'kemenag' => true],
+    ];
 
-    /** GET /admin/penilaian/komponen?jenjang=&tahun_ajaran= */
-    public function indexKomponen(Request $request): JsonResponse
+    /** Komponen bawaan peristiwa sumatif (ASAS/ASAT/UAP). */
+    private const KOMPONEN_SUMATIF = [
+        ['nama' => 'Harian', 'kode' => 'HARIAN', 'bobot' => 20, 'urutan' => 1],
+        ['nama' => 'Tugas', 'kode' => 'TUGAS', 'bobot' => 20, 'urutan' => 2],
+        ['nama' => 'PTS', 'kode' => 'PTS', 'bobot' => 20, 'urutan' => 3],
+        ['nama' => 'Sumatif', 'kode' => 'SUMATIF', 'bobot' => 40, 'urutan' => 4],
+    ];
+
+    // ========================================================= PERISTIWA
+
+    /** GET /admin/penilaian/peristiwa?jenjang=&tahun_ajaran= */
+    public function indexPeristiwa(Request $request): JsonResponse
     {
         $jenjang = $this->jenjangWajib($request);
         $ta = $this->taWajib($request);
 
-        $komponen = KomponenNilai::where('jenjang', $jenjang)
-            ->orderBy('urutan')->orderBy('nama')
-            ->get();
+        $peristiwa = PeristiwaNilai::with('komponen')
+            ->where('jenjang', $jenjang)->where('tahun_ajaran', $ta)
+            ->orderBy('urutan')->orderBy('kode')
+            ->get()
+            ->map(function (PeristiwaNilai $p) {
+                $p->setAttribute('jumlah_komponen', $p->komponen->count());
+                $p->setAttribute('total_bobot', (float) $p->komponen->sum('bobot'));
 
-        $bobot = KomponenNilaiBobot::where('tahun_ajaran', $ta)
-            ->whereIn('komponen_nilai_id', $komponen->pluck('id'))
-            ->pluck('bobot', 'komponen_nilai_id');
-
-        $komponen->each(fn (KomponenNilai $k) => $k->setAttribute('bobot', (float) ($bobot[$k->id] ?? 0)));
+                return $p;
+            });
 
         return response()->json([
-            'komponen' => $komponen,
-            'total_bobot' => (float) $komponen->sum('bobot'),
+            'peristiwa' => $peristiwa,
+            'tingkat_akhir' => TingkatJenjang::akhir($jenjang),
         ]);
     }
 
-    /** POST /admin/penilaian/komponen */
-    public function storeKomponen(Request $request): JsonResponse
+    /** POST /admin/penilaian/peristiwa */
+    public function storePeristiwa(Request $request): JsonResponse
     {
         $data = $request->validate([
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
+            'kode' => ['required', 'string', 'max:20'],
             'nama' => ['required', 'string', 'max:100'],
-            'kode' => ['nullable', 'string', 'max:20'],
+            'cakupan' => ['required', 'in:semua,kecuali_akhir,tingkat_akhir'],
+            'kurikulum' => ['nullable', 'in:kemenag,pesantren,keduanya'],
             'urutan' => ['nullable', 'integer', 'min:0'],
-            'bobot' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['nullable', 'boolean'],
         ]);
         $this->authorizeLembaga($request->user(), $data['jenjang']);
 
-        $komponen = KomponenNilai::create([
-            'jenjang' => $data['jenjang'],
-            'nama' => $data['nama'],
-            'kode' => $data['kode'] ?? null,
-            'urutan' => $data['urutan'] ?? 0,
-            'is_active' => $data['is_active'] ?? true,
-        ]);
-        KomponenNilaiBobot::create([
-            'komponen_nilai_id' => $komponen->id,
-            'tahun_ajaran' => $data['tahun_ajaran'],
-            'bobot' => $data['bobot'] ?? 0,
-        ]);
+        $peristiwa = PeristiwaNilai::create($data + ['kurikulum' => $data['kurikulum'] ?? 'keduanya']);
 
-        return response()->json($komponen->setAttribute('bobot', (float) ($data['bobot'] ?? 0)), 201);
+        return response()->json($peristiwa, 201);
     }
 
-    /** PUT /admin/penilaian/komponen/{komponen} */
-    public function updateKomponen(Request $request, KomponenNilai $komponen): JsonResponse
+    /** PUT /admin/penilaian/peristiwa/{peristiwa} */
+    public function updatePeristiwa(Request $request, PeristiwaNilai $peristiwa): JsonResponse
     {
         $data = $request->validate([
-            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
             'nama' => ['sometimes', 'string', 'max:100'],
-            'kode' => ['nullable', 'string', 'max:20'],
+            'cakupan' => ['sometimes', 'in:semua,kecuali_akhir,tingkat_akhir'],
+            'kurikulum' => ['sometimes', 'in:kemenag,pesantren,keduanya'],
             'urutan' => ['sometimes', 'integer', 'min:0'],
-            'bobot' => ['sometimes', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
-        $this->authorizeLembaga($request->user(), $komponen->jenjang);
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $peristiwa->update($data);
 
-        $komponen->update(collect($data)->only(['nama', 'kode', 'urutan', 'is_active'])->all());
-        if (array_key_exists('bobot', $data)) {
-            KomponenNilaiBobot::updateOrCreate(
-                ['komponen_nilai_id' => $komponen->id, 'tahun_ajaran' => $data['tahun_ajaran']],
-                ['bobot' => $data['bobot']],
-            );
-        }
-
-        return response()->json($komponen->fresh()->setAttribute('bobot', (float) ($data['bobot'] ?? 0)));
+        return response()->json($peristiwa->fresh());
     }
 
-    /** DELETE /admin/penilaian/komponen/{komponen} */
-    public function destroyKomponen(Request $request, KomponenNilai $komponen): JsonResponse
+    /** DELETE /admin/penilaian/peristiwa/{peristiwa} */
+    public function destroyPeristiwa(Request $request, PeristiwaNilai $peristiwa): JsonResponse
     {
-        $this->authorizeLembaga($request->user(), $komponen->jenjang);
-        $komponen->delete();
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        if (NilaiSantri::where('peristiwa_id', $peristiwa->id)->exists()) {
+            abort(422, 'Peristiwa sudah punya nilai. Nonaktifkan saja bila tidak ingin dipakai lagi.');
+        }
+        $peristiwa->delete();
 
-        return response()->json(['pesan' => 'Komponen dihapus.']);
+        return response()->json(['pesan' => 'Peristiwa dihapus.']);
     }
 
     /**
-     * POST /admin/penilaian/bawaan — muat bawaan per (jenjang, TA):
-     * UH 20 + Tugas 20 + PTS 20 + ASAS 40, KKM AKHIR 75, predikat A/B/C/D.
+     * POST /admin/penilaian/bawaan — muat 4 peristiwa bawaan per (jenjang, TA):
+     * ASAS (semua) & ASAT (kecuali tingkat akhir) & UAP (tingkat akhir) dengan
+     * komponen Harian 20 + Tugas 20 + PTS 20 + Sumatif 40; UJIAN (tingkat
+     * akhir, jenjang non-MD) dengan UM 60 + Rata-rata Rapor 40 (otomatis).
+     * KKM 75 dan predikat A/B/C/D ikut dibuat.
      */
     public function bawaan(Request $request): JsonResponse
     {
@@ -139,51 +148,137 @@ class PenilaianController extends Controller
         $jenjang = $data['jenjang'];
         $ta = $data['tahun_ajaran'];
 
-        $bawaan = [['UH', 20, 1], ['Tugas', 20, 2], ['PTS', 20, 3], ['ASAS', 40, 4]];
-        foreach ($bawaan as [$nama, $bobot, $urutan]) {
-            $komponen = KomponenNilai::firstOrCreate(
-                ['jenjang' => $jenjang, 'nama' => $nama],
-                ['kode' => mb_substr($nama, 0, 20), 'urutan' => $urutan, 'is_active' => true],
-            );
-            KomponenNilaiBobot::updateOrCreate(
-                ['komponen_nilai_id' => $komponen->id, 'tahun_ajaran' => $ta],
-                ['bobot' => $bobot],
-            );
-            KkmKegiatan::updateOrCreate(
-                ['jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'kegiatan' => $nama],
-                ['komponen_nilai_id' => $komponen->id, 'kkm' => 75],
-            );
-        }
+        $dibuat = [];
+        DB::transaction(function () use ($jenjang, $ta, &$dibuat) {
+            foreach (self::PERISTIWA_BAWAAN as $p) {
+                // UJIAN = jalur Kemenag → MD dilewati.
+                if ($p['kode'] === PeristiwaNilai::UJIAN && $jenjang === 'MD') {
+                    continue;
+                }
+                $peristiwa = PeristiwaNilai::updateOrCreate(
+                    ['jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'kode' => $p['kode']],
+                    ['nama' => $p['nama'], 'cakupan' => $p['cakupan'], 'kurikulum' => $p['kurikulum'], 'urutan' => $p['urutan'], 'is_active' => true],
+                );
+                $dibuat[] = $p['kode'];
 
-        KkmKegiatan::updateOrCreate(
-            ['jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'kegiatan' => KkmKegiatan::AKHIR],
-            ['komponen_nilai_id' => null, 'kkm' => 75],
-        );
+                $komponen = $p['kode'] === PeristiwaNilai::UJIAN
+                    ? [
+                        ['nama' => 'UM', 'kode' => 'UM', 'bobot' => 60, 'urutan' => 1, 'sumber' => KomponenNilai::MANUAL, 'n' => null],
+                        ['nama' => 'Rata-rata Rapor', 'kode' => 'RAPOR', 'bobot' => 40, 'urutan' => 2, 'sumber' => KomponenNilai::RAPOR_OTOMATIS, 'n' => 2],
+                    ]
+                    : array_map(fn ($k) => $k + ['sumber' => KomponenNilai::MANUAL, 'n' => null], self::KOMPONEN_SUMATIF);
 
-        foreach ([['A', 20.0], ['B', 10.0], ['C', 0.0], ['D', null]] as [$predikat, $offset]) {
-            RentangPredikat::updateOrCreate(
-                ['jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'predikat' => $predikat],
-                ['offset_bawah' => $offset],
-            );
-        }
+                foreach ($komponen as $k) {
+                    KomponenNilai::updateOrCreate(
+                        ['peristiwa_id' => $peristiwa->id, 'nama' => $k['nama']],
+                        [
+                            'kode' => $k['kode'], 'bobot' => $k['bobot'], 'urutan' => $k['urutan'],
+                            'sumber' => $k['sumber'], 'jumlah_tingkat_rapor' => $k['n'], 'is_active' => true,
+                        ],
+                    );
+                    KkmKegiatan::updateOrCreate(
+                        ['peristiwa_id' => $peristiwa->id, 'kegiatan' => $k['nama']],
+                        ['kkm' => 75],
+                    );
+                }
 
-        return response()->json(['pesan' => 'Bawaan komponen, KKM, dan predikat dimuat.']);
+                KkmKegiatan::updateOrCreate(
+                    ['peristiwa_id' => $peristiwa->id, 'kegiatan' => KkmKegiatan::AKHIR],
+                    ['kkm' => 75],
+                );
+
+                foreach ([['A', 20.0], ['B', 10.0], ['C', 0.0], ['D', null]] as [$predikat, $offset]) {
+                    RentangPredikat::updateOrCreate(
+                        ['peristiwa_id' => $peristiwa->id, 'predikat' => $predikat],
+                        ['offset_bawah' => $offset],
+                    );
+                }
+            }
+        });
+
+        return response()->json(['pesan' => 'Bawaan dimuat: '.implode(', ', $dibuat).'.', 'peristiwa' => $dibuat]);
     }
 
-    /** GET /admin/penilaian/kkm?jenjang=&tahun_ajaran= */
+    // ========================================================= KOMPONEN
+
+    /** GET /admin/penilaian/komponen?peristiwa_id= */
+    public function indexKomponen(Request $request): JsonResponse
+    {
+        $peristiwa = $this->peristiwaWajib($request);
+
+        $komponen = KomponenNilai::where('peristiwa_id', $peristiwa->id)
+            ->orderBy('urutan')->orderBy('nama')
+            ->get();
+
+        return response()->json([
+            'komponen' => $komponen,
+            'total_bobot' => (float) $komponen->sum('bobot'),
+            'peristiwa' => $peristiwa,
+        ]);
+    }
+
+    /** POST /admin/penilaian/komponen */
+    public function storeKomponen(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'nama' => ['required', 'string', 'max:100'],
+            'kode' => ['nullable', 'string', 'max:20'],
+            'bobot' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'sumber' => ['nullable', 'in:manual,rapor_otomatis'],
+            'jumlah_tingkat_rapor' => ['nullable', 'integer', 'min:1', 'max:6'],
+            'urutan' => ['nullable', 'integer', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+
+        return response()->json(KomponenNilai::create($data), 201);
+    }
+
+    /** PUT /admin/penilaian/komponen/{komponen} */
+    public function updateKomponen(Request $request, KomponenNilai $komponen): JsonResponse
+    {
+        $data = $request->validate([
+            'nama' => ['sometimes', 'string', 'max:100'],
+            'kode' => ['nullable', 'string', 'max:20'],
+            'bobot' => ['sometimes', 'numeric', 'min:0', 'max:100'],
+            'sumber' => ['sometimes', 'in:manual,rapor_otomatis'],
+            'jumlah_tingkat_rapor' => ['nullable', 'integer', 'min:1', 'max:6'],
+            'urutan' => ['sometimes', 'integer', 'min:0'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+        $this->authorizeLembaga($request->user(), $komponen->peristiwa->jenjang);
+        $komponen->update($data);
+
+        return response()->json($komponen->fresh());
+    }
+
+    /** DELETE /admin/penilaian/komponen/{komponen} */
+    public function destroyKomponen(Request $request, KomponenNilai $komponen): JsonResponse
+    {
+        $this->authorizeLembaga($request->user(), $komponen->peristiwa->jenjang);
+        $komponen->delete();
+
+        return response()->json(['pesan' => 'Komponen dihapus.']);
+    }
+
+    // ========================================================= KKM & PREDIKAT
+
+    /** GET /admin/penilaian/kkm?peristiwa_id= */
     public function indexKkm(Request $request): JsonResponse
     {
-        $jenjang = $this->jenjangWajib($request);
-        $ta = $this->taWajib($request);
+        $peristiwa = $this->peristiwaWajib($request);
+        $kkm = KkmKegiatan::where('peristiwa_id', $peristiwa->id)->pluck('kkm', 'kegiatan');
 
-        $komponen = KomponenNilai::where('jenjang', $jenjang)->orderBy('urutan')->orderBy('nama')->get();
-        $kkm = KkmKegiatan::where('jenjang', $jenjang)->where('tahun_ajaran', $ta)->pluck('kkm', 'kegiatan');
-
-        $baris = $komponen->map(fn (KomponenNilai $k) => [
-            'kegiatan' => $k->nama,
-            'komponen_nilai_id' => $k->id,
-            'kkm' => (float) ($kkm[$k->nama] ?? 0),
-        ])->values();
+        $baris = KomponenNilai::where('peristiwa_id', $peristiwa->id)
+            ->orderBy('urutan')->orderBy('nama')
+            ->get()
+            ->map(fn (KomponenNilai $k) => [
+                'kegiatan' => $k->nama,
+                'komponen_nilai_id' => $k->id,
+                'kkm' => (float) ($kkm[$k->nama] ?? 0),
+            ])->values();
 
         $baris->push([
             'kegiatan' => KkmKegiatan::AKHIR,
@@ -194,24 +289,23 @@ class PenilaianController extends Controller
         return response()->json(['baris' => $baris]);
     }
 
-    /** PUT /admin/penilaian/kkm — upsert batch (jenjang, TA, baris[]). */
+    /** PUT /admin/penilaian/kkm */
     public function simpanKkm(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
-            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
+            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
             'baris' => ['required', 'array'],
             'baris.*.kegiatan' => ['required', 'string', 'max:50'],
-            'baris.*.komponen_nilai_id' => ['nullable', 'integer', 'exists:komponen_nilai,id'],
             'baris.*.kkm' => ['required', 'numeric', 'min:0', 'max:100'],
         ]);
-        $this->authorizeLembaga($request->user(), $data['jenjang']);
+        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
 
-        DB::transaction(function () use ($data) {
+        DB::transaction(function () use ($data, $peristiwa) {
             foreach ($data['baris'] as $b) {
                 KkmKegiatan::updateOrCreate(
-                    ['jenjang' => $data['jenjang'], 'tahun_ajaran' => $data['tahun_ajaran'], 'kegiatan' => $b['kegiatan']],
-                    ['komponen_nilai_id' => $b['komponen_nilai_id'] ?? null, 'kkm' => $b['kkm']],
+                    ['peristiwa_id' => $peristiwa->id, 'kegiatan' => $b['kegiatan']],
+                    ['kkm' => $b['kkm']],
                 );
             }
         });
@@ -219,36 +313,35 @@ class PenilaianController extends Controller
         return response()->json(['pesan' => 'KKM disimpan.']);
     }
 
-    /** GET /admin/penilaian/predikat?jenjang=&tahun_ajaran= */
+    /** GET /admin/penilaian/predikat?peristiwa_id= */
     public function indexPredikat(Request $request): JsonResponse
     {
-        $jenjang = $this->jenjangWajib($request);
-        $ta = $this->taWajib($request);
+        $peristiwa = $this->peristiwaWajib($request);
 
-        $baris = RentangPredikat::where('jenjang', $jenjang)->where('tahun_ajaran', $ta)
+        $baris = RentangPredikat::where('peristiwa_id', $peristiwa->id)
             ->orderByRaw('offset_bawah IS NULL')->orderByDesc('offset_bawah')
             ->get();
 
         return response()->json(['baris' => $baris]);
     }
 
-    /** PUT /admin/penilaian/predikat — upsert batch. */
+    /** PUT /admin/penilaian/predikat */
     public function simpanPredikat(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
-            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
+            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
             'baris' => ['required', 'array'],
             'baris.*.predikat' => ['required', 'string', 'max:2'],
             'baris.*.offset_bawah' => ['nullable', 'numeric'],
             'baris.*.keterangan' => ['nullable', 'string', 'max:100'],
         ]);
-        $this->authorizeLembaga($request->user(), $data['jenjang']);
+        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
 
-        DB::transaction(function () use ($data) {
+        DB::transaction(function () use ($data, $peristiwa) {
             foreach ($data['baris'] as $b) {
                 RentangPredikat::updateOrCreate(
-                    ['jenjang' => $data['jenjang'], 'tahun_ajaran' => $data['tahun_ajaran'], 'predikat' => strtoupper($b['predikat'])],
+                    ['peristiwa_id' => $peristiwa->id, 'predikat' => strtoupper($b['predikat'])],
                     ['offset_bawah' => $b['offset_bawah'] ?? null, 'keterangan' => $b['keterangan'] ?? null],
                 );
             }
@@ -256,6 +349,8 @@ class PenilaianController extends Controller
 
         return response()->json(['pesan' => 'Predikat disimpan.']);
     }
+
+    // ========================================================= EKSKUL & PRESTASI
 
     /** GET /admin/penilaian/ekskul?jenjang=&tahun_ajaran= */
     public function indexEkskul(Request $request): JsonResponse
@@ -314,7 +409,7 @@ class PenilaianController extends Controller
         );
     }
 
-    /** PUT /admin/penilaian/predikat-ekskul — upsert batch (bawaan bila kosong). */
+    /** PUT /admin/penilaian/predikat-ekskul */
     public function simpanPredikatEkskul(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -383,27 +478,93 @@ class PenilaianController extends Controller
         return response()->json(['pesan' => 'Prestasi dihapus.']);
     }
 
-    // =========================================================== LEGER
+    // ========================================================= HITUNG ULANG
 
     /**
-     * GET /admin/penilaian/leger — crosstab santri × mapel. Kolom = mapel yang
-     * punya pengampu dalam lingkup; sel = nilai akhir (+ predikat & sumber).
+     * POST /admin/penilaian/hitung — hitung ulang nilai akhir dari komponen
+     * untuk seluruh santri dalam lingkup. Baris ber-`sumber='impor'` DILEWATI
+     * kecuali `paksa=1` (sesuai keputusan PRD).
      */
+    public function hitungUlang(Request $request, PenilaianService $nilai): JsonResponse
+    {
+        $data = $request->validate([
+            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'semester' => ['required', 'in:1,2'],
+            'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
+            'paksa' => ['nullable', 'boolean'],
+        ]);
+        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $jenjang = $peristiwa->jenjang;
+        $ta = $peristiwa->tahun_ajaran;
+        $semester = (string) $data['semester'];
+        $paksa = $request->boolean('paksa');
+
+        $pengampu = PengampuMapel::query()
+            ->join('kelas', 'kelas.id', '=', 'pengampu_mapel.kelas_id')
+            ->where('kelas.jenjang', $jenjang)->where('kelas.tahun_ajaran', $ta)
+            ->when($request->filled('kelas_id'), fn ($q) => $q->where('kelas.id', (int) $data['kelas_id']))
+            ->get(['pengampu_mapel.id', 'pengampu_mapel.kelas_id', 'pengampu_mapel.mata_pelajaran_id']);
+
+        $dihitung = 0;
+        $dilewatiImpor = 0;
+        $belumLengkap = 0;
+
+        foreach ($pengampu as $pm) {
+            $santri = $this->santriKelas($pm->kelas_id, $jenjang, $ta, $semester);
+            foreach ($santri as $s) {
+                if (! $nilai->tingkatCocokCakupan($peristiwa, $s->tingkat)) {
+                    continue;
+                }
+                $ada = NilaiSantri::where('santri_id', $s->santri_id)
+                    ->where('pengampu_mapel_id', $pm->id)
+                    ->where('tahun_ajaran', $ta)->where('semester', $semester)
+                    ->where('peristiwa_id', $peristiwa->id)
+                    ->first();
+                if ($ada !== null && $ada->sumber === NilaiSantri::IMPOR && ! $paksa) {
+                    $dilewatiImpor++;
+
+                    continue;
+                }
+                $hasil = $nilai->hitungAkhir(
+                    (int) $s->santri_id, (int) $pm->id, (int) $pm->mata_pelajaran_id,
+                    $jenjang, $s->tingkat, $ta, $semester, $peristiwa->id,
+                );
+                if ($hasil['nilai'] === null) {
+                    $belumLengkap++;
+
+                    continue;
+                }
+                $nilai->simpanAkhir((int) $s->santri_id, (int) $pm->id, $ta, $semester, $peristiwa->id, $hasil['nilai'], NilaiSantri::HITUNG);
+                $dihitung++;
+            }
+        }
+
+        return response()->json([
+            'pesan' => "Hitung ulang selesai: {$dihitung} baris dihitung, {$dilewatiImpor} dilewati (impor), {$belumLengkap} belum lengkap.",
+            'dihitung' => $dihitung,
+            'dilewati_impor' => $dilewatiImpor,
+            'belum_lengkap' => $belumLengkap,
+        ]);
+    }
+
+    // ========================================================= LEGER
+
+    /** GET /admin/penilaian/leger — crosstab santri × mapel untuk satu peristiwa. */
     public function leger(Request $request): JsonResponse
     {
-        $jenjang = $this->jenjangWajib($request);
-        $ta = $this->taWajib($request);
+        $peristiwa = $this->peristiwaWajib($request);
         $semester = $this->semesterWajib($request);
+        [$jenjang, $ta] = [$peristiwa->jenjang, $peristiwa->tahun_ajaran];
         $this->authorizeLembaga($request->user(), $jenjang);
 
         $kelasIds = $this->kelasFilter($request, $jenjang, $ta);
         $tingkat = $this->nilaiFilter($request, 'tingkat');
         $q = trim((string) $request->input('q', ''));
 
-        $santri = $this->santriLeger($jenjang, $ta, $semester, $kelasIds, $tingkat, $q);
-
+        $santri = $this->santriLeger($peristiwa, $semester, $kelasIds, $tingkat, $q);
         $kolom = $this->kolomLeger($jenjang, $kelasIds);
-        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester);
+        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
 
         $perPage = $this->perPage($request);
         $page = max(1, (int) $request->input('page', 1));
@@ -431,6 +592,7 @@ class PenilaianController extends Controller
         });
 
         return response()->json([
+            'peristiwa' => $peristiwa,
             'kolom' => $kolom,
             'baris' => $baris,
             'total' => $total,
@@ -440,19 +602,19 @@ class PenilaianController extends Controller
         ]);
     }
 
-    /** GET /admin/penilaian/leger/unduh — Excel leger (lingkup filter). */
+    /** GET /admin/penilaian/leger/unduh — Excel leger satu peristiwa. */
     public function unduhLeger(Request $request)
     {
-        $jenjang = $this->jenjangWajib($request);
-        $ta = $this->taWajib($request);
+        $peristiwa = $this->peristiwaWajib($request);
         $semester = $this->semesterWajib($request);
+        [$jenjang, $ta] = [$peristiwa->jenjang, $peristiwa->tahun_ajaran];
         $this->authorizeLembaga($request->user(), $jenjang);
 
         $kelasIds = $this->kelasFilter($request, $jenjang, $ta);
         $tingkat = $this->nilaiFilter($request, 'tingkat');
-        $santri = $this->santriLeger($jenjang, $ta, $semester, $kelasIds, $tingkat, trim((string) $request->input('q', '')));
+        $santri = $this->santriLeger($peristiwa, $semester, $kelasIds, $tingkat, trim((string) $request->input('q', '')));
         $kolom = $this->kolomLeger($jenjang, $kelasIds);
-        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester);
+        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
 
         $headings = array_merge(
             ['nis_lokal', 'nama', 'kelas'],
@@ -475,22 +637,26 @@ class PenilaianController extends Controller
             );
         })->all();
 
-        return Excel::download(new LegerPenilaianExport($headings, $rows), "leger-{$jenjang}-{$semester}.xlsx");
+        return Excel::download(
+            new LegerPenilaianExport($headings, $rows),
+            "leger-{$peristiwa->kode}-{$jenjang}-{$semester}.xlsx",
+        );
     }
 
-    // =========================================================== RAPOR
+    // ========================================================= RAPOR
 
-    /** GET /admin/penilaian/rapor?santri_id=&tahun_ajaran=&semester= */
+    /** GET /admin/penilaian/rapor?santri_id=&semester=&peristiwa_id=&peringkat= */
     public function rapor(Request $request): JsonResponse
     {
         $data = $request->validate([
             'santri_id' => ['required', 'integer', 'exists:santri,id'],
-            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
+            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
             'semester' => ['required', 'in:1,2'],
             'peringkat' => ['nullable', 'in:3,10,semua'],
         ]);
-        $ta = $data['tahun_ajaran'];
-        $semester = $data['semester'];
+        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+        $ta = $peristiwa->tahun_ajaran;
+        $semester = (string) $data['semester'];
         $batasPeringkat = $data['peringkat'] ?? '10';
 
         $riwayat = DB::table('riwayat_belajar')
@@ -501,6 +667,7 @@ class PenilaianController extends Controller
                     ->on('lembaga_santri.jenjang', '=', 'riwayat_belajar.jenjang');
             })
             ->where('riwayat_belajar.santri_id', $data['santri_id'])
+            ->where('riwayat_belajar.jenjang', $peristiwa->jenjang)
             ->where('riwayat_belajar.tahun_ajaran', $ta)
             ->where('riwayat_belajar.semester', $semester)
             ->orderByDesc('riwayat_belajar.is_active_riwayat')
@@ -512,7 +679,7 @@ class PenilaianController extends Controller
             ->first();
 
         if ($riwayat === null) {
-            throw ValidationException::withMessages(['santri_id' => 'Santri tidak punya riwayat pada TA/semester itu.']);
+            throw ValidationException::withMessages(['santri_id' => 'Santri tidak punya riwayat pada jenjang/TA/semester itu.']);
         }
         $this->authorizeLembaga($request->user(), $riwayat->jenjang);
 
@@ -520,14 +687,13 @@ class PenilaianController extends Controller
             ->where('santri_id', $data['santri_id'])
             ->where('tahun_ajaran', $ta)
             ->where('semester', $semester)
+            ->where('peristiwa_id', $peristiwa->id)
             ->get();
 
         $mapel = $nilai->map(function (NilaiSantri $n) {
-            $guru = $this->namaGuru($n->pengampuMapel?->keaktifan?->pegawai);
-
             return [
                 'nama_mapel' => $n->pengampuMapel?->mataPelajaran?->nama_mapel ?? '—',
-                'guru' => $guru,
+                'guru' => $this->namaGuru($n->pengampuMapel?->keaktifan?->pegawai),
                 'nilai_akhir' => $n->nilai_akhir,
                 'predikat' => $n->predikat,
                 'terbilang' => Terbilang::perDigit($n->nilai_akhir),
@@ -536,7 +702,7 @@ class PenilaianController extends Controller
         })->sortBy('nama_mapel')->values();
 
         $angka = $mapel->pluck('nilai_akhir')->all();
-        $rekap = $this->rekapKelas($riwayat->kelas_id, $ta, $semester, (int) $data['santri_id'], $batasPeringkat);
+        $rekap = $this->rekapKelas($peristiwa->id, $riwayat->kelas_id, $ta, $semester, (int) $data['santri_id'], $batasPeringkat);
 
         $catatan = DB::table('rapor_catatan_wali')
             ->where('santri_id', $data['santri_id'])
@@ -545,9 +711,7 @@ class PenilaianController extends Controller
 
         $ekskul = DB::table('nilai_ekstrakurikuler as ne')
             ->join('ekstrakurikuler as e', 'e.id', '=', 'ne.ekstrakurikuler_id')
-            ->leftJoin('predikat_ekskul as pe', function ($j) {
-                $j->on('pe.predikat', '=', 'ne.predikat');
-            })
+            ->leftJoin('predikat_ekskul as pe', 'pe.predikat', '=', 'ne.predikat')
             ->where('ne.santri_id', $data['santri_id'])
             ->where('ne.tahun_ajaran', $ta)->where('ne.semester', $semester)
             ->select('e.nama', 'e.pembimbing', 'ne.predikat', 'ne.nilai', 'ne.deskripsi', 'pe.deskripsi as deskripsi_predikat')
@@ -571,10 +735,11 @@ class PenilaianController extends Controller
             ->first();
         $walas = DB::table('kelas')->leftJoin('pegawai', 'pegawai.id', '=', 'kelas.walas_id')
             ->where('kelas.id', $riwayat->kelas_id)
-            ->select('pegawai.nama_lengkap', 'pegawai.gelar_depan', 'pegawai.gelar_belakang')
+            ->select('pegawai.nama_lengkap', 'pegawai.gelar_depan', 'pegawai.gelar_belakang', 'pegawai.jenis_kelamin')
             ->first();
 
         return response()->json([
+            'peristiwa' => $peristiwa,
             'santri' => [
                 'id' => (int) $data['santri_id'],
                 'nama' => $riwayat->nama_lengkap,
@@ -616,35 +781,35 @@ class PenilaianController extends Controller
             'ekskul' => $ekskul,
             'prestasi' => $prestasi,
             'penandatangan' => [
-                'wali_kelas' => $this->namaGuru((object) [
-                    'nama_lengkap' => $walas->nama_lengkap ?? null,
-                    'gelar_depan' => $walas->gelar_depan ?? null,
-                    'gelar_belakang' => $walas->gelar_belakang ?? null,
-                    'jenis_kelamin' => null,
-                ]),
+                'wali_kelas' => $this->namaGuru($walas),
                 'kepala' => $lembaga->mudir_am ?? null,
             ],
         ]);
     }
 
-    /**
-     * GET /admin/penilaian/rapor-kelas?jenjang=&tahun_ajaran=&semester=&kelas_id=
-     * Daftar santri satu kelas + status kelengkapan (cek sebelum cetak).
-     */
+    /** GET /admin/penilaian/rapor-kelas?peristiwa_id=&semester=&kelas_id= */
     public function raporKelas(Request $request): JsonResponse
     {
-        $jenjang = $this->jenjangWajib($request);
-        $ta = $this->taWajib($request);
-        $semester = $this->semesterWajib($request);
-        $this->authorizeLembaga($request->user(), $jenjang);
-        $kelasIds = $this->kelasFilter($request, $jenjang, $ta);
-        if (count($kelasIds) !== 1) {
-            throw ValidationException::withMessages(['kelas_id' => 'Pilih satu kelas.']);
+        $data = $request->validate([
+            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'semester' => ['required', 'in:1,2'],
+            'kelas_id' => ['required', 'integer', 'exists:kelas,id'],
+        ]);
+        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $ta = $peristiwa->tahun_ajaran;
+        $semester = (string) $data['semester'];
+
+        $kelasIds = DB::table('kelas')->where('id', (int) $data['kelas_id'])
+            ->where('jenjang', $peristiwa->jenjang)->where('tahun_ajaran', $ta)
+            ->pluck('id')->map(fn ($v) => (int) $v)->all();
+        if ($kelasIds === []) {
+            throw ValidationException::withMessages(['kelas_id' => 'Kelas tidak ada pada jenjang/TA peristiwa ini.']);
         }
 
-        $santri = $this->santriLeger($jenjang, $ta, $semester, $kelasIds, [], '');
-        $kolom = $this->kolomLeger($jenjang, $kelasIds);
-        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester);
+        $santri = $this->santriLeger($peristiwa, $semester, $kelasIds, [], '');
+        $kolom = $this->kolomLeger($peristiwa->jenjang, $kelasIds);
+        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
         $jumlahMapel = count($kolom);
 
         $catatanAda = DB::table('rapor_catatan_wali')
@@ -672,6 +837,7 @@ class PenilaianController extends Controller
         });
 
         return response()->json([
+            'peristiwa' => $peristiwa,
             'kolom' => $kolom,
             'baris' => $baris,
             'ringkasan' => [
@@ -683,9 +849,9 @@ class PenilaianController extends Controller
         ]);
     }
 
-    // =========================================================== IMPOR
+    // ========================================================= IMPOR
 
-    /** GET /admin/penilaian/import-template?tipe=&jenjang=&tahun_ajaran=&kelas_id= */
+    /** GET /admin/penilaian/import-template?tipe=&peristiwa_id=&kelas_id= */
     public function template(Request $request)
     {
         $tipe = (string) $request->input('tipe', 'nilai');
@@ -724,11 +890,17 @@ class PenilaianController extends Controller
             $this->authorizeLembagaMany($request->user(), $jenjang);
         }
 
+        if (! empty($data['peristiwa_id'])) {
+            $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+            $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        }
+
         $layanan = new PenilaianImporService(
             $data['tipe'],
             $data['tahun_ajaran'],
             (string) $data['semester'],
             array_values(array_map('strval', $jenjang)),
+            $data['peristiwa_id'] ?? null,
             $data['komponen_id'] ?? null,
         );
 
@@ -747,7 +919,7 @@ class PenilaianController extends Controller
         return $this->unduhGalatImpor($request, $sesi, 'galat-import-penilaian.csv');
     }
 
-    // =========================================================== BANTUAN
+    // ========================================================= BANTUAN
 
     private function templateNilai(Request $request, string $jenjang, string $ta): PenilaianTemplateExport
     {
@@ -788,6 +960,21 @@ class PenilaianController extends Controller
         return new PenilaianTemplateExport('ekskul', 'Ekstrakurikuler', $kolom, $contoh, [
             'jenjang' => PenilaianTemplateExport::pilihanJenjang(),
         ]);
+    }
+
+    private function peristiwaWajib(Request $request): PeristiwaNilai
+    {
+        $id = $request->input('peristiwa_id');
+        if ($id === null || $id === '') {
+            throw ValidationException::withMessages(['peristiwa_id' => 'Pilih peristiwa penilaian.']);
+        }
+        $peristiwa = PeristiwaNilai::find($id);
+        if ($peristiwa === null) {
+            throw ValidationException::withMessages(['peristiwa_id' => 'Peristiwa tidak ditemukan.']);
+        }
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+
+        return $peristiwa;
     }
 
     private function jenjangWajib(Request $request): string
@@ -835,13 +1022,18 @@ class PenilaianController extends Controller
     }
 
     /**
-     * Baris santri leger: riwayat pada (jenjang, TA, semester) + keanggotaan.
+     * Santri peserta leger: riwayat pada (jenjang, TA, semester) + saringan
+     * CAKUPAN peristiwa (tingkat akhir) + filter kelas/tingkat/pencarian.
      *
      * @param  list<int>  $kelasIds
      * @param  list<string>  $tingkat
      */
-    private function santriLeger(string $jenjang, string $ta, string $semester, array $kelasIds, array $tingkat, string $q)
+    private function santriLeger(PeristiwaNilai $peristiwa, string $semester, array $kelasIds, array $tingkat, string $q)
     {
+        $jenjang = $peristiwa->jenjang;
+        $ta = $peristiwa->tahun_ajaran;
+        $akhir = TingkatJenjang::akhir($jenjang);
+
         $query = DB::table('riwayat_belajar as rb')
             ->join('santri', 'santri.id', '=', 'rb.santri_id')
             ->leftJoin('kelas', 'kelas.id', '=', 'rb.kelas_id')
@@ -858,6 +1050,15 @@ class PenilaianController extends Controller
             )
             ->orderBy('rb.tingkat')->orderBy('kelas.nama_kelas')->orderBy('rb.no_absen')->orderBy('santri.nama_lengkap');
 
+        // Cakupan peserta peristiwa.
+        if ($akhir !== null) {
+            if ($peristiwa->cakupan === PeristiwaNilai::CAKUPAN_TINGKAT_AKHIR) {
+                $query->where('rb.tingkat', $akhir);
+            } elseif ($peristiwa->cakupan === PeristiwaNilai::CAKUPAN_KECUALI_AKHIR) {
+                $query->where(fn ($w) => $w->whereNull('rb.tingkat')->orWhere('rb.tingkat', '!=', $akhir));
+            }
+        }
+
         if ($kelasIds !== []) {
             $query->whereIn('rb.kelas_id', $kelasIds);
         }
@@ -870,6 +1071,18 @@ class PenilaianController extends Controller
         }
 
         return $query->get();
+    }
+
+    /** Santri satu kelas pada (jenjang, TA, semester) — untuk hitung ulang. */
+    private function santriKelas(int $kelasId, string $jenjang, string $ta, string $semester)
+    {
+        return DB::table('riwayat_belajar')
+            ->where('kelas_id', $kelasId)
+            ->where('jenjang', $jenjang)
+            ->where('tahun_ajaran', $ta)
+            ->where('semester', $semester)
+            ->where('status_akhir', '!=', 'pindah_keluar')
+            ->get(['santri_id', 'tingkat']);
     }
 
     /**
@@ -900,9 +1113,8 @@ class PenilaianController extends Controller
      *
      * @param  list<int>  $santriIds
      * @param  list<array{key: string, mapel_id: int}>  $kolom
-     * @return array<int, array<string, array{nilai: float|null, predikat: ?string, sumber: ?string, guru: ?string}>>
      */
-    private function petaNilai(array $santriIds, array $kolom, string $ta, string $semester): array
+    private function petaNilai(array $santriIds, array $kolom, string $ta, string $semester, int $peristiwaId): array
     {
         if ($santriIds === [] || $kolom === []) {
             return [];
@@ -918,6 +1130,7 @@ class PenilaianController extends Controller
             ->whereIn('pm.mata_pelajaran_id', $mapelIds)
             ->where('ns.tahun_ajaran', $ta)
             ->where('ns.semester', $semester)
+            ->where('ns.peristiwa_id', $peristiwaId)
             ->select(
                 'ns.santri_id', 'pm.mata_pelajaran_id', 'ns.nilai_akhir', 'ns.predikat', 'ns.sumber',
                 'pg.nama_lengkap', 'pg.gelar_depan', 'pg.gelar_belakang', 'pg.jenis_kelamin',
@@ -942,7 +1155,7 @@ class PenilaianController extends Controller
     }
 
     /** @return array{peringkat: ?int, total: int} */
-    private function rekapKelas(?int $kelasId, string $ta, string $semester, int $santriId, string $batas): array
+    private function rekapKelas(int $peristiwaId, ?int $kelasId, string $ta, string $semester, int $santriId, string $batas): array
     {
         if ($kelasId === null) {
             return ['peringkat' => null, 'total' => 0];
@@ -952,6 +1165,7 @@ class PenilaianController extends Controller
             ->where('rb.tahun_ajaran', $ta)->where('rb.semester', $semester)
             ->where('rb.kelas_id', $kelasId)
             ->where('ns.tahun_ajaran', $ta)->where('ns.semester', $semester)
+            ->where('ns.peristiwa_id', $peristiwaId)
             ->groupBy('ns.santri_id')
             ->selectRaw('ns.santri_id, AVG(ns.nilai_akhir) as rata')
             ->pluck('rata', 'ns.santri_id')

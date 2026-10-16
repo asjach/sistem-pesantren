@@ -1,19 +1,44 @@
 import { api, downloadFile } from './client';
-import type { Paginate } from './master';
 import { appendQueryParam, type ScalarOrArray } from './query';
 
-/** Modul Penilaian: master, leger, rapor, dan impor 4 template. */
+/**
+ * Modul Penilaian: nilai diikat PERISTIWA (ASAS/ASAT/UJIAN/UAP).
+ * Peristiwa milik (jenjang, tahun ajaran) — bukan semester. Rapor & leger
+ * dicetak per peristiwa; semester tetap dimensi instans pencatatan skor.
+ */
 
-export interface KomponenNilai {
-  id: number; jenjang: string; nama: string; kode: string | null;
+export type CakupanPeristiwa = 'semua' | 'kecuali_akhir' | 'tingkat_akhir';
+export type KurikulumPeristiwa = 'kemenag' | 'pesantren' | 'keduanya';
+
+export interface PeristiwaNilai {
+  id: number; jenjang: string; tahun_ajaran: string;
+  kode: string; nama: string;
+  cakupan: CakupanPeristiwa; kurikulum: KurikulumPeristiwa;
   urutan: number; is_active: boolean;
-  /** Bobot pada tahun ajaran yang diminta (0 = belum diatur). */
-  bobot: number;
+  /** Terisi pada respons daftar. */
+  jumlah_komponen?: number; total_bobot?: number;
 }
 
-export interface KomponenNilaiResp {
+export interface PeristiwaResp {
+  peristiwa: PeristiwaNilai[];
+  /** Tingkat akhir jenjang (dari urutan ref_tingkat) — dipakai cakupan. */
+  tingkat_akhir: string | null;
+}
+
+export type SumberKomponen = 'manual' | 'rapor_otomatis';
+
+export interface KomponenNilai {
+  id: number; peristiwa_id: number; nama: string; kode: string | null;
+  bobot: number; sumber: SumberKomponen;
+  /** Jumlah tingkat sebelumnya yang dirata-rata (hanya `rapor_otomatis`). */
+  jumlah_tingkat_rapor: number | null;
+  urutan: number; is_active: boolean;
+}
+
+export interface KomponenResp {
   komponen: KomponenNilai[];
   total_bobot: number;
+  peristiwa: PeristiwaNilai;
 }
 
 export interface KkmBaris {
@@ -58,6 +83,7 @@ export interface BarisLeger {
 }
 
 export interface LegerResp {
+  peristiwa: PeristiwaNilai;
   kolom: KolomLeger[];
   baris: BarisLeger[];
   total: number; per_page: number; current_page: number; last_page: number;
@@ -69,6 +95,7 @@ export interface RaporMapel {
 }
 
 export interface RaporResp {
+  peristiwa: PeristiwaNilai;
   santri: { id: number; nama: string; nis_lokal: string | null; nisn: string | null; jk: string | null };
   identitas: { jenjang: string; kelas: string | null; tingkat: string | null; semester: string; tahun_ajaran: string };
   kop: {
@@ -95,6 +122,7 @@ export interface BarisRaporKelas {
 }
 
 export interface RaporKelasResp {
+  peristiwa: PeristiwaNilai;
   kolom: KolomLeger[];
   baris: BarisRaporKelas[];
   ringkasan: { santri: number; lengkap: number; tanpa_catatan: number; mapel: number };
@@ -109,22 +137,56 @@ function lingkupQuery(params: Lingkup): URLSearchParams {
   return q;
 }
 
-// ---------------------------------------------------------------- master
+// ------------------------------------------------------------- peristiwa
 
-export function daftarKomponen(params: Lingkup = {}) {
-  return api<KomponenNilaiResp>(`/admin/penilaian/komponen?${lingkupQuery(params).toString()}`);
+export function daftarPeristiwa(params: Lingkup = {}) {
+  return api<PeristiwaResp>(`/admin/penilaian/peristiwa?${lingkupQuery(params).toString()}`);
+}
+
+export function buatPeristiwa(data: {
+  jenjang: string; tahun_ajaran: string; kode: string; nama: string;
+  cakupan: CakupanPeristiwa; kurikulum?: KurikulumPeristiwa; urutan?: number; is_active?: boolean;
+}) {
+  return api<PeristiwaNilai>('/admin/penilaian/peristiwa', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function ubahPeristiwa(id: number, data: {
+  nama?: string; cakupan?: CakupanPeristiwa; kurikulum?: KurikulumPeristiwa;
+  urutan?: number; is_active?: boolean;
+}) {
+  return api<PeristiwaNilai>(`/admin/penilaian/peristiwa/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function hapusPeristiwa(id: number) {
+  return api<{ pesan: string }>(`/admin/penilaian/peristiwa/${id}`, { method: 'DELETE' });
+}
+
+/** Muat bawaan: ASAS + ASAT + UJIAN (non-MD) + UAP, komponen, KKM 75, predikat A–D. */
+export function muatBawaan(jenjang: string, tahunAjaran: string) {
+  return api<{ pesan: string; peristiwa: string[] }>('/admin/penilaian/bawaan', {
+    method: 'POST',
+    body: JSON.stringify({ jenjang, tahun_ajaran: tahunAjaran }),
+  });
+}
+
+// -------------------------------------------------------------- komponen
+
+export function daftarKomponen(peristiwaId: number) {
+  return api<KomponenResp>(`/admin/penilaian/komponen?peristiwa_id=${peristiwaId}`);
 }
 
 export function buatKomponen(data: {
-  jenjang: string; tahun_ajaran: string; nama: string; kode?: string | null;
-  urutan?: number; bobot?: number; is_active?: boolean;
+  peristiwa_id: number; nama: string; kode?: string | null; bobot?: number;
+  sumber?: SumberKomponen; jumlah_tingkat_rapor?: number | null;
+  urutan?: number; is_active?: boolean;
 }) {
   return api<KomponenNilai>('/admin/penilaian/komponen', { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function ubahKomponen(id: number, data: {
-  tahun_ajaran: string; nama?: string; kode?: string | null;
-  urutan?: number; bobot?: number; is_active?: boolean;
+  nama?: string; kode?: string | null; bobot?: number;
+  sumber?: SumberKomponen; jumlah_tingkat_rapor?: number | null;
+  urutan?: number; is_active?: boolean;
 }) {
   return api<KomponenNilai>(`/admin/penilaian/komponen/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
@@ -133,35 +195,41 @@ export function hapusKomponen(id: number) {
   return api<{ pesan: string }>(`/admin/penilaian/komponen/${id}`, { method: 'DELETE' });
 }
 
-/** Muat bawaan: UH 20 + Tugas 20 + PTS 20 + ASAS 40, KKM 75, predikat A–D. */
-export function muatBawaan(jenjang: string, tahunAjaran: string) {
-  return api<{ pesan: string }>('/admin/penilaian/bawaan', {
-    method: 'POST',
-    body: JSON.stringify({ jenjang, tahun_ajaran: tahunAjaran }),
-  });
+// --------------------------------------------------------- KKM & predikat
+
+export function daftarKkm(peristiwaId: number) {
+  return api<{ baris: KkmBaris[] }>(`/admin/penilaian/kkm?peristiwa_id=${peristiwaId}`);
 }
 
-export function daftarKkm(params: Lingkup = {}) {
-  return api<{ baris: KkmBaris[] }>(`/admin/penilaian/kkm?${lingkupQuery(params).toString()}`);
-}
-
-export function simpanKkm(jenjang: string, tahunAjaran: string, baris: KkmBaris[]) {
+export function simpanKkm(peristiwaId: number, baris: KkmBaris[]) {
   return api<{ pesan: string }>('/admin/penilaian/kkm', {
     method: 'PUT',
-    body: JSON.stringify({ jenjang, tahun_ajaran: tahunAjaran, baris }),
+    body: JSON.stringify({ peristiwa_id: peristiwaId, baris }),
   });
 }
 
-export function daftarPredikat(params: Lingkup = {}) {
-  return api<{ baris: PredikatBaris[] }>(`/admin/penilaian/predikat?${lingkupQuery(params).toString()}`);
+export function daftarPredikat(peristiwaId: number) {
+  return api<{ baris: PredikatBaris[] }>(`/admin/penilaian/predikat?peristiwa_id=${peristiwaId}`);
 }
 
-export function simpanPredikat(jenjang: string, tahunAjaran: string, baris: PredikatBaris[]) {
+export function simpanPredikat(peristiwaId: number, baris: PredikatBaris[]) {
   return api<{ pesan: string }>('/admin/penilaian/predikat', {
     method: 'PUT',
-    body: JSON.stringify({ jenjang, tahun_ajaran: tahunAjaran, baris }),
+    body: JSON.stringify({ peristiwa_id: peristiwaId, baris }),
   });
 }
+
+/** Hitung ulang nilai akhir dari komponen. Baris impor dilewati kecuali `paksa`. */
+export function hitungUlang(data: {
+  peristiwa_id: number; semester: string; kelas_id?: number | null; paksa?: boolean;
+}) {
+  return api<{ pesan: string; dihitung: number; dilewati_impor: number; belum_lengkap: number }>(
+    '/admin/penilaian/hitung',
+    { method: 'POST', body: JSON.stringify(data) },
+  );
+}
+
+// ------------------------------------------------- ekskul, prestasi, dll.
 
 export function daftarEkskul(params: Lingkup = {}) {
   return api<Ekstrakurikuler[]>(`/admin/penilaian/ekskul?${lingkupQuery(params).toString()}`);
@@ -209,11 +277,12 @@ export function hapusPrestasi(id: number) {
 // ---------------------------------------------------------------- leger
 
 export function legerNilai(params: {
-  jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>;
-  semester?: ScalarOrArray<string>; tingkat?: ScalarOrArray<string>;
-  kelas_id?: ScalarOrArray<number>; q?: string; page?: number; per_page?: string;
-} = {}) {
-  const q = lingkupQuery(params);
+  peristiwa_id: number; semester?: ScalarOrArray<string>;
+  tingkat?: ScalarOrArray<string>; kelas_id?: ScalarOrArray<number>;
+  q?: string; page?: number; per_page?: string;
+}) {
+  const q = new URLSearchParams();
+  q.set('peristiwa_id', String(params.peristiwa_id));
   appendQueryParam(q, 'semester', params.semester);
   appendQueryParam(q, 'tingkat', params.tingkat);
   appendQueryParam(q, 'kelas_id', params.kelas_id);
@@ -224,11 +293,11 @@ export function legerNilai(params: {
 }
 
 export function unduhLeger(params: {
-  jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>;
-  semester?: ScalarOrArray<string>; tingkat?: ScalarOrArray<string>;
-  kelas_id?: ScalarOrArray<number>; q?: string;
-} = {}) {
-  const q = lingkupQuery(params);
+  peristiwa_id: number; semester?: ScalarOrArray<string>;
+  tingkat?: ScalarOrArray<string>; kelas_id?: ScalarOrArray<number>; q?: string;
+}) {
+  const q = new URLSearchParams();
+  q.set('peristiwa_id', String(params.peristiwa_id));
   appendQueryParam(q, 'semester', params.semester);
   appendQueryParam(q, 'tingkat', params.tingkat);
   appendQueryParam(q, 'kelas_id', params.kelas_id);
@@ -238,21 +307,22 @@ export function unduhLeger(params: {
 
 // ---------------------------------------------------------------- rapor
 
-export function ambilRapor(params: { santri_id: number; tahun_ajaran: string; semester: string; peringkat?: '3' | '10' | 'semua' }) {
+export function ambilRapor(params: {
+  santri_id: number; peristiwa_id: number; semester: string; peringkat?: '3' | '10' | 'semua';
+}) {
   const q = new URLSearchParams();
   q.set('santri_id', String(params.santri_id));
-  q.set('tahun_ajaran', params.tahun_ajaran);
+  q.set('peristiwa_id', String(params.peristiwa_id));
   q.set('semester', params.semester);
   if (params.peringkat) q.set('peringkat', params.peringkat);
   return api<RaporResp>(`/admin/penilaian/rapor?${q.toString()}`);
 }
 
 export function raporKelas(params: {
-  jenjang: string; tahun_ajaran: string; semester: string; kelas_id: number;
+  peristiwa_id: number; semester: string; kelas_id: number;
 }) {
   const q = new URLSearchParams();
-  q.set('jenjang', params.jenjang);
-  q.set('tahun_ajaran', params.tahun_ajaran);
+  q.set('peristiwa_id', String(params.peristiwa_id));
   q.set('semester', params.semester);
   q.set('kelas_id', String(params.kelas_id));
   return api<RaporKelasResp>(`/admin/penilaian/rapor-kelas?${q.toString()}`);
@@ -263,12 +333,13 @@ export function raporKelas(params: {
 export type TipeImpor = 'nilai' | 'catatan_wali' | 'prestasi' | 'ekskul';
 
 export function unduhTemplatePenilaian(tipe: TipeImpor, params: {
-  jenjang: string; tahun_ajaran: string; kelas_id?: number;
+  jenjang: string; tahun_ajaran: string; peristiwa_id?: number; kelas_id?: number;
 }) {
   const q = new URLSearchParams();
   q.set('tipe', tipe);
   q.set('jenjang', params.jenjang);
   q.set('tahun_ajaran', params.tahun_ajaran);
+  if (params.peristiwa_id !== undefined) q.set('peristiwa_id', String(params.peristiwa_id));
   if (params.kelas_id !== undefined) q.set('kelas_id', String(params.kelas_id));
   return downloadFile(`/admin/penilaian/import-template?${q.toString()}`, `template-import-penilaian-${tipe}.xlsx`);
 }
@@ -281,6 +352,7 @@ export interface KirimPotonganPenilaian {
   tahun_ajaran: string;
   semester: string;
   jenjang: string[];
+  peristiwa_id?: number | null;
   komponen_id?: number | null;
   baris: Record<string, unknown>[];
   terakhir?: boolean;

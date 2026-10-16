@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { listKelas, type Kelas } from '@/api/master';
 import { errorMessage } from '@/api/client';
-import { ambilRapor, raporKelas, type RaporKelasResp, type RaporResp } from '@/api/penilaian';
+import {
+  ambilRapor, daftarPeristiwa, raporKelas,
+  type PeristiwaNilai, type RaporKelasResp, type RaporResp,
+} from '@/api/penilaian';
 
-/** Halaman Rapor: pilih kelas → daftar santri (+ kelengkapan) → pratinjau & cetak. */
+/** Halaman Rapor: pilih PERISTIWA + kelas → daftar santri → pratinjau & cetak. */
 export default function PenilaianRaporPage() {
-  const { jenjangs, tahunAjaranNames, semesters, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
+  const { jenjangs, tahunAjaranNames, semesters, loading: filterLoading } = useFilterGlobalAktif();
 
   const jenjang = targetTunggal(jenjangs);
   const ta = targetTunggal(tahunAjaranNames);
   const semester = targetTunggal(semesters);
   const siap = jenjang !== null && ta !== null && semester !== null;
 
+  const [peristiwa, setPeristiwa] = useState<PeristiwaNilai[]>([]);
+  const [peristiwaId, setPeristiwaId] = useState<number | ''>('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
   const [daftar, setDaftar] = useState<RaporKelasResp | null>(null);
@@ -25,42 +29,56 @@ export default function PenilaianRaporPage() {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Peristiwa menentukan jenjang + TA-nya sendiri.
+  const peristiwaAktif = useMemo(() => peristiwa.find((p) => p.id === peristiwaId) ?? null, [peristiwa, peristiwaId]);
+
   useEffect(() => {
-    if (filterLoading || jenjang === null || ta === null) { setKelasOpsi([]); return; }
+    if (filterLoading || jenjang === null || ta === null) { setPeristiwa([]); setPeristiwaId(''); return; }
     let hidup = true;
-    listKelas({ jenjang, tahun_ajaran: ta, per_page: 1000 })
+    daftarPeristiwa({ jenjang, tahun_ajaran: ta })
+      .then((r) => {
+        if (!hidup) return;
+        setPeristiwa(r.peristiwa);
+        setPeristiwaId((v) => (r.peristiwa.some((p) => p.id === v) ? v : (r.peristiwa[0]?.id ?? '')));
+      })
+      .catch((e) => { if (hidup) { setPeristiwa([]); setPeristiwaId(''); setErr(errorMessage(e)); } });
+    return () => { hidup = false; };
+  }, [filterLoading, jenjang, ta]);
+
+  useEffect(() => {
+    if (peristiwaAktif === null) { setKelasOpsi([]); setKelasId(''); return; }
+    let hidup = true;
+    listKelas({ jenjang: peristiwaAktif.jenjang, tahun_ajaran: peristiwaAktif.tahun_ajaran, per_page: 1000 })
       .then((p) => {
         if (!hidup) return;
         setKelasOpsi(p.data);
-        // Kelas dari rail (bila satu) jadi pilihan awal.
-        const dariRail = p.data.find((k) => kelasAktif.includes(k.nama_kelas));
-        setKelasId((v) => (v !== '' ? v : (dariRail?.id ?? p.data[0]?.id ?? '')));
+        setKelasId((v) => (p.data.some((k) => k.id === v) ? v : (p.data[0]?.id ?? '')));
       })
-      .catch(() => { if (hidup) setKelasOpsi([]); });
+      .catch(() => { if (hidup) { setKelasOpsi([]); setKelasId(''); } });
     return () => { hidup = false; };
-  }, [filterLoading, jenjang, ta, kelasAktif]);
+  }, [peristiwaAktif]);
 
   const muatDaftar = useCallback(async () => {
-    if (jenjang === null || ta === null || semester === null || kelasId === '') { setDaftar(null); return; }
+    if (peristiwaId === '' || semester === null || kelasId === '') { setDaftar(null); return; }
     setErr(''); setLoading(true);
     try {
-      setDaftar(await raporKelas({ jenjang, tahun_ajaran: ta, semester, kelas_id: Number(kelasId) }));
+      setDaftar(await raporKelas({ peristiwa_id: Number(peristiwaId), semester, kelas_id: Number(kelasId) }));
     } catch (e) {
       setErr(errorMessage(e)); setDaftar(null);
     } finally { setLoading(false); }
-  }, [jenjang, ta, semester, kelasId]);
+  }, [peristiwaId, semester, kelasId]);
 
   useEffect(() => { void muatDaftar(); }, [muatDaftar]);
 
   const bukaRapor = useCallback(async (santriId: number, urut: '3' | '10' | 'semua' = peringkat) => {
-    if (ta === null || semester === null) return;
+    if (peristiwaId === '' || semester === null) return;
     setSantriAktif(santriId); setErr('');
     try {
-      setRapor(await ambilRapor({ santri_id: santriId, tahun_ajaran: ta, semester, peringkat: urut }));
+      setRapor(await ambilRapor({ santri_id: santriId, peristiwa_id: Number(peristiwaId), semester, peringkat: urut }));
     } catch (e) {
       setErr(errorMessage(e)); setRapor(null);
     }
-  }, [ta, semester, peringkat]);
+  }, [peristiwaId, semester, peringkat]);
 
   const ubahPeringkat = useCallback((v: '3' | '10' | 'semua') => {
     setPeringkat(v);
@@ -77,7 +95,17 @@ export default function PenilaianRaporPage() {
       <ErrorNotice>{err}</ErrorNotice>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 print:hidden">
-        <label className="text-xs text-muted-foreground" htmlFor="select_kelas_rapor">Kelas</label>
+        <label className="text-xs text-muted-foreground" htmlFor="select_peristiwa_rapor">Peristiwa</label>
+        <select
+          id="select_peristiwa_rapor"
+          className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+          value={peristiwaId === '' ? '' : String(peristiwaId)}
+          onChange={(e) => { setPeristiwaId(e.target.value === '' ? '' : Number(e.target.value)); setSantriAktif(null); setRapor(null); }}
+        >
+          <option value="">— pilih peristiwa —</option>
+          {peristiwa.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
+        </select>
+        <label className="ml-2 text-xs text-muted-foreground" htmlFor="select_kelas_rapor">Kelas</label>
         <select
           id="select_kelas_rapor"
           className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
@@ -115,6 +143,9 @@ export default function PenilaianRaporPage() {
         {/* Daftar santri kelas + kelengkapan (kiri) */}
         <div className="min-h-0 w-72 shrink-0 overflow-auto border-r border-border print:hidden">
           {!siap && <p className="p-3 text-xs text-muted-foreground">Pilih satu jenjang, TA, dan semester pada filter di atas.</p>}
+          {siap && peristiwa.length === 0 && (
+            <p className="p-3 text-xs text-muted-foreground">Belum ada peristiwa — muat bawaan di halaman Master Penilaian.</p>
+          )}
           {loading && <p className="p-3 text-xs text-muted-foreground">Memuat…</p>}
           {!loading && daftar?.baris.map((b) => (
             <button
@@ -136,7 +167,7 @@ export default function PenilaianRaporPage() {
             </button>
           ))}
           {!loading && daftar !== null && daftar.baris.length === 0 && (
-            <p className="p-3 text-xs text-muted-foreground">Tidak ada santri di kelas ini.</p>
+            <p className="p-3 text-xs text-muted-foreground">Tidak ada santri pada kelas/peristiwa ini.</p>
           )}
         </div>
 
@@ -171,8 +202,10 @@ function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string 
         </div>
       </div>
 
+      <p className="mt-2 text-center text-[13px] font-bold uppercase">{r.peristiwa.nama}</p>
+
       {/* Identitas */}
-      <table className="mt-3 w-full text-[12px]">
+      <table className="mt-2 w-full text-[12px]">
         <tbody>
           <tr>
             <td className="w-40 py-0.5">Nama</td><td className="w-3">:</td><td className="font-semibold">{r.santri.nama}</td>

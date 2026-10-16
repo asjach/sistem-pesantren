@@ -18,6 +18,8 @@ class PenilaianPotongRequest extends PotongImportRequest
             // Lingkup jenjang yang diizinkan (kosong = seluruh akses pengguna).
             'jenjang' => ['nullable', 'array'],
             'jenjang.*' => ['string', 'exists:lembaga,jenjang'],
+            // Peristiwa target (wajib untuk tipe `nilai`).
+            'peristiwa_id' => ['nullable', 'integer', 'exists:peristiwa_nilai,id'],
             'komponen_id' => ['nullable', 'integer', 'exists:komponen_nilai,id'],
         ];
     }

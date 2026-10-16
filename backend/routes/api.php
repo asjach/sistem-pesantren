@@ -362,17 +362,22 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('psb/kuota-biaya', [PsbBiayaController::class, 'upsertKuota'])->middleware('permission:kegiatan_psb.tambah');
         Route::delete('psb/kuota-biaya/{kuota}', [PsbBiayaController::class, 'destroyKuota'])->middleware('permission:kegiatan_psb.hapus');
 
-        // Modul Penilaian: master (komponen+bobot, KKM, predikat, ekskul,
-        // prestasi), leger (crosstab santri × mapel), rapor, impor 4 template.
+        // Modul Penilaian: nilai diikat PERISTIWA (ASAS/ASAT/UJIAN/UAP).
+        // Peristiwa milik (jenjang, TA); rapor & leger dicetak per peristiwa.
+        Route::get('penilaian/peristiwa', [PenilaianController::class, 'indexPeristiwa'])->middleware('permission:penilaian.lihat');
+        Route::post('penilaian/peristiwa', [PenilaianController::class, 'storePeristiwa'])->middleware('permission:penilaian.tambah');
+        Route::match(['put', 'patch'], 'penilaian/peristiwa/{peristiwa}', [PenilaianController::class, 'updatePeristiwa'])->middleware('permission:penilaian.ubah');
+        Route::delete('penilaian/peristiwa/{peristiwa}', [PenilaianController::class, 'destroyPeristiwa'])->middleware('permission:penilaian.hapus');
+        Route::post('penilaian/bawaan', [PenilaianController::class, 'bawaan'])->middleware('permission:penilaian.tambah');
         Route::get('penilaian/komponen', [PenilaianController::class, 'indexKomponen'])->middleware('permission:penilaian.lihat');
         Route::post('penilaian/komponen', [PenilaianController::class, 'storeKomponen'])->middleware('permission:penilaian.tambah');
         Route::match(['put', 'patch'], 'penilaian/komponen/{komponen}', [PenilaianController::class, 'updateKomponen'])->middleware('permission:penilaian.ubah');
         Route::delete('penilaian/komponen/{komponen}', [PenilaianController::class, 'destroyKomponen'])->middleware('permission:penilaian.hapus');
-        Route::post('penilaian/bawaan', [PenilaianController::class, 'bawaan'])->middleware('permission:penilaian.tambah');
         Route::get('penilaian/kkm', [PenilaianController::class, 'indexKkm'])->middleware('permission:penilaian.lihat');
         Route::put('penilaian/kkm', [PenilaianController::class, 'simpanKkm'])->middleware('permission:penilaian.ubah');
         Route::get('penilaian/predikat', [PenilaianController::class, 'indexPredikat'])->middleware('permission:penilaian.lihat');
         Route::put('penilaian/predikat', [PenilaianController::class, 'simpanPredikat'])->middleware('permission:penilaian.ubah');
+        Route::post('penilaian/hitung', [PenilaianController::class, 'hitungUlang'])->middleware('permission:penilaian.ubah');
         Route::get('penilaian/ekskul', [PenilaianController::class, 'indexEkskul'])->middleware('permission:penilaian.lihat');
         Route::post('penilaian/ekskul', [PenilaianController::class, 'storeEkskul'])->middleware('permission:penilaian.tambah');
         Route::match(['put', 'patch'], 'penilaian/ekskul/{ekskul}', [PenilaianController::class, 'updateEkskul'])->middleware('permission:penilaian.ubah');

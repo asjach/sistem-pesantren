@@ -6,14 +6,21 @@ import { Input } from '@/components/ui/input';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
+import { useAuth } from '@/auth/AuthContext';
+import { bisa } from '@/api/auth';
 import { listKelas, type Kelas } from '@/api/master';
 import { errorMessage } from '@/api/client';
-import { Download } from '@/icons';
-import { legerNilai, unduhLeger, type LegerResp } from '@/api/penilaian';
+import { Download, RefreshCw } from '@/icons';
+import {
+  daftarPeristiwa, hitungUlang, legerNilai, unduhLeger,
+  type LegerResp, type PeristiwaNilai,
+} from '@/api/penilaian';
 
-/** Halaman Leger Nilai: crosstab santri × mata pelajaran (nilai akhir). */
+/** Halaman Leger Nilai: crosstab santri × mapel untuk SATU PERISTIWA. */
 export default function PenilaianLegerPage() {
   const { jenjangs, tahunAjaranNames, semesters, tingkat, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
+  const { user } = useAuth();
+  const canUbah = bisa(user, 'penilaian.ubah');
   const pager = usePager('penilaian_leger');
 
   const jenjang = targetTunggal(jenjangs);
@@ -21,6 +28,8 @@ export default function PenilaianLegerPage() {
   const semester = targetTunggal(semesters);
   const siap = jenjang !== null && ta !== null && semester !== null;
 
+  const [peristiwa, setPeristiwa] = useState<PeristiwaNilai[]>([]);
+  const [peristiwaId, setPeristiwaId] = useState<number | ''>('');
   const [data, setData] = useState<LegerResp | null>(null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,6 +46,19 @@ export default function PenilaianLegerPage() {
     return () => { hidup = false; };
   }, [filterLoading, jenjang, ta]);
 
+  useEffect(() => {
+    if (filterLoading || jenjang === null || ta === null) { setPeristiwa([]); setPeristiwaId(''); return; }
+    let hidup = true;
+    daftarPeristiwa({ jenjang, tahun_ajaran: ta })
+      .then((r) => {
+        if (!hidup) return;
+        setPeristiwa(r.peristiwa);
+        setPeristiwaId((v) => (r.peristiwa.some((p) => p.id === v) ? v : (r.peristiwa[0]?.id ?? '')));
+      })
+      .catch((e) => { if (hidup) { setPeristiwa([]); setPeristiwaId(''); setErr(errorMessage(e)); } });
+    return () => { hidup = false; };
+  }, [filterLoading, jenjang, ta]);
+
   const kelasIds = useMemo(
     () => kelasOpsi.filter((k) => kelasAktif.includes(k.nama_kelas)).map((k) => k.id),
     [kelasOpsi, kelasAktif],
@@ -50,12 +72,13 @@ export default function PenilaianLegerPage() {
 
   const reqRef = useRef(0);
   const muat = useCallback(async (page: number, perPage: number) => {
-    if (jenjang === null || ta === null || semester === null) { setData(null); return; }
+    if (peristiwaId === '' || semester === null) { setData(null); return; }
     const req = ++reqRef.current;
     setErr(''); setLoading(true);
     try {
       const res = await legerNilai({
-        jenjang, tahun_ajaran: ta, semester,
+        peristiwa_id: Number(peristiwaId),
+        semester,
         tingkat: tingkat.length ? tingkat : undefined,
         kelas_id: kelasIds.length ? kelasIds : undefined,
         q: cariTertunda || undefined,
@@ -71,27 +94,52 @@ export default function PenilaianLegerPage() {
     } finally {
       if (req === reqRef.current) setLoading(false);
     }
-  }, [jenjang, ta, semester, tingkat, kelasIds, cariTertunda, pager]);
+  }, [peristiwaId, semester, tingkat, kelasIds, cariTertunda, pager]);
 
   useEffect(() => {
     if (!pager.ready || filterLoading) return;
     void muat(pager.page, pager.perPage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, filterLoading, jenjang, ta, semester, tingkat, kelasIds, cariTertunda, pager.perPage]);
+  }, [pager.ready, filterLoading, peristiwaId, semester, tingkat, kelasIds, cariTertunda, pager.perPage]);
 
   const unduh = useCallback(() => {
+    if (peristiwaId === '') return;
     void unduhLeger({
-      jenjang: jenjang ?? undefined, tahun_ajaran: ta ?? undefined, semester: semester ?? undefined,
+      peristiwa_id: Number(peristiwaId), semester: semester ?? undefined,
       tingkat: tingkat.length ? tingkat : undefined,
       kelas_id: kelasIds.length ? kelasIds : undefined,
       q: cariTertunda || undefined,
     }).catch((e) => toast.error(errorMessage(e)));
-  }, [jenjang, ta, semester, tingkat, kelasIds, cariTertunda]);
+  }, [peristiwaId, semester, tingkat, kelasIds, cariTertunda]);
+
+  const hitung = useCallback(async () => {
+    if (peristiwaId === '' || semester === null) return;
+    try {
+      const r = await hitungUlang({
+        peristiwa_id: Number(peristiwaId), semester,
+        kelas_id: kelasIds.length === 1 ? kelasIds[0] : null,
+      });
+      toast.success(r.pesan);
+      await muat(pager.page, pager.perPage);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }, [peristiwaId, semester, kelasIds, muat, pager.page, pager.perPage]);
 
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+        <label className="text-xs text-muted-foreground" htmlFor="select_peristiwa_leger">Peristiwa</label>
+        <select
+          id="select_peristiwa_leger"
+          className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+          value={peristiwaId === '' ? '' : String(peristiwaId)}
+          onChange={(e) => { setPeristiwaId(e.target.value === '' ? '' : Number(e.target.value)); pager.goFirst(); }}
+        >
+          <option value="">— pilih peristiwa —</option>
+          {peristiwa.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
+        </select>
         <Input
           id="input_cari_leger"
           aria-label="Cari nama / NIS"
@@ -101,10 +149,17 @@ export default function PenilaianLegerPage() {
           onChange={(e) => { setCari(e.target.value); pager.goFirst(); }}
         />
         <span className="text-xs text-muted-foreground">
-          {siap ? `${data?.total ?? 0} santri · ${data?.kolom.length ?? 0} mapel` : 'Pilih satu jenjang, TA, dan semester pada filter di atas.'}
+          {!siap ? 'Pilih satu jenjang, TA, dan semester pada filter di atas.'
+            : peristiwa.length === 0 ? 'Belum ada peristiwa — muat bawaan di halaman Master Penilaian.'
+              : `${data?.total ?? 0} santri · ${data?.kolom.length ?? 0} mapel`}
         </span>
-        <div className="ml-auto">
-          <Button type="button" variant="outline" size="sm" id="btn_unduh_leger" disabled={!siap} onClick={unduh}>
+        <div className="ml-auto flex gap-2">
+          <Button type="button" variant="outline" size="sm" id="btn_hitung_ulang" disabled={!canUbah || peristiwaId === ''}
+            title="Hitung ulang nilai akhir dari komponen (baris hasil impor dilewati)"
+            onClick={() => void hitung()}>
+            <RefreshCw data-icon="inline-start" size={16} /> Hitung ulang
+          </Button>
+          <Button type="button" variant="outline" size="sm" id="btn_unduh_leger" disabled={peristiwaId === ''} onClick={unduh}>
             <Download data-icon="inline-start" size={16} /> Unduh Excel
           </Button>
         </div>
