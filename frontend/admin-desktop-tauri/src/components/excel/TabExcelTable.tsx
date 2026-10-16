@@ -375,7 +375,7 @@ const CAKUPAN: Record<Cakupan, BarisCakupan[]> = {
     { apa: 'Pilih preset urutan aktif', kontrol: 'Toolbar — dropdown Urutkan', simpan: 'state halaman (onUrut → refetch)', catatan: 'Nilai urut aktif dikelola halaman, bukan persist tabel.' },
     { apa: 'Kolom beku (freeze pane)', kontrol: 'Klik kanan header → Bekukan kolom', simpan: 'pref perangkat — freezeKey(tableKey)', catatan: 'Per tabel, tersimpan per perangkat.' },
     { apa: 'Lebar kolom tersimpan', kontrol: 'Seret gagang / AutoFit', simpan: 'pref perangkat — widthsKey(tableKey)', catatan: 'Per tabel per perangkat; AutoFit mengukurnya ulang.' },
-    { apa: 'Tinggi baris manual per baris', kontrol: 'Seret batas bawah baris', simpan: 'pref perangkat — useTinggiBaris(tableKey)', catatan: 'Mengalahkan tinggi global untuk baris itu.' },
+    { apa: 'Tinggi baris manual per baris', kontrol: '— (DIHAPUS: seret batas bawah baris)', simpan: 'pref perangkat — useTinggiBaris(tableKey)', catatan: 'Mengubah tinggi per baris kini hanya lewat Kelola Tabel → Umum (tinggi dasar). Nilai lama yang masih tersimpan tetap dipakai sampai direset dari menu klik kanan.' },
     { apa: 'Bawaan preset kolom halaman', kontrol: 'Dialog → tab Kolom → "jadikan bawaan"', simpan: 'SERVER — preset default per table_key', catatan: 'Preset yang dipakai saat tabel pertama dibuka.' },
   ],
 };
@@ -1389,7 +1389,7 @@ const INVENTARIS: BarisFitur[] = [
   { fitur: 'Freeze pane kiri', sumber: 'klik kanan header → Bekukan kolom', dipakai: 'per pemakaian', catatan: 'Disimpan per tableKey (freezeKey).' },
   { fitur: 'AutoFit lebar kolom', sumber: 'menu konteks → AutoFit', dipakai: 'per pemakaian', catatan: 'Min 50px, maks 480px.' },
   { fitur: 'Perataan kolom', sumber: 'menu konteks → Kiri/Tengah/Kanan', dipakai: 'standar DB per tabel', catatan: 'Bawaan tengah; disimpan di server.' },
-  { fitur: 'Tinggi baris (manual per baris)', sumber: 'seret batas bawah baris', dipakai: 'per pemakaian', catatan: 'MIN_ROW_H 20 / MAX_ROW_H 200.' },
+  { fitur: 'Tinggi baris (manual per baris)', sumber: '— (DIHAPUS: seret batas bawah baris)', dipakai: '—', catatan: 'Pegangan seret dihapus; sisa nilai lama masih tersimpan dan bisa direset lewat klik kanan → "Kembalikan tinggi baris".' },
   { fitur: 'Kartu hover sel', sumber: 'ExcelField.kartuHover', dipakai: 'kolom static tertentu', catatan: 'Untuk rincian yang tak muat di kolom.' },
   { fitur: 'Baris input (buat record)', sumber: 'onCreateRow + inputRowValues', dipakai: '7 halaman', catatan: 'ID baris sintetis __input__.' },
   { fitur: 'Mode Edit (auto-save sel)', sumber: 'canEdit + onCommit + onSaved', dipakai: 'halaman CRUD', catatan: 'Mode Edit & Input saling eksklusif.' },
@@ -1596,7 +1596,7 @@ const DENAH: AreaDenah[] = [
   { no: 15, nama: 'Aksi per baris', sumber: 'renderActions(row) — ikon Lihat/Ubah/Hapus', keterangan: 'Isi kolom Aksi tiap baris. Bila jumlah aksi > 3, otomatis diganti satu tombol hamburger (aksiRingkas).' },
   { no: 16, nama: 'Paginasi', sumber: 'pager (slot dari halaman)', keterangan: 'ExcelTable TIDAK menghitung jumlah baris/halaman — halaman meng-inject <Pager/>. Dipakai 19 halaman.' },
   { no: 17, nama: 'Pengaturan tampilan', sumber: 'IsiPengaturanTampilan (sheet TopBar)', keterangan: 'Tinggi sel/header, font/ukuran/warna header & sel — GLOBAL. Tombol di sini membuka panel di TopBar.' },
-  { no: 18, nama: 'Tinggi baris', sumber: 'Kelola Tabel → Umum → "Tampilan di perangkat ini"', keterangan: 'Stepper angka 18..240px per tabel, plus bawaan global (Pengaturan → Tampilan) lalu 24px. Tombol siklus di kaki tabel sudah dihapus.' },
+  { no: 18, nama: 'Tinggi baris', sumber: 'Kelola Tabel → Umum → "Tampilan di perangkat ini"', keterangan: 'Stepper angka 18..240px per tabel, plus bawaan global (Pengaturan → Tampilan) lalu 24px. Tombol siklus di kaki tabel dan pegangan seret batas baris sudah dihapus.' },
   { no: 19, nama: 'Tambah baris', sumber: 'onCreateRow + setInputMode(true)', keterangan: 'Tampil hanya bila halaman menyediakan onCreateRow (7 halaman). Menyalakan mode Input.' },
   { no: 20, nama: 'Mode Edit', sumber: 'canEdit + setEditMode(true)', keterangan: 'Tampil bila canEdit. Mode Edit & Input saling eksklusif; Esc keluar.' },
 ];

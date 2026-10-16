@@ -118,11 +118,6 @@ export interface StaticColData {
   kartuHover?: (rowData: GridRow) => ReactNode;
   /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
   onDblClick?: () => void;
-  /** Pegangan seret batas bawah baris (tinggi baris manual per baris).
-   *  Hanya dipasang pada kolom data pertama. */
-  onResizeBaris?: (rowData: GridRow) => (event: MouseEvent) => void;
-  /** Label baris untuk tooltip pegangan (mis. nama/entitas baris). */
-  labelBaris?: (rowData: GridRow) => string;
 }
 
 export interface ActionsColData {

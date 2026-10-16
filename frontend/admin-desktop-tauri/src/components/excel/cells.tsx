@@ -179,7 +179,6 @@ export function ToggleCell({ rowData, setRowData, columnData, disabled }: CellPr
 
 /** Sel baca-saja (teks polos). */
 export function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticColData>) {
-  const pegangan = columnData.onResizeBaris;
   const teks = String(rowData[columnData.fieldKey] ?? '');
   const isi = (
     <span
@@ -188,13 +187,6 @@ export function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticCol
       onDoubleClick={() => columnData.onDblClick?.()}
     >
       {teks}
-      {pegangan && (
-        <span
-          className="simpes-dsg-pegangan-baris"
-          title={`Seret untuk mengubah tinggi baris${columnData.labelBaris ? ` — ${columnData.labelBaris(rowData)}` : ''}`}
-          onMouseDown={pegangan(rowData)}
-        />
-      )}
     </span>
   );
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { prefGet, prefSet } from '@/api/client';
 import { EVENT_TAMPILAN_PERANGKAT_BERUBAH } from '@/components/kelolaTabel/jenis';
 import { MAX_BARIS_H, MIN_BARIS_H } from './tinggiBaris';
@@ -51,8 +51,12 @@ function serialPeta(peta: Record<string, number>): string {
 }
 
 /**
- * Tinggi baris per tabel, **per baris**:
- * - **manual**: seret pegangan batas bawah baris hanya mengubah baris itu;
+ * Tinggi baris per tabel:
+ * - **dasar**: satu tinggi untuk semua baris tabel ini (diatur di Kelola
+ *   Tabel → Umum);
+ * - **manual per baris**: sisa tinggi per baris yang masih tersimpan (mis.
+ *   dari setelan lama). Tidak ada lagi seret pegangan batas bawah baris —
+ *   mengubah tinggi per baris kini hanya lewat Kelola Tabel;
  * - **ikut isi** (MATI bawaan, bisa dinyalakan per tabel dari menu klik
  *   kanan): baris membesar sendiri bila teksnya membungkus; baris yang
  *   isinya muat tetap memakai tinggi dasar. Bawaan mati agar refresh/
@@ -71,14 +75,6 @@ export function useTinggiBaris(tableKey: string) {
   const [dasar, setDasarState] = useState<number | null>(null);
   /** Serial peta manual — dipakai ExcelTable sebagai tanda remount grid. */
   const [sigManual, setSigManual] = useState('');
-  const refs = useRef({
-    listener: null as null | (() => void),
-    rowKey: '',
-    mulai: 0,
-    awal: 0,
-    /** Jadwalkan pembaruan state (batasi frekuensi saat seret). */
-    timer: null as null | ReturnType<typeof setTimeout>,
-  });
 
   useEffect(() => {
     let hidup = true;
@@ -119,10 +115,6 @@ export function useTinggiBaris(tableKey: string) {
     prefSet(tinggiBarisKey(tableKey), JSON.stringify(next)).catch(() => {});
   }, [tableKey]);
 
-  const setBaris = useCallback((rowKey: string, px: number) => {
-    simpanManual({ ...manual, [rowKey]: Math.min(MAX_BARIS_H, Math.max(MIN_BARIS_H, Math.round(px))) });
-  }, [manual, simpanManual]);
-
   const resetBaris = useCallback((rowKey: string) => {
     if (manual[rowKey] === undefined) return;
     const next = { ...manual };
@@ -144,49 +136,6 @@ export function useTinggiBaris(tableKey: string) {
     prefSet(tinggiDasarKey(tableKey), v == null ? '' : String(v)).catch(() => {});
   }, [tableKey]);
 
-  /** Seret batas bawah baris: hanya baris ini yang berubah. */
-  const mulaiSeret = useCallback((event: MouseEvent, rowKey: string, tinggiAwal: number) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const mulaiY = event.clientY;
-    refs.current = { ...refs.current, rowKey, mulai: tinggiAwal, awal: tinggiAwal };
-
-    const geser = (ev: globalThis.MouseEvent) => {
-      const baru = Math.min(MAX_BARIS_H, Math.max(MIN_BARIS_H, Math.round(refs.current.awal + (ev.clientY - mulaiY))));
-      refs.current.mulai = baru;
-      // Batasi frekuensi state: grid di-remount setiap tinggi berubah.
-      if (refs.current.timer !== null) return;
-      refs.current.timer = setTimeout(() => {
-        refs.current.timer = null;
-        setManual((prev) => ({ ...prev, [rowKey]: refs.current.mulai }));
-        setSigManual(serialPeta({ ...manual, [rowKey]: refs.current.mulai }));
-      }, 60);
-    };
-    const selesai = () => {
-      window.removeEventListener('mousemove', geser);
-      window.removeEventListener('mouseup', selesai);
-      refs.current.listener = null;
-      if (refs.current.timer !== null) {
-        clearTimeout(refs.current.timer);
-        refs.current.timer = null;
-      }
-      const nilai = refs.current.mulai;
-      const berikut = { ...manual, [rowKey]: nilai };
-      setManual(berikut);
-      setSigManual(serialPeta(berikut));
-      prefSet(tinggiBarisKey(tableKey), JSON.stringify(berikut)).catch(() => {});
-    };
-    refs.current.listener?.();
-    refs.current.listener = selesai;
-    window.addEventListener('mousemove', geser);
-    window.addEventListener('mouseup', selesai);
-  }, [manual, tableKey]);
-
-  useEffect(() => () => {
-    refs.current.listener?.();
-    if (refs.current.timer !== null) clearTimeout(refs.current.timer);
-  }, []);
-
   return {
     manual,
     sigManual,
@@ -194,9 +143,7 @@ export function useTinggiBaris(tableKey: string) {
     setAutoIkut,
     dasar,
     setDasar,
-    setBaris,
     resetBaris,
     resetSemua,
-    mulaiSeret,
   };
 }

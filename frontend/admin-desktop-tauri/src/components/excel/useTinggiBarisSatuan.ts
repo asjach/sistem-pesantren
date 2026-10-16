@@ -15,7 +15,7 @@ interface Props {
   widths: Record<string, number>;
   autoWidths: Record<string, number>;
   syncAutoWidths: Record<string, number>;
-  /** Tinggi manual per baris (hasil seret batas bawah). */
+  /** Tinggi manual per baris (sisa setelan lama; kini diatur lewat Kelola Tabel). */
   tinggiBarisManual: Record<string, number>;
   /** Baris membesar mengikuti isinya (tabel halaman, bukan tabel kompak). */
   barisIkutIsi: boolean;

@@ -13,7 +13,7 @@ import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, u
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
-import { EVENT_TAMPILAN_PERANGKAT_BERUBAH, type AlignKolom } from '@/components/kelolaTabel/jenis';
+import { EVENT_TAMPILAN_PERANGKAT_BERUBAH, kabariTampilanPerangkat, type AlignKolom } from '@/components/kelolaTabel/jenis';
 import FilterRail from '@/components/FilterRail';
 import { bukaPengaturanTampilan } from './pengaturan/SheetPengaturanTampilan';
 import ScrollbarMelayang from './excel/ScrollbarMelayang';
@@ -301,7 +301,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
-  const { visibilitas, alignDb, urutanDb, setUrutanDb, labelDb, judulDb, simpanJudul, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { visibilitas, alignDb, urutanDb, setUrutanDb, simpanUrutan, labelDb, judulDb, simpanJudul, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /* Sakelar komponen tabel (tab Umum Kelola Tabel, SERVER per tabel): setiap
      komponen tabel punya sakelarnya sendiri. Semua sakelar absen = tampil, jadi
      tabel yang belum pernah disetel berperilaku persis seperti sebelumnya.
@@ -329,15 +329,21 @@ export default function ExcelTable<T extends { id: string | number }>({
   const clearSelection = useMemo(() => () => setCheckedIds(new Set<T['id']>()), []);
 
   const [presetKeysDalam, setPresetKeysDalam] = useState<string[] | null>(null);
+  /** Id preset kolom yang sedang aktif (null = susunan Lengkap tanpa preset).
+   *  Dipakai seret judul: bila preset aktif, urutan baru ditulis ke `kolom`
+   *  preset itu; bila tidak, ke `toolbar_preset.urutan` global. */
+  const [presetIdDalam, setPresetIdDalam] = useState<number | null>(null);
   // Bila dikendalikan luar, nilai di atas diabaikan sepenuhnya.
   const luar = presetLuar !== undefined;
   const presetKeys = luar ? presetLuar.keys : presetKeysDalam;
+  const presetIdAktif = luar ? (presetLuar.presetId ?? null) : presetIdDalam;
   /* Nama header kolom bukan urusan preset: itu setelan per TABEL dari DB
      (`toolbar_preset.label`, lihat `useKelolaKolom`/`labelDb`). Dulu label ikut
      preset; sekarang sumbernya tinggal satu. */
-  const terapkanPreset = useCallback((keys: string[] | null, _presetId?: number | null) => {
+  const terapkanPreset = useCallback((keys: string[] | null, presetId?: number | null) => {
     if (luar) return;
     setPresetKeysDalam(keys);
+    setPresetIdDalam(presetId ?? null);
   }, [luar]);
 
 
@@ -457,6 +463,8 @@ export default function ExcelTable<T extends { id: string | number }>({
     },
     [tableKey, visibleFields.length],
   );
+
+
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -468,6 +476,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     fontChoice && fontChoice.value !== FONT_FAMILY_DEFAULT
       ? fontChoice.value.split('|')
       : ['', ''];
+
 
   /** Diisi di bawah setelah tanda tinggi baris dihitung; dibaca gerbang lebar
    *  kolom agar tampilan pertama menunggu remount grid selesai (anti kedip). */
@@ -525,8 +534,8 @@ export default function ExcelTable<T extends { id: string | number }>({
     return () => clearTimeout(t);
   }, [tampilGrid, tableKey]);
 
-  /** Tinggi baris per tabel: tinggi dasar + ikut isi + seret batas bawah
-   *  baris (manual). */
+  /** Tinggi baris per tabel: tinggi dasar + ikut isi + sisa tinggi manual
+   *  per baris dari setelan lama. */
   const {
     manual: tinggiBarisManual,
     sigManual: sigTinggiBarisManual,
@@ -536,7 +545,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     setDasar: setTinggiBarisDasar,
     resetBaris: resetTinggiBaris,
     resetSemua: resetSemuaTinggiBaris,
-    mulaiSeret: mulaiSeretBaris,
   } = useTinggiBaris(tableKey);
 
   /** Perintah salin (menu konteks, ribbon, Ctrl+C) + pemetaan kolom grid. */
@@ -825,7 +833,7 @@ export default function ExcelTable<T extends { id: string | number }>({
    * tiap frame membuat kedipan: lebar kolom diukur ulang dan
    * posisi scroll hilang (gejala "lebar kolom melompat" saat lebar kolom
    * digeser). Karena itu:
-   * - tinggi **manual** (seret batas baris) langsung dipakai — aksi memang disengaja;
+   * - tinggi **manual** per baris (setelan tersimpan) langsung dipakai;
    * - tinggi **otomatis** (perubahan lebar kolom/data) ditunda ~180 ms sampai
    *   semua gerakan selesai, sehingga hanya terjadi satu remount di akhir.
    */
@@ -940,7 +948,8 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  yang berubah hanya draft baris data — lihat deps `dsgColumns`. */
   const inputDraft = drafts[INPUT_ROW_ID];
 
-  const dsgColumns: Column<GridRow>[] = useMemo(() => {    /** Kelas perataan kolom dari standar global tabel (bawaan tengah). */
+  const dsgColumns: Column<GridRow>[] = useMemo(() => {
+    /** Kelas perataan kolom dari standar global tabel (bawaan tengah). */
     const alignClass = (key: string) =>
       alignEfektif(key) === 'right'
         ? 'simpes-dsg-align-right'
@@ -1072,14 +1081,6 @@ export default function ExcelTable<T extends { id: string | number }>({
               onDblClick: () => {
                 if (!showInput) enableEditByDoubleClick();
               },
-              // Pegangan seret tinggi baris hanya di kolom data pertama.
-              ...(iData === 0 ? {
-                onResizeBaris: (rowData: GridRow) => (event: React.MouseEvent) => {
-                  if (String(rowData.id) === INPUT_ROW_ID) return;
-                  mulaiSeretBaris(event, String(rowData.id), tinggiBarisSatuan(rowData));
-                },
-                labelBaris: (rowData: GridRow) => String(rowData[visibleFields[0]?.key ?? ''] ?? ''),
-              } : {}),
             },
             disableKeys: false,
             keepFocus: false,
@@ -1241,7 +1242,13 @@ export default function ExcelTable<T extends { id: string | number }>({
     pasteValue: ({ rowData }: { rowData: GridRow }) => rowData,
     isCellEmpty: () => true,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [widths, autoWidths, tableKey, aksiRingkas, aksiLangsung]);
+    /* `visibleFields` WAJIB ada di daftar ini: dari sanalah URUTAN kolom yang
+       dirender berasal. Tanpa dependensi ini, mengubah urutan kolom (geser
+       judul di sini, atau sunting di Kelola Tabel) mengubah `visibleFields`
+       tetapi daftar `columns` tak pernah dihitung ulang — tabel tetap tampil
+       dengan urutan LAMA sampai halaman dimuat ulang, walau datanya sudah
+       benar tersimpan di server. */
+  }), [widths, autoWidths, tableKey, aksiRingkas, aksiLangsung, visibleFields]);
 
   /** Interaksi sel: drag centang, toggle centang, tutup editor saat pindah sel. */
   const { downPosRef, cegahSeleksiSelCentang, toggleCheckByCell, closeEditorOnOtherCell } = useInteraksiSel<T>({
@@ -1644,7 +1651,8 @@ export default function ExcelTable<T extends { id: string | number }>({
             onResetTinggiBaris={(rowId) => {
               if (rowId === null) {
                 // "Seluruh tabel" = tinggi dasar tabel ini ikut kembali ke
-                // bawaan, bukan cuma tinggi seret per baris.
+                // bawaan, bukan cuma tinggi manual per baris (sisa setelan
+                // lama yang tersimpan sebelum seret batas baris dihapus).
                 resetSemuaTinggiBaris();
                 setTinggiBarisDasar(null);
               } else {
