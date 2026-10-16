@@ -55,6 +55,8 @@ import { bisa } from '../api/auth';
 import { X, FileUp } from '@/icons';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';
 import { toast } from 'sonner';
 
@@ -337,6 +339,16 @@ export default function KelasPage() {
     setErr('');
     setTambahOpen(true);
   }, [singleLembagaId, jenjang, tambahTas, tambahTasUntuk, tas]);
+
+  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Kelas"). Pembukaannya
+  // memakai `bukaTambah` yang sama dengan tombol; terhalang saat dialog
+  // tambah sudah terbuka.
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: canTambahKelas,
+    terhalang: tambahOpen,
+    onPicu: bukaTambah,
+  });
 
   const openEdit = useCallback((k: Kelas) => {
     setEditRow(k);
@@ -623,8 +635,10 @@ export default function KelasPage() {
               </TooltipTrigger>
               <TooltipContent><p>Import file kelas (multi-lembaga & multi-tahun ajaran; izin per baris mengikuti akun)</p></TooltipContent>
             </Tooltip>
-            <Button id="btn_buka_tambah_kelas" onClick={bukaTambah}>
-              + Kelas
+            <Button id="btn_buka_tambah_kelas" onClick={bukaTambah}
+              title={`Tambah kelas (${labelPintasan('n')})`}
+              aria-keyshortcuts="Control+N Meta+N">
+              <LabelTombolTambah pintasan={labelPintasan('n')}>+ Kelas</LabelTombolTambah>
             </Button>
           </>
         ) : undefined}

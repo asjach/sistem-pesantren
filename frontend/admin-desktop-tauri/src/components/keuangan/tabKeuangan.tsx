@@ -14,6 +14,8 @@ import PresetUrut from '@/components/PresetUrut';
 import { ActionIcon, DeleteAction, EditAction } from '@/components/RowActions';
 import { Info, Plus, Trash2, TriangleAlert, X } from '@/icons';
 import { cn } from '@/lib/utils';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { teksAturan, teksAturanPaket } from '@/lib/dispensasi';
 import type { PetaArahKolom } from '@/lib/urut';
 import type { PilihanLembaga } from '@/lembagaAktif';
@@ -272,7 +274,7 @@ const TANPA_JENIS_TERPAKAI: ReadonlySet<number> = new Set();
 /** Tab Jenis Tagihan: tabel + tombol tambah/ubah. Nama, tipe, dan status bisa
  *  diedit langsung (mode Edit, izin `keuangan.ubah`); mode Input membuat jenis
  *  baru (izin `keuangan.tambah`) dengan lingkup lembaga dipilih di baris input. */
-export function JenisTab({ rows, loading, sort, efektifSuper, pilihanLembaga, canEdit, onCommit, onSaved, onCreateRow, onTambah, onEdit, onHapus }: {
+export function JenisTab({ rows, loading, sort, efektifSuper, pilihanLembaga, canEdit, onCommit, onSaved, onCreateRow, onTambah, onEdit, onHapus, aktif }: {
   rows: JenisTagihan[];
   loading: boolean;
   sort: SortTabel;
@@ -289,7 +291,12 @@ export function JenisTab({ rows, loading, sort, efektifSuper, pilihanLembaga, ca
   onTambah: () => void;
   onEdit: (j: JenisTagihan) => void;
   onHapus: (j: JenisTagihan) => void;
+  /** Tab ini yang sedang tampil — hanya pemiliknya yang boleh menerima
+   *  pintasan Ctrl/Cmd+N (beberapa panel tab hidup bersamaan). */
+  aktif?: boolean;
 }) {
+  usePintasanBaru({ kunci: 'n', aktif: aktif === true, onPicu: onTambah });
+
   /** Pilihan lingkup di baris input: "Semua (global)" hanya untuk super_admin
    *  efektif — sama seperti select lingkup pada dialog Tambah Jenis. */
   const fields = useMemo<ExcelField[]>(() => {
@@ -328,7 +335,7 @@ export function JenisTab({ rows, loading, sort, efektifSuper, pilihanLembaga, ca
       )}
       hideCheckbox
       addButtonLangsung
-      addButton={<Button id="btn_jenis_tambah_buka" size="icon" variant="outline" aria-label="Tambah jenis tagihan" title="Tambah jenis tagihan" onClick={onTambah}><Plus size={16} /></Button>}
+      addButton={<Button id="btn_jenis_tambah_buka" size="icon" variant="outline" aria-label="Tambah jenis tagihan" title={`Tambah jenis tagihan (${labelPintasan('n')})`} aria-keyshortcuts="Control+N Meta+N" onClick={onTambah}><Plus size={16} /></Button>}
     />
   );
 }
@@ -372,7 +379,7 @@ export function payloadBuatTarif(f: Record<string, string | null>): { jenis_id: 
  *  diedit langsung (mode Edit, auto-save per sel) oleh pemegang `keuangan.ubah`;
  *  mode Input membuat tarif baru untuk lingkup filter oleh pemegang
  *  `keuangan.tambah`. */
-export function TarifTab({ rows, loading, sort, jenis, jenjangFilter, jenisTerpakai, canEdit, onCommit, onSaved, onCreateRow, inputRowValues, onTambah, onEdit, onHapus }: {
+export function TarifTab({ rows, loading, sort, jenis, jenjangFilter, jenisTerpakai, canEdit, onCommit, onSaved, onCreateRow, inputRowValues, onTambah, onEdit, onHapus, aktif }: {
   rows: Tarif[];
   loading: boolean;
   sort: SortTabel;
@@ -394,7 +401,11 @@ export function TarifTab({ rows, loading, sort, jenis, jenjangFilter, jenisTerpa
   onTambah: () => void;
   onEdit: (t: Tarif) => void;
   onHapus: (t: Tarif) => void;
+  /** Tab ini yang sedang tampil — pemegang tunggal pintasan Ctrl/Cmd+N. */
+  aktif?: boolean;
 }) {
+  usePintasanBaru({ kunci: 'n', aktif: aktif === true, onPicu: onTambah });
+
   /** Pilihan jenis di baris input (lingkup filter + tanda "sudah ada"). */
   const fields = useMemo<ExcelField[]>(() => {
     const opsi = opsiJenisTarif(jenis, jenjangFilter, jenisTerpakai ?? TANPA_JENIS_TERPAKAI);
@@ -430,14 +441,14 @@ export function TarifTab({ rows, loading, sort, jenis, jenjangFilter, jenisTerpa
       )}
       hideCheckbox
       addButtonLangsung
-      addButton={<Button id="btn_tarif_tambah_buka" size="icon" variant="outline" aria-label="Tambah tarif" title="Tambah tarif" onClick={onTambah}><Plus size={16} /></Button>}
+      addButton={<Button id="btn_tarif_tambah_buka" size="icon" variant="outline" aria-label="Tambah tarif" title={`Tambah tarif (${labelPintasan('n')})`} aria-keyshortcuts="Control+N Meta+N" onClick={onTambah}><Plus size={16} /></Button>}
     />
   );
 }
 
 /** Tab Dispensasi: tabel + tombol tambah/ubah/hapus. Baris bisa DIPILIH
  *  (klik sel) — halaman memakai baris terpilih untuk mengisi panel penerima. */
-export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, aktifId, onPilih }: {
+export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, aktifId, onPilih, aktif }: {
   rows: Dispensasi[];
   loading: boolean;
   sort: SortTabel;
@@ -447,7 +458,11 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, 
   /** Baris dispensasi yang sedang dipilih (disorot). */
   aktifId: number | null;
   onPilih: (d: Dispensasi) => void;
+  /** Selalu tampil di halaman ini (tanpa panel tab) → aktif secara bawaan. */
+  aktif?: boolean;
 }) {
+  usePintasanBaru({ kunci: 'n', aktif: aktif !== false, onPicu: onTambah });
+
   return (
     <ExcelTable<Dispensasi & { id: number }>
       tableKey="keuangan_dispensasi"
@@ -484,7 +499,7 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, 
       )}
       hideCheckbox
       addButtonLangsung
-      addButton={<Button id="btn_dispensasi_tambah_buka" size="icon" variant="outline" aria-label="Tambah dispensasi" title="Tambah dispensasi" onClick={onTambah}><Plus size={16} /></Button>}
+      addButton={<Button id="btn_dispensasi_tambah_buka" size="icon" variant="outline" aria-label="Tambah dispensasi" title={`Tambah dispensasi (${labelPintasan('n')})`} aria-keyshortcuts="Control+N Meta+N" onClick={onTambah}><Plus size={16} /></Button>}
     />
   );
 }

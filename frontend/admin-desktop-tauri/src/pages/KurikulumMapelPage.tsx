@@ -23,6 +23,8 @@ import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import Pager from '@/components/Pager';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -353,6 +355,15 @@ export default function KurikulumMapelPage() {
     setTambahOpen(true);
   }, []);
 
+  // Pintasan Ctrl/Cmd+N = tombol "Tambah" (dialog mapel baru). Terhalang bila
+  // salah satu dialog/panel halaman ini sudah terbuka agar tidak bertumpuk.
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: canTambah,
+    terhalang: tambahOpen || importOpen || kamusOpen || buatOpen || editRow !== null,
+    onPicu: bukaTambah,
+  });
+
   /** Simpan dialog Tambah: buat mapel dari isi formulir, lalu muat ulang tabel.
    *  Dialog hanya ditutup bila BERHASIL — galat validasi (mis. nama sudah
    *  dipakai) tampil sebagai toast sementara isian tetap ada untuk diperbaiki. */
@@ -573,8 +584,12 @@ export default function KurikulumMapelPage() {
             )}
             {/* Membuka DIALOG, bukan menyisipkan baris "Mapel Baru" langsung. */}
             <Button type="button" size="sm" id="btn_tambah_mapel" disabled={!canTambah}
-              onClick={bukaTambah}>
-              <Plus data-icon="inline-start" size={16} /> Tambah
+              onClick={bukaTambah}
+              title={`Tambah mata pelajaran (${labelPintasan('n')})`}
+              aria-keyshortcuts="Control+N Meta+N">
+              <LabelTombolTambah pintasan={labelPintasan('n')}>
+                <Plus data-icon="inline-start" size={16} /> Tambah
+              </LabelTombolTambah>
             </Button>
           </>
         }

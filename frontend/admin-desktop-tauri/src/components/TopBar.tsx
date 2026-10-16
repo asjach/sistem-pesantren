@@ -9,6 +9,7 @@ import { useSemesterAktif } from '@/semesterAktif';
 import { useVisibilitasFilter, TAMPIL_BAWAAN } from '@/components/VisibilitasFilter';
 import DialogKelolaHalaman from '@/components/kelolaHalaman/DialogKelolaHalaman';
 import { EVENT_KELOLA_HALAMAN } from '@/components/kelolaHalaman/event';
+import { bukaDariMenu } from '@/components/excel/kelolaTabelDariMenu';
 import DialogStandarTampilan from '@/components/kelolaTampilan/DialogStandarTampilan';
 import { EVENT_STANDAR_TAMPILAN } from '@/components/kelolaTampilan/event';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
@@ -194,6 +195,7 @@ export default function TopBar() {
     }
     setPilihTabelOpen(true);
   }, [registrasi, efektifSuper]);
+
   function pilihLembagaNilai(v: string) {
     pilihNilaiFilter(v, jenjangs, modeLembaga, pilihBanyakLembaga, pilihLembaga);
   }
@@ -811,7 +813,7 @@ export default function TopBar() {
           {registrasi.tabel.length > 0 ? (
             <ContextMenuItem
               id="menu_kelola_tabel"
-              onSelect={bukaKelolaTabel}
+              onSelect={() => bukaDariMenu(bukaKelolaTabel)}
             >
               <Columns3 data-icon="inline-start" size={16} />
               Kelola Tabel

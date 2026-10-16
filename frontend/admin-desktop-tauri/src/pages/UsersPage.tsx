@@ -40,6 +40,8 @@ import {
 } from '@/components/ui/sheet';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { ActionIcon, DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { Landmark } from '@/icons';
 import {
@@ -199,6 +201,15 @@ export default function UsersPage() {
   const [viewRow, setViewRow] = useState<AdminUser | null>(null);
   const [editRow, setEditRow] = useState<AdminUser | null>(null);
   const [tambahOpen, setTambahOpen] = useState(false);
+
+  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Pengguna"). Tombolnya
+  // adalah SheetTrigger, jadi pembukaannya lewat state `tambahOpen` yang sama.
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: canTambah,
+    terhalang: tambahOpen,
+    onPicu: useCallback(() => setTambahOpen(true), []),
+  });
   const [editRoles, setEditRoles] = useState<string[]>([]);
   const [editLembaga, setEditLembaga] = useState<string[]>([]);
   /** Dialog peran per lembaga: baris pivot (jenjang + peran tercatat). */
@@ -424,7 +435,11 @@ export default function UsersPage() {
              Tombol jadi SheetTrigger — status buka tetap state `tambahOpen`. */
           <Sheet open={tambahOpen} onOpenChange={setTambahOpen}>
             <SheetTrigger asChild>
-              <Button id="btn_buka_tambah_user">+ Pengguna</Button>
+              <Button id="btn_buka_tambah_user"
+                title={`Tambah pengguna (${labelPintasan('n')})`}
+                aria-keyshortcuts="Control+N Meta+N">
+                <LabelTombolTambah pintasan={labelPintasan('n')}>+ Pengguna</LabelTombolTambah>
+              </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-full sm:max-w-xl">
               <SheetHeader>

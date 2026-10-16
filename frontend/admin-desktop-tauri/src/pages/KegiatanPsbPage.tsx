@@ -31,6 +31,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ExcelTable from '@/components/ExcelTable';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -363,6 +365,23 @@ export default function KegiatanPsbPage() {
     setKuotaOpen(true);
   }
 
+  // Dua pintasan Ctrl/Cmd+N untuk dua tabel di halaman ini (masing-masing
+  // addButton-nya sendiri): "+ Gelombang" dan "+ Baris" kuota. Masing-masing
+  // aktif hanya saat tabelnya tampil/terjangkau dan terhalang bila dialog
+  // terkait sudah terbuka — jadi keduanya tidak pernah berebut.
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: isAdminPesantren && !!kegiatanId,
+    terhalang: gelOpen || kuotaOpen,
+    onPicu: () => bukaGelombang(null),
+  });
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: bisa(me, 'kegiatan_psb.tambah') && !!kegiatanId && gelombangId !== null,
+    terhalang: kuotaOpen || gelOpen,
+    onPicu: () => bukaKuota(null),
+  });
+
   async function simpanKuota(e: React.FormEvent) {
     e.preventDefault();
     if (!gelombangId || qLembagas.length === 0) return;
@@ -535,7 +554,14 @@ export default function KegiatanPsbPage() {
             onCommit={commitGelombang}
             onSaved={reloadGelombang}
             addButton={isAdminPesantren ? (
-              <Button id="btn_tambah_gelombang_psb" onClick={() => bukaGelombang(null)}>+ Gelombang</Button>
+              <Button
+                id="btn_tambah_gelombang_psb"
+                onClick={() => bukaGelombang(null)}
+                title={`Tambah gelombang PSB (${labelPintasan('n')})`}
+                aria-keyshortcuts="Control+N Meta+N"
+              >
+                <LabelTombolTambah pintasan={labelPintasan('n')}>+ Gelombang</LabelTombolTambah>
+              </Button>
             ) : undefined}
             renderActions={(g) => (
               isAdminPesantren ? (
@@ -591,7 +617,15 @@ export default function KegiatanPsbPage() {
             onCommit={commitKuota}
             onSaved={reloadKuota}
             addButton={bisa(me, 'kegiatan_psb.tambah') ? (
-              <Button id="btn_tambah_kuota_psb" onClick={() => bukaKuota(null)} disabled={!gelombangId}>+ Baris</Button>
+              <Button
+                id="btn_tambah_kuota_psb"
+                onClick={() => bukaKuota(null)}
+                disabled={!gelombangId}
+                title={`Tambah baris kuota (${labelPintasan('n')})`}
+                aria-keyshortcuts="Control+N Meta+N"
+              >
+                <LabelTombolTambah pintasan={labelPintasan('n')}>+ Baris</LabelTombolTambah>
+              </Button>
             ) : undefined}
             renderActions={(r) => (
               <>

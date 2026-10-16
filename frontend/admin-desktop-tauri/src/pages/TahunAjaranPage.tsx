@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { ActionIcon, DeleteAction, EditAction, SetAktifAction, ViewAction } from '@/components/RowActions';
@@ -138,6 +140,14 @@ export default function TahunAjaranPage() {
   const lembagaAksi = targetJenjang ?? (user?.lembagas?.length === 1 ? user.lembagas[0].jenjang : null);
 
   const bolehSembunyi = !bolehKelola && lembagaAksi !== null;
+
+  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Tahun Ajaran").
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: bolehKelola,
+    terhalang: tambahOpen,
+    onPicu: useCallback(() => setTambahOpen(true), []),
+  });
 
   const openEdit = useCallback((t: TahunAjaran) => {
     setEditRow(t);
@@ -299,8 +309,10 @@ export default function TahunAjaranPage() {
         onCreateRow={bolehKelola ? createRow : undefined}
         inputRowValues={{ aktif: 'nonaktif', tampil: '—' }}
         addButton={bolehKelola ? (
-          <Button id="btn_buka_tambah_ta" onClick={() => setTambahOpen(true)}>
-            + Tahun Ajaran
+          <Button id="btn_buka_tambah_ta" onClick={() => setTambahOpen(true)}
+            title={`Tambah tahun ajaran (${labelPintasan('n')})`}
+            aria-keyshortcuts="Control+N Meta+N">
+            <LabelTombolTambah pintasan={labelPintasan('n')}>+ Tahun Ajaran</LabelTombolTambah>
           </Button>
         ) : undefined}
         renderActions={renderActions}

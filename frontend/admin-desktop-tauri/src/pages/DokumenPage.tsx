@@ -25,6 +25,8 @@ import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import ComboCari from '@/components/ComboCari';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -114,6 +116,18 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
       }
     }
   }, [konfig.pemilihPemilik, jenjangs]);
+
+  // Pintasan Ctrl/Cmd+N = tombol "Tambah". Di tipe santri/pegawai tombolnya
+  // memakai jalur lama (dialog dari halaman asal santri/pegawai), jadi pintasan
+  // hanya dipasang untuk 'lembaga' yang dialog tambahnya ada di halaman ini;
+  // sekaligus mencegah chip pintasan tampil pada tombol yang tak membuka apa pun.
+  const bisaPintasanTambah = canTambah && tipe === 'lembaga';
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: bisaPintasanTambah,
+    terhalang: tambahOpen || importOpen || sinkronTerbuka,
+    onPicu: bukaTambah,
+  });
 
   const { rows, loading, err, load, lastPage, total, pager } = useDaftarTabel<DokumenRow>({
     tableKey: konfig.tableKey,
@@ -375,8 +389,10 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
                 <Button
                   id={`btn_tambah_dok_${tipe}`}
                   onClick={() => { if (tipe === 'lembaga') bukaTambah(); else setTambahDialog(true); }}
+                  title={tipe === 'lembaga' ? `Tambah dokumen (${labelPintasan('n')})` : undefined}
+                  aria-keyshortcuts={tipe === 'lembaga' ? 'Control+N Meta+N' : undefined}
                 >
-                  Tambah
+                  <LabelTombolTambah pintasan={tipe === 'lembaga' ? labelPintasan('n') : null}>Tambah</LabelTombolTambah>
                 </Button>
                 )}
                 <Button id={`btn_import_dok_${tipe}`} variant="outline" onClick={() => setImportOpen(true)}>

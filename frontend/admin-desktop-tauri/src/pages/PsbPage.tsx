@@ -43,6 +43,8 @@ import {
 } from '@/components/ui/combobox';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import ExcelTable from '@/components/ExcelTable';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -219,6 +221,16 @@ export default function PsbPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Pintasan Ctrl/Cmd+N = tombol "Tambah" pendaftar. Tombolnya hanya tampil di
+  // tab 'pendaftar', jadi pintasannya pun dibatasi ke tahap itu; terhalang saat
+  // dialog tambah/import sudah terbuka.
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: canTambahPsb && stage === 'pendaftar',
+    terhalang: tambahOpen || importOpen,
+    onPicu: () => { resetTambah(); setTambahOpen(true); },
+  });
 
   function resetTambah() {
     setTf({
@@ -656,8 +668,12 @@ export default function PsbPage() {
               id="btn_buka_tambah_pendaftar"
               size="sm"
               onClick={() => { resetTambah(); setTambahOpen(true); }}
+              title={`Tambah calon pendaftar (${labelPintasan('n')})`}
+              aria-keyshortcuts="Control+N Meta+N"
             >
-              <PlusCircle data-icon="inline-start" size={16} /> Tambah
+              <LabelTombolTambah pintasan={labelPintasan('n')}>
+                <PlusCircle data-icon="inline-start" size={16} /> Tambah
+              </LabelTombolTambah>
             </Button>
             <Button
               id="btn_buka_import_psb"

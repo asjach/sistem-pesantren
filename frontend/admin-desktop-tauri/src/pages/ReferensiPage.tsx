@@ -33,6 +33,8 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -253,6 +255,8 @@ export default function ReferensiPage() {
     return urutkanReferensi(dasar, urut, arah, arahKolom, lembagaName);
   }, [rows, q, urut, arah, arahKolom, lembagaName]);
 
+  const canTambah = bisa(me, 'referensi.tambah');
+
   const openTambah = useCallback(() => {
     setFNama(''); setFKode(''); setFSingkatan(''); setFUrutan('0');
     // Tanpa Global: super_admin tanpa lembaga = sebar ke semua; jika scope
@@ -261,6 +265,16 @@ export default function ReferensiPage() {
     setScope(fallback);
     setTambahOpen(true);
   }, [targetJenjang]);
+
+  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Entri"). Terhalang saat
+  // dialog tambah/ubah sudah terbuka atau tipe kamus belum siap (tak ada
+  // tujuan tambah yang jelas).
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: canTambah && !!tipe,
+    terhalang: tambahOpen || editRow !== null,
+    onPicu: openTambah,
+  });
 
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -471,9 +485,19 @@ export default function ReferensiPage() {
             </LabeledCombobox>
           </>
         )}
-        addButton={bisa(me, 'referensi.tambah') ? (
-          <Button id="btn_tambah_referensi" onClick={openTambah} disabled={!tipe}>
-            + Entri
+        /* "+ Entri" = aksi utama halaman ini, jadi tampil langsung di bilah
+           (tanpa menu hamburger `MenuAksiToolbar`) — sejalan dengan halaman
+           Pengguna & Kurikulum Mapel. */
+        addButtonLangsung
+        addButton={canTambah ? (
+          <Button
+            id="btn_tambah_referensi"
+            onClick={openTambah}
+            disabled={!tipe}
+            title={`Tambah entri referensi (${labelPintasan('n')})`}
+            aria-keyshortcuts="Control+N Meta+N"
+          >
+            <LabelTombolTambah pintasan={labelPintasan('n')}>+ Entri</LabelTombolTambah>
           </Button>
          ) : undefined}
          renderActions={renderActions}

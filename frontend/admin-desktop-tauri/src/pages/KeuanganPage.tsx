@@ -1002,6 +1002,8 @@ export default function KeuanganPage() {
             onTambah={bukaTambahJenis}
             onEdit={setEditJenis}
             onHapus={hapusJenisBaris}
+            /* Hanya panel tab yang tampil yang memegang pintasan Ctrl/Cmd+N. */
+            aktif={tab === 'jenis'}
           />
         </TabsContent>
 
@@ -1021,6 +1023,7 @@ export default function KeuanganPage() {
             onTambah={bukaTambahTarif}
             onEdit={setEditTarif}
             onHapus={hapusTarifBaris}
+            aktif={tab === 'tarif'}
           />
         </TabsContent>
 

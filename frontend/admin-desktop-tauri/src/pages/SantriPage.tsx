@@ -22,6 +22,8 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -140,6 +142,13 @@ export default function SantriPage() {
   const [addNisLokal, setAddNisLokal] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Reset formulir lalu buka dialog tambah — satu sumber untuk tombol dan
+  // pintasan Ctrl/Cmd+N.
+  const bukaTambah = useCallback(() => {
+    setAddNama(''); setAddJk('L'); setAddNik(''); setAddNisn(''); setAddLembaga(''); setAddNisLokal('');
+    setTambahOpen(true);
+  }, []);
+
   // Hanya lembaga operasional (root pesantren tidak bisa menjadi keanggotaan).
   const lembagaOperasional = lembagas;
 
@@ -167,6 +176,15 @@ export default function SantriPage() {
   const commitBaris = useMemo(() => pakaiCommitBaris(rows), [rows]);
 
   const { user } = useAuth();
+
+  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Santri"). Aktif hanya bila
+  // pengguna berhak menambah; terhalang saat dialog tambah sudah terbuka.
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: bisa(user, 'santri.tambah'),
+    terhalang: tambahOpen,
+    onPicu: bukaTambah,
+  });
 
   useEffect(() => {
     listLembaga({ per_page: 1000 }).then((p) => setLembagas(p.data)).catch(() => {});
@@ -285,8 +303,10 @@ export default function SantriPage() {
         )}
         addButton={(
           <>
-            {bisa(user, 'santri.tambah') && <Button id="btn_buka_tambah_santri" size="sm" onClick={() => { setAddNama(''); setAddJk('L'); setAddNik(''); setAddNisn(''); setAddLembaga(''); setAddNisLokal(''); setTambahOpen(true); }}>
-              <Plus data-icon="inline-start" size={16} /> Santri
+            {bisa(user, 'santri.tambah') && <Button id="btn_buka_tambah_santri" size="sm" onClick={bukaTambah}
+              title={`Tambah santri (${labelPintasan('n')})`}
+              aria-keyshortcuts="Control+N Meta+N">
+              <LabelTombolTambah pintasan={labelPintasan('n')}><Plus data-icon="inline-start" size={16} /> Santri</LabelTombolTambah>
             </Button>}
           </>
         )}

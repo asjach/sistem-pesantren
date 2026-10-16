@@ -30,6 +30,8 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import Pager from '@/components/Pager';
 import { usePager } from '@/hooks/usePager';
 import ImportSantriGabunganDialog from '@/components/ImportSantriGabunganDialog';
@@ -97,6 +99,15 @@ export default function KeanggotaanPage() {
 
   const [tambahOpen, setTambahOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+
+  // Pintasan Ctrl/Cmd+N = tombol "Tambah" (dialog keanggotaan baru). Terhalang
+  // bila dialog tambah/import sudah terbuka.
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: canTambah,
+    terhalang: tambahOpen || importOpen,
+    onPicu: () => setTambahOpen(true),
+  });
   const [tCari, setTCari] = useState('');
   const [tHasil, setTHasil] = useState<Santri[]>([]);
   const [tPilih, setTPilih] = useState<Santri | null>(null);
@@ -347,8 +358,13 @@ export default function KeanggotaanPage() {
               </Button>
             )}
             {canTambah && (
-              <Button id="btn_tambah_keanggotaan" onClick={() => setTambahOpen(true)}>
-                Tambah
+              <Button
+                id="btn_tambah_keanggotaan"
+                onClick={() => setTambahOpen(true)}
+                title={`Tambah keanggotaan (${labelPintasan('n')})`}
+                aria-keyshortcuts="Control+N Meta+N"
+              >
+                <LabelTombolTambah pintasan={labelPintasan('n')}>Tambah</LabelTombolTambah>
               </Button>
             )}
             {canTambah && canUbah && (

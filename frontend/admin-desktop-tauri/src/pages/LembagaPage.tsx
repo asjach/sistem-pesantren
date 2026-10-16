@@ -36,6 +36,8 @@ import {
 } from '@/components/ui/dialog';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { toast } from 'sonner';
 
@@ -117,6 +119,14 @@ export default function LembagaPage() {
   const [kelompokPsb, setKelompokPsb] = useState<'combo_mi_md' | 'eksklusif'>('eksklusif');
   const [isSeleksi, setIsSeleksi] = useState(false);
   const [tambahOpen, setTambahOpen] = useState(false);
+
+  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Lembaga").
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: canTambah,
+    terhalang: tambahOpen,
+    onPicu: useCallback(() => setTambahOpen(true), []),
+  });
   const [viewRow, setViewRow] = useState<Lembaga | null>(null);
   const [editRow, setEditRow] = useState<Lembaga | null>(null);
   const [editNama, setEditNama] = useState('');
@@ -367,8 +377,10 @@ export default function LembagaPage() {
         onUrut={terapkanUrut}
         onCreateRow={canTambah ? createRow : undefined}
         addButton={canTambah ? (
-          <Button id="btn_buka_tambah_lembaga" onClick={() => setTambahOpen(true)}>
-            + Lembaga
+          <Button id="btn_buka_tambah_lembaga" onClick={() => setTambahOpen(true)}
+            title={`Tambah lembaga (${labelPintasan('n')})`}
+            aria-keyshortcuts="Control+N Meta+N">
+            <LabelTombolTambah pintasan={labelPintasan('n')}>+ Lembaga</LabelTombolTambah>
           </Button>
         ) : undefined}
         renderActions={renderActions}

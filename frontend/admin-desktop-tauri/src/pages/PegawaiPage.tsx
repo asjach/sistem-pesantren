@@ -36,6 +36,8 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
+import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
+import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { DeleteAction, EditAction, ActionIcon } from '@/components/RowActions';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
@@ -177,6 +179,14 @@ export default function PegawaiPage() {
     });
 
   const [tambahOpen, setTambahOpen] = useState(false);
+
+  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Pegawai").
+  usePintasanBaru({
+    kunci: 'n',
+    aktif: canTambah,
+    terhalang: tambahOpen,
+    onPicu: useCallback(() => setTambahOpen(true), []),
+  });
   const [fNama, setFNama] = useState('');
   const [fJk, setFJk] = useState('L');
   const [fNip, setFNip] = useState('');
@@ -365,8 +375,10 @@ export default function PegawaiPage() {
               </Tooltip>
             )}
             {canTambah && (
-              <Button id="btn_buka_tambah_pegawai" onClick={() => setTambahOpen(true)}>
-                + Pegawai
+              <Button id="btn_buka_tambah_pegawai" onClick={() => setTambahOpen(true)}
+                title={`Tambah pegawai (${labelPintasan('n')})`}
+                aria-keyshortcuts="Control+N Meta+N">
+                <LabelTombolTambah pintasan={labelPintasan('n')}>+ Pegawai</LabelTombolTambah>
               </Button>
             )}
           </>
