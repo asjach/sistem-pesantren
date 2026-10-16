@@ -2,8 +2,14 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exports\MapelTemplateExport;
+use App\Exports\PengampuTemplateExport;
+use App\Http\Controllers\Api\Concerns\ImporBertahap;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\MapelPotongRequest;
+use App\Http\Requests\Admin\PengampuPotongRequest;
+use App\Models\ImportSesi;
 use App\Models\JadwalPelajaran;
 use App\Models\Kelas;
 use App\Models\KelasKurikulum;
@@ -13,11 +19,14 @@ use App\Models\MataPelajaran;
 use App\Models\NilaiKomponen;
 use App\Models\NilaiSantri;
 use App\Models\PengampuMapel;
+use App\Services\MapelImporService;
+use App\Services\PengampuImporService;
 use App\Services\RefService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Modul Kurikulum & Mapel (BLOK 5) — master mapel, kurikulum + komposisi
@@ -28,6 +37,7 @@ use Illuminate\Validation\ValidationException;
  */
 class KurikulumController extends Controller
 {
+    use ImporBertahap;
     use TenantGuard;
 
     // ============================================================ MAPEL
@@ -95,6 +105,36 @@ class KurikulumController extends Controller
         $mapel->delete();
 
         return response()->json(['pesan' => 'Mapel dihapus.']);
+    }
+
+    // -------------------------------------------- IMPOR MAPEL BERTAHAP
+
+    /** GET /api/admin/kurikulum/mapel/import-template — template Excel import mapel (multi-lembaga). */
+    public function templateMapel()
+    {
+        return Excel::download(new MapelTemplateExport, 'template-import-mapel.xlsx');
+    }
+
+    /**
+     * POST /api/admin/kurikulum/mapel/import-potong — import bertahap
+     * (potongan JSON 1000 baris/panggilan) dari browser. Lingkup ada per
+     * baris dan izin dicek di MapelImporService, bukan 403 di depan.
+     */
+    public function potongMapel(MapelPotongRequest $request, MapelImporService $layanan): JsonResponse
+    {
+        return $this->jalankanImporSesi($request, 'mapel', $layanan, 'mapel');
+    }
+
+    /** POST /api/admin/kurikulum/mapel/import-potong/{sesi}/batal. */
+    public function batalPotongMapel(Request $request, ImportSesi $sesi): JsonResponse
+    {
+        return $this->batalImporSesi($request, $sesi);
+    }
+
+    /** GET /api/admin/kurikulum/mapel/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotongMapel(Request $request, ImportSesi $sesi)
+    {
+        return $this->unduhGalatImpor($request, $sesi, 'galat-import-mapel.csv');
     }
 
     // ========================================================= KURIKULUM
@@ -436,6 +476,38 @@ class KurikulumController extends Controller
         });
 
         return response()->json(['pesan' => "{$dibuat} pengampu dibuat.", 'dibuat' => $dibuat]);
+    }
+
+    // ------------------------------------------ IMPOR PENGAMPU BERTAHAP
+
+    /** GET /api/admin/kurikulum/pengampu/import-template — template Excel import pengampu (multi-lembaga/TA). */
+    public function templatePengampu()
+    {
+        return Excel::download(new PengampuTemplateExport, 'template-import-pengampu.xlsx');
+    }
+
+    /**
+     * POST /api/admin/kurikulum/pengampu/import-potong — import bertahap
+     * (potongan JSON 1000 baris/panggilan) dari browser. Lingkup ada per
+     * baris dan izin dicek di PengampuImporService, bukan 403 di depan.
+     * Tanpa penghapusan: baris di luar file dibiarkan (hapus tetap via
+     * PUT sync yang punya guard sudah-punya-nilai/jadwal).
+     */
+    public function potongPengampu(PengampuPotongRequest $request, PengampuImporService $layanan): JsonResponse
+    {
+        return $this->jalankanImporSesi($request, 'pengampu_mapel', $layanan, 'pengampu');
+    }
+
+    /** POST /api/admin/kurikulum/pengampu/import-potong/{sesi}/batal. */
+    public function batalPotongPengampu(Request $request, ImportSesi $sesi): JsonResponse
+    {
+        return $this->batalImporSesi($request, $sesi);
+    }
+
+    /** GET /api/admin/kurikulum/pengampu/import-potong/{sesi}/galat — unduh CSV galat. */
+    public function galatPotongPengampu(Request $request, ImportSesi $sesi)
+    {
+        return $this->unduhGalatImpor($request, $sesi, 'galat-import-pengampu.csv');
     }
 
     // ============================================================ BANTUAN

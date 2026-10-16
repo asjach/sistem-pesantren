@@ -7,9 +7,12 @@ import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAkti
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
-import { Plus, Save, Trash2 } from '@/icons';
+import { Plus, Save, Trash2, FileUp } from '@/icons';
+import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
   buatMapel, daftarMapel, hapusMapel, ubahMapel,
+  batalPotongMapel, importMapelPotong, unduhGalatMapel, unduhTemplateMapel,
+  KOLOM_IMPORT_MAPEL,
   type KelompokMapel, type MataPelajaran,
 } from '@/api/kurikulum';
 
@@ -30,6 +33,7 @@ export default function KurikulumMapelPage() {
   const [mapel, setMapel] = useState<MataPelajaran[]>([]);
   const [q, setQ] = useState('');
   const [keaktifan, setKeaktifan] = useState<'aktif' | 'nonaktif' | 'semua'>('aktif');
+  const [importOpen, setImportOpen] = useState(false);
   const [err, setErr] = useState('');
 
   const muat = useCallback(async () => {
@@ -79,7 +83,13 @@ export default function KurikulumMapelPage() {
           <option value="semua">Semua</option>
         </select>
         <span className="text-xs text-muted-foreground">Lingkup <strong>{jenjang}</strong></span>
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-2">
+          {canTambah && (
+            <Button type="button" variant="outline" size="sm" id="btn_buka_import_mapel"
+              onClick={() => setImportOpen(true)}>
+              <FileUp data-icon="inline-start" size={16} /> Import
+            </Button>
+          )}
           <Button type="button" size="sm" id="btn_tambah_mapel" disabled={!canTambah}
             onClick={() => void jalankan(
               () => buatMapel({ jenjang, nama_mapel: 'Mapel Baru', kelompok: 'formal' }),
@@ -112,6 +122,36 @@ export default function KurikulumMapelPage() {
           </tbody>
         </table>
       </div>
+      <ImportBertahapUmumDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        config={{
+          idPrefix: 'mapel',
+          judul: 'Import mapel bertahap',
+          deskripsi: 'Import mapel bertahap. Satu file boleh berisi banyak lembaga.',
+          kolom: KOLOM_IMPORT_MAPEL,
+          wajib: ['jenjang', 'nama_mapel', 'kelompok'],
+          idTombol: {
+            template: 'btn_unduh_template_mapel',
+            periksa: 'btn_periksa_import_mapel',
+            mulai: 'btn_import_mapel',
+          },
+          labelTemplate: 'Unduh template Excel mapel',
+          unduhTemplate: unduhTemplateMapel,
+          kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
+            importMapelPotong({
+              ...(sesi_id === undefined ? {} : { sesi_id }),
+              mode, ...(sesi_id === undefined ? { total } : {}), baris,
+              ...(terakhir ? { terakhir } : {}),
+            }),
+          batal: batalPotongMapel,
+          unduhGalat: unduhGalatMapel,
+          onSelesai: () => {
+            setImportOpen(false);
+            void muat();
+          },
+        }}
+      />
     </div>
   );
 }

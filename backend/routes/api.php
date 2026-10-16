@@ -405,6 +405,10 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('kurikulum/mapel', [KurikulumController::class, 'storeMapel'])->middleware('permission:kurikulum.tambah');
         Route::match(['put', 'patch'], 'kurikulum/mapel/{mapel}', [KurikulumController::class, 'updateMapel'])->middleware('permission:kurikulum.ubah');
         Route::delete('kurikulum/mapel/{mapel}', [KurikulumController::class, 'destroyMapel'])->middleware('permission:kurikulum.hapus');
+        Route::get('kurikulum/mapel/import-template', [KurikulumController::class, 'templateMapel'])->middleware('permission:kurikulum.lihat');
+        Route::post('kurikulum/mapel/import-potong', [KurikulumController::class, 'potongMapel'])->middleware(['permission:kurikulum.tambah', 'throttle:imports']);
+        Route::post('kurikulum/mapel/import-potong/{sesi}/batal', [KurikulumController::class, 'batalPotongMapel'])->middleware('permission:kurikulum.tambah');
+        Route::get('kurikulum/mapel/import-potong/{sesi}/galat', [KurikulumController::class, 'galatPotongMapel'])->middleware('permission:kurikulum.lihat');
         Route::get('kurikulum/kurikulum', [KurikulumController::class, 'indexKurikulum'])->middleware('permission:kurikulum.lihat');
         Route::post('kurikulum/kurikulum', [KurikulumController::class, 'storeKurikulum'])->middleware('permission:kurikulum.tambah');
         Route::match(['put', 'patch'], 'kurikulum/kurikulum/{kurikulum}', [KurikulumController::class, 'updateKurikulum'])->middleware('permission:kurikulum.ubah');
@@ -419,6 +423,10 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('kurikulum/pengampu', [KurikulumController::class, 'indexPengampu'])->middleware('permission:kurikulum.lihat');
         Route::put('kurikulum/pengampu', [KurikulumController::class, 'simpanPengampu'])->middleware('permission:kurikulum.ubah');
         Route::post('kurikulum/pengampu/generate', [KurikulumController::class, 'generatePengampu'])->middleware('permission:kurikulum.tambah');
+        Route::get('kurikulum/pengampu/import-template', [KurikulumController::class, 'templatePengampu'])->middleware('permission:kurikulum.lihat');
+        Route::post('kurikulum/pengampu/import-potong', [KurikulumController::class, 'potongPengampu'])->middleware(['permission:kurikulum.ubah', 'throttle:imports']);
+        Route::post('kurikulum/pengampu/import-potong/{sesi}/batal', [KurikulumController::class, 'batalPotongPengampu'])->middleware('permission:kurikulum.ubah');
+        Route::get('kurikulum/pengampu/import-potong/{sesi}/galat', [KurikulumController::class, 'galatPotongPengampu'])->middleware('permission:kurikulum.lihat');
         Route::get('kurikulum/slot', [JadwalPelajaranController::class, 'indexSlot'])->middleware('permission:kurikulum.lihat');
         Route::post('kurikulum/slot', [JadwalPelajaranController::class, 'storeSlot'])->middleware('permission:kurikulum.tambah');
         Route::match(['put', 'patch'], 'kurikulum/slot/{slot}', [JadwalPelajaranController::class, 'updateSlot'])->middleware('permission:kurikulum.ubah');

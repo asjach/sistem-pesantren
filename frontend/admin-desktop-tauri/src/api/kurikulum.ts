@@ -1,5 +1,6 @@
-import { api } from './client';
+import { api, downloadFile } from './client';
 import { appendQueryParam, type ScalarOrArray } from './query';
+import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 
 /**
  * Modul Kurikulum & Mapel (BLOK 5): master mapel per jenjang, kurikulum +
@@ -122,6 +123,41 @@ export function hapusMapel(id: number) {
   return api<{ pesan: string }>(`/admin/kurikulum/mapel/${id}`, { method: 'DELETE' });
 }
 
+// ---------- Import mapel bertahap (potongan JSON dari browser) ----------
+
+/** Kolom template import mapel (multi-lembaga; `is_active` kosong = aktif/pertahankan). */
+export const KOLOM_IMPORT_MAPEL = ['jenjang', 'nama_mapel', 'kelompok', 'kode_mapel', 'is_active'];
+
+/** Unduh template Excel import mapel. */
+export function unduhTemplateMapel() {
+  return downloadFile('/admin/kurikulum/mapel/import-template', 'template-import-mapel.xlsx');
+}
+
+/** Kirim satu potongan baris mapel (maks 1000); panggilan pertama tanpa
+ *  sesi_id membuat sesi (wajib mode + total). */
+export function importMapelPotong(input: {
+  sesi_id?: number;
+  mode: 'periksa' | 'eksekusi';
+  total?: number;
+  baris: Record<string, unknown>[];
+  terakhir?: boolean;
+}) {
+  return api<PotongHasil>('/admin/kurikulum/mapel/import-potong', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Batalkan sesi import mapel milik sendiri. */
+export function batalPotongMapel(sesiId: number) {
+  return api<{ pesan: string }>(`/admin/kurikulum/mapel/import-potong/${sesiId}/batal`, { method: 'POST' });
+}
+
+/** Unduh CSV galat sesi import mapel milik sendiri. */
+export function unduhGalatMapel(sesiId: number) {
+  return downloadFile(`/admin/kurikulum/mapel/import-potong/${sesiId}/galat`, 'galat-import-mapel.csv');
+}
+
 // ------------------------------------------------------------- kurikulum
 
 export function daftarKurikulum(jenjang: string) {
@@ -205,6 +241,41 @@ export function generatePengampu(kelasId: number) {
     method: 'POST',
     body: JSON.stringify({ kelas_id: kelasId }),
   });
+}
+
+// ---------- Import pengampu bertahap (potongan JSON dari browser) ----------
+
+/** Kolom template import pengampu (multi-lembaga/TA; `guru` = NIP/nama, kosong = tanpa guru). */
+export const KOLOM_IMPORT_PENGAMPU = ['jenjang', 'tahun_ajaran', 'nama_kelas', 'nama_mapel', 'guru'];
+
+/** Unduh template Excel import pengampu. */
+export function unduhTemplatePengampu() {
+  return downloadFile('/admin/kurikulum/pengampu/import-template', 'template-import-pengampu.xlsx');
+}
+
+/** Kirim satu potongan baris pengampu (maks 1000); panggilan pertama tanpa
+ *  sesi_id membuat sesi (wajib mode + total). Tanpa penghapusan. */
+export function importPengampuPotong(input: {
+  sesi_id?: number;
+  mode: 'periksa' | 'eksekusi';
+  total?: number;
+  baris: Record<string, unknown>[];
+  terakhir?: boolean;
+}) {
+  return api<PotongHasil>('/admin/kurikulum/pengampu/import-potong', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Batalkan sesi import pengampu milik sendiri. */
+export function batalPotongPengampu(sesiId: number) {
+  return api<{ pesan: string }>(`/admin/kurikulum/pengampu/import-potong/${sesiId}/batal`, { method: 'POST' });
+}
+
+/** Unduh CSV galat sesi import pengampu milik sendiri. */
+export function unduhGalatPengampu(sesiId: number) {
+  return downloadFile(`/admin/kurikulum/pengampu/import-potong/${sesiId}/galat`, 'galat-import-pengampu.csv');
 }
 
 // ------------------------------------------------------- slot & jadwal

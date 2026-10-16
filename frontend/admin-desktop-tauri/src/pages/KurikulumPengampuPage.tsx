@@ -7,10 +7,13 @@ import { listKelas, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
-import { Copy, Save } from '@/icons';
+import { Copy, Save, FileUp } from '@/icons';
+import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
   daftarGuruAktif, daftarKurikulum, daftarKelasKurikulum, daftarPengampu,
   generatePengampu, simpanKelasKurikulum, simpanPengampu,
+  batalPotongPengampu, importPengampuPotong, unduhGalatPengampu, unduhTemplatePengampu,
+  KOLOM_IMPORT_PENGAMPU,
   type GuruAktif, type Kurikulum, type PengampuBaris,
 } from '@/api/kurikulum';
 
@@ -33,6 +36,7 @@ export default function KurikulumPengampuPage() {
   /** Suntingan guru per mata_pelajaran_id (belum disimpan). */
   const [sunting, setSunting] = useState<Record<number, number | null>>({});
   const [berubah, setBerubah] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [err, setErr] = useState('');
 
   // Daftar kelas + kurikulum jenjang.
@@ -165,9 +169,24 @@ export default function KurikulumPengampuPage() {
             <option key={k.id} value={k.id}>{k.nama_kelas} (tingkat {k.tingkat ?? '-'})</option>
           ))}
         </select>
-        {kelasId !== '' && (
+        {kelasId === '' ? (
+          <div className="ml-auto flex gap-2">
+            {canUbah && (
+              <Button type="button" variant="outline" size="sm" id="btn_buka_import_pengampu"
+                onClick={() => setImportOpen(true)}>
+                <FileUp data-icon="inline-start" size={16} /> Import
+              </Button>
+            )}
+          </div>
+        ) : (
           <>
             <div className="ml-auto flex gap-2">
+              {canUbah && (
+                <Button type="button" variant="outline" size="sm" id="btn_buka_import_pengampu"
+                  onClick={() => setImportOpen(true)}>
+                  <FileUp data-icon="inline-start" size={16} /> Import
+                </Button>
+              )}
               {canUbah && (
                 <Button type="button" variant="outline" size="sm" id="btn_generate_pengampu"
                   onClick={() => void generate()}>
@@ -281,6 +300,36 @@ export default function KurikulumPengampuPage() {
           </table>
         </div>
       )}
+      <ImportBertahapUmumDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        config={{
+          idPrefix: 'pengampu',
+          judul: 'Import pengampu bertahap',
+          deskripsi: 'Import pengampu bertahap. Satu file boleh berisi banyak lembaga + tahun ajaran.',
+          kolom: KOLOM_IMPORT_PENGAMPU,
+          wajib: ['jenjang', 'tahun_ajaran', 'nama_kelas', 'nama_mapel'],
+          idTombol: {
+            template: 'btn_unduh_template_pengampu',
+            periksa: 'btn_periksa_import_pengampu',
+            mulai: 'btn_import_pengampu',
+          },
+          labelTemplate: 'Unduh template Excel pengampu',
+          unduhTemplate: unduhTemplatePengampu,
+          kirim: ({ sesi_id, mode, total, baris, terakhir }) =>
+            importPengampuPotong({
+              ...(sesi_id === undefined ? {} : { sesi_id }),
+              mode, ...(sesi_id === undefined ? { total } : {}), baris,
+              ...(terakhir ? { terakhir } : {}),
+            }),
+          batal: batalPotongPengampu,
+          unduhGalat: unduhGalatPengampu,
+          onSelesai: () => {
+            setImportOpen(false);
+            if (kelasId !== '') void muatPengampuKelas(Number(kelasId));
+          },
+        }}
+      />
     </div>
   );
 }
