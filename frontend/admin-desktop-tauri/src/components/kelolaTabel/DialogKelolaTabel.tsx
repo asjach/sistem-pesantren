@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { errorMessage } from '@/api/client';
 import {
   listPresetTabel,
@@ -29,6 +29,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVENT_PRESET_BERUBAH, kabariPreset } from './jenis';
 import { buatAntrePerBagian, selesaikanSimpan } from '@/lib/antreSimpan';
 import { tenggangMenu } from '@/components/excel/kelolaTabelDariMenu';
+import ErrorBoundary from '@/components/ErrorBoundary';
+
+/** `SheetContent` + batas galat ISINYA (kepala, tab, dan kaki panel).
+ *
+ *  Panel ini memuat tiga tab pengaturan tabel — termasuk daftar puluhan kolom
+ *  dan urutan tampilan yang dirender dari data server. Galat render di salah
+ *  satunya dulu naik ke batas halaman sampai grid di belakangnya ikut hilang,
+ *  padahal yang rusak hanya panel pengaturannya. Batas ditaruh DI DALAM
+ *  `SheetContent` supaya tombol X bawaan panel (di luar batas) tetap hidup,
+ *  dan tampilan galatnya menambah "Tutup panel" yang memanggil `tutup()`. */
+function IsiPanelKelolaTabel({
+  onTutup,
+  children,
+  ...props
+}: Omit<ComponentProps<typeof SheetContent>, 'children'> & {
+  onTutup: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <SheetContent {...props}>
+      <ErrorBoundary
+        judul="Panel pengaturan tabel gagal ditampilkan"
+        keterangan="Tabel di halaman ini tidak terpengaruh. Tutup panel, lalu buka lagi."
+        onTutup={onTutup}
+        labelTutup="Tutup panel"
+      >
+        {children}
+      </ErrorBoundary>
+    </SheetContent>
+  );
+}
 
 /** State bersama tab Kolom untuk satu tabel: preset kolom
  *  (cermin logika `PresetKolom`, tanpa dropdown pemilih) plus editor nama
@@ -468,7 +499,8 @@ export default function DialogKelolaTabel({
 
   return (
     <Sheet open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())} modal={!nonModal}>
-      <SheetContent
+      <IsiPanelKelolaTabel
+        onTutup={tutup}
         side="right"
         /* Saat dibuka dari TABEL yang sedang dilihat: non-modal + tanpa
            overlay, supaya tabelnya tetap terlihat dan hidup - itulah alasan
@@ -597,7 +629,7 @@ export default function DialogKelolaTabel({
             </Button>
           </SheetFooter>
         </BagianProvider>
-      </SheetContent>
+      </IsiPanelKelolaTabel>
     </Sheet>
   );
 }

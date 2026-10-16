@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../api/client';
 import {
@@ -18,6 +18,7 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import PresetKolom from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import LabeledCombobox from '@/components/LabeledCombobox';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import LabeledInput from '@/components/LabeledInput';
 import { hariIniIso, tanggalKeTampilan } from '@/lib/tanggal';
 import {
@@ -205,6 +206,37 @@ function RingkasanGalat({ id, daftar }: { id: string; daftar: GalatIsian[] }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+/** `DialogContent` + batas galat ISINYA.
+ *
+ *  Dialog ini satu layar penuh dan memuat tabel sendiri; galat render di salah
+ *  satu tahapnya (kriteria → pratinjau → hasil) dulu naik ke batas halaman
+ *  sehingga SELURUH halaman keuangan tergantikan panel galat. Sekarang yang
+ *  gagal hanya isi dialognya, dan pengguna tetap bisa keluar: dialog ini
+ *  memang tanpa tombol X (`showCloseButton={false}`), jadi tampilan galatnya
+ *  menyediakan "Tutup dialog" (panggilan yang sama dengan tombol Tutup di
+ *  kaki dialog). */
+function IsiDialogGenerate({
+  onTutup,
+  children,
+  ...props
+}: Omit<ComponentProps<typeof DialogContent>, 'children'> & {
+  onTutup: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <DialogContent {...props}>
+      <ErrorBoundary
+        judul="Dialog Buat Tagihan gagal ditampilkan"
+        keterangan="Tidak ada tagihan yang ditulis dari dialog ini. Tutup, lalu buka lagi."
+        onTutup={onTutup}
+        labelTutup="Tutup dialog"
+      >
+        {children}
+      </ErrorBoundary>
+    </DialogContent>
   );
 }
 
@@ -760,7 +792,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
-      <DialogContent
+      <IsiDialogGenerate
+        onTutup={() => onOpenChange(false)}
         showCloseButton={false}
         onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
         className="flex h-[calc(100dvh-3rem)] max-h-[calc(100dvh-3rem)] w-[calc(100vw-3rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none"
@@ -1254,7 +1287,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
             </div>
           </>
         )}
-      </DialogContent>
+      </IsiDialogGenerate>
     </Dialog>
   );
 }

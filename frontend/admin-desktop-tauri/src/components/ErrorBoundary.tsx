@@ -37,6 +37,12 @@ interface Props {
   penuhLayar?: boolean;
   /** Timpa aksi "Muat ulang" — dipakai tes agar tak benar-benar memuat ulang. */
   onMuatUlang?: () => void;
+  /** Aksi "keluar dari bagian yang gagal" — dipakai panel/dialog yang bisa
+   *  ditutup: tanpa ini pengguna hanya bisa memuat ulang seluruh aplikasi
+   *  padahal cukup menutup dialognya. Tombolnya hanya muncul bila diisi. */
+  onTutup?: () => void;
+  /** Label tombol tutup (bawaan "Tutup"). */
+  labelTutup?: string;
   className?: string;
 }
 
@@ -71,13 +77,13 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render(): ReactNode {
     const { galat } = this.state;
-    const { children, judul, keterangan, penuhLayar, className } = this.props;
+    const { children, judul, keterangan, penuhLayar, onTutup, labelTutup, className } = this.props;
     if (!galat) return children;
 
     return (
       <div
         className={cn(
-          'flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto bg-background p-6',
+          'flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto bg-background p-4',
           penuhLayar && 'h-screen w-screen',
           className,
         )}
@@ -117,6 +123,11 @@ export default class ErrorBoundary extends Component<Props, State> {
               <RefreshCw />
               Muat ulang aplikasi
             </Button>
+            {onTutup ? (
+              <Button id="btn_tutup_galat" type="button" variant="ghost" size="sm" onClick={onTutup}>
+                {labelTutup ?? 'Tutup'}
+              </Button>
+            ) : null}
           </div>
 
           <p className="mt-2 text-[11px] text-muted-foreground">

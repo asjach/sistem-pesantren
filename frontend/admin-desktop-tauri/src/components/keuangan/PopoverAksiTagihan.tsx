@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 
 import type { Dispensasi, PembayaranRow } from '@/api/keuangan';
 import { daftarDispensasi, kuotaPakai } from '@/api/keuangan';
@@ -16,6 +16,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarRange, CircleCheck, History, Info, Pencil, Plus, Trash2, Wallet, X } from '@/icons';
 import type { AksiBatch } from '@/components/keuangan/BatchAksiTagihan';
 import { cn } from '@/lib/utils';
+import ErrorBoundary from '@/components/ErrorBoundary';
+
+/** `PopoverContent` + batas galat ISINYA. Panel ini hidup di portal yang
+ *  menempel pada sel crosstab; tanpa batas di dalam panel, galat render di
+ *  salah satu tabnya naik ke batas halaman dan MENGGANTI seluruh isi halaman
+ *  (tabel tagihan ikut hilang) padahal yang rusak hanya panel kecil ini.
+ *  Batasnya sengaja di dalam `PopoverContent` supaya tampilan galatnya juga
+ *  muncul di dalam panel (bukan di aliran halaman), dan tombol "Tutup panel"
+ *  memakai penutup yang sama dengan tombol X. */
+function IsiPanelAksi({
+  onTutup,
+  children,
+  ...props
+}: ComponentProps<typeof PopoverContent> & { onTutup: () => void; children: ReactNode }) {
+  return (
+    <PopoverContent {...props}>
+      <ErrorBoundary
+        judul="Panel aksi tagihan gagal ditampilkan"
+        keterangan="Tagihan di tabel tidak terpengaruh. Tutup panel ini, lalu buka lagi."
+        onTutup={onTutup}
+        labelTutup="Tutup panel"
+      >
+        {children}
+      </ErrorBoundary>
+    </PopoverContent>
+  );
+}
+
 
 export interface TagihanAktif {
   id: number;
@@ -321,7 +349,8 @@ export default function PopoverAksiTagihan({
             current: { getBoundingClientRect: () => jangkar.getBoundingClientRect() },
           }}
         />
-        <PopoverContent
+        <IsiPanelAksi
+          onTutup={onTutup}
           id="popover_aksi_tagihan"
           align="start"
           sideOffset={6}
@@ -414,7 +443,7 @@ export default function PopoverAksiTagihan({
               </Button>
             </div>
           </div>
-        </PopoverContent>
+        </IsiPanelAksi>
       </Popover>
     );
   }
@@ -435,7 +464,8 @@ export default function PopoverAksiTagihan({
             current: { getBoundingClientRect: () => anchor.getBoundingClientRect() },
           }}
         />
-        <PopoverContent
+        <IsiPanelAksi
+          onTutup={onTutup}
           align="start"
           sideOffset={6}
           collisionPadding={12}
@@ -571,7 +601,7 @@ export default function PopoverAksiTagihan({
               </Button>
             </div>
           </div>
-        </PopoverContent>
+        </IsiPanelAksi>
       </Popover>
     );
   }
@@ -639,7 +669,8 @@ export default function PopoverAksiTagihan({
           current: { getBoundingClientRect: () => anchor.getBoundingClientRect() },
         }}
       />
-      <PopoverContent
+      <IsiPanelAksi
+        onTutup={onTutup}
         align="start"
         sideOffset={6}
         collisionPadding={12}
@@ -1037,7 +1068,7 @@ export default function PopoverAksiTagihan({
           </div>
         </div>
         </div>
-      </PopoverContent>
+      </IsiPanelAksi>
     </Popover>
   );
 }

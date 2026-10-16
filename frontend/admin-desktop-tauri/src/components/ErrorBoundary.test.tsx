@@ -103,6 +103,39 @@ describe('ErrorBoundary', () => {
     expect(muatUlang).toHaveBeenCalledTimes(1);
   });
 
+  it('tombol Tutup hanya ada bila `onTutup` diisi, dan memanggilnya', async () => {
+    const pengguna = userEvent.setup();
+    const tutup = vi.fn();
+    const { unmount } = render(
+      <ErrorBoundary onTutup={tutup} labelTutup="Tutup panel">
+        <Meledak />
+      </ErrorBoundary>,
+    );
+    const tombol = document.getElementById('btn_tutup_galat');
+    expect(tombol).not.toBeNull();
+    expect(tombol).toHaveTextContent('Tutup panel');
+
+    await pengguna.click(tombol as HTMLElement);
+    expect(tutup).toHaveBeenCalledTimes(1);
+
+    unmount();
+    render(
+      <ErrorBoundary>
+        <Meledak />
+      </ErrorBoundary>,
+    );
+    expect(document.getElementById('btn_tutup_galat')).toBeNull();
+  });
+
+  it('panel/dialog bisa menimpa teks penjelasan', () => {
+    render(
+      <ErrorBoundary keterangan="Dialog gagal ditampilkan; halaman tidak terpengaruh.">
+        <Meledak />
+      </ErrorBoundary>,
+    );
+    expect(screen.getByText('Dialog gagal ditampilkan; halaman tidak terpengaruh.')).toBeInTheDocument();
+  });
+
   it('anak yang gagal berhenti dirender begitu panel galat tampil', () => {
     let jumlahRender = 0;
     function Hitung(): never {
