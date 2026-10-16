@@ -49,6 +49,10 @@ const RekapSantriPage = lazy(() => import('./pages/RekapSantriPage'));
 const KeuanganPage = lazy(() => import('./pages/KeuanganPage'));
 const PembayaranPage = lazy(() => import('./pages/PembayaranPage'));
 const DispensasiPage = lazy(() => import('./pages/DispensasiPage'));
+const PenilaianMasterPage = lazy(() => import('./pages/PenilaianMasterPage'));
+const PenilaianImporPage = lazy(() => import('./pages/PenilaianImporPage'));
+const PenilaianLegerPage = lazy(() => import('./pages/PenilaianLegerPage'));
+const PenilaianRaporPage = lazy(() => import('./pages/PenilaianRaporPage'));
 const MutasiKeluarPage = lazy(() => import('./pages/MutasiKeluarPage'));
 const PengajuanBiodataPage = lazy(() => import('./pages/PengajuanBiodataPage'));
 const DaftarDokumenSantriPage = lazy(() => import('./pages/DaftarDokumenSantriPage'));
@@ -188,6 +192,11 @@ export default function App() {
                       <Route path="/keuangan" element={<KhususIzin izin="keuangan.lihat"><KeuanganPage /></KhususIzin>} />
                       <Route path="/keuangan/dispensasi" element={<KhususIzin izin="keuangan.lihat"><DispensasiPage /></KhususIzin>} />
                       <Route path="/pembayaran" element={<KhususIzin izin="keuangan.lihat"><PembayaranPage /></KhususIzin>} />
+                      {/* Modul Penilaian: master, impor nilai, leger, rapor. */}
+                      <Route path="/penilaian/master" element={<KhususIzin izin="penilaian.lihat"><PenilaianMasterPage /></KhususIzin>} />
+                      <Route path="/penilaian/impor" element={<KhususIzin izin="penilaian.lihat"><PenilaianImporPage /></KhususIzin>} />
+                      <Route path="/penilaian/leger" element={<KhususIzin izin="penilaian.lihat"><PenilaianLegerPage /></KhususIzin>} />
+                      <Route path="/penilaian/rapor" element={<KhususIzin izin="penilaian.lihat"><PenilaianRaporPage /></KhususIzin>} />
                       <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />
                       <Route path="/dokumen-santri" element={<KhususIzin izin="dokumen_santri.lihat"><DaftarDokumenSantriPage /></KhususIzin>} />
                       <Route path="/dokumen-santri/lihat" element={<KhususIzin izin="dokumen_santri.lihat"><DokumenSantriPage /></KhususIzin>} />

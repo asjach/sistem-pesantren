@@ -13,6 +13,24 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Cetak rapor: hanya area ber-`id="area_cetak_rapor"` yang tampil saat
+   pengguna menekan Cetak (cetak browser → PDF, tanpa dependensi baru).
+   `visibility` (bukan `display`) dipakai agar tata letak area cetak tak
+   runtuh karena leluhurnya disembunyikan. */
+@media print {
+  body * { visibility: hidden; }
+  #area_cetak_rapor,
+  #area_cetak_rapor * { visibility: visible; }
+  #area_cetak_rapor {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    color: #000;
+  }
+  @page { margin: 12mm; }
+}
+
 @theme inline {
   --font-sans: var(--font-sans);
   --font-display: var(--font-display);

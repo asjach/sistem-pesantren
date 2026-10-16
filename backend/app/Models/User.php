@@ -7,6 +7,7 @@ use App\Services\IzinKatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
@@ -69,6 +70,12 @@ class User extends Authenticatable
     public function waliAnak(): HasMany
     {
         return $this->hasMany(WaliSantriRelasi::class, 'user_id');
+    }
+
+    /** Data pegawai yang tertaut ke akun ini (nama_lengkap untuk tampilan). */
+    public function pegawai(): HasOne
+    {
+        return $this->hasOne(Pegawai::class, 'user_id');
     }
 
     /** Relasi tenant: semua lembaga via pivot user_lembaga (kunci `jenjang`). */

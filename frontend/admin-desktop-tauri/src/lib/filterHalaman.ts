@@ -96,9 +96,23 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   // rail tabel santri hidup (lihat FilterRail: `tampil` saja tak cukup).
   // Daftar DISPENSASI-nya sendiri tetap tak disaring (paket tak terikat TA).
   keuangan_dispensasi: buatKonfigurasi(FILTER_AKADEMIK, { tingkat: true, kelas: true }),
-  pembayaran: buatKonfigurasi(FILTER_KELULUSAN),
+  // Halaman Pembayaran (kasir): Jenjang (lembaga) + Tahun Ajaran tampil di
+  // TopBar; kelas masuk daftar relevan supaya rail KELAS tabel santri di kartu
+  // Pilih Santri hidup (lihat FilterRail: `tampil` saja tak cukup). Tingkat
+  // sengaja tak relevan agar relnya tak tampil (kasir menyaring per kelas).
+  pembayaran: buatKonfigurasi(['lembaga', 'tahun_ajaran', 'kelas'], { kelas: true }),
   rekap_santri: buatKonfigurasi(FILTER_REKAP),
   pengajuan_biodata: buatKonfigurasi([]),
+  // Modul Penilaian: master hanya butuh jenjang (lembaga) + tahun ajaran
+  // (komponen/bobot, KKM, predikat, ekskul per TA).
+  penilaian_master: buatKonfigurasi(['lembaga', 'tahun_ajaran']),
+  // Impor: lingkup nilai = jenjang + TA + semester + kelas (kolom mapel
+  // template mengikuti kelas terpilih).
+  penilaian_impor: buatKonfigurasi(FILTER_SEMUA, { kelas: true }),
+  // Leger: santri × mapel per jenjang/TA/semester, rail tingkat & kelas hidup.
+  penilaian_leger: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
+  // Rapor: per kelas (cetak massal) — tingkat & kelas masuk daftar relevan.
+  penilaian_rapor: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   pegawai: buatKonfigurasi([]),
   pegawai_penempatan: buatKonfigurasi(['lembaga']),
   pegawai_akun: buatKonfigurasi(['lembaga']),

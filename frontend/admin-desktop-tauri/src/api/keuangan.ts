@@ -15,7 +15,7 @@ export interface TagihanRow {
   id: number; santri_id: number; jenjang: string; tahun_ajaran: string;
   jenis_id: number; periode: string | null; nominal: number; terbayar: number;
   status: 'belum' | 'sebagian' | 'lunas'; jatuh_tempo: string | null;
-  jenis?: { nama: string };
+  jenis?: { nama: string; tipe?: 'bulanan' | 'non_bulanan' };
   santri?: { nama_lengkap: string };
 }
 
@@ -405,15 +405,33 @@ export function ubahTagihan(id: number, data: { nominal: number; tahun_ajaran: s
 }
 
 export function catatPembayaran(data: Record<string, unknown>) {
-  return api<{ id: number; no_kwitansi: string }>('/admin/keuangan/pembayaran', { method: 'POST', body: JSON.stringify(data) });
+  return api<{ id: number; transaksi_id: number; no_kwitansi: string }>('/admin/keuangan/pembayaran', { method: 'POST', body: JSON.stringify(data) });
 }
 
-/** Satu baris pembayaran pada rekap harian (hanya status aktif). */
-export interface PembayaranHarianRow {
-  id: number; no_kwitansi: string | null; jumlah: number; metode: string; kas: string;
-  catatan: string | null; waktu: string; tagihan_id: number;
-  santri: string | null; jenis_id: number | null; jenis_nama: string | null;
-  periode: string | null; tahun_ajaran: string | null; jenjang: string | null;
+/** Satu baris dalam transaksi multi-tagihan. */
+export interface TransaksiBaris {
+  id: number; tagihan_id: number; jumlah: number;
+}
+
+/** Transaksi pembayaran: satu kwitansi untuk banyak tagihan. */
+export interface TransaksiResp {
+  id: number; no_kwitansi: string; total: number; jumlah_baris: number; baris: TransaksiBaris[];
+}
+
+/** Bayar banyak tagihan sekaligus dalam satu kwitansi (satu santri). */
+export function catatTransaksi(data: {
+  items: { tagihan_id: number; jumlah: number }[];
+  metode?: 'tunai' | 'transfer'; kas?: 'tunai_tu' | 'bank_lembaga' | 'bank_pesantren';
+  catatan?: string | null; no_kwitansi?: string;
+}) {
+  return api<TransaksiResp>('/admin/keuangan/transaksi', { method: 'POST', body: JSON.stringify(data) });
+}
+
+/** Satu baris header transaksi pada rekap harian (satu kwitansi). */
+export interface TransaksiHarianRow {
+  id: number; tanggal: string; no_kwitansi: string | null; santri: string | null;
+  jumlah_baris: number; total: number; metode: string | null; kas: string | null;
+  catatan: string | null;
 }
 
 /** Rekap harian per jenis tagihan. */
@@ -422,7 +440,7 @@ export interface RekapHarianJenis {
 }
 
 export interface PembayaranHarian {
-  tanggal: string; data: PembayaranHarianRow[]; rekap: RekapHarianJenis[];
+  tanggal: string; data: TransaksiHarianRow[]; rekap: RekapHarianJenis[];
   jumlah_transaksi: number; total: number;
 }
 
@@ -442,7 +460,7 @@ export function hapusPembayaran(id: number) {
 }
 
 export interface PembayaranRow {
-  id: number; tagihan_id: number; jumlah: number; metode: string; kas: string;
+  id: number; transaksi_id: number | null; tagihan_id: number; jumlah: number; metode: string; kas: string;
   no_kwitansi: string | null; status: 'aktif' | 'batal'; catatan: string | null; created_at: string;
 }
 

@@ -55,7 +55,7 @@ function jangkar(): HTMLElement {
 
 function pembayaran(partial: Partial<PembayaranRow> = {}): PembayaranRow {
   return {
-    id: 1, tagihan_id: 7, jumlah: 20000, metode: 'tunai', kas: 'tunai_tu',
+    id: 1, transaksi_id: 11, tagihan_id: 7, jumlah: 20000, metode: 'tunai', kas: 'tunai_tu',
     no_kwitansi: 'KW-001', status: 'aktif', catatan: null,
     created_at: '2025-08-01T09:12:00', ...partial,
   };

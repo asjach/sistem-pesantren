@@ -900,6 +900,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `nilai_formatif`: decimal(5, 2) [default 0]
 - `nilai_sumatif`: decimal(5, 2) [default 0]
 - `nilai_akhir`: decimal(5, 2) [default 0]
+- `sumber`: varchar(10) [default 'hitung'] — 'hitung' (dari komponen × bobot) atau 'impor' (leger langsung)
 - `predikat`: string(2) [null] — A, B, C, D
 - `catatan_capaian`: text [null]
 - `created_at`, `updated_at`
@@ -919,6 +920,96 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `keputusan_kenaikan`: string [null] — 'Naik ke kelas X', 'Lulus', dsb.
 - `created_at`, `updated_at`
 - UNIQUE(`santri_id`, `kelas_id`, `tahun_ajaran`, `semester`, `unique_catatan_wali`)
+
+### `komponen_nilai` (master komponen penilaian per jenjang)
+- `id` PK
+- `jenjang`: varchar(20) FK → lembaga.jenjang [cascade update + delete]
+- `nama`: string — mis. UH, Tugas, PTS, ASAS
+- `kode`: varchar(20) [null]
+- `urutan`: int [default 0]
+- `is_active`: bool [default true]
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`, `nama`)
+
+### `komponen_nilai_bobot` (bobot komponen per tahun ajaran)
+- `id` PK
+- `komponen_nilai_id`: FK → komponen_nilai [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `bobot`: decimal(5, 2) [default 0]
+- `created_at`, `updated_at`
+- UNIQUE(`komponen_nilai_id`, `tahun_ajaran`, `uq_komponen_bobot`)
+
+### `kkm_kegiatan` (KKM per peristiwa; satu baris khusus `AKHIR`)
+- `id` PK
+- `jenjang`: varchar(20) FK → lembaga.jenjang [cascade update + delete]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `komponen_nilai_id`: FK → komponen_nilai [null, cascade] — null pada baris `AKHIR`
+- `kegiatan`: varchar(50) — nama komponen, atau `AKHIR` untuk KKM nilai akhir
+- `kkm`: decimal(5, 2) [default 0]
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`, `tahun_ajaran`, `kegiatan`, `uq_kkm_kegiatan`)
+
+### `rentang_predikat` (predikat berjangkar ke KKM `AKHIR`)
+- `id` PK
+- `jenjang`: varchar(20) FK → lembaga.jenjang [cascade update + delete]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `predikat`: string(2) — A, B, C, D
+- `offset_bawah`: decimal(5, 2) [null] — berlaku bila nilai ≥ KKM + offset; null = tanpa batas bawah
+- `keterangan`: string [null]
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`, `tahun_ajaran`, `predikat`, `uq_rentang_predikat`)
+
+### `nilai_komponen` (skor per komponen — jalur HITUNG)
+- `id` PK
+- `santri_id`: FK → santri [cascade]
+- `pengampu_mapel_id`: FK → pengampu_mapel [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `semester`: string(2)
+- `komponen_nilai_id`: FK → komponen_nilai [cascade]
+- `skor`: decimal(5, 2) [null]
+- `created_at`, `updated_at`
+- UNIQUE(`santri_id`, `pengampu_mapel_id`, `tahun_ajaran`, `semester`, `komponen_nilai_id`, `uq_nilai_komponen`)
+
+### `ekstrakurikuler` (master per jenjang + TA)
+- `id` PK
+- `jenjang`: varchar(20) FK → lembaga.jenjang [cascade update + delete]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `nama`: string
+- `pembimbing`: string [null]
+- `is_active`: bool [default true]
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`, `tahun_ajaran`, `nama`, `uq_ekstrakurikuler`)
+
+### `nilai_ekstrakurikuler` (nilai ekskul santri; pembimbing dari master)
+- `id` PK
+- `santri_id`: FK → santri [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `semester`: string(2)
+- `ekstrakurikuler_id`: FK → ekstrakurikuler [cascade]
+- `predikat`: string(2) [null] — MI
+- `deskripsi`: text [null]
+- `nilai`: decimal(5, 2) [null] — MD memakai angka
+- `created_at`, `updated_at`
+- UNIQUE(`santri_id`, `tahun_ajaran`, `semester`, `ekstrakurikuler_id`, `uq_nilai_ekskul`)
+
+### `prestasi_santri` (satu baris per prestasi)
+- `id` PK
+- `santri_id`: FK → santri [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `semester`: string(2) [null]
+- `prestasi`: string
+- `level`: string [null]
+- `keterangan`: text [null]
+- `created_at`, `updated_at`
+
+### `predikat_ekskul` (master predikat → deskripsi; `jenjang` null = semua lembaga)
+- `id` PK
+- `jenjang`: varchar(20) [null] FK → lembaga.jenjang [cascade update + delete]
+- `predikat`: string(2)
+- `deskripsi`: string
+- `urutan`: int [default 0]
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`, `predikat`, `uq_predikat_ekskul`)
 
 ## BLOK 7 — Presensi & Kedisiplinan (Modul 500 Presensi Santri)
 
@@ -1195,14 +1286,22 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `created_at`, `updated_at`
 - INDEX(`santri_id`, `tahun_ajaran`, `jenis_id`); UNIQUE(`santri_id`, `jenis_id`, `periode`) — nama `uq_tagihan_santri_jenis_periode`
 
-### `pembayaran`
+### `pembayaran` (baris detail per tagihan dalam satu transaksi)
 - `id` PK
 - `tagihan_id`: FK → tagihan [cascade]
+- `transaksi_id`: FK → transaksi_pembayaran [null]
 - `jumlah`: unsignedBigInteger
+- `status`: enum('aktif','batal') [default 'aktif'] — batal per transaksi mengembalikan status tiap tagihan (tidak hapus baris)
+- `created_at`, `updated_at`
+
+### `transaksi_pembayaran` (header: satu kwitansi untuk banyak tagihan satu santri)
+- `id` PK
+- `no_kwitansi`: string [unik] — karakter acak bila kosong
+- `total`: unsignedBigInteger — jumlah seluruh barisnya
 - `metode`: enum('tunai','transfer') [default 'tunai']
 - `kas`: enum('tunai_tu','bank_lembaga','bank_pesantren') [default 'tunai_tu'] — memetakan posisi uang (penerima tetap TU/Admin/Kasir lembaga)
-- `no_kwitansi`: string [null, unik] — karakter acak
 - `diterima_oleh`: FK → users [null, nullOnDelete]
-- `status`: enum('aktif','batal') [default 'aktif'] — batal mengembalikan status tagihan (tidak hapus baris)
+- `status`: enum('aktif','batal') [default 'aktif'] — batal selalu seluruh transaksi (tak ada kwitansi batal sebagian)
 - `catatan`: string [null]
 - `created_at`, `updated_at`
+- UNIQUE(`no_kwitansi`) — satu nomor untuk seluruh baris transaksi

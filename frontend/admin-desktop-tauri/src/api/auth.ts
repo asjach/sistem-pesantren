@@ -18,6 +18,8 @@ export interface Me {
   username: string | null;
   roles: Role[];
   lembagas?: LembagaRingkas[];
+  /** Data pegawai tertaut (nama lengkap untuk tampilan); null bila tak ada. */
+  pegawai?: { id: number; nama_lengkap: string } | null;
   /** Izin matriks dari backend (`modul.aksi`); sumber dochaya visibilitas & tombol aksi. */
   permissions?: string[];
 }

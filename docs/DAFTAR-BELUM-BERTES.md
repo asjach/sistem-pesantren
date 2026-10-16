@@ -179,6 +179,7 @@ Berdasarkan endpoint yang muncul di test vs daftar rute, **belum terlihat tersen
 | `SemesterAktifController` | `upsert` |
 | `TahunAjaranController` | `set-aktif`, `sembunyikan`, `tampilkan` |
 | `PembayaranController` | `batal` (⚠️ ada temuan lost-update), `destroy` |
+| `PenilaianController` (26 aksi, **baru 2026-10-16**) | seluruh endpoint master/leger/rapor/impor belum tersentuh Feature test — baru ada tes unit fungsi murni (`tests/Unit/TerbilangTest.php`, `tests/Unit/NilaiRaporTest.php`, 29 tes). Kandidat pertama: impor leger (resolusi santri↔pengampu + nilai akhir/predikat) & `raporKelas` (kelengkapan). |
 
 ## A7. Validasi & keamanan (butuh test kontrak)
 

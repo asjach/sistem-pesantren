@@ -48,6 +48,9 @@ class IzinKatalog
         'komponen_custom' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'pengaturan_halaman' => ['lihat', 'tambah', 'ubah', 'hapus'],
         'keuangan' => ['lihat', 'tambah', 'ubah', 'hapus'],
+        // Modul penilaian: master (komponen/bobot, KKM, predikat, ekskul,
+        // prestasi) + leger/rapor + impor nilai. Impor memakai `tambah`.
+        'penilaian' => ['lihat', 'tambah', 'ubah', 'hapus', 'cetak'],
         'server' => ['lihat'],
         'izin' => ['lihat', 'ubah'],
     ];

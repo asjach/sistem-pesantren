@@ -129,6 +129,7 @@ describe('halamanDariPath & halaman bertab', () => {
       'pegawai',
       'dokumen',
       'keuangan',
+      'penilaian',
       'pengaturan',
     ]);
     expect(halamanGrupLangsung('psb').map((h) => h.to)).toEqual(['/psb', '/kegiatan-psb']);
@@ -137,6 +138,21 @@ describe('halamanDariPath & halaman bertab', () => {
     expect(halamanDariPath('/kegiatan-psb')?.tab).toBe('psb');
     // Tidak ada lagi halaman ber-subgrup psb di dalam Santri.
     expect(halamanSubgrup('santri', 'psb')).toEqual([]);
+  });
+
+  it('Penilaian grup sendiri: master, impor, leger, rapor (tanpa subgrup)', () => {
+    expect(halamanGrupLangsung('penilaian').map((h) => h.to)).toEqual([
+      '/penilaian/master',
+      '/penilaian/impor',
+      '/penilaian/leger',
+      '/penilaian/rapor',
+    ]);
+    expect(halamanDariPath('/penilaian/master')?.tab).toBe('penilaian');
+    expect(halamanDariPath('/penilaian/leger')?.tab).toBe('penilaian');
+    // Semua halaman Penilaian dijaga izin matriks modul.
+    for (const h of halamanGrupLangsung('penilaian')) {
+      expect(izinHalaman(h)).toEqual(['penilaian.lihat']);
+    }
   });
 
   it('izin halaman gabungan = gabungan izin semua tab', () => {

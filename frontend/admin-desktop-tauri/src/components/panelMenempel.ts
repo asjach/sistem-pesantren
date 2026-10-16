@@ -1,14 +1,16 @@
 /** Panel popover yang MENEMPEL pada kotak kontrolnya.
  *
- *  Dipakai panel nominal (`tipeInput.tsx`) dan panel kalender
- *  (`PopoverKalender.tsx`). Keduanya anak SATU `Popover` sehingga
- *  terbuka/tertutup bersama: satu panel di atas kotak, satu di bawahnya.
+ *  Dipakai panel nominal (`tipeInput.tsx`, dua panel: angka di atas + nominal
+ *  di bawah kotak) dan panel kalender (`PopoverKalender.tsx`, SATU panel berisi
+ *  tahun + bulan + tanggal di bawah kotak). Panel-panel yang masih berpasangan
+ *  adalah anak SATU `Popover` sehingga terbuka/tertutup bersama.
  *
  *  Radix menutup popover begitu ada interaksi yang dianggap "di luar"
- *  kontennya; karena itu tiap panel mencegah penutupan bila sasarannya panel
- *  sebelah (`diDalamPanel`) — pada varian non-modal `onInteractOutside`
- *  dipanggil SEBELUM penutupan, jadi `preventDefault()` cukup menahannya.
- *  Tanpa itu, menekan tombol di satu panel akan ikut menutup panel lainnya. */
+ *  kontennya; karena itu tiap panel berpasangan mencegah penutupan bila
+ *  sasarannya panel sebelah (`diDalamPanel`) — pada varian non-modal
+ *  `onInteractOutside` dipanggil SEBELUM penutupan, jadi `preventDefault()`
+ *  cukup menahannya. Tanpa itu, menekan tombol di satu panel akan ikut
+ *  menutup panel lainnya. */
 
 /** Kelas tiap panel: lebar & padding seragam, border sewarna kotak pembungkus,
  *  plus `penanda` — kelas penanda panel yang sekaligus jadi jangkar override

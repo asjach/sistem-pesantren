@@ -85,7 +85,8 @@ class SantriController extends Controller
                 ->where('nisn', 'like', "%{$q}%")
                 ->orWhere('ayah_nama', 'like', "%{$q}%")
                 ->orWhere('ibu_nama', 'like', "%{$q}%")
-                ->orWhere('nama_lengkap', 'like', "%{$q}%"));
+                ->orWhere('nama_lengkap', 'like', "%{$q}%")
+                ->orWhereHas('lembagaSantri', fn ($ls) => $ls->where('nis_lokal', 'like', "%{$q}%")));
         }
 
         $this->urutKelasJenjang($query, $urut, $this->taKelas($request));

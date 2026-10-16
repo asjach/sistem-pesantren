@@ -17,4 +17,10 @@ class Pembayaran extends Model
     {
         return $this->belongsTo(Tagihan::class);
     }
+
+    /** Header transaksi (kwitansi) pemilik baris ini. */
+    public function transaksi(): BelongsTo
+    {
+        return $this->belongsTo(TransaksiPembayaran::class, 'transaksi_id');
+    }
 }

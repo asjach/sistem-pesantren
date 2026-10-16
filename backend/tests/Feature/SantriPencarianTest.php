@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Lembaga;
+use App\Models\LembagaSantri;
 use App\Models\Santri;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -13,7 +14,7 @@ use Tests\TestCase;
 
 /**
  * Pencarian daftar santri (`GET /api/admin/santri?q=`) — LIKE substring untuk
- * semua driver (nama, NISN, nama ayah/ibu).
+ * semua driver (nama, NISN, NIS lokal, nama ayah/ibu).
  *
  * Jalur FULLTEXT ngram MySQL sengaja dihapus: index-nya terbukti tak
  * mengembalikan baris apa pun di DB produksi (dicek langsung — `MATCH`
@@ -88,14 +89,18 @@ class SantriPencarianTest extends TestCase
         ], $opt));
     }
 
-    /** Substring awal/tengah/akhir nama (semua driver LIKE), NISN, nama ayah/ibu, dan tak cocok. */
+    /** Substring awal/tengah/akhir nama (semua driver LIKE), NISN, NIS lokal, nama ayah/ibu, dan tak cocok. */
     public function test_pencarian_q_substring_nama_nisn_ayah_ibu(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
-        $this->makeSantri('ADINDA PUTRI', [
+        $santri = $this->makeSantri('ADINDA PUTRI', [
             'nisn' => '0099009901', 'ayah_nama' => 'SUPANDI', 'ibu_nama' => 'SITI AMINAH',
+        ]);
+        LembagaSantri::create([
+            'santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang,
+            'nis_lokal' => 'MI-7741', 'is_active_lembaga' => 'Ya', 'tgl_masuk' => '2025-07-01',
         ]);
         $this->makeSantri('BUDI SANTOSO');
         $this->makeSantri('CITRA AYU LESTARI');
@@ -125,6 +130,11 @@ class SantriPencarianTest extends TestCase
         // Lewat nama ibu.
         $ibu = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=AMINAH')->assertStatus(200);
         $this->assertCount(1, $ibu->json('data'));
+
+        // Lewat NIS lokal (keanggotaan lembaga).
+        $lokal = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=7741')->assertStatus(200);
+        $this->assertCount(1, $lokal->json('data'));
+        $this->assertStringContainsString('ADINDA', $lokal->json('data.0.nama_lengkap'));
 
         // Tak cocok.
         $kosong = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/santri?q=ZZZZ')->assertStatus(200);

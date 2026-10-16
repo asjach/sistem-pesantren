@@ -58,7 +58,7 @@ class AuthController extends Controller
         $token = $user->createToken($device, ['*'], now()->addDays($staff ? 30 : 365))->plainTextToken;
 
         return response()->json([
-            'user' => $user->load('roles'),
+            'user' => $user->load(['roles', 'pegawai:id,user_id,nama_lengkap']),
             'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
             'token' => $token,
         ]);
@@ -85,7 +85,7 @@ class AuthController extends Controller
         $jenjang = request()->input('jenjang');
 
         return response()->json(array_merge(
-            $user->load(['roles', 'lembagas:jenjang,nama'])->toArray(),
+            $user->load(['roles', 'lembagas:jenjang,nama', 'pegawai:id,user_id,nama_lengkap'])->toArray(),
             // Saat bertindak sebagai lembaga: izin efektif setara admin.
             // ?jenjang=MI: izin efektif (global + peran tercatat di MI).
             ['permissions' => $user->izinEfektif(is_string($jenjang) && $jenjang !== '' ? $jenjang : null)],

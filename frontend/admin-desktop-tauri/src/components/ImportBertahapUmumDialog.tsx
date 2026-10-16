@@ -64,6 +64,9 @@ export interface KonfigurasiImportBertahap {
   idPrefix: string;
   /** Kolom template yang dikirim; kunci lain dari file diabaikan. */
   kolom: string[];
+  /** Kolom efektif dihitung dari header file (mis. template leger dengan
+   *  kolom MAPEL dinamis). Bila ada, menimpa `kolom` untuk penyaringan. */
+  kolomDariFile?: (kepala: string[]) => string[];
   /** Satu dari `kolom` yang wajib ada di header file. */
   wajib: string[];
   /** Label tombol unduh template + aksi unduh. */
@@ -166,11 +169,12 @@ export default function ImportBertahapUmumDialog({ open, onOpenChange, config }:
         toast.error(`Kolom wajib tidak ada: ${hilang.join(', ')}.`);
         return;
       }
+      const kolomEfektif = config.kolomDariFile ? config.kolomDariFile(kepala) : config.kolom;
       const data: Record<string, unknown>[] = [];
       for (const r of matriks.slice(1) as unknown[][]) {
         const o: Record<string, unknown> = {};
         kepala.forEach((k, i) => {
-          if (config.kolom.includes(k)) o[k] = r[i] ?? null;
+          if (kolomEfektif.includes(k)) o[k] = r[i] ?? null;
         });
         data.push(o);
       }

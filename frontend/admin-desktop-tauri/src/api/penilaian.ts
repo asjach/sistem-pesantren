@@ -1,0 +1,305 @@
+import { api, downloadFile } from './client';
+import type { Paginate } from './master';
+import { appendQueryParam, type ScalarOrArray } from './query';
+
+/** Modul Penilaian: master, leger, rapor, dan impor 4 template. */
+
+export interface KomponenNilai {
+  id: number; jenjang: string; nama: string; kode: string | null;
+  urutan: number; is_active: boolean;
+  /** Bobot pada tahun ajaran yang diminta (0 = belum diatur). */
+  bobot: number;
+}
+
+export interface KomponenNilaiResp {
+  komponen: KomponenNilai[];
+  total_bobot: number;
+}
+
+export interface KkmBaris {
+  kegiatan: string;
+  komponen_nilai_id: number | null;
+  kkm: number;
+}
+
+export interface PredikatBaris {
+  id?: number;
+  predikat: string;
+  offset_bawah: number | null;
+  keterangan?: string | null;
+}
+
+export interface Ekstrakurikuler {
+  id: number; jenjang: string; tahun_ajaran: string; nama: string;
+  pembimbing: string | null; is_active: boolean;
+}
+
+export interface PredikatEkskul {
+  id: number; jenjang: string | null; predikat: string; deskripsi: string; urutan: number;
+}
+
+export interface PrestasiSantri {
+  id: number; santri_id: number; tahun_ajaran: string; semester: string | null;
+  prestasi: string; level: string | null; keterangan: string | null;
+  santri?: { id: number; nama_lengkap: string };
+}
+
+export interface SelLeger {
+  nilai: number | null; predikat: string | null; sumber: string | null; guru: string | null;
+}
+
+export interface KolomLeger { key: string; mapel_id: number; nama_mapel: string }
+
+export interface BarisLeger {
+  santri_id: number; nis_lokal: string | null; nama: string;
+  kelas: string | null; tingkat: string | null;
+  sel: Record<string, SelLeger | null>;
+  rata_rata: number | null;
+}
+
+export interface LegerResp {
+  kolom: KolomLeger[];
+  baris: BarisLeger[];
+  total: number; per_page: number; current_page: number; last_page: number;
+}
+
+export interface RaporMapel {
+  nama_mapel: string; guru: string | null; nilai_akhir: number | null;
+  predikat: string | null; terbilang: string; sumber: string | null;
+}
+
+export interface RaporResp {
+  santri: { id: number; nama: string; nis_lokal: string | null; nisn: string | null; jk: string | null };
+  identitas: { jenjang: string; kelas: string | null; tingkat: string | null; semester: string; tahun_ajaran: string };
+  kop: {
+    nama: string; alamat: string | null; kab_kota: string | null; logo_url: string | null;
+    kepala: string | null; template_rapor: string; mode_rapor: string;
+  };
+  mapel: RaporMapel[];
+  rekap: {
+    jumlah: number | null; rata_rata: number | null;
+    peringkat: number | null; peringkat_ordinal: string | null; peringkat_total: number;
+  };
+  catatan_wali: {
+    sakit: number; izin: number; alpa: number;
+    catatan: string | null; status_kenaikan: string | null;
+  };
+  ekskul: { nama: string; pembimbing: string | null; predikat: string | null; nilai: number | null; deskripsi: string | null }[];
+  prestasi: { prestasi: string; level: string | null; keterangan: string | null }[];
+  penandatangan: { wali_kelas: string | null; kepala: string | null };
+}
+
+export interface BarisRaporKelas {
+  santri_id: number; nis_lokal: string | null; nama: string;
+  mapel_terisi: number; mapel_total: number; lengkap: boolean; ada_catatan: boolean;
+}
+
+export interface RaporKelasResp {
+  kolom: KolomLeger[];
+  baris: BarisRaporKelas[];
+  ringkasan: { santri: number; lengkap: number; tanpa_catatan: number; mapel: number };
+}
+
+type Lingkup = { jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string> };
+
+function lingkupQuery(params: Lingkup): URLSearchParams {
+  const q = new URLSearchParams();
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  return q;
+}
+
+// ---------------------------------------------------------------- master
+
+export function daftarKomponen(params: Lingkup = {}) {
+  return api<KomponenNilaiResp>(`/admin/penilaian/komponen?${lingkupQuery(params).toString()}`);
+}
+
+export function buatKomponen(data: {
+  jenjang: string; tahun_ajaran: string; nama: string; kode?: string | null;
+  urutan?: number; bobot?: number; is_active?: boolean;
+}) {
+  return api<KomponenNilai>('/admin/penilaian/komponen', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function ubahKomponen(id: number, data: {
+  tahun_ajaran: string; nama?: string; kode?: string | null;
+  urutan?: number; bobot?: number; is_active?: boolean;
+}) {
+  return api<KomponenNilai>(`/admin/penilaian/komponen/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function hapusKomponen(id: number) {
+  return api<{ pesan: string }>(`/admin/penilaian/komponen/${id}`, { method: 'DELETE' });
+}
+
+/** Muat bawaan: UH 20 + Tugas 20 + PTS 20 + ASAS 40, KKM 75, predikat A–D. */
+export function muatBawaan(jenjang: string, tahunAjaran: string) {
+  return api<{ pesan: string }>('/admin/penilaian/bawaan', {
+    method: 'POST',
+    body: JSON.stringify({ jenjang, tahun_ajaran: tahunAjaran }),
+  });
+}
+
+export function daftarKkm(params: Lingkup = {}) {
+  return api<{ baris: KkmBaris[] }>(`/admin/penilaian/kkm?${lingkupQuery(params).toString()}`);
+}
+
+export function simpanKkm(jenjang: string, tahunAjaran: string, baris: KkmBaris[]) {
+  return api<{ pesan: string }>('/admin/penilaian/kkm', {
+    method: 'PUT',
+    body: JSON.stringify({ jenjang, tahun_ajaran: tahunAjaran, baris }),
+  });
+}
+
+export function daftarPredikat(params: Lingkup = {}) {
+  return api<{ baris: PredikatBaris[] }>(`/admin/penilaian/predikat?${lingkupQuery(params).toString()}`);
+}
+
+export function simpanPredikat(jenjang: string, tahunAjaran: string, baris: PredikatBaris[]) {
+  return api<{ pesan: string }>('/admin/penilaian/predikat', {
+    method: 'PUT',
+    body: JSON.stringify({ jenjang, tahun_ajaran: tahunAjaran, baris }),
+  });
+}
+
+export function daftarEkskul(params: Lingkup = {}) {
+  return api<Ekstrakurikuler[]>(`/admin/penilaian/ekskul?${lingkupQuery(params).toString()}`);
+}
+
+export function buatEkskul(data: { jenjang: string; tahun_ajaran: string; nama: string; pembimbing?: string | null; is_active?: boolean }) {
+  return api<Ekstrakurikuler>('/admin/penilaian/ekskul', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function ubahEkskul(id: number, data: { nama?: string; pembimbing?: string | null; is_active?: boolean }) {
+  return api<Ekstrakurikuler>(`/admin/penilaian/ekskul/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function hapusEkskul(id: number) {
+  return api<{ pesan: string }>(`/admin/penilaian/ekskul/${id}`, { method: 'DELETE' });
+}
+
+export function daftarPredikatEkskul() {
+  return api<PredikatEkskul[]>('/admin/penilaian/predikat-ekskul');
+}
+
+export function simpanPredikatEkskul(baris: { jenjang: string | null; predikat: string; deskripsi: string; urutan?: number }[]) {
+  return api<{ pesan: string }>('/admin/penilaian/predikat-ekskul', { method: 'PUT', body: JSON.stringify({ baris }) });
+}
+
+export function daftarPrestasi(params: { tahun_ajaran: string; santri_id?: number; q?: string }) {
+  const q = new URLSearchParams();
+  q.set('tahun_ajaran', params.tahun_ajaran);
+  if (params.santri_id !== undefined) q.set('santri_id', String(params.santri_id));
+  if (params.q) q.set('q', params.q);
+  return api<PrestasiSantri[]>(`/admin/penilaian/prestasi?${q.toString()}`);
+}
+
+export function buatPrestasi(data: {
+  santri_id: number; tahun_ajaran: string; semester?: string | null;
+  prestasi: string; level?: string | null; keterangan?: string | null;
+}) {
+  return api<PrestasiSantri>('/admin/penilaian/prestasi', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function hapusPrestasi(id: number) {
+  return api<{ pesan: string }>(`/admin/penilaian/prestasi/${id}`, { method: 'DELETE' });
+}
+
+// ---------------------------------------------------------------- leger
+
+export function legerNilai(params: {
+  jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>;
+  semester?: ScalarOrArray<string>; tingkat?: ScalarOrArray<string>;
+  kelas_id?: ScalarOrArray<number>; q?: string; page?: number; per_page?: string;
+} = {}) {
+  const q = lingkupQuery(params);
+  appendQueryParam(q, 'semester', params.semester);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
+  if (params.q) q.set('q', params.q);
+  if (params.page) q.set('page', String(params.page));
+  if (params.per_page) q.set('per_page', params.per_page);
+  return api<LegerResp>(`/admin/penilaian/leger?${q.toString()}`);
+}
+
+export function unduhLeger(params: {
+  jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>;
+  semester?: ScalarOrArray<string>; tingkat?: ScalarOrArray<string>;
+  kelas_id?: ScalarOrArray<number>; q?: string;
+} = {}) {
+  const q = lingkupQuery(params);
+  appendQueryParam(q, 'semester', params.semester);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
+  if (params.q) q.set('q', params.q);
+  return downloadFile(`/admin/penilaian/leger/unduh?${q.toString()}`, 'leger-nilai.xlsx');
+}
+
+// ---------------------------------------------------------------- rapor
+
+export function ambilRapor(params: { santri_id: number; tahun_ajaran: string; semester: string; peringkat?: '3' | '10' | 'semua' }) {
+  const q = new URLSearchParams();
+  q.set('santri_id', String(params.santri_id));
+  q.set('tahun_ajaran', params.tahun_ajaran);
+  q.set('semester', params.semester);
+  if (params.peringkat) q.set('peringkat', params.peringkat);
+  return api<RaporResp>(`/admin/penilaian/rapor?${q.toString()}`);
+}
+
+export function raporKelas(params: {
+  jenjang: string; tahun_ajaran: string; semester: string; kelas_id: number;
+}) {
+  const q = new URLSearchParams();
+  q.set('jenjang', params.jenjang);
+  q.set('tahun_ajaran', params.tahun_ajaran);
+  q.set('semester', params.semester);
+  q.set('kelas_id', String(params.kelas_id));
+  return api<RaporKelasResp>(`/admin/penilaian/rapor-kelas?${q.toString()}`);
+}
+
+// ---------------------------------------------------------------- impor
+
+export type TipeImpor = 'nilai' | 'catatan_wali' | 'prestasi' | 'ekskul';
+
+export function unduhTemplatePenilaian(tipe: TipeImpor, params: {
+  jenjang: string; tahun_ajaran: string; kelas_id?: number;
+}) {
+  const q = new URLSearchParams();
+  q.set('tipe', tipe);
+  q.set('jenjang', params.jenjang);
+  q.set('tahun_ajaran', params.tahun_ajaran);
+  if (params.kelas_id !== undefined) q.set('kelas_id', String(params.kelas_id));
+  return downloadFile(`/admin/penilaian/import-template?${q.toString()}`, `template-import-penilaian-${tipe}.xlsx`);
+}
+
+export interface KirimPotonganPenilaian {
+  sesi_id?: number;
+  mode: 'periksa' | 'eksekusi';
+  total: number;
+  tipe: TipeImpor;
+  tahun_ajaran: string;
+  semester: string;
+  jenjang: string[];
+  komponen_id?: number | null;
+  baris: Record<string, unknown>[];
+  terakhir?: boolean;
+}
+
+export function potongImportPenilaian(input: KirimPotonganPenilaian) {
+  return api<{
+    sesi_id: number; offset: number; total: number; selesai: boolean;
+    ringkasan: { baris_diproses: number; baris_valid: number; baris_gagal: number; baris_dilewati: number; dibuat: number; diperbarui: number };
+    galat_baru: number;
+    galat_contoh: { baris: number; nis_lokal: string | null; kolom: string; pesan: string }[];
+    galat_unduh: boolean;
+  }>('/admin/penilaian/import-potong', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function batalPotongPenilaian(sesiId: number) {
+  return api<{ pesan: string }>(`/admin/penilaian/import-potong/${sesiId}/batal`, { method: 'POST' });
+}
+
+export function unduhGalatPenilaian(sesiId: number) {
+  return downloadFile(`/admin/penilaian/import-potong/${sesiId}/galat`, 'galat-import-penilaian.csv');
+}

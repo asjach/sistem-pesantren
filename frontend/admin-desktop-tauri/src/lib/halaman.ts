@@ -2,6 +2,8 @@
 import {
   BadgeCheck,
   Blend,
+  BookMarked,
+  Calculator,
   CalendarCheck,
   CalendarRange,
   ClipboardCheck,
@@ -9,9 +11,12 @@ import {
   Columns3,
   Eye,
   FileCheck2,
+  FileUp,
   FolderOpen,
   GraduationCap,
+  Grid,
   Home,
+  NotebookTabs,
   Palette,
   Pin,
   ReceiptText,
@@ -24,7 +29,7 @@ import {
 } from '@/icons';
 
 /** Kategori navigasi (grup di sidebar). */
-export type TabKategori = 'beranda' | 'master' | 'psb' | 'santri' | 'pegawai' | 'dokumen' | 'keuangan' | 'pengaturan';
+export type TabKategori = 'beranda' | 'master' | 'psb' | 'santri' | 'pegawai' | 'dokumen' | 'keuangan' | 'penilaian' | 'pengaturan';
 
 /** Tab dalam satu halaman gabungan (mis. Data Induk punya 6 tab). */
 export interface TabHalamanDef {
@@ -170,6 +175,11 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/keuangan', label: 'Pengaturan', deskripsi: 'Jenis tagihan, tarif, dan tagihan santri.', tab: 'keuangan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
   { to: '/keuangan/dispensasi', label: 'Dispensasi', deskripsi: 'Daftar dispensasi santri.', tab: 'keuangan', grid: true, icon: BadgeCheck, permission: 'keuangan.lihat' },
   { to: '/pembayaran', label: 'Pembayaran', deskripsi: 'Kasir: cari santri, lihat tagihan belum lunas, catat pembayaran.', tab: 'keuangan', grid: true, icon: ReceiptText, permission: 'keuangan.lihat' },
+  // Modul Penilaian: master, impor nilai, leger, rapor (grup sendiri).
+  { to: '/penilaian/master', label: 'Master Penilaian', deskripsi: 'Komponen & bobot, KKM, predikat, ekstrakurikuler, dan prestasi.', tab: 'penilaian', grid: true, icon: Calculator, permission: 'penilaian.lihat' },
+  { to: '/penilaian/impor', label: 'Impor Nilai', deskripsi: 'Impor leger, catatan wali, prestasi, dan ekstrakurikuler dari Excel.', tab: 'penilaian', icon: FileUp, permission: 'penilaian.lihat' },
+  { to: '/penilaian/leger', label: 'Leger Nilai', deskripsi: 'Leger nilai akhir santri × mata pelajaran (crosstab).', tab: 'penilaian', grid: true, icon: Grid, permission: 'penilaian.lihat' },
+  { to: '/penilaian/rapor', label: 'Rapor', deskripsi: 'Pratinjau & cetak rapor per santri / per kelas.', tab: 'penilaian', grid: true, icon: NotebookTabs, permission: 'penilaian.lihat' },
   {
     to: '/pengaturan/izin',
     label: 'Kelola Izin',
@@ -253,6 +263,8 @@ export const NAV_GRUP: GrupNav[] = [
     ],
   },
   { id: 'keuangan', label: 'Keuangan', icon: Wallet },
+  // Modul Penilaian: master, impor, leger, rapor.
+  { id: 'penilaian', label: 'Penilaian', icon: BookMarked },
   { id: 'pengaturan', label: 'Pengaturan', icon: Palette },
 ];
 

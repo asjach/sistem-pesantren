@@ -20,7 +20,7 @@ class PembayaranStoreRequest extends FormRequest
             'jumlah' => 'required|integer|min:1',
             'metode' => 'in:tunai,transfer',
             'kas' => 'in:tunai_tu,bank_lembaga,bank_pesantren',
-            'no_kwitansi' => 'nullable|string|max:60|unique:pembayaran,no_kwitansi',
+            'no_kwitansi' => 'nullable|string|max:60|unique:transaksi_pembayaran,no_kwitansi',
             'catatan' => 'nullable|string|max:190',
         ];
     }

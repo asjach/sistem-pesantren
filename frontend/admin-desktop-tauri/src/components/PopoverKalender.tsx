@@ -8,13 +8,16 @@ import {
   NAMA_BULAN, NAMA_BULAN_SINGKAT, NAMA_HARI, NAMA_HARI_SINGKAT,
   pecahIso, rakitIso,
 } from '@/lib/tanggal';
-import { diDalamPanel, kelasPanel, KELAS_BORDER_SAMAR, KELAS_TOMBOL, OFFSET_RATA, OFFSET_SISI } from '@/components/panelMenempel';
+import { kelasPanel, KELAS_BORDER_SAMAR, KELAS_TOMBOL, OFFSET_RATA, OFFSET_SISI } from '@/components/panelMenempel';
 import type { KonteksTipeInput } from '@/components/tipeInput';
 
-/** Tombol kalender + DUA panel pemilih tanggal untuk tipe `tanggal` — pasangan
- *  `aksiKanan` dari `FORMAT_TANGGAL`, dengan tata letak seperti panel nominal
- *  (lihat `panelMenempel.ts`): panel ATAS untuk TAHUN & BULAN, panel BAWAH
- *  untuk TANGGAL.
+/** Tombol kalender + SATU panel pemilih tanggal untuk tipe `tanggal` —
+ *  pasangan `aksiKanan` dari `FORMAT_TANGGAL`.
+ *
+ *  Isi panel dari atas ke bawah: TAHUN, BULAN, lalu TANGGAL. Satu panel (bukan
+ *  dua seperti dulu: tahun+bulan di atas kotak, tanggal di bawahnya) supaya
+ *  tak ada bagian yang saling menimpa — panel yang menghindar ke sisi lain
+ *  saat kepepet tepi viewport selalu berbalik sebagai SATU kesatuan.
  *
  *  Kotak tanggal SENGAJA bukan `input type="date"`: tampilan & popover
  *  pemilihnya milik webview (ikut locale, tak bisa distyle/dites), jadi
@@ -26,9 +29,9 @@ import type { KonteksTipeInput } from '@/components/tipeInput';
  *  waktu. */
 export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTipeInput) {
   const [buka, setBuka] = useState(false);
-  /** Bulan & tahun yang ditampilkan grid TANGGAL (panel bawah). */
+  /** Bulan & tahun yang ditampilkan grid TANGGAL. */
   const [tampil, setTampil] = useState(() => bulanDari(nilai));
-  /** Tahun pertama blok tahun di panel atas (dibatas 1900–2100). */
+  /** Tahun pertama blok tahun (dibatas 1900–2100). */
   const [awalBlok, setAwalBlok] = useState(() => batasAwalBlok(awalBlokUntuk(bulanDari(nilai).tahun)));
 
   /* Nilai berubah (dari luar, atau hasil pilih di panel) → ikuti bulannya;
@@ -123,18 +126,16 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
         </Button>
       </PopoverTrigger>
 
-      {/* Panel ATAS: tahun (2 baris × 5) + bulan (2 baris × 6). Tiap panel
-          mencegah penutupan bila sasarannya panel sebelah — tanpa itu menekan
-          tombol di satu panel menutup panel lainnya. */}
+      {/* Satu panel: TAHUN + BULAN + TANGGAL menempel di bawah kotak dan
+          berbalik bersama bila kepepet tepi viewport (tak ada yang tertimpa). */}
       <PopoverContent
-        data-panel={PANEL_ATAS}
-        side="top"
+        data-panel={PANEL}
+        side="bottom"
         align="end"
         sideOffset={OFFSET_SISI}
         alignOffset={OFFSET_RATA}
-        avoidCollisions={false}
+        collisionPadding={8}
         className={KELAS_PANEL}
-        onInteractOutside={(e) => { if (diDalamPanel(e.target, PANEL_BAWAH)) e.preventDefault(); }}
       >
         <div className="flex flex-col">
           {/* Rentang tahun yang tampil sekarang. Daftar tahunnya digeser dengan
@@ -172,8 +173,8 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
           </div>
 
           {/* Pembatas antara blok TAHUN & blok BULAN: tanpa ini kedua grid
-              berimpit jadi satu blok (border-nya saling menindih) sehingga
-              batas antara tahun dan bulan kabur. */}
+             berimpit jadi satu blok (border-nya saling menindih) sehingga
+             batas antara tahun dan bulan kabur. */}
           <hr className="my-1 shrink-0 border-t border-foreground/30" />
 
           <div role="group" aria-label={`Bulan ${tahun}`} className="grid grid-cols-6">
@@ -197,21 +198,10 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
               );
             })}
           </div>
-        </div>
-      </PopoverContent>
 
-      {/* Panel BAWAH: grid tanggal bulan yang sedang tampil. */}
-      <PopoverContent
-        data-panel={PANEL_BAWAH}
-        side="bottom"
-        align="end"
-        sideOffset={OFFSET_SISI}
-        alignOffset={OFFSET_RATA}
-        avoidCollisions={false}
-        className={KELAS_PANEL}
-        onInteractOutside={(e) => { if (diDalamPanel(e.target, PANEL_ATAS)) e.preventDefault(); }}
-      >
-        <div className="flex flex-col gap-1">
+          {/* Pembatas antara blok BULAN & grid TANGGAL. */}
+          <hr className="my-1 shrink-0 border-t border-foreground/30" />
+
           <div role="group" aria-label={`Tanggal ${NAMA_BULAN[bulan - 1]} ${tahun}`} className="grid grid-cols-7 gap-1">
             {NAMA_HARI_SINGKAT.map((nama) => (
               <span key={nama} className="flex h-5 items-center justify-center text-[10px] text-muted-foreground">
@@ -275,11 +265,10 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
   );
 }
 
-const PANEL_ATAS = 'kalender_atas';
-const PANEL_BAWAH = 'kalender_bawah';
+const PANEL = 'kalender';
 const KELAS_PANEL = kelasPanel('pop-kalender');
 
-/** Blok tahun panel atas: 4 baris × 5 tahun = 20 tahun. Tahun acuan (tahun
+/** Blok tahun: 4 baris × 5 tahun = 20 tahun. Tahun acuan (tahun
  *  aktif) duduk di TENGAH baris PALING BAWAH — 2 tahun sebelumnya di kiri, 2
  *  berikutnya di kanan — sedangkan tiga baris di atasnya memuat 15 tahun
  *  sebelumnya. */

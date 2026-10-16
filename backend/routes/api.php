@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Admin\PegawaiController;
 use App\Http\Controllers\Api\Admin\PembayaranController;
 use App\Http\Controllers\Api\Admin\PengaturanGlobalController;
 use App\Http\Controllers\Api\Admin\PengaturanHalamanController;
+use App\Http\Controllers\Api\Admin\PenilaianController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
 use App\Http\Controllers\Api\Admin\PsbBiayaController;
 use App\Http\Controllers\Api\Admin\PsbKegiatanController;
@@ -115,6 +116,9 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::delete('keuangan/grup-custom/{grup}/anggota/{santri}', [GrupCustomController::class, 'hapusAnggota'])->middleware('permission:keuangan.ubah');
         Route::get('keuangan/pembayaran/harian', [PembayaranController::class, 'indexHarian'])->middleware('permission:keuangan.lihat');
         Route::post('keuangan/pembayaran', [PembayaranController::class, 'storePembayaran'])->middleware('permission:keuangan.tambah');
+        Route::post('keuangan/transaksi', [PembayaranController::class, 'storeTransaksi'])->middleware('permission:keuangan.tambah');
+        Route::post('keuangan/transaksi/{transaksi}/batal', [PembayaranController::class, 'batalTransaksi'])->middleware('permission:keuangan.ubah');
+        Route::delete('keuangan/transaksi/{transaksi}', [PembayaranController::class, 'destroyTransaksi'])->middleware('permission:keuangan.hapus');
         Route::post('keuangan/pembayaran/{pembayaran}/batal', [PembayaranController::class, 'batalPembayaran'])->middleware('permission:keuangan.ubah');
         Route::delete('keuangan/pembayaran/{pembayaran}', [PembayaranController::class, 'destroyPembayaran'])->middleware('permission:keuangan.hapus');
         Route::get('keuangan/tagihan/{tagihan}/pembayaran', [PembayaranController::class, 'pembayaranTagihan'])->middleware('permission:keuangan.lihat');
@@ -357,6 +361,35 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('psb/kuota-biaya', [PsbBiayaController::class, 'indexKuota'])->middleware('permission:kegiatan_psb.lihat');
         Route::post('psb/kuota-biaya', [PsbBiayaController::class, 'upsertKuota'])->middleware('permission:kegiatan_psb.tambah');
         Route::delete('psb/kuota-biaya/{kuota}', [PsbBiayaController::class, 'destroyKuota'])->middleware('permission:kegiatan_psb.hapus');
+
+        // Modul Penilaian: master (komponen+bobot, KKM, predikat, ekskul,
+        // prestasi), leger (crosstab santri × mapel), rapor, impor 4 template.
+        Route::get('penilaian/komponen', [PenilaianController::class, 'indexKomponen'])->middleware('permission:penilaian.lihat');
+        Route::post('penilaian/komponen', [PenilaianController::class, 'storeKomponen'])->middleware('permission:penilaian.tambah');
+        Route::match(['put', 'patch'], 'penilaian/komponen/{komponen}', [PenilaianController::class, 'updateKomponen'])->middleware('permission:penilaian.ubah');
+        Route::delete('penilaian/komponen/{komponen}', [PenilaianController::class, 'destroyKomponen'])->middleware('permission:penilaian.hapus');
+        Route::post('penilaian/bawaan', [PenilaianController::class, 'bawaan'])->middleware('permission:penilaian.tambah');
+        Route::get('penilaian/kkm', [PenilaianController::class, 'indexKkm'])->middleware('permission:penilaian.lihat');
+        Route::put('penilaian/kkm', [PenilaianController::class, 'simpanKkm'])->middleware('permission:penilaian.ubah');
+        Route::get('penilaian/predikat', [PenilaianController::class, 'indexPredikat'])->middleware('permission:penilaian.lihat');
+        Route::put('penilaian/predikat', [PenilaianController::class, 'simpanPredikat'])->middleware('permission:penilaian.ubah');
+        Route::get('penilaian/ekskul', [PenilaianController::class, 'indexEkskul'])->middleware('permission:penilaian.lihat');
+        Route::post('penilaian/ekskul', [PenilaianController::class, 'storeEkskul'])->middleware('permission:penilaian.tambah');
+        Route::match(['put', 'patch'], 'penilaian/ekskul/{ekskul}', [PenilaianController::class, 'updateEkskul'])->middleware('permission:penilaian.ubah');
+        Route::delete('penilaian/ekskul/{ekskul}', [PenilaianController::class, 'destroyEkskul'])->middleware('permission:penilaian.hapus');
+        Route::get('penilaian/predikat-ekskul', [PenilaianController::class, 'indexPredikatEkskul'])->middleware('permission:penilaian.lihat');
+        Route::put('penilaian/predikat-ekskul', [PenilaianController::class, 'simpanPredikatEkskul'])->middleware('permission:penilaian.ubah');
+        Route::get('penilaian/prestasi', [PenilaianController::class, 'indexPrestasi'])->middleware('permission:penilaian.lihat');
+        Route::post('penilaian/prestasi', [PenilaianController::class, 'storePrestasi'])->middleware('permission:penilaian.tambah');
+        Route::delete('penilaian/prestasi/{prestasi}', [PenilaianController::class, 'destroyPrestasi'])->middleware('permission:penilaian.hapus');
+        Route::get('penilaian/leger', [PenilaianController::class, 'leger'])->middleware('permission:penilaian.lihat');
+        Route::get('penilaian/leger/unduh', [PenilaianController::class, 'unduhLeger'])->middleware('permission:penilaian.lihat');
+        Route::get('penilaian/rapor', [PenilaianController::class, 'rapor'])->middleware('permission:penilaian.lihat');
+        Route::get('penilaian/rapor-kelas', [PenilaianController::class, 'raporKelas'])->middleware('permission:penilaian.lihat');
+        Route::get('penilaian/import-template', [PenilaianController::class, 'template'])->middleware('permission:penilaian.lihat');
+        Route::post('penilaian/import-potong', [PenilaianController::class, 'potongImport'])->middleware(['permission:penilaian.tambah', 'throttle:imports']);
+        Route::post('penilaian/import-potong/{sesi}/batal', [PenilaianController::class, 'batalPotong'])->middleware('permission:penilaian.tambah');
+        Route::get('penilaian/import-potong/{sesi}/galat', [PenilaianController::class, 'galatPotong'])->middleware('permission:penilaian.lihat');
 
         // Matriks izin (Kelola Izin): hanya pemilik izin terkait (= super_admin).
         Route::get('izin', [IzinController::class, 'index'])->middleware('permission:izin.lihat');
