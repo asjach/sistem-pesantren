@@ -555,11 +555,26 @@
   background-color: color-mix(in srgb, var(--primary) 16%, var(--card));
 }
 /* Sel header tanpa padding agar judul rata tengah persis di lebar kolom.
-   `position: relative` = jangkar garis indikator sisip saat geser kolom. */
+   `position: relative` = jangkar garis indikator sisip saat geser kolom.
+   Hanya untuk sel header yang MENGALIR (flex): gutter (sudut) & kolom beku
+   tetap `sticky` lewat aturan ber-specificity lebih tinggi di bawah. */
 .simpes-dsg .dsg-row-header .dsg-cell {
   padding-left: 0;
   padding-right: 0;
   position: relative;
+}
+/* DSG menulis `left: <offset kumulatif lebar kolom>` inline pada SETIAP sel.
+   Di baris DATA itu memang tata letaknya (sel-nya absolute, lihat baris di
+   bawah), jadi `left` tak berpengaruh di baris HEADER yang sel-nya mengalir —
+   sampai sel header dijadikan `relative` sebagai jangkar indikator sisip:
+   sejak itu tiap judul kolom bergeser ke kanan selebar seluruh kolom di
+   depannya, makin ke kanan makin jauh, sehingga judul tak lagi di atas kolom
+   yang diaturnya (gejala "judul melenceng" di semua tabel). Nolkan `left`
+   untuk sel header yang tidak sticky (butuh `!important` karena `left` datang
+   dari inline style DSG); kolom beku & gutter sengaja DIKECUALIKAN karena di
+   sana `left` justru offset menempelnya. */
+.simpes-dsg .dsg-row-header .dsg-cell:not(.dsg-cell-sticky-left):not(.dsg-cell-gutter) {
+  left: auto !important;
 }
 /* Tabel tanpa baris data: garis bawah header tidak tergambar karena garis
    normal berasal dari border-top baris data di bawahnya (tidak ada) dan sel
@@ -600,6 +615,25 @@
 /* Kolom yang sedang diangkat: diredupkan sebagai umpan balik. */
 .simpes-dsg-headtitle-diserd {
   opacity: 0.4;
+}
+/* --- Geser judul LANGSUNG (pratinjau hidup) ---
+   Selama seret, kolom yang harus memberi ruang digeser `transform` oleh
+   useSeretKolomHeader (bukan baru setelah tombol dilepas). Transisi di sini
+   yang membuat pergeseran itu terlihat sebagai gerakan halus; kelasnya hanya
+   hidup selama seret supaya tabel tidak beranimasi pada perubahan lain
+   (AutoFit, ganti preset, dsb.) — dan supaya saat tombol dilepas kolom
+   langsung berdiri di slot barunya tanpa animasi balik. */
+.simpes-dsg-geser-hidup .dsg-cell {
+  transition: transform 140ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+/* Kolom yang diangkat: di atas kolom lain (z-index) + isian lembut sebagai
+   penanda "ini yang sedang dipindahkan", termasuk sel-sel barisnya. Sengaja
+   TANPA bayangan per sel: tiap sel punya bayangannya sendiri, jadi kolomnya
+   terbaca bergaris-garis, bukan seperti satu pita yang terangkat. */
+.simpes-dsg-geser-hidup .dsg-cell.simpes-dsg-angkat {
+  z-index: 46;
+  will-change: transform;
+  background-color: color-mix(in srgb, var(--accent) 16%, var(--card));
 }
 /* Garis indikator posisi sisip. Ditaruh di sel header (bukan judul) agar
    tingginya penuh dan menempel tepat di garis batas kolom. */
@@ -914,6 +948,12 @@
 .simpes-dsg .dsg-cell.dsg-cell-sticky-left {
   position: sticky;
   z-index: 20;
+}
+.simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-sticky-left,
+.simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-gutter {
+  /* Spesifisitas lebih tinggi daripada `position: relative` di atas: kolom
+     beku & gutter header TETAP menempel saat grid digulir horizontal. */
+  position: sticky;
 }
 .simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-sticky-left {
   z-index: 42;

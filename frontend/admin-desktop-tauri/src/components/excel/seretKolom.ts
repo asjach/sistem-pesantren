@@ -104,6 +104,46 @@ export function lepasSah(
 }
 
 /**
+ * Geseran visual tiap kolom untuk PRATINJAU LANGSUNG saat seret.
+ *
+ * Kolom yang berpindah slot digeser dengan `transform: translateX(dx)` sejauh
+ * selisih antara posisi slot TUJUANNYA dan posisi yang SEDANG terlihat, jadi
+ * kolom lain tampak memberi ruang sambil pointer bergerak (bukan baru setelah
+ * tombol dilepas).
+ *
+ * Posisi tujuan dihitung dari LEBAR kolom dalam susunan tujuan (menempel
+ * rapat dari titik awal yang sama), bukan dari memindahkan posisi lama antar
+ * kolom: kolom berlebar tidak sama akan saling menumpuk bila posisinya
+ * sekadar ditukar. Karena `dx` selalu relatif terhadap posisi TATA LETAK
+ * (yang sudah diukur sekali saat seret dimulai), hasilnya tetap benar walau
+ * grid digulir horizontal di tengah seret.
+ *
+ * @param kiri    Posisi kiri tata letak tiap kolom (diukur saat seret mulai,
+ *                 tanpa transform pratinjau).
+ * @param lebar    Lebar tiap kolom, sejajar `kiri`.
+ * @param sesudah  Urutan tujuan (permutasi dari kolom yang terukur).
+ * @returns dx per key; key tanpa dx = tak perlu digeser.
+ */
+export function dxPerKolom(
+  kiri: Readonly<Record<string, number>>,
+  lebar: Readonly<Record<string, number>>,
+  sesudah: readonly string[],
+): Record<string, number> {
+  const terukur = sesudah.filter((k) => kiri[k] !== undefined && lebar[k] !== undefined);
+  if (terukur.length === 0) return {};
+  const out: Record<string, number> = {};
+  // Titik awal = kolom data paling kiri hasil pengukuran; sisanya menempel
+  // rapat mengikuti LEBAR MASING-MASING kolom dalam susunan tujuan.
+  let x = Math.min(...terukur.map((k) => kiri[k] ?? 0));
+  for (const k of terukur) {
+    const d = Math.round(x - (kiri[k] ?? 0));
+    if (d !== 0) out[k] = d;
+    x += lebar[k] ?? 0;
+  }
+  return out;
+}
+
+/**
  * Tanda garis sisip untuk `sisip`, sebagai indeks kolom acuan + sisi mana.
  * `sisip === n` (ujung kanan) memakai kolom terakhir dengan sisi `kanan`.
  * Mengembalikan null bila tak ada kolom untuk dijadikan acuan.

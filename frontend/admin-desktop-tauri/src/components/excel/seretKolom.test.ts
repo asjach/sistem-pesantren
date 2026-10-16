@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { indeksSisip, lepasSah, pindahKolom, tandaSisip } from './seretKolom';
+import { dxPerKolom, indeksSisip, lepasSah, pindahKolom, tandaSisip } from './seretKolom';
 
 const A = ['a', 'b', 'c', 'd'];
 
@@ -119,6 +119,52 @@ describe('lepasSah — gerbang pelepasan seret', () => {
     // kolom lengket kanan; memakainya akan meloloskan x=50 sebagai sah.
     expect(lepasSah(HEADER, BATAS, LEBAR, 50, 117)).toBe(false);
     expect(lepasSah(HEADER, BATAS, LEBAR, 660, 117)).toBe(true);
+  });
+});
+
+describe('dxPerKolom — geseran visual pratinjau hidup', () => {
+  /** Tiga kolom lebar sama, mulai di x=100 (kiri & lebar sejajar urutan a,b,c). */
+  const KIRI = { a: 100, b: 200, c: 300 };
+  const LEBAR = { a: 100, b: 100, c: 100 };
+  const URUT = ['a', 'b', 'c'];
+
+  it('urutan sama → tak ada yang digeser', () => {
+    expect(dxPerKolom(KIRI, LEBAR, URUT)).toEqual({});
+  });
+
+  it('tukar posisi: yang mundur -100, yang maju +100', () => {
+    expect(dxPerKolom(KIRI, LEBAR, ['b', 'a', 'c'])).toEqual({ a: 100, b: -100 });
+  });
+
+  it('pindah ke ujung kanan: yang di antaranya bergeser satu slot', () => {
+    expect(dxPerKolom(KIRI, LEBAR, ['b', 'c', 'a'])).toEqual({ a: 200, b: -100, c: -100 });
+  });
+
+  it('lebar tak seragam → susunannya KOMPAK, tidak sekadar bertukar tempat', () => {
+    // a(144) b(50) c(72) mulai di 0/144/194. Memindahkan a ke belakang harus
+    // merapatkan b,c di depan (0 & 50), bukan menaruh b di posisi lama a.
+    const kiri = { a: 0, b: 144, c: 194 };
+    const lebar = { a: 144, b: 50, c: 72 };
+    expect(dxPerKolom(kiri, lebar, ['b', 'c', 'a'])).toEqual({ a: 122, b: -144, c: -144 });
+    // Kolom paling kanan pada susunan baru berakhir tepat di ujung kolom lain:
+    // 0 + 50 + 72 = 122 untuk a, dan c berakhir di 122 juga — rapat, tanpa tumpang tindih.
+  });
+
+  it('titik awal diambil dari kolom TERUKUR paling kiri (grid bisa digulir)', () => {
+    const kiri = { a: 500, b: 640, c: 760 };
+    const lebar = { a: 140, b: 120, c: 90 };
+    // c (90) ke paling kiri, lalu a (140), lalu b (120) — semuanya rapat dari 500.
+    expect(dxPerKolom(kiri, lebar, ['c', 'a', 'b'])).toEqual({ a: 90, b: 90, c: -260 });
+  });
+
+  it('key yang tak terukur (kiri/lebar hilang) dilewati', () => {
+    const kiri = { a: 100, c: 300 };
+    const lebar = { a: 100, c: 100 };
+    expect(dxPerKolom(kiri, lebar, ['c', 'a', 'b'])).toEqual({ a: 100, c: -200 });
+  });
+
+  it('tanpa kolom terukur → tak ada geseran', () => {
+    expect(dxPerKolom({}, {}, URUT)).toEqual({});
   });
 });
 

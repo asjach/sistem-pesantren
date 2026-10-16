@@ -320,6 +320,7 @@ export default function TabUmum({
             Geser judul kolom
             <span className="block text-[11px] text-muted-foreground">
               Susun posisi kolom dengan menekan-tahan judul lalu menggesernya.
+              Saat aktif, klik judul tidak lagi memblok satu kolom penuh.
             </span>
           </label>
           <Switch

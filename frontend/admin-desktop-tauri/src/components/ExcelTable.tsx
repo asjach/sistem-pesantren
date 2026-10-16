@@ -14,7 +14,7 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import { EVENT_TAMPILAN_PERANGKAT_BERUBAH, kabariPreset, kabariTampilanPerangkat, type AlignKolom } from '@/components/kelolaTabel/jenis';
-import { updatePresetTabel } from '@/api/preset';
+import { setPresetAktif, updatePresetTabel } from '@/api/preset';
 import FilterRail from '@/components/FilterRail';
 import { bukaPengaturanTampilan } from './pengaturan/SheetPengaturanTampilan';
 import ScrollbarMelayang from './excel/ScrollbarMelayang';
@@ -520,9 +520,18 @@ export default function ExcelTable<T extends { id: string | number }>({
      Tabel (toolbar_preset.urutan), jadi kedua tempat selalu sinkron. */
   /** Tulis urutan hasil geser ke SUMBER YANG SEDANG AKTIF, supaya tabel dan
    *  Kelola Tabel selalu sinkron:
-   *  - preset kolom aktif  -> susunan `kolom` preset itu (tab Kolom);
-   *  - tanpa preset        -> `toolbar_preset.urutan` global (garis besar
-   *    "Lengkap"), yang juga dibaca `visibleFields` di atas. */
+   *  - preset kolom bernama -> susunan `kolom` preset itu (tab Kolom);
+   *  - susunan PRIBADI ("Lengkap kustom", mis. kolom yang dipilih sendiri
+   *    tanpa preset bernama) -> susunan itu pula, bukan urutan global;
+   *  - tanpa susunan apa pun -> `toolbar_preset.urutan` global, yang juga
+   *    dibaca `visibleFields` di atas.
+   *
+   *  Dua sumber pertama WAJIB: `visibleFields` mengikuti susunan yang aktif,
+   *  jadi menulis ke urutan global saat susunan pribadi aktif membuat geseran
+   *  judul tidak terlihat sama sekali (kolom kembali ke tempat semula walau
+   *  server sudah berubah). Preset dari halaman (`presetLuar`) tak bisa
+   *  ditulis dari sini — halaman pemiliknya yang mengatur; itu tetap ke
+   *  urutan global. */
   const simpanUrutanKolom = useCallback(
     (urutan: string[]) => {
       if (presetIdAktif !== null && presetKeys !== null) {
@@ -539,9 +548,20 @@ export default function ExcelTable<T extends { id: string | number }>({
         setPresetKeysDalam(urutan);
         return;
       }
+      if (!luar && presetKeys !== null) {
+        void setPresetAktif(tableKey, null, urutan)
+          .then(() => {
+            setPresetKeysDalam(urutan);
+            kabariPreset(tableKey);
+            kabariTampilanPerangkat(tableKey);
+          })
+          .catch((e: unknown) => toast.error(errorMessage(e)));
+        setPresetKeysDalam(urutan);
+        return;
+      }
       simpanUrutan(urutan);
     },
-    [presetIdAktif, presetKeys, tableKey, simpanUrutan],
+    [presetIdAktif, presetKeys, tableKey, simpanUrutan, luar],
   );
 
   const { status: statusSeret, mulai: mulaiSeretKolom } = useSeretKolomHeader({
