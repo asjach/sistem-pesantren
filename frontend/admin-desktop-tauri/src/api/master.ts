@@ -206,6 +206,8 @@ export interface ReferensiRow {
   /** Semua tabel ref memakai `nama`; status juga punya `kode` (nilai yang disimpan). */
   nama?: string | null;
   kode?: string | null;
+  /** Singkatan tampilan — hanya kamus `mapel` (`ref_mapel`). */
+  singkatan?: string | null;
   urutan: number;
   is_active: boolean;
   is_aktif_bawaan?: boolean | null;
@@ -216,6 +218,8 @@ export interface ReferensiInput {
   jenjang?: string | null;
   nama?: string;
   kode?: string;
+  /** Khusus kamus `mapel` (`ref_mapel`); tipe lain mengabaikannya. */
+  singkatan?: string;
   urutan?: number;
 }
 
@@ -243,7 +247,9 @@ export function createReferensi(tipe: string, input: ReferensiInput) {
   });
 }
 
-export function updateReferensi(tipe: string, id: number, input: Omit<ReferensiInput, 'jenjang' | 'kode'>) {
+/* `kode` ikut dikirim karena kamus `mapel` memakainya sebagai kolom tambahan;
+   backend mengabaikannya untuk tipe lain (status: kode = kunci, tak diubah). */
+export function updateReferensi(tipe: string, id: number, input: Omit<ReferensiInput, 'jenjang'>) {
   return api<ReferensiRow>(`/admin/referensi/${encodeURIComponent(tipe)}/${id}`, {
     method: 'PUT',
     body: JSON.stringify(input),

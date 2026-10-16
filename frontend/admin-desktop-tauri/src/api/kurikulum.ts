@@ -14,6 +14,8 @@ export type KelompokMapel = 'formal' | 'pesantren';
 export interface MataPelajaran {
   id: number; jenjang: string;
   nama_mapel: string; kode_mapel: string | null;
+  /** Singkatan tampilan (mis. 'Mat.'); null = tak ada singkatan. */
+  singkatan: string | null;
   kelompok: KelompokMapel; is_active: boolean;
 }
 
@@ -108,13 +110,14 @@ export function daftarMapel(params: { jenjang: string; q?: string; kelompok?: Ke
 
 export function buatMapel(data: {
   jenjang: string; nama_mapel: string; kelompok: KelompokMapel;
-  kode_mapel?: string | null; is_active?: boolean;
+  kode_mapel?: string | null; singkatan?: string | null; is_active?: boolean;
 }) {
   return api<MataPelajaran>('/admin/kurikulum/mapel', { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function ubahMapel(id: number, data: {
-  nama_mapel?: string; kelompok?: KelompokMapel; kode_mapel?: string | null; is_active?: boolean;
+  nama_mapel?: string; kelompok?: KelompokMapel; kode_mapel?: string | null;
+  singkatan?: string | null; is_active?: boolean;
 }) {
   return api<MataPelajaran>(`/admin/kurikulum/mapel/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }

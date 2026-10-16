@@ -291,10 +291,10 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `tahun_ajaran`, `nama_kelas`) — satu nama kelas hanya sekali per lembaga + tahun ajaran (kolasi CI; migrasi mem-dedupe + merapikan spasi lebih dulu)
 
-### Pola `ref_*` (24 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/status_awal/status_akhir`)
+### Pola `ref_*` (24 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/mapel/status_awal/status_akhir`)
 - Kolom: `id` PK; `jenjang` FK → `lembaga` (nullable teknis, tanpa baris global; `null` = sisa legacy); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`jenjang`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
 - Urut tampil (v1.10.7): `urutan` ASC, tie-break `nama` ASC — termasuk `ref_status_awal/akhir` (kode = nilai, nama = tampilan).
-- `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`.
+- `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`. `ref_mapel` tambahan: `kode` (20) & `singkatan` (50) — keduanya nullable dan hanya ditulis jalur kamus mapel (`ReferensiController`), sebab `RefService::sebar`/benih lembaga hanya mengisi `jenjang/nama/urutan/is_active`.
 - Tabel loop: `ref_penghasilan`, `ref_transportasi`, `ref_status_tinggal`, `ref_jarak`, `ref_waktu_tempuh`, `ref_bahasa_sehari_hari`, `ref_disabilitas`, `ref_tmp_lahir`, `ref_status_ortu`, `ref_yang_membiayai`, `ref_provinsi`, `ref_kecamatan`, `ref_desa_kelurahan`, `ref_alasan_mutasi`, `ref_jenis_dokumen_santri`, `ref_jenis_dokumen_pegawai`, `ref_status_pernikahan`, `ref_gol_darah`, `ref_jenis_ptk`, `ref_jenjang_sertifikasi`, `ref_tingkat`, `ref_tugas_utama`, `ref_tipe_pelanggaran`, `ref_jalur_sertifikasi`
 
 ## BLOK 2 — Santri & Riwayat (Modul 101 Santri Master + 102 Siklus Santri)
@@ -844,6 +844,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `nama_mapel`: string
 - `kelompok`: enum(formal|pesantren) [default 'formal'] — Kolom darí Modul 202 (kelompok rapor):
 - `kode_mapel`: string(20) [null]
+- `singkatan`: string(50) [null] — singkatan tampilan (mis. 'Mat.'); kosong = tak ada singkatan
 - `is_active`: bool [default true] — nonaktif = tidak ikut komposisi kurikulum/generate pengampu
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `nama_mapel`)
@@ -1133,10 +1134,10 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `created_at`, `updated_at`
 - INDEX(`santri_id`, `status`)
 
-### Pola `ref_*` (24 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/status_awal/status_akhir`)
+### Pola `ref_*` (24 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/mapel/status_awal/status_akhir`)
 - Kolom: `id` PK; `jenjang` FK → `lembaga` (nullable teknis, tanpa baris global; `null` = sisa legacy); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`jenjang`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
 - Urut tampil (v1.10.7): `urutan` ASC, tie-break `nama` ASC — termasuk `ref_status_awal/akhir` (kode = nilai, nama = tampilan).
-- `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`.
+- `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`. `ref_mapel` tambahan: `kode` (20) & `singkatan` (50) — keduanya nullable dan hanya ditulis jalur kamus mapel (`ReferensiController`), sebab `RefService::sebar`/benih lembaga hanya mengisi `jenjang/nama/urutan/is_active`.
 - Tabel loop: `ref_penghasilan`, `ref_transportasi`, `ref_status_tinggal`, `ref_jarak`, `ref_waktu_tempuh`, `ref_bahasa_sehari_hari`, `ref_disabilitas`, `ref_tmp_lahir`, `ref_status_ortu`, `ref_yang_membiayai`, `ref_provinsi`, `ref_kecamatan`, `ref_desa_kelurahan`, `ref_alasan_mutasi`, `ref_jenis_dokumen_santri`, `ref_jenis_dokumen_pegawai`, `ref_status_pernikahan`, `ref_gol_darah`, `ref_jenis_ptk`, `ref_jenjang_sertifikasi`, `ref_tingkat`, `ref_tugas_utama`, `ref_tipe_pelanggaran`, `ref_jalur_sertifikasi`
 
 ## BLOK 10 — Asrama (Modul 505 Asrama)

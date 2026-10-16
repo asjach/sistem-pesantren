@@ -103,14 +103,20 @@ export default function ReferensiPage() {
   const [scope, setScope] = useState('');
   const [fNama, setFNama] = useState('');
   const [fKode, setFKode] = useState('');
+  /** Singkatan tampilan — hanya dipakai kamus `mapel`. */
+  const [fSingkatan, setFSingkatan] = useState('');
   const [fUrutan, setFUrutan] = useState('0');
 
   const [editRow, setEditRow] = useState<ReferensiRow | null>(null);
   const [eNama, setENama] = useState('');
+  const [eKode, setEKode] = useState('');
+  const [eSingkatan, setESingkatan] = useState('');
   const [eUrutan, setEUrutan] = useState('0');
 
   const isStatus = STATUS_TIPE.includes(tipe);
   const isStatusAkhir = tipe === 'status_akhir';
+  /** Kamus mapel punya kolom tambahan di tabelnya: `kode` & `singkatan`. */
+  const isMapel = tipe === 'mapel';
 
   useEffect(() => {
     let hidup = true;
@@ -211,16 +217,23 @@ export default function ReferensiPage() {
         ]
       : [
           { key: 'nama', label: 'nama', width: 220, kind: 'static' },
+          ...(isMapel
+            ? [
+                { key: 'kode', label: 'kode', width: 110, kind: 'static' as const },
+                { key: 'singkatan', label: 'singkatan', width: 130, kind: 'static' as const },
+              ]
+            : []),
           { key: 'urutan', label: 'urutan', width: 80, kind: 'static' },
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
           { key: 'tampil', label: 'Tampil', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId,  },
         ],
-    [isStatus, isStatusAkhir, toggleBolehId],
+    [isStatus, isStatusAkhir, isMapel, toggleBolehId],
   );
 
   const gridValues = useCallback((r: ReferensiRow): Record<string, string | null> => ({
     nama: r.nama ?? null,
     kode: r.kode ?? null,
+    singkatan: r.singkatan ?? null,
     urutan: String(r.urutan ?? 0),
     sifat: sifatOf(r),
     sumber: lembagaName(r.jenjang),
@@ -231,7 +244,7 @@ export default function ReferensiPage() {
   const visibleRows = useMemo(() => {
     const dasar = q
       ? rows.filter((r) =>
-          [r.nama, r.kode].some((v) => (v ?? '').toLowerCase().includes(q)),
+          [r.nama, r.kode, r.singkatan].some((v) => (v ?? '').toLowerCase().includes(q)),
         )
       : rows;
 
@@ -241,7 +254,7 @@ export default function ReferensiPage() {
   }, [rows, q, urut, arah, arahKolom, lembagaName]);
 
   const openTambah = useCallback(() => {
-    setFNama(''); setFKode(''); setFUrutan('0');
+    setFNama(''); setFKode(''); setFSingkatan(''); setFUrutan('0');
     // Tanpa Global: super_admin tanpa lembaga = sebar ke semua; jika scope
     // lembaga aktif, tambah ke lembaga itu.
     const fallback = targetJenjang ?? '';
@@ -267,6 +280,11 @@ export default function ReferensiPage() {
         payload.nama = fNama.trim() || fKode.trim();
       } else {
         payload.nama = fNama.trim();
+        // Kamus mapel: kolom tambahan ikut dikirim (kosong → null di backend).
+        if (isMapel) {
+          payload.kode = fKode.trim();
+          payload.singkatan = fSingkatan.trim();
+        }
       }
       await createReferensi(tipe, payload);
       toast.success('Entri referensi ditambahkan.');
@@ -277,11 +295,13 @@ export default function ReferensiPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [isSuper, scope, fUrutan, isStatus, fKode, fNama, tipe, reload]);
+  }, [isSuper, scope, fUrutan, isStatus, isMapel, fKode, fNama, fSingkatan, tipe, reload]);
 
   const openEdit = useCallback((r: ReferensiRow) => {
     setEditRow(r);
     setENama(r.nama ?? '');
+    setEKode(r.kode ?? '');
+    setESingkatan(r.singkatan ?? '');
     setEUrutan(String(r.urutan ?? 0));
   }, []);
 
@@ -291,7 +311,12 @@ export default function ReferensiPage() {
     setSubmitting(true);
     try {
       const urutan = eUrutan === '' ? 0 : Number(eUrutan);
-      await updateReferensi(tipe, editRow.id, { nama: eNama.trim(), urutan });
+      await updateReferensi(tipe, editRow.id, {
+        nama: eNama.trim(),
+        urutan,
+        // Kamus mapel: kode & nama singkat boleh diperbaiki (kosong → null).
+        ...(isMapel ? { kode: eKode.trim(), singkatan: eSingkatan.trim() } : {}),
+      });
       toast.success('Entri referensi diubah.');
       setEditRow(null);
       reload();
@@ -300,7 +325,7 @@ export default function ReferensiPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [editRow, tipe, eNama, eUrutan, reload]);
+  }, [editRow, tipe, isMapel, eNama, eKode, eSingkatan, eUrutan, reload]);
 
   const onDelete = useCallback(async (r: ReferensiRow) => {
     // Tiap baris milik satu lembaga: padam langsung baris itu.
@@ -502,6 +527,26 @@ export default function ReferensiPage() {
                   onChange={(e) => setFNama(e.target.value)}
                   required
                 />
+                {isMapel && (
+                  <>
+                    <FieldLabel htmlFor="input_kode_mapel_referensi">Kode</FieldLabel>
+                    <Input
+                      id="input_kode_mapel_referensi"
+                      value={fKode}
+                      onChange={(e) => setFKode(e.target.value)}
+                      maxLength={20}
+                      placeholder="MTK"
+                    />
+                    <FieldLabel htmlFor="input_singkatan_mapel_referensi">Singkatan</FieldLabel>
+                    <Input
+                      id="input_singkatan_mapel_referensi"
+                      value={fSingkatan}
+                      onChange={(e) => setFSingkatan(e.target.value)}
+                      maxLength={50}
+                      placeholder="Mat."
+                    />
+                  </>
+                )}
               </>
             )}
             <FieldLabel htmlFor="input_urutan_referensi">Urutan</FieldLabel>
@@ -552,6 +597,24 @@ export default function ReferensiPage() {
                     Mengubah nama tidak mengubah data lama yang sudah memakainya (kamus saran).
                   </FieldDescription>
                 </div>
+                {isMapel && (
+                  <>
+                    <FieldLabel htmlFor="input_kode_mapel_referensi_ubah">Kode</FieldLabel>
+                    <Input
+                      id="input_kode_mapel_referensi_ubah"
+                      value={eKode}
+                      onChange={(e) => setEKode(e.target.value)}
+                      maxLength={20}
+                    />
+                    <FieldLabel htmlFor="input_singkatan_mapel_referensi_ubah">Singkatan</FieldLabel>
+                    <Input
+                      id="input_singkatan_mapel_referensi_ubah"
+                      value={eSingkatan}
+                      onChange={(e) => setESingkatan(e.target.value)}
+                      maxLength={50}
+                    />
+                  </>
+                )}
               </>
             )}
             <FieldLabel htmlFor="input_urutan_referensi_ubah">Urutan</FieldLabel>

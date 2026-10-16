@@ -1,0 +1,300 @@
+import { MemoryRouter } from 'react-router-dom';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import KurikulumMapelPage from './KurikulumMapelPage';
+import { CariGlobalProvider } from '@/hooks/useCariGlobal';
+import { TopBarSearchProvider, useTopBarSearchCtx } from '@/components/TopBarSearch';
+import { renderDenganTema } from '@/test/utils';
+import type { MataPelajaran } from '@/api/kurikulum';
+
+/* `vi.hoisted` wajib: factory vi.mock di-hoist ke atas file, jadi fixture &
+   mock fn harus sudah ada saat factory dipanggil. */
+const uji = vi.hoisted(() => {
+  const BARIS = [
+    {
+      id: 7, jenjang: 'MI', nama_mapel: 'Aljabar',
+      kode_mapel: 'ALJ', singkatan: 'Alj.', kelompok: 'formal', is_active: true,
+    },
+  ] as unknown as MataPelajaran[];
+  return {
+    BARIS,
+    daftarMapel: vi.fn(async () => BARIS),
+    ubahMapel: vi.fn(async () => BARIS[0]),
+    hapusMapel: vi.fn(async () => ({ pesan: 'ok' })),
+    buatMapel: vi.fn(async () => BARIS[0]),
+    /** Isi kamus `ref_mapel` — diisi per uji yang memakai kotak "Dari kamus". */
+    SARAN: [] as { nama: string }[],
+    /** Izin user per uji — diganti di beforeEach. */
+    izin: ['kurikulum.lihat', 'kurikulum.ubah', 'kurikulum.hapus'] as string[],
+  };
+});
+
+beforeAll(() => {
+  if (!('ResizeObserver' in globalThis)) {
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  }
+  if (!Element.prototype.hasPointerCapture) {
+    Element.prototype.hasPointerCapture = () => false;
+    Element.prototype.setPointerCapture = () => {};
+    Element.prototype.releasePointerCapture = () => {};
+  }
+  if (!HTMLElement.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = () => {};
+  }
+  if (!Range.prototype.getClientRects) {
+    Range.prototype.getClientRects = () => ({ length: 0, item: () => null }) as unknown as DOMRectList;
+  }
+  HTMLCanvasElement.prototype.getContext = (() => null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+});
+
+vi.mock('@/auth/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 1, roles: [{ name: 'admin' }], lembagas: [], permissions: uji.izin },
+    loading: false, setUser: () => {}, logoutLocal: async () => {},
+  }),
+}));
+
+vi.mock('@/api/kurikulum', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/api/kurikulum')>();
+  return {
+    ...asli,
+    daftarMapel: uji.daftarMapel,
+    ubahMapel: uji.ubahMapel,
+    hapusMapel: uji.hapusMapel,
+    buatMapel: uji.buatMapel,
+  };
+});
+
+/* Array filter WAJIB stabil (didefinisikan sekali): halaman memakainya sebagai
+   dependensi effect, jadi array baru tiap render memicu loop render. */
+const FILTER = { jenjangs: ['MI'], tahunAjaranNames: ['2025/2026'], semesters: ['1'], tingkat: [] as string[], kelas: [] as number[], loading: false };
+vi.mock('@/hooks/useFilterGlobalAktif', () => ({
+  useFilterGlobalAktif: () => FILTER,
+  targetTunggal: (values: readonly string[]) => (values.length === 1 ? values[0] : null),
+}));
+
+vi.mock('@/api/master', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/api/master')>();
+  const paginasiKosong = async () => ({
+    pesan: 'ok',
+    data: [],
+    meta: { current_page: 1, last_page: 1, total: 0, per_page: 1000 },
+  });
+  return {
+    ...asli,
+    listLembaga: vi.fn(paginasiKosong),
+    listKelas: vi.fn(paginasiKosong),
+    // Kamus saran nama: kosong supaya kotak "Dari kamus" tak ikut render.
+    referensiList: vi.fn(async () => uji.SARAN),
+  };
+});
+
+/* Rail filter tingkat/kelas butuh context yang di app disediakan layout. */
+vi.mock('@/tingkatAktif', () => ({ useTingkatAktif: () => ({ pilih: vi.fn() }) }));
+vi.mock('@/kelasAktif', () => ({ useKelasAktif: () => ({ pilih: vi.fn() }) }));
+
+vi.mock('@/api/toolbarPreset', () => ({
+  muatToolbarPreset: vi.fn(async () => ({
+    pesan: 'ok',
+    data: { table_key: 'uji', visibilitas: {}, lebar: {}, urutan: [], align: {} },
+  })),
+  simpanToolbarPreset: vi.fn(async () => ({ pesan: 'ok', data: null })),
+}));
+
+vi.mock('@/api/preset', () => ({
+  listPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: [] })),
+  createPresetTabel: vi.fn(),
+  updatePresetTabel: vi.fn(),
+  deletePresetTabel: vi.fn(),
+  setPresetAktif: vi.fn(),
+  setPresetBawaan: vi.fn(),
+}));
+
+vi.mock('@/api/urutPreset', () => ({
+  muatUrutPreset: vi.fn(async () => ({ pesan: 'ok', data: { table_key: 'uji', opsi: [], tersedia: [] } })),
+  simpanUrutPreset: vi.fn(),
+  hapusUrutPreset: vi.fn(),
+  arahKolomDariOpsi: vi.fn(() => undefined),
+}));
+
+vi.mock('@/api/komponenCustom', () => ({
+  muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
+  simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
+  hapusKomponenCustom: vi.fn(async () => ({ pesan: '' })),
+}));
+
+vi.mock('react-datasheet-grid', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('react-datasheet-grid')>();
+  const stub = await import('@/components/excel/_dsgStubDom');
+  return { ...asli, DynamicDataSheetGrid: stub.DynamicDataSheetGridStub };
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  localStorage.clear();
+  uji.daftarMapel.mockImplementation(async () => uji.BARIS);
+  uji.ubahMapel.mockImplementation(async () => uji.BARIS[0]);
+  uji.buatMapel.mockImplementation(async () => uji.BARIS[0]);
+  uji.SARAN = [];
+  uji.izin = ['kurikulum.lihat', 'kurikulum.ubah', 'kurikulum.hapus'];
+});
+
+/** Input pencarian di-portal ke slot TopBar; tes menyediakan slot tiruan. */
+function SlotCari() {
+  const ctx = useTopBarSearchCtx();
+  return <div ref={(el) => ctx?.setEl(el)} />;
+}
+
+function renderHalaman() {
+  return renderDenganTema(
+    <CariGlobalProvider>
+      <TopBarSearchProvider>
+        <SlotCari />
+        <MemoryRouter initialEntries={['/kurikulum/mapel']}>
+          <KurikulumMapelPage />
+        </MemoryRouter>
+      </TopBarSearchProvider>
+    </CariGlobalProvider>,
+  );
+}
+
+describe('KurikulumMapelPage — aksi baris Ubah', () => {
+  it('menampilkan aksi Ubah lalu menyimpan perubahan lewat dialog', async () => {
+    renderHalaman();
+
+    // Tombol aksi baris: id snake_case (NFR-05), label aksesibel "Ubah".
+    const tombol = await screen.findByRole('button', { name: 'Ubah' });
+    expect(tombol.id).toBe('btn_ubah_mapel_7');
+
+    await userEvent.click(tombol);
+    expect(screen.getByText('Ubah mapel')).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText('Nama mapel'));
+    await userEvent.type(screen.getByLabelText('Nama mapel'), 'Aljabar Lanjut');
+    // Singkatan ikut tersimpan (kolom baru `mata_pelajaran.singkatan`).
+    await userEvent.clear(screen.getByLabelText('Singkatan (opsional)'));
+    await userEvent.type(screen.getByLabelText('Singkatan (opsional)'), 'Alj.');
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+
+    await waitFor(() => expect(uji.ubahMapel).toHaveBeenCalledTimes(1));
+    expect(uji.ubahMapel).toHaveBeenCalledWith(7, {
+      nama_mapel: 'Aljabar Lanjut',
+      kode_mapel: 'ALJ',
+      singkatan: 'Alj.',
+      kelompok: 'formal',
+      is_active: true,
+    });
+    // Dialog tertutup setelah tersimpan.
+    await waitFor(() => expect(screen.queryByText('Ubah mapel')).toBeNull());
+  });
+
+  it('tombol Simpan mati selama nama kosong (validasi wajib isi)', async () => {
+    renderHalaman();
+    await userEvent.click(await screen.findByRole('button', { name: 'Ubah' }));
+
+    const simpan = screen.getByRole('button', { name: 'Simpan' });
+    expect(simpan).toBeEnabled();
+
+    await userEvent.clear(screen.getByLabelText('Nama mapel'));
+    expect(simpan).toBeDisabled();
+    expect(uji.ubahMapel).not.toHaveBeenCalled();
+  });
+
+  it('tanpa izin kurikulum.ubah aksi Ubah tidak dirender (hapus tetap ada)', async () => {
+    uji.izin = ['kurikulum.lihat', 'kurikulum.hapus'];
+    renderHalaman();
+
+    await screen.findByRole('button', { name: 'Hapus' });
+    expect(screen.queryByRole('button', { name: 'Ubah' })).toBeNull();
+    expect(uji.ubahMapel).not.toHaveBeenCalled();
+  });
+});
+
+describe('KurikulumMapelPage — tambah dari kamus', () => {
+  it('kotak "Dari kamus" sebaris dengan kontrol lain (bukan di atas tombol) dan menambah mapel saat saran dipilih', async () => {
+    uji.izin = ['kurikulum.lihat', 'kurikulum.tambah', 'kurikulum.ubah', 'kurikulum.hapus'];
+    uji.SARAN = [{ nama: 'Fikih' }, { nama: 'Bahasa Arab' }];
+    const user = userEvent.setup();
+    renderHalaman();
+
+    const inp = await screen.findByRole('combobox', { name: 'Tambah dari kamus' });
+    const btnTambah = document.getElementById('btn_tambah_mapel');
+    expect(btnTambah).not.toBeNull();
+    // Inti permintaan: kotaknya KONTROL toolbar, bukan anak blok tombol aksi
+    // (dulu ComboCari dirender di dalam pembungkus yang sama dengan tombol
+    // Import/Tambah sehingga menumpuk di atasnya).
+    expect(btnTambah?.parentElement).not.toContainElement(inp);
+    expect(inp.closest('[data-part="header_tabel"]')).not.toBeNull();
+
+    // Ketik menyaring saran, lalu pilih: mapel dibuat dari kamus dan kotak
+    // kembali kosong supaya bisa dipakai menambah mapel berikutnya.
+    inp.focus();
+    await user.keyboard('fik');
+    await user.keyboard('{ArrowDown}');
+    await user.click(await screen.findByRole('option', { name: 'Fikih' }));
+
+    await waitFor(() => expect(uji.buatMapel).toHaveBeenCalledWith({
+      jenjang: 'MI', nama_mapel: 'Fikih', kelompok: 'formal',
+    }));
+    await waitFor(() => expect(inp).toHaveValue(''));
+  });
+
+  it('tanpa izin kurikulum.tambah kotak "Dari kamus" tidak dirender', async () => {
+    uji.SARAN = [{ nama: 'Fikih' }];
+    renderHalaman();
+
+    await screen.findByRole('button', { name: 'Ubah' });
+    expect(screen.queryByRole('combobox', { name: 'Tambah dari kamus' })).toBeNull();
+  });
+});
+
+describe('KurikulumMapelPage — tambah mapel lewat dialog', () => {
+  /** Tombol Tambah hanya bisa dipakai dengan izin kurikulum.tambah. */
+  beforeEach(() => {
+    uji.izin = ['kurikulum.lihat', 'kurikulum.tambah', 'kurikulum.ubah', 'kurikulum.hapus'];
+  });
+
+  it('membuka dialog kosong dan BELUM membuat mapel apa pun', async () => {
+    renderHalaman();
+
+    const tombol = await screen.findByRole('button', { name: 'Tambah' });
+    expect(tombol.id).toBe('btn_tambah_mapel');
+    await userEvent.click(tombol);
+
+    // Dulu klik ini langsung menyisipkan "Mapel Baru" ke tabel — sekarang
+    // hanya membuka formulir, tanpa permintaan buat ke server.
+    expect(await screen.findByText('Tambah mapel')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nama mapel')).toHaveValue('');
+    expect(screen.getByLabelText('Kode (opsional)')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Simpan' })).toBeDisabled();
+    expect(uji.buatMapel).not.toHaveBeenCalled();
+  });
+
+  it('Simpan mengirim isi formulir, menutup dialog, dan mengosongkan isian untuk pemakaian berikutnya', async () => {
+    renderHalaman();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Tambah' }));
+    await userEvent.type(screen.getByLabelText('Nama mapel'), 'Fikih');
+    await userEvent.type(screen.getByLabelText('Kode (opsional)'), 'FKH');
+    await userEvent.type(screen.getByLabelText('Singkatan (opsional)'), 'Fik.');
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+
+    await waitFor(() => expect(uji.buatMapel).toHaveBeenCalledWith({
+      jenjang: 'MI', nama_mapel: 'Fikih', kelompok: 'formal',
+      kode_mapel: 'FKH', singkatan: 'Fik.', is_active: true,
+    }));
+    await waitFor(() => expect(screen.queryByText('Tambah mapel')).toBeNull());
+
+    // Buka lagi: isian lama tidak tertinggal (formulir direset tiap dibuka).
+    await userEvent.click(document.getElementById('btn_tambah_mapel') as HTMLElement);
+    expect(await screen.findByText('Tambah mapel')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nama mapel')).toHaveValue('');
+    expect(screen.getByLabelText('Kode (opsional)')).toHaveValue('');
+  });
+});

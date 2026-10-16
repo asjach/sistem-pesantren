@@ -22,6 +22,7 @@ use App\Models\PengampuMapel;
 use App\Services\MapelImporService;
 use App\Services\PengampuImporService;
 use App\Services\RefService;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -57,7 +58,8 @@ class KurikulumController extends Controller
         if ($request->filled('q')) {
             $cari = (string) $request->input('q');
             $q->where(fn ($w) => $w->where('nama_mapel', 'like', "%{$cari}%")
-                ->orWhere('kode_mapel', 'like', "%{$cari}%"));
+                ->orWhere('kode_mapel', 'like', "%{$cari}%")
+                ->orWhere('singkatan', 'like', "%{$cari}%"));
         }
 
         return response()->json($q->orderBy('nama_mapel')->get());
@@ -68,9 +70,23 @@ class KurikulumController extends Controller
     {
         $data = $request->validate([
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
-            'nama_mapel' => ['required', 'string', 'max:100'],
+            'nama_mapel' => [
+                'required', 'string', 'max:100',
+                function (string $attr, mixed $nilai, Closure $gagal) use ($request) {
+                    // Unik (jenjang, nama) case-insensitive eksplisit agar
+                    // seragam di MySQL (collation ci) dan SQLite (ujian).
+                    $ada = MataPelajaran::where('jenjang', $request->input('jenjang'))
+                        ->whereRaw('LOWER(nama_mapel) = ?', [mb_strtolower(trim((string) $nilai))])
+                        ->exists();
+                    if ($ada) {
+                        $gagal('Nama mapel sudah dipakai di lembaga ini.');
+                    }
+                },
+            ],
             'kelompok' => ['required', 'in:formal,pesantren'],
             'kode_mapel' => ['nullable', 'string', 'max:20'],
+            // Singkatan tampilan (mis. 'Mat.'); opsional.
+            'singkatan' => ['nullable', 'string', 'max:50'],
             'is_active' => ['nullable', 'boolean'],
         ]);
         $this->authorizeLembaga($request->user(), $data['jenjang']);
@@ -82,9 +98,21 @@ class KurikulumController extends Controller
     public function updateMapel(Request $request, MataPelajaran $mapel): JsonResponse
     {
         $data = $request->validate([
-            'nama_mapel' => ['sometimes', 'string', 'max:100'],
+            'nama_mapel' => [
+                'sometimes', 'string', 'max:100',
+                function (string $attr, mixed $nilai, Closure $gagal) use ($mapel) {
+                    $ada = MataPelajaran::where('jenjang', $mapel->jenjang)
+                        ->where('id', '!=', $mapel->id)
+                        ->whereRaw('LOWER(nama_mapel) = ?', [mb_strtolower(trim((string) $nilai))])
+                        ->exists();
+                    if ($ada) {
+                        $gagal('Nama mapel sudah dipakai di lembaga ini.');
+                    }
+                },
+            ],
             'kelompok' => ['sometimes', 'in:formal,pesantren'],
             'kode_mapel' => ['nullable', 'string', 'max:20'],
+            'singkatan' => ['nullable', 'string', 'max:50'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
         $this->authorizeLembaga($request->user(), $mapel->jenjang);

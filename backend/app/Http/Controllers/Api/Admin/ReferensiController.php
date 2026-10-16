@@ -39,6 +39,32 @@ class ReferensiController extends Controller
         return $actor->canAccessLembaga($lembagaId);
     }
 
+    /**
+     * Kolom tambahan kamus mapel (`ref_mapel.kode` & `ref_mapel.singkatan`).
+     *
+     * Tipe kamus lain tak punya kolomnya, jadi hasilnya kosong untuk mereka —
+     * pemanggil bisa langsung menggabungkannya ke payload insert/update. Teks
+     * kosong disimpan sebagai `null` supaya kolomnya benar-benar "belum diisi",
+     * bukan string kosong.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, string|null>
+     */
+    protected function kolomTambahanMapel(string $tipe, array $data): array
+    {
+        if ($tipe !== 'mapel') {
+            return [];
+        }
+
+        $bersih = function (string $kunci) use ($data): ?string {
+            $nilai = trim((string) ($data[$kunci] ?? ''));
+
+            return $nilai === '' ? null : $nilai;
+        };
+
+        return ['kode' => $bersih('kode'), 'singkatan' => $bersih('singkatan')];
+    }
+
     public function index(Request $request, string $tipe)
     {
         $actor = $request->user();
@@ -139,7 +165,7 @@ class ReferensiController extends Controller
             $id = DB::table($table)->insertGetId([
                 'jenjang' => $targetLembaga, 'nama' => $data['nama'],
                 'urutan' => $data['urutan'] ?? 0, 'is_active' => true,
-            ]);
+            ] + $this->kolomTambahanMapel($tipe, $data));
         }
 
         RefService::forget($targetLembaga);
@@ -166,7 +192,7 @@ class ReferensiController extends Controller
             $atribut = [
                 $key => $data['nama'],
                 'urutan' => $data['urutan'] ?? 0, 'is_active' => true,
-            ];
+            ] + $this->kolomTambahanMapel($tipe, $data);
         }
 
         $lembagas = Lembaga::orderBy('jenjang')->pluck('jenjang')->all();
@@ -210,6 +236,9 @@ class ReferensiController extends Controller
             }
         }
         $upd['nama'] = $data['nama'];
+        // Kolom tambahan kamus mapel boleh diperbaiki; tipe lain tak punya
+        // kolomnya sehingga hasil helper kosong.
+        $upd += $this->kolomTambahanMapel($tipe, $data);
 
         DB::table($table)->where('id', $id)->update($upd);
         RefService::forget($row->jenjang);

@@ -304,4 +304,31 @@ class KurikulumImporTest extends TestCase
         $this->assertTrue($contoh->contains(fn ($g) => str_contains($g['pesan'], 'nonaktif')));
         $this->assertSame(0, PengampuMapel::count());
     }
+
+    // ---------- 07. duplikat nama ditolak 422 (bukan 500) ----------
+
+    public function test_07_mapel_duplikat_nama_ditolak(): void
+    {
+        $this->dasar();
+        $super = $this->superAdmin();
+
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/mapel', ['jenjang' => 'MI', 'nama_mapel' => 'Fiqih', 'kelompok' => 'formal'])
+            ->assertStatus(201);
+        // Nama sama (beda kapitalisasi ikut tertolak di collation ci).
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/mapel', ['jenjang' => 'MI', 'nama_mapel' => 'fiqih', 'kelompok' => 'pesantren'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('nama_mapel');
+
+        $lain = MataPelajaran::create(['jenjang' => 'MI', 'nama_mapel' => 'Nahwu', 'kelompok' => 'pesantren']);
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/mapel/{$lain->id}", ['nama_mapel' => 'Fiqih'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('nama_mapel');
+        // Nama sendiri (tak berubah) tetap lolos.
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/mapel/{$lain->id}", ['nama_mapel' => 'Nahwu'])
+            ->assertStatus(200);
+    }
 }

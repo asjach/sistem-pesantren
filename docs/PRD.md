@@ -502,6 +502,8 @@
 
 | 2.407 | 2026-10-16 | **Kamus nama mapel lintas jenjang (`ref_mapel`) — mapel per lembaga tinggal pilih.** Skema: tabel baru `ref_mapel` (id, jenjang, nama, urutan, is_active, unik jenjang+nama; struktur identik kamus bebas lain) + tipe `mapel` di `RefService::KEY` (otomatis ikut CRUD `ReferensiController`, `types`, sebar, benih lembaga baru, cache). Seed starter 20 nama umum (12 formal + 8 pesantren; tiap lembaga bebas kelola lewat halaman Referensi — tanpa perubahan FE, tipe muncul otomatis). Frontend: sel Nama Mapel di halaman Mata Pelajaran punya pemilih kamus (`ComboCari`, ketik bebas tetap bisa). Tanpa whitelist `/kamus` publik (tetap admin-only). Verifikasi: `ReferensiCrudTest` +1 tes (types, CRUD, efektif per lembaga) → 13 tes hijau; `npm run typecheck` hijau; Pint hijau. |
 
+| 2.408 | 2026-10-16 | **Halaman Mata Pelajaran memakai `ExcelTable`** (auto-save per sel, toggle/cepat tanpa mode Edit, hapus per baris, cari via TopBarSearch, pager) + **tambah cepat dari kamus** (`ref_mapel`) di toolbar. Verifikasi: `npm run typecheck` hijau; `vite build` hijau. |
+
 ## Daftar Isi
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.

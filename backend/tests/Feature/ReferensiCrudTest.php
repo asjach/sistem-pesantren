@@ -409,4 +409,76 @@ class ReferensiCrudTest extends TestCase
         // Pasangan MD tidak ikut punya (baris milik satu lembaga).
         $this->assertNotContains('Matematika', $this->namaEfektif('mapel', $f['md']->jenjang));
     }
+
+    // ---------- 14. kamus mapel: kode & singkatan ----------
+
+    public function test_14_mapel_menyimpan_kode_dan_singkatan(): void
+    {
+        $f = $this->fixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
+
+        $id = $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/mapel', [
+            'nama' => 'Matematika', 'kode' => 'MTK', 'singkatan' => 'Mat.',
+            'jenjang' => $f['mi']->jenjang,
+        ])->assertStatus(201)
+            ->assertJsonPath('kode', 'MTK')
+            ->assertJsonPath('singkatan', 'Mat.')
+            ->json('id');
+
+        $this->assertDatabaseHas('ref_mapel', [
+            'id' => $id, 'nama' => 'Matematika', 'kode' => 'MTK', 'singkatan' => 'Mat.',
+        ]);
+
+        // Ubah: kode & singkatan bukan kunci baris, jadi boleh diperbaiki.
+        $this->actingAs($adminMi, 'sanctum')->putJson("/api/admin/referensi/mapel/{$id}", [
+            'nama' => 'Matematika', 'kode' => 'MTK-2', 'singkatan' => 'Mat2',
+        ])->assertStatus(200)
+            ->assertJsonPath('kode', 'MTK-2')
+            ->assertJsonPath('singkatan', 'Mat2');
+        $this->assertDatabaseHas('ref_mapel', ['id' => $id, 'kode' => 'MTK-2', 'singkatan' => 'Mat2']);
+
+        // Dikosongkan → null (bukan string kosong / spasi).
+        $this->actingAs($adminMi, 'sanctum')->putJson("/api/admin/referensi/mapel/{$id}", [
+            'nama' => 'Matematika', 'kode' => '', 'singkatan' => '   ',
+        ])->assertStatus(200)
+            ->assertJsonPath('kode', null)
+            ->assertJsonPath('singkatan', null);
+        $this->assertDatabaseHas('ref_mapel', ['id' => $id, 'kode' => null, 'singkatan' => null]);
+
+        // Nama LAMA (`nama_singkat`, sebelum kolomnya di-rename) kini tak dikenal:
+        // diabaikan tanpa 422 dan tidak menimpa `singkatan`.
+        $this->actingAs($adminMi, 'sanctum')->putJson("/api/admin/referensi/mapel/{$id}", [
+            'nama' => 'Matematika', 'nama_singkat' => 'Lama',
+        ])->assertStatus(200)->assertJsonPath('singkatan', null);
+
+        // Jalur baca kamus mengembalikan baris apa adanya → kolom baru ikut.
+        $baris = collect(RefService::effective('mapel', $f['mi']->jenjang))
+            ->firstWhere('nama', 'Matematika');
+        $this->assertNotNull($baris);
+        $this->assertTrue(property_exists($baris, 'singkatan'));
+
+        // Tipe kamus lain tak punya kolomnya: dikirim pun diabaikan, bukan 422.
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Menjahit', 'singkatan' => 'Jahit', 'jenjang' => $f['mi']->jenjang,
+        ])->assertStatus(201);
+        $this->assertDatabaseHas('ref_hobi', ['nama' => 'Menjahit']);
+    }
+
+    // ---------- 15. sebar mapel (fan-out) ikut membawa kolom tambahan ----------
+
+    public function test_15_sebar_mapel_membawa_kode_dan_singkatan(): void
+    {
+        $f = $this->fixture();
+        $super = $this->makeUser('super_admin');
+
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/mapel', [
+            'nama' => 'Bahasa Arab', 'kode' => 'BAR', 'singkatan' => 'B. Arab',
+        ])->assertStatus(201);
+
+        foreach ([$f['mi']->jenjang, $f['md']->jenjang, $f['mts']->jenjang] as $lid) {
+            $this->assertDatabaseHas('ref_mapel', [
+                'jenjang' => $lid, 'nama' => 'Bahasa Arab', 'kode' => 'BAR', 'singkatan' => 'B. Arab',
+            ]);
+        }
+    }
 }

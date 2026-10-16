@@ -126,6 +126,56 @@ class KurikulumModulTest extends TestCase
             ->assertStatus(422);
     }
 
+    // ---------- 01b. singkatan mapel (opsional, ≤50, ikut dicari) ----------
+
+    public function test_01b_mapel_menyimpan_singkatan(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $id = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/mapel', [
+                'jenjang' => 'MI', 'nama_mapel' => 'Matematika', 'kelompok' => 'formal',
+                'kode_mapel' => 'MTK', 'singkatan' => 'Mat.',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('singkatan', 'Mat.')
+            ->json('id');
+
+        // Daftar mapel mengembalikan baris apa adanya → singkatan ikut terkirim.
+        $baris = collect($this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/kurikulum/mapel?jenjang=MI')->assertStatus(200)->json())
+            ->firstWhere('id', $id);
+        $this->assertSame('Mat.', $baris['singkatan']);
+
+        // Bisa diperbaiki…
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/mapel/{$id}", ['singkatan' => 'Mt.'])
+            ->assertStatus(200)->assertJsonPath('singkatan', 'Mt.');
+
+        // …dan dikosongkan → null (bukan string kosong).
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/mapel/{$id}", ['singkatan' => null])
+            ->assertStatus(200)->assertJsonPath('singkatan', null);
+        $this->assertDatabaseHas('mata_pelajaran', ['id' => $id, 'singkatan' => null]);
+
+        // Melebihi lebar kolom (50) → 422.
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/mapel/{$id}", ['singkatan' => str_repeat('x', 51)])
+            ->assertStatus(422);
+
+        // Pencarian mencakup singkatan, bukan cuma nama & kode.
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/mapel/{$id}", ['singkatan' => 'Mat.'])
+            ->assertStatus(200);
+        $cari = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/kurikulum/mapel?jenjang=MI&q=Mat.')
+            ->assertStatus(200)->json();
+        $this->assertCount(1, $cari);
+        $this->assertSame('Matematika', $cari[0]['nama_mapel']);
+    }
+
     // ---------- 02. kurikulum + komposisi mapel ----------
 
     public function test_02_komposisi_mapel_kurikulum(): void
