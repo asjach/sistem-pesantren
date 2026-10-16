@@ -113,6 +113,13 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   penilaian_leger: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   // Rapor: per kelas (cetak massal) — tingkat & kelas masuk daftar relevan.
   penilaian_rapor: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
+  // Modul Kurikulum (BLOK 5): mapel & kurikulum hanya terikat jenjang;
+  // pengampu & jadwal terikat kelas (jenjang + TA) — kelas dipilih lewat
+  // pemilih di dalam halaman (daftar kelas mengikuti jenjang + TA).
+  kurikulum_mapel: buatKonfigurasi(['lembaga']),
+  kurikulum_kurikulum: buatKonfigurasi(['lembaga']),
+  kurikulum_pengampu: buatKonfigurasi(['lembaga', 'tahun_ajaran']),
+  kurikulum_jadwal: buatKonfigurasi(['lembaga', 'tahun_ajaran']),
   pegawai: buatKonfigurasi([]),
   pegawai_penempatan: buatKonfigurasi(['lembaga']),
   pegawai_akun: buatKonfigurasi(['lembaga']),

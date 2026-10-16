@@ -844,6 +844,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `nama_mapel`: string
 - `kelompok`: enum(formal|pesantren) [default 'formal'] — Kolom darí Modul 202 (kelompok rapor):
 - `kode_mapel`: string(20) [null]
+- `is_active`: bool [default true] — nonaktif = tidak ikut komposisi kurikulum/generate pengampu
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `nama_mapel`)
 
@@ -878,6 +879,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `nama_slot`: string [null] — 'Jam 1', 'Jam 2', dsb.
 - `jam_mulai`: time [null]
 - `jam_selesai`: time [null]
+- `urutan`: int [default 0] — urutan tampil jam di jadwal
 - `created_at`, `updated_at`
 
 ### `jadwal_pelajaran`

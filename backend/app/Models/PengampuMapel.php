@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Pengampu mata pelajaran per kelas (guru pengampu). Sumber nama guru di rapor
@@ -28,5 +29,10 @@ class PengampuMapel extends Model
     public function keaktifan(): BelongsTo
     {
         return $this->belongsTo(KeaktifanPegawai::class, 'keaktifan_pegawai_id');
+    }
+
+    public function jadwal(): HasMany
+    {
+        return $this->hasMany(JadwalPelajaran::class);
     }
 }

@@ -5,10 +5,12 @@ use App\Http\Controllers\Api\Admin\DispensasiController;
 use App\Http\Controllers\Api\Admin\DokumenController;
 use App\Http\Controllers\Api\Admin\GrupCustomController;
 use App\Http\Controllers\Api\Admin\IzinController;
+use App\Http\Controllers\Api\Admin\JadwalPelajaranController;
 use App\Http\Controllers\Api\Admin\JenisTarifController;
 use App\Http\Controllers\Api\Admin\KeaktifanPegawaiController;
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\KomponenCustomController;
+use App\Http\Controllers\Api\Admin\KurikulumController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaPegawaiController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
@@ -395,6 +397,35 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('penilaian/import-potong', [PenilaianController::class, 'potongImport'])->middleware(['permission:penilaian.tambah', 'throttle:imports']);
         Route::post('penilaian/import-potong/{sesi}/batal', [PenilaianController::class, 'batalPotong'])->middleware('permission:penilaian.tambah');
         Route::get('penilaian/import-potong/{sesi}/galat', [PenilaianController::class, 'galatPotong'])->middleware('permission:penilaian.lihat');
+
+        // Modul Kurikulum & Mapel (BLOK 5, Modul 201 + 502): master mapel,
+        // kurikulum + komposisi mapel, kelas→kurikulum, pengampu per kelas,
+        // slot jam, dan jadwal pelajaran.
+        Route::get('kurikulum/mapel', [KurikulumController::class, 'indexMapel'])->middleware('permission:kurikulum.lihat');
+        Route::post('kurikulum/mapel', [KurikulumController::class, 'storeMapel'])->middleware('permission:kurikulum.tambah');
+        Route::match(['put', 'patch'], 'kurikulum/mapel/{mapel}', [KurikulumController::class, 'updateMapel'])->middleware('permission:kurikulum.ubah');
+        Route::delete('kurikulum/mapel/{mapel}', [KurikulumController::class, 'destroyMapel'])->middleware('permission:kurikulum.hapus');
+        Route::get('kurikulum/kurikulum', [KurikulumController::class, 'indexKurikulum'])->middleware('permission:kurikulum.lihat');
+        Route::post('kurikulum/kurikulum', [KurikulumController::class, 'storeKurikulum'])->middleware('permission:kurikulum.tambah');
+        Route::match(['put', 'patch'], 'kurikulum/kurikulum/{kurikulum}', [KurikulumController::class, 'updateKurikulum'])->middleware('permission:kurikulum.ubah');
+        Route::delete('kurikulum/kurikulum/{kurikulum}', [KurikulumController::class, 'destroyKurikulum'])->middleware('permission:kurikulum.hapus');
+        Route::get('kurikulum/komposisi', [KurikulumController::class, 'indexKomposisi'])->middleware('permission:kurikulum.lihat');
+        Route::post('kurikulum/komposisi', [KurikulumController::class, 'storeKomposisi'])->middleware('permission:kurikulum.tambah');
+        Route::match(['put', 'patch'], 'kurikulum/komposisi/{item}', [KurikulumController::class, 'updateKomposisi'])->middleware('permission:kurikulum.ubah');
+        Route::delete('kurikulum/komposisi/{item}', [KurikulumController::class, 'destroyKomposisi'])->middleware('permission:kurikulum.hapus');
+        Route::get('kurikulum/kelas', [KurikulumController::class, 'indexKelasKurikulum'])->middleware('permission:kurikulum.lihat');
+        Route::put('kurikulum/kelas/{kelas}', [KurikulumController::class, 'simpanKelasKurikulum'])->middleware('permission:kurikulum.ubah');
+        Route::get('kurikulum/guru-aktif', [KurikulumController::class, 'guruAktif'])->middleware('permission:kurikulum.lihat');
+        Route::get('kurikulum/pengampu', [KurikulumController::class, 'indexPengampu'])->middleware('permission:kurikulum.lihat');
+        Route::put('kurikulum/pengampu', [KurikulumController::class, 'simpanPengampu'])->middleware('permission:kurikulum.ubah');
+        Route::post('kurikulum/pengampu/generate', [KurikulumController::class, 'generatePengampu'])->middleware('permission:kurikulum.tambah');
+        Route::get('kurikulum/slot', [JadwalPelajaranController::class, 'indexSlot'])->middleware('permission:kurikulum.lihat');
+        Route::post('kurikulum/slot', [JadwalPelajaranController::class, 'storeSlot'])->middleware('permission:kurikulum.tambah');
+        Route::match(['put', 'patch'], 'kurikulum/slot/{slot}', [JadwalPelajaranController::class, 'updateSlot'])->middleware('permission:kurikulum.ubah');
+        Route::delete('kurikulum/slot/{slot}', [JadwalPelajaranController::class, 'destroySlot'])->middleware('permission:kurikulum.hapus');
+        Route::get('kurikulum/jadwal', [JadwalPelajaranController::class, 'indexJadwal'])->middleware('permission:kurikulum.lihat');
+        Route::post('kurikulum/jadwal', [JadwalPelajaranController::class, 'storeJadwal'])->middleware('permission:kurikulum.tambah');
+        Route::delete('kurikulum/jadwal/{jadwal}', [JadwalPelajaranController::class, 'destroyJadwal'])->middleware('permission:kurikulum.hapus');
 
         // Matriks izin (Kelola Izin): hanya pemilik izin terkait (= super_admin).
         Route::get('izin', [IzinController::class, 'index'])->middleware('permission:izin.lihat');

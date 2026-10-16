@@ -130,6 +130,7 @@ describe('halamanDariPath & halaman bertab', () => {
       'dokumen',
       'keuangan',
       'penilaian',
+      'kurikulum',
       'pengaturan',
     ]);
     expect(halamanGrupLangsung('psb').map((h) => h.to)).toEqual(['/psb', '/kegiatan-psb']);
@@ -152,6 +153,21 @@ describe('halamanDariPath & halaman bertab', () => {
     // Semua halaman Penilaian dijaga izin matriks modul.
     for (const h of halamanGrupLangsung('penilaian')) {
       expect(izinHalaman(h)).toEqual(['penilaian.lihat']);
+    }
+  });
+
+  it('Kurikulum grup sendiri: mapel, kurikulum, pengampu, jadwal (tanpa subgrup)', () => {
+    expect(halamanGrupLangsung('kurikulum').map((h) => h.to)).toEqual([
+      '/kurikulum/mapel',
+      '/kurikulum/kurikulum',
+      '/kurikulum/pengampu',
+      '/kurikulum/jadwal',
+    ]);
+    expect(halamanDariPath('/kurikulum/mapel')?.tab).toBe('kurikulum');
+    expect(halamanDariPath('/kurikulum/jadwal')?.tab).toBe('kurikulum');
+    // Semua halaman Kurikulum dijaga izin matriks modul.
+    for (const h of halamanGrupLangsung('kurikulum')) {
+      expect(izinHalaman(h)).toEqual(['kurikulum.lihat']);
     }
   });
 

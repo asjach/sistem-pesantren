@@ -3,8 +3,10 @@ import {
   BadgeCheck,
   Blend,
   BookMarked,
+  BookOpen,
   Calculator,
   CalendarCheck,
+  CalendarDays,
   CalendarRange,
   ClipboardCheck,
   ClipboardList,
@@ -29,7 +31,7 @@ import {
 } from '@/icons';
 
 /** Kategori navigasi (grup di sidebar). */
-export type TabKategori = 'beranda' | 'master' | 'psb' | 'santri' | 'pegawai' | 'dokumen' | 'keuangan' | 'penilaian' | 'pengaturan';
+export type TabKategori = 'beranda' | 'master' | 'psb' | 'santri' | 'pegawai' | 'dokumen' | 'keuangan' | 'penilaian' | 'kurikulum' | 'pengaturan';
 
 /** Tab dalam satu halaman gabungan (mis. Data Induk punya 6 tab). */
 export interface TabHalamanDef {
@@ -180,6 +182,11 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/penilaian/impor', label: 'Impor Nilai', deskripsi: 'Impor leger, catatan wali, prestasi, dan ekstrakurikuler dari Excel.', tab: 'penilaian', icon: FileUp, permission: 'penilaian.lihat' },
   { to: '/penilaian/leger', label: 'Leger Nilai', deskripsi: 'Leger nilai akhir santri × mata pelajaran (crosstab).', tab: 'penilaian', grid: true, icon: Grid, permission: 'penilaian.lihat' },
   { to: '/penilaian/rapor', label: 'Rapor', deskripsi: 'Pratinjau & cetak rapor per santri / per kelas.', tab: 'penilaian', grid: true, icon: NotebookTabs, permission: 'penilaian.lihat' },
+  // Modul Kurikulum (BLOK 5): mapel, kurikulum + komposisi, pengampu, jadwal.
+  { to: '/kurikulum/mapel', label: 'Mata Pelajaran', deskripsi: 'Master mata pelajaran per jenjang (kelompok formal / pesantren).', tab: 'kurikulum', grid: true, icon: ClipboardList, permission: 'kurikulum.lihat' },
+  { to: '/kurikulum/kurikulum', label: 'Kurikulum', deskripsi: 'Kurikulum per jenjang dan komposisi mata pelajarannya (tingkat, KKM, urutan rapor).', tab: 'kurikulum', grid: true, icon: ScrollText, permission: 'kurikulum.lihat' },
+  { to: '/kurikulum/pengampu', label: 'Pengampu', deskripsi: 'Pemetaan kelas ke kurikulum dan pengampu mapel per kelas (kelas × mapel → guru).', tab: 'kurikulum', grid: true, icon: Users, permission: 'kurikulum.lihat' },
+  { to: '/kurikulum/jadwal', label: 'Jadwal Pelajaran', deskripsi: 'Slot jam per jenjang dan jadwal pelajaran per kelas (anti-bentrok kelas & guru).', tab: 'kurikulum', grid: true, icon: CalendarDays, permission: 'kurikulum.lihat' },
   {
     to: '/pengaturan/izin',
     label: 'Kelola Izin',
@@ -265,6 +272,8 @@ export const NAV_GRUP: GrupNav[] = [
   { id: 'keuangan', label: 'Keuangan', icon: Wallet },
   // Modul Penilaian: master, impor, leger, rapor.
   { id: 'penilaian', label: 'Penilaian', icon: BookMarked },
+  // Modul Kurikulum (BLOK 5): mapel, kurikulum, pengampu, jadwal.
+  { id: 'kurikulum', label: 'Kurikulum', icon: BookOpen },
   { id: 'pengaturan', label: 'Pengaturan', icon: Palette },
 ];
 
