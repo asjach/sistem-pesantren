@@ -408,6 +408,35 @@ export function catatPembayaran(data: Record<string, unknown>) {
   return api<{ id: number; no_kwitansi: string }>('/admin/keuangan/pembayaran', { method: 'POST', body: JSON.stringify(data) });
 }
 
+/** Satu baris pembayaran pada rekap harian (hanya status aktif). */
+export interface PembayaranHarianRow {
+  id: number; no_kwitansi: string | null; jumlah: number; metode: string; kas: string;
+  catatan: string | null; waktu: string; tagihan_id: number;
+  santri: string | null; jenis_id: number | null; jenis_nama: string | null;
+  periode: string | null; tahun_ajaran: string | null; jenjang: string | null;
+}
+
+/** Rekap harian per jenis tagihan. */
+export interface RekapHarianJenis {
+  jenis_id: number | null; jenis_nama: string; jumlah_transaksi: number; total: number;
+}
+
+export interface PembayaranHarian {
+  tanggal: string; data: PembayaranHarianRow[]; rekap: RekapHarianJenis[];
+  jumlah_transaksi: number; total: number;
+}
+
+/** Pembayaran harian + rekap per jenis untuk tanggal tertentu. */
+export function daftarPembayaranHarian(tanggal: string, params: {
+  jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>;
+} = {}) {
+  const q = new URLSearchParams();
+  q.set('tanggal', tanggal);
+  appendQueryParam(q, 'jenjang', params.jenjang);
+  appendQueryParam(q, 'tahun_ajaran', params.tahun_ajaran);
+  return api<PembayaranHarian>(`/admin/keuangan/pembayaran/harian?${q.toString()}`);
+}
+
 export function hapusPembayaran(id: number) {
   return api<{ pesan: string }>(`/admin/keuangan/pembayaran/${id}`, { method: 'DELETE' });
 }

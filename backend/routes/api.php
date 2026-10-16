@@ -113,6 +113,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::delete('keuangan/grup-custom/{grup}', [GrupCustomController::class, 'destroyGrup'])->middleware('permission:keuangan.hapus');
         Route::post('keuangan/grup-custom/{grup}/anggota', [GrupCustomController::class, 'tambahAnggota'])->middleware('permission:keuangan.ubah');
         Route::delete('keuangan/grup-custom/{grup}/anggota/{santri}', [GrupCustomController::class, 'hapusAnggota'])->middleware('permission:keuangan.ubah');
+        Route::get('keuangan/pembayaran/harian', [PembayaranController::class, 'indexHarian'])->middleware('permission:keuangan.lihat');
         Route::post('keuangan/pembayaran', [PembayaranController::class, 'storePembayaran'])->middleware('permission:keuangan.tambah');
         Route::post('keuangan/pembayaran/{pembayaran}/batal', [PembayaranController::class, 'batalPembayaran'])->middleware('permission:keuangan.ubah');
         Route::delete('keuangan/pembayaran/{pembayaran}', [PembayaranController::class, 'destroyPembayaran'])->middleware('permission:keuangan.hapus');
