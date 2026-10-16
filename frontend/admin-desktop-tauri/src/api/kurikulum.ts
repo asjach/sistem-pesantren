@@ -126,6 +126,29 @@ export function hapusMapel(id: number) {
   return api<{ pesan: string }>(`/admin/kurikulum/mapel/${id}`, { method: 'DELETE' });
 }
 
+/** Ringkasan "terapkan dari kamus": jumlah mapel yang diisi + contoh perubahannya. */
+export interface TerapkanKamusHasil {
+  pesan: string; jenjang: string;
+  /** Mapel yang kolomnya terisi — pada `mode: periksa` artinya "akan terisi". */
+  diubah: number;
+  /** Nama cocok di kamus, tapi kode & singkatannya sudah terisi. */
+  sudah_lengkap: number;
+  /** Nama tak ada di kamus (atau entri kamusnya tanpa kode & singkatan). */
+  tanpa_kamus: number;
+  /** Sampel perubahan (maks 5) untuk dialog konfirmasi. */
+  contoh: { nama_mapel: string; kode_mapel: string | null; singkatan: string | null }[];
+}
+
+/** Isi kode & singkatan mapel jenjang ini dari kamus `ref_mapel` berdasarkan
+ *  nama yang sama (beda huruf besar/kecil diabaikan). `mode: 'periksa'` hanya
+ *  menghitung (dialog pratinjau), `'eksekusi'` menyimpan. */
+export function terapkanKamusMapel(input: { jenjang: string; timpa?: boolean; mode: 'periksa' | 'eksekusi' }) {
+  return api<TerapkanKamusHasil>('/admin/kurikulum/mapel/terapkan-kamus', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 // ---------- Import mapel bertahap (potongan JSON dari browser) ----------
 
 /** Kolom template import mapel (multi-lembaga; `is_active` kosong = aktif/pertahankan). */

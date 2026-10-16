@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -16,7 +17,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import { referensiList } from '@/api/master';
-import { Plus, FileUp } from '@/icons';
+import { Plus, FileUp, BookMarked } from '@/icons';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -30,9 +31,11 @@ import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
   buatMapel, daftarMapel, hapusMapel, ubahMapel,
   batalPotongMapel, importMapelPotong, unduhGalatMapel, unduhTemplateMapel,
+  terapkanKamusMapel,
   KOLOM_IMPORT_MAPEL,
   type KelompokMapel,
   type MataPelajaran,
+  type TerapkanKamusHasil,
 } from '@/api/kurikulum';
 
 const FIELDS: ExcelField[] = [
@@ -177,6 +180,13 @@ export default function KurikulumMapelPage() {
   /** Teks input kotak "Dari kamus": dikosongkan tiap saran dipakai supaya
    *  kotak kembali ke placeholder — perilaku ComboCari yang digantikannya. */
   const [teksKamus, setTeksKamus] = useState('');
+  /** Dialog "Terapkan dari kamus": isi kode & singkatan mapel yang SUDAH ADA
+   *  dari kamus jenjang ini (nama sama). `kamusHasil` diisi pratinjau server. */
+  const [kamusOpen, setKamusOpen] = useState(false);
+  const [kamusTimpa, setKamusTimpa] = useState(false);
+  const [kamusHasil, setKamusHasil] = useState<TerapkanKamusHasil | null>(null);
+  const [kamusErr, setKamusErr] = useState('');
+  const [kamusProses, setKamusProses] = useState(false);
 
   const { rows, loading, err, load, lastPage, total, pager, onSaved } =
     useDaftarTabel<MataPelajaran>({
@@ -203,6 +213,37 @@ export default function KurikulumMapelPage() {
       .catch(() => { if (hidup) setSaranMapel([]); });
     return () => { hidup = false; };
   }, [filterLoading, jenjang]);
+
+  /** Pratinjau dihitung ulang tiap dialog dibuka atau sakelar "timpa" diubah;
+   *  `mode: periksa` tidak menulis apa pun ke DB, jadi aman dibuka berkali-kali. */
+  useEffect(() => {
+    if (!kamusOpen || jenjang === null) return;
+    let hidup = true;
+    setKamusErr('');
+    setKamusHasil(null);
+    terapkanKamusMapel({ jenjang, timpa: kamusTimpa, mode: 'periksa' })
+      .then((r) => { if (hidup) setKamusHasil(r); })
+      .catch((e) => { if (hidup) setKamusErr(errorMessage(e)); });
+    return () => { hidup = false; };
+  }, [kamusOpen, kamusTimpa, jenjang]);
+
+  /** Terapkan sungguhan (mode eksekusi), lalu segarkan tabel.
+   *  Dialog hanya ditutup bila berhasil — galat tetap tampil di dalamnya. */
+  const jalankanTerapkanKamus = useCallback(async () => {
+    if (jenjang === null) return;
+    setKamusProses(true);
+    setKamusErr('');
+    try {
+      const r = await terapkanKamusMapel({ jenjang, timpa: kamusTimpa, mode: 'eksekusi' });
+      toast.success(r.pesan);
+      setKamusOpen(false);
+      await load();
+    } catch (e) {
+      setKamusErr(errorMessage(e));
+    } finally {
+      setKamusProses(false);
+    }
+  }, [jenjang, kamusTimpa, load]);
 
   /** "Tambah" membuka dialog dengan formulir KOSONG (setiap buka direset) —
    *  lingkupnya jenjang filter aktif, jadi belum ada nama yang ditebak mesin. */
@@ -409,6 +450,14 @@ export default function KurikulumMapelPage() {
         }
         addButton={
           <>
+            {/* Aksi halaman (bukan tambah baris): mengisi kolom yang kosong
+                pada mapel yang sudah ada — karena itu izinnya `ubah`. */}
+            {canUbah && (
+              <Button type="button" variant="outline" size="sm" id="btn_terapkan_kamus_mapel"
+                onClick={() => { setKamusTimpa(false); setKamusOpen(true); }}>
+                <BookMarked data-icon="inline-start" size={16} /> Terapkan kamus
+              </Button>
+            )}
             {canTambah && (
               <Button type="button" variant="outline" size="sm" id="btn_buka_import_mapel"
                 onClick={() => setImportOpen(true)}>
@@ -490,6 +539,64 @@ export default function KurikulumMapelPage() {
         set={(p) => setFormUbah((f) => ({ ...f, ...p }))}
         onSimpan={() => void simpanUbah()}
       />
+
+      {/* "Terapkan dari kamus" — mengisi kode & singkatan mapel yang sudah ada
+          dari kamus `ref_mapel` (nama sama). Jumlah & contoh perubahannya
+          dihitung server lebih dulu (`mode: periksa`) supaya pengguna melihat
+          dampaknya sebelum menekan Terapkan. */}
+      <Dialog open={kamusOpen} onOpenChange={(o) => { if (!o) setKamusOpen(false); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Terapkan dari kamus</DialogTitle>
+            <DialogDescription>
+              Kode &amp; singkatan mapel jenjang <strong>{jenjang}</strong> diisi dari kamus
+              mapel yang namanya sama (beda huruf besar/kecil diabaikan, spasi tepi dibuang).
+            </DialogDescription>
+          </DialogHeader>
+          {/* Label SEBAGAI SAUDARA kotaknya (bukan pembungkus): kontrol
+              interaktif di dalam <label> bikin pembaca layar ganda membacanya. */}
+          <div className="flex items-start gap-2 text-xs">
+            <Checkbox
+              id="cek_timpa_kamus_mapel"
+              checked={kamusTimpa}
+              onCheckedChange={(v) => setKamusTimpa(v === true)}
+            />
+            <label htmlFor="cek_timpa_kamus_mapel" className="flex flex-col gap-0.5">
+              Timpa kode &amp; singkatan yang sudah terisi
+              <span className="text-muted-foreground">
+                Tanpa centang, hanya kolom yang masih kosong diisi.
+              </span>
+            </label>
+          </div>
+          <ErrorNotice>{kamusErr}</ErrorNotice>
+          {kamusHasil === null ? (
+            <p className="text-xs text-muted-foreground">Menghitung pratinjau…</p>
+          ) : (
+            <div className="flex flex-col gap-2 text-xs">
+              <p>{`${kamusHasil.diubah} mapel akan diisi dari kamus · ${kamusHasil.sudah_lengkap} sudah lengkap · ${kamusHasil.tanpa_kamus} tanpa kamus`}</p>
+              {kamusHasil.contoh.length > 0 && (
+                <ul className="list-disc pl-4 text-muted-foreground">
+                  {kamusHasil.contoh.map((c) => (
+                    <li key={c.nama_mapel}>
+                      {c.nama_mapel} → {c.kode_mapel ?? '—'} / {c.singkatan ?? '—'}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setKamusOpen(false)}>Batal</Button>
+            <Button
+              id="btn_jalankan_terapkan_kamus"
+              disabled={kamusHasil === null || kamusHasil.diubah === 0 || kamusProses}
+              onClick={() => void jalankanTerapkanKamus()}
+            >
+              Terapkan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -24,6 +24,17 @@ const uji = vi.hoisted(() => {
     ubahMapel: vi.fn(async () => BARIS[0]),
     hapusMapel: vi.fn(async () => ({ pesan: 'ok' })),
     buatMapel: vi.fn(async () => BARIS[0]),
+    /** "Terapkan dari kamus": pratinjau (`periksa`) vs hasil sungguhan. */
+    terapkanKamusMapel: vi.fn(),
+    PRATINJAU: {
+      pesan: '2 mapel akan diisi dari kamus.', jenjang: 'MI',
+      diubah: 2, sudah_lengkap: 1, tanpa_kamus: 0,
+      contoh: [{ nama_mapel: 'Aljabar', kode_mapel: null, singkatan: 'Alj.' }],
+    },
+    HASIL: {
+      pesan: '2 mapel diisi dari kamus.', jenjang: 'MI',
+      diubah: 2, sudah_lengkap: 1, tanpa_kamus: 0, contoh: [],
+    },
     /** Isi kamus `ref_mapel` — diisi per uji yang memakai kotak "Dari kamus". */
     SARAN: [] as { nama: string }[],
     /** Izin user per uji — diganti di beforeEach. */
@@ -68,6 +79,7 @@ vi.mock('@/api/kurikulum', async (importOriginal) => {
     ubahMapel: uji.ubahMapel,
     hapusMapel: uji.hapusMapel,
     buatMapel: uji.buatMapel,
+    terapkanKamusMapel: uji.terapkanKamusMapel,
   };
 });
 
@@ -141,6 +153,9 @@ beforeEach(() => {
   uji.daftarMapel.mockImplementation(async () => uji.BARIS);
   uji.ubahMapel.mockImplementation(async () => uji.BARIS[0]);
   uji.buatMapel.mockImplementation(async () => uji.BARIS[0]);
+  uji.terapkanKamusMapel.mockImplementation(async (input: { mode: string }) => (
+    input.mode === 'periksa' ? uji.PRATINJAU : uji.HASIL
+  ));
   uji.SARAN = [];
   uji.izin = ['kurikulum.lihat', 'kurikulum.ubah', 'kurikulum.hapus'];
 });
@@ -296,5 +311,58 @@ describe('KurikulumMapelPage — tambah mapel lewat dialog', () => {
     expect(await screen.findByText('Tambah mapel')).toBeInTheDocument();
     expect(screen.getByLabelText('Nama mapel')).toHaveValue('');
     expect(screen.getByLabelText('Kode (opsional)')).toHaveValue('');
+  });
+});
+
+describe('KurikulumMapelPage — terapkan dari kamus', () => {
+  it('tanpa izin kurikulum.ubah tombol tidak dirender', async () => {
+    uji.izin = ['kurikulum.lihat'];
+    renderHalaman();
+
+    await screen.findByRole('button', { name: 'Tambah' });
+    expect(screen.getByRole('button', { name: 'Tambah' }).id).toBe('btn_tambah_mapel');
+    expect(screen.queryByRole('button', { name: 'Terapkan kamus' })).toBeNull();
+    expect(uji.terapkanKamusMapel).not.toHaveBeenCalled();
+  });
+
+  it('menampilkan pratinjau lebih dulu, lalu mengisi saat Terapkan ditekan', async () => {
+    renderHalaman();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Terapkan kamus' }));
+
+    // Pratinjau memakai mode periksa: belum ada penulisan ke server.
+    await waitFor(() => expect(uji.terapkanKamusMapel).toHaveBeenCalledWith({
+      jenjang: 'MI', timpa: false, mode: 'periksa',
+    }));
+    expect(await screen.findByText('2 mapel akan diisi dari kamus · 1 sudah lengkap · 0 tanpa kamus'))
+      .toBeInTheDocument();
+    // Sejauh ini hanya pratinjau — belum ada panggilan eksekusi.
+    expect(uji.terapkanKamusMapel.mock.calls.every((c) => (c[0] as { mode: string }).mode === 'periksa')).toBe(true);
+
+    const sebelum = uji.daftarMapel.mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: 'Terapkan' }));
+
+    await waitFor(() => expect(uji.terapkanKamusMapel).toHaveBeenCalledWith({
+      jenjang: 'MI', timpa: false, mode: 'eksekusi',
+    }));
+    // Dialog tertutup dan tabel dimuat ulang setelah berhasil.
+    await waitFor(() => expect(screen.queryByText('Terapkan dari kamus')).toBeNull());
+    await waitFor(() => expect(uji.daftarMapel.mock.calls.length).toBeGreaterThan(sebelum));
+  });
+
+  it('sakelar timpa menghitung ulang pratinjau dengan timpa aktif', async () => {
+    renderHalaman();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Terapkan kamus' }));
+    await waitFor(() => expect(uji.terapkanKamusMapel).toHaveBeenCalled());
+    const sebelum = uji.terapkanKamusMapel.mock.calls.length;
+
+    await userEvent.click(await screen.findByRole('checkbox', { name: /Timpa kode/ }));
+
+    // Centang mengubah arti perhitungan → pratinjau diulang dengan timpa aktif.
+    await waitFor(() => expect(uji.terapkanKamusMapel).toHaveBeenLastCalledWith({
+      jenjang: 'MI', timpa: true, mode: 'periksa',
+    }));
+    expect(uji.terapkanKamusMapel.mock.calls.length).toBeGreaterThan(sebelum);
   });
 });

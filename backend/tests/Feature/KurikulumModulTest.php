@@ -176,6 +176,88 @@ class KurikulumModulTest extends TestCase
         $this->assertSame('Matematika', $cari[0]['nama_mapel']);
     }
 
+    // ---------- 01c. terapkan kode & singkatan dari kamus mapel ----------
+
+    public function test_01c_terapkan_kamus_mengisi_kode_dan_singkatan(): void
+    {
+        $this->lembaga('MI');
+        $this->lembaga('MD');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        // Kamus MI: dua entri lengkap + satu tanpa kode/singkatan (tak menyumbang).
+        foreach ([
+            ['nama' => 'Matematika', 'kode' => 'MTK', 'singkatan' => 'Mat.'],
+            ['nama' => 'Bahasa Arab', 'kode' => 'BAR2', 'singkatan' => 'B. Ar.'],
+            ['nama' => 'Fikih'],
+        ] as $entri) {
+            $this->actingAs($super, 'sanctum')
+                ->postJson('/api/admin/referensi/mapel', $entri + ['jenjang' => 'MI'])
+                ->assertStatus(201);
+        }
+
+        $matematika = $this->mapel('Matematika');
+        // Nama mapel beda huruf besar/kecil dari kamus + kode sudah terisi.
+        $arab = MataPelajaran::create([
+            'jenjang' => 'MI', 'nama_mapel' => 'bahasa arab',
+            'kelompok' => 'formal', 'kode_mapel' => 'BAR',
+        ]);
+        $fikih = $this->mapel('Fikih');
+        $md = $this->mapel('Matematika', 'MD');
+
+        // Periksa: menghitung saja — belum ada yang ditulis.
+        $periksa = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/mapel/terapkan-kamus', ['jenjang' => 'MI', 'mode' => 'periksa'])
+            ->assertStatus(200)
+            ->assertJsonPath('diubah', 2)
+            ->assertJsonPath('sudah_lengkap', 0)
+            ->assertJsonPath('tanpa_kamus', 1)
+            ->json();
+        $this->assertCount(2, $periksa['contoh']);
+        $this->assertContains('Matematika', array_column($periksa['contoh'], 'nama_mapel'));
+        $this->assertNull($matematika->fresh()->kode_mapel);
+        $this->assertNull($arab->fresh()->singkatan);
+
+        // Eksekusi: kode & singkatan terisi dari kamus.
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/mapel/terapkan-kamus', ['jenjang' => 'MI'])
+            ->assertStatus(200)
+            ->assertJsonPath('diubah', 2);
+        $this->assertSame('MTK', $matematika->fresh()->kode_mapel);
+        $this->assertSame('Mat.', $matematika->fresh()->singkatan);
+        // Kode yang SUDAH diisi tidak ditimpa; singkatan kosongnya terisi.
+        $this->assertSame('BAR', $arab->fresh()->kode_mapel);
+        $this->assertSame('B. Ar.', $arab->fresh()->singkatan);
+        // Kamus kosong & jenjang lain dibiarkan apa adanya.
+        $this->assertNull($fikih->fresh()->kode_mapel);
+        $this->assertNull($md->fresh()->kode_mapel);
+
+        // Idempoten: pemanggilan kedua tak mengubah apa pun.
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/mapel/terapkan-kamus', ['jenjang' => 'MI'])
+            ->assertStatus(200)
+            ->assertJsonPath('diubah', 0)
+            ->assertJsonPath('sudah_lengkap', 2)
+            ->assertJsonPath('pesan', 'Tidak ada mapel yang perlu diisi dari kamus.');
+
+        // `timpa` membuat kamus menang — hanya baris yang benar-benar berubah dihitung.
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/mapel/terapkan-kamus', ['jenjang' => 'MI', 'timpa' => true])
+            ->assertStatus(200)
+            ->assertJsonPath('diubah', 1);
+        $this->assertSame('BAR2', $arab->fresh()->kode_mapel);
+
+        // Role tanpa kurikulum.ubah ditolak sebelum apa pun dihitung.
+        $guru = User::create([
+            'name' => 'Guru Mapel', 'email' => 'gurumapel_'.uniqid().'@example.com',
+            'phone' => '081300000001', 'password' => 'password',
+        ]);
+        $guru->assignRole('guru');
+        $this->actingAs($guru, 'sanctum')
+            ->postJson('/api/admin/kurikulum/mapel/terapkan-kamus', ['jenjang' => 'MI'])
+            ->assertStatus(403);
+    }
+
     // ---------- 02. kurikulum + komposisi mapel ----------
 
     public function test_02_komposisi_mapel_kurikulum(): void
