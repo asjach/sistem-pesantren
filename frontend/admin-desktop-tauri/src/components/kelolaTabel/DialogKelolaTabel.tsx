@@ -28,6 +28,7 @@ import { KOMPONEN_INFO_BEKAL, type InfoKomponenTabel } from '@/components/excel/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EVENT_PRESET_BERUBAH, kabariPreset } from './jenis';
 import { buatAntrePerBagian, selesaikanSimpan } from '@/lib/antreSimpan';
+import { tenggangMenu } from '@/components/excel/kelolaTabelDariMenu';
 
 /** State bersama tab Kolom untuk satu tabel: preset kolom
  *  (cermin logika `PresetKolom`, tanpa dropdown pemilih) plus editor nama
@@ -419,6 +420,20 @@ export default function DialogKelolaTabel({
      konfirmasi "buang perubahan?" tak lagi punya alasan. */
   const tutup = useCallback(() => onOpenChange(false), [onOpenChange]);
 
+  /* Penjaga "baru dibuka dari menu klik kanan": selama jendela tenggang
+     singkat, interaksi-luar DAN fokus-luar diabaikan. Tanpa ini panel
+     NON-MODAL tertutup sendiri tepat setelah dibuka dari menu:
+     (a) sisa pointerdown+click gestur menu dianggap interaksi di luar, dan
+     (b) fokus yang berpindah ke luar panel memicu onFocusOutside Radix.
+     Keduanya dibuktikan lewat uji browser nyata (Playwright). Lihat
+     catatan lengkap di ./excel/kelolaTabelDariMenu. */
+  const tahanSaatTenggang = useCallback(
+    (e: { preventDefault: () => void }) => {
+      if (tenggangMenu.lagiTenggang()) e.preventDefault();
+    },
+    [],
+  );
+
   // Saat dibuka: bersihkan penanda kotor dan catatan gagal.
   useEffect(() => {
     if (!open) return;
@@ -463,6 +478,9 @@ export default function DialogKelolaTabel({
            atau Esc — semuanya lewat `tutup()`. Tak ada konfirmasi karena tiap
            bagian sudah menyimpan sendiri saat diubah. */
         overlay={!nonModal}
+        onInteractOutside={tahanSaatTenggang}
+        onFocusOutside={tahanSaatTenggang}
+        onPointerDownOutside={tahanSaatTenggang}
         aria-label={`Pengaturan tabel ${typeof judul === 'string' ? judul : 'ini'}`}
         /* - Lebar mengikuti state `lebar` (bisa diseret lewat gagang tepi
              kiri, 420–960px, ingat per perangkat). `maxWidth: 100dvw`

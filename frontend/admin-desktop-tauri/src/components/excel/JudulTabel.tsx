@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { bukaDariMenu } from './kelolaTabelDariMenu';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import PresetKolom from '@/components/PresetKolom';
@@ -168,7 +169,7 @@ export default function JudulTabel({
         <ContextMenuContent>
           <ContextMenuItem
             id={`menu_kelola_tabel_${tableKey}`}
-            onSelect={onKelolaTabel}
+            onSelect={onKelolaTabel ? () => bukaDariMenu(onKelolaTabel) : undefined}
           >
             <NotebookTabs data-icon="inline-start" size={16} /> Kelola Tabel
           </ContextMenuItem>
