@@ -68,6 +68,42 @@ export function indeksSisip(
 }
 
 /**
+ * Apakah pelepasan kursor masih layak dianggap "menyusun ulang kolom"?
+ *
+ * `null` = BUKAN pelepasan yang sah; pembatalan, bukan perpindahan. Dipakai
+ * untuk menahan dua kasus yang dulu diam-diam memindahkan kolom:
+ *
+ * - melepas di bilah toolbar atas / area data bawah (jauh dari sabuk header);
+ * - melepas jauh di luar tepi kiri/kanan deretan kolom.
+ *
+ * Rentang mendatar diambil dari SEL HEADER YANG TERUKUR (`batas` + `lebar`),
+ * bukan lebar `.dsg-row-header` — elemen itu hanya selebar rel kiri dan tak
+ * mencakup kolom lengket kanan, sehingga memakainya meloloskan pelepasan di
+ * x=50 sebagai sah (terbukti di browser).
+ *
+ * @param header  Kotak sabuk header (koordinat viewport).
+ * @param batas   Tepi kiri tiap kolom, sejajar urutan yang terlihat.
+ * @param lebar   Lebar tiap kolom, sejajar `batas`.
+ * @param x       `clientX` saat tombol dilepas.
+ * @param y       `clientY` saat tombol dilepas.
+ */
+export function lepasSah(
+  header: { top: number; bottom: number; height: number } | null,
+  batas: readonly number[],
+  lebar: readonly number[],
+  x: number,
+  y: number,
+): boolean {
+  if (!header || header.height <= 0) return false;
+  if (y < header.top - header.height || y > header.bottom + header.height) return false;
+  if (batas.length === 0 || lebar.length === 0) return false;
+  const kiri = batas[0];
+  const kanan = batas[batas.length - 1] + lebar[lebar.length - 1];
+  const toleransi = 16;
+  return x >= kiri - toleransi && x <= kanan + toleransi;
+}
+
+/**
  * Tanda garis sisip untuk `sisip`, sebagai indeks kolom acuan + sisi mana.
  * `sisip === n` (ujung kanan) memakai kolom terakhir dengan sisi `kanan`.
  * Mengembalikan null bila tak ada kolom untuk dijadikan acuan.

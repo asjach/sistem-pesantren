@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { indeksSisip, pindahKolom, tandaSisip } from './seretKolom';
+import { indeksSisip, lepasSah, pindahKolom, tandaSisip } from './seretKolom';
 
 const A = ['a', 'b', 'c', 'd'];
 
@@ -68,6 +68,57 @@ describe('seretKolom — kalibrasi jalur lepas (indeks sisip -> urutan baru)', (
 
   it('seret kolom terakhir ke awal', () => {
     expect(pindahKolom(K, 3, 0)).toEqual(['tampil', 'nama', 'urutan', 'sumber']);
+  });
+});
+
+
+describe('lepasSah — gerbang pelepasan seret', () => {
+  // Geometri nyata dari browser: header y=104..130, kolom x=395..906.
+  const HEADER = { top: 104, bottom: 130, height: 26 };
+  const BATAS = [395, 509, 725, 849];
+  const LEBAR = [57, 108, 62, 57];
+
+  it('menerima pelepasan di tengah deretan kolom', () => {
+    expect(lepasSah(HEADER, BATAS, LEBAR, 700, 117)).toBe(true);
+  });
+
+  it('menerima pelepasan tepat di dalam tepi kiri & kanan', () => {
+    expect(lepasSah(HEADER, BATAS, LEBAR, 396, 117)).toBe(true);
+    expect(lepasSah(HEADER, BATAS, LEBAR, 905, 117)).toBe(true);
+  });
+
+  it('menerima sedikit di luar tepi (toleransi 16px)', () => {
+    expect(lepasSah(HEADER, BATAS, LEBAR, 380, 117)).toBe(true);
+    expect(lepasSah(HEADER, BATAS, LEBAR, 921, 117)).toBe(true);
+  });
+
+  it('MENOLAK pelepasan jauh di kiri deretan kolom (x=50)', () => {
+    // Inilah bug yang terbukti di browser: kolom terakhir meloncat ke depan.
+    expect(lepasSah(HEADER, BATAS, LEBAR, 50, 117)).toBe(false);
+  });
+
+  it('MENOLAK pelepasan di bilah toolbar atas (y=20)', () => {
+    expect(lepasSah(HEADER, BATAS, LEBAR, 700, 20)).toBe(false);
+  });
+
+  it('MENOLAK pelepasan jauh di bawah area header', () => {
+    expect(lepasSah(HEADER, BATAS, LEBAR, 700, 800)).toBe(false);
+  });
+
+  it('menolak bila sabuk header tak terukur', () => {
+    expect(lepasSah(null, BATAS, LEBAR, 700, 117)).toBe(false);
+    expect(lepasSah({ top: 0, bottom: 0, height: 0 }, BATAS, LEBAR, 700, 117)).toBe(false);
+  });
+
+  it('menolak bila kolom belum terukur', () => {
+    expect(lepasSah(HEADER, [], [], 700, 117)).toBe(false);
+  });
+
+  it('rentang mendatar memakai kolom TERUKUR, bukan lebar .dsg-row-header', () => {
+    // `.dsg-row-header` di halaman itu hanya x=251..665 dan tak mencakup
+    // kolom lengket kanan; memakainya akan meloloskan x=50 sebagai sah.
+    expect(lepasSah(HEADER, BATAS, LEBAR, 50, 117)).toBe(false);
+    expect(lepasSah(HEADER, BATAS, LEBAR, 660, 117)).toBe(true);
   });
 });
 

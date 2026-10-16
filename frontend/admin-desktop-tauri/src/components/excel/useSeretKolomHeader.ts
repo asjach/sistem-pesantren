@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { indeksSisip, pindahKolom, tandaSisip } from './seretKolom';
+import { indeksSisip, lepasSah, pindahKolom, tandaSisip } from './seretKolom';
 
 /** Sisi garis indikator sisip. */
 export type SisiSisip = 'kiri' | 'kanan';
@@ -163,13 +163,32 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       e.preventDefault();
     };
 
-    const lepas = (e: { clientX: number }) => {
+    /** True bila titik lepas masih berada di jalur header tabel (kolom mana pun)
+     *  secara VERTIKAL, dan tak jauh di luar tepi kiri/kanan.
+     *
+     *  Tanpa gerbang ini, melepas kursor di bilah toolbar atas atau di luar
+     *  tabel tetap "menempel" ke kolom pada `clientX` terakhir — pengguna
+     *  melihat kolom pindah ke posisi yang tak pernah ia tuju.
+     *  Batas mendatar dibiarkan longgar (toleransi setengah lebar kolom)
+     *  supaya melepas tepat di tepi kiri/kanan masih terasa wajar.
+     */
+    /** Lihat `lepasSah` di `seretKolom.ts` untuk alasan gerbang ini ada. */
+    const lepasMasihSah = (e: { clientX: number; clientY: number }): boolean => {
+      const wadah = wrapRef.current?.querySelector('.dsg-row-header');
+      const kotak = wadah ? wadah.getBoundingClientRect() : null;
+      const { batas, lebar } = ukurKolom();
+      return lepasSah(kotak, batas, lebar, e.clientX, e.clientY);
+    };
+
+    const lepas = (e: { clientX: number; clientY: number }) => {
       bersih();
       bersihkanIndikator(wrapRef.current);
-      if (!jalan) return;
+      setStatus(null);
+      // Seret yang belum melewati ambang = klik biasa; lepas di luar area
+      // header = niat batal, bukan menyusun ulang.
+      if (!jalan || !lepasMasihSah(e)) return;
       const { keys } = ukurKolom();
       const { sisip } = hitung(e.clientX);
-      setStatus(null);
       const dari = keys.indexOf(key);
       if (dari < 0) return;
       const baru = pindahKolom(terlihatRef.current, dari, sisip);
@@ -178,7 +197,15 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       onPindahRef.current(baru);
     };
 
+    /** Batalkan seret tanpa menulis apa pun (Esc, pointercancel, blur). */
     const batal = () => { bersih(); setStatus(null); bersihkanIndikator(wrapRef.current); };
+
+    /* Esc = batal, sejalan dengan kebiasaan dialog/panel di aplikasi ini.
+       Tanpa ini, menekan Esc saat seret tetap MENYIMPAN perpindahan pada
+       saat tombol dilepas — pengguna mengira sudah membatalkan. */
+    const tombol = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') batal();
+    };
 
     function bersih() {
       window.removeEventListener('pointermove', geser, true);
@@ -187,6 +214,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       window.removeEventListener('mouseup', lepasMouse, true);
       window.removeEventListener('pointercancel', batal, true);
       window.removeEventListener('blur', batal);
+      window.removeEventListener('keydown', tombol, true);
       bersihRef.current = null;
     }
 
@@ -213,6 +241,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
     window.addEventListener('mouseup', lepasMouse, true);
     window.addEventListener('pointercancel', batal, true);
     window.addEventListener('blur', batal);
+    window.addEventListener('keydown', tombol, true);
   }, [ukurKolom, wrapRef]);
 
   /* Pemasangan listener native fase CAPTURE pada wadah grid. Dipasang ulang
