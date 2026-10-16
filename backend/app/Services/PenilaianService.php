@@ -125,10 +125,43 @@ class PenilaianService
             if ($nilai === null && $k->otomatisDariRapor()) {
                 $nilai = $this->rataRataRapor($santriId, $jenjang, $tingkat, $mapelId, (int) ($k->jumlah_tingkat_rapor ?? 0));
             }
+            if ($nilai === null && $k->otomatisDariPeristiwa()) {
+                $nilai = $this->nilaiAkhirPeristiwaLain($santriId, $mapelId, $ta, $semester, (int) $k->peristiwa_sumber_id, $peristiwaId);
+            }
             $hasil[$k->id] = $nilai === null ? null : (float) $nilai;
         }
 
         return $hasil;
+    }
+
+    /**
+     * Nilai akhir peristiwa LAIN untuk mapel yang sama (mis. komponen "PTS" di
+     * ASAS mengambil nilai akhir peristiwa PTS). SATU tingkat — nilai akhir
+     * peristiwa asal dibaca apa adanya, tidak dihitung ulang (tanpa rekursi).
+     * `$peristiwaSendiri` menutup rujukan-diri.
+     */
+    public function nilaiAkhirPeristiwaLain(
+        int $santriId,
+        int $mapelId,
+        string $ta,
+        string $semester,
+        int $peristiwaSumberId,
+        int $peristiwaSendiri,
+    ): ?float {
+        if ($peristiwaSumberId === $peristiwaSendiri) {
+            return null;
+        }
+
+        $nilai = NilaiSantri::query()
+            ->join('pengampu_mapel as pm', 'pm.id', '=', 'nilai_santri.pengampu_mapel_id')
+            ->where('nilai_santri.santri_id', $santriId)
+            ->where('nilai_santri.tahun_ajaran', $ta)
+            ->where('nilai_santri.semester', $semester)
+            ->where('nilai_santri.peristiwa_id', $peristiwaSumberId)
+            ->where('pm.mata_pelajaran_id', $mapelId)
+            ->value('nilai_santri.nilai_akhir');
+
+        return $nilai === null ? null : (float) $nilai;
     }
 
     /**

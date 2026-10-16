@@ -943,8 +943,9 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `nama`: string
 - `kode`: varchar(20) [null]
 - `bobot`: decimal(5, 2) [default 0]
-- `sumber`: enum('manual','rapor_otomatis') [default 'manual'] — `rapor_otomatis` = dihitung dari rata-rata rapor N tingkat sebelumnya (boleh ditimpa lewat impor)
+- `sumber`: enum('manual','rapor_otomatis','peristiwa') [default 'manual'] — `rapor_otomatis` = dihitung dari rata-rata rapor N tingkat sebelumnya; `peristiwa` = mengambil **nilai akhir peristiwa lain** (`peristiwa_sumber_id`) untuk mapel yang sama (mis. komponen "PTS" di ASAS/ASAT ← peristiwa PTS). Dua sumber otomatis boleh ditimpa baris `nilai_komponen` manual.
 - `jumlah_tingkat_rapor`: tinyint unsigned [null] — N (2/3), hanya bermakna bila `sumber='rapor_otomatis'`
+- `peristiwa_sumber_id`: FK → peristiwa_nilai [null, nullOnDelete] — peristiwa asal bila `sumber='peristiwa'`; wajib sejenjang + setahun ajaran dan bukan dirinya sendiri (divalidasi controller). Rujukan SATU tingkat (nilai akhir peristiwa asal dibaca apa adanya → tanpa rekursi).
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`

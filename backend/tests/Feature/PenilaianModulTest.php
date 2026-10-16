@@ -113,7 +113,7 @@ class PenilaianModulTest extends TestCase
 
     // ---------- 01. bawaan peristiwa ----------
 
-    public function test_01_bawaan_membuat_empat_peristiwa_dengan_cakupan(): void
+    public function test_01_bawaan_membuat_peristiwa_dengan_cakupan(): void
     {
         $this->lembaga('MI', 'Madrasah Ibtidaiyah');
         $this->tahunAjaran();
@@ -124,20 +124,30 @@ class PenilaianModulTest extends TestCase
             ->assertStatus(200);
 
         $peristiwa = PeristiwaNilai::orderBy('urutan')->get();
-        $this->assertSame(['ASAS', 'ASAT', 'UJIAN', 'UAP'], $peristiwa->pluck('kode')->all());
+        $this->assertSame(['PTS', 'ASAS', 'ASAT', 'UJIAN', 'UAP'], $peristiwa->pluck('kode')->all());
         $this->assertSame(
-            ['semua', 'kecuali_akhir', 'tingkat_akhir', 'tingkat_akhir'],
+            ['semua', 'semua', 'kecuali_akhir', 'tingkat_akhir', 'tingkat_akhir'],
             $peristiwa->pluck('cakupan')->all(),
         );
-        // Hanya ASAS & ASAT yang menghasilkan rapor; UJIAN/UAP nilai ujian saja.
+        // Rapor: PTS = sementara, ASAS/ASAT = akhir; UJIAN/UAP nilai ujian saja.
         $this->assertSame(
-            ['akhir', 'akhir', 'tidak_ada', 'tidak_ada'],
+            ['sementara', 'akhir', 'akhir', 'tidak_ada', 'tidak_ada'],
             $peristiwa->pluck('jenis_rapor')->all(),
         );
+
+        // PTS: satu komponen bernilai penuh (rapor sementara).
+        $pts = $peristiwa->firstWhere('kode', 'PTS');
+        $this->assertSame(100.0, (float) KomponenNilai::where('peristiwa_id', $pts->id)->sum('bobot'));
 
         // ASAS/ASAT/UAP: komponen sumatif Harian 20 + Tugas 20 + PTS 20 + Sumatif 40.
         $asas = $peristiwa->firstWhere('kode', 'ASAS');
         $this->assertSame(100.0, (float) KomponenNilai::where('peristiwa_id', $asas->id)->sum('bobot'));
+
+        // Komponen "PTS" di ASAS BERSUMBER dari peristiwa PTS → guru input sekali.
+        $komponenPts = KomponenNilai::where('peristiwa_id', $asas->id)->where('nama', 'PTS')->first();
+        $this->assertNotNull($komponenPts);
+        $this->assertSame(KomponenNilai::PERISTIWA, $komponenPts->sumber);
+        $this->assertSame($pts->id, $komponenPts->peristiwa_sumber_id);
 
         // UJIAN: UM manual + Rata-rata Rapor otomatis (2 tingkat sebelumnya).
         $ujian = $peristiwa->firstWhere('kode', 'UJIAN');
@@ -162,7 +172,7 @@ class PenilaianModulTest extends TestCase
             ->assertStatus(200);
 
         $this->assertSame(
-            ['ASAS', 'ASAT', 'UAP'],
+            ['PTS', 'ASAS', 'ASAT', 'UAP'],
             PeristiwaNilai::orderBy('urutan')->pluck('kode')->all(),
         );
     }
@@ -381,5 +391,57 @@ class PenilaianModulTest extends TestCase
         $this->actingAs($super, 'sanctum')
             ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&peristiwa_id={$asas->id}&semester=1")
             ->assertStatus(200);
+    }
+
+    // ---------- 08. komponen PTS mengalir dari peristiwa PTS ----------
+
+    public function test_08_komponen_pts_mengalir_dari_peristiwa_pts(): void
+    {
+        $this->lembaga('MI', 'Madrasah Ibtidaiyah');
+        $this->tahunAjaran();
+        $this->tingkat('MI', ['1', '2', '3', '4', '5', '6']);
+        $super = $this->superAdmin();
+
+        $kelas = $this->kelas('6A', '6');
+        $santri = $this->santriDiKelas('Santri PTS', '26001', $kelas->id, '6');
+        [, $pengampu] = $this->mapelPengampu($kelas->id, 'Fiqih');
+
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/penilaian/bawaan', ['jenjang' => 'MI', 'tahun_ajaran' => self::TA])
+            ->assertStatus(200);
+
+        $pts = PeristiwaNilai::where('kode', 'PTS')->first();
+        $asas = PeristiwaNilai::where('kode', 'ASAS')->first();
+
+        // Nilai PTS peristiwa untuk mapel Fiqih = 90 (diisi sekali, mis. impor).
+        DB::table('nilai_santri')->insert([
+            'santri_id' => $santri->id, 'pengampu_mapel_id' => $pengampu->id,
+            'tahun_ajaran' => self::TA, 'semester' => '1', 'peristiwa_id' => $pts->id,
+            'nilai_akhir' => 90, 'sumber' => 'impor', 'predikat' => 'B',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // Komponen ASAS lain diisi; komponen "PTS" DIBIARKAN KOSONG → otomatis.
+        $skor = ['Harian' => 80, 'Tugas' => 90, 'Sumatif' => 100];
+        foreach (KomponenNilai::where('peristiwa_id', $asas->id)->get() as $k) {
+            if (! isset($skor[$k->nama])) {
+                continue;
+            }
+            NilaiKomponen::create([
+                'santri_id' => $santri->id, 'pengampu_mapel_id' => $pengampu->id,
+                'tahun_ajaran' => self::TA, 'semester' => '1',
+                'komponen_nilai_id' => $k->id, 'skor' => $skor[$k->nama],
+            ]);
+        }
+
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/penilaian/hitung', ['peristiwa_id' => $asas->id, 'semester' => '1'])
+            ->assertStatus(200)
+            ->assertJsonPath('dihitung', 1)
+            ->assertJsonPath('belum_lengkap', 0);
+
+        // 80×20% + 90×20% + 90(PTS otomatis)×20% + 100×40% = 92
+        $this->assertSame(92.0, (float) DB::table('nilai_santri')
+            ->where('santri_id', $santri->id)->where('peristiwa_id', $asas->id)->value('nilai_akhir'));
     }
 }

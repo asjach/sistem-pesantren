@@ -235,14 +235,21 @@ export default function PenilaianMasterPage() {
                 <th className="border border-border px-2 py-1 text-left">Kode</th>
                 <th className="border border-border px-2 py-1 w-24">Bobot</th>
                 <th className="border border-border px-2 py-1 w-48 text-left">Sumber nilai</th>
-                <th className="border border-border px-2 py-1 w-24">Tingkat</th>
+                <th className="border border-border px-2 py-1 w-56 text-left">Rincian sumber</th>
                 <th className="border border-border px-2 py-1 w-20">Aktif</th>
                 <th className="border border-border px-2 py-1 w-24">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {komponen.map((k) => (
-                <BarisKomponen key={k.id} k={k} canUbah={canUbah} canHapus={canHapus} onSimpan={jalankan} />
+                <BarisKomponen
+                  key={k.id}
+                  k={k}
+                  peristiwaLain={peristiwa.filter((p) => p.id !== peristiwaId)}
+                  canUbah={canUbah}
+                  canHapus={canHapus}
+                  onSimpan={jalankan}
+                />
               ))}
               {komponen.length === 0 && (
                 <tr><td colSpan={7} className="border border-border px-2 py-4 text-center text-muted-foreground">
@@ -473,8 +480,8 @@ function BarisPeristiwa({ p, canUbah, canHapus, onSimpan }: {
 }
 
 /** Baris komponen (per peristiwa) dengan penyuntingan inline. */
-function BarisKomponen({ k, canUbah, canHapus, onSimpan }: {
-  k: KomponenNilai; canUbah: boolean; canHapus: boolean;
+function BarisKomponen({ k, peristiwaLain, canUbah, canHapus, onSimpan }: {
+  k: KomponenNilai; peristiwaLain: PeristiwaNilai[]; canUbah: boolean; canHapus: boolean;
   onSimpan: (kerja: () => Promise<unknown>, sukses: string) => Promise<void>;
 }) {
   const [nama, setNama] = useState(k.nama);
@@ -482,11 +489,15 @@ function BarisKomponen({ k, canUbah, canHapus, onSimpan }: {
   const [bobot, setBobot] = useState(String(k.bobot));
   const [sumber, setSumber] = useState(k.sumber);
   const [nTingkat, setNTingkat] = useState(k.jumlah_tingkat_rapor === null ? '' : String(k.jumlah_tingkat_rapor));
+  const [peristiwaSumberId, setPeristiwaSumberId] = useState(
+    k.peristiwa_sumber_id === null ? '' : String(k.peristiwa_sumber_id),
+  );
   const [aktif, setAktif] = useState(k.is_active);
 
   useEffect(() => {
     setNama(k.nama); setKode(k.kode ?? ''); setBobot(String(k.bobot));
     setSumber(k.sumber); setNTingkat(k.jumlah_tingkat_rapor === null ? '' : String(k.jumlah_tingkat_rapor));
+    setPeristiwaSumberId(k.peristiwa_sumber_id === null ? '' : String(k.peristiwa_sumber_id));
     setAktif(k.is_active);
   }, [k]);
 
@@ -506,16 +517,32 @@ function BarisKomponen({ k, canUbah, canHapus, onSimpan }: {
           disabled={!canUbah} value={sumber} onChange={(e) => setSumber(e.target.value as KomponenNilai['sumber'])}>
           <option value="manual">Manual (diisi/diimpor)</option>
           <option value="rapor_otomatis">Otomatis dari rapor</option>
+          <option value="peristiwa">Dari peristiwa lain</option>
         </select>
       </td>
       <td className="border border-border px-1 py-0.5">
-        <Input
-          type="number" min={1} max={6} className="h-7 text-xs" aria-label="Jumlah tingkat rapor"
-          title="Jumlah tingkat sebelumnya yang dirata-rata (hanya untuk sumber otomatis)"
-          disabled={!canUbah || sumber !== 'rapor_otomatis'}
-          value={nTingkat} placeholder="—"
-          onChange={(e) => setNTingkat(e.target.value)}
-        />
+        {sumber === 'rapor_otomatis' && (
+          <Input
+            type="number" min={1} max={6} className="h-7 text-xs" aria-label="Jumlah tingkat rapor"
+            title="Jumlah tingkat sebelumnya yang dirata-rata"
+            disabled={!canUbah}
+            value={nTingkat} placeholder="N tingkat"
+            onChange={(e) => setNTingkat(e.target.value)}
+          />
+        )}
+        {sumber === 'peristiwa' && (
+          <select
+            className="h-7 w-full rounded-md border border-input bg-transparent px-1 text-xs"
+            aria-label="Peristiwa sumber"
+            disabled={!canUbah}
+            value={peristiwaSumberId}
+            onChange={(e) => setPeristiwaSumberId(e.target.value)}
+          >
+            <option value="">— pilih peristiwa —</option>
+            {peristiwaLain.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
+          </select>
+        )}
+        {sumber === 'manual' && <span className="block text-center text-[10px] text-muted-foreground">diisi guru</span>}
       </td>
       <td className="border border-border px-1 py-0.5 text-center">
         <input type="checkbox" aria-label="Aktif" disabled={!canUbah} checked={aktif} onChange={(e) => setAktif(e.target.checked)} />
@@ -527,7 +554,9 @@ function BarisKomponen({ k, canUbah, canHapus, onSimpan }: {
               onClick={() => void onSimpan(
                 () => ubahKomponen(k.id, {
                   nama, kode: kode || null, bobot: Number(bobot) || 0,
-                  sumber, jumlah_tingkat_rapor: nTingkat === '' ? null : Number(nTingkat),
+                  sumber,
+                  jumlah_tingkat_rapor: sumber === 'rapor_otomatis' && nTingkat !== '' ? Number(nTingkat) : null,
+                  peristiwa_sumber_id: sumber === 'peristiwa' && peristiwaSumberId !== '' ? Number(peristiwaSumberId) : null,
                   is_active: aktif,
                 }),
                 'Komponen disimpan.',

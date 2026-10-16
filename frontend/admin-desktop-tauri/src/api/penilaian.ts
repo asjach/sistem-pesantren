@@ -29,13 +29,16 @@ export interface PeristiwaResp {
   tingkat_akhir: string | null;
 }
 
-export type SumberKomponen = 'manual' | 'rapor_otomatis';
+export type SumberKomponen = 'manual' | 'rapor_otomatis' | 'peristiwa';
 
 export interface KomponenNilai {
   id: number; peristiwa_id: number; nama: string; kode: string | null;
   bobot: number; sumber: SumberKomponen;
   /** Jumlah tingkat sebelumnya yang dirata-rata (hanya `rapor_otomatis`). */
   jumlah_tingkat_rapor: number | null;
+  /** Peristiwa asal (hanya `peristiwa`) — mis. komponen "PTS" mengambil nilai
+   *  akhir peristiwa PTS per mapel. */
+  peristiwa_sumber_id: number | null;
   urutan: number; is_active: boolean;
 }
 
@@ -183,6 +186,7 @@ export function daftarKomponen(peristiwaId: number) {
 export function buatKomponen(data: {
   peristiwa_id: number; nama: string; kode?: string | null; bobot?: number;
   sumber?: SumberKomponen; jumlah_tingkat_rapor?: number | null;
+  peristiwa_sumber_id?: number | null;
   urutan?: number; is_active?: boolean;
 }) {
   return api<KomponenNilai>('/admin/penilaian/komponen', { method: 'POST', body: JSON.stringify(data) });
@@ -191,6 +195,7 @@ export function buatKomponen(data: {
 export function ubahKomponen(id: number, data: {
   nama?: string; kode?: string | null; bobot?: number;
   sumber?: SumberKomponen; jumlah_tingkat_rapor?: number | null;
+  peristiwa_sumber_id?: number | null;
   urutan?: number; is_active?: boolean;
 }) {
   return api<KomponenNilai>(`/admin/penilaian/komponen/${id}`, { method: 'PUT', body: JSON.stringify(data) });

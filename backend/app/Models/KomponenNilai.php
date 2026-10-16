@@ -10,15 +10,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * peristiwa — keputusan pengguna 2026-10-16). Bobot jadi kolom karena
  * peristiwa sudah terikat tahun ajaran.
  *
- *  `sumber='rapor_otomatis'` = skor dihitung otomatis dari rata-rata rapor
- *  `jumlah_tingkat_rapor` tingkat sebelumnya (mis. komponen "Rata-rata Rapor"
- *  pada peristiwa UJIAN); nilai otomatis itu boleh ditimpa manual lewat impor.
+ *  Tiga sumber nilai:
+ *  - `manual`         : diisi guru lewat impor/edit;
+ *  - `rapor_otomatis` : rata-rata rapor `jumlah_tingkat_rapor` tingkat sebelumnya;
+ *  - `peristiwa`      : nilai akhir peristiwa LAIN (`peristiwa_sumber_id`) untuk
+ *                       mapel yang sama — mis. komponen "PTS" di ASAS/ASAT
+ *                       mengambil nilai akhir peristiwa PTS.
+ *
+ *  Dua sumber otomatis tetap boleh ditimpa baris `nilai_komponen` manual.
  */
 class KomponenNilai extends Model
 {
     public const MANUAL = 'manual';
 
     public const RAPOR_OTOMATIS = 'rapor_otomatis';
+
+    public const PERISTIWA = 'peristiwa';
 
     protected $table = 'komponen_nilai';
 
@@ -29,6 +36,7 @@ class KomponenNilai extends Model
         'urutan' => 'integer',
         'bobot' => 'float',
         'jumlah_tingkat_rapor' => 'integer',
+        'peristiwa_sumber_id' => 'integer',
     ];
 
     public function peristiwa(): BelongsTo
@@ -36,8 +44,19 @@ class KomponenNilai extends Model
         return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_id');
     }
 
+    /** Peristiwa asal bila `sumber='peristiwa'`. */
+    public function peristiwaSumber(): BelongsTo
+    {
+        return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_sumber_id');
+    }
+
     public function otomatisDariRapor(): bool
     {
         return $this->sumber === self::RAPOR_OTOMATIS;
+    }
+
+    public function otomatisDariPeristiwa(): bool
+    {
+        return $this->sumber === self::PERISTIWA && $this->peristiwa_sumber_id !== null;
     }
 }

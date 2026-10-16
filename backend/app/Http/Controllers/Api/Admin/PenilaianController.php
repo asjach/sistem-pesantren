@@ -42,20 +42,50 @@ class PenilaianController extends Controller
     use ImporBertahap;
     use TenantGuard;
 
-    /** Bawaan peristiwa per jenjang (UJIAN dilewati untuk MD — jalur Kemenag). */
-    private const PERISTIWA_BAWAAN = [
-        ['kode' => 'ASAS', 'nama' => 'Asesmen Sumatif Akhir Semester', 'cakupan' => 'semua', 'kurikulum' => 'keduanya', 'urutan' => 1, 'kemenag' => true, 'rapor' => 'akhir'],
-        ['kode' => 'ASAT', 'nama' => 'Asesmen Sumatif Akhir Tahun', 'cakupan' => 'kecuali_akhir', 'kurikulum' => 'keduanya', 'urutan' => 2, 'kemenag' => true, 'rapor' => 'akhir'],
-        ['kode' => 'UJIAN', 'nama' => 'Ujian Madrasah (Kemenag)', 'cakupan' => 'tingkat_akhir', 'kurikulum' => 'kemenag', 'urutan' => 3, 'kemenag' => false, 'rapor' => 'tidak_ada'],
-        ['kode' => 'UAP', 'nama' => 'Ujian Akhir Pesantren', 'cakupan' => 'tingkat_akhir', 'kurikulum' => 'pesantren', 'urutan' => 4, 'kemenag' => true, 'rapor' => 'tidak_ada'],
-    ];
-
-    /** Komponen bawaan peristiwa sumatif (ASAS/ASAT/UAP). */
+    /**
+     * Komponen sumatif ASAS/ASAT/UAP. "PTS" TIDAK diisi manual — ia mengambil
+     * nilai akhir PERISTIWA PTS per mapel (`dari_peristiwa`), jadi guru mengisi
+     * PTS sekali saja.
+     */
     private const KOMPONEN_SUMATIF = [
         ['nama' => 'Harian', 'kode' => 'HARIAN', 'bobot' => 20, 'urutan' => 1],
         ['nama' => 'Tugas', 'kode' => 'TUGAS', 'bobot' => 20, 'urutan' => 2],
-        ['nama' => 'PTS', 'kode' => 'PTS', 'bobot' => 20, 'urutan' => 3],
+        ['nama' => 'PTS', 'kode' => 'PTS', 'bobot' => 20, 'urutan' => 3, 'dari_peristiwa' => 'PTS'],
         ['nama' => 'Sumatif', 'kode' => 'SUMATIF', 'bobot' => 40, 'urutan' => 4],
+    ];
+
+    /** Bawaan peristiwa per jenjang (UJIAN dilewati untuk MD — jalur Kemenag). */
+    private const PERISTIWA_BAWAAN = [
+        [
+            'kode' => 'PTS', 'nama' => 'Penilaian Tengah Semester', 'cakupan' => 'semua',
+            'kurikulum' => 'keduanya', 'urutan' => 1, 'rapor' => 'sementara',
+            'komponen' => [
+                ['nama' => 'Nilai PTS', 'kode' => 'PTS', 'bobot' => 100, 'urutan' => 1],
+            ],
+        ],
+        [
+            'kode' => 'ASAS', 'nama' => 'Asesmen Sumatif Akhir Semester', 'cakupan' => 'semua',
+            'kurikulum' => 'keduanya', 'urutan' => 2, 'rapor' => 'akhir',
+            'komponen' => self::KOMPONEN_SUMATIF,
+        ],
+        [
+            'kode' => 'ASAT', 'nama' => 'Asesmen Sumatif Akhir Tahun', 'cakupan' => 'kecuali_akhir',
+            'kurikulum' => 'keduanya', 'urutan' => 3, 'rapor' => 'akhir',
+            'komponen' => self::KOMPONEN_SUMATIF,
+        ],
+        [
+            'kode' => 'UJIAN', 'nama' => 'Ujian Madrasah (Kemenag)', 'cakupan' => 'tingkat_akhir',
+            'kurikulum' => 'kemenag', 'urutan' => 4, 'rapor' => 'tidak_ada',
+            'komponen' => [
+                ['nama' => 'UM', 'kode' => 'UM', 'bobot' => 60, 'urutan' => 1],
+                ['nama' => 'Rata-rata Rapor', 'kode' => 'RAPOR', 'bobot' => 40, 'urutan' => 2, 'sumber' => KomponenNilai::RAPOR_OTOMATIS, 'n' => 2],
+            ],
+        ],
+        [
+            'kode' => 'UAP', 'nama' => 'Ujian Akhir Pesantren', 'cakupan' => 'tingkat_akhir',
+            'kurikulum' => 'pesantren', 'urutan' => 5, 'rapor' => 'tidak_ada',
+            'komponen' => self::KOMPONEN_SUMATIF,
+        ],
     ];
 
     // ========================================================= PERISTIWA
@@ -134,11 +164,12 @@ class PenilaianController extends Controller
     }
 
     /**
-     * POST /admin/penilaian/bawaan — muat 4 peristiwa bawaan per (jenjang, TA):
-     * ASAS (semua) & ASAT (kecuali tingkat akhir) & UAP (tingkat akhir) dengan
-     * komponen Harian 20 + Tugas 20 + PTS 20 + Sumatif 40; UJIAN (tingkat
-     * akhir, jenjang non-MD) dengan UM 60 + Rata-rata Rapor 40 (otomatis).
-     * KKM 75 dan predikat A/B/C/D ikut dibuat.
+     * POST /admin/penilaian/bawaan — muat peristiwa bawaan per (jenjang, TA):
+     * PTS (semua tingkat, rapor sementara), ASAS & ASAT (rapor akhir), UJIAN
+     * (tingkat akhir, jenjang non-MD; rapor tidak ada), UAP (tingkat akhir).
+     * Komponen ASAS/ASAT/UAP = Harian 20 + Tugas 20 + **PTS 20 (otomatis dari
+     * peristiwa PTS)** + Sumatif 40; UJIAN = UM 60 + Rata-rata Rapor 40
+     * (otomatis). KKM 75 dan predikat A/B/C/D ikut dibuat.
      */
     public function bawaan(Request $request): JsonResponse
     {
@@ -152,30 +183,46 @@ class PenilaianController extends Controller
 
         $dibuat = [];
         DB::transaction(function () use ($jenjang, $ta, &$dibuat) {
+            // Pass 1 — peristiwa (UJIAN = jalur Kemenag → MD dilewati).
+            $peta = [];
             foreach (self::PERISTIWA_BAWAAN as $p) {
-                // UJIAN = jalur Kemenag → MD dilewati.
                 if ($p['kode'] === PeristiwaNilai::UJIAN && $jenjang === 'MD') {
                     continue;
                 }
-                $peristiwa = PeristiwaNilai::updateOrCreate(
+                $peta[$p['kode']] = PeristiwaNilai::updateOrCreate(
                     ['jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'kode' => $p['kode']],
-                    ['nama' => $p['nama'], 'cakupan' => $p['cakupan'], 'kurikulum' => $p['kurikulum'], 'urutan' => $p['urutan'], 'jenis_rapor' => $p['rapor'], 'is_active' => true],
+                    [
+                        'nama' => $p['nama'], 'cakupan' => $p['cakupan'], 'kurikulum' => $p['kurikulum'],
+                        'urutan' => $p['urutan'], 'jenis_rapor' => $p['rapor'], 'is_active' => true,
+                    ],
                 );
                 $dibuat[] = $p['kode'];
+            }
 
-                $komponen = $p['kode'] === PeristiwaNilai::UJIAN
-                    ? [
-                        ['nama' => 'UM', 'kode' => 'UM', 'bobot' => 60, 'urutan' => 1, 'sumber' => KomponenNilai::MANUAL, 'n' => null],
-                        ['nama' => 'Rata-rata Rapor', 'kode' => 'RAPOR', 'bobot' => 40, 'urutan' => 2, 'sumber' => KomponenNilai::RAPOR_OTOMATIS, 'n' => 2],
-                    ]
-                    : array_map(fn ($k) => $k + ['sumber' => KomponenNilai::MANUAL, 'n' => null], self::KOMPONEN_SUMATIF);
+            // Pass 2 — komponen (komponen ber-`dari_peristiwa` merujuk peristiwa
+            // PTS), KKM, dan predikat.
+            foreach (self::PERISTIWA_BAWAAN as $p) {
+                $peristiwa = $peta[$p['kode']] ?? null;
+                if ($peristiwa === null) {
+                    continue;
+                }
 
-                foreach ($komponen as $k) {
+                foreach ($p['komponen'] as $k) {
+                    $sumberId = isset($k['dari_peristiwa'])
+                        ? (($peta[$k['dari_peristiwa']] ?? null)?->id)
+                        : null;
                     KomponenNilai::updateOrCreate(
                         ['peristiwa_id' => $peristiwa->id, 'nama' => $k['nama']],
                         [
-                            'kode' => $k['kode'], 'bobot' => $k['bobot'], 'urutan' => $k['urutan'],
-                            'sumber' => $k['sumber'], 'jumlah_tingkat_rapor' => $k['n'], 'is_active' => true,
+                            'kode' => $k['kode'],
+                            'bobot' => $k['bobot'],
+                            'urutan' => $k['urutan'],
+                            'sumber' => $sumberId !== null
+                                ? KomponenNilai::PERISTIWA
+                                : ($k['sumber'] ?? KomponenNilai::MANUAL),
+                            'jumlah_tingkat_rapor' => $k['n'] ?? null,
+                            'peristiwa_sumber_id' => $sumberId,
+                            'is_active' => true,
                         ],
                     );
                     KkmKegiatan::updateOrCreate(
@@ -227,13 +274,15 @@ class PenilaianController extends Controller
             'nama' => ['required', 'string', 'max:100'],
             'kode' => ['nullable', 'string', 'max:20'],
             'bobot' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'sumber' => ['nullable', 'in:manual,rapor_otomatis'],
+            'sumber' => ['nullable', 'in:manual,rapor_otomatis,peristiwa'],
             'jumlah_tingkat_rapor' => ['nullable', 'integer', 'min:1', 'max:6'],
+            'peristiwa_sumber_id' => ['nullable', 'integer', 'exists:peristiwa_nilai,id'],
             'urutan' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
         $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
         $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $this->validasiSumberKomponen($peristiwa, $data);
 
         return response()->json(KomponenNilai::create($data), 201);
     }
@@ -245,12 +294,19 @@ class PenilaianController extends Controller
             'nama' => ['sometimes', 'string', 'max:100'],
             'kode' => ['nullable', 'string', 'max:20'],
             'bobot' => ['sometimes', 'numeric', 'min:0', 'max:100'],
-            'sumber' => ['sometimes', 'in:manual,rapor_otomatis'],
+            'sumber' => ['sometimes', 'in:manual,rapor_otomatis,peristiwa'],
             'jumlah_tingkat_rapor' => ['nullable', 'integer', 'min:1', 'max:6'],
+            'peristiwa_sumber_id' => ['nullable', 'integer', 'exists:peristiwa_nilai,id'],
             'urutan' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
         $this->authorizeLembaga($request->user(), $komponen->peristiwa->jenjang);
+        $this->validasiSumberKomponen($komponen->peristiwa, [
+            'sumber' => $data['sumber'] ?? $komponen->sumber,
+            'peristiwa_sumber_id' => array_key_exists('peristiwa_sumber_id', $data)
+                ? $data['peristiwa_sumber_id']
+                : $komponen->peristiwa_sumber_id,
+        ]);
         $komponen->update($data);
 
         return response()->json($komponen->fresh());
@@ -972,6 +1028,41 @@ class PenilaianController extends Controller
         return new PenilaianTemplateExport('ekskul', 'Ekstrakurikuler', $kolom, $contoh, [
             'jenjang' => PenilaianTemplateExport::pilihanJenjang(),
         ]);
+    }
+
+    /**
+     * Aturan komponen bersumber peristiwa lain: wajib memilih peristiwa asal,
+     * sejenjang + setahun ajaran, dan bukan dirinya sendiri.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function validasiSumberKomponen(PeristiwaNilai $peristiwa, array $data): void
+    {
+        $sumber = $data['sumber'] ?? KomponenNilai::MANUAL;
+        $sumberId = $data['peristiwa_sumber_id'] ?? null;
+
+        if ($sumber !== KomponenNilai::PERISTIWA) {
+            if ($sumberId !== null) {
+                throw ValidationException::withMessages([
+                    'peristiwa_sumber_id' => 'Peristiwa sumber hanya dipakai bila sumber = "peristiwa".',
+                ]);
+            }
+
+            return;
+        }
+
+        if ($sumberId === null) {
+            throw ValidationException::withMessages(['peristiwa_sumber_id' => 'Pilih peristiwa sumber.']);
+        }
+        if ((int) $sumberId === $peristiwa->id) {
+            throw ValidationException::withMessages(['peristiwa_sumber_id' => 'Peristiwa sumber tidak boleh dirinya sendiri.']);
+        }
+        $asal = PeristiwaNilai::find($sumberId);
+        if ($asal === null || $asal->jenjang !== $peristiwa->jenjang || $asal->tahun_ajaran !== $peristiwa->tahun_ajaran) {
+            throw ValidationException::withMessages([
+                'peristiwa_sumber_id' => 'Peristiwa sumber harus sejenjang dan setahun ajaran.',
+            ]);
+        }
     }
 
     private function peristiwaWajib(Request $request): PeristiwaNilai
