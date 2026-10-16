@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { urutkanReferensi, type BarisReferensiUrut } from './referensiUrut';
+import { urutanBerikutnya, urutkanReferensi, type BarisReferensiUrut } from './referensiUrut';
 
 const baris: BarisReferensiUrut[] = [
   { nama: 'Zakat', kode: 'Z', urutan: 10, is_active: true },
@@ -74,5 +74,47 @@ describe('urutkanReferensi', () => {
     // jadi kebetulan urutannya sama seperti lewat resolver di atas.
     expect(urutkanReferensi(denganJenjang, ['sumber']).map((r) => r.nama))
       .toEqual(['a', 'b']);
+  });
+});
+
+describe('urutanBerikutnya', () => {
+  it('mengembalikan terbesar + 1', () => {
+    // Perhatikan: 10 harus menang atas 9 (bukan dibandingkan sebagai teks).
+    expect(urutanBerikutnya(baris)).toBe(11);
+  });
+
+  it('memakai angka terbesar, bukan yang terakhir di array', () => {
+    const acak: BarisReferensiUrut[] = [
+      { nama: 'A', urutan: 3 },
+      { nama: 'B', urutan: 7 },
+      { nama: 'C', urutan: 5 },
+    ];
+    expect(urutanBerikutnya(acak)).toBe(8);
+  });
+
+  it('daftar kosong → 1 (bukan 0)', () => {
+    expect(urutanBerikutnya([])).toBe(1);
+  });
+
+  it('mengabaikan urutan kosong / bukan angka', () => {
+    const kotor = [
+      { nama: 'A', urutan: null },
+      { nama: 'B', urutan: '' },
+      { nama: 'C', urutan: 'abc' },
+      { nama: 'D' },
+    ] as unknown as BarisReferensiUrut[];
+    expect(urutanBerikutnya(kotor)).toBe(1);
+  });
+
+  it('menerima urutan berbentuk teks angka (nilai dari API)', () => {
+    const teks = [
+      { nama: 'A', urutan: '4' },
+      { nama: 'B', urutan: '12' },
+    ] as unknown as BarisReferensiUrut[];
+    expect(urutanBerikutnya(teks)).toBe(13);
+  });
+
+  it('urutan negatif tidak menurunkan hasil di bawah 1', () => {
+    expect(urutanBerikutnya([{ nama: 'A', urutan: -5 }])).toBe(1);
   });
 });

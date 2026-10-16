@@ -90,3 +90,21 @@ export function urutkanReferensi<T extends BarisReferensiUrut>(
     return 0;
   });
 }
+
+/**
+ * Nomor urut berikutnya untuk entri baru: **terbesar + 1**.
+ *
+ * Baris yang dibandingkan adalah baris yang sedang dimuat halaman (satu
+ * kamus `tipe` — lihat `muat` di ReferensiPage). Nilai tak terbaca
+ * diabaikan, jadi entri lama ber-urutan kosong/bukan angka tak merusak
+ * perhitungan. Saat belum ada baris sama sekali hasilnya 1 (bukan 0)
+ * supaya entri pertama tidak setara dengan bawaan backend.
+ */
+export function urutanBerikutnya(rows: readonly BarisReferensiUrut[]): number {
+  let maks = 0;
+  for (const r of rows) {
+    const n = Number(r.urutan ?? 0);
+    if (Number.isFinite(n) && n > maks) maks = n;
+  }
+  return maks + 1;
+}

@@ -13,7 +13,7 @@ import {
 } from '../api/master';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import type { PetaArahKolom } from '../lib/urut';
-import { urutkanReferensi } from '../lib/referensiUrut';
+import { urutanBerikutnya, urutkanReferensi } from '../lib/referensiUrut';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { Button } from '@/components/ui/button';
@@ -257,8 +257,15 @@ export default function ReferensiPage() {
 
   const canTambah = bisa(me, 'referensi.tambah');
 
+  /** Urutan awal entri baru: terbesar di kamus ini + 1 (bukan selalu 0 lagi),
+   *  jadi entri baru tidak menumpuk di urutan yang sama. Angkanya tetap bisa
+   *  diubah pengguna di dialog. */
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+
   const openTambah = useCallback(() => {
-    setFNama(''); setFKode(''); setFSingkatan(''); setFUrutan('0');
+    setFNama(''); setFKode(''); setFSingkatan('');
+    setFUrutan(String(urutanBerikutnya(rowsRef.current)));
     // Tanpa Global: super_admin tanpa lembaga = sebar ke semua; jika scope
     // lembaga aktif, tambah ke lembaga itu.
     const fallback = targetJenjang ?? '';
