@@ -126,6 +126,11 @@ export function hapusMapel(id: number) {
   return api<{ pesan: string }>(`/admin/kurikulum/mapel/${id}`, { method: 'DELETE' });
 }
 
+/** Satu baris contoh di dialog aksi kamus (perubahan nilai atau mapel baru). */
+export interface ContohKamus {
+  nama_mapel: string; kode_mapel: string | null; singkatan: string | null;
+}
+
 /** Ringkasan "terapkan dari kamus": jumlah mapel yang diisi + contoh perubahannya. */
 export interface TerapkanKamusHasil {
   pesan: string; jenjang: string;
@@ -136,7 +141,7 @@ export interface TerapkanKamusHasil {
   /** Nama tak ada di kamus (atau entri kamusnya tanpa kode & singkatan). */
   tanpa_kamus: number;
   /** Sampel perubahan (maks 5) untuk dialog konfirmasi. */
-  contoh: { nama_mapel: string; kode_mapel: string | null; singkatan: string | null }[];
+  contoh: ContohKamus[];
 }
 
 /** Isi kode & singkatan mapel jenjang ini dari kamus `ref_mapel` berdasarkan
@@ -144,6 +149,28 @@ export interface TerapkanKamusHasil {
  *  menghitung (dialog pratinjau), `'eksekusi'` menyimpan. */
 export function terapkanKamusMapel(input: { jenjang: string; timpa?: boolean; mode: 'periksa' | 'eksekusi' }) {
   return api<TerapkanKamusHasil>('/admin/kurikulum/mapel/terapkan-kamus', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Ringkasan "buat mapel dari kamus": jumlah mapel baru + contohnya. */
+export interface BuatDariKamusHasil {
+  pesan: string; jenjang: string; kelompok: KelompokMapel;
+  /** Mapel baru yang dibuat — pada `mode: periksa` artinya "akan dibuat". */
+  dibuat: number;
+  /** Entri kamus yang namanya sudah ada sebagai mapel (status apa pun). */
+  sudah_ada: number;
+  /** Sampel mapel baru (maks 5) untuk dialog konfirmasi. */
+  contoh: ContohKamus[];
+}
+
+/** Buat mapel BARU untuk setiap entri kamus `ref_mapel` jenjang ini yang belum
+ *  ada sebagai mapel (nama dibandingkan tanpa spasi tepi & beda huruf
+ *  besar/kecil). Kode & singkatan kamus ikut disalin; `mode: 'periksa'` hanya
+ *  menghitung untuk pratinjau. */
+export function buatMapelDariKamus(input: { jenjang: string; kelompok?: KelompokMapel; mode: 'periksa' | 'eksekusi' }) {
+  return api<BuatDariKamusHasil>('/admin/kurikulum/mapel/dari-kamus', {
     method: 'POST',
     body: JSON.stringify(input),
   });

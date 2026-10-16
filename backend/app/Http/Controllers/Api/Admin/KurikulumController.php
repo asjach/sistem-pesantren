@@ -237,6 +237,94 @@ class KurikulumController extends Controller
     }
 
     /**
+     * POST /admin/kurikulum/mapel/dari-kamus
+     *
+     * Kebalikan `terapkanKamusMapel`: buat mapel BARU untuk setiap entri kamus
+     * `ref_mapel` jenjang ini yang namanya belum ada sebagai mapel (perbandingan
+     * sama seperti di atas — tanpa spasi tepi & beda huruf besar/kecil). Nama
+     * yang sudah ada dilewati, termasuk mapel yang sedang NONAKTIF: barisnya
+     * tetap ada, jadi membuat ulang hanya akan menabrak unique (jenjang, nama).
+     *
+     * `kode_mapel` & `singkatan` entri kamus ikut disalin supaya mapel baru
+     * tidak lahir kosong. `kelompok` berlaku untuk semua baris yang dibuat
+     * (kamus memang tak menyimpan formal/pesantren). `mode: periksa` hanya
+     * menghitung + mengambil contoh untuk pratinjau.
+     */
+    public function storeMapelDariKamus(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
+            'kelompok' => ['nullable', 'in:formal,pesantren'],
+            'mode' => ['nullable', 'in:periksa,eksekusi'],
+        ]);
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
+
+        $jenjang = $data['jenjang'];
+        $kelompok = $data['kelompok'] ?? MataPelajaran::FORMAL;
+        $periksa = ($data['mode'] ?? 'eksekusi') === 'periksa';
+
+        // Nama mapel yang sudah ada (status apa pun) → kunci pencocokan kamus.
+        $sudahAda = [];
+        foreach (MataPelajaran::where('jenjang', $jenjang)->pluck('nama_mapel') as $nama) {
+            $sudahAda[$this->kunciNamaMapel((string) $nama)] = true;
+        }
+
+        $dibuat = 0;
+        $dilewati = 0;
+        $contoh = [];
+
+        foreach (RefService::effective('mapel', $jenjang) as $entri) {
+            $nama = trim((string) ($entri->nama ?? ''));
+            $kunci = $this->kunciNamaMapel($nama);
+            if ($kunci === '') {
+                continue;
+            }
+            if (isset($sudahAda[$kunci])) {
+                $dilewati++;
+
+                continue;
+            }
+
+            // Tandai lebih dulu: kamus yang memuat nama kembar (beda besar/
+            // kecil saja) jangan sampai membuat dua baris sekaligus.
+            $sudahAda[$kunci] = true;
+            $kode = trim((string) ($entri->kode ?? ''));
+            $singkatan = trim((string) ($entri->singkatan ?? ''));
+            $dibuat++;
+            if (count($contoh) < 5) {
+                $contoh[] = [
+                    'nama_mapel' => $nama,
+                    'kode_mapel' => $kode === '' ? null : $kode,
+                    'singkatan' => $singkatan === '' ? null : $singkatan,
+                ];
+            }
+            if (! $periksa) {
+                MataPelajaran::create([
+                    'jenjang' => $jenjang,
+                    'nama_mapel' => $nama,
+                    'kelompok' => $kelompok,
+                    'kode_mapel' => $kode === '' ? null : $kode,
+                    'singkatan' => $singkatan === '' ? null : $singkatan,
+                    'is_active' => true,
+                ]);
+            }
+        }
+
+        $pesan = $dibuat === 0
+            ? 'Semua nama di kamus sudah ada sebagai mapel.'
+            : $dibuat.' mapel '.($periksa ? 'akan dibuat' : 'dibuat').' dari kamus.';
+
+        return response()->json([
+            'pesan' => $pesan,
+            'jenjang' => $jenjang,
+            'kelompok' => $kelompok,
+            'dibuat' => $dibuat,
+            'sudah_ada' => $dilewati,
+            'contoh' => $contoh,
+        ]);
+    }
+
+    /**
      * Kunci pembanding nama mapel ↔ kamus: spasi tepi dibuang dan huruf
      * diseragamkan ke kecil. Spasi di TENGAH sengaja tidak dirapatkan supaya
      * dua nama berbeda tidak dianggap sama.

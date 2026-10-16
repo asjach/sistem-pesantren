@@ -406,6 +406,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::match(['put', 'patch'], 'kurikulum/mapel/{mapel}', [KurikulumController::class, 'updateMapel'])->middleware('permission:kurikulum.ubah');
         Route::delete('kurikulum/mapel/{mapel}', [KurikulumController::class, 'destroyMapel'])->middleware('permission:kurikulum.hapus');
         Route::post('kurikulum/mapel/terapkan-kamus', [KurikulumController::class, 'terapkanKamusMapel'])->middleware('permission:kurikulum.ubah');
+        Route::post('kurikulum/mapel/dari-kamus', [KurikulumController::class, 'storeMapelDariKamus'])->middleware('permission:kurikulum.tambah');
         Route::get('kurikulum/mapel/import-template', [KurikulumController::class, 'templateMapel'])->middleware('permission:kurikulum.lihat');
         Route::post('kurikulum/mapel/import-potong', [KurikulumController::class, 'potongMapel'])->middleware(['permission:kurikulum.tambah', 'throttle:imports']);
         Route::post('kurikulum/mapel/import-potong/{sesi}/batal', [KurikulumController::class, 'batalPotongMapel'])->middleware('permission:kurikulum.tambah');
