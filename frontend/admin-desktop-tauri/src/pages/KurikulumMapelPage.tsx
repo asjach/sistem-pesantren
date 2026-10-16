@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,9 @@ import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAkti
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
+import { referensiList } from '@/api/master';
 import { Plus, Save, Trash2, FileUp } from '@/icons';
+import ComboCari from '@/components/ComboCari';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
   buatMapel, daftarMapel, hapusMapel, ubahMapel,
@@ -34,6 +36,8 @@ export default function KurikulumMapelPage() {
   const [q, setQ] = useState('');
   const [keaktifan, setKeaktifan] = useState<'aktif' | 'nonaktif' | 'semua'>('aktif');
   const [importOpen, setImportOpen] = useState(false);
+  /** Saran nama dari kamus `ref_mapel` jenjang aktif (ketik bebas tetap bisa). */
+  const [saranMapel, setSaranMapel] = useState<string[]>([]);
   const [err, setErr] = useState('');
 
   const muat = useCallback(async () => {
@@ -50,6 +54,18 @@ export default function KurikulumMapelPage() {
     setErr('');
     void muat();
   }, [filterLoading, muat]);
+
+  useEffect(() => {
+    if (filterLoading || jenjang === null) { setSaranMapel([]); return; }
+    let hidup = true;
+    referensiList('mapel', jenjang)
+      .then((r) => {
+        if (!hidup) return;
+        setSaranMapel([...new Set(r.map((x) => x.nama ?? '').filter((n) => n !== ''))]);
+      })
+      .catch(() => { if (hidup) setSaranMapel([]); });
+    return () => { hidup = false; };
+  }, [filterLoading, jenjang]);
 
   const jalankan = useCallback(async (kerja: () => Promise<unknown>, sukses: string) => {
     try { await kerja(); toast.success(sukses); await muat(); }
@@ -112,7 +128,7 @@ export default function KurikulumMapelPage() {
           </thead>
           <tbody>
             {mapel.map((m) => (
-              <BarisMapel key={m.id} m={m} canUbah={canUbah} canHapus={canHapus} onSimpan={jalankan} />
+              <BarisMapel key={m.id} m={m} canUbah={canUbah} canHapus={canHapus} onSimpan={jalankan} saran={saranMapel} />
             ))}
             {mapel.length === 0 && (
               <tr><td colSpan={5} className="border border-border px-2 py-4 text-center text-muted-foreground">
@@ -157,9 +173,11 @@ export default function KurikulumMapelPage() {
 }
 
 /** Baris mapel dengan penyuntingan inline. */
-function BarisMapel({ m, canUbah, canHapus, onSimpan }: {
+function BarisMapel({ m, canUbah, canHapus, onSimpan, saran }: {
   m: MataPelajaran; canUbah: boolean; canHapus: boolean;
   onSimpan: (kerja: () => Promise<unknown>, sukses: string) => Promise<void>;
+  /** Nama kamus `ref_mapel` (saran; ketik bebas tetap bisa). */
+  saran: string[];
 }) {
   const [nama, setNama] = useState(m.nama_mapel);
   const [kode, setKode] = useState(m.kode_mapel ?? '');
@@ -171,10 +189,22 @@ function BarisMapel({ m, canUbah, canHapus, onSimpan }: {
     setKelompok(m.kelompok); setAktif(m.is_active);
   }, [m]);
 
+  const opsiSaran = useMemo(() => {
+    const opsi = saran.map((n) => ({ value: n, label: n }));
+    if (nama !== '' && !saran.includes(nama)) opsi.unshift({ value: nama, label: nama });
+    return opsi;
+  }, [saran, nama]);
+
   return (
     <tr>
       <td className="border border-border px-1 py-0.5">
-        <Input className="h-7 text-xs" aria-label="Nama mapel" disabled={!canUbah} value={nama} onChange={(e) => setNama(e.target.value)} />
+        <div className="flex items-center gap-1">
+          <Input className="h-7 min-w-0 flex-1 text-xs" aria-label="Nama mapel" disabled={!canUbah} value={nama} onChange={(e) => setNama(e.target.value)} />
+          {saran.length > 0 && (
+            <ComboCari id={`combo_saran_mapel_${m.id}`} value={nama} onChange={setNama}
+              options={opsiSaran} placeholder="Kamus" className="w-24 shrink-0" disabled={!canUbah} />
+          )}
+        </div>
       </td>
       <td className="border border-border px-1 py-0.5">
         <Input className="h-7 text-xs" aria-label="Kode mapel" disabled={!canUbah} value={kode} onChange={(e) => setKode(e.target.value)} />

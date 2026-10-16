@@ -91,6 +91,16 @@ class ReferensiSeeder extends Seeder
         // Seed kota no.51: Kab. Bandung, Kota Bandung, Bandung.
         $isi('ref_kota', 'nama', $nama(['Kab. Bandung', 'Kota Bandung', 'Bandung'], 1));
 
+        // Kamus nama mapel lintas jenjang (starter umum formal + pesantren;
+        // tiap lembaga bebas menambah/mengurangi lewat halaman Referensi).
+        $isi('ref_mapel', 'nama', $nama([
+            'Matematika', 'Bahasa Indonesia', 'Ilmu Pengetahuan Alam', 'Ilmu Pengetahuan Sosial',
+            'Pendidikan Pancasila', 'Bahasa Inggris', 'Pendidikan Agama Islam', 'Pendidikan Jasmani',
+            'Seni dan Budaya', 'Prakarya', 'Muatan Lokal', 'Sejarah',
+            'Al-Quran Hadits', 'Fiqih', 'Aqidah Akhlak', 'Bahasa Arab',
+            'Nahwu', 'Sharaf', 'Tarikh Islam', 'Tahfizh',
+        ]));
+
         // Tingkat per jenjang: MI-MD 1-6, MTS 7-9, MLN 10-12. Berbeda dari
         // kamus lain, baris di luar rentang institution dihapus supaya hasil
         // seed persis mengikuti pemetaan. Sisip manual per lembaga (bukan

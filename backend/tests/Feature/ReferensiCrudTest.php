@@ -388,4 +388,25 @@ class ReferensiCrudTest extends TestCase
             $lembagaTampil
         );
     }
+
+    // ---------- 13. kamus nama mapel lintas jenjang ----------
+
+    public function test_13_kamus_mapel_crud_dan_efektif_per_lembaga(): void
+    {
+        $f = $this->fixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
+
+        $types = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/referensi/types')
+            ->assertStatus(200)->json();
+        $this->assertContains('mapel', $types);
+
+        $id = $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/mapel', [
+            'nama' => 'Matematika', 'jenjang' => $f['mi']->jenjang,
+        ])->assertStatus(201)->json('id');
+
+        $this->assertDatabaseHas('ref_mapel', ['id' => $id, 'jenjang' => $f['mi']->jenjang, 'nama' => 'Matematika']);
+        $this->assertContains('Matematika', $this->namaEfektif('mapel', $f['mi']->jenjang));
+        // Pasangan MD tidak ikut punya (baris milik satu lembaga).
+        $this->assertNotContains('Matematika', $this->namaEfektif('mapel', $f['md']->jenjang));
+    }
 }

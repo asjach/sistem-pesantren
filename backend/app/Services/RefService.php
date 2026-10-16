@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 class RefService
 {
     // Kunci nilai untuk kamus bebas (kolom 'nama'), status (kolom 'kode').
-    // 31 kamus bebas + 2 status = 33 tipe di KEY; + ref_alamat terpisah = 34 ref total.
+    // 32 kamus bebas + 2 status = 34 tipe di KEY; + ref_alamat terpisah = 35 ref total.
     public const KEY = [
         'agama' => 'nama', 'cita_cita' => 'nama', 'hobi' => 'nama',
         'pekerjaan' => 'nama', 'pendidikan' => 'nama',
@@ -23,7 +23,7 @@ class RefService
         'status_pernikahan' => 'nama', 'gol_darah' => 'nama',
         'jenis_ptk' => 'nama', 'jenjang_sertifikasi' => 'nama',
         'tingkat' => 'nama', 'tugas_utama' => 'nama', 'tipe_pelanggaran' => 'nama',
-        'jalur_sertifikasi' => 'nama',
+        'jalur_sertifikasi' => 'nama', 'mapel' => 'nama',
         'status_awal' => 'kode', 'status_akhir' => 'kode',
     ];
 
@@ -180,7 +180,7 @@ class RefService
         return self::effective($tipe, $jenjang);
     }
 
-    /** Daftar [tabel, kolom kunci] seluruh kamus (33 tipe + alamat). */
+    /** Daftar [tabel, kolom kunci] seluruh kamus (34 tipe + alamat). */
     public static function daftarSebar(): array
     {
         $daftar = [];
