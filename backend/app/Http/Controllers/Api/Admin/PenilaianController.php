@@ -44,10 +44,10 @@ class PenilaianController extends Controller
 
     /** Bawaan peristiwa per jenjang (UJIAN dilewati untuk MD — jalur Kemenag). */
     private const PERISTIWA_BAWAAN = [
-        ['kode' => 'ASAS', 'nama' => 'Asesmen Sumatif Akhir Semester', 'cakupan' => 'semua', 'kurikulum' => 'keduanya', 'urutan' => 1, 'kemenag' => true],
-        ['kode' => 'ASAT', 'nama' => 'Asesmen Sumatif Akhir Tahun', 'cakupan' => 'kecuali_akhir', 'kurikulum' => 'keduanya', 'urutan' => 2, 'kemenag' => true],
-        ['kode' => 'UJIAN', 'nama' => 'Ujian Madrasah (Kemenag)', 'cakupan' => 'tingkat_akhir', 'kurikulum' => 'kemenag', 'urutan' => 3, 'kemenag' => false],
-        ['kode' => 'UAP', 'nama' => 'Ujian Akhir Pesantren', 'cakupan' => 'tingkat_akhir', 'kurikulum' => 'pesantren', 'urutan' => 4, 'kemenag' => true],
+        ['kode' => 'ASAS', 'nama' => 'Asesmen Sumatif Akhir Semester', 'cakupan' => 'semua', 'kurikulum' => 'keduanya', 'urutan' => 1, 'kemenag' => true, 'rapor' => 'akhir'],
+        ['kode' => 'ASAT', 'nama' => 'Asesmen Sumatif Akhir Tahun', 'cakupan' => 'kecuali_akhir', 'kurikulum' => 'keduanya', 'urutan' => 2, 'kemenag' => true, 'rapor' => 'akhir'],
+        ['kode' => 'UJIAN', 'nama' => 'Ujian Madrasah (Kemenag)', 'cakupan' => 'tingkat_akhir', 'kurikulum' => 'kemenag', 'urutan' => 3, 'kemenag' => false, 'rapor' => 'tidak_ada'],
+        ['kode' => 'UAP', 'nama' => 'Ujian Akhir Pesantren', 'cakupan' => 'tingkat_akhir', 'kurikulum' => 'pesantren', 'urutan' => 4, 'kemenag' => true, 'rapor' => 'tidak_ada'],
     ];
 
     /** Komponen bawaan peristiwa sumatif (ASAS/ASAT/UAP). */
@@ -93,6 +93,7 @@ class PenilaianController extends Controller
             'nama' => ['required', 'string', 'max:100'],
             'cakupan' => ['required', 'in:semua,kecuali_akhir,tingkat_akhir'],
             'kurikulum' => ['nullable', 'in:kemenag,pesantren,keduanya'],
+            'jenis_rapor' => ['nullable', 'in:akhir,sementara,tidak_ada'],
             'urutan' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -110,6 +111,7 @@ class PenilaianController extends Controller
             'nama' => ['sometimes', 'string', 'max:100'],
             'cakupan' => ['sometimes', 'in:semua,kecuali_akhir,tingkat_akhir'],
             'kurikulum' => ['sometimes', 'in:kemenag,pesantren,keduanya'],
+            'jenis_rapor' => ['sometimes', 'in:akhir,sementara,tidak_ada'],
             'urutan' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
@@ -157,7 +159,7 @@ class PenilaianController extends Controller
                 }
                 $peristiwa = PeristiwaNilai::updateOrCreate(
                     ['jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'kode' => $p['kode']],
-                    ['nama' => $p['nama'], 'cakupan' => $p['cakupan'], 'kurikulum' => $p['kurikulum'], 'urutan' => $p['urutan'], 'is_active' => true],
+                    ['nama' => $p['nama'], 'cakupan' => $p['cakupan'], 'kurikulum' => $p['kurikulum'], 'urutan' => $p['urutan'], 'jenis_rapor' => $p['rapor'], 'is_active' => true],
                 );
                 $dibuat[] = $p['kode'];
 
@@ -655,6 +657,11 @@ class PenilaianController extends Controller
             'peringkat' => ['nullable', 'in:3,10,semua'],
         ]);
         $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+        if (! $peristiwa->menghasilkanRapor()) {
+            throw ValidationException::withMessages([
+                'peristiwa_id' => "Peristiwa {$peristiwa->kode} tidak menghasilkan rapor (hanya nilai ujian) — lihat halaman Leger.",
+            ]);
+        }
         $ta = $peristiwa->tahun_ajaran;
         $semester = (string) $data['semester'];
         $batasPeringkat = $data['peringkat'] ?? '10';
@@ -796,6 +803,11 @@ class PenilaianController extends Controller
             'kelas_id' => ['required', 'integer', 'exists:kelas,id'],
         ]);
         $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+        if (! $peristiwa->menghasilkanRapor()) {
+            throw ValidationException::withMessages([
+                'peristiwa_id' => "Peristiwa {$peristiwa->kode} tidak menghasilkan rapor (hanya nilai ujian) — lihat halaman Leger.",
+            ]);
+        }
         $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
         $ta = $peristiwa->tahun_ajaran;
         $semester = (string) $data['semester'];

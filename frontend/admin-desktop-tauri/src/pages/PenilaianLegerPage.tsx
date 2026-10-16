@@ -138,7 +138,11 @@ export default function PenilaianLegerPage() {
           onChange={(e) => { setPeristiwaId(e.target.value === '' ? '' : Number(e.target.value)); pager.goFirst(); }}
         >
           <option value="">— pilih peristiwa —</option>
-          {peristiwa.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
+          {peristiwa.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.kode} — {p.nama}{p.jenis_rapor === 'tidak_ada' ? ' (nilai ujian, tanpa rapor)' : ''}
+            </option>
+          ))}
         </select>
         <Input
           id="input_cari_leger"

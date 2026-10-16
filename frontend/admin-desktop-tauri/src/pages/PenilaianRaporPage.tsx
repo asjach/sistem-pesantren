@@ -38,8 +38,11 @@ export default function PenilaianRaporPage() {
     daftarPeristiwa({ jenjang, tahun_ajaran: ta })
       .then((r) => {
         if (!hidup) return;
-        setPeristiwa(r.peristiwa);
-        setPeristiwaId((v) => (r.peristiwa.some((p) => p.id === v) ? v : (r.peristiwa[0]?.id ?? '')));
+        // Hanya peristiwa yang MENGHASILKAN rapor (ASAS/ASAT; UJIAN/UAP = nilai
+        // ujian/ijazah, tanpa rapor — lihat halaman Leger).
+        const berRapor = r.peristiwa.filter((p) => p.jenis_rapor !== 'tidak_ada');
+        setPeristiwa(berRapor);
+        setPeristiwaId((v) => (berRapor.some((p) => p.id === v) ? v : (berRapor[0]?.id ?? '')));
       })
       .catch((e) => { if (hidup) { setPeristiwa([]); setPeristiwaId(''); setErr(errorMessage(e)); } });
     return () => { hidup = false; };
@@ -103,7 +106,11 @@ export default function PenilaianRaporPage() {
           onChange={(e) => { setPeristiwaId(e.target.value === '' ? '' : Number(e.target.value)); setSantriAktif(null); setRapor(null); }}
         >
           <option value="">— pilih peristiwa —</option>
-          {peristiwa.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
+          {peristiwa.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.kode} — {p.nama}{p.jenis_rapor === 'sementara' ? ' (sementara)' : ''}
+            </option>
+          ))}
         </select>
         <label className="ml-2 text-xs text-muted-foreground" htmlFor="select_kelas_rapor">Kelas</label>
         <select
@@ -144,7 +151,10 @@ export default function PenilaianRaporPage() {
         <div className="min-h-0 w-72 shrink-0 overflow-auto border-r border-border print:hidden">
           {!siap && <p className="p-3 text-xs text-muted-foreground">Pilih satu jenjang, TA, dan semester pada filter di atas.</p>}
           {siap && peristiwa.length === 0 && (
-            <p className="p-3 text-xs text-muted-foreground">Belum ada peristiwa — muat bawaan di halaman Master Penilaian.</p>
+            <p className="p-3 text-xs text-muted-foreground">
+              Tidak ada peristiwa yang menghasilkan rapor. Tandai “Rapor akhir”/“Rapor sementara” pada peristiwa di
+              halaman Master Penilaian (UJIAN/UAP hanya nilai ujian → pakai halaman Leger).
+            </p>
           )}
           {loading && <p className="p-3 text-xs text-muted-foreground">Memuat…</p>}
           {!loading && daftar?.baris.map((b) => (
@@ -203,6 +213,11 @@ function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string 
       </div>
 
       <p className="mt-2 text-center text-[13px] font-bold uppercase">{r.peristiwa.nama}</p>
+      {r.peristiwa.jenis_rapor === 'sementara' && (
+        <p className="text-center text-[11px] font-semibold tracking-wide text-gray-600">
+          LAPORAN CAPAIAN PEMBELAJARAN SEMENTARA
+        </p>
+      )}
 
       {/* Identitas */}
       <table className="mt-2 w-full text-[12px]">

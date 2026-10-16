@@ -129,6 +129,11 @@ class PenilaianModulTest extends TestCase
             ['semua', 'kecuali_akhir', 'tingkat_akhir', 'tingkat_akhir'],
             $peristiwa->pluck('cakupan')->all(),
         );
+        // Hanya ASAS & ASAT yang menghasilkan rapor; UJIAN/UAP nilai ujian saja.
+        $this->assertSame(
+            ['akhir', 'akhir', 'tidak_ada', 'tidak_ada'],
+            $peristiwa->pluck('jenis_rapor')->all(),
+        );
 
         // ASAS/ASAT/UAP: komponen sumatif Harian 20 + Tugas 20 + PTS 20 + Sumatif 40.
         $asas = $peristiwa->firstWhere('kode', 'ASAS');
@@ -339,5 +344,42 @@ class PenilaianModulTest extends TestCase
         $this->assertSame(88.0, (float) $res['mapel'][0]['nilai_akhir']);
         $this->assertSame('delapan delapan', $res['mapel'][0]['terbilang']);
         $this->assertSame(1, $res['rekap']['peringkat']);
+    }
+
+    // ---------- 07. peristiwa tanpa rapor ditolak di endpoint rapor ----------
+
+    public function test_07_rapor_ditolak_untuk_peristiwa_tanpa_rapor(): void
+    {
+        $this->lembaga('MI', 'Madrasah Ibtidaiyah');
+        $this->tahunAjaran();
+        $this->tingkat('MI', ['1', '2', '3', '4', '5', '6']);
+        $super = $this->superAdmin();
+
+        $kelas = $this->kelas('6A', '6');
+        $santri = $this->santriDiKelas('Santri Ujian', '26001', $kelas->id, '6');
+        $this->mapelPengampu($kelas->id, 'Fiqih');
+
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/penilaian/bawaan', ['jenjang' => 'MI', 'tahun_ajaran' => self::TA])
+            ->assertStatus(200);
+
+        // UJIAN = nilai ujian/ijazah, bukan rapor → 422 dengan pesan jelas.
+        $ujian = PeristiwaNilai::where('kode', 'UJIAN')->first();
+        $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&peristiwa_id={$ujian->id}&semester=1")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('peristiwa_id');
+
+        // raporKelas pun menolak peristiwa yang sama.
+        $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/penilaian/rapor-kelas?peristiwa_id={$ujian->id}&semester=1&kelas_id={$kelas->id}")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('peristiwa_id');
+
+        // ASAS (rapor akhir) tetap boleh.
+        $asas = PeristiwaNilai::where('kode', 'ASAS')->first();
+        $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&peristiwa_id={$asas->id}&semester=1")
+            ->assertStatus(200);
     }
 }

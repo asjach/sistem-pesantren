@@ -9,11 +9,15 @@ import { appendQueryParam, type ScalarOrArray } from './query';
 
 export type CakupanPeristiwa = 'semua' | 'kecuali_akhir' | 'tingkat_akhir';
 export type KurikulumPeristiwa = 'kemenag' | 'pesantren' | 'keduanya';
+/** `akhir` = rapor akhir semester/tahun (ASAS/ASAT); `sementara` = rapor tengah
+ *  periode; `tidak_ada` = nilai ujian/ijazah saja (UJIAN/UAP), tanpa rapor. */
+export type JenisRapor = 'akhir' | 'sementara' | 'tidak_ada';
 
 export interface PeristiwaNilai {
   id: number; jenjang: string; tahun_ajaran: string;
   kode: string; nama: string;
   cakupan: CakupanPeristiwa; kurikulum: KurikulumPeristiwa;
+  jenis_rapor: JenisRapor;
   urutan: number; is_active: boolean;
   /** Terisi pada respons daftar. */
   jumlah_komponen?: number; total_bobot?: number;
@@ -145,14 +149,15 @@ export function daftarPeristiwa(params: Lingkup = {}) {
 
 export function buatPeristiwa(data: {
   jenjang: string; tahun_ajaran: string; kode: string; nama: string;
-  cakupan: CakupanPeristiwa; kurikulum?: KurikulumPeristiwa; urutan?: number; is_active?: boolean;
+  cakupan: CakupanPeristiwa; kurikulum?: KurikulumPeristiwa;
+  jenis_rapor?: JenisRapor; urutan?: number; is_active?: boolean;
 }) {
   return api<PeristiwaNilai>('/admin/penilaian/peristiwa', { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function ubahPeristiwa(id: number, data: {
   nama?: string; cakupan?: CakupanPeristiwa; kurikulum?: KurikulumPeristiwa;
-  urutan?: number; is_active?: boolean;
+  jenis_rapor?: JenisRapor; urutan?: number; is_active?: boolean;
 }) {
   return api<PeristiwaNilai>(`/admin/penilaian/peristiwa/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }

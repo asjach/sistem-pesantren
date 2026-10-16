@@ -930,6 +930,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `nama`: varchar(100)
 - `cakupan`: enum('semua','kecuali_akhir','tingkat_akhir') [default 'semua'] — peserta (tingkat akhir dari `ref_tingkat.urutan` tertinggi)
 - `kurikulum`: enum('kemenag','pesantren','keduanya') [default 'keduanya']
+- `jenis_rapor`: enum('akhir','sementara','tidak_ada') [default 'tidak_ada'] — `akhir` = rapor akhir semester/tahun (ASAS/ASAT); `sementara` = rapor tengah periode; `tidak_ada` = nilai ujian/ijazah tanpa rapor (UJIAN/UAP). Hanya peristiwa ber-rapor yang muncul di halaman Rapor; endpoint `rapor`/`rapor-kelas` menolak (422) peristiwa `tidak_ada`.
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`

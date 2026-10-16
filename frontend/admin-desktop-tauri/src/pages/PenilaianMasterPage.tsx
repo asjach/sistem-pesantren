@@ -14,8 +14,9 @@ import {
   buatEkskul, buatKomponen, buatPeristiwa, daftarEkskul, daftarKkm, daftarKomponen,
   daftarPeristiwa, daftarPredikat, daftarPrestasi, hapusEkskul, hapusKomponen, hapusPeristiwa,
   hapusPrestasi, muatBawaan, simpanKkm, simpanPredikat, ubahEkskul, ubahKomponen, ubahPeristiwa,
-  type CakupanPeristiwa, type Ekstrakurikuler, type KkmBaris, type KomponenNilai,
-  type KurikulumPeristiwa, type PeristiwaNilai, type PredikatBaris, type PrestasiSantri,
+  type CakupanPeristiwa, type Ekstrakurikuler, type JenisRapor, type KkmBaris,
+  type KomponenNilai, type KurikulumPeristiwa, type PeristiwaNilai,
+  type PredikatBaris, type PrestasiSantri,
 } from '@/api/penilaian';
 
 /** Label cakupan peserta peristiwa. */
@@ -26,6 +27,13 @@ const CAKUPAN: { nilai: CakupanPeristiwa; label: string }[] = [
 ];
 
 const KURIKULUM: KurikulumPeristiwa[] = ['keduanya', 'kemenag', 'pesantren'];
+
+/** Peristiwa mana yang menghasilkan rapor (ASAS/ASAT = akhir; UJIAN/UAP tidak). */
+const JENIS_RAPOR: { nilai: JenisRapor; label: string }[] = [
+  { nilai: 'akhir', label: 'Rapor akhir' },
+  { nilai: 'sementara', label: 'Rapor sementara' },
+  { nilai: 'tidak_ada', label: 'Tanpa rapor (nilai ujian)' },
+];
 
 /** Halaman Master Penilaian: peristiwa, komponen & bobot, KKM, predikat, ekskul, prestasi. */
 export default function PenilaianMasterPage() {
@@ -170,7 +178,7 @@ export default function PenilaianMasterPage() {
               </Button>
               <Button type="button" size="sm" id="btn_tambah_peristiwa" disabled={!canTambah}
                 onClick={() => void jalankan(
-                  () => buatPeristiwa({ jenjang, tahun_ajaran: ta, kode: 'BARU', nama: 'Peristiwa Baru', cakupan: 'semua' }),
+                  () => buatPeristiwa({ jenjang, tahun_ajaran: ta, kode: 'BARU', nama: 'Peristiwa Baru', cakupan: 'semua', jenis_rapor: 'tidak_ada' }),
                   'Peristiwa ditambah.',
                 )}>
                 <Plus data-icon="inline-start" size={16} /> Tambah
@@ -184,6 +192,7 @@ export default function PenilaianMasterPage() {
                 <th className="border border-border px-2 py-1 text-left">Nama</th>
                 <th className="border border-border px-2 py-1 w-56 text-left">Peserta</th>
                 <th className="border border-border px-2 py-1 w-32 text-left">Kurikulum</th>
+                <th className="border border-border px-2 py-1 w-44 text-left">Rapor</th>
                 <th className="border border-border px-2 py-1 w-20">Urutan</th>
                 <th className="border border-border px-2 py-1 w-20">Aktif</th>
                 <th className="border border-border px-2 py-1 w-24">Aksi</th>
@@ -194,7 +203,7 @@ export default function PenilaianMasterPage() {
                 <BarisPeristiwa key={p.id} p={p} canUbah={canUbah} canHapus={canHapus} onSimpan={jalankan} />
               ))}
               {peristiwa.length === 0 && (
-                <tr><td colSpan={7} className="border border-border px-2 py-4 text-center text-muted-foreground">
+                <tr><td colSpan={8} className="border border-border px-2 py-4 text-center text-muted-foreground">
                   Belum ada peristiwa. Klik “Muat bawaan” untuk ASAS + ASAT + UJIAN + UAP.
                 </td></tr>
               )}
@@ -401,12 +410,13 @@ function BarisPeristiwa({ p, canUbah, canHapus, onSimpan }: {
   const [nama, setNama] = useState(p.nama);
   const [cakupan, setCakupan] = useState<CakupanPeristiwa>(p.cakupan);
   const [kurikulum, setKurikulum] = useState<KurikulumPeristiwa>(p.kurikulum);
+  const [jenisRapor, setJenisRapor] = useState<JenisRapor>(p.jenis_rapor);
   const [urutan, setUrutan] = useState(String(p.urutan));
   const [aktif, setAktif] = useState(p.is_active);
 
   useEffect(() => {
     setNama(p.nama); setCakupan(p.cakupan); setKurikulum(p.kurikulum);
-    setUrutan(String(p.urutan)); setAktif(p.is_active);
+    setJenisRapor(p.jenis_rapor); setUrutan(String(p.urutan)); setAktif(p.is_active);
   }, [p]);
 
   return (
@@ -428,6 +438,12 @@ function BarisPeristiwa({ p, canUbah, canHapus, onSimpan }: {
         </select>
       </td>
       <td className="border border-border px-1 py-0.5">
+        <select className="h-7 w-full rounded-md border border-input bg-transparent px-1 text-xs" aria-label="Jenis rapor"
+          disabled={!canUbah} value={jenisRapor} onChange={(e) => setJenisRapor(e.target.value as JenisRapor)}>
+          {JENIS_RAPOR.map((j) => <option key={j.nilai} value={j.nilai}>{j.label}</option>)}
+        </select>
+      </td>
+      <td className="border border-border px-1 py-0.5">
         <Input type="number" min={0} className="h-7 text-xs" aria-label="Urutan" disabled={!canUbah} value={urutan} onChange={(e) => setUrutan(e.target.value)} />
       </td>
       <td className="border border-border px-1 py-0.5 text-center">
@@ -438,7 +454,7 @@ function BarisPeristiwa({ p, canUbah, canHapus, onSimpan }: {
           {canUbah && (
             <Button type="button" variant="ghost" size="icon-sm" aria-label="Simpan peristiwa"
               onClick={() => void onSimpan(
-                () => ubahPeristiwa(p.id, { nama, cakupan, kurikulum, urutan: Number(urutan) || 0, is_active: aktif }),
+                () => ubahPeristiwa(p.id, { nama, cakupan, kurikulum, jenis_rapor: jenisRapor, urutan: Number(urutan) || 0, is_active: aktif }),
                 'Peristiwa disimpan.',
               )}>
               <Save size={14} />
