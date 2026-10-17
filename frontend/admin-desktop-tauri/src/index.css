@@ -308,8 +308,8 @@
 /* ---------- Spreadsheet DSG (Pos): ikut semua tema + dark via var aplikasi ---------- */
 .simpes-dsg {
   --dsg-border-color: var(--part-tabel_sel-border, var(--border));
-  --dsg-cell-background-color: var(--part-tabel_sel-bg, var(--card));
-  --dsg-cell-disabled-background-color: var(--part-tabel_sel-bg, var(--card));
+  --dsg-cell-background-color: var(--part-tabel_sel-bg, var(--background));
+  --dsg-cell-disabled-background-color: var(--part-tabel_sel-bg, var(--background));
   --dsg-header-text-color: var(--part-tabel_header-fg, var(--muted-foreground));
   --dsg-header-active-text-color: var(--part-tabel_header-fg, var(--foreground));
   --dsg-selection-border-color: var(--accent);
@@ -363,7 +363,7 @@
 /* Header kolom & nomor baris ikut disorot bila masuk range (seperti Excel). */
 .simpes-dsg .dsg-cell-header-active,
 .simpes-dsg .dsg-cell-gutter-active {
-  background-color: color-mix(in srgb, var(--accent) 18%, var(--card));
+  background-color: color-mix(in srgb, var(--accent) 18%, var(--background));
   color: var(--foreground);
 }
 
@@ -387,7 +387,7 @@
 }
 .simpes-dsg .dsg-container {
   color: var(--part-tabel_sel-fg, var(--foreground));
-  background: var(--part-tabel_sel-bg, var(--card));
+  background: var(--part-tabel_sel-bg, var(--background));
   /* Ikut jenis huruf isi tabel (bawaan Roboto Light); header menimpanya sendiri. */
   font-family: var(--simpes-font-family, var(--part-tabel_sel-font, "Roboto", sans-serif));
   /* Isi sisa wrapper: basis flex, boleh menyusut (scroll internal) bila data banyak. */
@@ -430,6 +430,15 @@
   flex-direction: column;
   min-height: 0;
 }
+/* Latar tabel = latar SEL (`--part-tabel_sel-bg`, cadangan `--background`).
+   Akar `.simpes-dsg` + kartu ikut diwarnai; `.dsg-container` sudah memakai var
+   yang sama di atas. Tanpa ini tabel tanpa baris (belum ada data) memakai
+   `bg-card`/latar halaman sementara sel memakai warna bagian tabel → area
+   kosong terlihat berbeda dari area berisi sel. */
+.simpes-dsg,
+.simpes-dsg > .simpes-dsg-kartu {
+  background: var(--part-tabel_sel-bg, var(--background));
+}
 /* Bilah muat halus di tepi atas kartu saat refetch (pagination/filter):
    segmen menyapu kiri-kanan; grid di bawahnya tetap terlihat. */
 .simpes-muat-bar {
@@ -443,7 +452,7 @@
 .simpes-dsg .dsg-row.dsg-row-header {
   /* Header bergaya buku induk: kertas tipis + garis bawah netral yang tegas,
      bukan isian aksen. Override isian var bagian tetap menang bila diatur. */
-  background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 4%, var(--card)));
+  background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 4%, var(--background)));
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--foreground) 18%, transparent);
 }
 /* Bilah judul tabel (JudulTabel, `data-part="header_tabel"`) menggambar
@@ -545,14 +554,14 @@
    baris mana yang sedang dipilih lewat checklist. */
 .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell,
 .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell-gutter {
-  background-color: color-mix(in srgb, var(--accent) 14%, var(--card));
+  background-color: color-mix(in srgb, var(--accent) 14%, var(--background));
 }
 /* Baris aktif (tabel yang memakai `onBarisKlik`, mis. Daftar Dispensasi):
    sorot lebih tegas daripada centang karena baris ini menentukan isi panel
    lain. */
 .simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell,
 .simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell-gutter {
-  background-color: color-mix(in srgb, var(--primary) 16%, var(--card));
+  background-color: color-mix(in srgb, var(--primary) 16%, var(--background));
 }
 /* Sel header tanpa padding agar judul rata tengah persis di lebar kolom.
    TIDAK boleh dijadikan `position: relative`: sel header harus tetap ABSOLUTE
@@ -623,7 +632,7 @@
 .simpes-dsg-geser-hidup .dsg-cell.simpes-dsg-angkat {
   z-index: 46;
   will-change: transform;
-  background-color: color-mix(in srgb, var(--accent) 16%, var(--card));
+  background-color: color-mix(in srgb, var(--accent) 16%, var(--background));
 }
 /* Garis indikator posisi sisip. Ditaruh di sel header (bukan judul) agar
    tingginya penuh dan menempel tepat di garis batas kolom. */
@@ -710,6 +719,19 @@
   cursor: pointer;
   padding: 0;
 }
+/* Select Radix (tombol di dalam sel grid) harus tampil polos seperti select
+   native: tanpa border, tanpa shadow, dan tanpa cincin fokus. Penanda fokus di
+   grid sudah ada pada selnya sendiri, jadi cincin fokus pada tombol hanya
+   mengganggu. Selektor di bawah butuh specificity lebih tinggi dari utilitas
+   Tailwind (mis. `focus-visible:ring-[3px]`), makanya ditulis di sini. */
+.simpes-dsg .simpes-dsg-select[data-slot='select-trigger'],
+.simpes-dsg .simpes-dsg-select[data-slot='select-trigger']:hover,
+.simpes-dsg .simpes-dsg-select[data-slot='select-trigger']:focus,
+.simpes-dsg .simpes-dsg-select[data-slot='select-trigger']:focus-visible {
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
 /* Perataan isi kolom mengikuti data/field (diatur global dari dialog preset
    kolom, bawaan rata tengah). Berlaku untuk sel baca-saja, editor input/select,
    dan header kolomnya. */
@@ -789,7 +811,7 @@
 }
 /* Baris input diberi latar lembut agar jelas bukan data tersimpan. */
 .simpes-dsg .dsg-row.simpes-dsg-row-input .dsg-cell {
-  background-color: color-mix(in srgb, var(--primary) 6%, var(--card));
+  background-color: color-mix(in srgb, var(--primary) 6%, var(--background));
 }
 /* Kolom wajib yang masih kosong di baris input: garis kiri merah (kode warna).
    Bayangan kanan tetap satu garis; baris input selalu baris terakhir. */
@@ -798,14 +820,14 @@
 }
 /* Sel dengan draft belum disimpan. */
 .simpes-dsg .simpes-dsg-dirty {
-  background-color: color-mix(in srgb, var(--accent) 14%, var(--card));
+  background-color: color-mix(in srgb, var(--accent) 14%, var(--background));
 }
 /* Mode Edit aktif: sel yang bisa diedit diberi latar lembut saja — garis
    grid (kanan & bawah 1px `--dsg-border-color`) tetap sama persis dengan mode
    normal, tanpa penebalan; sel baca-saja diberi arsir diagonal agar langsung
    terlihat perbedaannya. */
 .simpes-dsg .dsg-cell.simpes-dsg-editable {
-  background-color: color-mix(in srgb, var(--primary) 7%, var(--card));
+  background-color: color-mix(in srgb, var(--primary) 7%, var(--background));
 }
 .simpes-dsg .dsg-cell.simpes-dsg-readonly {
   background-image: repeating-linear-gradient(
@@ -929,6 +951,16 @@
 .simpes-panel-tab .simpes-dsg:not(.simpes-dsg-bleed) {
   left: -1px;
   margin-right: -1px;
+}
+
+/* Di dalam panel resizable (`ResizablePanel`) TIDAK ada padding halaman yang
+   perlu "ditembus" oleh grid bleed. `-mx-1` membuat tabel 8px lebih lebar dari
+   panel, dan panel punya `overflow: auto` bawaan react-resizable-panels
+   (inline style) sehingga kelebihan itu memunculkan scrollbar horizontal di
+   bawah panel walau isi tabelnya sudah pas. Netralkan bleed di sini. */
+[data-slot='resizable-panel'] .simpes-dsg-bleed {
+  margin-left: 0;
+  margin-right: 0;
 }
 
 /* Kolom beku kiri (freeze pane, hasil patch DSG `stickyLeftColumnCount`):
@@ -1122,14 +1154,14 @@
 }
 /* Tint permukaan hanya pada level kaya. */
 [data-warna='kaya'] .simpes-dsg .dsg-row.dsg-row-header {
-  background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 4%, var(--card)));
+  background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 4%, var(--background)));
 }
 [data-warna='kaya'] .simpes-dsg .dsg-row:not(.dsg-row-header):hover .dsg-cell {
-  background-color: color-mix(in srgb, var(--accent) 6%, var(--card));
+  background-color: color-mix(in srgb, var(--accent) 6%, var(--background));
 }
 [data-warna='kaya'] .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell,
 [data-warna='kaya'] .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell-gutter {
-  background-color: color-mix(in srgb, var(--accent) 20%, var(--card));
+  background-color: color-mix(in srgb, var(--accent) 20%, var(--background));
 }
 [data-warna='kaya'] :is(section.rounded-xl, .rounded-xl.border) {
   border-color: color-mix(in srgb, var(--accent) 26%, var(--border));

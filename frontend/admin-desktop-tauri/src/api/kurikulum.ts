@@ -4,7 +4,7 @@ import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 
 /**
  * Modul Kurikulum & Mapel (BLOK 5): master mapel per jenjang, kurikulum +
- * komposisi mapelnya (berjangkar tingkat + KKM), pemetaan kelas→kurikulum,
+ * komposisi mapelnya (cakupan tingkat opsional + KKM), pemetaan kelas→kurikulum,
  * pengampu (kelas × mapel → guru dari keaktifan_pegawai), slot jam & jadwal
  * pelajaran (Modul 502).
  */
@@ -27,7 +27,9 @@ export interface Kurikulum {
 
 export interface KomposisiBaris {
   id: number; kurikulum_id: number; mata_pelajaran_id: number;
-  tingkat: string | null; kkm: number | null; urutan: number;
+  /** Tingkat (nama) yang dicakup mapel ini; KOSONG = berlaku di semua tingkat. */
+  tingkat: string[];
+  kkm: number | null; urutan: number;
   mata_pelajaran: {
     id: number; nama_mapel: string; kelompok: KelompokMapel;
     kode_mapel: string | null; is_active: boolean;
@@ -40,8 +42,8 @@ export interface KomposisiResp {
   baris: KomposisiBaris[];
   /** Mapel jenjang ini yang BELUM masuk kurikulum — untuk panel pilih. */
   tersedia: Pick<MataPelajaran, 'id' | 'nama_mapel' | 'kelompok' | 'kode_mapel' | 'is_active'>[];
-  /** Tingkat yang berlaku untuk jenjang kurikulum. */
-  tingkat: { id: number; nama: string; jenjang: string | null; urutan?: number }[];
+  /** Tingkat yang berlaku untuk jenjang kurikulum — pilihan cakupan. */
+  tingkatOpsi: { id: number; nama: string; jenjang: string | null; urutan?: number }[];
 }
 
 export interface KelasKurikulumBaris {
@@ -215,12 +217,13 @@ export function daftarKomposisi(kurikulumId: number) {
 
 export function buatKomposisi(data: {
   kurikulum_id: number; mata_pelajaran_id: number;
-  tingkat?: string | null; kkm?: number | null; urutan?: number;
+  /** Tingkat yang dicakup; kosong/null = berlaku di semua tingkat. */
+  tingkat?: string[]; kkm?: number | null; urutan?: number;
 }) {
   return api<KomposisiBaris>('/admin/kurikulum/komposisi', { method: 'POST', body: JSON.stringify(data) });
 }
 
-export function ubahKomposisi(id: number, data: { tingkat?: string | null; kkm?: number | null; urutan?: number }) {
+export function ubahKomposisi(id: number, data: { tingkat?: string[]; kkm?: number | null; urutan?: number }) {
   return api<KomposisiBaris>(`/admin/kurikulum/komposisi/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
@@ -255,6 +258,24 @@ export function daftarGuruAktif(params: { jenjang: string; tahun_ajaran: string 
 
 export function daftarPengampu(kelasId: number) {
   return api<PengampuResp>(`/admin/kurikulum/pengampu?kelas_id=${kelasId}`);
+}
+
+/** Baris pengampu yang sudah berlabel kelasnya (untuk tabel multi-kelas). */
+export type PengampusBaris = PengampuBaris & { kelas_id: number; nama_kelas: string };
+
+export interface PengampusResp {
+  /** Kelas sesuai urutan permintaan (pilihan pengguna di rel Kelas). */
+  kelas: { id: number; nama_kelas: string; tingkat: string | null; jenjang: string }[];
+  /** Baris gabungan semua kelas; tiap baris membawa `kelas_id` + `nama_kelas`. */
+  baris: PengampusBaris[];
+}
+
+/** Pengampu BANYAK kelas dalam SATU request. Endpoint per-kelas (`daftarPengampu`)
+ *  berarti N request yang saling antre saat server memprosesnya berurutan — itu
+ *  yang membuat tabel pengampu terasa lambat. */
+export function daftarPengampus(kelasIds: number[]) {
+  const q = kelasIds.map((id) => `kelas_ids[]=${id}`).join('&');
+  return api<PengampusResp>(`/admin/kurikulum/pengampus?${q}`);
 }
 
 /** Sync pengampu satu kelas: baris di luar daftar dihapus (ditolak bila

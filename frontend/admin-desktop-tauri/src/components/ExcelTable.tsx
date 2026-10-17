@@ -91,7 +91,7 @@ import {
   InputStaticSelectCell,
   InputStaticTextCell,
   CheckCell,
-  SelectCell,
+  SelectRadixCell,
   StaticCell,
   TextCell,
   ToggleCell,
@@ -1089,6 +1089,10 @@ export default function ExcelTable<T extends { id: string | number }>({
     let idxData = 0;
     for (const f of visibleFields) {
       const iData = idxData++;
+      /* Indeks kolom versi DSG (kolom centang menambah satu di depan). Dipakai
+         SelectRadixCell untuk mengembalikan sel aktif ke grid setelah daftar
+         select ditutup. */
+      const colDsg = cols.length;
       const bekuCls = iData < freezeAktif ? ' simpes-dsg-beku' : '';
       const tepiCls = iData === freezeAktif - 1 ? ' simpes-dsg-beku-tepi' : '';
       // Tanpa kolom Aksi, kolom data terakhir yang menggambar tepi kanan tabel.
@@ -1224,13 +1228,24 @@ export default function ExcelTable<T extends { id: string | number }>({
         const langsung = !!f.selectTanpaEdit;
         cols.push({
           ...common,
-          component: SelectCell,
+          // Semua kolom select memakai Select Radix (panel ke portal, gaya
+          // sama dengan dropdown dialog). `<select>` native tersisa hanya untuk
+          // baris input mode Input (lihat `InputStaticSelectCell`).
+          component: SelectRadixCell,
           columnData: {
             fieldKey: f.key,
             choices: f.choices ?? [],
             choicesInput: typeof f.inputChoices === 'function'
               ? f.inputChoices(inputDraft ?? {})
               : (f.inputChoices ?? undefined),
+            /* Panel select Radix berada di luar grid (portal), jadi DSG menghapus
+               sel aktif saat opsi dipilih atau Escape ditekan. Sel dikembalikan
+               ke sini supaya navigasi panah/Enter tetap jalan. */
+            fokuskanSel: (id: string | number) => {
+              const r = rowsRef.current.findIndex((x) => String(x.id) === String(id));
+              if (r < 0) return;
+              gridRef.current?.setActiveCell({ col: colDsg, row: r });
+            },
             onEnter: (col: number) => inputEnterRef.current(col),
             // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
             // input cukup buka editor sel).
@@ -1524,6 +1539,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   const adaBilahJudul = header !== undefined
     || adaKontrolJudul
     || adaTombolAksi
+    // `filter` yang dikirim halaman WAJIB ikut dihitung: tanpa ini tabel yang
+    // hanya punya filter (mis. Kamus Mapel) tak mendapat bilah judul sama
+    // sekali, sehingga kontrol filternya ikut tak pernah dirender.
+    || hasFilter
     || filterTersedia.length > 0;
   /** Bilah judul dirender selama masih ada SATU pun isinya. Mematikan seluruh
    *  komponennya membuat bilah judul hilang, bukan sisanya menggantung;
@@ -1564,6 +1583,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     adaBilahJudul: header !== undefined
     || adaKontrolJudul
     || adaTombolAksi
+    || hasFilter
     || filterTersedia.length > 0,
     infoTengah: infoHeader != null,
     filter: hasFilter,

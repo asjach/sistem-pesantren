@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Satu mapel di dalam satu kurikulum: `tingkat` null = berlaku semua tingkat,
- * `kkm` null = tak dipakai, `urutan` mengendalikan urutan tampil di rapor/leger.
+ * Satu mapel di dalam satu kurikulum: `kkm` null = tak dipakai, `urutan`
+ * mengendalikan urutan tampil di rapor/leger, dan cakupan tingkatnya (opsional)
+ * disimpan di tabel anak `kurikulum_mapel_tingkat` — kosong = berlaku semua tingkat.
  */
 class KurikulumMapel extends Model
 {
@@ -25,5 +27,17 @@ class KurikulumMapel extends Model
     public function mataPelajaran(): BelongsTo
     {
         return $this->belongsTo(MataPelajaran::class);
+    }
+
+    /** Tingkat yang dicakup mapel ini; KOSONG = berlaku di semua tingkat. */
+    public function tingkat(): HasMany
+    {
+        return $this->hasMany(KurikulumMapelTingkat::class);
+    }
+
+    /** Daftar nama tingkat yang dicakup (dipakai respons & validasi simpan). */
+    public function tingkatList(): array
+    {
+        return $this->tingkat()->pluck('tingkat')->map(fn ($t) => (string) $t)->all();
     }
 }

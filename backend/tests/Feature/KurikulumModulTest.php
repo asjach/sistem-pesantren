@@ -78,6 +78,15 @@ class KurikulumModulTest extends TestCase
         ]);
     }
 
+    /** Baris referensi `tingkat` untuk jenjang MI (daftar pilihan cakupan). */
+    private function tingkat(string $nama, int $urutan): void
+    {
+        DB::table('ref_tingkat')->updateOrInsert(
+            ['jenjang' => 'MI', 'nama' => $nama],
+            ['urutan' => $urutan, 'is_active' => true]
+        );
+    }
+
     private function mapel(string $nama, string $jenjang = 'MI'): MataPelajaran
     {
         return MataPelajaran::create(['jenjang' => $jenjang, 'nama_mapel' => $nama, 'kelompok' => 'formal']);
@@ -275,7 +284,7 @@ class KurikulumModulTest extends TestCase
         $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/kurikulum/komposisi', [
                 'kurikulum_id' => $kur['id'], 'mata_pelajaran_id' => $fiqih->id,
-                'tingkat' => null, 'urutan' => 1, 'kkm' => 70,
+                'urutan' => 1, 'kkm' => 70,
             ])
             ->assertStatus(201);
 
@@ -307,10 +316,12 @@ class KurikulumModulTest extends TestCase
             ->postJson('/api/admin/kurikulum/kurikulum', ['jenjang' => 'MI', 'nama' => 'Kurikulum Kemenag'])
             ->assertStatus(201)->json();
 
-        // Komposisi: Fiqih semua tingkat, Bahasa Arab khusus tingkat 2.
+        // Komposisi: Fiqih berlaku semua tingkat (tanpa cakupan), Bahasa Arab
+        // hanya tingkat 2 — kelas 1A tidak melihatnya.
+        $this->tingkat('2', 2);
         $fiqih = $this->mapel('Fiqih');
         $arab = $this->mapel('Bahasa Arab');
-        foreach ([[$fiqih->id, null], [$arab->id, '2']] as [$mapelId, $tingkat]) {
+        foreach ([[$fiqih->id, null], [$arab->id, ['2']]] as [$mapelId, $tingkat]) {
             $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/komposisi', [
                 'kurikulum_id' => $kur['id'], 'mata_pelajaran_id' => $mapelId, 'tingkat' => $tingkat,
             ])->assertStatus(201);
@@ -325,7 +336,8 @@ class KurikulumModulTest extends TestCase
             ->assertStatus(200)->json();
         $this->assertSame([$kur['id']], $peta['kelas'][0]['kurikulum_ids']);
 
-        // Generate pengampu: hanya mapel yang berlaku di tingkat 1 (Fiqih).
+        // Generate pengampu: hanya mapel yang berlaku untuk kelas 1A (Fiqih —
+        // Bahasa Arab dibatasi tingkat 2).
         $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/kurikulum/pengampu/generate', ['kelas_id' => $kelas->id])
             ->assertStatus(200)
@@ -378,6 +390,186 @@ class KurikulumModulTest extends TestCase
             ->putJson('/api/admin/kurikulum/pengampu', ['kelas_id' => $kelas->id, 'baris' => []])
             ->assertStatus(422)
             ->assertJsonValidationErrors('baris');
+    }
+
+    /**
+     * Cakupan TINGKAT per mapel kurikulum (pengganti jangkar `tingkat` tunggal):
+     *  - kosong = berlaku di SEMUA tingkat,
+     *  - berisi = hanya tingkat-teingkat itu.
+     *
+     * Dicek di dua sisi: penyimpanan (PUT komposisi) dan efeknya saat kurikulum
+     * dipakai kelas (daftar pengampu = yang benar-benar berlaku).
+     */
+    public function test_02b_cakupan_tingkat_mapel_kurikulum(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        // Tingkat untuk jenjang MI (dipakai daftar pilihan & validasi).
+        $this->tingkat('1', 1);
+        $this->tingkat('2', 2);
+
+        $kelas1A = $this->kelas('1A', '1');
+        $kelas2A = $this->kelas('2A', '2');
+        $kur = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/kurikulum', ['jenjang' => 'MI', 'nama' => 'Kurikulum Kemenag'])
+            ->assertStatus(201)->json();
+        $semua = $this->mapel('Fiqih');
+        $khusus = $this->mapel('Bahasa Arab');
+
+        // Tanpa cakupan → berlaku semua tingkat.
+        $barisSemua = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/komposisi', [
+                'kurikulum_id' => $kur['id'], 'mata_pelajaran_id' => $semua->id,
+            ])->assertStatus(201)->json();
+        $this->assertSame([], $barisSemua['tingkat']);
+
+        // Dengan cakupan → hanya tingkat itu (bisa lebih dari satu).
+        $barisKhusus = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/komposisi', [
+                'kurikulum_id' => $kur['id'], 'mata_pelajaran_id' => $khusus->id,
+                'tingkat' => ['2'],
+            ])->assertStatus(201)->json();
+        $this->assertSame(['2'], $barisKhusus['tingkat']);
+
+        // Tingkat tak dikenal ditolak (salah ketik tak boleh diam-diam).
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/komposisi/{$barisKhusus['id']}", ['tingkat' => ['9']])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('tingkat');
+
+        foreach ([$kelas1A, $kelas2A] as $k) {
+            $this->actingAs($super, 'sanctum')
+                ->putJson("/api/admin/kurikulum/kelas/{$k->id}", ['kurikulum_ids' => [$kur['id']]])
+                ->assertStatus(200);
+        }
+
+        // Respons daftar komposisi harus membawa `tingkat` sebagai daftar NAMA
+        // (bukan objek pivot) — relasi bernama sama pernah menimpanya.
+        $daftar = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/komposisi?kurikulum_id={$kur['id']}")
+            ->assertStatus(200)->json();
+        $tingkatPerMapel = collect($daftar['baris'])->mapWithKeys(
+            fn ($b) => [$b['mata_pelajaran']['nama_mapel'] => $b['tingkat']]
+        );
+        $this->assertSame([], $tingkatPerMapel[$semua->nama_mapel]);
+        $this->assertSame(['2'], $tingkatPerMapel[$khusus->nama_mapel]);
+
+        // Kelas tingkat 1: hanya mapel tanpa cakupan. Kelas tingkat 2: keduanya.
+        $pengampu1A = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/pengampus?kelas_ids[]={$kelas1A->id}")
+            ->assertStatus(200)->json();
+        $this->assertSame([$semua->id], array_column($pengampu1A['baris'], 'mata_pelajaran_id'));
+
+        $pengampu2A = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/pengampus?kelas_ids[]={$kelas2A->id}")
+            ->assertStatus(200)->json();
+        $this->assertEqualsCanonicalizing(
+            [$semua->id, $khusus->id],
+            array_column($pengampu2A['baris'], 'mata_pelajaran_id')
+        );
+
+        // Cakupan dikosongkan lagi → berlaku semua tingkat.
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/komposisi/{$barisKhusus['id']}", ['tingkat' => []])
+            ->assertStatus(200)->assertJsonPath('tingkat', []);
+        $pengampu1AAfter = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/pengampus?kelas_ids[]={$kelas1A->id}")
+            ->assertStatus(200)->json();
+        $this->assertEqualsCanonicalizing(
+            [$semua->id, $khusus->id],
+            array_column($pengampu1AAfter['baris'], 'mata_pelajaran_id')
+        );
+
+        // Menghapus mapel dari kurikulum ikut menghapus cakupan kelasnya.
+        $this->actingAs($super, 'sanctum')
+            ->deleteJson("/api/admin/kurikulum/komposisi/{$barisKhusus['id']}")
+            ->assertStatus(200);
+        $this->assertDatabaseMissing('kurikulum_mapel_tingkat', ['kurikulum_mapel_id' => $barisKhusus['id']]);
+    }
+
+    /**
+     * Tabel pengampu bisa menampilkan BANYAK kelas sekaligus (rel Kelas), jadi
+     * pengampu diambil dalam satu request (`pengampus`) — bukan satu request per
+     * kelas. Baris harus tetap berlabel kelas asalnya, dan wewenang tetap dijaga
+     * per kelas (satu kelas di luar wewenang pengguna → 403).
+     */
+    public function test_03b_daftar_pengampu_banyak_kelas_dalam_satu_request(): void
+    {
+        $this->lembaga('MI');
+        // MTS (bukan pasangan MI↔MD): admin MI berpasangan dengan MD, jadi
+        // batas wewenang diuji lewat lembaga yang tak berpasangan.
+        $this->lembaga('MTS');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $kelasA = $this->kelas('1A', '1');
+        $kelasB = $this->kelas('1B', '1');
+        $kur = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/kurikulum', ['jenjang' => 'MI', 'nama' => 'Kurikulum Kemenag'])
+            ->assertStatus(201)->json();
+        $fiqih = $this->mapel('Fiqih');
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/komposisi', [
+                'kurikulum_id' => $kur['id'], 'mata_pelajaran_id' => $fiqih->id,
+            ])->assertStatus(201);
+        foreach ([$kelasA, $kelasB] as $k) {
+            $this->actingAs($super, 'sanctum')
+                ->putJson("/api/admin/kurikulum/kelas/{$k->id}", ['kurikulum_ids' => [$kur['id']]])
+                ->assertStatus(200);
+            $this->actingAs($super, 'sanctum')
+                ->postJson('/api/admin/kurikulum/pengampu/generate', ['kelas_id' => $k->id])
+                ->assertStatus(200);
+        }
+
+        $guru = $this->guru('Ust. Ahmad');
+        $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/pengampu', [
+            'kelas_id' => $kelasB->id,
+            'baris' => [['mata_pelajaran_id' => $fiqih->id, 'keaktifan_pegawai_id' => $guru->id]],
+        ])->assertStatus(200);
+
+        // Satu request untuk dua kelas → baris keduanya, berlabel kelas asalnya.
+        $res = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/kurikulum/pengampus?'.http_build_query(['kelas_ids' => [$kelasB->id, $kelasA->id]]))
+            ->assertStatus(200)->json();
+        $this->assertCount(2, $res['kelas']);
+        $this->assertSame([$kelasB->id, $kelasA->id], array_column($res['kelas'], 'id'));
+        $this->assertCount(2, $res['baris']);
+        foreach ($res['baris'] as $baris) {
+            $this->assertSame($fiqih->id, $baris['mata_pelajaran_id']);
+            $this->assertTrue($baris['dari_kurikulum']);
+            $this->assertContains($baris['nama_kelas'], ['1A', '1B']);
+        }
+        $barisB = collect($res['baris'])->firstWhere('kelas_id', $kelasB->id);
+        $barisA = collect($res['baris'])->firstWhere('kelas_id', $kelasA->id);
+        $this->assertSame($guru->id, $barisB['keaktifan_pegawai_id']);
+        $this->assertNull($barisA['keaktifan_pegawai_id']);
+
+        // Kelas di luar wewenang pengguna → 403 (wewenang tetap per kelas).
+        $kelasLain = $this->kelas('1T', '1', 'MTS');
+        $adminMi = User::create([
+            'name' => 'Admin MI', 'email' => 'kurikulum_admin_mi@example.com',
+            'phone' => '081234500099', 'password' => 'password',
+        ]);
+        $adminMi->assignRole('admin');
+        DB::table('user_lembaga')->insert([
+            'user_id' => $adminMi->id, 'jenjang' => 'MI',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($adminMi, 'sanctum')
+            ->getJson('/api/admin/kurikulum/pengampus?'.http_build_query(['kelas_ids' => [$kelasA->id, $kelasLain->id]]))
+            ->assertStatus(403);
+
+        // Kelas yang tak ada → 422; daftar kosong → 422.
+        $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/kurikulum/pengampus?'.http_build_query(['kelas_ids' => [$kelasA->id, 999999]]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('kelas_ids.1');
+        $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/kurikulum/pengampus', ['kelas_ids' => []])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('kelas_ids');
     }
 
     // ---------- 04. slot jam & jadwal (bentrok kelas + bentrok guru) ----------

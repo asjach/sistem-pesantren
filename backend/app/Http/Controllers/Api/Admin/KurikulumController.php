@@ -25,6 +25,7 @@ use App\Services\RefService;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
@@ -342,6 +343,19 @@ class KurikulumController extends Controller
             ->orderBy('urutan')->orderBy('id')
             ->get();
 
+        // Cakupan tingkat tiap baris sebagai daftar NAMA (KOSONG = berlaku semua
+        // tingkat). Diambil satu query untuk semua baris — relasi `tingkat` TAK
+        // di-eager-load karena namanya sama dengan atribut respons: relasi yang
+        // ter-load akan menimpa daftar nama ini saat model diserialisasi.
+        $cakupan = DB::table('kurikulum_mapel_tingkat')
+            ->whereIn('kurikulum_mapel_id', $baris->pluck('id'))
+            ->orderBy('tingkat')
+            ->get(['kurikulum_mapel_id', 'tingkat'])
+            ->groupBy('kurikulum_mapel_id');
+        $baris->each(function (KurikulumMapel $b) use ($cakupan) {
+            $b->setAttribute('tingkat', $cakupan->get($b->id, collect())->pluck('tingkat')->map(fn ($t) => (string) $t)->values()->all());
+        });
+
         // Mapel jenjang ini yang BELUM masuk kurikulum — untuk panel pilih.
         $dipakai = $baris->pluck('mata_pelajaran_id');
         $tersedia = MataPelajaran::where('jenjang', $kurikulum->jenjang)
@@ -353,9 +367,12 @@ class KurikulumController extends Controller
             'kurikulum' => $kurikulum,
             'baris' => $baris,
             'tersedia' => $tersedia,
-            'tingkat' => collect(RefService::efektifSemuaLembaga('tingkat'))
-                ->filter(fn ($r) => ($r->jenjang ?? null) === null || $r->jenjang === $kurikulum->jenjang)
-                ->values(),
+            // Daftar pilihan cakupan tingkat (dipakai dialog checkbox).
+            // Per jenjang, bukan `efektifSemuaLembaga`: fungsi itu mendup per
+            // NAMA lintas lembaga, jadi jenjang dengan nama tingkat sama (mis.
+            // MI & MD sama-sama 1–6) hanya sisa satu jenjang — pilihan tingkat
+            // untuk jenjang kurikulum aktif bisa jadi kosong.
+            'tingkatOpsi' => RefService::effective('tingkat', $kurikulum->jenjang),
         ]);
     }
 
@@ -365,7 +382,8 @@ class KurikulumController extends Controller
         $data = $request->validate([
             'kurikulum_id' => ['required', 'integer', 'exists:kurikulum,id'],
             'mata_pelajaran_id' => ['required', 'integer', 'exists:mata_pelajaran,id'],
-            'tingkat' => ['nullable', 'string', 'max:20'],
+            'tingkat' => ['nullable', 'array'],
+            'tingkat.*' => ['string', 'max:20'],
             'kkm' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'urutan' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -374,29 +392,35 @@ class KurikulumController extends Controller
         $this->pastikanMapelSeJenjang((int) $data['mata_pelajaran_id'], $kurikulum->jenjang);
 
         $baris = KurikulumMapel::updateOrCreate(
-            [
-                'kurikulum_id' => $kurikulum->id,
-                'mata_pelajaran_id' => $data['mata_pelajaran_id'],
-                'tingkat' => $data['tingkat'] ?? null,
-            ],
+            ['kurikulum_id' => $kurikulum->id, 'mata_pelajaran_id' => $data['mata_pelajaran_id']],
             ['kkm' => $data['kkm'] ?? null, 'urutan' => $data['urutan'] ?? 0],
         );
+        $this->simpanCakupanTingkat($baris, $kurikulum->jenjang, $data['tingkat'] ?? null);
 
-        return response()->json($baris->load('mataPelajaran:id,nama_mapel,kelompok,kode_mapel,is_active'), 201);
+        return response()->json(
+            $baris->setAttribute('tingkat', $baris->tingkatList())
+                ->load('mataPelajaran:id,nama_mapel,kelompok,kode_mapel,is_active'),
+            201
+        );
     }
 
     /** PUT /admin/kurikulum/komposisi/{item} */
     public function updateKomposisi(Request $request, KurikulumMapel $item): JsonResponse
     {
         $data = $request->validate([
-            'tingkat' => ['nullable', 'string', 'max:20'],
+            'tingkat' => ['nullable', 'array'],
+            'tingkat.*' => ['string', 'max:20'],
             'kkm' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'urutan' => ['nullable', 'integer', 'min:0'],
         ]);
         $this->authorizeLembaga($request->user(), $item->kurikulum->jenjang);
         $item->update($data);
+        $this->simpanCakupanTingkat($item, $item->kurikulum->jenjang, $data['tingkat'] ?? null);
 
-        return response()->json($item->fresh()->load('mataPelajaran:id,nama_mapel,kelompok,kode_mapel,is_active'));
+        return response()->json(
+            $item->fresh()->setAttribute('tingkat', $item->tingkatList())
+                ->load('mataPelajaran:id,nama_mapel,kelompok,kode_mapel,is_active')
+        );
     }
 
     /** DELETE /admin/kurikulum/komposisi/{item} */
@@ -498,6 +522,57 @@ class KurikulumController extends Controller
         $kelas = Kelas::findOrFail($data['kelas_id']);
         $this->authorizeLembaga($request->user(), $kelas->jenjang);
 
+        return response()->json($this->dataPengampuKelas($kelas));
+    }
+
+    /**
+     * GET /admin/kurikulum/pengampus?kelas_ids[]=1&kelas_ids[]=2
+     * Pengampu BANYAK kelas dalam satu request. Tabel pengampu bisa menampilkan
+     * beberapa kelas sekaligus (rel Kelas di kiri tabel), dan memanggil endpoint
+     * per-kelas berarti N request yang saling antre, sehingga tabel tampil jauh
+     * lebih lambat. Setiap baris dilabeli `kelas_id` + `nama_kelas` asalnya.
+     *
+     * Wewenang TETAP per kelas: satu saja di luar wewenang pengguna → 403.
+     */
+    public function indexPengampus(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'kelas_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'kelas_ids.*' => ['integer', 'exists:kelas,id'],
+        ]);
+
+        // Urutan kelas mengikuti urutan permintaan (pilihan pengguna di rel).
+        $urutan = [];
+        foreach ($data['kelas_ids'] as $pos => $id) {
+            $urutan[(int) $id] = $pos;
+        }
+        $kelasList = Kelas::whereIn('id', array_keys($urutan))
+            ->get()
+            ->sortBy(fn (Kelas $k) => $urutan[$k->id])
+            ->values();
+
+        $respKelas = [];
+        $respBaris = [];
+        foreach ($kelasList as $kelas) {
+            $this->authorizeLembaga($request->user(), $kelas->jenjang);
+            $satu = $this->dataPengampuKelas($kelas);
+            $respKelas[] = $satu['kelas'];
+            foreach ($satu['baris'] as $baris) {
+                $respBaris[] = $baris + ['kelas_id' => $kelas->id, 'nama_kelas' => $kelas->nama_kelas];
+            }
+        }
+
+        return response()->json(['kelas' => $respKelas, 'baris' => $respBaris]);
+    }
+
+    /**
+     * Isi tabel pengampu satu kelas: mapel dari kurikulum kelas ∪ pengampu yang
+     * sudah ada, lengkap dengan guru terpasang (boleh kosong).
+     *
+     * @return array{kelas: array, kurikulum: Collection, baris: Collection}
+     */
+    private function dataPengampuKelas(Kelas $kelas): array
+    {
         $kurikulum = Kurikulum::whereIn('id', function ($q) use ($kelas) {
             $q->select('kurikulum_id')->from('kelas_kurikulum')->where('kelas_id', $kelas->id);
         })->get(['id', 'nama']);
@@ -518,7 +593,7 @@ class KurikulumController extends Controller
 
         $urutan = collect($dariKurikulum)->keyBy('mata_pelajaran_id');
 
-        return response()->json([
+        return [
             'kelas' => ['id' => $kelas->id, 'nama_kelas' => $kelas->nama_kelas, 'tingkat' => $kelas->tingkat, 'jenjang' => $kelas->jenjang],
             'kurikulum' => $kurikulum,
             'baris' => $mapel->map(function (MataPelajaran $m) use ($terpasang, $urutan) {
@@ -535,7 +610,7 @@ class KurikulumController extends Controller
                     'guru' => $p?->keaktifan?->pegawai?->nama_lengkap,
                 ];
             }),
-        ]);
+        ];
     }
 
     /**
@@ -655,8 +730,48 @@ class KurikulumController extends Controller
     // ============================================================ BANTUAN
 
     /**
+     * Simpan cakupan tingkat satu baris komposisi: daftar tingkat yang boleh, atau
+     * KOSONG = berlaku di semua tingkat.
+     *
+     * Nilai harus dikenal referensi `tingkat` milik jenjang kurikulum — kalau
+     * tidak, satu salah ketik akan diam-diam membuat mapel tak berlaku di kelas
+     * mana pun.
+     *
+     * `null` = jangan sentuh (PATCH tanpa field ini); array (boleh kosong) = set.
+     */
+    private function simpanCakupanTingkat(KurikulumMapel $baris, string $jenjang, ?array $tingkat): void
+    {
+        if ($tingkat === null) {
+            return;
+        }
+        $daftar = array_values(array_unique(array_map(
+            fn ($t) => trim((string) $t),
+            $tingkat
+        )));
+        $daftar = array_values(array_filter($daftar, fn ($t) => $t !== ''));
+
+        if ($daftar !== []) {
+            $boleh = collect(RefService::effective('tingkat', $jenjang))
+                ->map(fn ($r) => (string) $r->nama)
+                ->all();
+            $asing = array_values(array_diff($daftar, $boleh));
+            if ($asing !== []) {
+                throw ValidationException::withMessages([
+                    'tingkat' => 'Tingkat tak dikenal: '.implode(', ', $asing).'.',
+                ]);
+            }
+        }
+
+        $baris->tingkat()->delete();
+        if ($daftar !== []) {
+            $baris->tingkat()->createMany(array_map(fn (string $t) => ['tingkat' => $t], $daftar));
+        }
+    }
+
+    /**
      * Mapel yang berlaku untuk satu kelas: gabungan `kurikulum_mapel` dari
-     * seluruh kurikulum kelas, disaring `tingkat` (null = semua tingkat).
+     * seluruh kurikulum kelas, disaring cakupan tingkat di
+     * `kurikulum_mapel_tingkat` (tanpa baris anak = berlaku semua tingkat).
      * Urut `kurikulum_mapel.urutan` lalu nama mapel.
      *
      * @param  list<int>  $kurikulumIds
@@ -672,11 +787,24 @@ class KurikulumController extends Controller
             ->join('mata_pelajaran as mp', 'mp.id', '=', 'kurikulum_mapel.mata_pelajaran_id')
             ->whereIn('kurikulum_mapel.kurikulum_id', $kurikulumIds)
             ->where('mp.is_active', true)
-            ->where(fn ($w) => $w->whereNull('kurikulum_mapel.tingkat')
-                ->orWhere('kurikulum_mapel.tingkat', $kelas->tingkat))
+            // Cakupan tingkat: TIDAK ADA baris anak = berlaku semua tingkat; ada =
+            // hanya kelas yang tingkatnya termasuk daftar itu. `whereExists`
+            // dipakai (bukan `whereDoesntHave`) karena query ini ber-join.
+            ->where(function ($w) use ($kelas) {
+                $w->whereNotExists(function ($sub) {
+                    $sub->selectRaw('1')
+                        ->from('kurikulum_mapel_tingkat')
+                        ->whereColumn('kurikulum_mapel_tingkat.kurikulum_mapel_id', 'kurikulum_mapel.id');
+                })->orWhereExists(function ($sub) use ($kelas) {
+                    $sub->selectRaw('1')
+                        ->from('kurikulum_mapel_tingkat')
+                        ->whereColumn('kurikulum_mapel_tingkat.kurikulum_mapel_id', 'kurikulum_mapel.id')
+                        ->where('kurikulum_mapel_tingkat.tingkat', $kelas->tingkat);
+                });
+            })
             ->orderBy('kurikulum_mapel.urutan')
             ->orderBy('mp.nama_mapel')
-            ->get(['mp.id as mata_pelajaran_id', 'mp.nama_mapel', 'kurikulum_mapel.urutan'])
+            ->get(['kurikulum_mapel.id as komposisi_id', 'mp.id as mata_pelajaran_id', 'mp.nama_mapel', 'kurikulum_mapel.urutan'])
             ->unique('mata_pelajaran_id')
             ->map(fn ($r) => [
                 'mata_pelajaran_id' => (int) $r->mata_pelajaran_id,

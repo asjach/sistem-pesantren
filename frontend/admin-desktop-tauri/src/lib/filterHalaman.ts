@@ -36,6 +36,7 @@ const MODE_BAWAAN: ModeSemuaFilterGlobal = {
 function buatKonfigurasi(
   filter: readonly KunciFilterGlobal[],
   tampil: Partial<TampilFilterGlobal> = {},
+  mode: Partial<ModeSemuaFilterGlobal> = {},
 ): KonfigurasiFilterHalaman {
   const hasil: TampilFilterGlobal = {
     lembaga: false,
@@ -47,7 +48,9 @@ function buatKonfigurasi(
   for (const kunci of KUNCI_FILTER_GLOBAL) {
     if (filter.includes(kunci)) hasil[kunci] = tampil[kunci] ?? TAMPIL_BAWAAN_GLOBAL[kunci];
   }
-  return { filter, mode: { ...MODE_BAWAAN }, tampil: hasil };
+  // Mode bawaan per kunci bisa ditimpa halaman (mis. halaman yang memang
+  // bekerja dengan beberapa kelas sekaligus → `kelas: 'multiple'`).
+  return { filter, mode: { ...MODE_BAWAAN, ...mode }, tampil: hasil };
 }
 
 const FILTER_SEMUA: readonly KunciFilterGlobal[] = ['lembaga', 'tahun_ajaran', 'semester', 'tingkat', 'kelas'];
@@ -114,11 +117,20 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   // Rapor: per kelas (cetak massal) — tingkat & kelas masuk daftar relevan.
   penilaian_rapor: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   // Modul Kurikulum (BLOK 5): mapel & kurikulum hanya terikat jenjang;
-  // pengampu & jadwal terikat kelas (jenjang + TA) — kelas dipilih lewat
-  // pemilih di dalam halaman (daftar kelas mengikuti jenjang + TA).
+  // pengampu Terangkai ke kelas (jenjang + TA) — kelas dipilih lewat rail
+  // TINGKAT + KELAS di kiri tabel pengampu (boleh beberapa kelas sekaligus,
+  // tabelnya lalu punya kolom "Kelas"). Jadwal masih memakai pemilih kelas
+  // di dalam halaman.
   kurikulum_mapel: buatKonfigurasi(['lembaga']),
   kurikulum_kurikulum: buatKonfigurasi(['lembaga']),
-  kurikulum_pengampu: buatKonfigurasi(['lembaga', 'tahun_ajaran']),
+  // Pengampu: rail kelas mulai dalam mode JAMAK — tabelnya memang menampilkan
+  // pengampu beberapa kelas sekaligus (ada kolom "Kelas"), jadi mode tunggal
+  // bawaan akan menyembunyikan semua kelas terpilih selain yang pertama.
+  kurikulum_pengampu: buatKonfigurasi(
+    FILTER_AKADEMIK,
+    { tingkat: true, kelas: true },
+    { kelas: 'multiple', tingkat: 'multiple' },
+  ),
   kurikulum_jadwal: buatKonfigurasi(['lembaga', 'tahun_ajaran']),
   pegawai: buatKonfigurasi([]),
   pegawai_penempatan: buatKonfigurasi(['lembaga']),

@@ -56,6 +56,10 @@ export function KelasAktifProvider({ children }: { children: ReactNode }) {
   const lingkup = `${jenjangs.join(',') || '∅'}:${tahunAjaranNames.join(',') || '∅'}`;
   const lingkupAwal = useRef<string | null>(null);
   useEffect(() => {
+    // Selama lingkup belum terisi (jenjang/TA masih dimuat), jangan tetapkan
+    // apa pun: lingkup kosong akan berubah jadi lingkup sungguhan beberapa saat
+    // kemudian, dan itu BUKAN "perubahan lingkup" — hanya pemuatan awal.
+    if (lingkup.includes('∅')) return;
     if (lingkupAwal.current === null) {
       lingkupAwal.current = lingkup;
       return;

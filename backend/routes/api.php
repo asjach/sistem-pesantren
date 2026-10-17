@@ -422,6 +422,9 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::put('kurikulum/kelas/{kelas}', [KurikulumController::class, 'simpanKelasKurikulum'])->middleware('permission:kurikulum.ubah');
         Route::get('kurikulum/guru-aktif', [KurikulumController::class, 'guruAktif'])->middleware('permission:kurikulum.lihat');
         Route::get('kurikulum/pengampu', [KurikulumController::class, 'indexPengampu'])->middleware('permission:kurikulum.lihat');
+        // Pengampu BANYAK kelas dalam satu request (tabel pengampu bisa menampilkan
+        // beberapa kelas sekaligus lewat rel Kelas).
+        Route::get('kurikulum/pengampus', [KurikulumController::class, 'indexPengampus'])->middleware('permission:kurikulum.lihat');
         Route::put('kurikulum/pengampu', [KurikulumController::class, 'simpanPengampu'])->middleware('permission:kurikulum.ubah');
         Route::post('kurikulum/pengampu/generate', [KurikulumController::class, 'generatePengampu'])->middleware('permission:kurikulum.tambah');
         Route::get('kurikulum/pengampu/import-template', [KurikulumController::class, 'templatePengampu'])->middleware('permission:kurikulum.lihat');

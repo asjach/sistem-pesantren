@@ -860,11 +860,19 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `id` PK
 - `kurikulum_id`: FK → kurikulum [cascade]
 - `mata_pelajaran_id`: FK → mata_pelajaran [cascade]
-- `tingkat`: string [null] — ref_tingkat: null = semua tingkat; '8'/'9' = khusus
 - `kkm`: decimal(5, 2) [null] — null = predikat manual (202)
 - `urutan`: int [default 0] — urutan tampil di rapor/leger
 - `created_at`, `updated_at`
-- UNIQUE(`kurikulum_id`, `mata_pelajaran_id`, `tingkat`, `uq_kurikulum_mapel_kmt`) — nama pendek: auto-name 61 char, margin aman dari limit 64
+- UNIQUE(`kurikulum_id`, `mata_pelajaran_id`)
+
+Cakupan tingkat ditentukan `kurikulum_mapel_tingkat`: **kosong = berlaku di semua tingkat**, berisi = hanya tingkat-teingkat itu. Nilainya = NAMA tingkat dari referensi (sama dengan `kelas.tingkat`), jadi lintas tahun ajaran.
+
+### `kurikulum_mapel_tingkat`
+- `id` PK
+- `kurikulum_mapel_id`: FK → kurikulum_mapel [cascade]
+- `tingkat`: varchar(20) — ref_tingkat.nama (dicocokkan dengan `kelas.tingkat`)
+- `created_at`, `updated_at`
+- UNIQUE(`kurikulum_mapel_id`, `tingkat`)
 
 ### `pengampu_mapel`
 - `id` PK

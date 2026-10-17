@@ -54,10 +54,12 @@ export function PillMode({
 }
 
 /** Kerangka tabel saat memuat: menyerupai grid (baris header + baris data)
- *  agar area tabel tidak tampak seperti blok abu-abu kosong. */
+ *  agar area tabel tidak tampak seperti blok abu-abu kosong. Latarnya memakai
+ *  warna sel tabel (`--part-tabel_sel-bg`) supaya tidak berbeda dari grid
+ *  sungguhan saat data tiba. */
 export function TabelMemuat({ rowH, baris = 14 }: { rowH: number; baris?: number }) {
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-card" aria-hidden="true">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-[color:var(--part-tabel_sel-bg,var(--background))]" aria-hidden="true">
       <div className="h-[26px] shrink-0 border-b bg-muted/60" />
       <div className="flex min-h-0 flex-1 flex-col">
         {Array.from({ length: baris }).map((_, i) => (

@@ -102,6 +102,12 @@ export interface SelectColData {
   onDblClick?: (id: string | number) => void;
   /** Klik 1× sel (mode Edit): buka editor sel ini. */
   onClickCell?: (id: string | number) => void;
+  /** Fokuskan kembali sel ini (baris `id`) setelah daftar select ditutup.
+   *  Dipakai sel Select Radix: memilih opsi di panel portal (atau menekan
+   *  Escape) berarti klik/key yang terjadi di LUAR grid, sehingga DSG
+   *  menganggapnya "klik luar" lalu menghapus sel aktif. Tanpa pemulih ini,
+   *  tombol panah/Enter tak lagi memindahkan sel setelah nilai diganti. */
+  fokuskanSel?: (id: string | number) => void;
 }
 
 export interface ToggleColData {

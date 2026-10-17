@@ -1591,7 +1591,7 @@ const DENAH: AreaDenah[] = [
   { no: 10, nama: 'Gutter', sumber: 'gutterColumn — GUTTER_W = 36', keterangan: 'Kolom nomor baris. Selalu ada; klik kanannya = menu salin seluruh tabel.' },
   { no: 11, nama: 'Centang + pilih semua', sumber: 'hideCheckbox · CheckAllCell', keterangan: 'Kolom checkbox (CHECK_W = 36) dengan pilih-semua di header. Dimatikan TabelRingkas lewat hideCheckbox.' },
   { no: 12, nama: 'Header kolom', sumber: 'HeaderTitle — geser lebar, AutoFit', keterangan: 'Judul kolom + gagang seret lebar & AutoFit. Perataan dari standar global tabel di server.' },
-  { no: 13, nama: 'Sel data', sumber: 'ExcelField.kind: text | select | toggle | static', keterangan: 'Empat jenis sel. static selalu baca-saja (kecuali mode Input + inputKind); toggle bisa hidup tanpa mode Edit.' },
+  { no: 13, nama: 'Sel data', sumber: 'ExcelField.kind: text | select | toggle | static', keterangan: 'Empat jenis sel. static selalu baca-saja (kecuali mode Input + inputKind); toggle bisa hidup tanpa mode Edit. Kolom select memakai Select Radix untuk semua kolom; `<select>` native tersisa hanya di baris input mode Input.' },
   { no: 14, nama: 'Kolom Aksi', sumber: 'renderActions (sticky kanan)', keterangan: 'Judul kolom Aksi, menempel di kanan saat grid digulir horizontal (freeze pane sisi kanan).' },
   { no: 15, nama: 'Aksi per baris', sumber: 'renderActions(row) — ikon Lihat/Ubah/Hapus', keterangan: 'Isi kolom Aksi tiap baris. Bila jumlah aksi > 3, otomatis diganti satu tombol hamburger (aksiRingkas).' },
   { no: 16, nama: 'Paginasi', sumber: 'pager (slot dari halaman)', keterangan: 'ExcelTable TIDAK menghitung jumlah baris/halaman — halaman meng-inject <Pager/>. Dipakai 19 halaman.' },

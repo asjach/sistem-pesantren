@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CellProps } from 'react-datasheet-grid';
 import { Switch } from '@/components/ui/switch';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { ChevronDown as ChevronDownIcon } from '@/icons';
 import { hasOpenEditor, INPUT_ROW_ID } from './helpers';
 import type { CheckColData, GridRow, SelectColData, StaticColData, TextColData, ToggleColData } from './types';
 
@@ -84,7 +88,12 @@ export function TextCell({ rowData, setRowData, columnData, focus, stopEditing, 
   );
 }
 
-/** Sel dropdown native (tanpa dependensi baru). */
+/**
+ * Sel dropdown `<select>` native — kini hanya dipakai BARIS INPUT (mode Input)
+ * lewat `InputStaticSelectCell`: editor native menutup daftar sambil menggeser sel
+ * ke baris di bawah, dan saat baris input sedang diisi itu membingungkan.
+ * Kolom data biasa memakai `SelectRadixCell`.
+ */
 export function SelectCell({ rowData, setRowData, columnData, focus, stopEditing, disabled, columnIndex }: CellProps<GridRow, SelectColData>) {
   const key = columnData.fieldKey;
   const cur = (rowData[key] as string) ?? '';
@@ -153,6 +162,155 @@ export function SelectCell({ rowData, setRowData, columnData, focus, stopEditing
     </select>
   );
 }
+
+/** Nilai kosong yang dipetakan jadi sentinel untuk Select (Radix): Radix
+ *  menolak nilai opsi berupa string kosong, jadi "belum ada pilihan" memakai
+ *  sentinel ini lalu dikembalikan lagi jadi `''` sebelum masuk ke baris grid. */
+const KOSONG_RADIX = '__kosong__';
+
+/** Kunci yang dipakai Radix untuk membuka/mengGERAKKAN daftar (bukan milik
+ *  grid): Enter, spasi, panah atas/bawah, Home, End. */
+const KUNCI_BUKA_RADIX = ['Enter', ' ', 'ArrowDown', 'ArrowUp', 'Home', 'End'];
+
+/**
+ * Sel select untuk SETIAP kolom `kind: 'select'`.
+ *
+ *  Dua keputusan bentuk di sini, keduanya hasil pengukuran (tabel pengampu
+ *  ratusan baris):
+ *
+ *  1. **Instance Radix hanya dipasang saat daftar dibuka.** Kalau setiap sel
+ *     merender `<Select>` (Radix) penuh, tabel 200+ baris terasa berat: tiap baris
+ *     membawa provider + ikon Radix, dan pemuatan tabel memicu
+ *     task panjang ratusan ms (terukur: 2 task ~500 ms tanpa kolom select → 0 task).
+ *     Jadi sel default berupa `<button>` biasa yang murah, lalu klik pertama
+ *     PASANG `<Select open>` untuk sel itu saja — daftar tetap Radix (gaya sama
+ *     dengan dialog), tapi hanya SATU instance yang hidup pada satu waktu.
+ *  2. **`<select>` native tersisa hanya untuk baris input** mode Input
+ *     (`InputStaticSelectCell`), yang editor native-nya memindahkan kursor ke baris
+   *  bawah setiap daftar ditutup — tak cocok untuk baris yang sedang diisi).
+ *
+ *  Perilaku yang dijaga:
+ *  - **Satu klik untuk membuka.** Tombol sel sudah ada sebelum diklik, jadi tak
+ *    perlu klik kedua seperti pada select native (yang baru dirender DSG saat sel
+ *    jadi sel aktif + mode Edit).
+ *  - **Fokus tak lompat setelah memilih nilai.** `stopEditing()` bawaan DSG
+ *    memindahkan sel ke baris berikutnya; di sini dipanggil `nextRow: false`,
+ *    fokus dilepas dari tombol, lalu sel aktif dikembalikan ke grid (klik di
+ *    panel portal atau Escape menghapus sel aktif menurut DSG).
+ *  - Nilai kosong memakai sentinel `KOSONG_RADIX` (Radix menolak nilai opsi
+ *    string kosong), dan nilai yang tak ada di daftar pilihan ditampilkan lewat
+ *    `placeholder` alih-alih menyamar jadi opsi pertama.
+ *  - `onKeyDown` menahan hanya kunci milik Radix (buka/gerak daftar); sisanya
+ *    ke grid. */
+export function SelectRadixCell({ rowData, setRowData, columnData, stopEditing, disabled }: CellProps<GridRow, SelectColData>) {
+  const key = columnData.fieldKey;
+  const cur = (rowData[key] as string) ?? '';
+  const opsi = String(rowData.id) === INPUT_ROW_ID && columnData.choicesInput
+    ? columnData.choicesInput
+    : columnData.choices;
+  const label = opsi.find((c) => c.value === cur)?.label ?? cur;
+  const placeholder = cur === '' ? (columnData.placeholder ?? 'Pilih…') : cur;
+  const [buka, setBuka] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  /** Tutup daftar → keluar dari mode edit TANPA melompat baris, lepas fokus dari
+   *  tombol, kembalikan sel aktif ke grid, lalu LEPAS instance Radix (kembali ke
+   *  tombol murah). Langkah terakhir مهم: hanya sel yang daftar terbukanya yang
+   *  perlu instance. */
+  const tutup = useCallback(() => {
+    setTimeout(() => {
+      stopEditing({ nextRow: false });
+      triggerRef.current?.blur();
+      columnData.fokuskanSel?.(rowData.id);
+      setBuka(false);
+    }, 0);
+  }, [stopEditing, columnData, rowData.id]);
+
+  if (disabled) {
+    return (
+      <span
+        className="simpes-dsg-fill"
+        data-col-key={key}
+        onDoubleClick={() => columnData.onDblClick?.(rowData.id)}
+        onClick={(e) => {
+          if (e.detail !== 1) return;
+          if (hasOpenEditor()) return;
+          columnData.onClickCell?.(rowData.id);
+        }}
+      >
+        {label}
+      </span>
+    );
+  }
+
+  if (!buka) {
+    // Tombol murah: belum ada instance Radix untuk sel ini.
+    return (
+      <button
+        type="button"
+        className="simpes-dsg-select flex h-full w-full items-center justify-between gap-1 text-left text-xs"
+        data-col-key={key}
+        aria-label={key}
+        aria-haspopup="listbox"
+        aria-expanded={false}
+        onClick={(e) => {
+          // Jangan buka dua kali: klik yang sama bisa jadi "aktifkan sel" DSG
+          // (untuk kolom yang butuh mode Edit).
+          if (hasOpenEditor()) return;
+          e.stopPropagation();
+          setBuka(true);
+        }}
+        onKeyDown={(e) => {
+          if (KUNCI_BUKA_RADIX.includes(e.key)) e.stopPropagation();
+        }}
+      >
+        <span className="min-w-0 truncate">{label}</span>
+        <ChevronDownIcon aria-hidden="true" className="size-3.5 shrink-0 opacity-50" />
+      </button>
+    );
+  }
+
+  return (
+    <Select
+      open
+      value={cur === '' ? KOSONG_RADIX : cur}
+      onValueChange={(v) => {
+        setRowData({ ...rowData, [key]: v === KOSONG_RADIX ? '' : v });
+        tutup();
+      }}
+      onOpenChange={(o) => { if (!o) tutup(); }}
+    >
+      <SelectTrigger
+        ref={triggerRef}
+        className="simpes-dsg-select text-xs"
+        style={{ height: '100%', padding: '0 2px', border: 0 }}
+        data-col-key={key}
+        aria-label={key}
+        /* Catatan fokus: DSG membaca keyboard lewat listener di `document`, jadi
+           tanpa `stopPropagation` tombol panah/Enter milik Radix ikut memindahkan
+           sel grid. Ditahan HANYA untuk kunci yang memang milik Radix (buka/gerak
+           daftar); sisanya — termasuk Tab — ke grid. */
+        onKeyDown={(e) => {
+          if (e.key === 'Tab') return;
+          e.stopPropagation();
+        }}
+      >
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      {/* Radix mengembalikan fokus ke trigger saat daftar ditutup; itu membuat fokus
+          "nempel" di tombol (cincin fokus ikut muncul). Cegah, fokus dilepas
+          supaya grid yang menerimanya. */}
+      <SelectContent onCloseAutoFocus={(e) => e.preventDefault()}>
+        {opsi.map((c) => (
+          <SelectItem key={c.value} value={c.value === '' ? KOSONG_RADIX : c.value}>
+            {c.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 
 /** Sel boolean (Switch ON/OFF) — langsung mengubah nilai tanpa mode Edit.
  *  Nilai grid tetap string 'ya'/'tidak' agar pipeline data tak berubah.
