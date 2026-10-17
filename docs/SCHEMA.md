@@ -79,6 +79,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `website`: string [null]
 - `logo_url`: string [null]
 - `waktu_belajar`: enum(pagi|siang|pagi_siang) [null] — Operasional: / pagi_siang = "pagi dan siang"
+- `hari_libur`: json [null] — hari libur mingguan per lembaga (mis. `["jumat"]`); null/[] = masuk semua hari; disembunyikan dari matriks jadwal + dilarang diisi; minimal satu hari harus tetap aktif
 - `mode_rapor`: enum(terpisah|digabung) [default 'digabung'] — Kolom Modul 202 (mode rapor):
 - `template_rapor`: string [default 'default']
 - `is_seleksi`: bool [default false] — lembaga ber-seleksi (kuota `membutuhkan_seleksi` null ikut nilai ini; daftar ulang wajib kirim status lolos)
@@ -870,6 +871,26 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 - `ruangan`: string [null]
 - `created_at`, `updated_at`
 - UNIQUE(`pengampu_mapel_id`, `slot_jam_id`, `hari`) — Unik per slot/hari = backing constraint validasi bentrok
+
+### `template_jadwal`
+- `id` PK
+- `jenjang`: FK → lembaga [cascade]
+- `nama`: string(100) — nama kerangka per jenjang (mis. "8 JP + istirahat")
+- `deskripsi`: text [null]
+- `is_active`: bool [default true] — nonaktif = tidak bisa diterapkan (tetap tampil agar bisa diaktifkan lagi)
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`, `nama`)
+
+### `template_jadwal_baris`
+- `id` PK
+- `template_jadwal_id`: FK → template_jadwal [cascade]
+- `urutan_slot`: int [default 1] — jam ke-n dalam kerangka (1, 2, 3, ...), berlaku semua hari aktif
+- `nama_slot`: string(50) [null] — mis. "Jam 1" atau "Istirahat"
+- `jam_mulai`: time [null] — mis. 07:00
+- `jam_selesai`: time [null] — mis. 07:45
+- `is_istirahat`: bool [default false] — true = jeda istirahat (tak dibuatkan slot pelajaran saat diterapkan)
+- `created_at`, `updated_at`
+- UNIQUE(`template_jadwal_id`, `urutan_slot`)
 
 ## BLOK 6 — Penilaian & Rapor (Modul 202 Nilai-Rapor)
 

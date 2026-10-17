@@ -60,6 +60,7 @@ export interface JadwalBaris {
 export interface JadwalResp {
   kelas: { id: number; nama_kelas: string; tingkat: string | null; jenjang: string };
   hari: string[];
+  hari_libur?: string[];
   slot: Pick<SlotJam, 'id' | 'nama_slot' | 'jam_mulai' | 'jam_selesai' | 'urutan'>[];
   baris: JadwalBaris[];
   /** Pengampu kelas yang belum terjadwal — pilihan untuk sel jadwal. */
@@ -284,4 +285,89 @@ export function buatJadwal(data: {
 
 export function hapusJadwal(id: number) {
   return api<{ pesan: string }>(`/admin/kurikulum/jadwal/${id}`, { method: 'DELETE' });
+}
+
+// ------------------------------------------------- template jadwal generik
+
+export interface TemplateJadwal {
+  id: number; jenjang: string; nama: string;
+  deskripsi: string | null; is_active: boolean; baris_count?: number;
+}
+
+export interface TemplateJadwalBaris {
+  id: number; urutan_slot: number;
+  nama_slot: string | null; jam_mulai: string | null; jam_selesai: string | null;
+  is_istirahat: boolean;
+}
+
+export interface TemplateJadwalDetail {
+  template: TemplateJadwal;
+  baris: TemplateJadwalBaris[];
+}
+
+export interface TerapkanHasil {
+  pesan: string; dibuat: number; bisa_dipasang: number;
+  dilewati: { sel: string; alasan: string }[];
+}
+
+export function daftarTemplateJadwal(jenjang: string) {
+  return api<TemplateJadwal[]>(`/admin/kurikulum/template-jadwal?jenjang=${encodeURIComponent(jenjang)}`);
+}
+
+export function buatTemplateJadwal(data: {
+  jenjang: string; nama: string; deskripsi?: string | null; is_active?: boolean;
+}) {
+  return api<TemplateJadwal>('/admin/kurikulum/template-jadwal', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function ubahTemplateJadwal(id: number, data: {
+  nama?: string; deskripsi?: string | null; is_active?: boolean;
+}) {
+  return api<TemplateJadwal>(`/admin/kurikulum/template-jadwal/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function hapusTemplateJadwal(id: number) {
+  return api<{ pesan: string }>(`/admin/kurikulum/template-jadwal/${id}`, { method: 'DELETE' });
+}
+
+export function detailTemplateJadwal(id: number) {
+  return api<TemplateJadwalDetail>(`/admin/kurikulum/template-jadwal/${id}`);
+}
+
+export function tambahBarisTemplate(id: number, data: {
+  nama_slot?: string | null; jam_mulai?: string | null; jam_selesai?: string | null;
+  is_istirahat?: boolean; urutan_slot?: number;
+}) {
+  return api<TemplateJadwalBaris>(`/admin/kurikulum/template-jadwal/${id}/baris`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function ubahBarisTemplate(barisId: number, data: {
+  nama_slot?: string | null; jam_mulai?: string | null; jam_selesai?: string | null;
+  is_istirahat?: boolean; urutan_slot?: number;
+}) {
+  return api<TemplateJadwalBaris>(`/admin/kurikulum/template-jadwal/baris/${barisId}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function hapusBarisTemplate(barisId: number) {
+  return api<{ pesan: string }>(`/admin/kurikulum/template-jadwal/baris/${barisId}`, { method: 'DELETE' });
+}
+
+export function terapkanTemplate(id: number, data: {
+  mode?: 'pratinjau' | 'eksekusi'; timpa?: boolean;
+}) {
+  return api<TerapkanHasil>(`/admin/kurikulum/template-jadwal/${id}/terapkan`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+// ------------------------------------------------------- hari libur mingguan
+
+export interface HariLiburResp {
+  jenjang: string; semua_hari: string[]; hari_aktif: string[]; hari_libur: string[];
+}
+
+export function daftarHariLibur(jenjang: string) {
+  return api<HariLiburResp>(`/admin/kurikulum/hari-libur?jenjang=${encodeURIComponent(jenjang)}`);
+}
+
+export function simpanHariLibur(data: { jenjang: string; hari_libur: string[] }) {
+  return api<HariLiburResp>('/admin/kurikulum/hari-libur', { method: 'PUT', body: JSON.stringify(data) });
 }

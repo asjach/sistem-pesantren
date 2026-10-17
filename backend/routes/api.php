@@ -428,6 +428,17 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('kurikulum/jadwal', [JadwalPelajaranController::class, 'indexJadwal'])->middleware('permission:kurikulum.lihat');
         Route::post('kurikulum/jadwal', [JadwalPelajaranController::class, 'storeJadwal'])->middleware('permission:kurikulum.tambah');
         Route::delete('kurikulum/jadwal/{jadwal}', [JadwalPelajaranController::class, 'destroyJadwal'])->middleware('permission:kurikulum.hapus');
+        Route::get('kurikulum/template-jadwal', [JadwalPelajaranController::class, 'indexTemplate'])->middleware('permission:kurikulum.lihat');
+        Route::post('kurikulum/template-jadwal', [JadwalPelajaranController::class, 'storeTemplate'])->middleware('permission:kurikulum.tambah');
+        Route::get('kurikulum/template-jadwal/{template}', [JadwalPelajaranController::class, 'showTemplate'])->middleware('permission:kurikulum.lihat');
+        Route::match(['put', 'patch'], 'kurikulum/template-jadwal/{template}', [JadwalPelajaranController::class, 'updateTemplate'])->middleware('permission:kurikulum.ubah');
+        Route::delete('kurikulum/template-jadwal/{template}', [JadwalPelajaranController::class, 'destroyTemplate'])->middleware('permission:kurikulum.hapus');
+        Route::post('kurikulum/template-jadwal/{template}/baris', [JadwalPelajaranController::class, 'storeBarisTemplate'])->middleware('permission:kurikulum.tambah');
+        Route::match(['put', 'patch'], 'kurikulum/template-jadwal/baris/{baris}', [JadwalPelajaranController::class, 'updateBarisTemplate'])->middleware('permission:kurikulum.ubah');
+        Route::delete('kurikulum/template-jadwal/baris/{baris}', [JadwalPelajaranController::class, 'destroyBarisTemplate'])->middleware('permission:kurikulum.hapus');
+        Route::post('kurikulum/template-jadwal/{template}/terapkan', [JadwalPelajaranController::class, 'terapkanTemplate'])->middleware('permission:kurikulum.tambah');
+        Route::get('kurikulum/hari-libur', [JadwalPelajaranController::class, 'indexHariLibur'])->middleware('permission:kurikulum.lihat');
+        Route::put('kurikulum/hari-libur', [JadwalPelajaranController::class, 'simpanHariLibur'])->middleware('permission:kurikulum.ubah');
 
         // Matriks izin (Kelola Izin): hanya pemilik izin terkait (= super_admin).
         Route::get('izin', [IzinController::class, 'index'])->middleware('permission:izin.lihat');

@@ -15,9 +15,9 @@ class Lembaga extends Model
 
     protected $keyType = 'string';
 
-    protected $fillable = ['jenjang', 'nama', 'nama_singkat', 'mudir_am', 'status', 'npsn', 'nsm', 'npwp', 'no_izin_operasional', 'tgl_izin', 'no_sk_pendirian', 'tgl_sk_pendirian', 'tahun_berdiri', 'no_sk_kemenkumham', 'akreditasi', 'tgl_akreditasi', 'penyelenggara', 'provinsi', 'kab_kota', 'kecamatan', 'desa', 'rt', 'rw', 'kode_pos', 'alamat', 'lintang', 'bujur', 'telepon', 'email', 'website', 'logo_url', 'waktu_belajar', 'mode_rapor', 'template_rapor', 'is_seleksi', 'kelompok_psb', 'is_active'];
+    protected $fillable = ['jenjang', 'nama', 'nama_singkat', 'mudir_am', 'status', 'npsn', 'nsm', 'npwp', 'no_izin_operasional', 'tgl_izin', 'no_sk_pendirian', 'tgl_sk_pendirian', 'tahun_berdiri', 'no_sk_kemenkumham', 'akreditasi', 'tgl_akreditasi', 'penyelenggara', 'provinsi', 'kab_kota', 'kecamatan', 'desa', 'rt', 'rw', 'kode_pos', 'alamat', 'lintang', 'bujur', 'telepon', 'email', 'website', 'logo_url', 'waktu_belajar', 'hari_libur', 'mode_rapor', 'template_rapor', 'is_seleksi', 'kelompok_psb', 'is_active'];
 
-    protected $casts = ['tgl_izin' => 'date', 'tgl_sk_pendirian' => 'date', 'tgl_akreditasi' => 'date', 'lintang' => 'decimal:7', 'bujur' => 'decimal:7', 'is_seleksi' => 'boolean', 'is_active' => 'boolean'];
+    protected $casts = ['tgl_izin' => 'date', 'tgl_sk_pendirian' => 'date', 'tgl_akreditasi' => 'date', 'lintang' => 'decimal:7', 'bujur' => 'decimal:7', 'is_seleksi' => 'boolean', 'is_active' => 'boolean', 'hari_libur' => 'array'];
 
     public function kelas()
     {

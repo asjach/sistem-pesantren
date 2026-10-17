@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
@@ -9,14 +11,18 @@ import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import { Plus, Save, Trash2, X } from '@/icons';
+import PanelTemplate from './TemplateJadwalPanel';
+import PanelHariLibur from './HariLiburPanel';
 import {
   buatJadwal, buatSlot, daftarJadwal, daftarSlot, hapusJadwal, hapusSlot, ubahSlot,
   HARI_LABEL, type JadwalBaris, type SlotJam,
 } from '@/api/kurikulum';
 
 /** Halaman Jadwal Pelajaran: slot jam per jenjang + matriks jadwal per kelas
- *  (hari × slot). Menjaga bentrok kelas & bentrok guru. */
+ *  (hari × slot) + tab template jadwal generik. Menjaga bentrok kelas &
+ *  bentrok guru. */
 export default function KurikulumJadwalPage() {
+  const [tab, setTab] = useState('jadwal');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
   const { user } = useAuth();
   const canTambah = bisa(user, 'kurikulum.tambah');
@@ -31,6 +37,7 @@ export default function KurikulumJadwalPage() {
   const [kelasId, setKelasId] = useState<number | ''>('');
   const [slot, setSlot] = useState<SlotJam[]>([]);
   const [hari, setHari] = useState<string[]>([]);
+  const [hariLibur, setHariLibur] = useState<string[]>([]);
   const [baris, setBaris] = useState<JadwalBaris[]>([]);
   const [belum, setBelum] = useState<{ id: number; nama_mapel: string | null }[]>([]);
   /** Sel yang sedang diisi: kunci `slotId|hari` → pengampu_mapel_id terpilih. */
@@ -44,10 +51,10 @@ export default function KurikulumJadwalPage() {
   }, [jenjang]);
 
   const muatJadwal = useCallback(async () => {
-    if (kelasId === '') { setBaris([]); setHari([]); setBelum([]); return; }
+    if (kelasId === '') { setBaris([]); setHari([]); setHariLibur([]); setBelum([]); return; }
     try {
       const r = await daftarJadwal(Number(kelasId));
-      setHari(r.hari); setBaris(r.baris); setBelum(r.belum_terjadwal);
+      setHari(r.hari); setHariLibur(r.hari_libur ?? []); setBaris(r.baris); setBelum(r.belum_terjadwal);
     } catch (e) { setErr(errorMessage(e)); }
   }, [kelasId]);
 
@@ -95,6 +102,13 @@ export default function KurikulumJadwalPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
+        <TabsList className={KELAS_LIST_TAB} indikator="primer">
+          <TabsTrigger value="jadwal" id="tab_jadwal_pelajaran" className={KELAS_TRIGGER}>Jadwal</TabsTrigger>
+          <TabsTrigger value="template" id="tab_template_jadwal" className={KELAS_TRIGGER}>Template Jadwal</TabsTrigger>
+          <TabsTrigger value="libur" id="tab_hari_libur" className={KELAS_TRIGGER}>Hari Libur</TabsTrigger>
+        </TabsList>
+        <TabsContent value="jadwal" className="flex min-h-0 flex-1 flex-col gap-0">
 
       {/* Slot jam */}
       <div className="shrink-0 border-b border-border">
@@ -153,6 +167,11 @@ export default function KurikulumJadwalPage() {
             <option key={k.id} value={k.id}>{k.nama_kelas} (tingkat {k.tingkat ?? '-'})</option>
           ))}
         </select>
+        {hariLibur.length > 0 && (
+          <span className="text-xs text-muted-foreground">
+            Libur: {hariLibur.map((h) => HARI_LABEL[h] ?? h).join(', ')}
+          </span>
+        )}
         {belum.length === 0 && baris.length > 0 && (
           <span className="text-xs text-muted-foreground">Semua pengampu kelas ini sudah terjadwal.</span>
         )}
@@ -241,6 +260,24 @@ export default function KurikulumJadwalPage() {
           </table>
         </div>
       )}
+        </TabsContent>
+        <TabsContent value="template" className="flex min-h-0 flex-1 flex-col gap-0">
+          <PanelTemplate
+            jenjang={jenjang ?? ''}
+            canTambah={canTambah}
+            canUbah={canUbah}
+            canHapus={canHapus}
+            onTerapkan={() => { void muatSlot(); void muatJadwal(); }}
+          />
+        </TabsContent>
+        <TabsContent value="libur" className="flex min-h-0 flex-1 flex-col gap-0">
+          <PanelHariLibur
+            jenjang={jenjang ?? ''}
+            canUbah={canUbah}
+            onSimpan={() => { void muatJadwal(); }}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
