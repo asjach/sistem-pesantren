@@ -849,7 +849,6 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `kelas_id`: FK → kelas [cascade]
 - `mata_pelajaran_id`: FK → mata_pelajaran [cascade]
 - `keaktifan_pegawai_id`: FK → keaktifan_pegawai [null, nullOnDelete]
-- `jp_per_minggu`: int [null] — porsi JP/minggu untuk generator template; null = ikut bergilir
 - `created_at`, `updated_at`
 - UNIQUE(`kelas_id`, `mata_pelajaran_id`)
 
@@ -858,12 +857,15 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 ### `slot_jam_pelajaran`
 - `id` PK
 - `jenjang`: FK → lembaga [cascade]
+- `kelas_id`: FK → kelas [null, cascade] — frame milik kelas; null = slot lama per jenjang
+- `hari`: enum(senin|selasa|rabu|kamis|jumat|sabtu|minggu) [null] — null = berlaku semua hari aktif
 - `nama_slot`: string [null] — 'Jam 1', 'Jam 2', dsb.
 - `jenis`: enum(pelajaran|istirahat|pembiasaan) [default 'pelajaran'] — non-pelajaran tampil di matriks tetapi tidak bisa diisi jadwal
 - `jam_mulai`: time [null]
 - `jam_selesai`: time [null]
-- `urutan`: int [default 0] — urutan tampil jam di jadwal
+- `urutan`: int [default 0] — nomor JP pada hari itu
 - `created_at`, `updated_at`
+- INDEX(`kelas_id`, `hari`, `urutan`)
 
 ### `jadwal_pelajaran`
 - `id` PK

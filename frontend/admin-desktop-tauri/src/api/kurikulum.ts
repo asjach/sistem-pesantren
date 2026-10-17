@@ -38,8 +38,6 @@ export interface PengampuBaris {
   kkm: number | null;
   pengampu_id: number | null;
   keaktifan_pegawai_id: number | null;
-  /** Porsi JP per minggu untuk generator template; null = ikut bergilir. */
-  jp_per_minggu: number | null;
   guru: string | null;
 }
 
@@ -60,11 +58,14 @@ export const JENIS_SLOT_OPTIONS = (Object.keys(JENIS_SLOT_LABEL) as JenisSlot[])
   .map((value) => ({ value, label: JENIS_SLOT_LABEL[value] }));
 
 export interface SlotJam {
-  id: number; jenjang: string;
+  id: number; jenjang: string; kelas_id: number | null; hari: string | null;
   nama_slot: string | null; jenis: JenisSlot;
   jam_mulai: string | null; jam_selesai: string | null;
   urutan: number;
 }
+
+/** Slot yang dikirim endpoint jadwal (tanpa kolom jenjang). */
+export type SlotJadwal = Omit<SlotJam, 'jenjang'>;
 
 export interface JadwalBaris {
   id: number; hari: string; slot_jam_id: number; pengampu_mapel_id: number;
@@ -75,7 +76,7 @@ export interface JadwalResp {
   kelas: { id: number; nama_kelas: string; tingkat: string | null; jenjang: string };
   hari: string[];
   hari_libur?: string[];
-  slot: Pick<SlotJam, 'id' | 'nama_slot' | 'jenis' | 'jam_mulai' | 'jam_selesai' | 'urutan'>[];
+  slot: SlotJadwal[];
   baris: JadwalBaris[];
   /** Semua pengampu kelas — pilihan tiap sel; mapel yang sudah dipakai di
    *  slot lain tetap bisa dipilih lagi (2 JP atau lebih). */
@@ -217,7 +218,7 @@ export function daftarPengampus(kelasIds: number[]) {
 /** Sync pengampu satu kelas: baris di luar daftar dihapus (ditolak bila
  *  sudah punya nilai/jadwal). */
 export function simpanPengampu(kelasId: number, baris: {
-  mata_pelajaran_id: number; keaktifan_pegawai_id: number | null; jp_per_minggu?: number | null;
+  mata_pelajaran_id: number; keaktifan_pegawai_id: number | null;
 }[]) {
   return api<{ pesan: string }>('/admin/kurikulum/pengampu', {
     method: 'PUT',
@@ -270,10 +271,6 @@ export function unduhGalatPengampu(sesiId: number) {
 }
 
 // ------------------------------------------------------- slot & jadwal
-
-export function daftarSlot(jenjang: string) {
-  return api<SlotJam[]>(`/admin/kurikulum/slot?jenjang=${encodeURIComponent(jenjang)}`);
-}
 
 export function daftarJadwal(kelasId: number) {
   return api<JadwalResp>(`/admin/kurikulum/jadwal?kelas_id=${kelasId}`);

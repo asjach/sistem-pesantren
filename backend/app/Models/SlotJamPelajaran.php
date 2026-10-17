@@ -22,6 +22,11 @@ class SlotJamPelajaran extends Model
         return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
     }
 
+    public function kelas(): BelongsTo
+    {
+        return $this->belongsTo(Kelas::class);
+    }
+
     public function jadwal(): HasMany
     {
         return $this->hasMany(JadwalPelajaran::class, 'slot_jam_id');

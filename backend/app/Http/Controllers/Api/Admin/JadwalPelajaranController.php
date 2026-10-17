@@ -189,9 +189,16 @@ class JadwalPelajaranController extends Controller
         $kelas = Kelas::findOrFail($data['kelas_id']);
         $this->authorizeLembaga($request->user(), $kelas->jenjang);
 
-        $slot = SlotJamPelajaran::where('jenjang', $kelas->jenjang)
-            ->orderBy('urutan')->orderBy('jam_mulai')->orderBy('nama_slot')
-            ->get(['id', 'nama_slot', 'jenis', 'jam_mulai', 'jam_selesai', 'urutan']);
+        // Frame kelas: kalau kelas sudah punya slot sendiri, pakai itu. Kelas
+        // lama yang belum pernah menerapkan template memakai slot jenjang.
+        $slotKelas = SlotJamPelajaran::where('kelas_id', $kelas->id)
+            ->orderBy('urutan')->orderBy('hari')->orderBy('jam_mulai')->orderBy('nama_slot')
+            ->get(['id', 'kelas_id', 'hari', 'nama_slot', 'jenis', 'jam_mulai', 'jam_selesai', 'urutan']);
+        $slot = $slotKelas->isNotEmpty()
+            ? $slotKelas
+            : SlotJamPelajaran::whereNull('kelas_id')->where('jenjang', $kelas->jenjang)
+                ->orderBy('urutan')->orderBy('jam_mulai')->orderBy('nama_slot')
+                ->get(['id', 'kelas_id', 'hari', 'nama_slot', 'jenis', 'jam_mulai', 'jam_selesai', 'urutan']);
 
         $baris = JadwalPelajaran::with([
             'pengampuMapel.mataPelajaran:id,nama_mapel',
@@ -259,6 +266,12 @@ class JadwalPelajaranController extends Controller
         $slot = SlotJamPelajaran::findOrFail($data['slot_jam_id']);
         if ($slot->jenjang !== $kelas->jenjang) {
             throw ValidationException::withMessages(['slot_jam_id' => 'Slot jam harus sejenjang dengan kelas.']);
+        }
+        if ($slot->kelas_id !== null && (int) $slot->kelas_id !== $kelas->id) {
+            throw ValidationException::withMessages(['slot_jam_id' => 'Slot jam ini milik kelas lain.']);
+        }
+        if ($slot->hari !== null && $slot->hari !== $data['hari']) {
+            throw ValidationException::withMessages(['slot_jam_id' => 'Slot jam ini hanya untuk hari '.$slot->hari.'.']);
         }
         if ($slot->jenis !== 'pelajaran') {
             throw ValidationException::withMessages([
@@ -507,7 +520,7 @@ class JadwalPelajaranController extends Controller
 
     /**
      * POST /admin/kurikulum/template-jadwal/{template}/terapkan
-     * Generate jadwal mingguan untuk sasaran kelas/tingkat/jenjang.
+     * Membuat/mengganti FRAME JP kosong per kelas. Mapel/guru diisi manual.
      */
     public function terapkanTemplate(Request $request, TemplateJadwal $template): JsonResponse
     {
@@ -531,212 +544,63 @@ class JadwalPelajaranController extends Controller
         $tulis = $mode === 'eksekusi';
 
         $kelasTarget = $this->kelasSasaranTemplate($template, $data);
-        $kelasIds = $kelasTarget->pluck('id')->all();
-        $hariAktif = $this->hariLembaga($template->jenjang)['aktif'];
         $baris = $template->baris()->orderBy('urutan_slot')->orderBy('hari')->get();
         if ($baris->isEmpty()) {
             throw ValidationException::withMessages(['template' => 'Template belum punya baris jam.']);
         }
-        $slotDefs = $this->definisiSlotTemplate($baris);
 
-        $kerja = function () use ($template, $kelasTarget, $kelasIds, $hariAktif, $baris, $slotDefs, $timpa, $tulis): array {
-            $ada = SlotJamPelajaran::where('jenjang', $template->jenjang)->get()->keyBy('urutan');
-            $terpakaiQuery = JadwalPelajaran::whereIn('slot_jam_id', $ada->pluck('id'))
-                ->whereIn('hari', $hariAktif);
-            if ($timpa && $kelasIds !== []) {
-                $terpakaiQuery->whereHas('pengampuMapel', fn ($q) => $q->whereNotIn('kelas_id', $kelasIds));
-            }
-            $terpakai = $terpakaiQuery->distinct()->pluck('slot_jam_id')->flip()->all();
-
-            $slotPerUrutan = [];
-            $slotBaru = 0;
+        $kerja = function () use ($template, $kelasTarget, $baris, $timpa, $tulis): array {
+            $slotDibuat = 0;
+            $slotDihapus = 0;
             $dilewati = [];
 
-            foreach ($slotDefs as $urutan => $def) {
-                $slot = $ada->get($urutan);
-                $dataSlot = $def + ['jenjang' => $template->jenjang, 'urutan' => $urutan];
-                if ($slot !== null) {
-                    $beda = $slot->nama_slot !== $dataSlot['nama_slot']
-                        || $slot->jenis !== $dataSlot['jenis']
-                        || substr((string) $slot->jam_mulai, 0, 5) !== $dataSlot['jam_mulai']
-                        || substr((string) $slot->jam_selesai, 0, 5) !== $dataSlot['jam_selesai'];
-                    if ($beda && isset($terpakai[$slot->id])) {
-                        $dilewati[] = [
-                            'sel' => 'jam ke-'.$urutan,
-                            'alasan' => 'Slot jam masih dipakai jadwal dan berbeda dari template — jadwal jam ini dilewati.',
-                        ];
-
-                        continue;
-                    }
-                    if ($beda && $timpa && $tulis) {
-                        $slot->update($dataSlot);
-                    }
-                } else {
-                    $slot = new SlotJamPelajaran($dataSlot);
-                    if ($tulis) {
-                        $slot->save();
-                    }
-                    $slotBaru++;
-                }
-                $slotPerUrutan[$urutan] = $slot;
-            }
-
-            // Hari × jam: baris `hari = null` berlaku semua hari; baris hari
-            // tertentu menimpa baris umum pada jam yang sama.
-            $slotPerHari = [];
-            foreach ($hariAktif as $hari) {
-                $peta = [];
-                foreach ($baris as $b) {
-                    if ($b->hari !== null && $b->hari !== $hari) {
-                        continue;
-                    }
-                    if (isset($slotPerUrutan[$b->urutan_slot])) {
-                        $peta[$b->urutan_slot] = $slotPerUrutan[$b->urutan_slot];
-                    }
-                }
-                ksort($peta);
-                $slotPerHari[$hari] = array_values($peta);
-            }
-
-            // Guru yang sudah mengajar di kelas lain pada slot/hari yang sama.
-            $sibuk = [];
-            $querySibuk = JadwalPelajaran::with('pengampuMapel:id,kelas_id,keaktifan_pegawai_id')
-                ->whereIn('hari', $hariAktif)
-                ->whereHas('pengampuMapel.kelas', fn ($q) => $q->where('jenjang', $template->jenjang));
-            if ($timpa && $kelasIds !== []) {
-                $querySibuk->whereHas('pengampuMapel', fn ($q) => $q->whereNotIn('kelas_id', $kelasIds));
-            }
-            foreach ($querySibuk->get() as $j) {
-                $guru = $j->pengampuMapel?->keaktifan_pegawai_id;
-                if ($guru !== null) {
-                    $sibuk[$guru.'|'.$j->slot_jam_id.'|'.$j->hari] = true;
-                }
-            }
-
-            $pengampuPerKelas = PengampuMapel::with('mataPelajaran:id,nama_mapel,urutan')
-                ->whereIn('kelas_id', $kelasIds)
-                ->get()
-                ->groupBy('kelas_id');
-
-            $jadwalDibuat = 0;
-
             foreach ($kelasTarget as $kelas) {
-                $pengampu = collect($pengampuPerKelas->get($kelas->id, []))
-                    ->sortBy(fn (PengampuMapel $p) => sprintf(
-                        '%05d|%s|%010d',
-                        $p->mataPelajaran?->urutan ?? 999,
-                        $p->mataPelajaran?->nama_mapel ?? '',
-                        $p->id,
-                    ))->values();
-
-                $pengampuIds = $pengampu->pluck('id')->all();
-                $sudahAda = $pengampuIds !== []
+                $pengampuIds = PengampuMapel::where('kelas_id', $kelas->id)->pluck('id')->all();
+                $punyaJadwal = $pengampuIds !== []
                     && JadwalPelajaran::whereIn('pengampu_mapel_id', $pengampuIds)->exists();
-                if ($sudahAda && ! $timpa) {
-                    $dilewati[] = ['sel' => $kelas->nama_kelas, 'alasan' => 'Kelas sudah punya jadwal — aktifkan timpa untuk mengganti.'];
+                $jumlahSlotLama = SlotJamPelajaran::where('kelas_id', $kelas->id)->count();
+
+                if ($jumlahSlotLama > 0 && ! $timpa) {
+                    $dilewati[] = ['sel' => $kelas->nama_kelas, 'alasan' => 'Kelas sudah punya kerangka JP — aktifkan timpa untuk mengganti.'];
 
                     continue;
                 }
-                if ($timpa && $tulis && $pengampuIds !== []) {
-                    JadwalPelajaran::whereIn('pengampu_mapel_id', $pengampuIds)->delete();
-                }
-
-                $sel = [];
-                foreach ($hariAktif as $hari) {
-                    foreach ($slotPerHari[$hari] as $slot) {
-                        if ($slot->jenis === 'pelajaran') {
-                            $sel[] = ['hari' => $hari, 'slot' => $slot];
-                        }
-                    }
-                }
-                if ($pengampu->isEmpty() || $sel === []) {
-                    $dilewati[] = ['sel' => $kelas->nama_kelas, 'alasan' => 'Tidak ada pengampu atau JP pelajaran untuk diisi.'];
+                if ($punyaJadwal && ! $timpa) {
+                    $dilewati[] = ['sel' => $kelas->nama_kelas, 'alasan' => 'Kelas sudah punya jadwal — aktifkan timpa untuk mengosongkan dan mengganti kerangka.'];
 
                     continue;
                 }
 
-                $token = [];
-                $adaKuota = $pengampu->contains(fn (PengampuMapel $p) => ($p->jp_per_minggu ?? 0) > 0);
-                foreach ($pengampu as $p) {
-                    $n = $adaKuota ? max(0, (int) ($p->jp_per_minggu ?? 0)) : 0;
-                    for ($i = 0; $i < $n; $i++) {
-                        $token[] = $p;
+                if ($timpa && $tulis) {
+                    if ($pengampuIds !== []) {
+                        JadwalPelajaran::whereIn('pengampu_mapel_id', $pengampuIds)->delete();
                     }
+                    SlotJamPelajaran::where('kelas_id', $kelas->id)->delete();
                 }
-                $sisa = count($sel) - count($token);
-                if ($sisa > 0) {
-                    // Tanpa kuota = bergilir merata; kuota kurang = sisanya bergilir.
-                    $m = $pengampu->count();
-                    for ($i = 0; $i < $sisa; $i++) {
-                        $token[] = $pengampu[$i % $m];
-                    }
-                }
-                if (count($token) > count($sel)) {
-                    $token = array_slice($token, 0, count($sel));
+                if ($timpa) {
+                    $slotDihapus += $jumlahSlotLama;
                 }
 
-                foreach ($sel as $i => $cell) {
-                    $p = $token[$i] ?? null;
-                    if ($p === null) {
-                        break;
-                    }
-                    $slot = $cell['slot'];
-                    $guru = $p->keaktifan_pegawai_id;
-                    $kunci = $guru === null || $slot->id === null
-                        ? null
-                        : $guru.'|'.$slot->id.'|'.$cell['hari'];
-                    if ($kunci !== null && isset($sibuk[$kunci])) {
-                        $dilewati[] = [
-                            'sel' => $kelas->nama_kelas.' · '.$cell['hari'].' · jam ke-'.$slot->urutan,
-                            'alasan' => 'Guru '.($p->mataPelajaran?->nama_mapel ?? '#'.$p->id).' sudah mengajar di kelas lain.',
-                        ];
-
-                        continue;
-                    }
-                    if ($tulis && $slot->id !== null) {
-                        JadwalPelajaran::create([
-                            'pengampu_mapel_id' => $p->id,
-                            'slot_jam_id' => $slot->id,
-                            'hari' => $cell['hari'],
+                foreach ($baris as $b) {
+                    if ($tulis) {
+                        SlotJamPelajaran::create([
+                            'jenjang' => $template->jenjang,
+                            'kelas_id' => $kelas->id,
+                            'hari' => $b->hari,
+                            'nama_slot' => $b->nama_slot ?? 'Jam '.$b->urutan_slot,
+                            'jam_mulai' => $b->jam_mulai ? substr((string) $b->jam_mulai, 0, 5) : null,
+                            'jam_selesai' => $b->jam_selesai ? substr((string) $b->jam_selesai, 0, 5) : null,
+                            'jenis' => $b->jenis,
+                            'urutan' => $b->urutan_slot,
                         ]);
                     }
-                    if ($kunci !== null) {
-                        $sibuk[$kunci] = true;
-                    }
-                    $jadwalDibuat++;
-                }
-            }
-
-            // Template = sumber kerangka slot saat timpa: slot lama yang tidak
-            // ada lagi di template dihapus, kecuali masih dipakai kelas lain.
-            $slotDihapus = 0;
-            if ($timpa) {
-                $sisa = SlotJamPelajaran::where('jenjang', $template->jenjang)
-                    ->whereNotIn('urutan', array_keys($slotDefs))
-                    ->get();
-                foreach ($sisa as $slot) {
-                    $dipakaiKelasLain = JadwalPelajaran::where('slot_jam_id', $slot->id)
-                        ->whereHas('pengampuMapel', fn ($q) => $q->whereNotIn('kelas_id', $kelasIds))
-                        ->exists();
-                    if ($dipakaiKelasLain) {
-                        $dilewati[] = [
-                            'sel' => 'slot jam ke-'.$slot->urutan,
-                            'alasan' => 'Slot lama tidak ada di template, tetapi masih dipakai kelas lain.',
-                        ];
-
-                        continue;
-                    }
-                    if ($tulis) {
-                        $slot->delete();
-                    }
-                    $slotDihapus++;
+                    $slotDibuat++;
                 }
             }
 
             return [
                 'kelas' => $kelasTarget->count(),
-                'jadwal' => $jadwalDibuat,
-                'slot' => $slotBaru,
+                'slot' => $slotDibuat,
                 'slot_dihapus' => $slotDihapus,
                 'dilewati' => $dilewati,
             ];
@@ -744,8 +608,8 @@ class JadwalPelajaranController extends Controller
 
         $hasil = $tulis ? DB::transaction($kerja) : $kerja();
         $pesan = $mode === 'pratinjau'
-            ? "Pratinjau: {$hasil['jadwal']} jadwal bisa dibuat untuk {$hasil['kelas']} kelas, ".count($hasil['dilewati']).' dilewati.'
-            : "Template diterapkan: {$hasil['jadwal']} jadwal dibuat untuk {$hasil['kelas']} kelas, ".count($hasil['dilewati']).' dilewati.';
+            ? "Pratinjau: {$hasil['slot']} slot kerangka untuk {$hasil['kelas']} kelas, ".count($hasil['dilewati']).' dilewati.'
+            : "Kerangka diterapkan: {$hasil['slot']} slot dibuat untuk {$hasil['kelas']} kelas, ".count($hasil['dilewati']).' dilewati.';
         if ($hasil['slot_dihapus'] > 0) {
             $pesan .= " {$hasil['slot_dihapus']} slot lama dihapus.";
         }
@@ -753,8 +617,8 @@ class JadwalPelajaranController extends Controller
         return response()->json([
             'pesan' => $pesan,
             'kelas' => $hasil['kelas'],
-            'dibuat' => $tulis ? $hasil['jadwal'] : 0,
-            'bisa_dipasang' => $hasil['jadwal'],
+            'dibuat' => 0,
+            'bisa_dipasang' => $hasil['slot'],
             'slot_dibuat' => $tulis ? $hasil['slot'] : 0,
             'slot_bisa_dibuat' => $hasil['slot'],
             'slot_dihapus' => $tulis ? $hasil['slot_dihapus'] : 0,
@@ -871,42 +735,6 @@ class JadwalPelajaranController extends Controller
         }
 
         return $kelas;
-    }
-
-    /**
-     * Satu definisi slot per nomor jam. Slot nyata per jenjang tidak bisa
-     * menyimpan jam/jenis berbeda antar hari, jadi template mingguan wajib
-     * konsisten untuk nomor jam yang sama.
-     *
-     * @return array<int, array{nama_slot: string, jenis: string, jam_mulai: ?string, jam_selesai: ?string}>
-     */
-    private function definisiSlotTemplate(Collection $baris): array
-    {
-        $defs = [];
-        foreach ($baris as $b) {
-            $urutan = (int) $b->urutan_slot;
-            $data = [
-                'nama_slot' => $b->nama_slot ?? 'Jam '.$urutan,
-                'jenis' => $b->jenis,
-                'jam_mulai' => $b->jam_mulai ? substr((string) $b->jam_mulai, 0, 5) : null,
-                'jam_selesai' => $b->jam_selesai ? substr((string) $b->jam_selesai, 0, 5) : null,
-            ];
-            if (isset($defs[$urutan])) {
-                foreach (['jenis', 'jam_mulai', 'jam_selesai'] as $kunci) {
-                    if ($defs[$urutan][$kunci] !== $data[$kunci]) {
-                        throw ValidationException::withMessages([
-                            'template' => "Jam ke-{$urutan} punya {$kunci} berbeda antar hari. Slot jam per jenjang harus seragam — samakan template atau pisahkan per tingkat.",
-                        ]);
-                    }
-                }
-
-                continue;
-            }
-            $defs[$urutan] = $data;
-        }
-        ksort($defs);
-
-        return $defs;
     }
 
     private function jenjangWajib(Request $request): string

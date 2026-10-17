@@ -62,7 +62,6 @@ function nilaiPengampu(b: BarisPengampu): Record<string, string | null> {
     nama_mapel: b.is_active ? b.nama_mapel : `${b.nama_mapel} (nonaktif)`,
     kelompok: b.kelompok === 'formal' ? 'Formal' : 'Pesantren',
     kkm: b.kkm === null ? '—' : String(b.kkm),
-    jp_per_minggu: b.jp_per_minggu === null ? '' : String(b.jp_per_minggu),
     guru: b.keaktifan_pegawai_id === null ? '' : String(b.keaktifan_pegawai_id),
   };
 }
@@ -101,8 +100,6 @@ export default function KurikulumPengampuPage() {
    *  `simpanPengampu` menerima SELURUH baris satu kelas, jadi payload dari data
    *  server yang basi akan menimpa edit sebelumnya. */
   const nilaiGuruRef = useRef<Map<string, number | null>>(new Map());
-  /** Porsi JP/minggu terbaru per baris (null = bergilir untuk generator). */
-  const nilaiJpRef = useRef<Map<string, number | null>>(new Map());
   /** Nomor urut pemuatan pengampu — hanya hasil pemuatan TERAKHIR yang boleh
    *  menulis state (lihat `muatPengampu`). */
   const muatSeq = useRef(0);
@@ -130,7 +127,6 @@ export default function KurikulumPengampuPage() {
   const terapkanBaris = useCallback((baru: BarisPengampu[]) => {
     setBaris(baru);
     nilaiGuruRef.current = new Map(baru.map((b) => [b.id, b.keaktifan_pegawai_id]));
-    nilaiJpRef.current = new Map(baru.map((b) => [b.id, b.jp_per_minggu]));
   }, []);
 
   // Daftar kelas (pemetaan nama di rail → id) + mapel aktif jenjang (pilihan
@@ -200,14 +196,13 @@ export default function KurikulumPengampuPage() {
    *  (dipakai dialog "Tambah mapel"). Nilai guru diambil dari peta nilai agar
    *  edit sel yang belum kembali dari server tak hilang. */
   const payloadKelas = useCallback((kelasId: number, tambah?: {
-    mata_pelajaran_id: number; keaktifan_pegawai_id: number | null; jp_per_minggu: number | null;
+    mata_pelajaran_id: number; keaktifan_pegawai_id: number | null;
   }) => {
     const kirim = baris
       .filter((b) => b.kelas_id === kelasId)
       .map((b) => ({
         mata_pelajaran_id: b.mata_pelajaran_id,
         keaktifan_pegawai_id: nilaiGuruRef.current.get(b.id) ?? null,
-        jp_per_minggu: nilaiJpRef.current.get(b.id) ?? null,
       }));
     if (tambah) kirim.push(tambah);
     return kirim;
@@ -219,17 +214,11 @@ export default function KurikulumPengampuPage() {
    *  membawanya. Galat diteruskan ke antrean simpan komponen tabel — ia yang
    *  mengembalikan nilai sel & menampilkan toast "Gagal menyimpan". */
   const commitSel = useCallback(async (id: string | number, f: Record<string, string | null>) => {
-    if (f.guru === undefined && f.jp_per_minggu === undefined) return;
+    if (f.guru === undefined) return;
     const barisIni = baris.find((b) => b.id === String(id));
     if (!barisIni) return;
-    if (f.guru !== undefined) {
-      const guru = f.guru === null || f.guru === '' ? null : Number(f.guru);
-      nilaiGuruRef.current.set(barisIni.id, guru);
-    }
-    if (f.jp_per_minggu !== undefined) {
-      const jp = f.jp_per_minggu === null || f.jp_per_minggu.trim() === '' ? null : Number(f.jp_per_minggu);
-      nilaiJpRef.current.set(barisIni.id, jp);
-    }
+    const guru = f.guru === null || f.guru === '' ? null : Number(f.guru);
+    nilaiGuruRef.current.set(barisIni.id, guru);
     await simpanPengampu(barisIni.kelas_id, payloadKelas(barisIni.kelas_id));
   }, [baris, payloadKelas]);
 
@@ -241,7 +230,6 @@ export default function KurikulumPengampuPage() {
       .map((x) => ({
         mata_pelajaran_id: x.mata_pelajaran_id,
         keaktifan_pegawai_id: nilaiGuruRef.current.get(x.id) ?? null,
-        jp_per_minggu: nilaiJpRef.current.get(x.id) ?? null,
       }));
     const aksi = aksiBaris(b);
     await jalankan(
@@ -272,7 +260,6 @@ export default function KurikulumPengampuPage() {
       await simpanPengampu(tambahKelas, payloadKelas(tambahKelas, {
         mata_pelajaran_id: tambahMapel,
         keaktifan_pegawai_id: tambahGuru === '' ? null : tambahGuru,
-        jp_per_minggu: null,
       }));
       toast.success('Mapel ditambahkan ke pengampu kelas.');
       setTambahOpen(false);
@@ -306,14 +293,6 @@ export default function KurikulumPengampuPage() {
     { key: 'nama_mapel', label: 'Mapel', width: 220, kind: 'static' },
     { key: 'kelompok', label: 'Kelompok', width: 110, kind: 'static' },
     { key: 'kkm', label: 'KKM', width: 70, kind: 'static' },
-    {
-      key: 'jp_per_minggu', label: 'JP/Minggu', width: 100, kind: 'text', maxLength: 2, format: 'angka',
-      validate: (v) => {
-        if (v === null || v.trim() === '') return null;
-        const n = Number(v);
-        return Number.isInteger(n) && n >= 0 && n <= 60 ? null : 'JP/minggu harus bilangan bulat 0–60.';
-      },
-    },
     {
       // Semua kolom select memakai Select Radix; selnya hanya memasang instance
       // Radix saat daftar benar-benar dibuka (lihat SelectRadixCell) supaya tabel

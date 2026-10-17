@@ -16,8 +16,6 @@ class PengampuMapel extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = ['jp_per_minggu' => 'integer'];
-
     public function kelas(): BelongsTo
     {
         return $this->belongsTo(Kelas::class);

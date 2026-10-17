@@ -430,7 +430,7 @@ function TerapkanKerangka({ jenjang, kelasOpsi, kelasId, canTambah, aktif, hasil
     <div>
       <p className="text-xs font-medium">Terapkan template ke jadwal</p>
       <p className="mt-0.5 text-[11px] text-muted-foreground">
-        Membuat jadwal mapel dari pengampu kelas sesuai JP/minggu; istirahat/pembiasaan tanpa pelajaran.
+        Membuat kerangka JP kosong per kelas; isi mapel + guru manual di tab Jadwal.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <label className="text-xs text-muted-foreground" htmlFor="select_sasaran_template">Sasaran</label>
@@ -468,7 +468,7 @@ function TerapkanKerangka({ jenjang, kelasOpsi, kelasId, canTambah, aktif, hasil
         <label className="flex items-center gap-1 text-xs text-muted-foreground" htmlFor="cek_timpa_jadwal">
           <input type="checkbox" id="cek_timpa_jadwal" checked={timpa} disabled={!bisaTerap}
             onChange={(e) => setTimpa(e.target.checked)} />
-          Timpa jadwal kelas + rapikan slot lama
+          Timpa jadwal kelas + ganti kerangka
         </label>
         {canTambah && (
           <>

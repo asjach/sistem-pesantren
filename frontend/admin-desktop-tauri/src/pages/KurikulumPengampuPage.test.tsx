@@ -210,8 +210,8 @@ describe('KurikulumPengampuPage', () => {
 
     await waitFor(() => expect(uji.simpanPengampu).toHaveBeenCalledTimes(1));
     expect(uji.simpanPengampu).toHaveBeenCalledWith(1, [
-      { mata_pelajaran_id: 10, keaktifan_pegawai_id: 7, jp_per_minggu: null }, // baris lama
-      { mata_pelajaran_id: 11, keaktifan_pegawai_id: null, jp_per_minggu: null }, // mapel baru
+      { mata_pelajaran_id: 10, keaktifan_pegawai_id: 7 }, // baris lama (Fiqih + guru)
+      { mata_pelajaran_id: 11, keaktifan_pegawai_id: null }, // mapel baru tanpa guru
     ]);
     // Setelah simpan, tabel dimuat ulang.
     await waitFor(() => expect(uji.daftarPengampus).toHaveBeenCalledTimes(2));

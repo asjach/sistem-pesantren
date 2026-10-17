@@ -15,13 +15,22 @@ import { errorMessage } from '@/api/client';
 import PanelTemplate, { FIELDS_KERANGKA } from './TemplateJadwalPanel';
 import PanelHariLibur from './HariLiburPanel';
 import {
-  buatJadwal, daftarJadwal, daftarSlot, daftarTemplateJadwal, hapusJadwal, terapkanTemplate,
+  buatJadwal, daftarJadwal, daftarTemplateJadwal, hapusJadwal, terapkanTemplate,
   HARI_LABEL, JENIS_SLOT_LABEL,
-  type JadwalBaris, type SlotJam, type TemplateJadwal, type TerapkanHasil,
+  type JadwalBaris, type SlotJadwal, type TemplateJadwal, type TerapkanHasil,
 } from '@/api/kurikulum';
 
-/** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × slot) + tab
- *  template mingguan & hari libur. Slot jam dibuat lewat Terapkan template. */
+/** Satu baris matriks = satu nomor JP. Slot tiap hari bisa berbeda (jumlah,
+ *  jam, jenis), jadi frame disusun per hari lalu digabung per nomor JP. */
+interface BarisMatriks {
+  id: number;
+  urutan: number;
+  label: string;
+  perHari: Record<string, SlotJadwal>;
+}
+
+/** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × JP) + tab
+ *  template mingguan & hari libur. Frame JP dibuat lewat Terapkan template. */
 export default function KurikulumJadwalPage() {
   const [tab, setTab] = useState('jadwal');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
@@ -36,7 +45,7 @@ export default function KurikulumJadwalPage() {
 
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
-  const [slot, setSlot] = useState<SlotJam[]>([]);
+  const [slot, setSlot] = useState<SlotJadwal[]>([]);
   const [hari, setHari] = useState<string[]>([]);
   const [hariLibur, setHariLibur] = useState<string[]>([]);
   const [baris, setBaris] = useState<JadwalBaris[]>([]);
@@ -48,17 +57,11 @@ export default function KurikulumJadwalPage() {
   const [hasilKelas, setHasilKelas] = useState<TerapkanHasil | null>(null);
   const [err, setErr] = useState('');
 
-  const muatSlot = useCallback(async () => {
-    if (jenjang === null) { setSlot([]); return; }
-    try { setSlot(await daftarSlot(jenjang)); }
-    catch (e) { setErr(errorMessage(e)); }
-  }, [jenjang]);
-
   const muatJadwal = useCallback(async () => {
-    if (kelasId === '') { setBaris([]); setHari([]); setHariLibur([]); setPengampu([]); return; }
+    if (kelasId === '') { setSlot([]); setBaris([]); setHari([]); setHariLibur([]); setPengampu([]); return; }
     try {
       const r = await daftarJadwal(Number(kelasId));
-      setHari(r.hari); setHariLibur(r.hari_libur ?? []); setBaris(r.baris);
+      setSlot(r.slot); setHari(r.hari); setHariLibur(r.hari_libur ?? []); setBaris(r.baris);
       setPengampu(r.pengampu ?? r.belum_terjadwal);
     } catch (e) { setErr(errorMessage(e)); }
   }, [kelasId]);
@@ -76,7 +79,6 @@ export default function KurikulumJadwalPage() {
     return () => { hidup = false; };
   }, [filterLoading, jenjang, ta]);
 
-  useEffect(() => { void muatSlot(); }, [muatSlot]);
   useEffect(() => { void muatJadwal(); }, [muatJadwal]);
 
   // Daftar template untuk tombol Terapkan di tab Jadwal; muat ulang setiap
@@ -124,10 +126,7 @@ export default function KurikulumJadwalPage() {
       });
       setHasilKelas(r);
       toast.success(r.pesan);
-      if (mode === 'eksekusi') {
-        await muatSlot();
-        await muatJadwal();
-      }
+      if (mode === 'eksekusi') await muatJadwal();
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
@@ -135,13 +134,47 @@ export default function KurikulumJadwalPage() {
     }
   };
 
-  /** Matriks: satu baris = satu slot, satu kolom = satu hari aktif. Pilihan
-   *  dropdown tiap sel = SEMUA pengampu kelas, sehingga mapel yang sama bisa
-   *  dipakai di beberapa slot (2 JP atau lebih). */
+  /** Frame kelas: slot hari-null berlaku semua hari; slot hari tertentu
+   *  menimpa slot umum pada nomor JP yang sama. */
+  const barisMatriks = useMemo<BarisMatriks[]>(() => {
+    const perHari = new Map<string, Map<number, SlotJadwal>>();
+    for (const h of hari) perHari.set(h, new Map());
+    for (const s of slot) {
+      if (s.hari === null) {
+        for (const h of hari) perHari.get(h)?.set(s.urutan, s);
+      } else {
+        perHari.get(s.hari)?.set(s.urutan, s);
+      }
+    }
+    const urutan = [...new Set([...perHari.values()].flatMap((m) => [...m.keys()]))]
+      .sort((a, b) => a - b);
+
+    return urutan.map((u) => {
+      const perHariBaris: Record<string, SlotJadwal> = {};
+      for (const h of hari) {
+        const s = perHari.get(h)?.get(u);
+        if (s !== undefined) perHariBaris[h] = s;
+      }
+      const slots = Object.values(perHariBaris);
+      const nama = [...new Set(slots.map((s) => s.nama_slot ?? `JP ${u}`))];
+      const jam = [...new Set(slots
+        .map((s) => `${jamPendek(s.jam_mulai) ?? ''}–${jamPendek(s.jam_selesai) ?? ''}`)
+        .filter((t) => t !== '–'))];
+      return {
+        id: u,
+        urutan: u,
+        label: `${nama.length === 1 ? nama[0] : `JP ${u}`}${jam.length === 1 ? ` · ${jam[0]}` : ''}`,
+        perHari: perHariBaris,
+      };
+    });
+  }, [slot, hari]);
+
+  /** Matriks: satu baris = satu nomor JP, kolom = hari. Sel per hari memakai
+   *  slot hari itu; hari yang tidak punya JP tersebut selnya terkunci kosong. */
   const fieldsMatriks = useMemo<ExcelField[]>(() => {
     const peta = new Map<string, JadwalBaris>();
     for (const b of baris) peta.set(`${b.slot_jam_id}|${b.hari}`, b);
-    const petaSlot = new Map(slot.map((s) => [s.id, s]));
+    const petaBaris = new Map(barisMatriks.map((r) => [r.id, r]));
     const pilihanUmum = pengampu.map((p) => ({
       value: String(p.id),
       label: `${p.nama_mapel ?? `#${p.id}`}${p.guru ? ` — ${p.guru}` : ''}`,
@@ -155,17 +188,17 @@ export default function KurikulumJadwalPage() {
         width: 180,
         kind: 'select',
         selectTanpaEdit: true,
-        // Baris istirahat/pembiasaan: sel menampilkan nama kegiatan dan tidak
-        // bisa dibuka — waktu itu bukan waktu pelajaran.
-        bolehSelect: (id) => petaSlot.get(Number(id))?.jenis === 'pelajaran',
+        bolehSelect: (id) => {
+          const s = petaBaris.get(Number(id))?.perHari[h];
+          return s?.jenis === 'pelajaran';
+        },
         choicesForRow: (id) => {
-          const s = petaSlot.get(Number(id));
-          if (s !== undefined && s.jenis !== 'pelajaran') {
+          const s = petaBaris.get(Number(id))?.perHari[h];
+          if (s === undefined) return [{ value: '', label: '' }];
+          if (s.jenis !== 'pelajaran') {
             return [{ value: '', label: s.nama_slot ?? JENIS_SLOT_LABEL[s.jenis] }];
           }
-          const j = peta.get(`${Number(id)}|${h}`);
-          // Mengganti nilai lama butuh tambah + hapus; tanpa hapus, hanya
-          // nilai berjalan yang ditawarkan (sel tak menawarkan aksi mati).
+          const j = peta.get(`${s.id}|${h}`);
           const opsi = canTambah && (j === undefined || canHapus) ? [...pilihanUmum] : [];
           if (canHapus) opsi.unshift({ value: '', label: '— kosong —' });
           if (j !== undefined && !opsi.some((o) => o.value === String(j.pengampu_mapel_id))) {
@@ -178,25 +211,28 @@ export default function KurikulumJadwalPage() {
         },
       })),
     ];
-  }, [hari, baris, pengampu, canTambah, canHapus, slot]);
+  }, [hari, baris, barisMatriks, pengampu, canTambah, canHapus]);
 
-  const nilaiMatriks = useCallback((s: SlotJam) => {
-    const v: Record<string, string | null> = {};
-    const mulai = jamPendek(s.jam_mulai);
-    const selesai = jamPendek(s.jam_selesai);
-    v.__slot = `${s.nama_slot ?? `#${s.id}`}${mulai !== null && selesai !== null ? ` · ${mulai}–${selesai}` : ''}`;
+  const nilaiMatriks = useCallback((r: BarisMatriks) => {
+    const v: Record<string, string | null> = { __slot: r.label };
     for (const h of hari) {
-      const j = baris.find((b) => b.slot_jam_id === s.id && b.hari === h);
+      const s = r.perHari[h];
+      const j = s === undefined
+        ? null
+        : baris.find((b) => b.slot_jam_id === s.id && b.hari === h) ?? null;
       v[h] = j ? String(j.pengampu_mapel_id) : null;
     }
     return v;
   }, [baris, hari]);
 
   const commitJadwal = useCallback(async (id: number | string, f: Record<string, string | null>) => {
-    const slotId = Number(id);
+    const row = barisMatriks.find((r) => r.id === Number(id));
+    if (row === undefined) return;
     for (const [hariNama, raw] of Object.entries(f)) {
       if (hariNama === '__slot') continue;
-      const lama = baris.find((b) => b.slot_jam_id === slotId && b.hari === hariNama) ?? null;
+      const s = row.perHari[hariNama];
+      if (s === undefined) continue;
+      const lama = baris.find((b) => b.slot_jam_id === s.id && b.hari === hariNama) ?? null;
       const baru = raw === null || raw === '' ? null : Number(raw);
       const lamaId = lama?.pengampu_mapel_id ?? null;
       if (baru === lamaId) continue;
@@ -212,13 +248,12 @@ export default function KurikulumJadwalPage() {
         if (!canHapus) throw new Error('Tidak punya izin mengubah jadwal.');
         await hapusJadwal(lama.id);
         try {
-          await buatJadwal({ pengampu_mapel_id: baru, slot_jam_id: slotId, hari: hariNama });
+          await buatJadwal({ pengampu_mapel_id: baru, slot_jam_id: s.id, hari: hariNama });
         } catch (e) {
-          // Gagal pindah → kembalikan jadwal lama agar sel tidak kehilangan data.
           try {
             await buatJadwal({
               pengampu_mapel_id: lama.pengampu_mapel_id,
-              slot_jam_id: slotId,
+              slot_jam_id: s.id,
               hari: hariNama,
             });
           } catch { /* galat asli yang dilaporkan */ }
@@ -227,9 +262,9 @@ export default function KurikulumJadwalPage() {
         continue;
       }
 
-      await buatJadwal({ pengampu_mapel_id: baru, slot_jam_id: slotId, hari: hariNama });
+      await buatJadwal({ pengampu_mapel_id: baru, slot_jam_id: s.id, hari: hariNama });
     }
-  }, [baris, canTambah, canHapus]);
+  }, [baris, barisMatriks, canTambah, canHapus]);
 
   if (!siap) {
     return (
@@ -328,11 +363,14 @@ export default function KurikulumJadwalPage() {
           ) : hari.length === 0 ? (
             <div className="min-h-0 flex-1" />
           ) : (
-            <ExcelTable<SlotJam>
+            <ExcelTable<BarisMatriks>
+              // Remount saat kelas/frame berubah: draft & seleksi lama tidak
+              // boleh menempel ke frame baru setelah Terapkan template.
+              key={`matriks-${kelasId}-${slot.map((s) => s.id).join('-')}`}
               tableKey="kurikulum_jadwal"
               header={`Jadwal${kelasTerpilih ? ` · ${kelasTerpilih.nama_kelas}` : ''}`}
               fields={fieldsMatriks}
-              rows={slot}
+              rows={barisMatriks}
               getValues={nilaiMatriks}
               canEdit={canTambah || canHapus}
               onCommit={commitJadwal}
@@ -340,8 +378,8 @@ export default function KurikulumJadwalPage() {
               renderActions={() => null}
               hideCheckbox
               hideActions
-              emptyText={slot.length === 0
-                ? 'Belum ada slot jam — terapkan template di tab Template Jadwal.'
+              emptyText={barisMatriks.length === 0
+                ? 'Belum ada kerangka JP — terapkan template di tab Template Jadwal.'
                 : 'Belum ada jadwal untuk kelas ini — pilih mapel pada sel hari.'}
             />
           )}
@@ -356,7 +394,7 @@ export default function KurikulumJadwalPage() {
             canTambah={canTambah}
             canUbah={canUbah}
             canHapus={canHapus}
-            onTerapkan={() => { void muatSlot(); void muatJadwal(); }}
+            onTerapkan={() => { void muatJadwal(); }}
           />
         </TabsContent>
 
