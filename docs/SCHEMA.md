@@ -852,7 +852,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `created_at`, `updated_at`
 - UNIQUE(`kelas_id`, `mata_pelajaran_id`)
 
-Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kurikulum + komposisi + peta kelas→kurikulum sudah dihapus — migrasi `2026_10_18_070000`). Mapel masuk kelas lewat halaman Pengampu (Tambah mapel / Salin dari kelas lain / import); baris yang sudah punya nilai atau jadwal tak boleh dikeluarkan.
+Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kurikulum + komposisi + peta kelas→kurikulum sudah dihapus — migrasi `2026_10_18_070000`). Mapel masuk kelas lewat halaman Pengampu (Tambah mapel / Salin dari kelas lain / import) atau dibuat/diperbarui otomatis saat mapel + guru diisi dari daftar jadwal; baris yang sudah punya nilai atau jadwal tak boleh dikeluarkan.
 
 ### `slot_jam_pelajaran`
 - `id` PK

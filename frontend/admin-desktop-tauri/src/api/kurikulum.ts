@@ -69,6 +69,7 @@ export type SlotJadwal = Omit<SlotJam, 'jenjang'>;
 
 export interface JadwalBaris {
   id: number; hari: string; slot_jam_id: number; pengampu_mapel_id: number;
+  mata_pelajaran_id: number | null; keaktifan_pegawai_id: number | null;
   nama_mapel: string | null; guru: string | null; ruangan: string | null;
 }
 
@@ -280,6 +281,17 @@ export function buatJadwal(data: {
   pengampu_mapel_id: number; slot_jam_id: number; hari: string; ruangan?: string | null;
 }) {
   return api<JadwalBaris>('/admin/kurikulum/jadwal', { method: 'POST', body: JSON.stringify(data) });
+}
+
+/** Isi/kosongkan satu sel: mapel + guru; pengampu kelas dibuat/diperbarui. */
+export function simpanSelJadwal(data: {
+  kelas_id: number; slot_jam_id: number; hari: string;
+  mata_pelajaran_id: number | null; keaktifan_pegawai_id: number | null;
+}) {
+  return api<{ pesan: string; jadwal: JadwalBaris | null }>('/admin/kurikulum/jadwal/sel', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
 }
 
 export function hapusJadwal(id: number) {

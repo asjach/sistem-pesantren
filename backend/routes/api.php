@@ -427,6 +427,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::delete('kurikulum/slot/{slot}', [JadwalPelajaranController::class, 'destroySlot'])->middleware('permission:kurikulum.hapus');
         Route::get('kurikulum/jadwal', [JadwalPelajaranController::class, 'indexJadwal'])->middleware('permission:kurikulum.lihat');
         Route::post('kurikulum/jadwal', [JadwalPelajaranController::class, 'storeJadwal'])->middleware('permission:kurikulum.tambah');
+        Route::put('kurikulum/jadwal/sel', [JadwalPelajaranController::class, 'simpanSelJadwal'])->middleware('permission:kurikulum.ubah');
         Route::delete('kurikulum/jadwal/{jadwal}', [JadwalPelajaranController::class, 'destroyJadwal'])->middleware('permission:kurikulum.hapus');
         Route::get('kurikulum/template-jadwal', [JadwalPelajaranController::class, 'indexTemplate'])->middleware('permission:kurikulum.lihat');
         Route::post('kurikulum/template-jadwal', [JadwalPelajaranController::class, 'storeTemplate'])->middleware('permission:kurikulum.tambah');

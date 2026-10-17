@@ -15,22 +15,30 @@ import { errorMessage } from '@/api/client';
 import PanelTemplate, { FIELDS_KERANGKA } from './TemplateJadwalPanel';
 import PanelHariLibur from './HariLiburPanel';
 import {
-  buatJadwal, daftarJadwal, daftarTemplateJadwal, hapusJadwal, terapkanTemplate,
+  daftarGuruAktif, daftarJadwal, daftarMapel, daftarTemplateJadwal, simpanSelJadwal, terapkanTemplate,
   HARI_LABEL, JENIS_SLOT_LABEL,
-  type JadwalBaris, type SlotJadwal, type TemplateJadwal, type TerapkanHasil,
+  type GuruAktif, type JadwalBaris, type MataPelajaran, type SlotJadwal,
+  type TemplateJadwal, type TerapkanHasil,
 } from '@/api/kurikulum';
 
-/** Satu baris matriks = satu nomor JP. Slot tiap hari bisa berbeda (jumlah,
- *  jam, jenis), jadi frame disusun per hari lalu digabung per nomor JP. */
-interface BarisMatriks {
-  id: number;
-  urutan: number;
-  label: string;
-  perHari: Record<string, SlotJadwal>;
+/** Satu baris daftar jadwal = satu sel frame (hari × JP). */
+interface BarisJadwal {
+  id: string;
+  slot: SlotJadwal;
+  hari: string;
+  mapelId: number | null;
+  mapelNama: string | null;
+  guruId: number | null;
+  guruNama: string | null;
 }
 
-/** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × JP) + tab
- *  template mingguan & hari libur. Frame JP dibuat lewat Terapkan template. */
+function namaGuru(g: GuruAktif): string {
+  return `${g.gelar_depan ? `${g.gelar_depan} ` : ''}${g.nama_lengkap}${g.gelar_belakang ? `, ${g.gelar_belakang}` : ''}`;
+}
+
+/** Halaman Jadwal Pelajaran: daftar JP per hari untuk kelas terpilih + tab
+ *  template mingguan & hari libur. Mapel & guru diisi di jadwal; pengampu
+ *  kelas dibuat/diperbarui dari pilihan itu. */
 export default function KurikulumJadwalPage() {
   const [tab, setTab] = useState('jadwal');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
@@ -49,7 +57,8 @@ export default function KurikulumJadwalPage() {
   const [hari, setHari] = useState<string[]>([]);
   const [hariLibur, setHariLibur] = useState<string[]>([]);
   const [baris, setBaris] = useState<JadwalBaris[]>([]);
-  const [pengampu, setPengampu] = useState<{ id: number; nama_mapel: string | null; guru: string | null }[]>([]);
+  const [mapelAktif, setMapelAktif] = useState<MataPelajaran[]>([]);
+  const [guruAktif, setGuruAktif] = useState<GuruAktif[]>([]);
   const [templateOpsi, setTemplateOpsi] = useState<TemplateJadwal[]>([]);
   const [templateId, setTemplateId] = useState<number | ''>('');
   const [timpaKelas, setTimpaKelas] = useState(false);
@@ -58,11 +67,10 @@ export default function KurikulumJadwalPage() {
   const [err, setErr] = useState('');
 
   const muatJadwal = useCallback(async () => {
-    if (kelasId === '') { setSlot([]); setBaris([]); setHari([]); setHariLibur([]); setPengampu([]); return; }
+    if (kelasId === '') { setSlot([]); setBaris([]); setHari([]); setHariLibur([]); return; }
     try {
       const r = await daftarJadwal(Number(kelasId));
       setSlot(r.slot); setHari(r.hari); setHariLibur(r.hari_libur ?? []); setBaris(r.baris);
-      setPengampu(r.pengampu ?? r.belum_terjadwal);
     } catch (e) { setErr(errorMessage(e)); }
   }, [kelasId]);
 
@@ -80,6 +88,21 @@ export default function KurikulumJadwalPage() {
   }, [filterLoading, jenjang, ta]);
 
   useEffect(() => { void muatJadwal(); }, [muatJadwal]);
+
+  // Pilihan mapel & guru master untuk pengisian jadwal (bukan dari pengampu).
+  useEffect(() => {
+    if (jenjang === null || ta === null) { setMapelAktif([]); setGuruAktif([]); return; }
+    let hidup = true;
+    Promise.all([
+      daftarMapel({ jenjang, keaktifan: 'aktif' }),
+      daftarGuruAktif({ jenjang, tahun_ajaran: ta }),
+    ]).then(([mapel, guru]) => {
+      if (!hidup) return;
+      setMapelAktif(mapel);
+      setGuruAktif(guru);
+    }).catch((e) => { if (hidup) setErr(errorMessage(e)); });
+    return () => { hidup = false; };
+  }, [jenjang, ta]);
 
   // Daftar template untuk tombol Terapkan di tab Jadwal; muat ulang setiap
   // kembali ke tab ini agar template baru dari tab Template langsung tampil.
@@ -134,137 +157,105 @@ export default function KurikulumJadwalPage() {
     }
   };
 
-  /** Frame kelas: slot hari-null berlaku semua hari; slot hari tertentu
-   *  menimpa slot umum pada nomor JP yang sama. */
-  const barisMatriks = useMemo<BarisMatriks[]>(() => {
-    const perHari = new Map<string, Map<number, SlotJadwal>>();
-    for (const h of hari) perHari.set(h, new Map());
+  /** Baris daftar = tiap slot frame × hari aktif (slot hari-null dipecah ke
+   *  semua hari). Isi jadwal per sel diambil dari `baris`. */
+  const barisJadwal = useMemo<BarisJadwal[]>(() => {
+    const peta = new Map(baris.map((b) => [`${b.slot_jam_id}|${b.hari}`, b]));
+    const urutanHari = new Map(hari.map((h, i) => [h, i]));
+    const hasil: BarisJadwal[] = [];
     for (const s of slot) {
-      if (s.hari === null) {
-        for (const h of hari) perHari.get(h)?.set(s.urutan, s);
-      } else {
-        perHari.get(s.hari)?.set(s.urutan, s);
+      const days = s.hari === null ? hari : (hari.includes(s.hari) ? [s.hari] : []);
+      for (const h of days) {
+        const j = peta.get(`${s.id}|${h}`);
+        hasil.push({
+          id: `${s.id}|${h}`,
+          slot: s,
+          hari: h,
+          mapelId: j?.mata_pelajaran_id ?? null,
+          mapelNama: j?.nama_mapel ?? null,
+          guruId: j?.keaktifan_pegawai_id ?? null,
+          guruNama: j?.guru ?? null,
+        });
       }
     }
-    const urutan = [...new Set([...perHari.values()].flatMap((m) => [...m.keys()]))]
-      .sort((a, b) => a - b);
+    return hasil.sort((a, b) => (
+      (urutanHari.get(a.hari) ?? 99) - (urutanHari.get(b.hari) ?? 99)
+      || a.slot.urutan - b.slot.urutan
+    ));
+  }, [slot, hari, baris]);
 
-    return urutan.map((u) => {
-      const perHariBaris: Record<string, SlotJadwal> = {};
-      for (const h of hari) {
-        const s = perHari.get(h)?.get(u);
-        if (s !== undefined) perHariBaris[h] = s;
-      }
-      const slots = Object.values(perHariBaris);
-      const nama = [...new Set(slots.map((s) => s.nama_slot ?? `JP ${u}`))];
-      const jam = [...new Set(slots
-        .map((s) => `${jamPendek(s.jam_mulai) ?? ''}–${jamPendek(s.jam_selesai) ?? ''}`)
-        .filter((t) => t !== '–'))];
-      return {
-        id: u,
-        urutan: u,
-        label: `${nama.length === 1 ? nama[0] : `JP ${u}`}${jam.length === 1 ? ` · ${jam[0]}` : ''}`,
-        perHari: perHariBaris,
-      };
-    });
-  }, [slot, hari]);
+  const petaBaris = useMemo(() => new Map(barisJadwal.map((r) => [r.id, r])), [barisJadwal]);
 
-  /** Matriks: satu baris = satu nomor JP, kolom = hari. Sel per hari memakai
-   *  slot hari itu; hari yang tidak punya JP tersebut selnya terkunci kosong. */
-  const fieldsMatriks = useMemo<ExcelField[]>(() => {
-    const peta = new Map<string, JadwalBaris>();
-    for (const b of baris) peta.set(`${b.slot_jam_id}|${b.hari}`, b);
-    const petaBaris = new Map(barisMatriks.map((r) => [r.id, r]));
-    const pilihanUmum = pengampu.map((p) => ({
-      value: String(p.id),
-      label: `${p.nama_mapel ?? `#${p.id}`}${p.guru ? ` — ${p.guru}` : ''}`,
-    }));
-
-    return [
-      { key: '__slot', label: 'Jam', width: 170, kind: 'static' },
-      ...hari.map((h): ExcelField => ({
-        key: h,
-        label: HARI_LABEL[h] ?? h,
-        width: 180,
-        kind: 'select',
-        selectTanpaEdit: true,
-        bolehSelect: (id) => {
-          const s = petaBaris.get(Number(id))?.perHari[h];
-          return s?.jenis === 'pelajaran';
-        },
-        choicesForRow: (id) => {
-          const s = petaBaris.get(Number(id))?.perHari[h];
-          if (s === undefined) return [{ value: '', label: '' }];
-          if (s.jenis !== 'pelajaran') {
-            return [{ value: '', label: s.nama_slot ?? JENIS_SLOT_LABEL[s.jenis] }];
-          }
-          const j = peta.get(`${s.id}|${h}`);
-          const opsi = canTambah && (j === undefined || canHapus) ? [...pilihanUmum] : [];
-          if (canHapus) opsi.unshift({ value: '', label: '— kosong —' });
-          if (j !== undefined && !opsi.some((o) => o.value === String(j.pengampu_mapel_id))) {
-            opsi.unshift({
-              value: String(j.pengampu_mapel_id),
-              label: `${j.nama_mapel ?? '?'}${j.guru ? ` — ${j.guru}` : ''}`,
-            });
-          }
-          return opsi;
-        },
-      })),
-    ];
-  }, [hari, baris, barisMatriks, pengampu, canTambah, canHapus]);
-
-  const nilaiMatriks = useCallback((r: BarisMatriks) => {
-    const v: Record<string, string | null> = { __slot: r.label };
-    for (const h of hari) {
-      const s = r.perHari[h];
-      const j = s === undefined
-        ? null
-        : baris.find((b) => b.slot_jam_id === s.id && b.hari === h) ?? null;
-      v[h] = j ? String(j.pengampu_mapel_id) : null;
-    }
-    return v;
-  }, [baris, hari]);
-
-  const commitJadwal = useCallback(async (id: number | string, f: Record<string, string | null>) => {
-    const row = barisMatriks.find((r) => r.id === Number(id));
-    if (row === undefined) return;
-    for (const [hariNama, raw] of Object.entries(f)) {
-      if (hariNama === '__slot') continue;
-      const s = row.perHari[hariNama];
-      if (s === undefined) continue;
-      const lama = baris.find((b) => b.slot_jam_id === s.id && b.hari === hariNama) ?? null;
-      const baru = raw === null || raw === '' ? null : Number(raw);
-      const lamaId = lama?.pengampu_mapel_id ?? null;
-      if (baru === lamaId) continue;
-
-      if (baru === null) {
-        if (!canHapus) throw new Error('Tidak punya izin menghapus jadwal.');
-        if (lama !== null) await hapusJadwal(lama.id);
-        continue;
-      }
-
-      if (!canTambah) throw new Error('Tidak punya izin menambah jadwal.');
-      if (lama !== null) {
-        if (!canHapus) throw new Error('Tidak punya izin mengubah jadwal.');
-        await hapusJadwal(lama.id);
-        try {
-          await buatJadwal({ pengampu_mapel_id: baru, slot_jam_id: s.id, hari: hariNama });
-        } catch (e) {
-          try {
-            await buatJadwal({
-              pengampu_mapel_id: lama.pengampu_mapel_id,
-              slot_jam_id: s.id,
-              hari: hariNama,
-            });
-          } catch { /* galat asli yang dilaporkan */ }
-          throw e;
+  const fieldsJadwal = useMemo<ExcelField[]>(() => [
+    { key: 'hari', label: 'Hari', width: 90, kind: 'static' },
+    { key: 'jp', label: 'JP', width: 60, kind: 'static' },
+    { key: 'jam', label: 'Jam', width: 120, kind: 'static' },
+    { key: 'jenis', label: 'Jenis', width: 110, kind: 'static' },
+    {
+      key: 'mapel', label: 'Mapel', width: 220, kind: 'select', selectTanpaEdit: true,
+      bolehSelect: (id) => petaBaris.get(String(id))?.slot.jenis === 'pelajaran',
+      choicesForRow: (id) => {
+        const row = petaBaris.get(String(id));
+        if (row === undefined || row.slot.jenis !== 'pelajaran') return [{ value: '', label: '—' }];
+        const opsi = mapelAktif.map((m) => ({ value: String(m.id), label: m.nama_mapel }));
+        if (row.mapelId !== null && !opsi.some((o) => o.value === String(row.mapelId))) {
+          opsi.unshift({ value: String(row.mapelId), label: row.mapelNama ?? `#${row.mapelId}` });
         }
-        continue;
-      }
+        return [{ value: '', label: '— kosong —' }, ...opsi];
+      },
+    },
+    {
+      key: 'guru', label: 'Guru', width: 220, kind: 'select', selectTanpaEdit: true,
+      bolehSelect: (id) => {
+        const row = petaBaris.get(String(id));
+        return row?.slot.jenis === 'pelajaran' && row.mapelId !== null;
+      },
+      choicesForRow: (id) => {
+        const row = petaBaris.get(String(id));
+        if (row === undefined || row.slot.jenis !== 'pelajaran' || row.mapelId === null) {
+          return [{ value: '', label: '—' }];
+        }
+        const opsi = guruAktif.map((g) => ({ value: String(g.keaktifan_pegawai_id), label: namaGuru(g) }));
+        if (row.guruId !== null && !opsi.some((o) => o.value === String(row.guruId))) {
+          opsi.unshift({ value: String(row.guruId), label: row.guruNama ?? `#${row.guruId}` });
+        }
+        return [{ value: '', label: '— tanpa guru —' }, ...opsi];
+      },
+    },
+  ], [petaBaris, mapelAktif, guruAktif]);
 
-      await buatJadwal({ pengampu_mapel_id: baru, slot_jam_id: s.id, hari: hariNama });
-    }
-  }, [baris, barisMatriks, canTambah, canHapus]);
+  const nilaiJadwal = useCallback((r: BarisJadwal) => ({
+    hari: HARI_LABEL[r.hari] ?? r.hari,
+    jp: String(r.slot.urutan),
+    jam: `${jamPendek(r.slot.jam_mulai) ?? ''}–${jamPendek(r.slot.jam_selesai) ?? ''}`,
+    jenis: JENIS_SLOT_LABEL[r.slot.jenis],
+    mapel: r.mapelId === null ? '' : String(r.mapelId),
+    guru: r.guruId === null ? '' : String(r.guruId),
+  }), []);
+
+  const commitSel = useCallback(async (id: string | number, f: Record<string, string | null>) => {
+    const row = petaBaris.get(String(id));
+    if (row === undefined || row.slot.jenis !== 'pelajaran') return;
+
+    const mapelBaru = f.mapel !== undefined
+      ? (f.mapel === null || f.mapel === '' ? null : Number(f.mapel))
+      : row.mapelId;
+    // Ganti mapel = guru lama tidak ikut pindah; pilih guru baru (boleh kosong).
+    const guruBaru = f.mapel !== undefined
+      ? (f.guru === undefined || f.guru === null || f.guru === '' ? null : Number(f.guru))
+      : (f.guru !== undefined
+        ? (f.guru === null || f.guru === '' ? null : Number(f.guru))
+        : row.guruId);
+    if (mapelBaru === row.mapelId && guruBaru === row.guruId) return;
+
+    await simpanSelJadwal({
+      kelas_id: Number(kelasId),
+      slot_jam_id: row.slot.id,
+      hari: row.hari,
+      mata_pelajaran_id: mapelBaru,
+      keaktifan_pegawai_id: guruBaru,
+    });
+  }, [petaBaris, kelasId]);
 
   if (!siap) {
     return (
@@ -280,7 +271,7 @@ export default function KurikulumJadwalPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tabel={[
-        { key: 'kurikulum_jadwal', judul: 'Jadwal', fields: fieldsMatriks },
+        { key: 'kurikulum_jadwal', judul: 'Jadwal', fields: fieldsJadwal },
         { key: 'kurikulum_template_jadwal', judul: 'Kerangka jam', fields: FIELDS_KERANGKA },
       ]} />
       <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
@@ -363,24 +354,22 @@ export default function KurikulumJadwalPage() {
           ) : hari.length === 0 ? (
             <div className="min-h-0 flex-1" />
           ) : (
-            <ExcelTable<BarisMatriks>
-              // Remount saat kelas/frame berubah: draft & seleksi lama tidak
-              // boleh menempel ke frame baru setelah Terapkan template.
-              key={`matriks-${kelasId}-${slot.map((s) => s.id).join('-')}`}
+            <ExcelTable<BarisJadwal>
+              key={`jadwal-${kelasId}-${slot.map((s) => s.id).join('-')}`}
               tableKey="kurikulum_jadwal"
               header={`Jadwal${kelasTerpilih ? ` · ${kelasTerpilih.nama_kelas}` : ''}`}
-              fields={fieldsMatriks}
-              rows={barisMatriks}
-              getValues={nilaiMatriks}
-              canEdit={canTambah || canHapus}
-              onCommit={commitJadwal}
+              fields={fieldsJadwal}
+              rows={barisJadwal}
+              getValues={nilaiJadwal}
+              canEdit={canUbah}
+              onCommit={commitSel}
               onSaved={muatJadwal}
               renderActions={() => null}
               hideCheckbox
               hideActions
-              emptyText={barisMatriks.length === 0
+              emptyText={slot.length === 0
                 ? 'Belum ada kerangka JP — terapkan template di tab Template Jadwal.'
-                : 'Belum ada jadwal untuk kelas ini — pilih mapel pada sel hari.'}
+                : 'Belum ada JP untuk kelas ini.'}
             />
           )}
         </TabsContent>
