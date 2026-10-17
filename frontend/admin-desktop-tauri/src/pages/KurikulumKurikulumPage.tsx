@@ -336,13 +336,21 @@ export default function KurikulumKurikulumPage() {
     catch (e) { toast.error(errorMessage(e)); }
   }, [segarkan]);
 
-  /** Ringkasan cakupan tingkat satu mapel: "Semua tingkat" / "1, 2" /
-   *  daftar nama (dipotong 3 + "+n"). */
+  /** Posisi tiap tingkat menurut urutan referensi (server sudah mengurutkan). */
+  const urutanTingkat = useMemo(
+    () => new Map(tingkatOpsi.map((t, i) => [t.nama, i])),
+    [tingkatOpsi],
+  );
+
+  /** Teks kolom "Berlaku di tingkat": daftar tingkat ditulis PENUH (tak dipotong
+   *  "+n") supaya mis. 1–6 tingkat terbaca apa adanya, diurutkan sesuai
+   *  urutan referensi — bukan urutan teks (yang bisa membuat "10" mendahului "2"). */
   const ringkasTingkat = useCallback((daftar: string[]) => {
     if (daftar.length === 0) return 'Semua tingkat';
-    if (daftar.length <= 3) return daftar.join(', ');
-    return `${daftar.slice(0, 3).join(', ')} +${daftar.length - 3}`;
-  }, []);
+    return [...daftar]
+      .sort((a, b) => (urutanTingkat.get(a) ?? 99) - (urutanTingkat.get(b) ?? 99))
+      .join(', ');
+  }, [urutanTingkat]);
 
   const nilaiBarisKomposisi = useCallback(
     (b: KomposisiBaris) => nilaiKomposisi(b, ringkasTingkat),
@@ -354,7 +362,7 @@ export default function KurikulumKurikulumPage() {
     {
       // Cakupan tingkat: daftar tingkat yang boleh; KOSONG = berlaku di semua
       // tingkat. Disunting lewat dialog checkbox dari kolom Aksi (ikon "Tingkat").
-      key: 'cakupan', label: 'Berlaku di tingkat', width: 170, kind: 'static',
+      key: 'cakupan', label: 'Berlaku di tingkat', width: 200, kind: 'static',
     },
     {
       key: 'kkm', label: 'KKM', width: 90, kind: 'text',
