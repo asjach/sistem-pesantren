@@ -490,6 +490,62 @@ class KurikulumModulTest extends TestCase
     }
 
     /**
+     * Baris tabel pengampus harus membawa id baris komposisi kurikulum + nama
+     * kurikulumnya, karena halaman Pengampu memakai itu untuk action "Keluarkan
+     * dari kurikulum" (mapel hilang dari kurikulum, bukan cuma guru dilepas).
+     *
+     * Saat mapel ada di DUA kurikulum milik kelas yang sama, id-nya ikut
+     * dikumpulkan supaya mapel benar-benar hilang dari kelas itu.
+     */
+    public function test_03d_baris_pengampus_bawa_id_komposisi_kurikulum(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $kurA = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/kurikulum', ['jenjang' => 'MI', 'nama' => 'Kurikulum Kemenag'])
+            ->assertStatus(201)->json();
+        $kurB = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/kurikulum', ['jenjang' => 'MI', 'nama' => 'Kurikulum PERSIS'])
+            ->assertStatus(201)->json();
+        $mapelId = $this->mapel('Fiqih')->id;
+        foreach ([$kurA, $kurB] as $k) {
+            $this->actingAs($super, 'sanctum')
+                ->postJson('/api/admin/kurikulum/komposisi', ['kurikulum_id' => $k['id'], 'mata_pelajaran_id' => $mapelId])
+                ->assertStatus(201);
+        }
+
+        $kelas = $this->kelas('1A', '1');
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/kelas/{$kelas->id}", ['kurikulum_ids' => [$kurA['id'], $kurB['id']]])
+            ->assertStatus(200);
+
+        $res = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/pengampus?kelas_ids[]={$kelas->id}")
+            ->assertStatus(200)->json();
+        $baris = collect($res['baris'])->firstWhere('mata_pelajaran_id', $mapelId);
+
+        $this->assertTrue($baris['dari_kurikulum']);
+        $this->assertCount(2, $baris['komposisi_ids'], 'mapel di dua kurikulum → dua id komposisi');
+        $this->assertEqualsCanonicalizing(['Kurikulum Kemenag', 'Kurikulum PERSIS'], $baris['kurikulum_nama']);
+
+        // Id yang dikirim itu benar-benar bisa dihapus (ini yang dipakai tombolnya).
+        foreach ($baris['komposisi_ids'] as $id) {
+            $this->actingAs($super, 'sanctum')
+                ->deleteJson("/api/admin/kurikulum/komposisi/{$id}")
+                ->assertStatus(200);
+        }
+        $setelah = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/pengampus?kelas_ids[]={$kelas->id}")
+            ->assertStatus(200)->json();
+        $this->assertNull(
+            collect($setelah['baris'])->firstWhere('mata_pelajaran_id', $mapelId),
+            'mapel harus hilang dari daftar pengampu kelas setelah dikeluarkan dari kurikulum'
+        );
+    }
+
+    /**
      * Aksi massal: satu cakupan tingkat diterapkan ke BANYAK baris komposisi
      * sekaligus (checkbox tabel komposisi).
      *

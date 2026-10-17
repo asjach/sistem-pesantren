@@ -652,6 +652,10 @@ class KurikulumController extends Controller
                     'kelompok' => $m->kelompok,
                     'is_active' => $m->is_active,
                     'dari_kurikulum' => isset($urutan[$m->id]),
+                    // Id baris komposisi kurikulum + nama kurikulumnya: dipakai
+                    // halaman Pengampu untuk action "Keluarkan dari kurikulum".
+                    'komposisi_ids' => $urutan[$m->id]['komposisi_ids'] ?? [],
+                    'kurikulum_nama' => $urutan[$m->id]['kurikulum_nama'] ?? [],
                     'pengampu_id' => $p?->id,
                     'keaktifan_pegawai_id' => $p?->keaktifan_pegawai_id,
                     'guru' => $p?->keaktifan?->pegawai?->nama_lengkap,
@@ -862,7 +866,7 @@ class KurikulumController extends Controller
      * Urut `kurikulum_mapel.urutan` lalu nama mapel.
      *
      * @param  list<int>  $kurikulumIds
-     * @return list<array{mata_pelajaran_id: int, nama_mapel: string, urutan: int}>
+     * @return list<array{mata_pelajaran_id: int, nama_mapel: string, urutan: int, komposisi_ids: list<int>, kurikulum_nama: list<string>}>
      */
     private function mapelKurikulumKelas(Kelas $kelas, array $kurikulumIds): array
     {
@@ -872,6 +876,7 @@ class KurikulumController extends Controller
 
         return KurikulumMapel::query()
             ->join('mata_pelajaran as mp', 'mp.id', '=', 'kurikulum_mapel.mata_pelajaran_id')
+            ->join('kurikulum', 'kurikulum.id', '=', 'kurikulum_mapel.kurikulum_id')
             ->whereIn('kurikulum_mapel.kurikulum_id', $kurikulumIds)
             ->where('mp.is_active', true)
             // Cakupan tingkat: TIDAK ADA baris anak = berlaku semua tingkat; ada =
@@ -891,12 +896,24 @@ class KurikulumController extends Controller
             })
             ->orderBy('kurikulum_mapel.urutan')
             ->orderBy('mp.nama_mapel')
-            ->get(['kurikulum_mapel.id as komposisi_id', 'mp.id as mata_pelajaran_id', 'mp.nama_mapel', 'kurikulum_mapel.urutan'])
-            ->unique('mata_pelajaran_id')
-            ->map(fn ($r) => [
-                'mata_pelajaran_id' => (int) $r->mata_pelajaran_id,
-                'nama_mapel' => $r->nama_mapel,
-                'urutan' => (int) $r->urutan,
+            ->get([
+                'kurikulum_mapel.id as komposisi_id',
+                'kurikulum.nama as kurikulum_nama',
+                'mp.id as mata_pelajaran_id',
+                'mp.nama_mapel',
+                'kurikulum_mapel.urutan',
+            ])
+            // Satu mapel bisa masuk beberapa kurikulum milik satu kelas; baris
+            // tabelnya tetap satu, jadi id komposisi (& nama kurikulum) dari
+            // semua kurikulum dikumpulkan — itulah yang perlu dihapus kalau
+            // pengguna mengeluarkan mapel dari kurikulum lewat halaman Pengampu.
+            ->groupBy('mata_pelajaran_id')
+            ->map(fn ($rows) => [
+                'mata_pelajaran_id' => (int) $rows->first()->mata_pelajaran_id,
+                'nama_mapel' => $rows->first()->nama_mapel,
+                'urutan' => (int) $rows->first()->urutan,
+                'komposisi_ids' => $rows->pluck('komposisi_id')->map(fn ($id) => (int) $id)->values()->all(),
+                'kurikulum_nama' => $rows->pluck('kurikulum_nama')->unique()->values()->all(),
             ])
             ->values()
             ->all();

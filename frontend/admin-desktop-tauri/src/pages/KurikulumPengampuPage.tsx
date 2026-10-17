@@ -7,21 +7,22 @@ import { listKelas, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
-import { Copy, FileUp } from '@/icons';
+import { Copy, FileUp, NotebookTabs } from '@/icons';
 import { DeleteAction } from '@/components/RowActions';
+import ConfirmDelete from '@/components/ConfirmDelete';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
   daftarGuruAktif, daftarKurikulum, daftarKelasKurikulum, daftarPengampus,
-  generatePengampu, simpanKelasKurikulum, simpanPengampu,
+  generatePengampu, hapusKomposisi, simpanKelasKurikulum, simpanPengampu,
   batalPotongPengampu, importPengampuPotong, unduhGalatPengampu, unduhTemplatePengampu,
   KOLOM_IMPORT_PENGAMPU,
   type GuruAktif, type Kurikulum, type PengampusBaris,
 } from '@/api/kurikulum';
 
 /**
- * Keterangan aksi baris —_two jenis_, karena akibatnya berbeda total:
+ * Keterangan aksi baris — tiga jenis, karena akibatnya berbeda total:
  *
  *  1. **Baris dari kurikulum** (`dari_kurikulum`): daftar pengampu kelas adalah
  *     GABUNGAN komposisi kurikulum kelas + baris yang tersimpan, jadi baris ini
@@ -29,12 +30,15 @@ import {
  *     barisnya berarti melepas GURU-nya saja — baris muncul kembali tanpa guru.
  *     Karena itu aksi di sini dinamai "Kosongkan guru", bukan "hapus".
  *  2. **Baris manual**: baris benar-benar dihapus dari daftar pengampu.
+ *  3. **Mapel dari kurikulum**: aksi kedua di baris yang sama (ikon notebook)
+ *     menghapus MAPELNYA dari komposisi kurikulum — bukan cuma guru. Lihat
+ *     `aksiKurikulum`.
  */
 function aksiBaris(b: BarisPengampu): { judul: string; keterangan: string; sukses: string } {
   if (b.dari_kurikulum) {
     return {
       judul: 'Kosongkan guru pengampu?',
-      keterangan: `"${b.nama_mapel}" di kelas ${b.nama_kelas} bagian dari kurikulum kelas, jadi mapelnya tetap tampil di daftar — yang dilepas hanya guru pengampunya. Mapel dihapus dari daftar bila dikeluarkan dari kurikulum di halaman Kurikulum.`,
+      keterangan: `"${b.nama_mapel}" di kelas ${b.nama_kelas} bagian dari kurikulum kelas, jadi mapelnya tetap tampil di daftar — yang dilepas hanya guru pengampunya. Untuk menghilangkan mapelnya sendiri, pakai tombol "Keluarkan dari kurikulum".`,
       sukses: `Guru ${b.nama_mapel} (kelas ${b.nama_kelas}) dilepas.`,
     };
   }
@@ -42,6 +46,24 @@ function aksiBaris(b: BarisPengampu): { judul: string; keterangan: string; sukse
     judul: 'Keluarkan mapel dari pengampu?',
     keterangan: `"${b.nama_mapel}" dikeluarkan dari daftar pengampu kelas ${b.nama_kelas}. Guru & penugasan pada baris ini ikut dilepas. Mapel yang sudah punya nilai atau jadwal tidak bisa dikeluarkan.`,
     sukses: `${b.nama_mapel} dikeluarkan dari pengampu kelas ${b.nama_kelas}.`,
+  };
+}
+
+/**
+ * Keterangan dialog "Keluarkan dari kurikulum" — yang dihapus MAPELNYA, bukan
+ * cuma guru: berkasnya di komposisi kurikulum, jadi efeknya ke SEMUA kelas yang
+ * memakai kurikulum itu, bukan cuma kelas yang sedang dibuka.
+ */
+function aksiKurikulum(b: BarisPengampu): { judul: string; keterangan: string; sukses: string } {
+  const kur = b.kurikulum_nama.length > 0 ? b.kurikulum_nama.join(', ') : 'kurikulum kelas';
+  return {
+    judul: 'Keluarkan mapel dari kurikulum?',
+    keterangan: `"${b.nama_mapel}" dikeluarkan dari komposisi ${kur}. Berlaku untuk SEMUA kelas yang memakai kurikulum itu, bukan hanya kelas ${b.nama_kelas} — kelas lain yang memakai kurikulum yang sama ikut kehilangan mapel ini. `
+      + (b.keaktifan_pegawai_id === null
+        ? 'Mapel ini tidak punya guru pengampu di kelas ini, jadi tak ada penugasan yang ikut dilepas.'
+        : `Guru ${b.nama_mapel} di kelas ${b.nama_kelas} juga dilepas. `
+          + 'Kalau mapel ini sudah punya nilai atau jadwal di kelas ini, melepas guru akan DITOLAK dan mapel TIDAK dikeluarkan dari kurikulum.'),
+    sukses: `${b.nama_mapel} dikeluarkan dari ${kur}.`,
   };
 }
 
@@ -78,6 +100,8 @@ export default function KurikulumPengampuPage() {
   } = useFilterGlobalAktif();
   const { user } = useAuth();
   const canUbah = bisa(user, 'kurikulum.ubah');
+  /** Mengeluarkan mapel dari komposisi kurikulum = menghapus baris komposisi. */
+  const canHapus = bisa(user, 'kurikulum.hapus');
 
   const jenjang = targetTunggal(jenjangs);
   const ta = targetTunggal(tahunAjaranNames);
@@ -274,6 +298,30 @@ export default function KurikulumPengampuPage() {
     );
   }, [baris, jalankan, muatPengampu, kelasIds]);
 
+  /**
+   * Keluarkan MAPEL dari kurikulum kelas ini — bukan cuma melepas guru.
+   *
+   * Dua langkah: (1) baris pengampu kelas ini dibuang bila ada (sync `simpanPengampu`
+   * menolak baris yang sudah punya nilai/jadwal, jadi langkah ini bisa gagal —
+   * kalau gagal, komposisi kurikulum TIDAK disentuh); (2) baris komposisi
+   * kurikulum dihapus. Baris pengampu di kelas lain ikut hilang dari daftar saat
+   * tabelnya dimuat ulang, karena mapelnya tak lagi ada di kurikulum.
+   */
+  const hapusMapel = useCallback(async (b: BarisPengampu) => {
+    const aksi = aksiKurikulum(b);
+    await jalankan(async () => {
+      if (b.keaktifan_pegawai_id !== null) {
+        const kirim = baris
+          .filter((x) => x.kelas_id === b.kelas_id && x.id !== b.id)
+          .map((x) => ({ mata_pelajaran_id: x.mata_pelajaran_id, keaktifan_pegawai_id: nilaiGuruRef.current.get(x.id) ?? null }));
+        await simpanPengampu(b.kelas_id, kirim);
+      }
+      for (const id of b.komposisi_ids) {
+        await hapusKomposisi(id);
+      }
+    }, aksi.sukses, async () => { await muatPengampu(kelasIds); });
+  }, [baris, jalankan, muatPengampu, kelasIds]);
+
   /** Kolom tabel pengampu. "Guru pengampu" = select yang langsung tersimpan
    *  saat dipilih (tanpa mode Edit); pilihannya mengikuti daftar guru aktif
    *  jenjang + tahun ajaran, jadi `fields` dihitung ulang saat daftar berubah.
@@ -300,20 +348,46 @@ export default function KurikulumPengampuPage() {
    *  Baris dari kurikulum yang belum punya guru tak perlu aksi — tak ada yang
    *  bisa dilepas. */
   const renderActions = useCallback((b: BarisPengampu) => {
-    if (!canUbah) return null;
-    if (b.dari_kurikulum && b.keaktifan_pegawai_id === null) return null;
     const aksi = aksiBaris(b);
+    const keluarKurikulum = aksiKurikulum(b);
+    // Baris dari kurikulum SELALU bisa dikeluarkan lewat ikon kurikulum, walau
+    // tak ada guru (baris tanpa guru tak punya aksi "Kosongkan guru").
+    const aksiKurikulumBoleh = canHapus && b.dari_kurikulum && b.komposisi_ids.length > 0;
+    if (!canUbah && !aksiKurikulumBoleh) return null;
     return (
-      <DeleteAction
-        id={b.dari_kurikulum
-          ? `btn_kosongkan_guru_${b.kelas_id}_${b.mata_pelajaran_id}`
-          : `btn_hapus_pengampu_${b.kelas_id}_${b.mata_pelajaran_id}`}
-        title={aksi.judul}
-        description={aksi.keterangan}
-        onConfirm={() => void hapusBaris(b)}
-      />
+      <>
+        {canUbah && !(b.dari_kurikulum && b.keaktifan_pegawai_id === null) && (
+          <DeleteAction
+            id={b.dari_kurikulum
+              ? `btn_kosongkan_guru_${b.kelas_id}_${b.mata_pelajaran_id}`
+              : `btn_hapus_pengampu_${b.kelas_id}_${b.mata_pelajaran_id}`}
+            title={aksi.judul}
+            description={aksi.keterangan}
+            onConfirm={() => void hapusBaris(b)}
+          />
+        )}
+        {aksiKurikulumBoleh && (
+          <ConfirmDelete
+            title={keluarKurikulum.judul}
+            description={keluarKurikulum.keterangan}
+            confirmLabel="Keluarkan"
+            onConfirm={() => void hapusMapel(b)}
+            tip="Keluarkan dari kurikulum"
+          >
+            <Button
+              id={`btn_keluar_kurikulum_${b.kelas_id}_${b.mata_pelajaran_id}`}
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Keluarkan mapel dari kurikulum"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <NotebookTabs size={16} />
+            </Button>
+          </ConfirmDelete>
+        )}
+      </>
     );
-  }, [canUbah, hapusBaris]);
+  }, [canUbah, canHapus, hapusBaris, hapusMapel]);
 
   if (!siap) {
     return (

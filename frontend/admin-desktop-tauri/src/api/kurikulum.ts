@@ -63,6 +63,10 @@ export interface PengampuBaris {
   is_active: boolean;
   /** Ada di komposisi kurikulum kelas. */
   dari_kurikulum: boolean;
+  /** Baris komposisi kurikulum yang menyumbang mapel ini (bisa >1 saat kelas
+   *  memakai beberapa kurikulum) — dipakai action "Keluarkan dari kurikulum". */
+  komposisi_ids: number[];
+  kurikulum_nama: string[];
   pengampu_id: number | null;
   keaktifan_pegawai_id: number | null;
   guru: string | null;
