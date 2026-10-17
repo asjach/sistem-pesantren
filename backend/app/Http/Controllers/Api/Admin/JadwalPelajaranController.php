@@ -160,8 +160,10 @@ class JadwalPelajaranController extends Controller
         $tambahan = array_values(array_diff($baru, $lama));
 
         if ($tambahan !== []) {
-            $pengampuIds = PengampuMapel::whereHas('kelas', fn ($q) => $q->where('jenjang', $data['jenjang']))->pluck('id');
-            $terisi = JadwalPelajaran::whereIn('pengampu_mapel_id', $pengampuIds)
+            $terisi = JadwalPelajaran::whereHas(
+                'kelas',
+                fn ($q) => $q->where('jenjang', $data['jenjang']),
+            )
                 ->whereIn('hari', $tambahan)
                 ->distinct()->pluck('hari')->all();
             if ($terisi !== []) {
@@ -205,8 +207,9 @@ class JadwalPelajaranController extends Controller
         $baris = JadwalPelajaran::with([
             'pengampuMapel.mataPelajaran:id,nama_mapel',
             'pengampuMapel.keaktifan.pegawai:id,nama_lengkap,gelar_depan,gelar_belakang,jenis_kelamin',
+            'keaktifan.pegawai:id,nama_lengkap,gelar_depan,gelar_belakang,jenis_kelamin',
         ])
-            ->whereIn('pengampu_mapel_id', PengampuMapel::where('kelas_id', $kelas->id)->pluck('id'))
+            ->where('kelas_id', $kelas->id)
             ->get()
             ->map(fn (JadwalPelajaran $j) => [
                 'id' => $j->id,
@@ -214,16 +217,19 @@ class JadwalPelajaranController extends Controller
                 'slot_jam_id' => $j->slot_jam_id,
                 'pengampu_mapel_id' => $j->pengampu_mapel_id,
                 'mata_pelajaran_id' => $j->pengampuMapel?->mata_pelajaran_id,
-                'keaktifan_pegawai_id' => $j->pengampuMapel?->keaktifan_pegawai_id,
+                'keaktifan_pegawai_id' => $j->pengampuMapel?->keaktifan_pegawai_id
+                    ?? $j->keaktifan_pegawai_id,
                 'nama_mapel' => $j->pengampuMapel?->mataPelajaran?->nama_mapel,
-                'guru' => $j->pengampuMapel?->keaktifan?->pegawai?->nama_lengkap,
+                'guru' => $j->pengampuMapel?->keaktifan?->pegawai?->nama_lengkap
+                    ?? $j->keaktifan?->pegawai?->nama_lengkap,
+                'guru_saja' => $j->pengampu_mapel_id === null,
                 'ruangan' => $j->ruangan,
             ])
             ->values();
 
         // Semua pengampu kelas ini = pilihan tiap sel. Mapel yang sudah
         // terjadwal tetap ditawarkan agar bisa dipakai di slot lain (2 JP+).
-        $terjadwal = $baris->pluck('pengampu_mapel_id')->unique();
+        $terjadwal = $baris->pluck('pengampu_mapel_id')->filter()->unique();
         $pengampu = PengampuMapel::with(['mataPelajaran:id,nama_mapel', 'keaktifan.pegawai:id,nama_lengkap'])
             ->where('kelas_id', $kelas->id)
             ->get()
@@ -306,7 +312,7 @@ class JadwalPelajaranController extends Controller
             ]);
         }
 
-        return response()->json(JadwalPelajaran::create($data), 201);
+        return response()->json(JadwalPelajaran::create($data + ['kelas_id' => $kelas->id]), 201);
     }
 
     /**
@@ -348,14 +354,16 @@ class JadwalPelajaranController extends Controller
             ]);
         }
 
-        $pengampuIds = PengampuMapel::where('kelas_id', $kelas->id)->pluck('id');
-        $jadwal = JadwalPelajaran::where('slot_jam_id', $slot->id)
+        $jadwal = JadwalPelajaran::where('kelas_id', $kelas->id)
+            ->where('slot_jam_id', $slot->id)
             ->where('hari', $data['hari'])
-            ->whereIn('pengampu_mapel_id', $pengampuIds)
             ->first();
 
         $mapelId = $data['mata_pelajaran_id'] ?? null;
-        if ($mapelId === null) {
+        $guruId = $data['keaktifan_pegawai_id'] ?? null;
+
+        // Mapel & guru sama-sama kosong = kosongkan sel.
+        if ($mapelId === null && $guruId === null) {
             if ($jadwal !== null) {
                 $jadwal->delete();
             }
@@ -363,11 +371,12 @@ class JadwalPelajaranController extends Controller
             return response()->json(['pesan' => 'Jadwal dikosongkan.', 'jadwal' => null]);
         }
 
-        $mapel = MataPelajaran::findOrFail($mapelId);
-        if ($mapel->jenjang !== $kelas->jenjang) {
-            throw ValidationException::withMessages(['mata_pelajaran_id' => 'Mapel harus sejenjang dengan kelas.']);
+        if ($mapelId !== null) {
+            $mapel = MataPelajaran::findOrFail($mapelId);
+            if ($mapel->jenjang !== $kelas->jenjang) {
+                throw ValidationException::withMessages(['mata_pelajaran_id' => 'Mapel harus sejenjang dengan kelas.']);
+            }
         }
-        $guruId = $data['keaktifan_pegawai_id'] ?? null;
         if ($guruId !== null && ! KeaktifanPegawai::whereKey($guruId)
             ->where('jenjang', $kelas->jenjang)
             ->where('tahun_ajaran', $kelas->tahun_ajaran)
@@ -383,6 +392,32 @@ class JadwalPelajaranController extends Controller
             throw ValidationException::withMessages([
                 'slot_jam_id' => 'Kelas ini sudah punya pelajaran pada waktu yang bertumpuk.',
             ]);
+        }
+
+        // Guru saja (mapel menyusul): disimpan langsung di sel.
+        if ($mapelId === null) {
+            if ($this->slotBentrok($slot, $data['hari'], null, $guruId, $jadwal?->id)) {
+                throw ValidationException::withMessages([
+                    'keaktifan_pegawai_id' => "Guru ini sudah mengajar pada {$data['hari']} jam itu.",
+                ]);
+            }
+
+            DB::transaction(function () use (&$jadwal, $kelas, $slot, $data, $guruId): void {
+                $atribut = [
+                    'kelas_id' => $kelas->id,
+                    'pengampu_mapel_id' => null,
+                    'keaktifan_pegawai_id' => $guruId,
+                    'slot_jam_id' => $slot->id,
+                    'hari' => $data['hari'],
+                ];
+                if ($jadwal !== null) {
+                    $jadwal->update($atribut);
+                } else {
+                    $jadwal = JadwalPelajaran::create($atribut);
+                }
+            });
+
+            return response()->json(['pesan' => 'Guru disimpan.', 'jadwal' => $jadwal?->fresh()]);
         }
 
         $pengampu = PengampuMapel::firstOrNew([
@@ -415,13 +450,17 @@ class JadwalPelajaranController extends Controller
             }
         }
 
-        DB::transaction(function () use (&$jadwal, $pengampu, $slot, $data): void {
+        DB::transaction(function () use (&$jadwal, $pengampu, $kelas, $slot, $data): void {
             $pengampu->save();
+            $atribut = [
+                'kelas_id' => $kelas->id,
+                'pengampu_mapel_id' => $pengampu->id,
+                'keaktifan_pegawai_id' => null,
+            ];
             if ($jadwal !== null) {
-                $jadwal->update(['pengampu_mapel_id' => $pengampu->id]);
+                $jadwal->update($atribut);
             } else {
-                $jadwal = JadwalPelajaran::create([
-                    'pengampu_mapel_id' => $pengampu->id,
+                $jadwal = JadwalPelajaran::create($atribut + [
                     'slot_jam_id' => $slot->id,
                     'hari' => $data['hari'],
                 ]);
@@ -434,7 +473,7 @@ class JadwalPelajaranController extends Controller
     /** DELETE /admin/kurikulum/jadwal/{jadwal} */
     public function destroyJadwal(Request $request, JadwalPelajaran $jadwal): JsonResponse
     {
-        $jenjang = $jadwal->pengampuMapel?->kelas?->jenjang;
+        $jenjang = $jadwal->kelas?->jenjang ?? $jadwal->pengampuMapel?->kelas?->jenjang;
         if ($jenjang === null) {
             abort(404);
         }
@@ -672,9 +711,7 @@ class JadwalPelajaranController extends Controller
             $dilewati = [];
 
             foreach ($kelasTarget as $kelas) {
-                $pengampuIds = PengampuMapel::where('kelas_id', $kelas->id)->pluck('id')->all();
-                $punyaJadwal = $pengampuIds !== []
-                    && JadwalPelajaran::whereIn('pengampu_mapel_id', $pengampuIds)->exists();
+                $punyaJadwal = JadwalPelajaran::where('kelas_id', $kelas->id)->exists();
                 $jumlahSlotLama = SlotJamPelajaran::where('kelas_id', $kelas->id)->count();
 
                 if ($jumlahSlotLama > 0 && ! $timpa) {
@@ -689,9 +726,7 @@ class JadwalPelajaranController extends Controller
                 }
 
                 if ($timpa && $tulis) {
-                    if ($pengampuIds !== []) {
-                        JadwalPelajaran::whereIn('pengampu_mapel_id', $pengampuIds)->delete();
-                    }
+                    JadwalPelajaran::where('kelas_id', $kelas->id)->delete();
                     SlotJamPelajaran::where('kelas_id', $kelas->id)->delete();
                 }
                 if ($timpa) {
@@ -871,9 +906,14 @@ class JadwalPelajaranController extends Controller
             $q->where('id', '!=', $abaikanJadwalId);
         }
         if ($kelasId !== null) {
-            $q->whereHas('pengampuMapel', fn ($q) => $q->where('kelas_id', $kelasId));
+            $q->where('kelas_id', $kelasId);
         } elseif ($guruId !== null) {
-            $q->whereHas('pengampuMapel', fn ($q) => $q->where('keaktifan_pegawai_id', $guruId));
+            // Guru bisa tersimpan di pengampu (mapel sudah diisi) atau langsung
+            // di sel (guru dulu, mapel menyusul).
+            $q->where(function ($q) use ($guruId): void {
+                $q->where('keaktifan_pegawai_id', $guruId)
+                    ->orWhereHas('pengampuMapel', fn ($q) => $q->where('keaktifan_pegawai_id', $guruId));
+            });
         } else {
             return false;
         }

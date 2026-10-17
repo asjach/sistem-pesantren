@@ -47,9 +47,10 @@ function namaGuru(g: GuruAktif): string {
 }
 
 /** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × JP) + tab
- *  template mingguan & hari libur. Klik sel membuka dialog Mapel + Guru;
- *  blok beberapa sel lalu klik kanan mengisi mapel & guru sekaligus.
- *  Tampilan memilih isi sel: keduanya, mapel saja, atau guru saja. */
+ *  template mingguan & hari libur. Klik sel membuka dialog Guru + Mapel
+ *  (guru boleh diisi lebih dulu, mapel menyusul); blok beberapa sel lalu
+ *  klik kanan mengisi keduanya sekaligus. Tampilan memilih isi sel:
+ *  keduanya, mapel saja, atau guru saja. */
 export default function KurikulumJadwalPage() {
   const [tab, setTab] = useState('jadwal');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
@@ -247,7 +248,9 @@ export default function KurikulumJadwalPage() {
     const guruSama = nilai.every((n) => (n?.keaktifan_pegawai_id ?? null) === (nilai[0]?.keaktifan_pegawai_id ?? null));
     setEditSel(sasaran);
     setSelMapel(mapelSama ? (nilai[0]?.mata_pelajaran_id ?? '') : '');
-    setSelGuru(guruSama ? (nilai[0]?.keaktifan_pegawai_id ?? '') : '');
+    // Guru hanya diisi otomatis saat mapel seragam: blok dengan mapel campur
+    // jangan sampai berubah jadi guru-saja hanya karena guru ikut terbawa.
+    setSelGuru(mapelSama && guruSama ? (nilai[0]?.keaktifan_pegawai_id ?? '') : '');
   }, [canUbah, hari, petaJadwal]);
 
   /** Isi sel: mapel + guru (dua baris, gaya berbeda), mapel saja, atau guru
@@ -264,17 +267,23 @@ export default function KurikulumJadwalPage() {
     }
     const j = petaJadwal.get(`${s.id}|${h}`);
     if (j === undefined) return null;
+    const mapel = j.nama_mapel;
+    const guru = j.guru;
     if (tampilan === 'mapel') {
-      return <span className="max-w-full truncate">{j.nama_mapel ?? '?'}</span>;
+      return mapel === null ? null : <span className="max-w-full truncate">{mapel}</span>;
     }
     if (tampilan === 'guru') {
-      return <span className="max-w-full truncate">{j.guru ?? '—'}</span>;
+      return <span className="max-w-full truncate">{guru ?? '—'}</span>;
+    }
+    // Guru dulu, mapel menyusul: tampilkan guru saja sampai mapel diisi.
+    if (mapel === null) {
+      return guru === null ? null : <span className="max-w-full truncate">{guru}</span>;
     }
     return (
       <span className="flex min-w-0 max-w-full flex-col items-center justify-center leading-none">
-        <span className="max-w-full truncate text-[10px] leading-[1.15]">{j.nama_mapel ?? '?'}</span>
-        {j.guru ? (
-          <span className="max-w-full truncate text-[9px] leading-[1.15] text-muted-foreground">{j.guru}</span>
+        <span className="max-w-full truncate text-[10px] leading-[1.15]">{mapel}</span>
+        {guru ? (
+          <span className="max-w-full truncate text-[9px] leading-[1.15] text-muted-foreground">{guru}</span>
         ) : null}
       </span>
     );
@@ -300,11 +309,15 @@ export default function KurikulumJadwalPage() {
       if (s.jenis !== 'pelajaran') { v[h] = s.nama_slot ?? JENIS_SLOT_LABEL[s.jenis]; continue; }
       const j = petaJadwal.get(`${s.id}|${h}`);
       if (j === undefined) { v[h] = ''; continue; }
+      const mapel = j.nama_mapel;
+      const guru = j.guru;
       v[h] = tampilan === 'mapel'
-        ? (j.nama_mapel ?? '')
+        ? (mapel ?? '')
         : tampilan === 'guru'
-          ? (j.guru ?? '')
-          : `${j.nama_mapel ?? '?'}${j.guru ? ` — ${j.guru}` : ''}`;
+          ? (guru ?? '')
+          : mapel === null
+            ? (guru ?? '')
+            : `${mapel}${guru ? ` — ${guru}` : ''}`;
     }
     return v;
   }, [hari, petaJadwal, tampilan]);
@@ -541,35 +554,30 @@ export default function KurikulumJadwalPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
-            <label className="flex flex-col gap-1 text-xs" htmlFor="select_mapel_sel">
-              Mapel
-              <select
-                id="select_mapel_sel"
-                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-                value={selMapel === '' ? '' : String(selMapel)}
-                onChange={(e) => {
-                  const v = e.target.value === '' ? '' : Number(e.target.value);
-                  setSelMapel(v);
-                  setSelGuru('');
-                }}
-              >
-                <option value="">— kosong —</option>
-                {mapelDialog.map((m) => <option key={m.id} value={m.id}>{m.nama_mapel}</option>)}
-              </select>
-            </label>
             <label className="flex flex-col gap-1 text-xs" htmlFor="select_guru_sel">
               Guru pengampu
               <select
                 id="select_guru_sel"
                 className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
                 value={selGuru === '' ? '' : String(selGuru)}
-                disabled={selMapel === ''}
                 onChange={(e) => setSelGuru(e.target.value === '' ? '' : Number(e.target.value))}
               >
                 <option value="">— tanpa guru —</option>
                 {guruDialog.map((g) => (
                   <option key={g.keaktifan_pegawai_id} value={g.keaktifan_pegawai_id}>{namaGuru(g)}</option>
                 ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs" htmlFor="select_mapel_sel">
+              Mapel
+              <select
+                id="select_mapel_sel"
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                value={selMapel === '' ? '' : String(selMapel)}
+                onChange={(e) => setSelMapel(e.target.value === '' ? '' : Number(e.target.value))}
+              >
+                <option value="">— kosong —</option>
+                {mapelDialog.map((m) => <option key={m.id} value={m.id}>{m.nama_mapel}</option>)}
               </select>
             </label>
           </div>

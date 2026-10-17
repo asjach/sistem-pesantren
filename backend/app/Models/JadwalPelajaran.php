@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Satu pertemuan terjadwal: pengampu (kelas × mapel) pada hari + slot jam. */
+/** Satu pertemuan terjadwal: pengampu (kelas × mapel) atau guru-saja pada hari + slot jam. */
 class JadwalPelajaran extends Model
 {
     public const HARI = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
@@ -33,9 +33,20 @@ class JadwalPelajaran extends Model
 
     protected $guarded = ['id'];
 
+    public function kelas(): BelongsTo
+    {
+        return $this->belongsTo(Kelas::class);
+    }
+
     public function pengampuMapel(): BelongsTo
     {
         return $this->belongsTo(PengampuMapel::class);
+    }
+
+    /** Guru langsung di sel — dipakai saat mapel belum diisi. */
+    public function keaktifan(): BelongsTo
+    {
+        return $this->belongsTo(KeaktifanPegawai::class, 'keaktifan_pegawai_id');
     }
 
     public function slot(): BelongsTo

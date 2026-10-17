@@ -393,6 +393,83 @@ class TemplateJadwalTest extends TestCase
         $this->assertDatabaseHas('pengampu_mapel', ['id' => $pengampu->id]);
     }
 
+    public function test_guru_boleh_diisi_dulu_tanpa_mapel(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+        $guruId = $this->guru();
+
+        $a = $this->kelas('1A', '1');
+        $b = $this->kelas('1B', '1');
+        $fiqih = $this->mapel('Fiqih');
+        $id = $this->template($super, 'Satu Jam', [
+            ['hari' => 'senin', 'nama_slot' => 'Jam 1', 'jam_mulai' => '07:00', 'jam_selesai' => '07:45'],
+        ]);
+        $this->terapkan($super, $id, ['sasaran' => 'kelas', 'sasaran_id' => (string) $a->id]);
+        $this->terapkan($super, $id, ['sasaran' => 'kelas', 'sasaran_id' => (string) $b->id]);
+        $slotA = SlotJamPelajaran::where('kelas_id', $a->id)->firstOrFail();
+        $slotB = SlotJamPelajaran::where('kelas_id', $b->id)->firstOrFail();
+
+        // Guru dulu, mapel menyusul: sel disimpan tanpa pengampu.
+        $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
+            'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
+            'mata_pelajaran_id' => null, 'keaktifan_pegawai_id' => $guruId,
+        ])->assertStatus(200);
+
+        $this->assertDatabaseHas('jadwal_pelajaran', [
+            'kelas_id' => $a->id,
+            'pengampu_mapel_id' => null,
+            'keaktifan_pegawai_id' => $guruId,
+        ]);
+        $this->assertDatabaseCount('pengampu_mapel', 0);
+
+        $resp = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/jadwal?kelas_id={$a->id}")
+            ->assertStatus(200)->json();
+        $this->assertCount(1, $resp['baris']);
+        $this->assertNull($resp['baris'][0]['mata_pelajaran_id']);
+        $this->assertSame($guruId, (int) $resp['baris'][0]['keaktifan_pegawai_id']);
+        $this->assertTrue($resp['baris'][0]['guru_saja']);
+
+        // Guru yang sama di kelas lain pada waktu yang sama tetap bentrok.
+        $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
+            'kelas_id' => $b->id, 'slot_jam_id' => $slotB->id, 'hari' => 'senin',
+            'mata_pelajaran_id' => null, 'keaktifan_pegawai_id' => $guruId,
+        ])->assertStatus(422)->assertJsonValidationErrors('keaktifan_pegawai_id');
+
+        // Mapel menyusul: pengampu dibuat, guru langsung di sel dibersihkan.
+        $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
+            'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
+            'mata_pelajaran_id' => $fiqih->id, 'keaktifan_pegawai_id' => $guruId,
+        ])->assertStatus(200);
+
+        $pengampu = PengampuMapel::where('kelas_id', $a->id)
+            ->where('mata_pelajaran_id', $fiqih->id)->firstOrFail();
+        $this->assertSame($guruId, (int) $pengampu->keaktifan_pegawai_id);
+        $jadwal = JadwalPelajaran::firstOrFail();
+        $this->assertSame($pengampu->id, $jadwal->pengampu_mapel_id);
+        $this->assertNull($jadwal->keaktifan_pegawai_id);
+        $this->assertSame($a->id, (int) $jadwal->kelas_id);
+
+        // Kembali ke guru-saja: mapel dilepas dari sel, pengampu tetap ada.
+        $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
+            'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
+            'mata_pelajaran_id' => null, 'keaktifan_pegawai_id' => $guruId,
+        ])->assertStatus(200);
+        $jadwal->refresh();
+        $this->assertNull($jadwal->pengampu_mapel_id);
+        $this->assertSame($guruId, (int) $jadwal->keaktifan_pegawai_id);
+        $this->assertDatabaseHas('pengampu_mapel', ['id' => $pengampu->id]);
+
+        // Dua-duanya kosong = sel dihapus.
+        $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
+            'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
+            'mata_pelajaran_id' => null, 'keaktifan_pegawai_id' => null,
+        ])->assertStatus(200);
+        $this->assertDatabaseCount('jadwal_pelajaran', 0);
+    }
+
     public function test_lingkup_template_menolak_sasaran_yang_tidak_cocok(): void
     {
         $this->lembaga('MI');

@@ -852,7 +852,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `created_at`, `updated_at`
 - UNIQUE(`kelas_id`, `mata_pelajaran_id`)
 
-Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kurikulum + komposisi + peta kelas→kurikulum sudah dihapus — migrasi `2026_10_18_070000`). Mapel masuk kelas lewat halaman Pengampu (Tambah mapel / Salin dari kelas lain / import) atau dibuat/diperbarui otomatis saat mapel + guru diisi dari daftar jadwal; baris yang sudah punya nilai atau jadwal tak boleh dikeluarkan.
+Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kurikulum + komposisi + peta kelas→kurikulum sudah dihapus — migrasi `2026_10_18_070000`). Mapel masuk kelas lewat halaman Pengampu (Tambah mapel / Salin dari kelas lain / import) atau dibuat/diperbarui otomatis saat mapel diisi dari daftar jadwal; baris yang sudah punya nilai atau jadwal tak boleh dikeluarkan. Guru boleh diisi lebih dulu di sel jadwal tanpa mapel — guru itu tersimpan di `jadwal_pelajaran.keaktifan_pegawai_id` sampai mapel menyusul dan pengampu terbentuk.
 
 ### `slot_jam_pelajaran`
 - `id` PK
@@ -869,12 +869,15 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 
 ### `jadwal_pelajaran`
 - `id` PK
-- `pengampu_mapel_id`: FK → pengampu_mapel [cascade]
+- `kelas_id`: FK → kelas [cascade] — kelas pemilik sel (dipakai juga saat guru diisi tanpa mapel)
+- `pengampu_mapel_id`: FK → pengampu_mapel [null, cascade] — null = sel baru berisi guru, mapel menyusul
+- `keaktifan_pegawai_id`: FK → keaktifan_pegawai [null, cascade] — guru langsung di sel saat mapel belum diisi; selalu null bila pengampu terisi
 - `slot_jam_id`: FK → slot_jam_pelajaran [cascade]
 - `hari`: enum(senin|selasa|rabu|kamis|jumat|sabtu|minggu)
 - `ruangan`: string [null]
 - `created_at`, `updated_at`
-- UNIQUE(`pengampu_mapel_id`, `slot_jam_id`, `hari`) — Unik per slot/hari = backing constraint validasi bentrok; pengampu yang sama boleh dipakai di slot lain (2 JP atau lebih)
+- UNIQUE(`kelas_id`, `slot_jam_id`, `hari`) — satu sel per kelas per slot/hari
+- UNIQUE(`pengampu_mapel_id`, `slot_jam_id`, `hari`) — pengampu yang sama boleh dipakai di slot lain (2 JP atau lebih); null (guru-saja) boleh berulang
 
 ### `template_jadwal`
 - `id` PK

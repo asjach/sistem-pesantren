@@ -68,9 +68,14 @@ export interface SlotJam {
 export type SlotJadwal = Omit<SlotJam, 'jenjang'>;
 
 export interface JadwalBaris {
-  id: number; hari: string; slot_jam_id: number; pengampu_mapel_id: number;
+  id: number; hari: string; slot_jam_id: number;
+  /** Null = sel baru berisi guru; mapel menyusul. */
+  pengampu_mapel_id: number | null;
   mata_pelajaran_id: number | null; keaktifan_pegawai_id: number | null;
-  nama_mapel: string | null; guru: string | null; ruangan: string | null;
+  nama_mapel: string | null; guru: string | null;
+  /** True bila sel hanya berisi guru (mapel belum diisi). */
+  guru_saja?: boolean;
+  ruangan: string | null;
 }
 
 export interface JadwalResp {
