@@ -99,7 +99,9 @@ export function SelectCell({ rowData, setRowData, columnData, focus, stopEditing
   const cur = (rowData[key] as string) ?? '';
   const opsi = String(rowData.id) === INPUT_ROW_ID && columnData.choicesInput
     ? columnData.choicesInput
-    : columnData.choices;
+    : columnData.choicesForRow
+      ? columnData.choicesForRow(rowData.id)
+      : columnData.choices;
   const label = opsi.find((c) => c.value === cur)?.label ?? cur;
   /* Nilai sel belum ada di daftar pilihan — baris input selalu mulai kosong,
      sel data bisa dikosongkan (Delete), dan pilihan bisa menyusut saat filter
@@ -207,7 +209,9 @@ export function SelectRadixCell({ rowData, setRowData, columnData, stopEditing, 
   const cur = (rowData[key] as string) ?? '';
   const opsi = String(rowData.id) === INPUT_ROW_ID && columnData.choicesInput
     ? columnData.choicesInput
-    : columnData.choices;
+    : columnData.choicesForRow
+      ? columnData.choicesForRow(rowData.id)
+      : columnData.choices;
   const label = opsi.find((c) => c.value === cur)?.label ?? cur;
   const placeholder = cur === '' ? (columnData.placeholder ?? 'Pilih…') : cur;
   const [buka, setBuka] = useState(false);

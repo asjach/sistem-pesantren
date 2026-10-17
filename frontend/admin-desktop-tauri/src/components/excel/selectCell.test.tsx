@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import type { CellProps } from 'react-datasheet-grid';
 import { describe, expect, it, vi } from 'vitest';
 
-import { SelectCell } from './cells';
+import { ThemeProvider } from '@/theme';
+import { SelectCell, SelectRadixCell } from './cells';
 import { INPUT_ROW_ID } from './helpers';
 import type { GridRow, SelectColData } from './types';
 
@@ -93,5 +94,37 @@ describe('SelectCell — opsi pertama harus benar-benar bisa dipilih', () => {
     const { select } = renderSel({ jenis: '' }, { placeholder: 'Pilih jenis tagihan…' });
 
     expect(select.options[0].textContent).toBe('Pilih jenis tagihan…');
+  });
+
+  it('choicesForRow menggantikan choices untuk baris data', () => {
+    const { select } = renderSel({ id: 9, jenis: '5' }, {
+      choices: PILIHAN,
+      choicesForRow: (id) => [{ value: '5', label: `Baris ${id}` }],
+    });
+
+    expect(select.options).toHaveLength(1);
+    expect(select.options[0].textContent).toBe('Baris 9');
+  });
+});
+
+describe('SelectRadixCell — pilihan per baris', () => {
+  it('menampilkan label dari choicesForRow', () => {
+    const props = {
+      rowData: { id: 9, checked: false, jenis: '5' } as GridRow,
+      setRowData: vi.fn(),
+      columnData: {
+        fieldKey: 'jenis',
+        choices: [],
+        choicesForRow: (id: number | string) => [{ value: '5', label: `Mapel ${id}` }],
+      } as SelectColData,
+      focus: true,
+      stopEditing: vi.fn(),
+      disabled: false,
+      columnIndex: 1,
+    } as unknown as CellProps<GridRow, SelectColData>;
+
+    render(<ThemeProvider><SelectRadixCell {...props} /></ThemeProvider>);
+
+    expect(screen.getByRole('button', { name: 'jenis' }).textContent).toContain('Mapel 9');
   });
 });

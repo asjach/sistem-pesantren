@@ -2,14 +2,45 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { DeleteAction } from '@/components/RowActions';
 import { errorMessage } from '@/api/client';
-import { Plus, Save, Trash2, X } from '@/icons';
+import { Plus, Trash2 } from '@/icons';
 import {
   buatTemplateJadwal, daftarTemplateJadwal, detailTemplateJadwal,
   hapusBarisTemplate, hapusTemplateJadwal, tambahBarisTemplate,
   terapkanTemplate, ubahBarisTemplate, ubahTemplateJadwal,
-  type TemplateJadwal, type TemplateJadwalDetail, type TerapkanHasil,
+  type TemplateJadwal, type TemplateJadwalBaris, type TemplateJadwalDetail, type TerapkanHasil,
 } from '@/api/kurikulum';
+
+function validasiJam(v: string | null): string | null {
+  if (v === null || v.trim() === '') return null;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(v.trim()) ? null : 'Format jam HH:MM.';
+}
+
+function validasiUrutan(v: string | null): string | null {
+  if (v === null || v.trim() === '') return 'Jam ke- wajib diisi.';
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 && n <= 99 ? null : 'Jam ke- harus bilangan bulat 1–99.';
+}
+
+export const FIELDS_KERANGKA: ExcelField[] = [
+  { key: 'urutan_slot', label: 'Jam ke-', width: 90, kind: 'text', maxLength: 2, format: 'angka', required: true, validate: validasiUrutan },
+  { key: 'nama_slot', label: 'Nama', width: 180, kind: 'text', maxLength: 50 },
+  { key: 'jam_mulai', label: 'Mulai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
+  { key: 'jam_selesai', label: 'Selesai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
+  { key: 'is_istirahat', label: 'Istirahat', width: 100, kind: 'toggle', toggleTanpaEdit: true },
+];
+
+function nilaiKerangka(b: TemplateJadwalBaris): Record<string, string | null> {
+  return {
+    urutan_slot: String(b.urutan_slot),
+    nama_slot: b.nama_slot ?? null,
+    jam_mulai: b.jam_mulai ?? null,
+    jam_selesai: b.jam_selesai ?? null,
+    is_istirahat: b.is_istirahat ? 'ya' : 'tidak',
+  };
+}
 
 /** Panel tab Template Jadwal: kerangka jam murni (tanpa mapel/pengampu). */
 export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, onTerapkan }: {
@@ -69,6 +100,35 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
     } catch (e) { toast.error(errorMessage(e)); }
   };
 
+  const commitBaris = async (id: number | string, f: Record<string, string | null>) => {
+    await ubahBarisTemplate(Number(id), {
+      ...(f.urutan_slot !== undefined ? { urutan_slot: Number(f.urutan_slot) } : {}),
+      ...(f.nama_slot !== undefined ? { nama_slot: (f.nama_slot ?? '').trim() || null } : {}),
+      ...(f.jam_mulai !== undefined ? { jam_mulai: (f.jam_mulai ?? '').trim() || null } : {}),
+      ...(f.jam_selesai !== undefined ? { jam_selesai: (f.jam_selesai ?? '').trim() || null } : {}),
+      ...(f.is_istirahat !== undefined ? { is_istirahat: f.is_istirahat === 'ya' } : {}),
+    });
+  };
+
+  const hapusBaris = async (b: TemplateJadwalBaris) => {
+    try {
+      await hapusBarisTemplate(b.id);
+      toast.success('Jam dihapus.');
+      await segarkan(terpilih);
+    } catch (e) { toast.error(errorMessage(e)); }
+  };
+
+  const renderActions = (b: TemplateJadwalBaris) => (
+    canHapus ? (
+      <DeleteAction
+        id={`btn_hapus_baris_template_${b.id}`}
+        title="Hapus jam?"
+        description={`Jam ke-${b.urutan_slot} akan dihapus dari kerangka.`}
+        onConfirm={() => void hapusBaris(b)}
+      />
+    ) : null
+  );
+
   const jalankanTerap = async (mode: 'pratinjau' | 'eksekusi', timpa: boolean) => {
     if (terpilih === '') return;
     try {
@@ -120,6 +180,18 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
             <span className="text-[11px] text-muted-foreground">
               Kerangka {jenjang}: {detail.baris.length} jam, berlaku semua hari aktif.
             </span>
+            {canTambah && (
+              <>
+                <Button type="button" variant="outline" size="sm" id="btn_tambah_jam_template"
+                  onClick={() => void tambahJam(false)}>
+                  <Plus size={14} /> Tambah jam
+                </Button>
+                <Button type="button" variant="outline" size="sm" id="btn_tambah_istirahat_template"
+                  onClick={() => void tambahJam(true)}>
+                  <Plus size={14} /> Tambah istirahat
+                </Button>
+              </>
+            )}
             {canHapus && (
               <Button
                 type="button" variant="ghost" size="sm" id="btn_hapus_template"
@@ -149,46 +221,26 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
               </label>
             )}
           </div>
-          <div className="min-h-0 flex-1 overflow-auto p-3">
-            <table className="w-full max-w-2xl border-collapse text-xs" id="tabel_template_jadwal">
-              <thead className="bg-muted/60">
-                <tr>
-                  <th className="border border-border px-2 py-1 text-left w-16">Jam ke-</th>
-                  <th className="border border-border px-2 py-1 text-left">Nama</th>
-                  <th className="border border-border px-2 py-1 w-24">Mulai</th>
-                  <th className="border border-border px-2 py-1 w-24">Selesai</th>
-                  <th className="border border-border px-2 py-1 w-24">Istirahat</th>
-                  <th className="border border-border px-2 py-1 w-20">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detail.baris.map((b) => (
-                  <BarisKerangka key={b.id} barisId={b.id}
-                    nama={b.nama_slot ?? ''} mulai={b.jam_mulai ?? ''} selesai={b.jam_selesai ?? ''}
-                    urutan={b.urutan_slot} istirahat={b.is_istirahat}
-                    canUbah={canUbah} canHapus={canHapus} terpilih={terpilih} segarkan={segarkan} />
-                ))}
-                {detail.baris.length === 0 && (
-                  <tr><td colSpan={6} className="border border-border px-2 py-4 text-center text-muted-foreground">
-                    Belum ada jam di kerangka ini — tambah lewat tombol di bawah.
-                  </td></tr>
-                )}
-              </tbody>
-            </table>
 
-            {canTambah && (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Button type="button" variant="outline" size="sm" id="btn_tambah_jam_template"
-                  onClick={() => void tambahJam(false)}>
-                  <Plus size={14} /> Tambah jam
-                </Button>
-                <Button type="button" variant="outline" size="sm" id="btn_tambah_istirahat_template"
-                  onClick={() => void tambahJam(true)}>
-                  <Plus size={14} /> Tambah istirahat
-                </Button>
-              </div>
-            )}
+          <div className="min-h-0 flex-1 p-3">
+            <ExcelTable<TemplateJadwalBaris>
+              tableKey="kurikulum_template_jadwal"
+              sumberTabel="template_jadwal_baris"
+              fields={FIELDS_KERANGKA}
+              rows={detail.baris}
+              getValues={nilaiKerangka}
+              canEdit={canUbah}
+              onCommit={commitBaris}
+              onSaved={() => segarkan(terpilih)}
+              renderActions={renderActions}
+              hideCheckbox
+              hidePreset
+              aksiLangsung
+              emptyText="Belum ada jam di kerangka ini — tambah lewat tombol di atas."
+            />
+          </div>
 
+          <div className="shrink-0 border-t border-border px-3 py-2">
             <TerapkanKerangka
               jenjang={jenjang} canTambah={canTambah} aktif={detail.template.is_active}
               hasil={hasil} jalankanTerap={jalankanTerap} />
@@ -196,81 +248,6 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
         </>
       )}
     </div>
-  );
-}
-
-/** Satu baris jam kerangka dengan penyuntingan inline. */
-function BarisKerangka({ barisId, nama, mulai, selesai, urutan, istirahat, canUbah, canHapus, terpilih, segarkan }: {
-  barisId: number; nama: string; mulai: string; selesai: string; urutan: number; istirahat: boolean;
-  canUbah: boolean; canHapus: boolean; terpilih: number | ''; segarkan: (id: number | '') => Promise<void>;
-}) {
-  const [namaBaru, setNamaBaru] = useState(nama);
-  const [mulaiBaru, setMulaiBaru] = useState(mulai);
-  const [selesaiBaru, setSelesaiBaru] = useState(selesai);
-  const [urutanBaru, setUrutanBaru] = useState(String(urutan));
-  const [istirahatBaru, setIstirahatBaru] = useState(istirahat);
-
-  useEffect(() => {
-    setNamaBaru(nama); setMulaiBaru(mulai); setSelesaiBaru(selesai);
-    setUrutanBaru(String(urutan)); setIstirahatBaru(istirahat);
-  }, [nama, mulai, selesai, urutan, istirahat]);
-
-  const simpan = () => {
-    // Kunci kontrak BE = `urutan_slot` (bukan `urutan`: dulu terkirim sebagai
-    // field tak dikenal sehingga perubahan "Jam ke-" hilang tanpa galat).
-    // Kosong = kirim tanpa kunci itu, agar aturan `sometimes|min:1` tak dilanggar.
-    const urutan = Number(urutanBaru);
-    void ubahBarisTemplate(barisId, {
-      nama_slot: namaBaru || null,
-      jam_mulai: mulaiBaru || null,
-      jam_selesai: selesaiBaru || null,
-      ...(Number.isInteger(urutan) && urutan >= 1 ? { urutan_slot: urutan } : {}),
-      is_istirahat: istirahatBaru,
-    })
-      .then(() => { toast.success('Jam disimpan.'); void segarkan(terpilih); })
-      .catch((e) => toast.error(errorMessage(e)));
-  };
-
-  return (
-    <tr>
-      <td className="border border-border px-1 py-0.5">
-        <Input type="number" min={1} className="h-7 text-xs" aria-label="Jam ke-" disabled={!canUbah}
-          value={urutanBaru} onChange={(e) => setUrutanBaru(e.target.value)} />
-      </td>
-      <td className="border border-border px-1 py-0.5">
-        <Input className="h-7 text-xs" aria-label="Nama jam" disabled={!canUbah}
-          value={namaBaru} onChange={(e) => setNamaBaru(e.target.value)} />
-      </td>
-      <td className="border border-border px-1 py-0.5">
-        <Input type="time" className="h-7 text-xs" aria-label="Jam mulai" disabled={!canUbah}
-          value={mulaiBaru} onChange={(e) => setMulaiBaru(e.target.value)} />
-      </td>
-      <td className="border border-border px-1 py-0.5">
-        <Input type="time" className="h-7 text-xs" aria-label="Jam selesai" disabled={!canUbah}
-          value={selesaiBaru} onChange={(e) => setSelesaiBaru(e.target.value)} />
-      </td>
-      <td className="border border-border px-1 py-0.5 text-center">
-        <input type="checkbox" aria-label="Istirahat" disabled={!canUbah}
-          checked={istirahatBaru} onChange={(e) => setIstirahatBaru(e.target.checked)} />
-      </td>
-      <td className="border border-border px-1 py-0.5">
-        <div className="flex justify-center gap-1">
-          {canUbah && (
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="Simpan jam" onClick={simpan}>
-              <Save size={14} />
-            </Button>
-          )}
-          {canHapus && (
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="Hapus jam"
-              onClick={() => void hapusBarisTemplate(barisId)
-                .then(() => segarkan(terpilih))
-                .catch((e) => toast.error(errorMessage(e)))}>
-              <X size={12} />
-            </Button>
-          )}
-        </div>
-      </td>
-    </tr>
   );
 }
 
@@ -283,7 +260,7 @@ function TerapkanKerangka({ jenjang, canTambah, aktif, hasil, jalankanTerap }: {
   const bisaTerap = canTambah && aktif;
 
   return (
-    <div className="mt-3 border-t border-border pt-2">
+    <div>
       <p className="text-xs font-medium">Terapkan ke slot jam {jenjang}</p>
       <p className="mt-0.5 text-[11px] text-muted-foreground">
         Membuat slot jam nyata dari kerangka ini. Jeda istirahat tidak dibuatkan slot.

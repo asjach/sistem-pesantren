@@ -1235,6 +1235,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             choices: f.choices ?? [],
+            choicesForRow: f.choicesForRow,
             choicesInput: typeof f.inputChoices === 'function'
               ? f.inputChoices(inputDraft ?? {})
               : (f.inputChoices ?? undefined),

@@ -1,22 +1,45 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { DeleteAction } from '@/components/RowActions';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { listKelas, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
-import { Plus, Save, Trash2, X } from '@/icons';
-import PanelTemplate from './TemplateJadwalPanel';
+import PanelTemplate, { FIELDS_KERANGKA } from './TemplateJadwalPanel';
 import PanelHariLibur from './HariLiburPanel';
 import {
   buatJadwal, buatSlot, daftarJadwal, daftarSlot, hapusJadwal, hapusSlot, ubahSlot,
   HARI_LABEL, type JadwalBaris, type SlotJam,
 } from '@/api/kurikulum';
+
+/** Jam dari server bisa berbentuk `HH:MM` atau `HH:MM:SS`. */
+function jamPendek(v: string | null): string | null {
+  return v === null || v === '' ? null : v.slice(0, 5);
+}
+
+function validasiJam(v: string | null): string | null {
+  if (v === null || v.trim() === '') return null;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(v.trim()) ? null : 'Format jam HH:MM.';
+}
+
+function validasiUrutan(v: string | null): string | null {
+  if (v === null || v.trim() === '') return null;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 0 ? null : 'Urutan harus bilangan bulat ≥ 0.';
+}
+
+const FIELDS_SLOT: ExcelField[] = [
+  { key: 'nama_slot', label: 'Nama slot', width: 180, kind: 'text', maxLength: 50 },
+  { key: 'jam_mulai', label: 'Mulai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
+  { key: 'jam_selesai', label: 'Selesai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
+  { key: 'urutan', label: 'Urutan', width: 90, kind: 'text', maxLength: 3, format: 'angka', validate: validasiUrutan },
+];
 
 /** Halaman Jadwal Pelajaran: slot jam per jenjang + matriks jadwal per kelas
  *  (hari × slot) + tab template jadwal generik. Menjaga bentrok kelas &
@@ -40,8 +63,6 @@ export default function KurikulumJadwalPage() {
   const [hariLibur, setHariLibur] = useState<string[]>([]);
   const [baris, setBaris] = useState<JadwalBaris[]>([]);
   const [belum, setBelum] = useState<{ id: number; nama_mapel: string | null }[]>([]);
-  /** Sel yang sedang diisi: kunci `slotId|hari` → pengampu_mapel_id terpilih. */
-  const [selAktif, setSelAktif] = useState<string | null>(null);
   const [err, setErr] = useState('');
 
   const muatSlot = useCallback(async () => {
@@ -74,19 +95,142 @@ export default function KurikulumJadwalPage() {
   useEffect(() => { void muatSlot(); }, [muatSlot]);
   useEffect(() => { void muatJadwal(); }, [muatJadwal]);
 
-  const jalankan = useCallback(async (kerja: () => Promise<unknown>, sukses: string) => {
-    try { await kerja(); toast.success(sukses); await muatJadwal(); }
-    catch (e) { toast.error(errorMessage(e)); }
-  }, [muatJadwal]);
+  const nilaiSlot = useCallback((s: SlotJam) => ({
+    nama_slot: s.nama_slot ?? null,
+    jam_mulai: jamPendek(s.jam_mulai),
+    jam_selesai: jamPendek(s.jam_selesai),
+    urutan: String(s.urutan),
+  }), []);
 
-  const pasang = useCallback(async (slotId: number, hariNama: string, pengampuId: number) => {
+  const commitSlot = useCallback(async (id: number | string, f: Record<string, string | null>) => {
+    await ubahSlot(Number(id), {
+      ...(f.nama_slot !== undefined ? { nama_slot: (f.nama_slot ?? '').trim() || null } : {}),
+      ...(f.jam_mulai !== undefined ? { jam_mulai: (f.jam_mulai ?? '').trim() || null } : {}),
+      ...(f.jam_selesai !== undefined ? { jam_selesai: (f.jam_selesai ?? '').trim() || null } : {}),
+      ...(f.urutan !== undefined ? { urutan: Number(f.urutan) || 0 } : {}),
+    });
+  }, []);
+
+  const simpanSlotSelesai = useCallback(async () => {
+    await muatSlot();
+    await muatJadwal();
+  }, [muatSlot, muatJadwal]);
+
+  const buatSlotBaru = useCallback(async (f: Record<string, string | null>) => {
+    if (jenjang === null) throw new Error('Pilih jenjang terlebih dahulu.');
+    await buatSlot({
+      jenjang,
+      nama_slot: (f.nama_slot ?? '').trim() || null,
+      jam_mulai: (f.jam_mulai ?? '').trim() || null,
+      jam_selesai: (f.jam_selesai ?? '').trim() || null,
+      urutan: f.urutan ? Number(f.urutan) : slot.length + 1,
+    });
+    toast.success('Slot ditambah.');
+    await simpanSlotSelesai();
+  }, [jenjang, slot.length, simpanSlotSelesai]);
+
+  const hapusSlotBaru = useCallback(async (s: SlotJam) => {
     try {
-      await buatJadwal({ pengampu_mapel_id: pengampuId, slot_jam_id: slotId, hari: hariNama });
-      toast.success('Jadwal disimpan.');
-      setSelAktif(null);
-      await muatJadwal();
+      await hapusSlot(s.id);
+      toast.success('Slot dihapus.');
+      await simpanSlotSelesai();
     } catch (e) { toast.error(errorMessage(e)); }
-  }, [muatJadwal]);
+  }, [simpanSlotSelesai]);
+
+  const renderActionsSlot = useCallback((s: SlotJam) => (
+    canHapus ? (
+      <DeleteAction
+        id={`btn_hapus_slot_${s.id}`}
+        title="Hapus slot jam?"
+        description={`Slot "${s.nama_slot ?? `#${s.id}`}" akan dihapus.`}
+        onConfirm={() => void hapusSlotBaru(s)}
+      />
+    ) : null
+  ), [canHapus, hapusSlotBaru]);
+
+  /** Matriks: satu baris = satu slot, satu kolom = satu hari aktif. Pilihan
+   *  dropdown tiap sel = mapel yang belum terjadwal + nilai sel itu sendiri. */
+  const fieldsMatriks = useMemo<ExcelField[]>(() => {
+    const peta = new Map<string, JadwalBaris>();
+    for (const b of baris) peta.set(`${b.slot_jam_id}|${b.hari}`, b);
+    const pilihanUmum = belum.map((b) => ({ value: String(b.id), label: b.nama_mapel ?? `#${b.id}` }));
+
+    return [
+      { key: '__slot', label: 'Jam', width: 170, kind: 'static' },
+      ...hari.map((h): ExcelField => ({
+        key: h,
+        label: HARI_LABEL[h] ?? h,
+        width: 180,
+        kind: 'select',
+        selectTanpaEdit: true,
+        choicesForRow: (id) => {
+          const j = peta.get(`${Number(id)}|${h}`);
+          // Mengganti nilai lama butuh tambah + hapus; tanpa hapus, hanya
+          // nilai berjalan yang ditawarkan (sel tak menawarkan aksi mati).
+          const opsi = canTambah && (j === undefined || canHapus) ? [...pilihanUmum] : [];
+          if (canHapus) opsi.unshift({ value: '', label: '— kosong —' });
+          if (j !== undefined && !opsi.some((o) => o.value === String(j.pengampu_mapel_id))) {
+            opsi.unshift({
+              value: String(j.pengampu_mapel_id),
+              label: `${j.nama_mapel ?? '?'}${j.guru ? ` — ${j.guru}` : ''}`,
+            });
+          }
+          return opsi;
+        },
+      })),
+    ];
+  }, [hari, baris, belum, canTambah, canHapus]);
+
+  const nilaiMatriks = useCallback((s: SlotJam) => {
+    const v: Record<string, string | null> = {};
+    const mulai = jamPendek(s.jam_mulai);
+    const selesai = jamPendek(s.jam_selesai);
+    v.__slot = `${s.nama_slot ?? `#${s.id}`}${mulai !== null && selesai !== null ? ` · ${mulai}–${selesai}` : ''}`;
+    for (const h of hari) {
+      const j = baris.find((b) => b.slot_jam_id === s.id && b.hari === h);
+      v[h] = j ? String(j.pengampu_mapel_id) : null;
+    }
+    return v;
+  }, [baris, hari]);
+
+  const commitJadwal = useCallback(async (id: number | string, f: Record<string, string | null>) => {
+    const slotId = Number(id);
+    for (const [hariNama, raw] of Object.entries(f)) {
+      if (hariNama === '__slot') continue;
+      const lama = baris.find((b) => b.slot_jam_id === slotId && b.hari === hariNama) ?? null;
+      const baru = raw === null || raw === '' ? null : Number(raw);
+      const lamaId = lama?.pengampu_mapel_id ?? null;
+      if (baru === lamaId) continue;
+
+      if (baru === null) {
+        if (!canHapus) throw new Error('Tidak punya izin menghapus jadwal.');
+        if (lama !== null) await hapusJadwal(lama.id);
+        continue;
+      }
+
+      if (!canTambah) throw new Error('Tidak punya izin menambah jadwal.');
+      if (lama !== null) {
+        if (!canHapus) throw new Error('Tidak punya izin mengubah jadwal.');
+        await hapusJadwal(lama.id);
+        try {
+          await buatJadwal({ pengampu_mapel_id: baru, slot_jam_id: slotId, hari: hariNama });
+        } catch (e) {
+          // Gagal pindah → kembalikan jadwal lama agar sel tidak kehilangan data.
+          try {
+            await buatJadwal({
+              pengampu_mapel_id: lama.pengampu_mapel_id,
+              slot_jam_id: slotId,
+              hari: hariNama,
+            });
+          } catch { /* galat asli yang dilaporkan */ }
+          throw e;
+        }
+        continue;
+      }
+
+      await buatJadwal({ pengampu_mapel_id: baru, slot_jam_id: slotId, hari: hariNama });
+    }
+  }, [baris, canTambah, canHapus]);
 
   if (!siap) {
     return (
@@ -96,245 +240,104 @@ export default function KurikulumJadwalPage() {
     );
   }
 
-  const selUntuk = (slotId: number, hariNama: string) =>
-    baris.find((b) => b.slot_jam_id === slotId && b.hari === hariNama) ?? null;
+  const kelasTerpilih = kelasOpsi.find((k) => k.id === kelasId) ?? null;
 
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <PengaturanHalaman tabel={[
+        { key: 'kurikulum_jadwal_slot', judul: 'Slot jam', fields: FIELDS_SLOT },
+        { key: 'kurikulum_jadwal', judul: 'Jadwal', fields: fieldsMatriks },
+        { key: 'kurikulum_template_jadwal', judul: 'Kerangka jam', fields: FIELDS_KERANGKA },
+      ]} />
       <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
         <TabsList className={KELAS_LIST_TAB} indikator="primer">
           <TabsTrigger value="jadwal" id="tab_jadwal_pelajaran" className={KELAS_TRIGGER}>Jadwal</TabsTrigger>
           <TabsTrigger value="template" id="tab_template_jadwal" className={KELAS_TRIGGER}>Template Jadwal</TabsTrigger>
           <TabsTrigger value="libur" id="tab_hari_libur" className={KELAS_TRIGGER}>Hari Libur</TabsTrigger>
         </TabsList>
-        <TabsContent value="jadwal" className="flex min-h-0 flex-1 flex-col gap-0">
 
-      {/* Slot jam */}
-      <div className="shrink-0 border-b border-border">
-        <div className="flex items-center gap-2 px-3 py-2">
-          <span className="text-xs font-medium">Slot jam · {jenjang}</span>
-          <div className="ml-auto">
-            {canTambah && (
-              <Button type="button" variant="outline" size="sm" id="btn_tambah_slot"
-                onClick={() => void jalankan(
-                  () => buatSlot({ jenjang, nama_slot: 'Jam baru', jam_mulai: '07:00', jam_selesai: '07:45', urutan: slot.length + 1 }),
-                  'Slot ditambah.',
-                )
-                .then(muatSlot)}>
-                <Plus size={14} /> Tambah slot
-              </Button>
+        <TabsContent value="jadwal" className="flex min-h-0 flex-1 flex-col gap-0 p-3">
+          <ExcelTable<SlotJam>
+            tableKey="kurikulum_jadwal_slot"
+            sumberTabel="slot_jam_pelajaran"
+            header="Slot jam"
+            fields={FIELDS_SLOT}
+            rows={slot}
+            getValues={nilaiSlot}
+            canEdit={canUbah}
+            onCommit={commitSlot}
+            onSaved={simpanSlotSelesai}
+            onCreateRow={canTambah ? buatSlotBaru : undefined}
+            renderActions={renderActionsSlot}
+            maxRows={6}
+            hideCheckbox
+            emptyText="Belum ada slot jam untuk jenjang ini."
+          />
+
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border py-2">
+            <label className="text-xs text-muted-foreground" htmlFor="select_kelas_jadwal">Kelas</label>
+            <select
+              id="select_kelas_jadwal"
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+              value={kelasId === '' ? '' : String(kelasId)}
+              onChange={(e) => setKelasId(e.target.value === '' ? '' : Number(e.target.value))}
+            >
+              <option value="">— pilih kelas —</option>
+              {kelasOpsi.map((k) => (
+                <option key={k.id} value={k.id}>{k.nama_kelas} (tingkat {k.tingkat ?? '-'})</option>
+              ))}
+            </select>
+            {hariLibur.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                Libur: {hariLibur.map((h) => HARI_LABEL[h] ?? h).join(', ')}
+              </span>
+            )}
+            {belum.length === 0 && baris.length > 0 && (
+              <span className="text-xs text-muted-foreground">Semua pengampu kelas ini sudah terjadwal.</span>
             )}
           </div>
-        </div>
-        <div className="max-h-40 overflow-auto px-3 pb-2">
-          <table className="w-full max-w-2xl border-collapse text-xs" id="tabel_slot_jam">
-            <thead className="bg-muted/60">
-              <tr>
-                <th className="border border-border px-2 py-1 text-left">Nama slot</th>
-                <th className="border border-border px-2 py-1 w-28">Mulai</th>
-                <th className="border border-border px-2 py-1 w-28">Selesai</th>
-                <th className="border border-border px-2 py-1 w-16">Urutan</th>
-                <th className="border border-border px-2 py-1 w-20">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {slot.map((s) => (
-                <BarisSlot key={s.id} s={s} canUbah={canUbah} canHapus={canHapus}
-                  onSimpan={(kerja, sukses) => void jalankan(kerja, sukses).then(muatSlot)} />
-              ))}
-              {slot.length === 0 && (
-                <tr><td colSpan={5} className="border border-border px-2 py-4 text-center text-muted-foreground">
-                  Belum ada slot jam untuk jenjang ini.
-                </td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      {/* Jadwal per kelas */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
-        <label className="text-xs text-muted-foreground" htmlFor="select_kelas_jadwal">Kelas</label>
-        <select
-          id="select_kelas_jadwal"
-          className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-          value={kelasId === '' ? '' : String(kelasId)}
-          onChange={(e) => setKelasId(e.target.value === '' ? '' : Number(e.target.value))}
-        >
-          <option value="">— pilih kelas —</option>
-          {kelasOpsi.map((k) => (
-            <option key={k.id} value={k.id}>{k.nama_kelas} (tingkat {k.tingkat ?? '-'})</option>
-          ))}
-        </select>
-        {hariLibur.length > 0 && (
-          <span className="text-xs text-muted-foreground">
-            Libur: {hariLibur.map((h) => HARI_LABEL[h] ?? h).join(', ')}
-          </span>
-        )}
-        {belum.length === 0 && baris.length > 0 && (
-          <span className="text-xs text-muted-foreground">Semua pengampu kelas ini sudah terjadwal.</span>
-        )}
-      </div>
-
-      {kelasId === '' || hari.length === 0 ? (
-        <p className="p-4 text-xs text-muted-foreground">
-          {kelasId === '' ? 'Pilih kelas untuk mengatur jadwal.' : 'Buat slot jam terlebih dahulu (panel di atas).'}
-        </p>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-auto p-3">
-          <table className="w-full border-collapse text-xs" id="tabel_jadwal">
-            <thead className="bg-muted/60">
-              <tr>
-                <th className="border border-border px-2 py-1 w-32 text-left">Jam</th>
-                {hari.map((h) => (
-                  <th key={h} className="border border-border px-2 py-1 text-left">{HARI_LABEL[h] ?? h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {slot.map((s) => (
-                <tr key={s.id}>
-                  <td className="border border-border px-2 py-1">
-                    <span className="font-medium">{s.nama_slot ?? `#${s.id}`}</span>
-                    {s.jam_mulai && s.jam_selesai && (
-                      <span className="block text-[10px] text-muted-foreground">{s.jam_mulai}–{s.jam_selesai}</span>
-                    )}
-                  </td>
-                  {hari.map((h) => {
-                    const j = selUntuk(s.id, h);
-                    const kunci = `${s.id}|${h}`;
-                    if (j !== null && j !== undefined) {
-                      return (
-                        <td key={h} className="border border-border px-1 py-0.5">
-                          <div className="flex items-center gap-1">
-                            <span className="min-w-0 flex-1 truncate" title={`${j.nama_mapel ?? ''} — ${j.guru ?? ''}`}>
-                              {j.nama_mapel ?? '?'}
-                              {j.guru && <span className="block text-[10px] text-muted-foreground">{j.guru}</span>}
-                            </span>
-                            {canHapus && (
-                              <Button type="button" variant="ghost" size="icon-sm" aria-label={`Hapus jadwal ${h} ${s.nama_slot ?? ''}`}
-                                onClick={() => void jalankan(() => hapusJadwal(j.id), 'Jadwal dihapus.')}>
-                                <X size={12} />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      );
-                    }
-                    if (selAktif === kunci) {
-                      return (
-                        <td key={h} className="border border-border px-1 py-0.5">
-                          <select
-                            className="h-7 w-full rounded-md border border-input bg-transparent px-1 text-xs"
-                            aria-label={`Pilih pelajaran ${h} ${s.nama_slot ?? ''}`}
-                            value=""
-                            onChange={(e) => {
-                              if (e.target.value !== '') void pasang(s.id, h, Number(e.target.value));
-                            }}
-                          >
-                            <option value="">— pilih mapel —</option>
-                            {belum.map((b) => (
-                              <option key={b.id} value={b.id}>{b.nama_mapel ?? `#${b.id}`}</option>
-                            ))}
-                          </select>
-                          <button type="button" className="mt-0.5 text-[10px] text-muted-foreground underline"
-                            onClick={() => setSelAktif(null)}>batal</button>
-                        </td>
-                      );
-                    }
-                    return (
-                      <td key={h} className="border border-border px-1 py-0.5 text-center">
-                        {canTambah && belum.length > 0 && (
-                          <Button type="button" variant="ghost" size="icon-sm" aria-label={`Isi jadwal ${h} ${s.nama_slot ?? ''}`}
-                            onClick={() => setSelAktif(kunci)}>
-                            <Plus size={12} />
-                          </Button>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+          {kelasId === '' ? (
+            <p className="p-4 text-xs text-muted-foreground">Pilih kelas untuk mengatur jadwal.</p>
+          ) : (
+            <ExcelTable<SlotJam>
+              tableKey="kurikulum_jadwal"
+              header={`Jadwal${kelasTerpilih ? ` · ${kelasTerpilih.nama_kelas}` : ''}`}
+              fields={fieldsMatriks}
+              rows={slot}
+              getValues={nilaiMatriks}
+              canEdit={canTambah || canHapus}
+              onCommit={commitJadwal}
+              onSaved={muatJadwal}
+              renderActions={() => null}
+              hideCheckbox
+              hideActions
+              emptyText={slot.length === 0
+                ? 'Buat slot jam terlebih dahulu di tabel atas.'
+                : 'Belum ada jadwal untuk kelas ini — pilih mapel pada sel hari.'}
+            />
+          )}
         </TabsContent>
+
         <TabsContent value="template" className="flex min-h-0 flex-1 flex-col gap-0">
           <PanelTemplate
-            jenjang={jenjang ?? ''}
+            jenjang={jenjang}
             canTambah={canTambah}
             canUbah={canUbah}
             canHapus={canHapus}
             onTerapkan={() => { void muatSlot(); void muatJadwal(); }}
           />
         </TabsContent>
+
         <TabsContent value="libur" className="flex min-h-0 flex-1 flex-col gap-0">
           <PanelHariLibur
-            jenjang={jenjang ?? ''}
+            jenjang={jenjang}
             canUbah={canUbah}
             onSimpan={() => { void muatJadwal(); }}
           />
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-/** Baris slot jam dengan penyuntingan inline. */
-function BarisSlot({ s, canUbah, canHapus, onSimpan }: {
-  s: SlotJam; canUbah: boolean; canHapus: boolean;
-  onSimpan: (kerja: () => Promise<unknown>, sukses: string) => void;
-}) {
-  const [nama, setNama] = useState(s.nama_slot ?? '');
-  const [mulai, setMulai] = useState(s.jam_mulai ?? '');
-  const [selesai, setSelesai] = useState(s.jam_selesai ?? '');
-  const [urutan, setUrutan] = useState(String(s.urutan));
-
-  useEffect(() => {
-    setNama(s.nama_slot ?? ''); setMulai(s.jam_mulai ?? '');
-    setSelesai(s.jam_selesai ?? ''); setUrutan(String(s.urutan));
-  }, [s]);
-
-  return (
-    <tr>
-      <td className="border border-border px-1 py-0.5">
-        <Input className="h-7 text-xs" aria-label="Nama slot" disabled={!canUbah} value={nama} onChange={(e) => setNama(e.target.value)} />
-      </td>
-      <td className="border border-border px-1 py-0.5">
-        <Input type="time" className="h-7 text-xs" aria-label="Jam mulai" disabled={!canUbah} value={mulai} onChange={(e) => setMulai(e.target.value)} />
-      </td>
-      <td className="border border-border px-1 py-0.5">
-        <Input type="time" className="h-7 text-xs" aria-label="Jam selesai" disabled={!canUbah} value={selesai} onChange={(e) => setSelesai(e.target.value)} />
-      </td>
-      <td className="border border-border px-1 py-0.5">
-        <Input type="number" min={0} className="h-7 text-xs" aria-label="Urutan slot" disabled={!canUbah} value={urutan} onChange={(e) => setUrutan(e.target.value)} />
-      </td>
-      <td className="border border-border px-1 py-0.5">
-        <div className="flex justify-center gap-1">
-          {canUbah && (
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="Simpan slot"
-              onClick={() => onSimpan(
-                () => ubahSlot(s.id, {
-                  nama_slot: nama || null,
-                  jam_mulai: mulai || null,
-                  jam_selesai: selesai || null,
-                  urutan: Number(urutan) || 0,
-                }),
-                'Slot disimpan.',
-              )}>
-              <Save size={14} />
-            </Button>
-          )}
-          {canHapus && (
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="Hapus slot"
-              onClick={() => onSimpan(() => hapusSlot(s.id), 'Slot dihapus.')}>
-              <Trash2 size={14} />
-            </Button>
-          )}
-        </div>
-      </td>
-    </tr>
   );
 }

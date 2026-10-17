@@ -69,7 +69,7 @@ export interface JadwalResp {
 
 export const HARI_LABEL: Record<string, string> = {
   senin: 'Senin', selasa: 'Selasa', rabu: 'Rabu', kamis: 'Kamis',
-  jumat: 'Jumat', sabtu: 'Sabtu', ahad: 'Ahad',
+  jumat: 'Jumat', sabtu: 'Sabtu', minggu: 'Minggu', ahad: 'Ahad',
 };
 
 // ---------------------------------------------------------------- mapel

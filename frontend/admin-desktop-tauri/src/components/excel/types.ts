@@ -28,6 +28,9 @@ export interface ExcelField {
    *  lembaga. Null/absen = semua boleh (selain baris input). */
   bolehToggle?: (id: string | number) => boolean;
   choices?: ExcelChoice[];
+  /** Pilihan dropdown khusus per baris (mis. sel matriks jadwal: tiap baris
+   *  hanya menawarkan mapel yang belum terpakai). Absen = pakai `choices`. */
+  choicesForRow?: (id: string | number) => ExcelChoice[];
   maxLength?: number;
   /** Kembalikan pesan galat bila nilai tidak valid, atau null bila OK. */
   validate?: (value: string | null) => string | null;
@@ -87,6 +90,8 @@ export interface TextColData {
 export interface SelectColData {
   fieldKey: string;
   choices: ExcelChoice[];
+  /** Pilihan per baris; menang atas `choices` untuk baris data. */
+  choicesForRow?: (id: string | number) => ExcelChoice[];
   /** Teks opsi kosong saat nilai sel belum ada di daftar pilihan (mis.
    *  "Pilih jenis…"). Bawaannya `Pilih…`. Opsi kosong ini wajib ada supaya
    *  pilihan pertama yang sebenarnya jadi perubahan saat dipilih — tanpa itu
