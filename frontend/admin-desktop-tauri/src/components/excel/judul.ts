@@ -20,6 +20,7 @@ const JUDUL_TABEL: Record<string, string> = {
   keuangan_dispensasi: 'Daftar Dispensasi',
   keuangan_penerima_dispensasi: 'Daftar Penerima Dispensasi',
   keuangan_rekap_dispensasi: 'Rekap Dampak per Paket',
+  kurikulum_mapel_kamus: 'Kamus Mapel',
 };
 
 /** Judul header tabel: pemetaan khusus, atau kapitalisasi tableKey. */

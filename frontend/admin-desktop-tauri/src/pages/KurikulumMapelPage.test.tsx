@@ -36,7 +36,7 @@ const uji = vi.hoisted(() => {
       diubah: 2, sudah_lengkap: 1, tanpa_kamus: 0, contoh: [],
     },
     /** Baris kamus `ref_mapel` — kolom kiri halaman. Diisi per uji. */
-    SARAN: [] as { id: number; nama: string; singkatan?: string | null }[],
+    SARAN: [] as { id: number; nama: string; kode?: string | null; singkatan?: string | null }[],
     /** Izin user per uji — diganti di beforeEach. */
     izin: ['kurikulum.lihat', 'kurikulum.ubah', 'kurikulum.hapus'] as string[],
   };
@@ -166,6 +166,16 @@ function SlotCari() {
   return <div ref={(el) => ctx?.setEl(el)} />;
 }
 
+/** Teks sel kolom kamus (kolom kiri). Span pengukur lebar ExcelTable
+ *  (`data-ukur`) sengaja dilewati: isinya sama dengan sel aslinya sehingga
+ *  query teks biasa jadi ambigu. */
+function teksSel(colKey: string): string[] {
+  const kolom = document.getElementById('kolom_kamus_mapel');
+  if (kolom === null) return [];
+  return Array.from(kolom.querySelectorAll(`.simpes-dsg-fill[data-col-key="${colKey}"]`))
+    .map((el) => el.textContent ?? '');
+}
+
 function renderHalaman() {
   return renderDenganTema(
     <CariGlobalProvider>
@@ -232,35 +242,38 @@ describe('KurikulumMapelPage — aksi baris Ubah', () => {
 });
 
 describe('KurikulumMapelPage — tambah dari kamus (kolom kiri)', () => {
-  it('tabel kamus menampilkan baris ref, tombol → menginput mapel dari ref ke mata_pelajaran', async () => {
+  it('tabel kamus menampilkan kode, nama & singkatan ref; tombol → menginput entri ke mata_pelajaran', async () => {
     uji.izin = ['kurikulum.lihat', 'kurikulum.tambah', 'kurikulum.ubah', 'kurikulum.hapus'];
     uji.SARAN = [
-      { id: 1, nama: 'Fikih', singkatan: null },
-      { id: 2, nama: 'Bahasa Arab', singkatan: 'B. Ar.' },
+      { id: 1, nama: 'Fikih', kode: 'FKH', singkatan: null },
+      { id: 2, nama: 'Bahasa Arab', kode: 'BAR', singkatan: 'B. Ar.' },
     ];
     renderHalaman();
 
-    // Baris kamus tampil di kolom kiri (nama + singkatan).
-    expect(await screen.findByText('Fikih')).toBeInTheDocument();
-    expect(screen.getByText('B. Ar.')).toBeInTheDocument();
+    // Baris kamus tampil di kolom kiri — tombol aksinya jadi penanda baris siap.
+    await screen.findByRole('button', { name: 'Tambah Fikih' });
+    // Inti permintaan: kode ikut tampil, bukan hanya nama & singkatan.
+    expect(teksSel('kode')).toEqual(expect.arrayContaining(['FKH', 'BAR']));
+    expect(teksSel('nama')).toEqual(expect.arrayContaining(['Fikih', 'Bahasa Arab']));
+    expect(teksSel('singkatan')).toEqual(expect.arrayContaining(['B. Ar.']));
 
-    // Tombol → baris "Fikih" menginput entri kamus itu ke tabel mapel;
-    // singkatan kamus ikut disalin bila ada.
+    // Tombol → baris "Fikih" menginput entri kamus itu ke tabel mapel:
+    // kode & singkatan kamus ikut disalin (kolom kamus yang kosong tetap null).
     await userEvent.click(screen.getByRole('button', { name: 'Tambah Fikih' }));
     await waitFor(() => expect(uji.buatMapel).toHaveBeenCalledWith({
-      jenjang: 'MI', nama_mapel: 'Fikih', singkatan: null, kelompok: 'formal',
+      jenjang: 'MI', nama_mapel: 'Fikih', kode_mapel: 'FKH', singkatan: null, kelompok: 'formal',
     }));
 
     await userEvent.click(screen.getByRole('button', { name: 'Tambah Bahasa Arab' }));
     await waitFor(() => expect(uji.buatMapel).toHaveBeenCalledWith({
-      jenjang: 'MI', nama_mapel: 'Bahasa Arab', singkatan: 'B. Ar.', kelompok: 'formal',
+      jenjang: 'MI', nama_mapel: 'Bahasa Arab', kode_mapel: 'BAR', singkatan: 'B. Ar.', kelompok: 'formal',
     }));
   });
 
   it('mapel yang namanya sudah ada membuat tombol → mati', async () => {
     uji.izin = ['kurikulum.lihat', 'kurikulum.tambah'];
     // BARIS mapel memuat "Aljabar" — entri kamus bernama sama tak bisa diinput lagi.
-    uji.SARAN = [{ id: 9, nama: 'Aljabar', singkatan: 'Alj.' }];
+    uji.SARAN = [{ id: 9, nama: 'Aljabar', kode: 'ALJ', singkatan: 'Alj.' }];
     renderHalaman();
 
     const tombol = await screen.findByRole('button', { name: 'Tambah Aljabar' });
@@ -269,11 +282,11 @@ describe('KurikulumMapelPage — tambah dari kamus (kolom kiri)', () => {
     expect(uji.buatMapel).not.toHaveBeenCalled();
   });
 
-  it('tanpa izin kurikulum.tambah tombol → tidak dirender', async () => {
-    uji.SARAN = [{ id: 1, nama: 'Fikih', singkatan: null }];
+  it('tanpa izin kurikulum.tambah baris kamus tetap tampil tanpa tombol →', async () => {
+    uji.SARAN = [{ id: 1, nama: 'Fikih', kode: 'FKH', singkatan: null }];
     renderHalaman();
 
-    await screen.findByText('Fikih');
+    await waitFor(() => expect(teksSel('nama')).toContain('Fikih'));
     expect(screen.queryByRole('button', { name: 'Tambah Fikih' })).toBeNull();
   });
 });
