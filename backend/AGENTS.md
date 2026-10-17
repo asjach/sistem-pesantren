@@ -103,15 +103,15 @@ Before relying on a package's API, confirm its installed version:
 
 === tests rules ===
 
-# ⚠️ SUSPEND TES AKTIF
+# TES AKTIF — suspend dicabut 2026-10-13
 
-Tes sedang **dijeda sementara** (permintaan pengguna). Jangan jalankan
-`php artisan test`/`vendor/bin/phpunit` atau membuat/memperbarui
-`tests/**/*Test.php` atas inisiatif sendiri. Verifikasi memakai
-`vendor/bin/pint --dirty`. Detail + cara mencabut: bagian "SUSPEND TES" di
-`AGENTS.md` root. Aturan di bawah berlaku lagi setelah suspend dicabut.
-**Setiap sesi, beri tahu pengguna status tes** (suspend aktif/tidak) — sama
-seperti pengingat akun reviewer; lihat bagian "STATUS TES" di root.
+Tes backend berjalan kembali sesuai aturan di bawah. Jalankan tes tersempit
+yang terdampak; jangan menjalankan suite penuh tanpa menawarkannya lebih dulu
+(lihat "KEBIJAKAN MENJALANKAN TES" di `AGENTS.md` root). Baseline bersih per
+2026-10-15: kegagalan baru adalah regresi. `vendor/bin/pint --dirty --format
+agent` tetap wajib setelah mengubah file PHP.
+**Setiap sesi, beri tahu pengguna status tes** (aktif/suspend) — sama seperti
+pengingat akun reviewer; lihat bagian "STATUS TES" di root.
 
 # Test Enforcement — hanya logika
 

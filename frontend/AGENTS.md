@@ -1,12 +1,13 @@
 # AGENTS.md — Frontend SIMPES (`admin-desktop-tauri`)
 
-## ⚠️ SUSPEND TES AKTIF — lihat `AGENTS.md` root
-Tes (vitest) sedang **dijeda sementara**; jangan jalankan `npm run test` atau
-membuat/memperbarui `*.test.ts(x)` atas inisiatif sendiri. Verifikasi memakai
-`npm run typecheck`. Detail + cara mencabut: bagian "SUSPEND TES" di root.
-Aturan di bawah berlaku lagi setelah suspend dicabut.
-**Setiap sesi, beri tahu pengguna status tes** (suspend aktif/ tidak) — sama
-seperti pengingat akun reviewer; lihat bagian "STATUS TES" di root.
+## TES AKTIF — suspend dicabut 2026-10-13
+Tes (vitest) berjalan kembali sesuai aturan di bawah. Jalankan tes tersempit
+untuk perubahan logika; jangan menjalankan dua runner vitest bersamaan
+(rebutan memori). Suite penuh ditawarkan lebih dulu bila menyentuh modul
+bersama (lihat "KEBIJAKAN MENJALANKAN TES" di root). Baseline bersih per
+2026-10-15: kegagalan baru adalah regresi.
+**Setiap sesi, beri tahu pengguna status tes** (aktif/suspend) — sama seperti
+pengingat akun reviewer; lihat bagian "STATUS TES" di root.
 
 ## Aturan test (hanya logika)
 - Tambah/perbarui `*.test.ts(x)` HANYA untuk perubahan logika (`src/lib`, `src/api`, hooks, transformasi/validasi/komputasi, state/filter/preset/toolbar yang bercabang).
