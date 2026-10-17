@@ -35,6 +35,9 @@ export interface ExcelField {
    *  pada matriks jadwal). Absen = semua baris boleh dipilih. */
   bolehSelect?: (id: string | number) => boolean;
   maxLength?: number;
+  /** Klik sel teks baca-saja (mis. buka dialog editor). Absen = perilaku
+   *  edit bawaan (klik ganda mengaktifkan mode Edit). */
+  onCellClick?: (id: string | number) => void;
   /** Kembalikan pesan galat bila nilai tidak valid, atau null bila OK. */
   validate?: (value: string | null) => string | null;
   /** Wajib diisi pada mode Input (ditandai warna di header + sel baris input). */

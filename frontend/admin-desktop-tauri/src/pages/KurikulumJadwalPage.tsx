@@ -5,6 +5,9 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { jamPendek } from '@/lib/jadwal';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
@@ -21,24 +24,22 @@ import {
   type TemplateJadwal, type TerapkanHasil,
 } from '@/api/kurikulum';
 
-/** Satu baris daftar jadwal = satu sel frame (hari × JP). */
-interface BarisJadwal {
-  id: string;
-  slot: SlotJadwal;
-  hari: string;
-  mapelId: number | null;
-  mapelNama: string | null;
-  guruId: number | null;
-  guruNama: string | null;
+/** Satu baris matriks = satu nomor JP. Slot tiap hari bisa berbeda (jumlah,
+ *  jam, jenis), jadi frame disusun per hari lalu digabung per nomor JP. */
+interface BarisMatriks {
+  id: number;
+  urutan: number;
+  label: string;
+  perHari: Record<string, SlotJadwal>;
 }
 
 function namaGuru(g: GuruAktif): string {
   return `${g.gelar_depan ? `${g.gelar_depan} ` : ''}${g.nama_lengkap}${g.gelar_belakang ? `, ${g.gelar_belakang}` : ''}`;
 }
 
-/** Halaman Jadwal Pelajaran: daftar JP per hari untuk kelas terpilih + tab
- *  template mingguan & hari libur. Mapel & guru diisi di jadwal; pengampu
- *  kelas dibuat/diperbarui dari pilihan itu. */
+/** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × JP) + tab
+ *  template mingguan & hari libur. Klik sel membuka dialog Mapel + Guru;
+ *  pengampu kelas mengikuti isi jadwal. */
 export default function KurikulumJadwalPage() {
   const [tab, setTab] = useState('jadwal');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
@@ -64,6 +65,10 @@ export default function KurikulumJadwalPage() {
   const [timpaKelas, setTimpaKelas] = useState(false);
   const [templateBusy, setTemplateBusy] = useState(false);
   const [hasilKelas, setHasilKelas] = useState<TerapkanHasil | null>(null);
+  const [sel, setSel] = useState<{ row: BarisMatriks; hari: string } | null>(null);
+  const [selMapel, setSelMapel] = useState<number | ''>('');
+  const [selGuru, setSelGuru] = useState<number | ''>('');
+  const [selBusy, setSelBusy] = useState(false);
   const [err, setErr] = useState('');
 
   const muatJadwal = useCallback(async () => {
@@ -89,7 +94,7 @@ export default function KurikulumJadwalPage() {
 
   useEffect(() => { void muatJadwal(); }, [muatJadwal]);
 
-  // Pilihan mapel & guru master untuk pengisian jadwal (bukan dari pengampu).
+  // Pilihan mapel & guru master untuk dialog pengisian jadwal.
   useEffect(() => {
     if (jenjang === null || ta === null) { setMapelAktif([]); setGuruAktif([]); return; }
     let hidup = true;
@@ -157,105 +162,130 @@ export default function KurikulumJadwalPage() {
     }
   };
 
-  /** Baris daftar = tiap slot frame × hari aktif (slot hari-null dipecah ke
-   *  semua hari). Isi jadwal per sel diambil dari `baris`. */
-  const barisJadwal = useMemo<BarisJadwal[]>(() => {
-    const peta = new Map(baris.map((b) => [`${b.slot_jam_id}|${b.hari}`, b]));
-    const urutanHari = new Map(hari.map((h, i) => [h, i]));
-    const hasil: BarisJadwal[] = [];
+  /** Frame kelas: slot hari-null berlaku semua hari; slot hari tertentu
+   *  menimpa slot umum pada nomor JP yang sama. */
+  const barisMatriks = useMemo<BarisMatriks[]>(() => {
+    const perHari = new Map<string, Map<number, SlotJadwal>>();
+    for (const h of hari) perHari.set(h, new Map());
     for (const s of slot) {
-      const days = s.hari === null ? hari : (hari.includes(s.hari) ? [s.hari] : []);
-      for (const h of days) {
-        const j = peta.get(`${s.id}|${h}`);
-        hasil.push({
-          id: `${s.id}|${h}`,
-          slot: s,
-          hari: h,
-          mapelId: j?.mata_pelajaran_id ?? null,
-          mapelNama: j?.nama_mapel ?? null,
-          guruId: j?.keaktifan_pegawai_id ?? null,
-          guruNama: j?.guru ?? null,
-        });
+      if (s.hari === null) {
+        for (const h of hari) perHari.get(h)?.set(s.urutan, s);
+      } else {
+        perHari.get(s.hari)?.set(s.urutan, s);
       }
     }
-    return hasil.sort((a, b) => (
-      (urutanHari.get(a.hari) ?? 99) - (urutanHari.get(b.hari) ?? 99)
-      || a.slot.urutan - b.slot.urutan
-    ));
-  }, [slot, hari, baris]);
+    const urutan = [...new Set([...perHari.values()].flatMap((m) => [...m.keys()]))]
+      .sort((a, b) => a - b);
 
-  const petaBaris = useMemo(() => new Map(barisJadwal.map((r) => [r.id, r])), [barisJadwal]);
-
-  const fieldsJadwal = useMemo<ExcelField[]>(() => [
-    { key: 'hari', label: 'Hari', width: 90, kind: 'static' },
-    { key: 'jp', label: 'JP', width: 60, kind: 'static' },
-    { key: 'jam', label: 'Jam', width: 120, kind: 'static' },
-    { key: 'jenis', label: 'Jenis', width: 110, kind: 'static' },
-    {
-      key: 'mapel', label: 'Mapel', width: 220, kind: 'select', selectTanpaEdit: true,
-      bolehSelect: (id) => petaBaris.get(String(id))?.slot.jenis === 'pelajaran',
-      choicesForRow: (id) => {
-        const row = petaBaris.get(String(id));
-        if (row === undefined || row.slot.jenis !== 'pelajaran') return [{ value: '', label: '—' }];
-        const opsi = mapelAktif.map((m) => ({ value: String(m.id), label: m.nama_mapel }));
-        if (row.mapelId !== null && !opsi.some((o) => o.value === String(row.mapelId))) {
-          opsi.unshift({ value: String(row.mapelId), label: row.mapelNama ?? `#${row.mapelId}` });
-        }
-        return [{ value: '', label: '— kosong —' }, ...opsi];
-      },
-    },
-    {
-      key: 'guru', label: 'Guru', width: 220, kind: 'select', selectTanpaEdit: true,
-      bolehSelect: (id) => {
-        const row = petaBaris.get(String(id));
-        return row?.slot.jenis === 'pelajaran' && row.mapelId !== null;
-      },
-      choicesForRow: (id) => {
-        const row = petaBaris.get(String(id));
-        if (row === undefined || row.slot.jenis !== 'pelajaran' || row.mapelId === null) {
-          return [{ value: '', label: '—' }];
-        }
-        const opsi = guruAktif.map((g) => ({ value: String(g.keaktifan_pegawai_id), label: namaGuru(g) }));
-        if (row.guruId !== null && !opsi.some((o) => o.value === String(row.guruId))) {
-          opsi.unshift({ value: String(row.guruId), label: row.guruNama ?? `#${row.guruId}` });
-        }
-        return [{ value: '', label: '— tanpa guru —' }, ...opsi];
-      },
-    },
-  ], [petaBaris, mapelAktif, guruAktif]);
-
-  const nilaiJadwal = useCallback((r: BarisJadwal) => ({
-    hari: HARI_LABEL[r.hari] ?? r.hari,
-    jp: String(r.slot.urutan),
-    jam: `${jamPendek(r.slot.jam_mulai) ?? ''}–${jamPendek(r.slot.jam_selesai) ?? ''}`,
-    jenis: JENIS_SLOT_LABEL[r.slot.jenis],
-    mapel: r.mapelId === null ? '' : String(r.mapelId),
-    guru: r.guruId === null ? '' : String(r.guruId),
-  }), []);
-
-  const commitSel = useCallback(async (id: string | number, f: Record<string, string | null>) => {
-    const row = petaBaris.get(String(id));
-    if (row === undefined || row.slot.jenis !== 'pelajaran') return;
-
-    const mapelBaru = f.mapel !== undefined
-      ? (f.mapel === null || f.mapel === '' ? null : Number(f.mapel))
-      : row.mapelId;
-    // Ganti mapel = guru lama tidak ikut pindah; pilih guru baru (boleh kosong).
-    const guruBaru = f.mapel !== undefined
-      ? (f.guru === undefined || f.guru === null || f.guru === '' ? null : Number(f.guru))
-      : (f.guru !== undefined
-        ? (f.guru === null || f.guru === '' ? null : Number(f.guru))
-        : row.guruId);
-    if (mapelBaru === row.mapelId && guruBaru === row.guruId) return;
-
-    await simpanSelJadwal({
-      kelas_id: Number(kelasId),
-      slot_jam_id: row.slot.id,
-      hari: row.hari,
-      mata_pelajaran_id: mapelBaru,
-      keaktifan_pegawai_id: guruBaru,
+    return urutan.map((u) => {
+      const perHariBaris: Record<string, SlotJadwal> = {};
+      for (const h of hari) {
+        const s = perHari.get(h)?.get(u);
+        if (s !== undefined) perHariBaris[h] = s;
+      }
+      const slots = Object.values(perHariBaris);
+      const nama = [...new Set(slots.map((s) => s.nama_slot ?? `JP ${u}`))];
+      const jam = [...new Set(slots
+        .map((s) => `${jamPendek(s.jam_mulai) ?? ''}–${jamPendek(s.jam_selesai) ?? ''}`)
+        .filter((t) => t !== '–'))];
+      return {
+        id: u,
+        urutan: u,
+        label: `${nama.length === 1 ? nama[0] : `JP ${u}`}${jam.length === 1 ? ` · ${jam[0]}` : ''}`,
+        perHari: perHariBaris,
+      };
     });
-  }, [petaBaris, kelasId]);
+  }, [slot, hari]);
+
+  const petaBaris = useMemo(() => new Map(barisMatriks.map((r) => [r.id, r])), [barisMatriks]);
+  const petaJadwal = useMemo(
+    () => new Map(baris.map((b) => [`${b.slot_jam_id}|${b.hari}`, b])),
+    [baris],
+  );
+
+  const bukaSel = useCallback((id: string | number, h: string) => {
+    if (!canUbah) return;
+    const row = petaBaris.get(Number(id));
+    const s = row?.perHari[h];
+    if (row === undefined || s === undefined || s.jenis !== 'pelajaran') return;
+    const j = petaJadwal.get(`${s.id}|${h}`);
+    setSel({ row, hari: h });
+    setSelMapel(j?.mata_pelajaran_id ?? '');
+    setSelGuru(j?.keaktifan_pegawai_id ?? '');
+  }, [canUbah, petaBaris, petaJadwal]);
+
+  const fieldsMatriks = useMemo<ExcelField[]>(() => [
+    { key: '__slot', label: 'Jam', width: 170, kind: 'static' },
+    ...hari.map((h): ExcelField => ({
+      key: h,
+      label: HARI_LABEL[h] ?? h,
+      width: 180,
+      kind: 'text',
+      onCellClick: (id) => bukaSel(id, h),
+    })),
+  ], [hari, bukaSel]);
+
+  const nilaiMatriks = useCallback((r: BarisMatriks) => {
+    const v: Record<string, string | null> = { __slot: r.label };
+    for (const h of hari) {
+      const s = r.perHari[h];
+      if (s === undefined) { v[h] = ''; continue; }
+      if (s.jenis !== 'pelajaran') { v[h] = s.nama_slot ?? JENIS_SLOT_LABEL[s.jenis]; continue; }
+      const j = petaJadwal.get(`${s.id}|${h}`);
+      v[h] = j === undefined ? '' : `${j.nama_mapel ?? '?'}${j.guru ? ` — ${j.guru}` : ''}`;
+    }
+    return v;
+  }, [hari, petaJadwal]);
+
+  const selSlot = sel === null ? null : sel.row.perHari[sel.hari] ?? null;
+  const selJadwal = selSlot === null ? null : petaJadwal.get(`${selSlot.id}|${sel!.hari}`) ?? null;
+  const mapelDialog = [...mapelAktif];
+  if (selMapel !== '' && !mapelDialog.some((m) => m.id === selMapel)) {
+    mapelDialog.unshift({
+      id: Number(selMapel),
+      jenjang: jenjang ?? '',
+      nama_mapel: selJadwal?.nama_mapel ?? `#${selMapel}`,
+      kode_mapel: null,
+      singkatan: null,
+      kelompok: 'formal',
+      is_active: true,
+      kkm: null,
+      urutan: 0,
+    });
+  }
+  const guruDialog = [...guruAktif];
+  if (selGuru !== '' && !guruDialog.some((g) => g.keaktifan_pegawai_id === selGuru)) {
+    guruDialog.unshift({
+      keaktifan_pegawai_id: Number(selGuru),
+      pegawai_id: 0,
+      nama_lengkap: selJadwal?.guru ?? `#${selGuru}`,
+      nip: null,
+      gelar_depan: null,
+      gelar_belakang: null,
+      jenis_kelamin: null,
+    });
+  }
+
+  const simpanSel = async () => {
+    if (sel === null || selSlot === null) return;
+    setSelBusy(true);
+    try {
+      await simpanSelJadwal({
+        kelas_id: Number(kelasId),
+        slot_jam_id: selSlot.id,
+        hari: sel.hari,
+        mata_pelajaran_id: selMapel === '' ? null : Number(selMapel),
+        keaktifan_pegawai_id: selGuru === '' ? null : Number(selGuru),
+      });
+      toast.success('Jadwal disimpan.');
+      setSel(null);
+      await muatJadwal();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setSelBusy(false);
+    }
+  };
 
   if (!siap) {
     return (
@@ -271,7 +301,7 @@ export default function KurikulumJadwalPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tabel={[
-        { key: 'kurikulum_jadwal', judul: 'Jadwal', fields: fieldsJadwal },
+        { key: 'kurikulum_jadwal', judul: 'Jadwal', fields: fieldsMatriks },
         { key: 'kurikulum_template_jadwal', judul: 'Kerangka jam', fields: FIELDS_KERANGKA },
       ]} />
       <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
@@ -354,22 +384,22 @@ export default function KurikulumJadwalPage() {
           ) : hari.length === 0 ? (
             <div className="min-h-0 flex-1" />
           ) : (
-            <ExcelTable<BarisJadwal>
-              key={`jadwal-${kelasId}-${slot.map((s) => s.id).join('-')}`}
+            <ExcelTable<BarisMatriks>
+              key={`matriks-${kelasId}-${slot.map((s) => s.id).join('-')}`}
               tableKey="kurikulum_jadwal"
               header={`Jadwal${kelasTerpilih ? ` · ${kelasTerpilih.nama_kelas}` : ''}`}
-              fields={fieldsJadwal}
-              rows={barisJadwal}
-              getValues={nilaiJadwal}
-              canEdit={canUbah}
-              onCommit={commitSel}
-              onSaved={muatJadwal}
+              fields={fieldsMatriks}
+              rows={barisMatriks}
+              getValues={nilaiMatriks}
+              canEdit={false}
+              onCommit={async () => {}}
+              onSaved={() => {}}
               renderActions={() => null}
               hideCheckbox
               hideActions
-              emptyText={slot.length === 0
+              emptyText={barisMatriks.length === 0
                 ? 'Belum ada kerangka JP — terapkan template di tab Template Jadwal.'
-                : 'Belum ada JP untuk kelas ini.'}
+                : 'Belum ada jadwal untuk kelas ini.'}
             />
           )}
         </TabsContent>
@@ -395,6 +425,59 @@ export default function KurikulumJadwalPage() {
           />
         </TabsContent>
       </Tabs>
+
+      <Dialog open={sel !== null} onOpenChange={(o) => { if (!o && !selBusy) setSel(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Isi Jadwal</DialogTitle>
+            <DialogDescription>
+              {sel === null ? '' : `${HARI_LABEL[sel.hari] ?? sel.hari} · ${selSlot?.nama_slot ?? ''} (${selSlot ? `${jamPendek(selSlot.jam_mulai) ?? ''}–${jamPendek(selSlot.jam_selesai) ?? ''}` : ''})`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-xs" htmlFor="select_mapel_sel">
+              Mapel
+              <select
+                id="select_mapel_sel"
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                value={selMapel === '' ? '' : String(selMapel)}
+                onChange={(e) => {
+                  const v = e.target.value === '' ? '' : Number(e.target.value);
+                  setSelMapel(v);
+                  setSelGuru('');
+                }}
+              >
+                <option value="">— kosong —</option>
+                {mapelDialog.map((m) => <option key={m.id} value={m.id}>{m.nama_mapel}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs" htmlFor="select_guru_sel">
+              Guru pengampu
+              <select
+                id="select_guru_sel"
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                value={selGuru === '' ? '' : String(selGuru)}
+                disabled={selMapel === ''}
+                onChange={(e) => setSelGuru(e.target.value === '' ? '' : Number(e.target.value))}
+              >
+                <option value="">— tanpa guru —</option>
+                {guruDialog.map((g) => (
+                  <option key={g.keaktifan_pegawai_id} value={g.keaktifan_pegawai_id}>{namaGuru(g)}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={selBusy} onClick={() => setSel(null)}>
+              Batal
+            </Button>
+            <Button type="button" variant="default" id="btn_simpan_sel_jadwal" disabled={selBusy}
+              onClick={() => void simpanSel()}>
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

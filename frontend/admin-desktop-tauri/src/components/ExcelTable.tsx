@@ -1308,6 +1308,7 @@ export default function ExcelTable<T extends { id: string | number }>({
               if (!showInput && String(id) !== INPUT_ROW_ID) enableEditByDoubleClick();
             },
             onClickCell: (id: string | number) => {
+              if (f.onCellClick) { f.onCellClick(id); return; }
               if (String(id) === INPUT_ROW_ID) openEditorForActiveCell();
               else openEditorByClick();
             },
