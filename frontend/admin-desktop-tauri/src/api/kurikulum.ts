@@ -275,24 +275,6 @@ export function daftarSlot(jenjang: string) {
   return api<SlotJam[]>(`/admin/kurikulum/slot?jenjang=${encodeURIComponent(jenjang)}`);
 }
 
-export function buatSlot(data: {
-  jenjang: string; nama_slot?: string | null; jenis?: JenisSlot;
-  jam_mulai?: string | null; jam_selesai?: string | null; urutan?: number;
-}) {
-  return api<SlotJam>('/admin/kurikulum/slot', { method: 'POST', body: JSON.stringify(data) });
-}
-
-export function ubahSlot(id: number, data: {
-  nama_slot?: string | null; jenis?: JenisSlot;
-  jam_mulai?: string | null; jam_selesai?: string | null; urutan?: number;
-}) {
-  return api<SlotJam>(`/admin/kurikulum/slot/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-}
-
-export function hapusSlot(id: number) {
-  return api<{ pesan: string }>(`/admin/kurikulum/slot/${id}`, { method: 'DELETE' });
-}
-
 export function daftarJadwal(kelasId: number) {
   return api<JadwalResp>(`/admin/kurikulum/jadwal?kelas_id=${kelasId}`);
 }
@@ -328,7 +310,7 @@ export interface TemplateJadwalDetail {
 
 export interface TerapkanHasil {
   pesan: string; kelas: number; dibuat: number; bisa_dipasang: number;
-  slot_dibuat: number; slot_bisa_dibuat: number;
+  slot_dibuat: number; slot_bisa_dibuat: number; slot_dihapus: number;
   dilewati: { sel: string; alasan: string }[];
 }
 

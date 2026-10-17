@@ -707,10 +707,37 @@ class JadwalPelajaranController extends Controller
                 }
             }
 
+            // Template = sumber kerangka slot saat timpa: slot lama yang tidak
+            // ada lagi di template dihapus, kecuali masih dipakai kelas lain.
+            $slotDihapus = 0;
+            if ($timpa) {
+                $sisa = SlotJamPelajaran::where('jenjang', $template->jenjang)
+                    ->whereNotIn('urutan', array_keys($slotDefs))
+                    ->get();
+                foreach ($sisa as $slot) {
+                    $dipakaiKelasLain = JadwalPelajaran::where('slot_jam_id', $slot->id)
+                        ->whereHas('pengampuMapel', fn ($q) => $q->whereNotIn('kelas_id', $kelasIds))
+                        ->exists();
+                    if ($dipakaiKelasLain) {
+                        $dilewati[] = [
+                            'sel' => 'slot jam ke-'.$slot->urutan,
+                            'alasan' => 'Slot lama tidak ada di template, tetapi masih dipakai kelas lain.',
+                        ];
+
+                        continue;
+                    }
+                    if ($tulis) {
+                        $slot->delete();
+                    }
+                    $slotDihapus++;
+                }
+            }
+
             return [
                 'kelas' => $kelasTarget->count(),
                 'jadwal' => $jadwalDibuat,
                 'slot' => $slotBaru,
+                'slot_dihapus' => $slotDihapus,
                 'dilewati' => $dilewati,
             ];
         };
@@ -719,6 +746,9 @@ class JadwalPelajaranController extends Controller
         $pesan = $mode === 'pratinjau'
             ? "Pratinjau: {$hasil['jadwal']} jadwal bisa dibuat untuk {$hasil['kelas']} kelas, ".count($hasil['dilewati']).' dilewati.'
             : "Template diterapkan: {$hasil['jadwal']} jadwal dibuat untuk {$hasil['kelas']} kelas, ".count($hasil['dilewati']).' dilewati.';
+        if ($hasil['slot_dihapus'] > 0) {
+            $pesan .= " {$hasil['slot_dihapus']} slot lama dihapus.";
+        }
 
         return response()->json([
             'pesan' => $pesan,
@@ -727,6 +757,7 @@ class JadwalPelajaranController extends Controller
             'bisa_dipasang' => $hasil['jadwal'],
             'slot_dibuat' => $tulis ? $hasil['slot'] : 0,
             'slot_bisa_dibuat' => $hasil['slot'],
+            'slot_dihapus' => $tulis ? $hasil['slot_dihapus'] : 0,
             'dilewati' => $hasil['dilewati'],
         ]);
     }

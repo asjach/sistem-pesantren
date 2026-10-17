@@ -468,7 +468,7 @@ function TerapkanKerangka({ jenjang, kelasOpsi, kelasId, canTambah, aktif, hasil
         <label className="flex items-center gap-1 text-xs text-muted-foreground" htmlFor="cek_timpa_jadwal">
           <input type="checkbox" id="cek_timpa_jadwal" checked={timpa} disabled={!bisaTerap}
             onChange={(e) => setTimpa(e.target.checked)} />
-          Timpa jadwal kelas yang sudah ada
+          Timpa jadwal kelas + rapikan slot lama
         </label>
         {canTambah && (
           <>

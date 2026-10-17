@@ -263,6 +263,30 @@ class TemplateJadwalTest extends TestCase
         $this->assertSame(['Fiqih', 'Matematika'], $mapel);
     }
 
+    public function test_timpa_menghapus_slot_lama_yang_tidak_ada_di_template(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+        $kelas = $this->kelas('1A', '1');
+        $this->pengampu($super, $kelas, $this->mapel('Fiqih'));
+
+        $id = $this->template($super, 'Satu Jam', [
+            ['hari' => 'senin', 'nama_slot' => 'Jam 1', 'jam_mulai' => '07:00', 'jam_selesai' => '07:45'],
+        ]);
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/slot', [
+            'jenjang' => 'MI', 'nama_slot' => 'Jam Lama',
+            'jam_mulai' => '10:00', 'jam_selesai' => '10:45', 'urutan' => 9,
+        ])->assertStatus(201);
+
+        $hasil = $this->terapkan($super, $id, [
+            'sasaran' => 'kelas', 'sasaran_id' => (string) $kelas->id, 'timpa' => true,
+        ]);
+        $this->assertSame(1, $hasil['slot_dihapus']);
+        $this->assertDatabaseCount('slot_jam_pelajaran', 1);
+        $this->assertDatabaseMissing('slot_jam_pelajaran', ['urutan' => 9]);
+    }
+
     public function test_terapkan_ke_tingkat_dan_jenjang_banyak_kelas(): void
     {
         $this->lembaga('MI');

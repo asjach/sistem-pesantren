@@ -2,14 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
-import LabeledInput from '@/components/LabeledInput';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
-import { DeleteAction } from '@/components/RowActions';
-import { Plus } from '@/icons';
-import { hitungSlotBaru, jamPendek, menitDariJam } from '@/lib/jadwal';
+import { jamPendek } from '@/lib/jadwal';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { listKelas, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
@@ -18,32 +15,13 @@ import { errorMessage } from '@/api/client';
 import PanelTemplate, { FIELDS_KERANGKA } from './TemplateJadwalPanel';
 import PanelHariLibur from './HariLiburPanel';
 import {
-  buatJadwal, buatSlot, daftarJadwal, daftarSlot, hapusJadwal, hapusSlot, ubahSlot,
-  HARI_LABEL, JENIS_SLOT_LABEL, JENIS_SLOT_OPTIONS, type JadwalBaris, type JenisSlot, type SlotJam,
+  buatJadwal, daftarJadwal, daftarSlot, daftarTemplateJadwal, hapusJadwal, terapkanTemplate,
+  HARI_LABEL, JENIS_SLOT_LABEL,
+  type JadwalBaris, type SlotJam, type TemplateJadwal, type TerapkanHasil,
 } from '@/api/kurikulum';
 
-function validasiJam(v: string | null): string | null {
-  if (v === null || v.trim() === '') return null;
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(v.trim()) ? null : 'Format jam HH:MM.';
-}
-
-function validasiUrutan(v: string | null): string | null {
-  if (v === null || v.trim() === '') return null;
-  const n = Number(v);
-  return Number.isInteger(n) && n >= 0 ? null : 'Urutan harus bilangan bulat ≥ 0.';
-}
-
-const FIELDS_SLOT: ExcelField[] = [
-  { key: 'nama_slot', label: 'Nama slot', width: 180, kind: 'text', maxLength: 50 },
-  { key: 'jenis', label: 'Jenis', width: 130, kind: 'select', selectTanpaEdit: true, choices: JENIS_SLOT_OPTIONS },
-  { key: 'jam_mulai', label: 'Mulai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
-  { key: 'jam_selesai', label: 'Selesai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
-  { key: 'urutan', label: 'Urutan', width: 90, kind: 'text', maxLength: 3, format: 'angka', validate: validasiUrutan },
-];
-
-/** Halaman Jadwal Pelajaran: slot jam per jenjang + matriks jadwal per kelas
- *  (hari × slot) + tab template jadwal generik. Menjaga bentrok kelas &
- *  bentrok guru. */
+/** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × slot) + tab
+ *  template mingguan & hari libur. Slot jam dibuat lewat Terapkan template. */
 export default function KurikulumJadwalPage() {
   const [tab, setTab] = useState('jadwal');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
@@ -63,7 +41,11 @@ export default function KurikulumJadwalPage() {
   const [hariLibur, setHariLibur] = useState<string[]>([]);
   const [baris, setBaris] = useState<JadwalBaris[]>([]);
   const [pengampu, setPengampu] = useState<{ id: number; nama_mapel: string | null; guru: string | null }[]>([]);
-  const [jpl, setJpl] = useState('00:45');
+  const [templateOpsi, setTemplateOpsi] = useState<TemplateJadwal[]>([]);
+  const [templateId, setTemplateId] = useState<number | ''>('');
+  const [timpaKelas, setTimpaKelas] = useState(false);
+  const [templateBusy, setTemplateBusy] = useState(false);
+  const [hasilKelas, setHasilKelas] = useState<TerapkanHasil | null>(null);
   const [err, setErr] = useState('');
 
   const muatSlot = useCallback(async () => {
@@ -97,68 +79,61 @@ export default function KurikulumJadwalPage() {
   useEffect(() => { void muatSlot(); }, [muatSlot]);
   useEffect(() => { void muatJadwal(); }, [muatJadwal]);
 
-  const nilaiSlot = useCallback((s: SlotJam) => ({
-    nama_slot: s.nama_slot ?? null,
-    jenis: s.jenis,
-    jam_mulai: jamPendek(s.jam_mulai),
-    jam_selesai: jamPendek(s.jam_selesai),
-    urutan: String(s.urutan),
-  }), []);
+  // Daftar template untuk tombol Terapkan di tab Jadwal; muat ulang setiap
+  // kembali ke tab ini agar template baru dari tab Template langsung tampil.
+  useEffect(() => {
+    if (tab !== 'jadwal' || jenjang === null) return;
+    let hidup = true;
+    daftarTemplateJadwal(jenjang)
+      .then((r) => { if (hidup) setTemplateOpsi(r); })
+      .catch((e) => { if (hidup) setErr(errorMessage(e)); });
+    return () => { hidup = false; };
+  }, [tab, jenjang]);
 
-  const commitSlot = useCallback(async (id: number | string, f: Record<string, string | null>) => {
-    await ubahSlot(Number(id), {
-      ...(f.nama_slot !== undefined ? { nama_slot: (f.nama_slot ?? '').trim() || null } : {}),
-      ...(f.jenis !== undefined ? { jenis: (f.jenis ?? 'pelajaran') as JenisSlot } : {}),
-      ...(f.jam_mulai !== undefined ? { jam_mulai: (f.jam_mulai ?? '').trim() || null } : {}),
-      ...(f.jam_selesai !== undefined ? { jam_selesai: (f.jam_selesai ?? '').trim() || null } : {}),
-      ...(f.urutan !== undefined ? { urutan: Number(f.urutan) || 0 } : {}),
+  const templateSesuai = useMemo(() => {
+    const tingkat = kelasOpsi.find((k) => k.id === kelasId)?.tingkat ?? null;
+    return templateOpsi.filter((t) => (
+      (t.kelas_id === null || t.kelas_id === kelasId)
+      && (t.tingkat === null || t.tingkat === tingkat)
+    ));
+  }, [templateOpsi, kelasOpsi, kelasId]);
+
+  useEffect(() => {
+    setTemplateId((v) => {
+      if (templateSesuai.some((t) => t.id === v)) return v;
+      return templateSesuai.find((t) => t.is_active)?.id ?? templateSesuai[0]?.id ?? '';
     });
-  }, []);
+  }, [templateSesuai]);
 
-  const simpanSlotSelesai = useCallback(async () => {
-    await muatSlot();
-    await muatJadwal();
-  }, [muatSlot, muatJadwal]);
+  useEffect(() => { setHasilKelas(null); }, [kelasId, templateId]);
 
-  /** Tambah slot setelah slot berjam terakhir: mulai = jam selesainya,
-   *  selesai = mulai + jeda 1 JPL dari input. */
-  const tambahSlot = useCallback(async () => {
-    if (jenjang === null) return;
-    const durasi = menitDariJam(jpl);
-    if (durasi === null || durasi <= 0) {
-      toast.error('Isi jeda 1 JPL dengan jam yang sah (lebih dari 00:00).');
-      return;
-    }
-    const baru = hitungSlotBaru(slot, durasi);
-    if (baru === null) {
-      toast.error('Slot baru akan melewati pukul 23:59.');
-      return;
-    }
+  const templateTerpilih = templateSesuai.find((t) => t.id === templateId) ?? null;
+  const bisaTerapKelas = canTambah && templateTerpilih !== null
+    && templateTerpilih.is_active && kelasId !== '' && !templateBusy;
+
+  const jalankanTemplateKelas = async (mode: 'pratinjau' | 'eksekusi') => {
+    if (templateTerpilih === null || kelasId === '') return;
+    setTemplateBusy(true);
     try {
-      await buatSlot({ jenjang, ...baru });
-      toast.success('Slot ditambah.');
-      await simpanSlotSelesai();
-    } catch (e) { toast.error(errorMessage(e)); }
-  }, [jenjang, jpl, slot, simpanSlotSelesai]);
-
-  const hapusSlotBaru = useCallback(async (s: SlotJam) => {
-    try {
-      await hapusSlot(s.id);
-      toast.success('Slot dihapus.');
-      await simpanSlotSelesai();
-    } catch (e) { toast.error(errorMessage(e)); }
-  }, [simpanSlotSelesai]);
-
-  const renderActionsSlot = useCallback((s: SlotJam) => (
-    canHapus ? (
-      <DeleteAction
-        id={`btn_hapus_slot_${s.id}`}
-        title="Hapus slot jam?"
-        description={`Slot "${s.nama_slot ?? `#${s.id}`}" akan dihapus.`}
-        onConfirm={() => void hapusSlotBaru(s)}
-      />
-    ) : null
-  ), [canHapus, hapusSlotBaru]);
+      const r = await terapkanTemplate(templateTerpilih.id, {
+        sasaran: 'kelas',
+        sasaran_id: String(kelasId),
+        tahun_ajaran: ta,
+        mode,
+        timpa: timpaKelas,
+      });
+      setHasilKelas(r);
+      toast.success(r.pesan);
+      if (mode === 'eksekusi') {
+        await muatSlot();
+        await muatJadwal();
+      }
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setTemplateBusy(false);
+    }
+  };
 
   /** Matriks: satu baris = satu slot, satu kolom = satu hari aktif. Pilihan
    *  dropdown tiap sel = SEMUA pengampu kelas, sehingga mapel yang sama bisa
@@ -270,7 +245,6 @@ export default function KurikulumJadwalPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tabel={[
-        { key: 'kurikulum_jadwal_slot', judul: 'Slot jam', fields: FIELDS_SLOT },
         { key: 'kurikulum_jadwal', judul: 'Jadwal', fields: fieldsMatriks },
         { key: 'kurikulum_template_jadwal', judul: 'Kerangka jam', fields: FIELDS_KERANGKA },
       ]} />
@@ -282,39 +256,7 @@ export default function KurikulumJadwalPage() {
         </TabsList>
 
         <TabsContent value="jadwal" className="flex min-h-0 flex-1 flex-col gap-0 p-3">
-          <ExcelTable<SlotJam>
-            tableKey="kurikulum_jadwal_slot"
-            sumberTabel="slot_jam_pelajaran"
-            header="Slot jam"
-            fields={FIELDS_SLOT}
-            rows={slot}
-            getValues={nilaiSlot}
-            canEdit={canUbah}
-            onCommit={commitSlot}
-            onSaved={simpanSlotSelesai}
-            renderActions={renderActionsSlot}
-            addButton={canTambah ? (
-              <div className="flex items-center gap-2">
-                <LabeledInput
-                  label="1 JPL"
-                  htmlFor="input_jpl_slot"
-                  type="time"
-                  value={jpl}
-                  onChange={(e) => setJpl(e.target.value)}
-                  lebarKotak={190}
-                />
-                <Button type="button" size="sm" id="btn_tambah_slot" onClick={() => void tambahSlot()}>
-                  <Plus data-icon="inline-start" size={14} /> Tambah
-                </Button>
-              </div>
-            ) : undefined}
-            addButtonLangsung
-            maxRows={6}
-            hideCheckbox
-            emptyText="Belum ada slot jam untuk jenjang ini."
-          />
-
-          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border py-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border pb-2">
             <label className="text-xs text-muted-foreground" htmlFor="select_kelas_jadwal">Kelas</label>
             <select
               id="select_kelas_jadwal"
@@ -332,7 +274,54 @@ export default function KurikulumJadwalPage() {
                 Libur: {hariLibur.map((h) => HARI_LABEL[h] ?? h).join(', ')}
               </span>
             )}
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <label className="text-xs text-muted-foreground" htmlFor="select_template_kelas">Template</label>
+              <select
+                id="select_template_kelas"
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                value={templateId === '' ? '' : String(templateId)}
+                onChange={(e) => setTemplateId(e.target.value === '' ? '' : Number(e.target.value))}
+              >
+                <option value="">
+                  {templateSesuai.length === 0 ? '— tidak ada template —' : '— pilih template —'}
+                </option>
+                {templateSesuai.map((t) => (
+                  <option key={t.id} value={t.id}>{t.nama}{t.is_active ? '' : ' (nonaktif)'}</option>
+                ))}
+              </select>
+              <label className="flex items-center gap-1 text-xs text-muted-foreground" htmlFor="cek_timpa_kelas">
+                <input
+                  type="checkbox" id="cek_timpa_kelas" checked={timpaKelas}
+                  onChange={(e) => setTimpaKelas(e.target.checked)}
+                />
+                Timpa
+              </label>
+              {canTambah && (
+                <>
+                  <Button type="button" variant="outline" size="sm" id="btn_pratinjau_template_kelas"
+                    disabled={!bisaTerapKelas}
+                    onClick={() => void jalankanTemplateKelas('pratinjau')}>
+                    Pratinjau
+                  </Button>
+                  <Button type="button" variant="default" size="sm" id="btn_terapkan_template_kelas"
+                    disabled={!bisaTerapKelas}
+                    onClick={() => void jalankanTemplateKelas('eksekusi')}>
+                    Terapkan
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
+
+          {hasilKelas !== null && hasilKelas.dilewati.length > 0 && (
+            <div className="shrink-0 border-b border-border py-1 text-[11px] text-muted-foreground">
+              <ul className="list-disc pl-5">
+                {hasilKelas.dilewati.map((d, i) => (
+                  <li key={i}><span className="font-medium text-foreground">{d.sel}</span>: {d.alasan}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {kelasId === '' ? (
             <p className="p-4 text-xs text-muted-foreground">Pilih kelas untuk mengatur jadwal.</p>
@@ -352,7 +341,7 @@ export default function KurikulumJadwalPage() {
               hideCheckbox
               hideActions
               emptyText={slot.length === 0
-                ? 'Buat slot jam terlebih dahulu di tabel atas.'
+                ? 'Belum ada slot jam — terapkan template di tab Template Jadwal.'
                 : 'Belum ada jadwal untuk kelas ini — pilih mapel pada sel hari.'}
             />
           )}
