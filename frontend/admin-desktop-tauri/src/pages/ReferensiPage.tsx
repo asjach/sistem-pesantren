@@ -17,6 +17,7 @@ import { urutanBerikutnya, urutkanReferensi } from '../lib/referensiUrut';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { FieldDescription, FieldLabel } from '@/components/ui/field';
 import {
@@ -28,8 +29,6 @@ import {
   ComboboxRoot,
   ComboboxTrigger,
 } from '@/components/ui/combobox';
-/* Masih dipakai Select di form dialog "Tambah entri" (bukan filter toolbar). */
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -102,7 +101,11 @@ export default function ReferensiPage() {
 
   const [tambahOpen, setTambahOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [scope, setScope] = useState('');
+  /** Lembaga tujuan entri baru (checkbox; bisa beberapa). Kosong = belum
+   *  ada pilihan — kirim nilai kosong agar backend menolak, bukan fan-out. */
+  const [scope, setScope] = useState<string[]>([]);
+  /** Semua jenjang yang boleh diakses — bawaan "terpilih semua". */
+  const semuaJenjang = useMemo(() => lembagas.map((l) => l.jenjang), [lembagas]);
   const [fNama, setFNama] = useState('');
   const [fKode, setFKode] = useState('');
   /** Singkatan tampilan — hanya dipakai kamus `mapel`. */
@@ -266,12 +269,16 @@ export default function ReferensiPage() {
   const openTambah = useCallback(() => {
     setFNama(''); setFKode(''); setFSingkatan('');
     setFUrutan(String(urutanBerikutnya(rowsRef.current)));
-    // Tanpa Global: super_admin tanpa lembaga = sebar ke semua; jika scope
-    // lembaga aktif, tambah ke lembaga itu.
-    const fallback = targetJenjang ?? '';
-    setScope(fallback);
+    // Bawaan: SEMUA lembaga terpilih, entri baru dibuat di semuanya. Pengguna
+    // tinggal mengucentang yang tak mau dipakai. Kalau daftar lembaga belum
+    // selesai dimuat, andalkan scope filter (bukan kosong) supaya tak buntu.
+    setScope(
+      semuaJenjang.length > 0
+        ? semuaJenjang
+        : (targetJenjang ? [targetJenjang] : []),
+    );
     setTambahOpen(true);
-  }, [targetJenjang]);
+  }, [semuaJenjang, targetJenjang]);
 
   // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Entri"). Terhalang saat
   // dialog tambah/ubah sudah terbuka atau tipe kamus belum siap (tak ada
@@ -286,16 +293,17 @@ export default function ReferensiPage() {
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
+    // Tanpa pilihan lembaga tak ada tujuan simpan — backend juga menolak
+    // array kosong, tapi dicegat di sini agar tak perlu bolak-balik. Pesan
+    // lewat toast karena `err` halaman tertutup dialog.
+    if (scope.length === 0) {
+      toast.error('Pilih minimal satu lembaga.');
+      return;
+    }
     setSubmitting(true);
     try {
       const payload: ReferensiInput = { urutan: fUrutan === '' ? 0 : Number(fUrutan) };
-      // Scope kosong = super_admin sebar ke semua lembaga (backend fan-out).
-      if (scope !== '') payload.jenjang = scope;
-      else if (!isSuper) {
-        setErr('Pilih lembaga dulu.');
-        setSubmitting(false);
-        return;
-      }
+      payload.jenjang = scope;
       if (isStatus) {
         payload.kode = fKode.trim();
         payload.nama = fNama.trim() || fKode.trim();
@@ -308,7 +316,11 @@ export default function ReferensiPage() {
         }
       }
       await createReferensi(tipe, payload);
-      toast.success('Entri referensi ditambahkan.');
+      toast.success(
+        scope.length === 1
+          ? 'Entri referensi ditambahkan.'
+          : `Entri ditambahkan ke ${scope.length} lembaga.`,
+      );
       setTambahOpen(false);
       reload();
     } catch (e2) {
@@ -316,7 +328,7 @@ export default function ReferensiPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [isSuper, scope, fUrutan, isStatus, isMapel, fKode, fNama, fSingkatan, tipe, reload]);
+  }, [scope, fUrutan, isStatus, isMapel, fKode, fNama, fSingkatan, tipe, reload]);
 
   const openEdit = useCallback((r: ReferensiRow) => {
     setEditRow(r);
@@ -517,18 +529,50 @@ export default function ReferensiPage() {
             <DialogDescription className="sr-only">Formulir penambahan entri referensi.</DialogDescription>
           </DialogHeader>
           <form id="form_tambah_referensi" onSubmit={onCreate} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
-            <FieldLabel htmlFor="select_scope_referensi">Lembaga</FieldLabel>
-            <Select value={scope === '' ? '__semua' : scope} onValueChange={(v) => setScope(v === '__semua' ? '' : v)}>
-              <SelectTrigger id="select_scope_referensi" className="w-full">
-                <SelectValue placeholder={isSuper ? 'Semua lembaga (sebar)' : 'Pilih lembaga'} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {isSuper && <SelectItem value="__semua">Semua lembaga (sebar sekaligus)</SelectItem>}
-                  {lembagas.map((l) => <SelectItem key={l.jenjang} value={l.jenjang}>{l.jenjang} — {l.nama}</SelectItem>)}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <FieldLabel className="self-start pt-1.5">Lembaga</FieldLabel>
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="check_scope_semua_referensi"
+                className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium"
+              >
+                <Checkbox
+                  id="check_scope_semua_referensi"
+                  checked={semuaJenjang.length > 0 && scope.length === semuaJenjang.length}
+                  onCheckedChange={(v) => setScope(v === true ? semuaJenjang : [])}
+                />
+                Semua lembaga
+              </label>
+              <div className="max-h-40 overflow-auto rounded-md border border-border p-1">
+                {lembagas.map((l) => (
+                  <label
+                    key={l.jenjang}
+                    htmlFor={`check_scope_referensi_${l.jenjang.toLowerCase()}`}
+                    className="flex cursor-pointer items-center gap-2 rounded-xs px-1 py-1 text-xs hover:bg-muted/50"
+                  >
+                    <Checkbox
+                      id={`check_scope_referensi_${l.jenjang.toLowerCase()}`}
+                      checked={scope.includes(l.jenjang)}
+                      onCheckedChange={(v) => setScope((prev) => (
+                        v === true
+                          ? [...prev.filter((x) => x !== l.jenjang), l.jenjang]
+                          : prev.filter((x) => x !== l.jenjang)
+                      ))}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{l.jenjang} — {l.nama}</span>
+                  </label>
+                ))}
+                {lembagas.length === 0 && (
+                  <p className="px-1 py-1 text-xs text-muted-foreground">Belum ada lembaga.</p>
+                )}
+              </div>
+              <FieldDescription>
+                {scope.length === 0
+                  ? 'Pilih satu atau beberapa lembaga tujuan.'
+                  : scope.length === semuaJenjang.length
+                    ? `Bawaan: semua ${semuaJenjang.length} lembaga — uncentang yang tak dipakai.`
+                    : `Entri baru dibuat di ${scope.length} lembaga.`}
+              </FieldDescription>
+            </div>
             {isStatus ? (
               <>
                 <FieldLabel htmlFor="input_kode_referensi">Kode</FieldLabel>
@@ -589,7 +633,7 @@ export default function ReferensiPage() {
             />
             <DialogFooter className="col-span-2">
               <Button type="button" variant="outline" onClick={() => setTambahOpen(false)}>Batal</Button>
-              <Button id="btn_simpan_tambah_referensi" type="submit" disabled={submitting}>Tambah</Button>
+              <Button id="btn_simpan_tambah_referensi" type="submit" disabled={submitting || scope.length === 0}>Tambah</Button>
             </DialogFooter>
           </form>
         </DialogContent>

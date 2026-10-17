@@ -15,17 +15,21 @@ use Illuminate\Support\Facades\DB;
  * CRUD kamus per lembaga (tanpa baris global): super_admin menambah nilai
  * ke SEMUA lembaga operasional sekaligus (fan-out); tiap lembaga
  * mengaktifkan/menonaktifkan miliknya sendiri.
+ *
+ * POST menerima `jenjang` sebagai string (satu lembaga), array (beberapa
+ * lembaga sekaligus — checkbox "Lembaga" di form Tambah entri), atau kosong
+ * (fan-out ke semua).
  */
 class ReferensiController extends Controller
 {
     use FilterGlobal;
 
-    protected function mustLembaga($actor, array $data): string
+    protected function mustLembaga($actor, ?string $jenjang = null): string
     {
-        if (! empty($data['jenjang'])) {
-            $this->canLembaga($actor, $data['jenjang']) || abort(403, 'Di luar lembaga Anda.');
+        if ($jenjang !== null && $jenjang !== '') {
+            $this->canLembaga($actor, $jenjang) || abort(403, 'Di luar lembaga Anda.');
 
-            return $data['jenjang'];
+            return $jenjang;
         }
         $ids = $actor->lembagaIds();
         if (count($ids) === 1) {
@@ -132,11 +136,32 @@ class ReferensiController extends Controller
         }
 
         $table = RefService::table($tipe);
+
+        // Daftar lembaga (checkbox): satu permintaan untuk semua pilihan,agency
+        // yang sudah punya nilainya dilewati — sama seperti fan-out "semua".
+        $pilih = $request->input('jenjang');
+        if (is_array($pilih)) {
+            $lembagas = array_values(array_unique(array_filter(array_map(
+                static fn ($j) => trim((string) $j),
+                $pilih,
+            ))));
+            foreach ($lembagas as $lid) {
+                $this->canLembaga($actor, $lid) || abort(403, 'Di luar lembaga Anda.');
+            }
+            // Array kosong = tak ada yang dicentang (bukan fan-out "semua";
+            // fan-out hanya lewat `jenjang` yang tak dikirim sama sekali).
+            if ($lembagas === []) {
+                abort(422, 'Pilih minimal satu lembaga.');
+            }
+
+            return $this->storeSebar($actor, $tipe, $table, $key, $isStatus, $data, $lembagas);
+        }
+
         // Tanpa jenjang = super_admin menambah ke SEMUA lembaga sekaligus.
         $targetLembaga = $data['jenjang'] ?? null;
         if (is_null($targetLembaga)) {
             if (! $actor->bolehSuperAdmin()) {
-                $targetLembaga = $this->mustLembaga($actor, $data);
+                $targetLembaga = $this->mustLembaga($actor);
             } else {
                 return $this->storeSebar($actor, $tipe, $table, $key, $isStatus, $data);
             }
@@ -175,11 +200,14 @@ class ReferensiController extends Controller
     }
 
     /**
-     * Super_admin menambah satu nilai ke SEMUA lembaga operasional sekaligus
-     * (tanpa baris global). Lembaga yang sudah punya kuncinya dilewati;
+     * Tambah satu nilai ke banyak lembaga sekaligus (tanpa baris global).
+     * `$lembagas` kosong = SEMUA lembaga operasional; kalau diisi, hanya
+     * lembaga pilihan itu. Lembaga yang sudah punya kuncinya dilewati;
      * bila tak ada yang terbentuk → 422.
+     *
+     * @param  list<string>|null  $lembagas
      */
-    protected function storeSebar($actor, string $tipe, string $table, string $key, bool $isStatus, array $data)
+    protected function storeSebar($actor, string $tipe, string $table, string $key, bool $isStatus, array $data, ?array $lembagas = null)
     {
         if ($isStatus) {
             $atribut = [
@@ -195,10 +223,10 @@ class ReferensiController extends Controller
             ] + $this->kolomTambahanMapel($tipe, $data);
         }
 
-        $lembagas = Lembaga::orderBy('jenjang')->pluck('jenjang')->all();
+        $lembagas ??= Lembaga::orderBy('jenjang')->pluck('jenjang')->all();
         $terbentuk = RefService::sebar($table, $key, $atribut, $lembagas);
         if (empty($terbentuk)) {
-            abort(422, 'Nilai sudah ada di semua lembaga.');
+            abort(422, 'Nilai sudah ada di semua lembaga yang dipilih.');
         }
 
         return response()->json([

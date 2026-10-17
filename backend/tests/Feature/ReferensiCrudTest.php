@@ -481,4 +481,59 @@ class ReferensiCrudTest extends TestCase
             ]);
         }
     }
+
+    // ---------- 16. pilihan beberapa lembaga (checkbox) sekali permintaan ----------
+
+    public function test_16_daftar_lembaga_dipilih_bersamaan(): void
+    {
+        $f = $this->fixture();
+        $super = $this->makeUser('super_admin');
+
+        $res = $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Renang', 'jenjang' => [$f['mi']->jenjang, $f['mts']->jenjang],
+        ])->assertStatus(201);
+        $this->assertCount(2, $res->json('data'));
+
+        // Tertinggal satu saja: lembaga tak dipilih tak tersentuh.
+        $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['mi']->jenjang, 'nama' => 'Renang']);
+        $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['mts']->jenjang, 'nama' => 'Renang']);
+        $this->assertDatabaseMissing('ref_hobi', ['jenjang' => $f['md']->jenjang, 'nama' => 'Renang']);
+
+        // Sudah ada di salah satu pilihan → dilewati, tak menggagalkan yang lain.
+        $res2 = $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Renang', 'jenjang' => [$f['md']->jenjang, $f['mi']->jenjang],
+        ])->assertStatus(201);
+        $this->assertCount(1, $res2->json('data'));
+        $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['md']->jenjang, 'nama' => 'Renang']);
+
+        // Semua pilihan sudah punya → 422 (bukan senyap tanpa baris baru).
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Renang', 'jenjang' => [$f['mi']->jenjang, $f['md']->jenjang, $f['mts']->jenjang],
+        ])->assertStatus(422);
+    }
+
+    // ---------- 17. daftar lembaga: obey access, di luar wewenang ditolak ----------
+
+    public function test_17_daftar_lembaga_dengan_batasan_akses(): void
+    {
+        $f = $this->fixture();
+        $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
+
+        // Array kosong bukan fan-out: admin tanpa pilihan ditolak.
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Memancing', 'jenjang' => [],
+        ])->assertStatus(422);
+
+        // Satu lembaga miliknya sendiri tetap boleh.
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Memancing', 'jenjang' => [$f['mi']->jenjang],
+        ])->assertStatus(201);
+        $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['mi']->jenjang, 'nama' => 'Memancing']);
+
+        // Ada satu lembaga di luar wewenang → 403, tak ada yang tersimpan.
+        $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/hobi', [
+            'nama' => 'Memancing', 'jenjang' => [$f['mi']->jenjang, $f['mts']->jenjang],
+        ])->assertStatus(403);
+        $this->assertDatabaseMissing('ref_hobi', ['jenjang' => $f['mts']->jenjang, 'nama' => 'Memancing']);
+    }
 }

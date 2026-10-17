@@ -18,7 +18,11 @@ class ReferensiStoreRequest extends FormRequest
         $isStatus = in_array($tipe, ['status_awal', 'status_akhir'], true);
 
         $rules = [
-            'jenjang' => 'nullable|exists:lembaga,jenjang',
+            // String = satu lembaga; array = beberapa lembaga sekaligus
+            // (checkbox "Lembaga" di form Tambah entri). Kosong/tak ada =
+            // super_admin menambah ke semua lembaga (fan-out).
+            'jenjang' => 'nullable',
+            'jenjang.*' => 'string|exists:lembaga,jenjang',
             'kode' => $isStatus ? 'required|string' : 'nullable|string',
             'nama' => $isStatus ? 'nullable|string' : 'required|string',
             'urutan' => 'nullable|integer',

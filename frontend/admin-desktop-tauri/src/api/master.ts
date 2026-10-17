@@ -215,7 +215,9 @@ export interface ReferensiRow {
 }
 
 export interface ReferensiInput {
-  jenjang?: string | null;
+  /** Satu lembaga (string), beberapa sekaligus (array dari checkbox), atau
+   *  null/tak ada = super_admin menyebarkannya ke semua lembaga. */
+  jenjang?: string | string[] | null;
   nama?: string;
   kode?: string;
   /** Khusus kamus `mapel` (`ref_mapel`); tipe lain mengabaikannya. */
