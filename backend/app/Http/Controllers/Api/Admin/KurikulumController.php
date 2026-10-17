@@ -423,6 +423,53 @@ class KurikulumController extends Controller
         );
     }
 
+    /**
+     * PUT /admin/kurikulum/komposisi/tingkat-bulk — terapkan satu cakupan tingkat
+     * ke BANYAK baris komposisi sekaligus (aksi massal dari checkbox tabel).
+     *
+     * Semantik sama persis dengan satu baris: daftar tingkat = SET (mengganti
+     * cakupan lama baris itu), kosong = berlaku di semua tingkat.
+     */
+    public function bulkTingkatKomposisi(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:200'],
+            'ids.*' => ['integer', 'exists:kurikulum_mapel,id'],
+            'tingkat' => ['present', 'array'],
+            'tingkat.*' => ['string', 'max:20'],
+        ]);
+
+        $baris = KurikulumMapel::with('kurikulum:id,nama,jenjang')
+            ->whereIn('id', $data['ids'])
+            ->get();
+        if ($baris->count() !== count(array_unique($data['ids']))) {
+            throw ValidationException::withMessages([
+                'ids' => 'Sebagian baris komposisi tidak ditemukan.',
+            ]);
+        }
+
+        // WEWANGAN lebih dulu, untuk SEMUA baris: kalau satu baris di luar
+        // wewenang, tak ada baris pun yang boleh tersentuh (dan pesan galat tak
+        // perlu membocorkan isi referensi jenjang orang lain).
+        foreach ($baris as $b) {
+            $this->authorizeLembaga($request->user(), $b->kurikulum->jenjang);
+        }
+
+        // Validasi tingkat terhadap gabungan referensi jenjang baris-baris itu
+        // (pengguna boleh punya beberapa jenjang), lalu baru menulis SEMUA baris
+        // — setelah titik ini tak ada lagi langkah yang bisa gagal.
+        $daftar = $this->bersihkanTingkat($data['tingkat']);
+        $this->pastikanTingkatDikenal($daftar, $this->refTingkatUntuk(
+            $baris->map(fn ($b) => $b->kurikulum->jenjang)->unique()->all()
+        ));
+
+        foreach ($baris as $b) {
+            $this->simpanCakupanTingkat($b, $b->kurikulum->jenjang, $daftar);
+        }
+
+        return response()->json(['tersentuh' => $baris->count(), 'tingkat' => $daftar]);
+    }
+
     /** DELETE /admin/kurikulum/komposisi/{item} */
     public function destroyKomposisi(Request $request, KurikulumMapel $item): JsonResponse
     {
@@ -744,28 +791,68 @@ class KurikulumController extends Controller
         if ($tingkat === null) {
             return;
         }
-        $daftar = array_values(array_unique(array_map(
-            fn ($t) => trim((string) $t),
-            $tingkat
-        )));
-        $daftar = array_values(array_filter($daftar, fn ($t) => $t !== ''));
-
-        if ($daftar !== []) {
-            $boleh = collect(RefService::effective('tingkat', $jenjang))
-                ->map(fn ($r) => (string) $r->nama)
-                ->all();
-            $asing = array_values(array_diff($daftar, $boleh));
-            if ($asing !== []) {
-                throw ValidationException::withMessages([
-                    'tingkat' => 'Tingkat tak dikenal: '.implode(', ', $asing).'.',
-                ]);
-            }
-        }
+        $daftar = $this->bersihkanTingkat($tingkat);
+        $this->pastikanTingkatDikenal($daftar, $this->refTingkatUntuk([$jenjang]));
 
         $baris->tingkat()->delete();
         if ($daftar !== []) {
             $baris->tingkat()->createMany(array_map(fn (string $t) => ['tingkat' => $t], $daftar));
         }
+    }
+
+    /**
+     * Bersihkan daftar tingkat: trim, buang yang kosong, dedup.
+     *
+     * @param  list<string>  $tingkat
+     * @return list<string>
+     */
+    private function bersihkanTingkat(array $tingkat): array
+    {
+        $daftar = array_values(array_unique(array_map(
+            fn ($t) => trim((string) $t),
+            $tingkat
+        )));
+
+        return array_values(array_filter($daftar, fn ($t) => $t !== ''));
+    }
+
+    /**
+     * Pastikan semua tingkat dikenal referensi — kalau tidak, satu salah ketik
+     * akan diam-diam membuat mapel tak berlaku di kelas mana pun.
+     *
+     * @param  list<string>  $daftar
+     * @param  list<string>  $boleh
+     */
+    private function pastikanTingkatDikenal(array $daftar, array $boleh): void
+    {
+        if ($daftar === []) {
+            return;
+        }
+        $asing = array_values(array_diff($daftar, $boleh));
+        if ($asing !== []) {
+            throw ValidationException::withMessages([
+                'tingkat' => 'Tingkat tak dikenal: '.implode(', ', $asing).'.',
+            ]);
+        }
+    }
+
+    /**
+     * Gabungan nama tingkat yang sah untuk daftar jenjang (jenjang tanpa referensi
+     * tingkat tidak menambah apa pun, jadi nilainya tetap ditolak).
+     *
+     * @param  list<string>  $jenjangs
+     * @return list<string>
+     */
+    private function refTingkatUntuk(array $jenjangs): array
+    {
+        $boleh = [];
+        foreach ($jenjangs as $jenjang) {
+            foreach (RefService::effective('tingkat', $jenjang) as $r) {
+                $boleh[(string) $r->nama] = true;
+            }
+        }
+
+        return array_keys($boleh);
     }
 
     /**

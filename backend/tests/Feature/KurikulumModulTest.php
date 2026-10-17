@@ -490,6 +490,115 @@ class KurikulumModulTest extends TestCase
     }
 
     /**
+     * Aksi massal: satu cakupan tingkat diterapkan ke BANYAK baris komposisi
+     * sekaligus (checkbox tabel komposisi).
+     *
+     * Yang dijaga: daftar = SET (mengganti cakupan lama tiap baris, bukan
+     * ditambahkan), kosong = berlaku semua tingkat, tingkat tak dikenal ditolak
+     * SEBELUM ada baris yang tersentuh, dan baris milik jenjang lain forbidden.
+     */
+    public function test_02c_terapkan_tingkat_banyak_baris_komposisi(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $this->tingkat('1', 1);
+        $this->tingkat('2', 2);
+        $this->tingkat('3', 3);
+
+        $kur = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/kurikulum', ['jenjang' => 'MI', 'nama' => 'Kurikulum Kemenag'])
+            ->assertStatus(201)->json();
+        $ids = [];
+        foreach (['Fiqih', 'Bahasa Arab', 'Akidah Akhlak'] as $nama) {
+            $ids[] = $this->actingAs($super, 'sanctum')
+                ->postJson('/api/admin/kurikulum/komposisi', [
+                    'kurikulum_id' => $kur['id'], 'mata_pelajaran_id' => $this->mapel($nama)->id,
+                ])->assertStatus(201)->json()['id'];
+        }
+
+        // Terapkan tingkat 2 & 3 ke dua baris pertama.
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/komposisi/tingkat-bulk', [
+                'ids' => [$ids[0], $ids[1]], 'tingkat' => ['2', '3'],
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('tersentuh', 2)
+            ->assertJsonPath('tingkat', ['2', '3']);
+
+        $daftar = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/komposisi?kurikulum_id={$kur['id']}")
+            ->assertStatus(200)->json();
+        $perBaris = collect($daftar['baris'])->mapWithKeys(fn ($b) => [$b['id'] => $b['tingkat']]);
+        $this->assertSame(['2', '3'], $perBaris[$ids[0]]);
+        $this->assertSame(['2', '3'], $perBaris[$ids[1]]);
+        $this->assertSame([], $perBaris[$ids[2]], 'baris tak terpilih tak boleh ikut berubah');
+
+        // SET, bukan tambah: baris pertama dicakup ['2','3'], sekarang ['1'] saja.
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/komposisi/tingkat-bulk', ['ids' => [$ids[0]], 'tingkat' => ['1']])
+            ->assertStatus(200);
+        $this->assertSame(
+            [['kurikulum_mapel_id' => $ids[0], 'tingkat' => '1']],
+            DB::table('kurikulum_mapel_tingkat')->where('kurikulum_mapel_id', $ids[0])->get()
+                ->map(fn ($r) => ['kurikulum_mapel_id' => $r->kurikulum_mapel_id, 'tingkat' => $r->tingkat])->all()
+        );
+
+        // Kosong = berlaku semua tingkat (untuk semua baris terpilih).
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/komposisi/tingkat-bulk', [
+                'ids' => [$ids[0], $ids[1]], 'tingkat' => [],
+            ])
+            ->assertStatus(200)->assertJsonPath('tingkat', []);
+        $this->assertDatabaseMissing('kurikulum_mapel_tingkat', ['kurikulum_mapel_id' => $ids[0]]);
+        $this->assertDatabaseMissing('kurikulum_mapel_tingkat', ['kurikulum_mapel_id' => $ids[1]]);
+
+        // Tingkat tak dikenal → 422 dan tak ada baris yang berubah.
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/komposisi/tingkat-bulk', [
+                'ids' => [$ids[0]], 'tingkat' => ['9'],
+            ])
+            ->assertStatus(422)->assertJsonValidationErrors('tingkat');
+        $this->assertDatabaseMissing('kurikulum_mapel_tingkat', ['kurikulum_mapel_id' => $ids[0]]);
+
+        // `tingkat` wajib ada (kosong = semua tingkat, absen = tak jelas).
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/komposisi/tingkat-bulk', ['ids' => [$ids[0]]])
+            ->assertStatus(422)->assertJsonValidationErrors('tingkat');
+
+        // Daftar kosong & baris tak dikenal ditolak.
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/komposisi/tingkat-bulk', ['ids' => [], 'tingkat' => ['1']])
+            ->assertStatus(422)->assertJsonValidationErrors('ids');
+
+        // Baris komposisi jenjang lain Forbidden untuk admin MI (MTS, bukan
+        // pasangan MI↔MD yang boleh diakses timbal-balik).
+        $this->lembaga('MTS');
+        $kurMts = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/kurikulum', ['jenjang' => 'MTS', 'nama' => 'Kurikulum MTS'])
+            ->assertStatus(201)->json();
+        $barisMts = $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/komposisi', [
+                'kurikulum_id' => $kurMts['id'], 'mata_pelajaran_id' => $this->mapel('Tarikh Islam', 'MTS')->id,
+            ])->assertStatus(201)->json()['id'];
+        $adminMi = User::create([
+            'name' => 'Admin MI', 'email' => 'bulk_admin_mi@example.com',
+            'phone' => '081234500099', 'password' => 'password',
+        ]);
+        $adminMi->assignRole('admin');
+        DB::table('user_lembaga')->insert([
+            'user_id' => $adminMi->id, 'jenjang' => 'MI',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($adminMi, 'sanctum')
+            ->putJson('/api/admin/kurikulum/komposisi/tingkat-bulk', ['ids' => [$ids[0], $barisMts], 'tingkat' => ['1']])
+            ->assertStatus(403);
+        // Baris milik pengguna sendiri tetap tak tersentuh (wewenang dicek dulu).
+        $this->assertDatabaseMissing('kurikulum_mapel_tingkat', ['kurikulum_mapel_id' => $ids[0]]);
+    }
+
+    /**
      * Tabel pengampu bisa menampilkan BANYAK kelas sekaligus (rel Kelas), jadi
      * pengampu diambil dalam satu request (`pengampus`) — bukan satu request per
      * kelas. Baris harus tetap berlabel kelas asalnya, dan wewenang tetap dijaga

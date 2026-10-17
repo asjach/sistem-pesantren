@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ import { errorMessage } from '@/api/client';
 import { ArrowRight, GraduationCap, Plus } from '@/icons';
 import {
   buatKomposisi, buatKurikulum, daftarKomposisi, daftarKurikulum, hapusKomposisi,
-  hapusKurikulum, ubahKomposisi, ubahKurikulum,
+  hapusKurikulum, terapkanTingkatKomposisi, ubahKomposisi, ubahKurikulum,
   type Kurikulum, type KomposisiBaris, type MataPelajaran,
 } from '@/api/kurikulum';
 
@@ -148,6 +148,109 @@ function DialogFormKurikulum({ open, onClose, judul, idPrefix, idSimpan, nilai, 
   );
 }
 
+interface DialogCakupanTingkatProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Judul dialog, mis. "Berlaku di tingkat — Fiqih" atau "Berlaku di tingkat — 4 mapel". */
+  judul: string;
+  /** Tingkat yang boleh dipilih (dari server, mengikuti jenjang kurikulum). */
+  opsi: { id: number; nama: string }[];
+  /** Tingkat tercentang saat dialog dibuka. */
+  terpilih: string[];
+  /** Dipanggil dengan daftar akhir pilihan pengguna (state dialog tak Bocor ke luar). */
+  onSimpan: (terpilih: string[]) => void;
+  onBatal: () => void;
+  /** id tombol Simpan (harus unik per pemakaian). */
+  idSimpan: string;
+  /** Awalan id checkbox agar tidak bentrok antar pemakaian dialog. */
+  idPrefix: string;
+  /** Baris tambahan di bawah daftar checkbox (mis. jumlah mapel & catatan). */
+  catatan?: ReactNode;
+}
+
+/**
+ * Dialog "Berlaku di tingkat" — dipakai DUA kali: satu baris komposisi (ikon
+ * GraduationCap di kolom Aksi) dan aksi massal dari checkbox tabel.
+ *
+ * Nilai = daftar NAMA tingkat (bukan id kelas) jadi lintas tahun ajaran;
+ * kosong = berlaku di semua tingkat.
+ */
+function DialogCakupanTingkat({
+  open, onOpenChange, judul, opsi, terpilih, onSimpan, onBatal, idSimpan, idPrefix, catatan,
+}: DialogCakupanTingkatProps) {
+  const nama = useMemo(() => opsi.map((o) => o.nama), [opsi]);
+  const [dipilih, setDipilih] = useState<string[]>(terpilih);
+
+  // Setiap kali dialog dibuka (open true) isi ulang dari nilai baru di luar —
+  // state internal sengaja disimpan supaya centang tak hilang saat re-render.
+  useEffect(() => {
+    if (open) setDipilih(terpilih);
+  }, [open, terpilih]);
+
+  const semuaTercentang = nama.length > 0 && dipilih.length === nama.length;
+  const idSemua = `${idPrefix}_semua_tingkat`;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{judul}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Pilih tingkat tempat mapel ini diajarkan. Kosong berarti semua tingkat.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id={idSemua}
+              checked={semuaTercentang}
+              onCheckedChange={(v) => setDipilih(v === true ? [...nama] : [])}
+            />
+            <label htmlFor={idSemua} className="text-xs font-medium">
+              Semua tingkat ({nama.join(', ')})
+            </label>
+          </div>
+          <div className="max-h-64 overflow-auto rounded border border-border p-1">
+            {opsi.length === 0 ? (
+              <p className="p-2 text-xs text-muted-foreground">
+                Belum ada data tingkat untuk jenjang ini — mapel berlaku di semua tingkat.
+              </p>
+            ) : (
+              opsi.map((t) => (
+                <label
+                  key={t.id}
+                  htmlFor={`${idPrefix}_tingkat_${t.id}`}
+                  className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted/50"
+                >
+                  <Checkbox
+                    id={`${idPrefix}_tingkat_${t.id}`}
+                    checked={dipilih.includes(t.nama)}
+                    onCheckedChange={(v) => setDipilih((prev) => (
+                      v === true ? [...prev, t.nama] : prev.filter((x) => x !== t.nama)
+                    ))}
+                  />
+                  Tingkat {t.nama}
+                </label>
+              ))
+            )}
+          </div>
+          {catatan}
+          <FieldDescription>
+            {dipilih.length === 0
+              ? 'Kosong = berlaku di semua tingkat kelas yang memakai kurikulum ini.'
+              : `Hanya berlaku di kelas tingkat ${dipilih.join(', ')}. `
+                + 'Baris pengampu yang sudah terlanjur dibuat di kelas lain tidak ikut terhapus — hapus dari halaman Pengampu bila tak mau lagi.'}
+          </FieldDescription>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onBatal}>Batal</Button>
+          <Button id={idSimpan} onClick={() => { onBatal(); onSimpan(dipilih); }}>Simpan</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** Halaman Kurikulum: daftar kurikulum per jenjang + komposisi mapel
  *  (mapel → kurikulum, dengan cakupan tingkat opsional + KKM & urutan rapor).
  *
@@ -176,11 +279,17 @@ export default function KurikulumKurikulumPage() {
   const [formUbah, setFormUbah] = useState<NilaiFormKurikulum>(FORM_KOSONG);
   /** Tingkat pilihan cakupan (dari server, mengikuti jenjang kurikulum aktif). */
   const tingkatOpsi = komposisi?.tingkatOpsi ?? [];
-  const namaTingkat = useMemo(() => tingkatOpsi.map((t) => t.nama), [tingkatOpsi]);
 
   /** Dialog "Berlaku di tingkat": baris yang disunting + daftar tingkat terpilih. */
   const [cakupanTarget, setCakupanTarget] = useState<KomposisiBaris | null>(null);
   const [cakupanDipilih, setCakupanDipilih] = useState<string[]>([]);
+  /** Aksi massal: baris-baris tercentang + awal pilihan (kosong bila
+   *  cakupan awal baris-baris itu berbeda-beda). */
+  const [bulkTarget, setBulkTarget] = useState<KomposisiBaris[] | null>(null);
+  const [bulkDipilih, setBulkDipilih] = useState<string[]>([]);
+  const [bulkBedaBeda, setBulkBedaBeda] = useState(false);
+  /** Pemanggil `clearSelection` dari ExcelTable — dipakai setelah simpan bulk. */
+  const bulkBersihRef = useRef<() => void>(() => {});
 
   const kurikulumAktif = daftar.find((k) => k.id === pilihId) ?? null;
 
@@ -382,24 +491,76 @@ export default function KurikulumKurikulumPage() {
   }, []);
 
   /** Simpan cakupan tingkat dari dialog checkbox: daftar kosong = semua tingkat. */
-  const simpanCakupan = useCallback(async () => {
+  const simpanCakupan = useCallback(async (terpilih: string[]) => {
     if (cakupanTarget === null) return;
     const id = cakupanTarget.id;
     setCakupanTarget(null);
     try {
-      await ubahKomposisi(id, { tingkat: cakupanDipilih });
+      await ubahKomposisi(id, { tingkat: terpilih });
       toast.success('Cakupan tingkat diperbarui.');
       await muatDataKomposisi();
     } catch (e) {
       toast.error(errorMessage(e));
     }
-  }, [cakupanTarget, cakupanDipilih, muatDataKomposisi]);
+  }, [cakupanTarget, muatDataKomposisi]);
 
   /** Buka dialog cakupan tingkat untuk satu baris komposisi. */
   const bukaCakupan = useCallback((b: KomposisiBaris) => {
     setCakupanDipilih(b.tingkat ?? []);
     setCakupanTarget(b);
   }, []);
+
+  /**
+   * Buka dialog cakupan tingkat untuk BANYAK baris tercentang (aksi massal).
+   *
+   * Pilihan awal = nilai yang sama-sama dipakai semua baris tercentang; kalau
+   * berbeda-beda, dialog dibuka kosong dan diberi catatan — menyetel ulang tanpa
+   * sengaja berarti semua mapel ikut jadi "semua tingkat".
+   */
+  const bukaBulkCakupan = useCallback((rows: KomposisiBaris[], bersihkan: () => void) => {
+    const sama = new Set(rows.map((r) => [...(r.tingkat ?? [])].sort().join('\u0001')));
+    const beda = sama.size > 1;
+    setBulkBedaBeda(beda);
+    setBulkDipilih(beda ? [] : [...(rows[0]?.tingkat ?? [])]);
+    bulkBersihRef.current = bersihkan;
+    setBulkTarget(rows);
+  }, []);
+
+  /** Simpan aksi massal: satu request untuk semua baris tercentang. */
+  const simpanBulkCakupan = useCallback(async (terpilih: string[]) => {
+    if (bulkTarget === null) return;
+    const ids = bulkTarget.map((r) => r.id);
+    const tingkat = [...terpilih];
+    setBulkTarget(null);
+    try {
+      const hasil = await terapkanTingkatKomposisi(ids, tingkat);
+      toast.success(
+        tingkat.length === 0
+          ? `Cakupan ${hasil.tersentuh} mapel diubah: berlaku di semua tingkat.`
+          : `Cakupan ${hasil.tersentuh} mapel diubah: tingkat ${tingkat.join(', ')}.`,
+      );
+      bulkBersihRef.current();
+      await muatDataKomposisi();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }, [bulkTarget, muatDataKomposisi]);
+
+  /** Aksi massal tabel komposisi: tombol "Terapkan tingkat (N)". */
+  const renderBulkKomposisi = useCallback((checked: KomposisiBaris[], bersihkan: () => void) => (
+    <>
+      {canUbah && tingkatOpsi.length > 0 && (
+        <Button
+          id="btn_bulk_tingkat_komposisi"
+          size="sm"
+          variant="outline"
+          onClick={() => bukaBulkCakupan(checked, bersihkan)}
+        >
+          <GraduationCap data-icon="inline-start" size={16} /> Terapkan tingkat ({checked.length})
+        </Button>
+      )}
+    </>
+  ), [canUbah, tingkatOpsi.length, bukaBulkCakupan]);
 
   /** Aksi baris komposisi: atur tingkat cakupan mapelnya + keluarkan mapel. */
   const renderActionsKomposisi = useCallback((b: KomposisiBaris) => (
@@ -584,69 +745,40 @@ export default function KurikulumKurikulumPage() {
             )}
             tengah={kurikulumAktif?.deskripsi ? kurikulumAktif.deskripsi : undefined}
             renderActions={renderActionsKomposisi}
+            renderBulkActions={renderBulkKomposisi}
           />
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      {/* Dialog "Berlaku di tingkat": daftar CHECKBOX tingkat yang dicakup mapel
-          ini. Kosong = berlaku di semua tingkat. Dipakai nama tingkat (bukan id
-          kelas), jadi tetap berlaku di tahun ajaran berikutnya. */}
-      <Dialog open={cakupanTarget !== null} onOpenChange={(o) => { if (!o) setCakupanTarget(null); }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Berlaku di tingkat — {cakupanTarget?.mata_pelajaran.nama_mapel}</DialogTitle>
-            <DialogDescription className="sr-only">
-              Pilih tingkat tempat mapel ini diajarkan. Kosong berarti semua tingkat.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="check_cakupan_semua_tingkat"
-                checked={namaTingkat.length > 0 && cakupanDipilih.length === namaTingkat.length}
-                onCheckedChange={(v) => setCakupanDipilih(v === true ? [...namaTingkat] : [])}
-              />
-              <label htmlFor="check_cakupan_semua_tingkat" className="text-xs font-medium">
-                Semua tingkat ({namaTingkat.join(', ')})
-              </label>
-            </div>
-            <div className="max-h-64 overflow-auto rounded border border-border p-1">
-              {tingkatOpsi.length === 0 ? (
-                <p className="p-2 text-xs text-muted-foreground">
-                  Belum ada data tingkat untuk jenjang ini — mapel berlaku di semua tingkat.
-                </p>
-              ) : (
-                tingkatOpsi.map((t) => (
-                  <label
-                    key={t.id}
-                    htmlFor={`check_cakupan_tingkat_${t.id}`}
-                    className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted/50"
-                  >
-                    <Checkbox
-                      id={`check_cakupan_tingkat_${t.id}`}
-                      checked={cakupanDipilih.includes(t.nama)}
-                      onCheckedChange={(v) => setCakupanDipilih((prev) => (
-                        v === true ? [...prev, t.nama] : prev.filter((x) => x !== t.nama)
-                      ))}
-                    />
-                    Tingkat {t.nama}
-                  </label>
-                ))
-              )}
-            </div>
-            <FieldDescription>
-              {cakupanDipilih.length === 0
-                ? 'Kosong = mapel ini berlaku di semua tingkat kelas yang memakai kurikulum ini.'
-                : `Mapel ini hanya berlaku di kelas tingkat ${cakupanDipilih.join(', ')}. `
-                  + 'Baris pengampu yang sudah terlanjur dibuat di kelas lain tidak ikut terhapus — hapus dari halaman Pengampu bila tak mau lagi.'}
-            </FieldDescription>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setCakupanTarget(null)}>Batal</Button>
-            <Button id="btn_simpan_cakupan_tingkat" onClick={() => void simpanCakupan()}>Simpan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Dua pemakaian dialog yang sama: satu baris (ikon Aksi) & aksi massal
+          (checkbox tabel). Keduanya memakai DialogCakupanTingkat. */}
+      <DialogCakupanTingkat
+        open={cakupanTarget !== null}
+        onOpenChange={(o) => { if (!o) setCakupanTarget(null); }}
+        judul={`Berlaku di tingkat — ${cakupanTarget?.mata_pelajaran.nama_mapel ?? ''}`}
+        opsi={tingkatOpsi}
+        terpilih={cakupanDipilih}
+        onSimpan={(dipilih) => void simpanCakupan(dipilih)}
+        onBatal={() => setCakupanTarget(null)}
+        idSimpan="btn_simpan_cakupan_tingkat"
+        idPrefix="check_cakupan"
+      />
+      <DialogCakupanTingkat
+        open={bulkTarget !== null}
+        onOpenChange={(o) => { if (!o) setBulkTarget(null); }}
+        judul={`Berlaku di tingkat — ${bulkTarget?.length ?? 0} mapel`}
+        opsi={tingkatOpsi}
+        terpilih={bulkDipilih}
+        onSimpan={(dipilih) => void simpanBulkCakupan(dipilih)}
+        onBatal={() => setBulkTarget(null)}
+        idSimpan="btn_simpan_bulk_tingkat"
+        idPrefix="check_bulk_cakupan"
+        catatan={bulkBedaBeda ? (
+          <p className="rounded border border-border bg-muted/40 px-2 py-1.5 text-xs text-muted-foreground">
+            Cakupan awal mapel-baris terpilih berbeda-beda, jadi daftar centang dibuka kosong.
+          </p>
+        ) : undefined}
+      />
 
       {/* Aksi "Tambah" & aksi baris "Ubah" memakai formulir dialog yang SAMA
           (`DialogFormKurikulum`). "Tambah" tidak lagi menyisipkan

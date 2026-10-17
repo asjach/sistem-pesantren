@@ -227,6 +227,17 @@ export function ubahKomposisi(id: number, data: { tingkat?: string[]; kkm?: numb
   return api<KomposisiBaris>(`/admin/kurikulum/komposisi/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
+/**
+ * Aksi massal: terapkan satu cakupan tingkat ke banyak baris komposisi sekaligus
+ * (checkbox tabel komposisi). Daftar `tingkat` = SET, jadicakupan lama tiap baris
+ * diganti — kosong berarti berlaku di semua tingkat.
+ */
+export function terapkanTingkatKomposisi(ids: number[], tingkat: string[]) {
+  return api<{ tersentuh: number; tingkat: string[] }>('/admin/kurikulum/komposisi/tingkat-bulk', {
+    method: 'PUT', body: JSON.stringify({ ids, tingkat }),
+  });
+}
+
 export function hapusKomposisi(id: number) {
   return api<{ pesan: string }>(`/admin/kurikulum/komposisi/${id}`, { method: 'DELETE' });
 }

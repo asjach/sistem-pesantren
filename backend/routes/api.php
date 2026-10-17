@@ -416,6 +416,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::delete('kurikulum/kurikulum/{kurikulum}', [KurikulumController::class, 'destroyKurikulum'])->middleware('permission:kurikulum.hapus');
         Route::get('kurikulum/komposisi', [KurikulumController::class, 'indexKomposisi'])->middleware('permission:kurikulum.lihat');
         Route::post('kurikulum/komposisi', [KurikulumController::class, 'storeKomposisi'])->middleware('permission:kurikulum.tambah');
+        Route::put('kurikulum/komposisi/tingkat-bulk', [KurikulumController::class, 'bulkTingkatKomposisi'])->middleware('permission:kurikulum.ubah');
         Route::match(['put', 'patch'], 'kurikulum/komposisi/{item}', [KurikulumController::class, 'updateKomposisi'])->middleware('permission:kurikulum.ubah');
         Route::delete('kurikulum/komposisi/{item}', [KurikulumController::class, 'destroyKomposisi'])->middleware('permission:kurikulum.hapus');
         Route::get('kurikulum/kelas', [KurikulumController::class, 'indexKelasKurikulum'])->middleware('permission:kurikulum.lihat');

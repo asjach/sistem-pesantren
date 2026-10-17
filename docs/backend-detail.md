@@ -424,8 +424,10 @@ Aturan pasangan kini global (v2.61) — lihat butir Tenant di §7.
 Status: 🟡 `pegawai` table exists; service/policy pending.
 
 **201 Curriculum & subjects.** `kurikulum` per lembaga, `kurikulum_mapel`
-(explicit mapel + `tingkat` null=all + `kkm` null=manual + `urutan`),
-`kelas_kurikulum` dual pivot, `tunjukPengampu` 4-layer validation;
+(explicit mapel + `kkm` null=manual + `urutan`; cakupan tingkat opsional di
+`kurikulum_mapel_tingkat`, kosong = semua tingkat), `kelas_kurikulum` dual pivot,
+`PUT komposisi/tingkat-bulk` untuk aksi massal checkbox, `tunjukPengampu` 4-layer
+validation;
 class members read from `riwayat_belajar` (no `kelas_santri` table).
 Status: 🟡 tables exist; service/policy pending.
 
