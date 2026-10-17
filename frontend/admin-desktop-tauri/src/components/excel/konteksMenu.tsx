@@ -290,6 +290,11 @@ export default function MenuKonteksGrid({
               <ContextMenuLabel>BLOK {blokJumlah ?? 0} SEL</ContextMenuLabel>
               <ContextMenuItem
                 id={`menu_ctx_isi_blok_${tableKey}`}
+                /* WebKit/WKWebView dapat memfokuskan item saat pointerdown dan
+                   menggeser menu satu baris; pointerup lalu mendarat di item
+                   lain sehingga aksi blok tak pernah dipilih. Cegah fokus itu —
+                   pemilihan tetap lewat click/onSelect. */
+                onPointerDown={(e) => e.preventDefault()}
                 onSelect={onIsiBlok}
               >
                 <Pencil size={16} />

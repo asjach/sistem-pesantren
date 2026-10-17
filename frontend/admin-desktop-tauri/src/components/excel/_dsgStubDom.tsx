@@ -12,7 +12,7 @@ import { forwardRef } from 'react';
 import type { Column } from 'react-datasheet-grid';
 
 import { cn } from '@/lib/utils';
-import type { GridRow } from './types';
+import type { GridRow, GridSelection } from './types';
 
 /** Props yang dipakai stub dari Column DSG. */
 interface KolomStub {
@@ -40,6 +40,7 @@ function renderKolom(kolom: KolomStub, row: GridRow | null) {
  *  aktif DSG dititipkan di sini agar tes bisa meniru klik baris. */
 export const dsgStub = {
   aktifSel: null as ((opts: { cell: { row: number } | null }) => void) | null,
+  seleksi: null as ((opts: { selection: GridSelection | null }) => void) | null,
 };
 
 /** ExcelTable memberi ref ke DSG (DataSheetGridRef) — stub terima dan abaikan. */
@@ -52,6 +53,7 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     rowHeight,
     headerRowHeight,
     onActiveCellChange,
+    onSelectionChange,
   }: {
     columns: Column<GridRow>[];
     value: GridRow[];
@@ -60,10 +62,12 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     rowHeight?: number;
     headerRowHeight?: number;
     onActiveCellChange?: (opts: { cell: { row: number } | null }) => void;
+    onSelectionChange?: (opts: { selection: GridSelection | null }) => void;
   },
   _ref,
 ) {
   dsgStub.aktifSel = onActiveCellChange ?? null;
+  dsgStub.seleksi = onSelectionChange ?? null;
   const semua: KolomStub[] = [
     ...(columns as KolomStub[]),
     ...(stickyRightColumn ? [stickyRightColumn as KolomStub] : []),

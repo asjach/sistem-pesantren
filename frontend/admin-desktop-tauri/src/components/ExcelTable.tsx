@@ -1464,6 +1464,30 @@ export default function ExcelTable<T extends { id: string | number }>({
   gridByIdRef.current = gridById;
   gridValueRef.current = gridValue;
 
+  /** Cari baris + kolom di bawah pointer. Target klik kanan bisa jatuh di
+   *  padding sel atau lapisan seleksi DSG yang tidak membawa `data-col-key`,
+   *  jadi turunkan dari sel terdekat / elemen lain di titik pointer. */
+  function cariSelPointer(e: React.MouseEvent): { rowEl: HTMLElement | null; colKey: string | null } {
+    // jsdom (tes) tidak menyediakan elementsFromPoint — cukup target event.
+    const diTitik = typeof document.elementsFromPoint === 'function'
+      ? document.elementsFromPoint(e.clientX, e.clientY)
+      : [];
+    const kandidat: Element[] = [e.target as Element, ...diTitik];
+    let rowCadangan: HTMLElement | null = null;
+    for (const el of kandidat) {
+      const sel = el.closest?.('.dsg-cell') as HTMLElement | null;
+      const rowEl = (sel?.closest('.dsg-row:not(.dsg-row-header)')
+        ?? el.closest?.('.dsg-row:not(.dsg-row-header)')) as HTMLElement | null;
+      if (rowEl === null) continue;
+      rowCadangan ??= rowEl;
+      const colKey = el.closest?.('[data-col-key]')?.getAttribute('data-col-key')
+        ?? sel?.querySelector('[data-col-key]')?.getAttribute('data-col-key')
+        ?? null;
+      if (colKey !== null) return { rowEl, colKey };
+    }
+    return { rowEl: rowCadangan, colKey: null };
+  }
+
   /** Klik kanan di tabel: tentukan area (header kolom / baris / kosong).
    *  Area kosong tidak punya menu — preventDefault membatalkan penggeseran
    *  menu (Radix maupun menu bawaan WebView). */
@@ -1486,7 +1510,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       e.preventDefault();
       return;
     }
-    const rowEl = t.closest('.dsg-row:not(.dsg-row-header)') as HTMLElement | null;
+    const { rowEl, colKey: colKeyBaris } = cariSelPointer(e);
     if (rowEl) {
       // Indeks baris dibaca dari NOMOR GUTTER DSG (sel `.dsg-cell-gutter`
       // berisi rowIndex+1) — selalu ada, bahkan saat hideCheckbox. Jangan
@@ -1503,7 +1527,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       if (g && String(g.id) !== INPUT_ROW_ID) {
         const domain = rowsRef.current.find((r) => String(r.id) === String(g.id));
         const rowLabel = domain ? displayOf(domain.id, visibleFieldsRef.current[0]?.key ?? '') || String(domain.id) : String(g.id);
-        setCtx({ area: 'row', rowId: g.id as T['id'], rowLabel, colKey });
+        setCtx({ area: 'row', rowId: g.id as T['id'], rowLabel, colKey: colKeyBaris });
         return;
       }
     }

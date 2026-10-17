@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -603,6 +603,28 @@ describe('ExcelTable — klik kanan baris', () => {
 
     const menu = await screen.findByRole('menu');
     expect(menu).toHaveTextContent('Budi');
+  });
+
+  it('klik kanan di area sel (bukan teks) tetap menawarkan aksi blok', async () => {
+    const onIsiBlok = vi.fn();
+    const { container } = renderTabel({ onIsiBlok, blokAksiLabel: 'Isi mapel & guru…' });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+
+    // Seleksi 2 baris × 2 kolom data (nama + kode), lalu klik kanan pada
+    // PEMBUNGKUS sel (area padding) yang tidak membawa `data-col-key`.
+    act(() => dsgStub.seleksi?.({
+      selection: { min: { row: 0, col: 1 }, max: { row: 1, col: 2 } },
+    }));
+    const sel = within(container).getByText('Ahmad').closest('.dsg-cell') as HTMLElement;
+    fireEvent.contextMenu(sel);
+
+    const menu = await screen.findByRole('menu');
+    expect(menu).toHaveTextContent('BLOK 4 SEL');
+    await userEvent.click(screen.getByText('Isi mapel & guru…'));
+
+    const [blokRows, blokFields] = onIsiBlok.mock.calls[0] as [Baris[], { key: string }[]];
+    expect(blokRows).toHaveLength(2);
+    expect(blokFields.map((f) => f.key)).toEqual(['nama', 'kode']);
   });
 });
 
