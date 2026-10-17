@@ -3,6 +3,15 @@ import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/field';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
@@ -28,6 +37,10 @@ export default function KurikulumKurikulumPage() {
   const [pilihId, setPilihId] = useState<number | ''>('');
   const [komposisi, setKomposisi] = useState<Awaited<ReturnType<typeof daftarKomposisi>> | null>(null);
   const [err, setErr] = useState('');
+  const [ubahTarget, setUbahTarget] = useState<Kurikulum | null>(null);
+  const [ubahNama, setUbahNama] = useState('');
+
+  const kurikulumAktif = daftar.find((k) => k.id === pilihId) ?? null;
 
   const muatDaftar = useCallback(async () => {
     if (jenjang === null) { setDaftar([]); setPilihId(''); return; }
@@ -66,6 +79,24 @@ export default function KurikulumKurikulumPage() {
     catch (e) { toast.error(errorMessage(e)); }
   }, [segarkan]);
 
+  /** Buka formulir ubah nama. tak pakai `window.prompt`: webview Tauri tak
+   *  menampilkan dialog bawaan browser, jadi prompt selalu batal diam-diam. */
+  const bukaUbahNama = useCallback(() => {
+    if (!kurikulumAktif) return;
+    setUbahNama(kurikulumAktif.nama);
+    setUbahTarget(kurikulumAktif);
+  }, [kurikulumAktif]);
+
+  const simpanUbahNama = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ubahTarget) return;
+    const nama = ubahNama.trim();
+    if (nama === '') { toast.error('Nama kurikulum wajib diisi.'); return; }
+    const id = ubahTarget.id;
+    setUbahTarget(null);
+    await jalankan(() => ubahKurikulum(id, { nama }), 'Kurikulum diubah.');
+  }, [ubahTarget, ubahNama, jalankan]);
+
   if (jenjang === null) {
     return (
       <div className={PAGE_SHELL}>
@@ -73,8 +104,6 @@ export default function KurikulumKurikulumPage() {
       </div>
     );
   }
-
-  const kurikulumAktif = daftar.find((k) => k.id === pilihId) ?? null;
 
   return (
     <div className={PAGE_SHELL}>
@@ -121,11 +150,7 @@ export default function KurikulumKurikulumPage() {
             <div className="border-t border-border p-2">
               {canUbah && (
                 <Button type="button" variant="outline" size="sm" className="mr-2" id="btn_ubah_kurikulum"
-                  onClick={() => {
-                    const nama = window.prompt('Nama kurikulum', kurikulumAktif.nama);
-                    if (nama === null) return;
-                    void jalankan(() => ubahKurikulum(kurikulumAktif.id, { nama }), 'Kurikulum diubah.');
-                  }}>
+                  onClick={bukaUbahNama}>
                   Ubah nama
                 </Button>
               )}
@@ -219,6 +244,26 @@ export default function KurikulumKurikulumPage() {
           )}
         </div>
       </div>
+
+      <Dialog open={ubahTarget !== null} onOpenChange={(o) => { if (!o) setUbahTarget(null); }}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Ubah nama kurikulum</DialogTitle>
+            <DialogDescription className="sr-only">Formulir perubahan nama kurikulum.</DialogDescription>
+          </DialogHeader>
+          <form id="form_ubah_kurikulum" onSubmit={simpanUbahNama} className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
+            <FieldLabel htmlFor="input_ubah_nama_kurikulum">Nama kurikulum</FieldLabel>
+            <Input
+              id="input_ubah_nama_kurikulum" value={ubahNama} required maxLength={100} autoFocus
+              onChange={(e) => setUbahNama(e.target.value)}
+            />
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="outline" onClick={() => setUbahTarget(null)}>Batal</Button>
+              <Button id="btn_simpan_ubah_kurikulum" type="submit">Simpan</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
