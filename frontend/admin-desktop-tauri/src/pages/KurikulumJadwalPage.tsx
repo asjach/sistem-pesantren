@@ -2,10 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import LabeledInput from '@/components/LabeledInput';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { DeleteAction } from '@/components/RowActions';
+import { Plus } from '@/icons';
+import { hitungSlotBaru, jamPendek, menitDariJam } from '@/lib/jadwal';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { listKelas, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
@@ -17,11 +21,6 @@ import {
   buatJadwal, buatSlot, daftarJadwal, daftarSlot, hapusJadwal, hapusSlot, ubahSlot,
   HARI_LABEL, type JadwalBaris, type SlotJam,
 } from '@/api/kurikulum';
-
-/** Jam dari server bisa berbentuk `HH:MM` atau `HH:MM:SS`. */
-function jamPendek(v: string | null): string | null {
-  return v === null || v === '' ? null : v.slice(0, 5);
-}
 
 function validasiJam(v: string | null): string | null {
   if (v === null || v.trim() === '') return null;
@@ -63,6 +62,7 @@ export default function KurikulumJadwalPage() {
   const [hariLibur, setHariLibur] = useState<string[]>([]);
   const [baris, setBaris] = useState<JadwalBaris[]>([]);
   const [belum, setBelum] = useState<{ id: number; nama_mapel: string | null }[]>([]);
+  const [jpl, setJpl] = useState('00:45');
   const [err, setErr] = useState('');
 
   const muatSlot = useCallback(async () => {
@@ -116,18 +116,26 @@ export default function KurikulumJadwalPage() {
     await muatJadwal();
   }, [muatSlot, muatJadwal]);
 
-  const buatSlotBaru = useCallback(async (f: Record<string, string | null>) => {
-    if (jenjang === null) throw new Error('Pilih jenjang terlebih dahulu.');
-    await buatSlot({
-      jenjang,
-      nama_slot: (f.nama_slot ?? '').trim() || null,
-      jam_mulai: (f.jam_mulai ?? '').trim() || null,
-      jam_selesai: (f.jam_selesai ?? '').trim() || null,
-      urutan: f.urutan ? Number(f.urutan) : slot.length + 1,
-    });
-    toast.success('Slot ditambah.');
-    await simpanSlotSelesai();
-  }, [jenjang, slot.length, simpanSlotSelesai]);
+  /** Tambah slot setelah slot berjam terakhir: mulai = jam selesainya,
+   *  selesai = mulai + jeda 1 JPL dari input. */
+  const tambahSlot = useCallback(async () => {
+    if (jenjang === null) return;
+    const durasi = menitDariJam(jpl);
+    if (durasi === null || durasi <= 0) {
+      toast.error('Isi jeda 1 JPL dengan jam yang sah (lebih dari 00:00).');
+      return;
+    }
+    const baru = hitungSlotBaru(slot, durasi);
+    if (baru === null) {
+      toast.error('Slot baru akan melewati pukul 23:59.');
+      return;
+    }
+    try {
+      await buatSlot({ jenjang, ...baru });
+      toast.success('Slot ditambah.');
+      await simpanSlotSelesai();
+    } catch (e) { toast.error(errorMessage(e)); }
+  }, [jenjang, jpl, slot, simpanSlotSelesai]);
 
   const hapusSlotBaru = useCallback(async (s: SlotJam) => {
     try {
@@ -268,8 +276,23 @@ export default function KurikulumJadwalPage() {
             canEdit={canUbah}
             onCommit={commitSlot}
             onSaved={simpanSlotSelesai}
-            onCreateRow={canTambah ? buatSlotBaru : undefined}
             renderActions={renderActionsSlot}
+            addButton={canTambah ? (
+              <div className="flex items-center gap-2">
+                <LabeledInput
+                  label="1 JPL"
+                  htmlFor="input_jpl_slot"
+                  type="time"
+                  value={jpl}
+                  onChange={(e) => setJpl(e.target.value)}
+                  lebarKotak={190}
+                />
+                <Button type="button" size="sm" id="btn_tambah_slot" onClick={() => void tambahSlot()}>
+                  <Plus data-icon="inline-start" size={14} /> Tambah
+                </Button>
+              </div>
+            ) : undefined}
+            addButtonLangsung
             maxRows={6}
             hideCheckbox
             emptyText="Belum ada slot jam untuk jenjang ini."

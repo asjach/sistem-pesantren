@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import LabeledInput from '@/components/LabeledInput';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { DeleteAction } from '@/components/RowActions';
 import { errorMessage } from '@/api/client';
+import { hitungSlotBaru, menitDariJam } from '@/lib/jadwal';
 import { Plus, Trash2 } from '@/icons';
 import {
   buatTemplateJadwal, daftarTemplateJadwal, detailTemplateJadwal,
@@ -50,6 +52,7 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
   const [terpilih, setTerpilih] = useState<number | ''>('');
   const [detail, setDetail] = useState<TemplateJadwalDetail | null>(null);
   const [namaBaru, setNamaBaru] = useState('');
+  const [jpl, setJpl] = useState('00:45');
   const [hasil, setHasil] = useState<TerapkanHasil | null>(null);
 
   const muatDaftar = useCallback(async () => {
@@ -89,10 +92,28 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
   };
 
   const tambahJam = async (isIstirahat: boolean) => {
-    if (terpilih === '') return;
+    if (terpilih === '' || detail === null) return;
+    const durasi = menitDariJam(jpl);
+    if (durasi === null || durasi <= 0) {
+      toast.error('Isi jeda 1 JPL dengan jam yang sah (lebih dari 00:00).');
+      return;
+    }
+    const baru = hitungSlotBaru(
+      detail.baris.map((b) => ({
+        jam_mulai: b.jam_mulai,
+        jam_selesai: b.jam_selesai,
+        urutan: b.urutan_slot,
+      })),
+      durasi,
+    );
+    if (baru === null) {
+      toast.error('Baris baru akan melewati pukul 23:59.');
+      return;
+    }
     try {
       await tambahBarisTemplate(Number(terpilih), {
-        nama_slot: isIstirahat ? 'Istirahat' : null,
+        ...baru,
+        nama_slot: isIstirahat ? 'Istirahat' : baru.nama_slot,
         is_istirahat: isIstirahat,
       });
       toast.success(isIstirahat ? 'Jeda istirahat ditambah.' : 'Jam ditambah.');
@@ -182,13 +203,21 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
             </span>
             {canTambah && (
               <>
+                <LabeledInput
+                  label="1 JPL"
+                  htmlFor="input_jpl_template"
+                  type="time"
+                  value={jpl}
+                  onChange={(e) => setJpl(e.target.value)}
+                  lebarKotak={190}
+                />
                 <Button type="button" variant="outline" size="sm" id="btn_tambah_jam_template"
                   onClick={() => void tambahJam(false)}>
-                  <Plus size={14} /> Tambah jam
+                  <Plus size={14} /> Tambah
                 </Button>
                 <Button type="button" variant="outline" size="sm" id="btn_tambah_istirahat_template"
                   onClick={() => void tambahJam(true)}>
-                  <Plus size={14} /> Tambah istirahat
+                  <Plus size={14} /> Istirahat
                 </Button>
               </>
             )}
