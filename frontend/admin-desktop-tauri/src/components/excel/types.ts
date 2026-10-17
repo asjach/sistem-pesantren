@@ -40,6 +40,8 @@ export interface ExcelField {
   onCellClick?: (id: string | number) => void;
   /** Isi sel statis dengan ReactNode kustom (mis. dua baris mapel + guru). */
   renderCell?: (rowData: GridRow) => ReactNode;
+  /** Kelas CSS tambahan untuk sel (mis. pewarnaan mapel/guru di jadwal). */
+  cellClass?: (rowData: GridRow) => string | undefined;
   /** Kembalikan pesan galat bila nilai tidak valid, atau null bila OK. */
   validate?: (value: string | null) => string | null;
   /** Wajib diisi pada mode Input (ditandai warna di header + sel baris input). */

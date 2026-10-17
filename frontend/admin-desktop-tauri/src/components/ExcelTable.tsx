@@ -1200,6 +1200,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             isInputRow(rowData) && f.required && !rowData?.[f.key] && 'simpes-dsg-wajib',
             draftsRef.current[String(rowData?.id)]?.[f.key] !== undefined && 'simpes-dsg-dirty',
             editing && (f.kind === 'static' ? 'simpes-dsg-readonly' : 'simpes-dsg-editable'),
+            rowData ? f.cellClass?.(rowData) : undefined,
           ),
       };
       if (f.kind === 'static') {

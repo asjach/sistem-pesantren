@@ -360,6 +360,54 @@
   clip-path: none !important;
 }
 
+/* ---------- Warna sel jadwal (mode Guru / Mapel) ----------
+   Palet 36 warna; dipakai sebagai tint lembut di atas background sel supaya
+   teks tetap terbaca di tema terang maupun gelap. Warna dipilih deterministik
+   dari ID guru/mapel. Baris tercentang/aktif dan hover tetap menang. */
+.simpes-dsg .dsg-cell.simpes-warna-0 { --warna-sel: #e57373; }
+.simpes-dsg .dsg-cell.simpes-warna-1 { --warna-sel: #f06292; }
+.simpes-dsg .dsg-cell.simpes-warna-2 { --warna-sel: #ba68c8; }
+.simpes-dsg .dsg-cell.simpes-warna-3 { --warna-sel: #9575cd; }
+.simpes-dsg .dsg-cell.simpes-warna-4 { --warna-sel: #7986cb; }
+.simpes-dsg .dsg-cell.simpes-warna-5 { --warna-sel: #64b5f6; }
+.simpes-dsg .dsg-cell.simpes-warna-6 { --warna-sel: #4fc3f7; }
+.simpes-dsg .dsg-cell.simpes-warna-7 { --warna-sel: #4dd0e1; }
+.simpes-dsg .dsg-cell.simpes-warna-8 { --warna-sel: #4db6ac; }
+.simpes-dsg .dsg-cell.simpes-warna-9 { --warna-sel: #81c784; }
+.simpes-dsg .dsg-cell.simpes-warna-10 { --warna-sel: #aed581; }
+.simpes-dsg .dsg-cell.simpes-warna-11 { --warna-sel: #dce775; }
+.simpes-dsg .dsg-cell.simpes-warna-12 { --warna-sel: #ffd54f; }
+.simpes-dsg .dsg-cell.simpes-warna-13 { --warna-sel: #ffb74d; }
+.simpes-dsg .dsg-cell.simpes-warna-14 { --warna-sel: #ff8a65; }
+.simpes-dsg .dsg-cell.simpes-warna-15 { --warna-sel: #a1887f; }
+.simpes-dsg .dsg-cell.simpes-warna-16 { --warna-sel: #90a4ae; }
+.simpes-dsg .dsg-cell.simpes-warna-17 { --warna-sel: #f48fb1; }
+.simpes-dsg .dsg-cell.simpes-warna-18 { --warna-sel: #ce93d8; }
+.simpes-dsg .dsg-cell.simpes-warna-19 { --warna-sel: #9fa8da; }
+.simpes-dsg .dsg-cell.simpes-warna-20 { --warna-sel: #90caf9; }
+.simpes-dsg .dsg-cell.simpes-warna-21 { --warna-sel: #80cbc4; }
+.simpes-dsg .dsg-cell.simpes-warna-22 { --warna-sel: #c5e1a5; }
+.simpes-dsg .dsg-cell.simpes-warna-23 { --warna-sel: #ffe082; }
+.simpes-dsg .dsg-cell.simpes-warna-24 { --warna-sel: #ffab91; }
+.simpes-dsg .dsg-cell.simpes-warna-25 { --warna-sel: #ffe0b2; }
+.simpes-dsg .dsg-cell.simpes-warna-26 { --warna-sel: #fff59d; }
+.simpes-dsg .dsg-cell.simpes-warna-27 { --warna-sel: #e6ee9c; }
+.simpes-dsg .dsg-cell.simpes-warna-28 { --warna-sel: #b2dfdb; }
+.simpes-dsg .dsg-cell.simpes-warna-29 { --warna-sel: #b2ebf2; }
+.simpes-dsg .dsg-cell.simpes-warna-30 { --warna-sel: #b3e5fc; }
+.simpes-dsg .dsg-cell.simpes-warna-31 { --warna-sel: #c5cae9; }
+.simpes-dsg .dsg-cell.simpes-warna-32 { --warna-sel: #d1c4e9; }
+.simpes-dsg .dsg-cell.simpes-warna-33 { --warna-sel: #e1bee7; }
+.simpes-dsg .dsg-cell.simpes-warna-34 { --warna-sel: #f8bbd0; }
+.simpes-dsg .dsg-cell.simpes-warna-35 { --warna-sel: #ffcdd2; }
+.simpes-dsg .dsg-cell[class*='simpes-warna-'] {
+  background-color: color-mix(
+    in srgb,
+    var(--warna-sel, transparent) 22%,
+    var(--dsg-cell-background-color, var(--background))
+  );
+}
+
 /* Di dalam range: sel jangkar tanpa border sendiri (tidak dobel),
    cukup outline range yang mengelilingi seluruh blok. */
 .simpes-dsg:has(.dsg-selection-rect) .dsg-active-cell:not(.dsg-active-cell-focus) {

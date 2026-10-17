@@ -48,6 +48,16 @@ type FormatMapel = 'nama' | 'kode' | 'singkatan';
 /** Format guru: nama/gelar, panggilan/singkat, berprefiks Ust./Usth., atau kode. */
 type FormatGuru = 'nama' | 'gelar' | 'panggilan' | 'singkat' | 'prefiks' | 'prefiks_gelar' | 'kode';
 
+/** Pewarnaan sel: polos, per guru, atau per mapel. */
+type WarnaJadwal = 'polos' | 'guru' | 'mapel';
+
+/** Jumlah kelas warna di index.css (simpes-warna-0 … -35). */
+const JUMLAH_WARNA = 36;
+
+function kelasWarna(id: number | null): string | undefined {
+  return id === null ? undefined : `simpes-warna-${Math.abs(Math.trunc(id)) % JUMLAH_WARNA}`;
+}
+
 function namaGuru(g: GuruAktif): string {
   return `${g.gelar_depan ? `${g.gelar_depan} ` : ''}${g.nama_lengkap}${g.gelar_belakang ? `, ${g.gelar_belakang}` : ''}`;
 }
@@ -80,9 +90,10 @@ function formatGuruBaris(j: JadwalBaris, format: FormatGuru): string {
 /** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × JP) + tab
  *  template mingguan & hari libur. Klik kiri hanya memilih sel; klik kanan
  *  sel (satu atau blok) membuka dialog Guru + Mapel (guru boleh diisi lebih
- *  dulu, mapel menyusul). Tampilan memilih isi sel (keduanya/mapel/guru) dan
- *  Format memilih nama/kode/singkatan mapel serta nama/gelar/prefiks
- *  Ust.-Usth./kode/nama panggilan/nama singkat guru. */
+ *  dulu, mapel menyusul). Tampilan memilih isi sel (keduanya/mapel/guru),
+ *  Warna memilih pewarnaan polos/per guru/per mapel, dan Format memilih
+ *  nama/kode/singkatan mapel serta nama/gelar/prefiks Ust.-Usth./kode/nama
+ *  panggilan/nama singkat guru. */
 export default function KurikulumJadwalPage() {
   const [tab, setTab] = useState('jadwal');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
@@ -113,6 +124,7 @@ export default function KurikulumJadwalPage() {
   const [selGuru, setSelGuru] = useState<number | ''>('');
   const [selBusy, setSelBusy] = useState(false);
   const [tampilan, setTampilan] = useState<TampilanJadwal>('keduanya');
+  const [warna, setWarna] = useState<WarnaJadwal>('polos');
   const [formatMapel, setFormatMapel] = useState<FormatMapel>('nama');
   const [formatGuru, setFormatGuru] = useState<FormatGuru>('nama');
   const [err, setErr] = useState('');
@@ -312,6 +324,20 @@ export default function KurikulumJadwalPage() {
     );
   }, [petaBaris, petaJadwal, tampilan, formatMapel, formatGuru]);
 
+  /** Kelas warna sel sesuai mode: guru (per orang) atau mapel (per mapel).
+   *  Sel tanpa guru/mapel dan slot non-pelajaran dibiarkan polos. */
+  const kelasWarnaSel = useCallback((rowId: string | number, h: string) => {
+    if (warna === 'polos') return undefined;
+    const s = petaBaris.get(Number(rowId))?.perHari[h];
+    if (s === undefined || s.jenis !== 'pelajaran') return undefined;
+    const j = petaJadwal.get(`${s.id}|${h}`);
+    if (j === undefined) return undefined;
+    if (warna === 'guru') {
+      return kelasWarna(j.guru_pegawai_id ?? j.keaktifan_pegawai_id);
+    }
+    return kelasWarna(j.mata_pelajaran_id);
+  }, [warna, petaBaris, petaJadwal]);
+
   const fieldsMatriks = useMemo<ExcelField[]>(() => [
     { key: '__slot', label: 'Jam', width: 170, kind: 'static' },
     ...hari.map((h): ExcelField => ({
@@ -320,8 +346,9 @@ export default function KurikulumJadwalPage() {
       width: 180,
       kind: 'static',
       renderCell: (rowData: GridRow) => renderSel(rowData.id, h),
+      cellClass: (rowData: GridRow) => kelasWarnaSel(rowData.id, h),
     })),
-  ], [hari, renderSel]);
+  ], [hari, renderSel, kelasWarnaSel]);
 
   const nilaiMatriks = useCallback((r: BarisMatriks) => {
     const v: Record<string, string | null> = { __slot: r.label };
@@ -463,6 +490,18 @@ export default function KurikulumJadwalPage() {
               <option value="keduanya">Mapel &amp; guru</option>
               <option value="mapel">Mapel saja</option>
               <option value="guru">Guru saja</option>
+            </select>
+            <label className="text-xs text-muted-foreground" htmlFor="select_warna_jadwal">Warna</label>
+            <select
+              id="select_warna_jadwal"
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+              value={warna}
+              title="Pewarnaan sel jadwal"
+              onChange={(e) => setWarna(e.target.value as WarnaJadwal)}
+            >
+              <option value="polos">Polos</option>
+              <option value="guru">Guru</option>
+              <option value="mapel">Mapel</option>
             </select>
             <label className="text-xs text-muted-foreground" htmlFor="select_format_mapel">Mapel</label>
             <select
