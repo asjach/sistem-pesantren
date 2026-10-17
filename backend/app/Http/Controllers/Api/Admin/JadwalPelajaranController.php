@@ -11,9 +11,9 @@ use App\Models\PengampuMapel;
 use App\Models\SlotJamPelajaran;
 use App\Models\TemplateJadwal;
 use App\Models\TemplateJadwalBaris;
-use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -327,6 +327,8 @@ class JadwalPelajaranController extends Controller
 
         $daftar = TemplateJadwal::where('jenjang', $jenjang)
             ->withCount('baris')
+            ->orderBy('kelas_id')
+            ->orderBy('tingkat')
             ->orderBy('nama')
             ->get();
 
@@ -338,21 +340,17 @@ class JadwalPelajaranController extends Controller
     {
         $data = $request->validate([
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
-            'nama' => [
-                'required', 'string', 'max:100',
-                function (string $attr, mixed $nilai, Closure $gagal) use ($request) {
-                    $ada = TemplateJadwal::where('jenjang', $request->input('jenjang'))
-                        ->whereRaw('LOWER(nama) = ?', [mb_strtolower(trim((string) $nilai))])
-                        ->exists();
-                    if ($ada) {
-                        $gagal('Nama template sudah dipakai di lembaga ini.');
-                    }
-                },
-            ],
+            'tingkat' => ['nullable', 'string', 'max:20'],
+            'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
+            'nama' => ['required', 'string', 'max:100'],
             'deskripsi' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
         $this->authorizeLembaga($request->user(), $data['jenjang']);
+        [$data['tingkat'], $data['kelas_id']] = $this->lingkupTemplate(
+            $data['jenjang'], $data['tingkat'] ?? null, $data['kelas_id'] ?? null,
+        );
+        $this->pastikanNamaTemplateUnik($data['jenjang'], $data['tingkat'], $data['kelas_id'], $data['nama']);
 
         return response()->json(TemplateJadwal::create($data)->fresh(), 201);
     }
@@ -362,20 +360,31 @@ class JadwalPelajaranController extends Controller
     {
         $data = $request->validate([
             'nama' => ['sometimes', 'string', 'max:100'],
+            'tingkat' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'kelas_id' => ['sometimes', 'nullable', 'integer', 'exists:kelas,id'],
             'deskripsi' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
-        // Unik (jenjang, nama) case-insensitive bila nama diubah.
-        if (isset($data['nama'])) {
-            $ada = TemplateJadwal::where('jenjang', $template->jenjang)
-                ->where('id', '!=', $template->id)
-                ->whereRaw('LOWER(nama) = ?', [mb_strtolower(trim($data['nama']))])
-                ->exists();
-            if ($ada) {
-                throw ValidationException::withMessages(['nama' => 'Nama template sudah dipakai di lembaga ini.']);
-            }
-        }
         $this->authorizeLembaga($request->user(), $template->jenjang);
+
+        if (array_key_exists('tingkat', $data) || array_key_exists('kelas_id', $data)) {
+            [$data['tingkat'], $data['kelas_id']] = $this->lingkupTemplate(
+                $template->jenjang,
+                array_key_exists('tingkat', $data) ? $data['tingkat'] : $template->tingkat,
+                array_key_exists('kelas_id', $data) ? $data['kelas_id'] : $template->kelas_id,
+            );
+        }
+
+        if (isset($data['nama']) || array_key_exists('tingkat', $data) || array_key_exists('kelas_id', $data)) {
+            $this->pastikanNamaTemplateUnik(
+                $template->jenjang,
+                array_key_exists('tingkat', $data) ? $data['tingkat'] : $template->tingkat,
+                array_key_exists('kelas_id', $data) ? $data['kelas_id'] : $template->kelas_id,
+                $data['nama'] ?? $template->nama,
+                $template->id,
+            );
+        }
+
         $template->update($data);
 
         return response()->json($template->fresh());
@@ -397,9 +406,11 @@ class JadwalPelajaranController extends Controller
 
         $baris = $template->baris()
             ->orderBy('urutan_slot')
+            ->orderBy('hari')
             ->get()
             ->map(fn (TemplateJadwalBaris $b) => [
                 'id' => $b->id,
+                'hari' => $b->hari,
                 'urutan_slot' => $b->urutan_slot,
                 'nama_slot' => $b->nama_slot,
                 'jam_mulai' => $b->jam_mulai ? substr((string) $b->jam_mulai, 0, 5) : null,
@@ -417,6 +428,7 @@ class JadwalPelajaranController extends Controller
     public function storeBarisTemplate(Request $request, TemplateJadwal $template): JsonResponse
     {
         $data = $request->validate([
+            'hari' => ['nullable', 'in:'.implode(',', JadwalPelajaran::HARI)],
             'nama_slot' => ['nullable', 'string', 'max:50'],
             'jam_mulai' => ['nullable', 'date_format:H:i'],
             'jam_selesai' => ['nullable', 'date_format:H:i', 'after:jam_mulai'],
@@ -429,17 +441,16 @@ class JadwalPelajaranController extends Controller
         if ($urutan < 1) {
             $urutan = 1;
         }
-        $bentrok = TemplateJadwalBaris::where('template_jadwal_id', $template->id)
-            ->where('urutan_slot', $urutan)
-            ->exists();
-        if ($bentrok) {
+        $hari = $data['hari'] ?? null;
+        if ($this->urutanBarisBentrok($template->id, $hari, $urutan)) {
             throw ValidationException::withMessages([
-                'urutan_slot' => "Jam ke-{$urutan} sudah ada di template ini.",
+                'urutan_slot' => 'Jam ke-'.$urutan.' sudah ada untuk '.($hari ?? 'semua hari').' di template ini.',
             ]);
         }
 
         return response()->json(TemplateJadwalBaris::create([
             'template_jadwal_id' => $template->id,
+            'hari' => $hari,
             'urutan_slot' => $urutan,
             'nama_slot' => $data['nama_slot'] ?? null,
             'jam_mulai' => $data['jam_mulai'] ?? null,
@@ -452,6 +463,7 @@ class JadwalPelajaranController extends Controller
     public function updateBarisTemplate(Request $request, TemplateJadwalBaris $baris): JsonResponse
     {
         $data = $request->validate([
+            'hari' => ['sometimes', 'nullable', 'in:'.implode(',', JadwalPelajaran::HARI)],
             'nama_slot' => ['nullable', 'string', 'max:50'],
             'jam_mulai' => ['nullable', 'date_format:H:i'],
             'jam_selesai' => ['nullable', 'date_format:H:i'],
@@ -470,14 +482,12 @@ class JadwalPelajaranController extends Controller
                 'jam_selesai' => 'Jam selesai harus setelah jam mulai.',
             ]);
         }
-        if (isset($data['urutan_slot'])) {
-            $bentrok = TemplateJadwalBaris::where('template_jadwal_id', $baris->template_jadwal_id)
-                ->where('id', '!=', $baris->id)
-                ->where('urutan_slot', $data['urutan_slot'])
-                ->exists();
-            if ($bentrok) {
+        if (isset($data['urutan_slot']) || array_key_exists('hari', $data)) {
+            $urutan = $data['urutan_slot'] ?? $baris->urutan_slot;
+            $hari = array_key_exists('hari', $data) ? $data['hari'] : $baris->hari;
+            if ($this->urutanBarisBentrok($baris->template_jadwal_id, $hari, $urutan, $baris->id)) {
                 throw ValidationException::withMessages([
-                    'urutan_slot' => "Jam ke-{$data['urutan_slot']} sudah ada di template ini.",
+                    'urutan_slot' => 'Jam ke-'.$urutan.' sudah ada untuk '.($hari ?? 'semua hari').' di template ini.',
                 ]);
             }
         }
@@ -495,10 +505,16 @@ class JadwalPelajaranController extends Controller
         return response()->json(['pesan' => 'Baris template dihapus.']);
     }
 
-    /** POST /admin/kurikulum/template-jadwal/{template}/terapkan — buat slot jam nyata */
+    /**
+     * POST /admin/kurikulum/template-jadwal/{template}/terapkan
+     * Generate jadwal mingguan untuk sasaran kelas/tingkat/jenjang.
+     */
     public function terapkanTemplate(Request $request, TemplateJadwal $template): JsonResponse
     {
         $data = $request->validate([
+            'sasaran' => ['required', 'in:kelas,tingkat,jenjang'],
+            'sasaran_id' => ['required', 'string', 'max:50'],
+            'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
             'mode' => ['nullable', 'in:pratinjau,eksekusi'],
             'timpa' => ['nullable', 'boolean'],
         ]);
@@ -512,69 +528,354 @@ class JadwalPelajaranController extends Controller
 
         $mode = $data['mode'] ?? 'eksekusi';
         $timpa = (bool) ($data['timpa'] ?? false);
+        $tulis = $mode === 'eksekusi';
 
-        // Slot nyata yang sudah ada di jenjang ini, DIKUNCI NOMOR JAM (`urutan`),
-        // bukan posisi dalam daftar. Semua baris template menghasilkan slot,
-        // termasuk istirahat/pembiasaan yang tidak bisa diisi pelajaran.
-        $ada = SlotJamPelajaran::where('jenjang', $template->jenjang)
-            ->orderBy('urutan')->orderBy('jam_mulai')->orderBy('nama_slot')
-            ->get();
-        $slotPerUrutan = $ada->keyBy('urutan');
-        $terpakai = JadwalPelajaran::whereIn('slot_jam_id', $ada->map->id)->distinct()->pluck('slot_jam_id')->flip()->all();
-
-        $dibuat = 0;
-        $dilewati = [];
-        $tulis = [];
-
-        foreach ($template->baris()->orderBy('urutan_slot')->get() as $b) {
-            $kunci = "jam ke-{$b->urutan_slot}";
-            $slotNyata = $slotPerUrutan->get($b->urutan_slot);
-            if ($slotNyata !== null && ! $timpa) {
-                $dilewati[] = ['sel' => $kunci, 'alasan' => 'Slot jam ke-'.$b->urutan_slot.' sudah ada (aktifkan timpa untuk menimpa).'];
-
-                continue;
-            }
-            if ($slotNyata !== null && isset($terpakai[$slotNyata->id])) {
-                $dilewati[] = ['sel' => $kunci, 'alasan' => 'Slot jam ke-'.$b->urutan_slot.' masih dipakai jadwal — hapus jadwalnya dulu.'];
-
-                continue;
-            }
-            $tulis[] = [
-                'slot' => $slotNyata,
-                'data' => [
-                    'jenjang' => $template->jenjang,
-                    'nama_slot' => $b->nama_slot ?? 'Jam '.$b->urutan_slot,
-                    'jenis' => $b->jenis,
-                    'jam_mulai' => $b->jam_mulai ? substr((string) $b->jam_mulai, 0, 5) : null,
-                    'jam_selesai' => $b->jam_selesai ? substr((string) $b->jam_selesai, 0, 5) : null,
-                    'urutan' => $b->urutan_slot,
-                ],
-            ];
-            $dibuat++;
+        $kelasTarget = $this->kelasSasaranTemplate($template, $data);
+        $kelasIds = $kelasTarget->pluck('id')->all();
+        $hariAktif = $this->hariLembaga($template->jenjang)['aktif'];
+        $baris = $template->baris()->orderBy('urutan_slot')->orderBy('hari')->get();
+        if ($baris->isEmpty()) {
+            throw ValidationException::withMessages(['template' => 'Template belum punya baris jam.']);
         }
+        $slotDefs = $this->definisiSlotTemplate($baris);
 
-        if ($mode === 'eksekusi' && $tulis !== []) {
-            DB::transaction(function () use ($tulis, $timpa) {
-                foreach ($tulis as $t) {
-                    if ($t['slot'] !== null && $timpa) {
-                        $t['slot']->update($t['data']);
-                    } else {
-                        SlotJamPelajaran::create($t['data']);
+        $kerja = function () use ($template, $kelasTarget, $kelasIds, $hariAktif, $baris, $slotDefs, $timpa, $tulis): array {
+            $ada = SlotJamPelajaran::where('jenjang', $template->jenjang)->get()->keyBy('urutan');
+            $terpakaiQuery = JadwalPelajaran::whereIn('slot_jam_id', $ada->pluck('id'))
+                ->whereIn('hari', $hariAktif);
+            if ($timpa && $kelasIds !== []) {
+                $terpakaiQuery->whereHas('pengampuMapel', fn ($q) => $q->whereNotIn('kelas_id', $kelasIds));
+            }
+            $terpakai = $terpakaiQuery->distinct()->pluck('slot_jam_id')->flip()->all();
+
+            $slotPerUrutan = [];
+            $slotBaru = 0;
+            $dilewati = [];
+
+            foreach ($slotDefs as $urutan => $def) {
+                $slot = $ada->get($urutan);
+                $dataSlot = $def + ['jenjang' => $template->jenjang, 'urutan' => $urutan];
+                if ($slot !== null) {
+                    $beda = $slot->nama_slot !== $dataSlot['nama_slot']
+                        || $slot->jenis !== $dataSlot['jenis']
+                        || substr((string) $slot->jam_mulai, 0, 5) !== $dataSlot['jam_mulai']
+                        || substr((string) $slot->jam_selesai, 0, 5) !== $dataSlot['jam_selesai'];
+                    if ($beda && isset($terpakai[$slot->id])) {
+                        $dilewati[] = [
+                            'sel' => 'jam ke-'.$urutan,
+                            'alasan' => 'Slot jam masih dipakai jadwal dan berbeda dari template — jadwal jam ini dilewati.',
+                        ];
+
+                        continue;
+                    }
+                    if ($beda && $timpa && $tulis) {
+                        $slot->update($dataSlot);
+                    }
+                } else {
+                    $slot = new SlotJamPelajaran($dataSlot);
+                    if ($tulis) {
+                        $slot->save();
+                    }
+                    $slotBaru++;
+                }
+                $slotPerUrutan[$urutan] = $slot;
+            }
+
+            // Hari × jam: baris `hari = null` berlaku semua hari; baris hari
+            // tertentu menimpa baris umum pada jam yang sama.
+            $slotPerHari = [];
+            foreach ($hariAktif as $hari) {
+                $peta = [];
+                foreach ($baris as $b) {
+                    if ($b->hari !== null && $b->hari !== $hari) {
+                        continue;
+                    }
+                    if (isset($slotPerUrutan[$b->urutan_slot])) {
+                        $peta[$b->urutan_slot] = $slotPerUrutan[$b->urutan_slot];
                     }
                 }
-            });
-        }
+                ksort($peta);
+                $slotPerHari[$hari] = array_values($peta);
+            }
 
+            // Guru yang sudah mengajar di kelas lain pada slot/hari yang sama.
+            $sibuk = [];
+            $querySibuk = JadwalPelajaran::with('pengampuMapel:id,kelas_id,keaktifan_pegawai_id')
+                ->whereIn('hari', $hariAktif)
+                ->whereHas('pengampuMapel.kelas', fn ($q) => $q->where('jenjang', $template->jenjang));
+            if ($timpa && $kelasIds !== []) {
+                $querySibuk->whereHas('pengampuMapel', fn ($q) => $q->whereNotIn('kelas_id', $kelasIds));
+            }
+            foreach ($querySibuk->get() as $j) {
+                $guru = $j->pengampuMapel?->keaktifan_pegawai_id;
+                if ($guru !== null) {
+                    $sibuk[$guru.'|'.$j->slot_jam_id.'|'.$j->hari] = true;
+                }
+            }
+
+            $pengampuPerKelas = PengampuMapel::with('mataPelajaran:id,nama_mapel,urutan')
+                ->whereIn('kelas_id', $kelasIds)
+                ->get()
+                ->groupBy('kelas_id');
+
+            $jadwalDibuat = 0;
+
+            foreach ($kelasTarget as $kelas) {
+                $pengampu = collect($pengampuPerKelas->get($kelas->id, []))
+                    ->sortBy(fn (PengampuMapel $p) => sprintf(
+                        '%05d|%s|%010d',
+                        $p->mataPelajaran?->urutan ?? 999,
+                        $p->mataPelajaran?->nama_mapel ?? '',
+                        $p->id,
+                    ))->values();
+
+                $pengampuIds = $pengampu->pluck('id')->all();
+                $sudahAda = $pengampuIds !== []
+                    && JadwalPelajaran::whereIn('pengampu_mapel_id', $pengampuIds)->exists();
+                if ($sudahAda && ! $timpa) {
+                    $dilewati[] = ['sel' => $kelas->nama_kelas, 'alasan' => 'Kelas sudah punya jadwal — aktifkan timpa untuk mengganti.'];
+
+                    continue;
+                }
+                if ($timpa && $tulis && $pengampuIds !== []) {
+                    JadwalPelajaran::whereIn('pengampu_mapel_id', $pengampuIds)->delete();
+                }
+
+                $sel = [];
+                foreach ($hariAktif as $hari) {
+                    foreach ($slotPerHari[$hari] as $slot) {
+                        if ($slot->jenis === 'pelajaran') {
+                            $sel[] = ['hari' => $hari, 'slot' => $slot];
+                        }
+                    }
+                }
+                if ($pengampu->isEmpty() || $sel === []) {
+                    $dilewati[] = ['sel' => $kelas->nama_kelas, 'alasan' => 'Tidak ada pengampu atau JP pelajaran untuk diisi.'];
+
+                    continue;
+                }
+
+                $token = [];
+                $adaKuota = $pengampu->contains(fn (PengampuMapel $p) => ($p->jp_per_minggu ?? 0) > 0);
+                foreach ($pengampu as $p) {
+                    $n = $adaKuota ? max(0, (int) ($p->jp_per_minggu ?? 0)) : 0;
+                    for ($i = 0; $i < $n; $i++) {
+                        $token[] = $p;
+                    }
+                }
+                $sisa = count($sel) - count($token);
+                if ($sisa > 0) {
+                    // Tanpa kuota = bergilir merata; kuota kurang = sisanya bergilir.
+                    $m = $pengampu->count();
+                    for ($i = 0; $i < $sisa; $i++) {
+                        $token[] = $pengampu[$i % $m];
+                    }
+                }
+                if (count($token) > count($sel)) {
+                    $token = array_slice($token, 0, count($sel));
+                }
+
+                foreach ($sel as $i => $cell) {
+                    $p = $token[$i] ?? null;
+                    if ($p === null) {
+                        break;
+                    }
+                    $slot = $cell['slot'];
+                    $guru = $p->keaktifan_pegawai_id;
+                    $kunci = $guru === null || $slot->id === null
+                        ? null
+                        : $guru.'|'.$slot->id.'|'.$cell['hari'];
+                    if ($kunci !== null && isset($sibuk[$kunci])) {
+                        $dilewati[] = [
+                            'sel' => $kelas->nama_kelas.' · '.$cell['hari'].' · jam ke-'.$slot->urutan,
+                            'alasan' => 'Guru '.($p->mataPelajaran?->nama_mapel ?? '#'.$p->id).' sudah mengajar di kelas lain.',
+                        ];
+
+                        continue;
+                    }
+                    if ($tulis && $slot->id !== null) {
+                        JadwalPelajaran::create([
+                            'pengampu_mapel_id' => $p->id,
+                            'slot_jam_id' => $slot->id,
+                            'hari' => $cell['hari'],
+                        ]);
+                    }
+                    if ($kunci !== null) {
+                        $sibuk[$kunci] = true;
+                    }
+                    $jadwalDibuat++;
+                }
+            }
+
+            return [
+                'kelas' => $kelasTarget->count(),
+                'jadwal' => $jadwalDibuat,
+                'slot' => $slotBaru,
+                'dilewati' => $dilewati,
+            ];
+        };
+
+        $hasil = $tulis ? DB::transaction($kerja) : $kerja();
         $pesan = $mode === 'pratinjau'
-            ? "Pratinjau: {$dibuat} slot bisa dibuat, ".count($dilewati).' dilewati.'
-            : "Template diterapkan: {$dibuat} slot dibuat, ".count($dilewati).' dilewati.';
+            ? "Pratinjau: {$hasil['jadwal']} jadwal bisa dibuat untuk {$hasil['kelas']} kelas, ".count($hasil['dilewati']).' dilewati.'
+            : "Template diterapkan: {$hasil['jadwal']} jadwal dibuat untuk {$hasil['kelas']} kelas, ".count($hasil['dilewati']).' dilewati.';
 
         return response()->json([
             'pesan' => $pesan,
-            'dibuat' => $mode === 'pratinjau' ? 0 : $dibuat,
-            'bisa_dipasang' => $dibuat,
-            'dilewati' => $dilewati,
+            'kelas' => $hasil['kelas'],
+            'dibuat' => $tulis ? $hasil['jadwal'] : 0,
+            'bisa_dipasang' => $hasil['jadwal'],
+            'slot_dibuat' => $tulis ? $hasil['slot'] : 0,
+            'slot_bisa_dibuat' => $hasil['slot'],
+            'dilewati' => $hasil['dilewati'],
         ]);
+    }
+
+    /** Normalisasi lingkup template; kelas menurunkan tingkat & mengunci jenjang. */
+    private function lingkupTemplate(string $jenjang, ?string $tingkat, ?int $kelasId): array
+    {
+        $tingkat = $tingkat !== null ? trim($tingkat) : null;
+        if ($tingkat === '') {
+            $tingkat = null;
+        }
+
+        if ($kelasId !== null) {
+            $kelas = Kelas::find($kelasId);
+            if ($kelas === null) {
+                throw ValidationException::withMessages(['kelas_id' => 'Kelas tidak ditemukan.']);
+            }
+            if ($kelas->jenjang !== $jenjang) {
+                throw ValidationException::withMessages(['kelas_id' => 'Kelas harus sejenjang dengan template.']);
+            }
+            if ($tingkat !== null && $tingkat !== $kelas->tingkat) {
+                throw ValidationException::withMessages(['tingkat' => 'Tingkat tidak cocok dengan kelas.']);
+            }
+
+            return [$kelas->tingkat, $kelas->id];
+        }
+
+        return [$tingkat, null];
+    }
+
+    /** Nama template unik per lingkup (jenjang + tingkat + kelas). */
+    private function pastikanNamaTemplateUnik(string $jenjang, ?string $tingkat, ?int $kelasId, string $nama, ?int $abaikanId = null): void
+    {
+        $q = TemplateJadwal::where('jenjang', $jenjang)
+            ->whereRaw('LOWER(nama) = ?', [mb_strtolower(trim($nama))]);
+        if ($abaikanId !== null) {
+            $q->where('id', '!=', $abaikanId);
+        }
+        $tingkat === null ? $q->whereNull('tingkat') : $q->where('tingkat', $tingkat);
+        $kelasId === null ? $q->whereNull('kelas_id') : $q->where('kelas_id', $kelasId);
+
+        if ($q->exists()) {
+            throw ValidationException::withMessages(['nama' => 'Nama template sudah dipakai pada lingkup ini.']);
+        }
+    }
+
+    private function urutanBarisBentrok(int $templateId, ?string $hari, int $urutan, ?int $abaikanId = null): bool
+    {
+        $q = TemplateJadwalBaris::where('template_jadwal_id', $templateId)
+            ->where('urutan_slot', $urutan);
+        $hari === null ? $q->whereNull('hari') : $q->where('hari', $hari);
+        if ($abaikanId !== null) {
+            $q->where('id', '!=', $abaikanId);
+        }
+
+        return $q->exists();
+    }
+
+    /** @return Collection<int, Kelas> */
+    private function kelasSasaranTemplate(TemplateJadwal $template, array $data): Collection
+    {
+        $sasaran = $data['sasaran'];
+        $id = (string) $data['sasaran_id'];
+
+        if ($sasaran === 'kelas') {
+            $kelas = Kelas::find((int) $id);
+            if ($kelas === null) {
+                throw ValidationException::withMessages(['sasaran_id' => 'Kelas tidak ditemukan.']);
+            }
+            if ($kelas->jenjang !== $template->jenjang) {
+                throw ValidationException::withMessages(['sasaran_id' => 'Kelas harus sejenjang dengan template.']);
+            }
+            if ($template->kelas_id !== null && (int) $template->kelas_id !== $kelas->id) {
+                throw ValidationException::withMessages(['sasaran_id' => 'Template ini khusus untuk kelas lain.']);
+            }
+            if ($template->tingkat !== null && $template->tingkat !== $kelas->tingkat) {
+                throw ValidationException::withMessages(['sasaran_id' => 'Template ini khusus untuk tingkat lain.']);
+            }
+
+            return collect([$kelas]);
+        }
+
+        $ta = $data['tahun_ajaran'] ?? null;
+        if ($ta === null || $ta === '') {
+            throw ValidationException::withMessages(['tahun_ajaran' => 'Tahun ajaran wajib dipilih untuk sasaran tingkat/jenjang.']);
+        }
+
+        if ($sasaran === 'tingkat') {
+            if ($template->kelas_id !== null) {
+                throw ValidationException::withMessages(['sasaran' => 'Template per kelas tidak bisa diterapkan ke satu tingkat.']);
+            }
+            if ($template->tingkat !== null && $template->tingkat !== $id) {
+                throw ValidationException::withMessages(['sasaran_id' => 'Template ini khusus untuk tingkat lain.']);
+            }
+            $q = Kelas::where('jenjang', $template->jenjang)
+                ->where('tahun_ajaran', $ta)
+                ->where('tingkat', $id);
+        } else {
+            if ($id !== $template->jenjang) {
+                throw ValidationException::withMessages(['sasaran_id' => 'Jenjang sasaran tidak cocok dengan template.']);
+            }
+            if ($template->kelas_id !== null || $template->tingkat !== null) {
+                throw ValidationException::withMessages(['sasaran' => 'Template per kelas/tingkat tidak bisa diterapkan ke seluruh jenjang.']);
+            }
+            $q = Kelas::where('jenjang', $template->jenjang)->where('tahun_ajaran', $ta);
+        }
+
+        $kelas = $q->orderBy('tingkat')->orderBy('nama_kelas')->get();
+        if ($kelas->isEmpty()) {
+            throw ValidationException::withMessages(['sasaran_id' => 'Tidak ada kelas pada sasaran tersebut.']);
+        }
+
+        return $kelas;
+    }
+
+    /**
+     * Satu definisi slot per nomor jam. Slot nyata per jenjang tidak bisa
+     * menyimpan jam/jenis berbeda antar hari, jadi template mingguan wajib
+     * konsisten untuk nomor jam yang sama.
+     *
+     * @return array<int, array{nama_slot: string, jenis: string, jam_mulai: ?string, jam_selesai: ?string}>
+     */
+    private function definisiSlotTemplate(Collection $baris): array
+    {
+        $defs = [];
+        foreach ($baris as $b) {
+            $urutan = (int) $b->urutan_slot;
+            $data = [
+                'nama_slot' => $b->nama_slot ?? 'Jam '.$urutan,
+                'jenis' => $b->jenis,
+                'jam_mulai' => $b->jam_mulai ? substr((string) $b->jam_mulai, 0, 5) : null,
+                'jam_selesai' => $b->jam_selesai ? substr((string) $b->jam_selesai, 0, 5) : null,
+            ];
+            if (isset($defs[$urutan])) {
+                foreach (['jenis', 'jam_mulai', 'jam_selesai'] as $kunci) {
+                    if ($defs[$urutan][$kunci] !== $data[$kunci]) {
+                        throw ValidationException::withMessages([
+                            'template' => "Jam ke-{$urutan} punya {$kunci} berbeda antar hari. Slot jam per jenjang harus seragam — samakan template atau pisahkan per tingkat.",
+                        ]);
+                    }
+                }
+
+                continue;
+            }
+            $defs[$urutan] = $data;
+        }
+        ksort($defs);
+
+        return $defs;
     }
 
     private function jenjangWajib(Request $request): string

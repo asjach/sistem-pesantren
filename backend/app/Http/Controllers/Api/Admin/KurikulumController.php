@@ -398,6 +398,7 @@ class KurikulumController extends Controller
                     'kkm' => $m->kkm,
                     'pengampu_id' => $p?->id,
                     'keaktifan_pegawai_id' => $p?->keaktifan_pegawai_id,
+                    'jp_per_minggu' => $p?->jp_per_minggu,
                     'guru' => $p?->keaktifan?->pegawai?->nama_lengkap,
                 ];
             }),
@@ -415,6 +416,7 @@ class KurikulumController extends Controller
             'baris' => ['present', 'array'],
             'baris.*.mata_pelajaran_id' => ['required', 'integer', 'exists:mata_pelajaran,id'],
             'baris.*.keaktifan_pegawai_id' => ['nullable', 'integer', 'exists:keaktifan_pegawai,id'],
+            'baris.*.jp_per_minggu' => ['nullable', 'integer', 'min:0', 'max:60'],
         ]);
         $kelas = Kelas::findOrFail($data['kelas_id']);
         $this->authorizeLembaga($request->user(), $kelas->jenjang);
@@ -450,7 +452,10 @@ class KurikulumController extends Controller
             foreach ($diinginkan as $mapelId => $b) {
                 PengampuMapel::updateOrCreate(
                     ['kelas_id' => $kelas->id, 'mata_pelajaran_id' => $mapelId],
-                    ['keaktifan_pegawai_id' => $b['keaktifan_pegawai_id'] ?? null],
+                    [
+                        'keaktifan_pegawai_id' => $b['keaktifan_pegawai_id'] ?? null,
+                        'jp_per_minggu' => $b['jp_per_minggu'] ?? null,
+                    ],
                 );
             }
         });

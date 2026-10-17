@@ -361,6 +361,9 @@ export default function KurikulumJadwalPage() {
         <TabsContent value="template" className="flex min-h-0 flex-1 flex-col gap-0">
           <PanelTemplate
             jenjang={jenjang}
+            ta={ta}
+            kelasOpsi={kelasOpsi}
+            kelasId={kelasId}
             canTambah={canTambah}
             canUbah={canUbah}
             canHapus={canHapus}

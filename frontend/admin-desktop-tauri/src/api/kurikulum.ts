@@ -38,6 +38,8 @@ export interface PengampuBaris {
   kkm: number | null;
   pengampu_id: number | null;
   keaktifan_pegawai_id: number | null;
+  /** Porsi JP per minggu untuk generator template; null = ikut bergilir. */
+  jp_per_minggu: number | null;
   guru: string | null;
 }
 
@@ -214,7 +216,9 @@ export function daftarPengampus(kelasIds: number[]) {
 
 /** Sync pengampu satu kelas: baris di luar daftar dihapus (ditolak bila
  *  sudah punya nilai/jadwal). */
-export function simpanPengampu(kelasId: number, baris: { mata_pelajaran_id: number; keaktifan_pegawai_id: number | null }[]) {
+export function simpanPengampu(kelasId: number, baris: {
+  mata_pelajaran_id: number; keaktifan_pegawai_id: number | null; jp_per_minggu?: number | null;
+}[]) {
   return api<{ pesan: string }>('/admin/kurikulum/pengampu', {
     method: 'PUT',
     body: JSON.stringify({ kelas_id: kelasId, baris }),
@@ -306,12 +310,13 @@ export function hapusJadwal(id: number) {
 // ------------------------------------------------- template jadwal generik
 
 export interface TemplateJadwal {
-  id: number; jenjang: string; nama: string;
+  id: number; jenjang: string; tingkat: string | null; kelas_id: number | null;
+  nama: string;
   deskripsi: string | null; is_active: boolean; baris_count?: number;
 }
 
 export interface TemplateJadwalBaris {
-  id: number; urutan_slot: number;
+  id: number; hari: string | null; urutan_slot: number;
   nama_slot: string | null; jenis: JenisSlot;
   jam_mulai: string | null; jam_selesai: string | null;
 }
@@ -322,7 +327,8 @@ export interface TemplateJadwalDetail {
 }
 
 export interface TerapkanHasil {
-  pesan: string; dibuat: number; bisa_dipasang: number;
+  pesan: string; kelas: number; dibuat: number; bisa_dipasang: number;
+  slot_dibuat: number; slot_bisa_dibuat: number;
   dilewati: { sel: string; alasan: string }[];
 }
 
@@ -331,13 +337,15 @@ export function daftarTemplateJadwal(jenjang: string) {
 }
 
 export function buatTemplateJadwal(data: {
-  jenjang: string; nama: string; deskripsi?: string | null; is_active?: boolean;
+  jenjang: string; tingkat?: string | null; kelas_id?: number | null;
+  nama: string; deskripsi?: string | null; is_active?: boolean;
 }) {
   return api<TemplateJadwal>('/admin/kurikulum/template-jadwal', { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function ubahTemplateJadwal(id: number, data: {
-  nama?: string; deskripsi?: string | null; is_active?: boolean;
+  nama?: string; tingkat?: string | null; kelas_id?: number | null;
+  deskripsi?: string | null; is_active?: boolean;
 }) {
   return api<TemplateJadwal>(`/admin/kurikulum/template-jadwal/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
@@ -351,14 +359,14 @@ export function detailTemplateJadwal(id: number) {
 }
 
 export function tambahBarisTemplate(id: number, data: {
-  nama_slot?: string | null; jenis?: JenisSlot;
+  hari?: string | null; nama_slot?: string | null; jenis?: JenisSlot;
   jam_mulai?: string | null; jam_selesai?: string | null; urutan_slot?: number;
 }) {
   return api<TemplateJadwalBaris>(`/admin/kurikulum/template-jadwal/${id}/baris`, { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function ubahBarisTemplate(barisId: number, data: {
-  nama_slot?: string | null; jenis?: JenisSlot;
+  hari?: string | null; nama_slot?: string | null; jenis?: JenisSlot;
   jam_mulai?: string | null; jam_selesai?: string | null; urutan_slot?: number;
 }) {
   return api<TemplateJadwalBaris>(`/admin/kurikulum/template-jadwal/baris/${barisId}`, { method: 'PUT', body: JSON.stringify(data) });
@@ -369,6 +377,9 @@ export function hapusBarisTemplate(barisId: number) {
 }
 
 export function terapkanTemplate(id: number, data: {
+  sasaran: 'kelas' | 'tingkat' | 'jenjang';
+  sasaran_id: string;
+  tahun_ajaran?: string | null;
   mode?: 'pratinjau' | 'eksekusi'; timpa?: boolean;
 }) {
   return api<TerapkanHasil>(`/admin/kurikulum/template-jadwal/${id}/terapkan`, { method: 'POST', body: JSON.stringify(data) });

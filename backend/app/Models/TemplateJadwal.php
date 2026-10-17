@@ -24,6 +24,11 @@ class TemplateJadwal extends Model
         return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
     }
 
+    public function kelas(): BelongsTo
+    {
+        return $this->belongsTo(Kelas::class);
+    }
+
     public function baris(): HasMany
     {
         return $this->hasMany(TemplateJadwalBaris::class);

@@ -849,6 +849,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `kelas_id`: FK → kelas [cascade]
 - `mata_pelajaran_id`: FK → mata_pelajaran [cascade]
 - `keaktifan_pegawai_id`: FK → keaktifan_pegawai [null, nullOnDelete]
+- `jp_per_minggu`: int [null] — porsi JP/minggu untuk generator template; null = ikut bergilir
 - `created_at`, `updated_at`
 - UNIQUE(`kelas_id`, `mata_pelajaran_id`)
 
@@ -876,22 +877,25 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 ### `template_jadwal`
 - `id` PK
 - `jenjang`: FK → lembaga [cascade]
-- `nama`: string(100) — nama kerangka per jenjang (mis. "8 JP + istirahat")
+- `tingkat`: string(20) [null] — lingkup tingkat; null = semua tingkat
+- `kelas_id`: FK → kelas [null, nullOnDelete] — lingkup kelas; null = bukan per kelas
+- `nama`: string(100) — nama pola mingguan (mis. "8 JP + istirahat")
 - `deskripsi`: text [null]
 - `is_active`: bool [default true] — nonaktif = tidak bisa diterapkan (tetap tampil agar bisa diaktifkan lagi)
 - `created_at`, `updated_at`
-- UNIQUE(`jenjang`, `nama`)
+- INDEX(`jenjang`, `tingkat`, `kelas_id`)
 
 ### `template_jadwal_baris`
 - `id` PK
 - `template_jadwal_id`: FK → template_jadwal [cascade]
-- `urutan_slot`: int [default 1] — jam ke-n dalam kerangka (1, 2, 3, ...), berlaku semua hari aktif
+- `hari`: enum(senin|selasa|rabu|kamis|jumat|sabtu|minggu) [null] — null = berlaku semua hari aktif
+- `urutan_slot`: int [default 1] — jam ke-n (1, 2, 3, ...) pada hari itu
 - `nama_slot`: string(50) [null] — mis. "Jam 1", "Istirahat", "Pembiasaan"
 - `jam_mulai`: time [null] — mis. 07:00
 - `jam_selesai`: time [null] — mis. 07:45
 - `jenis`: enum(pelajaran|istirahat|pembiasaan) [default 'pelajaran'] — saat diterapkan, slot non-pelajaran tetap dibuat tetapi tidak bisa diisi jadwal
 - `created_at`, `updated_at`
-- UNIQUE(`template_jadwal_id`, `urutan_slot`)
+- INDEX(`template_jadwal_id`, `hari`, `urutan_slot`)
 
 ## BLOK 6 — Penilaian & Rapor (Modul 202 Nilai-Rapor)
 
