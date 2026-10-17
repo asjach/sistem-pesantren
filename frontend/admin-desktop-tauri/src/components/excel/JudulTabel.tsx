@@ -21,7 +21,9 @@ interface Props {
   info: ReactNode;
   filterTampil: boolean;
   filter?: ReactNode;
-  /** Aksi massal baris tercentang (sudah dirender halaman). */
+  /** Aksi massal baris tercentang (sudah dirender halaman). Ditaruh tepat di
+   *  sebelah kiri tombol aksi utama — dua-duanya berpasangan: "hapus yang
+   *  dipilih" dan "tambah yang baru". */
   aksiMassal: ReactNode;
   awalanToolbar?: ReactNode;
   akhirToolbar?: ReactNode;
@@ -50,10 +52,10 @@ interface Props {
 }
 
 /**
- * Bilah judul tabel: judul + info tengah, kontrol toolbar (filter, aksi massal,
- * awalan/akhir halaman, Urutkan, Kolom), tombol aksi utama, gerigi pengaturan
- * tabel di ujung kanan, dan menu klik-kanan "Kelola Tabel". Id elemen
- * dipertahankan agar halaman/tes tetap menemukannya.
+ * Bilah judul tabel: judul + info tengah, kontrol toolbar (filter, awalan/
+ * akhir halaman, Urutkan, Kolom), aksi massal baris tercentang, tombol aksi
+ * utama, gerigi pengaturan tabel di ujung kanan, dan menu klik-kanan "Kelola
+ * Tabel". Id elemen dipertahankan agar halaman/tes tetap menemukannya.
  *
  * `min-h-8` (border-box, sudah termasuk `border-b` 1px) menjaga tinggi
  * bilah tetap sama walau tabel tanpa kontrol toolbar: semua kontrol
@@ -110,7 +112,6 @@ export default function JudulTabel({
           <div className="ml-auto flex shrink-0 items-center justify-end gap-2">
             <div className="flex shrink-0 items-center justify-end gap-2">
               {filterTampil ? <div className="flex items-center gap-1.5 [&>*]:shrink-0">{filter}</div> : null}
-              {aksiMassal ? <div className="flex flex-nowrap items-center gap-1.5 [&>*]:shrink-0">{aksiMassal}</div> : null}
               {awalanToolbar}
               {akhirToolbar}
               {urutTampil ? (
@@ -132,6 +133,11 @@ export default function JudulTabel({
                 />
               ) : null}
             </div>
+            {/* Aksi massal (tombol "Hapus (N)") duduk tepat di sebelah kiri
+                tombol aksi utama: hapus yang dipilih & tambah yang baru
+                berpasangan di ujung kanan bilah, tak lagi terpisah oleh
+                kontrol Urutan/Kolom. */}
+            {aksiMassal ? <div className="flex shrink-0 flex-nowrap items-center gap-1.5 [&>*]:shrink-0">{aksiMassal}</div> : null}
             {tombolAksiTampil && addButton ? (
               addButtonLangsung
                 ? <div className="shrink-0">{addButton}</div>
