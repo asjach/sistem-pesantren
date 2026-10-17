@@ -24,6 +24,7 @@ import { useToolbarPresetState } from './excel/useToolbarPreset';
 import { filterToolbarTersedia } from './excel/filterTabel';
 import { komponenAktif, type InfoKomponenTabel } from './excel/komponenTabel';
 import { useLebarKolom } from './excel/useLebarKolom';
+import { targetGulirBeku } from './excel/beku';
 import { useTinggiBaris } from './excel/useTinggiBaris';
 import { useTinggiBarisSatuan } from './excel/useTinggiBarisSatuan';
 import { TINGGI_BARIS_BAWAAN } from './excel/tinggiBaris';
@@ -1078,8 +1079,60 @@ export default function ExcelTable<T extends { id: string | number }>({
   const handleChangeRef = useRef<(v: GridRow[]) => void>(() => {});
   handleChangeRef.current = handleChange;
   const handleChangeStable = useCallback((v: GridRow[]) => handleChangeRef.current(v), []);
+  /** Kolom beku menutupi konten yang digulir ke arahnya. Bila gulir horizontal
+   *  berhenti di tengah kolom, kolom pertama di kanan area beku tampil
+   *  terpotong. Setelah gulir berhenti, ratakan tepi kolom terdekat dengan
+   *  tepi area beku supaya kolom selalu tampil utuh. */
+  const snapBekuTimerRef = useRef<number | null>(null);
+  function snapBekuSetelahGulir() {
+    if (snapBekuTimerRef.current !== null) window.clearTimeout(snapBekuTimerRef.current);
+    snapBekuTimerRef.current = null;
+    if (freezeAktif <= 0 || sedangLebar) return;
+    snapBekuTimerRef.current = window.setTimeout(() => {
+      snapBekuTimerRef.current = null;
+      const el = wrapRef.current;
+      const cont = el?.querySelector<HTMLElement>('.dsg-container');
+      if (!el || !cont) return;
+      const beku = [...el.querySelectorAll<HTMLElement>(
+        '.dsg-row-header .dsg-cell.dsg-cell-sticky-left, .dsg-row-header .dsg-cell.dsg-cell-gutter',
+      )];
+      if (beku.length === 0) return;
+      const batas = Math.max(...beku.map((c) => c.getBoundingClientRect().right));
+      // Area beku menutupi seluruh lebar tabel: tak ada kolom lain yang bisa
+      // dijadikan patok tanpa menggeser konten yang tetap tersembunyi.
+      if (batas >= cont.getBoundingClientRect().right - 1) return;
+      const kolomKiri: number[] = [];
+      el.querySelectorAll<HTMLElement>('.dsg-row-header .dsg-cell').forEach((c) => {
+        if (c.classList.contains('dsg-cell-sticky-left')
+          || c.classList.contains('dsg-cell-gutter')
+          || c.classList.contains('dsg-cell-sticky-right')) return;
+        const ht = c.querySelector<HTMLElement>('.simpes-dsg-headtitle[data-col-key]');
+        if (!ht || ht.dataset.colKey === '__aksi') return;
+        const r = c.getBoundingClientRect();
+        if (r.width > 0) kolomKiri.push(r.left);
+      });
+      const target = targetGulirBeku(
+        kolomKiri,
+        batas,
+        cont.scrollLeft,
+        Math.max(0, cont.scrollWidth - cont.clientWidth),
+      );
+      if (target !== null && Math.abs(target - cont.scrollLeft) > 0.5) cont.scrollLeft = target;
+    }, 140);
+  }
+  useEffect(() => () => {
+    if (snapBekuTimerRef.current !== null) window.clearTimeout(snapBekuTimerRef.current);
+  }, []);
+  /** Freeze dinyalakan atau lebar kolom berubah: tepi area beku ikut bergeser,
+   *  jadi ratakan lagi tanpa menunggu pengguna menggulir. */
+  const snapBekuRef = useRef<() => void>(() => {});
+  snapBekuRef.current = snapBekuSetelahGulir;
+  useEffect(() => {
+    if (freezeAktif > 0 && !sedangLebar) snapBekuRef.current();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [freezeAktif, sedangLebar, widths, autoWidths, syncAutoWidths]);
   const handleScrollRef = useRef(() => {});
-  handleScrollRef.current = () => { fitActionsIfNeeded(); simpanScroll(); };
+  handleScrollRef.current = () => { fitActionsIfNeeded(); simpanScroll(); snapBekuSetelahGulir(); };
   const handleScrollStable = useCallback(() => handleScrollRef.current(), []);
   const handleSelectionStable = useCallback(({ selection }: { selection: GridSelection | null }) => {
     setRange(selection);
