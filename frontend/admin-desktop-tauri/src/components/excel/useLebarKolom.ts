@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import { ambilContohBaris, gabungLebarMaks, lebarJudulDuaBaris, ukurAutoFit } from './autofit';
 import {
+  ACTIONS_DEFAULT_W,
   AUTOFIT_BUFFER,
   AUTOFIT_MAX_W,
   MIN_COL_W,
@@ -464,7 +465,17 @@ export function useLebarKolom<T extends { id: string | number }>({
     e.preventDefault();
     e.stopPropagation();
     const f = fieldsRef.current.find((x) => x.key === key);
-    const startW = widthsRef.current[key] ?? autoWidthsRef.current[key] ?? f?.width ?? 150;
+    /* Rantai fallback WAJIB sama dengan `basis` kolom di ExcelTable. Lebar
+     * tampil sering berasal dari `syncAutoWidths` (belum masuk `widths`/
+     * `autoWidths`), dan melewatinya membuat seret pertama memakai lebar
+     * statis `f.width` — kolom melompat menyempit sebelum mengikuti kursor. */
+    const bawaan = key === '__aksi'
+      ? ACTIONS_DEFAULT_W
+      : syncAutoWidths[key] ?? f?.width ?? 150;
+    const startW = Math.max(
+      MIN_COL_W,
+      widthsRef.current[key] ?? autoWidthsRef.current[key] ?? bawaan,
+    );
     const group = getSelectedColumnKeys();
     const targets = group.length > 1 && group.includes(key) ? group : [key];
     resizeRef.current = { key, startX: e.clientX, startW, targets };
