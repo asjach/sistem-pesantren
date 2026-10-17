@@ -408,6 +408,12 @@
   );
 }
 
+/* Pembatas antar kelas pada tampilan gabungan: garis tegas di atas baris
+   pertama setiap kelas (kelas pertama tidak perlu). */
+.simpes-dsg .dsg-cell.simpes-dsg-kelas-awal {
+  border-top: 2px solid color-mix(in srgb, var(--foreground) 32%, var(--dsg-border-color));
+}
+
 /* Di dalam range: sel jangkar tanpa border sendiri (tidak dobel),
    cukup outline range yang mengelilingi seluruh blok. */
 .simpes-dsg:has(.dsg-selection-rect) .dsg-active-cell:not(.dsg-active-cell-focus) {
