@@ -830,14 +830,6 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `hari`)
 
-### `kurikulum`
-- `id` PK
-- `jenjang`: FK → lembaga [cascade]
-- `nama`: string
-- `deskripsi`: text [null]
-- `created_at`, `updated_at`
-- UNIQUE(`jenjang`, `nama`)
-
 ### `mata_pelajaran`
 - `id` PK
 - `jenjang`: FK → lembaga [cascade]
@@ -845,34 +837,11 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `kelompok`: enum(formal|pesantren) [default 'formal'] — Kolom darí Modul 202 (kelompok rapor):
 - `kode_mapel`: string(20) [null]
 - `singkatan`: string(50) [null] — singkatan tampilan (mis. 'Mat.'); kosong = tak ada singkatan
-- `is_active`: bool [default true] — nonaktif = tidak ikut komposisi kurikulum/generate pengampu
+- `kkm`: decimal(5, 2) [null] — KKM mapel (satu tempat per jenjang, dipindah dari komposisi kurikulum yang dihapus); null = predikat manual (202)
+- `urutan`: int [default 0] — urutan tampil di rapor/leger (0 = ikut abjad)
+- `is_active`: bool [default true] — nonaktif = tak ditawarkan saat menambah mapel ke pengampu kelas
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `nama_mapel`)
-
-### `kelas_kurikulum`
-- `id` PK
-- `kelas_id`: FK → kelas [cascade]
-- `kurikulum_id`: FK → kurikulum [cascade]
-- `created_at`, `updated_at`
-- UNIQUE(`kelas_id`, `kurikulum_id`)
-
-### `kurikulum_mapel`
-- `id` PK
-- `kurikulum_id`: FK → kurikulum [cascade]
-- `mata_pelajaran_id`: FK → mata_pelajaran [cascade]
-- `kkm`: decimal(5, 2) [null] — null = predikat manual (202)
-- `urutan`: int [default 0] — urutan tampil di rapor/leger
-- `created_at`, `updated_at`
-- UNIQUE(`kurikulum_id`, `mata_pelajaran_id`)
-
-Cakupan tingkat ditentukan `kurikulum_mapel_tingkat`: **kosong = berlaku di semua tingkat**, berisi = hanya tingkat-teingkat itu. Nilainya = NAMA tingkat dari referensi (sama dengan `kelas.tingkat`), jadi lintas tahun ajaran.
-
-### `kurikulum_mapel_tingkat`
-- `id` PK
-- `kurikulum_mapel_id`: FK → kurikulum_mapel [cascade]
-- `tingkat`: varchar(20) — ref_tingkat.nama (dicocokkan dengan `kelas.tingkat`)
-- `created_at`, `updated_at`
-- UNIQUE(`kurikulum_mapel_id`, `tingkat`)
 
 ### `pengampu_mapel`
 - `id` PK
@@ -881,6 +850,8 @@ Cakupan tingkat ditentukan `kurikulum_mapel_tingkat`: **kosong = berlaku di semu
 - `keaktifan_pegawai_id`: FK → keaktifan_pegawai [null, nullOnDelete]
 - `created_at`, `updated_at`
 - UNIQUE(`kelas_id`, `mata_pelajaran_id`)
+
+Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kurikulum + komposisi + peta kelas→kurikulum sudah dihapus — migrasi `2026_10_18_070000`). Mapel masuk kelas lewat halaman Pengampu (Tambah mapel / Salin dari kelas lain / import); baris yang sudah punya nilai atau jadwal tak boleh dikeluarkan.
 
 ### `slot_jam_pelajaran`
 - `id` PK

@@ -55,7 +55,6 @@ const PenilaianImporPage = lazy(() => import('./pages/PenilaianImporPage'));
 const PenilaianLegerPage = lazy(() => import('./pages/PenilaianLegerPage'));
 const PenilaianRaporPage = lazy(() => import('./pages/PenilaianRaporPage'));
 const KurikulumMapelPage = lazy(() => import('./pages/KurikulumMapelPage'));
-const KurikulumKurikulumPage = lazy(() => import('./pages/KurikulumKurikulumPage'));
 const KurikulumPengampuPage = lazy(() => import('./pages/KurikulumPengampuPage'));
 const KurikulumJadwalPage = lazy(() => import('./pages/KurikulumJadwalPage'));
 const MutasiKeluarPage = lazy(() => import('./pages/MutasiKeluarPage'));
@@ -212,10 +211,9 @@ export default function App() {
                       <Route path="/penilaian/impor" element={<KhususIzin izin="penilaian.lihat"><PenilaianImporPage /></KhususIzin>} />
                       <Route path="/penilaian/leger" element={<KhususIzin izin="penilaian.lihat"><PenilaianLegerPage /></KhususIzin>} />
                       <Route path="/penilaian/rapor" element={<KhususIzin izin="penilaian.lihat"><PenilaianRaporPage /></KhususIzin>} />
-                      {/* Modul Kurikulum (BLOK 5): mapel, kurikulum + komposisi,
-                          pengampu (kelas × mapel → guru), jadwal pelajaran. */}
+                      {/* Modul Mapel & Pengampu (BLOK 5): master mapel, pengampu
+                          (kelas × mapel → guru), jadwal pelajaran. */}
                       <Route path="/kurikulum/mapel" element={<KhususIzin izin="kurikulum.lihat"><KurikulumMapelPage /></KhususIzin>} />
-                      <Route path="/kurikulum/kurikulum" element={<KhususIzin izin="kurikulum.lihat"><KurikulumKurikulumPage /></KhususIzin>} />
                       <Route path="/kurikulum/pengampu" element={<KhususIzin izin="kurikulum.lihat"><KurikulumPengampuPage /></KhususIzin>} />
                       <Route path="/kurikulum/jadwal" element={<KhususIzin izin="kurikulum.lihat"><KurikulumJadwalPage /></KhususIzin>} />
                       <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />

@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import MenuAksiToolbar from './MenuAksiToolbar';
+import LabelTombolTambah from './LabelTombolTambah';
+import { Plus } from '@/icons';
 import { renderDenganTema } from '@/test/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -39,5 +41,28 @@ describe('MenuAksiToolbar', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Import' }));
     expect(onImport).toHaveBeenCalledTimes(1);
     expect(onSimpan).not.toHaveBeenCalled();
+  });
+
+  it('label yang dibungkus komponen bantu tetap terbaca, ikon ikut pindah ke menu', async () => {
+    const user = userEvent.setup();
+    const onTambah = vi.fn();
+    renderDenganTema(
+      <MenuAksiToolbar triggerId="btn_aksi_uji_dua">
+        <Button id="btn_tambah_uji" onClick={onTambah}>
+          <LabelTombolTambah pintasan="⌘N">
+            <Plus data-icon="inline-start" size={16} /> Tambah
+          </LabelTombolTambah>
+        </Button>
+      </MenuAksiToolbar>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Aksi' }));
+    // Nama item = teks tombolnya, bukan judul/title dan bukan "⌘N".
+    const item = screen.getByRole('menuitem', { name: 'Tambah' });
+    // Ikon tombol (aria-hidden) ikut dirender di dalam item menu.
+    expect(item.querySelector('svg')).not.toBeNull();
+
+    await user.click(item);
+    expect(onTambah).toHaveBeenCalledTimes(1);
   });
 });

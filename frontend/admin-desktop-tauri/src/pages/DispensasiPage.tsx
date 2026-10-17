@@ -15,6 +15,7 @@ import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PemisahGeser } from '@/components/ui/resizable';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import Pager from '@/components/Pager';
 import { ActionIcon } from '@/components/RowActions';
@@ -402,7 +403,9 @@ export default function DispensasiPage() {
 
   const mulaiGeser = (e: React.PointerEvent) => {
     geserRef.current = { x: e.clientX, w: lebarKiri };
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    // `currentTarget` (bukan `target`): pemisah punya anak (garis & knob),
+    // dan capture harus dipegang elemen pemisahnya sendiri.
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   };
   const selamaGeser = (e: React.PointerEvent) => {
     const awal = geserRef.current;
@@ -413,7 +416,7 @@ export default function DispensasiPage() {
   const mulaiGeserVertikal = (e: React.PointerEvent) => {
     const h = atasRef.current?.getBoundingClientRect().height ?? 300;
     geserVertikalRef.current = { y: e.clientY, h };
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   };
   const selamaGeserVertikal = (e: React.PointerEvent) => {
     const awal = geserVertikalRef.current;
@@ -480,13 +483,14 @@ export default function DispensasiPage() {
                 />
               </div>
 
-              {/* Gagang geser tinggi tabel dispensasi vs daftar santri. */}
-              <div
+              {/* Gagang geser tinggi tabel dispensasi vs daftar santri —
+                  memakai `PemisahGeser` agar gayanya sama dengan pemisah
+                  `ResizablePanelGroup` di halaman lain. */}
+              <PemisahGeser
                 id="gagang_tabel_dispensasi"
-                role="separator"
-                aria-orientation="horizontal"
+                orientation="vertical"
+                withHandle
                 aria-label="Atur tinggi tabel dispensasi dan daftar santri"
-                className="h-1.5 shrink-0 cursor-row-resize hover:bg-accent"
                 onPointerDown={mulaiGeserVertikal}
                 onPointerMove={selamaGeserVertikal}
                 onPointerUp={selesaiGeserVertikal}
@@ -575,13 +579,12 @@ export default function DispensasiPage() {
               </div>
             </div>
 
-            {/* Gagang geser antar panel. */}
-            <div
+            {/* Gagang geser antar panel — standar `PemisahGeser`. */}
+            <PemisahGeser
               id="gagang_dispensasi"
-              role="separator"
-              aria-orientation="vertical"
+              orientation="horizontal"
+              withHandle
               aria-label="Atur lebar panel kiri"
-              className="w-1.5 shrink-0 cursor-col-resize self-stretch hover:bg-accent"
               onPointerDown={mulaiGeser}
               onPointerMove={selamaGeser}
               onPointerUp={selesaiGeser}

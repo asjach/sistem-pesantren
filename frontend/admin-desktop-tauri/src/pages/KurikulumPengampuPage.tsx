@@ -2,46 +2,42 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { listKelas, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
-import { Copy, FileUp, NotebookTabs } from '@/icons';
+import { Copy, FileUp, Plus } from '@/icons';
 import { DeleteAction } from '@/components/RowActions';
-import ConfirmDelete from '@/components/ConfirmDelete';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
-  daftarGuruAktif, daftarKurikulum, daftarKelasKurikulum, daftarPengampus,
-  generatePengampu, hapusKomposisi, simpanKelasKurikulum, simpanPengampu,
+  daftarGuruAktif, daftarMapel, daftarPengampus, salinPengampu, simpanPengampu,
   batalPotongPengampu, importPengampuPotong, unduhGalatPengampu, unduhTemplatePengampu,
   KOLOM_IMPORT_PENGAMPU,
-  type GuruAktif, type Kurikulum, type PengampusBaris,
+  type GuruAktif, type MataPelajaran, type PengampusBaris,
 } from '@/api/kurikulum';
 
 /**
- * Keterangan aksi baris — tiga jenis, karena akibatnya berbeda total:
+ * Halaman Pengampu: daftar mapel sebuah kelas YAITUH daftar pengampu kelas itu
+ * sendiri (`pengampu_mapel`; modul kurikulum + komposisi sudah dihapus). Mapel
+ * masuk kelas lewat tiga jalan: tombol "Tambah mapel", "Salin dari kelas lain",
+ * atau import Excel. Baris yang sudah punya nilai/jadwal tidak boleh
+ * dikeluarkan (dijaga endpoint sync).
  *
- *  1. **Baris dari kurikulum** (`dari_kurikulum`): daftar pengampu kelas adalah
- *     GABUNGAN komposisi kurikulum kelas + baris yang tersimpan, jadi baris ini
- *     tak bisa hilang dari tabel selama mapelnya masih di kurikulum. Menghapus
- *     barisnya berarti melepas GURU-nya saja — baris muncul kembali tanpa guru.
- *     Karena itu aksi di sini dinamai "Kosongkan guru", bukan "hapus".
- *  2. **Baris manual**: baris benar-benar dihapus dari daftar pengampu.
- *  3. **Mapel dari kurikulum**: aksi kedua di baris yang sama (ikon notebook)
- *     menghapus MAPELNYA dari komposisi kurikulum — bukan cuma guru. Lihat
- *     `aksiKurikulum`.
+ *  Kelas dipilih lewat RAIL Tingkat/Kelas di kiri tabel (bukan pemilih di
+ *  toolbar) dan boleh beberapa kelas sekaligus — tabel lalu menampilkan baris
+ *  pengampu gabungan dengan kolom "Kelas".
  */
+
+/** Keterangan aksi baris — satu jenis saja sekarang: semua baris adalah baris
+ *  pengampu sungguhan, jadi menghapus baris berarti mapel benar-benar keluar
+ *  dari daftar kelas (bukan sekadar melepas guru dari baris "kurikulum"). */
 function aksiBaris(b: BarisPengampu): { judul: string; keterangan: string; sukses: string } {
-  if (b.dari_kurikulum) {
-    return {
-      judul: 'Kosongkan guru pengampu?',
-      keterangan: `"${b.nama_mapel}" di kelas ${b.nama_kelas} bagian dari kurikulum kelas, jadi mapelnya tetap tampil di daftar — yang dilepas hanya guru pengampunya. Untuk menghilangkan mapelnya sendiri, pakai tombol "Keluarkan dari kurikulum".`,
-      sukses: `Guru ${b.nama_mapel} (kelas ${b.nama_kelas}) dilepas.`,
-    };
-  }
   return {
     judul: 'Keluarkan mapel dari pengampu?',
     keterangan: `"${b.nama_mapel}" dikeluarkan dari daftar pengampu kelas ${b.nama_kelas}. Guru & penugasan pada baris ini ikut dilepas. Mapel yang sudah punya nilai atau jadwal tidak bisa dikeluarkan.`,
@@ -49,27 +45,9 @@ function aksiBaris(b: BarisPengampu): { judul: string; keterangan: string; sukse
   };
 }
 
-/**
- * Keterangan dialog "Keluarkan dari kurikulum" — yang dihapus MAPELNYA, bukan
- * cuma guru: berkasnya di komposisi kurikulum, jadi efeknya ke SEMUA kelas yang
- * memakai kurikulum itu, bukan cuma kelas yang sedang dibuka.
- */
-function aksiKurikulum(b: BarisPengampu): { judul: string; keterangan: string; sukses: string } {
-  const kur = b.kurikulum_nama.length > 0 ? b.kurikulum_nama.join(', ') : 'kurikulum kelas';
-  return {
-    judul: 'Keluarkan mapel dari kurikulum?',
-    keterangan: `"${b.nama_mapel}" dikeluarkan dari komposisi ${kur}. Berlaku untuk SEMUA kelas yang memakai kurikulum itu, bukan hanya kelas ${b.nama_kelas} — kelas lain yang memakai kurikulum yang sama ikut kehilangan mapel ini. `
-      + (b.keaktifan_pegawai_id === null
-        ? 'Mapel ini tidak punya guru pengampu di kelas ini, jadi tak ada penugasan yang ikut dilepas.'
-        : `Guru ${b.nama_mapel} di kelas ${b.nama_kelas} juga dilepas. `
-          + 'Kalau mapel ini sudah punya nilai atau jadwal di kelas ini, melepas guru akan DITOLAK dan mapel TIDAK dikeluarkan dari kurikulum.'),
-    sukses: `${b.nama_mapel} dikeluarkan dari ${kur}.`,
-  };
-}
-
 /** Baris tabel pengampu. `PengampuBaris` tak punya `id` sendiri, sedangkan
  *  komponen tabel selalu menandai satu baris lewat `id` — dan karena tabel bisa
- *  menampilkan BEBERAPA kelas sekaligus, kuncinya harus memuat kelas too:
+ *  menampilkan BEBERAPA kelas sekaligus, kuncinya harus memuat kelas:
  *  `${kelas_id}-${mata_pelajaran_id}`. */
 type BarisPengampu = PengampusBaris & { id: string };
 
@@ -83,39 +61,39 @@ function nilaiPengampu(b: BarisPengampu): Record<string, string | null> {
     kelas: b.nama_kelas,
     nama_mapel: b.is_active ? b.nama_mapel : `${b.nama_mapel} (nonaktif)`,
     kelompok: b.kelompok === 'formal' ? 'Formal' : 'Pesantren',
-    sumber: b.dari_kurikulum ? 'dari kurikulum' : 'manual',
+    kkm: b.kkm === null ? '—' : String(b.kkm),
     guru: b.keaktifan_pegawai_id === null ? '' : String(b.keaktifan_pegawai_id),
   };
 }
 
-/** Halaman Pengampu: peta kelas→kurikulum + pengampu (kelas × mapel → guru).
- *
- *  Kelas dipilih lewat RAIL Tingkat/Kelas di kiri tabel (bukan pemilih di
- *  toolbar) dan boleh beberapa kelas sekaligus — tabel lalu menampilkan baris
- *  pengampu Gabungan dengan kolom "Kelas". Endpoint pengampu & kurikulum kelas
- *  bekerja per kelas, jadi satu kelas = satu request. */
 export default function KurikulumPengampuPage() {
   const {
     jenjangs, tahunAjaranNames, tingkat: tingkatFilter, kelas: kelasFilter, loading: filterLoading,
   } = useFilterGlobalAktif();
   const { user } = useAuth();
   const canUbah = bisa(user, 'kurikulum.ubah');
-  /** Mengeluarkan mapel dari komposisi kurikulum = menghapus baris komposisi. */
-  const canHapus = bisa(user, 'kurikulum.hapus');
 
   const jenjang = targetTunggal(jenjangs);
   const ta = targetTunggal(tahunAjaranNames);
   const siap = jenjang !== null && ta !== null;
 
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
-  const [kurikulum, setKurikulum] = useState<Kurikulum[]>([]);
-  /** Kurikulum terpasang per kelas (`kelas_id` → daftar id kurikulum). */
-  const [petaKurikulum, setPetaKurikulum] = useState<Record<number, number[]>>({});
+  /** Mapel AKTIF jenjang ini — pilihan di dialog "Tambah mapel". */
+  const [mapelAktif, setMapelAktif] = useState<MataPelajaran[]>([]);
   const [guru, setGuru] = useState<GuruAktif[]>([]);
   const [baris, setBaris] = useState<BarisPengampu[]>([]);
   const [pengampuLoading, setPengampuLoading] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [err, setErr] = useState('');
+  /** Dialog "Tambah mapel": kelas tujuan + mapel + guru (opsional). */
+  const [tambahOpen, setTambahOpen] = useState(false);
+  const [tambahKelas, setTambahKelas] = useState<number | ''>('');
+  const [tambahMapel, setTambahMapel] = useState<number | ''>('');
+  const [tambahGuru, setTambahGuru] = useState<number | ''>('');
+  /** Dialog "Salin dari kelas lain": kelas tujuan + kelas sumber. */
+  const [salinOpen, setSalinOpen] = useState(false);
+  const [salinTujuan, setSalinTujuan] = useState<number | ''>('');
+  const [salinSumber, setSalinSumber] = useState<number | ''>('');
   /** Nilai guru terbaru per baris (kunci baris = `kelas-mapel`) — sumber payload
    *  sync. Berisi ref (bukan state) karena dua edit sel beruntun dalam satu
    *  antrean simpan harus saling membaca nilai terbaru: endpoint
@@ -132,10 +110,8 @@ export default function KurikulumPengampuPage() {
    *  pilihan All tampak kosong).
    *
    *  Rail TINGKAT ikut mempersempit tabel: kelas yang tingkatnya tak termasuk
-   *  pilihan tingkat disembunyikan (bersamaan blok kurikulum per kelas). Tanpa
-   *  menampilkan kelas dari tingkat lain. Kelas yang tersaring TIDAK ikut dihapus dari
-   *  menampilkan kelas dari tingkat lain. Kelas yang tersaring TIDAK ikut
-   *  dihapus dari filter kelas global — itu milik pengguna & halaman lain. */
+   *  pilihan tingkat disembunyikan. Kelas yang tersaring TIDAK ikut dihapus
+   *  dari filter kelas global — itu milik pengguna & halaman lain. */
   const semuaKelas = kelasFilter.length === 0;
   const semuaTingkat = tingkatFilter.length === 0;
   const kelasTampil = useMemo(() => {
@@ -153,18 +129,19 @@ export default function KurikulumPengampuPage() {
     nilaiGuruRef.current = new Map(baru.map((b) => [b.id, b.keaktifan_pegawai_id]));
   }, []);
 
-  // Daftar kelas (pemetaan nama di rail → id) + kurikulum jenjang.
+  // Daftar kelas (pemetaan nama di rail → id) + mapel aktif jenjang (pilihan
+  // dialog "Tambah mapel") dimuat bersama.
   useEffect(() => {
     if (filterLoading || jenjang === null || ta === null) { setKelasOpsi([]); return; }
     let hidup = true;
     Promise.all([
       listKelas({ jenjang, tahun_ajaran: ta, per_page: 1000 }),
-      daftarKurikulum(jenjang),
+      daftarMapel({ jenjang, keaktifan: 'aktif' }),
     ])
-      .then(([k, kur]) => {
+      .then(([k, m]) => {
         if (!hidup) return;
         setKelasOpsi(k.data);
-        setKurikulum(kur);
+        setMapelAktif(m);
       })
       .catch((e) => { if (hidup) setErr(errorMessage(e)); });
     return () => { hidup = false; };
@@ -179,20 +156,6 @@ export default function KurikulumPengampuPage() {
       .catch((e) => { if (hidup) setErr(errorMessage(e)); });
     return () => { hidup = false; };
   }, [jenjang, ta]);
-
-  /** Peta kelas→kurikulum untuk seluruh kelas lingkup (blok "kurikulum kelas"
-   *  menampilkan satu blok per kelas terpilih). */
-  const muatPetaKelas = useCallback(async () => {
-    if (jenjang === null || ta === null) return;
-    try {
-      const { kelas } = await daftarKelasKurikulum({ jenjang, tahun_ajaran: ta });
-      setPetaKurikulum(Object.fromEntries(kelas.map((k) => [k.id, k.kurikulum_ids])));
-    } catch (e) {
-      setErr(errorMessage(e));
-    }
-  }, [jenjang, ta]);
-
-  useEffect(() => { void muatPetaKelas(); }, [muatPetaKelas]);
 
   /** Pengampu seluruh kelas terpilih dalam SATU request (`daftarPengampus`) —
    *  endpoint per-kelas membuat N request yang saling antre dan tabel tampil
@@ -229,40 +192,16 @@ export default function KurikulumPengampuPage() {
     catch (e) { toast.error(errorMessage(e)); }
   }, []);
 
-  /** Simpan kurikulum untuk SATU kelas (blok per kelas). */
-  const simpanKurikulum = useCallback(async (kelasId: number) => {
-    await jalankan(
-      () => simpanKelasKurikulum(kelasId, petaKurikulum[kelasId] ?? []),
-      'Kurikulum kelas disimpan.',
-      async () => {
-        await muatPetaKelas();
-        // Baris pengampu mengikuti kurikulum kelas itu juga.
-        await muatPengampu(kelasIds);
-      },
-    );
-  }, [petaKurikulum, jalankan, muatPetaKelas, muatPengampu, kelasIds]);
-
-  /** Generate baris pengampu dari kurikulum untuk SETIAP kelas terpilih. */
-  const generate = useCallback(async () => {
-    if (kelasIds.length === 0) return;
-    let dibuat = 0;
-    const gagal: number[] = [];
-    for (const id of kelasIds) {
-      try {
-        const r = await generatePengampu(id);
-        dibuat += r.dibuat;
-      } catch {
-        gagal.push(id);
-      }
-    }
-    const namaGagal = gagal
-      .map((id) => kelasTampil.find((k) => k.id === id)?.nama_kelas ?? `#${id}`)
-      .join(', ');
-    if (gagal.length > 0) toast.error(`Gagal di kelas: ${namaGagal}.`);
-    if (dibuat > 0) toast.success(`${dibuat} baris pengampu dibuat.`);
-    else if (gagal.length === 0) toast.success('Tidak ada baris baru — mapel kurikulum sudah punya pengampu.');
-    await muatPengampu(kelasIds);
-  }, [kelasIds, kelasTampil, muatPengampu]);
+  /** Isi payload sync untuk satu kelas: baris kelas itu + satu baris TAMBAHAN
+   *  (dipakai dialog "Tambah mapel"). Nilai guru diambil dari peta nilai agar
+   *  edit sel yang belum kembali dari server tak hilang. */
+  const payloadKelas = useCallback((kelasId: number, tambah?: { mata_pelajaran_id: number; keaktifan_pegawai_id: number | null }) => {
+    const kirim = baris
+      .filter((b) => b.kelas_id === kelasId)
+      .map((b) => ({ mata_pelajaran_id: b.mata_pelajaran_id, keaktifan_pegawai_id: nilaiGuruRef.current.get(b.id) ?? null }));
+    if (tambah) kirim.push(tambah);
+    return kirim;
+  }, [baris]);
 
   /** Edit sel "Guru pengampu": tersimpan seketika lewat satu PUT berisi seluruh
    *  baris KELAS ITU SAJA (endpoint sync per kelas). Nilai baris ditulis ke peta
@@ -275,14 +214,8 @@ export default function KurikulumPengampuPage() {
     if (!barisIni) return;
     const guru = f.guru === null || f.guru === '' ? null : Number(f.guru);
     nilaiGuruRef.current.set(barisIni.id, guru);
-    const kirim = baris
-      .filter((b) => b.kelas_id === barisIni.kelas_id)
-      .map((b) => ({
-        mata_pelajaran_id: b.mata_pelajaran_id,
-        keaktifan_pegawai_id: b.id === barisIni.id ? guru : (nilaiGuruRef.current.get(b.id) ?? null),
-      }));
-    await simpanPengampu(barisIni.kelas_id, kirim);
-  }, [baris]);
+    await simpanPengampu(barisIni.kelas_id, payloadKelas(barisIni.kelas_id));
+  }, [baris, payloadKelas]);
 
   /** Keluarkan satu mapel dari daftar pengampu kelasnya: kirim daftar kelas itu
    *  tanpa baris tersebut (endpoint sync menghapus baris yang absen). */
@@ -298,39 +231,60 @@ export default function KurikulumPengampuPage() {
     );
   }, [baris, jalankan, muatPengampu, kelasIds]);
 
-  /**
-   * Keluarkan MAPEL dari kurikulum kelas ini — bukan cuma melepas guru.
-   *
-   * Dua langkah: (1) baris pengampu kelas ini dibuang bila ada (sync `simpanPengampu`
-   * menolak baris yang sudah punya nilai/jadwal, jadi langkah ini bisa gagal —
-   * kalau gagal, komposisi kurikulum TIDAK disentuh); (2) baris komposisi
-   * kurikulum dihapus. Baris pengampu di kelas lain ikut hilang dari daftar saat
-   * tabelnya dimuat ulang, karena mapelnya tak lagi ada di kurikulum.
-   */
-  const hapusMapel = useCallback(async (b: BarisPengampu) => {
-    const aksi = aksiKurikulum(b);
-    await jalankan(async () => {
-      if (b.keaktifan_pegawai_id !== null) {
-        const kirim = baris
-          .filter((x) => x.kelas_id === b.kelas_id && x.id !== b.id)
-          .map((x) => ({ mata_pelajaran_id: x.mata_pelajaran_id, keaktifan_pegawai_id: nilaiGuruRef.current.get(x.id) ?? null }));
-        await simpanPengampu(b.kelas_id, kirim);
-      }
-      for (const id of b.komposisi_ids) {
-        await hapusKomposisi(id);
-      }
-    }, aksi.sukses, async () => { await muatPengampu(kelasIds); });
-  }, [baris, jalankan, muatPengampu, kelasIds]);
+  /** Mapel jenjang aktif yang BELUM terpasang di kelas terpilih — pilihan
+   *  dialog "Tambah mapel" (mapel nonaktif sengaja tak ditawarkan). */
+  const mapelBelumTerpasang = useCallback((kelasId: number | ''): MataPelajaran[] => {
+    if (kelasId === '') return mapelAktif;
+    const terpasang = new Set(baris.filter((b) => b.kelas_id === kelasId).map((b) => b.mata_pelajaran_id));
+    return mapelAktif.filter((m) => !terpasang.has(m.id));
+  }, [mapelAktif, baris]);
+
+  const bukaTambah = useCallback(() => {
+    setTambahKelas(kelasIds[0] ?? '');
+    setTambahMapel('');
+    setTambahGuru('');
+    setTambahOpen(true);
+  }, [kelasIds]);
+
+  const simpanTambah = useCallback(async () => {
+    if (tambahKelas === '' || tambahMapel === '') { toast.error('Pilih kelas dan mapel dulu.'); return; }
+    try {
+      await simpanPengampu(tambahKelas, payloadKelas(tambahKelas, {
+        mata_pelajaran_id: tambahMapel,
+        keaktifan_pegawai_id: tambahGuru === '' ? null : tambahGuru,
+      }));
+      toast.success('Mapel ditambahkan ke pengampu kelas.');
+      setTambahOpen(false);
+      await muatPengampu(kelasIds);
+    } catch (e) { toast.error(errorMessage(e)); }
+  }, [tambahKelas, tambahMapel, tambahGuru, payloadKelas, muatPengampu, kelasIds]);
+
+  const bukaSalin = useCallback(() => {
+    setSalinTujuan(kelasIds[0] ?? '');
+    setSalinSumber('');
+    setSalinOpen(true);
+  }, [kelasIds]);
+
+  const simpanSalin = useCallback(async () => {
+    if (salinTujuan === '' || salinSumber === '') { toast.error('Pilih kelas tujuan dan kelas sumber dulu.'); return; }
+    try {
+      const r = await salinPengampu(salinTujuan, salinSumber);
+      toast.success(r.pesan);
+      setSalinOpen(false);
+      await muatPengampu(kelasIds);
+    } catch (e) { toast.error(errorMessage(e)); }
+  }, [salinTujuan, salinSumber, muatPengampu, kelasIds]);
 
   /** Kolom tabel pengampu. "Guru pengampu" = select yang langsung tersimpan
    *  saat dipilih (tanpa mode Edit); pilihannya mengikuti daftar guru aktif
    *  jenjang + tahun ajaran, jadi `fields` dihitung ulang saat daftar berubah.
-   *  Kolom "Kelas" muncul karena tabel bisa menampilkan beberapa kelas. */
+   *  Kolom "Kelas" muncul karena tabel bisa menampilkan beberapa kelas;
+   *  "KKM" tampil saja (diubah di halaman Mata Pelajaran). */
   const fieldsPengampu = useMemo<ExcelField[]>(() => [
     { key: 'kelas', label: 'Kelas', width: 110, kind: 'static' },
     { key: 'nama_mapel', label: 'Mapel', width: 220, kind: 'static' },
     { key: 'kelompok', label: 'Kelompok', width: 110, kind: 'static' },
-    { key: 'sumber', label: 'Sumber', width: 120, kind: 'static' },
+    { key: 'kkm', label: 'KKM', width: 70, kind: 'static' },
     {
       // Semua kolom select memakai Select Radix; selnya hanya memasang instance
       // Radix saat daftar benar-benar dibuka (lihat SelectRadixCell) supaya tabel
@@ -343,51 +297,20 @@ export default function KurikulumPengampuPage() {
     },
   ], [guru]);
 
-  /** Aksi baris: keluarkan mapel manual, atau kosongkan guru untuk baris dari
-   *  kurikulum (mapelnya sendiri tak bisa hilang sebelum keluar dari kurikulum).
-   *  Baris dari kurikulum yang belum punya guru tak perlu aksi — tak ada yang
-   *  bisa dilepas. */
+  /** Aksi baris: keluarkan mapel dari pengampu kelas. Baris yang sudah punya
+   *  nilai/jadwal ditolak endpoint sync — pesannya muncul lewat toast galat. */
   const renderActions = useCallback((b: BarisPengampu) => {
+    if (!canUbah) return null;
     const aksi = aksiBaris(b);
-    const keluarKurikulum = aksiKurikulum(b);
-    // Baris dari kurikulum SELALU bisa dikeluarkan lewat ikon kurikulum, walau
-    // tak ada guru (baris tanpa guru tak punya aksi "Kosongkan guru").
-    const aksiKurikulumBoleh = canHapus && b.dari_kurikulum && b.komposisi_ids.length > 0;
-    if (!canUbah && !aksiKurikulumBoleh) return null;
     return (
-      <>
-        {canUbah && !(b.dari_kurikulum && b.keaktifan_pegawai_id === null) && (
-          <DeleteAction
-            id={b.dari_kurikulum
-              ? `btn_kosongkan_guru_${b.kelas_id}_${b.mata_pelajaran_id}`
-              : `btn_hapus_pengampu_${b.kelas_id}_${b.mata_pelajaran_id}`}
-            title={aksi.judul}
-            description={aksi.keterangan}
-            onConfirm={() => void hapusBaris(b)}
-          />
-        )}
-        {aksiKurikulumBoleh && (
-          <ConfirmDelete
-            title={keluarKurikulum.judul}
-            description={keluarKurikulum.keterangan}
-            confirmLabel="Keluarkan"
-            onConfirm={() => void hapusMapel(b)}
-            tip="Keluarkan dari kurikulum"
-          >
-            <Button
-              id={`btn_keluar_kurikulum_${b.kelas_id}_${b.mata_pelajaran_id}`}
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Keluarkan mapel dari kurikulum"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <NotebookTabs size={16} />
-            </Button>
-          </ConfirmDelete>
-        )}
-      </>
+      <DeleteAction
+        id={`btn_hapus_pengampu_${b.kelas_id}_${b.mata_pelajaran_id}`}
+        title={aksi.judul}
+        description={aksi.keterangan}
+        onConfirm={() => void hapusBaris(b)}
+      />
     );
-  }, [canUbah, canHapus, hapusBaris, hapusMapel]);
+  }, [canUbah, hapusBaris]);
 
   if (!siap) {
     return (
@@ -409,64 +332,6 @@ export default function KurikulumPengampuPage() {
         { key: 'kurikulum_pengampu_kelas', judul: 'Pengampu', fields: fieldsPengampu },
       ]} />
 
-      {/* Kurikulum terpasang per kelas: satu baris ringkas tiap kelas (dapat
-          banyak kelas saat rail di "All"), jadi kelas mana memakai kurikulum
-          mana tetap jelas. */}
-      {jumlahKelas > 0 && (
-        <div className="max-h-40 shrink-0 overflow-auto border-b border-border p-3">
-          {kurikulum.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Belum ada kurikulum untuk jenjang ini — buat di halaman Kurikulum.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {kelasTampil.map((k) => {
-                const terpasang = petaKurikulum[k.id] ?? [];
-                return (
-                  <div key={k.id} className="flex items-start gap-2 text-xs">
-                    <span className="w-32 shrink-0 font-medium">
-                      {k.nama_kelas}
-                      <span className="ml-1 font-normal text-muted-foreground">
-                        (tingkat {k.tingkat ?? '-'})
-                      </span>
-                    </span>
-                    <div className="flex min-w-0 flex-1 flex-wrap gap-3">
-                      {kurikulum.map((kur) => (
-                        <label key={kur.id} className="flex items-center gap-1.5">
-                          <input
-                            type="checkbox"
-                            aria-label={`Kurikulum ${kur.nama} untuk ${k.nama_kelas}`}
-                            disabled={!canUbah}
-                            checked={terpasang.includes(kur.id)}
-                            onChange={(e) => setPetaKurikulum((prev) => {
-                              const sekarang = prev[k.id] ?? [];
-                              return {
-                                ...prev,
-                                [k.id]: e.target.checked
-                                  ? [...sekarang, kur.id]
-                                  : sekarang.filter((x) => x !== kur.id),
-                              };
-                            })}
-                          />
-                          {kur.nama}
-                        </label>
-                      ))}
-                    </div>
-                    {canUbah && (
-                      <Button type="button" variant="outline" size="sm"
-                        id={`btn_simpan_kurikulum_kelas_${k.id}`}
-                        onClick={() => void simpanKurikulum(k.id)}>
-                        Simpan
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="flex min-h-0 flex-1 flex-col p-3">
         <ExcelTable<BarisPengampu>
           tableKey="kurikulum_pengampu_kelas"
@@ -482,9 +347,7 @@ export default function KurikulumPengampuPage() {
               ? 'Belum ada kelas untuk jenjang + tahun ajaran ini.'
               : !semuaTingkat && kelasTampil.length === 0 && !semuaKelas
                 ? 'Kelas yang dipilih tidak ada di tingkat tersebut — longgarkan filter Tingkat atau pilih kelas lain di rel Kelas.'
-                : semuaKelas
-                  ? 'Belum ada mapel di kelas lingkup ini — pasang kurikulum di atas, lalu klik “Generate dari kurikulum”.'
-                  : 'Belum ada mapel untuk kelas terpilih — pasang kurikulum di atas, lalu klik “Generate dari kurikulum”.'
+                : 'Belum ada mapel untuk kelas terpilih — tambahkan lewat tombol “Tambah mapel” atau “Salin dari kelas lain”.'
           }
           canEdit={canUbah}
           onCommit={commitGuru}
@@ -494,16 +357,22 @@ export default function KurikulumPengampuPage() {
           addButtonLangsung
           addButton={
             <>
+              {canUbah && jumlahKelas > 0 && (
+                <Button type="button" variant="outline" size="sm" id="btn_tambah_pengampu"
+                  onClick={bukaTambah}>
+                  <Plus data-icon="inline-start" size={16} /> Tambah mapel
+                </Button>
+              )}
+              {canUbah && jumlahKelas > 1 && (
+                <Button type="button" variant="outline" size="sm" id="btn_salin_pengampu"
+                  onClick={bukaSalin}>
+                  <Copy data-icon="inline-start" size={14} /> Salin dari kelas lain
+                </Button>
+              )}
               {canUbah && (
                 <Button type="button" variant="outline" size="sm" id="btn_buka_import_pengampu"
                   onClick={() => setImportOpen(true)}>
                   <FileUp data-icon="inline-start" size={16} /> Import
-                </Button>
-              )}
-              {canUbah && jumlahKelas > 0 && (
-                <Button type="button" variant="outline" size="sm" id="btn_generate_pengampu"
-                  onClick={() => void generate()}>
-                  <Copy data-icon="inline-start" size={14} /> Generate dari kurikulum
                 </Button>
               )}
             </>
@@ -511,6 +380,123 @@ export default function KurikulumPengampuPage() {
           renderActions={renderActions}
         />
       </div>
+
+      {/* Dialog "Tambah mapel": kelas tujuan (dari kelas yang tampil), mapel
+          jenjang yang belum terpasang di kelas itu, dan guru opsional. */}
+      <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tambah mapel ke pengampu kelas</DialogTitle>
+            <DialogDescription>
+              Mapel yang sudah terpasang di kelas terpilih tidak muncul lagi di daftar. Guru boleh dipilih nanti.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-xs" htmlFor="sel_tambah_kelas">
+              Kelas
+              <select
+                id="sel_tambah_kelas"
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                value={tambahKelas === '' ? '' : String(tambahKelas)}
+                onChange={(e) => { setTambahKelas(e.target.value === '' ? '' : Number(e.target.value)); setTambahMapel(''); }}
+              >
+                <option value="">— pilih kelas —</option>
+                {kelasTampil.map((k) => (
+                  <option key={k.id} value={k.id}>{k.nama_kelas}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs" htmlFor="sel_tambah_mapel">
+              Mapel
+              <select
+                id="sel_tambah_mapel"
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                value={tambahMapel === '' ? '' : String(tambahMapel)}
+                onChange={(e) => setTambahMapel(e.target.value === '' ? '' : Number(e.target.value))}
+              >
+                <option value="">— pilih mapel —</option>
+                {mapelBelumTerpasang(tambahKelas).map((m) => (
+                  <option key={m.id} value={m.id}>{m.nama_mapel}</option>
+                ))}
+              </select>
+              {tambahKelas !== '' && mapelBelumTerpasang(tambahKelas).length === 0 && (
+                <span className="text-[11px] text-muted-foreground">
+                  Semua mapel aktif jenjang ini sudah terpasang di kelas tersebut.
+                </span>
+              )}
+            </label>
+            <label className="flex flex-col gap-1 text-xs" htmlFor="sel_tambah_guru">
+              Guru pengampu (opsional)
+              <select
+                id="sel_tambah_guru"
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                value={tambahGuru === '' ? '' : String(tambahGuru)}
+                onChange={(e) => setTambahGuru(e.target.value === '' ? '' : Number(e.target.value))}
+              >
+                <option value="">— belum ada guru —</option>
+                {guru.map((g) => (
+                  <option key={g.keaktifan_pegawai_id} value={g.keaktifan_pegawai_id}>{namaGuru(g)}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => setTambahOpen(false)}>Batal</Button>
+            <Button type="button" size="sm" id="btn_simpan_tambah_pengampu" onClick={() => void simpanTambah()}>
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog "Salin dari kelas lain": seluruh mapel kelas sumber yang belum
+          ada di kelas tujuan ditambahkan TANPA guru. */}
+      <Dialog open={salinOpen} onOpenChange={setSalinOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Salin daftar mapel dari kelas lain</DialogTitle>
+            <DialogDescription>
+              Mapel kelas sumber yang belum ada di kelas tujuan ditambahkan tanpa guru — isi guru kemudian lewat kolom “Guru pengampu”.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-xs" htmlFor="sel_salin_tujuan">
+              Kelas tujuan
+              <select
+                id="sel_salin_tujuan"
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                value={salinTujuan === '' ? '' : String(salinTujuan)}
+                onChange={(e) => setSalinTujuan(e.target.value === '' ? '' : Number(e.target.value))}
+              >
+                <option value="">— pilih kelas —</option>
+                {kelasTampil.map((k) => (
+                  <option key={k.id} value={k.id}>{k.nama_kelas}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs" htmlFor="sel_salin_sumber">
+              Kelas sumber
+              <select
+                id="sel_salin_sumber"
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                value={salinSumber === '' ? '' : String(salinSumber)}
+                onChange={(e) => setSalinSumber(e.target.value === '' ? '' : Number(e.target.value))}
+              >
+                <option value="">— pilih kelas —</option>
+                {kelasOpsi.filter((k) => k.id !== salinTujuan).map((k) => (
+                  <option key={k.id} value={k.id}>{k.nama_kelas}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => setSalinOpen(false)}>Batal</Button>
+            <Button type="button" size="sm" id="btn_salin_pengampu_jalankan" onClick={() => void simpanSalin()}>
+              Salin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ImportBertahapUmumDialog
         open={importOpen}

@@ -82,6 +82,51 @@ function ResizableAutoHidePanel({
   );
 }
 
+/** Kelas strip pemisah — SATU sumber untuk `ResizableHandle` (panel group)
+ *  maupun `PemisahGeser` (tata letak yang digeser sendiri oleh halaman).
+ *  `group` membuat garis & knob ikut menyala saat di-hover/ditarik. Latar
+ *  memakai var permukaan tabel (`--part-tabel_sel-bg`, cadangan
+ *  `--background`) — sama dengan latar tabel di kiri-kanannya, sehingga strip
+ *  ini tidak tampak sebagai celah berwarna lain.
+ *  Zona hover/geser 8px (`w-2`/`h-2`); yang terlihat hanya garis 1px. */
+const KELAS_PEMISAH = 'group relative z-10 flex shrink-0 items-center justify-center bg-[color:var(--part-tabel_sel-bg,var(--background))] outline-none';
+
+function kelasArah(orientation: 'horizontal' | 'vertical'): string {
+  return orientation === 'horizontal' ? 'w-2 cursor-col-resize' : 'h-2 cursor-row-resize';
+}
+
+/** Isi pemisah: garis 1px + knob titik-titik opsional. */
+function IsiPemisah({ orientation, withHandle }: {
+  orientation: 'horizontal' | 'vertical';
+  withHandle?: boolean;
+}) {
+  return (
+    <>
+      <span
+        className={cn(
+          'absolute bg-border transition-colors duration-150 group-hover:bg-primary group-active:bg-primary',
+          orientation === 'horizontal' ? 'inset-y-0 w-px' : 'inset-x-0 h-px',
+        )}
+      />
+      {withHandle && (
+        <span
+          className={cn(
+            'relative z-10 flex items-center justify-center rounded-sm border bg-border transition-colors duration-150 group-hover:border-primary group-hover:bg-primary group-active:border-primary group-active:bg-primary',
+            orientation === 'horizontal' ? 'h-4 w-2' : 'h-2 w-4',
+          )}
+        >
+          <GripVertical
+            className={cn(
+              'size-2 text-muted-foreground transition-colors duration-150 group-hover:text-primary-foreground group-active:text-primary-foreground',
+              orientation === 'vertical' && 'rotate-90',
+            )}
+          />
+        </span>
+      )}
+    </>
+  );
+}
+
 function ResizableHandle({
   withHandle,
   orientation = 'horizontal',
@@ -96,33 +141,47 @@ function ResizableHandle({
   return (
     <Separator
       data-slot="resizable-handle"
-      className={cn(
-        'relative z-10 flex shrink-0 items-center justify-center bg-transparent outline-none',
-         orientation === 'horizontal' ? 'w-2 cursor-col-resize' : 'h-2 cursor-row-resize',
-        className,
-      )}
+      className={cn(KELAS_PEMISAH, kelasArah(orientation), className)}
       {...props}
     >
-      <span
-        className={cn(
-          'absolute bg-border',
-          orientation === 'horizontal' ? 'inset-y-0 w-px' : 'inset-x-0 h-px',
-        )}
-      />
-      {withHandle && (
-        <span
-          className={cn(
-            'relative z-10 flex items-center justify-center rounded-sm border bg-border',
-            orientation === 'horizontal' ? 'h-4 w-2' : 'h-2 w-4',
-          )}
-        >
-          <GripVertical
-            className={cn('size-2 text-muted-foreground', orientation === 'vertical' && 'rotate-90')}
-          />
-        </span>
-      )}
+      <IsiPemisah orientation={orientation} withHandle={withHandle} />
     </Separator>
   );
 }
 
-export { ResizablePanelGroup, ResizablePanel, ResizableAutoHidePanel, ResizableHandle };
+type PropsPemisahGeser = ComponentProps<'div'> & {
+  /** Orientasi TATA LETAK: 'horizontal' = dua kolom (geser kiri/kanan). */
+  orientation?: 'horizontal' | 'vertical';
+  /** Pegangan titik-titik di tengah garis pemisah. */
+  withHandle?: boolean;
+};
+
+/**
+ * Pemisah geser untuk halaman yang mengatur ukuran panel SENDIRI (state lebar/
+ * tinggi + handler pointer), bukan lewat `ResizablePanelGroup`. Markup & gaya
+ * sengaja identik dengan `ResizableHandle` supaya standar pemisah aplikasi
+ * (strip 8px `bg-card`, garis 1px `bg-border` → `primary` saat hover, knob)
+ * tetap satu meski mesin gesernya berbeda.
+ */
+function PemisahGeser({
+  orientation = 'horizontal',
+  withHandle,
+  className,
+  ...props
+}: PropsPemisahGeser) {
+  return (
+    <div
+      data-slot="resizable-handle"
+      role="separator"
+      aria-orientation={orientation === 'horizontal' ? 'vertical' : 'horizontal'}
+      className={cn(KELAS_PEMISAH, kelasArah(orientation), className)}
+      {...props}
+    >
+      <IsiPemisah orientation={orientation} withHandle={withHandle} />
+    </div>
+  );
+}
+
+export {
+  ResizablePanelGroup, ResizablePanel, ResizableAutoHidePanel, ResizableHandle, PemisahGeser,
+};

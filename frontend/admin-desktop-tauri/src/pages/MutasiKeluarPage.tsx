@@ -285,7 +285,10 @@ export default function MutasiKeluarPage() {
           </section>
         </ResizableAutoHidePanel>
 
-        <ResizableHandle orientation="horizontal" className="w-1" id="gagang_mutasi_kolom" />
+        {/* Lebar & pegangan mengikuti bawaan `ResizableHandle` (strip 8 px,
+            latar `bg-card`, knob `withHandle`) — jangan ditimpa `className`
+            agar seragam se-aplikasi. */}
+        <ResizableHandle orientation="horizontal" withHandle id="gagang_mutasi_kolom" />
 
         <ResizablePanel defaultSize="67%" minSize="20%">
         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">

@@ -156,10 +156,9 @@ describe('halamanDariPath & halaman bertab', () => {
     }
   });
 
-  it('Kurikulum grup sendiri: mapel, kurikulum, pengampu, jadwal (tanpa subgrup)', () => {
+  it('Kurikulum grup sendiri: mapel, pengampu, jadwal (tanpa subgrup)', () => {
     expect(halamanGrupLangsung('kurikulum').map((h) => h.to)).toEqual([
       '/kurikulum/mapel',
-      '/kurikulum/kurikulum',
       '/kurikulum/pengampu',
       '/kurikulum/jadwal',
     ]);

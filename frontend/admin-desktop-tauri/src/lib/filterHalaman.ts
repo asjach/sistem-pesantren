@@ -116,13 +116,12 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   penilaian_leger: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   // Rapor: per kelas (cetak massal) — tingkat & kelas masuk daftar relevan.
   penilaian_rapor: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
-  // Modul Kurikulum (BLOK 5): mapel & kurikulum hanya terikat jenjang;
-  // pengampu Terangkai ke kelas (jenjang + TA) — kelas dipilih lewat rail
-  // TINGKAT + KELAS di kiri tabel pengampu (boleh beberapa kelas sekaligus,
-  // tabelnya lalu punya kolom "Kelas"). Jadwal masih memakai pemilih kelas
-  // di dalam halaman.
+  // Modul Mapel & Pengampu (BLOK 5): mapel hanya terikat jenjang; pengampu
+  // terangkai ke kelas (jenjang + TA) — kelas dipilih lewat rail TINGKAT +
+  // KELAS di kiri tabel pengampu (boleh beberapa kelas sekaligus, tabelnya
+  // lalu punya kolom "Kelas"). Jadwal masih memakai pemilih kelas di dalam
+  // halaman.
   kurikulum_mapel: buatKonfigurasi(['lembaga']),
-  kurikulum_kurikulum: buatKonfigurasi(['lembaga']),
   // Pengampu: rail kelas mulai dalam mode JAMAK — tabelnya memang menampilkan
   // pengampu beberapa kelas sekaligus (ada kolom "Kelas"), jadi mode tunggal
   // bawaan akan menyembunyikan semua kelas terpilih selain yang pertama.

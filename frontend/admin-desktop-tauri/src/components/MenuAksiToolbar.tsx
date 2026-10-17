@@ -34,12 +34,40 @@ function ratakan(node: ReactNode): ReactElement[] {
   return out;
 }
 
-/** Ambil teks label dari isi tombol (elemen ikon diabaikan). */
-function teksLabel(node: ReactNode): string {
-  if (node == null || typeof node === 'boolean') return '';
-  if (typeof node === 'string' || typeof node === 'number') return String(node);
-  if (Array.isArray(node)) return node.map(teksLabel).join('');
-  return '';
+/** Uraikan isi tombol jadi teks label + ikon yang ikut ditampilkan di menu.
+ *  Rekursif: label boleh dibungkus komponen bantu (mis. `LabelTombolTambah`),
+ *  sedangkan elemen `aria-hidden` (chip pintasan ⌘N) dilewati. Komponen tanpa
+ *  children dianggap ikon (mis. `<Plus />`) sehingga bisa dipasang di item. */
+function uraiLabel(node: ReactNode, hasil: { teks: string; ikon: ReactNode[] }): void {
+  if (node == null || typeof node === 'boolean') return;
+  if (typeof node === 'string' || typeof node === 'number') {
+    hasil.teks += String(node);
+    return;
+  }
+  if (Array.isArray(node)) {
+    node.forEach((n) => uraiLabel(n, hasil));
+    return;
+  }
+  if (!isValidElement(node)) return;
+
+  const props = node.props as { children?: ReactNode; 'aria-hidden'?: unknown };
+  if (props['aria-hidden'] === true) return;
+
+  if (node.type === Fragment || typeof node.type === 'string') {
+    if (node.type === 'svg') {
+      hasil.ikon.push(node);
+      return;
+    }
+    uraiLabel(props.children, hasil);
+    return;
+  }
+
+  // Komponen: ber-children = pembungkus (ditelusuri), tanpa children = ikon.
+  if (props.children == null) {
+    hasil.ikon.push(node);
+    return;
+  }
+  uraiLabel(props.children, hasil);
 }
 
 export interface MenuAksiToolbarProps {
@@ -72,7 +100,9 @@ export default function MenuAksiToolbar({ children, triggerId, label = 'Aksi' }:
             title?: string;
             children?: ReactNode;
           };
-          const teks = teksLabel(p.children).trim();
+          const urai = { teks: '', ikon: [] as ReactNode[] };
+          uraiLabel(p.children, urai);
+          const teks = urai.teks.trim();
           return (
             <DropdownMenuItem
               key={el.key ?? p.id ?? i}
@@ -81,6 +111,13 @@ export default function MenuAksiToolbar({ children, triggerId, label = 'Aksi' }:
               title={p.title}
               onSelect={() => p.onClick?.()}
             >
+              {urai.ikon.length > 0 ? (
+                /* Ikon tombol ikut pindah ke menu; ukurannya diseragamkan
+                   lewat CSS agar tak bergantung `size` masing-masing ikon. */
+                <span className="flex shrink-0 items-center text-muted-foreground [&>svg]:size-3.5">
+                  {urai.ikon}
+                </span>
+              ) : null}
               {teks || p.title || p.id || 'Aksi'}
             </DropdownMenuItem>
           );

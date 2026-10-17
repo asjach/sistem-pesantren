@@ -121,6 +121,21 @@ beforeEach(() => {
   localStorage.clear();
 });
 
+describe('ExcelTable — bilah judul', () => {
+  /* Filter milik halaman (prop `filter`) harus dihitung sebagai isi bilah
+     judul. Tanpa itu tabel yang HANYA punya filter — mis. tabel "Kamus Mapel"
+     di halaman Kurikulum → Mata Pelajaran — tak mendapat bilah judul sama
+     sekali, sehingga judul & kontrol filternya tak pernah dirender. */
+  it('tabel yang hanya punya filter tetap mendapat bilah judul + filternya', () => {
+    renderTabel({ filter: <input id="uji_filter" aria-label="Cari uji" /> });
+
+    const bilah = document.querySelector('[data-part="header_tabel"]');
+    expect(bilah).not.toBeNull();
+    expect(bilah?.textContent).toContain('Uji');
+    expect(document.getElementById('uji_filter')).not.toBeNull();
+  });
+});
+
 describe('ExcelTable — baris dipilih (onBarisKlik)', () => {
   /* Fitur opt-in: tabel pemilih (mis. Daftar Dispensasi) memakai baris aktif
      DSG untuk memilih baris; tabel lain tak boleh terpengaruh. */

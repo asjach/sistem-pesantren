@@ -3,10 +3,12 @@ import { appendQueryParam, type ScalarOrArray } from './query';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 
 /**
- * Modul Kurikulum & Mapel (BLOK 5): master mapel per jenjang, kurikulum +
- * komposisi mapelnya (cakupan tingkat opsional + KKM), pemetaan kelas→kurikulum,
- * pengampu (kelas × mapel → guru dari keaktifan_pegawai), slot jam & jadwal
- * pelajaran (Modul 502).
+ * Modul Mapel & Pengampu (BLOK 5): master mapel per jenjang (KKM + urutan
+ * tampil rapor), pengampu (kelas × mapel → guru dari keaktifan_pegawai),
+ * slot jam & jadwal pelajaran (Modul 502).
+ *
+ * Modul kurikulum (per jenjang) + komposisi + cakupan tingkat sudah DIHAPUS:
+ * daftar mapel sebuah kelas YAITUH baris `pengampu_mapel` itu sendiri.
  */
 
 export type KelompokMapel = 'formal' | 'pesantren';
@@ -17,39 +19,10 @@ export interface MataPelajaran {
   /** Singkatan tampilan (mis. 'Mat.'); null = tak ada singkatan. */
   singkatan: string | null;
   kelompok: KelompokMapel; is_active: boolean;
-}
-
-export interface Kurikulum {
-  id: number; jenjang: string; nama: string; deskripsi: string | null;
-  /** Terisi pada respons daftar. */
-  mapel_count?: number; kelas_count?: number;
-}
-
-export interface KomposisiBaris {
-  id: number; kurikulum_id: number; mata_pelajaran_id: number;
-  /** Tingkat (nama) yang dicakup mapel ini; KOSONG = berlaku di semua tingkat. */
-  tingkat: string[];
-  kkm: number | null; urutan: number;
-  mata_pelajaran: {
-    id: number; nama_mapel: string; kelompok: KelompokMapel;
-    kode_mapel: string | null; is_active: boolean;
-  };
-}
-
-export interface KomposisiResp {
-  kurikulum: Kurikulum;
-  /** Mapel yang sudah masuk kurikulum (terurut). */
-  baris: KomposisiBaris[];
-  /** Mapel jenjang ini yang BELUM masuk kurikulum — untuk panel pilih. */
-  tersedia: Pick<MataPelajaran, 'id' | 'nama_mapel' | 'kelompok' | 'kode_mapel' | 'is_active'>[];
-  /** Tingkat yang berlaku untuk jenjang kurikulum — pilihan cakupan. */
-  tingkatOpsi: { id: number; nama: string; jenjang: string | null; urutan?: number }[];
-}
-
-export interface KelasKurikulumBaris {
-  id: number; nama_kelas: string; tingkat: string | null;
-  /** Kurikulum yang terpasang pada kelas. */
-  kurikulum_ids: number[];
+  /** KKM mapel (satu tempat per jenjang); null = predikat manual (modul 202). */
+  kkm: number | null;
+  /** Urutan tampil di rapor/leger (0 = ikut abjad). */
+  urutan: number;
 }
 
 export interface GuruAktif {
@@ -61,12 +34,8 @@ export interface GuruAktif {
 export interface PengampuBaris {
   mata_pelajaran_id: number; nama_mapel: string; kelompok: KelompokMapel;
   is_active: boolean;
-  /** Ada di komposisi kurikulum kelas. */
-  dari_kurikulum: boolean;
-  /** Baris komposisi kurikulum yang menyumbang mapel ini (bisa >1 saat kelas
-   *  memakai beberapa kurikulum) — dipakai action "Keluarkan dari kurikulum". */
-  komposisi_ids: number[];
-  kurikulum_nama: string[];
+  /** KKM mapel (dari master mapel) — tampil saja, diubah di halaman Mapel. */
+  kkm: number | null;
   pengampu_id: number | null;
   keaktifan_pegawai_id: number | null;
   guru: string | null;
@@ -74,7 +43,6 @@ export interface PengampuBaris {
 
 export interface PengampuResp {
   kelas: { id: number; nama_kelas: string; tingkat: string | null; jenjang: string };
-  kurikulum: Pick<Kurikulum, 'id' | 'nama'>[];
   baris: PengampuBaris[];
 }
 
@@ -117,6 +85,7 @@ export function daftarMapel(params: { jenjang: string; q?: string; kelompok?: Ke
 export function buatMapel(data: {
   jenjang: string; nama_mapel: string; kelompok: KelompokMapel;
   kode_mapel?: string | null; singkatan?: string | null; is_active?: boolean;
+  kkm?: number | null; urutan?: number;
 }) {
   return api<MataPelajaran>('/admin/kurikulum/mapel', { method: 'POST', body: JSON.stringify(data) });
 }
@@ -124,6 +93,7 @@ export function buatMapel(data: {
 export function ubahMapel(id: number, data: {
   nama_mapel?: string; kelompok?: KelompokMapel; kode_mapel?: string | null;
   singkatan?: string | null; is_active?: boolean;
+  kkm?: number | null; urutan?: number;
 }) {
   return api<MataPelajaran>(`/admin/kurikulum/mapel/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
@@ -195,73 +165,6 @@ export function unduhGalatMapel(sesiId: number) {
   return downloadFile(`/admin/kurikulum/mapel/import-potong/${sesiId}/galat`, 'galat-import-mapel.csv');
 }
 
-// ------------------------------------------------------------- kurikulum
-
-export function daftarKurikulum(jenjang: string) {
-  return api<Kurikulum[]>(`/admin/kurikulum/kurikulum?jenjang=${encodeURIComponent(jenjang)}`);
-}
-
-export function buatKurikulum(data: { jenjang: string; nama: string; deskripsi?: string | null }) {
-  return api<Kurikulum>('/admin/kurikulum/kurikulum', { method: 'POST', body: JSON.stringify(data) });
-}
-
-export function ubahKurikulum(id: number, data: { nama?: string; deskripsi?: string | null }) {
-  return api<Kurikulum>(`/admin/kurikulum/kurikulum/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-}
-
-export function hapusKurikulum(id: number) {
-  return api<{ pesan: string }>(`/admin/kurikulum/kurikulum/${id}`, { method: 'DELETE' });
-}
-
-// ------------------------------------------------------------- komposisi
-
-export function daftarKomposisi(kurikulumId: number) {
-  return api<KomposisiResp>(`/admin/kurikulum/komposisi?kurikulum_id=${kurikulumId}`);
-}
-
-export function buatKomposisi(data: {
-  kurikulum_id: number; mata_pelajaran_id: number;
-  /** Tingkat yang dicakup; kosong/null = berlaku di semua tingkat. */
-  tingkat?: string[]; kkm?: number | null; urutan?: number;
-}) {
-  return api<KomposisiBaris>('/admin/kurikulum/komposisi', { method: 'POST', body: JSON.stringify(data) });
-}
-
-export function ubahKomposisi(id: number, data: { tingkat?: string[]; kkm?: number | null; urutan?: number }) {
-  return api<KomposisiBaris>(`/admin/kurikulum/komposisi/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-}
-
-/**
- * Aksi massal: terapkan satu cakupan tingkat ke banyak baris komposisi sekaligus
- * (checkbox tabel komposisi). Daftar `tingkat` = SET, jadicakupan lama tiap baris
- * diganti — kosong berarti berlaku di semua tingkat.
- */
-export function terapkanTingkatKomposisi(ids: number[], tingkat: string[]) {
-  return api<{ tersentuh: number; tingkat: string[] }>('/admin/kurikulum/komposisi/tingkat-bulk', {
-    method: 'PUT', body: JSON.stringify({ ids, tingkat }),
-  });
-}
-
-export function hapusKomposisi(id: number) {
-  return api<{ pesan: string }>(`/admin/kurikulum/komposisi/${id}`, { method: 'DELETE' });
-}
-
-// -------------------------------------------------------- kelas → kurikulum
-
-export function daftarKelasKurikulum(params: { jenjang: string; tahun_ajaran: string }) {
-  const q = new URLSearchParams();
-  q.set('jenjang', params.jenjang);
-  q.set('tahun_ajaran', params.tahun_ajaran);
-  return api<{ kelas: KelasKurikulumBaris[] }>(`/admin/kurikulum/kelas?${q.toString()}`);
-}
-
-export function simpanKelasKurikulum(kelasId: number, kurikulumIds: number[]) {
-  return api<{ pesan: string }>(`/admin/kurikulum/kelas/${kelasId}`, {
-    method: 'PUT',
-    body: JSON.stringify({ kurikulum_ids: kurikulumIds }),
-  });
-}
-
 // ------------------------------------------------------- guru & pengampu
 
 export function daftarGuruAktif(params: { jenjang: string; tahun_ajaran: string }) {
@@ -302,11 +205,12 @@ export function simpanPengampu(kelasId: number, baris: { mata_pelajaran_id: numb
   });
 }
 
-/** Buat baris pengampu untuk seluruh mapel kurikulum kelas yang belum punya. */
-export function generatePengampu(kelasId: number) {
-  return api<{ pesan: string; dibuat: number }>('/admin/kurikulum/pengampu/generate', {
+/** Salin daftar mapel dari kelas lain: baris mapel yang belum ada di kelas
+ *  tujuan ditambahkan TANPA guru (guru diisi kemudian di tabel). */
+export function salinPengampu(kelasId: number, dariKelasId: number) {
+  return api<{ pesan: string; ditambah: number }>('/admin/kurikulum/pengampu/salin', {
     method: 'POST',
-    body: JSON.stringify({ kelas_id: kelasId }),
+    body: JSON.stringify({ kelas_id: kelasId, dari_kelas_id: dariKelasId }),
   });
 }
 

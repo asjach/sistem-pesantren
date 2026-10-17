@@ -21,18 +21,14 @@ class MataPelajaran extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = ['is_active' => 'boolean'];
+    protected $casts = ['is_active' => 'boolean', 'kkm' => 'float', 'urutan' => 'integer'];
 
     public function lembaga(): BelongsTo
     {
         return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');
     }
 
-    public function kurikulumMapel(): HasMany
-    {
-        return $this->hasMany(KurikulumMapel::class);
-    }
-
+    /** KKM & urutan tampil rapor milik mapel ini (satu tempat per jenjang). */
     public function pengampu(): HasMany
     {
         return $this->hasMany(PengampuMapel::class);

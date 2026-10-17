@@ -4,7 +4,12 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/field';
+import { FieldDescription, FieldLabel } from '@/components/ui/field';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList,
+  ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue,
@@ -22,6 +27,8 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import {
   ResizableHandle, ResizablePanel, ResizablePanelGroup,
 } from '@/components/ui/resizable';
+import { kunciNamaMapel, kumpulanKunciNama } from '@/lib/kurikulum';
+import { judulTabel } from '@/components/excel/judul';
 import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
 import LabelTombolTambah from '@/components/LabelTombolTambah';
 import Pager from '@/components/Pager';
@@ -49,6 +56,25 @@ const FIELDS: ExcelField[] = [
   { key: 'kode_mapel', label: 'Kode', width: 130, kind: 'text', maxLength: 20 },
   { key: 'singkatan', label: 'Singkatan', width: 140, kind: 'text', maxLength: 50 },
   {
+    // KKM & urutan tampil rapor milik mapel (satu tempat per jenjang — dulu
+    // tinggal di komposisi kurikulum yang sudah dihapus). KKM kosong = tanpa
+    // KKM (predikat manual, modul 202).
+    key: 'kkm', label: 'KKM', width: 90, kind: 'text', maxLength: 5, format: 'angka',
+    validate: (v) => {
+      if (v === null || v.trim() === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 0 && n <= 100 ? null : 'KKM harus angka 0–100 (kosong = tanpa KKM).';
+    },
+  },
+  {
+    key: 'urutan', label: 'Urutan Rapor', width: 130, kind: 'text', maxLength: 3, format: 'angka',
+    validate: (v) => {
+      if (v === null || v.trim() === '') return null;
+      const n = Number(v);
+      return Number.isInteger(n) && n >= 0 ? null : 'Urutan harus bilangan bulat ≥ 0.';
+    },
+  },
+  {
     key: 'kelompok', label: 'Kelompok', width: 140, kind: 'select',
     selectTanpaEdit: true,
     choices: [
@@ -64,6 +90,8 @@ function nilaiBaris(m: MataPelajaran): Record<string, string | null> {
     nama_mapel: m.nama_mapel,
     kode_mapel: m.kode_mapel,
     singkatan: m.singkatan,
+    kkm: m.kkm === null ? null : String(m.kkm),
+    urutan: String(m.urutan),
     kelompok: m.kelompok,
     is_active: m.is_active ? 'ya' : 'tidak',
   };
@@ -85,18 +113,30 @@ function nilaiBarisKamus(r: ReferensiRow): Record<string, string | null> {
   };
 }
 
+/** Filter status tabel mapel — satu sumber untuk nilai state & opsi combobox. */
+type KeaktifanMapel = 'aktif' | 'nonaktif' | 'semua';
+const OPSI_STATUS_MAPEL: { nilai: KeaktifanMapel; label: string }[] = [
+  { nilai: 'aktif', label: 'Aktif' },
+  { nilai: 'nonaktif', label: 'Nonaktif' },
+  { nilai: 'semua', label: 'Semua' },
+];
+
 /** Isi formulir mapel (dipakai dialog Tambah & Ubah). */
 interface NilaiFormMapel {
   nama: string;
   kode: string;
   /** Singkatan tampilan (mis. 'Mat.'); opsional. */
   singkatan: string;
+  /** KKM (0–100); kosong = tanpa KKM (predikat manual, modul 202). */
+  kkm: string;
+  /** Urutan tampil di rapor/leger; 0 = ikut abjad. */
+  urutan: string;
   kelompok: KelompokMapel;
   status: 'ya' | 'tidak';
 }
 
 const FORM_MAPEL_KOSONG: NilaiFormMapel = {
-  nama: '', kode: '', singkatan: '', kelompok: 'formal', status: 'ya',
+  nama: '', kode: '', singkatan: '', kkm: '', urutan: '0', kelompok: 'formal', status: 'ya',
 };
 
 /** Dialog formulir mapel — SATU sumber untuk aksi "Tambah" (baris baru) dan
@@ -137,6 +177,20 @@ function DialogFormMapel({ open, onClose, judul, idPrefix, idSimpan, nilai, set,
           <Input
             id={`input_${idPrefix}_singkatan`} value={nilai.singkatan} maxLength={50}
             onChange={(e) => set({ singkatan: e.target.value })} placeholder="Mat."
+          />
+          <FieldLabel htmlFor={`input_${idPrefix}_kkm`}>KKM (opsional)</FieldLabel>
+          <div className="flex flex-col gap-1">
+            <Input
+              id={`input_${idPrefix}_kkm`} value={nilai.kkm} maxLength={5} inputMode="numeric"
+              placeholder="75"
+              onChange={(e) => set({ kkm: e.target.value })}
+            />
+            <FieldDescription>Kosong = tanpa KKM (predikat diisi manual, modul 202).</FieldDescription>
+          </div>
+          <FieldLabel htmlFor={`input_${idPrefix}_urutan`}>Urutan rapor</FieldLabel>
+          <Input
+            id={`input_${idPrefix}_urutan`} value={nilai.urutan} maxLength={3} inputMode="numeric"
+            onChange={(e) => set({ urutan: e.target.value })}
           />
           <FieldLabel htmlFor={`select_${idPrefix}_kelompok`}>Kelompok</FieldLabel>
           <Select value={nilai.kelompok} onValueChange={(v) => set({ kelompok: v as KelompokMapel })}>
@@ -242,7 +296,7 @@ export default function KurikulumMapelPage() {
 
   const jenjang = targetTunggal(jenjangs);
   const [cari, setCari] = useState('');
-  const [keaktifan, setKeaktifan] = useState<'aktif' | 'nonaktif' | 'semua'>('aktif');
+  const [keaktifan, setKeaktifan] = useState<KeaktifanMapel>('aktif');
   const [importOpen, setImportOpen] = useState(false);
   /** Baris yang sedang diubah lewat dialog aksi (bukan edit sel grid). */
   const [editRow, setEditRow] = useState<MataPelajaran | null>(null);
@@ -254,8 +308,12 @@ export default function KurikulumMapelPage() {
   /** Baris kamus `ref_mapel` jenjang aktif — isi kolom kiri halaman. */
   const [refRows, setRefRows] = useState<ReferensiRow[]>([]);
   const [refLoading, setRefLoading] = useState(false);
-  /** Saringan lokal tabel kamus di kolom kiri. */
-  const [cariRef, setCariRef] = useState('');
+  /** Kunci nama mapel yang SUDAH masuk tabel kanan (`mata_pelajaran`); entri
+   *  kamus dengan nama itu disembunyikan dari tabel kiri. */
+  const [namaTerpakai, setNamaTerpakai] = useState<Set<string>>(new Set());
+  /** Pemicu muat ulang kamus saat nama mapel berubah (ubah/hapus/impor). */
+  const [versiKamus, setVersiKamus] = useState(0);
+  const segarkanKamus = useCallback(() => setVersiKamus((v) => v + 1), []);
   /** Dialog "Terapkan dari kamus": isi kode & singkatan mapel yang SUDAH ADA
    *  dari kamus jenjang ini (nama sama). `kamusHasil` diisi pratinjau server. */
   const [kamusOpen, setKamusOpen] = useState(false);
@@ -279,18 +337,33 @@ export default function KurikulumMapelPage() {
     });
 
   useEffect(() => {
-    if (filterLoading || jenjang === null) { setRefRows([]); return; }
+    if (filterLoading || jenjang === null) {
+      setRefRows([]);
+      setNamaTerpakai(new Set());
+      return;
+    }
     let hidup = true;
     setRefLoading(true);
-    referensiList('mapel', jenjang)
-      .then((r) => {
+    // Kamus & seluruh mapel jenjang ini dimuat BERSAMA: yang menentukan entri
+    // kamus disembunyikan adalah nama yang sudah ada di tabel mapel — termasuk
+    // yang nonaktif atau sedang tersaring pencarian di tabel kanan.
+    Promise.all([
+      referensiList('mapel', jenjang),
+      daftarMapel({ jenjang, keaktifan: 'semua' }),
+    ])
+      .then(([r, semuaMapel]) => {
         if (!hidup) return;
         setRefRows(r);
+        setNamaTerpakai(kumpulanKunciNama(semuaMapel));
       })
-      .catch(() => { if (hidup) setRefRows([]); })
+      .catch(() => {
+        if (!hidup) return;
+        setRefRows([]);
+        setNamaTerpakai(new Set());
+      })
       .finally(() => { if (hidup) setRefLoading(false); });
     return () => { hidup = false; };
-  }, [filterLoading, jenjang]);
+  }, [filterLoading, jenjang, versiKamus]);
 
   /** Pratinjau dihitung ulang tiap dialog dibuka atau sakelar "timpa" diubah;
    *  `mode: periksa` tidak menulis apa pun ke DB, jadi aman dibuka berkali-kali. */
@@ -351,10 +424,15 @@ export default function KurikulumMapelPage() {
         kelompok: formTambah.kelompok,
         kode_mapel: formTambah.kode.trim() === '' ? null : formTambah.kode.trim(),
         singkatan: formTambah.singkatan.trim() === '' ? null : formTambah.singkatan.trim(),
+        kkm: formTambah.kkm.trim() === '' ? null : Number(formTambah.kkm),
+        urutan: Number(formTambah.urutan) || 0,
         is_active: formTambah.status === 'ya',
       });
       toast.success('Mapel ditambah.');
       setTambahOpen(false);
+      // Nama ini kini ada di tabel kanan → entri kamus bernama sama langsung
+      // disembunyikan dari tabel kiri (tanpa menunggu muat ulang kamus).
+      setNamaTerpakai((s) => new Set(s).add(kunciNamaMapel(formTambah.nama)));
       pager.goFirst();
       await load(1);
     } catch (e) {
@@ -364,13 +442,13 @@ export default function KurikulumMapelPage() {
 
   /** Tombol → di tabel kamus (kolom kiri): lahirkan mapel baru dari entri
    *  `ref_mapel` — kode & singkatannya ikut disalin bila kamus mengisinya.
-   *  Nama yang sudah ada sebagai mapel ditolak di sisi klien — tombolnya
-   *  sendiri sudah dimatikan untuk nama tersebut, ini jaring pengguna bila
-   *  daftar mapel sedang tersaring sehingga cek "sudah ada" di tombol luput. */
+   *  Setelah berhasil entri itu DISEMBUNYIKAN dari kamus (sudah masuk tabel
+   *  kanan). Nama yang sudah ada tetap ditolak di sisi klien sebagai jaring
+   *  pengguna bila daftar nama sempat basi (server juga menolaknya). */
   const tambahDariRef = useCallback(async (r: ReferensiRow) => {
     const nama = r.nama ?? '';
     if (jenjang === null || nama === '') return;
-    if (rows.some((row) => row.nama_mapel.toLowerCase() === nama.toLowerCase())) {
+    if (namaTerpakai.has(kunciNamaMapel(nama))) {
       toast.error(`Mapel "${nama}" sudah ada di ${jenjang}.`);
       return;
     }
@@ -382,12 +460,13 @@ export default function KurikulumMapelPage() {
         kelompok: 'formal',
       });
       toast.success(`Mapel "${nama}" ditambah.`);
+      setNamaTerpakai((s) => new Set(s).add(kunciNamaMapel(nama)));
       pager.goFirst();
       await load(1);
     } catch (e) {
       toast.error(errorMessage(e));
     }
-  }, [jenjang, rows, pager, load]);
+  }, [jenjang, namaTerpakai, pager, load]);
 
   /** Isi dialog dari baris yang diklik (semua field diisi ulang, bukan
    *  ditumpuk — dialog boleh dibuka beruntun untuk baris berbeda). */
@@ -397,6 +476,8 @@ export default function KurikulumMapelPage() {
       nama: r.nama_mapel,
       kode: r.kode_mapel ?? '',
       singkatan: r.singkatan ?? '',
+      kkm: r.kkm === null ? '' : String(r.kkm),
+      urutan: String(r.urutan),
       kelompok: r.kelompok,
       status: r.is_active ? 'ya' : 'tidak',
     });
@@ -411,26 +492,32 @@ export default function KurikulumMapelPage() {
         nama_mapel: formUbah.nama.trim(),
         kode_mapel: formUbah.kode.trim() === '' ? null : formUbah.kode.trim(),
         singkatan: formUbah.singkatan.trim() === '' ? null : formUbah.singkatan.trim(),
+        kkm: formUbah.kkm.trim() === '' ? null : Number(formUbah.kkm),
+        urutan: Number(formUbah.urutan) || 0,
         kelompok: formUbah.kelompok,
         is_active: formUbah.status === 'ya',
       });
       toast.success('Mapel diubah.');
       setEditRow(null);
       await load();
+      // Nama bisa berubah → entri kamus yang semula tersembunyi mungkin
+      // kembali tampil (dan sebaliknya), jadi kamus dimuat ulang.
+      segarkanKamus();
     } catch (e) {
       toast.error(errorMessage(e));
     }
-  }, [editRow, formUbah, load]);
+  }, [editRow, formUbah, load, segarkanKamus]);
 
   const onHapus = useCallback(async (r: MataPelajaran) => {
     try {
       await hapusMapel(r.id);
       toast.success('Mapel dihapus.');
       await load();
+      segarkanKamus();
     } catch (e) {
       toast.error(errorMessage(e));
     }
-  }, [load]);
+  }, [load, segarkanKamus]);
 
   async function commitBaris(id: number, f: Record<string, string | null>) {
     const baris = rows.find((r) => r.id === id);
@@ -439,9 +526,13 @@ export default function KurikulumMapelPage() {
       ...(f.nama_mapel !== undefined ? { nama_mapel: f.nama_mapel ?? '' } : {}),
       ...(f.kode_mapel !== undefined ? { kode_mapel: f.kode_mapel || null } : {}),
       ...(f.singkatan !== undefined ? { singkatan: f.singkatan || null } : {}),
+      ...(f.kkm !== undefined ? { kkm: (f.kkm ?? '').trim() === '' ? null : Number(f.kkm) } : {}),
+      ...(f.urutan !== undefined ? { urutan: Number(f.urutan) || 0 } : {}),
       ...(f.kelompok !== undefined ? { kelompok: (f.kelompok ?? 'formal') as 'formal' | 'pesantren' } : {}),
       ...(f.is_active !== undefined ? { is_active: f.is_active === 'ya' } : {}),
     });
+    // Edit sel bisa mengubah nama → kamus perlu disegarkan.
+    if (f.nama_mapel !== undefined) segarkanKamus();
   }
 
   const renderActions = useCallback((r: MataPelajaran) => (
@@ -468,13 +559,10 @@ export default function KurikulumMapelPage() {
     );
   }
 
-  /** Baris kamus setelah saringan lokal kolom kiri (nama atau singkatan). */
-  const qRef = cariRef.trim().toLowerCase();
-  const refTersaring = qRef === ''
-    ? refRows
-    : refRows.filter((r) =>
-      (r.nama ?? '').toLowerCase().includes(qRef)
-      || (r.singkatan ?? '').toLowerCase().includes(qRef));
+  /** Baris kamus yang BELUM masuk tabel kanan — entri yang namanya sudah ada
+   *  sebagai mapel disembunyikan (permintaan pengguna). Tabel kamus sengaja
+   *  TANPA kotak pencarian: daftarnya pendek dan kolomnya sudah sempit. */
+  const refBelumDipakai = refRows.filter((r) => !namaTerpakai.has(kunciNamaMapel(r.nama)));
 
   return (
     <div className={PAGE_SHELL}>
@@ -492,7 +580,11 @@ export default function KurikulumMapelPage() {
             (kolom kanan). */}
         <ResizablePanel
           id="panel_kurikulum_mapel_kamus"
-          defaultSize="420px"
+          // 520px = lebar yang dibutuhkan tabel kamus hasil AutoFit (kolom
+          // Kode+Nama+Singkatan ≈ 475px, termasuk gutter & kolom Aksi).
+          // Dengan 420px tabelnya meluber ~55px sehingga bilah gulir
+          // horizontal muncul walau isinya hanya 3 kolom pendek.
+          defaultSize="520px"
           minSize="260px"
           maxSize="70%"
           groupResizeBehavior="preserve-pixel-size"
@@ -502,10 +594,14 @@ export default function KurikulumMapelPage() {
             <ExcelTable<ReferensiRow>
               tableKey="kurikulum_mapel_kamus"
               fields={FIELDS_KAMUS}
-              rows={refTersaring}
+              rows={refBelumDipakai}
               getValues={nilaiBarisKamus}
               loading={refLoading}
-              emptyText="Tidak ada entri kamus untuk jenjang ini."
+              emptyText={
+                refRows.length > 0 && refBelumDipakai.length === 0
+                  ? 'Semua entri kamus sudah masuk ke tabel mapel.'
+                  : 'Tidak ada entri kamus untuk jenjang ini.'
+              }
               // Kamus dikelola di Pengaturan → Referensi; di sini murni baca-saja.
               canEdit={false}
               onCommit={async () => {}}
@@ -513,26 +609,17 @@ export default function KurikulumMapelPage() {
               hideCheckbox
               hidePreset
               aksiLangsung
-              filter={
-                <>
-                  <label className="text-xs text-muted-foreground" htmlFor="input_cari_kamus_mapel">Cari</label>
-                  <Input
-                    id="input_cari_kamus_mapel" value={cariRef}
-                    onChange={(e) => setCariRef(e.target.value)}
-                    placeholder="Nama / singkatan…" className="h-8 w-40 text-xs"
-                  />
-                </>
-              }
+              // Judul eksplisit: tanpa `header`, bilah judul butuh minimal satu
+              // komponen (filter/aksi) — di sini keduanya sengaja tidak ada.
+              header={judulTabel('kurikulum_mapel_kamus')}
               renderActions={(r) => {
                 const nama = r.nama ?? '';
-                const sudah = rows.some((row) => row.nama_mapel.toLowerCase() === nama.toLowerCase());
                 if (!canTambah) return null;
                 return (
                   <Button type="button" variant="ghost" size="icon-sm"
                     id={`btn_tambah_mapel_dari_ref_${r.id}`}
                     aria-label={`Tambah ${nama}`}
-                    title={sudah ? 'Sudah ada sebagai mapel jenjang ini' : 'Input ke tabel mapel'}
-                    disabled={sudah}
+                    title="Input ke tabel mapel"
                     onClick={() => void tambahDariRef(r)}>
                     <ArrowRight size={14} />
                   </Button>
@@ -568,23 +655,35 @@ export default function KurikulumMapelPage() {
               canEdit={canUbah}
               onCommit={commitBaris}
               onSaved={onSaved}
-              // Tombol aksi halaman tampil langsung di bilah (tanpa menu hamburger).
-              addButtonLangsung
-              tengah={<span className="text-xs text-muted-foreground">Lingkup <strong>{jenjang}</strong></span>}
-              filter={
-                <>
-                  <label className="text-xs text-muted-foreground" htmlFor="saring_aktif_mapel">Status</label>
-                  <select
-                    id="saring_aktif_mapel" className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-                    value={keaktifan}
-                    onChange={(e) => { setKeaktifan(e.target.value as typeof keaktifan); pager.goFirst(); }}
+              // Tombol aksi halaman (Terapkan kamus, Import, Tambah)
+              // dikumpulkan ke satu menu titik-tiga "Aksi" yang duduk tepat di
+              // sebelah kiri gerigi Pengaturan tabel — bilah judul jadi ringkas.
+              // Pil info tengah ("Lingkup …") sengaja tidak dipakai: isinya
+              // hanya pengulangan jenjang filter di topBar, tanpa aksi apa pun.
+              filter={(
+                <LabeledCombobox label="Status" htmlFor="sel_status_mapel">
+                  <ComboboxRoot
+                    items={OPSI_STATUS_MAPEL}
+                    itemToStringLabel={(o) => o.label}
+                    isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                    value={OPSI_STATUS_MAPEL.find((o) => o.nilai === keaktifan) ?? OPSI_STATUS_MAPEL[0]}
+                    onValueChange={(o) => {
+                      if (o === null) return;
+                      setKeaktifan(o.nilai);
+                      pager.goFirst();
+                    }}
                   >
-                    <option value="aktif">Aktif</option>
-                    <option value="nonaktif">Nonaktif</option>
-                    <option value="semua">Semua</option>
-                  </select>
-                </>
-              }
+                    <ComboboxInput id="sel_status_mapel" aria-label="Filter status mapel" placeholder="Cari status…" />
+                    <ComboboxTrigger aria-label="Buka daftar status mapel" />
+                    <ComboboxContent>
+                      <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+                      <ComboboxList>
+                        {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </ComboboxRoot>
+                </LabeledCombobox>
+              )}
               addButton={
                 <>
                   {/* Aksi halaman (bukan tambah baris): mengisi kolom yang kosong
@@ -655,6 +754,9 @@ export default function KurikulumMapelPage() {
             setImportOpen(false);
             pager.goFirst();
             void load(1);
+            // Impor bisa menambah banyak nama → kamus dimuat ulang agar entri
+            // yang sudah masuk tabel kanan hilang dari tabel kiri.
+            segarkanKamus();
           },
         }}
       />

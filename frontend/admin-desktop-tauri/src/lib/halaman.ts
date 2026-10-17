@@ -182,10 +182,9 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/penilaian/impor', label: 'Impor Nilai', deskripsi: 'Impor leger, catatan wali, prestasi, dan ekstrakurikuler dari Excel.', tab: 'penilaian', icon: FileUp, permission: 'penilaian.lihat' },
   { to: '/penilaian/leger', label: 'Leger Nilai', deskripsi: 'Leger nilai akhir santri × mata pelajaran (crosstab).', tab: 'penilaian', grid: true, icon: Grid, permission: 'penilaian.lihat' },
   { to: '/penilaian/rapor', label: 'Rapor', deskripsi: 'Pratinjau & cetak rapor per santri / per kelas.', tab: 'penilaian', grid: true, icon: NotebookTabs, permission: 'penilaian.lihat' },
-  // Modul Kurikulum (BLOK 5): mapel, kurikulum + komposisi, pengampu, jadwal.
-  { to: '/kurikulum/mapel', label: 'Mata Pelajaran', deskripsi: 'Master mata pelajaran per jenjang (kelompok formal / pesantren).', tab: 'kurikulum', grid: true, icon: ClipboardList, permission: 'kurikulum.lihat' },
-  { to: '/kurikulum/kurikulum', label: 'Kurikulum', deskripsi: 'Kurikulum per jenjang dan komposisi mata pelajarannya (tingkat, KKM, urutan rapor).', tab: 'kurikulum', grid: true, icon: ScrollText, permission: 'kurikulum.lihat' },
-  { to: '/kurikulum/pengampu', label: 'Pengampu', deskripsi: 'Pemetaan kelas ke kurikulum dan pengampu mapel per kelas (kelas × mapel → guru).', tab: 'kurikulum', grid: true, icon: Users, permission: 'kurikulum.lihat' },
+  // Modul Mapel & Pengampu (BLOK 5): master mapel, pengampu, jadwal.
+  { to: '/kurikulum/mapel', label: 'Mata Pelajaran', deskripsi: 'Master mata pelajaran per jenjang (kelompok formal / pesantren, KKM, urutan rapor).', tab: 'kurikulum', grid: true, icon: ClipboardList, permission: 'kurikulum.lihat' },
+  { to: '/kurikulum/pengampu', label: 'Pengampu', deskripsi: 'Pengampu mapel per kelas (kelas × mapel → guru) — daftar mapel kelas bisa disalin dari kelas lain.', tab: 'kurikulum', grid: true, icon: Users, permission: 'kurikulum.lihat' },
   { to: '/kurikulum/jadwal', label: 'Jadwal Pelajaran', deskripsi: 'Slot jam per jenjang dan jadwal pelajaran per kelas (anti-bentrok kelas & guru).', tab: 'kurikulum', grid: true, icon: CalendarDays, permission: 'kurikulum.lihat' },
   {
     to: '/pengaturan/izin',
