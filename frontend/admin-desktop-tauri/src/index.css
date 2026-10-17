@@ -344,6 +344,14 @@
   background: transparent;
 }
 
+/* Garis bawah baris terakhir (::after, z-index 35) menutupi border bawah
+   sel aktif/range saat baris terakhir dipilih. Naikkan overlay seleksi di
+   atas garis itu — tetap di bawah header sticky (42) & kolom yang diseret (46). */
+.simpes-dsg .dsg-active-cell,
+.simpes-dsg .dsg-selection-rect {
+  z-index: 36;
+}
+
 /* DSG melubangi rect (clip-path) tepat di sel jangkar supaya input edit
    tidak tertutup. Saat TIDAK mengedit, lubang itu memutus outline range di
    atas/samping sel jangkar — jadi dibuang agar outline utuh mengelilingi
