@@ -16,12 +16,8 @@ import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
-import { referensiList } from '@/api/master';
-import { Plus, FileUp, BookMarked, ClipboardPaste } from '@/icons';
-import LabeledCombobox from '@/components/LabeledCombobox';
-import {
-  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
-} from '@/components/ui/combobox';
+import { referensiList, type ReferensiRow } from '@/api/master';
+import { Plus, FileUp, BookMarked, ArrowRight } from '@/icons';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
 import LabelTombolTambah from '@/components/LabelTombolTambah';
@@ -33,9 +29,8 @@ import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
   buatMapel, daftarMapel, hapusMapel, ubahMapel,
   batalPotongMapel, importMapelPotong, unduhGalatMapel, unduhTemplateMapel,
-  terapkanKamusMapel, buatMapelDariKamus,
+  terapkanKamusMapel,
   KOLOM_IMPORT_MAPEL,
-  type BuatDariKamusHasil,
   type ContohKamus,
   type KelompokMapel,
   type MataPelajaran,
@@ -160,19 +155,17 @@ function DialogFormMapel({ open, onClose, judul, idPrefix, idSimpan, nilai, set,
   );
 }
 
-/** Dialog pratinjau yang dipakai DUA aksi berbasis kamus: "Terapkan kamus"
- *  (mengisi kode & singkatan mapel yang sudah ada) dan "Buat dari kamus"
- *  (menambah mapel baru dari entri kamus). Kerangkanya sama — judul,
- *  penjelasan, satu kontrol pilihan, ringkasan hasil hitung server, daftar
- *  contoh, tombol — jadi keduanya memakai komponen ini dan halaman hanya
- *  mengganti propnya. Tombol jalannya mati selama pratinjau belum tiba atau
+/** Dialog pratinjau aksi berbasis kamus — dipakai "Terapkan kamus" (mengisi
+ *  kode & singkatan mapel yang sudah ada dari entri kamus). Judul, penjelasan,
+ *  kontrol pilihan, ringkasan hasil hitung server, daftar contoh, dan tombol
+ *  semuanya lewat prop. Tombol jalannya mati selama pratinjau belum tiba atau
  *  hasilnya 0, supaya tak ada "aksi sukses" yang sebenarnya tak berbuat apa-apa. */
 function DialogKamusAksi({ open, onClose, judul, deskripsi, kontrol, ringkasan, contoh, err, idJalankan, labelJalankan, bisaJalan, proses, onJalankan }: {
   open: boolean;
   onClose: () => void;
   judul: string;
   deskripsi: ReactNode;
-  /** Kontrol pilihan khusus aksi ini (sakelar timpa atau pemilih kelompok). */
+  /** Kontrol pilihan khusus aksi ini (sakelar timpa). */
   kontrol: ReactNode;
   /** null = pratinjau masih dihitung server. */
   ringkasan: string | null;
@@ -239,11 +232,10 @@ export default function KurikulumMapelPage() {
    *  Simpan (tidak lagi menyisipkan "Mapel Baru" langsung ke tabel). */
   const [tambahOpen, setTambahOpen] = useState(false);
   const [formTambah, setFormTambah] = useState<NilaiFormMapel>(FORM_MAPEL_KOSONG);
-  /** Saran nama dari kamus `ref_mapel` jenjang aktif (untuk tambah cepat). */
-  const [saranMapel, setSaranMapel] = useState<string[]>([]);
-  /** Teks input kotak "Dari kamus": dikosongkan tiap saran dipakai supaya
-   *  kotak kembali ke placeholder — perilaku ComboCari yang digantikannya. */
-  const [teksKamus, setTeksKamus] = useState('');
+  /** Baris kamus `ref_mapel` jenjang aktif — isi kolom kiri halaman. */
+  const [refRows, setRefRows] = useState<ReferensiRow[]>([]);
+  /** Saringan lokal tabel kamus di kolom kiri. */
+  const [cariRef, setCariRef] = useState('');
   /** Dialog "Terapkan dari kamus": isi kode & singkatan mapel yang SUDAH ADA
    *  dari kamus jenjang ini (nama sama). `kamusHasil` diisi pratinjau server. */
   const [kamusOpen, setKamusOpen] = useState(false);
@@ -251,13 +243,6 @@ export default function KurikulumMapelPage() {
   const [kamusHasil, setKamusHasil] = useState<TerapkanKamusHasil | null>(null);
   const [kamusErr, setKamusErr] = useState('');
   const [kamusProses, setKamusProses] = useState(false);
-  /** Dialog "Buat mapel dari kamus": kebalikannya — melahirkan mapel baru
-   *  untuk entri kamus yang belum ada di jenjang ini. */
-  const [buatOpen, setBuatOpen] = useState(false);
-  const [buatKelompok, setBuatKelompok] = useState<KelompokMapel>('formal');
-  const [buatHasil, setBuatHasil] = useState<BuatDariKamusHasil | null>(null);
-  const [buatErr, setBuatErr] = useState('');
-  const [buatProses, setBuatProses] = useState(false);
 
   const { rows, loading, err, load, lastPage, total, pager, onSaved } =
     useDaftarTabel<MataPelajaran>({
@@ -274,14 +259,14 @@ export default function KurikulumMapelPage() {
     });
 
   useEffect(() => {
-    if (filterLoading || jenjang === null) { setSaranMapel([]); return; }
+    if (filterLoading || jenjang === null) { setRefRows([]); return; }
     let hidup = true;
     referensiList('mapel', jenjang)
       .then((r) => {
         if (!hidup) return;
-        setSaranMapel([...new Set(r.map((x) => x.nama ?? '').filter((n) => n !== ''))]);
+        setRefRows(r);
       })
-      .catch(() => { if (hidup) setSaranMapel([]); });
+      .catch(() => { if (hidup) setRefRows([]); });
     return () => { hidup = false; };
   }, [filterLoading, jenjang]);
 
@@ -297,19 +282,6 @@ export default function KurikulumMapelPage() {
       .catch((e) => { if (hidup) setKamusErr(errorMessage(e)); });
     return () => { hidup = false; };
   }, [kamusOpen, kamusTimpa, jenjang]);
-
-  /** Pratinjau mapel baru; `kelompok` ikut dihitung karena ia memengaruhi
-   *  payload pembuatan (bukan hasil hitungnya) — dihitung ulang saat diubah. */
-  useEffect(() => {
-    if (!buatOpen || jenjang === null) return;
-    let hidup = true;
-    setBuatErr('');
-    setBuatHasil(null);
-    buatMapelDariKamus({ jenjang, kelompok: buatKelompok, mode: 'periksa' })
-      .then((r) => { if (hidup) setBuatHasil(r); })
-      .catch((e) => { if (hidup) setBuatErr(errorMessage(e)); });
-    return () => { hidup = false; };
-  }, [buatOpen, buatKelompok, jenjang]);
 
   /** Terapkan sungguhan (mode eksekusi), lalu segarkan tabel.
    *  Dialog hanya ditutup bila berhasil — galat tetap tampil di dalamnya. */
@@ -329,25 +301,6 @@ export default function KurikulumMapelPage() {
     }
   }, [jenjang, kamusTimpa, load]);
 
-  /** Buat mapel baru dari kamus (mode eksekusi), lalu kembali ke halaman 1
-   *  supaya baris baru terlihat — sama seperti jalur "Tambah". */
-  const jalankanBuatDariKamus = useCallback(async () => {
-    if (jenjang === null) return;
-    setBuatProses(true);
-    setBuatErr('');
-    try {
-      const r = await buatMapelDariKamus({ jenjang, kelompok: buatKelompok, mode: 'eksekusi' });
-      toast.success(r.pesan);
-      setBuatOpen(false);
-      pager.goFirst();
-      await load(1);
-    } catch (e) {
-      setBuatErr(errorMessage(e));
-    } finally {
-      setBuatProses(false);
-    }
-  }, [jenjang, buatKelompok, pager, load]);
-
   /** "Tambah" membuka dialog dengan formulir KOSONG (setiap buka direset) —
    *  lingkupnya jenjang filter aktif, jadi belum ada nama yang ditebak mesin. */
   const bukaTambah = useCallback(() => {
@@ -360,7 +313,7 @@ export default function KurikulumMapelPage() {
   usePintasanBaru({
     kunci: 'n',
     aktif: canTambah,
-    terhalang: tambahOpen || importOpen || kamusOpen || buatOpen || editRow !== null,
+    terhalang: tambahOpen || importOpen || kamusOpen || editRow !== null,
     onPicu: bukaTambah,
   });
 
@@ -387,15 +340,21 @@ export default function KurikulumMapelPage() {
     }
   }, [jenjang, formTambah, pager, load]);
 
-  const tambahDariKamus = useCallback(async (nama: string) => {
+  /** Tombol → di tabel kamus (kolom kiri): lahirkan mapel baru dari entri
+   *  `ref_mapel`, singkatannya ikut bila kamus mengisinya. Nama yang sudah
+   *  ada sebagai mapel ditolak di sisi klien — tombolnya sendiri sudah
+   *  dimatikan untuk nama tersebut, ini jaring pengguna bila daftar mapel
+   *  sedang tersaring sehingga cek "sudah ada" di tombol luput. */
+  const tambahDariRef = useCallback(async (r: ReferensiRow) => {
+    const nama = r.nama ?? '';
     if (jenjang === null || nama === '') return;
-    if (rows.some((r) => r.nama_mapel.toLowerCase() === nama.toLowerCase())) {
+    if (rows.some((row) => row.nama_mapel.toLowerCase() === nama.toLowerCase())) {
       toast.error(`Mapel "${nama}" sudah ada di ${jenjang}.`);
       return;
     }
     try {
-      await buatMapel({ jenjang, nama_mapel: nama, kelompok: 'formal' });
-      toast.success('Mapel ditambah.');
+      await buatMapel({ jenjang, nama_mapel: nama, singkatan: r.singkatan ?? null, kelompok: 'formal' });
+      toast.success(`Mapel "${nama}" ditambah.`);
       pager.goFirst();
       await load(1);
     } catch (e) {
@@ -482,129 +441,145 @@ export default function KurikulumMapelPage() {
     );
   }
 
+  /** Baris kamus setelah saringan lokal kolom kiri (nama atau singkatan). */
+  const qRef = cariRef.trim().toLowerCase();
+  const refTersaring = qRef === ''
+    ? refRows
+    : refRows.filter((r) =>
+      (r.nama ?? '').toLowerCase().includes(qRef)
+      || (r.singkatan ?? '').toLowerCase().includes(qRef));
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tabel={[{ key: 'kurikulum_mapel', judul: 'Mapel', fields: FIELDS }]} />
-      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / kode / singkatan…" />
-      <ExcelTable
-        tableKey="kurikulum_mapel"
-        sumberTabel="mata_pelajaran"
-        fields={FIELDS}
-        rows={rows}
-        getValues={nilaiBaris}
-        loading={loading}
-        emptyText="Belum ada mata pelajaran untuk jenjang ini."
-        canEdit={canUbah}
-        onCommit={commitBaris}
-        onSaved={onSaved}
-        // Tombol aksi halaman tampil langsung di bilah (tanpa menu hamburger).
-        addButtonLangsung
-        /* Kotak "Dari kamus" = kontrol HALAMAN (bukan filter tabel), jadi
-           ditaruh di `akhirToolbar` supaya SEBARIS dengan kontrol lain
-           (Status / Urutkan / Kolom). Dulu ia anak `addButton` — blok tombol
-           itu bukan flex, sehingga kotaknya menumpuk di ATAS tombol Import &
-           Tambah. `LabeledCombobox` (bukan ComboCari) agar kotaknya punya
-           label + pengaturan ukuran seperti kontrol toolbar lain. */
-        akhirToolbar={
-          canTambah && saranMapel.length > 0 ? (
-            <LabeledCombobox label="Dari kamus" htmlFor="combo_tambah_mapel_kamus" bisaCari>
-              <ComboboxRoot
-                items={saranMapel}
-                /* Nilai SELALU kosong: tiap pemilihan tetap memicu
-                   `onValueChange` (memilih nama yang sama dua kali pun
-                   terdeteksi) dan kotak tak menahan pilihan terakhir. */
-                value=""
-                /* Teks input dikendalikan agar bisa dikosongkan setelah mapel
-                   ditambahkan, bukan meninggalkan nama yang baru dipakai. */
-                inputValue={teksKamus}
-                onInputValueChange={(v, d) => {
-                  // Isian otomatis Base UI saat item ditekan diabaikan;
-                  // pengosongan teks dikerjakan `onValueChange` di bawah.
-                  if (d.reason !== 'item-press') setTeksKamus(v);
-                }}
-                onValueChange={(v) => {
-                  if (typeof v !== 'string' || v === '') return;
-                  setTeksKamus('');
-                  void tambahDariKamus(v);
-                }}
-              >
-                <ComboboxInput
-                  id="combo_tambah_mapel_kamus"
-                  aria-label="Tambah dari kamus"
-                  placeholder="Cari nama mapel…"
-                />
-                <ComboboxTrigger aria-label="Buka saran kamus" />
-                <ComboboxContent>
-                  <ComboboxEmpty>Tidak ada saran.</ComboboxEmpty>
-                  <ComboboxList>
-                    {(n) => <ComboboxItem key={n} value={n}>{n}</ComboboxItem>}
-                  </ComboboxList>
-                </ComboboxContent>
-              </ComboboxRoot>
-            </LabeledCombobox>
-          ) : undefined
-        }
-        tengah={<span className="text-xs text-muted-foreground">Lingkup <strong>{jenjang}</strong></span>}
-        filter={
-          <>
-            <label className="text-xs text-muted-foreground" htmlFor="saring_aktif_mapel">Status</label>
-            <select
-              id="saring_aktif_mapel" className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-              value={keaktifan}
-              onChange={(e) => { setKeaktifan(e.target.value as typeof keaktifan); pager.goFirst(); }}
-            >
-              <option value="aktif">Aktif</option>
-              <option value="nonaktif">Nonaktif</option>
-              <option value="semua">Semua</option>
-            </select>
-          </>
-        }
-        addButton={
-          <>
-            {/* Aksi halaman (bukan tambah baris): mengisi kolom yang kosong
-                pada mapel yang sudah ada — karena itu izinnya `ubah`. */}
-            {canUbah && (
-              <Button type="button" variant="outline" size="sm" id="btn_terapkan_kamus_mapel"
-                onClick={() => { setKamusTimpa(false); setKamusOpen(true); }}>
-                <BookMarked data-icon="inline-start" size={16} /> Terapkan kamus
-              </Button>
+      <div className="grid min-h-0 flex-1 grid-cols-[280px_1fr] divide-x divide-border">
+        {/* Kolom 1: kamus `ref_mapel` jenjang ini. Tombol → pada tiap baris
+            menginput entri kamus itu ke tabel `mata_pelajaran` (kolom kanan). */}
+        <div className="flex min-h-0 flex-col">
+          <div className="border-b border-border px-2 py-1.5 text-xs font-medium text-muted-foreground">
+            Kamus mapel ({refTersaring.length})
+          </div>
+          <div className="border-b border-border px-2 py-1.5">
+            <Input
+              id="input_cari_kamus_mapel" value={cariRef}
+              onChange={(e) => setCariRef(e.target.value)}
+              placeholder="Cari kamus…" className="h-7 text-xs"
+            />
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead className="bg-muted/60">
+                <tr>
+                  <th className="border border-border px-2 py-1 text-left">Nama</th>
+                  <th className="border border-border px-2 py-1 text-left">Singkatan</th>
+                  <th className="w-10 border border-border" />
+                </tr>
+              </thead>
+              <tbody>
+                {refTersaring.map((r) => {
+                  const nama = r.nama ?? '';
+                  const sudah = rows.some((row) => row.nama_mapel.toLowerCase() === nama.toLowerCase());
+                  return (
+                    <tr key={r.id} className="border-b border-border">
+                      <td className="px-2 py-1" title={nama}>{nama}</td>
+                      <td className="px-2 py-1 text-muted-foreground">{r.singkatan ?? '—'}</td>
+                      <td className="px-1 py-0.5 text-center">
+                        {canTambah && (
+                          <Button type="button" variant="ghost" size="icon-sm"
+                            id={`btn_tambah_mapel_dari_ref_${r.id}`}
+                            aria-label={`Tambah ${nama}`}
+                            title={sudah ? 'Sudah ada sebagai mapel jenjang ini' : 'Input ke tabel mapel'}
+                            disabled={sudah}
+                            onClick={() => void tambahDariRef(r)}>
+                            <ArrowRight size={14} />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {refTersaring.length === 0 && (
+                  <tr><td colSpan={3} className="border border-border px-2 py-4 text-center text-muted-foreground">
+                    Tidak ada entri kamus yang cocok.
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Kolom 2: tabel `mata_pelajaran` (halaman asli, tak berubah). */}
+        <div className="flex min-h-0 flex-col min-w-0">
+          <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / kode / singkatan…" />
+          <ExcelTable
+            tableKey="kurikulum_mapel"
+            sumberTabel="mata_pelajaran"
+            fields={FIELDS}
+            rows={rows}
+            getValues={nilaiBaris}
+            loading={loading}
+            emptyText="Belum ada mata pelajaran untuk jenjang ini."
+            canEdit={canUbah}
+            onCommit={commitBaris}
+            onSaved={onSaved}
+            // Tombol aksi halaman tampil langsung di bilah (tanpa menu hamburger).
+            addButtonLangsung
+            tengah={<span className="text-xs text-muted-foreground">Lingkup <strong>{jenjang}</strong></span>}
+            filter={
+              <>
+                <label className="text-xs text-muted-foreground" htmlFor="saring_aktif_mapel">Status</label>
+                <select
+                  id="saring_aktif_mapel" className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                  value={keaktifan}
+                  onChange={(e) => { setKeaktifan(e.target.value as typeof keaktifan); pager.goFirst(); }}
+                >
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
+                  <option value="semua">Semua</option>
+                </select>
+              </>
+            }
+            addButton={
+              <>
+                {/* Aksi halaman (bukan tambah baris): mengisi kolom yang kosong
+                    pada mapel yang sudah ada — karena itu izinnya `ubah`. */}
+                {canUbah && (
+                  <Button type="button" variant="outline" size="sm" id="btn_terapkan_kamus_mapel"
+                    onClick={() => { setKamusTimpa(false); setKamusOpen(true); }}>
+                    <BookMarked data-icon="inline-start" size={16} /> Terapkan kamus
+                  </Button>
+                )}
+                {canTambah && (
+                  <Button type="button" variant="outline" size="sm" id="btn_buka_import_mapel"
+                    onClick={() => setImportOpen(true)}>
+                    <FileUp data-icon="inline-start" size={16} /> Import
+                  </Button>
+                )}
+                {/* Membuka DIALOG, bukan menyisipkan baris "Mapel Baru" langsung. */}
+                <Button type="button" size="sm" id="btn_tambah_mapel" disabled={!canTambah}
+                  onClick={bukaTambah}
+                  title={`Tambah mata pelajaran (${labelPintasan('n')})`}
+                  aria-keyshortcuts="Control+N Meta+N">
+                  <LabelTombolTambah pintasan={labelPintasan('n')}>
+                    <Plus data-icon="inline-start" size={16} /> Tambah
+                  </LabelTombolTambah>
+                </Button>
+              </>
+            }
+            renderActions={renderActions}
+            pager={(
+              <Pager
+                page={pager.page}
+                lastPage={lastPage}
+                total={total}
+                perPage={pager.perPage}
+                onPage={(p) => { pager.setPage(p); load(p); }}
+                onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
+              />
             )}
-            {canTambah && (
-              <Button type="button" variant="outline" size="sm" id="btn_buat_mapel_dari_kamus"
-                onClick={() => { setBuatKelompok('formal'); setBuatOpen(true); }}>
-                <ClipboardPaste data-icon="inline-start" size={16} /> Buat dari kamus
-              </Button>
-            )}
-            {canTambah && (
-              <Button type="button" variant="outline" size="sm" id="btn_buka_import_mapel"
-                onClick={() => setImportOpen(true)}>
-                <FileUp data-icon="inline-start" size={16} /> Import
-              </Button>
-            )}
-            {/* Membuka DIALOG, bukan menyisipkan baris "Mapel Baru" langsung. */}
-            <Button type="button" size="sm" id="btn_tambah_mapel" disabled={!canTambah}
-              onClick={bukaTambah}
-              title={`Tambah mata pelajaran (${labelPintasan('n')})`}
-              aria-keyshortcuts="Control+N Meta+N">
-              <LabelTombolTambah pintasan={labelPintasan('n')}>
-                <Plus data-icon="inline-start" size={16} /> Tambah
-              </LabelTombolTambah>
-            </Button>
-          </>
-        }
-        renderActions={renderActions}
-        pager={(
-          <Pager
-            page={pager.page}
-            lastPage={lastPage}
-            total={total}
-            perPage={pager.perPage}
-            onPage={(p) => { pager.setPage(p); load(p); }}
-            onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
           />
-        )}
-      />
+        </div>
+      </div>
       <ImportBertahapUmumDialog
         open={importOpen}
         onOpenChange={setImportOpen}
@@ -662,10 +637,9 @@ export default function KurikulumMapelPage() {
         onSimpan={() => void simpanUbah()}
       />
 
-      {/* Dua aksi berbasis kamus memakai dialog yang SAMA (`DialogKamusAksi`):
-          "Terapkan kamus" mengisi mapel yang sudah ada, "Buat dari kamus"
-          menambahkan mapel baru dari entri kamus yang belum ada. Keduanya
-          meminta pratinjau ke server (`mode: periksa`) sebelum menulis apa pun. */}
+      {/* Aksi "Terapkan kamus": mengisi kode & singkatan mapel yang sudah ada
+          dari entri kamus bernama sama. Pratinjau diminta lebih dulu ke server
+          (`mode: periksa`) sebelum menulis apa pun. */}
       <DialogKamusAksi
         open={kamusOpen}
         onClose={() => setKamusOpen(false)}
@@ -701,41 +675,6 @@ export default function KurikulumMapelPage() {
         bisaJalan={kamusHasil !== null && kamusHasil.diubah > 0}
         proses={kamusProses}
         onJalankan={() => void jalankanTerapkanKamus()}
-      />
-      <DialogKamusAksi
-        open={buatOpen}
-        onClose={() => setBuatOpen(false)}
-        judul="Buat mapel dari kamus"
-        deskripsi={(
-          <>
-            Setiap entri kamus jenjang <strong>{jenjang}</strong> yang namanya belum ada
-            dibuatkan mapel baru, lengkap dengan kode &amp; singkatannya.
-          </>
-        )}
-        kontrol={(
-          <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-2 text-xs">
-            <FieldLabel htmlFor="select_kelompok_dari_kamus">Kelompok</FieldLabel>
-            <Select value={buatKelompok} onValueChange={(v) => setBuatKelompok(v as KelompokMapel)}>
-              <SelectTrigger id="select_kelompok_dari_kamus" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="formal">Formal</SelectItem>
-                  <SelectItem value="pesantren">Pesantren</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        ringkasan={buatHasil === null ? null : `${buatHasil.dibuat} mapel akan dibuat dari kamus · ${buatHasil.sudah_ada} sudah ada`}
-        contoh={buatHasil?.contoh ?? []}
-        err={buatErr}
-        idJalankan="btn_jalankan_buat_mapel_dari_kamus"
-        labelJalankan="Buat"
-        bisaJalan={buatHasil !== null && buatHasil.dibuat > 0}
-        proses={buatProses}
-        onJalankan={() => void jalankanBuatDariKamus()}
       />
     </div>
   );

@@ -154,28 +154,6 @@ export function terapkanKamusMapel(input: { jenjang: string; timpa?: boolean; mo
   });
 }
 
-/** Ringkasan "buat mapel dari kamus": jumlah mapel baru + contohnya. */
-export interface BuatDariKamusHasil {
-  pesan: string; jenjang: string; kelompok: KelompokMapel;
-  /** Mapel baru yang dibuat — pada `mode: periksa` artinya "akan dibuat". */
-  dibuat: number;
-  /** Entri kamus yang namanya sudah ada sebagai mapel (status apa pun). */
-  sudah_ada: number;
-  /** Sampel mapel baru (maks 5) untuk dialog konfirmasi. */
-  contoh: ContohKamus[];
-}
-
-/** Buat mapel BARU untuk setiap entri kamus `ref_mapel` jenjang ini yang belum
- *  ada sebagai mapel (nama dibandingkan tanpa spasi tepi & beda huruf
- *  besar/kecil). Kode & singkatan kamus ikut disalin; `mode: 'periksa'` hanya
- *  menghitung untuk pratinjau. */
-export function buatMapelDariKamus(input: { jenjang: string; kelompok?: KelompokMapel; mode: 'periksa' | 'eksekusi' }) {
-  return api<BuatDariKamusHasil>('/admin/kurikulum/mapel/dari-kamus', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
 // ---------- Import mapel bertahap (potongan JSON dari browser) ----------
 
 /** Kolom template import mapel (multi-lembaga; `is_active` kosong = aktif/pertahankan). */

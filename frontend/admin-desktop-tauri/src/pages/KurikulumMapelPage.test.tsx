@@ -1,5 +1,5 @@
 import { MemoryRouter } from 'react-router-dom';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -26,17 +26,6 @@ const uji = vi.hoisted(() => {
     buatMapel: vi.fn(async () => BARIS[0]),
     /** "Terapkan dari kamus": pratinjau (`periksa`) vs hasil sungguhan. */
     terapkanKamusMapel: vi.fn(),
-    /** "Buat mapel dari kamus": ditto — pratinjau vs hasil. */
-    buatMapelDariKamus: vi.fn(),
-    PRATINJAU_BUAT: {
-      pesan: '2 mapel akan dibuat dari kamus.', jenjang: 'MI', kelompok: 'formal',
-      dibuat: 2, sudah_ada: 1,
-      contoh: [{ nama_mapel: 'Bahasa Arab', kode_mapel: 'BAR', singkatan: 'B. Ar.' }],
-    },
-    HASIL_BUAT: {
-      pesan: '2 mapel dibuat dari kamus.', jenjang: 'MI', kelompok: 'formal',
-      dibuat: 2, sudah_ada: 1, contoh: [],
-    },
     PRATINJAU: {
       pesan: '2 mapel akan diisi dari kamus.', jenjang: 'MI',
       diubah: 2, sudah_lengkap: 1, tanpa_kamus: 0,
@@ -46,8 +35,8 @@ const uji = vi.hoisted(() => {
       pesan: '2 mapel diisi dari kamus.', jenjang: 'MI',
       diubah: 2, sudah_lengkap: 1, tanpa_kamus: 0, contoh: [],
     },
-    /** Isi kamus `ref_mapel` — diisi per uji yang memakai kotak "Dari kamus". */
-    SARAN: [] as { nama: string }[],
+    /** Baris kamus `ref_mapel` — kolom kiri halaman. Diisi per uji. */
+    SARAN: [] as { id: number; nama: string; singkatan?: string | null }[],
     /** Izin user per uji — diganti di beforeEach. */
     izin: ['kurikulum.lihat', 'kurikulum.ubah', 'kurikulum.hapus'] as string[],
   };
@@ -91,7 +80,6 @@ vi.mock('@/api/kurikulum', async (importOriginal) => {
     hapusMapel: uji.hapusMapel,
     buatMapel: uji.buatMapel,
     terapkanKamusMapel: uji.terapkanKamusMapel,
-    buatMapelDariKamus: uji.buatMapelDariKamus,
   };
 });
 
@@ -114,7 +102,7 @@ vi.mock('@/api/master', async (importOriginal) => {
     ...asli,
     listLembaga: vi.fn(paginasiKosong),
     listKelas: vi.fn(paginasiKosong),
-    // Kamus saran nama: kosong supaya kotak "Dari kamus" tak ikut render.
+    // Kamus `ref_mapel` kolom kiri: kosong kecuali uji yang mengisinya.
     referensiList: vi.fn(async () => uji.SARAN),
   };
 });
@@ -167,9 +155,6 @@ beforeEach(() => {
   uji.buatMapel.mockImplementation(async () => uji.BARIS[0]);
   uji.terapkanKamusMapel.mockImplementation(async (input: { mode: string }) => (
     input.mode === 'periksa' ? uji.PRATINJAU : uji.HASIL
-  ));
-  uji.buatMapelDariKamus.mockImplementation(async (input: { mode: string }) => (
-    input.mode === 'periksa' ? uji.PRATINJAU_BUAT : uji.HASIL_BUAT
   ));
   uji.SARAN = [];
   uji.izin = ['kurikulum.lihat', 'kurikulum.ubah', 'kurikulum.hapus'];
@@ -246,41 +231,50 @@ describe('KurikulumMapelPage — aksi baris Ubah', () => {
   });
 });
 
-describe('KurikulumMapelPage — tambah dari kamus', () => {
-  it('kotak "Dari kamus" sebaris dengan kontrol lain (bukan di atas tombol) dan menambah mapel saat saran dipilih', async () => {
+describe('KurikulumMapelPage — tambah dari kamus (kolom kiri)', () => {
+  it('tabel kamus menampilkan baris ref, tombol → menginput mapel dari ref ke mata_pelajaran', async () => {
     uji.izin = ['kurikulum.lihat', 'kurikulum.tambah', 'kurikulum.ubah', 'kurikulum.hapus'];
-    uji.SARAN = [{ nama: 'Fikih' }, { nama: 'Bahasa Arab' }];
-    const user = userEvent.setup();
+    uji.SARAN = [
+      { id: 1, nama: 'Fikih', singkatan: null },
+      { id: 2, nama: 'Bahasa Arab', singkatan: 'B. Ar.' },
+    ];
     renderHalaman();
 
-    const inp = await screen.findByRole('combobox', { name: 'Tambah dari kamus' });
-    const btnTambah = document.getElementById('btn_tambah_mapel');
-    expect(btnTambah).not.toBeNull();
-    // Inti permintaan: kotaknya KONTROL toolbar, bukan anak blok tombol aksi
-    // (dulu ComboCari dirender di dalam pembungkus yang sama dengan tombol
-    // Import/Tambah sehingga menumpuk di atasnya).
-    expect(btnTambah?.parentElement).not.toContainElement(inp);
-    expect(inp.closest('[data-part="header_tabel"]')).not.toBeNull();
+    // Baris kamus tampil di kolom kiri (nama + singkatan).
+    expect(await screen.findByText('Fikih')).toBeInTheDocument();
+    expect(screen.getByText('B. Ar.')).toBeInTheDocument();
 
-    // Ketik menyaring saran, lalu pilih: mapel dibuat dari kamus dan kotak
-    // kembali kosong supaya bisa dipakai menambah mapel berikutnya.
-    inp.focus();
-    await user.keyboard('fik');
-    await user.keyboard('{ArrowDown}');
-    await user.click(await screen.findByRole('option', { name: 'Fikih' }));
-
+    // Tombol → baris "Fikih" menginput entri kamus itu ke tabel mapel;
+    // singkatan kamus ikut disalin bila ada.
+    await userEvent.click(screen.getByRole('button', { name: 'Tambah Fikih' }));
     await waitFor(() => expect(uji.buatMapel).toHaveBeenCalledWith({
-      jenjang: 'MI', nama_mapel: 'Fikih', kelompok: 'formal',
+      jenjang: 'MI', nama_mapel: 'Fikih', singkatan: null, kelompok: 'formal',
     }));
-    await waitFor(() => expect(inp).toHaveValue(''));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tambah Bahasa Arab' }));
+    await waitFor(() => expect(uji.buatMapel).toHaveBeenCalledWith({
+      jenjang: 'MI', nama_mapel: 'Bahasa Arab', singkatan: 'B. Ar.', kelompok: 'formal',
+    }));
   });
 
-  it('tanpa izin kurikulum.tambah kotak "Dari kamus" tidak dirender', async () => {
-    uji.SARAN = [{ nama: 'Fikih' }];
+  it('mapel yang namanya sudah ada membuat tombol → mati', async () => {
+    uji.izin = ['kurikulum.lihat', 'kurikulum.tambah'];
+    // BARIS mapel memuat "Aljabar" — entri kamus bernama sama tak bisa diinput lagi.
+    uji.SARAN = [{ id: 9, nama: 'Aljabar', singkatan: 'Alj.' }];
     renderHalaman();
 
-    await screen.findByRole('button', { name: 'Ubah' });
-    expect(screen.queryByRole('combobox', { name: 'Tambah dari kamus' })).toBeNull();
+    const tombol = await screen.findByRole('button', { name: 'Tambah Aljabar' });
+    // Cek "sudah ada" butuh daftar mapel yang baru termuat — tunggu status matinya.
+    await waitFor(() => expect(tombol).toBeDisabled());
+    expect(uji.buatMapel).not.toHaveBeenCalled();
+  });
+
+  it('tanpa izin kurikulum.tambah tombol → tidak dirender', async () => {
+    uji.SARAN = [{ id: 1, nama: 'Fikih', singkatan: null }];
+    renderHalaman();
+
+    await screen.findByText('Fikih');
+    expect(screen.queryByRole('button', { name: 'Tambah Fikih' })).toBeNull();
   });
 });
 
@@ -379,72 +373,5 @@ describe('KurikulumMapelPage — terapkan dari kamus', () => {
       jenjang: 'MI', timpa: true, mode: 'periksa',
     }));
     expect(uji.terapkanKamusMapel.mock.calls.length).toBeGreaterThan(sebelum);
-  });
-});
-
-/* Buka Radix Select lewat event pointer: `pointer-events: none` yang ditinggalkan
- * Radix membuat `userEvent` menolak klik pada kontrol berikutnya. */
-async function pilihOpsi(triggerId: string, namaOpsi: string | RegExp) {
-  const el = document.getElementById(triggerId) as HTMLElement;
-  await act(async () => {
-    fireEvent.pointerDown(el);
-    fireEvent.mouseDown(el);
-    fireEvent.click(el);
-  });
-  const opsi = await screen.findByRole('option', { name: namaOpsi });
-  await act(async () => { fireEvent.click(opsi); });
-}
-
-describe('KurikulumMapelPage — buat mapel dari kamus', () => {
-  /** Aksi ini MENAMBAH baris, jadi izinnya kurikulum.tambah. */
-  beforeEach(() => {
-    uji.izin = ['kurikulum.lihat', 'kurikulum.tambah', 'kurikulum.ubah', 'kurikulum.hapus'];
-  });
-
-  it('tanpa izin kurikulum.tambah tombol tidak dirender', async () => {
-    uji.izin = ['kurikulum.lihat', 'kurikulum.ubah'];
-    renderHalaman();
-
-    await screen.findByRole('button', { name: 'Ubah' });
-    expect(screen.queryByRole('button', { name: 'Buat dari kamus' })).toBeNull();
-    expect(uji.buatMapelDariKamus).not.toHaveBeenCalled();
-  });
-
-  it('menampilkan pratinjau lebih dulu, lalu membuat mapel saat Buat ditekan', async () => {
-    renderHalaman();
-
-    const tombol = await screen.findByRole('button', { name: 'Buat dari kamus' });
-    expect(tombol.id).toBe('btn_buat_mapel_dari_kamus');
-    await userEvent.click(tombol);
-
-    await waitFor(() => expect(uji.buatMapelDariKamus).toHaveBeenCalledWith({
-      jenjang: 'MI', kelompok: 'formal', mode: 'periksa',
-    }));
-    expect(await screen.findByText('2 mapel akan dibuat dari kamus · 1 sudah ada')).toBeInTheDocument();
-    // Masih pratinjau: belum ada permintaan pembuatan.
-    expect(uji.buatMapelDariKamus.mock.calls.every((c) => (c[0] as { mode: string }).mode === 'periksa')).toBe(true);
-
-    const sebelum = uji.daftarMapel.mock.calls.length;
-    await userEvent.click(screen.getByRole('button', { name: 'Buat' }));
-
-    await waitFor(() => expect(uji.buatMapelDariKamus).toHaveBeenCalledWith({
-      jenjang: 'MI', kelompok: 'formal', mode: 'eksekusi',
-    }));
-    // Dialog tertutup dan tabel dimuat ulang setelah mapel dibuat.
-    await waitFor(() => expect(screen.queryByText('Buat mapel dari kamus')).toBeNull());
-    await waitFor(() => expect(uji.daftarMapel.mock.calls.length).toBeGreaterThan(sebelum));
-  });
-
-  it('mengganti kelompok menghitung ulang pratinjau dengan kelompok itu', async () => {
-    renderHalaman();
-
-    await userEvent.click(await screen.findByRole('button', { name: 'Buat dari kamus' }));
-    await waitFor(() => expect(uji.buatMapelDariKamus).toHaveBeenCalled());
-
-    await pilihOpsi('select_kelompok_dari_kamus', 'Pesantren');
-
-    await waitFor(() => expect(uji.buatMapelDariKamus).toHaveBeenLastCalledWith({
-      jenjang: 'MI', kelompok: 'pesantren', mode: 'periksa',
-    }));
   });
 });
