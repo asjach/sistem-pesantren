@@ -130,7 +130,7 @@ export const KONFIGURASI_FILTER_HALAMAN = {
     { tingkat: true, kelas: true },
     { kelas: 'multiple', tingkat: 'multiple' },
   ),
-  kurikulum_jadwal: buatKonfigurasi(['lembaga', 'tahun_ajaran']),
+  kurikulum_jadwal: buatKonfigurasi(FILTER_AKADEMIK, { tingkat: true, kelas: true }),
   pegawai: buatKonfigurasi([]),
   pegawai_penempatan: buatKonfigurasi(['lembaga']),
   pegawai_akun: buatKonfigurasi(['lembaga']),

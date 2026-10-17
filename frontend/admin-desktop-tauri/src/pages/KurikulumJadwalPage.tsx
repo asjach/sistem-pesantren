@@ -88,15 +88,16 @@ function formatGuruBaris(j: JadwalBaris, format: FormatGuru): string {
 }
 
 /** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × JP) + tab
- *  template mingguan & hari libur. Klik kiri hanya memilih sel; klik kanan
- *  sel (satu atau blok) membuka dialog Guru + Mapel (guru boleh diisi lebih
- *  dulu, mapel menyusul). Tampilan memilih isi sel (keduanya/mapel/guru),
- *  Warna memilih pewarnaan polos/per guru/per mapel, dan Format memilih
- *  nama/kode/singkatan mapel serta nama/gelar/prefiks Ust.-Usth./kode/nama
- *  panggilan/nama singkat guru. */
+ *  template mingguan & hari libur. Kelas dipilih lewat rel Tingkat/Kelas di
+ *  kiri tabel (satu kelas per matriks); klik kiri hanya memilih sel, klik
+ *  kanan sel (satu atau blok) membuka dialog Guru + Mapel (guru boleh diisi
+ *  lebih dulu, mapel menyusul). Tampilan memilih isi sel
+ *  (keduanya/mapel/guru), Warna memilih pewarnaan polos/per guru/per mapel,
+ *  dan Format memilih nama/kode/singkatan mapel serta
+ *  nama/gelar/prefiks Ust.-Usth./kode/nama panggilan/nama singkat guru. */
 export default function KurikulumJadwalPage() {
   const [tab, setTab] = useState('jadwal');
-  const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
+  const { jenjangs, tahunAjaranNames, tingkat: tingkatFilter, kelas: kelasFilter, loading: filterLoading } = useFilterGlobalAktif();
   const { user } = useAuth();
   const canTambah = bisa(user, 'kurikulum.tambah');
   const canUbah = bisa(user, 'kurikulum.ubah');
@@ -107,7 +108,6 @@ export default function KurikulumJadwalPage() {
   const siap = jenjang !== null && ta !== null;
 
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
-  const [kelasId, setKelasId] = useState<number | ''>('');
   const [slot, setSlot] = useState<SlotJadwal[]>([]);
   const [hari, setHari] = useState<string[]>([]);
   const [hariLibur, setHariLibur] = useState<string[]>([]);
@@ -129,6 +129,19 @@ export default function KurikulumJadwalPage() {
   const [formatGuru, setFormatGuru] = useState<FormatGuru>('nama');
   const [err, setErr] = useState('');
 
+  /** Kelas dari rail Tingkat/Kelas. Matriks hanya bisa menampilkan satu kelas;
+   *  bila filter kosong (All) atau memilih beberapa kelas, minta pilih satu. */
+  const kelasTerpilih = useMemo<Kelas | null>(() => {
+    const dasar = kelasFilter.length === 0
+      ? kelasOpsi
+      : kelasOpsi.filter((k) => kelasFilter.includes(k.nama_kelas));
+    const tersaring = tingkatFilter.length === 0
+      ? dasar
+      : dasar.filter((k) => k.tingkat !== null && tingkatFilter.includes(k.tingkat));
+    return tersaring.length === 1 ? tersaring[0] : null;
+  }, [kelasOpsi, kelasFilter, tingkatFilter]);
+  const kelasId = kelasTerpilih?.id ?? '';
+
   const muatJadwal = useCallback(async () => {
     if (kelasId === '') { setSlot([]); setBaris([]); setHari([]); setHariLibur([]); return; }
     try {
@@ -138,13 +151,11 @@ export default function KurikulumJadwalPage() {
   }, [kelasId]);
 
   useEffect(() => {
-    if (filterLoading || jenjang === null || ta === null) { setKelasOpsi([]); setKelasId(''); return; }
+    if (filterLoading || jenjang === null || ta === null) { setKelasOpsi([]); return; }
     let hidup = true;
     listKelas({ jenjang, tahun_ajaran: ta, per_page: 1000 })
       .then((k) => {
-        if (!hidup) return;
-        setKelasOpsi(k.data);
-        setKelasId((v) => (k.data.some((x) => x.id === v) ? v : (k.data[0]?.id ?? '')));
+        if (hidup) setKelasOpsi(k.data);
       })
       .catch((e) => { if (hidup) setErr(errorMessage(e)); });
     return () => { hidup = false; };
@@ -445,8 +456,6 @@ export default function KurikulumJadwalPage() {
     );
   }
 
-  const kelasTerpilih = kelasOpsi.find((k) => k.id === kelasId) ?? null;
-
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
@@ -463,18 +472,6 @@ export default function KurikulumJadwalPage() {
 
         <TabsContent value="jadwal" className="flex min-h-0 flex-1 flex-col gap-0 p-3">
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border pb-2">
-            <label className="text-xs text-muted-foreground" htmlFor="select_kelas_jadwal">Kelas</label>
-            <select
-              id="select_kelas_jadwal"
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-              value={kelasId === '' ? '' : String(kelasId)}
-              onChange={(e) => setKelasId(e.target.value === '' ? '' : Number(e.target.value))}
-            >
-              <option value="">— pilih kelas —</option>
-              {kelasOpsi.map((k) => (
-                <option key={k.id} value={k.id}>{k.nama_kelas} (tingkat {k.tingkat ?? '-'})</option>
-              ))}
-            </select>
             {hariLibur.length > 0 && (
               <span className="text-xs text-muted-foreground">
                 Libur: {hariLibur.map((h) => HARI_LABEL[h] ?? h).join(', ')}
@@ -582,31 +579,28 @@ export default function KurikulumJadwalPage() {
             </div>
           )}
 
-          {kelasId === '' ? (
-            <p className="p-4 text-xs text-muted-foreground">Pilih kelas untuk mengatur jadwal.</p>
-          ) : hari.length === 0 ? (
-            <div className="min-h-0 flex-1" />
-          ) : (
-            <ExcelTable<BarisMatriks>
-              key={`matriks-${kelasId}-${slot.map((s) => s.id).join('-')}`}
-              tableKey="kurikulum_jadwal"
-              header={`Jadwal${kelasTerpilih ? ` · ${kelasTerpilih.nama_kelas}` : ''}`}
-              fields={fieldsMatriks}
-              rows={barisMatriks}
-              getValues={nilaiMatriks}
-              canEdit={false}
-              onCommit={async () => {}}
-              onSaved={() => {}}
-              renderActions={() => null}
-              hideCheckbox
-              hideActions
-              onIsiBlok={canUbah ? bukaBlok : undefined}
-              blokAksiLabel="Isi mapel & guru…"
-              emptyText={barisMatriks.length === 0
+          <ExcelTable<BarisMatriks>
+            key={`matriks-${kelasId}-${slot.map((s) => s.id).join('-')}`}
+            tableKey="kurikulum_jadwal"
+            header={`Jadwal${kelasTerpilih ? ` · ${kelasTerpilih.nama_kelas}` : ''}`}
+            fields={fieldsMatriks}
+            rows={kelasId === '' ? [] : barisMatriks}
+            getValues={nilaiMatriks}
+            canEdit={false}
+            onCommit={async () => {}}
+            onSaved={() => {}}
+            renderActions={() => null}
+            hideCheckbox
+            hideActions
+            rail
+            onIsiBlok={canUbah ? bukaBlok : undefined}
+            blokAksiLabel="Isi mapel & guru…"
+            emptyText={kelasId === ''
+              ? 'Pilih satu kelas pada rel Kelas.'
+              : barisMatriks.length === 0
                 ? 'Belum ada kerangka JP — terapkan template di tab Template Jadwal.'
                 : 'Belum ada jadwal untuk kelas ini.'}
-            />
-          )}
+          />
         </TabsContent>
 
         <TabsContent value="template" className="flex min-h-0 flex-1 flex-col gap-0">
