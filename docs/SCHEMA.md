@@ -858,6 +858,7 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 - `id` PK
 - `jenjang`: FK → lembaga [cascade]
 - `nama_slot`: string [null] — 'Jam 1', 'Jam 2', dsb.
+- `jenis`: enum(pelajaran|istirahat|pembiasaan) [default 'pelajaran'] — non-pelajaran tampil di matriks tetapi tidak bisa diisi jadwal
 - `jam_mulai`: time [null]
 - `jam_selesai`: time [null]
 - `urutan`: int [default 0] — urutan tampil jam di jadwal
@@ -885,10 +886,10 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 - `id` PK
 - `template_jadwal_id`: FK → template_jadwal [cascade]
 - `urutan_slot`: int [default 1] — jam ke-n dalam kerangka (1, 2, 3, ...), berlaku semua hari aktif
-- `nama_slot`: string(50) [null] — mis. "Jam 1" atau "Istirahat"
+- `nama_slot`: string(50) [null] — mis. "Jam 1", "Istirahat", "Pembiasaan"
 - `jam_mulai`: time [null] — mis. 07:00
 - `jam_selesai`: time [null] — mis. 07:45
-- `is_istirahat`: bool [default false] — true = jeda istirahat (tak dibuatkan slot pelajaran saat diterapkan)
+- `jenis`: enum(pelajaran|istirahat|pembiasaan) [default 'pelajaran'] — saat diterapkan, slot non-pelajaran tetap dibuat tetapi tidak bisa diisi jadwal
 - `created_at`, `updated_at`
 - UNIQUE(`template_jadwal_id`, `urutan_slot`)
 

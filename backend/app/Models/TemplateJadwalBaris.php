@@ -16,7 +16,7 @@ class TemplateJadwalBaris extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = ['urutan_slot' => 'integer', 'is_istirahat' => 'boolean'];
+    protected $casts = ['urutan_slot' => 'integer'];
 
     public function template(): BelongsTo
     {

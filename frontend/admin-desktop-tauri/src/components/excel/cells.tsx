@@ -112,7 +112,8 @@ export function SelectCell({ rowData, setRowData, columnData, focus, stopEditing
      lama yang sudah di luar daftar supaya tak tersamar jadi opsi pertama. */
   const placeholder = cur === '' ? (columnData.placeholder ?? 'Pilih…') : cur;
   const perluPlaceholder = !opsi.some((c) => c.value === cur);
-  if (disabled || !focus) {
+  const terkunci = disabled || (columnData.bolehSelect !== undefined && !columnData.bolehSelect(rowData.id));
+  if (terkunci || !focus) {
     return (
       <span
         className="simpes-dsg-fill"
@@ -214,6 +215,7 @@ export function SelectRadixCell({ rowData, setRowData, columnData, stopEditing, 
       : columnData.choices;
   const label = opsi.find((c) => c.value === cur)?.label ?? cur;
   const placeholder = cur === '' ? (columnData.placeholder ?? 'Pilih…') : cur;
+  const terkunci = disabled || (columnData.bolehSelect !== undefined && !columnData.bolehSelect(rowData.id));
   const [buka, setBuka] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -230,7 +232,7 @@ export function SelectRadixCell({ rowData, setRowData, columnData, stopEditing, 
     }, 0);
   }, [stopEditing, columnData, rowData.id]);
 
-  if (disabled) {
+  if (terkunci) {
     return (
       <span
         className="simpes-dsg-fill"

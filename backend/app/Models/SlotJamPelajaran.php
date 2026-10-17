@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /** Slot jam pelajaran per jenjang (mis. "Jam 1" 07:00–07:45). */
 class SlotJamPelajaran extends Model
 {
+    public const JENIS = ['pelajaran', 'istirahat', 'pembiasaan'];
+
     protected $table = 'slot_jam_pelajaran';
 
     protected $guarded = ['id'];

@@ -12,6 +12,8 @@ import {
   buatTemplateJadwal, daftarTemplateJadwal, detailTemplateJadwal,
   hapusBarisTemplate, hapusTemplateJadwal, tambahBarisTemplate,
   terapkanTemplate, ubahBarisTemplate, ubahTemplateJadwal,
+  JENIS_SLOT_OPTIONS,
+  type JenisSlot,
   type TemplateJadwal, type TemplateJadwalBaris, type TemplateJadwalDetail, type TerapkanHasil,
 } from '@/api/kurikulum';
 
@@ -31,7 +33,7 @@ export const FIELDS_KERANGKA: ExcelField[] = [
   { key: 'nama_slot', label: 'Nama', width: 180, kind: 'text', maxLength: 50 },
   { key: 'jam_mulai', label: 'Mulai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
   { key: 'jam_selesai', label: 'Selesai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
-  { key: 'is_istirahat', label: 'Istirahat', width: 100, kind: 'toggle', toggleTanpaEdit: true },
+  { key: 'jenis', label: 'Jenis', width: 150, kind: 'select', selectTanpaEdit: true, choices: JENIS_SLOT_OPTIONS },
 ];
 
 function nilaiKerangka(b: TemplateJadwalBaris): Record<string, string | null> {
@@ -40,7 +42,7 @@ function nilaiKerangka(b: TemplateJadwalBaris): Record<string, string | null> {
     nama_slot: b.nama_slot ?? null,
     jam_mulai: b.jam_mulai ?? null,
     jam_selesai: b.jam_selesai ?? null,
-    is_istirahat: b.is_istirahat ? 'ya' : 'tidak',
+    jenis: b.jenis,
   };
 }
 
@@ -91,7 +93,7 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
     } catch (e) { toast.error(errorMessage(e)); }
   };
 
-  const tambahJam = async (isIstirahat: boolean) => {
+  const tambahJam = async (jenis: JenisSlot) => {
     if (terpilih === '' || detail === null) return;
     const durasi = menitDariJam(jpl);
     if (durasi === null || durasi <= 0) {
@@ -113,10 +115,13 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
     try {
       await tambahBarisTemplate(Number(terpilih), {
         ...baru,
-        nama_slot: isIstirahat ? 'Istirahat' : baru.nama_slot,
-        is_istirahat: isIstirahat,
+        nama_slot: jenis === 'pelajaran'
+          ? baru.nama_slot
+          : jenis === 'istirahat' ? 'Istirahat' : 'Pembiasaan',
+        jenis,
       });
-      toast.success(isIstirahat ? 'Jeda istirahat ditambah.' : 'Jam ditambah.');
+      toast.success(jenis === 'pelajaran' ? 'Jam ditambah.'
+        : jenis === 'istirahat' ? 'Jeda istirahat ditambah.' : 'Kegiatan pembiasaan ditambah.');
       await segarkan(terpilih);
     } catch (e) { toast.error(errorMessage(e)); }
   };
@@ -127,7 +132,7 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
       ...(f.nama_slot !== undefined ? { nama_slot: (f.nama_slot ?? '').trim() || null } : {}),
       ...(f.jam_mulai !== undefined ? { jam_mulai: (f.jam_mulai ?? '').trim() || null } : {}),
       ...(f.jam_selesai !== undefined ? { jam_selesai: (f.jam_selesai ?? '').trim() || null } : {}),
-      ...(f.is_istirahat !== undefined ? { is_istirahat: f.is_istirahat === 'ya' } : {}),
+      ...(f.jenis !== undefined ? { jenis: (f.jenis ?? 'pelajaran') as JenisSlot } : {}),
     });
   };
 
@@ -212,12 +217,16 @@ export default function PanelTemplate({ jenjang, canTambah, canUbah, canHapus, o
                   lebarKotak={190}
                 />
                 <Button type="button" variant="outline" size="sm" id="btn_tambah_jam_template"
-                  onClick={() => void tambahJam(false)}>
+                  onClick={() => void tambahJam('pelajaran')}>
                   <Plus size={14} /> Tambah
                 </Button>
                 <Button type="button" variant="outline" size="sm" id="btn_tambah_istirahat_template"
-                  onClick={() => void tambahJam(true)}>
+                  onClick={() => void tambahJam('istirahat')}>
                   <Plus size={14} /> Istirahat
+                </Button>
+                <Button type="button" variant="outline" size="sm" id="btn_tambah_pembiasaan_template"
+                  onClick={() => void tambahJam('pembiasaan')}>
+                  <Plus size={14} /> Pembiasaan
                 </Button>
               </>
             )}
@@ -292,8 +301,7 @@ function TerapkanKerangka({ jenjang, canTambah, aktif, hasil, jalankanTerap }: {
     <div>
       <p className="text-xs font-medium">Terapkan ke slot jam {jenjang}</p>
       <p className="mt-0.5 text-[11px] text-muted-foreground">
-        Membuat slot jam nyata dari kerangka ini. Jeda istirahat tidak dibuatkan slot.
-        Pengisian mapel/guru tetap manual di tab Jadwal.
+        Membuat slot jam nyata dari kerangka ini. Pengisian mapel/guru tetap manual di tab Jadwal.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-1 text-xs text-muted-foreground" htmlFor="cek_timpa_slot">

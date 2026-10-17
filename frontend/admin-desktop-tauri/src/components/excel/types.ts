@@ -31,6 +31,9 @@ export interface ExcelField {
   /** Pilihan dropdown khusus per baris (mis. sel matriks jadwal: tiap baris
    *  hanya menawarkan mapel yang belum terpakai). Absen = pakai `choices`. */
   choicesForRow?: (id: string | number) => ExcelChoice[];
+  /** Gerbang select per baris: false = sel terkunci (mis. baris istirahat
+   *  pada matriks jadwal). Absen = semua baris boleh dipilih. */
+  bolehSelect?: (id: string | number) => boolean;
   maxLength?: number;
   /** Kembalikan pesan galat bila nilai tidak valid, atau null bila OK. */
   validate?: (value: string | null) => string | null;
@@ -92,6 +95,8 @@ export interface SelectColData {
   choices: ExcelChoice[];
   /** Pilihan per baris; menang atas `choices` untuk baris data. */
   choicesForRow?: (id: string | number) => ExcelChoice[];
+  /** False = sel baris ini terkunci (nilai tetap tampil, tidak bisa dibuka). */
+  bolehSelect?: (id: string | number) => boolean;
   /** Teks opsi kosong saat nilai sel belum ada di daftar pilihan (mis.
    *  "Pilih jenis…"). Bawaannya `Pilih…`. Opsi kosong ini wajib ada supaya
    *  pilihan pertama yang sebenarnya jadi perubahan saat dipilih — tanpa itu

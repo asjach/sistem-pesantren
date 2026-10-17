@@ -48,6 +48,7 @@ class JadwalPelajaranController extends Controller
         $data = $request->validate([
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'nama_slot' => ['nullable', 'string', 'max:50'],
+            'jenis' => ['nullable', 'in:'.implode(',', SlotJamPelajaran::JENIS)],
             'jam_mulai' => ['nullable', 'date_format:H:i'],
             'jam_selesai' => ['nullable', 'date_format:H:i', 'after:jam_mulai'],
             'urutan' => ['nullable', 'integer', 'min:0'],
@@ -62,11 +63,21 @@ class JadwalPelajaranController extends Controller
     {
         $data = $request->validate([
             'nama_slot' => ['nullable', 'string', 'max:50'],
+            'jenis' => ['nullable', 'in:'.implode(',', SlotJamPelajaran::JENIS)],
             'jam_mulai' => ['nullable', 'date_format:H:i'],
             'jam_selesai' => ['nullable', 'date_format:H:i'],
             'urutan' => ['nullable', 'integer', 'min:0'],
         ]);
         $this->authorizeLembaga($request->user(), $slot->jenjang);
+
+        $jenisBaru = $data['jenis'] ?? $slot->jenis;
+        if ($jenisBaru !== 'pelajaran' && $jenisBaru !== $slot->jenis
+            && JadwalPelajaran::where('slot_jam_id', $slot->id)->exists()) {
+            throw ValidationException::withMessages([
+                'jenis' => 'Slot masih punya jadwal pelajaran — hapus jadwalnya dulu.',
+            ]);
+        }
+
         $slot->update($data);
 
         return response()->json($slot->fresh());
@@ -180,7 +191,7 @@ class JadwalPelajaranController extends Controller
 
         $slot = SlotJamPelajaran::where('jenjang', $kelas->jenjang)
             ->orderBy('urutan')->orderBy('jam_mulai')->orderBy('nama_slot')
-            ->get(['id', 'nama_slot', 'jam_mulai', 'jam_selesai', 'urutan']);
+            ->get(['id', 'nama_slot', 'jenis', 'jam_mulai', 'jam_selesai', 'urutan']);
 
         $baris = JadwalPelajaran::with([
             'pengampuMapel.mataPelajaran:id,nama_mapel',
@@ -242,6 +253,11 @@ class JadwalPelajaranController extends Controller
         $slot = SlotJamPelajaran::findOrFail($data['slot_jam_id']);
         if ($slot->jenjang !== $kelas->jenjang) {
             throw ValidationException::withMessages(['slot_jam_id' => 'Slot jam harus sejenjang dengan kelas.']);
+        }
+        if ($slot->jenis !== 'pelajaran') {
+            throw ValidationException::withMessages([
+                'slot_jam_id' => 'Slot ini waktu '.$slot->jenis.' — tidak bisa diisi pelajaran.',
+            ]);
         }
 
         // Hari libur mingguan lembaga tak boleh diisi jadwal.
@@ -382,7 +398,7 @@ class JadwalPelajaranController extends Controller
                 'nama_slot' => $b->nama_slot,
                 'jam_mulai' => $b->jam_mulai ? substr((string) $b->jam_mulai, 0, 5) : null,
                 'jam_selesai' => $b->jam_selesai ? substr((string) $b->jam_selesai, 0, 5) : null,
-                'is_istirahat' => (bool) $b->is_istirahat,
+                'jenis' => $b->jenis,
             ])->values();
 
         return response()->json([
@@ -398,7 +414,7 @@ class JadwalPelajaranController extends Controller
             'nama_slot' => ['nullable', 'string', 'max:50'],
             'jam_mulai' => ['nullable', 'date_format:H:i'],
             'jam_selesai' => ['nullable', 'date_format:H:i', 'after:jam_mulai'],
-            'is_istirahat' => ['nullable', 'boolean'],
+            'jenis' => ['nullable', 'in:'.implode(',', SlotJamPelajaran::JENIS)],
             'urutan_slot' => ['nullable', 'integer', 'min:1', 'max:99'],
         ]);
         $this->authorizeLembaga($request->user(), $template->jenjang);
@@ -422,7 +438,7 @@ class JadwalPelajaranController extends Controller
             'nama_slot' => $data['nama_slot'] ?? null,
             'jam_mulai' => $data['jam_mulai'] ?? null,
             'jam_selesai' => $data['jam_selesai'] ?? null,
-            'is_istirahat' => (bool) ($data['is_istirahat'] ?? false),
+            'jenis' => $data['jenis'] ?? 'pelajaran',
         ]), 201);
     }
 
@@ -433,7 +449,7 @@ class JadwalPelajaranController extends Controller
             'nama_slot' => ['nullable', 'string', 'max:50'],
             'jam_mulai' => ['nullable', 'date_format:H:i'],
             'jam_selesai' => ['nullable', 'date_format:H:i'],
-            'is_istirahat' => ['sometimes', 'boolean'],
+            'jenis' => ['sometimes', 'in:'.implode(',', SlotJamPelajaran::JENIS)],
             'urutan_slot' => ['sometimes', 'integer', 'min:1', 'max:99'],
         ]);
         $this->authorizeLembaga($request->user(), $baris->template->jenjang);
@@ -492,10 +508,8 @@ class JadwalPelajaranController extends Controller
         $timpa = (bool) ($data['timpa'] ?? false);
 
         // Slot nyata yang sudah ada di jenjang ini, DIKUNCI NOMOR JAM (`urutan`),
-        // bukan posisi dalam daftar: baris istirahat tidak menghasilkan slot,
-        // jadi daftar slot lebih pendek dari kerangka dan pemetaan berbasis
-        // posisi akan salah mencocokkan (mis. "Jam 2" di kerangka ke-3 tak
-        // ketemu → dibuat ulang tiap kali Terapkan ditekan).
+        // bukan posisi dalam daftar. Semua baris template menghasilkan slot,
+        // termasuk istirahat/pembiasaan yang tidak bisa diisi pelajaran.
         $ada = SlotJamPelajaran::where('jenjang', $template->jenjang)
             ->orderBy('urutan')->orderBy('jam_mulai')->orderBy('nama_slot')
             ->get();
@@ -509,12 +523,6 @@ class JadwalPelajaranController extends Controller
         foreach ($template->baris()->orderBy('urutan_slot')->get() as $b) {
             $kunci = "jam ke-{$b->urutan_slot}";
             $slotNyata = $slotPerUrutan->get($b->urutan_slot);
-            // Slot istirahat template tidak butuh slot nyata (hanya jeda tampilan).
-            if ((bool) $b->is_istirahat) {
-                $dilewati[] = ['sel' => $kunci, 'alasan' => 'Jeda istirahat — tidak dibuatkan slot pelajaran.'];
-
-                continue;
-            }
             if ($slotNyata !== null && ! $timpa) {
                 $dilewati[] = ['sel' => $kunci, 'alasan' => 'Slot jam ke-'.$b->urutan_slot.' sudah ada (aktifkan timpa untuk menimpa).'];
 
@@ -530,6 +538,7 @@ class JadwalPelajaranController extends Controller
                 'data' => [
                     'jenjang' => $template->jenjang,
                     'nama_slot' => $b->nama_slot ?? 'Jam '.$b->urutan_slot,
+                    'jenis' => $b->jenis,
                     'jam_mulai' => $b->jam_mulai ? substr((string) $b->jam_mulai, 0, 5) : null,
                     'jam_selesai' => $b->jam_selesai ? substr((string) $b->jam_selesai, 0, 5) : null,
                     'urutan' => $b->urutan_slot,

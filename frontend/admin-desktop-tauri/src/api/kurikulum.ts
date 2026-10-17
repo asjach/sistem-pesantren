@@ -46,9 +46,21 @@ export interface PengampuResp {
   baris: PengampuBaris[];
 }
 
+export type JenisSlot = 'pelajaran' | 'istirahat' | 'pembiasaan';
+
+export const JENIS_SLOT_LABEL: Record<JenisSlot, string> = {
+  pelajaran: 'Pelajaran',
+  istirahat: 'Istirahat',
+  pembiasaan: 'Pembiasaan',
+};
+
+export const JENIS_SLOT_OPTIONS = (Object.keys(JENIS_SLOT_LABEL) as JenisSlot[])
+  .map((value) => ({ value, label: JENIS_SLOT_LABEL[value] }));
+
 export interface SlotJam {
   id: number; jenjang: string;
-  nama_slot: string | null; jam_mulai: string | null; jam_selesai: string | null;
+  nama_slot: string | null; jenis: JenisSlot;
+  jam_mulai: string | null; jam_selesai: string | null;
   urutan: number;
 }
 
@@ -61,7 +73,7 @@ export interface JadwalResp {
   kelas: { id: number; nama_kelas: string; tingkat: string | null; jenjang: string };
   hari: string[];
   hari_libur?: string[];
-  slot: Pick<SlotJam, 'id' | 'nama_slot' | 'jam_mulai' | 'jam_selesai' | 'urutan'>[];
+  slot: Pick<SlotJam, 'id' | 'nama_slot' | 'jenis' | 'jam_mulai' | 'jam_selesai' | 'urutan'>[];
   baris: JadwalBaris[];
   /** Pengampu kelas yang belum terjadwal — pilihan untuk sel jadwal. */
   belum_terjadwal: { id: number; nama_mapel: string | null }[];
@@ -257,14 +269,15 @@ export function daftarSlot(jenjang: string) {
 }
 
 export function buatSlot(data: {
-  jenjang: string; nama_slot?: string | null;
+  jenjang: string; nama_slot?: string | null; jenis?: JenisSlot;
   jam_mulai?: string | null; jam_selesai?: string | null; urutan?: number;
 }) {
   return api<SlotJam>('/admin/kurikulum/slot', { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function ubahSlot(id: number, data: {
-  nama_slot?: string | null; jam_mulai?: string | null; jam_selesai?: string | null; urutan?: number;
+  nama_slot?: string | null; jenis?: JenisSlot;
+  jam_mulai?: string | null; jam_selesai?: string | null; urutan?: number;
 }) {
   return api<SlotJam>(`/admin/kurikulum/slot/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
@@ -296,8 +309,8 @@ export interface TemplateJadwal {
 
 export interface TemplateJadwalBaris {
   id: number; urutan_slot: number;
-  nama_slot: string | null; jam_mulai: string | null; jam_selesai: string | null;
-  is_istirahat: boolean;
+  nama_slot: string | null; jenis: JenisSlot;
+  jam_mulai: string | null; jam_selesai: string | null;
 }
 
 export interface TemplateJadwalDetail {
@@ -335,15 +348,15 @@ export function detailTemplateJadwal(id: number) {
 }
 
 export function tambahBarisTemplate(id: number, data: {
-  nama_slot?: string | null; jam_mulai?: string | null; jam_selesai?: string | null;
-  is_istirahat?: boolean; urutan_slot?: number;
+  nama_slot?: string | null; jenis?: JenisSlot;
+  jam_mulai?: string | null; jam_selesai?: string | null; urutan_slot?: number;
 }) {
   return api<TemplateJadwalBaris>(`/admin/kurikulum/template-jadwal/${id}/baris`, { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function ubahBarisTemplate(barisId: number, data: {
-  nama_slot?: string | null; jam_mulai?: string | null; jam_selesai?: string | null;
-  is_istirahat?: boolean; urutan_slot?: number;
+  nama_slot?: string | null; jenis?: JenisSlot;
+  jam_mulai?: string | null; jam_selesai?: string | null; urutan_slot?: number;
 }) {
   return api<TemplateJadwalBaris>(`/admin/kurikulum/template-jadwal/baris/${barisId}`, { method: 'PUT', body: JSON.stringify(data) });
 }

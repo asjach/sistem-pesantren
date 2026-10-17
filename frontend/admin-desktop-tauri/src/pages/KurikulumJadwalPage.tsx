@@ -19,7 +19,7 @@ import PanelTemplate, { FIELDS_KERANGKA } from './TemplateJadwalPanel';
 import PanelHariLibur from './HariLiburPanel';
 import {
   buatJadwal, buatSlot, daftarJadwal, daftarSlot, hapusJadwal, hapusSlot, ubahSlot,
-  HARI_LABEL, type JadwalBaris, type SlotJam,
+  HARI_LABEL, JENIS_SLOT_LABEL, JENIS_SLOT_OPTIONS, type JadwalBaris, type JenisSlot, type SlotJam,
 } from '@/api/kurikulum';
 
 function validasiJam(v: string | null): string | null {
@@ -35,6 +35,7 @@ function validasiUrutan(v: string | null): string | null {
 
 const FIELDS_SLOT: ExcelField[] = [
   { key: 'nama_slot', label: 'Nama slot', width: 180, kind: 'text', maxLength: 50 },
+  { key: 'jenis', label: 'Jenis', width: 130, kind: 'select', selectTanpaEdit: true, choices: JENIS_SLOT_OPTIONS },
   { key: 'jam_mulai', label: 'Mulai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
   { key: 'jam_selesai', label: 'Selesai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
   { key: 'urutan', label: 'Urutan', width: 90, kind: 'text', maxLength: 3, format: 'angka', validate: validasiUrutan },
@@ -97,6 +98,7 @@ export default function KurikulumJadwalPage() {
 
   const nilaiSlot = useCallback((s: SlotJam) => ({
     nama_slot: s.nama_slot ?? null,
+    jenis: s.jenis,
     jam_mulai: jamPendek(s.jam_mulai),
     jam_selesai: jamPendek(s.jam_selesai),
     urutan: String(s.urutan),
@@ -105,6 +107,7 @@ export default function KurikulumJadwalPage() {
   const commitSlot = useCallback(async (id: number | string, f: Record<string, string | null>) => {
     await ubahSlot(Number(id), {
       ...(f.nama_slot !== undefined ? { nama_slot: (f.nama_slot ?? '').trim() || null } : {}),
+      ...(f.jenis !== undefined ? { jenis: (f.jenis ?? 'pelajaran') as JenisSlot } : {}),
       ...(f.jam_mulai !== undefined ? { jam_mulai: (f.jam_mulai ?? '').trim() || null } : {}),
       ...(f.jam_selesai !== undefined ? { jam_selesai: (f.jam_selesai ?? '').trim() || null } : {}),
       ...(f.urutan !== undefined ? { urutan: Number(f.urutan) || 0 } : {}),
@@ -161,6 +164,7 @@ export default function KurikulumJadwalPage() {
   const fieldsMatriks = useMemo<ExcelField[]>(() => {
     const peta = new Map<string, JadwalBaris>();
     for (const b of baris) peta.set(`${b.slot_jam_id}|${b.hari}`, b);
+    const petaSlot = new Map(slot.map((s) => [s.id, s]));
     const pilihanUmum = belum.map((b) => ({ value: String(b.id), label: b.nama_mapel ?? `#${b.id}` }));
 
     return [
@@ -171,7 +175,14 @@ export default function KurikulumJadwalPage() {
         width: 180,
         kind: 'select',
         selectTanpaEdit: true,
+        // Baris istirahat/pembiasaan: sel menampilkan nama kegiatan dan tidak
+        // bisa dibuka — waktu itu bukan waktu pelajaran.
+        bolehSelect: (id) => petaSlot.get(Number(id))?.jenis === 'pelajaran',
         choicesForRow: (id) => {
+          const s = petaSlot.get(Number(id));
+          if (s !== undefined && s.jenis !== 'pelajaran') {
+            return [{ value: '', label: s.nama_slot ?? JENIS_SLOT_LABEL[s.jenis] }];
+          }
           const j = peta.get(`${Number(id)}|${h}`);
           // Mengganti nilai lama butuh tambah + hapus; tanpa hapus, hanya
           // nilai berjalan yang ditawarkan (sel tak menawarkan aksi mati).
@@ -187,7 +198,7 @@ export default function KurikulumJadwalPage() {
         },
       })),
     ];
-  }, [hari, baris, belum, canTambah, canHapus]);
+  }, [hari, baris, belum, canTambah, canHapus, slot]);
 
   const nilaiMatriks = useCallback((s: SlotJam) => {
     const v: Record<string, string | null> = {};
@@ -323,6 +334,8 @@ export default function KurikulumJadwalPage() {
 
           {kelasId === '' ? (
             <p className="p-4 text-xs text-muted-foreground">Pilih kelas untuk mengatur jadwal.</p>
+          ) : hari.length === 0 ? (
+            <div className="min-h-0 flex-1" />
           ) : (
             <ExcelTable<SlotJam>
               tableKey="kurikulum_jadwal"

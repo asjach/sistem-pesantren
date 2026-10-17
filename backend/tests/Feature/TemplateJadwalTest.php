@@ -19,10 +19,10 @@ use Tests\TestCase;
  * Template jadwal = kerangka jam murni per jenjang (tanpa mapel/pengampu) +
  * hari libur mingguan per lembaga.
  *
- *  - CRUD template & baris jam (nama, jam mulai-selesai, penanda istirahat).
- *  - Terapkan = membuat `slot_jam_pelajaran` nyata; jeda istirahat dilewati,
- *    slot yang sudah ada dilewati kecuali `timpa`, slot terpakai jadwal tak
- *    boleh ditimpa.
+ *  - CRUD template & baris jam (nama, jam mulai-selesai, jenis kegiatan).
+ *  - Terapkan = membuat `slot_jam_pelajaran` nyata untuk semua baris; slot
+ *    istirahat/pembiasaan tidak bisa diisi pelajaran, slot yang sudah ada
+ *    dilewati kecuali `timpa`, slot terpakai jadwal tak boleh ditimpa.
  *  - Hari libur: disimpan di `lembaga.hari_libur`, tak boleh menyalakan hari
  *    yang masih punya jadwal terisi, dan hari itu lenyap dari matriks jadwal.
  */
@@ -110,7 +110,7 @@ class TemplateJadwalTest extends TestCase
 
         $id = $this->template($super, '8 JP + istirahat', [
             ['nama_slot' => 'Jam 1', 'jam_mulai' => '07:00', 'jam_selesai' => '07:45'],
-            ['nama_slot' => 'Istirahat', 'jam_mulai' => '09:30', 'jam_selesai' => '10:00', 'is_istirahat' => true],
+            ['nama_slot' => 'Istirahat', 'jam_mulai' => '09:30', 'jam_selesai' => '10:00', 'jenis' => 'istirahat'],
         ]);
 
         // Nama template unik per jenjang (case-insensitive).
@@ -124,7 +124,7 @@ class TemplateJadwalTest extends TestCase
             ->assertStatus(200)->json();
         $this->assertCount(2, $detail['baris']);
         $this->assertSame('07:00', $detail['baris'][0]['jam_mulai']);
-        $this->assertTrue($detail['baris'][1]['is_istirahat']);
+        $this->assertSame('istirahat', $detail['baris'][1]['jenis']);
 
         // Jam selesai harus setelah jam mulai.
         $this->actingAs($super, 'sanctum')
@@ -169,7 +169,7 @@ class TemplateJadwalTest extends TestCase
         $this->assertDatabaseCount('template_jadwal_baris', 0);
     }
 
-    public function test_terapkan_membuat_slot_nyata_dan_melewati_istirahat(): void
+    public function test_terapkan_membuat_slot_nyata_termasuk_istirahat(): void
     {
         $this->lembaga('MI');
         TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
@@ -177,40 +177,41 @@ class TemplateJadwalTest extends TestCase
 
         $id = $this->template($super, 'Pola Pagi', [
             ['nama_slot' => 'Jam 1', 'jam_mulai' => '07:00', 'jam_selesai' => '07:45'],
-            ['nama_slot' => 'Istirahat', 'jam_mulai' => '07:45', 'jam_selesai' => '08:00', 'is_istirahat' => true],
+            ['nama_slot' => 'Istirahat', 'jam_mulai' => '07:45', 'jam_selesai' => '08:00', 'jenis' => 'istirahat'],
             ['nama_slot' => 'Jam 2', 'jam_mulai' => '08:00', 'jam_selesai' => '08:45'],
         ]);
 
-        // Pratinjau: 2 slot bisa dibuat (istirahat dilewati), belum menulis apa pun.
+        // Pratinjau: 3 slot bisa dibuat (istirahat ikut jadi slot non-pelajaran).
         $pratinjau = $this->actingAs($super, 'sanctum')
             ->postJson("/api/admin/kurikulum/template-jadwal/{$id}/terapkan", ['mode' => 'pratinjau'])
             ->assertStatus(200)->json();
-        $this->assertSame(2, $pratinjau['bisa_dipasang']);
+        $this->assertSame(3, $pratinjau['bisa_dipasang']);
         $this->assertSame(0, $pratinjau['dibuat']);
         $this->assertDatabaseCount('slot_jam_pelajaran', 0);
-        $this->assertCount(1, $pratinjau['dilewati']);
+        $this->assertCount(0, $pratinjau['dilewati']);
 
-        // Eksekusi: 2 slot nyata tertulis dengan jam dari kerangka.
+        // Eksekusi: 3 slot nyata tertulis, istirahat membawa jenisnya.
         $hasil = $this->actingAs($super, 'sanctum')
             ->postJson("/api/admin/kurikulum/template-jadwal/{$id}/terapkan", ['mode' => 'eksekusi'])
             ->assertStatus(200)->json();
-        $this->assertSame(2, $hasil['dibuat']);
+        $this->assertSame(3, $hasil['dibuat']);
         $this->assertSame('07:00', substr((string) SlotJamPelajaran::where('urutan', 1)->value('jam_mulai'), 0, 5));
         $this->assertSame('Jam 2', SlotJamPelajaran::where('urutan', 3)->value('nama_slot'));
+        $this->assertSame('istirahat', SlotJamPelajaran::where('urutan', 2)->value('jenis'));
 
         // Terapkan ulang tanpa timpa -> semua dilewati.
         $kedua = $this->actingAs($super, 'sanctum')
             ->postJson("/api/admin/kurikulum/template-jadwal/{$id}/terapkan", ['mode' => 'eksekusi'])
             ->assertStatus(200)->json();
         $this->assertSame(0, $kedua['dibuat']);
-        $this->assertDatabaseCount('slot_jam_pelajaran', 2);
+        $this->assertDatabaseCount('slot_jam_pelajaran', 3);
 
-        // Timpa -> slot yang sama ditulis ulang, jumlahnya tetap 2.
+        // Timpa -> slot yang sama ditulis ulang, jumlahnya tetap 3.
         $ganti = $this->actingAs($super, 'sanctum')
             ->postJson("/api/admin/kurikulum/template-jadwal/{$id}/terapkan", ['mode' => 'eksekusi', 'timpa' => true])
             ->assertStatus(200)->json();
-        $this->assertSame(2, $ganti['dibuat']);
-        $this->assertDatabaseCount('slot_jam_pelajaran', 2);
+        $this->assertSame(3, $ganti['dibuat']);
+        $this->assertDatabaseCount('slot_jam_pelajaran', 3);
     }
 
     public function test_slot_terpakai_jadwal_tidak_boleh_ditimpa(): void
@@ -319,11 +320,41 @@ class TemplateJadwalTest extends TestCase
             ->assertStatus(200)->assertJsonPath('dibuat', 1);
     }
 
+    public function test_slot_non_pelajaran_tidak_bisa_diisi_jadwal(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $kelas = $this->kelas('1A', '1');
+        $pengampuId = $this->pengampu($super, $kelas, $this->mapel('Fiqih'));
+
+        $pembiasaan = $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/slot', [
+            'jenjang' => 'MI', 'nama_slot' => 'Pembiasaan', 'jenis' => 'pembiasaan',
+            'jam_mulai' => '07:45', 'jam_selesai' => '08:00', 'urutan' => 2,
+        ])->assertStatus(201)->json();
+
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/jadwal', [
+            'pengampu_mapel_id' => $pengampuId, 'slot_jam_id' => $pembiasaan['id'], 'hari' => 'senin',
+        ])->assertStatus(422)->assertJsonValidationErrors('slot_jam_id');
+
+        // Slot pelajaran yang sudah dipakai tidak boleh diubah jadi non-pelajaran.
+        $pelajaran = $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/slot', [
+            'jenjang' => 'MI', 'nama_slot' => 'Jam 1', 'jenis' => 'pelajaran',
+            'jam_mulai' => '07:00', 'jam_selesai' => '07:45', 'urutan' => 1,
+        ])->assertStatus(201)->json();
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/jadwal', [
+            'pengampu_mapel_id' => $pengampuId, 'slot_jam_id' => $pelajaran['id'], 'hari' => 'senin',
+        ])->assertStatus(201);
+        $this->actingAs($super, 'sanctum')->putJson("/api/admin/kurikulum/slot/{$pelajaran['id']}", [
+            'jenis' => 'istirahat',
+        ])->assertStatus(422)->assertJsonValidationErrors('jenis');
+    }
+
     /**
-     * Regresi: baris istirahat tidak menghasilkan slot, jadi daftar slot nyata
-     * lebih pendek dari kerangka. Dulu pencocokan memakai POSISI daftar, sehingga
-     * "Jam 2" (baris kerangka ke-3) tak pernah ketemu dan dibuat ulang TIAP kali
-     * Terapkan ditekan — slot menumpuk tanpa batas. Sekarang dikunci nomor jam.
+     * Regresi: pencocokan slot nyata memakai POSISI daftar (bukan nomor jam)
+     * membuat baris kerangka tak ketemu dan dibuat ulang TIAP kali Terapkan
+     * ditekan — slot menumpuk tanpa batas. Sekarang dikunci nomor jam.
      */
     public function test_terapkan_berulang_tidak_menumpuk_slot(): void
     {
@@ -333,7 +364,7 @@ class TemplateJadwalTest extends TestCase
 
         $id = $this->template($super, 'Pola Istirahat', [
             ['nama_slot' => 'Jam 1', 'jam_mulai' => '07:00', 'jam_selesai' => '07:45'],
-            ['nama_slot' => 'Istirahat', 'jam_mulai' => '07:45', 'jam_selesai' => '08:00', 'is_istirahat' => true],
+            ['nama_slot' => 'Istirahat', 'jam_mulai' => '07:45', 'jam_selesai' => '08:00', 'jenis' => 'istirahat'],
             ['nama_slot' => 'Jam 2', 'jam_mulai' => '08:00', 'jam_selesai' => '08:45'],
         ]);
 
@@ -341,10 +372,10 @@ class TemplateJadwalTest extends TestCase
             $this->actingAs($super, 'sanctum')
                 ->postJson("/api/admin/kurikulum/template-jadwal/{$id}/terapkan", ['mode' => 'eksekusi'])
                 ->assertStatus(200);
-            // Dua slot (jam 1 & jam 2) — tak bertambah walau diterapkan berulang.
-            $this->assertDatabaseCount('slot_jam_pelajaran', 2);
+            // Tiga slot (jam 1, istirahat, jam 2) — tak bertambah walau berulang.
+            $this->assertDatabaseCount('slot_jam_pelajaran', 3);
         }
 
-        $this->assertSame([1, 3], SlotJamPelajaran::orderBy('urutan')->pluck('urutan')->all());
+        $this->assertSame([1, 2, 3], SlotJamPelajaran::orderBy('urutan')->pluck('urutan')->all());
     }
 }

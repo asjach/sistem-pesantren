@@ -127,4 +127,26 @@ describe('SelectRadixCell — pilihan per baris', () => {
 
     expect(screen.getByRole('button', { name: 'jenis' }).textContent).toContain('Mapel 9');
   });
+
+  it('bolehSelect=false mengunci sel dan tetap menampilkan label', () => {
+    const props = {
+      rowData: { id: 9, checked: false, jenis: '' } as GridRow,
+      setRowData: vi.fn(),
+      columnData: {
+        fieldKey: 'jenis',
+        choices: [],
+        choicesForRow: () => [{ value: '', label: 'Istirahat' }],
+        bolehSelect: () => false,
+      } as SelectColData,
+      focus: true,
+      stopEditing: vi.fn(),
+      disabled: false,
+      columnIndex: 1,
+    } as unknown as CellProps<GridRow, SelectColData>;
+
+    render(<ThemeProvider><SelectRadixCell {...props} /></ThemeProvider>);
+
+    expect(screen.queryByRole('button', { name: 'jenis' })).toBeNull();
+    expect(screen.getByText('Istirahat')).toBeTruthy();
+  });
 });
