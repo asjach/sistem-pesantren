@@ -871,7 +871,7 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 - `hari`: enum(senin|selasa|rabu|kamis|jumat|sabtu|minggu)
 - `ruangan`: string [null]
 - `created_at`, `updated_at`
-- UNIQUE(`pengampu_mapel_id`, `slot_jam_id`, `hari`) — Unik per slot/hari = backing constraint validasi bentrok
+- UNIQUE(`pengampu_mapel_id`, `slot_jam_id`, `hari`) — Unik per slot/hari = backing constraint validasi bentrok; pengampu yang sama boleh dipakai di slot lain (2 JP atau lebih)
 
 ### `template_jadwal`
 - `id` PK

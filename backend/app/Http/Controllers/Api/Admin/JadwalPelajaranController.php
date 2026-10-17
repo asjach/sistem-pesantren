@@ -210,16 +210,21 @@ class JadwalPelajaranController extends Controller
             ])
             ->values();
 
-        // Pengampu kelas ini yang belum terjadwal — untuk pilihan di sel.
+        // Semua pengampu kelas ini = pilihan tiap sel. Mapel yang sudah
+        // terjadwal tetap ditawarkan agar bisa dipakai di slot lain (2 JP+).
         $terjadwal = $baris->pluck('pengampu_mapel_id')->unique();
-        $pengampu = PengampuMapel::with('mataPelajaran:id,nama_mapel')
+        $pengampu = PengampuMapel::with(['mataPelajaran:id,nama_mapel', 'keaktifan.pegawai:id,nama_lengkap'])
             ->where('kelas_id', $kelas->id)
-            ->whereNotIn('id', $terjadwal)
             ->get()
             ->map(fn (PengampuMapel $p) => [
                 'id' => $p->id,
                 'nama_mapel' => $p->mataPelajaran?->nama_mapel,
+                'guru' => $p->keaktifan?->pegawai?->nama_lengkap,
             ])->values();
+
+        $belum = $pengampu->reject(
+            fn (array $p) => $terjadwal->contains($p['id']),
+        )->values();
 
         $hari = $this->hariLembaga($kelas->jenjang);
 
@@ -229,7 +234,8 @@ class JadwalPelajaranController extends Controller
             'hari_libur' => $hari['libur'],
             'slot' => $slot,
             'baris' => $baris,
-            'belum_terjadwal' => $pengampu,
+            'pengampu' => $pengampu,
+            'belum_terjadwal' => $belum,
         ]);
     }
 

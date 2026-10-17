@@ -320,6 +320,46 @@ class TemplateJadwalTest extends TestCase
             ->assertStatus(200)->assertJsonPath('dibuat', 1);
     }
 
+    public function test_mapel_sama_bisa_dipakai_di_dua_slot(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $kelas = $this->kelas('1A', '1');
+        $pengampuId = $this->pengampu($super, $kelas, $this->mapel('Fiqih'));
+
+        $slot1 = $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/slot', [
+            'jenjang' => 'MI', 'nama_slot' => 'Jam 1',
+            'jam_mulai' => '07:00', 'jam_selesai' => '07:45', 'urutan' => 1,
+        ])->assertStatus(201)->json();
+        $slot2 = $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/slot', [
+            'jenjang' => 'MI', 'nama_slot' => 'Jam 2',
+            'jam_mulai' => '07:45', 'jam_selesai' => '08:30', 'urutan' => 2,
+        ])->assertStatus(201)->json();
+
+        // Mapel yang sama di dua slot berbeda = pelajaran 2 JP.
+        foreach ([$slot1, $slot2] as $slot) {
+            $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/jadwal', [
+                'pengampu_mapel_id' => $pengampuId, 'slot_jam_id' => $slot['id'], 'hari' => 'senin',
+            ])->assertStatus(201);
+        }
+
+        $jadwal = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/jadwal?kelas_id={$kelas->id}")
+            ->assertStatus(200)->json();
+        $this->assertCount(2, $jadwal['baris']);
+        $this->assertSame(['Fiqih', 'Fiqih'], array_column($jadwal['baris'], 'nama_mapel'));
+        $this->assertCount(1, $jadwal['pengampu']);
+        $this->assertSame('Fiqih', $jadwal['pengampu'][0]['nama_mapel']);
+        $this->assertCount(0, $jadwal['belum_terjadwal']);
+
+        // Slot + hari yang sama tetap tidak boleh dobel.
+        $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/jadwal', [
+            'pengampu_mapel_id' => $pengampuId, 'slot_jam_id' => $slot1['id'], 'hari' => 'senin',
+        ])->assertStatus(422)->assertJsonValidationErrors('slot_jam_id');
+    }
+
     public function test_slot_non_pelajaran_tidak_bisa_diisi_jadwal(): void
     {
         $this->lembaga('MI');

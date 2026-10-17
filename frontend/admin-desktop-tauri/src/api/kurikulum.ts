@@ -75,8 +75,11 @@ export interface JadwalResp {
   hari_libur?: string[];
   slot: Pick<SlotJam, 'id' | 'nama_slot' | 'jenis' | 'jam_mulai' | 'jam_selesai' | 'urutan'>[];
   baris: JadwalBaris[];
-  /** Pengampu kelas yang belum terjadwal — pilihan untuk sel jadwal. */
-  belum_terjadwal: { id: number; nama_mapel: string | null }[];
+  /** Semua pengampu kelas — pilihan tiap sel; mapel yang sudah dipakai di
+   *  slot lain tetap bisa dipilih lagi (2 JP atau lebih). */
+  pengampu: { id: number; nama_mapel: string | null; guru: string | null }[];
+  /** Pengampu yang belum terjadwal sama sekali (inventaris). */
+  belum_terjadwal: { id: number; nama_mapel: string | null; guru: string | null }[];
 }
 
 export const HARI_LABEL: Record<string, string> = {

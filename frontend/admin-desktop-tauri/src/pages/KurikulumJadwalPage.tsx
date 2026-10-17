@@ -62,7 +62,7 @@ export default function KurikulumJadwalPage() {
   const [hari, setHari] = useState<string[]>([]);
   const [hariLibur, setHariLibur] = useState<string[]>([]);
   const [baris, setBaris] = useState<JadwalBaris[]>([]);
-  const [belum, setBelum] = useState<{ id: number; nama_mapel: string | null }[]>([]);
+  const [pengampu, setPengampu] = useState<{ id: number; nama_mapel: string | null; guru: string | null }[]>([]);
   const [jpl, setJpl] = useState('00:45');
   const [err, setErr] = useState('');
 
@@ -73,10 +73,11 @@ export default function KurikulumJadwalPage() {
   }, [jenjang]);
 
   const muatJadwal = useCallback(async () => {
-    if (kelasId === '') { setBaris([]); setHari([]); setHariLibur([]); setBelum([]); return; }
+    if (kelasId === '') { setBaris([]); setHari([]); setHariLibur([]); setPengampu([]); return; }
     try {
       const r = await daftarJadwal(Number(kelasId));
-      setHari(r.hari); setHariLibur(r.hari_libur ?? []); setBaris(r.baris); setBelum(r.belum_terjadwal);
+      setHari(r.hari); setHariLibur(r.hari_libur ?? []); setBaris(r.baris);
+      setPengampu(r.pengampu ?? r.belum_terjadwal);
     } catch (e) { setErr(errorMessage(e)); }
   }, [kelasId]);
 
@@ -160,12 +161,16 @@ export default function KurikulumJadwalPage() {
   ), [canHapus, hapusSlotBaru]);
 
   /** Matriks: satu baris = satu slot, satu kolom = satu hari aktif. Pilihan
-   *  dropdown tiap sel = mapel yang belum terjadwal + nilai sel itu sendiri. */
+   *  dropdown tiap sel = SEMUA pengampu kelas, sehingga mapel yang sama bisa
+   *  dipakai di beberapa slot (2 JP atau lebih). */
   const fieldsMatriks = useMemo<ExcelField[]>(() => {
     const peta = new Map<string, JadwalBaris>();
     for (const b of baris) peta.set(`${b.slot_jam_id}|${b.hari}`, b);
     const petaSlot = new Map(slot.map((s) => [s.id, s]));
-    const pilihanUmum = belum.map((b) => ({ value: String(b.id), label: b.nama_mapel ?? `#${b.id}` }));
+    const pilihanUmum = pengampu.map((p) => ({
+      value: String(p.id),
+      label: `${p.nama_mapel ?? `#${p.id}`}${p.guru ? ` — ${p.guru}` : ''}`,
+    }));
 
     return [
       { key: '__slot', label: 'Jam', width: 170, kind: 'static' },
@@ -198,7 +203,7 @@ export default function KurikulumJadwalPage() {
         },
       })),
     ];
-  }, [hari, baris, belum, canTambah, canHapus, slot]);
+  }, [hari, baris, pengampu, canTambah, canHapus, slot]);
 
   const nilaiMatriks = useCallback((s: SlotJam) => {
     const v: Record<string, string | null> = {};
@@ -326,9 +331,6 @@ export default function KurikulumJadwalPage() {
               <span className="text-xs text-muted-foreground">
                 Libur: {hariLibur.map((h) => HARI_LABEL[h] ?? h).join(', ')}
               </span>
-            )}
-            {belum.length === 0 && baris.length > 0 && (
-              <span className="text-xs text-muted-foreground">Semua pengampu kelas ini sudah terjadwal.</span>
             )}
           </div>
 
