@@ -651,7 +651,10 @@ class KurikulumController extends Controller
                 || JadwalPelajaran::where('pengampu_mapel_id', $p->id)->exists();
             if ($punyaNilai) {
                 throw ValidationException::withMessages([
-                    'baris' => "Pengampu mapel #{$p->mata_pelajaran_id} sudah punya nilai/jadwal — tidak bisa dihapus.",
+                    'baris' => sprintf(
+                        'Mapel "%s" sudah punya nilai/jadwal — tidak bisa dikeluarkan dari pengampu kelas.',
+                        $p->mataPelajaran?->nama_mapel ?? "#{$p->mata_pelajaran_id}",
+                    ),
                 ]);
             }
         }

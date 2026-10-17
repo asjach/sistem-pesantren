@@ -8,6 +8,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import { Copy, Save, FileUp } from '@/icons';
+import { DeleteAction } from '@/components/RowActions';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
   daftarGuruAktif, daftarKurikulum, daftarKelasKurikulum, daftarPengampu,
@@ -16,6 +17,15 @@ import {
   KOLOM_IMPORT_PENGAMPU,
   type GuruAktif, type Kurikulum, type PengampuBaris,
 } from '@/api/kurikulum';
+
+/** Keterangan dialog hapus: bedakan baris manual vs yang berasal dari kurikulum
+ *  (baris dari kurikulum akan muncul lagi di tabel setelah dimuat ulang). */
+function ketHapusBaris(b: PengampuBaris): string {
+  const asal = b.dari_kurikulum
+    ? `"${b.nama_mapel}" berasal dari kurikulum kelas, jadi barisnya akan muncul lagi sampai mapelnya dikeluarkan dari kurikulum.`
+    : `"${b.nama_mapel}" dikeluarkan dari daftar pengampu kelas ini.`;
+  return `${asal} Guru & penugasan pada baris ini ikut dilepas. Mapel yang sudah punya nilai atau jadwal tidak bisa dihapus.`;
+}
 
 /** Halaman Pengampu: peta kelas→kurikulum + pengampu (kelas × mapel → guru). */
 export default function KurikulumPengampuPage() {
@@ -145,6 +155,22 @@ export default function KurikulumPengampuPage() {
     );
   }, [kelasId, jalankan, muatPengampuKelas]);
 
+  /** Keluarkan satu mapel dari daftar pengampu kelas. Backend `simpanPengampu`
+   *  bersifat sync (baris tak ada di daftar → dihapus), jadi ini mengirim
+   *  daftar tanpa baris itu. Suntingan guru baris lain ikut terkirim karena
+   *  isinya sama dengan yang tampil di tabel. */
+  const hapusBaris = useCallback(async (b: PengampuBaris) => {
+    if (kelasId === '') return;
+    const dikirim = baris
+      .filter((x) => sunting[x.mata_pelajaran_id] !== undefined && x.mata_pelajaran_id !== b.mata_pelajaran_id)
+      .map((x) => ({ mata_pelajaran_id: x.mata_pelajaran_id, keaktifan_pegawai_id: sunting[x.mata_pelajaran_id] }));
+    await jalankan(
+      () => simpanPengampu(Number(kelasId), dikirim),
+      `${b.nama_mapel} dikeluarkan dari pengampu kelas ini.`,
+      async () => { await muatPengampuKelas(Number(kelasId)); },
+    );
+  }, [kelasId, baris, sunting, jalankan, muatPengampuKelas]);
+
   if (!siap) {
     return (
       <div className={PAGE_SHELL}>
@@ -251,6 +277,7 @@ export default function KurikulumPengampuPage() {
                 <th className="border border-border px-2 py-1 w-28 text-left">Kelompok</th>
                 <th className="border border-border px-2 py-1 w-24">Sumber</th>
                 <th className="border border-border px-2 py-1 text-left">Guru pengampu</th>
+                <th className="border border-border px-2 py-1 w-10" />
               </tr>
             </thead>
             <tbody>
@@ -288,11 +315,23 @@ export default function KurikulumPengampuPage() {
                         ))}
                       </select>
                     </td>
+                    <td className="border border-border px-1 py-0.5">
+                      <div className="flex justify-center">
+                        {canUbah && (
+                          <DeleteAction
+                            id={`btn_hapus_pengampu_${b.mata_pelajaran_id}`}
+                            title="Keluarkan mapel dari pengampu?"
+                            description={ketHapusBaris(b)}
+                            onConfirm={() => void hapusBaris(b)}
+                          />
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {baris.length === 0 && (
-                <tr><td colSpan={4} className="border border-border px-2 py-4 text-center text-muted-foreground">
+                <tr><td colSpan={5} className="border border-border px-2 py-4 text-center text-muted-foreground">
                   Belum ada mapel untuk kelas ini — pasang kurikulum di atas, lalu klik “Generate dari kurikulum”.
                 </td></tr>
               )}
