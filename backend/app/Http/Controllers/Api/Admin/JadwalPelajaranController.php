@@ -205,9 +205,9 @@ class JadwalPelajaranController extends Controller
                 ->get(['id', 'kelas_id', 'hari', 'nama_slot', 'jenis', 'jam_mulai', 'jam_selesai', 'urutan']);
 
         $baris = JadwalPelajaran::with([
-            'pengampuMapel.mataPelajaran:id,nama_mapel',
-            'pengampuMapel.keaktifan.pegawai:id,nama_lengkap,gelar_depan,gelar_belakang,jenis_kelamin',
-            'keaktifan.pegawai:id,nama_lengkap,gelar_depan,gelar_belakang,jenis_kelamin',
+            'pengampuMapel.mataPelajaran:id,nama_mapel,kode_mapel,singkatan',
+            'pengampuMapel.keaktifan.pegawai:id,nama_lengkap,nama_panggilan,nama_singkat,gelar_depan,gelar_belakang,jenis_kelamin',
+            'keaktifan.pegawai:id,nama_lengkap,nama_panggilan,nama_singkat,gelar_depan,gelar_belakang,jenis_kelamin',
         ])
             ->where('kelas_id', $kelas->id)
             ->get()
@@ -220,8 +220,22 @@ class JadwalPelajaranController extends Controller
                 'keaktifan_pegawai_id' => $j->pengampuMapel?->keaktifan_pegawai_id
                     ?? $j->keaktifan_pegawai_id,
                 'nama_mapel' => $j->pengampuMapel?->mataPelajaran?->nama_mapel,
+                'kode_mapel' => $j->pengampuMapel?->mataPelajaran?->kode_mapel,
+                'singkatan' => $j->pengampuMapel?->mataPelajaran?->singkatan,
                 'guru' => $j->pengampuMapel?->keaktifan?->pegawai?->nama_lengkap
                     ?? $j->keaktifan?->pegawai?->nama_lengkap,
+                'guru_nama_panggilan' => $j->pengampuMapel?->keaktifan?->pegawai?->nama_panggilan
+                    ?? $j->keaktifan?->pegawai?->nama_panggilan,
+                'guru_nama_singkat' => $j->pengampuMapel?->keaktifan?->pegawai?->nama_singkat
+                    ?? $j->keaktifan?->pegawai?->nama_singkat,
+                'guru_gelar_depan' => $j->pengampuMapel?->keaktifan?->pegawai?->gelar_depan
+                    ?? $j->keaktifan?->pegawai?->gelar_depan,
+                'guru_gelar_belakang' => $j->pengampuMapel?->keaktifan?->pegawai?->gelar_belakang
+                    ?? $j->keaktifan?->pegawai?->gelar_belakang,
+                'guru_jenis_kelamin' => $j->pengampuMapel?->keaktifan?->pegawai?->jenis_kelamin
+                    ?? $j->keaktifan?->pegawai?->jenis_kelamin,
+                'guru_pegawai_id' => $j->pengampuMapel?->keaktifan?->pegawai_id
+                    ?? $j->keaktifan?->pegawai_id,
                 'guru_saja' => $j->pengampu_mapel_id === null,
                 'ruangan' => $j->ruangan,
             ])

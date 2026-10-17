@@ -605,6 +605,23 @@ describe('ExcelTable — klik kanan baris', () => {
     expect(menu).toHaveTextContent('Budi');
   });
 
+  it('klik kanan satu sel tanpa seleksi tetap menawarkan aksi blok', async () => {
+    const onIsiBlok = vi.fn();
+    const { container } = renderTabel({ onIsiBlok, blokAksiLabel: 'Isi mapel & guru…' });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+
+    const sel = within(container).getByText('Ahmad').closest('.dsg-cell') as HTMLElement;
+    fireEvent.contextMenu(sel);
+
+    const menu = await screen.findByRole('menu');
+    expect(menu).toHaveTextContent('BLOK 1 SEL');
+    await userEvent.click(screen.getByText('Isi mapel & guru…'));
+
+    const [blokRows, blokFields] = onIsiBlok.mock.calls[0] as [Baris[], { key: string }[]];
+    expect(blokRows).toEqual([rows[0]]);
+    expect(blokFields.map((f) => f.key)).toEqual(['nama']);
+  });
+
   it('klik kanan di area sel (bukan teks) tetap menawarkan aksi blok', async () => {
     const onIsiBlok = vi.fn();
     const { container } = renderTabel({ onIsiBlok, blokAksiLabel: 'Isi mapel & guru…' });

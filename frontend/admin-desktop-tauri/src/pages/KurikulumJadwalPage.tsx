@@ -42,15 +42,47 @@ interface SasaranJadwal {
 /** Isi sel matriks: mapel + guru (dua baris), mapel saja, atau guru saja. */
 type TampilanJadwal = 'keduanya' | 'mapel' | 'guru';
 
+/** Format nama mapel: nama lengkap, kode, atau singkatan. */
+type FormatMapel = 'nama' | 'kode' | 'singkatan';
+
+/** Format guru: nama/gelar, panggilan/singkat, berprefiks Ust./Usth., atau kode. */
+type FormatGuru = 'nama' | 'gelar' | 'panggilan' | 'singkat' | 'prefiks' | 'prefiks_gelar' | 'kode';
+
 function namaGuru(g: GuruAktif): string {
   return `${g.gelar_depan ? `${g.gelar_depan} ` : ''}${g.nama_lengkap}${g.gelar_belakang ? `, ${g.gelar_belakang}` : ''}`;
 }
 
+/** Nama mapel sesuai format; kode/singkatan kosong kembali ke nama. */
+function formatMapelBaris(j: JadwalBaris, format: FormatMapel): string {
+  if (format === 'kode') return j.kode_mapel?.trim() || j.nama_mapel || '';
+  if (format === 'singkatan') return j.singkatan?.trim() || j.nama_mapel || '';
+  return j.nama_mapel || '';
+}
+
+/** Nama guru sesuai format. Prefiks mengikuti jenis kelamin Pegawai. */
+function formatGuruBaris(j: JadwalBaris, format: FormatGuru): string {
+  const nama = j.guru?.trim();
+  if (!nama) return '';
+  if (format === 'kode') {
+    return j.guru_pegawai_id !== null ? String(j.guru_pegawai_id) : '';
+  }
+  if (format === 'panggilan') return j.guru_nama_panggilan?.trim() || nama;
+  if (format === 'singkat') return j.guru_nama_singkat?.trim() || nama;
+  const depan = j.guru_gelar_depan?.trim();
+  const belakang = j.guru_gelar_belakang?.trim();
+  const denganGelar = `${depan ? `${depan} ` : ''}${nama}${belakang ? `, ${belakang}` : ''}`;
+  if (format === 'gelar') return denganGelar;
+  if (format === 'nama') return nama;
+  const prefiks = j.guru_jenis_kelamin === 'P' ? 'Usth.' : 'Ust.';
+  return format === 'prefiks_gelar' ? `${prefiks} ${denganGelar}` : `${prefiks} ${nama}`;
+}
+
 /** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × JP) + tab
- *  template mingguan & hari libur. Klik sel membuka dialog Guru + Mapel
- *  (guru boleh diisi lebih dulu, mapel menyusul); blok beberapa sel lalu
- *  klik kanan mengisi keduanya sekaligus. Tampilan memilih isi sel:
- *  keduanya, mapel saja, atau guru saja. */
+ *  template mingguan & hari libur. Klik kiri hanya memilih sel; klik kanan
+ *  sel (satu atau blok) membuka dialog Guru + Mapel (guru boleh diisi lebih
+ *  dulu, mapel menyusul). Tampilan memilih isi sel (keduanya/mapel/guru) dan
+ *  Format memilih nama/kode/singkatan mapel serta nama/gelar/prefiks
+ *  Ust.-Usth./kode/nama panggilan/nama singkat guru. */
 export default function KurikulumJadwalPage() {
   const [tab, setTab] = useState('jadwal');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
@@ -81,6 +113,8 @@ export default function KurikulumJadwalPage() {
   const [selGuru, setSelGuru] = useState<number | ''>('');
   const [selBusy, setSelBusy] = useState(false);
   const [tampilan, setTampilan] = useState<TampilanJadwal>('keduanya');
+  const [formatMapel, setFormatMapel] = useState<FormatMapel>('nama');
+  const [formatGuru, setFormatGuru] = useState<FormatGuru>('nama');
   const [err, setErr] = useState('');
 
   const muatJadwal = useCallback(async () => {
@@ -215,18 +249,6 @@ export default function KurikulumJadwalPage() {
     [baris],
   );
 
-  /** Buka dialog untuk satu sel (klik kiri). */
-  const bukaSel = useCallback((id: string | number, h: string) => {
-    if (!canUbah) return;
-    const row = petaBaris.get(Number(id));
-    const s = row?.perHari[h];
-    if (row === undefined || s === undefined || s.jenis !== 'pelajaran') return;
-    const j = petaJadwal.get(`${s.id}|${h}`);
-    setEditSel([{ slot: s, hari: h }]);
-    setSelMapel(j?.mata_pelajaran_id ?? '');
-    setSelGuru(j?.keaktifan_pegawai_id ?? '');
-  }, [canUbah, petaBaris, petaJadwal]);
-
   /** Klik kanan DI DALAM blok seleksi: isi mapel + guru untuk semua sel
    *  pelajaran yang tercakup (hari dari kolom yang terseleksi). */
   const bukaBlok = useCallback((rowsBlok: BarisMatriks[], fieldsBlok: ExcelField[]) => {
@@ -267,17 +289,18 @@ export default function KurikulumJadwalPage() {
     }
     const j = petaJadwal.get(`${s.id}|${h}`);
     if (j === undefined) return null;
-    const mapel = j.nama_mapel;
-    const guru = j.guru;
+    const tanpaMapel = j.mata_pelajaran_id === null;
+    const mapel = tanpaMapel ? '' : formatMapelBaris(j, formatMapel);
+    const guru = formatGuruBaris(j, formatGuru);
     if (tampilan === 'mapel') {
-      return mapel === null ? null : <span className="max-w-full truncate">{mapel}</span>;
+      return mapel === '' ? null : <span className="max-w-full truncate">{mapel}</span>;
     }
     if (tampilan === 'guru') {
-      return <span className="max-w-full truncate">{guru ?? '—'}</span>;
+      return <span className="max-w-full truncate">{guru || '—'}</span>;
     }
     // Guru dulu, mapel menyusul: tampilkan guru saja sampai mapel diisi.
-    if (mapel === null) {
-      return guru === null ? null : <span className="max-w-full truncate">{guru}</span>;
+    if (tanpaMapel) {
+      return guru === '' ? null : <span className="max-w-full truncate">{guru}</span>;
     }
     return (
       <span className="flex min-w-0 max-w-full flex-col items-center justify-center leading-none">
@@ -287,7 +310,7 @@ export default function KurikulumJadwalPage() {
         ) : null}
       </span>
     );
-  }, [petaBaris, petaJadwal, tampilan]);
+  }, [petaBaris, petaJadwal, tampilan, formatMapel, formatGuru]);
 
   const fieldsMatriks = useMemo<ExcelField[]>(() => [
     { key: '__slot', label: 'Jam', width: 170, kind: 'static' },
@@ -296,10 +319,9 @@ export default function KurikulumJadwalPage() {
       label: HARI_LABEL[h] ?? h,
       width: 180,
       kind: 'static',
-      onCellClick: (id) => bukaSel(id, h),
       renderCell: (rowData: GridRow) => renderSel(rowData.id, h),
     })),
-  ], [hari, bukaSel, renderSel]);
+  ], [hari, renderSel]);
 
   const nilaiMatriks = useCallback((r: BarisMatriks) => {
     const v: Record<string, string | null> = { __slot: r.label };
@@ -309,18 +331,19 @@ export default function KurikulumJadwalPage() {
       if (s.jenis !== 'pelajaran') { v[h] = s.nama_slot ?? JENIS_SLOT_LABEL[s.jenis]; continue; }
       const j = petaJadwal.get(`${s.id}|${h}`);
       if (j === undefined) { v[h] = ''; continue; }
-      const mapel = j.nama_mapel;
-      const guru = j.guru;
+      const tanpaMapel = j.mata_pelajaran_id === null;
+      const mapel = tanpaMapel ? '' : formatMapelBaris(j, formatMapel);
+      const guru = formatGuruBaris(j, formatGuru);
       v[h] = tampilan === 'mapel'
-        ? (mapel ?? '')
+        ? mapel
         : tampilan === 'guru'
-          ? (guru ?? '')
-          : mapel === null
-            ? (guru ?? '')
+          ? guru
+          : tanpaMapel
+            ? guru
             : `${mapel}${guru ? ` — ${guru}` : ''}`;
     }
     return v;
-  }, [hari, petaJadwal, tampilan]);
+  }, [hari, petaJadwal, tampilan, formatMapel, formatGuru]);
 
   const sasaranTunggal = editSel !== null && editSel.length === 1 ? editSel[0] : null;
   const selJadwal = sasaranTunggal === null
@@ -440,6 +463,36 @@ export default function KurikulumJadwalPage() {
               <option value="keduanya">Mapel &amp; guru</option>
               <option value="mapel">Mapel saja</option>
               <option value="guru">Guru saja</option>
+            </select>
+            <label className="text-xs text-muted-foreground" htmlFor="select_format_mapel">Mapel</label>
+            <select
+              id="select_format_mapel"
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+              value={formatMapel}
+              disabled={tampilan === 'guru'}
+              title="Format tampilan mapel"
+              onChange={(e) => setFormatMapel(e.target.value as FormatMapel)}
+            >
+              <option value="nama">Nama</option>
+              <option value="kode">Kode</option>
+              <option value="singkatan">Singkatan</option>
+            </select>
+            <label className="text-xs text-muted-foreground" htmlFor="select_format_guru">Guru</label>
+            <select
+              id="select_format_guru"
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+              value={formatGuru}
+              disabled={tampilan === 'mapel'}
+              title="Format tampilan guru"
+              onChange={(e) => setFormatGuru(e.target.value as FormatGuru)}
+            >
+              <option value="nama">Nama tanpa gelar</option>
+              <option value="gelar">Nama + gelar</option>
+              <option value="panggilan">Nama panggilan</option>
+              <option value="singkat">Nama singkat</option>
+              <option value="prefiks">Ust./Usth. tanpa gelar</option>
+              <option value="prefiks_gelar">Ust./Usth. + gelar</option>
+              <option value="kode">Kode guru</option>
             </select>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <label className="text-xs text-muted-foreground" htmlFor="select_template_kelas">Template</label>

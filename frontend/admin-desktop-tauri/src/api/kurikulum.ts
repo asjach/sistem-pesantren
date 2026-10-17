@@ -73,6 +73,15 @@ export interface JadwalBaris {
   pengampu_mapel_id: number | null;
   mata_pelajaran_id: number | null; keaktifan_pegawai_id: number | null;
   nama_mapel: string | null; guru: string | null;
+  /** Nama panggilan & singkat guru (opsional; fallback ke nama lengkap). */
+  guru_nama_panggilan: string | null; guru_nama_singkat: string | null;
+  /** Kode & singkatan mapel untuk opsi format tampilan jadwal. */
+  kode_mapel: string | null; singkatan: string | null;
+  /** Data guru untuk format Ust./Usth., dengan/tanpa gelar, atau kode. */
+  guru_gelar_depan: string | null; guru_gelar_belakang: string | null;
+  guru_jenis_kelamin: string | null;
+  /** ID pegawai (master guru) untuk opsi "Kode guru". */
+  guru_pegawai_id: number | null;
   /** True bila sel hanya berisi guru (mapel belum diisi). */
   guru_saja?: boolean;
   ruangan: string | null;

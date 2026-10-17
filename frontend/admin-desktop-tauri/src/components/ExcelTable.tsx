@@ -915,16 +915,15 @@ export default function ExcelTable<T extends { id: string | number }>({
     ];
   }
 
-  /** Blok seleksi untuk aksi massal halaman (mis. isi mapel & guru banyak
-   *  sel sekaligus). Baris input & kolom non-data dilewati. */
-  const blokSeleksi = (() => {
-    if (!onIsiBlok || range === null) return null;
-    const r0 = Math.max(0, Math.min(range.min.row, range.max.row));
-    const r1 = Math.min(gridValue.length - 1, Math.max(range.min.row, range.max.row));
+  /** Susun blok dari rentang indeks baris/kolom grid. Baris input & kolom
+   *  non-data dilewati; null bila tak ada sel data yang tersisa. */
+  function susunBlok(r0Awal: number, r1Awal: number, c0Awal: number, c1Awal: number) {
+    const r0 = Math.max(0, Math.min(r0Awal, r1Awal));
+    const r1 = Math.min(gridValue.length - 1, Math.max(r0Awal, r1Awal));
     if (r1 < r0) return null;
     const keys = kunciKolomGrid();
-    const c0 = Math.max(0, Math.min(range.min.col, range.max.col));
-    const c1 = Math.min(keys.length - 1, Math.max(range.min.col, range.max.col));
+    const c0 = Math.max(0, Math.min(c0Awal, c1Awal));
+    const c1 = Math.min(keys.length - 1, Math.max(c0Awal, c1Awal));
     const fieldsBlok: ExcelField[] = [];
     for (let c = c0; c <= c1; c++) {
       const key = keys[c];
@@ -942,6 +941,13 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     if (rowsBlok.length === 0) return null;
     return { rows: rowsBlok, fields: fieldsBlok, jumlah: rowsBlok.length * fieldsBlok.length };
+  }
+
+  /** Blok seleksi untuk aksi massal halaman (mis. isi mapel & guru banyak
+   *  sel sekaligus). */
+  const blokSeleksi = (() => {
+    if (!onIsiBlok || range === null) return null;
+    return susunBlok(range.min.row, range.max.row, range.min.col, range.max.col);
   })();
 
   /** Tinggi tiap baris grid (satu kali hitung per render, dipakai ulang di
@@ -1697,19 +1703,25 @@ export default function ExcelTable<T extends { id: string | number }>({
     ? visibleFields.findIndex((f) => f.key === ctxHeader.colKey)
     : -1;
 
-  /** Blok hanya ditawarkan bila klik kanan jatuh DI DALAM seleksi aktif —
-   *  menu baris di luar seleksi tidak boleh mengisi blok yang tak terlihat. */
+  /** Blok yang ditawarkan saat klik kanan: seleksi aktif bila klik di dalamnya;
+   *  sel yang diklik saja bila tanpa seleksi / klik di luar seleksi. */
   const blokCtx = (() => {
-    if (!blokSeleksi || range === null || ctxRow === null) return null;
+    if (!onIsiBlok || ctxRow === null) return null;
     const keys = kunciKolomGrid();
     const rowIdx = gridValue.findIndex((g) => String(g.id) === String(ctxRow.rowId));
     const colIdx = keys.indexOf(ctxRow.colKey ?? '');
-    const r0 = Math.min(range.min.row, range.max.row);
-    const r1 = Math.max(range.min.row, range.max.row);
-    const c0 = Math.min(range.min.col, range.max.col);
-    const c1 = Math.max(range.min.col, range.max.col);
-    if (rowIdx < r0 || rowIdx > r1 || colIdx < c0 || colIdx > c1) return null;
-    return blokSeleksi;
+    if (rowIdx < 0 || colIdx < 0) return null;
+    if (blokSeleksi !== null && range !== null) {
+      const r0 = Math.min(range.min.row, range.max.row);
+      const r1 = Math.max(range.min.row, range.max.row);
+      const c0 = Math.min(range.min.col, range.max.col);
+      const c1 = Math.max(range.min.col, range.max.col);
+      if (rowIdx >= r0 && rowIdx <= r1 && colIdx >= c0 && colIdx <= c1) {
+        return blokSeleksi;
+      }
+    }
+    // Klik kanan langsung pada satu sel (tanpa blok) tetap bisa diisi.
+    return susunBlok(rowIdx, rowIdx, colIdx, colIdx);
   })();
 
   return (

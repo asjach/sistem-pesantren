@@ -15,6 +15,8 @@ class PegawaiStoreRequest extends FormRequest
     {
         return [
             'nama_lengkap' => ['required', 'string', 'max:255'],
+            'nama_panggilan' => ['nullable', 'string', 'max:100'],
+            'nama_singkat' => ['nullable', 'string', 'max:50'],
             'nip' => ['nullable', 'string', 'max:50'],
             'nipp' => ['nullable', 'string', 'max:30'],
             'nik' => ['nullable', 'string', 'max:20'],

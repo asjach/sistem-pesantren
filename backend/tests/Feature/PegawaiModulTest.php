@@ -58,17 +58,22 @@ class PegawaiModulTest extends TestCase
 
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai', [
             'nama_lengkap' => 'Siti Rahayu',
+            'nama_panggilan' => 'Siti',
+            'nama_singkat' => 'S. Rahayu',
             'jenis_kelamin' => 'P',
             'nip' => '198501012010012001',
         ])->assertCreated();
         $id = $res->json('data.id');
+        $this->assertSame('Siti', $res->json('data.nama_panggilan'));
+        $this->assertSame('S. Rahayu', $res->json('data.nama_singkat'));
 
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai?q=Siti')
             ->assertOk()->assertJsonFragment(['nama_lengkap' => 'Siti Rahayu']);
 
         $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/pegawai/{$id}", [
             'gelar_belakang' => 'S.Pd.',
-        ])->assertOk()->assertJsonFragment(['gelar_belakang' => 'S.Pd.']);
+            'nama_singkat' => 'S.R.',
+        ])->assertOk()->assertJsonFragment(['gelar_belakang' => 'S.Pd.', 'nama_singkat' => 'S.R.']);
 
         // NIP ganda ditolak 422.
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai', [

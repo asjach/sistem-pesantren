@@ -54,6 +54,8 @@ const OPSI_STATUS_PEGAWAI: { nilai: 'semua' | 'Ya' | 'Tidak'; label: string }[] 
 /** Seluruh kolom identitas Buku Induk Guru (cermin tabel `pegawai`). */
 const FIELDS: ExcelField[] = [
   { key: 'nama_lengkap', label: 'Nama Lengkap', width: 220, kind: 'text', maxLength: 255, required: true },
+  { key: 'nama_panggilan', label: 'Nama Panggilan', width: 150, kind: 'text', maxLength: 100 },
+  { key: 'nama_singkat', label: 'Nama Singkat', width: 140, kind: 'text', maxLength: 50 },
   { key: 'nip', label: 'NIP', width: 190, kind: 'text', maxLength: 50 },
   { key: 'nipp', label: 'NIPP', width: 150, kind: 'text', maxLength: 30 },
   { key: 'nik', label: 'NIK', width: 190, kind: 'text', maxLength: 20 },
@@ -98,6 +100,8 @@ const FIELDS: ExcelField[] = [
 function gridValues(p: Pegawai): Record<string, string | null> {
   return {
     nama_lengkap: p.nama_lengkap,
+    nama_panggilan: p.nama_panggilan,
+    nama_singkat: p.nama_singkat,
     nip: p.nip,
     nipp: p.nipp,
     nik: p.nik,

@@ -241,6 +241,8 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `nipp`: string(30) [null, unique] — Nomor Induk Pegawai Pesantren, unik global; kunci import sistem lama
 - `nik`: string(16) [null]
 - `nama_lengkap`: string
+- `nama_panggilan`: string(100) [null] — nama akrab untuk tampilan padat
+- `nama_singkat`: string(50) [null] — singkatan nama untuk jadwal/tabel
 - `gelar_depan`: string [null]
 - `gelar_belakang`: string [null]
 - `jenis_kelamin`: enum(L|P)

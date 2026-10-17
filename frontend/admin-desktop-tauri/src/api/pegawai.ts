@@ -14,6 +14,8 @@ export interface Pegawai {
   nipp: string | null;
   nik: string | null;
   nama_lengkap: string;
+  nama_panggilan: string | null;
+  nama_singkat: string | null;
   gelar_depan: string | null;
   gelar_belakang: string | null;
   jenis_kelamin: string;

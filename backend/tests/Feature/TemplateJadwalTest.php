@@ -72,16 +72,28 @@ class TemplateJadwalTest extends TestCase
         ]);
     }
 
-    private function mapel(string $nama): MataPelajaran
+    private function mapel(string $nama, ?string $kode = null, ?string $singkatan = null): MataPelajaran
     {
-        return MataPelajaran::create(['jenjang' => 'MI', 'nama_mapel' => $nama, 'kelompok' => 'formal']);
+        return MataPelajaran::create([
+            'jenjang' => 'MI', 'nama_mapel' => $nama, 'kelompok' => 'formal',
+            'kode_mapel' => $kode, 'singkatan' => $singkatan,
+        ]);
     }
 
-    private function guru(): int
-    {
+    private function guru(
+        string $jenisKelamin = 'L',
+        ?string $gelarDepan = null,
+        ?string $gelarBelakang = null,
+        ?string $namaPanggilan = null,
+        ?string $namaSingkat = null,
+    ): int {
         $p = Pegawai::create([
             'nama_lengkap' => 'Guru '.$this->seq++,
-            'jenis_kelamin' => 'L',
+            'nama_panggilan' => $namaPanggilan,
+            'nama_singkat' => $namaSingkat,
+            'jenis_kelamin' => $jenisKelamin,
+            'gelar_depan' => $gelarDepan,
+            'gelar_belakang' => $gelarBelakang,
         ]);
 
         return KeaktifanPegawai::create([
@@ -468,6 +480,48 @@ class TemplateJadwalTest extends TestCase
             'mata_pelajaran_id' => null, 'keaktifan_pegawai_id' => null,
         ])->assertStatus(200);
         $this->assertDatabaseCount('jadwal_pelajaran', 0);
+    }
+
+    public function test_index_jadwal_mengembalikan_data_format_mapel_dan_guru(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+        $guruId = $this->guru('P', 'Usth.', 'S.Pd.', 'Yuni', 'YQ');
+        $kelas = $this->kelas('1A', '1');
+        $mapel = $this->mapel('Bahasa Indonesia', 'BINA', 'B. Indonesia');
+
+        $id = $this->template($super, 'Satu Jam', [
+            ['hari' => 'senin', 'nama_slot' => 'Jam 1', 'jam_mulai' => '07:00', 'jam_selesai' => '07:45'],
+        ]);
+        $this->terapkan($super, $id, ['sasaran' => 'kelas', 'sasaran_id' => (string) $kelas->id]);
+        $slot = SlotJamPelajaran::where('kelas_id', $kelas->id)->firstOrFail();
+
+        $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
+            'kelas_id' => $kelas->id, 'slot_jam_id' => $slot->id, 'hari' => 'senin',
+            'mata_pelajaran_id' => $mapel->id, 'keaktifan_pegawai_id' => $guruId,
+        ])->assertStatus(200);
+
+        $resp = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/jadwal?kelas_id={$kelas->id}")
+            ->assertStatus(200)->json();
+
+        $this->assertCount(1, $resp['baris']);
+        $b = $resp['baris'][0];
+        $this->assertSame('Bahasa Indonesia', $b['nama_mapel']);
+        $this->assertSame('BINA', $b['kode_mapel']);
+        $this->assertSame('B. Indonesia', $b['singkatan']);
+        $this->assertSame('Usth.', $b['guru_gelar_depan']);
+        $this->assertSame('S.Pd.', $b['guru_gelar_belakang']);
+        $this->assertSame('Yuni', $b['guru_nama_panggilan']);
+        $this->assertSame('YQ', $b['guru_nama_singkat']);
+        $this->assertSame('P', $b['guru_jenis_kelamin']);
+        $this->assertSame($guruId, (int) $b['keaktifan_pegawai_id']);
+        $this->assertSame(
+            (int) KeaktifanPegawai::whereKey($guruId)->value('pegawai_id'),
+            (int) $b['guru_pegawai_id'],
+        );
+        $this->assertNotNull($b['guru']);
     }
 
     public function test_lingkup_template_menolak_sasaran_yang_tidak_cocok(): void
