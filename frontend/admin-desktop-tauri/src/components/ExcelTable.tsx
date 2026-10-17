@@ -191,6 +191,10 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   /** Tabel database utama grid ini: kolom tanpa `sumber` dianggap berasal dari
    *  tabel ini (nama kolom = key-nya), kecuali `sumber: null`. */
   sumberTabel?: string;
+  /** Aksi massal untuk blok sel terpilih: dipanggil dari klik kanan DI DALAM
+   *  seleksi. `blokAksiLabel` hanya mengubah teks item menunya. */
+  onIsiBlok?: (rows: T[], fields: ExcelField[]) => void;
+  blokAksiLabel?: string;
   /** Kontrol paginasi halaman (mis. `<Pager/>`). Dirender di kaki tabel
    *  SEBARIS dengan tombol tinggi baris; tanpa prop ini kaki tabel hanya
    *  berisi tombol tinggi baris. */
@@ -268,6 +272,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   arahUrut = 'naik',
   onUrut,
   pager,
+  onIsiBlok,
+  blokAksiLabel = 'Isi blok…',
 }: ExcelTableProps<T>) {
   // Preferensi tampilan tabel global (dikontrol dari top bar). `rowH` di sini
   // kini berarti BAWAAN — tinggi per tabel (lihat `useTinggiBaris`) yang
@@ -900,6 +906,44 @@ export default function ExcelTable<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, drafts, checkedIds, fields, getValues, showInput, inputRowValues]);
 
+  /** Urutan id kolom grid (termasuk centang & Aksi) — indeks seleksi DSG. */
+  function kunciKolomGrid(): string[] {
+    return [
+      ...(sembunyiCentang ? [] : ['check']),
+      ...visibleFields.map((f) => f.key),
+      ...(sembunyiAksi ? [] : ['__aksi']),
+    ];
+  }
+
+  /** Blok seleksi untuk aksi massal halaman (mis. isi mapel & guru banyak
+   *  sel sekaligus). Baris input & kolom non-data dilewati. */
+  const blokSeleksi = (() => {
+    if (!onIsiBlok || range === null) return null;
+    const r0 = Math.max(0, Math.min(range.min.row, range.max.row));
+    const r1 = Math.min(gridValue.length - 1, Math.max(range.min.row, range.max.row));
+    if (r1 < r0) return null;
+    const keys = kunciKolomGrid();
+    const c0 = Math.max(0, Math.min(range.min.col, range.max.col));
+    const c1 = Math.min(keys.length - 1, Math.max(range.min.col, range.max.col));
+    const fieldsBlok: ExcelField[] = [];
+    for (let c = c0; c <= c1; c++) {
+      const key = keys[c];
+      if (key === 'check' || key === '__aksi') continue;
+      const f = visibleFields.find((v) => v.key === key);
+      if (f) fieldsBlok.push(f);
+    }
+    if (fieldsBlok.length === 0) return null;
+    const rowsBlok: T[] = [];
+    for (let r = r0; r <= r1; r++) {
+      const g = gridValue[r];
+      if (!g || String(g.id) === INPUT_ROW_ID) continue;
+      const domain = rowsRef.current.find((x) => String(x.id) === String(g.id));
+      if (domain) rowsBlok.push(domain);
+    }
+    if (rowsBlok.length === 0) return null;
+    return { rows: rowsBlok, fields: fieldsBlok, jumlah: rowsBlok.length * fieldsBlok.length };
+  })();
+
   /** Tinggi tiap baris grid (satu kali hitung per render, dipakai ulang di
    *  bawah agar tidak mengukur dua kali). */
   const tinggiPerBaris = useMemo(() => {
@@ -1201,6 +1245,8 @@ export default function ExcelTable<T extends { id: string | number }>({
             component: StaticCell,
             columnData: {
               fieldKey: f.key,
+              render: f.renderCell,
+              onClick: f.onCellClick,
               /* Kartu hover menerima baris SUMBER yang digabung dengan nilai
                  tampilan: data yang tak ditampilkan grid (mis. rincian periode
                  mentah) tetap bisa dipakai tanpa menaruhnya di `getValues`. */
@@ -1627,6 +1673,21 @@ export default function ExcelTable<T extends { id: string | number }>({
     ? visibleFields.findIndex((f) => f.key === ctxHeader.colKey)
     : -1;
 
+  /** Blok hanya ditawarkan bila klik kanan jatuh DI DALAM seleksi aktif —
+   *  menu baris di luar seleksi tidak boleh mengisi blok yang tak terlihat. */
+  const blokCtx = (() => {
+    if (!blokSeleksi || range === null || ctxRow === null) return null;
+    const keys = kunciKolomGrid();
+    const rowIdx = gridValue.findIndex((g) => String(g.id) === String(ctxRow.rowId));
+    const colIdx = keys.indexOf(ctxRow.colKey ?? '');
+    const r0 = Math.min(range.min.row, range.max.row);
+    const r1 = Math.max(range.min.row, range.max.row);
+    const c0 = Math.min(range.min.col, range.max.col);
+    const c1 = Math.max(range.min.col, range.max.col);
+    if (rowIdx < r0 || rowIdx > r1 || colIdx < c0 || colIdx > c1) return null;
+    return blokSeleksi;
+  })();
+
   return (
     <div className={cn(
       'flex flex-col',
@@ -1784,6 +1845,9 @@ export default function ExcelTable<T extends { id: string | number }>({
             headerIdx={ctxHeaderIdx}
             row={ctxRow}
             rowAksi={ctxRowAksi}
+            blokJumlah={blokCtx?.jumlah}
+            blokLabel={blokAksiLabel}
+            onIsiBlok={blokCtx ? () => onIsiBlok!(blokCtx.rows, blokCtx.fields) : undefined}
             freezeAktif={freezeAktif}
             ubahFreeze={ubahFreeze}
             geserHeader={geserHeader}

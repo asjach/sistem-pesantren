@@ -168,3 +168,30 @@ describe('MenuKonteksGrid — perataan kolom digerbang izin kelola', () => {
     expect(screen.getByRole('button', { name: 'Sesuaikan lebar kolom ini' })).toBeInTheDocument();
   });
 });
+
+describe('MenuKonteksGrid — aksi blok seleksi', () => {
+  const ROW = { rowId: '1', rowLabel: 'Baris 1', colKey: 'nama' };
+
+  it('menampilkan jumlah sel dan memanggil penanganannya', async () => {
+    const user = userEvent.setup();
+    const onIsiBlok = vi.fn();
+    renderMenu(true, {
+      header: null,
+      row: ROW,
+      blokJumlah: 4,
+      blokLabel: 'Isi mapel & guru…',
+      onIsiBlok,
+    });
+
+    expect(screen.getByText('BLOK 4 SEL')).toBeInTheDocument();
+    await user.click(screen.getByText('Isi mapel & guru…'));
+
+    expect(onIsiBlok).toHaveBeenCalledTimes(1);
+  });
+
+  it('tanpa penanganan blok, item tidak ditampilkan', () => {
+    renderMenu(true, { header: null, row: ROW });
+
+    expect(screen.queryByText('Isi mapel & guru…')).toBeNull();
+  });
+});

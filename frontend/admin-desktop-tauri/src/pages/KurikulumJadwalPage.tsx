@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTable, { type ExcelField, type GridRow } from '@/components/ExcelTable';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -33,13 +33,23 @@ interface BarisMatriks {
   perHari: Record<string, SlotJadwal>;
 }
 
+/** Satu sel pelajaran yang jadi sasaran dialog isi jadwal. */
+interface SasaranJadwal {
+  slot: SlotJadwal;
+  hari: string;
+}
+
+/** Isi sel matriks: mapel + guru (dua baris), mapel saja, atau guru saja. */
+type TampilanJadwal = 'keduanya' | 'mapel' | 'guru';
+
 function namaGuru(g: GuruAktif): string {
   return `${g.gelar_depan ? `${g.gelar_depan} ` : ''}${g.nama_lengkap}${g.gelar_belakang ? `, ${g.gelar_belakang}` : ''}`;
 }
 
 /** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × JP) + tab
  *  template mingguan & hari libur. Klik sel membuka dialog Mapel + Guru;
- *  pengampu kelas mengikuti isi jadwal. */
+ *  blok beberapa sel lalu klik kanan mengisi mapel & guru sekaligus.
+ *  Tampilan memilih isi sel: keduanya, mapel saja, atau guru saja. */
 export default function KurikulumJadwalPage() {
   const [tab, setTab] = useState('jadwal');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
@@ -65,10 +75,11 @@ export default function KurikulumJadwalPage() {
   const [timpaKelas, setTimpaKelas] = useState(false);
   const [templateBusy, setTemplateBusy] = useState(false);
   const [hasilKelas, setHasilKelas] = useState<TerapkanHasil | null>(null);
-  const [sel, setSel] = useState<{ row: BarisMatriks; hari: string } | null>(null);
+  const [editSel, setEditSel] = useState<SasaranJadwal[] | null>(null);
   const [selMapel, setSelMapel] = useState<number | ''>('');
   const [selGuru, setSelGuru] = useState<number | ''>('');
   const [selBusy, setSelBusy] = useState(false);
+  const [tampilan, setTampilan] = useState<TampilanJadwal>('keduanya');
   const [err, setErr] = useState('');
 
   const muatJadwal = useCallback(async () => {
@@ -203,16 +214,71 @@ export default function KurikulumJadwalPage() {
     [baris],
   );
 
+  /** Buka dialog untuk satu sel (klik kiri). */
   const bukaSel = useCallback((id: string | number, h: string) => {
     if (!canUbah) return;
     const row = petaBaris.get(Number(id));
     const s = row?.perHari[h];
     if (row === undefined || s === undefined || s.jenis !== 'pelajaran') return;
     const j = petaJadwal.get(`${s.id}|${h}`);
-    setSel({ row, hari: h });
+    setEditSel([{ slot: s, hari: h }]);
     setSelMapel(j?.mata_pelajaran_id ?? '');
     setSelGuru(j?.keaktifan_pegawai_id ?? '');
   }, [canUbah, petaBaris, petaJadwal]);
+
+  /** Klik kanan DI DALAM blok seleksi: isi mapel + guru untuk semua sel
+   *  pelajaran yang tercakup (hari dari kolom yang terseleksi). */
+  const bukaBlok = useCallback((rowsBlok: BarisMatriks[], fieldsBlok: ExcelField[]) => {
+    if (!canUbah) return;
+    const hariBlok = fieldsBlok.map((f) => f.key).filter((k) => hari.includes(k));
+    const sasaran: SasaranJadwal[] = [];
+    for (const r of rowsBlok) {
+      for (const h of hariBlok) {
+        const s = r.perHari[h];
+        if (s !== undefined && s.jenis === 'pelajaran') sasaran.push({ slot: s, hari: h });
+      }
+    }
+    if (sasaran.length === 0) {
+      toast.error('Blok terpilih tidak memuat sel pelajaran.');
+      return;
+    }
+    const nilai = sasaran.map((t) => petaJadwal.get(`${t.slot.id}|${t.hari}`) ?? null);
+    const mapelSama = nilai.every((n) => (n?.mata_pelajaran_id ?? null) === (nilai[0]?.mata_pelajaran_id ?? null));
+    const guruSama = nilai.every((n) => (n?.keaktifan_pegawai_id ?? null) === (nilai[0]?.keaktifan_pegawai_id ?? null));
+    setEditSel(sasaran);
+    setSelMapel(mapelSama ? (nilai[0]?.mata_pelajaran_id ?? '') : '');
+    setSelGuru(guruSama ? (nilai[0]?.keaktifan_pegawai_id ?? '') : '');
+  }, [canUbah, hari, petaJadwal]);
+
+  /** Isi sel: mapel + guru (dua baris, gaya berbeda), mapel saja, atau guru
+   *  saja sesuai pilihan Tampilan. Slot non-pelajaran tetap terkunci. */
+  const renderSel = useCallback((id: string | number, h: string) => {
+    const s = petaBaris.get(Number(id))?.perHari[h];
+    if (s === undefined) return null;
+    if (s.jenis !== 'pelajaran') {
+      return (
+        <span className="max-w-full truncate text-[10px] text-muted-foreground">
+          {s.nama_slot ?? JENIS_SLOT_LABEL[s.jenis]}
+        </span>
+      );
+    }
+    const j = petaJadwal.get(`${s.id}|${h}`);
+    if (j === undefined) return null;
+    if (tampilan === 'mapel') {
+      return <span className="max-w-full truncate">{j.nama_mapel ?? '?'}</span>;
+    }
+    if (tampilan === 'guru') {
+      return <span className="max-w-full truncate">{j.guru ?? '—'}</span>;
+    }
+    return (
+      <span className="flex min-w-0 max-w-full flex-col items-center justify-center leading-none">
+        <span className="max-w-full truncate text-[10px] leading-[1.15]">{j.nama_mapel ?? '?'}</span>
+        {j.guru ? (
+          <span className="max-w-full truncate text-[9px] leading-[1.15] text-muted-foreground">{j.guru}</span>
+        ) : null}
+      </span>
+    );
+  }, [petaBaris, petaJadwal, tampilan]);
 
   const fieldsMatriks = useMemo<ExcelField[]>(() => [
     { key: '__slot', label: 'Jam', width: 170, kind: 'static' },
@@ -220,10 +286,11 @@ export default function KurikulumJadwalPage() {
       key: h,
       label: HARI_LABEL[h] ?? h,
       width: 180,
-      kind: 'text',
+      kind: 'static',
       onCellClick: (id) => bukaSel(id, h),
+      renderCell: (rowData: GridRow) => renderSel(rowData.id, h),
     })),
-  ], [hari, bukaSel]);
+  ], [hari, bukaSel, renderSel]);
 
   const nilaiMatriks = useCallback((r: BarisMatriks) => {
     const v: Record<string, string | null> = { __slot: r.label };
@@ -232,13 +299,20 @@ export default function KurikulumJadwalPage() {
       if (s === undefined) { v[h] = ''; continue; }
       if (s.jenis !== 'pelajaran') { v[h] = s.nama_slot ?? JENIS_SLOT_LABEL[s.jenis]; continue; }
       const j = petaJadwal.get(`${s.id}|${h}`);
-      v[h] = j === undefined ? '' : `${j.nama_mapel ?? '?'}${j.guru ? ` — ${j.guru}` : ''}`;
+      if (j === undefined) { v[h] = ''; continue; }
+      v[h] = tampilan === 'mapel'
+        ? (j.nama_mapel ?? '')
+        : tampilan === 'guru'
+          ? (j.guru ?? '')
+          : `${j.nama_mapel ?? '?'}${j.guru ? ` — ${j.guru}` : ''}`;
     }
     return v;
-  }, [hari, petaJadwal]);
+  }, [hari, petaJadwal, tampilan]);
 
-  const selSlot = sel === null ? null : sel.row.perHari[sel.hari] ?? null;
-  const selJadwal = selSlot === null ? null : petaJadwal.get(`${selSlot.id}|${sel!.hari}`) ?? null;
+  const sasaranTunggal = editSel !== null && editSel.length === 1 ? editSel[0] : null;
+  const selJadwal = sasaranTunggal === null
+    ? null
+    : petaJadwal.get(`${sasaranTunggal.slot.id}|${sasaranTunggal.hari}`) ?? null;
   const mapelDialog = [...mapelAktif];
   if (selMapel !== '' && !mapelDialog.some((m) => m.id === selMapel)) {
     mapelDialog.unshift({
@@ -267,23 +341,36 @@ export default function KurikulumJadwalPage() {
   }
 
   const simpanSel = async () => {
-    if (sel === null || selSlot === null) return;
+    if (editSel === null || editSel.length === 0) return;
     setSelBusy(true);
-    try {
-      await simpanSelJadwal({
-        kelas_id: Number(kelasId),
-        slot_jam_id: selSlot.id,
-        hari: sel.hari,
-        mata_pelajaran_id: selMapel === '' ? null : Number(selMapel),
-        keaktifan_pegawai_id: selGuru === '' ? null : Number(selGuru),
-      });
-      toast.success('Jadwal disimpan.');
-      setSel(null);
-      await muatJadwal();
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setSelBusy(false);
+    const mapel = selMapel === '' ? null : Number(selMapel);
+    const guru = selGuru === '' ? null : Number(selGuru);
+    let sukses = 0;
+    let galatPertama = '';
+    for (const t of editSel) {
+      try {
+        await simpanSelJadwal({
+          kelas_id: Number(kelasId),
+          slot_jam_id: t.slot.id,
+          hari: t.hari,
+          mata_pelajaran_id: mapel,
+          keaktifan_pegawai_id: guru,
+        });
+        sukses++;
+      } catch (e) {
+        if (galatPertama === '') {
+          galatPertama = `${HARI_LABEL[t.hari] ?? t.hari} ${t.slot.nama_slot ?? ''}: ${errorMessage(e)}`;
+        }
+      }
+    }
+    setSelBusy(false);
+    const jumlah = editSel.length;
+    setEditSel(null);
+    await muatJadwal();
+    if (galatPertama === '') {
+      toast.success(jumlah === 1 ? 'Jadwal disimpan.' : `${sukses} sel disimpan.`);
+    } else {
+      toast.error(`${sukses} dari ${jumlah} sel tersimpan. ${galatPertama}`);
     }
   };
 
@@ -330,6 +417,17 @@ export default function KurikulumJadwalPage() {
                 Libur: {hariLibur.map((h) => HARI_LABEL[h] ?? h).join(', ')}
               </span>
             )}
+            <label className="text-xs text-muted-foreground" htmlFor="select_tampilan_jadwal">Tampilan</label>
+            <select
+              id="select_tampilan_jadwal"
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+              value={tampilan}
+              onChange={(e) => setTampilan(e.target.value as TampilanJadwal)}
+            >
+              <option value="keduanya">Mapel &amp; guru</option>
+              <option value="mapel">Mapel saja</option>
+              <option value="guru">Guru saja</option>
+            </select>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <label className="text-xs text-muted-foreground" htmlFor="select_template_kelas">Template</label>
               <select
@@ -397,6 +495,8 @@ export default function KurikulumJadwalPage() {
               renderActions={() => null}
               hideCheckbox
               hideActions
+              onIsiBlok={canUbah ? bukaBlok : undefined}
+              blokAksiLabel="Isi mapel & guru…"
               emptyText={barisMatriks.length === 0
                 ? 'Belum ada kerangka JP — terapkan template di tab Template Jadwal.'
                 : 'Belum ada jadwal untuk kelas ini.'}
@@ -426,12 +526,18 @@ export default function KurikulumJadwalPage() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={sel !== null} onOpenChange={(o) => { if (!o && !selBusy) setSel(null); }}>
+      <Dialog open={editSel !== null} onOpenChange={(o) => { if (!o && !selBusy) setEditSel(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Isi Jadwal</DialogTitle>
+            <DialogTitle>
+              {editSel !== null && editSel.length > 1 ? 'Isi Blok Jadwal' : 'Isi Jadwal'}
+            </DialogTitle>
             <DialogDescription>
-              {sel === null ? '' : `${HARI_LABEL[sel.hari] ?? sel.hari} · ${selSlot?.nama_slot ?? ''} (${selSlot ? `${jamPendek(selSlot.jam_mulai) ?? ''}–${jamPendek(selSlot.jam_selesai) ?? ''}` : ''})`}
+              {editSel === null
+                ? ''
+                : editSel.length > 1
+                  ? `${editSel.length} sel`
+                  : `${HARI_LABEL[editSel[0].hari] ?? editSel[0].hari} · ${editSel[0].slot.nama_slot ?? ''} (${jamPendek(editSel[0].slot.jam_mulai) ?? ''}–${jamPendek(editSel[0].slot.jam_selesai) ?? ''})`}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
@@ -468,7 +574,7 @@ export default function KurikulumJadwalPage() {
             </label>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={selBusy} onClick={() => setSel(null)}>
+            <Button type="button" variant="outline" disabled={selBusy} onClick={() => setEditSel(null)}>
               Batal
             </Button>
             <Button type="button" variant="default" id="btn_simpan_sel_jadwal" disabled={selBusy}

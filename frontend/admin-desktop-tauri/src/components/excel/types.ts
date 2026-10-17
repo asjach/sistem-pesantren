@@ -38,6 +38,8 @@ export interface ExcelField {
   /** Klik sel teks baca-saja (mis. buka dialog editor). Absen = perilaku
    *  edit bawaan (klik ganda mengaktifkan mode Edit). */
   onCellClick?: (id: string | number) => void;
+  /** Isi sel statis dengan ReactNode kustom (mis. dua baris mapel + guru). */
+  renderCell?: (rowData: GridRow) => ReactNode;
   /** Kembalikan pesan galat bila nilai tidak valid, atau null bila OK. */
   validate?: (value: string | null) => string | null;
   /** Wajib diisi pada mode Input (ditandai warna di header + sel baris input). */
@@ -135,6 +137,10 @@ export interface StaticColData {
   fieldKey: string;
   /** Isi kartu hover sel — absen = sel teks polos tanpa kartu. */
   kartuHover?: (rowData: GridRow) => ReactNode;
+  /** Isi sel kustom; absen = teks polos dari nilai field. */
+  render?: (rowData: GridRow) => ReactNode;
+  /** Klik sel (bila disediakan). */
+  onClick?: (id: string | number) => void;
   /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
   onDblClick?: () => void;
 }

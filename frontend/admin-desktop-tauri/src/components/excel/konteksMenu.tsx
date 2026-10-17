@@ -11,7 +11,7 @@ import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AlignCenter, AlignLeft, AlignRight, Columns3, Copy, MoveHorizontal, NotebookTabs, Pin, PinOff, RotateCcw } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight, Columns3, Copy, MoveHorizontal, NotebookTabs, Pencil, Pin, PinOff, RotateCcw } from '@/icons';
 import { metaAksi } from './actions';
 import type { AksiMenu } from './types';
 
@@ -32,6 +32,10 @@ export interface MenuKonteksGridProps {
   headerIdx: number;
   row: KonteksRow | null;
   rowAksi: ReactElement[];
+  /** Aksi massal blok seleksi (klik kanan di dalam seleksi). Absen = tak tampil. */
+  onIsiBlok?: () => void;
+  blokLabel?: string;
+  blokJumlah?: number;
   freezeAktif: number;
   ubahFreeze: (n: number) => void;
   /** Sakelar geser judul kolom untuk menyusun posisi kolom (per perangkat,
@@ -78,6 +82,9 @@ export default function MenuKonteksGrid({
   headerIdx,
   row,
   rowAksi,
+  onIsiBlok,
+  blokLabel,
+  blokJumlah,
   freezeAktif,
   ubahFreeze,
   geserHeader,
@@ -278,6 +285,19 @@ export default function MenuKonteksGrid({
       {row && (
         <>
           <ContextMenuLabel>{row.rowLabel}</ContextMenuLabel>
+          {onIsiBlok && (
+            <>
+              <ContextMenuLabel>BLOK {blokJumlah ?? 0} SEL</ContextMenuLabel>
+              <ContextMenuItem
+                id={`menu_ctx_isi_blok_${tableKey}`}
+                onSelect={onIsiBlok}
+              >
+                <Pencil size={16} />
+                <span>{blokLabel ?? 'Isi blok…'}</span>
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
           {rowAksi.length > 0 && (
             <>
               <ContextMenuSeparator />

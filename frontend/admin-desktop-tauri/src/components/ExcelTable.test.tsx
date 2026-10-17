@@ -732,3 +732,36 @@ describe('ExcelTable — gerigi pengaturan tabel', () => {
     expect(screen.queryByText('Tampilan global')).not.toBeInTheDocument();
   });
 });
+
+describe('ExcelTable — sel statis kustom', () => {
+  it('merender isi kustom dan meneruskan klik sel', async () => {
+    const onCellClick = vi.fn();
+    renderDenganTema(
+      <ExcelTable<Baris>
+        tableKey="uji_statis"
+        fields={[
+          { key: 'nama', label: 'Nama', kind: 'text' },
+          {
+            key: 'kode',
+            label: 'Kode',
+            kind: 'static',
+            renderCell: (g) => <span data-testid={`kode_${g.id}`}>Kode {g.kode}</span>,
+            onCellClick,
+          },
+        ]}
+        rows={rows}
+        getValues={getValues}
+        canEdit={false}
+        onCommit={async () => {}}
+        onSaved={() => {}}
+        renderActions={() => null}
+        hideCheckbox
+        hideActions
+      />,
+    );
+
+    expect(screen.getByTestId('kode_1')).toHaveTextContent('Kode A-01');
+    await userEvent.click(screen.getByTestId('kode_1'));
+    expect(onCellClick).toHaveBeenCalledWith('1');
+  });
+});

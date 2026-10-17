@@ -348,9 +348,13 @@ export function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticCol
     <span
       className="simpes-dsg-fill"
       data-col-key={columnData.fieldKey}
+      onClick={(e) => {
+        if (e.detail !== 1) return;
+        columnData.onClick?.(rowData.id);
+      }}
       onDoubleClick={() => columnData.onDblClick?.()}
     >
-      {teks}
+      {columnData.render ? columnData.render(rowData) : teks}
     </span>
   );
 
