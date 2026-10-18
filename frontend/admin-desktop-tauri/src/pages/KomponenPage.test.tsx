@@ -161,23 +161,28 @@ describe('KomponenPage — tab ExcelTable', () => {
     expect(screen.getByText('11. Contoh hidup')).toBeInTheDocument();
   });
 
-  it('memetakan empat jalan masuk pengaturan + 3 tab dialog Kelola Tabel', async () => {
+  it('memetakan lima jalan masuk pengaturan + 4 tab dialog Kelola Tabel', async () => {
     const klik = userEvent.setup();
     renderDenganTema(<KomponenPage />);
     await klik.click(screen.getByRole('tab', { name: 'ExcelTable' }));
 
-    // Empat jalan masuk: footer, dropdown toolbar, menu klik kanan, Kelola Tabel.
-    expect(screen.getByText('Footer — tombol gerigi')).toBeInTheDocument();
-    expect(screen.getByText('Toolbar — dropdown Kolom / Urutkan')).toBeInTheDocument();
-    expect(screen.getByText('Klik kanan header/baris')).toBeInTheDocument();
-    expect(screen.getByText('TopBar — menu "Kelola tabel"')).toBeInTheDocument();
+    // Setelan global di TopBar; gerigi tabel membuka setelan tabel itu saja.
+    const jalanMasuk = within(screen.getByRole('columnheader', { name: 'Jalan masuk' }).closest('table')!);
+    expect(jalanMasuk.getByText('TopBar → "Pengaturan tampilan"')).toBeInTheDocument();
+    expect(jalanMasuk.getByText('Gerigi di ujung kanan bilah judul tabel')).toBeInTheDocument();
+    expect(jalanMasuk.getByText('Bilah judul — dropdown Kolom / Urutkan')).toBeInTheDocument();
+    expect(jalanMasuk.getByText('Klik kanan header/baris')).toBeInTheDocument();
+    expect(jalanMasuk.getByText('TopBar — menu "Kelola tabel"')).toBeInTheDocument();
+    expect(screen.queryByText('Footer — tombol gerigi')).not.toBeInTheDocument();
 
     // Isi dialog: tab dengan komponen sumbernya. Tab "Nama & Perataan" dulu
     // terpisah; kini dilebur ke "Kolom" karena keduanya mengatur setelan per
     // TABEL (bukan per preset), jadi satu penanda cukup. Tab "Filter Tabel"
     // ikut hilang karena sakelar filter toolbar kini jadi sakelar komponen
     // tabel di tab "Umum".
-    expect(screen.getByText('Tab "Umum"')).toBeInTheDocument();
+    expect(screen.getByText('Tab "Umum" → Visibilitas komponen tabel')).toBeInTheDocument();
+    expect(screen.getByText('Tab "Umum" → Tampilan di perangkat ini')).toBeInTheDocument();
+    expect(screen.getByText('Tab "Info"')).toBeInTheDocument();
     expect(screen.getByText('Tab "Kolom"')).toBeInTheDocument();
     expect(screen.getByText('Tab "Urutan"')).toBeInTheDocument();
     expect(screen.queryByText('Tab "Filter Tabel"')).not.toBeInTheDocument();
@@ -199,10 +204,11 @@ describe('KomponenPage — tab ExcelTable', () => {
     expect(screen.getAllByText('HALAMAN').length).toBe(2);
     expect(screen.getAllByText('TABEL INI').length).toBe(2);
 
-    // Bukti kunci utamanya: tinggi baris global walau tombolnya per tabel.
+    // Tinggi global menjadi bawaan; tinggi khusus tabel tersimpan terpisah.
     // (Nama juga muncul di blok klasifikasi lengkap, jadi boleh >1.)
-    expect(screen.getAllByText('Tinggi baris sel').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('pref perangkat (GridPrefs.tsx:33 GLOBAL_ROWH_KEY)').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Bawaan tinggi baris sel')).toBeInTheDocument();
+    expect(screen.getByText('pref perangkat (useGridPrefs.setRowH) — standar server "standar pesantren" menang bila ada')).toBeInTheDocument();
+    expect(screen.getAllByText('pref perangkat — tinggiDasarKey(tableKey)')).toHaveLength(2);
     // Perataan: kontrol di menu konteks, tapi tersimpan per TABEL di server.
     expect(screen.getByText('Perataan kolom (standar)')).toBeInTheDocument();
     // Filter halaman disimpan dengan page_key (juga ada di klasifikasi lengkap).
@@ -264,7 +270,7 @@ describe('KomponenPage — tab ExcelTable', () => {
     // Setiap rumah menyebut batas tegasnya (teks "Bukan di sini:" terpisah
     // dari isinya, jadi dicocokkan lewat isi batasnya).
     expect(screen.getByText(/Tidak ada "preset kolom", "urutan", "nama header" di sini/)).toBeInTheDocument();
-    expect(screen.getByText(/Tinggi baris, huruf, warna/)).toBeInTheDocument();
+    expect(screen.getByText(/Tinggi baris bawaan, huruf, warna/)).toBeInTheDocument();
   });
 
   it('mengklasifikasi seluruh pengaturan dengan kunci penyimpanannya', async () => {
@@ -273,12 +279,16 @@ describe('KomponenPage — tab ExcelTable', () => {
     await klik.click(screen.getByRole('tab', { name: 'ExcelTable' }));
 
     // Tiap baris menyebut kunci penyimpanan sebagai bukti.
-    expect(screen.getByText('pref perangkat — GridPrefs.tsx:33 GLOBAL_ROWH_KEY')).toBeInTheDocument();
+    expect(screen.getByText('pref perangkat — useGridPrefs.setRowH')).toBeInTheDocument();
     expect(screen.getByText('SERVER — toolbar_preset.align per table_key')).toBeInTheDocument();
-    expect(screen.getAllByText(/SERVER — pengaturan_tabel.filter/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('state sesi — lib/filterHalaman.ts (KONFIGURASI_FILTER_HALAMAN)')).toHaveLength(2);
+    expect(screen.queryByText(/SERVER — pengaturan_tabel.filter/)).not.toBeInTheDocument();
 
-    // Status "perlu dipindah" menandai setelan global yang kini di dalam tabel.
-    expect(screen.getAllByText('perlu dipindah').length).toBeGreaterThanOrEqual(8);
+    // Setelan global sudah dipindah; hanya komponen custom masih dua cakupan.
+    const tinggiBawaan = screen.getByText('Tinggi baris sel (bawaan)').closest('tr')!;
+    expect(within(tinggiBawaan).getByText('sudah tepat')).toBeInTheDocument();
+    const komponenCustom = screen.getByText('Lebar/tinggi/label komponen custom').closest('tr')!;
+    expect(within(komponenCustom).getByText('perlu dipindah')).toBeInTheDocument();
 
     // Tema & ikon sudah tepat tempatnya (di TopBar).
     expect(screen.getByText('Tema & mode (gelap/terang/sistem)')).toBeInTheDocument();
@@ -314,15 +324,15 @@ describe('KomponenPage — tab ExcelTable', () => {
     renderDenganTema(<KomponenPage />);
     await klik.click(screen.getByRole('tab', { name: 'ExcelTable' }));
 
-    // Temuan tingkat tertinggi: pengaturan global tidak dibedakan dari per-tabel.
-    expect(screen.getByText('Pengaturan global vs per-tabel tidak dibedakan di UI')).toBeInTheDocument();
-    expect(screen.getByText('GridPrefs.tsx:33-35 (GLOBAL_ROWH_KEY / GLOBAL_HEADER_H_KEY)')).toBeInTheDocument();
+    // Temuan lama tetap tercatat bersama bukti dan status penyelesaiannya.
+    expect(screen.getByText('Dulu: setelan global tersembunyi di gerigi SETIAP tabel')).toBeInTheDocument();
+    expect(screen.getByText(/ExcelTable.tsx:.*tombolPengaturanTampil.*TopBar.tsx:.*SheetPengaturanTampilan/)).toBeInTheDocument();
     // Tiap temuan punya usulan konkret (teks panjang di dalam <p>).
-    expect(screen.getByText(/Beri penanda: kelompok yang global diberi label/)).toBeInTheDocument();
+    expect(screen.getByText('Satu pintu untuk setelan global: TopBar → "Pengaturan tampilan".')).toBeInTheDocument();
     // Temuan yang sudah dikerjakan menampilkan statusnya (label "Status:"
     // berada di span terpisah, jadi dicocokkan lewat isinya).
-    expect(screen.getByText(/SELESAI: 10 setelan global dipindah ke panel Sheet/)).toBeInTheDocument();
-    expect(screen.getByText(/Tambahkan tombol kecil berlabel/)).toBeInTheDocument();
+    expect(screen.getByText(/SELESAI: setelan global hanya di TopBar/)).toBeInTheDocument();
+    expect(screen.getByText('Tombol terlihat berlabel di ujung bilah judul, plus menu overflow.')).toBeInTheDocument();
   });
 
   it('denah punya satu penanda per area, id-nya snake_case', async () => {
@@ -330,12 +340,13 @@ describe('KomponenPage — tab ExcelTable', () => {
     renderDenganTema(<KomponenPage />);
     await klik.click(screen.getByRole('tab', { name: 'ExcelTable' }));
 
-    // Area 1..20 punya tombol keterangan sendiri (NFR-05: id snake_case).
-    for (const no of [1, 5, 12, 20]) {
+    // Area 21 menandai pintu Pengaturan tabel di bilah judul.
+    for (let no = 1; no <= 21; no++) {
       expect(document.getElementById(`denah_excel_area_${no}`)).not.toBeNull();
     }
     expect(document.getElementById('denah_excel_area_0')).toBeNull();
-    expect(document.getElementById('denah_excel_area_21')).toBeNull();
+    expect(document.getElementById('denah_excel_area_22')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Keterangan area 21: Gerigi "Pengaturan tabel"' })).toHaveAttribute('id', 'denah_excel_area_21');
   });
 
   it('inventaris memuat baris kunci dengan jumlah pemakaiannya', async () => {
@@ -356,7 +367,8 @@ describe('KomponenPage — tab ExcelTable', () => {
     expect(inventaris.getByText('Kolom centang + pilih semua')).toBeInTheDocument();
     expect(inventaris.getByText('renderBulkActions')).toBeInTheDocument();
     expect(inventaris.getByText('Dipakai')).toBeInTheDocument();
-    expect(inventaris.getByText('19 halaman')).toBeInTheDocument();
+    const paginasi = within(inventaris.getByText('Paginasi di kaki').closest('tr')!);
+    expect(paginasi.getByText('20 halaman (21 titik render)')).toBeInTheDocument();
   });
 
   it('contoh hidup merender ExcelTable & menghormati sakelar prop', async () => {
