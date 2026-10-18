@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
@@ -17,6 +17,11 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { toast } from 'sonner';
 import { useAksiProfilSantri, type AksiProfilSantri } from '@/components/santri/useAksiProfilSantri';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
+import { tanggalKeTampilan } from '@/lib/tanggal';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 /** Baris tabel hasil (kenaikan / tidak naik). */
 interface Baris {
@@ -102,6 +107,10 @@ export default function KenaikanKelasPage() {
   const daftarNaik = useMemo(() => hasilNaik.map((b) => b.santri_id), [hasilNaik]);
   const daftarTidak = useMemo(() => hasilTidak.map((b) => b.santri_id), [hasilTidak]);
   const [busy, setBusy] = useState(false);
+  const [konfirmasi, setKonfirmasi] = useState<{
+    judul: string; pesan: string; jalankan: () => Promise<void>;
+  } | null>(null);
+  const pemicuKonfirmasiRef = useRef<HTMLElement | null>(null);
   /** Urut header ketiga tabel (pola KelulusanPage). */
   const [urutKiri, setUrutKiri] = useState<string[]>([]);
   const [arahKiri, setArahKiri] = useState<'naik' | 'turun'>('naik');
@@ -303,6 +312,19 @@ export default function KenaikanKelasPage() {
     setBusy(false);
   }, [targetJenjang, busy, muatUlang]);
 
+  const mintaKonfirmasi = useCallback((
+    aksi: 'naik' | 'tidak_naik' | 'batal', jumlah: number, jalankan: () => Promise<void>,
+  ) => {
+    if (busy || targetJenjang === null || jumlah === 0) return;
+    pemicuKonfirmasiRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const judul = aksi === 'batal' ? 'Batalkan kenaikan kelas?'
+      : aksi === 'naik' ? 'Proses naik kelas?' : 'Proses tidak naik kelas?';
+    const pesan = aksi === 'batal'
+      ? `Batalkan hasil ${jumlah} santri di ${targetJenjang} pada tahun ajaran ${taTahunDepan} dan kembalikan ke semester 2 tahun ajaran ${taDasar}?`
+      : `Proses ${jumlah} santri di ${targetJenjang} sebagai ${aksi === 'naik' ? 'naik kelas' : 'tidak naik (mengulang)'} dari tahun ajaran ${taDasar} ke ${taTahunDepan}, dengan tanggal masuk ${tanggalKeTampilan(tglMasuk)}?`;
+    setKonfirmasi({ judul, pesan, jalankan });
+  }, [busy, targetJenjang, taDasar, taTahunDepan, tglMasuk]);
+
   /** Tombol massal kandidat, diletakkan di kanan tanggal masuk kelas baru. */
   const tombolKandidat = useMemo(() => {
     if (!canUbah) {
@@ -318,15 +340,15 @@ export default function KenaikanKelasPage() {
         <FilterField label="Tanggal masuk kelas baru" htmlFor="input_tgl_kenaikan">
           <Input id="input_tgl_kenaikan" type="date" value={tglMasuk} onChange={(e) => setTglMasuk(e.target.value)} className="w-40" />
         </FilterField>
-        <Button id="btn_naik_terpilih" size="sm" disabled={mati} onClick={() => void prosesMassal(tercentangKiri, 'naik', () => setTercentangKiri([]))}>
+        <Button id="btn_naik_terpilih" size="sm" disabled={mati} onClick={() => mintaKonfirmasi('naik', tercentangKiri.length, () => prosesMassal(tercentangKiri, 'naik', () => setTercentangKiri([])))}>
           Naik ({tercentangKiri.length})
         </Button>
-        <Button id="btn_tidak_naik_terpilih" size="sm" variant="outline" disabled={mati} onClick={() => void prosesMassal(tercentangKiri, 'tidak_naik', () => setTercentangKiri([]))}>
+        <Button id="btn_tidak_naik_terpilih" size="sm" variant="outline" disabled={mati} onClick={() => mintaKonfirmasi('tidak_naik', tercentangKiri.length, () => prosesMassal(tercentangKiri, 'tidak_naik', () => setTercentangKiri([])))}>
           Tidak naik ({tercentangKiri.length})
         </Button>
       </div>
     );
-  }, [canUbah, busy, tglMasuk, targetJenjang, tercentangKiri, prosesMassal]);
+  }, [canUbah, busy, tglMasuk, targetJenjang, tercentangKiri, prosesMassal, mintaKonfirmasi]);
 
   /** Tombol Batalkan pada baris judul tabel hasil: memproses baris tercentang. */
   const tombolBatalkan = useCallback((idPrefix: string, tercentang: Baris[]) => {
@@ -338,12 +360,12 @@ export default function KenaikanKelasPage() {
         size="sm"
         variant="ghost"
         disabled={busy || targetJenjang === null || eligible.length === 0}
-        onClick={() => void batalkan(eligible)}
+        onClick={() => mintaKonfirmasi('batal', eligible.length, () => batalkan(eligible))}
       >
         Batalkan ({eligible.length})
       </Button>
     );
-  }, [canUbah, busy, targetJenjang, batalkan]);
+  }, [canUbah, busy, targetJenjang, batalkan, mintaKonfirmasi]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -389,7 +411,7 @@ export default function KenaikanKelasPage() {
                     id={`btn_naik_santri_${r.santri_id}`}
                     title="Naik kelas"
                     disabled={busy || !tglMasuk || targetJenjang === null}
-                    onClick={() => void prosesSatu(r, 'naik')}
+                    onClick={() => mintaKonfirmasi('naik', 1, () => prosesSatu(r, 'naik'))}
                     className="text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400"
                   >
                     <Check size={16} />
@@ -398,7 +420,7 @@ export default function KenaikanKelasPage() {
                     id={`btn_tidak_naik_santri_${r.santri_id}`}
                     title="Tidak naik kelas (mengulang)"
                     disabled={busy || !tglMasuk || targetJenjang === null}
-                    onClick={() => void prosesSatu(r, 'tidak_naik')}
+                    onClick={() => mintaKonfirmasi('tidak_naik', 1, () => prosesSatu(r, 'tidak_naik'))}
                     className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                   >
                     <X size={16} />
@@ -426,7 +448,7 @@ export default function KenaikanKelasPage() {
             onUrut={terapkanUrutNaik}
             tombolHeader={tombolBatalkan('naik_kelas', tercentangNaik)}
             onCheckedChange={setTercentangNaik}
-            onBatalkan={(b) => void batalkan([b])}
+            onBatalkan={(b) => mintaKonfirmasi('batal', 1, () => batalkan([b]))}
             aksiProfil={aksiProfil}
             daftar={daftarNaik}
           />
@@ -442,7 +464,7 @@ export default function KenaikanKelasPage() {
             onUrut={terapkanUrutTidak}
             tombolHeader={tombolBatalkan('tidak_naik_kelas', tercentangTidak)}
             onCheckedChange={setTercentangTidak}
-            onBatalkan={(b) => void batalkan([b])}
+            onBatalkan={(b) => mintaKonfirmasi('batal', 1, () => batalkan([b]))}
             aksiProfil={aksiProfil}
             daftar={daftarTidak}
           />
@@ -451,6 +473,25 @@ export default function KenaikanKelasPage() {
         </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+      <AlertDialog open={konfirmasi !== null} onOpenChange={(open) => { if (!open) setKonfirmasi(null); }}>
+        <AlertDialogContent onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          if (pemicuKonfirmasiRef.current?.isConnected) pemicuKonfirmasiRef.current.focus();
+        }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{konfirmasi?.judul}</AlertDialogTitle>
+            <AlertDialogDescription>{konfirmasi?.pesan}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel id="btn_konfirmasi_kenaikan_batal">Batal</AlertDialogCancel>
+            <AlertDialogAction id="btn_konfirmasi_kenaikan_lanjut" disabled={busy} onClick={() => {
+              const jalankan = konfirmasi?.jalankan;
+              setKonfirmasi(null);
+              if (jalankan) void jalankan();
+            }}>Lanjutkan</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {dialogProfil}
     </div>
   );
