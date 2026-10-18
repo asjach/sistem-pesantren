@@ -915,8 +915,16 @@ class TagihanController extends Controller
             $diperbarui = 0;
             $tetap = 0;
             $alasan = [];
+            $santriIds = $diminta->keys()->all();
+            $posisi = 0;
+            $adaPeta = [];
 
             foreach ($diminta as $santriId => $s) {
+                // Batasi model existing yang ditahan di memori, tanpa query per bulan.
+                if ($posisi % 200 === 0) {
+                    $adaPeta = $this->petaTagihanAda(array_slice($santriIds, $posisi, 200), (int) $jenis->id, $periodes);
+                }
+                $posisi++;
                 $info = $peta[$santriId] ?? null;
                 if ($info === null) {
                     abort(422, "Santri #{$santriId} tidak aktif pada tahun ajaran {$data['tahun_ajaran']}.");
@@ -937,16 +945,15 @@ class TagihanController extends Controller
                     $pakaiKuota = $this->pakaiKuota($paketDasar, (int) $santriId);
                     // Paket aktif yang menempel di tagihan santri — prioritas
                     // "meneruskan" per grup saat digabung per baris.
-                    $grupMap = $this->grupMenempel((int) $santriId);
+                    $punyaPaket = collect($adaPeta[$santriId] ?? [])
+                        ->contains(fn (Tagihan $t) => ! empty($t->dispensasi_ids));
+                    $grupMap = $punyaPaket ? $this->grupMenempel((int) $santriId) : collect();
                     $nominalManual = null;
                 }
 
                 foreach ($periodes as $periode) {
                     $jatuhTempo = JatuhTempo::untuk((string) $jenis->tipe, $periode, $data['jatuh_tempo'] ?? null);
-                    $ada = Tagihan::where('santri_id', $santriId)
-                        ->where('jenis_id', $jenis->id)
-                        ->where('periode', $periode)
-                        ->first();
+                    $ada = $adaPeta[$santriId][$periode] ?? null;
 
                     if ($ada === null) {
                         if ($paketDasar === null) {
