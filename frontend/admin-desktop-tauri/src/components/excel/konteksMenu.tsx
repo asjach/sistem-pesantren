@@ -46,6 +46,10 @@ export interface MenuKonteksGridProps {
    *  MATI bawaan). Tersedia di sini sebagai jalan pintas dari area tabel. */
   geserHeader: boolean;
   onUbahGeserHeader: (nyala: boolean) => void;
+  /** Tabel memakai `isiLebarPenuh` (lebar kolom = rasio isi terhadap wadah):
+   *  menyusun ulang kolom tak berlaku, jadi item sakelarnya disembunyikan.
+   *  Bawaan `true`. */
+  geserHeaderTersedia?: boolean;
   onAutoFit: (key: string) => void;
   onAutoFitAll: () => void;
   /** Perataan global per tabel (DB; satu sumber dengan Kelola Tabel). */
@@ -95,6 +99,7 @@ export default function MenuKonteksGrid({
   ubahFreeze,
   geserHeader,
   onUbahGeserHeader,
+  geserHeaderTersedia = true,
   onAutoFit,
   onAutoFitAll,
   align,
@@ -275,15 +280,21 @@ export default function MenuKonteksGrid({
           )}
           {/* Susun posisi kolom dengan seret judul. Checkbox (bukan tombol
               ikon) supaya status aktif/matinya jelas terbaca. Per perangkat,
-              MATI bawaan — perilaku klik judul lama tetap utuh. */}
-          <ContextMenuSeparator />
-          <ContextMenuCheckboxItem
-            id={`menu_ctx_geser_header_${tableKey}`}
-            checked={geserHeader}
-            onCheckedChange={(c) => onUbahGeserHeader(!!c)}
-          >
-            <span>Geser judul untuk menyusun kolom</span>
-          </ContextMenuCheckboxItem>
+              MATI bawaan — perilaku klik judul lama tetap utuh. Disembunyikan
+              pada tabel ber-`isiLebarPenuh` (urutan kolom tak memengaruhi
+              lebar; lebarnya murni rasio isi). */}
+          {geserHeaderTersedia && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuCheckboxItem
+                id={`menu_ctx_geser_header_${tableKey}`}
+                checked={geserHeader}
+                onCheckedChange={(c) => onUbahGeserHeader(!!c)}
+              >
+                <span>Geser judul untuk menyusun kolom</span>
+              </ContextMenuCheckboxItem>
+            </>
+          )}
         </>
       )}
 

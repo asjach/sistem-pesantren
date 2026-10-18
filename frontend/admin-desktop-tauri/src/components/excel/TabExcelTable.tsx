@@ -1398,6 +1398,7 @@ const INVENTARIS: BarisFitur[] = [
   { fitur: 'Susunan kolom dari luar', sumber: 'presetLuar', dipakai: '0 halaman', catatan: 'Menimpa preset internal sepenuhnya.' },
   { fitur: 'Judul di bilah ExcelTable', sumber: 'prop `header`', dipakai: 'TabelRingkas', catatan: 'TabelRingkas tak menggambar <header> sendiri; judulnya diserahkan ke bilah judul ExcelTable supaya gerigi Pengaturan tabel tetap ada di ujung kanan.' },
   { fitur: 'Lebar dropdown Kolom', sumber: 'presetKolomClassName', dipakai: 'beberapa halaman', catatan: 'Bawaan w-44; ditimpa untuk tabel sempit.' },
+  { fitur: 'Lebar mengisi pembungkus', sumber: 'isiLebarPenuh', dipakai: '2 tabel (Referensi)', catatan: 'Rasio = (lebar wadah − kolom tetap) / total lebar kolom data, dikali ke tiap kolom. Wadah diukur dari .dsg-container sehingga lebar scrollbar vertikal sudah dipotong. Geser judul kolom otomatis mati saat aktif.' },
   { fitur: 'Seleksi tercentang dikabarkan', sumber: 'onCheckedChange', dipakai: '20 halaman', catatan: 'Halaman memakai daftar id tercentang.' },
   { fitur: 'Paginasi di kaki', sumber: 'pager', dipakai: '19 halaman', catatan: 'ExcelTable tak menghitung halaman; halaman meng-inject <Pager/>.' },
   { fitur: 'Pengaturan tampilan tabel', sumber: 'SheetPengaturanTampilan (TopBar)', dipakai: 'selalu (footer memicu)', catatan: 'Tinggi sel/header, font/ukuran/warna header & sel. Semua GLOBAL.' },

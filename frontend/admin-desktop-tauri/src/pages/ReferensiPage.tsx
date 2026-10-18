@@ -20,22 +20,14 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { FieldDescription, FieldLabel } from '@/components/ui/field';
-import {
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxRoot,
-  ComboboxTrigger,
-} from '@/components/ui/combobox';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
 import LabelTombolTambah from '@/components/LabelTombolTambah';
-import LabeledCombobox from '@/components/LabeledCombobox';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { labelKolom } from '@/lib/labelKolom';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import {
@@ -53,6 +45,19 @@ import { toast } from 'sonner';
 
 const STATUS_TIPE = ['status_awal', 'status_akhir'];
 const TIPE_AKTIF_KEY = 'simpes_referensi_tipe_aktif';
+
+/** Kolom daftar tipe kamus di kolom kiri. Satu kolom saja: panelnya sempit dan
+ *  isinya memang hanya nama kamus. */
+const FIELDS_TIPE: ExcelField[] = [
+  { key: 'tipe', label: 'Tipe kamus', width: 200, kind: 'static' },
+];
+
+/** Baris daftar tipe: `id` = kunci tipe (dipakai ExcelTable sebagai identitas
+ *  baris + penanda baris aktif). */
+interface BarisTipe {
+  id: string;
+  tipe: string;
+}
 
 /** Nilai tampil baris: semua tabel ref memakai `nama` (status juga menyimpan `kode`). */
 function rowText(r: ReferensiRow): string {
@@ -78,6 +83,9 @@ export default function ReferensiPage() {
   const adminFull = canManage && !isSuper && myJenjang.length === 0;
 
   const [types, setTypes] = useState<string[]>([]);
+  /** Daftar tipe punya pemuatan sendiri: tabel kanan tetap kosong sampai
+   *  tipe pertama terpilih, jadi indikatornya tak boleh menumpang `loading`. */
+  const [memuatTipe, setMemuatTipe] = useState(true);
   const [tipe, setTipe] = useState('');
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const { jenjangs } = useFilterGlobalAktif();
@@ -138,11 +146,26 @@ export default function ReferensiPage() {
           setErr(errorMessage(e));
           setLoading(false);
         }
+      } finally {
+        if (hidup) setMemuatTipe(false);
       }
     })();
     listLembaga({ per_page: 100 }).then((p) => { if (hidup) setLembagas(p.data); }).catch(() => {});
     return () => { hidup = false; };
   }, []);
+
+  /** Baris daftar tipe kamus (kolom kiri). */
+  const tipeRows = useMemo<BarisTipe[]>(() => types.map((t) => ({ id: t, tipe: t })), [types]);
+
+  /** Pilih kamus dari kolom kiri: tabel kanan ikut berganti, pencarian direset
+   *  (kata kunci kamus lama tak ada artinya di kamus baru), dan pilihan
+   *  terakhir disimpan sebagai pref perangkat. */
+  const pilihTipe = useCallback((nilai: string) => {
+    if (nilai === tipe) return;
+    setTipe(nilai);
+    setSearch('');
+    prefSet(TIPE_AKTIF_KEY, nilai).catch(() => {});
+  }, [tipe]);
 
   /** Muat daftar; mengembalikan promise agar antrean simpan grid bisa menunggu
    *  baris segar TIBA sebelum membuang draft optimistis (tanpa ini toggle
@@ -461,67 +484,106 @@ export default function ReferensiPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={search} onChange={setSearch} placeholder="Cari referensi…" />
-      <PengaturanHalaman tampil={{}} tabel={[{ key: 'referensi', judul: 'Referensi', fields }]} />
-      <ExcelTable
-        key={tipe}
-        tableKey="referensi"
-        fields={fields}
-        rows={visibleRows}
-        getValues={gridValues}
-        urutAktif={urut}
-        arahUrut={arah}
-        onUrut={terapkanUrut}
-        loading={loading}
-        emptyText="Belum ada entri."
-        canEdit={false}
-        onCommit={onCommit}
-        onSaved={reload}
-        filter={(
-          <>
-            {/* LabeledCombobox (bukan FilterField+Select) agar kotaknya bisa
-                diatur lebar/tingginya lewat popover klik-kanan. */}
-            <LabeledCombobox label="Tipe kamus" htmlFor="select_tipe">
-              <ComboboxRoot
-                items={types}
-                autoHighlight
-                value={tipe}
-                onValueChange={(v) => {
-                  if (v === null) return;
-                  setTipe(v);
-                  setSearch('');
-                  prefSet(TIPE_AKTIF_KEY, v).catch(() => {});
-                }}
-              >
-                <ComboboxInput id="select_tipe" aria-label="Tipe kamus" placeholder="Pilih tipe" />
-                <ComboboxTrigger aria-label="Buka daftar tipe kamus" />
-                <ComboboxContent>
-                  <ComboboxEmpty>Tidak ada tipe.</ComboboxEmpty>
-                  <ComboboxList>
-                    {(t) => <ComboboxItem key={t} value={t}>{t}</ComboboxItem>}
-                  </ComboboxList>
-                </ComboboxContent>
-              </ComboboxRoot>
-            </LabeledCombobox>
-          </>
-        )}
-        /* "+ Entri" = aksi utama halaman ini, jadi tampil langsung di bilah
-           (tanpa menu hamburger `MenuAksiToolbar`) — sejalan dengan halaman
-           Pengguna & Kurikulum Mapel. */
-        addButtonLangsung
-        addButton={canTambah ? (
-          <Button
-            id="btn_tambah_referensi"
-            onClick={openTambah}
-            disabled={!tipe}
-            title={`Tambah entri referensi (${labelPintasan('n')})`}
-            aria-keyshortcuts="Control+N Meta+N"
+      <PengaturanHalaman
+        tampil={{}}
+        tabel={[
+          { key: 'referensi_tipe', judul: 'Tipe Kamus', fields: FIELDS_TIPE },
+          { key: 'referensi', judul: 'Referensi', fields },
+        ]}
+      />
+      {/* Dua kolom: kiri daftar TIPE kamus (pemilih), kanan isi kamusnya.
+          Dulu tipe dipilih lewat dropdown di bilah filter — daftar seperti ini
+          membuat seluruh kamus terlihat sekaligus dan pindah kamus cukup satu
+          klik sel, tanpa membuka popover.
+
+          Wadah `flex-1` di luar grup diperlukan karena grup panel memasang
+          `height: 100%` inline: tanpa wadah, tingginya mengikuti tinggi shell
+          (termasuk pesan galat) sehingga tabel bisa meluber. */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <ResizablePanelGroup
+          orientation="horizontal"
+          id="grup_referensi"
+          className="min-h-0 flex-1 overflow-hidden"
+        >
+          {/* Kolom kiri (bawaan 260px, bisa digeser): daftar tipe kamus. */}
+          <ResizablePanel
+            id="panel_referensi_tipe"
+            defaultSize={260}
+            minSize={180}
+            maxSize={460}
+            className="min-h-0"
           >
-            <LabelTombolTambah pintasan={labelPintasan('n')}>+ Entri</LabelTombolTambah>
-          </Button>
-         ) : undefined}
-         renderActions={renderActions}
-         renderBulkActions={renderBulkActions}
-       />
+            <div className="flex h-full min-h-0 flex-col">
+              <ExcelTable<BarisTipe>
+                tableKey="referensi_tipe"
+                fields={FIELDS_TIPE}
+                rows={tipeRows}
+                getValues={(r) => ({ tipe: labelKolom(r.tipe) })}
+                loading={memuatTipe}
+                emptyText="Belum ada tipe kamus."
+                canEdit={false}
+                onCommit={async () => {}}
+                onSaved={() => {}}
+                /* Klik sel = pilih kamus (sama seperti tabel pemilih di halaman
+                   Dispensasi), jadi tak perlu kolom centang maupun Aksi. */
+                onBarisKlik={(r) => pilihTipe(r.tipe)}
+                barisAktifId={tipe || null}
+                renderActions={() => null}
+                /* Lebar kolom mengikuti rasio isi lalu diskalakan agar tabel
+                   mengisi panel kiri (tanpa sisa ruang di kanan). */
+                isiLebarPenuh
+                hideCheckbox
+                hideActions
+                hidePreset
+              />
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle aria-label="Atur lebar daftar tipe kamus" />
+
+          {/* Kolom kanan: isi kamus terpilih. `key={tipe}` mengatur ulang state
+              grid (kolom, urutan, tinggi baris) tiap kamus berganti. */}
+          <ResizablePanel id="panel_referensi_isi" minSize="40%" className="min-h-0">
+            <div className="flex h-full min-h-0 flex-col">
+              <ExcelTable
+                key={tipe}
+                tableKey="referensi"
+                fields={fields}
+                rows={visibleRows}
+                getValues={gridValues}
+                urutAktif={urut}
+                arahUrut={arah}
+                onUrut={terapkanUrut}
+                loading={loading}
+                emptyText="Belum ada entri."
+                canEdit={false}
+                onCommit={onCommit}
+                onSaved={reload}
+                /* Isi panel kanan sampai tepi: rasio antar kolom tetap
+                   mengikuti isi datanya (lihat `excel/lebarIsi.ts`). */
+                isiLebarPenuh
+                /* "+ Entri" = aksi utama halaman ini, jadi tampil langsung di bilah
+                   (tanpa menu hamburger `MenuAksiToolbar`) — sejalan dengan halaman
+                   Pengguna & Kurikulum Mapel. */
+                addButtonLangsung
+                addButton={canTambah ? (
+                  <Button
+                    id="btn_tambah_referensi"
+                    onClick={openTambah}
+                    disabled={!tipe}
+                    title={`Tambah entri referensi (${labelPintasan('n')})`}
+                    aria-keyshortcuts="Control+N Meta+N"
+                  >
+                    <LabelTombolTambah pintasan={labelPintasan('n')}>+ Entri</LabelTombolTambah>
+                  </Button>
+                 ) : undefined}
+                 renderActions={renderActions}
+                 renderBulkActions={renderBulkActions}
+               />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>

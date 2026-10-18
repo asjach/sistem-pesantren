@@ -86,6 +86,10 @@ export interface LebarKolomOptions<T extends { id: string | number }> {
   effectiveFont: number;
   fontStack: string;
   fontStackWeight: string;
+  /** Rasio skala lebar tampil (fitur `isiLebarPenuh`): lebar yang TERLIHAT =
+   *  lebar basis × rasio. Seret gagang dibagi rasio ini supaya kolom tetap
+   *  menempel di kursor. `1`/absen = tanpa skala. */
+  skalaRef?: LiveRef<number>;
 }
 
 /**
@@ -118,6 +122,7 @@ export function useLebarKolom<T extends { id: string | number }>({
   effectiveFont,
   fontStack,
   fontStackWeight,
+  skalaRef,
 }: LebarKolomOptions<T>) {
   const visibleFieldsRef = useRef(visibleFields);
   visibleFieldsRef.current = visibleFields;
@@ -486,7 +491,11 @@ export function useLebarKolom<T extends { id: string | number }>({
     const onMove = (ev: MouseEvent) => {
       const d = resizeRef.current;
       if (!d) return;
-      const w = Math.max(MIN_COL_W, Math.round(d.startW + (ev.clientX - d.startX)));
+      /* Geseran kursor dibagi rasio skala: saat tabel diskalakan (mis. ×2),
+         menambah 10 px pada lebar BASIS berarti 20 px di layar — tanpa
+         pembagian ini gagang tertinggal separuh dari kursor. */
+      const rasio = skalaRef?.current || 1;
+      const w = Math.max(MIN_COL_W, Math.round(d.startW + (ev.clientX - d.startX) / rasio));
       setWidths((prev) => {
         const next = { ...prev };
         for (const t of d.targets) next[t] = w;
