@@ -5,7 +5,9 @@ import { EVENT_TAMPILAN_PERANGKAT_BERUBAH } from '@/components/kelolaTabel/jenis
 import { DEFAULT_HEADER_H, MAX_HEADER_H } from '@/components/GridPrefs';
 import { toast } from 'sonner';
 
-import { ambilContohBaris, gabungLebarMaks, lebarJudulDuaBaris, ukurAutoFit } from './autofit';
+import {
+  ambilContohBaris, barisSelAtauTeks, gabungLebarMaks, lebarJudulDuaBaris, ukurAutoFit,
+} from './autofit';
 import {
   ACTIONS_DEFAULT_W,
   AUTOFIT_BUFFER,
@@ -20,7 +22,7 @@ import {
 } from './helpers';
 import { PAD_JUDUL_X, ukurPerluTinggiHeader } from './header';
 import { measureActionsWidth, bersihkanProbe, dapatkanKanvas, fontKanvas } from './measure';
-import type { ExcelField, GridRow } from './types';
+import type { BarisSel, ExcelField, GridRow } from './types';
 
 /** Ref mutable yang selalu terisi (dipakai untuk cermin nilai terbaru). */
 interface LiveRef<T> {
@@ -351,6 +353,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       rows: rowsRef.current,
       labelKolom,
       teksSel: (f, rowId) => teksTampilSel(f, gridByIdRef.current.get(String(rowId))?.[f.key]),
+      barisSel: (f, baris) => f.barisSel?.(baris),
       dapatkanCtx: () => (measureCtxRef.current ??= document.createElement('canvas').getContext('2d')),
     });
   }
@@ -643,9 +646,9 @@ export function useLebarKolom<T extends { id: string | number }>({
     const csCell = getComputedStyle(cellEl);
     const csHeadCell = getComputedStyle(headCellEl);
     const csHeadCont = getComputedStyle(headContEl);
-    const pasangFont = (probe: HTMLElement, cs: CSSStyleDeclaration) => {
+    const pasangFont = (probe: HTMLElement, cs: CSSStyleDeclaration, ukuranPx?: number) => {
       probe.style.fontFamily = cs.fontFamily;
-      probe.style.fontSize = cs.fontSize;
+      probe.style.fontSize = ukuranPx != null ? `${ukuranPx}px` : cs.fontSize;
       probe.style.fontWeight = cs.fontWeight;
       probe.style.fontStyle = cs.fontStyle;
       probe.style.fontVariantNumeric = cs.fontVariantNumeric;
@@ -653,8 +656,8 @@ export function useLebarKolom<T extends { id: string | number }>({
       probe.style.letterSpacing = cs.letterSpacing;
       probe.style.whiteSpace = 'pre';
     };
-    const lebar = (probe: HTMLElement, cs: CSSStyleDeclaration, text: string) => {
-      pasangFont(probe, cs);
+    const lebar = (probe: HTMLElement, cs: CSSStyleDeclaration, text: string, ukuranPx?: number) => {
+      pasangFont(probe, cs, ukuranPx);
       probe.textContent = text;
       return probe.getBoundingClientRect().width;
     };
@@ -667,46 +670,81 @@ export function useLebarKolom<T extends { id: string | number }>({
     const out: Record<string, number> = {};
     // Contoh merata (maks 300 baris) + cache teks per komputasi: nilai
     // berulang (status, tanggal, JK) hanya diukur DOM sekali.
-    const values = ambilContohBaris(rows).map((r) => getValuesRef.current(r) as Record<string, unknown>);
+    const samples = ambilContohBaris(rows).map(
+      (r) => [r, getValuesRef.current(r) as Record<string, unknown>] as const,
+    );
     const cacheTeks = new Map<string, number>();
-    const lebarCache = (text: string): number => {
-      const ada = cacheTeks.get(text);
+    const lebarCache = (text: string, ukuranPx?: number): number => {
+      // Kunci memuat ukuran huruf: baris 10px dan 12px untuk teks sama beda
+      // lebar, jadi teks saja tidak cukup sebagai kunci cache.
+      const kunci = ukuranPx != null ? `${ukuranPx}px|${text}` : text;
+      const ada = cacheTeks.get(kunci);
       if (ada !== undefined) return ada;
-      const hasil = lebar(cellProbe, csCell, text);
-      cacheTeks.set(text, hasil);
+      const hasil = lebar(cellProbe, csCell, text, ukuranPx);
+      cacheTeks.set(kunci, hasil);
       return hasil;
+    };
+    /* Baris-baris yang benar-benar digambar dalam satu sel. Kolom yang
+       `renderCell`-nya memecah isi ke beberapa baris (mis. mapel di atas
+       guru di bawah) wajib memberi `barisSel`; tanpa itu teks nilainya
+       yang diukur utuh, terukur seolah mapel dan guru bersebelahan —
+       kolom jadi jauh lebih lebar dari yang terpakai. */
+    const barisOf = (
+      f: ExcelField,
+      r: { id: string | number },
+      nilai: Record<string, unknown>,
+    ): BarisSel[] => barisSelAtauTeks(f.barisSel?.(r), teksTampilSel(f, nilai[f.key]));
+    /** Lebar sel = baris TERLEBAR, bukan penjumlahan baris-barisnya. */
+    const lebarSel = (b: readonly BarisSel[]): number => {
+      let w = 0;
+      for (const satu of b) {
+        if (satu.teks === '') continue;
+        w = Math.max(w, lebarCache(satu.teks, satu.ukuran));
+      }
+      return w;
+    };
+    /** Lebar sel versi kanvas (penyaring cepat): baris terlebar. */
+    const cwSel = (ctx: CanvasRenderingContext2D, b: readonly BarisSel[]): number => {
+      let cw = 0;
+      for (const satu of b) {
+        if (satu.teks === '') continue;
+        ctx.font = fontKanvas(csCell, satu.ukuran);
+        cw = Math.max(cw, ctx.measureText(satu.teks).width);
+      }
+      return cw;
     };
     // Saring cepat via kanvas (tanpa layout): tiap `textContent` + baca
     // `getBoundingClientRect` yang silih berganti memaksa layout sinkron
-    // (layout-thrash, ratusan kali per pagination). Kanvas mengukur semuanya
-    // tanpa layout; DOM hanya memverifikasi kandidat teratas (margin 40px
-    // menutup selisih kanvas vs DOM — pola sama `ukurAutoFit`).
+    // (layout-thrash, ratusan kali per pagination). Kanvas mengukur
+    // semuanya tanpa layout; DOM hanya memverifikasi kandidat teratas
+    // (margin 40px menutup selisih kanvas vs DOM — pola sama `ukurAutoFit`).
+    // `cwSel` memasang font tiap baris (ukurannya bisa beda-beda), jadi tak
+    // perlu font bawaan di sini.
     const ctxKan = dapatkanKanvas();
-    if (ctxKan) ctxKan.font = fontKanvas(csCell);
     for (const f of visibleFields) {
       let w = lebarJudulDuaBaris(
         labelKolom(f.key, f.label),
         (text) => lebar(headProbe, csHeadCont, text),
       ) + padHead + AUTOFIT_BUFFER;
       if (ctxKan == null) {
-        for (const v of values) {
-          const s = teksTampilSel(f, v[f.key]);
-          if (!s) continue;
-          w = Math.max(w, lebarCache(s) + padCell + AUTOFIT_BUFFER);
+        for (const [r, nilai] of samples) {
+          const b = barisOf(f, r, nilai);
+          if (b.length === 0) continue;
+          w = Math.max(w, lebarSel(b) + padCell + AUTOFIT_BUFFER);
         }
       } else {
         let maksKan = -1;
-        const kandidat: { s: string; cw: number }[] = [];
-        for (const v of values) {
-          const s = teksTampilSel(f, v[f.key]);
-          if (!s) continue;
-          const cw = ctxKan.measureText(s).width;
+        const kandidat: { b: BarisSel[]; cw: number }[] = [];
+        for (const [r, nilai] of samples) {
+          const b = barisOf(f, r, nilai);
+          if (b.length === 0) continue;
+          const cw = cwSel(ctxKan, b);
           if (cw > maksKan) maksKan = cw;
-          kandidat.push({ s, cw });
+          kandidat.push({ b, cw });
         }
-        for (const { s, cw } of kandidat) {
+        for (const { b, cw } of kandidat) {
           if (cw < maksKan - 40) continue;
-          w = Math.max(w, lebarCache(s) + padCell + AUTOFIT_BUFFER);
+          w = Math.max(w, lebarSel(b) + padCell + AUTOFIT_BUFFER);
         }
       }
       out[f.key] = Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, Math.ceil(w)));

@@ -40,6 +40,16 @@ export interface ExcelField {
   onCellClick?: (id: string | number) => void;
   /** Isi sel statis dengan ReactNode kustom (mis. dua baris mapel + guru). */
   renderCell?: (rowData: GridRow) => ReactNode;
+  /** Baris-baris yang benar-benar digambar dalam satu sel — dipakai AutoFit
+   *  untuk mengukur lebar kolom.
+   *
+   *  WAJIB diisi begitu `renderCell` menggambar isinya di lebih dari satu
+   *  baris. Nilai grid-nya tetap satu string (dipakai salin TSV), jadi tanpa
+   *  ini AutoFit mengukurnya sebagai SATU baris dan kolom jadi jauh lebih
+   *  lebar dari yang benar-benar terpakai (mapel di atas guru di bawah
+   *  terukur seolah bersebelahan). Lebar diambil dari baris yang TERLEBAR,
+   *  bukan penjumlahan. */
+  barisSel?: (baris: { id: string | number }) => BarisSel[];
   /** Kelas CSS tambahan untuk sel (mis. pewarnaan mapel/guru di jadwal). */
   cellClass?: (rowData: GridRow) => string | undefined;
   /** Kembalikan pesan galat bila nilai tidak valid, atau null bila OK. */
@@ -56,6 +66,15 @@ export interface ExcelField {
    *  atau `ya_tidak` (Ya/Tidak). Kosong = tampil apa adanya. Berlaku juga
    *  saat pengukuran lebar kolom supaya isi tidak terpotong. */
   format?: 'angka' | 'tanggal' | 'ya_tidak' | null;
+}
+
+/** Satu baris teks di dalam sel yang digambar multi-baris. */
+export interface BarisSel {
+  teks: string;
+  /** Ukuran huruf px. Isi wajib bila `renderCell` memakai kelas ukuran
+   *  sendiri (mis. `text-[10px]`) — kalau absen, ukuran huruf sel yang
+   *  dipakai, sehingga baris kecil jadi overestimate. */
+  ukuran?: number;
 }
 
 /** Baris grid: id + checklist + nilai string per field. */

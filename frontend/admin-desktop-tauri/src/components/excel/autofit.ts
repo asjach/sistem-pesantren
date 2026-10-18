@@ -1,7 +1,7 @@
 import { AUTOFIT_BUFFER, AUTOFIT_MAX_W, MIN_COL_W } from './helpers';
 import { PAD_JUDUL_X } from './header';
-import { measureActionsWidth, measureTextWidth } from './measure';
-import type { ExcelField } from './types';
+import { fontKanvas, measureActionsWidth, measureTextWidth } from './measure';
+import type { BarisSel, ExcelField } from './types';
 
 /** Batas baris pemindaian ukur: di atas ini diambil contoh merata (bukan
  *  semua baris) agar muat ribuan baris tetap cepat. Lebar dari contoh +
@@ -49,6 +49,40 @@ export function gabungLebarMaks(
   return berubah ? out : prev;
 }
 
+/** Baris sel dari `barisSel` kolom; kolom yang tak menyediakannya (atau
+ *  mengembalikan undefined) memakai teks nilainya utuh sebagai SATU baris.
+ *  Dipakai kedua jalur pengukuran (AutoFit DOM & lebar awal sinkron) supaya
+ *  satu tak bisa mengukur differently dari yang lain. */
+export function barisSelAtauTeks(
+  dariKolom: BarisSel[] | undefined,
+  teks: string,
+): BarisSel[] {
+  if (dariKolom !== undefined) return dariKolom;
+  return teks === '' ? [] : [{ teks }];
+}
+
+/**
+ * Lebar sel yang digambar beberapa baris: tiap baris diukur sendiri lalu
+ * diambil yang TERLEBAR — bukan teksnya digabung jadi satu baris.
+ *
+ *  Tanpa ini, sel dua baris (mis. mapel di atas guru di bawah) terukur
+ *  seolah dua teks itu bersebelahan, sehingga kolom selalu lebih lebar dari
+ *  isinya. Ini kebalikan dari `lebarJudulDuaBaris` di atas: yang itu memecah
+ * satu teks panjang ke DUA baris untuk menghemat ruang, yang ini mengukur
+ * baris yang memang sudah dipisah oleh `renderCell`.
+ */
+export function lebarDariBaris(
+  baris: readonly BarisSel[],
+  ukur: (teks: string, ukuranPx?: number) => number,
+): number {
+  let w = 0;
+  for (const b of baris) {
+    if (b.teks === '') continue;
+    w = Math.max(w, ukur(b.teks, b.ukuran));
+  }
+  return w;
+}
+
 export function lebarJudulDuaBaris(label: string, ukur: (text: string) => number): number {
   const kata = label.trim().split(/\s+/).filter(Boolean);
   if (kata.length < 2) return ukur(label);
@@ -71,6 +105,10 @@ export interface OpsiAutoFit {
   labelKolom: (key: string, bawaan: string) => string;
   /** Teks tampil satu sel (format kolom sudah diterapkan). */
   teksSel: (f: ExcelField, rowId: string, key: string) => string;
+  /** Baris-baris yang digambar dalam satu sel; kolom yang tak menyediakannya
+   *  (atau mengembalikan undefined) memakai teks `teksSel` utuh sebagai satu
+   *  baris. */
+  barisSel?: (f: ExcelField, baris: { id: string | number }, key: string) => BarisSel[] | undefined;
   /** Konteks canvas (dibuat malas; null bila tak tersedia). */
   dapatkanCtx: () => CanvasRenderingContext2D | null;
 }
@@ -95,10 +133,12 @@ export function ukurAutoFit(root: HTMLElement | null, key: string, o: OpsiAutoFi
   const ctx = o.dapatkanCtx();
   if (!ctx) return null;
 
-  const fontOf = (cs: CSSStyleDeclaration) =>
-    `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
   const padOf = (cs: CSSStyleDeclaration) =>
     (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  /** Baris sel: pakai `barisSel` bila kolom menyediakannya, kalau tidak
+   *  teks datanya sendiri sebagai satu baris. */
+  const barisCell = (baris: { id: string | number }): BarisSel[] =>
+    barisSelAtauTeks(o.barisSel?.(f, baris, key), o.teksSel(f, String(baris.id), key));
 
   const csHead = getComputedStyle(headEl);
   const headCont = headEl.querySelector<HTMLElement>('.dsg-cell-header-container');
@@ -113,24 +153,35 @@ export function ukurAutoFit(root: HTMLElement | null, key: string, o: OpsiAutoFi
   // kandidat itu diukur presisi dengan span DOM. Selisih canvas vs DOM
   // berasal dari tabular-nums/kerning, jadi ambil margin lebar.
   const CANDIDATE_MARGIN = 40;
-  ctx.font = fontOf(csCell);
-  const values: { v: string; cw: number }[] = [];
+  const values: { b: BarisSel[]; cw: number }[] = [];
   let maxCw = 0;
   for (const r of ambilContohBaris(o.rows)) {
-    const v = o.teksSel(f, String(r.id), key);
-    if (!v) continue;
-    const cw = ctx.measureText(v).width;
+    const b = barisCell(r);
+    if (b.length === 0) continue;
+    /* Lebar sel = baris terlebar. Kanvas hanya menyaring, jadi font-nya
+       dipasang ulang per baris karena ukurannya bisa beda-beda. */
+    let cw = 0;
+    for (const satu of b) {
+      if (satu.teks === '') continue;
+      ctx.font = fontKanvas(csCell, satu.ukuran);
+      cw = Math.max(cw, ctx.measureText(satu.teks).width);
+    }
     if (cw > maxCw) maxCw = cw;
-    values.push({ v, cw });
+    values.push({ b, cw });
   }
 
   let w = lebarJudulDuaBaris(
     o.labelKolom(f.key, f.label),
     (text) => measureTextWidth(text, csHead),
   ) + padHead + AUTOFIT_BUFFER;
-  for (const { v, cw } of values) {
+  for (const { b, cw } of values) {
     if (cw < maxCw - CANDIDATE_MARGIN) continue;
-    w = Math.max(w, measureTextWidth(v, csCell) + padCell + AUTOFIT_BUFFER);
+    w = Math.max(
+      w,
+      lebarDariBaris(b, (teks, ukuran) => measureTextWidth(teks, csCell, ukuran)) +
+        padCell +
+        AUTOFIT_BUFFER,
+    );
   }
   return Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, Math.ceil(w)));
 }

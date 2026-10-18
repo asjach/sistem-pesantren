@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField, type GridRow } from '@/components/ExcelTable';
+import type { BarisSel } from '@/components/excel/types';
 import type { BlokIsi } from '@/components/excel/seretIsiSel';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,6 +21,10 @@ import { listKelas, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
+import {
+  GAYA_GARIS, formatGuruBaris, formatMapelBaris, garisSelMatriks,
+  type FormatGuru, type FormatMapel, type GarisSel, type TampilanJadwal,
+} from './matriksJadwal';
 import PanelTemplate, { FIELDS_KERANGKA } from './TemplateJadwalPanel';
 import PanelHariLibur from './HariLiburPanel';
 import {
@@ -61,15 +66,6 @@ interface SasaranJadwal {
   hari: string;
 }
 
-/** Isi sel matriks: mapel + guru (dua baris), mapel saja, atau guru saja. */
-type TampilanJadwal = 'keduanya' | 'mapel' | 'guru';
-
-/** Format nama mapel: nama lengkap, kode, atau singkatan. */
-type FormatMapel = 'nama' | 'kode' | 'singkatan';
-
-/** Format guru: nama/gelar, panggilan/singkat, berprefiks Ust./Usth., atau kode. */
-type FormatGuru = 'nama' | 'gelar' | 'panggilan' | 'singkat' | 'prefiks' | 'prefiks_gelar' | 'kode';
-
 /** Pewarnaan sel: polos, per guru, atau per mapel. */
 type WarnaJadwal = 'polos' | 'guru' | 'mapel';
 
@@ -108,31 +104,6 @@ function kelasWarna(id: number | null): string | undefined {
 
 function namaGuru(g: GuruAktif): string {
   return `${g.gelar_depan ? `${g.gelar_depan} ` : ''}${g.nama_lengkap}${g.gelar_belakang ? `, ${g.gelar_belakang}` : ''}`;
-}
-
-/** Nama mapel sesuai format; kode/singkatan kosong kembali ke nama. */
-function formatMapelBaris(j: JadwalBaris, format: FormatMapel): string {
-  if (format === 'kode') return j.kode_mapel?.trim() || j.nama_mapel || '';
-  if (format === 'singkatan') return j.singkatan?.trim() || j.nama_mapel || '';
-  return j.nama_mapel || '';
-}
-
-/** Nama guru sesuai format. Prefiks mengikuti jenis kelamin Pegawai. */
-function formatGuruBaris(j: JadwalBaris, format: FormatGuru): string {
-  const nama = j.guru?.trim();
-  if (!nama) return '';
-  if (format === 'kode') {
-    return j.guru_pegawai_id !== null ? String(j.guru_pegawai_id) : '';
-  }
-  if (format === 'panggilan') return j.guru_nama_panggilan?.trim() || nama;
-  if (format === 'singkat') return j.guru_nama_singkat?.trim() || nama;
-  const depan = j.guru_gelar_depan?.trim();
-  const belakang = j.guru_gelar_belakang?.trim();
-  const denganGelar = `${depan ? `${depan} ` : ''}${nama}${belakang ? `, ${belakang}` : ''}`;
-  if (format === 'gelar') return denganGelar;
-  if (format === 'nama') return nama;
-  const prefiks = j.guru_jenis_kelamin === 'P' ? 'Usth.' : 'Ust.';
-  return format === 'prefiks_gelar' ? `${prefiks} ${denganGelar}` : `${prefiks} ${nama}`;
 }
 
 /** Halaman Jadwal Pelajaran: matriks jadwal per kelas (hari × JP) + tab
@@ -421,42 +392,42 @@ export default function KurikulumJadwalPage() {
     })();
   }, [canUbah, hari, petaJadwal, muatJadwal]);
 
-  /** Isi sel: mapel + guru (dua baris, gaya berbeda), mapel saja, atau guru
-   *  saja sesuai pilihan Tampilan. Slot non-pelajaran tetap terkunci. */
+  /** Baris-baris sel matriks hari `h` pada baris `id` — pitanya antara
+   *  peta baris dan peta jadwal. */
+  const garisSel = useCallback(
+    (id: string | number, h: string): GarisSel[] => {
+      const s = petaBaris.get(String(id))?.perHari[h];
+      return garisSelMatriks(s, s === undefined ? undefined : petaJadwal.get(`${s.id}|${h}`), {
+        tampilan,
+        formatMapel,
+        formatGuru,
+      });
+    },
+    [petaBaris, petaJadwal, tampilan, formatMapel, formatGuru],
+  );
+
+  /** Isi sel dari `garisSel`: satu baris langsung, dua baris ditumpuk. */
   const renderSel = useCallback((id: string | number, h: string) => {
-    const s = petaBaris.get(String(id))?.perHari[h];
-    if (s === undefined) return null;
-    if (s.jenis !== 'pelajaran') {
-      return (
-        <span className="max-w-full truncate text-[10px] text-muted-foreground">
-          {s.nama_slot ?? JENIS_SLOT_LABEL[s.jenis]}
-        </span>
-      );
-    }
-    const j = petaJadwal.get(`${s.id}|${h}`);
-    if (j === undefined) return null;
-    const tanpaMapel = j.mata_pelajaran_id === null;
-    const mapel = tanpaMapel ? '' : formatMapelBaris(j, formatMapel);
-    const guru = formatGuruBaris(j, formatGuru);
-    if (tampilan === 'mapel') {
-      return mapel === '' ? null : <span className="max-w-full truncate">{mapel}</span>;
-    }
-    if (tampilan === 'guru') {
-      return <span className="max-w-full truncate">{guru || '—'}</span>;
-    }
-    // Guru dulu, mapel menyusul: tampilkan guru saja sampai mapel diisi.
-    if (tanpaMapel) {
-      return guru === '' ? null : <span className="max-w-full truncate">{guru}</span>;
+    const baris = garisSel(id, h);
+    if (baris.length === 0) return null;
+    if (baris.length === 1) {
+      return <span className={GAYA_GARIS[baris[0].gaya].kelas}>{baris[0].teks}</span>;
     }
     return (
       <span className="flex min-w-0 max-w-full flex-col items-center justify-center leading-none">
-        <span className="max-w-full truncate text-[10px] leading-[1.15]">{mapel}</span>
-        {guru ? (
-          <span className="max-w-full truncate text-[9px] leading-[1.15] text-muted-foreground">{guru}</span>
-        ) : null}
+        {baris.map((b, i) => (
+          <span key={i} className={GAYA_GARIS[b.gaya].kelas}>{b.teks}</span>
+        ))}
       </span>
     );
-  }, [petaBaris, petaJadwal, tampilan, formatMapel, formatGuru]);
+  }, [garisSel]);
+
+  /** Bentuk `BarisSel` untuk AutoFit dari baris yang sama yang digambar. */
+  const barisSelJadwal = useCallback(
+    (id: string | number, h: string): BarisSel[] =>
+      garisSel(id, h).map((b) => ({ teks: b.teks, ukuran: GAYA_GARIS[b.gaya].ukuran })),
+    [garisSel],
+  );
 
   /** Kelas warna sel sesuai mode: guru (per orang) atau mapel (per mapel).
    *  Sel tanpa guru/mapel dan slot non-pelajaran dibiarkan polos. */
@@ -490,10 +461,14 @@ export default function KurikulumJadwalPage() {
         width: 180,
         kind: 'static',
         renderCell: (rowData: GridRow) => renderSel(rowData.id, h),
+        /* Sel digambar beberapa baris sementara nilainya tetap satu string
+           (dipakai salin TSV) — tanpa ini AutoFit mengukurnya utuh dan
+           kolom hari jadi jauh lebih lebar dari isinya. */
+        barisSel: (rowData) => barisSelJadwal(rowData.id, h),
         cellClass: (rowData: GridRow) => cls(rowData, kelasWarnaSel(rowData.id, h)),
       })),
     ];
-  }, [hari, renderSel, kelasWarnaSel, kelasAwalSel]);
+  }, [hari, renderSel, barisSelJadwal, kelasWarnaSel, kelasAwalSel]);
 
   const nilaiMatriks = useCallback((r: BarisMatriks) => {
     const v: Record<string, string | null> = { __kelas: r.kelasNama, __slot: r.label };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { gabungLebarMaks } from './autofit';
+import { gabungLebarMaks, lebarDariBaris } from './autofit';
 
 describe('gabungLebarMaks', () => {
   it('mengembalikan objek LAMA bila nilai sama (identitas stabil)', () => {
@@ -32,5 +32,41 @@ describe('gabungLebarMaks', () => {
     expect(hasil).toEqual({ nama: 120, baru: 90 });
     // Sampel kosong (filter tak cocok) tak meruntuhkan lebar.
     expect(gabungLebarMaks(hasil, {})).toBe(hasil);
+  });
+});
+
+describe('lebarDariBaris', () => {
+  /** Lebar linear terhadap panjang teks, supaya nilai yang diharapkan bisa
+   *  ditulis tangan tanpa bergantung font asli. */
+  const ukur = (teks: string, ukuranPx?: number): number => teks.length * (ukuranPx ?? 12);
+
+  it('mengambil baris TERLEBAR, bukan menjumlahkan baris-barisnya', () => {
+    // "Matematika — Siti Aminah" (21 char) vs baris terlebar "Matematika" (10).
+    const w = lebarDariBaris(
+      [{ teks: 'Matematika', ukuran: 10 }, { teks: 'Siti Aminah', ukuran: 9 }],
+      ukur,
+    );
+    expect(w).toBe(100);
+  });
+
+  it('bukan penjumlahan: dua baris 100px tetap 100px, bukan 200px', () => {
+    expect(lebarDariBaris([{ teks: 'abcdefghij' }, { teks: 'klmnopqrst' }], ukur)).toBe(120);
+  });
+
+  it('ukuran huruf per baris diteruskan ke pengukur (huruf kecil = lebih sempit)', () => {
+    const teks = [{ teks: 'Pendompaan', ukuran: 10 }, { teks: 'Pendompaan', ukuran: 9 }];
+    // Baris 9px harus lebih sempit walau teksnya sama panjang.
+    expect(lebarDariBaris(teks, ukur)).toBe(100);
+  });
+
+  it('baris kosong diabaikan (tak diukur sebagai teks "")', () => {
+    const calls: string[] = [];
+    const catat = (t: string) => { calls.push(t); return t.length * 12; };
+    lebarDariBaris([{ teks: '' }, { teks: 'Isi' }, { teks: '' }], catat);
+    expect(calls).toEqual(['Isi']);
+  });
+
+  it('tanpa baris = 0 (bukan NaN/lebar.MIN yang mengacaukan pembanding)', () => {
+    expect(lebarDariBaris([], ukur)).toBe(0);
   });
 });

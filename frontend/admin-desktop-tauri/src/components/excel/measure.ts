@@ -7,7 +7,9 @@ let probe: HTMLSpanElement | null = null;
  *  nyata dari sel. Canvas tidak cukup: `font-variant-numeric: tabular-nums`
  *  (dipakai sel) tidak bisa direpresentasikan canvas sehingga hasilnya
  *  ~8px lebih sempit dan teks panjang (mis. email) jadi terpotong. */
-export function measureTextWidth(text: string, cs: CSSStyleDeclaration): number {
+export function measureTextWidth(
+  text: string, cs: CSSStyleDeclaration, ukuranPx?: number,
+): number {
   if (!probe) {
     probe = document.createElement('span');
     probe.setAttribute('aria-hidden', 'true');
@@ -19,7 +21,7 @@ export function measureTextWidth(text: string, cs: CSSStyleDeclaration): number 
     document.body.appendChild(probe);
   }
   probe.style.fontFamily = cs.fontFamily;
-  probe.style.fontSize = cs.fontSize;
+  probe.style.fontSize = ukuranPx != null ? `${ukuranPx}px` : cs.fontSize;
   probe.style.fontWeight = cs.fontWeight;
   probe.style.fontStyle = cs.fontStyle;
   probe.style.fontVariantNumeric = cs.fontVariantNumeric;
@@ -50,9 +52,12 @@ export function dapatkanKanvas(): CanvasRenderingContext2D | null {
   return kanvas;
 }
 
-/** String font kanvas dari gaya terhitung (format sama `ctx.font`). */
-export function fontKanvas(cs: CSSStyleDeclaration): string {
-  return `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+/** String font kanvas dari gaya terhitung (format sama `ctx.font`).
+ *  `ukuranPx` menimpa ukuran huruf — untuk sel yang digambar beberapa baris
+ *  dengan huruf berbeda-beda (lihat `BarisSel`). */
+export function fontKanvas(cs: CSSStyleDeclaration, ukuranPx?: number): string {
+  const ukuran = ukuranPx != null ? `${ukuranPx}px` : cs.fontSize;
+  return `${cs.fontStyle} ${cs.fontWeight} ${ukuran} ${cs.fontFamily}`;
 }
 
 /** Lebar kolom Aksi diukur dari tombol yang benar-benar dirender — jumlah
