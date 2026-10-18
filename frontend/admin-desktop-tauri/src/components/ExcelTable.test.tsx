@@ -20,7 +20,11 @@ vi.mock('@/components/FilterRail', () => ({
 /** Tiruan server stateful untuk preset toolbar: `visibilitas` bisa disemai
  *  per tes, dan `simpan` benar-benar mengubah yang dibaca `muat`. */
 const serverToolbar = vi.hoisted(() => {
-  const state = { visibilitas: {} as Record<string, boolean>, judul: null as string | null };
+  const state = {
+    visibilitas: {} as Record<string, boolean>,
+    judul: null as string | null,
+    infoHtml: null as string | null,
+  };
   const muat = vi.fn(async () => ({
     pesan: 'ok',
     data: {
@@ -30,6 +34,7 @@ const serverToolbar = vi.hoisted(() => {
       urutan: [],
       align: {},
       judul: state.judul,
+      info_html: state.infoHtml,
     },
   }));
   const simpan = vi.fn(async (_t: string, v?: Record<string, boolean>) => {
@@ -117,6 +122,7 @@ function renderTabel(props: Partial<ExcelTableProps<Baris>> = {}) {
 
 beforeEach(() => {
   serverToolbar.state.visibilitas = {};
+  serverToolbar.state.infoHtml = null;
   vi.clearAllMocks();
   localStorage.clear();
 });
@@ -133,6 +139,25 @@ describe('ExcelTable — bilah judul', () => {
     expect(bilah).not.toBeNull();
     expect(bilah?.textContent).toContain('Uji');
     expect(document.getElementById('uji_filter')).not.toBeNull();
+  });
+
+  it('menampilkan tombol Info beserta isi info saat tabel punya info', async () => {
+    serverToolbar.state.infoHtml = '<p>Ketentuan <strong>tabel</strong>.</p>';
+    renderTabel();
+
+    const tombol = await screen.findByRole('button', { name: 'Info tabel' });
+    await userEvent.hover(tombol);
+
+    const isi = await screen.findByText(/Ketentuan/);
+    expect(isi.tagName).toBe('P');
+    expect(isi).toHaveTextContent('Ketentuan tabel.');
+  });
+
+  it('tanpa info, tombol Info tidak dirender', async () => {
+    renderTabel();
+
+    await waitFor(() => expect(serverToolbar.muat).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Info tabel' })).toBeNull();
   });
 });
 

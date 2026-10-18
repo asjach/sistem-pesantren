@@ -32,9 +32,9 @@ function visibilitasBersih(v: Record<string, unknown> | undefined): VisibilitasT
 
 /**
  * State + pemuatan preset toolbar per tabel: apa yang benar-benar milik
- * TABEL — visibilitas filter toolbar, urutan kolom, perataan kolom, dan
- * (dulu) peta `lebar`/`tinggi`/`nilai_default` yang dulu menyimpan setelan
- * komponen kustom.
+ * TABEL — visibilitas filter toolbar, urutan kolom, perataan kolom, judul,
+ * info tabel, dan (dulu) peta `lebar`/`tinggi`/`nilai_default` yang dulu
+ * menyimpan setelan komponen kustom.
  *
  * Setelan & ukuran komponen kustom (tinggi, lebar, lebar label/kontrol, sisi
  * yang mengembang, warna label, nilai awal, tipe input) TIDAK lagi lewat sini:
@@ -62,6 +62,9 @@ export function useToolbarPresetState(tableKey: string) {
   const [labelDb, setLabelDb] = useState<Record<string, string>>({});
   /** Judul tabel yang diisi pengguna. `null` = pakai judul bawaan kode. */
   const [judulDb, setJudulDb] = useState<string | null>(null);
+  /** Info tabel (HTML ter-sanitasi). `null` = belum diisi → tanpa tombol Info.
+   *  Hanya dibaca di grid; penulisannya di tab Info dialog Kelola Tabel. */
+  const [infoHtmlDb, setInfoHtmlDb] = useState<string | null>(null);
 
   /** Konteks "di dalam toolbar tabel": tinggal identitas tabel. */
   const konteksLebarFilter = useMemo(() => ({ tableKey }), [tableKey]);
@@ -77,6 +80,7 @@ export function useToolbarPresetState(tableKey: string) {
         setUrutanDb(Array.isArray(res.data.urutan) ? res.data.urutan : []);
         setLabelDb(bacaLabel(res.data.label));
         setJudulDb(res.data.judul ?? null);
+        setInfoHtmlDb(res.data.info_html ?? null);
       } catch {
         if (batal) return;
         setVisibilitas({});
@@ -84,6 +88,7 @@ export function useToolbarPresetState(tableKey: string) {
         setUrutanDb([]);
         setLabelDb({});
         setJudulDb(null);
+        setInfoHtmlDb(null);
       }
     };
     void muat();
@@ -182,5 +187,8 @@ export function useToolbarPresetState(tableKey: string) {
       });
   }, [tableKey]);
 
-  return { visibilitas, alignDb, urutanDb, setUrutanDb, simpanUrutan, labelDb, judulDb, simpanJudul, simpanAlign, konteksLebarFilter };
+  return {
+    visibilitas, alignDb, urutanDb, setUrutanDb, simpanUrutan,
+    labelDb, judulDb, simpanJudul, infoHtmlDb, simpanAlign, konteksLebarFilter,
+  };
 }

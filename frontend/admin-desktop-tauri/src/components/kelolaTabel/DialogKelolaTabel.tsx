@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { kanonLabel } from '@/lib/labelKolom';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
+import TabInfo from './TabInfo';
 import TabKolom, { type TabKolomProps } from './TabKolom';
 import TabUmum from './TabUmum';
 import TabUrutan from './TabUrutan';
@@ -492,7 +493,7 @@ export default function DialogKelolaTabel({
 
   /** Jumlah bagian yang belum tersimpan — dipakai badge di tab + footer. */
   const jumlahKotor = useMemo(
-    () => ['umum', 'visibilitas', 'kolom', 'urutan']
+    () => ['umum', 'visibilitas', 'info', 'kolom', 'urutan']
       .filter((id) => kotorBagian[id]).length,
     [kotorBagian],
   );
@@ -561,6 +562,7 @@ export default function DialogKelolaTabel({
                   visibilitas komponen (id sendiri — satu tab bisa punya >1
                   bagian terdaftar). */}
               <TabBagian id="umum" label="Umum" kotor={!!kotorBagian.umum || !!kotorBagian.visibilitas} />
+              <TabBagian id="info" label="Info" kotor={!!kotorBagian.info} />
               <TabBagian id="kolom" label="Kolom" kotor={!!kotorBagian.kolom} />
               <TabBagian id="urutan" label="Urutan" kotor={!!kotorBagian.urutan} />
             </TabsList>
@@ -582,6 +584,12 @@ export default function DialogKelolaTabel({
                   />
                   <TabUmum tableKey={tableKey} judul={judul} fields={fields} />
                 </div>
+              </Bagian>
+            </TabsContent>
+
+            <TabsContent value="info" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
+              <Bagian id="bagian_info_tabel" judul="Info tabel">
+                <TabInfo key={tableKey} tableKey={tableKey} />
               </Bagian>
             </TabsContent>
 

@@ -27,6 +27,9 @@ export interface ToolbarPresetData {
   /** Judul tabel yang diisi pengguna; `null` = pakai judul bawaan kode
    *  (prop `header` halaman → peta `judulTabel()` → table_key). */
   judul: string | null;
+  /** Info tabel: HTML ter-sanitasi (allowlist `HtmlInfo`) untuk HoverCard di
+   *  ujung judul tabel. `null` = belum diisi, tombol Info disembunyikan. */
+  info_html: string | null;
   /** @see ToolbarPresetData.lebar */
   nilai_default: Record<string, string>;
 }
@@ -42,7 +45,7 @@ export function muatToolbarPreset(tableKey: string) {
  * backend — setelan komponen pindah ke `komponenCustom.ts`.
  *
  * `align` dan `label` ditaruh paling AKHIR supaya pemanggil lama (posisional)
- * tak bergeser.
+ * tak bergeser. `infoHtml` menyusul setelah `judul` dengan alasan yang sama.
  */
 export function simpanToolbarPreset(
   tableKey: string,
@@ -51,6 +54,7 @@ export function simpanToolbarPreset(
   align?: AlignKolomApi,
   label?: LabelKolomApi,
   judul?: string,
+  infoHtml?: string,
 ) {
   return api<{ pesan: string; data: unknown }>('/admin/toolbar-preset', {
     method: 'PUT',
@@ -63,6 +67,9 @@ export function simpanToolbarPreset(
       // Selalu kirim bila diberikan (termasuk ''): string kosong ADALAH
       // perintah menghapus override, jadi `!== undefined`, bukan truthy.
       ...(judul !== undefined ? { judul } : {}),
+      // Sama seperti judul: '' menghapus info (backend menyimpannya NULL),
+      // bukan sekadar diabaikan.
+      ...(infoHtml !== undefined ? { info_html: infoHtml } : {}),
     }),
   });
 }

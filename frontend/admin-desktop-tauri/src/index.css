@@ -1272,3 +1272,57 @@
 [data-warna='kaya'] :is(section.rounded-xl, .rounded-xl.border) {
   border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
 }
+
+/* ---------- Info tabel (HTML tersanitasi dari tab Info Kelola Tabel) ---------- */
+/* Isinya dirender lewat `dangerouslySetInnerHTML`; sanitizer membuang seluruh
+   `class`/`style`, jadi tampilan HARUS berasal dari selektor elemen di sini.
+   Dipakai di HoverCard bilah judul dan pratinjau dialog. */
+.info-tabel-isi {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.info-tabel-isi > :first-child { margin-top: 0; }
+.info-tabel-isi > :last-child { margin-bottom: 0; }
+.info-tabel-isi :is(p, ul, ol, blockquote, pre) { margin: 0.4em 0; }
+.info-tabel-isi :is(h1, h2, h3, h4) {
+  margin: 0.6em 0 0.25em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.info-tabel-isi h1 { font-size: 1rem; }
+.info-tabel-isi h2 { font-size: 0.9rem; }
+.info-tabel-isi h3 { font-size: 0.84rem; }
+.info-tabel-isi h4 { font-size: 0.8rem; }
+.info-tabel-isi ul { padding-left: 1.1rem; list-style: disc; }
+.info-tabel-isi ol { padding-left: 1.3rem; list-style: decimal; }
+.info-tabel-isi li { margin: 0.15em 0; }
+.info-tabel-isi blockquote {
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--border);
+  color: var(--muted-foreground);
+}
+.info-tabel-isi a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.info-tabel-isi img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.4em 0;
+}
+.info-tabel-isi :is(pre, code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95em;
+}
+.info-tabel-isi pre {
+  padding: 0.4rem 0.5rem;
+  overflow-x: auto;
+  background: var(--muted);
+}
+.info-tabel-isi hr {
+  margin: 0.6em 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}

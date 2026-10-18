@@ -5,8 +5,11 @@ import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import PresetKolom from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import type { ArahUrut } from '@/api/urutPreset';
-import { NotebookTabs, Settings } from '@/icons';
+import { Info, NotebookTabs, Settings } from '@/icons';
 import { Button } from '@/components/ui/button';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import InfoTampil from '@/components/info/InfoTampil';
+import { htmlAdaIsi } from '@/components/info/sanitasiHtml';
 import type { ExcelField } from './types';
 
 interface Props {
@@ -16,6 +19,10 @@ interface Props {
   /** Tampilkan teks judul (sakelar "Judul tabel"). Div kosongnya tetap dirender
    *  supaya pil info tengah & kontrol tak lompat ke tepi saat judul dimatikan. */
   judulTampil: boolean;
+  /** HTML info tabel (sudah tersanitasi di server). `null`/kosong = tombol
+   *  Info tak dirender. Dibaca semua pengguna, ditulis lewat tab Info Kelola
+   *  Tabel. */
+  infoTabel?: string | null;
   /** Tampilkan info tengah (dari visibilitas toolbar). */
   infoTampil: boolean;
   info: ReactNode;
@@ -67,6 +74,7 @@ export default function JudulTabel({
   tableKey,
   judul,
   judulTampil,
+  infoTabel,
   infoTampil,
   info,
   filterTampil,
@@ -103,6 +111,29 @@ export default function JudulTabel({
                 ia yang memberi ruang `flex-1`, jadi pil info & kontrol tak
                 lompat ke tepi kiri. */}
             <div className="min-w-0 flex-1 truncate">{judulTampil ? judul : null}</div>
+            {htmlAdaIsi(infoTabel) ? (
+              /* Info = keterangan tabel dari super_admin, duduk tepat di ujung
+                 judul supaya jelas milik tabel ini. HoverCard-nya sengaja
+                 hanya-baca (lihat catatan di ui/hover-card): kartunya tak
+                 menahan klik ke tabel di bawahnya. */
+              <HoverCard openDelay={120} closeDelay={60}>
+                <HoverCardTrigger asChild>
+                  <Button
+                    id={`btn_info_tabel_${tableKey}`}
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Info tabel"
+                    title="Info tabel"
+                  >
+                    <Info size={14} />
+                  </Button>
+                </HoverCardTrigger>
+                <HoverCardContent align="start" className="w-96 max-w-[min(24rem,90vw)]">
+                  <InfoTampil html={infoTabel} />
+                </HoverCardContent>
+              </HoverCard>
+            ) : null}
             {infoTampil ? (
               <div className="flex max-w-full shrink-0 self-center flex-col items-center gap-0.5 rounded-pil border bg-muted/60 px-4 py-1 text-center">
                 <span className="max-w-[32rem] truncate text-[11px] text-muted-foreground">{info}</span>

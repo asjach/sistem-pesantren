@@ -42,7 +42,11 @@ vi.mock('@/api/preset', () => ({
 /** Tiruan server stateful untuk preset toolbar: `visibilitas` bisa disemai
  *  per tes, dan `simpan` benar-benar mengubah yang dibaca `muat`. */
 const serverToolbar = vi.hoisted(() => {
-  const state = { visibilitas: {} as Record<string, boolean>, judul: null as string | null };
+  const state = {
+    visibilitas: {} as Record<string, boolean>,
+    judul: null as string | null,
+    infoHtml: null as string | null,
+  };
   /** Bila diisi, `simpan` MENUNGGU promise ini selesai sebelum kembali.
    *  Dipakai tes indikator untuk mengatur urutan penyelesaian (balapan). */
   let tahan: Promise<void> | null = null;
@@ -56,8 +60,10 @@ const serverToolbar = vi.hoisted(() => {
       urutan: [],
       align: {},
       judul: state.judul,
+      info_html: state.infoHtml,
     },
   }));
+  // Urutan argumen: table_key, visibilitas, urutan, align, label, judul, info.
   const simpan = vi.fn(async (
     _t: string,
     v?: Record<string, boolean>,
@@ -65,9 +71,11 @@ const serverToolbar = vi.hoisted(() => {
     _a?: unknown,
     _l?: unknown,
     judul?: string,
+    infoHtml?: string,
   ) => {
     if (v !== undefined) state.visibilitas = { ...v };
     if (judul !== undefined) state.judul = judul.trim() === '' ? null : judul.trim();
+    if (infoHtml !== undefined) state.infoHtml = infoHtml === '' ? null : infoHtml;
     if (tahan) await tahan;
     return { pesan: 'ok', data: null };
   });
@@ -162,6 +170,7 @@ const LENGKAP: InfoKomponenTabel = {
 
 beforeEach(() => {
   serverToolbar.state.visibilitas = {};
+  serverToolbar.state.infoHtml = null;
   serverPref.bersihkan();
   vi.clearAllMocks();
 });
@@ -229,6 +238,39 @@ describe('DialogKelolaTabel — tab Umum', () => {
   });
 });
 
+describe('DialogKelolaTabel — tab Info', () => {
+  it('memuat info tersimpan ke editor', async () => {
+    serverToolbar.state.infoHtml = '<p>Ketentuan tabel.</p>';
+    renderDialog();
+    await userEvent.click(screen.getByRole('tab', { name: /^Info/ }));
+
+    const editor = await screen.findByLabelText('Isi info tabel');
+    await waitFor(() => expect(editor.textContent).toContain('Ketentuan tabel.'));
+  });
+
+  it('mengetik di editor menyimpan HTML setelah jeda, bukan tiap ketukan', async () => {
+    renderDialog();
+    const editor = await screen.findByLabelText('Isi info tabel');
+
+    editor.innerHTML = '<p>Ketentuan <strong>baru</strong>.</p>';
+    fireEvent.input(editor);
+
+    await waitFor(
+      () => expect(serverToolbar.simpan).toHaveBeenCalledWith(
+        'uji',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        '<p>Ketentuan <strong>baru</strong>.</p>',
+      ),
+      { timeout: 3000 },
+    );
+    expect(serverToolbar.state.infoHtml).toBe('<p>Ketentuan <strong>baru</strong>.</p>');
+  });
+});
+
 describe('DialogKelolaTabel — sinkronisasi preset dari luar', () => {
   it('memuat ulang daftar preset saat menerima EVENT_PRESET_BERUBAH tabel ini', async () => {
     const muat = vi.mocked(listPresetTabel);
@@ -257,10 +299,10 @@ describe('DialogKelolaTabel — sinkronisasi preset dari luar', () => {
 });
 
 describe('DialogKelolaTabel — navigasi tab', () => {
-  it('hanya ada tiga tab: Umum, Kolom, Urutan (tab Filter Tabel sudah dihapus)', () => {
+  it('tab-nya Umum, Info, Kolom, Urutan (tab Filter Tabel sudah dihapus)', () => {
     renderDialog(LENGKAP);
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent?.replace(/\s+/g, ' ').trim());
-    expect(tabs).toEqual(['Umum', 'Kolom', 'Urutan']);
+    expect(tabs).toEqual(['Umum', 'Info', 'Kolom', 'Urutan']);
     // Sakelar filter toolbar pindah ke tab Umum, jadi tak ada tab Filter lagi.
     expect(screen.queryByRole('tab', { name: /Filter Tabel/ })).not.toBeInTheDocument();
   });

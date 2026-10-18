@@ -101,6 +101,7 @@ import {
   ToggleCell,
 } from './excel/cells';
 import { HeaderTitle } from './excel/header';
+import { htmlAdaIsi } from '@/components/info/sanitasiHtml';
 import { useSeretKolomHeader } from './excel/useSeretKolomHeader';
 import { useSeretIsiSel } from './excel/useSeretIsiSel';
 import { terapkanSeret, type BlokIsi, type ModeSeret } from './excel/seretIsiSel';
@@ -357,7 +358,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
-  const { visibilitas, alignDb, urutanDb, setUrutanDb, simpanUrutan, labelDb, judulDb, simpanJudul, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { visibilitas, alignDb, urutanDb, setUrutanDb, simpanUrutan, labelDb, judulDb, simpanJudul, infoHtmlDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /* Sakelar komponen tabel (tab Umum Kelola Tabel, SERVER per tabel): setiap
      komponen tabel punya sakelarnya sendiri. Semua sakelar absen = tampil, jadi
      tabel yang belum pernah disetel berperilaku persis seperti sebelumnya.
@@ -1877,7 +1878,10 @@ export default function ExcelTable<T extends { id: string | number }>({
     // hanya punya filter (mis. Kamus Mapel) tak mendapat bilah judul sama
     // sekali, sehingga kontrol filternya ikut tak pernah dirender.
     || hasFilter
-    || filterTersedia.length > 0;
+    || filterTersedia.length > 0
+    // Info tabel duduk di bilah judul: tabel tanpa judul/kontrol tetap butuh
+    // bilah itu supaya tombol Info-nya bisa dijangkau.
+    || htmlAdaIsi(infoHtmlDb);
   /** Bilah judul dirender selama masih ada SATU pun isinya. Mematikan seluruh
    *  komponennya membuat bilah judul hilang, bukan sisanya menggantung;
    *  kontrol milik halaman (awalan/akhir toolbar, aksi massal) tetap
@@ -1887,6 +1891,7 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  bersama bilahnya saat semua komponen lain dimatikan. */
   const isiBilahTampil = adaKontrolJudul
     || judulTampil
+    || htmlAdaIsi(infoHtmlDb)
     || infoTengahTampil
     || filterTampil
     || urutTampil
@@ -1991,6 +1996,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             tableKey={tableKey}
             judul={judulHeader}
             judulTampil={judulTampil}
+            infoTabel={infoHtmlDb}
             infoTampil={infoTengahTampil}
             info={tengah}
             filterTampil={filterTampil}

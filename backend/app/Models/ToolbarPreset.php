@@ -24,12 +24,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Peta `lebar` juga memuat lebar label/kontrol terkunci (`<kunci>.label` /
  * `<kunci>.kontrol`) dan penanda `<kunci>.expand` (1 = label mengembang)
  * serta `<kunci>.labeltransparan` (1 = transparan, 0 = ber-bg eksplisit).
+ * `info_html` = HTML ter-sanitasi "info tabel" per `table_key` (bukan per
+ * preset): isi HoverCard di ujung judul tabel. NULL = belum diisi, dan
+ * frontend menyembunyikan tombol Info-nya. Sudah melewati allowlist ketat
+ * `App\Support\HtmlInfo` sebelum disimpan, jadi isinya aman dirender sebagai
+ * HTML di bilah judul tiap tabel.
  */
 class ToolbarPreset extends Model
 {
     protected $table = 'toolbar_preset';
 
-    protected $fillable = ['table_key', 'visibilitas', 'lebar', 'tinggi', 'nilai_default', 'urutan', 'align', 'label', 'judul', 'dibuat_oleh'];
+    protected $fillable = ['table_key', 'visibilitas', 'lebar', 'tinggi', 'nilai_default', 'urutan', 'align', 'label', 'judul', 'info_html', 'dibuat_oleh'];
 
     protected $casts = [
         'visibilitas' => 'array',

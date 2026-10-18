@@ -690,6 +690,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `align`: json [null] — peta key kolom → 'left'|'center'|'right' (satu nilai per kolom, bukan per preset); absen = preferensi pribadi pengguna, lalu tengah
 - `label`: json [null] — peta key kolom → label header tampil (≤100 karakter, satu nilai per kolom, **bukan** per preset); absen = label bawaan kode. Dulunya dari `preset_tabel.label` (kini di sini juga, menyatu di `create_toolbar_preset_table`) karena preset hanya mengubah kolom mana yang TAMPIL, bukan cara kolom dinamai
 - `judul`: string(100) [null] — judul tabel isian pengguna, per `table_key` (bukan per preset); `NULL`/kosong = pakai judul bawaan kode (prop `header` halaman → peta `judulTabel()` → kapitalisasi `table_key`). Diisi dari input "Judul" di tab Umum dialog Kelola Tabel; isian pengguna MENANG atas `header` halaman
+- `info_html`: longText [null] — info tabel per `table_key` (bukan per preset): isi HoverCard di ujung judul tabel, diisi dari tab Info dialog Kelola Tabel (editor HTML + sisip gambar). `NULL`/kosong = tombol Info disembunyikan. **HTML ter-sanitasi allowlist ketat** oleh `App\Support\HtmlInfo` (tag/atribut di luar daftar dibuang; skema `a` hanya http/https/mailto; `img` hanya `data:image/{png,jpeg,webp,gif};base64,…` atau http/https — SVG & `javascript:` ditolak) sebelum disimpan, karena isinya dirender sebagai HTML di bilah judul SETIAP tabel. Batas panjang aplikasi 1.500.000 karakter
 - `dibuat_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
 - UNIQUE(`table_key`)

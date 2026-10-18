@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\ToolbarPresetHapusRequest;
 use App\Http\Requests\Admin\ToolbarPresetIndexRequest;
 use App\Http\Requests\Admin\ToolbarPresetSimpanRequest;
 use App\Models\ToolbarPreset;
+use App\Support\HtmlInfo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
@@ -18,6 +19,10 @@ use Illuminate\Validation\ValidationException;
  * Perataan DAN label sengaja per TABEL, bukan per preset: yang berubah saat
  * preset berganti hanyalah kolom mana yang TAMPIL, sedangkan cara kolom
  * dinamai & diratakan tidak ikut berubah.
+ *
+ * Info tabel (`info_html`) juga per `table_key` dan dibaca semua pengguna,
+ * ditulis super_admin — sama seperti judul: isinya cuma keterangan tabel,
+ * bukan setelan yang boleh berbeda antar pengguna.
  *
  * Ukuran kotak kontrol (tinggi/lebar/label/kontrol), warna label, nilai awal
  * combobox, dan tipe input TIDAK lagi lewat endpoint ini: semuanya milik
@@ -102,6 +107,9 @@ class ToolbarPresetController extends Controller
                 // Judul tabel milik pengguna; null = pakai judul bawaan kode
                 // (prop `header` halaman → peta `judulTabel()` → table_key).
                 'judul' => $row?->judul,
+                // Info tabel (HTML ter-sanitasi) per table_key; null = belum
+                // diisi, dan frontend menyembunyikan tombol Info-nya.
+                'info_html' => $row?->info_html,
                 'nilai_default' => $row?->nilai_default ?? [],
             ],
         ]);
@@ -125,9 +133,9 @@ class ToolbarPresetController extends Controller
             }
         }
 
-        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data) && ! array_key_exists('label', $data) && ! array_key_exists('judul', $data)) {
+        if (! array_key_exists('visibilitas', $data) && ! array_key_exists('urutan', $data) && ! array_key_exists('align', $data) && ! array_key_exists('label', $data) && ! array_key_exists('judul', $data) && ! array_key_exists('info_html', $data)) {
             throw ValidationException::withMessages([
-                'table_key' => 'Kirim minimal satu dari visibilitas, urutan, align, label, atau judul.',
+                'table_key' => 'Kirim minimal satu dari visibilitas, urutan, align, label, judul, atau info_html.',
             ]);
         }
 
@@ -197,6 +205,14 @@ class ToolbarPresetController extends Controller
                 }
             }
             $row->label = $label === [] ? null : $label;
+        }
+
+        /* Info tabel: HTML mentah dari editor SEBELUM disimpan, jadi inilah
+           satu-satunya tempat penyaringan. Setelah lewat `HtmlInfo` isinya
+           hanya tag/atribut allowlist — render sebagai HTML di bilah judul
+           setiap tabel jadi aman. Kosong = hapus info (tombol Info hilang). */
+        if (array_key_exists('info_html', $data)) {
+            $row->info_html = HtmlInfo::bersihkan($data['info_html']);
         }
 
         if (array_key_exists('judul', $data)) {
