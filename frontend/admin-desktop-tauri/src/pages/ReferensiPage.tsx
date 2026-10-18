@@ -154,8 +154,25 @@ export default function ReferensiPage() {
     return () => { hidup = false; };
   }, []);
 
+  /** Urutan daftar tipe (kontrol Urutkan di bilah judul tabel kiri) — sama
+   *  seperti tabel lain. Kosong = urutan bawaan backend (dikelompokkan per
+   *  domain, bukan alfabetis), jadi mengurutkan adalah pilihan, bukan bawaan. */
+  const [urutTipe, setUrutTipe] = useState<string[]>([]);
+  const [arahTipe, setArahTipe] = useState<'naik' | 'turun'>('naik');
+  const terapkanUrutTipe = useCallback((nilai: string[], a: 'naik' | 'turun') => {
+    setUrutTipe(nilai);
+    setArahTipe(a);
+  }, []);
+
   /** Baris daftar tipe kamus (kolom kiri). */
-  const tipeRows = useMemo<BarisTipe[]>(() => types.map((t) => ({ id: t, tipe: t })), [types]);
+  const tipeRows = useMemo<BarisTipe[]>(() => {
+    const dasar = types.map((t) => ({ id: t, tipe: t }));
+    if (!urutTipe.includes('tipe')) return dasar;
+    const arah = arahTipe === 'naik' ? 1 : -1;
+    return [...dasar].sort(
+      (a, b) => arah * labelKolom(a.tipe).localeCompare(labelKolom(b.tipe), 'id'),
+    );
+  }, [types, urutTipe, arahTipe]);
 
   /** Pilih kamus dari kolom kiri: tabel kanan ikut berganti, pencarian direset
    *  (kata kunci kamus lama tak ada artinya di kamus baru), dan pilihan
@@ -505,12 +522,15 @@ export default function ReferensiPage() {
           id="grup_referensi"
           className="min-h-0 flex-1 overflow-hidden"
         >
-          {/* Kolom kiri (bawaan 260px, bisa digeser): daftar tipe kamus. */}
+          {/* Kolom kiri (bawaan 320px, bisa digeser): daftar tipe kamus.
+              Lebarnya lebih dari sekadar judul karena bilah judulnya kini
+              memuat kontrol standar (Urutkan + gerigi pengaturan); di bawah
+              ~300px judul "Tipe Kamus" mulai terpotong. */}
           <ResizablePanel
             id="panel_referensi_tipe"
-            defaultSize={260}
-            minSize={180}
-            maxSize={460}
+            defaultSize={320}
+            minSize={200}
+            maxSize={480}
             className="flex min-h-0 flex-col"
           >
             {/* `flex-1`, BUKAN `h-full`: tinggi panel berasal dari stretch
@@ -529,6 +549,13 @@ export default function ReferensiPage() {
                 canEdit={false}
                 onCommit={async () => {}}
                 onSaved={() => {}}
+                /* Kontrol bilah judul SAMA dengan tabel lain: Urutkan, Kolom
+                   (preset tampilan), dan gerigi "Pengaturan tabel" — tanpa
+                   salah satunya bilah judul tak dirender sama sekali, jadi
+                   tabel ini dulu tak punya pintu pengaturan. */
+                urutAktif={urutTipe}
+                arahUrut={arahTipe}
+                onUrut={terapkanUrutTipe}
                 /* Klik sel = pilih kamus (sama seperti tabel pemilih di halaman
                    Dispensasi), jadi tak perlu kolom centang maupun Aksi. */
                 onBarisKlik={(r) => pilihTipe(r.tipe)}
@@ -539,6 +566,10 @@ export default function ReferensiPage() {
                 isiLebarPenuh
                 hideCheckbox
                 hideActions
+                /* Kolom (preset tampilan) TIDAK dipakai di sini: tabelnya cuma
+                   satu kolom, jadi dropdown-nya hanya memakan bilah judul yang
+                   sempit. Semua pengaturan tetap terjangkau lewat Urutkan +
+                   gerigi "Pengaturan tabel" di bilah yang sama. */
                 hidePreset
               />
             </div>

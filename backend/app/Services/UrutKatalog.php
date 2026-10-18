@@ -55,6 +55,14 @@ class UrutKatalog
             'sumber' => ['referensi.jenjang'],
             'tampil' => ['referensi.is_active'],
         ],
+        // Daftar TIPE kamus (kolom kiri halaman Referensi): sumbernya
+        // `referensi/types` yang hanya mengembalikan daftar kunci, jadi
+        // urutannya juga diterapkan di klien. Entri ini semata agar kontrol
+        // Urutkan di bilah judulnya punya opsi sah (tanpa ini endpoint preset
+        // urut menolak 422 "Tabel ini tidak punya opsi urut").
+        'referensi_tipe' => [
+            'tipe' => ['referensi_tipe.tipe'],
+        ],
         'keanggotaan' => [
             'nama' => ['santri.nama_lengkap'],
             'jk' => ['santri.jk'],
