@@ -1,10 +1,13 @@
 <?php
 
 use App\Http\Middleware\AktifLembaga;
+use App\Support\GalatSkema;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 
@@ -33,4 +36,31 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        /* Skema DB tertinggal (migrasi belum jalan) = galat operasional, bukan
+           kesalahan pengguna. Jawab dengan pesan yang bisa ditindaklanjuti,
+           bukan dump SQL mentah milik penanganan bawaan (yang di mode debug
+           ikut memuat nama kolom/tabel dan nilai binding). Hanya SQLSTATE
+           ketidakcocokan skema yang diambil alih; galat query lain tetap ke
+           penanganan bawaan. */
+        $exceptions->render(function (QueryException $e) {
+            $pesan = GalatSkema::pesan($e);
+            if ($pesan === null) {
+                return null;
+            }
+
+            /* SQL saja (masih ber-placeholder) — JANGAN pesan exception-nya:
+               `formatMessage` sudah menyisipkan nilai binding, yang bisa
+               memuat data pribadi, ke dalam teks galat. */
+            Log::warning('Skema database tertinggal', [
+                'sqlstate' => GalatSkema::kode($e),
+                'connection' => $e->connectionName,
+                'sql' => mb_substr($e->getSql(), 0, 500),
+            ]);
+
+            return response()->json([
+                'pesan' => $pesan,
+                'kode' => GalatSkema::KODE,
+            ], 503);
+        });
     })->create();

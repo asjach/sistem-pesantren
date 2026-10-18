@@ -28,6 +28,14 @@ describe('errorMessage', () => {
     expect(errorMessage(galat(403, { pesan: 'Akses ditolak.' }))).toBe('Akses ditolak.');
   });
 
+  /* Backend menjawab 503 + `kode: skema_tertinggal` saat migrasi belum jalan.
+     Pesannya harus sampai apa adanya ke toast, bukan "Gagal (503)". */
+  it('menampilkan pesan skema database tertinggal dari server', () => {
+    const pesan = 'Database di server belum diperbarui: kemungkinan ada migrasi yang belum dijalankan. Minta admin server menjalankan "php artisan migrate", lalu coba lagi.';
+
+    expect(errorMessage(galat(503, { pesan, kode: 'skema_tertinggal' }))).toBe(pesan);
+  });
+
   it('memberi teks cadangan yang mengarahkan saat badan tidak punya pesan', () => {
     expect(errorMessage(galat(422, { errors: { nama: ['wajib'] } }))).toBe('Validasi gagal. Periksa isian.');
     expect(errorMessage(galat(0, {}))).toBe('Tidak dapat menghubungi server.');
