@@ -186,7 +186,7 @@ describe('DialogKelolaTabel — tab Umum', () => {
     expect(document.getElementById('nilai_umum_preset_bawaan_uji')).toHaveTextContent('—');
   });
 
-  it('menampilkan kontrol tampilan perangkat: kolom beku + tinggi baris + baris ikut isi', async () => {
+  it('menampilkan kontrol tampilan perangkat: kolom beku + tinggi baris + baris ikut isi + isi lebar', async () => {
     renderDialog();
     await waitFor(() => expect(screen.getByLabelText('Kolom beku dari kiri')).toBeInTheDocument());
     // Kontrolnya `LabeledStepper` (kotak teks + tombol −/+), bukan input angka.
@@ -194,7 +194,10 @@ describe('DialogKelolaTabel — tab Umum', () => {
     expect(document.getElementById('input_beku_uji_kurang')).not.toBeNull();
     expect(document.getElementById('input_beku_uji_tambah')).not.toBeNull();
     expect(screen.getByRole('switch', { name: /Baris ikut isi/ })).not.toBeChecked();
-    expect(screen.getByText(/Ketiganya hanya di perangkat ini/)).toBeInTheDocument();
+    // "Tabel mengisi lebar" (isiLebarPenuh): bawaan mati untuk tabel yang
+    // halamannya tak menyalakannya.
+    expect(screen.getByRole('switch', { name: /Tabel mengisi lebar/ })).not.toBeChecked();
+    expect(screen.getByText(/Semua di atas hanya di perangkat ini/)).toBeInTheDocument();
   });
 
   /* Sakelar gestur (seret isi sel & geser judul kolom) TIDAK lagi di tab ini:

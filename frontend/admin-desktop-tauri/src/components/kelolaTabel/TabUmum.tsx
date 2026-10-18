@@ -5,6 +5,7 @@ import { listPresetTabel, setPresetAktif } from '@/api/preset';
 import { useBagian } from '@/components/kelolaHalaman/kotor';
 import { freezeKey, loadFreeze, widthsKey, writeWidthCache } from '@/components/excel/helpers';
 import { autoBarisKey, tinggiBarisKey, tinggiDasarKey } from '@/components/excel/useTinggiBaris';
+import { isiLebarKey, setIsiLebar } from '@/components/excel/useIsiLebar';
 import { MAX_BARIS_H, MIN_BARIS_H, TINGGI_BARIS_BAWAAN } from '@/components/excel/tinggiBaris';
 import { useGridPrefs } from '@/components/GridPrefs';
 import {
@@ -85,6 +86,8 @@ export default function TabUmum({
 
   const [beku, setBeku] = useState(0);
   const [ikutIsi, setIkutIsi] = useState(false);
+  /** "Tabel mengisi lebar pembungkus" (pref perangkat, bawaan ikut halaman). */
+  const [isiLebar, setIsiLebarState] = useState(false);
   const [sibukPerangkat, setSibukPerangkat] = useState(false);
   /** Tinggi dasar tabel ini; null = mengikuti bawaan global (atau 24px). */
   const [tinggiDasar, setTinggiDasar] = useState<number | null>(null);
@@ -96,13 +99,15 @@ export default function TabUmum({
 
   const muatPerangkat = useCallback(async () => {
     try {
-      const [f, a, h] = await Promise.all([
+      const [f, a, h, l] = await Promise.all([
         loadFreeze(freezeKey(tableKey)),
         prefGet(autoBarisKey(tableKey)),
         prefGet(tinggiDasarKey(tableKey)),
+        prefGet(isiLebarKey(tableKey)),
       ]);
       setBeku(jepitBeku(f, jumlahKolom));
       setIkutIsi(a === '1');
+      setIsiLebarState(l === '1');
       const n = Number(h);
       setTinggiDasar(
         h != null && h.trim() !== '' && Number.isFinite(n)
@@ -113,6 +118,7 @@ export default function TabUmum({
       setBeku(0);
       setIkutIsi(false);
       setTinggiDasar(null);
+      setIsiLebarState(false);
     }
   }, [tableKey, jumlahKolom]);
 
@@ -136,6 +142,15 @@ export default function TabUmum({
     setSibukPerangkat(true);
     prefSet(autoBarisKey(tableKey), nyala ? '1' : '0')
       .catch(() => toast.error('Gagal menyimpan pengaturan baris.'))
+      .finally(() => setSibukPerangkat(false));
+    kabariTampilanPerangkat(tableKey);
+  }
+
+  function ubahIsiLebar(nyala: boolean) {
+    setIsiLebarState(nyala);
+    setSibukPerangkat(true);
+    setIsiLebar(tableKey, nyala)
+      .catch(() => toast.error('Gagal menyimpan pengaturan lebar tabel.'))
       .finally(() => setSibukPerangkat(false));
     kabariTampilanPerangkat(tableKey);
   }
@@ -183,11 +198,13 @@ export default function TabUmum({
         prefSet(tinggiBarisKey(tableKey), '{}'),
         prefSet(tinggiDasarKey(tableKey), ''),
         prefSet(autoBarisKey(tableKey), '0'),
+        prefSet(isiLebarKey(tableKey), ''),
         prefSet(`simpes_page_${tableKey}`, '1'),
       ]);
       writeWidthCache(tableKey, { widths: {}, autoWidths: {} });
       setBeku(0);
       setIkutIsi(false);
+      setIsiLebarState(false);
       toast.success('Tabel dikembalikan ke bawaan.');
       kabariToolbar(tableKey);
       kabariPreset(tableKey);
@@ -299,10 +316,26 @@ export default function TabUmum({
             onCheckedChange={(c) => ubahIkutIsi(!!c)}
           />
         </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor={`sakelar_isi_lebar_${tableKey}`} className="min-w-0 flex-1 text-xs">
+            Tabel mengisi lebar
+            <span className="block text-[11px] text-muted-foreground">
+              Lebar kolom diskalakan dengan satu rasio agar tabel menutup
+              pembungkusnya (perbandingan antar kolom tetap sesuai isi).
+            </span>
+          </label>
+          <Switch
+            id={`sakelar_isi_lebar_${tableKey}`}
+            checked={isiLebar}
+            disabled={sibukPerangkat}
+            onCheckedChange={(c) => ubahIsiLebar(!!c)}
+          />
+        </div>
         <p className="px-1 text-[11px] text-muted-foreground">
-          Ketiganya hanya di perangkat ini — pengguna lain tidak ikut berubah.
-          Sakelar gestur (seret isi sel &amp; geser judul kolom) ada di bilah
-          Mode Ubah di kaki tabel, karena hanya berlaku saat mode itu menyala.
+          Semua di atas hanya di perangkat ini — pengguna lain tidak ikut
+          berubah. Sakelar gestur (seret isi sel &amp; geser judul kolom) ada di
+          bilah Mode Ubah di kaki tabel, karena hanya berlaku saat mode itu
+          menyala.
         </p>
       </div>
       <div className={cn('flex flex-col gap-2 rounded-md border px-3 py-2', !bolehResetServer && 'opacity-70')}>

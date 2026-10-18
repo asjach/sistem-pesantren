@@ -25,6 +25,7 @@ import { filterToolbarTersedia } from './excel/filterTabel';
 import { komponenAktif, type InfoKomponenTabel } from './excel/komponenTabel';
 import { useLebarKolom } from './excel/useLebarKolom';
 import { useLebarWadah } from './excel/useLebarWadah';
+import { useIsiLebar } from './excel/useIsiLebar';
 import { skalaLebarIsi, RESIZER_OVERHANG } from './excel/lebarIsi';
 import { targetGulirBeku } from './excel/beku';
 import { useTinggiBaris } from './excel/useTinggiBaris';
@@ -189,7 +190,12 @@ export interface ExcelTableProps<T extends { id: string | number }> {
    *  Wadah yang lebih sempit menyusutkan kolom dengan rasio yang sama, tapi
    *  tak pernah di bawah lebar minimum kolom (tabel menggulir bila masih
    *  kelebihan). Bawaan `false`: sisa ruang di kanan dibiarkan kosong seperti
-   *  Excel. Lihat `excel/lebarIsi.ts` untuk perhitungan + pembulatannya. */
+   *  Excel. Lihat `excel/lebarIsi.ts` untuk perhitungan + pembulatannya.
+   *
+   *  Prop ini hanya keadaan AWAL tabel. Pengguna bisa menyalakan/mematikannya
+   *  sendiri per perangkat lewat **gerigi "Pengaturan tabel" → Umum → "Tabel
+   *  mengisi lebar"** (pref `simpes_grid_<tableKey>_isi_lebar` menang atas
+   *  prop). */
   isiLebarPenuh?: boolean;
   /** Tampilkan rel filter Tingkat/Kelas di kiri grid (di bawah bar judul
    *  tabel, sejajar judul kolom). Pakai hanya pada tabel utama halaman —
@@ -627,11 +633,14 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  lalu geser), yang membedakan cuma akibat akhirnya. Jadi satu mode
    *  aktif untuk dua-duanya — modifier (Ctrl/Cmd) tak lagi dipakai. */
   const modeSeret: ModeSeret | null = seretSalin ? 'salin' : (seretPindah ? 'pindah' : null);
-  /* Geser judul kolom (menyusun ulang urutan) MATI saat tabel memakai
-     `isiLebarPenuh`: di sana lebar kolom ditentukan rasio isi terhadap wadah,
-     jadi menyusun ulang kolom cuma mengacak rasio tanpa manfaat — dan
-     menyeret judul bertabrakan dengan niat menyeret lebar kolom. */
-  const geserHeaderHidup = geserHeader && modeUbah && !isiLebarPenuh;
+  /* "Tabel mengisi lebar": prop halaman = keadaan AWAL, pref perangkat
+     (gerigi Pengaturan tabel → Umum) menang bila sudah pernah diatur. */
+  const isiLebarAktif = useIsiLebar(tableKey, isiLebarPenuh);
+  /* Geser judul kolom (menyusun ulang urutan) MATI saat tabel mengisi lebar:
+     di sana lebar kolom ditentukan rasio isi terhadap wadah, jadi menyusun
+     ulang kolom cuma mengacak rasio tanpa manfaat — dan menyeret judul
+     bertabrakan dengan niat menyeret lebar kolom. */
+  const geserHeaderHidup = geserHeader && modeUbah && !isiLebarAktif;
   const seretIsiHidup = modeSeret !== null && modeUbah;
 
   /** Nyalakan SALIN atau PINDIH — keduanya saling mematikan, jadi tak pernah
@@ -787,12 +796,12 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   /** Lebar efektif area gulir (sudah dipotong scrollbar vertikal) — dasar
    *  penskalaan "lebar mengisi wadah". 0 = belum terukur. */
-  const lebarWadah = useLebarWadah(wrapRef, isiLebarPenuh);
+  const lebarWadah = useLebarWadah(wrapRef, isiLebarAktif);
 
   /** Lebar kolom data hasil skala rasio agar tabel mengisi wadah. `null` =
    *  pakai lebar basis apa adanya (fitur mati / wadah belum terukur). */
   const skalaIsi = useMemo(() => {
-    if (!isiLebarPenuh || lebarWadah <= 0) return null;
+    if (!isiLebarAktif || lebarWadah <= 0) return null;
     /** Kolom tetap = chrome tabel yang lebarnya tak ikut diskalakan, plus
      *  overhang gagang seret kolom terakhir (kalau tidak dipotong, gulir
      *  horizontal muncul sendiri 5 px). */
@@ -805,7 +814,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       lebar: widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
     }));
     return skalaLebarIsi(kolom, lebarWadah, lebarTetap);
-  }, [isiLebarPenuh, lebarWadah, visibleFields, widths, autoWidths, syncAutoWidths, sembunyiCentang, sembunyiAksi]);
+  }, [isiLebarAktif, lebarWadah, visibleFields, widths, autoWidths, syncAutoWidths, sembunyiCentang, sembunyiAksi]);
   skalaIsiRef.current = skalaIsi?.rasio ?? 1;
 
   /** Gerbang macet: `tampilGrid` false lebih dari 800ms. Jendela flash
@@ -1954,7 +1963,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     /* Susunan kolom tak bisa digeser saat lebar kolom dikendalikan rasio
        `isiLebarPenuh` — sakelarnya disembunyikan, bukan dibiarkan mati
        (sakelar yang tak berefek hanya membingungkan). */
-    ...(isiLebarPenuh ? [] : [{
+    ...(isiLebarAktif ? [] : [{
       id: `sakelar_geser_judul_${tableKey}`,
       label: 'Geser judul kolom',
       grup: GRUP_SUSUNAN_KOLOM,
@@ -2257,7 +2266,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             ubahFreeze={ubahFreeze}
             geserHeader={geserHeader}
             onUbahGeserHeader={ubahGeserHeader}
-            geserHeaderTersedia={!isiLebarPenuh}
+            geserHeaderTersedia={!isiLebarAktif}
             onAutoFit={onAutoFit}
             onAutoFitAll={onAutoFitAll}
             align={alignDb}
