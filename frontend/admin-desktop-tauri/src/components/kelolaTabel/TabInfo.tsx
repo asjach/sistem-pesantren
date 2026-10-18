@@ -17,7 +17,7 @@ const JEDA_SIMPAN = 500;
 
 /**
  * Tab Info dialog Kelola Tabel: satu HTML info per `table_key`, tampil sebagai
- * HoverCard di ujung judul tabel.
+ * popover (dibuka lewat klik) di ujung judul tabel.
  *
  * Disimpan dengan pola yang sama seperti bagian lain dialog: perubahan
  * dilaporkan "kotor" ke cangkang, dan cangkang memanggil fungsi simpan bagian

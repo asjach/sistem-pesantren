@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 import { htmlAdaIsi, sanitasiHtml } from './sanitasiHtml';
 
 /**
- * HTML info tabel yang SIAP dirender (HoverCard bilah judul & pratinjau di
+ * HTML info tabel yang SIAP dirender (popover bilah judul & pratinjau di
  * dialog Kelola Tabel).
  *
  * Sanitasi dilakukan lagi di sini meski backend sudah menyaringnya: respons

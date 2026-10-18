@@ -27,7 +27,7 @@ export interface ToolbarPresetData {
   /** Judul tabel yang diisi pengguna; `null` = pakai judul bawaan kode
    *  (prop `header` halaman → peta `judulTabel()` → table_key). */
   judul: string | null;
-  /** Info tabel: HTML ter-sanitasi (allowlist `HtmlInfo`) untuk HoverCard di
+  /** Info tabel: HTML ter-sanitasi (allowlist `HtmlInfo`) untuk popover di
    *  ujung judul tabel. `null` = belum diisi, tombol Info disembunyikan. */
   info_html: string | null;
   /** @see ToolbarPresetData.lebar */

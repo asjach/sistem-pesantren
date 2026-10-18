@@ -1276,7 +1276,7 @@
 /* ---------- Info tabel (HTML tersanitasi dari tab Info Kelola Tabel) ---------- */
 /* Isinya dirender lewat `dangerouslySetInnerHTML`; sanitizer membuang seluruh
    `class`/`style`, jadi tampilan HARUS berasal dari selektor elemen di sini.
-   Dipakai di HoverCard bilah judul dan pratinjau dialog. */
+   Dipakai di popover bilah judul dan pratinjau dialog. */
 .info-tabel-isi {
   line-height: 1.5;
   overflow-wrap: anywhere;

@@ -141,16 +141,29 @@ describe('ExcelTable — bilah judul', () => {
     expect(document.getElementById('uji_filter')).not.toBeNull();
   });
 
-  it('menampilkan tombol Info beserta isi info saat tabel punya info', async () => {
+  it('info tabel terbuka saat tombol Info DIKLIK, bukan saat di-hover', async () => {
     serverToolbar.state.infoHtml = '<p>Ketentuan <strong>tabel</strong>.</p>';
     renderTabel();
 
     const tombol = await screen.findByRole('button', { name: 'Info tabel' });
+    // Menempel pada judul: satu wadah dengan teks judulnya, bukan kontrol di
+    // kelompok kanan bilah.
+    expect(tombol.parentElement).toHaveTextContent('Uji');
+
+    // Hover hanya memunculkan kursor pointer; keterangan tak boleh ikut
+    // terbuka dan menutupi tabel tanpa diminta.
     await userEvent.hover(tombol);
+    expect(screen.queryByText(/Ketentuan/)).toBeNull();
+
+    await userEvent.click(tombol);
 
     const isi = await screen.findByText(/Ketentuan/);
     expect(isi.tagName).toBe('P');
     expect(isi).toHaveTextContent('Ketentuan tabel.');
+
+    // Klik tombol lagi menutup popover (kontrol bolak-balik, bukan hanya buka).
+    await userEvent.click(tombol);
+    await waitFor(() => expect(screen.queryByText(/Ketentuan/)).toBeNull());
   });
 
   it('tanpa info, tombol Info tidak dirender', async () => {

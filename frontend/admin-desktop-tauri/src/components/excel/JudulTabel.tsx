@@ -7,7 +7,7 @@ import PresetUrut from '@/components/PresetUrut';
 import type { ArahUrut } from '@/api/urutPreset';
 import { Info, NotebookTabs, Settings } from '@/icons';
 import { Button } from '@/components/ui/button';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import InfoTampil from '@/components/info/InfoTampil';
 import { htmlAdaIsi } from '@/components/info/sanitasiHtml';
 import type { ExcelField } from './types';
@@ -110,30 +110,42 @@ export default function JudulTabel({
             {/* Div tetap ada walau teksnya dimatikan (sakelar "Judul tabel"):
                 ia yang memberi ruang `flex-1`, jadi pil info & kontrol tak
                 lompat ke tepi kiri. */}
-            <div className="min-w-0 flex-1 truncate">{judulTampil ? judul : null}</div>
-            {htmlAdaIsi(infoTabel) ? (
-              /* Info = keterangan tabel dari super_admin, duduk tepat di ujung
-                 judul supaya jelas milik tabel ini. HoverCard-nya sengaja
-                 hanya-baca (lihat catatan di ui/hover-card): kartunya tak
-                 menahan klik ke tabel di bawahnya. */
-              <HoverCard openDelay={120} closeDelay={60}>
-                <HoverCardTrigger asChild>
-                  <Button
-                    id={`btn_info_tabel_${tableKey}`}
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Info tabel"
-                    title="Info tabel"
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              <div className="min-w-0 truncate">{judulTampil ? judul : null}</div>
+              {htmlAdaIsi(infoTabel) ? (
+                /* Info = keterangan tabel dari super_admin, MENEMPEL di ujung
+                   judul (satu wadah flex dengan teks judul, bukan tombol di
+                   kelompok kontrol) dan setinggi huruf judul (`1em`) supaya
+                   terbaca sebagai bagian judul, bukan kontrol tersendiri.
+                   Klik (bukan hover) yang membuka keterangannya: popover bisa
+                   digulir & tautannya bisa diklik, sedangkan hover cuma
+                   memunculkan kursor pointer — kartu tak pernah menutupi tabel
+                   tanpa diminta. Tombolnya sengaja tanpa `title`: tooltip bawaan
+                   browser akan muncul saat hover, padahal hover harus tenang.
+                   Warnanya `text-primary` — ikut aksen tema yang dipilih
+                   pengguna (bukan warna biru semantik). Kelas eksplisit ini
+                   tetap menang atas aturan "kaya warna" di index.css yang
+                   mewarnai `svg.simpes-ikon` lewat :where() berspesifisitas 0. */
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      id={`btn_info_tabel_${tableKey}`}
+                      type="button"
+                      aria-label="Info tabel"
+                      className="-my-1 inline-flex shrink-0 cursor-pointer items-center justify-center p-0.5 text-primary transition-colors"
+                    >
+                      <Info size="1em" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    className="max-h-[min(70vh,32rem)] w-96 max-w-[min(24rem,90vw)] overflow-y-auto p-3"
                   >
-                    <Info size={14} />
-                  </Button>
-                </HoverCardTrigger>
-                <HoverCardContent align="start" className="w-96 max-w-[min(24rem,90vw)]">
-                  <InfoTampil html={infoTabel} />
-                </HoverCardContent>
-              </HoverCard>
-            ) : null}
+                    <InfoTampil html={infoTabel} />
+                  </PopoverContent>
+                </Popover>
+              ) : null}
+            </div>
             {infoTampil ? (
               <div className="flex max-w-full shrink-0 self-center flex-col items-center gap-0.5 rounded-pil border bg-muted/60 px-4 py-1 text-center">
                 <span className="max-w-[32rem] truncate text-[11px] text-muted-foreground">{info}</span>
