@@ -86,9 +86,11 @@ const ujiAuth = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@/auth/AuthContext', () => ({
-  useAuth: () => ({ user: ujiAuth.user, loading: false, setUser: () => {}, logoutLocal: async () => {} }),
-}));
+vi.mock('@/auth/AuthContext', () => {
+  const setUser = vi.fn();
+  const logoutLocal = vi.fn(async () => {});
+  return { useAuth: () => ({ user: ujiAuth.user, loading: false, setUser, logoutLocal }) };
+});
 
 vi.mock('@/api/keuangan', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/api/keuangan')>();
@@ -192,7 +194,7 @@ beforeEach(() => {
  *  sebabnya tes lama gagal menemukan placeholder. */
 function SlotCari() {
   const ctx = useTopBarSearchCtx();
-  return <div ref={(el) => ctx?.setEl(el)} />;
+  return <div ref={ctx?.setEl} />;
 }
 
 async function bukaTabTagihan() {
