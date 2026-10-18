@@ -104,7 +104,8 @@ import { HeaderTitle } from './excel/header';
 import { htmlAdaIsi } from '@/components/info/sanitasiHtml';
 import { useSeretKolomHeader } from './excel/useSeretKolomHeader';
 import { useSeretIsiSel } from './excel/useSeretIsiSel';
-import { terapkanSeret, type BlokIsi, type ModeSeret } from './excel/seretIsiSel';
+import { useSalinTempelBlok } from './excel/useSalinTempelBlok';
+import { blokDariSeleksi, terapkanSeret, type BlokIsi, type ModeSeret } from './excel/seretIsiSel';
 import { useAntreanSimpan } from './excel/useAntreanSimpan';
 import JudulTabel from './excel/JudulTabel';
 import { ActionsCell, flattenAksi } from './excel/actions';
@@ -228,6 +229,28 @@ export interface ExcelTableProps<T extends { id: string | number }> {
     /** Baris domain tabel saat seret dilepas. */
     rows: T[];
   }) => void;
+  /** Salin blok sel terpilih ke papan klip internal (Ctrl/Cmd+C), HANYA saat
+   *  Mode Ubah menyala. Bentuk argumennya sama dengan `onSeretIsi` (blok dalam
+   *  indeks grid) supaya halaman memakai penerjemah yang sama. */
+  onSalinBlok?: (p: {
+    /** Blok sel terpilih (indeks baris/kolom grid). */
+    blok: BlokIsi;
+    /** Kunci kolom grid urut indeks — penerjemah indeks kolom blok → key. */
+    kunciKolom: string[];
+    /** Baris domain tabel saat salin ditekan. */
+    rows: T[];
+  }) => void;
+  /** Tempel isi papan klip internal ke blok sel terpilih (Ctrl/Cmd+V), HANYA
+   *  saat Mode Ubah menyala. Halaman yang menentukan isi papan klipnya sendiri
+   *  (mis. matriks jadwal menyimpan id mapel/guru lalu menulisnya lewat API). */
+  onTempelBlok?: (p: {
+    /** Blok sel tujuan (indeks baris/kolom grid). */
+    blok: BlokIsi;
+    /** Kunci kolom grid urut indeks — penerjemah indeks kolom blok → key. */
+    kunciKolom: string[];
+    /** Baris domain tabel saat tempel ditekan. */
+    rows: T[];
+  }) => void;
   /** Kontrol paginasi halaman (mis. `<Pager/>`). Dirender di kaki tabel
    *  SEBARIS dengan tombol tinggi baris; tanpa prop ini kaki tabel hanya
    *  berisi tombol tinggi baris. */
@@ -317,6 +340,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   onKosongkanBlok,
   kosongkanBlokLabel = 'Kosongkan blok…',
   onSeretIsi,
+  onSalinBlok,
+  onTempelBlok,
 }: ExcelTableProps<T>) {
   // Preferensi tampilan tabel global (dikontrol dari top bar). `rowH` di sini
   // kini berarti BAWAAN — tinggi per tabel (lihat `useTinggiBaris`) yang
@@ -958,7 +983,8 @@ export default function ExcelTable<T extends { id: string | number }>({
 
   /** Mode Ubah boleh dihidupkan? Tabel read-saja pun boleh, asal punya
    *  fitur manipulasi (mis. seret isi sel pada matriks jadwal). */
-  const bolehModeUbah = canEdit || onSeretIsi !== undefined;
+  const bolehModeUbah = canEdit || onSeretIsi !== undefined
+    || onSalinBlok !== undefined || onTempelBlok !== undefined;
 
   /** Buka editor untuk sel aktif (sinyal Enter ke DSG). Aman dipanggil ulang:
    *  bila editor sudah terbuka/fokus, tidak melakukan apa-apa. */
@@ -1249,6 +1275,27 @@ export default function ExcelTable<T extends { id: string | number }>({
     kunciKolom: kunciKolomGrid(),
     jumlahBaris: gridValue.length,
     seleksi: seleksiSeret,
+  });
+
+  /* Ctrl/Cmd+C & Ctrl/Cmd+V: jalur papan-ketik dari salin/tempel isi sel.
+     Hanya hidup saat Mode Ubah DAN halaman memakai fitur ini — tabel lain
+     tak terpengaruh, sehingga Ctrl+C tetap milik penyalin TSV dan Ctrl+V
+     tetap milik DSG. Sumber nilai selalu blok seleksi aktif, sama seperti
+     seret isi sel: tak ada "salin sel aktif" terpisah. */
+  const salinTempelBlokHidup = modeUbah && (onSalinBlok !== undefined || onTempelBlok !== undefined);
+  useSalinTempelBlok(wrapRef, {
+    aktif: salinTempelBlokHidup,
+    blokAktif: () => {
+      const kunci = kunciKolomGrid();
+      return blokDariSeleksi(seleksiSeret, kunci, gridValue.length);
+    },
+    kunciKolom: kunciKolomGrid,
+    onSalin: (p) => {
+      onSalinBlok?.({ blok: p.blok, kunciKolom: p.kunciKolom, rows: rowsRef.current });
+    },
+    onTempel: (p) => {
+      onTempelBlok?.({ blok: p.blok, kunciKolom: p.kunciKolom, rows: rowsRef.current });
+    },
   });
   /** Kolom beku menutupi konten yang digulir ke arahnya. Bila gulir horizontal
    *  berhenti di tengah kolom, kolom pertama di kanan area beku tampil
@@ -2199,9 +2246,15 @@ export default function ExcelTable<T extends { id: string | number }>({
                 aksen="warning"
                 ikon={<Pencil size={14} />}
                 judul="Mode Ubah aktif"
-                petunjuk={canEdit
-                  ? 'Sel tanpa garis bawah = bisa diedit. Centang gestur di atas untuk menyalakan seret isi sel atau geser judul kolom. Tekan Esc untuk keluar.'
-                  : 'Sel tetap dibaca. Centang gestur di atas untuk menyalakan seret isi sel atau geser judul kolom. Tekan Esc untuk keluar.'}
+                petunjuk={(canEdit
+                  ? 'Sel tanpa garis bawah = bisa diedit. Centang gestur di atas untuk menyalakan seret isi sel atau geser judul kolom.'
+                  : 'Sel tetap dibaca. Centang gestur di atas untuk menyalakan seret isi sel atau geser judul kolom.')
+                  /* Papan-ketik salin/tempel hanya bermakna bila halaman
+                     memakainya; tanpa prop-nya, kalimat ini menipu. */
+                  + (salinTempelBlokHidup
+                    ? ' Pilih blok sel lalu Ctrl/Cmd+C untuk menyalin dan Ctrl/Cmd+V untuk menempel.'
+                    : '')
+                  + ' Tekan Esc untuk keluar.'}
                 sakelar={sakelarMode}
                 onKeluar={() => setModeUbah(false)}
               />

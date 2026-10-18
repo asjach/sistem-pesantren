@@ -25,6 +25,7 @@ import {
   GAYA_GARIS, formatGuruBaris, formatMapelBaris, garisSelMatriks,
   type FormatGuru, type FormatMapel, type GarisSel, type TampilanJadwal,
 } from './matriksJadwal';
+import { klipSeragam, sasaranBlokJadwal, sasaranKosongkanBlok, type BlokGrid, type KlipJadwal } from './jadwalKlip';
 import PanelTemplate, { FIELDS_KERANGKA } from './TemplateJadwalPanel';
 import PanelHariLibur from './HariLiburPanel';
 import {
@@ -348,16 +349,23 @@ export default function KurikulumJadwalPage() {
   const kosongkanBlok = useCallback((rowsBlok: BarisMatriks[], fieldsBlok: ExcelField[]) => {
     if (!canUbah) return;
     const hariBlok = fieldsBlok.map((f) => f.key).filter((k) => hari.includes(k));
-    const sasaran: SasaranJadwal[] = [];
-    for (const r of rowsBlok) {
-      for (const h of hariBlok) {
-        const s = r.perHari[h];
-        if (s === undefined || s.jenis !== 'pelajaran') continue;
-        const j = petaJadwal.get(`${s.id}|${h}`);
-        if (j?.mata_pelajaran_id === null && j?.keaktifan_pegawai_id === null) continue;
-        sasaran.push({ kelasId: r.kelasId, kelasNama: r.kelasNama, slot: s, hari: h });
-      }
-    }
+    /* Sasaran = SELURUH sel pelajaran berisi yang tercakup blok — bukan cuma
+       sel yang diklik. Ringkasan logikanya di `sasaranKosongkanBlok` supaya
+       perilaku lintas range bisa diuji tanpa menggrid. */
+    const sasaran = sasaranKosongkanBlok(
+      rowsBlok.length,
+      hariBlok,
+      (r, h) => {
+        const baris = rowsBlok[r];
+        const s = baris?.perHari[h];
+        if (baris === undefined || s === undefined || s.jenis !== 'pelajaran') return null;
+        return { kelasId: baris.kelasId, kelasNama: baris.kelasNama, id: s.id, nama: s.nama_slot };
+      },
+      (kelasId, slotId, h) => {
+        const j = petaJadwal.get(`${slotId}|${h}`);
+        return j !== undefined && (j.mata_pelajaran_id !== null || j.keaktifan_pegawai_id !== null);
+      },
+    );
     if (sasaran.length === 0) {
       toast.error('Blok terpilih sudah kosong.');
       return;
@@ -370,7 +378,7 @@ export default function KurikulumJadwalPage() {
         try {
           await simpanSelJadwal({
             kelas_id: t.kelasId,
-            slot_jam_id: t.slot.id,
+            slot_jam_id: t.slotId,
             hari: t.hari,
             mata_pelajaran_id: null,
             keaktifan_pegawai_id: null,
@@ -378,7 +386,7 @@ export default function KurikulumJadwalPage() {
           sukses++;
         } catch (e) {
           if (galatPertama === '') {
-            galatPertama = `${t.kelasNama} · ${HARI_LABEL[t.hari] ?? t.hari} ${t.slot.nama_slot ?? ''}: ${errorMessage(e)}`;
+            galatPertama = `${t.kelasNama} · ${HARI_LABEL[t.hari] ?? t.hari} ${t.slotNama ?? ''}: ${errorMessage(e)}`;
           }
         }
       }
@@ -632,6 +640,100 @@ export default function KurikulumJadwalPage() {
     })();
   }, [canUbah, hari, petaJadwal, muatJadwal]);
 
+  /** Sel pelajaran yang tercakup sebuah blok grid — dipakai jalur papan
+   *  ketik (Ctrl/Cmd+C / Ctrl/Cmd+V) agar penerjemah indeks blok → sasaran
+   *  persis sama dengan seret isi sel. */
+  const sasaranDariBlok = useCallback(
+    (blok: BlokGrid, kunciKolom: string[], rows: BarisMatriks[]) => sasaranBlokJadwal(
+      blok, kunciKolom, hari, (r, h) => {
+        const s = rows[r]?.perHari[h];
+        return s !== undefined && s.jenis === 'pelajaran';
+      },
+    ),
+    [hari],
+  );
+
+  /** Satu sel sebagai SasaranJadwal penuh (kelas + slot + hari). */
+  const sasaranPenuh = useCallback((s: { baris: number; hari: string }, rows: BarisMatriks[]): SasaranJadwal | null => {
+    const baris = rows[s.baris];
+    const slot = baris?.perHari[s.hari];
+    if (baris === undefined || slot === undefined || slot.jenis !== 'pelajaran') return null;
+    return { kelasId: baris.kelasId, kelasNama: baris.kelasNama, slot, hari: s.hari };
+  }, []);
+
+  /** Papan klip internal halaman ini: isi SATU blok seragam (mapel + guru).
+   *  Sengaja BUKAN clipboard sistem — nilai yang ditempel adalah id mapel/guru
+   *  yang ditulis lewat API, bukan teks yang bisa ditempel ke sel mana pun. */
+  const klipJadwalRef = useRef<KlipJadwal | null>(null);
+
+  /** Ctrl/Cmd+C: rekam isi blok terpilih ke papan klip internal. */
+  const salinBlokJadwal = useCallback((p: { blok: BlokGrid; kunciKolom: string[]; rows: BarisMatriks[] }) => {
+    const sasaran = sasaranDariBlok(p.blok, p.kunciKolom, p.rows);
+    if (sasaran.length === 0) {
+      toast.error('Blok terpilih tidak memuat sel pelajaran.');
+      return;
+    }
+    const klip = klipSeragam(sasaran, (s) => {
+      const penuh = sasaranPenuh(s, p.rows);
+      if (penuh === null) return null;
+      const j = petaJadwal.get(`${penuh.slot.id}|${penuh.hari}`);
+      return { mapel: j?.mata_pelajaran_id ?? null, guru: j?.keaktifan_pegawai_id ?? null };
+    });
+    if (klip === null) {
+      toast.error('Blok asal harus berisi mapel & guru yang sama.');
+      return;
+    }
+    /* Blok kosong tetap sah disalin: menempelkan "kosong" adalah cara cepat
+       mengosongkan banyak sel — perlakuan yang sama dengan seret isi sel. */
+    klipJadwalRef.current = klip;
+    toast.success(`${klip.jumlahSel} sel disalin. Tekan Ctrl/Cmd+V untuk menempel.`);
+  }, [petaJadwal, sasaranDariBlok, sasaranPenuh]);
+
+  /** Ctrl/Cmd+V: tulis isi papan klip ke seluruh sel pelajaran blok terpilih. */
+  const tempelBlokJadwal = useCallback((p: { blok: BlokGrid; kunciKolom: string[]; rows: BarisMatriks[] }) => {
+    if (!canUbah) return;
+    const klip = klipJadwalRef.current;
+    if (klip === null) {
+      toast.warning('Belum ada sel yang disalin. Pilih blok lalu Ctrl/Cmd+C dulu.');
+      return;
+    }
+    const sasaran = sasaranDariBlok(p.blok, p.kunciKolom, p.rows)
+      .map((s) => sasaranPenuh(s, p.rows))
+      .filter((t): t is SasaranJadwal => t !== null);
+    if (sasaran.length === 0) {
+      toast.error('Blok tujuan tidak memuat sel pelajaran.');
+      return;
+    }
+    setSelBusy(true);
+    void (async () => {
+      let sukses = 0;
+      let galatPertama = '';
+      for (const t of sasaran) {
+        try {
+          await simpanSelJadwal({
+            kelas_id: t.kelasId,
+            slot_jam_id: t.slot.id,
+            hari: t.hari,
+            mata_pelajaran_id: klip.mata_pelajaran_id,
+            keaktifan_pegawai_id: klip.keaktifan_pegawai_id,
+          });
+          sukses += 1;
+        } catch (e) {
+          if (galatPertama === '') {
+            galatPertama = `${t.kelasNama} · ${HARI_LABEL[t.hari] ?? t.hari} ${t.slot.nama_slot ?? ''}: ${errorMessage(e)}`;
+          }
+        }
+      }
+      setSelBusy(false);
+      await muatJadwal();
+      if (galatPertama === '') {
+        toast.success(`${sukses} sel ditempel.`);
+      } else {
+        toast.error(`${sukses} dari ${sasaran.length} sel ditempel. ${galatPertama}`);
+      }
+    })();
+  }, [canUbah, muatJadwal, sasaranDariBlok, sasaranPenuh]);
+
   const simpanSel = async () => {
     if (editSel === null || editSel.length === 0) return;
     setSelBusy(true);
@@ -861,6 +963,8 @@ export default function KurikulumJadwalPage() {
             onKosongkanBlok={canUbah ? kosongkanBlok : undefined}
             kosongkanBlokLabel="Kosongkan mapel & guru…"
             onSeretIsi={canUbah ? seretIsiSel : undefined}
+            onSalinBlok={canUbah ? salinBlokJadwal : undefined}
+            onTempelBlok={canUbah ? tempelBlokJadwal : undefined}
             emptyText={kelasTampil.length === 0
               ? 'Pilih kelas pada rel Kelas.'
               : barisMatriks.length === 0

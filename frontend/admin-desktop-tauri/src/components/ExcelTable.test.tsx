@@ -998,6 +998,86 @@ const adaPemisahSebelum = (el: HTMLElement): boolean => {
   return sebelum !== null && sebelum.getAttribute('data-slot') === 'separator';
 };
 
+
+/* Ctrl/Cmd+C & Ctrl/Cmd+V = jalur papan-ketik dari salin/tempel isi sel.
+   Gerbangnya Mode Ubah + prop halaman; tabel biasa tak boleh ikut merebut
+   Ctrl+C (yang jadi milik penyalin TSV) maupun Ctrl+V (milik DSG). */
+describe('ExcelTable — salin/tempel blok lewat papan ketik', () => {
+  const nyalakanMode = async () => {
+    fireEvent.click(screen.getByLabelText('Aktifkan mode Ubah'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+  };
+  const pilih = (min: { row: number; col: number }, max = min) => {
+    act(() => dsgStub.seleksi?.({ selection: { min, max } }));
+  };
+  /** Kirim tombol dari DALAM sel grid — hook menolak event dari luar wadah.
+   *  Sel dicari di container render ini, bukan `document`, supaya sisa render
+   *  tes sebelumnya tak ikut tersasar. */
+  const tekan = (container: HTMLElement, key: string) => {
+    const sel = container.querySelector('.simpes-dsg .dsg-cell') as HTMLElement;
+    fireEvent.keyDown(sel, { key, ctrlKey: true });
+  };
+
+  it('Ctrl+C memanggil onSalinBlok dengan blok seleksi saat Mode Ubah menyala', async () => {
+    const onSalinBlok = vi.fn();
+    const { container } = renderTabel({ canEdit: false, onSeretIsi: vi.fn(), onSalinBlok });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    await nyalakanMode();
+
+    pilih({ row: 0, col: 1 }, { row: 1, col: 2 });
+    tekan(container, 'c');
+
+    expect(onSalinBlok).toHaveBeenCalledTimes(1);
+    const p = onSalinBlok.mock.calls[0][0] as { blok: { r0: number; r1: number; kolom: number[] } };
+    // Kolom grid: [check, nama, kode, __aksi] → kolom 1..2 = nama & kode.
+    expect(p.blok).toEqual({ r0: 0, r1: 1, kolom: [1, 2] });
+  });
+
+  it('Ctrl+V memanggil onTempelBlok', async () => {
+    const onTempelBlok = vi.fn();
+    const { container } = renderTabel({ canEdit: false, onSeretIsi: vi.fn(), onTempelBlok });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    await nyalakanMode();
+
+    pilih({ row: 1, col: 1 });
+    tekan(container, 'v');
+
+    expect(onTempelBlok).toHaveBeenCalledTimes(1);
+    const p = onTempelBlok.mock.calls[0][0] as { blok: { r0: number; r1: number; kolom: number[] } };
+    expect(p.blok).toEqual({ r0: 1, r1: 1, kolom: [1] });
+  });
+
+  it('sebelum Mode Ubah menyala tak ada yang direbut', async () => {
+    const onSalinBlok = vi.fn();
+    const onTempelBlok = vi.fn();
+    const { container } = renderTabel({ canEdit: false, onSeretIsi: vi.fn(), onSalinBlok, onTempelBlok });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+
+    pilih({ row: 0, col: 1 });
+    tekan(container, 'c');
+    tekan(container, 'v');
+
+    expect(onSalinBlok).not.toHaveBeenCalled();
+    expect(onTempelBlok).not.toHaveBeenCalled();
+  });
+
+  /* Tabel biasa (tak punya prop blok) mengandalkan jalur lama: Ctrl+C milik
+     penyalin TSV & Ctrl+V milik DSG. Salah merebut di sini akan mematikan
+     salin-tempel bawaan tanpa memberi apa pun sebagai gantinya. */
+  it('tanpa prop blok, Ctrl+C/V tidak direbut (jalur lama tetap utuh)', async () => {
+    const { container } = renderTabel({ onSeretIsi: vi.fn() });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    await nyalakanMode();
+
+    pilih({ row: 0, col: 1 });
+    const sel = container.querySelector('.simpes-dsg .dsg-cell') as HTMLElement;
+    const e = new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true });
+    sel.dispatchEvent(e);
+
+    expect(e.defaultPrevented).toBe(false);
+  });
+});
+
 /* Copy & Move satu GRUP (saling mati), "Geser judul kolom" grupnya sendiri.
    `PillMode` memberi garis pemisah antar-grup — jadi menambah sakelar di
    grup mana pun tak mengubah tata letak yang sudah ada. */
