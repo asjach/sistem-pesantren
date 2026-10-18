@@ -250,27 +250,34 @@ export default function ReferensiPage() {
 
   const toggleBolehId = useCallback((id: string | number) => toggleBoleh.get(String(id)) ?? false, [toggleBoleh]);
 
+  /** Kolom `sumber`/`sifat` adalah turunan (nama lembaga, sifat status) —
+   *  bukan nilai tersimpan, jadi tetap baca-saja walau mode Ubah menyala.
+   *
+   *  Kolom `kode` pada kamus STATUS juga baca-saja: `kode` adalah KUNCI baris
+   *  (nilai yang disimpan di data), mengubahnya akan memutus rujukan lama —
+   *  dialog Ubah pun menguncinya ("tidak dapat diubah"). Menjadikannya `text`
+   *  di grid justru membuka celah yang ditutup dialog. */
   const fields = useMemo<ExcelField[]>(
     () => isStatus
       ? [
           { key: 'kode', label: 'kode', width: 150, kind: 'static' },
-          { key: 'nama', label: 'nama', width: 200, kind: 'static' },
-          { key: 'urutan', label: 'urutan', width: 80, kind: 'static' },
+          { key: 'nama', label: 'nama', width: 200, kind: 'text', maxLength: 100 },
+          { key: 'urutan', label: 'urutan', width: 80, kind: 'text' },
           ...(isStatusAkhir ? [{ key: 'sifat', label: 'Sifat', width: 170, kind: 'static' as const }] : []),
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
           { key: 'tampil', label: 'Tampil', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId },
         ]
       : [
-          { key: 'nama', label: 'nama', width: 220, kind: 'static' },
+          { key: 'nama', label: 'nama', width: 220, kind: 'text' },
           ...(isMapel
             ? [
-                { key: 'kode', label: 'kode', width: 110, kind: 'static' as const },
-                { key: 'singkatan', label: 'singkatan', width: 130, kind: 'static' as const },
+                { key: 'kode', label: 'kode', width: 110, kind: 'text' as const, maxLength: 20 },
+                { key: 'singkatan', label: 'singkatan', width: 130, kind: 'text' as const, maxLength: 50 },
               ]
             : []),
-          { key: 'urutan', label: 'urutan', width: 80, kind: 'static' },
+          { key: 'urutan', label: 'urutan', width: 80, kind: 'text' },
           { key: 'sumber', label: 'Sumber', width: 170, kind: 'static' },
-          { key: 'tampil', label: 'Tampil', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId,  },
+          { key: 'tampil', label: 'Tampil', width: 130, kind: 'toggle', toggleTanpaEdit: true, bolehToggle: toggleBolehId },
         ],
     [isStatus, isStatusAkhir, isMapel, toggleBolehId],
   );
@@ -488,14 +495,53 @@ export default function ReferensiPage() {
     );
   }, [canUbahRow, canHapusRow, openEdit, onHapusPermanen, rowText, lembagaName]);
 
-  /** Simpan toggle kolom is_active: padam → nonaktifkan, nyala → pulihkan. */
+  /** Simpan perubahan sel dari grid (auto-save antrean).
+   *
+   *  Dua jenis perubahan datang ke sini:
+   *  1. kolom `tampil` (toggle) — padam → nonaktifkan, nyala → pulihkan;
+   *  2. kolom teks (`nama`/`kode`/`singkatan`/`urutan`) saat Mode Ubah.
+   *
+   *  Baris yang lembaganya tak boleh disentuh pengguna ini ditolak: grid
+   *  memang tak bisa mengunci sel per baris, jadi gerbang izinnya ditegakkan
+   *  di sini (nilai kembali karena draft dibuang antrean saat onCommit
+   *  menolak). */
   const onCommit = useCallback(async (id: number, fields: Record<string, string | null>) => {
-    if (!('tampil' in fields)) return;
     const row = rows.find((r) => r.id === id);
     if (!row) return;
-    if (fields.tampil === 'tidak') await onDelete(row);
-    else await onPulihkan(row);
-  }, [rows, onDelete, onPulihkan]);
+    if (!canUbahRow(row)) {
+      throw new Error(`Anda tidak berhak mengubah entri dari ${lembagaName(row.jenjang)}.`);
+    }
+
+    // Toggle Tampil: jalur nonaktif/pulihkan (tak ada kolom lain sekaligus —
+    // toggle disimpan sendiri, terlepas dari mode Ubah).
+    if ('tampil' in fields) {
+      if (fields.tampil === 'tidak') await onDelete(row);
+      else await onPulihkan(row);
+      return;
+    }
+
+    // Mode Ubah: perubahan kolom teks → PUT satu baris.
+    const nama = fields.nama !== undefined ? (fields.nama ?? '').trim() : (row.nama ?? '');
+    if (fields.nama !== undefined && !nama) {
+      throw new Error('Nama tidak boleh kosong.');
+    }
+    const urutanRaw = fields.urutan !== undefined ? String(fields.urutan ?? '') : String(row.urutan ?? 0);
+    const urutan = urutanRaw.trim() === '' ? 0 : Number(urutanRaw);
+    if (Number.isNaN(urutan)) {
+      throw new Error('Urutan harus berupa angka.');
+    }
+    await updateReferensi(tipe, row.id, {
+      nama,
+      urutan,
+      // Kamus mapel: kode & singkatan ikut (kosong → null di backend).
+      ...(isMapel
+        ? {
+            kode: fields.kode !== undefined ? (fields.kode ?? '').trim() : (row.kode ?? ''),
+            singkatan: fields.singkatan !== undefined ? (fields.singkatan ?? '').trim() : (row.singkatan ?? ''),
+          }
+        : {}),
+    });
+  }, [rows, canUbahRow, lembagaName, onDelete, onPulihkan, tipe, isMapel]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -592,7 +638,11 @@ export default function ReferensiPage() {
                 onUrut={terapkanUrut}
                 loading={loading}
                 emptyText="Belum ada entri."
-                canEdit={false}
+                /* Mode Ubah: mengedit sel langsung (nama/kode/singkatan/urutan)
+                   menyimpan ke server lewat onCommit. Gerbangnya izin
+                   `referensi.ubah`; baris per lembaga tetap disaring per baris
+                   di onCommit. */
+                canEdit={canManage}
                 onCommit={onCommit}
                 onSaved={reload}
                 /* Isi panel kanan sampai tepi: rasio antar kolom tetap
