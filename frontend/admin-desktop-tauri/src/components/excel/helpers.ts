@@ -62,16 +62,25 @@ export async function loadGeserHeader(key: string): Promise<boolean> {
 }
 
 /**
- * Pref sakelar "seret isi sel" per tabel. MATI secara bawaan: gestur ini
- * memakai mousedown, jadi menyalakannya mengubah cara klik biasa pada blok
- * terpilih diperlakukan (menjadi seret, bukan ganti seleksi).
+ * Pref sakelar gestur manipulasi tabel, satu per jenis. Semuanya MATI
+ * secara bawaan dan berlaku PER PERANGKAT (bukan server). Ditempatkan di
+ * bilah Mode Ubah — bukan di Kelola Tabel → Umum — supaya sakelarnya hidup
+ * persis pada saat gesturnya boleh dipakai.
+ *
+ * Geser isi sel punya DUA sakelar terpisah (salin & pindah) supaya pengguna
+ * boleh menyalakan hanya salah satunya: tabel yang ingin mengizinkan
+ * menyalin/menyalin tapi tak ingin ada yang bisa memindahkan isi sel.
  */
-export function seretIsiKey(tableKey: string) {
-  return `simpes_grid_${tableKey}_seret_isi`;
+export function seretSalinKey(tableKey: string) {
+  return `simpes_grid_${tableKey}_seret_salin`;
 }
 
-/** Baca sakelar seret isi sel: hanya nilai eksplisit '1' yang menyalakan. */
-export async function loadSeretIsi(key: string): Promise<boolean> {
+export function seretPindahKey(tableKey: string) {
+  return `simpes_grid_${tableKey}_seret_pindah`;
+}
+
+/** Baca sakelar gestur: hanya nilai eksplisit '1' yang menyalakan. */
+export async function loadSakelarGestur(key: string): Promise<boolean> {
   try {
     return (await prefGet(key)) === '1';
   } catch {

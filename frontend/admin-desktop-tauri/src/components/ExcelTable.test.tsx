@@ -643,6 +643,44 @@ describe('ExcelTable — klik kanan baris', () => {
     expect(blokRows).toHaveLength(2);
     expect(blokFields.map((f) => f.key)).toEqual(['nama', 'kode']);
   });
+
+  /* "Kosongkan blok" merusak isi sel, jadi — seperti seret isi sel — item ini
+     HANYA boleh hidup saat Mode Ubah menyala. Tanpa gerbang itu, tabel yang
+     sedang dibaca punya tombol penghapus yang bisa kepicu tak sengaja. */
+  it('aksi kosongkan blok TIDAK muncul sebelum Mode Ubah menyala', async () => {
+    const onKosongkanBlok = vi.fn();
+    const { container } = renderTabel({ onKosongkanBlok, kosongkanBlokLabel: 'Kosongkan mapel & guru…' });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+
+    act(() => dsgStub.seleksi?.({
+      selection: { min: { row: 0, col: 1 }, max: { row: 0, col: 1 } },
+    }));
+    fireEvent.contextMenu(within(container).getByText('Ahmad').closest('.dsg-cell') as HTMLElement);
+
+    // Aksi isi blok tetap ada (tak merusak); yang kosongkan yang disembunyikan.
+    const menu = await screen.findByRole('menu');
+    expect(menu).not.toHaveTextContent('Kosongkan mapel & guru…');
+  });
+
+  it('Mode Ubah menyala → aksi kosongkan blok muncul & menerima blok yang sama', async () => {
+    const onKosongkanBlok = vi.fn();
+    const { container } = renderTabel({ onKosongkanBlok, kosongkanBlokLabel: 'Kosongkan mapel & guru…' });
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText('Aktifkan mode Ubah'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+
+    act(() => dsgStub.seleksi?.({
+      selection: { min: { row: 0, col: 1 }, max: { row: 1, col: 1 } },
+    }));
+    fireEvent.contextMenu(within(container).getByText('Ahmad').closest('.dsg-cell') as HTMLElement);
+
+    await userEvent.click(await screen.findByText('Kosongkan mapel & guru…'));
+
+    const [blokRows, blokFields] = onKosongkanBlok.mock.calls[0] as [Baris[], { key: string }[]];
+    expect(blokRows).toHaveLength(2);
+    expect(blokFields.map((f) => f.key)).toEqual(['nama']);
+  });
 });
 
 describe('penanda kelas grid yang dibaca CSS', () => {
@@ -750,6 +788,26 @@ describe('ExcelTable — klik ganda sel', () => {
     fireEvent.doubleClick(screen.getByText('Ahmad'));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
   });
+
+  /* Tabel read-saja yang punya fitur manipulasi (bukan `canEdit`) tetap punya
+     tombol Mode Ubah di kaki tabel, jadi klik ganda harus menyalakannya juga.
+     Sebelumnya gerbangnya `canEdit`, sehingga satu-satunya jalan masuk ke mode
+     itu jadi klik tombol — tidak konsisten dengan tabel lain. */
+  it('tabel read-saja dengan fitur manipulasi: klik ganda menyalakan Mode Ubah', async () => {
+    renderTabel({ canEdit: false, onSeretIsi: vi.fn() });
+
+    fireEvent.doubleClick(screen.getByText('Ahmad'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+  });
+
+  /* Tanpa fitur manipulasi, tabel read-saja tak punya Mode Ubah sama sekali
+     (tak ada tombol di kaki tabel) — klik ganda harus tetap diam. */
+  it('tabel read-saja tanpa fitur manipulasi: klik ganda diam', async () => {
+    renderTabel({ canEdit: false });
+
+    fireEvent.doubleClick(screen.getByText('Ahmad'));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
 });
 
 /* Gerigi PALING KANAN bilah judul = pengaturan khusus TABEL INI saja. Setelan
@@ -802,5 +860,126 @@ describe('ExcelTable — sel statis kustom', () => {
     expect(screen.getByTestId('kode_1')).toHaveTextContent('Kode A-01');
     await userEvent.click(screen.getByTestId('kode_1'));
     expect(onCellClick).toHaveBeenCalledWith('1');
+  });
+});
+
+/* Sakelar gestur hidup di bilah Mode Ubah (kanan bawah), bukan di Kelola
+   Tabel: gesturnya HANYA berlaku saat Mode Ubah menyala, jadi tempatnya
+   dipindah ke sana supaya ikhtisar "apa yang boleh dimanipulasi sekarang"
+   terbaca satu mata. */
+describe('ExcelTable — sakelar gestur di bilah Mode Ubah', () => {
+  const sakel = (label: RegExp) => screen.getByRole('checkbox', { name: label });
+
+  /** Nyalakan Mode Ubah lewat tombol kaki tabel, lalu tunggu pill-nya. */
+  const nyalakanMode = async () => {
+    fireEvent.click(screen.getByLabelText('Aktifkan mode Ubah'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+  };
+
+  it('sembunyi sebelum Mode Ubah menyala, muncul setelahnya', async () => {
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    expect(screen.queryByRole('checkbox', { name: /Seret isi sel untuk copy/ })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /Geser judul kolom/ })).toBeNull();
+
+    await nyalakanMode();
+
+    expect(sakel(/Seret isi sel untuk copy/)).toBeInTheDocument();
+    expect(sakel(/Seret isi sel untuk move/)).toBeInTheDocument();
+    expect(sakel(/Geser judul kolom/)).toBeInTheDocument();
+  });
+
+  it('MATI secara bawaan — gestur tak boleh aktif tanpa di_centang', async () => {
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    await nyalakanMode();
+    expect(sakel(/Seret isi sel untuk copy/)).not.toBeChecked();
+    expect(sakel(/Seret isi sel untuk move/)).not.toBeChecked();
+    expect(sakel(/Geser judul kolom/)).not.toBeChecked();
+  });
+
+  it('copy & move saling mematikan: menyalakan satu mematikan yang lain', async () => {
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    await nyalakanMode();
+
+    await userEvent.click(sakel(/Seret isi sel untuk copy/));
+    expect(sakel(/Seret isi sel untuk copy/)).toBeChecked();
+    expect(sakel(/Seret isi sel untuk move/)).not.toBeChecked();
+
+    await userEvent.click(sakel(/Seret isi sel untuk move/));
+    expect(sakel(/Seret isi sel untuk move/)).toBeChecked();
+    expect(sakel(/Seret isi sel untuk copy/)).not.toBeChecked();
+  });
+
+  it('menoncentang yang sedang aktif mematikan KEDUA-nya (kembali ke tak ada seret)', async () => {
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    await nyalakanMode();
+
+    await userEvent.click(sakel(/Seret isi sel untuk copy/));
+    await userEvent.click(sakel(/Seret isi sel untuk copy/));
+    expect(sakel(/Seret isi sel untuk copy/)).not.toBeChecked();
+    expect(sakel(/Seret isi sel untuk move/)).not.toBeChecked();
+  });
+
+  /* Pref perangkat ditulis ke `localStorage` (bukan Tauri) — memeriksa
+     isinya, bukan spy, jadi yang terbukti benar-benar TERSIMPAN. */
+  it('menyalakan satu gestur menyimpan pref perangkatnya & mematikan pref pasangan', async () => {
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    await nyalakanMode();
+
+    await userEvent.click(sakel(/Seret isi sel untuk move/));
+
+    await waitFor(() => expect(localStorage.getItem('simpes_grid_uji_seret_pindah')).toBe('1'));
+    // Pasangannya ditulis mati, jadi pref lama tak pernah "bangun kembali".
+    expect(localStorage.getItem('simpes_grid_uji_seret_salin')).toBe('');
+  });
+
+  it('seret isi sel & geser judul kolom tak salingibat — bisa hidup bersamaan', async () => {
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    await nyalakanMode();
+
+    await userEvent.click(sakel(/Seret isi sel untuk copy/));
+    await userEvent.click(sakel(/Geser judul kolom/));
+
+    expect(sakel(/Seret isi sel untuk copy/)).toBeChecked();
+    expect(sakel(/Geser judul kolom/)).toBeChecked();
+    await waitFor(() => expect(localStorage.getItem('simpes_grid_uji_geser_header')).toBe('1'));
+  });
+});
+
+/** Ada garis pemisah tepat SEBELUM sakelar ini di dalam panel?
+ *  `getByRole('checkbox')` mengembalikan <button> Radix di dalam <label>,
+ *  jadi yang diperiksa sibling-nya adalah label-nya. */
+const adaPemisahSebelum = (el: HTMLElement): boolean => {
+  const label = el.closest('label') as HTMLElement | null;
+  const sebelum = label?.previousElementSibling ?? null;
+  return sebelum !== null && sebelum.getAttribute('data-slot') === 'separator';
+};
+
+/* Copy & Move satu GRUP (saling mati), "Geser judul kolom" grupnya sendiri.
+   `PillMode` memberi garis pemisah antar-grup — jadi menambah sakelar di
+   grup mana pun tak mengubah tata letak yang sudah ada. */
+describe('ExcelTable — pengelompokan sakelar Mode Ubah', () => {
+  it('copy & move rapat, dipisah garis dari geser judul kolom', async () => {
+    renderTabel();
+    await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText('Aktifkan mode Ubah'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+
+    const salin = screen.getByRole('checkbox', { name: /Seret isi sel untuk copy/ });
+    const pindah = screen.getByRole('checkbox', { name: /Seret isi sel untuk move/ });
+    const geser = screen.getByRole('checkbox', { name: /Geser judul kolom/ });
+
+    // Dua sakelar satu grup berjarak 0: tak ada garis di antaranya.
+    expect(adaPemisahSebelum(pindah)).toBe(false);
+    // Grup berikutnya: satu garis pemisah tepat sebelum sakelar pertama
+    // grubunya (bukan di antara dua item dalam grup yang sama).
+    expect(adaPemisahSebelum(geser)).toBe(true);
+    // Sakelar pertama tak boleh preceded garis (tidak ada grup di atasnya).
+    expect(adaPemisahSebelum(salin)).toBe(false);
   });
 });

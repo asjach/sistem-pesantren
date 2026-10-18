@@ -177,7 +177,7 @@ describe('DialogKelolaTabel — tab Umum', () => {
     expect(document.getElementById('nilai_umum_preset_bawaan_uji')).toHaveTextContent('—');
   });
 
-  it('menampilkan kontrol tampilan perangkat: kolom beku + baris ikut isi + geser judul', async () => {
+  it('menampilkan kontrol tampilan perangkat: kolom beku + tinggi baris + baris ikut isi', async () => {
     renderDialog();
     await waitFor(() => expect(screen.getByLabelText('Kolom beku dari kiri')).toBeInTheDocument());
     // Kontrolnya `LabeledStepper` (kotak teks + tombol −/+), bukan input angka.
@@ -185,20 +185,17 @@ describe('DialogKelolaTabel — tab Umum', () => {
     expect(document.getElementById('input_beku_uji_kurang')).not.toBeNull();
     expect(document.getElementById('input_beku_uji_tambah')).not.toBeNull();
     expect(screen.getByRole('switch', { name: /Baris ikut isi/ })).not.toBeChecked();
-    // Geser judul kolom: MATI secara bawaan (perilaku lama tetap utuh).
-    expect(screen.getByRole('switch', { name: /Geser judul kolom/ })).not.toBeChecked();
-    expect(screen.getByText(
-      /Ketiganya hanya di perangkat ini/,
-    )).toBeInTheDocument();
+    expect(screen.getByText(/Ketiganya hanya di perangkat ini/)).toBeInTheDocument();
   });
 
-  it('sakelar geser judul menyimpan pref perangkat dan memberitahu grid', async () => {
+  /* Sakelar gestur (seret isi sel & geser judul kolom) TIDAK lagi di tab ini:
+     gesturnya hanya berlaku saat Mode Ubah menyala, jadi sakelarnya pindah ke
+     bilah Mode Ubah di kaki tabel. Testnya ada di `ExcelTable.test.tsx`. */
+  it('sakelar gestur tidak lagi ada di tab Umum', async () => {
     renderDialog();
-    const sakelar = await screen.findByRole('switch', { name: /Geser judul kolom/ });
-
-    await userEvent.click(sakelar);
-
-    await waitFor(() => expect(prefSet).toHaveBeenCalledWith('simpes_grid_uji_geser_header', '1'));
+    await waitFor(() => expect(screen.getByLabelText('Kolom beku dari kiri')).toBeInTheDocument());
+    expect(screen.queryByRole('switch', { name: /Geser judul kolom/ })).toBeNull();
+    expect(screen.queryByRole('switch', { name: /Seret isi sel/ })).toBeNull();
   });
 
   it('stepper kolom beku menyimpan pref tiap klik dan mati di batas jumlah kolom', async () => {

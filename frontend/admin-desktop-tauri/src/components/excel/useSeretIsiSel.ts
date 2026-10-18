@@ -35,9 +35,13 @@ export interface SumberSeretIsi {
 }
 
 export interface SyaratSeretIsi {
-  /** Izin dari Kelola Tabel. Saat mati TIDAK ADA listener sama sekali, jadi
-   *  perilaku klik lama (memilih sel, menyeret blok) tetap persis. */
+  /** Izin gestur. Saat mati TIDAK ADA listener sama sekali, jadi perilaku
+   *  klik lama (memilih sel, menyeret blok) tetap persis. */
   aktif: boolean;
+  /** Gestur yang berlaku: 'salin' atau 'pindah'. `null` = tak ada seret isi
+   *  sel yang diizinkan (sakelarnya belum dinyalakan). `aktif` true
+   *  menjamin `mode` bukan null — pemanggil yang menjaga keduanya. */
+  mode: ModeSeret | null;
   /** TRUE bila tabel boleh menulis (ada kolom editable + `canEdit`). */
   bisaTulis: boolean;
   /** Terapkan hasil seret. */
@@ -73,21 +77,17 @@ export function bersihkanSeretIsi(wrap: HTMLElement | null): void {
 }
 
 /**
- * Seret ISI SEL gaya Excel: tekan-tahan lalu geser ke sel lain.
- *  - seret biasa                   → isi blok DITIRU (salin)
- *  - seret dengan Ctrl/Cmd ditekan → isi blok DIPINDAH (potong)
+ * Seret ISI SEL: tekan-tahan blok terpilih lalu geser ke sel lain.
+ *
+ * CARA gesturnya satu saja untuk copy maupun move — yang membedakan cuma
+ * akibat akhirnya, dan itu ditentukan `SyaratSeretIsi.mode` (sakelar aktif
+ * di bilah Mode Ubah), bukan modifier keyboard. Jadi Ctrl/Cmd tak dipakai
+ * lagi, dan `Ctrl+klik` sepenuhnya milik DSG (menu konteks,
+ * `DataSheetGrid.js:644`).
  *
  * Sumber selalu blok seleksi yang sedang aktif (satu blok utuh; tak ada mode
  * "seret-mengisi" terpisah). Tekan di luar blok berarti pengguna sedang
  * memilih rentang baru — itu wewenang DSG, jadi event-nya dibiarkan lewat.
- *
- * Ctrl/Cmd menjadi penentu mode, bukan garis seleksi: grab di garis 1px
- * praktis tak pernah kena, sedangkan tombol modifier selalu ada di bawah jari.
- * Catatan: DSG memperlakukan Ctrl+klik sebagai klik kanan
- * (`DataSheetGrid.js:644`), jadi `mousedown` WAJIB dihentikan di capture —
- * tanpa itu yang muncul bukan seret, melainkan menu konteks. Menu konteks
- * bawaan peramban juga diblokir selama gesture (terutama di Linux/Windows,
- * tempat Ctrl+klik memunculkannya).
  *
  * PENTING — kenapa listener NATIVE fase CAPTURE, bukan prop React:
  * react-datasheet-grid memasang listener `mousedown` di level DOKUMEN yang
@@ -193,7 +193,8 @@ export function useSeretIsiSel(
     const dariTitik = (e: MouseEvent): Kandidat | null => {
       const s = syaratRef.current;
       const sum = sumberRef.current;
-      if (!s.aktif || !s.bisaTulis || sum.jumlahBaris <= 0 || sum.seleksi === null) return null;
+      if (!s.aktif || s.mode === null || !s.bisaTulis) return null;
+      if (sum.jumlahBaris <= 0 || sum.seleksi === null) return null;
       const target = e.target as HTMLElement | null;
       // Gagang ubah-lebar punya urusannya sendiri.
       if (target?.closest('.simpes-dsg-resizer')) return null;
@@ -220,9 +221,7 @@ export function useSeretIsiSel(
         return null;
       }
 
-      /* Ctrl/Cmd ditekan = "pindah"; tanpa modifier = "salin". */
-      const mode: ModeSeret = e.ctrlKey || e.metaKey ? 'pindah' : 'salin';
-      return { x0: e.clientX, y0: e.clientY, sumber: blok, genggam: jangkar, mode };
+      return { x0: e.clientX, y0: e.clientY, sumber: blok, genggam: jangkar, mode: s.mode };
     };
 
     const mulaiSeret = (k: Kandidat) => {
@@ -273,11 +272,6 @@ export function useSeretIsiSel(
         bersihkanSeretIsi(wrap);
       };
 
-      /** Tolak menu konteks bawaan peramban selama gestur berjalan. Di Linux
-       *  dan Windows, Ctrl+klik memunculkan menu itu sebagai aksi bawaan
-       *  `mousedown`; di macOS tidak, tapi pemblokiran tak merugikan. */
-      const tolakMenu = (e: Event) => e.preventDefault();
-
       function bersih() {
         window.removeEventListener('pointermove', geser, true);
         window.removeEventListener('pointerup', lepas, true);
@@ -286,7 +280,6 @@ export function useSeretIsiSel(
         window.removeEventListener('pointercancel', batal, true);
         window.removeEventListener('blur', batal);
         window.removeEventListener('keydown', tombol, true);
-        window.removeEventListener('contextmenu', tolakMenu, true);
         bersihRef.current = null;
       }
 
@@ -320,17 +313,18 @@ export function useSeretIsiSel(
       window.addEventListener('pointercancel', batal, true);
       window.addEventListener('blur', batal);
       window.addEventListener('keydown', tombol, true);
-      window.addEventListener('contextmenu', tolakMenu, true);
     };
 
     const tekan = (e: MouseEvent) => {
-      if (e.button !== 0) return;
+      /* Ctrl/Cmd+klik itu milik DSG (menu konteks) — gestur kita tak
+         memakainya sebagai modifier lagi, jadi biarkan lewat. */
+      if (e.button !== 0 || e.ctrlKey || e.metaKey) return;
       const k = dariTitik(e);
       if (k === null) return;
       /* DSG memasang `mousedown` di DOKUMEN (fase bubble), jadi menghentikan
          event di CAPTURE wadah sudah cukup untuk memblokir drag-pilih bloknya.
-         Wajib juga untuk mode "pindah": DSG membaca Ctrl+klik sebagai klik
-         kanan (`DataSheetGrid.js:644`) dan akan membuka menu konteks. */
+         Tekan-tahan lalu menggeser tetap jalan karena gestur itu memakai
+         listener pointermove/up sendiri. */
       e.preventDefault();
       e.stopPropagation();
       mulaiSeret(k);
@@ -343,7 +337,7 @@ export function useSeretIsiSel(
       bersihRef.current = null;
       bersihkanSeretIsi(wrap);
     };
-  }, [syarat.aktif, syarat.bisaTulis, wrapRef]);
+  }, [syarat.aktif, syarat.mode, syarat.bisaTulis, wrapRef]);
 
   /* Komponen dilepas di tengah seret: jangan tinggalkan kelas/badge di DOM. */
   useEffect(() => () => {

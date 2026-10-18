@@ -11,7 +11,7 @@ import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AlignCenter, AlignLeft, AlignRight, Columns3, Copy, MoveHorizontal, NotebookTabs, Pencil, Pin, PinOff, RotateCcw } from '@/icons';
+import { AlignCenter, AlignLeft, AlignRight, Ban, Columns3, Copy, MoveHorizontal, NotebookTabs, Pencil, Pin, PinOff, RotateCcw } from '@/icons';
 import { metaAksi } from './actions';
 import type { AksiMenu } from './types';
 
@@ -35,6 +35,10 @@ export interface MenuKonteksGridProps {
   /** Aksi massal blok seleksi (klik kanan di dalam seleksi). Absen = tak tampil. */
   onIsiBlok?: () => void;
   blokLabel?: string;
+  /** Kosongkan isi blok (berdampingan dengan aksi isi). Absen = tak tampil;
+   *  hanya diantar Mode Ubah, jadi tak ada saat tabel sedang dibaca. */
+  onKosongkanBlok?: () => void;
+  kosongkanLabel?: string;
   blokJumlah?: number;
   freezeAktif: number;
   ubahFreeze: (n: number) => void;
@@ -84,6 +88,8 @@ export default function MenuKonteksGrid({
   rowAksi,
   onIsiBlok,
   blokLabel,
+  onKosongkanBlok,
+  kosongkanLabel,
   blokJumlah,
   freezeAktif,
   ubahFreeze,
@@ -285,9 +291,10 @@ export default function MenuKonteksGrid({
       {row && (
         <>
           <ContextMenuLabel>{row.rowLabel}</ContextMenuLabel>
-          {onIsiBlok && (
+          {(onIsiBlok || onKosongkanBlok) && (
             <>
               <ContextMenuLabel>BLOK {blokJumlah ?? 0} SEL</ContextMenuLabel>
+              {onIsiBlok && (
               <ContextMenuItem
                 id={`menu_ctx_isi_blok_${tableKey}`}
                 /* WebKit/WKWebView dapat memfokuskan item saat pointerdown dan
@@ -300,6 +307,19 @@ export default function MenuKonteksGrid({
                 <Pencil size={16} />
                 <span>{blokLabel ?? 'Isi blok…'}</span>
               </ContextMenuItem>
+              )}
+              {onKosongkanBlok && (
+              <ContextMenuItem
+                id={`menu_ctx_kosongkan_blok_${tableKey}`}
+                /* `onPointerDown` preventDefault: sama seperti item isi blok,
+                   mencegah WebKit menggeser pilihan ke item lain. */
+                onPointerDown={(e) => e.preventDefault()}
+                onSelect={onKosongkanBlok}
+              >
+                <Ban size={16} />
+                <span>{kosongkanLabel ?? 'Kosongkan blok…'}</span>
+              </ContextMenuItem>
+              )}
               <ContextMenuSeparator />
             </>
           )}

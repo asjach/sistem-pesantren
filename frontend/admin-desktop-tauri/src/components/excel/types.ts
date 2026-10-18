@@ -36,7 +36,7 @@ export interface ExcelField {
   bolehSelect?: (id: string | number) => boolean;
   maxLength?: number;
   /** Klik sel teks baca-saja (mis. buka dialog editor). Absen = perilaku
-   *  edit bawaan (klik ganda mengaktifkan mode Edit). */
+   *  bawaan (klik ganda menyalakan Mode Ubah lalu membuka editor sel). */
   onCellClick?: (id: string | number) => void;
   /** Isi sel statis dengan ReactNode kustom (mis. dua baris mapel + guru). */
   renderCell?: (rowData: GridRow) => ReactNode;
@@ -143,7 +143,7 @@ export interface StaticColData {
   render?: (rowData: GridRow) => ReactNode;
   /** Klik sel (bila disediakan). */
   onClick?: (id: string | number) => void;
-  /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
+  /** Klik 2× sel (menyalakan Mode Ubah). */
   onDblClick?: () => void;
 }
 

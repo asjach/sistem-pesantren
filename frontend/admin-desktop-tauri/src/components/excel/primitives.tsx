@@ -1,10 +1,37 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 import type { CheckAllState } from './types';
 
-/** Penanda mode (Edit/Input) bergaya bilah status di badan halaman (bawah
- *  tabel): ikon + judul + tombol keluar; keterangan lengkap ada di tooltip. */
+/**
+ * Satu sakelar gestur manipulasi tabel yang ditawarkan Mode Ubah.
+ *
+ *  Sakelar dikelompokkan lewat `grup`: dua sakelar dengan grup yang sama
+ *  digambar berdampingan, dan antar-grup diberi garis pemisah. Copy & Move
+ *  hidup dalam satu grup karena mereka SALING MATI — nanti grup baru
+ *  cukup menambah `grup`, tanpa mengubah apa pun soal tata letak.
+ */
+export interface SakelarMode {
+  /** Id elemen (NFR-05: snake_case). */
+  id: string;
+  label: string;
+  /** Penjelasan singkat di tooltip — labelnya sengaja dibuat pendek. */
+  hint?: string;
+  /** Identitas kelompok. Sakelar bertanda `grup` sama dikumpulkan; grup
+   *  berbeda dipisah garis. Absen = sakelar berdiri sendiri (masih dipisah
+   *  garis dari sakelar lain). */
+  grup?: string;
+  checked: boolean;
+  onCheckedChange: (nyala: boolean) => void;
+}
+
+/** Penanda mode (Ubah/Input) bergaya bilah status di badan halaman (bawah
+ *  tabel): ikon + judul + tombol keluar; keterangan lengkap ada di tooltip.
+ *
+ *  `sakelar` (bila ada) digambar DI ATAS bilah status: sakelar gestur
+ *  manipulasi yang berlaku selama mode ini hidup. */
 export function PillMode({
   id,
   btnId,
@@ -12,6 +39,7 @@ export function PillMode({
   ikon,
   judul,
   petunjuk,
+  sakelar,
   onKeluar,
 }: {
   id: string;
@@ -20,35 +48,69 @@ export function PillMode({
   ikon: ReactNode;
   judul: string;
   petunjuk: string;
+  sakelar?: SakelarMode[];
   onKeluar: () => void;
 }) {
   const warn = aksen === 'warning';
   return (
-    <div
-      id={id}
-      role="status"
-      title={petunjuk}
-      className={cn(
-        'inline-flex items-center gap-2 rounded-pil border px-3 py-1 text-xs',
-        warn ? 'border-warning/40 bg-warning/10 text-warning-foreground' : 'border-primary/40 bg-primary/10 text-foreground',
+    <div className="flex flex-col items-end gap-1.5">
+      {sakelar && sakelar.length > 0 && (
+        <div className="flex flex-col gap-1 rounded-pil border border-foreground/30 bg-popover px-2.5 py-1.5 shadow-md">
+          {sakelar.map((s, i) => {
+            /* Garis pemisah antar-GRUP, bukan antar-item: sakelar copy &
+               pindah (satu grup) duduk rapat, dan grup berikutnya dipisah
+               garis. Sakelar tanpa `grup` dihitung grupnya sendiri lewat
+               `id`, jadi tak pernah ikut menempel ke tetangganya. */
+            const grupIni = s.grup ?? `~${s.id}`;
+            const grupSebelum = i === 0 ? null : (sakelar[i - 1].grup ?? `~${sakelar[i - 1].id}`);
+            return (
+              <div key={s.id} className="contents">
+                {grupIni !== grupSebelum && i > 0 && (
+                  <Separator orientation="horizontal" className="my-1 h-px bg-border" />
+                )}
+                <label
+                  htmlFor={s.id}
+                  title={s.hint}
+                  className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground select-none hover:text-foreground"
+                >
+                  <Checkbox
+                    id={s.id}
+                    checked={s.checked}
+                    onCheckedChange={(c) => s.onCheckedChange(!!c)}
+                  />
+                  {s.label}
+                </label>
+              </div>
+            );
+          })}
+        </div>
       )}
-    >
-      {ikon}
-      <span className="font-semibold">{judul}</span>
-      <Button
-        id={btnId}
-        variant="outline"
-        size="sm"
+      <div
+        id={id}
+        role="status"
+        title={petunjuk}
         className={cn(
-          'h-6 px-2',
-          warn
-            ? 'border-warning/40 bg-transparent text-warning-foreground hover:bg-warning/10 hover:text-warning-foreground'
-            : 'border-primary/40 bg-transparent hover:bg-primary/10',
+          'inline-flex items-center gap-2 rounded-pil border px-3 py-1 text-xs',
+          warn ? 'border-warning/40 bg-warning/10 text-warning-foreground' : 'border-primary/40 bg-primary/10 text-foreground',
         )}
-        onClick={onKeluar}
       >
-        Keluar mode
-      </Button>
+        {ikon}
+        <span className="font-semibold">{judul}</span>
+        <Button
+          id={btnId}
+          variant="outline"
+          size="sm"
+          className={cn(
+            'h-6 px-2',
+            warn
+              ? 'border-warning/40 bg-transparent text-warning-foreground hover:bg-warning/10 hover:text-warning-foreground'
+              : 'border-primary/40 bg-transparent hover:bg-primary/10',
+          )}
+          onClick={onKeluar}
+        >
+          Keluar mode
+        </Button>
+      </div>
     </div>
   );
 }

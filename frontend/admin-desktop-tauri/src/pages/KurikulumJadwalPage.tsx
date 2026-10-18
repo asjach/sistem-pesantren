@@ -370,6 +370,57 @@ export default function KurikulumJadwalPage() {
     setSelGuru(mapelSama && guruSama ? (nilai[0]?.keaktifan_pegawai_id ?? '') : '');
   }, [canUbah, hari, petaJadwal]);
 
+  /** Klik kanan DI DALAM blok seleksi → "Kosongkan blok…": mapel + guru
+   *  dihapus dari semua sel pelajaran yang tercakup. Sel yang sudah kosong
+   *  dilewati supaya tak ada permintaan sia-sia ke server — dan jumlah
+   *  "sel dikosongkan" pada pesan hasil jadi lebih jujur. */
+  const kosongkanBlok = useCallback((rowsBlok: BarisMatriks[], fieldsBlok: ExcelField[]) => {
+    if (!canUbah) return;
+    const hariBlok = fieldsBlok.map((f) => f.key).filter((k) => hari.includes(k));
+    const sasaran: SasaranJadwal[] = [];
+    for (const r of rowsBlok) {
+      for (const h of hariBlok) {
+        const s = r.perHari[h];
+        if (s === undefined || s.jenis !== 'pelajaran') continue;
+        const j = petaJadwal.get(`${s.id}|${h}`);
+        if (j?.mata_pelajaran_id === null && j?.keaktifan_pegawai_id === null) continue;
+        sasaran.push({ kelasId: r.kelasId, kelasNama: r.kelasNama, slot: s, hari: h });
+      }
+    }
+    if (sasaran.length === 0) {
+      toast.error('Blok terpilih sudah kosong.');
+      return;
+    }
+    setSelBusy(true);
+    void (async () => {
+      let sukses = 0;
+      let galatPertama = '';
+      for (const t of sasaran) {
+        try {
+          await simpanSelJadwal({
+            kelas_id: t.kelasId,
+            slot_jam_id: t.slot.id,
+            hari: t.hari,
+            mata_pelajaran_id: null,
+            keaktifan_pegawai_id: null,
+          });
+          sukses++;
+        } catch (e) {
+          if (galatPertama === '') {
+            galatPertama = `${t.kelasNama} · ${HARI_LABEL[t.hari] ?? t.hari} ${t.slot.nama_slot ?? ''}: ${errorMessage(e)}`;
+          }
+        }
+      }
+      setSelBusy(false);
+      await muatJadwal();
+      if (galatPertama === '') {
+        toast.success(`${sukses} sel dikosongkan.`);
+      } else {
+        toast.error(`${sukses} dari ${sasaran.length} sel dikosongkan. ${galatPertama}`);
+      }
+    })();
+  }, [canUbah, hari, petaJadwal, muatJadwal]);
+
   /** Isi sel: mapel + guru (dua baris, gaya berbeda), mapel saja, atau guru
    *  saja sesuai pilihan Tampilan. Slot non-pelajaran tetap terkunci. */
   const renderSel = useCallback((id: string | number, h: string) => {
@@ -832,6 +883,8 @@ export default function KurikulumJadwalPage() {
             rail
             onIsiBlok={canUbah ? bukaBlok : undefined}
             blokAksiLabel="Isi mapel & guru…"
+            onKosongkanBlok={canUbah ? kosongkanBlok : undefined}
+            kosongkanBlokLabel="Kosongkan mapel & guru…"
             onSeretIsi={canUbah ? seretIsiSel : undefined}
             emptyText={kelasTampil.length === 0
               ? 'Pilih kelas pada rel Kelas.'

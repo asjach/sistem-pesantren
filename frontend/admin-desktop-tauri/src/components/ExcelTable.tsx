@@ -72,7 +72,7 @@ import { labelKolom as labelKolomTeks } from '@/lib/labelKolom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-import { CheckAllCell, CheckAllContext, PillMode, TabelMemuat } from './excel/primitives';
+import { CheckAllCell, CheckAllContext, PillMode, TabelMemuat, type SakelarMode } from './excel/primitives';
 import {
   ACTIONS_DEFAULT_W,
   ACTIONS_MIN_W,
@@ -86,8 +86,9 @@ import {
   hasOpenEditor,
   loadFreeze,
   loadGeserHeader,
-  loadSeretIsi,
-  seretIsiKey,
+  loadSakelarGestur,
+  seretPindahKey,
+  seretSalinKey,
   tinggiCache,
 } from './excel/helpers';
 import {
@@ -200,6 +201,14 @@ export interface ExcelTableProps<T extends { id: string | number }> {
    *  seleksi. `blokAksiLabel` hanya mengubah teks item menunya. */
   onIsiBlok?: (rows: T[], fields: ExcelField[]) => void;
   blokAksiLabel?: string;
+  /** Kosongkan isi blok sel terpilih (menulis nilai kosong), dari item menu
+   *  yang berdampingan dengan aksi isi blok. Bentuk panggilannya sama dengan
+   *  `onIsiBlok` — `rows` + `fields` — jadi halaman tak perlu tahu indeks
+   *  grid. Item ini HANYA muncul saat Mode Ubah menyala: mengosongkan isi sel
+   *  merusak data, jadi tak boleh tersedia dari tabel yang sedang dibaca
+   *  (policy yang sama dengan seret isi sel). */
+  onKosongkanBlok?: (rows: T[], fields: ExcelField[]) => void;
+  kosongkanBlokLabel?: string;
   /** Tangani sendiri hasil seret isi sel (blok dalam indeks grid).
    *
    *  Tanpa prop ini seret ditulis lewat jalur biasa tabel (draft + auto-save),
@@ -258,6 +267,13 @@ export interface ExcelTableProps<T extends { id: string | number }> {
 
 type Drafts = Record<string, Record<string, string | null>>;
 
+/** Identitas kelompok sakelar gestur di bilah Mode Ubah. Copy & Move satu
+ *  grup karena saling mati; susunan kolom punya grupnya sendiri. Nanti ada
+ *  grup baru cukup tambah konstanta + `grup` di sakelarnya — `PillMode`
+ *  otomatis memberi garis pemisah antarnya. */
+const GRUP_SERET_ISI = 'seret_isi';
+const GRUP_SUSUNAN_KOLOM = 'susunan_kolom';
+
 export default function ExcelTable<T extends { id: string | number }>({
   tableKey,
   fields,
@@ -297,6 +313,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   pager,
   onIsiBlok,
   blokAksiLabel = 'Isi blok…',
+  onKosongkanBlok,
+  kosongkanBlokLabel = 'Kosongkan blok…',
   onSeretIsi,
 }: ExcelTableProps<T>) {
   // Preferensi tampilan tabel global (dikontrol dari top bar). `rowH` di sini
@@ -502,16 +520,30 @@ export default function ExcelTable<T extends { id: string | number }>({
     [tableKey, visibleFields.length],
   );
 
-  /* Sakelar "geser judul kolom": TERSIMPAN PER PERANGKAT (seperti freeze),
-     dan MATI secara bawaan supaya perilaku lama tetap utuh. Dibaca ulang via
-     event yang sama dengan freeze, jadi mengubahnya di Kelola Tabel langsung
-     berlaku tanpa reload. */
+  /* Sakelar gestur manipulasi tabel (geser judul kolom, seret isi sel salin &
+     pindah). Semuanya:
+       - TERSIMPAN PER PERANGKAT lewat pref, MATI secara bawaan;
+       - HANYA berlaku saat Mode Ubah menyala (lihat catatan `gesturHidup`);
+       - dibaca ulang lewat `EVENT_TAMPILAN_PERANGKAT_BERUBAH` — event yang
+         sama dengan freeze — supaya perubahan dari luar (mis. menu klik
+         kanan header yang hidup di portal) langsung berlaku tanpa reload.
+
+     Satu helper dipakai untuk semuanya karena bedanya cuma nama pref. */
   const [geserHeader, setGeserHeader] = useState(false);
+  const [seretSalin, setSeretSalin] = useState(false);
+  const [seretPindah, setSeretPindah] = useState(false);
   useEffect(() => {
     let batal = false;
     const muat = () => {
-      loadGeserHeader(geserHeaderKey(tableKey)).then((v) => {
-        if (!batal) setGeserHeader(v);
+      Promise.all([
+        loadGeserHeader(geserHeaderKey(tableKey)),
+        loadSakelarGestur(seretSalinKey(tableKey)),
+        loadSakelarGestur(seretPindahKey(tableKey)),
+      ]).then(([h, salin, pindah]) => {
+        if (batal) return;
+        setGeserHeader(h);
+        setSeretSalin(salin);
+        setSeretPindah(pindah);
       });
     };
     muat();
@@ -525,41 +557,52 @@ export default function ExcelTable<T extends { id: string | number }>({
     };
   }, [tableKey]);
 
-  /* Sakelar bisa diubah dari menu klik-kanan header (yang hidup di PORTAL,
-     di luar pohon React grid). Karena itu kabari lewat event yang sama
-     dengan freeze: grid memuat ulang pref-nya sendiri. Tanpa ini, nilai
-     tersimpan benar tapi `data-seret` tak pernah menyala sampai reload. */
-  const ubahGeserHeader = useCallback(
-    (aktif: boolean) => {
-      setGeserHeader(aktif);
-      prefSet(geserHeaderKey(tableKey), aktif ? '1' : '').catch(() => {});
+  /** Ubah satu sakelar gestur + simpan ke pref perangkatnya. */
+  const ubahSakelarGestur = useCallback(
+    (key: string, nyala: boolean, set: (v: boolean) => void) => {
+      set(nyala);
+      prefSet(key, nyala ? '1' : '').catch(() => {});
       kabariTampilanPerangkat(tableKey);
     },
     [tableKey],
   );
+  /* Menu klik-kanan header hidup di PORTAL, di luar pohon React grid —
+     karena itu perubahan dari sana harus lewat `kabariTampilanPerangkat`
+     supaya grid membaca ulang pref-nya sendiri. */
+  const ubahGeserHeader = useCallback(
+    (aktif: boolean) => ubahSakelarGestur(geserHeaderKey(tableKey), aktif, setGeserHeader),
+    [ubahSakelarGestur, tableKey],
+  );
 
-  /* Sakelar "seret isi sel": pola persis sama dengan geser judul kolom —
-     tersimpan per perangkat, MATI bawaan, dan dibaca ulang lewat event
-     `EVENT_TAMPILAN_PERANGKAT_BERUBAH` supaya menyala dari Kelola Tabel
-     tanpa reload. */
-  const [seretIsi, setSeretIsi] = useState(false);
-  useEffect(() => {
-    let batal = false;
-    const muat = () => {
-      loadSeretIsi(seretIsiKey(tableKey)).then((v) => {
-        if (!batal) setSeretIsi(v);
-      });
-    };
-    muat();
-    const segarkan = (e: Event) => {
-      if ((e as CustomEvent).detail?.tableKey === tableKey) muat();
-    };
-    window.addEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
-    return () => {
-      batal = true;
-      window.removeEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
-    };
-  }, [tableKey]);
+  /* Gestur HANYA hidup saat Mode Ubah menyala. Mode Ubah adalah gerbang
+     induk: manipulate tabel bisa merusak data, jadi tak boleh aktif dari
+     tabel yang sedang dibaca. Sakelar di dalam bilah Mode Ubah cuma memilih
+     JENIS gestur yang boleh hidup selama mode itu menyala — bukan
+     menyalakannya sendiri. */
+  /** Gestur seret isi sel yang berlaku sekarang, atau null = tak ada.
+   *
+   *  Copy & Move EKSKLUSIF: cara gesture-nya sama persis (tekan-tahan blok
+   *  lalu geser), yang membedakan cuma akibat akhirnya. Jadi satu mode
+   *  aktif untuk dua-duanya — modifier (Ctrl/Cmd) tak lagi dipakai. */
+  const modeSeret: ModeSeret | null = seretSalin ? 'salin' : (seretPindah ? 'pindah' : null);
+  const geserHeaderHidup = geserHeader && modeUbah;
+  const seretIsiHidup = modeSeret !== null && modeUbah;
+
+  /** Nyalakan SALIN atau PINDIH — keduanya saling mematikan, jadi tak pernah
+   *  menyala dua-duanya. Menoncentang yang aktif mematikan KEDUA-nya
+   *  (kembal ke "tak ada seret isi sel"), karena itu keadaan bawaannya. */
+  const ubahSeretIsi = useCallback(
+    (mode: ModeSeret, nyala: boolean) => {
+      const salin = mode === 'salin' ? nyala : false;
+      const pindah = mode === 'pindah' ? nyala : false;
+      setSeretSalin(salin);
+      setSeretPindah(pindah);
+      prefSet(seretSalinKey(tableKey), salin ? '1' : '').catch(() => {});
+      prefSet(seretPindahKey(tableKey), pindah ? '1' : '').catch(() => {});
+      kabariTampilanPerangkat(tableKey);
+    },
+    [tableKey],
+  );
 
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -640,7 +683,9 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { status: statusSeret, mulai: mulaiSeretKolom } = useSeretKolomHeader({
     terlihat: visibleFields.map((f) => f.key),
     wrapRef,
-    aktif: geserHeader,
+    /* Geser judul kolom ikut Mode Ubah: menyusun ulang kolom mengubah isi
+       tabel, jadi tak boleh tersedia dari tabel yang sedang dibaca. */
+    aktif: geserHeaderHidup,
     onPindah: simpanUrutanKolom,
   });
 
@@ -928,12 +973,23 @@ export default function ExcelTable<T extends { id: string | number }>({
     openEditorForActiveCell();
   }
 
-  /** Klik 2× sel: nyalakan mode Ubah + buka editor sel itu.
+  /** Klik 2× sel: nyalakan Mode Ubah + (bila tabelnya writable) buka editor
+   *  sel itu.
+   *
    *  Dijalankan lewat event dblclick (bukan mousedown detail) agar andal di
-   *  semua WebView; dispatch Enter ditunda hingga kolom DSG ikut ter-update. */
+   *  semua WebView; dispatch Enter ditunda hingga kolom DSG ikut ter-update.
+   *
+   *  Gerbangnya `bolehModeUbah`, BUKAN `canEdit`: tabel read-saja yang punya
+   *  fitur manipulasi (mis. matriks jadwal dengan `onSeretIsi`) juga punya
+   *  tombol Mode Ubah di kaki tabel, jadi klik ganda harus menyalakannya
+   *  dengan cara yang sama — kalau tidak, satu-satunya jalan masuk ke mode
+   *  itu jadi klik tombol, tidak konsisten dengan tabel lain. Tabel read-saja
+   *  tak punya editor sel, jadi setelah mode menyala functinya berhenti di
+   *  situ. */
   function enableEditByDoubleClick() {
-    if (!canEdit) return;
+    if (!bolehModeUbah) return;
     if (!modeUbah) setModeUbah(true);
+    if (!canEdit) return;
     setTimeout(openEditorForActiveCell, 0);
     setTimeout(openEditorForActiveCell, 80);
   }
@@ -1005,7 +1061,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Blok seleksi untuk aksi massal halaman (mis. isi mapel & guru banyak
    *  sel sekaligus). */
   const blokSeleksi = (() => {
-    if (!onIsiBlok || range === null) return null;
+    if ((!onIsiBlok && !onKosongkanBlok) || range === null) return null;
     return susunBlok(range.min.row, range.max.row, range.min.col, range.max.col);
   })();
 
@@ -1178,12 +1234,14 @@ export default function ExcelTable<T extends { id: string | number }>({
     [onSeretIsi, handleChangeStable],
   );
   useSeretIsiSel(wrapRef, {
-    /* Gestur HANYA hidup di Mode Ubah. Tabel read-saja tetap boleh seret
-       asal halaman memberi `onSeretIsi` (mis. matriks jadwal: isinya ditulis
-       lewat API, bukan kolom biasa) — tetapi tetap harus menyalakan Mode
-       Ubah dulu. Tanpa itu, tabel tanpa kolom editable tak punya yang bisa
-       ditulis — gestur dimatikan agar tak pernah menghasilkan apa-apa. */
-    aktif: seretIsi && modeUbah,
+    /* Gestur HANYA hidup di Mode Ubah DAN hanya untuk mode salin/pindah yang
+       sedang aktif. Tabel read-saja tetap boleh seret asal halaman memberi
+       `onSeretIsi` (mis. matriks jadwal: isinya ditulis lewat API, bukan
+       kolom biasa) — tetapi tetap harus menyalakan Mode Ubah dulu. Tanpa
+       itu, tabel tanpa kolom editable tak punya yang bisa ditulis — gestur
+       dimatikan agar tak pernah menghasilkan apa-apa. */
+    aktif: seretIsiHidup,
+    mode: modeSeret,
     bisaTulis: onSeretIsi !== undefined || (canEdit && editableKeys.length > 0),
     onTerapkan: terapkanSeretIsi,
   }, {
@@ -1330,7 +1388,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             onAutoFit={onAutoFit}
             /* Pegangan seret = seluruh area judul; hanya saat sakelarnya hidup
                supaya klik judul biasa tak berubah perilakunya. */
-            seretAktif={geserHeader}
+            seretAktif={geserHeaderHidup}
             sedangDiseret={statusSeret?.dari === f.key}
           />
         ),
@@ -1428,7 +1486,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                   const sumber = rowsRef.current.find((r) => String(r.id) === String(grid.id));
                   return f.kartuHover!({ ...(sumber as unknown as GridRow), ...grid });
                 },
-              // Mode Input aktif: klik 2× tidak menyalakan mode Edit.
+              // Mode Input aktif: klik 2× tidak menyalakan Mode Ubah.
               onDblClick: () => {
                 if (!showInput) enableEditByDoubleClick();
               },
@@ -1775,6 +1833,37 @@ export default function ExcelTable<T extends { id: string | number }>({
   const pagerTampil = pager != null && komponenAktif(visibilitas, 'pager');
   const tombolPengaturanTampil = komponenAktif(visibilitas, 'tombol_pengaturan');
   const tombolTambahTampil = inputEnabled && komponenAktif(visibilitas, 'tombol_tambah');
+  /* Sakelar gestur yang digambar di ATAS bilah Mode Ubah.
+     Copy & Move sengaja dibuat dua checkbox yang saling mematikan, bukan
+     dua sakelar merdeka: gesturnya sama persis, yang beda cuma akibat akhirnya.
+     Dua-duanya boleh mati — itulah keadaan bawaan (tak ada seret isi sel). */
+  const sakelarMode: SakelarMode[] = [
+    {
+      id: `sakelar_seret_salin_${tableKey}`,
+      label: 'Seret isi sel untuk copy',
+      grup: GRUP_SERET_ISI,
+      hint: 'Tekan-tahan blok terpilih lalu geser ke sel lain — isinya disalin ke sel tujuan.',
+      checked: seretSalin,
+      onCheckedChange: (nyala) => ubahSeretIsi('salin', nyala),
+    },
+    {
+      id: `sakelar_seret_pindah_${tableKey}`,
+      label: 'Seret isi sel untuk move',
+      grup: GRUP_SERET_ISI,
+      hint: 'Tekan-tahan blok terpilih lalu geser ke sel lain — isinya dipindah dan sel asal dikosongkan.',
+      checked: seretPindah,
+      onCheckedChange: (nyala) => ubahSeretIsi('pindah', nyala),
+    },
+    {
+      id: `sakelar_geser_judul_${tableKey}`,
+      label: 'Geser judul kolom',
+      grup: GRUP_SUSUNAN_KOLOM,
+      hint: 'Tekan-tahan judul kolom lalu geser untuk menyusun ulang posisinya. Saat aktif, klik judul tidak lagi memblok satu kolom penuh.',
+      checked: geserHeader,
+      onCheckedChange: ubahGeserHeader,
+    },
+  ];
+
   const tombolEditTampil = bolehModeUbah && komponenAktif(visibilitas, 'tombol_edit');
 
   /** Bilah judul ADA di tabel ini? Ini fakta KEMAMPUAN (setelan visibilitas
@@ -1872,7 +1961,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Blok yang ditawarkan saat klik kanan: seleksi aktif bila klik di dalamnya;
    *  sel yang diklik saja bila tanpa seleksi / klik di luar seleksi. */
   const blokCtx = (() => {
-    if (!onIsiBlok || ctxRow === null) return null;
+    if ((!onIsiBlok && !onKosongkanBlok) || ctxRow === null) return null;
     const keys = kunciKolomGrid();
     const rowIdx = gridValue.findIndex((g) => String(g.id) === String(ctxRow.rowId));
     const colIdx = keys.indexOf(ctxRow.colKey ?? '');
@@ -2050,6 +2139,10 @@ export default function ExcelTable<T extends { id: string | number }>({
             blokJumlah={blokCtx?.jumlah}
             blokLabel={blokAksiLabel}
             onIsiBlok={blokCtx ? () => onIsiBlok!(blokCtx.rows, blokCtx.fields) : undefined}
+            onKosongkanBlok={blokCtx && modeUbah && onKosongkanBlok
+              ? () => onKosongkanBlok!(blokCtx.rows, blokCtx.fields)
+              : undefined}
+            kosongkanLabel={kosongkanBlokLabel}
             freezeAktif={freezeAktif}
             ubahFreeze={ubahFreeze}
             geserHeader={geserHeader}
@@ -2087,9 +2180,12 @@ export default function ExcelTable<T extends { id: string | number }>({
         </ContextMenu>
 
         {/* Penanda mode (Ubah/Input) melayang di kanan bawah area tabel —
-            menandai mode aktif + tombol keluar tanpa memakan ruang layout. */}
+            menandai mode aktif + tombol keluar tanpa memakan ruang layout.
+            Di atas penanda Mode Ubah ada sakelar gestur: hanya hidup saat
+            mode itu menyala, jadi "apa yang boleh dimanipulasi sekarang"
+            terbaca satu mata. */}
         {(modeUbah || showInput) && (
-          <div className="absolute right-3 bottom-3 z-20 flex flex-wrap items-center justify-end gap-1.5">
+          <div className="absolute right-3 bottom-3 z-20 flex flex-wrap items-end justify-end gap-1.5">
             {modeUbah && (
               <PillMode
                 id={`banner_mode_edit_${tableKey}`}
@@ -2098,8 +2194,9 @@ export default function ExcelTable<T extends { id: string | number }>({
                 ikon={<Pencil size={14} />}
                 judul="Mode Ubah aktif"
                 petunjuk={canEdit
-                  ? 'Sel tanpa garis bawah = bisa diedit. Seret isi sel juga hidup di mode ini. Tekan Esc untuk keluar.'
-                  : 'Sel tetap dibaca. Seret isi sel juga hidup di mode ini. Tekan Esc untuk keluar.'}
+                  ? 'Sel tanpa garis bawah = bisa diedit. Centang gestur di atas untuk menyalakan seret isi sel atau geser judul kolom. Tekan Esc untuk keluar.'
+                  : 'Sel tetap dibaca. Centang gestur di atas untuk menyalakan seret isi sel atau geser judul kolom. Tekan Esc untuk keluar.'}
+                sakelar={sakelarMode}
                 onKeluar={() => setModeUbah(false)}
               />
             )}

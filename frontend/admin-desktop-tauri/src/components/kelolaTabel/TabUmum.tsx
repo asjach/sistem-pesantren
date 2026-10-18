@@ -3,7 +3,7 @@ import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { hapusToolbarPreset } from '@/api/toolbarPreset';
 import { listPresetTabel, setPresetAktif } from '@/api/preset';
 import { useBagian } from '@/components/kelolaHalaman/kotor';
-import { freezeKey, geserHeaderKey, loadFreeze, loadGeserHeader, loadSeretIsi, seretIsiKey, widthsKey, writeWidthCache } from '@/components/excel/helpers';
+import { freezeKey, loadFreeze, widthsKey, writeWidthCache } from '@/components/excel/helpers';
 import { autoBarisKey, tinggiBarisKey, tinggiDasarKey } from '@/components/excel/useTinggiBaris';
 import { MAX_BARIS_H, MIN_BARIS_H, TINGGI_BARIS_BAWAAN } from '@/components/excel/tinggiBaris';
 import { useGridPrefs } from '@/components/GridPrefs';
@@ -85,10 +85,6 @@ export default function TabUmum({
 
   const [beku, setBeku] = useState(0);
   const [ikutIsi, setIkutIsi] = useState(false);
-  /** Sakelar geser judul kolom (per perangkat; MATI bawaan). */
-  const [geserHeader, setGeserHeader] = useState(false);
-  /** Sakelar seret isi sel (per perangkat; MATI bawaan). */
-  const [seretIsi, setSeretIsi] = useState(false);
   const [sibukPerangkat, setSibukPerangkat] = useState(false);
   /** Tinggi dasar tabel ini; null = mengikuti bawaan global (atau 24px). */
   const [tinggiDasar, setTinggiDasar] = useState<number | null>(null);
@@ -100,17 +96,13 @@ export default function TabUmum({
 
   const muatPerangkat = useCallback(async () => {
     try {
-      const [f, a, h, g, si] = await Promise.all([
+      const [f, a, h] = await Promise.all([
         loadFreeze(freezeKey(tableKey)),
         prefGet(autoBarisKey(tableKey)),
         prefGet(tinggiDasarKey(tableKey)),
-        loadGeserHeader(geserHeaderKey(tableKey)),
-        loadSeretIsi(seretIsiKey(tableKey)),
       ]);
       setBeku(jepitBeku(f, jumlahKolom));
       setIkutIsi(a === '1');
-      setGeserHeader(g);
-      setSeretIsi(si);
       const n = Number(h);
       setTinggiDasar(
         h != null && h.trim() !== '' && Number.isFinite(n)
@@ -121,8 +113,6 @@ export default function TabUmum({
       setBeku(0);
       setIkutIsi(false);
       setTinggiDasar(null);
-      setGeserHeader(false);
-      setSeretIsi(false);
     }
   }, [tableKey, jumlahKolom]);
 
@@ -146,28 +136,6 @@ export default function TabUmum({
     setSibukPerangkat(true);
     prefSet(autoBarisKey(tableKey), nyala ? '1' : '0')
       .catch(() => toast.error('Gagal menyimpan pengaturan baris.'))
-      .finally(() => setSibukPerangkat(false));
-    kabariTampilanPerangkat(tableKey);
-  }
-
-  /** Sakelar geser judul kolom: simpan perangkat + beri tahu grid (sama pola
-   *  dengan freeze/ikut-isi) supaya berlaku tanpa reload. */
-  function ubahGeserHeader(nyala: boolean) {
-    setGeserHeader(nyala);
-    setSibukPerangkat(true);
-    prefSet(geserHeaderKey(tableKey), nyala ? '1' : '')
-      .catch(() => toast.error('Gagal menyimpan pengaturan geser kolom.'))
-      .finally(() => setSibukPerangkat(false));
-    kabariTampilanPerangkat(tableKey);
-  }
-
-  /** Sakelar seret isi sel: simpan perangkat + beri tahu grid (sama pola
-   *  dengan freeze/ikut-isi) supaya berlaku tanpa reload. */
-  function ubahSeretIsi(nyala: boolean) {
-    setSeretIsi(nyala);
-    setSibukPerangkat(true);
-    prefSet(seretIsiKey(tableKey), nyala ? '1' : '')
-      .catch(() => toast.error('Gagal menyimpan pengaturan seret isi sel.'))
       .finally(() => setSibukPerangkat(false));
     kabariTampilanPerangkat(tableKey);
   }
@@ -331,40 +299,10 @@ export default function TabUmum({
             onCheckedChange={(c) => ubahIkutIsi(!!c)}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <label htmlFor={`sakelar_geser_header_${tableKey}`} className="min-w-0 flex-1 text-xs">
-            Geser judul kolom
-            <span className="block text-[11px] text-muted-foreground">
-              Susun posisi kolom dengan menekan-tahan judul lalu menggesernya.
-              Saat aktif, klik judul tidak lagi memblok satu kolom penuh.
-            </span>
-          </label>
-          <Switch
-            id={`sakelar_geser_header_${tableKey}`}
-            checked={geserHeader}
-            disabled={sibukPerangkat}
-            onCheckedChange={(c) => ubahGeserHeader(!!c)}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <label htmlFor={`sakelar_seret_isi_${tableKey}`} className="min-w-0 flex-1 text-xs">
-            Seret isi sel
-            <span className="block text-[11px] text-muted-foreground">
-              Tekan-tahan blok terpilih lalu geser ke sel lain: biasa =
-              tiru, tahan Ctrl/Cmd = pindahkan. Hanya jalan saat Mode Ubah
-              menyala.
-            </span>
-          </label>
-          <Switch
-            id={`sakelar_seret_isi_${tableKey}`}
-            checked={seretIsi}
-            disabled={sibukPerangkat}
-            onCheckedChange={(c) => ubahSeretIsi(!!c)}
-          />
-        </div>
         <p className="px-1 text-[11px] text-muted-foreground">
           Ketiganya hanya di perangkat ini — pengguna lain tidak ikut berubah.
-          Urutan kolom hasil geser tetap tersimpan di server (sama dengan tab Kolom).
+          Sakelar gestur (seret isi sel &amp; geser judul kolom) ada di bilah
+          Mode Ubah di kaki tabel, karena hanya berlaku saat mode itu menyala.
         </p>
       </div>
       <div className={cn('flex flex-col gap-2 rounded-md border px-3 py-2', !bolehResetServer && 'opacity-70')}>
