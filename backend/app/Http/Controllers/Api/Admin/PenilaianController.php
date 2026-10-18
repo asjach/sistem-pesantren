@@ -622,12 +622,12 @@ class PenilaianController extends Controller
 
         $santri = $this->santriLeger($peristiwa, $semester, $kelasIds, $tingkat, $q);
         $kolom = $this->kolomLeger($jenjang, $kelasIds);
-        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
 
         $perPage = $this->perPage($request);
         $page = max(1, (int) $request->input('page', 1));
         $total = $santri->count();
         $halaman = $santri->slice(($page - 1) * $perPage, $perPage)->values();
+        $peta = $this->petaNilai($halaman->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
 
         $baris = $halaman->map(function ($s) use ($kolom, $peta) {
             $nilai = [];
