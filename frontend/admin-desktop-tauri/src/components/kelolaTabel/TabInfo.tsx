@@ -133,7 +133,8 @@ export default function TabInfo({ tableKey }: { tableKey: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    /* `flex-1 min-h-0`: wadah editor ikut mengisi sisa tinggi tab. */
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
       <InfoEditor nilai={html} onUbah={setHtml} />
     </div>
   );

@@ -194,7 +194,10 @@ export default function InfoEditor({
   }, [jalankan, sisip, tautan]);
 
   return (
-    <div className="flex flex-col rounded-md border bg-card">
+    /* `flex-1 min-h-0`: editor mengisi SELURUH sisa tinggi wadahnya (tab Info
+       panel Kelola Tabel), bukan berhenti di tinggi minimum lalu menyisakan
+       ruang kosong di bawah. Area tulisnya yang menggulir sendiri. */
+    <div className="flex min-h-0 flex-1 flex-col rounded-md border bg-card">
       <div className="flex flex-wrap items-center gap-0.5 border-b px-1 py-1">
         <TombolFormat id={`${id}_tebal`} label="Tebal" onClick={() => jalankan('bold')}>
           <span className="text-[11px] font-bold">B</span>
@@ -287,7 +290,7 @@ export default function InfoEditor({
         aria-multiline="true"
         aria-label="Isi info tabel"
         spellCheck
-        className="info-tabel-isi min-h-44 overflow-y-auto px-2 py-1.5 text-xs outline-none"
+        className="info-tabel-isi min-h-44 flex-1 overflow-y-auto px-2 py-1.5 text-xs outline-none"
         onInput={(e) => onUbah(e.currentTarget.innerHTML)}
         onKeyUp={simpanPilihan}
         onMouseUp={simpanPilihan}

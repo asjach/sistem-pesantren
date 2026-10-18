@@ -272,15 +272,18 @@ function useLebarSheet() {
  *  WAJIB di scope modul: kalau didefinisikan di dalam komponen, identitasnya
  *  berubah tiap render sehingga isi bagian di-remount dan state lokalnya
  *  (centang, penanda kotor) selalu kembali ke awal. */
-export function Bagian({ id, judul, aksi, children }: {
+export function Bagian({ id, judul, aksi, className, children }: {
   id: string;
   judul: string;
   /** Aksi ikon di kanan judul (mis. kembalikan bawaan). */
   aksi?: AksiBagian;
+  /** Kelas tambahan untuk `<section>` — mis. `min-h-0 flex-1` pada bagian
+   *  yang isinya editor dan harus mengisi sisa tinggi tab (Info tabel). */
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <section id={id} aria-label={judul} className="flex flex-col gap-2 rounded-lg border bg-card/40 p-2">
+    <section id={id} aria-label={judul} className={cn('flex flex-col gap-2 rounded-lg border bg-card/40 p-2', className)}>
       <div className="flex items-center gap-2">
         <h3 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{judul}</h3>
         {aksi ? (
@@ -587,8 +590,10 @@ export default function DialogKelolaTabel({
               </Bagian>
             </TabsContent>
 
-            <TabsContent value="info" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
-              <Bagian id="bagian_info_tabel" judul="Info tabel">
+            {/* Info: isinya editor yang harus mengisi sisa tinggi panel, jadi
+                tab ini flex-col (bukan sekadar blok yang menggulir). */}
+            <TabsContent value="info" forceMount className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3 data-[state=inactive]:hidden">
+              <Bagian id="bagian_info_tabel" judul="Info tabel" className="min-h-0 flex-1">
                 <TabInfo key={tableKey} tableKey={tableKey} />
               </Bagian>
             </TabsContent>
