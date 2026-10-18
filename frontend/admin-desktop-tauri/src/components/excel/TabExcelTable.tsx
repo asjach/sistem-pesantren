@@ -463,7 +463,7 @@ const SUMBU: Sumbu[] = [
     nilai: [
       { label: 'semua pengguna', contoh: 'tinggi baris, huruf, lebar kolom, freeze, halaman' },
       { label: 'super_admin efektif', contoh: 'preset kolom, urutan, nama header, perataan, filter' },
-      { label: 'hak halaman (canEdit)', contoh: 'mode Edit, mode Input, toggle/select sel' },
+      { label: 'hak halaman (canEdit)', contoh: 'mode Ubah, mode Input, toggle/select sel' },
     ],
     kenapa:
       'Tiga tingkat izin berbeda. Kontrol super_admin disembunyikan untuk pengguna biasa'
@@ -476,7 +476,7 @@ const SUMBU: Sumbu[] = [
     nilai: [
       { label: 'server (DB)', contoh: 'preset kolom, urutan, perataan, filter, setelan komponen' },
       { label: 'perangkat (pref lokal)', contoh: 'tinggi baris, huruf, lebar kolom, freeze, halaman' },
-      { label: 'sesi berjalan saja', contoh: 'urut aktif, seleksi baris, mode Edit/Input, tab aktif' },
+      { label: 'sesi berjalan saja', contoh: 'urut aktif, seleksi baris, mode Ubah/Input, tab aktif' },
     ],
     kenapa:
       'Setelan server ikut ke semua komputer & pengguna. Setelan perangkat hanya di komputer'
@@ -514,11 +514,11 @@ const SUMBU: Sumbu[] = [
     tanya: 'Apakah setelan ini mengubah data atau hanya tampilan?',
     nilai: [
       { label: 'tampilan saja (aman)', contoh: 'hampir semua: lebar, huruf, warna, urutan, filter' },
-      { label: 'mengubah DATA', contoh: 'mode Edit (auto-save sel), mode Input (buat record), toggle' },
+      { label: 'mengubah DATA', contoh: 'mode Ubah (auto-save sel), mode Input (buat record), toggle' },
     ],
     kenapa:
-      'Mode Edit & Input menulis ke database secara otomatis — beda kelas dari setelan tampilan.'
-      + ' Toggle sel pun langsung tersimpan tanpa mode Edit (toggleTanpaEdit).',
+      'Mode Ubah & Input menulis ke database secara otomatis — beda kelas dari setelan tampilan.'
+      + ' Toggle sel pun langsung tersimpan tanpa mode Ubah (toggleTanpaEdit).',
   },
 ];
 
@@ -580,12 +580,12 @@ const VISUAL: PenilaianVisual[] = [
     perlu: true,
     prioritas: 'tinggi',
     alasan:
-      'Konsekuensi terbesar & paling tak terlihat. Mode Edit/Input menulis ke database '
-      + 'secara otomatis, dan toggle sel tersimpan tanpa mode Edit apa pun '
+      'Konsekuensi terbesar & paling tak terlihat. Mode Ubah/Input menulis ke database '
+      + 'secara otomatis, dan toggle sel tersimpan tanpa mode Ubah apa pun '
       + '(toggleTanpaEdit). Pengguna bisa mengira sedang menyetel tampilan padahal '
       + 'sedang mengubah data — dan tidak ada tombol "batal".',
     usulan:
-      'Wajib tampak: penanda persisten di dekat judul/header ("Mode Edit aktif — perubahan '
+      'Wajib tampak: penanda persisten di dekat judul/header ("Mode Ubah aktif — perubahan '
       + 'langsung tersimpan") yang TIDAK bisa dilewatkan, bukan badge kecil di pojok. '
       + 'Beri warna berbeda dari setelan tampilan, dan tombol keluar yang jelas.',
     sudah:
@@ -817,7 +817,7 @@ const ATURAN = [
   },
   {
     aturan: 'Yang mengubah DATA diberi rumah sendiri, bukan menu setelan',
-    uji: 'Mode Edit/Input bukan "pengaturan" — ia MODE kerja yang menulis ke database.',
+    uji: 'Mode Ubah/Input bukan "pengaturan" — ia MODE kerja yang menulis ke database.',
     kunci: 'Tetap di toolbar tabel sebagai toggle mode, dengan penanda mencolok (bukan di menu pengaturan).',
   },
 ];
@@ -960,7 +960,7 @@ const KLASIFIKASI: BarisKlasifikasi[] = [
   { apa: 'Halaman aktif (Pager)', nilai: 'nomor halaman', kunci: 'pref perangkat — simpes_page_<tableKey>', rumah: 'tabel', status: 'benar' },
 
   /* ---------- BUKAN PENGATURAN ---------- */
-  { apa: 'Mode Edit (auto-save sel)', nilai: 'aktif/tidak', kunci: 'state sesi — tidak disimpan', rumah: 'tabel', status: 'benar', catatan: 'BUKAN pengaturan: ini MODE KERJA yang menulis ke database.' },
+  { apa: 'Mode Ubah (auto-save sel)', nilai: 'aktif/tidak', kunci: 'state sesi — tidak disimpan', rumah: 'tabel', status: 'benar', catatan: 'BUKAN pengaturan: ini MODE KERJA yang menulis ke database.' },
   { apa: 'Mode Input (buat record baru)', nilai: 'aktif/tidak', kunci: 'state sesi — tidak disimpan', rumah: 'tabel', status: 'benar', catatan: 'Sama: menulis data, bukan setelan.' },
   { apa: 'Seleksi baris tercentang', nilai: 'daftar id', kunci: 'state sesi', rumah: 'tabel', status: 'benar', catatan: 'Bukan pengaturan.' },
 ];
@@ -1392,7 +1392,7 @@ const INVENTARIS: BarisFitur[] = [
   { fitur: 'Tinggi baris (manual per baris)', sumber: '— (DIHAPUS: seret batas bawah baris)', dipakai: '—', catatan: 'Pegangan seret dihapus; sisa nilai lama masih tersimpan dan bisa direset lewat klik kanan → "Kembalikan tinggi baris".' },
   { fitur: 'Kartu hover sel', sumber: 'ExcelField.kartuHover', dipakai: 'kolom static tertentu', catatan: 'Untuk rincian yang tak muat di kolom.' },
   { fitur: 'Baris input (buat record)', sumber: 'onCreateRow + inputRowValues', dipakai: '7 halaman', catatan: 'ID baris sintetis __input__.' },
-  { fitur: 'Mode Edit (auto-save sel)', sumber: 'canEdit + onCommit + onSaved', dipakai: 'halaman CRUD', catatan: 'Mode Edit & Input saling eksklusif.' },
+  { fitur: 'Mode Ubah (auto-save sel)', sumber: 'canEdit + onCommit + onSaved', dipakai: 'halaman CRUD', catatan: 'Mode Ubah & Input saling eksklusif.' },
   { fitur: 'Klik baris memilih (bukan centang)', sumber: 'onBarisKlik + barisAktifId', dipakai: '0 halaman', catatan: 'Ditulis "0" karena hanya dipakai via wrapper lain.' },
   { fitur: 'Batas tinggi N baris', sumber: 'maxRows', dipakai: '2 halaman', catatan: 'Tanpa maxRows = tabel mengisi penuh ruang.' },
   { fitur: 'Susunan kolom dari luar', sumber: 'presetLuar', dipakai: '0 halaman', catatan: 'Menimpa preset internal sepenuhnya.' },
@@ -1406,7 +1406,7 @@ const INVENTARIS: BarisFitur[] = [
   { fitur: 'Menu klik kanan 4 area', sumber: 'MenuKonteksGrid', dipakai: 'selalu', catatan: 'Tabel / Kolom / Baris / sudut — isi berbeda per area.' },
   { fitur: 'Salin TSV (baris/sel/kolom/semua)', sumber: 'useSalinTabel + Ctrl+C', dipakai: 'selalu', catatan: 'Termasuk tombol salin di corner button.' },
   { fitur: 'Scrollbar melayang', sumber: 'ScrollbarMelayang ×2', dipakai: 'selalu', catatan: 'Mengganti scrollbar bawaan yang disembunyikan.' },
-  { fitur: 'Badge mode Edit / Input', sumber: 'PillMode', dipakai: 'selalu', catatan: 'Melayang kanan-bawah saat mode aktif.' },
+  { fitur: 'Badge mode Ubah / Input', sumber: 'PillMode', dipakai: 'selalu', catatan: 'Melayang kanan-bawah saat mode aktif.' },
 ];
 
 function TabelInventaris() {
@@ -1515,7 +1515,7 @@ function ContohHidup() {
 
       <p className="text-[10px] text-muted-foreground">
         Baris tercentang: <span id="contoh_excel_tercentang" className="font-semibold text-foreground">{tercentang}</span>.
-        Klik ganda sel untuk masuk mode Edit; klik kanan header/baris untuk menu konteks.
+        Klik ganda sel untuk masuk mode Ubah; klik kanan header/baris untuk menu konteks.
       </p>
 
       <div className="flex min-h-0 flex-col" style={{ height: maxRows ? undefined : '22rem' }}>
@@ -1591,14 +1591,14 @@ const DENAH: AreaDenah[] = [
   { no: 10, nama: 'Gutter', sumber: 'gutterColumn — GUTTER_W = 36', keterangan: 'Kolom nomor baris. Selalu ada; klik kanannya = menu salin seluruh tabel.' },
   { no: 11, nama: 'Centang + pilih semua', sumber: 'hideCheckbox · CheckAllCell', keterangan: 'Kolom checkbox (CHECK_W = 36) dengan pilih-semua di header. Dimatikan TabelRingkas lewat hideCheckbox.' },
   { no: 12, nama: 'Header kolom', sumber: 'HeaderTitle — geser lebar, AutoFit', keterangan: 'Judul kolom + gagang seret lebar & AutoFit. Perataan dari standar global tabel di server.' },
-  { no: 13, nama: 'Sel data', sumber: 'ExcelField.kind: text | select | toggle | static', keterangan: 'Empat jenis sel. static selalu baca-saja (kecuali mode Input + inputKind); toggle bisa hidup tanpa mode Edit. Kolom select memakai Select Radix untuk semua kolom; `<select>` native tersisa hanya di baris input mode Input.' },
+  { no: 13, nama: 'Sel data', sumber: 'ExcelField.kind: text | select | toggle | static', keterangan: 'Empat jenis sel. static selalu baca-saja (kecuali mode Input + inputKind); toggle bisa hidup tanpa mode Ubah. Kolom select memakai Select Radix untuk semua kolom; `<select>` native tersisa hanya di baris input mode Input.' },
   { no: 14, nama: 'Kolom Aksi', sumber: 'renderActions (sticky kanan)', keterangan: 'Judul kolom Aksi, menempel di kanan saat grid digulir horizontal (freeze pane sisi kanan).' },
   { no: 15, nama: 'Aksi per baris', sumber: 'renderActions(row) — ikon Lihat/Ubah/Hapus', keterangan: 'Isi kolom Aksi tiap baris. Bila jumlah aksi > 3, otomatis diganti satu tombol hamburger (aksiRingkas).' },
   { no: 16, nama: 'Paginasi', sumber: 'pager (slot dari halaman)', keterangan: 'ExcelTable TIDAK menghitung jumlah baris/halaman — halaman meng-inject <Pager/>. Dipakai 19 halaman.' },
   { no: 17, nama: 'Pengaturan tampilan', sumber: 'IsiPengaturanTampilan (sheet TopBar)', keterangan: 'Tinggi sel/header, font/ukuran/warna header & sel — GLOBAL. Tombol di sini membuka panel di TopBar.' },
   { no: 18, nama: 'Tinggi baris', sumber: 'Kelola Tabel → Umum → "Tampilan di perangkat ini"', keterangan: 'Stepper angka 18..240px per tabel, plus bawaan global (Pengaturan → Tampilan) lalu 24px. Tombol siklus di kaki tabel dan pegangan seret batas baris sudah dihapus.' },
   { no: 19, nama: 'Tambah baris', sumber: 'onCreateRow + setInputMode(true)', keterangan: 'Tampil hanya bila halaman menyediakan onCreateRow (7 halaman). Menyalakan mode Input.' },
-  { no: 20, nama: 'Mode Edit', sumber: 'canEdit + setEditMode(true)', keterangan: 'Tampil bila canEdit. Mode Edit & Input saling eksklusif; Esc keluar.' },
+  { no: 20, nama: 'Mode Ubah', sumber: 'canEdit (atau onSeretIsi) + setModeUbah(true)', keterangan: 'Sakelar tunggal untuk editing sel + manipulasi tabel (seret isi sel). Tampil bila tabel writable atau punya fitur manipulasi. Mode Ubah & Input saling eksklusif; Esc keluar.' },
 ];
 
 /* ---------- Halaman tab ---------- */

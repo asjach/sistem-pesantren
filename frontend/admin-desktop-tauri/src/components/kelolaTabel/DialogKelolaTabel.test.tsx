@@ -188,7 +188,7 @@ describe('DialogKelolaTabel — tab Umum', () => {
     // Geser judul kolom: MATI secara bawaan (perilaku lama tetap utuh).
     expect(screen.getByRole('switch', { name: /Geser judul kolom/ })).not.toBeChecked();
     expect(screen.getByText(
-      /Keduanya hanya di perangkat ini/,
+      /Ketiganya hanya di perangkat ini/,
     )).toBeInTheDocument();
   });
 
@@ -384,7 +384,7 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
       'Tampilkan Pager / jumlah baris',
       'Tampilkan Tombol Pengaturan tabel',
       'Tampilkan Tombol tambah baris',
-      'Tampilkan Tombol Edit',
+      'Tampilkan Tombol Mode Ubah',
     ]) {
       await waitFor(() => expect(screen.getByLabelText(label)).toBeChecked());
     }
@@ -444,9 +444,9 @@ describe('DialogKelolaTabel — section Visibilitas komponen tabel (tab Umum)', 
   it('menyalakan lagi komponen → penanda "sembunyi" dihapus dari peta', async () => {
     serverToolbar.state.visibilitas = { tombol_edit: false };
     renderDialog(LENGKAP);
-    await waitFor(() => expect(screen.getByLabelText('Tampilkan Tombol Edit')).not.toBeChecked());
+    await waitFor(() => expect(screen.getByLabelText('Tampilkan Tombol Mode Ubah')).not.toBeChecked());
 
-    await userEvent.click(screen.getByLabelText('Tampilkan Tombol Edit'));
+    await userEvent.click(screen.getByLabelText('Tampilkan Tombol Mode Ubah'));
 
     // Absen = tampil, jadi kuncinya dihapus, bukan ditulis `true`.
     await waitFor(() => expect(simpanToolbar.mock.calls.at(-1)?.[1]).toEqual({}));

@@ -719,6 +719,50 @@
 .simpes-dsg .dsg-row-header {
   user-select: none;
 }
+
+/* --- Seret ISI SEL (tiru dari dalam blok, pindahkan dari tepinya) ---
+   Kelas dipasang LANGSUNG ke DOM sel oleh `useSeretIsiSel` (bukan lewat
+   prop React) karena DSG merender sel di `useMemo` yang tak dihitung ulang
+   saat state seret berubah. */
+.simpes-dsg.simpes-dsg-seret-isi,
+.simpes-dsg.simpes-dsg-seret-isi .dsg-cell {
+  cursor: copy;
+  user-select: none;
+}
+/* Mode "pindahkan": kursor jadi panah pindah. */
+.simpes-dsg.simpes-dsg-seret-isi.simpes-dsg-seret-pindah,
+.simpes-dsg.simpes-dsg-seret-isi.simpes-dsg-seret-pindah .dsg-cell {
+  cursor: move;
+}
+/* Blok asal: diredupkan, supaya jelas sedang diangkat. */
+.simpes-dsg .dsg-cell.simpes-dsg-seret-sumber {
+  opacity: 0.45;
+}
+/* Blok tujuan: isian accent + garis tepi, seperti Excel saat isi diseret. */
+.simpes-dsg .dsg-cell.simpes-dsg-seret-tujuan {
+  z-index: 21;
+  background-color: color-mix(in srgb, var(--accent) 18%, var(--background));
+  box-shadow: inset 0 0 0 2px var(--accent-foreground, var(--primary));
+}
+/* Badge kecil yang mengikuti kursor: "Salin" atau "Pindahkan". */
+.simpes-dsg-seret-badge {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  pointer-events: none;
+  border: 1px solid var(--border);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  padding: 1px 6px;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+/* Mode "pindahkan" dibedakan garis putus-putus pada badge. */
+.simpes-dsg-seret-badge[data-mode='pindah'] {
+  border-style: dashed;
+}
 /* Gagang resize tepi kiri: khusus kolom beku, untuk mengubah lebar kolom di
    sebelah kirinya (gagang kanan kolom itu tertutup oleh sel beku berikutnya). */
 .simpes-dsg-resizer.simpes-dsg-resizer-kiri {

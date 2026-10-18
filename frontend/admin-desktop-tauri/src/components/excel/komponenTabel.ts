@@ -123,7 +123,7 @@ export const GRUP_KOMPONEN_TABEL: readonly GrupKomponenTabel[] = [
     items: [
       { kunci: 'pager', label: 'Pager / jumlah baris', tersedia: (i) => i.pager },
       { kunci: 'tombol_tambah', label: 'Tombol tambah baris', tersedia: (i) => i.tombolTambah },
-      { kunci: 'tombol_edit', label: 'Tombol Edit', tersedia: (i) => i.tombolEdit },
+      { kunci: 'tombol_edit', label: 'Tombol Mode Ubah', tersedia: (i) => i.tombolEdit },
     ],
   },
 ];

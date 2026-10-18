@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField, type GridRow } from '@/components/ExcelTable';
+import type { BlokIsi } from '@/components/excel/seretIsiSel';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -496,6 +497,115 @@ export default function KurikulumJadwalPage() {
     });
   }
 
+  /** Seret isi sel: tekan-tahan blok matriks lalu geser ke sel lain.
+   *
+   *  Sel matriks ber-`kind: 'static'` (isi lewat dialog), jadi jalur tulis
+   *  bawaan tabel tak bisa dipakai — blok ditulis langsung ke API di sini.
+   *  `mode` menentukan perlakuan asal: `salin` menulis isi sumber ke tiap sel
+   *  tujuan, `pindah` menulisnya lalu mengosongkan sel sumber. */
+  const seretIsiSel = useCallback((p: {
+    mode: 'salin' | 'pindah';
+    sumber: BlokIsi;
+    target: BlokIsi;
+    kunciKolom: string[];
+    rows: BarisMatriks[];
+  }) => {
+    if (!canUbah) return;
+    /** Sel pelajaran satu sel matriks: baris matriks × hari. */
+    const sel = (blok: BlokIsi, dr: number, dc: number): SasaranJadwal | null => {
+      const baris = p.rows[blok.r0 + dr];
+      if (baris === undefined) return null;
+      /* Indeks kolom blok → key kolom grid. Hanya kolom HARI yang boleh jadi
+         sasaran: kolom "Kelas"/"Jam" cuma label baris, bukan data. */
+      const key = p.kunciKolom[blok.kolom[dc]];
+      if (key === undefined || !hari.includes(key)) return null;
+      const slot = baris.perHari[key];
+      if (slot === undefined || slot.jenis !== 'pelajaran') return null;
+      return { kelasId: baris.kelasId, kelasNama: baris.kelasNama, slot, hari: key };
+    };
+    /** Semua sel pelajaran sebuah blok, urut baris lalu kolom. */
+    const semuaSel = (blok: BlokIsi): SasaranJadwal[] => {
+      const out: SasaranJadwal[] = [];
+      for (let dr = 0; dr <= blok.r1 - blok.r0; dr += 1) {
+        for (let dc = 0; dc < blok.kolom.length; dc += 1) {
+          const t = sel(blok, dr, dc);
+          if (t !== null) out.push(t);
+        }
+      }
+      return out;
+    };
+    /** Kunci sel (`slotId|hari`) supaya tak ditulis dua kali. */
+    const kunci = (t: SasaranJadwal) => `${t.slot.id}|${t.hari}`;
+
+    const asal = semuaSel(p.sumber);
+    if (asal.length === 0) {
+      toast.error('Blok asal tidak memuat sel pelajaran.');
+      return;
+    }
+    const isiAsal = asal.map((t) => petaJadwal.get(kunci(t)) ?? null);
+    const mapel = isiAsal[0]?.mata_pelajaran_id ?? null;
+    const guru = isiAsal[0]?.keaktifan_pegawai_id ?? null;
+    /* Blok jadi "satu isi" hanya kalau mapel + guru-nya seragam — sama
+       syaratnya dengan dialog "Isi Blok". */
+    const seragam = isiAsal.every((j) => (j?.mata_pelajaran_id ?? null) === mapel
+      && (j?.keaktifan_pegawai_id ?? null) === guru);
+    if (!seragam) {
+      toast.error('Blok asal harus berisi mapel & guru yang sama.');
+      return;
+    }
+
+    const tujuan = semuaSel(p.target);
+    if (tujuan.length === 0) {
+      toast.error('Blok tujuan tidak memuat sel pelajaran.');
+      return;
+    }
+    /* Sel yang jadi tujuan sekaligus sumber (pindah ke area sendiri) dilewati
+       saat pengosongan — isinya memang harus tetap utuh di sana. */
+    const tujuanKunci = new Set(tujuan.map(kunci));
+
+    setSelBusy(true);
+    void (async () => {
+      let sukses = 0;
+      let galatPertama = '';
+      const tulis = async (t: SasaranJadwal, m: number | null, g: number | null) => {
+        try {
+          await simpanSelJadwal({
+            kelas_id: t.kelasId,
+            slot_jam_id: t.slot.id,
+            hari: t.hari,
+            mata_pelajaran_id: m,
+            keaktifan_pegawai_id: g,
+          });
+          return true;
+        } catch (e) {
+          if (galatPertama === '') {
+            galatPertama = `${t.kelasNama} · ${HARI_LABEL[t.hari] ?? t.hari} ${t.slot.nama_slot ?? ''}: ${errorMessage(e)}`;
+          }
+          return false;
+        }
+      };
+      for (const t of tujuan) {
+        if (await tulis(t, mapel, guru)) sukses += 1;
+      }
+      if (p.mode === 'pindah') {
+        for (const t of asal) {
+          if (tujuanKunci.has(kunci(t))) continue;
+          if (await tulis(t, null, null)) sukses += 1;
+        }
+      }
+      setSelBusy(false);
+      await muatJadwal();
+      const total = tujuan.length + (p.mode === 'pindah' ? asal.length : 0);
+      if (galatPertama === '') {
+        toast.success(p.mode === 'pindah'
+          ? `${total} sel diperbarui.`
+          : `${total} sel disalin.`);
+      } else {
+        toast.error(`${sukses} dari ${total} sel tersimpan. ${galatPertama}`);
+      }
+    })();
+  }, [canUbah, hari, petaJadwal, muatJadwal]);
+
   const simpanSel = async () => {
     if (editSel === null || editSel.length === 0) return;
     setSelBusy(true);
@@ -722,6 +832,7 @@ export default function KurikulumJadwalPage() {
             rail
             onIsiBlok={canUbah ? bukaBlok : undefined}
             blokAksiLabel="Isi mapel & guru…"
+            onSeretIsi={canUbah ? seretIsiSel : undefined}
             emptyText={kelasTampil.length === 0
               ? 'Pilih kelas pada rel Kelas.'
               : barisMatriks.length === 0

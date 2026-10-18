@@ -61,6 +61,24 @@ export async function loadGeserHeader(key: string): Promise<boolean> {
   }
 }
 
+/**
+ * Pref sakelar "seret isi sel" per tabel. MATI secara bawaan: gestur ini
+ * memakai mousedown, jadi menyalakannya mengubah cara klik biasa pada blok
+ * terpilih diperlakukan (menjadi seret, bukan ganti seleksi).
+ */
+export function seretIsiKey(tableKey: string) {
+  return `simpes_grid_${tableKey}_seret_isi`;
+}
+
+/** Baca sakelar seret isi sel: hanya nilai eksplisit '1' yang menyalakan. */
+export async function loadSeretIsi(key: string): Promise<boolean> {
+  try {
+    return (await prefGet(key)) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export async function loadFreeze(key: string): Promise<number> {
   try {
     const v = await prefGet(key);

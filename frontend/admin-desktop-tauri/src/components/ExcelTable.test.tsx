@@ -680,13 +680,13 @@ describe('ExcelTable — tombol ikon kaki tabel', () => {
     expect(screen.queryByLabelText('Tambah baris baru')).not.toBeInTheDocument();
   });
 
-  it('tombol mode Edit menyalakan mode Edit', async () => {
+  it('tombol mode Ubah menyalakan mode Ubah', async () => {
     renderTabel();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText('Aktifkan mode Edit'));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Edit aktif'));
-    expect(screen.queryByLabelText('Aktifkan mode Edit')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Aktifkan mode Ubah'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+    expect(screen.queryByLabelText('Aktifkan mode Ubah')).not.toBeInTheDocument();
   });
 });
 
@@ -742,13 +742,13 @@ describe('ExcelTable — tinggi grid mengisi sisa ruang', () => {
 });
 
 describe('ExcelTable — klik ganda sel', () => {
-  it('klik ganda sel memunculkan pill Mode Edit', async () => {
+  it('klik ganda sel memunculkan pill Mode Ubah', async () => {
     renderTabel();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
-    // Mode Edit dinyalakan lewat klik ganda sel.
+    // Mode Ubah dinyalakan lewat klik ganda sel.
     fireEvent.doubleClick(screen.getByText('Ahmad'));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Edit aktif'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
   });
 });
 

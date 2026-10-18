@@ -278,8 +278,8 @@ describe('KeuanganPage — mode Edit tabel Tarif', () => {
     expect((await screen.findAllByText('75.000')).length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Aktif')).toBeEnabled();
 
-    await userEvent.click(screen.getByLabelText('Aktifkan mode Edit'));
-    expect(await screen.findByText('Mode Edit aktif')).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText('Aktifkan mode Ubah'));
+    expect(await screen.findByText('Mode Ubah aktif')).toBeInTheDocument();
   });
 
   it('tanpa izin keuangan.ubah tabel tetap baca-saja (tanpa mode Edit)', async () => {
@@ -287,7 +287,7 @@ describe('KeuanganPage — mode Edit tabel Tarif', () => {
     await bukaTabTarif();
 
     expect((await screen.findAllByText('75.000')).length).toBeGreaterThan(0);
-    expect(screen.queryByLabelText('Aktifkan mode Edit')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Aktifkan mode Ubah')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Aktif')).toBeDisabled();
   });
 
@@ -362,8 +362,8 @@ describe('KeuanganPage — tabel Jenis Tagihan (mode Edit & Input)', () => {
     await bukaTabJenis();
 
     expect((await screen.findAllByText('HIPA')).length).toBeGreaterThan(0);
-    await userEvent.click(screen.getByLabelText('Aktifkan mode Edit'));
-    expect(await screen.findByText('Mode Edit aktif')).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText('Aktifkan mode Ubah'));
+    expect(await screen.findByText('Mode Ubah aktif')).toBeInTheDocument();
   });
 
   it('pemegang izin keuangan.tambah bisa menyalakan mode Input', async () => {

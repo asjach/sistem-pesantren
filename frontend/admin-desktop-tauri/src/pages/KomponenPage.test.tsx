@@ -284,8 +284,8 @@ describe('KomponenPage — tab ExcelTable', () => {
     expect(screen.getByText('Tema & mode (gelap/terang/sistem)')).toBeInTheDocument();
     expect(screen.getByText('Matriks izin role × modul')).toBeInTheDocument();
 
-    // Fitur yang bukan pengaturan ikut dicatat (mode Edit/Input).
-    expect(screen.getAllByText('Mode Edit (auto-save sel)').length).toBeGreaterThanOrEqual(1);
+    // Fitur yang bukan pengaturan ikut dicatat (Mode Ubah/Input).
+    expect(screen.getAllByText('Mode Ubah (auto-save sel)').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/BUKAN pengaturan: ini MODE KERJA/).length).toBeGreaterThanOrEqual(1);
   });
 
