@@ -37,7 +37,7 @@ export default function PanelHariLibur({ jenjang, canUbah, onSimpan }: {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-0 p-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-0 p-0">
       <p className="text-xs font-medium">Hari libur mingguan · {jenjang}</p>
       <p className="mt-1 text-[11px] text-muted-foreground">
         Hari yang dicentang tidak tampil di matriks jadwal dan tidak bisa diisi.

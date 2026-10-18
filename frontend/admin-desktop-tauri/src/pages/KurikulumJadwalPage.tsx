@@ -5,6 +5,10 @@ import ExcelTable, { type ExcelField, type GridRow } from '@/components/ExcelTab
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import LabeledCombobox from '@/components/LabeledCombobox';
+import {
+  ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
+} from '@/components/ui/combobox';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -35,6 +39,7 @@ interface BarisMatriks {
   urutan: number;
   /** Baris pertama sebuah kelas (selain kelas pertama) — diberi pembatas. */
   awalKelas: boolean;
+  /** Isi kolom "Jam": rentang waktu (mis. `07:15–07:55`). */
   label: string;
   perHari: Record<string, SlotJadwal>;
 }
@@ -44,7 +49,6 @@ interface JadwalKelas {
   kelas: Kelas;
   slot: SlotJadwal[];
   hari: string[];
-  hariLibur: string[];
   baris: JadwalBaris[];
 }
 
@@ -67,6 +71,32 @@ type FormatGuru = 'nama' | 'gelar' | 'panggilan' | 'singkat' | 'prefiks' | 'pref
 
 /** Pewarnaan sel: polos, per guru, atau per mapel. */
 type WarnaJadwal = 'polos' | 'guru' | 'mapel';
+
+/** Opsi keempat combo toolbar jadwal (dipakai `LabeledCombobox`). */
+const OPSI_TAMPILAN: { nilai: TampilanJadwal; label: string }[] = [
+  { nilai: 'keduanya', label: 'Mapel & guru' },
+  { nilai: 'mapel', label: 'Mapel saja' },
+  { nilai: 'guru', label: 'Guru saja' },
+];
+const OPSI_WARNA: { nilai: WarnaJadwal; label: string }[] = [
+  { nilai: 'polos', label: 'Polos' },
+  { nilai: 'guru', label: 'Guru' },
+  { nilai: 'mapel', label: 'Mapel' },
+];
+const OPSI_FORMAT_MAPEL: { nilai: FormatMapel; label: string }[] = [
+  { nilai: 'nama', label: 'Nama' },
+  { nilai: 'kode', label: 'Kode' },
+  { nilai: 'singkatan', label: 'Singkatan' },
+];
+const OPSI_FORMAT_GURU: { nilai: FormatGuru; label: string }[] = [
+  { nilai: 'nama', label: 'Nama tanpa gelar' },
+  { nilai: 'gelar', label: 'Nama + gelar' },
+  { nilai: 'panggilan', label: 'Nama panggilan' },
+  { nilai: 'singkat', label: 'Nama singkat' },
+  { nilai: 'prefiks', label: 'Ust./Usth. tanpa gelar' },
+  { nilai: 'prefiks_gelar', label: 'Ust./Usth. + gelar' },
+  { nilai: 'kode', label: 'Kode guru' },
+];
 
 /** Jumlah kelas warna di index.css (simpes-warna-0 … -35). */
 const JUMLAH_WARNA = 36;
@@ -157,7 +187,6 @@ export default function KurikulumJadwalPage() {
   const kelasTunggal = kelasTampil.length === 1 ? kelasTampil[0] : null;
   const kelasId = kelasTunggal?.id ?? '';
   const hari = dataKelas[0]?.hari ?? [];
-  const hariLibur = dataKelas[0]?.hariLibur ?? [];
 
   /** Muat jadwal SEMUA kelas terpilih; slot id unik per kelas sehingga
    *  peta baris gabungan tidak bentrok. */
@@ -168,7 +197,7 @@ export default function KurikulumJadwalPage() {
     try {
       const hasil = await Promise.all(kelasTampil.map(async (k) => {
         const r = await daftarJadwal(k.id);
-        return { kelas: k, slot: r.slot, hari: r.hari, hariLibur: r.hari_libur ?? [], baris: r.baris };
+        return { kelas: k, slot: r.slot, hari: r.hari, baris: r.baris };
       }));
       if (seq !== muatSeq.current) return;
       setDataKelas(hasil);
@@ -292,7 +321,10 @@ export default function KurikulumJadwalPage() {
           kelasNama: d.kelas.nama_kelas,
           urutan: u,
           awalKelas: di > 0 && u === urutan[0] && hasil.length > 0,
-          label: `${nama.length === 1 ? nama[0] : `JP ${u}`}${jam.length === 1 ? ` · ${jam[0]}` : ''}`,
+          /* Kolom "Jam" hanya menampilkan WAKTU (bukan nama slot). Baris
+             tanpa jam sama sekali jatuh ke nama slot — supaya barisnya
+             tak kosong tanpa keterangan. */
+          label: jam.length > 0 ? jam.join(' · ') : (nama.length === 1 ? nama[0] : `JP ${u}`),
           perHari: perHariBaris,
         });
       }
@@ -399,7 +431,7 @@ export default function KurikulumJadwalPage() {
     );
     return [
       { key: '__kelas', label: 'Kelas', width: 140, kind: 'static', cellClass: (rowData) => cls(rowData) },
-      { key: '__slot', label: 'Jam', width: 170, kind: 'static', cellClass: (rowData) => cls(rowData) },
+      { key: '__slot', label: 'Jam', width: 110, kind: 'static', cellClass: (rowData) => cls(rowData) },
       ...hari.map((h): ExcelField => ({
         key: h,
         label: HARI_LABEL[h] ?? h,
@@ -520,66 +552,105 @@ export default function KurikulumJadwalPage() {
           <TabsTrigger value="libur" id="tab_hari_libur" className={KELAS_TRIGGER}>Hari Libur</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="jadwal" className="flex min-h-0 flex-1 flex-col gap-0 p-3">
+        <TabsContent value="jadwal" className="flex min-h-0 flex-1 flex-col gap-0 p-0">
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border pb-2">
-            {hariLibur.length > 0 && (
-              <span className="text-xs text-muted-foreground">
-                Libur: {hariLibur.map((h) => HARI_LABEL[h] ?? h).join(', ')}
-              </span>
-            )}
-            <label className="text-xs text-muted-foreground" htmlFor="select_tampilan_jadwal">Tampilan</label>
-            <select
-              id="select_tampilan_jadwal"
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-              value={tampilan}
-              onChange={(e) => setTampilan(e.target.value as TampilanJadwal)}
+            <LabeledCombobox
+              label="Tampilan" htmlFor="select_tampilan_jadwal"
+              tinggi={26} lebarKombo={130} kelolaLebar={false}
             >
-              <option value="keduanya">Mapel &amp; guru</option>
-              <option value="mapel">Mapel saja</option>
-              <option value="guru">Guru saja</option>
-            </select>
-            <label className="text-xs text-muted-foreground" htmlFor="select_warna_jadwal">Warna</label>
-            <select
-              id="select_warna_jadwal"
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-              value={warna}
-              title="Pewarnaan sel jadwal"
-              onChange={(e) => setWarna(e.target.value as WarnaJadwal)}
+              <ComboboxRoot
+                items={OPSI_TAMPILAN}
+                itemToStringLabel={(o) => o.label}
+                isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                value={OPSI_TAMPILAN.find((o) => o.nilai === tampilan) ?? OPSI_TAMPILAN[0]}
+                onValueChange={(o) => { if (o !== null) setTampilan(o.nilai); }}
+              >
+                <ComboboxInput id="select_tampilan_jadwal" aria-label="Tampilan isi sel jadwal" />
+                <ComboboxTrigger aria-label="Buka daftar tampilan" />
+                <ComboboxContent>
+                  <ComboboxEmpty>Tidak ada pilihan.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                  </ComboboxList>
+                </ComboboxContent>
+              </ComboboxRoot>
+            </LabeledCombobox>
+            <LabeledCombobox
+              label="Warna" htmlFor="select_warna_jadwal"
+              tinggi={26} lebarKombo={100} kelolaLebar={false}
             >
-              <option value="polos">Polos</option>
-              <option value="guru">Guru</option>
-              <option value="mapel">Mapel</option>
-            </select>
-            <label className="text-xs text-muted-foreground" htmlFor="select_format_mapel">Mapel</label>
-            <select
-              id="select_format_mapel"
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-              value={formatMapel}
-              disabled={tampilan === 'guru'}
-              title="Format tampilan mapel"
-              onChange={(e) => setFormatMapel(e.target.value as FormatMapel)}
+              <ComboboxRoot
+                items={OPSI_WARNA}
+                itemToStringLabel={(o) => o.label}
+                isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                value={OPSI_WARNA.find((o) => o.nilai === warna) ?? OPSI_WARNA[0]}
+                onValueChange={(o) => { if (o !== null) setWarna(o.nilai); }}
+              >
+                <ComboboxInput
+                  id="select_warna_jadwal" aria-label="Pewarnaan sel jadwal"
+                  title="Pewarnaan sel jadwal"
+                />
+                <ComboboxTrigger aria-label="Buka daftar warna" />
+                <ComboboxContent>
+                  <ComboboxEmpty>Tidak ada pilihan.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                  </ComboboxList>
+                </ComboboxContent>
+              </ComboboxRoot>
+            </LabeledCombobox>
+            <LabeledCombobox
+              label="Mapel" htmlFor="select_format_mapel"
+              tinggi={26} lebarKombo={110} kelolaLebar={false}
             >
-              <option value="nama">Nama</option>
-              <option value="kode">Kode</option>
-              <option value="singkatan">Singkatan</option>
-            </select>
-            <label className="text-xs text-muted-foreground" htmlFor="select_format_guru">Guru</label>
-            <select
-              id="select_format_guru"
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-              value={formatGuru}
-              disabled={tampilan === 'mapel'}
-              title="Format tampilan guru"
-              onChange={(e) => setFormatGuru(e.target.value as FormatGuru)}
+              <ComboboxRoot
+                items={OPSI_FORMAT_MAPEL}
+                itemToStringLabel={(o) => o.label}
+                isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                value={OPSI_FORMAT_MAPEL.find((o) => o.nilai === formatMapel) ?? OPSI_FORMAT_MAPEL[0]}
+                onValueChange={(o) => { if (o !== null) setFormatMapel(o.nilai); }}
+                disabled={tampilan === 'guru'}
+              >
+                <ComboboxInput
+                  id="select_format_mapel" aria-label="Format tampilan mapel"
+                  title="Format tampilan mapel"
+                  placeholder="Nama"
+                />
+                <ComboboxTrigger aria-label="Buka daftar format mapel" />
+                <ComboboxContent>
+                  <ComboboxEmpty>Tidak ada pilihan.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                  </ComboboxList>
+                </ComboboxContent>
+              </ComboboxRoot>
+            </LabeledCombobox>
+            <LabeledCombobox
+              label="Guru" htmlFor="select_format_guru"
+              tinggi={26} lebarKombo={160} kelolaLebar={false}
             >
-              <option value="nama">Nama tanpa gelar</option>
-              <option value="gelar">Nama + gelar</option>
-              <option value="panggilan">Nama panggilan</option>
-              <option value="singkat">Nama singkat</option>
-              <option value="prefiks">Ust./Usth. tanpa gelar</option>
-              <option value="prefiks_gelar">Ust./Usth. + gelar</option>
-              <option value="kode">Kode guru</option>
-            </select>
+              <ComboboxRoot
+                items={OPSI_FORMAT_GURU}
+                itemToStringLabel={(o) => o.label}
+                isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+                value={OPSI_FORMAT_GURU.find((o) => o.nilai === formatGuru) ?? OPSI_FORMAT_GURU[0]}
+                onValueChange={(o) => { if (o !== null) setFormatGuru(o.nilai); }}
+                disabled={tampilan === 'mapel'}
+              >
+                <ComboboxInput
+                  id="select_format_guru" aria-label="Format tampilan guru"
+                  title="Format tampilan guru"
+                  placeholder="Nama tanpa gelar"
+                />
+                <ComboboxTrigger aria-label="Buka daftar format guru" />
+                <ComboboxContent>
+                  <ComboboxEmpty>Tidak ada pilihan.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+                  </ComboboxList>
+                </ComboboxContent>
+              </ComboboxRoot>
+            </LabeledCombobox>
             {kelasTunggal !== null && (
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <label className="text-xs text-muted-foreground" htmlFor="select_template_kelas">Template</label>
