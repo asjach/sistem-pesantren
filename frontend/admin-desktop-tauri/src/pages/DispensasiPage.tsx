@@ -27,7 +27,7 @@ import LabeledCombobox from '@/components/LabeledCombobox';
 import { ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger } from '@/components/ui/combobox';
 import {
   barisPenerima, DispensasiTab, FIELDS_DISPENSASI, FIELDS_PENERIMA,
-  KartuDispensasiTerpilih, PenerimaDispensasiPanel, type BarisPenerima,
+  KartuDispensasiTerpilih, PenerimaDispensasiPanel,
 } from '@/components/keuangan/tabKeuangan';
 import { jenjangTampil, nisTampil } from '@/components/keuangan/tabSantriCustom';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';

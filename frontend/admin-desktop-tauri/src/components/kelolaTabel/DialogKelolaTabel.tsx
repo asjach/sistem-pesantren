@@ -113,7 +113,7 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
       labelAwalRef.current = kanonLabel({});
       toast.error(errorMessage(e));
     }
-  }, [fieldKeys, tableKey]);
+  }, [tableKey]);
 
   useEffect(() => {
     setKelola({ preset: null, lengkap: true, kolomAwal: null, nonce: 0 });
@@ -494,13 +494,6 @@ export default function DialogKelolaTabel({
     return () => window.removeEventListener(EVENT_PRESET_BERUBAH, segarkan);
   }, [tableKey, muat]);
 
-  /** Jumlah bagian yang belum tersimpan — dipakai badge di tab + footer. */
-  const jumlahKotor = useMemo(
-    () => ['umum', 'visibilitas', 'info', 'kolom', 'urutan']
-      .filter((id) => kotorBagian[id]).length,
-    [kotorBagian],
-  );
-
   return (
     <Sheet open={open} onOpenChange={(v) => (v ? onOpenChange(true) : tutup())} modal={!nonModal}>
       <IsiPanelKelolaTabel
@@ -534,7 +527,7 @@ export default function DialogKelolaTabel({
             melebar, kanan = menyempit; klik-ganda = kembali 600px. */}
         <div
           id="gagang_lebar_kelola_tabel"
-          role="separator"
+          role="slider"
           aria-orientation="vertical"
           aria-label="Lebar panel pengaturan tabel"
           aria-valuenow={lebar}

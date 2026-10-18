@@ -144,7 +144,6 @@ export function useHalamanDokumen({
     const c = new AbortController();
     void muatDokumen(subjekId, c.signal);
     return () => c.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subjekId, muatDokumen]);
 
   /** Ambil byte untuk pratinjau: arsip perangkat bila lokal/test, bila tidak dari server. */

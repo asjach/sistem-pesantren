@@ -66,11 +66,15 @@ export default function TabInfo({ tableKey }: { tableKey: string }) {
 
   useEffect(() => {
     void muat();
+    // Salinan array penunggu diambil saat efek berjalan: array ini hanya
+    // dimutasi (push/splice), tak pernah diganti, jadi pemakaian di cleanup
+    // tetap melihat daftar penunggu terkini.
+    const tunggu = tungguRef.current;
     return () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       timerRef.current = null;
       // Lepaskan penunggu agar janji `simpanTertunda` tak menggantung.
-      for (const selesai of tungguRef.current.splice(0)) selesai(false);
+      for (const selesai of tunggu.splice(0)) selesai(false);
     };
   }, [muat]);
 

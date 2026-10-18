@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import type { KolomRekapCrosstab, RekapDispensasiCrosstab } from '@/api/keuangan';
@@ -28,14 +28,6 @@ export default function RekapDispensasiCrosstab({ data, loading, emptyText }: {
   emptyText: string;
 }) {
   const [hover, setHover] = useState<{ kunciBaris: string; kolom: KolomRekapCrosstab } | null>(null);
-
-  /** Sel yang sedang di-hover, dicari dari data (bukan disalin ke state). */
-  const selHover = useMemo(() => {
-    if (hover === null || data === null) return null;
-    const baris = data.baris.find((b) => b.id === hover.kunciBaris);
-    const sel = baris?.sel[hover.kolom.key];
-    return baris && sel ? { baris, sel } : null;
-  }, [hover, data]);
 
   if (loading && data === null) {
     return <div className="p-4 text-sm text-muted-foreground">Memuat…</div>;

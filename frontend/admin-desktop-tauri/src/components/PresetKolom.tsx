@@ -31,7 +31,6 @@ export default function PresetKolom({
   tableKey,
   fields,
   onApply,
-  triggerClassName,
   wrapperClassName,
 }: {
   tableKey: string;

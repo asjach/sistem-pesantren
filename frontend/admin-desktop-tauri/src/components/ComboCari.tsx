@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Check as CheckIcon, ChevronDown as ChevronDownIcon } from '@/icons';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -41,6 +41,9 @@ export default function ComboCari({
   const [open, setOpen] = useState(false);
   const [cari, setCari] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  /** id daftar pilihan — disambungkan ke pemicu lewat `aria-controls`
+   *  (dibutuhkan role="combobox" yang dipakai tombol pemicu di bawah). */
+  const daftarId = useId();
 
   const terpilih = options.find((o) => o.value === value);
   const hasil = useMemo(() => {
@@ -65,6 +68,7 @@ export default function ComboCari({
           id={id}
           role="combobox"
           aria-expanded={open}
+          aria-controls={daftarId}
           aria-haspopup="listbox"
           disabled={disabled}
           className={cn(
@@ -96,7 +100,7 @@ export default function ComboCari({
           aria-label="Cari pilihan"
           className="mb-1 h-6 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-xs shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
         />
-        <div role="listbox" className="max-h-64 overflow-y-auto">
+        <div role="listbox" id={daftarId} className="max-h-64 overflow-y-auto">
           {hasil.length === 0 ? (
             <p className="px-2 py-3 text-xs text-muted-foreground">{kosongText}</p>
           ) : (

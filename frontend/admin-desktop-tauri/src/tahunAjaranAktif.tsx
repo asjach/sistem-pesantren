@@ -63,12 +63,15 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
   const [pilihan, setPilihan] = useState<TahunAjaran[]>([]);
   const [tahunAjaranNames, setTahunAjaranNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  // Cukup kunci primitif id: refresh `/me` (identitas `user` baru, isi sama)
+  // tidak boleh memicu muat ulang.
+  const userId = user?.id;
 
   useEffect(() => {
     let alive = true;
 
     (async () => {
-      if (!user) {
+      if (!userId) {
         setPilihan([]);
         setTahunAjaranNames([]);
         setLoading(false);
@@ -109,7 +112,7 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
     })();
 
     return () => { alive = false; };
-  }, [user?.id, jenjangs, lembagaLoading]);
+  }, [userId, jenjang, jenjangs, lembagaLoading]);
 
   const pilihBanyak = useMemo(() => (values: string[]) => {
     const next = normalisasiNamaAktif(values);

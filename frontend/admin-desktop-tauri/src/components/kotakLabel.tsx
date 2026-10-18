@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useLayoutEffect, useRef, useState, type MutableRefObject, type MouseEventHandler, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { LEBAR_BAWAHAN_FILTER } from '@/components/kelolaTabel/jenis';
-import { pakaiLebarFilter } from '@/components/excel/lebarFilter';
+import { useLebarFilter } from '@/components/excel/lebarFilter';
 import { useSetelanKomponen } from '@/components/komponenCustom';
 
 /** Satuan CSS: angka = px, string dipakai apa adanya. */
@@ -105,7 +105,7 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
   /* Lebar KOTAK: dari setelan komponen (server, tabel `komponen_custom`) bila
      ada; tanpa itu, di dalam toolbar tabel memakai LEBAR_BAWAHAN_FILTER (sama
      dengan FilterField). Lebar yang dikunci eksplisit tetap menang. */
-  const konteks = pakaiLebarFilter();
+  const konteks = useLebarFilter();
   const kunci = konteks && htmlFor && kelolaLebar ? htmlFor : '';
   const override = useSetelanKomponen(konteks?.tableKey ?? '', kunci).lebar;
   const lebarKotakEfektif = lebarKotak ?? (kunci === '' || kontrolKunci

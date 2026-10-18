@@ -4,7 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import PresetUrut from '@/components/PresetUrut';
 import { renderDenganTema } from '@/test/utils';
 import { muatKomponenCustom } from '@/api/komponenCustom';
-import { resetSetelanKomponen, setelanKomponen, simpanSetelanKomponen } from '@/components/komponenCustom';
+import { resetSetelanKomponen } from '@/components/komponenCustom';
 
 /* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
    menyemai setelan lewat store klien tanpa jaringan. */

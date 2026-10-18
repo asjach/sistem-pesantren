@@ -204,7 +204,7 @@ export default function LembagaPegawaiPage() {
             try {
               await tempatkanPegawai(p.id, { jenjang: jenjangs[0] });
               sukses++;
-            } catch (e) {
+            } catch {
               gagal.push(p.nama_lengkap);
             }
           }

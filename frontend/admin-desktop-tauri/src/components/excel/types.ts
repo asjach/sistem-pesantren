@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 /** Tipe bersama komponen tabel (dipisah dari ExcelTable agar file utama ringkas). */
 

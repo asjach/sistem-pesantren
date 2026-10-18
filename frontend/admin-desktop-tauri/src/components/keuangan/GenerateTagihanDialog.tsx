@@ -377,7 +377,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   useEffect(() => {
     if (!open) return;
     setHasil(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, terpilih, jenisId, nominalDefault, periodeDari, periodeSampai, jatuhTempo, tarifId, kelompok, grupCustomId]);
 
   // Validasi gagal → fokus pindah ke ringkasan galat (sekali per perubahan).

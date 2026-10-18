@@ -345,12 +345,17 @@ export default function PapanContohPage() {
                 background: disorot ? 'color-mix(in srgb, var(--accent) 6%, var(--sunken))' : 'var(--sunken)',
                 borderColor: disorot ? 'var(--accent-line)' : 'var(--divider)',
               }}
-              onClick={terlipat ? () => jungkitLipat(item.id) : undefined}
             >
               {terlipat ? (
-                <span className="text-xs font-medium text-muted-foreground [writing-mode:vertical-rl]">
+                /* Kolom terlipat = tombol buka sungguhan (padanan tombol lipat
+                   di header kolom terbuka); teksnya tetap vertikal. */
+                <button
+                  type="button"
+                  onClick={() => jungkitLipat(item.id)}
+                  className="cursor-pointer text-xs font-medium text-muted-foreground [writing-mode:vertical-rl]"
+                >
                   {item.judul} · {item.kartu.length}
-                </span>
+                </button>
               ) : (
                 <>
                   <header className="flex items-center gap-[7px] pt-[10px] pr-2 pb-1.5 pl-3 text-[12.5px] font-semibold">

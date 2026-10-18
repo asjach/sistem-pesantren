@@ -194,7 +194,10 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     })();
 
     return () => { alive = false; };
-  }, [user, adaSemua]);
+    // `kunciCakupan` = turunan primitif dari `user` (id|adaSemua|peran) —
+    // didengar eksplisit; berubah hanya bila isi cakupan berubah. `setUser`
+    // setter useState (stabil).
+  }, [user, adaSemua, kunciCakupan, setUser]);
 
   const pilihBanyak = useMemo(() => (values: string[]) => {
     const next = normalisasiNilaiAktif(values);

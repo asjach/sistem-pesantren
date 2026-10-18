@@ -18,7 +18,7 @@ import { ICON_SETS } from '@/iconSets';
 import { WARNA_UI, RADIUS_MIN, RADIUS_MAX, type DensityName } from '@/prefs';
 import { cn } from '@/lib/utils';
 import {
-  Search, Palette, Paintbrush, Blend, Monitor, Crop, DensityMedium, Check, Minus, Plus,
+  Search, Palette, Paintbrush, Blend, Monitor, DensityMedium, Minus, Plus,
 } from '@/icons';
 
 /** Izin khusus super_admin yang disembunyikan saat bertindak sebagai lembaga. */

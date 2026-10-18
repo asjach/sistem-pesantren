@@ -2,7 +2,7 @@ import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import { Tabs as TabsPrimitive } from "radix-ui"
-import { pakaiIndikatorGeser } from "@/components/ui/indikatorGeser";
+import { useIndikatorGeser } from "@/components/ui/indikatorGeser";
 
 function Tabs({
   className,
@@ -51,7 +51,7 @@ function TabsList({
      *  (strip tab halaman — hijaunya pindah ke indikator supaya ikut meluncur). */
     indikator?: "netral" | "primer";
   }) {
-  const { refWadah, geometri } = pakaiIndikatorGeser<HTMLDivElement>("active");
+  const { refWadah, geometri } = useIndikatorGeser<HTMLDivElement>("active");
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"

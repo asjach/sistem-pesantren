@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Paginate } from '@/api/master';
 import { useDaftarTabel, type ArgsMuat } from '@/hooks/useDaftarTabel';
-import { KUNCI_PERPAGE_GLOBAL } from '@/hooks/usePager';
 
 /* usePager membaca pref + pengaturan global; keduanya distub agar tes fokus
    pada logika useDaftarTabel (debounce, race, paginasi). */
@@ -190,7 +189,7 @@ describe('useDaftarTabel', () => {
 
   it('pencarian kosong diterapkan tanpa jeda', async () => {
     const ambil = vi.fn(async (_a: ArgsMuat) => halaman([]));
-    const { result, rerender } = renderHook(
+    const { rerender } = renderHook(
       ({ q }: { q: string }) => useDaftarTabel<Baris>({ tableKey: 't12', ambil, search: q }),
       { initialProps: { q: 'abc' } },
     );

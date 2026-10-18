@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { useLocation } from 'react-router-dom';
-import { errorMessage } from '@/api/client';
 import { listKelas, referensiList, type Kelas, type ReferensiRow } from '@/api/master';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useKelasAktif } from '@/kelasAktif';
@@ -10,7 +9,6 @@ import { Switch } from '@/components/ui/switch';
 import { useLembagaAktif } from '@/lembagaAktif';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 
 type RailGroup = 'tingkat' | 'kelas';
 
@@ -84,7 +82,7 @@ export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
   const [tingkatReferensi, setTingkatReferensi] = useState<ReferensiRow[] | null>(null);
   const [tingkatReferensiLoading, setTingkatReferensiLoading] = useState(false);
   const [tingkatReferensiGagal, setTingkatReferensiGagal] = useState(false);
-  const [modeBusy, setModeBusy] = useState<RailGroup | null>(null);
+  const [modeBusy] = useState<RailGroup | null>(null);
   const stateFilterRef = useRef({ tingkat, kelas, kelasTersedia });
   stateFilterRef.current = { tingkat, kelas, kelasTersedia };
   const dragState = useRef<DragState | null>(null);
@@ -141,7 +139,10 @@ export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
       window.removeEventListener('pointerup', finishDrag);
       window.removeEventListener('pointercancel', finishDrag);
     };
-  }, []);
+    // `applyClassSelection`/`applyLevelSelection` dibuat ulang tiap render,
+    // jadi listener dipasang ulang tiap render — isinya sama (baca state via
+    // `stateFilterRef` + `pilih*` yang stabil), tak ada loop.
+  }, [applyClassSelection, applyLevelSelection]);
 
   useEffect(() => {
     if (!showTingkat) {

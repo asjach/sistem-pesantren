@@ -433,7 +433,7 @@ export default function Sidebar() {
       {!collapsed ? (
         <div
           id="gagang_lebar_sidebar"
-          role="separator"
+          role="slider"
           aria-orientation="vertical"
           aria-label="Lebar navigasi"
           aria-valuenow={sidebarLebar}

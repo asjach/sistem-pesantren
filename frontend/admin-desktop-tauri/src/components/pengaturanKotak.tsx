@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Popover, PopoverAnchor } from '@/components/ui/popover';
 import PopoverUkuranKombo from '@/components/PopoverUkuranKombo';
 import { setelanUntukTujuan, simpanSalinan, useSalinan } from '@/components/salinSetelan';
-import { pakaiLebarFilter } from '@/components/excel/lebarFilter';
+import { useLebarFilter } from '@/components/excel/lebarFilter';
 import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import {
@@ -47,7 +47,7 @@ import {
  *  toolbar tabel disimpan ke SERVER (global per tabel); di luar itu disimpan
  *  per perangkat. Tanpa `htmlFor`, kotak tak punya identitas → fitur mati
  *  (hanya ukuran dari pemanggil yang dipakai). */
-export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 'combobox', labelTransparan = true, tanpaLabel = false, opsi = [], tipeKontrol, pilihanTipe, tipeTerkunci = false, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, langkah }: {
+export function usePengaturanKotak({ htmlFor, label, nama = 'combobox', labelTransparan = true, tanpaLabel = false, opsi = [], tipeKontrol, pilihanTipe, tipeTerkunci = false, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, langkah }: {
   htmlFor?: string;
   kelolaLebar?: boolean;
   label: string;
@@ -95,7 +95,7 @@ export function usePengaturanKotak({ htmlFor, kelolaLebar = true, label, nama = 
     || bisa(user, 'komponen_custom.tambah')
     || bisa(user, 'komponen_custom.ubah');
   const bolehBukaPengaturan = kunciUkuran !== '' && bolehSetel;
-  const konteks = pakaiLebarFilter();
+  const konteks = useLebarFilter();
   /* Tabel tempat komponen hidup; komponen di luar tabel memakai string kosong
      supaya tetap punya identitas di server. */
   const tableKey = konteks?.tableKey ?? '';

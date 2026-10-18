@@ -16,6 +16,6 @@ export interface KonteksLebarFilter {
 
 export const KonteksLebarFilter = createContext<KonteksLebarFilter | null>(null);
 
-export function pakaiLebarFilter(): KonteksLebarFilter | null {
+export function useLebarFilter(): KonteksLebarFilter | null {
   return useContext(KonteksLebarFilter);
 }

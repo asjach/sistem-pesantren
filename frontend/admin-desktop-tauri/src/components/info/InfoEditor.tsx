@@ -260,6 +260,11 @@ export default function InfoEditor({
           <Input
             id={`${id}_input_tautan`}
             value={tautan}
+            /* autoFocus DISENGAJA: bar tautan muncul karena pengguna menekan
+               tombol Tautan, dan langkah berikutnya hampir selalu menulis
+               alamat — fokus langsung ke kotak itu membuka alur kerja yang
+               dimaksud, bukan mengganggu. */
+            /* eslint-disable-next-line jsx-a11y/no-autofocus */
             autoFocus
             placeholder="https://"
             aria-label="Alamat tautan"
@@ -289,6 +294,7 @@ export default function InfoEditor({
         role="textbox"
         aria-multiline="true"
         aria-label="Isi info tabel"
+        tabIndex={0}
         spellCheck
         className="info-tabel-isi min-h-44 flex-1 overflow-y-auto px-2 py-1.5 text-xs outline-none"
         onInput={(e) => onUbah(e.currentTarget.innerHTML)}

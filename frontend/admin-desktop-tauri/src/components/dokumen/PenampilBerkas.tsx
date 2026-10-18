@@ -148,7 +148,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   /** Seret latar/kanvas untuk menggeser pandangan (pan). Abaikan yang
    *  bertanda data-seret (overlay crop/penggaris/garis punya handler sendiri). */
   const geserPandangan = useRef<{ x0: number; y0: number; sl: number; st: number } | null>(null);
-  function mulaiGeser(e: React.PointerEvent) {
+  function mulaiGeser(e: PointerEvent) {
     // Klik tengah = reset zoom 100%.
     if (e.button === 1) {
       e.preventDefault();
@@ -162,7 +162,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     geserPandangan.current = { x0: e.clientX, y0: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
     el.setPointerCapture?.(e.pointerId);
   }
-  function gerakGeser(e: React.PointerEvent) {
+  function gerakGeser(e: PointerEvent) {
     const s = geserPandangan.current;
     const el = bungkusRef.current;
     if (!s || !el || !(e.buttons & 1)) return;
@@ -173,6 +173,10 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   function selesaiGeser() {
     geserPandangan.current = null;
   }
+  /** Klik tengah ditahan dari perilaku autoscroll bawaan peramban. */
+  function tengahKlik(e: MouseEvent) {
+    if (e.button === 1) e.preventDefault();
+  }
 
   /** Roda mouse: Ctrl/Cmd+scroll = zoom (tengah pandangan dijaga);
    *  scroll biasa = geser vertikal, Shift+scroll = geser horizontal (bawaan).
@@ -180,6 +184,12 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   useEffect(() => {
     const el = bungkusRef.current;
     if (!el) return;
+    /* Geser pointer & klik-tengah JUGA dipasang native, bukan lewat prop JSX
+       (`onPointerDown`/`onMouseDown`): prop semacam itu di elemen tatement
+       seperti div membuat jsx-a11y menuntut role interaktif — padahal yang
+       bergerak di sini adalah SCROLL isinya, bukan divnya sebagai kontrol.
+       Listener native memberi perilaku sama persis tanpa mengklaim peran
+       yang tidak benar (pola yang sama sudah dipakai roda di atas). */
     const padaRoda = (e: WheelEvent) => {
       if (!sumber || (gambar && !dimensiRef.current)) return;
       // Tanpa Ctrl/Cmd: biarkan perilaku bawaan (vertikal / Shift = horizontal).
@@ -195,8 +205,22 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
       el.scrollTop = fy * el.scrollHeight - el.clientHeight / 2;
     };
     el.addEventListener('wheel', padaRoda, { passive: false });
-    return () => el.removeEventListener('wheel', padaRoda);
-  }, [sumber, gambar]);
+    el.addEventListener('pointerdown', mulaiGeser);
+    el.addEventListener('pointermove', gerakGeser);
+    el.addEventListener('pointerup', selesaiGeser);
+    el.addEventListener('pointercancel', selesaiGeser);
+    el.addEventListener('mousedown', tengahKlik);
+    return () => {
+      el.removeEventListener('wheel', padaRoda);
+      el.removeEventListener('pointerdown', mulaiGeser);
+      el.removeEventListener('pointermove', gerakGeser);
+      el.removeEventListener('pointerup', selesaiGeser);
+      el.removeEventListener('pointercancel', selesaiGeser);
+      el.removeEventListener('mousedown', tengahKlik);
+    };
+  /* Handler seret/klik-tengah hanya membaca ref & setState: versi terbaru
+     selalu setara, listener tak perlu dipasang ulang tiap render. */
+  }, [sumber, gambar]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // URL blob sumber (stabil per sumber; crop/zoom hanya transform CSS).
   const urlSumber = useMemo(() => {
@@ -272,7 +296,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   }, [memproses]);
 
   // ----- PDF: dokumen + render halaman -----
-  const { dokPdf, halPdf, setHalPdf, totalHal, galatPdf, kanvasRef } = usePdfDokumen({ aktif: pdf, sumber, zoom, ukuranWadah });
+  const { halPdf, setHalPdf, totalHal, galatPdf, kanvasRef } = usePdfDokumen({ aktif: pdf, sumber, zoom, ukuranWadah });
 
   // ----- Crop gambar: baru / pindah / ubah-sudut, komit eksplisit via Terapkan -----
   type SeretCrop =
@@ -883,14 +907,10 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
         </div>
         </>
       )}
-      {/* Kanvas: seret untuk geser, roda untuk zoom */}
+      {/* Kanvas: seret untuk geser, roda untuk zoom (listener native —
+          lihat useEffect di atas). */}
       <div
         ref={bungkusRef}
-        onPointerDown={mulaiGeser}
-        onPointerMove={gerakGeser}
-        onPointerUp={selesaiGeser}
-        onPointerCancel={selesaiGeser}
-        onMouseDown={(e) => { if (e.button === 1) e.preventDefault(); }}
         className={cn(
           'flex min-h-0 flex-1 items-start justify-center p-2 select-none',
           perluGulir ? 'overflow-auto cursor-grab active:cursor-grabbing' : 'overflow-hidden',
@@ -915,7 +935,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
               />
             ) : (
               <>
-                {/* eslint-disable-next-line jsx-a11y/alt-text */}
                 <img
                   src={urlSumber}
                   alt=""

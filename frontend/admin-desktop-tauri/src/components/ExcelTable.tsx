@@ -7,7 +7,7 @@ import {
   type DataSheetGridRef,
 } from 'react-datasheet-grid';
 import 'react-datasheet-grid/dist/style.css';
-import { errorMessage, isTauri, prefSet } from '@/api/client';
+import { errorMessage, prefSet } from '@/api/client';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_FAMILY_DEFAULT, FONT_OPTIONS, useGridPrefs } from '@/components/GridPrefs';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -16,7 +16,6 @@ import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import { EVENT_TAMPILAN_PERANGKAT_BERUBAH, kabariPreset, kabariTampilanPerangkat, type AlignKolom } from '@/components/kelolaTabel/jenis';
 import { setPresetAktif, updatePresetTabel } from '@/api/preset';
 import FilterRail from '@/components/FilterRail';
-import { bukaPengaturanTampilan } from './pengaturan/SheetPengaturanTampilan';
 import ScrollbarMelayang from './excel/ScrollbarMelayang';
 import { gabungUrutan } from './excel/urutanKolom';
 import { judulTabel } from './excel/judul';
@@ -34,7 +33,6 @@ import { TINGGI_BARIS_BAWAAN } from './excel/tinggiBaris';
 import { useSalinTabel } from './excel/useSalinTabel';
 import { useSalinClipboard } from './excel/useSalinClipboard';
 import { useInteraksiSel } from './excel/useInteraksiSel';
-import { copyText, tulisPolosSinkron } from '@/lib/clipboard';
 import { useBarisInput } from './excel/useBarisInput';
 import { KonteksLebarFilter } from './excel/lebarFilter';
 import {
@@ -42,16 +40,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ActionIcon } from '@/components/RowActions';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Columns3, Paintbrush, Pencil, Plus, PlusCircle, Save, Settings } from '@/icons';
-import { bukaStandarTampilan } from './kelolaTampilan/event';
+import { Pencil, Plus, PlusCircle, Save } from '@/icons';
 
 /** Klik kanan di "corner button" (sel header gutter di sudut kiri-atas,
  *  bertanda segitiga `.dsg-corner-indicator`) → menu salin seluruh tabel. */
@@ -400,12 +389,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   const [ctxKonfirmasi, setCtxKonfirmasi] = useState<AksiMenu['konfirmasi'] | null>(null);
   /** Geser urutan kolom = super_admin EFEKTIF (global; mati saat bertindak). */
   const { efektifSuper: bolehGeser } = useLembagaAktif();
-  /** Super_admin efektif — menentukan apakah pintu "Standar pesantren" tampil. */
-  const efektifSuper = bolehGeser;
   const visHalaman = useVisibilitasFilter();
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
-  const { visibilitas, alignDb, urutanDb, setUrutanDb, simpanUrutan, labelDb, judulDb, simpanJudul, infoHtmlDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
+  const { visibilitas, alignDb, urutanDb, simpanUrutan, labelDb, judulDb, infoHtmlDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
   /* Sakelar komponen tabel (tab Umum Kelola Tabel, SERVER per tabel): setiap
      komponen tabel punya sakelarnya sendiri. Semua sakelar absen = tampil, jadi
      tabel yang belum pernah disetel berperilaku persis seperti sebelumnya.
@@ -480,7 +467,6 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  boleh memicu hitung ulang (iterasi seluruh baris) sia-sia. */
   const aksiMaksBaris = useMemo(
     () => rows.reduce((m, r) => Math.max(m, flattenAksi(renderRef.current(r)).length), 0),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows],
   );
   const [aksiRingkas, setAksiRingkas] = useState(() => (AKSI_RINGKAS.get(tableKey) ?? 0) > 3);
@@ -735,7 +721,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     [presetIdAktif, presetKeys, tableKey, simpanUrutan, luar],
   );
 
-  const { status: statusSeret, mulai: mulaiSeretKolom } = useSeretKolomHeader({
+  const { status: statusSeret } = useSeretKolomHeader({
     terlihat: visibleFields.map((f) => f.key),
     wrapRef,
     /* Geser judul kolom ikut Mode Ubah: menyusun ulang kolom mengubah isi
@@ -768,7 +754,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     onAutoFit,
     onAutoFitAll,
     fitActionsIfNeeded,
-    resetLebar,
   } = useLebarKolom<T>({
     tableKey,
     fields,
@@ -852,7 +837,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     salinSelCtx,
     salinKolomCtx,
     salinSemuaCtx,
-    onCopy,
     salinFisik,
     teksSalinan,
   } = useSalinTabel<T>({
@@ -907,7 +891,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   useEffect(() => {
     setCheckedIds(new Set());
     setRange(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsSig]);
 
   // Kabarkan baris tercentang ke halaman (mis. daftar pilihan klasifikasi
@@ -939,7 +922,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  }, [canEdit, modeUbah, showInput]);
+  }, [canEdit, modeUbah, showInput, setModeUbah, setInputMode]);
 
   // Keluar dari mode Input → draft baris input dibuang (tidak tersimpan).
   useEffect(() => {
@@ -1102,7 +1085,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     // `editing` disengaja TIDAK masuk deps: isi nilai grid tak bergantung mode
     // Edit (hanya `disabled` sel yang bergantung — itu di `dsgColumns`).
     // Tanpa ini tiap nyala/mati mode Edit membangun ulang seluruh nilai grid.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, drafts, checkedIds, fields, getValues, showInput, inputRowValues]);
 
   /** Urutan id kolom grid (termasuk centang & Aksi) — indeks seleksi DSG. */
@@ -1404,7 +1386,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   snapBekuRef.current = snapBekuSetelahGulir;
   useEffect(() => {
     if (freezeAktif > 0 && !sedangLebar) snapBekuRef.current();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freezeAktif, sedangLebar, widths, autoWidths, syncAutoWidths]);
   const handleScrollRef = useRef(() => {});
   handleScrollRef.current = () => { fitActionsIfNeeded(); simpanScroll(); snapBekuSetelahGulir(); };
@@ -1431,7 +1412,6 @@ export default function ExcelTable<T extends { id: string | number }>({
       r && checkedIds.has(r.id) && 'simpes-dsg-row-checked',
       r && barisAktifId !== null && String(r.id) === String(barisAktifId) && 'simpes-dsg-row-aktif',
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gridValue, checkedIds, barisAktifId]);
 
   /** Draft baris input saja (dropdown bertingkat): identitasnya stabil selama
@@ -1770,7 +1750,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     copyValue: () => null,
     pasteValue: ({ rowData }: { rowData: GridRow }) => rowData,
     isCellEmpty: () => true,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     /* `visibleFields` WAJIB ada di daftar ini: dari sanalah URUTAN kolom yang
        dirender berasal. Tanpa dependensi ini, mengubah urutan kolom (geser
        judul di sini, atau sunting di Kelola Tabel) mengubah `visibleFields`
@@ -1892,13 +1871,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     });
   }
   dropDraftRef.current = dropDraft;
-
-  function onResetView() {
-    resetLebar();
-    setCheckedIds(new Set());
-    setRange(null);
-    toast.success('Tampilan tabel dikembalikan bawaan.');
-  }
 
   const hasFilter = filter !== undefined;
   const hasUrut = !!onUrut;
@@ -2046,7 +2018,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     kolomCentang: !hideCheckbox,
     kolomAksi: !hideActions,
   }), [
-    adaBilahJudul, adaKontrolJudul, adaTombolAksi, bolehModeUbah, filterTersedia,
+    adaKontrolJudul, adaTombolAksi, bolehModeUbah, filterTersedia,
     hasFilter, hasUrut, header, hideActions, hideCheckbox, hidePreset,
     infoHeader, inputEnabled, pager, rail,
   ]);

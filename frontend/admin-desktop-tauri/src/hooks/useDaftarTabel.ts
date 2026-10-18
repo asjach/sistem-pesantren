@@ -78,6 +78,10 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   const searchRef = useRef(searchTertunda);
   const [rows, setRows] = useState<T[]>([]);
   const pager = usePager(tableKey);
+  // Metode pager beridentitas stabil (useCallback per `tableKey`). Diambil
+  // terpisah supaya hook di bawah bisa menyandangnya sebagai dependensi TANPA
+  // objek `pager` yang beridentitas baru tiap render (→ loop/kedip).
+  const { goFirst, sync } = pager;
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -116,7 +120,7 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
           search: searchRef.current, page: p, perPage: pp, urut: token, arah: a, arahKolom: ak, signal: ac.signal,
         });
         if (req !== reqRef.current) return;
-        const fix = pager.sync(res.current_page, res.last_page);
+        const fix = sync(res.current_page, res.last_page);
         if (fix != null && fix !== p) {
           await loadPage(fix, pp);
           return;
@@ -134,7 +138,7 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
         if (req === reqRef.current) setLoading(false);
       }
     },
-    [pager.page, pager.perPage, pager.sync],
+    [pager.page, pager.perPage, sync],
   );
 
   /**
@@ -152,10 +156,10 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
       setUrut(nilai);
       setArahUrut(arah);
       setArahKolom(peta);
-      pager.goFirst();
+      goFirst();
       void load(1, pager.perPage, { urut: nilai, arah, arahKolom: peta });
     },
-    [load, pager.goFirst, pager.perPage],
+    [load, goFirst, pager.perPage],
   );
 
   // Live search: terapkan setelah jeda 400 ms (langsung saat dikosongkan).
@@ -214,9 +218,9 @@ export function useDaftarTabel<T, R extends Paginate<T> = Paginate<T>>({
   const onSearchChange = useCallback(
     (v: string) => {
       setSearch(v);
-      pager.goFirst();
+      goFirst();
     },
-    [pager.goFirst],
+    [goFirst],
   );
 
   const onSaved = useCallback(() => load(), [load]);

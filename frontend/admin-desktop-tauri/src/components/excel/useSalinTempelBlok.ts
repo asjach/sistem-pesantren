@@ -1,6 +1,4 @@
 import { useEffect, useRef, type RefObject } from 'react';
-import { toast } from 'sonner';
-import type { GridSelection } from './types';
 
 /** Info blok yang dikirim ke halaman saat salin/tempel lewat papan ketik. */
 export interface PeristiwaBlok {

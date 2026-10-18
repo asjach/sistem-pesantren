@@ -165,6 +165,9 @@ function DialogFormMapel({ open, onClose, judul, idPrefix, idSimpan, nilai, set,
         <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
           <FieldLabel htmlFor={`input_${idPrefix}_nama`}>Nama mapel</FieldLabel>
           <Input
+            /* autoFocus DISENGAJA: dialog form mapel dibuka untuk mengisi mapel
+               baru; fokus langsung ke kotak Nama mapel mempercepat alur. */
+            /* eslint-disable-next-line jsx-a11y/no-autofocus */
             id={`input_${idPrefix}_nama`} value={nilai.nama} maxLength={100} required autoFocus
             onChange={(e) => set({ nama: e.target.value })}
           />

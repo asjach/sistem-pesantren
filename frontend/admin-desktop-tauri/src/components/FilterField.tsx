@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectTrigger } from '@/components/ui/select';
 import ComboCari from './ComboCari';
 import { LEBAR_BAWAHAN_FILTER } from './kelolaTabel/jenis';
-import { pakaiLebarFilter } from './excel/lebarFilter';
+import { useLebarFilter } from './excel/lebarFilter';
 import { useSetelanKomponen } from './komponenCustom';
 
 /** Pembungkus kontrol filter toolbar tabel: label kecil di atas kontrol.
@@ -26,7 +26,7 @@ export default function FilterField({ label, htmlFor, children, className, kelol
    *  luar toolbar, mis. baris filter halaman Rekap Santri. */
   sejajar?: boolean;
 }) {
-  const konteks = pakaiLebarFilter();
+  const konteks = useLebarFilter();
   const ref = useRef<HTMLSpanElement>(null);
   const anakTunggal = Children.count(children) === 1 && isValidElement(children)
     ? (children as ReactElement<{ style?: CSSProperties; children?: ReactNode }>)

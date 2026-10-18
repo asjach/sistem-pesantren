@@ -50,7 +50,7 @@ import ConfirmDelete from '@/components/ConfirmDelete';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ChevronDown, Check, Eye, EyeOff, GripVertical, Pencil, Plus, Trash2, X } from '@/icons';
+import { ChevronDown, Check, Eye, EyeOff, GripVertical, Pencil, Plus, Trash2 } from '@/icons';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import type { ExcelField } from '../excel/types';
@@ -419,6 +419,21 @@ export default function TabKolom({
       <div
         key={f.key}
         onClick={() => togolKolom(f.key, !tampil)}
+        /* Baris sekaligus sakelar tampil/sembunyi: role="button" +
+           tabIndex + Enter/Space memakai tombol bawaan (sudah punya nama
+           dari isi baris), bukan span perantara tambahan. Keydown hanya
+           berlaku saat fokus di barisnya sendiri — kontrol di dalam (kotak
+           nama, centang, tombol) sudah menangani tombolnya sendiri. */
+        role="button"
+        tabIndex={0}
+        aria-pressed={tampil}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            togolKolom(f.key, !tampil);
+          }
+        }}
         /* SELURUH baris yang diseret, bukan hanya ikon handle: drag image
            bawaan browser mengangkat elemen `draggable`, jadi menaruh atribut
            itu di baris membuat barisnya sendiri yang terangkat - bukan ikon
@@ -616,6 +631,10 @@ export default function TabKolom({
           <div className="flex min-w-44 flex-[2] items-center gap-1">
             <Input
               id={`input_nama_preset_${tableKey}`}
+              /* autoFocus DISENGAJA: mode "ubah nama" dibuka lewat aksi
+                 sadar pengguna (klik nama preset), dan satu-satunya langkah
+                 berikutnya adalah menulis — fokus langsung ke kotak nama. */
+              /* eslint-disable-next-line jsx-a11y/no-autofocus */
               autoFocus
               value={nama}
               onChange={(e) => setNama(e.target.value)}

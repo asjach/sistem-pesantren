@@ -7,7 +7,7 @@ import KeuanganPage from './KeuanganPage';
 import { CariGlobalProvider } from '@/hooks/useCariGlobal';
 import { TopBarSearchProvider, useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { renderDenganTema } from '@/test/utils';
-import { daftarJenis, daftarTarif, type CrosstabTagihan, type JenisTagihan, type Tarif } from '@/api/keuangan';
+import { daftarJenis, daftarTarif, type JenisTagihan, type Tarif } from '@/api/keuangan';
 
 beforeAll(() => {
   if (!('ResizeObserver' in globalThis)) {

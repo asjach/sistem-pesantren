@@ -103,6 +103,9 @@ export interface LebarKolomOptions<T extends { id: string | number }> {
  * saat blok terseleksi), AutoFit DOM & sinkron (host offscreen), lebar kolom
  * Aksi, dan tinggi header otomatis. Semua fungsi sengaja dibuat ulang tiap
  * render (bukan useCallback) — semantik sama dengan kode asli di ExcelTable.
+ * PENGECUALIAN: `computeAutoWidths` di-memo (deps `hideActions` + `labelKolom`)
+ * agar identitas `resetLebarInternal` stabil — listener event global tak
+ * pasang-lepas tiap render.
  */
 export function useLebarKolom<T extends { id: string | number }>({
   tableKey,
@@ -372,7 +375,7 @@ export function useLebarKolom<T extends { id: string | number }>({
    *  semua kolom dihitung ulang. `lewati` = kunci yang sudah final dari
    *  `syncAutoWidths` (isi awal hanya mengisi kekosongan agar tak menimpa
    *  lalu membuat kolom berkedip kecil-besar-kecil). */
-  function computeAutoWidths(ignoreSaved = false, lewati: Record<string, number> = {}): Record<string, number> {
+  const computeAutoWidths = useCallback((ignoreSaved = false, lewati: Record<string, number> = {}): Record<string, number> => {
     const out: Record<string, number> = {};
     const keys = [
       ...visibleFieldsRef.current.map((f) => f.key),
@@ -387,7 +390,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       if (w != null) out[key] = w;
     }
     return out;
-  }
+  }, [hideActions, labelKolom]);
 
   /** Terapkan AutoFit kolom non-manual, diulang satu frame lagi supaya sel
    *  yang telat dirender DSG ikut terukur (kolom Aksi paling sering telat).

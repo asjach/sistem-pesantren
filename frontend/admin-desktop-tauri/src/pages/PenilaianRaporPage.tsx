@@ -202,7 +202,6 @@ function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string 
       {/* Kop */}
       <div className="flex items-center gap-3 border-b-2 border-black pb-2">
         {r.kop.logo_url && (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={r.kop.logo_url} alt="" className="h-14 w-14 object-contain" />
         )}
         <div className="flex-1 text-center">
