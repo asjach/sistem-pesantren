@@ -45,7 +45,7 @@ class IzinKatalogTest extends TestCase
         $isi = (string) file_get_contents(base_path('routes/api.php'));
 
         // `->middleware('permission:a.b|c.d')` — ambil tiap nama izinnya.
-        preg_match_all("/permission:([a-z0-9_.|]+)/", $isi, $cocok);
+        preg_match_all('/permission:([a-z0-9_.|]+)/', $isi, $cocok);
         $nama = [];
         foreach ($cocok[1] as $grup) {
             foreach (explode('|', $grup) as $satu) {

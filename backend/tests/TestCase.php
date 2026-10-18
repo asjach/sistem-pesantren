@@ -5,6 +5,7 @@ namespace Tests;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Schema;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -27,7 +28,7 @@ abstract class TestCase extends BaseTestCase
         }
 
         // Test non-DB (tanpa RefreshDatabase) dilewati: tabel belum ada.
-        if (! \Illuminate\Support\Facades\Schema::hasTable('roles')) {
+        if (! Schema::hasTable('roles')) {
             return;
         }
 
