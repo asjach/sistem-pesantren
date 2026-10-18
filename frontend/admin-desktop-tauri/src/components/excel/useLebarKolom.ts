@@ -48,6 +48,10 @@ export function gridBelumSiapTampil(root: HTMLElement | null, harapSisi = 3): bo
   // (checkbox + kolom tampil + Aksi). Tabel berkolom sedikit tak ikut tertahan.
   const minimal = Math.min(3, Math.max(1, harapSisi));
   if (heads.length < minimal) return true;
+  // Tabel SATU kolom: tak ada "seragam vs tidak" yang bisa dibedakan — satu
+  // sel selalu seragam, jadi pemeriksaan di bawah akan menahannya sampai
+  // failsafe 2,5 dtk (panel tampak kosong). Lewatkan.
+  if (heads.length < 2) return false;
   let seragam = 0;
   for (const h of heads) {
     if (Math.abs(h.getBoundingClientRect().width - DSG_LEBAR_BAWAAN) <= 1) seragam += 1;

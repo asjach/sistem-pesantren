@@ -511,9 +511,14 @@ export default function ReferensiPage() {
             defaultSize={260}
             minSize={180}
             maxSize={460}
-            className="min-h-0"
+            className="flex min-h-0 flex-col"
           >
-            <div className="flex h-full min-h-0 flex-col">
+            {/* `flex-1`, BUKAN `h-full`: tinggi panel berasal dari stretch
+                grup (bukan height eksplisit), jadi persentase bisa gagal
+                dihitung di WebKit dan tabel jatuh ke tinggi isinya. Flex
+                membuat tabel mengisi sisa tinggi panel apa pun mesin
+                layout-nya. */}
+            <div className="flex min-h-0 flex-1 flex-col">
               <ExcelTable<BarisTipe>
                 tableKey="referensi_tipe"
                 fields={FIELDS_TIPE}
@@ -543,8 +548,8 @@ export default function ReferensiPage() {
 
           {/* Kolom kanan: isi kamus terpilih. `key={tipe}` mengatur ulang state
               grid (kolom, urutan, tinggi baris) tiap kamus berganti. */}
-          <ResizablePanel id="panel_referensi_isi" minSize="40%" className="min-h-0">
-            <div className="flex h-full min-h-0 flex-col">
+          <ResizablePanel id="panel_referensi_isi" minSize="40%" className="flex min-h-0 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col">
               <ExcelTable
                 key={tipe}
                 tableKey="referensi"

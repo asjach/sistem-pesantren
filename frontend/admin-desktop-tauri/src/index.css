@@ -813,6 +813,16 @@
   /* Jangkar elemen absolut di dalam sel (konteks nearest = sel, bukan
      .dsg-container yang juga position: relative). */
   position: relative;
+  /* Isi sel tidak boleh meluber keluar sel: teks yang lebih panjang dari
+     kolom/tinggi baris akan menimpa sel tetangga (kanan) atau baris di
+     bawahnya. Dipotong di sini — bukan di `.dsg-cell` — supaya gagang seret
+     lebar kolom (12 px, menggantung di tepi kanan sel header) tetap utuh. */
+  overflow: hidden;
+}
+/* Tinggi baris TETAP (bawaan): isi sel dipaksa satu baris. Teks panjang
+   terpotong di tepi kolom, bukan membungkus lalu melimpah ke baris bawah. */
+.simpes-dsg.simpes-dsg-baris-tetap .simpes-dsg-fill {
+  white-space: nowrap;
 }
 .simpes-dsg .simpes-dsg-select {
   flex: 1;

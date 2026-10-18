@@ -224,14 +224,19 @@ export default function PenilaianLegerPage() {
         )}
       </div>
 
-      <Pager
-        page={pager.page}
-        lastPage={data?.last_page ?? 1}
-        total={data?.total ?? 0}
-        perPage={pager.perPage}
-        onPage={(p) => { pager.setPage(p); void muat(p, pager.perPage); }}
-        onPerPage={(pp) => { pager.setPerPage(pp); void muat(1, pp); }}
-      />
+      {/* Pager hanya berarti saat tabelnya ada: tanpa filter lengkap (atau
+          saat data belum tiba) ia tampil sebagai baris "10 50 100 … Hal 1/1"
+          yang menggantung tanpa tabel di atasnya. */}
+      {data !== null && (
+        <Pager
+          page={pager.page}
+          lastPage={data.last_page ?? 1}
+          total={data.total ?? 0}
+          perPage={pager.perPage}
+          onPage={(p) => { pager.setPage(p); void muat(p, pager.perPage); }}
+          onPerPage={(pp) => { pager.setPerPage(pp); void muat(1, pp); }}
+        />
+      )}
     </div>
   );
 }

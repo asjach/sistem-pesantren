@@ -25,7 +25,7 @@ import { filterToolbarTersedia } from './excel/filterTabel';
 import { komponenAktif, type InfoKomponenTabel } from './excel/komponenTabel';
 import { useLebarKolom } from './excel/useLebarKolom';
 import { useLebarWadah } from './excel/useLebarWadah';
-import { skalaLebarIsi } from './excel/lebarIsi';
+import { skalaLebarIsi, RESIZER_OVERHANG } from './excel/lebarIsi';
 import { targetGulirBeku } from './excel/beku';
 import { useTinggiBaris } from './excel/useTinggiBaris';
 import { useTinggiBarisSatuan } from './excel/useTinggiBarisSatuan';
@@ -793,10 +793,13 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  pakai lebar basis apa adanya (fitur mati / wadah belum terukur). */
   const skalaIsi = useMemo(() => {
     if (!isiLebarPenuh || lebarWadah <= 0) return null;
-    /** Kolom tetap = chrome tabel yang lebarnya tak ikut diskalakan. */
+    /** Kolom tetap = chrome tabel yang lebarnya tak ikut diskalakan, plus
+     *  overhang gagang seret kolom terakhir (kalau tidak dipotong, gulir
+     *  horizontal muncul sendiri 5 px). */
     const lebarTetap = GUTTER_W
       + (sembunyiCentang ? 0 : CHECK_W)
-      + (sembunyiAksi ? 0 : (widths.__aksi ?? autoWidths.__aksi ?? ACTIONS_DEFAULT_W));
+      + (sembunyiAksi ? 0 : (widths.__aksi ?? autoWidths.__aksi ?? ACTIONS_DEFAULT_W))
+      + RESIZER_OVERHANG;
     const kolom = visibleFields.map((f) => ({
       key: f.key,
       lebar: widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
@@ -2160,6 +2163,11 @@ export default function ExcelTable<T extends { id: string | number }>({
           // membuat kartu beserta tabelnya meluber di bawah panel.
           maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
+          // Tinggi baris tetap → isi sel WAJIB satu baris + terpotong. Tanpa
+          // ini teks panjang membungkus lalu melimpah ke baris di bawahnya
+          // (tumpang tindih antar baris). Saat "baris ikut isi" menyala,
+          // pembungkusan dibiarkan karena barisnya memang tumbuh.
+          barisIkutIsi ? 'simpes-dsg-baris-ikut-isi' : 'simpes-dsg-baris-tetap',
         )}
       >
         {/* Kartu tabel setinggi gridHeight: tabel halaman mengisi penuh sisa

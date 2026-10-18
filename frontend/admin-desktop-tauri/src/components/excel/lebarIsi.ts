@@ -1,5 +1,12 @@
 import { MIN_COL_W } from './helpers';
 
+/** Sisa lebar gagang seret kolom (`.simpes-dsg-resizer`) yang menjorok ke
+ *  KANAN tepi kolom terakhir. Gagangnya 12 px dan digambar di tengah garis
+ *  tepi, jadi ±5 px menggantung di luar `.dsg-container`; tanpa dipotong,
+ *  `scrollWidth` jadi 5 px lebih besar dari `clientWidth` dan gulir
+ *  horizontal muncul sendiri walau kolom sudah pas. */
+export const RESIZER_OVERHANG = 6;
+
 /** Lebar basis satu kolom data (px) — hasil rantai lebar yang sama dengan
  *  `basis` kolom di ExcelTable (lebar pengguna → AutoFit → lebar field). */
 export interface KolomBasis {
