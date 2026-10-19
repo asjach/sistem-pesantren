@@ -112,8 +112,10 @@ class PapanMarkdown
      */
     private function subModul(array $sub): string
     {
-        // Status sub-modul ditulis di judul supaya `papan:tandai` selalu
-        // terlihat di markdown, walaupun butir-butirnya belum dipindahkan.
+        // Status sub-modul adalah TURUNAN dari poin-poinnya (lihat
+        // PapanService::statusTurunan). Ditulis di judul supaya pembaca
+        // markdown langsung tahu sampai mana sub-modul ini, tanpa harus
+        // menghitung sendiri sebaran poin di bawahnya.
         $statusJudul = mb_strtoupper($sub['status']);
         $petik = chr(96);
         $baris = ["## {$sub['kode']} {$sub['nama']} {$petik}{$statusJudul}{$petik}"];

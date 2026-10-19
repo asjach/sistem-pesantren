@@ -9,18 +9,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Sub-modul pada papan (mis. "E.3 Rekap & Tutup Buku Kas").
  *
- * Satu item boleh punya banyak butir; status item adalah ringkasan
- * kelompok kerjanya. Perpindahan status dicatat di {@see PapanRiwayat}.
+ * Sub-modul TIDAK menyimpan statusnya sendiri: statusnya diturunkan dari
+ * poin-poinnya (lihat `PapanService::statusTurunan`). Karena itu
+ * tabelnya hanya berisi identitas dan rujukan, tanpa kolom status — supaya
+ * tidak ada dua sumber status yang bisa saling bertentangan.
  */
 class PapanItem extends Model
 {
+    /** Kosakata status yang sah untuk POIN di dalam sub-modul ini. */
     public const STATUS = ['sudah', 'sedang', 'akan', 'ditunda'];
 
     protected $connection = 'papan';
 
     protected $table = 'papan_item';
 
-    protected $fillable = ['modul_id', 'kode', 'nama', 'status', 'rujukan', 'urutan'];
+    protected $fillable = ['modul_id', 'kode', 'nama', 'rujukan', 'urutan'];
 
     /** @return BelongsTo<PapanModul, $this> */
     public function modul(): BelongsTo

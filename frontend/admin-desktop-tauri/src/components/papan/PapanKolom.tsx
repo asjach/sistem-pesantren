@@ -79,7 +79,7 @@ export function GarisSisip({ id }: { id: string }) {
   return <div id={id} aria-hidden="true" className="h-[2px] shrink-0" style={{ background: 'var(--accent)' }} />;
 }
 
-/** Kartu papan: satu sub-modul, dengan ringkasan butir per status. */
+/** Kartu papan: satu POIN (butir) beserta sub-modul induknya. */
 export function KartuPapan({
   kartu,
   diseret,
@@ -104,8 +104,7 @@ export function KartuPapan({
   onPindah: (ke: StatusPapan) => void;
   onBuka: () => void;
 }) {
-  const total = kartu.butir.length;
-  const idKartu = kartu.kode.replace('.', '_');
+  const idKartu = `butir_${kartu.id}`;
 
   return (
     <article
@@ -114,15 +113,20 @@ export function KartuPapan({
       onDragStart={onMulaiSeret}
       onDragEnd={onLepasSeret}
       onDragOver={onDiAtas}
-      aria-label={`${kartu.kode} ${kartu.nama}. Seret untuk memindahkan.`}
+      aria-label={`${kartu.subKode} ${kartu.deskripsi}. Seret untuk memindahkan poin ini.`}
       className={cn(
         'flex cursor-grab flex-col gap-2 p-[10px_12px] transition-shadow active:cursor-grabbing',
         diseret && 'opacity-40',
       )}
       style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
     >
+      {/* Judul kartu = sub-modul induk. Diulang di tiap poin dengan sengaja:
+          satu sub-modul kini bisa muncul di beberapa kolom sekaligus, jadi
+          tiap kartu harus bisa menjelaskan dirinya sendiri. */}
       <div className="flex items-start gap-2">
-        <span className="mt-px font-mono text-[11px] font-semibold text-muted-foreground">{kartu.kode}</span>
+        <span className="mt-px font-mono text-[11px] font-semibold text-muted-foreground">
+          {kartu.subKode}
+        </span>
         <button
           id={`btn_buka_papan_${idKartu}`}
           type="button"
@@ -131,7 +135,7 @@ export function KartuPapan({
           onDragStart={(e) => e.preventDefault()}
           className="min-w-0 flex-1 cursor-pointer text-left text-[13px] leading-snug font-medium hover:text-[var(--accent)]"
         >
-          {kartu.nama}
+          {kartu.subNama}
         </button>
       </div>
 
@@ -141,10 +145,15 @@ export function KartuPapan({
         </div>
       ) : null}
 
+      {/* Isi kartu = poinnya. Inilah yang berpindah antar kolom. */}
+      <p className="border-t pt-2 text-[12px] leading-snug" style={{ borderColor: 'var(--divider)' }}>
+        <TeksButir deskripsi={kartu.deskripsi} />
+      </p>
+
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <select
           id={`select_pindah_papan_${idKartu}`}
-          aria-label={`Pindahkan ${kartu.kode} ${kartu.nama} ke kolom`}
+          aria-label={`Pindahkan poin ${kartu.subKode} ke kolom`}
           value=""
           onChange={(e) => {
             if (e.target.value !== '') onPindah(e.target.value as StatusPapan);
@@ -162,43 +171,11 @@ export function KartuPapan({
               </option>
             ))}
         </select>
-        <span className="tabular-nums">{total} butir</span>
-        <span
-          className="ml-auto tabular-nums"
-          aria-label={`${kartu.jumlahButir.sudah} dari ${total} butir selesai`}
-        >
-          {kartu.jumlahButir.sudah}/{total}
-        </span>
+        <span className="ml-auto font-mono text-[10px] tabular-nums">#{kartu.id}</span>
       </div>
-
-      {/* Butir ditampilkan langsung di kartu (tidak perlu klik). Dikelompokkan
-          per status dengan urutan tetap, dan tiap butir diberi penanda warna
-          statusnya sendiri supaya butir yang belum selesai tetap kelihatan
-          walau kartunya ada di kolom "sudah". */}
-      {total > 0 ? (
-        <ul className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
-          {KOLOM_KARTU.flatMap((s) =>
-            kartu.butir
-              .filter((b) => b.status === s)
-              .map((b) => (
-                <li key={b.id} className="flex items-start gap-1.5 text-[12px] leading-snug">
-                  <span
-                    aria-hidden="true"
-                    className="mt-[5px] size-1.5 shrink-0"
-                    style={{ background: WARNA_STATUS[b.status] }}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <TeksButir deskripsi={b.deskripsi} />
-                  </span>
-                </li>
-              )),
-          )}
-        </ul>
-      ) : null}
     </article>
   );
 }
-
 /**
  * Papan empat kolom untuk SEKELOMPOK kartu.
  *
@@ -215,14 +192,14 @@ export function PapanKolom({
 }: {
   kartu: KartuPapan[];
   tampilkanModul: boolean;
-  onPindah: (kode: string, ke: StatusPapan) => Promise<void>;
+  onPindah: (butirId: number, ke: StatusPapan) => Promise<void>;
   onBuka: (kartu: KartuPapan) => void;
   /** Riwayat ringkas yang ditampilkan di bawah judul (kosong = tidak tampil). */
   riwayat?: RiwayatPapan[];
   /** Awalan id elemen supaya beberapa papan di satu halaman tidak bertabrakan. */
   idAwalan?: string;
 }) {
-  const [seret, setSeret] = useState<string | null>(null);
+  const [seret, setSeret] = useState<number | null>(null);
   const [sasaran, setSasaran] = useState<SasaranJatuh | null>(null);
   const [lipat, setLipat] = useState<Set<StatusPapan>>(() => new Set());
   const [pengumuman, setPengumuman] = useState('');
@@ -244,10 +221,10 @@ export function PapanKolom({
     setSasaran(null);
   }
 
-  function mulaiSeret(e: DragEvent, kode: string) {
+  function mulaiSeret(e: DragEvent, id: number) {
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', kode);
-    setSeret(kode);
+    e.dataTransfer.setData('text/plain', String(id));
+    setSeret(id);
   }
 
   function indeksSisip(e: DragEvent, indeks: number): number {
@@ -283,15 +260,17 @@ export function PapanKolom({
 
   async function jatuhkan(e: DragEvent, kolomId: StatusPapan) {
     e.preventDefault();
-    if (!seret) return;
-    const kode = seret;
-    const asal = kartu.find((k) => k.kode === kode);
+    if (seret === null) return;
+    const id = seret;
+    const asal = kartu.find((k) => k.id === id);
     bersihkanSeret();
 
     if (!asal || asal.status === kolomId) return;
 
-    setPengumuman(`${kode} ${asal.nama} dipindahkan ke ${kolomId}.`);
-    await onPindah(kode, kolomId);
+    // Pengumuman menyebut sub-modul DAN isi poinnya, karena kini satu
+    // sub-modul bisa muncul di beberapa kolom sekaligus.
+    setPengumuman(`Poin ${asal.subKode} "${asal.deskripsi}" dipindahkan ke ${kolomId}.`);
+    await onPindah(id, kolomId);
   }
 
   return (
@@ -362,20 +341,20 @@ export function PapanKolom({
 
                   <div className="flex min-h-[60px] flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
                     {item.kartu.map((k, idx) => (
-                      <div key={k.kode} className="flex flex-col gap-1.5">
+                      <div key={k.id} className="flex flex-col gap-1.5">
                         {sasaran && sasaran.kolom === item.id && sasaran.indeks === idx ? (
                           <GarisSisip id={`garis_${awalan}_${item.id}_${idx}`} />
                         ) : null}
                         <KartuPapan
                           kartu={k}
-                          diseret={seret === k.kode}
+                          diseret={seret === k.id}
                           kolomKini={item.id}
                           tujuan={kolom.map((c) => ({ id: c.id, judul: c.judul }))}
                           tampilkanModul={tampilkanModul}
-                          onMulaiSeret={(e) => mulaiSeret(e, k.kode)}
+                          onMulaiSeret={(e) => mulaiSeret(e, k.id)}
                           onLepasSeret={bersihkanSeret}
                           onDiAtas={(e) => diAtasKartu(e, item.id, idx)}
-                          onPindah={(ke) => void onPindah(k.kode, ke)}
+                          onPindah={(ke) => void onPindah(k.id, ke)}
                           onBuka={() => onBuka(k)}
                         />
                       </div>
@@ -394,13 +373,19 @@ export function PapanKolom({
   );
 }
 
-/** Dialog daftar butir satu sub-modul. */
+/**
+ * Dialog rincian satu POIN.
+ *
+ * Sejak kartu papan adalah poin itu sendiri, dialog ini tidak lagi memuat
+ * daftar butir: yang ditampilkan adalah poin lengkap beserta konteks
+ * sub-modul dan modul induknya.
+ */
 export function DialogButir({ kartu, onTutup }: { kartu: KartuPapan; onTutup: () => void }) {
   return (
     <div
       id="dialog_butir_papan"
       role="dialog"
-      aria-label={`Butir ${kartu.kode}`}
+      aria-label={`Poin ${kartu.subKode}`}
       className="absolute inset-0 z-20 grid place-items-center"
       style={{ background: 'color-mix(in srgb, var(--foreground) 24%, transparent)' }}
       onClick={onTutup}
@@ -411,8 +396,8 @@ export function DialogButir({ kartu, onTutup }: { kartu: KartuPapan; onTutup: ()
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-baseline gap-2">
-          <span className="font-mono text-xs font-semibold text-muted-foreground">{kartu.kode}</span>
-          <h3 className="text-sm font-semibold">{kartu.nama}</h3>
+          <span className="font-mono text-xs font-semibold text-muted-foreground">{kartu.subKode}</span>
+          <h3 className="text-sm font-semibold">{kartu.subNama}</h3>
           <button
             id="btn_tutup_butir_papan"
             type="button"
@@ -422,19 +407,30 @@ export function DialogButir({ kartu, onTutup }: { kartu: KartuPapan; onTutup: ()
             Tutup
           </button>
         </div>
-        <ul className="mt-3 flex flex-col gap-1.5">
-          {kartu.butir.map((b) => (
-            <li key={b.id} className="flex items-start gap-2 text-[13px] leading-snug">
-              <Lencana label={b.status} warna={WARNA_STATUS[b.status]} />
-              <span className="min-w-0 flex-1">
-                <TeksButir deskripsi={b.deskripsi} />
-              </span>
-            </li>
-          ))}
-          {kartu.butir.length === 0 ? (
-            <li className="text-xs text-muted-foreground">Belum ada butir.</li>
-          ) : null}
-        </ul>
+
+        <div className="mt-3 flex items-center gap-2">
+          <Lencana label={kartu.status} warna={WARNA_STATUS[kartu.status]} />
+          <span className="font-mono text-[11px] text-muted-foreground">#{kartu.id}</span>
+        </div>
+
+        <p className="mt-2 text-[13px] leading-snug">
+          <TeksButir deskripsi={kartu.deskripsi} />
+        </p>
+
+        <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t pt-3 text-xs" style={{ borderColor: 'var(--divider)' }}>
+          <dt className="text-muted-foreground">Modul</dt>
+          <dd>
+            {kartu.modulKode}. {kartu.modulNama}
+          </dd>
+          <dt className="text-muted-foreground">Sub-modul</dt>
+          <dd>
+            {kartu.subKode} {kartu.subNama}
+          </dd>
+          <dt className="text-muted-foreground">Status sub-modul</dt>
+          <dd>
+            {kartu.statusSub} <span className="text-muted-foreground">(turunan dari poin)</span>
+          </dd>
+        </dl>
       </div>
     </div>
   );

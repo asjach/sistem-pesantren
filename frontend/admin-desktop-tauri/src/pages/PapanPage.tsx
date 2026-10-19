@@ -13,7 +13,7 @@ import {
   type RiwayatPapan,
   type StatusPapan,
 } from '@/api/papan';
-import { kartuModul, modulPertama, type KartuPapan } from '@/lib/papan';
+import { kartuModul, kemajuanModul, modulPertama, type KartuPapan } from '@/lib/papan';
 
 /**
  * Papan perkembangan modul - satu tab per modul (A, B, C, ...), tiap tab
@@ -63,22 +63,49 @@ export default function PapanPage() {
     return modul.find((m) => m.kode.toUpperCase() === kodeModul.toUpperCase()) ?? null;
   }, [modul, kodeModul]);
 
-  /** Simpan perpindahan; gagal = kembalikan tampilan ke data server. */
+  /**
+   * Simpan perpindahan satu POIN; gagal = kembalikan tampilan ke data server.
+   *
+   * Pemindahan menyentuh dua hal sekaligus: status poinnya, dan status
+   * sub-modul induknya yang diturunkan. Keduanya digeser optimistis di layar
+   * supaya tidak ada jeda; kalau server menolak, seluruh papan dimuat ulang.
+   */
   const pindah = useCallback(
-    async (kode: string, ke: StatusPapan) => {
+    async (butirId: number, ke: StatusPapan) => {
       if (!data) return;
 
-      // Optimistis: geser dulu di layar, batalkan bila server menolak.
+      // Sub-modul yang poinnya berpindah, untuk menghitung ulang turunannya.
+      const subTersentuh = data.modul
+        .flatMap((m) => m.sub)
+        .find((s) => s.butir.some((b) => b.id === butirId));
+
+      const hitungTurunan = (status: StatusPapan[]): StatusPapan => {
+        if (status.includes('sedang')) return 'sedang';
+        if (status.includes('akan')) return 'akan';
+        if (!status.includes('sudah')) return 'ditunda';
+
+        return 'sudah';
+      };
+
       setData({
         ...data,
         modul: data.modul.map((m) => ({
           ...m,
-          sub: m.sub.map((s) => (s.kode === kode ? { ...s, status: ke } : s)),
+          sub: m.sub.map((s) => {
+            const butir = s.butir.map((b) => (b.id === butirId ? { ...b, status: ke } : b));
+
+            return {
+              ...s,
+              butir,
+              status:
+                subTersentuh?.kode === s.kode ? hitungTurunan(butir.map((b) => b.status)) : s.status,
+            };
+          }),
         })),
       });
 
       try {
-        await pindahStatusPapan(kode, ke);
+        await pindahStatusPapan(subTersentuh?.kode ?? '', butirId, ke);
         const log = await muatRiwayatPapan(undefined, 8);
         setRiwayat(log.riwayat);
         setGalat(null);
@@ -134,9 +161,14 @@ export default function PapanPage() {
                 className={KELAS_TRIGGER}
               >
                 {m.kode}. {m.nama}
-                {/* Warna badge diatur di index.css (.lencana-tab-papan) supaya
-                    bisa dibalik otomatis saat tab aktif — lihat catatan di sana. */}
-                <span className="lencana-tab-papan">{m.sub.length}</span>
+                {/* Lencana = kemajuan POIN (selesai/total), bukan jumlah
+                    sub-modul: sejak yang bergerak adalah poin, angka sub-modul
+                    tidak lagi menggambarkan kemajuan. Warna diatur di
+                    index.css (.lencana-tab-papan) supaya bisa dibalik saat tab
+                    aktif — lihat catatan di sana. */}
+                <span className="lencana-tab-papan" title="Poin selesai dari total poin">
+                  {kemajuanModul(m).selesai}/{kemajuanModul(m).total}
+                </span>
               </TabsTrigger>
             ))}
           </TabsList>

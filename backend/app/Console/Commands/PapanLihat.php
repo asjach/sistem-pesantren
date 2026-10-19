@@ -62,13 +62,28 @@ class PapanLihat extends Command
             $this->line("<options=bold>{$modul['kode']}. {$modul['nama']}</>");
 
             foreach ($modul['sub'] as $sub) {
-                $jumlah = count($sub['butir']);
+                // Tampilkan sebaran poin per status di sebelah nama, supaya
+                // kelihatan kenapa status turunannya begitu (mis. "akan" karena
+                // masih ada 2 poin yang belum selesai).
+                $ada = [];
+                foreach ($sub['butir'] as $b) {
+                    $ada[$b['status']] = ($ada[$b['status']] ?? 0) + 1;
+                }
+
+                $rinci = [];
+                foreach (PapanService::STATUS as $s) {
+                    if (($ada[$s] ?? 0) > 0) {
+                        $rinci[] = "{$s}:{$ada[$s]}";
+                    }
+                }
+
                 $this->line(sprintf(
-                    '  %-5s [%-7s] %s <fg=gray>(%d butir)</>',
+                    '  %-5s [%-7s] %-38s <fg=gray>(%d poin%s)</>',
                     $sub['kode'],
                     $sub['status'],
-                    $sub['nama'],
-                    $jumlah,
+                    mb_strimwidth($sub['nama'], 0, 38, '…'),
+                    count($sub['butir']),
+                    $rinci === [] ? '' : ' — '.implode(' ', $rinci),
                 ));
             }
 
@@ -77,7 +92,13 @@ class PapanLihat extends Command
 
         $ringkasan = $papan->ringkasan();
 
-        $this->line('Ringkasan: '.collect($ringkasan)
+        // Dua ringkasan ditampilkan terpisah: yang bergerak di papan adalah
+        // POIN, sedangkan jumlah sub-modul cuma gambaran turunannya.
+        $this->line('Poin     : '.collect($ringkasan['butir'])
+            ->map(fn (int $jumlah, string $status) => "{$status}={$jumlah}")
+            ->implode('  '));
+
+        $this->line('Sub-modul: '.collect($ringkasan['sub'])
             ->map(fn (int $jumlah, string $status) => "{$status}={$jumlah}")
             ->implode('  '));
 

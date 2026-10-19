@@ -20,6 +20,13 @@ export interface ButirPapan {
   deskripsi: string;
 }
 
+/**
+ * Satu sub-modul beserta poin-poinnya.
+ *
+ * `status` di sini adalah status TURUNAN dari poin (dihitung backend),
+ * bukan nilai yang disimpan sendiri. Yang dipindah di papan adalah poinnya,
+ * jadi jangan pakai field ini sebagai sumber untuk menggeser kolom.
+ */
 export interface SubPapan {
   kode: string;
   nama: string;
@@ -33,13 +40,22 @@ export interface ModulPapan {
   sub: SubPapan[];
 }
 
+/** Ringkasan dipisah: poin (yang bergerak) dan sub-modul (turunan). */
+export interface RingkasanPapan {
+  butir: Record<StatusPapan, number>;
+  sub: Record<StatusPapan, number>;
+}
+
 export interface DataPapan {
   modul: ModulPapan[];
-  ringkasan: Record<StatusPapan, number>;
+  ringkasan: RingkasanPapan;
+  status: StatusPapan[];
 }
 
 export interface RiwayatPapan {
   kode: string;
+  /** Deskripsi poin yang dipindah; null untuk baris lama sebelum model poin. */
+  butir: string | null;
   dari: StatusPapan | null;
   ke: StatusPapan;
   catatan: string | null;
@@ -47,20 +63,20 @@ export interface RiwayatPapan {
   waktu: string;
 }
 
-/** Muat seluruh papan: modul, sub-modul, butir, dan ringkasan per status. */
+/** Muat seluruh papan: modul, sub-modul, poin, dan ringkasan per status. */
 export function muatPapan() {
   return api<DataPapan>('/papan');
 }
 
-/** Pindahkan status satu sub-modul, dengan catatan opsional. */
-export function pindahStatusPapan(kode: string, status: StatusPapan, catatan?: string) {
-  return api<{ kode: string; nama: string; status: StatusPapan }>(
-    `/papan/${encodeURIComponent(kode)}/status`,
+/** Pindahkan satu POIN; status sub-modulnya menyusul secara turunan. */
+export function pindahStatusPapan(kode: string, butirId: number, status: StatusPapan, catatan?: string) {
+  return api<{ kode: string; id: number; status: StatusPapan; status_sub_modul: StatusPapan }>(
+    `/papan/${encodeURIComponent(kode)}/butir/${butirId}/status`,
     { method: 'PATCH', body: JSON.stringify({ status, catatan }) },
   );
 }
 
-/** Tambah butir di bawah sebuah sub-modul. */
+/** Tambah poin di bawah sebuah sub-modul. */
 export function tambahButirPapan(kode: string, status: StatusPapan, deskripsi: string) {
   return api<ButirPapan>(`/papan/${encodeURIComponent(kode)}/butir`, {
     method: 'POST',
@@ -68,14 +84,14 @@ export function tambahButirPapan(kode: string, status: StatusPapan, deskripsi: s
   });
 }
 
-/** Hapus satu butir milik sebuah sub-modul. */
+/** Hapus satu poin milik sebuah sub-modul. */
 export function hapusButirPapan(kode: string, id: number) {
   return api<{ message: string }>(`/papan/${encodeURIComponent(kode)}/butir/${id}`, {
     method: 'DELETE',
   });
 }
 
-/** Riwayat perpindahan status, terbaru lebih dulu. */
+/** Riwayat perpindahan status poin, terbaru lebih dulu. */
 export function muatRiwayatPapan(kode?: string, batas = 20) {
   const qs = new URLSearchParams();
   if (kode) qs.set('kode', kode);

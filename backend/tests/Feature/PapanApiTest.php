@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Papan\PapanButir;
 use App\Models\Papan\PapanItem;
 use App\Models\Papan\PapanModul;
 use App\Models\User;
@@ -55,7 +56,10 @@ class PapanApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('modul.0.kode', 'E')
             ->assertJsonPath('modul.0.sub.0.kode', 'E.3')
-            ->assertJsonPath('ringkasan.akan', 1)
+            // Ringkasan dipisah: poin (yang bergerak) dan sub-modul (turunan).
+            ->assertJsonPath('ringkasan.butir.akan', 1)
+            ->assertJsonPath('ringkasan.butir.sudah', 1)
+            ->assertJsonPath('ringkasan.sub.akan', 1)
             ->assertJsonPath('status', ['sudah', 'sedang', 'akan', 'ditunda']);
     }
 
@@ -66,13 +70,17 @@ class PapanApiTest extends TestCase
         $this->getJson('/api/papan')->assertStatus(403);
     }
 
-    public function test_pindah_status_mengubah_dan_mencatat_riwayat(): void
+    public function test_pindah_status_poin_mengubah_dan_mencatat_riwayat(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->patchJson('/api/papan/E.3/status', ['status' => 'sedang', 'catatan' => 'Mulai'])
+        $poin = PapanButir::query()->where('status', 'akan')->firstOrFail();
+
+        $this->patchJson("/api/papan/E.3/butir/{$poin->id}/status", ['status' => 'sedang', 'catatan' => 'Mulai'])
             ->assertOk()
-            ->assertJsonPath('status', 'sedang');
+            ->assertJsonPath('status', 'sedang')
+            // Sub-modul ikut jadi "sedang" karena ada poin yang sedang.
+            ->assertJsonPath('status_sub_modul', 'sedang');
 
         $this->getJson('/api/papan/riwayat')
             ->assertOk()
@@ -81,11 +89,32 @@ class PapanApiTest extends TestCase
             ->assertJsonPath('riwayat.0.oleh', 'pengguna');
     }
 
+    /**
+     * Inti model baru: sub-modul baru dianggap "sudah" kalau SEMUA poinnya
+     * sudah. Satu poin yang masih "akan" sudah cukup menahannya.
+     */
+    public function test_status_sub_modul_baru_sudah_bila_semua_poin_sudah(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->getJson('/api/papan/E.3')->assertJsonPath('status', 'akan');
+
+        $sisa = PapanButir::query()->where('status', 'akan')->firstOrFail();
+
+        $this->patchJson("/api/papan/E.3/butir/{$sisa->id}/status", ['status' => 'sudah'])
+            ->assertOk()
+            ->assertJsonPath('status_sub_modul', 'sudah');
+
+        $this->getJson('/api/papan/E.3')->assertJsonPath('status', 'sudah');
+    }
+
     public function test_pindah_dengan_status_tidak_sah_ditolak_validasi(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->patchJson('/api/papan/E.3/status', ['status' => 'ngarang'])
+        $poin = PapanButir::query()->firstOrFail();
+
+        $this->patchJson("/api/papan/E.3/butir/{$poin->id}/status", ['status' => 'ngarang'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('status');
     }
@@ -94,7 +123,14 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->patchJson('/api/papan/Z.9/status', ['status' => 'sedang'])->assertStatus(404);
+        $this->patchJson('/api/papan/Z.9/butir/1/status', ['status' => 'sedang'])->assertStatus(404);
+    }
+
+    public function test_pindah_poin_yang_tidak_ada_menjawab_404(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->patchJson('/api/papan/E.3/butir/99999/status', ['status' => 'sedang'])->assertStatus(404);
     }
 
     public function test_tambah_dan_hapus_butir(): void
@@ -115,7 +151,9 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['admin']));
 
-        $this->patchJson('/api/papan/E.3/status', ['status' => 'sedang'])->assertOk();
+        $poin = PapanButir::query()->where('status', 'akan')->firstOrFail();
+
+        $this->patchJson("/api/papan/E.3/butir/{$poin->id}/status", ['status' => 'sedang'])->assertOk();
     }
 
     /**
@@ -151,10 +189,13 @@ class PapanApiTest extends TestCase
             'modul_id' => $modul->id,
             'kode' => 'E.3',
             'nama' => 'Rekap & Tutup Buku Kas',
-            'status' => 'akan',
             'urutan' => 1,
         ]);
 
-        $item->butir()->create(['status' => 'akan', 'deskripsi' => 'Rekap per kas.', 'urutan' => 1]);
+        // Dua poin: satu sudah, satu akan. Status sub-modulnya turunan, jadi
+        // fixture ini sekaligus membuktikan E.3 dianggap "akan" (masih ada
+        // sisa), bukan "sudah" walau ada poin yang selesai.
+        $item->butir()->create(['status' => 'sudah', 'deskripsi' => 'Rekap per kas.', 'urutan' => 1]);
+        $item->butir()->create(['status' => 'akan', 'deskripsi' => 'Ekspor rekap.', 'urutan' => 2]);
     }
 }

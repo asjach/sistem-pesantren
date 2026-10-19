@@ -10,20 +10,67 @@ use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
- * Operasi baca-tulis papan perkembangan proyek (koneksi \`papan\`).
+ * Operasi baca-tulis papan perkembangan proyek (koneksi `papan`).
  *
  * Satu pintu supaya aturan berikut berlaku di semua jalur (command artisan
- * maupun API nanti):
+ * maupun API):
  * - status hanya boleh salah satu dari {@see self::STATUS};
- * - perpindahan status selalu meninggalkan jejak di \`papan_riwayat\`;
+ * - status yang BERARTI ada di POIN (butir), bukan di sub-modul;
+ * - status sub-modul adalah TURUNAN dari poin-poinnya, bukan kolom tersendiri;
+ * - perpindahan status selalu meninggalkan jejak di `papan_riwayat`;
  * - kode sub-modul (mis. "E.3") unik per modul.
+ *
+ * Catatan model: sub-modul sengaja TIDAK menyimpan statusnya sendiri. Kalau
+ * status ada di dua tempat, keduanya bisa saling bertentangan (sub-modul
+ * bilang "sudah" padahal masih ada poin "akan"), dan tidak jelas mana yang
+ * benar. Dengan hanya poin yang berstatus, papan selalu konsisten.
  */
 class PapanService
 {
     public const STATUS = ['sudah', 'sedang', 'akan', 'ditunda'];
 
     /**
+     * Status sub-modul yang DITURUNKAN dari status poin-poinnya.
+     *
+     * Aturannya, berurutan:
+     * 1. belum punya poin        -> `akan` (belum dikerjakan);
+     * 2. ada poin `sedang`        -> `sedang` (sedang berjalan);
+     * 3. ada poin `akan`          -> `akan` (masih ada sisa);
+     * 4. semua poin `ditunda`     -> `ditunda`;
+     * 5. selain itu (semua sudah) -> `sudah`.
+     *
+     * Urutan ini penting: satu poin `akan` saja sudah membuat sub-modul
+     * tidak dianggap selesai, walau mayoritas poinnya `sudah`.
+     *
+     * @param  array<int, array<string, mixed>>  $butir
+     */
+    public static function statusTurunan(array $butir): string
+    {
+        if ($butir === []) {
+            return 'akan';
+        }
+
+        $ada = array_count_values(array_map(fn (array $b) => (string) $b['status'], $butir));
+
+        if (($ada['sedang'] ?? 0) > 0) {
+            return 'sedang';
+        }
+
+        if (($ada['akan'] ?? 0) > 0) {
+            return 'akan';
+        }
+
+        if (($ada['sudah'] ?? 0) === 0) {
+            return 'ditunda';
+        }
+
+        return 'sudah';
+    }
+
+    /**
      * Ringkasan seluruh papan: modul -> sub-modul -> butir.
+     *
+     * Status sub-modul di sini adalah hasil turunan, bukan kolom database.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -38,16 +85,21 @@ class PapanService
                 'nama' => $m->nama,
                 'urut' => (int) $m->urutan,
                 'catatan' => $m->catatan,
-                'sub' => $m->item->map(fn (PapanItem $i) => [
-                    'kode' => $i->kode,
-                    'nama' => $i->nama,
-                    'status' => $i->status,
-                    'rujukan' => $i->rujukan,
-                    'butir' => $i->butir->map(fn (PapanButir $b) => [
+                'sub' => $m->item->map(function (PapanItem $i) {
+                    $butir = $i->butir->map(fn (PapanButir $b) => [
+                        'id' => $b->id,
                         'status' => $b->status,
                         'deskripsi' => $b->deskripsi,
-                    ])->all(),
-                ])->all(),
+                    ])->all();
+
+                    return [
+                        'kode' => $i->kode,
+                        'nama' => $i->nama,
+                        'status' => self::statusTurunan($butir),
+                        'rujukan' => $i->rujukan,
+                        'butir' => $butir,
+                    ];
+                })->all(),
             ])
             ->all();
     }
@@ -64,42 +116,75 @@ class PapanService
         if ($item === null) {
             $tersedia = PapanItem::query()->orderBy('kode')->pluck('kode')->implode(', ');
 
-            throw new InvalidArgumentException("Sub-modul \`{$kode}\` tidak ada. Yang tersedia: {$tersedia}.");
+            throw new InvalidArgumentException(
+                "Sub-modul `{$kode}` tidak ada. Yang tersedia: {$tersedia}."
+            );
         }
 
         return $item;
     }
 
     /**
-     * Pindahkan status sebuah sub-modul dan catat jejaknya.
+     * Cari satu poin (butir) lewat id-nya, sekaligus sub-modul induknya.
      *
-     * @param  string  $kode  kode sub-modul, mis. "E.3"
-     * @param  string  $status  salah satu {@see self::STATUS}
-     * @param  string  $oleh  pencatat: \`agent\` atau \`pengguna\`
-     * @param  string|null  $catatan  alasan singkat perpindahan
+     * @return array{butir: PapanButir, item: PapanItem}
      *
-     * @throws InvalidArgumentException bila status atau kode tidak sah
+     * @throws InvalidArgumentException bila kode sub-modul atau id poin tidak ada
      */
-    public function pindah(string $kode, string $status, string $oleh = 'agent', ?string $catatan = null): PapanItem
+    public function butir(string $kode, int $butirId): array
     {
-        if (! in_array($status, self::STATUS, true)) {
+        $item = $this->item($kode);
+
+        $butir = PapanButir::query()
+            ->where('item_id', $item->id)
+            ->where('id', $butirId)
+            ->first();
+
+        if ($butir === null) {
             throw new InvalidArgumentException(
-                "Status \`{$status}\` tidak dikenal. Pakai salah satu: ".implode(', ', self::STATUS).'.'
+                "Poin `#{$butirId}` tidak ada di sub-modul `{$kode}`."
             );
         }
 
-        $item = $this->item($kode);
-        $asal = $item->status;
+        return ['butir' => $butir, 'item' => $item];
+    }
+
+    /**
+     * Pindahkan status sebuah POIN dan catat jejaknya.
+     *
+     * Ini satu-satunya operasi yang mengubah status: sub-modul mengikuti
+     * secara turunan, jadi tidak ada yang perlu disinkronkan manual.
+     *
+     * @param  string  $kode  kode sub-modul induk, mis. "E.3"
+     * @param  int  $butirId  id poin
+     * @param  string  $status  salah satu {@see self::STATUS}
+     * @param  string  $oleh  pencatat: `agent` atau `pengguna`
+     * @param  string|null  $catatan  alasan singkat perpindahan
+     *
+     * @throws InvalidArgumentException bila status, kode, atau id tidak sah
+     */
+    public function pindahButir(
+        string $kode,
+        int $butirId,
+        string $status,
+        string $oleh = 'agent',
+        ?string $catatan = null,
+    ): PapanButir {
+        $this->pastikanStatus($status);
+
+        ['butir' => $butir, 'item' => $item] = $this->butir($kode, $butirId);
+        $asal = $butir->status;
 
         if ($asal === $status && $catatan === null) {
-            return $item;
+            return $butir;
         }
 
-        DB::connection('papan')->transaction(function () use ($item, $asal, $status, $oleh, $catatan) {
-            $item->update(['status' => $status]);
+        DB::connection('papan')->transaction(function () use ($butir, $item, $asal, $status, $oleh, $catatan) {
+            $butir->update(['status' => $status]);
 
             PapanRiwayat::create([
                 'item_id' => $item->id,
+                'butir_id' => $butir->id,
                 'dari_status' => $asal,
                 'ke_status' => $status,
                 'catatan' => $catatan,
@@ -108,21 +193,17 @@ class PapanService
             ]);
         });
 
-        return $item->refresh();
+        return $butir->refresh();
     }
 
     /**
-     * Tambah butir di bawah sebuah sub-modul.
+     * Tambah poin di bawah sebuah sub-modul.
      *
-     * @param  string  $status  status butir, salah satu {@see self::STATUS}
+     * @param  string  $status  status poin, salah satu {@see self::STATUS}
      */
     public function tambahButir(string $kode, string $status, string $deskripsi): PapanButir
     {
-        if (! in_array($status, self::STATUS, true)) {
-            throw new InvalidArgumentException(
-                "Status \`{$status}\` tidak dikenal. Pakai salah satu: ".implode(', ', self::STATUS).'.'
-            );
-        }
+        $this->pastikanStatus($status);
 
         $item = $this->item($kode);
 
@@ -137,9 +218,8 @@ class PapanService
     }
 
     /**
-     * Hapus satu butir milik sebuah sub-modul.
+     * Hapus satu poin milik sebuah sub-modul.
      *
-     * @param  int  $butirId  id butir
      * @return bool true bila terhapus, false bila tidak ada / bukan milik kode itu
      */
     public function hapusButir(string $kode, int $butirId): bool
@@ -153,14 +233,14 @@ class PapanService
     }
 
     /**
-     * Riwayat perpindahan status, terbaru lebih dulu.
+     * Riwayat perpindahan status POIN, terbaru lebih dulu.
      *
      * @return array<int, array<string, mixed>>
      */
     public function riwayat(?string $kode = null, int $batas = 20): array
     {
         return PapanRiwayat::query()
-            ->with('item')
+            ->with(['item', 'butir'])
             ->when($kode !== null, fn ($q) => $q->whereHas('item', fn ($w) => $w->where('kode', $kode)))
             ->orderByDesc('waktu')
             ->orderByDesc('id')
@@ -168,6 +248,7 @@ class PapanService
             ->get()
             ->map(fn (PapanRiwayat $r) => [
                 'kode' => $r->item?->kode,
+                'butir' => $r->butir?->deskripsi,
                 'dari' => $r->dari_status,
                 'ke' => $r->ke_status,
                 'catatan' => $r->catatan,
@@ -178,18 +259,36 @@ class PapanService
     }
 
     /**
-     * Hitung jumlah sub-modul per status.
+     * Hitung jumlah POIN per status, plus jumlah sub-modul per status turunan.
      *
-     * @return array<string, int>
+     * @return array{butir: array<string, int>, sub: array<string, int>}
      */
     public function ringkasan(): array
     {
-        $hasil = array_fill_keys(self::STATUS, 0);
+        $butir = array_fill_keys(self::STATUS, 0);
 
-        foreach (PapanItem::query()->selectRaw('status, count(*) as jumlah')->groupBy('status')->get() as $baris) {
-            $hasil[$baris->status] = (int) $baris->jumlah;
+        foreach (PapanButir::query()->selectRaw('status, count(*) as jumlah')->groupBy('status')->get() as $baris) {
+            $butir[$baris->status] = (int) $baris->jumlah;
         }
 
-        return $hasil;
+        $sub = array_fill_keys(self::STATUS, 0);
+
+        foreach ($this->semua() as $modul) {
+            foreach ($modul['sub'] as $s) {
+                $sub[$s['status']] += 1;
+            }
+        }
+
+        return ['butir' => $butir, 'sub' => $sub];
+    }
+
+    /** @throws InvalidArgumentException bila status tidak dikenal */
+    private function pastikanStatus(string $status): void
+    {
+        if (! in_array($status, self::STATUS, true)) {
+            throw new InvalidArgumentException(
+                "Status `{$status}` tidak dikenal. Pakai salah satu: ".implode(', ', self::STATUS).'.'
+            );
+        }
     }
 }

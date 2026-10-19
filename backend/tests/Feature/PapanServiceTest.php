@@ -12,8 +12,11 @@ use Tests\TestCase;
 
 /**
  * Logika papan perkembangan proyek: validasi status, jejak riwayat, dan
- * operasi butir. Memakai koneksi \`papan\` (SQLite terpisah) — skema dibangun
- * sekali di setUp karena \`RefreshDatabase\` hanya menyentuh koneksi default.
+ * operasi poin. Memakai koneksi `papan` (SQLite terpisah) — skema dibangun
+ * sekali di setUp karena `RefreshDatabase` hanya menyentuh koneksi default.
+ *
+ * Sejak status pindah ke POIN, test di sini memindahkan butir (bukan
+ * sub-modul) dan memeriksa bahwa status sub-modulnya ikut mengikuti.
  */
 class PapanServiceTest extends TestCase
 {
@@ -30,15 +33,17 @@ class PapanServiceTest extends TestCase
         $this->papan = app(PapanService::class);
     }
 
-    public function test_pindah_mengubah_status_dan_mencatat_riwayat(): void
+    public function test_pindah_butir_mengubah_status_dan_mencatat_riwayat(): void
     {
-        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', 'akan');
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan']);
+        $butir = $item->butir()->firstOrFail();
 
-        $item = $this->papan->pindah('E.3', 'sedang', 'agent', 'Mulai rekap per kas');
+        $hasil = $this->papan->pindahButir('E.3', (int) $butir->id, 'sedang', 'agent', 'Mulai rekap per kas');
 
-        $this->assertSame('sedang', $item->status);
+        $this->assertSame('sedang', $hasil->status);
         $this->assertDatabaseHas('papan_riwayat', [
             'item_id' => $item->id,
+            'butir_id' => $butir->id,
             'dari_status' => 'akan',
             'ke_status' => 'sedang',
             'catatan' => 'Mulai rekap per kas',
@@ -48,35 +53,45 @@ class PapanServiceTest extends TestCase
 
     public function test_pindah_menolak_status_di_luar_daftar(): void
     {
-        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', 'akan');
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan']);
 
         $this->expectException(InvalidArgumentException::class);
 
-        $this->papan->pindah('E.3', 'ngarang');
+        $this->papan->pindahButir('E.3', (int) $item->butir()->firstOrFail()->id, 'ngarang');
     }
 
     public function test_pindah_menolak_kode_yang_tidak_ada(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
-        $this->papan->pindah('Z.9', 'sedang');
+        $this->papan->pindahButir('Z.9', 1, 'sedang');
+    }
+
+    public function test_pindah_menolak_butir_yang_tidak_ada(): void
+    {
+        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan']);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->papan->pindahButir('E.3', 99999, 'sedang');
     }
 
     public function test_pindah_ke_status_sama_tanpa_catatan_tidak_menambah_riwayat(): void
     {
-        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', 'akan');
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan']);
 
-        $this->papan->pindah('E.3', 'akan');
+        $this->papan->pindahButir('E.3', (int) $item->butir()->firstOrFail()->id, 'akan');
 
         $this->assertSame(0, PapanRiwayat::count());
     }
 
     public function test_riwayat_urut_terbaru_lebih_dulu(): void
     {
-        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', 'akan');
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan']);
+        $id = (int) $item->butir()->firstOrFail()->id;
 
-        $this->papan->pindah('E.3', 'sedang', 'agent', 'mulai');
-        $this->papan->pindah('E.3', 'sudah', 'pengguna', 'selesai');
+        $this->papan->pindahButir('E.3', $id, 'sedang', 'agent', 'mulai');
+        $this->papan->pindahButir('E.3', $id, 'sudah', 'pengguna', 'selesai');
 
         $baris = $this->papan->riwayat('E.3');
 
@@ -84,23 +99,27 @@ class PapanServiceTest extends TestCase
         $this->assertSame('sudah', $baris[0]['ke']);
         $this->assertSame('pengguna', $baris[0]['oleh']);
         $this->assertSame('sedang', $baris[1]['ke']);
+        // Riwayat kini menunjuk poin yang berpindah, bukan cuma sub-modul.
+        $this->assertSame('Rekap per kas.', $baris[0]['butir']);
     }
 
     public function test_tambah_butir_menempatkan_urutan_terakhir(): void
     {
-        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', 'akan');
+        // Sub-modul ini sudah punya satu poin, jadi poin baru harus menyusul
+        // di urutan berikutnya — bukan mengulang dari 1.
+        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan']);
 
-        $pertama = $this->papan->tambahButir('E.3', 'akan', 'Butir pertama.');
-        $kedua = $this->papan->tambahButir('E.3', 'sudah', 'Butir kedua.');
+        $kedua = $this->papan->tambahButir('E.3', 'akan', 'Butir kedua.');
+        $ketiga = $this->papan->tambahButir('E.3', 'sudah', 'Butir ketiga.');
 
-        $this->assertSame(1, $pertama->urutan);
         $this->assertSame(2, $kedua->urutan);
-        $this->assertSame('sudah', $kedua->status);
+        $this->assertSame(3, $ketiga->urutan);
+        $this->assertSame('sudah', $ketiga->status);
     }
 
     public function test_tambah_butir_menolak_status_di_luar_daftar(): void
     {
-        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', 'akan');
+        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan']);
 
         $this->expectException(InvalidArgumentException::class);
 
@@ -109,8 +128,8 @@ class PapanServiceTest extends TestCase
 
     public function test_hapus_butir_menolak_butir_milik_sub_modul_lain(): void
     {
-        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', 'akan');
-        $this->buatItem('E.4', 'Tunggakan', 'sudah');
+        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', []);
+        $this->buatItem('E.4', 'Tunggakan', []);
 
         $butir = $this->papan->tambahButir('E.4', 'akan', 'Milik E.4.');
 
@@ -118,38 +137,53 @@ class PapanServiceTest extends TestCase
         $this->assertDatabaseHas('papan_butir', ['id' => $butir->id], 'papan');
     }
 
-    public function test_ringkasan_menghitung_sub_modul_per_status(): void
+    public function test_ringkasan_memisahkan_poin_dan_sub_modul(): void
     {
-        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', 'akan');
-        $this->buatItem('E.4', 'Tunggakan', 'sudah');
-        $this->buatItem('E.5', 'Audit & Kontrol', 'sudah');
+        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan', 'sudah']);
+        $this->buatItem('E.4', 'Tunggakan', ['sudah', 'sudah']);
 
         $ringkasan = $this->papan->ringkasan();
 
-        $this->assertSame(2, $ringkasan['sudah']);
-        $this->assertSame(1, $ringkasan['akan']);
-        $this->assertSame(0, $ringkasan['sedang']);
-        $this->assertSame(0, $ringkasan['ditunda']);
+        // Poin: 3 sudah, 1 akan.
+        $this->assertSame(3, $ringkasan['butir']['sudah']);
+        $this->assertSame(1, $ringkasan['butir']['akan']);
+        // Sub-modul turunan: E.4 sudah (semua poinnya sudah), E.3 masih akan.
+        $this->assertSame(1, $ringkasan['sub']['sudah']);
+        $this->assertSame(1, $ringkasan['sub']['akan']);
     }
 
-    /** Buat modul + sub-modul minimal untuk pengujian. */
-    private function buatItem(string $kode, string $nama, string $status): PapanItem
+    /**
+     * Semua poin di sub-modul yang sama diberi status sama; yang menentukan
+     * status sub-modul adalah sebaran poinnya, bukan nilai di sub-modul itu.
+     *
+     * @param  array<int, string>  $statusButir
+     */
+    private function buatItem(string $kode, string $nama, array $statusButir = []): PapanItem
     {
         $modul = PapanModul::query()->firstOrCreate(
             ['kode' => 'E'],
             ['nama' => 'Keuangan', 'urutan' => 1],
         );
 
-        return PapanItem::create([
+        $item = PapanItem::create([
             'modul_id' => $modul->id,
             'kode' => $kode,
             'nama' => $nama,
-            'status' => $status,
             'urutan' => 1,
         ]);
+
+        foreach ($statusButir as $i => $status) {
+            $item->butir()->create([
+                'status' => $status,
+                'deskripsi' => $i === 0 ? 'Rekap per kas.' : 'Butir '.($i + 1).'.',
+                'urutan' => $i + 1,
+            ]);
+        }
+
+        return $item;
     }
 
-    /** Bangun skema papan di koneksi \`papan\` (in-memory saat tes). */
+    /** Bangun skema papan di koneksi `papan` (in-memory saat tes). */
     private function siapkanSkema(): void
     {
         config()->set('database.connections.papan.database', ':memory:');

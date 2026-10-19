@@ -28,14 +28,24 @@ Sehari-hari, status dibaca dan diubah lewat command — bukan menyunting markdow
 
 | Perintah | Guna |
 |---|---|
-| `php artisan papan:lihat` | Daftar modul, sub-modul, dan butirnya |
+| `php artisan papan:lihat` | Daftar modul, sub-modul, dan poinnya (dengan sebaran status) |
 | `php artisan papan:lihat E.3` | Satu sub-modul saja |
-| `php artisan papan:lihat --riwayat` | Riwayat perpindahan status |
-| `php artisan papan:tandai E.3 sedang --catatan="..."` | Pindahkan status |
-| `php artisan papan:butir tambah E.3 --deskripsi="..."` | Tambah butir |
-| `php artisan papan:butir hapus E.3 --id=128` | Hapus butir |
+| `php artisan papan:lihat --riwayat` | Riwayat perpindahan status poin |
+| `php artisan papan:tandai E.3 128 sedang --catatan="..."` | Pindahkan satu **poin** |
+| `php artisan papan:butir tambah E.3 --deskripsi="..."` | Tambah poin |
+| `php artisan papan:butir hapus E.3 --id=128` | Hapus poin |
 | `php artisan papan:markdown` | Pratinjau markdown hasil papan (tidak menulis) |
 | `php artisan papan:markdown --tulis` | Tulis ulang berkas ini dari papan |
+
+**Yang bergerak itu poin, bukan sub-modul.** Setiap poin berstatus sendiri
+(`sudah` | `sedang` | `akan` | `ditunda`), dan status sub-modul **dihitung otomatis**
+dari poin-poinnya: ada poin `sedang` → sub-modul `sedang`; kalau tidak, ada poin
+`akan` → `akan`; semua `ditunda` → `ditunda`; selain itu (semua sudah) → `sudah`.
+Jadi satu poin yang belum selesai sudah cukup menahan sub-modul tetap `akan`.
+
+Konsekuensinya, di UI satu sub-modul bisa muncul di beberapa kolom sekaligus —
+memang begitu yang diinginkan: `E.3` yang separuh selesai tampil sebagai kartu di
+kolom **Sudah** dan **Akan** bersamaan.
 
 Bagian A–G di berkas ini **dihasilkan** `papan:markdown --tulis`; bagian H ke
 bawah dipertahankan apa adanya. Jadi setelah mengubah status lewat command,
@@ -101,7 +111,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## A.5 Dashboard Ringkas `SUDAH`
+## A.5 Dashboard Ringkas `AKAN`
 **SUDAH**
 - `GET /api/dashboard/ringkasan` menyajikan blok lembaga, santri, pegawai, keuangan, siklus, dan PSB.
 - Tiap blok digerbangi izin modulnya dan bernilai null bila akun tak berizin.
@@ -163,7 +173,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## C.2 Kurikulum & Mata Pelajaran (201) `SUDAH`
+## C.2 Kurikulum & Mata Pelajaran (201) `AKAN`
 **SUDAH**
 - Tiga halaman jalan: Mata Pelajaran (KKM dan urutan), Pengampu (kelas × mapel → guru), Jadwal Pelajaran.
 - Jadwal memakai slot per jenjang dan menolak bentrok kelas maupun bentrok guru.
@@ -179,7 +189,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 # D. Penilaian
 
-## D.1 Nilai & Peristiwa (202) `SUDAH`
+## D.1 Nilai & Peristiwa (202) `AKAN`
 **SUDAH**
 - Nilai diikat per peristiwa (PTS, ASAS, ASAT, UJIAN, UAP), bukan per semester.
 - Komponen dan bobot bisa bersumber manual, dari rapor tingkat sebelumnya, atau dari peristiwa lain.
@@ -194,7 +204,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 - Bobot UJIAN bawaan (UM 60 / Rata-rata Rapor 40) masih placeholder, menunggu kebijakan pesantren.
 - Salin peristiwa dari tahun ajaran sebelumnya; kini tiap TA dibuat ulang atau klik "Muat bawaan".
 
-## D.2 Cetak Rapor `SUDAH`
+## D.2 Cetak Rapor `AKAN`
 **SUDAH**
 - Rapor per santri dan per kelas dengan kop, identitas, nilai + terbilang, rekap, dan halaman 2.
 - Cek kelengkapan kelas; tombol cetak terkunci selama masih ada santri yang nilainya belum lengkap.
@@ -211,7 +221,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 # E. Keuangan
 
-## E.1 Tagihan & Tarif `SUDAH`
+## E.1 Tagihan & Tarif `AKAN`
 **SUDAH**
 - Master jenis tagihan dan tarif per lembaga/tahun ajaran.
 - Generate tagihan satu layar tanpa duplikat: bulanan terbayar dilewati, dispensasi dan kuota diterapkan otomatis.
@@ -223,7 +233,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## E.2 Kasir & Kwitansi `SUDAH`
+## E.2 Kasir & Kwitansi `AKAN`
 **SUDAH**
 - Kasir harian, pencatatan pembayaran, batal/hapus transaksi dengan saldo terkunci barisnya.
 - Kwitansi cetak dan cetak ulang, baik dari dialog setelah bayar maupun dari tabel harian.
@@ -248,7 +258,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - Tarif per asrama belum diakomodasi; menunggu modul 505 dibuka.
 
-## E.4 Tunggakan `SUDAH`
+## E.4 Tunggakan `AKAN`
 **SUDAH**
 - Crosstab tunggakan per santri/kelas dan dasbor ringkas (total tagihan, terbayar, tunggakan).
 **SEDANG**
@@ -274,7 +284,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 # F. Portal & Klien
 
-## F.1 Portal Wali (203) `SUDAH`
+## F.1 Portal Wali (203) `AKAN`
 **SUDAH**
 - Jalur PSB lanjutan, riwayat keluarga, dan pengajuan biodata (satu aktif per santri, bisa dibatalkan).
 **SEDANG**
@@ -285,7 +295,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## F.2 Klien Desktop admin-desktop-tauri `SUDAH`
+## F.2 Klien Desktop admin-desktop-tauri `AKAN`
 **SUDAH**
 - 48 halaman dalam 10 grup navigasi, dengan dua mode: lembaga dan pesantren.
 - Dijaga 123 file tes; klien ini untuk `super_admin` dan `admin` lembaga saja.
@@ -309,7 +319,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 # G. Pasca Production
 
-## G.1 Presensi Santri (500) `SUDAH`
+## G.1 Presensi Santri (500) `AKAN`
 **SUDAH**
 - Tabel `sesi_presensi`, `presensi_santri`, dan `pelanggaran_santri` sudah dibuat.
 **SEDANG**
@@ -319,7 +329,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## G.2 Presensi Pegawai (501) `SUDAH`
+## G.2 Presensi Pegawai (501) `AKAN`
 **SUDAH**
 - Tabel `presensi_pegawai` sudah dibuat.
 **SEDANG**
@@ -339,7 +349,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## G.4 Tahfizh (503) `SUDAH`
+## G.4 Tahfizh (503) `AKAN`
 **SUDAH**
 - Tabel `target_tahfiz`, `setoran_tahfiz`, dan `rekap_tahfiz_santri` sudah dibuat.
 **SEDANG**

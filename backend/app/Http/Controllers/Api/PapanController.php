@@ -44,7 +44,7 @@ class PapanController extends Controller
         return response()->json(['riwayat' => $this->papan->riwayat($kode, $batas)]);
     }
 
-    /** Satu sub-modul beserta butirnya. */
+    /** Satu sub-modul beserta poin-poinnya. */
     public function show(string $kode): JsonResponse
     {
         try {
@@ -53,20 +53,28 @@ class PapanController extends Controller
             return response()->json(['message' => $e->getMessage()], 404);
         }
 
+        $butir = $item->butir->map(fn ($b) => [
+            'id' => $b->id,
+            'status' => $b->status,
+            'deskripsi' => $b->deskripsi,
+        ])->all();
+
         return response()->json([
             'kode' => $item->kode,
             'nama' => $item->nama,
-            'status' => $item->status,
-            'butir' => $item->butir->map(fn ($b) => [
-                'id' => $b->id,
-                'status' => $b->status,
-                'deskripsi' => $b->deskripsi,
-            ])->all(),
+            // Status sub-modul diturunkan, bukan dibaca dari kolom.
+            'status' => PapanService::statusTurunan($butir),
+            'butir' => $butir,
         ]);
     }
 
-    /** Pindahkan status sebuah sub-modul. */
-    public function pindah(Request $request, string $kode): JsonResponse
+    /**
+     * Pindahkan status sebuah POIN di dalam sub-modul.
+     *
+     * Status sub-modul ikut berubah sendiri karena diturunkan dari poinnya;
+     * nilainya dikembalikan agar klien tidak perlu menghitung ulang.
+     */
+    public function pindah(Request $request, string $kode, int $butir): JsonResponse
     {
         $valid = $request->validate([
             'status' => ['required', 'string', 'in:'.implode(',', PapanService::STATUS)],
@@ -74,8 +82,9 @@ class PapanController extends Controller
         ]);
 
         try {
-            $item = $this->papan->pindah(
+            $poin = $this->papan->pindahButir(
                 $kode,
+                $butir,
                 $valid['status'],
                 'pengguna',
                 $valid['catatan'] ?? null,
@@ -84,10 +93,19 @@ class PapanController extends Controller
             return response()->json(['message' => $e->getMessage()], 404);
         }
 
+        $item = $this->papan->item($kode)->load('butir');
+
+        $semua = $item->butir->map(fn ($b) => [
+            'id' => $b->id,
+            'status' => $b->status,
+            'deskripsi' => $b->deskripsi,
+        ])->all();
+
         return response()->json([
             'kode' => $item->kode,
-            'nama' => $item->nama,
-            'status' => $item->status,
+            'id' => $poin->id,
+            'status' => $poin->status,
+            'status_sub_modul' => PapanService::statusTurunan($semua),
             ...$this->segarkanMarkdown(),
         ]);
     }
