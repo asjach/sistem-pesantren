@@ -18,6 +18,29 @@ const TOKEN_KEY = 'simpes_token';
 const USER_KEY = 'simpes_user';
 const BASE_URL_KEY = 'simpes_base_url';
 
+let sessionVersion = 0;
+let sessionWrite: Promise<void> = Promise.resolve();
+
+export function getSessionVersion(): number {
+  return sessionVersion;
+}
+
+function invalidateSessionContext(): void {
+  sessionVersion++;
+  getCache.clear();
+  inFlightGet.clear();
+}
+
+function assertCurrentSession(version: number): void {
+  if (version !== sessionVersion) throw new DOMException('Sesi permintaan sudah berubah.', 'AbortError');
+}
+
+function writeSession(work: () => Promise<void>): Promise<void> {
+  const next = sessionWrite.then(work, work);
+  sessionWrite = next.catch(() => {});
+  return next;
+}
+
 /** Lembaga yang sedang "diperankan" (mode bertindak sebagai lembaga) — dikirim
  *  sebagai header X-Lembaga-Aktif. `null` = mode penuh. */
 let lembagaAktifId: string | null = null;
@@ -179,7 +202,8 @@ async function tokenDel(): Promise<void> {
   await kvDel(TOKEN_KEY);
 }
 
-export function getToken(): Promise<string | null> {
+export async function getToken(): Promise<string | null> {
+  await sessionWrite;
   return tokenGet();
 }
 
@@ -188,12 +212,16 @@ export const prefGet = kvGet;
 export const prefSet = kvSet;
 
 export async function setSession(token: string, user: unknown): Promise<void> {
-  await tokenSet(token);
-  await kvSet(USER_KEY, JSON.stringify(user));
+  invalidateSessionContext();
+  await writeSession(async () => {
+    await tokenSet(token);
+    await kvSet(USER_KEY, JSON.stringify(user));
+  });
 }
 
 export async function clearSession(): Promise<void> {
-  await Promise.all([tokenDel(), kvDel(USER_KEY)]);
+  invalidateSessionContext();
+  await writeSession(async () => { await Promise.all([tokenDel(), kvDel(USER_KEY)]); });
 }
 
 export async function getBaseUrl(): Promise<string> {
@@ -221,10 +249,12 @@ export async function setBaseUrl(url: string): Promise<void> {
   if (u.protocol === 'http:' && !isLoopback(u.hostname)) {
     throw new Error('http:// hanya diizinkan untuk localhost/127.0.0.1. Gunakan https:// untuk host lain.');
   }
+  invalidateSessionContext();
   await kvSet(BASE_URL_KEY, clean);
 }
 
 export async function resetBaseUrl(): Promise<void> {
+  invalidateSessionContext();
   await kvDel(BASE_URL_KEY);
 }
 
@@ -266,6 +296,7 @@ function messageOf(body: unknown, fallback: string): string {
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const version = sessionVersion;
   const method = (init.method ?? 'GET').toUpperCase();
 
   // Setiap request tulis membatalkan cache GET referensi agar data tak basi
@@ -277,7 +308,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   // daftar referensi yang sama serentak. Permintaan ber-`signal` (abortable)
   // tidak digabung agar pembatalan satu pemanggil tak mengganggu yang lain.
   if (method === 'GET' && !init.signal) {
-    const kunci = `${lembagaAktifId ?? ''}|${path}`;
+    const kunci = `${version}|${lembagaAktifId ?? ''}|${path}`;
     if (bolehCache(path)) {
       const c = getCache.get(kunci);
       if (c && Date.now() - c.at < GET_TTL_MS) return c.value as T;
@@ -286,6 +317,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (ada) return ada as Promise<T>;
     const p = apiMentah<T>(path, init)
       .then((v) => {
+        assertCurrentSession(version);
         if (bolehCache(path)) getCache.set(kunci, { at: Date.now(), value: v });
         return v;
       })
@@ -317,7 +349,9 @@ function bolehCache(path: string): boolean {
 }
 
 async function apiMentah<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const version = sessionVersion;
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
+  assertCurrentSession(version);
   let res: Response;
   try {
     res = await fetch(`${base}${path}`, {
@@ -333,7 +367,7 @@ async function apiMentah<T>(path: string, init: RequestInit = {}): Promise<T> {
   } catch {
     throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
   }
-  return parseResponse<T>(res);
+  return parseResponse<T>(res, version);
 }
 
 /**
@@ -343,7 +377,9 @@ async function apiMentah<T>(path: string, init: RequestInit = {}): Promise<T> {
  */
 export async function ambilBerkas(path: string): Promise<ArrayBuffer> {
   getCache.clear();
+  const version = sessionVersion;
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
+  assertCurrentSession(version);
   let res: Response;
   try {
     res = await fetch(`${base}${path}`, {
@@ -360,21 +396,25 @@ export async function ambilBerkas(path: string): Promise<ArrayBuffer> {
     throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
   }
 
+  assertCurrentSession(version);
   if (!res.ok) {
     if (res.status === 401) {
-      await clearSession();
-      emitUnauthorized();
+      await expireSession(version);
     }
     throw new ApiError(res.status, { message: await res.text().catch(() => 'Berkas tidak dapat dibaca.') });
   }
 
-  return res.arrayBuffer();
+  const bytes = await res.arrayBuffer();
+  assertCurrentSession(version);
+  return bytes;
 }
 
 /** POST multipart (upload file): tanpa header Content-Type agar boundary otomatis. */
 export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
   getCache.clear();
+  const version = sessionVersion;
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
+  assertCurrentSession(version);
   let res: Response;
   try {
     res = await fetch(`${base}${path}`, {
@@ -389,16 +429,22 @@ export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
   } catch {
     throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
   }
-  return parseResponse<T>(res);
+  return parseResponse<T>(res, version);
 }
 
-async function parseResponse<T>(res: Response): Promise<T> {
+async function expireSession(version: number): Promise<void> {
+  if (version !== sessionVersion) return;
+  await clearSession();
+  if (sessionVersion === version + 1) emitUnauthorized();
+}
+
+async function parseResponse<T>(res: Response, version: number): Promise<T> {
   const text = await res.text();
+  assertCurrentSession(version);
   const body: unknown = text ? safeJson(text) : null;
   if (!res.ok) {
     if (res.status === 401) {
-      await clearSession();
-      emitUnauthorized();
+      await expireSession(version);
     }
     throw new ApiError(res.status, body);
   }
@@ -430,7 +476,9 @@ export async function simpanUnduhan(nama: string, data: Uint8Array): Promise<voi
 
 /** Unduh file ber-token (template/impor): fetch blob → simpan unduhan. */
 export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  const version = sessionVersion;
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
+  assertCurrentSession(version);
   let res: Response;
   try {
     res = await fetch(`${base}${path}`, {
@@ -444,18 +492,21 @@ export async function downloadFile(path: string, fallbackName: string): Promise<
   } catch {
     throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
   }
+  assertCurrentSession(version);
   if (!res.ok) {
     if (res.status === 401) {
-      await clearSession();
-      emitUnauthorized();
+      await expireSession(version);
     }
     throw new ApiError(res.status, await res.text().catch(() => null));
   }
   const blob = await res.blob();
+  assertCurrentSession(version);
   const disposisi = res.headers.get('Content-Disposition') ?? '';
   const match = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(disposisi);
   const nama = match ? decodeURIComponent(match[1].replace(/"/g, '')) : fallbackName;
-  await simpanUnduhan(nama, new Uint8Array(await blob.arrayBuffer()));
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  assertCurrentSession(version);
+  await simpanUnduhan(nama, bytes);
 }
 
 function safeJson(text: string): unknown {

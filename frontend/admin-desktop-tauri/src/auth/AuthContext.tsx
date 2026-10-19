@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { isDesktopRoleAllowed, me, type Me } from '../api/auth';
-import { AUTH_EXPIRED_EVENT, getToken, clearSession } from '../api/client';
+import { AUTH_EXPIRED_EVENT, getToken, getSessionVersion, clearSession } from '../api/client';
 
 interface AuthState {
   user: Me | null;
@@ -16,27 +16,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let alive = true;
+    const version = getSessionVersion();
+    const current = () => alive && version === getSessionVersion();
     (async () => {
-      if (!await getToken()) {
+      const token = await getToken();
+      if (!current()) return;
+      if (!token) {
         setLoading(false);
         return;
       }
       try {
         const u = await me();
+        if (!current()) return;
         // Sesi lama milik peran portal (orang_tua/santri) tidak boleh dipakai.
         if (!isDesktopRoleAllowed(u)) {
           await clearSession();
-          setUser(null);
+          if (alive && getSessionVersion() === version + 1) setUser(null);
           return;
         }
         setUser(u);
       } catch {
-        await clearSession();
-        setUser(null);
+        if (current()) setUser(null);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     })();
+    return () => { alive = false; };
   }, []);
 
   // 401 dari request mana pun (api/apiUpload/downloadFile) → keluar ke login.
@@ -47,8 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function logoutLocal() {
+    const version = getSessionVersion() + 1;
     await clearSession();
-    setUser(null);
+    if (getSessionVersion() === version) setUser(null);
   }
 
   return (
