@@ -79,6 +79,20 @@ class DokumenHalamanTest extends TestCase
         $this->withHeader('X-Lembaga-Aktif', 'MI')->get('/api/admin/dokumen/santri/'.$dok->id.'/unduh')->assertOk();
     }
 
+    public function test_izin_dokumen_mengikuti_tipe_endpoint(): void
+    {
+        $this->fixture();
+        foreach (['santri', 'pegawai', 'lembaga'] as $tipe) {
+            $user = User::create(['name' => 'Petugas', 'email' => uniqid().'@example.com', 'password' => 'password']);
+            $user->givePermissionTo('dokumen_'.$tipe.'.lihat');
+            $this->actingAs($user, 'sanctum');
+            foreach (['santri', 'pegawai', 'lembaga'] as $endpoint) {
+                $response = $this->getJson('/api/admin/dokumen/'.$endpoint);
+                $endpoint === $tipe ? $response->assertOk() : $response->assertForbidden();
+            }
+        }
+    }
+
     public function test_daftar_simpan_unduh_hapus_dokumen_lembaga(): void
     {
         $this->fixture();
