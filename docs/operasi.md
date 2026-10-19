@@ -17,7 +17,7 @@
 | ---- | ------------------------------------------------------------------------- | ----------- | --------------- |
 | G0   | 001-004 fondasi                                                           | Desktop     | Production awal |
 | G1   | 100 PSB Penerimaan, 101 Santri Master, 102 Siklus Santri                  | Desktop     | Production awal |
-| G2   | Modul Keuangan (master tarif, generate tagihan, kasir, crosstab, dispensasi) | Desktop     | **Live (fondasi)** — 13 fitur lanjutan belum dikerjakan ([PETA-MODUL.md](PETA-MODUL.md) bagian I.1) |
+| G2   | Modul Keuangan (master tarif, generate tagihan, kasir, crosstab, dispensasi) | Desktop     | **Live (fondasi)** — 13 fitur lanjutan belum dikerjakan ([PETA-MODUL.md](PETA-MODUL.md) bagian E.3) |
 | G3   | 100 daftar, 203 Portal Wali subset                                        | Mobile ortu | Backend sebagian; app belum dibuat |
 | G4+  | 500–505 (presensi, tahfizh, asrama), notif/gateway                        | Menyusul    | Pasca, TBD      |
 
@@ -145,9 +145,9 @@ daftar pekerjaan yang sudah jelas.
 **Masih terbuka (butuh keputusan pengguna):**
 
 - **Format penomoran kwitansi runut** — pola `KW-MI-2026-000123` baru usulan;
-  perlu ditetapkan sebelum dikerjakan (peta bagian I.1 butir 7).
+  perlu ditetapkan sebelum dikerjakan (peta bagian E.3 butir 7).
 - **Bobot UJIAN bawaan** — kini placeholder UM 60 / Rata-rata Rapor 40; menunggu
-  kebijakan pesantren (peta bagian I.2).
+  kebijakan pesantren (peta bagian D.1).
 - **Tarif per asrama** — belum diakomodasi; keputusan tetap ditunda sampai
   modul 505 dibuka (lihat TBD asrama di bawah).
 - **Aturan peringkat rapor** — cutoff 3/10/semua sudah jadi parameter cetak,

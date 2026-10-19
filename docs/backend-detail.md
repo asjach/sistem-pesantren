@@ -668,7 +668,7 @@ data (§7), konvensi API (§8), dan NFR (§9).
 - `kelas_lulus_id` alumni sudah live (v2.52).
 - Catatan lama "keuangan dikerjakan paling akhir" **sudah tidak berlaku** —
   keuangan sudah live (fondasi). Urutan butir lanjutan keuangan ada di
-  [PETA-MODUL.md](PETA-MODUL.md) bagian I.1. Catatan itu ditulis saat keuangan masih
+  [PETA-MODUL.md](PETA-MODUL.md) bagian E.3. Catatan itu ditulis saat keuangan masih
   belum dirumuskan ulang (pra v2.286).
 
 ### 12. Out of scope

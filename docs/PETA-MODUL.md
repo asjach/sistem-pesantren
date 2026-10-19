@@ -8,7 +8,7 @@
 - **Aturan menulis:** setiap perubahan status/rencana **wajib** mengubah file ini
   lebih dulu. Bila peta dan kode berbeda, peta yang salah — perbaiki peta.
 - **Aturan mengisi:** tiap deskripsi **1–2 kalimat**, bukan daftar fitur. Rincian
-  teknis butir sisa ada di bagian I.
+  teknis butir sisa ada di bagian H (sedang) dan I (lainnya).
 
 ## Cara baca
 
@@ -93,46 +93,80 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 # D. Penilaian
 
-## D.1 Penilaian (202)
+## D.1 Nilai & Peristiwa (202)
 **SUDAH**
 - Nilai diikat per peristiwa (PTS, ASAS, ASAT, UJIAN, UAP), bukan per semester.
 - Komponen dan bobot bisa bersumber manual, dari rapor tingkat sebelumnya, atau dari peristiwa lain.
 - Leger crosstab per peristiwa bisa diunduh Excel; rapor lengkap bisa dicetak per santri maupun per kelas.
-- Empat template impor lewat mesin `import-potong`; ada cek kelengkapan kelas sebelum cetak.
+- Empat template impor lewat mesin `import-potong`.
 
 **AKAN**
-- Kunci semester dan jejak cetak agar nilai tak berubah setelah rapor pertama dicetak.
-- Cetak massal satu kelas dalam sekali klik.
-- Absensi otomatis dari `presensi_santri` untuk mengisi kolom sakit/izin/alpa.
-- Unduh data existing di dialog impor.
-- Snapshot nama dan gelar penanda tangan saat batch pertama dicetak.
+- Kunci impor/edit setelah batch rapor pertama dicetak, plus log cetak berisi siapa, kapan, dan berapa santri.
+- Buka-kunci dengan alasan tercatat, karena mengubah nilai setelah rapor beredar harus bisa diaudit.
 
 **DITUNDA**
 - Bobot UJIAN bawaan (UM 60 / Rata-rata Rapor 40) masih placeholder, menunggu kebijakan pesantren.
-- Salin peristiwa dari tahun ajaran sebelumnya.
+- Salin peristiwa dari tahun ajaran sebelumnya; kini tiap TA dibuat ulang atau klik "Muat bawaan".
+
+## D.2 Cetak Rapor
+**SUDAH**
+- Rapor per santri dan per kelas dengan kop, identitas, nilai + terbilang, rekap, dan halaman 2.
+- Cek kelengkapan kelas; tombol cetak terkunci selama masih ada santri yang nilainya belum lengkap.
+
+**AKAN**
+- Cetak massal satu kelas dalam sekali klik, dengan parameter peringkat sekali per batch.
+- Snapshot nama dan gelar penanda tangan saat batch pertama dicetak agar cetak ulang identik.
+- Absensi otomatis dari `sesi_presensi`/`presensi_santri`; kolom leger jadi override bila presensi kosong.
+- Tombol unduh data existing di dialog impor, memakai pola `data-existing`.
 
 # E. Keuangan
 
-## E.1 Keuangan (G2)
+## E.1 Tagihan & Tarif
 **SUDAH**
-- Master jenis tagihan dan tarif per lembaga/tahun ajaran; generate tagihan satu layar tanpa duplikat.
-- Kasir harian, kwitansi cetak dan cetak ulang, crosstab tagihan, dispensasi, grup custom.
-- Batal dan hapus transaksi dengan penyesuaian saldo yang terkunci barisnya.
+- Master jenis tagihan dan tarif per lembaga/tahun ajaran.
+- Generate tagihan satu layar tanpa duplikat: bulanan terbayar dilewati, dispensasi dan kuota diterapkan otomatis.
+- Crosstab tagihan, dispensasi, dan grup santri custom.
 
 **AKAN**
-- Rekap penerimaan per posisi kas (tunai TU, bank lembaga, bank pesantren) per tanggal atau periode.
-- Laporan tunggakan aging 30/60/90+ hari sebagai dasar surat tagihan.
+- Kartu piutang per santri lintas tahun ajaran, bisa dicetak sebagai surat tagihan resmi.
+
+## E.2 Kasir & Kwitansi
+**SUDAH**
+- Kasir harian, pencatatan pembayaran, batal/hapus transaksi dengan saldo terkunci barisnya.
+- Kwitansi cetak dan cetak ulang, baik dari dialog setelah bayar maupun dari tabel harian.
+
+**AKAN**
 - Penomoran kwitansi runut per lembaga/kas/tahun menggantikan hex acak.
+- Split payment: satu kwitansi boleh gabungan metode atau kas, dengan rincian sub-bayar.
+
+**CATATAN**
+- Format nomor kwitansi (mis. `KW-MI-2026-000123`) belum ditetapkan; perlu keputusan dulu.
+
+## E.3 Rekap & Tutup Buku Kas
+**AKAN**
+- Rekap penerimaan per posisi kas (tunai TU, bank lembaga, bank pesantren) per tanggal atau periode.
 - Mutasi kas harian untuk melihat arus masuk per kas per hari.
-- Tutup buku harian untuk mengunci tanggal yang sudah direkonsiliasi.
-- Jejak audit: log siapa mencatat, membatalkan, atau menghapus transaksi.
-- Maker-checker pembatalan agar pencatat tidak sekaligus menyetujui pembatalan.
-- Kartu piutang per santri lintas tahun ajaran.
-- Split payment: satu kwitansi boleh gabungan metode atau kas.
-- Pengingat tunggakan, dan ekspor laporan ke Excel/PDF.
+- Tutup buku harian yang menolak tambah/batal/hapus mundur, dengan jalur buka-kunci beralasan.
 
 **DITUNDA**
 - Tarif per asrama belum diakomodasi; menunggu modul 505 dibuka.
+
+## E.4 Tunggakan
+**SUDAH**
+- Crosstab tunggakan per santri/kelas dan dasbor ringkas (total tagihan, terbayar, tunggakan).
+
+**AKAN**
+- Laporan aging 30/60/90+ hari dari `jatuh_tempo` sebagai dasar surat tagihan.
+- Pengingat tunggakan: penanda di crosstab; WhatsApp menyusul lewat modul notifikasi G8.
+
+**DITUNDA**
+- Tren penerimaan bulanan dan rincian per tahun ajaran di dasbor.
+
+## E.5 Audit & Kontrol
+**AKAN**
+- Jejak audit: log siapa mencatat, membatalkan, atau menghapus transaksi, dengan alasan wajib.
+- Maker-checker pembatalan agar pencatat tidak sekaligus menyetujui pembatalan.
+- Ekspor laporan ke Excel/PDF untuk crosstab, transaksi harian, rekap per jenis, dan tunggakan.
 
 # F. Portal & Klien
 
@@ -216,74 +250,42 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 # H. SEDANG DIKERJAKAN
 
 **Kosong.** Tidak ada sub-modul yang disetujui sebagai pekerjaan berjalan.
-Kandidat berikutnya: rekap per kas dan ekspor laporan (bagian I.1).
+Kandidat berikutnya: rekap per kas dan tutup buku kas (bagian E.3).
 
 ---
 
-# I. RINCIAN TEKNIS BUTIR SISA
+# I. RINCIAN TEKNIS LAINNYA
 
-Bagian ini memuat hal teknis yang terlalu rinci untuk bagian A–G: endpoint,
-tabel, service, halaman, dan keputusan yang masih menggantung.
+Bagian ini memuat hal teknis yang terlalu rinci untuk masuk ke bagian A–G, dan
+tidak terikat pada modul Keuangan maupun Penilaian.
 
-## I.1 Keuangan
+## I.1 Kurikulum & Mata Pelajaran (201)
 
-### I.1.1 Rekap per kas + ekspor laporan
-- **BE:** endpoint agregasi baru (mis. `GET /keuangan/rekap-kas`) menjumlah `transaksi_pembayaran` per kolom `kas`.
-- **FE:** tab rekap dengan tabel per posisi kas, plus unduh Excel memakai pola `unduhLeger` yang sudah ada.
-- **Keputusan:** belum ada endpoint apa pun untuk ini; izin memakai `keuangan.lihat`.
+### I.1.1 Jadwal per guru
+- **FE:** tampilan jadwal dari sudut guru; saat ini baru per kelas.
 
-### I.1.2 Laporan tunggakan aging
-- **BE:** agregasi umur piutang 30/60/90+ dari `jatuh_tempo` per santri, kelas, atau lembaga.
-- **FE:** halaman aging sebagai dasar surat tagihan. Baca-saja, tidak menyentuh aturan tulis.
+### I.1.2 Cetak & unduh jadwal per kelas
+- **FE:** keluaran cetak/Excel untuk jadwal yang sudah tersusun.
 
-### I.1.3 Penomoran kwitansi runut
-- **Keputusan dulu:** format nomor, mis. `KW-MI-2026-000123`, runut per lembaga/kas/tahun.
-- **BE:** kolom nomor plus penghasil urut (tabel counter atau `MAX+1` terkunci); menggantikan hex acak.
+### I.1.3 Salin mapel antar tahun ajaran
+- **FE:** kelas tingkat atas menyalin daftar mapel dari tingkat bawah.
 
-### I.1.4 Mutasi kas dan tutup buku harian
-- **BE:** agregasi harian per kas, lalu tabel tanggal terkunci yang menolak tambah/batal/hapus mundur.
-- **Perlu:** jalur buka-kunci beralasan, karena ini menyentuh aturan tulis.
+### I.1.4 Tes tersisa
+- Endpoint yang belum tertulis: `kurikulum/slot` CRUD penuh, `guruAktif`, `indexMapel` filter.
+- `KurikulumPengampuPage` belum punya tes komponen.
 
-### I.1.5 Jejak audit dan maker-checker
-- **BE:** tabel log baru berisi siapa mencatat, membatalkan, atau menghapus, dengan alasan wajib.
-- **Urutan:** maker-checker dikerjakan setelah jejak audit karena bergantung pada log dan alasan.
+## I.2 Portal
 
-### I.1.6 Sisa butir keuangan
-- Kartu piutang per santri lintas tahun ajaran, bisa dicetak sebagai surat tagihan resmi.
-- Split payment: rincian sub-bayar di `transaksi_pembayaran` — perubahan bentuk data.
-- Pengingat tunggakan: penanda di crosstab; WhatsApp menyusul lewat modul notifikasi G8.
-- Ekspor laporan lain: crosstab, transaksi harian, rekap per jenis, dan tunggakan.
+### I.2.1 Dashboard portal wali
+- **BE:** agregator baca-saja lewat rute `portal/*` dengan penjaga `role:orang_tua`.
 
-## I.2 Penilaian
+### I.2.2 Ringkasan tagihan di portal
+- **BE:** tagihan milik anak, dibaca dari akun wali.
 
-### I.2.1 Kunci semester dan jejak cetak
-- **BE:** kunci impor/edit setelah batch rapor pertama dicetak, plus log cetak berisi siapa, kapan, dan berapa santri.
-- **Perlu:** buka-kunci dengan alasan tercatat.
+### I.2.3 Aktor santri
+- **BE:** peran `santri` sudah ada, tetapi belum punya rute portal sendiri.
 
-### I.2.2 Cetak massal dan snapshot penanda tangan
-- **FE:** pilih kelas, pratinjau, lalu cetak semua; parameter peringkat sekali per batch.
-- **BE:** bekukan nama dan gelar wali/kepala saat batch pertama dicetak agar cetak ulang identik.
-
-### I.2.3 Absensi otomatis dan unduh data existing
-- **BE:** hitung ketidakhadiran dari `sesi_presensi`/`presensi_santri`; kolom leger jadi override bila presensi kosong.
-- **FE:** tombol unduh data existing di dialog impor, memakai pola `data-existing`.
-
-## I.3 Kurikulum
-
-### I.3.1 Sisa pekerjaan kurikulum
-- Jadwal dari sudut guru; saat ini baru per kelas.
-- Cetak dan unduh jadwal per kelas.
-- Salin mapel antar tahun ajaran: kelas tingkat atas dari tingkat bawah.
-- Tes endpoint yang belum tertulis: `kurikulum/slot` CRUD penuh, `guruAktif`, `indexMapel` filter.
-
-## I.4 Portal
-
-### I.4.1 Sisa pekerjaan portal
-- **BE:** agregator baca-saja untuk dashboard wali lewat rute `portal/*`.
-- **BE:** ringkasan tagihan milik anak dari akun wali.
-- **BE:** aktor santri — perannya ada, tetapi belum punya rute portal.
-
-## I.5 Keputusan Offline
+## I.3 Keputusan Offline
 
 Lampiran F `operasi.md` (OFF-01…OFF-09) masih berstatus keputusan desain dan
 belum diimplementasikan. Bila mulai dikerjakan, pindahkan butirnya ke bagian A–G
