@@ -61,4 +61,22 @@ describe('isolasi respons antar sesi', () => {
       window.removeEventListener(c.AUTH_EXPIRED_EVENT, expired);
     }
   });
+  it('pengecualian act-as hanya berlaku pada request opsi lembaga', async () => {
+    const pending = deferred<Response>();
+    const fetcher = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValueOnce(new Response('{}'));
+    vi.stubGlobal('fetch', fetcher);
+    const c = await import('./client');
+    await c.setSession('admin', {});
+    c.setLembagaAktifHeader('MTS');
+    const opsi = c.api('/admin/lembaga', { tanpaPeran: true });
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    const biasa = c.api('/admin/keuangan/tagihan');
+    c.setLembagaAktifHeader('MI');
+    await biasa;
+    expect(fetcher.mock.calls[0][1].headers['X-Lembaga-Aktif']).toBeUndefined();
+    expect(fetcher.mock.calls[1][1].headers['X-Lembaga-Aktif']).toBe('MTS');
+    pending.resolve(new Response('{}'));
+    await opsi;
+  });
+
 });

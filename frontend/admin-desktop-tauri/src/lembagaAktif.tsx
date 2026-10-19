@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { prefGet, prefSet, setLembagaAktifHeader, tanpaHeaderPeran } from '@/api/client';
+import { prefGet, prefSet, setLembagaAktifHeader } from '@/api/client';
 import { isDesktopRoleAllowed, me } from '@/api/auth';
 import { listLembaga } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
@@ -146,7 +146,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
         // Opsi peran act-as: selalu penuh agar tombol banner lengkap.
         if (peranSuper) {
           try {
-            const p = await tanpaHeaderPeran(() => listLembaga({ per_page: 1000 }));
+            const p = await listLembaga({ per_page: 1000, tanpaPeran: true });
             daftarPeran = p.data.map((l) => ({ jenjang: l.jenjang, nama: l.nama }));
           } catch {
             daftarPeran = [];

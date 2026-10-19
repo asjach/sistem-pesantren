@@ -49,23 +49,9 @@ export function setLembagaAktifHeader(id: string | null): void {
   lembagaAktifId = id;
 }
 
-function headerLembaga(): Record<string, string> {
+function headerLembaga(tanpaPeran = false): Record<string, string> {
+  if (tanpaPeran) return {};
   return lembagaAktifId != null ? { 'X-Lembaga-Aktif': String(lembagaAktifId) } : {};
-}
-
-/**
- * Jalankan request tanpa header peran act-as (mode penuh sementara).
- * Dipakai mengambil opsi peran super_admin: daftar lembaga ter-scope saat
- * bertindak, sehingga tanpa ini tombol banner menyusut ke peran aktif saja.
- */
-export async function tanpaHeaderPeran<T>(kerja: () => Promise<T>): Promise<T> {
-  const simpan = lembagaAktifId;
-  lembagaAktifId = null;
-  try {
-    return await kerja();
-  } finally {
-    lembagaAktifId = simpan;
-  }
 }
 
 /** Event global saat sesi kedaluwarsa (401) — didengar AuthProvider. */
@@ -295,7 +281,9 @@ function messageOf(body: unknown, fallback: string): string {
   return fallback;
 }
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+export type ApiInit = RequestInit & { tanpaPeran?: boolean };
+
+export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
   const version = sessionVersion;
   const method = (init.method ?? 'GET').toUpperCase();
 
@@ -308,7 +296,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   // daftar referensi yang sama serentak. Permintaan ber-`signal` (abortable)
   // tidak digabung agar pembatalan satu pemanggil tak mengganggu yang lain.
   if (method === 'GET' && !init.signal) {
-    const kunci = `${version}|${lembagaAktifId ?? ''}|${path}`;
+    const kunci = `${version}|${init.tanpaPeran ? '' : lembagaAktifId ?? ''}|${path}`;
     if (bolehCache(path)) {
       const c = getCache.get(kunci);
       if (c && Date.now() - c.at < GET_TTL_MS) return c.value as T;
@@ -348,19 +336,21 @@ function bolehCache(path: string): boolean {
   return CACHE_PATH.some((p) => path === p || path.startsWith(`${p}?`) || path.startsWith(`${p}/`));
 }
 
-async function apiMentah<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function apiMentah<T>(path: string, init: ApiInit = {}): Promise<T> {
   const version = sessionVersion;
+  const { tanpaPeran, ...fetchInit } = init;
+  const peranHeaders = headerLembaga(tanpaPeran);
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   assertCurrentSession(version);
   let res: Response;
   try {
     res = await fetch(`${base}${path}`, {
-      ...init,
+      ...fetchInit,
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headerLembaga(),
+        ...peranHeaders,
         ...(init.headers ?? {}),
       },
     });
@@ -378,6 +368,7 @@ async function apiMentah<T>(path: string, init: RequestInit = {}): Promise<T> {
 export async function ambilBerkas(path: string): Promise<ArrayBuffer> {
   getCache.clear();
   const version = sessionVersion;
+  const peranHeaders = headerLembaga();
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   assertCurrentSession(version);
   let res: Response;
@@ -389,7 +380,7 @@ export async function ambilBerkas(path: string): Promise<ArrayBuffer> {
       headers: {
         Accept: '*/*',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headerLembaga(),
+        ...peranHeaders,
       },
     });
   } catch {
@@ -413,6 +404,7 @@ export async function ambilBerkas(path: string): Promise<ArrayBuffer> {
 export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
   getCache.clear();
   const version = sessionVersion;
+  const peranHeaders = headerLembaga();
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   assertCurrentSession(version);
   let res: Response;
@@ -423,7 +415,7 @@ export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
       headers: {
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headerLembaga(),
+        ...peranHeaders,
       },
     });
   } catch {
@@ -477,6 +469,7 @@ export async function simpanUnduhan(nama: string, data: Uint8Array): Promise<voi
 /** Unduh file ber-token (template/impor): fetch blob → simpan unduhan. */
 export async function downloadFile(path: string, fallbackName: string): Promise<void> {
   const version = sessionVersion;
+  const peranHeaders = headerLembaga();
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   assertCurrentSession(version);
   let res: Response;
@@ -486,7 +479,7 @@ export async function downloadFile(path: string, fallbackName: string): Promise<
       headers: {
         Accept: '*/*',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headerLembaga(),
+        ...peranHeaders,
       },
     });
   } catch {
