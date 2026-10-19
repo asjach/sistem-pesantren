@@ -816,7 +816,9 @@ class TagihanController extends Controller
            (kompatibel lama) = semua, sama seperti 'aktif'. */
         $anggotaCustom = null;
         if ($data['kelompok'] === 'custom' && isset($data['grup_custom_id'])) {
-            $anggotaCustom = array_flip(GrupSantriCustom::find($data['grup_custom_id'])
+            $grup = GrupSantriCustom::tenantScope()->find($data['grup_custom_id']);
+            abort_unless($grup, 403, 'Grup di luar lingkup lembaga Anda.');
+            $anggotaCustom = array_flip($grup
                 ?->santri()->pluck('santri.id')->map(fn ($v) => (int) $v)->all() ?? []);
         }
         foreach ($peta as $id => $info) {

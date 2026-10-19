@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Dispensasi;
+use App\Models\GrupSantriCustom;
 use App\Models\JenisTagihan;
 use App\Models\Lembaga;
 use App\Models\LembagaPegawai;
@@ -162,5 +163,20 @@ class AuditKeuanganTenantTest extends TestCase
         $this->assertSame('Pegawai MTS', $asing->fresh()->nama_lengkap);
         $this->getJson('/api/admin/pegawai/'.$asing->id.'/penempatan')->assertForbidden();
         $this->postJson('/api/admin/pegawai/'.$asing->id.'/tempatkan', ['jenjang' => 'MI'])->assertForbidden();
+    }
+
+    public function test_grup_custom_dan_anggotanya_mengikuti_scope_lembaga(): void
+    {
+        $asing = GrupSantriCustom::create(['nama' => 'Grup MTS', 'jenjang' => 'MTS']);
+        $milik = GrupSantriCustom::create(['nama' => 'Grup MI', 'jenjang' => 'MI']);
+        $anakAsing = $this->santri('MTS');
+        $milik->santri()->attach($anakAsing->id); // Data lama yang sudah telanjur campur.
+        $this->actingAs($this->actor());
+        $this->getJson('/api/admin/keuangan/grup-custom')->assertOk()->assertJsonCount(1)->assertJsonCount(0, '0.santri');
+        $this->patchJson('/api/admin/keuangan/grup-custom/'.$asing->id, ['nama' => 'Pindah', 'jenjang' => 'MI'])->assertForbidden();
+        $this->deleteJson('/api/admin/keuangan/grup-custom/'.$asing->id)->assertForbidden();
+        $this->postJson('/api/admin/keuangan/grup-custom/'.$milik->id.'/anggota', ['santri_ids' => [$anakAsing->id]])->assertForbidden();
+        $this->deleteJson('/api/admin/keuangan/grup-custom/'.$asing->id.'/anggota/'.$anakAsing->id)->assertForbidden();
+        $this->postJson('/api/admin/keuangan/grup-custom', ['nama' => 'Grup lama tanpa jenjang'])->assertCreated()->assertJsonPath('jenjang', 'MI');
     }
 }
