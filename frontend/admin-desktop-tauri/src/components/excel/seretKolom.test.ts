@@ -29,15 +29,13 @@ describe('pindahKolom', () => {
   });
 
   it('indeks di luar rentang dijepit, bukan melempar', () => {
-    // `dari` -5 → 0; `ke` 2 = sisip sebelum indeks 2 daftar asal = 'a'
-    // berpindah melewati 'b'.
+
     expect(pindahKolom(A, -5, 2)).toEqual(['b', 'a', 'c', 'd']);
     expect(pindahKolom(A, 99, 0)).toEqual(['d', 'a', 'b', 'c']);
   });
 
   it('`ke` adalah indeks sisip pada daftar ASAL (ke=1 untuk item ke-0 = no-op)', () => {
-    // Penting untuk kalibrasi UI: kursor di separuh kiri kolom ke-1
-    // menghasilkan ke=1, dan itu memang belum memindahkan apa pun.
+
     expect(pindahKolom(A, 0, 1)).toEqual(['a', 'b', 'c', 'd']);
     expect(pindahKolom(A, 0, 2)).toEqual(['b', 'a', 'c', 'd']);
   });
@@ -57,8 +55,7 @@ describe('seretKolom — kalibrasi jalur lepas (indeks sisip -> urutan baru)', (
   const K = ['nama', 'urutan', 'sumber', 'tampil'];
 
   it('seret kolom pertama melewati titik tengah kolom ketiga', () => {
-    // Inilah yang terjadi di browser: kursor di tengah 'sumber' (indeks 2)
-    // menghasilkan sisip=3 pada daftar asal.
+
     expect(pindahKolom(K, 0, 3)).toEqual(['urutan', 'sumber', 'nama', 'tampil']);
   });
 
@@ -71,9 +68,8 @@ describe('seretKolom — kalibrasi jalur lepas (indeks sisip -> urutan baru)', (
   });
 });
 
-
 describe('lepasSah — gerbang pelepasan seret', () => {
-  // Geometri nyata dari browser: header y=104..130, kolom x=395..906.
+
   const HEADER = { top: 104, bottom: 130, height: 26 };
   const BATAS = [395, 509, 725, 849];
   const LEBAR = [57, 108, 62, 57];
@@ -93,7 +89,7 @@ describe('lepasSah — gerbang pelepasan seret', () => {
   });
 
   it('MENOLAK pelepasan jauh di kiri deretan kolom (x=50)', () => {
-    // Inilah bug yang terbukti di browser: kolom terakhir meloncat ke depan.
+
     expect(lepasSah(HEADER, BATAS, LEBAR, 50, 117)).toBe(false);
   });
 
@@ -115,8 +111,7 @@ describe('lepasSah — gerbang pelepasan seret', () => {
   });
 
   it('rentang mendatar memakai kolom TERUKUR, bukan lebar .dsg-row-header', () => {
-    // `.dsg-row-header` di halaman itu hanya x=251..665 dan tak mencakup
-    // kolom lengket kanan; memakainya akan meloloskan x=50 sebagai sah.
+
     expect(lepasSah(HEADER, BATAS, LEBAR, 50, 117)).toBe(false);
     expect(lepasSah(HEADER, BATAS, LEBAR, 660, 117)).toBe(true);
   });
@@ -141,19 +136,17 @@ describe('dxPerKolom — geseran visual pratinjau hidup', () => {
   });
 
   it('lebar tak seragam → susunannya KOMPAK, tidak sekadar bertukar tempat', () => {
-    // a(144) b(50) c(72) mulai di 0/144/194. Memindahkan a ke belakang harus
-    // merapatkan b,c di depan (0 & 50), bukan menaruh b di posisi lama a.
+
     const kiri = { a: 0, b: 144, c: 194 };
     const lebar = { a: 144, b: 50, c: 72 };
     expect(dxPerKolom(kiri, lebar, ['b', 'c', 'a'])).toEqual({ a: 122, b: -144, c: -144 });
-    // Kolom paling kanan pada susunan baru berakhir tepat di ujung kolom lain:
-    // 0 + 50 + 72 = 122 untuk a, dan c berakhir di 122 juga — rapat, tanpa tumpang tindih.
+
   });
 
   it('titik awal diambil dari kolom TERUKUR paling kiri (grid bisa digulir)', () => {
     const kiri = { a: 500, b: 640, c: 760 };
     const lebar = { a: 140, b: 120, c: 90 };
-    // c (90) ke paling kiri, lalu a (140), lalu b (120) — semuanya rapat dari 500.
+
     expect(dxPerKolom(kiri, lebar, ['c', 'a', 'b'])).toEqual({ a: 90, b: 90, c: -260 });
   });
 
@@ -169,7 +162,7 @@ describe('dxPerKolom — geseran visual pratinjau hidup', () => {
 });
 
 describe('indeksSisip', () => {
-  // Tiga kolom lebar 100 mulai di x=0.
+
   const batas = [0, 100, 200];
   const lebar = [100, 100, 100];
 
@@ -184,7 +177,7 @@ describe('indeksSisip', () => {
   });
 
   it('tepat di titik tengah dihitung sebagai sesudah', () => {
-    // x == tengah kolom 0 (50) tidak < 50, jadi lanjut ke kolom berikutnya.
+
     expect(indeksSisip(batas, lebar, 50)).toBe(1);
   });
 
@@ -199,9 +192,7 @@ describe('indeksSisip', () => {
 });
 
 describe('sisipKePenuh — indeks potongan terlihat → daftar penuh', () => {
-  /* Kasus nyata: daftar 20 kolom, DSG hanya merender potongan indeks 12..16.
-     Kursor di kiri potongan memberi indeks lokal 0 — yang dulu dipakai
-     langsung sebagai indeks daftar penuh sehingga kolom meloncat ke awal. */
+
   const IFULL = [12, 13, 14, 15, 16];
 
   it('sisip sebelum kolom terukur pertama = indeks kolom itu di daftar penuh', () => {
@@ -223,7 +214,7 @@ describe('sisipKePenuh — indeks potongan terlihat → daftar penuh', () => {
   });
 
   it('potongan tak berurutan tetap memakai indeks kolom acuannya', () => {
-    // Terjadi bila ada kolom tersembunyi di antara yang terlihat.
+
     expect(sisipKePenuh([2, 5, 9], 1)).toBe(5);
     expect(sisipKePenuh([2, 5, 9], 3)).toBe(10);
   });

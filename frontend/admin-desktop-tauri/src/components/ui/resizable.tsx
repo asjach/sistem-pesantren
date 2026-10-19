@@ -46,7 +46,6 @@ function ResizableAutoHidePanel({
     onResize?.(size, id, previousSize);
   }, [onResize]);
 
-  // Ref gabungan: internal (untuk collapse/expand) + ref dari pemanggil.
   const setRefs = useCallback((node: PanelImperativeHandle | null) => {
     internalRef.current = node;
     if (typeof panelRef === 'function') {

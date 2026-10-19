@@ -22,8 +22,6 @@ import { TabelMemuat } from './components/excel/primitives';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 
-// Halaman lain dimuat saat rutenya dibuka (code splitting) — login & dashboard
-// tetap eager karena jadi tampilan pertama.
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const LembagaPage = lazy(() => import('./pages/LembagaPage'));
 const ReferensiPage = lazy(() => import('./pages/ReferensiPage'));
@@ -68,17 +66,8 @@ const KelolaIzinPage = lazy(() => import('./pages/KelolaIzinPage'));
 const KomponenPage = lazy(() => import('./pages/KomponenPage'));
 const PapanContohPage = lazy(() => import('./pages/PapanContohPage'));
 
-// Shell dipasang SEKALI sebagai rute induk: TopBar/ribbon + provider tetap
-// mounted saat pindah halaman. Suspense ada di dalam area konten sehingga
-// memuat halaman lazy hanya menukar isi <main>, bukan seluruh kerangka.
 function Shell() {
-  /* Batas galat per HALAMAN: galat render di isi halaman terkurung di dalam
-     <main>, jadi sidebar/topbar tetap hidup dan pengguna bisa pindah menu
-     untuk melanjutkan (sebelumnya satu galat melepas SELURUH pohon React →
-     jendela kosong). `key` = path rute supaya berpindah halaman otomatis
-     melepas batasnya dan render berikutnya dicoba bersih lagi — pengguna tak
-     perlu menekan apa pun. Batas ditaruh DI LUAR `Suspense` agar kegagalan
-     memuat potongan halaman (lazy chunk) ikut tertangkap. */
+
   const lokasi = useLocation();
   return (
     <ProtectedRoute>
@@ -147,10 +136,7 @@ export default function App() {
                     <Route element={<Shell />}>
                       <Route path="/" element={<KhususIzin izin="dashboard.lihat"><DashboardPage /></KhususIzin>} />
                       <Route path="/contoh-papan" element={<KhususIzin izin="dashboard.lihat"><PapanContohPage /></KhususIzin>} />
-                      {/* Data Induk: satu halaman, beberapa tab (Pengguna,
-                          Lembaga, Tahun Ajaran, Kelas, Buku Induk, Referensi).
-                          Rute tiap tab tetap rute lamanya agar pengaturan
-                          halaman, filter, dan tautan lama tak berubah. */}
+
                       <Route path="/data-induk" element={<ArahHalamanTabs def={HALAMAN_DATA_INDUK} />} />
                       <Route element={<HalamanTabs def={HALAMAN_DATA_INDUK} />}>
                         <Route path="/users" element={<KhususIzin izin="pengguna.lihat"><UsersPage /></KhususIzin>} />
@@ -164,9 +150,7 @@ export default function App() {
                       <Route path="/psb" element={<Navigate to="/psb/pendaftar" replace />} />
                       <Route path="/psb/:tahap" element={<KhususIzin izin="psb.lihat"><PsbPage /></KhususIzin>} />
                       <Route path="/kegiatan-psb" element={<KhususIzin izin="kegiatan_psb.lihat"><KegiatanPsbPage /></KhususIzin>} />
-                      {/* Penempatan (Pegawai): satu halaman, tiga tab (Pegawai,
-                          Lembaga Pegawai, Akun Pegawai) — pola sama dengan
-                          Penempatan santri; rute tab tetap rute lamanya. */}
+
                       <Route path="/penempatan-pegawai" element={<ArahHalamanTabs def={HALAMAN_PENEMPATAN_PEGAWAI} />} />
                       <Route element={<HalamanTabs def={HALAMAN_PENEMPATAN_PEGAWAI} />}>
                         <Route path="/pegawai" element={<KhususIzin izin="pegawai.lihat"><PegawaiPage /></KhususIzin>} />
@@ -174,9 +158,7 @@ export default function App() {
                         <Route path="/pegawai-akun" element={<KhususIzin izin="pegawai.lihat"><AkunPegawaiPage /></KhususIzin>} />
                       </Route>
                       <Route path="/pegawai-keaktifan" element={<KhususIzin izin="pegawai.lihat"><KeaktifanPegawaiPage /></KhususIzin>} />
-                      {/* Penempatan: satu halaman, tiga tab (Santri Per
-                          Lembaga, MI-MD, Riwayat Belajar) — pola sama dengan
-                          Data Induk; rute tab tetap rute lamanya. */}
+
                       <Route path="/penempatan" element={<ArahHalamanTabs def={HALAMAN_PENEMPATAN} />} />
                       <Route element={<HalamanTabs def={HALAMAN_PENEMPATAN} />}>
                         <Route path="/keanggotaan" element={<KhususIzin izin="santri.lihat"><KeanggotaanPage /></KhususIzin>} />
@@ -184,18 +166,14 @@ export default function App() {
                         <Route path="/riwayat-belajar" element={<KhususIzin izin="riwayat_belajar.lihat"><RiwayatBelajarPage /></KhususIzin>} />
                       </Route>
                       <Route path="/pindah-semester" element={<Navigate to="/riwayat-belajar" replace />} />
-                      {/* Santri Aktif: satu halaman, tiga tab (Daftar Kelas,
-                          Rekap, Pengajuan Biodata) — pola sama dengan
-                          Penempatan; rute tab tetap rute lamanya. */}
+
                       <Route path="/santri-aktif" element={<ArahHalamanTabs def={HALAMAN_SANTRI_AKTIF} />} />
                       <Route element={<HalamanTabs def={HALAMAN_SANTRI_AKTIF} />}>
                         <Route path="/daftar-kelas" element={<KhususIzin izin="daftar_kelas.lihat"><DaftarKelasPage /></KhususIzin>} />
                         <Route path="/rekap-santri" element={<KhususIzin izin="rekap_santri.lihat"><RekapSantriPage /></KhususIzin>} />
                         <Route path="/pengajuan-biodata" element={<KhususIzin izin="pengajuan_biodata.lihat"><PengajuanBiodataPage /></KhususIzin>} />
                       </Route>
-                      {/* Akademik: satu halaman, empat tab (Pindah Kelas,
-                          Mutasi Keluar, Kenaikan Kelas, Kelulusan) — pola
-                          sama dengan Penempatan; rute tab tetap rute lamanya. */}
+
                       <Route path="/akademik" element={<ArahHalamanTabs def={HALAMAN_AKADEMIK} />} />
                       <Route element={<HalamanTabs def={HALAMAN_AKADEMIK} />}>
                         <Route path="/pindah-kelas" element={<KhususIzin izin="pindah_kelas.lihat"><PindahKelasPage /></KhususIzin>} />
@@ -206,13 +184,12 @@ export default function App() {
                       <Route path="/keuangan" element={<KhususIzin izin="keuangan.lihat"><KeuanganPage /></KhususIzin>} />
                       <Route path="/keuangan/dispensasi" element={<KhususIzin izin="keuangan.lihat"><DispensasiPage /></KhususIzin>} />
                       <Route path="/pembayaran" element={<KhususIzin izin="keuangan.lihat"><PembayaranPage /></KhususIzin>} />
-                      {/* Modul Penilaian: master, impor nilai, leger, rapor. */}
+
                       <Route path="/penilaian/master" element={<KhususIzin izin="penilaian.lihat"><PenilaianMasterPage /></KhususIzin>} />
                       <Route path="/penilaian/impor" element={<KhususIzin izin="penilaian.lihat"><PenilaianImporPage /></KhususIzin>} />
                       <Route path="/penilaian/leger" element={<KhususIzin izin="penilaian.lihat"><PenilaianLegerPage /></KhususIzin>} />
                       <Route path="/penilaian/rapor" element={<KhususIzin izin="penilaian.lihat"><PenilaianRaporPage /></KhususIzin>} />
-                      {/* Modul Mapel & Pengampu (BLOK 5): master mapel, pengampu
-                          (kelas × mapel → guru), jadwal pelajaran. */}
+
                       <Route path="/kurikulum/mapel" element={<KhususIzin izin="kurikulum.lihat"><KurikulumMapelPage /></KhususIzin>} />
                       <Route path="/kurikulum/pengampu" element={<KhususIzin izin="kurikulum.lihat"><KurikulumPengampuPage /></KhususIzin>} />
                       <Route path="/kurikulum/jadwal" element={<KhususIzin izin="kurikulum.lihat"><KurikulumJadwalPage /></KhususIzin>} />
@@ -244,19 +221,13 @@ export default function App() {
                       />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Route>
-                    {/* Profil mandiri: TANPA kerangka aplikasi (tanpa sidebar,
-                        topbar, dan rail filter) — tujuannya jendela/tab yang
-                        hanya berisi profil, supaya mudah disandingkan dengan
-                        aplikasi lain. Tetap dijaga ProtectedRoute + izin, jadi
-                        jendela ini bukan celah akses. */}
+
                     <Route
                       path="/santri/:id/profil"
                       element={(
                         <ProtectedRoute>
                           <KhususIzin izin="santri.lihat">
-                            {/* Tanpa kerangka aplikasi → batas galat memenuhi
-                                jendela (tak ada area konten yang bisa dipakai
-                                lagi bila halamannya gagal). */}
+
                             <ErrorBoundary penuhLayar>
                               <Suspense fallback={<PageFallback />}>
                                 <ProfilSantriPage />

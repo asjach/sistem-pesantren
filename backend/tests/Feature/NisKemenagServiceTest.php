@@ -69,7 +69,6 @@ class NisKemenagServiceTest extends TestCase
         $a = $this->anggota('MI', '26001');
         $this->riwayat($a, '2026/2027');
 
-        // 123456789012 + YY(26) + 4 digit akhir nis_lokal (6001).
         $this->assertSame('123456789012266001', $this->svc->generate($a)->nis_kemenag);
     }
 
@@ -161,7 +160,6 @@ class NisKemenagServiceTest extends TestCase
         $a = $this->anggota('MI', '26001', '2025-07-01');
         $this->riwayat($a, '2026/2027', '2');
 
-        // YY dari tgl_masuk (2025 → 25), bukan TA 2026 di semester 2.
         $this->assertSame('123456789012256001', $this->svc->generate($a)->nis_kemenag);
     }
 

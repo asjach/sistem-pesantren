@@ -159,9 +159,7 @@ class PenempatanPegawaiTemplateExport extends DefaultValueBinder implements From
             $target = Coordinate::stringFromColumnIndex($posisi + 1);
             $batas = count($nilai) + 1;
             $validasi = new DataValidation;
-            // CATAT: atribut OOXML `showDropDown` INVERTED — writer PhpSpreadsheet menulis
-            // "0" saat properti true. Tanpa setShowDropDown(true), XML berisi "1" dan Excel
-            // MENGSEMBUNYIKAN panah dropdown (Reader/Xlsx/DataValidations.php:45).
+
             $validasi->setType(DataValidation::TYPE_LIST)
                 ->setShowDropDown(true)
                 ->setErrorStyle(DataValidation::STYLE_STOP)

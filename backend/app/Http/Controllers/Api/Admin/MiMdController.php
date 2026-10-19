@@ -236,7 +236,6 @@ class MiMdController extends Controller
         $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
         $berpasangan = Lembaga::pasanganJenjang($miId) === $mdId;
 
-        // Preload batch: satu query per jenis, bukan ~10 query per item.
         $idSantri = array_values(array_unique(array_map(
             static fn (array $i): int => (int) $i['santri_id'],
             $items,
@@ -262,7 +261,6 @@ class MiMdController extends Controller
             $riwayatAktif[(int) $riwayat->santri_id][(string) $riwayat->jenjang] = $riwayat;
         }
 
-        // Kelas senama di sisi tujuan jarang berubah dalam satu request; memo per kunci.
         /** @var array<string, Kelas|null> $cacheKelasTujuan */
         $cacheKelasTujuan = [];
         $cariKelasTujuan = function (string $jenjang, string $tahun, string $nama) use (&$cacheKelasTujuan): ?Kelas {
@@ -286,8 +284,6 @@ class MiMdController extends Controller
                 $acuanId = $keMi ? $mdId : $miId;
                 $tujuanId = $keMi ? $miId : $mdId;
 
-                // Samakan kelas: pemegang salah satu pihak pasangan boleh
-                // (cerminan daftarkan/hapus-md; tanpa pivot silang).
                 if (! $sepihak || ! $berpasangan) {
                     throw ValidationException::withMessages([
                         'santri_id' => 'Akses ditolak.',
@@ -310,9 +306,7 @@ class MiMdController extends Controller
 
                 $tujuan = $riwayatAktif[$idSantriItem][$tujuanId] ?? null;
                 if (! $tujuan) {
-                    // Sisi tujuan belum punya riwayat: buatkan (kelas senama
-                    // acuan), bukan gagal. TA mengikuti acuan bila berlaku di
-                    // sisi tujuan, else TA aktif sisi tujuan.
+
                     $taTujuan = TahunAjaran::efektif($tujuanId)->contains('nama', $acuan->tahun_ajaran)
                         ? $acuan->tahun_ajaran
                         : TahunAjaran::aktif($tujuanId)?->nama;
@@ -337,7 +331,6 @@ class MiMdController extends Controller
                     continue;
                 }
 
-                // Kelas senama di lembaga + TA berjalan sisi tujuan.
                 $namaNormal = mb_strtolower(preg_replace('/\s+/u', ' ', trim($namaAcuan)) ?? $namaAcuan);
                 $kelasTujuan = $cariKelasTujuan($tujuanId, (string) $tujuan->tahun_ajaran, $namaNormal);
                 if (! $kelasTujuan) {
@@ -382,7 +375,6 @@ class MiMdController extends Controller
         $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
         $berpasangan = Lembaga::pasanganJenjang($miId) === $mdId;
 
-        // Preload batch: peta santri + keanggotaan MI aktif sekali untuk semua item.
         $idSantri = array_values(array_unique(array_map(
             static fn (array $i): int => (int) $i['santri_id'],
             $items,
@@ -404,8 +396,6 @@ class MiMdController extends Controller
                 $santri = $petaSantri->get($idSantriItem)
                     ?? throw (new ModelNotFoundException)->setModel(Santri::class, [$idSantriItem]);
 
-                // Tulis ke MD; baca MI via pengecualian pasangan. Pemegang salah
-                // satu pihak boleh menulis ke pasangannya (tanpa pivot silang).
                 if (! $sepihak || ! $berpasangan) {
                     throw ValidationException::withMessages(['santri_id' => 'Akses ditolak.']);
                 }
@@ -415,7 +405,6 @@ class MiMdController extends Controller
                     throw ValidationException::withMessages(['santri_id' => 'Bukan anggota aktif MI.']);
                 }
 
-                // NIS mewarisi MI (kebijakan satu nomor); tgl_masuk hari ini.
                 $this->penerimaanService->pastikanKeanggotaan($santri, $mdId, [
                     'nis_lokal' => $mi->nis_lokal,
                     'tgl_masuk' => now()->format('Y-m-d'),
@@ -457,7 +446,6 @@ class MiMdController extends Controller
         $sepihak = $auth->canAccessLembaga($miId) || $auth->canAccessLembaga($mdId);
         $berpasangan = Lembaga::pasanganJenjang($miId) === $mdId;
 
-        // Preload batch: peta santri, keanggotaan MI/MD, dan arsip MD sekali untuk semua item.
         $idSantri = array_values(array_unique(array_map(
             static fn (array $i): int => (int) $i['santri_id'],
             $items,
@@ -486,13 +474,10 @@ class MiMdController extends Controller
                 $santri = $petaSantri->get($idSantriItem)
                     ?? throw (new ModelNotFoundException)->setModel(Santri::class, [$idSantriItem]);
 
-                // Hapus jejak MD: pemegang salah satu pihak pasangan boleh
-                // (cerminan daftarkan-md; tanpa pivot silang).
                 if (! $sepihak || ! $berpasangan) {
                     throw ValidationException::withMessages(['santri_id' => 'Akses ditolak.']);
                 }
 
-                // Hanya yang masih MI aktif (kembali menjadi MI Only).
                 if (! isset($miAktif[$idSantriItem])) {
                     throw ValidationException::withMessages(['santri_id' => 'Bukan anggota aktif MI.']);
                 }
@@ -500,7 +485,6 @@ class MiMdController extends Controller
                     throw ValidationException::withMessages(['santri_id' => 'Tidak ada keanggotaan MD.']);
                 }
 
-                // Arsip resmi ada → lewat halaman mutasi, bukan X.
                 if (isset($adaAlumni[$idSantriItem]) || isset($adaMutasi[$idSantriItem])) {
                     throw ValidationException::withMessages(['santri_id' => 'Sudah ada arsip MD — hapus via mutasi.']);
                 }

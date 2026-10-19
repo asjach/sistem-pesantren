@@ -114,7 +114,6 @@ describe('usePager', () => {
 
     act(() => result.current.setPage(10));
 
-    // Halaman 10 tak valid (lastPage 3) → dipindah ke 3 dan dikembalikan.
     let koreksi: number | null = null;
     act(() => {
       koreksi = result.current.sync(10, 3);
@@ -123,7 +122,6 @@ describe('usePager', () => {
     expect(result.current.page).toBe(3);
     await waitFor(() => expect(localStorage.getItem('simpes_page_tabel_test')).toBe('3'));
 
-    // Halaman sudah pas → null (tanpa perubahan).
     act(() => {
       koreksi = result.current.sync(3, 3);
     });
@@ -131,9 +129,6 @@ describe('usePager', () => {
   });
 });
 
-/* Standar server ikut dibaca BERTINGKAT: perangkat menang bila sudah diubah,
-   standar mengisi saat belum. Berlaku agar penetapan super_admin tidak
-   mengubah perilaku pengguna yang sudah menyetel sendiri. */
 describe('usePager — baris per halaman mengikuti standar server', () => {
   beforeEach(() => {
     localStorage.clear();

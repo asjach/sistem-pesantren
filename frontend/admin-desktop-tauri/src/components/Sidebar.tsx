@@ -104,7 +104,7 @@ function simpanGrupTutup(next: Set<string>) {
   try {
     localStorage.setItem(KUNCI_GRUP_TUTUP, JSON.stringify([...next]));
   } catch {
-    /* penyimpanan penuh/terkunci: status lipat tak persist */
+
   }
 }
 
@@ -113,13 +113,12 @@ function simpanGrupTutup(next: Set<string>) {
  *  pref `simpes_sidebar`. Tautan halaman terpisah dari tools di ribbon. */
 export default function Sidebar() {
   const { collapsed, sidebarLebar } = useTheme();
-  // Seret-lebar dibagi dengan kenop lipat di topBar (lihat SeretSidebar).
+
   const { seret, seretSembunyi, lebarTampil } = useStatusSeretSidebar();
   const { mulaiSeret, onKeyDown, resetLebar } = useAksiSeretSidebar();
   const { user } = useAuth();
   const { bertindak } = useLembagaAktif();
-  // Saat bertindak sebagai lembaga, kemampuan super_admin dianggap nonaktif
-  // (halaman khusus super_admin ikut disembunyikan).
+
   const terkunci = new Set(['izin.lihat', 'server.lihat']);
   /** Grup/subgrup yang sedang tertutup (bawaan semua terbuka). */
   const [tutup, setTutup] = useState<Set<string>>(bacaGrupTutup);
@@ -163,8 +162,6 @@ export default function Sidebar() {
     return keluar;
   })();
 
-  // Halaman aktif pindah ke grup/subgrup yang tertutup (mis. via URL) →
-  // buka jalurnya agar tautan aktif tetap terlihat.
   useEffect(() => {
     if (!halAktif) return;
     bukaKunci(jalurAktif);
@@ -175,9 +172,7 @@ export default function Sidebar() {
    *  ikon + label penuh. */
   function tautanHalaman(h: HalamanDef, anak = false) {
     const Icon = h.icon;
-    // Aktif = halaman ini pemenang prefix-terpanjang (halamanDariPath),
-    // bukan sekadar prefix (bawaan NavLink) — mis. /dokumen-santri tidak
-    // ikut tersorot saat berada di /dokumen-santri/tambah.
+
     const aktif = halAktif === h;
     return (
       <Link
@@ -298,9 +293,7 @@ export default function Sidebar() {
       className={cn(
         'relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[color:var(--sidebar-border)] text-[var(--sidebar-foreground)]',
         seret && 'transition-none',
-        /* Buka-tutup 400ms dua arah. Buka = pegas (overshoot lalu menetap,
-           ala spring); tutup = ease-out tanpa overshoot (overshoot ke lebar
-           negatif hanya jadi sentakan). */
+
         !seret && (collapsed
           ? 'transition-[width] duration-[400ms] ease-out'
           : 'transition-[width] duration-[400ms] ease-[cubic-bezier(0.3,1.45,0.5,1)]'),
@@ -308,17 +301,11 @@ export default function Sidebar() {
       )}
       style={{
         width: collapsed && !seret ? 0 : lebarTampil(collapsed),
-        // Permukaan tinta datar (tanpa gradasi dekoratif) — bahasa buku induk.
+
         background: 'var(--sidebar)',
       }}
     >
-      {/* Isi selalu di-render (bukan lepas-pasang) supaya buka-tutup
-          beranimasi: lebar aside + opacity isi berjalan sinkron. Buka memakai
-          kurva pegas yang sama dengan aside; tutup ease-out cepat. Lebar isi
-          dikunci selebar posisi terbuka agar teks tak reflow (melipat kata)
-          saat menyusut — aside `overflow-hidden` yang memotongnya.
-          `invisible` mengeluarkan tautan dari urutan tab saat terlipat
-          (visibility berbalik di akhir animasi tutup, di awal animasi buka). */}
+
       <div
         className={cn(
           'flex h-full min-h-0 flex-col',
@@ -340,8 +327,7 @@ export default function Sidebar() {
 
         <nav className="flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
           {NAV_GRUP.map((g) => {
-          // Entri berurutan: subgrup & halaman langsung pada posisi bloknya
-          // (`blokGrup`), mis. PSB → Daftar Kelas/Rekap Santri → Identitas.
+
           const entri: ({ sub: NodeSiap } | { hal: HalamanDef })[] = [];
           for (const b of blokGrup(g.id)) {
             if (Array.isArray(b)) {
@@ -354,9 +340,7 @@ export default function Sidebar() {
           const semua = entri.flatMap((e) => ('sub' in e ? kumpulkan(e.sub) : [e.hal]));
           if (semua.length === 0) return null;
           const GrupIkon = g.icon;
-          // Grup satu halaman tanpa subgrup (mis. Beranda): tautan langsung,
-          // kecuali grup ber-flag `paksaGrup` (mis. Madrasah) yang tetap
-          // tampil sebagai baris induk collapsible.
+
           if (entri.length === 1 && 'hal' in entri[0] && !g.paksaGrup) {
             return (
               <div key={g.id} className="mb-0.5">
@@ -364,9 +348,7 @@ export default function Sidebar() {
               </div>
             );
           }
-          // Submenu ala shadcn: baris induk (ikon + label + chevron) dengan
-          // anak menjorok + garis pohon (subgrup boleh bersarang, mis.
-          // Santri → PSB → Antrean).
+
           const terbuka = !tutup.has(g.id);
           const idxAktif = entri.findIndex((e) => ('sub' in e
             ? jalurAktif.includes(e.sub.kunci)
@@ -420,16 +402,6 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Gagang seret lebar navigasi: strip tipis di tepi kanan. Seret ke
-          kiri-mentok menyembunyikan navigasi (lihat useLebarSidebar).
-          Garis 1px-nya digeser 1px ke KANAN (`-right-[1px]`) supaya jatuh TEPAT
-          di piksel border kanan rail. Tanpa itu, garis ini berdempetan dengan
-          border rail (yang 1px di kanannya) dan perbatasan rail↔main terbaca
-          garis 2px — "dobel". Diberimpitkan, bukan dihapus: warna hover/seret
-          milik gagang ini tetap jadi umpan balik. Menggeser kolom <main> 1px ke
-          kiri TIDAK cukup — rail ber-`relative` dilukis di atas kolom main yang
-          in-flow, jadi latar main tak bisa menutup border rail; yang perlu
-          disatukan adalah dua garis milik rail ini. */}
       {!collapsed ? (
         <div
           id="gagang_lebar_sidebar"

@@ -58,7 +58,6 @@ class SantriController extends Controller
         $query = Santri::tenantScope()
             ->with(['lembagaAktif:id,santri_id,jenjang,nis_lokal,nis_kemenag', 'lembagaAktif.lembaga:jenjang,nama']);
 
-        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
         if ($request->filled('is_active_pst') && $request->input('is_active_pst') !== 'semua') {
             $query->where('is_active_pst', $request->boolean('is_active_pst') ? Santri::YA : Santri::TIDAK);
         }
@@ -77,10 +76,7 @@ class SantriController extends Controller
         }
         if ($request->filled('q')) {
             $q = trim((string) $request->input('q'));
-            // LIKE substring untuk semua driver: index FULLTEXT ngram di DB
-            // ini terbukti tak mengembalikan baris apa pun (dicek langsung
-            // via MATCH — kosong untuk semua istilah, LIKE menemukan data),
-            // sementara LIKE benar dan cukup cepat untuk skala ini.
+
             $query->where(fn ($sub) => $sub
                 ->where('nisn', 'like', "%{$q}%")
                 ->orWhere('ayah_nama', 'like', "%{$q}%")
@@ -140,16 +136,11 @@ class SantriController extends Controller
             $arahKolom = $urut['arah'][$kolom] ?? 'naik';
 
             if ($kolom === 'kelas-sub') {
-                // Nama kelas ('1A' < '2A') memang urut secara leksikografis,
-                // jadi nilainya sendiri sudah jadi kunci urut yang benar.
+
                 $ekspresi = $this->subqueryKelas($ta);
                 $kunciUrut = $ekspresi;
             } else {
-                // Jenjang BUKAN kunci urut yang benar: urut abjad menaruh MD
-                // sebelum MI. Yang diinginkan urutan baku MI > MD > lain, jadi
-                // yang diurutkan adalah PERINGKAT-nya, bukan namanya.
-                // `subqueryJenjang` tetap dipakai untuk uji NULL (punya riwayat
-                // atau tidak); peringkatnya diturunkan dari nilai itu.
+
                 $ekspresi = $this->subqueryJenjang($ta);
                 $kunciUrut = "CASE ({$ekspresi}) WHEN 'MI' THEN 0 WHEN 'MD' THEN 1".
                     " WHEN 'MTS' THEN 2 ELSE 3 END";
@@ -157,7 +148,6 @@ class SantriController extends Controller
 
             $arahSql = $arahKolom === 'naik' ? 'asc' : 'desc';
 
-            // NULL selalu di bawah agar santri tanpa riwayat tidak menumpuk di atas.
             $query->orderByRaw("({$ekspresi}) IS NULL");
             $query->orderByRaw("({$kunciUrut}) {$arahSql}");
 
@@ -168,8 +158,6 @@ class SantriController extends Controller
             return;
         }
 
-        // Buang token yang sudah ditangani agar `terapkanUrut` tidak mencoba
-        // meng-`orderBy` nama pseudo-kolomnya.
         $kunci = [];
         foreach ($urut['kunci'] as $i => $kolom) {
             if (! in_array($i, $ditangani, true)) {
@@ -293,7 +281,6 @@ class SantriController extends Controller
         return response()->json(['pesan' => 'Data santri diperbarui.', 'data' => $santri->fresh()]);
     }
 
-    // Upload foto profil santri. Storage: dokumen/santri/foto_profil/* ; DB hanya path di santri.foto_url.
     public function uploadFoto(SantriFotoRequest $request, Santri $santri): JsonResponse
     {
         $path = $request->file('foto')->store('dokumen/santri/foto_profil', 'local');
@@ -310,7 +297,6 @@ class SantriController extends Controller
         ], 201);
     }
 
-    // Byte mentah foto profil (tampil inline di <img> avatar; bukan unduhan).
     public function lihatFoto(Santri $santri): BinaryFileResponse
     {
         $path = $santri->foto_url;
@@ -321,7 +307,6 @@ class SantriController extends Controller
         return response()->file(Storage::disk('local')->path($path));
     }
 
-    // Upload dokumen milik santri (pasca-ACC; pola sama dengan calon di 100).
     public function uploadDokumen(SantriDokumenRequest $request, Santri $santri)
     {
         $data = $request->validated();
@@ -357,7 +342,7 @@ class SantriController extends Controller
                 'catatan' => $data['catatan'] ?? null,
             ]);
         }
-        // Satu aktif per kunci: berkas yang baru diupload yang terakhir.
+
         DokumenSantri::where('santri_id', $santri->id)
             ->where('jenis_dokumen_santri', $data['jenis_dokumen_santri'])
             ->where('lembaga', $lembaga)
@@ -367,7 +352,6 @@ class SantriController extends Controller
         return response()->json(['pesan' => 'Dokumen diupload.', 'data' => $dok], 201);
     }
 
-    // Daftar dokumen santri (checklist termasuk baris tanpa file).
     public function listDokumen(Request $request, Santri $santri): JsonResponse
     {
         $this->authorize('view', $santri);
@@ -400,7 +384,7 @@ class SantriController extends Controller
         }
 
         $auth = $request->user();
-        // Model dimuat sekali; sebelumnya satu Santri::find() per kandidat.
+
         $kandidat = Santri::tenantScope()
             ->whereHas('lembagaAktif', fn ($q) => $q->where('jenjang', $miId))
             ->whereHas('lembagaAktif', fn ($q) => $q->where('jenjang', $mdId))
@@ -512,8 +496,6 @@ class SantriController extends Controller
 
         return $boleh;
     }
-
-    // ---------------- Import bertahap (potongan JSON) ----------------
 
     /**
      * POST /api/admin/santri/import-potong — satu potongan baris

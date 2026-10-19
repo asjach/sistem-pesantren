@@ -43,7 +43,7 @@ class LembagaController extends Controller
     public function store(LembagaStoreRequest $request)
     {
         $auth = auth()->user();
-        // Tambah lembaga hanya super_admin (Lampiran E v1.9.2).
+
         if (! $auth->bolehSuperAdmin()) {
             return response()->json(['message' => 'Hanya super_admin yang dapat menambah lembaga.'], 403);
         }
@@ -53,8 +53,6 @@ class LembagaController extends Controller
 
         $lembaga = Lembaga::create($data);
 
-        // Lembaga baru: benih kamus dari nilai yang sudah ada
-        // (tanpa baris global, kamus lembaga baru kosong tanpa ini).
         RefService::benihUntuk($lembaga->jenjang);
 
         return response()->json($lembaga, 201);

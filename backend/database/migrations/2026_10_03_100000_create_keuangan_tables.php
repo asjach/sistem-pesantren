@@ -21,9 +21,9 @@ return new class extends Migration
         Schema::create('jenis_tagihan', function (Blueprint $table) {
             $table->id();
             $table->string('nama')->unique();
-            // `non_bulanan` = tagihan yang tak dibuat berulang tiap bulan.
+
             $table->enum('tipe', ['bulanan', 'sekali', 'non_bulanan'])->default('non_bulanan');
-            // Lembaga pemilik jenis ini (FK dipasang setelah `lembaga` ada).
+
             $table->string('jenjang', 20)->nullable();
             $table->unsignedInteger('urutan')->default(0);
             $table->boolean('is_active')->default(true);
@@ -35,31 +35,27 @@ return new class extends Migration
 
         Schema::create('tarif_tagihan', function (Blueprint $table) {
             $table->id();
-            $table->string('jenjang', 20); // lembaga penerbit tagihan
+            $table->string('jenjang', 20);
             $table->string('tahun_ajaran', 20);
             $table->foreignId('jenis_id')->constrained('jenis_tagihan')->cascadeOnDelete();
-            // Bukan bagian identitas tarif: generate tagihan tak pernah
-            // membacanya (nominal dikirim dialog).
+
             $table->string('tingkat', 100)->nullable();
             $table->unsignedBigInteger('nominal');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
-            // Tanpa `tingkat`: kolom nullable membuat (jenjang, tahun_ajaran,
-            // jenis_id) yang sama bisa tersimpan berkali-kali selama `tingkat`
-            // NULL (MySQL & SQLite menganggap NULL berbeda).
             $table->unique(['jenjang', 'tahun_ajaran', 'jenis_id'], 'uq_tarif_tagihan');
         });
 
         Schema::create('tagihan', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
-            $table->string('jenjang', 20);     // lembaga penerbit
+            $table->string('jenjang', 20);
             $table->string('tahun_ajaran', 20);
             $table->foreignId('jenis_id')->constrained('jenis_tagihan');
-            $table->string('periode', 20)->nullable(); // mis. '2026-07' (bulanan) / '2026-G1' (semester) / null (sekali)
+            $table->string('periode', 20)->nullable();
             $table->unsignedBigInteger('nominal');
-            // Jejak dispensasi: total potongan + id paket yang diterapkan.
+
             $table->unsignedBigInteger('potongan')->default(0);
             $table->json('dispensasi_ids')->nullable();
             $table->unsignedBigInteger('terbayar')->default(0);
@@ -84,10 +80,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Tenancy di level database (khusus MySQL): salah ketik jenjang ditolak
-        // sejak INSERT; hapus lembaga yang masih punya data keuangan ditolak
-        // (restrict — riwayat tagihan tak boleh ikut terhapus); rename jenjang
-        // merambat (cascade update).
         if (DB::getDriverName() === 'mysql') {
             Schema::table('jenis_tagihan', function (Blueprint $table): void {
                 $table->foreign('jenjang', 'jenis_tagihan_jenjang_foreign')

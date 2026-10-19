@@ -60,14 +60,12 @@ describe('SeretSidebarProvider', () => {
     mousedownKenop(SIDEBAR_LEBAR_DEFAULT);
     geser(SIDEBAR_LEBAR_DEFAULT + 60);
 
-    // Selama seret: Sidebar tahu ada seretan (animasi lebarnya mati) dan
-    // lebarnya mengikuti pointer.
     expect(panel().dataset.seret).toBe('true');
     expect(panel().dataset.tampil).toBe(String(SIDEBAR_LEBAR_DEFAULT + 60));
 
     lepas();
     expect(panel().dataset.seret).toBe('false');
-    // Lebar final tersimpan ke pref (dibaca ulang dari ThemeProvider).
+
     expect(panel().dataset.lebar).toBe(String(SIDEBAR_LEBAR_DEFAULT + 60));
   });
 

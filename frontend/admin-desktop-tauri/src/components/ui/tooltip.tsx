@@ -23,8 +23,6 @@ function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root
   );
 }
 
-// Trigger dipakai sebagai anak `asChild` komponen lain (mis. AlertDialogTrigger
-// di ConfirmDelete), jadi wrapper wajib forwardRef (React 18) agar ref tidak hilang.
 const TooltipTrigger = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Trigger>

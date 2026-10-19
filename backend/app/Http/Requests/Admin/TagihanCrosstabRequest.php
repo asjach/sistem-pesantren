@@ -25,10 +25,9 @@ class TagihanCrosstabRequest extends FormRequest
             'belum_lunas' => 'nullable|boolean',
             'terlambat' => 'nullable|boolean',
             'santri' => 'nullable|string|max:100',
-            // Keaktifan santri (patokan sama dengan penanda merah baris).
+
             'keaktifan' => 'nullable|in:aktif,nonaktif',
-            // Filter rail (tingkat & kelas) memakai kontrak yang sama seperti
-            // halaman Santri: tingkat = kode, kelas = id (bukan nama).
+
             'tingkat' => 'nullable|array',
             'tingkat.*' => 'string|max:20',
             'kelas_id' => 'nullable|array',

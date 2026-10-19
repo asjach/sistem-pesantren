@@ -18,7 +18,7 @@ const profil: ProfilSantri = {
     jk: 'L',
     tipe_santri: 'asrama',
     is_active_pst: 'Ya',
-    // Kolom profil yang tidak ada di tipe ringkas tetap diteruskan apa adanya.
+
     ...({ agama: 'Islam', ayah_nik: '3201011205600002', wali_nama: null } as object),
   } as unknown as ProfilSantri['santri'],
   keanggotaan: [],
@@ -82,9 +82,8 @@ describe('ProfilSantriDialog', () => {
     renderDialog();
     const isi = await isiDialog();
 
-    // Tidak ada satu pun kontrol tab.
     expect(screen.queryAllByRole('tab')).toHaveLength(0);
-    // Keempat bagian tampil bersamaan, cukup digulir.
+
     for (const judul of ['Identitas', 'Alamat', 'Keluarga', 'Keanggotaan & riwayat']) {
       expect(within(isi).getByRole('heading', { name: judul })).toBeInTheDocument();
     }
@@ -96,10 +95,10 @@ describe('ProfilSantriDialog', () => {
 
     expect(within(isi).getByText('Nama lengkap')).toBeInTheDocument();
     expect(within(isi).getByText('3201011505950001')).toBeInTheDocument();
-    // jk 'L' dan tipe_santri 'asrama' diterjemahkan, bukan kode mentah.
+
     expect(within(isi).getByText('Laki-laki')).toBeInTheDocument();
     expect(within(isi).getByText('Asrama')).toBeInTheDocument();
-    // Field yang belum diisi tetap kelihatan sebagai "—".
+
     expect(within(isi).getAllByText('\u2014').length).toBeGreaterThan(0);
   });
 
@@ -110,7 +109,7 @@ describe('ProfilSantriDialog', () => {
     for (const judul of ['Ayah', 'Ibu', 'Wali', 'Kartu keluarga']) {
       expect(within(isi).getByText(judul)).toBeInTheDocument();
     }
-    // NIK ayah tampil di panel Ayah, bukan label mentah `ayah_nik`.
+
     expect(within(isi).getByText('3201011205600002')).toBeInTheDocument();
     expect(within(isi).queryByText('ayah_nik')).not.toBeInTheDocument();
   });
@@ -120,7 +119,7 @@ describe('ProfilSantriDialog', () => {
     const isi = await isiDialog();
 
     const bagian = within(isi).getByRole('heading', { name: 'Keluarga' }).parentElement as HTMLElement;
-    // Dua kolom: urutan DOM = urutan baca grid baris demi baris.
+
     const grid = bagian.querySelector('div') as HTMLElement;
     expect(grid.className).toContain('sm:grid-cols-2');
     const urutan = within(bagian)
@@ -134,10 +133,8 @@ describe('ProfilSantriDialog', () => {
     renderDialog();
     await isiDialog();
 
-    // Tidak ada lagi tombol salin massal.
     expect(screen.queryByRole('button', { name: /Salin semua/ })).not.toBeInTheDocument();
 
-    // "Salin NIK" juga milik kolom NIK Ayah, jadi klik lewat id.
     await user.click(document.querySelector('#btn_salin_nik') as HTMLElement);
 
     expect(salin).toHaveBeenCalledTimes(1);
@@ -149,7 +146,6 @@ describe('ProfilSantriDialog', () => {
     renderDialog();
     await isiDialog();
 
-    // Tampil "Laki-laki", tapi yang harus masuk EMIS adalah kode "L".
     expect(screen.getByText('Laki-laki')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Salin Jenis kelamin' }));
 
@@ -160,7 +156,6 @@ describe('ProfilSantriDialog', () => {
     renderDialog();
     await isiDialog();
 
-    // nama_singkat sengaja kosong pada fixture.
     expect(screen.queryByRole('button', { name: 'Salin Nama singkat' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Salin Nama lengkap' })).toBeInTheDocument();
   });
@@ -179,7 +174,6 @@ describe('ProfilSantriDialog', () => {
     const user = userEvent.setup();
     renderDialog([5, 7, 9]);
 
-    // Posisi awal = Santri kedua dari tiga.
     expect(posisiTetangga()).toHaveTextContent('2 / 3');
     expect(screen.getByRole('button', { name: /Sebelumnya/ })).toBeEnabled();
     expect(screen.getByRole('button', { name: /Berikutnya/ })).toBeEnabled();
@@ -192,7 +186,7 @@ describe('ProfilSantriDialog', () => {
   });
 
   it('navigasi tetangga: tombol mati di ujung daftar', async () => {
-    // Santri pertama → tidak ada tetangga sebelumnya.
+
     renderDenganTema(
       <ProfilSantriDialog
         target={{ id: 5, daftar: [5, 7] }}
@@ -206,10 +200,6 @@ describe('ProfilSantriDialog', () => {
     expect(screen.getByRole('button', { name: /Sebelumnya/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Berikutnya/ })).toBeEnabled();
   });
-
-
-
-
 
   it('tanpa daftar tabel asal: tombol tetangga tidak muncul', async () => {
     renderDialog();
@@ -239,7 +229,6 @@ describe('ProfilSantriDialog', () => {
     renderDialog();
     const isi = await isiDialog();
 
-    // Tabel riwayat belajar punya satu baris data; selnya <td> di dalam tabel.
     const tabel = within(isi).getByRole('table');
     expect(tabel.className).toContain('text-xs');
     expect(tabel.className).toContain('leading-5');
@@ -254,11 +243,10 @@ describe('ProfilSantriDialog', () => {
     renderDialog();
     const isi = await isiDialog();
 
-    // Baris = <div> induk dari <dt> labelnya.
     const baris = within(isi).getByText('Nama lengkap').parentElement as HTMLElement;
     expect(baris.className).toContain('py-0.5');
     expect(baris.className).not.toContain('py-1.5');
-    // Nilai 13px dengan line-height tetap → tinggi baris stabil antar panel.
+
     const nilai = within(isi).getByText('3201011505950001');
     expect(nilai.className).toContain('text-xs');
     expect(nilai.className).toContain('leading-5');
@@ -272,7 +260,6 @@ describe('ProfilSantriDialog', () => {
     const panel = (judul: string) =>
       within(isi).getByRole('heading', { level: 4, name: judul }).parentElement as HTMLElement;
 
-    // Panel Kelahiran sudah dilebur: tidak ada lagi.
     expect(within(isi).queryByRole('heading', { level: 4, name: 'Kelahiran' })).not.toBeInTheDocument();
 
     const dasar = panel('Identitas dasar');
@@ -283,7 +270,6 @@ describe('ProfilSantriDialog', () => {
     expect(within(dasar).getByText('1995-05-15')).toBeInTheDocument();
     expect(within(dasar).getByText('Islam')).toBeInTheDocument();
 
-    // Anak ke dan jumlah saudara tetap di Kartu keluarga.
     const kartu = panel('Kartu keluarga');
     expect(within(kartu).getByText('Anak ke')).toBeInTheDocument();
     expect(within(kartu).getByText('Jumlah saudara')).toBeInTheDocument();
@@ -295,7 +281,7 @@ describe('ProfilSantriDialog', () => {
 
     expect(within(isi).getByRole('heading', { name: /^Riwayat belajar/ })).toBeInTheDocument();
     expect(within(isi).getByText('(1)')).toBeInTheDocument();
-    // Tiga tabel tanpa data → pesan kosong, bukan tabel kosong.
+
     expect(within(isi).getAllByText('Tidak ada data.')).toHaveLength(3);
   });
 
@@ -303,8 +289,6 @@ describe('ProfilSantriDialog', () => {
     renderDialog();
     const isi = await isiDialog();
 
-    // Tinggi tetap (h-*) + minimum, bukan sekadar batas atas (max-h-*):
-    // max-h membuat dialog ikut tumbuh/mengecil sesuai panjang data.
     const kelas = isi.className;
     expect(kelas).toContain('h-[60vh]');
     expect(kelas).toContain('min-h-72');
@@ -314,7 +298,6 @@ describe('ProfilSantriDialog', () => {
   it('selagi memuat tampil kerangka, bukan teks polos', () => {
     renderDialog();
 
-    // Promise profil belum selesai: kerangka status terlihat, isi belum ada.
     expect(screen.getByRole('status', { name: 'Memuat profil' })).toBeInTheDocument();
     expect(document.querySelector('[data-part="isi_profil"]')).toBeNull();
   });
@@ -342,7 +325,7 @@ describe('ProfilSantriDialog', () => {
 
     expect(gulir).toHaveBeenCalledTimes(1);
     expect(gulir).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
-    // Penerima guliran = section Keluarga (pemilik heading-nya).
+
     const tujuan = within(await isiDialog()).getByRole('heading', { name: 'Keluarga' }).parentElement as HTMLElement;
     expect(tujuan.id).toBe('profil_santri_keluarga');
   });
@@ -351,8 +334,6 @@ describe('ProfilSantriDialog', () => {
     renderDialog([5, 7, 9]);
     await screen.findByRole('heading', { name: 'Ahmad Fauzi' });
 
-    // Baris judul + tombol tetangga berada di wadah ber-padding kanan
-    // agar tombol tutup (absolut kanan-atas) tak menimpanya.
     const wadah = screen.getByRole('button', { name: /Berikutnya/ }).closest('div.pr-10');
     expect(wadah).not.toBeNull();
   });
@@ -361,7 +342,6 @@ describe('ProfilSantriDialog', () => {
     renderDialog();
     await screen.findByRole('heading', { name: 'Ahmad Fauzi' });
 
-    // Dua tombol bernama "Tutup": X kanan-atas + tombol footer.
     const merah = screen
       .getAllByRole('button', { name: 'Tutup' })
       .filter((b) => b.className.includes('text-destructive'));

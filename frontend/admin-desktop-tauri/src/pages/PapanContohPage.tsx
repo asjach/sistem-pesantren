@@ -151,7 +151,7 @@ function Kartu({
       </div>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span className="tabular-nums">{kartu.tanggal}</span>
-        {/* Alternatif keyboard untuk seret-dan-letakkan. */}
+
         <select
           id={`select_pindah_contoh_${kartu.id}`}
           aria-label={`Pindahkan ${kartu.judul} ke kolom`}
@@ -238,7 +238,7 @@ export default function PapanContohPage() {
 
   function mulaiSeret(e: DragEvent, id: string) {
     e.dataTransfer.effectAllowed = 'move';
-    // Firefox: seret butuh data agar dragstart tidak dibatalkan.
+
     e.dataTransfer.setData('text/plain', id);
     setSeretId(id);
   }
@@ -280,7 +280,7 @@ export default function PapanContohPage() {
       return tanpa.map((k) => {
         if (k.id !== ke) return k;
         let posisi = Math.max(0, Math.min(indeks, k.kartu.length));
-        // Pindah dalam kolom yang sama: koreksi geseran setelah kartu diangkat.
+
         if (asal.id === ke) {
           const idxAsal = asal.kartu.findIndex((c) => c.id === id);
           if (idxAsal < posisi) posisi -= 1;
@@ -347,8 +347,7 @@ export default function PapanContohPage() {
               }}
             >
               {terlipat ? (
-                /* Kolom terlipat = tombol buka sungguhan (padanan tombol lipat
-                   di header kolom terbuka); teksnya tetap vertikal. */
+
                 <button
                   type="button"
                   onClick={() => jungkitLipat(item.id)}

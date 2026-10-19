@@ -21,7 +21,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Nilai asli tidak dapat direkonstruksi (tidak tercatat mana baris
-        // yang terisi bawaan vs pilihan eksplisit pengguna) — no-op.
+
     }
 };

@@ -64,11 +64,9 @@ export function simpanToolbarPreset(
       ...(urutan ? { urutan } : {}),
       ...(align ? { align } : {}),
       ...(label !== undefined ? { label } : {}),
-      // Selalu kirim bila diberikan (termasuk ''): string kosong ADALAH
-      // perintah menghapus override, jadi `!== undefined`, bukan truthy.
+
       ...(judul !== undefined ? { judul } : {}),
-      // Sama seperti judul: '' menghapus info (backend menyimpannya NULL),
-      // bukan sekadar diabaikan.
+
       ...(infoHtml !== undefined ? { info_html: infoHtml } : {}),
     }),
   });

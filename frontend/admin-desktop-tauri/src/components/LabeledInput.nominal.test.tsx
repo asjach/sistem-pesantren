@@ -8,8 +8,6 @@ import { PRESET_NOMINAL } from './tipeInput';
 import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
 
-/* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
-   menyemai setelan lewat store klien tanpa jaringan. */
 vi.mock('@/api/komponenCustom', () => ({
   muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
   simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
@@ -47,7 +45,7 @@ describe('LabeledInput tipe nominal', () => {
   it('memakai input teks + papan ketik angka & menyediakan tombol popover', () => {
     renderDenganTema(<Contoh />);
     const input = document.getElementById('inp_nom') as HTMLInputElement;
-    // `text`, BUKAN `number`: pemisah ribuan tak sah di `type=number`.
+
     expect(input.type).toBe('text');
     expect(input.inputMode).toBe('numeric');
     expect(input.className).toMatch(/pr-7/);
@@ -59,7 +57,7 @@ describe('LabeledInput tipe nominal', () => {
     await bukaPopover();
     await waitFor(() => expect(panel('nominal')).not.toBeNull());
     expect(panel('angka')).not.toBeNull();
-    // Sisi masing-masing panel dijaga tetap oleh `avoidCollisions={false}`.
+
     expect(panel('nominal')?.getAttribute('data-side')).toBe('top');
     expect(panel('angka')?.getAttribute('data-side')).toBe('bottom');
     for (const nama of ['nominal', 'angka']) {
@@ -71,7 +69,7 @@ describe('LabeledInput tipe nominal', () => {
     expect(screen.getByRole('group', { name: 'Nominal cepat' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Reset ke 0' })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Tombol angka' })).toBeTruthy();
-    // Rapat: tak ada jarak antar tombol (grid tanpa kelas `gap-*`).
+
     expect(screen.getByRole('group', { name: 'Nominal cepat' }).className).not.toMatch(/\bgap-/);
     expect(screen.getByRole('group', { name: 'Tombol angka' }).className).not.toMatch(/\bgap-/);
   });
@@ -104,8 +102,7 @@ describe('LabeledInput tipe nominal', () => {
     renderDenganTema(<Contoh />);
     await bukaPopover();
     const reset = screen.getByRole('button', { name: 'Reset ke 0' });
-    // Lebar dari `self-stretch`, bukan `w-full`: pada elemen berlebar eksplisit
-    // margin kiri negatif cuma menggeser kotak, jadi tepi kanannya kurang 1px.
+
     expect(reset.className).toMatch(/self-stretch/);
     expect(reset.className).not.toMatch(/(^|\s)w-(full|\[)/);
     expect(reset.className).toMatch(/border-foreground\/30/);
@@ -196,8 +193,7 @@ describe('LabeledInput tipe nominal', () => {
     renderDenganTema(<Contoh />);
     await bukaPopover();
     await screen.findByRole('group', { name: 'Nominal cepat' });
-    // Kedua panel jadi jangkar override `--input` di index.css — supaya border
-    // tombol ikut foreground/30 di mode gelap (varian outline menang di urutan sumber).
+
     expect(panel('nominal')?.className).toMatch(/pop-nominal/);
     expect(panel('angka')?.className).toMatch(/pop-nominal/);
     const tombol = [
@@ -209,8 +205,7 @@ describe('LabeledInput tipe nominal', () => {
     for (const t of tombol) {
       expect(t.className).toMatch(/border-foreground\/30/);
       expect(t.className).toMatch(/(^|\s)border(\s|$)/);
-      // Rapat → border berdempetan digeser 1px agar bertindihan (tetap 1px,
-      // bukan menebal jadi 2px).
+
       expect(t.className).toMatch(/-ml-px/);
       expect(t.className).toMatch(/-mt-px/);
     }
@@ -226,14 +221,13 @@ describe('LabeledInput tipe nominal', () => {
     );
     const input = document.getElementById('inp_lepas') as HTMLInputElement;
     expect(input.value).toBe('50.000');
-    // Kotak terkendali state internal — BUKAN read-only.
+
     expect(input.readOnly).toBe(false);
 
     await userEvent.clear(input);
     await userEvent.type(input, '75000');
     expect(input.value).toBe('75.000');
 
-    // Tombol nominal cepat menulis ke nilai yang sama (satu jalur nilai).
     await bukaPopover();
     await klik('5.000');
     await waitFor(() => expect(input.value).toBe('80.000'));
@@ -244,7 +238,7 @@ describe('LabeledInput tipe nominal', () => {
 
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     expect(await screen.findByLabelText('Tinggi kotak nominal (px)')).not.toBeNull();
-    // Panel kalkulator tetap bisa dibuka (popover independen).
+
     await bukaPopover();
     await waitFor(() => expect(panel('nominal')).not.toBeNull());
     expect(panel('angka')).not.toBeNull();
@@ -274,8 +268,8 @@ describe('LabeledInput tipe nominal — tampilan vs nilai', () => {
 
     await userEvent.type(kotak(), '50000');
 
-    expect(kotak().value).toBe('50.000');   // yang dilihat pengguna
-    expect(mentah()).toBe('50000');         // yang dipakai aplikasi & dikirim ke DB
+    expect(kotak().value).toBe('50.000');
+    expect(mentah()).toBe('50000');
   });
 
   it('menempel teks berformat (mis. "Rp 1.234.567") tersimpan sebagai digit saja', async () => {
@@ -299,8 +293,7 @@ describe('LabeledInput tipe nominal — tampilan vs nilai', () => {
   });
 
   it('tombol nominal cepat menambah nilai MENTAH, bukan teks berformat', async () => {
-    // 50000 + 1000 = 51000 → tampil '51.000'. Kalau yang ditambah teks
-    // berformat ('50.000' + 1000), hasilnya '50.001.000'.
+
     renderDenganTema(<Perekam awal="50000" />);
     await userEvent.click(screen.getByRole('button', { name: 'Pilih nominal cepat' }));
     await userEvent.click(await screen.findByRole('button', { name: '1.000' }));
@@ -323,11 +316,9 @@ describe('LabeledInput tipe nominal — tampilan vs nilai', () => {
     await userEvent.type(kotak(), '50000');
     expect(kotak().value).toBe('50.000');
 
-    // Sisipkan '9' setelah digit ke-2 (yaitu sebelum titik pemisah).
     const el = kotak();
     await userEvent.type(el, '9', { initialSelectionStart: 2, initialSelectionEnd: 2 });
 
-    // Digit jadi 509000 → tampil '509.000'; kursor tetap setelah digit ke-3.
     expect(mentah()).toBe('509000');
     expect(el.value).toBe('509.000');
     expect(el.selectionStart).toBe(3);
@@ -373,7 +364,7 @@ describe('LabeledInput tipe nominal — pengaturan tipe', () => {
     await bukaPopover();
     expect(await screen.findByRole('button', { name: '1.500' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '2.500' })).toBeTruthy();
-    // Preset bawaan sudah tidak dipakai.
+
     expect(screen.queryByRole('button', { name: '5.000' })).toBeNull();
   });
 

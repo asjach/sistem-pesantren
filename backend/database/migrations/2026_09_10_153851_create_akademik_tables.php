@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('nama_mapel');
-            // Kolom darí Modul 202 (kelompok rapor):
+
             $table->enum('kelompok', ['formal', 'pesantren'])->default('formal');
             $table->string('kode_mapel', 20)->nullable();
             $table->timestamps();
@@ -48,12 +48,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('kurikulum_id')->constrained('kurikulum')->cascadeOnDelete();
             $table->foreignId('mata_pelajaran_id')->constrained('mata_pelajaran')->cascadeOnDelete();
-            $table->string('tingkat')->nullable(); // ref_tingkat: null = semua tingkat; '8'/'9' = khusus
-            $table->decimal('kkm', 5, 2)->nullable(); // null = predikat manual (202)
-            $table->integer('urutan')->default(0); // urutan tampil di rapor/leger
+            $table->string('tingkat')->nullable();
+            $table->decimal('kkm', 5, 2)->nullable();
+            $table->integer('urutan')->default(0);
             $table->timestamps();
 
-            $table->unique(['kurikulum_id', 'mata_pelajaran_id', 'tingkat'], 'uq_kurikulum_mapel_kmt'); // nama pendek: auto-name 61 char, margin aman dari limit 64
+            $table->unique(['kurikulum_id', 'mata_pelajaran_id', 'tingkat'], 'uq_kurikulum_mapel_kmt');
         });
 
         Schema::create('pengampu_mapel', function (Blueprint $table) {
@@ -70,7 +70,7 @@ return new class extends Migration
             $table->id();
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->string('nama_slot')->nullable(); // 'Jam 1', 'Jam 2', dsb.
+            $table->string('nama_slot')->nullable();
             $table->time('jam_mulai')->nullable();
             $table->time('jam_selesai')->nullable();
             $table->timestamps();
@@ -84,7 +84,6 @@ return new class extends Migration
             $table->string('ruangan')->nullable();
             $table->timestamps();
 
-            // Unik per slot/hari = backing constraint validasi bentrok
             $table->unique(['pengampu_mapel_id', 'slot_jam_id', 'hari']);
         });
     }

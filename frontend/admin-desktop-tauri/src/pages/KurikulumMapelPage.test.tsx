@@ -9,8 +9,6 @@ import { TopBarSearchProvider, useTopBarSearchCtx } from '@/components/TopBarSea
 import { renderDenganTema } from '@/test/utils';
 import type { MataPelajaran } from '@/api/kurikulum';
 
-/* `vi.hoisted` wajib: factory vi.mock di-hoist ke atas file, jadi fixture &
-   mock fn harus sudah ada saat factory dipanggil. */
 const uji = vi.hoisted(() => {
   const BARIS = [
     {
@@ -84,8 +82,6 @@ vi.mock('@/api/kurikulum', async (importOriginal) => {
   };
 });
 
-/* Array filter WAJIB stabil (didefinisikan sekali): halaman memakainya sebagai
-   dependensi effect, jadi array baru tiap render memicu loop render. */
 const FILTER = { jenjangs: ['MI'], tahunAjaranNames: ['2025/2026'], semesters: ['1'], tingkat: [] as string[], kelas: [] as number[], loading: false };
 vi.mock('@/hooks/useFilterGlobalAktif', () => ({
   useFilterGlobalAktif: () => FILTER,
@@ -103,12 +99,11 @@ vi.mock('@/api/master', async (importOriginal) => {
     ...asli,
     listLembaga: vi.fn(paginasiKosong),
     listKelas: vi.fn(paginasiKosong),
-    // Kamus `ref_mapel` kolom kiri: kosong kecuali uji yang mengisinya.
+
     referensiList: vi.fn(async () => uji.SARAN),
   };
 });
 
-/* Rail filter tingkat/kelas butuh context yang di app disediakan layout. */
 vi.mock('@/tingkatAktif', () => ({ useTingkatAktif: () => ({ pilih: vi.fn() }) }));
 vi.mock('@/kelasAktif', () => ({ useKelasAktif: () => ({ pilih: vi.fn() }) }));
 
@@ -207,7 +202,6 @@ describe('KurikulumMapelPage — aksi baris Ubah', () => {
   it('menampilkan aksi Ubah lalu menyimpan perubahan lewat dialog', async () => {
     renderHalaman();
 
-    // Tombol aksi baris: id snake_case (NFR-05), label aksesibel "Ubah".
     const tombol = await screen.findByRole('button', { name: 'Ubah' });
     expect(tombol.id).toBe('btn_ubah_mapel_7');
 
@@ -216,7 +210,7 @@ describe('KurikulumMapelPage — aksi baris Ubah', () => {
 
     await userEvent.clear(screen.getByLabelText('Nama mapel'));
     await userEvent.type(screen.getByLabelText('Nama mapel'), 'Aljabar Lanjut');
-    // Singkatan ikut tersimpan (kolom baru `mata_pelajaran.singkatan`).
+
     await userEvent.clear(screen.getByLabelText('Singkatan (opsional)'));
     await userEvent.type(screen.getByLabelText('Singkatan (opsional)'), 'Alj.');
     await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
@@ -231,7 +225,7 @@ describe('KurikulumMapelPage — aksi baris Ubah', () => {
       kelompok: 'formal',
       is_active: true,
     });
-    // Dialog tertutup setelah tersimpan.
+
     await waitFor(() => expect(screen.queryByText('Ubah mapel')).toBeNull());
   });
 
@@ -262,13 +256,10 @@ describe('KurikulumMapelPage — filter status tabel mapel', () => {
     uji.izin = ['kurikulum.lihat', 'kurikulum.ubah', 'kurikulum.hapus'];
     renderHalaman();
 
-    // Kotak gabungan label+kontrol (bukan <select> bawaan).
     const input = await screen.findByLabelText('Filter status mapel');
     expect(input.tagName).toBe('INPUT');
     expect(input).toHaveValue('Aktif');
 
-    // Buka daftar lewat papan ketik: klik pointer pada popup Base UI tak
-    // terbaca di jsdom (stub `hasPointerCapture` di berkas ini).
     input.focus();
     await userEvent.keyboard('{ArrowDown}');
     await userEvent.click(await screen.findByRole('option', { name: 'Nonaktif' }));
@@ -288,15 +279,12 @@ describe('KurikulumMapelPage — tambah dari kamus (kolom kiri)', () => {
     ];
     renderHalaman();
 
-    // Baris kamus tampil di kolom kiri — tombol aksinya jadi penanda baris siap.
     await screen.findByRole('button', { name: 'Tambah Fikih' });
-    // Inti permintaan: kode ikut tampil, bukan hanya nama & singkatan.
+
     expect(teksSel('kode')).toEqual(expect.arrayContaining(['FKH', 'BAR']));
     expect(teksSel('nama')).toEqual(expect.arrayContaining(['Fikih', 'Bahasa Arab']));
     expect(teksSel('singkatan')).toEqual(expect.arrayContaining(['B. Ar.']));
 
-    // Tombol → baris "Fikih" menginput entri kamus itu ke tabel mapel:
-    // kode & singkatan kamus ikut disalin (kolom kamus yang kosong tetap null).
     await userEvent.click(screen.getByRole('button', { name: 'Tambah Fikih' }));
     await waitFor(() => expect(uji.buatMapel).toHaveBeenCalledWith({
       jenjang: 'MI', nama_mapel: 'Fikih', kode_mapel: 'FKH', singkatan: null, kelompok: 'formal',
@@ -310,8 +298,7 @@ describe('KurikulumMapelPage — tambah dari kamus (kolom kiri)', () => {
 
   it('entri kamus yang namanya sudah ada sebagai mapel disembunyikan dari tabel kamus', async () => {
     uji.izin = ['kurikulum.lihat', 'kurikulum.tambah'];
-    // BARIS mapel memuat "Aljabar" — entri kamus bernama sama sudah masuk
-    // tabel kanan, jadi barisnya hilang dari tabel kiri (bukan sekadar mati).
+
     uji.SARAN = [{ id: 9, nama: 'Aljabar', kode: 'ALJ', singkatan: 'Alj.' }];
     renderHalaman();
 
@@ -331,7 +318,6 @@ describe('KurikulumMapelPage — tambah dari kamus (kolom kiri)', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Tambah Fikih' }));
     await waitFor(() => expect(uji.buatMapel).toHaveBeenCalledTimes(1));
 
-    // Baris "Fikih" hilang, baris lain tetap ada.
     await waitFor(() => expect(teksSel('nama')).not.toContain('Fikih'));
     expect(teksSel('nama')).toContain('Bahasa Arab');
     expect(screen.queryByRole('button', { name: 'Tambah Fikih' })).toBeNull();
@@ -359,8 +345,6 @@ describe('KurikulumMapelPage — tambah mapel lewat dialog', () => {
     expect(tombol.id).toBe('btn_tambah_mapel');
     await userEvent.click(tombol);
 
-    // Dulu klik ini langsung menyisipkan "Mapel Baru" ke tabel — sekarang
-    // hanya membuka formulir, tanpa permintaan buat ke server.
     expect(await screen.findByText('Tambah mapel')).toBeInTheDocument();
     expect(screen.getByLabelText('Nama mapel')).toHaveValue('');
     expect(screen.getByLabelText('Kode (opsional)')).toHaveValue('');
@@ -375,7 +359,7 @@ describe('KurikulumMapelPage — tambah mapel lewat dialog', () => {
     await userEvent.type(screen.getByLabelText('Nama mapel'), 'Fikih');
     await userEvent.type(screen.getByLabelText('Kode (opsional)'), 'FKH');
     await userEvent.type(screen.getByLabelText('Singkatan (opsional)'), 'Fik.');
-    // KKM & urutan rapor (pindahan dari komposisi kurikulum yang dihapus).
+
     await userEvent.type(screen.getByLabelText('KKM (opsional)'), '75');
     await userEvent.clear(screen.getByLabelText('Urutan rapor'));
     await userEvent.type(screen.getByLabelText('Urutan rapor'), '3');
@@ -388,7 +372,6 @@ describe('KurikulumMapelPage — tambah mapel lewat dialog', () => {
     }));
     await waitFor(() => expect(screen.queryByText('Tambah mapel')).toBeNull());
 
-    // Buka lagi: isian lama tidak tertinggal (formulir direset tiap dibuka).
     await userEvent.click(await itemAksi('Tambah'));
     expect(await screen.findByText('Tambah mapel')).toBeInTheDocument();
     expect(screen.getByLabelText('Nama mapel')).toHaveValue('');
@@ -403,8 +386,6 @@ describe('KurikulumMapelPage — terapkan dari kamus', () => {
     uji.izin = ['kurikulum.lihat'];
     renderHalaman();
 
-    // Menu "Aksi" tetap ada (Tambah di dalamnya), tapi "Terapkan kamus" —
-    // aksi yang butuh izin ubah — tidak ikut dirender.
     const tambah = await itemAksi('Tambah');
     expect(tambah.id).toBe('btn_tambah_mapel');
     expect(tambah).toHaveAttribute('aria-disabled', 'true');
@@ -416,17 +397,16 @@ describe('KurikulumMapelPage — terapkan dari kamus', () => {
     renderHalaman();
 
     const item = await itemAksi('Terapkan kamus');
-    // Ikon tombolnya (BookMarked) ikut tampil di item menu.
+
     expect(item.querySelector('svg')).not.toBeNull();
     await userEvent.click(item);
 
-    // Pratinjau memakai mode periksa: belum ada penulisan ke server.
     await waitFor(() => expect(uji.terapkanKamusMapel).toHaveBeenCalledWith({
       jenjang: 'MI', timpa: false, mode: 'periksa',
     }));
     expect(await screen.findByText('2 mapel akan diisi dari kamus · 1 sudah lengkap · 0 tanpa kamus'))
       .toBeInTheDocument();
-    // Sejauh ini hanya pratinjau — belum ada panggilan eksekusi.
+
     expect(uji.terapkanKamusMapel.mock.calls.every((c) => (c[0] as { mode: string }).mode === 'periksa')).toBe(true);
 
     const sebelum = uji.daftarMapel.mock.calls.length;
@@ -435,7 +415,7 @@ describe('KurikulumMapelPage — terapkan dari kamus', () => {
     await waitFor(() => expect(uji.terapkanKamusMapel).toHaveBeenCalledWith({
       jenjang: 'MI', timpa: false, mode: 'eksekusi',
     }));
-    // Dialog tertutup dan tabel dimuat ulang setelah berhasil.
+
     await waitFor(() => expect(screen.queryByText('Terapkan dari kamus')).toBeNull());
     await waitFor(() => expect(uji.daftarMapel.mock.calls.length).toBeGreaterThan(sebelum));
   });
@@ -449,7 +429,6 @@ describe('KurikulumMapelPage — terapkan dari kamus', () => {
 
     await userEvent.click(await screen.findByRole('checkbox', { name: /Timpa kode/ }));
 
-    // Centang mengubah arti perhitungan → pratinjau diulang dengan timpa aktif.
     await waitFor(() => expect(uji.terapkanKamusMapel).toHaveBeenLastCalledWith({
       jenjang: 'MI', timpa: true, mode: 'periksa',
     }));

@@ -45,9 +45,7 @@ function HoverCardContent({
         data-slot="hover-card-content"
         align={align}
         sideOffset={sideOffset}
-        /* Inline (bukan kelas) supaya pasti: kartu hover tak boleh menahan
-           klik ke tabel di bawahnya. `pointer-events` diwariskan ke anak,
-           jadi cukup di elemen ini. */
+
         style={{ pointerEvents: 'none', ...style }}
         className={cn(
           'z-50 w-64 origin-(--radix-hover-card-content-transform-origin) rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-hidden',

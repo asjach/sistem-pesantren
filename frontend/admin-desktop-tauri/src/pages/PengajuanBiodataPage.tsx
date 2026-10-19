@@ -59,7 +59,6 @@ function gridValues(p: PengajuanBiodata): Record<string, string | null> {
 
 async function noopCommit() {}
 
-// Verifikasi pengajuan biodata dari portal wali.
 export default function PengajuanBiodataPage() {
   const { user } = useAuth();
   const canProses = bisa(user, 'pengajuan_biodata.ubah');
@@ -68,7 +67,7 @@ export default function PengajuanBiodataPage() {
   const [cari, setCari] = useState('');
   const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   const [badge, setBadge] = useState<Record<string, number>>({});
-  /* Opsi filter status: label memuat jumlah pengajuan per status. */
+
   const opsiStatus = useMemo(
     () => STATUS.map((s) => ({ nilai: s, label: `${s} (${badge[s] ?? 0})` })),
     [badge],

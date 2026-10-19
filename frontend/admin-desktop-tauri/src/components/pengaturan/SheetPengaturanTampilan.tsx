@@ -23,7 +23,7 @@ export default function SheetPengaturanTampilan({ open, onOpenChange }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  // Buka-tutup di sini juga memantau event global.
+
   const [terbuka, setTerbuka] = useState(open);
   useEffect(() => { setTerbuka(open); }, [open]);
   useEffect(() => {
@@ -40,8 +40,7 @@ export default function SheetPengaturanTampilan({ open, onOpenChange }: {
         overlay={false}
         className="w-full gap-3 sm:max-w-md"
         aria-label="Pengaturan tampilan tabel"
-        /* Non-modal: klik di luar TIDAK menutup — pengguna bisa menyetel lalu
-           langsung mencoba tabelnya. Tutup lewat tombol X atau tombol Esc. */
+
         onInteractOutside={(e) => e.preventDefault()}
       >
         <SheetHeader>

@@ -54,7 +54,7 @@ describe('setelanUntukTujuan', () => {
       { tipeKontrol: 'nominal' },
       { tipeDiizinkan: ['teks'], tipeSekarang: 'teks' },
     );
-    // Tipe lama kotak tujuan dipertahankan (bukan dihapus), dan dicatat dilewati.
+
     expect(takBoleh.setelan.tipeKontrol).toBeUndefined();
     expect(takBoleh.dilewati).toContain('tipeKontrol');
   });
@@ -69,15 +69,13 @@ describe('setelanUntukTujuan', () => {
   });
 
   it('pengaturan tipe ikut hanya bila tipe akhirnya sama dengan tipe sumber', () => {
-    // Tipe disalin (kotak tujuan boleh memilihnya) → pengaturan tipe ikut.
+
     const disalin = setelanUntukTujuan(
       { tipeKontrol: 'tanggal', tipe: { format: 'dd-mm-yyyy' } },
       { tipeDiizinkan: ['tanggal'], tipeSekarang: 'teks' },
     );
     expect(disalin.setelan.tipe).toEqual({ format: 'dd-mm-yyyy' });
 
-    // Tipe tak boleh dipilih, TAPI kotak tujuan memang sudah bertipe sama
-    // (mis. tipenya dipatok kode) → pengaturan tipe tetap sah.
     const terkunci = setelanUntukTujuan(
       { tipeKontrol: 'tanggal', tipe: { format: 'dd-mm-yyyy' } },
       { tipeDiizinkan: [], tipeSekarang: 'tanggal' },
@@ -107,7 +105,6 @@ describe('setelanUntukTujuan', () => {
       },
     );
 
-    // Preset rupiah milik tipe nominal: tak boleh tertinggal di kotak tanggal.
     expect(setelan).toEqual({ tipeKontrol: 'tanggal' });
   });
 
@@ -120,24 +117,22 @@ describe('setelanUntukTujuan', () => {
       { nilaiDefault: 'Opsi Z' },
       { opsi: ['Opsi A'], setelanSekarang: { nilaiDefault: 'Opsi A' } },
     );
-    // Nilai awal kotak tujuan sendiri dipertahankan, sumbernya cuma dicatat lewat.
+
     expect(takAda.setelan.nilaiDefault).toBe('Opsi A');
     expect(takAda.dilewati).toContain('nilaiDefault');
   });
 
   it('langkah ikut disalin ke kotak stepper & dilewati di kotak lain', () => {
-    // Tujuan stepper: langkah sumber ikut (MIRROR seperti ukuran).
+
     const keStepper = setelanUntukTujuan(
       { tinggi: 30, langkah: 5 },
       { aturLangkah: true, setelanSekarang: { langkah: 3 } },
     );
     expect(keStepper.setelan).toEqual({ tinggi: 30, langkah: 5 });
 
-    // Sumber tanpa langkah → langkah tujuan hilang (kembali bawaan pemanggil).
     const tanpaLangkah = setelanUntukTujuan({ tinggi: 30 }, { aturLangkah: true });
     expect(tanpaLangkah.setelan).toEqual({ tinggi: 30 });
 
-    // Tujuan bukan stepper (combobox/input): langkah tak relevan → dilewati.
     const keCombo = setelanUntukTujuan({ tinggi: 30, langkah: 5 }, {});
     expect(keCombo.setelan).toEqual({ tinggi: 30 });
     expect(keCombo.dilewati).toEqual(['langkah']);
@@ -160,7 +155,6 @@ describe('papan salin setelan', () => {
     simpanSalinan({ setelan: { tinggi: 30 }, label: 'Kelompok', nama: 'combobox' });
     expect(isiSalinan()).toEqual({ setelan: { tinggi: 30 }, label: 'Kelompok', nama: 'combobox' });
 
-    // Salinan berikutnya menimpa yang lama, bukan menumpuk.
     simpanSalinan({ setelan: { lebar: 200 }, label: 'Urutkan', nama: 'combobox' });
     expect(isiSalinan()).toEqual({ setelan: { lebar: 200 }, label: 'Urutkan', nama: 'combobox' });
 

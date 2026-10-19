@@ -124,12 +124,10 @@ export default function HalamanTabs({ def }: { def: HalamanDef }) {
   );
   const aktif = tabs.find((t) => pathname === t.to || pathname.startsWith(`${t.to}/`))?.to;
 
-  // Ingat tab terakhir agar tautan halaman (rute mis. `/data-induk`) kembali ke sana.
   useEffect(() => {
     if (aktif) prefSet(kunciPref, aktif).catch(() => {});
   }, [aktif, kunciPref]);
 
-  // Tab aktif disembunyikan / izinnya dicabut → pindah ke tab tampil pertama.
   useEffect(() => {
     if (setelan === null || aktif !== undefined || tabs.length === 0) return;
     navigate(tabs[0].to, { replace: true });
@@ -142,8 +140,7 @@ export default function HalamanTabs({ def }: { def: HalamanDef }) {
         onValueChange={(v) => navigate(v)}
         className="flex min-h-0 flex-1 flex-col gap-0"
       >
-        {/* `max-w-full overflow-x-auto`: tab bisa lebih lebar dari area konten
-            (mis. jendela sempit + sidebar terbuka) — tetap bisa digulir. */}
+
         <TabsList className={KELAS_LIST_TAB} indikator="primer">
           {tabs.map((t) => (
             <TabsTrigger

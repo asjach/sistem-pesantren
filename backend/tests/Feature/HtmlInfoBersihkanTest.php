@@ -15,7 +15,6 @@ use Tests\TestCase;
  */
 class HtmlInfoBersihkanTest extends TestCase
 {
-    // ---------------------------------------------------------------- bayangan
 
     public function test_script_dibuang(): void
     {
@@ -101,8 +100,6 @@ class HtmlInfoBersihkanTest extends TestCase
         $this->assertStringContainsString('rel="noopener noreferrer nofollow"', $hasil);
     }
 
-    // ------------------------------------------------------------------ boleh
-
     public function test_format_dasar_utuh(): void
     {
         $html = '<h2>Judul</h2><p><strong>Tebal</strong> <em>miring</em> '
@@ -141,8 +138,6 @@ class HtmlInfoBersihkanTest extends TestCase
         $this->assertSame('<p>5 &lt; 10 dan 20 &lt; 30</p>', $hasil);
     }
 
-    // ----------------------------------------------------------------- kosong
-
     public function test_kosong_jadi_null(): void
     {
         $this->assertNull(HtmlInfo::bersihkan(null));
@@ -159,8 +154,6 @@ class HtmlInfoBersihkanTest extends TestCase
         $this->assertTrue(HtmlInfo::adaIsi('<p>x</p>'));
     }
 
-    // ------------------------------------------------------------------ batas
-
     /** Potong di batas tag, bukan di tengah `data:` — hasil jadi rusak. */
     public function test_potong_di_batas_tag_bukan_di_tengah_atribut(): void
     {
@@ -168,7 +161,7 @@ class HtmlInfoBersihkanTest extends TestCase
         $hasil = HtmlInfo::potongBatas($gambar, 200);
 
         $this->assertLessThanOrEqual(200, mb_strlen($hasil));
-        // `<img` menggantung tanpa `>` = src-nya sudah terpotong = rusak.
+
         $this->assertStringNotContainsString('<img', $hasil);
     }
 }

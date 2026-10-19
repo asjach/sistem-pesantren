@@ -75,11 +75,7 @@ export default function TabelRingkas({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <ExcelTable
           tableKey={tableKey}
-          /* Judul TIDAK lagi digambar `<header>` sendiri: ia diserahkan ke
-             bilah judul ExcelTable supaya tabel ini punya tempat untuk gerigi
-             "Pengaturan tabel ini" di ujung kanan — kalau judul digambar
-             sendiri, bilah judul ExcelTable tak pernah dirender (tak ada
-             header/filter/kontrol lain) sehingga geriginya hilang. */
+
           header={<span>{judul}</span>}
           akhirToolbar={aksi}
           fields={fields}

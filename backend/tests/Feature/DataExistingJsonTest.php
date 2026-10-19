@@ -22,9 +22,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Data existing untuk dialog import dikirim backend sebagai JSON (kolom +
-// wajib + baris); berkas Excel disusun di frontend. Cakupan data mengikuti
-// lembaga yang boleh diakses akun.
 class DataExistingJsonTest extends TestCase
 {
     use RefreshDatabase;
@@ -76,7 +73,7 @@ class DataExistingJsonTest extends TestCase
             'nama' => '2026/2027', 'tanggal_mulai' => '2026-07-01',
             'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
-        // Kamus di-fan-out per lembaga → seed ulang setelah lembaga dibuat.
+
         $this->seed(ReferensiSeeder::class);
         DB::table('ref_status_akhir')->updateOrInsert(
             ['jenjang' => 'MI', 'kode' => 'pindah_keluar'],
@@ -135,8 +132,7 @@ class DataExistingJsonTest extends TestCase
             ->assertStatus(200);
 
         $this->assertSame(RiwayatBelajarTemplateExport::KOLOM, $res->json('kolom'));
-        // `santri_id` diambil dari id yang benar-benar dibuat, bukan angka
-        // tetap: auto-increment berbeda antara mesin lokal dan CI.
+
         $this->assertSame(
             [[
                 '26001', (string) $santri->id, 'Anwar', 'MI', '2026/2027', '1A',

@@ -23,7 +23,7 @@ class PsbGelombangServiceTest extends TestCase
         parent::setUp();
         $this->svc = app(PsbGelombangService::class);
         Lembaga::create(['nama' => 'MI', 'jenjang' => 'MI', 'kelompok_psb' => 'eksklusif', 'is_seleksi' => false, 'is_active' => true]);
-        // `psb_kegiatan.tahun_ajaran` ber-FK ke tabel `tahun_ajaran`.
+
         TahunAjaran::create([
             'nama' => '2026/2027', 'tanggal_mulai' => '2026-07-01',
             'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
@@ -45,8 +45,6 @@ class PsbGelombangServiceTest extends TestCase
             'tgl_tutup' => $tutup,
         ]);
     }
-
-    // ---------- cekBukaDanKuota ----------
 
     public function test_cek_buka_menolak_sebelum_tanggal_buka(): void
     {
@@ -76,8 +74,6 @@ class PsbGelombangServiceTest extends TestCase
         $this->svc->cekBukaDanKuota($g->id, 'MI');
         $this->addToAssertionCount(1);
 
-        // Tanggal null = tanpa batas, BUKAN dianggap tertutup. Kegiatan yang
-        // sama (psb_kegiatan.tahun_ajaran UNIQUE, jadi tak boleh bikin dua).
         $g2 = $this->gelombang($keg, null, null, 2, 'G2');
         $this->svc->cekBukaDanKuota($g2->id, 'MI');
         $this->addToAssertionCount(1);
@@ -93,8 +89,6 @@ class PsbGelombangServiceTest extends TestCase
             $this->addToAssertionCount(1);
         }
     }
-
-    // ---------- gelombangAktif ----------
 
     public function test_gelombang_aktif_mengabaikan_yang_di_luar_rentang(): void
     {
@@ -129,7 +123,6 @@ class PsbGelombangServiceTest extends TestCase
         $lamaAktif = $this->kegiatan(true, 'Lama aktif');
         $gAktif = $this->gelombang($lamaAktif, '2026-06-01', '2026-07-01', 1, 'A');
 
-        // Kegiatan kedua butuh TA lain (psb_kegiatan.tahun_ajaran UNIQUE).
         TahunAjaran::create([
             'nama' => '2027/2028', 'tanggal_mulai' => '2027-07-01',
             'tanggal_selesai' => '2028-06-30', 'is_aktif' => false,
@@ -159,11 +152,9 @@ class PsbGelombangServiceTest extends TestCase
         $this->assertNull($this->svc->gelombangAktif(999999));
     }
 
-    // ---------- validasiRentang ----------
-
     public function test_validasi_rentang_dilewati_bila_data_tak_lengkap(): void
     {
-        // Tanpa kegiatan / tanpa tanggal: tak ada yang divalidasi, tak melempar.
+
         $this->svc->validasiRentang(null, '2026-06-01', '2026-07-01');
         $this->svc->validasiRentang(1, null, '2026-07-01');
         $this->svc->validasiRentang(1, '2026-06-01', null);
@@ -193,7 +184,6 @@ class PsbGelombangServiceTest extends TestCase
         $keg = $this->kegiatan();
         $this->gelombang($keg, '2026-06-01', '2026-07-01', 1, 'Ada');
 
-        // Bersebelahan tepat (mulai di hari tutup+1) = tidak tumpang tindih.
         $this->svc->validasiRentang($keg->id, '2026-07-02', '2026-08-01');
         $this->addToAssertionCount(1);
     }
@@ -203,7 +193,6 @@ class PsbGelombangServiceTest extends TestCase
         $keg = $this->kegiatan();
         $g = $this->gelombang($keg, '2026-06-01', '2026-07-01', 1, 'Sendiri');
 
-        // Mengubah gelombang itu sendiri tak boleh dianggap bertabrakan diri sendiri.
         $this->svc->validasiRentang($keg->id, '2026-06-01', '2026-07-01', $g->id);
         $this->addToAssertionCount(1);
     }

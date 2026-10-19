@@ -17,18 +17,13 @@ class TarifStoreRequest extends FormRequest
     public function rules(): array
     {
         $jenjang = $this->input('jenjang');
-        // Cek unik hanya bila aktor memang berwenang atas lembaga itu. Tanpa
-        // penjaga ini, 422 "sudah ada" membocorkan tarif lembaga lain, padahal
-        // lingkupnya sendiri digerbangi controller dengan 403 (perilaku lama).
+
         $berwenang = is_string($jenjang) && (bool) $this->user()?->canAccessLembaga($jenjang);
 
         return [
             'jenjang' => 'required|string',
             'tahun_ajaran' => 'required|string|max:9',
-            // Tarif diidentifikasi lembaga + tahun ajaran + jenis. `tingkat`
-            // sengaja tak ikut (sama seperti index `uq_tarif_tagihan` yang baru
-            // dan penjaga di klien): generate tak pernah membacanya, sedangkan
-            // nilainya nullable membuat baris ganda lolos index lama.
+
             'jenis_id' => [
                 'required', 'integer', 'exists:jenis_tagihan,id',
                 ...($berwenang ? [

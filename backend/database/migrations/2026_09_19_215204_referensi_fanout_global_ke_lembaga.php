@@ -49,6 +49,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Tidak reversibel: salinan per-lembaga telah menyimpang masing-masing.
+
     }
 };

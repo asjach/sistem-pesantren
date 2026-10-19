@@ -6,17 +6,13 @@
    termasuk sheet pengaturan tabel saat ditutup. Impor WAJIB setelah
    `tailwindcss` (utility paket ini bergantung pada base Tailwind). */
 @import "tw-animate-css";
-/* Google Fonts disimpan lokal (offline) — lihat scripts/fonts-offline.py */
+
 @import "./assets/fonts/fonts-offline.css";
-/* Aptos & Aptos Narrow (bundel lokal, dari instalasi Office) — lihat src/assets/fonts/aptos.css */
+
 @import "./assets/fonts/aptos.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Cetak rapor: hanya area ber-`id="area_cetak_rapor"` yang tampil saat
-   pengguna menekan Cetak (cetak browser → PDF, tanpa dependensi baru).
-   `visibility` (bukan `display`) dipakai agar tata letak area cetak tak
-   runtuh karena leluhurnya disembunyikan. */
 @media print {
   body * { visibility: hidden; }
   #area_cetak_rapor,
@@ -61,10 +57,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  /* Radius bertingkat ala Gr8r (badge/chip bulat tetap bulat). */
-  /* Satu-satunya sumber: --radius-semua (stepper Sudut di pengaturan,
-     0px bawaan; diubah runtime via inline style di <html>). Seluruh skala
-     mengikutinya — rounded-full (lingkaran/pil) sengaja tak ikut. */
+
   --radius-semua: 0px;
   --radius-xs: var(--radius-semua);
   --radius-sm: var(--radius-semua);
@@ -75,34 +68,15 @@
   --radius-3xl: var(--radius-semua);
 }
 
-/* ---------- basis: nilai aman sebelum JS jalan (Hijau terang) ----------
-   Tema (20 preset + kustom) diterapkan RUNTIME oleh ThemeProvider
-   (src/theme.tsx + src/themes.ts): --accent, --on-accent, --background,
-   --foreground, --sidebar, --sidebar-deep disetel inline di <html>.
-   Sisanya DITURUNKAN otomatis lewat color-mix — berlaku semua tema & mode. */
 :root {
   --radius: var(--radius-semua);
-  /* Kontrol native (scrollbar, spinner input, date picker) ikut mode terang. */
+
   color-scheme: light;
 
-  /* Warna garis bilah ribbon (bawaan: 10% putih di atas latar sidebar —
-     sama dengan border-white/10 pada header). Dipakai juga oleh bar judul
-     tabel ExcelTable agar seragam; ikut kustomisasi bagian "Bilah ribbon"
-     (--part-ribbon-border) bila pengguna mengaturnya. */
   --warna-border-ribbon: var(--part-ribbon-border, color-mix(in srgb, var(--sidebar) 90%, white));
 
-  /* ---------- hierarki font (Aptos bundel lokal + fallback sistem) ----------
-     --font-sans: isi/body, tabel, navigasi (netral).
-     --font-display: judul (h1–h3), brand sidebar, header grid.
-     --font-narrow: heading/kolom rapat opsional (Aptos Narrow).
-     --font-mono: kode, ID, hex, angka tabular bila perlu. */
   --font-sans: "Aptos", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
-  /* Judul/brand memakai wajah berbeda dari isi (Aptos) agar hierarki tipografi
-     nyata — sebelumnya sama persis dengan --font-sans (Aptos) sehingga tak ada
-     beda. Plus Jakarta Sans (bundel lokal, 300/400) dipakai sebagai wajah
-     display; Aptos jadi fallback. Catatan: Aptos hanya bundel 400/700, jadi
-     bobot 600 (font-semibold) di heading memang jadi bold sintetis — sama seperti
-     kondisi saat ini, tidak ada risiko baru. */
+
   --font-display: "Plus Jakarta Sans", "Aptos", "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", Verdana, "Segoe UI", sans-serif;
   --font-narrow: "Aptos Narrow", "Aptos", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -111,10 +85,9 @@
   --on-accent: #ffffff;
   --background: #f2f5f1;
   --foreground: #1d241e;
-  /* Aksen yang aman dibaca sebagai warna teks/ikon: dipadukan ke arah
-     teks tema sehingga tetap kontras di mode terang maupun gelap. */
+
   --accent-readable: color-mix(in srgb, var(--accent) 72%, var(--foreground));
-  /* Warna semantik (dipakai level "kaya"): otomatis menyesuaikan mode. */
+
   --success: color-mix(in srgb, #16a34a 72%, var(--foreground));
   --success-foreground: #ffffff;
   --info: color-mix(in srgb, #2563eb 72%, var(--foreground));
@@ -125,7 +98,7 @@
 
   --card: color-mix(in srgb, var(--foreground) 5%, var(--background));
   --card-foreground: var(--foreground);
-  /* Alias nama Gr8r untuk --card (dipakai komponen gaya papan/kanban). */
+
   --surface: var(--card);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
@@ -142,13 +115,11 @@
   /* Warna peringatan (banner mode Edit, dsb) — bukan warna mentah Tailwind. */
   --warning: #b45309;
   --warning-foreground: #92400e;
-  /* Border low-contrast: hanya 8% teks di atas latar (lembut, tidak "tebal") —
-     disetarakan dengan keremangan tepi sidebar, tetap terbaca di kedua mode. */
+
   --border: color-mix(in srgb, var(--foreground) 8%, var(--background));
   --input: var(--border);
   --ring: var(--accent);
-  /* ---------- token turunan Gr8r (hangat & tenang) ----------
-     Diturunkan via color-mix agar otomatis ikut SEMUA tema & mode. */
+
   --surface-2: color-mix(in srgb, var(--foreground) 4%, var(--background));
   --surface-3: color-mix(in srgb, var(--foreground) 8%, var(--background));
   --sunken: color-mix(in srgb, var(--foreground) 3%, var(--background));
@@ -158,18 +129,14 @@
   --shadow-card: 0 1px 2px rgb(28 25 20 / 0.05), 0 0 0 1px var(--border);
   --shadow-pop: 0 12px 32px -8px rgb(28 25 20 / 0.16), 0 2px 6px -2px rgb(28 25 20 / 0.06), 0 0 0 1px var(--border);
   --shadow-drag: 0 16px 36px -10px rgb(28 25 20 / 0.28), 0 0 0 1px var(--border-strong);
-  /* Bayangan kartu saat hover (angkat lembut, ring sedikit lebih tegas). */
+
   --shadow-card-hover: 0 4px 14px -2px rgb(28 25 20 / 0.10), 0 0 0 1px var(--border-strong);
-  /* Garis rambut seragam untuk chrome (sidebar/topbar) — calon pengganti
-     pengulangan color-mix(...) inline. Catatan: nilai per-piksel di pohon
-     sidebar sengaja tetap inline agar tak menggeser garis penghubung. */
+
   --sidebar-border: color-mix(in srgb, var(--sidebar-foreground) 12%, transparent);
-  /* Cincin fokus seragam di chrome (sidebar/topbar/menubar/filter): satu sumber
-     supaya warnanya tak diulang sebagai color-mix(...) inline di banyak komponen.
-     Sama dengan nilai sebelumnya (sidebar-foreground 60%) — hanya dipusatkan. */
+
   --chrome-ring: color-mix(in srgb, var(--sidebar-foreground) 60%, transparent);
   --hairline: color-mix(in srgb, var(--foreground) 10%, transparent);
-  /* Geometri shell ala Gr8r. */
+
   --side-w: 252px;
   --topbar-h: 46px;
   --gutter: 24px;
@@ -178,9 +145,8 @@
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* ---------- dark: fallback aman (Hijau gelap) ---------- */
 .dark {
-  /* Scrollbar & kontrol native ikut mode gelap. */
+
   color-scheme: dark;
   --background: #101511;
   --foreground: #e8ede8;
@@ -203,25 +169,24 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    /* Bobot dasar mengikuti pilihan "Font antarmuka" (Light/Normal). */
+
     font-weight: var(--font-ui-weight, 400);
     font-size: 13.5px;
     line-height: 1.45;
     margin: 0;
   }
-  /* Judul memakai font display (sans humanis) agar kontras dengan isi. */
+
   h1, h2, h3 {
     font-family: var(--font-display);
     letter-spacing: -0.01em;
     text-wrap: balance;
   }
-  /* Kode / ID / hex memakai font mono. */
+
   code, pre, kbd, samp {
     font-family: var(--font-mono);
     font-size: 0.92em;
   }
-  /* Input angka: sembunyikan spinner bawaan browser (panah atas/bawah) —
-     kontrol tampil seragam; nilai tetap bisa diubah dengan mengetik. */
+
   input[type='number']::-webkit-outer-spin-button,
   input[type='number']::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -233,9 +198,6 @@
   }
 }
 
-/* ---------- Scrollbar: track transparan, handle mengikuti tema ----------
-   Berlaku semua area gulir (halaman, sidebar, grid, dialog). Warna handle
-   diturunkan dari --foreground sehingga otomatis ikut tema & mode. */
 * {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--foreground) 28%, transparent) transparent;
@@ -250,7 +212,7 @@
 }
 ::-webkit-scrollbar-thumb {
   background-color: color-mix(in srgb, var(--foreground) 28%, transparent);
-  /* Border transparan + background-clip: handle tampak lebih ramping. */
+
   border: 2px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
@@ -265,7 +227,6 @@
   display: none;
 }
 
-/* Sembunyikan scrollbar (isi mentok tepi; gulir roda/sentuh tetap jalan). */
 .scroll-tanpa-bar {
   scrollbar-width: none;
 }
@@ -273,17 +234,6 @@
   display: none;
 }
 
-/* ---------- Crosstab Tagihan + popover aksinya: garis sel dipertegas -----
-   Bawaan global --border (8%) terlalu samar di strip header yang seragam
-   bg-muted maupun di dalam popover yang ramai. Override dilingkupi dua wadah
-   ini saja (8% → 15%) supaya tema & bagian lain tak ikut berubah; var
-   diwariskan ke semua th/td/input/select/button di dalam. Popover di-portal
-   ke luar tabel sehingga butuh selektor sendiri (satu instance dalam sekali
-   waktu: mode tagihan & tambah saling eksklusif). */
-
-/* Pil (badge, segmen, info) mengikuti sudut global — 0 = kotak.
-   Lingkaran sejati (avatar, titik status, thumb switch, tombol ikon bundar)
-   tetap `rounded-full` dan tak tersentuh. */
 .rounded-pil {
   border-radius: var(--radius-semua);
 }
@@ -292,20 +242,11 @@
   --border: color-mix(in srgb, var(--foreground) 15%, var(--background));
 }
 
-/* Panel popover yang MENEMPEL pada kotak kontrolnya — "nominal cepat" (tipe
-   `nominal`) dan kalender (tipe `tanggal`):
-   border tiap tombol disamakan dengan border panel & kotak pembungkusnya
-   (foreground 30%). Varian tombol `outline` memasang `dark:border-input` yang
-   letaknya lebih belakang di urutan sumber sehingga menang di mode gelap,
-   padahal --input global cuma 8–15% foreground — terlalu pudar di sini.
-   Override var-nya dilingkupi panel ini saja supaya tema & tombol di bagian
-   lain tak ikut berubah. */
 .pop-nominal,
 .pop-kalender {
   --input: color-mix(in oklab, var(--foreground) 30%, transparent);
 }
 
-/* ---------- Spreadsheet DSG (Pos): ikut semua tema + dark via var aplikasi ---------- */
 .simpes-dsg {
   --dsg-border-color: var(--part-tabel_sel-border, var(--border));
   --dsg-cell-background-color: var(--part-tabel_sel-bg, var(--background));
@@ -318,52 +259,32 @@
   --dsg-selection-disabled-background-color: color-mix(in srgb, var(--accent) 20%, transparent);
   --dsg-selection-disabled-border-color: var(--accent);
   color-scheme: light;
-  /* Jenis & ukuran huruf ISI tabel: diatur dari toolbar tabel (berlaku semua
-     tabel). Bawaan = Roboto Light (dibundel lokal); header kolom punya
-     setelannya sendiri di .dsg-cell-header-container. */
+
   font-family: var(--simpes-font-family, var(--part-tabel_sel-font, "Roboto", sans-serif));
   font-size: var(--simpes-font-size, var(--part-tabel_sel-size, 11px));
 }
-/* ---------- Seleksi gaya spreadsheet ----------
-   Geometri rect bawaan DSG SUDAH tepat: rect membentang dari tepi kiri/atas
-   sel pertama sampai 1px melewati tepi kanan/bawah sel terakhir — persis di
-   atas garis grid pembatas range. JANGAN digeser dengan transform:
-   menggeser membuat border aksen berdampingan dengan garis grid (dobel). */
 
-/* Range: outline aksen + tint. Seluruh sel read-only ikut gaya yang sama. */
 .simpes-dsg .dsg-selection-rect,
 .simpes-dsg .dsg-selection-rect-disabled {
   border-color: var(--dsg-selection-border-color);
   background: var(--dsg-selection-background-color);
 }
 
-/* Sel tunggal: hanya outline (seperti Excel), tanpa isi. */
 .simpes-dsg .dsg-active-cell,
 .simpes-dsg .dsg-active-cell-disabled {
   border-color: var(--dsg-selection-border-color);
   background: transparent;
 }
 
-/* Garis bawah baris terakhir (::after, z-index 35) menutupi border bawah
-   sel aktif/range saat baris terakhir dipilih. Naikkan overlay seleksi di
-   atas garis itu — tetap di bawah header sticky (42) & kolom yang diseret (46). */
 .simpes-dsg .dsg-active-cell,
 .simpes-dsg .dsg-selection-rect {
   z-index: 36;
 }
 
-/* DSG melubangi rect (clip-path) tepat di sel jangkar supaya input edit
-   tidak tertutup. Saat TIDAK mengedit, lubang itu memutus outline range di
-   atas/samping sel jangkar — jadi dibuang agar outline utuh mengelilingi
-   blok. Saat mengedit lubang dipertahankan (input tetap terbaca). */
 .simpes-dsg:not(:has(.dsg-active-cell-focus)) .dsg-selection-rect {
   clip-path: none !important;
 }
 
-/* ---------- Warna sel jadwal (mode Guru / Mapel) ----------
-   Palet 36 warna; dipakai sebagai tint lembut di atas background sel supaya
-   teks tetap terbaca di tema terang maupun gelap. Warna dipilih deterministik
-   dari ID guru/mapel. Baris tercentang/aktif dan hover tetap menang. */
 .simpes-dsg .dsg-cell.simpes-warna-0 { --warna-sel: #e57373; }
 .simpes-dsg .dsg-cell.simpes-warna-1 { --warna-sel: #f06292; }
 .simpes-dsg .dsg-cell.simpes-warna-2 { --warna-sel: #ba68c8; }
@@ -408,30 +329,22 @@
   );
 }
 
-/* Pembatas antar kelas pada tampilan gabungan: garis tegas di atas baris
-   pertama setiap kelas (kelas pertama tidak perlu). */
 .simpes-dsg .dsg-cell.simpes-dsg-kelas-awal {
   border-top: 2px solid color-mix(in srgb, var(--foreground) 32%, var(--dsg-border-color));
 }
 
-/* Di dalam range: sel jangkar tanpa border sendiri (tidak dobel),
-   cukup outline range yang mengelilingi seluruh blok. */
 .simpes-dsg:has(.dsg-selection-rect) .dsg-active-cell:not(.dsg-active-cell-focus) {
   border-color: transparent;
   box-shadow: none;
   background: transparent;
 }
 
-/* Header kolom & nomor baris ikut disorot bila masuk range (seperti Excel). */
 .simpes-dsg .dsg-cell-header-active,
 .simpes-dsg .dsg-cell-gutter-active {
   background-color: color-mix(in srgb, var(--accent) 18%, var(--background));
   color: var(--foreground);
 }
 
-/* Penanda garis DSG (col/row marker) menggambar garis tambahan tepat di atas
-   border rect (dobel) dan row-marker jatuh di dalam range saat di-scroll.
-   Sembunyikan: cukup border rect + sorot header & nomor baris. */
 .simpes-dsg .dsg-selection-col-marker-container,
 .simpes-dsg .dsg-selection-row-marker-container {
   display: none;
@@ -439,7 +352,7 @@
 .simpes-dsg .dsg-expand-rows-indicator-disabled {
   border-color: var(--dsg-selection-border-color);
 }
-/* Handle perluas seleksi (mirip fill handle Excel) hanya saat mode Edit. */
+
 .simpes-dsg-readonly .dsg-expand-rows-indicator,
 .simpes-dsg-readonly .dsg-expand-rows-rect {
   display: none;
@@ -450,59 +363,41 @@
 .simpes-dsg .dsg-container {
   color: var(--part-tabel_sel-fg, var(--foreground));
   background: var(--part-tabel_sel-bg, var(--background));
-  /* Ikut jenis huruf isi tabel (bawaan Roboto Light); header menimpanya sendiri. */
+
   font-family: var(--simpes-font-family, var(--part-tabel_sel-font, "Roboto", sans-serif));
-  /* Isi sisa wrapper: basis flex, boleh menyusut (scroll internal) bila data banyak. */
+
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
-  /* DSG menggambar border kanan & bawah di container (selebar area kartu),
-     sehingga tampak "lewat" dari tabel saat kolom sedikit. Tepi tabel
-     digambar per sel kolom terakhir (.simpes-dsg-col-last) + garis baris
-     terakhir, jadi border container dibuang. */
+
   border-right: none;
   border-bottom: none;
-  /* Scrollbar bawaan disembunyikan: diganti bilah melayang kustom
-     (`ScrollbarMelayang`) yang menempel tepi kartu — grid melukis sampai tepi
-     kartu ("menembus" area scrollbar). `overflow: overlay` TIDAK dipakai:
-     Chrome modern menghitungnya sebagai `auto` (terbukti di Chrome 154),
-     jadi tak ada efek. Gulir roda/sentuh/keyboard grid tetap bawaan — hanya
-     visual bilahnya yang diganti. */
+
   scrollbar-width: none;
 }
 .simpes-dsg .dsg-container::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
-/* Lapisan scroll DSG menggambar bingkai atas/kiri + bayangan gulir selebar
-   VIEWPORT (bukan lebar tabel), sehingga tampak "lewat" dari tabel saat kolom
-   sedikit. Buang bingkai & bayangannya; tepi tabel sudah digambar per sel
-   (.simpes-dsg-col-last) dan indikator gulir tetap ada lewat scrollbar. */
+
 .simpes-dsg .dsg-scrollable-view {
   border-top: none;
   border-left: none;
   box-shadow: none;
 }
-/* DSG membungkus container dalam div perantara: teruskan rantai flex.
-   Kartu tabel (.simpes-dsg-kartu) mengisi tinggi grid (gridHeight): penuh
-   sisa area untuk tabel halaman, mengikuti isi untuk tabel kompak. */
+
 .simpes-dsg > .simpes-dsg-kartu > div:first-child {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
-/* Latar tabel = latar SEL (`--part-tabel_sel-bg`, cadangan `--background`).
-   Akar `.simpes-dsg` + kartu ikut diwarnai; `.dsg-container` sudah memakai var
-   yang sama di atas. Tanpa ini tabel tanpa baris (belum ada data) memakai
-   `bg-card`/latar halaman sementara sel memakai warna bagian tabel → area
-   kosong terlihat berbeda dari area berisi sel. */
+
 .simpes-dsg,
 .simpes-dsg > .simpes-dsg-kartu {
   background: var(--part-tabel_sel-bg, var(--background));
 }
-/* Bilah muat halus di tepi atas kartu saat refetch (pagination/filter):
-   segmen menyapu kiri-kanan; grid di bawahnya tetap terlihat. */
+
 .simpes-muat-bar {
   width: 33.333%;
   animation: simpes-muat-geser 1.1s ease-in-out infinite;
@@ -512,25 +407,15 @@
   100% { margin-left: 100%; }
 }
 .simpes-dsg .dsg-row.dsg-row-header {
-  /* Header bergaya buku induk: kertas tipis + garis bawah netral yang tegas,
-     bukan isian aksen. Override isian var bagian tetap menang bila diatur. */
+
   background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 4%, var(--background)));
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--foreground) 18%, transparent);
 }
-/* Bilah judul tabel (JudulTabel, `data-part="header_tabel"`) menggambar
-   `border-b`-nya sendiri sebagai pemisah ke grid. `border-top` sel header
-   tabel — bawaan `.dsg-cell` DSG — jatuh tepat 1px di bawahnya: dua garis 1px
-   berdempetan, terbaca 2px. Mematikannya TEPAT saat bilah judulnya ada
-   (penanda `simpes-dsg-bilah-judul`): tanpa bilah judul, `border-top` itu
-   tetap jadi tepi atas tabel dan tak boleh hilang. Batas bawah tabel tak
-   tersentuh karena `border-top` (bukan `border-bottom`) yang dipakai sel. */
+
 .simpes-dsg-bilah-judul .dsg-row-header .dsg-cell {
   border-top: none;
 }
-/* Indikator sudut select-all ala Excel: DSG memberi `margin: auto` (tampak
-   berjarak ke semua sisi). Rapatkan tepat ke sudut kanan-bawah sel.
-   Gutter header tetap `sticky` (bukan relative) agar nomor baris + sudut ikut
-   menempel saat scroll horizontal — sticky juga jadi containing block. */
+
 .simpes-dsg .dsg-cell-gutter.dsg-cell-header {
   position: sticky;
   left: 0;
@@ -544,39 +429,30 @@
 }
 .simpes-dsg .dsg-cell-header .dsg-cell-header-container {
   color: var(--part-tabel_header-fg, inherit);
-  /* Bawaan header tabel: Roboto Light (dibundel lokal). Diatur dari ribbon
-     grup Font & Warna / setelan bagian; `--part-tabel_header-font` menang. */
+
   font-family: var(--part-tabel_header-font, "Roboto", sans-serif);
   font-weight: var(--part-tabel_header-weight, 300);
-  /* Ukuran header MANDIRI (bawaan 11px, ala Excel): stepper "Ukuran huruf sel"
-     di grup Cell hanya mengatur isi sel dan tidak lagi mempengaruhi header —
-     setelan bagian UI / ribbon grup Header yang berlaku. */
+
   font-size: var(--part-tabel_header-size, 11px);
-  /* Tanpa padding: judul memakai penuh lebar kolom & rata tengah. */
+
   padding: 0;
-  /* Sel header DSG adalah flex: buat wadah judul mengisi penuh agar gagang
-     resize di tepi kanan jatuh di perbatasan kolom, bukan di akhir teks. */
+
   flex: 1;
   min-width: 0;
 }
 .simpes-dsg .dsg-cell {
   padding-left: var(--part-tabel_sel-padx, 8px);
   padding-right: var(--part-tabel_sel-padx, 8px);
-  /* Ketebalan mengikuti pilihan di toolbar (bawaan Roboto Light = 300). */
+
   font-weight: var(--simpes-font-weight, var(--part-tabel_sel-weight, 300));
   font-variant-numeric: tabular-nums;
 }
-/* Kolom Aksi: sel hanya memuat tombol ikon kecil (24px), jadi padding sel
-   8px membuat kolom 1 tombol terlalu longgar. Dipadatkan ke 2px agar lebar
-   kolom otomatis (lihat ACTIONS_MIN_W) ikut ramping. */
+
 .simpes-dsg .dsg-cell.simpes-dsg-col-aksi {
   padding-left: 2px;
   padding-right: 2px;
 }
-/* Garis pemisah antar baris berasal dari border-top baris DI BAWAHNYA,
-   sehingga baris terakhir tidak punya garis bawah. Garis kanan kolom
-   terakhir juga putus karena box-shadow DSG terpotong area scroll.
-   Keduanya digambar DI DALAM elemen agar tidak ikut terpotong. */
+
 .simpes-dsg .simpes-dsg-col-last {
   border-right: 1px solid var(--dsg-border-color);
 }
@@ -589,22 +465,14 @@
   height: 1px;
   background: var(--dsg-border-color);
   pointer-events: none;
-  /* di atas kolom nomor baris yang sticky (z-index 30) */
+
   z-index: 35;
 }
-/* Baris terakhir: garis bawah sudah digambar ::after di atas. Bayangan bawah
-   bawaan sel DSG (box-shadow 1px 1px, tidak lagi tertutup baris berikutnya)
-   dibuang agar tidak bertumpuk jadi garis 2px; bayangan kanan tetap. */
+
 .simpes-dsg .simpes-dsg-row-last .dsg-cell {
   box-shadow: 1px 0 var(--dsg-border-color);
 }
-/* Kolom terakhir (kolom Aksi, atau kolom data terakhir tanpa kolom Aksi)
-   menggambar garis kanannya lewat border-right — sama seperti kolom beku
-   terakhir di atas. Bayangan kanan bawaan sel harus ikut dibuang, kalau tidak
-   ia menambah garis kedua TEPAT di sebelah border itu (terbaca 2px). Di baris
-   terakhir bayangannya dibuang seluruhnya: garis kanan dari border-right,
-   garis bawah dari `::after`. Diletakkan SETELAH aturan baris terakhir agar
-   menang di baris itu. */
+
 .simpes-dsg .dsg-cell.simpes-dsg-col-last {
   box-shadow: 0 1px var(--dsg-border-color);
 }
@@ -612,92 +480,61 @@
 .simpes-dsg .simpes-dsg-row-last .dsg-cell.simpes-dsg-beku-tepi {
   box-shadow: none;
 }
-/* Baris tercentang: sorot lembut (ikut warna aksen tema) agar jelas
-   baris mana yang sedang dipilih lewat checklist. */
+
 .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell,
 .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell-gutter {
   background-color: color-mix(in srgb, var(--accent) 14%, var(--background));
 }
-/* Baris aktif (tabel yang memakai `onBarisKlik`, mis. Daftar Dispensasi):
-   sorot lebih tegas daripada centang karena baris ini menentukan isi panel
-   lain. */
+
 .simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell,
 .simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell-gutter {
   background-color: color-mix(in srgb, var(--primary) 16%, var(--background));
 }
-/* Sel header tanpa padding agar judul rata tengah persis di lebar kolom.
-   TIDAK boleh dijadikan `position: relative`: sel header harus tetap ABSOLUTE
-   seperti sel baris data (`left: <offset>` inline dari DSG) supaya ikut model
-   gulir DSG — dengan `relative` sel header mengalir dari titik nol ISI, jadi
-   saat grid digulir ke kanan judul-judul menjauhi kolomnya lalu hilang sama
-   sekali ("nama kolom tak muncul" di kolom akhir). Jangkar garis indikator
-   sisip ternyata tak butuh `relative` di sel: kelas `simpes-dsg-sisip-*`
-   dipasang pada `.simpes-dsg-headtitle` yang sudah `position: relative`. */
+
 .simpes-dsg .dsg-row-header .dsg-cell {
   padding-left: 0;
   padding-right: 0;
 }
-/* Tabel tanpa baris data: garis bawah header tidak tergambar karena garis
-   normal berasal dari border-top baris data di bawahnya (tidak ada) dan sel
-   header menutupi shadow baris. Gambar garis bawah pada sel header — kecuali
-   gutter (sudut) & kolom sticky yang sudah punya sendiri. Hanya saat tak ada
-   baris data agar tidak dobel dengan tabel berisi. */
+
 .simpes-dsg:not(:has(.dsg-row:not(.dsg-row-header))) .dsg-row-header .dsg-cell:not(.dsg-cell-gutter) {
   box-shadow: 0 1px var(--dsg-border-color);
 }
-/* Gagang seret pengubah lebar kolom di tepi kanan judul. */
+
 .simpes-dsg-headtitle {
   position: relative;
   display: flex;
   align-items: center;
   width: 100%;
-  /* Judul bisa membungkus ke beberapa baris di kolom sempit: rata-kanan-kiri
-     tiap baris agar tetap center (justify-content hanya memusatkan blok). */
+
   text-align: center;
-  /* Padding header (8px kiri/kanan, 4px atas/bawah) agar judul tidak menempel
-     tepi kolom/gagang resize. Ditaruh di wadah judul (bukan sel) supaya gagang
-     resize tetap tepat di garis batas kolom — padding box abs-positioning tidak
-     ikut bergeser. */
+
   padding-left: 8px;
   padding-right: 8px;
   padding-top: 4px;
   padding-bottom: 4px;
 }
-/* --- Seret judul untuk menyusun posisi kolom (sakelar per perangkat) ---
-   Pegangannya = seluruh area judul, jadi kursor "grab" dipasang di wadah
-   judul, bukan pada gagang tersendiri. Gagang ubah-lebar tetap punya
-   kursor sendiri (ew-resize) dan menang karena lebih spesifik. */
+
 .simpes-dsg-headtitle[data-seret='aktif'] {
   cursor: grab;
 }
 .simpes-dsg-headtitle[data-seret='aktif']:active {
   cursor: grabbing;
 }
-/* Kolom yang sedang diangkat: diredupkan sebagai umpan balik. */
+
 .simpes-dsg-headtitle-diserd {
   opacity: 0.4;
 }
-/* --- Geser judul LANGSUNG (pratinjau hidup) ---
-   Selama seret, kolom yang harus memberi ruang digeser `transform` oleh
-   useSeretKolomHeader (bukan baru setelah tombol dilepas). Transisi di sini
-   yang membuat pergeseran itu terlihat sebagai gerakan halus; kelasnya hanya
-   hidup selama seret supaya tabel tidak beranimasi pada perubahan lain
-   (AutoFit, ganti preset, dsb.) — dan supaya saat tombol dilepas kolom
-   langsung berdiri di slot barunya tanpa animasi balik. */
+
 .simpes-dsg-geser-hidup .dsg-cell {
   transition: transform 140ms cubic-bezier(0.2, 0.7, 0.3, 1);
 }
-/* Kolom yang diangkat: di atas kolom lain (z-index) + isian lembut sebagai
-   penanda "ini yang sedang dipindahkan", termasuk sel-sel barisnya. Sengaja
-   TANPA bayangan per sel: tiap sel punya bayangannya sendiri, jadi kolomnya
-   terbaca bergaris-garis, bukan seperti satu pita yang terangkat. */
+
 .simpes-dsg-geser-hidup .dsg-cell.simpes-dsg-angkat {
   z-index: 46;
   will-change: transform;
   background-color: color-mix(in srgb, var(--accent) 16%, var(--background));
 }
-/* Garis indikator posisi sisip. Ditaruh di sel header (bukan judul) agar
-   tingginya penuh dan menempel tepat di garis batas kolom. */
+
 .simpes-dsg-sisip-kiri::before,
 .simpes-dsg-sisip-kanan::after {
   content: '';
@@ -715,36 +552,32 @@
 .simpes-dsg-sisip-kanan::after {
   right: 0;
 }
-/* Saat seret judul aktif, matikan seleksi teks agar tak ikut tersorot. */
+
 .simpes-dsg .dsg-row-header {
   user-select: none;
 }
 
-/* --- Seret ISI SEL (tiru dari dalam blok, pindahkan dari tepinya) ---
-   Kelas dipasang LANGSUNG ke DOM sel oleh `useSeretIsiSel` (bukan lewat
-   prop React) karena DSG merender sel di `useMemo` yang tak dihitung ulang
-   saat state seret berubah. */
 .simpes-dsg.simpes-dsg-seret-isi,
 .simpes-dsg.simpes-dsg-seret-isi .dsg-cell {
   cursor: copy;
   user-select: none;
 }
-/* Mode "pindahkan": kursor jadi panah pindah. */
+
 .simpes-dsg.simpes-dsg-seret-isi.simpes-dsg-seret-pindah,
 .simpes-dsg.simpes-dsg-seret-isi.simpes-dsg-seret-pindah .dsg-cell {
   cursor: move;
 }
-/* Blok asal: diredupkan, supaya jelas sedang diangkat. */
+
 .simpes-dsg .dsg-cell.simpes-dsg-seret-sumber {
   opacity: 0.45;
 }
-/* Blok tujuan: isian accent + garis tepi, seperti Excel saat isi diseret. */
+
 .simpes-dsg .dsg-cell.simpes-dsg-seret-tujuan {
   z-index: 21;
   background-color: color-mix(in srgb, var(--accent) 18%, var(--background));
   box-shadow: inset 0 0 0 2px var(--accent-foreground, var(--primary));
 }
-/* Badge kecil yang mengikuti kursor: "Salin" atau "Pindahkan". */
+
 .simpes-dsg-seret-badge {
   position: fixed;
   top: 0;
@@ -759,19 +592,16 @@
   line-height: 16px;
   white-space: nowrap;
 }
-/* Mode "pindahkan" dibedakan garis putus-putus pada badge. */
+
 .simpes-dsg-seret-badge[data-mode='pindah'] {
   border-style: dashed;
 }
-/* Gagang resize tepi kiri: khusus kolom beku, untuk mengubah lebar kolom di
-   sebelah kirinya (gagang kanan kolom itu tertutup oleh sel beku berikutnya). */
+
 .simpes-dsg-resizer.simpes-dsg-resizer-kiri {
   left: -6px;
   right: auto;
 }
-/* Gagang resize mengangkangi garis perbatasan antar kolom: lebarnya 12px
-   dipusat tepat di garis batas (right:-6px; header tanpa padding sehingga
-   tepi kanan wadah judul = garis batas kolom). */
+
 .simpes-dsg-resizer {
   position: absolute;
   right: -6px;
@@ -785,42 +615,34 @@
 .simpes-dsg .simpes-dsg-resizer:hover {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
-/* Teks judul: `min-width: 0` supaya boleh menyusut ke lebarAvailable dan
-   membungkus baris, bukan meluber ke area tepi kolom sempit. */
+
 .simpes-dsg-teks-judul {
   min-width: 0;
   overflow-wrap: break-word;
 }
 .simpes-dsg .dsg-input {
   font-size: var(--simpes-font-size, 11px);
-  /* Input edit ikut jenis & ketebalan huruf selnya. */
+
   font-family: inherit;
   font-weight: inherit;
   color: var(--foreground);
-  /* Tanpa padding horizontal bawaan (10px): teks sejajar dengan isi
-     baca-saja pada padding sel (8px), tidak melompat saat mulai mengedit. */
+
   padding-left: 0;
   padding-right: 0;
 }
-/* Isi sel baca-saja mengisi penuh area sel (lebar DAN tinggi): sasaran klik
-   1×/2× jadi seluruh sel, termasuk sel kosong yang tingginya 0 bila inline. */
+
 .simpes-dsg .simpes-dsg-fill {
   flex: 1;
   min-width: 0;
   align-self: stretch;
   display: flex;
   align-items: center;
-  /* Jangkar elemen absolut di dalam sel (konteks nearest = sel, bukan
-     .dsg-container yang juga position: relative). */
+
   position: relative;
-  /* Isi sel tidak boleh meluber keluar sel: teks yang lebih panjang dari
-     kolom/tinggi baris akan menimpa sel tetangga (kanan) atau baris di
-     bawahnya. Dipotong di sini — bukan di `.dsg-cell` — supaya gagang seret
-     lebar kolom (12 px, menggantung di tepi kanan sel header) tetap utuh. */
+
   overflow: hidden;
 }
-/* Tinggi baris TETAP (bawaan): isi sel dipaksa satu baris. Teks panjang
-   terpotong di tepi kolom, bukan membungkus lalu melimpah ke baris bawah. */
+
 .simpes-dsg.simpes-dsg-baris-tetap .simpes-dsg-fill {
   white-space: nowrap;
 }
@@ -848,9 +670,7 @@
   box-shadow: none;
   outline: none;
 }
-/* Perataan isi kolom mengikuti data/field (diatur global dari dialog preset
-   kolom, bawaan rata tengah). Berlaku untuk sel baca-saja, editor input/select,
-   dan header kolomnya. */
+
 .simpes-dsg .dsg-cell.simpes-dsg-align-center .simpes-dsg-fill {
   justify-content: center;
 }
@@ -865,59 +685,42 @@
 .simpes-dsg .dsg-cell.simpes-dsg-align-right .simpes-dsg-select {
   text-align: right;
 }
-/* SELURUH judul header tabel rata tengah (perataan kolom hanya untuk isi). */
+
 .simpes-dsg .dsg-cell-header .simpes-dsg-headtitle {
   justify-content: center;
 }
-/* ---------- Kaki tabel (paginasi + tombol ikon) ---------- */
-/* Semua tombol di kaki tabel bersudut siku: jumlah baris per halaman, prev/next,
-   tinggi baris, tambah baris, dan edit. `!important` dipakai karena item
-   ToggleGroup membawa varian `data-[spacing=0]:first/last:rounded-*` yang
-   specific-nya lebih tinggi daripada selektor atribut ini. */
+
 [data-part='kaki_tabel'] button {
   border-radius: 0 !important;
 }
-/* Garis atas pager sudah jadi batas barisnya: tombol di dalam pager tak
-   menambah garis horizontal sendiri agar tidak terbaca 2px. */
+
 #pager button {
   border-top: 0 !important;
   border-bottom: 0 !important;
 }
-/* Semua tombol kaki tabel tampil datar (latar transparan saat diam) — tombol
-   pager maupun grup aksi (tinggi baris/tambah baris/edit). Tanpa ini, tombol
-   `variant="outline"` memakai `bg-background` sehingga warnanya beda dari item
-   ToggleGroup yang memang `bg-transparent`. Sorot hover dan item jumlah-baris
-   yang terpilih tetap dipertahankan agar afordansinya jelas. */
+
 [data-part='kaki_tabel'] button:not(:hover):not([data-state='on']) {
   background-color: transparent;
 }
-/* Kaki tabel menempel tepi bawah bingkai halaman: garis bawah tombol (tinggi
-   baris, tambah baris, edit) akan menumpuk dengan garis bingkai itu dan terbaca
-   2px — matikan, biar garis bingkai yang jadi batas bawahnya. */
+
 [data-part='kaki_tabel'] button {
   border-bottom: 0 !important;
 }
-/* Grup aksi (tinggi baris / tambah baris / edit) memakai satu bingkai menyatu:
-   garis dalam dibagi — hanya tombol pertama yang bergaris kiri (pola sama
-   dengan kelompok jumlah baris di pager). */
+
 [data-part='grup_aksi'] > button + button {
   border-left: 0 !important;
 }
-/* Pager merapat ke tepi kiri bingkai halaman (px-0): garis kiri item pertama
-   akan menumpuk dengan garis bingkai itu dan terbaca 2px — matikan. */
+
 #pager [data-slot='toggle-group-item']:first-child {
   border-left: 0 !important;
 }
 
-/* ---------- Mode Input (baris baru di paling bawah) ---------- */
-/* Bintang merah di header untuk kolom wajib. */
 .simpes-dsg .simpes-dsg-wajib-tanda {
   margin-left: 2px;
   color: var(--destructive);
   font-weight: 700;
 }
-/* Ikon merah di header untuk kolom otomatis (tidak bisa diisi manual pada
-   mode Input, mis. nama lembaga/TA/gelombang yang mengikuti konteks). */
+
 .simpes-dsg .simpes-dsg-tak-input {
   display: inline-flex;
   align-items: center;
@@ -925,23 +728,19 @@
   color: var(--destructive);
   opacity: 0.85;
 }
-/* Baris input diberi latar lembut agar jelas bukan data tersimpan. */
+
 .simpes-dsg .dsg-row.simpes-dsg-row-input .dsg-cell {
   background-color: color-mix(in srgb, var(--primary) 6%, var(--background));
 }
-/* Kolom wajib yang masih kosong di baris input: garis kiri merah (kode warna).
-   Bayangan kanan tetap satu garis; baris input selalu baris terakhir. */
+
 .simpes-dsg .dsg-cell.simpes-dsg-wajib {
   box-shadow: 1px 0 var(--dsg-border-color), inset 3px 0 0 var(--destructive);
 }
-/* Sel dengan draft belum disimpan. */
+
 .simpes-dsg .simpes-dsg-dirty {
   background-color: color-mix(in srgb, var(--accent) 14%, var(--background));
 }
-/* Mode Edit aktif: sel yang bisa diedit diberi latar lembut saja — garis
-   grid (kanan & bawah 1px `--dsg-border-color`) tetap sama persis dengan mode
-   normal, tanpa penebalan; sel baca-saja diberi arsir diagonal agar langsung
-   terlihat perbedaannya. */
+
 .simpes-dsg .dsg-cell.simpes-dsg-editable {
   background-color: color-mix(in srgb, var(--primary) 7%, var(--background));
 }
@@ -953,42 +752,25 @@
   );
   color: var(--muted-foreground);
 }
-/* Checkbox kolom seleksi selalu center (header + body). */
-/* Sel DATA dipotong pada tinggi baris: isi yang membungkus (mis. opsi select
-   panjang di kolom sempit) tidak meluber ke bawah menambah scrollHeight tabel
-   kompak. Hanya sel data — sel header dibiarkan agar judul membungkus utuh
-   (tinggi baris header sudah otomatis). Box-shadow garis grid sel sendiri tidak
-   terpengaruh oleh overflow elemen. */
+
 .simpes-dsg .dsg-row:not(.dsg-row-header) .dsg-cell {
   overflow: hidden;
 }
 .simpes-dsg .dsg-cell:has(> input.dsg-checkbox) {
   justify-content: center;
 }
-/* Baris dibuat flex agar sel sticky (kanan Aksi & kiri beku) berjajar
-   horizontal dan sejajar dengan barisnya; sel lain tetap absolute sehingga
-   tak terpengaruh. Kolom beku kiri memakai patch DSG (stickyLeftColumnCount). */
+
 .simpes-dsg .dsg-row {
   display: flex;
 }
-/* Sel sticky-kanan (Aksi) di baris flex: cukup margin-left auto + sticky;
-   transform bawaan DSG (translateY(-100%)) menggesernya keluar baris. */
+
 .simpes-dsg .dsg-cell.dsg-cell-sticky-right {
   transform: none;
   margin-left: auto;
   height: 100%;
   z-index: 30;
 }
-/* Panel tab (TabsContent berbingkai, `KELAS_PANEL_TAB`) digeser 1px ke kiri:
-   border kiri panel jatuh TEPAT di piksel border kanan rail navigasi sidebar.
-   Tanpa itu dua garis 1px berdempetan — border rail + border panel — dan tepi
-   kiri panel terbaca 2px. Panel ini flex item yang direntangkan (stretch bawaan
-   flex kolom), jadi `margin-left: -1px` sekaligus melebarkannya 1px: tepi kanan
-   tetap rata dengan area konten, tak menyisakan pita latar. Memakai margin
-   karena panel bukan elemen ber-`position` (`left` tak berpengaruh di situ).
-   Saat rail terlipat (lebar 0) border kiri panel ikut bergeser 1px keluar
-   jendela dan terpotong `overflow-hidden` shell — tak terlihat karena panel
-   sudah menempel tepi kiri jendela. */
+
 .simpes-panel-tab {
   margin-left: -1px;
 }
@@ -1035,10 +817,7 @@
   [data-slot='tabs-indicator'] {
     transition: none;
   }
-  /* Matikan animasi masuk/keluar overlay (utility `animate-in`/`animate-out`
-     dari `tw-animate-css`). `animation-name: none` bukan sekadar tak terlihat:
-     Radix memakainya untuk memutuskan kapan panel dilepas, jadi tanpa
-     `animation` panel justru LEBIH cepat hilang — bukan menggantung di layar. */
+
   [data-slot='sheet-content'],
   [data-slot='sheet-overlay'],
   [data-slot='dialog-content'],
@@ -1053,36 +832,17 @@
     animation: none !important;
   }
 }
-/* Tabel di dalam panel tab berbingkai (`simpes-panel-tab`): bingkai panel jatuh
-   TEPAT 1px di kiri garis kiri tabel, jadi dua garis 1px berdempetan — terbaca
-   sebagai satu garis 2px ("border kiri lebih tebal"). Solusinya menggeser tepi
-   kiri tabel 1px ke kiri sehingga garis kiri tabel berimpit dengan bingkai
-   panel (garis bawahnya menutup bingkai; warnanya sama). Sengaja digeser, bukan
-   dihapus: kalau garisnya dibuang, tabel yang tak menempel bingkai (mis. di
-   dalam kartu bersarang atau panel split) kehilangan tepi kirinya. `left` pada
-   elemen `relative` tidak mengubah tata letak, jadi lebar kolom aman; `margin-
-   right: -1px` mengembalikan liputan tepi kanan (tanpa itu, tepi kanan kartu
-   mundur 1px dan menyisakan pita latar). Grid "bleed" (`-mx-1`, penanda
-   `simpes-dsg-bleed`) tidak disentuh: tepi kirinya memang di luar bingkai. */
+
 .simpes-panel-tab .simpes-dsg:not(.simpes-dsg-bleed) {
   left: -1px;
   margin-right: -1px;
 }
 
-/* Di dalam panel resizable (`ResizablePanel`) TIDAK ada padding halaman yang
-   perlu "ditembus" oleh grid bleed. `-mx-1` membuat tabel 8px lebih lebar dari
-   panel, dan panel punya `overflow: auto` bawaan react-resizable-panels
-   (inline style) sehingga kelebihan itu memunculkan scrollbar horizontal di
-   bawah panel walau isi tabelnya sudah pas. Netralkan bleed di sini. */
 [data-slot='resizable-panel'] .simpes-dsg-bleed {
   margin-left: 0;
   margin-right: 0;
 }
 
-/* Kolom beku kiri (freeze pane, hasil patch DSG `stickyLeftColumnCount`):
-   sel memakai offset `left` inline dari DSG sebagai posisi sticky, sehingga
-   menempel di kiri tanpa perhitungan offset manual. Kolom terdepan dipaksa
-   selalu dirender oleh patch agar tidak hilang saat scroll horizontal. */
 .simpes-dsg .dsg-cell.dsg-cell-sticky-left {
   position: sticky;
   z-index: 20;
@@ -1090,32 +850,22 @@
 .simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-sticky-left,
 .simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-gutter,
 .simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-sticky-right {
-  /* Spesifisitas lebih tinggi daripada aturan sel header di atas kalau suatu
-     saat sel header dibuat ber-`position` lain: kolom beku, gutter, & kolom
-     Aksi header TETAP menempel saat grid digulir horizontal. */
+
   position: sticky;
 }
 .simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-sticky-left {
   z-index: 42;
 }
-/* Pembatas kanan di tepi area beku (kolom beku terakhir).
-   Garis kanannya = border-right (di dalam elemen, tak terpotong overflow).
-   Bayangan kanan bawaan sel DSG (`1px 1px`) jatuh TEPAT di sebelah border itu
-   → dua garis 1px berdempetan, terbaca 2px — jadi hanya komponen bawah yang
-   dipertahankan (garis baris tetap seperti sel lain). */
+
 .simpes-dsg .dsg-cell.dsg-cell-sticky-left.simpes-dsg-beku-tepi {
   border-right: 1px solid var(--dsg-border-color);
   box-shadow: 0 1px var(--dsg-border-color);
 }
-/* Sel yang persis di kanan area beku: garis kirinya berdempetan dengan
-   border-right sel beku terakhir (dua garis 1px → terbaca 2px). Pembatas area
-   beku cukup satu — border-right sel beku, yang tetap menempel di tepinya saat
-   grid digulir horizontal (border kiri sel berjalan ikut konten dan tertutup
-   area beku). */
+
 .simpes-dsg .dsg-cell.simpes-dsg-beku-tepi + .dsg-cell {
   border-left: none;
 }
-/* Kotak seleksi DSG tidak ikut menempel di area beku → beri aksen sel aktif. */
+
 .simpes-dsg .dsg-cell.dsg-cell-sticky-left.dsg-cell-active {
   outline: 2px solid var(--dsg-selection-border-color);
   outline-offset: -2px;
@@ -1128,8 +878,7 @@
   padding-right: 0;
   cursor: pointer;
 }
-/* Checkbox DSG: kotak siku 2px, border 1px (naik 1.5px saat fokus) dengan warna
-   redup; terpilih = kotak tetap ber-border + centang di dalamnya. */
+
 .simpes-dsg input.dsg-checkbox {
   position: relative;
   appearance: none;
@@ -1143,11 +892,11 @@
   cursor: pointer;
 }
 .simpes-dsg input.dsg-checkbox:checked {
-  /* Border tetap terlihat (tidak dihilangkan) agar kotak(selected) jelas. */
+
   border-color: color-mix(in srgb, var(--foreground) 28%, transparent);
   background: transparent;
 }
-/* Isi saat tercentang: centang (checkmark) — dua sisi L diputar 45 derajat. */
+
 .simpes-dsg input.dsg-checkbox:checked::after {
   content: '';
   position: absolute;
@@ -1159,7 +908,7 @@
   border-bottom: 1.5px solid var(--accent);
   transform: translate(-50%, -50%) rotate(45deg);
 }
-/* Checkbox "pilih semua" di header: samakan 11px dengan kotak baris. */
+
 .simpes-dsg input.simpes-dsg-checkall {
   width: 11px;
   height: 11px;
@@ -1171,7 +920,7 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-/* Menu konteks DSG ikut tema (portal di luar scope .simpes-dsg). */
+
 .dsg-context-menu {
   background: var(--card);
   color: var(--foreground);
@@ -1184,13 +933,11 @@
    font/ukuran/warna/border per bagian dilakukan lewat Pengaturan → Bagian UI
    (src/partStyles.ts) yang menyuntik gaya runtime, bukan override global di sini. */
 
-/* Mode "pilih komponen" di Tampilan: kursor bidik di seluruh aplikasi. */
 .simpes-picker,
 .simpes-picker * {
   cursor: crosshair !important;
 }
 
-/* Tooltip nama komponen saat mode "pilih komponen" aktif (posisi dari kursor). */
 .simpes-picker-tip {
   position: fixed;
   top: 0;
@@ -1226,13 +973,6 @@
   box-shadow: var(--shadow-card-hover);
 }
 
-/* ---------- Kaya warna UI (Pengaturan → Tampilan) ----------
-   `netral` = hemat warna (bawaan lama). `aksen` = judul & ikon memakai warna
-   aksen tema. `kaya` = aksen + tint permukaan + warna semantik.
-   Catatan: semua aturan memakai :where() agar spesifisitasnya nol — ikon yang
-   sudah punya warna eksplisit (hapus/peringatan/di atas tombol aksen) tidak
-   ditimpa lewat aturan pengecualian di bawah. Ikon di `header` (ribbon) ikut
-   warna aksen seperti ikon sidebar. */
 [data-warna='aksen'] :is(h1, h2, h3),
 [data-warna='kaya'] :is(h1, h2, h3) {
   color: var(--accent-readable);
@@ -1241,7 +981,7 @@
 [data-warna='kaya'] :where(svg.simpes-ikon) {
   color: var(--accent-readable);
 }
-/* Pengecualian (urutan SETELAH aturan pewarnaan — spesifisitas sama-sama nol). */
+
 [data-warna='aksen'] :where(
   [class*='text-primary-foreground'] svg.simpes-ikon,
   [class*='text-accent-foreground'] svg.simpes-ikon,
@@ -1262,13 +1002,12 @@
 ) {
   color: inherit;
 }
-/* Header kolom tabel ikut berwarna di kedua level. Warna eksplisit dari
-   kontrol Bagian (--part-tabel_header-*) menang bila diatur. */
+
 [data-warna='aksen'] .simpes-dsg .dsg-row-header .dsg-cell-header-container,
 [data-warna='kaya'] .simpes-dsg .dsg-row-header .dsg-cell-header-container {
   color: var(--part-tabel_header-fg, var(--accent-readable));
 }
-/* Tint permukaan hanya pada level kaya. */
+
 [data-warna='kaya'] .simpes-dsg .dsg-row.dsg-row-header {
   background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 4%, var(--background)));
 }
@@ -1283,10 +1022,6 @@
   border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
 }
 
-/* ---------- Info tabel (HTML tersanitasi dari tab Info Kelola Tabel) ---------- */
-/* Isinya dirender lewat `dangerouslySetInnerHTML`; sanitizer membuang seluruh
-   `class`/`style`, jadi tampilan HARUS berasal dari selektor elemen di sini.
-   Dipakai di popover bilah judul dan pratinjau dialog. */
 .info-tabel-isi {
   line-height: 1.5;
   overflow-wrap: anywhere;

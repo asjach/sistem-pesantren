@@ -44,7 +44,6 @@ class IzinKatalogTest extends TestCase
     {
         $isi = (string) file_get_contents(base_path('routes/api.php'));
 
-        // `->middleware('permission:a.b|c.d')` — ambil tiap nama izinnya.
         preg_match_all('/permission:([a-z0-9_.|]+)/', $isi, $cocok);
         $nama = [];
         foreach ($cocok[1] as $grup) {
@@ -66,13 +65,11 @@ class IzinKatalogTest extends TestCase
 
     public function test_penyelaras_menambal_izin_hilang_tanpa_mencabut_penyesuaian(): void
     {
-        // Tiru kondisi production sebelum migrasi penyelaras: modul ada di
-        // katalog, tapi izinnya belum pernah dibuat di DB.
+
         Permission::where('name', 'like', 'komponen_custom.%')->delete();
 
         $peranAdmin = Role::create(['name' => 'admin', 'guard_name' => SinkronIzin::GUARD]);
-        // Penyesuaian manual (mis. dari halaman Kelola Izin) yang TIDAK boleh
-        // dicabut oleh penyelaras.
+
         $peranAdmin->givePermissionTo(Permission::where('name', 'santri.lihat')->firstOrFail());
 
         $baru = SinkronIzin::jalankan();
@@ -83,7 +80,6 @@ class IzinKatalogTest extends TestCase
             'Izin modul yang belum ada di DB seharusnya dibuat oleh penyelaras.',
         );
 
-        // Bawaan katalog: admin boleh menulis setelan komponen custom.
         foreach (['komponen_custom.lihat', 'komponen_custom.tambah', 'komponen_custom.ubah', 'komponen_custom.hapus'] as $izin) {
             $this->assertTrue(
                 $peranAdmin->fresh()->hasPermissionTo($izin),
@@ -91,7 +87,6 @@ class IzinKatalogTest extends TestCase
             );
         }
 
-        // Aditif: izin yang sudah diatur sebelumnya TIDAK dicabut.
         $this->assertTrue($peranAdmin->fresh()->hasPermissionTo('santri.lihat'));
     }
 
@@ -128,7 +123,6 @@ class IzinKatalogTest extends TestCase
         $this->seed(RoleSeeder::class);
         Permission::where('name', 'like', 'komponen_custom.%')->delete();
 
-        // = migrasi `sinkronkan_izin_role_dari_katalog`.
         SinkronIzin::jalankan();
 
         $admin = User::create([

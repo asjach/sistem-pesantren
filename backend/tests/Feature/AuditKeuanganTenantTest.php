@@ -170,7 +170,7 @@ class AuditKeuanganTenantTest extends TestCase
         $asing = GrupSantriCustom::create(['nama' => 'Grup MTS', 'jenjang' => 'MTS']);
         $milik = GrupSantriCustom::create(['nama' => 'Grup MI', 'jenjang' => 'MI']);
         $anakAsing = $this->santri('MTS');
-        $milik->santri()->attach($anakAsing->id); // Data lama yang sudah telanjur campur.
+        $milik->santri()->attach($anakAsing->id);
         $this->actingAs($this->actor());
         $this->getJson('/api/admin/keuangan/grup-custom')->assertOk()->assertJsonCount(1)->assertJsonCount(0, '0.santri');
         $this->patchJson('/api/admin/keuangan/grup-custom/'.$asing->id, ['nama' => 'Pindah', 'jenjang' => 'MI'])->assertForbidden();

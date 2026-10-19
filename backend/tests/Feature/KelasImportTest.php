@@ -18,8 +18,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import file kelas multi-lembaga + multi-TA: template + periksa + eksekusi,
-// duplikat dilewati, izin mengikuti akun per baris.
 class KelasImportTest extends TestCase
 {
     use RefreshDatabase;
@@ -120,7 +118,6 @@ class KelasImportTest extends TestCase
             ['jenjang' => 'MI', 'tahun_ajaran' => '2027/2028', 'nama_kelas' => '1A', 'tingkat' => '1'],
         ]);
 
-        // Dry-run tak menulis.
         $periksa = $this->upload($f['super'], $csv, 'import-periksa')->assertStatus(200);
         $this->assertTrue((bool) $periksa->json('siap_import'));
         $this->assertSame(3, (int) $periksa->json('ringkasan.dibuat'));
@@ -130,7 +127,7 @@ class KelasImportTest extends TestCase
         $this->assertStringContainsString('3 kelas dibuat', (string) $res->json('pesan'));
         $this->assertDatabaseHas('kelas', ['jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => '1A', 'nama_alias' => 'Umar', 'kapasitas' => 28]);
         $this->assertDatabaseHas('kelas', ['jenjang' => 'MTS', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => '7A']);
-        // Nama sama di TA berbeda = lingkup berbeda, dua-duanya dibuat.
+
         $this->assertDatabaseHas('kelas', ['jenjang' => 'MI', 'tahun_ajaran' => '2027/2028', 'nama_kelas' => '1A']);
     }
 
@@ -144,7 +141,7 @@ class KelasImportTest extends TestCase
         ]);
 
         $res = $this->upload($adminMi, $csv)->assertStatus(422);
-        // Baris MTS gagal per baris (bukan 403); baris MI tetap dibuat.
+
         $this->assertSame('jenjang', $res->json('errors.0.attribute'));
         $this->assertStringContainsString('lingkup akses', (string) $res->json('errors.0.errors.0'));
         $this->assertDatabaseHas('kelas', ['jenjang' => 'MI', 'nama_kelas' => '1A']);
@@ -166,7 +163,7 @@ class KelasImportTest extends TestCase
         ]);
 
         $res = $this->upload($admin, $csv)->assertStatus(422);
-        // Hanya baris MTS yang gagal (satu-satunya galat); MI+MD tetap dibuat.
+
         $this->assertCount(1, $res->json('errors'));
         $this->assertSame('jenjang', $res->json('errors.0.attribute'));
         $this->assertDatabaseHas('kelas', ['jenjang' => 'MI', 'nama_kelas' => '1A']);
@@ -177,19 +174,19 @@ class KelasImportTest extends TestCase
     public function test_05_duplikat_dilewati_ta_tak_berlaku_gagal(): void
     {
         $f = $this->baseFixture();
-        // TA 2027/2028 disembunyikan untuk MI → tak berlaku di MI, berlaku di MTS.
+
         LembagaTahunAjaran::create([
             'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['ta2']->nama, 'is_active' => false,
         ]);
         Kelas::create(['jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => '1A', 'tingkat' => '1', 'urutan' => 1]);
 
         $csv = $this->makeCsv([
-            ['jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => '1A'], // ada di DB
+            ['jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => '1A'],
             ['jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => '1C'],
-            ['jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => '1c'], // duplikat intra-file
-            ['jenjang' => 'MI', 'tahun_ajaran' => '2027/2028', 'nama_kelas' => '2A'], // TA tak berlaku di MI
+            ['jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => '1c'],
+            ['jenjang' => 'MI', 'tahun_ajaran' => '2027/2028', 'nama_kelas' => '2A'],
             ['jenjang' => 'MTS', 'tahun_ajaran' => '2027/2028', 'nama_kelas' => '8A', 'tingkat' => '8'],
-            ['jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => ''], // tanpa nama dilewati diam-diam
+            ['jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => ''],
         ]);
 
         $res = $this->upload($f['super'], $csv)->assertStatus(422);
@@ -197,14 +194,14 @@ class KelasImportTest extends TestCase
         $this->assertDatabaseHas('kelas', ['jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => '1C']);
         $this->assertDatabaseHas('kelas', ['jenjang' => 'MTS', 'tahun_ajaran' => '2027/2028', 'nama_kelas' => '8A']);
         $this->assertSame(0, Kelas::where('jenjang', 'MI')->where('tahun_ajaran', '2027/2028')->count());
-        // 1A lama + 1C + 8A (duplikat dilewati, baris tanpa nama diabaikan).
+
         $this->assertSame(3, Kelas::count());
     }
 
     public function test_06_baris_bermasalah_ditolak_per_baris(): void
     {
         $f = $this->baseFixture();
-        // Kamus tingkat MI terisi → '99' ditolak; tanpa kamus (MTS) bebas.
+
         foreach (['1', '2', '3', '4', '5', '6'] as $i => $t) {
             DB::table('ref_tingkat')->insert([
                 'jenjang' => $f['mi']->jenjang, 'nama' => $t, 'urutan' => $i, 'is_active' => true,
@@ -221,8 +218,6 @@ class KelasImportTest extends TestCase
         $this->assertSame(['jenjang', 'tingkat', 'urutan'], $attrs);
         $this->assertSame(0, Kelas::count());
     }
-
-    // ---------- 07. kolom walas: NIP/nama + gagal per baris ----------
 
     public function test_07_walas_nip_nama_dan_gagal_per_baris(): void
     {
@@ -254,13 +249,11 @@ class KelasImportTest extends TestCase
         $this->assertSame(['walas', 'walas', 'walas'], collect($res->json('errors'))->pluck('attribute')->all());
         $this->assertSame($guru->id, Kelas::where('nama_kelas', '1A')->firstOrFail()->walas_id);
         $this->assertSame($guru->id, Kelas::where('nama_kelas', '1B')->firstOrFail()->walas_id);
-        // Baris gagal tak membuat kelas.
+
         $this->assertDatabaseMissing('kelas', ['nama_kelas' => '1C']);
         $this->assertDatabaseMissing('kelas', ['nama_kelas' => '1D']);
         $this->assertDatabaseMissing('kelas', ['nama_kelas' => '1E']);
     }
-
-    // ---------- 08. nama cocok → update kolom terisi; kosong = pertahankan ----------
 
     public function test_08_nama_cocok_update_kolom_terisi(): void
     {
@@ -292,7 +285,7 @@ class KelasImportTest extends TestCase
         $this->assertSame('Baru', $kelas->nama_alias);
         $this->assertSame($guru->id, $kelas->walas_id);
         $this->assertSame(5, $kelas->urutan);
-        // Sel kosong tidak menimpa.
+
         $this->assertSame('1', $kelas->tingkat);
         $this->assertSame(20, $kelas->kapasitas);
         $this->assertDatabaseHas('kelas', ['nama_kelas' => '1B']);

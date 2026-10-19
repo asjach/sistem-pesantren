@@ -25,8 +25,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        /* Aditif: tak ada yang dibatalkan. Izin yang dibuat di sini mungkin
-           sudah dipakai peran lain, jadi menghapusnya di `down()` berisiko
-           mencabut akses yang sah. */
+
     }
 };

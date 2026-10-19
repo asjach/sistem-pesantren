@@ -19,8 +19,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     use HasApiTokens, HasRoles, Notifiable {
-        // `parent::` tak menjangkau metode trait: alias agar override
-        // hasPermissionTo() di bawah bisa memanggil implementasi Spatie.
+
         HasRoles::hasPermissionTo as hasPermissionToBawaan;
     }
 
@@ -89,7 +88,7 @@ class User extends Authenticatable
     /** Semua jenjang lembaga yang boleh diakses: pivot user_lembaga (peran apa pun). */
     public function lembagaIds(): array
     {
-        // Mode "bertindak sebagai lembaga": scope menyempit ke lembaga peran.
+
         if (($peran = $this->lembagaPeran()) !== null) {
             return [$peran];
         }
@@ -322,11 +321,11 @@ class User extends Authenticatable
 
     public function canAccessLembaga(string $jenjang): bool
     {
-        // Mode bertindak: hanya lembaga yang sedang diperankan.
+
         if ($this->lembagaPeran() !== null) {
             return $jenjang === $this->lembagaPeran();
         }
-        // Choke point tenant lembaga via pivot user_lembaga.
+
         if ($this->hasRole('super_admin')) {
             return true;
         }
@@ -337,7 +336,7 @@ class User extends Authenticatable
             if (in_array($jenjang, $this->lembagaIds(), true)) {
                 return true;
             }
-            // Pengecualian pasangan MI↔MD (timbal-balik, global).
+
             $pasangan = Lembaga::pasanganJenjang($jenjang);
 
             return $pasangan !== null && in_array($pasangan, $this->lembagaIds(), true);

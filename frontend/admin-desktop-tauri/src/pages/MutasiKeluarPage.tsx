@@ -112,7 +112,6 @@ export default function MutasiKeluarPage() {
   const [nsm, setNsm] = useState('');
   const [keterangan, setKeterangan] = useState('');
 
-  // Import arsip mutasi (Periksa → Import).
   const canImportMutasi = bisa(user, 'mutasi_keluar.ubah');
   /** Batal mutasi dari arsip (hapus arsip + pulihkan status). */
   const canHapusMutasi = bisa(user, 'mutasi_keluar.hapus');
@@ -124,8 +123,7 @@ export default function MutasiKeluarPage() {
     if (filterLoading || jenjangs.length === 0) { setKiri([]); return; }
     setErr('');
     try {
-      // Proses mutasi: baris riwayat AKTIF pada semester terpilih. "Semua
-      // semester" → lintas periode, tetap dibatasi is_active_riwayat = 'Ya'.
+
       const u = f?.urut ?? urutKiri;
       const a = f?.arah ?? arahKiri;
       const ak = f?.arahKolom ?? arahKolomKiri;
@@ -153,7 +151,7 @@ export default function MutasiKeluarPage() {
       const ak = f?.arahKolom ?? arahKolom;
       const res = await listMutasiKeluar({
         jenjang: jenjangs,
-        // Arsip = riwayat, jadi ikut filter tahun ajaran (terpilih = semua).
+
         tahun_ajaran: tahunAjaranNames,
         tingkat: tingkatAktif,
         q: cari || undefined,
@@ -276,7 +274,7 @@ export default function MutasiKeluarPage() {
                     </ActionIcon>
                   )
                 )}
-                // Detail Santri hanya lewat klik kanan → AKSI (ikon kolom disembunyikan).
+
                 renderActionsKonteks={(r) => aksiProfil(r.santri_id, { daftar: daftarAktif })}
                 hideCheckbox
                 emptyText="Pilih lembaga dulu."
@@ -285,9 +283,6 @@ export default function MutasiKeluarPage() {
           </section>
         </ResizableAutoHidePanel>
 
-        {/* Lebar & pegangan mengikuti bawaan `ResizableHandle` (strip 8 px,
-            latar `bg-card`, knob `withHandle`) — jangan ditimpa `className`
-            agar seragam se-aplikasi. */}
         <ResizableHandle orientation="horizontal" withHandle id="gagang_mutasi_kolom" />
 
         <ResizablePanel defaultSize="67%" minSize="20%">
@@ -338,7 +333,7 @@ renderActions={(m) => (
                     />
                   )
                 )}
-               // Detail Santri hanya lewat klik kanan → AKSI (ikon kolom disembunyikan).
+
                renderActionsKonteks={(m) => aksiProfil(m.santri_id, { prefix: 'arsip', daftar: daftarArsip })}
                 hideCheckbox
                 emptyText="Belum ada arsip mutasi."
@@ -349,7 +344,6 @@ renderActions={(m) => (
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      {/* Import arsip mutasi bertahap (Periksa → Import) */}
       <ImportBertahapUmumDialog
         open={fileOpen}
         onOpenChange={setFileOpen}

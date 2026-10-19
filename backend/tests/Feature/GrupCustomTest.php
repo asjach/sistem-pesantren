@@ -37,7 +37,6 @@ class GrupCustomTest extends TestCase
         $s1 = Santri::create(['nama_lengkap' => 'Ekskul Satu', 'jk' => 'L']);
         $s2 = Santri::create(['nama_lengkap' => 'Ekskul Dua', 'jk' => 'P']);
 
-        // Buat grup (lingkup lembaga + TA + status).
         $grup = $this->actingAs($admin)->postJson('/api/admin/keuangan/grup-custom', [
             'nama' => 'Ekskul Matematika', 'keterangan' => 'Peserta olimpiade',
             'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'is_active' => true,
@@ -47,12 +46,10 @@ class GrupCustomTest extends TestCase
         $this->assertTrue($grup['is_active']);
         $this->assertSame([], $grup['santri']);
 
-        // Nama wajib unik.
         $this->actingAs($admin)->postJson('/api/admin/keuangan/grup-custom', [
             'nama' => 'Ekskul Matematika',
         ])->assertStatus(422)->assertJsonValidationErrors('nama');
 
-        // Tambah anggota (idempotent).
         $isi = fn () => $this->actingAs($admin)->getJson('/api/admin/keuangan/grup-custom')
             ->assertStatus(200)->json();
         $this->actingAs($admin)->postJson("/api/admin/keuangan/grup-custom/{$grup['id']}/anggota", [
@@ -65,16 +62,14 @@ class GrupCustomTest extends TestCase
         $this->assertCount(1, $daftar);
         $this->assertEqualsCanonicalizing([$s1->id, $s2->id], array_column($daftar[0]['santri'], 'id'));
 
-        // Filter lingkup: jenjang lain / TA lain mengosongkan daftar.
         $kosong = fn (string $q) => $this->actingAs($admin)
             ->getJson("/api/admin/keuangan/grup-custom{$q}")->assertStatus(200)->json();
         $this->assertCount(0, $kosong('?jenjang=MD'));
         $this->assertCount(0, $kosong('?tahun_ajaran=2024/2025'));
         $this->assertCount(1, $kosong('?jenjang=MI&tahun_ajaran=2025/2026'));
-        // Filter array (dari topBar multi-pilih) juga didukung.
+
         $this->assertCount(1, $kosong('?jenjang[]=MI&jenjang[]=MD'));
 
-        // Anggota diperkaya nis/kelas/jenjang dari riwayat TA filter.
         DB::table('riwayat_belajar')->insert([
             'santri_id' => $s2->id, 'tahun_ajaran' => '2025/2026', 'jenjang' => 'MI',
             'tingkat' => '3', 'semester' => '2', 'status_akhir' => 'aktif',
@@ -87,31 +82,27 @@ class GrupCustomTest extends TestCase
         $anggota = collect($isi()[0]['santri'])->keyBy('id');
         $this->assertSame('MI', $anggota[$s2->id]['jenjang']);
         $this->assertSame('77001', $anggota[$s2->id]['nis']);
-        // TA multi-pilih: pengayaan anggota memakai TA aktif, tanpa galat.
+
         $multi = $this->actingAs($admin)
             ->getJson('/api/admin/keuangan/grup-custom?tahun_ajaran[]=2025/2026')
             ->assertStatus(200)->json();
         $this->assertCount(1, $multi);
         $this->assertSame('MI', collect($multi[0]['santri'])->firstWhere('id', $s2->id)['jenjang']);
 
-        // Santri tak dikenal ditolak.
         $this->actingAs($admin)->postJson("/api/admin/keuangan/grup-custom/{$grup['id']}/anggota", [
             'santri_ids' => [999999],
         ])->assertStatus(422);
 
-        // Ubah nama.
         $this->actingAs($admin)->putJson("/api/admin/keuangan/grup-custom/{$grup['id']}", [
             'nama' => 'Ekskul MTK', 'keterangan' => null,
         ])->assertStatus(200)->assertJsonPath('nama', 'Ekskul MTK');
 
-        // Keluarkan satu anggota.
         $this->actingAs($admin)
             ->deleteJson("/api/admin/keuangan/grup-custom/{$grup['id']}/anggota/{$s1->id}")
             ->assertStatus(200);
         $daftar = $isi();
         $this->assertSame([$s2->id], array_column($daftar[0]['santri'], 'id'));
 
-        // Hapus grup → anggota ikut bersih.
         $this->actingAs($admin)->deleteJson("/api/admin/keuangan/grup-custom/{$grup['id']}")
             ->assertStatus(200)->assertJson(['pesan' => 'Grup dihapus.']);
         $this->assertSame([], $isi());

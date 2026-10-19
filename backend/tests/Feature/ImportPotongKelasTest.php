@@ -14,9 +14,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import kelas bertahap (potongan JSON 1000 baris): sesi + offset +
-// akumulator, periksa kering tanpa menulis, eksekusi menulis per
-// potongan, upsert idempoten, galat CSV bisa diunduh.
 class ImportPotongKelasTest extends TestCase
 {
     use RefreshDatabase;
@@ -29,7 +26,7 @@ class ImportPotongKelasTest extends TestCase
         $this->seed(RoleSeeder::class);
         $this->seed(ReferensiSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
-        // Id sesi mulai dari 1 di tiap tes → berkas galat lama tak boleh bocor.
+
         $this->hapusBerkasGalat();
     }
 
@@ -141,7 +138,6 @@ class ImportPotongKelasTest extends TestCase
         $this->assertSame(2, Kelas::count());
         $this->assertSame('Kelas Satu B', Kelas::where('nama_kelas', '1B')->value('nama_alias'));
 
-        // Sesi baru dengan baris identik = dilewati, tak menggandakan.
         $tiga = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
@@ -181,7 +177,7 @@ class ImportPotongKelasTest extends TestCase
         $isi = $galat->streamedContent() ?: '';
         $this->assertStringContainsString('Lembaga tidak valid', $isi);
         $this->assertStringContainsString('Tahun ajaran tidak berlaku', $isi);
-        // Nomor galat absolut: baris 3 dan 4 (heading = 1).
+
         $this->assertStringContainsString('3,', $isi);
         $this->assertStringContainsString('4,', $isi);
     }
@@ -197,21 +193,18 @@ class ImportPotongKelasTest extends TestCase
         ])->assertStatus(200);
         $sesiId = $satu->json('sesi_id');
 
-        // Lebih dari 1000 baris per panggilan.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas/import-potong', [
             'mode' => 'periksa',
             'total' => 1001,
             'baris' => array_fill(0, 1001, $this->baris('1A')),
         ])->assertStatus(422);
 
-        // Mode berbeda dari sesi.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas/import-potong', [
             'sesi_id' => $sesiId,
             'mode' => 'eksekusi',
             'baris' => [$this->baris('1A')],
         ])->assertStatus(422);
 
-        // Sesi milik pengguna lain: 404 untuk lanjut/batal/unduh.
         $lain = $this->makeUser('super_admin', []);
         $this->actingAs($lain, 'sanctum')->postJson('/api/admin/kelas/import-potong', [
             'sesi_id' => $sesiId,
@@ -260,7 +253,7 @@ class ImportPotongKelasTest extends TestCase
     public function test_06_tingkat_tak_dikenal_dan_baris_kosong_dilewati(): void
     {
         $f = $this->baseFixture();
-        // Kamus tingkat terisi → tingkat di luar kamus ditolak per baris.
+
         DB::table('ref_tingkat')->insert([
             'jenjang' => 'MI', 'nama' => '1', 'urutan' => 1, 'is_active' => true,
         ]);
@@ -280,7 +273,7 @@ class ImportPotongKelasTest extends TestCase
         $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
         $this->assertSame('tingkat', $res->json('galat_contoh.0.kolom'));
         $this->assertSame('Tingkat tidak dikenal.', $res->json('galat_contoh.0.pesan'));
-        // Baris kosong tak menambah apa pun (tak valid, tak gagal).
+
         $this->assertSame(1, $res->json('ringkasan.baris_dilewati'));
         $this->assertSame(1, Kelas::count());
     }

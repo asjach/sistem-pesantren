@@ -99,8 +99,6 @@ class TabelUrutTest extends TestCase
         return $out;
     }
 
-    // ---------- santri ----------
-
     public function test_santri_urut_nama(): void
     {
         $this->santriTiga();
@@ -136,8 +134,6 @@ class TabelUrutTest extends TestCase
         );
     }
 
-    // ---------- kelas ----------
-
     public function test_kelas_urut_nama(): void
     {
         $f = $this->dasar();
@@ -159,8 +155,6 @@ class TabelUrutTest extends TestCase
             ->assertStatus(422);
     }
 
-    // ---------- lembaga ----------
-
     public function test_lembaga_urut_kode_turun(): void
     {
         $this->dasar();
@@ -176,8 +170,6 @@ class TabelUrutTest extends TestCase
             ->getJson('/api/admin/lembaga?sort=password')
             ->assertStatus(422);
     }
-
-    // ---------- users ----------
 
     public function test_users_urut_nama(): void
     {
@@ -230,8 +222,6 @@ class TabelUrutTest extends TestCase
         );
     }
 
-    // ---------- tahun ajaran ----------
-
     public function test_tahun_ajaran_urut_nama(): void
     {
         TahunAjaran::create([
@@ -254,8 +244,6 @@ class TabelUrutTest extends TestCase
             ->getJson('/api/admin/tahun-ajaran?sort=password')
             ->assertStatus(422);
     }
-
-    // ---------- riwayat belajar ----------
 
     public function test_riwayat_urut_santri(): void
     {
@@ -280,8 +268,6 @@ class TabelUrutTest extends TestCase
             ->assertStatus(422);
     }
 
-    // ---------- mutasi keluar ----------
-
     public function test_mutasi_urut_santri(): void
     {
         $f = $this->dasar();
@@ -304,8 +290,6 @@ class TabelUrutTest extends TestCase
             ->getJson('/api/admin/mutasi-keluar?sort=password')
             ->assertStatus(422);
     }
-
-    // ---------- alumni ----------
 
     public function test_alumni_urut_santri(): void
     {
@@ -330,8 +314,6 @@ class TabelUrutTest extends TestCase
             ->assertStatus(422);
     }
 
-    // ---------- pengajuan biodata ----------
-
     public function test_pengajuan_urut_santri(): void
     {
         [$ahmad, $budi] = $this->santriTiga();
@@ -355,8 +337,6 @@ class TabelUrutTest extends TestCase
             ->getJson('/api/admin/pengajuan-biodata?sort=password')
             ->assertStatus(422);
     }
-
-    // ---------- antrean PSB ----------
 
     public function test_antrean_urut_nama(): void
     {
@@ -384,8 +364,6 @@ class TabelUrutTest extends TestCase
             ->assertStatus(422);
     }
 
-    // ---------- keuangan ----------
-
     public function test_keuangan_jenis_urut_nama(): void
     {
         foreach (['Zakat', 'Infaq'] as $nama) {
@@ -408,8 +386,7 @@ class TabelUrutTest extends TestCase
     public function test_keuangan_tarif_urut_nominal(): void
     {
         $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);
-        // Lembaga + tahun ajaran + jenis adalah identitas tarif (index unik),
-        // jadi dua baris uji ini dibedakan lewat tahun ajaran.
+
         foreach ([[200000, '2026/2027'], [100000, '2025/2026']] as [$nominal, $ta]) {
             TarifTagihan::create([
                 'jenjang' => 'MI', 'tahun_ajaran' => $ta,
@@ -483,8 +460,6 @@ class TabelUrutTest extends TestCase
             ->assertStatus(422);
     }
 
-    // ---------- psb gelombang & kuota ----------
-
     public function test_gelombang_urut_nama(): void
     {
         $this->dasar();
@@ -511,8 +486,6 @@ class TabelUrutTest extends TestCase
 
         $this->assertSame([10, 30], array_column($res->json('data.rows'), 'kuota'));
     }
-
-    // ---------- semester aktif ----------
 
     public function test_semester_aktif_urut_nama(): void
     {

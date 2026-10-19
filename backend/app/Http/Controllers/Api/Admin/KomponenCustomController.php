@@ -226,8 +226,7 @@ class KomponenCustomController extends Controller
 
         $query = KomponenCustom::query();
         if (array_key_exists('table_key', $data)) {
-            /* `null` = string kosong yang dinormalkan Laravel
-               (`ConvertEmptyStringsToNull`), bukan "tanpa filter". */
+
             $query->where('table_key', (string) ($data['table_key'] ?? ''));
         }
         $baris = $query->get(['table_key', 'komponen', 'setelan']);

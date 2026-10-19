@@ -193,7 +193,7 @@ export default function ImportBertahapUmumDialog({ open, onOpenChange, config }:
 
   async function jalan(modeJalan: 'periksa' | 'eksekusi') {
     if (baris.length === 0 || sibuk) return;
-    // Tiap penekanan mulai sesi baru dari baris pertama (upsert idempoten).
+
     setMode(modeJalan);
     setFase('jalan');
     setSibuk(true);

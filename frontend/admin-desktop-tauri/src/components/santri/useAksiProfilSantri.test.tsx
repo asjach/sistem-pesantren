@@ -58,7 +58,6 @@ describe('useAksiProfilSantri', () => {
   it('baris tanpa Santri tidak menghasilkan tombol', () => {
     renderDenganTema(<HalamanSantri />);
 
-    // Dua tombol saja: satu tanpa prefix, satu berprefix `arsip`.
     expect(screen.getAllByRole('button', { name: 'Lihat detail Santri' })).toHaveLength(2);
   });
 

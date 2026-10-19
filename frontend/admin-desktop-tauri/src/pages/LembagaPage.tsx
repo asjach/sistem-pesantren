@@ -44,7 +44,7 @@ import { toast } from 'sonner';
 const FIELDS: ExcelField[] = [
   {
     key: 'jenjang', label: 'jenjang', width: 110, kind: 'text', maxLength: 20,
-    
+
     required: true,
     validate: (v) => {
       const t = (v ?? '').trim().toUpperCase();
@@ -75,7 +75,7 @@ function bolehCombo(jenjang: string): boolean {
 }
 
 async function commitDraft(jenjang: string, f: Record<string, string | null>) {
-  // `jenjang` imutabel: hanya nama yang bisa diubah dari grid.
+
   await updateLembaga(jenjang, {
     ...(f.nama !== undefined ? { nama: f.nama ?? '' } : {}),
   });
@@ -113,9 +113,7 @@ export default function LembagaPage() {
       signal: a.signal,
     }),
   });
-  // `goFirst` beridentitas stabil (useCallback per tableKey) — dipakai terpisah
-  // agar callback di bawah tak perlu menyandang objek `pager` (identitas baru
-  // tiap render).
+
   const { goFirst } = pager;
 
   const [nama, setNama] = useState('');
@@ -124,7 +122,6 @@ export default function LembagaPage() {
   const [isSeleksi, setIsSeleksi] = useState(false);
   const [tambahOpen, setTambahOpen] = useState(false);
 
-  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Lembaga").
   usePintasanBaru({
     kunci: 'n',
     aktif: canTambah,
@@ -231,7 +228,7 @@ export default function LembagaPage() {
         const t = (v ?? '').trim();
         if (t === '') return null;
         const n = Number(t.replace(',', '.'));
-        // Tak valid: kirim mentah agar validasi backend menolak dengan pesan jelas.
+
         return Number.isNaN(n) ? t : n;
       };
       await updateLembaga(editRow.jenjang, {
@@ -276,7 +273,7 @@ export default function LembagaPage() {
       setEditRow(null);
       await load();
     } catch (e) {
-      // Tetap di dialog agar pengguna bisa perbaiki (pesan halaman tertutup dialog).
+
       setEditErr(errorMessage(e));
     } finally {
       setSimpanBusy(false);

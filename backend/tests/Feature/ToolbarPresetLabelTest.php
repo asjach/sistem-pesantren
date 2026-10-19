@@ -70,7 +70,6 @@ class ToolbarPresetLabelTest extends TestCase
             'align' => ['nis' => 'right'],
         ])->assertOk();
 
-        // Simpan label saja: align harus tetap (upsert gabung per kunci).
         $this->actingAs($admin)->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'label' => ['nis' => 'Nomor Induk'],

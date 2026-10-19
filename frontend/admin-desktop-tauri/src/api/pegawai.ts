@@ -5,8 +5,6 @@ import type { Paginate } from './master';
 import { PER_PAGE_DEFAULT } from '@/prefs';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 
-// ---------- Buku Induk Guru ----------
-
 export interface Pegawai {
   id: number;
   user_id: number | null;
@@ -166,8 +164,6 @@ export function generateAkunPegawai(params: { q?: string; status_aktif?: string 
   return api<{ pesan: string; data: HasilGenerateAkun }>(`/admin/pegawai/generate-akun${suffix}`, { method: 'POST' });
 }
 
-// ---------- Penempatan (lembaga_pegawai) ----------
-
 export interface LembagaPegawai {
   id: number;
   pegawai_id: number;
@@ -233,8 +229,6 @@ export function aktifkanPenempatan(id: number) {
   return api<{ pesan: string; data: LembagaPegawai }>(`/admin/pegawai-lembaga/${id}/aktifkan`, { method: 'POST' });
 }
 
-// ---------- Import penempatan (lembaga_pegawai) ----------
-
 export const KOLOM_IMPORT_PENEMPATAN = [
   'pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'tugas_utama',
   'is_active_lembaga', 'tgl_masuk', 'tgl_selesai', 'tahaj_masuk',
@@ -267,8 +261,6 @@ export function batalPotongPenempatan(sesiId: number) {
 export function unduhGalatPenempatan(sesiId: number) {
   return downloadFile(`/admin/pegawai-lembaga/import-potong/${sesiId}/galat`, 'galat-import-penempatan.csv');
 }
-
-// ---------- Riwayat keaktifan (keaktifan_pegawai) ----------
 
 export interface KeaktifanPegawai {
   id: number;
@@ -329,8 +321,6 @@ export function hapusKeaktifanPegawai(id: number) {
   return api<{ pesan: string }>(`/admin/pegawai-keaktifan/${id}`, { method: 'DELETE' });
 }
 
-// ---------- Import riwayat keaktifan (potongan JSON bertahap) ----------
-
 export const KOLOM_IMPORT_KEAKTIFAN = [
   'pegawai_id', 'nipp', 'nama_lengkap', 'jenjang', 'tahun_ajaran',
   'tugas_utama', 'status_keaktifan', 'no_sk', 'tgl_sk',
@@ -364,8 +354,6 @@ export function batalPotongKeaktifan(sesiId: number) {
 export function unduhGalatKeaktifan(sesiId: number) {
   return downloadFile(`/admin/pegawai-keaktifan/import-potong/${sesiId}/galat`, 'galat-import-keaktifan.csv');
 }
-
-// ---------- Import Buku Induk ----------
 
 export const KOLOM_IMPORT_PEGAWAI = [
   'pegawai_id', 'nama_lengkap', 'nip', 'nipp', 'nik', 'jenis_kelamin',

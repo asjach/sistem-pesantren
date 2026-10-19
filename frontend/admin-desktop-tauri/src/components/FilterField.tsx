@@ -33,7 +33,7 @@ export default function FilterField({ label, htmlFor, children, className, kelol
     : null;
   const anakCombobox = anakTunggal?.type === Select || anakTunggal?.type === ComboCari;
   const kunci = konteks && htmlFor && kelolaLebar && anakCombobox ? htmlFor : '';
-  // Lebar tersimpan = setelan komponen (server), bukan peta tabel.
+
   const override = useSetelanKomponen(konteks?.tableKey ?? '', kunci).lebar;
 
   let isi = children;
@@ -42,7 +42,7 @@ export default function FilterField({ label, htmlFor, children, className, kelol
   if (lebarEfektif !== undefined && anakTunggal) {
     const el = anakTunggal;
     if (el.type === Select) {
-      // Select Root tak me-render DOM (Fragment): teruskan lebar ke Trigger di dalamnya.
+
       const anak = Children.map(el.props.children, (c) => {
         if (isValidElement(c) && (c.type as unknown) === SelectTrigger) {
           const p = c.props as { style?: CSSProperties };
@@ -56,8 +56,6 @@ export default function FilterField({ label, htmlFor, children, className, kelol
     }
   }
 
-  // Mode mendatar dipakai baik di dalam konteks toolbar maupun lewat prop
-  // `sejajar`; selain itu label tetap di atas kontrol seperti semula.
   const mendatar = konteks || sejajar;
   return (
     <span ref={ref} className={cn(mendatar ? 'flex items-center gap-1.5' : 'flex flex-col gap-0.5', className)}>

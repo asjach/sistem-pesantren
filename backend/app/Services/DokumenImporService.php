@@ -55,7 +55,6 @@ class DokumenImporService extends ImporPotongan
         $jenis = $this->bersihkanTeks($baris['jenis_dokumen'] ?? '');
         $this->kunciAktif = $jenis !== '' ? $jenis : null;
 
-        // Baris kosong/pemisah: tanpa jenis dokumen.
         if ($jenis === '') {
             return;
         }
@@ -63,16 +62,12 @@ class DokumenImporService extends ImporPotongan
         $catatan = $this->bersihkanTeks($baris['catatan'] ?? '');
         $catatan = $catatan !== '' ? $catatan : null;
 
-        // Santri tanpa kolom jenjang (NIS lokal unik per santri): validasi
-        // lembaga + izin mengikuti penempatan yang ditemukan.
         if ($this->tipe === 'santri') {
             $this->prosesSantri($baris, $no, $jenis, $catatan, $kering);
 
             return;
         }
 
-        // Pegawai tanpa kolom jenjang: NIPP wajib, izin mengikuti penempatan
-        // yang ditemukan (cermin santri).
         if ($this->tipe === 'pegawai') {
             $this->prosesPegawai($baris, $no, $jenis, $catatan, $kering);
 
@@ -86,8 +81,6 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        // Izin mengikuti akun per baris (super_admin lolos semua; admin
-        // lembaga hanya lembaganya) — baris luar lingkup gagal per baris.
         $auth = auth()->user();
         if (! $auth || ! $auth->canAccessLembaga($jenjang)) {
             $this->fail($no, 'jenjang', 'Lembaga di luar lingkup akses Anda.');
@@ -95,8 +88,6 @@ class DokumenImporService extends ImporPotongan
             return;
         }
 
-        // Status verifikasi hanya tersisa di tipe lembaga (santri/pegawai tanpa
-        // kolom status).
         $status = null;
         if ($this->tipe === 'lembaga') {
             $status = $this->normalisasiStatus($baris['status_verifikasi'] ?? null);
@@ -200,7 +191,7 @@ class DokumenImporService extends ImporPotongan
                 $lama->update($ubah);
                 $this->diperbarui++;
             }
-            // Satu aktif per kunci: baris ini yang terakhir.
+
             DokumenSantri::where('santri_id', $santri->id)
                 ->where('jenis_dokumen_santri', $jenis)
                 ->where('lembaga', $lembaga)
@@ -306,8 +297,6 @@ class DokumenImporService extends ImporPotongan
             $this->diperbarui++;
         }
 
-        // Satu aktif per kunci: baris aktif menonaktifkan saudara se-kunci
-        // (nama_file sama; berkas sejenis lain tidak tersentuh).
         if ($aktif) {
             DB::table('dokumen_pegawai')
                 ->where('pegawai_id', $pegawai->id)

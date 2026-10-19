@@ -31,13 +31,6 @@ beforeAll(() => {
   HTMLCanvasElement.prototype.getContext = (() => null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 });
 
-/* Kunci diagnosa balapan: request "a" dibuat TERTUNDA (tidak langsung resolve),
-   lalu "zzz" selesai duluan. Tanpa penjaga req/abort di loadCrosstab, balasan
-   lama yang tiba belakangan menimpa data baru — persis yang terjadi di browser
-   sebelum perbaikan ini (baris lama tetap tampil untuk kueri "zzz").
-
-   `vi.hoisted` wajib: factory vi.mock di-hoist ke atas file, sehingga ia tak
-   boleh menyentuh const biasa yang belum terinisialisasi. */
 const uji = vi.hoisted(() => {
   const KOLOM = { key: '1|bulanan|2025-07', jenis_id: 1, jenis_nama: 'Infaq Bulanan', tipe: 'bulanan' as const, periode: '2025-07' };
   /** Crosstab `n` baris bernama "Awalan i" — nama dipakai sebagai pembeda. */
@@ -75,8 +68,6 @@ const uji = vi.hoisted(() => {
   return { crosstub, tertunda, crosstabTagihan };
 });
 
-/* Tab Tarif: mode Edit digerbangi izin `keuangan.ubah`. `user` bisa diganti
-   per test lewat `ujiAuth`; bawaan tanpa pengguna = tabel baca-saja. */
 const ujiAuth = vi.hoisted(() => ({
   user: null as null | {
     id: number;
@@ -100,16 +91,11 @@ vi.mock('@/api/keuangan', async (importOriginal) => {
     daftarJenis: vi.fn(async () => []),
     daftarTarif: vi.fn(async () => []),
     daftarDispensasi: vi.fn(async () => []),
-    // `muatRiwayat` di halaman menugaskan hasil langsung ke state
-    // (`setRiwayatRows(await riwayatPembayaran(id))`), jadi mock mengembalikan
-    // array `PembayaranRow[]` (bukan objek berbungkus `{data}`).
+
     riwayatPembayaran: vi.fn(async () => []),
   };
 });
 
-/* Array filter WAJIB stabil (didefinisikan sekali): halaman memakai
-   `tahunAjaranNames`/`jenjangs` sebagai dependensi effect. Kalau factory mock
-   mengembalikan array baru tiap render, effectnya berjalan berulang → loop render. */
 const FILTER = {
   jenjangs: ['MI'],
   tahunAjaranNames: ['2025/2026'],
@@ -120,13 +106,10 @@ const FILTER = {
 };
 vi.mock('@/hooks/useFilterGlobalAktif', () => ({
   useFilterGlobalAktif: () => FILTER,
-  // Tiru implementasi asli: nilai tunggal mengembalikan isinya (bukan objek
-  // apa pun) — lingkup baris input tabel Tarif bergantung pada ini.
+
   targetTunggal: (values: readonly string[]) => (values.length === 1 ? values[0] : null),
 }));
 
-/* Rail filter tingkat/kelas butuh context tingkat & kelas (halaman test ini
-   memakai provider penuh) dan daftar kelas lingkup. */
 vi.mock('@/tingkatAktif', () => ({
   useTingkatAktif: () => ({ pilih: vi.fn() }),
 }));
@@ -143,8 +126,7 @@ vi.mock('@/api/master', async (importOriginal) => {
   return {
     ...asli,
     listKelas: vi.fn(paginasiKosong),
-    // `load()` halaman menunggu lembaga + tahun ajaran bersama daftar jenis;
-    // tanpa mock ini muat jenis menggantung dan baris uji tidak pernah tampil.
+
     listLembaga: vi.fn(paginasiKosong),
     listTahunAjaran: vi.fn(paginasiKosong),
   };
@@ -210,7 +192,7 @@ async function bukaTabTagihan() {
   );
   await userEvent.click(await screen.findByRole('tab', { name: 'Tagihan' }));
   await waitFor(() => expect(screen.getByText('Baru 1')).toBeInTheDocument());
-  // Diagnostik sementara: pastikan input pencarian benar-benar ter-portal.
+
   await waitFor(() => expect(screen.getByLabelText(/Cari nama/i)).toBeInTheDocument());
 }
 
@@ -223,10 +205,9 @@ describe('KeuanganPage — muat crosstab', () => {
   it('menunda pencarian 400 ms sebelum memanggil API', async () => {
     await bukaTabTagihan();
     const sebelum = uji.crosstabTagihan.mock.calls.length;
-    /* Pencarian ada di topBar dan memakai `aria-label`, bukan `placeholder`
-       (`TopBarSearch` memasang teksnya sebagai aria-label). */
+
     await userEvent.type(screen.getByLabelText(/Cari nama/i), 'a');
-    // Tiba-tiba belum ada request baru: nilai masih ditunda.
+
     expect(uji.crosstabTagihan.mock.calls.length).toBe(sebelum);
     await waitFor(() => expect(uji.crosstabTagihan.mock.calls.length).toBeGreaterThan(sebelum));
   });
@@ -236,15 +217,14 @@ describe('KeuanganPage — muat crosstab', () => {
     const input = screen.getByLabelText(/Cari nama/i);
 
     await userEvent.type(input, 'a');
-    // Tunggu debounce 400 ms agar request "a" benar-benar terkirim.
+
     await waitFor(() => expect(uji.tertunda.saisi).not.toBeNull());
 
     await userEvent.clear(input);
     await userEvent.type(input, 'zzz');
-    // Hasil "zzz" = 0 baris → tabel kosong (nama "Barus" hilang).
+
     await waitFor(() => expect(screen.queryByText('Baru 1')).not.toBeInTheDocument());
 
-    // Balasan lama tiba belakangan: harus TIDAK menimpa tabel.
     uji.tertunda.saisi?.();
     await waitFor(() => expect(screen.queryByText('Lama 1')).not.toBeInTheDocument());
   });
@@ -275,8 +255,6 @@ describe('KeuanganPage — mode Edit tabel Tarif', () => {
     vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
     await bukaTabTarif();
 
-    // Baris tampil dengan nominal terformat; switch Aktif hidup langsung.
-    // (Sel bisa muncul >1×: host pengukur lebar kolom AutoFit juga memuat teksnya.)
     expect((await screen.findAllByText('75.000')).length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Aktif')).toBeEnabled();
 
@@ -317,9 +295,6 @@ describe('KeuanganPage — mode Edit tabel Tarif', () => {
     await userEvent.click(await screen.findByLabelText('Tambah baris baru'));
     await screen.findByText('Mode Input aktif');
 
-    // Lingkup baris input = filter tunggal topBar; pasangan inilah yang
-    // diuji `tarifBentrok` sebelum POST (dropdown Jenis-nya sendiri hanya
-    // ter-render saat sel aktif, di luar jangkauan stub grid).
     const selJenjang = document.querySelector('.simpes-dsg-row-input [data-col-key="jenjang"]');
     const selTa = document.querySelector('.simpes-dsg-row-input [data-col-key="tahun_ajaran"]');
     expect(selJenjang?.textContent).toBe('MI');
@@ -382,9 +357,6 @@ describe('KeuanganPage — tabel Jenis Tagihan (mode Edit & Input)', () => {
   });
 });
 
-/* Sel crosstab bernominal 75.000; id sel = `btn_tagihan_sel_<n>` (n = nomor
- *  baris, sama dengan santri_id di `crosstub`). Dipakai test pilihan ganda &
- *  popover aksi batch di bawah. */
 function selCell(id: number): HTMLElement {
   return document.getElementById(`btn_tagihan_sel_${id}`) as HTMLElement;
 }
@@ -405,13 +377,6 @@ function pointerEv(el: Element, tipe: 'pointerdown' | 'pointerup', o: { button?:
 }
 
 describe('KeuanganPage — pilihan ganda (klik kiri) & aksi batch', () => {
-  /* Menutupi handler batch halaman (pilihAnchorSatu/togglePilih/pilihBlok/
-     pilihIrisan/lepasBlok/batalPilih/bukaBatch) lewat interaksi sel sungguhan —
-     bukan memanggil closure secara langsung, sehingga wiring prop & Map status
-     ikut teruji. */
-
-  /* Tanpa bilah pilihan: jumlah terpilih diverifikasi lewat sorotan sel
-     (boxShadow) karena tak ada lagi chip "N tagihan dipilih". */
 
   it('klik kiri memilih satu sel', async () => {
     await bukaTabTagihan();
@@ -438,7 +403,7 @@ describe('KeuanganPage — pilihan ganda (klik kiri) & aksi batch', () => {
     pointerEv(selCell(2), 'pointerdown');
     pointerEv(selCell(2), 'pointerup', { ctrlKey: true });
     await waitFor(() => expect(sorot(2)).toBe(true));
-    // Ctrl+klik lagi pada sel yang sudah terpilih → lepas (toggle).
+
     pointerEv(selCell(2), 'pointerdown');
     pointerEv(selCell(2), 'pointerup', { ctrlKey: true });
     await waitFor(() => expect(sorot(2)).toBe(false));
@@ -451,7 +416,7 @@ describe('KeuanganPage — pilihan ganda (klik kiri) & aksi batch', () => {
     pointerEv(selCell(2), 'pointerdown');
     pointerEv(selCell(2), 'pointerup', { ctrlKey: true });
     await waitFor(() => expect(sorot(2)).toBe(true));
-    // Klik kiri biasa → ganti seluruh pilihan dengan satu sel itu.
+
     pointerEv(selCell(5), 'pointerdown');
     pointerEv(selCell(5), 'pointerup');
     await waitFor(() => expect(sorot(5)).toBe(true));
@@ -460,10 +425,7 @@ describe('KeuanganPage — pilihan ganda (klik kiri) & aksi batch', () => {
   });
 
   it('klik lalu tahan-geser dari sel yang sama memblok sampai ujung drag', async () => {
-    /* Dulu tes ini mengunci perilaku sebaliknya ("irisan tetap 1"), yang
-       justru jadi bug: setelah klik satu sel, drag dari sel itu tersaring
-       oleh pilihan 1 sel sehingga tak ada blok terbentuk. Pilihan 1 sel
-       sekarang diperlakukan sebagai seleksi baru. */
+
     await bukaTabTagihan();
     pointerEv(selCell(1), 'pointerup');
     await waitFor(() => expect(sorot(1)).toBe(true));
@@ -485,14 +447,13 @@ describe('KeuanganPage — pilihan ganda (klik kiri) & aksi batch', () => {
 
   it('klik kanan saat >1 sel terpilih membuka aksi batch', async () => {
     await bukaTabTagihan();
-    // Bangun pilihan 2 sel (klik biasa + Ctrl+klik).
+
     pointerEv(selCell(1), 'pointerup');
     pointerEv(selCell(2), 'pointerdown');
     pointerEv(selCell(2), 'pointerup', { ctrlKey: true });
     await waitFor(() => expect(sorot(2)).toBe(true));
     expect(sorot(1)).toBe(true);
-    // Klik kanan di dalam range TIDAK mengubah pilihan — justru itu yang
-    // membuat aksi batch bisa dibuka untuk seluruh range.
+
     fireEvent.contextMenu(selCell(2));
     expect(await screen.findByText('2 sel dipilih')).toBeInTheDocument();
     await userEvent.click(await screen.findByText('Bayar Lunas'));
@@ -501,18 +462,12 @@ describe('KeuanganPage — pilihan ganda (klik kiri) & aksi batch', () => {
 });
 
 describe('KeuanganPage — geser blok bertahap (regresi multi-select)', () => {
-  /* Fixture halaman hanya punya SATU kolom, jadi "blok" di sini = rentang
-     BARIS. Drag nyata melewati sel satu per satu (satu onPointerEnter per
-     sel); itulah bentuk yang mengungkap dua bug lama:
-       1. blok menyusut sel demi sel (irisan diukur lawan hasil berjalan);
-       2. drag KEDUA di luar pilihan pertama menghasilkan pilihan KOSONG
-          (irisan masih diukur lawan pilihan gesture sebelumnya). */
 
   it('satu gesture: blok tumbuh penuh, bukan berhenti di sel kedua', async () => {
     await bukaTabTagihan();
     pointerEv(selCell(10), 'pointerdown');
     fireEvent.pointerEnter(selCell(11));
-    // Langkah kedua sudah harus memblok dua sel (bukan satu).
+
     await waitFor(() => expect(sorot(11)).toBe(true));
     expect(sorot(10)).toBe(true);
     fireEvent.pointerEnter(selCell(12));
@@ -523,14 +478,12 @@ describe('KeuanganPage — geser blok bertahap (regresi multi-select)', () => {
 
   it('drag kedua dari luar pilihan pertama = seleksi BARU (dulu kosong)', async () => {
     await bukaTabTagihan();
-    // Gesture 1: blok baris 10–12.
+
     pointerEv(selCell(10), 'pointerdown');
     fireEvent.pointerEnter(selCell(12));
     pointerEv(selCell(12), 'pointerup');
     await waitFor(() => expect(sorot(12)).toBe(true));
 
-    // Gesture 2 dimulai dari sel di LUAR pilihan (20) → seleksi baru,
-    // bukan irisan dengan {10,11,12} yang menghasilkan nol sel.
     pointerEv(selCell(20), 'pointerdown');
     fireEvent.pointerEnter(selCell(21));
     pointerEv(selCell(21), 'pointerup');
@@ -541,16 +494,12 @@ describe('KeuanganPage — geser blok bertahap (regresi multi-select)', () => {
   });
 
   it('klik lalu DRAG dari sel yang sama (pilihan 1 sel) tetap menyeleksi blok', async () => {
-    /* Bug: klik kiri memilih satu sel; drag yang dimulai SESAAAT setelahnya
-       dari sel itu dianggap "menggeser seleksi lama" (mode irisan). Karena
-       pilihan lama hanya berisi sel itu, blok tersaring jadi satu sel dan
-       seluruh drag terbuang — tak ada seleksi. Pilihan 1 sel harus
-       diperlakukan sebagai seleksi BARU. */
+
     await bukaTabTagihan();
-    pointerEv(selCell(10), 'pointerup'); // klik tunggal → pilihan {10}
+    pointerEv(selCell(10), 'pointerup');
     await waitFor(() => expect(sorot(10)).toBe(true));
 
-    pointerEv(selCell(10), 'pointerdown'); // drag dimulai dari sel yang sama
+    pointerEv(selCell(10), 'pointerdown');
     fireEvent.pointerEnter(selCell(11));
     fireEvent.pointerEnter(selCell(12));
     pointerEv(selCell(12), 'pointerup');
@@ -560,8 +509,7 @@ describe('KeuanganPage — geser blok bertahap (regresi multi-select)', () => {
   });
 
   it('drag di dalam pilihan BANYAK tetap mengiris (perilaku Excel dipertahankan)', async () => {
-    /* Aturan irisan hanya di-nonaktifkan untuk pilihan 1 sel. Dari dalam
-       pilihan multi-sel, drag tetap menyusutkan seleksi ke irisan blok. */
+
     await bukaTabTagihan();
     pointerEv(selCell(10), 'pointerdown');
     fireEvent.pointerEnter(selCell(11));
@@ -571,7 +519,6 @@ describe('KeuanganPage — geser blok bertahap (regresi multi-select)', () => {
     await waitFor(() => expect(sorot(13)).toBe(true));
     expect(sorot(10)).toBe(true);
 
-    // Drag dari tengah pilihan (11) ke 12 → irisan {11,12} saja.
     pointerEv(selCell(11), 'pointerdown');
     fireEvent.pointerEnter(selCell(12));
     pointerEv(selCell(12), 'pointerup');
@@ -583,17 +530,13 @@ describe('KeuanganPage — geser blok bertahap (regresi multi-select)', () => {
 });
 
 describe('KeuanganPage — klik kiri seleksi, klik kanan aksi', () => {
-  /* Klik kiri murni seleksi sel (tanpa popover apa pun); aksi per tagihan
-     hanya dari klik kanan/Enter. Bilah pilihan sudah dihapus, jadi tak ada
-     chip jumlah maupun "Batal Pilih". */
 
   it('klik kiri TIDAK membuka popover apa pun', async () => {
     await bukaTabTagihan();
     pointerEv(selCell(1), 'pointerdown');
     pointerEv(selCell(1), 'pointerup');
     await waitFor(() => expect(sorot(1)).toBe(true));
-    // Tak ada popover batch (Bayar/Ubah/Hapus Riwayat) maupun popover aksi
-    // per tagihan (Detail/Ubah/Hapus).
+
     expect(screen.queryByText('Hapus Riwayat Bayar')).toBeNull();
     expect(screen.queryByText('Batal Pilih')).toBeNull();
     expect(screen.queryByText(/Tambah tagihan ·/)).toBeNull();
@@ -612,14 +555,11 @@ describe('KeuanganPage — klik kiri seleksi, klik kanan aksi', () => {
 
   it('geser dari keadaan KOSONG memblok banyak sel, bukan berhenti di sel kedua', async () => {
     await bukaTabTagihan();
-    // Fixture hanya 1 kolom, jadi blok = rentang BARIS. Drag nyata melewati
-    // sel SATU PER SATU (satu onPointerEnter per sel) — itulah yang memicu
-    // bug lama: cabang "pilihan kosong" benar di sel pertama, lalu langkah
-    // berikutnya jatuh ke irisan dan blok menyusut jadi 1 sel.
+
     pointerEv(selCell(10), 'pointerdown');
     for (let n = 11; n <= 20; n++) fireEvent.pointerEnter(selCell(n));
     pointerEv(selCell(20), 'pointerup');
-    // Sel 10..20 tersorot semua (11 sel).
+
     await waitFor(() => expect(sorot(20)).toBe(true));
     for (const n of [10, 15, 20]) expect(sorot(n)).toBe(true);
     expect(sorot(9)).toBe(false);
@@ -631,7 +571,7 @@ describe('KeuanganPage — klik kiri seleksi, klik kanan aksi', () => {
     pointerEv(selCell(10), 'pointerdown');
     pointerEv(selCell(10), 'pointerup');
     await waitFor(() => expect(sorot(10)).toBe(true));
-    // Sel terpilih bergaris seleksi (boxShadow inline), yang lain tidak.
+
     expect(sorot(11)).toBe(false);
     expect(sorot(9)).toBe(false);
   });
@@ -640,7 +580,7 @@ describe('KeuanganPage — klik kiri seleksi, klik kanan aksi', () => {
     await bukaTabTagihan();
     fireEvent.contextMenu(selCell(1));
     expect(await screen.findByText('Detail')).toBeInTheDocument();
-    // Klik kanan sel lain → popover pindah ke sel itu (tetap terbuka).
+
     fireEvent.contextMenu(selCell(2));
     expect(await screen.findByText('Detail')).toBeInTheDocument();
   });
@@ -649,7 +589,7 @@ describe('KeuanganPage — klik kiri seleksi, klik kanan aksi', () => {
     await bukaTabTagihan();
     fireEvent.contextMenu(selCell(1));
     expect(await screen.findByText('Detail')).toBeInTheDocument();
-    // Satu sel → bukan mode batch.
+
     expect(screen.queryByText(/tagihan dipilih/)).toBeNull();
   });
 });

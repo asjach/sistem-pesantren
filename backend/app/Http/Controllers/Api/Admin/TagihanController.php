@@ -54,8 +54,7 @@ class TagihanController extends Controller
         if ($ta === '') {
             return;
         }
-        /* Status pemenang per (santri, jenjang): semester 2 menang (satu baris
-           per jenjang; duplikat semester 2 ganda diabaikan lewat agregat). */
+
         $menang = DB::table('riwayat_belajar as rb')
             ->where('rb.tahun_ajaran', $ta)
             ->whereNotExists(function ($g) {
@@ -69,8 +68,7 @@ class TagihanController extends Controller
             ->groupBy('rb.santri_id', 'rb.jenjang')
             ->select('rb.santri_id', 'rb.jenjang')
             ->selectRaw('MAX(rb.status_akhir) as status');
-        /* Nonaktif = (MI & MD sama-sama pindah_keluar) ATAU (bukan keduanya
-           dan status jenjang utama null/pindah_keluar). */
+
         $nonaktif = DB::query()->fromSub($menang, 'm')
             ->groupBy('m.santri_id')
             ->select('m.santri_id')
@@ -85,8 +83,7 @@ class TagihanController extends Controller
                 ." MAX(m.status)) = 'pindah_keluar')");
         if ($mauAktif) {
             $q->whereNotIn($kolom, $nonaktif);
-            // Tanpa riwayat pada TA patokan = nonaktif di baris (info null),
-            // jadi ikut tersaring keluar.
+
             $q->whereExists(function ($e) use ($ta, $kolom) {
                 $e->selectRaw('1')->from('riwayat_belajar as rb_ada')
                     ->whereColumn('rb_ada.santri_id', $kolom)
@@ -136,8 +133,6 @@ class TagihanController extends Controller
             return $roster;
         }
 
-        // Rail tingkat & kelas: baris riwayat yang DIPAKAI tampil (genap
-        // menang) — patokan sama dengan kolom "Kelas" di baris.
         $tingkat = $this->nilaiFilter($request, 'tingkat');
         $kelasId = array_map('intval', $this->nilaiFilter($request, 'kelas_id'));
         if ($tingkat !== [] || $kelasId !== []) {
@@ -194,8 +189,7 @@ class TagihanController extends Controller
         if ($request->boolean('belum_lunas')) {
             $q->where('tagihan.status', '!=', 'lunas');
         }
-        // Tunggakan = belum lunas DAN lewat batas waktu. Tanpa jatuh tempo = lewat
-        // (tidak ada batasnya), jadi ikut paling depan.
+
         if ($request->boolean('terlambat')) {
             $q->where('status', '!=', 'lunas')
                 ->where(fn ($w) => $w->whereNull('tagihan.jatuh_tempo')->orWhereDate('tagihan.jatuh_tempo', '<', today()));
@@ -208,10 +202,6 @@ class TagihanController extends Controller
                 ->orWhere('ibu_nama', 'like', '%'.$cari.'%'));
         }
 
-        /* Filter rail/keaktifan/cari dipasang di ROSTER (bukan `$q`) supaya
-           ikut memotong paginasi, total, dan baris — termasuk santri yang
-           belum punya tagihan. `$q` hanya melingkupi data tagihan (sel,
-           agregat, kolom). */
         $tahunAjaran = $this->nilaiFilter($request, 'tahun_ajaran');
         $jenjang = $this->jenjangUntukBerkas($request);
         $roster = $this->rosterSantriCrosstab($q, $request, $tahunAjaran, $jenjang);
@@ -219,10 +209,6 @@ class TagihanController extends Controller
         $page = max(1, (int) $request->input('page', 1));
         $perPage = $this->perPage($request);
 
-        /* Agregat per santri roster + urutan + paginasi di SQL. Tagihan
-           digabung LEFT JOIN: santri tanpa tagihan tetap tampil dengan sel
-           kosong (total 0). Filter atribut tagihan (jenis/status/terlambat)
-           butuh baris tagihan → JOIN biasa saat salah satunya aktif. */
         $butuhTagihan = $request->filled('jenis_id') || $request->filled('status')
             || $request->boolean('belum_lunas') || $request->boolean('terlambat');
         $cakupanTagihan = (clone $q)->toBase()->select(
@@ -242,41 +228,26 @@ class TagihanController extends Controller
             ->selectRaw('s.nama_lengkap, s.ayah_nama, s.ibu_nama, s.foto_url')
             ->selectRaw('SUM(t.nominal) as total_tagihan')
             ->selectRaw('SUM(t.terbayar) as total_terbayar')
-            /* Sama dengan `Tagihan::sisaTerlambat()`: sisa > 0 DAN lewat batas
-               waktu; jatuh tempo kosong = tanpa batas = lewat. */
+
             ->selectRaw(
                 'SUM(CASE WHEN (t.nominal - t.terbayar) > 0'
                 .' AND (t.jatuh_tempo IS NULL OR t.jatuh_tempo < ?) THEN (t.nominal - t.terbayar) ELSE 0 END) as tunggakan',
                 [today()->toDateString()]
             )
-            /* `s` di-group: kolomnya ikut dipilih, jadi MySQL dengan
-               ONLY_FULL_GROUP_BY akan menolak kalau tidak. */
+
             ->groupBy('s.id', 's.nama_lengkap', 's.ayah_nama', 's.ibu_nama', 's.foto_url');
 
-        /* Allowlist kode urut crosstab = katalog `keuangan_tagihan_crosstab`
-           (satu sumber bersama dialog Kelola Tabel). Nilai katalog = satu
-           ekspresi ORDER BY per kode (agregat alias), jadi diratakan ke token
-           → kolom tunggal untuk `kriteriaUrutan`. */
         $petaUrut = array_map(
             static fn (array $kolom): string => $kolom[0],
             UrutKatalog::peta('keuangan_tagihan_crosstab'),
         );
         $kriteria = $this->kriteriaUrutan($request, $petaUrut);
-        /* Tanpa `sort`: kelas lalu nama — urutan bawaan lama yang dulu selalu
-           dikirim frontend, supaya tampilan awal tak berubah saat tabel belum
-           punya preset urut. */
+
         if ($kriteria === []) {
             $kriteria = [['kelas_urut', 'naik'], ['s.nama_lengkap', 'naik']];
         }
         if (in_array('kelas_urut', array_column($kriteria, 0), true)) {
-            /* Kunci urut kelas: nama_kelas dari riwayat_belajar pada TA yang
-               ditampilkan (TA pertama bila beberapa dipilih — sama patokannya
-               dengan kolom `kelas` di baris hasil). `kelas_id` tidak ada di
-               tabel `santri`, melainkan per (santri, TA) di riwayat_belajar
-               dengan aturan jenjang_utama (MI > MD > lainnya) dan semester 2
-               menang — direplikasi sebagai subkueri agar agregat tetap satu
-               baris per Santri (join langsung akan menggandakan baris sekaligus
-               nominalnya). Hanya dihitung bila diminta. */
+
             $taKelas = (string) ($tahunAjaran[0] ?? '');
             $subKelas = '(SELECT k2.nama_kelas FROM riwayat_belajar AS rb2'
                 .' LEFT JOIN kelas AS k2 ON k2.id = rb2.kelas_id'
@@ -284,8 +255,7 @@ class TagihanController extends Controller
                 ." ORDER BY CASE rb2.jenjang WHEN 'MI' THEN 0 WHEN 'MD' THEN 1 ELSE 2 END,"
                 ." CASE rb2.semester WHEN '2' THEN 0 ELSE 1 END LIMIT 1)";
             $agregat->selectRaw("{$subKelas} as kelas_urut", [$taKelas]);
-            // Santri tanpa kelas selalu paling bawah, apa pun arah urutnya
-            // (mengikuti urut bawaan endpoint daftar tagihan).
+
             $agregat->orderByRaw('kelas_urut IS NULL');
         }
         foreach ($kriteria as [$kolom, $arah]) {
@@ -300,14 +270,6 @@ class TagihanController extends Controller
             ->limit(max(1, $perPageSql))
             ->get();
 
-        // Kolom: per jenis; bulanan dipecah satu kolom per bulan (periode).
-        /* Kolom = GABUNGAN dua sumber:
-           1) kombinasi (jenis, periode) yang sudah ADA di tabel tagihan —
-              diambil distinct di SQL, sebab satu baris per tagihan (7.602 di
-              dev DB) hanya dirangkum jadi daftar kolom;
-           2) seluruh TARIF aktif dalam lingkup filter — supaya jenis yang
-              belum punya satu tagihan pun tetap punya kolom, sehingga sel
-              kosongnya bisa diisi lewat Buat Massal. */
         $petaKolom = [];
         foreach ((clone $q)->join('jenis_tagihan as jt', 'jt.id', '=', 'tagihan.jenis_id')
             ->select('tagihan.jenis_id', 'tagihan.periode')
@@ -330,12 +292,7 @@ class TagihanController extends Controller
         foreach ($this->kolomDariTarif($request, $tahunAjaran) as $kunci => $k) {
             $petaKolom[$kunci] ??= $k;
         }
-        /* Urut kolom: yang PUNYA angka `urutan` lebih dulu menurut angkanya,
-           yang belum diatur (`urutan` = 0) menyusul dan kembali ke urutan
-           `id`. Di dalam satu jenis, periode tetap menaik (periode NULL =
-           non-bulanan lebih dulu, sama dengan urutan ASC MySQL). Tanpa angka
-           yang diisi sama sekali, hasilnya persis seperti sebelum kolom
-           `urutan` ada. */
+
         $kolom = array_values($petaKolom);
         usort($kolom, static function (array $a, array $b): int {
             $aBelum = $a['urutan'] === 0 ? 1 : 0;
@@ -344,35 +301,23 @@ class TagihanController extends Controller
             return [$aBelum, $a['urutan'], $a['jenis_id'], (string) ($a['periode'] ?? '')]
                 <=> [$bBelum, $b['urutan'], $b['jenis_id'], (string) ($b['periode'] ?? '')];
         });
-        /* `urutan` cuma alat sortir — jangan bocor ke respons (bentuk kolom
-           crosstab tetap seperti semula). */
+
         $kolom = array_map(static function (array $k): array {
             unset($k['urutan']);
 
             return $k;
         }, $kolom);
 
-        /* Kelas & status keaktifan per Santri, diambil dari riwayat TA yang
-           sama dengan filter topBar: semester 2 (genap) menang, dan Santri
-           MI-MD memakai kelas MI (`jenjang_utama` sudah embody aturan itu).
-           `pindah_keluar` ikut diambil — statusnya justru dipakai untuk
-           penanda titik merah, bukan untuk menyembunyikan baris. Kalau filter
-           TA kosong, tidak ada patokan kelas yang benar, jadi kolomnya dibiarkan kosong. */
         $idHalaman = $halaman->pluck('santri_id')->all();
         $peta = $tahunAjaran === [] || $idHalaman === []
             ? []
             : $this->petaSantriGenerate((string) $tahunAjaran[0], $idHalaman, null, true);
 
-        // Sel tagihan hanya untuk Santri di halaman ini (bukan semua).
         $tagihan = $idHalaman === []
             ? collect()
             : (clone $q)->with('jenis')->whereIn('santri_id', $idHalaman)
                 ->orderBy('santri_id')->orderBy('jenis_id')->get();
 
-        /* Foto lingkaran: id dokumen foto aktif untuk sehalaman Santri.
-           Satu kueri (bukan N+1); byte diambil malas saat popover dibuka.
-           Urutan pilih per baris: Pas Foto (jenjang baris → tanpa lembaga →
-           apa saja), lalu Foto Ijazah dengan urutan sama. */
         $dokFoto = $idHalaman === []
             ? collect()
             : DB::table('dokumen_santri')
@@ -385,11 +330,6 @@ class TagihanController extends Controller
         $bulanan = fn ($t) => $t->jenis?->tipe === 'bulanan';
         $key = fn ($t) => $this->keyKolomCrosstab((int) $t->jenis_id, $bulanan($t) ? $t->periode : null, $bulanan($t));
 
-        /* Baris dirakit mengikuti urutan `$halaman` (hasil agregat yang sudah
-           terurut & dipaginasi di SQL), bukan urutan query sel. Sebelumnya
-           baris disusun dari `groupBy` query sel yang berurutan `santri_id`,
-           sehingga urutan SQL (mis. nama menurun) hilang dan semua respons
-           kembali ke urutan id. */
         $selPerSantri = $tagihan->groupBy('santri_id');
         $baris = [];
         foreach ($halaman as $agregatSantri) {
@@ -399,8 +339,7 @@ class TagihanController extends Controller
             foreach ($kelompok as $t) {
                 $sel[$key($t)] = [
                     'id' => (int) $t->id,
-                    // Lembaga penagih baris ini — dipakai popover agar paket
-                    // dispensasi berlingkup lembaga lain tak ditawarkan.
+
                     'jenjang' => (string) $t->jenjang,
                     'nominal' => (int) $t->nominal,
                     'potongan' => (int) ($t->potongan ?? 0),
@@ -414,17 +353,8 @@ class TagihanController extends Controller
                 ];
             }
 
-            /* Keaktifan (aturan user): untuk Santri MI-MD, tidak aktif HANYA
-               bila `status_akhir` di MI **dan** MD sama-sama `pindah_keluar`;
-               kalau hanya salah satu, Santri itu dianggap masih aktif (mis.
-               pindah dari MI tapi masih sekolah di MD). Dievaluasi dari
-               `per_jenjang` — bukan dari jenjang yang kebetulan sedang difilter
-               crosstab, supaya Santri yang pindah tidak ditandai merah ketika
-               tabel sedang disaring jenjang MD, atau sebaliknya. Santri
-               berjenjang tunggal (atau MTS/MLN) memakai `status_akhir`. */
             $info = $peta[(int) $santriId] ?? null;
-            /* Jenjang terdaftar pada TA filter (MI > MD > lainnya, selaras
-               jenjang_utama) — dipakai label "Kelas X (MI-MD)" di popover. */
+
             $jenjangAda = array_keys($info['per_jenjang'] ?? []);
             usort($jenjangAda, fn ($a, $b) => [$a !== 'MI', $a !== 'MD', $a] <=> [$b !== 'MI', $b !== 'MD', $b]);
             $status = null;
@@ -446,9 +376,7 @@ class TagihanController extends Controller
                 'nama' => $agregatSantri->nama_lengkap ?? 'Tidak dikenal',
                 'ayah_nama' => $agregatSantri->ayah_nama ?? null,
                 'ibu_nama' => $agregatSantri->ibu_nama ?? null,
-                /* Tanpa tagihan: pakai jenjang terdaftar pertama (MI > MD >
-                   lainnya) agar alur tambah dari sel kosong tetap punya
-                   jenjang yang sah. */
+
                 'jenjang' => (string) ($kelompok->first()?->jenjang ?? $jenjangAda[0] ?? ''),
                 'kelas' => $info['kelas'] ?? null,
                 'tingkat' => $info['tingkat'] ?? null,
@@ -472,8 +400,7 @@ class TagihanController extends Controller
                     return null;
                 })(),
                 'foto_profil' => ($agregatSantri->foto_url ?? '') !== '',
-                /* `aktif` hasil hitungan MI+MD di atas — bukan `status !== 'pindah_keluar'`,
-                   karena untuk MI-MD sudah aktif meski `status_akhir` (MI) pindah_keluar. */
+
                 'status_akhir' => $status,
                 'aktif' => $aktif,
                 'sel' => $sel,
@@ -609,7 +536,7 @@ class TagihanController extends Controller
             $q->where('santri_id', (int) $request->input('santri_id'));
         }
         if ($request->filled('santri')) {
-            // Cari santri: nama, NISN, atau NIS lokal per lembaga.
+
             $cari = $request->input('santri');
             $q->whereHas('santri', fn ($s) => $s
                 ->where('nama_lengkap', 'like', '%'.$cari.'%')
@@ -692,8 +619,7 @@ class TagihanController extends Controller
                 $ids = collect($data['dispensasi_ids'] ?? [])
                     ->map(fn ($v) => (int) $v)->unique()->sort()->values();
                 if ($ids->isEmpty()) {
-                    // Lepas eksplisit ("Tanpa dispensasi") + koreksi manual: pakai
-                    // nominal ketikan, jejak lama dibersihkan.
+
                     $data['potongan'] = 0;
                     $data['dispensasi_ids'] = null;
                 } else {
@@ -725,8 +651,7 @@ class TagihanController extends Controller
                             }
                         }
                     }
-                    // Pilihan eksplisit menggantikan yang se-grup; grup lain yang
-                    // menempel dipertahankan (digabung, bukan ditimpa semua).
+
                     $punya = array_map('intval', (array) ($tagihan->dispensasi_ids ?? []));
                     $sudahAda = $this->grupMenempel((int) $tagihan->santri_id)->only($punya)->values();
                     $final = $aturanSvc->selaraskan($paket, $sudahAda);
@@ -740,7 +665,7 @@ class TagihanController extends Controller
                     $data['dispensasi_ids'] = $hasil['ids'] === [] ? null : $hasil['ids'];
                 }
             } elseif ((int) $data['nominal'] !== (int) $tagihan->nominal) {
-                // Koreksi manual: jejak potongan lama basi bila nominal berubah.
+
                 $data['potongan'] = 0;
                 $data['dispensasi_ids'] = null;
             }
@@ -753,8 +678,7 @@ class TagihanController extends Controller
 
             $tagihan->nominal = $data['nominal'];
             $tagihan->tahun_ajaran = $data['tahun_ajaran'];
-            // Jejak dispensasi hanya berubah lewat dua jalur di atas (terapkan
-            // eksplisit / koreksi manual); ubah TA/tanggal saja mempertahankannya.
+
             if (array_key_exists('potongan', $data)) {
                 $tagihan->potongan = $data['potongan'];
             }
@@ -801,19 +725,12 @@ class TagihanController extends Controller
             ? $this->periodesTagihan($jenis, $data['tahun_ajaran'], $data['periode'] ?? null, $data['periode_sampai'] ?? null, false)
             : [];
 
-        /* Santri yang sudah punya tagihan untuk periode terpilih TIDAK lagi
-           disembunyikan: alur generate dua tahap (tagih semua, lalu perbarui
-           sebagian) butuh mereka tetap bisa dipilih. Yang dikirim cukup
-           agregat — jumlah periode yang terisi + total nominal/terbayar — buat
-           pratinjau "sudah ada · 3/3 bulan · Rp 225.000" di dialog, bukan
-           rincian per periode (bisa 24 baris per Santri). */
         $sudahAda = $jenis !== null && $periodes !== []
             ? $this->rekapTagihanSudahAda(array_keys($peta), $jenis->id, $periodes)
             : [];
 
         $hasil = [];
-        /* Kelompok custom + grup dipilih = hanya anggota grup itu. Tanpa grup
-           (kompatibel lama) = semua, sama seperti 'aktif'. */
+
         $anggotaCustom = null;
         if ($data['kelompok'] === 'custom' && isset($data['grup_custom_id'])) {
             $grup = GrupSantriCustom::tenantScope()->find($data['grup_custom_id']);
@@ -849,8 +766,6 @@ class TagihanController extends Controller
             ];
         }
 
-        // Urut bawaan: kelas (tanpa kelas paling bawah) → JK (L dulu) → nama.
-        // Param `sort` menimpa bawaan (sort koleksi, kolom keluaran di PETA).
         $hasil = $this->terapkanUrutKoleksi($request, $hasil, [
             'nama' => 'nama_lengkap',
             'jk' => 'jk',
@@ -916,22 +831,14 @@ class TagihanController extends Controller
         $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
         $peta = $this->petaSantriGenerate($data['tahun_ajaran'], $diminta->keys()->all());
 
-        // Dispensasi aktif untuk jenis ini — TIDAK terikat tahun ajaran:
-        // paket berlaku lintas TA (kuota/penerima/grup yang membatasi).
-        // Baris tanpa override manual dihitung ulang di sini (otoritatif),
-        // override manual menang.
         $daftarDispensasi = Dispensasi::with(['aturan.jenis', 'santriTambahan'])
             ->where('is_active', true)
             ->whereHas('aturan', fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenis->id))
             ->get();
         $aturan = app(DispensasiService::class);
-        // Kuota dihitung dari tagihan bulanan; jenis non-bulanan mengabaikannya.
+
         $kuotaBerlaku = $jenis->tipe === 'bulanan';
 
-        /* Satu transaksi untuk seluruh daftar. Tanpa itu `abort()` di tengah
-           loop (mis. Santri tidak aktif pada TA) meninggalkan tagihan yang
-           sudah terlanjur dibuat: user melihat "gagal" padahal sebagian data
-           sudah jadi, lalu generate ulang hanya melaporkan "dilewati". */
         $hasil = DB::transaction(function () use (
             $actor, $data, $jenis, $periodes, $diminta, $peta, $daftarDispensasi, $aturan, $kuotaBerlaku
         ): array {
@@ -940,14 +847,14 @@ class TagihanController extends Controller
             $tetap = 0;
             $alasan = [];
             $santriIds = $diminta->keys()->all();
-            // Kunci santri juga menyerialkan dua generate ketika tagihan belum ada.
+
             Santri::whereIn('id', $santriIds)->orderBy('id')->lockForUpdate()->get(['id']);
             Tagihan::whereIn('santri_id', $santriIds)->orderBy('id')->lockForUpdate()->get(['id']);
             $posisi = 0;
             $adaPeta = [];
 
             foreach ($diminta as $santriId => $s) {
-                // Batasi model existing yang ditahan di memori, tanpa query per bulan.
+
                 if ($posisi % 200 === 0) {
                     $adaPeta = $this->petaTagihanAda(array_slice($santriIds, $posisi, 200), (int) $jenis->id, $periodes, true);
                 }
@@ -964,15 +871,12 @@ class TagihanController extends Controller
                     $nominalManual = (int) $s['nominal'];
                     $pakaiKuota = [];
                 } else {
-                    // Generate tak pernah mendaftarkan penerima baru —
-                    // itu wewenang dialog Dispensasi / Ubah per tagihan.
+
                     $paketDasar = $aturan->saring($daftarDispensasi, (int) $santriId, $info['jenjang_utama'])
                         ->sortBy('id')->values();
-                    // Kuota terpakai per paket (tagihan bulanan santri ini
-                    // yang sudah memuat paket) — alokasi per baris di bawah.
+
                     $pakaiKuota = $this->pakaiKuota($paketDasar, (int) $santriId);
-                    // Paket aktif yang menempel di tagihan santri — prioritas
-                    // "meneruskan" per grup saat digabung per baris.
+
                     $punyaPaket = collect($adaPeta[$santriId] ?? [])
                         ->contains(fn (Tagihan $t) => ! empty($t->dispensasi_ids));
                     $grupMap = $punyaPaket ? $this->grupMenempel((int) $santriId) : collect();
@@ -989,8 +893,7 @@ class TagihanController extends Controller
                             $potongan = 0;
                             $dispensasiIds = null;
                         } else {
-                            // Baris baru: menempel tak ada di sini, jadi paket
-                            // yang tersisa kuotanya menang per grup.
+
                             $hitung = $this->hitungBarisDispensasi(
                                 $paketDasar, $pakaiKuota, collect(), null, $kuotaBerlaku,
                                 (int) $data['nominal'], (int) $jenis->id, $aturan
@@ -1026,9 +929,7 @@ class TagihanController extends Controller
                         $punyaIds = null;
                     } else {
                         $punyaIds = $ada->dispensasi_ids;
-                        // Menempel menang dalam grupnya (meneruskan); failover
-                        // kuota: yang habis & belum menempel dicoret dulu agar
-                        // se-grup yang bersisa bisa maju ke baris ini.
+
                         $hitung = $this->hitungBarisDispensasi(
                             $paketDasar, $pakaiKuota, $grupMap, $ada, $kuotaBerlaku,
                             (int) $data['nominal'], (int) $jenis->id, $aturan
@@ -1081,8 +982,7 @@ class TagihanController extends Controller
                     if ($paketDasar !== null) {
                         $this->konsumsiKuota($idsBaru, $pakaiKuota, $punyaIds);
                     }
-                    // Tanpa perubahan nilai = tidak dihitung "diperbarui"
-                    // (save() pun tak mengeluarkan query bila tak dirty).
+
                     if (! $ada->wasChanged()) {
                         $tetap++;
 
@@ -1137,8 +1037,6 @@ class TagihanController extends Controller
         $aturan = app(DispensasiService::class);
         $kuotaBerlaku = $jenis->tipe === 'bulanan';
 
-        // Baris existing seluruh santri sekaligus: pratinjau tidak menulis,
-        // jadi tak perlu satu query per santri per periode seperti generate.
         $adaPeta = $this->petaTagihanAda($diminta->keys()->all(), (int) $jenis->id, $periodes);
 
         $hasil = [];
@@ -1187,8 +1085,6 @@ class TagihanController extends Controller
                     $langkah = $hitung['langkah'];
                 }
 
-                // Sebab yang sama dengan generate: baris begini dilewati —
-                // tak ditulis ulang dan tak ikut menghabiskan kuota.
                 $sebab = null;
                 if ($ada !== null && $paketDasar !== null && $kuotaBerlaku && (int) $ada->terbayar > 0) {
                     $sebab = 'sudah ada pembayaran';
@@ -1201,7 +1097,7 @@ class TagihanController extends Controller
                         $this->konsumsiKuota($ids, $pakaiKuota, $ada?->dispensasi_ids);
                     }
                 } elseif ($ada !== null) {
-                    // Baris dibiarkan apa adanya — itulah bentuknya setelah generate.
+
                     $nominal = (int) $ada->nominal;
                     $potongan = (int) $ada->potongan;
                     $ids = array_map('intval', (array) ($ada->dispensasi_ids ?? []));
@@ -1217,14 +1113,12 @@ class TagihanController extends Controller
                     'potongan' => $potongan,
                     'dispensasi_ids' => $ids,
                     'nama' => array_map(fn ($id) => $namaPaket[(int) $id] ?? "#{$id}", $ids),
-                    // Sumbangan tiap paket di baris ini (sebelum → sesudah).
+
                     'langkah' => $langkah,
                     'sebab' => $sebab,
                 ];
             }
 
-            // Periode berbeda bisa berakhir beda paket (failover kuota); tabel
-            // menampilkan periode pertama, jadi tandai bila sisanya beda.
             $pertama = $baris[0];
             $seragam = ! array_any(
                 $baris,
@@ -1479,7 +1373,7 @@ class TagihanController extends Controller
             'mi_md' => $has('MI') && $has('MD'),
             'kelas_akhir' => $info['kelas_akhir'],
             'selain_kelas_akhir' => ! $info['kelas_akhir'],
-            default => true, // 'aktif' & 'custom' = semua (pindah keluar sudah tersaring)
+            default => true,
         };
     }
 

@@ -86,19 +86,17 @@ export function useTinggiBaris(tableKey: string) {
           setManual(peta);
           setSigManual(serialPeta(peta));
         })
-        .catch(() => { /* tanpa tinggi manual bila pref gagal dibaca */ });
+        .catch(() => {  });
       prefGet(autoBarisKey(tableKey))
-        // Bawaan MATI: hanya nilai eksplisit '1' yang menyalakan (pengguna yang
-        // pernah menyalakan tetap ON; yang belum pernah atur ikut bawaan baru).
+
         .then((v) => { if (hidup) setAutoIkutState(v === '1'); })
-        .catch(() => { /* bawaan: tidak ikut isi */ });
+        .catch(() => {  });
       prefGet(tinggiDasarKey(tableKey))
         .then((v) => { if (hidup) setDasarState(bacaAngka(v, MIN_BARIS_H, MAX_BARIS_H)); })
-        .catch(() => { /* belum diatur → bawaan global/24px */ });
+        .catch(() => {  });
     };
     muat();
-    // Tab Umum dialog Kelola Tabel mengubah pref yang sama dari luar grid
-    // (sakelar baris-ikut-isi, reset total) — baca ulang tanpa reload.
+
     const segarkan = (e: Event) => {
       if ((e as CustomEvent).detail?.tableKey === tableKey) muat();
     };

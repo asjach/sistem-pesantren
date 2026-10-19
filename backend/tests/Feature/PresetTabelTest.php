@@ -50,13 +50,11 @@ class PresetTabelTest extends TestCase
         $pusat = $this->makeUser('super_admin');
         $adminMi = $this->makeUser('admin', [$mi->jenjang]);
 
-        // Admin lembaga ditolak menulis (403), baris tak terbentuk.
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/preset-tabel', [
             'table_key' => 'psb', 'nama' => 'default', 'kolom' => ['nama'],
         ])->assertStatus(403);
         $this->assertSame(0, PresetTabel::count());
 
-        // Super_admin menyimpan preset global (satu baris per nama).
         $res = $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
             'table_key' => 'psb', 'nama' => 'default', 'kolom' => ['nama'],
         ]);
@@ -64,7 +62,6 @@ class PresetTabelTest extends TestCase
         $id = (int) $res->json('data.0.id');
         $this->assertNull(PresetTabel::findOrFail($id)->jenjang);
 
-        // Nama "Lengkap" kini boleh dipakai: preset bawaan semua kolom.
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
             'table_key' => 'psb', 'nama' => 'Lengkap', 'kolom' => ['nama'],
         ])->assertStatus(201);
@@ -72,15 +69,12 @@ class PresetTabelTest extends TestCase
             'table_key' => 'psb', 'nama' => 'Lengkap',
         ]);
 
-        // Simpan ulang nama sama = menimpa kolom (bukan menambah baris).
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
             'table_key' => 'psb', 'nama' => 'default', 'kolom' => ['nama', 'nik'],
         ])->assertStatus(201);
         $this->assertEquals(['nama', 'nik'], PresetTabel::findOrFail($id)->kolom);
         $this->assertSame(1, PresetTabel::where('table_key', 'psb')->where('nama', 'default')->count());
 
-        // Admin boleh membaca + memilih (setAktif), tapi tak boleh ubah/hapus.
-        // Nama diperiksa tanpa bergantung urutan ("Lengkap" ikut terdaftar).
         $daftar = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=psb');
         $daftar->assertStatus(200);
         $this->assertContains('default', array_column($daftar->json('data.presets'), 'nama'));
@@ -92,13 +86,12 @@ class PresetTabelTest extends TestCase
         ])->assertStatus(403);
         $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/preset-tabel/{$id}")->assertStatus(403);
 
-        // Super_admin ubah + hapus.
         $this->actingAs($pusat, 'sanctum')->putJson("/api/admin/preset-tabel/{$id}", [
             'kolom' => ['nama', 'status'],
         ])->assertStatus(200);
         $this->assertEquals(['nama', 'status'], PresetTabel::findOrFail($id)->kolom);
         $this->actingAs($pusat, 'sanctum')->deleteJson("/api/admin/preset-tabel/{$id}")->assertStatus(200);
-        // Preset "Lengkap" yang dibuat di atas tetap ada; sisanya sudah terhapus.
+
         $this->assertSame(0, PresetTabel::where('table_key', 'psb')->where('nama', '!=', 'Lengkap')->count());
     }
 
@@ -111,12 +104,10 @@ class PresetTabelTest extends TestCase
             'jenjang' => null, 'table_key' => 'psb', 'nama' => 'global', 'kolom' => ['nama'],
         ])->id;
 
-        // Preset tabel lain tidak bisa dipilih untuk tabel ini.
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/preset-tabel/aktif', [
             'table_key' => 'santri', 'preset_id' => $id,
         ])->assertStatus(422)->assertJsonValidationErrors(['preset_id']);
 
-        // Baris lama per-lembaga tak terlihat siapa pun (403), tak bisa dipilih.
         $root = Lembaga::create(['nama' => 'Pesantren', 'jenjang' => 'PESANTREN', 'is_active' => true]);
         $warisan = PresetTabel::create([
             'jenjang' => $root->jenjang, 'table_key' => 'psb', 'nama' => 'warisan', 'kolom' => ['nama'],
@@ -128,7 +119,6 @@ class PresetTabelTest extends TestCase
             'table_key' => 'psb', 'preset_id' => $warisan->id,
         ])->assertStatus(403);
 
-        // ...dan tak bisa diubah (hapus lalu buat baru sebagai global).
         $this->actingAs($pusat, 'sanctum')->putJson("/api/admin/preset-tabel/{$warisan->id}", [
             'kolom' => ['nama'],
         ])->assertStatus(422)->assertJsonValidationErrors(['preset']);
@@ -138,14 +128,12 @@ class PresetTabelTest extends TestCase
     {
         $pusat = $this->makeUser('super_admin');
 
-        // Tabel santri punya > 60 kolom (72) — tidak boleh ditolak batas lama.
         $kolom = array_map(fn ($i) => "kolom_{$i}", range(1, 72));
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
             'table_key' => 'santri', 'nama' => 'semua kolom', 'kolom' => $kolom,
         ])->assertStatus(201);
         $this->assertCount(72, PresetTabel::firstOrFail()->kolom);
 
-        // Batas aman tetap ada.
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel', [
             'table_key' => 'santri', 'nama' => 'kebablasan',
             'kolom' => array_map(fn ($i) => "kolom_{$i}", range(1, 201)),
@@ -168,16 +156,13 @@ class PresetTabelTest extends TestCase
         $res->assertStatus(201);
         $id = (int) $res->json('data.0.id');
 
-        // Kolom tetap tersimpan; label diabaikan.
         $this->assertEquals(['santri', 'jk'], PresetTabel::findOrFail($id)->kolom);
         $this->assertNull(PresetTabel::findOrFail($id)->label);
 
-        // Index tak lagi menyajikan `label`.
         $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=keanggotaan')
             ->assertStatus(200)
             ->assertJsonMissingPath('data.presets.0.label');
 
-        // PUT pun mengabaikannya.
         $this->actingAs($pusat, 'sanctum')->putJson("/api/admin/preset-tabel/{$id}", [
             'label' => ['jk' => 'Jenis Kelamin'],
         ])->assertStatus(200);
@@ -192,11 +177,9 @@ class PresetTabelTest extends TestCase
         $a = PresetTabel::create(['jenjang' => null, 'table_key' => 'psb', 'nama' => 'a', 'kolom' => ['nama']]);
         $b = PresetTabel::create(['jenjang' => null, 'table_key' => 'psb', 'nama' => 'b', 'kolom' => ['nama']]);
 
-        // Non-super_admin ditolak (403 ganda: middleware izin + pastikanSuperAdmin).
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/preset-tabel/{$a->id}/bawaan")
             ->assertStatus(403);
 
-        // Tetapkan A → index melaporkan default_preset_id.
         $this->actingAs($pusat, 'sanctum')->postJson("/api/admin/preset-tabel/{$a->id}/bawaan")
             ->assertStatus(200)
             ->assertJsonPath('pesan', 'Preset bawaan ditetapkan.');
@@ -204,13 +187,11 @@ class PresetTabelTest extends TestCase
         $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/preset-tabel?table_key=psb')
             ->assertJsonPath('data.default_preset_id', $a->id);
 
-        // Tetapkan B → A otomatis tercabut (satu per tabel).
         $this->actingAs($pusat, 'sanctum')->postJson("/api/admin/preset-tabel/{$b->id}/bawaan")
             ->assertStatus(200);
         $this->assertFalse(PresetTabel::findOrFail($a->id)->is_default);
         $this->assertTrue(PresetTabel::findOrFail($b->id)->is_default);
 
-        // Cabut B → tak ada bawaan.
         $this->actingAs($pusat, 'sanctum')->postJson("/api/admin/preset-tabel/{$b->id}/bawaan", ['bawaan' => false])
             ->assertStatus(200)
             ->assertJsonPath('pesan', 'Preset bawaan dicabut.');
@@ -222,7 +203,6 @@ class PresetTabelTest extends TestCase
     {
         $pusat = $this->makeUser('super_admin');
 
-        // Simpan susunan "Lengkap kustom" (tanpa preset) -> bertahan di index.
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel/aktif', [
             'table_key' => 'santri',
             'preset_id' => null,
@@ -233,7 +213,6 @@ class PresetTabelTest extends TestCase
             ->assertJsonPath('data.aktif_preset_id', null)
             ->assertJsonPath('data.aktif_kolom', ['nama', 'jk']);
 
-        // Memilih preset membersihkan susunan kustom (preset yang menentukan).
         $id = PresetTabel::create([
             'jenjang' => null, 'table_key' => 'santri', 'nama' => 'ringkas', 'kolom' => ['nama'],
         ])->id;
@@ -244,7 +223,6 @@ class PresetTabelTest extends TestCase
             ->assertJsonPath('data.aktif_preset_id', $id)
             ->assertJsonPath('data.aktif_kolom', null);
 
-        // Lengkap tanpa kolom = semua kolom -> susunan kustom kosong.
         $this->actingAs($pusat, 'sanctum')->postJson('/api/admin/preset-tabel/aktif', [
             'table_key' => 'santri', 'preset_id' => null,
         ])->assertStatus(200);

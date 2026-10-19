@@ -35,7 +35,7 @@ class TemplateHeaderKontrakTest extends TestCase
             ['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'],
             DokumenTemplateExport::kolom('lembaga')
         );
-        // Tipe tak dikenal = tanpa kolom (bukan melempar).
+
         $this->assertSame([], DokumenTemplateExport::kolom('entah'));
     }
 
@@ -86,8 +86,6 @@ class TemplateHeaderKontrakTest extends TestCase
         $this->assertArrayHasKey('status_verifikasi', $pilihan);
         $this->assertSame(['Menunggu', 'Valid', 'Ditolak'], $pilihan['status_verifikasi']);
 
-        // `pilihan()` sengaja superset (semua tipe); penyaringan per kolom
-        // terjadi saat merender dropdown lewat array_search di isiDropdown.
         $this->assertArrayHasKey('is_active', (new DokumenTemplateExport('pegawai'))->pilihan());
         $this->assertNotContains('jenjang', DokumenTemplateExport::kolom('pegawai'));
         $this->assertNotContains('is_active', DokumenTemplateExport::kolom('santri'));

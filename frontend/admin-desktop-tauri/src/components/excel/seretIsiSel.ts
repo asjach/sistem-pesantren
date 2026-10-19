@@ -157,8 +157,7 @@ export function terapkanSeret<T extends { id: string | number }>(
   kunciKolom: readonly string[], mode: ModeSeret,
 ): T[] {
   const out = baris.map((g) => ({ ...g }) as Record<string, unknown>);
-  // Rekam isi sumber DULU: langkah "pindah" mengosongkan sumber, jadi nilainya
-  // harus dibekukan lebih dulu supaya penulisan ke target tak terpengaruh.
+
   const isi: (string | null)[][] = [];
   for (let r = sumber.r0; r <= sumber.r1; r += 1) {
     isi.push(sumber.kolom.map((c) => nilaiSel(baris, r, c, kunciKolom)));
@@ -172,10 +171,7 @@ export function terapkanSeret<T extends { id: string | number }>(
     });
   }
   if (mode === 'pindah') {
-    /* Sel yang jadi tujuan SEKALIGUS jadi sumber (mis. blok digeser ke
-       kanan pada baris yang sama) tak boleh dikosongkan — isinya yang baru
-       saja ditulis ke sana akan ikut terhapus. Perbandingan harus per-sel:
-       kolom yang sama pada baris BERBEDA tetap wajib dikosongkan. */
+
     const kolomTujuan = new Set(target.kolom);
     for (let r = sumber.r0; r <= sumber.r1; r += 1) {
       const g = out[r];

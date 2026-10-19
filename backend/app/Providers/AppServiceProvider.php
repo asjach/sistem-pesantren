@@ -16,7 +16,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Konteks act-as per request: satu instance per request.
+
         $this->app->singleton(LembagaAktif::class);
     }
 
@@ -25,7 +25,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Fallback pemuat helper global (utama via composer.json "files" + dump-autoload).
+
         if (! function_exists('terbilang')) {
             $helper = app_path('Helpers/TerbilangHelper.php');
             if (is_file($helper)) {
@@ -33,9 +33,6 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        // Di lingkungan local throttle dilepas agar siklus kerja dev (refresh
-        // berkali-kali demi cek tampilan, uji import berulang) tidak mentok 429.
-        // Gate hanya 'local': produksi & testing tetap memakai batas normal.
         $longgar = app()->isLocal();
 
         RateLimiter::for('login', function (Request $request) use ($longgar) {

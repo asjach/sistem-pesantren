@@ -5,10 +5,6 @@ import type { LembagaSantri, Santri, SantriPenuh } from './santri';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 import type { DataExistingPayload } from '@/lib/excelDataExisting';
 
-// ---------- Riwayat belajar (102) + siklus akademik ----------
-
-// ---------- Halaman MI-MD (3 tabel berdampingan) ----------
-
 export interface MiMdBarisMi {
   santri_id: number;
   nama: string;
@@ -221,8 +217,6 @@ export function updateRiwayatBelajar(id: number, changes: Record<string, string 
   });
 }
 
-// ---------- Import riwayat belajar (terpisah dari import identitas) ----------
-
 export function unduhTemplateRiwayatBelajar() {
   return downloadFile('/admin/riwayat-belajar/import-template', 'template-import-riwayat-belajar.xlsx');
 }
@@ -233,8 +227,6 @@ export function dataRiwayatBelajarExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
   return api<DataExistingPayload>(`/admin/riwayat-belajar/data-existing${q}`);
 }
-
-// ---------- Import riwayat bertahap (potongan JSON dari browser) ----------
 
 export interface ImportPotongRingkasan {
   baris_diproses: number;
@@ -291,8 +283,6 @@ export function batalPotongImport(sesiId: number) {
 export function unduhGalatPotong(sesiId: number) {
   return downloadFile(`/admin/riwayat-belajar/import-potong/${sesiId}/galat`, 'galat-import-riwayat.csv');
 }
-
-// ---------- Daftar kelas & rekap ----------
 
 export interface DaftarKelasHasil {
   jenjang: string | string[];
@@ -390,8 +380,6 @@ export function rekapSantri(params: {
   return api<RekapSantri>(`/admin/akademik/rekap-santri?${q.toString()}`);
 }
 
-// ---------- Aksi siklus ----------
-
 export function listMutasiKeluar(params: {
   jenjang?: ScalarOrArray<string>;
   tahun_ajaran?: ScalarOrArray<string>;
@@ -476,8 +464,6 @@ export function updateAlumni(
   });
 }
 
-// ---------- Import alumni bertahap (potongan JSON dari browser) ----------
-
 /** Kirim satu potongan baris (maks 1000); panggilan pertama tanpa sesi_id
  *  membuat sesi (wajib mode + total). */
 export function importAlumniPotong(input: {
@@ -503,8 +489,6 @@ export function unduhGalatAlumni(sesiId: number) {
   return downloadFile(`/admin/alumni/import-potong/${sesiId}/galat`, 'galat-import-alumni.csv');
 }
 
-// ---------- Import arsip mutasi keluar ----------
-
 /** Unduh template Excel import arsip mutasi keluar. */
 export function unduhTemplateMutasi() {
   return downloadFile('/admin/mutasi-keluar/import-template', 'template-import-mutasi-keluar.xlsx');
@@ -516,8 +500,6 @@ export function dataMutasiExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
   return api<DataExistingPayload>(`/admin/mutasi-keluar/data-existing${q}`);
 }
-
-// ---------- Import mutasi keluar bertahap (potongan JSON dari browser) ----------
 
 /** Kirim satu potongan baris (maks 1000); panggilan pertama tanpa sesi_id
  *  membuat sesi (wajib mode + total). */

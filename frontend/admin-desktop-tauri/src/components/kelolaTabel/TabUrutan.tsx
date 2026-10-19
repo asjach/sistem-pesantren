@@ -49,7 +49,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
 
   const muat = useCallback(async () => {
     try {
-      // Dialog kelola selalu baca segar (lewati memo pemakaian tabel).
+
       const res = await muatUrutPreset(tableKey, true);
       setData(res.data);
       const bersih = res.data.opsi.map((o) => ({ ...o, kode: [...o.kode], arah_kolom: o.arah_kolom ? { ...o.arah_kolom } : null }));
@@ -286,7 +286,7 @@ export default function TabUrutan({ tableKey }: { tableKey: string }) {
               >
                 <Trash2 size={14} />
               </TombolIkon>
-              {/* Arah per kolom: muncul hanya bila opsi memilih ≥ 2 kolom. */}
+
               {o.kode.length >= 2 && bolehSimpan && (
                 <div
                   className="flex w-full flex-wrap items-center gap-1.5 border-t pt-1.5 pl-7"

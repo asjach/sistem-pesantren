@@ -19,8 +19,6 @@ import {
 
 const STATUS = ['Aktif', 'Tidak aktif', 'Pindah keluar', 'Lulus', 'Keluar sementara'];
 
-/* ---------- Lebar kolom daftar (dapat digeser) ---------- */
-
 /** Lebar kolom nama saat halaman dibuka (px) — sama dengan lebar lama yang
  *  dipatok di kelas grid. */
 const LEBAR_NAMA_BAWAAN = 240;
@@ -56,8 +54,7 @@ function jepitLebarNama(px: number): number {
  *  sama seperti gagang lebar navigasi di Sidebar). */
 function GagangLebarKolom({ lebar, setLebar }: { lebar: number; setLebar: (px: number) => void }) {
   const lepasRef = useRef<null | (() => void)>(null);
-  /* Seretan yang belum dilepas saat halaman ditinggalkan (mis. pindah tab
-     dengan tombol mouse masih tertahan) jangan meninggalkan listener. */
+
   useEffect(() => () => { lepasRef.current?.(); }, []);
 
   const mulaiSeret = (e: MouseEvent<HTMLElement>) => {
@@ -65,8 +62,7 @@ function GagangLebarKolom({ lebar, setLebar }: { lebar: number; setLebar: (px: n
     e.preventDefault();
     const mulaiX = e.clientX;
     const lebarAwal = lebar;
-    /* Kursor dipasang di <body>: pointer gampang keluar dari gagang yang tipis
-       saat diseret cepat, dan tanpa ini kursornya berkedip balik ke panah. */
+
     document.body.style.cursor = 'col-resize';
     const geser = (ev: globalThis.MouseEvent) => setLebar(jepitLebarNama(lebarAwal + (ev.clientX - mulaiX)));
     const selesai = () => {
@@ -99,7 +95,6 @@ function GagangLebarKolom({ lebar, setLebar }: { lebar: number; setLebar: (px: n
     }
   };
 
-  // Separator yang bisa difokuskan menangani panah untuk mengubah lebar.
   /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
   return (
     <div
@@ -115,7 +110,7 @@ function GagangLebarKolom({ lebar, setLebar }: { lebar: number; setLebar: (px: n
       onDoubleClick={() => setLebar(LEBAR_NAMA_BAWAAN)}
       onKeyDown={onKeyDown}
       className="absolute inset-y-0 z-10 w-3 max-sm:hidden cursor-col-resize touch-none select-none"
-      /* `0.5rem` = padding kiri header (`p-2`): batas kolom = lebar + padding. */
+
       style={{ left: `calc(var(${VAR_LEBAR_NAMA}, ${LEBAR_NAMA_BAWAAN}px) + 0.5rem)` }}
     >
       <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors hover:bg-muted-foreground/60" />
@@ -318,8 +313,7 @@ export default function KomponenPage() {
   const [lebarNama, setLebarNama] = useState(LEBAR_NAMA_BAWAAN);
   return (
     <div className={PAGE_SHELL}>
-      {/* ExcelTable jadi tab PERTAMA (default) — ia komponen paling besar dan
-          paling sering dipakai, jadi peta-fiturnya paling sering dibutuhkan. */}
+
       <Tabs defaultValue="excel_table" className="flex min-h-0 flex-1 flex-col gap-0">
         <TabsList className={KELAS_LIST_TAB} indikator="primer">
           <TabsTrigger value="excel_table" id="tab_komponen_excel_table" className={KELAS_TRIGGER}>ExcelTable</TabsTrigger>
@@ -463,10 +457,6 @@ export default function KomponenPage() {
           />
         </TabsContent>
 
-        {/* Tab peta ExcelTable: denah area + inventaris fitur + contoh hidup.
-            Bukan <IsiTab> karena isinya tiga blok bertingkat, bukan satu
-            komponen utama + varian. Lebar kolom nama (gagang) tidak berlaku
-            di tab ini. */}
         <TabsContent value="excel_table" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <TabExcelTable />
         </TabsContent>

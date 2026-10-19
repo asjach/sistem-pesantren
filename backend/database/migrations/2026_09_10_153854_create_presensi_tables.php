@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
-            $table->string('nama_sesi'); // 'KBM Pagi', 'Shalat Subuh Jamaah'
+            $table->string('nama_sesi');
             $table->enum('kategori', ['kbm', 'kegiatan_asrama', 'shalat']);
             $table->time('jam_mulai')->nullable();
             $table->time('jam_selesai')->nullable();
@@ -43,9 +43,9 @@ return new class extends Migration
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
             $table->date('tanggal')->nullable();
-            $table->string('tipe_pelanggaran')->nullable(); // ref_tipe_pelanggaran
+            $table->string('tipe_pelanggaran')->nullable();
             $table->text('deskripsi')->nullable();
-            $table->integer('poin')->default(0); // dipakai portal wali (total poin)
+            $table->integer('poin')->default(0);
             $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });

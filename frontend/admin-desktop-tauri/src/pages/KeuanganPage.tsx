@@ -135,12 +135,7 @@ export default function KeuanganPage() {
   const loadCrosstab = useCallback(async (
     page: number, perPage: number, jenjang: readonly string[], ta: readonly string[],
   ) => {
-    /* Tanpa penjaga ini, mengetik cepat membuat balasan yang lebih LAMA
-       tiba belakangan dan menimpa data kueri yang lebih baru — tabel menampilkan
-       hasil ketikan lama sementara kotak pencarian sudah berisi teks baru
-       (terbukti Playwright: ketik "a" lalu "zzz" → tetap 543 baris, bukan
-       tabel kosong). Pola req + AbortController + debounce mengikuti
-       `useDaftarTabel`. */
+
     const req = ++crosstabReqRef.current;
     crosstabAbortRef.current?.abort();
     const ac = new AbortController();
@@ -153,8 +148,7 @@ export default function KeuanganPage() {
         jenjang,
         tahun_ajaran: ta,
         santri: cariTagihanTertunda === '' ? undefined : cariTagihanTertunda,
-        /* Kosong = bawaan backend (kelas lalu nama). Token `kode:arah` ditulis
-           `tokenUrut` bila preset punya arah per kolom. */
+
         sort: uTagihan.urut.length ? tokenUrut(uTagihan.urut, uTagihan.arahKolom) : undefined,
         arah: uTagihan.urut.length ? uTagihan.arah : undefined,
         terlambat: terlambatTagihan || undefined,
@@ -178,20 +172,17 @@ export default function KeuanganPage() {
     }
   }, [cariTagihanTertunda, uTagihan.urut, uTagihan.arah, uTagihan.arahKolom, terlambatTagihan, keaktifanTagihan, tingkat, kelasFilterIds]);
 
-  // Ketikan pencarian → tunggu 400 ms baru jadi nilai muat.
   useEffect(() => {
     const bersih = cariTagihan.trim();
     const t = setTimeout(() => setCariTagihanTertunda(bersih), bersih === '' ? 0 : 400);
     return () => clearTimeout(t);
   }, [cariTagihan]);
 
-  // Filter global/pencarian/urut berubah → muat dari halaman 1.
   useEffect(() => {
     if (filterLoading || jenjangs.length === 0) { if (!filterLoading && jenjangs.length === 0) setCrosstab(null); return; }
     void loadCrosstab(1, tagihanPerPage, jenjangs, tahunAjaranNames);
   }, [filterLoading, jenjangs, tahunAjaranNames, tagihanPerPage, cariTagihanTertunda, uTagihan.urut, uTagihan.arah, uTagihan.arahKolom, terlambatTagihan, keaktifanTagihan, loadCrosstab]);
 
-  // Batalkan request yang masih jalan saat halaman dilepas.
   useEffect(() => () => crosstabAbortRef.current?.abort(), []);
 
   /** Tarif mengikuti filter lembaga & tahun ajaran (server-side; kosong = semua). */
@@ -243,7 +234,6 @@ export default function KeuanganPage() {
   }, [uJenis.urut, uJenis.arah, uJenis.arahKolom]);
   useEffect(() => { void load(); }, [load]);
 
-  // Form sederhana
   const [tambahJenisOpen, setTambahJenisOpen] = useState(false);
   const [tambahTarifOpen, setTambahTarifOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
@@ -331,7 +321,6 @@ export default function KeuanganPage() {
     [selTagihan, selPenuh, kolomTerpilih],
   );
 
-  /* ---- Pilihan ganda (klik kiri) untuk aksi batch ---- */
   /** Tagihan terpilih klik kiri: id → snapshot sel + jenis_id kolomnya.
    *  Snapshot dipakai menjalankan aksi batch tanpa bergantung pada halaman
    *  crosstab saat ini (pilihan bisa lintas halaman). */
@@ -389,7 +378,7 @@ export default function KeuanganPage() {
       if (arr === undefined) perKolom.set(v.key, [v.santriId]);
       else arr.push(v.santriId);
     }
-    /* Urut seperti tabel: kolom kiri → kanan, santri atas → bawah. */
+
     const urutSantri = new Map<number, number>();
     (crosstab?.baris ?? []).forEach((b, i) => urutSantri.set(b.santri_id, i));
     return (crosstab?.kolom ?? [])
@@ -531,10 +520,7 @@ export default function KeuanganPage() {
         .catch(() => setDaftarDispenBatch([]));
     }
     if (aksi === 'buat') {
-      /* Nominal awal tiap kolom target dari tarif jenisnya (daftar `tarif`
-         sudah disaring lembaga + tahun ajaran di filter atas). Kolom
-         non-bulanan dapat jatuh tempo awal hari ini; bulanan memakai aturan
-         tanggal 10 bulan periode, jadi tak perlu diisi. */
+
       const nominal: Record<string, string> = {};
       const jt: Record<string, string> = {};
       for (const t of targetBuat) {
@@ -555,8 +541,7 @@ export default function KeuanganPage() {
     if (aksi === null) return;
     const entries = [...pilihanTerpilih.entries()];
     if (entries.length === 0) { setBatchDialog(null); return; }
-    /* Aksi per-tagihan hanya menyentuh sel yang punya tagihan; sel kosong
-       dalam pilihan dilewati (sasaran Buat Massal). */
+
     type EntriAda = [string, { santriId: number; key: string; jenisId: number; sel: CrosstabSel }];
     const ada = entries.filter(([, v]) => v.sel !== undefined) as EntriAda[];
     const gagal = new Map<string, string>();
@@ -626,10 +611,7 @@ export default function KeuanganPage() {
          *  supaya pemilihan paket berlingkup lain tak diam-diam tanpa hasil. */
         let lewatDispen = 0;
         for (const [key, v] of ada) {
-          // Dispensasi hanya untuk tagihan yang jenisnya cocok dengan paket
-          // (paket mungkin mencakup beberapa jenis lewat `aturan`) DAN
-          // lingkup lembaga paketnya cocok dengan lembaga tagihan; selebihnya
-          // dibiarkan tetap (tidak diubah). 'tanpa' = lepas.
+
           const cocokJenis = pkg ? pkg.aturan.some((a) => a.jenis_id === v.jenisId) : false;
           const cocokLingkup = pkg ? lingkupCocokJenjang(pkg.jenjang, v.sel.jenjang) : false;
           const dispenIds = pkg && cocokJenis && cocokLingkup
@@ -653,8 +635,7 @@ export default function KeuanganPage() {
         if (targetBuat.length === 0) {
           setGalatBuat('Tidak ada sel kosong yang terseleksi untuk dibuatkan tagihan.'); return;
         }
-        /* Validasi dulu SELURUH kolom target, baru tulis: satu kolom berisi
-           nominal tak sah membatalkan seluruh aksi (tak ada tagihan separuh). */
+
         const rencana: { t: TargetBuatKolom; nominal: number }[] = [];
         let galatRencana: string | null = null;
         for (const t of targetBuat) {
@@ -672,10 +653,7 @@ export default function KeuanganPage() {
         }
         if (galatRencana !== null) { setGalatBuat(galatRencana); return; }
         setGalatBuat(null);
-        /* Satu panggilan generate per kolom: endpoint menerima SATU jenis +
-           periode, sedangkan seleksi bisa mencakup beberapa kolom. Sel yang
-           sudah punya tagihan sudah disaring dari target, jadi tagihan lama
-           tidak pernah tertimpa. */
+
         let dibuat = 0;
         let dilewati = 0;
         let galat: string | null = null;
@@ -694,7 +672,7 @@ export default function KeuanganPage() {
             dilewati += r.dilewati;
           } catch (e2) { galat ??= errorMessage(e2); }
         }
-        // Semua kolom gagal → tahan dialog terbuka agar bisa dikoreksi.
+
         if (galat !== null && dibuat === 0) { setGalatBuat(galat); return; }
         toast.success(`Dibuat ${dibuat} tagihan${dilewati > 0 ? `, dilewati ${dilewati}` : ''}.`);
         if (galat !== null) toast.error(galat);
@@ -705,7 +683,7 @@ export default function KeuanganPage() {
       await muatCrosstabSekarang();
     } catch (e) {
       toast.error(errorMessage(e));
-      // Biarkan dialog terbuka agar pengguna bisa mencoba lagi.
+
     } finally {
       setBatchBusy(false);
     }
@@ -768,8 +746,7 @@ export default function KeuanganPage() {
         [kunci, { santriId: cell.santriId, key: cell.key, jenisId: cell.jenisId }],
       ]));
     }
-    // Sama seperti pilihSel: dismiss pertama sesudah pemasangan adalah gema
-    // klik-kanan pembuka — abaikan sekali agar panel tak berkedip tutup.
+
     abaikanTutupRef.current = true;
     const segar = document.getElementById(`td_tagihan_kosong_${cell.santriId}_${cell.key}`);
     setAnchorSel(segar ?? anchor);
@@ -785,8 +762,7 @@ export default function KeuanganPage() {
   }, []);
 
   const tutupPopover = useCallback(() => {
-    // Dismiss pertama sesudah popover per-tagihan dipasang adalah gema dari
-    // event klik-kanan yang membukanya — abaikan sekali, bukan penutupan user.
+
     if (abaikanTutupRef.current) { abaikanTutupRef.current = false; return; }
     setAksiSel(null);
     setAnchorSel(null);
@@ -836,12 +812,12 @@ export default function KeuanganPage() {
       toast.success('Tagihan dibuat.');
       tutupPopover();
       await muatCrosstabSekarang();
-      // Tunggu cat/React selesai agar tombol sel baru sudah ada di DOM.
+
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const tombol = document.querySelector<HTMLElement>(`#btn_tagihan_sel_${dibuat.id}`);
       if (!tombol) return;
       const hariIni = hariIniIso();
-      // Respons create membawa datetime penuh; crosstab memakai tanggal saja.
+
       const jt = dibuat.jatuh_tempo?.slice(0, 10) ?? null;
       pilihSel(
         {
@@ -861,7 +837,7 @@ export default function KeuanganPage() {
       );
     } catch (e) {
       toast.error(errorMessage(e));
-      // Dilempar agar popover tetap terbuka untuk koreksi (pola onUbah).
+
       throw e;
     }
   }, [tambahCtx, genTAtopbar, muatCrosstabSekarang, pilihSel]);
@@ -951,10 +927,7 @@ export default function KeuanganPage() {
       throw new Error('Pilih satu lembaga & satu tahun ajaran di filter dulu untuk mode Input.');
     }
     const { jenis_id, nominal } = payloadBuatTarif(f);
-    // Bentrok dicek dari baris yang sudah dimuat (lingkup filter = lingkup
-    // baris ini). Tanpa ini pasangan lembaga+TA+jenis yang sama bisa tersimpan
-    // dua kali: index `uq_tarif_tagihan` memuat `tingkat`, dan MySQL/SQLite
-    // menganggap NULL berbeda sehingga baris tanpa tingkat tidak tertahan.
+
     pastikanTarifBaru(tarif, { jenjang: jenjangInputTarif, tahun_ajaran: genTAtopbar, jenis_id });
     await buatTarif({ jenjang: jenjangInputTarif, tahun_ajaran: genTAtopbar, jenis_id, nominal });
     toast.success('Tarif dibuat.');
@@ -1011,7 +984,7 @@ export default function KeuanganPage() {
             onTambah={bukaTambahJenis}
             onEdit={setEditJenis}
             onHapus={hapusJenisBaris}
-            /* Hanya panel tab yang tampil yang memegang pintasan Ctrl/Cmd+N. */
+
             aktif={tab === 'jenis'}
           />
         </TabsContent>

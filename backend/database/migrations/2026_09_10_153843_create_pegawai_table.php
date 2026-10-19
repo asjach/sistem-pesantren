@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('pegawai', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete(); // akun login
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('nip')->nullable();
-            // NIPP = identitas unik global per orang (jembatan sistem lama).
+
             $table->string('nipp', 30)->nullable();
             $table->string('nik', 16)->nullable();
             $table->string('nama_lengkap');
@@ -25,39 +25,38 @@ return new class extends Migration
             $table->string('tempat_lahir')->nullable();
             $table->date('tanggal_lahir')->nullable();
             $table->string('no_hp', 20)->nullable();
-            $table->string('email_pribadi')->nullable(); // data saja (BUKAN link akun; jembatan akun hanya user_id)
-            $table->string('email_gws')->nullable(); // Google Workspace (data saja)
+            $table->string('email_pribadi')->nullable();
+            $table->string('email_gws')->nullable();
             $table->string('foto_url')->nullable();
             $table->string('npwp')->nullable();
             $table->string('no_kk', 16)->nullable();
-            $table->string('status_pernikahan')->nullable(); // ref_status_pernikahan
-            $table->string('agama')->nullable(); // ref_agama
+            $table->string('status_pernikahan')->nullable();
+            $table->string('agama')->nullable();
             $table->string('no_bpjs')->nullable();
-            $table->string('gol_darah')->nullable(); // ref_gol_darah
-            $table->string('status_tempat_tinggal')->nullable(); // ref_status_tinggal
-            $table->string('pendidikan_terakhir')->nullable(); // ref_pendidikan
-            $table->string('niat_npa')->nullable(); // nomor keanggotaan Persatuan Islam (bebas, tanpa unique)
-            $table->string('jenis_ptk')->nullable(); // ref_jenis_ptk
-            $table->string('jarak_ke_pesantren')->nullable(); // ref_jarak
-            $table->string('waktu_tempuh')->nullable(); // ref_waktu_tempuh
-            $table->string('transportasi')->nullable(); // ref_transportasi
-            $table->enum('sertifikasi', ['sudah', 'belum'])->default('belum'); // ringkas; auto-sync baris pegawai_sertifikasi
-            // Alamat pecah selaras santri:
+            $table->string('gol_darah')->nullable();
+            $table->string('status_tempat_tinggal')->nullable();
+            $table->string('pendidikan_terakhir')->nullable();
+            $table->string('niat_npa')->nullable();
+            $table->string('jenis_ptk')->nullable();
+            $table->string('jarak_ke_pesantren')->nullable();
+            $table->string('waktu_tempuh')->nullable();
+            $table->string('transportasi')->nullable();
+            $table->enum('sertifikasi', ['sudah', 'belum'])->default('belum');
+
             $table->string('provinsi')->nullable();
-            $table->string('kab_kota')->nullable(); // ref_kota saran
+            $table->string('kab_kota')->nullable();
             $table->string('kecamatan')->nullable();
             $table->string('desa_kelurahan')->nullable();
             $table->string('rt', 3)->nullable();
             $table->string('rw', 3)->nullable();
             $table->string('kode_pos')->nullable();
-            $table->text('alamat')->nullable(); // jalan/detail
+            $table->text('alamat')->nullable();
             $table->date('tgl_mulai_kerja')->nullable();
             $table->string('no_sk_awal', 100)->nullable();
             $table->date('tgl_sk_awal')->nullable();
             $table->enum('status_aktif', ['Ya', 'Tidak'])->default('Ya');
             $table->timestamps();
 
-            // Unik global (single-pesantren; NIP/NIK ganda antar pesantren tidak relevan lagi)
             $table->unique('nip');
             $table->unique('nipp');
             $table->unique('nik');

@@ -9,8 +9,6 @@ export function tanggal(v: string | null | undefined): string {
   return `${dd}-${mm}-${d.getFullYear()}`;
 }
 
-/* ---------- Kalender: nama bulan & hari ---------- */
-
 export const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
@@ -34,8 +32,6 @@ const TAHUN_MIN = 1900;
 const TAHUN_MAX = 2200;
 
 const pad2 = (n: number): string => String(n).padStart(2, '0');
-
-/* ---------- Tanggal: ISO ⇄ bagian angka ---------- */
 
 /** ISO hari operasional pesantren (Asia/Jakarta), terlepas dari zona OS. */
 export function hariIniIso(): string {
@@ -83,8 +79,6 @@ export function geserBulan(tahun: number, bulan: number, langkah: number): { tah
   const total = tahun * 12 + (bulan - 1) + langkah;
   return { tahun: Math.floor(total / 12), bulan: ((total % 12) + 12) % 12 + 1 };
 }
-
-/* ---------- Pola format tanggal kotak (dd/mm/yyyy, yyyy-mm-dd, ...) ---------- */
 
 /** Bagian tanggal yang boleh dipakai di sebuah pola. */
 type BagianPola = 'hari' | 'bulan' | 'tahun' | 'bulan_nama';
@@ -169,9 +163,7 @@ const escapeRegex = (teks: string): string => teks.replace(/[.*+?^${}()|[\]\\]/g
 
 /** Bangun format kotak tanggal dari sebuah pola (mis. `dd/mm/yyyy`). */
 export function formatTanggalPola(pola: string): FormatPolaTanggal {
-  /* Uraikan pola jadi token + pemisah ANTAR token: `pemisah[i]` = teks yang
-     berdiri tepat sebelum token ke-i (pemisah paling depan — kalau ada —
-     dibuang bersama bagian pertama). */
+
   const token: { bagian: BagianPola; lebar: number }[] = [];
   const pemisah: string[] = [];
   let buf = '';
@@ -230,9 +222,6 @@ export function formatTanggalPola(pola: string): FormatPolaTanggal {
     return token.every((t, i) => t.bagian === 'bulan_nama' || m[i + 1].length === t.lebar);
   };
 
-  /* Mask "murni": hanya karakter yang sesuai bagiannya (digit, atau huruf untuk
-     nama bulan) yang dipertahankan, dipotong selebar polanya, lalu pemisahnya
-     disisipkan sendiri. */
   const maskLangsung = (teks: string): string => {
     const isi: string[] = [];
     let pos = 0;
@@ -252,10 +241,7 @@ export function formatTanggalPola(pola: string): FormatPolaTanggal {
   };
 
   const ketik = (teks: string): string => {
-    /* Teks yang SUDAH sesuai pola = ketikan pengguna yang sedang berjalan —
-       jangan ditafsirkan apa-apa. Selebihnya mungkin tempelan ISO
-       ("2026-10-12", mis. dari Excel atau DB) yang harus dibaca sebagai ISO;
-       tanpa ini digitnya akan dimask jadi "20/26/1012". */
+
     const iso = maskLangsung(teks) === teks
       ? null
       : /^\s*(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T ].*)?$/.exec(teks);
@@ -294,8 +280,6 @@ export function tanggalLengkap(teks: string): boolean {
 export function maskTanggal(teks: string): string {
   return FORMAT_DDMMYYYY.ketik(teks);
 }
-
-/* ---------- Kotak bulan: teks `mm/yyyy` ⇄ nilai `YYYY-MM` ---------- */
 
 /** Bulan ini menurut zona waktu LOKAL — `YYYY-MM`. */
 export function bulanIni(): string {
@@ -379,10 +363,7 @@ export function bulanLengkap(teks: string): boolean {
 export function maskBulan(teks: string): string {
   const tanggalNama = /^\s*\d{1,2}[\s\-./]+([A-Za-z]{3,9})[\s\-./]+(\d{4})\s*$/.exec(teks);
   if (tanggalNama !== null) return `${rapikanNama(tanggalNama[1])} ${tanggalNama[2]}`;
-  /* Ada HURUF = pengguna mengetik nama bulan; hurufnya dibiarkan (huruf pertama
-     dibesarkan) supaya ketikan cepat tetap terlihat, tahunnya menempel di
-     belakang. Tahun yang masih ditambah digit demi digit pun tetap utuh —
-     beda dengan mask digit yang akan memotong "2026" jadi "20". */
+
   if (/[A-Za-z]/.test(teks)) {
     const huruf = (teks.match(/[A-Za-z]/g) ?? []).join('').slice(0, 9);
     const angka = (teks.match(/\d/g) ?? []).join('').slice(0, 4);

@@ -190,7 +190,6 @@ class PsbService
                 $targets = [['lembaga' => $lembagaDaftar, 'peran' => 'primer', 'tingkat' => $tingkat]];
             }
 
-            // TA calon = TA yang berlaku untuk lembaga primer (kegiatan hanya fallback).
             $data['tahun_ajaran'] = TahunAjaran::resolve(
                 $targets[0]['lembaga']->jenjang,
                 $data['tahun_ajaran'] ?? $gelombangModel->kegiatan?->tahun_ajaran
@@ -209,8 +208,6 @@ class PsbService
                 $catatanSistem[] = 'NIK ganda dengan calon lain (nama/tgl_lahir beda, kemungkinan NIK fiktif) — perlu verifikasi admin';
             }
 
-            /* Kunci baris kuota sampai transaksi selesai: dua pendaftar yang
-               masuk bersamaan tak boleh sama-sama membaca satu kursi terakhir. */
             $statusAwal = $this->kuotaPenuh((int) $data['gelombang_id'], $targets[0]['lembaga']->jenjang, $data['tipe_santri'] ?? null, true)
                 ? 'waiting_list'
                 : 'baru';
@@ -355,7 +352,6 @@ class PsbService
             throw ValidationException::withMessages(['status' => 'Gelombang ini jalur langsung, tanpa seleksi.']);
         }
 
-        // Langsung terverifikasi -> lolos/tidak_lolos (TIDAK ada status 'seleksi')
         return $this->pindahStatus($id, $lolos ? 'lolos' : 'tidak_lolos', $adminId, ['terverifikasi'], $catatan);
     }
 
@@ -393,15 +389,13 @@ class PsbService
             ], $catatan);
 
             if ($hasil->santri_id && ! $hasil->santri_asal_id) {
-                // Santri yang sudah ditempatkan di kelas tidak boleh dihapus lewat undur diri;
-                // keluarkan dulu dari kelas agar jejak penempatan tetap jelas.
+
                 $berkelas = RiwayatBelajar::where('santri_id', $hasil->santri_id)
                     ->where('is_active_riwayat', RiwayatBelajar::YA)->whereNotNull('kelas_id')->exists();
                 if ($berkelas) {
                     throw ValidationException::withMessages(['kelas' => 'Santri sudah ditempatkan di kelas; keluarkan dari kelas terlebih dahulu sebelum mengundurkan diri.']);
                 }
 
-                // Hapus arsip riwayat + master santri (relasi lain ikut FK cascade).
                 RiwayatBelajar::where('santri_id', $hasil->santri_id)->delete();
                 Santri::where('id', $hasil->santri_id)->delete();
                 $hasil->forceFill(['santri_id' => null])->save();
@@ -429,12 +423,12 @@ class PsbService
     public function lengkapiDaftarUlang(int $id, array $data): PsbCalonSantri
     {
         $calon = PsbCalonSantri::findOrFail($id);
-        // File foto -> storage/app/psb/foto/* ; DB hanya path
+
         if (! empty($data['foto']) && $data['foto'] instanceof UploadedFile) {
             $data['foto_url'] = $data['foto']->store('psb/foto', 'local');
         }
         unset($data['foto']);
-        // UPDATE baris yang sama (bukan INSERT baru)
+
         $calon->update(collect($data)->only(array_keys(self::FIELD_MAP))->toArray());
         if ($calon->status_pendaftaran === 'ajukan_daftar_ulang') {
             $this->tulisLog($id, 'ajukan_daftar_ulang', 'pemberkasan', null, 'Edit setelah ajukan: status turun, wajib ajukan ulang');
@@ -470,7 +464,7 @@ class PsbService
             if (! in_array($calon->status_pendaftaran, ['pemberkasan', 'ajukan_daftar_ulang'], true)) {
                 throw ValidationException::withMessages(['status' => 'Hanya status pemberkasan/ajukan_daftar_ulang yang bisa di-ACC.']);
             }
-            // Kuota sudah dikunci saat INPUT (kuotaPenuh), di sini tinggal reuse/buat santri.
+
             $santri = $calon->santri_asal_id
                 ? Santri::where('id', $calon->santri_asal_id)->lockForUpdate()->firstOrFail()
                 : null;
@@ -490,9 +484,6 @@ class PsbService
                 $santri->update($payload);
             }
 
-            // Keanggotaan (`lembaga_santri`) per lembaga detail + riwayat belajar
-            // perdana TANPA kelas — santri PSB langsung tampil di tabel kiri
-            // halaman Riwayat Belajar (awal tahun ajaran).
             if ($calon->tahun_ajaran) {
                 if ($calon->lembagaDetail()->count() === 0) {
                     $calon->lembagaDetail()->create(['jenjang' => $calon->jenjang, 'peran' => 'primer']);
@@ -508,8 +499,6 @@ class PsbService
                         'tgl_masuk' => $calon->tanggal_masuk,
                     ]);
 
-                    // Lewati bila sudah punya riwayat aktif / baris perdana TA ini
-                    // (santri lama daftar lagi) — idempoten seperti import.
                     $taCalon = (string) $calon->tahun_ajaran;
                     $riwayatAda = RiwayatBelajar::where('santri_id', $santri->id)
                         ->where('jenjang', $lembagaDetailId)
@@ -525,12 +514,10 @@ class PsbService
                     }
                 }
             }
-            // PINDAH dokumen: milik santri penuh (jejak asal via santri_id hasil + psb_log_status).
+
             DokumenSantri::where('psb_calon_santri_id', $calon->id)
                 ->update(['santri_id' => $santri->id, 'psb_calon_santri_id' => null]);
 
-            // Checklist dokumen dari ketentuan kegiatan (wajib & opsional, tanpa file) — penekanan saja,
-            // tidak menahan proses.
             $kegiatanId = $calon->gelombang?->psb_kegiatan_id;
             if ($kegiatanId) {
                 $jenjangs = $calon->lembagaDetail()->pluck('jenjang');
@@ -617,9 +604,7 @@ class PsbService
 
     protected function generateNoPendaftaran(int $gelombangId, string $jenjang): string
     {
-        // Format: PSB_{tahun}_{kodeLembaga}_{noGelombang}_{seq4}; seq reset per (lembaga,tahun); unique no_pendaftaran global.
-        // Kunci konsistensi-03: count()+lock masih bisa race (dua transaksi hitung sama sebelum insert).
-        // Caller WAJIB catch QueryException 1062 pada unique no_pendaftaran lalu regenerate (maks 3x).
+
         $lembaga = Lembaga::findOrFail($jenjang);
         $kode = $lembaga->jenjang;
         $tahun = date('Y');
@@ -635,7 +620,7 @@ class PsbService
 
     protected function generateNoPendaftaranPaket(int $gelombangId): string
     {
-        // 1 nomor gabungan kode MIMD fixed; counter sendiri agar tidak makan antrian satuan.
+
         $tahun = date('Y');
         $gelombang = PsbGelombang::findOrFail($gelombangId);
         $noGelombang = (int) ($gelombang->nomor ?: (PsbGelombang::where('psb_kegiatan_id', $gelombang->psb_kegiatan_id)

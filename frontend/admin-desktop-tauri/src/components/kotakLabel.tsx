@@ -68,11 +68,10 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
   label, htmlFor, labelTransparan = true, tanpaLabel = false, lebarLabel, lebarKontrol, lebarKotak, tinggi = 26, children, className, kelolaLebar = true, onContextMenu, tambahan,
 }, refDepan) {
   const kontrolKunci = lebarKontrol !== undefined;
-  /* Ruang tersisa di induk setelah label & border: kontrol menyusut agar kotak
-     tak meluber (mis. induk 200px + padding 20px, label 80px → 100px). */
+
   const [lebarEfektif, setLebarEfektif] = useState<number | null>(null);
   const refKotak = useRef<HTMLSpanElement | null>(null);
-  /* Ref gabungan: pengukuran internal + ref dari luar (mis. jangkar popover). */
+
   const pasangRef = useCallback((el: HTMLSpanElement | null) => {
     refKotak.current = el;
     if (typeof refDepan === 'function') refDepan(el);
@@ -89,7 +88,7 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
       const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
       const geser = kotak.offsetLeft - induk.getBoundingClientRect().left;
       const labelPx = kotak.firstElementChild instanceof HTMLElement ? kotak.firstElementChild.offsetWidth : 0;
-      // clientWidth masih memuat padding; kurangi padding + geser dari kotak.
+
       const tersedia = induk.clientWidth - pad - geser;
       setLebarEfektif(hitungLebarKontrol(tersedia, labelPx, Number(lebarKontrol)));
     };
@@ -102,9 +101,6 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
     ? (lebarEfektif === null ? keCss(lebarKontrol) : `${lebarEfektif}px`)
     : undefined;
 
-  /* Lebar KOTAK: dari setelan komponen (server, tabel `komponen_custom`) bila
-     ada; tanpa itu, di dalam toolbar tabel memakai LEBAR_BAWAHAN_FILTER (sama
-     dengan FilterField). Lebar yang dikunci eksplisit tetap menang. */
   const konteks = useLebarFilter();
   const kunci = konteks && htmlFor && kelolaLebar ? htmlFor : '';
   const override = useSetelanKomponen(konteks?.tableKey ?? '', kunci).lebar;
@@ -118,11 +114,9 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
       onContextMenu={onContextMenu}
       className={cn(
         'items-stretch overflow-hidden rounded-md border border-foreground/30 bg-transparent',
-        /* Label transparan: kotak memakai bg kontrol (`dark:bg-input/30`)
-           agar bg label & kontrol SAMA di kedua mode. */
+
         labelTransparan && 'dark:bg-input/30',
-        // Lebar kontrol terkunci → kotak rangkul isi; lebar kotak terkunci →
-        // lebar tetap; selain itu kotak mengikuti induk.
+
         kontrolKunci ? 'inline-flex w-max' : 'flex w-full',
         lebarKotak !== undefined && kontrolKunci === false && 'w-full',
         'focus-within:border-ring',
@@ -134,9 +128,7 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
       }}
     >
       {tanpaLabel ? (
-        /* Label disembunyikan secara VISUAL, tapi tetap ada di pohon
-           aksesibilitas supaya kontrolnya masih punya nama yang terbaca
-           pembaca layar (dulu label itulah satu-satunya penamaan). */
+
         label === '' ? null : <label htmlFor={htmlFor} className="sr-only">{label}</label>
       ) : (
         <label
@@ -153,9 +145,7 @@ const KotakLabel = forwardRef<HTMLSpanElement, KotakLabelProps>(function KotakLa
       <span
         className={cn(
           'relative flex min-w-0 flex-1 items-stretch',
-          /* Label transparan: bg kontrol (dark:bg-input/30 bawaan Input)
-             dinetralkan agar kotak hanya 1 lapis — sama dengan zona label;
-             padding kiri input dirapatkan agar teks dekat ":" (±2 spasi). */
+
           labelTransparan && '[&_input]:dark:bg-transparent',
           labelTransparan && '[&_input]:pl-1',
         )}

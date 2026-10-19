@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// Minimal untuk kebutuhan 100/203 (relasi wali-anak + cek pemilik portal).
 class WaliSantriRelasi extends Model
 {
     protected $table = 'wali_santri_relasi';

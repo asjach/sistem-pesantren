@@ -20,11 +20,11 @@ class PresetKolomSeeder extends Seeder
 {
     /** Key kolom ringkas (harus sama dengan `fields` halaman Keanggotaan). */
     private const KOLOM = [
-        // Identitas santri (Buku Induk).
+
         'nama', 'nik', 'nisn', 'jk', 'tmp_lahir', 'tgl_lahir', 'alamat',
-        // Konteks lembaga.
+
         'lembaga',
-        // Keanggotaan.
+
         'nis_lokal', 'nis_kemenag', 'aktif', 'masuk', 'selesai',
     ];
 

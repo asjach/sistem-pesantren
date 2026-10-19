@@ -87,7 +87,7 @@ export default function TabVisibilitasKomponen({
       setJudul(judulServer);
       judulAcuanRef.current = judulServer;
     } catch {
-      // Gagal muat = anggap bawaan (semua tampil), sama seperti grid.
+
       const bawaan: Record<string, boolean> = {};
       for (const k of semua) bawaan[k] = true;
       setNilai(bawaan);
@@ -109,9 +109,7 @@ export default function TabVisibilitasKomponen({
     setBusy(true);
     try {
       const gabung = gabungVisibilitas(serverRef.current, nilai);
-      // Judul ikut ditulis dalam penyimpanan yang sama. Handler `kotor` hanya
-      // bisa mengembalikan boolean, jadi memisahkannya berarti user harus
-      // menekan Simpan dua kali untuk satu perubahan yang terlihat satu.
+
       await simpanToolbarPreset(tableKey, gabung, undefined, undefined, undefined, judul);
       serverRef.current = gabung;
       acuanRef.current = JSON.stringify(nilai);
@@ -140,11 +138,9 @@ export default function TabVisibilitasKomponen({
   async function kembalikan() {
     setBusy(true);
     try {
-      // Buang penanda milik komponen tabel saja; kunci lain (versi lama, atau
-      // fitur lain yang berbagi peta) dibiarkan — tabel kembali ke bawaan kode.
+
       const gabung = buangKunciVisibilitas(serverRef.current, kunciMilik);
-      // Judul ikut dikosongkan: tombol ini mengembalikan tabel ke bawaan kode,
-      // dan judul bawaan itu bagian dari tampilan bawaan.
+
       await simpanToolbarPreset(tableKey, gabung, undefined, undefined, undefined, '');
       serverRef.current = gabung;
       const bawaan: Record<string, boolean> = {};
@@ -182,9 +178,7 @@ export default function TabVisibilitasKomponen({
           Kembalikan ke bawaan
         </Button>
       </div>
-      {/* Judul tabel: kosong = pakai judul bawaan kode (prop `header` halaman →
-          peta `judulTabel()` → table_key). Placeholder-nya bukan keterangan
-          tambahan, tapi judul bawaan yang sedang berlaku. */}
+
       <div className="flex items-center gap-2 rounded-md border px-2 py-1">
         <label htmlFor={`input_judul_tabel_${tableKey}`} className="shrink-0 text-xs">
           Judul

@@ -197,7 +197,7 @@ export default function PanelDokumen({
   return (
     <>
       <ResizablePanelGroup orientation="horizontal" id={id.grup} className={id.grupKelas}>
-        {/* Kolom 1: daftar subjek (baris 1) + daftar dokumen (baris 2). */}
+
         <ResizablePanel defaultSize={400} minSize={300} maxSize="70%" id={id.panelDaftar} className="min-h-0">
           <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-xl border bg-card p-4">
           {panelSubjek}
@@ -261,8 +261,7 @@ export default function PanelDokumen({
                         </td>
                         <td className="max-w-40 truncate px-2 text-muted-foreground" title={row.catatan ?? undefined}>{row.catatan || '—'}</td>
                         <td className="px-2 text-right">
-                          {/* Pembungkus ini murni tata letak; tahan klik agar tak
-                              membuka pratinjau duduk di tombolnya sendiri. */}
+
                           <span className="inline-block">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -501,7 +500,7 @@ export default function PanelDokumen({
           </div>
         </ResizablePanel>
         <ResizableHandle withHandle orientation="horizontal" id={id.gagang} aria-label="Atur lebar kolom daftar dan pratinjau" />
-        {/* Kolom 2: pratinjau + edit (fungsi sama dengan Tambah Dokumen). */}
+
         <ResizablePanel minSize="25%" id={id.panelPratinjau} className="min-h-0 min-w-0">
           <div className="flex h-full min-h-0 flex-col gap-1.5">
             {d.kotor && d.keluaran && d.dokId !== null && (

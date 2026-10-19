@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('wali_santri_relasi', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete(); // akun login wali
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
             $table->enum('hubungan', ['ayah', 'ibu', 'wali'])->default('ayah');
             $table->boolean('is_utama')->default(true);
@@ -27,7 +27,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('santri_id')->nullable()->constrained('santri')->cascadeOnDelete();
-            $table->string('action'); // 'view_dashboard', 'download_rapor', 'bayar_spp'
+            $table->string('action');
             $table->ipAddress('ip_address')->nullable();
             $table->string('device_info')->nullable();
             $table->timestamps();
@@ -37,7 +37,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
             $table->foreignId('wali_user_id')->constrained('users')->cascadeOnDelete();
-            $table->json('perubahan_json'); // {field: {lama, baru}}; nama field SAMA PERSIS dengan kolom santri
+            $table->json('perubahan_json');
             $table->enum('status', ['diajukan', 'disetujui', 'ditolak', 'dibatalkan'])->default('diajukan');
             $table->foreignId('diproses_oleh')->nullable()->constrained('users')->nullOnDelete();
             $table->text('catatan_admin')->nullable();

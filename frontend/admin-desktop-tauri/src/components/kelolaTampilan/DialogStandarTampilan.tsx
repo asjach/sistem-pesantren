@@ -22,7 +22,7 @@ const KETERANGAN: Record<
 > = {
   tinggi_baris: { label: 'Tinggi baris sel', min: MIN_ROW_H, maks: MAX_ROW_H, bawaan: 26, satuan: 'px' },
   tinggi_header: { label: 'Tinggi baris header', min: MIN_HEADER_H, maks: MAX_HEADER_H, bawaan: DEFAULT_HEADER_H, satuan: 'px' },
-  // Dijepit ke opsi terdekat; server menolak nilai di luar daftar sah.
+
   baris_per_halaman: { label: 'Baris per halaman', min: PER_PAGE_DEFAULT, maks: 500, bawaan: PER_PAGE_DEFAULT, satuan: 'baris' },
 };
 

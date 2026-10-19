@@ -22,7 +22,7 @@ class PsbGelombangService
         if ($tutup && $hariIni > $tutup) {
             throw ValidationException::withMessages(['gelombang_id' => 'Pendaftaran sudah ditutup.']);
         }
-        // Kuota dihitung saat INPUT per kelompok PSB; waiting_list tidak memakan kursi (lihat sisaKuota).
+
     }
 
     /**
@@ -96,9 +96,7 @@ class PsbGelombangService
         if ($tipeSantri) {
             $q->whereIn('tipe_santri', [$tipeSantri, 'semua']);
         }
-        /* Ambil BARISNYA dulu (bukan `sum()` langsung): MySQL mengabaikan
-           FOR UPDATE pada query ber-agregat, jadi `->sum()` akan membatalkan
-           kuncinya tanpa peringatan. Jumlahnya dihitung di PHP. */
+
         $baris = $kunci ? $q->lockForUpdate()->get(['kuota']) : $q->get(['kuota']);
         $kuota = (int) $baris->sum('kuota');
         if (! $kuota) {

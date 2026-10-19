@@ -164,7 +164,6 @@ export default function PenilaianMasterPage() {
           </div>
         )}
 
-        {/* ---- Peristiwa ---- */}
         <TabsContent value="peristiwa" className={`min-h-0 flex-1 overflow-auto p-3 ${KELAS_PANEL_TAB}`}>
           <div className="mb-2 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
@@ -211,7 +210,6 @@ export default function PenilaianMasterPage() {
           </table>
         </TabsContent>
 
-        {/* ---- Komponen & Bobot ---- */}
         <TabsContent value="komponen" className={`min-h-0 flex-1 overflow-auto p-3 ${KELAS_PANEL_TAB}`}>
           <div className="mb-2 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
@@ -260,7 +258,6 @@ export default function PenilaianMasterPage() {
           </table>
         </TabsContent>
 
-        {/* ---- KKM ---- */}
         <TabsContent value="kkm" className={`min-h-0 flex-1 overflow-auto p-3 ${KELAS_PANEL_TAB}`}>
           <p className="mb-2 text-xs text-muted-foreground">
             KKM per komponen; baris <strong>AKHIR</strong> jadi jangkar predikat rapor peristiwa ini.
@@ -292,7 +289,6 @@ export default function PenilaianMasterPage() {
           </Button>
         </TabsContent>
 
-        {/* ---- Predikat ---- */}
         <TabsContent value="predikat" className={`min-h-0 flex-1 overflow-auto p-3 ${KELAS_PANEL_TAB}`}>
           <p className="mb-2 text-xs text-muted-foreground">
             Predikat berjangkar ke KKM AKHIR: berlaku bila nilai ≥ KKM + offset. Offset kosong = tanpa batas bawah (predikat terakhir).
@@ -338,7 +334,6 @@ export default function PenilaianMasterPage() {
           </Button>
         </TabsContent>
 
-        {/* ---- Ekstrakurikuler ---- */}
         <TabsContent value="ekskul" className={`min-h-0 flex-1 overflow-auto p-3 ${KELAS_PANEL_TAB}`}>
           <div className="mb-2 flex justify-end">
             <Button type="button" size="sm" id="btn_tambah_ekskul" disabled={!canTambah}
@@ -366,7 +361,6 @@ export default function PenilaianMasterPage() {
           </table>
         </TabsContent>
 
-        {/* ---- Prestasi ---- */}
         <TabsContent value="prestasi" className={`min-h-0 flex-1 overflow-auto p-3 ${KELAS_PANEL_TAB}`}>
           <p className="mb-2 text-xs text-muted-foreground">
             Prestasi TA <strong>{ta}</strong>. Penambahan massal lewat halaman <strong>Impor Nilai</strong> (template Prestasi).

@@ -82,8 +82,6 @@ class PengampuTemplateExport extends DefaultValueBinder implements FromArray, Wi
                 $sheet->freezePane('A2');
                 $sheet->setAutoFilter("A1:{$lastCol}1");
 
-                // Validasi inline (tanpa sheet tersembunyi): daftar literal.
-                // Kolom `guru` bebas teks (resolusi NIP/nama di layanan).
                 $opsi = [
                     'jenjang' => DB::table('lembaga')->orderBy('jenjang')->pluck('jenjang')->all(),
                     'tahun_ajaran' => DB::table('tahun_ajaran')->orderBy('nama')->pluck('nama')->all(),
@@ -98,8 +96,7 @@ class PengampuTemplateExport extends DefaultValueBinder implements FromArray, Wi
                     }
                     $target = Coordinate::stringFromColumnIndex($posisi + 1);
                     $validasi = new DataValidation;
-                    // CATAT: atribut OOXML `showDropDown` INVERTED — setShowDropDown(true)
-                    // membuat panah dropdown TAMPIL di Excel.
+
                     $validasi->setType(DataValidation::TYPE_LIST)
                         ->setShowDropDown(true)
                         ->setErrorStyle(DataValidation::STYLE_STOP)

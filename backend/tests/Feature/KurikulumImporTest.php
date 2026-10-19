@@ -110,8 +110,6 @@ class KurikulumImporTest extends TestCase
             ->assertStatus(200)->json();
     }
 
-    // ---------- 01. kontrak header template ----------
-
     public function test_01_template_kolom_dan_heading_sejajar(): void
     {
         $this->assertSame(
@@ -133,8 +131,6 @@ class KurikulumImporTest extends TestCase
         }
     }
 
-    // ---------- 02. mapel: periksa kering + eksekusi upsert ----------
-
     public function test_02_mapel_periksa_kering_lalu_eksekusi_upsert_idempoten(): void
     {
         $this->dasar();
@@ -152,16 +148,14 @@ class KurikulumImporTest extends TestCase
         $this->assertSame(2, $eksekusi['ringkasan']['dibuat']);
         $this->assertSame(2, MataPelajaran::count());
         $this->assertSame('MTK', MataPelajaran::where('nama_mapel', 'Matematika')->first()->kode_mapel);
-        // Kosong = default aktif.
+
         $this->assertTrue(MataPelajaran::where('nama_mapel', 'Fiqih')->first()->is_active);
 
-        // Sesi baru dengan baris sama: cocok semua, tanpa perubahan → dilewati.
         $ulang = $this->potongMapel($super, $baris, 'eksekusi');
         $this->assertSame(0, $ulang['ringkasan']['dibuat']);
         $this->assertSame(2, $ulang['ringkasan']['baris_dilewati']);
         $this->assertSame(2, MataPelajaran::count());
 
-        // Update: kelompok berubah + nonaktifkan (kode kosong = pertahankan).
         $ubah = $this->potongMapel($super, [
             ['jenjang' => 'MI', 'nama_mapel' => 'Matematika', 'kelompok' => 'pesantren', 'kode_mapel' => '', 'is_active' => 'Tidak'],
         ], 'eksekusi');
@@ -171,8 +165,6 @@ class KurikulumImporTest extends TestCase
         $this->assertFalse($m->is_active);
         $this->assertSame('MTK', $m->kode_mapel);
     }
-
-    // ---------- 03. mapel: galat per baris + unduh CSV + izin ----------
 
     public function test_03_mapel_galat_per_baris_dan_unduh_csv(): void
     {
@@ -195,7 +187,7 @@ class KurikulumImporTest extends TestCase
             ->assertStatus(200)->streamedContent() ?: '';
         $this->assertStringContainsString('Lembaga tidak valid', $csv);
         $this->assertStringContainsString('Kelompok harus formal/pesantren', $csv);
-        // Nomor galat absolut selaras nomor file (heading = 1).
+
         $this->assertStringContainsString('3,', $csv);
         $this->assertStringContainsString('4,', $csv);
         $this->assertSame(1, MataPelajaran::count());
@@ -204,7 +196,7 @@ class KurikulumImporTest extends TestCase
     public function test_04_mapel_izin_per_baris_admin_scoped(): void
     {
         $this->dasar();
-        // MD berpasangan dengan MI (tetap terlihat admin MI) — MTS di luar lingkup.
+
         $this->lembaga('MTS');
         $admin = User::create([
             'name' => 'Admin MI', 'email' => 'adminmi_'.uniqid().'@example.com',
@@ -225,8 +217,6 @@ class KurikulumImporTest extends TestCase
         $this->assertSame(1, $hasil['ringkasan']['baris_gagal']);
         $this->assertSame('MI', MataPelajaran::first()->jenjang);
     }
-
-    // ---------- 05. pengampu: resolusi nama + guru NIP/nama ----------
 
     public function test_05_pengampu_eksekusi_resolusi_kelas_mapel_guru(): void
     {
@@ -255,19 +245,17 @@ class KurikulumImporTest extends TestCase
         ], 'eksekusi');
         $this->assertSame(2, $eksekusi['ringkasan']['dibuat']);
         $this->assertSame(2, PengampuMapel::where('kelas_id', $kelas->id)->count());
-        // NIP dan nama menyelesaikan ke keaktifan yang sama.
+
         $this->assertSame(
             [$guru->id],
             PengampuMapel::where('kelas_id', $kelas->id)->pluck('keaktifan_pegawai_id')->unique()->values()->all()
         );
 
-        // Sesi idempoten: guru sama → dilewati.
         $ulang = $this->potongPengampu($super, [
             ['jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'nama_kelas' => '1A', 'nama_mapel' => 'Matematika', 'guru' => '198001012010011001'],
         ], 'eksekusi');
         $this->assertSame(1, $ulang['ringkasan']['baris_dilewati']);
 
-        // Ganti guru → diperbarui.
         $baru = $this->guru('Ust Baru', '198002022011022002');
         $ganti = $this->potongPengampu($super, [
             ['jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'nama_kelas' => '1A', 'nama_mapel' => 'Matematika', 'guru' => '198002022011022002'],
@@ -277,8 +265,6 @@ class KurikulumImporTest extends TestCase
             ->whereHas('mataPelajaran', fn ($q) => $q->where('nama_mapel', 'Matematika'))
             ->first()->keaktifan_pegawai_id);
     }
-
-    // ---------- 06. pengampu: galat resolusi ----------
 
     public function test_06_pengampu_galat_kelas_mapel_guru(): void
     {
@@ -305,8 +291,6 @@ class KurikulumImporTest extends TestCase
         $this->assertSame(0, PengampuMapel::count());
     }
 
-    // ---------- 07. duplikat nama ditolak 422 (bukan 500) ----------
-
     public function test_07_mapel_duplikat_nama_ditolak(): void
     {
         $this->dasar();
@@ -315,7 +299,7 @@ class KurikulumImporTest extends TestCase
         $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/kurikulum/mapel', ['jenjang' => 'MI', 'nama_mapel' => 'Fiqih', 'kelompok' => 'formal'])
             ->assertStatus(201);
-        // Nama sama (beda kapitalisasi ikut tertolak di collation ci).
+
         $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/kurikulum/mapel', ['jenjang' => 'MI', 'nama_mapel' => 'fiqih', 'kelompok' => 'pesantren'])
             ->assertStatus(422)
@@ -326,7 +310,7 @@ class KurikulumImporTest extends TestCase
             ->putJson("/api/admin/kurikulum/mapel/{$lain->id}", ['nama_mapel' => 'Fiqih'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('nama_mapel');
-        // Nama sendiri (tak berubah) tetap lolos.
+
         $this->actingAs($super, 'sanctum')
             ->putJson("/api/admin/kurikulum/mapel/{$lain->id}", ['nama_mapel' => 'Nahwu'])
             ->assertStatus(200);

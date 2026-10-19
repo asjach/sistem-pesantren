@@ -22,8 +22,7 @@ export async function bukaDiTabBaru(path: string, judul: string): Promise<HasilT
     try {
       const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
       nomorJendela += 1;
-      // Path relatif tanpa garis miring depan: Tauri menerjemahkannya ke
-      // tauri://localhost/<path>, bukan ke host di luar app.
+
       const win = new WebviewWindow(`app-tab-${nomorJendela}`, {
         url: path.replace(/^\//, ''),
         title: judul,
@@ -40,7 +39,7 @@ export async function bukaDiTabBaru(path: string, judul: string): Promise<HasilT
       return 'gagal';
     }
   }
-  // Popup bisa diblokir browser; dalam hal itu pengguna bisa membuka manual.
+
   const tab = window.open(path, '_blank', 'noopener,noreferrer');
   return tab ? 'dibuka' : 'gagal';
 }

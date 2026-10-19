@@ -10,7 +10,6 @@ use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
-// Paket sesi v1.8: expiry per peran, nama per-device, revokasi, logout-all.
 class SessionFlowTest extends TestCase
 {
     use RefreshDatabase;
@@ -46,9 +45,7 @@ class SessionFlowTest extends TestCase
 
     protected function freshGuards(): void
     {
-        // Guard Sanctum di-cache per instance app dalam satu proses uji;
-        // produksi (fresh boot per request) tidak terpengaruh. Lupakan agar
-        // request berikut resolve ulang token dari DB.
+
         $this->app['auth']->forgetGuards();
     }
 
@@ -69,7 +66,7 @@ class SessionFlowTest extends TestCase
         $this->login($u->email)->assertStatus(200);
 
         $tok = $u->tokens()->firstOrFail();
-        $this->assertEquals('api-token', $tok->name); // default tanpa device
+        $this->assertEquals('api-token', $tok->name);
         $this->assertEqualsWithDelta(now()->addDays(365)->timestamp, $tok->expires_at->timestamp, 120);
     }
 
@@ -89,7 +86,7 @@ class SessionFlowTest extends TestCase
 
         $this->getJson('/api/auth/me', ['Authorization' => 'Bearer dummy'])
             ->assertStatus(401);
-        // token basi di DB tetap ada sampai prune — guard yang menolak:
+
         $plain = $u->createToken('basi', ['*'], now()->subDay())->plainTextToken;
         $this->freshGuards();
         $this->getJson('/api/auth/me', ['Authorization' => "Bearer $plain"])
@@ -124,7 +121,6 @@ class SessionFlowTest extends TestCase
         $this->freshGuards();
         $this->getJson('/api/auth/me', ['Authorization' => "Bearer $tok"])->assertStatus(401);
 
-        // cabut peran juga mencabut
         $tok2 = $this->login($target->email)->json('token');
         $this->actingAs($sa, 'sanctum')->deleteJson(
             "/api/admin/users/{$target->id}/roles", ['role' => 'guru']

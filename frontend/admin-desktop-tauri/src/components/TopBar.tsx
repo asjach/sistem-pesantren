@@ -55,8 +55,6 @@ import {
 import { halamanDariPath } from '@/lib/halaman';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-// ---------- Header: judul halaman + area akun (atas) & baris tools (bawah) ----------
-
 /** Mode tampilan terang/gelap/sistem (ikon saja) — di dekat akun pengguna. */
 const MODE_STRIP: { id: ModeName; nama: string; icon: typeof Sun }[] = [
   { id: 'terang', nama: 'Terang', icon: Sun },
@@ -128,8 +126,6 @@ export default function TopBar() {
     loading: semesterLoading,
   } = useSemesterAktif();
 
-  // Dropdown lembaga = filter (bebas diubah kapan pun, termasuk saat bertindak);
-  // peran act-as diatur lewat menu akun (section "Peran sebagai") + banner.
   const urutanLembaga = ['MI', 'MD', 'MTS', 'MLN'];
   const posisiLembaga = (value: string) => {
     const index = urutanLembaga.indexOf(value);
@@ -219,7 +215,6 @@ export default function TopBar() {
     || (tampil.tahun_ajaran && taPilihanTerurut.length > 0)
     || tampil.semester;
 
-  // Elemen target portal pencarian halaman (lihat `TopBarSearch`).
   const searchHostRef = useCallback((el: HTMLDivElement | null) => setSearchEl?.(el), [setSearchEl]);
 
   useEffect(() => {
@@ -234,8 +229,6 @@ export default function TopBar() {
     return () => window.removeEventListener('keydown', onKey);
   }, [collapsed, navigasi, setCollapsed]);
 
-  // Judul halaman → title bar jendela (hemat ruang di aplikasi). Di dev web
-  // memakai document.title; di Tauri sekalian set judul window native.
   useEffect(() => {
     const judul = halaman ? `${halaman.label} — SIMPES Admin` : 'SIMPES Admin';
     document.title = judul;
@@ -262,7 +255,7 @@ export default function TopBar() {
           className="relative shrink-0 border-b border-[color:var(--sidebar-border)] bg-[var(--sidebar)] px-0.5 pt-1 text-[var(--sidebar-foreground)]"
           style={{ background: 'var(--sidebar)' }}
         >
-      {/* Judul halaman untuk pembaca layar (visual tampil di bar judul). */}
+
       <h1 id="judul_halaman_aktif" className="sr-only">
         {halaman?.label ?? 'SIMPES Admin'}
       </h1>
@@ -273,47 +266,7 @@ export default function TopBar() {
           judul/search maupun area akun. Padding kiri menyisakan ruang untuk
           kenop navigasi yang melintasi border. */}
       <div data-part="area_judul" className="relative grid min-h-[32px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 py-0 pb-1 pl-6 pr-3 md:pr-6">
-        {/* Kenop navigasi: satu tombol untuk dua arah — chevron kiri
-            menyembunyikan rail (saat tampil), chevron kanan menampilkannya
-            kembali (saat tertutup). Klik = lipat/buka; SERET = atur lebar,
-            aksi yang sama dengan gagang di tepi kanan sidebar (keduanya satu
-            instans seret, lihat SeretSidebar). Sisi tab yang digambar
-            satu per satu dihapus karena berdesakan dengan garis yang sudah ada,
-            sehingga yang tersisa cuma satu garis vertikal 1px di tepi kanan +
-            chevron. Tab menyentuh garis pembatas vertikal (tepi kiri header =
-            border kanan rail) di sebelah kirinya:
-            - `border-l` jatuh di piksel yang SAMA dengan border kanan rail dan
-              garis gagang seret (yang sudah berimpit) → pemisah rail↔header
-              tebal di tinggi header. Setelah dihapus, garis itu utuh & seragam.
-            - `border-b` duduk tepat di atas `border-b` header → dua garis
-              horizontal berdempetan.
-            - `border-t` jatuh di luar jendela (`-top-1`) → tak pernah terlihat.
-            Karena tak ada `border-l`, latar tab HARUS transparan: kalau tetap
-            berlatar, padding box-nya melebar 1px ke kiri dan menutup piksel
-            garis rail, jadi pemisah justru hilang di tinggi header.
-            Tab karena itu tak lagi "melintasi" border bawah header seperti tab
-            ribbon — bentuknya sekarang gagang vertikal, ditandai garis kanannya
-            yang terus terang saat hover. Offsets `left` (relatif ke baris judul,
-            yang bergeser mengikuti lebar rail): `-3px` saat rail tampil — tepi kiri tab jatuh
-            tepat di garis pembatas, porsi 1px di sisi rail transparan jadi
-            garisnya tak tertutup; `-2px` saat rail tertutup — membatalkan
-            `px-0.5` header sehingga tab rata dengan tepi kiri jendela. Tidak
-            ada yang terpotong: saat tertutup lebar rail 0, jadi tepi baris = 2
-            dan tepi kiri tombol jatuh tepat di 0. Pergeserannya mengikuti
-            animasi lebar rail lewat `transition-[left]` bersamaan
-            `duration-200` milik rail itu sendiri.
-            Tingginya disamakan dengan topBar: direntang penuh dari tepi atas
-            header (`-top-1` menutup padding atas header) sampai dasar baris
-            judul, jadi tinggi baris tak perlu diukur atau di-hardcode. Tanpa
-            radius — bentuknya siku, bukan pil — supaya ujung garis genggamannya
-            tegas, sama seperti garis pembatas di sebelahnya.
-            Lebar tab cuma 12px, terlalu kecil untuk target pointer, jadi area
-            kliknya diperluas lewat pseudo-elemen (tidak mengubah tampilan:
-            pseudo tak ikut tata letak). Hanya ke KANAN — ke arah ruang kosong
-            `pl-6` baris judul — karena strip di kiri tombol adalah gagang
-            seret lebar sidebar (`.absolute … w-1.5 cursor-col-resize`) yang
-            tak boleh direbut; perluasan 12px ke kanan menaikkan target ke
-            24px, setara tombol ikon lain di header. */}
+
         {navigasi === 'sidebar' && (
           <Tooltip open={tipKenop} onOpenChange={setTipKenop}>
             <TooltipTrigger asChild>
@@ -325,9 +278,7 @@ export default function TopBar() {
                   : 'Lipat navigasi (Ctrl/Cmd+B); seret untuk mengatur lebar'}
                 aria-expanded={!collapsed}
                 onMouseDown={(e) => {
-                  // Seret = atur lebar (aksi yang sama dengan gagang di tepi
-                  // sidebar); klik tanpa geseran tetap melipat. Tooltip
-                  // ditutup dulu agar tak mengambang selama seretan.
+
                   setTipKenop(false);
                   xKlikKenop.current = e.clientX;
                   mulaiSeretKenop(e);
@@ -352,14 +303,14 @@ export default function TopBar() {
             </TooltipContent>
           </Tooltip>
         )}
-        {/* Kolom kiri: judul halaman / pencarian tunggal (portal). */}
+
         <div className="flex min-w-0 items-center gap-2">
           {!searchAda && (
             <span id="judul_bar_halaman" className="truncate text-xs font-semibold">
               {halaman?.label ?? 'SIMPES Admin'}
             </span>
           )}
-          {/* Pencarian tunggal halaman (portal) — menggantikan judul saat ada. */}
+
           <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'w-[150px] shrink-0')} />
         </div>
 
@@ -436,7 +387,6 @@ export default function TopBar() {
           )}
         </div>
 
-        {/* Kolom kanan: area akun. */}
         <div data-part="area_akun" className="flex min-w-0 items-center justify-end gap-0.5">
           {/* Gerigi TOPBAR = pengaturan GLOBAL APLIKASI, termasuk tampilan
               tabel: berlaku semua tabel & semua halaman. Ini pintu yang
@@ -539,9 +489,7 @@ export default function TopBar() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {/* Peran act-as super_admin (pengganti tombol PERAN SEBAGAI di
-                  baris atas). Tetap tampil saat bertindak agar ganti/keluar
-                  peran bisa dari sini selain banner/Esc. */}
+
               {!lembagaLoading && isSuperAdmin && adaSemua && pilihanPeran.length > 0 && (
                 <>
                   <DropdownMenuLabel className="text-foreground">Peran sebagai</DropdownMenuLabel>
@@ -559,8 +507,7 @@ export default function TopBar() {
                   <DropdownMenuSeparator />
                 </>
               )}
-              {/* Area mode tampilan (terang/gelap/sistem) — di bawah nama akun,
-                  di atas menu Tema. Bukan item menu agar klik tak menutup. */}
+
               <div className="px-2 py-1.5">
                 <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   Mode tampilan
@@ -665,8 +612,7 @@ export default function TopBar() {
                   <span className="flex-1">Sudut</span>
                   <span className="text-xs text-muted-foreground">{radius}px</span>
                 </DropdownMenuSubTrigger>
-                {/* Stepper di dalam konten tak menutup menu (bukan item menu) —
-                    pola yang sama dengan strip Mode tampilan di atas. */}
+
                 <DropdownMenuSubContent className="min-w-44">
                   <div className="flex items-center justify-between gap-2 px-2 py-1.5">
                     <span className="text-xs text-muted-foreground">Membulat</span>
@@ -708,8 +654,7 @@ export default function TopBar() {
                   <span className="flex-1">Kerapatan</span>
                   <span className="text-xs text-muted-foreground capitalize">{density}</span>
                 </DropdownMenuSubTrigger>
-                {/* Tiga tingkat kerapatan baris grid; bukan item menu agar klik
-                    tak menutup (sama seperti strip Mode & stepper Sudut). */}
+
                 <DropdownMenuSubContent className="min-w-44">
                   {DENSITY_UI.map((d) => (
                     <DropdownMenuItem
@@ -788,7 +733,6 @@ export default function TopBar() {
 
       <DialogStandarTampilan open={standarOpen} onOpenChange={setStandarOpen} />
 
-      {/* Kelola Halaman: urutan + tampil/sembunyi tab halaman gabungan. */}
       {defTabs && efektifSuper ? (
         <DialogKelolaHalaman
           open={kelolaHalamanOpen}

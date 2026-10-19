@@ -46,7 +46,7 @@ describe('arsip per tipe', () => {
     ubah.clear();
     dihapus.length = 0;
     ditulis.length = 0;
-    // Pref folder absolut agar akarArsip tak memanggil documentDir native.
+
     localStorage.setItem('simpes_folder_arsip', '/arsip');
     localStorage.setItem('simpes_folder_arsip_test', '/arsip-test');
   });

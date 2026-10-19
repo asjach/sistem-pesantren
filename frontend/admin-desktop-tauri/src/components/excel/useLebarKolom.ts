@@ -44,19 +44,16 @@ export function gridBelumSiapTampil(root: HTMLElement | null, harapSisi = 3): bo
   const heads = root.querySelectorAll<HTMLElement>(
     '.dsg-row-header .dsg-cell:not(.dsg-cell-gutter)',
   );
-  // Header dianggap belum lengkap sampai jumlah selnya mendekati perkiraan
-  // (checkbox + kolom tampil + Aksi). Tabel berkolom sedikit tak ikut tertahan.
+
   const minimal = Math.min(3, Math.max(1, harapSisi));
   if (heads.length < minimal) return true;
-  // Tabel SATU kolom: tak ada "seragam vs tidak" yang bisa dibedakan — satu
-  // sel selalu seragam, jadi pemeriksaan di bawah akan menahannya sampai
-  // failsafe 2,5 dtk (panel tampak kosong). Lewatkan.
+
   if (heads.length < 2) return false;
   let seragam = 0;
   for (const h of heads) {
     if (Math.abs(h.getBoundingClientRect().width - DSG_LEBAR_BAWAAN) <= 1) seragam += 1;
   }
-  // Toleransi 1 kolom: kolom Aksi/checkbox bisa sudah punya lebar sendiri.
+
   return seragam >= heads.length - 1;
 }
 
@@ -183,10 +180,8 @@ export function useLebarKolom<T extends { id: string | number }>({
   const resizeListenersRef = useRef<{ move: (ev: MouseEvent) => void; up: () => void } | null>(null);
   const measureCtxRef = useRef<CanvasRenderingContext2D | null>(null);
 
-  // Muat lebar dari disk (dilewati bila cache sesi sudah ada).
   useEffect(() => {
-    // Cache sesi: lebar sudah final, tidak perlu muat dari disk (menghindari
-    // render perantara yang menggeser kolom).
+
     if (cacheHadRef.current) {
       setWidthsReady(true);
       return;
@@ -198,7 +193,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     });
   }, [tableKey]);
 
-  // Simpan lebar terbaru ke cache sesi (dipakai kunjungan ulang).
   useEffect(() => {
     writeWidthCache(tableKey, { widths });
   }, [tableKey, widths]);
@@ -206,12 +200,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     writeWidthCache(tableKey, { autoWidths });
   }, [tableKey, autoWidths]);
 
-  // Gerbang visibilitas grid: bingkai "lebar bawaan DSG" (semua kolom seragam
-  // 100px sesaat setelah DSG di-mount ulang) TIDAK boleh terlihat. Gerbang ini
-  // kontinu — dipicu MutationObserver, bukan sekali jalan — sebab remount bisa
-  // terjadi kapan saja (tanda tinggi baris berubah) dan tiap remount memulai
-  // lagi dari lebar bawaan. Pemeriksaan dibatasi 1× per bingkai dan berhenti
-  // permanen setelah 1,5 dtk (failsafe) agar grid tak pernah tersembunyi lama.
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof MutationObserver === 'undefined') {
@@ -227,14 +215,10 @@ export function useLebarKolom<T extends { id: string | number }>({
      *  Setelah pernah tampil, pengungkapan kembali dilakukan secepatnya. */
     let siapSejak = 0;
     let pernahTampil = false;
-    // Node kontainer DSG terakhir terlihat. Remount MENGGANTI node ini, dan
-    // jendela flash 100px hanya ada tepat setelah pergantian — di luar itu
-    // hasil baca seragam-100px adalah lebar SAH (kolom memang ~100px) sehingga
-    // grid tidak boleh disembunyikan (mis. saat scroll memicu mutasi style).
+
     let contTerlihat: Element | null = null;
     let remountBaru = false;
-    // Awal jendela failsafe (2,5 dtk): dibuka ulang tiap remount agar gerbang
-    // tetap hidup untuk refresh yang datang setelah halaman lama terbuka.
+
     let mulai = performance.now();
     const periksa = () => {
       raf = 0;
@@ -242,8 +226,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       const cont = el.querySelector('.dsg-container');
       if (cont !== contTerlihat) {
         contTerlihat = cont;
-        // Node baru SETELAH pernah tampil = remount (bukan mount awal):
-        // buka jendela deteksi + failsafe baru untuk remount ini.
+
         if (pernahTampil) {
           remountBaru = true;
           menyerahRef.current = false;
@@ -254,8 +237,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       const bacaSeragam = !lewatFailsafe && !menyerahRef.current && !sedangLebarRef.current
         ? gridBelumSiapTampil(el, harapSisiRef.current)
         : false;
-      // Sembunyikan hanya bila (a) belum pernah tampil, atau (b) remount
-      // baru yang bacaannya masih seragam-100px (jendela flash 100px).
+
       const belumSiap = bacaSeragam && (!pernahTampil || remountBaru);
       if (lewatFailsafe) menyerahRef.current = true;
       if (belumSiap) {
@@ -264,9 +246,7 @@ export function useLebarKolom<T extends { id: string | number }>({
         jadwalkan();
         return;
       }
-      // Remount tertunda (tanda tinggi baris belum dipakai DSG): tahan dulu —
-      // remount akan mengembalikan lebar ke bawaan, jadi menampilkan sekarang
-      // berujung grid tersembunyi lagi (kedip tampil→sembunyi→tampil).
+
       if (!pernahTampil && remountTertundaRef?.current === true) {
         siapSejak = 0;
         setTampilGrid(false);
@@ -303,12 +283,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableKey, wrapRef]);
 
-  // Jaring SEBELUM cat: bila commit ini MENGGANTI kontainer DSG (remount)
-  // dan bacaannya masih seragam-100px, sembunyikan pada commit yang sama.
-  // Tanpa ini satu bingkai flash 100px (sel melompat ke kanan lalu balik
-  // ke kiri) sempat terlihat sebelum MutationObserver bertindak. Tabel yang
-  // sudah stabil (node sama) tak pernah disentuh — walau kolomnya ~100px —
-  // sehingga scroll/mutasi biasa tak membuat kartu berkedip.
   const layoutContRef = useRef<Element | null>(null);
   useLayoutEffect(() => {
     if (sedangLebarRef.current) return;
@@ -317,8 +291,7 @@ export function useLebarKolom<T extends { id: string | number }>({
     const ganti = cont !== layoutContRef.current;
     layoutContRef.current = cont;
     if (!el || !ganti || !cont) return;
-    // Kontainer berganti (remount): buka ulang jendela failsafe yang mungkin
-    // sudah kedaluwarsa sejak mount awal, lalu tutup flash SEBELUM cat.
+
     menyerahRef.current = false;
     if (gridBelumSiapTampil(el, harapSisiRef.current)) setTampilGrid(false);
   });
@@ -328,9 +301,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     menyerahRef.current = false;
   }, [tableKey]);
 
-  // Ukur lebar kolom Aksi dari tombol yang benar-benar dirender SEBELUM cat
-  // (useLayoutEffect). Kolom teks sudah final dari syncAutoWidths; hanya Aksi
-  // yang tak bisa dihitung sinkron karena jumlah/isi tombol bergantung data.
   useLayoutEffect(() => {
     if (hideActions) return;
     if (widthsRef.current.__aksi !== undefined) return;
@@ -340,9 +310,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lebarStabil, rows, fields, visibleFields]);
 
-  // Tinggi header otomatis: judul yang membungkus beberapa baris butuh baris
-  // header lebih tinggi agar tidak meluber. Manual (pref headerH) menang;
-  // observer memantau perubahan lebar kolom/font yang mengubah jumlah baris.
   useLayoutEffect(() => {
     if (headerH != null || !lebarStabil) return;
     const el = wrapRef.current;
@@ -384,8 +351,7 @@ export function useLebarKolom<T extends { id: string | number }>({
     for (const key of keys) {
       if (!ignoreSaved && widthsRef.current[key] !== undefined) continue;
       if (!ignoreSaved && lewati[key] !== undefined) continue;
-      // Bila pengukuran gagal sesaat (sel aksi/teks belum dirender virtualisasi),
-      // pertahankan hasil ukur terakhir — lebih baik daripada jatuh ke lebar bawaan.
+
       const w = autoFitWidth(key) ?? autoWidthsRef.current[key] ?? null;
       if (w != null) out[key] = w;
     }
@@ -415,15 +381,10 @@ export function useLebarKolom<T extends { id: string | number }>({
     };
   }
 
-  // Muat awal: kolom yang belum punya lebar tersimpan disesuaikan dengan isi
-  // (judul dipakai bila lebih panjang dari data). Menunggu widthsReady supaya
-  // tidak menimpa sesaat lebar simpanan pengguna yang sedang dibaca, dan
-  // menunggu font selesai dimuat agar pengukuran teks akurat.
   useEffect(() => {
     if (fittedRef.current === tableKey) return;
     if (!widthsReady || loading || rows.length === 0) return;
-    // Virtualizer DSG baru merender baris setelah mengukur wadah, jadi tunggu
-    // sampai sel data benar-benar ada di DOM sebelum mengukur teks.
+
     let tries = 0;
     let raf = 0;
     let batal = false;
@@ -438,8 +399,7 @@ export function useLebarKolom<T extends { id: string | number }>({
         return;
       }
       fittedRef.current = tableKey;
-      // Lebar sudah tampil dari syncAutoWidths; AutoFit di sini hanya
-      // mengisi kekosongan (mis. Aksi) tanpa menimpa yang sudah tampil.
+
       batalFit = scheduleAutoFit(true);
     };
     const mulai = () => {
@@ -458,7 +418,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableKey, widthsReady, loading, rows, fields, visibleFields]);
 
-  // Bersihkan span pengukur teks saat tabel dilepas.
   useEffect(
     () => () => {
       bersihkanProbe();
@@ -480,10 +439,7 @@ export function useLebarKolom<T extends { id: string | number }>({
     e.preventDefault();
     e.stopPropagation();
     const f = fieldsRef.current.find((x) => x.key === key);
-    /* Rantai fallback WAJIB sama dengan `basis` kolom di ExcelTable. Lebar
-     * tampil sering berasal dari `syncAutoWidths` (belum masuk `widths`/
-     * `autoWidths`), dan melewatinya membuat seret pertama memakai lebar
-     * statis `f.width` — kolom melompat menyempit sebelum mengikuti kursor. */
+
     const bawaan = key === '__aksi'
       ? ACTIONS_DEFAULT_W
       : syncAutoWidths[key] ?? f?.width ?? 150;
@@ -498,9 +454,7 @@ export function useLebarKolom<T extends { id: string | number }>({
     const onMove = (ev: MouseEvent) => {
       const d = resizeRef.current;
       if (!d) return;
-      /* Geseran kursor dibagi rasio skala: saat tabel diskalakan (mis. ×2),
-         menambah 10 px pada lebar BASIS berarti 20 px di layar — tanpa
-         pembagian ini gagang tertinggal separuh dari kursor. */
+
       const rasio = skalaRef?.current || 1;
       const w = Math.max(MIN_COL_W, Math.round(d.startW + (ev.clientX - d.startX) / rasio));
       setWidths((prev) => {
@@ -525,7 +479,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     window.addEventListener('mouseup', onUp);
   }
 
-  // Unmount saat masih menyeret gagang → lepas listener agar tidak bocor.
   useEffect(
     () => () => {
       const l = resizeListenersRef.current;
@@ -597,8 +550,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     requestAnimationFrame(coba);
   }
 
-  // Ukuran/jenis huruf berubah → teks butuh lebar baru: hitung ulang AutoFit
-  // (lebar yang sudah diatur pengguna tetap dipertahankan).
   useEffect(() => {
     if (skipFitPertamaRef.current) return;
     if (fittedRef.current !== tableKey) return;
@@ -606,11 +557,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fontPx, fontFamily]);
 
-  // Kolom/preset berubah → sesuaikan ulang lebar kolom yang belum diatur
-  // pengguna. SENGAJA tidak dipicu perubahan `rows` (pagination/refetch):
-  // lebar harus stabil lintas halaman agar tabel tidak berkedip/melompat;
-  // isi halaman baru tetap terbaca, dan AutoFit manual (gagang/toolbar)
-  // selalu tersedia bila kolom terasa sempit.
   useEffect(() => {
     if (skipFitPertamaRef.current) return;
     if (fittedRef.current !== tableKey) return;
@@ -618,9 +564,6 @@ export function useLebarKolom<T extends { id: string | number }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, visibleFields]);
 
-  // Setelah commit pertama, AutoFit kembali normal (perubahan berikutnya —
-  // huruf/data/filter — boleh menyesuaikan lebar). Efek ini SENGAJA ditaruh
-  // setelah efek AutoFit agar urutan mount tidak melewati penjagaan cache.
   useEffect(() => {
     skipFitPertamaRef.current = false;
   }, []);
@@ -680,19 +623,16 @@ export function useLebarKolom<T extends { id: string | number }>({
     const padOf = (cs: CSSStyleDeclaration) =>
       (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
     const padCell = padOf(csCell);
-    // Padding horizontal pembungkus judul tak terbaca dari sel header
-    // (padding sel = 0) — ikutkan agar judul tidak membungkus 1 huruf.
+
     const padHead = padOf(csHeadCell) + padOf(csHeadCont) + PAD_JUDUL_X;
     const out: Record<string, number> = {};
-    // Contoh merata (maks 300 baris) + cache teks per komputasi: nilai
-    // berulang (status, tanggal, JK) hanya diukur DOM sekali.
+
     const samples = ambilContohBaris(rows).map(
       (r) => [r, getValuesRef.current(r) as Record<string, unknown>] as const,
     );
     const cacheTeks = new Map<string, number>();
     const lebarCache = (text: string, ukuranPx?: number): number => {
-      // Kunci memuat ukuran huruf: baris 10px dan 12px untuk teks sama beda
-      // lebar, jadi teks saja tidak cukup sebagai kunci cache.
+
       const kunci = ukuranPx != null ? `${ukuranPx}px|${text}` : text;
       const ada = cacheTeks.get(kunci);
       if (ada !== undefined) return ada;
@@ -700,11 +640,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       cacheTeks.set(kunci, hasil);
       return hasil;
     };
-    /* Baris-baris yang benar-benar digambar dalam satu sel. Kolom yang
-       `renderCell`-nya memecah isi ke beberapa baris (mis. mapel di atas
-       guru di bawah) wajib memberi `barisSel`; tanpa itu teks nilainya
-       yang diukur utuh, terukur seolah mapel dan guru bersebelahan —
-       kolom jadi jauh lebih lebar dari yang terpakai. */
+
     const barisOf = (
       f: ExcelField,
       r: { id: string | number },
@@ -729,13 +665,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       }
       return cw;
     };
-    // Saring cepat via kanvas (tanpa layout): tiap `textContent` + baca
-    // `getBoundingClientRect` yang silih berganti memaksa layout sinkron
-    // (layout-thrash, ratusan kali per pagination). Kanvas mengukur
-    // semuanya tanpa layout; DOM hanya memverifikasi kandidat teratas
-    // (margin 40px menutup selisih kanvas vs DOM — pola sama `ukurAutoFit`).
-    // `cwSel` memasang font tiap baris (ukurannya bisa beda-beda), jadi tak
-    // perlu font bawaan di sini.
+
     const ctxKan = dapatkanKanvas();
     for (const f of visibleFields) {
       let w = lebarJudulDuaBaris(
@@ -765,7 +695,7 @@ export function useLebarKolom<T extends { id: string | number }>({
       }
       out[f.key] = Math.min(AUTOFIT_MAX_W, Math.max(MIN_COL_W, Math.ceil(w)));
     }
-    // Monoton per cakupan tabel+font (lihat komentar di atas).
+
     if (syncScopeRef.current !== cakupan) {
       syncScopeRef.current = cakupan;
       syncPrevRef.current = out;
@@ -779,14 +709,11 @@ export function useLebarKolom<T extends { id: string | number }>({
   const resetLebarInternal = useCallback(() => {
     setWidths({});
     prefSet(widthsKey(tableKey), '{}').catch(() => {});
-    // Kembali ke bawaan = lebar menyesuaikan isi (dihitung ulang).
+
     fittedRef.current = null;
     setAutoWidths(computeAutoWidths(true));
   }, [tableKey, computeAutoWidths]);
 
-  // Reset lebar dari tab Umum dialog Kelola Tabel (tombol "kembalikan
-  // bawaan" total): cache sesi ikut dibuang supaya grid langsung AutoFit
-  // ulang tanpa reload halaman.
   useEffect(() => {
     const segarkan = (e: Event) => {
       if ((e as CustomEvent).detail?.tableKey !== tableKey) return;

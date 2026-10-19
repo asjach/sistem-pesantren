@@ -98,8 +98,6 @@ class AlumniImporService extends ImporPotongan
             return;
         }
 
-        // Arsip historis: tanggal boleh kosong (disimpan NULL). Terisi tapi
-        // tak valid → galat.
         $tanggal = null;
         if (trim((string) ($baris['tanggal_lulus'] ?? '')) !== '') {
             $tanggal = Tanggal::parse($baris['tanggal_lulus']);
@@ -132,7 +130,6 @@ class AlumniImporService extends ImporPotongan
             'catatan' => $this->teks($baris, 'catatan'),
         ];
 
-        // Kunci baris = santri + lembaga (santri bisa lulus di beberapa lembaga).
         $ada = Alumni::where('santri_id', $santri->id)
             ->where('lembaga_lulus', $jenjang)
             ->first();
@@ -258,8 +255,7 @@ class AlumniImporService extends ImporPotongan
     /** @param  array<string, mixed>  $data */
     protected function berbeda(Alumni $ada, array $data): bool
     {
-        // Kedua sisi dinormalkan ke ?string agar NULL vs '' tak dianggap beda
-        // (baris kosong tak boleh memicu update berulang saat import ulang).
+
         $tanggal = $ada->tanggal_lulus?->format('Y-m-d');
         $tanggalBaru = $data['tanggal_lulus'] === null ? null : (string) $data['tanggal_lulus'];
 

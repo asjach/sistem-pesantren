@@ -145,7 +145,7 @@ export default function IsiPengaturanTampilan({ idPrefix = '' }: {
     rowH, headerH, fontPx, fontFamily, sumberRowH, sumberHeaderH,
     setRowH, setHeaderH, setFontPx, setFontFamily,
   } = useGridPrefs();
-  // "Manual" = ada nilai perangkat (lapisan yang bisa direset pengguna).
+
   const headerHManual = sumberHeaderH === 'perangkat';
   const rowHManual = sumberRowH === 'perangkat';
   /** Keterangan asal nilai: penting supaya pengguna tahu kenapa angkanya
@@ -184,17 +184,12 @@ export default function IsiPengaturanTampilan({ idPrefix = '' }: {
   return (
     <div className="flex flex-col gap-2" data-part="isi_pengaturan_tampilan">
       <Judul>Baris tabel</Judul>
-      {/* "Tinggi sel" memakai `LabeledStepper` — label + angka + tombol −/+ dalam
-          satu kotak, sama dengan kontrol lain di aplikasi. Baris lain di sini
-          masih memakai kolom label `Baris`; sengaja tak dirapikan sekaligus
-          agar perubahan ini tetap satu hal: hanya kontrol ini yang berganti
-          jenis. */}
+
       <div className="flex items-center gap-1.5">
         <LabeledStepper
           id={p + 'set_tinggi_sel'}
           htmlFor={p + 'set_tinggi_sel'}
-          /* `kelolaLebar={false}`: kotak ini hidup di panel Pengaturan, bukan
-             di toolbar tabel, jadi lebar simpanannya tak relevan. */
+
           kelolaLebar={false}
           label="Tinggi sel bawaan"
           min={MIN_ROW_H}

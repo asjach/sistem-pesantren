@@ -77,7 +77,7 @@ describe('salinFisik (intersepsi Ctrl+C desktop)', () => {
   });
 
   it('blok multi-sel sebagai TSV subset', async () => {
-    // Kolom 1..2 = nama..kode (kolom 0 = centang, dilewati).
+
     const { result } = pasang({ min: { row: 0, col: 1 }, max: { row: 1, col: 2 } });
     await expect(result.current.salinFisik()).resolves.toBe(true);
     expect(salin()).toHaveBeenCalledWith('Nama\tKode\nAhmad\tP001\nBudi\tP002');

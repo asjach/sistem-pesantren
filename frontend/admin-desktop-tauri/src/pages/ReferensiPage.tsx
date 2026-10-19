@@ -75,8 +75,7 @@ export default function ReferensiPage() {
   const { user: me } = useAuth();
   /** Gerbang super = EFEKTIF (mati saat bertindak; baris global terkunci). */
   const { efektifSuper: isSuper } = useLembagaAktif();
-  // Nilai referensi murni per lembaga (tanpa baris global): super_admin
-  // menambah ke semua lembaga sekaligus; tiap lembaga kelola miliknya.
+
   const canManage = bisa(me, 'referensi.ubah');
   const canHapus = bisa(me, 'referensi.hapus');
   const myJenjang = useMemo(() => me?.lembagas?.map((l) => l.jenjang) ?? [], [me]);
@@ -197,8 +196,7 @@ export default function ReferensiPage() {
     setErr('');
     setLoading(true);
     try {
-      // Mode kelola: selalu sertakan nonaktif agar toggle bisa memulihkan.
-      // MySQL tinyint tiba sebagai 0/1 → normalkan ke boolean.
+
       const r = await referensiList(tipeRef.current, lembagaRef.current, true);
       setRows(r.map((row) => ({ ...row, is_active: !!row.is_active })));
     } catch (e) {
@@ -300,8 +298,6 @@ export default function ReferensiPage() {
         )
       : rows;
 
-    // Pengurutnya di `lib/referensiUrut` supaya logikanya bisa diuji tanpa
-    // merender halaman (halaman ini butuh auth + beberapa context).
     return urutkanReferensi(dasar, urut, arah, arahKolom, lembagaName);
   }, [rows, q, urut, arah, arahKolom, lembagaName]);
 
@@ -316,9 +312,7 @@ export default function ReferensiPage() {
   const openTambah = useCallback(() => {
     setFNama(''); setFKode(''); setFSingkatan('');
     setFUrutan(String(urutanBerikutnya(rowsRef.current)));
-    // Bawaan: SEMUA lembaga terpilih, entri baru dibuat di semuanya. Pengguna
-    // tinggal mengucentang yang tak mau dipakai. Kalau daftar lembaga belum
-    // selesai dimuat, andalkan scope filter (bukan kosong) supaya tak buntu.
+
     setScope(
       semuaJenjang.length > 0
         ? semuaJenjang
@@ -327,9 +321,6 @@ export default function ReferensiPage() {
     setTambahOpen(true);
   }, [semuaJenjang, targetJenjang]);
 
-  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Entri"). Terhalang saat
-  // dialog tambah/ubah sudah terbuka atau tipe kamus belum siap (tak ada
-  // tujuan tambah yang jelas).
   usePintasanBaru({
     kunci: 'n',
     aktif: canTambah && !!tipe,
@@ -340,9 +331,7 @@ export default function ReferensiPage() {
   const onCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
-    // Tanpa pilihan lembaga tak ada tujuan simpan — backend juga menolak
-    // array kosong, tapi dicegat di sini agar tak perlu bolak-balik. Pesan
-    // lewat toast karena `err` halaman tertutup dialog.
+
     if (scope.length === 0) {
       toast.error('Pilih minimal satu lembaga.');
       return;
@@ -356,7 +345,7 @@ export default function ReferensiPage() {
         payload.nama = fNama.trim() || fKode.trim();
       } else {
         payload.nama = fNama.trim();
-        // Kamus mapel: kolom tambahan ikut dikirim (kosong → null di backend).
+
         if (isMapel) {
           payload.kode = fKode.trim();
           payload.singkatan = fSingkatan.trim();
@@ -394,7 +383,7 @@ export default function ReferensiPage() {
       await updateReferensi(tipe, editRow.id, {
         nama: eNama.trim(),
         urutan,
-        // Kamus mapel: kode & nama singkat boleh diperbaiki (kosong → null).
+
         ...(isMapel ? { kode: eKode.trim(), singkatan: eSingkatan.trim() } : {}),
       });
       toast.success('Entri referensi diubah.');
@@ -408,9 +397,7 @@ export default function ReferensiPage() {
   }, [editRow, tipe, isMapel, eNama, eKode, eSingkatan, eUrutan, reload]);
 
   const onDelete = useCallback(async (r: ReferensiRow) => {
-    // Tiap baris milik satu lembaga: padam langsung baris itu.
-    // Tanpa toast/reload di sini: antrean grid memanggil onSaved (= muat) dan
-    // menunggunya sebelum membuang draft; toast cukup satu dari antrean.
+
     const lid = r.jenjang ?? undefined;
     try {
       await deleteReferensi(tipe, r.id, lid);
@@ -478,7 +465,7 @@ export default function ReferensiPage() {
   }, [canHapus, canHapusRow, hapusBulk]);
 
   const renderActions = useCallback((r: ReferensiRow) => {
-    // Tampil/padam lewat toggle di kolom is_active; aksi baris: Ubah + Hapus permanen.
+
     if (!canUbahRow(r)) return null;
     return (
       <>
@@ -512,15 +499,12 @@ export default function ReferensiPage() {
       throw new Error(`Anda tidak berhak mengubah entri dari ${lembagaName(row.jenjang)}.`);
     }
 
-    // Toggle Tampil: jalur nonaktif/pulihkan (tak ada kolom lain sekaligus —
-    // toggle disimpan sendiri, terlepas dari mode Ubah).
     if ('tampil' in fields) {
       if (fields.tampil === 'tidak') await onDelete(row);
       else await onPulihkan(row);
       return;
     }
 
-    // Mode Ubah: perubahan kolom teks → PUT satu baris.
     const nama = fields.nama !== undefined ? (fields.nama ?? '').trim() : (row.nama ?? '');
     if (fields.nama !== undefined && !nama) {
       throw new Error('Nama tidak boleh kosong.');
@@ -533,7 +517,7 @@ export default function ReferensiPage() {
     await updateReferensi(tipe, row.id, {
       nama,
       urutan,
-      // Kamus mapel: kode & singkatan ikut (kosong → null di backend).
+
       ...(isMapel
         ? {
             kode: fields.kode !== undefined ? (fields.kode ?? '').trim() : (row.kode ?? ''),
@@ -554,24 +538,14 @@ export default function ReferensiPage() {
           { key: 'referensi', judul: 'Referensi', fields },
         ]}
       />
-      {/* Dua kolom: kiri daftar TIPE kamus (pemilih), kanan isi kamusnya.
-          Dulu tipe dipilih lewat dropdown di bilah filter — daftar seperti ini
-          membuat seluruh kamus terlihat sekaligus dan pindah kamus cukup satu
-          klik sel, tanpa membuka popover.
 
-          Wadah `flex-1` di luar grup diperlukan karena grup panel memasang
-          `height: 100%` inline: tanpa wadah, tingginya mengikuti tinggi shell
-          (termasuk pesan galat) sehingga tabel bisa meluber. */}
       <div className="flex min-h-0 flex-1 flex-col">
         <ResizablePanelGroup
           orientation="horizontal"
           id="grup_referensi"
           className="min-h-0 flex-1 overflow-hidden"
         >
-          {/* Kolom kiri (bawaan 320px, bisa digeser): daftar tipe kamus.
-              Lebarnya lebih dari sekadar judul karena bilah judulnya kini
-              memuat kontrol standar (Urutkan + gerigi pengaturan); di bawah
-              ~300px judul "Tipe Kamus" mulai terpotong. */}
+
           <ResizablePanel
             id="panel_referensi_tipe"
             defaultSize={320}
@@ -579,11 +553,7 @@ export default function ReferensiPage() {
             maxSize={480}
             className="flex min-h-0 flex-col"
           >
-            {/* `flex-1`, BUKAN `h-full`: tinggi panel berasal dari stretch
-                grup (bukan height eksplisit), jadi persentase bisa gagal
-                dihitung di WebKit dan tabel jatuh ke tinggi isinya. Flex
-                membuat tabel mengisi sisa tinggi panel apa pun mesin
-                layout-nya. */}
+
             <div className="flex min-h-0 flex-1 flex-col">
               <ExcelTable<BarisTipe>
                 tableKey="referensi_tipe"
@@ -595,27 +565,19 @@ export default function ReferensiPage() {
                 canEdit={false}
                 onCommit={async () => {}}
                 onSaved={() => {}}
-                /* Kontrol bilah judul SAMA dengan tabel lain: Urutkan, Kolom
-                   (preset tampilan), dan gerigi "Pengaturan tabel" — tanpa
-                   salah satunya bilah judul tak dirender sama sekali, jadi
-                   tabel ini dulu tak punya pintu pengaturan. */
+
                 urutAktif={urutTipe}
                 arahUrut={arahTipe}
                 onUrut={terapkanUrutTipe}
-                /* Klik sel = pilih kamus (sama seperti tabel pemilih di halaman
-                   Dispensasi), jadi tak perlu kolom centang maupun Aksi. */
+
                 onBarisKlik={(r) => pilihTipe(r.tipe)}
                 barisAktifId={tipe || null}
                 renderActions={() => null}
-                /* Lebar kolom mengikuti rasio isi lalu diskalakan agar tabel
-                   mengisi panel kiri (tanpa sisa ruang di kanan). */
+
                 isiLebarPenuh
                 hideCheckbox
                 hideActions
-                /* Kolom (preset tampilan) TIDAK dipakai di sini: tabelnya cuma
-                   satu kolom, jadi dropdown-nya hanya memakan bilah judul yang
-                   sempit. Semua pengaturan tetap terjangkau lewat Urutkan +
-                   gerigi "Pengaturan tabel" di bilah yang sama. */
+
                 hidePreset
               />
             </div>
@@ -623,8 +585,6 @@ export default function ReferensiPage() {
 
           <ResizableHandle withHandle aria-label="Atur lebar daftar tipe kamus" />
 
-          {/* Kolom kanan: isi kamus terpilih. `key={tipe}` mengatur ulang state
-              grid (kolom, urutan, tinggi baris) tiap kamus berganti. */}
           <ResizablePanel id="panel_referensi_isi" minSize="40%" className="flex min-h-0 flex-col">
             <div className="flex min-h-0 flex-1 flex-col">
               <ExcelTable
@@ -638,19 +598,13 @@ export default function ReferensiPage() {
                 onUrut={terapkanUrut}
                 loading={loading}
                 emptyText="Belum ada entri."
-                /* Mode Ubah: mengedit sel langsung (nama/kode/singkatan/urutan)
-                   menyimpan ke server lewat onCommit. Gerbangnya izin
-                   `referensi.ubah`; baris per lembaga tetap disaring per baris
-                   di onCommit. */
+
                 canEdit={canManage}
                 onCommit={onCommit}
                 onSaved={reload}
-                /* Isi panel kanan sampai tepi: rasio antar kolom tetap
-                   mengikuti isi datanya (lihat `excel/lebarIsi.ts`). */
+
                 isiLebarPenuh
-                /* "+ Entri" = aksi utama halaman ini, jadi tampil langsung di bilah
-                   (tanpa menu hamburger `MenuAksiToolbar`) — sejalan dengan halaman
-                   Pengguna & Kurikulum Mapel. */
+
                 addButtonLangsung
                 addButton={canTambah ? (
                   <Button

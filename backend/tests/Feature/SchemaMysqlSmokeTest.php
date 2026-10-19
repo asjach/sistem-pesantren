@@ -70,7 +70,7 @@ class SchemaMysqlSmokeTest extends TestCase
         try {
             self::pdo(self::$kredensial)->exec('DROP DATABASE IF EXISTS `'.self::$dbSmoke.'`');
         } catch (Throwable) {
-            // Pembersihan gagal bukan kegagalan test; DB smoke boleh tertinggal.
+
         } finally {
             self::$dbSmoke = null;
             self::$kredensial = [];
@@ -89,8 +89,6 @@ class SchemaMysqlSmokeTest extends TestCase
 
         $nama = (string) env('SIMPES_SMOKE_MYSQL_DATABASE', self::NAMA_DATABASE_BAWAAAN);
 
-        // Sabuk pengaman: hanya boleh membuat/menghapus database bernama pola
-        // smoke, agar tidak mungkin menimpa database dev/production.
         if (preg_match('/^simpes_[a-z0-9_]*smoke[a-z0-9_]*$/', $nama) !== 1) {
             $this->fail("Nama database smoke `{$nama}` tidak aman (harus berpola `simpes_*smoke*`).");
         }

@@ -96,7 +96,6 @@ class TransaksiPembayaranTest extends TestCase
         $this->assertSame('sebagian', $b->fresh()->status);
         $this->assertSame(20000, $b->fresh()->terbayar);
 
-        // Satu kwitansi dipakai kedua baris.
         $this->assertSame(2, Pembayaran::where('transaksi_id', $trxId)->count());
         $this->assertSame(
             120000,
@@ -114,7 +113,7 @@ class TransaksiPembayaranTest extends TestCase
         $this->actingAs($admin)->postJson('/api/admin/keuangan/transaksi', [
             'items' => [
                 ['tagihan_id' => $a->id, 'jumlah' => 100000],
-                ['tagihan_id' => $b->id, 'jumlah' => 50001], // melebihi sisa
+                ['tagihan_id' => $b->id, 'jumlah' => 50001],
             ],
         ])->assertStatus(422);
 
@@ -195,7 +194,6 @@ class TransaksiPembayaranTest extends TestCase
         $this->assertSame(20000, $b->fresh()->terbayar);
         $this->assertSame(20000, (int) TransaksiPembayaran::find($trxId)->total);
 
-        // Hapus baris terakhir: header ikut terhapus.
         $barisB = Pembayaran::where('transaksi_id', $trxId)->first();
         $this->actingAs($admin)->deleteJson("/api/admin/keuangan/pembayaran/{$barisB->id}")->assertStatus(200);
         $this->assertNull(TransaksiPembayaran::find($trxId));
@@ -231,11 +229,9 @@ class TransaksiPembayaranTest extends TestCase
             ->assertJsonPath('data.0.total', 120000)
             ->json();
 
-        // Rekap merinci baris-baris header per jenis tagihan.
         $this->assertSame(2, count($harian['rekap']));
         $this->assertSame(120000, collect($harian['rekap'])->sum('total'));
 
-        // Transaksi kedua (satu baris) tampil sebagai header kedua.
         $this->actingAs($admin)->postJson('/api/admin/keuangan/transaksi', [
             'items' => [['tagihan_id' => $b->id, 'jumlah' => 30000]],
         ])->assertStatus(201);

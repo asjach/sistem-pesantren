@@ -24,12 +24,6 @@ import type {
 } from '@/api/keuangan';
 import type { Santri } from '@/api/santri';
 
-/* Isi tiap tab halaman Keuangan.
- *
- * Semua state tetap dipegang halaman (bukan di dalam komponen tab) supaya
- * pencarian/urutan/pilihan tidak hilang saat berpindah tab — Radix melepas
- * isi tab yang tidak aktif. Komponen di sini murni menerima data + handler. */
-
 /** Penanda pilihan "Semua (global)" di baris input tabel Jenis: jenjang
  *  `null` tak bisa diwakili pilihan kosong sebab kolomnya `required`. */
 export const JENIS_GLOBAL = '__global';
@@ -52,18 +46,17 @@ export const FIELDS_JENIS: ExcelField[] = [
       { value: 'bulanan', label: 'Bulanan' },
       { value: 'non_bulanan', label: 'Non-bulanan' },
     ],
-    // Sel yang dikosongkan (Delete) ditolak, bukan diam-diam jadi Non-bulanan.
+
     validate: (v) => (v === 'bulanan' || v === 'non_bulanan' ? null : 'Tipe harus Bulanan atau Non-bulanan.'),
   },
   { key: 'lembaga', label: 'Lembaga', width: 130, kind: 'static', inputKind: 'select', required: true },
-  // Urutan tampil KOLOM crosstab Tagihan (jenis lalu periode). Kosong = 0 →
-  // kolomnya mengikuti urutan id, jadi tampilan lama tak berubah sampai diisi.
+
   {
     key: 'urutan', label: 'Urutan', width: 80, kind: 'text', maxLength: 5,
     validate: (v) => ((v ?? '').trim() === '' || /^\d+$/.test((v ?? '').trim())
       ? null : 'Urutan harus angka bulat ≥ 0.'),
   },
-  // Switch status tersimpan langsung (tanpa Mode Edit), seperti kolom is_active lain.
+
   { key: 'aktif', label: 'Status', width: 80, kind: 'toggle' },
 ];
 
@@ -89,8 +82,7 @@ export function urutanDariTeks(v: string | null | undefined, lama: number): numb
 export const FIELDS_TARIF: ExcelField[] = [
   { key: 'jenjang', label: 'Lembaga', kind: 'static', width: 90 },
   { key: 'tahun_ajaran', label: 'Tahun Ajaran', kind: 'static', width: 110 },
-  // Jenis hanya bisa diisi di baris input (mode Input); pilihannya disuntik
-  // TarifTab dari daftar jenis yang berlaku untuk lembaga filter.
+
   { key: 'jenis', label: 'Jenis', kind: 'static', inputKind: 'select', required: true },
   {
     key: 'nominal', label: 'Nominal', width: 110, kind: 'text', maxLength: 15, required: true,
@@ -98,8 +90,7 @@ export const FIELDS_TARIF: ExcelField[] = [
       ? 'Nominal wajib diisi.'
       : (nominalDariTeks(v) === null ? 'Nominal harus angka bulat ≥ 0.' : null)),
   },
-  // Switch status tersimpan langsung (tanpa Mode Edit) seperti kolom is_active
-  // lain; gerbang izinnya mengikuti `canEdit` tabel.
+
   { key: 'aktif', label: 'Aktif', kind: 'toggle', width: 70 },
 ];
 
@@ -183,7 +174,7 @@ export function nilaiGridJenis(j: JenisTagihan): Record<string, string | null> {
     keterangan: j.keterangan,
     tipe: j.tipe,
     lembaga: j.jenjang ?? 'Semua',
-    // 0 = belum diatur → sel dibiarkan kosong (bukan "0" yang ramai).
+
     urutan: j.urutan === 0 ? null : String(j.urutan),
     aktif: j.is_active ? 'ya' : 'tidak',
   };
@@ -198,7 +189,7 @@ export function payloadUbahJenis(baris: JenisTagihan, f: Record<string, string |
   const nama = f.nama !== undefined ? (f.nama ?? '').trim() : baris.nama;
   const keterangan = f.keterangan !== undefined ? (f.keterangan ?? '').trim() : (baris.keterangan ?? '');
   return {
-    // Validator sudah menolak nama kosong; ini jaring pengaman terakhir.
+
     nama: nama === '' ? baris.nama : nama,
     tipe: f.tipe !== undefined ? (f.tipe === 'bulanan' ? 'bulanan' : 'non_bulanan') : baris.tipe,
     is_active: f.aktif !== undefined ? f.aktif === 'ya' : baris.is_active,
@@ -538,7 +529,7 @@ export function KartuDispensasiTerpilih({ d, jumlahPenerima }: {
 
   return (
     <Card id="kartu_dispensasi_terpilih" className="shrink-0 gap-0 p-0 text-xs">
-      {/* Kepala: identitas paket + status; jumlah penerima menempel kanan. */}
+
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-2.5 py-1.5">
         <span id="kartu_dispensasi_nama" className="min-w-0 truncate text-xs font-semibold" title={d.nama}>
           {d.nama}
@@ -558,7 +549,6 @@ export function KartuDispensasiTerpilih({ d, jumlahPenerima }: {
         </span>
       </div>
 
-      {/* Isi: label–nilai sejajar kolom (lebar label = label terpanjang). */}
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-0.5 px-2.5 py-1.5">
         {baris('Tahun ajaran', d.tahun_ajaran, 'kartu_dispensasi_ta')}
         {baris('Jenjang', d.jenjang ?? 'Semua lembaga', 'kartu_dispensasi_jenjang', d.jenjang == null)}
@@ -572,7 +562,6 @@ export function KartuDispensasiTerpilih({ d, jumlahPenerima }: {
         {baris('Keterangan', d.keterangan ?? '—', 'kartu_dispensasi_keterangan', d.keterangan == null, d.keterangan ?? undefined)}
       </dl>
 
-      {/* Aturan potongan: satu baris sendiri agar chip bisa membungkus bebas. */}
       <div className="flex flex-wrap items-center gap-1 border-t px-2.5 py-1.5">
         <span className="text-muted-foreground">Aturan</span>
         {aturan.length === 0 ? (
@@ -746,10 +735,7 @@ export function TagihanTab({
   };
   popover?: ReactNode;
 }) {
-  /* Tak ada bilah pilihan maupun popover aksi batch: seleksi sel hanya untuk
-     menyorot/menandai, dan seluruh aksi per tagihan dibuka dari KLIK KANAN
-     pada sel (atau Enter saat sel disorot). `onPilih` dibungkus ref agar
-     identitasnya stabil — prop langsung akan merusak memo crosstab. */
+
   const onPilihRef = useRef(onPilih);
   onPilihRef.current = onPilih;
   const pilihSelStabil = useCallback((sel: CrosstabSel, meta: MetaSel, anchor: HTMLElement, kolom: CrosstabKolom) => {
@@ -758,16 +744,12 @@ export function TagihanTab({
 
   return (
     <>
-      {/* Pencarian pindah ke topBar (satu slot per halaman; tab nonaktif
-          di-unmount Radix sehingga tak bentrok dengan tab Santri Custom).
-          State + debounce tetap milik halaman via `cari`/`onCari`. */}
+
       <TopBarSearch value={cari} onChange={onCari} placeholder="Cari nama / ayah / ibu…" />
-      {/* Bilah alat tagihan: urut | filter | aksi. */}
+
       <div className="border bg-[var(--sidebar)] p-1 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Petunjuk pakai + legenda warna pindah ke hovercard. Keduanya
-              hanya dibaca saat belajar memakai crosstab; sebagai baris tersendiri
-              keduanya memakan tinggi card tanpa menambah arti. */}
+
           <HoverCard openDelay={200} closeDelay={80}>
             <HoverCardTrigger asChild>
               <Button
@@ -785,9 +767,7 @@ export function TagihanTab({
               <p>
                 Klik kiri untuk memilih sel ala Excel (satu sel, tahan-geser untuk blok, Ctrl+Klik untuk menambah/melepas sel satu per satu, Shift+Klik / Shift+panah untuk blok persegi panjang). Aksi batch dibuka dari chip jumlah tagihan di bilah pilihan. Klik kanan membuka aksi per tagihan; klik sel kosong untuk tambah tagihan.
               </p>
-              {/* Legenda warna sel. "Sebagian" sempat hilang: sel kuning muncul
-                  tanpa keterangan sama sekali, jadi terlihat seperti warna acak.
-                  Pucat = belum lewat jatuh tempo, pekat = sudah lewat. */}
+
               <div className="space-y-1.5 border-t pt-2">
                 <p className="font-medium text-foreground">Arti warna sel</p>
                 <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5">
@@ -810,7 +790,7 @@ export function TagihanTab({
             onUrut={sort.terapkan}
             wrapperClassName="flex-row items-center gap-1.5"
           />
-          {/* Status tepat di sebelah Urutkan (satu grup filter baris). */}
+
           <LabeledCombobox label="Status" htmlFor="sel_tagihan_keaktifan" tinggi={26} lebarKombo={120} kelolaLebar={false}>
             <ComboboxRoot
               items={OPSI_KEAKTIFAN}
@@ -845,10 +825,6 @@ export function TagihanTab({
           <Button id="btn_gen_buka" size="sm" className="gap-1.5 px-3 text-xs font-medium" onClick={onBukaGenerate}><Plus size={14} /> Tagihan</Button>
         </div>
       </div>
-
-      {/* Rail filter tingkat & kelas di kiri crosstab — pola yang sama seperti
-          tabel Santri (lihat `ExcelTable` berprop `rail`). Bilah alat tetap
-          penuh lebar di atas, rail hanya membagi ruang tabel. */}
 
       <div className="flex min-h-0 flex-1">
         <FilterRail />

@@ -41,8 +41,6 @@ class PenerimaanServiceTest extends TestCase
         return TahunAjaran::create(['nama' => $nama, 'tanggal_mulai' => $mulai]);
     }
 
-    // ---------- pastikanKeanggotaan ----------
-
     public function test_pastikan_keanggotaan_membuat_baris_aktif_baru(): void
     {
         $s = $this->santri();
@@ -75,7 +73,6 @@ class PenerimaanServiceTest extends TestCase
             'tgl_masuk' => '2026-09-09', 'no_urut' => '9', 'tingkat_masuk' => '1',
         ]);
 
-        // tgl_masuk & no_urut lama dipertahankan; yang kosong diisi.
         $this->assertSame('2025-01-01', $baris->tgl_masuk?->format('Y-m-d'));
         $this->assertSame('7', (string) $baris->no_urut);
         $this->assertSame('1', $baris->tingkat_masuk);
@@ -135,8 +132,6 @@ class PenerimaanServiceTest extends TestCase
 
         $this->assertNull($baris->nis_lokal);
     }
-
-    // ---------- terima ----------
 
     public function test_terima_membuat_riwayat_perdana_dan_keanggotaan(): void
     {
@@ -205,8 +200,6 @@ class PenerimaanServiceTest extends TestCase
         $this->assertSame('3', $riwayat->tingkat);
     }
 
-    // ---------- tahunAjaranBerikut ----------
-
     public function test_tahun_ajaran_berikut_memilih_yang_terdekat_setelahnya(): void
     {
         $this->ta('2025/2026', '2025-07-01');
@@ -241,8 +234,6 @@ class PenerimaanServiceTest extends TestCase
 
         $berikut = $this->svc->tahunAjaranBerikut('MI', $lama);
 
-        // Yang dikunci: tanpa tanggal_mulai, filter perbandingan dilewati
-        // sehingga kandidat tetap ada (bukan null karena tanggalnya kosong).
         $this->assertNotNull($berikut);
         $this->assertContains($berikut->nama, ['2026/2027', '2027/2028']);
     }

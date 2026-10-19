@@ -48,9 +48,6 @@ describe('appendQueryParam — nilai array', () => {
     expect(p.getAll('status[]')).toEqual(['baru', 'aktif']);
   });
 
-  /* Tipe `ScalarOrArray<T>` melarang null/undefined DI DALAM array (hanya
-     `T`). Pertahanan `item == null` tetap ada untuk pemanggil JS/tak bertipe,
-     jadi dikunci lewat cast - bukan dengan melonggarkan tipe produksinya. */
   it('item null/kosong dibuang, sisanya tetap masuk', () => {
     const p = q();
     appendQueryParam(p, 'jenjang', ['MI', '', 'MD', null, undefined] as never);

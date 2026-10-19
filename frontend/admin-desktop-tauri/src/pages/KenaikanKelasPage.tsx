@@ -524,7 +524,7 @@ function PanelDaftar({
   arahUrut?: 'naik' | 'turun';
   onUrut?: (nilai: string[], arah: 'naik' | 'turun', arahKolom?: PetaArahKolom) => void;
 }) {
-  // Memoized: ExcelTable membersihkan seleksi tiap `rows` berubah identitas.
+
   const rows = useMemo(() => baris.map((b) => ({ ...b, id: b.santri_id })), [baris]);
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col">

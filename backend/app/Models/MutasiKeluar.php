@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// 102 Fase A: arsip keluar per-lembaga (paket: 1 jenjang keluar, lainnya jalan terus).
-// Ditulis hanya via SiklusSantriService::prosesMutasiPerLembaga.
 class MutasiKeluar extends Model
 {
     protected $table = 'mutasi_keluar';
@@ -31,8 +29,6 @@ class MutasiKeluar extends Model
         return $this->belongsTo(Kelas::class, 'kelas_terakhir_id');
     }
 
-    // Tenant lembaga se-pesantren (pola Kelas): super_admin/admin full semua;
-    // guru/orang_tua/santri kosong; lainnya via pivot user_lembaga.
     public function scopeTenantScope(Builder $query): Builder
     {
         $user = auth()->user();

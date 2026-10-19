@@ -18,8 +18,7 @@ class SinkronIzinTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        // Peran dulu (tanpa izin), lalu izin DISINKRONKAN `PermissionSeeder` -
-        // seeder itulah yang memanggil `SinkronIzin`, bukan RoleSeeder.
+
         $this->seed(RoleSeeder::class);
         $this->seed(PermissionSeeder::class);
     }
@@ -66,7 +65,7 @@ class SinkronIzinTest extends TestCase
 
     public function test_terapkan_bawaan_memberi_izin_ke_peran_yang_berhak(): void
     {
-        // Hapus beberapa izin dulu agar ada yang benar-benar perlu diberikan.
+
         Permission::whereIn('name', array_slice(IzinKatalog::semua(), 0, 3))->delete();
         $baru = SinkronIzin::buatIzinHilang();
         $this->assertNotEmpty($baru);
@@ -98,11 +97,9 @@ class SinkronIzinTest extends TestCase
         $dicabut = 'santri.lihat';
         $this->assertTrue($santri->hasPermissionTo($dicabut));
 
-        // Admin memangkas izin ini dari peran.
         $santri->revokePermissionTo($dicabut);
         $this->assertFalse($santri->fresh()->hasPermissionTo($dicabut));
 
-        // Sinkron ulang TIDAK boleh mengembalikannya selama izinnya sudah ada di DB.
         $baru = SinkronIzin::jalankan();
         $this->assertSame([], $baru, 'izin sudah ada, jadi tak ada yang baru');
         $this->assertFalse(
@@ -118,7 +115,7 @@ class SinkronIzinTest extends TestCase
 
         $baru = SinkronIzin::jalankan();
         $this->assertContains($korban, $baru);
-        // Semuanya nama izin yang memang ada di katalog.
+
         foreach ($baru as $nama) {
             $this->assertContains($nama, IzinKatalog::semua());
         }

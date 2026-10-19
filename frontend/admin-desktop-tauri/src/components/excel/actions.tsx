@@ -78,7 +78,7 @@ export function metaAksi(el: ReactElement): AksiMenu {
   if (el.type === ViewAction) return { label: 'Lihat', icon: <Eye size={16} />, onClick: p.onClick };
   if (el.type === SetAktifAction) return { label: 'Set aktif', icon: <Check size={16} />, onClick: p.onClick };
   const title = typeof p.title === 'string' ? p.title.replace(/\?$/, '') : (typeof p.tip === 'string' ? p.tip : 'Aksi');
-  // Pembungkus konfirmasi umum (mis. ConfirmDelete): teruskan ke dialog konfirmasi menu.
+
   if (typeof p.onConfirm === 'function') {
     return {
       label: title,
@@ -107,9 +107,7 @@ export function ActionsCell({ rowData, columnData }: CellProps<GridRow, ActionsC
   };
 
   if (columnData.ringkas) {
-    // Tabel berkapasitas > 3 aksi: selalu hamburger agar konsisten, walau baris
-    // ini sendiri beraksi ≤ 3. Baris tanpa aksi tidak menampilkan apa pun
-    // (fragment kosong: tipe component kolom DSG menolak null).
+
     if (aksi.length === 0) return <></>;
   } else if (aksi.length <= 3) {
     return (
@@ -124,8 +122,7 @@ export function ActionsCell({ rowData, columnData }: CellProps<GridRow, ActionsC
   return (
     <div className="simpes-dsg-actions flex h-full flex-1 items-center justify-end gap-0.5" {...stop}>
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        {/* Rantai asChild ganda (menu→tooltip→button) agar pemicu hamburger
-            tetap satu elemen sekaligus ber-tooltip shadcn. */}
+
         <Tooltip>
           <DropdownMenuTrigger asChild>
             <TooltipTrigger asChild>

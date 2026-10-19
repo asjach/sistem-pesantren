@@ -40,7 +40,6 @@ class ImporPotonganUji extends ImporPotongan
         $this->valid++;
     }
 
-    // --- jembatan ke helper protected ---
     public function pTeks(array $b, string $k): ?string
     {
         return $this->teks($b, $k);
@@ -77,8 +76,6 @@ class ImporPotonganTest extends TestCase
         return $u;
     }
 
-    // ---------- ringkasan ----------
-
     public function test_ringkasan_menghitung_baris_diproses(): void
     {
         $u = $this->uji();
@@ -90,7 +87,7 @@ class ImporPotonganTest extends TestCase
         $u->pFail(4, 'nama', 'kosong');
 
         $this->assertSame([
-            'baris_diproses' => 7, // valid + gagal
+            'baris_diproses' => 7,
             'baris_valid' => 5,
             'baris_gagal' => 2,
             'dibuat' => 3,
@@ -107,14 +104,11 @@ class ImporPotonganTest extends TestCase
         ], $this->uji()->ringkasan());
     }
 
-    // ---------- prosesPotongan: penomoran ----------
-
     public function test_proses_potongan_memberi_nomor_absolut(): void
     {
         $u = $this->uji();
         $u->prosesPotongan([['nis' => 'a'], ['nis' => 'b']], 10, true);
 
-        // nomorAwal 10 = data pertama ada di baris file ke-11 (baris 10 = heading).
         $this->assertSame([11, 12], array_column($u->rekaman, 'no'));
     }
 
@@ -143,8 +137,6 @@ class ImporPotonganTest extends TestCase
         $this->assertSame([], $u->rekaman[0]['baris']);
     }
 
-    // ---------- prosesPotongan: mode kering ----------
-
     public function test_mode_kering_tidak_membuka_transaksi(): void
     {
         $u = $this->uji();
@@ -162,7 +154,7 @@ class ImporPotonganTest extends TestCase
             $u->prosesPotongan([['nis' => 'a'], ['nis' => 'b']], 0, true);
             $this->fail('exception seharusnya dilempar di mode kering');
         } catch (\RuntimeException $e) {
-            // Mode kering: baris pertama TETAP tercatat (tak ada rollback).
+
             $this->assertCount(1, $u->rekaman);
             $this->assertSame(1, $u->rekaman[0]['no']);
         }
@@ -178,7 +170,7 @@ class ImporPotonganTest extends TestCase
         try {
             $u->prosesPotongan([['nis' => 'a'], ['nis' => 'b']], 0, false);
         } finally {
-            // Nomor transaksi tak pernah naik -> tak ada transaksi menggantung.
+
             $this->assertSame(0, DB::transactionLevel());
         }
     }

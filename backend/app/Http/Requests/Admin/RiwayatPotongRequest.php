@@ -21,8 +21,7 @@ class RiwayatPotongRequest extends FormRequest
             'baris' => ['required', 'array', 'min:1', 'max:1000'],
             'baris.*' => ['array'],
             'terakhir' => ['sometimes', 'boolean'],
-            // Mode gabungan: buatkan keanggotaan bila santri belum punya
-            // (cocok via santri_id / nama unik bila NIS tak terdaftar).
+
             'buat_keanggotaan' => ['sometimes', 'boolean'],
         ];
     }

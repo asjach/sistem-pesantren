@@ -25,10 +25,10 @@ const KUNCI_TERSEMBUNYI_TUTUP = 'simpes_kelola_tabel_tersembunyi_tutup';
 function bacaTersembunyiTutup(): boolean {
   try {
     const mentah = localStorage.getItem(KUNCI_TERSEMBUNYI_TUTUP);
-    // Belum pernah diubah = TERTUTUP (bawaan). Hanya '0' yang membukanya.
+
     return mentah === null ? true : mentah !== '0';
   } catch {
-    // Penyimpanan tak terbaca: pakai bawaan TERTUTUP.
+
     return true;
   }
 }
@@ -37,7 +37,7 @@ function simpanTersembunyiTutup(tutup: boolean) {
   try {
     localStorage.setItem(KUNCI_TERSEMBUNYI_TUTUP, tutup ? '1' : '0');
   } catch {
-    /* penyimpanan penuh/terkunci: status lipat tak persist */
+
   }
 }
 
@@ -129,7 +129,7 @@ export default function TabKolom({
    *  ke `preset_tabel.kolom`). Preset berbeda boleh punya urutan berbeda. */
   const [kolom, setKolom] = useState<string[]>(() => {
     if (presetAwal) return presetAwal.kolom.filter((k) => fieldKeys.has(k));
-    // Lengkap kustom dari server: pakai susunannya, bukan semua kolom.
+
     if (kolomAwal && kolomAwal.length > 0) return kolomAwal.filter((k) => fieldKeys.has(k));
     return mulaiLengkap ? [...fieldKeys] : [];
   });
@@ -184,7 +184,7 @@ export default function TabKolom({
     });
   }
   const [, setBusy] = useState(false);
-  /* Default TERTUTUP; pilihan terakhir diingat (lihat bacaTersembunyiTutup). */
+
   const [tersembunyiTutup, setTersembunyiTutup] = useState(bacaTersembunyiTutup);
   const laporKotor = useBagian('kolom', () => simpanPreset());
   /** Acuan "tersimpan" untuk mendeteksi perubahan belum disimpan. */
@@ -301,10 +301,7 @@ export default function TabKolom({
       toast.error('Pilih minimal satu kolom.');
       return false;
     }
-    /* Label & perataan kini milik TABEL (`toolbar_preset.label`/`.align`),
-       BUKAN preset: preset hanya menyimpan kolom mana yang tampil. Karena itu
-       keduanya disimpan sekali di sini, terlepas dari preset yang dipakai -
-       dan preset yang dibuat TIDAK mengirim label lagi. */
+
     const labelSimpan = bersihLabel(label, fieldKeys);
     const alignSimpan: AlignKolomApi = {};
     for (const [k, v] of Object.entries(align)) {
@@ -331,16 +328,12 @@ export default function TabKolom({
         return false;
       }
     };
-    /* Jalur cepat: bila yang berubah HANYA nama/perataan (susunan preset &
-       namanya tidak), jangan sentuh preset sama sekali. Menulis preset di
-       sini akan memanggil `onTersimpan` -> `muat()` -> remount baris, dan
-       karena autosave jalan tiap ketikan, huruf berikutnya hilang. Ini juga
-       menghindari banyak permintaan PUT yang tak perlu tiap ketikan. */
+
     if (!kotorPreset()) {
       return simpanSetelanTabel();
     }
     if (!nama.trim()) {
-      // Mode Lengkap tanpa nama: terapkan langsung ke tabel, tanpa membuat preset.
+
       if (modeLengkap) {
         onPakaiLengkap(kolom, {});
         const okSetelan = await simpanSetelanTabel();
@@ -370,8 +363,7 @@ export default function TabKolom({
       if (!saved) {
         throw new Error('Preset gagal disimpan.');
       }
-      // Setelan per tabel (label + perataan) disimpan terpisah dari preset:
-      // preset hanya menentukan kolom mana yang TAMPIL.
+
       if (!(await simpanSetelanTabel())) return false;
       toast.success(pesan);
       setEditId(saved.id);
@@ -419,11 +411,7 @@ export default function TabKolom({
       <div
         key={f.key}
         onClick={() => togolKolom(f.key, !tampil)}
-        /* Baris sekaligus sakelar tampil/sembunyi: role="button" +
-           tabIndex + Enter/Space memakai tombol bawaan (sudah punya nama
-           dari isi baris), bukan span perantara tambahan. Keydown hanya
-           berlaku saat fokus di barisnya sendiri — kontrol di dalam (kotak
-           nama, centang, tombol) sudah menangani tombolnya sendiri. */
+
         role="button"
         tabIndex={0}
         aria-pressed={tampil}
@@ -434,29 +422,19 @@ export default function TabKolom({
             togolKolom(f.key, !tampil);
           }
         }}
-        /* SELURUH baris yang diseret, bukan hanya ikon handle: drag image
-           bawaan browser mengangkat elemen `draggable`, jadi menaruh atribut
-           itu di baris membuat barisnya sendiri yang terangkat - bukan ikon
-           20px. Urutannya jadi terbaca sambil diseret, bukan sesudah jatuh. */
+
         draggable={tampil}
         onDragStart={tampil ? (e) => {
-          /* Kontrol di dalam baris (kotak nama, centang, tombol perataan)
-             TIDAK boleh memicu seret: menyeret untuk menyeleksi teks di kotak
-             nama akan mengangkat barisnya, dan menekan tombol pun bisa
-             dianggap awal seret. Hanya area baris sendiri yang memulai. */
+
           if (e.target instanceof HTMLElement && e.target.closest('input,button,label,[role=checkbox]')) {
             e.preventDefault();
             return;
           }
           seretRef.current = f.key;
           e.dataTransfer.effectAllowed = 'move';
-          /* Firefox butuh setData agar seret benar-benar dimulai. */
+
           e.dataTransfer.setData('text/plain', f.key);
-          /* Drag image bawaan browser memakai elemen apa adanya; pada baris
-             selebar panel ia tampak wajar, tapi di baris yang melar (mis.
-             karena teks panjang) bisa terpotong. Ukur elemennya sekali dan
-             buat ghost eksplisit supaya bentuknya selalu sama dengan baris
-             yang sedang diseret. */
+
           const baris = e.currentTarget;
           const lebar = baris.getBoundingClientRect().width;
           const ghost = baris.cloneNode(true) as HTMLElement;
@@ -469,9 +447,7 @@ export default function TabKolom({
           ghost.style.pointerEvents = 'none';
           document.body.appendChild(ghost);
           e.dataTransfer.setDragImage(ghost, 12, 12);
-          /* Baris ghost harus dilepas SETELAH browser sempat memotretnya;
-             menghapusnya langsung membuat drag image kosong di sebagian
-             peramban. */
+
           requestAnimationFrame(() => ghost.remove());
         } : undefined}
         onDragOver={tampil ? (e) => { e.preventDefault(); setTujuanSeret(f.key); } : undefined}
@@ -488,10 +464,7 @@ export default function TabKolom({
       >
         {tampil && indeks !== null ? (
           <>
-            {/* Penanda urutan + jalur KEYBOARD. Bukan lagi `draggable` -
-               barisnya sendiri yang diseret (lihat div pembungkus), jadi
-               ikon ini hanya menandai "di sini tempat memegangnya" dan
-               menyediakan naik/turun lewat panah/WASD. */}
+
             <span
               role="button"
               tabIndex={0}
@@ -532,11 +505,7 @@ export default function TabKolom({
         >
           {teks}
         </span>
-        {/* Nama & perataan tersedia untuk kolom TAMPIL MAUPUN TERSEMBUNYI:
-            keduanya setelan per tabel yang wajar disiapkan sebelum kolomnya
-            ditampilkan. Baris tersembunyi punya ruang itu menganggur, jadi
-            menampilkannya justru menyejajarkan kedua grup. Kontrol di sini
-            menahan klik agar tidak menogol tampil/sembunyi (klik baris). */}
+
         <Input
           id={`input_nama_tampilan_${tableKey}_${f.key}`}
           value={label[f.key] ?? ''}
@@ -554,8 +523,7 @@ export default function TabKolom({
           variant="ghost"
           id={`btn_align_tampilan_${tableKey}_${f.key}`}
           aria-label={`Perataan ${teks}: ${teksAlign} — klik untuk ganti`}
-          /* Jangan teruskan ke baris: klik baris = togol tampil/sembunyi, jadi
-             tanpa ini menekan tombol perataan malah menogol kolomnya. */
+
           onClick={(e) => {
             e.stopPropagation();
             sikulAlign(f.key);
@@ -594,7 +562,7 @@ export default function TabKolom({
       onSubmit={simpan}
       className="flex flex-col gap-2"
     >
-      {/* Bar preset: pilih preset aktif, tambah, ubah nama, hapus. */}
+
       <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-2 py-1.5">
         <span className="shrink-0 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
           Preset
@@ -631,9 +599,7 @@ export default function TabKolom({
           <div className="flex min-w-44 flex-[2] items-center gap-1">
             <Input
               id={`input_nama_preset_${tableKey}`}
-              /* autoFocus DISENGAJA: mode "ubah nama" dibuka lewat aksi
-                 sadar pengguna (klik nama preset), dan satu-satunya langkah
-                 berikutnya adalah menulis — fokus langsung ke kotak nama. */
+
               /* eslint-disable-next-line jsx-a11y/no-autofocus */
               autoFocus
               value={nama}
@@ -721,8 +687,6 @@ export default function TabKolom({
         ) : null}
       </div>
 
-      {/* Dua grup: tampil (berurut) dan tersembunyi. Header grup menempel di
-          atas area gulir dialog agar konteks tetap terlihat. */}
       <div className="rounded-md border">
         {barisKolom.tampil.length === 0 && barisKolom.sembunyi.length === 0 ? (
           <p className="px-3 py-4 text-xs text-muted-foreground">Belum ada kolom.</p>
@@ -746,8 +710,7 @@ export default function TabKolom({
                   simpanTersembunyiTutup(!buka);
                 }}
               >
-                {/* Pemicu lipat = header grupnya sendiri, supaya tak ada
-                    baris tambahan yang memakan ruang. */}
+
                 <CollapsibleTrigger
                   id={`btn_lipat_tersembunyi_${tableKey}`}
                   className="sticky top-0 z-10 flex w-full items-center justify-between gap-2 border-b bg-card/95 px-2 py-1 text-left backdrop-blur-sm hover:bg-accent/30"

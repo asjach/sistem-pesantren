@@ -140,9 +140,7 @@ export default function Menubar() {
         SIMPES
       </span>
       {NAV_GRUP.map((g) => {
-        // Entri berurutan: submenu subgrup & halaman langsung pada posisi
-        // bloknya (`blokGrup`), mis. PSB → Daftar Kelas/Rekap Santri →
-        // Identitas (boleh bersarang, mis. Antrean).
+
         const entri: ({ sub: NodeMenu } | { hal: HalamanDef })[] = [];
         for (const b of blokGrup(g.id)) {
           if (Array.isArray(b)) {
@@ -179,9 +177,7 @@ export default function Menubar() {
           </DropdownMenu>
         );
       })}
-      {/* Menu Tampilan: padanan menu akun di TopBar, supaya setelan tampilan
-          (tema/ikon/warna/navigasi/sudut/kerapatan) tetap terjangkau saat
-          mode navigasi menubar aktif. */}
+
       <DropdownMenu key="tampilan">
         <DropdownMenuTrigger
           id="menu_tampilan"

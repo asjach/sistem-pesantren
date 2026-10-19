@@ -76,16 +76,14 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
   const hHeader = typeof headerRowHeight === 'number' ? headerRowHeight : 0;
   return (
     <div className="dsg">
-      {/* Baris header */}
+
       <div className="dsg-row dsg-row-header">
         <div className="dsg-cell dsg-cell-gutter" />
         {semua.map((k, i) => (
           <div key={`h${i}`}>{renderKolom(k, null)}</div>
         ))}
       </div>
-      {/* Baris data: `top` meniru virtualizer DSG (paddingStart = tinggi
-          header) dan sel gutter memuat nomor baris (rowIndex+1) — keduanya
-          dipakai ExcelTable saat klik kanan. */}
+
       {value.map((row, i) => (
         <div
           key={String(row.id)}

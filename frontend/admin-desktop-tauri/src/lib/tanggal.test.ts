@@ -56,7 +56,7 @@ describe('rakitIso', () => {
   });
 
   it('menolak tanggal yang tak ada di kalender', () => {
-    expect(rakitIso(2026, 2, 29)).toBeNull(); // 2026 bukan kabisat
+    expect(rakitIso(2026, 2, 29)).toBeNull();
     expect(rakitIso(2024, 2, 29)).toBe('2024-02-29');
     expect(rakitIso(2026, 4, 31)).toBeNull();
     expect(rakitIso(2026, 0, 1)).toBeNull();
@@ -75,9 +75,9 @@ describe('jumlahHari', () => {
 
 describe('hariPertamaBulan', () => {
   it('memberi indeks hari minggu (0 = Minggu) tanggal 1', () => {
-    // 12 Oktober 2026 = Senin → tanggal 1 = Kamis (4).
+
     expect(hariPertamaBulan(2026, 10)).toBe(4);
-    // 1 Maret 2026 = Minggu.
+
     expect(hariPertamaBulan(2026, 3)).toBe(0);
   });
 });
@@ -169,8 +169,7 @@ describe('formatTanggalPola', () => {
     expect(f.tampil('2026-10-12')).toBe('2026-10-12');
     expect(f.nilai('2026-10-12')).toBe('2026-10-12');
     expect(f.ketik('20261012')).toBe('2026-10-12');
-    /* Ketikan yang baru sampai hari ("2026-10-1") BELUM jadi nilai supaya digit
-       berikutnya masih bisa masuk membentuk hari 12 — bukan terkunci jadi 01. */
+
     expect(f.ketik('2026101')).toBe('2026-10-1');
     expect(f.nilai('2026-10-1')).toBe('');
     expect(f.nilai(`${f.ketik('2026101')}2`)).toBe('2026-10-12');
@@ -186,9 +185,9 @@ describe('formatTanggalPola', () => {
     const f = formatTanggalPola('dd Mmm yyyy');
     expect(f.tampil('2026-10-12')).toBe('12 Okt 2026');
     expect(f.nilai('12 Okt 2026')).toBe('2026-10-12');
-    expect(f.nilai('12 okt 2026')).toBe('2026-10-12'); // tak peduli huruf besar-kecil
+    expect(f.nilai('12 okt 2026')).toBe('2026-10-12');
     expect(f.ketik('12okt2026')).toBe('12 Okt 2026');
-    // Bulan yang tak ada → kosong & ditandai (bukan nilai asal-asalan).
+
     expect(f.nilai('12 Xyz 2026')).toBe('');
     expect(f.takSah('12 Xyz 2026')).toBe(true);
     expect(f.takSah('12 Okt 2026')).toBe(false);
@@ -244,7 +243,7 @@ describe('kotak bulan: teks `mm/yyyy` ⇄ nilai `YYYY-MM`', () => {
     expect(maskBulan('102026')).toBe('10/2026');
     expect(maskBulan('2026-10')).toBe('10/2026');
     expect(maskBulan('2026-10-12')).toBe('10/2026');
-    // Idempoten & dipotong setelah 6 digit (mm + yyyy).
+
     expect(maskBulan('10/2026')).toBe('10/2026');
     expect(maskBulan('1234567')).toBe('12/3456');
   });
@@ -256,13 +255,13 @@ describe('kotak bulan — ketikan cepat nama bulan', () => {
     expect(maskBulan('okt')).toBe('Okt');
     expect(maskBulan('OKT')).toBe('Okt');
     expect(maskBulan('oktober')).toBe('Oktober');
-    // Tahun menempel di belakang nama, sampai 4 digit (tak terpotong di 2).
+
     expect(maskBulan('okt26')).toBe('Okt 26');
     expect(maskBulan('okt 2026')).toBe('Okt 2026');
     expect(maskBulan('okt202')).toBe('Okt 202');
     expect(maskBulan('okt2026')).toBe('Okt 2026');
     expect(maskBulan('okt20261')).toBe('Okt 2026');
-    // Tempelan tanggal ber-nama bulan dari dokumen.
+
     expect(maskBulan('12 Okt 2026')).toBe('Okt 2026');
     expect(maskBulan('1-sep-2025')).toBe('Sep 2025');
   });
@@ -285,13 +284,13 @@ describe('kotak bulan — ketikan cepat nama bulan', () => {
 
   it('nama bulan tak dikenal / belum penuh → kosong, tapi tetap dinilai lengkap', () => {
     expect(bulanDariTampilan('Xyz 2026')).toBe('');
-    // Minimal tiga huruf: semua nama bulan Indonesia beda sejak huruf ketiga.
+
     expect(bulanDariTampilan('ju 2026')).toBe('');
-    // Tahun harus 2 atau 4 digit — "okt 2" bukan nilai yang setengah jadi.
+
     expect(bulanDariTampilan('okt 2')).toBe('');
     expect(bulanDariTampilan('okt 202')).toBe('');
     expect(bulanLengkap('okt 26')).toBe(true);
-    expect(bulanLengkap('Xyz 2026')).toBe(true); // lengkap, tapi tak sah → ditandai
+    expect(bulanLengkap('Xyz 2026')).toBe(true);
     expect(bulanLengkap('okt 2')).toBe(false);
     expect(bulanLengkap('okt')).toBe(false);
   });

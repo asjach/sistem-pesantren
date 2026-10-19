@@ -78,7 +78,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
             'pegawai' => ['', 'PST-001', '', 'Ijazah S1', 'Sesuai arsip', 'Server', '', 'Ya'],
             'lembaga' => ['MI', 'Izin Operasional', 'Valid', 'SK Kemenag 2026'],
         };
-        // Petakan posisional sejajar kolom (kunci tak dipakai di array()).
+
         $kolom = self::kolom($this->tipe);
         $urut = match ($this->tipe) {
             'santri' => ['nis_lokal' => 0, 'jenis_dokumen' => 1, 'lembaga' => 2, 'nama_file' => 3, 'penyimpanan' => 4, 'catatan' => 5],
@@ -178,8 +178,7 @@ class DokumenTemplateExport extends DefaultValueBinder implements FromArray, Wit
             $target = Coordinate::stringFromColumnIndex($posisi + 1);
             $batas = count($nilai) + 1;
             $validasi = new DataValidation;
-            // CATAT: atribut OOXML `showDropDown` INVERTED — setShowDropDown(true)
-            // membuat panah dropdown TAMPIL di Excel.
+
             $validasi->setType(DataValidation::TYPE_LIST)
                 ->setShowDropDown(true)
                 ->setErrorStyle(DataValidation::STYLE_STOP)

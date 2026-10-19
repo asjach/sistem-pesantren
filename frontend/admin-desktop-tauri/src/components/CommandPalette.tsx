@@ -62,7 +62,6 @@ export default function CommandPalette() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Reset saat dibuka.
   useEffect(() => {
     if (open) {
       setQuery('');
@@ -74,7 +73,6 @@ export default function CommandPalette() {
     const boleh = (h: HalamanDef) =>
       izinHalaman(h).some((izin) => bisa(user, izin) && !(bertindak && TERKUNCI.has(izin)));
 
-    // Halaman (dengan izin) — kumpulkan hingga anak subgrup tingkat dua.
     const nav: Command[] = [];
     const seen = new Set<string>();
     const pushHalaman = (h: HalamanDef) => {
@@ -102,7 +100,6 @@ export default function CommandPalette() {
       }
     }
 
-    // Tampilan: tema, set ikon, kaya warna, navigasi, kerapatan, sudut.
     const tampilan: Command[] = [
       ...THEME_PRESETS.map((t) => ({
         id: `tema:${t.id}`,
@@ -199,14 +196,12 @@ export default function CommandPalette() {
     }
   }
 
-  // Gulir item aktif ke tampak.
   useEffect(() => {
     listRef.current
       ?.querySelector<HTMLElement>(`[data-cmd="${active}"]`)
       ?.scrollIntoView({ block: 'nearest' });
   }, [active, filtered]);
 
-  // Kelompokkan hasil per grup untuk tampilan berjudul.
   const groups = useMemo(() => {
     const map = new Map<string, Command[]>();
     for (const c of filtered) {

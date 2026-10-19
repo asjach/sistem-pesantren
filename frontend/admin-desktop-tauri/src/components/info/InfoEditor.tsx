@@ -20,12 +20,11 @@ function amanAtribut(teks: string): string {
 function perintahBrowser(nama: string, arg?: string): void {
   if (typeof document.execCommand !== 'function') return;
   try {
-    // `styleWithCSS` dimatikan supaya tebal/miring jadi `<b>`/`<i>`, bukan
-    // `<span style="…">` — sanitizer backend membuang seluruh `style`.
+
     document.execCommand('styleWithCSS', false, 'false');
     document.execCommand(nama, false, arg);
   } catch {
-    /* execCommand usang; peramban yang menolaknya tetap bisa mengetik biasa. */
+
   }
 }
 
@@ -95,9 +94,6 @@ export default function InfoEditor({
   const [tautanBuka, setTautanBuka] = useState(false);
   const [tautan, setTautan] = useState('');
 
-  /* Nilai dari luar (muat server / kembali ke awal) ditulis ke DOM. Saat
-     mengetik, `innerHTML` sudah sama dengan `nilai` sehingga kursor tidak
-     pernah di-reset. */
   useEffect(() => {
     const el = areaRef.current;
     if (el === null || el.innerHTML === nilai) return;
@@ -139,8 +135,7 @@ export default function InfoEditor({
     const html = e.clipboardData.getData('text/html');
     e.preventDefault();
     if (html.trim() !== '') {
-      // Buang `style`/`class`/tag asing dari sumber luar (Word, web) SEBELUM
-      // masuk editor, supaya yang terlihat sama dengan yang nanti tersimpan.
+
       perintahBrowser('insertHTML', sanitasiHtml(html));
     } else {
       perintahBrowser('insertText', e.clipboardData.getData('text/plain'));
@@ -157,8 +152,7 @@ export default function InfoEditor({
     try {
       const url = await gambarKeDataUrl(berkas);
       const potongan = `<img src="${url}" alt="${amanAtribut(berkas.name)}">`;
-      // Base64 menambah ±33%: tolak SEBELUM menyisip, jangan biarkan backend
-      // memotong HTML di tengah `data:` (gambar rusak tanpa penjelasan).
+
       if ((areaRef.current?.innerHTML.length ?? 0) + potongan.length > PANJANG_HTML_MAKS) {
         toast.error('Gambar terlalu besar: info tabel akan melebihi batas ukuran.');
         return;
@@ -183,8 +177,6 @@ export default function InfoEditor({
     setTautan('');
     if (url === '') return;
 
-    // Seleksi kosong: `createLink` tak membuat apa pun, jadi sisipkan tautan
-    // berisi URL-nya sendiri. Seleksi berisi teks: jadikan tautan.
     const pilihan = pilihanRef.current;
     if (pilihan === null || pilihan.collapsed) {
       sisip(`<a href="${amanAtribut(url)}">${amanAtribut(url)}</a>`);
@@ -194,9 +186,7 @@ export default function InfoEditor({
   }, [jalankan, sisip, tautan]);
 
   return (
-    /* `flex-1 min-h-0`: editor mengisi SELURUH sisa tinggi wadahnya (tab Info
-       panel Kelola Tabel), bukan berhenti di tinggi minimum lalu menyisakan
-       ruang kosong di bawah. Area tulisnya yang menggulir sendiri. */
+
     <div className="flex min-h-0 flex-1 flex-col rounded-md border bg-card">
       <div className="flex flex-wrap items-center gap-0.5 border-b px-1 py-1">
         <TombolFormat id={`${id}_tebal`} label="Tebal" onClick={() => jalankan('bold')}>
@@ -260,10 +250,7 @@ export default function InfoEditor({
           <Input
             id={`${id}_input_tautan`}
             value={tautan}
-            /* autoFocus DISENGAJA: bar tautan muncul karena pengguna menekan
-               tombol Tautan, dan langkah berikutnya hampir selalu menulis
-               alamat — fokus langsung ke kotak itu membuka alur kerja yang
-               dimaksud, bukan mengganggu. */
+
             /* eslint-disable-next-line jsx-a11y/no-autofocus */
             autoFocus
             placeholder="https://"

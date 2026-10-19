@@ -197,8 +197,7 @@ export default function KelulusanPage() {
         page: 1,
         per_page: 0,
       });
-      // `tingkat` dikirim sebagai gabungan semua lembaga; pastikan tiap baris
-      // tepat pada tingkat akhir lembaganya masing-masing.
+
       setKiri(res.data.filter((r) => r.tingkat !== null && r.tingkat === TINGKAT_AKHIR[r.jenjang]));
     } catch (e) { setErr(errorMessage(e)); }
   }, [siap, jenjangs, taDasar, tingkatAkhir, cari, urutKiri, arahKiri, arahKolomKiri]);

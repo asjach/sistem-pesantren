@@ -54,19 +54,16 @@ class ToolbarPresetTest extends TestCase
         $pusat = $this->makeUser('super_admin');
         $scoped = $this->makeUser('admin');
 
-        // Belum ada baris: urutan kosong (frontend memakai urutan bawaan).
         $this->actingAs($pusat, 'sanctum')
             ->getJson('/api/admin/toolbar-preset?table_key=santri')
             ->assertStatus(200)
             ->assertJsonPath('data.urutan', []);
 
-        // Admin biasa ditolak menulis urutan (403).
         $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'urutan' => ['b', 'a', 'c'],
         ])->assertStatus(403);
 
-        // Super_admin menyimpan; duplikat dibuang, urutan dipertahankan.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'urutan' => ['b', 'a', 'c', 'e', 'd', 'a'],
@@ -76,7 +73,6 @@ class ToolbarPresetTest extends TestCase
             ->assertStatus(200)
             ->assertJsonPath('data.urutan', ['b', 'a', 'c', 'e', 'd']);
 
-        // Simpan urutan saja tak menghapus setelan tabel lain yang sudah ada.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'visibilitas' => ['info' => false],
@@ -93,7 +89,6 @@ class ToolbarPresetTest extends TestCase
             ->assertJsonPath('data.align', ['nama' => 'left'])
             ->assertJsonPath('data.urutan', ['a', 'b']);
 
-        // Kunci urutan asing ditolak.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'urutan' => ['Kolom Asing!'],
@@ -113,21 +108,17 @@ class ToolbarPresetTest extends TestCase
         $pusat = $this->makeUser('super_admin');
         $scoped = $this->makeUser('admin', [$mi->jenjang]);
 
-        // Belum ada baris: visibilitas kosong (semua tampil).
         $this->actingAs($scoped, 'sanctum')
             ->getJson('/api/admin/toolbar-preset?table_key=santri')
             ->assertStatus(200)
             ->assertJsonPath('data.visibilitas', []);
 
-        // Admin lembaga ditolak menulis (403), baris tak terbentuk.
         $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'visibilitas' => ['info' => false],
         ])->assertStatus(403);
         $this->assertSame(0, ToolbarPreset::where('table_key', 'santri')->count());
 
-        // Super_admin menyimpan + membaca kembali (per kunci: urutan kunci
-        // objek JSON MySQL tak dijamin sama dengan urutan kirim).
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'visibilitas' => ['info' => false, 'kolom' => true, 'filter' => false],
@@ -139,7 +130,6 @@ class ToolbarPresetTest extends TestCase
             ->assertJsonPath('data.visibilitas.kolom', true)
             ->assertJsonPath('data.visibilitas.filter', false);
 
-        // Admin lembaga ditolak menghapus; super_admin mengembalikan bawaan.
         $this->actingAs($scoped, 'sanctum')
             ->deleteJson('/api/admin/toolbar-preset?table_key=santri')
             ->assertStatus(403);
@@ -167,8 +157,6 @@ class ToolbarPresetTest extends TestCase
             'visibilitas' => ['visibilitas_tabel' => true],
         ])->assertStatus(422)->assertJsonValidationErrors(['visibilitas']);
 
-        // Kunci `lebar` versi lama ditolak di sana: ukurannya pindah ke
-        // `komponen_custom` (lihat test_setelan_komponen_ditolak_di_endpoint_ini).
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'visibilitas' => ['info' => true],
@@ -188,15 +176,15 @@ class ToolbarPresetTest extends TestCase
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'visibilitas' => [
-                // Bilah judul.
+
                 'judul_tabel' => false, 'info_tengah' => false, 'filter' => false,
                 'cari' => false, 'keaktifan' => false, 'urutan' => false,
                 'kolom' => false, 'tombol_aksi' => false,
-                // Kepala tabel.
+
                 'header_kolom' => false, 'rel_filter' => false,
-                // Kolom tetap.
+
                 'kolom_centang' => false, 'kolom_aksi' => false,
-                // Kaki tabel.
+
                 'pager' => false, 'tombol_pengaturan' => false,
                 'tombol_tambah' => false, 'tombol_edit' => false,
             ],
@@ -227,13 +215,11 @@ class ToolbarPresetTest extends TestCase
     {
         $pusat = $this->makeUser('super_admin');
 
-        // Baris versi lama: peta berisi kunci versi pertama.
         ToolbarPreset::create([
             'table_key' => 'pegawai_lembaga',
             'visibilitas' => ['info' => true, 'urut' => true, 'kolom' => true, 'filter' => true],
         ]);
 
-        // FE merge: peta lama ikut terkirim bersama kunci baru.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'pegawai_lembaga',
             'visibilitas' => [
@@ -254,19 +240,16 @@ class ToolbarPresetTest extends TestCase
         $pusat = $this->makeUser('super_admin');
         $scoped = $this->makeUser('admin');
 
-        // Belum ada baris: align kosong (frontend memakai preferensi/bawaan).
         $this->actingAs($scoped, 'sanctum')
             ->getJson('/api/admin/toolbar-preset?table_key=santri')
             ->assertStatus(200)
             ->assertJsonPath('data.align', []);
 
-        // Admin biasa ditolak menulis align (403).
         $this->actingAs($scoped, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'align' => ['nama_lengkap' => 'left'],
         ])->assertStatus(403);
 
-        // Super_admin menyimpan + membaca kembali.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'align' => ['nama_lengkap' => 'left', 'nisn' => 'center', 'jk' => 'right'],
@@ -278,7 +261,6 @@ class ToolbarPresetTest extends TestCase
             ->assertJsonPath('data.align.nisn', 'center')
             ->assertJsonPath('data.align.jk', 'right');
 
-        // Simpan align saja tak menghapus visibilitas/lebar yang sudah ada.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'visibilitas' => ['info' => false],
@@ -293,7 +275,6 @@ class ToolbarPresetTest extends TestCase
             ->assertJsonPath('data.visibilitas', ['info' => false])
             ->assertJsonPath('data.align', ['nama_lengkap' => 'right']);
 
-        // Nilai & kunci align asing ditolak.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'align' => ['nama_lengkap' => 'justify'],
@@ -320,7 +301,6 @@ class ToolbarPresetTest extends TestCase
             $this->assertStringContainsString('komponen_custom', (string) $res->json("errors.{$kunci}.0"));
         }
 
-        // Kunci lama `urut`/`kolom` tak bisa murdering lewat jalur ini lagi.
         $res = $this->actingAs($admin, 'sanctum')->putJson('/api/admin/toolbar-preset', [
             'table_key' => 'santri',
             'visibilitas' => ['info' => true],
@@ -328,7 +308,6 @@ class ToolbarPresetTest extends TestCase
         ]);
         $res->assertStatus(422)->assertJsonValidationErrors(['lebar']);
 
-        // Tidak ada yang tertulis: peta lama tetap kosong.
         $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/toolbar-preset?table_key=santri')
             ->assertStatus(200)
@@ -350,7 +329,6 @@ class ToolbarPresetTest extends TestCase
             'setelan' => ['lebar' => 200],
         ])->assertStatus(200);
 
-        // Tidak muncul di preset tabel (yang hanya menyimpan setelan tabel).
         $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/toolbar-preset?table_key=santri')
             ->assertStatus(200)

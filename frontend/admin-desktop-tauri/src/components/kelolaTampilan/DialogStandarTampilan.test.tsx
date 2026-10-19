@@ -46,7 +46,7 @@ describe('DialogStandarTampilan', () => {
 
   it('menandai belum ada standar untuk SETIAP kunci saat peta kosong', async () => {
     render();
-    // Satu penanda per kunci: tinggi baris, tinggi header, baris per halaman.
+
     expect(await screen.findAllByText('belum ada')).toHaveLength(3);
   });
 

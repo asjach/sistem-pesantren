@@ -68,7 +68,7 @@ const KOLOM_IMPORT_KELAS = [
 const FIELDS: ExcelField[] = [
   {
     key: 'nama', label: 'nama_kelas', width: 160, kind: 'text', maxLength: 50,
-    
+
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama kelas wajib diisi.' : null),
   },
@@ -80,11 +80,11 @@ const FIELDS: ExcelField[] = [
   { key: 'ta', label: 'Tahun Ajaran', width: 160, kind: 'static',  },
   {
     key: 'tingkat', label: 'tingkat', width: 120, kind: 'text', maxLength: 20,
-    
+
   },
   {
     key: 'urutan', label: 'urutan', width: 90, kind: 'text', maxLength: 6,
-    
+
     validate: (v) => {
       if (v === null || v === undefined || v.trim() === '') return null;
       const n = Number(v);
@@ -93,7 +93,7 @@ const FIELDS: ExcelField[] = [
   },
   {
     key: 'kapasitas', label: 'kapasitas', width: 120, kind: 'text', maxLength: 10,
-    
+
     validate: (v) => {
       if (!v) return null;
       const n = Number(v);
@@ -192,18 +192,14 @@ export default function KelasPage() {
     },
     deps: [filterLoading, jenjangs, tahunAjaranNames, tingkat],
   });
-  // `goFirst` beridentitas stabil (useCallback per tableKey) — dipakai terpisah
-  // agar callback di bawah tak perlu menyandang objek `pager` (identitas baru
-  // tiap render).
+
   const { goFirst } = pager;
 
-  // Import nama kelas pasangan MI↔MD (pratinjau → eksekusi).
   const [imporOpen, setImporOpen] = useState(false);
   const [imporArah, setImporArah] = useState<'ambil' | 'copy'>('ambil');
   const [imporHasil, setImporHasil] = useState<ImportNamaHasil | null>(null);
   const [imporBusy, setImporBusy] = useState(false);
 
-  // Import file kelas satu lingkup (filter lembaga+TA saat ini).
   const [fileOpen, setFileOpen] = useState(false);
 
   /** Kode lembaga filter saat ini; tombol import hanya untuk MI/MD. */
@@ -251,7 +247,6 @@ export default function KelasPage() {
     void muatImpor(true, arah);
   }
 
-  // Pilihan lembaga + TA khusus dialog Tambah (mandiri dari filter toolbar).
   const [tambahLembagaId, setTambahLembagaId] = useState<string>('');
   const [tambahTaId, setTambahTaId] = useState<string>('');
   const [tambahTas, setTambahTas] = useState<TahunAjaran[]>([]);
@@ -273,8 +268,7 @@ export default function KelasPage() {
   const [namaTerpakai, setNamaTerpakai] = useState<{ kunci: string; nama: string[] }>({ kunci: '', nama: [] });
 
   useEffect(() => {
-    // Muat SEMUA lembaga terdaftar (batas maks backend) agar opsi selalu
-    // mencakup lembaga baru di masa depan, bukan hanya halaman pertama.
+
     listLembaga({ per_page: 1000 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
   }, [setErr]);
 
@@ -290,8 +284,6 @@ export default function KelasPage() {
     return () => { alive = false; };
   }, [filterLoading, jenjangs, setErr]);
 
-  // Dialog Tambah: muat TA milik lembaga terpilih; **selalu** mengutamakan
-  // tahun ajaran aktif (bila belum ada, pertahankan pilihan yang masih valid).
   useEffect(() => {
     const req = ++tambahTaReqRef.current;
     if (tambahLembagaId === '') {
@@ -319,7 +311,6 @@ export default function KelasPage() {
       });
   }, [tambahLembagaId, setErr]);
 
-  // Admin terhubung 1 lembaga: pilihannya dikunci (pola SantriPage).
   const { user } = useAuth();
   const canUbahKelas = bisa(user, 'kelas.ubah');
   const canTambahKelas = bisa(user, 'kelas.tambah');
@@ -332,8 +323,7 @@ export default function KelasPage() {
   const bukaTambah = useCallback(() => {
     const targetLembaga = singleLembagaId ?? jenjang;
     setTambahLembagaId(targetLembaga);
-    // Nilai awal: tahun ajaran aktif lembaga tujuan. Daftar toolbar dipakai
-    // sebagai cadangan saat daftar dialog belum termuat (efek pemuat mengoreksi).
+
     const daftar = tambahTasUntuk === targetLembaga
       ? tambahTas
       : (targetLembaga === jenjang ? tas : []);
@@ -344,9 +334,6 @@ export default function KelasPage() {
     setTambahOpen(true);
   }, [singleLembagaId, jenjang, tambahTas, tambahTasUntuk, tas, setErr]);
 
-  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Kelas"). Pembukaannya
-  // memakai `bukaTambah` yang sama dengan tombol; terhalang saat dialog
-  // tambah sudah terbuka.
   usePintasanBaru({
     kunci: 'n',
     aktif: canTambahKelas,
@@ -387,7 +374,7 @@ export default function KelasPage() {
       const res = await listKelas({ jenjang: lembaga, tahun_ajaran: ta, per_page: 1000 });
       setNamaTerpakai({ kunci, nama: res.data.map((k) => normKelas(k.nama_kelas)) });
     } catch {
-      // Gagal memuat → biarkan validasi server (422) yang menjaga.
+
       setNamaTerpakai({ kunci, nama: [] });
     }
   }, []);
@@ -402,7 +389,6 @@ export default function KelasPage() {
     void muatNamaTerpakai(editRow.jenjang, editRow.tahun_ajaran);
   }, [editRow, muatNamaTerpakai]);
 
-  // Opsi dropdown wali: pegawai aktif di lembaga + TA kelas yang diubah.
   useEffect(() => {
     if (!editRow) return;
     listPegawaiAktif(editRow.jenjang, editRow.tahun_ajaran)
@@ -595,7 +581,7 @@ export default function KelasPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      {/* Kelas tak mengenal semester; tingkat tampil sebagai filter global. */}
+
       <PengaturanHalaman tampil={{ semester: false, tingkat: true }} tabel={[{ key: 'kelas', judul: 'Kelas', fields: FIELDS }]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari kelas…" />
       <ExcelTable
@@ -798,7 +784,7 @@ export default function KelasPage() {
         title={viewRow ? `Kelas: ${viewRow.nama_kelas}` : 'Kelas'}
         row={viewRowTampil}
       />
-      {/* Import nama kelas pasangan MI↔MD */}
+
       <Dialog open={imporOpen} onOpenChange={setImporOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -846,7 +832,7 @@ export default function KelasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Import file kelas satu lingkup (Periksa → Import) */}
+
       <ImportBertahapUmumDialog
         open={fileOpen}
         onOpenChange={setFileOpen}

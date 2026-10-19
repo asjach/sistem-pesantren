@@ -60,8 +60,7 @@ vi.mock('react-datasheet-grid', async (importOriginal) => {
 });
 
 beforeAll(() => {
-  // jsdom tak punya PointerEvent; kartu hover Radix (HoverCardTrigger) membaca
-  // onPointerEnter, jadi event pointer harus bisa dibentuk userEvent.hover.
+
   if (!('PointerEvent' in globalThis)) {
     (globalThis as unknown as { PointerEvent: unknown }).PointerEvent = MouseEvent;
   }
@@ -136,9 +135,6 @@ const KANDIDAT2: KandidatTagihanRow = {
   ...KANDIDAT, santri_id: 8, nama_lengkap: 'Budi Santoso', nis_lokal: '5678',
 };
 
-/* Buka kontrol (Radix Select atau Combobox Base UI) lalu pilih opsi. `fireEvent`
- * dipakai karena `pointer-events: none` yang ditinggalkan Radix Select membuat
- * `userEvent` menolak klik pada kontrol berikutnya. */
 async function pilihOpsi(triggerId: string, namaOpsi: string | RegExp) {
   const el = document.getElementById(triggerId) as HTMLElement;
   fireEvent.pointerDown(el);
@@ -155,7 +151,7 @@ async function siapkanSatuBaris() {
   await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
   fireEvent.change(document.getElementById('inp_gen_nominal') as HTMLInputElement, { target: { value: '100000' } });
   await pilihOpsi('sel_gen_kelompok', /Semua Santri MI-MD/);
-  // Baris langsung ada di tabel daftar (tanpa panel kandidat).
+
   await waitFor(() => expect(document.getElementById('btn_gen_hapus_7')).not.toBeNull());
 }
 
@@ -189,8 +185,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     await siapkanSatuBaris();
 
     await waitFor(() => expect(api.pratinjau).toHaveBeenCalled());
-    // Payload sama dengan yang nanti dikirim generate: baris otomatis tanpa
-    // nominal (backend yang menghitung), periode rentang TA terisi.
+
     expect(api.pratinjau).toHaveBeenLastCalledWith({
       tahun_ajaran: '2025/2026', jenis_id: 1,
       periode: '2025-07', periode_sampai: '2026-06',
@@ -203,7 +198,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
 
   it('menampilkan rincian potongan per bulan saat nominalnya berubah antar bulan', async () => {
     api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
-    // Juli bebas penuh (kuota paket habis), Agustus–September failover 50%.
+
     api.pratinjau.mockResolvedValue([{
       ...PRATINJAU,
       seragam: false,
@@ -216,14 +211,13 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
 
     await siapkanSatuBaris();
 
-    // Nama paket ikut tampil karena paketnya berpindah antar rentang.
     await waitFor(() => expect(document.body.textContent)
       .toContain('Jul: 0 (Anak Pegawai) · Agu–Sep: 50.000 (Prestasi)'));
   });
 
   it('menampilkan kartu hover berisi potongan tiap paket per rentang bulan', async () => {
     api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
-    // Juli–September sama; Oktober pindah paket karena kuota yang lama habis.
+
     api.pratinjau.mockResolvedValue([{
       ...PRATINJAU,
       seragam: false,
@@ -253,11 +247,9 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
 
     await siapkanSatuBaris();
 
-    // Sel ringkas dulu (teks tetap pendek).
     await waitFor(() => expect(document.body.textContent)
       .toContain('Jul–Sep: 50.000 (Anak Pegawai) · Okt: 0 (Prestasi Ganjil)'));
 
-    // Hover sel → kartu memuat rentang + potongan tiap paket.
     const sel = [...document.querySelectorAll('[data-col-key="rincian"]')]
       .find((e) => e.textContent.trim() !== 'Rincian Bulan') as HTMLElement;
     await userEvent.hover(sel);
@@ -308,22 +300,20 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     await siapkanSatuBaris();
     await waitFor(() => expect(api.pratinjau).toHaveBeenCalled());
 
-    // Tak ada lagi penunjuk tahap / tombol "Lanjut": kriteria & daftar satu layar.
     expect(screen.queryByText('Lanjut')).toBeNull();
-    // Judul "Kriteria & Daftar Santri" dihapus — tak ada lagi label itu.
+
     expect(document.getElementById('judul_kriteria_gen')).toBeNull();
     expect(screen.queryByText('Kriteria & Daftar Santri')).toBeNull();
     expect(document.getElementById('judul_daftar_gen')).not.toBeNull();
     expect(document.getElementById('inp_gen_cari')).not.toBeNull();
-    // Urutkan kini PresetUrut (kontrol berbasis preset backend), bukan Select.
+
     expect(document.getElementById('select_urut_keuangan_gen_terpilih')).not.toBeNull();
     expect(document.getElementById('sel_gen_status')).not.toBeNull();
-    // Rekap angka tinggal di popup konfirmasi.
+
     await bukaKonfirmasi();
     expect(screen.getByText(/1 santri × 12 bulan = 1 tagihan/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Periksa lagi' }));
 
-    // Kolom Mode menandai baris otomatis (Manual setelah diketik ulang).
     expect(document.body.textContent).toContain('Otomatis');
     expect(document.body.textContent).toContain('Mode');
   });
@@ -333,17 +323,14 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     api.pratinjau.mockResolvedValue([]);
 
     const kartu = () => document.querySelectorAll('[data-slot="card"]').length;
-    /* Kerangka = kartu yang isinya skeleton, bukan kontrol. Kartu selalu
-       berjumlah empat (yang belum aktif jadi kerangka), jadi yang bermakna
-       adalah berapa KARTU ASLI yang sudah muncul. */
+
     const kerangka = () => document.querySelectorAll('[data-slot="card"] [data-slot="skeleton"]').length;
 
     renderDialog();
-    // Layar tunggal: penunjuk tahap & tombol "Lanjut" tak ada lagi.
+
     expect(screen.queryByText('Lanjut')).toBeNull();
     expect(screen.queryByText('Kriteria')).toBeNull();
-    // Baru buka: keempat slot sudah terlihat, tapi Kartu 2/3/4 masih kerangka
-    // (11 batang skeleton) — area atas tak lagi tampak kosong.
+
     expect(kartu()).toBe(4);
     expect(kerangka()).toBe(11);
     expect(document.getElementById('sel_gen_tarif')).not.toBeNull();
@@ -351,16 +338,13 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     expect(document.getElementById('sel_gen_kelompok')).toBeNull();
     expect(document.getElementById('btn_gen_generate')).toBeNull();
 
-    // Setelah tarif dipilih: Kartu 2 (periode/jatuh tempo) + Kartu 3 (kelompok)
-    // jadi kontrol sungguhan; kerangka tinggal milik Kartu 4 (3 batang).
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
     await waitFor(() => expect(kerangka()).toBe(3));
     expect(document.getElementById('inp_gen_jatuh_tempo')).not.toBeNull();
     expect(document.getElementById('sel_gen_kelompok')).not.toBeNull();
-    // Kartu 4 masih tertahan sampai kelompok dipilih.
+
     expect(document.getElementById('btn_gen_generate')).toBeNull();
 
-    // Setelah kelompok dipilih: Kartu 4 (Generate) muncul, kerangka habis.
     await pilihOpsi('sel_gen_kelompok', /Semua Santri MI-MD/);
     await waitFor(() => expect(kerangka()).toBe(0));
     expect(document.getElementById('btn_gen_generate')).not.toBeNull();
@@ -373,14 +357,14 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     renderDialog();
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
     await waitFor(() => expect(document.getElementById('sel_gen_kelompok')).not.toBeNull());
-    // Buka daftar tanpa memilih: tiap opsi dua baris (label + keterangan).
+
     const el = document.getElementById('sel_gen_kelompok') as HTMLElement;
     fireEvent.pointerDown(el);
     fireEvent.mouseDown(el);
     fireEvent.click(el);
     expect(await screen.findByRole('option', { name: /Semua santri MI-MD yang aktif/ })).not.toBeNull();
     expect(screen.getByRole('option', { name: /Santri yang aktif di MI sekaligus MD/ })).not.toBeNull();
-    // jenjangs tes = MI, MD, MTS, MLN → tingkat akhir 6/9/12.
+
     expect(screen.getByRole('option', { name: /Santri tingkat 6\/9\/12/ })).not.toBeNull();
     expect(screen.getByRole('option', { name: /Santri selain tingkat 6\/9\/12/ })).not.toBeNull();
   });
@@ -390,8 +374,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     api.pratinjau.mockResolvedValue([]);
 
     renderDialog();
-    // Kartu 4 baru tampil setelah kelompok dipilih; kelompok ini kosong
-    // santrinya, jadi tombol tetap mati + alasannya tampil.
+
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
     await pilihOpsi('sel_gen_kelompok', /Semua Santri MI-MD/);
     const gen = await screen.findByRole('button', { name: 'Generate' }) as HTMLButtonElement;
@@ -406,7 +389,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
 
     renderDialog();
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
-    // Kelompok ada di layar yang sama; sebelum dipilih tak ada request.
+
     await waitFor(() => expect(screen.getByText('Pilih kelompok santri untuk memuat daftar.')).toBeInTheDocument());
     expect(api.kandidat).not.toHaveBeenCalled();
 
@@ -420,12 +403,12 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     const tarif = document.getElementById('sel_gen_tarif') as HTMLElement;
     const nominal = document.getElementById('inp_gen_nominal') as HTMLElement;
     const buatTarif = document.getElementById('btn_buat_tarif') as HTMLElement;
-    // Ketiganya berada dalam satu kartu yang sama.
+
     const kartu = tarif.closest('[data-slot="card"]') as HTMLElement;
     expect(kartu).not.toBeNull();
     expect(kartu.contains(nominal)).toBe(true);
     expect(kartu.contains(buatTarif)).toBe(true);
-    // Urutan vertikal: Buat Tarif di atas, lalu Tarif, lalu Nominal.
+
     const posisi = (el: HTMLElement) => {
       const b = el.getBoundingClientRect();
       return { atas: b.top, bawah: b.bottom };
@@ -444,20 +427,16 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
 
     const jatuhTempo = () => document.getElementById('inp_gen_jatuh_tempo') as HTMLInputElement;
 
-    // Belum pilih tarif: Kartu 2 belum tampil, jadi kotak jatuh tempo belum ada.
     expect(jatuhTempo()).toBeNull();
 
-    // Tarif bulanan → Kartu 2 muncul; tanggal otomatis, input dimatikan.
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
     await waitFor(() => expect(jatuhTempo()).not.toBeNull());
-    // Label terhubung ke input lewat for ↔ id (LabeledInput, label
-    // transparan bawaan → teksnya berakhiran titik dua).
+
     const labelJt = document.querySelector('label[for="inp_gen_jatuh_tempo"]');
     expect(labelJt?.textContent?.trim()).toBe('Jatuh Tempo:');
     expect(jatuhTempo()).toBeDisabled();
     expect(jatuhTempo().placeholder).toBe('Otomatis tanggal 10');
 
-    // Tarif sekali bayar → aktif lagi, bawaan = hari ini (masih bisa diubah).
     await pilihOpsi('sel_gen_tarif', /Rp 500\.000/);
     await waitFor(() => expect(jatuhTempo()).not.toBeDisabled());
     expect(jatuhTempo().value).toBe(tanggalKeTampilan(hariIniIso()));
@@ -467,10 +446,6 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
     api.pratinjau.mockResolvedValue([]);
 
-    /* Nilai tak sah kini hanya bisa datang dari DATA, bukan ketikan: kotak
-       nominal (tipe `nominal`) menyaring apa pun selain digit — "-5" jadi "5",
-       desimal jadi bilangan bulat. Tarif dengan nominal negatif dipakai untuk
-       tetap menguji guard `validasiNominal`. */
     renderDialog({
       tarif: [{ id: 5, jenjang: 'MI', tahun_ajaran: '2025/2026', jenis_id: 1, tingkat: '1', nominal: -5, is_active: true }],
     });
@@ -479,9 +454,6 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     fireEvent.blur(nominal);
     await waitFor(() => expect(screen.getByText(/bilangan bulat ≥ 0/)).toBeInTheDocument());
 
-    // Kartu 4 belum tampil (kelompok belum dipilih) → eksekusi memang tak
-    // mungkin: galat nominal sudah tampil inline dan validasi kriteria akan
-    // menahannya begitu daftar terisi.
     expect(document.getElementById('btn_gen_generate')).toBeNull();
     await pilihOpsi('sel_gen_kelompok', /Semua Santri MI-MD/);
     const gen = await screen.findByRole('button', { name: 'Generate' }) as HTMLButtonElement;
@@ -500,7 +472,6 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     expect(screen.getByText(/1 santri × 12 bulan = 12 tagihan/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Ya, buat 12 tagihan/ })).toBeInTheDocument();
 
-    // Periksa lagi kembali ke daftar tanpa mengeksekusi apa pun.
     await userEvent.click(screen.getByRole('button', { name: 'Periksa lagi' }));
     await waitFor(() => expect(screen.getByText(/Daftar Santri \(1\)/)).toBeInTheDocument());
   });
@@ -510,10 +481,10 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Buat Tarif' }));
     await waitFor(() => expect(document.getElementById('sel_tarif_baru_jenjang')).not.toBeNull());
     const formTarif = () => document.querySelector('#pop_buat_tarif form') as HTMLFormElement;
-    // Kosong semua → galat pertama (jenjang), tanpa request.
+
     fireEvent.submit(formTarif());
     await waitFor(() => expect(screen.getByText('Pilih jenjang.')).toBeInTheDocument());
-    // Isi jenjang → galat berikut (jenis).
+
     await pilihOpsi('sel_tarif_baru_jenjang', 'MI');
     fireEvent.submit(formTarif());
     await waitFor(() => expect(screen.getByText('Pilih jenis.')).toBeInTheDocument());
@@ -521,7 +492,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
   });
 
   it('popover Buat Tarif: jenjang tetap lengkap walau TA terpilih belum punya tarif', async () => {
-    // TA lain tanpa tarif: opsi jenjang tetap dari master lembaga (bukan kosong).
+
     renderDialog({ tarif: [], tahunAjaran: '2024/2025' });
     await userEvent.click(screen.getByRole('button', { name: 'Buat Tarif' }));
     await waitFor(() => expect(document.getElementById('sel_tarif_baru_jenjang')).not.toBeNull());
@@ -535,11 +506,10 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
 
     await siapkanSatuBaris();
 
-    // Tak ada lagi panel kandidat / tombol pindah.
     expect(document.getElementById('btn_gen_pindah_7')).toBeNull();
     expect(screen.queryByText('Kandidat')).not.toBeInTheDocument();
     expect(screen.getByText(/Daftar Santri \(1\)/)).toBeInTheDocument();
-    // Kandidat diminta sekaligus (bukan per halaman).
+
     expect(api.kandidat).toHaveBeenCalledWith(expect.objectContaining({ per_page: 'all' }));
   });
 
@@ -551,7 +521,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     expect(document.body.textContent).toContain('Ahmad Fauzi');
 
     api.kandidat.mockResolvedValue({ data: [KANDIDAT2], current_page: 1, last_page: 1, total: 1, per_page: 50 });
-    // Kelompok diganti langsung di langkah Daftar (tanpa Kembali).
+
     await pilihOpsi('sel_gen_kelompok', /MD \(MD \+ MI-MD\)/);
 
     await waitFor(() => expect(document.body.textContent).toContain('Budi Santoso'));
@@ -572,11 +542,10 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Periksa lagi' }));
 
     fireEvent.change(document.getElementById('inp_gen_cari') as HTMLInputElement, { target: { value: 'budi' } });
-    // Baris lain hilang dari tampilan, tapi daftar generate tetap 2 santri.
+
     await waitFor(() => expect(document.body.textContent).not.toContain('Ahmad Fauzi'));
     expect(document.body.textContent).toContain('Budi Santoso');
-    // Daftar generate TIDAK ikut tersaring: rekap tetap 2 santri (dicek lewat
-    // popup konfirmasi, satu-satunya tempat rekap tampil sekarang).
+
     await bukaKonfirmasi();
     expect(screen.getByText(/2 santri ×/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Periksa lagi' }));
@@ -612,12 +581,9 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     await pilihOpsi('sel_gen_kelompok', /Semua Santri MI-MD/);
     await waitFor(() => expect(document.getElementById('btn_gen_hapus_8')).not.toBeNull());
 
-    // Bawaan: kelas 1A dulu walau namanya belakangan.
     expect(document.body.textContent.indexOf('Andi')).toBeLessThan(
       document.body.textContent.indexOf('Zaki'));
 
-    // Pilih preset "Status" (status_akhir): 'aktif' < 'pindah_keluar' secara
-    // alfabetis, jadi Zaki (aktif) naik ke atas.
     const combo = await waitFor(() => {
       const el = document.getElementById('select_urut_keuangan_gen_terpilih');
       if (el === null) throw new Error('PresetUrut belum tampil');
@@ -639,9 +605,7 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     renderDialog();
     await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
     await pilihOpsi('sel_gen_kelompok', /Semua Santri MI-MD/);
-    // Kolom tabel pratinjau ("terpilih") punya kontrolnya sendiri. Dicari
-    // lewat `id` — `aria-label`-nya sama dengan toolbar tabel lain di dialog,
-    // jadi pencarian berbasis label jadi ambigu begitu keduanya tampil.
+
     await waitFor(() => {
       expect(document.getElementById('select_preset_kolom_keuangan_gen_terpilih')).not.toBeNull();
     });

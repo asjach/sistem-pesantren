@@ -15,8 +15,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import riwayat keaktifan pegawai bertahap (potongan JSON 1000/panggilan):
-// periksa kering, eksekusi upsert idempoten, galat per baris, dan lingkup lembaga.
 class ImportPotongKeaktifanTest extends TestCase
 {
     use RefreshDatabase;
@@ -170,7 +168,6 @@ class ImportPotongKeaktifanTest extends TestCase
         $this->assertSame(1, $satu->json('ringkasan.baris_gagal'));
         $this->assertSame(1, KeaktifanPegawai::count());
 
-        // Baris cocok: hanya kolom terisi yang menimpa; tugas kosong warisi penempatan.
         $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
             'sesi_id' => $satu->json('sesi_id'),
             'mode' => 'eksekusi',
@@ -185,9 +182,8 @@ class ImportPotongKeaktifanTest extends TestCase
         $row = KeaktifanPegawai::first();
         $this->assertSame('SK/9/2026', $row->no_sk);
         $this->assertSame('Tidak', $row->status_keaktifan);
-        $this->assertSame(null, $row->tugas_utama); // warisi penempatan (tanpa tugas)
+        $this->assertSame(null, $row->tugas_utama);
 
-        // Sesi baru dengan baris identik (tanpa kolom terisi) = dilewati.
         $tiga = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
@@ -222,7 +218,6 @@ class ImportPotongKeaktifanTest extends TestCase
         $this->assertSame(3, $res->json('ringkasan.baris_gagal'));
         $this->assertTrue((bool) $res->json('galat_unduh'));
 
-        // Pegawai tanpa penempatan → galat jenjang dengan pesan jelas.
         $sesi = ImportSesi::find($res->json('sesi_id'));
         $this->assertFileExists(storage_path('app/'.$sesi->galat_file));
         $isi = (string) file_get_contents(storage_path('app/'.$sesi->galat_file));
@@ -236,7 +231,7 @@ class ImportPotongKeaktifanTest extends TestCase
             ->post("/api/admin/pegawai-keaktifan/import-potong/{$sesi->id}/batal");
         $batal->assertStatus(200);
         $this->assertSame(ImportSesi::BATAL, ImportSesi::find($sesi->id)->status);
-        $this->assertSame(1, KeaktifanPegawai::count()); // tulisan per potongan tetap
+        $this->assertSame(1, KeaktifanPegawai::count());
     }
 
     public function test_06_lingkup_lembaga_dan_status_label_kapital(): void
@@ -258,11 +253,9 @@ class ImportPotongKeaktifanTest extends TestCase
             ],
         ])->assertStatus(200);
 
-        // Baris MTS di luar lingkup admin MI → gagal per baris (bukan 403).
         $this->assertSame(1, $res->json('ringkasan.dibuat'));
         $this->assertSame(2, $res->json('ringkasan.baris_gagal'));
 
-        // Label/kapital/alias status diterima ('mts', 'TIDAK' → 'Tidak').
         $row = KeaktifanPegawai::first();
         $this->assertSame('MI', $row->jenjang);
         $this->assertSame('Ya', $row->status_keaktifan);
@@ -272,7 +265,6 @@ class ImportPotongKeaktifanTest extends TestCase
     {
         $f = $this->baseFixture();
 
-        // Tanpa izin pegawai.ubah → 403 oleh middleware route.
         $this->buatPegawai('Ahmad', 'PST-001');
         $guru = $this->makeAdmin(['MI'], 'guru');
         $guru->syncPermissions(['pegawai.lihat']);
@@ -289,7 +281,6 @@ class ImportPotongKeaktifanTest extends TestCase
         $f = $this->baseFixture();
         $guru = $this->buatPegawai('Ahmad', 'PST-001', null);
 
-        // Kering + flag: cek jalan, tanpa menulis apa pun.
         $kering = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
             'mode' => 'periksa',
             'total' => 1,
@@ -301,7 +292,6 @@ class ImportPotongKeaktifanTest extends TestCase
         $this->assertSame(0, LembagaPegawai::count());
         $this->assertSame(0, KeaktifanPegawai::count());
 
-        // Eksekusi + flag: penempatan aktif + keaktifan terbuat sekaligus.
         $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-keaktifan/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,

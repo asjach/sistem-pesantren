@@ -10,8 +10,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Kunci role diri + admin boleh membuat user ber-role admin saat create
-// (lembaga ⊆ kewenangannya) + auto-attach pivot saat admin buat lembaga.
 class UserRoleGuardTest extends TestCase
 {
     use RefreshDatabase;
@@ -60,8 +58,6 @@ class UserRoleGuardTest extends TestCase
         return DB::table('user_lembaga')->where('user_id', $u->id)->pluck('jenjang')->all();
     }
 
-    // ---------- 1. admin boleh membuat user ber-role admin (khusus create) ----------
-
     public function test_01_admin_scoped_bisa_buat_admin_lembaganya(): void
     {
         $f = $this->fixture();
@@ -76,7 +72,7 @@ class UserRoleGuardTest extends TestCase
 
         $baru = User::findOrFail($res->json('id'));
         $this->assertTrue($baru->hasRole('admin'));
-        // Tanpa lembaga_ids -> fallback pivot milik pembuat (bukan admin global).
+
         $this->assertSame([$f['mi']->jenjang], $this->pivotOf($baru));
     }
 
@@ -153,8 +149,6 @@ class UserRoleGuardTest extends TestCase
         $this->assertFalse($target->fresh()->hasRole('admin'));
     }
 
-    // ---------- 2. admin tidak bisa sync role diri sendiri ----------
-
     public function test_02_admin_tidak_bisa_sync_role_diri_sendiri(): void
     {
         $f = $this->fixture();
@@ -167,8 +161,6 @@ class UserRoleGuardTest extends TestCase
         $this->assertTrue($admin->fresh()->hasRole('admin'));
     }
 
-    // ---------- 3. admin tidak bisa assign role ke diri sendiri ----------
-
     public function test_03_admin_tidak_bisa_assign_role_ke_diri_sendiri(): void
     {
         $f = $this->fixture();
@@ -180,8 +172,6 @@ class UserRoleGuardTest extends TestCase
 
         $this->assertFalse($admin->fresh()->hasRole('guru'));
     }
-
-    // ---------- 4. super_admin pun tidak bisa ubah role diri sendiri ----------
 
     public function test_04_super_admin_tidak_bisa_ubah_role_diri_sendiri(): void
     {
@@ -198,8 +188,6 @@ class UserRoleGuardTest extends TestCase
 
         $this->assertTrue($super->fresh()->hasRole('super_admin'));
     }
-
-    // ---------- 5-6. regresi positif: ke orang lain tetap boleh ----------
 
     public function test_05_super_admin_bisa_assign_role_ke_orang_lain(): void
     {
@@ -226,8 +214,6 @@ class UserRoleGuardTest extends TestCase
 
         $this->assertTrue($target->fresh()->hasRole('guru'));
     }
-
-    // ---------- 7-8. tambah lembaga hanya super_admin (v1.9.2) ----------
 
     public function test_07_admin_tidak_bisa_tambah_lembaga(): void
     {
@@ -256,8 +242,6 @@ class UserRoleGuardTest extends TestCase
         ])->assertStatus(201);
     }
 
-    // ---------- 9. admin tidak bisa menghapus super_admin ----------
-
     public function test_09_admin_tidak_bisa_hapus_super_admin(): void
     {
         $this->fixture();
@@ -271,8 +255,6 @@ class UserRoleGuardTest extends TestCase
         $this->assertNotNull(User::find($super->id));
     }
 
-    // ---------- 10. admin tidak bisa menambah role ke super_admin ----------
-
     public function test_10_admin_tidak_bisa_assign_role_ke_super_admin(): void
     {
         $this->fixture();
@@ -285,8 +267,6 @@ class UserRoleGuardTest extends TestCase
 
         $this->assertFalse($super->fresh()->hasRole('guru'));
     }
-
-    // ---------- 11. admin tidak bisa ubah role / cabut role sesama admin ----------
 
     public function test_11_admin_tidak_bisa_mutasi_role_sesama_admin(): void
     {
@@ -305,8 +285,6 @@ class UserRoleGuardTest extends TestCase
         $this->assertTrue($sesama->fresh()->hasRole('admin'));
     }
 
-    // ---------- 12. admin tidak bisa lepas lembaga super_admin ----------
-
     public function test_12_admin_tidak_bisa_detach_lembaga_super_admin(): void
     {
         $f = $this->fixture();
@@ -322,8 +300,6 @@ class UserRoleGuardTest extends TestCase
             DB::table('user_lembaga')->where('user_id', $super->id)->pluck('jenjang')->all()
         );
     }
-
-    // ---------- 13. detach lembaga di luar kewenangan ditolak ----------
 
     public function test_13_admin_tidak_bisa_detach_lembaga_di_luar_kewenangan(): void
     {

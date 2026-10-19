@@ -82,12 +82,10 @@ class LembagaDetailTest extends TestCase
         $a = Lembaga::create(['nama' => 'A', 'jenjang' => 'MA', 'npsn' => '11111111']);
         $b = Lembaga::create(['nama' => 'B', 'jenjang' => 'MB']);
 
-        // NPSN duplikat milik lembaga lain.
         $this->actingAs($super, 'sanctum')->putJson("/api/admin/lembaga/{$b->jenjang}", [
             'npsn' => '11111111',
         ])->assertStatus(422)->assertJsonValidationErrors(['npsn']);
 
-        // Enum, email, koordinat, dan tahun tak valid.
         $this->actingAs($super, 'sanctum')->putJson("/api/admin/lembaga/{$b->jenjang}", [
             'status' => 'internasional',
             'email' => 'bukan-email',
@@ -112,16 +110,13 @@ class LembagaDetailTest extends TestCase
         LembagaSantri::create(['santri_id' => $s2->id, 'jenjang' => $md->jenjang, 'nis_lokal' => null, 'is_active_lembaga' => 'Ya']);
         LembagaSantri::create(['santri_id' => $s2->id, 'jenjang' => $mi->jenjang, 'nis_lokal' => '10002', 'is_active_lembaga' => 'Tidak']);
 
-        // Semua (tanpa filter status).
         $res = $this->actingAs($super, 'sanctum')->getJson('/api/admin/lembaga-santri?per_page=50')->assertStatus(200);
         $this->assertSame(3, $res->json('total'));
 
-        // Filter lembaga + tanpa NIS.
         $res = $this->actingAs($super, 'sanctum')->getJson("/api/admin/lembaga-santri?jenjang={$md->jenjang}&tanpa_nis=1")->assertStatus(200);
         $this->assertSame(1, $res->json('total'));
         $this->assertSame('Anggota Dua', $res->json('data.0.santri.nama_lengkap'));
 
-        // Filter nonaktif + cari nama.
         $res = $this->actingAs($super, 'sanctum')->getJson('/api/admin/lembaga-santri?is_active_lembaga=0&search=Dua')->assertStatus(200);
         $this->assertSame(1, $res->json('total'));
         $this->assertSame('10002', $res->json('data.0.nis_lokal'));

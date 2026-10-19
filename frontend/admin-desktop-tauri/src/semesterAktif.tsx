@@ -51,8 +51,7 @@ export function SemesterAktifProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [semesters, setSemesters] = useState<SemesterAktif[]>([]);
   const [loading, setLoading] = useState(false);
-  // Cukup kunci primitif id: refresh `/me` (identitas `user` baru, isi sama)
-  // tidak boleh memicu muat ulang.
+
   const userId = user?.id;
 
   useEffect(() => {

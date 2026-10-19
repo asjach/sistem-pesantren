@@ -16,8 +16,7 @@ class PengaturanGlobalSimpanRequest extends FormRequest
     {
         return [
             'kunci' => ['required', 'string', 'max:60'],
-            // Nilai bebas bentuk (angka/teks/bool); arti per kunci ada di
-            // frontend. Server hanya menjaga bentuknya tetap JSON skalar.
+
             'nilai' => ['present', 'nullable'],
         ];
     }

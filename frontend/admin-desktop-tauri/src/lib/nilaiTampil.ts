@@ -18,7 +18,7 @@ function angkaDari(v: string | number): number | null {
     .replace(/[^\d.,-]/g, '')
     .replace(/\./g, '')
     .replace(/,/g, '.');
-  /* Setelah pembersihan, sisa seperti '', '-', '.', '-,.' bukan angka. */
+
   if (!/^-?\d+(\.\d+)?$/.test(s)) {
     return null;
   }

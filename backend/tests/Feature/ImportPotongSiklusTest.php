@@ -20,10 +20,6 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import bertahap arsip mutasi keluar + alumni (potongan JSON 1000 baris):
-// periksa kering tanpa menulis, eksekusi menulis per potongan, efek mutasi
-// meniru tombol "Proses mutasi" (tutup riwayat + keanggotaan), alumni
-// idempoten, dan galat CSV sesi bisa diunduh.
 class ImportPotongSiklusTest extends TestCase
 {
     use RefreshDatabase;
@@ -38,7 +34,7 @@ class ImportPotongSiklusTest extends TestCase
         $this->seed(RoleSeeder::class);
         $this->seed(ReferensiSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
-        // Id sesi mulai dari 1 di tiap tes → berkas galat lama tak boleh bocor.
+
         foreach (glob(storage_path('app/imports/galat-*.csv')) ?: [] as $berkas) {
             @unlink($berkas);
         }
@@ -129,8 +125,6 @@ class ImportPotongSiklusTest extends TestCase
         ], $tambah);
     }
 
-    // ---------------- Mutasi keluar ----------------
-
     public function test_01_mutasi_periksa_kering_tanpa_menulis(): void
     {
         $f = $this->baseFixture();
@@ -151,7 +145,7 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertSame(1, $res->json('ringkasan.dibuat'));
         $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
         $this->assertSame(0, MutasiKeluar::count());
-        // Kering: riwayat & keanggotaan tak ditutup.
+
         $this->assertSame('aktif', RiwayatBelajar::where('santri_id', $a->id)->value('status_akhir'));
         $this->assertSame('Ya', LembagaSantri::where('santri_id', $a->id)->value('is_active_lembaga'));
 
@@ -191,10 +185,9 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertSame(2, $dua->json('ringkasan.dibuat'));
         $this->assertSame(1, $dua->json('ringkasan.baris_dilewati'));
         $this->assertSame(2, MutasiKeluar::count());
-        // Santri kedua ikut ditutup lewat potongan kedua.
+
         $this->assertSame('pindah_keluar', RiwayatBelajar::where('santri_id', $b->id)->value('status_akhir'));
 
-        // Sesi baru dengan baris identik = dilewati, tak menggandakan.
         $tiga = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/mutasi-keluar/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
@@ -225,7 +218,6 @@ class ImportPotongSiklusTest extends TestCase
         ])->assertStatus(200);
         $this->assertSame(1, MutasiKeluar::count());
 
-        // Baris sama (NIS + jenjang) dengan tanggal & isi berubah → diperbarui.
         $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/mutasi-keluar/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
@@ -243,7 +235,7 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertSame('2027-02-01', $arsip->tanggal_mutasi?->format('Y-m-d'));
         $this->assertSame('SDN Baru', $arsip->nama_sekolah_tujuan);
         $this->assertSame($f['kelas']->id, $arsip->kelas_terakhir_id);
-        // Sel kosong tidak menimpa nilai lama.
+
         $this->assertSame('S-1', $arsip->no_surat);
         $this->assertNotSame($kelasLama->id, $arsip->kelas_terakhir_id);
     }
@@ -259,7 +251,7 @@ class ImportPotongSiklusTest extends TestCase
             'terakhir' => true,
             'baris' => [
                 $this->barisMutasi('28004', 'bukan-tanggal'),
-                // Arsip: alasan bebas teks, tak harus ada di kamus.
+
                 $this->barisMutasi('28004', '2027-01-10', ['alasan_mutasi' => 'SDN Meruya Utara']),
             ],
         ])->assertStatus(200);
@@ -287,8 +279,6 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertSame('alasan_mutasi', $res->json('galat_contoh.0.kolom'));
         $this->assertSame(0, MutasiKeluar::count());
     }
-
-    // ---------------- Alumni ----------------
 
     public function test_04_alumni_periksa_kering_tanpa_menulis(): void
     {
@@ -329,7 +319,6 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertSame('lulus', RiwayatBelajar::where('santri_id', $a->id)->value('status_akhir'));
         $this->assertSame('Tidak', LembagaSantri::where('santri_id', $a->id)->value('is_active_lembaga'));
 
-        // Potongan kedua: isi identik → dilewati; isi berubah → diperbarui.
         $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/alumni/import-potong', [
             'sesi_id' => $satu->json('sesi_id'),
             'mode' => 'eksekusi',
@@ -367,7 +356,6 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertNull($arsip->tanggal_lulus);
         $this->assertSame('lulus', RiwayatBelajar::where('santri_id', $a->id)->value('status_akhir'));
 
-        // Baris kosong yang sama → dilewati, bukan perpetually diperbarui.
         $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/alumni/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
@@ -384,7 +372,7 @@ class ImportPotongSiklusTest extends TestCase
     public function test_05bb_alumni_tgl_selesai_diisi_walau_sudah_nonaktif(): void
     {
         $f = $this->baseFixture();
-        // Santri nonaktif di riwayat + keanggotaan (arsip lama tanpa proses lulus).
+
         $a = $this->makeSantriAktif('Alumni Nonaktif', '28106', $f);
         RiwayatBelajar::where('santri_id', $a->id)->update([
             'status_akhir' => 'lulus', 'is_active_riwayat' => RiwayatBelajar::TIDAK,
@@ -423,8 +411,6 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertSame(0, Alumni::count());
     }
 
-    // ---------------- Kunci sesi bersama ----------------
-
     public function test_06_batas_1000_dan_kunci_sesi_pengguna_lain(): void
     {
         $f = $this->baseFixture();
@@ -443,7 +429,6 @@ class ImportPotongSiklusTest extends TestCase
         ])->assertStatus(200);
         $this->assertSame(ImportSesi::JALAN, ImportSesi::find($dua->json('sesi_id'))->status);
 
-        // Mode beda → 422; pengguna lain → 404.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/alumni/import-potong', [
             'sesi_id' => $dua->json('sesi_id'),
             'mode' => 'eksekusi',
@@ -489,9 +474,9 @@ class ImportPotongSiklusTest extends TestCase
 
         $this->assertSame(0, $res->json('ringkasan.dibuat'));
         $this->assertSame(2, $res->json('ringkasan.baris_gagal'));
-        // Baris 1: NIS terdaftar di MTS, jenjang baris MI →xis tak ketemu.
+
         $this->assertSame('nis_lokal', $res->json('galat_contoh.0.kolom'));
-        // Baris 2: jenjang MTS di luar lingkup akun admin MI.
+
         $this->assertSame('Lembaga di luar lingkup akses Anda.', $res->json('galat_contoh.1.pesan'));
         $this->assertSame(0, Alumni::count());
     }
@@ -517,7 +502,6 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertNull($arsip->alasan_mutasi);
         $this->assertSame('Tidak', LembagaSantri::where('santri_id', $a->id)->value('is_active_lembaga'));
 
-        // Tanggal kosong = satu nilai idempotensi: baris sama dilewati.
         $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/mutasi-keluar/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
@@ -533,7 +517,7 @@ class ImportPotongSiklusTest extends TestCase
     public function test_09_kelas_angka_dibaca_sebagai_nama_rombel(): void
     {
         $f = $this->baseFixture();
-        // id 1 dipakai kelas "6A"; kelas bernama "1" dibuat belakangan (id bukan 1).
+
         $satu = $this->makeSantriAktif('Kelas Angka', '28302', $f);
         $kelasSatu = Kelas::create([
             'jenjang' => 'MI', 'tahun_ajaran' => $f['ta']->nama, 'nama_kelas' => '1', 'tingkat' => '1',
@@ -551,7 +535,6 @@ class ImportPotongSiklusTest extends TestCase
         $this->assertSame(0, $res->json('ringkasan.baris_gagal'));
         $this->assertSame($kelasSatu->id, MutasiKeluar::where('santri_id', $satu->id)->value('kelas_terakhir_id'));
 
-        // Angka yang tak pernah jadi nama rombel tetap dibaca sebagai id kelas.
         $sembilanA = Kelas::create([
             'jenjang' => 'MI', 'tahun_ajaran' => $f['ta']->nama, 'nama_kelas' => '9A', 'tingkat' => '9',
         ]);

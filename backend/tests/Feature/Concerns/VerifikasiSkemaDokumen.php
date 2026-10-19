@@ -112,7 +112,7 @@ trait VerifikasiSkemaDokumen
     {
         $masalah = [];
         $daftarBatas = $this->uraiDokumen()['batas'];
-        // Penjaga parser: format SCHEMA.md berubah -> gagal keras, bukan lolos senyap.
+
         $this->assertGreaterThanOrEqual(50, array_sum(array_map('count', $daftarBatas)), 'Terlalu sedikit index/unique terbaca dari SCHEMA.md — parser meleset?');
         foreach ($daftarBatas as $tabel => $daftar) {
             if (! Schema::hasTable($tabel) || in_array($tabel, self::TABEL_PRA_PRODUCTION, true)) {
@@ -121,8 +121,7 @@ trait VerifikasiSkemaDokumen
 
             $indeks = Schema::getIndexes($tabel);
             foreach ($daftar as $batas) {
-                // Token boleh berupa kolom atau nama index eksplisit (mis.
-                // `uq_riwayat_belajar_stls`); selain itu dianggap salah ketik.
+
                 [$kolom, $ganjil] = $this->pisahTokenBatas($tabel, $batas['kolom']);
                 if ($ganjil !== []) {
                     $masalah[] = "{$batas['jenis']}(".implode(', ', $batas['kolom']).") pada `{$tabel}` memuat token tak dikenal: ".implode(', ', $ganjil);
@@ -167,7 +166,7 @@ trait VerifikasiSkemaDokumen
             $fk = Schema::getForeignKeys($tabel);
             foreach ($daftar as $relasi) {
                 if (! Schema::hasColumn($tabel, $relasi['kolom'])) {
-                    continue; // kesalahan kolom sudah dilaporkan test arah maju.
+                    continue;
                 }
 
                 $ada = collect($fk)->contains(
@@ -187,11 +186,7 @@ trait VerifikasiSkemaDokumen
     /** @return list<string> */
     private function tabelDiDb(): array
     {
-        // MySQL: getTables() tanpa argumen sengaja mengembalikan tabel dari
-        // SEMUA schema yang bisa diakses (bukan hanya database koneksi), jadi
-        // harus dibatasi ke database koneksi ini agar database lain di server
-        // yang sama tidak dianggap milik aplikasi. SQLite hanya punya satu
-        // schema sehingga tidak perlu difilter.
+
         $koneksi = Schema::getConnection();
         $tabel = in_array($koneksi->getDriverName(), ['mysql', 'mariadb'], true)
             ? Schema::getTables($koneksi->getDatabaseName())
@@ -290,7 +285,6 @@ trait VerifikasiSkemaDokumen
                 continue;
             }
 
-            // Heading lain (##, ### tanpa backtick, dsb.) mengakhiri seksi tabel.
             if (preg_match('/^#{1,6} /', $baris) === 1) {
                 $tabel = null;
 
@@ -325,8 +319,8 @@ trait VerifikasiSkemaDokumen
      */
     private function kolomDariBaris(string $baris): array
     {
-        $isi = trim(substr($baris, 2)); // buang penanda "- "
-        // Definisi kolom berhenti di titik dua atau em dash (awal keterangan).
+        $isi = trim(substr($baris, 2));
+
         $batas = [];
         foreach ([':', '—'] as $penanda) {
             $pos = mb_strpos($isi, $penanda);
@@ -336,14 +330,12 @@ trait VerifikasiSkemaDokumen
         }
         $kepala = trim($batas === [] ? $isi : mb_substr($isi, 0, min($batas)));
 
-        // Bentuk kanonik: daftar `kolom` (, `kolom`)+ dengan tipe opsional di tanda kurung.
         if (preg_match('/^(?:`[^`]+`(?:\s*\([^)]*\))?)(?:\s*[,\x{00b7}]\s*`[^`]+`(?:\s*\([^)]*\))?)*$/u', $kepala) === 1) {
             preg_match_all('/`([^`]+)`/u', $kepala, $nama);
 
             return $nama[1];
         }
 
-        // Bentuk turunan: satu kolom dengan penanda tipe di luar titik dua (`id` PK).
         if (preg_match('/^`([^`]+)`\s+(PK|string|int|integer|date|enum|bool|boolean|json|text|char|varchar|unsigned|bigint)\b/iu', $kepala, $cocok) === 1) {
             return [$cocok[1]];
         }
@@ -360,7 +352,7 @@ trait VerifikasiSkemaDokumen
     {
         $hasil = [];
         foreach (preg_split('/·/u', $baris) ?: [] as $potong) {
-            // Harus MENGAWALI butir — menghindari prosa seperti "index (boleh ...)".
+
             if (preg_match('/^(?:-\s*)?(PK|PRIMARY|UNIQUE|INDEX)\s*\(([^)]*)\)/iu', trim($potong), $cocok) !== 1) {
                 continue;
             }

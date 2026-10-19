@@ -52,7 +52,7 @@ class Santri extends Model
         'nama_singkat',
         'nik',
         'nisn',
-        'tmp_lahir', // ref_tmp_lahir
+        'tmp_lahir',
         'tgl_lahir',
         'jk',
         'anak_ke',
@@ -118,7 +118,7 @@ class Santri extends Model
         'alamat',
         'kode_pos',
         'foto_url',
-        'is_active_pst', // turunan: ada riwayat aktif
+        'is_active_pst',
     ];
 
     protected $casts = ['tgl_lahir' => 'date', 'ayah_tgl_lahir' => 'date', 'ibu_tgl_lahir' => 'date', 'wali_tgl_lahir' => 'date', 'tanggal_masuk' => 'date'];
@@ -160,13 +160,11 @@ class Santri extends Model
         return $this->hasMany(RiwayatBelajar::class, 'santri_id')->where('is_active_riwayat', self::YA);
     }
 
-    // Helper baca: alumni = ada baris alumni; lulus/mutasi tidak disimpan di santri.
     public function isAlumni(): bool
     {
         return $this->alumni()->exists();
     }
 
-    // Dipakai portal wali 203 (daftar anak + cek akses).
     public function waliRelasi(): HasMany
     {
         return $this->hasMany(WaliSantriRelasi::class, 'santri_id');

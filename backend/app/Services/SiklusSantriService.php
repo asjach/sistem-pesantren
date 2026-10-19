@@ -52,8 +52,7 @@ class SiklusSantriService
             if (! is_null($noAbsen)) {
                 $this->cekBentrokAbsen($kelasId ?? $ganjil->kelas_id, $ganjil->tahun_ajaran, '2', $noAbsen);
             }
-            // Tutup ganjil sebagai arsip semester: status_akhir='lanjut' (santri
-            // lanjut ke genap TA yang sama), is_active_riwayat='Tidak'.
+
             $ganjil->update(['status_akhir' => 'lanjut', 'is_active_riwayat' => RiwayatBelajar::TIDAK]);
 
             $genap = $this->buatRiwayatDenganRetry($santri->id, [
@@ -64,7 +63,7 @@ class SiklusSantriService
                 'tgl_masuk' => $tglMasukGenap,
                 'no_absen' => $noAbsen,
                 'tingkat' => $ganjil->tingkat,
-                'status_awal' => 'lanjutan', // KUNCI: masuk semester 2 selalu lanjutan (bukan warisan ganjil)
+                'status_awal' => 'lanjutan',
                 'status_akhir' => 'aktif',
                 'is_active_riwayat' => RiwayatBelajar::YA,
             ], where: fn ($q) => $q->where('tahun_ajaran', $ganjil->tahun_ajaran)
@@ -165,7 +164,7 @@ class SiklusSantriService
             if (! in_array($status, ['naik', 'tidak_naik'], true)) {
                 abort(422, 'Status harus naik/tidak_naik.');
             }
-            // Hanya tingkat 1–5; tingkat akhir lewat halaman Kelulusan.
+
             if (! preg_match('/^[1-5]$/', (string) $lama->tingkat)) {
                 throw ValidationException::withMessages(['tingkat' => 'Tingkat akhir diproses lewat halaman Kelulusan.']);
             }
@@ -275,7 +274,7 @@ class SiklusSantriService
             }
 
             $baru->delete();
-            // Invarian: is_active_riwayat='Ya' iff status_akhir='aktif'.
+
             $lama->update(['status_akhir' => 'aktif', 'is_active_riwayat' => RiwayatBelajar::YA]);
 
             $santri->hitungUlangStatusGlobal();
@@ -317,8 +316,7 @@ class SiklusSantriService
             }
 
             $genap->delete();
-            // Ganjil dari salin tertutup (buka lagi → 'aktif' kembali); ganjil
-            // dari import masih aktif (no-op) — akhir: santri kembali ke semester 1.
+
             $ganjil->update(['status_akhir' => 'aktif', 'is_active_riwayat' => RiwayatBelajar::YA]);
 
             $santri->hitungUlangStatusGlobal();
@@ -345,7 +343,7 @@ class SiklusSantriService
             if ($riwayat->tingkat && $kelas->tingkat && $riwayat->tingkat !== $kelas->tingkat) {
                 abort(422, 'Tingkat kelas tidak cocok.');
             }
-            // Tingkat kosong mewarisi kelas tujuan.
+
             $upd = ['kelas_id' => $kelas->id];
             if (empty($riwayat->tingkat) && ! empty($kelas->tingkat)) {
                 $upd['tingkat'] = $kelas->tingkat;
@@ -419,7 +417,7 @@ class SiklusSantriService
             $mutasi = MutasiKeluar::create([
                 'santri_id' => $santri->id,
                 'jenjang' => $jenjang,
-                // Beku otomatis dari riwayat terakhir; input manual tetap menang bila diisi.
+
                 'kelas_terakhir_id' => $dataMutasi['kelas_terakhir_id']
                     ?? RiwayatBelajar::where('santri_id', $santri->id)
                         ->where('jenjang', $jenjang)
@@ -469,7 +467,7 @@ class SiklusSantriService
             }
 
             $mutasi->delete();
-            // Invarian: is_active_riwayat='Ya' iff status_akhir='aktif'.
+
             $lama->update(['status_akhir' => 'aktif', 'is_active_riwayat' => RiwayatBelajar::YA]);
 
             if (LembagaSantri::aktif($santri->id, $jenjang) === null) {
@@ -524,8 +522,7 @@ class SiklusSantriService
                 'melanjutkan' => $dataLulus['melanjutkan'] ?? null,
                 'catatan' => $dataLulus['catatan'] ?? null,
             ];
-            // Arsip unik per (santri + lembaga): paket MI+MD yang lulus berurutan
-            // menghasilkan dua baris (satu per lembaga), bukan saling menimpa.
+
             $usaha = 0;
             while (true) {
                 try {
@@ -639,7 +636,7 @@ class SiklusSantriService
             $lama = $ditutup->first();
 
             $alumni->delete();
-            // Invarian: is_active_riwayat='Ya' iff status_akhir='aktif'.
+
             $lama->update(['status_akhir' => 'aktif', 'is_active_riwayat' => RiwayatBelajar::YA]);
 
             if (LembagaSantri::aktif($santri->id, $jenjang) === null) {
@@ -692,7 +689,7 @@ class SiklusSantriService
             $lama = $ditutup->first();
 
             $baru->delete();
-            // Invarian: is_active_riwayat='Ya' iff status_akhir='aktif'.
+
             $lama->update(['status_akhir' => 'aktif', 'is_active_riwayat' => RiwayatBelajar::YA]);
 
             $santri->hitungUlangStatusGlobal();
@@ -742,8 +739,6 @@ class SiklusSantriService
             ->orderByDesc('id')
             ->get();
 
-        // Ganjil ⇔ genap di TA sama: ada genap → 'lanjut'; tak ada genap →
-        // kembali 'aktif' (periode yang berjalan). 'aktif' khusus baris berjalan.
         $taDenganGenap = $baris->where('semester', '2')->pluck('tahun_ajaran')->unique();
         foreach ($baris as $r) {
             if ($r->semester !== '1') {
@@ -768,8 +763,6 @@ class SiklusSantriService
         }
     }
 
-    // ---- Alias nama generik ----
-
     public function mutasiKeluar(Santri $santri, string $jenjang, array $dataMutasi): MutasiKeluar
     {
         return $this->prosesMutasiPerLembaga($santri, $jenjang, $dataMutasi);
@@ -789,8 +782,6 @@ class SiklusSantriService
     {
         return $this->hitungUlangStatusGlobal($santri);
     }
-
-    // ---- Internal ----
 
     /** Keanggotaan aktif wajib ada saat transisi riwayat (buat bila belum ada). */
     protected function pastikanKeanggotaanAktif(Santri $santri, string $jenjang): LembagaSantri

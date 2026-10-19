@@ -1,8 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-/* Ikon dari SET STATIS (lucide), bukan `@/icons` yang dinamis: komponen itu
-   membaca `useTheme()`, sedangkan batas galat harus tetap bisa menggambar
-   tampilannya walau yang gagal justru provider tema (dan di akar aplikasi tak
-   ada provider apa pun di atasnya). */
+
 import setIkon from '@/icons/lucide';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -58,10 +55,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(galat: Error, info: ErrorInfo): void {
-    /* React sudah mencetak galatnya sendiri. Baris ini MENAMBAH jejak komponen
-       dalam satu log yang mudah dicari ("[SIMPES] galat render") — di aplikasi
-       desktop pengguna tak membuka devtools, jadi log ini yang jadi pegangan
-       saat menelusuri laporan. */
+
     console.error('[SIMPES] galat render:', galat.message, info.componentStack);
   }
 

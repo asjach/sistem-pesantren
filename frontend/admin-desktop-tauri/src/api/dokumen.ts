@@ -4,8 +4,6 @@ import type { Paginate } from './master';
 import type { DataExistingPayload } from '@/lib/excelDataExisting';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 
-// ---------- Tiga halaman dokumen (santri / pegawai-guru / lembaga) ----------
-
 export type TipeDokumen = 'santri' | 'pegawai' | 'lembaga';
 
 export interface DokumenRow {
@@ -105,8 +103,6 @@ export function unduhBerkasDokumen(tipe: TipeDokumen, id: number, fallback: stri
   return downloadFile(`${base(tipe)}/${id}/unduh`, fallback);
 }
 
-// ---------- Sinkron cermin dua arah (lokal ↔ server, tanpa antrean) ----------
-
 export interface StatusBerkasServer {
   ada: boolean;
   ukuran?: number;
@@ -144,8 +140,6 @@ export function tandaiSinkronDokumen(tipe: TipeDokumen, id: number, hash: string
 export async function ambilByteDokumen(tipe: TipeDokumen, id: number): Promise<Uint8Array> {
   return new Uint8Array(await ambilBerkas(`${base(tipe)}/${id}/unduh`));
 }
-
-// ---------- Import daftar dokumen (potongan JSON bertahap) ----------
 
 export const KOLOM_IMPORT_DOKUMEN: Record<TipeDokumen, string[]> = {
   santri: ['nis_lokal', 'jenis_dokumen', 'lembaga', 'nama_file', 'penyimpanan', 'catatan'],

@@ -39,7 +39,6 @@ export default function DokumenSantriPage() {
     loading: filterLoading,
   } = useFilterGlobalAktif();
 
-  // ----- Daftar santri (kolom 1, baris 1) -----
   const [cari, setCari] = useState('');
   const [cariTunda, setCariTunda] = useState('');
   useEffect(() => {
@@ -125,8 +124,7 @@ export default function DokumenSantriPage() {
               kelas_id: kelasFilterIds.length ? kelasFilterIds : undefined,
             }
           : {}),
-        // Bawaan backend hanya baris aktif (kosong untuk filter historis) —
-        // minta semua, lalu utamakan yang aktif per santri di bawah.
+
         is_active_riwayat: 'semua',
         per_page: 0,
       });
@@ -201,8 +199,7 @@ export default function DokumenSantriPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={sumber === 'filter' ? { tahun_ajaran: true, semester: true, tingkat: true, kelas: true } : {}} />
-      {/* Rel Tingkat/Kelas di kiri konten (halaman tanpa grid: sejajar atas
-          panel dokumen) — hanya saat sumber daftar = Filter Santri. */}
+
       <div className="flex min-h-0 flex-1">
         {sumber === 'filter' ? <FilterRail /> : null}
         <PanelDokumen

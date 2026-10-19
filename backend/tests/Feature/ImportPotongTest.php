@@ -16,8 +16,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import bertahap potongan JSON: sesi + offset + akumulator, periksa kering
-// tanpa menulis, eksekusi menulis per potongan, galat CSV bisa diunduh.
 class ImportPotongTest extends TestCase
 {
     use RefreshDatabase;
@@ -96,7 +94,6 @@ class ImportPotongTest extends TestCase
         $f = $this->baseFixture();
         $a = $this->makeSantri('Potong A', '27001', $f['mi']);
 
-        // Potongan 1 (2 baris: 1 valid + 1 santri tak dikenal).
         $satu = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'mode' => 'periksa',
             'total' => 3,
@@ -111,10 +108,9 @@ class ImportPotongTest extends TestCase
         $this->assertFalse((bool) $satu->json('selesai'));
         $this->assertSame(1, $satu->json('ringkasan.dibuat'));
         $this->assertSame(1, $satu->json('ringkasan.baris_gagal'));
-        // Kering: tidak ada yang tertulis.
+
         $this->assertSame(0, RiwayatBelajar::count());
 
-        // Potongan 2 (terakhir): nomor galat absolut berlanjut.
         $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'sesi_id' => $sesiId,
             'mode' => 'periksa',
@@ -128,7 +124,6 @@ class ImportPotongTest extends TestCase
         $this->assertSame(0, RiwayatBelajar::count());
         $this->assertSame(ImportSesi::SELESAI, ImportSesi::find($sesiId)->status);
 
-        // Galat bisa diunduh pemilik sesi.
         $galat = $this->actingAs($f['super'], 'sanctum')->get("/api/admin/riwayat-belajar/import-potong/{$sesiId}/galat");
         $galat->assertStatus(200);
         $this->assertStringContainsString('27999', $galat->streamedContent() ?: '');
@@ -168,7 +163,6 @@ class ImportPotongTest extends TestCase
             'baris' => [$this->baris('27999', 'MI', '2026/2027')],
         ])->assertStatus(200);
 
-        // Lanjut + unduh + batal oleh pengguna lain: 404 semua.
         $this->actingAs($lain, 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'sesi_id' => $satu->json('sesi_id'),
             'mode' => 'periksa',
@@ -190,14 +184,12 @@ class ImportPotongTest extends TestCase
             'baris' => [$this->baris('27999', 'MI', '2026/2027')],
         ])->assertStatus(200);
 
-        // Mode berbeda dari sesi.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'sesi_id' => $satu->json('sesi_id'),
             'mode' => 'eksekusi',
             'baris' => [$this->baris('27999', 'MI', '2026/2027')],
         ])->assertStatus(422);
 
-        // Lebih dari 1000 baris per panggilan.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'mode' => 'periksa',
             'total' => 1001,
@@ -224,15 +216,13 @@ class ImportPotongTest extends TestCase
             ->get("/api/admin/riwayat-belajar/import-potong/{$sesiId}/galat")->assertStatus(404);
     }
 
-    // ---------- 06. is_active_riwayat = periode terakhir yang statusnya aktif ----------
-
     public function test_06_import_hanya_periode_terakhir_yang_aktif(): void
     {
         $f = $this->baseFixture();
-        $a = $this->makeSantri('Sinkron A', '27101', $f['mi']); // ganjil + genap aktif
-        $b = $this->makeSantri('Sinkron B', '27102', $f['mi']); // ganjil aktif saja
-        $c = $this->makeSantri('Sinkron C', '27103', $f['mi']); // ganjil aktif + genap naik
-        $d = $this->makeSantri('Sinkron D', '27104', $f['mi']); // ganjil 'lanjut' tanpa genap
+        $a = $this->makeSantri('Sinkron A', '27101', $f['mi']);
+        $b = $this->makeSantri('Sinkron B', '27102', $f['mi']);
+        $c = $this->makeSantri('Sinkron C', '27103', $f['mi']);
+        $d = $this->makeSantri('Sinkron D', '27104', $f['mi']);
 
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'mode' => 'eksekusi',
@@ -251,30 +241,27 @@ class ImportPotongTest extends TestCase
         $aktif = fn (int $id) => RiwayatBelajar::where('santri_id', $id)
             ->where('is_active_riwayat', 'Ya')->orderBy('semester')->pluck('semester')->all();
 
-        // Hanya periode terakhir (genap) yang aktif; ganjil bersejarah diarsipkan.
         $this->assertSame(['2'], $aktif($a->id));
         $this->assertSame(['1'], $aktif($b->id));
-        // Periode terakhir 'naik' (sudah selesai) → tak ada baris aktif.
+
         $this->assertSame([], $aktif($c->id));
-        // Ganjil yang punya genap → status_akhir 'lanjut' (bukan 'aktif').
+
         $this->assertSame('lanjut', RiwayatBelajar::where('santri_id', $a->id)->where('semester', '1')->value('status_akhir'));
         $this->assertSame('lanjut', RiwayatBelajar::where('santri_id', $c->id)->where('semester', '1')->value('status_akhir'));
-        // Ganjil tanpa genap (masih berjalan) tetap 'aktif'.
+
         $this->assertSame('aktif', RiwayatBelajar::where('santri_id', $b->id)->where('semester', '1')->value('status_akhir'));
-        // 'lanjut' tanpa genap dinormalkan balik ke 'aktif' (baris berjalan).
+
         $this->assertSame('aktif', RiwayatBelajar::where('santri_id', $d->id)->where('semester', '1')->value('status_akhir'));
         $this->assertSame(['1'], $aktif($d->id));
         $this->assertSame('Ya', $a->fresh()->is_active_pst);
         $this->assertSame('Tidak', $c->fresh()->is_active_pst);
     }
 
-    // ---------- 07. backfill: arsipkan aktif ganda hasil impor lama ----------
-
     public function test_07_command_backfill_mengarsipkan_aktif_ganda(): void
     {
         $f = $this->baseFixture();
         $s = $this->makeSantri('Backfill', '27201', $f['mi']);
-        // Simulasi hasil impor lama: dua baris aktif untuk pasangan yang sama.
+
         RiwayatBelajar::create([
             'santri_id' => $s->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => 'MI',
             'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
@@ -301,7 +288,7 @@ class ImportPotongTest extends TestCase
             'terakhir' => true,
             'baris' => [
                 $this->baris('27210', 'MI', '2026/2027'),
-                // Heading lama `kelas_id` (isi nama rombel) tetap diterima.
+
                 $this->baris('27210', 'MI', '2026/2027', ['semester' => '2', 'nama_kelas' => '', 'kelas_id' => '1A']),
             ],
         ])->assertStatus(200);
@@ -334,10 +321,9 @@ class ImportPotongTest extends TestCase
     public function test_10_mode_gabungan_buatkan_keanggotaan(): void
     {
         $f = $this->baseFixture();
-        // Santri tanpa keanggotaan sama sekali (hanya buku induk).
+
         $santri = Santri::create(['nama_lengkap' => 'Gabung Tanpa Anggota', 'jk' => 'L']);
 
-        // Tanpa flag: NIS tak terdaftar → gagal seperti dulu.
         $gagal = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'mode' => 'periksa',
             'total' => 1,
@@ -347,7 +333,6 @@ class ImportPotongTest extends TestCase
         $this->assertSame(1, $gagal->json('ringkasan.baris_gagal'));
         $this->assertSame(0, LembagaSantri::count());
 
-        // Kering + flag: cek jalan (cocok via santri_id), tanpa menulis.
         $kering = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'mode' => 'periksa',
             'total' => 1,
@@ -359,7 +344,6 @@ class ImportPotongTest extends TestCase
         $this->assertSame(0, LembagaSantri::count());
         $this->assertSame(0, RiwayatBelajar::count());
 
-        // Eksekusi + flag: keanggotaan + riwayat terbuat sekaligus (cocok via nama unik).
         $res = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/riwayat-belajar/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,

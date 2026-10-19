@@ -56,8 +56,7 @@ class RiwayatBelajarController extends Controller
                 'santri:id,nama_lengkap,jk',
                 'kelas:id,nama_kelas,tingkat',
                 'lembaga:jenjang,nama',
-                // JANGAN eager-load `tahunAjaran`: di-snake-case jadi
-                // `tahun_ajaran` dan menimpa atribut string FK → "[object Object]".
+
             ]),
             $request->user(),
             $request,
@@ -87,11 +86,11 @@ class RiwayatBelajarController extends Controller
             $query->where('riwayat_belajar.status_akhir', $request->input('status_akhir'));
         }
         if ($request->filled('status_awal')) {
-            // Scalar (klasik) maupun array `status_awal[]` (halaman kenaikan).
+
             $query->whereIn('riwayat_belajar.status_awal', (array) $request->input('status_awal'));
         }
         if ($request->filled('status_awal_bukan')) {
-            // `status_awal_bukan[]` = hasil kenaikan, mis. ['santri_baru'].
+
             $query->whereNotIn('riwayat_belajar.status_awal', (array) $request->input('status_awal_bukan'));
         }
         if ($request->boolean('tanpa_kelas')) {
@@ -280,8 +279,7 @@ class RiwayatBelajarController extends Controller
         }
 
         $query = $this->scopeLembaga(
-            // TANPA `tahunAjaran`: kunci relasi yang di-snake Laravel menimpa
-            // atribut string `tahun_ajaran` (lihat KelasController@index).
+
             RiwayatBelajar::with([
                 'santri:id,nama_lengkap,jk',
                 'kelas:id,nama_kelas,tingkat',
@@ -345,8 +343,6 @@ class RiwayatBelajarController extends Controller
         return response()->json(['pesan' => 'Riwayat belajar diubah.', 'data' => $riwayat->fresh()]);
     }
 
-    // ---------------- Import riwayat belajar (terpisah dari import identitas) ----------------
-
     /** GET /api/admin/riwayat-belajar/import-template */
     public function template(Request $request)
     {
@@ -377,7 +373,7 @@ class RiwayatBelajarController extends Controller
     {
         return $this->imporFile($request, new RiwayatBelajarImport, periksa: true, pesanSukses: fn (array $r) => "{$r['dibuat']} riwayat dibuat, {$r['diperbarui']} diperbarui.", sebelum: function (): void {
             $this->authorize('viewAny', Santri::class);
-            // File besar (puluhan ribu baris): beri waktu eksekusi eksplisit.
+
             ini_set('max_execution_time', '600');
         });
     }
@@ -387,7 +383,7 @@ class RiwayatBelajarController extends Controller
     {
         return $this->imporFile($request, new RiwayatBelajarImport, periksa: false, pesanSukses: fn (array $r) => "{$r['dibuat']} riwayat dibuat, {$r['diperbarui']} diperbarui.", sebelum: function (): void {
             $this->authorize('viewAny', Santri::class);
-            // File besar (puluhan ribu baris): beri waktu eksekusi eksplisit.
+
             ini_set('max_execution_time', '600');
         });
     }
@@ -406,8 +402,6 @@ class RiwayatBelajarController extends Controller
             return $row;
         });
     }
-
-    // ---------------- Import bertahap (potongan JSON) ----------------
 
     /**
      * POST /api/admin/riwayat-belajar/import-potong — satu potongan baris

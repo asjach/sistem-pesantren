@@ -48,7 +48,7 @@ class KeaktifanPegawaiController extends Controller
         );
 
         $this->applyFilter($query, $request, 'tahun_ajaran', 'keaktifan_pegawai.tahun_ajaran');
-        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
+
         if ($request->filled('status_keaktifan') && $request->input('status_keaktifan') !== 'semua') {
             $query->where('keaktifan_pegawai.status_keaktifan', $request->input('status_keaktifan'));
         }
@@ -162,8 +162,6 @@ class KeaktifanPegawaiController extends Controller
 
         return response()->json(['pesan' => 'Keaktifan dihapus.']);
     }
-
-    // ---------------- Import riwayat keaktifan (potongan JSON bertahap) ----------------
 
     /** GET /api/admin/pegawai-keaktifan/import-template — template Excel. */
     public function templateImport()

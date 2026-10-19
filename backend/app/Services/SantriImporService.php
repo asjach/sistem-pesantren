@@ -90,7 +90,7 @@ class SantriImporService extends ImporPotongan
             if (! isset($baris[$kolom])) {
                 continue;
             }
-            // Tanggal nol (`1900-01-00`) = sel kosong di sistem sumber.
+
             if (Tanggal::adalahTanggalNol($baris[$kolom])) {
                 $baris[$kolom] = null;
 
@@ -100,7 +100,7 @@ class SantriImporService extends ImporPotongan
                 try {
                     $baris[$kolom] = ExcelDate::excelToDateTimeObject($baris[$kolom])->format('Y-m-d');
                 } catch (\Throwable $e) {
-                    // Biarkan apa adanya agar validasi `date` menolak dengan pesan jelas.
+
                 }
             }
         }
@@ -155,7 +155,7 @@ class SantriImporService extends ImporPotongan
                 $baris = is_array($baris) ? $baris : [];
                 $nis = trim((string) ($baris['nis_lokal'] ?? ''));
                 $this->kunciAktif = $nis === '' ? null : $nis;
-                // Baris tanpa kunci identitas apa pun dianggap kosong/pemisah.
+
                 if (empty($baris['nama_lengkap']) && empty($baris['santri_id']) && empty($baris['nik']) && empty($baris['nis_lokal'])) {
                     continue;
                 }
@@ -194,7 +194,6 @@ class SantriImporService extends ImporPotongan
             return;
         }
 
-        // Keanggotaan wajib: baris tanpa `jenjang` ditolak.
         $jenjang = $this->resolveLembagaId($baris, $no);
         if ($jenjang === null) {
             return;
@@ -207,7 +206,6 @@ class SantriImporService extends ImporPotongan
             return;
         }
 
-        // Riwayat perdana (opsional): `tahaj_masuk` harus tahun ajaran yang ada.
         $tahunAjaranMasuk = trim((string) ($baris['tahaj_masuk'] ?? ''));
         if ($tahunAjaranMasuk !== '' && ! TahunAjaran::whereKey($tahunAjaranMasuk)->exists()) {
             $this->fail($no, 'tahaj_masuk', "Tahun ajaran \"{$tahunAjaranMasuk}\" tidak ditemukan.");
@@ -216,8 +214,7 @@ class SantriImporService extends ImporPotongan
         }
 
         $dataSantri = $this->buatDataSantri($baris);
-        // Jaring pengaman: kegagalan tulis DB (mis. bentrok unik) dicatat per
-        // baris, bukan 500 yang membatalkan seluruh file.
+
         try {
             $santri = $this->cocokkanSantri($baris, $dataSantri, $no, $jenjang, $sudahAda, $kering);
             if ($santri === null) {
@@ -263,16 +260,11 @@ class SantriImporService extends ImporPotongan
      */
     protected function catatRiwayatPerdana(Santri $santri, string $jenjang, string $tahunAjaran, array $baris, int $no, bool $kering): void
     {
-        // Baris yang eksplisit ditandai nonaktif tidak dibuatkan riwayat
-        // berjalan — `terima()` di bawah justru akan mengaktifkan ulang
-        // keanggotaannya bila dipaksakan.
+
         if (in_array(mb_strtolower(trim((string) ($baris['is_active_lembaga'] ?? ''))), ['0', 'false', 'nonaktif', 'tidak', 't'], true)) {
             return;
         }
 
-        // Lewati bila sudah ada riwayat aktif di jenjang ini (santri sedang berjalan)
-        // atau baris perdana identik sudah ada (termasuk yang sudah diarsipkan).
-        // Santri baru (belum tersimpan) pasti belum punya riwayat.
         $sudahAda = $santri->exists && RiwayatBelajar::where('santri_id', $santri->id)
             ->where('jenjang', $jenjang)
             ->where(fn ($q) => $q
@@ -303,7 +295,7 @@ class SantriImporService extends ImporPotongan
             $pesan = (string) (collect($e->errors())->flatten()->first() ?? 'Riwayat belajar gagal dibuat.');
             $this->fail($no, 'riwayat_belajar', $pesan);
         } catch (QueryException $e) {
-            // Bentrok unique (mis. balapan) → catat per baris, jangan batalkan import.
+
             $this->fail($no, 'riwayat_belajar', 'Riwayat belajar bentrok dengan data yang ada.');
         }
     }
@@ -343,7 +335,6 @@ class SantriImporService extends ImporPotongan
     {
         $sudahAda = false;
 
-        // (a) Kunci eksak santri_id.
         $santriId = trim((string) ($baris['santri_id'] ?? ''));
         if ($santriId !== '') {
             $santri = Santri::find((int) $santriId);
@@ -355,7 +346,7 @@ class SantriImporService extends ImporPotongan
             if (empty($dataSantri['nama_lengkap'])) {
                 $dataSantri['nama_lengkap'] = $santri->nama_lengkap;
             }
-            // Baris parsial (hanya kunci + keanggotaan): sel kosong = pertahankan.
+
             if (! $kering) {
                 $santri->update($this->tanpaKosong($dataSantri));
             }
@@ -367,7 +358,6 @@ class SantriImporService extends ImporPotongan
         $nikTerisi = trim((string) ($baris['nik'] ?? '')) !== '';
         $nisTerisi = trim((string) ($baris['nis_lokal'] ?? '')) !== '';
 
-        // (b) NIS lokal + lembaga (NIK bukan kunci karena boleh ganda).
         if ($nisTerisi) {
             $nis = trim((string) $baris['nis_lokal']);
             $kunci = $jenjang.'|'.mb_strtolower($nis);
@@ -390,10 +380,9 @@ class SantriImporService extends ImporPotongan
 
                 return $santri;
             }
-            // NIS belum terdaftar → create baru di bawah (membawa nis_lokal).
+
         }
 
-        // (c) Create baru — wajib ada nama.
         if (empty($dataSantri['nama_lengkap'])) {
             $this->fail($no, 'nama_lengkap', 'Nama wajib diisi untuk santri baru.');
 
@@ -425,7 +414,7 @@ class SantriImporService extends ImporPotongan
         $nisKemenag = $nisKemenag === '' ? null : $nisKemenag;
         $aktif = $this->parseAktif($baris['is_active_lembaga'] ?? null, $no);
         if ($aktif === null && array_key_exists('is_active_lembaga', $baris) && trim((string) $baris['is_active_lembaga']) !== '') {
-            return false; // failure sudah dicatat parseAktif
+            return false;
         }
         $tglMasuk = Tanggal::parse($baris['tgl_masuk'] ?? null);
         $tglSelesai = Tanggal::parse($baris['tgl_selesai'] ?? null);
@@ -438,7 +427,7 @@ class SantriImporService extends ImporPotongan
         $konteks = [
             'tahaj_masuk' => $teksKolom('tahaj_masuk'),
             'tingkat_masuk' => $teksKolom('tingkat_masuk'),
-            // String bebas (mis. `706x` untuk data ganda historis).
+
             'no_urut' => $noUrut,
             'nama_sekolah_asal' => $teksKolom('nama_sekolah_asal'),
             'npsn_sekolah_asal' => $teksKolom('npsn_sekolah_asal'),
@@ -459,7 +448,6 @@ class SantriImporService extends ImporPotongan
 
                 return false;
             }
-            // NIS Kemenag bebas duplikat (hasil generate; bisa digenerate ulang).
 
             if (! $kering) {
                 LembagaSantri::create([
@@ -477,8 +465,6 @@ class SantriImporService extends ImporPotongan
             return true;
         }
 
-        // Baris sendiri ber-NIS sama diutamakan (idempoten saat import ulang;
-        // santri boleh punya >1 baris per lembaga).
         if ($nisLokal !== null) {
             $seNis = LembagaSantri::where('santri_id', $santri->id)
                 ->where('jenjang', $jenjang)
@@ -490,8 +476,6 @@ class SantriImporService extends ImporPotongan
             }
         }
 
-        // Masuk lagi setelah keluar = periode BARU (NIS baru): arsip lama
-        // dipertahankan, buat baris baru. Koreksi NIS hanya untuk baris aktif.
         if ($ada->is_active_lembaga === LembagaSantri::TIDAK
             && $nisLokal !== null && $nisLokal !== $ada->nis_lokal
         ) {
@@ -517,8 +501,6 @@ class SantriImporService extends ImporPotongan
             return true;
         }
 
-        // Update: hanya nilai non-kosong yang menimpa (sel kosong = pertahankan).
-        // NIS lokal wajib unik; NIS Kemenag bebas duplikat.
         if ($nisLokal !== null && $nisLokal !== $ada->nis_lokal) {
             if (LembagaSantri::nisLokalDipakaiSantriLain($jenjang, $nisLokal, $santri->id)) {
                 $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');
@@ -596,7 +578,6 @@ class SantriImporService extends ImporPotongan
             'transportasi' => $row['transportasi'] ?? null,
             'tanggal_masuk' => Tanggal::parse($row['tanggal_masuk'] ?? null),
 
-            // Data Orang Tua & Wali
             'ayah_nama' => $row['ayah_nama'] ?? null,
             'ayah_nik' => $row['ayah_nik'] ?? null,
             'ayah_tmp_lahir' => $row['ayah_tmp_lahir'] ?? null,
@@ -632,7 +613,6 @@ class SantriImporService extends ImporPotongan
             'wali_status_tempat_tinggal' => $row['wali_status_tempat_tinggal'] ?? null,
             'yang_membiayai' => $row['yang_membiayai'] ?? null,
 
-            // Alamat
             'provinsi' => $row['provinsi'] ?? null,
             'kab_kota' => $row['kab_kota'] ?? null,
             'kecamatan' => $row['kecamatan'] ?? null,
@@ -688,12 +668,12 @@ class SantriImporService extends ImporPotongan
     public static function rules(): array
     {
         return [
-            // Update via santri_id boleh tanpa identitas (profil tak disentuh bila kosong).
+
             'nama_lengkap' => ['required_without:santri_id', 'nullable', 'string', 'max:255'],
             'jk' => ['required_without:santri_id', 'nullable', 'in:L,P'],
-            // Identitas: minimal satu kunci (NIK tak selalu ada).
+
             'nik' => ['required_without_all:nis_lokal,santri_id', 'nullable', 'string', 'max:20'],
-            // Blok keanggotaan WAJIB: tiap santri minimal terdaftar di 1 jenjang.
+
             'santri_id' => ['nullable', 'integer'],
             'jenjang' => ['required', 'string'],
             'nis_lokal' => ['required_without_all:nik,santri_id', 'nullable', 'string', 'max:20'],
@@ -708,7 +688,7 @@ class SantriImporService extends ImporPotongan
             'is_active_lembaga' => ['nullable'],
             'tgl_masuk' => ['nullable', 'date'],
             'tgl_selesai' => ['nullable', 'date'],
-            // Basis buku induk.
+
             'nisn' => ['nullable', 'digits:10'],
             'ayah_nik' => ['nullable', 'string', 'max:20'],
             'ibu_nik' => ['nullable', 'string', 'max:20'],

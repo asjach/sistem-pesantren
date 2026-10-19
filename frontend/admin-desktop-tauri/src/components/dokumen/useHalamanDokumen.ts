@@ -56,7 +56,6 @@ export function useHalamanDokumen({
 }: OpsiHalamanDokumen) {
   const desktop = isTauri();
 
-  // ----- Daftar dokumen milik subjek terpilih (kolom 1, baris 2) -----
   const [dokumens, setDokumens] = useState<DokumenRow[]>([]);
   const [loadingDok, setLoadingDok] = useState(false);
   /** Salinan arsip yang benar-benar ada di perangkat ini (kunci: id dokumen). */
@@ -66,12 +65,9 @@ export function useHalamanDokumen({
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // ----- Pratinjau (kolom 2, baca-saja) -----
   const [dokId, setDokId] = useState<number | null>(null);
   const [pratinjau, setPratinjau] = useState<SumberBerkas | null>(null);
 
-  // ----- Editor info dokumen (jenis/lembaga/catatan memicu selaras nama
-  //  berkas; status/nama/lokasi edit data langsung) -----
   const [editJenis, setEditJenis] = useState('');
   const [editLembaga, setEditLembaga] = useState('');
   const [editCatatan, setEditCatatan] = useState('');
@@ -82,12 +78,10 @@ export function useHalamanDokumen({
   /** Opsi jenis dari referensi (sama dengan halaman Tambah). */
   const [jenisRows, setJenisRows] = useState<ReferensiRow[]>([]);
 
-  // ----- Ganti berkas -----
   const [gantiRow, setGantiRow] = useState<DokumenRow | null>(null);
   const [gantiFile, setGantiFile] = useState<File | null>(null);
   const inputGantiWebRef = useRef<HTMLInputElement>(null);
 
-  // ----- Keluaran viewer (hasil putar/crop/resize/editor) + status kotor -----
   const [keluaran, setKeluaran] = useState<HasilGambar | null>(null);
   const [kotor, setKotor] = useState(false);
   /** Pipeline viewer sibuk: Simpan dikunci agar tak mengunggah byte basi. */
@@ -111,8 +105,7 @@ export function useHalamanDokumen({
         : { pegawai_id: id, per_page: 0, signal });
       if (signal?.aborted) return;
       setDokumens(p.data);
-      // Petakan keberadaan salinan arsip (desktop saja, baris lokal/test) —
-      // dasar mengaktifkan/mematikan aksi Ubah.
+
       if (!isTauri()) { setArsipAda({}); return; }
       const perlu = p.data.filter((d) => (d.penyimpanan ?? 'server') !== 'server' && d.nama_file);
       if (perlu.length === 0) { setArsipAda({}); return; }
@@ -162,7 +155,7 @@ export function useHalamanDokumen({
           setPratinjau({ bytes: ketemu.bytes, mime, nama });
           return;
         }
-        // Cermin: salinan server selalu ada — jatuh ke unduh di bawah.
+
         if (lokasi !== 'cermin') {
           toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
           return;
@@ -196,7 +189,7 @@ export function useHalamanDokumen({
         toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
         return;
       }
-      // Cermin tanpa salinan lokal: salinan server selalu ada.
+
       const bytes = ketemu?.bytes ?? new Uint8Array(await ambilBerkas(`/admin/dokumen/${entitas}/${r.id}/unduh`));
       const tujuan = await save({
         defaultPath: r.nama_file,
@@ -293,7 +286,6 @@ export function useHalamanDokumen({
       : 'Salinan arsip tidak ada di perangkat ini — ubah dari perangkat asal';
   }, [desktop, arsipAda]);
 
-  // Ganti baris terpilih → editor mengikuti nilai baris baru.
   useEffect(() => {
     const baris = dokumens.find((d) => d.id === dokId) ?? null;
     setEditJenis(baris?.jenis_dokumen ?? '');
@@ -304,7 +296,6 @@ export function useHalamanDokumen({
     setEditLokasi(baris?.penyimpanan ?? 'server');
   }, [dokId, dokumens]);
 
-  // Referensi jenis: santri per jenjang; pegawai sekali + dedupe (mode "Semua").
   useEffect(() => {
     if (entitas !== 'santri') return;
     if (jenjangs.length === 0) { setJenisRows([]); return; }
@@ -322,7 +313,7 @@ export function useHalamanDokumen({
     referensiList('jenis_dokumen_pegawai', jenjangs.length ? jenjangs : undefined)
       .then((r) => {
         if (!hidup) return;
-        // Mode "Semua" menggabung baris per lembaga — dedupe per nama.
+
         const lihat = new Set<string>();
         setJenisRows(r.filter((x) => {
           const kunci = String(x.nama ?? x.kode).trim().toLowerCase();
@@ -337,19 +328,17 @@ export function useHalamanDokumen({
 
   const opsiJenisUbah = useMemo(() => {
     const opsi = jenisRows.map((r) => ({ value: String(r.nama ?? r.kode), label: String(r.nama ?? r.kode) }));
-    // Nilai tersimpan yang tak ada di referensi tetap bisa tampil/terpilih.
+
     const kini = editJenis.trim();
     if (kini !== '' && !opsi.some((o) => o.value === kini)) opsi.push({ value: kini, label: kini });
     return opsi;
   }, [jenisRows, editJenis]);
 
   const onUbah = useCallback(async () => {
-    // Cari langsung (bukan dokPratinjau) agar callback bisa dideklarasikan
-    // sebelum memo baris terpilih.
+
     const baris = dokumens.find((d) => d.id === dokId) ?? null;
     if (!baris || editJenis.trim() === '') return;
-    // Hanya field yang berubah yang dikirim; jenis/lembaga/catatan memicu
-    // selaras nama berkas, sisanya edit data langsung.
+
     const payload: Record<string, unknown> = { selaraskan_nama: true };
     if (editJenis.trim() !== (baris.jenis_dokumen ?? '')) payload.jenis_dokumen = editJenis.trim();
     if (entitas === 'santri' && editLembaga !== (baris.lembaga ?? '')) payload.lembaga = editLembaga || null;
@@ -375,7 +364,7 @@ export function useHalamanDokumen({
       setEditAktif(segar?.is_active === false ? 'Tidak' : 'Ya');
       setEditNama(segar?.nama_file ?? '');
       setEditLokasi(segar?.penyimpanan ?? 'server');
-      // Desktop: pindahkan salinan arsip mengikuti nama + folder baru.
+
       const namaBaru = hasil.data?.nama_file ?? null;
       if (desktop && lokasi !== 'server' && namaLama && namaBaru && namaBaru !== namaLama) {
         try {
@@ -515,7 +504,7 @@ export function useHalamanDokumen({
         await muatDokumen(subjekId);
         segarkanJumlah();
       }
-      // Segarkan pratinjau bila baris yang diganti sedang tampil.
+
       if (dokId === idLama && subjekId != null) {
         const baru = await barisSegar(subjekId, idLama);
         if (baru) void muatPratinjau(baru);

@@ -104,8 +104,6 @@ export const HARI_LABEL: Record<string, string> = {
   jumat: 'Jumat', sabtu: 'Sabtu', minggu: 'Minggu', ahad: 'Ahad',
 };
 
-// ---------------------------------------------------------------- mapel
-
 export function daftarMapel(params: { jenjang: string; q?: string; kelompok?: KelompokMapel; keaktifan?: 'aktif' | 'nonaktif' | 'semua' }) {
   const q = new URLSearchParams();
   q.set('jenjang', params.jenjang);
@@ -163,8 +161,6 @@ export function terapkanKamusMapel(input: { jenjang: string; timpa?: boolean; mo
   });
 }
 
-// ---------- Import mapel bertahap (potongan JSON dari browser) ----------
-
 /** Kolom template import mapel (multi-lembaga; `is_active` kosong = aktif/pertahankan). */
 export const KOLOM_IMPORT_MAPEL = ['jenjang', 'nama_mapel', 'kelompok', 'kode_mapel', 'is_active'];
 
@@ -197,8 +193,6 @@ export function batalPotongMapel(sesiId: number) {
 export function unduhGalatMapel(sesiId: number) {
   return downloadFile(`/admin/kurikulum/mapel/import-potong/${sesiId}/galat`, 'galat-import-mapel.csv');
 }
-
-// ------------------------------------------------------- guru & pengampu
 
 export function daftarGuruAktif(params: { jenjang: string; tahun_ajaran: string }) {
   const q = new URLSearchParams();
@@ -249,8 +243,6 @@ export function salinPengampu(kelasId: number, dariKelasId: number) {
   });
 }
 
-// ---------- Import pengampu bertahap (potongan JSON dari browser) ----------
-
 /** Kolom template import pengampu (multi-lembaga/TA; `guru` = NIP/nama, kosong = tanpa guru). */
 export const KOLOM_IMPORT_PENGAMPU = ['jenjang', 'tahun_ajaran', 'nama_kelas', 'nama_mapel', 'guru'];
 
@@ -284,8 +276,6 @@ export function unduhGalatPengampu(sesiId: number) {
   return downloadFile(`/admin/kurikulum/pengampu/import-potong/${sesiId}/galat`, 'galat-import-pengampu.csv');
 }
 
-// ------------------------------------------------------- slot & jadwal
-
 export function daftarJadwal(kelasId: number) {
   return api<JadwalResp>(`/admin/kurikulum/jadwal?kelas_id=${kelasId}`);
 }
@@ -310,8 +300,6 @@ export function simpanSelJadwal(data: {
 export function hapusJadwal(id: number) {
   return api<{ pesan: string }>(`/admin/kurikulum/jadwal/${id}`, { method: 'DELETE' });
 }
-
-// ------------------------------------------------- template jadwal generik
 
 export interface TemplateJadwal {
   id: number; jenjang: string; tingkat: string | null; kelas_id: number | null;
@@ -388,8 +376,6 @@ export function terapkanTemplate(id: number, data: {
 }) {
   return api<TerapkanHasil>(`/admin/kurikulum/template-jadwal/${id}/terapkan`, { method: 'POST', body: JSON.stringify(data) });
 }
-
-// ------------------------------------------------------- hari libur mingguan
 
 export interface HariLiburResp {
   jenjang: string; semua_hari: string[]; hari_aktif: string[]; hari_libur: string[];

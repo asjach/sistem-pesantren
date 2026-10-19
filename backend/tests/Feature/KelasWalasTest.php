@@ -15,8 +15,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Tests\TestCase;
 
-// Wali kelas inline (`kelas.walas_id`): 3 lapis — pegawai ada, aktif global,
-// keaktifan aktif di lembaga + TA kelas.
 class KelasWalasTest extends TestCase
 {
     use RefreshDatabase;
@@ -88,18 +86,15 @@ class KelasWalasTest extends TestCase
         $this->assertSame('Wali kelas ditetapkan.', $res->json('pesan'));
         $this->assertSame($guru->id, $f['kelas']->fresh()->walas_id);
 
-        // Daftar kelas memuat nama wali.
         $daftar = $this->actingAs($f['super'], 'sanctum')
             ->getJson('/api/admin/kelas?jenjang=MI&tahun_ajaran='.urlencode($f['ta']->nama))
             ->assertStatus(200);
         $baris = collect($daftar->json('data'))->firstWhere('id', $f['kelas']->id);
         $this->assertSame('Guru Wali', $baris['walas']['nama_lengkap']);
-        // Regresi: `tahun_ajaran` harus string (relasi `tahunAjaran` yang di-snake
-        // Laravel pernah menimpanya jadi objek → "[object Object]" di grid).
+
         $this->assertIsString($baris['tahun_ajaran']);
         $this->assertArrayNotHasKey('tahunAjaran', $baris);
 
-        // Lepas wali (null).
         $this->actingAs($f['super'], 'sanctum')
             ->postJson("/api/admin/kelas/{$f['kelas']->id}/set-walas", ['pegawai_id' => null])
             ->assertStatus(200)
@@ -123,7 +118,6 @@ class KelasWalasTest extends TestCase
         }
         $this->assertNull($f['kelas']->fresh()->walas_id);
 
-        // Pegawai tak dikenal: 422 validasi.
         $this->actingAs($f['super'], 'sanctum')
             ->postJson("/api/admin/kelas/{$f['kelas']->id}/set-walas", ['pegawai_id' => 999999])
             ->assertStatus(422);
@@ -137,13 +131,11 @@ class KelasWalasTest extends TestCase
         $asing = $this->makePegawai('Guru Asing', 'NIP006');
         $this->tugaskan($asing, $f['mts']->jenjang, $f['ta']->nama);
 
-        // Update generik ikut menetapkan wali.
         $this->actingAs($f['super'], 'sanctum')
             ->putJson("/api/admin/kelas/{$f['kelas']->id}", ['walas_id' => $guru->id])
             ->assertStatus(200);
         $this->assertSame($guru->id, $f['kelas']->fresh()->walas_id);
 
-        // Opsi dropdown: hanya yang aktif di MI + TA (bukan MTS).
         $res = $this->actingAs($f['super'], 'sanctum')
             ->getJson('/api/admin/pegawai/aktif?jenjang=MI&tahun_ajaran='.urlencode($f['ta']->nama))
             ->assertStatus(200);

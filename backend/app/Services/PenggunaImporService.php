@@ -110,9 +110,6 @@ class PenggunaImporService extends ImporPotongan
             'email_verified_at' => now(),
         ]);
 
-        // Pivot tenant user_lembaga: `jenjang` adalah FK STRING ke
-        // lembaga.jenjang (bukan id numerik) — jangan di-cast ke int.
-        // role null = cakupan warisan (peran dibaca dari roles global).
         foreach ($this->lembagaIds as $lid) {
             DB::table('user_lembaga')->insert([
                 'user_id' => $user->id, 'jenjang' => (string) $lid, 'role' => null,

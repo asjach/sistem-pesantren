@@ -40,7 +40,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Tidak dikembalikan: menghapus kolom preset bisa menghilangkan pilihan
-        // pengguna yang sudah menambahkan kolom tersebut secara manual.
+
     }
 };

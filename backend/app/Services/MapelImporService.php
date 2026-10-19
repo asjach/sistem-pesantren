@@ -41,7 +41,7 @@ class MapelImporService extends ImporPotongan
     {
         $nama = trim((string) ($baris['nama_mapel'] ?? ''));
         $this->kunciAktif = $nama === '' ? null : $nama;
-        // Baris tanpa nama = kosong/pemisah.
+
         if ($nama === '') {
             return;
         }
@@ -61,7 +61,7 @@ class MapelImporService extends ImporPotongan
         }
 
         $kunci = mb_strtolower($jenjang.'|'.$nama);
-        // Duplikat intra-file: hanya kemunculan pertama yang diproses.
+
         if (isset($this->dilihat[$kunci])) {
             $this->dilewati++;
             $this->valid++;
@@ -112,8 +112,6 @@ class MapelImporService extends ImporPotongan
             return;
         }
 
-        // Update: kelompok selalu tertutup (wajib per baris); kode & status
-        // hanya menimpa bila terisi (sel kosong = pertahankan).
         $ubah = ['kelompok' => $kelompok];
         if ($kode !== '') {
             $ubah['kode_mapel'] = $kode;

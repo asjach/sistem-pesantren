@@ -129,8 +129,6 @@ export default function KurikulumPengampuPage() {
     nilaiGuruRef.current = new Map(baru.map((b) => [b.id, b.keaktifan_pegawai_id]));
   }, []);
 
-  // Daftar kelas (pemetaan nama di rail → id) + mapel aktif jenjang (pilihan
-  // dialog "Tambah mapel") dimuat bersama.
   useEffect(() => {
     if (filterLoading || jenjang === null || ta === null) { setKelasOpsi([]); return; }
     let hidup = true;
@@ -147,7 +145,6 @@ export default function KurikulumPengampuPage() {
     return () => { hidup = false; };
   }, [filterLoading, jenjang, ta]);
 
-  // Guru aktif jenjang+TA.
   useEffect(() => {
     if (jenjang === null || ta === null) { setGuru([]); return; }
     let hidup = true;
@@ -183,7 +180,7 @@ export default function KurikulumPengampuPage() {
 
   useEffect(() => {
     void muatPengampu(kelasIds);
-    // Kunci = id kelas terpilih (array baru tiap render, jadi tak dipakai langsung).
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [muatPengampu, kunciKelas]);
 
@@ -294,9 +291,7 @@ export default function KurikulumPengampuPage() {
     { key: 'kelompok', label: 'Kelompok', width: 110, kind: 'static' },
     { key: 'kkm', label: 'KKM', width: 70, kind: 'static' },
     {
-      // Semua kolom select memakai Select Radix; selnya hanya memasang instance
-      // Radix saat daftar benar-benar dibuka (lihat SelectRadixCell) supaya tabel
-      // ratusan baris tak berat.
+
       key: 'guru', label: 'Guru pengampu', width: 260, kind: 'select', selectTanpaEdit: true,
       choices: [
         { value: '', label: '— belum ada guru —' },
@@ -334,17 +329,14 @@ export default function KurikulumPengampuPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tabel={[
-        // Key memakai imbuhan `-kelas`: tabel ini dulu punya key `kurikulum_pengampu`
-        // saat kolomnya masih 4 (tanpa "Kelas"), dan preset kolom lama itu
-        // membuat kolom baru muncul di paling akhir.
+
         { key: 'kurikulum_pengampu_kelas', judul: 'Pengampu', fields: fieldsPengampu },
       ]} />
 
       <div className="flex min-h-0 flex-1 flex-col p-3">
         <ExcelTable<BarisPengampu>
           tableKey="kurikulum_pengampu_kelas"
-          // Rel Tingkat/Kelas di kiri grid: inilah pemilih kelas halaman ini
-          // (boleh beberapa kelas — tabelnya punya kolom "Kelas").
+
           rail
           fields={fieldsPengampu}
           rows={baris}
@@ -359,8 +351,7 @@ export default function KurikulumPengampuPage() {
           }
           canEdit={canUbah}
           onCommit={commitSel}
-          // Setiap edit sel = satu PUT penuh untuk kelasnya; muat ulang agar isi
-          // tabel mengikuti data terbaru (mis. guru dinonaktifkan di halaman lain).
+
           onSaved={() => void muatPengampu(kelasIds)}
           addButtonLangsung
           addButton={
@@ -389,8 +380,6 @@ export default function KurikulumPengampuPage() {
         />
       </div>
 
-      {/* Dialog "Tambah mapel": kelas tujuan (dari kelas yang tampil), mapel
-          jenjang yang belum terpasang di kelas itu, dan guru opsional. */}
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -457,8 +446,6 @@ export default function KurikulumPengampuPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog "Salin dari kelas lain": seluruh mapel kelas sumber yang belum
-          ada di kelas tujuan ditambahkan TANPA guru. */}
       <Dialog open={salinOpen} onOpenChange={setSalinOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

@@ -130,7 +130,7 @@ export default function PindahKelasPage() {
   const grup = useMemo<GrupTingkat[]>(() => {
     const petaKelas = new Map<number, Kelas>();
     for (const k of kelas) petaKelas.set(k.id, k);
-    // Kelompokkan kelas per tingkat, urut nama.
+
     const tingkatKeKelas = new Map<string, Kelas[]>();
     for (const k of kelas) {
       const t = k.tingkat != null && k.tingkat !== '' ? String(k.tingkat) : '';
@@ -140,9 +140,7 @@ export default function PindahKelasPage() {
     for (const daftar of tingkatKeKelas.values()) {
       daftar.sort((a, b) => a.nama_kelas.localeCompare(b.nama_kelas, 'id', { numeric: true }));
     }
-    // Baris per kelas; kelas tak dikenal + tanpa kelas menumpuk di kolom
-    // "Tanpa kelas" tingkatnya masing-masing — kolom ini tampil PALING
-    // DEPAN agar santri yang belum berdenah kelas langsung terlihat.
+
     const barisPerKelas = new Map<number, RiwayatRow[]>();
     const tanpaPerTingkat = new Map<string, RiwayatRow[]>();
     for (const r of rows) {
@@ -208,8 +206,7 @@ export default function PindahKelasPage() {
                 arahUrut={arahUrut}
                 onUrut={terapkanUrut}
                 tetangga={k.kelasId == null
-                  // Kolom Tanpa kelas: kiri = kelas nyata terakhir,
-                  // kanan = kelas nyata pertama.
+
                   ? (() => {
                       const nyata = g.kolom.filter((c) => c.kelasId != null);
                       if (nyata.length === 0) return { kiri: null, kanan: null };

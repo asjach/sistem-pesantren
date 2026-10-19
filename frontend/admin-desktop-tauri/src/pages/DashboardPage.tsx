@@ -13,8 +13,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorNotice } from '@/components/PageHeader';
 import { TAHAP_PSB } from '@/components/psb/bersama';
 
-/* ---------- Format angka (id-ID) ---------- */
-
 function angka(nilai: number): string {
   return nilai.toLocaleString('id-ID');
 }
@@ -38,13 +36,9 @@ function rentang(mulai: string | null, selesai: string | null): string {
   return (mulai ?? '—') + ' – ' + (selesai ?? '—');
 }
 
-/* Isian netral untuk baris proporsi — aksen sengaja dipakai di SATU tempat
-   saja (garis pokok di bawah angka utama), sisanya tinta & garis rambut. */
 const ISIAN = 'color-mix(in srgb, var(--foreground) 38%, transparent)';
 const ISIAN_LEMBUT = 'color-mix(in srgb, var(--foreground) 20%, transparent)';
 const GARIS = 'color-mix(in srgb, var(--foreground) 14%, transparent)';
-
-/* ---------- Komponen buku induk ---------- */
 
 /** Lencana hitung ala badge Gr8r (abu netral). */
 function LencanaHitung({ anak }: { anak: ReactNode }) {
@@ -303,7 +297,7 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1160px] px-6 py-7">
-      {/* Angka pokok: satu-satunya tempat aksen dipakai. */}
+
       <Card className="rounded-lg p-6">
         <p className="text-[11px] text-muted-foreground">{hero.label}</p>
         <p
@@ -328,7 +322,6 @@ export default function DashboardPage() {
         </dl>
       </Card>
 
-      {/* Kartu-kartu ringkasan ala Gr8r dalam dua kolom. */}
       <div className="gap-6 pt-8 lg:columns-2">
         {santri ? (
           <Seksi judul="Santri" keterangan={angka(santri.total) + ' aktif'}>

@@ -23,19 +23,12 @@ class UrutKatalog
             'jk' => ['santri.jk'],
             'tipe' => ['santri.tipe_santri'],
             'status' => ['santri.is_active_pst'],
-            // Pseudo-kolom: bukan kolom DB, tapi ekspresi subquery yang
-            // ditangani `SantriController::urutKelasJenjang` (kelas/jenjang
-            // dipilih dari banyak baris riwayat, jadi butuh aturan pilih yang
-            // sama dengan yang menampilkannya). Nilainya penanda, bukan nama
-            // kolom — jangan dipakai `terapkanUrut`.
+
             'kelas' => ['kelas-sub'],
             'jenjang' => ['jenjang-sub'],
             'id' => ['santri.id'],
         ],
-        // Daftar Santri di tab Kelola Dispensasi: sumbernya endpoint `santri`
-        // yang sama, jadi katalognya ikut persis (kolomnya pun sama). Dipisah
-        // karena preset urut disimpan per `table_key` — halaman ini boleh punya
-        // opsi bawaan sendiri tanpa mengubah preset halaman Santri.
+
         'dispensasi_kandidat' => [
             'nama' => ['santri.nama_lengkap'],
             'nisn' => ['santri.nisn'],
@@ -44,10 +37,7 @@ class UrutKatalog
             'jenjang' => ['jenjang-sub'],
             'id' => ['santri.id'],
         ],
-        // Kamus referensi: halaman `ReferensiPage` memuat SEMUA baris sekaligus
-        // (endpoint mengembalikan array, bukan halaman), jadi urutannya
-        // diterapkan di KLIEN — kode di sini hanya untuk validasi token & isi
-        // dropdown, tak ada kolom DB yang di-`ORDER BY`.
+
         'referensi' => [
             'nama' => ['referensi.nama'],
             'kode' => ['referensi.kode'],
@@ -55,11 +45,7 @@ class UrutKatalog
             'sumber' => ['referensi.jenjang'],
             'tampil' => ['referensi.is_active'],
         ],
-        // Daftar TIPE kamus (kolom kiri halaman Referensi): sumbernya
-        // `referensi/types` yang hanya mengembalikan daftar kunci, jadi
-        // urutannya juga diterapkan di klien. Entri ini semata agar kontrol
-        // Urutkan di bilah judulnya punya opsi sah (tanpa ini endpoint preset
-        // urut menolak 422 "Tabel ini tidak punya opsi urut").
+
         'referensi_tipe' => [
             'tipe' => ['referensi_tipe.tipe'],
         ],
@@ -199,7 +185,7 @@ class UrutKatalog
             'sk' => ['pegawai.no_sk_awal'],
             'id' => ['pegawai.id'],
         ],
-        // Tabel ringkas di Lembaga Pegawai memakai daftar Pegawai yang sama.
+
         'pegawai_ringkas' => [
             'nama' => ['pegawai.nama_lengkap'],
             'nip' => ['pegawai.nip'],
@@ -256,10 +242,7 @@ class UrutKatalog
             'status' => ['tagihan.status'],
             'id' => ['tagihan.id'],
         ],
-        /* Crosstab tagihan: satu baris = satu Santri dengan kolom agregat
-           (total/terbayar/tunggakan), jadi kode & kolomnya BEDA dari daftar
-           tagihan di atas. `kelas` = alias subkueri `kelas_urut` (nama kelas
-           pada TA tampil) yang dihitung controller, bukan kolom tabel. */
+
         'keuangan_tagihan_crosstab' => [
             'nama' => ['s.nama_lengkap'],
             'kelas' => ['kelas_urut'],
@@ -272,8 +255,7 @@ class UrutKatalog
             'nama' => ['jenis_tagihan.nama'],
             'tipe' => ['jenis_tagihan.tipe'],
             'lembaga' => ['jenis_tagihan.jenjang'],
-            // Kode `urutan` = urutan tampil kolom crosstab Tagihan; sama dengan
-            // key kolom grid di tab Jenis supaya dropdown Urutkan mengenalinya.
+
             'urutan' => ['jenis_tagihan.urutan'],
             'aktif' => ['jenis_tagihan.is_active'],
             'id' => ['jenis_tagihan.id'],
@@ -292,10 +274,7 @@ class UrutKatalog
             'aktif' => ['dispensasi.is_active'],
             'id' => ['dispensasi.id'],
         ],
-        // Rekap dampak dispensasi per paket × jenis tagihan: barisnya hasil
-        // agregat (bukan baris tabel), jadi "kolom" di sini = kunci keluaran
-        // yang dipakai `DispensasiController::rekapDispensasi` untuk
-        // mengurutkan koleksi di PHP.
+
         'keuangan_rekap_dispensasi' => [
             'lembaga' => ['jenjang'],
             'ta' => ['tahun_ajaran'],
@@ -317,8 +296,7 @@ class UrutKatalog
             'status' => ['kandidat.status_akhir'],
             'id' => ['kandidat.santri_id'],
         ],
-        // Menumpang endpoint daftarKelas (peta `daftar_kelas`): entri sendiri
-        // agar preset urut + pemilih kolom bebas mengenal table_key ini.
+
         'mutasi_santri_aktif' => [
             'santri' => ['santri.nama_lengkap'],
             'jk' => ['santri.jk'],
@@ -337,7 +315,7 @@ class UrutKatalog
             'absen' => ['riwayat_belajar.no_absen'],
             'id' => ['riwayat_belajar.id'],
         ],
-        // Menumpang endpoint riwayat-belajar (peta `riwayat_belajar`).
+
         'riwayat_belum_masuk' => [
             'santri' => ['santri.nama_lengkap'],
             'jk' => ['santri.jk'],
@@ -404,7 +382,7 @@ class UrutKatalog
             'seleksi' => ['psb_kuota_biaya.membutuhkan_seleksi'],
             'id' => ['psb_kuota_biaya.id'],
         ],
-        // Sort koleksi in-memory (baris lembaga + semester ditempel).
+
         'semester_aktif' => [
             'jenjang' => ['lembaga.jenjang'],
             'nama' => ['lembaga.nama'],

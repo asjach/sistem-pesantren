@@ -1,9 +1,3 @@
-// Galeri tema Top Populer ala VSCode — data-driven.
-// Tiap tema: 3 warna inti per wajah (latar, teks, aksen) + pasangan sidebar.
-// Kartu, border, secondary, muted DITURUNKAN via color-mix di index.css,
-// jadi menambah tema = 1 objek di sini (tanpa sentuh CSS).
-// Palet dirujuk dari repositori resmi masing-masing tema (Sept 2026).
-// File ini mandiri (tanpa import) agar bisa dibaca skrip cek-kontras Node.
 
 export interface TemaWajah {
   /** Latar halaman. */

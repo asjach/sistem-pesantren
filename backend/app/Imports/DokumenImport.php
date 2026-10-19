@@ -44,7 +44,7 @@ class DokumenImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection,
 
     public function onUnknownSheet(string|int $sheetName): void
     {
-        // Sheet tambahan (mis. "Referensi") diabaikan.
+
     }
 
     /**
@@ -63,7 +63,7 @@ class DokumenImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection,
         $data = $rows
             ->map(fn ($row) => $row instanceof Collection ? $row->toArray() : (array) $row)
             ->all();
-        // Nomor 1 = heading (galat absolut selaras validasi Maatwebsite).
+
         $this->layanan->prosesPotongan($data, 1, false);
         foreach ($this->layanan->gagal as $gagal) {
             $this->failures[] = new Failure($gagal['baris'], $gagal['kolom'], [$gagal['pesan']], []);
@@ -79,7 +79,7 @@ class DokumenImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection,
             'nama_lengkap' => ['sometimes', 'nullable'],
             'jenjang' => ['required', 'string'],
             'jenis_dokumen' => ['required', 'string', 'max:100'],
-            // Hanya dipakai tipe lembaga; santri & pegawai tanpa kolom status.
+
             'status_verifikasi' => ['nullable'],
             'catatan' => ['nullable', 'string'],
         ];

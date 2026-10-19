@@ -4,7 +4,7 @@ import { butuhKonversiHeic, formatKonversi, magicHeic, magicWebp, namaJpg, siapk
 
 function ftyp(brand: string): Uint8Array {
   const b = new Uint8Array(12);
-  b.set([0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70], 0); // 'ftyp'
+  b.set([0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70], 0);
   for (let i = 0; i < 4; i += 1) b[8 + i] = brand.charCodeAt(i);
   return b;
 }
@@ -38,7 +38,7 @@ describe('siapkanFileUntukServer', () => {
   it('non-HEIC dikembalikan apa adanya', async () => {
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
     const file = new File([bytes], 'foto.jpg', { type: 'image/jpeg' });
-    // jsdom File tanpa arrayBuffer — tempel dari byte yang sama.
+
     (file as File & { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer = async () => bytes.buffer as ArrayBuffer;
     const hasil = await siapkanFileUntukServer(file);
     expect(hasil.dikonversi).toBe(false);

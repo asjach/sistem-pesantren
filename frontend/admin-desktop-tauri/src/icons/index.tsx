@@ -15,8 +15,6 @@ import setRadix from './radix';
 import setBi from './bi';
 import setMaterial from './material';
 
-/* ---------- API publik ---------- */
-
 export interface IkonProps extends Omit<SVGProps<SVGSVGElement>, 'ref'> {
   /** Ukuran sisi ikon (px). Bawaan 24. */
   size?: number | string;
@@ -51,7 +49,6 @@ function IkonDinamis({ nama, size = 24, className, ...rest }: IkonProps & { nama
   );
 }
 
-/* ---------- komponen ikon (nama sama dengan lucide-react) ---------- */
 export const AlignCenter = (p: IkonProps) => <IkonDinamis {...p} nama="AlignCenter" />;
 export const AlignLeft = (p: IkonProps) => <IkonDinamis {...p} nama="AlignLeft" />;
 export const AlignRight = (p: IkonProps) => <IkonDinamis {...p} nama="AlignRight" />;

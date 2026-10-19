@@ -98,7 +98,6 @@ export async function gambarKeDataUrl(berkas: File): Promise<string> {
   validasiBerkas(berkas);
   const asal = await bacaSebagaiDataUrl(berkas);
 
-  // PNG kecil: tak perlu kanvas sama sekali (memuat + encode itu mahal).
   if (berkas.type === 'image/png' && berkas.size <= AMBANG_PNG_LANGSUNG) return asal;
 
   const img = await muatGambar(asal);
@@ -109,11 +108,10 @@ export async function gambarKeDataUrl(berkas: File): Promise<string> {
   kanvas.width = w;
   kanvas.height = h;
   const konteks = kanvas.getContext('2d');
-  if (konteks === null) return asal; // tak ada canvas: lebih baik asli daripada gagal
+  if (konteks === null) return asal;
   konteks.drawImage(img, 0, 0, w, h);
 
   const jpeg = kanvas.toDataURL('image/jpeg', MUTU_JPEG);
-  // JPEG kadang lebih besar dari PNG untuk gambar kecil yang rata; kalau
-  // begitu simpan PNG sumber yang sama ukurannya.
+
   return jpeg.length < asal.length ? jpeg : asal;
 }

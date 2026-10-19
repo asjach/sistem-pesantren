@@ -137,8 +137,7 @@ final class HtmlInfo
             | LIBXML_NONET
             | LIBXML_NOERROR
             | LIBXML_NOWARNING;
-        // Bungkus dengan `<body>` supaya elemen di luar root jadi
-        // domesticFragment yang bisa dijelajahi lewat XPath `//body//*`.
+
         $doc->loadHTML('<?xml encoding="UTF-8"?><body>'.self::lindungiLt($html).'</body>', $opsi);
         libxml_clear_errors();
         libxml_use_internal_errors($diamkan);
@@ -156,16 +155,12 @@ final class HtmlInfo
             }
         }
 
-        // 1) Atribut dulu, dan hanya pada tag yang memang diizinkan.
         foreach ($elemen as $node) {
             if (in_array($node->nodeName, self::TAG_BOLEH, true)) {
                 self::bersihkanAtribut($node);
             }
         }
 
-        // 2) Buang anak yang tak diizinkan, SETELAH atribut dibersihkan —
-        //    urutan ini penting: `onerror` sudah hilang sebelum elemennya
-        //    dicabut, sehingga tidak pernah sempat ikut ter-carry keluar.
         foreach ($elemen as $node) {
             foreach (iterator_to_array($node->childNodes) as $anak) {
                 if ($anak instanceof \DOMElement && ! in_array($anak->nodeName, self::TAG_BOLEH, true)) {
@@ -174,8 +169,6 @@ final class HtmlInfo
             }
         }
 
-        // 3) Buang elemen yang tak diizinkan (dari luar ke dalam; isinya
-        //    sudah bersih pada langkah 2, jadi teks pengguna tak ikut hilang).
         foreach ($elemen as $node) {
             if (! in_array($node->nodeName, self::TAG_BOLEH, true) && $node->parentNode !== null) {
                 $node->parentNode->removeChild($node);
@@ -199,8 +192,6 @@ final class HtmlInfo
             return;
         }
 
-        // Salin dulu: menghapus sambil iterasi DOMNamedNodeMap akan
-        // melewati atribut berikutnya ("shift").
         foreach (iterator_to_array($atribut) as $a) {
             if (! in_array($a->nodeName, $boleh, true)) {
                 $node->removeAttribute($a->nodeName);
@@ -215,9 +206,7 @@ final class HtmlInfo
         if ($node->nodeName !== 'a') {
             return;
         }
-        // Tautan yang bisa dieksekusi skrip di tab baru tetap berbahaya meski
-        // href-nya http; `rel` dipasang tanpa syarat (kalau tak ada href pun
-        // tak berbahaya, dan ini menutup jalur `target=_blank` tanpa proteksi).
+
         $node->setAttribute('rel', 'noopener noreferrer nofollow');
         if ($node->getAttribute('target') !== '') {
             $node->setAttribute('target', '_blank');
@@ -232,9 +221,6 @@ final class HtmlInfo
             return false;
         }
 
-        /* URL: tolak karakter kontrol/whitespace tersembunyi, karena
-           `java\nscript:` lolos pemeriksaan skema kalau tak dinormalisasi.
-           SPASI ikut di sini karena tak sah di URL. */
         $isUrl = ($tag === 'img' && $atribut === 'src') || ($tag === 'a' && $atribut === 'href');
         if ($isUrl && preg_match('/[\x00-\x20\x7F]/', $nilai) === 1) {
             return false;
@@ -256,7 +242,6 @@ final class HtmlInfo
             return preg_match('/^\d{1,4}$/', $nilai) === 1;
         }
 
-        // `alt`, `rel`, `target`: teks biasa tanpa karakter nyawa.
         return preg_match(self::POLA_BUANG_NYAWA, $nilai) !== 1;
     }
 
@@ -270,8 +255,6 @@ final class HtmlInfo
             return false;
         }
 
-        // Wajib `;base64,` lalu muatan base64 — `data:image/png,<svg onload>`
-        // lolos cek tipe tapi bukan gambar.
         return preg_match('#^data:image/[a-z0-9.+-]+;base64,[A-Za-z0-9+/]+={0,2}$#i', $nilai) === 1;
     }
 

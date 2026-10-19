@@ -59,12 +59,12 @@ class PsbSummaryNotificationServiceTest extends TestCase
     private function pengajuan(string $jenjang, string $status): void
     {
         $s = Santri::create(['nama_lengkap' => 'Santri '.uniqid(), 'jk' => 'L']);
-        // Lembaga santri = keanggotaan (sumber kebenaran), bukan kolom santri.
+
         LembagaSantri::create([
             'santri_id' => $s->id, 'jenjang' => $jenjang,
             'is_active_lembaga' => 'Ya',
         ]);
-        // Pengajuan biodata selalu milik seorang wali (FK wajib) + perubahan_json.
+
         $wali = User::create([
             'name' => 'Wali '.uniqid(), 'email' => 'wali_'.uniqid().'@example.com',
             'phone' => '08'.random_int(1000000000, 9999999999), 'password' => 'password',
@@ -81,13 +81,12 @@ class PsbSummaryNotificationServiceTest extends TestCase
         $this->pengajuan('MI', 'diajukan');
         $this->pengajuan('MI', 'diajukan');
         $this->pengajuan('MD', 'diajukan');
-        $this->pengajuan('MI', 'disetujui'); // bukan "diajukan"
+        $this->pengajuan('MI', 'disetujui');
 
         $svc = new PsbSummaryNotificationService;
 
-        // Admin MI: 2, bukan 3 (MD tidak boleh terhitung).
         $this->assertSame(2, $svc->refreshBiodata($this->admin(['MI'])));
-        // Admin MD: 1.
+
         $this->assertSame(1, $svc->refreshBiodata($this->admin(['MD'])));
     }
 
@@ -96,7 +95,7 @@ class PsbSummaryNotificationServiceTest extends TestCase
         $this->calon('MI', 'ajukan_daftar_ulang');
         $this->calon('MD', 'ajukan_daftar_ulang');
         $this->calon('MD', 'ajukan_daftar_ulang');
-        $this->calon('MI', 'terima'); // bukan ajukan_daftar_ulang
+        $this->calon('MI', 'terima');
 
         $svc = new PsbSummaryNotificationService;
 
@@ -137,7 +136,7 @@ class PsbSummaryNotificationServiceTest extends TestCase
      */
     public function test_santri_tanpa_keanggotaan_ikut_terhitung_admin_scoped(): void
     {
-        // Pengajuan tanpa baris lembaga_santri sama sekali.
+
         $s = Santri::create(['nama_lengkap' => 'Arsip Pusat '.uniqid(), 'jk' => 'L']);
         $wali = User::create([
             'name' => 'Wali '.uniqid(), 'email' => 'wali_'.uniqid().'@example.com',

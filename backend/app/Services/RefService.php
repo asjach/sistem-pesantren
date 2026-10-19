@@ -8,8 +8,7 @@ use Illuminate\Support\Facades\Schema;
 
 class RefService
 {
-    // Kunci nilai untuk kamus bebas (kolom 'nama'), status (kolom 'kode').
-    // 32 kamus bebas + 2 status = 34 tipe di KEY; + ref_alamat terpisah = 35 ref total.
+
     public const KEY = [
         'agama' => 'nama', 'cita_cita' => 'nama', 'hobi' => 'nama',
         'pekerjaan' => 'nama', 'pendidikan' => 'nama',
@@ -53,9 +52,6 @@ class RefService
         return "ref:$tipe:$jenjang:v".self::versiGlobal();
     }
 
-    // Nilai referensi murni per lembaga (tanpa baris global): super_admin
-    // menulis ke semua lembaga sekaligus (fan-out), tiap lembaga
-    // mengaktifkan/menonaktifkan miliknya sendiri.
     public static function effective(string $tipe, ?string $jenjang): array
     {
         $table = self::table($tipe);
@@ -67,7 +63,7 @@ class RefService
         return Cache::remember(self::kunci($tipe, $jenjang), 300, function () use ($table, $key, $jenjang) {
             $rows = DB::table($table)
                 ->where('jenjang', $jenjang)
-                // Urut tampil: urutan ASC, tie-break nama ASC (seragam 34 tabel ref).
+
                 ->orderBy('urutan')->orderBy('nama')->get();
             $map = [];
             foreach ($rows as $r) {
@@ -153,7 +149,7 @@ class RefService
         return Cache::remember('ref:alamat:'.$jenjang.':v'.self::versiGlobal(), 300, function () use ($jenjang) {
             $rows = DB::table('ref_alamat')
                 ->where('jenjang', $jenjang)
-                // Urut tampil: urutan ASC, tie-break nama ASC.
+
                 ->orderBy('urutan')->orderBy('nama')->get();
             $map = [];
             foreach ($rows as $r) {
@@ -174,7 +170,6 @@ class RefService
         Cache::forget('ref:alamat:'.$jenjang.':v'.self::versiGlobal());
     }
 
-    // Alias lama (kompatibilitas sementara): efektif() => effective().
     public static function efektif(string $tipe, ?string $jenjang): array
     {
         return self::effective($tipe, $jenjang);
@@ -229,8 +224,7 @@ class RefService
             if (! Schema::hasTable($table)) {
                 continue;
             }
-            // Dua query per tabel (kunci yang sudah ada di jenjang ini + contoh
-            // baris pertama tiap kunci), bukan dua query per kunci.
+
             $adaDiJenjang = [];
             foreach (DB::table($table)->where('jenjang', $jenjang)->pluck($key) as $nilai) {
                 $adaDiJenjang[(string) $nilai] = true;

@@ -94,7 +94,7 @@ class KeanggotaanSortTest extends TestCase
 
         $this->assertSame(2, $total('is_active_lembaga=1'));
         $this->assertSame(1, $total('is_active_lembaga=0'));
-        // `semua` eksplisit = tanpa filter status (bukan bawaannya).
+
         $this->assertSame(3, $total('is_active_lembaga=semua'));
     }
 

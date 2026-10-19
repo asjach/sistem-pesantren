@@ -13,8 +13,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import penempatan pegawai bertahap (potongan JSON 1000/panggilan):
-// periksa kering, eksekusi upsert idempoten, galat per baris, dan lingkup lembaga.
 class ImportPotongPenempatanTest extends TestCase
 {
     use RefreshDatabase;
@@ -166,7 +164,6 @@ class ImportPotongPenempatanTest extends TestCase
         $this->assertSame(1, $satu->json('ringkasan.baris_gagal'));
         $this->assertSame(1, LembagaPegawai::count());
 
-        // Baris cocok: hanya kolom terisi yang menimpa; tugas lama dipertahankan.
         $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-lembaga/import-potong', [
             'sesi_id' => $satu->json('sesi_id'),
             'mode' => 'eksekusi',
@@ -183,7 +180,6 @@ class ImportPotongPenempatanTest extends TestCase
         $this->assertSame('Tidak', $row->is_active_lembaga);
         $this->assertSame('Guru Kelas', $row->tugas_utama);
 
-        // Sesi baru dengan baris identik (tanpa kolom terisi) = dilewati.
         $tiga = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/pegawai-lembaga/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
@@ -230,7 +226,7 @@ class ImportPotongPenempatanTest extends TestCase
             ->post("/api/admin/pegawai-lembaga/import-potong/{$sesi->id}/batal");
         $batal->assertStatus(200);
         $this->assertSame(ImportSesi::BATAL, ImportSesi::find($sesi->id)->status);
-        $this->assertSame(1, LembagaPegawai::count()); // tulisan per potongan tetap
+        $this->assertSame(1, LembagaPegawai::count());
     }
 
     public function test_06_lingkup_lembaga_dan_alias_kapital(): void
@@ -252,11 +248,9 @@ class ImportPotongPenempatanTest extends TestCase
             ],
         ])->assertStatus(200);
 
-        // Baris MTS di luar lingkup admin MI → gagal per baris (bukan 403).
         $this->assertSame(1, $res->json('ringkasan.dibuat'));
         $this->assertSame(2, $res->json('ringkasan.baris_gagal'));
 
-        // Alias kapital diterima ('mts', 'TIDAK' → 'Tidak').
         $row = LembagaPegawai::first();
         $this->assertSame('MI', $row->jenjang);
         $this->assertSame('Ya', $row->is_active_lembaga);
@@ -266,7 +260,6 @@ class ImportPotongPenempatanTest extends TestCase
     {
         $f = $this->baseFixture();
 
-        // Tanpa izin pegawai.ubah → 403 oleh middleware route.
         $this->buatPegawai('Ahmad', 'PST-001');
         $guru = $this->makeAdmin(['MI'], 'guru');
         $guru->syncPermissions(['pegawai.lihat']);

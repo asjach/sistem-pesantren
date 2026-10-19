@@ -101,7 +101,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
                 $baris = is_array($baris) ? $baris : [];
                 $nis = trim((string) ($baris['nis_lokal'] ?? ''));
                 $this->kunciAktif = $nis === '' ? null : $nis;
-                // Baris tanpa NIS lokal dianggap baris kosong/pemisah.
+
                 if (empty($baris['nis_lokal'])) {
                     continue;
                 }
@@ -110,7 +110,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
             }
 
             if (! $kering) {
-                // Periode terakhir per (santri, jenjang) yang aktif; sisanya arsip.
+
                 $siklus = app(SiklusSantriService::class);
                 foreach ($this->tersentuh as [$santriId, $jenjang]) {
                     $siklus->sinkronkanAktifRiwayat($santriId, $jenjang);
@@ -159,8 +159,6 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
             return false;
         }
 
-        // Izin mengikuti akun per baris (super_admin lolos semua; admin
-        // lembaga hanya lembaganya) — baris luar lingkup gagal per baris.
         $auth = auth()->user();
         if (! $auth || ! $auth->canAccessLembaga($jenjang)) {
             $this->fail($no, 'jenjang', 'Lembaga di luar lingkup akses Anda.');
@@ -184,8 +182,6 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
         $nisLokal = trim((string) ($row['nis_lokal'] ?? ''));
         $nisLokal = $nisLokal === '' ? null : $nisLokal;
 
-        // Status diparse di depan: keanggotaan hanya diaktifkan ulang bila
-        // barisnya aktif/lanjut (baris arsip tak membangunkan arsip keanggotaan).
         $statusAwal = $this->normalisasiStatus('status_awal', $row['status_awal'] ?? null, $jenjang) ?: 'santri_baru';
         $statusAkhir = $this->normalisasiStatus('status_akhir', $row['status_akhir'] ?? null, $jenjang) ?: 'aktif';
         $kamusAwal = RefService::kodeAktif('status_awal', $jenjang);
@@ -233,13 +229,12 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
             return false;
         }
-        // Tingkat kosong mewarisi kelas (bila kelas terisi).
+
         $tingkat = trim((string) ($row['tingkat'] ?? '')) ?: null;
         if ($tingkat === null && $kelasId !== null) {
             $tingkat = Kelas::whereKey($kelasId)->value('tingkat') ?: null;
         }
 
-        // Sel terisi (untuk update: hanya sel terisi yang menimpa).
         $terisi = fn (string $kunci) => array_key_exists($kunci, $row) && trim((string) $row[$kunci]) !== '';
 
         $kunci = [
@@ -251,7 +246,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
         $lama = RiwayatBelajar::where($kunci)->first();
 
         if ($kering) {
-            // Periksa: semua cek lolos → hitung niat tulisnya saja.
+
             if ($lama === null) {
                 $this->dibuat++;
             } else {
@@ -262,7 +257,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
         }
 
         if ($lama === null) {
-            // Insert: default berlaku (status aktif, tingkat warisi kelas).
+
             RiwayatBelajar::create($kunci + [
                 'kelas_id' => $kelasId,
                 'tgl_masuk' => $tglMasuk,
@@ -274,8 +269,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
             ]);
             $this->dibuat++;
         } else {
-            // Update: hanya sel terisi yang menimpa (sel kosong = pertahankan,
-            // tak bisa mengosongkan/mengarsipkan diam-diam via import).
+
             $ubah = [];
             if ($terisi('nama_kelas')) {
                 $ubah['kelas_id'] = $kelasId;
@@ -289,7 +283,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
             if ($terisi('tingkat')) {
                 $ubah['tingkat'] = $tingkat;
             } elseif ($terisi('nama_kelas') && $tingkat !== null) {
-                $ubah['tingkat'] = $tingkat; // ganti kelas tanpa tingkat → warisi
+                $ubah['tingkat'] = $tingkat;
             }
             if ($terisi('status_awal')) {
                 $ubah['status_awal'] = $statusAwal;
@@ -341,8 +335,6 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
             }
         }
 
-        // Mode gabungan: NIS tak terdaftar di mana pun → cocokkan identitas
-        // cadangan (keanggotaan dibuatkan di bawah via pastikanKeanggotaan).
         if ($this->buatKeanggotaan
             && (! empty($row['santri_id']) || trim((string) ($row['nama_lengkap'] ?? '')) !== '')
         ) {
@@ -419,7 +411,6 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
             return $aktif;
         }
 
-        // Baris sendiri ber-NIS sama diutamakan (arsip periode yang tepat).
         $milik = null;
         if ($nisLokal !== null) {
             $milik = LembagaSantri::where('santri_id', $santri->id)
@@ -433,8 +424,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
             ->orderByDesc('id')
             ->first();
         if ($milik !== null) {
-            // Cocok via pasangan: NIS target bisa beda antar-lembaga/tahun
-            // (historis) — pertahankan miliknya, jangan timpa dengan NIS baris.
+
             if ($langsung && $nisLokal !== null && ($milik->nis_lokal ?? null) !== $nisLokal) {
                 if (LembagaSantri::nisLokalDipakaiSantriLain($jenjang, $nisLokal, $santri->id)) {
                     $this->fail($no, 'nis_lokal', 'NIS lokal sudah dipakai santri lain di lembaga ini.');

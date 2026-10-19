@@ -44,7 +44,6 @@ class DashboardController extends Controller
         $daftarLembaga = (clone $lembagaQuery)->orderBy('jenjang')->get(['jenjang', 'nama']);
         $lembagaIds = $daftarLembaga->pluck('jenjang')->values()->all();
 
-        // TA kini data pesantren (global): tampilkan satu TA aktif yang berlaku.
         $taAktif = TahunAjaran::aktif(count($lembagaIds) === 1 ? $lembagaIds[0] : null);
         $tahunAktif = $taAktif
             ? collect([$taAktif->only(['nama', 'tanggal_mulai', 'tanggal_selesai', 'is_aktif'])])

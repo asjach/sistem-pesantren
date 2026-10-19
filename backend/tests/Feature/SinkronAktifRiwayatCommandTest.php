@@ -48,7 +48,7 @@ class SinkronAktifRiwayatCommandTest extends TestCase
     public function test_hanya_periode_terakhir_yang_aktif(): void
     {
         $s = $this->santri();
-        // Periode lama non-aktif, periode terakhir aktif.
+
         $lama = $this->riwayat($s->id, '2024/2025', '1', 'lulus');
         $baru = $this->riwayat($s->id, '2025/2026', '1', 'aktif');
 
@@ -95,7 +95,6 @@ class SinkronAktifRiwayatCommandTest extends TestCase
 
         $this->artisan('riwayat:sinkron-aktif', ['--santri' => $a->id])->assertSuccessful();
 
-        // Santri B tak ikut diproses → barisnya tetap seperti semula.
         $this->assertSame('Ya', $lain->fresh()->is_active_riwayat);
     }
 
@@ -109,7 +108,6 @@ class SinkronAktifRiwayatCommandTest extends TestCase
 
         $this->artisan('riwayat:sinkron-aktif', ['--jenjang' => 'MD'])->assertSuccessful();
 
-        // MI tak diproses (tetap Ya walau bukan periode terakhir).
         $this->assertSame('Ya', $mi->fresh()->is_active_riwayat);
         $this->assertSame('Tidak', $mdLama->fresh()->is_active_riwayat);
         $this->assertSame('Ya', $mdBaru->fresh()->is_active_riwayat);

@@ -99,8 +99,6 @@ class SantriLembagaImportTest extends TestCase
         return $res->json('galat_contoh.0.kolom');
     }
 
-    // ---------- 01. kolom: blok lembaga dulu ----------
-
     public function test_01_kolom_blok_lembaga_dulu(): void
     {
         $kolom = SantriLembagaTemplateExport::kolom();
@@ -114,15 +112,13 @@ class SantriLembagaImportTest extends TestCase
         }
     }
 
-    // ---------- 02. baris baru: santri + keanggotaan tercipta ----------
-
     public function test_02_baris_baru_buat_santri_dan_anggota(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
         $this->upload($admin, $this->makeCsv([[
-            'jenjang' => 'mi', // case-insensitive
+            'jenjang' => 'mi',
             'nis_lokal' => '26001',
             'is_active_lembaga' => 'Ya',
             'tgl_masuk' => '2026-07-01',
@@ -139,8 +135,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('2026-07-01', $ls->tgl_masuk->format('Y-m-d'));
     }
 
-    // ---------- 03. NIK sama bukan kunci: NIS baru = santri baru ----------
-
     public function test_03_nik_sama_nis_beda_buat_santri_baru(): void
     {
         $f = $this->baseFixture();
@@ -149,8 +143,6 @@ class SantriLembagaImportTest extends TestCase
         $santri = Santri::create(['nama_lengkap' => 'Lama', 'nik' => '1101010000000002', 'jk' => 'L', 'tgl_lahir' => '2015-01-01']);
         LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25001', 'is_active_lembaga' => 'Ya']);
 
-        // NIK sama tapi NIS tak dikenal: NIK bukan kunci → santri BARU
-        // (duplikat NIK diizinkan skema).
         $csv = $this->makeCsv([[
             'jenjang' => 'MI',
             'nis_lokal' => '25002',
@@ -165,12 +157,9 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame(2, Santri::where('nik', '1101010000000002')->count());
         $this->assertSame('25001', LembagaSantri::where('santri_id', $santri->id)->firstOrFail()->nis_lokal);
 
-        // Mode periksa: baris kedua cocok via NIS → update, tanpa galat.
         $res = $this->upload($admin, $csv, 'periksa')->assertStatus(200);
         $this->assertSame(0, (int) $res->json('ringkasan.baris_gagal'));
     }
-
-    // ---------- 04. tanpa NIK: fallback NIS + lembaga ----------
 
     public function test_04_tanpa_nik_cocok_via_nis(): void
     {
@@ -190,8 +179,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame(1, Santri::where('nama_lengkap', 'Tanpa NIK')->count());
     }
 
-    // ---------- 05. santri_id eksak: baris parsial ----------
-
     public function test_05_santri_id_kunci_eksak_parsial(): void
     {
         $f = $this->baseFixture();
@@ -206,12 +193,9 @@ class SantriLembagaImportTest extends TestCase
             'nis_lokal' => '25101',
         ]]))->assertStatus(200);
 
-        // Profil tidak terhapus oleh sel kosong; NIS ter-update.
         $this->assertSame('Parsial', $santri->fresh()->nama_lengkap);
         $this->assertSame('25101', LembagaSantri::where('santri_id', $santri->id)->firstOrFail()->nis_lokal);
     }
-
-    // ---------- 06. dry-run tidak menulis ----------
 
     public function test_06_periksa_tidak_menulis(): void
     {
@@ -234,8 +218,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame($sebelumLs, LembagaSantri::count());
     }
 
-    // ---------- 07. NIS + lembaga cocok = update pemiliknya ----------
-
     public function test_07_nis_cocok_update_pemilik(): void
     {
         $f = $this->baseFixture();
@@ -244,8 +226,6 @@ class SantriLembagaImportTest extends TestCase
         $a = Santri::create(['nama_lengkap' => 'Pemilik NIS', 'jk' => 'L']);
         LembagaSantri::create(['santri_id' => $a->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25300', 'is_active_lembaga' => 'Ya']);
 
-        // NIS + lembaga adalah kunci: baris menimpa pemiliknya (bukan tolak,
-        // bukan santri baru) — sel terisi menimpa, kosong dipertahankan.
         $this->upload($admin, $this->makeCsv([[
             'jenjang' => 'MI',
             'nis_lokal' => '25300',
@@ -256,8 +236,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame(1, LembagaSantri::where('jenjang', $f['mi']->jenjang)->where('nis_lokal', '25300')->count());
         $this->assertSame('Pemilik NIS Baru', $a->fresh()->nama_lengkap);
     }
-
-    // ---------- 08. tenant: baris luar lingkup gagal, dalam lingkup masuk ----------
 
     public function test_08_baris_luar_lingkup_gagal(): void
     {
@@ -291,8 +269,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertContains('jenjang', $koloms);
     }
 
-    // ---------- 09. izin AND: tambah tanpa ubah → 403 ----------
-
     public function test_09_tambah_tanpa_ubah_ditolak(): void
     {
         $f = $this->baseFixture();
@@ -315,8 +291,6 @@ class SantriLembagaImportTest extends TestCase
         ]]))->assertStatus(403);
     }
 
-    // ---------- 10. baris tanpa jenjang ditolak (keanggotaan wajib) ----------
-
     public function test_10_baris_tanpa_jenjang_ditolak(): void
     {
         $f = $this->baseFixture();
@@ -328,18 +302,14 @@ class SantriLembagaImportTest extends TestCase
             'nik' => '1101010000000008',
         ]];
 
-        // Keanggotaan wajib: baris tanpa jenjang gagal, tak ada santri dibuat.
         $res = $this->upload($admin, $this->makeCsv($baris))->assertStatus(200);
         $this->assertSame(1, (int) $res->json('ringkasan.baris_gagal'));
         $this->assertSame('jenjang', $this->kolomGalat($res));
         $this->assertNull(Santri::where('nik', '1101010000000008')->first());
 
-        // Periksa menandai baris bermasalah.
         $cek = $this->upload($admin, $this->makeCsv($baris), 'periksa')->assertStatus(200);
         $this->assertSame(1, (int) $cek->json('ringkasan.baris_gagal'));
     }
-
-    // ---------- 14. file campuran: dua lembaga berbeda ----------
 
     public function test_14_file_campuran_pasangan_tepat(): void
     {
@@ -363,8 +333,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $md->id, 'jenjang' => 'MD', 'nis_lokal' => '26402']);
     }
 
-    // ---------- 11. template & data existing bisa diambil ----------
-
     public function test_11_unduh_template_dan_data(): void
     {
         $f = $this->baseFixture();
@@ -377,7 +345,6 @@ class SantriLembagaImportTest extends TestCase
             ->get('/api/admin/santri/import-template-gabungan')
             ->assertStatus(200);
 
-        // Data existing dikirim sebagai JSON (berkas Excel disusun di browser).
         $res = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/santri/data-existing?jenjang=MI')
             ->assertStatus(200);
@@ -390,8 +357,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('25601', $isi[0][2]);
         $this->assertSame('Unduh Saya', $isi[0][14]);
     }
-
-    // ---------- 13. unduh semua lingkup + round-trip campuran ----------
 
     public function test_13_data_semua_lingkup_dan_roundtrip(): void
     {
@@ -410,7 +375,6 @@ class SantriLembagaImportTest extends TestCase
         $b = Santri::create(['nama_lengkap' => 'Anak MD', 'jk' => 'P']);
         LembagaSantri::create(['santri_id' => $b->id, 'jenjang' => $f['md']->jenjang, 'nis_lokal' => '26201', 'is_active_lembaga' => 'Ya']);
 
-        // Super admin tanpa parameter → semua operasional (MI + MD).
         $semua = $this->actingAs($super, 'sanctum')
             ->getJson('/api/admin/santri/data-existing')
             ->assertStatus(200)
@@ -418,14 +382,12 @@ class SantriLembagaImportTest extends TestCase
         $this->assertCount(2, $semua);
         $this->assertSame(['MD', 'MI'], array_map(fn ($r) => $r[1], $semua));
 
-        // Admin MI tanpa parameter → MI + pasangan MD.
         $lingkup = $this->actingAs($adminMi, 'sanctum')
             ->getJson('/api/admin/santri/data-existing')
             ->assertStatus(200)
             ->json('baris');
         $this->assertSame(['MD', 'MI'], array_map(fn ($r) => $r[1], $lingkup));
 
-        // Round-trip campuran sebagai super admin: cocok keduanya via santri_id.
         $this->upload($super, [
             ['santri_id' => (string) $a->id, 'jenjang' => 'MI', 'nis_lokal' => '26102'],
             ['santri_id' => (string) $b->id, 'jenjang' => 'MD', 'nis_lokal' => '26202'],
@@ -433,7 +395,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('26102', LembagaSantri::where('santri_id', $a->id)->firstOrFail()->nis_lokal);
         $this->assertSame('26202', LembagaSantri::where('santri_id', $b->id)->firstOrFail()->nis_lokal);
 
-        // Multi ID eksplisit → hanya yang dipilih.
         $pilih = $this->actingAs($super, 'sanctum')
             ->getJson("/api/admin/santri/data-existing?jenjang[]={$f['md']->jenjang}")
             ->assertStatus(200)
@@ -482,36 +443,32 @@ class SantriLembagaImportTest extends TestCase
         ));
 
         $this->assertSame(['MD', 'MI', 'MTS'], $cakupan($super));
-        // Admin MI → MI + pasangan MD; admin MTS → MTS saja.
+
         $this->assertSame(['MD', 'MI'], $cakupan($adminMi));
         $this->assertSame(['MTS'], $cakupan($adminMts));
     }
-
-    // ---------- 12. sel numerik + tanggal serial dinormalisasi ----------
 
     public function test_12_xlsx_manual_sel_numerik_lolos(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeAdmin([$f['mi']->jenjang]);
 
-        // Tiru SheetJS raw:true: NISN & NIS sebagai ANGKA, tanggal sebagai serial.
         $baris = [[
             'jenjang' => 'MI',
-            'nis_lokal' => 26001, // numerik, bukan teks
+            'nis_lokal' => 26001,
             'nama_lengkap' => 'Manual Angka',
             'nik' => '1101010000000009',
             'jk' => 'L',
-            'tgl_lahir' => 42186, // serial → 2015-07-01
-            'nisn' => 1234567890, // NISN numerik
-            'rt' => 7, // RT numerik
+            'tgl_lahir' => 42186,
+            'nisn' => 1234567890,
+            'rt' => 7,
         ]];
 
         $res = $this->upload($admin, $this->makeCsv($baris), 'periksa')->assertStatus(200);
 
         $this->assertSame(0, (int) $res->json('ringkasan.baris_gagal'), json_encode($res->json('galat_contoh')));
-        $this->assertSame(0, Santri::count()); // dry-run tidak menulis
+        $this->assertSame(0, Santri::count());
 
-        // Unit normalisasiBaris(): cast angka → string, serial → Y-m-d.
         $layanan = new SantriImporService;
         $dipetakan = $layanan->normalisasiBaris(['nisn' => 1234567890, 'rt' => 7, 'tgl_lahir' => 42186, 'nama_lengkap' => 'X']);
         $this->assertSame('1234567890', $dipetakan['nisn']);
@@ -559,11 +516,9 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('101010101010', $ls->nss_sekolah_asal);
         $this->assertSame('Jl. Asal No. 1', $ls->alamat_sekolah_asal);
         $this->assertSame('2026-07-01', $ls->tgl_masuk?->format('Y-m-d'));
-        // tahaj_masuk valid + keanggotaan aktif → riwayat perdana ikut dibuat.
+
         $this->assertTrue(RiwayatBelajar::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->exists());
     }
-
-    // ---------- 22. tahaj_masuk + tingkat_masuk → riwayat belajar perdana ----------
 
     public function test_22_import_buat_riwayat_belajar_perdana(): void
     {
@@ -587,7 +542,6 @@ class SantriLembagaImportTest extends TestCase
             'tgl_lahir' => '2015-07-01',
         ]]);
 
-        // Mode periksa melaporkan rencana riwayat tanpa menulis.
         $periksa = $this->upload($admin, $csv, 'periksa')->assertStatus(200);
         $this->assertSame(0, (int) $periksa->json('ringkasan.baris_gagal'));
         $this->assertSame(1, (int) $periksa->json('ringkasan.riwayat_dibuat'));
@@ -607,8 +561,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('2026-07-15', $riwayat->tgl_masuk?->format('Y-m-d'));
         $this->assertSame('Ya', $santri->fresh()->is_active_pst);
     }
-
-    // ---------- 23. re-import idempoten: riwayat tidak digandakan ----------
 
     public function test_23_reimport_tidak_duplikat_riwayat(): void
     {
@@ -636,14 +588,11 @@ class SantriLembagaImportTest extends TestCase
         $santri = Santri::where('nik', '1101010000000023')->firstOrFail();
         $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
 
-        // Import ulang: santri cocok, keanggotaan diperbarui, riwayat aktif dilewati.
         $res = $this->upload($admin, $csv, 'periksa')->assertStatus(200);
         $this->assertSame(0, (int) $res->json('ringkasan.riwayat_dibuat'));
         $this->upload($admin, $csv)->assertStatus(200);
         $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
     }
-
-    // ---------- 24. tahaj_masuk tak dikenal → baris ditolak (tanpa tulis) ----------
 
     public function test_24_tahaj_masuk_tak_dikenal_ditolak(): void
     {
@@ -664,11 +613,9 @@ class SantriLembagaImportTest extends TestCase
 
         $this->assertSame(1, (int) $res->json('ringkasan.baris_gagal'));
         $this->assertSame('tahaj_masuk', $this->kolomGalat($res));
-        // Ditolak sebelum menulis: tak ada santri/keanggotaan yang terbentuk.
+
         $this->assertFalse(Santri::where('nik', '1101010000000024')->exists());
     }
-
-    // ---------- 25. riwayat lama (arsip) di TA sama → tidak error & tidak duplikat ----------
 
     public function test_25_riwayat_arsip_ta_sama_tidak_diduplikasi(): void
     {
@@ -681,7 +628,7 @@ class SantriLembagaImportTest extends TestCase
 
         $santri = Santri::create(['nama_lengkap' => 'Arsip Lama', 'nik' => '1101010000000025', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
         LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '27501', 'is_active_lembaga' => 'Ya']);
-        // Riwayat perdana lama sudah diarsipkan (mis. pernah keluar lalu masuk lagi).
+
         RiwayatBelajar::create([
             'santri_id' => $santri->id, 'tahun_ajaran' => '2026/2027', 'jenjang' => $f['mi']->jenjang,
             'semester' => '1', 'tingkat' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'pindah_keluar',
@@ -701,11 +648,8 @@ class SantriLembagaImportTest extends TestCase
             'tgl_lahir' => '2015-07-01',
         ]]))->assertStatus(200);
 
-        // Tidak menambah baris riwayat (unique santri+TA+jenjang+semester dijaga).
         $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
     }
-
-    // ---------- 26. file > 1 chunk: nomor baris kegagalan tetap global ----------
 
     public function test_26_chunk_besar_nomor_baris_global(): void
     {
@@ -722,7 +666,7 @@ class SantriLembagaImportTest extends TestCase
                 'jk' => 'L',
             ];
         }
-        // Baris file ke-600 (chunk kedua): TA tak dikenal → gagal bernomor global.
+
         $rows[] = [
             'jenjang' => 'MI',
             'nis_lokal' => '28600',
@@ -736,15 +680,13 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame(1, (int) $res->json('ringkasan.baris_gagal'));
         $this->assertSame(600, (int) $res->json('ringkasan.baris_diproses'));
         $this->assertSame(599, (int) $res->json('ringkasan.baris_valid'));
-        // Penomoran absolut (baris 1 = heading): baris data ke-600 = 601.
+
         $this->assertSame(601, (int) $res->json('galat_contoh.0.baris'));
         $this->assertSame('tahaj_masuk', $this->kolomGalat($res));
-        // Dry-run: tak ada yang tertulis.
+
         $this->assertSame(0, Santri::count());
         $this->assertSame(0, RiwayatBelajar::count());
     }
-
-    // ---------- 26b. dua potongan: nomor galat absolut lintas potongan ----------
 
     public function test_26b_dua_potongan_nomor_galat_absolut(): void
     {
@@ -756,14 +698,12 @@ class SantriLembagaImportTest extends TestCase
             'nama_lengkap' => $nama, 'nik' => '110199'.substr($nis, -4).'000001', 'jk' => 'L',
         ];
 
-        // Potongan 1 (2 baris, total 4): valid semua.
         $satu = $this->upload($admin, [$baris('29001', 'Potong A'), $baris('29002', 'Potong B')], 'eksekusi', null, 4)
             ->assertStatus(200);
         $sesiId = (int) $satu->json('sesi_id');
         $this->assertSame(2, (int) $satu->json('offset'));
         $this->assertFalse((bool) $satu->json('selesai'));
 
-        // Potongan 2: 1 valid + 1 rusak (jk tak dikenal) → galat baris 5.
         $dua = $this->upload($admin, [$baris('29003', 'Potong C'), [
             'jenjang' => 'MI', 'nis_lokal' => '29004', 'nama_lengkap' => 'Potong Rusak', 'jk' => 'X',
         ]], 'eksekusi', $sesiId)
@@ -776,8 +716,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame(3, Santri::count());
     }
 
-    // ---------- 27. normalisasi data nyata: strip TA, tanggal nol, NIK ortu ----------
-
     public function test_27_normalisasi_strip_tanggal_nol_dan_nik_ortu(): void
     {
         $f = $this->baseFixture();
@@ -787,9 +725,6 @@ class SantriLembagaImportTest extends TestCase
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
 
-        // Baris 1: tahaj strip + tanggal nol → diterima (riwayat TA kanonis, tgl null).
-        // Baris 2: ayah_nik 17 digit → diterima + berflag `X-` (bukan gagal).
-        // Baris 3: ayah_nik 21 digit → gagal per baris (melebihi maks 20).
         $res = $this->upload($admin, $this->makeCsv([
             [
                 'jenjang' => 'MI',
@@ -827,11 +762,10 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame(1, (int) $res->json('ringkasan.baris_gagal'));
         $this->assertSame(3, (int) $res->json('ringkasan.baris_diproses'));
         $this->assertSame(2, (int) $res->json('ringkasan.baris_valid'));
-        // Selaras validator: baris data ke-3 = baris file 4.
+
         $this->assertSame(4, (int) $res->json('galat_contoh.0.baris'));
         $this->assertSame('ayah_nik', $this->kolomGalat($res));
 
-        // Dua baris valid dieksekusi dengan hasil ternormalisasi + berflag.
         $this->upload($admin, $this->makeCsv([
             [
                 'jenjang' => 'MI',
@@ -868,8 +802,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('X-32041001010100001', $ortu->ayah_nik);
     }
 
-    // ---------- 28. NIK tak valid: tersimpan berflag + re-import tak ganda ----------
-
     public function test_28_nik_tak_valid_flag_dan_tidak_ganda(): void
     {
         $f = $this->baseFixture();
@@ -890,7 +822,6 @@ class SantriLembagaImportTest extends TestCase
         $santri = Santri::where('nama_lengkap', 'Nik Pendek')->firstOrFail();
         $this->assertSame('X-320410460905001', $santri->nik);
 
-        // Import ulang baris yang sama: cocok via NIS, tak ada santri baru.
         $res = $this->upload($admin, $csv, 'periksa')->assertStatus(200);
         $this->assertSame(0, (int) $res->json('ringkasan.baris_gagal'));
         $this->assertSame(1, (int) $res->json('ringkasan.diperbarui'));
@@ -898,8 +829,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame(1, Santri::where('nama_lengkap', 'Nik Pendek')->count());
         $this->assertSame('X-320410460905001', Santri::where('nama_lengkap', 'Nik Pendek')->firstOrFail()->nik);
     }
-
-    // ---------- 29. NIS Kemenag boleh duplikat ----------
 
     public function test_29_nis_kemenag_duplikat_diterima(): void
     {
@@ -935,8 +864,6 @@ class SantriLembagaImportTest extends TestCase
         );
     }
 
-    // ---------- 30. MD: nis_kemenag diabaikan (null) ----------
-
     public function test_30_md_nis_kemenag_diabaikan(): void
     {
         $f = $this->baseFixture();
@@ -956,8 +883,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertNull($ls->nis_kemenag);
     }
 
-    // ---------- 31. keanggotaan nonaktif + tahaj_masuk → riwayat tetap dibuat ----------
-
     public function test_31_riwayat_dibuat_untuk_keanggotaan_nonaktif(): void
     {
         $f = $this->baseFixture();
@@ -967,14 +892,13 @@ class SantriLembagaImportTest extends TestCase
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
 
-        // Santri lama yang keanggotaannya nonaktif dan belum punya riwayat.
         $santri = Santri::create(['nama_lengkap' => 'Nonaktif Lama', 'nik' => '1101010000000034', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
         LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '28101', 'is_active_lembaga' => 'Tidak']);
 
         $csv = $this->makeCsv([[
             'jenjang' => 'MI',
             'nis_lokal' => '28101',
-            // Tanpa penanda nonaktif: keanggotaan diaktifkan ulang + riwayat dibuat.
+
             'tahaj_masuk' => '2026/2027',
             'tingkat_masuk' => '1',
             'nama_lengkap' => 'Nonaktif Lama',
@@ -983,7 +907,6 @@ class SantriLembagaImportTest extends TestCase
             'tgl_lahir' => '2015-07-01',
         ]]);
 
-        // Mode periksa melaporkan rencana riwayat tanpa menulis.
         $periksa = $this->upload($admin, $csv, 'periksa')->assertStatus(200);
         $this->assertSame(1, (int) $periksa->json('ringkasan.riwayat_dibuat'));
 
@@ -994,8 +917,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('Ya', LembagaSantri::aktif($santri->id, $f['mi']->jenjang)?->is_active_lembaga);
         $this->assertSame('Ya', $santri->fresh()->is_active_pst);
     }
-
-    // ---------- 32. baris eksplisit nonaktif → riwayat tidak dibuat ----------
 
     public function test_32_baris_eksplisit_nonaktif_tanpa_riwayat(): void
     {
@@ -1018,7 +939,6 @@ class SantriLembagaImportTest extends TestCase
             'tgl_lahir' => '2015-07-01',
         ]]);
 
-        // Mode periksa: tidak ada rencana riwayat untuk baris eksplisit nonaktif.
         $periksa = $this->upload($admin, $csv, 'periksa')->assertStatus(200);
         $this->assertSame(0, (int) $periksa->json('ringkasan.riwayat_dibuat'));
 
@@ -1028,8 +948,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame(0, RiwayatBelajar::where('santri_id', $santri->id)->count());
         $this->assertSame('Tidak', LembagaSantri::where('santri_id', $santri->id)->where('jenjang', $f['mi']->jenjang)->value('is_active_lembaga'));
     }
-
-    // ---------- masuk lagi setelah keluar: NIS baru = baris baru ----------
 
     protected function barisMasukLagi(int $santriId, string $nis, string $aktif = 'Ya'): array
     {
@@ -1053,8 +971,6 @@ class SantriLembagaImportTest extends TestCase
         $santri = Santri::create(['nama_lengkap' => 'Masuk Lagi', 'nik' => '1101010000000041', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
         LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25051', 'is_active_lembaga' => 'Tidak', 'tgl_selesai' => '2024-06-01']);
 
-        // santri_id eksak + NIS baru + arsip nonaktif = periode baru
-        // (bukan timpa NIS lama).
         $this->upload($admin, $this->makeCsv([$this->barisMasukLagi($santri->id, '25052')]))->assertStatus(200);
 
         $this->assertSame(1, Santri::where('nik', '1101010000000041')->count());
@@ -1075,7 +991,6 @@ class SantriLembagaImportTest extends TestCase
         LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25061', 'is_active_lembaga' => 'Tidak']);
         LembagaSantri::create(['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25062', 'is_active_lembaga' => 'Tidak']);
 
-        // NIS sama dengan salah satu baris miliknya → pakai baris itu (tidak nambah).
         $csv = $this->makeCsv([[
             'santri_id' => (string) $santri->id,
             'jenjang' => 'MI',
@@ -1102,7 +1017,6 @@ class SantriLembagaImportTest extends TestCase
         $b = Santri::create(['nama_lengkap' => 'Anak B', 'nik' => '1101010000000044', 'jk' => 'L', 'tgl_lahir' => '2015-07-01']);
         LembagaSantri::create(['santri_id' => $b->id, 'jenjang' => $f['mi']->jenjang, 'nis_lokal' => '25072', 'is_active_lembaga' => 'Ya']);
 
-        // Anak A masuk lagi tapi NIS yang diminta milik Anak B → tolak.
         $res = $this->upload($admin, $this->makeCsv([[
             'santri_id' => (string) $a->id,
             'jenjang' => 'MI',
@@ -1118,8 +1032,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame('nis_lokal', $this->kolomGalat($res));
         $this->assertSame(1, LembagaSantri::where('santri_id', $a->id)->where('jenjang', $f['mi']->jenjang)->count());
     }
-
-    // ---------- 30. batas 1000 baris per potongan ----------
 
     public function test_30_lebih_dari_seribu_baris_ditolak(): void
     {
@@ -1141,8 +1053,6 @@ class SantriLembagaImportTest extends TestCase
         $this->assertSame(0, Santri::count());
     }
 
-    // ---------- 31. sesi: mode beda ditolak, milik orang lain 404 ----------
-
     public function test_31_sesi_dijaga_kepemilikan_dan_mode(): void
     {
         $f = $this->baseFixture();
@@ -1157,18 +1067,14 @@ class SantriLembagaImportTest extends TestCase
         $satu = $this->upload($admin, $baris, 'periksa')->assertStatus(200);
         $sesiId = (int) $satu->json('sesi_id');
 
-        // Mode berbeda dari sesi.
         $this->upload($admin, $baris, 'eksekusi', $sesiId)->assertStatus(422);
 
-        // Sesi milik orang lain.
         $this->upload($lain, $baris, 'periksa', $sesiId)->assertStatus(404);
 
-        // Batal milik sendiri.
         $this->actingAs($admin, 'sanctum')
             ->postJson("/api/admin/santri/import-potong/{$sesiId}/batal")
             ->assertStatus(200);
 
-        // Sesi batal tak bisa dilanjut.
         $this->upload($admin, $baris, 'periksa', $sesiId)->assertStatus(422);
     }
 }

@@ -91,7 +91,6 @@ class PenerimaanService
         $nisLokal = $nisLokal !== null ? trim((string) $nisLokal) : null;
         $nisLokal = $nisLokal === '' ? null : $nisLokal;
 
-        // Bidang konteks penerimaan yang diisi (bukan null/kosong).
         $konteks = [];
         foreach (['tgl_masuk', 'tahaj_masuk', 'tingkat_masuk', 'no_urut', 'nama_sekolah_asal', 'npsn_sekolah_asal', 'nss_sekolah_asal', 'alamat_sekolah_asal'] as $kolom) {
             if (array_key_exists($kolom, $data) && $data[$kolom] !== null && $data[$kolom] !== '') {
@@ -121,9 +120,6 @@ class PenerimaanService
             return $aktif->fresh();
         }
 
-        // Reaktivasi arsip sendiri: keluar lalu masuk lagi dengan NIS yang sama
-        // (mis. X di halaman MI-MD lalu panah lagi) — aktifkan baris lamanya
-        // agar tidak menabrak cek dipakai/unique di bawah.
         $arsip = LembagaSantri::where('santri_id', $santri->id)
             ->where('jenjang', $jenjang)
             ->where('is_active_lembaga', LembagaSantri::TIDAK)
@@ -225,7 +221,7 @@ class PenerimaanService
                 'semester' => '1',
                 'tgl_masuk' => $data['tgl_masuk'] ?? null,
                 'no_absen' => $noAbsen,
-                // Tingkat mewarisi kelas bila tak diisi eksplisit.
+
                 'tingkat' => $data['tingkat'] ?? $kelas?->tingkat,
                 'status_awal' => $statusAwal,
                 'status_akhir' => 'aktif',

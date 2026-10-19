@@ -12,7 +12,7 @@ import "sonner/dist/styles.css"
 import { useTheme } from "@/theme"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  // Ikut tema aplikasi (ThemeProvider), bukan next-themes (tidak dipasang).
+
   const { dark } = useTheme()
 
   return (

@@ -58,10 +58,10 @@ function renderBuat(p: Partial<Parameters<typeof BatchAksiTagihan>[0]> = {}) {
 describe('BatchAksiTagihan — Buat Massal per sel', () => {
   it('menampilkan satu kartu per kolom target + jumlah tagihan yang akan dibuat', () => {
     renderBuat();
-    /* 5 sel kosong (3 + 2) dari 6 sel terpilih → 1 sel sudah punya tagihan. */
+
     expect(screen.getByText('5 tagihan')).toBeInTheDocument();
     expect(screen.getByText(/1 sel sudah punya tagihan dilewati/)).toBeInTheDocument();
-    // Label kolom memakai penamaan crosstab (jenis · bulan / · sekali).
+
     expect(screen.getByText('Infaq Bulanan · Nov 2026')).toBeInTheDocument();
     expect(screen.getByText('Daftar Ulang · sekali')).toBeInTheDocument();
     expect(screen.getByText(/3 santri/)).toBeInTheDocument();
@@ -75,8 +75,6 @@ describe('BatchAksiTagihan — Buat Massal per sel', () => {
     expect(nominalBulanan.value).toBe('75000');
     expect(nominalSekali.value).toBe('150000');
 
-    /* Input dikendalikan prop (state ditahan halaman), jadi nilainya tak
-       berubah di dalam komponen — yang diuji adalah pemetaan key → pemanggil. */
     fireEvent.change(nominalSekali, { target: { value: '175000' } });
     expect(onNominalBuat).toHaveBeenLastCalledWith('jenis-2', '175000');
   });
@@ -91,7 +89,7 @@ describe('BatchAksiTagihan — Buat Massal per sel', () => {
   it('kolom nonaktif dilewati dilaporkan terpisah', () => {
     renderBuat({ nonaktifDilewati: 2 });
     expect(screen.getByText('2 sel santri nonaktif dilewati.')).toBeInTheDocument();
-    /* 6 terpilih − 5 kosong − 2 nonaktif = 0 yang "sudah punya tagihan". */
+
     expect(screen.queryByText(/sel sudah punya tagihan dilewati/)).toBeNull();
   });
 

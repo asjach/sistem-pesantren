@@ -176,7 +176,7 @@ export default function BatchAksiTagihan({
 
         {aksi === 'ubah' && (
           <div className="grid grid-cols-[6rem_1fr] items-center gap-x-2 gap-y-2">
-            {/* Jatuh tempo: opsi untuk mengubah semua sekaligus. */}
+
             <label className="flex items-center gap-1.5 text-xs">
               <input
                 id="chk_batch_jatuh_tempo"
@@ -196,8 +196,6 @@ export default function BatchAksiTagihan({
               className="h-[26px] w-full min-w-0 disabled:opacity-50"
             />
 
-            {/* Dispensasi: paket dipetakan per jenis di halaman (hanya jenis
-                yang cocok yang diberi paket; lainnya dibiarkan tetap). */}
             <FieldLabel htmlFor="sel_batch_dispen" className="text-xs">Dispensasi</FieldLabel>
             <Select
               value={dispen === '' ? '' : dispen === 'tanpa' ? 'tanpa' : String(dispen)}
@@ -244,9 +242,7 @@ export default function BatchAksiTagihan({
                 Tak ada sel kosong pada kolom yang terseleksi.
               </p>
             ) : (
-              /* Satu kartu per kolom target: nominal diisi dari tarif jenis
-                 kolom itu (boleh diubah); jatuh tempo hanya untuk non-bulanan,
-                 karena bulanan selalu tanggal 10 bulan periode. */
+
               <div className="flex max-h-72 flex-col gap-1.5 overflow-auto pr-0.5">
                 {targetBuat.map((t) => (
                   <div key={t.key} className="border p-2">

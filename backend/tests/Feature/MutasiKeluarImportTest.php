@@ -19,9 +19,6 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import arsip mutasi keluar: template + periksa + eksekusi, kunci NIS lokal +
-// lembaga, kelas cukup nama, baris sama dilewati, efek meniru tombol
-// "Proses mutasi" (tutup riwayat + keanggotaan aktif bila ada).
 class MutasiKeluarImportTest extends TestCase
 {
     use RefreshDatabase;
@@ -165,7 +162,6 @@ class MutasiKeluarImportTest extends TestCase
             'kelas_terakhir' => '1A', 'nama_sekolah_tujuan' => 'SDN Contoh',
         ]]);
 
-        // Dry-run tak menulis.
         $periksa = $this->upload($f['super'], $csv, 'import-periksa')->assertStatus(200);
         $this->assertTrue((bool) $periksa->json('siap_import'));
         $this->assertSame(1, (int) $periksa->json('ringkasan.dibuat'));
@@ -177,7 +173,7 @@ class MutasiKeluarImportTest extends TestCase
             'santri_id' => $santri->id, 'jenjang' => 'MI', 'kelas_terakhir_id' => $kelas->id,
             'alasan_mutasi' => 'Ikut pindah orang tua', 'nama_sekolah_tujuan' => 'SDN Contoh',
         ]);
-        // Efek live: riwayat + keanggotaan tertutup.
+
         $this->assertSame('Tidak', RiwayatBelajar::where('santri_id', $santri->id)->firstOrFail()->is_active_riwayat);
         $this->assertSame('pindah_keluar', RiwayatBelajar::where('santri_id', $santri->id)->firstOrFail()->status_akhir);
         $this->assertSame('Tidak', LembagaSantri::where('santri_id', $santri->id)->firstOrFail()->is_active_lembaga);
@@ -196,7 +192,6 @@ class MutasiKeluarImportTest extends TestCase
         $this->upload($f['super'], $csv)->assertStatus(200);
         $this->assertSame(1, MutasiKeluar::where('santri_id', $santri->id)->count());
 
-        // Import ulang file yang sama: dilewati, bukan ganda.
         $ulang = $this->upload($f['super'], $csv)->assertStatus(200);
         $this->assertSame(1, (int) $ulang->json('ringkasan.dilewati'));
         $this->assertSame(1, MutasiKeluar::where('santri_id', $santri->id)->count());
@@ -217,7 +212,7 @@ class MutasiKeluarImportTest extends TestCase
         ]]);
 
         $this->upload($f['super'], $csv)->assertStatus(200);
-        // Kelas kosong → beku dari riwayat terakhir (pola live).
+
         $this->assertDatabaseHas('mutasi_keluar', ['santri_id' => $santri->id, 'kelas_terakhir_id' => $kelas->id]);
     }
 
@@ -242,7 +237,7 @@ class MutasiKeluarImportTest extends TestCase
         $arsip = MutasiKeluar::where('santri_id', $santri->id)->firstOrFail();
         $this->assertSame('2026-06-01', $arsip->tanggal_mutasi?->format('Y-m-d'));
         $this->assertSame('SDN Baru', $arsip->nama_sekolah_tujuan);
-        // Alasan kosong di file tak menghapus nilai lama.
+
         $this->assertSame('Ikut pindah orang tua', $arsip->alasan_mutasi);
     }
 
@@ -262,13 +257,11 @@ class MutasiKeluarImportTest extends TestCase
             'kelas_terakhir' => '1C',
         ];
 
-        // Tanpa TA: gagal dengan pesan yang mengarahkan.
         $gagal = $this->upload($f['super'], $this->makeCsv([$dasar]))->assertStatus(422);
         $this->assertSame('kelas_terakhir', $gagal->json('errors.0.attribute'));
         $this->assertStringContainsString('tahun_ajaran', (string) $gagal->json('errors.0.errors.0'));
         $this->assertSame(0, MutasiKeluar::where('santri_id', $santri->id)->count());
 
-        // Dengan TA: lolos ke kelas TA tersebut.
         $this->upload($f['super'], $this->makeCsv([$dasar + ['tahun_ajaran' => '2025/2026']]))->assertStatus(200);
         $arsip = MutasiKeluar::where('santri_id', $santri->id)->firstOrFail();
         $this->assertSame('2025/2026', Kelas::find($arsip->kelas_terakhir_id)->tahun_ajaran);
@@ -280,11 +273,11 @@ class MutasiKeluarImportTest extends TestCase
         $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
         $santri = $this->makeSantriAktif($f, 'Arsip Alasan', '1101010000000315');
         $csv = $this->makeCsv([
-            // Santri tak dikenal.
+
             ['nis_lokal' => 'NIS-TAK-ADA', 'jenjang' => 'MI', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua'],
-            // Di luar lingkup akun.
+
             ['nis_lokal' => 'NIS-LUAR', 'jenjang' => 'MTS', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Ikut pindah orang tua'],
-            // Alasan bebas teks pada arsip: tetap diterima.
+
             ['nis_lokal' => $this->nisOf($santri), 'jenjang' => 'MI', 'tanggal_mutasi' => '2026-05-01', 'alasan_mutasi' => 'Alasan Fiktif'],
         ]);
 

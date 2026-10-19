@@ -35,8 +35,7 @@ export const AKSI_RINGKAS = new Map<string, number>();
 export const INPUT_ROW_ID = '__input__';
 
 export function widthsKey(tableKey: string) {
-  // v2: hasil AutoFit tidak lagi disimpan (lihat onAutoFit). Kunci lama berisi
-  // lebar basi yang membekukan kolom dinamis (status/aksi) — diabaikan sekali.
+
   return `simpes_grid_${tableKey}_w_v2`;
 }
 

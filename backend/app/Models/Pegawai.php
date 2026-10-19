@@ -29,7 +29,6 @@ class Pegawai extends Model
             return $query;
         }
 
-        // Identitas tanpa penempatan tetap tersedia untuk penempatan awal.
         return $query->where(fn ($q) => $q
             ->whereHas('penempatan', fn ($p) => $p->whereIn('jenjang', $actor->lembagaIdsDenganPasangan()))
             ->orWhereDoesntHave('penempatan'));

@@ -39,7 +39,6 @@ return new class extends Migration
                 ->constrained('transaksi_pembayaran');
         });
 
-        // Backfill: tiap baris lama menjadi transaksi satu baris.
         DB::table('pembayaran')->orderBy('id')->chunk(500, function ($baris) {
             foreach ($baris as $b) {
                 $no = $b->no_kwitansi ?? strtoupper(bin2hex(random_bytes(5)));
@@ -59,14 +58,12 @@ return new class extends Migration
         });
 
         Schema::table('pembayaran', function (Blueprint $table) {
-            // Indeks unik & FK dihapus dulu eksplisit: SQLite gagal me-rebuild
-            // tabel bila indeks/FK yang menunjuk kolom terhapus masih ada.
+
             $table->dropUnique(['no_kwitansi']);
             $table->dropForeign(['diterima_oleh']);
         });
         Schema::table('pembayaran', function (Blueprint $table) {
-            // Kolom header (kwitansi, kas, penerima, catatan) pindah penuh ke
-            // `transaksi_pembayaran`; baris hanya menyimpan tagihan + jumlah.
+
             $table->dropColumn(['metode', 'kas', 'no_kwitansi', 'diterima_oleh', 'catatan']);
         });
     }
@@ -81,9 +78,6 @@ return new class extends Migration
             $table->string('catatan')->nullable();
         });
 
-        // Best-effort: kembalikan isi header ke barisnya. Transaksi multi-baris
-        // hasil skema baru tak bisa dipetakan 1:1 — baris pertama mendapat
-        // isinya, sisanya bawaan kolom.
         $dilihat = [];
         DB::table('pembayaran')->orderBy('id')->chunk(500, function ($baris) use (&$dilihat) {
             foreach ($baris as $b) {

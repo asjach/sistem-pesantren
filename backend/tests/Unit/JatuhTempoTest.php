@@ -15,8 +15,7 @@ class JatuhTempoTest extends TestCase
 
     public function test_bulanan_tidak_geser_bulan_depan(): void
     {
-        // Aturan lama memakai tanggal 10 bulan berikutnya; ini yang dikunci
-        // supaya tidak kembali bergeser diam-diam.
+
         $this->assertSame('2025-12-10', JatuhTempo::bulanan('2025-12'));
         $this->assertSame('2026-01-10', JatuhTempo::bulanan('2026-01'));
     }

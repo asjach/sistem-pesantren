@@ -29,8 +29,6 @@ function DialogClose({
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
-// Radix DialogPortal membungkus tiap child dengan Slot yang meneruskan ref,
-// jadi wrapper ini wajib forwardRef (React 18) agar tidak memicu warning.
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
@@ -62,12 +60,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         onPointerDownOutside={(event) => {
-          /* Gagang resizer (react-resizable-panels) berada DI DALAM dialog,
-             tapi Radix tetap memicu `onPointerDownOutside` untuknya --
-             akibatnya dialog ikut tertutup begitu pegangan diklik/digeser.
-             Dicek di browser: yang memicu hanya gagang, judul dialog dan isi
-             panel aman. `preventDefault()` wajib dipakai, bukan sekadar
-             `return`: Radix menutup dialog bila `!event.defaultPrevented`. */
+
           const target = event.target as Element | null
           if (target?.closest?.('[data-slot="resizable-handle"]') != null) {
             event.preventDefault()

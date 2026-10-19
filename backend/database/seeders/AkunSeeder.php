@@ -29,13 +29,11 @@ class AkunSeeder extends Seeder
             $user->syncRoles([$role]);
         }
 
-        // Admin pesantren: role admin tanpa pivot (akses semua lembaga).
         User::updateOrCreate(
             ['email' => 'admin.pesantren@simpes.local'],
             ['name' => 'Admin Pesantren', 'phone' => '081200000005', 'password' => 'rahayu45'],
         )->syncRoles(['admin']);
 
-        // Admin lembaga: role admin + satu pivot (lembaga unit pertama yang ada).
         $adminLembaga = User::updateOrCreate(
             ['email' => 'admin.lembaga@simpes.local'],
             ['name' => 'Admin Lembaga', 'phone' => '081200000006', 'password' => 'rahayu45'],

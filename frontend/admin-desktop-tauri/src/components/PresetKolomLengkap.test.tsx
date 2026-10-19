@@ -72,7 +72,7 @@ describe('PresetKolom — preset "Lengkap" sungguhan', () => {
         kolom: ['nama', 'jk'],
       }),
     );
-    // Susunan "Lengkap" langsung dipakai tabel.
+
     await waitFor(() => expect(onApply).toHaveBeenCalledWith(['nama', 'jk'], 11));
   });
 

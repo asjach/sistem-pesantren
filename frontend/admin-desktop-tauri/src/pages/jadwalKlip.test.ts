@@ -53,7 +53,7 @@ describe('sasaranKosongkanBlok', () => {
     };
 
   it('mengosongkan SELURUH range, bukan cuma satu sel', () => {
-    // Blok 2 baris × 2 hari, semua sel pelajaran & berisi.
+
     const peta = {
       '0|senin': { kelasId: 1, id: 10 }, '0|selasa': { kelasId: 1, id: 20 },
       '1|senin': { kelasId: 1, id: 11 }, '1|selasa': { kelasId: 1, id: 21 },

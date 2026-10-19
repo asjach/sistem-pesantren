@@ -124,15 +124,15 @@ export function normalkanUkuran(v: unknown): UkuranKombo {
   if (lebar !== undefined) hasil.lebar = lebar;
   if (lebarLabel !== undefined) hasil.lebarLabel = lebarLabel;
   if (lebarKontrol !== undefined) hasil.lebarKontrol = lebarKontrol;
-  // Absen = kontrol mengembang (bawaan); hanya `true` yang disimpan.
+
   if (o.expandLabel === true) hasil.expandLabel = true;
-  // Absen = ikut bawaan (transparan); `false` eksplisit = label ber-bg.
+
   if (typeof o.labelTransparan === 'boolean') hasil.labelTransparan = o.labelTransparan;
-  // Nilai default: hanya string tak kosong; dipotong ke batas backend.
+
   if (typeof o.nilaiDefault === 'string' && o.nilaiDefault.trim() !== '') {
     hasil.nilaiDefault = o.nilaiDefault.trim().slice(0, NILAI_DEFAULT_MAKS);
   }
-  // Langkah stepper: angka apa pun (termasuk string angka) dijepit ke rentang.
+
   const langkah = jepitKetat(o.langkah, LANGKAH_STEPPER_MIN, LANGKAH_STEPPER_MAKS);
   if (langkah !== undefined) hasil.langkah = langkah;
   return hasil;

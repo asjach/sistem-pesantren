@@ -26,8 +26,7 @@ function Select({
   disabled,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  // Default: bila pilihan hanya satu, nilainya dipakai otomatis — pengguna tak
-  // perlu memilih dulu. Hanya saat belum ada nilai & pilihan tidak nonaktif.
+
   const opsi = React.useMemo(() => kumpulkanNilaiOpsi(children), [children])
   const kunciOpsi = opsi.join('|')
   React.useEffect(() => {
@@ -59,8 +58,7 @@ function SelectValue({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
-  // Radix Value membuang `className`/`style` (di-destructure tanpa disebar),
-  // jadi truncation dipasang di pembungkus luar — dijamin menempel di DOM.
+
   return (
     <span data-slot="select-value" className={cn("flex min-w-0 items-center gap-2 truncate", className)}>
       <SelectPrimitive.Value {...props} />
@@ -106,9 +104,7 @@ function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          /* Buka-tutup tanpa zoom/slide: fade opacity saja. Zoom + slide
-             memaksa WebView menganimasikan transform di atas halaman berat
-             (mis. crosstab Tagihan) sehingga menu terasa "berat" saat diklik. */
+
           "relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-100",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",

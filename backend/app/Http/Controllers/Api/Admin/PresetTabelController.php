@@ -26,9 +26,6 @@ class PresetTabelController extends Controller
         $data = $request->validated();
         $user = $request->user();
 
-        /* Kolom dipilih eksplisit: `label` adalah sisa jalur lama yang tak lagi
-           dipakai preset (nama header kini per TABEL). Tanpa ini, `->get()`
-           mengirim seluruh kolom model termasuk `label` yang selalu null. */
         $presets = $this->queryEfektif($data['table_key'])
             ->with('lembaga:jenjang,nama')
             ->orderBy('nama')
@@ -48,7 +45,7 @@ class PresetTabelController extends Controller
                 'presets' => $presets,
                 'aktif_preset_id' => $aktif?->preset_id ? (int) $aktif->preset_id : null,
                 'default_preset_id' => $bawaan ? (int) $bawaan : null,
-                // Susunan "Lengkap kustom" (kolom sebagian) saat tanpa preset.
+
                 'aktif_kolom' => $aktif && $aktif->preset_id === null ? $aktif->kolom : null,
             ],
         ]);
@@ -131,9 +128,6 @@ class PresetTabelController extends Controller
             }
         }
 
-        // Saat tanpa preset: simpan susunan kolom kustom (bila ada) supaya
-        // bertahan antar muat ulang. Saat memilih preset, susunan kustom
-        // dibersihkan karena preset yang menentukan kolomnya.
         $kolom = null;
         if ($presetId === null) {
             $kolomMentah = array_values(array_unique($data['kolom'] ?? []));

@@ -85,24 +85,16 @@ export function usePengaturanKotak({ htmlFor, label, nama = 'combobox', labelTra
   /** Kunci setelan = id kontrol. Tanpa id, kotak tak punya identitas untuk
    *  menyimpan setelannya → fitur dimatikan. */
   const kunciUkuran = htmlFor ?? '';
-  /* Menyetel komponen = MENULIS ke server (`komponen_custom`). Tanpa izin
-     tulis, popovernya disembunyikan supaya pengguna tak menabrak 403
-     "User does not have the right permissions." — lebih baik fitur tak
-     ditawarkan daripada gagal saat dipakai. `user === null` = sesi belum
-     termuat (atau tanpa konteks auth, mis. di tes): jangan memblokir. */
+
   const { user } = useAuth();
   const bolehSetel = user === null
     || bisa(user, 'komponen_custom.tambah')
     || bisa(user, 'komponen_custom.ubah');
   const bolehBukaPengaturan = kunciUkuran !== '' && bolehSetel;
   const konteks = useLebarFilter();
-  /* Tabel tempat komponen hidup; komponen di luar tabel memakai string kosong
-     supaya tetap punya identitas di server. */
+
   const tableKey = konteks?.tableKey ?? '';
-  /* SETELAN komponen: ukuran (tinggi/lebar/label/kontrol), sisi yang
-     mengembang, warna label, nilai awal, dan tipe kontrol — semuanya dari
-     server, tabel `komponen_custom` (satu entri per komponen). Tak ada lagi
-     percabangan "di dalam toolbar → server, selain itu → perangkat". */
+
   const ukuran = useSetelanKomponen(tableKey, kunciUkuran);
 
   const refKotak = useRef<HTMLSpanElement | null>(null);
@@ -117,12 +109,10 @@ export function usePengaturanKotak({ htmlFor, label, nama = 'combobox', labelTra
   /** Klik-kanan pada kotak: buka popover pengaturan. Penutupanhandled Radix
    *  (klik kiri di luar panel). */
   const bukaPengaturan = useCallback((e: ReactMouseEvent<HTMLSpanElement>) => {
-    // Tahan menu konteks bawaan (di dalam input: potong/salin/tempel) supaya
-    // popover pengaturan yang muncul, bukan menu peramban.
+
     e.preventDefault();
     const r = refKotak.current?.getBoundingClientRect();
-    /* Anak pertama = label, anak kedua = zona kontrol (lihat `KotakLabel`):
-       lebar terukurnya jadi titik awal stepper label & kontrol. */
+
     const anak = refKotak.current?.children;
     setUkuranTerukur({
       tinggi: Math.round(r?.height ?? 0),
@@ -130,9 +120,7 @@ export function usePengaturanKotak({ htmlFor, label, nama = 'combobox', labelTra
       label: Math.round(anak?.[0]?.getBoundingClientRect().width ?? 0),
       kontrol: Math.round(anak?.[1]?.getBoundingClientRect().width ?? 0),
     });
-    /* Bekukan posisi: popover ditambatkan ke elemen `position: fixed` pada
-       posisi kotak SEKARANG, bukan ke kotaknya langsung. Tanpa ini popover
-       ikut bergeser saat mengubah lebar kotak. */
+
     if (r) {
       setJangkar({
         left: Math.round(r.left),
@@ -142,12 +130,7 @@ export function usePengaturanKotak({ htmlFor, label, nama = 'combobox', labelTra
       });
     }
     setBukaUkuran(true);
-    /* Buka daftar opsi kontrol yang diklik-kanan, supaya pengguna langsung
-       melihat dampak perubahan dari panel pengaturan tanpa klik lagi.
-       Yang diklik PANAH pemicu daftar (bukan input): Base UI membuka daftar
-       dari sana, sedangkan input tak merespons `click()` sintetis. `click()`
-       sintetis juga tak memunculkan `pointerdown`, jadi tak dihitung
-       "interaksi di luar" yang menutup panel. */
+
     const pemicu = refKotak.current?.querySelector('[data-slot="combobox-trigger"]');
     if (pemicu instanceof HTMLElement) pemicu.click();
   }, []);
@@ -179,7 +162,6 @@ export function usePengaturanKotak({ htmlFor, label, nama = 'combobox', labelTra
   /** Nama kotak sumber di tooltip tombol "Tempel setelan". */
   const asalSalinan = salinan === null ? undefined : (salinan.label === '' ? salinan.nama : salinan.label);
 
-  /* Ukuran tersimpan (bila ada) menang atas nilai dari pemanggil. */
   const tinggiEfektif = ukuran.tinggi ?? tinggi;
   const lebarKotakEfektif = ukuran.lebar ?? lebarKotak;
   const lebarLabelEfektif = ukuran.lebarLabel ?? lebarLabel;
@@ -283,10 +265,7 @@ export function usePengaturanKotak({ htmlFor, label, nama = 'combobox', labelTra
     return (
       <Popover open={bukaUkuran} onOpenChange={setBukaUkuran}>
         {kotak}
-        {/* Jangkar BEKU: elemen `position: fixed` (di luar alur, tak terlihat)
-            pada posisi kotak saat popover dibuka. `virtualRef` membuat Radix
-            memakai elemen ini — bukan kotaknya — sehingga popover DIAM walau
-            tata letak bergeser. */}
+
         <span
           ref={refJangkar}
           aria-hidden
@@ -306,9 +285,7 @@ export function usePengaturanKotak({ htmlFor, label, nama = 'combobox', labelTra
           refKotak={refKotak}
           label={label}
           nama={nama}
-          /* Titik awal stepper = ukuran tersimpan, atau ukuran kotak yang
-             TERUKUR saat popover dibuka (0 = tak terukur, mis. di jsdom),
-             atau prop pemanggil, atau bawaan. */
+
           tinggi={jepitTinggi(ukuran.tinggi ?? (ukuranTerukur.tinggi > 0 ? ukuranTerukur.tinggi : TINGGI_KOMBO_BAWAAN))}
           lebar={jepitLebar(ukuran.lebar ?? (ukuranTerukur.lebar > 0 ? ukuranTerukur.lebar : LEBAR_KOMBO_BAWAAN))}
           lebarLabel={jepitLebarLabel(ukuran.lebarLabel ?? (ukuranTerukur.label > 0 ? ukuranTerukur.label : (typeof lebarLabel === 'number' ? lebarLabel : LEBAR_LABEL_BAWAAN)))}

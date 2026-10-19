@@ -68,7 +68,7 @@ export default function SpinBox({
         type="text"
         inputMode="numeric"
         aria-label={ariaLabel}
-        /* Lebar tetap: isi mengisi sisa ruang di antara kedua tombol. */
+
         className={lebarTetap
           ? 'min-w-0 flex-1 border-x border-input bg-transparent px-0 text-center text-xs outline-none'
           : 'border-x border-input bg-transparent px-0 text-center text-xs outline-none'}

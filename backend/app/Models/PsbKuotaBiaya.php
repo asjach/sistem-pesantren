@@ -28,7 +28,7 @@ class PsbKuotaBiaya extends Model
 
     public function butuhSeleksi(): bool
     {
-        // Override null = ikut default lembaga (root PRD Bab 2.2: is_seleksi).
+
         return $this->membutuhkan_seleksi ?? (bool) $this->lembaga->is_seleksi;
     }
 }

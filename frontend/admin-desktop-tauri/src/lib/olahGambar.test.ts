@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bingkaiPutar, dimsKeluaran, EDISI_KOSONG, edisiAktif, jepitMiring, jepitUkuran, kotakPutar, MAKS_MIRING, MAKS_UKURAN, naturalKeRectPutar, rectKeNaturalPutar } from './olahGambar';
 
-// Matematika putar murni (tanpa canvas): sudut siku harus pas piksel,
-// sudut miring mengikuti bounding box.
 describe('kotakPutar', () => {
   it('sudut 0° mempertahankan dimensi', () => {
     expect(kotakPutar(0, 800, 600)).toEqual({ w: 800, h: 600 });
@@ -62,7 +60,7 @@ describe('petak putar 90° (pergi-pulang)', () => {
   });
 
   it('nilai baku putar 90° searah jarum jam', () => {
-    // Natural 100×200, crop kiri-atas 10,20 30×40 → tampil 200×100 di kanan-atas.
+
     const rect = naturalKeRectPutar({ x: 10, y: 20, w: 30, h: 40 }, 200, 100, 100, 200, 90);
     expect(rect).toEqual({ x: 140, y: 10, w: 40, h: 30 });
   });

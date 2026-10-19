@@ -46,7 +46,7 @@ class RiwayatBelajarGanjilTest extends TestCase
             'nama' => '2025/2026',
             'tanggal_mulai' => '2025-07-01', 'tanggal_selesai' => '2026-06-30', 'is_aktif' => false,
         ]);
-        // TA lama disembunyikan untuk MI → tidak berlaku di lembaga itu.
+
         LembagaTahunAjaran::create([
             'jenjang' => $mi->jenjang, 'tahun_ajaran' => $taLama->nama, 'is_active' => false,
         ]);
@@ -90,8 +90,6 @@ class RiwayatBelajarGanjilTest extends TestCase
         return $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar/belum-masuk?'.http_build_query($params));
     }
 
-    // ---------- 01. belum-masuk: saring anggota ----------
-
     public function test_01_belum_masuk_hanya_anggota_tanpa_riwayat(): void
     {
         $f = $this->baseFixture();
@@ -103,19 +101,19 @@ class RiwayatBelajarGanjilTest extends TestCase
             'santri_id' => $punyaAktif->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
             'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
-        // Arsip ganjil TA aktif (mis. salah input lalu dinonaktifkan manual): tetap disaring.
+
         $arsipGanjil = $this->makeAnggota('Arsip Ganjil', $f['mi']->jenjang);
         RiwayatBelajar::create([
             'santri_id' => $arsipGanjil->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
             'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'naik', 'is_active_riwayat' => 'Tidak',
         ]);
-        // Arsip ganjil TA LAMA tanpa riwayat aktif: boleh masuk lagi di TA aktif.
+
         $lulusanLama = $this->makeAnggota('Arsip Lama', $f['mi']->jenjang);
         RiwayatBelajar::create([
             'santri_id' => $lulusanLama->id, 'tahun_ajaran' => $f['taLama']->nama, 'jenjang' => $f['mi']->jenjang,
             'semester' => '1', 'status_awal' => 'santri_baru', 'status_akhir' => 'naik', 'is_active_riwayat' => 'Tidak',
         ]);
-        // Anggota nonaktif: tidak ikut.
+
         $this->seq++;
         $keluar = Santri::create(['nama_lengkap' => 'Keluar '.$this->seq, 'jk' => 'L']);
         LembagaSantri::create([
@@ -131,7 +129,6 @@ class RiwayatBelajarGanjilTest extends TestCase
             $ids($res)
         );
 
-        // Pencarian nama.
         $res = $this->belumMasuk($admin, ['jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['ta']->nama, 'q' => 'Baru Masuk'])
             ->assertStatus(200);
         $this->assertSame([$baru->id], $ids($res));
@@ -142,15 +139,12 @@ class RiwayatBelajarGanjilTest extends TestCase
         $f = $this->baseFixture();
         $admin = $this->makeUser();
 
-        // Wajib lembaga + TA.
         $this->belumMasuk($admin, [])->assertStatus(422);
-        // Lembaga tak dikenal ditolak.
+
         $this->belumMasuk($admin, ['jenjang' => 'ZZ', 'tahun_ajaran' => $f['ta']->nama])->assertStatus(422);
-        // TA disembunyikan untuk lembaga ini ditolak.
+
         $this->belumMasuk($admin, ['jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taLama']->nama])->assertStatus(422);
     }
-
-    // ---------- 02. aksi panah: satu klik ----------
 
     public function test_03_panah_membuat_baris_ganjil_tanpa_kelas(): void
     {
@@ -169,7 +163,6 @@ class RiwayatBelajarGanjilTest extends TestCase
             'kelas_id' => null, 'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
-        // Hilang dari panel kiri, muncul di panel kanan (index semester=1).
         $kiri = $this->belumMasuk($admin, ['jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['ta']->nama])->assertStatus(200);
         $this->assertNotContains($santri->id, collect($kiri->json('data'))->pluck('santri_id')->all());
 
@@ -178,7 +171,6 @@ class RiwayatBelajarGanjilTest extends TestCase
         ]))->assertStatus(200);
         $this->assertContains($santri->id, collect($kanan->json('data'))->pluck('santri_id')->all());
 
-        // Klik dua kali = 422 (guard terima), bukan baris ganda.
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/riwayat-belajar', [
             'santri_id' => $santri->id,
             'jenjang' => $f['mi']->jenjang,
@@ -186,8 +178,6 @@ class RiwayatBelajarGanjilTest extends TestCase
         ])->assertStatus(422);
         $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
     }
-
-    // ---------- 03. aksi batal: hard delete ----------
 
     public function test_04_batal_hapus_fisik_dan_kembalikan_ke_kiri(): void
     {
@@ -208,7 +198,6 @@ class RiwayatBelajarGanjilTest extends TestCase
         $this->assertDatabaseMissing('riwayat_belajar', ['id' => $riwayat->id]);
         $this->assertSame('Tidak', $santri->fresh()->is_active_pst);
 
-        // Kembali muncul di panel kiri.
         $kiri = $this->belumMasuk($admin, ['jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['ta']->nama])->assertStatus(200);
         $this->assertContains($santri->id, collect($kiri->json('data'))->pluck('santri_id')->all());
     }
@@ -243,8 +232,6 @@ class RiwayatBelajarGanjilTest extends TestCase
         $this->assertDatabaseHas('riwayat_belajar', ['id' => $riwayat->id]);
     }
 
-    // ---------- 04. tabel kanan hanya ganjil ----------
-
     public function test_07_index_genap_tidak_masuk_panel_kanan(): void
     {
         $f = $this->baseFixture();
@@ -260,8 +247,6 @@ class RiwayatBelajarGanjilTest extends TestCase
         ]))->assertStatus(200);
         $this->assertNotContains($santri->id, collect($res->json('data'))->pluck('santri_id')->all());
     }
-
-    // ---------- 05. filter dengan_kelas / tanpa_kelas + tingkat ----------
 
     public function test_08_filter_dengan_tanpa_kelas_dan_tingkat(): void
     {
@@ -289,7 +274,6 @@ class RiwayatBelajarGanjilTest extends TestCase
         $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query($dasar + ['dengan_kelas' => '1']))->assertStatus(200);
         $this->assertSame([$berkelas->id], $ids($res));
 
-        // Kombinasi tingkat + kelas_id pada panel kanan.
         $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query($dasar + [
             'dengan_kelas' => '1', 'tingkat' => '1', 'kelas_id' => $f['kelas']->id,
         ]))->assertStatus(200);
@@ -357,8 +341,6 @@ class RiwayatBelajarGanjilTest extends TestCase
         $this->assertSame([$nonaktif->id], $ids($res));
     }
 
-    // ---------- 06. belum-genap: ganjil aktif tanpa baris genap ----------
-
     public function test_09_belum_genap_hanya_ganjil_tanpa_genap(): void
     {
         $f = $this->baseFixture();
@@ -370,7 +352,7 @@ class RiwayatBelajarGanjilTest extends TestCase
             'kelas_id' => $f['kelas']->id, 'semester' => '1', 'tingkat' => '1',
             'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
-        // Sudah punya genap aktif → bukan calon.
+
         $sudah = $this->makeAnggota('Sudah Genap', $f['mi']->jenjang);
         RiwayatBelajar::create([
             'santri_id' => $sudah->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
@@ -380,7 +362,7 @@ class RiwayatBelajarGanjilTest extends TestCase
             'santri_id' => $sudah->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
             'semester' => '2', 'status_awal' => 'santri_baru', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
-        // Genap arsip pun tetap menyingkirkan (jaga unique).
+
         $arsip = $this->makeAnggota('Arsip Genap', $f['mi']->jenjang);
         RiwayatBelajar::create([
             'santri_id' => $arsip->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
@@ -391,7 +373,6 @@ class RiwayatBelajarGanjilTest extends TestCase
             'semester' => '2', 'status_awal' => 'santri_baru', 'status_akhir' => 'pindah_keluar', 'is_active_riwayat' => 'Tidak',
         ]);
 
-        // Tanpa kelas → bukan calon pindah (walau ganjil aktif).
         $tanpaKelas = $this->makeAnggota('Tanpa Kelas', $f['mi']->jenjang);
         RiwayatBelajar::create([
             'santri_id' => $tanpaKelas->id, 'tahun_ajaran' => $f['ta']->nama, 'jenjang' => $f['mi']->jenjang,
@@ -407,18 +388,15 @@ class RiwayatBelajarGanjilTest extends TestCase
         $dasar = ['jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['ta']->nama];
         $this->assertSame([$calon->id], $ids($ambil($dasar)));
 
-        // NIS lokal terlampir; tahun_ajaran tetap string (anti "[object Object]").
         $baris = collect($ambil($dasar)->json('data'))->firstWhere('santri_id', $calon->id);
         $this->assertIsString($baris['tahun_ajaran']);
         $this->assertNotEmpty($baris['nis_lokal']);
 
-        // Filter tingkat + kelas + pencarian.
         $this->assertSame([$calon->id], $ids($ambil($dasar + ['tingkat' => '1'])));
         $this->assertSame([], $ids($ambil($dasar + ['tingkat' => '2'])));
         $this->assertSame([$calon->id], $ids($ambil($dasar + ['kelas_id' => $f['kelas']->id])));
         $this->assertSame([$calon->id], $ids($ambil($dasar + ['q' => 'Calon Genap'])));
 
-        // TA disembunyikan untuk lembaga ini ditolak.
         $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar/belum-genap?'.http_build_query([
             'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taLama']->nama,
         ]))->assertStatus(422);

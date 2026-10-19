@@ -165,7 +165,7 @@ export default function PegawaiPage() {
   const [status, setStatus] = useState<'semua' | 'Ya' | 'Tidak'>('semua');
 
   // Buku Induk bersifat global: abaikan filter global jenjang/TA agar pegawai
-  // tanpa penempatan tetap tampil. Filter penempatan hanya di halaman terkait.
+
   const { rows, loading, err, urut, arahUrut, terapkanUrut, load, lastPage, total, pager, onSaved } =
     useDaftarTabel<Pegawai>({
       tableKey: 'pegawai',
@@ -184,7 +184,6 @@ export default function PegawaiPage() {
 
   const [tambahOpen, setTambahOpen] = useState(false);
 
-  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Pegawai").
   usePintasanBaru({
     kunci: 'n',
     aktif: canTambah,

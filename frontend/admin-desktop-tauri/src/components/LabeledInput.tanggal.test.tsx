@@ -8,8 +8,6 @@ import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
 import { hariIniIso, tanggalKeTampilan } from '@/lib/tanggal';
 
-/* Setelan komponen custom disimpan di server; API-nya dimock agar tak ada
-   permintaan jaringan saat render. */
 vi.mock('@/api/komponenCustom', () => ({
   muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
   simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
@@ -47,13 +45,13 @@ describe('LabeledInput tipe tanggal — kotak', () => {
   it('memakai teks ber-mask + papan angka, dengan tombol kalender di ujung kanan', () => {
     renderDenganTema(<Contoh />);
     const el = kotak();
-    // `text`, BUKAN `date`: tampilan & pemilihnya milik kita, bukan webview.
+
     expect(el.type).toBe('text');
     expect(el.inputMode).toBe('numeric');
     expect(el.placeholder).toBe('dd/mm/yyyy');
     expect(el.className).toMatch(/pr-7/);
     expect(document.getElementById('btn_kalender_inp_tgl')).not.toBeNull();
-    // Tombol kalkulator rupiah bukan milik tipe ini.
+
     expect(document.getElementById('btn_preset_inp_tgl')).toBeNull();
   });
 
@@ -70,8 +68,8 @@ describe('LabeledInput tipe tanggal — tampilan vs nilai', () => {
 
     await userEvent.type(kotak(), '12102026');
 
-    expect(kotak().value).toBe('12/10/2026'); // yang dilihat pengguna
-    expect(nilai()).toBe('2026-10-12');       // yang dipakai aplikasi & dikirim ke DB
+    expect(kotak().value).toBe('12/10/2026');
+    expect(nilai()).toBe('2026-10-12');
   });
 
   it('ketikan yang belum lengkap tetap terlihat, tapi nilainya masih kosong', async () => {
@@ -97,11 +95,10 @@ describe('LabeledInput tipe tanggal — tampilan vs nilai', () => {
 
     fireEvent.change(kotak(), { target: { value: '31/02/2026' } });
     expect(nilai()).toBe('');
-    expect(kotak().value).toBe('31/02/2026'); // tetap terlihat supaya bisa diperbaiki
+    expect(kotak().value).toBe('31/02/2026');
     expect(kotak().getAttribute('aria-invalid')).toBe('true');
     expect(kotak().title).toBe('Tanggal tidak ada di kalender');
 
-    // Diperbaiki → tanda hilang & nilainya masuk.
     fireEvent.change(kotak(), { target: { value: '28/02/2026' } });
     await waitFor(() => expect(kotak().getAttribute('aria-invalid')).toBeNull());
     expect(nilai()).toBe('2026-02-28');
@@ -141,7 +138,7 @@ describe('LabeledInput tipe tanggal — pengaturan format', () => {
 
     expect(await screen.findByText('Format')).not.toBeNull();
     expect(kotakFormat().value).toBe('dd/mm/yyyy');
-    // Tanpa pilihan lain, kotaknya tetap seperti semula.
+
     expect(kotak().value).toBe('12/10/2026');
     expect(kotak().placeholder).toBe('dd/mm/yyyy');
   });

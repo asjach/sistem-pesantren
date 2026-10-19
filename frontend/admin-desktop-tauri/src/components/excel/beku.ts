@@ -16,9 +16,7 @@ export function targetGulirBeku(
   let terbaik: number | null = null;
   for (const kiri of kolomKiri) {
     const target = scrollLeft + (kiri - batas);
-    /* Batas yang tak bisa dicapai (di luar rentang gulir) dilewati. Tanpa ini,
-     * di posisi gulir maksimum batas yang kelebihan di-clamp ke `max` dan
-     * terlihat "sudah rata" — padahal kolom di tepi beku masih terpotong. */
+
     if (target < 0 || target > maxScroll) continue;
     if (terbaik === null || Math.abs(target - scrollLeft) < Math.abs(terbaik - scrollLeft)) {
       terbaik = target;

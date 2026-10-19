@@ -3,8 +3,6 @@ import type { DataExistingPayload } from '@/lib/excelDataExisting';
 import { appendQueryParam, type ScalarOrArray } from './query';
 import type { Paginate } from './master';
 
-// ---------- Buku Induk santri (identitas murni) + keanggotaan per lembaga ----------
-
 /** Keanggotaan santri di satu lembaga (`lembaga_santri`). */
 export interface LembagaSantri {
   id: number;
@@ -212,8 +210,6 @@ export function updateSantri(id: number, changes: Record<string, string | number
   });
 }
 
-// ---------- Import gabungan siswa (identitas + keanggotaan) ----------
-
 /** Unduh template gabungan: blok keanggotaan dulu, lalu seluruh kolom profil. */
 export function unduhTemplateSantriGabungan() {
   return downloadFile('/admin/santri/import-template-gabungan', 'template-import-siswa-gabungan.xlsx');
@@ -226,8 +222,6 @@ export function dataSantriExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
   return api<DataExistingPayload>(`/admin/santri/data-existing${q}`);
 }
-
-// ---------- Import santri bertahap (potongan JSON 1000/panggilan) ----------
 
 export interface SantriPotongRingkasan {
   baris_diproses: number;
@@ -281,8 +275,6 @@ export function batalPotongImportSantri(sesiId: number) {
 export function unduhGalatPotongSantri(sesiId: number) {
   return downloadFile(`/admin/santri/import-potong/${sesiId}/galat`, 'galat-import-santri.csv');
 }
-
-// ---------- Keanggotaan per lembaga ----------
 
 export function listLembagaSantri(santriId: number) {
   return api<{ pesan: string; data: LembagaSantri[] }>(`/admin/santri/${santriId}/lembaga`);

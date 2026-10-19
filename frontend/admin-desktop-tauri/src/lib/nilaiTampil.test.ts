@@ -21,14 +21,6 @@ describe('formatNilai', () => {
     expect(formatNilai('2500', 'angka')).toBe('2.500');
   });
 
-  /* Dua tes di bawah mengunci PERBAIKAN dua bug tampilan (dulu keduanya
-     ditandai BUG di sini sebagai perilaku yang salah):
-
-     1. Titik dibaca sebagai pemisah RIBUAN, bukan desimal.
-        Dulu 'Rp 2.500' -> '2.500' -> Number 2.5 -> tampil "2,5"
-        (nominal 2500 tampil 1000x lebih kecil).
-     2. Teks tanpa digit dikembalikan APA ADANYA, bukan jadi "0".
-        Dulu 'abc' -> Number('') = 0 -> tampil "0". */
   it('angka: titik dibaca sebagai pemisah RIBUAN (perbaikan)', () => {
     expect(formatNilai('Rp 2.500', 'angka')).toBe('2.500');
     expect(formatNilai('1.234.567', 'angka')).toBe('1.234.567');
@@ -46,8 +38,6 @@ describe('formatNilai', () => {
     expect(formatNilai('1.234,56', 'angka')).toBe('1.234,56');
   });
 
-  /* Ambiguitas yang disengaja: seluruh aplikasi memakai locale `id-ID`, jadi
-     titik diperlakukan sebagai ribuan. Angka desimal ditulis dengan koma. */
   it('angka: "20.5" diperlakukan sebagai ribuan (205), konsisten id-ID', () => {
     expect(formatNilai('20.5', 'angka')).toBe('205');
   });
@@ -60,7 +50,7 @@ describe('formatNilai', () => {
 
   it('tanggal: ISO -> dd/mm/yyyy, sisanya apa adanya', () => {
     expect(formatNilai('2026-03-05', 'tanggal')).toBe('05/03/2026');
-    // Regex hanya mengunci awalan; sisa string ikut terbuang.
+
     expect(formatNilai('2026-03-05 14:30:00', 'tanggal')).toBe('05/03/2026');
     expect(formatNilai('05-03-2026', 'tanggal')).toBe('05-03-2026');
     expect(formatNilai('bukan tanggal', 'tanggal')).toBe('bukan tanggal');
@@ -71,7 +61,7 @@ describe('formatNilai', () => {
       expect(formatNilai(ya, 'ya_tidak')).toBe('Ya');
     }
     for (const tidak of ['tidak', '0', 'false', 't', '']) {
-      // Catatan: '' sudah ditangkap di awal (jadi ''), jadi tak sampai sini.
+
       if (tidak === '') continue;
       expect(formatNilai(tidak, 'ya_tidak')).toBe('Tidak');
     }
@@ -128,9 +118,7 @@ describe('namaTahunAjaran', () => {
 describe('namaLembaga', () => {
   it('string langsung dipakai; kosong jatuh ke jenjang lalu null', () => {
     expect(namaLembaga('MI')).toBe('MI');
-    /* String kosong BUKAN jalur jatuh ke `jenjang`: cabang `typeof v === 'string'`
-       langsung mengembalikan null. `jenjang` hanya dipakai untuk bentuk objek/
-       non-string. Dikunci supaya perilakunya jelas. */
+
     expect(namaLembaga('', 'MI')).toBeNull();
     expect(namaLembaga('')).toBeNull();
   });

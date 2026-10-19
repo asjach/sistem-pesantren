@@ -84,7 +84,6 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
   const desktop = isTauri();
   const canLihatDok = bisa(user, 'dokumen_santri.lihat');
 
-  // ----- Dokumen santri untuk kolom viewer (edit penuh seperti Lihat Dokumen) -----
   const [dokumens, setDokumens] = useState<DokumenRow[]>([]);
   const [dokId, setDokId] = useState<number | null>(null);
   const [pratinjau, setPratinjau] = useState<SumberBerkas | null>(null);
@@ -132,7 +131,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
             if (hidup) setPratinjau({ bytes: ketemu.bytes, mime, nama });
             return;
           }
-          // Cermin: salinan server selalu ada — jatuh ke unduh di bawah.
+
           if (lokasi !== 'cermin') {
             if (hidup) setGalatPratinjau('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
             return;
@@ -224,7 +223,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
       const p = await listDokumen('santri', { santri_id: santriId, per_page: 0 });
       setDokumens(p.data);
       if (p.data.some((d) => d.id === tampilId)) {
-        // Picu muat ulang pratinjau baris yang sama.
+
         setDokId(null);
         requestAnimationFrame(() => setDokId(tampilId));
       }
@@ -273,7 +272,6 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
   /** true bila nilai field berubah sejak dialog dibuka. */
   const berubah = (k: string) => (nilai[k] ?? null) !== (awal[k] ?? null);
 
-
   async function simpan() {
     if (!santri) return;
     for (const f of fields) {
@@ -296,9 +294,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Penuhi layar (margin 24px tiap sisi): posisi + flex via style agar
-          pasti menang dari kelas bawaan DialogContent (Tailwind v4 memakai
-          properti `translate`, bukan `transform`, untuk centering). */}
+
       <DialogContent
         className="max-w-none gap-2 overflow-visible max-h-none p-3 sm:max-w-none"
         style={{ inset: 24, transform: 'none', translate: 'none', display: 'flex', flexDirection: 'column', width: 'auto' }}
@@ -353,7 +349,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
             </DialogClose>
           </div>
         </DialogHeader>
-        {/* Isi: form (kolom 1, 400px bisa digeser 300–500) + viewer dokumen (kolom 2). */}
+
         <ResizablePanelGroup orientation="horizontal" id="grup_edit_santri" className="min-h-0 flex-1 overflow-hidden">
           <ResizablePanel
             defaultSize={canLihatDok ? 400 : 100}
@@ -363,7 +359,7 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
             className="min-h-0"
           >
           <div className="flex h-full min-h-0 flex-col pr-1">
-          {/* Area isi mengisi sisa tinggi dialog + menggulir sendiri. */}
+
           <form
             className="h-full min-h-0 scroll-tanpa-bar space-y-6 overflow-y-auto"
             onSubmit={(e) => { e.preventDefault(); void simpan(); }}
@@ -371,12 +367,10 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
           {BAGIAN_IDENTITAS.map((b) => (
             <section key={b.judul} className="space-y-3">
               <h3 className="border-b pb-1 text-xs font-semibold">{b.judul}</h3>
-              {/* Satu kolom: panel susun ke bawah, tiap panel melebar penuh
-                  supaya baris label–kontrol punya ruang lega dan mudah dibaca. */}
+
               <div className="space-y-4">
                 {b.panels.map((p) => {
-                  // Panel boleh memuat kunci yang tidak punya kolom (mis. `id`
-                  // pada profil) — dilewati, tidak bisa diedit.
+
                   const isi = p.kunci
                     .map((k) => ({ kunci: k, f: fieldUntuk(k) }))
                     .filter((x): x is { kunci: string; f: ExcelField } =>
@@ -385,19 +379,13 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
                   return (
                     <fieldset key={p.judul} className="min-w-0">
                       <legend className="mb-1.5 text-xs font-semibold">{p.judul}</legend>
-                      {/* Tampilan tabel: label dan kontrol sebaris, baris
-                          berdempet tanpa jarak — dipisah garis tipis, sama
-                          seperti baris label–nilai pada dialog profil. */}
+
                       <div className="overflow-hidden rounded-lg border">
                         {isi.map(({ f }) => {
                           const id = `input_edit_santri_${f.key}`;
                           const val = nilai[f.key] ?? '';
                           const dirty = berubah(f.key);
-                          // Kontrol TANPA kotak sendiri: garis baris yang jadi
-                          // pemisah, sehingga tidak ada garis dobel dan kontrol
-                          // tidak menumpuk. Fokus tetap jelas lewat
-                          // latar + cincin tipis, dan nilai yang diubah diberi
-                          // warna aksen (sel "dirty" di tabel utama).
+
                            const kelasKontrol = cn(
                              'h-6 w-full rounded-none border-0 bg-transparent px-2 text-xs shadow-none',
                             'focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/50',

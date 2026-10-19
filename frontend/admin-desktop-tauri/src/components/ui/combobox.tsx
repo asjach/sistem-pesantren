@@ -3,14 +3,6 @@ import { Combobox as ComboboxPrimitive, type ComboboxRoot as ComboboxRootNs } fr
 import { Check as CheckIcon, ChevronDown as ChevronDownIcon } from '@/icons'
 import { cn } from "@/lib/utils"
 
-/* Combobox (Base UI) — input yang bisa diketik + daftar saran tersaring
- * otomatis. Berbeda dari `Select` (Radix) yang daftar murni tanpa pencarian.
- * Gaya mengikuti token proyek: kontrol setinggi 26px, radius global.
- *
- * Catatan: setiap sub-komponenoya `className` di-destructure lalu spreads
- * `...props` SESUDAH atribut lain, dan `className` ditulis paling akhir —
- * kalau tidak, `className` dari props menimpa hasil `cn()`. */
-
 function ComboboxRoot<Value, Multiple extends boolean | undefined = false, Item = Value>(
   props: ComboboxRootNs.Props<Value, Multiple, Item>,
 ) {
@@ -47,10 +39,7 @@ function ComboboxTrigger({ className, ...props }: React.ComponentProps<typeof Co
 }
 
 function ComboboxContent({ className, ...props }: React.ComponentProps<typeof ComboboxPrimitive.Popup>) {
-  /* Popup di-portal ke body: wheel-nya menggelembung sampai `document` dan
-     dicegat kunci-scroll dialog modal (Radix/remove-scroll, fase bubble —
-     `defaultPrevented` masih false saat event di popup, jadi tak bisa jadi
-     gerbang). Hentikan propagasi di elemen agar scroll bawaan tetap jalan. */
+
   const [elPopup, setElPopup] = React.useState<HTMLDivElement | null>(null);
   React.useEffect(() => {
     if (elPopup === null) return;
@@ -61,10 +50,7 @@ function ComboboxContent({ className, ...props }: React.ComponentProps<typeof Co
   return (
     <ComboboxPrimitive.Portal>
       <ComboboxPrimitive.Positioner
-        /* `pointer-events-auto`: popup di-portal ke body, sedangkan dialog
-           modal (Radix) mengunci `body { pointer-events: none }` — tanpa ini
-           semua klik item diteruskan ke dialog di bawahnya (hanya keyboard
-           yang bekerja). */
+
         className="z-50 pointer-events-auto transition-[top,left] duration-150 ease-out"
         sideOffset={4}
       >
@@ -110,9 +96,7 @@ function ComboboxEmpty({ className, ...props }: React.ComponentProps<typeof Comb
     <ComboboxPrimitive.Empty
       data-slot="combobox-empty"
       {...props}
-      /* `empty:py-0`: Base UI MEMBUANG children saat daftar terisi tetapi
-         elemennya tetap mounted (wajib, agar screen reader tetap membaca).
-         Tanpa ini padding vertikalnya menyisakan baris kosong di atas daftar. */
+
       className={cn("px-2 py-1.5 text-xs text-muted-foreground empty:py-0", className)}
     />
   )

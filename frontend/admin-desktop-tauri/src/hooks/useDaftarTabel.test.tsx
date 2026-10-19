@@ -4,8 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Paginate } from '@/api/master';
 import { useDaftarTabel, type ArgsMuat } from '@/hooks/useDaftarTabel';
 
-/* usePager membaca pref + pengaturan global; keduanya distub agar tes fokus
-   pada logika useDaftarTabel (debounce, race, paginasi). */
 vi.mock('@/api/pengaturanGlobal', () => ({
   muatPengaturanGlobal: async () => ({ pesan: 'ok', data: { peta: {} } }),
 }));
@@ -50,8 +48,6 @@ describe('useDaftarTabel', () => {
     expect(arg.signal).toBeInstanceOf(AbortSignal);
   });
 
-  /* INTI: balasan lama yang tiba SETELAH balasan baru harus diabaikan, supaya
-     tabel tak menampilkan hasil query yang sudah tak relevan. */
   it('mengabaikan balasan lama yang tiba setelah balasan baru', async () => {
     const tunda: Array<() => void> = [];
     let panggil = 0;
@@ -64,11 +60,9 @@ describe('useDaftarTabel', () => {
     const { result } = renderHook(() => useDaftarTabel<Baris>({ tableKey: 't3', ambil }));
     await waitFor(() => expect(ambil).toHaveBeenCalledTimes(1));
 
-    // Muat ulang paksa -> request kedua jalan sebelum yang pertama selesai.
     act(() => { void result.current.load(); });
     await waitFor(() => expect(ambil).toHaveBeenCalledTimes(2));
 
-    // Selesaikan yang BARU dulu, lalu yang LAMA.
     await act(async () => { tunda[1]?.(); });
     await act(async () => { tunda[0]?.(); });
 
@@ -80,7 +74,7 @@ describe('useDaftarTabel', () => {
     const ambil = vi.fn(async (a: ArgsMuat) => {
       const ke = panggil++;
       if (ke === 0) {
-        // Request pertama menggantung sampai di-abort, lalu menolak.
+
         await new Promise<void>((_r, rej) => {
           a.signal?.addEventListener('abort', () => rej(new Error('dibatalkan')));
         });
@@ -116,7 +110,6 @@ describe('useDaftarTabel', () => {
     expect(onData).toHaveBeenCalledTimes(1);
   });
 
-  /* `sync` mengoreksi halaman yang sudah tak valid (data berkurang). */
   it('mengoreksi halaman bila halaman tersimpan melebihi last_page', async () => {
     localStorage.setItem('simpes_page_t7', '9');
     const ambil = vi.fn(async (a: ArgsMuat) =>
@@ -142,7 +135,6 @@ describe('useDaftarTabel', () => {
     expect(terakhir.arah).toBe('turun');
   });
 
-  /* Arah per kolom hanya berlaku bila ada kolom yang diurutkan. */
   it('terapkanUrut tanpa kolom membuang arahKolom', async () => {
     const ambil = vi.fn(async (_a: ArgsMuat) => halaman([]));
     const { result } = renderHook(() => useDaftarTabel<Baris>({ tableKey: 't9', ambil }));
@@ -164,10 +156,6 @@ describe('useDaftarTabel', () => {
     expect(result.current.pager.page).toBe(1);
   });
 
-  /* Live search menunda 400 ms agar API tak dipanggil tiap ketikan.
-     Timer asli dipakai (bukan fake): `waitFor` milik testing-library
-     berjalan di atas timer asli, dan mencampurnya dengan fake timer
-     membuat keduanya saling mengunci. Jeda di sini cuma 400 ms. */
   it('menunda pencarian sebelum memanggil ulang API', async () => {
     const ambil = vi.fn(async (_a: ArgsMuat) => halaman([]));
     const { result, rerender } = renderHook(
@@ -178,12 +166,10 @@ describe('useDaftarTabel', () => {
     await waitFor(() => expect(ambil.mock.calls.length).toBeGreaterThan(0));
     const awal = ambil.mock.calls.length;
 
-    // Query baru, majukan 300 ms (< 400): belum ada panggilan baru.
     rerender({ q: 'abu' });
     await new Promise((r) => setTimeout(r, 300));
     expect(ambil.mock.calls.length).toBe(awal);
 
-    // Lewat 400 ms: panggilan baru terjadi.
     await waitFor(() => expect(ambil.mock.calls.length).toBeGreaterThan(awal));
   });
 
@@ -193,34 +179,28 @@ describe('useDaftarTabel', () => {
       ({ q }: { q: string }) => useDaftarTabel<Baris>({ tableKey: 't12', ambil, search: q }),
       { initialProps: { q: 'abc' } },
     );
-    // Ketik dulu supaya ada nilai yang benar-benar kembali ke kosong.
+
     await waitFor(() => expect(ambil.mock.calls.length).toBeGreaterThan(0));
     await new Promise((r) => setTimeout(r, 450));
     const awal = ambil.mock.calls.length;
 
-    // Dikosongkan -> jeda 0 ms, jadi tak perlu menunggu 400 ms.
     rerender({ q: '' });
     await waitFor(() => expect(ambil.mock.calls.length).toBeGreaterThan(awal));
     expect((ambil.mock.calls.at(-1)![0] as ArgsMuat).search).toBe('');
   });
 
-  /* Mengosongkan saat nilai tertunda MEMANG sudah kosong tak memicu muat
-     ulang: `setSearchTertunda('')` tak mengubah state, jadi tak ada render
-     baru dan tak ada permintaan sia-sia. Dikunci agar tak jadi regresi. */
   it('tidak memuat ulang bila pencarian tertunda sudah kosong', async () => {
     const ambil = vi.fn(async (_a: ArgsMuat) => halaman([]));
     const { result, rerender } = renderHook(
       ({ q }: { q: string }) => useDaftarTabel<Baris>({ tableKey: 't13', ambil, search: q }),
       { initialProps: { q: '' } },
     );
-    // Muat awal memang bisa >1x (usePager melewati `ready`, `perPage`
-    // berubah). Yang diuji di sini: SETELAH tenang, mengosongkan pencarian
-    // yang sudah kosong tak menambah permintaan sia-sia.
+
     await waitFor(() => expect(result.current.loading).toBe(false));
     await new Promise((r) => setTimeout(r, 500));
     const awal = ambil.mock.calls.length;
 
-    rerender({ q: '   ' }); // hanya spasi = tetap kosong setelah trim
+    rerender({ q: '   ' });
     await new Promise((r) => setTimeout(r, 250));
     expect(ambil.mock.calls.length).toBe(awal);
   });

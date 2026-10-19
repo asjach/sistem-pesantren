@@ -89,8 +89,6 @@ class PenilaianController extends Controller
         ],
     ];
 
-    // ========================================================= PERISTIWA
-
     /** GET /admin/penilaian/peristiwa?jenjang=&tahun_ajaran= */
     public function indexPeristiwa(Request $request): JsonResponse
     {
@@ -184,7 +182,7 @@ class PenilaianController extends Controller
 
         $dibuat = [];
         DB::transaction(function () use ($jenjang, $ta, &$dibuat) {
-            // Pass 1 — peristiwa (UJIAN = jalur Kemenag → MD dilewati).
+
             $peta = [];
             foreach (self::PERISTIWA_BAWAAN as $p) {
                 if ($p['kode'] === PeristiwaNilai::UJIAN && $jenjang === 'MD') {
@@ -200,8 +198,6 @@ class PenilaianController extends Controller
                 $dibuat[] = $p['kode'];
             }
 
-            // Pass 2 — komponen (komponen ber-`dari_peristiwa` merujuk peristiwa
-            // PTS), KKM, dan predikat.
             foreach (self::PERISTIWA_BAWAAN as $p) {
                 $peristiwa = $peta[$p['kode']] ?? null;
                 if ($peristiwa === null) {
@@ -248,8 +244,6 @@ class PenilaianController extends Controller
 
         return response()->json(['pesan' => 'Bawaan dimuat: '.implode(', ', $dibuat).'.', 'peristiwa' => $dibuat]);
     }
-
-    // ========================================================= KOMPONEN
 
     /** GET /admin/penilaian/komponen?peristiwa_id= */
     public function indexKomponen(Request $request): JsonResponse
@@ -321,8 +315,6 @@ class PenilaianController extends Controller
 
         return response()->json(['pesan' => 'Komponen dihapus.']);
     }
-
-    // ========================================================= KKM & PREDIKAT
 
     /** GET /admin/penilaian/kkm?peristiwa_id= */
     public function indexKkm(Request $request): JsonResponse
@@ -408,8 +400,6 @@ class PenilaianController extends Controller
 
         return response()->json(['pesan' => 'Predikat disimpan.']);
     }
-
-    // ========================================================= EKSKUL & PRESTASI
 
     /** GET /admin/penilaian/ekskul?jenjang=&tahun_ajaran= */
     public function indexEkskul(Request $request): JsonResponse
@@ -541,8 +531,6 @@ class PenilaianController extends Controller
         return response()->json(['pesan' => 'Prestasi dihapus.']);
     }
 
-    // ========================================================= HITUNG ULANG
-
     /**
      * POST /admin/penilaian/hitung — hitung ulang nilai akhir dari komponen
      * untuk seluruh santri dalam lingkup. Baris ber-`sumber='impor'` DILEWATI
@@ -610,8 +598,6 @@ class PenilaianController extends Controller
             'belum_lengkap' => $belumLengkap,
         ]);
     }
-
-    // ========================================================= LEGER
 
     /** GET /admin/penilaian/leger — crosstab santri × mapel untuk satu peristiwa. */
     public function leger(Request $request): JsonResponse
@@ -705,8 +691,6 @@ class PenilaianController extends Controller
             "leger-{$peristiwa->kode}-{$jenjang}-{$semester}.xlsx",
         );
     }
-
-    // ========================================================= RAPOR
 
     /** GET /admin/penilaian/rapor?santri_id=&semester=&peristiwa_id=&peringkat= */
     public function rapor(Request $request): JsonResponse
@@ -922,8 +906,6 @@ class PenilaianController extends Controller
         ]);
     }
 
-    // ========================================================= IMPOR
-
     /** GET /admin/penilaian/import-template?tipe=&peristiwa_id=&kelas_id= */
     public function template(Request $request)
     {
@@ -991,8 +973,6 @@ class PenilaianController extends Controller
     {
         return $this->unduhGalatImpor($request, $sesi, 'galat-import-penilaian.csv');
     }
-
-    // ========================================================= BANTUAN
 
     private function templateNilai(Request $request, string $jenjang, string $ta): PenilaianTemplateExport
     {
@@ -1158,7 +1138,6 @@ class PenilaianController extends Controller
             )
             ->orderBy('rb.tingkat')->orderBy('kelas.nama_kelas')->orderBy('rb.no_absen')->orderBy('santri.nama_lengkap');
 
-        // Cakupan peserta peristiwa.
         if ($akhir !== null) {
             if ($peristiwa->cakupan === PeristiwaNilai::CAKUPAN_TINGKAT_AKHIR) {
                 $query->where('rb.tingkat', $akhir);
@@ -1285,7 +1264,7 @@ class PenilaianController extends Controller
         $total = count($rows);
         $cutoff = $batas === 'semua' ? $total : (int) $batas;
         if ($nilai !== null && $nilai > $cutoff) {
-            $nilai = null; // di luar cutoff: sel peringkat dikosongkan (spesimen)
+            $nilai = null;
         }
 
         return ['peringkat' => $nilai, 'total' => $total];

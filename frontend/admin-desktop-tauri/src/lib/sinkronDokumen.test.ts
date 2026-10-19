@@ -191,7 +191,7 @@ describe('sinkronkanDaftar', () => {
     const r1 = await sinkronSatuBaris(cermin, { mtime: 2000, baca }, server({ sha256: sha, mtime: 2500 }), d);
     expect(r1.aksi).toBe('dilewati');
     expect(baca).not.toHaveBeenCalled();
-    // Sudah-sama tanpa bukti waktu tetap butuh 1x baca untuk hash.
+
     const r2 = await sinkronSatuBaris(
       baris({ penyimpanan: 'cermin', sinkron_hash: sha }),
       { mtime: 2000, baca }, server({ sha256: sha }), d,

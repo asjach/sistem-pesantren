@@ -20,7 +20,7 @@ vi.mock('@tauri-apps/api/webviewWindow', () => ({
       this.label = label;
       this.opsi = opsi;
       dibuat.push(this as unknown as JendelaPalsu);
-      // Setelah `once` terpasang (dipanggil sinkron setelah constructor).
+
       setTimeout(() => this.h['tauri://created']?.(), 0);
     }
     once(ev: string, cb: () => void) {
@@ -64,9 +64,9 @@ describe('bukaDiTabBaru', () => {
 
     expect(hasil).toBe('dibuka');
     expect(dibuat).toHaveLength(1);
-    // Label harus cocok glob capability `app-*` di capabilities/default.json.
+
     expect(dibuat[0].label).toMatch(/^app-tab-\d+$/);
-    // Path tanpa garis miring depan agar tetap di dalam app.
+
     expect(dibuat[0].opsi.url).toBe('santri/7/profil');
     expect(dibuat[0].opsi.title).toBe('Profil: Ahmad');
     expect(window.open).not.toHaveBeenCalled();

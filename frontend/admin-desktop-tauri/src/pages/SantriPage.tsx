@@ -125,14 +125,12 @@ export default function SantriPage() {
   const [dokFile, setDokFile] = useState<File | null>(null);
   const [dokCatatan, setDokCatatan] = useState('');
 
-  // Dialog keanggotaan (NIS lokal/kemenag per lembaga).
   const [anggotaRow, setAnggotaRow] = useState<Santri | null>(null);
   const [anggotaList, setAnggotaList] = useState<LembagaSantri[]>([]);
   const [anggotaLembaga, setAnggotaLembaga] = useState('');
   const [anggotaNis, setAnggotaNis] = useState('');
   const [anggotaMulai, setAnggotaMulai] = useState('');
 
-  // Dialog Tambah identitas.
   const [tambahOpen, setTambahOpen] = useState(false);
   const [addNama, setAddNama] = useState('');
   const [addJk, setAddJk] = useState('L');
@@ -142,17 +140,13 @@ export default function SantriPage() {
   const [addNisLokal, setAddNisLokal] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Reset formulir lalu buka dialog tambah — satu sumber untuk tombol dan
-  // pintasan Ctrl/Cmd+N.
   const bukaTambah = useCallback(() => {
     setAddNama(''); setAddJk('L'); setAddNik(''); setAddNisn(''); setAddLembaga(''); setAddNisLokal('');
     setTambahOpen(true);
   }, []);
 
-  // Hanya lembaga operasional (root pesantren tidak bisa menjadi keanggotaan).
   const lembagaOperasional = lembagas;
 
-  // Kolom NIS per lembaga — cerminan `lembaga_santri`, bisa diketik langsung.
   const nisFields: ExcelField[] = useMemo(
     () => lembagaOperasional.map((l) => ({
       key: `${NIS_PREFIX}${l.jenjang}`,
@@ -160,7 +154,7 @@ export default function SantriPage() {
       width: 110,
       kind: 'text' as const,
       maxLength: 20,
-      
+
     })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [lembagas],
@@ -177,8 +171,6 @@ export default function SantriPage() {
 
   const { user } = useAuth();
 
-  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Santri"). Aktif hanya bila
-  // pengguna berhak menambah; terhalang saat dialog tambah sudah terbuka.
   usePintasanBaru({
     kunci: 'n',
     aktif: bisa(user, 'santri.tambah'),
@@ -315,7 +307,6 @@ export default function SantriPage() {
         )}
       />
 
-      {/* Tambah identitas */}
       <Dialog open={tambahOpen} onOpenChange={setTambahOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -383,7 +374,6 @@ export default function SantriPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Keanggotaan */}
       <Dialog open={anggotaRow !== null} onOpenChange={(o) => { if (!o) setAnggotaRow(null); }}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
@@ -453,7 +443,6 @@ export default function SantriPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Foto */}
       <Dialog open={fotoRow !== null} onOpenChange={(o) => { if (!o) setFotoRow(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -481,7 +470,6 @@ export default function SantriPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dokumen */}
       <Dialog open={dokRow !== null} onOpenChange={(o) => { if (!o) { setDokRow(null); setDokRows([]); } }}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>

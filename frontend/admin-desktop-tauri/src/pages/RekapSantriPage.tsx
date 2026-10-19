@@ -87,9 +87,7 @@ export default function RekapSantriPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex flex-wrap items-end gap-3 px-2 py-2">
-        {/* LabeledCombobox (bukan FilterField+Select) agar kotaknya bisa
-            diatur lebar/tingginya lewat popover klik-kanan. Lebar dipatok —
-            tanpa ini kotak `w-full` memenuhi baris header (dulu Select `w-40`). */}
+
         <LabeledCombobox label="Keaktifan" htmlFor="select_keaktifan_rekap" lebarKotak={220}>
           <ComboboxRoot
             items={OPSI_KEAKTIFAN_REKAP}

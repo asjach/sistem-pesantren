@@ -46,7 +46,7 @@ class MutasiKeluarImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollec
 
     public function onUnknownSheet(string|int $sheetName): void
     {
-        // Sheet tambahan diabaikan.
+
     }
 
     /** @return array<string, mixed> */
@@ -59,8 +59,7 @@ class MutasiKeluarImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollec
     public function rules(): array
     {
         return [
-            // Sel Excel/CSV bisa terbaca sebagai angka → hindari rule `string` ketat.
-            // Tanggal TANPA rule `date` (serial Excel gagal rule itu) — diparse manual.
+
             'nis_lokal' => ['required'],
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tanggal_mutasi' => ['nullable'],

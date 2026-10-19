@@ -29,16 +29,15 @@ return new class extends Migration
             $table->enum('is_active_lembaga', ['Ya', 'Tidak'])->default('Ya');
             $table->date('tgl_masuk')->nullable();
             $table->date('tgl_selesai')->nullable();
-            $table->string('tahaj_masuk', 50)->nullable(); // tahun ajaran masuk
+            $table->string('tahaj_masuk', 50)->nullable();
             $table->string('tingkat_masuk', 20)->nullable();
-            $table->string('no_urut', 20)->nullable(); // boleh bersufiks huruf (mis. '706x')
+            $table->string('no_urut', 20)->nullable();
             $table->string('nama_sekolah_asal')->nullable();
             $table->string('npsn_sekolah_asal', 20)->nullable();
             $table->string('nss_sekolah_asal', 30)->nullable();
             $table->text('alamat_sekolah_asal')->nullable();
             $table->timestamps();
 
-            // NIS lokal unik per lembaga; NULL boleh berulang (multi-NULL MySQL).
             $table->unique(['jenjang', 'nis_lokal'], 'uq_lembaga_santri_nis_lokal');
             $table->index(['santri_id', 'is_active_lembaga']);
             $table->index(['jenjang', 'is_active_lembaga']);

@@ -57,7 +57,7 @@ class PegawaiController extends Controller
         if ($tahunAjaran !== []) {
             $query->whereHas('keaktifan', fn ($k) => $k->whereIn('tahun_ajaran', $tahunAjaran));
         }
-        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
+
         if ($request->filled('status_aktif') && $request->input('status_aktif') !== 'semua') {
             $query->where('pegawai.status_aktif', $request->input('status_aktif'));
         }
@@ -196,7 +196,7 @@ class PegawaiController extends Controller
                 ->orWhere('nik', 'like', "%{$q}%")
                 ->orWhere('no_sk_awal', 'like', "%{$q}%"));
         }
-        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
+
         if ($request->filled('status_aktif') && $request->input('status_aktif') !== 'semua') {
             $query->where('pegawai.status_aktif', $request->input('status_aktif'));
         }
@@ -228,7 +228,6 @@ class PegawaiController extends Controller
         ]);
     }
 
-    // Upload foto profil pegawai. Storage: dokumen/pegawai/foto_profil/* ; DB hanya path di pegawai.foto_url.
     public function uploadFoto(PegawaiFotoRequest $request, Pegawai $pegawai): JsonResponse
     {
         abort_unless(Pegawai::tenantScope()->whereKey($pegawai->id)->exists(), 403, 'Akses ditolak.');
@@ -377,7 +376,6 @@ class PegawaiController extends Controller
             'akun.lembagas:jenjang,nama',
         ])->whereNotNull('user_id');
 
-        // Filter lembaga topbar = cakupan akses akun (pivot user_lembaga).
         $lembaga = $this->nilaiFilter($request, 'jenjang');
         $this->authorizeLembagaMany($request->user(), $lembaga);
         if ($lembaga === [] && ! $request->user()->bolehPesantren()) {
@@ -387,7 +385,6 @@ class PegawaiController extends Controller
             $query->whereHas('akun.lembagas', fn ($l) => $l->whereIn('lembaga.jenjang', $lembaga));
         }
 
-        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
         if ($request->filled('status_aktif') && $request->input('status_aktif') !== 'semua') {
             $query->where('pegawai.status_aktif', $request->input('status_aktif'));
         }

@@ -23,8 +23,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <VisibilitasFilterProvider>
         <CariGlobalProvider>
           <TopBarSearchProvider>
-            {/* Seret lebar navigasi satu instans untuk Sidebar + TopBar
-                (kenop lipat ikut bisa diseret) — lihat SeretSidebar. */}
+
             <SeretSidebarProvider>
               <div className="flex h-screen overflow-hidden bg-background">
                 {!pakaiMenubar && <Sidebar />}
@@ -32,7 +31,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                   {pakaiMenubar && <Menubar />}
                   <TopBar />
                   <div className="flex min-h-0 flex-1 bg-background">
-                    {/* Ganti lembaga/tahun ajaran aktif → remount halaman: filter & data ikut scope baru. */}
+
                     <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background p-0">
                       <Fragment key={`${jenjang ?? 'semua'}:${tahunAjaranNama ?? 'semua'}`}>{children}</Fragment>
                     </main>

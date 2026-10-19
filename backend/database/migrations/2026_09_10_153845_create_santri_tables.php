@@ -14,13 +14,11 @@ return new class extends Migration
         Schema::create('santri', function (Blueprint $table) {
             $table->id();
 
-            // Identitas Personal (buku induk) — TANPA relasi riwayat.
-            // Keanggotaan per lembaga ada di `lembaga_santri`, akademik di `riwayat_belajar`.
             $table->string('nama_lengkap');
             $table->string('nama_singkat')->nullable();
-            $table->string('nik', 20)->nullable(); // 20: muat penanda tak valid 'X-...'
-            $table->string('nisn', 10)->nullable(); // berlaku RA–S3 (nasional)
-            $table->string('tmp_lahir')->nullable(); // kamus ref_tmp_lahir
+            $table->string('nik', 20)->nullable();
+            $table->string('nisn', 10)->nullable();
+            $table->string('tmp_lahir')->nullable();
             $table->date('tgl_lahir')->nullable();
             $table->enum('jk', ['L', 'P']);
             $table->integer('anak_ke')->nullable();
@@ -29,81 +27,75 @@ return new class extends Migration
             $table->string('no_hp_santri')->nullable();
             $table->string('email_santri')->nullable();
 
-            // Relasi Tabel Kamus (string bebas nullable, TANPA FK — hanya saran combobox)
-            $table->string('agama')->nullable(); // ref_agama
-            $table->string('cita_cita')->nullable(); // ref_cita_cita
-            $table->string('hobi')->nullable(); // ref_hobi
-            $table->string('kebutuhan_khusus')->nullable(); // ref_kebutuhan_khusus
-            $table->string('kebutuhan_disabilitas')->nullable(); // ref_disabilitas
+            $table->string('agama')->nullable();
+            $table->string('cita_cita')->nullable();
+            $table->string('hobi')->nullable();
+            $table->string('kebutuhan_khusus')->nullable();
+            $table->string('kebutuhan_disabilitas')->nullable();
             $table->string('nomor_kip')->nullable();
 
-            // Orang Tua & Wali (alamat pisah per pihak; kamus via ref_*)
             $table->string('ayah_nama')->nullable();
             $table->string('ayah_nik', 20)->nullable();
-            $table->string('ayah_tmp_lahir')->nullable(); // ref_tmp_lahir
+            $table->string('ayah_tmp_lahir')->nullable();
             $table->date('ayah_tgl_lahir')->nullable();
-            $table->string('ayah_status')->nullable(); // ref_status_ortu
-            $table->string('ayah_pekerjaan')->nullable(); // ref_pekerjaan
-            $table->string('ayah_pendidikan')->nullable(); // ref_pendidikan
-            $table->string('ayah_penghasilan')->nullable(); // ref_penghasilan
+            $table->string('ayah_status')->nullable();
+            $table->string('ayah_pekerjaan')->nullable();
+            $table->string('ayah_pendidikan')->nullable();
+            $table->string('ayah_penghasilan')->nullable();
             $table->string('ayah_telp')->nullable();
             $table->string('ayah_alamat')->nullable();
-            $table->string('ayah_status_tempat_tinggal')->nullable(); // ref_status_tinggal
+            $table->string('ayah_status_tempat_tinggal')->nullable();
 
             $table->string('ibu_nama')->nullable();
             $table->string('ibu_nik', 20)->nullable();
-            $table->string('ibu_tmp_lahir')->nullable(); // ref_tmp_lahir
+            $table->string('ibu_tmp_lahir')->nullable();
             $table->date('ibu_tgl_lahir')->nullable();
-            $table->string('ibu_status')->nullable(); // ref_status_ortu
-            $table->string('ibu_pekerjaan')->nullable(); // ref_pekerjaan
-            $table->string('ibu_pendidikan')->nullable(); // ref_pendidikan
-            $table->string('ibu_penghasilan')->nullable(); // ref_penghasilan
+            $table->string('ibu_status')->nullable();
+            $table->string('ibu_pekerjaan')->nullable();
+            $table->string('ibu_pendidikan')->nullable();
+            $table->string('ibu_penghasilan')->nullable();
             $table->string('ibu_telp')->nullable();
             $table->string('ibu_alamat')->nullable();
-            $table->string('ibu_status_tempat_tinggal')->nullable(); // ref_status_tinggal
+            $table->string('ibu_status_tempat_tinggal')->nullable();
 
             $table->string('wali_nama')->nullable();
             $table->string('wali_nik', 20)->nullable();
-            $table->string('wali_tmp_lahir')->nullable(); // ref_tmp_lahir
+            $table->string('wali_tmp_lahir')->nullable();
             $table->date('wali_tgl_lahir')->nullable();
-            $table->string('wali_status')->nullable(); // ref_status_ortu
-            $table->string('wali_pekerjaan')->nullable(); // ref_pekerjaan
-            $table->string('wali_pendidikan')->nullable(); // ref_pendidikan
-            $table->string('wali_penghasilan')->nullable(); // ref_penghasilan
+            $table->string('wali_status')->nullable();
+            $table->string('wali_pekerjaan')->nullable();
+            $table->string('wali_pendidikan')->nullable();
+            $table->string('wali_penghasilan')->nullable();
             $table->string('wali_telp')->nullable();
             $table->string('wali_alamat')->nullable();
-            $table->string('wali_status_tempat_tinggal')->nullable(); // ref_status_tinggal
-            $table->string('yang_membiayai')->nullable(); // ref_yang_membiayai
+            $table->string('wali_status_tempat_tinggal')->nullable();
+            $table->string('yang_membiayai')->nullable();
 
-            // EMIS santri tambahan:
             $table->string('no_kk', 20)->nullable();
             $table->string('kepala_keluarga')->nullable();
             $table->string('kewarganegaraan')->default('WNI');
-            $table->string('bahasa_sehari')->nullable(); // ref_bahasa_sehari_hari
-            $table->string('status_tempat_tinggal')->nullable(); // ref_status_tinggal
-            $table->string('jarak_ke_pesantren')->nullable(); // ref_jarak
-            $table->string('waktu_tempuh')->nullable(); // ref_waktu_tempuh
-            $table->string('transportasi')->nullable(); // ref_transportasi
-            $table->date('tanggal_masuk')->nullable(); // arsip awal masuk (selain riwayat)
+            $table->string('bahasa_sehari')->nullable();
+            $table->string('status_tempat_tinggal')->nullable();
+            $table->string('jarak_ke_pesantren')->nullable();
+            $table->string('waktu_tempuh')->nullable();
+            $table->string('transportasi')->nullable();
+            $table->date('tanggal_masuk')->nullable();
 
-            // Alamat keluarga (wilayah kamus via ref_provinsi/kota/kecamatan/desa)
-            $table->string('provinsi')->nullable(); // ref_provinsi
-            $table->string('kab_kota')->nullable(); // ref_kota
-            $table->string('kecamatan')->nullable(); // ref_kecamatan
-            $table->string('desa_kelurahan')->nullable(); // ref_desa_kelurahan
+            $table->string('provinsi')->nullable();
+            $table->string('kab_kota')->nullable();
+            $table->string('kecamatan')->nullable();
+            $table->string('desa_kelurahan')->nullable();
             $table->string('rt', 3)->nullable();
             $table->string('rw', 3)->nullable();
             $table->text('alamat')->nullable();
             $table->string('kode_pos')->nullable();
 
-            // Flag ringkas: true = punya >=1 riwayat_belajar aktif (turunan murni, default false).
             $table->string('foto_url')->nullable();
-            // Turunan: 'Ya' iff ada >=1 riwayat_belajar aktif (dihitung ulang service).
+
             $table->enum('is_active_pst', ['Ya', 'Tidak'])->default('Tidak');
 
             $table->timestamps();
 
-            // NIK/NISN boleh fiktif/ganda — BUKAN unique; hanya index biasa, dedup identitas (nik+nama+tgl_lahir) di service.
             $table->index(['nik']);
             $table->index(['nisn']);
         });
@@ -111,28 +103,24 @@ return new class extends Migration
         Schema::create('riwayat_belajar', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
-            $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
+            $table->string('tahun_ajaran', 9);
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->foreignId('kelas_id')->nullable()->constrained('kelas')->nullOnDelete(); // null = belum ditempatkan (naik dulu, penempatan menyusul)
-            $table->string('semester', 2)->default('1'); // '1' ganjil, '2' genap (selaras nilai_santri)
-            $table->date('tgl_masuk')->nullable(); // mulai per semester (ganjil=awal tahun, genap=awal semester 2)
-            $table->integer('no_absen')->nullable(); // no urut rombel per semester; unique per kelas dicek di service
-            $table->string('tingkat')->nullable(); // ref_tingkat: target jenjang tahun ini ('7','8','9'); grouping saat kelas_id null
-            // Sumber masuk (string bebas, validasi ke ref_status_awal efektif per lembaga).
-            // TERKUNCI: sama antara ganjil-genap dalam 1 tahun (genap copy ganjil).
+            $table->foreignId('kelas_id')->nullable()->constrained('kelas')->nullOnDelete();
+            $table->string('semester', 2)->default('1');
+            $table->date('tgl_masuk')->nullable();
+            $table->integer('no_absen')->nullable();
+            $table->string('tingkat')->nullable();
+
             $table->string('status_awal')->default('santri_baru');
-            // Hasil semester ini (string bebas, validasi ke ref_status_akhir efektif).
+
             $table->string('status_akhir')->default('aktif');
-            // Sedang berjalan. INVARIANT: true iff status_akhir='aktif'. Ditulis hanya via SiklusSantriService.
-            // Ganjil→genap: ganjil ditutup (is_aktif=false, arsip), genap aktif — 1 aktif per santri-lembaga terjaga.
-            // Berhenti satu jenjang (paket MD berhenti, MI lanjut): baris MD (is_aktif=false, status_akhir dipertahankan).
-            // santri.status_global=false hanya jika SELURUH riwayat non-aktif (dihitung ulang di 102).
+
             $table->enum('is_active_riwayat', ['Ya', 'Tidak'])->default('Ya');
             $table->timestamps();
 
-            $table->unique(['santri_id', 'tahun_ajaran', 'jenjang', 'semester'], 'uq_riwayat_belajar_stls'); // nama pendek: auto-name 68 char > limit MySQL 64
-            // Performa cek bentrok no_absen (bukan unique: kelas_id/no_absen nullable, multi-NULL diizinkan MySQL).
+            $table->unique(['santri_id', 'tahun_ajaran', 'jenjang', 'semester'], 'uq_riwayat_belajar_stls');
+
             $table->index(['kelas_id', 'tahun_ajaran', 'semester', 'no_absen']);
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->cascadeOnDelete();
@@ -144,9 +132,9 @@ return new class extends Migration
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->foreignId('kelas_terakhir_id')->nullable()->constrained('kelas')->nullOnDelete();
-            $table->date('tanggal_mutasi')->nullable(); // arsip historis: boleh kosong
-            $table->string('alasan_mutasi')->nullable(); // kamus ref_alasan_mutasi (string bebas, tanpa FK)
-            $table->string('no_surat')->nullable(); // nomor surat keterangan pindah/keluar (arsip EMIS)
+            $table->date('tanggal_mutasi')->nullable();
+            $table->string('alasan_mutasi')->nullable();
+            $table->string('no_surat')->nullable();
             $table->string('nama_sekolah_tujuan')->nullable();
             $table->string('npsn_sekolah_tujuan', 20)->nullable();
             $table->string('nsm_sekolah_tujuan', 30)->nullable();
@@ -160,12 +148,12 @@ return new class extends Migration
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
             $table->string('lembaga_lulus', 20);
             $table->foreign('lembaga_lulus')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->string('tahun_ajaran_lulus', 9); // FK ke tahun_ajaran.nama
+            $table->string('tahun_ajaran_lulus', 9);
             $table->foreignId('kelas_lulus_id')->nullable()->constrained('kelas')->nullOnDelete();
             $table->string('nomor_ijazah')->nullable();
-            $table->string('no_surat_ijazah')->nullable(); // nomor surat pengantar/SKHU
-            $table->string('no_peserta')->nullable(); // nomor peserta ujian
-            $table->string('skhun')->nullable(); // nomor SKHUN
+            $table->string('no_surat_ijazah')->nullable();
+            $table->string('no_peserta')->nullable();
+            $table->string('skhun')->nullable();
             $table->date('tanggal_lulus')->nullable();
             $table->string('kegiatan_setelah_lulus')->nullable();
             $table->enum('penyerahan_ijazah', ['sudah', 'belum'])->default('belum');
@@ -173,7 +161,7 @@ return new class extends Migration
             $table->text('catatan')->nullable();
             $table->timestamps();
 
-            $table->unique(['santri_id', 'lembaga_lulus']); // 1 santri = max 1 arsip alumni per lembaga
+            $table->unique(['santri_id', 'lembaga_lulus']);
             $table->foreign('tahun_ajaran_lulus')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });

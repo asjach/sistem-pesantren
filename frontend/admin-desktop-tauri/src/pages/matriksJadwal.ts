@@ -102,7 +102,7 @@ export function garisSelMatriks(
   const guru = formatGuruBaris(jadwal, opsi.formatGuru);
   if (opsi.tampilan === 'mapel') return mapel === '' ? [] : [{ teks: mapel, gaya: 'penuh' }];
   if (opsi.tampilan === 'guru') return [{ teks: guru || '—', gaya: 'penuh' }];
-  // Guru dulu, mapel menyusul: tampilkan guru saja sampai mapel diisi.
+
   if (tanpaMapel) return guru === '' ? [] : [{ teks: guru, gaya: 'penuh' }];
   const baris: GarisSel[] = [{ teks: mapel, gaya: 'mapel' }];
   if (guru !== '') baris.push({ teks: guru, gaya: 'guru_muda' });

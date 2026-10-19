@@ -88,8 +88,6 @@ class ReferensiController extends Controller
             return response()->json($rows);
         }
 
-        // Tanpa filter = Semua: gabung baris seluruh lembaga yang boleh
-        // diakses (termasuk nonaktif, untuk kelola + pulihkan per baris).
         $ids = $actor->bolehPesantren()
             ? Lembaga::orderBy('jenjang')->pluck('jenjang')->all()
             : $actor->lembagaIdsDenganPasangan();
@@ -137,8 +135,6 @@ class ReferensiController extends Controller
 
         $table = RefService::table($tipe);
 
-        // Daftar lembaga (checkbox): satu permintaan untuk semua pilihan,agency
-        // yang sudah punya nilainya dilewati — sama seperti fan-out "semua".
         $pilih = $request->input('jenjang');
         if (is_array($pilih)) {
             $lembagas = array_values(array_unique(array_filter(array_map(
@@ -148,8 +144,7 @@ class ReferensiController extends Controller
             foreach ($lembagas as $lid) {
                 $this->canLembaga($actor, $lid) || abort(403, 'Di luar lembaga Anda.');
             }
-            // Array kosong = tak ada yang dicentang (bukan fan-out "semua";
-            // fan-out hanya lewat `jenjang` yang tak dikirim sama sekali).
+
             if ($lembagas === []) {
                 abort(422, 'Pilih minimal satu lembaga.');
             }
@@ -157,7 +152,6 @@ class ReferensiController extends Controller
             return $this->storeSebar($actor, $tipe, $table, $key, $isStatus, $data, $lembagas);
         }
 
-        // Tanpa jenjang = super_admin menambah ke SEMUA lembaga sekaligus.
         $targetLembaga = $data['jenjang'] ?? null;
         if (is_null($targetLembaga)) {
             if (! $actor->bolehSuperAdmin()) {
@@ -175,7 +169,7 @@ class ReferensiController extends Controller
             if ($q->first()) {
                 abort(422, 'Kode sudah ada.');
             }
-            // Custom lembaga: sifat netral (non-aktif, non-terminal); nama/urutan ikut input.
+
             $id = DB::table($table)->insertGetId([
                 'jenjang' => $targetLembaga, 'kode' => $data['kode'],
                 'nama' => $data['nama'] ?? $data['kode'],
@@ -183,7 +177,7 @@ class ReferensiController extends Controller
                 'urutan' => $data['urutan'] ?? 0, 'is_active' => true,
             ]);
         } else {
-            // Cegah duplikat dalam lembaga yang sama.
+
             if (DB::table($table)->where('jenjang', $targetLembaga)->where('nama', $data['nama'])->exists()) {
                 abort(422, 'Nilai sudah ada.');
             }
@@ -243,20 +237,18 @@ class ReferensiController extends Controller
         $table = RefService::table($tipe);
         $row = DB::table($table)->find($id) ?? abort(404);
         if (is_null($row->jenjang)) {
-            // Warisan global (pra fan-out): tak dikelola lagi.
+
             abort(422, 'Baris global tidak dipakai lagi.');
         }
         if (! $this->canLembaga($actor, $row->jenjang)) {
             abort(403, 'Di luar lembaga Anda.');
         }
 
-        // Kode (status) TIDAK diubah: kunci yang dipakai data pemakai.
-        // Nama (status & kamus) boleh diubah walau konsumen string bebas tanpa FK.
         $data = $request->validated();
 
         $upd = ['urutan' => $data['urutan'] ?? $row->urutan];
         if (! $isStatus) {
-            // Cegah bentrok nama dalam lembaga yang sama.
+
             $q = DB::table($table)->where('nama', $data['nama'])->where('id', '!=', $id)
                 ->where('jenjang', $row->jenjang);
             if ($q->exists()) {
@@ -264,8 +256,7 @@ class ReferensiController extends Controller
             }
         }
         $upd['nama'] = $data['nama'];
-        // Kolom tambahan kamus mapel boleh diperbaiki; tipe lain tak punya
-        // kolomnya sehingga hasil helper kosong.
+
         $upd += $this->kolomTambahanMapel($tipe, $data);
 
         DB::table($table)->where('id', $id)->update($upd);
@@ -287,8 +278,7 @@ class ReferensiController extends Controller
         if (! $this->canLembaga($actor, $row->jenjang)) {
             abort(403);
         }
-        // Hapus permanen: baris benar-benar dibuang (data pemakai yang
-        // menyimpan teksnya tidak ikut berubah — konsumen string bebas).
+
         if ($request->boolean('permanen')) {
             DB::table($table)->where('id', $id)->delete();
             RefService::forget($row->jenjang);
@@ -296,7 +286,7 @@ class ReferensiController extends Controller
 
             return response()->json(['pesan' => 'Data referensi dihapus permanen.']);
         }
-        // Padam = milik lembaga sendiri (tiap lembaga punya barisnya).
+
         DB::table($table)->where('id', $id)->update(['is_active' => false]);
         RefService::forget($row->jenjang);
         RefService::forgetAlamat($row->jenjang);

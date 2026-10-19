@@ -18,8 +18,7 @@ const root = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const SRC = join(root, 'src');
 const PARTS = join(SRC, 'parts.ts');
 const GEN = join(SRC, 'parts-belum.gen.ts');
-// File yang tidak dipakai untuk deteksi: definisi daftar (parts.ts), keluaran
-// script ini, daftar pengecualian KONTROL (partStyles.ts), dan markup pratinjau.
+
 const LEWATI = new Set(['parts.ts', 'parts-belum.gen.ts', 'partStyles.ts', 'PartContohBagian.tsx']);
 
 /** Probe untuk bagian ber-selektor struktural (tanpa data-slot/data-part). */
@@ -51,8 +50,6 @@ for (const m of sumber.matchAll(/data-(slot|part)=["']([^"']+)["']/g)) {
   tokenAda.add(`${m[1]}:${m[2]}`);
 }
 
-// Ambil pasangan id + sel tiap entri di parts.ts (entri diawali `{` lalu `id:`).
-// Nilai `sel` bisa dibungkus kutip tunggal atau ganda.
 const BELUM = [];
 for (const m of readFileSync(PARTS, 'utf8').matchAll(
   /\{\s*id:\s*'([^']+)'[\s\S]*?sel:\s*(['"])([\s\S]*?)\2/g,
@@ -60,10 +57,10 @@ for (const m of readFileSync(PARTS, 'utf8').matchAll(
   const id = m[1];
   const sel = m[3];
   const token = [...sel.matchAll(/\[data-(slot|part)='([^']+)'\]/g)];
-  // Sisa setelah membuang token data-slot/part = ada selektor struktural.
+
   const struktural = sel.replace(/\[data-(slot|part)='[^']+'\]/g, '').replace(/[\s,]/g, '') !== '';
   const adaToken = token.some((t) => tokenAda.has(`${t[1]}:${t[2]}`));
-  // Bagian struktural diverifikasi lewat PROBE (bila ada); tanpa probe dianggap ada.
+
   const adaStruktural = struktural ? (PROBE[id] ? PROBE[id].test(sumber) : true) : false;
   if (!adaToken && !adaStruktural) BELUM.push(id);
 }

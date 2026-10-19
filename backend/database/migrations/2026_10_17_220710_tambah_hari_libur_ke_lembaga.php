@@ -18,7 +18,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('lembaga', function (Blueprint $table) {
-            $table->json('hari_libur')->nullable()->after('waktu_belajar'); // null/[] = masuk semua hari
+            $table->json('hari_libur')->nullable()->after('waktu_belajar');
         });
     }
 

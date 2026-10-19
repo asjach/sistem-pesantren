@@ -51,8 +51,7 @@ export function HeaderTitle({
     <span
       className={`simpes-dsg-headtitle${sedangDiseret ? ' simpes-dsg-headtitle-diserd' : ''}${sisip === 'kiri' ? ' simpes-dsg-sisip-kiri' : sisip === 'kanan' ? ' simpes-dsg-sisip-kanan' : ''}`}
       data-col-key={colKey}
-      /* Pegangan seret = SELURUH area judul (lihat useSeretKolomHeader),
-         dan tombol kiri saja supaya klik kanan (menu konteks) tetap bebas. */
+
       data-seret={seretAktif ? 'aktif' : undefined}
     >
       <span className="simpes-dsg-teks-judul">{label}</span>
@@ -105,7 +104,7 @@ export function ukurPerluTinggiHeader(akar: HTMLElement): number {
     const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2 || 15;
     const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
     let baris = 1;
-    // Teks judul dibungkus span `.simpes-dsg-teks-judul`.
+
     const judul = ht.querySelector('.simpes-dsg-teks-judul');
     const node = judul?.firstChild
       ?? Array.from(ht.childNodes).find(

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('tahun_ajaran', 9);
-            $table->boolean('is_active')->default(true); // tampil/tidak untuk lembaga ini
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
 
             $table->unique(['jenjang', 'tahun_ajaran']);

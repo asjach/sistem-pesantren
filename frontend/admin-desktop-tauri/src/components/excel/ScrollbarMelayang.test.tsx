@@ -37,7 +37,7 @@ function pasang() {
 
 describe('ScrollbarMelayang — seret tidak menyeleksi teks', () => {
   beforeEach(() => {
-    // jsdom tak mengimplementasikan pointer capture.
+
     Element.prototype.setPointerCapture = () => {};
     Element.prototype.releasePointerCapture = () => {};
   });

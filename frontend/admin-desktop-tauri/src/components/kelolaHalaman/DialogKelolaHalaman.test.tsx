@@ -101,8 +101,7 @@ describe('DialogKelolaHalaman', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sembunyikan Kelas' }));
     expect(screen.getByRole('button', { name: 'Tampilkan Kelas' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Tampilkan Kelas' }));
-    // Naikkan Kelas → [Pengguna, Kelas, Lembaga]. Sembunyi lalu tampil lagi
-    // TIDAK boleh memindahkannya dari posisi itu.
+
     const items = screen.getAllByRole('listitem');
     expect(items.map((li) => li.textContent)).toEqual([
       expect.stringContaining('Pengguna'),
@@ -140,7 +139,7 @@ describe('DialogKelolaHalaman', () => {
     });
     render();
     const items = await screen.findAllByRole('listitem');
-    // '/kelas' diatur lebih dulu; sisanya menyusul menurut urutan kode.
+
     expect(items.map((li) => li.textContent)).toEqual([
       expect.stringContaining('Kelas'),
       expect.stringContaining('Pengguna'),

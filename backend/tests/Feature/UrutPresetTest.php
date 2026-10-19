@@ -57,7 +57,7 @@ class UrutPresetTest extends TestCase
 
         $opsi = $res->json('data.opsi');
         $this->assertNotEmpty($opsi);
-        // Opsi bawaan hasil seed = "JK-Nama".
+
         $this->assertTrue($opsi[0]['bawaan']);
         $this->assertSame(['jk', 'nama'], $opsi[0]['kode']);
 
@@ -190,9 +190,7 @@ class UrutPresetTest extends TestCase
         ])->assertStatus(200);
 
         $opsi = UrutPreset::where('table_key', 'pegawai_lembaga')->first()->opsi;
-        // Kunci asing dibuang; dua kunci sah tetap tersimpan. Bandingkan
-        // tanpa urutan: kolom JSON di MySQL menormalisasi ulang urutan kunci
-        // objek, sedangkan SQLite (TEXT) mempertahankan urutan tulis.
+
         $aktual = $opsi[0]['arah_kolom'];
         ksort($aktual);
         $this->assertSame(['aktif' => 'turun', 'nama' => 'naik'], $aktual);
@@ -264,7 +262,6 @@ class UrutPresetTest extends TestCase
             ->getJson('/api/admin/urut-preset?table_key=keuangan_tagihan_crosstab')
             ->assertOk();
 
-        // Ada seed → kontrol "Urutkan" tampil (PresetUrut sembunyi bila kosong).
         $opsi = $res->json('data.opsi');
         $this->assertNotEmpty($opsi);
         $this->assertTrue($opsi[0]['bawaan']);

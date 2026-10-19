@@ -100,8 +100,6 @@ export default function KeanggotaanPage() {
   const [tambahOpen, setTambahOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
-  // Pintasan Ctrl/Cmd+N = tombol "Tambah" (dialog keanggotaan baru). Terhalang
-  // bila dialog tambah/import sudah terbuka.
   usePintasanBaru({
     kunci: 'n',
     aktif: canTambah,

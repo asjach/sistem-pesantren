@@ -19,8 +19,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
-// Tiga halaman dokumen (santri/guru/lembaga): daftar, simpan, unggah+unduh
-// berkas, hapus, import bertahap, dan izin per modul.
 class DokumenHalamanTest extends TestCase
 {
     use RefreshDatabase;
@@ -98,19 +96,16 @@ class DokumenHalamanTest extends TestCase
         $this->fixture();
         $auth = $this->superAdmin();
 
-        // Simpan tanpa berkas.
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/lembaga', [
             'jenjang' => 'MI', 'jenis_dokumen' => 'Izin Operasional', 'catatan' => 'SK Kemenag',
         ])->assertStatus(201);
         $id = DokumenLembaga::first()->id;
 
-        // Daftar tampil.
         $list = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/lembaga?jenjang[]=MI')
             ->assertOk()->json('data');
         $this->assertSame('Izin Operasional', $list[0]['jenis_dokumen']);
         $this->assertSame('Madrasah Ibtidaiyah', $list[0]['pemilik']);
 
-        // Unggah berkas → nama_file asli + path tersimpan.
         $this->actingAs($auth, 'sanctum')->post("/api/admin/dokumen/lembaga/{$id}/unggah", [
             'file' => UploadedFile::fake()->create('izin-2026.pdf', 100, 'application/pdf'),
         ], ['Accept' => 'application/json'])->assertOk();
@@ -122,18 +117,15 @@ class DokumenHalamanTest extends TestCase
         $jalur = 'dokumen/lembaga/'.$row->nama_file;
         Storage::disk('local')->assertExists($jalur);
 
-        // Unduh berkas: nama template sebagai nama unduhan.
         $unduh = $this->actingAs($auth, 'sanctum')->get("/api/admin/dokumen/lembaga/{$id}/unduh");
         $unduh->assertOk();
         $this->assertStringContainsString((string) $row->nama_file, (string) $unduh->headers->get('content-disposition'));
 
-        // Ubah status.
         $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/lembaga/{$id}", [
             'status_verifikasi' => 'valid',
         ])->assertOk();
         $this->assertSame('valid', DokumenLembaga::find($id)->status_verifikasi);
 
-        // Hapus → berkas fisik ikut hilang.
         $this->actingAs($auth, 'sanctum')->deleteJson("/api/admin/dokumen/lembaga/{$id}")->assertOk();
         $this->assertNull(DokumenLembaga::find($id));
         Storage::disk('local')->assertMissing($jalur);
@@ -169,12 +161,11 @@ class DokumenHalamanTest extends TestCase
         );
         Storage::disk('local')->assertExists('dokumen/pegawai/'.$namaGuru);
 
-        // Daftar kedua halaman.
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/santri?jenjang[]=MI')
             ->assertOk()->assertJsonFragment(['pemilik' => 'Ahmad Santri']);
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai?jenjang[]=MI')
             ->assertOk()->assertJsonFragment(['pemilik' => 'Ustadz Guru']);
-        // Filter per pegawai (dipakai halaman Lihat Dokumen).
+
         $this->actingAs($auth, 'sanctum')->getJson("/api/admin/dokumen/pegawai?pegawai_id={$f['guru']->id}&per_page=0")
             ->assertOk()->assertJsonCount(1, 'data');
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai?pegawai_id=999999&per_page=0')
@@ -186,7 +177,6 @@ class DokumenHalamanTest extends TestCase
         $f = $this->fixture();
         $auth = $this->superAdmin();
 
-        // Unggah dua kali data sama → nama kedua berakhiran penomoran.
         for ($i = 0; $i < 2; $i++) {
             $this->actingAs($auth, 'sanctum')->post('/api/admin/dokumen/santri', [
                 'santri_id' => $f['santri']->id,
@@ -232,7 +222,7 @@ class DokumenHalamanTest extends TestCase
     {
         $f = $this->fixture();
         $auth = $this->superAdmin();
-        // Nonaktifkan satu-satunya penempatan: NIS tetap tampil dari sana.
+
         LembagaSantri::where('santri_id', $f['santri']->id)->update(['is_active_lembaga' => 'Tidak']);
         DokumenSantri::create([
             'santri_id' => $f['santri']->id,
@@ -256,7 +246,6 @@ class DokumenHalamanTest extends TestCase
         $mi->assignRole('admin');
         DB::table('user_lembaga')->insert(['user_id' => $mi->id, 'jenjang' => 'MI', 'created_at' => now(), 'updated_at' => now()]);
 
-        // Santri pindah/keluar: tanpa penempatan aktif sama sekali.
         LembagaSantri::where('santri_id', $f['santri']->id)->update(['is_active_lembaga' => 'Tidak']);
         $dok = DokumenSantri::create([
             'santri_id' => $f['santri']->id,
@@ -266,7 +255,6 @@ class DokumenHalamanTest extends TestCase
             'penyimpanan' => 'lokal',
         ]);
 
-        // Tetap tampil di lingkup MI + bisa dibuka/diubah admin MI.
         $list = $this->actingAs($mi, 'sanctum')->getJson('/api/admin/dokumen/santri?jenjang[]=MI')
             ->assertOk()->json('data');
         $this->assertCount(1, $list);
@@ -275,7 +263,6 @@ class DokumenHalamanTest extends TestCase
             ['catatan' => 'arsip lama']
         )->assertOk();
 
-        // Admin MTS tetap tidak bisa (konteks MI).
         $mts = User::create(['name' => 'Admin MTS', 'email' => 'mts2-'.uniqid().'@example.com', 'password' => 'password']);
         $mts->assignRole('admin');
         DB::table('user_lembaga')->insert(['user_id' => $mts->id, 'jenjang' => 'MTS', 'created_at' => now(), 'updated_at' => now()]);
@@ -481,10 +468,8 @@ class DokumenHalamanTest extends TestCase
         $this->fixture();
         $auth = $this->superAdmin();
 
-        // Template bisa diunduh per tipe.
         $this->actingAs($auth, 'sanctum')->get('/api/admin/dokumen/lembaga/import-template')->assertOk();
 
-        // Periksa (kering) tanpa menulis.
         $periksa = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/lembaga/import-potong', [
             'mode' => 'periksa',
             'total' => 2,
@@ -498,7 +483,6 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame(1, $periksa->json('ringkasan.baris_gagal'));
         $this->assertSame(0, DokumenLembaga::count());
 
-        // Eksekusi.
         $eksekusi = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/lembaga/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
@@ -570,7 +554,6 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame(['jenjang', 'jenis_dokumen', 'status_verifikasi', 'catatan'], $madrasah->json('kolom'));
         $this->assertSame([['MI', 'Akreditasi', 'Ditolak', 'Revisi']], $madrasah->json('baris'));
 
-        // Baris existing bisa diimport kembali (round-trip periksa).
         $ulang = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri/import-potong', [
             'mode' => 'periksa',
             'total' => 1,
@@ -587,7 +570,6 @@ class DokumenHalamanTest extends TestCase
         $f = $this->fixture();
         $auth = $this->superAdmin();
 
-        // Kolom status sudah dicabut dari tabel santri & pegawai: simpan menolaknya.
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri', [
             'santri_id' => $f['santri']->id,
             'jenis_dokumen' => 'Kartu Keluarga',
@@ -608,12 +590,10 @@ class DokumenHalamanTest extends TestCase
             'jenis_dokumen_santri' => 'Kartu Keluarga',
         ]);
 
-        // Ubah pun menolaknya untuk santri.
         $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/santri/{$dok->id}", [
             'status_verifikasi' => 'valid',
         ])->assertStatus(422);
 
-        // Lembaga tetap menerima status.
         $lembaga = DokumenLembaga::create([
             'jenjang' => 'MI',
             'jenis_dokumen' => 'Akreditasi',
@@ -663,7 +643,6 @@ class DokumenHalamanTest extends TestCase
             ],
         ])->assertOk();
 
-        // NBSP menjadi spasi biasa agar cocok dengan nama file asli di arsip.
         $this->assertSame('kk (1).jpg', DokumenSantri::firstOrFail()->nama_file);
     }
 
@@ -692,8 +671,6 @@ class DokumenHalamanTest extends TestCase
         $f = $this->fixture();
         $auth = $this->superAdmin();
 
-        // Duplikat warisan se-kunci: yang disentuh import jadi aktif,
-        // sisanya dinonaktifkan.
         DokumenSantri::create([
             'santri_id' => $f['santri']->id, 'jenis_dokumen_santri' => 'Pas Foto', 'lembaga' => null,
             'nama_file' => 'lama.jpg', 'is_active' => true,
@@ -716,8 +693,6 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame(3, $res->json('ringkasan.dibuat'));
         $this->assertSame(0, $res->json('ringkasan.diperbarui'));
 
-        // Lima baris (2 warisan + 3 baru); kunci tanpa lembaga menunjuk
-        // berkas terbaru yang aktif, warisannya nonaktif.
         $this->assertSame(5, DokumenSantri::where('santri_id', $f['santri']->id)->count());
         $polos = DokumenSantri::where('santri_id', $f['santri']->id)->whereNull('lembaga')->orderBy('id')->get();
         $this->assertSame('foto-baru.jpg', $polos[2]->nama_file);
@@ -727,7 +702,6 @@ class DokumenHalamanTest extends TestCase
         $this->assertTrue((bool) DokumenSantri::where('santri_id', $f['santri']->id)->where('lembaga', 'MI')->firstOrFail()->is_active);
         $this->assertTrue((bool) DokumenSantri::where('santri_id', $f['santri']->id)->where('lembaga', 'MTS')->firstOrFail()->is_active);
 
-        // Import ulang berkas yang sama memperbarui, bukan menambah.
         $ulang = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
@@ -741,7 +715,6 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame(5, DokumenSantri::where('santri_id', $f['santri']->id)->count());
         $this->assertSame('Baru', DokumenSantri::where('santri_id', $f['santri']->id)->where('nama_file', 'foto-mi.jpg')->firstOrFail()->catatan);
 
-        // Lembaga tak terdaftar menggagalkan baris.
         $salah = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/santri/import-potong', [
             'mode' => 'eksekusi',
             'total' => 1,
@@ -780,7 +753,6 @@ class DokumenHalamanTest extends TestCase
         $f = $this->fixture();
         $auth = $this->superAdmin();
 
-        // Simpan dua baris se-kunci (pegawai, jenis) via endpoint: yang terakhir jadi aktif.
         foreach ([1, 2] as $ignored) {
             $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai', [
                 'pegawai_id' => $f['guru']->id,
@@ -794,7 +766,6 @@ class DokumenHalamanTest extends TestCase
         $this->assertFalse((bool) $rows[0]->is_active);
         $this->assertTrue((bool) $rows[1]->is_active);
 
-        // Ubah re-aktif baris lama menonaktifkan saudara se-kunci.
         $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$rows[0]->id}", [
             'is_active' => true,
         ])->assertOk();
@@ -818,8 +789,6 @@ class DokumenHalamanTest extends TestCase
             ],
         ])->assertOk();
 
-        // Kunci (pegawai, jenis, nama_file): nama sama diperbarui (1 baris),
-        // nama beda jadi baris terpisah yang sama-sama aktif.
         $rows = DB::table('dokumen_pegawai')->where('pegawai_id', $f['guru']->id)->orderBy('id')->get();
         $this->assertCount(2, $rows);
         $this->assertSame('B', $rows[0]->catatan);
@@ -830,7 +799,6 @@ class DokumenHalamanTest extends TestCase
         $this->assertTrue((bool) $rows[0]->is_active);
         $this->assertTrue((bool) $rows[1]->is_active);
 
-        // NIPP wajib: baris tanpa NIPP gagal.
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai/import-potong', [
             'mode' => 'periksa',
             'total' => 1,
@@ -841,7 +809,6 @@ class DokumenHalamanTest extends TestCase
         ])->assertOk();
         $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
 
-        // Penyimpanan + is_active tak dikenal + nama_file kosong ditolak per baris.
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai/import-potong', [
             'mode' => 'periksa',
             'total' => 3,
@@ -854,7 +821,6 @@ class DokumenHalamanTest extends TestCase
         ])->assertOk();
         $this->assertSame(3, $res->json('ringkasan.baris_gagal'));
 
-        // Kolom lembaga warisan (mis. ZZ) diabaikan, bukan galat per baris.
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai/import-potong', [
             'mode' => 'periksa',
             'total' => 1,
@@ -881,7 +847,6 @@ class DokumenHalamanTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        // Status/nama/lokasi = edit data langsung (tanpa selaras nama).
         $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$id}", [
             'nama_file' => 'baru.jpg',
             'penyimpanan' => 'lokal',
@@ -894,7 +859,6 @@ class DokumenHalamanTest extends TestCase
         $this->assertFalse((bool) $row->is_active);
         $this->assertSame('Pas Foto', $row->jenis_dokumen_pegawai);
 
-        // Kontrak API: is_active boolean asli (bukan 0/1) di daftar + ubah.
         $list = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/dokumen/pegawai?pegawai_id='.$f['guru']->id)
             ->assertOk()->json('data');
         $this->assertSame(false, $list[0]['is_active']);
@@ -903,7 +867,6 @@ class DokumenHalamanTest extends TestCase
         ])->assertOk();
         $this->assertSame(true, $ubah->json('data.is_active'));
 
-        // Lokasi asing ditolak.
         $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$id}", [
             'penyimpanan' => 'bulan',
         ])->assertStatus(422);
@@ -936,7 +899,6 @@ class DokumenHalamanTest extends TestCase
         $f = $this->fixture();
         $auth = $this->superAdmin();
 
-        // Simpan menolak kolom lembaga untuk pegawai.
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/dokumen/pegawai', [
             'pegawai_id' => $f['guru']->id,
             'jenjang' => 'MI',
@@ -952,7 +914,6 @@ class DokumenHalamanTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        // Ubah pun menolaknya.
         $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/pegawai/{$id}", [
             'lembaga' => 'MI',
         ])->assertStatus(422);
@@ -995,11 +956,9 @@ class DokumenHalamanTest extends TestCase
             'jenjang' => 'MI', 'jenis_dokumen' => 'Izin',
         ])->assertStatus(201);
 
-        // Admin MTS tidak boleh lihat dokumen lembaga MI (lingkup lembaga).
         $list = $this->actingAs($lain, 'sanctum')->getJson('/api/admin/dokumen/lembaga')->assertOk();
         $this->assertCount(0, $list->json('data'));
 
-        // Dan tidak boleh menghapus.
         $id = DokumenLembaga::first()->id;
         $this->actingAs($lain, 'sanctum')->deleteJson("/api/admin/dokumen/lembaga/{$id}")->assertStatus(403);
     }
@@ -1020,7 +979,6 @@ class DokumenHalamanTest extends TestCase
         $this->assertIsInt($res['ada.pdf']['mtime']);
         $this->assertFalse($res['hilang.pdf']['ada']);
 
-        // Lebih dari 100 nama ditolak.
         $banyak = implode('&', array_map(fn ($i) => "nama[]=f{$i}.pdf", range(1, 101)));
         $this->actingAs($auth, 'sanctum')
             ->getJson("/api/admin/dokumen/santri/status-berkas?{$banyak}")
@@ -1063,8 +1021,6 @@ class DokumenHalamanTest extends TestCase
             'penyimpanan' => 'lokal',
         ]);
 
-        // Klien Web Crypto hanya punya SHA-256 (64 hex) — verifikasi backend
-        // wajib memakai algoritma yang sama (regresi: dulu md5 vs sha256).
         $this->actingAs($auth, 'sanctum')->post("/api/admin/dokumen/santri/{$dok->id}/sinkron-unggah", [
             'file' => UploadedFile::fake()->createWithContent('klaim-sha.pdf', 'isi-lokal', 'application/pdf'),
             'hash' => hash('sha256', 'isi-lokal'),
@@ -1132,10 +1088,8 @@ class DokumenHalamanTest extends TestCase
         ]);
         Storage::disk('local')->put('dokumen/santri/lama.pdf', 'isi');
 
-        // Unduh baris cermin = berkas server.
         $this->actingAs($auth, 'sanctum')->get("/api/admin/dokumen/santri/{$dok->id}/unduh")->assertOk();
 
-        // Rename template memindah sisi server + mengembalikan nama baru.
         $res = $this->actingAs($auth, 'sanctum')->patchJson("/api/admin/dokumen/santri/{$dok->id}", [
             'jenis_dokumen' => 'Akta Kelahiran',
             'selaraskan_nama' => true,

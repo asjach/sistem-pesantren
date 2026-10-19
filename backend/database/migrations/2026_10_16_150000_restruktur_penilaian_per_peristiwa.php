@@ -35,13 +35,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // ---------- 1. Baca konfigurasi lama ke memori ----------
+
         $komponenLama = Schema::hasTable('komponen_nilai') ? DB::table('komponen_nilai')->get() : collect();
         $bobotLama = Schema::hasTable('komponen_nilai_bobot') ? DB::table('komponen_nilai_bobot')->get() : collect();
         $kkmLama = Schema::hasTable('kkm_kegiatan') ? DB::table('kkm_kegiatan')->get() : collect();
         $predikatLama = Schema::hasTable('rentang_predikat') ? DB::table('rentang_predikat')->get() : collect();
 
-        // ---------- 2. Buang tabel lama (anak dulu, lalu induk) ----------
         Schema::dropIfExists('nilai_komponen');
         Schema::dropIfExists('nilai_santri');
         Schema::dropIfExists('komponen_nilai_bobot');
@@ -49,10 +48,6 @@ return new class extends Migration
         Schema::dropIfExists('rentang_predikat');
         Schema::dropIfExists('komponen_nilai');
 
-        // ---------- 3. Bentuk baru ----------
-
-        // Master peristiwa penilaian per (jenjang, TA). `cakupan` menentukan
-        // peserta: semua / semua kecuali tingkat akhir / hanya tingkat akhir.
         Schema::create('peristiwa_nilai', function (Blueprint $table) {
             $table->id();
             $table->string('jenjang', 20);
@@ -61,7 +56,7 @@ return new class extends Migration
             $table->string('tahun_ajaran', 9);
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->cascadeOnDelete();
-            // Kode kanonis: ASAS | ASAT | UJIAN | UAP (bebas ditambah).
+
             $table->string('kode', 20);
             $table->string('nama', 100);
             $table->enum('cakupan', ['semua', 'kecuali_akhir', 'tingkat_akhir'])->default('semua');
@@ -73,10 +68,6 @@ return new class extends Migration
             $table->unique(['jenjang', 'tahun_ajaran', 'kode'], 'uq_peristiwa_nilai');
         });
 
-        // Komponen per peristiwa. Bobot jadi kolom (peristiwa sudah TA-scoped).
-        // `sumber='rapor_otomatis'` = nilai dihitung dari rata-rata rapor N
-        // tingkat sebelumnya (mis. komponen "Rata-rata Rapor" pada UJIAN),
-        // boleh ditimpa manual lewat impor/edit.
         Schema::create('komponen_nilai', function (Blueprint $table) {
             $table->id();
             $table->foreignId('peristiwa_id')->constrained('peristiwa_nilai')->cascadeOnDelete();
@@ -84,8 +75,7 @@ return new class extends Migration
             $table->string('kode', 20)->nullable();
             $table->decimal('bobot', 5, 2)->default(0);
             $table->enum('sumber', ['manual', 'rapor_otomatis'])->default('manual');
-            // Jumlah tingkat sebelumnya yang dirata-rata (2 atau 3); hanya
-            // bermakna bila sumber = rapor_otomatis.
+
             $table->unsignedTinyInteger('jumlah_tingkat_rapor')->nullable();
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
@@ -94,8 +84,6 @@ return new class extends Migration
             $table->unique(['peristiwa_id', 'nama'], 'uq_komponen_peristiwa');
         });
 
-        // KKM per peristiwa: satu baris per komponen (`kegiatan` = nama
-        // komponen) + satu baris khusus `AKHIR` untuk nilai akhir.
         Schema::create('kkm_kegiatan', function (Blueprint $table) {
             $table->id();
             $table->foreignId('peristiwa_id')->constrained('peristiwa_nilai')->cascadeOnDelete();
@@ -106,7 +94,6 @@ return new class extends Migration
             $table->unique(['peristiwa_id', 'kegiatan'], 'uq_kkm_peristiwa');
         });
 
-        // Predikat berjangkar ke KKM `AKHIR` per peristiwa.
         Schema::create('rentang_predikat', function (Blueprint $table) {
             $table->id();
             $table->foreignId('peristiwa_id')->constrained('peristiwa_nilai')->cascadeOnDelete();
@@ -118,7 +105,6 @@ return new class extends Migration
             $table->unique(['peristiwa_id', 'predikat'], 'uq_predikat_peristiwa');
         });
 
-        // Skor per komponen (jalur HITUNG).
         Schema::create('nilai_komponen', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
@@ -136,9 +122,6 @@ return new class extends Migration
             ], 'uq_nilai_komponen');
         });
 
-        // Nilai akhir per (santri × pengampu × TA × semester × PERISTIWA).
-        // `sumber` = jalur pengisian: 'hitung' (komponen × bobot) atau
-        // 'impor' (leger langsung).
         Schema::create('nilai_santri', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
@@ -162,10 +145,6 @@ return new class extends Migration
             ], 'uq_nilai_santri_peristiwa');
         });
 
-        // ---------- 4. Pindahkan konfigurasi lama ke peristiwa ASAS ----------
-
-        // Pasangan (jenjang, tahun ajaran) yang punya konfigurasi: dari bobot
-        // komponen maupun dari KKM.
         $pasangan = [];
         foreach ($komponenLama as $k) {
             foreach ($bobotLama->where('komponen_nilai_id', $k->id) as $b) {
@@ -175,8 +154,7 @@ return new class extends Migration
         foreach ($kkmLama as $k) {
             $pasangan[$k->jenjang.'|'.$k->tahun_ajaran] = [$k->jenjang, $k->tahun_ajaran];
         }
-        // Jenjang yang punya komponen tapi tanpa bobot/KKM: pakai TA aktif
-        // (atau TA pertama) agar komponennya tetap punya rumah.
+
         $taFallback = DB::table('tahun_ajaran')->orderByDesc('is_aktif')->orderBy('nama')->value('nama');
         foreach ($komponenLama as $k) {
             $punya = false;
@@ -207,7 +185,6 @@ return new class extends Migration
             ]);
         }
 
-        // Komponen lama → peristiwa ASAS pada jenjangnya (TA dari bobot).
         $petaKomponenBaru = [];
         foreach ($komponenLama as $k) {
             $ta = $bobotLama->where('komponen_nilai_id', $k->id)->first()->tahun_ajaran ?? $taFallback;
@@ -262,7 +239,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Kembali ke bentuk "komponen per jenjang + bobot per TA".
+
         Schema::dropIfExists('nilai_komponen');
         Schema::dropIfExists('nilai_santri');
         Schema::dropIfExists('kkm_kegiatan');

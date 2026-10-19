@@ -29,12 +29,11 @@ class DataDokumen
     public function kolom(): array
     {
         if ($this->tipe === 'santri') {
-            // Kolom import + info baca-saja (parser import mengabaikan
-            // kolom tak dikenal, jadi berkas ini tetap bisa diimport kembali).
+
             return [...DokumenTemplateExport::kolom($this->tipe), 'nama_lengkap', 'is_active'];
         }
         if ($this->tipe === 'pegawai') {
-            // Template pegawai sudah memuat is_active sebagai kolom import.
+
             return DokumenTemplateExport::kolom($this->tipe);
         }
 
@@ -65,7 +64,7 @@ class DataDokumen
     /** Satu baris per dokumen santri yang penempatannya masuk lingkup. */
     protected function barisSantri(): array
     {
-        // Penempatan dalam lingkup, aktif diutamakan per santri (untuk NIS).
+
         $tempat = LembagaSantri::query()
             ->whereIn('jenjang', $this->jenjang)
             ->orderByRaw("is_active_lembaga = 'Ya' desc")

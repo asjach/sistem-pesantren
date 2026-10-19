@@ -35,7 +35,6 @@ export function labelKolom(teks: string | null | undefined): string {
 
   if (!POLA_KODE.test(mentah)) return mentah;
 
-  // Kolom boolean diawali `is_`: tampilkan nama state-nya saja, bukan "Is ...".
   const inti = mentah.startsWith('is_') ? mentah.slice(3) : mentah;
   return inti.split('_').map(kapitalkanKata).join(' ');
 }

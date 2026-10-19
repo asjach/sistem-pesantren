@@ -67,7 +67,6 @@ class PsbController extends Controller
             });
         }
 
-        // Jumlah per status (tanpa filter status) untuk badge tahapan timeline.
         $badge = (clone $base)
             ->selectRaw('status_pendaftaran, COUNT(*) as jumlah')
             ->groupBy('status_pendaftaran')
@@ -95,7 +94,6 @@ class PsbController extends Controller
 
         $page = $query->paginate($this->perPage($request));
 
-        // Tandai kebutuhan seleksi per calon (mengikuti kuota lembaga primer + tipe santri).
         $items = collect($page->items());
         $kuota = PsbKuotaBiaya::with('lembaga:jenjang,is_seleksi')
             ->whereIn('gelombang_id', $items->pluck('gelombang_id')->unique()->filter())

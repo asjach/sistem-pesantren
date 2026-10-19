@@ -28,7 +28,7 @@ describe('unduhExcelDataExisting', () => {
     expect(writeMock).toHaveBeenCalledTimes(1);
     const [tujuan, data] = writeMock.mock.calls[0] as [string, Uint8Array];
     expect(tujuan).toBe('/tmp/unduhan/data.xlsx');
-    // Berkas .xlsx = arsip ZIP (tanda tangan PK).
+
     expect(data[0]).toBe(0x50);
     expect(data[1]).toBe(0x4b);
   });

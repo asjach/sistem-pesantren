@@ -4,8 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import DashboardPage from './DashboardPage';
 import { renderDenganTema } from '@/test/utils';
 
-/* Data contoh meniru respons /api/dashboard/ringkasan. Ditaruh di dalam factory
-   vi.mock agar tidak kena aturan hoisting. */
 vi.mock('@/api/master', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/api/master')>();
   const data = {
@@ -66,15 +64,13 @@ describe('DashboardPage — statistik', () => {
   it('menampilkan KPI dan blok statistik dari data ringkasan', async () => {
     renderDenganTema(<DashboardPage />);
 
-    // Angka pokok (buku induk) + baris akun keuangan.
     expect(await screen.findByText('552', { selector: '#dashboard_angka_pokok' })).toBeInTheDocument();
     expect(screen.getByText('Rp 204.025.000')).toBeInTheDocument();
     expect(screen.getByText('PTK aktif')).toBeInTheDocument();
     expect(screen.getByText('Per tingkat, 2026/2027')).toBeInTheDocument();
     expect(screen.getAllByText('Ibtidaiyah (MI)').length).toBeGreaterThan(0);
     expect(screen.getByText('Alumni per tahun ajaran')).toBeInTheDocument();
-    // Judul `EmptyState` (bukan kalimat) — tanpa titik, sama seperti
-    // "Belum ada sebaran tingkat" di blok lain.
+
     expect(screen.getByText('Belum ada calon pada lingkup ini')).toBeInTheDocument();
   });
 

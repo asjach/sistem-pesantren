@@ -81,8 +81,7 @@ const K = {
   iconSet: 'simpes_icon_set',
   navigasi: 'simpes_navigasi',
   radius: 'simpes_radius',
-  // Preferensi lama (sebelum font sel disatukan ke bagian `tabel_sel`) — hanya
-  // dibaca sekali untuk migrasi, lalu dihapus.
+
   fontLama: 'simpes_grid_font',
   fontFamilyLama: 'simpes_grid_font_family',
 } as const;
@@ -200,7 +199,7 @@ export function bacaPrefsSinkron(): Prefs | null {
       radius: ambil(K.radius),
     });
   } catch {
-    // Penyimpanan terkunci/penuh → jatuh ke jalur async (bawaan aman).
+
     return null;
   }
 }
@@ -220,8 +219,7 @@ export async function loadPrefs(): Promise<Prefs> {
     prefGet(K.fontLama),
     prefGet(K.fontFamilyLama),
   ]);
-  // Normalisasi sama persis dengan jalur boot sinkron (`bacaPrefsSinkron`),
-  // sehingga cat pertama dan hasil akhir tak pernah berbeda.
+
   const dasar = normalkanPrefs({
     theme,
     mode,
@@ -235,9 +233,6 @@ export async function loadPrefs(): Promise<Prefs> {
     radius: radiusRaw,
   });
 
-  // Migrasi sekali-jalan: jenis & ukuran huruf sel dulu disimpan di pref
-  // terpisah; kini memakai bagian UI `tabel_sel`. Pindahkan bila bagian itu
-  // belum diatur, lalu hapus pref lama (berlaku juga di perangkat tanpa nilai).
   if (fontLama != null || fontFamilyLama != null) {
     const sel = { ...(dasar.parts.gaya.tabel_sel ?? {}) };
     if (sel.size == null && fontLama != null && fontLama.trim() !== '') {

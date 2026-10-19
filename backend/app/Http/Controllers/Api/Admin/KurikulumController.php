@@ -44,8 +44,6 @@ class KurikulumController extends Controller
     use ImporBertahap;
     use TenantGuard;
 
-    // ============================================================ MAPEL
-
     /** GET /admin/kurikulum/mapel?jenjang=&q=&kelompok=&keaktifan= */
     public function indexMapel(Request $request): JsonResponse
     {
@@ -76,8 +74,7 @@ class KurikulumController extends Controller
             'nama_mapel' => [
                 'required', 'string', 'max:100',
                 function (string $attr, mixed $nilai, Closure $gagal) use ($request) {
-                    // Unik (jenjang, nama) case-insensitive eksplisit agar
-                    // seragam di MySQL (collation ci) dan SQLite (ujian).
+
                     $ada = MataPelajaran::where('jenjang', $request->input('jenjang'))
                         ->whereRaw('LOWER(nama_mapel) = ?', [mb_strtolower(trim((string) $nilai))])
                         ->exists();
@@ -88,18 +85,15 @@ class KurikulumController extends Controller
             ],
             'kelompok' => ['required', 'in:formal,pesantren'],
             'kode_mapel' => ['nullable', 'string', 'max:20'],
-            // Singkatan tampilan (mis. 'Mat.'); opsional.
+
             'singkatan' => ['nullable', 'string', 'max:50'],
             'is_active' => ['nullable', 'boolean'],
-            // KKM & urutan tampil rapor milik mapel (satu tempat per jenjang,
-            // bukan per kelas). KKM kosong = predikat manual (modul 202).
+
             'kkm' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'urutan' => ['nullable', 'integer', 'min:0', 'max:999'],
         ]);
         $this->authorizeLembaga($request->user(), $data['jenjang']);
 
-        // `fresh()` agar respons membawa nilai bawaan DB (mis. urutan 0), bukan
-        // atribut yang belum di-refresh setelah create.
         return response()->json(MataPelajaran::create($data)->fresh(), 201);
     }
 
@@ -171,9 +165,6 @@ class KurikulumController extends Controller
         $timpa = (bool) ($data['timpa'] ?? false);
         $periksa = ($data['mode'] ?? 'eksekusi') === 'periksa';
 
-        // Kamus jenjang ini: nama ternormalisasi → kode/singkatan yang terisi.
-        // Baris kamus tanpa kode & tanpa singkatan tak bisa menyumbang apa pun,
-        // jadi diperlakukan sama seperti nama yang tak ada di kamus.
         $kamus = [];
         foreach (RefService::effective('mapel', $jenjang) as $entri) {
             $nama = $this->kunciNamaMapel((string) ($entri->nama ?? ''));
@@ -201,9 +192,6 @@ class KurikulumController extends Controller
                 continue;
             }
 
-            // Nilai yang SUDAH SAMA tidak dihitung sebagai perubahan: tanpa ini
-            // `timpa` akan melaporkan baris yang sebenarnya tak berubah, dan
-            // pemanggilan kedua tak lagi idempoten (diubah harus 0).
             $ubah = [];
             foreach (['kode_mapel', 'singkatan'] as $kolom) {
                 $baru = $sumber[$kolom];
@@ -256,8 +244,6 @@ class KurikulumController extends Controller
         return mb_strtolower(trim($nama));
     }
 
-    // -------------------------------------------- IMPOR MAPEL BERTAHAP
-
     /** GET /api/admin/kurikulum/mapel/import-template — template Excel import mapel (multi-lembaga). */
     public function templateMapel()
     {
@@ -286,8 +272,6 @@ class KurikulumController extends Controller
         return $this->unduhGalatImpor($request, $sesi, 'galat-import-mapel.csv');
     }
 
-    // ============================================================ GURU
-
     /** GET /admin/kurikulum/guru-aktif?jenjang=&tahun_ajaran= */
     public function guruAktif(Request $request): JsonResponse
     {
@@ -307,8 +291,6 @@ class KurikulumController extends Controller
 
         return response()->json($rows);
     }
-
-    // ========================================================= PENGAMPU
 
     /**
      * GET /admin/kurikulum/pengampu?kelas_id=
@@ -341,7 +323,6 @@ class KurikulumController extends Controller
             'kelas_ids.*' => ['integer', 'exists:kelas,id'],
         ]);
 
-        // Urutan kelas mengikuti urutan permintaan (pilihan pengguna di rel).
         $urutan = [];
         foreach ($data['kelas_ids'] as $pos => $id) {
             $urutan[(int) $id] = $pos;
@@ -419,8 +400,6 @@ class KurikulumController extends Controller
         $kelas = Kelas::findOrFail($data['kelas_id']);
         $this->authorizeLembaga($request->user(), $kelas->jenjang);
 
-        // Mapel wajib sejenjang dengan kelas (dulu dijamin lewat kurikulum
-        // kelas; sekarang pengampu berdiri sendiri jadi diperiksa di sini).
         foreach ($data['baris'] as $b) {
             $this->pastikanMapelSeJenjang((int) $b['mata_pelajaran_id'], $kelas->jenjang);
         }
@@ -504,8 +483,6 @@ class KurikulumController extends Controller
         ]);
     }
 
-    // ------------------------------------------ IMPOR PENGAMPU BERTAHAP
-
     /** GET /api/admin/kurikulum/pengampu/import-template — template Excel import pengampu (multi-lembaga/TA). */
     public function templatePengampu()
     {
@@ -535,8 +512,6 @@ class KurikulumController extends Controller
     {
         return $this->unduhGalatImpor($request, $sesi, 'galat-import-pengampu.csv');
     }
-
-    // ============================================================ BANTUAN
 
     private function pastikanMapelSeJenjang(int $mapelId, string $jenjang): void
     {

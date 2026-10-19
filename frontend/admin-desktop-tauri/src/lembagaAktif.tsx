@@ -90,7 +90,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   /** Izin efektif (/me) sudah disegarkan untuk peran pulihan (sekali saja). */
   const disegarkan = useRef(false);
-  // Ganti akun → izinkan penyegaran ulang untuk peran pulihan akun baru.
+
   const idPengguna = user?.id ?? null;
   useEffect(() => { disegarkan.current = false; }, [idPengguna]);
 
@@ -120,15 +120,10 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
         setJenjangs([]);
         setPeranJenjang(null);
         cakupanMuat.current = '';
-        // `loading` sengaja TIDAK dimatikan di sini: selama user belum ada,
-        // provider anak (tahun ajaran/TopBar) harus tetap menunggu agar tidak
-        // memuat untuk state perantara ("Semua" lalu jenjang terpilih).
+
         return;
       }
 
-      // Cakupan sama dengan yang sudah dimuat (mis. `setUser` identitas baru
-      // isi sama): lewati total — tanpa ini `loading` meledak + identitas
-      // array berganti sehingga rail/tabel memuat ulang sia-sia.
       if (cakupanMuat.current === kunciCakupan) return;
 
       setLoading(true);
@@ -137,13 +132,13 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
       let daftarPeran: PilihanLembaga[] = [];
       if (adaSemua) {
         try {
-          // Opsi filter: ikut scope header (menyempit ke peran saat bertindak).
+
           const p = await listLembaga({ per_page: 1000 });
           daftar = p.data.map((l) => ({ jenjang: l.jenjang, nama: l.nama }));
         } catch {
           daftar = [];
         }
-        // Opsi peran act-as: selalu penuh agar tombol banner lengkap.
+
         if (peranSuper) {
           try {
             const p = await listLembaga({ per_page: 1000, tanpaPeran: true });
@@ -174,15 +169,13 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
         terpilih = adaSemua ? [] : (daftar[0] ? [daftar[0].jenjang] : []);
       }
       if (!alive) return;
-      // Identitas stabil bila isi sama: hilir (`scopeJenjang`, deps tabel)
-      // tidak boleh mengira lingkup berganti.
+
       setJenjangs((prev) => (samaString(prev, terpilih) ? prev : terpilih));
-      // Pulihkan peran tersimpan (hanya jenjang yang masih valid di daftar).
+
       const simpananPeran = await prefGet(PERAN_KEY).catch(() => null);
       if (alive && simpananPeran && simpananPeran !== '0' && daftar.some((d) => d.jenjang === simpananPeran)) {
         setPeranJenjang(simpananPeran);
-        // Peran pulihan: segarkan izin efektif sekali (tanpa ini tombol
-        // berizin super tetap tampil sampai reload; guard anti-loop via ref).
+
         if (!disegarkan.current) {
           disegarkan.current = true;
           setLembagaAktifHeader(simpananPeran);
@@ -194,9 +187,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     })();
 
     return () => { alive = false; };
-    // `kunciCakupan` = turunan primitif dari `user` (id|adaSemua|peran) —
-    // didengar eksplisit; berubah hanya bila isi cakupan berubah. `setUser`
-    // setter useState (stabil).
+
   }, [user, adaSemua, kunciCakupan, setUser]);
 
   const pilihBanyak = useMemo(() => (values: string[]) => {
@@ -211,20 +202,16 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
     prefSet(KEY, next[0] ?? '0').catch(() => {});
   }, []);
 
-  // Mode "bertindak sebagai lembaga" hanya untuk super_admin: header act-as
-  // dipasang sinkron saat render agar request anak (halaman) memakainya.
   const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
   const pilihPeran = useMemo(() => (jenjangBaru: string | null) => {
     if (!superAdmin) return;
     setPeranJenjang(jenjangBaru);
     prefSet(PERAN_KEY, jenjangBaru == null ? '0' : jenjangBaru).catch(() => {});
-    // Berperan sekaligus memfilter ke lembaga itu (filter lama dipertahankan
-    // saat kembali ke super_admin).
+
     if (jenjangBaru != null) {
       pilih(jenjangBaru);
     }
-    // Header sinkron SEBELUM /me agar izin efektif sesuai peran baru, lalu
-    // segarkan user (tanpa ini UI berizin super tetap terbuka sampai reload).
+
     setLembagaAktifHeader(jenjangBaru);
     me().then((u) => { if (isDesktopRoleAllowed(u)) setUser(u); }).catch(() => {});
   }, [superAdmin, setUser, pilih]);
@@ -249,8 +236,7 @@ export function LembagaAktifProvider({ children }: { children: ReactNode }) {
       bertindak,
       /** Gerbang kemampuan super: mati total saat bertindak. */
       efektifSuper: superAdmin && !bertindak,
-      // Satu pilihan (atau sedang bertindak) → filter lembaga tak perlu dipilih:
-      // nilainya sudah lembaga aktif. Super_admin/admin pesantren tetap bebas.
+
       terkunci: (superAdmin && peranJenjang != null) || (!adaSemua && pilihan.length === 1),
       pilih,
       pilihBanyak,

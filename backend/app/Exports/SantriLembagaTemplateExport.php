@@ -68,8 +68,7 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
     /** Kolom wajib = rule import bertanda `required` + kunci lembaga/identitas. */
     public static function kolomWajib(): array
     {
-        // jenjang/nama_lengkap/jk memakai `required_without` (bukan `required`
-        // polos) sehingga tidak tertangkap pemindaian rule — tandai eksplisit.
+
         $wajib = ['jenjang', 'nama_lengkap', 'jk'];
         foreach (SantriImporService::rules() as $kolom => $aturan) {
             if (in_array('required', $aturan, true)) {
@@ -97,9 +96,7 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
 
         foreach (SantriTemplateExport::REF_KOLOM as $kolom => $tipe) {
             if (! array_key_exists($kolom, $pilihan)) {
-                // Tanpa penyaring lembaga → union nilai aktif semua lembaga
-                // (super admin); dengan penyaring → kamus lembaga itu.
-                // efektifSemuaLembaga mengembalikan BARIS objek → petakan ke nama.
+
                 $pilihan[$kolom] = ($this->kodeDiizinkan === [] && $this->lembagaId === null)
                     ? array_map(fn ($r) => (string) $r->nama, RefService::efektifSemuaLembaga($tipe))
                     : RefService::kodeAktif($tipe, $this->lembagaId);
@@ -122,7 +119,6 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
             ->pluck('jenjang')
             ->all();
 
-        // Super admin tanpa penyaring: jangan sampai kosong (dropdown mati).
         return $daftar !== [] ? $daftar : Lembaga::query()->orderBy('jenjang')->pluck('jenjang')->all();
     }
 
@@ -165,7 +161,6 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
             'kewarganegaraan' => 'WNI',
         ];
 
-        // Kolom dropdown: pakai nilai efektif pertama agar contoh pasti valid.
         foreach ($this->pilihan() as $kolom => $nilai) {
             if (in_array($kolom, self::kolom(), true) && $nilai !== [] && ! isset($contoh[$kolom])) {
                 $contoh[$kolom] = $nilai[0];
@@ -255,7 +250,7 @@ class SantriLembagaTemplateExport extends DefaultValueBinder implements FromArra
             $target = Coordinate::stringFromColumnIndex($posisi + 1);
             $batas = count($nilai) + 1;
             $validasi = new DataValidation;
-            // CATAT: atribut OOXML `showDropDown` INVERTED — lihat SantriTemplateExport.
+
             $validasi->setType(DataValidation::TYPE_LIST)
                 ->setShowDropDown(true)
                 ->setErrorStyle(DataValidation::STYLE_STOP)

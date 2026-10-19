@@ -82,7 +82,6 @@ class MapelTemplateExport extends DefaultValueBinder implements FromArray, WithC
                 $sheet->freezePane('A2');
                 $sheet->setAutoFilter("A1:{$lastCol}1");
 
-                // Validasi inline (tanpa sheet tersembunyi): daftar literal.
                 $opsi = [
                     'jenjang' => DB::table('lembaga')->orderBy('jenjang')->pluck('jenjang')->all(),
                     'kelompok' => ['formal', 'pesantren'],
@@ -98,8 +97,7 @@ class MapelTemplateExport extends DefaultValueBinder implements FromArray, WithC
                     }
                     $target = Coordinate::stringFromColumnIndex($posisi + 1);
                     $validasi = new DataValidation;
-                    // CATAT: atribut OOXML `showDropDown` INVERTED — setShowDropDown(true)
-                    // membuat panah dropdown TAMPIL di Excel.
+
                     $validasi->setType(DataValidation::TYPE_LIST)
                         ->setShowDropDown(true)
                         ->setErrorStyle(DataValidation::STYLE_STOP)

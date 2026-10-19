@@ -29,7 +29,7 @@ export const BAGIAN_IDENTITAS: BagianIdentitas[] = [
     panels: [
       {
         judul: 'Identitas dasar',
-        // `id` hanya tampil di profil (baca-saja), tidak bisa diedit.
+
         kunci: ['nama_lengkap', 'nama_singkat', 'nik', 'nisn', 'jk', 'tipe_santri', 'tmp_lahir', 'tgl_lahir', 'agama', 'id'],
       },
       {
@@ -64,8 +64,7 @@ export const BAGIAN_IDENTITAS: BagianIdentitas[] = [
   {
     judul: 'Keluarga',
     panels: [
-      // Urutan mengikuti letak di grid 2 kolom: baris 1 Ayah | Ibu, baris 2
-      // Wali | Kartu keluarga.
+
       { judul: 'Ayah', kunci: kunciPihak('ayah') },
       { judul: 'Ibu', kunci: kunciPihak('ibu') },
       { judul: 'Wali', kunci: kunciPihak('wali') },

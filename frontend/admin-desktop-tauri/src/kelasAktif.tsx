@@ -23,8 +23,7 @@ export function KelasAktifProvider({ children }: { children: ReactNode }) {
   const { tahunAjaranNames } = useTahunAjaranAktif();
   const [kelas, setKelas] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  // Cukup kunci primitif id: refresh `/me` (identitas `user` baru, isi sama)
-  // tidak boleh memicu muat ulang.
+
   const userId = user?.id;
 
   useEffect(() => {
@@ -55,13 +54,10 @@ export function KelasAktifProvider({ children }: { children: ReactNode }) {
     prefSet(KEY, JSON.stringify(v)).catch(() => {});
   }, []);
 
-  // Nama kelas usang bila lingkup berganti → kosongkan (kecuali pemuatan awal).
   const lingkup = `${jenjangs.join(',') || '∅'}:${tahunAjaranNames.join(',') || '∅'}`;
   const lingkupAwal = useRef<string | null>(null);
   useEffect(() => {
-    // Selama lingkup belum terisi (jenjang/TA masih dimuat), jangan tetapkan
-    // apa pun: lingkup kosong akan berubah jadi lingkup sungguhan beberapa saat
-    // kemudian, dan itu BUKAN "perubahan lingkup" — hanya pemuatan awal.
+
     if (lingkup.includes('∅')) return;
     if (lingkupAwal.current === null) {
       lingkupAwal.current = lingkup;

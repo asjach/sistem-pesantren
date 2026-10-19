@@ -78,8 +78,7 @@ export default function LabeledStepper({ label, htmlFor, labelTransparan = true,
     htmlFor, kelolaLebar, label, nama: 'stepper', labelTransparan, tanpaLabel,
     lebarLabel, lebarKontrol: lebarStepper, lebarKotak, tinggi, langkah: step,
   });
-  /* Langkah tombol −/+ yang berlaku: setelan popover (bila ada) menang atas
-     prop `step`; keduanya sudah dijepit ke rentang sah oleh hook. */
+
   const langkah = langkahEfektif ?? LANGKAH_STEPPER_BAWAAN;
   return bungkus(
     <KotakLabel

@@ -45,11 +45,7 @@ class IzinMatriksTest extends TestCase
     protected function fixtureKelas(): Kelas
     {
         $unik = strtoupper(substr(uniqid(), -5));
-        // Nama TA unik per panggilan namun tetap pola YYYY/YYYY (9 char,
-        // sesuai varchar kolom `nama` — MySQL menegakkan panjang).
-        // Tahun harus benar-benar unique: `nama` punya UNIQUE constraint, dan
-        // dua panggilan berdekatan bisa mendapat dua digit heksadesimal yang
-        // sama dari uniqid() sehingga namanya kebetulan kembar.
+
         $thn = 2026 + (intval(substr($unik, -2), 16) % 40);
         while (TahunAjaran::where('nama', sprintf('%04d/%04d', $thn, $thn + 1))->exists()) {
             $thn++;
@@ -127,7 +123,6 @@ class IzinMatriksTest extends TestCase
         $super = $this->makeUser('super_admin');
         $admin = $this->makeUser('admin', [$kelas->jenjang]);
 
-        // Bawaan: admin boleh hapus.
         $this->actingAs($admin, 'sanctum')
             ->deleteJson("/api/admin/kelas/{$kelas->id}")
             ->assertStatus(200);
@@ -137,7 +132,6 @@ class IzinMatriksTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        // Cabut kelas.hapus via matriks.
         $adminRole = Role::findByName('admin', 'sanctum');
         $sisa = $adminRole->permissions->pluck('name')->reject(fn ($p) => $p === 'kelas.hapus')->values()->all();
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/izin', [
@@ -145,7 +139,6 @@ class IzinMatriksTest extends TestCase
         ])->assertStatus(200);
         $this->segarkanIzin($admin);
 
-        // Hapus ditutup, baca tetap buka.
         $this->actingAs($admin, 'sanctum')
             ->deleteJson("/api/admin/kelas/{$kelas->id}")
             ->assertStatus(403);
@@ -153,7 +146,6 @@ class IzinMatriksTest extends TestCase
             ->getJson('/api/admin/kelas')
             ->assertStatus(200);
 
-        // Kembalikan: hapus terbuka lagi.
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/izin', [
             'role' => 'admin', 'permissions' => array_values(array_unique([...$sisa, 'kelas.hapus'])),
         ])->assertStatus(200);
@@ -183,11 +175,7 @@ class IzinMatriksTest extends TestCase
      * @var list<string>
      */
     private const TANPA_MIDDLEWARE_SENGAJA = [
-        // `ToolbarPresetController::simpan` menegakkan super_admin SETELAH
-        // validasi kunci setelan-komponen: admin yang masih mengirim `lebar`/
-        // `tinggi`/`nilai_default` harus tetap dapat 422 yang menunjuk ke
-        // `komponen_custom` (lihat ToolbarPresetTest). Middleware di route akan
-        // memotongnya jadi 403 lebih dulu dan pesan penuntun itu hilang.
+
         'PUT api/admin/toolbar-preset',
     ];
 

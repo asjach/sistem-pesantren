@@ -17,15 +17,6 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { urutanDariTeks } from './tabKeuangan';
 
-/* Dialog form jenis tagihan & tarif halaman Keuangan.
- *
- * Diekstrak dari `KeuanganPage` tanpa mengubah perilaku: seluruh `id` elemen,
- * teks, urutan field, dan alur simpan (toast → tutup → muat ulang) tetap sama.
- * Dialog hanya dirender saat terbuka, jadi state field di dalamnya otomatis
- * ter-reset saat dibuka lagi — setara dengan reset manual di halaman dulu.
- * Nilai yang memang bertahan lintas buka (jenjang & tahun ajaran pada form
- * Tambah Tarif) tetap dikendalikan halaman lewat props. */
-
 /** Dialog Tambah Tarif: jenjang + tahun ajaran (dikendalikan halaman) + jenis & nominal (lokal). */
 export function DialogTambahTarif({
   onClose, onSukses, jenis, lembagas, daftarTA, pilihanLembaga, jenjang, ta, onJenjang, onTa,

@@ -14,7 +14,7 @@ describe('urutkanReferensi', () => {
   it('tanpa kode: mengembalikan salinan dengan urutan apa adanya', () => {
     const hasil = urutkanReferensi(baris, []);
     expect(nama(hasil)).toEqual(['Zakat', 'Anak', 'budi']);
-    // Salinan, bukan array yang sama — `rows` biasanya state React.
+
     expect(hasil).not.toBe(baris);
   });
 
@@ -25,13 +25,12 @@ describe('urutkanReferensi', () => {
   });
 
   it('mengurutkan kolom `urutan` sebagai ANGKA, bukan teks', () => {
-    // Kalau diperlakukan sebagai teks: '1' < '10' < '9' → budi, Zakat, Anak.
+
     expect(nama(urutkanReferensi(baris, ['urutan']))).toEqual(['budi', 'Anak', 'Zakat']);
   });
 
   it('mengurutkan nama sebagai teks dan peka huruf besar/kecil', () => {
-    // 'budi' (kecil) tetap sebelum 'Zakat' — localeCompare('id') mengabaikan
-    // besar/kecil untuk keperluan pengurutan abjad.
+
     expect(nama(urutkanReferensi(baris, ['nama']))).toEqual(['Anak', 'budi', 'Zakat']);
   });
 
@@ -53,10 +52,10 @@ describe('urutkanReferensi', () => {
   });
 
   it('`tampil` menerjemahkan is_active menjadi ya/tidak', () => {
-    // 'tidak' < 'ya' secara abjad, jadi menaik menaruh yang NONAKTIF dulu.
+
     expect(urutkanReferensi(baris, ['tampil']).map((r) => r.is_active))
       .toEqual([false, true, true]);
-    // Menurun membaliknya: yang aktif dulu.
+
     expect(urutkanReferensi(baris, ['tampil'], 'turun')[0].is_active).toBe(true);
   });
 
@@ -68,10 +67,9 @@ describe('urutkanReferensi', () => {
     const peta: Record<string, string> = { MI: 'Madrasah Ibtidaiyah', MD: 'Madrasah Diniyah' };
     const hasil = urutkanReferensi(denganJenjang, ['sumber'], 'naik', undefined,
       (j) => (j ? peta[j] ?? j : ''));
-    // 'Madrasah Diniyah' < 'Madrasah Ibtidaiyah' → baris MD (nama 'a') dulu.
+
     expect(hasil.map((r) => r.nama)).toEqual(['a', 'b']);
-    // Tanpa resolver, yang dibandingkan kode jenjang mentahnya; 'MD' < 'MI',
-    // jadi kebetulan urutannya sama seperti lewat resolver di atas.
+
     expect(urutkanReferensi(denganJenjang, ['sumber']).map((r) => r.nama))
       .toEqual(['a', 'b']);
   });
@@ -79,7 +77,7 @@ describe('urutkanReferensi', () => {
 
 describe('urutanBerikutnya', () => {
   it('mengembalikan terbesar + 1', () => {
-    // Perhatikan: 10 harus menang atas 9 (bukan dibandingkan sebagai teks).
+
     expect(urutanBerikutnya(baris)).toBe(11);
   });
 

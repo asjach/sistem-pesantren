@@ -38,7 +38,7 @@ describe('garisSelMatriks', () => {
   it('huruf mapel & guru dibedakan lewat ukuran, bukan ikut huruf sel', () => {
     expect(GAYA_GARIS.mapel.ukuran).toBe(10);
     expect(GAYA_GARIS.guru_muda.ukuran).toBe(9);
-    // Baris yang ikut huruf sel tak perlu ukuran: autofit memakainya sendiri.
+
     expect(GAYA_GARIS.penuh.ukuran).toBeUndefined();
   });
 
@@ -116,7 +116,7 @@ describe('garisSelMatriks', () => {
   it('setiap gaya punya kelas Tailwind utuh (bukan dirakit saat runtime)', () => {
     for (const [nama, gaya] of Object.entries(GAYA_GARIS)) {
       expect(gaya.kelas, nama).toMatch(/\S/);
-      // Tidak boleh ada spasi kosong/Template literal bocor ke kelas.
+
       expect(gaya.kelas, nama).not.toMatch(/\$\{|\s{2,}/);
     }
   });

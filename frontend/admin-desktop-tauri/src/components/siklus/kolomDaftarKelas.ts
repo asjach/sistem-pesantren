@@ -142,7 +142,7 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
   const statis = (key: string, label: string, width = 110): ExcelField =>
     ({ key, label, width, kind: 'static' });
   return [
-    // Identitas + konteks baris (urutan lama dipertahankan di depan).
+
     bolehSantri
       ? { key: 'nama_lengkap', label: 'Nama Lengkap', width: 200, kind: 'text', maxLength: 255, validate: (v) => (v && v.trim() ? null : 'Nama wajib diisi.') }
       : statis('nama_lengkap', 'Nama Lengkap', 200),
@@ -167,7 +167,7 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
     bolehRiwayat
       ? tgl('tgl_masuk', 'tgl_masuk')
       : statis('tgl_masuk', 'tgl_masuk'),
-    // Keanggotaan (lembaga_santri).
+
     statis('anggota_id', 'anggota_id', 90),
     bolehSantri
       ? { key: 'nis_kemenag', label: 'nis_kemenag', width: 150, kind: 'text', maxLength: 20 }
@@ -199,7 +199,7 @@ export function medanDaftarKelas({ bolehSantri, bolehRiwayat }: { bolehSantri: b
     bolehSantri
       ? { key: 'tgl_selesai', label: 'tgl_selesai', width: 110, kind: 'text', maxLength: 10, validate: tglValidator,  }
       : statis('tgl_selesai', 'tgl_selesai'),
-    // Profil santri penuh.
+
     ...profilFields(bolehSantri),
     statis('status_pst', 'is_active_pst', 100),
     statis('foto_url', 'foto_url', 160),

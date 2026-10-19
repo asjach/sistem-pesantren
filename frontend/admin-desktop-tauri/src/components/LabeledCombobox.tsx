@@ -8,9 +8,7 @@ import KotakLabel, { hitungLebarKontrol, keCss } from '@/components/kotakLabel';
  *  `jenis` (ComboboxInput/Trigger/Content). Combobox Root tak me-render DOM
  *  (Fragment), jadi harus menelusuri pohon anak dan menyalin elemen yang cocok. */
 function suntikGaya(node: ReactNode, jenis: unknown, kelas: string, gaya?: Record<string, unknown>): ReactNode {
-  // Render-prop anak (mis. `ComboboxList` menerima fungsi) tak boleh dilewati:
-  // `Children.map` atas fungsi mengembalikan array kosong dan daftar opsi
-  // ikut hilang.
+
   if (typeof node === 'function') return node;
   return Children.map(node, (c) => {
     if (!isValidElement(c)) return c;
@@ -76,8 +74,6 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
     ? (children as ReactElement)
     : null;
 
-  /* Props anak (bila tepat satu `ComboboxRoot`): `items` dipakai popover untuk
-     memilih nilai awal; `value`/`onValueChange` untuk menerapkan nilai awal. */
   const propsAnak = (anakTunggal?.type === ComboboxRoot ? anakTunggal.props : {}) as {
     children?: ReactNode;
     items?: unknown;
@@ -102,17 +98,11 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
     lebarLabel, lebarKontrol: lebarKombo, lebarKotak, tinggi,
   });
 
-  /* Nilai AWAL dari popover → jadi nilai yang DITAMPILKAN sampai pengguna
-     atau pemanggil mengubahnya (`ikutAwal` mati begitu salah satunya berubah). */
   const itemAwal = nilaiDefaultEfektif === undefined
     ? undefined
     : items.find((o) => labelItem(o) === nilaiDefaultEfektif);
   const nilaiProp = propsAnak.value;
-  /* Kunci nilai = LABEL-nya (lewat `itemToStringLabel`/String). Identitas objek
-     item sering berganti tiap render (array `items` dibangun ulang pemanggil,
-     mis. `opsiItem` di PresetUrut), jadi membandingkan identitas salah menganggap
-     nilai pemanggil "berubah" — itu mematikan mode ikut-awal SEBELUM nilai awal
-     (yang dimuat async) sempat diterapkan. */
+
   const kunciProp = nilaiProp === undefined || nilaiProp === null ? '' : labelItem(nilaiProp);
   const kunciMount = useRef(kunciProp);
   const [nilaiLokal, setNilaiLokal] = useState<unknown>(undefined);
@@ -122,13 +112,7 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
    *  popover saat halaman sedang terbuka harus LANGSUNG berlaku, bukan menunggu
    *  halaman dimuat ulang. */
   const sudahTerapkanRef = useRef<string | null>(null);
-  /* Perubahan `value` dari PEMANGGIL = nilai pemanggil yang menang.
-     KECUALI selama nilai awal belum sempat diterapkan: pemanggil (mis.
-     `PresetKolom`) sering mengisi `value`-nya sendiri secara ASYNC — mula-mula
-     opsi fallback (mis. "Lengkap"), baru preset aktif tersimpan. Perubahan itu
-     BUKAN pilihan pengguna; kalau dianggap pembatalan, `ikutAwal` mati sebelum
-     nilai awal sempat dipakai sehingga setelan "Nilai awal" tak pernah berefek
-     (keluhan: "nilai default tidak otomatis"). */
+
   useEffect(() => {
     if (kunciProp === kunciMount.current) return;
     kunciMount.current = kunciProp;
@@ -141,34 +125,24 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
     ? nilaiLokal
     : (itemAwal !== undefined && ikutAwal ? itemAwal : nilaiProp);
 
-  /* Terapkan nilai awal ke PEMANGGIL: nilai awal = penentu default, jadi
-     halaman harus benar-benar memakainya (bukan sekadar tampilannya).
-     Callback disimpan di ref agar efek bergantung hanya pada nilai. */
   const cbUbahRef = useRef(propsAnak.onValueChange);
   cbUbahRef.current = propsAnak.onValueChange;
   useEffect(() => {
-    /* Nilai awal dihapus → siap diterapkan lagi bila nanti diisi ulang. */
+
     if (nilaiDefaultEfektif === undefined) {
       sudahTerapkanRef.current = null;
       return;
     }
     if (itemAwal === undefined || sudahTerapkanRef.current === nilaiDefaultEfektif) return;
-    /* Pemanggil sudah memakai nilai itu (mis. PresetUrut yang urutannya memang
-       = nilai awal) → tak perlu memanggil balik. TAPI jangan tandai "sudah
-       diterapkan": `kunciProp` bisa masih berupa FALLBACK pemanggil yang
-       kebetulan berlabel sama (PresetKolom menampilkan "Lengkap" sebelum daftar
-       preset termuat), sehingga penerapan yang sebenarnya justru tak akan
-       pernah terjadi. */
+
     if (kunciProp === nilaiDefaultEfektif) return;
     sudahTerapkanRef.current = nilaiDefaultEfektif;
     cbUbahRef.current?.(itemAwal);
-    /* `ikutAwal` sengaja BUKAN gerbang di sini: mengubah nilai awal dari popover
-       adalah perintah eksplisit, jadi harus berlaku walau pengguna sudah memilih
-       nilai lain pada sesi ini. Pengulangan dicegah oleh penanda di atas. */
+
   }, [itemAwal, nilaiDefaultEfektif, kunciProp]);
 
   if (anakTunggal === null || anakTunggal.type !== ComboboxRoot) {
-    // Tanpa akar Combobox: tetap dirender di dalam kotak (tanpa suntikan gaya).
+
     return (
       <KotakLabel label={label} htmlFor={htmlFor} labelTransparan={labelTransparanEfektif} lebarLabel={lebarLabelEfektif} lebarKontrol={lebarKontrolEfektif} lebarKotak={lebarKotakEfektif} tinggi={tinggiEfektif} className={className} kelolaLebar={kelolaLebar} tambahan={tambahan}>
         {() => children}
@@ -176,9 +150,6 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
     );
   }
 
-  /* `pr-6`: ruang kanan untuk tombol panah yang menumpuk. `readOnly` (bawaan)
-     membuat input hanya menampilkan nilai terpilih — tanpa caret berkedip
-     dan tanpa pengetikan, klik/panah tetap membuka daftar. */
   let isi = suntikGaya(
     propsAnak.children,
     ComboboxInput,
@@ -186,13 +157,12 @@ export default function LabeledCombobox({ label, htmlFor, labelTransparan = true
     bisaCari ? undefined : { readOnly: true },
   );
   isi = suntikGaya(isi, ComboboxTrigger, 'absolute top-1/2 right-0 -translate-y-1/2');
-  // Popup: border sama dengan kotak pembungkus.
+
   isi = suntikGaya(isi, ComboboxContent, 'border-foreground/30');
 
   const propsGabung: Record<string, unknown> = { ...(anakTunggal.props as object), children: isi };
   if (itemAwal !== undefined) {
-    /* Nilai dikendalikan agar nilai awal benar-benar tampil; perubahan tetap
-       diteruskan ke pemanggil dan menghentikan mode ikut-awal. */
+
     propsGabung.value = nilaiTampil;
     propsGabung.defaultValue = undefined;
     propsGabung.onValueChange = (v: unknown) => {

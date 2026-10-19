@@ -238,9 +238,6 @@ export function AksiKananNominal({ htmlFor, nilai, setNilai, preset = PRESET_NOM
         </Button>
       </PopoverTrigger>
 
-      {/* Panel ATAS: nominal cepat + reset. `avoidCollisions=false` menjaga
-          sisi tetap, supaya panel atas tak bertukar ke bawah lalu menimpa
-          panel angka saat ruang sempit. */}
       <PopoverContent
         data-panel={PANEL_NOMINAL}
         side="top"
@@ -282,7 +279,6 @@ export function AksiKananNominal({ htmlFor, nilai, setNilai, preset = PRESET_NOM
         </div>
       </PopoverContent>
 
-      {/* Panel BAWAH: papan tombol angka. */}
       <PopoverContent
         data-panel={PANEL_ANGKA}
         side="bottom"
@@ -363,8 +359,7 @@ const PENGATURAN_PRESET_NOMINAL: PengaturanTipe = {
       setNilai={(v) => setNilai(v)}
     />
   ),
-  /* Hanya turunkan `aksiKanan` bila pengguna memang menyetel presetsendiri;
-     tanpa itu bawaan tipe (kalkulator ber-`PRESET_NOMINAL`) yang dipakai. */
+
   terapkan: (preset) => {
     const angka = sebagaiPreset(preset);
     return angka === undefined
@@ -418,16 +413,13 @@ const PENGATURAN_FORMAT_TANGGAL: PengaturanTipe = {
   render: ({ htmlFor, nilai, setNilai }) => (
     <ComboboxFormatTanggal id={htmlFor} nilai={polaTanggal(nilai)} setNilai={setNilai} />
   ),
-  /* Pola bawaan tak perlu diturunkan: `FORMAT_TANGGAL` memang sudah persis pola
-     itu (termasuk placeholder "dd/mm/yyyy" milik definisi tipe). Jadi hanya pola
-     LAIN yang mengganti format + placeholder kotaknya. */
+
   terapkan: (format) => {
     const pola = polaTanggal(format);
     if (pola === FORMAT_TANGGAL_BAWAAN) return {};
     return {
       format: formatTanggalPola(pola),
-      /* `attrs` digantikan UTUH: placeholder harus ikut pola yang dipilih, dan
-         papan angka hanya cocok untuk pola tanpa nama bulan. */
+
       attrs: { inputMode: pola.includes('Mmm') ? undefined : 'numeric', placeholder: pola },
     };
   },
@@ -491,9 +483,7 @@ const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
   angka: { label: 'Angka', type: 'number', attrs: { inputMode: 'numeric' } },
   nominal: {
     label: 'Nominal (Uang)',
-    /* `text`, BUKAN `number`: pemisah ribuan ("50.000") bukan angka yang sah di
-       `type=number` sehingga teksnya tak akan tampil. Papan ketik angka tetap
-       diminta lewat `inputMode` di `attrs`. */
+
     type: 'text',
     attrs: { inputMode: 'numeric' },
     aksiKanan: (ctx) => <AksiKananNominal {...ctx} />,
@@ -502,10 +492,7 @@ const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
   },
   tanggal: {
     label: 'Tanggal',
-    /* Kotak teks ber-mask `dd/mm/yyyy` + kalender sendiri, BUKAN `date` native:
-       tampilan & popover pemilihnya milik webview (ikut locale, tak bisa
-       distyle/dites). Nilai yang dipakai aplikasi & dikirim ke server tetap ISO
-       `YYYY-MM-DD` lewat `format` — sama seperti `input type="date"`. */
+
     type: 'text',
     attrs: { inputMode: 'numeric', placeholder: 'dd/mm/yyyy' },
     format: FORMAT_TANGGAL,
@@ -515,10 +502,7 @@ const DAFTAR: Record<KunciTipeInput, DefinisiTipeInput> = {
   },
   bulan: {
     label: 'Bulan',
-    /* Kotak teks ber-mask `mm/yyyy` + pemilih bulan sendiri, BUKAN `month`
-       native: alasannya sama dengan `tanggal` — tampilan & popover pemilihnya
-       milik webview (ikut locale, tak bisa distyle/dites). Nilai yang dipakai
-       aplikasi & dikirim ke server tetap `YYYY-MM`, sama seperti input native. */
+
     type: 'text',
     attrs: { inputMode: 'numeric', placeholder: 'mm/yyyy' },
     format: FORMAT_BULAN,

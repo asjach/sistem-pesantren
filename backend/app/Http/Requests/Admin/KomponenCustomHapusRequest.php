@@ -16,9 +16,7 @@ class KomponenCustomHapusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            /* `nullable` WAJIB: komponen di luar tabel mengirim `table_key`
-               kosong, dan Laravel mengubah string kosong jadi `null`
-               (`ConvertEmptyStringsToNull`). */
+
             'table_key' => ['sometimes', 'nullable', 'string', 'max:60'],
             'komponen' => ['required', 'string', 'max:60', 'regex:/^[a-z0-9_]{1,60}$/'],
         ];

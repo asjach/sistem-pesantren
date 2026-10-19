@@ -13,10 +13,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Aturan TA global (kunci `nama`): berlaku semua lembaga, dikelola super_admin;
-// admin lembaga hanya menyembunyikan/menampilkan via pivot `lembaga_tahun_ajaran`.
-// TA aktif satu (global) dan tidak bisa disembunyikan/dihapus. Kegiatan PSB
-// menaut TA eksplisit.
 class TahunAjaranGuardTest extends TestCase
 {
     use RefreshDatabase;
@@ -76,7 +72,6 @@ class TahunAjaranGuardTest extends TestCase
             'nama' => '2026/2027',
         ])->assertStatus(422)->assertJsonValidationErrors(['nama']);
 
-        // Pola nama wajib YYYY/YYYY.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/tahun-ajaran', [
             'nama' => '2028-2029',
         ])->assertStatus(422)->assertJsonValidationErrors(['nama']);
@@ -93,23 +88,19 @@ class TahunAjaranGuardTest extends TestCase
         $f = $this->baseFixture();
         $admin = $this->adminMi($f['mi']);
 
-        // Hanya admin pesantren yang boleh mengelola kegiatan PSB.
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/psb/kegiatan', [
             'tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB MI',
         ])->assertStatus(403);
 
-        // Kegiatan se-pesantren: tanpa lembaga_id, TA cukup ada.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
             'tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB 2026/2027', 'is_aktif' => true,
         ])->assertStatus(201);
         $this->assertDatabaseHas('psb_kegiatan', ['tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB 2026/2027']);
 
-        // Satu kegiatan per tahun ajaran: duplikat ditolak.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/psb/kegiatan', [
             'tahun_ajaran' => $f['ta']->nama, 'nama' => 'PSB Duplikat',
         ])->assertStatus(422)->assertJsonValidationErrors(['tahun_ajaran']);
 
-        // TA berbeda → boleh (mis. menyiapkan tahun berikutnya).
         $taBerikut = TahunAjaran::create([
             'nama' => '2027/2028',
             'tanggal_mulai' => '2027-07-01', 'tanggal_selesai' => '2028-06-30',
@@ -118,7 +109,6 @@ class TahunAjaranGuardTest extends TestCase
             'tahun_ajaran' => $taBerikut->nama, 'nama' => 'PSB 2027/2028',
         ])->assertStatus(201);
 
-        // Kegiatan terlihat oleh admin lembaga (halaman Dokumen Wajib/Kegiatan PSB).
         $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/psb/kegiatan')->assertStatus(200);
         $this->assertCount(2, $res->json('data'));
     }
@@ -145,7 +135,6 @@ class TahunAjaranGuardTest extends TestCase
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
 
-        // Daftar efektif memuat TA global untuk kedua lembaga.
         foreach ([$f['mi']->jenjang, $md->jenjang] as $lembagaId) {
             $res = $this->actingAs($f['super'], 'sanctum')
                 ->getJson('/api/admin/tahun-ajaran?jenjang='.$lembagaId)
@@ -153,7 +142,6 @@ class TahunAjaranGuardTest extends TestCase
             $this->assertSame([$f['ta']->nama], array_column($res->json('data'), 'nama'));
         }
 
-        // Kelas di lembaga mana pun boleh memakai TA global itu.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'jenjang' => $md->jenjang, 'tahun_ajaran' => $f['ta']->nama, 'nama_kelas' => '1A',
         ])->assertStatus(201);
@@ -169,7 +157,6 @@ class TahunAjaranGuardTest extends TestCase
             'tanggal_mulai' => '2025-07-01', 'tanggal_selesai' => '2026-06-30',
         ]);
 
-        // Admin lembaga tidak boleh mengubah/menghapus TA global.
         $this->actingAs($admin, 'sanctum')->putJson('/api/admin/tahun-ajaran', [
             'nama' => $taLama->nama, 'nama_baru' => '2028/2029',
         ])->assertStatus(403);
@@ -177,26 +164,22 @@ class TahunAjaranGuardTest extends TestCase
             'nama' => $taLama->nama,
         ])->assertStatus(403);
 
-        // TA aktif tidak bisa disembunyikan.
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/tahun-ajaran/sembunyikan', [
             'nama' => $f['ta']->nama,
         ])->assertStatus(422);
 
-        // Sembunyikan TA non-aktif → hilang dari daftar efektif lembaga itu.
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/tahun-ajaran/sembunyikan', [
             'nama' => $taLama->nama,
         ])->assertStatus(200);
         $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/tahun-ajaran?jenjang='.$f['mi']->jenjang);
         $this->assertSame([$f['ta']->nama], array_column($res->json('data'), 'nama'));
 
-        // `termasuk_nonaktif` menampilkan TA tersembunyi (untuk tombol pulihkan).
         $res = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/tahun-ajaran?jenjang='.$f['mi']->jenjang.'&termasuk_nonaktif=1');
         $bayangan = collect($res->json('data'))->firstWhere('nama', '2025/2026');
         $this->assertNotNull($bayangan);
         $this->assertFalse((bool) $bayangan['tampil']);
 
-        // Tampilkan kembali: hapus baris pivot → TA global berlaku lagi.
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/tahun-ajaran/tampilkan', [
             'nama' => '2025/2026',
         ])->assertStatus(200);
@@ -206,7 +189,6 @@ class TahunAjaranGuardTest extends TestCase
         $res = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/tahun-ajaran?jenjang='.$f['mi']->jenjang);
         $this->assertCount(2, $res->json('data'));
 
-        // Set aktif hanya super_admin.
         $this->actingAs($admin, 'sanctum')
             ->postJson('/api/admin/tahun-ajaran/set-aktif', ['nama' => $taLama->nama])->assertStatus(403);
         $this->actingAs($f['super'], 'sanctum')

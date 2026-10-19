@@ -177,12 +177,12 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/keuangan', label: 'Pengaturan', deskripsi: 'Jenis tagihan, tarif, dan tagihan santri.', tab: 'keuangan', grid: true, icon: Wallet, permission: 'keuangan.lihat' },
   { to: '/keuangan/dispensasi', label: 'Dispensasi', deskripsi: 'Daftar dispensasi santri.', tab: 'keuangan', grid: true, icon: BadgeCheck, permission: 'keuangan.lihat' },
   { to: '/pembayaran', label: 'Pembayaran', deskripsi: 'Kasir: cari santri, lihat tagihan belum lunas, catat pembayaran.', tab: 'keuangan', grid: true, icon: ReceiptText, permission: 'keuangan.lihat' },
-  // Modul Penilaian: master, impor nilai, leger, rapor (grup sendiri).
+
   { to: '/penilaian/master', label: 'Master Penilaian', deskripsi: 'Komponen & bobot, KKM, predikat, ekstrakurikuler, dan prestasi.', tab: 'penilaian', grid: true, icon: Calculator, permission: 'penilaian.lihat' },
   { to: '/penilaian/impor', label: 'Impor Nilai', deskripsi: 'Impor leger, catatan wali, prestasi, dan ekstrakurikuler dari Excel.', tab: 'penilaian', icon: FileUp, permission: 'penilaian.lihat' },
   { to: '/penilaian/leger', label: 'Leger Nilai', deskripsi: 'Leger nilai akhir santri × mata pelajaran (crosstab).', tab: 'penilaian', grid: true, icon: Grid, permission: 'penilaian.lihat' },
   { to: '/penilaian/rapor', label: 'Rapor', deskripsi: 'Pratinjau & cetak rapor per santri / per kelas.', tab: 'penilaian', grid: true, icon: NotebookTabs, permission: 'penilaian.lihat' },
-  // Modul Mapel & Pengampu (BLOK 5): master mapel, pengampu, jadwal.
+
   { to: '/kurikulum/mapel', label: 'Mata Pelajaran', deskripsi: 'Master mata pelajaran per jenjang (kelompok formal / pesantren, KKM, urutan rapor).', tab: 'kurikulum', grid: true, icon: ClipboardList, permission: 'kurikulum.lihat' },
   { to: '/kurikulum/pengampu', label: 'Pengampu', deskripsi: 'Pengampu mapel per kelas (kelas × mapel → guru) — daftar mapel kelas bisa disalin dari kelas lain.', tab: 'kurikulum', grid: true, icon: Users, permission: 'kurikulum.lihat' },
   { to: '/kurikulum/jadwal', label: 'Jadwal Pelajaran', deskripsi: 'Slot jam per jenjang dan jadwal pelajaran per kelas (anti-bentrok kelas & guru).', tab: 'kurikulum', grid: true, icon: CalendarDays, permission: 'kurikulum.lihat' },
@@ -249,13 +249,11 @@ interface GrupNav {
 export const NAV_GRUP: GrupNav[] = [
   { id: 'beranda', label: 'Beranda', icon: Home },
   { id: 'master', label: 'Data Induk', icon: FolderOpen },
-  // PSB kini grup tersendiri (dulu subgrup di dalam Santri), di atas Santri.
+
   { id: 'psb', label: 'PSB', icon: ClipboardCheck },
-  // Santri kini tanpa subgrup: Santri Aktif, Penempatan, Akademik (halaman
-  // langsung semua, mengikuti urutan registri).
+
   { id: 'santri', label: 'Santri', icon: GraduationCap },
-  // Grup PTK (kategori `pegawai`): PTK Aktif + Penempatan (Pegawai,
-  // Lembaga Pegawai, Akun Pegawai).
+
   { id: 'pegawai', label: 'PTK', icon: Users },
   {
     id: 'dokumen',
@@ -264,14 +262,14 @@ export const NAV_GRUP: GrupNav[] = [
     anak: [
       { id: 'santri', label: 'Santri', icon: GraduationCap },
       { id: 'pegawai', label: 'Pegawai', icon: Users },
-      // Dokumen Madrasah (halaman langsung) tampil di sini.
+
       { langsung: true },
     ],
   },
   { id: 'keuangan', label: 'Keuangan', icon: Wallet },
-  // Modul Penilaian: master, impor, leger, rapor.
+
   { id: 'penilaian', label: 'Penilaian', icon: BookMarked },
-  // Modul Kurikulum (BLOK 5): mapel, kurikulum, pengampu, jadwal.
+
   { id: 'kurikulum', label: 'Kurikulum', icon: BookOpen },
   { id: 'pengaturan', label: 'Pengaturan', icon: Palette },
 ];

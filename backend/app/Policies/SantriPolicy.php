@@ -14,8 +14,7 @@ class SantriPolicy
      */
     public function viewAny(User $user): bool
     {
-        // Guru TIDAK ikut list admin (scopeTenantScope me-return 1=0 untuk guru);
-        // guru akses santri via endpoint pengampu/walas (201/202), bukan /api/admin/santri.
+
         return $user->can('santri.lihat');
     }
 
@@ -27,7 +26,7 @@ class SantriPolicy
         if ($user->bolehPesantren()) {
             return true;
         }
-        // Wali: hanya anaknya sendiri
+
         if ($user->hasRole('orang_tua') && ! $this->isAnakWali($user, $santri)) {
             return false;
         }
@@ -35,13 +34,11 @@ class SantriPolicy
             return true;
         }
 
-        // Tanpa keanggotaan (`lembaga_santri`) = arsip pusat/pra-penerimaan → semua pemegang izin lihat.
         $lembagaIds = $santri->lembagaSantri()->pluck('jenjang');
         if ($lembagaIds->isEmpty()) {
             return true;
         }
 
-        // Cukup punya akses ke salah satu lembaga keanggotaan.
         return $lembagaIds->contains(fn ($id) => $user->canAccessLembaga($id));
     }
 
@@ -52,7 +49,7 @@ class SantriPolicy
 
     public function update(User $user, Santri $santri): bool
     {
-        // Wali TIDAK boleh edit langsung — via pengajuan_biodata_santri (approve admin)
+
         if ($user->hasRole('orang_tua') && ! $user->can('santri.ubah')) {
             return false;
         }

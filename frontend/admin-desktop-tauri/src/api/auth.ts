@@ -41,7 +41,7 @@ export async function login(identifier: string, password: string): Promise<Me> {
     method: 'POST',
     body: JSON.stringify({ identifier, password, device: 'admin-desktop-tauri' }),
   });
-  // Pagar kedua (backend juga menolak 403): jangan simpan sesi non-admin.
+
   if (!isDesktopRoleAllowed(res.user)) {
     throw new Error('Aplikasi desktop hanya untuk peran super_admin/admin.');
   }
@@ -61,4 +61,3 @@ export async function logout(): Promise<void> {
     await clearSession();
   }
 }
-

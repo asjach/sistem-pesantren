@@ -12,8 +12,6 @@ import type { Dispensasi, RekapDispensasiCrosstab } from '@/api/keuangan';
 /** Kunci pref tab halaman: permukaan perilaku "ingat tab terakhir". */
 const KUNCI_TAB = 'simpes_dispensasi_tab';
 
-/* `vi.hoisted` wajib: factory vi.mock di-hoist, jadi fixture & mock fn harus
-   sudah ada saat factory dipanggil. */
 const uji = vi.hoisted(() => {
   const DISPENSASI = [
     {
@@ -118,8 +116,6 @@ vi.mock('@/api/master', async (importOriginal) => {
   };
 });
 
-/* Array filter WAJIB stabil (didefinisikan sekali): halaman memakainya sebagai
-   dependensi effect, jadi array baru tiap render memicu loop render. */
 const FILTER = {
   jenjangs: ['MI'],
   tahunAjaranNames: ['2025/2026'],
@@ -133,7 +129,6 @@ vi.mock('@/hooks/useFilterGlobalAktif', () => ({
   targetTunggal: (values: readonly string[]) => (values.length === 1 ? values[0] : null),
 }));
 
-/* Rail filter tingkat/kelas: butuh context yang di app disediakan layout. */
 vi.mock('@/tingkatAktif', () => ({
   useTingkatAktif: () => ({ pilih: vi.fn() }),
 }));
@@ -230,25 +225,22 @@ describe('DispensasiPage — tab Kelola / Rekap', () => {
     renderHalaman();
     await tabSiap();
 
-    // Tab bawaan = Kelola: area kerja dua kolom tampil, tabel rekap belum ada.
     expect(await screen.findByText('Daftar Santri (0)')).toBeInTheDocument();
     expect(screen.getByText('Khusus MI')).toBeInTheDocument();
     expect(screen.queryByText('Rekap Dampak per Paket')).toBeNull();
 
     await userEvent.click(screen.getByRole('tab', { name: 'Rekap Dispensasi' }));
 
-    // Tab Rekap: crosstab paket × jenis selebar panel, area kerja disembunyikan.
     expect(await screen.findByText('Rekap Dampak per Paket')).toBeInTheDocument();
     expect(await screen.findByText('MI')).toBeInTheDocument();
     expect(await screen.findByText('Khusus MI')).toBeInTheDocument();
-    // Kolom = jenis tagihan terdampak; sel = potongan paket di jenis itu.
+
     expect(await screen.findByText('Infaq Bulanan')).toBeInTheDocument();
     expect(document.getElementById('td_rekap_crosstab_MI|2025/2026|11_jenis-1')?.textContent)
       .toBe('Rp 50.000');
     expect(await screen.findByText('2 tagihan · Rp 50.000')).toBeInTheDocument();
     expect(screen.queryByText('Daftar Santri (0)')).toBeNull();
 
-    // Tab terakhir disimpan supaya halaman kembali ke sana lain kali.
     await waitFor(() => expect(localStorage.getItem(KUNCI_TAB)).toBe('rekap'));
   });
 
@@ -267,15 +259,14 @@ describe('DispensasiPage — tab Kelola / Rekap', () => {
     await tabSiap();
     await waitFor(() => expect(screen.getByText('Ani Lestari')).toBeInTheDocument());
 
-    // Grid di-stub: selnya `.dsg-cell`, bukan `th`/`td`.
     const sel = [...container.querySelectorAll('.dsg-cell')].map((s) => s.textContent?.trim());
     for (const judul of ['Nama Lengkap', 'NIS', 'JK', 'Kelas', 'Jenjang']) {
       expect(sel).toContain(judul);
     }
-    // Nilainya benar-benar terisi: kelas dari `kelas`, jenjang dari keanggotaan.
+
     expect(sel).toContain('Kelas 1A');
     expect(sel).toContain('MI');
-    // NIS yang tampil = NIS lokal per lembaga, bukan nisn.
+
     expect(sel).toContain('M-001');
   });
 
@@ -306,17 +297,14 @@ describe('DispensasiPage — tab Kelola / Rekap', () => {
     renderHalaman();
     await tabSiap();
 
-    // Bawaan: aktif saja (nonaktif disembunyikan sampai diminta).
     await waitFor(() => expect(panggil).toHaveBeenCalled());
     const pertama = panggil.mock.calls.at(-1)?.[0] as { is_active_pst?: unknown };
     expect(pertama.is_active_pst).toBe(true);
 
-    // Buka dropdown Status lalu pilih "Semua".
     const status = await screen.findByLabelText('Filter status keaktifan santri');
     await userEvent.click(status);
     await userEvent.click(await screen.findByRole('option', { name: 'Semua' }));
 
-    // "Semua" dikirim eksplisit — absen dari query berarti hal lain bagi backend.
     await waitFor(() => {
       const akhir = panggil.mock.calls.at(-1)?.[0] as { is_active_pst?: unknown };
       expect(akhir.is_active_pst).toBe('semua');

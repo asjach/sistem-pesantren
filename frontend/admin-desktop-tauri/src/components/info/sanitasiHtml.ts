@@ -61,8 +61,7 @@ function nilaiAman(tag: string, atribut: string, nilai: string): boolean {
   if (v === '') return false;
 
   const adalahUrl = (tag === 'img' && atribut === 'src') || (tag === 'a' && atribut === 'href');
-  // Karakter kontrol/whitespace di URL: `java\nscript:` lolos pemeriksaan skema
-  // kalau tak dinormalisasi.
+
   if (adalahUrl && POLA_KONTROL_URL.test(v)) return false;
 
   if (tag === 'img' && atribut === 'src') {
@@ -82,8 +81,6 @@ export function sanitasiHtml(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const badan = doc.body;
 
-  // Kumpulkan dulu: menghapus sambil iterasi HTMLCollection langsung akan
-  // melewati simpul berikutnya.
   const semua = Array.from(badan.querySelectorAll('*'));
   for (const el of semua) {
     const tag = el.tagName.toLowerCase();
@@ -94,12 +91,12 @@ export function sanitasiHtml(html: string): string {
       if (!boleh.has(nama) || !nilaiAman(tag, nama, at.value)) el.removeAttribute(at.name);
     }
     if (tag === 'a') {
-      // Tautan ke tab baru tetap berbahaya meski href-nya http.
+
       el.setAttribute('rel', 'noopener noreferrer nofollow');
       if (el.hasAttribute('target')) el.setAttribute('target', '_blank');
     }
   }
-  // Elemen di luar daftar dibuang beserta seluruh isinya.
+
   for (const el of semua) {
     if (!TAG_BOLEH.has(el.tagName.toLowerCase())) el.remove();
   }

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('pegawai_pendidikan', function (Blueprint $table) {
             $table->id();
             $table->foreignId('pegawai_id')->constrained('pegawai')->cascadeOnDelete();
-            $table->string('tingkatan')->nullable(); // S1, D4, dsb.
+            $table->string('tingkatan')->nullable();
             $table->string('nama_institusi')->nullable();
             $table->integer('tahun_selesai')->nullable();
             $table->text('catatan')->nullable();
@@ -32,8 +32,8 @@ return new class extends Migration
             $table->date('tgl_kelulusan')->nullable();
             $table->integer('tahun_sertifikasi')->nullable();
             $table->string('model_sertifikasi')->nullable();
-            $table->string('jalur_sertifikasi')->nullable(); // ref_jalur_sertifikasi
-            $table->string('jenjang_sertifikasi')->nullable(); // ref_jenjang_sertifikasi
+            $table->string('jalur_sertifikasi')->nullable();
+            $table->string('jenjang_sertifikasi')->nullable();
             $table->string('nama_sertifikasi')->nullable();
             $table->string('institusi')->nullable();
             $table->date('tanggal_peroleh')->nullable();
@@ -59,22 +59,17 @@ return new class extends Migration
             $table->index(['pegawai_id', 'hubungan']);
         });
 
-        // Nama tabel diselaraskan dengan dokumen_santri/dokumen_lembaga.
         Schema::create('dokumen_pegawai', function (Blueprint $table) {
             $table->id();
             $table->foreignId('pegawai_id')->constrained('pegawai')->cascadeOnDelete();
-            $table->string('jenis_dokumen_pegawai')->nullable(); // ref_jenis_dokumen_pegawai
-            // Status aktif dokumen terakhir. `status_verifikasi` TIDAK ada di
-            // sini: dulu ditambahkan lalu dicabut (status hanya tersisa di
-            // `dokumen_lembaga`). `lembaga` juga tidak ada — konteks pemakaian
-            // per lembaga hanya berlaku untuk santri; kunci rangkap pegawai
-            // cukup (pegawai, jenis).
+            $table->string('jenis_dokumen_pegawai')->nullable();
+
             $table->boolean('is_active')->default(true);
-            $table->string('nama_file')->nullable(); // nama template berkas (tampil/unduh)
-            // Pelacak sinkron cermin dua arah (lokal ↔ server).
+            $table->string('nama_file')->nullable();
+
             $table->string('sinkron_hash', 64)->nullable();
             $table->timestamp('tersinkron_pada')->nullable();
-            $table->string('penyimpanan', 10)->default('server'); // lokasi byte: server|lokal|test
+            $table->string('penyimpanan', 10)->default('server');
             $table->text('catatan')->nullable();
             $table->timestamps();
 
@@ -86,14 +81,14 @@ return new class extends Migration
             $table->foreignId('pegawai_id')->constrained('pegawai')->cascadeOnDelete();
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
-            $table->string('tugas_utama')->nullable(); // ref_tugas_utama (diisi eksplisit dari kamus)
-            $table->string('no_sk', 100)->nullable(); // nomor SK tahunan (boleh sama lintas lembaga)
+            $table->string('tahun_ajaran', 9);
+            $table->string('tugas_utama')->nullable();
+            $table->string('no_sk', 100)->nullable();
             $table->date('tgl_sk')->nullable();
             $table->enum('status_keaktifan', ['Ya', 'Tidak'])->default('Ya');
             $table->timestamps();
 
-            $table->unique(['pegawai_id', 'jenjang', 'tahun_ajaran'], 'uq_keaktifan_pegawai_plt'); // nama pendek: auto-name 61 char, margin aman dari limit 64
+            $table->unique(['pegawai_id', 'jenjang', 'tahun_ajaran'], 'uq_keaktifan_pegawai_plt');
             $table->index(['tahun_ajaran', 'jenjang'], 'idx_keaktifan_ta_jenjang_sk');
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->cascadeOnDelete();

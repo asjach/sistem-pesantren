@@ -56,8 +56,6 @@ class TahunAjaranController extends Controller
         $query = TahunAjaran::query();
         $this->applyFilter($query, $request, 'tahun_ajaran', 'nama');
 
-        // `termasuk_nonaktif`: sertakan TA tersembunyi agar halaman bisa
-        // menampilkan tombol "Tampilkan kembali".
         if ($lembagaIds !== [] && ! $termasukNonaktif) {
             $query->where(function ($q) use ($hiddenPerLembaga) {
                 foreach ($hiddenPerLembaga as $names) {

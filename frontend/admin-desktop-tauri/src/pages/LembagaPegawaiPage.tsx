@@ -65,7 +65,6 @@ export default function LembagaPegawaiPage() {
   const { jenjangs } = useFilterGlobalAktif();
   const [cari, setCari] = useState('');
 
-  // Pilihan Tugas dari kamus referensi per lembaga (mengikuti filter global).
   const [tugasOpsi, setTugasOpsi] = useState<{ value: string; label: string }[]>([]);
   useEffect(() => {
     let hidup = true;
@@ -81,8 +80,6 @@ export default function LembagaPegawaiPage() {
     return () => { hidup = false; };
   }, [jenjangs]);
 
-  // Halaman ini tanpa pagination: kedua tabel memuat seluruh baris sekaligus
-  // (per_page=0) dan mengisi seluruh ruang vertikal panel masing-masing.
   const kiri = useDaftarTabel<Pegawai>({
     tableKey: 'pegawai_ringkas',
     search: cari,
@@ -112,9 +109,6 @@ export default function LembagaPegawaiPage() {
     deps: [jenjangs],
   });
 
-  // Panel kiri = antrean penempatan: sembunyikan pegawai yang sudah masuk ke
-  // lembaga pada filter global. Tanpa filter lembaga, tampil semua (lembaga
-  // tujuan = toggle lembaga topbar) agar penempatan rangkap tetap bisa dilakukan.
   const idSudahMasuk = useMemo(
     () => new Set(kanan.rows.map((r) => r.pegawai_id)),
     [kanan.rows],
@@ -128,7 +122,6 @@ export default function LembagaPegawaiPage() {
   const [busy, setBusy] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
-  // Lempatkan langsung tanpa dialog: lembaga diambil dari toggle topbar.
   const onTempatkan = useCallback(async (p: Pegawai) => {    if (jenjangs.length !== 1) {
       toast.error('Pilih satu lembaga di topbar untuk menempatkan pegawai.');
       return;
@@ -157,8 +150,7 @@ export default function LembagaPegawaiPage() {
   }, [kanan]);
 
   async function commitKanan(id: number, f: Record<string, string | null>) {
-    // Toggle Aktif memakai endpoint khusus agar server yang menata tgl_selesai,
-    // keaktifan TA berjalan, dan akses akun tertaut (nonaktifkan/aktifkan).
+
     if (f.aktif !== undefined) {
       if (f.aktif === 'ya') await aktifkanPenempatan(id);
       else await nonaktifkanPenempatan(id);
@@ -187,7 +179,6 @@ export default function LembagaPegawaiPage() {
     </>
   ), [canUbah, onTempatkan, jenjangs]);
 
-  // Input bulk: tempatkan semua pegawai tercentang sekaligus ke lembaga topbar.
   const renderBulkKiri = useCallback((tercentang: Pegawai[], clear: () => void) => {
     if (!canUbah || jenjangs.length !== 1) return null;
     return (
@@ -249,8 +240,6 @@ export default function LembagaPegawaiPage() {
     </>
   ), [canHapus, onHapus]);
 
-  // Bulk delete penempatan: baris tercentang dilaporkan via onCheckedChange,
-  // tombolnya hidup di hamburger aksi tabel kanan (setelah combobox Kolom).
   const [tercentangKanan, setTercentangKanan] = useState<LembagaPegawai[]>([]);
   const [bulkHapusOpen, setBulkHapusOpen] = useState(false);
   const [bulkHapusProses, setBulkHapusProses] = useState(false);
@@ -263,9 +252,7 @@ export default function LembagaPegawaiPage() {
         size="sm"
         variant="destructive"
         disabled={tercentangKanan.length === 0 || bulkHapusProses}
-        // Buka dialog async setelah menu hamburger tertutup: membuka AlertDialog
-        // sinkron dari onSelect dropdown membuat konflik fokus portal Radix
-        // (crash halaman blank).
+
         onClick={() => { setTimeout(() => setBulkHapusOpen(true), 0); }}
       >
         <Trash2 size={14} />

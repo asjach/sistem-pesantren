@@ -251,7 +251,7 @@ export default function DispensasiPage() {
       setDispensasi(dispen);
       setJenis(j);
       setDaftarTA(tas.data);
-      // Paket terpilih yang tersaring keluar ikut dilepas.
+
       setAktifId((id) => (id !== null && dispen.some((d) => d.id === id) ? id : null));
     } catch (e) {
       setErr(errorMessage(e));
@@ -266,8 +266,6 @@ export default function DispensasiPage() {
 
   useEffect(() => { void bacaPerPageGlobal().then((pp) => setPerPage(pp)); }, []);
 
-  /* Paket berkuota: muat pemakaian bulan per penerima supaya kolom "Sisa
-     Kuota" terisi. Tanpa kuota / tanpa penerima → kolomnya disembunyikan. */
   useEffect(() => {
     const ids = aktif?.santri_ids ?? [];
     const kuota = aktif?.kuota_bulan ?? null;
@@ -285,7 +283,6 @@ export default function DispensasiPage() {
     return () => { hidup = false; };
   }, [aktif]);
 
-  // Opsi kelas mengikuti lingkup topBar (pemetaan nama rail → id).
   useEffect(() => {
     let hidup = true;
     void (async () => {
@@ -297,9 +294,6 @@ export default function DispensasiPage() {
     return () => { hidup = false; };
   }, [jenjangs, tahunAjaranNames]);
 
-  /* Rekap dampak (crosstab): lingkup topBar (TA + jenjang) + paket yang sedang
-     dipilih. Gagal memuat → pesannya masuk ErrorNotice halaman (bukan panel
-     kosong yang menyamar "belum ada data"). */
   useEffect(() => {
     let hidup = true;
     setLoadingRekap(true);
@@ -327,7 +321,7 @@ export default function DispensasiPage() {
         semester: semesters,
         tingkat,
         kelas_id: kelasIds,
-        // `'semua'` dikirim apa adanya: absen ≠ semua bagi backend.
+
         is_active_pst: statusKandidat === 'semua' ? 'semua' : statusKandidat === 'aktif',
         q: q === '' ? undefined : q,
         sort: urut.length ? urut : undefined,
@@ -345,9 +339,6 @@ export default function DispensasiPage() {
     ? tokenUrut(uKandidat.urut, uKandidat.arahKolom)
     : [];
 
-  // Lingkup topBar / pencarian / urutan berubah → muat ulang dari halaman 1
-  // (tahan 250ms). Urutan ikut di-reset ke halaman 1 supaya tak ada halaman
-  // yang terlewat akibat basis urut yang bergeser.
   useEffect(() => {
     setPage(1);
     const t = setTimeout(() => { void muatKandidat(1, perPage, cari, sortKandidat); }, 250);
@@ -403,8 +394,7 @@ export default function DispensasiPage() {
 
   const mulaiGeser = (e: React.PointerEvent) => {
     geserRef.current = { x: e.clientX, w: lebarKiri };
-    // `currentTarget` (bukan `target`): pemisah punya anak (garis & knob),
-    // dan capture harus dipegang elemen pemisahnya sendiri.
+
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   };
   const selamaGeser = (e: React.PointerEvent) => {
@@ -431,18 +421,12 @@ export default function DispensasiPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman
-        /* Filter halaman ini: **Jenjang (lembaga) + Tahun Ajaran** tampil di
-           topBar, **tingkat & kelas** di rail tabel santri (lihat
-           `KONFIGURASI_FILTER_HALAMAN.keuangan_dispensasi`). Keempatnya
-           dipakai daftar SANTRI; daftar DISPENSASI sendiri tak disaring karena
-           paket tak terikat TA. */
+
         tampil={{ lembaga: true, tahun_ajaran: true, tingkat: true, kelas: true }}
         tabel={[
           { key: 'keuangan_dispensasi', judul: 'Daftar Dispensasi', fields: FIELDS_DISPENSASI },
           { key: 'keuangan_penerima_dispensasi', judul: 'Daftar Penerima Dispensasi', fields: FIELDS_PENERIMA },
-          // Daftar Santri ikut didaftarkan supaya kolomnya (termasuk Jenjang &
-          // Kelas) bisa diatur lewat Kelola Tabel — tanpa entri ini tabelnya
-          // tak punya pintu pengaturan kolom sama sekali.
+
           { key: 'dispensasi_kandidat', judul: 'Daftar Santri', fields: FIELDS_SANTRI },
         ]}
       />
@@ -457,14 +441,10 @@ export default function DispensasiPage() {
           <TabsTrigger value="rekap" id="disp_tab_rekap" className={KELAS_TRIGGER}>Rekap Dispensasi</TabsTrigger>
         </TabsList>
 
-        {/* Panel tab Kelola: dua kolom (daftar + penerima) berikut gagang
-            gesernya. Pencarian topBar hidup di dalam panel ini karena
-            menyaring dua tabel santri di sini, bukan rekap. */}
         <TabsContent value="kelola" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <div className="flex min-h-0 flex-1">
             <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIS…" />
 
-            {/* Kiri (bawaan 500px, bisa digeser): tabel dispensasi + daftar santri. */}
             <div style={{ width: lebarKiri }} className="flex min-h-0 shrink-0 flex-col gap-2">
               <div
                 ref={atasRef}
@@ -483,9 +463,6 @@ export default function DispensasiPage() {
                 />
               </div>
 
-              {/* Gagang geser tinggi tabel dispensasi vs daftar santri —
-                  memakai `PemisahGeser` agar gayanya sama dengan pemisah
-                  `ResizablePanelGroup` di halaman lain. */}
               <PemisahGeser
                 id="gagang_tabel_dispensasi"
                 orientation="vertical"
@@ -579,7 +556,6 @@ export default function DispensasiPage() {
               </div>
             </div>
 
-            {/* Gagang geser antar panel — standar `PemisahGeser`. */}
             <PemisahGeser
               id="gagang_dispensasi"
               orientation="horizontal"
@@ -591,7 +567,6 @@ export default function DispensasiPage() {
               onPointerCancel={selesaiGeser}
             />
 
-            {/* Kanan: kartu informasi paket terpilih + daftar penerimanya. */}
             <div className="flex min-h-0 flex-1 flex-col gap-2">
               {aktif === null ? (
                 <p className="grid flex-1 place-items-center text-sm text-muted-foreground">
@@ -599,8 +574,7 @@ export default function DispensasiPage() {
                 </p>
               ) : (
                 <>
-                  {/* Kartu info paket terpilih — ditaruh di ATAS tabel penerima
-                      supaya daftar santrinya tetap terlihat di bawah. */}
+
                   <KartuDispensasiTerpilih d={aktif} jumlahPenerima={penerima.length} />
                   <div className="flex min-h-0 flex-1 flex-col">
                     <PenerimaDispensasiPanel
@@ -621,12 +595,6 @@ export default function DispensasiPage() {
           </div>
         </TabsContent>
 
-        {/* Tab Rekap: crosstab dampak — baris = paket (× lembaga × TA), kolom =
-            jenis tagihan, sel = total potongan paket di jenis itu. Lebih ringkas
-            dari tabel panjang: sebaran satu paket ke semua jenisnya terbaca
-            dalam satu baris pandang. Angkanya dari baris TAGIHAN, jadi paket
-            berlingkup lembaga lain pun ketahuan; pemilih paketnya mewarisi
-            pilihan di tab Kelola. */}
         <TabsContent value="rekap" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
           <div className="flex flex-wrap items-center gap-3">
             <span id="judul_rekap_dispensasi" tabIndex={-1} className="text-sm font-semibold focus:outline-none">

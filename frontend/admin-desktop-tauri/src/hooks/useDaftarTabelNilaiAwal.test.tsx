@@ -6,8 +6,6 @@ import { renderDenganTema } from '@/test/utils';
 import { muatKomponenCustom } from '@/api/komponenCustom';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
 
-/* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
-   menyemai setelan lewat store klien tanpa jaringan. */
 vi.mock('@/api/komponenCustom', () => ({
   muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
   simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
@@ -70,7 +68,7 @@ function Harness({ dicatat }: { dicatat: (urut: string[]) => void }) {
 
 describe('useDaftarTabel + PresetUrut — nilai awal dari popover', () => {
   it('muat terakhir memakai urutan nilai awal', async () => {
-    // Server sudah menyimpan nilai awal; komponen memuatnya sekali saat tampil.
+
     vi.mocked(muatKomponenCustom).mockResolvedValueOnce({
       pesan: 'ok',
       data: { peta: { '|select_urut_uji_int': { nilaiDefault: 'Kelas' } } },
@@ -79,11 +77,9 @@ describe('useDaftarTabel + PresetUrut — nilai awal dari popover', () => {
     renderDenganTema(<Harness dicatat={(u) => calls.push(u)} />);
 
     await waitFor(() => expect(calls.length).toBeGreaterThan(0));
-    // Beri waktu semua efek/async selesai supaya terlihat request TERAKHIR.
+
     await new Promise((r) => setTimeout(r, 300));
 
-    // Default diterapkan, dan muat ulang sesudahnya TIDAK boleh menimpanya
-    // dengan urutan kosong (dulu: muat terakhir = [] sehingga tabel tak urut).
     expect(calls).toContainEqual(['kelas']);
     expect(calls[calls.length - 1]).toEqual(['kelas']);
   });

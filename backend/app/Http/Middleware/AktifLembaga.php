@@ -19,7 +19,7 @@ class AktifLembaga
 
     public function handle(Request $request, Closure $next): Response
     {
-        // Selalu mulai dari mode penuh; konteks hanya diisi bila header valid.
+
         $this->konteks->lupakan();
 
         $user = $request->user();

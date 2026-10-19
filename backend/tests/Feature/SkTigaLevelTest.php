@@ -43,7 +43,6 @@ class SkTigaLevelTest extends TestCase
         TahunAjaran::create(['nama' => '2026/2027', 'is_aktif' => true]);
         $auth = $this->superAdmin();
 
-        // Level 1: SK awal pegawai (global).
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai', [
             'nama_lengkap' => 'Guru SK',
             'jenis_kelamin' => 'L',
@@ -54,11 +53,9 @@ class SkTigaLevelTest extends TestCase
         $pegawaiId = $res->json('data.id');
         $this->assertSame('SK/001/2010', Pegawai::find($pegawaiId)->no_sk_awal);
 
-        // Cari via nomor SK.
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai?q=SK/001')
             ->assertOk()->assertJsonFragment(['no_sk_awal' => 'SK/001/2010']);
 
-        // Level 2: SK awal PTK per jenjang.
         foreach (['MI', 'MTs'] as $jenjang) {
             $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai/{$pegawaiId}/tempatkan", [
                 'jenjang' => $jenjang,
@@ -72,7 +69,6 @@ class SkTigaLevelTest extends TestCase
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai-lembaga?q=SK-PTK/MI')
             ->assertOk()->assertJsonFragment(['no_sk_awal_ptk' => 'SK-PTK/MI/2012']);
 
-        // Level 3: SK tahunan — satu fisik SK untuk 2 lembaga (nomor sama).
         foreach (['MI', 'MTs'] as $jenjang) {
             $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai-keaktifan', [
                 'pegawai_id' => $pegawaiId,
@@ -86,7 +82,6 @@ class SkTigaLevelTest extends TestCase
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai-keaktifan?q=SK-TA/2026')
             ->assertOk()->assertJsonFragment(['no_sk' => 'SK-TA/2026/001']);
 
-        // Update salah satu baris tanpa kirim SK → SK lama dipertahankan.
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai-keaktifan', [
             'pegawai_id' => $pegawaiId,
             'jenjang' => 'MI',

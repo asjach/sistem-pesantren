@@ -27,7 +27,6 @@ export interface Paginate<T> {
   total: number;
 }
 
-// Pagination bawaan tabel: PER_PAGE_DEFAULT (lihat prefs.ts).
 export function listUsers(params: { search?: string; role?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {}) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
@@ -77,8 +76,7 @@ export function attachLembaga(userId: number, jenjang: string, role?: string | n
 export function detachLembaga(userId: number, jenjang: string, role?: string | null) {
   return api<{ message: string; user: AdminUser }>(`/admin/users/${userId}/lembaga`, {
     method: 'DELETE',
-    // role undefined = lepas semua baris jenjang itu; null = hanya baris warisan.
+
     body: JSON.stringify(role === undefined ? { jenjang } : { jenjang, role }),
   });
 }
-

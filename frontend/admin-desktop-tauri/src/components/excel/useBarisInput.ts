@@ -85,7 +85,7 @@ export function useBarisInput({
     if (!onCreateRow) return;
     const { flds, kurang, pesan, valid } = periksaInput();
     if (!valid) {
-      // Kolom wajib belum lengkap → tidak ada yang disimpan.
+
       if (pesan) toast.error(pesan);
       else toast.error('Kolom wajib harus diisi terlebih dahulu.', { description: kurang.join(', ') });
       return;
@@ -93,7 +93,7 @@ export function useBarisInput({
     try {
       await onCreateRow(flds);
       inputDraftRef.current = {};
-      // Kursor pindah ke baris bawah (baris input) setelah data dimuat.
+
       pindahKeInputRef.current = true;
       setDrafts((prev) => {
         if (!(INPUT_ROW_ID in prev)) return prev;

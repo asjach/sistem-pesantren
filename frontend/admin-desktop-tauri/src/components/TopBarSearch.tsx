@@ -54,7 +54,7 @@ export function TopBarSearch({
     return () => setAda(false);
   }, [setAda]);
   const { nilai: cariGlobal, ubah: ubahGlobal } = useCariGlobal();
-  // Adopsi sekali per pemasangan (StrictMode: ref direset saat remount,
+
   // tapi value sudah sama dengan global sehingga no-op).
   const adopsiRef = useRef(false);
   useEffect(() => {
@@ -68,7 +68,6 @@ export function TopBarSearch({
     onChange(v);
   };
 
-  // Pintasan Ctrl/⌘+K memfokuskan pencarian topbar (ala Gr8r).
   useEffect(() => {
     const fokus = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {

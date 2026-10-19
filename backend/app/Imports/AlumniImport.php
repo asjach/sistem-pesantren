@@ -46,7 +46,7 @@ class AlumniImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, 
 
     public function onUnknownSheet(string|int $sheetName): void
     {
-        // Sheet tambahan diabaikan.
+
     }
 
     /** @return array<string, mixed> */
@@ -62,8 +62,7 @@ class AlumniImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, 
             'nis_lokal' => ['required'],
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
             'tahun_ajaran_lulus' => ['required', 'string', 'exists:tahun_ajaran,nama'],
-            // Tanggal boleh kosong (arsip historis → NULL); tanpa rule `date`
-            // karena serial Excel gagal rule itu — dicek di service.
+
             'tanggal_lulus' => ['nullable'],
             'kelas_lulus' => ['nullable'],
             'nomor_ijazah' => ['nullable', 'string', 'max:255'],

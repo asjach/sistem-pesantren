@@ -17,14 +17,14 @@ export async function copyText(text: string): Promise<boolean> {
       await writeText(text);
       return true;
     } catch {
-      /* lanjut fallback web */
+
     }
   }
   try {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    /* lanjut fallback */
+
   }
   try {
     const ta = document.createElement('textarea');
@@ -67,12 +67,12 @@ export function tulisPolosSinkron(e: ClipboardEvent, teks: string): void {
   try {
     e.clipboardData?.setData('text/plain', teks);
   } catch {
-    /* abaikan — tulis ulang via plugin di bawah */
+
   }
   try {
     e.clipboardData?.setData('text/html', teksKeHtmlPolos(teks));
   } catch {
-    /* abaikan — plain sudah cukup */
+
   }
 }
 
@@ -88,8 +88,7 @@ export function tulisPolosSinkron(e: ClipboardEvent, teks: string): void {
 export function pasangPenyalinPolosDesktop(): () => void {
   if (lepasPenyalinGlobal) return lepasPenyalinGlobal;
   function saatSalinGlobal(e: ClipboardEvent) {
-    // Cek di dalam handler (bukan saat pasang): internal Tauri bisa belum
-    // tersedia saat App pertama di-mount sehingga listener tak terpasang.
+
     if (!isTauri()) return;
     if (e.defaultPrevented) return;
     const t = e.target as HTMLElement | null;
@@ -111,8 +110,7 @@ export function pasangPenyalinPolosDesktop(): () => void {
     const teks = sel.toString();
     if (!teks) return;
     e.preventDefault();
-    // Tahan handler lain di fase yang sama + cegah DSG (bubble di document)
-    // menimpa clipboard dengan data sel basi + `text/html`-nya.
+
     e.stopPropagation();
     if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
     tulisPolosSinkron(e, teks);
@@ -133,6 +131,4 @@ export function pasangPenyalinPolosDesktop(): () => void {
   return lepas;
 }
 
-// Daftarkan sekali di lingkup modul (bukan useEffect): efek App tidak jalan
-// ulang saat HMR sehingga jendela dev lama tetap memakai handler basi.
 if (typeof document !== 'undefined') pasangPenyalinPolosDesktop();

@@ -5,8 +5,6 @@ import { renderDenganTema } from '@/test/utils';
 import { muatKomponenCustom } from '@/api/komponenCustom';
 import { resetSetelanKomponen, simpanSetelanKomponen } from '@/components/komponenCustom';
 
-/* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
-   menyemai setelan lewat store klien tanpa jaringan. */
 vi.mock('@/api/komponenCustom', () => ({
   muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
   simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
@@ -17,8 +15,6 @@ beforeEach(() => {
   resetSetelanKomponen();
 });
 import type { ExcelField } from './ExcelTable';
-
-// ---- Mock API preset (unit test tidak boleh memanggil fetch nyata) ----
 
 const { muatUrutPreset, listPresetTabel } = vi.hoisted(() => ({
   muatUrutPreset: vi.fn((..._a: unknown[]): Promise<unknown> => Promise.resolve({
@@ -99,7 +95,7 @@ describe('dropdown Urutkan — tampil hanya bila pilihan > 1', () => {
 describe('dropdown Urutkan — nilai awal dari popover', () => {
   it('menerapkan nilai awal saat preset termuat (bukan hanya tampilannya)', async () => {
     const tableKey = `uji_awal_${Date.now()}`;
-    // Server sudah menyimpan nilai awal; komponen memuatnya sekali saat tampil.
+
     vi.mocked(muatKomponenCustom).mockResolvedValueOnce({
       pesan: 'ok',
       data: { peta: { [`|select_urut_${tableKey}`]: { nilaiDefault: 'Kelas' } } },
@@ -131,12 +127,9 @@ describe('dropdown Urutkan — nilai awal dari popover', () => {
     });
     renderDenganTema(<PresetUrut tableKey={tableKey} urutAktif={[]} arahUrut="naik" onUrut={onUrut} />);
 
-    // Preset (isi dropdown) termuat dulu — di app nyata ini memicu re-render
-    // dengan identitas `value` baru (opsiItem dibangun ulang tiap render).
     await waitFor(() => expect(muatUrutPreset).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 50));
 
-    // BARU nilai awal datang dari server (async di app nyata).
     simpanSetelanKomponen('', `select_urut_${tableKey}`, { nilaiDefault: 'Kelas' });
 
     await waitFor(() => expect(onUrut).toHaveBeenCalledWith(['b'], 'naik', undefined));
@@ -189,7 +182,7 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
 
   it('menerapkan nilai awal saat preset termuat (bukan hanya tampilannya)', async () => {
     const tableKey = `uji_kolom_${Date.now()}`;
-    // Server sudah menyimpan nilai awal; komponen memuatnya sekali saat tampil.
+
     vi.mocked(muatKomponenCustom).mockResolvedValueOnce({
       pesan: 'ok',
       data: { peta: { [`|select_preset_kolom_${tableKey}`]: { nilaiDefault: 'Ringkas' } } },
@@ -198,7 +191,6 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
     presetDua();
     renderDenganTema(<PresetKolom tableKey={tableKey} fields={FIELDS} onApply={onApply} />);
 
-    // Nilai awal = preset "Ringkas" (id 7), bukan "Lengkap" (id 9).
     await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], 7));
   });
 
@@ -211,7 +203,6 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
     await waitFor(() => expect(listPresetTabel).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 50));
 
-    // BARU nilai awal datang dari server (async di app nyata).
     simpanSetelanKomponen('', `select_preset_kolom_${tableKey}`, { nilaiDefault: 'Ringkas' });
 
     await waitFor(() => expect(onApply).toHaveBeenCalledWith(['a'], 7));
@@ -234,7 +225,7 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
       data: { peta: { [`|select_preset_kolom_${tableKey}`]: { nilaiDefault: 'Lengkap' } } },
     });
     const onApply = vi.fn();
-    // Preset aktif tersimpan = "Ringkas" (id 7); nilai awal = "Lengkap" (id 9).
+
     listPresetTabel.mockResolvedValue({
       pesan: 'ok',
       data: {
@@ -249,7 +240,6 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
     });
     renderDenganTema(<PresetKolom tableKey={tableKey} fields={FIELDS} onApply={onApply} />);
 
-    // Penerapan TERAKHIR harus preset nilai awal (9), bukan preset aktif (7).
     await waitFor(() => expect(onApply).toHaveBeenLastCalledWith(['a'], 9));
   });
 
@@ -264,7 +254,6 @@ describe('dropdown Kolom — nilai awal dari popover', () => {
     renderDenganTema(<PresetKolom tableKey={tableKey} fields={FIELDS} onApply={onApply} />);
     await waitFor(() => expect(onApply).toHaveBeenCalled());
 
-    // Pengguna mengganti nilai awal lewat popover klik-kanan → berlaku seketika.
     simpanSetelanKomponen('', `select_preset_kolom_${tableKey}`, { nilaiDefault: 'Ringkas' });
 
     await waitFor(() => expect(onApply).toHaveBeenLastCalledWith(['a'], 7));

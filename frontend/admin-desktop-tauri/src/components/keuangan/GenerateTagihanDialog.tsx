@@ -38,11 +38,10 @@ const OPSI_KELOMPOK: { value: KelompokKandidat | ''; label: string; keterangan?:
   { value: 'mi_saja', label: 'MI Saja (tanpa MD)', keterangan: 'Santri yang aktif di MI Saja' },
   { value: 'md_saja', label: 'MD Saja (tanpa MI)', keterangan: 'Santri yang aktif di MD Saja' },
   { value: 'mi_md', label: 'MI-MD', keterangan: 'Santri yang aktif di MI sekaligus MD' },
-  /* Keterangan dua terbawah dinamis (tingkat akhir mengikuti filter lembaga
-     topBar) — diisi `opsiKelompok` di dalam komponen. */
+
   { value: 'kelas_akhir', label: 'Kelas Akhir' },
   { value: 'selain_kelas_akhir', label: 'Selain Kelas Akhir' },
-  /* Anggota grup santri custom pilihan (daftar dari tab Santri Custom). */
+
   { value: 'custom', label: 'Custom', keterangan: 'Anggota grup custom pilihan' },
 ];
 
@@ -101,7 +100,7 @@ const FIELDS_TERPILIH: ExcelField[] = [
   { key: 'mode', label: 'Mode', kind: 'static', width: 80 },
   {
     key: 'rincian', label: 'Rincian Bulan', kind: 'static', width: 220,
-    // Teks sel kerap terpotong lebar kolom → detail lengkapnya di kartu hover.
+
     kartuHover: (row) => {
       const periode = (row as unknown as BarisTerpilih).periode;
       return periode === null || periode === undefined
@@ -307,7 +306,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     nilai: String(g.id),
   })), [daftarGrup]);
 
-  // Kelompok = custom → muat daftar grup lingkup topBar untuk combobox kedua.
   useEffect(() => {
     if (!open || kelompok !== 'custom') return;
     let hidup = true;
@@ -337,9 +335,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
    *  terpilih sehingga ikut terisi di input. */
   const opsiTarif = useMemo(
     () => daftarTarifPilih.map((t) => ({
-      /* `label` dipakai Base UI untuk pencarian & nilai terpilih, jadi ia tetap
-         memuat seluruh teks agar ketikan "MI" / "Infaq" / nominal tetap
-         menemukan baris ini. `keterangan` hanya tampilan. */
+
       label: `${t.jenjang} · ${t.jenis?.nama ?? t.jenis_id} · Rp ${t.nominal.toLocaleString('id')}`,
       nama: `${t.jenjang} · ${t.jenis?.nama ?? t.jenis_id}`,
       keterangan: `Rp ${t.nominal.toLocaleString('id')} · ${t.tahun_ajaran}`,
@@ -361,7 +357,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     [opsiJenisBaru],
   );
 
-  // Buka dialog: bersihkan pilihan; isi default periode setahun dari TA.
   useEffect(() => {
     if (!open) return;
     setTerpilih([]); setCari(''); setKelompok(''); setGrupCustomId(''); setDaftarGrup([]);
@@ -374,14 +369,11 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     else { setPeriodeDari(''); setPeriodeSampai(''); }
   }, [open, tahunAjaran]);
 
-  // Kriteria diubah → hasil lama basi (kembali ke mode susun).
-  // Aman dari loop: setHasil(null) saat sudah null tidak me-render ulang.
   useEffect(() => {
     if (!open) return;
     setHasil(null);
   }, [open, terpilih, jenisId, nominalDefault, periodeDari, periodeSampai, jatuhTempo, tarifId, kelompok, grupCustomId]);
 
-  // Validasi gagal → fokus pindah ke ringkasan galat (sekali per perubahan).
   const galatKunci = galat.map((g) => g.pesan).join('|');
   useEffect(() => {
     if (galat.length === 0) return;
@@ -395,7 +387,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [galatDaftarKunci]);
 
-  // Generate selesai → fokus pindah ke judul hasil.
   useEffect(() => {
     if (hasil === null) return;
     setTimeout(() => document.getElementById('judul_hasil_gen')?.focus(), 0);
@@ -427,8 +418,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         || r.nama_lengkap.toLowerCase().includes(q)
         || (r.nisn ?? '').toLowerCase().includes(q)
         || (r.nis_lokal ?? '').toLowerCase().includes(q)));
-    /* Urut tetap: Nama = kelas A-Z lalu nama A-Z; Keaktifan = aktif dulu
-       lalu sama seperti Nama. Tanpa tombol arah. */
+
     const kunciKelas = (k: string | null) => (k === null ? '￿' : k);
     const bandingNama = (a: BarisTerpilih, b: BarisTerpilih) =>
       kunciKelas(a.kelas).localeCompare(kunciKelas(b.kelas), 'id')
@@ -438,8 +428,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
       rows.sort(bandingNama);
       return rows;
     }
-    // Urut berjenjang mengikuti kode kolom dari PresetUrut; nilai dibandingkan
-    // sebagai teks supaya kunci apa pun (nama, kelas, status) aman.
+
     const nilaiKolom = (r: BarisTerpilih, k: string): string => {
       if (k === 'nama') return r.nama_lengkap;
       if (k === 'kelas') return [r.tingkat, r.kelas].filter(Boolean).join(' / ');
@@ -474,8 +463,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
   santriAutoRef.current = santriAuto;
 
   const nominalAngkaDefault = Number(nominalDefault);
-  // Field kosong bukan 0: jangan minta pratinjau (dan jangan tampilkan
-  // potongan) sebelum nominalnya diisi.
+
   const pratinjauSiap = jenisId !== '' && tahunAjaran !== null && nominalDefault.trim() !== ''
     && Number.isInteger(nominalAngkaDefault) && nominalAngkaDefault >= 0
     && (!bulanan || hitungJumlahPeriode(periodeDari, periodeSampai) > 0);
@@ -530,9 +518,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     };
   }, [pratinjau]);
 
-  // Nominal default / dispensasi berubah → baris otomatis dihitung ulang.
-  // Hanya baris yang nilainya berubah diganti (identitas dipertahankan)
-  // agar tabel tak me-reset status edit tiap putaran.
   useEffect(() => {
     if (!open) return;
     setTerpilih((rows) => {
@@ -551,9 +536,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     });
   }, [open, nominalDefault, susunBaris]);
 
-  /* Akses stabil ke penyusun & nominal terkini untuk penggabung di bawah:
-     keduanya berubah tiap pratinjau/ketikan, tapi muat-ulang server hanya
-     boleh dipicu kriteria (buka/kelompok/jenis/periode) — bukan tiap hasilnya. */
   const susunRef = useRef(susunBaris);
   susunRef.current = susunBaris;
   const nominalDefaultRef = useRef(nominalDefault);
@@ -570,9 +552,9 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     const ac = new AbortController();
     kandidatAbort.current = ac;
     if (!open || tahunAjaran === null) { setLoading(false); return; }
-    // Belum pilih kelompok → daftar kosong, tanpa request.
+
     if (kelompok === '') { setTerpilih([]); setLoading(false); return; }
-    // Custom tanpa grup terpilih → daftar kosong, tanpa request.
+
     if (kelompok === 'custom' && grupCustomId === '') { setTerpilih([]); setLoading(false); return; }
     setErr(''); setLoading(true);
     try {
@@ -608,7 +590,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     }
   }, [open, tahunAjaran, kelompok, grupCustomId, jenisId, bulanan, periodeDari, periodeSampai]);
 
-  // Buka dialog / kriteria berubah → muat ulang (tahan 250ms).
   useEffect(() => {
     if (!open) return;
     setLoading(true);
@@ -702,8 +683,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
   /** Validasi siap-generate (dipakai tombol Generate & eksekusi). */
   const siapGenerate = (): boolean => {
-    // Layar tunggal: kriteria & daftar berdampingan, jadi galat ditampilkan
-    // apa adanya tanpa memindahkan layar.
+
     const g = validasiKriteria();
     if (g.length > 0) { setGalat(g); return false; }
     if (kelompok === '') {
@@ -731,8 +711,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
   /** Tombol Generate: lolos validasi → tampilkan panel konfirmasi. */
   const mintaKonfirmasi = () => {
-    // Gagal validasi: cukup kembalikan galat — masing-masing RingkasanGalat
-    // sudah memindahkan fokus ke dirinya lewat efeknya sendiri.
+
     if (!siapGenerate()) return;
     setKonfirmasi(true);
     setTimeout(() => document.getElementById('judul_konfirmasi_gen')?.focus(), 0);
@@ -743,8 +722,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
     const santri: { santri_id: number; nominal?: number }[] = [];
     for (const r of terpilih) {
-      // Baris otomatis: nominal dihitung backend (termasuk dispensasi);
-      // baris hasil edit manual dikirim apa adanya (dispensasi tidak diterapkan).
+
       if (!r.nominalManual) { santri.push({ santri_id: r.santri_id }); continue; }
       santri.push({ santri_id: r.santri_id, nominal: Number(r.nominal) });
     }
@@ -758,8 +736,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         periode_sampai: bulanan ? (periodeSampai || null) : null,
         jatuh_tempo: jatuhTempo || null, nominal, santri,
       });
-      // Hasil tampil persisten di panel (bukan cuma toast) — nama santri
-      // disalin saat ini agar tetap benar walau daftar diubah sesudahnya.
+
       const nama = new Map(terpilih.map((x) => [x.santri_id, x.nama_lengkap]));
       setKonfirmasi(false);
       setHasil({
@@ -877,8 +854,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
           <>
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-3">
-                {/* Konfirmasi ringkas: satu paragraf + tombol. Rekap angka tak
-                    diulang karena footer sudah menampilkannya. */}
+
                 {konfirmasi ? (
                 <div className="flex flex-col gap-3">
                   <h3 id="judul_konfirmasi_gen" tabIndex={-1} className="text-sm font-semibold focus:outline-none">Konfirmasi Generate</h3>
@@ -890,8 +866,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     Tagihan yang sudah ada tidak diduplikasi: yang nominalnya sama tetap, yang berubah diperbarui, yang tak layak dilewati beserta sebabnya.
                     {hitungManual > 0 ? ` ${hitungManual} baris memakai nominal manual (dispensasi tak diterapkan).` : ''}
                   </p>
-                  {/* Rekap angka ikut ke popup konfirmasi supaya angka yang
-                      disetujui terbaca tepat di sebelah tombolnya. */}
+
                   <p id="rekap_konfirmasi_gen" className="text-sm text-muted-foreground">
                     {terpilih.length} santri × {jumlahPeriode} bulan = {ringkasan.baris} tagihan · estimasi Rp {ringkasan.total.toLocaleString('id')}
                   </p>
@@ -900,11 +875,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                 <>
                   <RingkasanGalat id="ringkas_galat_gen" daftar={galat} />
 
-              {/* Empat kartu sejajar: (1) tarif & nominal, (2) periode &
-                  jatuh tempo, (3) kelompok santri, (4) generate. */}
               <div className="flex flex-wrap items-stretch gap-3">
 
-                {/* -- Kartu 1: Tarif + Nominal -- */}
                 <Card className="flex h-[136px] w-[240px] shrink-0 flex-col gap-2 p-2">
                   <div className="flex items-start justify-between gap-2">
                     <LangkahNomor n={1} judul="Tarif" />
@@ -989,11 +961,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     <ComboboxRoot
                       items={opsiTarif}
                       autoHighlight
-                      /* Base UI memakai prop ini untuk DUA hal: teks kotak
-                         input DAN kunci penyaringan — jadi keduanya tak bisa
-                         dibedakan. Dipilih NAMA saja: kotak bersih, pencarian
-                         cukup pada nama tarif. Keterangan (nominal, tahun)
-                         hanya tampil di baris kedua tiap item. */
+
                       itemToStringLabel={(o) => o.nama}
                       isItemEqualToValue={(a, b) => a.nilai === b.nilai}
                       value={opsiTarif.find((o) => o.nilai === String(tarifId)) ?? null}
@@ -1034,20 +1002,16 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
                 {tarifId === '' ? (
                 <>
-                  {/* Kartu 2 & 3 belum bisa diisi (periode & kelompok
-                      bergantung pada tarif), jadi ruangnya ditandai kerangka
-                      — bukan dibiarkan kosong. Ukurannya SAMA dengan kartu
-                      asli (lebar tiap kartu, tinggi 136px). */}
+
                   <KartuKerangka lebar={300} tinggi={136} baris={[26, 26, 26, 16]} />
                   <KartuKerangka lebar={300} tinggi={136} baris={[26, 26, 26, 16]} />
                 </>
                 ) : (
                 <>
-                {/* -- Kartu 2: Periode + Jatuh Tempo -- */}
+
                 <Card className="flex h-[136px] w-[300px] shrink-0 flex-col gap-2 p-2">
                   <LangkahNomor n={2} judul="Periode & Jatuh Tempo" />
-                  {/* Periode. Bulanan = dua baris (Awal / Akhir) bertumpuk;
-                      non-bulanan = satu baris keterangan. Slot yang sama. */}
+
                   {bulanan ? (
                     <div className="flex items-center gap-1">
                       <LabeledInput
@@ -1082,8 +1046,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                       kelolaLebar={false} className="w-full"
                     />
                   )}
-                  {/* Baris 2: Jatuh Tempo. Bulanan = otomatis (mati); non-bulanan
-                      = bisa diisi. Slot sama, kontrol bergantian. */}
+
                   <LabeledInput
                     label="Jatuh Tempo"
                     lebarLabel={56} tinggi={26}
@@ -1097,7 +1060,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                   />
                 </Card>
 
-                {/* -- Kartu 3: Kelompok Santri -- */}
                 <Card className="flex h-[136px] w-[300px] shrink-0 flex-col gap-2 p-2">
                   <LangkahNomor n={3} judul="Kelompok Santri" />
                   <LabeledCombobox label="Kelompok" htmlFor="sel_gen_kelompok" tinggi={26} kelolaLebar={false} className="w-full">
@@ -1125,8 +1087,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                       </ComboboxContent>
                     </ComboboxRoot>
                   </LabeledCombobox>
-                  {/* Custom → combobox kedua: pilih grupnya; daftar santri
-                      dimuat dari anggotanya. */}
+
                   {kelompok === 'custom' && (
                     <LabeledCombobox label="Grup" htmlFor="sel_gen_grup_custom" tinggi={26} kelolaLebar={false} className="w-full">
                       <ComboboxRoot
@@ -1161,8 +1122,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                 )}
 
                 {kelompok === '' ? (
-                /* Kartu 4 menunggu kelompok dipilih; kerangka lebarnya sama
-                   (120px) supaya tata letak tidak melompat saat muncul. */
+
                 <KartuKerangka lebar={120} tinggi={136} baris={[26, 26, 16]} />
                 ) : (
                 <Card className="flex h-[136px] w-[120px] shrink-0 flex-col gap-2 p-2">

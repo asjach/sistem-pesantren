@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Ubah kamus referensi: nilai murni per lembaga; super_admin menambah ke
-// semua lembaga sekaligus (fan-out, tanpa baris global).
 class ReferensiCrudTest extends TestCase
 {
     use RefreshDatabase;
@@ -70,8 +68,6 @@ class ReferensiCrudTest extends TestCase
         return array_map(fn ($r) => $r->nama ?? $r->kode, RefService::effective($tipe, $lembagaId));
     }
 
-    // ---------- 1. admin ubah baris kamus lembaganya ----------
-
     public function test_01_admin_dapat_mengubah_nama_dan_urutan_baris_lembaga(): void
     {
         $f = $this->fixture();
@@ -92,8 +88,6 @@ class ReferensiCrudTest extends TestCase
         $this->assertNotContains('Memancing', $this->namaEfektif('hobi', $f['mi']->jenjang));
     }
 
-    // ---------- 2. super_admin menambah ke semua lembaga (fan-out) ----------
-
     public function test_02_super_admin_sebar_ke_semua_lembaga(): void
     {
         $f = $this->fixture();
@@ -105,7 +99,6 @@ class ReferensiCrudTest extends TestCase
         ])->assertStatus(201);
         $this->assertCount(3, $res->json('data'));
 
-        // Tiap lembaga punya barisnya; tanpa sisa global.
         $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['mi']->jenjang, 'nama' => 'Sebar Hobi']);
         $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['md']->jenjang, 'nama' => 'Sebar Hobi']);
         $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['mts']->jenjang, 'nama' => 'Sebar Hobi']);
@@ -113,7 +106,6 @@ class ReferensiCrudTest extends TestCase
         $this->assertContains('Sebar Hobi', $this->namaEfektif('hobi', $f['mi']->jenjang));
         $this->assertContains('Sebar Hobi', $this->namaEfektif('hobi', $f['md']->jenjang));
 
-        // Admin MI boleh ubah miliknya; milik MD tidak tersentuh.
         $idMi = (int) DB::table('ref_hobi')
             ->where('jenjang', $f['mi']->jenjang)->where('nama', 'Sebar Hobi')->value('id');
         $this->actingAs($adminMi, 'sanctum')
@@ -122,7 +114,6 @@ class ReferensiCrudTest extends TestCase
         $this->assertContains('Hobi MI', $this->namaEfektif('hobi', $f['mi']->jenjang));
         $this->assertContains('Sebar Hobi', $this->namaEfektif('hobi', $f['md']->jenjang));
 
-        // Sebar ulang nilai yang sudah ada di semua lembaga → 422.
         $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
             'nama' => 'Hobi MI', 'jenjang' => $f['md']->jenjang,
         ])->assertStatus(201);
@@ -133,8 +124,6 @@ class ReferensiCrudTest extends TestCase
             'nama' => 'Hobi MI',
         ])->assertStatus(422);
     }
-
-    // ---------- 4. admin lembaga lain ditolak ----------
 
     public function test_04_admin_lembaga_lain_tidak_dapat_mengubah(): void
     {
@@ -150,8 +139,6 @@ class ReferensiCrudTest extends TestCase
             ->putJson("/api/admin/referensi/hobi/{$id}", ['nama' => 'Hobi MD'])
             ->assertStatus(200);
     }
-
-    // ---------- 5. nama duplikat di scope sama ditolak ----------
 
     public function test_05_nama_duplikat_ditolak_422(): void
     {
@@ -169,8 +156,6 @@ class ReferensiCrudTest extends TestCase
             ->putJson("/api/admin/referensi/hobi/{$a}", ['nama' => 'Hobi B'])
             ->assertStatus(422);
     }
-
-    // ---------- 6. status: nama/urutan berubah, kode tetap ----------
 
     public function test_06_status_hanya_nama_dan_urutan(): void
     {
@@ -192,8 +177,6 @@ class ReferensiCrudTest extends TestCase
         ]);
     }
 
-    // ---------- 7. ubah satu lembaga tak mengganggu lainnya (cache) ----------
-
     public function test_07_ubah_satu_lembaga_tak_mengganggu_lainnya(): void
     {
         $f = $this->fixture();
@@ -205,7 +188,6 @@ class ReferensiCrudTest extends TestCase
         $idMi = (int) DB::table('ref_hobi')
             ->where('jenjang', $f['mi']->jenjang)->where('nama', 'Hobi Awal')->value('id');
 
-        // Prime cache per-lembaga MI.
         $this->assertContains('Hobi Awal', $this->namaEfektif('hobi', $f['mi']->jenjang));
 
         $this->actingAs($super, 'sanctum')
@@ -215,10 +197,9 @@ class ReferensiCrudTest extends TestCase
         $efektif = $this->namaEfektif('hobi', $f['mi']->jenjang);
         $this->assertContains('Hobi Baru', $efektif);
         $this->assertNotContains('Hobi Awal', $efektif);
-        // MD tetap memegang nilai lama.
+
         $this->assertContains('Hobi Awal', $this->namaEfektif('hobi', $f['md']->jenjang));
 
-        // Alamat per lembaga ikut pola yang sama (tanpa global).
         DB::table('ref_alamat')->insert([
             'jenjang' => $f['mi']->jenjang, 'nama' => 'Alamat Awal', 'urutan' => 0, 'is_active' => true,
         ]);
@@ -227,24 +208,20 @@ class ReferensiCrudTest extends TestCase
         $this->assertSame([], array_map(fn ($r) => $r->nama, RefService::effectiveAlamat($f['md']->jenjang)));
     }
 
-    // ---------- 8. urut tampil: urutan ASC, tie-break nama ASC ----------
-
     public function test_08_urut_tampil_urutan_lalu_nama(): void
     {
         $f = $this->fixture();
 
-        // Tiga baris urutan sama (default 0) → urut nama ASC; urutan lebih awal menang.
         foreach (['Zuhud', 'Akhlak', 'Iman'] as $nama) {
             DB::table('ref_agama')->insert(['jenjang' => $f['mi']->jenjang, 'nama' => $nama, 'urutan' => 0, 'is_active' => true]);
         }
         DB::table('ref_agama')->insert(['jenjang' => $f['mi']->jenjang, 'nama' => 'Awal', 'urutan' => -1, 'is_active' => true]);
         RefService::forget();
-        // Lembaga lain tak melihat nilai MI.
+
         $this->assertSame([], $this->namaEfektif('agama', $f['md']->jenjang));
 
         $this->assertSame(['Awal', 'Akhlak', 'Iman', 'Zuhud'], RefService::kodeAktif('agama', $f['mi']->jenjang));
 
-        // Status: nilai = kode, tie-break memakai kolom tampilan `nama`.
         foreach ([['kode' => 'z_status', 'nama' => 'Zeta'], ['kode' => 'a_status', 'nama' => 'Alfa']] as $r) {
             DB::table('ref_status_awal')->insert($r + ['jenjang' => $f['mi']->jenjang, 'urutan' => 0, 'is_active' => true]);
         }
@@ -253,8 +230,6 @@ class ReferensiCrudTest extends TestCase
         $this->assertSame(['a_status', 'z_status'], RefService::kodeAktif('status_awal', $f['mi']->jenjang));
     }
 
-    // Regresi: cache HIT RefService dulu mengembalikan __PHP_Incomplete_Class
-    // karena `cache.serializable_classes` = false (baris kamus di-cache sebagai stdClass).
     public function test_cache_hit_referensi_tidak_rusak(): void
     {
         $f = $this->fixture();
@@ -266,12 +241,9 @@ class ReferensiCrudTest extends TestCase
         ]);
         RefService::forget();
 
-        // Panggilan pertama mengisi cache; panggilan kedua membaca dari cache.
         $this->assertSame(['Islam'], RefService::kodeAktif('agama', $f['mi']->jenjang));
         $this->assertSame(['Islam'], RefService::kodeAktif('agama', $f['mi']->jenjang));
     }
-
-    // ---------- 09. Padamkan + tampilkan kembali baris lembaga ----------
 
     public function test_09_padam_dan_pulihkan_baris_lembaga(): void
     {
@@ -282,12 +254,10 @@ class ReferensiCrudTest extends TestCase
             ['jenjang' => $f['mi']->jenjang, 'nama' => 'Islam', 'urutan' => 0, 'is_active' => true]
         );
 
-        // MI memadamkan miliknya sendiri (tanpa bayangan — barisnya langsung off).
         $this->actingAs($admin, 'sanctum')->deleteJson('/api/admin/referensi/agama/'.$id)
             ->assertStatus(200);
         $this->assertSame([], $this->namaEfektif('agama', $f['mi']->jenjang));
 
-        // Daftar default tidak memuat yang padam; termasuk_nonaktif memuatnya.
         $default = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/referensi/agama?jenjang='.$f['mi']->jenjang)->assertStatus(200);
         $this->assertSame([], array_column($default->json(), 'nama'));
@@ -298,12 +268,10 @@ class ReferensiCrudTest extends TestCase
         $this->assertNotNull($baris);
         $this->assertFalse((bool) $baris['is_active']);
 
-        // Pulihkan → entri tampil lagi.
         $this->actingAs($admin, 'sanctum')
             ->postJson('/api/admin/referensi/agama/'.$baris['id'].'/pulihkan')->assertStatus(200);
         $this->assertSame(['Islam'], $this->namaEfektif('agama', $f['mi']->jenjang));
 
-        // Pasangan MI↔MD boleh memulihkan baris milik pasangannya.
         $this->actingAs($admin, 'sanctum')->deleteJson('/api/admin/referensi/agama/'.$id)
             ->assertStatus(200);
         $adminMd = $this->makeUser('admin', [$f['md']->jenjang]);
@@ -312,7 +280,6 @@ class ReferensiCrudTest extends TestCase
         $this->assertSame(['Islam'], $this->namaEfektif('agama', $f['mi']->jenjang));
     }
 
-    // ---------- 10. Lembaga baru mewarisi benih kamus ----------
     public function test_10_lembaga_baru_mendapat_benih_kamus(): void
     {
         $f = $this->fixture();
@@ -327,8 +294,6 @@ class ReferensiCrudTest extends TestCase
 
         $this->assertContains('Benih Hobi', $this->namaEfektif('hobi', $baru['jenjang']));
     }
-
-    // ---------- 11. Hapus permanen membuang baris ----------
 
     public function test_11_hapus_permanen_membuang_baris(): void
     {
@@ -346,23 +311,18 @@ class ReferensiCrudTest extends TestCase
             ['jenjang' => $f['mts']->jenjang, 'nama' => 'Hobi Fana', 'urutan' => 0, 'is_active' => true]
         );
 
-        // Tanpa flag = padam biasa (baris tetap ada).
         $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/referensi/hobi/{$idMi}")
             ->assertStatus(200);
         $this->assertDatabaseHas('ref_hobi', ['id' => $idMi, 'is_active' => false]);
 
-        // Flag permanen = baris dibuang; milik MD tak tersentuh.
         $this->actingAs($super, 'sanctum')->deleteJson("/api/admin/referensi/hobi/{$idMi}?permanen=1")
             ->assertStatus(200);
         $this->assertDatabaseMissing('ref_hobi', ['id' => $idMi]);
         $this->assertDatabaseHas('ref_hobi', ['id' => $idMd, 'nama' => 'Hobi Fana']);
 
-        // Lintas lembaga di luar pasangan MI↔MD ditolak.
         $this->actingAs($adminMi, 'sanctum')->deleteJson("/api/admin/referensi/hobi/{$idMts}?permanen=1")
             ->assertStatus(403);
     }
-
-    // ---------- 12. Tanpa filter = gabungan semua lembaga ----------
 
     public function test_12_tanpa_filter_gabung_semua_lembaga(): void
     {
@@ -374,12 +334,10 @@ class ReferensiCrudTest extends TestCase
             'nama' => 'Hobi Gabung',
         ])->assertStatus(201);
 
-        // Super: semua lembaga (MI, MD, MTS).
         $semua = $this->actingAs($super, 'sanctum')->getJson('/api/admin/referensi/hobi')
             ->assertStatus(200)->json();
         $this->assertCount(3, collect($semua)->where('nama', 'Hobi Gabung')->values()->all());
 
-        // Admin MI: scope-nya (MI + pasangan MD), MTS tak ikut.
         $milik = $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/referensi/hobi')
             ->assertStatus(200)->json();
         $lembagaTampil = collect($milik)->pluck('jenjang')->unique()->sort()->values()->all();
@@ -388,8 +346,6 @@ class ReferensiCrudTest extends TestCase
             $lembagaTampil
         );
     }
-
-    // ---------- 13. kamus nama mapel lintas jenjang ----------
 
     public function test_13_kamus_mapel_crud_dan_efektif_per_lembaga(): void
     {
@@ -406,11 +362,9 @@ class ReferensiCrudTest extends TestCase
 
         $this->assertDatabaseHas('ref_mapel', ['id' => $id, 'jenjang' => $f['mi']->jenjang, 'nama' => 'Matematika']);
         $this->assertContains('Matematika', $this->namaEfektif('mapel', $f['mi']->jenjang));
-        // Pasangan MD tidak ikut punya (baris milik satu lembaga).
+
         $this->assertNotContains('Matematika', $this->namaEfektif('mapel', $f['md']->jenjang));
     }
-
-    // ---------- 14. kamus mapel: kode & singkatan ----------
 
     public function test_14_mapel_menyimpan_kode_dan_singkatan(): void
     {
@@ -429,7 +383,6 @@ class ReferensiCrudTest extends TestCase
             'id' => $id, 'nama' => 'Matematika', 'kode' => 'MTK', 'singkatan' => 'Mat.',
         ]);
 
-        // Ubah: kode & singkatan bukan kunci baris, jadi boleh diperbaiki.
         $this->actingAs($adminMi, 'sanctum')->putJson("/api/admin/referensi/mapel/{$id}", [
             'nama' => 'Matematika', 'kode' => 'MTK-2', 'singkatan' => 'Mat2',
         ])->assertStatus(200)
@@ -437,7 +390,6 @@ class ReferensiCrudTest extends TestCase
             ->assertJsonPath('singkatan', 'Mat2');
         $this->assertDatabaseHas('ref_mapel', ['id' => $id, 'kode' => 'MTK-2', 'singkatan' => 'Mat2']);
 
-        // Dikosongkan → null (bukan string kosong / spasi).
         $this->actingAs($adminMi, 'sanctum')->putJson("/api/admin/referensi/mapel/{$id}", [
             'nama' => 'Matematika', 'kode' => '', 'singkatan' => '   ',
         ])->assertStatus(200)
@@ -445,26 +397,20 @@ class ReferensiCrudTest extends TestCase
             ->assertJsonPath('singkatan', null);
         $this->assertDatabaseHas('ref_mapel', ['id' => $id, 'kode' => null, 'singkatan' => null]);
 
-        // Nama LAMA (`nama_singkat`, sebelum kolomnya di-rename) kini tak dikenal:
-        // diabaikan tanpa 422 dan tidak menimpa `singkatan`.
         $this->actingAs($adminMi, 'sanctum')->putJson("/api/admin/referensi/mapel/{$id}", [
             'nama' => 'Matematika', 'nama_singkat' => 'Lama',
         ])->assertStatus(200)->assertJsonPath('singkatan', null);
 
-        // Jalur baca kamus mengembalikan baris apa adanya → kolom baru ikut.
         $baris = collect(RefService::effective('mapel', $f['mi']->jenjang))
             ->firstWhere('nama', 'Matematika');
         $this->assertNotNull($baris);
         $this->assertTrue(property_exists($baris, 'singkatan'));
 
-        // Tipe kamus lain tak punya kolomnya: dikirim pun diabaikan, bukan 422.
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/hobi', [
             'nama' => 'Menjahit', 'singkatan' => 'Jahit', 'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(201);
         $this->assertDatabaseHas('ref_hobi', ['nama' => 'Menjahit']);
     }
-
-    // ---------- 15. sebar mapel (fan-out) ikut membawa kolom tambahan ----------
 
     public function test_15_sebar_mapel_membawa_kode_dan_singkatan(): void
     {
@@ -482,8 +428,6 @@ class ReferensiCrudTest extends TestCase
         }
     }
 
-    // ---------- 16. pilihan beberapa lembaga (checkbox) sekali permintaan ----------
-
     public function test_16_daftar_lembaga_dipilih_bersamaan(): void
     {
         $f = $this->fixture();
@@ -494,43 +438,35 @@ class ReferensiCrudTest extends TestCase
         ])->assertStatus(201);
         $this->assertCount(2, $res->json('data'));
 
-        // Tertinggal satu saja: lembaga tak dipilih tak tersentuh.
         $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['mi']->jenjang, 'nama' => 'Renang']);
         $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['mts']->jenjang, 'nama' => 'Renang']);
         $this->assertDatabaseMissing('ref_hobi', ['jenjang' => $f['md']->jenjang, 'nama' => 'Renang']);
 
-        // Sudah ada di salah satu pilihan → dilewati, tak menggagalkan yang lain.
         $res2 = $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
             'nama' => 'Renang', 'jenjang' => [$f['md']->jenjang, $f['mi']->jenjang],
         ])->assertStatus(201);
         $this->assertCount(1, $res2->json('data'));
         $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['md']->jenjang, 'nama' => 'Renang']);
 
-        // Semua pilihan sudah punya → 422 (bukan senyap tanpa baris baru).
         $this->actingAs($super, 'sanctum')->postJson('/api/admin/referensi/hobi', [
             'nama' => 'Renang', 'jenjang' => [$f['mi']->jenjang, $f['md']->jenjang, $f['mts']->jenjang],
         ])->assertStatus(422);
     }
-
-    // ---------- 17. daftar lembaga: obey access, di luar wewenang ditolak ----------
 
     public function test_17_daftar_lembaga_dengan_batasan_akses(): void
     {
         $f = $this->fixture();
         $adminMi = $this->makeUser('admin', [$f['mi']->jenjang]);
 
-        // Array kosong bukan fan-out: admin tanpa pilihan ditolak.
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/hobi', [
             'nama' => 'Memancing', 'jenjang' => [],
         ])->assertStatus(422);
 
-        // Satu lembaga miliknya sendiri tetap boleh.
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/hobi', [
             'nama' => 'Memancing', 'jenjang' => [$f['mi']->jenjang],
         ])->assertStatus(201);
         $this->assertDatabaseHas('ref_hobi', ['jenjang' => $f['mi']->jenjang, 'nama' => 'Memancing']);
 
-        // Ada satu lembaga di luar wewenang → 403, tak ada yang tersimpan.
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/referensi/hobi', [
             'nama' => 'Memancing', 'jenjang' => [$f['mi']->jenjang, $f['mts']->jenjang],
         ])->assertStatus(403);

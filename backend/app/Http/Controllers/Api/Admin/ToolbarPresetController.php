@@ -50,12 +50,12 @@ class ToolbarPresetController extends Controller
      *  diatur di Kelola Tabel → Umum).
      */
     public const KUNCI = [
-        // Versi lama — tak lagi dihasilkan FE, tapi tetap ditulis balik.
+
         'info',
         'urut',
         'bilah_judul',
         'kaki_tabel',
-        // Bilah judul.
+
         'judul_tabel',
         'info_tengah',
         'filter',
@@ -65,13 +65,13 @@ class ToolbarPresetController extends Controller
         'kolom',
         'tombol_aksi',
         'tombol_pengaturan',
-        // Kepala tabel.
+
         'header_kolom',
         'rel_filter',
-        // Kolom tetap (mengapit grid).
+
         'kolom_centang',
         'kolom_aksi',
-        // Kaki tabel.
+
         'pager',
         'tombol_tambah',
         'tombol_edit',
@@ -95,20 +95,16 @@ class ToolbarPresetController extends Controller
             'data' => [
                 'table_key' => $data['table_key'],
                 'visibilitas' => $row?->visibilitas ?? [],
-                // Peta lama: masih dikembalikan agar klien lama tak rusak,
-                // tapi sudah kosong sejak migrasi ke `komponen_custom`.
+
                 'lebar' => $row?->lebar ?? [],
                 'tinggi' => $row?->tinggi ?? [],
                 'urutan' => $row?->urutan ?? [],
                 'align' => $row?->align ?? [],
-                // Label kolom per TABEL (bukan per preset): tetap walau preset
-                // berganti, sejalan dengan `align`.
+
                 'label' => $row?->label ?? [],
-                // Judul tabel milik pengguna; null = pakai judul bawaan kode
-                // (prop `header` halaman → peta `judulTabel()` → table_key).
+
                 'judul' => $row?->judul,
-                // Info tabel (HTML ter-sanitasi) per table_key; null = belum
-                // diisi, dan frontend menyembunyikan tombol Info-nya.
+
                 'info_html' => $row?->info_html,
                 'nilai_default' => $row?->nilai_default ?? [],
             ],
@@ -121,10 +117,6 @@ class ToolbarPresetController extends Controller
     {
         $data = $request->validated();
 
-        /* Ukuran kotak & nilai awal komponen sudah pindah ke
-           `KomponenCustomController` (tabel `komponen_custom`): endpoint ini
-           hanya menyimpan apa yang milik tabel. Cek ini duluan supaya pesannya
-           tepat (bukan "kirim minimal satu setelan"). */
         foreach (self::SETELAN_KOMPONEN_PINDAH as $kunci) {
             if (array_key_exists($kunci, $data)) {
                 throw ValidationException::withMessages([
@@ -139,16 +131,12 @@ class ToolbarPresetController extends Controller
             ]);
         }
 
-        // Hanya setelan TABEL yang boleh ditulis, dan semuanya khusus
-        // super_admin (visibilitas/urutan/perataan dikelola dari dialog Kelola
-        // Tabel; setelan komponen lewat `komponen-custom`).
         if (! $request->user()->bolehSuperAdmin()) {
             abort(403, 'Setelan tabel hanya dapat diubah super_admin.');
         }
 
         $row = ToolbarPreset::firstOrNew(['table_key' => $data['table_key']]);
 
-        // Kolom visibilitas NOT NULL: baris baru tanpa visibilitas = semua tampil.
         if ($row->visibilitas === null) {
             $row->visibilitas = [];
         }
@@ -198,7 +186,7 @@ class ToolbarPresetController extends Controller
                         'label' => "Kunci label \"{$kunci}\" tidak dikenal.",
                     ]);
                 }
-                // Label kosong = hapus override (kembali ke label bawaan kode).
+
                 $teks = trim((string) $nilai);
                 if ($teks !== '') {
                     $label[$kunci] = mb_substr($teks, 0, 100);
@@ -207,17 +195,12 @@ class ToolbarPresetController extends Controller
             $row->label = $label === [] ? null : $label;
         }
 
-        /* Info tabel: HTML mentah dari editor SEBELUM disimpan, jadi inilah
-           satu-satunya tempat penyaringan. Setelah lewat `HtmlInfo` isinya
-           hanya tag/atribut allowlist — render sebagai HTML di bilah judul
-           setiap tabel jadi aman. Kosong = hapus info (tombol Info hilang). */
         if (array_key_exists('info_html', $data)) {
             $row->info_html = HtmlInfo::bersihkan($data['info_html']);
         }
 
         if (array_key_exists('judul', $data)) {
-            // Judul kosong = hapus override (kembali ke judul bawaan kode),
-            // sama seperti label. Itu yang membuat input boleh dikosongkan.
+
             $teks = trim((string) $data['judul']);
             $row->judul = $teks === '' ? null : mb_substr($teks, 0, 100);
         }

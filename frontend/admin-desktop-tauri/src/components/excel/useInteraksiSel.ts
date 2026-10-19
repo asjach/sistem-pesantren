@@ -63,9 +63,7 @@ export function useInteraksiSel<T extends { id: string | number }>({
     const box = sel.querySelector<HTMLInputElement>('input.dsg-checkbox, input.simpes-dsg-checkall');
     if (!box || box.disabled) return;
     if (box.classList.contains('simpes-dsg-checkall')) {
-      // Header pilih-semua: biarkan onChange alaminya yang bekerja. Klik
-      // sintetis di sini justru men-toggle balik (true→false) sebelum change
-      // terbaca, sehingga check/uncheck-all tampak tidak berfungsi.
+
       return;
     }
     const rowId = box.dataset.rowId;

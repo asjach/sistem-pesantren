@@ -8,8 +8,6 @@ import { CariGlobalProvider } from '@/hooks/useCariGlobal';
 import { TopBarSearchProvider, useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { renderDenganTema } from '@/test/utils';
 
-/* `vi.hoisted` wajib: factory vi.mock di-hoist ke atas file, jadi fixture &
-   mock fn harus sudah ada saat factory dipanggil. */
 const uji = vi.hoisted(() => {
   const KELAS = [
     { id: 1, nama_kelas: '1A', tingkat: '1', jenjang: 'MI' },
@@ -88,8 +86,6 @@ vi.mock('@/api/kurikulum', async (importOriginal) => {
   };
 });
 
-/* Array filter WAJIB stabil (didefinisikan sekali): halaman memakainya sebagai
-   dependensi effect, jadi array baru tiap render memicu loop render. */
 const FILTER = {
   jenjangs: ['MI'],
   tahunAjaranNames: ['2026/2027'],
@@ -103,7 +99,6 @@ vi.mock('@/hooks/useFilterGlobalAktif', () => ({
   targetTunggal: (values: readonly string[]) => (values.length === 1 ? values[0] : null),
 }));
 
-/* Rail filter tingkat/kelas: butuh context yang di app disediakan layout. */
 vi.mock('@/tingkatAktif', () => ({ useTingkatAktif: () => ({ pilih: vi.fn() }) }));
 vi.mock('@/kelasAktif', () => ({ useKelasAktif: () => ({ pilih: vi.fn() }) }));
 
@@ -190,7 +185,7 @@ describe('KurikulumPengampuPage', () => {
     await waitFor(() => expect(teksSel('nama_mapel')).toContain('Fiqih'));
     expect(teksSel('kelas')).toContain('1A');
     expect(teksSel('kkm')).toContain('70');
-    // Satu request untuk semua kelas yang tampil (rail "All").
+
     expect(uji.daftarPengampus).toHaveBeenCalledWith([1, 2]);
   });
 
@@ -201,19 +196,18 @@ describe('KurikulumPengampuPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Tambah mapel' }));
     expect(await screen.findByText('Tambah mapel ke pengampu kelas')).toBeInTheDocument();
 
-    // Kelas tujuan bawaan = kelas pertama yang tampil (1A).
     const selKelas = screen.getByLabelText('Kelas') as HTMLSelectElement;
     expect(selKelas.value).toBe('1');
-    // Pilih mapel yang belum terpasang (Bahasa Arab), guru dibiarkan kosong.
+
     await userEvent.selectOptions(screen.getByLabelText('Mapel'), '11');
     await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
 
     await waitFor(() => expect(uji.simpanPengampu).toHaveBeenCalledTimes(1));
     expect(uji.simpanPengampu).toHaveBeenCalledWith(1, [
-      { mata_pelajaran_id: 10, keaktifan_pegawai_id: 7 }, // baris lama (Fiqih + guru)
-      { mata_pelajaran_id: 11, keaktifan_pegawai_id: null }, // mapel baru tanpa guru
+      { mata_pelajaran_id: 10, keaktifan_pegawai_id: 7 },
+      { mata_pelajaran_id: 11, keaktifan_pegawai_id: null },
     ]);
-    // Setelah simpan, tabel dimuat ulang.
+
     await waitFor(() => expect(uji.daftarPengampus).toHaveBeenCalledTimes(2));
   });
 

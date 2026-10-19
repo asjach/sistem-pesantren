@@ -5,8 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// Minimal untuk kebutuhan ACC 100 (lifecycle penuh di 102):
-// is_active_riwayat === 'Ya' iff status_akhir='aktif', tulis hanya via service.
 class RiwayatBelajar extends Model
 {
     /** Nilai kanonis kolom keaktifan (ENUM). */

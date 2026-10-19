@@ -67,7 +67,7 @@ function TabsList({
       className={cn(tabsListVariants({ variant }), "relative", className)}
       {...props}
     >
-      {/* Latar aktif yang bergeser mengikuti trigger terpilih (mengalir). */}
+
       <span
         aria-hidden="true"
         data-slot="tabs-indicator"

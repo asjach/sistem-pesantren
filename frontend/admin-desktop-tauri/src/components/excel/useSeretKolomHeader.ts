@@ -202,7 +202,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
     const kotak = wadah.getBoundingClientRect();
     const peta = new Map<string, DOMRect>();
     wadah.querySelectorAll<HTMLElement>('.dsg-cell-header').forEach((sel) => {
-      // Kolom Aksi & sel tanpa key (mis. gutter) tidak ikut disusun.
+
       const key = sel.querySelector<HTMLElement>('.simpes-dsg-headtitle')?.dataset.colKey;
       if (key) peta.set(key, sel.getBoundingClientRect());
     });
@@ -232,17 +232,14 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
 
   /** Mulai kandidat seret untuk satu kolom. `x0/y0` = titik pointerdown. */
   const mulai = useCallback((key: string, x0: number, y0: number) => {
-    /* PENTING: diukur SEBELUM transform apa pun dipasang (lihat `GeometriAwal`). */
+
     const awal = ukurAwal();
     if (!awal || awal.keys.length === 0) return;
     const { keys: keys0, iFull, kiri: kiri0, lebar: lebar0 } = awal;
     const lebarKey: Record<string, number> = {};
     const kiriKey: Record<string, number> = {};
     keys0.forEach((k, i) => { lebarKey[k] = lebar0[i]; kiriKey[k] = kiri0[i]; });
-    /* Seluruh daftar kolom yang bisa disusun. Hasil geser SELALU dinyatakan
-       sebagai urutan daftar penuh ini — bukan potongan yang terukur — supaya
-       tak ada kolom yang hilang saat hasilnya disimpan (daftar yang menyusut
-       membuat DSG membaca kolom yang tak ada lagi dan menggagalkan render). */
+
     const penuh = [...terlihatRef.current];
     const asalPenuh = penuh.indexOf(key);
     if (asalPenuh < 0) return;
@@ -258,14 +255,10 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
         jalan = true;
       }
       const wrap = wrapRef.current;
-      /* Kursor dikembalikan ke koordinat TATA LETAK: seluruh slot ikut bergeser
-         saat grid digulir, dan transform pratinjau tidak mengubah tata letak. */
+
       const x = e.clientX - geserGulir(awal);
       const dari = pratinjauRef.current ?? penuh;
-      /* Kolom yang terukur (terlihat di layar) dalam susunan pratinjau: itulah
-         slot yang bisa dicocokkan dengan posisi kursor. `indeksSisip` di sini
-         HANYA sah untuk potongan ini, jadi hasilnya diterjemahkan ke indeks
-         daftar penuh sebelum dipakai menyusun ulang. */
+
       const terukur = dari.filter((k) => lebarKey[k] !== undefined);
       const sisipLokal = indeksSisip(slot, terukur.map((k) => lebarKey[k] ?? 0), x);
       const sisip = sisipKePenuh(iFull, sisipLokal);
@@ -277,14 +270,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
         lukisGeser(wrap, dxPerKolom(kiriKey, lebarKey, baru), key);
         pratinjauRef.current = baru;
       }
-      /* Indikator digambar LANGSUNG ke DOM, bukan lewat prop React: judul
-         header react-datasheet-grid dirakit di dalam useMemo yang terbukti
-         tidak selalu dihitung ulang saat state seret berubah, sehingga kelas
-         dari prop tak pernah muncul. Menulis kelas di sini selalu bekerja
-         dan memang tepat untuk umpan balik sesaat.
-         Kolom acuan garis = POTONGAN yang terukur (kolom di luar layar tak
-         punya sel untuk ditempeli kelas), jadi indeksnya dipakai dalam bentuk
-         LOKAL — bukan indeks daftar penuh seperti pada `status`. */
+
       lukisIndikator(wrap, terukur, key, tandaSisip(terukur.length, sisipLokal));
       e.preventDefault();
     };
@@ -310,21 +296,14 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       bersihkanIndikator(wrapRef.current);
       const pratinjau = pratinjauRef.current;
       pratinjauRef.current = null;
-      /* Bersihkan transform SEBELUM urutan baru ditulis. React merender ulang
-         urutan itu di commit yang sama (event handler di-batch), jadi kolom
-         sudah berdiri di slot yang benar sebelum frame berikutnya — tanpa
-         lompatan ganda: sekali karena transform dibuang, sekali karena DOM
-         disusun ulang. Kelas transisi dimatikan lebih dulu supaya tak ada
-         animasi balik ke susunan lama. */
+
       bersihkanGeser(wrapRef.current);
       setStatus(null);
-      // Seret yang belum melewati ambang = klik biasa; lepas di luar area
-      // header = niat batal, bukan menyusun ulang.
+
       if (!jalan || !lepasMasihSah(e)) return;
-      /* Pratinjau = urutan daftar penuh (lihat `penuh`); jatuh ke daftar yang
-         tersimpan bila tak ada pratinjau (mis. seret tak sempat menggeser). */
+
       const baru = pratinjau ?? penuh;
-      // Tak ada perubahan nyata → jangan tulis apa pun ke server.
+
       if (baru.every((k, i) => k === terlihatRef.current[i])) return;
       onPindahRef.current([...baru]);
     };
@@ -338,9 +317,6 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       bersihkanGeser(wrapRef.current);
     };
 
-    /* Esc = batal, sejalan dengan kebiasaan dialog/panel di aplikasi ini.
-       Tanpa ini, menekan Esc saat seret tetap MENYIMPAN perpindahan pada
-       saat tombol dilepas — pengguna mengira sudah membatalkan. */
     const tombol = (e: KeyboardEvent) => {
       if (e.key === 'Escape') batal();
     };
@@ -356,11 +332,6 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       bersihRef.current = null;
     }
 
-    /* react-datasheet-grid memanggil preventDefault() pada mousedown dokumen.
-       Akibatnya event POINTER lanjutan tak selalu sampai ke window (terbukti
-       di browser: pointermove nol). Karena itu kami memasang listener di fase
-       CAPTURE dan menambahkan jalur MOUSE sebagai cadangan yang selalu
-       terkirim. `terakhir` mencegah satu gerakan dihitung dua kali. */
     let terakhir = 0;
     const sekaliPerGerak = <T,>(fn: (e: T) => void) => (e: T & { timeStamp: number }) => {
       const t = e.timeStamp || Date.now();
@@ -382,8 +353,6 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
     window.addEventListener('keydown', tombol, true);
   }, [geserGulir, lukisGeser, bersihkanGeser, ukurAwal, wrapRef]);
 
-  /* Pemasangan listener native fase CAPTURE pada wadah grid. Dipasang ulang
-     saat sakelar berubah supaya mati-benar-benar-mati. */
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap || !aktif) return;
@@ -391,29 +360,16 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
     const turun = (e: PointerEvent) => {
       if (!aktifRef.current || e.button !== 0) return;
       const target = e.target as HTMLElement | null;
-      // Gagang ubah-lebar punya urusannya sendiri.
+
       if (target?.closest('.simpes-dsg-resizer')) return;
       const ht = target?.closest<HTMLElement>('.simpes-dsg-headtitle');
       const key = ht?.dataset.colKey;
       if (!key) return;
-      // Hanya header (bukan judul di sembarang tempat).
+
       if (!ht.closest('.dsg-row-header')) return;
       mulai(key, e.clientX, e.clientY);
     };
 
-    /* Mode geser aktif = klik judul TIDAK lagi memblok satu kolom.
-
-       DSG memilih SELURUH kolom saat `mousedown` di baris header, dan listener
-       itu dipasang di DOKUMEN (fase bubble, lihat
-       `useDocumentEventListener('mousedown', onMouseDown)`). Jadi cukup
-       hentikan event-nya di fase CAPTURE wadah: listener dokumen tak pernah
-       menerimanya, dan pilihan/kolom aktif tak berubah saat judul diklik.
-       Menekan-lalu-menggeser tetap menyusun kolom karena gestur itu memakai
-       listener `pointermove`/`pointerup` sendiri (bukan mousedown).
-
-       Yang sengaja DIBIARKAN lolos: gagang ubah-lebar (urusan sendiri) dan
-       klik kanan — termasuk Ctrl/Cmd+klik di macOS yang DSG perlakukan sama
-       seperti klik kanan untuk menu konteks header. */
     const tahan = (e: MouseEvent) => {
       if (!aktifRef.current || e.button !== 0 || e.ctrlKey || e.metaKey) return;
       const target = e.target as HTMLElement | null;
@@ -434,7 +390,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
 
   useEffect(() => () => {
     bersihRef.current?.();
-    // Komponen dilepas di tengah seret: jangan tinggalkan transform di DOM.
+
     bersihkanGeser(wrapRef.current);
     pratinjauRef.current = null;
   }, [bersihkanGeser, wrapRef]);

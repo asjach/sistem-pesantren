@@ -99,7 +99,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
 
         foreach (static::KOLOM_TEKS as $kolom) {
             if (isset($baris[$kolom]) && (is_int($baris[$kolom]) || is_float($baris[$kolom]))) {
-                // 26001.0 → '26001' (bukan '26001.0'); pecahan tak wajar dibiarkan string.
+
                 $baris[$kolom] = fmod((float) $baris[$kolom], 1.0) === 0.0
                     ? (string) (int) $baris[$kolom]
                     : (string) $baris[$kolom];
@@ -110,7 +110,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             if (! isset($baris[$kolom])) {
                 continue;
             }
-            // Tanggal nol (`1900-01-00`) = sel kosong di sistem sumber.
+
             if (Tanggal::adalahTanggalNol($baris[$kolom])) {
                 $baris[$kolom] = null;
 
@@ -120,12 +120,11 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
                 try {
                     $baris[$kolom] = Date::excelToDateTimeObject($baris[$kolom])->format('Y-m-d');
                 } catch (\Throwable $e) {
-                    // Biarkan apa adanya agar validasi `date` menolak dengan pesan jelas.
+
                 }
             }
         }
 
-        // Tahun ajaran masuk: `1998-1999` (strip) → kanonis `1998/1999` (slash).
         if (isset($baris['tahaj_masuk'])) {
             $baris['tahaj_masuk'] = static::normalisasiTahunAjaran($baris['tahaj_masuk']);
         }
@@ -160,18 +159,17 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
 
     public function onUnknownSheet(string|int $sheetName): void
     {
-        // Sheet tambahan (mis. "Referensi") diabaikan.
+
     }
 
     public function collection(Collection $rows): void
     {
-        // Kunci konsistensi-03: import diasumsikan single-operator (satu admin satu file satu waktu).
-        // Dipanggil sekali per chunk; transaksi per chunk (bukan per file).
+
         DB::transaction(function () use ($rows) {
             foreach ($rows as $row) {
                 $this->nomorBaris++;
                 $baris = $row instanceof Collection ? $row->toArray() : $row;
-                // Baris tanpa nama_lengkap dianggap baris kosong/pemisah, lewati
+
                 if (empty($baris['nama_lengkap'])) {
                     continue;
                 }
@@ -219,7 +217,6 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'transportasi' => $row['transportasi'] ?? null,
             'tanggal_masuk' => Tanggal::parse($row['tanggal_masuk'] ?? null),
 
-            // Data Orang Tua & Wali
             'ayah_nama' => $row['ayah_nama'] ?? null,
             'ayah_nik' => $row['ayah_nik'] ?? null,
             'ayah_tmp_lahir' => $row['ayah_tmp_lahir'] ?? null,
@@ -255,7 +252,6 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'wali_status_tempat_tinggal' => $row['wali_status_tempat_tinggal'] ?? null,
             'yang_membiayai' => $row['yang_membiayai'] ?? null,
 
-            // Alamat
             'provinsi' => $row['provinsi'] ?? null,
             'kab_kota' => $row['kab_kota'] ?? null,
             'kecamatan' => $row['kecamatan'] ?? null,
@@ -277,18 +273,18 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
      */
     protected function simpanDenganNik(array $row, array $dataSantri, array &$dilihat): Santri
     {
-        // PENTING: hanya pakai pencocokan NIK saat NIK terisi.
+
         if (! empty($row['nik'])) {
-            // Cari dalam bentuk tersimpan (nilai tak valid tersimpan berawalan `X-`).
+
             $nikCari = NikFlag::tandai($row['nik']);
-            // Dedup identitas nik+nama+tgl_lahir (NIK boleh fiktif/ganda).
+
             $kunci = strtolower(trim((string) $nikCari)).'|'.strtolower(trim((string) $dataSantri['nama_lengkap'])).'|'.(string) ($dataSantri['tgl_lahir'] ?? '');
             if (isset($dilihat[$kunci])) {
                 $dilihat[$kunci]->update($dataSantri);
 
                 return $dilihat[$kunci];
             }
-            // Banding tanggal di PHP (format Y-m-d) agar berlaku MySQL+SQLite.
+
             $tglBaru = ! empty($dataSantri['tgl_lahir'])
                 ? Carbon::parse($dataSantri['tgl_lahir'])->format('Y-m-d')
                 : null;
@@ -336,7 +332,7 @@ class SantriLengkapImport implements SkipsOnFailure, SkipsUnknownSheets, ToColle
             'ibu_nik' => ['nullable', 'string', 'max:20'],
             'wali_nik' => ['nullable', 'string', 'max:20'],
             'tipe_santri' => ['nullable', 'in:asrama,non_asrama'],
-            // Kolom kamus: string bebas (tanpa exists)
+
             'agama' => ['nullable', 'string', 'max:50'],
             'hobi' => ['nullable', 'string', 'max:50'],
             'cita_cita' => ['nullable', 'string', 'max:50'],

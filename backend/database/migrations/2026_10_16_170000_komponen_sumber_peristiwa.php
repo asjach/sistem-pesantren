@@ -35,7 +35,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Kembalikan komponen ber-sumber peristiwa ke manual sebelum enum menyempit.
+
         Schema::table('komponen_nilai', function (Blueprint $table) {
             $table->enum('sumber', ['manual', 'rapor_otomatis'])->default('manual')->change();
         });

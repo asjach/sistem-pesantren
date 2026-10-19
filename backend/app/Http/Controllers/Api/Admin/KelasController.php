@@ -48,10 +48,6 @@ class KelasController extends Controller
     {
         $urut = $this->parseUrut($request, UrutKatalog::peta('kelas'));
 
-        // JANGAN eager-load `tahunAjaran`: Laravel meng-snake-case kunci relasi
-        // saat serialisasi sehingga menimpa atribut string `tahun_ajaran`
-        // (frontend menerima objek → tampil "[object Object]"). Nilai FK-nya
-        // sendiri sudah berupa nama TA yang siap tampil.
         $query = $this->scopeLembaga(
             Kelas::with(['lembaga:jenjang,nama', 'walas:id,nama_lengkap']),
             auth()->user(),
@@ -66,7 +62,6 @@ class KelasController extends Controller
             $query->where('kelas.nama_kelas', 'like', "%{$s}%");
         }
 
-        // Urut default: `urutan` (diatur admin) lalu nama kelas.
         if ($urut !== null) {
             $query->select('kelas.*')
                 ->leftJoin('lembaga', 'lembaga.jenjang', '=', 'kelas.jenjang')
@@ -161,7 +156,7 @@ class KelasController extends Controller
     {
         $query = Kelas::where('jenjang', $jenjang)
             ->where('tahun_ajaran', $tahunAjaran)
-            // LOWER() agar perbandingan case-insensitive di semua driver (DB uji SQLite).
+
             ->whereRaw('LOWER(nama_kelas) = ?', [mb_strtolower($nama)]);
 
         if ($kecualikanId !== null) {
@@ -208,7 +203,7 @@ class KelasController extends Controller
         $periksa = (bool) ($data['periksa'] ?? true);
 
         if (! empty($data['ke_kode'])) {
-            // Mode copy: sumber eksplisit, target via kode + TA otomatis.
+
             if (empty($data['dari_jenjang']) || empty($data['dari_tahun_ajaran'])) {
                 return response()->json(['pesan' => 'Mode copy butuh dari_jenjang + dari_tahun_ajaran.'], 422);
             }
@@ -236,7 +231,7 @@ class KelasController extends Controller
             }
             $sumber = Lembaga::whereKey($sumberJenjang)->first();
         } else {
-            // Mode ambil: target eksplisit, sumber via kode.
+
             if (empty($data['jenjang']) || empty($data['tahun_ajaran']) || empty($data['dari_kode'])) {
                 return response()->json(['pesan' => 'Pilih mode ambil atau copy.'], 422);
             }
@@ -247,7 +242,7 @@ class KelasController extends Controller
 
             $targetKode = $targetId;
             $sumberKode = $data['dari_kode'];
-            // Pasangan MI↔MD dua arah: target salah satu, sumber yang lain.
+
             if (! in_array($targetKode, ['MI', 'MD'], true) || $targetKode === $sumberKode) {
                 return response()->json(['pesan' => 'Import nama hanya untuk pasangan MI↔MD.'], 422);
             }
@@ -255,7 +250,7 @@ class KelasController extends Controller
             if (! $sumber) {
                 return response()->json(['pesan' => "Lembaga sumber {$sumberKode} tidak ditemukan."], 422);
             }
-            // TA sumber: nama sama → fallback TA aktif sumber.
+
             $taTarget = TahunAjaran::find($taId);
             $taSumber = TahunAjaran::efektif($sumber->jenjang)->firstWhere('nama', $taTarget?->nama)
                 ?? TahunAjaran::aktif($sumber->jenjang);
@@ -264,9 +259,6 @@ class KelasController extends Controller
             }
         }
 
-        // Pengecualian pasangan MI↔MD: sumber boleh dibaca bila pemanggil boleh
-        // akses target (sudah diauthorize di atas); tulis tetap target saja.
-        // Tanpa ini admin satu lembaga selalu 403 saat import dari pasangannya.
         if (! $request->user()->canAccessLembaga($sumber->jenjang)
             && ! $request->user()->canAccessLembaga($targetId)) {
             return response()->json(['pesan' => 'Akses ditolak.'], 403);
@@ -391,12 +383,12 @@ class KelasController extends Controller
         unset($data['walas_id']);
 
         if (array_key_exists('urutan', $data) && $data['urutan'] === null) {
-            // Kolom NOT NULL default 0: null dari form dianggap 0.
+
             $data['urutan'] = 0;
         }
 
         if (array_key_exists('nama_alias', $data) && trim((string) $data['nama_alias']) === '') {
-            // Alias kosong = tanpa alias (bukan string kosong).
+
             $data['nama_alias'] = null;
         }
 

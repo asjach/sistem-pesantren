@@ -15,7 +15,7 @@ class PsbPortalLanjutanRequest extends FormRequest
     {
         return [
             'santri_id' => ['required', 'integer', 'exists:santri,id'],
-            'gelombang_id' => ['nullable', 'integer', 'exists:psb_gelombang,id'], // kosong = gelombang aktif
+            'gelombang_id' => ['nullable', 'integer', 'exists:psb_gelombang,id'],
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
         ];
     }

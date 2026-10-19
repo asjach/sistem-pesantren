@@ -36,8 +36,6 @@ class SiklusFlowTest extends TestCase
         $this->withoutMiddleware(ThrottleRequests::class);
     }
 
-    // ---------- helpers ----------
-
     /** Benih status/alasan per lembaga fixture (tanpa baris global). */
     protected function ensureRefs(array $f): void
     {
@@ -91,7 +89,7 @@ class SiklusFlowTest extends TestCase
             'nama' => 'Madrasah Diniyah', 'jenjang' => 'MD', 'nsm' => '123456789013',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
         ]);
-        // TA global (berlaku semua lembaga); taLama juga dipakai MD.
+
         $taLama = TahunAjaran::create([
             'nama' => '2025/2026',
             'tanggal_mulai' => '2025-07-01', 'tanggal_selesai' => '2026-06-30', 'is_aktif' => false,
@@ -101,7 +99,7 @@ class SiklusFlowTest extends TestCase
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
         ]);
         $taMd = $taLama;
-        // TA luar lingkup MI (disembunyikan untuk MI) → guard "bukan milik lembaga".
+
         $taLuar = TahunAjaran::create([
             'nama' => '2024/2025',
             'tanggal_mulai' => '2024-07-01', 'tanggal_selesai' => '2025-06-30', 'is_aktif' => false,
@@ -186,8 +184,6 @@ class SiklusFlowTest extends TestCase
         ], $opt));
     }
 
-    // ---------- 01. salin genap massal ----------
-
     public function test_01_salin_genap_massal_api(): void
     {
         $f = $this->baseFixture();
@@ -207,7 +203,7 @@ class SiklusFlowTest extends TestCase
             'santri_id' => $santri->id, 'tahun_ajaran' => $f['taLama']->nama,
             'semester' => '2', 'kelas_id' => $kelas->id, 'is_active_riwayat' => 'Ya',
         ]);
-        // Genap dibuka 'lanjutan'; ganjil arsip jadi 'lanjut' (santri lanjut ke genap).
+
         $genap = RiwayatBelajar::where('santri_id', $santri->id)->where('semester', '2')->firstOrFail();
         $this->assertSame('lanjutan', $genap->status_awal);
         $ganjil = RiwayatBelajar::where('santri_id', $santri->id)->where('semester', '1')->firstOrFail();
@@ -215,7 +211,6 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('Tidak', $ganjil->is_active_riwayat);
         $this->assertSame('Tidak', RiwayatBelajar::where('santri_id', $santri->id)->where('semester', '1')->firstOrFail()->is_active_riwayat);
 
-        // Salin ulang baris yang ganjilnya sudah tertutup → per-item gagal (partial), bukan 500.
         $res2 = $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/salin-genap', [
             'jenjang' => $f['mi']->jenjang,
             'tanggal_masuk' => '2026-01-05',
@@ -224,8 +219,6 @@ class SiklusFlowTest extends TestCase
         $this->assertSame(0, $res2->json('berhasil'));
         $this->assertCount(1, $res2->json('gagal'));
     }
-
-    // ---------- 01b. salin genap dari ganjil pindahan → tetap 'lanjutan' ----------
 
     public function test_01b_salin_genap_dari_pindahan_tetap_lanjutan(): void
     {
@@ -386,8 +379,6 @@ class SiklusFlowTest extends TestCase
         ]);
     }
 
-    // ---------- 01c. batal salin: genap dihapus, ganjil dibuka lagi ----------
-
     public function test_01c_batal_salin_kembalikan_ganjil(): void
     {
         $f = $this->baseFixture();
@@ -416,8 +407,6 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('Ya', $santri->fresh()->is_active_pst);
     }
 
-    // ---------- 01d. batal salin ditolak bila tak ada genap / sudah lanjut ----------
-
     public function test_01d_batal_salin_ditolak_tanpa_genap_atau_sudah_lanjut(): void
     {
         $f = $this->baseFixture();
@@ -426,20 +415,16 @@ class SiklusFlowTest extends TestCase
         $this->makeKeanggotaan($santri, $f['mi'], '25013');
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1');
 
-        // Belum disalin → tak ada yang dibatalkan.
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/batal-salin", [
             'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(422);
 
-        // Sudah ada transisi lanjutan (baris aktif terbaru bukan genap) → ditolak.
         $this->makeRiwayat($santri, $f['taBaru'], $f['mi'], '1');
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/batal-salin", [
             'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(422);
         $this->assertSame(2, RiwayatBelajar::where('santri_id', $santri->id)->count());
     }
-
-    // ---------- 01e. batal salin: genap dari import (ganjil masih aktif) ----------
 
     public function test_01e_batal_salin_genap_import_ganjil_masih_aktif(): void
     {
@@ -448,7 +433,7 @@ class SiklusFlowTest extends TestCase
         $santri = $this->makeSantri('Genap Import');
         $this->makeKeanggotaan($santri, $f['mi'], '25014');
         $kelas = $this->makeKelas($f['mi'], $f['taLama'], '1D', '1');
-        // Ganjil TIDAK ditutup (pola import: baris genap dibuat tanpa salin).
+
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelas->id]);
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '2', ['kelas_id' => $kelas->id, 'status_awal' => 'lanjutan']);
 
@@ -462,8 +447,6 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('1', $sisa->first()->semester);
         $this->assertSame('Ya', $sisa->first()->is_active_riwayat);
     }
-
-    // ---------- 02. kenaikan massal naik/tidak naik ----------
 
     public function test_02_naik_kelas_massal_naik_dan_tidak_naik(): void
     {
@@ -490,11 +473,9 @@ class SiklusFlowTest extends TestCase
 
         $this->assertSame(2, $res->json('berhasil'));
 
-        // Baris lama ditutup dengan hasil masing-masing.
         $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $naikSantri->id, 'semester' => '2', 'status_akhir' => 'naik', 'is_active_riwayat' => 'Tidak']);
         $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $tinggalSantri->id, 'semester' => '2', 'status_akhir' => 'tidak_naik', 'is_active_riwayat' => 'Tidak']);
 
-        // Baris baru semester 1 TA berikut dengan status_awal tepat.
         $this->assertDatabaseHas('riwayat_belajar', [
             'santri_id' => $naikSantri->id, 'tahun_ajaran' => $f['taBaru']->nama,
             'semester' => '1', 'status_awal' => 'kenaikan', 'is_active_riwayat' => 'Ya',
@@ -504,8 +485,6 @@ class SiklusFlowTest extends TestCase
             'semester' => '1', 'status_awal' => 'mengulang', 'is_active_riwayat' => 'Ya',
         ]);
     }
-
-    // ---------- 03. kenaikan wajib dari semester 2 ----------
 
     public function test_03_kenaikan_wajib_dari_baris_genap(): void
     {
@@ -524,11 +503,9 @@ class SiklusFlowTest extends TestCase
 
         $this->assertSame(0, $res->json('berhasil'));
         $this->assertStringContainsString('genap', $res->json('gagal.0.pesan'));
-        // Baris ganjil tetap aktif.
+
         $this->assertSame('Ya', RiwayatBelajar::where('santri_id', $santri->id)->firstOrFail()->is_active_riwayat);
     }
-
-    // ---------- 04. tidak lulus → baris mengulang TA berikut ----------
 
     public function test_04_tidak_lulus_membuka_baris_mengulang(): void
     {
@@ -550,9 +527,9 @@ class SiklusFlowTest extends TestCase
             'santri_id' => $santri->id, 'tahun_ajaran' => $f['taBaru']->nama,
             'semester' => '1', 'status_awal' => 'mengulang', 'is_active_riwayat' => 'Ya',
         ]);
-        // Tanpa baris alumni.
+
         $this->assertSame(0, Alumni::count());
-        // Keanggotaan tetap aktif.
+
         $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santri->id, 'is_active_lembaga' => 'Ya']);
     }
 
@@ -617,20 +594,16 @@ class SiklusFlowTest extends TestCase
             'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(200)->assertJsonPath('data.status_akhir', 'aktif');
 
-        // Baris mengulang hilang; baris asal aktif kembali.
         $this->assertSame(1, RiwayatBelajar::where('santri_id', $santri->id)->count());
         $this->assertDatabaseHas('riwayat_belajar', [
             'santri_id' => $santri->id, 'tahun_ajaran' => $f['taLama']->nama,
             'semester' => '2', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
-        // Batal kedua kali → 422 jelas (tak ada hasil aktif).
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/batal-tidak-lulus", [
             'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(422);
     }
-
-    // ---------- 05. kelulusan → alumni + tutup riwayat & keanggotaan ----------
 
     public function test_05_lulus_menulis_alumni_dan_menutup_keanggotaan(): void
     {
@@ -650,7 +623,7 @@ class SiklusFlowTest extends TestCase
 
         $this->assertSame(1, Alumni::count());
         $this->assertDatabaseHas('alumni', ['santri_id' => $santri->id, 'kelas_lulus_id' => $kelas->id]);
-        // Aksi Luluskan tanpa input penyerahan → default "Belum".
+
         $this->assertSame('belum', Alumni::where('santri_id', $santri->id)->value('penyerahan_ijazah'));
         $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'status_akhir' => 'lulus', 'is_active_riwayat' => 'Tidak']);
         $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santri->id, 'is_active_lembaga' => 'Tidak', 'tgl_selesai' => '2026-06-20']);
@@ -678,7 +651,6 @@ class SiklusFlowTest extends TestCase
             'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(200)->assertJsonPath('data.status_akhir', 'aktif');
 
-        // Arsip hilang; riwayat + keanggotaan aktif kembali.
         $this->assertSame(0, Alumni::count());
         $this->assertDatabaseHas('riwayat_belajar', [
             'santri_id' => $santri->id, 'tahun_ajaran' => $f['taLama']->nama,
@@ -687,7 +659,6 @@ class SiklusFlowTest extends TestCase
         $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santri->id, 'is_active_lembaga' => 'Ya']);
         $this->assertSame('Ya', $santri->fresh()->is_active_pst);
 
-        // Batal kedua kali → 422 jelas (tak ada arsip).
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/batal-lulus", [
             'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(422);
@@ -715,17 +686,14 @@ class SiklusFlowTest extends TestCase
         ])->assertStatus(200);
         $alumni = Alumni::where('santri_id', $santri->id)->firstOrFail();
 
-        // Admin tanpa akses lembaga → 403.
         $this->actingAs($asing, 'sanctum')->putJson("/api/admin/alumni/{$alumni->id}", [
             'nomor_ijazah' => 'IJZ-X',
         ])->assertStatus(403);
 
-        // Nilai enum salah → 422.
         $this->actingAs($admin, 'sanctum')->putJson("/api/admin/alumni/{$alumni->id}", [
             'penyerahan_ijazah' => 'ngawur',
         ])->assertStatus(422);
 
-        // Koreksi valid → 200 dan tersimpan.
         $this->actingAs($admin, 'sanctum')->putJson("/api/admin/alumni/{$alumni->id}", [
             'nomor_ijazah' => 'IJZ-007',
             'penyerahan_ijazah' => 'sudah',
@@ -772,7 +740,6 @@ class SiklusFlowTest extends TestCase
             'santri_id' => $santri->id, 'lembaga_lulus' => 'MD', 'nomor_ijazah' => 'IJZ-MD',
         ]);
 
-        // Riwayat sudah tertutup semua → proses lulus ulang ditolak, arsip utuh.
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$santri->id}/lulus", [
             'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran_lulus' => $f['taLama']->nama,
@@ -782,8 +749,6 @@ class SiklusFlowTest extends TestCase
 
         $this->assertSame(2, Alumni::count());
     }
-
-    // ---------- 06. mutasi keluar → arsip + tutup keanggotaan ----------
 
     public function test_06_mutasi_keluar_menulis_arsip(): void
     {
@@ -852,7 +817,7 @@ class SiklusFlowTest extends TestCase
         ])->assertStatus(200);
 
         $mutasi = MutasiKeluar::firstOrFail();
-        // Admin lembaga lain (bukan pasangan MI↔MD) tak boleh menghapus arsip MI.
+
         $luar = $this->makeUser('admin', [$f['root']->jenjang]);
 
         $this->actingAs($luar, 'sanctum')
@@ -860,8 +825,6 @@ class SiklusFlowTest extends TestCase
             ->assertStatus(403);
         $this->assertSame(1, MutasiKeluar::count());
     }
-
-    // ---------- 07. berhenti jenjang paket (MD berhenti, MI lanjut) ----------
 
     public function test_07_berhenti_jenjang_tidak_menghentikan_jenjang_lain(): void
     {
@@ -877,14 +840,11 @@ class SiklusFlowTest extends TestCase
             'jenjang' => $f['md']->jenjang,
         ])->assertStatus(200);
 
-        // MD tertutup, MI tetap aktif → is_active_pst tetap 'Ya'.
         $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'jenjang' => $f['md']->jenjang, 'is_active_riwayat' => 'Tidak']);
         $this->assertDatabaseHas('riwayat_belajar', ['santri_id' => $santri->id, 'jenjang' => $f['mi']->jenjang, 'is_active_riwayat' => 'Ya']);
         $this->assertDatabaseHas('lembaga_santri', ['santri_id' => $santri->id, 'jenjang' => $f['md']->jenjang, 'is_active_lembaga' => 'Tidak']);
         $this->assertSame('Ya', $santri->fresh()->is_active_pst);
     }
-
-    // ---------- 08. guard TA selembaga ----------
 
     public function test_08_naik_lulus_menolak_ta_bukan_milik_lembaga(): void
     {
@@ -894,7 +854,6 @@ class SiklusFlowTest extends TestCase
         $this->makeKeanggotaan($santri, $f['mi'], '25009');
         $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '2');
 
-        // TA di luar lingkup MI → 422.
         $this->actingAs($admin, 'sanctum')->postJson('/api/admin/akademik/naik-kelas', [
             'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran_baru' => $f['taLuar']->nama,
@@ -908,8 +867,6 @@ class SiklusFlowTest extends TestCase
             'tanggal_lulus' => '2026-06-20',
         ])->assertStatus(422)->assertJsonValidationErrors(['tahun_ajaran_lulus']);
     }
-
-    // ---------- 09. tenant scoping arsip ----------
 
     public function test_09_list_mutasi_alumni_terskop_tenant(): void
     {
@@ -936,7 +893,6 @@ class SiklusFlowTest extends TestCase
         $listMd = $this->actingAs($adminMd, 'sanctum')->getJson('/api/admin/mutasi-keluar')->assertStatus(200);
         $this->assertSame(1, $listMd->json('total'));
 
-        // Aksi pasangan MI↔MD diizinkan (santri lain ber-riwayat MI aktif).
         $santriBaru = $this->makeSantri('Arsip MI Dua');
         $this->makeKeanggotaan($santriBaru, $f['mi'], '25011');
         $this->makeRiwayat($santriBaru, $f['taLama'], $f['mi'], '1');
@@ -946,8 +902,6 @@ class SiklusFlowTest extends TestCase
             'alasan_mutasi' => 'Ikut pindah orang tua',
         ])->assertStatus(200);
     }
-
-    // ---------- 10. pindah/set/keluar kelas ----------
 
     public function test_10_pindah_set_kelas_validasi_dan_keluar_kelas(): void
     {
@@ -960,31 +914,25 @@ class SiklusFlowTest extends TestCase
         $kelasMd = $this->makeKelas($f['md'], $f['taMd'], 'MD-A', '1');
         $riwayat = $this->makeRiwayat($santri, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelasA->id, 'tingkat' => '1']);
 
-        // Pindah kelas selembaga & setahun → ok.
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat-belajar/{$riwayat->id}/pindah-kelas", [
             'kelas_id' => $kelasB->id,
         ])->assertStatus(200);
         $this->assertSame($kelasB->id, (int) $riwayat->fresh()->kelas_id);
 
-        // Kelas lembaga lain → 422.
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat-belajar/{$riwayat->id}/pindah-kelas", [
             'kelas_id' => $kelasMd->id,
         ])->assertStatus(422);
 
-        // Keluar kelas → kelas_id NULL.
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/riwayat-belajar/{$riwayat->id}/keluar-kelas")
             ->assertStatus(200);
         $this->assertNull($riwayat->fresh()->kelas_id);
     }
-
-    // ---------- 11. daftar kelas & rekap santri ----------
 
     public function test_11_rekap_per_tingkat_urut_lembaga_lalu_tingkat(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
 
-        // Sengaja tidak berurutan (tingkat 2 lebih dulu) agar sortir teruji.
         foreach ([['B', '2'], ['A', '1']] as [$nama, $tingkat]) {
             $s = $this->makeSantri('Urut '.$nama);
             $this->makeKeanggotaan($s, $f['mi'], '2590'.$tingkat);
@@ -1022,8 +970,6 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('1', $daftar->json('semester'));
         $this->assertCount(2, $daftar->json('data'));
 
-        // Regresi jebakan snake_case: `tahun_ajaran` per baris tetap string
-        // (bukan objek relasi `tahunAjaran` yang tampil "[object Object]").
         $baris = $daftar->json('data.0');
         $this->assertSame($f['taBaru']->nama, $baris['tahun_ajaran']);
         $this->assertSame('MI', $baris['jenjang']);
@@ -1059,8 +1005,6 @@ class SiklusFlowTest extends TestCase
         $f = $this->baseFixture();
         $admin = $this->makeUser('super_admin');
 
-        // taLama mulai 2025-07-01: lahir 2016-06-15 → 9 tahun saat itu
-        // (usia hari ini sudah 10, jadi angka 9 membuktikan acuannya awal TA).
         foreach (['mi' => 'MI', 'md' => 'MD'] as $kunci => $jenjang) {
             $s = $this->makeSantri('Usia '.$jenjang);
             $s->update(['tgl_lahir' => '2016-06-15']);
@@ -1072,8 +1016,6 @@ class SiklusFlowTest extends TestCase
             ->getJson('/api/admin/akademik/rekap-santri?'.$this->queryRekapUsia($f, [$f['mi']->jenjang, $f['md']->jenjang]))
             ->assertStatus(200);
 
-        // Satu baris per lembaga (bukan satu baris tingkat 2 berisi dua santri),
-        // urut lembaga lalu tingkat seperti tabel "Per tingkat".
         $this->assertSame(
             [['MD', '2'], ['MI', '2']],
             array_map(fn ($u) => [$u['lembaga'], $u['tingkat']], $rekap->json('usia_per_tingkat')),
@@ -1086,13 +1028,11 @@ class SiklusFlowTest extends TestCase
             $this->assertSame(1, $baris['kelompok']['7-9']);
             $this->assertSame(0, $baris['kelompok']['>=16']);
         }
-        // Sepadan dengan tabel Per tingkat (jenjang sama, tingkat sama).
+
         $this->assertSame(1, $rekap->json('per_tingkat.0.jumlah'));
         $this->assertSame(1, $rekap->json('per_tingkat.1.jumlah'));
         $this->assertSame(2, $rekap->json('total_aktif'));
 
-        // Tanpa `tanggal_mulai`, acuan diambil dari nama TA (1 Juli tahun awal)
-        // → hasil usia tak berubah (bukan jatuh ke usia hari ini).
         $f['taLama']->update(['tanggal_mulai' => null]);
         $tanpaTanggal = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/akademik/rekap-santri?'.$this->queryRekapUsia($f, [$f['mi']->jenjang, $f['md']->jenjang]))
@@ -1101,15 +1041,12 @@ class SiklusFlowTest extends TestCase
         $this->assertSame(9, $tanpaTanggal->json('usia_per_tingkat.1.rata_usia'));
     }
 
-    // ---------- 11b. rekap santri TA historis + semester (kecuali pindah keluar) ----------
-
     public function test_12_rekap_santri_ta_historis_per_semester(): void
     {
         $f = $this->baseFixture();
         $admin = $this->makeUser('admin', [$f['mi']->jenjang]);
         $kelas = $this->makeKelas($f['mi'], $f['taLama'], '2A', '2');
 
-        // Dua lanjut (naik/lulus) + satu pindah keluar, semua semester genap TA lama.
         $lanjut = $this->makeSantri('Historis Lanjut');
         $lanjut->update(['tgl_lahir' => now()->subYears(9)->toDateString()]);
         $this->makeKeanggotaan($lanjut, $f['mi'], '26001');
@@ -1130,12 +1067,11 @@ class SiklusFlowTest extends TestCase
             'kelas_id' => $kelas->id, 'tingkat' => '2', 'status_akhir' => 'pindah_keluar', 'is_active_riwayat' => 'Tidak',
         ]);
 
-        // Dulu (filter is_active_riwayat) TA historis = 0; kini dihitung dari TA+semester.
         $rekap = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/akademik/rekap-santri?jenjang='.$f['mi']->jenjang
                 .'&tahun_ajaran='.$f['taLama']->nama.'&semester=2')
             ->assertStatus(200);
-        $this->assertSame(2, $rekap->json('total_aktif')); // pindah_keluar dikecualikan
+        $this->assertSame(2, $rekap->json('total_aktif'));
         $this->assertSame(2, $rekap->json('per_kelas.0.terisi'));
         $this->assertNotEmpty($rekap->json('usia_per_tingkat'));
         $this->assertSame(
@@ -1143,14 +1079,12 @@ class SiklusFlowTest extends TestCase
             $rekap->json('per_tahun_ajaran')
         );
 
-        // Filter keaktifan: nonaktif = hanya yang pindah keluar.
         $nonaktif = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/akademik/rekap-santri?jenjang='.$f['mi']->jenjang
                 .'&tahun_ajaran='.$f['taLama']->nama.'&semester=2&keaktifan=nonaktif')
             ->assertStatus(200);
         $this->assertSame(1, $nonaktif->json('total_aktif'));
 
-        // Filter keaktifan: semua = aktif + nonaktif (tanpa filter status).
         $semua = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/akademik/rekap-santri?jenjang='.$f['mi']->jenjang
                 .'&tahun_ajaran='.$f['taLama']->nama.'&semester=2&keaktifan=semua')
@@ -1158,8 +1092,6 @@ class SiklusFlowTest extends TestCase
         $this->assertSame(3, $semua->json('total_aktif'));
         $this->assertSame(3, $semua->json('per_kelas.0.terisi'));
     }
-
-    // ---------- 12. daftar kelas basis status_akhir + lintas periode ----------
 
     public function test_13_daftar_kelas_kelompok_status_lintas_periode(): void
     {
@@ -1171,8 +1103,6 @@ class SiklusFlowTest extends TestCase
         $this->makeKeanggotaan($s1, $f['mi'], '25101');
         $this->makeRiwayat($s1, $f['taBaru'], $f['mi'], '1', ['kelas_id' => $kelas->id]);
 
-        // Lulus lintas TA (flag is_aktif mati) tetap tampil di kelompok aktif:
-        // basis = status_akhir, bukan is_aktif.
         $s2 = $this->makeSantri('Kelompok Dua');
         $this->makeKeanggotaan($s2, $f['mi'], '25102');
         $this->makeRiwayat($s2, $f['taLama'], $f['mi'], '2', ['status_akhir' => 'lulus', 'is_active_riwayat' => 'Tidak']);
@@ -1188,7 +1118,7 @@ class SiklusFlowTest extends TestCase
         $this->assertTrue($nama->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
         $this->assertTrue($nama->contains(fn ($n) => str_starts_with($n, 'Kelompok Dua')));
         $this->assertFalse($nama->contains(fn ($n) => str_starts_with($n, 'Kelompok Tiga')));
-        // `tahun_ajaran` per baris = string nama TA (bukan objek relasi).
+
         $this->assertContains($aktif->json('data.0.tahun_ajaran'), [$f['taBaru']->nama, $f['taLama']->nama]);
 
         $non = $this->actingAs($admin, 'sanctum')
@@ -1198,7 +1128,6 @@ class SiklusFlowTest extends TestCase
         $this->assertTrue($namaNon->contains(fn ($n) => str_starts_with($n, 'Kelompok Tiga')));
         $this->assertFalse($namaNon->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
 
-        // Semua = aktif + nonaktif (tanpa filter status sama sekali).
         $semua = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang.'&kelompok_status=semua&lintas_periode=1')
             ->assertStatus(200);
@@ -1208,7 +1137,6 @@ class SiklusFlowTest extends TestCase
         $this->assertTrue($namaSemua->contains(fn ($n) => str_starts_with($n, 'Kelompok Tiga')));
         $this->assertSame(3, $semua->json('total'));
 
-        // Tanpa kelompok: perilaku lama (is_aktif + default periode).
         $lama = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang)
             ->assertStatus(200);
@@ -1216,8 +1144,6 @@ class SiklusFlowTest extends TestCase
         $this->assertTrue($namaLama->contains(fn ($n) => str_starts_with($n, 'Kelompok Satu')));
         $this->assertFalse($namaLama->contains(fn ($n) => str_starts_with($n, 'Kelompok Dua')));
     }
-
-    // ---------- 14. daftar kelas muatan penuh 3 tabel + PATCH riwayat ----------
 
     public function test_14_daftar_kelas_penuh_tiga_tabel_dan_ubah_riwayat(): void
     {
@@ -1232,7 +1158,6 @@ class SiklusFlowTest extends TestCase
             ->update(['nis_kemenag' => '1234567890122601', 'tgl_selesai' => null]);
         $riwayat = $this->makeRiwayat($s, $f['taBaru'], $f['mi'], '1', ['kelas_id' => $kelas->id, 'tingkat' => '1']);
 
-        // Muatan penuh: santri.* + lembaga_anggota.* + relasi + nis_lokal ringkas.
         $daftar = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang)
             ->assertStatus(200);
@@ -1245,20 +1170,17 @@ class SiklusFlowTest extends TestCase
         $this->assertSame('MI', $baris['lembaga']['jenjang']);
         $this->assertSame('25201', $baris['nis_lokal']);
 
-        // PATCH kolom skalar → ok.
         $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/riwayat-belajar/{$riwayat->id}", [
             'tingkat' => '2', 'no_absen' => 7, 'tgl_masuk' => '2026-07-10',
         ])->assertStatus(200)->assertJsonPath('data.tingkat', '2');
         $this->assertSame(7, (int) $riwayat->fresh()->no_absen);
 
-        // Kolom lifecycle dikunci: status_akhir/is_aktif diabaikan (tetap 200).
         $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/riwayat-belajar/{$riwayat->id}", [
             'status_akhir' => 'lulus', 'is_active_riwayat' => 'Tidak',
         ])->assertStatus(200);
         $this->assertSame('aktif', $riwayat->fresh()->status_akhir);
         $this->assertSame('Ya', $riwayat->fresh()->is_active_riwayat);
 
-        // Semester duplikat (santri+TA+lembaga+semester unik) → 422; di luar 1/2 → 422.
         $this->makeRiwayat($s, $f['taBaru'], $f['mi'], '2');
         $this->actingAs($admin, 'sanctum')->patchJson("/api/admin/riwayat-belajar/{$riwayat->id}", [
             'semester' => '2',
@@ -1267,7 +1189,6 @@ class SiklusFlowTest extends TestCase
             'semester' => '3',
         ])->assertStatus(422);
 
-        // Admin lembaga lain (di luar pasangan MI↔MD) → 403.
         $ra = Lembaga::create([
             'nama' => 'Raudhatul Athfal', 'jenjang' => 'RA',
             'is_seleksi' => false, 'kelompok_psb' => 'combo_mi_md', 'is_active' => true,
@@ -1297,7 +1218,6 @@ class SiklusFlowTest extends TestCase
 
         $dasar = '/api/admin/akademik/daftar-kelas?jenjang='.$f['mi']->jenjang;
 
-        // Urut nama menurun + meta periode tetap ada.
         $urut = $this->actingAs($admin, 'sanctum')
             ->getJson($dasar.'&sort=santri&arah=turun')
             ->assertStatus(200);
@@ -1306,7 +1226,6 @@ class SiklusFlowTest extends TestCase
         $this->assertTrue(str_starts_with($nama->last(), 'Andi'));
         $this->assertSame($f['taBaru']->nama, $urut->json('tahun_ajaran'));
 
-        // Cari NIS lokal + kunci urut asing ditolak.
         $cari = $this->actingAs($admin, 'sanctum')
             ->getJson($dasar.'&q=91002')
             ->assertStatus(200);
@@ -1316,7 +1235,6 @@ class SiklusFlowTest extends TestCase
             ->getJson($dasar.'&sort=kolom_asing')
             ->assertStatus(422);
 
-        // Filter tingkat[] + kelas_id[] + paginasi.
         $tingkat = $this->actingAs($admin, 'sanctum')
             ->getJson($dasar.'&tingkat[]=2')
             ->assertStatus(200);
@@ -1333,8 +1251,6 @@ class SiklusFlowTest extends TestCase
         $this->assertSame(2, $halaman->json('last_page'));
         $this->assertCount(1, $halaman->json('data'));
     }
-
-    // ---------- 12. profil santri memuat keanggotaan + riwayat + arsip ----------
 
     public function test_12_profil_santri_memuat_keanggotaan_riwayat_dan_alumni(): void
     {
@@ -1360,8 +1276,6 @@ class SiklusFlowTest extends TestCase
         $this->assertCount(1, $res->json('alumni'));
     }
 
-    // ---------- 13. beku kelas: mutasi otomatis, input manual menang ----------
-
     public function test_13_mutasi_beku_kelas_otomatis_dan_override_manual(): void
     {
         $f = $this->baseFixture();
@@ -1369,7 +1283,6 @@ class SiklusFlowTest extends TestCase
         $kelasA = $this->makeKelas($f['mi'], $f['taLama'], '3A', '3');
         $kelasB = $this->makeKelas($f['mi'], $f['taLama'], '3B', '3');
 
-        // Tanpa input → beku dari riwayat aktif terakhir.
         $s1 = $this->makeSantri('Beku Otomatis');
         $this->makeKeanggotaan($s1, $f['mi'], '25015');
         $this->makeRiwayat($s1, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelasA->id]);
@@ -1380,7 +1293,6 @@ class SiklusFlowTest extends TestCase
         ])->assertStatus(200);
         $this->assertDatabaseHas('mutasi_keluar', ['santri_id' => $s1->id, 'kelas_terakhir_id' => $kelasA->id]);
 
-        // Input manual → menang atas snapshot.
         $s2 = $this->makeSantri('Beku Override');
         $this->makeKeanggotaan($s2, $f['mi'], '25016');
         $this->makeRiwayat($s2, $f['taLama'], $f['mi'], '1', ['kelas_id' => $kelasA->id]);
@@ -1392,8 +1304,6 @@ class SiklusFlowTest extends TestCase
         ])->assertStatus(200);
         $this->assertDatabaseHas('mutasi_keluar', ['santri_id' => $s2->id, 'kelas_terakhir_id' => $kelasB->id]);
     }
-
-    // ---------- 14. kenaikan otomatis: TA + kelas dibuatkan ----------
 
     public function test_14_naik_otomatis_kelas_bertambah_ta_ada(): void
     {
@@ -1413,16 +1323,14 @@ class SiklusFlowTest extends TestCase
             'siswa' => [['santri_id' => $s->id, 'status' => 'naik', 'tgl_masuk' => '2026-07-15']],
         ])->assertStatus(200);
         $this->assertSame(1, $res->json('berhasil'), json_encode($res->json('gagal')));
-        // Respons memuat kelas/tingkat tujuan agar UI tak menampilkan kelas lama.
+
         $this->assertSame('2A', $res->json('data.0.kelas'));
         $this->assertSame('2', (string) $res->json('data.0.tingkat'));
 
-        // TA 2026/2027 milik lembaga dipakai; kelas 2A dibuat otomatis.
         $kelas2A = Kelas::where('jenjang', $f['mi']->jenjang)
             ->where('tahun_ajaran', $f['taBaru']->nama)->where('nama_kelas', '2A')->firstOrFail();
         $this->assertSame('2', $kelas2A->tingkat);
 
-        // Baris lama ditutup naik; baris baru kenaikan + aktif + tgl masuk.
         $this->assertDatabaseHas('riwayat_belajar', [
             'santri_id' => $s->id, 'tahun_ajaran' => $f['taLama']->nama,
             'semester' => '2', 'status_akhir' => 'naik', 'is_active_riwayat' => 'Tidak',
@@ -1434,7 +1342,6 @@ class SiklusFlowTest extends TestCase
             'tgl_masuk' => '2026-07-15', 'is_active_riwayat' => 'Ya',
         ]);
 
-        // Filter status_awal (sumber tabel hasil Kenaikan) memuat baris baru.
         $daftar = $this->actingAs($admin, 'sanctum')->getJson('/api/admin/riwayat-belajar?'.http_build_query([
             'jenjang' => $f['mi']->jenjang, 'status_awal' => 'kenaikan', 'is_active_riwayat' => 1,
         ]))->assertStatus(200);
@@ -1481,7 +1388,6 @@ class SiklusFlowTest extends TestCase
         $this->assertSame(1, $res->json('berhasil'));
         $this->assertCount(2, $res->json('gagal'));
 
-        // TA 2027/2028 dibuat global; tidak_naik memakai kelas senama.
         $taBaru2 = TahunAjaran::where('nama', '2027/2028')->firstOrFail();
         $kelas3Cbaru = Kelas::where('jenjang', $f['mi']->jenjang)
             ->where('tahun_ajaran', $taBaru2->nama)->where('nama_kelas', '3C')->firstOrFail();
@@ -1491,15 +1397,12 @@ class SiklusFlowTest extends TestCase
             'status_awal' => 'mengulang', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
-        // Kelas tak berangka + tingkat akhir gagal jelas, baris lama utuh.
         $pesan = collect($res->json('gagal'))->pluck('pesan')->join(' ');
         $this->assertStringContainsString('angka', $pesan);
         $this->assertStringContainsString('Kelulusan', $pesan);
         $this->assertTrue((bool) RiwayatBelajar::where('santri_id', $sAneh->id)->where('is_active_riwayat', 'Ya')->exists());
         $this->assertTrue((bool) RiwayatBelajar::where('santri_id', $sAkhir->id)->where('is_active_riwayat', 'Ya')->exists());
     }
-
-    // ---------- 15. batal kenaikan: hapus baru + buka lama ----------
 
     public function test_16_batal_kenaikan_mengembalikan_baris_asal(): void
     {
@@ -1524,14 +1427,12 @@ class SiklusFlowTest extends TestCase
         ])->assertStatus(200);
         $this->assertSame('aktif', $res->json('data.status_akhir'));
 
-        // Baris baru hilang; baris asal aktif kembali.
         $this->assertSame(1, RiwayatBelajar::where('santri_id', $s->id)->count());
         $this->assertDatabaseHas('riwayat_belajar', [
             'santri_id' => $s->id, 'tahun_ajaran' => $f['taLama']->nama,
             'semester' => '2', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
         ]);
 
-        // Batal kedua kali → 422 jelas (tak ada hasil aktif).
         $this->actingAs($admin, 'sanctum')->postJson("/api/admin/santri/{$s->id}/batal-kenaikan", [
             'jenjang' => $f['mi']->jenjang,
         ])->assertStatus(422);

@@ -136,8 +136,7 @@ export default function PanelTemplate({ jenjang, ta, kelasOpsi, kelasId, canTamb
       toast.error('Isi jeda 1 JPL dengan jam yang sah (lebih dari 00:00).');
       return;
     }
-    // Lanjutkan dari baris yang berlaku pada hari terpilih (baris "semua hari"
-    // ikut dihitung); jangan memakai jam hari lain sebagai patokan.
+
     const sumber = hariBaru === ''
       ? detail.baris
       : detail.baris.filter((b) => b.hari === null || b.hari === hariBaru);
@@ -403,8 +402,6 @@ function TerapkanKerangka({ jenjang, kelasOpsi, kelasId, canTambah, aktif, hasil
   const tingkatKelasAktif = kelasOpsi.find((k) => k.id === kelasId)?.tingkat ?? null;
   const kelasIdSebelumnya = useRef<number | ''>(kelasId);
 
-  // Sasaran default mengikuti kelas yang sedang dibuka saat kelas itu berganti;
-  // pilihan manual pengguna tidak direset setiap render.
   useEffect(() => {
     if (kelasIdSebelumnya.current === kelasId) return;
     kelasIdSebelumnya.current = kelasId;

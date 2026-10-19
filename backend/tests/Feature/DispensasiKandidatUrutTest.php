@@ -29,8 +29,6 @@ class DispensasiKandidatUrutTest extends TestCase
         $this->seed(RoleSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
 
-        // `kelas.tahun_ajaran` FK wajib ke `tahun_ajaran.nama`; kolom `kelas`
-        // memakai TA acuan yang sama dengan filternya di endpoint.
         DB::table('tahun_ajaran')->insert([
             'nama' => '2025/2026', 'is_aktif' => true,
             'created_at' => now(), 'updated_at' => now(),
@@ -59,7 +57,6 @@ class DispensasiKandidatUrutTest extends TestCase
             ->getJson('/api/admin/urut-preset?table_key=dispensasi_kandidat');
         $res->assertStatus(200);
 
-        // Opsi seed ada, tanpa bawaan terpilih: urutan awal tetap dari endpoint.
         $this->assertSame(['nama'], $res->json('data.opsi.0.kode'));
         $this->assertFalse($res->json('data.opsi.0.bawaan'));
         $this->assertSame(
@@ -81,7 +78,6 @@ class DispensasiKandidatUrutTest extends TestCase
             $this->keanggotaan($s, 'MI');
         }
 
-        // Nama menaik.
         $res = $this->actingAs($admin)
             ->getJson('/api/admin/santri?sort=nama&arah=naik&per_page=50');
         $res->assertStatus(200);
@@ -90,7 +86,6 @@ class DispensasiKandidatUrutTest extends TestCase
             array_column($res->json('data'), 'nama_lengkap'),
         );
 
-        // NISN menurun (urutan panjang digit sama karena semua 10 digit).
         $resNisn = $this->actingAs($admin)
             ->getJson('/api/admin/santri?sort=nisn&arah=turun&per_page=50');
         $resNisn->assertStatus(200);
@@ -106,13 +101,10 @@ class DispensasiKandidatUrutTest extends TestCase
         $this->seedLembaga('MI');
         $admin = $this->adminMi();
 
-        // Kode di luar allowlist harus 422, bukan diam-diam diabaikan.
         $this->actingAs($admin)
             ->getJson('/api/admin/santri?sort=ngawur')
             ->assertStatus(422);
     }
-
-    // ---------- helper ----------
 
     protected function seedLembaga(string $jenjang): void
     {
@@ -154,19 +146,15 @@ class DispensasiKandidatUrutTest extends TestCase
         ]);
     }
 
-    // ---------- urut Kelas & Jenjang (pseudo-kolom) ----------
-
     /** Kelas diurutkan dari nama kelas acuan (bukan abjad nama santri). */
     public function test_urut_kelas_memakai_nama_kelas_acuan(): void
     {
         $this->seedLembaga('MI');
         $admin = $this->adminMi();
 
-        // Sengaja TIDAK urut abjad nama: kalau urutannya benar dari kelas,
-        // hasilnya beda dari urutan nama — jadi tesnya benar-benar menguji kelas.
-        $budi = $this->santri('Budi', '1111111111');   // Kelas 3A
-        $ani = $this->santri('Ani', '2222222222');     // Kelas 1A
-        $cici = $this->santri('Cici', '3333333333');   // Kelas 2A
+        $budi = $this->santri('Budi', '1111111111');
+        $ani = $this->santri('Ani', '2222222222');
+        $cici = $this->santri('Cici', '3333333333');
         $this->keanggotaan($budi, 'MI');
         $this->keanggotaan($ani, 'MI');
         $this->keanggotaan($cici, 'MI');
@@ -179,7 +167,7 @@ class DispensasiKandidatUrutTest extends TestCase
         $res->assertStatus(200);
 
         $this->assertSame(['Ani', 'Cici', 'Budi'], array_column($res->json('data'), 'nama_lengkap'));
-        // Kolom `kelas` yang tampil ikut terisi sesuai urutannya.
+
         $this->assertSame(['1A', '2A', '3A'], array_column($res->json('data'), 'kelas'));
     }
 
@@ -193,7 +181,7 @@ class DispensasiKandidatUrutTest extends TestCase
         $dua = $this->santri('Dua', '2222222222');
         $this->keanggotaan($satu, 'MI');
         $this->keanggotaan($dua, 'MI');
-        // Semester 1 di kelas BELAKANG, semester 2 di kelas DEPAN.
+
         $this->riwayat($satu, 'MI', '9Z', '1');
         $this->riwayat($satu, 'MI', '1A', '2');
         $this->riwayat($dua, 'MI', '5A', '1');
@@ -203,7 +191,6 @@ class DispensasiKandidatUrutTest extends TestCase
             ->getJson('/api/admin/santri?sort=kelas&arah=naik&per_page=50');
         $res->assertStatus(200);
 
-        // Satu pakai 1A (sem 2), Dua pakai 5B (sem 2) → Satu dulu.
         $this->assertSame(['Satu', 'Dua'], array_column($res->json('data'), 'nama_lengkap'));
         $this->assertSame(['1A', '5B'], array_column($res->json('data'), 'kelas'));
     }
@@ -226,8 +213,6 @@ class DispensasiKandidatUrutTest extends TestCase
             ->getJson('/api/admin/santri?sort=jenjang&arah=naik&per_page=50');
         $res->assertStatus(200);
 
-        // MI dulu, walau abjad 'MD' < 'MI': yang diurutkan peringkat jenjang,
-        // bukan namanya.
         $this->assertSame(['Santri MI', 'Santri MD'], array_column($res->json('data'), 'nama_lengkap'));
     }
 
@@ -243,8 +228,6 @@ class DispensasiKandidatUrutTest extends TestCase
         $this->keanggotaan($tanpa, 'MI');
         $this->riwayat($punya, 'MI', '5A', '1');
 
-        // Menurun: kalau NULL tidak dipaksa di bawah, "Tanpa Kelas" melompat
-        // ke paling atas dan menutupi baris yang benar-benar punya kelas.
         $res = $this->actingAs($admin)
             ->getJson('/api/admin/santri?sort=kelas&arah=turun&per_page=50');
         $res->assertStatus(200);
@@ -252,8 +235,6 @@ class DispensasiKandidatUrutTest extends TestCase
         $nama = array_column($res->json('data'), 'nama_lengkap');
         $this->assertSame('Tanpa Kelas', end($nama));
     }
-
-    // ---------- helper tambahan ----------
 
     protected function adminPusat(): User
     {
@@ -286,8 +267,6 @@ class DispensasiKandidatUrutTest extends TestCase
         ]);
     }
 
-    // ---------- saring keaktifan kandidat ----------
-
     /**
      * Daftar kandidat harus bisa menyaring keaktifan.
      *
@@ -306,19 +285,16 @@ class DispensasiKandidatUrutTest extends TestCase
         $this->keanggotaan($aktif, 'MI');
         $this->keanggotaan($nonaktif, 'MI');
 
-        // is_active_pst=true → hanya yang aktif.
         $hanyaAktif = $this->actingAs($admin)
             ->getJson('/api/admin/santri?is_active_pst=1&per_page=50');
         $hanyaAktif->assertStatus(200);
         $this->assertSame(['Santri Aktif'], array_column($hanyaAktif->json('data'), 'nama_lengkap'));
 
-        // is_active_pst=false → hanya yang nonaktif.
         $hanyaNonaktif = $this->actingAs($admin)
             ->getJson('/api/admin/santri?is_active_pst=0&per_page=50');
         $hanyaNonaktif->assertStatus(200);
         $this->assertSame(['Santri Nonaktif'], array_column($hanyaNonaktif->json('data'), 'nama_lengkap'));
 
-        // 'semua' → keduanya (dikirim eksplisit sebagai opsi "Semua" di UI).
         $semua = $this->actingAs($admin)
             ->getJson('/api/admin/santri?is_active_pst=semua&per_page=50');
         $semua->assertStatus(200);

@@ -33,7 +33,7 @@ describe('flattenAksi', () => {
 
     expect(els).toHaveLength(1);
     expect(els[0].props.id).toBe('btn_a');
-    // Handler tombol ikut sampai ke menu hamburger.
+
     expect(metaAksi(els[0]).onClick).toBeDefined();
   });
 });

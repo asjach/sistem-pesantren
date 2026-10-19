@@ -25,7 +25,7 @@ describe('FIELDS_TARIF — mode Edit', () => {
     expect(fieldTarif('tahun_ajaran')?.kind).toBe('static');
     expect(fieldTarif('jenis')?.kind).toBe('static');
     expect(fieldTarif('nominal')?.kind).toBe('text');
-    // Switch status tersimpan langsung (tanpa Mode Edit), seperti kolom is_active lain.
+
     expect(fieldTarif('aktif')?.kind).toBe('toggle');
   });
 
@@ -33,7 +33,7 @@ describe('FIELDS_TARIF — mode Edit', () => {
     expect(fieldTarif('jenis')?.inputKind).toBe('select');
     expect(fieldTarif('jenis')?.required).toBe(true);
     expect(fieldTarif('nominal')?.required).toBe(true);
-    // Lembaga & TA tidak diisi di baris input — nilainya dari filter halaman.
+
     expect(fieldTarif('jenjang')?.inputKind).toBeUndefined();
     expect(fieldTarif('tahun_ajaran')?.inputKind).toBeUndefined();
   });
@@ -44,11 +44,9 @@ describe('FIELDS_TARIF — mode Edit', () => {
     expect(validate?.('75.000')).toBeNull();
     expect(validate?.('0')).toBeNull();
 
-    // Kosong = ditolak: endpoint menuntut nominal (required).
     expect(validate?.('')).toBe('Nominal wajib diisi.');
     expect(validate?.(null)).toBe('Nominal wajib diisi.');
 
-    // Desimal/tanda baca lain ambigu dengan titik ribuan → ditolak.
     expect(validate?.('abc')).toBe('Nominal harus angka bulat ≥ 0.');
     expect(validate?.('-1')).toBe('Nominal harus angka bulat ≥ 0.');
     expect(validate?.('7.5')).toBe('Nominal harus angka bulat ≥ 0.');
@@ -123,8 +121,7 @@ describe('tarifBentrok — cegah duplikat sebelum POST', () => {
   });
 
   it('tingkat diabaikan: baris lama bertingkat tetap dianggap bentrok', () => {
-    // Index DB `uq_tarif_tagihan` memuat tingkat, tapi NULL dianggap berbeda
-    // oleh MySQL/SQLite — penjaga inilah yang menutup celahnya.
+
     const rows = [tarif({ tingkat: 'VII' })];
     expect(tarifBentrok(rows, { jenjang: 'MI', tahun_ajaran: '2025/2026', jenis_id: 3 })?.id).toBe(1);
     expect(tarifBentrok([], { jenjang: 'MI', tahun_ajaran: '2025/2026', jenis_id: 3 })).toBeNull();

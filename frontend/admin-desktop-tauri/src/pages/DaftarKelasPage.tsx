@@ -90,7 +90,7 @@ export default function DaftarKelasPage() {
           data: [], current_page: 1, last_page: 1, per_page: a.perPage, total: 0,
         });
       }
-      // Salah satu periode = Semua → lintas periode (tanpa default server).
+
       const lintas = tahunAjaranNames.length === 0 || semesters.length === 0;
       return daftarKelas({
         jenjang: jenjangs,

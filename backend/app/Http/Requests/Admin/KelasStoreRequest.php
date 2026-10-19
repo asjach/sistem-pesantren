@@ -15,10 +15,10 @@ class KelasStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Kelas selalu milik lembaga operasional (bukan root pesantren).
+
             'jenjang' => ['required', Rule::exists('lembaga', 'jenjang')],
             'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
-            // Mode tunggal (kompatibel lama) atau bulk via items (sub-form dialog).
+
             'nama_kelas' => ['required_without:items', 'string', 'max:50'],
             'nama_alias' => ['nullable', 'string', 'max:50'],
             'tingkat' => ['nullable', 'string', 'max:20'],

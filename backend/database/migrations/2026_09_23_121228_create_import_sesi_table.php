@@ -12,13 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('import_sesi', function (Blueprint $table) {
-            // Sesi import bertahap (potongan JSON dari browser): satu sesi =
-            // satu file; frontend mengirim potongan berurutan, backend
-            // mengakumulasi hitungan + galat. Baris basi dibersihkan (TTL).
+
             $table->id();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('tipe', 20)->default('riwayat');
-            $table->string('mode', 10); // periksa|eksekusi
+            $table->string('mode', 10);
             $table->unsignedInteger('total')->default(0);
             $table->unsignedInteger('offset')->default(0);
             $table->unsignedInteger('dibuat')->default(0);
@@ -27,9 +25,9 @@ return new class extends Migration
             $table->unsignedInteger('akun_dibuat')->default(0);
             $table->unsignedInteger('akun_dilewati')->default(0);
             $table->unsignedInteger('gagal')->default(0);
-            $table->json('galat_contoh')->nullable(); // maks 200 pertama
-            $table->string('galat_file')->nullable(); // path relatif storage/app
-            $table->string('status', 10)->default('jalan'); // jalan|selesai|batal
+            $table->json('galat_contoh')->nullable();
+            $table->string('galat_file')->nullable();
+            $table->string('status', 10)->default('jalan');
             $table->timestamps();
             $table->index(['user_id', 'status']);
         });

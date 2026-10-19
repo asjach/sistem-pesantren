@@ -124,7 +124,6 @@ class SantriKelasKolomTest extends TestCase
         $riwayat('MD', $kelasMdGenap->id, '2');
         $riwayat('MI', $kelasMiGenap->id, '2');
 
-        // MI menang atas MD walau keduanya semester 2; yang dipakai baris semester 2.
         $this->assertSame('1B', $this->barisUntuk($admin, 'Budi Dua Jenjang', 'tahun_ajaran='.$f['ta']->nama)['kelas']);
     }
 
@@ -141,9 +140,8 @@ class SantriKelasKolomTest extends TestCase
         ]);
         $this->makeSantri('Dedi Tanpa Riwayat');
 
-        // TA aktif = TA fixture, jadi tanpa filter pun kolomnya terisi.
         $this->assertSame('6C', $this->barisUntuk($admin, 'Cici Punya Riwayat')['kelas']);
-        // Santri tanpa riwayat tetap tampil, kolom kelas null (bukan error).
+
         $this->assertNull($this->barisUntuk($admin, 'Dedi Tanpa Riwayat')['kelas']);
     }
 

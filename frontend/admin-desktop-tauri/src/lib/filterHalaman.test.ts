@@ -10,8 +10,6 @@ describe('konfigurasiFilterHalaman', () => {
     });
   });
 
-  // Rail filter tab Tagihan (crosstab) hanya tampil bila `tingkat` & `kelas`
-  // masuk daftar relevan — `tampil` saja tak cukup (lihat FilterRail).
   it('keuangan menyertakan filter tingkat & kelas untuk rail crosstab', () => {
     const k = konfigurasiFilterHalaman('keuangan');
     expect(k.filter).toContain('tingkat');
@@ -19,8 +17,6 @@ describe('konfigurasiFilterHalaman', () => {
     expect(k.tampil).toMatchObject({ tingkat: true, kelas: true, semester: false });
   });
 
-  // Halaman Dispensasi: jenjang + TA tampil di TopBar, tingkat & kelas di rail
-  // tabel santrinya (halaman mendeklarasikan `rail` + keempat kunci ini).
   it('dispensasi menampilkan jenjang & tahun ajaran, plus rail tingkat & kelas', () => {
     const k = konfigurasiFilterHalaman('keuangan_dispensasi');
     expect(k.filter).toEqual(['lembaga', 'tahun_ajaran', 'tingkat', 'kelas']);
@@ -35,8 +31,6 @@ describe('konfigurasiFilterHalaman', () => {
     expect(k.tampil.lembaga).toBe(false);
   });
 
-  // Modul Penilaian: master cukup jenjang + TA; leger/rapor butuh semester
-  // (+ rail tingkat & kelas) karena nilainya per semester.
   it('penilaian: master hanya jenjang & TA, leger/rapor menyertakan semester', () => {
     const master = konfigurasiFilterHalaman('penilaian_master');
     expect(master.filter).toEqual(['lembaga', 'tahun_ajaran']);

@@ -120,9 +120,7 @@ export function ukurAutoFit(root: HTMLElement | null, key: string, o: OpsiAutoFi
   if (key === '__aksi') return measureActionsWidth(root);
   const f = o.fields.find((x) => x.key === key);
   if (!f) return null;
-  // Ambil sel data TEKS: bukan gutter (padding 5px) dan bukan sel checkbox
-  // (padding 0) — keduanya punya padding berbeda dari sel isi sehingga
-  // lebar hasil AutoFit jadi kurang.
+
   const cellEl =
     root.querySelector<HTMLElement>(
       '.dsg-row:not(.dsg-row-header) .dsg-cell:not(.dsg-cell-gutter):not(:has(> input.dsg-checkbox))',
@@ -149,17 +147,13 @@ export function ukurAutoFit(root: HTMLElement | null, key: string, o: OpsiAutoFi
   const csCell = getComputedStyle(cellEl);
   const padCell = padOf(csCell);
 
-  // Canvas dipakai hanya untuk MENYARING kandidat terlebar (cepat), lalu
-  // kandidat itu diukur presisi dengan span DOM. Selisih canvas vs DOM
-  // berasal dari tabular-nums/kerning, jadi ambil margin lebar.
   const CANDIDATE_MARGIN = 40;
   const values: { b: BarisSel[]; cw: number }[] = [];
   let maxCw = 0;
   for (const r of ambilContohBaris(o.rows)) {
     const b = barisCell(r);
     if (b.length === 0) continue;
-    /* Lebar sel = baris terlebar. Kanvas hanya menyaring, jadi font-nya
-       dipasang ulang per baris karena ukurannya bisa beda-beda. */
+
     let cw = 0;
     for (const satu of b) {
       if (satu.teks === '') continue;

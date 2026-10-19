@@ -62,27 +62,20 @@ export function useLebarSidebar({ lebar, setLebar, setCollapsed }: Opsi): LebarS
   const mulaiSeret = useCallback((e: MouseEvent<HTMLElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    // Kursor seret dipasang di <body> selama seretan: pointer gampang keluar
-    // dari gagang yang tipis saat diseret cepat, dan tanpa ini kursornya
-    // berkedip balik ke panah di tengah seretan.
+
     document.body.style.cursor = 'col-resize';
     ref.current.mulaiX = e.clientX;
     ref.current.lebarAwal = lebar;
     ref.current.lebar = lebar;
     ref.current.bergerak = false;
 
-    /* Seret BARU dianggap berjalan setelah pointer melewati ambang klik.
-       Tanpa ini, mousedown pada kenop lipat langsung mematikan transisi +
-       (saat terlipat) melompatkan lebar ke penuh seketika — klik buka/tutup
-       polos jadi terasa instan. Ambang sama dengan `apakahKlik` di bawah. */
     const ambang = (ev: globalThis.MouseEvent) => {
       if (Math.abs(ev.clientX - ref.current.mulaiX) <= AMBANG_GESER_KLIK) return;
       ref.current.bergerak = true;
       setSeret(true);
       window.removeEventListener('mousemove', ambang);
       window.addEventListener('mousemove', geser);
-      // Listener baru tak menerima event yang sedang berjalan — terapkan
-      // gerakan pemicu ini langsung, atau satu langkah seret hilang.
+
       geser(ev);
     };
     const geser = (ev: globalThis.MouseEvent) => {
@@ -97,14 +90,13 @@ export function useLebarSidebar({ lebar, setLebar, setCollapsed }: Opsi): LebarS
       window.removeEventListener('mouseup', selesai);
       document.body.style.cursor = '';
       ref.current.lepas = null;
-      // Klik murni (tak melewati ambang): jangan sentuh apa pun — handler
-      // klik pemanggil (mis. lipat/buka) yang bertindak dengan transisi utuh.
+
       if (!ref.current.bergerak) return;
       const w = ref.current.lebar;
       setSeret(false);
       setSeretSembunyi(false);
       if (w <= SIDEBAR_SNAP_HIDE) {
-        // Mentok ke pinggir → sembunyikan; lebar lama disimpan utk dibuka lagi.
+
         setCollapsed(true);
       } else {
         setCollapsed(false);
@@ -127,9 +119,7 @@ export function useLebarSidebar({ lebar, setLebar, setCollapsed }: Opsi): LebarS
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
       const baru = lebar - langkah;
-      // Ambang sembunyi untuk keyboard = lebar MIN: panah kiri melewati
-      // lebar terkecil menyembunyikan navigasi, karena nilai di bawah MIN
-      // tidak bisa dicapai (clamp) sehingga tak akan pernah ≤ ambang snap.
+
       if (baru < SIDEBAR_LEBAR_MIN) setCollapsed(true);
       else { setCollapsed(false); setLebar(clampSidebarLebar(baru)); }
       return;

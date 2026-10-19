@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// Pengganti psb_berkas (dilebur): milik calon SEBELUM acc, pindah ke santri SAAT acc.
 class DokumenSantri extends Model
 {
     protected $table = 'dokumen_santri';

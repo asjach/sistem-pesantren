@@ -31,7 +31,7 @@ class JenisTarifController extends Controller
         $lembagaIds = $this->nilaiFilter($request, 'jenjang');
         $this->authorizeLembagaMany($actor, $lembagaIds);
         if ($lembagaIds !== []) {
-            // Global (null) selalu ikut + khusus lembaga yang diminta.
+
             $q->where(fn ($w) => $w->whereNull('jenjang')->orWhereIn('jenjang', $lembagaIds));
         } elseif (! $actor->bolehPesantren()) {
             $milik = $actor->lembagaIds();
@@ -88,7 +88,6 @@ class JenisTarifController extends Controller
             abort(403, 'Jenis global hanya boleh dihapus super_admin.');
         }
 
-        // Jenis yang sudah dipakai tarif/tagihan tidak boleh dihapus.
         $dipakai = TarifTagihan::where('jenis_id', $jenis->id)->exists()
             || Tagihan::where('jenis_id', $jenis->id)->exists();
         if ($dipakai) {
@@ -104,7 +103,7 @@ class JenisTarifController extends Controller
     {
         $urut = $this->parseUrut($request, UrutKatalog::peta('keuangan_tarif'));
         $q = TarifTagihan::with('jenis');
-        // Filter global (boleh banyak nilai): `jenjang[]` dan `tahun_ajaran[]`.
+
         $this->scopeLembaga($q, $request->user(), $request, 'tarif_tagihan.jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
         if ($urut === null) {
@@ -139,8 +138,6 @@ class JenisTarifController extends Controller
     {
         $this->canLembaga($request->user(), $tarif->jenjang) || abort(403);
 
-        // Tarif yang sudah dipakai generate tagihan tidak boleh dihapus
-        // (kombinasi inilah yang disalin ke baris tagihan).
         $dipakai = Tagihan::where('jenjang', $tarif->jenjang)
             ->where('tahun_ajaran', $tarif->tahun_ajaran)
             ->where('jenis_id', $tarif->jenis_id)

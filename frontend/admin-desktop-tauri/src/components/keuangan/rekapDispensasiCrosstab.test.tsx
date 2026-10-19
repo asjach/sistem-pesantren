@@ -49,14 +49,13 @@ describe('RekapDispensasiCrosstab', () => {
   it('menampilkan identitas baris dan kolom jenis terdampak', () => {
     render(data());
 
-    // Identitas baris: lembaga, paket, TA.
     expect(screen.getByText('MI')).toBeInTheDocument();
     expect(screen.getByText('Khusus MI')).toBeInTheDocument();
     expect(screen.getByText('2025/2026')).toBeInTheDocument();
-    // Kolom = nama jenis tagihan.
+
     expect(screen.getByText('Infaq Bulanan')).toBeInTheDocument();
     expect(screen.getByText('Biaya Masuk')).toBeInTheDocument();
-    // Header kolom memakai id snake_case.
+
     expect(document.getElementById('th_rekap_crosstab_jenis-1')).not.toBeNull();
   });
 
@@ -69,14 +68,12 @@ describe('RekapDispensasiCrosstab', () => {
 
   it('sel kosong ditandai titik, bukan Rp 0', () => {
     const d = data();
-    // Paket tak menyentuh Biaya Masuk sama sekali.
+
     delete d.baris[0].sel['jenis-2'];
     render(d);
 
-    // Rp 0 terbaca seperti "digratiskan"; titik menandai tak terdampak.
     expect(sel('MI|2025/2026|11', 'jenis-2').textContent).toBe('·');
-    // Yang dicek hanya sel: footer kolom kosong memang menjumlah Rp 0
-    // (itu total, bukan klaim "jenis ini gratis").
+
     const selKosong = document.querySelectorAll('td[id^="td_rekap_crosstab_"]');
     expect([...selKosong].every((td) => !/(^|\s)Rp 0(\s|$)/.test(td.textContent ?? ''))).toBe(true);
   });
@@ -84,11 +81,9 @@ describe('RekapDispensasiCrosstab', () => {
   it('menjumlahkan total per baris dan total per kolom', () => {
     render(data());
 
-    // Total baris = potongan dua jenis (60.000) — ada di sel total maupun footer.
     expect(screen.getAllByText('Rp 60.000').length).toBeGreaterThan(0);
     expect(screen.getByText('Total (tampil)')).toBeInTheDocument();
-    // Footer per kolom: Infaq 50.000 & Biaya Masuk 10.000, masing-masing dobel
-    // dengan selnya, jadi pakai *All*.
+
     expect(screen.getAllByText('Rp 50.000').length).toBeGreaterThanOrEqual(2);
   });
 
@@ -108,7 +103,6 @@ describe('RekapDispensasiCrosstab', () => {
   it('tarif yang belum diatur tampil sebagai "—" di tooltip', async () => {
     render(data());
 
-    // Sel Biaya Masuk punya tarif null.
     await userEvent.hover(sel('MI|2025/2026|11', 'jenis-2'));
 
     await waitFor(() => {

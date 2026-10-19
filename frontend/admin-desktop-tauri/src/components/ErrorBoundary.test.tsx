@@ -9,11 +9,10 @@ function Meledak({ pesan = 'kolom tak ada' }: { pesan?: string }): never {
   throw new Error(pesan);
 }
 
-
 describe('ErrorBoundary', () => {
   let galatConsole: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
-    /* React & batas galat sengaja mencetak galatnya; di tes itu jadi derau. */
+
     galatConsole = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
   afterEach(() => {
@@ -68,8 +67,7 @@ describe('ErrorBoundary', () => {
 
   it('"Coba lagi" melepas galat lalu merender ulang anaknya', async () => {
     const pengguna = userEvent.setup();
-    /* Penanda dinyalakan TES (bukan oleh render) supaya React yang mencoba
-       render ulang sendiri setelah galat tetap mendapat galat yang sama. */
+
     const pulih = { v: false };
     function Kadang(): ReactElement {
       if (!pulih.v) throw new Error('belum boleh');
@@ -148,9 +146,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>,
     );
     expect(document.getElementById('tampilan_galat')).not.toBeNull();
-    /* React boleh mencoba render beberapa kali sebelum menyerah ke batas —
-       yang penting: setelah panel tampil, anak tak dirender lagi walau batas
-       ini di-render ulang dengan prop baru. */
+
     const setelahTampil = jumlahRender;
     rerender(
       <ErrorBoundary judul="Masih gagal">

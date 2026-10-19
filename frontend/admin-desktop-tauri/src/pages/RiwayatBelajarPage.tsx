@@ -67,7 +67,6 @@ function riwayatBelajarValues(r: RiwayatRow): Record<string, string | null> {
   };
 }
 
-
 export default function RiwayatBelajarPage() {
   const { user } = useAuth();
   const canTambah = bisa(user, 'riwayat_belajar.tambah');
@@ -330,8 +329,7 @@ export default function RiwayatBelajarPage() {
                tableKey="riwayat_belum_masuk"
                rail
                  header={<span>Semester Ganjil</span>}
-                 /* LabeledCombobox (bukan FilterField+Select) agar kotaknya bisa
-                   diatur lebar/tingginya lewat popover klik-kanan. */
+
                 filter={(
                    <LabeledCombobox label="Keaktifan" htmlFor="select_keaktifan_riwayat_belajar">
                      <ComboboxRoot

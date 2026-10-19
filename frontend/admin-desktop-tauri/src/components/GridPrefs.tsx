@@ -27,7 +27,6 @@ export const DEFAULT_FONT_PX = 11;
 /** Ukuran huruf baris HEADER tabel (px) — mandiri dari ukuran isi sel. */
 export const DEFAULT_HEADER_FONT_PX = 11;
 
-// Katalog jenis huruf dipakai bersama grid & antarmuka — sumber di src/fonts.ts.
 export { FONT_OPTIONS, FONT_FAMILY_DEFAULT, FONT_TABEL_DEFAULT };
 export type { FontOption } from '@/fonts';
 
@@ -91,9 +90,6 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
   const [headerHDevice, setHeaderHState] = useState<number | null>(null);
   const [server, setServer] = useState<PetaGlobal>({});
 
-  // Jenis & ukuran huruf sel memakai SATU sumber dengan halaman Tampilan:
-  // bagian UI `tabel_sel` (bukan preferensi terpisah), sehingga perubahan di
-  // ribbon maupun di Tampilan selalu sinkron.
   const selGaya = parts.gaya.tabel_sel;
   const fontPx = selGaya?.size ?? null;
   const fontFamily = selGaya?.font ?? FONT_TABEL_DEFAULT;
@@ -101,16 +97,12 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadRowH().then(setRowHState);
     loadHeaderH().then(setHeaderHState);
-    // Standar server: kegagalan diperlakukan sebagai "tidak ada standar"
-    // supaya grid tetap tampil dengan bawaan, bukan kosong.
+
     muatPengaturanGlobal()
       .then((res) => setServer(res.data.peta))
       .catch(() => setServer({}));
   }, []);
 
-  // Bertingkat: perangkat menang bila sudah diubah sendiri.
-  // null = tak ada nilai di lapisan mana pun -> pemanggil memakai jalur
-  // cadangannya sendiri (density DSG), jadi jangan diisi angka bawaan.
   const rowH = nilaiBerlapis(server.tinggi_baris, rowHDevice);
   const headerH = nilaiBerlapis(server.tinggi_header, headerHDevice);
   const sumberRowH = sumberNilai(server.tinggi_baris, rowHDevice);
@@ -118,7 +110,7 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
 
   const setRowH = useCallback((n: number | null) => {
     setRowHState(n);
-    // `null` = kembali mengikuti lapisan bawah (standar server/bawaan).
+
     prefSet(GLOBAL_ROWH_KEY, n != null ? String(n) : '').catch(() => {});
   }, []);
 
@@ -127,7 +119,6 @@ export function GridPrefsProvider({ children }: { children: ReactNode }) {
     prefSet(GLOBAL_HEADER_H_KEY, n != null ? String(n) : '').catch(() => {});
   }, []);
 
-  // Menulis ke bagian `tabel_sel`: `null`/`_bawaan` = hapus override → bawaan.
   const setFontPx = useCallback((n: number | null) => {
     setGayaBagian('tabel_sel', { size: n == null ? undefined : n });
   }, [setGayaBagian]);

@@ -90,8 +90,7 @@ trait UrutDaftar
      */
     protected function terapkanUrutKoleksi(Request $request, array $baris, array $peta): array
     {
-        // (parsing token & validasi pindah ke `kriteriaUrutan` agar crosstab yang
-        //  mengurutkan lewat SQL memakai aturan yang sama).
+
         $mentah = $request->input('sort');
         if ($mentah === null || $mentah === '' || $mentah === []) {
             return $baris;

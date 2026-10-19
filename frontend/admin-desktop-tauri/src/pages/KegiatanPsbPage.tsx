@@ -108,8 +108,7 @@ export default function KegiatanPsbPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [isAdminPesantren, lembagaOpsi, me?.lembagas],
   );
-  // Saat lembaga terkunci (bertindak sebagai lembaga / hanya 1 lembaga), seluruh
-  // pilihan & daftar lembaga di halaman ini dibatasi ke lembaga aktif itu.
+
   const lembagaDialog = useMemo(
     () => (terkunci && lembagaAktifId != null
       ? lembagaTampil.filter((l) => l.jenjang === lembagaAktifId)
@@ -365,10 +364,6 @@ export default function KegiatanPsbPage() {
     setKuotaOpen(true);
   }
 
-  // Dua pintasan Ctrl/Cmd+N untuk dua tabel di halaman ini (masing-masing
-  // addButton-nya sendiri): "+ Gelombang" dan "+ Baris" kuota. Masing-masing
-  // aktif hanya saat tabelnya tampil/terjangkau dan terhalang bila dialog
-  // terkait sudah terbuka — jadi keduanya tidak pernah berebut.
   usePintasanBaru({
     kunci: 'n',
     aktif: isAdminPesantren && !!kegiatanId,

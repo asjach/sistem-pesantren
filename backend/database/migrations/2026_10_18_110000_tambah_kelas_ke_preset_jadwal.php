@@ -31,6 +31,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Tidak dikembalikan: pengguna mungkin sudah memakai kolom Kelas.
+
     }
 };

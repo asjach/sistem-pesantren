@@ -45,8 +45,7 @@ class LembagaSantriController extends Controller
 
         $query = $this->scopeLembaga(
             LembagaSantri::with([
-                // Seluruh kolom profil identitas santri (mirror Buku Induk) agar
-                // halaman Keanggotaan bisa menampilkan/mengedit identitas.
+
                 'santri:id,'.implode(',', Santri::KOLOM_PROFIL),
                 'lembaga:jenjang,nama',
             ]),
@@ -64,7 +63,7 @@ class LembagaSantriController extends Controller
                 $this->applyAcademicFilters($riwayat, $request);
             });
         }
-        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
+
         if ($request->has('is_active_lembaga') && $request->input('is_active_lembaga') !== 'semua') {
             $query->where('lembaga_santri.is_active_lembaga', $request->boolean('is_active_lembaga') ? LembagaSantri::YA : LembagaSantri::TIDAK);
         }
@@ -83,7 +82,7 @@ class LembagaSantriController extends Controller
         $bawaan = [
             ['lembaga_santri.is_active_lembaga', 'turun'], ['lembaga_santri.id', 'turun'],
         ];
-        // Join relasi hanya bila ada kunci urut (eksplisit atau bawaan) yang butuh.
+
         $kunciEfektif = ['kunci' => $urut !== null ? $urut['kunci'] : array_map(fn ($p) => $p[0], $bawaan)];
         $butuhSantri = $this->urutButuhAwalan($kunciEfektif, 'santri.');
         $butuhLembaga = $this->urutButuhAwalan($kunciEfektif, 'lembaga.');
@@ -199,8 +198,6 @@ class LembagaSantriController extends Controller
 
         $lembagaSantri->update($data);
 
-        // Status aktif keanggotaan tidak otomatis mengubah riwayat; is_active_pst tetap turunan riwayat.
-
         return response()->json(['pesan' => 'Keanggotaan diperbarui.', 'data' => $lembagaSantri->fresh()]);
     }
 
@@ -241,7 +238,7 @@ class LembagaSantriController extends Controller
         $auth = $request->user();
 
         $query = $this->scopeLembaga(LembagaSantri::query(), $auth, $request);
-        // `semua` = tanpa filter (nilai eksplisit opsi "Semua" dari UI).
+
         if ($request->has('is_active_lembaga') && $request->input('is_active_lembaga') !== 'semua') {
             $query->where('lembaga_santri.is_active_lembaga', $request->boolean('is_active_lembaga') ? LembagaSantri::YA : LembagaSantri::TIDAK);
         }
@@ -260,7 +257,7 @@ class LembagaSantriController extends Controller
         $berhasil = 0;
         $dilewati = 0;
         $gagal = [];
-        // Baris sudah dibatasi scopeLembaga ke lembaga yang boleh diakses user.
+
         $query->chunkById(200, function ($rows) use ($service, &$berhasil, &$dilewati, &$gagal) {
             foreach ($rows as $row) {
                 try {

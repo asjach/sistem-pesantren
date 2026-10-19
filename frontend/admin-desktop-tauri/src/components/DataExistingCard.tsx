@@ -115,8 +115,7 @@ export default function DataExistingCard({
               className="h-auto shrink-0 px-0"
               disabled={dataIds.length === 0}
               onClick={() => {
-                // Pilihan penuh = seluruh lingkup akses (tanpa parameter; backend
-                // yang memutuskan cakupan sesuai peran akun).
+
                 const ids = dataIds.length === lembagas.length ? undefined : dataIds;
                 void ambil(ids)
                   .then((data) => unduhExcelDataExisting(data, namaBerkas, judulSheet))

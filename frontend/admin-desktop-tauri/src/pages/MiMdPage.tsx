@@ -181,7 +181,7 @@ export default function MiMdPage() {
   }
 
   async function hentikanBanyak(checked: Baris[], clear: () => void) {
-    // Hanya yang juga-MI yang bisa dikeluarkan; murni MD dilewati.
+
     const layak = checked.filter((r) => r.juga_mi === true).map((r) => r.santri_id);
     const lewati = checked.length - layak.length;
     if (layak.length === 0) {
@@ -250,8 +250,7 @@ export default function MiMdPage() {
     renderBulk?: (checked: Baris[], clear: () => void) => ReactNode,
     rail?: boolean,
   ) => {
-    // Urutan tampil dipakai baris tabel DAN daftar tetangga dialog profil,
-    // supaya "Berikutnya" mengikuti urutan yang sedang dilihat.
+
     const tampil = urutkan(rows, urutTabel[key].kolom, urutTabel[key].arah, urutTabel[key].arahKolom);
     return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
@@ -467,5 +466,4 @@ export default function MiMdPage() {
   );
 }
 
-// Re-ekspor tipe agar konsisten dengan pola halaman lain.
 export type { MiMdBarisMi, MiMdBarisMd, MiMdBarisBeda };

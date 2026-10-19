@@ -25,16 +25,6 @@ const LANGKAH_TINGGI = 2;
 const LANGKAH_LEBAR = 10;
 const LANGKAH_LABEL = 4;
 
-/* Lebar tiap SEL grid ukuran (px) = label baris (48) + stepper (84) + tombol
-   reset ikon (24) + 2 celah 6px = 168px. Dipatok, bukan `flex-1`, supaya
-   posisi stepper tak bergeser saat isi panel bertambah/berkurang.
-
-   Angka lebar PANEL ditulis literal di kelas Tailwind (`w-[370px]`, …) karena
-   pemindai Tailwind hanya menemukan kelas yang tertulis utuh di sumber. Isi
-   panel = 370 − border 2×1 − padding p-3 (2×12) = 344px = 2 sel 168px + celah
-   8px. Baris "Lainnya" memakai lebar PENUH 344px, jadi panel tak pernah
-   melebar saat bagian itu dibuka — hanya tingginya yang bertambah. */
-
 /** Lebar label baris (px) — SAMA semua baris supaya stepper sejajar. */
 const LEBAR_LABEL_BARIS = 48;
 /** Lebar label baris COMBOBOX (px) — SAMA semua baris pilihan ("Tipe",
@@ -317,40 +307,23 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
     || adaPengaturanTipe === true;
   return (
     <PopoverContent
-      /* Di SESARANG kotak (bukan di bawahnya): panel setinggi mungkin perlu
-         ruang vertikal penuh (daftar opsi yang panjang), sedangkan meletakkannya
-         di bawah menyembunyikan isi panel saat kotak berada di baris paling
-         bawah. Radix membalik ke sisi sebaliknya (kiri) otomatis bila ruang
-         di kanan tak cukup — jadi penempatannya mengikuti "view". */
+
       side="right"
       align="center"
       sideOffset={6}
       collisionPadding={8}
-      /* Ukuran popover TETAP dan tak bergantung pada combobox: lebar dipatok
-         (min = max) sehingga melebar/menyempitnya kotak combobox tak pernah
-         ikut mengubahnya. Panel hanya dilebarkan saat kolom "Lainnya" dibuka
-         (lihat hitungan di konstanta lebar sel di atas). */
+
       className="w-[370px] min-w-[370px] max-w-[370px] p-3 border-foreground/30"
-      /* Klik KIRI di luar → popover tertutup (bawaan Radix). Yang DIKECUALIKAN
-         adalah interaksi pada (a) daftar opsi di dalam panel dan (b) KOTAK yang
-         sedang diatur — pengguna memakai kontrol yang sama dengan yang ia atur,
-         jadi panel tak boleh hilang saat ia mengklik atau memberi fokus pada
-         kontrol itu. (b) penting bagi klik-kanan di LABEL: membuka daftar opsi
-         memindahkan fokus ke input, dan tanpa pengecualian ini panel ikut
-         tertutup. Radix memeriksa fokus di luar lewat `onFocusOutside`, jadi
-         kedua handler perlu guard yang sama. */
+
       onInteractOutside={(e) => { if (interaksiDiKotak(e.target)) e.preventDefault(); }}
       onFocusOutside={(e) => { if (interaksiDiKotak(e.target)) e.preventDefault(); }}
-      /* Escape sengaja tak menutup: pengguna sering sedang mengetik di salah
-         satu isian panel; menutupnyaralekan ketikan itu. */
+
       onEscapeKeyDown={(e) => e.preventDefault()}
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-start gap-1">
           <div className="flex min-w-0 flex-1 flex-col">
-            {/* Tanpa nama jenis kotak: kontrol yang diatur jelas dari kotak yang
-                baru saja diklik-kanan, dan judul pendek membuat panel 200px
-                tetap satu baris. */}
+
             <p className="truncate text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
               Ukuran kotak
             </p>
@@ -360,10 +333,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
               </p>
             ) : null}
           </div>
-          {/* SALIN & TEMPEL setelan antar kotak — dua langkah, tanpa daftar
-              tujuan: salin di kotak asal (ikon Dokumen), lalu tempel di kotak
-              lain (ikon Papan Tempel, muncul hanya bila papan salin berisi).
-              Isinya hidup di memori aplikasi, jadi bisa lintas halaman. */}
+
           {onSalin !== undefined && (
             <Button
               id={`btn_salin_setelan_kombo_${kunci}`}
@@ -395,10 +365,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
               <ClipboardPaste />
             </Button>
           )}
-          {/* Kembalikan SELURUH setelan komponen ini ke bawaan. Dulu baris penuh
-              di bawah panel; kini ikon di kepala panel sehingga tingginya hemat
-              satu baris + pemisah (±40px) — sejalan dengan tombol reset
-              per-baris yang juga ikon. */}
+
           <Button
             id={`btn_reset_ukuran_kombo_${kunci}`}
             type="button"
@@ -412,11 +379,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
           >
             <RotateCcw />
           </Button>
-          {/* Pengalih bagian "Lainnya" — bawaan TERBUKA. Panahnya BERGANTI,
-              bukan berputar: panah BAWAH saat tertutup (isinya terbuka ke
-              bawah) dan panah ATAS saat terbuka (isinya dilipat ke atas),
-              jadi arahnya selalu menunjukkan apa yang akan terjadi.
-              `aria-expanded` untuk aksesibilitas. */}
+
           <Button
             id={`btn_lainnya_kombo_${kunci}`}
             type="button"
@@ -432,10 +395,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
             {lainnyaBuka ? <ChevronUp /> : <ChevronDown />}
           </Button>
         </div>
-        {/* GRID UKURAN 2 KOLOM × 2 BARIS: baris atas = ukuran kotak (Tinggi,
-            Total), baris bawah = pembagian lebarnya (Label, Kontrol). Urutan
-            itu menjaga pasangan yang berhubungan tetap berdampingan: Total
-            (lebar kotak) di atas Label+Kontrol. */}
+
         <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
           <BarisUkuran
             id={`set_tinggi_kombo_${kunci}`}
@@ -522,18 +482,12 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
             }
           />
         </div>
-        {/* "Lainnya" — DI BAWAH grid ukuran (bukan di sampingnya), jadi panel
-            tak ikut melebar. Berisi Tipe, pengaturan tipe (mis. "Format"),
-            Mengembang, Warna Label, dan Nilai awal; bawaan terbuka. Garis
-            horizontal memisahkan kelompok ukuran dari kelompok pengaturan. */}
+
         {lainnyaBuka ? (
           <>
             <div aria-hidden className="border-t border-foreground/10" />
             <div id={`panel_lainnya_kombo_${kunci}`} className="flex flex-col gap-1.5">
-              {/* Langkah tombol −/+ stepper ANGKA — interval perubahan nilai
-                  per klik. Hanya untuk kotak stepper (`langkah` dikirim
-                  pemanggil); stepper di popover ini sendiri pakai langkah 1
-                  karena langkah yang diatur cuma butuh ketelitian 1-1. */}
+
               {langkah !== undefined ? (
                 <BarisUkuran
                   id={`set_langkah_kombo_${kunci}`}
@@ -557,9 +511,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
                   }
                 />
               ) : null}
-              {/* Tipe + pengaturan khusus tipe AKTIF (mis. "Format" pada
-                  Tanggal). Label memakai `LEBAR_LABEL_KOMBO` supaya
-                  combobox-nya rata kiri. */}
+
               {opsiTipe !== undefined && opsiTipe.length > 1 ? (
                 <BarisPilihan
                   id={`set_tipe_kombo_${kunci}`}
@@ -589,9 +541,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
                   <div className="min-w-0 flex-1">{pengaturanTipe.isi}</div>
                 </div>
               ) : null}
-              {/* Sisi yang mengembang saat "Total" diubah — combobox (bukan
-                  centang) supaya kedua sisi tampil sebagai pilihan bernama: pilot
-                  "Kontrol" atau "Label". */}
+
               <BarisPilihan
                 id={`set_expand_kombo_${kunci}`}
                 teks="Mengembang"
@@ -602,8 +552,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
                 namaDaftar="Buka daftar sisi yang mengembang"
                 onPilih={(v) => onUbah({ expandLabel: v === 'Label' })}
               />
-              {/* "Label transparan" dikelompokkan di bawah tema Mengembang, pada baris
-                  tersendiri yang bertanda "Warna Label:". */}
+
               <BarisPilihan
                 id={`set_label_transparan_kombo_${kunci}`}
                 teks="Warna Label:"
@@ -614,8 +563,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
                 namaDaftar="Buka daftar warna label"
                 onPilih={(v) => onUbah({ labelTransparan: v === 'Transparan' })}
               />
-              {/* Tampil/sembunyi label. Saat disembunyikan, zona label tak
-                  dirender sama sekali dan kontrol mengisi penuh kotak. */}
+
               <BarisPilihan
                 id={`set_label_tampil_kombo_${kunci}`}
                 teks="Label:"
@@ -628,9 +576,7 @@ export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'com
               />
               {opsi !== undefined && opsi.length > 0 ? (
                 <div className="flex items-center gap-1.5">
-                  {/* Nilai AWAL combobox: pilih salah satu opsi yang ada. Dipakai
-                      sebagai nilai awal yang ditampilkan; pengguna tetap bisa
-                      menggantinya, dan nilai pemanggil menang saat berubah. */}
+
                   <label
                     htmlFor={`set_nilai_awal_kombo_${kunci}`}
                     className="shrink-0 text-xs whitespace-nowrap text-muted-foreground"

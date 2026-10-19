@@ -9,10 +9,6 @@ import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
 import DispensasiDialog, { santriIdsUntuk, tambahAturan } from './DispensasiDialog';
 
-// ---- Mock API (unit test tidak boleh memanggil fetch nyata) ----
-// Sama dengan `ExcelTable.test.tsx`: dialog ini menanam ExcelTable, dan
-// ExcelTable memuat preset/urut/komponen dari server saat dipasang.
-
 vi.mock('@/api/toolbarPreset', () => ({
   muatToolbarPreset: vi.fn(async () => ({
     pesan: 'ok',
@@ -43,8 +39,6 @@ vi.mock('@/api/komponenCustom', () => ({
   hapusKomponenCustom: vi.fn(async () => ({ pesan: '' })),
 }));
 
-// ---- Stub jsdom untuk react-datasheet-grid (grid tak bisa hidup di jsdom) ----
-
 vi.mock('react-datasheet-grid', async (importOriginal) => {
   const asli = await importOriginal<typeof import('react-datasheet-grid')>();
   const stub = await import('@/components/excel/_dsgStubDom');
@@ -59,13 +53,10 @@ function paket(partial: Partial<Dispensasi> = {}): Dispensasi {
   };
 }
 
-/* Dialog tidak lagi mengelola penerima (pindah ke halaman Dispensasi), jadi
-   satu-satunya hal yang tersisa soal penerima adalah nilai `santri_ids` yang
-   dikirim saat simpan — dan salah di sini artinya kehilangan data. */
 describe('santriIdsUntuk', () => {
   it('mode ubah mempertahankan daftar penerima yang ada (bukan null)', () => {
     expect(santriIdsUntuk(paket({ santri_ids: [1, 2] }), null)).toEqual([1, 2]);
-    // Paket tanpa penerima tetap null (tak ada yang perlu dijaga).
+
     expect(santriIdsUntuk(paket(), null)).toBeNull();
   });
 
@@ -78,8 +69,6 @@ describe('santriIdsUntuk', () => {
     expect(santriIdsUntuk(paket({ santri_ids: [3] }), { id: 9 })).toEqual([3]);
   });
 });
-
-// ---- Dua tabel: Tagihan (kiri) -> Aturan Dispensasi (kanan) ----
 
 const JENIS: JenisTagihan[] = [
   { id: 1, nama: 'Infaq Bulanan', tipe: 'bulanan', jenjang: null, keterangan: null, urutan: 0, is_active: true },
@@ -119,8 +108,6 @@ const JENIS_LINTAS: JenisTagihan[] = [
   { id: 3, nama: 'SPP MD', tipe: 'bulanan', jenjang: 'MD', keterangan: null, urutan: 0, is_active: true },
 ];
 
-/* Aksi `→` di tabel Tagihan adalah satu-satunya jalan menambah aturan, jadi
-   tipe & nilai bawaannya dikunci di sini: Persen 0%. */
 describe('tambahAturan', () => {
   it('aturan baru memakai bawaan Persen 0%', () => {
     expect(tambahAturan([], 5)).toEqual([{ jenisId: 5, tipe: 'persen', nilai: '0' }]);
@@ -167,8 +154,6 @@ describe('DispensasiDialog — dua tabel tagihan & aturan', () => {
     resetSetelanKomponen();
     renderDialog(paket({ jenjang: 'MTS' }));
 
-    // PILIHAN_LEMBAGA hanya MI & MD — nilai lama tetap tampil apa adanya,
-    // bukan jatuh ke "Semua lembaga".
     expect(document.getElementById('sel_dispensasi_jenjang')).toHaveValue('MTS — di luar lingkup Anda');
   });
 
@@ -186,7 +171,7 @@ describe('DispensasiDialog — dua tabel tagihan & aturan', () => {
 
     expect(screen.getByText('Aturan Dispensasi (1)')).toBeInTheDocument();
     expect(screen.getByText('Tagihan (1)')).toBeInTheDocument();
-    // Jenis 1 sudah diatur → tak muncul lagi di kiri, tombol →-nya pun tak ada.
+
     expect(document.getElementById('btn_dispensasi_tambah_2')).not.toBeNull();
     expect(document.getElementById('btn_dispensasi_tambah_1')).toBeNull();
     expect(document.getElementById('btn_dispensasi_hapus_aturan_1')).not.toBeNull();

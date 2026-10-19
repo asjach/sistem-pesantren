@@ -51,14 +51,11 @@ Route::prefix('auth')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('logout-all', [AuthController::class, 'logoutAll']);
-        // `lembaga_aktif` agar /me mengembalikan izin EFEKTIF saat super_admin
-        // sedang bertindak sebagai lembaga (setara admin).
+
         Route::get('me', [AuthController::class, 'me'])->middleware('lembaga_aktif');
     });
 });
 
-// Gerbang aksi = izin matriks (`permission:`); cakupan data = pivot
-// `user_lembaga` di controller/policy (`lembaga_aktif`, TenantGuard).
 Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
     ->get('dashboard/ringkasan', [DashboardController::class, 'ringkasan'])
     ->middleware('permission:dashboard.lihat');
@@ -80,7 +77,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
 
         Route::get('tahun-ajaran', [TahunAjaranController::class, 'index'])->middleware('permission:tahun_ajaran.lihat');
         Route::post('tahun-ajaran', [TahunAjaranController::class, 'store'])->middleware('permission:tahun_ajaran.tambah');
-        // Kunci `nama` memuat '/', jadi aksi tulis memakai body (bukan segmen URL).
+
         Route::match(['put', 'patch'], 'tahun-ajaran', [TahunAjaranController::class, 'update'])->middleware('permission:tahun_ajaran.ubah');
         Route::delete('tahun-ajaran', [TahunAjaranController::class, 'destroy'])->middleware('permission:tahun_ajaran.hapus');
         Route::post('tahun-ajaran/set-aktif', [TahunAjaranController::class, 'setAktif'])->middleware('permission:tahun_ajaran.ubah');
@@ -107,8 +104,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::delete('keuangan/tagihan/{tagihan}', [TagihanController::class, 'destroyTagihan'])->middleware('permission:keuangan.hapus');
         Route::match(['put', 'patch'], 'keuangan/tagihan/{tagihan}', [TagihanController::class, 'updateTagihan'])->middleware('permission:keuangan.ubah');
         Route::post('keuangan/tagihan/generate', [TagihanController::class, 'generateTagihan'])->middleware('permission:keuangan.tambah');
-        // Pratinjau: hitungan generate tanpa menulis apa pun (dipakai dialog
-        // Buat Tagihan supaya aturan grup/kuota hanya hidup di backend).
+
         Route::post('keuangan/tagihan/pratinjau', [TagihanController::class, 'pratinjauTagihan'])->middleware('permission:keuangan.tambah');
         Route::get('keuangan/tagihan/kandidat', [TagihanController::class, 'kandidatTagihan'])->middleware('permission:keuangan.tambah');
         Route::get('keuangan/grup-custom', [GrupCustomController::class, 'indexGrup'])->middleware('permission:keuangan.lihat');
@@ -145,7 +141,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::match(['put', 'patch'], 'kelas/{kela}', [KelasController::class, 'update'])->middleware('permission:kelas.ubah');
         Route::delete('kelas/{kela}', [KelasController::class, 'destroy'])->middleware('permission:kelas.hapus');
 
-        // Buku Induk Guru + penempatan + riwayat keaktifan (modul pegawai).
         Route::get('pegawai', [PegawaiController::class, 'index'])->middleware('permission:pegawai.lihat');
         Route::post('pegawai', [PegawaiController::class, 'store'])->middleware('permission:pegawai.tambah');
         Route::match(['put', 'patch'], 'pegawai/{pegawai}', [PegawaiController::class, 'update'])->middleware('permission:pegawai.ubah');
@@ -183,24 +178,22 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('pegawai-keaktifan/{keaktifan}/nonaktifkan', [KeaktifanPegawaiController::class, 'nonaktifkan'])->middleware('permission:pegawai.ubah');
         Route::delete('pegawai-keaktifan/{keaktifan}', [KeaktifanPegawaiController::class, 'destroy'])->middleware('permission:pegawai.hapus');
 
-        // Data Santri (101: master profil + import PPDB massal + foto/dokumen)
         Route::get('santri', [SantriController::class, 'index'])->middleware('permission:santri.lihat');
         Route::post('santri', [SantriController::class, 'store'])->middleware('permission:santri.tambah');
         Route::patch('santri/{santri}', [SantriController::class, 'update'])->middleware('permission:santri.ubah');
-        // Import gabungan siswa bertahap (potongan JSON 1000/panggilan): dua middleware = AND (tambah DAN ubah).
+
         Route::get('santri/import-template-gabungan', [SantriController::class, 'templateGabungan'])->middleware('permission:santri.lihat');
         Route::get('santri/data-existing', [SantriController::class, 'dataExisting'])->middleware('permission:santri.lihat');
         Route::post('santri/import-potong', [SantriController::class, 'potongImport'])->middleware(['permission:santri.tambah', 'permission:santri.ubah', 'throttle:imports']);
         Route::post('santri/import-potong/{sesi}/batal', [SantriController::class, 'batalPotong'])->middleware(['permission:santri.tambah', 'permission:santri.ubah']);
         Route::get('santri/import-potong/{sesi}/galat', [SantriController::class, 'galatPotong'])->middleware('permission:santri.lihat');
-        // Samakan NIS paket MI↔MD (pratinjau + eksekusi).
+
         Route::post('santri/samakan-nis', [SantriController::class, 'samakanNis'])->middleware('permission:santri.ubah');
         Route::post('santri/{santri}/foto', [SantriController::class, 'uploadFoto'])->middleware('permission:santri.tambah');
         Route::get('santri/{santri}/foto', [SantriController::class, 'lihatFoto'])->middleware('permission:santri.lihat');
         Route::get('santri/{santri}/dokumen', [SantriController::class, 'listDokumen'])->middleware('permission:santri.lihat');
         Route::post('santri/{santri}/dokumen', [SantriController::class, 'uploadDokumen'])->middleware('permission:santri.tambah');
 
-        // Keanggotaan per lembaga (buku induk: NIS lokal/kemenag, status, tanggal)
         Route::get('lembaga-santri', [LembagaSantriController::class, 'daftar'])->middleware('permission:santri.lihat');
         Route::get('santri/{santri}/lembaga', [LembagaSantriController::class, 'index'])->middleware('permission:santri.lihat');
         Route::post('santri/{santri}/lembaga', [LembagaSantriController::class, 'store'])->middleware('permission:santri.tambah');
@@ -208,7 +201,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('lembaga-santri/{lembagaSantri}/generate-nisk', [LembagaSantriController::class, 'generateNisk'])->middleware('permission:santri.ubah');
         Route::post('lembaga-santri/generate-nisk-bulk', [LembagaSantriController::class, 'generateNiskBulk'])->middleware('permission:santri.ubah');
 
-        // Riwayat belajar (102): roster + dialog input + import terpisah
         Route::get('riwayat-belajar', [RiwayatBelajarController::class, 'index'])->middleware('permission:riwayat_belajar.lihat');
         Route::get('riwayat-belajar/belum-masuk', [RiwayatBelajarController::class, 'belumMasuk'])->middleware('permission:riwayat_belajar.lihat');
         Route::get('riwayat-belajar/belum-genap', [RiwayatBelajarController::class, 'belumGenap'])->middleware('permission:kenaikan.lihat');
@@ -226,7 +218,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('riwayat-belajar/{riwayat}/set-kelas', [RiwayatBelajarController::class, 'setKelas'])->middleware('permission:pindah_kelas.ubah');
         Route::post('riwayat-belajar/{riwayat}/keluar-kelas', [RiwayatBelajarController::class, 'keluarKelas'])->middleware('permission:pindah_kelas.ubah');
 
-        // Siklus akademik (kenaikan, kelulusan, mutasi keluar, rekap)
         Route::post('akademik/naik-kelas', [SiklusController::class, 'naikKelasMassal'])->middleware('permission:kenaikan.ubah');
         Route::post('akademik/naik-kelas-otomatis', [SiklusController::class, 'naikKelasOtomatis'])->middleware('permission:kenaikan.ubah');
         Route::get('akademik/ringkasan-pindah-genap', [SiklusController::class, 'ringkasanPindahGenap'])->middleware('permission:kenaikan.ubah');
@@ -262,7 +253,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('alumni/import-potong/{sesi}/batal', [AlumniArsipController::class, 'batalPotong'])->middleware('permission:kelulusan.ubah');
         Route::get('alumni/import-potong/{sesi}/galat', [AlumniArsipController::class, 'galatPotong'])->middleware('permission:kelulusan.lihat');
 
-        // Halaman MI-MD: 3 tabel berdampingan + samakan kelas by-nama.
         Route::get('mi-md', [MiMdController::class, 'index'])->middleware('permission:rekap_santri.lihat');
         Route::post('mi-md/samakan-kelas', [MiMdController::class, 'samakanKelas'])->middleware('permission:pindah_kelas.ubah');
         Route::post('mi-md/daftarkan-md', [MiMdController::class, 'daftarkanMd'])->middleware('permission:santri.tambah');
@@ -287,7 +277,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('pengajuan-biodata/{id}/setujui', [PengajuanBiodataController::class, 'setujui'])->middleware('permission:pengajuan_biodata.ubah');
         Route::post('pengajuan-biodata/{id}/tolak', [PengajuanBiodataController::class, 'tolak'])->middleware('permission:pengajuan_biodata.ubah');
 
-        // Tiga halaman dokumen (santri/pegawai/lembaga): izin per tipe lewat context middleware.
         Route::get('dokumen/{tipe}', [DokumenController::class, 'index'])->middleware(IzinDokumen::class.':lihat');
         Route::post('dokumen/{tipe}', [DokumenController::class, 'store'])->middleware(IzinDokumen::class.':tambah');
         Route::match(['put', 'patch'], 'dokumen/{tipe}/{id}', [DokumenController::class, 'update'])->middleware(IzinDokumen::class.':ubah');
@@ -303,7 +292,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('dokumen/{tipe}/import-potong/{sesi}/batal', [DokumenController::class, 'batalPotong'])->middleware(IzinDokumen::class.':tambah');
         Route::get('dokumen/{tipe}/import-potong/{sesi}/galat', [DokumenController::class, 'galatPotong'])->middleware(IzinDokumen::class.':lihat');
 
-        // Preset kolom tampilan tabel (per lembaga; global = admin pesantren).
         Route::get('preset-tabel', [PresetTabelController::class, 'index'])->middleware('permission:preset_tabel.lihat');
         Route::post('preset-tabel', [PresetTabelController::class, 'store'])->middleware('permission:preset_tabel.tambah');
         Route::post('preset-tabel/aktif', [PresetTabelController::class, 'setAktif'])->middleware('permission:preset_tabel.lihat');
@@ -315,44 +303,22 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::put('urut-preset', [UrutPresetController::class, 'simpan'])->middleware('permission:urut_preset.tambah|urut_preset.ubah');
         Route::delete('urut-preset', [UrutPresetController::class, 'hapus'])->middleware('permission:urut_preset.hapus');
 
-        // Kontrol toolbar (global per tabel). Visibilitas = super_admin saja.
-        // Ukuran (lebar/tinggi) kotak kontrol ditulis dari popover klik-kanan
-        // combobox oleh pengguna mana pun → PUT cukup terautentikasi; batas
-        // super_admin untuk `visibilitas` ditegakkan di controller.
         Route::get('toolbar-preset', [ToolbarPresetController::class, 'index'])->middleware('permission:toolbar_preset.lihat');
         Route::put('toolbar-preset', [ToolbarPresetController::class, 'simpan']);
         Route::delete('toolbar-preset', [ToolbarPresetController::class, 'hapus'])->middleware('permission:toolbar_preset.hapus');
 
-        // Setelan komponen CUSTOM (global; satu baris per komponen, kunci
-        // table_key + komponen). Terpisah dari toolbar_preset karena setelannya
-        // milik komponen, bukan tabel — komponen di luar tabel (dialog/form)
-        // ikut punya setelan. Diatur dari popover klik-kanan komponen, jadi
-        // gerbangnya izin modul `komponen_custom`.
-        // Izin modul `komponen_custom` TIDAK eksklusif super_admin (lihat
-        // `IzinKatalog::EKSKLUSIF_SUPER_ADMIN`): setelan diatur dari popover
-        // klik-kanan komponen, sama seperti ukuran kotak kontrol, jadi admin
-        // juga boleh menulis.
-        // PENTING: izin katalog BARU harus ikut dibuat di DB lewat migrasi
-        // penyelaras (`App\Services\SinkronIzin`). Modul yang ada di katalog
-        // tapi belum ada izinnya di DB membuat rute di bawah menolak SEMUA
-        // peran dengan "User does not have the right permissions.".
         Route::get('komponen-custom', [KomponenCustomController::class, 'index'])->middleware('permission:komponen_custom.lihat');
         Route::put('komponen-custom', [KomponenCustomController::class, 'simpan'])->middleware('permission:komponen_custom.tambah|komponen_custom.ubah');
         Route::delete('komponen-custom', [KomponenCustomController::class, 'hapus'])->middleware('permission:komponen_custom.hapus');
 
-        // Standar tampilan global (key-value) — diatur super_admin, dibaca bebas.
         Route::get('pengaturan-global', [PengaturanGlobalController::class, 'index'])->middleware('permission:pengaturan_halaman.lihat');
         Route::put('pengaturan-global', [PengaturanGlobalController::class, 'simpan'])->middleware('permission:pengaturan_halaman.tambah|pengaturan_halaman.ubah');
         Route::delete('pengaturan-global', [PengaturanGlobalController::class, 'hapus'])->middleware('permission:pengaturan_halaman.hapus');
 
-        // Urutan + tampil/sembunyi tab halaman gabungan (global semua pengguna;
-        // tulis super_admin, baca bebas agar semua peramban merender sama).
         Route::get('pengaturan-halaman', [PengaturanHalamanController::class, 'index'])->middleware('permission:pengaturan_halaman.lihat');
         Route::put('pengaturan-halaman', [PengaturanHalamanController::class, 'simpan'])->middleware('permission:pengaturan_halaman.tambah|pengaturan_halaman.ubah');
         Route::delete('pengaturan-halaman', [PengaturanHalamanController::class, 'hapus'])->middleware('permission:pengaturan_halaman.hapus');
 
-        // Master modul PSB: kegiatan -> gelombang -> kuota/biaya pendaftaran per lembaga,
-        // plus biaya masuk/asrama per lembaga (lintas gelombang).
         Route::get('psb/kegiatan', [PsbKegiatanController::class, 'index'])->middleware('permission:kegiatan_psb.lihat');
         Route::post('psb/kegiatan', [PsbKegiatanController::class, 'store'])->middleware('permission:kegiatan_psb.tambah');
         Route::put('psb/kegiatan/{kegiatan}', [PsbKegiatanController::class, 'update'])->middleware('permission:kegiatan_psb.ubah');
@@ -365,8 +331,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('psb/kuota-biaya', [PsbBiayaController::class, 'upsertKuota'])->middleware('permission:kegiatan_psb.tambah');
         Route::delete('psb/kuota-biaya/{kuota}', [PsbBiayaController::class, 'destroyKuota'])->middleware('permission:kegiatan_psb.hapus');
 
-        // Modul Penilaian: nilai diikat PERISTIWA (ASAS/ASAT/UJIAN/UAP).
-        // Peristiwa milik (jenjang, TA); rapor & leger dicetak per peristiwa.
         Route::get('penilaian/peristiwa', [PenilaianController::class, 'indexPeristiwa'])->middleware('permission:penilaian.lihat');
         Route::post('penilaian/peristiwa', [PenilaianController::class, 'storePeristiwa'])->middleware('permission:penilaian.tambah');
         Route::match(['put', 'patch'], 'penilaian/peristiwa/{peristiwa}', [PenilaianController::class, 'updatePeristiwa'])->middleware('permission:penilaian.ubah');
@@ -399,9 +363,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::post('penilaian/import-potong/{sesi}/batal', [PenilaianController::class, 'batalPotong'])->middleware('permission:penilaian.tambah');
         Route::get('penilaian/import-potong/{sesi}/galat', [PenilaianController::class, 'galatPotong'])->middleware('permission:penilaian.lihat');
 
-        // Modul Kurikulum & Mapel (BLOK 5, Modul 201 + 502): master mapel,
-        // mapel per jenjang (+ KKM/urutan rapor) dan pengampu per kelas,
-        // slot jam, dan jadwal pelajaran.
         Route::get('kurikulum/mapel', [KurikulumController::class, 'indexMapel'])->middleware('permission:kurikulum.lihat');
         Route::post('kurikulum/mapel', [KurikulumController::class, 'storeMapel'])->middleware('permission:kurikulum.tambah');
         Route::match(['put', 'patch'], 'kurikulum/mapel/{mapel}', [KurikulumController::class, 'updateMapel'])->middleware('permission:kurikulum.ubah');
@@ -413,8 +374,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('kurikulum/mapel/import-potong/{sesi}/galat', [KurikulumController::class, 'galatPotongMapel'])->middleware('permission:kurikulum.lihat');
         Route::get('kurikulum/guru-aktif', [KurikulumController::class, 'guruAktif'])->middleware('permission:kurikulum.lihat');
         Route::get('kurikulum/pengampu', [KurikulumController::class, 'indexPengampu'])->middleware('permission:kurikulum.lihat');
-        // Pengampu BANYAK kelas dalam satu request (tabel pengampu bisa menampilkan
-        // beberapa kelas sekaligus lewat rel Kelas).
+
         Route::get('kurikulum/pengampus', [KurikulumController::class, 'indexPengampus'])->middleware('permission:kurikulum.lihat');
         Route::put('kurikulum/pengampu', [KurikulumController::class, 'simpanPengampu'])->middleware('permission:kurikulum.ubah');
         Route::post('kurikulum/pengampu/salin', [KurikulumController::class, 'salinPengampus'])->middleware('permission:kurikulum.tambah');
@@ -442,7 +402,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('kurikulum/hari-libur', [JadwalPelajaranController::class, 'indexHariLibur'])->middleware('permission:kurikulum.lihat');
         Route::put('kurikulum/hari-libur', [JadwalPelajaranController::class, 'simpanHariLibur'])->middleware('permission:kurikulum.ubah');
 
-        // Matriks izin (Kelola Izin): hanya pemilik izin terkait (= super_admin).
         Route::get('izin', [IzinController::class, 'index'])->middleware('permission:izin.lihat');
         Route::put('izin', [IzinController::class, 'update'])->middleware('permission:izin.ubah');
     });
@@ -458,7 +417,6 @@ Route::prefix('psb')->group(function () {
         ->name('psb.bukti');
 });
 
-// PSB admin (auth + izin matriks, scope tenant lembaga per aksi).
 Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('psb')
     ->group(function () {
@@ -489,8 +447,6 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('import-template', [PsbController::class, 'template'])->middleware('permission:psb.lihat');
     });
 
-// Portal orang tua (auth + role orang_tua, envelope pesan/data, cek pemilik B5).
-// Pengecualian matriks: portal tetap role-based (di luar cakupan Kelola Izin).
 Route::middleware(['auth:sanctum', 'role:orang_tua', 'throttle:api_user'])
     ->prefix('portal')
     ->group(function () {
@@ -506,15 +462,12 @@ Route::middleware(['auth:sanctum', 'role:orang_tua', 'throttle:api_user'])
         Route::delete('pengajuan-biodata/{id}/batal', [PengajuanBiodataController::class, 'batalkan']);
     });
 
-// List dokumen calon: orang_tua pemilik + admin tenant.
-// Pengecualian matriks: grup campuran peran, tetap role-based + cek pemilik di controller.
 Route::middleware(['auth:sanctum', 'role:orang_tua|admin|super_admin', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('portal/psb')
     ->group(function () {
         Route::get('{calon}/dokumen', [PsbDokumenController::class, 'listCalon']);
     });
 
-// Kamus global (saran combobox): publik + throttle (dipakai form PSB tanpa login).
 Route::middleware('throttle:30,1')->prefix('kamus')->group(function () {
     Route::get('/{jenis}', [KamusController::class, 'saran']);
 });

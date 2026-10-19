@@ -192,7 +192,7 @@ class PegawaiImporService extends ImporPotongan
         try {
             $hasil = app(AkunPegawaiService::class)->sediakan($pegawai, $this->aktor, $kering);
         } catch (QueryException $e) {
-            // Balapan unik di sisi akun: baris pegawai tetap sah, akun dilewati.
+
             $this->akunDilewati++;
 
             return;

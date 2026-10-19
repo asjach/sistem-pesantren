@@ -8,8 +8,6 @@ import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen } from '@/components/komponenCustom';
 import { bulanIni, bulanKeTampilan, NAMA_BULAN, pecahBulan } from '@/lib/tanggal';
 
-/* Setelan komponen custom disimpan di server; API-nya dimock agar tak ada
-   permintaan jaringan saat render. */
 vi.mock('@/api/komponenCustom', () => ({
   muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
   simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
@@ -50,13 +48,13 @@ describe('LabeledInput tipe bulan — kotak', () => {
     renderDenganTema(<Contoh />);
 
     const el = kotak();
-    // `text`, BUKAN `month`: tampilan & pemilihnya milik kita, bukan webview.
+
     expect(el.type).toBe('text');
     expect(el.inputMode).toBe('numeric');
     expect(el.placeholder).toBe('mm/yyyy');
     expect(el.className).toMatch(/pr-7/);
     expect(document.getElementById('btn_bulan_inp_bln')).not.toBeNull();
-    // Tombol kalender tanggal bukan milik tipe ini.
+
     expect(document.getElementById('btn_kalender_inp_bln')).toBeNull();
   });
 
@@ -74,8 +72,8 @@ describe('LabeledInput tipe bulan — tampilan vs nilai', () => {
 
     await userEvent.type(kotak(), '102026');
 
-    expect(kotak().value).toBe('10/2026'); // yang dilihat pengguna
-    expect(nilai()).toBe('2026-10');       // yang dipakai aplikasi & dikirim ke DB
+    expect(kotak().value).toBe('10/2026');
+    expect(nilai()).toBe('2026-10');
   });
 
   it('tempelan ISO (dari Excel/DB) dibaca sebagai bulannya', async () => {
@@ -85,7 +83,6 @@ describe('LabeledInput tipe bulan — tampilan vs nilai', () => {
     expect(kotak().value).toBe('10/2026');
     expect(nilai()).toBe('2026-10');
 
-    // Tanggal penuh pun terbaca sebagai bulan itu, bukan "20/2610".
     fireEvent.change(kotak(), { target: { value: '2026-03-15' } });
     expect(kotak().value).toBe('03/2026');
     expect(nilai()).toBe('2026-03');
@@ -96,11 +93,10 @@ describe('LabeledInput tipe bulan — tampilan vs nilai', () => {
 
     fireEvent.change(kotak(), { target: { value: '13/2026' } });
     expect(nilai()).toBe('');
-    expect(kotak().value).toBe('13/2026'); // tetap terlihat supaya bisa diperbaiki
+    expect(kotak().value).toBe('13/2026');
     expect(kotak().getAttribute('aria-invalid')).toBe('true');
     expect(kotak().title).toBe('Bulan tidak dikenal (mis. 10/2026 atau "okt 2026")');
 
-    // Diperbaiki → tanda hilang & nilainya masuk.
     fireEvent.change(kotak(), { target: { value: '12/2026' } });
     await waitFor(() => expect(kotak().getAttribute('aria-invalid')).toBeNull());
     expect(nilai()).toBe('2026-12');
@@ -124,8 +120,6 @@ describe('LabeledInput tipe bulan — ketikan cepat nama bulan', () => {
 
     await userEvent.type(kotak(), 'okt2026');
 
-    // Ketikan cepat tampil apa adanya (huruf pertama dibesarkan) — bentuk baku
-    // baru dipakai begitu kotaknya ditinggalkan.
     expect(kotak().value).toBe('Okt 2026');
     expect(nilai()).toBe('2026-10');
 
@@ -151,7 +145,6 @@ describe('LabeledInput tipe bulan — ketikan cepat nama bulan', () => {
     expect(kotak().value).toBe('September 2025');
     expect(nilai()).toBe('2025-09');
 
-    // Ganti isi dengan bentuk digit: mask digit tetap berlaku seperti semula.
     await userEvent.clear(kotak());
     await userEvent.type(kotak(), '032025');
     expect(kotak().value).toBe('03/2025');
@@ -166,7 +159,7 @@ describe('LabeledInput tipe bulan — ketikan cepat nama bulan', () => {
     expect(kotak().value).toBe('Xyz 26');
     expect(nilai()).toBe('');
     expect(kotak().getAttribute('aria-invalid')).toBe('true');
-    // Blur tak menghapus ketikan yang belum jadi nilai — masih bisa dibetulkan.
+
     fireEvent.blur(kotak());
     expect(kotak().value).toBe('Xyz 26');
   });

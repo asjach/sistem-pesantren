@@ -15,10 +15,10 @@ class PenilaianPotongRequest extends PotongImportRequest
             'tipe' => ['required', 'in:nilai,catatan_wali,prestasi,ekskul'],
             'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
             'semester' => ['required', 'in:1,2'],
-            // Lingkup jenjang yang diizinkan (kosong = seluruh akses pengguna).
+
             'jenjang' => ['nullable', 'array'],
             'jenjang.*' => ['string', 'exists:lembaga,jenjang'],
-            // Peristiwa target (wajib untuk tipe `nilai`).
+
             'peristiwa_id' => ['nullable', 'integer', 'exists:peristiwa_nilai,id'],
             'komponen_id' => ['nullable', 'integer', 'exists:komponen_nilai,id'],
         ];

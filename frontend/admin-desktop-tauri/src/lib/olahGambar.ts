@@ -141,14 +141,12 @@ export async function hasilkanGambar(
   const alamiW = img.naturalWidth;
   const alamiH = img.naturalHeight;
 
-  // 1. Crop dalam koordinat natural (jepit ke dalam gambar).
   const c = edisi.crop;
   const sx = Math.max(0, Math.min(c?.x ?? 0, alamiW - 1));
   const sy = Math.max(0, Math.min(c?.y ?? 0, alamiH - 1));
   const sw = Math.max(1, Math.min(c?.w ?? alamiW, alamiW - sx));
   const sh = Math.max(1, Math.min(c?.h ?? alamiH, alamiH - sy));
 
-  // 2-3. Putar + resize via satu sumber kebenaran (ukuran eksplisit = citra tegak).
   const totalDerajat = edisi.rotasi + jepitMiring(edisi.miring);
   const rad = (totalDerajat * Math.PI) / 180;
   const { w: lebar, h: tinggi } = dimsKeluaran(edisi, kualitas, sw, sh);
@@ -172,13 +170,13 @@ export async function hasilkanGambar(
   const ctx = kanvas.getContext('2d');
   if (!ctx) throw new Error('Canvas tidak tersedia.');
   if (mimeKeluar === 'image/jpeg') {
-    // Ratakan alpha ke putih (JPEG tak punya transparansi; sudut hasil miring ikut putih).
+
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, lebar, tinggi);
   }
   ctx.translate(lebar / 2, tinggi / 2);
   ctx.rotate(rad);
-  // Citra tegak berukuran keluaran (dw×dh) diputar mengisi kanvas pas.
+
   ctx.drawImage(img, sx, sy, sw, sh, -dw / 2, -dh / 2, dw, dh);
 
   const blob = await kanvasKeBlob(kanvas, mimeKeluar, mimeKeluar === 'image/jpeg' ? (kualitas === 'hemat' ? KUALITAS_HEMAT : 0.92) : undefined);

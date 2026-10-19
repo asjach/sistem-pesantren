@@ -40,8 +40,6 @@ import { cn } from '@/lib/utils';
  *  satu berkas bisa merender beberapa tabel.
  */
 
-/* ---------- Blok 1: denah ---------- */
-
 interface AreaDenah {
   /** Nomor urut di denah (juga jadi kunci React). */
   no: number;
@@ -103,7 +101,7 @@ function Denah({ areas }: { areas: AreaDenah[] }) {
   const a = (no: number) => areas.find((x) => x.no === no)!;
   return (
     <div className="rounded-md border border-border bg-background p-2">
-      {/* ---- TOOLBAR: area 1-8 ---- */}
+
       <p className="pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
         Toolbar — <span className="font-mono lowercase">JudulTabel.tsx</span>
       </p>
@@ -129,8 +127,7 @@ function Denah({ areas }: { areas: AreaDenah[] }) {
           <Tiruan>
             <MoreVertical size={10} /> Aksi
           </Tiruan>
-          {/* Gerigi "Pengaturan tabel" ada di ujung paling kanan bilah judul —
-              pintu utama Kelola Tabel, jadi punya area sendiri (21). */}
+
           <TandaArea area={a(21)} />
           <Tiruan>
             <Settings size={10} />
@@ -138,7 +135,6 @@ function Denah({ areas }: { areas: AreaDenah[] }) {
         </div>
       </div>
 
-      {/* ---- TABEL ---- */}
       <p className="pt-2 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
         Tabel — <span className="font-mono lowercase">DataSheetGrid</span>
       </p>
@@ -153,7 +149,7 @@ function Denah({ areas }: { areas: AreaDenah[] }) {
           </p>
         </div>
         <div className="min-w-0 flex-1 overflow-x-auto rounded-sm border border-border bg-card">
-          {/* header */}
+
           <div className="flex items-stretch border-b border-border bg-muted/40 text-[10px]">
             <span className="flex w-8 shrink-0 items-center justify-center border-r border-border">
               <TandaArea area={a(10)} />
@@ -170,7 +166,7 @@ function Denah({ areas }: { areas: AreaDenah[] }) {
               <Tiruan className="border-solid">Aksi</Tiruan>
             </span>
           </div>
-          {/* baris contoh */}
+
           {[1, 2, 3].map((r) => (
             <div key={r} className={cn('flex items-stretch border-b border-border text-[10px]', r === 1 && 'bg-primary/5')}>
               <span className="flex w-8 shrink-0 items-center justify-center border-r border-border text-muted-foreground tabular-nums">
@@ -194,7 +190,6 @@ function Denah({ areas }: { areas: AreaDenah[] }) {
         </div>
       </div>
 
-      {/* ---- FOOTER ---- */}
       <p className="pt-2 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
         Footer — <span className="font-mono lowercase">kaki_tabel</span>
       </p>
@@ -216,8 +211,6 @@ function Denah({ areas }: { areas: AreaDenah[] }) {
         </div>
       </div>
 
-      {/* Kontrol yang BUKAN milik kaki tabel. Dulu keduanya berupa tombol di
-          footer; sekarang tinggal di dua tempat di luar komponen tabel. */}
       <p className="pt-2 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
         Di luar kaki tabel — <span className="font-mono lowercase">TopBar · dialog Kelola Tabel</span>
       </p>
@@ -240,8 +233,6 @@ function Denah({ areas }: { areas: AreaDenah[] }) {
     </div>
   );
 }
-
-/* ---------- Blok 1b: jalan masuk pengaturan ---------- */
 
 interface BarisPengaturan {
   /** Di mana kontrolnya berada (bila ada di layar). */
@@ -341,8 +332,6 @@ function TabelPengaturan({ baris, kolomTempat }: { baris: BarisPengaturan[]; kol
   );
 }
 
-/* ---------- Blok 1b: klasifikasi cakupan pengaturan ---------- */
-
 /** Cakupan berlakunya sebuah pengaturan — inilah yang paling sering
  *  membingungkan: kontrol yang tampak sama bisa berlaku berbeda. */
 type Cakupan = 'global' | 'halaman' | 'tabel';
@@ -418,7 +407,7 @@ const CAKUPAN: Record<Cakupan, BarisCakupan[]> = {
 function BlokCakupan() {
   return (
     <div className="flex flex-col gap-2">
-      {/* Ringkasan tiga cakupan */}
+
       <div className="grid gap-1.5 sm:grid-cols-3">
         {(Object.keys(CAKUPAN_INFO) as Cakupan[]).map((c) => (
           <div key={c} className="rounded-md border border-border p-2">
@@ -433,7 +422,6 @@ function BlokCakupan() {
         ))}
       </div>
 
-      {/* Rincian per cakupan */}
       {(Object.keys(CAKUPAN_INFO) as Cakupan[]).map((c) => (
         <div key={c} className="flex flex-col gap-1">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold">
@@ -475,8 +463,6 @@ function BlokCakupan() {
     </div>
   );
 }
-
-/* ---------- Blok 1b-2: sumbu klasifikasi lain ---------- */
 
 /** Sumbu klasifikasi SELAIN cakupan (global/halaman/tabel). Cakupan menjawab
  *  "seberapa luas", sumbu-sumbu ini menjawab pertanyaan lain yang sama
@@ -585,8 +571,6 @@ function BlokSumbu() {
     </div>
   );
 }
-
-/* ---------- Blok 1b-3: mana yang perlu penanda visual ---------- */
 
 /** Penilaian tiap sumbu: apakah pengguna BUTUH tahu nilainya saat melihat
  *  kontrolnya, atau cukup dipahami sekali dari dokumentasi?
@@ -751,8 +735,6 @@ function BlokVisual() {
   );
 }
 
-/* ---------- Blok 1b-4: usulan bentuk pengaturan (arsitektur) ---------- */
-
 /** Usulan penataan ulang pengaturan menjadi 3 rumah yang tidak tumpang tindih.
  *
  *  MASALAH YANG DISELESAIKAN: saat ini pengaturan global (tinggi baris, huruf,
@@ -878,7 +860,6 @@ function BlokUsulan() {
         </p>
       </div>
 
-      {/* Tiga rumah */}
       <div className="grid gap-1.5 lg:grid-cols-3">
         {RUMAH.map((r, i) => (
           <div key={r.nama} className="flex flex-col gap-1 rounded-md border border-border p-2">
@@ -902,7 +883,6 @@ function BlokUsulan() {
         ))}
       </div>
 
-      {/* Aturan penegak */}
       <div className="flex flex-col gap-1">
         <p className="text-[11px] font-semibold">Aturan supaya tidak ada pengaturan di dua tempat</p>
         <div className="overflow-auto rounded-md border border-border">
@@ -927,7 +907,6 @@ function BlokUsulan() {
         </div>
       </div>
 
-      {/* Dampak konkret */}
       <div className="rounded-md border border-border bg-muted/30 p-2">
         <p className="text-xs font-semibold">Dampak bila diterapkan</p>
         <ul className="list-disc space-y-0.5 pt-1 pl-4 text-[11px] text-muted-foreground">
@@ -940,8 +919,6 @@ function BlokUsulan() {
     </div>
   );
 }
-
-/* ---------- Blok 1b-5: klasifikasi lengkap (inventaris penuh) ---------- */
 
 /** Satu baris inventaris pengaturan: apa, di mana SEKARANG, dan di mana
  *  SEHARUSNYA menurut aturan "kunci penyimpanan menentukan rumah". */
@@ -983,13 +960,11 @@ const KLASIFIKASI: BarisKlasifikasi[] = [
   { apa: 'Mode penyimpanan dokumen & folder arsip', nilai: 'server / lokal / test', kunci: 'pref perangkat — PREF_MODE_DOKUMEN dll', rumah: 'global', status: 'benar', catatan: 'Halaman sama (/pengaturan/server).' },
   { apa: 'Matriks izin role × modul', nilai: 'centang per modul', kunci: 'SERVER — izin role', rumah: 'global', status: 'benar', catatan: 'Sudah punya halaman sendiri (/pengaturan/izin).' },
 
-  /* ---------- HALAMAN ---------- */
   { apa: 'Urutan & visibilitas tab halaman gabungan', nilai: 'urutan + tampil/sembunyi per tab', kunci: 'SERVER — pengaturan_halaman per page_key', rumah: 'halaman', status: 'benar', catatan: 'TopBar → Kelola Halaman. Halaman tanpa tab tak punya apa pun di sini.' },
   { apa: 'Filter topBar yang tampil', nilai: 'tampil/sembunyi per kunci filter', kunci: 'state sesi — lib/filterHalaman.ts (KONFIGURASI_FILTER_HALAMAN)', rumah: 'halaman', status: 'benar', catatan: 'Ditentukan kode, BUKAN pengaturan pengguna. Lapisan DB lama (pengaturan_tabel) sudah dihapus karena tak pernah dipakai.' },
   { apa: 'Mode filter (tunggal/jamak)', nilai: 'per filter berjenjang', kunci: 'state sesi — mode di kode', rumah: 'halaman', status: 'benar' },
   { apa: 'Tab terakhir yang dibuka', nilai: 'nama tab', kunci: 'pref perangkat — simpes_<rute>_tab', rumah: 'halaman', status: 'benar', catatan: 'Otomatis, tanpa kontrol UI.' },
 
-  /* ---------- TABEL ---------- */
   { apa: 'Preset kolom (kolom mana tampil)', nilai: 'daftar preset + preset aktif', kunci: 'SERVER — preset per table_key', rumah: 'tabel', status: 'benar' },
   { apa: 'Nama header kustom per kolom', nilai: 'teks pengganti label', kunci: 'SERVER — toolbar_preset.label per table_key', rumah: 'tabel', status: 'benar' },
   { apa: 'Perataan kolom', nilai: 'kiri / tengah / kanan (absen = tengah)', kunci: 'SERVER — toolbar_preset.align per table_key', rumah: 'tabel', status: 'benar', catatan: 'Ada DUA pintu: dialog tab Kolom dan menu klik kanan (jalan pintas).' },
@@ -1007,7 +982,6 @@ const KLASIFIKASI: BarisKlasifikasi[] = [
   { apa: 'Tinggi baris manual per baris', nilai: 'px per id baris', kunci: 'pref perangkat — useTinggiBaris(tableKey)', rumah: 'tabel', status: 'benar', catatan: 'Pegangan seret sudah dihapus; sisa nilai lama tetap dipakai sampai direset lewat klik kanan.' },
   { apa: 'Halaman aktif (Pager)', nilai: 'nomor halaman', kunci: 'pref perangkat — simpes_page_<tableKey>', rumah: 'tabel', status: 'benar' },
 
-  /* ---------- BUKAN PENGATURAN ---------- */
   { apa: 'Mode Ubah (auto-save sel)', nilai: 'aktif/tidak', kunci: 'state sesi — tidak disimpan', rumah: 'tabel', status: 'benar', catatan: 'BUKAN pengaturan: ini MODE KERJA yang menulis ke database.' },
   { apa: 'Mode Input (buat record baru)', nilai: 'aktif/tidak', kunci: 'state sesi — tidak disimpan', rumah: 'tabel', status: 'benar', catatan: 'Sama: menulis data, bukan setelan.' },
   { apa: 'Seleksi baris tercentang', nilai: 'daftar id', kunci: 'state sesi', rumah: 'tabel', status: 'benar', catatan: 'Bukan pengaturan.' },
@@ -1054,7 +1028,6 @@ function BlokKlasifikasiLengkap() {
         sisanya sudah di tempat yang benar.
       </p>
 
-      {/* Tabel per rumah */}
       {(['global', 'halaman', 'tabel'] as const).map((r) => (
         <div key={r} className="flex flex-col gap-1">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold">
@@ -1277,8 +1250,6 @@ function BlokBentukGlobal() {
   );
 }
 
-/* ---------- Blok 1c: rekomendasi perbaikan ---------- */
-
 interface Temuan {
   /** Judul singkat temuan. */
   judul: string;
@@ -1397,8 +1368,6 @@ function BlokRekomendasi() {
   );
 }
 
-/* ---------- Blok 2: inventaris ---------- */
-
 interface BarisFitur {
   fitur: string;
   sumber: string;
@@ -1487,8 +1456,6 @@ function TabelInventaris() {
     </div>
   );
 }
-
-/* ---------- Blok 3: contoh hidup ---------- */
 
 interface ContohBaris {
   id: number;
@@ -1654,8 +1621,6 @@ const DENAH: AreaDenah[] = [
   { no: 21, nama: 'Gerigi "Pengaturan tabel"', sumber: 'tombolPengaturanTampil (excel/JudulTabel.tsx:198)', keterangan: 'Tombol terlihat di ujung paling kanan bilah judul — pintu utama dialog Kelola Tabel dari tabel ini. Sama-sama ada dengan item "Kelola Tabel" di menu klik kanan bilah judul; hidangkan hanya untuk super_admin efektif. Sakelar visibilitas `tombol_pengaturan` bisa mematikannya.' },
 ];
 
-/* ---------- Halaman tab ---------- */
-
 /** Isi tab "ExcelTable": denah, inventaris fitur, lalu contoh hidup. */
 export default function TabExcelTable() {
   return (
@@ -1781,4 +1746,3 @@ export default function TabExcelTable() {
     </div>
   );
 }
-

@@ -119,7 +119,7 @@ export function useToolbarPresetState(tableKey: string) {
   const simpanAlign = useCallback((key: string, nilai: AlignKolom) => {
     const versi = ++versiAlignRef.current;
     const sebelum = alignDbRef.current;
-    // Bersihkan undefined (rentang Partial) agar sesuai AlignKolomApi.
+
     const gabung: AlignKolomApi = {};
     for (const [k, v] of Object.entries(sebelum)) {
       if (v === 'left' || v === 'center' || v === 'right') gabung[k] = v;

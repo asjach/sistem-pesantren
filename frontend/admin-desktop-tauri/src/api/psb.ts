@@ -4,8 +4,6 @@ import type { Paginate } from './master';
 import type { DokumenSantri } from './santri';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 
-// ---------- PSB (100: antrean, verifikasi/seleksi/ACC, dokumen) ----------
-
 export const PSB_STATUS = [
   'baru',
   'terverifikasi',
@@ -196,8 +194,6 @@ export function downloadTemplatePsb() {
   return downloadFile('/psb/import-template', 'template-import-psb.xlsx');
 }
 
-// ---------- Import PSB bertahap (potongan JSON dari browser) ----------
-
 /** Kirim satu potongan baris (maks 1000). `gelombang_id` + `jenjang` adalah
  *  konteks tetap sesi dan wajib dikirim ulang pada tiap potongan. */
 export function importPsbPotong(input: {
@@ -246,8 +242,6 @@ export function listGelombangPsb(params: { kegiatan_id?: number; tahun_ajaran?: 
   const suffix = q.toString() ? `?${q.toString()}` : '';
   return api<{ pesan: string; data: PsbGelombang[] }>(`/psb/gelombang${suffix}`);
 }
-
-// ---------- Master modul PSB: kegiatan, gelombang, kuota ----------
 
 export interface PsbKegiatan {
   id: number;
@@ -378,8 +372,6 @@ export function createCalonPsb(input: PsbCalonInput) {
     body: JSON.stringify(input),
   });
 }
-
-// ---------- Dokumen calon + dokumen wajib ----------
 
 export function listDokumenCalon(calonId: number) {
   return api<{ pesan: string; data: DokumenSantri[] }>(`/portal/psb/${calonId}/dokumen`);

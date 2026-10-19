@@ -77,33 +77,33 @@ describe('DialogLihatLembaga', () => {
     for (const seksi of ['Identitas', 'Legalitas & Akreditasi', 'Alamat & Kontak', 'Operasional & PSB']) {
       expect(screen.getByRole('heading', { name: seksi })).toBeInTheDocument();
     }
-    // Identitas + terjemahan kode.
+
     expect(screen.getByText('Madrasah Ibtidaiyah Contoh')).toBeInTheDocument();
-    // Lencana ringkasan + baris nilai memakai label sama.
+
     expect(screen.getAllByText('Swasta')).toHaveLength(2);
     expect(screen.getAllByText('Aktif')).toHaveLength(2);
     expect(within(screen.getByLabelText('Ringkasan status')).getByText('Jenjang MI')).toBeInTheDocument();
-    // Legalitas: tanggal terformat, akreditasi, tahun.
+
     expect(screen.getByText('2 Mar 2020')).toBeInTheDocument();
     expect(screen.getByText('1998')).toBeInTheDocument();
-    // Alamat gabungan RT/RW + kontak.
+
     expect(screen.getByText('001 / 002')).toBeInTheDocument();
     expect(screen.getByText('info@contoh.sch.id')).toBeInTheDocument();
-    // Operasional: kode diterjemahkan.
+
     expect(screen.getByText('Pagi dan siang')).toBeInTheDocument();
     expect(screen.getByText('Digabung')).toBeInTheDocument();
     expect(screen.getByText('Combo MI-MD')).toBeInTheDocument();
-    // Lencana ringkasan.
+
     expect(within(screen.getByLabelText('Ringkasan status')).getByText('Aktif')).toBeInTheDocument();
   });
 
   it('kolom kosong tampil "—", bukan hilang atau diklaim', () => {
     renderDialog({ lembaga: kosong });
-    // Nama singkat kosong → baris tetap ada berisi strip.
+
     const baris = screen.getByText('Nama singkat').closest('div');
     expect(baris).not.toBeNull();
     expect(baris).toHaveTextContent('—');
-    // Status aktif tak diketahui → tanpa lencana, baris strip.
+
     const ringkas = screen.getByLabelText('Ringkasan status');
     expect(within(ringkas).queryByText('Nonaktif')).not.toBeInTheDocument();
     expect(within(ringkas).queryByText('Aktif')).not.toBeInTheDocument();

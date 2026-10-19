@@ -7,8 +7,6 @@ import { KonteksLebarFilter } from '@/components/excel/lebarFilter';
 import { renderDenganTema } from '@/test/utils';
 import { resetSetelanKomponen, setelanKomponen, simpanSetelanKomponen } from '@/components/komponenCustom';
 
-/* Setelan komponen custom disimpan di server; API-nya dimock agar tes bisa
-   menyemai setelan lewat store klien tanpa jaringan. */
 vi.mock('@/api/komponenCustom', () => ({
   muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
   simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
@@ -100,7 +98,7 @@ describe('LabeledInput', () => {
 
   it('lebar tersimpan pada setelan komponen dipakai pada kotak', () => {
     const tableKey = `uji_lti_ovr_${Date.now()}`;
-    // Lebar kotak milik komponen (server), bukan peta Kelola Tabel.
+
     simpanSetelanKomponen(tableKey, 'inp_uji', { lebar: 260 });
     renderDenganTema(
       <KonteksLebarFilter.Provider value={{ tableKey }}>
@@ -121,18 +119,18 @@ describe('LabeledInput', () => {
     const { container, unmount } = renderDenganTema(
       <LabeledInput label="Nama" htmlFor="inp_tanpa_label" />,
     );
-    // Bawaan: label tampil.
+
     expect(container.querySelector('label[for="inp_tanpa_label"]')).not.toBeNull();
     unmount();
 
     const kedua = renderDenganTema(
       <LabeledInput label="Nama" htmlFor="inp_tanpa_label2" tanpaLabel />,
     );
-    // Label visual hilang (sr-only tetap ada demi pembaca layar).
+
     const lbl = kedua.container.querySelector('label[for="inp_tanpa_label2"]') as HTMLElement;
     expect(lbl.className).toMatch(/sr-only/);
     expect(lbl.textContent).toBe('Nama');
-    // Kontrol mengisi penuh kotak.
+
     expect(kedua.container.firstElementChild?.className).toMatch(/w-full/);
   });
 
@@ -156,7 +154,7 @@ describe('LabeledInput', () => {
     const { container, unmount } = renderDenganTema(
       <LabeledInput label="Nama" htmlFor="inp_transparan" />,
     );
-    // Bawaan: transparan + titik dua + bg kotak kontrol.
+
     expect((container.querySelector('label[for="inp_transparan"]') as HTMLElement).textContent).toBe('Nama:');
     expect((container.firstElementChild as HTMLElement).className).toMatch(/dark:bg-input\/30/);
     unmount();
@@ -172,10 +170,10 @@ describe('LabeledInput', () => {
     const { container } = renderDenganTema(
       <LabeledInput label="Nama" htmlFor="inp_transparan2" labelTransparan />,
     );
-    // Zona kontrol: bg gelap input dinetralkan (1 lapis, sama dengan label).
+
     const zona = document.getElementById('inp_transparan2')?.closest('span') as HTMLElement;
     expect(zona.className).toMatch(/dark:bg-transparent/);
-    // Teks kontrol rapat ke ":" (±2 spasi): kanan label + kiri input dipangkas.
+
     const labelEl = container.querySelector('label[for="inp_transparan2"]') as HTMLElement;
     expect(labelEl.className).toMatch(/(^|\s)pr-1(\s|$)/);
     expect(zona.className).toMatch(/pl-1/);
@@ -189,10 +187,10 @@ describe('LabeledInput', () => {
 
     await bukaPengaturanLengkap(container.firstElementChild as HTMLElement);
     expect(await screen.findByLabelText('Tinggi kotak input (px)')).not.toBeNull();
-    // Total +10 (bawaan kontrol mengembang): kontrol 80→90, label tetap.
+
     await userEvent.click(await screen.findByLabelText('Lebar kotak input (px) tambah'));
     expect(setelanKomponen('', kunci)).toEqual({ lebar: 170, lebarKontrol: 90 });
-    // Warna label: bawaan "Transparan"; pilih "Tidak Transparan" → ber-bg.
+
     const warna = screen.getByRole('combobox', { name: 'Warna Label:' });
     expect(warna).toHaveValue('Transparan');
     await userEvent.click(warna);
@@ -206,8 +204,7 @@ describe('LabeledInput', () => {
     const { container } = renderDenganTema(
       <LabeledInput label="Jatuh Tempo" htmlFor={kunci} type="date" />,
     );
-    // Tipe `tanggal` memakai kotak teks ber-mask `dd/mm/yyyy` + tombol kalender
-    // sendiri, BUKAN `date` native (tampilan & popover pemilihnya milik webview).
+
     expect((document.getElementById(kunci) as HTMLInputElement).type).toBe('text');
     expect(document.getElementById(`btn_kalender_${kunci}`)).not.toBeNull();
 
@@ -230,16 +227,13 @@ describe('LabeledInput', () => {
     await userEvent.click(tipe);
     await userEvent.click(await screen.findByRole('option', { name: 'Nominal (Uang)' }));
 
-    // Tipe tersimpan sebagai SETELAN KOMPONEN (server), bukan ukuran perangkat.
     expect(setelanKomponen('', kunci)).toEqual({ tipeKontrol: 'nominal' });
     expect(input().type).toBe('text');
     expect(input().inputMode).toBe('numeric');
     expect(screen.getByLabelText('Pilih nominal cepat')).not.toBeNull();
-    // Nilai tak terkontrol tetap utuh (tipe baru tak mengosongkan isian), kini
-    // TAMPIL dengan pemisah ribuan.
+
     expect(input().value).toBe('1.000');
 
-    // Reset baris tipe → kembali ke tipe bawaan pemanggil (teks, tanpa kalkulator).
     await userEvent.click(screen.getByLabelText('Kembalikan tipe input ke bawaan'));
     expect(setelanKomponen('', kunci)).toEqual({});
     expect(input().type).toBe('text');
@@ -248,8 +242,7 @@ describe('LabeledInput', () => {
 
   it('pilihanTipe kosong: baris Tipe tak muncul (kontrol non-input)', async () => {
     renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_tanpa_tipe" pilihanTipe={[]} />);
-    // Panel dibuka (termasuk kolom keduanya) supaya "tak muncul" benar-benar
-    // berarti barisnya tak dirender, bukan sekadar tersembunyi di kolom tertutup.
+
     await bukaPengaturanLengkap(document.querySelector('#inp_tanpa_tipe')?.closest('span')?.parentElement as HTMLElement);
     expect(screen.queryByRole('combobox', { name: 'Tipe' })).toBeNull();
   });

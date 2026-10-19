@@ -44,7 +44,7 @@ class KelasImporService extends ImporPotongan
     {
         $nama = Kelas::normalisasiNama(trim((string) ($baris['nama_kelas'] ?? '')));
         $this->kunciAktif = $nama === '' ? null : $nama;
-        // Baris tanpa nama = kosong/pemisah.
+
         if ($nama === '') {
             return;
         }
@@ -72,7 +72,7 @@ class KelasImporService extends ImporPotongan
         }
 
         $kunci = mb_strtolower($jenjang.'|'.$ta.'|'.$nama);
-        // Duplikat intra-file: hanya kemunculan pertama yang diproses.
+
         if (isset($this->dilihat[$kunci])) {
             $this->dilewati++;
             $this->valid++;
@@ -90,7 +90,6 @@ class KelasImporService extends ImporPotongan
             return;
         }
 
-        // Wali: NIP dulu, fallback nama; wajib aktif di lingkup kelas.
         $walasTerisi = trim((string) ($baris['walas'] ?? '')) !== '';
         $walasId = null;
         if ($walasTerisi) {
@@ -134,7 +133,6 @@ class KelasImporService extends ImporPotongan
             return;
         }
 
-        // Update: hanya nilai terisi yang menimpa (sel kosong = pertahankan).
         $ubah = [];
         if ($alias !== '') {
             $ubah['nama_alias'] = $alias;

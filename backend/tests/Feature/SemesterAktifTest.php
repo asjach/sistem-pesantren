@@ -61,13 +61,11 @@ class SemesterAktifTest extends TestCase
         $l = $this->lembaga();
         $pusat = $this->makeUser('super_admin');
 
-        // Awal: semua belum diatur.
         $this->actingAs($pusat, 'sanctum')->getJson('/api/admin/semester-aktif')
             ->assertStatus(200)
             ->assertJsonCount(3, 'data')
             ->assertJsonPath('data.0.semester', null);
 
-        // Tetapkan MI = Ganjil.
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/semester-aktif', [
             'jenjang' => $l['mi']->jenjang, 'semester' => '1',
         ])->assertStatus(200)
@@ -75,7 +73,6 @@ class SemesterAktifTest extends TestCase
 
         $this->assertSame('1', SemesterAktif::where('jenjang', $l['mi']->jenjang)->value('semester'));
 
-        // Nilai lain ditolak; root ditolak (bukan operasional).
         $this->actingAs($pusat, 'sanctum')->putJson('/api/admin/semester-aktif', [
             'jenjang' => $l['mi']->jenjang, 'semester' => '3',
         ])->assertStatus(422);
@@ -89,7 +86,6 @@ class SemesterAktifTest extends TestCase
         $l = $this->lembaga();
         $adminMi = $this->makeUser('admin', [$l['mi']->jenjang]);
 
-        // Daftar: MI + pasangan MD; MTS di luar jangkauan.
         $this->actingAs($adminMi, 'sanctum')->getJson('/api/admin/semester-aktif')
             ->assertStatus(200)
             ->assertJsonCount(2, 'data')
@@ -101,7 +97,6 @@ class SemesterAktifTest extends TestCase
             $jenjangTampil
         );
 
-        // Milik sendiri boleh, MTS ditolak.
         $this->actingAs($adminMi, 'sanctum')->putJson('/api/admin/semester-aktif', [
             'jenjang' => $l['mi']->jenjang, 'semester' => '2',
         ])->assertStatus(200)->assertJsonPath('data.label', 'Genap');

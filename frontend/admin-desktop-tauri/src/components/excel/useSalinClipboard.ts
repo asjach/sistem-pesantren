@@ -39,10 +39,8 @@ export function useSalinClipboard({ wrapRef, rangeRef, teksSalinan, salinFisik }
       }
       const root = wrapRef.current;
       if (!root || !(t && root.contains(t))) return;
-      if (root.querySelector('.dsg-active-cell-focus')) return; // sedang mengedit sel
-      // Desktop: clipboardData webview tak andal — tulis via plugin sebelum
-      // DSG sempat menimpa clipboard (wajib preventDefault sinkron; tulis
-      // async di bawah, clipboard lama aman bila tak ada yang tersalin).
+      if (root.querySelector('.dsg-active-cell-focus')) return;
+
       if (isTauri()) {
         const r = rangeRef.current;
         const blokBanyak = !!r && (r.min.col !== r.max.col || r.min.row !== r.max.row);
@@ -68,15 +66,13 @@ export function useSalinClipboard({ wrapRef, rangeRef, teksSalinan, salinFisik }
         e.preventDefault();
         e.stopPropagation();
         if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-        // Tulis sinkron agar clipboard langsung terisi teks polos meski
-        // tulis async plugin terlambat; TANPA text/html agar tempel
-        // ke Excel tetap memakai TSV (grid utuh, bukan satu kolom).
+
         const praduga = teksSalinan();
         if (praduga != null && praduga !== '') {
           try {
             e.clipboardData?.setData('text/plain', praduga);
           } catch {
-            /* abaikan — tulis ulang via plugin di bawah */
+
           }
           if (import.meta.env.DEV) {
             // eslint-disable-next-line no-console
@@ -99,7 +95,7 @@ export function useSalinClipboard({ wrapRef, rangeRef, teksSalinan, salinFisik }
           try {
             e.clipboardData?.setData('text/plain', teks);
           } catch {
-            /* abaikan — copyText menangani fallback */
+
           }
           void copyText(teks).then((ok) => {
             if (ok) toast.success('Telah disalin ke clipboard.');

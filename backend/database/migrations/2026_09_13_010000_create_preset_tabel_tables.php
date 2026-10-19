@@ -28,7 +28,7 @@ return new class extends Migration
             $table->string('table_key', 60);
             $table->string('nama', 50);
             $table->json('kolom');
-            // Satu preset bawaan per table_key (eksklusivitas dijaga service).
+
             $table->boolean('is_default')->default(false);
             $table->foreignId('dibuat_oleh')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
@@ -41,8 +41,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('table_key', 60);
             $table->foreignId('preset_id')->nullable()->constrained('preset_tabel')->cascadeOnDelete();
-            // Susunan kolom "Lengkap kustom" per user per tabel (dipakai saat
-            // `preset_id` null, tanpa membuat preset bernama baru).
+
             $table->json('kolom')->nullable();
             $table->timestamps();
 

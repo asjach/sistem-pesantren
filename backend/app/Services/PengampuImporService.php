@@ -51,7 +51,7 @@ class PengampuImporService extends ImporPotongan
         $this->kunciAktif = $namaKelas === '' && $namaMapel === ''
             ? null
             : trim($namaKelas.'|'.$namaMapel, '|');
-        // Baris tanpa kelas/mapel = kosong/pemisah.
+
         if ($namaKelas === '' || $namaMapel === '') {
             return;
         }
@@ -102,7 +102,6 @@ class PengampuImporService extends ImporPotongan
             return;
         }
 
-        // Guru: kosong = tanpa guru; terisi = NIP dulu, fallback nama.
         $guruTerisi = trim((string) ($baris['guru'] ?? '')) !== '';
         $keaktifanId = null;
         if ($guruTerisi) {
@@ -125,7 +124,7 @@ class PengampuImporService extends ImporPotongan
         }
 
         $kunci = $kelas->id.'|'.$mapel->id;
-        // Duplikat intra-file: hanya kemunculan pertama yang diproses.
+
         if (isset($this->dilihat[$kunci])) {
             $this->dilewati++;
             $this->valid++;

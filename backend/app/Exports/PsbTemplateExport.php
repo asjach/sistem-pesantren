@@ -78,16 +78,12 @@ class PsbTemplateExport implements FromArray, WithEvents, WithHeadings
                 $sheet->freezePane('A2');
                 $sheet->setAutoFilter("A1:{$lastCol}1");
 
-                // Baris 2 (CONTOH): italic abu-abu + isian abu muda — tanda wajib diganti/dihapus.
                 $sheet->getRowDimension(2)->setRowHeight(20);
                 $sheet->getStyle("A2:{$lastCol}2")->applyFromArray([
                     'font' => ['italic' => true, 'size' => 10, 'color' => ['argb' => 'FF6B7280']],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF3F4F6']],
                 ]);
 
-                // Validasi inline (tanpa sheet tersembunyi): daftar literal.
-                // PsbImport hanya membaca sheet pertama tanpa SkipsUnknownSheets,
-                // jadi sheet Referensi tambahan tidak dipakai di sini.
                 $opsi = [
                     'jk' => ['L', 'P'],
                     'tipe_santri' => ['asrama', 'non_asrama'],
@@ -99,8 +95,7 @@ class PsbTemplateExport implements FromArray, WithEvents, WithHeadings
                     }
                     $target = Coordinate::stringFromColumnIndex($posisi + 1);
                     $validasi = new DataValidation;
-                    // CATAT: atribut OOXML `showDropDown` INVERTED — setShowDropDown(true)
-                    // membuat panah dropdown TAMPIL di Excel.
+
                     $validasi->setType(DataValidation::TYPE_LIST)
                         ->setShowDropDown(true)
                         ->setErrorStyle(DataValidation::STYLE_STOP)

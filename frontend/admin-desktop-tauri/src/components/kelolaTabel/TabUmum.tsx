@@ -133,7 +133,7 @@ export default function TabUmum({
     prefSet(freezeKey(tableKey), String(v))
       .catch(() => toast.error('Gagal menyimpan kolom beku.'))
       .finally(() => setSibukPerangkat(false));
-    // Grid membaca ulang freeze-nya sendiri saat event ini tiba.
+
     kabariTampilanPerangkat(tableKey);
   }
 
@@ -169,10 +169,7 @@ export default function TabUmum({
   }
   const [sibukReset, setSibukReset] = useState(false);
   const laporKotor = useBagian('umum', () => Promise.resolve(true));
-  /* Reset total TIDAK lagi didaftarkan sebagai aksi bagian (tombol ↺ di judul
-     bagian). Aksi destruktif tanpa konfirmasi, dan tombolnya justru sering
-     mati untuk non-super_admin — satu-satunya pintu reset adalah bagian
-     "Kembalikan bawaan" di bawah, yang selalu minta konfirmasi. */
+
   const laporKotorRef = useRef(laporKotor);
   laporKotorRef.current = laporKotor;
 
@@ -247,11 +244,7 @@ export default function TabUmum({
         <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           Tampilan di perangkat ini
         </p>
-        {/* `LabeledStepper`: label + angka + tombol −/+ dalam satu kotak, sama
-            seperti "Tinggi baris" di bawah. `kelolaLebar={false}` karena kotak
-            ini bukan bagian toolbar tabel — lebar simpanannya tak relevan.
-            Labelnya dipendekkan ("Kolom beku") agar tak memakan ruang kotak;
-            "dari kiri" pindah ke `title`/`aria-label`. */}
+
         <LabeledStepper
           id={`input_beku_${tableKey}`}
           htmlFor={`input_beku_${tableKey}`}

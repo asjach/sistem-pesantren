@@ -13,94 +13,94 @@ return new class extends Migration
     {
         Schema::create('ref_agama', function (Blueprint $table) {
             $table->id();
-            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
             $table->string('nama');
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 
-            $table->unique(['jenjang', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+            $table->unique(['jenjang', 'nama']);
         });
 
         Schema::create('ref_cita_cita', function (Blueprint $table) {
             $table->id();
-            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
             $table->string('nama');
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 
-            $table->unique(['jenjang', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+            $table->unique(['jenjang', 'nama']);
         });
 
         Schema::create('ref_hobi', function (Blueprint $table) {
             $table->id();
-            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
             $table->string('nama');
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 
-            $table->unique(['jenjang', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+            $table->unique(['jenjang', 'nama']);
         });
 
         Schema::create('ref_pekerjaan', function (Blueprint $table) {
             $table->id();
-            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
             $table->string('nama');
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 
-            $table->unique(['jenjang', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+            $table->unique(['jenjang', 'nama']);
         });
 
         Schema::create('ref_pendidikan', function (Blueprint $table) {
             $table->id();
-            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
             $table->string('nama');
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 
-            $table->unique(['jenjang', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+            $table->unique(['jenjang', 'nama']);
         });
 
         Schema::create('ref_kebutuhan_khusus', function (Blueprint $table) {
             $table->id();
-            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
             $table->string('nama');
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 
-            $table->unique(['jenjang', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+            $table->unique(['jenjang', 'nama']);
         });
 
         Schema::create('ref_kota', function (Blueprint $table) {
             $table->id();
-            // null = baris global (seed bawaan); terisi = baris khusus lembaga (tambah/shadow, tanpa ganggu lembaga lain)
+
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
             $table->string('nama');
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 
-            $table->unique(['jenjang', 'nama']); // PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+            $table->unique(['jenjang', 'nama']);
         });
 
         Schema::create('ref_alamat', function (Blueprint $table) {
             $table->id();
-            // null = global (contoh bawaan); terisi = milik lembaga itu
+
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
-            $table->string('nama'); // mis. 'Sekebolek'
+            $table->string('nama');
             $table->string('provinsi')->nullable();
             $table->string('kab_kota')->nullable();
             $table->string('kecamatan')->nullable();
@@ -112,15 +112,15 @@ return new class extends Migration
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 
-            $table->unique(['jenjang', 'nama']); // scope LEMBAGA, pola KEY sama dengan ref lain
+            $table->unique(['jenjang', 'nama']);
         });
 
         Schema::create('ref_status_awal', function (Blueprint $table) {
             $table->id();
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
-            $table->string('kode'); // santri_baru, naik_kelas, mengulang, pindahan (+ custom)
-            $table->string('nama'); // seragam dengan tabel ref lain (pengurutan: urutan ASC, nama ASC)
+            $table->string('kode');
+            $table->string('nama');
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 
@@ -131,11 +131,11 @@ return new class extends Migration
             $table->id();
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
-            $table->string('kode'); // aktif, naik, tidak_naik, pindah_keluar, lulus, tidak_lulus (+ custom, no.51)
-            $table->string('nama'); // seragam dengan tabel ref lain (nilai konsumen tetap `kode`)
-            // Sifat logika (terkunci untuk baris sistem):
-            $table->boolean('is_aktif_bawaan')->default(false); // true HANYA untuk 'aktif' (is_aktif=true iff status_akhir aktif)
-            $table->string('terminal_ke')->nullable(); // null = bukan terminal (custom baru selalu null = non-aktif netral)
+            $table->string('kode');
+            $table->string('nama');
+
+            $table->boolean('is_aktif_bawaan')->default(false);
+            $table->string('terminal_ke')->nullable();
             $table->integer('urutan')->default(0);
             $table->boolean('is_active')->default(true);
 

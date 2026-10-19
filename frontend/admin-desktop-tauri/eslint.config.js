@@ -43,24 +43,21 @@ import globals from 'globals';
  */
 
 export default tseslint.config(
-  /* ---------- yang TIDAK dilint ---------- */
+
   {
     ignores: [
       'dist/**',
       'node_modules/**',
       'src-tauri/**',
-      // Berkas hasil generate: isinya mesin, bukan tulisan manusia.
+
       '**/*.gen.ts',
     ],
   },
 
-  /* ---------- skrip Node (scripts/*.mjs, vite.config.ts, & config ini) ---------- */
   {
-    // Tiga baris tanda tangan di bawah sengaja TIDAK menempel dengan prop pada
+
     // baris sebelumnya: scaffold bawaan `typescript-eslint` membaca prop yang
-    // menempel sebagai "dipakai" lalu butuh deps eksplisit di setiap penggunaan
-    // — 30 peringatan setandan yang salah, dan solusinya (memaksa deps di setiap
-    // pemakaian) salah alamat. Sisipkan baris kosong kalau nanti perlu scaffold.
+
     files: ['**/*.mjs', '**/*.js', 'vite.config.ts'],
     languageOptions: {
       ecmaVersion: 2022,
@@ -69,7 +66,6 @@ export default tseslint.config(
     },
   },
 
-  /* ---------- sumber aplikasi ---------- */
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -88,64 +84,37 @@ export default tseslint.config(
       'jsx-a11y': jsxA11y,
     },
     rules: {
-      // Hanya dua aturan React Hooks yang klasik & aman untuk React 18.
-      // `exhaustive-deps` disengaja jadi warn: repo punya 40 pengecualian
+
       // resmi (lihat komentar eslint-disable di sekitar useEffect data-load).
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
 
       ...jsxA11y.configs.recommended.rules,
 
-      /* DIMATIKAN dengan sengaja — ini PILIHAN, bukan kelalaian.
-         Aturan ini minta tiap berkas hanya mengekspor KOMPONEN, supaya Fast
-         Refresh bisa memperbarui satu komponen tanpa me-reload sekitarnya.
-         Repo ini sengaja memakai konvensi sebaliknya: konfigurasi duduk
-         SEBELAH komponennya — `FIELDS_SANTRI` di atas <SantriTable>,
-         registry `tipeInput.tsx` (tipe + konstanta + satu komponen aksi),
-         `tabKeuangan.tsx` (15 ekspor kembar). Konfigurasi di sebelah
-         pemakainya jauh lebih mudah dibaca daripada dipisah ke berkas lain
-         yang harus dibuka bersamaan.
-
-         Mematikan aturan ini berarti HMR kurang teliti saat pengeditan:
-         ubah konstanta → komponen sekitarnya ikut ter-refresh. Untuk
-         aplikasi desktop Tauri itu tidak terasa.
-
-         Kalau kelak ingin dinyalakan kembali: pekerjaannya memecah ~40 berkas
-         (paling padat `keuangan/tabKeuangan.tsx` 15 titik,
-         `components/tipeInput.tsx` 11 titik) — itu refactor tersendiri, bukan
-         bawaan lint. JANGAN dinyalakan tanpa itu. */
       'react-refresh/only-export-components': 'off',
 
-      // `console.log` sisa debug mudah lolos; warn/error dibiarkan.
       'no-console': ['warn', { allow: ['warn', 'error'] }],
 
-      // Konvensi repo ini: parameter yang ADA TAPI TIDAK DIPAKAI diberi awalan
-      // `_` (mis. `_opsi`, `_data`) — dipakai untuk mempertahankan bentuk
       // tanda tangan fungsi tanpa memicu peringatan. Tanpa pola ini, ESLint
-      // mengeluhkan 29 parameter yang justru sudah ditandai dengan benar.
+
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
           varsIgnorePattern: '^_',
           argsIgnorePattern: '^_',
           caughtErrorsIgnorePattern: '^_',
-          // Nama komponen & tipe yang tak dipakai tetap dilaporkan: beda dengan
-          // parameter, keduanya hampir selalu berarti kode mati.
+
           args: 'after-used',
           ignoreRestSiblings: true,
         },
       ],
 
-      // TypeScript sudah memeriksa ini; menyalakannya lagi dobel & sering
-      // salah kaprah untuk tipe yang di-import lintas berkas.
       'no-undef': 'off',
 
-      // `any` masih terpakai (adapter DSG dll). Disurvei dulu lewat peringatan.
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
 
-  /* ---------- berkas tes ---------- */
   {
     files: ['src/**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
     languageOptions: {
@@ -168,24 +137,6 @@ export default tseslint.config(
     },
   },
 
-  /* ---------- wadah tahun popover: grup yang bisa difokuskan ---------- */
-  /* Tombol TAHUN (grid 5×N) di dalam wadah yang:
-       - sudah punya `role="group"` + `aria-label` EKSPLISIT (pola grup
-         berlabel — sah di ARIA),
-       - `tabIndex={0}` + `onKeyDown` (PageUp/PageDown/Home) — jadi wadahnya
-         memang sengaja bisa difokuskan dan menangani papan tik.
-
-     Dua aturan a11y `no-noninteractive-element-interactions` &
-     `no-noninteractive-tabindex` mengeluh karena menganggap `group` tak
-     interaktif, lalu "solusi"-nya adalah mengganti role menjadi `toolbar`.
-     JANGAN: itu mengubah kontrak ARIA yang sudah DIKUJI — 44 tes mengunci
-     `role="group"` dengan nama "Tahun <awal>–<akhir>" (lihat
-     `PopoverBulan.test.tsx` & `PopoverKalender.test.tsx`), dan mengganti role
-     dari `group` ke `toolbar` memecahkannya semua.
-
-     Pola "focusable labelled group + keyboard handler" di sini disengaja dan
-     benar. Yang salah adalah aturannya, jadi aturannya yang dimatikan — bukan
-     DOM/ARIA-nya yang dipaksa berubah. */
   {
     files: [
       'src/components/PopoverBulan.tsx',
@@ -197,7 +148,6 @@ export default tseslint.config(
     },
   },
 
-  /* ---------- sanitizer HTML: karakter kontrol memang sasaran ---------- */
   /* `sanitasiHtml.ts` MEMBUANG karakter kontrol dari teks & URL — regex yang
      mencocokkan `\u0000-\u001F` / `\u007F` adalah SELURUH fiturnya, bukan
      kecelakaan. Aturan `no-control-regex` (ada untuk menangkap regex yang
@@ -212,7 +162,6 @@ export default tseslint.config(
     },
   },
 
-  /* ---------- lapisan integrasi react-datasheet-grid ---------- */
   /* Aturan a11y di bawah mengasumsikan setiap hal yang bisa diklik adalah
      TOMBOL. Di dalam grid itu keliru, dan menambahkan role/tabIndex palsu
      justru merusak pembaca layar (menyatakan sesuatu yang bukan kenyataan).

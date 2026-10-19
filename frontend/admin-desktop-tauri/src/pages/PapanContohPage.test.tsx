@@ -36,7 +36,7 @@ describe('PapanContohPage', () => {
     seretKeKolom('rekap_spp', 'ditinjau');
     expect(screen.getByLabelText('Kolom Dikerjakan, 0 kartu')).toBeInTheDocument();
     expect(screen.getByLabelText('Kolom Ditinjau, 2 kartu')).toBeInTheDocument();
-    // Kartu ikut pindah ke DOM kolom tujuan.
+
     const tujuan = document.getElementById('kolom_papan_ditinjau');
     expect(tujuan?.querySelector('#kartu_contoh_rekap_spp')).not.toBeNull();
   });
@@ -69,7 +69,7 @@ describe('PapanContohPage', () => {
   it('kolom bisa dilipat dan dibuka lagi', () => {
     renderDenganTema(<PapanContohPage />);
     fireEvent.click(document.getElementById('btn_lipat_kolom_antrean')!);
-    // Isi kolom hilang saat terlipat, kartu tak lagi di dokumen.
+
     expect(document.getElementById('kartu_contoh_verifikasi_berkas')).toBeNull();
   });
 });

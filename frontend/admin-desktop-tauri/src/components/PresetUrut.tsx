@@ -32,7 +32,7 @@ const TANPA = '_tanpa';
  *  nama ASC).
  *  Nilai AWAL (urutan yang dipakai saat halaman dibuka) ditentukan lewat
  *  "Nilai awal" di popover pengaturan kotak (klik-kanan), BUKAN lewat preset
- *  `bawaan`. */ 
+ *  `bawaan`. */
 export default function PresetUrut({
   tableKey,
   urutAktif,
@@ -53,13 +53,13 @@ export default function PresetUrut({
   const [gagalMuat, setGagalMuat] = useState(false);
 
   const muat = useCallback(async () => {
-    // Termemo per tabel: berbagi satu request dengan hook data.
+
     try {
       const res = await muatUrutPreset(tableKey);
       setData(res.data);
       setGagalMuat(false);
     } catch {
-      // Gagal memuat preset: dropdown tampil tanpa opsi (urutan tetap jalan).
+
       setData({ table_key: tableKey, opsi: [], tersedia: [] });
       setGagalMuat(true);
     } finally {
@@ -90,14 +90,9 @@ export default function PresetUrut({
     onUrut?.(urutAktif ?? [], arahUrut === 'naik' ? 'turun' : 'naik');
   }
 
-  // Tanpa opsi nyata (hanya "—") dropdown tak berguna: sembunyikan. Tetap
-  // tampil saat masih memuat, saat muat gagal, atau saat ada urutan aktif
-  // (agar arah masih bisa dibalik).
   const tampil = !muatSelesai || gagalMuat || opsi.length > 0 || (urutAktif ?? []).length > 0;
   if (!tampil) return null;
 
-  /* Opsi dropdown: label yang tampil + nilai pemicu (index opsi preset, atau
-     TANPA). */
   const opsiItem = [
     { label: '—', nilai: TANPA },
     ...opsi.map((o, i) => ({ label: o.label, nilai: String(i) })),
@@ -108,20 +103,11 @@ export default function PresetUrut({
       label="Urutkan"
       htmlFor={`select_urut_${tableKey}`}
       kelolaLebar={false}
-      /* Lebar tersimpan untuk SELURUH kontrol Urutkan; label mengikuti
-         panjang teksnya, sisa lebar diisi combobox. Lebar tak lagi milik
-         Kelola Tabel — ia milik komponen ini (tabel `komponen_custom`, kunci
-         `select_urut_<tableKey>`), diubah lewat popover klik-kanan. */
+
       lebarKotak={LEBAR_BAWAHAN_FILTER}
-      /* `gap-0 items-stretch`: kelas wrapper bawaan (`gap-1.5 items-center`)
-         untuk mode klasik (label di samping kontrol). Label & zona harus
-         menempel dan sama tinggi — kalau `items-center`, label hanya setinggi
-         teksnya dan sisanya memperlihatkan latar kotak, sehingga pita label
-         terlihat dua warna. */
+
       className={`${wrapperClassName ?? ''} gap-0 items-stretch`}
-      /* Tombol arah kini DI DALAM kotak sebagai segmen kanan (dipisah garis
-         oleh `KotakLabel.tambahan`) supaya label + combobox + arah terbaca
-         satu kontrol berbagi kotak. */
+
       tambahan={(
         <TombolIkon
           id={`btn_arah_urut_${tableKey}`}

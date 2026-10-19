@@ -50,6 +50,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Aturan lama tidak direkonstruksi (nilai lama sudah tertimpa); dibiarkan.
+
     }
 };

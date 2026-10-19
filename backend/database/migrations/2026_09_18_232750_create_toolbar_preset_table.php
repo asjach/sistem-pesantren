@@ -24,20 +24,19 @@ return new class extends Migration
             $table->id();
             $table->string('table_key', 60)->unique();
             $table->json('visibilitas');
-            // Peta kontrol → lebar (px); absen = bawaan frontend.
+
             $table->json('lebar')->nullable();
-            // **deprecated** — sudah kosong setelah migrasi ke `komponen_custom`.
+
             $table->json('tinggi')->nullable();
-            // Nilai awal combobox: peta kunci kontrol → label opsi.
+
             $table->json('nilai_default')->nullable();
-            // Urutan kolom data per table_key (array key kolom); absen = urutan fields halaman.
+
             $table->json('urutan')->nullable();
-            // Perataan kolom (satu nilai per kolom, bukan per preset).
+
             $table->json('align')->nullable();
-            // Label kolom per TABEL (bukan per preset): tetap walau preset
-            // berganti, sejalan dengan `align`.
+
             $table->json('label')->nullable();
-            // Judul tabel isian pengguna; NULL = pakai judul bawaan kode.
+
             $table->string('judul', 100)->nullable();
             $table->foreignId('dibuat_oleh')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

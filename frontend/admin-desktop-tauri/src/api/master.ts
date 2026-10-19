@@ -249,8 +249,6 @@ export function createReferensi(tipe: string, input: ReferensiInput) {
   });
 }
 
-/* `kode` ikut dikirim karena kamus `mapel` memakainya sebagai kolom tambahan;
-   backend mengabaikannya untuk tipe lain (status: kode = kunci, tak diubah). */
 export function updateReferensi(tipe: string, id: number, input: Omit<ReferensiInput, 'jenjang'>) {
   return api<ReferensiRow>(`/admin/referensi/${encodeURIComponent(tipe)}/${id}`, {
     method: 'PUT',
@@ -267,8 +265,6 @@ export function deleteReferensi(tipe: string, id: number, jenjang?: string, perm
     method: 'DELETE',
   });
 }
-
-// ---------- Tahun ajaran (004, FB-004-01) ----------
 
 export interface TahunAjaran {
   /** Kunci alami: nama tahun, mis. '2025/2026'. */
@@ -351,8 +347,6 @@ export function setAktifTahunAjaran(nama: string) {
   });
 }
 
-// ---------- Kelas (004, FB-004-01) ----------
-
 export interface Kelas {
   id: number;
   jenjang: string;
@@ -425,8 +419,6 @@ export function updateKelas(
   return api<Kelas>(`/admin/kelas/${id}`, { method: 'PUT', body: JSON.stringify(input) });
 }
 
-// ---------- Pegawai aktif (opsi wali) ----------
-
 export interface PegawaiAktif {
   id: number;
   nip: string | null;
@@ -442,8 +434,6 @@ export function listPegawaiAktif(jenjang: string, tahunAjaran: string) {
 export function deleteKelas(id: number) {
   return api<{ message: string }>(`/admin/kelas/${id}`, { method: 'DELETE' });
 }
-
-// ---------- Import nama kelas pasangan MI↔MD ----------
 
 export interface ImportNamaRincian {
   nama: string;
@@ -472,8 +462,6 @@ export function importNamaKelas(
   });
 }
 
-// ---------- Import file kelas satu lingkup ----------
-
 /** Unduh template Excel import kelas (kolom: jenjang, tahun_ajaran, nama_kelas, tingkat, urutan, kapasitas). */
 export function unduhTemplateKelas() {
   return downloadFile('/admin/kelas/import-template', 'template-import-kelas.xlsx');
@@ -486,8 +474,6 @@ export function dataKelasExisting(jenjangs?: string[]) {
   const q = jenjangs?.length ? `?${jenjangs.map((j) => `jenjang[]=${encodeURIComponent(j)}`).join('&')}` : '';
   return api<DataExistingPayload>(`/admin/kelas/data-existing${q}`);
 }
-
-// ---------- Import kelas bertahap (potongan JSON dari browser) ----------
 
 /** Kirim satu potongan baris (maks 1000); panggilan pertama tanpa sesi_id
  *  membuat sesi (wajib mode + total). */

@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const u = await me();
         if (!current()) return;
-        // Sesi lama milik peran portal (orang_tua/santri) tidak boleh dipakai.
+
         if (!isDesktopRoleAllowed(u)) {
           await clearSession();
           if (alive && getSessionVersion() === version + 1) setUser(null);
@@ -46,7 +46,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { alive = false; };
   }, []);
 
-  // 401 dari request mana pun (api/apiUpload/downloadFile) → keluar ke login.
   useEffect(() => {
     const onExpired = () => setUser(null);
     window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);

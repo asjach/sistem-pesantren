@@ -19,12 +19,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // FK `mata_pelajaran_id` TIDAK selalu ada di DB nyata: di MySQL
-        // dev/produksi constraint-nya gagal terbentuk saat tabel dibuat
-        // (namanya bentrok dengan index biasa yang sudah terpasang), sehingga
-        // `dropForeign` buta akan meledak "Can't DROP ...; check that
-        // column/key exists". Buang keduanya secara defensif: FK dulu (bila
-        // ada), lalu sisa index bernama sama.
+
         $this->buangFkDanIndex('template_jadwal_baris', 'mata_pelajaran_id');
 
         $this->siapkanIndexPenggantiFk();
@@ -85,7 +80,6 @@ return new class extends Migration
                 Schema::table($tabel, fn (Blueprint $t) => $t->dropForeign($nama));
             }
 
-            // Sisa index biasa — di DB ini justru itu yang ada tanpa FK-nya.
             $indexAda = DB::selectOne(
                 'SELECT INDEX_NAME FROM information_schema.STATISTICS'
                 .' WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?',
@@ -98,10 +92,6 @@ return new class extends Migration
             return;
         }
 
-        // SQLite (tes): FK benar-benar ada dan harus dilepas SEBELUM kolomnya
-        // dibuang — kalau tidak, SQLite menolak dengan "error in table ... after
-        // drop column: unknown column ... in foreign key definition". SQLite
-        // hanya menerima bentuk berbasis kolom, bukan nama constraint.
         Schema::table($tabel, fn (Blueprint $t) => $t->dropForeign([$kolom]));
     }
 
@@ -110,8 +100,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Index pengganti FK tak punya pasangan di skema lama — buang dulu agar
-        // rollback tak meninggalkan index yatim.
+
         if (DB::getDriverName() === 'mysql') {
             $ada = DB::selectOne(
                 'SELECT INDEX_NAME FROM information_schema.STATISTICS'

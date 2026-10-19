@@ -39,8 +39,7 @@ export function pindahKolom(
   const asal = jepit(dari, n - 1);
   const tujuan = jepit(ke, n);
   const sisa = terlihat.filter((_, i) => i !== asal);
-  // `ke` mengacu ke daftar yang MASIH memuat item sumber: bila tujuannya di
-  // belakang asal, satu posisi tergeser setelah item itu diangkat.
+
   const sisip = tujuan > asal ? tujuan - 1 : tujuan;
   sisa.splice(jepit(sisip, sisa.length), 0, terlihat[asal]);
   return sisa;
@@ -156,8 +155,7 @@ export function dxPerKolom(
   const terukur = sesudah.filter((k) => kiri[k] !== undefined && lebar[k] !== undefined);
   if (terukur.length === 0) return {};
   const out: Record<string, number> = {};
-  // Titik awal = kolom data paling kiri hasil pengukuran; sisanya menempel
-  // rapat mengikuti LEBAR MASING-MASING kolom dalam susunan tujuan.
+
   let x = Math.min(...terukur.map((k) => kiri[k] ?? 0));
   for (const k of terukur) {
     const d = Math.round(x - (kiri[k] ?? 0));

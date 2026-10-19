@@ -24,14 +24,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Penanda jalur pengisian nilai akhir: 'hitung' (dari komponen) atau
-        // 'impor' (dari leger). Dipakai leger sebagai lencana + melewati
-        // hitung-ulang baris impor.
+
         Schema::table('nilai_santri', function (Blueprint $table) {
             $table->string('sumber', 10)->default('hitung')->after('nilai_akhir');
         });
 
-        // Master komponen penilaian per jenjang (UH, Tugas, PTS, ASAS/…).
         Schema::create('komponen_nilai', function (Blueprint $table) {
             $table->id();
             $table->string('jenjang', 20);
@@ -46,7 +43,6 @@ return new class extends Migration
             $table->unique(['jenjang', 'nama']);
         });
 
-        // Bobot komponen per tahun ajaran (boleh berubah tiap TA).
         Schema::create('komponen_nilai_bobot', function (Blueprint $table) {
             $table->id();
             $table->foreignId('komponen_nilai_id')->constrained('komponen_nilai')->cascadeOnDelete();
@@ -59,7 +55,6 @@ return new class extends Migration
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });
 
-        // KKM per peristiwa: baris komponen + satu baris khusus `AKHIR`.
         Schema::create('kkm_kegiatan', function (Blueprint $table) {
             $table->id();
             $table->string('jenjang', 20);
@@ -67,7 +62,7 @@ return new class extends Migration
                 ->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('tahun_ajaran', 9);
             $table->foreignId('komponen_nilai_id')->nullable()->constrained('komponen_nilai')->cascadeOnDelete();
-            // Label peristiwa; baris akhir nilai memakai kegiatan = 'AKHIR'.
+
             $table->string('kegiatan', 50);
             $table->decimal('kkm', 5, 2)->default(0);
             $table->timestamps();
@@ -77,9 +72,6 @@ return new class extends Migration
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });
 
-        // Predikat berjangkar ke KKM AKHIR: A ≥ KKM+20, B ≥ KKM+10, C ≥ KKM,
-        // D di bawah KKM. `offset_bawah` = jarak minimal dari KKM AKHIR;
-        // null = tanpa batas bawah (predikat terakhir, mis. D).
         Schema::create('rentang_predikat', function (Blueprint $table) {
             $table->id();
             $table->string('jenjang', 20);
@@ -96,8 +88,6 @@ return new class extends Migration
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });
 
-        // Skor per komponen (jalur HITUNG). Unik per santri × pengampu × TA ×
-        // semester × komponen.
         Schema::create('nilai_komponen', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
@@ -115,7 +105,6 @@ return new class extends Migration
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });
 
-        // Master ekstrakurikuler per (jenjang, TA).
         Schema::create('ekstrakurikuler', function (Blueprint $table) {
             $table->id();
             $table->string('jenjang', 20);
@@ -132,7 +121,6 @@ return new class extends Migration
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });
 
-        // Nilai ekstrakurikuler per santri (pembimbing diambil dari master).
         Schema::create('nilai_ekstrakurikuler', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
@@ -141,7 +129,7 @@ return new class extends Migration
             $table->foreignId('ekstrakurikuler_id')->constrained('ekstrakurikuler')->cascadeOnDelete();
             $table->string('predikat', 2)->nullable();
             $table->text('deskripsi')->nullable();
-            // MD memakai nilai angka; MI memakai predikat + deskripsi.
+
             $table->decimal('nilai', 5, 2)->nullable();
             $table->timestamps();
 
@@ -152,7 +140,6 @@ return new class extends Migration
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });
 
-        // Prestasi santri (satu baris per prestasi; santri boleh beberapa baris).
         Schema::create('prestasi_santri', function (Blueprint $table) {
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
@@ -167,8 +154,6 @@ return new class extends Migration
                 ->cascadeOnUpdate()->cascadeOnDelete();
         });
 
-        // Master predikat ekstrakurikuler → deskripsi (bawaan: A Sangat Baik, …).
-        // `jenjang` null = berlaku semua lembaga.
         Schema::create('predikat_ekskul', function (Blueprint $table) {
             $table->id();
             $table->string('jenjang', 20)->nullable();

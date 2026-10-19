@@ -18,9 +18,6 @@ class ReferensiUpdateRequest extends FormRequest
             'urutan' => 'nullable|integer',
         ];
 
-        // Kamus mapel punya kolom tambahan; namanya bukan kunci baris sehingga
-        // boleh diperbaiki kapan saja (beda dari status, yang `kode`-nya kunci
-        // data pemakai dan sengaja tidak bisa diubah).
         if ((string) $this->route('tipe') === 'mapel') {
             $rules['kode'] = 'nullable|string|max:20';
             $rules['singkatan'] = 'nullable|string|max:50';

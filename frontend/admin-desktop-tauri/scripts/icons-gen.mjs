@@ -1,9 +1,4 @@
-// Generator façade ikon: nama Lucide → 9 koleksi Iconify.
-// - Memvalidasi setiap nama terhadap node_modules/@iconify-json/<set>/icons.json
-//   (icons + aliases); yang tidak ada → null → façade memakai ikon Lucide.
-// - Menulis scripts/icon-map.json (hasil pemetaan, untuk audit) dan
-//   src/icons/ (satu modul per set + barrel index.tsx, JANGAN diedit manual).
-// Jalankan: node scripts/icons-gen.mjs
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -155,7 +150,6 @@ console.log('=== fallback per set (memakai ikon Lucide) ===');
 for (const [set, list] of Object.entries(jatuh)) console.log(`${set} (${list.length}): ${list.join(', ')}`);
 console.log(`total: ${Object.values(hasil).reduce((n, p) => n + Object.values(p).filter(Boolean).length, 0)}/${NAMA.length * SET_IDS.length}`);
 
-// --- Bangkitkan src/icons/ (satu modul per set + barrel index) ---
 const alias = (nama, set) => `Ic${nama}${set[0].toUpperCase()}${set.slice(1)}`;
 const DIR_IKON = path.join(AKAR, 'src', 'icons');
 fs.rmSync(DIR_IKON, { recursive: true, force: true });

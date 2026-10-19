@@ -72,8 +72,7 @@ class PengajuanBiodataController extends Controller
             $ids = $filterLembaga !== null ? [$filterLembaga] : $auth->lembagaIds();
             $q->where(function ($sub) use ($ids, $filterLembaga) {
                 $sub->whereHas('lembagaSantri', fn ($ls) => $ls->whereIn('jenjang', $ids));
-                // Tanpa keanggotaan = arsip pusat → ikut terlihat admin scoped,
-                // kecuali saat filter lembaga eksplisit.
+
                 if ($filterLembaga === null) {
                     $sub->orWhereDoesntHave('lembagaSantri');
                 }
@@ -102,7 +101,7 @@ class PengajuanBiodataController extends Controller
     public function setujui(int $id, PengajuanBiodataService $service): JsonResponse
     {
         $pengajuan = PengajuanBiodataSantri::with('santri:id')->findOrFail($id);
-        // Tanpa keanggotaan = arsip pusat/pra-penerimaan → boleh semua admin.
+
         $lembagaId = $pengajuan->santri->lembagaAktif()->value('jenjang')
             ?? $pengajuan->santri->lembagaSantri()->value('jenjang');
         if ($lembagaId !== null) {
@@ -119,7 +118,7 @@ class PengajuanBiodataController extends Controller
     {
         $data = $request->validated();
         $pengajuan = PengajuanBiodataSantri::with('santri:id')->findOrFail($id);
-        // Tanpa keanggotaan = arsip pusat/pra-penerimaan → boleh semua admin.
+
         $lembagaId = $pengajuan->santri->lembagaAktif()->value('jenjang')
             ?? $pengajuan->santri->lembagaSantri()->value('jenjang');
         if ($lembagaId !== null) {

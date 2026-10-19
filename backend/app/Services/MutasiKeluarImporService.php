@@ -101,7 +101,6 @@ class MutasiKeluarImporService extends ImporPotongan
             return;
         }
 
-        // Tanggal & alasan boleh kosong pada arsip historis (null).
         $tanggal = null;
         if (trim((string) ($baris['tanggal_mutasi'] ?? '')) !== '') {
             $tanggal = Tanggal::parse($baris['tanggal_mutasi']);
@@ -112,8 +111,6 @@ class MutasiKeluarImporService extends ImporPotongan
             }
         }
 
-        // Arsip historis: alasan bebas teks (tak harus ada di kamus); form
-        // "Proses mutasi" tetap memilih dari kamus aktif.
         $alasan = trim((string) ($baris['alasan_mutasi'] ?? ''));
         if ($alasan === '') {
             $alasan = null;
@@ -133,9 +130,6 @@ class MutasiKeluarImporService extends ImporPotongan
             return;
         }
 
-        // Kunci baris: NIS lokal + jenjang (1 arsip mutasi per santri per
-        // lembaga). Baris sama → update kolom yang terisi; tak ada perubahan
-        // → dilewati. Sel kosong = pertahankan (tak bisa mengosongkan).
         $teksKelas = trim((string) ($baris['kelas_terakhir'] ?? ''));
         $ada = MutasiKeluar::where('santri_id', $santri->id)
             ->where('jenjang', $jenjang)
@@ -181,7 +175,6 @@ class MutasiKeluarImporService extends ImporPotongan
             $ada->update($ubah);
         }
 
-        // Tiru "Proses mutasi": tutup riwayat + keanggotaan aktif bila ada.
         $ditutup = RiwayatBelajar::where('santri_id', $santri->id)
             ->where('jenjang', $jenjang)
             ->where('is_active_riwayat', RiwayatBelajar::YA)
@@ -274,7 +267,6 @@ class MutasiKeluarImporService extends ImporPotongan
             return (int) $cocok->first()->id;
         }
 
-        // Nama tak cocok: angka baru dicoba sebagai id kelas.
         if (ctype_digit($teks)) {
             $kelas = Kelas::whereKey((int) $teks)->where('jenjang', $jenjang)
                 ->when($ta !== '', fn ($q) => $q->where('tahun_ajaran', $ta))

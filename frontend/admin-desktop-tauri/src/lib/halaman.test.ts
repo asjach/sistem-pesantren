@@ -92,7 +92,7 @@ describe('halamanDariPath & halaman bertab', () => {
     expect(halamanDariPath('/keuangan')?.label).toBe('Pengaturan');
     expect(halamanDariPath('/pembayaran')?.label).toBe('Pembayaran');
     expect(halamanDariPath('/dokumen-santri/lihat')?.label).toBe('Dokumen Santri');
-    // Profil santri (jendela terpisah) tetap memakai judul Buku Induk/Data Induk.
+
     expect(halamanDariPath('/santri/12/profil')?.to).toBe('/data-induk');
   });
 
@@ -103,16 +103,14 @@ describe('halamanDariPath & halaman bertab', () => {
       '/penempatan',
       '/akademik',
     ]);
-    // Tidak ada lagi subgrup "lain-lain" di Santri (Rekap & Pengajuan pindah
-    // jadi tab Santri Aktif).
+
     expect(halamanSubgrup('santri', 'lain-lain')).toEqual([]);
-    // Pegawai: PTK Aktif lalu Penempatan (3 tab), tanpa subgrup.
+
     expect(halamanGrupLangsung('pegawai').map((h) => h.to)).toEqual([
       '/pegawai-keaktifan',
       '/penempatan-pegawai',
     ]);
-    // Keuangan tanpa subgrup: Pengaturan, Dispensasi, Pembayaran (kasir)
-    // semua halaman langsung.
+
     expect(halamanGrupLangsung('keuangan').map((h) => h.to)).toEqual([
       '/keuangan',
       '/keuangan/dispensasi',
@@ -137,7 +135,7 @@ describe('halamanDariPath & halaman bertab', () => {
     expect(halamanDariPath('/psb')?.tab).toBe('psb');
     expect(halamanDariPath('/psb/pendaftar')?.tab).toBe('psb');
     expect(halamanDariPath('/kegiatan-psb')?.tab).toBe('psb');
-    // Tidak ada lagi halaman ber-subgrup psb di dalam Santri.
+
     expect(halamanSubgrup('santri', 'psb')).toEqual([]);
   });
 
@@ -150,7 +148,7 @@ describe('halamanDariPath & halaman bertab', () => {
     ]);
     expect(halamanDariPath('/penilaian/master')?.tab).toBe('penilaian');
     expect(halamanDariPath('/penilaian/leger')?.tab).toBe('penilaian');
-    // Semua halaman Penilaian dijaga izin matriks modul.
+
     for (const h of halamanGrupLangsung('penilaian')) {
       expect(izinHalaman(h)).toEqual(['penilaian.lihat']);
     }
@@ -164,7 +162,7 @@ describe('halamanDariPath & halaman bertab', () => {
     ]);
     expect(halamanDariPath('/kurikulum/mapel')?.tab).toBe('kurikulum');
     expect(halamanDariPath('/kurikulum/jadwal')?.tab).toBe('kurikulum');
-    // Semua halaman Kurikulum dijaga izin matriks modul.
+
     for (const h of halamanGrupLangsung('kurikulum')) {
       expect(izinHalaman(h)).toEqual(['kurikulum.lihat']);
     }

@@ -76,7 +76,6 @@ class AlumniTemplateExport extends DefaultValueBinder implements FromArray, With
                 $sheet->freezePane('A2');
                 $sheet->setAutoFilter("A1:{$lastCol}1");
 
-                // Validasi inline (tanpa sheet tersembunyi): daftar literal.
                 $opsi = [
                     'jenjang' => DB::table('lembaga')->orderBy('jenjang')->pluck('jenjang')->all(),
                     'penyerahan_ijazah' => ['sudah', 'belum'],
@@ -92,8 +91,7 @@ class AlumniTemplateExport extends DefaultValueBinder implements FromArray, With
                     }
                     $target = Coordinate::stringFromColumnIndex($posisi + 1);
                     $validasi = new DataValidation;
-                    // CATAT: atribut OOXML `showDropDown` INVERTED — setShowDropDown(true)
-                    // membuat panah dropdown TAMPIL di Excel.
+
                     $validasi->setType(DataValidation::TYPE_LIST)
                         ->setShowDropDown(true)
                         ->setErrorStyle(DataValidation::STYLE_STOP)

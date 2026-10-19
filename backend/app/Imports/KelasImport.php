@@ -46,7 +46,7 @@ class KelasImport implements SkipsOnFailure, SkipsUnknownSheets, ToCollection, W
 
     public function onUnknownSheet(string|int $sheetName): void
     {
-        // Sheet tambahan diabaikan.
+
     }
 
     /** @return array<string, mixed> */

@@ -72,9 +72,6 @@ describe('MenuKonteksGrid — Kelola Tabel dari header kolom', () => {
 
     await user.click(screen.getByText('Kelola Tabel'));
 
-    /* Pintu ini lewat `bukaDariMenu`, yang menandai jendela tenggang supaya
-       panel non-modal tak langsung tertutup oleh sisa interaksi/fokus gestur
-       menu. Penandanya sinkron, tapi tetap ditunggu agar tak rapuh. */
     await waitFor(() => expect(onKelolaTabel).toHaveBeenCalledTimes(1));
   });
 
@@ -95,13 +92,6 @@ describe('MenuKonteksGrid — Kelola Tabel dari header kolom', () => {
     const onKelolaTabel = vi.fn();
     renderMenu(true, { onKelolaTabel });
 
-    /* Perilaku dismiss Radix tak bisa ditiru jsdom, jadi yang dijaga di sini
-       adalah KONTRAK-nya: penanda tenggang harus aktif saat pembuka dipanggil.
-       Perilaku nyatanya diverifikasi lewat browser (Playwright).
-
-       CATATAN: tenggangMenu adalah singleton modul, jadi jangan mengandaikan
-       keadaannya mati di awal - tes lain di berkas ini bisa saja baru
-       menyalakannya. Yang penting: SETELAH dibuka, jendelanya menyala. */
     await user.click(screen.getByText('Kelola Tabel'));
 
     await waitFor(() => expect(onKelolaTabel).toHaveBeenCalledTimes(1));
@@ -115,12 +105,10 @@ describe('MenuKonteksGrid — Kelola Tabel dari header kolom', () => {
   });
 });
 
-
 describe('MenuKonteksGrid — sakelar geser judul kolom', () => {
   it('menampilkan sakelar dalam keadaan mati secara bawaan', () => {
     renderMenu();
 
-    // Bawaan non-aktif: perilaku klik judul lama tetap utuh.
     expect(screen.getByText('Geser judul untuk menyusun kolom')).toBeTruthy();
   });
 
@@ -164,7 +152,7 @@ describe('MenuKonteksGrid — perataan kolom digerbang izin kelola', () => {
     for (const nama of TOMBOL_RATA) {
       expect(screen.queryByRole('button', { name: nama })).toBeNull();
     }
-    // Lebar kolom & beku bersifat lokal (tak menulis ke server) → tetap tampil.
+
     expect(screen.getByRole('button', { name: 'Sesuaikan lebar kolom ini' })).toBeInTheDocument();
   });
 });

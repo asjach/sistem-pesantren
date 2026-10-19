@@ -9,8 +9,7 @@ class ReferensiSeeder extends Seeder
 {
     public function run(): void
     {
-        // Nilai murni per lembaga operasional (tanpa baris global):
-        // super_admin menambah ke semua lembaga; tiap lembaga kelola miliknya.
+
         $lembagas = DB::table('lembaga')->pluck('jenjang')->all();
         if (empty($lembagas)) {
             return;
@@ -20,8 +19,7 @@ class ReferensiSeeder extends Seeder
         $isi = function (string $table, string $key, array $rows) use ($lembagas): void {
             foreach ($lembagas as $lid) {
                 foreach ($rows as [$nilai, $attrs]) {
-                    // Hanya sisip bila belum ada: baris milik lembaga (mis.
-                    // yang sengaja dipadamkan) tidak disentuh seeder.
+
                     $ada = DB::table($table)
                         ->where('jenjang', $lid)
                         ->where($key, $nilai)
@@ -45,9 +43,6 @@ class ReferensiSeeder extends Seeder
         $isi('ref_cita_cita', 'nama', $nama(['PNS', 'TNI/Polri', 'Guru/Dosen', 'Dokter', 'Politikus', 'Wiraswasta', 'Seniman/Artis', 'Ilmuwan', 'Agamawan', 'Lainnya']));
         $isi('ref_kebutuhan_khusus', 'nama', $nama(['Tidak Ada', 'Lamban Belajar', 'Kesulitan Belajar Spesifik', 'Gangguan Komunikasi', 'Berbakat/memiliki kemampuan dan kecerdasan luar biasa', 'Lainnya']));
 
-        // 20 kamus EMIS + dokumen + pegawai + 6 no.50. No.51: nilai per-tabel.
-        // 'Formulir Pendaftaran' di no. 7 (urutan kanonis ditegakkan di bawah
-        // agar baris lama yang menempati urutan >= 6 ikut bergeser).
         $dokSantri = ['Kartu Keluarga', 'Pas Foto', 'Akta Kelahiran', 'Ijazah', 'Transkrip Ijazah', 'Surat Pindah', 'Formulir Pendaftaran', 'Surat Kenal Lahir', 'Surat', 'KTP Orang Tua', 'Sertifikat', 'Foto Ijazah'];
         foreach ([
             'ref_penghasilan' => ['dibawah 800.000', '800.001 - 1.200.000', '1.200.001 - 2.000.000', '2.000.001 - 3.000.000', 'diatas 3.000.000', 'Tidak Berpenghasilan'],
@@ -77,8 +72,6 @@ class ReferensiSeeder extends Seeder
             $isi($tabel, 'nama', $nama($daftar));
         }
 
-        // Tegakkan urutan kanonis jenis dokumen santri per lembaga (idempoten:
-        // dijalankan ulang tetap sama). Baris kustom milik lembaga tak disentuh.
         foreach ($lembagas as $lid) {
             foreach ($dokSantri as $i => $nilai) {
                 DB::table('ref_jenis_dokumen_santri')
@@ -88,11 +81,8 @@ class ReferensiSeeder extends Seeder
             }
         }
 
-        // Seed kota no.51: Kab. Bandung, Kota Bandung, Bandung.
         $isi('ref_kota', 'nama', $nama(['Kab. Bandung', 'Kota Bandung', 'Bandung'], 1));
 
-        // Kamus nama mapel lintas jenjang (starter umum formal + pesantren;
-        // tiap lembaga bebas menambah/mengurangi lewat halaman Referensi).
         $isi('ref_mapel', 'nama', $nama([
             'Matematika', 'Bahasa Indonesia', 'Ilmu Pengetahuan Alam', 'Ilmu Pengetahuan Sosial',
             'Pendidikan Pancasila', 'Bahasa Inggris', 'Pendidikan Agama Islam', 'Pendidikan Jasmani',
@@ -101,10 +91,6 @@ class ReferensiSeeder extends Seeder
             'Nahwu', 'Sharaf', 'Tarikh Islam', 'Tahfizh',
         ]));
 
-        // Tingkat per jenjang: MI-MD 1-6, MTS 7-9, MLN 10-12. Berbeda dari
-        // kamus lain, baris di luar rentang institution dihapus supaya hasil
-        // seed persis mengikuti pemetaan. Sisip manual per lembaga (bukan
-        // lewat $isi yang selalu memancarkan ke semua lembaga).
         $petaTingkat = [
             'MI' => ['1', '2', '3', '4', '5', '6'],
             'MD' => ['1', '2', '3', '4', '5', '6'],
@@ -130,7 +116,6 @@ class ReferensiSeeder extends Seeder
             }
         }
 
-        // Preset alamat (contoh Bandung Raya; tiap lembaga dapat salinannya).
         $isi('ref_alamat', 'nama', [[
             'Sekebolek',
             ['provinsi' => 'Jawa Barat', 'kab_kota' => 'Kabupaten Bandung', 'kecamatan' => 'Margaasih',
@@ -138,12 +123,6 @@ class ReferensiSeeder extends Seeder
                 'kode_pos' => '40218', 'urutan' => 0, 'is_active' => true],
         ]]);
 
-        // Status siklus no.51 GANTI TOTAL (terkunci): awal 4 kode + 'kenaikan' + 'lanjutan'
-        // (root PRD v1.7.1: kenaikan kelas -> status_awal baris tapel-berikut;
-        // salin ganjil→genap -> status_awal baris genap 'lanjutan'),
-        // akhir 7 kode; is_aktif_bawaan=true HANYA untuk 'aktif' (invarian 102 terjaga).
-        // 'lanjut' = ganjil yang santrinya lanjut ke genap TA yang sama (bukan
-        // 'aktif' — 'aktif' khusus baris periode yang sedang berjalan).
         $isi('ref_status_awal', 'kode', [
             ['santri_baru', ['nama' => 'Santri Baru', 'urutan' => 0, 'is_active' => true]],
             ['mengulang', ['nama' => 'Mengulang', 'urutan' => 1, 'is_active' => true]],

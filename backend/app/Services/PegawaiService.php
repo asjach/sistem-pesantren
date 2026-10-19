@@ -30,8 +30,7 @@ class PegawaiService
                 'tahaj_masuk' => $atribut['tahaj_masuk'] ?? null,
                 'tgl_masuk' => $atribut['tgl_masuk'] ?? null,
             ];
-            // Tugas tanpa default: hanya diset bila dikirim eksplisit, agar
-            // penempatan ulang tanpa tugas tidak menghapus nilai lama.
+
             if (array_key_exists('tugas_utama', $atribut)) {
                 $data['tugas_utama'] = $atribut['tugas_utama'];
             }
@@ -48,7 +47,7 @@ class PegawaiService
             }
 
             if ($row) {
-                // Aktifkan ulang bila sebelumnya nonaktif dan tak diminta nonaktif.
+
                 if ($row->is_active_lembaga === LembagaPegawai::TIDAK && ($data['is_active_lembaga'] ?? null) !== LembagaPegawai::TIDAK) {
                     $data['is_active_lembaga'] = LembagaPegawai::YA;
                     $data['tgl_selesai'] = null;

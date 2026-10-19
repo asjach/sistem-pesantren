@@ -27,7 +27,6 @@ export default function DokumenPegawaiPage() {
   const canTambah = bisa(user, 'dokumen_pegawai.tambah');
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
 
-  // ----- Daftar pegawai (kolom 1, baris 1) -----
   const [cari, setCari] = useState('');
   const [cariTunda, setCariTunda] = useState('');
   useEffect(() => {
@@ -92,9 +91,7 @@ export default function DokumenPegawaiPage() {
   /** Jumlah dokumen per pegawai (kunci: pegawai_id) — satu fetch; tanpa
    *  filter = seluruh lingkup akses. */
   const [jumlahPegawai, setJumlahPegawai] = useState<Record<number, number>>({});
-  // Tanpa filter jenjang + satu baris per dokumen: sama dengan daftar dokumen
-  // per pegawai (yang hanya disaring pegawai_id), sehingga badge "Dok"
-  // tidak pernah lebih kecil dari isi daftar.
+
   const muatJumlahPegawai = useCallback(async (): Promise<Record<number, number>> => {
     try {
       const p = await listDokumen('pegawai', { per_page: 0 });

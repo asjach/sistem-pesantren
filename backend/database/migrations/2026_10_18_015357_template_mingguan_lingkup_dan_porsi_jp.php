@@ -24,9 +24,6 @@ return new class extends Migration
                 ->constrained('kelas')->nullOnDelete();
         });
 
-        // Index pengganti harus ada SEBELUM unique lama dilepas: unique
-        // (jenjang,nama) menopang FK jenjang, dan MySQL menolak melepasnya
-        // (1553) bila tak ada index lain berawalan `jenjang`.
         Schema::table('template_jadwal', function (Blueprint $table) {
             $table->index(['jenjang', 'tingkat', 'kelas_id'], 'idx_template_scope');
         });
@@ -59,8 +56,7 @@ return new class extends Migration
         });
 
         Schema::table('template_jadwal_baris', function (Blueprint $table) {
-            // Unique lama dipulihkan lebih dulu agar FK tetap punya index
-            // pendukung saat index pengganti dilepas.
+
             $table->unique(['template_jadwal_id', 'urutan_slot'], 'uq_template_baris_urutan');
         });
         Schema::table('template_jadwal_baris', function (Blueprint $table) {

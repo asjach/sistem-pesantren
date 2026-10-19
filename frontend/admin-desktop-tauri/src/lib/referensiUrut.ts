@@ -66,8 +66,6 @@ export function urutkanReferensi<T extends BarisReferensiUrut>(
     return [...rows];
   }
 
-  // Token bisa berbentuk `kode` atau `kode:arah`; token gabungan `a,b` pun
-  // dipecah supaya bentuknya sama dengan token yang dikirim PresetUrut.
   const kunci = kolom.flatMap((k) => k.split(','));
 
   return [...rows].sort((a, b) => {

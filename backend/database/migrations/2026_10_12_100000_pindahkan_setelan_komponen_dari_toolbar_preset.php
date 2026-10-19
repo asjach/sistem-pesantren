@@ -34,14 +34,13 @@ return new class extends Migration
             $tinggi = $this->bacaJson($row->tinggi);
             $nilaiDefault = $this->bacaJson($row->nilai_default);
 
-            // Peta komponen → setelan (kunci frontend).
             $perKomponen = [];
             $sisaLebar = [];
 
             foreach ($lebar as $kunci => $nilai) {
                 [$dasar, $sufiks] = self::pecahKunci((string) $kunci);
                 if ($dasar === null) {
-                    $sisaLebar[$kunci] = $nilai; // bukan komponen (mis. `urut`)
+                    $sisaLebar[$kunci] = $nilai;
 
                     continue;
                 }
@@ -86,7 +85,6 @@ return new class extends Migration
                 );
             }
 
-            // Bersihkan peta lama: komponen dihapus, sisanya (urut/kolom) disimpan.
             $baru = [
                 'lebar' => $sisaLebar === [] ? null : json_encode($sisaLebar),
                 'tinggi' => null,
@@ -116,8 +114,7 @@ return new class extends Migration
 
                     continue;
                 }
-                // Setelan yang sudah ada di `komponen_custom` (mis. tipe input)
-                // tak ditimpa Whole oleh nilai lama.
+
                 $gabungan = array_merge($this->bacaJson($ada->setelan) ?? [], $setelan);
                 DB::table('komponen_custom')
                     ->where('id', $ada->id)
@@ -136,7 +133,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        //
+
     }
 
     /** @return array<string, mixed> */

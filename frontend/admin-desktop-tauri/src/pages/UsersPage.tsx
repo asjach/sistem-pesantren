@@ -58,8 +58,7 @@ const ALL_ROLES = ['super_admin', 'admin', 'guru', 'orang_tua', 'santri'];
 const ADMIN_ROLES = ['guru', 'orang_tua', 'santri'];
 /** Peran yang boleh dicatat per lembaga (super_admin selalu global). */
 const PERAN_LEMBAGA_OPSI = ['admin', 'guru', 'orang_tua', 'santri'];
-// Khusus dialog Tambah pengguna: admin boleh membuat role `admin` (lembaga
-// dibatasi backend). Dialog Ubah role & filter tetap memakai ADMIN_ROLES.
+
 const ADMIN_CREATE_ROLES = ['admin', ...ADMIN_ROLES];
 
 /** Lebar label seragam untuk SELURUH kontrol form Tambah Pengguna: kotak label
@@ -71,7 +70,6 @@ const LEBAR_LABEL_FORM = 140;
 const emailRule = (v: string | null) =>
   v && !v.includes('@') ? 'Email tidak valid.' : null;
 
-// Baris privileged (pemegang admin/super_admin) hanya bisa dimutasi super_admin.
 function privileged(u: AdminUser) {
   return u.roles.some((r) => r.name === 'admin' || r.name === 'super_admin');
 }
@@ -79,25 +77,24 @@ function privileged(u: AdminUser) {
 const USER_FIELDS_BASE: ExcelField[] = [
   {
     key: 'nama', label: 'Nama', width: 200, kind: 'text', maxLength: 255,
-    
+
     required: true,
     validate: (v) => (!v || !v.trim() ? 'Nama wajib diisi.' : null),
   },
   {
     key: 'email', label: 'Email', width: 220, kind: 'text', maxLength: 255,
-    
+
     validate: emailRule,
   },
   {
     key: 'phone', label: 'No. HP', width: 150, kind: 'text', maxLength: 20,
-    
+
   },
   {
     key: 'username', label: 'Nama Pengguna', width: 150, kind: 'text', maxLength: 50,
-    
+
   },
-  // Kolom khusus mode Input: kata sandi & peran/lembaga (baca-saja di mode
-  // biasa). Default peran = orang_tua (lihat inputRowValues).
+
   {
     key: 'sandi', label: 'Kata Sandi', width: 150, kind: 'static',
     inputKind: 'text', maxLength: 100, required: true,
@@ -150,7 +147,7 @@ export default function UsersPage() {
   const { user: me } = useAuth();
   /** Hak kelola role = super_admin EFEKTIF (mati saat bertindak sebagai lembaga). */
   const { efektifSuper: isSuper } = useLembagaAktif();
-  // Gerbang aksi = izin matriks (backend menegakkan yang sama).
+
   const canUbah = bisa(me, 'pengguna.ubah');
   const canTambah = bisa(me, 'pengguna.tambah');
   const canHapus = bisa(me, 'pengguna.hapus');
@@ -202,8 +199,6 @@ export default function UsersPage() {
   const [editRow, setEditRow] = useState<AdminUser | null>(null);
   const [tambahOpen, setTambahOpen] = useState(false);
 
-  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Pengguna"). Tombolnya
-  // adalah SheetTrigger, jadi pembukaannya lewat state `tambahOpen` yang sama.
   usePintasanBaru({
     kunci: 'n',
     aktif: canTambah,
@@ -296,9 +291,7 @@ export default function UsersPage() {
       setErrTambah('Pilih minimal 1 role.');
       return;
     }
-    /* Identitas kini tiga kolom terpisah (email / phone / username), sama
-       seperti baris input grid. Aturan "minimal salah satu" mencerminkan
-       backend (`email` = required_without_all:phone,username). */
+
     const emailIsi = email.trim();
     const phoneIsi = phone.trim();
     const usernameIsi = username.trim();
@@ -410,8 +403,7 @@ export default function UsersPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari pengguna (nama/email/username/phone/role)…" />
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'users', judul: 'Pengguna', fields }]} />
-      {/* Tombol "+ Pengguna" tampil langsung di bilah judul (bukan di balik
-          tombol hamburger `MenuAksiToolbar`): aksi utama halaman ini. */}
+
       <ExcelTable
         tableKey="users"
         sumberTabel="users"
@@ -430,9 +422,7 @@ export default function UsersPage() {
         onUrut={terapkanUrut}
         addButtonLangsung
         addButton={canTambah ? (
-          /* Tambah pengguna sebagai SHEET: panel penuh tinggi yang menggeser
-             masuk dari tepi kanan, jadi tabel tetap terlihat di belakangnya.
-             Tombol jadi SheetTrigger — status buka tetap state `tambahOpen`. */
+
           <Sheet open={tambahOpen} onOpenChange={setTambahOpen}>
             <SheetTrigger asChild>
               <Button id="btn_buka_tambah_user"
@@ -448,9 +438,7 @@ export default function UsersPage() {
                   Buat akun pengguna baru beserta role dan lembaganya.
                 </SheetDescription>
               </SheetHeader>
-              {/* Kolom label grid (Role/Lembaga) memakai LEBAR_LABEL_FORM yang
-                  sama dengan `lebarLabel` tiap LabeledInput → semua label
-                  seragam. Ditulis lewat `style` supaya angkanya satu sumber. */}
+
               <form
                 id="form_tambah_user"
                 onSubmit={onCreate}
@@ -463,22 +451,14 @@ export default function UsersPage() {
                     {errTambah}
                   </p>
                 )}
-                {/* Field teks memakai LabeledInput (label menyatu di dalam
-                    kotak) — membentang kedua kolom grid karena labelnya kini
-                    bagian dari kotak, bukan kolom label terpisah.
-                    `kelolaLebar={false}` WAJIB: form ini hidup di dalam toolbar
-                    ExcelTable yang menyediakan konteks Kelola Tabel — tanpa itu
-                    tiap field ikut terdaftar sebagai "filter" tabel `users`
-                    dan lebarnya dipatok LEBAR_BAWAHAN_FILTER (160px). */}
+
                 <LabeledInput
                   className="col-span-2"
                   label="Nama"
                   htmlFor="input_nama"
                   kelolaLebar={false}
                   lebarLabel={LEBAR_LABEL_FORM}
-                  /* Nama selalu teks: baris "Tipe" disembunyikan supaya
-                     setelan tersimpan (server, berlaku semua user) tak bisa
-                     mengubahnya jadi tanggal/nominal. */
+
                   tipeTerkunci
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -486,9 +466,6 @@ export default function UsersPage() {
                   autoComplete="off"
                 />
 
-                {/* Identitas = tiga kolom terpisah (sama seperti baris input
-                    grid): minimal salah satu diisi, sisanya boleh kosong.
-                    Urutan mengikuti urutan kolom grid. */}
                 <LabeledInput
                   className="col-span-2"
                   label="Email"
@@ -537,8 +514,7 @@ export default function UsersPage() {
                   kelolaLebar={false}
                   lebarLabel={LEBAR_LABEL_FORM}
                   type="password"
-                  /* Sandi wajib tetap sandi — jangan sampai bisa diubah jadi
-                     teks biasa dari popover. */
+
                   tipeTerkunci
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -552,10 +528,7 @@ export default function UsersPage() {
                   <p className="text-xs text-muted-foreground">
                     {isSuper ? 'Pilih 1 atau lebih (5 opsi).' : 'Pilih 1 atau lebih (5 opsi — termasuk admin untuk lembaga Anda).'}
                   </p>
-                  {/* Chip pil: `<label>` + `Checkbox` Radix, status aktif lewat
-                      `has-checked:` (butuh `<form>` leluhur agar Radix merender
-                      input tersembunyinya — di sini ada, `form_tambah_user`).
-                      Sama persis dengan chip Lembaga di bawah. */}
+
                   <div id="group_role_baru" className="flex flex-wrap gap-2">
                     {creatable.map((r) => (
                       <label

@@ -29,7 +29,7 @@ export function susunTab(
   const adaDiKode = new Set(tabKode.map((t) => t.to));
   const disimpan = urutan.filter((r) => adaDiKode.has(r));
   const dikenal = new Set(disimpan);
-  // Rute yang belum pernah diatur: pertahankan urutan kode, di akhir.
+
   const baru = tabKode.map((t) => t.to).filter((r) => !dikenal.has(r));
   const hasil = [...disimpan, ...baru];
   const peta = new Map(tabKode.map((t) => [t.to, t]));

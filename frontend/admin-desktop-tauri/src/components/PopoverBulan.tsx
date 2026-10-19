@@ -26,9 +26,6 @@ export default function PopoverBulan({ htmlFor, nilai, setNilai }: KonteksTipeIn
   /** Tahun acuan grid bulan (panel bawah) sekaligus tahun bertanda terpilih. */
   const [tahun, setTahun] = useState(() => tahunDari(nilai));
 
-  /* Nilai berubah (dari luar) → ikuti tahunnya, supaya panel selalu terbuka
-     pada bulan yang sedang terpilih. Menggulir daftar tahun tak menulis nilai,
-     jadi tak ada tarik-menarik dengan pilihan pengguna di dalam panel. */
   useEffect(() => {
     const b = pecahBulan(nilai);
     if (b !== null) setTahun(b.tahun);
@@ -63,20 +60,6 @@ export default function PopoverBulan({ htmlFor, nilai, setNilai }: KonteksTipeIn
   const kini = pecahBulan(bulanIni());
   const dipilih = pecahBulan(nilai);
 
-  /* DAFTAR TAHUN digeser dengan gulir mouse: satu gulungan = satu baris
-     (`TAHUN_PER_BARIS` tahun). Karena tahun yang tampil memang pilihan yang
-     berlaku, gulirannya langsung mengubah tahun — beda dengan kalender tanggal
-     yang tahunnya hanya memindahkan grid hari.
-
-     Listener dipasang langsung pada elemen (bukan `onWheel` React) dengan
-     `{ passive: false }` karena React memasang wheel secara PASIF — di dalam
-     listener pasif `preventDefault` diabaikan browser, sementara di sini gulir
-     halaman memang harus berhenti selama daftar tahun bergerak.
-
-     Elemennya ditahan di STATE (bukan `useRef`) dan efek bergantung padanya:
-     grid tahun baru muncul saat panel terbuka lewat presence Radix yang bisa
-     jadi SATU COMMIT di belakang state `buka` — dengan bergantung `buka`,
-     listener sempat dipasang saat elemennya belum ada. */
   const [elTahun, setElTahun] = useState<HTMLDivElement | null>(null);
   const pasangRefTahun = useCallback((node: HTMLDivElement | null) => setElTahun(node), []);
   useEffect(() => {
@@ -90,8 +73,6 @@ export default function PopoverBulan({ htmlFor, nilai, setNilai }: KonteksTipeIn
     return () => elTahun.removeEventListener('wheel', onGulir);
   }, [elTahun]);
 
-  /* Paging tahun tanpa mouse: satu baris per PageUp/PageDown, Home = kembali ke
-     tahun nilai terpilih (atau tahun ini). */
   const onKeyDownTahun = (e: KeyboardEvent<HTMLDivElement>) => {
     const geser = e.key === 'PageUp' ? -TAHUN_PER_BARIS : e.key === 'PageDown' ? TAHUN_PER_BARIS : 0;
     if (geser !== 0) {
@@ -121,9 +102,6 @@ export default function PopoverBulan({ htmlFor, nilai, setNilai }: KonteksTipeIn
         </Button>
       </PopoverTrigger>
 
-      {/* Panel ATAS: daftar TAHUN (2 baris × 5). Tiap panel mencegah penutupan
-          bila sasarannya panel sebelah — tanpa itu menekan tombol di satu panel
-          menutup panel lainnya. */}
       <PopoverContent
         data-panel={PANEL_ATAS}
         side="top"
@@ -135,8 +113,7 @@ export default function PopoverBulan({ htmlFor, nilai, setNilai }: KonteksTipeIn
         onInteractOutside={(e) => { if (diDalamPanel(e.target, PANEL_BAWAH)) e.preventDefault(); }}
       >
         <div className="flex flex-col">
-          {/* Rentang tahun yang tampil sekarang; daftarnya digeser dengan gulir
-              mouse satu baris sekali (atau PageUp/PageDown). */}
+
           <div className="pb-1 text-center text-xs font-medium tabular-nums">{awalBlok}–{akhirBlok}</div>
 
           <div
@@ -170,7 +147,6 @@ export default function PopoverBulan({ htmlFor, nilai, setNilai }: KonteksTipeIn
         </div>
       </PopoverContent>
 
-      {/* Panel BAWAH: nama bulan Jan–Des untuk tahun yang dipilih di atas. */}
       <PopoverContent
         data-panel={PANEL_BAWAH}
         side="bottom"
@@ -182,8 +158,7 @@ export default function PopoverBulan({ htmlFor, nilai, setNilai }: KonteksTipeIn
         onInteractOutside={(e) => { if (diDalamPanel(e.target, PANEL_ATAS)) e.preventDefault(); }}
       >
         <div className="flex flex-col gap-1">
-          {/* Tahun ditulis di sini juga: grid bulan di bawah INI yang memakainya,
-              dan tahunnya bisa jauh dari tahun berjalan saat pengguna menelusuri. */}
+
           <div className="pb-1 text-center text-xs font-medium tabular-nums">Bulan {tahun}</div>
 
           <div role="group" aria-label={`Bulan ${tahun}`} className="grid grid-cols-6">

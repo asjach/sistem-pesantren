@@ -51,7 +51,7 @@ describe('ProfilSantriPage', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Ahmad Fauzi' })).toBeInTheDocument();
     expect(profilSantri).toHaveBeenCalledWith(7);
-    // Isi yang sama dengan dialog: bagian-bagiannya ada semua.
+
     for (const judul of ['Identitas', 'Alamat', 'Keluarga', 'Keanggotaan & riwayat']) {
       expect(screen.getByRole('heading', { name: judul })).toBeInTheDocument();
     }
@@ -61,13 +61,10 @@ describe('ProfilSantriPage', () => {
     renderHalaman();
     await screen.findByRole('heading', { level: 1, name: 'Ahmad Fauzi' });
 
-    // Rute ini di luar kerangka aplikasi, jadi halaman yang mengisi sendiri
-    // seluruh tinggi viewport (h-screen), bukan flex-1 di dalam <main> Layout.
     const akar = screen.getByRole('heading', { level: 1, name: 'Ahmad Fauzi' })
       .closest('div.h-screen') as HTMLElement;
     expect(akar).not.toBeNull();
 
-    // Area isi mengisi sisa tinggi, bukan tinggi tetap milik dialog.
     const isi = document.querySelector('[data-part="isi_profil"]') as HTMLElement;
     expect(isi.className).toContain('flex-1');
     expect(isi.className).not.toContain('h-[60vh]');

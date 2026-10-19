@@ -4,9 +4,7 @@ import { buatAntrePerBagian, selesaikanSimpan } from './antreSimpan';
 
 describe('antre simpan per bagian', () => {
   it('dua bagian BERBEDA yang tumpang tindih sama-sama dibersihkan', () => {
-    // Regresi inti: dengan counter GLOBAL, bagian yang selesai lebih dulu
-    // tak pernah dibuang dan indikator "Menyimpan…" macet sampai dialog
-    // ditutup.
+
     const a = buatAntrePerBagian();
     let sedang: readonly string[] = [];
 
@@ -18,7 +16,6 @@ describe('antre simpan per bagian', () => {
     expect(nJudul).toBe(1);
     expect(nKolom).toBe(1);
 
-    // Visibilitas selesai lebih dulu — dulu inilah yang tertinggal.
     sedang = selesaikanSimpan(sedang, 'visibilitas', a.terakhir('visibilitas', nJudul));
     expect(sedang).toEqual(['kolom']);
 
@@ -27,8 +24,7 @@ describe('antre simpan per bagian', () => {
   });
 
   it('hasil permintaan LAMA tak mematikan indikator permintaan BARU (bagian sama)', () => {
-    // Ini yang memang perlu dijaga: ketikan cepat → dua permintaan bagian
-    // yang sama. Yang lama selesai belakangan tak boleh menghapus namanya.
+
     const a = buatAntrePerBagian();
     const lama = a.mulai('kolom');
     const baru = a.mulai('kolom');
@@ -37,7 +33,7 @@ describe('antre simpan per bagian', () => {
     expect(baru).toBe(2);
 
     let sedang: readonly string[] = ['kolom'];
-    // Permintaan lama selesai: masih menyimpan (yang baru belum selesai).
+
     sedang = selesaikanSimpan(sedang, 'kolom', a.terakhir('kolom', lama));
     expect(sedang).toEqual(['kolom']);
 
@@ -50,9 +46,8 @@ describe('antre simpan per bagian', () => {
     const n = a.mulai('umum');
     const sedang: readonly string[] = ['umum'];
 
-    // Belum yang terakhir → tak berubah, identitas referensi tetap.
     expect(selesaikanSimpan(sedang, 'umum', false)).toBe(sedang);
-    // Sudah yang terakhir tapi namanya memang tak ada → isinya tetap.
+
     expect(selesaikanSimpan(['kolom'], 'umum', a.terakhir('umum', n))).toEqual(['kolom']);
   });
 

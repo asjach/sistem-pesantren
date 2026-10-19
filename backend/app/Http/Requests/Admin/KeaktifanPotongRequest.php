@@ -21,8 +21,7 @@ class KeaktifanPotongRequest extends FormRequest
             'baris' => ['required', 'array', 'min:1', 'max:1000'],
             'baris.*' => ['array'],
             'terakhir' => ['sometimes', 'boolean'],
-            // Mode gabungan: buatkan penempatan bila belum ada (tanpa ini
-            // baris tanpa penempatan gagal per baris).
+
             'buat_penempatan' => ['sometimes', 'boolean'],
         ];
     }

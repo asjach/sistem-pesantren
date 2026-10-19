@@ -72,9 +72,7 @@ class NamaBerkasDokumen
      */
     public static function direktori(string $tipe, string $lokasi = 'server'): string
     {
-        /* `$lokasi` SENGAJA tak dipakai: sejak unifikasi storage, byte server
-           selalu di bawah `dokumen/{tipe}` (arsip perangkat tak punya byte di
-           sini). Parameter dipertahankan demi pemanggil lama. */
+
         return "dokumen/{$tipe}";
     }
 

@@ -75,7 +75,6 @@ class PegawaiModulTest extends TestCase
             'nama_singkat' => 'S.R.',
         ])->assertOk()->assertJsonFragment(['gelar_belakang' => 'S.Pd.', 'nama_singkat' => 'S.R.']);
 
-        // NIP ganda ditolak 422.
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai', [
             'nama_lengkap' => 'Ganda',
             'jenis_kelamin' => 'L',
@@ -96,7 +95,7 @@ class PegawaiModulTest extends TestCase
 
         $this->assertSame(1, $total('/api/admin/pegawai?q=Pegawai&status_aktif=Ya'));
         $this->assertSame(1, $total('/api/admin/pegawai?q=Pegawai&status_aktif=Tidak'));
-        // `semua` eksplisit = tanpa filter status (bukan 0 baris).
+
         $this->assertSame(2, $total('/api/admin/pegawai?q=Pegawai&status_aktif=semua'));
 
         KeaktifanPegawai::create([
@@ -123,13 +122,11 @@ class PegawaiModulTest extends TestCase
             'jenjang' => 'MI',
         ])->assertCreated();
 
-        // Tempatkan lagi = aktifkan ulang, tetap 1 baris.
         $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai/{$guru->id}/tempatkan", [
             'jenjang' => 'MI',
         ])->assertCreated();
         $this->assertSame(1, LembagaPegawai::where('pegawai_id', $guru->id)->where('jenjang', 'MI')->count());
 
-        // NIPP kini milik Buku Induk: penempatan tak lagi menerima field nipp.
         $this->actingAs($auth, 'sanctum')->patchJson(
             '/api/admin/pegawai-lembaga/'.LembagaPegawai::untuk($guru->id, 'MI')->id,
             ['tugas_utama' => 'Guru Kelas']
@@ -172,7 +169,6 @@ class PegawaiModulTest extends TestCase
             'jenjang' => 'MI',
         ])->assertCreated();
 
-        // Tautan tertulis + relasi lembaga ikut tertulis dalam satu aksi.
         $this->assertSame($user->id, $guru->fresh()->user_id);
         $this->assertTrue(DB::table('user_lembaga')
             ->where('user_id', $user->id)->where('jenjang', 'MI')->exists());
@@ -195,7 +191,6 @@ class PegawaiModulTest extends TestCase
             'jenjang' => 'MI',
         ])->assertCreated();
 
-        // Akun sudah dipakai baris lain → tautan + akses tidak ditulis.
         $this->assertNull($guru->fresh()->user_id);
         $this->assertSame($user->id, $punya->fresh()->user_id);
         $this->assertFalse(DB::table('user_lembaga')
@@ -214,7 +209,6 @@ class PegawaiModulTest extends TestCase
         $guru->update(['user_id' => $user->id]);
         $pivot = fn () => DB::table('user_lembaga')->where('user_id', $user->id)->where('jenjang', 'MI')->count();
 
-        // Tempatkan → pivot terbuat; tempatkan ulang tetap 1 baris.
         $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai/{$guru->id}/tempatkan", [
             'jenjang' => 'MI',
         ])->assertCreated();
@@ -223,14 +217,12 @@ class PegawaiModulTest extends TestCase
         ])->assertCreated();
         $this->assertSame(1, $pivot());
 
-        // Nonaktifkan → pivot dicabut; aktifkan → pivot kembali.
         $tempatId = LembagaPegawai::untuk($guru->id, 'MI')->id;
         $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai-lembaga/{$tempatId}/nonaktifkan")->assertOk();
         $this->assertSame(0, $pivot());
         $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai-lembaga/{$tempatId}/aktifkan")->assertOk();
         $this->assertSame(1, $pivot());
 
-        // Hapus permanen → pivot dicabut.
         $this->actingAs($auth, 'sanctum')->deleteJson("/api/admin/pegawai-lembaga/{$tempatId}")->assertOk();
         $this->assertSame(0, $pivot());
     }
@@ -258,7 +250,6 @@ class PegawaiModulTest extends TestCase
             'nama_lengkap' => 'Satu', 'jenis_kelamin' => 'L', 'nipp' => 'PST-001',
         ])->assertCreated();
 
-        // NIPP sama di pegawai lain (beda/tanpa lembaga) ditolak.
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai', [
             'nama_lengkap' => 'Dua', 'jenis_kelamin' => 'P', 'nipp' => 'PST-001',
         ])->assertStatus(422);
@@ -272,7 +263,6 @@ class PegawaiModulTest extends TestCase
             'nama_lengkap' => 'Lama', 'jenis_kelamin' => 'L', 'nip' => 'NIP-LAMA', 'nipp' => 'PST-100',
         ]);
 
-        // nipp cocok → update baris lama (nip ikut diperbarui).
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai/import-potong', [
             'mode' => 'eksekusi', 'total' => 1,
             'baris' => [['nama_lengkap' => 'Lama Baru', 'jenis_kelamin' => 'L', 'nip' => 'NIP-BARU', 'nipp' => 'PST-100']],
@@ -281,7 +271,6 @@ class PegawaiModulTest extends TestCase
         $this->assertSame(1, Pegawai::count());
         $this->assertSame('NIP-BARU', Pegawai::where('nipp', 'PST-100')->first()->nip);
 
-        // nip saja tanpa nipp/pegawai_id TIDAK mencocokkan → jatuh ke buat baru → galat NIP ganda.
         $galat = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai/import-potong', [
             'mode' => 'eksekusi', 'total' => 1,
             'baris' => [['nama_lengkap' => 'Orang Lain', 'jenis_kelamin' => 'P', 'nip' => 'NIP-BARU']],
@@ -297,7 +286,6 @@ class PegawaiModulTest extends TestCase
         $auth = $this->superAdmin();
         $guru = Pegawai::create(['nama_lengkap' => 'Walas', 'jenis_kelamin' => 'P']);
 
-        // Tanpa penempatan → 422.
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai-keaktifan', [
             'pegawai_id' => $guru->id,
             'jenjang' => 'MI',
@@ -314,11 +302,9 @@ class PegawaiModulTest extends TestCase
             'tahun_ajaran' => '2026/2027',
         ])->assertCreated();
 
-        // Dropdown walas kini memuat guru (butuh izin kelas.ubah — super_admin punya).
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai/aktif?jenjang=MI&tahun_ajaran=2026/2027')
             ->assertOk()->assertJsonFragment(['nama_lengkap' => 'Walas']);
 
-        // Nonaktifkan penempatan → keaktifan berjalan ikut inaktif → hilang dari dropdown.
         $tempat = LembagaPegawai::untuk($guru->id, 'MI');
         $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai-lembaga/{$tempat->id}/nonaktifkan")
             ->assertOk();
@@ -336,17 +322,14 @@ class PegawaiModulTest extends TestCase
             'jenjang' => 'MI',
         ])->assertCreated();
 
-        // Token `aktif:turun` menimpa arah global `naik`; token polos ikut global.
         $this->actingAs($auth, 'sanctum')
             ->getJson('/api/admin/pegawai-lembaga?sort=aktif:turun,nama&arah=naik')
             ->assertOk();
 
-        // Sufiks DESC (alias) juga dikenali.
         $this->actingAs($auth, 'sanctum')
             ->getJson('/api/admin/pegawai-lembaga?sort=aktif:DESC')
             ->assertOk();
 
-        // Token tak dikenal tetap ditolak.
         $this->actingAs($auth, 'sanctum')
             ->getJson('/api/admin/pegawai-lembaga?sort=kolom_hantu:turun')
             ->assertStatus(422);
@@ -365,13 +348,11 @@ class PegawaiModulTest extends TestCase
         ])->assertCreated();
         $id = KeaktifanPegawai::first()->id;
 
-        // Hapus permanen: baris riwayat hilang, penempatan tetap ada.
         $this->actingAs($auth, 'sanctum')->deleteJson("/api/admin/pegawai-keaktifan/{$id}")
             ->assertOk()->assertJsonFragment(['pesan' => 'Keaktifan dihapus.']);
         $this->assertSame(0, KeaktifanPegawai::count());
         $this->assertSame(1, LembagaPegawai::where('pegawai_id', $guru->id)->count());
 
-        // ID yang sudah hilang → 404.
         $this->actingAs($auth, 'sanctum')->deleteJson("/api/admin/pegawai-keaktifan/{$id}")
             ->assertNotFound();
     }
@@ -392,7 +373,6 @@ class PegawaiModulTest extends TestCase
             'terakhir' => true,
         ]);
 
-        // Mode periksa dulu (kering, tak menulis).
         $cek = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai/import-potong', [
             'mode' => 'periksa', 'total' => 1,
             'baris' => [['nama_lengkap' => 'Guru Satu', 'jenis_kelamin' => 'L', 'nip' => 'NIP-1']],
@@ -401,9 +381,7 @@ class PegawaiModulTest extends TestCase
         $this->assertSame(0, Pegawai::count());
 
         $sesi = $cek->json('sesi_id');
-        // whereKey hanya ada di Eloquent; di query builder ia menjadi
-        // dynamic-where kolom `key` (tak ada di tabel). Di SQLite itu
-        // no-op diam-diam (DQS string fallback), di MySQL galat 1054.
+
         DB::table('import_sesi')->where('id', $sesi)->update(['status' => 'selesai']);
 
         $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai/import-potong', $payload(null))
@@ -419,7 +397,6 @@ class PegawaiModulTest extends TestCase
         $kolom = PegawaiTemplateExport::kolom();
         $aturan = PegawaiImporService::rules();
 
-        // Tiap kolom template (kecuali kunci import) punya aturan validasi import.
         foreach ($kolom as $nama) {
             if ($nama === 'pegawai_id') {
                 continue;
@@ -434,9 +411,6 @@ class PegawaiModulTest extends TestCase
             'sertifikasi' => 'belum',
         ]);
 
-        // Kunci baris data-existing sama persis dengan kolom template DAN
-        // posisional (list sejajar kolom) karena perakit Excel browser
-        // membaca per indeks.
         $res = $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai/data-existing')->assertOk();
         $this->assertSame($kolom, $res->json('kolom'));
         $baris = $res->json('baris.0');
@@ -461,7 +435,6 @@ class PegawaiModulTest extends TestCase
         $this->assertNotNull($segar->foto_url);
         Storage::disk('local')->assertExists($segar->foto_url);
 
-        // Upload kedua mengganti file lama (tak menumpuk).
         $lama = $segar->foto_url;
         $this->actingAs($auth, 'sanctum')->post('/api/admin/pegawai/'.$pegawai->id.'/foto', [
             'foto' => UploadedFile::fake()->image('baru.png', 100, 100),
@@ -497,7 +470,6 @@ class PegawaiModulTest extends TestCase
         );
         $this->assertSame([], $res->json('data.catatan'));
 
-        // Kedua kali ditolak (sudah tertaut).
         $this->actingAs($auth, 'sanctum')
             ->postJson("/api/admin/pegawai/{$pegawai->id}/buatkan-akun")
             ->assertStatus(422);
@@ -647,7 +619,6 @@ class PegawaiModulTest extends TestCase
             'terakhir' => true,
         ])->assertOk();
 
-        // Baris update menautkan akun + baris tertaut disinkron namanya.
         $this->assertSame(2, $res->json('ringkasan.akun_dibuat'));
         $this->assertSame(0, $res->json('ringkasan.akun_dilewati'));
         $this->assertNotNull($lama->fresh()->user_id);
@@ -694,22 +665,21 @@ class PegawaiModulTest extends TestCase
         $this->fixture();
         $auth = $this->superAdmin();
 
-        // Layak dibuat.
         $baru = Pegawai::create([
             'nama_lengkap' => 'Gen Baru', 'jenis_kelamin' => 'L', 'email_pribadi' => 'gen.baru@example.com', 'no_hp' => '083300000001',
         ]);
-        // Tertaut: email + nama berubah → diselaraskan.
+
         $taut = Pegawai::create([
             'nama_lengkap' => 'Nama Lama', 'jenis_kelamin' => 'P', 'email_pribadi' => 'gen.lama@example.com',
         ]);
         $userTaut = User::create(['name' => 'Nama Lama', 'email' => 'lama.login@example.com', 'password' => 'password']);
         $taut->update(['user_id' => $userTaut->id]);
-        // Email bentrok → ditautkan otomatis + peran guru ditambahkan ke akun pemakai.
+
         $pemilik = User::create(['name' => 'Pemilik', 'email' => 'milik.gen@example.com', 'password' => 'password']);
         $bentrok = Pegawai::create([
             'nama_lengkap' => 'Bentrok', 'jenis_kelamin' => 'L', 'email_pribadi' => 'milik.gen@example.com',
         ]);
-        // Tanpa email → dilewati.
+
         Pegawai::create(['nama_lengkap' => 'Bisukan', 'jenis_kelamin' => 'L']);
 
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai/generate-akun')
@@ -741,7 +711,6 @@ class PegawaiModulTest extends TestCase
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai/generate-akun')
             ->assertOk();
 
-        // Peran sudah ada (tak ditambah ulang) tapi tautan + sinkron nama tetap jalan.
         $this->assertSame(0, $res->json('data.dibuat'));
         $this->assertSame(1, $res->json('data.diperbarui'));
         $this->assertSame(0, $res->json('data.dilewati'));
@@ -763,7 +732,6 @@ class PegawaiModulTest extends TestCase
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai/generate-akun')
             ->assertOk();
 
-        // Pengecualian aditif: peran guru menempel ke akun sendiri + token tetap hidup.
         $this->assertSame(1, $res->json('data.diperbarui'));
         $this->assertSame(0, $res->json('data.dilewati'));
         $this->assertTrue($auth->fresh()->hasRole('guru'));
@@ -825,7 +793,7 @@ class PegawaiModulTest extends TestCase
         $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai/{$guru->id}/tempatkan", [
             'jenjang' => 'MI',
         ])->assertCreated();
-        // Simulasi data lama: penempatan ada tapi pivot akses hilang.
+
         DB::table('user_lembaga')->where('user_id', $user->id)->delete();
 
         $res = $this->actingAs($auth, 'sanctum')->postJson('/api/admin/pegawai/generate-akun')
@@ -841,7 +809,6 @@ class PegawaiModulTest extends TestCase
         $this->fixture();
         $auth = $this->superAdmin();
 
-        // Format +62 ber-spasi/strip → tersimpan kanonik.
         $satu = Pegawai::create([
             'nama_lengkap' => 'Varian Satu', 'jenis_kelamin' => 'L', 'no_hp' => '+62 812-3456-7890',
         ]);
@@ -850,7 +817,6 @@ class PegawaiModulTest extends TestCase
             ->assertCreated();
         $this->assertSame('6281234567890', User::find($satu->fresh()->user_id)->phone);
 
-        // Penulisan 08... atas nomor sama → bentrok (tanpa email).
         $dua = Pegawai::create([
             'nama_lengkap' => 'Varian Dua', 'jenis_kelamin' => 'P', 'no_hp' => '0812 3456 7890',
         ]);
@@ -860,7 +826,6 @@ class PegawaiModulTest extends TestCase
             ->assertJsonFragment(['message' => 'No. HP sudah dipakai akun lain; tautkan manual lewat dialog akun.']);
         $this->assertNull($dua->fresh()->user_id);
 
-        // Login bisa memakai format 08... walau tersimpan kanonik.
         $this->postJson('/api/auth/login', [
             'identifier' => '0812-3456-7890',
             'password' => 'rahayu45',
@@ -911,13 +876,11 @@ class PegawaiModulTest extends TestCase
         $this->assertSame('MI', $baris['akun']['lembagas'][0]['jenjang']);
         $this->assertSame('guru', $baris['akun']['lembagas'][0]['pivot']['role']);
 
-        // Cari via login akun + hanya yang berakun yang cocok.
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai-akun?q=berakun@example.com')
             ->assertOk()->assertJsonPath('total', 1);
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai-akun?q=Tanpa')
             ->assertOk()->assertJsonPath('total', 0);
 
-        // Filter lembaga = cakupan akses akun.
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai-akun?jenjang=MI')
             ->assertOk()->assertJsonPath('total', 1);
         $this->actingAs($auth, 'sanctum')->getJson('/api/admin/pegawai-akun?jenjang=MLN')

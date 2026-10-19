@@ -232,8 +232,7 @@ export default function PembayaranPage() {
     const ac = new AbortController();
     santriAbort.current = ac;
     const q = cari.trim();
-    // Di luar dialog tak perlu memuat apa pun; di dalam dialog daftar tampil
-    // semua sejak awal (ketikan menyaring).
+
     if (filterLoading || (!bayarOpen && q === '')) { if (!bayarOpen) setSantriRows([]); return; }
     setErr(''); setSantriLoading(true);
     try {
@@ -248,7 +247,7 @@ export default function PembayaranPage() {
       });
       if (req !== santriReq.current || ac.signal.aborted) return;
       setSantriRows(res.data);
-      // Satu hasil pasti = langsung layani (mis. pindai NIS).
+
       if (q !== '' && res.data.length === 1) pilihSantri(res.data[0]);
     } catch (e) {
       if (req === santriReq.current && !ac.signal.aborted) setErr(errorMessage(e));
@@ -257,14 +256,12 @@ export default function PembayaranPage() {
     }
   }, [cari, filterLoading, bayarOpen, modeBukuInduk, kelasFilterIds, urutSantri, arahSantri, arahKolomSantri, jenjangs, tahunAjaranNames, pilihSantri]);
 
-  // Ketikan ditahan sebentar agar tidak memanggil API tiap karakter.
   useEffect(() => {
     const t = setTimeout(() => { void muatSantri(); }, 250);
     const batalkan = () => { santriReq.current++; santriAbort.current?.abort(); };
     return () => { clearTimeout(t); batalkan(); };
   }, [muatSantri]);
 
-  // Perubahan cakupan membatalkan daftar lama sebelum memuat lingkup baru.
   useEffect(() => {
     if (bayarOpen && santriAktifIdRef.current !== null) void muatTagihanSantri(santriAktifIdRef.current);
     const batalkan = () => { tagihanReq.current++; tagihanAbort.current?.abort(); };
@@ -304,7 +301,7 @@ export default function PembayaranPage() {
   const bulanan = useMemo(
     () => tagihanRows
       .filter((r) => r.jenis?.tipe === 'bulanan')
-      // Bulan tertua dulu (periode `YYYY-MM`; tanpa periode di paling bawah).
+
       .sort((a, b) => {
         if (a.periode === null && b.periode === null) return 0;
         if (a.periode === null) return 1;

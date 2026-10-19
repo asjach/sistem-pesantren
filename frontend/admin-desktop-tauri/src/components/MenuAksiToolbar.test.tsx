@@ -32,7 +32,6 @@ describe('MenuAksiToolbar', () => {
 
     await user.click(screen.getByRole('button', { name: 'Aksi' }));
 
-    // Label diambil dari teks tombol, bukan id; konten tooltip tak jadi item.
     expect(screen.getByRole('menuitem', { name: 'Simpan' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Import' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'btn_buka_import_uji' })).not.toBeInTheDocument();
@@ -57,9 +56,9 @@ describe('MenuAksiToolbar', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Aksi' }));
-    // Nama item = teks tombolnya, bukan judul/title dan bukan "⌘N".
+
     const item = screen.getByRole('menuitem', { name: 'Tambah' });
-    // Ikon tombol (aria-hidden) ikut dirender di dalam item menu.
+
     expect(item.querySelector('svg')).not.toBeNull();
 
     await user.click(item);

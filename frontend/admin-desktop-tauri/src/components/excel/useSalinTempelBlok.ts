@@ -71,30 +71,19 @@ export function useSalinTempelBlok(
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
       const kunci = e.key?.toLowerCase();
       if (kunci !== 'c' && kunci !== 'v') return;
-      /* Editor sel / kotak filter / dialog: biarkan salin-tempel bawaannya. */
+
       if (sedangMengetik(e.target)) return;
       const root = wrapRef.current;
       if (!root) return;
-      /* Sedang mengedit sel (input DSG terbuka) — jangan rebut. */
+
       if (root.querySelector('.dsg-active-cell-focus')) return;
 
-      /* Gerbang tabel ini = ADA sel aktif/terpilih di grid INI.
-       *
-       * Sengaja TIDAK memakai `root.contains(e.target)`: sel grid DSG bukan
-       * elemen fokusable (tak ber-tabIndex), jadi setelah klik sel fokus tetap
-       * di `<body>` dan `e.target` keydown = body — pengecekan containment
-       * membuat listener ini tak pernah jalan di WebView nyata (di jsdom lolos
-       * karena tes men-dispatch langsung ke selnya). DSG sendiri menggerakkan
-       * `activeCell` per grid, jadi `blokAktif` non-null adalah bukti yang
-       * benar bahwa kotak ini yang sedang dipakai. */
       const blok = ref.current.blokAktif();
       if (blok === null) return;
-      /* Tabel lain (mis. dialog yang sedang terbuka) jangan ikut rebut. */
+
       if (document.querySelector('[role="dialog"][data-state="open"], [role="menu"][data-state="open"]')) return;
       const p: PeristiwaBlok = { blok, kunciKolom: ref.current.kunciKolom() };
 
-      /* preventDefault sinkron + stopImmediatePropagation supaya penyalin TSV
-         (document capture lain) & handler DSG tak ikut menulis clipboard. */
       e.preventDefault();
       e.stopPropagation();
       if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();

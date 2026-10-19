@@ -139,9 +139,7 @@ export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
       window.removeEventListener('pointerup', finishDrag);
       window.removeEventListener('pointercancel', finishDrag);
     };
-    // `applyClassSelection`/`applyLevelSelection` dibuat ulang tiap render,
-    // jadi listener dipasang ulang tiap render — isinya sama (baca state via
-    // `stateFilterRef` + `pilih*` yang stabil), tak ada loop.
+
   }, [applyClassSelection, applyLevelSelection]);
 
   useEffect(() => {
@@ -152,7 +150,7 @@ export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
       return;
     }
     // Tunggu filter global siap: tanpa ini fetch pertama memakai lingkup
-    // kosong (terbuang), lalu diulang dengan lingkup final — daftar berkedip.
+
     if (filterLoading) return;
     let hidup = true;
     setTingkatReferensi(null);
@@ -180,8 +178,7 @@ export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
     }
     if (filterLoading) return;
     let hidup = true;
-    // null + flag: daftar lama (lingkup lain) tidak dipertahankan —
-    // "Memuat…" deterministik, bukan daftar usang lalu berganti.
+
     setKelasTersedia(null);
     setKelasLoading(true);
     listKelas({ jenjang: scopeJenjang, tahun_ajaran: tahunAjaranNames, per_page: 1000 })

@@ -15,9 +15,6 @@ class AuthController extends Controller
     {
         $identifier = trim($request->input('identifier'));
 
-        // Identifier no. HP dinormalkan juga (spasi/strip/kode negara
-        // diabaikan) agar cocok dengan phone kanonik `62...`; banding mentah
-        // dipertahankan untuk data lama.
         $telepon = Telepon::normalisasi($identifier);
 
         $user = User::where('email', $identifier)
@@ -42,12 +39,8 @@ class AuthController extends Controller
 
         $user->forceFill(['last_login_at' => now()])->saveQuietly();
 
-        // 2a: nama token per perangkat (cabut-per-device). 2d: expiry per peran —
-        // staf 30 hari, murni orang_tua/santri 365 hari (root PRD OFF-06/v1.8).
         $device = substr(trim((string) $request->input('device', 'api-token')), 0, 100) ?: 'api-token';
 
-        // Aplikasi desktop admin hanya untuk super_admin/admin; peran portal
-        // (orang_tua/santri dsb.) ditolak agar tidak mendapat token desktop.
         if (str_starts_with($device, 'admin-desktop-tauri') && ! $user->hasAnyRole(['super_admin', 'admin'])) {
             return response()->json([
                 'message' => 'Aplikasi desktop hanya untuk peran super_admin/admin.',
@@ -86,8 +79,7 @@ class AuthController extends Controller
 
         return response()->json(array_merge(
             $user->load(['roles', 'lembagas:jenjang,nama', 'pegawai:id,user_id,nama_lengkap'])->toArray(),
-            // Saat bertindak sebagai lembaga: izin efektif setara admin.
-            // ?jenjang=MI: izin efektif (global + peran tercatat di MI).
+
             ['permissions' => $user->izinEfektif(is_string($jenjang) && $jenjang !== '' ? $jenjang : null)],
         ));
     }

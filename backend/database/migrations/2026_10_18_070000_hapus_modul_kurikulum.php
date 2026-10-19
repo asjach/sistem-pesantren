@@ -27,13 +27,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // KKM & urutan tampil rapor pindah ke master mapel.
+
         Schema::table('mata_pelajaran', function (Blueprint $table) {
-            $table->decimal('kkm', 5, 2)->nullable()->after('kode_mapel'); // null = predikat manual (202)
-            $table->integer('urutan')->default(0)->after('kkm'); // urutan tampil di rapor/leger
+            $table->decimal('kkm', 5, 2)->nullable()->after('kode_mapel');
+            $table->integer('urutan')->default(0)->after('kkm');
         });
 
-        // Anak lebih dulu (FK cascade), lalu induknya.
         Schema::dropIfExists('kurikulum_mapel_tingkat');
         Schema::dropIfExists('kurikulum_mapel');
         Schema::dropIfExists('kelas_kurikulum');

@@ -72,9 +72,7 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
   const [presets, setPresets] = useState<PresetTabel[]>([]);
   /** Preset yang dibuka + mulai-lengkap + penanda remount (agar state lokal
    *  TabKolom ter-reset). */
-  // `lengkap: true` = mode "Lengkap (semua kolom)": keadaan awal sebelum data
-  // preset termuat. Tanpa ini tab Kolom terbuka dengan 0 kolom terpilih, dan
-  // tombol Simpan mati — terlihat seperti form yang rusak.
+
   const [kelola, setKelola] = useState<{
     preset: PresetTabel | null;
     lengkap: boolean;
@@ -94,18 +92,13 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
     try {
       const res = await listPresetTabel(tableKey);
       setPresets(res.data.presets);
-      // Buka pada susunan yang benar-benar dipakai halaman ini: preset aktif,
-      // kalau tidak "Lengkap (semua kolom)"/"Lengkap kustom" — cermin
-      // `PresetKolom`. Dialog jadi mencerminkan isi tabel, bukan daftar kosong.
+
       const aktifId = res.data.aktif_preset_id;
       const aktif = aktifId === null
         ? null
         : res.data.presets.find((p) => p.id === aktifId) ?? null;
       const kolomKustom = aktif === null ? res.data.aktif_kolom ?? null : null;
-      /* Label SENGAJA tidak disentuh di sini: nama header kolom adalah setelan
-         per TABEL (`toolbar_preset.label`) yang sudah dimuat `useKelolaKolom`.
-         Dulu label ikut preset; menimpanya sekarang akan mengembalikan label
-         tabel ke nilai preset lama setiap kali dialog dibuka. */
+
       setKelola((s) => ({ preset: aktif, lengkap: aktif === null, kolomAwal: kolomKustom, nonce: s.nonce + 1 }));
     } catch (e) {
       setPresets([]);
@@ -141,8 +134,7 @@ function useKelolaKolom({ tableKey, fields }: { tableKey: string; fields: ExcelF
     setKelola((s) => ({ preset: null, lengkap: true, kolomAwal: null, nonce: s.nonce + 1 }));
   }, []);
   const pilihPreset = useCallback((p: PresetTabel | null) => {
-    /* Label tabel dibiarkan apa adanya: preset mengubah kolom mana yang TAMPIL,
-       bukan cara kolom dinamai. */
+
     setKelola((s) => ({ preset: p, lengkap: false, kolomAwal: null, nonce: s.nonce + 1 }));
   }, []);
   const tersimpan = useCallback(async (id: number) => {
@@ -199,7 +191,7 @@ function simpanLebarSheet(v: number) {
   try {
     localStorage.setItem(SHEET_LEBAR_KUNCI, String(v));
   } catch {
-    /* Penyimpanan boleh gagal (mode privat) — lebar sesi ini tetap jalan. */
+
   }
 }
 
@@ -221,13 +213,12 @@ function useLebarSheet() {
   const mulaiSeret = useCallback((e: MouseEvent<HTMLElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    // Kursor seret dipasang di <body>: pointer gampang keluar dari gagang
-    // yang tipis saat diseret cepat (pola yang sama di `useLebarSidebar`).
+
     document.body.style.cursor = 'col-resize';
     seretRef.current = { mulaiX: e.clientX, lebarAwal: lebar };
     setSeret(true);
     const geser = (ev: globalThis.MouseEvent) => {
-      // Panel menempel kanan: pointer ke kiri = melebar.
+
       setLebar(jepitLebarSheet(seretRef.current.lebarAwal + (seretRef.current.mulaiX - ev.clientX)));
     };
     const selesai = () => {
@@ -250,7 +241,7 @@ function useLebarSheet() {
   }, []);
 
   const onKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
-    // Pola separator ARIA (sama seperti gagang Sidebar): ← melebar, → menyempit.
+
     const langkah = e.shiftKey ? 48 : 16;
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
@@ -287,9 +278,7 @@ export function Bagian({ id, judul, aksi, className, children }: {
       <div className="flex items-center gap-2">
         <h3 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{judul}</h3>
         {aksi ? (
-          /* Label ikut tampil, bukan hanya tooltip: di dialog ini tiap bagian
-             punya tab sendiri, jadi tidak lagi banyak ikon ↺ yangbertumpuk
-             dan ikon polos jadi tak terbaca. */
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -326,8 +315,7 @@ function TabBagian({ id, label, kotor }: { id: string; label: string; kotor: boo
       {label}
       {kotor ? (
         <>
-          {/* Spasi eksplisit: `{label}` dan node ini berdempetan, tanpa
-              spasi keduanya menempel jadi "Kolom(belum tersimpan)". */}
+
           {' '}
           <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
           <span className="sr-only">(belum tersimpan)</span>
@@ -407,11 +395,7 @@ export default function DialogKelolaTabel({
 
   const lapor = useCallback((id: string, v: boolean) => {
     setKotorBagian((prev) => (prev[id] === v ? prev : { ...prev, [id]: v }));
-    /* TERAPKAN LANGSUNG: bagian melaporkan "kotor" tepat saat nilainya
-       berubah, jadi di situlah penyimpanan dijalankan - tanpa menunggu
-       tombol. Bagian yang gagal tetap ditandai kotor supaya percobaan
-       berikutnya (ketikan berikutnya) bisa mengulang; kegagalannya juga
-       dicatat agar footer berhenti mengaku "tersimpan". */
+
     if (!v) return;
     const fn = simpanBagianRef.current[id];
     if (!fn) return;
@@ -424,10 +408,7 @@ export default function DialogKelolaTabel({
       } catch {
         ok = false;
       } finally {
-        // Hanya permintaan TERAKHIR bagian INI yang boleh membersihkan
-        // indikatornya: yang lama bisa selesai belakangan (balapan) dan
-        // mematikan indikator milik yang baru. Bagian lain punya nomornya
-        // sendiri, jadi tak saling memblokir.
+
         const terakhir = antreRef.current.terakhir(id, nomor);
         setSedangSimpan((prev) => selesaikanSimpan(prev, id, terakhir) as string[]);
       }
@@ -450,18 +431,9 @@ export default function DialogKelolaTabel({
     });
   }, []);
   const registri = useRegistriBagian(lapor, daftarSimpan, daftarAksi);
-  /* Tak ada lagi perubahan tertunda: tiap bagian menyimpan sendiri saat
-     diubah, jadi menutup dialog tak bisa membuang pekerjaan - dan
-     konfirmasi "buang perubahan?" tak lagi punya alasan. */
+
   const tutup = useCallback(() => onOpenChange(false), [onOpenChange]);
 
-  /* Penjaga "baru dibuka dari menu klik kanan": selama jendela tenggang
-     singkat, interaksi-luar DAN fokus-luar diabaikan. Tanpa ini panel
-     NON-MODAL tertutup sendiri tepat setelah dibuka dari menu:
-     (a) sisa pointerdown+click gestur menu dianggap interaksi di luar, dan
-     (b) fokus yang berpindah ke luar panel memicu onFocusOutside Radix.
-     Keduanya dibuktikan lewat uji browser nyata (Playwright). Lihat
-     catatan lengkap di ./excel/kelolaTabelDariMenu. */
   const tahanSaatTenggang = useCallback(
     (e: { preventDefault: () => void }) => {
       if (tenggangMenu.lagiTenggang()) e.preventDefault();
@@ -469,21 +441,14 @@ export default function DialogKelolaTabel({
     [],
   );
 
-  // Saat dibuka: bersihkan penanda kotor dan catatan gagal.
   useEffect(() => {
     if (!open) return;
     setKotorBagian({});
     setAdaGagal(false);
   }, [open, tableKey]);
 
-  // Hook tetap dipanggil tanpa syarat: `fields` boleh undefined (tab Kolom
-  // lalu menampilkan keterangan), tapi state Kolom harus hidup terus supaya
-  // tidak hilang saat pindah tabel.
   const { muat, ...kolom } = useKelolaKolom({ tableKey, fields: fields ?? [] });
 
-  // Ikut menyegarkan diri saat susunan preset diubah dari luar (mis. menu klik
-  // kanan header tabel atau seret kolom), tapi JANGAN sentuh editan yang belum
-  // disimpan supaya pekerjaan pengguna tidak hilang.
   useEffect(() => {
     const segarkan = (e: Event) => {
       const d = (e as CustomEvent).detail;
@@ -499,32 +464,17 @@ export default function DialogKelolaTabel({
       <IsiPanelKelolaTabel
         onTutup={tutup}
         side="right"
-        /* Saat dibuka dari TABEL yang sedang dilihat: non-modal + tanpa
-           overlay, supaya tabelnya tetap terlihat dan hidup - itulah alasan
-           panel ini ada. Dari topBar (tabel di halaman lain) tetap modal:
-           tak ada tabel di belakang yang layak dilihat.
-           Menutup panel: klik di area luar panel, tombol X, tombol "Tutup",
-           atau Esc — semuanya lewat `tutup()`. Tak ada konfirmasi karena tiap
-           bagian sudah menyimpan sendiri saat diubah. */
+
         overlay={!nonModal}
         onInteractOutside={tahanSaatTenggang}
         onFocusOutside={tahanSaatTenggang}
         onPointerDownOutside={tahanSaatTenggang}
         aria-label={`Pengaturan tabel ${typeof judul === 'string' ? judul : 'ini'}`}
-        /* - Lebar mengikuti state `lebar` (bisa diseret lewat gagang tepi
-             kiri, 420–960px, ingat per perangkat). `maxWidth: 100dvw`
-             menjaga panel tetap di layar kecil walau simpanan lebarnya
-             lebih besar dari viewport.
-           - `!overflow-hidden` WAJIB: SheetContent bawaan ber-`overflow-y-auto`,
-             sehingga yang menggulir adalah SELURUH panel - header (judul + tab)
-             dan footer (status + Tutup) ikut terbuang ke luar layar begitu
-             digulir, dan daftar kolom yang panjang membuat panel setinggi
-             2904px. Yang boleh menggulir hanya isi tab (lihat TabsContent). */
+
         className="!flex h-dvh w-full flex-col gap-0 !overflow-hidden !p-0"
         style={{ width: lebar, maxWidth: '100dvw' }}
       >
-        {/* Gagang seret lebar panel: strip di tepi kiri. Seret kiri =
-            melebar, kanan = menyempit; klik-ganda = kembali 600px. */}
+
         <div
           id="gagang_lebar_kelola_tabel"
           role="slider"
@@ -554,28 +504,20 @@ export default function DialogKelolaTabel({
 
           <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
             <TabsList variant="line" className="h-auto w-full shrink-0 justify-start gap-1 border-b px-3 py-1.5">
-              {/* Titik "belum tersimpan" tab Umum juga naik dari section
-                  visibilitas komponen (id sendiri — satu tab bisa punya >1
-                  bagian terdaftar). */}
+
               <TabBagian id="umum" label="Umum" kotor={!!kotorBagian.umum || !!kotorBagian.visibilitas} />
               <TabBagian id="info" label="Info" kotor={!!kotorBagian.info} />
               <TabBagian id="kolom" label="Kolom" kotor={!!kotorBagian.kolom} />
               <TabBagian id="urutan" label="Urutan" kotor={!!kotorBagian.urutan} />
             </TabsList>
 
-            {/* Semua panel `forceMount`: pindah tab tidak boleh membuang state
-                lokal tiap bagian (centang, penanda kotor) — kalau ter-unmount,
-                bagian yang sudah dikotori diam-diam tak ikut tersimpan. */}
             <TabsContent value="umum" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
               <Bagian id="bagian_umum_tabel" judul="Umum" aksi={aksiBagian.umum}>
                 <div className="flex flex-col gap-3">
                   <TabVisibilitasKomponen
                     tableKey={tableKey}
                     info={infoKomponen}
-                    // Placeholder input judul: hanya masuk akal bila judul
-                    // bawaannya memang teks. Judul berupa node dinamis
-                    // (mis. "Daftar Santri (12)") tak bisa jadi placeholder,
-                    // jadi jatuh ke teks netral.
+
                     judulBawaan={typeof judul === 'string' ? judul : ''}
                   />
                   <TabUmum tableKey={tableKey} judul={judul} fields={fields} />
@@ -583,8 +525,6 @@ export default function DialogKelolaTabel({
               </Bagian>
             </TabsContent>
 
-            {/* Info: isinya editor yang harus mengisi sisa tinggi panel, jadi
-                tab ini flex-col (bukan sekadar blok yang menggulir). */}
             <TabsContent value="info" forceMount className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3 data-[state=inactive]:hidden">
               <Bagian id="bagian_info_tabel" judul="Info tabel" className="min-h-0 flex-1">
                 <TabInfo key={tableKey} tableKey={tableKey} />
@@ -604,7 +544,6 @@ export default function DialogKelolaTabel({
               </Bagian>
             </TabsContent>
 
-
             <TabsContent value="urutan" forceMount className="min-h-0 flex-1 overflow-y-auto p-3 data-[state=inactive]:hidden">
               <Bagian id="bagian_urutan_tabel" judul="Urutan">
                 <TabUrutan key={tableKey} tableKey={tableKey} />
@@ -613,9 +552,7 @@ export default function DialogKelolaTabel({
           </Tabs>
 
           <SheetFooter className="shrink-0 flex-row items-center gap-2 border-t px-4 py-3">
-            {/* Perubahan tersimpan sendiri saat diubah, jadi tak ada tombol
-                Simpan - yang perlu diketahui pengguna hanyalah SEDANG apa
-                datanya sekarang. Ini status, bukan aksi. */}
+
             <p
               className={cn('mr-auto flex items-center gap-1.5 text-xs', adaGagal ? 'text-destructive' : 'text-muted-foreground')}
               id="status_simpan_kelola_tabel"

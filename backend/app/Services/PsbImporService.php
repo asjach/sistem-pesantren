@@ -113,7 +113,7 @@ class PsbImporService extends ImporPotongan
                 break;
             } catch (QueryException $e) {
                 if (($e->errorInfo[1] ?? null) !== 1062 || ++$usaha >= 3) {
-                    // NIK/no_pendaftaran bentrok Unique: baris gagal, bukan fatal.
+
                     $this->dibuat--;
                     $this->valid--;
                     $this->gagal[] = ['baris' => $no, 'nis_lokal' => $this->kunciAktif, 'kolom' => 'nik', 'pesan' => 'Calon sudah terdaftar (NIK atau nomor pendaftaran bentrok).'];

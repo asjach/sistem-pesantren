@@ -34,7 +34,6 @@ describe('ResizableHandle — standar pemisah', () => {
     expect(garis.className).toContain('bg-border');
     expect(garis.className).toContain('group-hover:bg-primary');
 
-    // Anak kedua = knob pegangan (withHandle).
     expect((handle as HTMLElement).children.length).toBe(2);
   });
 
@@ -59,8 +58,6 @@ describe('ResizableHandle — standar pemisah', () => {
     expect(garis.className).toContain('group-hover:bg-primary');
   });
 
-  /* Halaman yang menggeser panelnya SENDIRI (mis. Dispensasi) memakai
-     `PemisahGeser`; tampilannya harus identik dengan handle panel group. */
   it('PemisahGeser memakai markup & kelas standar yang sama', () => {
     const { container } = renderDenganTema(
       <PemisahGeser id="gagang_uji_geser" orientation="horizontal" withHandle aria-label="Uji geser" />,
@@ -69,7 +66,7 @@ describe('ResizableHandle — standar pemisah', () => {
     const el = container.querySelector('[data-slot="resizable-handle"]') as HTMLElement;
     expect(el.tagName).toBe('DIV');
     expect(el.getAttribute('role')).toBe('separator');
-    // Pemisah dua kolom = garis vertikal.
+
     expect(el.getAttribute('aria-orientation')).toBe('vertical');
     expect(el.className).toContain('w-2');
     expect(el.className).toContain('var(--part-tabel_sel-bg');

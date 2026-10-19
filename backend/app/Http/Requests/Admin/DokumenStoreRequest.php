@@ -31,16 +31,16 @@ class DokumenStoreRequest extends FormRequest
             'pegawai_id' => $tipe === 'pegawai' ? $aturanPemilik : ['prohibited'],
             'jenjang' => $tipe === 'lembaga' ? $aturanPemilik : ($tipe === 'pegawai' ? ['required', 'string', 'exists:lembaga,jenjang'] : ['nullable', 'string']),
             'jenis_dokumen' => ['required', 'string', 'max:100'],
-            // Kolom status hanya tersisa di tabel lembaga.
+
             'status_verifikasi' => $tipe === 'lembaga' ? ['sometimes', 'in:menunggu,valid,ditolak'] : ['prohibited'],
-            // Konteks lembaga pemakaian hanya ada di tabel santri.
+
             'lembaga' => $tipe === 'santri' ? ['sometimes', 'nullable', 'string', 'exists:lembaga,jenjang'] : ['prohibited'],
             'catatan' => ['nullable', 'string'],
-            // Pegawai bebas semua jenis berkas; santri/lembaga tetap gambar/PDF.
+
             'file' => $tipe === 'pegawai'
                 ? ['nullable', 'file', 'max:10240']
                 : ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
-            // Simpanan lokal/test (dev): tanpa byte, nama dicadangkan untuk arsip perangkat.
+
             'tujuan' => ['sometimes', 'in:server,lokal,test'],
             'ekstensi' => ['sometimes', 'nullable', 'string', 'regex:/^[a-z0-9]{2,5}$/'],
         ];

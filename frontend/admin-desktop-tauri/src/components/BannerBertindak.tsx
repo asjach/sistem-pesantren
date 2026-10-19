@@ -33,8 +33,6 @@ export default function BannerBertindak({ terbuka, onTutup }: {
     .sort((a, b) => CEPAT.indexOf(a.jenjang) - CEPAT.indexOf(b.jenjang));
   const tombol = cepat.length > 0 ? cepat : pilihan;
 
-  // Esc = tutup pemilih / kembali ke mode super_admin. Dialog/menu yang
-  // terbuka dan editor sel grid tetap didahulukan (jangan dibajak).
   useEffect(() => {
     if (!tampil) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -43,7 +41,7 @@ export default function BannerBertindak({ terbuka, onTutup }: {
       if (t?.closest?.('[role="dialog"], [role="listbox"], [role="menu"]')) return;
       if (hasOpenEditor()) return;
       e.preventDefault();
-      // Banner terpasang sebelum tabel halaman: cegah handler Esc grid.
+
       e.stopImmediatePropagation();
       if (bertindak) pilihPeran(null);
       onTutup();
@@ -104,7 +102,6 @@ export default function BannerBertindak({ terbuka, onTutup }: {
         })}
       </span>
 
-      {/* Selalu tampil selama banner terbuka: menutup pemilih / keluar dari peran. */}
       <Tooltip>
         <TooltipTrigger asChild>
           <button

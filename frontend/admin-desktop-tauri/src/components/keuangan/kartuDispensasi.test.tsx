@@ -71,12 +71,9 @@ describe('KartuDispensasiTerpilih', () => {
       />,
     );
 
-    // Chip memisahkan jenis & potongan secara VISUAL (gap) — nama aksesibilitas
-    // dan tooltip-nya tetap satu kalimat utuh.
     expect(nilai('kartu_dispensasi_aturan_11')).toHaveAccessibleName('SPP: 25%');
     expect(nilai('kartu_dispensasi_aturan_11')).toHaveTextContent('25%');
-    // Aturan tanpa jenis = berlaku semua jenis tagihan (nama lengkapnya
-    // dipakai di title/aria, teks visualnya cukup "Semua jenis").
+
     expect(nilai('kartu_dispensasi_aturan_12')).toHaveAccessibleName('Semua jenis tagihan: Rp 5.000');
     expect(nilai('kartu_dispensasi_aturan_kosong')).toBeNull();
   });

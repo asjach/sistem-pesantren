@@ -67,8 +67,7 @@ class PengaturanHalamanTest extends TestCase
 
     public function test_urutan_ganda_ditolak_validasi(): void
     {
-        // `distinct` menolak rute ganda: lebih baik galat jelas daripada
-        // diam-diam dibersihkan (urutan ganda menandakan bug pemanggil).
+
         $this->actingAs($this->superAdmin())->putJson('/api/admin/pengaturan-halaman', [
             'page_key' => 'data_induk',
             'urutan' => ['/kelas', '/kelas', '/users'],

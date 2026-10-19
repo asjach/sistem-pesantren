@@ -165,7 +165,7 @@ export async function sinkronSatuBaris(
     await deps.tandaiServer(row, await hashSha256(bytes));
     return { id: row.id, nama, aksi: 'turun' };
   }
-  // Dua-duanya ada: jalan pintas tanpa baca-hash bila bukti sinkron masih baru.
+
   const shaServer = server?.sha256 ?? null;
   const tersinkron = detikTersinkron(row);
   if (
@@ -183,7 +183,7 @@ export async function sinkronSatuBaris(
     await deps.tandaiServer(row, hashLokal);
     return { id: row.id, nama, aksi: 'ditandai' };
   }
-  // Isi beda: mtime terbaru menang.
+
   const mLokal = lokal?.mtime ?? 0;
   const mServer = server?.mtime ?? 0;
   if (Math.abs(mLokal - mServer) <= AMBANG_SERI_DETIK) {
@@ -255,8 +255,6 @@ export async function ambilSemuaBaris(
 ): Promise<DokumenRow[]> {
   return (await listDokumen(tipe, { ...params, per_page: 0 })).data;
 }
-
-// ---------------- Dependensi perangkat (Tauri) ----------------
 
 /** Dependensi nyata ke arsip perangkat + API (hanya desktop). */
 export function depsPerangkat(tipe: TipeDokumen): DepsSinkron {

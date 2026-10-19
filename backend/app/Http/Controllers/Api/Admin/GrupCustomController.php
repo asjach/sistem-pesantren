@@ -41,8 +41,6 @@ class GrupCustomController extends Controller
             ->orderBy('nama')
             ->get();
 
-        /* Pengayaan anggota butuh SATU TA: bila topBar multi-pilih, pakai TA
-           aktif (riwayat per TA berbeda; gabungan multi-TA tidak bermakna). */
         $diminta = $request->query('tahun_ajaran');
         $tunggal = is_array($diminta) ? (count($diminta) === 1 ? $diminta[0] : null) : $diminta;
 
@@ -73,8 +71,7 @@ class GrupCustomController extends Controller
             foreach ($baris as $b) {
                 $id = (int) $b->santri_id;
                 $lama = $info[$id] ?? null;
-                /* Semester tertinggi menang; sesama semester MI didahulukan
-                   (selaras aturan jenjang_utama keuangan). */
+
                 if ($lama === null || ($lama['semester'] === $b->semester && $lama['jenjang'] !== 'MI' && $b->jenjang === 'MI')) {
                     $info[$id] = [
                         'semester' => $b->semester,

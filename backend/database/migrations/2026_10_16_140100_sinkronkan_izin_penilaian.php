@@ -19,6 +19,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        /* Aditif: izin yang sudah dibuat mungkin dipakai peran lain — tak dicabut. */
+
     }
 };

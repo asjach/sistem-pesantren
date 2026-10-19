@@ -121,7 +121,7 @@ export default function MenuKonteksGrid({
 
   return (
     <ContextMenuContent>
-      {/* Sudut kiri-atas (kotak centang pilih semua): salin seluruh tabel. */}
+
       {sudut && (
         <>
           <ContextMenuLabel>TABEL</ContextMenuLabel>
@@ -135,17 +135,12 @@ export default function MenuKonteksGrid({
           <ContextMenuSeparator />
         </>
       )}
-      {/* Area header kolom: semua tombol dalam SATU baris ikon tanpa label
-          (perataan | lebar | beku | salin). */}
+
       {header && (
         <>
           <ContextMenuLabel>KOLOM: {headerLabel}</ContextMenuLabel>
           <div className="flex items-center gap-1 px-2 pb-1 pt-0.5">
-            {/* Perataan = setelan TABEL yang ditulis ke SERVER, super_admin
-                efektif. Tanpa `bolehKelola` tombolnya disembunyikan supaya
-                pengguna tak menabrak 403 "Setelan tabel hanya dapat diubah
-                super_admin." — tombol lebar/beku di sebelahnya tetap lokal
-                jadi tetap tampil untuk semua pengguna. */}
+
             {bolehKelola && (
             <>
               {([
@@ -260,17 +255,12 @@ export default function MenuKonteksGrid({
             </Tooltip>
           </div>
           <ContextMenuSeparator />
-          {/* Jalan pintas ke dialog pengaturan tabel (super_admin efektif,
-              halaman berregistrasi tabel) — setara klik kanan bilah judul. */}
+
           {onKelolaTabel && (
             <>
               <ContextMenuItem
                 id={`menu_ctx_kelola_tabel_${tableKey}`}
-                /* Lewat `bukaDariMenu`: menandai jendela tenggang supaya panel
-                   non-modal tak langsung tertutup oleh sisa fokus/interaksi
-                   gestur menu (hanya jalur klik kanan; tombol gerigi tidak
-                   melewati menu sehingga tak terpengaruh). Lihat
-                   `./kelolaTabelDariMenu`. */
+
                 onSelect={() => bukaDariMenu(() => onKelolaTabel())}
               >
                 <NotebookTabs size={16} />
@@ -278,11 +268,7 @@ export default function MenuKonteksGrid({
               </ContextMenuItem>
             </>
           )}
-          {/* Susun posisi kolom dengan seret judul. Checkbox (bukan tombol
-              ikon) supaya status aktif/matinya jelas terbaca. Per perangkat,
-              MATI bawaan — perilaku klik judul lama tetap utuh. Disembunyikan
-              pada tabel ber-`isiLebarPenuh` (urutan kolom tak memengaruhi
-              lebar; lebarnya murni rasio isi). */}
+
           {geserHeaderTersedia && (
             <>
               <ContextMenuSeparator />
@@ -298,7 +284,6 @@ export default function MenuKonteksGrid({
         </>
       )}
 
-      {/* Area baris data: aksi halaman + salin. */}
       {row && (
         <>
           <ContextMenuLabel>{row.rowLabel}</ContextMenuLabel>
@@ -308,10 +293,7 @@ export default function MenuKonteksGrid({
               {onIsiBlok && (
               <ContextMenuItem
                 id={`menu_ctx_isi_blok_${tableKey}`}
-                /* WebKit/WKWebView dapat memfokuskan item saat pointerdown dan
-                   menggeser menu satu baris; pointerup lalu mendarat di item
-                   lain sehingga aksi blok tak pernah dipilih. Cegah fokus itu —
-                   pemilihan tetap lewat click/onSelect. */
+
                 onPointerDown={(e) => e.preventDefault()}
                 onSelect={onIsiBlok}
               >
@@ -322,8 +304,7 @@ export default function MenuKonteksGrid({
               {onKosongkanBlok && (
               <ContextMenuItem
                 id={`menu_ctx_kosongkan_blok_${tableKey}`}
-                /* `onPointerDown` preventDefault: sama seperti item isi blok,
-                   mencegah WebKit menggeser pilihan ke item lain. */
+
                 onPointerDown={(e) => e.preventDefault()}
                 onSelect={onKosongkanBlok}
               >

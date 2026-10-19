@@ -37,7 +37,7 @@ describe('FIELDS_JENIS — mode Edit & Input', () => {
     ]);
     expect(fieldJenis('nama')?.validate?.('   ')).toBe('Nama jenis wajib diisi.');
     expect(fieldJenis('nama')?.validate?.('HIPA')).toBeNull();
-    // Sel tipe yang dikosongkan ditolak, bukan diam-diam jadi Non-bulanan.
+
     expect(fieldJenis('tipe')?.validate?.('bulanan')).toBeNull();
     expect(fieldJenis('tipe')?.validate?.(null)).toBe('Tipe harus Bulanan atau Non-bulanan.');
   });
@@ -96,7 +96,7 @@ describe('payloadUbahJenis', () => {
     expect(payloadUbahJenis(jenis(), { urutan: '20' }).urutan).toBe(20);
     expect(payloadUbahJenis(jenis({ urutan: 20 }), { urutan: null }).urutan).toBe(0);
     expect(payloadUbahJenis(jenis({ urutan: 20 }), { urutan: 'abc' }).urutan).toBe(20);
-    // Field urutan tak ikut dikirim (mis. lewat dialog yang belum mengenalnya).
+
     expect(payloadUbahJenis(jenis({ urutan: 7 }), { nama: 'X' }).urutan).toBe(7);
   });
 });

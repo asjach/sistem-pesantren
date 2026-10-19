@@ -27,7 +27,6 @@ abstract class TestCase extends BaseTestCase
             return;
         }
 
-        // Test non-DB (tanpa RefreshDatabase) dilewati: tabel belum ada.
         if (! Schema::hasTable('roles')) {
             return;
         }

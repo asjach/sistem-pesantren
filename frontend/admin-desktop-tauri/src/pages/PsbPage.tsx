@@ -93,8 +93,6 @@ const OPSI_SUBSTATUS = [
   { nilai: 'waiting_list', label: 'Waiting list' },
 ];
 
-// 100 PSB: antrean per tahapan timeline + verifikasi/seleksi/ACC/tolak/promosi + dokumen + import.
-// Satu halaman dengan 6 tab tahap (rute memasok `tahap`; tab mengubah rute).
 export default function PsbPage() {
   const navigate = useNavigate();
   const { tahap } = useParams<{ tahap?: string }>();
@@ -137,7 +135,7 @@ export default function PsbPage() {
     ambil: (a) => {
       const stageDef = TAHAP_PSB.find((x) => x.id === stage);
       let statuses = stageDef?.statuses ?? [];
-      // Tahap Pendaftar dipisah: baru vs waiting_list.
+
       if (stage === 'pendaftar' && subStatus) statuses = [subStatus];
       return listAntrean({
         status: statuses.join(','),
@@ -166,7 +164,6 @@ export default function PsbPage() {
   const [batalRow, setBatalRow] = useState<PsbCalon | null>(null);
   const [batalCatatan, setBatalCatatan] = useState('');
 
-  // ACC jadi santri: daftar calon + isian NIS opsional (tunggal maupun massal).
   const [accRows, setAccRows] = useState<PsbCalon[] | null>(null);
   const [accNis, setAccNis] = useState<Record<string, string>>({});
   const [accProses, setAccProses] = useState(false);
@@ -222,9 +219,6 @@ export default function PsbPage() {
       .catch(() => {});
   }, []);
 
-  // Pintasan Ctrl/Cmd+N = tombol "Tambah" pendaftar. Tombolnya hanya tampil di
-  // tab 'pendaftar', jadi pintasannya pun dibatasi ke tahap itu; terhalang saat
-  // dialog tambah/import sudah terbuka.
   usePintasanBaru({
     kunci: 'n',
     aktif: canTambahPsb && stage === 'pendaftar',
@@ -392,12 +386,10 @@ export default function PsbPage() {
     await load(1);
    }, [targetJenjang, load]);
 
-
   const lembagaTerpilih = useMemo(() => {
     const l = lembagas.find((x) => x.jenjang === targetJenjang);
     return l?.jenjang ?? l?.nama ?? '';
    }, [lembagas, targetJenjang]);
-
 
   async function jalankanBulk() {
     if (!bulkAksi || bulkIds.length === 0) return;
@@ -687,8 +679,7 @@ export default function PsbPage() {
         ) : undefined}
         filter={(
           <>
-            {/* LabeledCombobox (bukan FilterField+Select) agar kotaknya bisa
-                diatur lebar/tingginya lewat popover klik-kanan. */}
+
             {stage === 'pendaftar' && (
               <LabeledCombobox label="Status pendaftar" htmlFor="select_substatus_pendaftar">
                 <ComboboxRoot

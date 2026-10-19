@@ -42,8 +42,6 @@ class SiklusController extends Controller
 
     public function __construct(private SiklusSantriService $siklusService) {}
 
-    // ---------------- Salin genap ----------------
-
     public function ringkasanPindahGenap(SiklusLembagaRequest $request): JsonResponse
     {
         $this->authorize('viewAny', Santri::class);
@@ -130,7 +128,6 @@ class SiklusController extends Controller
                 ->all();
         }
 
-        // Muat sekali untuk seluruh batch: satu query per jenis, bukan per siswa.
         $petaSantri = Santri::whereIn('id', array_unique(array_map(
             static fn (array $i): int => (int) $i['santri_id'],
             $items,
@@ -146,8 +143,6 @@ class SiklusController extends Controller
         $petaRiwayat = $idRiwayat === [] ? collect() : RiwayatBelajar::whereIn('id', $idRiwayat)->get()->keyBy('id');
         $petaKelas = $idKelas === [] ? collect() : Kelas::whereIn('id', $idKelas)->get()->keyBy('id');
 
-        // Pra-cek batch: dua EXISTS per siswa di cekPindahDariRiwayat diganti
-        // satu query whereIn untuk seluruh batch (hanya bila ada baris riwayat).
         $praCek = null;
         if ($idRiwayat !== []) {
             $idBatch = array_keys($petaSantri->all());
@@ -178,7 +173,7 @@ class SiklusController extends Controller
                     if ($riwayat->jenjang !== $lembagaId || (int) $riwayat->santri_id !== (int) $item['santri_id']) {
                         throw ValidationException::withMessages(['riwayat_id' => 'Riwayat tidak sesuai dengan siswa atau lembaga.']);
                     }
-                    // Aturan jenjang dibaca sekali per jenjang untuk seluruh batch.
+
                     $aturanPindah[$riwayat->jenjang] ??= [
                         'ta' => TahunAjaran::aktif($riwayat->jenjang)?->nama,
                         'semester' => SemesterAktif::where('jenjang', $riwayat->jenjang)->value('semester'),
@@ -275,8 +270,6 @@ class SiklusController extends Controller
             throw ValidationException::withMessages(['kelas_id' => 'Kelas beda tahun ajaran.']);
         }
     }
-
-    // ---------------- Kenaikan / kelulusan ----------------
 
     /** POST /api/admin/akademik/naik-kelas — batch = 1 lembaga + 1 tahun + 1 tingkat. */
     public function naikKelasMassal(SiklusNaikKelasRequest $request): JsonResponse
@@ -494,8 +487,6 @@ class SiklusController extends Controller
     {
         $data = $request->validated();
 
-        // Arsip alumni = jejak nonaktif: otorisasi cukup di level lembaga
-        // (`authorizeAksiLembaga` butuh riwayat aktif yang justru tak ada di sini).
         $this->authorizeLembaga($request->user(), $data['jenjang']);
 
         $lama = $this->siklusService->batalLulus($santri, $data['jenjang']);
@@ -514,8 +505,6 @@ class SiklusController extends Controller
 
         return response()->json(['pesan' => 'Tidak lulus dibatalkan; santri kembali ke baris asal.', 'data' => $lama]);
     }
-
-    // ---------------- Mutasi / berhenti ----------------
 
     /** POST /api/admin/santri/{santri}/mutasi — mutasi keluar per lembaga. */
     public function mutasiKeluar(SiklusMutasiKeluarRequest $request, Santri $santri): JsonResponse
@@ -543,8 +532,6 @@ class SiklusController extends Controller
 
         return response()->json(['pesan' => 'Riwayat jenjang dinonaktifkan.', 'data' => $santri->fresh()]);
     }
-
-    // ---------------- Daftar & rekap ----------------
 
     /**
      * GET /api/admin/akademik/daftar-kelas — daftar santri per kelas.
@@ -605,9 +592,7 @@ class SiklusController extends Controller
             'santri',
             'kelas:id,nama_kelas,tingkat',
             'lembaga:jenjang,nama',
-            // JANGAN eager-load `tahunAjaran`: kunci relasi di-snake_case jadi
-            // `tahun_ajaran` dan menimpa atribut string FK (frontend menerima
-            // objek → tampil "[object Object]"). Nilai FK-nya sudah nama TA.
+
         ])->whereIn('riwayat_belajar.jenjang', $lembagaIds);
         if ($tahunIds !== []) {
             $query->whereIn('riwayat_belajar.tahun_ajaran', $tahunIds);
@@ -616,12 +601,12 @@ class SiklusController extends Controller
             $query->whereIn('riwayat_belajar.semester', $semesterIds);
         }
         if ($kelompok === 'aktif') {
-            // Aktif = gabungan status akhir (bukan flag is_active_riwayat).
+
             $query->whereIn('riwayat_belajar.status_akhir', ['aktif', 'lanjut', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
         } elseif ($kelompok === 'nonaktif') {
             $query->where('riwayat_belajar.status_akhir', 'pindah_keluar');
         } elseif ($kelompok === 'semua') {
-            // Semua status: tanpa filter status sama sekali.
+
         } else {
             $query->where('riwayat_belajar.is_active_riwayat', RiwayatBelajar::YA);
         }
@@ -647,8 +632,7 @@ class SiklusController extends Controller
                 ->leftJoin('lembaga', 'lembaga.jenjang', '=', 'riwayat_belajar.jenjang')
                 ->leftJoin('tahun_ajaran', 'tahun_ajaran.nama', '=', 'riwayat_belajar.tahun_ajaran');
         }
-        // Urutan bawaan = lama (TA → semester → kelas → absen → santri);
-        // nullable dikosongkan agar NULL tetap di depan seperti sebelumnya.
+
         $this->terapkanUrut($query, $urut, [
             ['riwayat_belajar.tahun_ajaran', 'naik'], ['riwayat_belajar.semester', 'naik'],
             ['riwayat_belajar.kelas_id', 'naik'], ['riwayat_belajar.no_absen', 'naik'],
@@ -656,8 +640,7 @@ class SiklusController extends Controller
         ]);
 
         $hasil = $query->paginate($this->perPage($request));
-        // Keanggotaan penuh (satu baris per santri; aktif diutamakan) + NIS lokal
-        // ringkas (kompatibilitas payload lama).
+
         $anggota = LembagaSantri::whereIn('santri_id', $hasil->getCollection()->pluck('santri_id')->unique())
             ->whereIn('jenjang', $lembagaIds)
             ->orderByDesc('is_active_lembaga')->orderBy('id')
@@ -688,17 +671,11 @@ class SiklusController extends Controller
         $this->authorize('viewAny', Santri::class);
 
         $data = $request->validated();
-        // Keaktifan dari `status_akhir`: aktif = selain Pindah/Keluar (bawaan),
-        // nonaktif = Pindah/Keluar, `semua`/kosong = tanpa filter status
-        // (aktif + nonaktif). Bawaan tetap aktif agar pemanggil lama yang tidak
-        // mengirim parameter tidak berubah perilakunya.
+
         $keaktifan = $data['keaktifan'] ?? 'aktif';
 
         $riwayatQuery = function (bool $semuaTa = false) use ($request, $keaktifan) {
-            // "Santri aktif pada periode" = terdaftar di TA+semester itu dan
-            // tidak pindah keluar (definisi sama dengan Daftar Kelas), bukan
-            // flag `is_active_riwayat` yang hanya menandai periode terkini.
-            // Unique (santri, TA, jenjang, semester) → satu baris per santri.
+
             $q = RiwayatBelajar::query();
             if ($keaktifan === 'aktif') {
                 $q->whereIn('status_akhir', ['aktif', 'lanjut', 'naik', 'tidak_naik', 'lulus', 'tidak_lulus']);
@@ -729,7 +706,7 @@ class SiklusController extends Controller
                 'l' => (int) $r->l,
                 'p' => (int) $r->p,
             ])->values()->all();
-        // Urut tampil: lembaga lalu tingkat (natural agar "10" setelah "9").
+
         usort($perTingkat, fn (array $a, array $b) => strnatcasecmp((string) $a['lembaga'], (string) $b['lembaga'])
             ?: strnatcasecmp((string) $a['tingkat'], (string) $b['tingkat']));
 
@@ -766,16 +743,6 @@ class SiklusController extends Controller
             ];
         })->values()->all();
 
-        // Usia per tingkat & lembaga: rata-rata + sebaran kelompok umur (dari
-        // tgl_lahir santri), dihitung pada AWAL tahun ajaran baris riwayat itu —
-        // bukan tanggal hari ini — supaya rekap TA historis menampilkan usia saat
-        // itu (sebelumnya MI 2010/2011 kelas 1 terbaca rata 22 tahun dan seluruh
-        // santri jatuh di kelompok `>=16`, jadi kolom kelompok usia muda kosong).
-        // Kunci akumulasi memuat lembaga sebab MI dan MD memakai tingkat yang
-        // sama: digabung, satu santri yang terdaftar di keduanya terhitung dua
-        // kali dan angkanya tak lagi sepadan dengan tabel "Per tingkat".
-        // Diakumulasi per 500 baris (chunkById) supaya seluruh riwayat tidak masuk
-        // memori sekaligus pada lembaga besar; hasilnya sama dengan groupBy lama.
         /** @var array<string, array{lembaga: ?string, tingkat: ?string, jumlah: int, total: int, min: int, max: int, kelompok: array<string, int>}> $usiaAkumulasi */
         $usiaAkumulasi = [];
         (clone $riwayatQuery())
@@ -790,14 +757,12 @@ class SiklusController extends Controller
                     if ($tglLahir === null) {
                         continue;
                     }
-                    // Acuan usia = awal TA baris ini (`tanggal_mulai`, atau
-                    // perkiraan 1 Juli tahun awal dari nama TA; hari ini hanya
-                    // bila TA-nya tak dikenal sama sekali).
+
                     $mulai = $r->tahunAjaran?->tanggal_mulai;
                     $acuan = $mulai !== null
                         ? Carbon::parse($mulai)
                         : (TahunAjaran::awalPerkiraan($r->tahun_ajaran) ?? Carbon::now());
-                    // (int) memotong pecahan → jumlah tahun penuh pada tanggal itu.
+
                     $umur = (int) $tglLahir->diffInYears($acuan);
                     $lembaga = $r->lembaga?->jenjang ?? $r->lembaga?->nama;
                     $tingkat = $r->tingkat === null ? null : (string) $r->tingkat;
@@ -841,12 +806,10 @@ class SiklusController extends Controller
                 'kelompok' => $a['kelompok'],
             ];
         }
-        // Urut tampil sama dengan "Per tingkat": lembaga lalu tingkat (natural).
+
         usort($usiaPerTingkat, fn (array $a, array $b) => strnatcasecmp((string) $a['lembaga'], (string) $b['lembaga'])
             ?: strnatcasecmp((string) $a['tingkat'], (string) $b['tingkat']));
 
-        // Rekap per tahun ajaran = SELURUH TA (abaikan filter TA terpilih),
-        // agar kolom kiri menampilkan rentang penuh dari TA awal ke akhir.
         $perTahunAjaran = $riwayatQuery(true)
             ->join('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
             ->selectRaw("riwayat_belajar.tahun_ajaran as tahun_ajaran, COUNT(*) as jumlah, SUM(santri.jk = 'L') as l, SUM(santri.jk = 'P') as p")

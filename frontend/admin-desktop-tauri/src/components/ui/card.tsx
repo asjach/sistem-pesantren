@@ -33,8 +33,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"h2">) {
       className={cn("text-xs font-semibold text-foreground", className)}
       {...props}
     >
-      {/* Judul kartu yang dipakai tanpa isi tetap punya nama yang bisa
-          dibaca pembaca layar; bila ada children, isi itu yang dipakai. */}
+
       {props.children ?? <span className="sr-only">Judul kartu</span>}
     </h2>
   )

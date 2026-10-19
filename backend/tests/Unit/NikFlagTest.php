@@ -32,7 +32,7 @@ class NikFlagTest extends TestCase
 
     public function test_string_kosong_dikembalikan_sebagai_nilai_asli(): void
     {
-        // '' -> '' (bukan 'X-'), tapi spasi dipangkas.
+
         $this->assertSame('', NikFlag::tandai(''));
         $this->assertSame('X-abc', NikFlag::tandai('  abc  '));
     }
@@ -57,7 +57,7 @@ class NikFlagTest extends TestCase
         return [
             'int 16 digit valid' => [3204104609050011, '3204104609050011'],
             'int pendek ditandai' => [123, 'X-123'],
-            // float 1.0 -> (string) '1' -> ditandai; bukan '1.0'.
+
             'float bulat jadi digit polos' => [1.0, 'X-1'],
         ];
     }

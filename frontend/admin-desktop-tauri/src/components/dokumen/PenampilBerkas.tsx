@@ -58,7 +58,6 @@ interface Props {
   onProses?: (sibuk: boolean) => void;
 }
 
-
 interface RectBox {
   x: number;
   y: number;
@@ -114,7 +113,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   zoomRef.current = zoom;
   const dimensiRef = useRef<{ w: number; h: number } | null>(null);
 
-  // Reset tampilan saat sumber berganti.
   useEffect(() => {
     setEdisi(EDISI_KOSONG);
     setZoom(1);
@@ -134,7 +132,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     setMemproses(false);
   }, [sumberProp]);
 
-  // Ukur wadah untuk skala pas/1:1.
   useEffect(() => {
     const el = bungkusRef.current;
     if (!el) return;
@@ -149,7 +146,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
    *  bertanda data-seret (overlay crop/penggaris/garis punya handler sendiri). */
   const geserPandangan = useRef<{ x0: number; y0: number; sl: number; st: number } | null>(null);
   function mulaiGeser(e: PointerEvent) {
-    // Klik tengah = reset zoom 100%.
+
     if (e.button === 1) {
       e.preventDefault();
       aturZoom(1);
@@ -184,15 +181,10 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
   useEffect(() => {
     const el = bungkusRef.current;
     if (!el) return;
-    /* Geser pointer & klik-tengah JUGA dipasang native, bukan lewat prop JSX
-       (`onPointerDown`/`onMouseDown`): prop semacam itu di elemen tatement
-       seperti div membuat jsx-a11y menuntut role interaktif — padahal yang
-       bergerak di sini adalah SCROLL isinya, bukan divnya sebagai kontrol.
-       Listener native memberi perilaku sama persis tanpa mengklaim peran
-       yang tidak benar (pola yang sama sudah dipakai roda di atas). */
+
     const padaRoda = (e: WheelEvent) => {
       if (!sumber || (gambar && !dimensiRef.current)) return;
-      // Tanpa Ctrl/Cmd: biarkan perilaku bawaan (vertikal / Shift = horizontal).
+
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const dy = e.deltaY * (e.deltaMode === 1 ? 16 : 1);
@@ -218,11 +210,9 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
       el.removeEventListener('pointercancel', selesaiGeser);
       el.removeEventListener('mousedown', tengahKlik);
     };
-  /* Handler seret/klik-tengah hanya membaca ref & setState: versi terbaru
-     selalu setara, listener tak perlu dipasang ulang tiap render. */
+
   }, [sumber, gambar]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // URL blob sumber (stabil per sumber; crop/zoom hanya transform CSS).
   const urlSumber = useMemo(() => {
     if (!sumber) return null;
     return URL.createObjectURL(new Blob([sumber.bytes.buffer as ArrayBuffer], { type: sumber.mime }));
@@ -231,7 +221,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     if (urlSumber) URL.revokeObjectURL(urlSumber);
   }, [urlSumber]);
 
-  // ----- Gambar: dimensi natural untuk matematika tampil -----
   const [dimensi, setDimensi] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
     if (!sumber || !gambar) {
@@ -251,7 +240,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sumber]);
 
-  // ----- Pipeline keluaran (sumber/edisi/kualitas berubah) -----
   useEffect(() => {
     if (!sumber) {
       setKeluaran(null);
@@ -283,7 +271,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keluaran]);
 
-  // Laporkan status kotor (edisi putar/crop/resize aktif atau hasil editor lengkap).
   const kotor = edisiAktif(edisi) || sumberEdit !== null;
   useEffect(() => {
     onKotor?.(kotor);
@@ -295,10 +282,8 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memproses]);
 
-  // ----- PDF: dokumen + render halaman -----
   const { halPdf, setHalPdf, totalHal, galatPdf, kanvasRef } = usePdfDokumen({ aktif: pdf, sumber, zoom, ukuranWadah });
 
-  // ----- Crop gambar: baru / pindah / ubah-sudut, komit eksplisit via Terapkan -----
   type SeretCrop =
     | { jenis: 'baru'; x0: number; y0: number }
     | { jenis: 'pindah'; dx: number; dy: number }
@@ -362,7 +347,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           return;
         }
       }
-      // Rasio bebas: sisi tengah bisa digeser (atas/bawah/kiri/kanan).
+
       if (rasioCrop === null) {
         const sisi: ['n' | 's' | 'w' | 'e', number, number][] = [
           ['n', d.x + d.w / 2, d.y],
@@ -392,7 +377,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     const { x, y, rw, rh } = posisiCrop(e);
     const jepit = (v: number, maks: number) => Math.max(0, Math.min(v, maks));
     const r = rasioCrop;
-    // Rasio terkunci: semua gestur menjaga w/h.
+
     if (r !== null) {
       if (s.jenis === 'baru') {
         const w = Math.min(Math.abs(x - s.x0), rw, rh * r);
@@ -415,7 +400,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
         setDrafCrop({ x: jepit(x - s.dx, rw - d.w), y: jepit(y - s.dy, rh - d.h), w: d.w, h: d.h });
         return;
       }
-      // Sisi hanya ada saat rasio bebas — abaikan defensif di jalur terkunci.
+
       if (s.jenis === 'sisi') return;
       const jangkar = {
         nw: { x: d.x + d.w, y: d.y + d.h },
@@ -482,7 +467,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
 
   function selesaiSeretCrop() {
     seretCropRef.current = null;
-    // Tanpa komit otomatis — tunggu Terapkan; buang coretan terlalu kecil.
+
     setDrafCrop((d) => (d && (d.w < MIN_CROP || d.h < MIN_CROP) ? null : d));
   }
 
@@ -531,7 +516,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
       toast.warning('Garis terlalu pendek — seret lebih panjang.');
       return;
     }
-    // Sudut garis searah jarum jam dari horizontal (layar y ke bawah).
+
     const sudut = (Math.atan2(dy, dx) * 180) / Math.PI;
     let delta = lurusTegak ? 90 - sudut : -sudut;
     while (delta > 90) delta -= 180;
@@ -578,7 +563,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
       if (!ok) return;
       toast.success('Putaran dibekukan — silakan crop.');
     }
-    // Sunting ulang: jadikan crop lama sebagai draf (rasio bebas).
+
     setRasioCrop(null);
     if (edisi.crop && dimensi) {
       setDrafCrop(naturalKeRectPutar(edisi.crop, pxLebar, pxTinggi, dimensi.w, dimensi.h, edisi.rotasi));
@@ -588,7 +573,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     setModeCrop(true);
   }
 
-  // ----- Resize eksplisit (W×H citra tegak; menang atas hemat) -----
   /** Dimensi acuan saat ini (crop bila ada). */
   const acuanUkuran = useMemo(() => ({
     w: edisi.crop?.w ?? dimensi?.w ?? 1,
@@ -674,7 +658,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     setKunciUkuran((k) => !k);
   }
 
-  // ----- Layar penuh + unduh -----
   const seksiRef = useRef<HTMLElement | null>(null);
   function layarPenuh() {
     const el = seksiRef.current;
@@ -699,10 +682,6 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
-  // ----- Matematika tampil gambar (cermin pipeline agar WYSIWYG) -----
-  // Tanpa crop menempel: elemen = citra penuh (CSS transform, eksak).
-  // Crop menempel (bukan draf): canvas digambar persis pipeline (selalu eksak,
-  // termasuk kombinasi crop+resize+putar yang tak bisa diwakili CSS).
   const totalPutar = edisi.rotasi + edisi.miring;
   let sxTampil = 1;
   let syTampil = 1;
@@ -821,7 +800,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
       aria-label="Pratinjau berkas"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
     >
-      {/* Toolbar: ubah (kiri) | zoom (tengah) | penuh + unduh (kanan) */}
+
       {sumber && (
         <>
         <div className="flex shrink-0 flex-wrap items-center gap-1 border-b px-2 py-1">
@@ -885,7 +864,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
               </div>
           )}
           <span className="min-w-1 flex-1" />
-          {/* Grup tampil (tengah) */}
+
           <TombolIkon tip="Perkecil" id={`btn_zoom_kurang_${p}`} size="sm" variant="ghost" onClick={() => aturZoom(zoom / 1.25)}>
             <Minus size={14} />
           </TombolIkon>
@@ -897,7 +876,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
             <Focus size={14} />
           </TombolIkon>
           <span className="min-w-1 flex-1" />
-          {/* Grup kanan: penuh + unduh */}
+
           <TombolIkon tip="Layar penuh" id={`btn_layar_penuh_${p}`} size="icon" variant="ghost" onClick={layarPenuh} disabled={!sumber}>
             <Fullscreen size={14} />
           </TombolIkon>
@@ -907,8 +886,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
         </div>
         </>
       )}
-      {/* Kanvas: seret untuk geser, roda untuk zoom (listener native —
-          lihat useEffect di atas). */}
+
       <div
         ref={bungkusRef}
         className={cn(
@@ -986,7 +964,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
                 style={{ left: rectTampil.x, top: rectTampil.y, width: rectTampil.w, height: rectTampil.h }}
               />
             )}
-            {/* Garis acuan geser (khusus putar): tengah tegas + sepertiga redup. */}
+
             {panduan && modePutar && (
               <div role="group" aria-label="Garis acuan geser" className="pointer-events-none absolute inset-0">
                 {posPanduan.v.map((f, i) => (
@@ -1017,7 +995,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
                 ))}
               </div>
             )}
-            {/* Overlay penggaris: seret garis acuan, lepas untuk meluruskan. */}
+
             {modeLurus && (
               <div
                 aria-label="Penggaris pelurus: seret garis pada gambar lalu lepas"
@@ -1059,7 +1037,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           </p>
         )}
       </div>
-      {/* Panel putar: dial + segmented Putar|Skala (dial Skala = zoom). */}
+
       {gambar && sumber && modePutar && (
         <div className="flex shrink-0 flex-col items-center gap-1 border-t border-neutral-800 bg-neutral-950 px-4 py-1.5">
           <div className="flex w-full max-w-xl items-center gap-2">
@@ -1213,7 +1191,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           </div>
         </div>
       )}
-      {/* Panel crop: pil rasio + terapkan/batal. */}
+
       {gambar && sumber && modeCrop && (
         <div className="flex shrink-0 items-center gap-2 border-t bg-muted/40 px-4 py-2">
           <span className="shrink-0 text-xs text-muted-foreground">Rasio</span>
@@ -1257,7 +1235,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           </TombolIkon>
         </div>
       )}
-      {/* Bar resize: dua baris kompak (W×H+kunci / template+caption). */}
+
       {gambar && sumber && modeResize && (
         <div className="flex shrink-0 flex-col items-center gap-1.5 border-t bg-muted/40 px-4 py-2">
           <div className="flex flex-wrap items-center justify-center gap-2">
@@ -1323,7 +1301,7 @@ export default function PenampilBerkas({ sumber: sumberProp, kualitas, onKeluara
           </div>
         </div>
       )}
-      {/* Status bar: nama berkas + dimensi + keluaran saat diedit. */}
+
       {sumber && (
         <div className="flex shrink-0 items-center gap-2 border-t px-3 py-1 text-[11px] text-muted-foreground">
           <span className="min-w-0 flex-1 truncate" title={sumber.nama}>

@@ -57,7 +57,7 @@ export async function unduhExcelDataExisting(
   );
 
   const sheet = XLSX.utils.aoa_to_sheet([header, ...baris]);
-  // `aoa_to_sheet` hanya menulis nilai; gaya sel dipasang ulang di bawah.
+
   for (let c = 0; c < data.kolom.length; c += 1) {
     const alamat = XLSX.utils.encode_cell({ r: 0, c });
     const sel = sheet[alamat] as XLSX.CellObject | undefined;

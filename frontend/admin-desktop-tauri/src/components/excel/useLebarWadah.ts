@@ -51,8 +51,7 @@ export function useLebarWadah(
 
     pasang();
     if (typeof MutationObserver === 'undefined') return lepas;
-    // Scroller DSG diganti saat grid di-remount → observer lama mati bersama
-    // node lama, jadi pasang ulang pada node yang sekarang.
+
     const mo = new MutationObserver(pasang);
     mo.observe(wrap, { childList: true, subtree: true });
     return () => {

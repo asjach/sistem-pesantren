@@ -51,8 +51,7 @@ class PengaturanGlobalTest extends TestCase
 
     public function test_kunci_tak_dikenal_ditolak(): void
     {
-        // Pencegahan penting: lebar sidebar sengaja TIDAK boleh jadi standar
-        // global karena mengikuti ukuran layar tiap perangkat.
+
         $this->actingAs($this->superAdmin())->putJson('/api/admin/pengaturan-global', [
             'kunci' => 'lebar_sidebar',
             'nilai' => 300,
@@ -107,13 +106,11 @@ class PengaturanGlobalTest extends TestCase
     {
         $admin = $this->superAdmin();
 
-        // 777 bukan opsi mana pun di PER_PAGE_OPTIONS.
         $this->actingAs($admin)->putJson('/api/admin/pengaturan-global', [
             'kunci' => 'baris_per_halaman',
             'nilai' => 777,
         ])->assertJsonValidationErrors(['nilai']);
 
-        // 0 = "Semua", sah dan BUKAN dianggap kosong.
         $this->actingAs($admin)->putJson('/api/admin/pengaturan-global', [
             'kunci' => 'baris_per_halaman',
             'nilai' => 0,

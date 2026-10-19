@@ -69,8 +69,7 @@ describe('geserBlok — jarak dihitung dari sel yang DIGENGAM, bukan pojok blok'
   });
 
   it('SERET KE KOLOM LAIN: jangkar di luar blok tetap menggeser mendatar', () => {
-    // Inilah kasus yang rusak: jangkar kolom 3 tak ada di dalam blok, tapi
-    // blok HARUS ikut bergeser 2 kolom ke kanan.
+
     expect(geserBlok(sumber, pegang, { row: 1, kolom: 3 })).toEqual({ r0: 1, r1: 2, kolom: [3, 4] });
     expect(geserBlok(sumber, pegang, { row: 3, kolom: 4 })).toEqual({ r0: 3, r1: 4, kolom: [4, 5] });
   });
@@ -115,13 +114,13 @@ describe('samaBlok & beririsan', () => {
   });
 
   it('beririsan: blok bersebelahan tak beririsan', () => {
-    // Baris bersebelahan, kolom sama.
+
     expect(beririsan(a, { r0: 2, r1: 3, kolom: [1, 2] })).toBe(false);
-    // Baris sama, kolom bersebelahan.
+
     expect(beririsan(a, { r0: 0, r1: 1, kolom: [3] })).toBe(false);
-    // Baris tumpang tindih TAPI kolomnya tak: tetap tak beririsan.
+
     expect(beririsan(a, { r0: 1, r1: 4, kolom: [3] })).toBe(false);
-    // Baris tumpang tindih + kolom tumpang tindih.
+
     expect(beririsan(a, { r0: 1, r1: 4, kolom: [2] })).toBe(true);
     expect(beririsan(a, { r0: 0, r1: 1, kolom: [1] })).toBe(true);
   });
@@ -165,7 +164,7 @@ describe('terapkanSeret', () => {
       K,
       'salin',
     );
-    // Baris 3 tak ada → ditulis null, bukan melempar.
+
     expect(hasil[2].nama).toBe('A');
     expect(hasil[2].umur).toBe('10');
     expect(hasil[3]?.nama ?? null).toBeNull();
@@ -186,7 +185,7 @@ describe('terapkanSeret', () => {
   });
 
   it('mode pindah menyalin nilai SEBELUM mengosongkan (blok beririsan)', () => {
-    // Tanpa perekaman awal, mengosongkan sumber akan menimpa target dengan null.
+
     const hasil = terapkanSeret(
       grid,
       { r0: 0, r1: 0, kolom: [1] },

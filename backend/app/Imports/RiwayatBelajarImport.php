@@ -45,7 +45,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
 
     public function onUnknownSheet(string|int $sheetName): void
     {
-        // Sheet tambahan (mis. "Referensi") diabaikan.
+
     }
 
     /**
@@ -64,7 +64,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
         $data = $rows
             ->map(fn ($row) => $row instanceof Collection ? $row->toArray() : (array) $row)
             ->all();
-        // Nomor 1 = heading (galat absolut selaras validasi Maatwebsite).
+
         $this->layanan->prosesPotongan($data, 1, false);
         foreach ($this->layanan->gagal as $gagal) {
             $this->failures[] = new Failure($gagal['baris'], $gagal['kolom'], [$gagal['pesan']], []);
@@ -75,7 +75,7 @@ class RiwayatBelajarImport implements SkipsOnFailure, SkipsUnknownSheets, ToColl
     public function rules(): array
     {
         return [
-            // Sel Excel/CSV bisa terbaca sebagai angka → hindari rule `string` ketat.
+
             'nis_lokal' => ['required'],
             'jenjang' => ['required', 'string'],
             'tahun_ajaran' => ['required', 'string'],

@@ -22,9 +22,7 @@ return new class extends Migration
             $table->id();
             $table->string('nama', 100)->unique();
             $table->string('keterangan', 1000)->nullable();
-            // Lingkup lembaga + tahun ajaran (untuk filter halaman Santri
-            // Custom) dan status aktif. Kolom polos tanpa FK karena skema
-            // grup masih berkembang.
+
             $table->string('jenjang', 50)->nullable();
             $table->string('tahun_ajaran', 20)->nullable();
             $table->boolean('is_active')->default(true);

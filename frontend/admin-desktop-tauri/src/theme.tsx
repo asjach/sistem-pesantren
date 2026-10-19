@@ -58,9 +58,7 @@ export function pasangWarnaTema(themeName: string, dark: boolean) {
   root.style.setProperty('--on-accent', onAccentFor(face.accent));
   root.style.setProperty('--background', face.bg);
   root.style.setProperty('--foreground', face.fg);
-  // Pasangan sidebar mengikuti mode ala Gr8r: light mode = sidebar terang
-  // yang diturunkan dari wajah tema (kecuali tema mendefinisikan `sidebarFg`
-  // sendiri, mis. Gr8r Hangat); dark mode = sidebar bawaan tema + tinta putih.
+
   const punyaSidebarKhusus = t.sidebarFg !== undefined || t.sidebarGelap !== undefined;
   if (!dark && !punyaSidebarKhusus) {
     root.style.setProperty('--sidebar', `color-mix(in srgb, ${face.bg} 95%, ${face.fg})`);
@@ -80,26 +78,25 @@ function simpanCacheTema(theme: string, dark: boolean, warna: string, bg: string
   try {
     localStorage.setItem('simpes_tema_cache', JSON.stringify({ theme, dark, warna, bg }));
   } catch {
-    /* penyimpanan penuh/terkunci: boot memakai gaya dasar */
+
   }
 }
 
 function applyPrefs(p: Prefs, osDark: boolean) {
   const dark = p.mode === 'gelap' || (p.mode === 'sistem' && osDark);
   document.documentElement.classList.toggle('dark', dark);
-  // Tingkat "kaya warna" UI (dibaca aturan CSS [data-warna=…]).
+
   document.documentElement.dataset.warna = p.warnaUI;
-  // Satu-satunya sumber radius (lihat --radius-semua di index.css).
+
   document.documentElement.style.setProperty('--radius-semua', `${p.radius}px`);
   pasangWarnaTema(p.theme, dark);
   simpanCacheTema(p.theme, dark, p.warnaUI, findPreset(p.theme)[dark ? 'gelap' : 'terang'].bg);
-  // Gaya atomik per bagian UI (di-generate ke <style id="simpes_part_styles">).
+
   terapkanGayaBagian(p.parts);
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Nilai awal dibaca SINKRON dari penyimpanan (bila ada) supaya cat pertama
-  // sudah memakai tema/lebar navigasi pengguna — tanpa kilatan bawaan.
+
   const [device, setDevice] = useState<DevicePrefs>(() => bacaPrefsSinkron() ?? DEFAULT_PREFS);
   const [osDark, setOsDark] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
@@ -116,7 +113,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  // Preferensi efektif = setelan perangkat pengguna apa adanya.
   const prefs = device;
 
   useEffect(() => {

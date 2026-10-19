@@ -15,13 +15,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
             $table->foreignId('pengampu_mapel_id')->constrained('pengampu_mapel')->cascadeOnDelete();
-            $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
-            $table->string('semester', 2); // '1' atau '2'
+            $table->string('tahun_ajaran', 9);
+            $table->string('semester', 2);
 
             $table->decimal('nilai_formatif', 5, 2)->default(0);
             $table->decimal('nilai_sumatif', 5, 2)->default(0);
             $table->decimal('nilai_akhir', 5, 2)->default(0);
-            $table->string('predikat', 2)->nullable(); // A, B, C, D
+            $table->string('predikat', 2)->nullable();
             $table->text('catatan_capaian')->nullable();
 
             $table->timestamps();
@@ -35,7 +35,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('santri_id')->constrained('santri')->cascadeOnDelete();
             $table->foreignId('kelas_id')->constrained('kelas')->cascadeOnDelete();
-            $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
+            $table->string('tahun_ajaran', 9);
             $table->string('semester', 2);
 
             $table->integer('sakit')->default(0);
@@ -44,7 +44,7 @@ return new class extends Migration
 
             $table->text('catatan_akademik')->nullable();
             $table->text('catatan_karakter')->nullable();
-            $table->string('keputusan_kenaikan')->nullable(); // 'Naik ke kelas X', 'Lulus', dsb.
+            $table->string('keputusan_kenaikan')->nullable();
 
             $table->timestamps();
 

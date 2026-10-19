@@ -50,7 +50,6 @@ class PenempatanPegawaiImporService extends ImporPotongan
         $nipp = trim((string) ($baris['nipp'] ?? ''));
         $this->kunciAktif = $nipp !== '' ? $nipp : (trim((string) ($baris['nama_lengkap'] ?? '')) ?: null);
 
-        // Baris kosong/pemisah: tanpa identitas pegawai.
         if (empty($baris['pegawai_id']) && $nipp === '' && empty($baris['nama_lengkap'])) {
             return;
         }
@@ -63,8 +62,6 @@ class PenempatanPegawaiImporService extends ImporPotongan
             return;
         }
 
-        // Izin mengikuti akun per baris (super_admin lolos semua; admin
-        // lembaga hanya lembaganya) — baris luar lingkup gagal per baris.
         $auth = auth()->user();
         if (! $auth || ! $auth->canAccessLembaga($jenjang)) {
             $this->fail($no, 'jenjang', 'Lembaga di luar lingkup akses Anda.');
@@ -92,7 +89,6 @@ class PenempatanPegawaiImporService extends ImporPotongan
             return;
         }
 
-        // Sel terisi (untuk update: hanya sel terisi yang menimpa).
         $terisi = fn (string $kunci) => array_key_exists($kunci, $baris) && trim((string) $baris[$kunci]) !== '';
         $tugas = $terisi('tugas_utama') ? trim((string) $baris['tugas_utama']) : null;
         $tahaj = $terisi('tahaj_masuk') ? trim((string) $baris['tahaj_masuk']) : null;
@@ -113,8 +109,6 @@ class PenempatanPegawaiImporService extends ImporPotongan
 
         $lama = LembagaPegawai::untuk((int) $pegawai->id, $jenjang);
 
-        // `pastikanPenempatan` selalu menulis tgl_masuk/tahaj_masuk — isi
-        // nilai lama bila sel kosong agar update tak menghapus diam-diam.
         $atribut = [
             'tgl_masuk' => $tglMasuk ?? $lama?->tgl_masuk?->format('Y-m-d'),
             'tahaj_masuk' => $tahaj ?? $lama?->tahaj_masuk,
@@ -140,7 +134,7 @@ class PenempatanPegawaiImporService extends ImporPotongan
             || $terisi('no_sk_awal_ptk') || $terisi('tgl_sk_awal_ptk');
 
         if ($lama !== null && ! $diubah) {
-            // Baris cocok tanpa kolom terisi = dilewati (idempoten).
+
             $this->dilewati++;
 
             return;

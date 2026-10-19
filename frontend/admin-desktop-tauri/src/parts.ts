@@ -69,7 +69,7 @@ export type PartId =
   | 'avatar'
   | 'carousel'
   | 'chart'
-  // Sub-komponen (anak dari bagian induk — lihat `induk`).
+
   | 'accordion_item'
   | 'accordion_judul'
   | 'accordion_isi'
@@ -93,7 +93,7 @@ export type PartId =
   | 'resizable_handle'
   | 'checkbox_indikator'
   | 'select_value'
-  // Komponen khas aplikasi (bukan shadcn).
+
   | 'multiselect'
   | 'spinbox'
   | 'pesan_galat';
@@ -172,7 +172,7 @@ export interface PartMeta {
 }
 
 export const PARTS: PartMeta[] = [
-  // ---------- Struktur ----------
+
   {
     id: 'ribbon',
     label: 'Header aplikasi',
@@ -231,7 +231,6 @@ export const PARTS: PartMeta[] = [
     sel: "[data-slot='collapsible']",
   },
 
-  // ---------- Navigasi ----------
   {
     id: 'tabs',
     label: 'Tabs',
@@ -285,7 +284,7 @@ export const PARTS: PartMeta[] = [
     hint: 'Sidebar aplikasi (komponen sidebar).',
     sel: "[data-slot='sidebar'], [data-slot='sidebar-container']",
   },
-  // ---------- Teks ----------
+
   {
     id: 'judul_halaman',
     label: 'Judul halaman',
@@ -361,7 +360,6 @@ export const PARTS: PartMeta[] = [
     sel: "[data-slot='accordion']",
   },
 
-  // ---------- Tabel ----------
   {
     id: 'tabel_header',
     label: 'Header tabel grid',
@@ -405,7 +403,6 @@ export const PARTS: PartMeta[] = [
     sel: "[data-part='toolbar_tabel']",
   },
 
-  // ---------- Kontrol ----------
   {
     id: 'label_form',
     label: 'Label',
@@ -542,7 +539,6 @@ export const PARTS: PartMeta[] = [
     sel: "[data-slot='button-group']",
   },
 
-  // ---------- Overlay ----------
   {
     id: 'dropdown',
     label: 'Dropdown Menu',
@@ -616,7 +612,6 @@ export const PARTS: PartMeta[] = [
     sel: "[data-slot='drawer-content']",
   },
 
-  // ---------- Umpan balik ----------
   {
     id: 'alert',
     label: 'Alert',
@@ -659,7 +654,6 @@ export const PARTS: PartMeta[] = [
     sel: '[data-sonner-toast], [data-sonner-toast] [data-title], [data-sonner-toast] [data-description], [data-sonner-toast] [data-button]',
   },
 
-  // ---------- Media ----------
   {
     id: 'avatar',
     label: 'Avatar',
@@ -686,8 +680,6 @@ export const PARTS: PartMeta[] = [
     sel: "[data-slot='chart']",
   },
 
-  // ---------- Sub-komponen (anak dari induk di atas) ----------
-  // Accordion
   {
     id: 'accordion_item',
     label: 'Item',
@@ -715,7 +707,7 @@ export const PARTS: PartMeta[] = [
     hint: 'Isi yang dilipat.',
     sel: "[data-slot='accordion-content']",
   },
-  // Item
+
   {
     id: 'item_media',
     label: 'Media',
@@ -761,7 +753,7 @@ export const PARTS: PartMeta[] = [
     hint: 'Area aksi, header, dan footer item.',
     sel: "[data-slot='item-actions'], [data-slot='item-header'], [data-slot='item-footer'], [data-slot='item-group']",
   },
-  // Dialog
+
   {
     id: 'dialog_header',
     label: 'Header',
@@ -807,7 +799,7 @@ export const PARTS: PartMeta[] = [
     hint: 'Tombol aksi/batal dialog konfirmasi.',
     sel: "[data-slot='alert-dialog-action'], [data-slot='alert-dialog-cancel']",
   },
-  // Dropdown / menu
+
   {
     id: 'menu_pemicu',
     label: 'Pemicu',
@@ -853,7 +845,7 @@ export const PARTS: PartMeta[] = [
     hint: 'Pemicu & isi sub-menu bertingkat.',
     sel: "[data-slot='dropdown-menu-sub-trigger'], [data-slot='dropdown-menu-sub-content']",
   },
-  // Toggle
+
   {
     id: 'toggle_item',
     label: 'Item toggle',
@@ -863,7 +855,7 @@ export const PARTS: PartMeta[] = [
     hint: 'Tombol di dalam grup toggle.',
     sel: "[data-slot='toggle-group-item']",
   },
-  // Resizable
+
   {
     id: 'resizable_panel',
     label: 'Panel',
@@ -882,7 +874,7 @@ export const PARTS: PartMeta[] = [
     hint: 'Garis geser antar panel.',
     sel: "[data-slot='resizable-handle']",
   },
-  // Checkbox
+
   {
     id: 'checkbox_indikator',
     label: 'Indikator centang',
@@ -892,7 +884,7 @@ export const PARTS: PartMeta[] = [
     hint: 'Ikon centang di dalam kotak.',
     sel: "[data-slot='checkbox-indicator']",
   },
-  // Input / Select
+
   {
     id: 'select_value',
     label: 'Nilai select',
@@ -903,7 +895,6 @@ export const PARTS: PartMeta[] = [
     sel: "[data-slot='select-value']",
   },
 
-  // ---------- Komponen khas aplikasi ----------
   {
     id: 'multiselect',
     label: 'Multi select',

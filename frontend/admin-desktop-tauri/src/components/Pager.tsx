@@ -48,8 +48,7 @@ export default function Pager({ page, lastPage, onPage, perPage, onPerPage }: Pr
           ))}
         </ToggleGroup>
       </div>
-      {/* Bingkai pembungkus nav: sudut siku, hanya garis kiri/kanan — garis
-          atas & bawah disediakan pager agar tidak terbaca 2px. */}
+
       <div className="flex h-6 items-center justify-center gap-2 rounded-none border-x">
         <Button
           id="btn_page_prev"

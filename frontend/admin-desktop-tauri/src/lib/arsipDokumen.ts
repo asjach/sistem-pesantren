@@ -260,7 +260,7 @@ export async function tulisGantiArsip(input: {
   tipe: TipeArsip;
 }): Promise<string> {
   const ext = input.ext.toLowerCase().replace(/^\./, '');
-  // Dokumen pegawai bebas semua jenis berkas; tipe lain tetap gambar/PDF.
+
   if (input.tipe !== 'pegawai' && !EKSTENSI_BOLEH.includes(ext)) throw new Error(`Berkas harus ${EKSTENSI_BOLEH.join('/').toUpperCase()}.`);
   if (input.data.length > BATAS_BERKAS) throw new Error('Berkas melebihi 10 MB.');
   const { exists, mkdir, writeFile } = await import('@tauri-apps/plugin-fs');

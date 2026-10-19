@@ -59,15 +59,12 @@ export default function PresetKolom({
       return;
     }
     const dikenal = preset.kolom.filter((k) => fieldKeys.has(k));
-    // Preset "Lengkap" = semua kolom: kolom baru yang belum tersimpan ikut
-    // tampil di akhir (tanpa mengubah simpanan). Preset kustom lain
-    // menghormati sembunyian eksplisit penggunanya.
+
     const nama = 'nama' in preset ? preset.nama : null;
     const keys = namaLengkap(nama ?? '')
       ? [...dikenal, ...[...fieldKeys].filter((k) => !dikenal.includes(k))]
       : dikenal;
-    /* Preset hanya menentukan kolom mana yang TAMPIL; nama header kolom adalah
-       setelan per TABEL (`toolbar_preset.label`) dan tak ikut preset. */
+
     const idAktif = 'id' in preset ? preset.id : preset.presetId;
     onApply(keys.length > 0 ? keys : null, idAktif ?? null);
   }, [fieldKeys, onApply]);
@@ -77,9 +74,6 @@ export default function PresetKolom({
       const res = await listPresetTabel(tableKey);
       let daftar = res.data.presets;
 
-      // Tiap tabel wajib punya preset "Lengkap" (semua kolom) sebagai awalan.
-      // Dibuat sekali saat tabel pertama dibuka oleh pengelola preset; tabel
-      // yang belum sempat dibuatkan tetap memakai "Lengkap" bawaan sistem.
       if (bolehKelola && !sudahPastikan.current.has(tableKey) && !daftar.some((p) => namaLengkap(p.nama))) {
         sudahPastikan.current.add(tableKey);
         try {
@@ -90,7 +84,7 @@ export default function PresetKolom({
           });
           daftar = (await listPresetTabel(tableKey)).data.presets;
         } catch {
-          // Tanpa izin atau gagal: pakai "Lengkap" bawaan sistem.
+
         }
       }
 
@@ -99,9 +93,6 @@ export default function PresetKolom({
       const targetId = pilihId !== undefined ? pilihId : res.data.aktif_preset_id;
       let target = targetId === null ? null : daftar.find((p) => p.id === targetId) ?? null;
 
-      // Susunan pribadi tersimpan (preset_id null + kolom) = pilihan eksplisit
-      // terakhir pengguna. Hanya pada muat alami — saat pemanggil menentukan
-      // `pilihId`, pilihan itu yang berlaku.
       const kolomKustom = pilihId === undefined && target === null ? res.data.aktif_kolom : null;
       if (kolomKustom && kolomKustom.length > 0) {
         setAktifId(null);
@@ -109,9 +100,6 @@ export default function PresetKolom({
         return;
       }
 
-      // Belum ada pilihan pengguna: jatuh ke preset bernama "Lengkap".
-      // (Nilai awal kini ditentukan lewat popover "Nilai awal", bukan preset
-      // bawaan tabel.)
       if (target === null) {
         target = daftar.find((p) => namaLengkap(p.nama)) ?? null;
       }
@@ -129,10 +117,9 @@ export default function PresetKolom({
     void muat();
     const segarkan = (e: Event) => {
       const d = (e as CustomEvent).detail;
-      // Abaikan event dari diri sendiri: pemanggil yang menulis susunan sudah
-      // menerapkan lokal (memuat ulang bisa mengembalikan susunan lama).
+
       if (d?.tableKey !== tableKey || d?.sumber === 'presetKolom') return;
-      // Muat ulang: susunan aktif (termasuk Lengkap kustom) dibaca dari server.
+
       void muat();
     };
     window.addEventListener(EVENT_PRESET_BERUBAH, segarkan);
@@ -152,29 +139,20 @@ export default function PresetKolom({
     }
   }
 
-  /* Opsi untuk combobox: "Lengkap" sistem disembunyikan bila tabel sudah punya
-     preset "Lengkap" (baris DB), supaya tidak ada dua entri bernama sama. */
   const opsiKolom = [
     ...(presets.some((p) => namaLengkap(p.nama)) ? [] : [{ label: 'Lengkap', nilai: LENGKAP }]),
     ...presets.map((p) => ({ label: p.nama, nilai: String(p.id) })),
   ];
 
-  // Pemilih selalu tampil: "Lengkap" (semua kolom) adalah awalan tiap tabel,
-  // jadi tabel tanpa preset pun tetap punya pilihan yang terlihat.
-
   return (
-    /* Opsi preset sebagai objek: label untuk tampilan & pencarian, nilai
-       untuk pemicu (LENGKAP atau id preset). */
+
     <LabeledCombobox
       label="Kolom"
       htmlFor={`select_preset_kolom_${tableKey}`}
       kelolaLebar={false}
-      /* Lebar tersimpan untuk SELURUH kontrol Kolom; label mengikuti
-         panjang teksnya, sisa lebar diisi combobox. */
+
       lebarKotak={LEBAR_BAWAHAN_FILTER}
-      /* `gap-0 items-stretch`: label & zona harus menempel dan sama tinggi
-         — kalau `items-center`, label hanya setinggi teksnya dan sisanya
-         memperlihatkan latar kotak, sehingga pita label terlihat dua warna. */
+
       className={`${wrapperClassName ?? ''} gap-0 items-stretch`}
     >
       <ComboboxRoot

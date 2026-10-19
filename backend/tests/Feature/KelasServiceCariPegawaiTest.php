@@ -36,7 +36,7 @@ class KelasServiceCariPegawaiTest extends TestCase
     public function test_nip_eksak_menang_atas_nama(): void
     {
         $a = $this->pegawai('Nama Sama', 'NIP-A');
-        $this->pegawai('Nama Sama', 'NIP-B'); // nama ganda, tapi NIP unik
+        $this->pegawai('Nama Sama', 'NIP-B');
 
         $this->assertSame($a->id, $this->svc->cariPegawai('NIP-A')->id);
     }
@@ -77,12 +77,10 @@ class KelasServiceCariPegawaiTest extends TestCase
     /** NIP tidak boleh jatuh ke pencocokan nama walau teksnya sama. */
     public function test_nip_tidak_cocok_bukan_berarti_nama(): void
     {
-        $this->pegawai('NIP-XYZ'); // nama pegawai kebetulan seperti NIP
+        $this->pegawai('NIP-XYZ');
 
-        // Dicari sebagai NIP "NIP-XYZ": tidak ada NIP itu → fallback nama → ketemu.
         $this->assertSame('NIP-XYZ', $this->svc->cariPegawai('NIP-XYZ')->nama_lengkap);
 
-        // Teks yang bukan NIP dan bukan nama → ditolak.
         $this->expectException(ValidationException::class);
         $this->svc->cariPegawai('NIP-ABC');
     }

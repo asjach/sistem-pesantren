@@ -20,13 +20,13 @@ class PsbLengkapiRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'jk' => ['required', 'in:L,P'], // wajib di tahap 2 (kolom santri.jk NOT NULL untuk ACC)
+            'jk' => ['required', 'in:L,P'],
             'nama_singkat' => ['nullable', 'string', 'max:50'],
             'j_saudara' => ['nullable', 'integer', 'min:0'],
             'nisn' => ['nullable', 'digits:10'],
             'tmp_lahir' => ['nullable', 'string', 'max:50'],
             'anak_ke' => ['nullable', 'integer', 'min:1'],
-            // Kamus bebas (string, tanpa exists — selaras santri):
+
             'agama' => ['nullable', 'string', 'max:50'],
             'cita_cita' => ['nullable', 'string', 'max:50'],
             'hobi' => ['nullable', 'string', 'max:50'],

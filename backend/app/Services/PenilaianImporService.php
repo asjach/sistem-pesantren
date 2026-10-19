@@ -137,8 +137,6 @@ class PenilaianImporService extends ImporPotongan
         };
     }
 
-    // ---------------------------------------------------------------- nilai
-
     /** @param array<string, mixed> $baris */
     private function prosesNilai(array $baris, int $no, bool $kering, int $santriId, string $jenjang, string $ta, string $semester): void
     {
@@ -176,7 +174,7 @@ class PenilaianImporService extends ImporPotongan
             }
             $skor = $this->angka($nilaiKolom);
             if ($skor === null) {
-                continue; // kolom mapel kosong: dilewati
+                continue;
             }
             if ($skor < 0 || $skor > 100) {
                 $this->fail($no, (string) $kolom, 'Nilai di luar 0–100.');
@@ -244,12 +242,10 @@ class PenilaianImporService extends ImporPotongan
     ): void {
         $hasil = $this->nilai->hitungAkhir($santriId, $pengampuId, $mapelId, $jenjang, $tingkat, $ta, $semester, $peristiwaId);
         if ($hasil['nilai'] === null) {
-            return; // belum lengkap: nilai akhir dibiarkan apa adanya
+            return;
         }
         $this->nilai->simpanAkhir($santriId, $pengampuId, $ta, $semester, $peristiwaId, $hasil['nilai'], NilaiSantri::HITUNG);
     }
-
-    // -------------------------------------------------------- catatan wali
 
     /** @param array<string, mixed> $baris */
     private function prosesCatatanWali(array $baris, int $no, bool $kering, int $santriId, string $jenjang, string $ta, string $semester): void
@@ -278,8 +274,6 @@ class PenilaianImporService extends ImporPotongan
         $this->dibuat++;
     }
 
-    // ------------------------------------------------------------- prestasi
-
     /** @param array<string, mixed> $baris */
     private function prosesPrestasi(array $baris, int $no, bool $kering, int $santriId, string $ta, string $semester): void
     {
@@ -303,8 +297,6 @@ class PenilaianImporService extends ImporPotongan
         ]);
         $this->dibuat++;
     }
-
-    // --------------------------------------------------------------- ekskul
 
     /** @param array<string, mixed> $baris */
     private function prosesEkskul(array $baris, int $no, bool $kering, int $santriId, string $jenjang, string $ta, string $semester): void
@@ -339,8 +331,6 @@ class PenilaianImporService extends ImporPotongan
             $this->fail($no, 'ekskul', 'Tidak ada kolom ekskul yang terisi.');
         }
     }
-
-    // ------------------------------------------------------------- resolusi
 
     private function peristiwa(): ?PeristiwaNilai
     {
@@ -433,8 +423,6 @@ class PenilaianImporService extends ImporPotongan
         return (int) $this->cacheEkskul[$kunci];
     }
 
-    // ------------------------------------------------------------- bantuan
-
     private function angka(mixed $nilai): ?float
     {
         if ($nilai === null || $nilai === '') {
@@ -443,7 +431,7 @@ class PenilaianImporService extends ImporPotongan
         if (is_int($nilai) || is_float($nilai)) {
             return (float) $nilai;
         }
-        // Terima "86,67" (koma) maupun "86.67".
+
         $teks = str_replace(',', '.', trim((string) $nilai));
         if (! is_numeric($teks)) {
             return null;

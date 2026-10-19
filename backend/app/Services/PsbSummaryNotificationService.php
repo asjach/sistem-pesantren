@@ -49,17 +49,12 @@ class PsbSummaryNotificationService
         $admin->notify(new RingkasanAntreanNotification($type, $count, $url));
     }
 
-    // Setara scopeTenantScope/tenantScope (void helper karena dipakai di whereHas/where notifikasi).
     protected function scopeTenant($q, User $admin): void
     {
         if ($admin->bolehPesantren()) {
             return;
         }
-        /* Lembaga santri = sumber kebenaran, tersimpan di keanggotaan
-           (tabel lembaga_santri), BUKAN kolom santri.jenjang — kolom itu
-           tidak ada sehingga saringan lama meledak 'no such column:
-           s.jenjang'. Tanpa keanggotaan = arsip pusat/pra-penerimaan → ikut
-           terlihat admin scoped (sama seperti PengajuanBiodataController). */
+
         $ids = $admin->lembagaIds();
         $q->where(function ($sub) use ($ids) {
             $sub->whereExists(function ($inner) use ($ids) {
@@ -75,7 +70,6 @@ class PsbSummaryNotificationService
         });
     }
 
-    // Alias scopeTenant untuk query PsbCalonSantri langsung (pola sama, nama beda agar jelas di refreshDaftarUlang).
     protected function scopeCalon($q, User $admin): void
     {
         if ($admin->bolehPesantren()) {

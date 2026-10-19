@@ -24,11 +24,10 @@ describe('SheetPengaturanTampilan', () => {
         </GridPrefsProvider>
       </ThemeProvider>,
     );
-    // Judul panel menegaskan cakupannya global.
+
     expect(await screen.findByText('Pengaturan tampilan tabel')).toBeInTheDocument();
     expect(screen.getByText(/Berlaku untuk/)).toBeInTheDocument();
 
-    // Kontrol inti hadir.
     expect(screen.getByLabelText('Tinggi baris sel (px)')).toBeInTheDocument();
     expect(screen.getByLabelText('Tinggi baris header (px)')).toBeInTheDocument();
     expect(screen.getByLabelText('Jenis huruf header tabel')).toBeInTheDocument();
@@ -44,7 +43,7 @@ describe('SheetPengaturanTampilan', () => {
   it('terbuka lewat event global tanpa prop open', async () => {
     render(<Panel open={false} />);
     expect(screen.queryByText('Pengaturan tampilan tabel')).not.toBeInTheDocument();
-    // Event inilah yang dipakai tombol gerigi di kaki tabel.
+
     bukaPengaturanTampilan();
     expect(await screen.findByText('Pengaturan tampilan tabel')).toBeInTheDocument();
   });
@@ -55,7 +54,7 @@ describe('SheetPengaturanTampilan', () => {
     const input = await screen.findByLabelText('Tinggi baris sel (px)');
     await klik.clear(input);
     await klik.type(input, '28');
-    // SpinBox menyimpan saat blur (bukan tiap ketikan).
+
     await klik.tab();
     // Nilai ditulis ke pref perangkat dengan kunci GLOBAL (bukan per tabel).
     await waitFor(() => {

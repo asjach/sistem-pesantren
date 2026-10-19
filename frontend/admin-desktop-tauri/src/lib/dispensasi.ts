@@ -74,8 +74,7 @@ export function rincianPeriode(baris: PratinjauBaris[]): string | null {
   if (baris.length < 2) return null;
   const rentang = rentangPeriode(baris);
   if (rentang.length === 1) return 'Sama tiap bulan';
-  // Nama paket disebut saat paketnya BERPINDAH dari rentang sebelumnya —
-  // itulah titik failover-nya; tanpa itu "0 · 0 · 0" tak menjelaskan apa pun.
+
   return rentang.map((r, i) => {
     const bagian = [`${r.label}: ${r.nominal.toLocaleString('id')}`];
     const nama = r.nama.join(', ');

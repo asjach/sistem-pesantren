@@ -95,7 +95,7 @@ class PengajuanBiodataService
                 }
             }
             $santri = Santri::findOrFail($p->santri_id);
-            // NIK boleh fiktif/ganda (tanpa unique) — dedup identitas nik+nama+tgl_lahir, kecualikan diri sendiri.
+
             if (isset($apply['nik'])) {
                 $namaBaru = $apply['nama_lengkap'] ?? $santri->nama_lengkap;
                 $tglBaru = $apply['tgl_lahir'] ?? $santri->tgl_lahir;

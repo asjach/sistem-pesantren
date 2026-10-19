@@ -83,7 +83,6 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const [busy, setBusy] = useState(false);
   const [hapusRow, setHapusRow] = useState<DokumenRow | null>(null);
 
-  // Opsi pemilik (santri/pegawai) + lembaga untuk dialog tambah.
   const [lembagas, setLembagas] = useState<Lembaga[]>([]);
   const [opsiPemilik, setOpsiPemilik] = useState<{ value: string; label: string }[]>([]);
   const [pemilik, setPemilik] = useState('');
@@ -117,10 +116,6 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     }
   }, [konfig.pemilihPemilik, jenjangs]);
 
-  // Pintasan Ctrl/Cmd+N = tombol "Tambah". Di tipe santri/pegawai tombolnya
-  // memakai jalur lama (dialog dari halaman asal santri/pegawai), jadi pintasan
-  // hanya dipasang untuk 'lembaga' yang dialog tambahnya ada di halaman ini;
-  // sekaligus mencegah chip pintasan tampil pada tombol yang tak membuka apa pun.
   const bisaPintasanTambah = canTambah && tipe === 'lembaga';
   usePintasanBaru({
     kunci: 'n',
@@ -157,7 +152,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
     nis: r.nis_lokal ?? '—',
     lembaga_nama: r.lembaga_nama ?? r.lembaga_jenjang ?? '—',
     jenis_dokumen: r.jenis_dokumen ?? '',
-    // Tampil = nama template langsung (kolom path sudah dicabut).
+
     nama_file: r.nama_file ?? null,
     lokasi: r.penyimpanan === 'lokal' ? 'Lokal' : r.penyimpanan === 'test' ? 'Test' : r.penyimpanan === 'cermin' ? 'Cermin' : 'Server',
     catatan: r.catatan ?? '',
@@ -222,12 +217,12 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
   const onUnggah = useCallback(async () => {
     if (!unggahRow || !unggahFile) return;
     setBusy(true);
-    // Tangkap nama lama sebelum refresh — salinan arsipnya ikut dibuang bila ganti berhasil.
+
     const namaLama = unggahRow.nama_file;
     const jenisLama = unggahRow.jenis_dokumen;
     const lokasi = unggahRow.penyimpanan ?? 'server';
     try {
-      // Arsip perangkat: tulis ulang di lokasi yang sama (lokasi tak berubah).
+
       if (lokasi !== 'server' && isTauri()) {
         const { ekstensiDariNama, targetTulisLokal, tulisGantiArsip } = await import('@/lib/arsipDokumen');
         const siapLokal = await siapkanFileUntukServer(unggahFile);
@@ -303,7 +298,7 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         toast.error('Berkas tidak ada di arsip perangkat ini — hanya tersimpan di perangkat asal.');
         return;
       }
-      // Cermin tanpa salinan lokal: salinan server selalu ada.
+
       const bytes = ketemu?.bytes ?? new Uint8Array(await ambilBerkas(`/admin/dokumen/${tipe}/${r.id}/unduh`));
       const tujuan = await save({
         defaultPath: r.nama_file,

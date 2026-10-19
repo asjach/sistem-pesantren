@@ -61,9 +61,9 @@ describe('saringDispensasi', () => {
   });
 
   it('lingkup jenjang: paket berjenis lain dibuang; null = bebas', () => {
-    // Tagihan MI → hanya paket MI + yang tanpa lingkup.
+
     expect(saringDispensasi(daftar(), 7, 'MI').map((d) => d.id)).toEqual([1, 2]);
-    // Tagihan MD → paket MI dibuang (pangkas 1).
+
     expect(saringDispensasi(daftar(), 7, 'MD').map((d) => d.id)).toEqual([2]);
   });
 });
@@ -146,7 +146,7 @@ describe('jenisCocokJenjang & saringAturanJenjang', () => {
   it('aturan jenis lain dilepas, jenis tak dikenal dipertahankan', () => {
     expect(saringAturanJenjang([{ jenisId: 2 }, { jenisId: 3 }, { jenisId: 1 }], jenis, 'MI'))
       .toEqual([{ jenisId: 2 }, { jenisId: 1 }]);
-    // Jenis yang tak ada di daftar (mis. sudah dihapus) tidak dihilangkan.
+
     expect(saringAturanJenjang([{ jenisId: 99 }], jenis, 'MI')).toEqual([{ jenisId: 99 }]);
   });
 });
@@ -157,7 +157,7 @@ describe('hitungDispensasi', () => {
       paket({ id: 2 }, [aturan(1, 1, 'nominal', 10000)]),
       paket({ id: 1 }, [aturan(2, 1, 'persen', 50)]),
     ];
-    // 100.000 → 50% = 50.000 → −10.000 = 40.000.
+
     const h = hitungDispensasi(100000, daftar, 1);
     expect(h).toMatchObject({ nominal: 40000, potongan: 60000, ids: [1, 2] });
     expect(h.label).toContain('Paket 1');
@@ -256,7 +256,7 @@ describe('rincianPeriode', () => {
       b('2025-08', 0, [2, 3], null, ['Anak Pegawai', 'Ganjil']),
       b('2025-09', 0, [2, 3], null, ['Anak Pegawai', 'Ganjil']),
     ])).toBe('Jul: 0 (Anak Pegawai, Genap) · Agu–Sep: 0 (Anak Pegawai, Ganjil)');
-    // Paket sama terus → namanya disebut sekali (di rentang pertama) saja.
+
     expect(rincianPeriode([
       b('2025-07', 0, [2], null, ['Anak Pegawai']),
       b('2025-08', 50000, [2], null, ['Anak Pegawai']),

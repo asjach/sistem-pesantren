@@ -109,7 +109,7 @@ class TenantScopeFailClosedTest extends TestCase
         $this->actingAs($this->user('admin', ['MI']), 'sanctum');
 
         $jenjang = Kelas::tenantScope()->pluck('jenjang')->unique()->sort()->values()->all();
-        $this->assertSame(['MD', 'MI'], $jenjang); // MTS tetap di luar
+        $this->assertSame(['MD', 'MI'], $jenjang);
     }
 
     /** Admin yang lembaganya tidak punya data → nol, bukan semua. */
@@ -181,7 +181,6 @@ class TenantScopeFailClosedTest extends TestCase
         $this->assertSame(1, LembagaPegawai::tenantScope()->count());
         $this->assertSame('MI', LembagaPegawai::tenantScope()->value('jenjang'));
 
-        // Guru MI: hanya baris MI miliknya (MTS tetap tak terlihat).
         $this->actingAs($this->user('guru', ['MI']), 'sanctum');
         $this->assertSame(1, LembagaPegawai::tenantScope()->count());
         $this->assertSame('MI', LembagaPegawai::tenantScope()->value('jenjang'));

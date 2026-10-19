@@ -54,9 +54,6 @@ export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
     setPanjang(pjg);
   }
 
-  // Tiap render induk (baris/kolom/lebar berubah) + gulir + resize: cukup
-  // pendengar `scroll` mode capture di wadah (menangkap remount grid) dan
-  // ResizeObserver — tanpa MutationObserver.
   useLayoutEffect(() => {
     selaraskan();
   });
@@ -96,14 +93,7 @@ export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
     if (e.button !== 0) return;
     const sc = cariGulir();
     if (!sc) return;
-    /* WAJIB: tanpa ini browser memulai seleksi teks dari titik tekan dan
-       meneruskannya mengikuti kursor — saat jempol digeser, teks di tabel
-       (dan di luar tabel) ikut tersorot biru. `preventDefault` pada
-       pointerdown membatalkan mousedown bawaan, jadi tak ada seleksi yang
-       dimulai. Fokus dipasang manual supaya navigasi panah tetap jalan.
-       `stopPropagation` menjaga gestur ini tak sampai ke pendengar mousedown
-       milik grid (react-datasheet-grid memasangnya di `document`), yang bisa
-       menganggapnya klik sel lalu menyeleksi blok sel. */
+
     e.preventDefault();
     e.stopPropagation();
     relRef.current?.focus({ preventScroll: true });
@@ -117,7 +107,7 @@ export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
   function gerakSeret(e: ReactPointerEvent<HTMLDivElement>) {
     const s = seret.current;
     if (!s) return;
-    // Jangan biarkan gerakan ini dibaca grid sebagai geser-seleksi sel.
+
     e.stopPropagation();
     const sc = cariGulir();
     const m = metrikSeret();
@@ -138,7 +128,7 @@ export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
     const sc = cariGulir();
     const rel = relRef.current;
     if (!sc || !rel) return;
-    // Sama seperti jempol: jangan biarkan klik rel memulai seleksi teks.
+
     e.preventDefault();
     rel.focus({ preventScroll: true });
     const kotak = rel.getBoundingClientRect();
@@ -186,9 +176,7 @@ export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
       aria-valuenow={Math.min(100, Math.max(0, persen))}
       tabIndex={0}
       onPointerDown={klikRel}
-      /* Lapis kedua (WebKit/Tauri): seleksi dimulai dari mousedown, bukan
-         pointerdown — batalkan di sini, dan jangan teruskan ke pendengar
-         mousedown/mousemove milik grid. */
+
       onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onMouseMove={(e) => { if (seret.current) e.stopPropagation(); }}
       onMouseUp={(e) => { if (seret.current) e.stopPropagation(); }}

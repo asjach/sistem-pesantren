@@ -27,8 +27,7 @@ export function TextCell({ rowData, setRowData, columnData, focus, stopEditing, 
         onDoubleClick={() => columnData.onDblClick?.(rowData.id)}
         onClick={(e) => {
           if (e.detail !== 1) return;
-          // Sel yang tadinya aktif sudah otomatis membuka editor lewat
-          // mousedown DSG (input fokus) — jangan buka dua kali.
+
           if (hasOpenEditor()) return;
           columnData.onClickCell?.(rowData.id);
         }}
@@ -47,7 +46,7 @@ export function TextCell({ rowData, setRowData, columnData, focus, stopEditing, 
       data-col-key={key}
       value={cur}
       maxLength={columnData.maxLength}
-      // Fokus otomatis memang disengaja di sini: lihat penjelasan pada
+
       // `eslint.config.js` (lapisan react-datasheet-grid).
       autoFocus
       onChange={(e) => setVal(e.target.value)}
@@ -56,32 +55,29 @@ export function TextCell({ rowData, setRowData, columnData, focus, stopEditing, 
         setVal(null);
       }}
       onKeyDown={(e) => {
-        // Tab & panah atas/bawah: commit dulu, lalu biarkan DSG yang
-        // memindahkan sel + menutup mode edit (DSG tak memicu blur saat
-        // input di-unmount, jadi commit wajib di sini).
+
         if (e.key === 'Tab' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
           commit(cur);
           setVal(null);
           return;
         }
-        // Panah kiri/kanan tetap milik input (pindah kursor di dalam teks).
+
         if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') return;
         e.stopPropagation();
         if (e.key === 'Enter') {
           commit(cur);
           setVal(null);
-          // Baris input (mode Input): Enter = simpan baris. Kursor pindah ke
-          // baris bawah (baris input berikutnya) hanya bila kolom wajib lengkap.
+
           if (String(rowData.id) === INPUT_ROW_ID && columnData.onEnter) {
             const bolehPindah = columnData.onEnter(columnIndex);
             stopEditing({ nextRow: bolehPindah });
             return;
           }
-          // stopEditing bawaan DSG = tutup edit + aktif turun 1 baris (kolom sama).
+
           stopEditing();
         } else if (e.key === 'Escape') {
           setVal(null);
-          // Batal: tutup edit tanpa pindah baris.
+
           stopEditing({ nextRow: false });
         }
       }}
@@ -104,13 +100,7 @@ export function SelectCell({ rowData, setRowData, columnData, focus, stopEditing
       ? columnData.choicesForRow(rowData.id)
       : columnData.choices;
   const label = opsi.find((c) => c.value === cur)?.label ?? cur;
-  /* Nilai sel belum ada di daftar pilihan — baris input selalu mulai kosong,
-     sel data bisa dikosongkan (Delete), dan pilihan bisa menyusut saat filter
-     lembaga berubah. Tanpa option kosong di bawah, browser menampilkan opsi
-     PERTAMA seolah terpilih padahal `value` tak cocok satu pun, sehingga
-     memilih opsi pertama itu tak memicu `change`: nilai pertama terasa tak
-     bisa dipilih. Teksnya: petunjuk `placeholder` bila sel kosong, atau nilai
-     lama yang sudah di luar daftar supaya tak tersamar jadi opsi pertama. */
+
   const placeholder = cur === '' ? (columnData.placeholder ?? 'Pilih…') : cur;
   const perluPlaceholder = !opsi.some((c) => c.value === cur);
   const terkunci = disabled || (columnData.bolehSelect !== undefined && !columnData.bolehSelect(rowData.id));
@@ -251,7 +241,7 @@ export function SelectRadixCell({ rowData, setRowData, columnData, stopEditing, 
   }
 
   if (!buka) {
-    // Tombol murah: belum ada instance Radix untuk sel ini.
+
     return (
       <button
         type="button"
@@ -261,8 +251,7 @@ export function SelectRadixCell({ rowData, setRowData, columnData, stopEditing, 
         aria-haspopup="listbox"
         aria-expanded={false}
         onClick={(e) => {
-          // Jangan buka dua kali: klik yang sama bisa jadi "aktifkan sel" DSG
-          // (untuk kolom yang butuh mode Edit).
+
           if (hasOpenEditor()) return;
           e.stopPropagation();
           setBuka(true);
@@ -293,10 +282,7 @@ export function SelectRadixCell({ rowData, setRowData, columnData, stopEditing, 
         style={{ height: '100%', padding: '0 2px', border: 0 }}
         data-col-key={key}
         aria-label={key}
-        /* Catatan fokus: DSG membaca keyboard lewat listener di `document`, jadi
-           tanpa `stopPropagation` tombol panah/Enter milik Radix ikut memindahkan
-           sel grid. Ditahan HANYA untuk kunci yang memang milik Radix (buka/gerak
-           daftar); sisanya — termasuk Tab — ke grid. */
+
         onKeyDown={(e) => {
           if (e.key === 'Tab') return;
           e.stopPropagation();
@@ -304,9 +290,7 @@ export function SelectRadixCell({ rowData, setRowData, columnData, stopEditing, 
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      {/* Radix mengembalikan fokus ke trigger saat daftar ditutup; itu membuat fokus
-          "nempel" di tombol (cincin fokus ikut muncul). Cegah, fokus dilepas
-          supaya grid yang menerimanya. */}
+
       <SelectContent onCloseAutoFocus={(e) => e.preventDefault()}>
         {opsi.map((c) => (
           <SelectItem key={c.value} value={c.value === '' ? KOSONG_RADIX : c.value}>
@@ -317,7 +301,6 @@ export function SelectRadixCell({ rowData, setRowData, columnData, stopEditing, 
     </Select>
   );
 }
-
 
 /** Sel boolean (Switch ON/OFF) — langsung mengubah nilai tanpa mode Edit.
  *  Nilai grid tetap string 'ya'/'tidak' agar pipeline data tak berubah.
@@ -359,8 +342,6 @@ export function StaticCell({ rowData, columnData }: CellProps<GridRow, StaticCol
     </span>
   );
 
-  // Kartu hover opsional: isi panjang yang terpotong lebar kolom tetap utuh
-  // dibaca. Delay kecil supaya terasa langsung, bukan tooltip bawaan browser.
   if (columnData.kartuHover) {
     return (
       <HoverCard openDelay={120} closeDelay={80}>
@@ -394,7 +375,7 @@ export function CheckCell({ rowData, disabled }: CellProps<GridRow, CheckColData
       disabled={disabled}
       data-row-id={String(rowData.id)}
       checked={Boolean(rowData.checked)}
-      // Cegah flip bawaan browser pada click (onChange di bawah no-op).
+
       onClick={(e) => e.preventDefault()}
       onChange={() => {}}
     />

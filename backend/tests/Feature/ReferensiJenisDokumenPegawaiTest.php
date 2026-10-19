@@ -8,8 +8,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Seeder menambah 6 jenis dokumen pegawai baru (SK sudah ada: tak diduplikasi)
-// dan tetap idempoten saat dijalankan ulang.
 class ReferensiJenisDokumenPegawaiTest extends TestCase
 {
     use RefreshDatabase;
@@ -32,7 +30,7 @@ class ReferensiJenisDokumenPegawaiTest extends TestCase
         foreach (['Ijazah', 'Foto', 'Tanda Tangan Elektronik', 'Dokumen Simpatika', 'Dokumen EMISGTK', 'Foto Profil'] as $baru) {
             $this->assertContains($baru, $nama);
         }
-        // Nilai lama utuh + SK tidak ganda.
+
         foreach (['Kartu Keluarga', 'KTP', 'Nomor Rekening', 'NPWP', 'BPJS', 'SK', 'Kartu Anggota'] as $lama) {
             $this->assertContains($lama, $nama);
         }

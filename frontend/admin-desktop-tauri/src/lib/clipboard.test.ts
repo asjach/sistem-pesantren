@@ -42,7 +42,7 @@ describe('pasangPenyalinPolosDesktop', () => {
 
   it('mencegat copy: preventDefault + hanya teks polos tanpa style', () => {
     (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
-    // copyText async (plugin tauri) tak perlu jalan di jsdom.
+
     vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(async () => {}) } });
 
     const div = document.createElement('div');

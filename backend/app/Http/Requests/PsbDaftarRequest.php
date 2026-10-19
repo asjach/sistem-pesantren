@@ -20,23 +20,23 @@ class PsbDaftarRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'gelombang_id' => ['nullable', 'integer', 'exists:psb_gelombang,id'], // kosong = otomatis gelombang aktif
+            'gelombang_id' => ['nullable', 'integer', 'exists:psb_gelombang,id'],
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
-            'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'], // null = ikut gelombang
+            'tahun_ajaran' => ['nullable', 'string', 'exists:tahun_ajaran,nama'],
             'tipe_santri' => ['required', 'in:asrama,non_asrama'],
             'nik' => ['required', 'digits:16'],
             'nama_lengkap' => ['required', 'string', 'max:100'],
             'jk' => ['nullable', 'in:L,P'],
             'tgl_lahir' => ['nullable', 'date'],
-            'email_ortu' => ['nullable', 'email', 'max:100'], // boleh duplikat/ngasal, tidak dibandingkan ke users
+            'email_ortu' => ['nullable', 'email', 'max:100'],
             'telp_ortu' => ['nullable', 'string', 'max:20'],
             'nama_ayah' => ['nullable', 'string', 'max:100'],
             'nama_ibu' => ['nullable', 'string', 'max:100'],
             'santri_asal_id' => ['nullable', 'integer', 'exists:santri,id'], // pintu lanjutan
-            'is_pindahan' => ['nullable', 'boolean'], // true = pindahan, false/absen = santri baru
-            'masuk_tingkat' => ['nullable', 'string', 'max:2'], // matriks per kode lembaga dicek service
-            'paket' => ['nullable', 'in:MI-MD'], // radio paket; satu-satunya paket saat ini (primer MI, non_asrama saja)
-            'bukti_transfer' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'], // disimpan ke storage, DB hanya path
+            'is_pindahan' => ['nullable', 'boolean'],
+            'masuk_tingkat' => ['nullable', 'string', 'max:2'],
+            'paket' => ['nullable', 'in:MI-MD'],
+            'bukti_transfer' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
         ];
     }
 }

@@ -121,7 +121,7 @@ export function useSeretIsiSel(
 
     /** Sel grid di bawah titik kursor; null bila tak ada (di luar tabel). */
     const selDiTitik = (x: number, y: number): { row: number; kolom: number } | null => {
-      /* jsdom (tes) tak menyediakan elementsFromPoint — andalkan target event. */
+
       const titik = typeof document.elementsFromPoint === 'function'
         ? document.elementsFromPoint(x, y)
         : [];
@@ -134,9 +134,7 @@ export function useSeretIsiSel(
           ?? sel.querySelector('[data-col-key]')?.getAttribute('data-col-key')
           ?? null;
         if (key === null) continue;
-        /* Indeks baris dari NOMOR di gutter DSG: sel data tak punya
-         `data-row-index`, dan `style.top` tak bisa dipercaya karena tinggi
-         baris bisa berbeda-beda. */
+
         const nomor = Number.parseInt(baris.querySelector('.dsg-cell-gutter')?.textContent ?? '', 10);
         if (!Number.isFinite(nomor)) continue;
         const kolom = sumberRef.current.kunciKolom.indexOf(key);
@@ -196,9 +194,9 @@ export function useSeretIsiSel(
       if (!s.aktif || s.mode === null || !s.bisaTulis) return null;
       if (sum.jumlahBaris <= 0 || sum.seleksi === null) return null;
       const target = e.target as HTMLElement | null;
-      // Gagang ubah-lebar punya urusannya sendiri.
+
       if (target?.closest('.simpes-dsg-resizer')) return null;
-      // Kontrol di dalam sel (editor, tombol, checkbox) tak ikut diseret.
+
       if (target?.closest('input, textarea, select, button, a')) return null;
       const key = target?.closest('[data-col-key]')?.getAttribute('data-col-key') ?? null;
       if (key === null) return null;
@@ -215,8 +213,7 @@ export function useSeretIsiSel(
         r1: Math.max(0, Math.max(sel.min.row, sel.max.row)),
         kolom,
       };
-      /* Tekan di luar blok = pengguna sedang memilih rentang baru; biarkan
-         DSG yang menanganinya. */
+
       if (jangkar.row < blok.r0 || jangkar.row > blok.r1 || !blok.kolom.includes(jangkar.kolom)) {
         return null;
       }
@@ -256,9 +253,7 @@ export function useSeretIsiSel(
         if (!jalan) return;
         const t = target;
         if (t === null || samaBlok(t, k.sumber)) return;
-        /* Memindahkan blok ke dalam dirinya sendiri akan menghapus isinya,
-           jadi tolak (Excel juga menolak). Menyalin ke dalam dirinya sendiri
-           cuma sia-sia tapi tak merusak — dibiarkan. */
+
         if (k.mode === 'pindah' && beririsan(t, k.sumber)) {
           toast.error('Blok tak bisa dipindahkan ke dalam dirinya sendiri.');
           return;
@@ -283,11 +278,6 @@ export function useSeretIsiSel(
         bersihRef.current = null;
       }
 
-      /* react-datasheet-grid memanggil preventDefault() pada mousedown dokumen,
-         akibatnya event POINTER lanjutan tak selalu sampai ke window. Karena
-         itu listener dipasang di fase CAPTURE dan jalur MOUSE ditambahkan
-         sebagai cadangan yang selalu terkirim; `terakhir` mencegah satu
-         gerakan dihitung dua kali. */
       let terakhir = 0;
       const sekaliPerGerak = <T,>(fn: (e: T) => void) => (e: T & { timeStamp: number }) => {
         const t = e.timeStamp || Date.now();
@@ -298,8 +288,6 @@ export function useSeretIsiSel(
       const geserMouse = sekaliPerGerak(geser);
       const lepasMouse = sekaliPerGerak(lepas);
 
-      /* Escape = batal, sejalan dengan seret judul kolom. Tanpa ini, Esc saat
-         seret tetap menyalin/memindahkan begitu tombol dilepas. */
       const tombol = (e: KeyboardEvent) => {
         if (e.key === 'Escape') batal();
       };
@@ -316,15 +304,11 @@ export function useSeretIsiSel(
     };
 
     const tekan = (e: MouseEvent) => {
-      /* Ctrl/Cmd+klik itu milik DSG (menu konteks) — gestur kita tak
-         memakainya sebagai modifier lagi, jadi biarkan lewat. */
+
       if (e.button !== 0 || e.ctrlKey || e.metaKey) return;
       const k = dariTitik(e);
       if (k === null) return;
-      /* DSG memasang `mousedown` di DOKUMEN (fase bubble), jadi menghentikan
-         event di CAPTURE wadah sudah cukup untuk memblokir drag-pilih bloknya.
-         Tekan-tahan lalu menggeser tetap jalan karena gestur itu memakai
-         listener pointermove/up sendiri. */
+
       e.preventDefault();
       e.stopPropagation();
       mulaiSeret(k);
@@ -339,7 +323,6 @@ export function useSeretIsiSel(
     };
   }, [syarat.aktif, syarat.mode, syarat.bisaTulis, wrapRef]);
 
-  /* Komponen dilepas di tengah seret: jangan tinggalkan kelas/badge di DOM. */
   useEffect(() => () => {
     bersihRef.current?.();
     bersihkanSeretIsi(wrapRef.current);

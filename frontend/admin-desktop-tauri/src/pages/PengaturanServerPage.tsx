@@ -19,8 +19,6 @@ import { RotateCcw, Server } from '@/icons';
 import { toast } from 'sonner';
 import { PREF_FOLDER_ARSIP, PREF_FOLDER_ARSIP_TEST, PREF_MODE_DOKUMEN, ROOT_ARSIP_DOKUMEN, ROOT_ARSIP_TEST } from '@/lib/arsipDokumen';
 
-// Base URL backend bisa diganti runtime (lokal dulu, server belakangan)
-// tanpa rebuild binary. Disimpan di plugin-store (desktop) / localStorage (web).
 export default function PengaturanServerPage() {
   const [url, setUrl] = useState('');
   const [aktif, setAktif] = useState('');
@@ -53,7 +51,6 @@ export default function PengaturanServerPage() {
     toast.success(`Kembali ke bawaan (${DEFAULT_API_BASE_URL}).`);
   }
 
-  // ----- Arsip dokumen perangkat ini (mode + folder root) -----
   const desktop = isTauri();
   const [modeDokumen, setModeDokumen] = useState<'server' | 'lokal' | 'test'>('server');
   const [folderArsip, setFolderArsip] = useState('');
@@ -69,7 +66,7 @@ export default function PengaturanServerPage() {
         if (typeof f === 'string') setFolderArsip(f);
         if (typeof ft === 'string') setFolderArsipTest(ft);
       } catch {
-        /* abaikan */
+
       }
       if (hidup) setPrefSiap(true);
     })();
@@ -104,7 +101,7 @@ export default function PengaturanServerPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Aksi halaman. */}
+
       <div className="flex flex-wrap items-center gap-2">
         <Button id="btn_uji_server" variant="outline" onClick={() => void onUji()}>
           <Server data-icon="inline-start" size={16} /> Uji koneksi

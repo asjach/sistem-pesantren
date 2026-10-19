@@ -84,7 +84,7 @@ class NiskBulkTest extends TestCase
             ->assertStatus(200);
 
         $this->assertSame(1, $res->json('data.berhasil'));
-        // NSM + YY(tgl_masuk 2025) + 4 digit akhir NIS lokal.
+
         $this->assertSame(
             '123456789012250200',
             LembagaSantri::where('santri_id', $f['layak']->id)->value('nis_kemenag')
@@ -92,7 +92,6 @@ class NiskBulkTest extends TestCase
         $this->assertSame('lama', LembagaSantri::where('nis_lokal', '201')->value('nis_kemenag'));
         $this->assertNull(LembagaSantri::where('nis_lokal', '300')->value('nis_kemenag'));
 
-        // Idempoten: jalan kedua tak ada yang diproses.
         $ulang = $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/lembaga-santri/generate-nisk-bulk', [])
             ->assertStatus(200);
@@ -104,8 +103,6 @@ class NiskBulkTest extends TestCase
         $f = $this->fixture();
         $super = $this->makeUser('super_admin');
 
-        // Urut nama (join santri) + filter lembaga & is_active (join lembaga
-        // bila urut lembaga) — 1052 bila tak terkualifikasi.
         $this->actingAs($super, 'sanctum')
             ->getJson('/api/admin/lembaga-santri?jenjang='.$f['mi']->jenjang.'&is_active=1&sort=nama&arah=naik')
             ->assertStatus(200)
@@ -122,13 +119,11 @@ class NiskBulkTest extends TestCase
         $super = $this->makeUser('super_admin');
         $guru = $this->makeUser('guru');
 
-        // Filter lembaga MD saja → nol (MD dilewati).
         $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/lembaga-santri/generate-nisk-bulk', ['jenjang' => $f['md']->jenjang])
             ->assertStatus(200)
             ->assertJsonPath('data.berhasil', 0);
 
-        // Tanpa izin ubah → 403.
         $this->actingAs($guru, 'sanctum')
             ->postJson('/api/admin/lembaga-santri/generate-nisk-bulk', [])
             ->assertStatus(403);

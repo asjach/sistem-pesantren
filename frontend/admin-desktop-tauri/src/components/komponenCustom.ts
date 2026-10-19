@@ -58,7 +58,7 @@ export function muatSetelanKomponen(): Promise<void> {
         beritahu();
       })
       .catch(() => {
-        /* biarkan peta kosong: semua komponen jatuh ke bawaan pemanggil */
+
       });
   }
   return janjiMuat;

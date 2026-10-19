@@ -79,8 +79,7 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
     [target],
   );
   const posisi = target ? tetangga.indexOf(target.id) : -1;
-  // Tampil bila ada tetangga di salah satu sisi (bukan hanya di tengah
-  // daftar); tiap tombol tetap dimatikan sendiri di ujungnya.
+
   const adaTetangga = posisi > 0 || posisi < tetangga.length - 1;
   const bisaPrev = posisi > 0;
   const bisaNext = posisi >= 0 && posisi < tetangga.length - 1;
@@ -102,7 +101,7 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="px-3 py-3 sm:max-w-4xl" showCloseButton={false}>
-        {/* Tombol tutup merah (pengganti bawaan yang disembunyikan). */}
+
         <DialogClose asChild>
           <Button
             aria-label="Tutup"
@@ -114,8 +113,7 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
           </Button>
         </DialogClose>
         <DialogHeader>
-          {/* Ruang kanan untuk tombol tutup (absolut kanan-atas)
-              agar tak menimpa tombol Sebelumnya/Berikutnya. */}
+
           <div className="flex items-start justify-between gap-3 pr-10">
             <div className="min-w-0">
               <DialogTitle>{profil ? profil.santri.nama_lengkap : 'Profil Santri'}</DialogTitle>
@@ -125,8 +123,6 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
               </DialogDescription>
             </div>
 
-            {/* Navigasi tetangga: hanya tampil bila tabel asal punya baris
-                Santri lain di kiri/kanan posisi sekarang. */}
             {adaTetangga && (
               <div className="flex shrink-0 items-center gap-1">
                 <Button
@@ -158,7 +154,6 @@ export function ProfilSantriDialog({ target, onGanti, onOpenChange }: ProfilSant
           </div>
         </DialogHeader>
 
-        {/* Lompat cepat ke tiap bagian — isi profil panjang (60+ baris). */}
         {profil && (
           <nav aria-label="Lompat ke bagian profil" className="flex shrink-0 flex-wrap gap-1">
             {TAUT_BAGIAN_PROFIL.filter((t) => t.slug !== 'tagihan' || bolehKeuangan).map((t) => (

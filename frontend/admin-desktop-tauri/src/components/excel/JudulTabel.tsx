@@ -101,31 +101,14 @@ export default function JudulTabel({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={!bolehKelola}>
-        {/* Padding: kiri tetap 12px (judul tidak sesempit tepi card), kanan
-            ditipiskan ke 4px karena tepi kanan bilah tempat kontrol paling
-            kanan (gerigi Pengaturan tabel / tombol aksi) berdiri — jarak
-            12px di sana membuat kontrol terlihat "mengambang" dari tepi. */}
+
         <div data-part="header_tabel" className="flex min-h-8 shrink-0 items-center justify-between gap-2 border-b border-border pr-1 pl-3 text-xs font-medium">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            {/* Div tetap ada walau teksnya dimatikan (sakelar "Judul tabel"):
-                ia yang memberi ruang `flex-1`, jadi pil info & kontrol tak
-                lompat ke tepi kiri. */}
+
             <div className="flex min-w-0 flex-1 items-center gap-1">
               <div className="min-w-0 truncate">{judulTampil ? judul : null}</div>
               {htmlAdaIsi(infoTabel) ? (
-                /* Info = keterangan tabel dari super_admin, MENEMPEL di ujung
-                   judul (satu wadah flex dengan teks judul, bukan tombol di
-                   kelompok kontrol) dan setinggi huruf judul (`1em`) supaya
-                   terbaca sebagai bagian judul, bukan kontrol tersendiri.
-                   Klik (bukan hover) yang membuka keterangannya: popover bisa
-                   digulir & tautannya bisa diklik, sedangkan hover cuma
-                   memunculkan kursor pointer — kartu tak pernah menutupi tabel
-                   tanpa diminta. Tombolnya sengaja tanpa `title`: tooltip bawaan
-                   browser akan muncul saat hover, padahal hover harus tenang.
-                   Warnanya `text-primary` — ikut aksen tema yang dipilih
-                   pengguna (bukan warna biru semantik). Kelas eksplisit ini
-                   tetap menang atas aturan "kaya warna" di index.css yang
-                   mewarnai `svg.simpes-ikon` lewat :where() berspesifisitas 0. */
+
                 <Popover>
                   <PopoverTrigger asChild>
                     <button
@@ -176,25 +159,14 @@ export default function JudulTabel({
                 />
               ) : null}
             </div>
-            {/* Aksi massal (tombol "Hapus (N)") duduk tepat di sebelah kiri
-                tombol aksi utama: hapus yang dipilih & tambah yang baru
-                berpasangan di ujung kanan bilah, tak lagi terpisah oleh
-                kontrol Urutan/Kolom. */}
+
             {aksiMassal ? <div className="flex shrink-0 flex-nowrap items-center gap-1.5 [&>*]:shrink-0">{aksiMassal}</div> : null}
             {tombolAksiTampil && addButton ? (
               addButtonLangsung
                 ? <div className="shrink-0">{addButton}</div>
                 : <div className="shrink-0"><MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar></div>
             ) : null}
-            {/* Gerigi PALING KANAN bilah = pengaturan KHUSUS TABEL INI saja
-                (kolom, urutan, filter, preset) untuk tableKey ini. Dulu ia di
-                kaki tabel; sekarang di sini supaya kontrol tabel & pengaturan
-                tabelnya bertemu di satu bilah. Jangan masukkan setelan global
-                ke sini: pengaturan yang berlaku aplikasi/semua tabel punya
-                pintunya sendiri, yaitu gerigi di TopBar — mencampur keduanya
-                membuat jangkauan pilihan tak jelas.
-                Nonaktif bila halaman ini tak mendaftarkan tabelnya ke
-                registrasi (dialognya tak akan terisi). */}
+
             {tombolPengaturanTampil ? (
               <div className="shrink-0">
                 <Button

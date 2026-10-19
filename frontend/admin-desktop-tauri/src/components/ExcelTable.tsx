@@ -267,38 +267,6 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   pager?: ReactNode;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 type Drafts = Record<string, Record<string, string | null>>;
 
 /** Identitas kelompok sakelar gestur di bilah Mode Ubah. Copy & Move satu
@@ -355,10 +323,8 @@ export default function ExcelTable<T extends { id: string | number }>({
   onTempelBlok,
 }: ExcelTableProps<T>) {
   // Preferensi tampilan tabel global (dikontrol dari top bar). `rowH` di sini
-  // kini berarti BAWAAN — tinggi per tabel (lihat `useTinggiBaris`) yang
-  // menang, jadi nilainya tak memaksa tabel mana pun.
+
   const { rowH, headerH, fontPx, fontFamily } = useGridPrefs();
-  // Standar tampilan lembaga: lebar & kolom beku bawaan (bisa ditimpa user).
 
   /** MODE UBAH — satu sakelar untuk SELURUH tindakan yang mengubah tabel:
    *  editing sel, seret isi sel, dan fitur manipulasi tabel lain yang
@@ -393,22 +359,9 @@ export default function ExcelTable<T extends { id: string | number }>({
   const bolehKelolaHalaman = !!visHalaman?.registrasi && bolehGeser;
   const [kelolaTabelOpen, setKelolaTabelOpen] = useState(false);
   const { visibilitas, alignDb, urutanDb, simpanUrutan, labelDb, judulDb, infoHtmlDb, simpanAlign, konteksLebarFilter } = useToolbarPresetState(tableKey);
-  /* Sakelar komponen tabel (tab Umum Kelola Tabel, SERVER per tabel): setiap
-     komponen tabel punya sakelarnya sendiri. Semua sakelar absen = tampil, jadi
-     tabel yang belum pernah disetel berperilaku persis seperti sebelumnya.
-     Hitung DI SINA (bukan di dekat markup) karena `headerEfektifH` ikut
-     memakainya: kepala kolom yang disembunyikan harus benar-benar setinggi 0,
-     bukan sekadar tak terlihat — kalau tidak, tinggi tabel kompak meleset
-     sebesar tinggi header dan hitungan indeks baris ikut meleset. */
+
   const headerKolomTampil = komponenAktif(visibilitas, 'header_kolom');
-  /* Kolom centang & kolom Aksi punya DUA sumber penyembunyian: prop halaman
-     (`hideCheckbox`/`hideActions`) dan sakelar tabel ini. Prop menang dulu.
-     Sakelarnya tetap ditampilkan walau tabel punya aksi massal — mematikan
-     kolom centang di sana membuat aksi massal tak terjangkau, dan itu
-     konsekuensi yang disetujui, bukan hal yang perlu dicegah.
-     Nilai EFEKTIF ini dipakai di mana pun kolom itu harus benar-benar hilang:
-     definisi kolom DSG, kolom beku (kolom centang ikut beku), lebar otomatis,
-     dan salin. */
+
   const sembunyiCentang = hideCheckbox || !komponenAktif(visibilitas, 'kolom_centang');
   const sembunyiAksi = hideActions || !komponenAktif(visibilitas, 'kolom_aksi');
   /** Baris input hanya tersedia bila halaman menyediakan onCreateRow.
@@ -424,19 +377,16 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  Dipakai seret judul: bila preset aktif, urutan baru ditulis ke `kolom`
    *  preset itu; bila tidak, ke `toolbar_preset.urutan` global. */
   const [presetIdDalam, setPresetIdDalam] = useState<number | null>(null);
-  // Bila dikendalikan luar, nilai di atas diabaikan sepenuhnya.
+
   const luar = presetLuar !== undefined;
   const presetKeys = luar ? presetLuar.keys : presetKeysDalam;
   const presetIdAktif = luar ? (presetLuar.presetId ?? null) : presetIdDalam;
-  /* Nama header kolom bukan urusan preset: itu setelan per TABEL dari DB
-     (`toolbar_preset.label`, lihat `useKelolaKolom`/`labelDb`). Dulu label ikut
-     preset; sekarang sumbernya tinggal satu. */
+
   const terapkanPreset = useCallback((keys: string[] | null, presetId?: number | null) => {
     if (luar) return;
     setPresetKeysDalam(keys);
     setPresetIdDalam(presetId ?? null);
   }, [luar]);
-
 
   /** Nama tampilan kolom: label per TABEL dari DB (kalau ada) > label field.
    *  Label berupa nama kolom mentah di-humanize supaya header tidak pernah
@@ -500,7 +450,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const getValuesRef = useRef(getValues);
   getValuesRef.current = getValues;
   const visibleFields = useMemo(() => {
-    // Preset aktif: urutan kolom mengikuti susunan key di dalam preset.
+
     if (presetKeys !== null) {
       const byKey = new Map(fields.map((f) => [f.key, f]));
       const terpilih = presetKeys
@@ -510,7 +460,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     const dasar = fields;
     // Tanpa preset (Lengkap): urutan global tersimpan (super_admin) menata
-    // ulang kolom; kolom yang tak ada di simpanan menempel di akhir.
+
     if (urutanDb !== null && urutanDb.length > 0) {
       const byKey = new Map(dasar.map((f) => [f.key, f]));
       const urut = gabungUrutan(urutanDb, dasar.map((f) => f.key));
@@ -522,10 +472,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   const visibleFieldsRef = useRef(visibleFields);
   const gridRef = useRef<DataSheetGridRef>(null);
 
-  // Muat jumlah kolom beku tabel ini; clamp bila preset menyembunyikan kolom.
-  // Dibaca ulang juga saat tab Umum dialog Kelola Tabel mengubah tampilan
-  // perangkat (freeze / baris-ikut-isi), supaya grid di belakang ikut berubah
-  // tanpa reload halaman.
   useEffect(() => {
     let batal = false;
     const muat = () => {
@@ -554,15 +500,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     [tableKey, visibleFields.length],
   );
 
-  /* Sakelar gestur manipulasi tabel (geser judul kolom, seret isi sel salin &
-     pindah). Semuanya:
-       - TERSIMPAN PER PERANGKAT lewat pref, MATI secara bawaan;
-       - HANYA berlaku saat Mode Ubah menyala (lihat catatan `gesturHidup`);
-       - dibaca ulang lewat `EVENT_TAMPILAN_PERANGKAT_BERUBAH` — event yang
-         sama dengan freeze — supaya perubahan dari luar (mis. menu klik
-         kanan header yang hidup di portal) langsung berlaku tanpa reload.
-
-     Satu helper dipakai untuk semuanya karena bedanya cuma nama pref. */
   const [geserHeader, setGeserHeader] = useState(false);
   const [seretSalin, setSeretSalin] = useState(false);
   const [seretPindah, setSeretPindah] = useState(false);
@@ -600,32 +537,21 @@ export default function ExcelTable<T extends { id: string | number }>({
     },
     [tableKey],
   );
-  /* Menu klik-kanan header hidup di PORTAL, di luar pohon React grid —
-     karena itu perubahan dari sana harus lewat `kabariTampilanPerangkat`
-     supaya grid membaca ulang pref-nya sendiri. */
+
   const ubahGeserHeader = useCallback(
     (aktif: boolean) => ubahSakelarGestur(geserHeaderKey(tableKey), aktif, setGeserHeader),
     [ubahSakelarGestur, tableKey],
   );
 
-  /* Gestur HANYA hidup saat Mode Ubah menyala. Mode Ubah adalah gerbang
-     induk: manipulate tabel bisa merusak data, jadi tak boleh aktif dari
-     tabel yang sedang dibaca. Sakelar di dalam bilah Mode Ubah cuma memilih
-     JENIS gestur yang boleh hidup selama mode itu menyala — bukan
-     menyalakannya sendiri. */
   /** Gestur seret isi sel yang berlaku sekarang, atau null = tak ada.
    *
    *  Copy & Move EKSKLUSIF: cara gesture-nya sama persis (tekan-tahan blok
    *  lalu geser), yang membedakan cuma akibat akhirnya. Jadi satu mode
    *  aktif untuk dua-duanya — modifier (Ctrl/Cmd) tak lagi dipakai. */
   const modeSeret: ModeSeret | null = seretSalin ? 'salin' : (seretPindah ? 'pindah' : null);
-  /* "Tabel mengisi lebar": prop halaman = keadaan AWAL, pref perangkat
-     (gerigi Pengaturan tabel → Umum) menang bila sudah pernah diatur. */
+
   const isiLebarAktif = useIsiLebar(tableKey, isiLebarPenuh);
-  /* Geser judul kolom (menyusun ulang urutan) MATI saat tabel mengisi lebar:
-     di sana lebar kolom ditentukan rasio isi terhadap wadah, jadi menyusun
-     ulang kolom cuma mengacak rasio tanpa manfaat — dan menyeret judul
-     bertabrakan dengan niat menyeret lebar kolom. */
+
   const geserHeaderHidup = geserHeader && modeUbah && !isiLebarAktif;
   const seretIsiHidup = modeSeret !== null && modeUbah;
 
@@ -648,15 +574,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   visibleFieldsRef.current = visibleFields;
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  /* Kolom MENYUSUT (ganti preset/susunan kolom) = bahaya nyata: DSG membaca
-     `columns[selAktif.col + 1].disabled` saat merender SelectionRect. Bila
-     daftar kolom memendek sementara sel AKTIF masih menunjuk kolom di luar
-     daftar baru, pembacaan itu melempar TypeError dan SELURUH halaman jadi
-     blank (aplikasi ini tak punya error boundary). Karena itu grid di-remount
-     pada render yang SAMA saat jumlah kolom berkurang: perubahan state di
-     tengah render membuat React mengulang render `ExcelTable` sebelum commit,
-     sehingga instance DSG lama tak pernah dirender dengan kolom yang lebih
-     pendek. Bertambahnya kolom aman (indeks lama tetap ada). */
   const jumlahKolomLalu = useRef(visibleFields.length);
   const [generasiKolom, setGenerasiKolom] = useState(0);
   if (visibleFields.length < jumlahKolomLalu.current) {
@@ -664,17 +581,14 @@ export default function ExcelTable<T extends { id: string | number }>({
   }
   jumlahKolomLalu.current = visibleFields.length;
 
-  // Ukuran huruf efektif + font stack (dibaca hook lebar & render).
   const effectiveFont = fontPx ?? DEFAULT_FONT_PX;
-  // "keluarga|ketebalan"; bawaan = pakai font & ketebalan aplikasi.
+
   const fontChoice = FONT_OPTIONS.find((f) => f.value === fontFamily);
   const [fontStack, fontStackWeight] =
     fontChoice && fontChoice.value !== FONT_FAMILY_DEFAULT
       ? fontChoice.value.split('|')
       : ['', ''];
 
-  /* Seret judul kolom: hasil geser ditulis ke URUTAN yang sama dengan Kelola
-     Tabel (toolbar_preset.urutan), jadi kedua tempat selalu sinkron. */
   /** Tulis urutan hasil geser ke SUMBER YANG SEDANG AKTIF, supaya tabel dan
    *  Kelola Tabel selalu sinkron:
    *  - preset kolom bernama -> susunan `kolom` preset itu (tab Kolom);
@@ -694,14 +608,13 @@ export default function ExcelTable<T extends { id: string | number }>({
       if (presetIdAktif !== null && presetKeys !== null) {
         void updatePresetTabel(presetIdAktif, { kolom: urutan })
           .then(() => {
-            /* Perbarui susunan aktif tanpa muat ulang daftar: preset yang
-               sedang dipakai langsung memakai urutan barunya. */
+
             setPresetKeysDalam(urutan);
             kabariPreset(tableKey);
             kabariTampilanPerangkat(tableKey);
           })
           .catch((e: unknown) => toast.error(errorMessage(e)));
-        // Optimistis: tampilkan urutan baru seketika.
+
         setPresetKeysDalam(urutan);
         return;
       }
@@ -724,12 +637,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   const { status: statusSeret } = useSeretKolomHeader({
     terlihat: visibleFields.map((f) => f.key),
     wrapRef,
-    /* Geser judul kolom ikut Mode Ubah: menyusun ulang kolom mengubah isi
-       tabel, jadi tak boleh tersedia dari tabel yang sedang dibaca. */
+
     aktif: geserHeaderHidup,
     onPindah: simpanUrutanKolom,
   });
-
 
   (window as unknown as Record<string, number>).__rend = ((window as unknown as Record<string, number>).__rend ?? 0) + 1;
 
@@ -857,20 +768,6 @@ export default function ExcelTable<T extends { id: string | number }>({
       : Math.max(280, Math.min(640, Math.floor(window.innerHeight * 0.72))),
   );
 
-  // Tinggi grid mengikuti sisa ruang vertikal wrapper (flex-1 dari halaman).
-  // useLayoutEffect: diukur SEBELUM cat sehingga kartu tidak sempat tampil
-  // dengan tinggi tebakan awal lalu melompat ke tinggi asli. Observer tetap
-  // terpasang pada elemen wrapper yang sama (tidak perlu dipasang ulang saat
-  // loading/rows berubah) agar tinggi stabil saat pagination/refetch.
-  //
-  // Yang diukur wrapper-nya sendiri: wrapper mode isi-penuh memakai
-  // `min-h-0 flex-1` (tanpa lantai tinggi tetap) sehingga `clientHeight`-nya
-  // persis ruang tersedia. Dua jebakan yang membuat kartu melewati dasar panel
-  // (bagian bawah tabel terpotong/meluber ke bawah area aplikasi):
-  // (1) lantai `min-h-[280px]` menahan wrapper di 280 px saat panel resizable
-  // lebih pendek dari itu; (2) mengukur PARENT-nya (root ExcelTable) malah ikut
-  // menghitung bilah judul tabel (±28 px) yang bersaudara dengan wrapper —
-  // kartu jadi lebih tinggi dari ruangnya sebesar tinggi judul itu.
   useLayoutEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
@@ -884,32 +781,20 @@ export default function ExcelTable<T extends { id: string | number }>({
     return () => ro.disconnect();
   }, [tableKey]);
 
-
-  // Seleksi + range mengikuti data aktif. Hanya reset bila KUMPULAN ID berubah
-  // (bukan tiap identitas array rows baru, mis. hasil pencarian yang sama).
   const rowsSig = useMemo(() => rows.map((r) => String(r.id)).join('|'), [rows]);
   useEffect(() => {
     setCheckedIds(new Set());
     setRange(null);
   }, [rowsSig]);
 
-  // Kabarkan baris tercentang ke halaman (mis. daftar pilihan klasifikasi
-  // santri pada halaman siklus) tanpa harus mengelola centang sendiri.
   useEffect(() => {
     onCheckedChangeRef.current?.(rowsRef.current.filter((r) => checkedIds.has(r.id)));
   }, [checkedIds]);
 
-  // Preset kolom berganti → seleksi kolom lama tidak relevan lagi.
   useEffect(() => {
     setRange(null);
   }, [visibleFields]);
 
-  // Esc = langsung keluar dari mode Edit / mode Input (satu kali tekan), baik
-  // saat fokus di grid maupun di editor sel (input/select) — listener capture
-  // berjalan sebelum handler editor, lalu editor ikut ditutup komponennya.
-  // Dialog/dropdown yang sedang terbuka tetap dikecualikan agar Esc menutupnya;
-  // kotak filter di judul juga dikecualikan agar Esc saat mengetik tidak
-  // keluar dari mode Edit/Input.
   useEffect(() => {
     if (!((canEdit && modeUbah) || showInput)) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -924,7 +809,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     return () => document.removeEventListener('keydown', onKeyDown, true);
   }, [canEdit, modeUbah, showInput, setModeUbah, setInputMode]);
 
-  // Keluar dari mode Input → draft baris input dibuang (tidak tersimpan).
   useEffect(() => {
     if (showInput) return;
     setDrafts((prev) => {
@@ -935,7 +819,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     });
   }, [showInput]);
 
-  // Mode Input menyala → gulir grid ke baris input (paling bawah).
   useEffect(() => {
     if (!showInput) return;
     const raf = requestAnimationFrame(() => {
@@ -948,15 +831,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   /** Salin (Ctrl/Cmd+C) — listener capture, lihat useSalinClipboard. */
   useSalinClipboard({ wrapRef, rangeRef, teksSalinan, salinFisik });
 
-
-
-
-
-
-  /* Tinggi baris seragam, berlapis: tinggi dasar TABEL INI → slider global
-     (perangkat/standar bootloader, kini berarti "bawaan") → 24px. Kerapatan
-     tak lagi jadi sumber: nilai bakunya tetap, jadi Tabellen yang tak pernah
-     disetel seragam 24px apa pun mode kerapatan. */
   const effectiveH = tinggiBarisDasar ?? rowH ?? TINGGI_BARIS_BAWAAN;
 
   /** Tinggi satu baris grid: manual → ikut isi → dasar kerapatan. */
@@ -973,28 +847,14 @@ export default function ExcelTable<T extends { id: string | number }>({
     maxRows,
   });
 
-  // Tinggi header efektif (manual → terukur → bawaan). Dipakai untuk tinggi
-  // tabel kompak agar header yang membungkus 2 baris (judul panjang) ikut
-  // terhitung — dulu dipatok 1 baris sehingga tabel kompak kena scrollbar.
-  // Sakelar "Header kolom" ikut dihitung: kepala kolom yang dimatikan = tinggi
-  // 0 (bukan sekadar tak terlihat), agar tinggi di bawahnya tak menyisakan celah.
   const headerEfektifH = headerKolomTampil ? (headerH ?? headerAutoH ?? DEFAULT_HEADER_H) : 0;
-  // Tabel halaman (tanpa maxRows) mengisi penuh sisa tinggi wrapper sehingga
-  // kartu menutupi seluruh area vertikal. Tabel kompak ber-maxRows berhenti
-  // tepat di baris terakhir (+ baris input bila mode Input aktif); versi
-  // kompak yang kosong tetap tinggi layak agar pesan "Tidak ada …" terbaca.
+
   const barisIsi = Math.min(Math.max(rows.length, 1), maxRows ?? 0);
-  // Tabel kompak saat halaman masih memuat: tinggi placeholder DIPATOK pada
-  // batas maksimum (maxRows) dan tidak ikut berubah saat data tiap seksi tiba,
-  // supaya tabel di bawahnya tidak bergeser berkali-kali. Tinggi final
-  // diterapkan sekali saat muat selesai.
+
   const memuatKompak = loading && maxRows !== undefined;
   /** Tampilkan kerangka tabel (bukan grid) selama data belum siap. */
   const pakaiMemuat = memuatKompak || (loading && rows.length === 0);
-  // Tabel kompak TIDAK dibatasi `gridH`: tinggi wrapper kompak mengikuti isi
-  // kartu, sehingga memakai `gridH` sebagai batas menciptakan umpan balik yang
-  // membuat tinggi terpaku saat header membungkus (needed naik, gridH tertinggal
-  // → scrollbar). Kebutuhan sudah dibatasi `maxRows`.
+
   const gridHeight = maxRows === undefined
     ? gridH
     : memuatKompak
@@ -1003,8 +863,6 @@ export default function ExcelTable<T extends { id: string | number }>({
         ? 280
         : headerEfektifH + 1 + (barisIsi + (showInput ? 1 : 0)) * effectiveH;
 
-  // Simpan tinggi final tabel kompak untuk dipakai sebagai placeholder pada
-  // kunjungan berikutnya (tinggi placeholder = tinggi final → tanpa geseran).
   useEffect(() => {
     if (maxRows !== undefined && !loading && gridHeight > 0) {
       tinggiCache.set(tableKey, gridHeight);
@@ -1082,9 +940,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       out.push(g);
     }
     return out;
-    // `editing` disengaja TIDAK masuk deps: isi nilai grid tak bergantung mode
-    // Edit (hanya `disabled` sel yang bergantung — itu di `dsgColumns`).
-    // Tanpa ini tiap nyala/mati mode Edit membangun ulang seluruh nilai grid.
+
   }, [rows, drafts, checkedIds, fields, getValues, showInput, inputRowValues]);
 
   /** Urutan id kolom grid (termasuk centang & Aksi) — indeks seleksi DSG. */
@@ -1182,8 +1038,7 @@ export default function ExcelTable<T extends { id: string | number }>({
    */
   const sigRemount = `${sigTinggiBaris}|${sigTinggiBarisManual}`;
   const [sigAktif, setSigAktif] = useState(sigRemount);
-  // Remount tertunda = tanda baru belum dipakai DSG (masih menunggu debounce
-  // 120 ms) → gerbang lebar kolom menahan tampilan sampai remount selesai.
+
   remountTertundaRef.current = sigAktif !== sigRemount;
   const sigManualTerakhir = useRef(sigTinggiBarisManual);
   useEffect(() => {
@@ -1192,9 +1047,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       setSigAktif(sigRemount);
       return;
     }
-    // Selama gagang lebar diseret, JANGAN remount: remount memunculkan
-    // placeholder AutoFit sehingga lebar kolom terlihat melompat. Remount
-    // cukup dilakukan setelah gerakan selesai (ditunda 120 ms).
+
     if (sedangLebar) return;
     const t = setTimeout(() => setSigAktif(sigRemount), 120);
     return () => clearTimeout(t);
@@ -1218,8 +1071,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     const nc = new Set<T['id']>();
     for (const g of newValue) {
       const id = g.id as T['id'];
-      // Baris input: simpan semua nilai terisi sebagai draft; TIDAK ikut
-      // auto-save (penyimpanan lewat tombol simpan di kolom Aksi).
+
       if (String(g.id) === INPUT_ROW_ID) {
         const d: Record<string, string | null> = {};
         for (const f of fieldsRef.current) {
@@ -1244,7 +1096,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     setCheckedIds(nc);
     setDrafts(nd);
-    // Auto-save: setiap baris yang berubah langsung masuk antrean simpan.
+
     for (const [idKey, flds] of Object.entries(nd)) {
       if (idKey === INPUT_ROW_ID) continue;
       enqueueSave(idKey, flds);
@@ -1260,17 +1112,6 @@ export default function ExcelTable<T extends { id: string | number }>({
   handleChangeRef.current = handleChange;
   const handleChangeStable = useCallback((v: GridRow[]) => handleChangeRef.current(v), []);
 
-  /* Seret isi sel (klik-tahan → geser → lepas): seret biasa = tiru,
-     seret dengan Ctrl/Cmd ditekan = pindahkan.
-     WAJIB Mode Ubah menyala — potong & geser isi merusak data, jadi tak
-     boleh kepicu dari tabel yang sedang dibaca. Sakelar di Kelola Tabel →
-     Umum hanya menyalakan KETERSEDIAAN gesturnya, bukan meniadakannya.
-     Bawaannya MATI, sehingga tak ada listener yang terpasang sama sekali
-     sampai pengguna menyalakannya.
-     Nilai ditulis lewat `handleChangeStable` supaya SELURUH jalur biasa
-     tetap berlaku: draft → validasi kolom → antrean auto-save → rollback
-     bila gagal. Kolom non-editable (static) otomatis diabaikan `handleChange`
-     karena ia hanya membaca `editableKeys`. */
   /** Seleksi blok aktif; tanpa seleksi, sel aktif tunggal yang jadi sumber. */
   const seleksiSeret = useMemo<GridSelection | null>(() => {
     if (range !== null) return range;
@@ -1278,15 +1119,10 @@ export default function ExcelTable<T extends { id: string | number }>({
     if (!aktif) return null;
     return { min: { row: aktif.row, col: aktif.col }, max: { row: aktif.row, col: aktif.col } };
   }, [range]);
-  /* Mode Ubah: satu sakelar untuk seluruh tindakan yang mengubah tabel.
-     Temboloknya TETAP hidup di Mode Ubah — mengedit lewat kolom biasa
-     adalah inti dari mode ini; yang barunya adalah fitur manipulasi
-     (seret isi sel, dan apa pun yang menyusul) ikut memakai sakelar yang
-     sama, bukan gerbang sendiri-sendiri. */
+
   const terapkanSeretIsi = useCallback(
     (sumber: BlokIsi, target: BlokIsi, mode: ModeSeret) => {
-      /* Halaman dengan semantik sel sendiri (mis. matriks jadwal yang
-         isinya lewat dialog, bukan kolom biasa) memberi jalan sendiri. */
+
       const kunciKolom = kunciKolomGrid();
       if (onSeretIsi) {
         onSeretIsi({ mode, sumber, target, kunciKolom, rows: rowsRef.current });
@@ -1300,12 +1136,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     [onSeretIsi, handleChangeStable],
   );
   useSeretIsiSel(wrapRef, {
-    /* Gestur HANYA hidup di Mode Ubah DAN hanya untuk mode salin/pindah yang
-       sedang aktif. Tabel read-saja tetap boleh seret asal halaman memberi
-       `onSeretIsi` (mis. matriks jadwal: isinya ditulis lewat API, bukan
-       kolom biasa) — tetapi tetap harus menyalakan Mode Ubah dulu. Tanpa
-       itu, tabel tanpa kolom editable tak punya yang bisa ditulis — gestur
-       dimatikan agar tak pernah menghasilkan apa-apa. */
+
     aktif: seretIsiHidup,
     mode: modeSeret,
     bisaTulis: onSeretIsi !== undefined || (canEdit && editableKeys.length > 0),
@@ -1316,11 +1147,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     seleksi: seleksiSeret,
   });
 
-  /* Ctrl/Cmd+C & Ctrl/Cmd+V: jalur papan-ketik dari salin/tempel isi sel.
-     Hanya hidup saat Mode Ubah DAN halaman memakai fitur ini — tabel lain
-     tak terpengaruh, sehingga Ctrl+C tetap milik penyalin TSV dan Ctrl+V
-     tetap milik DSG. Sumber nilai selalu blok seleksi aktif, sama seperti
-     seret isi sel: tak ada "salin sel aktif" terpisah. */
   const salinTempelBlokHidup = modeUbah && (onSalinBlok !== undefined || onTempelBlok !== undefined);
   useSalinTempelBlok(wrapRef, {
     aktif: salinTempelBlokHidup,
@@ -1355,8 +1181,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       )];
       if (beku.length === 0) return;
       const batas = Math.max(...beku.map((c) => c.getBoundingClientRect().right));
-      // Area beku menutupi seluruh lebar tabel: tak ada kolom lain yang bisa
-      // dijadikan patok tanpa menggeser konten yang tetap tersembunyi.
+
       if (batas >= cont.getBoundingClientRect().right - 1) return;
       const kolomKiri: number[] = [];
       el.querySelectorAll<HTMLElement>('.dsg-row-header .dsg-cell').forEach((c) => {
@@ -1438,22 +1263,18 @@ export default function ExcelTable<T extends { id: string | number }>({
             grow: 0,
             shrink: 0,
             minWidth: CHECK_W,
-            // Baris input bukan data pengguna: tidak bisa dicentang.
-            // DSG memanggil `disabled` juga dari SelectionRect tanpa rowData
-            // (baris tak ditemukan) — jangan meledak, anggap bukan baris input.
+
             disabled: ({ rowData }: { rowData?: GridRow }) => String(rowData?.id) === INPUT_ROW_ID,
           },
         ];
     let idxData = 0;
     for (const f of visibleFields) {
       const iData = idxData++;
-      /* Indeks kolom versi DSG (kolom centang menambah satu di depan). Dipakai
-         SelectRadixCell untuk mengembalikan sel aktif ke grid setelah daftar
-         select ditutup. */
+
       const colDsg = cols.length;
       const bekuCls = iData < freezeAktif ? ' simpes-dsg-beku' : '';
       const tepiCls = iData === freezeAktif - 1 ? ' simpes-dsg-beku-tepi' : '';
-      // Tanpa kolom Aksi, kolom data terakhir yang menggambar tepi kanan tabel.
+
       const lastCls = sembunyiAksi && iData === visibleFields.length - 1 ? ' simpes-dsg-col-last' : '';
       const isInputRow = (rowData?: GridRow) => showInput && String(rowData?.id) === INPUT_ROW_ID;
       const common = {
@@ -1471,8 +1292,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                 : undefined
             }
             onAutoFit={onAutoFit}
-            /* Pegangan seret = seluruh area judul; hanya saat sakelarnya hidup
-               supaya klik judul biasa tak berubah perilakunya. */
+
             seretAktif={geserHeaderHidup}
             sedangDiseret={statusSeret?.dari === f.key}
           />
@@ -1482,9 +1302,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           bekuCls,
           tepiCls,
           lastCls,
-          /* Garis indikator sisip. Ditaruh di `headerClassName` (dipakai DSG
-             langsung saat render) — BUKAN di elemen `title`, karena judul
-             header DSG tidak dirender ulang saat state seret berubah. */
+
           statusSeret?.tanda?.indeks === iData
             ? statusSeret.tanda.sisi === 'kiri'
               ? ' simpes-dsg-sisip-kiri'
@@ -1493,9 +1311,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         ),
         basis: skalaIsi?.lebar[f.key]
           ?? widths[f.key] ?? autoWidths[f.key] ?? syncAutoWidths[f.key] ?? f.width ?? 150,
-        // Semua kolom fixed (grow 0): lebar hanya berubah saat digagang
-        // seret atau di-AutoFit, persis seperti Excel. Sisa ruang di kanan
-        // dibiarkan kosong, bukan dibagi ke kolom elastis.
+
         grow: 0,
         shrink: 0,
         minWidth: MIN_COL_W,
@@ -1513,11 +1329,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           ),
       };
       if (f.kind === 'static') {
-        // Static + inputKind: tetap baca-saja untuk baris data, tapi bisa
-        // diisi pada baris input (mode Input).
-        // `rowData` bisa undefined saat DSG merender SelectionRect (mis. seleksi
-        // melampaui baris terakhir) — dulu ini melempar TypeError dan memblokir
-        // seluruh halaman karena `disabled` ikut dipanggil di sana.
+
         const isInputOnly = (rowData?: GridRow) => String(rowData?.id) === INPUT_ROW_ID;
         if (f.inputKind === 'select') {
           cols.push({
@@ -1563,16 +1375,14 @@ export default function ExcelTable<T extends { id: string | number }>({
               fieldKey: f.key,
               render: f.renderCell,
               onClick: f.onCellClick,
-              /* Kartu hover menerima baris SUMBER yang digabung dengan nilai
-                 tampilan: data yang tak ditampilkan grid (mis. rincian periode
-                 mentah) tetap bisa dipakai tanpa menaruhnya di `getValues`. */
+
               kartuHover: f.kartuHover === undefined
                 ? undefined
                 : (grid: GridRow) => {
                   const sumber = rowsRef.current.find((r) => String(r.id) === String(grid.id));
                   return f.kartuHover!({ ...(sumber as unknown as GridRow), ...grid });
                 },
-              // Mode Input aktif: klik 2× tidak menyalakan Mode Ubah.
+
               onDblClick: () => {
                 if (!showInput) enableEditByDoubleClick();
               },
@@ -1590,9 +1400,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         const langsung = !!f.selectTanpaEdit;
         cols.push({
           ...common,
-          // Semua kolom select memakai Select Radix (panel ke portal, gaya
-          // sama dengan dropdown dialog). `<select>` native tersisa hanya untuk
-          // baris input mode Input (lihat `InputStaticSelectCell`).
+
           component: SelectRadixCell,
           columnData: {
             fieldKey: f.key,
@@ -1602,17 +1410,14 @@ export default function ExcelTable<T extends { id: string | number }>({
             choicesInput: typeof f.inputChoices === 'function'
               ? f.inputChoices(inputDraft ?? {})
               : (f.inputChoices ?? undefined),
-            /* Panel select Radix berada di luar grid (portal), jadi DSG menghapus
-               sel aktif saat opsi dipilih atau Escape ditekan. Sel dikembalikan
-               ke sini supaya navigasi panah/Enter tetap jalan. */
+
             fokuskanSel: (id: string | number) => {
               const r = rowsRef.current.findIndex((x) => String(x.id) === String(id));
               if (r < 0) return;
               gridRef.current?.setActiveCell({ col: colDsg, row: r });
             },
             onEnter: (col: number) => inputEnterRef.current(col),
-            // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
-            // input cukup buka editor sel).
+
             onDblClick: (id: string | number) => {
               if (langsung || showInput || String(id) === INPUT_ROW_ID) return;
               enableEditByDoubleClick();
@@ -1664,8 +1469,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             fieldKey: f.key,
             maxLength: f.maxLength,
             onEnter: (col: number) => inputEnterRef.current(col),
-            // Mode Input aktif: klik 2× tidak menyalakan mode Edit (baris
-            // input cukup buka editor sel).
+
             onDblClick: (id: string | number) => {
               if (!showInput && String(id) !== INPUT_ROW_ID) enableEditByDoubleClick();
             },
@@ -1688,9 +1492,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       }
     }
     return cols;
-    // `drafts` disengaja TIDAK masuk deps: satu-satunya yang dibaca dari state
-    // adalah draft BARIS INPUT (dropdown bertingkat, via `inputDraft`);
-    // ketikan edit baris data tak perlu membangun ulang definisi kolom.
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, visibleFields, editing, widths, autoWidths, syncAutoWidths, skalaIsi, showInput, freezeAktif, sembunyiCentang, labelKolom, alignEfektif, inputDraft]);
 
@@ -1709,7 +1511,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     gridRef,
   });
 
-
   /** Kolom Aksi = kolom "sticky kanan" DSG: selalu ter-render & menempel di
    *  kanan saat grid di-scroll horizontal (freeze pane sisi kanan). */
   const aksiColumn: Column<GridRow> = useMemo(() => ({
@@ -1719,8 +1520,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     grow: 0,
     shrink: 0,
     minWidth: ACTIONS_MIN_W,
-    // Kolom terakhir: garis kanan digambar di dalam sel (lihat index.css)
-    // karena box-shadow DSG terpotong oleh tepi area scroll.
+
     headerClassName: 'simpes-dsg-col-last',
     cellClassName: 'simpes-dsg-col-last simpes-dsg-col-aksi',
     component: ActionsCell,
@@ -1750,12 +1550,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     copyValue: () => null,
     pasteValue: ({ rowData }: { rowData: GridRow }) => rowData,
     isCellEmpty: () => true,
-    /* `visibleFields` WAJIB ada di daftar ini: dari sanalah URUTAN kolom yang
-       dirender berasal. Tanpa dependensi ini, mengubah urutan kolom (geser
-       judul di sini, atau sunting di Kelola Tabel) mengubah `visibleFields`
-       tetapi daftar `columns` tak pernah dihitung ulang — tabel tetap tampil
-       dengan urutan LAMA sampai halaman dimuat ulang, walau datanya sudah
-       benar tersimpan di server. */
+
   }), [widths, autoWidths, tableKey, aksiRingkas, aksiLangsung, visibleFields]);
 
   /** Interaksi sel: drag centang, toggle centang, tutup editor saat pindah sel. */
@@ -1774,8 +1569,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     for (const g of gridValue) m.set(String(g.id), g);
     return m;
   }, [gridValue]);
-  // Cermin untuk AutoFit DOM di hook lebar & salin blok di hook salin
-  // (dibaca saat event/ukur, bukan saat render).
+
   gridByIdRef.current = gridById;
   gridValueRef.current = gridValue;
 
@@ -1783,7 +1577,7 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  padding sel atau lapisan seleksi DSG yang tidak membawa `data-col-key`,
    *  jadi turunkan dari sel terdekat / elemen lain di titik pointer. */
   function cariSelPointer(e: React.MouseEvent): { rowEl: HTMLElement | null; colKey: string | null } {
-    // jsdom (tes) tidak menyediakan elementsFromPoint — cukup target event.
+
     const diTitik = typeof document.elementsFromPoint === 'function'
       ? document.elementsFromPoint(e.clientX, e.clientY)
       : [];
@@ -1808,9 +1602,7 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  menu (Radix maupun menu bawaan WebView). */
   function onGridContextMenu(e: React.MouseEvent) {
     const t = e.target as HTMLElement;
-    // "Corner button" ala Excel/PyQt (sel header gutter) punya menu sendiri:
-    // salin seluruh tabel. Diperiksa sebelum cabang header karena sel ini juga
-    // berkelas header tetapi tanpa `data-col-key` (jatuh ke "area kosong").
+
     if (diCornerButton(t)) {
       setCtx({ area: 'sudut' });
       return;
@@ -1827,12 +1619,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     }
     const { rowEl, colKey: colKeyBaris } = cariSelPointer(e);
     if (rowEl) {
-      // Indeks baris dibaca dari NOMOR GUTTER DSG (sel `.dsg-cell-gutter`
-      // berisi rowIndex+1) — selalu ada, bahkan saat hideCheckbox. Jangan
-      // pakai `style.top`: virtualizer DSG memakai `paddingStart =
-      // headerRowHeight`, jadi nilainya sudah termasuk tinggi header dan
-      // hasil baginya meleset sebesar tinggi header (baris terakhir bahkan
-      // jatuh di luar array). Fallback tetap dikurangi tinggi header.
+
       const nomor = Number.parseInt(rowEl.querySelector('.dsg-cell-gutter')?.textContent ?? '', 10);
       const top = Number.parseFloat(rowEl.style.top || '0') || 0;
       const idx = Number.isFinite(nomor)
@@ -1880,14 +1667,11 @@ export default function ExcelTable<T extends { id: string | number }>({
     () => filterToolbarTersedia({
       adaUrut: hasUrut,
       adaKolom: !hidePreset,
-      // "cari" & "keaktifan" menyusul: pencarian tabel & dropdown status
-      // belum jadi kontrol standar, jadi belum didaftarkan sebagai tersedia.
+
     }),
     [hasUrut, hidePreset],
   );
-  // Sakelar dari Kelola Tabel (`toolbar_preset.visibilitas`): absen/true =
-  // tampil, false = disembunyikan. Tabel yang belum pernah disetel berperilaku
-  // persis seperti sebelumnya.
+
   const aksiMassal = renderBulkActions && checkedRows.length > 0
     ? renderBulkActions(checkedRows, clearSelection)
     : null;
@@ -1900,7 +1684,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     || akhirToolbar !== undefined;
   const adaTombolAksi = addButton !== undefined && addButton !== null;
 
-  // — Sakelar komponen tabel (server, per tabel). Semua absen = tampil. —
   const judulTampil = komponenAktif(visibilitas, 'judul_tabel');
   const infoTengahTampil = infoHeader != null && komponenAktif(visibilitas, 'info_tengah');
   const filterTampil = hasFilter && komponenAktif(visibilitas, 'filter');
@@ -1911,10 +1694,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const pagerTampil = pager != null && komponenAktif(visibilitas, 'pager');
   const tombolPengaturanTampil = komponenAktif(visibilitas, 'tombol_pengaturan');
   const tombolTambahTampil = inputEnabled && komponenAktif(visibilitas, 'tombol_tambah');
-  /* Sakelar gestur yang digambar di ATAS bilah Mode Ubah.
-     Copy & Move sengaja dibuat dua checkbox yang saling mematikan, bukan
-     dua sakelar merdeka: gesturnya sama persis, yang beda cuma akibat akhirnya.
-     Dua-duanya boleh mati — itulah keadaan bawaan (tak ada seret isi sel). */
+
   const sakelarMode: SakelarMode[] = [
     {
       id: `sakelar_seret_salin_${tableKey}`,
@@ -1932,9 +1712,7 @@ export default function ExcelTable<T extends { id: string | number }>({
       checked: seretPindah,
       onCheckedChange: (nyala) => ubahSeretIsi('pindah', nyala),
     },
-    /* Susunan kolom tak bisa digeser saat lebar kolom dikendalikan rasio
-       `isiLebarPenuh` — sakelarnya disembunyikan, bukan dibiarkan mati
-       (sakelar yang tak berefek hanya membingungkan). */
+
     ...(isiLebarAktif ? [] : [{
       id: `sakelar_geser_judul_${tableKey}`,
       label: 'Geser judul kolom',
@@ -1954,13 +1732,10 @@ export default function ExcelTable<T extends { id: string | number }>({
   const adaBilahJudul = header !== undefined
     || adaKontrolJudul
     || adaTombolAksi
-    // `filter` yang dikirim halaman WAJIB ikut dihitung: tanpa ini tabel yang
-    // hanya punya filter (mis. Kamus Mapel) tak mendapat bilah judul sama
-    // sekali, sehingga kontrol filternya ikut tak pernah dirender.
+
     || hasFilter
     || filterTersedia.length > 0
-    // Info tabel duduk di bilah judul: tabel tanpa judul/kontrol tetap butuh
-    // bilah itu supaya tombol Info-nya bisa dijangkau.
+
     || htmlAdaIsi(infoHtmlDb);
   /** Bilah judul dirender selama masih ada SATU pun isinya. Mematikan seluruh
    *  komponennya membuat bilah judul hilang, bukan sisanya menggantung;
@@ -1979,12 +1754,7 @@ export default function ExcelTable<T extends { id: string | number }>({
     || tombolAksiTampil
     || tombolPengaturanTampil;
   const headerTampil = adaBilahJudul && isiBilahTampil;
-  /* Prioritas judul: isian pengguna (Kelola Tabel) → prop `header` halaman →
-     peta `judulTabel()` → kapitalisasi `table_key`. Isian pengguna sengaja
-     MENANG atas `header` — itu tujuan fiturnya, dan banyak halaman mengirim
-     judul dinamis (mis. "Daftar Santri (12)") yang boleh ditimpa. Kosong =
-     kembali ke rantai bawaan, jadi input yang dikosongkan tak pernah
-     menghasilkan bilah tanpa judul. */
+
   const judulHeader = judulDb?.trim() || header || judulTabel(tableKey);
   /** Kaki tabel dirender selama masih ada SATU pun komponennya. */
   const kakiTabelTampil = pagerTampil
@@ -2023,7 +1793,6 @@ export default function ExcelTable<T extends { id: string | number }>({
     infoHeader, inputEnabled, pager, rail,
   ]);
 
-  // Data context menu per area (header kolom / baris).
   const ctxHeader = ctx.area === 'header' ? ctx : null;
   const ctxRow = ctx.area === 'row' ? ctx : null;
   const ctxRowDomain = ctxRow
@@ -2037,8 +1806,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   const ctxHeaderLabel = ctxHeader
     ? labelKolom(ctxHeader.colKey, fieldsRef.current.find((f) => f.key === ctxHeader.colKey)?.label ?? ctxHeader.colKey)
     : '';
-  // Indeks kolom yang di-klik kanan pada daftar kolom tampil (untuk bekukan
-  // "sampai kolom ini"); -1 = kolom non-data (centang/Aksi).
+
   const ctxHeaderIdx = ctxHeader
     ? visibleFields.findIndex((f) => f.key === ctxHeader.colKey)
     : -1;
@@ -2060,7 +1828,7 @@ export default function ExcelTable<T extends { id: string | number }>({
         return blokSeleksi;
       }
     }
-    // Klik kanan langsung pada satu sel (tanpa blok) tetap bisa diisi.
+
     return susunBlok(rowIdx, rowIdx, colIdx, colIdx);
   })();
 
@@ -2102,12 +1870,6 @@ export default function ExcelTable<T extends { id: string | number }>({
           />
         ) : null}       </KonteksLebarFilter.Provider>
 
-      {/* Rel Tingkat/Kelas (bila `rail`): di kiri grid, tepat di bawah bar
-          judul tabel sehingga bagian atasnya sejajar judul kolom grid.
-          Label rel diberi tinggi header tabel efektif (`headerEfektifH`) agar
-          sejajar walau tinggi header diubah (pengaturan tabel) atau otomatis.
-          Tanpa `rail`, kontainer `contents` tidak mengubah tata letak.
-          `rel_filterTampil` = sakelar "Visibilitas bagian tabel" (server). */}
       <div className={cn(relFilterTampil ? 'flex min-h-0 flex-1' : 'contents')}>
         {relFilterTampil ? <FilterRail tinggiLabel={headerEfektifH} /> : null}
       <div
@@ -2127,46 +1889,31 @@ export default function ExcelTable<T extends { id: string | number }>({
         }}
         onClickCapture={toggleCheckByCell}
         className={cn(
-          // Grid full-bleed: menempel tepi kiri-kanan area konten (imbangi padding
-          // layout p-1) tanpa sudut membulat; judul tetap berpadding.
-          // `simpes-dsg-bleed` menandai keadaan itu untuk CSS: saat bleed, tepi
-          // kiri tabel ada di luar bingkai panel sehingga garisnya tetap perlu.
+
           'simpes-dsg relative flex min-w-0 flex-col',
-          // Bilah judul tabel di atas (JudulTabel) sudah menggambar `border-b`
-          // sebagai pemisah ke grid; `border-top` sel header tabel jatuh tepat
-          // 1px di bawahnya → dua garis berdempetan terbaca 2px. Penanda ini
-          // membuat CSS mematikan garis itu (index.css); tanpa bilah
-          // judul, `border-top` itu tetap jadi tepi atas tabel.
+
           headerTampil && 'simpes-dsg-bilah-judul',
           !headerTampil && '-mx-1 simpes-dsg-bleed',
-          // Tanpa lantai tinggi tetap: tinggi kartu sudah eksplisit
-          // (`gridHeight`), dan lantai 280 px lebih tinggi dari panel resizable
-          // membuat kartu beserta tabelnya meluber di bawah panel.
+
           maxRows === undefined ? 'min-h-0 flex-1' : 'shrink-0',
           !editing && 'simpes-dsg-readonly',
-          // Tinggi baris tetap → isi sel WAJIB satu baris + terpotong. Tanpa
-          // ini teks panjang membungkus lalu melimpah ke baris di bawahnya
-          // (tumpang tindih antar baris). Saat "baris ikut isi" menyala,
-          // pembungkusan dibiarkan karena barisnya memang tumbuh.
+
           barisIkutIsi ? 'simpes-dsg-baris-ikut-isi' : 'simpes-dsg-baris-tetap',
         )}
       >
-        {/* Kartu tabel setinggi gridHeight: tabel halaman mengisi penuh sisa
-            area vertikal, tabel kompak (maxRows) berhenti di baris terakhir. */}
+
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div
               className={cn(
                 'simpes-dsg-kartu relative flex flex-col overflow-hidden bg-card',
-                // Tabel kompak: haluskan perubahan tinggi placeholder → final.
+
                 maxRows !== undefined && 'transition-[height] duration-200 ease-out',
               )}
               style={{ height: gridHeight, visibility: tampilGrid ? undefined : 'hidden' }}
               onContextMenu={onGridContextMenu}
             >
-              {/* Bilah muat halus saat refetch (ganti halaman/filter): grid
-                  lama tetap terlihat, hanya bilah tipis di tepi atas yang
-                  bergerak — tanpa kerangka, tanpa kedip. */}
+
               {loading && rows.length > 0 && (
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden" aria-hidden="true">
                   <div className="simpes-muat-bar h-full bg-primary/70" />
@@ -2188,12 +1935,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                     rowKey="id"
                     height={gridHeight}
                     rowHeight={gridRowHeight}
-                    /* Sakelar "Header kolom" (visibilitas server): `headerRowHeight={0}`
-                       membuat react-datasheet-grid tak merender baris kepala
-                       kolom sama sekali. WAJIB lewat prop ini — DSG menggeser
-                       baris data sebesar `headerRowHeight`, jadi menyembunyikan
-                       kepala kolom lewat CSS hanya akan menyisakan celah di
-                       atas grid. */
+
                     headerRowHeight={headerKolomTampil
                       ? (headerH ?? headerAutoH ?? DEFAULT_HEADER_H)
                       : 0}
@@ -2212,9 +1954,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                   <p className="text-xs text-muted-foreground">{emptyText}</p>
                 </div>
               )}
-              {/* Bilah gulir melayang (pengganti scrollbar bawaan yang
-                  disembunyikan): menempel tepi kartu, grid menembus di
-                  bawahnya. Sembunyi sendiri bila tak ada luapan. */}
+
               <ScrollbarMelayang orientasi="vertikal" wadahRef={wrapRef} />
               <ScrollbarMelayang orientasi="horizontal" wadahRef={wrapRef} />
             </div>
@@ -2255,9 +1995,7 @@ export default function ExcelTable<T extends { id: string | number }>({
             onUbahBarisIkutIsi={setBarisIkutIsi}
             onResetTinggiBaris={(rowId) => {
               if (rowId === null) {
-                // "Seluruh tabel" = tinggi dasar tabel ini ikut kembali ke
-                // bawaan, bukan cuma tinggi manual per baris (sisa setelan
-                // lama yang tersimpan sebelum seret batas baris dihapus).
+
                 resetSemuaTinggiBaris();
                 setTinggiBarisDasar(null);
               } else {
@@ -2271,11 +2009,6 @@ export default function ExcelTable<T extends { id: string | number }>({
           />
         </ContextMenu>
 
-        {/* Penanda mode (Ubah/Input) melayang di kanan bawah area tabel —
-            menandai mode aktif + tombol keluar tanpa memakan ruang layout.
-            Di atas penanda Mode Ubah ada sakelar gestur: hanya hidup saat
-            mode itu menyala, jadi "apa yang boleh dimanipulasi sekarang"
-            terbaca satu mata. */}
         {(modeUbah || showInput) && (
           <div className="absolute right-3 bottom-3 z-20 flex flex-wrap items-end justify-end gap-1.5">
             {modeUbah && (
@@ -2288,8 +2021,7 @@ export default function ExcelTable<T extends { id: string | number }>({
                 petunjuk={(canEdit
                   ? 'Sel tanpa garis bawah = bisa diedit. Centang gestur di atas untuk menyalakan seret isi sel atau geser judul kolom.'
                   : 'Sel tetap dibaca. Centang gestur di atas untuk menyalakan seret isi sel atau geser judul kolom.')
-                  /* Papan-ketik salin/tempel hanya bermakna bila halaman
-                     memakainya; tanpa prop-nya, kalimat ini menipu. */
+
                   + (salinTempelBlokHidup
                     ? ' Pilih blok sel lalu Ctrl/Cmd+C untuk menyalin dan Ctrl/Cmd+V untuk menempel.'
                     : '')
@@ -2312,17 +2044,12 @@ export default function ExcelTable<T extends { id: string | number }>({
           </div>
         )}
 
-        {/* Placeholder saat gerbang lebar menahan grid. Hanya bila BELUM ada
-            data (muat awal) atau gerbang macet >800ms (kasus langka: semua
-            kolom memang ~100px) — jendela flash remount (~2 bingkai) cukup
-            ditutup kartu kosong seukuran, tanpa kerangka yang berkedip. */}
         {!tampilGrid && (rows.length === 0 || gateLama) && (
           <div className="absolute inset-0 z-10" aria-hidden="true">
             <TabelMemuat rowH={effectiveH} />
           </div>
         )}
 
-        {/* Konfirmasi hapus dari context menu baris (pola sama ActionsCell). */}
         <AlertDialog open={ctxKonfirmasi !== null} onOpenChange={(o) => { if (!o) setCtxKonfirmasi(null); }}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -2346,17 +2073,10 @@ export default function ExcelTable<T extends { id: string | number }>({
       </div>
       </div>
 
-      {/* Kaki tabel: kontrol paginasi (bila ada) sebaris dengan tombol ikon
-          mode (tambah baris / edit).
-          Tiap komponen punya sakelar sendiri ("Visibilitas komponen tabel" di
-          tab Umum Kelola Tabel, server per tabel); blok ini hilang kalau tak
-          satu pun komponennya menyala. Gerigi "Pengaturan tabel ini" tak ada
-          di sini lagi — ia pindah ke ujung kanan bilah judul. */}
       {kakiTabelTampil ? (
       <div data-part="kaki_tabel" className="mt-0 flex shrink-0 items-center gap-0">
         {pagerTampil && pager ? <div className="min-w-0 flex-1">{pager}</div> : <div className="flex-1" />}
-        {/* Grup aksi (tambah baris / edit): bingkai menyatu — garis dalam
-            dibagi seperti kelompok jumlah baris di pager. */}
+
         <div data-part="grup_aksi" className="flex items-center">
           {tombolTambahTampil && !showInput && (
             <Button
@@ -2388,7 +2108,6 @@ export default function ExcelTable<T extends { id: string | number }>({
       </div>
       ) : null}
 
-      {/* Dialog pengaturan tabel ini: kolom, urutan, toolbar, dan filter. */}
       {visHalaman?.registrasi ? (
         <DialogKelolaTabel
           open={kelolaTabelOpen}
@@ -2397,9 +2116,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           judul={judulHeader}
           fields={fields}
           infoKomponen={infoKomponen}
-          /* Panel menyetel tabel yang SEDANG dilihat: biarkan tabelnya tetap
-             tampak & hidup di belakang supaya hasil setelannya langsung
-             terlihat. Dari topBar tetap modal (tabelnya tidak di belakang). */
+
           nonModal
         />
       ) : null}

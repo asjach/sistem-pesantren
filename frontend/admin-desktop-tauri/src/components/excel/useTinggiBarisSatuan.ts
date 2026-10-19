@@ -74,9 +74,7 @@ export function useTinggiBarisSatuan({
       const kunciGaya = `${effectiveFont}|${effectiveH}`;
       if (gayaRef.current.kunci !== kunciGaya || gayaRef.current.gaya === null) {
         const gaya = wrapRef.current ? getComputedStyle(wrapRef.current) : null;
-        // Faktor warisan dari elemen yang sama tempat line-height dihitung
-        // (line-height unitless 1.45 terhitung jadi px) — bukan dari
-        // effectiveFont yang basisnya beda (font body vs font tabel).
+
         let faktorBaris = 1.45;
         let padX = 16;
         try {
@@ -95,7 +93,7 @@ export function useTinggiBarisSatuan({
             padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
           }
         } catch {
-          // Gagal baca DOM → pakai bawaan aman di atas.
+
         }
         gayaRef.current = { kunci: kunciGaya, gaya, faktorBaris, padX };
       }
@@ -138,7 +136,7 @@ export function useTinggiBarisSatuan({
       cacheTinggiBaris.current.set(sig, tinggi);
       return tinggi;
     } catch {
-      // Pengukuran gagal (mis. DOM belum siap) → tinggi dasar.
+
       return effectiveH;
     }
   }, [tinggiBarisManual, barisIkutIsi, maxRows, effectiveH, effectiveFont, visibleFields, widths, autoWidths, syncAutoWidths, wrapRef]);

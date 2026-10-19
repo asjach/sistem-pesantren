@@ -47,13 +47,13 @@ const namaRule = (v: string | null) =>
 const FIELDS: ExcelField[] = [
   {
     key: 'nama', label: 'nama', width: 160, kind: 'text', maxLength: 50,
-    
+
     required: true,
     validate: namaRule,
   },
   {
     key: 'mulai', label: 'tanggal_mulai', width: 130, kind: 'text', maxLength: 10,
-    
+
     validate: dateRule('Tanggal mulai'),
   },
   {
@@ -110,7 +110,7 @@ export default function TahunAjaranPage() {
     ambil: (a) => listTahunAjaran({
       search: a.search || undefined,
       jenjang: jenjangs,
-      // TA tersembunyi ikut dimuat agar bisa ditampilkan kembali.
+
       termasuk_nonaktif: jenjangs.length > 0,
       sort: a.urut.length ? a.urut : undefined,
 
@@ -121,9 +121,7 @@ export default function TahunAjaranPage() {
     }),
     deps: [jenjangs],
   });
-  // `goFirst` beridentitas stabil (useCallback per tableKey) — dipakai terpisah
-  // agar callback di bawah tak perlu menyandang objek `pager` (identitas baru
-  // tiap render).
+
   const { goFirst } = pager;
 
   const [nama, setNama] = useState('');
@@ -145,7 +143,6 @@ export default function TahunAjaranPage() {
 
   const bolehSembunyi = !bolehKelola && lembagaAksi !== null;
 
-  // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Tahun Ajaran").
   usePintasanBaru({
     kunci: 'n',
     aktif: bolehKelola,

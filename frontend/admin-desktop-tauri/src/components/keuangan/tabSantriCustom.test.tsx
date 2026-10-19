@@ -7,7 +7,6 @@ import { TopBarSearchProvider, useTopBarSearchCtx } from '@/components/TopBarSea
 import { CariGlobalProvider } from '@/hooks/useCariGlobal';
 import { renderDenganTema } from '@/test/utils';
 
-/* API dimock: grup + santri + kelas + referensi tanpa jaringan. */
 const api = vi.hoisted(() => ({
   daftar: vi.fn(),
   buat: vi.fn(),
@@ -110,8 +109,6 @@ beforeEach(() => {
   api.ref.mockResolvedValue([{ id: 1, nama: '3', is_active: true, urutan: 3 }]);
 });
 
-/* ExcelTable memvirtualkan baris berdasar tinggi wadah — wadah eksplisit.
- *  TopBarSearch dipasang ke slot tiruan (di app nyata dipasang TopBar). */
 function SlotCari() {
   const ctx = useTopBarSearchCtx();
   return <div ref={(el) => ctx?.setEl(el)} />;
@@ -142,7 +139,7 @@ describe('SantriCustomTab', () => {
     expect(document.getElementById('filter_rail_tingkat_kelas')).not.toBeNull();
     expect(document.getElementById('sel_sc_tingkat')).toBeNull();
     expect(document.getElementById('sel_sc_kelas')).toBeNull();
-    // Cari lokal dihapus: pencarian lewat topBar (input_cari_topbar).
+
     expect(document.getElementById('inp_grup_custom_cari')).toBeNull();
     expect(document.getElementById('input_cari_topbar')).not.toBeNull();
   });
@@ -210,16 +207,14 @@ describe('SantriCustomTab', () => {
     const kotak = await waitFor(() => document.getElementById('input_cari_topbar') as HTMLInputElement);
     await waitFor(() => expect(document.getElementById('row_grup_custom_1')).not.toBeNull());
 
-    // Ketik "olim" (dari keterangan Olimpiade).
     fireEvent.change(kotak, { target: { value: 'olim' } });
-    // Grup tetap tampil (cocok keterangan); santri diminta dengan q.
+
     await waitFor(() => expect(document.getElementById('row_grup_custom_1')).not.toBeNull());
     await waitFor(() => {
       const terakhir = api.santri.mock.calls.at(-1)?.[0] as Record<string, unknown>;
       expect(terakhir).toMatchObject({ q: 'olim' });
     });
 
-    // Ketik yang tak cocok → grup hilang dari tabel.
     fireEvent.change(kotak, { target: { value: 'olimzzz' } });
     await waitFor(() => expect(document.getElementById('row_grup_custom_1')).toBeNull());
     expect(document.body.textContent).toContain('0 dari 1');
@@ -231,18 +226,15 @@ describe('SantriCustomTab', () => {
     renderTab();
     await waitFor(() => expect(document.getElementById('judul_grup_custom')).not.toBeNull());
 
-    // Buka popover: lingkup mengikuti topBar, isian kosong.
     fireEvent.click(document.getElementById('btn_grup_custom_tambah') as HTMLElement);
     expect(await screen.findByText('Lingkup: MI · 2025/2026')).not.toBeNull();
     const nama = document.getElementById('inp_grup_custom_nama') as HTMLInputElement;
     expect(nama.value).toBe('');
 
-    // Simpan kosong → galat inline, tanpa request.
     fireEvent.click(document.getElementById('btn_grup_custom_simpan') as HTMLElement);
     expect(await screen.findByText('Nama grup wajib diisi.')).not.toBeNull();
     expect(api.buat).not.toHaveBeenCalled();
 
-    // Isi + simpan → API dipanggil dengan lingkup topBar, daftar dimuat ulang.
     fireEvent.change(nama, { target: { value: 'Ekskul MTK' } });
     fireEvent.change(document.getElementById('inp_grup_custom_keterangan') as HTMLInputElement, { target: { value: 'Olimpiade' } });
     fireEvent.click(document.getElementById('btn_grup_custom_simpan') as HTMLElement);

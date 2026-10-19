@@ -38,8 +38,7 @@ export default function MultiSelect({
   const toggle = (value: string) => {
     onChange(values.includes(value) ? values.filter((v) => v !== value) : [...values, value]);
   };
-  // Default: bila pilihan hanya satu, nilainya dipakai otomatis — pengguna tak
-  // perlu membukanya dulu. Hanya saat belum ada nilai & tidak nonaktif.
+
   const opsi = options.map((o) => o.value).join('|');
   useEffect(() => {
     if (disabled || values.length > 0 || options.length !== 1) return;
@@ -92,8 +91,7 @@ export default function MultiSelect({
               ) : null}
               <span className="min-w-0 flex-1 truncate">{o.label}</span>
               {terpilih && onMove ? (
-                /* Toolbar geser: tiap tombol sudah stopPropagation sendiri,
-                   jadi tahan klik tak perlu ditaruh di pembungkus. */
+
                 <span
                   role="toolbar"
                   aria-label={`Urutan ${o.label}`}

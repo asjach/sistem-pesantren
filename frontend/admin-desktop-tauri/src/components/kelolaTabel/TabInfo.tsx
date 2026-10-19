@@ -56,8 +56,7 @@ export default function TabInfo({ tableKey }: { tableKey: string }) {
       setHtml(server);
       setGagalMuat(false);
     } catch {
-      // Jangan biarkan editor kosong bisa disimpan: itu akan MENGHAPUS info
-      // yang sudah ada hanya karena muat gagal sesaat.
+
       setGagalMuat(true);
     } finally {
       setMemuat(false);
@@ -66,14 +65,12 @@ export default function TabInfo({ tableKey }: { tableKey: string }) {
 
   useEffect(() => {
     void muat();
-    // Salinan array penunggu diambil saat efek berjalan: array ini hanya
-    // dimutasi (push/splice), tak pernah diganti, jadi pemakaian di cleanup
-    // tetap melihat daftar penunggu terkini.
+
     const tunggu = tungguRef.current;
     return () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       timerRef.current = null;
-      // Lepaskan penunggu agar janji `simpanTertunda` tak menggantung.
+
       for (const selesai of tunggu.splice(0)) selesai(false);
     };
   }, [muat]);
@@ -85,12 +82,11 @@ export default function TabInfo({ tableKey }: { tableKey: string }) {
       return false;
     }
     try {
-      // `''` = hapus info (backend menyimpannya NULL → tombol Info hilang).
+
       await simpanToolbarPreset(tableKey, undefined, undefined, undefined, undefined, undefined, dikirim);
       acuanRef.current = dikirim;
       kabariToolbar(tableKey);
-      // Ketikan yang masuk saat permintaan berjalan belum ikut tersimpan:
-      // biarkan tetap "kotor" supaya cangkang menjadwalkan penyimpanan lagi.
+
       laporKotorRef.current(htmlRef.current !== dikirim);
       return true;
     } catch (e) {
@@ -137,7 +133,7 @@ export default function TabInfo({ tableKey }: { tableKey: string }) {
   }
 
   return (
-    /* `flex-1 min-h-0`: wadah editor ikut mengisi sisa tinggi tab. */
+
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <InfoEditor nilai={html} onUbah={setHtml} />
     </div>

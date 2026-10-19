@@ -135,7 +135,7 @@ describe('HalamanTabs — Data Induk', () => {
     ]);
     expect(screen.getByRole('tab', { name: 'Kelas' })).toHaveAttribute('data-state', 'active');
     expect(screen.getByText('ISI KELAS')).toBeInTheDocument();
-    // Id elemen snake_case (NFR-05).
+
     expect(screen.getByRole('tab', { name: 'Tahun Ajaran' })).toHaveAttribute(
       'id',
       'tab_data_induk_tahun_ajaran',
@@ -298,7 +298,6 @@ describe('HalamanTabs — urutan dari server', () => {
     server.peta = { data_induk: { page_key: 'data_induk', urutan: ['/kelas', '/referensi'], sembunyi: [] } };
     render(<Halaman path="/kelas" />);
 
-    // Dua rute diatur lebih dulu; sisanya menyusul menurut urutan kode.
     await waitFor(() => {
       expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
         'Kelas',

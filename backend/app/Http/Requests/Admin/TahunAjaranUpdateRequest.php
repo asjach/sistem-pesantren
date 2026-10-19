@@ -15,7 +15,7 @@ class TahunAjaranUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // `nama` = kunci baris yang diubah; `nama_baru` opsional untuk rename.
+
             'nama' => ['required', 'string', 'max:50'],
             'nama_baru' => ['nullable', 'string', 'max:50', 'regex:'.TahunAjaran::POLA],
             'tanggal_mulai' => ['nullable', 'date'],

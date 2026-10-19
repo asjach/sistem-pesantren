@@ -38,8 +38,6 @@ describe('SelectCell — opsi pertama harus benar-benar bisa dipilih', () => {
   it('sel kosong diawali opsi petunjuk, bukan opsi pertama yang "sudah terpilih"', () => {
     const { select } = renderSel({ jenis: '' });
 
-    // Tanpa opsi kosong, browser menampilkan opsi pertama seolah terpilih
-    // padahal nilainya tak cocok — klik pertama jadi tak menghasilkan apa-apa.
     expect(select.value).toBe('');
     expect(select.options).toHaveLength(PILIHAN.length + 1);
     expect(select.options[0].value).toBe('');
@@ -63,7 +61,6 @@ describe('SelectCell — opsi pertama harus benar-benar bisa dipilih', () => {
       { choicesInput: [{ value: '7', label: 'Daftar Ulang' }] },
     );
 
-    // `choicesInput` menggantikan `choices` di baris input: petunjuk + 1 pilihan.
     expect(select.options).toHaveLength(2);
     expect(select.options[0].textContent).toBe('Pilih…');
     expect(select.options[1].textContent).toBe('Daftar Ulang');
@@ -86,7 +83,7 @@ describe('SelectCell — opsi pertama harus benar-benar bisa dipilih', () => {
     expect(select.value).toBe('');
     expect(select.options[0].textContent).toBe('9');
     expect(select.options[0].disabled).toBe(true);
-    // Pilihan sah berikutnya tetap satu langkah dari nilai lama.
+
     expect(select.options[1].value).toBe('1');
   });
 

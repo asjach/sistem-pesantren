@@ -54,7 +54,7 @@ class NamaBerkasDokumenTest extends TestCase
             'ahmad_santri_kartu_keluarga_20260115_093012.pdf',
             NamaBerkasDokumen::buat('Ahmad', 'santri', 'Kartu Keluarga', 'pdf', $waktu),
         );
-        // Catatan kosong -> segmennya dilewati, bukan jadi '__'.
+
         $this->assertSame(
             'ahmad_santri_20260115_093012.pdf',
             NamaBerkasDokumen::buat('Ahmad', 'santri', '', 'pdf', $waktu),
@@ -79,7 +79,7 @@ class NamaBerkasDokumenTest extends TestCase
         $this->assertSame('dokumen/santri', NamaBerkasDokumen::direktori('santri'));
         $this->assertSame('dokumen/pegawai', NamaBerkasDokumen::direktori('pegawai'));
         $this->assertSame('dokumen/lembaga', NamaBerkasDokumen::direktori('lembaga'));
-        // `$lokasi` sengaja tak berpengaruh sejak unifikasi storage.
+
         $this->assertSame(
             NamaBerkasDokumen::direktori('santri'),
             NamaBerkasDokumen::direktori('santri', 'lokal'),
@@ -143,8 +143,6 @@ class NamaBerkasDokumenTest extends TestCase
         $this->assertNull(NamaBerkasDokumen::jalur('santri', '..'));
         $this->assertNull(NamaBerkasDokumen::jalur('santri', '/'));
     }
-
-    // --- bagian 3: unik() dengan storage palsu ---
 
     /** Siapkan disk 'uji' berisi nama-nama tertentu. */
     private function diskDengan(array $isi, string $direktori = 'dokumen/santri'): void

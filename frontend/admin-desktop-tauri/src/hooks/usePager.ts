@@ -77,8 +77,7 @@ export function usePager(tableKey: string) {
       prefGet(`simpes_page_${tableKey}`),
       prefGet(KUNCI_PERPAGE_GLOBAL),
       prefGet(kunciPerpageLama(tableKey)),
-      /* Standar server: kegagalan diperlakukan sebagai "tidak ada standar"
-         supaya tabel tetap jalan dengan nilai perangkat/bawaan. */
+
       muatPengaturanGlobal()
         .then((r) => r.data.peta)
         .catch(() => ({} as PetaGlobal)),
@@ -87,10 +86,7 @@ export function usePager(tableKey: string) {
         if (!alive) return;
         const pn = Number(p);
         setPageState(Number.isFinite(pn) && pn >= 1 ? Math.floor(pn) : 1);
-        /* BERTINGKAT: perangkat menang bila sudah pernah diubah; standar server
-           mengisi saat belum. Bila belum ada (pengguna lama), angkat nilai
-           warisan per-tabel jadi perangkat sekali-jalan supaya pengaturan yang
-           sudah ada tidak hilang diam-diam - dan itu MENANG atas standar. */
+
         let perangkat = cobaPerPage(ppGlobal);
         if (perangkat === null) {
           perangkat = cobaPerPage(ppLama);
@@ -134,7 +130,7 @@ export function usePager(tableKey: string) {
   const setPerPage = useCallback(
     (pp: PerPage) => {
       // Tulis global + siarkan; listener di atas (termasuk milik sendiri)
-      // menyelaraskan state — React mengabaikan nilai yang sama.
+
       const next = tulisPerPageGlobal(pp);
       setPerPageState(next);
       setPageState(1);

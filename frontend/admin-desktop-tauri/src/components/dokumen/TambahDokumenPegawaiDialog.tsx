@@ -59,7 +59,6 @@ export default function TambahDokumenPegawaiDialog({
   const desktop = isTauri();
   const { jenjangs, loading: filterLoading } = useFilterGlobalAktif();
 
-  // ----- Pemilik terkunci dari halaman pemanggil -----
   const pegawaiId = pemilik.id;
   const pegawaiTerpilih = useMemo(
     () => ({ id: pemilik.id, nama_lengkap: pemilik.namaLengkap, nipp: pemilik.nipp }),
@@ -68,7 +67,6 @@ export default function TambahDokumenPegawaiDialog({
   /** Penempatan aktif pegawai = opsi field Lembaga (wajib). */
   const penempatanAktif = pemilik.penempatanAktif;
 
-  // ----- Jenis dokumen (ref; tanpa filter = semua lembaga) -----
   const [jenisRows, setJenisRows] = useState<ReferensiRow[]>([]);
   useEffect(() => {
     if (filterLoading) { setJenisRows([]); return; }
@@ -76,7 +74,7 @@ export default function TambahDokumenPegawaiDialog({
     referensiList('jenis_dokumen_pegawai', jenjangs.length ? jenjangs : undefined)
       .then((r) => {
         if (!hidup) return;
-        // Mode "Semua" menggabung baris per lembaga — dedupe per nama.
+
         const lihat = new Set<string>();
         setJenisRows(r.filter((x) => {
           const kunci = String(x.nama ?? x.kode).trim().toLowerCase();
@@ -140,7 +138,6 @@ export default function TambahDokumenPegawaiDialog({
     return () => { hidup = false; };
   }, [pegawaiId, muatJumlahJenis]);
 
-  // ----- Berkas: sumber byte + path asli (desktop, untuk sudah) -----
   const [sumberBerkas, setSumberBerkas] = useState<SumberBerkas | null>(null);
   const [berkasPath, setBerkasPath] = useState<string | null>(null);
   const [keluaran, setKeluaran] = useState<HasilGambar | null>(null);
@@ -196,11 +193,10 @@ export default function TambahDokumenPegawaiDialog({
     }
   }
 
-  // ----- Opsi pasca-simpan -----
   const [inputLainnya, setInputLainnya] = useState(true);
   const [pindahSudah, setPindahSudah] = useState(true);
   const [busy, setBusy] = useState(false);
-  // Mode penyimpanan perangkat (diatur di Pengaturan → Server; hanya dibaca).
+
   const [modeDokumen, setModeDokumen] = useState<'server' | 'lokal' | 'test'>('server');
   const [folderArsip, setFolderArsip] = useState('');
   const [folderArsipTest, setFolderArsipTest] = useState('');
@@ -209,8 +205,6 @@ export default function TambahDokumenPegawaiDialog({
   /** Mode test = perilaku lokal ke folder uji; folder `sudah/` tidak disentuh saat test. */
   const modeTest = desktop && modeDokumen === 'test';
 
-  // Persistensi setelan perangkat (pola pager/sidebar). Checkbox "input
-  // dokumen lainnya" & "pindah ke SUDAH" sengaja tak disimpan: selalu true.
   useEffect(() => {
     let hidup = true;
     (async () => {
@@ -225,7 +219,7 @@ export default function TambahDokumenPegawaiDialog({
         if (typeof f === 'string') setFolderArsip(f);
         if (typeof ft === 'string') setFolderArsipTest(ft);
       } catch {
-        /* penyimpanan terkunci: pakai bawaan */
+
       }
     })();
     return () => { hidup = false; };
@@ -249,7 +243,7 @@ export default function TambahDokumenPegawaiDialog({
     setBusy(true);
     try {
       if (modeEfektif === 'lokal') {
-        // Mode lokal/test: metadata + cadangan nama ke server, byte hanya di drive.
+
         const tersimpan = await simpanDokumen('pegawai', {
           pegawai_id: pegawaiId,
           jenjang: jenjangDok,
@@ -281,7 +275,7 @@ export default function TambahDokumenPegawaiDialog({
           toast.success('Dokumen disimpan (lokal).');
         }
       } else {
-        // Mode server: byte (hasil edisi bila ada) ke server.
+
         const fileUp = new File(
           [keluaran.bytes.buffer as ArrayBuffer],
           gantiEkstensi(sumberBerkas.nama, keluaran.ext),
@@ -305,10 +299,10 @@ export default function TambahDokumenPegawaiDialog({
           toast.success('Dokumen disimpan.');
         }
       }
-      // Angka jenis dokumen langsung terupdate tanpa ganti pegawai.
+
       void muatJumlahJenis(pegawaiId).then(setJumlahJenis);
       void muatJumlahPegawai().then(setJumlahPegawai);
-      // Reset form (pilihan pegawai + lembaga penempatan + checkbox dipertahankan).
+
       setJenis('');
       setCatatan('');
       resetBerkas();
@@ -323,10 +317,7 @@ export default function TambahDokumenPegawaiDialog({
 
   return (
     <Dialog open={terbuka} onOpenChange={(o) => { if (!o && !busy) onTutup(); }}>
-      {/* Close bawaan (absolute top-4 right-4) disembunyikan: pada dialog
-          selayar penuh ia menimpa judul. Dipasang sendiri sebaris judul. */}
-      {/* ESC menutup dialog lewat onOpenChange; onEscapeKeyDown mencegah
-          penutupan saat proses simpan berjalan agar data tak hilang sendiri. */}
+
       <DialogContent
         showCloseButton={false}
         onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
@@ -341,7 +332,7 @@ export default function TambahDokumenPegawaiDialog({
         </DialogHeader>
         <div className={cn(PAGE_SHELL, 'min-h-0 overflow-y-auto p-0')}>
       <ResizablePanelGroup orientation="horizontal" id="grup_tambah_dokumen_pegawai" className="min-h-0 flex-1 overflow-hidden">
-        {/* Kolom 1: form (400px, bisa digeser). */}
+
         <ResizablePanel defaultSize={400} minSize={300} maxSize="70%" id="panel_tambah_dokumen_pegawai_form" className="min-h-0">
           <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-xl border bg-card p-4">
           <div className="flex flex-col gap-1.5">
@@ -468,7 +459,7 @@ export default function TambahDokumenPegawaiDialog({
           </div>
         </ResizablePanel>
         <ResizableHandle withHandle orientation="horizontal" id="gagang_tambah_dokumen_pegawai" aria-label="Atur lebar kolom form dan pratinjau" />
-        {/* Kolom 2: viewer (sisa). */}
+
         <ResizablePanel minSize="25%" id="panel_tambah_dokumen_pegawai_pratinjau" className="min-h-0 min-w-0">
           <PenampilBerkas sumber={sumberBerkas} kualitas="asli" onKeluaran={setKeluaran} onProses={setProsesViewer} idPrefix="tambah_dokumen_pegawai" />
         </ResizablePanel>

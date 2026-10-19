@@ -17,8 +17,8 @@ return new class extends Migration
             $table->foreignId('pegawai_id')->constrained('pegawai')->cascadeOnDelete();
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->string('tugas_utama')->nullable(); // ref_tugas_utama (diisi eksplisit dari kamus)
-            $table->string('no_sk_awal_ptk', 100)->nullable(); // SK awal per jenjang
+            $table->string('tugas_utama')->nullable();
+            $table->string('no_sk_awal_ptk', 100)->nullable();
             $table->date('tgl_sk_awal_ptk')->nullable();
             $table->enum('is_active_lembaga', ['Ya', 'Tidak'])->default('Ya');
             $table->date('tgl_masuk')->nullable();

@@ -120,10 +120,7 @@ function blokBagian(scope: string, id: PartId, g?: PartGaya, w?: PartWarna): str
   const root = `${scope} :is(${meta.sel})`;
   let css = `${root}{${[...permukaan, ...teks].join(';')}}\n`;
   if (teks.length) {
-    // Keturunan: kecuali elemen yang merupakan akar bagian LAIN — supaya bagian
-    // bersarang tidak saling timpa (mis. tab di dalam ribbon). Hanya elemen akar
-    // yang dikecualikan (bukan seluruh isinya) agar gaya teks bagian induk tetap
-    // turun ke anak-anaknya; setelan anak (ditulis setelah induk) tetap menang.
+
     const lain = PARTS.filter((p) => p.id !== id && !turunanDari(p.id, id))
       .map((p) => p.sel)
       .join(',');
@@ -178,4 +175,3 @@ export function terapkanGayaBagian(parts: PartOverrides): void {
   }
   el.textContent = bangunCssBagian(parts);
 }
-

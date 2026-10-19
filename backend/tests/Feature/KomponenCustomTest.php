@@ -68,7 +68,6 @@ class KomponenCustomTest extends TestCase
     {
         $user = $this->makeUser('admin');
 
-        // Tanpa `table_key` → komponen global (dialog/form).
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_gen_nominal',
             'setelan' => ['tipeKontrol' => 'nominal'],
@@ -78,7 +77,6 @@ class KomponenCustomTest extends TestCase
             'table_key' => '', 'komponen' => 'inp_gen_nominal',
         ]);
 
-        // Komponen yang sama di dalam tabel = baris terpisah.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'table_key' => 'keuangan_tagihan',
             'komponen' => 'inp_gen_nominal',
@@ -110,17 +108,14 @@ class KomponenCustomTest extends TestCase
     {
         $user = $this->makeUser('admin');
 
-        // Kunci setelan tak dikenal.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_x', 'setelan' => ['warna' => 'merah'],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan');
 
-        // Nilai tipe di luar registry tipe input.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_x', 'setelan' => ['tipeKontrol' => 'kredit'],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan.tipeKontrol');
 
-        // Setelan kosong tak diterima (hapus baris lewat DELETE).
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_x', 'setelan' => [],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan');
@@ -184,12 +179,10 @@ class KomponenCustomTest extends TestCase
             'table_key' => '', 'komponen' => 'demo_input_bebas',
         ]);
 
-        // GET dengan `table_key=` kosong = lingkup global (bukan semua tabel).
         $this->actingAs($user, 'sanctum')->getJson('/api/admin/komponen-custom?table_key=')
             ->assertStatus(200)
             ->assertJsonPath('data.peta.|demo_input_bebas.tipeKontrol', 'nominal');
 
-        // DELETE dengan `table_key=` kosong juga harus lolos.
         $this->actingAs($user, 'sanctum')
             ->deleteJson('/api/admin/komponen-custom?table_key=&komponen=demo_input_bebas')
             ->assertStatus(200);
@@ -232,7 +225,7 @@ class KomponenCustomTest extends TestCase
             ->assertJsonPath('data.setelan.expandLabel', true)
             ->assertJsonPath('data.setelan.labelTransparan', false)
             ->assertJsonPath('data.setelan.tanpaLabel', true);
-        // Simpan ulang menyalin HANYA kunci yang dikirim (server menimpa utuh).
+
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'table_key' => 'santri',
             'komponen' => 'sel_status',
@@ -247,12 +240,10 @@ class KomponenCustomTest extends TestCase
     {
         $user = $this->makeUser('admin');
 
-        // Langkah tombol −/+ stepper angka (interval perubahan nilai).
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'stp_jumlah', 'setelan' => ['langkah' => 5],
         ])->assertStatus(200)->assertJsonPath('data.setelan.langkah', 5);
 
-        // Nilai string angka dari isian popover tetap diterima sebagai bilangan.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'stp_jumlah', 'setelan' => ['langkah' => '25'],
         ])->assertStatus(200)->assertJsonPath('data.setelan.langkah', 25);
@@ -262,9 +253,6 @@ class KomponenCustomTest extends TestCase
     {
         $user = $this->makeUser('admin');
 
-        // Setelan khusus tipe aktif (mis. preset nominal cepat pada tipe
-        // `nominal`) — bentuk nilainya bebas per tipe, jadi server hanya
-        // membatasi bentuk & ukurannya.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'table_key' => 'keuangan_tagihan',
             'komponen' => 'inp_bayar_jumlah',
@@ -276,12 +264,10 @@ class KomponenCustomTest extends TestCase
             ->assertJsonPath('data.setelan.tipe.preset.0', 1000)
             ->assertJsonPath('data.setelan.tipe.preset.1', 2500);
 
-        // Peta, bukan daftar.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_x', 'setelan' => ['tipe' => [1, 2]],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan.tipe');
 
-        // Larik harus sedalam satu tingkat (skalar saja).
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_x', 'setelan' => ['tipe' => ['preset' => [['dalam']]]],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan.tipe.preset');
@@ -291,7 +277,6 @@ class KomponenCustomTest extends TestCase
     {
         $user = $this->makeUser('admin');
 
-        // Tinggi di bawah batas bawah (20px) dan lebar total di bawah 80px.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_a', 'setelan' => ['tinggi' => 5],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan.tinggi');
@@ -300,17 +285,14 @@ class KomponenCustomTest extends TestCase
             'komponen' => 'inp_a', 'setelan' => ['lebar' => 40],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan.lebar');
 
-        // Lebar label melebihi batas atas 400px.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_a', 'setelan' => ['lebarLabel' => 900],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan.lebarLabel');
 
-        // Penanda harus boolean.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_a', 'setelan' => ['expandLabel' => 1],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan.expandLabel');
 
-        // Nilai awal kosong tidak menghasilkan setelan yang bisa disimpan.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'inp_a', 'setelan' => ['nilaiDefault' => '   '],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan');
@@ -320,12 +302,10 @@ class KomponenCustomTest extends TestCase
     {
         $user = $this->makeUser('admin');
 
-        // Langkah 0 membuat tombol −/+ tak berpengaruh sama sekali.
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'stp_a', 'setelan' => ['langkah' => 0],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan.langkah');
 
-        // Batas atas 1000 (selaras `LANGKAH_STEPPER_MAKS` di frontend).
         $this->actingAs($user, 'sanctum')->putJson('/api/admin/komponen-custom', [
             'komponen' => 'stp_a', 'setelan' => ['langkah' => 5000],
         ])->assertStatus(422)->assertJsonValidationErrors('setelan.langkah');
@@ -335,7 +315,6 @@ class KomponenCustomTest extends TestCase
     {
         $user = $this->makeUser('admin');
 
-        // Data lama: peta komponen (bersufiks) bercampur dengan kunci tabel.
         DB::table('toolbar_preset')->insert([
             'table_key' => 'santri',
             'visibilitas' => json_encode([]),
@@ -357,7 +336,6 @@ class KomponenCustomTest extends TestCase
         $migrasi = require database_path('migrations/2026_10_12_100000_pindahkan_setelan_komponen_dari_toolbar_preset.php');
         $migrasi->up();
 
-        // Satu baris per komponen, kunci camelCase seperti frontend.
         $baris = KomponenCustom::where('table_key', 'santri')->where('komponen', 'sel_a')->firstOrFail();
         $this->assertSame([
             'lebar' => 300,
@@ -369,13 +347,11 @@ class KomponenCustomTest extends TestCase
             'nilaiDefault' => 'Kelas',
         ], $baris->setelan);
 
-        // Peta lama dibersihkan dari komponen; kunci tabel tetap utuh.
         $toolbar = DB::table('toolbar_preset')->where('table_key', 'santri')->first();
         $this->assertSame(['urut' => 150, 'kolom' => 150], json_decode((string) $toolbar->lebar, true));
         $this->assertNull($toolbar->tinggi);
         $this->assertNull($toolbar->nilai_default);
 
-        // Endpoint membaca hasil migrasi.
         $this->actingAs($user, 'sanctum')->getJson('/api/admin/komponen-custom')
             ->assertJsonPath('data.peta.santri|sel_a.lebar', 300);
     }

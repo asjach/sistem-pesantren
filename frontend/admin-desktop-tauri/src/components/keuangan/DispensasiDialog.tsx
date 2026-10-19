@@ -113,7 +113,6 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
   const [baris, setBaris] = useState<BarisAturan[]>([]);
   const [busy, setBusy] = useState(false);
 
-  // Buka dialog: isi dari data ubah atau kosongkan.
   useEffect(() => {
     if (!open) return;
     if (editing) {
@@ -216,11 +215,6 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
   /** Teks opsi tahun ajaran (dipakai combobox identitas). */
   const labelTA = (x: TahunAjaran) => `${x.nama}${x.is_aktif ? ' (aktif)' : ''}`;
 
-  /* Dialog ringkas, bukan layar penuh: sejak daftar penerima dipindah ke
-     halaman Dispensasi, isinya tinggal identitas paket + dua tabel (tagihan
-     & aturan). Tinggi TETAP (bukan `h-auto`) karena ExcelTable mengukur
-     tinggi wrapper-nya sendiri lewat ResizeObserver — tanpa tinggi pasti
-     grid-nya runtuh. 36rem cukup untuk ±12 baris sebelum scroll. */
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
       <DialogContent
@@ -228,8 +222,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
         onEscapeKeyDown={(e) => { if (busy) e.preventDefault(); }}
         className="flex h-[min(74dvh,36rem)] w-[min(94vw,68rem)] max-w-none flex-col gap-0 overflow-hidden rounded-xl p-0 sm:max-w-none"
       >
-        {/* Judul + keterangan sebaris (bukan dua baris) supaya tak memakan
-            tinggi; keterangan dipotong bila ruang sempit. */}
+
         <DialogHeader className="flex-row items-center justify-between gap-3 border-b px-3 py-2">
           <div className="flex min-w-0 items-center gap-2">
             <DialogTitle className="shrink-0">{editing ? 'Ubah Dispensasi' : 'Tambah Dispensasi'}</DialogTitle>
@@ -242,9 +235,6 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
           </DialogClose>
         </DialogHeader>
 
-        {/* Identitas paket: SATU baris padat. Label menempel DI DALAM kotak
-            (LabeledInput/LabeledCombobox) sehingga tak perlu baris label
-            sendiri-sendiri seperti `FieldLabel` di atas input. */}
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-muted/30 px-2.5 py-2">
           <LabeledInput
             label="Nama" htmlFor="inp_dispensasi_nama" tinggi={26} lebarKotak={190}
@@ -306,10 +296,6 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
           </span>
         </div>
 
-        {/* Dua tabel berdampingan: KIRI daftar tagihan (jenis) yang bisa
-            dijadikan aturan, KANAN aturan yang sudah dibuat. Cara menambah =
-            tekan aksi `→` pada baris tabel kiri (bawaan Persen 0%), cara
-            menghapus = aksi `×` pada baris tabel kanan. */}
         <div className="flex min-h-0 flex-1 gap-2 p-2.5">
           <div className="flex min-h-0 w-[36%] min-w-56 flex-col">
             <ExcelTable<JenisTagihan>

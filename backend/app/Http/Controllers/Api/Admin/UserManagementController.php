@@ -83,8 +83,7 @@ class UserManagementController extends Controller
 
     protected function syncLembaga(User $user, array $ids): void
     {
-        // Ganti hanya baris cakupan warisan (role null); baris berperang
-        // (mis. guru otomatis, admin per lembaga) dipertahankan.
+
         DB::table('user_lembaga')->where('user_id', $user->id)->whereNull('role')->delete();
         foreach ($ids as $lid) {
             DB::table('user_lembaga')->updateOrInsert(
@@ -178,7 +177,7 @@ class UserManagementController extends Controller
         $user->update($data);
         if (array_key_exists('roles', $data)) {
             $user->syncRoles($data['roles']);
-            // 2b: peran berubah → cabut semua token target (paksa login ulang).
+
             $user->tokens()->delete();
         }
 
@@ -270,12 +269,10 @@ class UserManagementController extends Controller
     {
         $authUser = auth()->user();
 
-        // Kunci role diri: siapapun (termasuk super_admin) tidak boleh
-        // menambah role ke akunnya sendiri (Lampiran E v1.9.1).
         if ($authUser->id === $user->id) {
             return response()->json(['message' => 'Tidak boleh mengubah role diri sendiri.'], 403);
         }
-        // Target privileged (admin/super_admin) hanya boleh dimutasi super_admin.
+
         if ($this->blocksPrivilegedTarget($authUser, $user)) {
             return response()->json(['message' => 'Hanya super_admin yang dapat mengelola admin.'], 403);
         }
@@ -287,7 +284,7 @@ class UserManagementController extends Controller
         }
 
         $user->assignRole($request->input('role'));
-        // 2b: peran berubah → cabut semua token target (paksa login ulang).
+
         $user->tokens()->delete();
 
         return response()->json(['message' => 'Role berhasil ditambahkan.', 'user' => $user->load('roles')]);
@@ -300,7 +297,7 @@ class UserManagementController extends Controller
         if ($authUser->id === $user->id) {
             return response()->json(['message' => 'Tidak boleh mencabut role diri sendiri.'], 403);
         }
-        // Target privileged (admin/super_admin) hanya boleh dimutasi super_admin.
+
         if ($this->blocksPrivilegedTarget($authUser, $user)) {
             return response()->json(['message' => 'Hanya super_admin yang dapat mengelola admin.'], 403);
         }
@@ -312,7 +309,7 @@ class UserManagementController extends Controller
         }
 
         $user->removeRole($request->input('role'));
-        // 2b: peran berubah → cabut semua token target (paksa login ulang).
+
         $user->tokens()->delete();
 
         return response()->json(['message' => 'Role berhasil dihapus.', 'user' => $user->load('roles')]);
@@ -325,7 +322,7 @@ class UserManagementController extends Controller
         if ($authUser->id === $user->id) {
             return response()->json(['message' => 'Tidak boleh menghapus diri sendiri.'], 403);
         }
-        // Target privileged (admin/super_admin) hanya boleh dihapus super_admin.
+
         if ($this->blocksPrivilegedTarget($authUser, $user)) {
             return response()->json(['message' => 'Hanya super_admin yang dapat menghapus admin.'], 403);
         }
@@ -358,7 +355,7 @@ class UserManagementController extends Controller
         $data = $request->validated();
 
         if (! $authUser->isSameTenant($user) && ! $authUser->bolehPesantren()) {
-            // Target di luar tenant hanya boleh bila user baru tanpa pivot (attach pertama).
+
             if (! empty($user->lembagaIds())) {
                 return response()->json(['message' => 'Akses ditolak.'], 403);
             }

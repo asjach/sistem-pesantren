@@ -6,9 +6,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// 102 Fase A: max 1 baris per (santri + lembaga_lulus) — satu Santri bisa lulus
-// di beberapa lembaga. Ditulis lewat SiklusSantriService::prosesLulusPerLembaga
-// (updateOrCreate + retry 1062) dan importer alumni.
 class Alumni extends Model
 {
     protected $table = 'alumni';
@@ -38,8 +35,6 @@ class Alumni extends Model
         return $this->belongsTo(Kelas::class, 'kelas_lulus_id');
     }
 
-    // Tenant lembaga via lembaga_lulus (pola Kelas): super_admin/admin full semua;
-    // guru/orang_tua/santri kosong; lainnya via pivot user_lembaga.
     public function scopeTenantScope(Builder $query): Builder
     {
         $user = auth()->user();

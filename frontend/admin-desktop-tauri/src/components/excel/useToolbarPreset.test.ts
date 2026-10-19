@@ -19,12 +19,10 @@ const server = vi.hoisted(() => {
       align: { ...state.align },
     },
   }));
-  // Signature baru: (table_key, visibilitas?, urutan?, align?) — ukuran &
-  // nilai awal komponen sudah pindah ke `komponen-custom`.
+
   const simpan = vi.fn(
     async (_t: string, v?: Record<string, boolean>, _u?: unknown, a?: Record<string, string>) => {
-      // Absen = jangan sentuh (cermin perilaku backend yang hanya menyentuh
-      // field yang dikirim).
+
       if (v !== undefined) state.visibilitas = { ...v };
       if (a !== undefined) state.align = { ...a };
       return { pesan: 'ok', data: null };
@@ -52,8 +50,7 @@ beforeEach(() => {
 describe('useToolbarPresetState.simpanAlign — klik-kanan tulis DB global', () => {
   it('memuat alignDb dari server saat mount', async () => {
     const { result } = renderHook(() => useToolbarPresetState('uji'));
-    /* Tunggu NILAI-nya, bukan efek samping "muat sudah dipanggil": promise
-       `muat` bisa sudah tercatat sementara `setAlignDb` belum sempat render. */
+
     await waitFor(() => expect(result.current.alignDb).toEqual({ nama: 'left' }));
   });
 
@@ -64,13 +61,13 @@ describe('useToolbarPresetState.simpanAlign — klik-kanan tulis DB global', () 
     act(() => {
       result.current.simpanAlign('kode', 'right');
     });
-    // Optimistis: langsung terlihat tanpa menunggu server.
+
     expect(result.current.alignDb).toEqual({ nama: 'left', kode: 'right' });
 
     await waitFor(() => expect(server.simpan).toHaveBeenCalledWith(
       'uji', undefined, undefined, { nama: 'left', kode: 'right' },
     ));
-    // Muat ulang via event membaca balik yang baru disimpan.
+
     await waitFor(() => expect(server.muat.mock.calls.length).toBeGreaterThan(1));
     expect(result.current.alignDb).toEqual({ nama: 'left', kode: 'right' });
     expect(server.state.align).toEqual({ nama: 'left', kode: 'right' });
@@ -87,7 +84,7 @@ describe('useToolbarPresetState.simpanAlign — klik-kanan tulis DB global', () 
     expect(result.current.alignDb).toEqual({ nama: 'left', kode: 'right' });
 
     await waitFor(() => expect(toastError).toHaveBeenCalled());
-    // Kembali ke snapshot sebelum tulis.
+
     expect(result.current.alignDb).toEqual({ nama: 'left' });
   });
 
@@ -118,8 +115,8 @@ describe('useToolbarPresetState — visibilitas filter toolbar', () => {
   it('peta rusak (kunci/k nilai tak sah) dibersihkan saat dibaca', async () => {
     server.state.visibilitas = {
       urutan: false,
-      'Kunci-Salah': false, // huruf besar + tanda hubung → dibuang
-      kolom: 'ya' as unknown as boolean, // bukan boolean → dibuang
+      'Kunci-Salah': false,
+      kolom: 'ya' as unknown as boolean,
       cari: false,
     };
     const { result } = renderHook(() => useToolbarPresetState('uji'));

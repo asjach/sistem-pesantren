@@ -72,8 +72,6 @@ class GalatSkemaTest extends TestCase
             ->assertJsonPath('kode', GalatSkema::KODE)
             ->assertJsonPath('pesan', GalatSkema::PESAN);
 
-        // Alasan pengaman ini ada: nama tabel/kolom dan SQL tak boleh bocor ke
-        // UI pengguna lewat badan jawaban.
         $isi = (string) $res->getContent();
         $this->assertStringNotContainsString('toolbar_preset', $isi);
         $this->assertStringNotContainsString('SQLSTATE', $isi);

@@ -50,7 +50,7 @@ export default function DialogKelolaHalaman({
       const res = await muatPengaturanHalaman([pageKey]);
       const d = res.data.peta[pageKey];
       const semua = tabKode.map((t) => t.to);
-      // Rute baru (belum tersimpan) diletakkan mengikuti urutan kode, di akhir.
+
       const tersimpan = (d?.urutan ?? []).filter((r) => semua.includes(r));
       const baru = semua.filter((r) => !tersimpan.includes(r));
       const urut = [...tersimpan, ...baru];
@@ -89,7 +89,7 @@ export default function DialogKelolaHalaman({
   async function simpan() {
     setBusy(true);
     try {
-      // Dikirim LENGKAP (termasuk yang disembunyikan) supaya posisinya lestari.
+
       await simpanPengaturanHalaman(pageKey, urutan, sembunyi);
       setAcuan(JSON.stringify({ urut: urutan, semb: sembunyi }));
       toast.success('Urutan tab disimpan.');

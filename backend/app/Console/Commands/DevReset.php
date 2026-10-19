@@ -30,8 +30,7 @@ class DevReset extends Command
         }
 
         $this->call('migrate:fresh', ['--seed' => true, '--force' => true]);
-        // RoleSeeder sudah jalan via DatabaseSeeder; DevSeeder melengkapi
-        // kamus per lembaga + akun dev (semua idempoten).
+
         $this->call('db:seed', ['--class' => DevSeeder::class, '--force' => true]);
 
         $this->newLine();

@@ -31,17 +31,14 @@ return new class extends Migration
             $table->string('nama', 100);
             $table->string('keterangan', 255)->nullable();
             $table->string('tahun_ajaran', 20);
-            // Lingkup lembaga: null = berlaku semua lembaga (perilaku lama).
-            // `restrict` saat lembaga dihapus — menghapus lembaga tak boleh
-            // diam-diam meluaskan paket ke semua lembaga; lingkup uang harus
-            // eksplisit. Mengikuti pola `jenis_tagihan.jenjang`.
+
             $table->string('jenjang', 20)->nullable();
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')
                 ->cascadeOnUpdate()->restrictOnDelete();
             $table->index('jenjang');
-            // Kuota potongan per bulan (null = tanpa batas).
+
             $table->unsignedInteger('kuota_bulan')->nullable();
-            // Nama grup paket (pengelompokan tampilan).
+
             $table->string('grup', 50)->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();

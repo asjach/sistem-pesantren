@@ -34,8 +34,6 @@ function SheetClose({
   return <DialogPrimitive.Close data-slot="sheet-close" {...props} />
 }
 
-// Radix DialogPortal membungkus tiap child dengan Slot yang meneruskan ref,
-// jadi wrapper ini wajib forwardRef (React 18) agar tidak memicu warning.
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>

@@ -14,7 +14,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Store kelas: mode tunggal (kompatibel) + bulk via items (sub-form dialog).
 class KelasStoreTest extends TestCase
 {
     use RefreshDatabase;
@@ -59,7 +58,6 @@ class KelasStoreTest extends TestCase
             'nama_kelas' => 'I-A', 'tingkat' => '1',
         ]);
 
-        // Join lembaga + tahun_ajaran (sort) + filter: kolom harus terkualifikasi.
         $this->actingAs($f['super'], 'sanctum')->getJson(
             '/api/admin/kelas?jenjang='.$f['mi']->jenjang
             .'&tahun_ajaran='.$f['taMi']->nama.'&sort=nama&arah=naik'
@@ -107,7 +105,6 @@ class KelasStoreTest extends TestCase
     {
         $f = $this->baseFixture();
 
-        // Baris tanpa nama → 422 validasi, tanpa tulisan.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['taMi']->nama,
@@ -118,7 +115,6 @@ class KelasStoreTest extends TestCase
         ])->assertStatus(422);
         $this->assertSame(0, Kelas::count());
 
-        // Tingkat tak dikenal → 422, tanpa tulisan (rollback transaksi).
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['taMi']->nama,
@@ -133,7 +129,7 @@ class KelasStoreTest extends TestCase
     public function test_04_ta_silang_dan_tanpa_items_nama_wajib(): void
     {
         $f = $this->baseFixture();
-        // TA disembunyikan untuk MI → tidak berlaku di lembaga itu.
+
         LembagaTahunAjaran::create([
             'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taMi']->nama, 'is_active' => false,
         ]);
@@ -145,7 +141,6 @@ class KelasStoreTest extends TestCase
         ])->assertStatus(422);
         $this->assertSame(0, Kelas::count());
 
-        // Kembalikan visibilitas, lalu mode tunggal tanpa nama_kelas → 422.
         LembagaTahunAjaran::where('jenjang', $f['mi']->jenjang)->delete();
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'jenjang' => $f['mi']->jenjang,
@@ -183,18 +178,15 @@ class KelasStoreTest extends TestCase
             'nama_kelas' => 'I-A',
         ];
 
-        // Lembaganya sendiri → lolos.
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', $payload($f['mi']->jenjang))
             ->assertStatus(201);
 
-        // Pasangan MD → lolos (pengecualian timbal-balik).
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', [
             'jenjang' => $md->jenjang,
             'tahun_ajaran' => $taMd->nama,
             'nama_kelas' => 'I-A',
         ])->assertStatus(201);
 
-        // Non-pasangan (MTS) → 403; tanpa tulisan baru selain dua baris.
         $this->actingAs($adminMi, 'sanctum')->postJson('/api/admin/kelas', [
             'jenjang' => $mts->jenjang,
             'tahun_ajaran' => $f['taMi']->nama,
@@ -221,8 +213,6 @@ class KelasStoreTest extends TestCase
             collect($res->json('data'))->pluck('nama_kelas')->all()
         );
     }
-
-    // ---------- 07. duplikat: dalam satu payload, DB, & update ----------
 
     public function test_07_duplikat_dalam_satu_payload_ditolak(): void
     {
@@ -251,7 +241,6 @@ class KelasStoreTest extends TestCase
             'tingkat' => '1',
         ])->assertStatus(201);
 
-        // Nama duplikat (beda kapital + spasi berlebih) → 422, nama tersimpan tetap rapi.
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['taMi']->nama,
@@ -299,17 +288,14 @@ class KelasStoreTest extends TestCase
             'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => '1B',
         ]);
 
-        // Ubah B → nama A (beda kapital) → 422, nama lama tidak berubah.
         $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$kelasB->id}", ['nama_kelas' => '1a'])
             ->assertStatus(422);
         $this->assertSame('1B', $kelasB->fresh()->nama_kelas);
 
-        // Nama sendiri + kapasitas → tetap boleh (dikecualikan dari cek duplikat).
         $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$kelasB->id}", ['nama_kelas' => '1B', 'kapasitas' => 28])
             ->assertStatus(200);
         $this->assertSame(28, (int) $kelasB->fresh()->kapasitas);
 
-        // Nama kosong saat diisi → 422.
         $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$kelasA->id}", ['nama_kelas' => '   '])
             ->assertStatus(422);
     }
@@ -318,7 +304,6 @@ class KelasStoreTest extends TestCase
     {
         $f = $this->baseFixture();
 
-        // Bulk: urutan ikut tersimpan (default 0 bila kosong).
         $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/kelas', [
             'jenjang' => $f['mi']->jenjang,
             'tahun_ajaran' => $f['taMi']->nama,
@@ -332,19 +317,16 @@ class KelasStoreTest extends TestCase
         $this->assertSame(3, (int) Kelas::where('nama_kelas', '1C')->value('urutan'));
         $this->assertSame(0, (int) Kelas::where('nama_kelas', '1B')->value('urutan'));
 
-        // Daftar diurutkan `urutan` dulu, lalu nama kelas.
         $res = $this->actingAs($f['super'], 'sanctum')
             ->getJson('/api/admin/kelas?jenjang='.$f['mi']->jenjang.'&tahun_ajaran='.$f['taMi']->nama)
             ->assertStatus(200);
         $this->assertSame(['1B', '1A', '1C'], array_column($res->json('data'), 'nama_kelas'));
 
-        // Update urutan lewat grid (PUT).
         $idA = (int) Kelas::where('nama_kelas', '1A')->value('id');
         $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$idA}", ['urutan' => 9])
             ->assertStatus(200);
         $this->assertSame(9, (int) Kelas::find($idA)->urutan);
 
-        // Urutan negatif ditolak.
         $this->actingAs($f['super'], 'sanctum')->putJson("/api/admin/kelas/{$idA}", ['urutan' => -1])
             ->assertStatus(422)->assertJsonValidationErrors(['urutan']);
     }

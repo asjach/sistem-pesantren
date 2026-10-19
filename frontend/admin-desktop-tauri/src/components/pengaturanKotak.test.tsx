@@ -9,8 +9,6 @@ import { isiSalinan, kosongkanSalinan } from '@/components/salinSetelan';
 import { renderDenganTema } from '@/test/utils';
 import type { SetelanKomponen } from '@/api/komponenCustom';
 
-/* Sonner di-mock: pesan toast (termasuk tombol "Batalkan") jadi bisa diperiksa,
-   tanpa perlu memasang `<Toaster/>` di pohon tes. */
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 /** Sesi tiruan: `null` = belum termuat / tanpa konteks auth. `roles` wajib ada
@@ -24,10 +22,6 @@ vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user: pengguna.current 
 /** Pengguna uji dengan daftar izin tertentu. */
 const sesi = (permissions: string[]): PenggunaUji => ({ permissions, roles: [{ name: 'admin' }] });
 
-/* Setelan "dari server": peta yang dikembalikan pemuatan diisi per tes lewat
-   `petaServer.current`, jadi setelan tersimpan tiba dengan jalur yang sama
-   seperti aplikasi (bukan ditulis langsung ke cache klien yang bisa tertimpa
-   saat pemuatan selesai). */
 const { petaServer } = vi.hoisted(() => ({
   petaServer: { current: {} as Record<string, SetelanKomponen> },
 }));
@@ -114,16 +108,15 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
 
-    // Stepper → pembungkus `min-w-0 flex-1` → baris (label + stepper + reset).
     const sel = [...document.querySelectorAll('[data-part="spinbox"]')].map(
       (s) => ((s as HTMLElement).parentElement as HTMLElement).parentElement as HTMLElement,
     );
     const induk = sel[0].parentElement as HTMLElement;
-    // `grid-cols-2`: 2 sel per baris, dipisah bukan dengan flex-row.
+
     expect(induk.className).toMatch(/grid/);
     expect(induk.className).toMatch(/grid-cols-2/);
     expect(sel).toHaveLength(4);
-    // Urutan baca kiri→kanan, atas→bawah: Tinggi, Total, Label, Kontrol.
+
     expect(sel.map((s) => s.querySelector('label')?.textContent)).toEqual(
       ['Tinggi', 'Total', 'Label', 'Kontrol'],
     );
@@ -135,7 +128,6 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
 
-    // Ringkas: 370px = border 2×1 + padding 2×12 + 2 sel grid 168px + celah 8px.
     expect(panel().className).toMatch(/w-\[370px\]/);
     expect(document.getElementById('panel_lainnya_kombo_inp_uji')).not.toBeNull();
     expect(screen.getByText('Tipe')).not.toBeNull();
@@ -146,24 +138,24 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
     const { container } = renderDenganTema(<LabeledInput label="Nama" htmlFor="inp_uji" />);
     fireEvent.contextMenu(container.firstElementChild as HTMLElement);
     await screen.findByLabelText('Tinggi kotak input (px)');
-    // Lebar panel tak boleh berubah-ubah: patokannya sama sebelum & sesudah.
+
     expect(panel().className).toMatch(/w-\[370px\]/);
-    // Bawaan terbuka: pengalih = panah ATAS, tanpa kelas putaran.
+
     const pengalihBuka = screen.getByRole('button', { name: 'Sembunyikan pengaturan lainnya' });
     expect(pengalihBuka.querySelector('svg')).not.toBeNull();
     expect(pengalihBuka.innerHTML).not.toMatch(/rotate/);
     const ikonBuka = pengalihBuka.innerHTML;
     const bagianLainnya = document.getElementById('panel_lainnya_kombo_inp_uji') as HTMLElement;
-    // Lembar penuh (bukan kolom bermeter) → tak ada lebar terpatok di sini.
+
     expect(bagianLainnya.className).not.toMatch(/w-\[/);
     expect(screen.getByText('Tipe')).not.toBeNull();
-    // Baris "Langkah" khusus stepper — tak ada di kotak input teks.
+
     expect(screen.queryByText('Langkah')).toBeNull();
 
     await userEvent.click(pengalihBuka);
 
     expect(panel().className).toMatch(/w-\[370px\]/);
-    // Ikonnya benar-benar BERGANTI jadi panah BAWAH saat bagiannya tertutup.
+
     const pengalihTertutup = screen.getByRole('button', { name: 'Tampilkan pengaturan lainnya' });
     expect(pengalihTertutup.innerHTML).not.toMatch(/rotate/);
     expect(pengalihTertutup.innerHTML).not.toBe(ikonBuka);
@@ -182,11 +174,11 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
     await screen.findByLabelText('Tinggi kotak input (px)');
 
     const { label, pembungkus } = barisDari('Tipe');
-    // Berlabel terkunci (bukan selebar teksnya) → baris pengaturan rata kiri.
+
     expect(label.tagName).toBe('LABEL');
     expect(label.style.width).toBe('84px');
     expect(barisDari('Mengembang').label.style.width).toBe('84px');
-    // Pembungkus combobox tetap mengambil seluruh sisa baris.
+
     expect(pembungkus.className).toMatch(/flex-1/);
     expect(pembungkus.className).toMatch(/min-w-0/);
   });
@@ -210,13 +202,13 @@ describe('popover pengaturan komponen — salin & tempel setelan', () => {
     await screen.findByLabelText('Tinggi kotak input (px)');
 
     expect(tombolSalin()).toBeDisabled();
-    // Papan salin kosong → ikon Tempel belum dirender sama sekali.
+
     expect(screen.queryByRole('button', { name: /^Tempel setelan/ })).toBeNull();
   });
 
   it('salin di kotak A lalu tempel di kotak B: setelan A jadi setelan B', async () => {
     pengguna.current = sesi(['komponen_custom.ubah']);
-    // Setelan kotak A sudah tersimpan di server (kunci `tableKey|komponen`).
+
     petaServer.current = {
       '|inp_a': { tinggi: 40, lebar: 300, lebarLabel: 60, lebarKontrol: 150, labelTransparan: false },
     };
@@ -231,7 +223,6 @@ describe('popover pengaturan komponen — salin & tempel setelan', () => {
     await screen.findByLabelText('Tinggi kotak input (px)');
     await userEvent.click(tombolSalin());
 
-    // Papan salin menyimpan setelan kotak A + nama asalnya (dipakai tooltip).
     expect(isiSalinan()).toEqual({
       setelan: { tinggi: 40, lebar: 300, lebarLabel: 60, lebarKontrol: 150, labelTransparan: false },
       label: 'Nama',
@@ -249,7 +240,7 @@ describe('popover pengaturan komponen — salin & tempel setelan', () => {
     });
     expect(vi.mocked(toast.success).mock.calls.at(-1)?.[0])
       .toMatch(/Setelan dari "Nama" diterapkan ke Julian\./);
-    // Salinan TETAP ada: satu kali salin boleh ditempel ke banyak kotak.
+
     expect(isiSalinan()).not.toBeNull();
   });
 
@@ -261,8 +252,7 @@ describe('popover pengaturan komponen — salin & tempel setelan', () => {
     renderDenganTema(
       <div>
         <LabeledInput label="Sumber" htmlFor="inp_src" tipeKontrol="teks" />
-        {/* `pilihanTipe={[]}` = kotak tujuan tanpa baris "Tipe" (mis. combobox),
-            jadi tipe sumber memang tak bisa diterima di sini. */}
+
         <LabeledInput label="Tujuan" htmlFor="inp_dst" pilihanTipe={[]} />
       </div>,
     );
@@ -276,14 +266,12 @@ describe('popover pengaturan komponen — salin & tempel setelan', () => {
     await screen.findByLabelText('Tinggi kotak input (px)');
     await userEvent.click(screen.getByRole('button', { name: 'Tempel setelan dari Sumber' }));
 
-    // Ukuran & gaya label ikut; tipe + pengaturan tipe dilewati, bukan dipaksa.
     expect(setelanKomponen('', 'inp_dst')).toEqual({ tinggi: 44, labelTransparan: false });
     const [pesan, opsi] = vi.mocked(toast.success).mock.calls.at(-1) as [string, {
       action: { label: string; onClick: () => void };
     }];
     expect(pesan).toMatch(/Dilewati \(tak didukung kotak ini\): tipeKontrol, tipe\./);
 
-    // Tombol "Batalkan" mengembalikan setelan kotak tujuan seperti semula.
     expect(opsi.action.label).toBe('Batalkan');
     opsi.action.onClick();
     expect(setelanKomponen('', 'inp_dst')).toEqual({});

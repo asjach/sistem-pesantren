@@ -91,8 +91,6 @@ class LembagaPegawaiController extends Controller
         $data = $request->validated();
         $this->authorizeLembaga($request->user(), $data['jenjang']);
 
-        // Taut otomatis dulu (bila email dipakai akun yang memenuhi syarat)
-        // agar penempatan di bawah sekaligus menulis relasi user_lembaga.
         $akun->cobaTautkan($pegawai, $request->user());
         $row = $layanan->pastikanPenempatan($pegawai, $data['jenjang'], $data);
 
@@ -145,8 +143,6 @@ class LembagaPegawaiController extends Controller
 
         return response()->json(['pesan' => 'Penempatan dihapus.']);
     }
-
-    // ---------------- Import penempatan (potongan JSON bertahap) ----------------
 
     /** GET /api/admin/pegawai-lembaga/import-template — template Excel. */
     public function templateImport()

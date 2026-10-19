@@ -67,7 +67,7 @@ describe('useLebarSidebar', () => {
 
     lepas();
     expect(lipat).toEqual([true]);
-    // Lebar tak diubah: dibuka lagi kembali ke lebar sebelumnya.
+
     expect(simpan).toEqual([]);
     expect(result.current.collapsed).toBe(true);
   });
@@ -79,7 +79,6 @@ describe('useLebarSidebar', () => {
     lepas();
     expect(lipat).toEqual([true]);
 
-    // Terbuka lagi lewat tombol; seretan berikutnya menyimpan lebar baru.
     act(() => { result.current.resetLebar(); });
     act(() => { simpan.length = 0; });
     seret(result.current.mulaiSeret, SIDEBAR_LEBAR_DEFAULT);
@@ -112,7 +111,7 @@ describe('useLebarSidebar', () => {
     expect(result.current.lebar).toBe(256);
     tekan('ArrowLeft', true);
     expect(result.current.lebar).toBe(208);
-    // 208 − 48 = 160 < MIN (180) → navigasi disembunyikan, lebar tak diubah.
+
     tekan('ArrowLeft', true);
     expect(lipat).toEqual([false, false, true]);
     expect(simpan).toEqual([256, 208]);

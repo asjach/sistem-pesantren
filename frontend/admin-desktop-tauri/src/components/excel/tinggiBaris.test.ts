@@ -76,8 +76,7 @@ describe('hitungTinggiBaris', () => {
   });
 
   it('padX kustom menggeser ambang pembungkusan (cerminan padding CSS nyata)', () => {
-    // Teks 190px pada kolom 200px: padX 16 → tersedia 184 → 2 baris;
-    // padX 4 (kolom Aksi) → tersedia 196 → tetap 1 baris.
+
     const sempit = hitungTinggiBaris({ ...dasar, lebarTeks: [190], lebarKolom: [200] });
     const longgar = hitungTinggiBaris({ ...dasar, lebarTeks: [190], lebarKolom: [200], padX: 4 });
     expect(sempit).toBeGreaterThan(dasar.minH);

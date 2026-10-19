@@ -144,8 +144,6 @@ function lingkupQuery(params: Lingkup): URLSearchParams {
   return q;
 }
 
-// ------------------------------------------------------------- peristiwa
-
 export function daftarPeristiwa(params: Lingkup = {}) {
   return api<PeristiwaResp>(`/admin/penilaian/peristiwa?${lingkupQuery(params).toString()}`);
 }
@@ -177,8 +175,6 @@ export function muatBawaan(jenjang: string, tahunAjaran: string) {
   });
 }
 
-// -------------------------------------------------------------- komponen
-
 export function daftarKomponen(peristiwaId: number) {
   return api<KomponenResp>(`/admin/penilaian/komponen?peristiwa_id=${peristiwaId}`);
 }
@@ -204,8 +200,6 @@ export function ubahKomponen(id: number, data: {
 export function hapusKomponen(id: number) {
   return api<{ pesan: string }>(`/admin/penilaian/komponen/${id}`, { method: 'DELETE' });
 }
-
-// --------------------------------------------------------- KKM & predikat
 
 export function daftarKkm(peristiwaId: number) {
   return api<{ baris: KkmBaris[] }>(`/admin/penilaian/kkm?peristiwa_id=${peristiwaId}`);
@@ -238,8 +232,6 @@ export function hitungUlang(data: {
     { method: 'POST', body: JSON.stringify(data) },
   );
 }
-
-// ------------------------------------------------- ekskul, prestasi, dll.
 
 export function daftarEkskul(params: Lingkup = {}) {
   return api<Ekstrakurikuler[]>(`/admin/penilaian/ekskul?${lingkupQuery(params).toString()}`);
@@ -284,8 +276,6 @@ export function hapusPrestasi(id: number) {
   return api<{ pesan: string }>(`/admin/penilaian/prestasi/${id}`, { method: 'DELETE' });
 }
 
-// ---------------------------------------------------------------- leger
-
 export function legerNilai(params: {
   peristiwa_id: number; semester?: ScalarOrArray<string>;
   tingkat?: ScalarOrArray<string>; kelas_id?: ScalarOrArray<number>;
@@ -315,8 +305,6 @@ export function unduhLeger(params: {
   return downloadFile(`/admin/penilaian/leger/unduh?${q.toString()}`, 'leger-nilai.xlsx');
 }
 
-// ---------------------------------------------------------------- rapor
-
 export function ambilRapor(params: {
   santri_id: number; peristiwa_id: number; semester: string; peringkat?: '3' | '10' | 'semua';
 }) {
@@ -337,8 +325,6 @@ export function raporKelas(params: {
   q.set('kelas_id', String(params.kelas_id));
   return api<RaporKelasResp>(`/admin/penilaian/rapor-kelas?${q.toString()}`);
 }
-
-// ---------------------------------------------------------------- impor
 
 export type TipeImpor = 'nilai' | 'catatan_wali' | 'prestasi' | 'ekskul';
 

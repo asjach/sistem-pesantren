@@ -32,12 +32,10 @@ export function useIsiLebar(tableKey: string, bawaan: boolean): boolean {
           if (!hidup) return;
           const kosong = v === null || v.trim() === '';
           setPilihan(kosong ? null : v === '1');
-          /* Bawaan halaman yang MENYALA ditulis sekali ke pref supaya
-             sakelar di Kelola Tabel → Umum membaca keadaan sebenarnya
-             (tanpa ini dialog menampilkan "mati" padahal tabelnya menyala). */
+
           if (kosong && bawaan) setIsiLebar(tableKey, true).catch(() => {});
         })
-        .catch(() => { /* pref gagal dibaca → ikut bawaan halaman */ });
+        .catch(() => {  });
     };
     muat();
     const segarkan = (e: Event) => {

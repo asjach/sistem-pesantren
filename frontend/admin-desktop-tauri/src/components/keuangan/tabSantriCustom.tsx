@@ -129,7 +129,7 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
     try {
       const daftar = await daftarGrupCustom({ jenjang: jenjangs, tahun_ajaran: tahunAjaranNames });
       setGrup(daftar);
-      // Grup aktif yang tersaring keluar ikut ditutup.
+
       setGrupAktifId((id) => (id !== null && daftar.some((g) => g.id === id) ? id : null));
     } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
   }, [jenjangs, tahunAjaranNames]);
@@ -137,7 +137,6 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
   useEffect(() => { void muatGrup(); }, [muatGrup]);
   useEffect(() => { void bacaPerPageGlobal().then((pp) => setPerPage(pp)); }, []);
 
-  // Opsi kelas mengikuti lingkup topBar (pemetaan nama rail → id).
   useEffect(() => {
     let hidup = true;
     void (async () => {
@@ -168,7 +167,6 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
     } catch (e) { setErr(errorMessage(e)); } finally { setLoadingKandidat(false); }
   }, [jenjangs, tahunAjaranNames, semesters, tingkat, kelasIds]);
 
-  // Lingkup topBar / pencarian berubah → muat ulang dari halaman 1 (tahan 250ms).
   useEffect(() => {
     setPage(1);
     const t = setTimeout(() => { void muatKandidat(1, perPage, cari); }, 250);
@@ -301,7 +299,7 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
   return (
     <div className="flex min-h-0 flex-1">
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari grup / nama / NIS…" />
-      {/* Kiri (bawaan 500px, bisa digeser): tabel grup + daftar santri. */}
+
       <div style={{ width: lebarKiri }} className="flex min-h-0 shrink-0 flex-col gap-2">
         <div
           ref={atasRef}
@@ -435,7 +433,7 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
           </div>
         </div>
         </div>
-        {/* Gagang geser tinggi tabel grup vs daftar santri. */}
+
         <div
           id="gagang_tabel_grup_custom"
           role="separator"
@@ -484,7 +482,6 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
         </div>
       </div>
 
-      {/* Gagang geser antar panel. */}
       <div
         id="gagang_santri_custom"
         role="separator"
@@ -497,7 +494,6 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
         onPointerCancel={selesaiGeser}
       />
 
-      {/* Kanan: pivot anggota grup terpilih. */}
       <div className="flex min-h-0 flex-1 flex-col">
         {err !== '' && <ErrorNotice>{err}</ErrorNotice>}
         {grupAktif === null ? (

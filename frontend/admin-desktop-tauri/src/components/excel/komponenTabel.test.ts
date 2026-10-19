@@ -39,10 +39,9 @@ describe('komponenAktif', () => {
     const peta = { judul_tabel: false, kolom: true, pager: false };
     expect(komponenAktif(peta, 'judul_tabel')).toBe(false);
     expect(komponenAktif(peta, 'pager')).toBe(false);
-    // `true` eksplisit tetap tampil (sama seperti absen) — peta tak menumpuk
-    // penanda `true`, tapi kalau ada tetap berarti nyala.
+
     expect(komponenAktif(peta, 'kolom')).toBe(true);
-    // Kunci yang tak disebut di peta ikut tampil.
+
     expect(komponenAktif(peta, 'tombol_edit')).toBe(true);
   });
 
@@ -69,16 +68,13 @@ describe('grupTersedia', () => {
     expect(kunci).not.toContain('rel_filter');
     expect(kunci).not.toContain('pager');
     expect(kunci).not.toContain('info_tengah');
-    // Sisanya tetap muncul.
+
     expect(kunci).toContain('judul_tabel');
     expect(kunci).toContain('tombol_edit');
   });
 
   it('grup yang tak punya komponen satupun tidak dirender', () => {
-    // Tanpa `adaBilahJudul` dan tanpa filter/urut/kolom, grup "Bilah judul"
-    // tak kosong lagi: sakelar "Tombol Pengaturan tabel" selalu tersedia
-    // (geriginya ada di bilah judul tanpa syarat). Yang benar-benar kosong
-    // di sini: kolom tetap & kaki tabel.
+
     const info: InfoKomponenTabel = {
       ...KOMPONEN_INFO_BEKAL,
       adaBilahJudul: false,
@@ -102,16 +98,14 @@ describe('grupTersedia', () => {
   });
 
   it('sakelar Tombol Pengaturan tabel tetap ada walau tabel tak punya bilah judul', () => {
-    // Sakelarnya tak punya syarat `tersedia`: gerigi selalu dirender di
-    // bilah judul, jadi switch-nya harus selalu bisa ditemukan.
+
     const kunci = grupTersedia({ ...KOMPONEN_INFO_BEKAL, adaBilahJudul: false })
       .flatMap(({ items }) => items.map((i) => i.kunci));
     expect(kunci).toContain('tombol_pengaturan');
   });
 
   it('grup kolom tetap hilang kalau halaman memang memaksa keduanya sembunyi', () => {
-    // Kolom centang & Aksi yang memang tak ada juga tak punya sakelar — tak
-    // ada tempat menampilkan.
+
     const info: InfoKomponenTabel = { ...LENGKAP, kolomCentang: false, kolomAksi: false };
     const kunci = grupTersedia(info).flatMap(({ items }) => items.map((i) => i.kunci));
     expect(kunci).not.toContain('kolom_centang');
@@ -127,8 +121,7 @@ describe('grupTersedia', () => {
   });
 
   it('info tengah tak ditawarkan bila tabel tak punya bilah judul', () => {
-    // Tanpa bilah judul tak ada tempat meletakkan info tengah — sakelarnya
-    // akan jadi mati.
+
     const kunci = grupTersedia({ ...LENGKAP, adaBilahJudul: false })
       .flatMap(({ items }) => items.map((i) => i.kunci));
     expect(kunci).not.toContain('info_tengah');

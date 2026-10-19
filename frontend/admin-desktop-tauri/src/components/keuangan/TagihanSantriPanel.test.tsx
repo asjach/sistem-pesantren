@@ -88,7 +88,7 @@ describe('TagihanSantriPanel', () => {
 
     const kepala = Array.from(document.querySelectorAll('thead th')).map((th) => (th.textContent ?? '').trim());
     expect(kepala).toEqual(['Jenis', 'Periode', 'Tagihan', 'Dibayar', 'Sisa', 'Status']);
-    // Tidak ada lagi kolom/informasi jatuh tempo.
+
     expect(screen.queryByText('Jatuh tempo')).toBeNull();
     expect(screen.queryByText('Terlambat')).toBeNull();
   });
@@ -104,7 +104,7 @@ describe('TagihanSantriPanel', () => {
     expect(sel(tr, 2)).toBe('150.000');
     expect(sel(tr, 3)).toBe('50.000');
     expect(sel(tr, 4)).toBe('100.000');
-    // Tanpa awalan "Rp" di seluruh baris tabel.
+
     expect(baris().every((b) => !(b.textContent ?? '').includes('Rp'))).toBe(true);
   });
 
@@ -121,7 +121,7 @@ describe('TagihanSantriPanel', () => {
   });
 
   it('mengurutkan baris menunggak, lunas, lalu belum aktif', async () => {
-    // Data dari API sengaja terbalik: yang diuji urutan tampilan.
+
     daftar.mockResolvedValue(halaman([BELUM_AKTIF, LUNAS, MENUNGGAK]));
 
     renderDenganTema(<TagihanSantriPanel santri={SANTRI} />);

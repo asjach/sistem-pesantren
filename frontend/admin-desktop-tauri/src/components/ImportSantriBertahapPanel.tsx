@@ -127,7 +127,7 @@ export default function ImportSantriBertahapPanel({ onSelesai, onSibuk }: {
 
   async function jalan(modeJalan: 'periksa' | 'eksekusi') {
     if (baris.length === 0 || sibuk) return;
-    // Tiap penekanan mulai sesi baru dari baris pertama (upsert idempoten).
+
     setMode(modeJalan);
     setFase('jalan');
     aturSibuk(true);

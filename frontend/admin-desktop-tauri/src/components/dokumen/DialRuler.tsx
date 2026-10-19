@@ -117,7 +117,7 @@ export default function DialRuler({
         disabled && 'pointer-events-none opacity-40',
       )}
     >
-      {/* Tick + titik sebaris di tengah; angka menimpa tengah (mask bg panel). */}
+
       <div
         className="absolute inset-y-0"
         style={{ left: '50%', width: total, transform: `translateX(${-((value - min) * ppu)}px)` }}
@@ -142,7 +142,7 @@ export default function DialRuler({
           />
         ))}
       </div>
-      {/* Garis pendek di atas angka + angka sebaris tick (mask agar tick lewat tertutup). */}
+
       <span aria-hidden className="absolute top-0.5 left-1/2 h-1 w-px -translate-x-1/2 bg-white/70" />
       <span
         aria-hidden

@@ -6,8 +6,6 @@ import RekapSantriPage from './RekapSantriPage';
 import { renderDenganTema } from '@/test/utils';
 import type { RekapSantri } from '@/api/siklus';
 
-// ---- Stub jsdom untuk Radix Select + panel resizable ----
-
 beforeAll(() => {
   if (!('ResizeObserver' in globalThis)) {
     (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
@@ -24,13 +22,11 @@ beforeAll(() => {
   if (!HTMLElement.prototype.scrollIntoView) {
     HTMLElement.prototype.scrollIntoView = () => {};
   }
-  // jsdom: Range.getClientRects belum ada; pengukur tinggi header ExcelTable
-  // memakainya. Data kosong = 1 baris teks (cukup untuk pengukuran di test).
+
   if (!Range.prototype.getClientRects) {
     Range.prototype.getClientRects = () => ({ length: 0, item: () => null }) as unknown as DOMRectList;
   }
-  // jsdom tanpa paket canvas: kembalikan null agar AutoFit lebar kolom berhenti
-  // di gerbang `if (!ctx) return null` (bukan log "Not implemented").
+
   HTMLCanvasElement.prototype.getContext = (() => null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 });
 
@@ -73,8 +69,6 @@ vi.mock('@/hooks/useFilterGlobalAktif', () => ({
     loading: false,
   }),
 }));
-
-// ---- Mock API preset/urut (ExcelTable tidak boleh memanggil fetch nyata) ----
 
 vi.mock('@/api/toolbarPreset', () => ({
   muatToolbarPreset: vi.fn(async () => ({
@@ -124,9 +118,6 @@ describe('RekapSantriPage — filter keaktifan', () => {
     renderDenganTema(<RekapSantriPage />);
     await waitFor(() => expect(rekapSantri).toHaveBeenCalledTimes(1));
 
-    // Combobox Base UI: daftar dibuka lewat KEYBOARD. Di jsdom klik pointer
-    // (input maupun tombol panah) tidak membuka popup — `aria-expanded` tetap
-    // false — sehingga `{ArrowDown}` pada input yang difokus jadi caranya.
     const inp = screen.getByRole('combobox', { name: 'Filter keaktifan' });
     inp.focus();
     await user.keyboard('{ArrowDown}');
@@ -143,17 +134,11 @@ describe('RekapSantriPage — tabel usia per tingkat', () => {
     rekapAktif = rekapUsia;
     renderDenganTema(<RekapSantriPage />);
 
-    // Baris usia terpisah: MI dan MD sama-sama tingkat "2" tetapi tidak digabung
-    // (tabel Per tingkat/Per kelas sengaja kosong di fixture, jadi "MI"/"MD" di
-    // sini hanya mungkin berasal dari baris usia).
     expect(await screen.findByText('MD')).toBeInTheDocument();
     expect(screen.getByText('MI')).toBeInTheDocument();
-    // Nilai usia ikut tampil: rata/min/max 9 pada 2 baris lembaga (6 sel) +
-    // rata/min/max di baris "Jumlah" (3 sel).
+
     expect(screen.getAllByText('9')).toHaveLength(9);
 
-    // Kolom Lembaga kini ada di Usia per tingkat — sama seperti tabel lain di
-    // halaman ini (Per tingkat, Per kelas, Usia).
     expect(screen.getByText('Rata usia')).toBeInTheDocument();
     expect(screen.getAllByText('Lembaga')).toHaveLength(3);
   });

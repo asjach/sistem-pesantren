@@ -11,8 +11,6 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use Tests\TestCase;
 
-// Kode warna header template import (seragam template lain): kuning = wajib,
-// biru = opsional. Template santri/riwayat sudah berwarna sejak awal.
 class TemplateWarnaTest extends TestCase
 {
     use RefreshDatabase;

@@ -64,7 +64,6 @@ class KeaktifanImporService extends ImporPotongan
         $nipp = trim((string) ($baris['nipp'] ?? ''));
         $this->kunciAktif = $nipp !== '' ? $nipp : (trim((string) ($baris['nama_lengkap'] ?? '')) ?: null);
 
-        // Baris kosong/pemisah: tanpa identitas pegawai.
         if (empty($baris['pegawai_id']) && $nipp === '' && empty($baris['nama_lengkap'])) {
             return;
         }
@@ -78,8 +77,6 @@ class KeaktifanImporService extends ImporPotongan
             return;
         }
 
-        // Izin mengikuti akun per baris (super_admin lolos semua; admin
-        // lembaga hanya lembaganya) — baris luar lingkup gagal per baris.
         $auth = auth()->user();
         if (! $auth || ! $auth->canAccessLembaga($jenjang)) {
             $this->fail($no, 'jenjang', 'Lembaga di luar lingkup akses Anda.');
@@ -113,9 +110,6 @@ class KeaktifanImporService extends ImporPotongan
             return;
         }
 
-        // Invarian modul: tulis keaktifan hanya bila penempatan ada —
-        // kecuali mode gabungan yang membuatkan penempatan aktif dulu.
-        // (Sel terisi dihitung duluan karena tugas dipakai penempatan baru.)
         $terisi = fn (string $kunci) => array_key_exists($kunci, $baris) && trim((string) $baris[$kunci]) !== '';
         $tugas = $terisi('tugas_utama') ? trim((string) $baris['tugas_utama']) : null;
         $noSk = $terisi('no_sk') ? trim((string) $baris['no_sk']) : null;
@@ -128,7 +122,7 @@ class KeaktifanImporService extends ImporPotongan
                 return;
             }
             if ($kering) {
-                // Kering: penempatan bayangan agar cek lanjutan tetap jalan.
+
                 $penempatan = new LembagaPegawai(['tugas_utama' => $tugas]);
             } else {
                 $penempatan = $this->penempatan->pastikanPenempatan(
@@ -156,8 +150,7 @@ class KeaktifanImporService extends ImporPotongan
             }
             $this->dibuat++;
         } else {
-            // Update: hanya sel terisi yang menimpa (sel kosong = pertahankan,
-            // tak bisa mengosongkan/mengarsipkan diam-diam via import).
+
             $ubah = [];
             if ($tugas !== null) {
                 $ubah['tugas_utama'] = $tugas;
@@ -172,7 +165,7 @@ class KeaktifanImporService extends ImporPotongan
                 $ubah['tgl_sk'] = $tglSk;
             }
             if ($ubah === []) {
-                // Baris cocok tanpa kolom terisi = dilewati (idempoten).
+
                 $this->dilewati++;
 
                 return;

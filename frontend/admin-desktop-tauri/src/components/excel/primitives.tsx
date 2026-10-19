@@ -57,10 +57,7 @@ export function PillMode({
       {sakelar && sakelar.length > 0 && (
         <div className="flex flex-col gap-1 rounded-pil border border-foreground/30 bg-popover px-2.5 py-1.5 shadow-md">
           {sakelar.map((s, i) => {
-            /* Garis pemisah antar-GRUP, bukan antar-item: sakelar copy &
-               pindah (satu grup) duduk rapat, dan grup berikutnya dipisah
-               garis. Sakelar tanpa `grup` dihitung grupnya sendiri lewat
-               `id`, jadi tak pernah ikut menempel ke tetangganya. */
+
             const grupIni = s.grup ?? `~${s.id}`;
             const grupSebelum = i === 0 ? null : (sakelar[i - 1].grup ?? `~${sakelar[i - 1].id}`);
             return (

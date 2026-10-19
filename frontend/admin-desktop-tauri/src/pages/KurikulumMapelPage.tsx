@@ -56,9 +56,7 @@ const FIELDS: ExcelField[] = [
   { key: 'kode_mapel', label: 'Kode', width: 130, kind: 'text', maxLength: 20 },
   { key: 'singkatan', label: 'Singkatan', width: 140, kind: 'text', maxLength: 50 },
   {
-    // KKM & urutan tampil rapor milik mapel (satu tempat per jenjang — dulu
-    // tinggal di komposisi kurikulum yang sudah dihapus). KKM kosong = tanpa
-    // KKM (predikat manual, modul 202).
+
     key: 'kkm', label: 'KKM', width: 90, kind: 'text', maxLength: 5, format: 'angka',
     validate: (v) => {
       if (v === null || v.trim() === '') return null;
@@ -165,8 +163,7 @@ function DialogFormMapel({ open, onClose, judul, idPrefix, idSimpan, nilai, set,
         <div className="grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-4">
           <FieldLabel htmlFor={`input_${idPrefix}_nama`}>Nama mapel</FieldLabel>
           <Input
-            /* autoFocus DISENGAJA: dialog form mapel dibuka untuk mengisi mapel
-               baru; fokus langsung ke kotak Nama mapel mempercepat alur. */
+
             /* eslint-disable-next-line jsx-a11y/no-autofocus */
             id={`input_${idPrefix}_nama`} value={nilai.nama} maxLength={100} required autoFocus
             onChange={(e) => set({ nama: e.target.value })}
@@ -347,9 +344,7 @@ export default function KurikulumMapelPage() {
     }
     let hidup = true;
     setRefLoading(true);
-    // Kamus & seluruh mapel jenjang ini dimuat BERSAMA: yang menentukan entri
-    // kamus disembunyikan adalah nama yang sudah ada di tabel mapel — termasuk
-    // yang nonaktif atau sedang tersaring pencarian di tabel kanan.
+
     Promise.all([
       referensiList('mapel', jenjang),
       daftarMapel({ jenjang, keaktifan: 'semua' }),
@@ -406,8 +401,6 @@ export default function KurikulumMapelPage() {
     setTambahOpen(true);
   }, []);
 
-  // Pintasan Ctrl/Cmd+N = tombol "Tambah" (dialog mapel baru). Terhalang bila
-  // salah satu dialog/panel halaman ini sudah terbuka agar tidak bertumpuk.
   usePintasanBaru({
     kunci: 'n',
     aktif: canTambah,
@@ -433,8 +426,7 @@ export default function KurikulumMapelPage() {
       });
       toast.success('Mapel ditambah.');
       setTambahOpen(false);
-      // Nama ini kini ada di tabel kanan → entri kamus bernama sama langsung
-      // disembunyikan dari tabel kiri (tanpa menunggu muat ulang kamus).
+
       setNamaTerpakai((s) => new Set(s).add(kunciNamaMapel(formTambah.nama)));
       pager.goFirst();
       await load(1);
@@ -503,8 +495,7 @@ export default function KurikulumMapelPage() {
       toast.success('Mapel diubah.');
       setEditRow(null);
       await load();
-      // Nama bisa berubah → entri kamus yang semula tersembunyi mungkin
-      // kembali tampil (dan sebaliknya), jadi kamus dimuat ulang.
+
       segarkanKamus();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -534,7 +525,7 @@ export default function KurikulumMapelPage() {
       ...(f.kelompok !== undefined ? { kelompok: (f.kelompok ?? 'formal') as 'formal' | 'pesantren' } : {}),
       ...(f.is_active !== undefined ? { is_active: f.is_active === 'ya' } : {}),
     });
-    // Edit sel bisa mengubah nama → kamus perlu disegarkan.
+
     if (f.nama_mapel !== undefined) segarkanKamus();
   }
 
@@ -574,19 +565,12 @@ export default function KurikulumMapelPage() {
         { key: 'kurikulum_mapel', judul: 'Mapel', fields: FIELDS },
         { key: 'kurikulum_mapel_kamus', judul: 'Kamus mapel', fields: FIELDS_KAMUS },
       ]} />
-      {/* Dua kolom dengan pemisah yang bisa digeser: lebar kolom kamus
-          (kiri) disimpan dalam piksel agar tak melar saat jendela melebar;
-          kolom mapel (kanan) mengisi sisanya secara proporsional. */}
+
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_kurikulum_mapel">
-        {/* Kolom 1: kamus `ref_mapel` jenjang ini — baca-saja, tombol → pada
-            tiap baris menginput entri kamus itu ke tabel `mata_pelajaran`
-            (kolom kanan). */}
+
         <ResizablePanel
           id="panel_kurikulum_mapel_kamus"
-          // 520px = lebar yang dibutuhkan tabel kamus hasil AutoFit (kolom
-          // Kode+Nama+Singkatan ≈ 475px, termasuk gutter & kolom Aksi).
-          // Dengan 420px tabelnya meluber ~55px sehingga bilah gulir
-          // horizontal muncul walau isinya hanya 3 kolom pendek.
+
           defaultSize="520px"
           minSize="260px"
           maxSize="70%"
@@ -605,15 +589,14 @@ export default function KurikulumMapelPage() {
                   ? 'Semua entri kamus sudah masuk ke tabel mapel.'
                   : 'Tidak ada entri kamus untuk jenjang ini.'
               }
-              // Kamus dikelola di Pengaturan → Referensi; di sini murni baca-saja.
+
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
               hideCheckbox
               hidePreset
               aksiLangsung
-              // Judul eksplisit: tanpa `header`, bilah judul butuh minimal satu
-              // komponen (filter/aksi) — di sini keduanya sengaja tidak ada.
+
               header={judulTabel('kurikulum_mapel_kamus')}
               renderActions={(r) => {
                 const nama = r.nama ?? '';
@@ -639,7 +622,6 @@ export default function KurikulumMapelPage() {
           aria-label="Atur lebar Kamus Mapel dan Daftar Mapel"
         />
 
-        {/* Kolom 2: tabel `mata_pelajaran` (halaman asli, tak berubah). */}
         <ResizablePanel
           id="panel_kurikulum_mapel_daftar"
           groupResizeBehavior="preserve-relative-size"
@@ -658,11 +640,7 @@ export default function KurikulumMapelPage() {
               canEdit={canUbah}
               onCommit={commitBaris}
               onSaved={onSaved}
-              // Tombol aksi halaman (Terapkan kamus, Import, Tambah)
-              // dikumpulkan ke satu menu titik-tiga "Aksi" yang duduk tepat di
-              // sebelah kiri gerigi Pengaturan tabel — bilah judul jadi ringkas.
-              // Pil info tengah ("Lingkup …") sengaja tidak dipakai: isinya
-              // hanya pengulangan jenjang filter di topBar, tanpa aksi apa pun.
+
               filter={(
                 <LabeledCombobox label="Status" htmlFor="sel_status_mapel">
                   <ComboboxRoot
@@ -689,8 +667,7 @@ export default function KurikulumMapelPage() {
               )}
               addButton={
                 <>
-                  {/* Aksi halaman (bukan tambah baris): mengisi kolom yang kosong
-                      pada mapel yang sudah ada — karena itu izinnya `ubah`. */}
+
                   {canUbah && (
                     <Button type="button" variant="outline" size="sm" id="btn_terapkan_kamus_mapel"
                       onClick={() => { setKamusTimpa(false); setKamusOpen(true); }}>
@@ -703,7 +680,7 @@ export default function KurikulumMapelPage() {
                       <FileUp data-icon="inline-start" size={16} /> Import
                     </Button>
                   )}
-                  {/* Membuka DIALOG, bukan menyisipkan baris "Mapel Baru" langsung. */}
+
                   <Button type="button" size="sm" id="btn_tambah_mapel" disabled={!canTambah}
                     onClick={bukaTambah}
                     title={`Tambah mata pelajaran (${labelPintasan('n')})`}
@@ -757,17 +734,12 @@ export default function KurikulumMapelPage() {
             setImportOpen(false);
             pager.goFirst();
             void load(1);
-            // Impor bisa menambah banyak nama → kamus dimuat ulang agar entri
-            // yang sudah masuk tabel kanan hilang dari tabel kiri.
+
             segarkanKamus();
           },
         }}
       />
 
-      {/* Aksi "Tambah" & aksi baris "Ubah" memakai formulir dialog yang SAMA
-          (`DialogFormMapel`). "Tambah" tidak lagi menyisipkan baris "Mapel
-          Baru" ke tabel — baris dibuat setelah pengguna mengisi & menekan
-          Simpan. Edit SEL tetap jalan di grid (endpoint-nya sama). */}
       <DialogFormMapel
         open={tambahOpen}
         onClose={() => setTambahOpen(false)}
@@ -789,9 +761,6 @@ export default function KurikulumMapelPage() {
         onSimpan={() => void simpanUbah()}
       />
 
-      {/* Aksi "Terapkan kamus": mengisi kode & singkatan mapel yang sudah ada
-          dari entri kamus bernama sama. Pratinjau diminta lebih dulu ke server
-          (`mode: periksa`) sebelum menulis apa pun. */}
       <DialogKamusAksi
         open={kamusOpen}
         onClose={() => setKamusOpen(false)}
@@ -803,8 +772,7 @@ export default function KurikulumMapelPage() {
           </>
         )}
         kontrol={(
-          /* Label SEBAGAI SAUDARA kotaknya (bukan pembungkus): kontrol
-             interaktif di dalam <label> bikin pembaca layar ganda membacanya. */
+
           <div className="flex items-start gap-2 text-xs">
             <Checkbox
               id="cek_timpa_kamus_mapel"

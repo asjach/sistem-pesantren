@@ -192,7 +192,6 @@ export default function KurikulumJadwalPage() {
 
   useEffect(() => { void muatJadwal(); }, [muatJadwal]);
 
-  // Pilihan mapel & guru master untuk dialog pengisian jadwal.
   useEffect(() => {
     if (jenjang === null || ta === null) { setMapelAktif([]); setGuruAktif([]); return; }
     let hidup = true;
@@ -207,8 +206,6 @@ export default function KurikulumJadwalPage() {
     return () => { hidup = false; };
   }, [jenjang, ta]);
 
-  // Daftar template untuk tombol Terapkan di tab Jadwal; muat ulang setiap
-  // kembali ke tab ini agar template baru dari tab Template langsung tampil.
   useEffect(() => {
     if (tab !== 'jadwal' || jenjang === null) return;
     let hidup = true;
@@ -294,9 +291,7 @@ export default function KurikulumJadwalPage() {
           kelasNama: d.kelas.nama_kelas,
           urutan: u,
           awalKelas: di > 0 && u === urutan[0] && hasil.length > 0,
-          /* Kolom "Jam" hanya menampilkan WAKTU (bukan nama slot). Baris
-             tanpa jam sama sekali jatuh ke nama slot — supaya barisnya
-             tak kosong tanpa keterangan. */
+
           label: jam.length > 0 ? jam.join(' · ') : (nama.length === 1 ? nama[0] : `JP ${u}`),
           perHari: perHariBaris,
         });
@@ -337,8 +332,7 @@ export default function KurikulumJadwalPage() {
     const guruSama = nilai.every((n) => (n?.keaktifan_pegawai_id ?? null) === (nilai[0]?.keaktifan_pegawai_id ?? null));
     setEditSel(sasaran);
     setSelMapel(mapelSama ? (nilai[0]?.mata_pelajaran_id ?? '') : '');
-    // Guru hanya diisi otomatis saat mapel seragam: blok dengan mapel campur
-    // jangan sampai berubah jadi guru-saja hanya karena guru ikut terbawa.
+
     setSelGuru(mapelSama && guruSama ? (nilai[0]?.keaktifan_pegawai_id ?? '') : '');
   }, [canUbah, hari, petaJadwal]);
 
@@ -349,9 +343,7 @@ export default function KurikulumJadwalPage() {
   const kosongkanBlok = useCallback((rowsBlok: BarisMatriks[], fieldsBlok: ExcelField[]) => {
     if (!canUbah) return;
     const hariBlok = fieldsBlok.map((f) => f.key).filter((k) => hari.includes(k));
-    /* Sasaran = SELURUH sel pelajaran berisi yang tercakup blok — bukan cuma
-       sel yang diklik. Ringkasan logikanya di `sasaranKosongkanBlok` supaya
-       perilaku lintas range bisa diuji tanpa menggrid. */
+
     const sasaran = sasaranKosongkanBlok(
       rowsBlok.length,
       hariBlok,
@@ -469,9 +461,7 @@ export default function KurikulumJadwalPage() {
         width: 180,
         kind: 'static',
         renderCell: (rowData: GridRow) => renderSel(rowData.id, h),
-        /* Sel digambar beberapa baris sementara nilainya tetap satu string
-           (dipakai salin TSV) — tanpa ini AutoFit mengukurnya utuh dan
-           kolom hari jadi jauh lebih lebar dari isinya. */
+
         barisSel: (rowData) => barisSelJadwal(rowData.id, h),
         cellClass: (rowData: GridRow) => cls(rowData, kelasWarnaSel(rowData.id, h)),
       })),
@@ -549,8 +539,7 @@ export default function KurikulumJadwalPage() {
     const sel = (blok: BlokIsi, dr: number, dc: number): SasaranJadwal | null => {
       const baris = p.rows[blok.r0 + dr];
       if (baris === undefined) return null;
-      /* Indeks kolom blok → key kolom grid. Hanya kolom HARI yang boleh jadi
-         sasaran: kolom "Kelas"/"Jam" cuma label baris, bukan data. */
+
       const key = p.kunciKolom[blok.kolom[dc]];
       if (key === undefined || !hari.includes(key)) return null;
       const slot = baris.perHari[key];
@@ -579,8 +568,7 @@ export default function KurikulumJadwalPage() {
     const isiAsal = asal.map((t) => petaJadwal.get(kunci(t)) ?? null);
     const mapel = isiAsal[0]?.mata_pelajaran_id ?? null;
     const guru = isiAsal[0]?.keaktifan_pegawai_id ?? null;
-    /* Blok jadi "satu isi" hanya kalau mapel + guru-nya seragam — sama
-       syaratnya dengan dialog "Isi Blok". */
+
     const seragam = isiAsal.every((j) => (j?.mata_pelajaran_id ?? null) === mapel
       && (j?.keaktifan_pegawai_id ?? null) === guru);
     if (!seragam) {
@@ -593,8 +581,7 @@ export default function KurikulumJadwalPage() {
       toast.error('Blok tujuan tidak memuat sel pelajaran.');
       return;
     }
-    /* Sel yang jadi tujuan sekaligus sumber (pindah ke area sendiri) dilewati
-       saat pengosongan — isinya memang harus tetap utuh di sana. */
+
     const tujuanKunci = new Set(tujuan.map(kunci));
 
     setSelBusy(true);
@@ -683,8 +670,7 @@ export default function KurikulumJadwalPage() {
       toast.error('Blok asal harus berisi mapel & guru yang sama.');
       return;
     }
-    /* Blok kosong tetap sah disalin: menempelkan "kosong" adalah cara cepat
-       mengosongkan banyak sel — perlakuan yang sama dengan seret isi sel. */
+
     klipJadwalRef.current = klip;
     toast.success(`${klip.jumlahSel} sel disalin. Tekan Ctrl/Cmd+V untuk menempel.`);
   }, [petaJadwal, sasaranDariBlok, sasaranPenuh]);

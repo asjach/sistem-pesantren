@@ -224,9 +224,6 @@ export default function PenilaianLegerPage() {
         )}
       </div>
 
-      {/* Pager hanya berarti saat tabelnya ada: tanpa filter lengkap (atau
-          saat data belum tiba) ia tampil sebagai baris "10 50 100 … Hal 1/1"
-          yang menggantung tanpa tabel di atasnya. */}
       {data !== null && (
         <Pager
           page={pager.page}

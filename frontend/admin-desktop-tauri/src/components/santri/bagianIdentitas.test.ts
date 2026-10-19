@@ -7,8 +7,7 @@ const kunciTampil = BAGIAN_IDENTITAS.flatMap((b) => b.panels.flatMap((p) => p.ku
 
 describe('bagianIdentitas', () => {
   it('menampilkan seluruh field yang bisa diedit', () => {
-    // Kalau satu field lupa masuk kelompokan, field itu diam-diam tak bisa
-    // diubah lagi dari form Ubah detail — jadi dijaga di sini.
+
     const editable = SANTRI_IDENTITAS_FIELDS
       .filter((f) => f.kind !== 'static' && !TURUNAN_KEYS.has(f.key))
       .map((f) => f.key);

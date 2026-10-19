@@ -33,7 +33,6 @@ class Terbilang
             return '';
         }
 
-        // Normalisasi: koma sebagai desimal (locale id-ID), titik ribuan dibuang.
         $teks = is_string($nilai) ? trim($nilai) : rtrim(rtrim(number_format((float) $nilai, 2, ',', ''), '0'), ',');
         $teks = str_replace('.', '', $teks);
 
@@ -44,7 +43,7 @@ class Terbilang
             } elseif (ctype_digit($ch)) {
                 $kata[] = self::DIGIT[(int) $ch];
             }
-            // Tanda lain (-, spasi, dsb.) diabaikan.
+
         }
 
         return implode(' ', $kata);

@@ -70,7 +70,7 @@ export function useAntreanSimpan<T extends { id: string | number }>({
         try {
           await onSavedRef.current();
         } catch {
-          // Reload gagal: draft sukses tetap dibuang (data sudah tersimpan di server).
+
         }
         for (const s of savedRef.current) dropDraftRef.current(s.id, s.keys);
         savedRef.current = [];
@@ -79,7 +79,7 @@ export function useAntreanSimpan<T extends { id: string | number }>({
     } finally {
       drainingRef.current = false;
     }
-    // Ada perubahan baru saat reload berjalan → proses lagi.
+
     if (queueRef.current.size > 0) void drain();
   }, [saveRow, onSavedRef, dropDraftRef]);
 

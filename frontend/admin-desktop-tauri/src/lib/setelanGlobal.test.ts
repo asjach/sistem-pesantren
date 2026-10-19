@@ -12,7 +12,7 @@ describe('nilaiBerlapis', () => {
   });
 
   it('null saat tak ada standar dan perangkat belum diubah', () => {
-    // null penting: pemanggil memakai jalur cadangannya (density DSG).
+
     expect(nilaiBerlapis(null, null)).toBeNull();
   });
 

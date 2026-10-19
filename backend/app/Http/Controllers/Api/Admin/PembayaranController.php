@@ -132,10 +132,6 @@ class PembayaranController extends Controller
                 abort(422, 'Satu transaksi hanya untuk tagihan satu santri.');
             }
 
-            /* Pembayaran melebihi sisa ditolak, bukan dipotong diam-diam —
-               cek ulang di dalam transaksi agar dua kasir yang menekan Bayar di
-               detik sama tidak bisa sama-sama lolos pemeriksaan sisa. Pesan
-               transaksi satu baris dipertahankan seperti endpoint lama. */
             $tunggal = count($items) === 1;
             foreach ($items as $it) {
                 $t = $tagihan[(int) $it['tagihan_id']];
@@ -294,7 +290,7 @@ class PembayaranController extends Controller
 
         $trx = $pembayaran->transaksi;
         if ($trx === null) {
-            // Baris yatim (pra-skema transaksi): batalkan baris itu saja.
+
             if ($pembayaran->status === 'batal') {
                 return response()->json(['pesan' => 'Sudah dibatalkan.']);
             }
@@ -311,7 +307,6 @@ class PembayaranController extends Controller
             return response()->json(['pesan' => 'Pembayaran dibatalkan.']);
         }
 
-        // Seluruh baris transaksi harus dalam jangkauan pemanggil.
         foreach ($trx->pembayaran()->with('tagihan')->get() as $p) {
             if ($p->tagihan !== null) {
                 $this->canLembaga($request->user(), $p->tagihan->jenjang) || abort(403);

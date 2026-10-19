@@ -15,12 +15,12 @@ return new class extends Migration
             $table->id();
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
-            $table->foreignId('walas_id')->nullable()->constrained('pegawai')->nullOnDelete(); // wali kelas → pegawai
-            $table->string('tingkat')->nullable(); // ref_tingkat ('7','8','9'); grouping saat kelas_id null di riwayat
-            $table->integer('urutan')->default(0); // urutan tampil per lingkup (0 = belum diatur)
-            $table->string('nama_kelas'); // 'VII-A'
-            $table->string('nama_alias', 50)->nullable(); // nama tampil ringkas/alias
+            $table->string('tahun_ajaran', 9);
+            $table->foreignId('walas_id')->nullable()->constrained('pegawai')->nullOnDelete();
+            $table->string('tingkat')->nullable();
+            $table->integer('urutan')->default(0);
+            $table->string('nama_kelas');
+            $table->string('nama_alias', 50)->nullable();
             $table->integer('kapasitas')->nullable();
             $table->timestamps();
 

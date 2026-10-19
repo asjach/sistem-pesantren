@@ -93,7 +93,7 @@ class SamakanNisTest extends TestCase
 
         $res = $this->panggil($admin, true)->assertStatus(200);
         $this->assertSame(2, (int) $res->json('ringkasan.disamakan'));
-        // Pratinjau tidak menulis.
+
         $this->assertNull(LembagaSantri::where('santri_id', $a->id)->where('jenjang', $f['md']->jenjang)->firstOrFail()->nis_lokal);
 
         $this->panggil($admin, false)->assertStatus(200);
@@ -142,7 +142,6 @@ class SamakanNisTest extends TestCase
         $this->anggota($s, $f['mi']->jenjang, '27401');
         $this->anggota($s, $f['md']->jenjang, null);
 
-        // Admin MI bisa menulis MD (pengecualian pasangan) → kandidat disamakan.
         $res = $this->panggil($adminMi, false)->assertStatus(200);
         $this->assertSame(1, (int) $res->json('ringkasan.disamakan'));
         $this->assertSame('27401', LembagaSantri::where('santri_id', $s->id)->where('jenjang', $f['md']->jenjang)->firstOrFail()->nis_lokal);

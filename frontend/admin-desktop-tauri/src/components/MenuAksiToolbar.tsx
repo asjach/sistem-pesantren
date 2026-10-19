@@ -62,7 +62,6 @@ function uraiLabel(node: ReactNode, hasil: { teks: string; ikon: ReactNode[] }):
     return;
   }
 
-  // Komponen: ber-children = pembungkus (ditelusuri), tanpa children = ikon.
   if (props.children == null) {
     hasil.ikon.push(node);
     return;
@@ -112,8 +111,7 @@ export default function MenuAksiToolbar({ children, triggerId, label = 'Aksi' }:
               onSelect={() => p.onClick?.()}
             >
               {urai.ikon.length > 0 ? (
-                /* Ikon tombol ikut pindah ke menu; ukurannya diseragamkan
-                   lewat CSS agar tak bergantung `size` masing-masing ikon. */
+
                 <span className="flex shrink-0 items-center text-muted-foreground [&>svg]:size-3.5">
                   {urai.ikon}
                 </span>

@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 
 class KamusController extends Controller
 {
-    // Kamus bebas (saran). status_awal/akhir TIDAK lewat sini — itu ranah admin (004).
+
     public const WHITELIST = [
         'agama', 'hobi', 'cita_cita', 'pekerjaan',
         'pendidikan', 'kebutuhan_khusus', 'kota',

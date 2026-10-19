@@ -57,8 +57,7 @@ export function skalaLebarIsi(
 ): HasilSkalaIsi | null {
   if (kolom.length === 0) return null;
   const totalBasis = kolom.reduce((n, k) => n + Math.max(0, k.lebar), 0);
-  // `floor` wadah: 0,5 px sisa pembulatan cukup untuk memunculkan gulir
-  // horizontal yang tak perlu.
+
   const tersedia = Math.floor(lebarWadah - lebarTetap);
   if (totalBasis <= 0 || tersedia <= 0) return null;
 
@@ -71,7 +70,6 @@ export function skalaLebarIsi(
 
   let selisih = tersedia - hasil.reduce((n, h) => n + h.lebar, 0);
 
-  // Kelebihan ruang → tambah 1 px mulai dari kolom berfraksi terbesar.
   const urutFraksi = [...hasil].sort((a, b) => b.fraksi - a.fraksi);
   let i = 0;
   while (selisih > 0 && urutFraksi.length > 0) {
@@ -80,8 +78,6 @@ export function skalaLebarIsi(
     i += 1;
   }
 
-  // Kekurangan ruang (hanya terjadi saat batas minimum menahan penyusutan) →
-  // ambil 1 px dari kolom terlebar yang masih di atas minimum.
   const urutLebar = [...hasil].sort((a, b) => b.lebar - a.lebar);
   i = 0;
   while (selisih < 0 && urutLebar.some((h) => h.lebar > minKolom)) {

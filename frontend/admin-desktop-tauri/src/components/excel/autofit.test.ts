@@ -21,7 +21,7 @@ describe('gabungLebarMaks', () => {
     const tumbuh = gabungLebarMaks(prev, { nama: 180 });
     expect(tumbuh).not.toBe(prev);
     expect(tumbuh.nama).toBe(180);
-    // Bolak-balik halaman pendek ↔ panjang: tetap 180, tanpa denyut.
+
     expect(gabungLebarMaks(tumbuh, { nama: 120 })).toBe(tumbuh);
     expect(gabungLebarMaks(tumbuh, { nama: 180 })).toBe(tumbuh);
   });
@@ -30,7 +30,7 @@ describe('gabungLebarMaks', () => {
     const prev = { nama: 120 };
     const hasil = gabungLebarMaks(prev, { nama: 100, baru: 90 });
     expect(hasil).toEqual({ nama: 120, baru: 90 });
-    // Sampel kosong (filter tak cocok) tak meruntuhkan lebar.
+
     expect(gabungLebarMaks(hasil, {})).toBe(hasil);
   });
 });
@@ -41,7 +41,7 @@ describe('lebarDariBaris', () => {
   const ukur = (teks: string, ukuranPx?: number): number => teks.length * (ukuranPx ?? 12);
 
   it('mengambil baris TERLEBAR, bukan menjumlahkan baris-barisnya', () => {
-    // "Matematika — Siti Aminah" (21 char) vs baris terlebar "Matematika" (10).
+
     const w = lebarDariBaris(
       [{ teks: 'Matematika', ukuran: 10 }, { teks: 'Siti Aminah', ukuran: 9 }],
       ukur,
@@ -55,7 +55,7 @@ describe('lebarDariBaris', () => {
 
   it('ukuran huruf per baris diteruskan ke pengukur (huruf kecil = lebih sempit)', () => {
     const teks = [{ teks: 'Pendompaan', ukuran: 10 }, { teks: 'Pendompaan', ukuran: 9 }];
-    // Baris 9px harus lebih sempit walau teksnya sama panjang.
+
     expect(lebarDariBaris(teks, ukur)).toBe(100);
   });
 

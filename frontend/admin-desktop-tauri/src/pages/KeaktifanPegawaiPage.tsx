@@ -41,7 +41,7 @@ const FIELDS: ExcelField[] = [
   { key: 'lembaga', label: 'Jenjang', width: 100, kind: 'static' },
   { key: 'ta', label: 'Tahun Ajaran', width: 130, kind: 'static' },
   { key: 'tugas', label: 'Tugas', width: 180, kind: 'static' },
-  // Toggle langsung (tanpa Mode Edit): gerbang izin mengikuti `canEdit` tabel.
+
   { key: 'status', label: 'Status', width: 110, kind: 'toggle' },
   { key: 'no_sk', label: 'No. SK', width: 180, kind: 'text', maxLength: 100 },
   { key: 'tgl_sk', label: 'Tgl SK', width: 130, kind: 'text', maxLength: 10,  },
@@ -154,9 +154,7 @@ export default function KeaktifanPegawaiPage() {
         tahun_ajaran: baris.tahun_ajaran,
         ...(f.no_sk !== undefined ? { no_sk: f.no_sk || null } : {}),
         ...(f.tgl_sk !== undefined ? { tgl_sk: f.tgl_sk || null } : {}),
-        // Bila status ikut berubah dalam batch yang sama, kirim eksplisit —
-        // endpoint store berstatus bawaan `aktif` sehingga tanpa ini toggle
-        // padam akan tertimpa jadi aktif.
+
         ...(f.status !== undefined ? { status_keaktifan: f.status === 'ya' ? 'Ya' : 'Tidak' } : {}),
       });
       return;
@@ -177,8 +175,6 @@ export default function KeaktifanPegawaiPage() {
     </>
   ), [canHapus, onHapus]);
 
-  // Bulk hapus: baris tercentang dilaporkan via onCheckedChange, tombolnya
-  // hidup di hamburger aksi tabel (addButton, setelah combobox Kolom).
   const [tercentang, setTercentang] = useState<KeaktifanPegawai[]>([]);
   const [bulkHapusOpen, setBulkHapusOpen] = useState(false);
   const [bulkHapusProses, setBulkHapusProses] = useState(false);
@@ -189,9 +185,7 @@ export default function KeaktifanPegawaiPage() {
       size="sm"
       variant="destructive"
       disabled={tercentang.length === 0 || bulkHapusProses}
-      // Buka dialog async setelah menu hamburger tertutup: membuka AlertDialog
-      // sinkron dari onSelect dropdown membuat konflik fokus portal Radix
-      // (crash halaman blank).
+
       onClick={() => { setTimeout(() => setBulkHapusOpen(true), 0); }}
     >
       <Trash2 size={14} />

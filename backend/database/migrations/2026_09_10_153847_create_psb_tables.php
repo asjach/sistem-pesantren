@@ -13,12 +13,11 @@ return new class extends Migration
     {
         Schema::create('psb_kegiatan', function (Blueprint $table) {
             $table->id();
-            $table->string('tahun_ajaran', 9); // FK ke tahun_ajaran.nama
+            $table->string('tahun_ajaran', 9);
             $table->string('nama');
             $table->boolean('is_aktif')->default(true);
             $table->timestamps();
 
-            // Se-pesantren: satu kegiatan per tahun ajaran.
             $table->unique('tahun_ajaran');
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->cascadeOnDelete();
@@ -27,9 +26,9 @@ return new class extends Migration
         Schema::create('psb_gelombang', function (Blueprint $table) {
             $table->id();
             $table->foreignId('psb_kegiatan_id')->nullable()->constrained('psb_kegiatan')->nullOnDelete();
-            $table->unsignedInteger('nomor')->nullable(); // urutan gelombang dalam kegiatan
-            $table->string('nama'); // misal: 'Gelombang 1 2026/2027'
-            // Gerbang pendaftaran murni dari rentang tanggal (tanpa flag status).
+            $table->unsignedInteger('nomor')->nullable();
+            $table->string('nama');
+
             $table->date('tgl_buka')->nullable();
             $table->date('tgl_tutup')->nullable();
             $table->timestamps();
@@ -41,9 +40,9 @@ return new class extends Migration
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->enum('tipe_santri', ['semua', 'asrama', 'non_asrama'])->default('semua');
-            $table->boolean('paket_tersedia')->default(false); // paket MI-MD ditawarkan (di baris primer MI)
+            $table->boolean('paket_tersedia')->default(false);
             $table->integer('kuota')->nullable();
-            $table->boolean('membutuhkan_seleksi')->nullable(); // null = ikut lembaga.is_seleksi
+            $table->boolean('membutuhkan_seleksi')->nullable();
             $table->boolean('membutuhkan_pemberkasan')->default(true);
             $table->timestamps();
 
@@ -53,15 +52,15 @@ return new class extends Migration
         Schema::create('psb_calon_santri', function (Blueprint $table) {
             $table->id();
             $table->string('jenjang', 20);
-            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete(); // lembaga tujuan
+            $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
             $table->foreignId('gelombang_id')->nullable()->constrained('psb_gelombang')->nullOnDelete();
-            $table->string('tahun_ajaran', 9)->nullable(); // FK ke tahun_ajaran.nama
+            $table->string('tahun_ajaran', 9)->nullable();
             $table->foreignId('kelas_id')->nullable()->constrained('kelas')->nullOnDelete();
-            // Pendaftaran lanjutan (anak sudah santri): FK ke santri asal. Hasil konversi: santri_id.
+
             $table->foreignId('santri_asal_id')->nullable()->constrained('santri')->nullOnDelete();
             $table->foreignId('santri_id')->nullable()->constrained('santri')->nullOnDelete();
-            $table->string('no_pendaftaran'); // satuan: PSB_{tahun}_{kodeLembaga}_{noGelombang}_{seq4}; paket MI-MD: PSB_{tahun}_MIMD_{noGelombang}_{seq4} (1 nomor untuk 1 calon)
-            // Tahap 1 (inti, wajib): nik + nama. NIK boleh fiktif (tanpa flag); dedup identitas di service.
+            $table->string('no_pendaftaran');
+
             $table->string('nik', 16);
             $table->string('nama_lengkap');
             $table->string('nama_singkat')->nullable();
@@ -72,7 +71,7 @@ return new class extends Migration
             $table->string('nisn', 10)->nullable();
             $table->integer('anak_ke')->nullable();
             $table->integer('j_saudara')->nullable();
-            $table->string('agama')->nullable(); // kamus: string bebas, tanpa FK
+            $table->string('agama')->nullable();
             $table->string('cita_cita')->nullable();
             $table->string('hobi')->nullable();
             $table->string('kebutuhan_khusus')->nullable();
@@ -133,38 +132,34 @@ return new class extends Migration
             $table->string('email_ortu')->nullable();
             $table->string('telp_ortu')->nullable();
             $table->string('foto_url')->nullable();
-            $table->string('status_pendaftaran')->default('baru'); // baru,terverifikasi,lolos,tidak_lolos,pemberkasan,ajukan_daftar_ulang,daftar_ulang,ditolak,waiting_list (tanpa status seleksi)
+            $table->string('status_pendaftaran')->default('baru');
             $table->boolean('is_duplikat_kontak')->default(false);
-            $table->boolean('is_lanjutan')->default(false); // true jika santri_asal_id terisi
-            // Jenis PSB: false = santri baru, true = pindahan (root PRD: status_awal ACC).
-            // Tingkat masuk disimpan per lembaga di psb_calon_lembaga.masuk_tingkat.
+            $table->boolean('is_lanjutan')->default(false);
+
             $table->boolean('is_pindahan')->default(false);
             $table->date('tanggal_daftar')->nullable();
-            $table->text('catatan')->nullable(); // catatan admin (manual)
-            $table->text('catatan_sistem')->nullable(); // auto: duplikat email/telp/nik
+            $table->text('catatan')->nullable();
+            $table->text('catatan_sistem')->nullable();
             $table->text('catatan_admin')->nullable();
             $table->softDeletes();
-            $table->unsignedBigInteger('deleted_by')->nullable(); // admin yang menghapus
+            $table->unsignedBigInteger('deleted_by')->nullable();
             $table->timestamps();
 
-            $table->unique('no_pendaftaran'); // 1 calon = 1 nomor (paket MI-MD kini 1 baris calon)
-            // TANPA unique NIK: NIK boleh fiktif/ganda antar anak berbeda; dedup identitas (nik+nama+tgl_lahir) di service.
+            $table->unique('no_pendaftaran');
+
             $table->index(['gelombang_id', 'nik']);
             $table->index(['jenjang', 'status_pendaftaran', 'updated_at']);
             $table->foreign('tahun_ajaran')->references('nama')->on('tahun_ajaran')
                 ->cascadeOnUpdate()->nullOnDelete();
         });
 
-        // Detail lembaga tujuan per calon (1 baris = 1 lembaga):
-        // satuan = 1 baris primer; paket MI-MD = 2 baris (MI primer + MD anggota).
-        // Kuota & scoping tenant dihitung dari tabel ini.
         Schema::create('psb_calon_lembaga', function (Blueprint $table) {
             $table->id();
             $table->foreignId('psb_calon_santri_id')->constrained('psb_calon_santri')->cascadeOnDelete();
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->string('peran', 10)->default('primer'); // primer | anggota
-            $table->string('masuk_tingkat', 2)->nullable(); // tingkat per lembaga (paket MI-MD = 1 & 1)
+            $table->string('peran', 10)->default('primer');
+            $table->string('masuk_tingkat', 2)->nullable();
             $table->timestamps();
 
             $table->unique(['psb_calon_santri_id', 'jenjang']);
@@ -175,20 +170,16 @@ return new class extends Migration
             $table->id();
             $table->foreignId('santri_id')->nullable()->constrained('santri')->cascadeOnDelete();
             $table->foreignId('psb_calon_santri_id')->nullable()->constrained('psb_calon_santri')->cascadeOnDelete();
-            $table->string('jenis_dokumen_santri')->nullable(); // ref_jenis_dokumen_santri
-            // Konteks pemakaian (mis. Pas Foto MI dipakai di MI): satu santri
-            // boleh punya >1 berkas sejenis. Kunci rangkap (santri, jenis,
-            // lembaga) dijaga level aplikasi (impor/upload), BUKAN unique DB,
-            // mengikuti pola dedup service yang sudah ada.
+            $table->string('jenis_dokumen_santri')->nullable();
+
             $table->string('lembaga', 20)->nullable();
             $table->foreign('lembaga')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->nullOnDelete();
-            $table->boolean('is_active')->default(true); // dokumen terakhir/aktif
-            $table->string('nama_file')->nullable(); // nama template berkas (tampil/unduh)
-            // Pelacak sinkron cermin dua arah (lokal ↔ server): hash isi terakhir
-            // yang diketahui sama di kedua sisi + waktu penyamaan.
+            $table->boolean('is_active')->default(true);
+            $table->string('nama_file')->nullable();
+
             $table->string('sinkron_hash', 64)->nullable();
             $table->timestamp('tersinkron_pada')->nullable();
-            $table->string('penyimpanan', 10)->default('server'); // lokasi byte: server|lokal|test
+            $table->string('penyimpanan', 10)->default('server');
             $table->text('catatan')->nullable();
             $table->timestamps();
 
@@ -198,11 +189,11 @@ return new class extends Migration
 
         Schema::create('dokumen_wajib_lembaga', function (Blueprint $table) {
             $table->id();
-            // Ketentuan dokumen PSB per kegiatan + lembaga.
+
             $table->foreignId('psb_kegiatan_id')->nullable()->constrained('psb_kegiatan')->cascadeOnDelete();
             $table->string('jenjang', 20);
             $table->foreign('jenjang')->references('jenjang')->on('lembaga')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->string('jenis_dokumen_santri'); // ref_jenis_dokumen_santri
+            $table->string('jenis_dokumen_santri');
             $table->boolean('is_wajib')->default(true);
             $table->timestamps();
 

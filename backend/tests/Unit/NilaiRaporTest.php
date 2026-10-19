@@ -10,7 +10,7 @@ class NilaiRaporTest extends TestCase
 {
     public function test_nilai_akhir_dihitung_bila_semua_komponen_berbobot_terisi(): void
     {
-        // UH 80 (20%), Tugas 90 (20%), PTS 70 (20%), ASAS 100 (40%) = 88
+
         $hasil = NilaiRapor::nilaiAkhir(
             [1 => 80.0, 2 => 90.0, 3 => 70.0, 4 => 100.0],
             [1 => 20.0, 2 => 20.0, 3 => 20.0, 4 => 40.0],
@@ -66,8 +66,8 @@ class NilaiRaporTest extends TestCase
             ['predikat' => 'C', 'offset_bawah' => 0.0],
             ['predikat' => 'D', 'offset_bawah' => null],
         ];
-        $this->assertSame('A', NilaiRapor::predikat(95, 75, $rentang)); // 75+20
-        $this->assertSame('B', NilaiRapor::predikat(85, 75, $rentang)); // 75+10
+        $this->assertSame('A', NilaiRapor::predikat(95, 75, $rentang));
+        $this->assertSame('B', NilaiRapor::predikat(85, 75, $rentang));
     }
 
     public function test_rata_rata_mengabaikan_nilai_kosong(): void

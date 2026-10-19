@@ -128,8 +128,6 @@ export function setelanUntukTujuan(
   const hasil: SetelanKomponen = {};
   const dilewati: string[] = [];
 
-  /* (1) Ukuran & gaya label — MIRROR: kunci yang tak dipunyai sumber hilang,
-     artinya kembali ke bawaan pemanggil. */
   if (typeof sumber.tinggi === 'number') hasil.tinggi = jepitTinggi(sumber.tinggi);
   if (typeof sumber.lebar === 'number') hasil.lebar = jepitLebar(sumber.lebar);
   if (typeof sumber.lebarLabel === 'number') hasil.lebarLabel = jepitLebarLabel(sumber.lebarLabel);
@@ -137,19 +135,14 @@ export function setelanUntukTujuan(
   if (sumber.expandLabel === true) hasil.expandLabel = true;
   if (typeof sumber.labelTransparan === 'boolean') hasil.labelTransparan = sumber.labelTransparan;
 
-  /* (2) Mulai dari nilai kotak tujuan untuk kunci yang "salin hanya bila sah". */
   if (sekarang.tipeKontrol !== undefined) hasil.tipeKontrol = sekarang.tipeKontrol;
   if (sekarang.nilaiDefault !== undefined) hasil.nilaiDefault = sekarang.nilaiDefault;
 
-  /* Langkah stepper: MIRROR seperti ukuran, tapi hanya bila kotak tujuan
-     memang punya baris "Langkah" (stepper) — di combobox/input kunci itu tak
-     relevan. Sumber tanpa langkah → langkah tujuan hilang (kembali bawaan). */
   if (typeof sumber.langkah === 'number') {
     if (tujuan.aturLangkah === true) hasil.langkah = jepitLangkah(sumber.langkah);
     else dilewati.push('langkah');
   }
 
-  /* Tipe input: diganti hanya bila kotak tujuan boleh memilihnya. */
   const tipeDiizinkan = tujuan.tipeDiizinkan ?? [];
   if (sumber.tipeKontrol !== undefined) {
     if (tipeDiizinkan.includes(sumber.tipeKontrol) && definisiTipe(sumber.tipeKontrol) !== undefined) {
@@ -159,8 +152,6 @@ export function setelanUntukTujuan(
     }
   }
 
-  /* Tipe yang berlaku SESUDAH tempel: tipe hasil salinan, atau tipe kotak
-     tujuan sendiri bila tipenya tak ikut disalin. */
   const tipeBerlaku = hasil.tipeKontrol ?? tujuan.tipeSekarang;
   const tipeSumber = normalkanSetelanTipe(sumber.tipe);
   if (tipeBerlaku !== undefined && tipeBerlaku === sumber.tipeKontrol && Object.keys(tipeSumber).length > 0) {
@@ -172,7 +163,6 @@ export function setelanUntukTujuan(
     dilewati.push('tipe');
   }
 
-  /* Nilai awal combobox: harus salah satu opsi kotak tujuan. */
   if (sumber.nilaiDefault !== undefined && sumber.nilaiDefault !== '') {
     if ((tujuan.opsi ?? []).includes(sumber.nilaiDefault)) hasil.nilaiDefault = sumber.nilaiDefault;
     else dilewati.push('nilaiDefault');

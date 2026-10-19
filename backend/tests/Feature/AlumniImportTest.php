@@ -142,7 +142,7 @@ class AlumniImportTest extends TestCase
             'tahun_ajaran_lulus' => '2026/2027',
             'no_peserta' => 'PPTK-2027-0001',
             'skhun' => 'SKHUN-2027-0001',
-            // Import tanpa kolom penyerahan → default "Sudah".
+
             'penyerahan_ijazah' => 'sudah',
         ]);
         $this->assertSame('Tidak', RiwayatBelajar::where('santri_id', $santri->id)->value('is_active_riwayat'));
@@ -201,7 +201,6 @@ class AlumniImportTest extends TestCase
         $this->assertSame(['MD', 'MI'], Alumni::orderBy('lembaga_lulus')->pluck('lembaga_lulus')->all());
         $this->assertSame($kelasMd->id, Alumni::where('lembaga_lulus', 'MD')->value('kelas_lulus_id'));
 
-        // Update hanya menyentuh arsip lembaga yang sama.
         $miCsv2 = $this->csv([
             'nis_lokal' => '26011', 'jenjang' => 'MI', 'tahun_ajaran_lulus' => '2026/2027',
             'tanggal_lulus' => '2027-06-30', 'kelas_lulus' => '6A', 'nomor_ijazah' => 'IJZ-MI-2',
@@ -235,7 +234,6 @@ class AlumniImportTest extends TestCase
         $arsip = Alumni::where('santri_id', $santri->id)->firstOrFail();
         $this->assertNull($arsip->tanggal_lulus);
 
-        // Import ulang baris kosong yang sama → dilewati (bukan diperbarui).
         $ulang = $this->upload($f['user'], $path, 'import')->assertStatus(200);
         $this->assertSame(1, (int) $ulang->json('ringkasan.dilewati'));
         $this->assertSame(0, (int) $ulang->json('ringkasan.diperbarui'));
@@ -245,7 +243,7 @@ class AlumniImportTest extends TestCase
     public function test_tgl_selesai_keanggotaan_diisi_walau_santri_sudah_nonaktif(): void
     {
         $f = $this->fixture();
-        // Santri tak aktif (keanggotaan + riwayat sudah nonaktif) — kasus arsip historis.
+
         $santri = $this->makeSantri($f, false);
         $path = $this->csv([
             'nis_lokal' => 'NIS-ALUMNI-001',

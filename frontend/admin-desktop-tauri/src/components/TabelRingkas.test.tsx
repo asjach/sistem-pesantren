@@ -1,8 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderDenganTema } from '@/test/utils';
 
-// ---- Mock API (unit test tidak boleh memanggil fetch nyata) ----
-
 vi.mock('@/api/toolbarPreset', () => ({
   muatToolbarPreset: vi.fn(async () => ({
     pesan: 'ok',
@@ -26,8 +24,6 @@ vi.mock('@/api/urutPreset', () => ({
   hapusUrutPreset: vi.fn(),
   arahKolomDariOpsi: vi.fn(() => undefined),
 }));
-
-// ---- Stub jsdom untuk react-datasheet-grid ----
 
 vi.mock('react-datasheet-grid', async (importOriginal) => {
   const asli = await importOriginal<typeof import('react-datasheet-grid')>();
@@ -61,30 +57,22 @@ describe('TabelRingkas — jarak judul vs tabel', () => {
     );
 
     const section = kartu(container);
-    // Padding luar = 0: kartu menempel tepi panel.
+
     expect(section.className).not.toMatch(/\bp[xytblr]?-\d/);
-    /* Bilah judul TIDAK lagi <header> milik TabelRingkas — ia bilah judul
-       ExcelTable (yang juga menampung gerigi Pengaturan tabel ini). Yang penting
-       tetap sama: padding kiri dijaga supaya judul tidak sesempit tepi card —
-       ini yang dikoreksi pengguna setelah padding dihapus — sementara padding
-       kanan ditipiskan ke 4px (kontrol paling kanan di tepi), dan tingginya
-       dikunci `min-h-8`, bukan padding vertikal. */
+
     const bilah = container.querySelector<HTMLElement>('[data-part="header_tabel"]');
     expect(bilah).not.toBeNull();
     expect(bilah?.className).toMatch(/\bpl-3\b/);
     expect(bilah?.className).toMatch(/\bpr-1\b/);
     expect(bilah?.className).toMatch(/\bmin-h-8\b/);
-    // Judul kartu sentence case (tanpa UPPERCASE) — diselaraskan dengan bilah
-    // judul ExcelTable dan bahasa "buku induk" (skill frontend-design melarang
-    // label huruf kapital semua).
+
     const spanJudul = bilah?.querySelector('span');
     expect(spanJudul?.className ?? '').not.toMatch(/\buppercase\b/);
     expect(spanJudul?.textContent).toBe('Per tahun ajaran');
   });
 
   it('gerigi Pengaturan tabel ini tampil di bilah judul tabel ringkas', () => {
-    // TabelRingkas tak menggambar judul sendiri precisely supaya bilah judul
-    // ExcelTable tetap dirender — tanpa itu gerigi Kelola Tabel tak terjangkau.
+
     renderDenganTema(
       <TabelRingkas
         tableKey="uji"
@@ -106,7 +94,6 @@ describe('TabelRingkas — jarak judul vs tabel', () => {
       />,
     );
 
-    // Padding dalam kartu dihapus: grid menempel tepat di bawah header.
     const wrapper = kartu(container).querySelector(':scope > div');
     expect(wrapper).not.toBeNull();
     expect((wrapper as HTMLElement).className).not.toMatch(/\bp[xytblr]?-\d/);
@@ -122,12 +109,9 @@ describe('TabelRingkas — jarak judul vs tabel', () => {
       />,
     );
 
-    // `mt-2` pada ExcelTable adalah celah yang dulu terlihat di antara judul
-    // dan grid. Bilah judul ExcelTable kini ikut dirender (judul diserahkan ke
-    // sana), jadi kelas itu tidak boleh muncul pada pembungkus grid.
     const grid = container.querySelector<HTMLElement>('.simpes-dsg');
     expect(grid).not.toBeNull();
-    // Berjalan naik dari grid: pembungkus ExcelTable (yang biasanya mt-2).
+
     let atas: HTMLElement | null = (grid as HTMLElement).parentElement;
     while (atas && !atas.className.includes('simpes-dsg')) {
       expect(atas.className).not.toMatch(/(^|\s)mt-\d/);

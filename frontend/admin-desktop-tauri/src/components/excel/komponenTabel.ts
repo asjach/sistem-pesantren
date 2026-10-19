@@ -22,7 +22,7 @@
  *  bukan bug yang dicegah. */
 
 export type KunciKomponenTabel =
-  // — Bilah judul —
+
   /** Teks nama tabel di bilah judul. */
   | 'judul_tabel'
   /** Pil info ringkasan di tengah bilah judul. */
@@ -42,17 +42,17 @@ export type KunciKomponenTabel =
   /** Gerigi "Pengaturan tabel" — paling kanan di bilah judul (pintu dialog
    *  Kelola Tabel dari tabel ini; dulunya berada di kaki tabel). */
   | 'tombol_pengaturan'
-  // — Kepala tabel —
+
   /** Baris nama kolom di atas grid. */
   | 'header_kolom'
   /** Rel/filter tingkat-kelas yang menempel di kiri grid. */
   | 'rel_filter'
-  // — Kolom tetap (mengapit grid) —
+
   /** Kolom centang baris (memilih baris untuk aksi massal). */
   | 'kolom_centang'
   /** Kolom Aksi di kanan tiap baris. */
   | 'kolom_aksi'
-  // — Kaki tabel —
+
   /** Pager + jumlah baris per halaman. */
   | 'pager'
   /** Tombol "Tambah baris" (mode Input). */
@@ -106,8 +106,7 @@ export const GRUP_KOMPONEN_TABEL: readonly GrupKomponenTabel[] = [
       {
         kunci: 'kolom_centang',
         label: 'Kolom centang',
-        // Sakelar tak ditampilkan kalau HALAMAN sudah memaksa sembunyi lewat
-        // prop `hideCheckbox` (TabelRingkas, tabel baca-saja).
+
         tersedia: (i) => i.kolomCentang,
       },
       {

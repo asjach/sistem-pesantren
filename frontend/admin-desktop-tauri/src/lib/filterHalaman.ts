@@ -48,8 +48,7 @@ function buatKonfigurasi(
   for (const kunci of KUNCI_FILTER_GLOBAL) {
     if (filter.includes(kunci)) hasil[kunci] = tampil[kunci] ?? TAMPIL_BAWAAN_GLOBAL[kunci];
   }
-  // Mode bawaan per kunci bisa ditimpa halaman (mis. halaman yang memang
-  // bekerja dengan beberapa kelas sekaligus → `kelas: 'multiple'`).
+
   return { filter, mode: { ...MODE_BAWAAN, ...mode }, tampil: hasil };
 }
 
@@ -92,39 +91,25 @@ export const KONFIGURASI_FILTER_HALAMAN = {
   mutasi_keluar: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
   kenaikan: buatKonfigurasi(['lembaga', 'tahun_ajaran', 'tingkat'], { tingkat: true }),
   kelulusan: buatKonfigurasi(FILTER_KELULUSAN),
-  // Degree + kelas dipakai rail filter tab Tagihan (crosstab), bukan TopBar.
+
   keuangan: buatKonfigurasi(FILTER_AKADEMIK, { tingkat: true, kelas: true }),
-  // Halaman Dispensasi: Jenjang (lembaga) + Tahun Ajaran tampil di TopBar —
-  // dipakai daftar SANTRI-nya; tingkat & kelas masuk daftar relevan supaya
-  // rail tabel santri hidup (lihat FilterRail: `tampil` saja tak cukup).
-  // Daftar DISPENSASI-nya sendiri tetap tak disaring (paket tak terikat TA).
+
   keuangan_dispensasi: buatKonfigurasi(FILTER_AKADEMIK, { tingkat: true, kelas: true }),
-  // Halaman Pembayaran (kasir): Jenjang (lembaga) + Tahun Ajaran tampil di
-  // TopBar; kelas masuk daftar relevan supaya rail KELAS tabel santri di kartu
-  // Pilih Santri hidup (lihat FilterRail: `tampil` saja tak cukup). Tingkat
-  // sengaja tak relevan agar relnya tak tampil (kasir menyaring per kelas).
+
   pembayaran: buatKonfigurasi(['lembaga', 'tahun_ajaran', 'kelas'], { kelas: true }),
   rekap_santri: buatKonfigurasi(FILTER_REKAP),
   pengajuan_biodata: buatKonfigurasi([]),
-  // Modul Penilaian: master hanya butuh jenjang (lembaga) + tahun ajaran
-  // (komponen/bobot, KKM, predikat, ekskul per TA).
+
   penilaian_master: buatKonfigurasi(['lembaga', 'tahun_ajaran']),
-  // Impor: lingkup nilai = jenjang + TA + semester + kelas (kolom mapel
-  // template mengikuti kelas terpilih).
+
   penilaian_impor: buatKonfigurasi(FILTER_SEMUA, { kelas: true }),
-  // Leger: santri × mapel per jenjang/TA/semester, rail tingkat & kelas hidup.
+
   penilaian_leger: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
-  // Rapor: per kelas (cetak massal) — tingkat & kelas masuk daftar relevan.
+
   penilaian_rapor: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
-  // Modul Mapel & Pengampu (BLOK 5): mapel hanya terikat jenjang; pengampu
-  // terangkai ke kelas (jenjang + TA) — kelas dipilih lewat rail TINGKAT +
-  // KELAS di kiri tabel pengampu (boleh beberapa kelas sekaligus, tabelnya
-  // lalu punya kolom "Kelas"). Jadwal masih memakai pemilih kelas di dalam
-  // halaman.
+
   kurikulum_mapel: buatKonfigurasi(['lembaga']),
-  // Pengampu: rail kelas mulai dalam mode JAMAK — tabelnya memang menampilkan
-  // pengampu beberapa kelas sekaligus (ada kolom "Kelas"), jadi mode tunggal
-  // bawaan akan menyembunyikan semua kelas terpilih selain yang pertama.
+
   kurikulum_pengampu: buatKonfigurasi(
     FILTER_AKADEMIK,
     { tingkat: true, kelas: true },

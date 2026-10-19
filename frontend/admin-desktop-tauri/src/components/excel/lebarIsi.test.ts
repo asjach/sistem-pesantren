@@ -12,9 +12,7 @@ describe('skalaLebarIsi — lebar tabel mengisi wadah', () => {
   });
 
   it('menyusutkan kolom saat wadah lebih sempit (contoh 300 vs 400)', () => {
-    // Rasio 3/4: 37,5 / 112,5 / 150 → 37 & 112 dibulatkan ke bawah, sisa 1 px
-    // dibagikan ke kolom berfraksi terbesar (k3 = ,5 lebih dulu dari k1 = ,5
-    // karena urutan stabil mempertahankan k1 di depan → k1 dapat 1 px).
+
     const hasil = skalaLebarIsi(kolom(50, 150, 200), 300, 0, 1);
     expect(hasil?.rasio).toBeCloseTo(0.75, 5);
     expect(hasil?.lebar).toEqual({ k1: 38, k2: 112, k3: 150 });
@@ -22,7 +20,7 @@ describe('skalaLebarIsi — lebar tabel mengisi wadah', () => {
   });
 
   it('mengurangi kolom tetap (gutter/centang/Aksi) dari ruang yang dibagi', () => {
-    // 800 − (36 + 36 + 84) = 644 untuk kolom data 322 → rasio 2.
+
     const hasil = skalaLebarIsi(kolom(100, 222), 800, 36 + 36 + 84);
     expect(hasil?.rasio).toBe(2);
     expect(hasil?.lebar).toEqual({ k1: 200, k2: 444 });

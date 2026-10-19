@@ -10,10 +10,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import pengguna bertahap (potongan JSON 1000 baris): tenant (jenjangs) dan
-// peran yang boleh ditetapkan dihitung dari akun yang menulis, bukan dari
-// baris; periksa kering tanpa menulis; eksekusi menulis per potongan;
-// identifier duplikat dalam sesi dilewati; galat CSV bisa diunduh.
 class ImportPotongPenggunaTest extends TestCase
 {
     use RefreshDatabase;
@@ -25,7 +21,7 @@ class ImportPotongPenggunaTest extends TestCase
         parent::setUp();
         $this->seed(RoleSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
-        // Id sesi mulai dari 1 di tiap tes → berkas galat lama tak boleh bocor.
+
         foreach (glob(storage_path('app/imports/galat-*.csv')) ?: [] as $berkas) {
             @unlink($berkas);
         }
@@ -107,9 +103,9 @@ class ImportPotongPenggunaTest extends TestCase
         $this->assertFalse((bool) $satu->json('selesai'));
 
         $baru = User::where('email', 'guru3@example.com')->firstOrFail();
-        // Peran di-interseksikan dengan yang boleh ditetapkan akun.
+
         $this->assertSame(['guru', 'orang_tua'], $baru->getRoleNames()->sort()->values()->all());
-        // Pivot tenant mengikuti `jenjangs`, bukan kolom file.
+
         $this->assertSame([$f['mi']->jenjang], DB::table('user_lembaga')->where('user_id', $baru->id)->pluck('jenjang')->all());
 
         $dua = $this->actingAs($f['super'], 'sanctum')->postJson('/api/admin/users/import-potong', [
@@ -129,7 +125,6 @@ class ImportPotongPenggunaTest extends TestCase
     {
         $f = $this->baseFixture();
 
-        // Admin (bukan super) tak boleh menetapkan super_admin/admin.
         $res = $this->actingAs($f['admin'], 'sanctum')->postJson('/api/admin/users/import-potong', [
             'jenjangs' => [$f['mi']->jenjang],
             'mode' => 'eksekusi',
@@ -154,7 +149,6 @@ class ImportPotongPenggunaTest extends TestCase
             'baris' => [$this->baris('Guru Enam', 'guru6@example.com')],
         ])->assertStatus(422);
 
-        // Jenjang di luar kewenangan juga ditolak.
         $mts = Lembaga::create([
             'nama' => 'Tsanawiyah', 'jenjang' => 'MTS',
             'is_seleksi' => true, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
@@ -183,7 +177,6 @@ class ImportPotongPenggunaTest extends TestCase
             ],
         ])->assertStatus(200);
 
-        // Baris kedua bentrok unique → galat per baris (bukan ditimpa).
         $this->assertSame(1, $res->json('ringkasan.dibuat'));
         $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
         $this->assertSame('email', $res->json('galat_contoh.0.kolom'));

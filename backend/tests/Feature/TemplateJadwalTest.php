@@ -159,7 +159,6 @@ class TemplateJadwalTest extends TestCase
             ['hari' => 'selasa', 'nama_slot' => 'Jam 1', 'jam_mulai' => '07:00', 'jam_selesai' => '07:45'],
         ], ['tingkat' => '1']);
 
-        // Nama unik per lingkup; lingkup berbeda boleh memakai nama yang sama.
         $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/kurikulum/template-jadwal', ['jenjang' => 'MI', 'tingkat' => '1', 'nama' => 'pola TINGKAT 1'])
             ->assertStatus(422)->assertJsonValidationErrors('nama');
@@ -174,13 +173,11 @@ class TemplateJadwalTest extends TestCase
         $this->assertSame('senin', $detail['baris'][0]['hari']);
         $this->assertContains('istirahat', array_column($detail['baris'], 'jenis'));
 
-        // Jam selesai harus setelah jam mulai.
         $this->actingAs($super, 'sanctum')
             ->postJson("/api/admin/kurikulum/template-jadwal/{$id}/baris", [
                 'hari' => 'senin', 'urutan_slot' => 9, 'jam_mulai' => '08:00', 'jam_selesai' => '07:00',
             ])->assertStatus(422)->assertJsonValidationErrors('jam_selesai');
 
-        // Jam ke- unik per hari; hari berbeda boleh nomor sama.
         $this->actingAs($super, 'sanctum')
             ->postJson("/api/admin/kurikulum/template-jadwal/{$id}/baris", ['hari' => 'senin', 'urutan_slot' => 1])
             ->assertStatus(422)->assertJsonValidationErrors('urutan_slot');
@@ -188,7 +185,6 @@ class TemplateJadwalTest extends TestCase
             ->postJson("/api/admin/kurikulum/template-jadwal/{$id}/baris", ['hari' => 'rabu', 'urutan_slot' => 1])
             ->assertStatus(201);
 
-        // Pindah hari baris tidak boleh menabrak pasangan (hari, urutan) lain.
         $barisId = $detail['baris'][1]['id'];
         $this->actingAs($super, 'sanctum')
             ->putJson("/api/admin/kurikulum/template-jadwal/baris/{$barisId}", ['hari' => 'kamis'])
@@ -225,7 +221,6 @@ class TemplateJadwalTest extends TestCase
         $this->assertSame(3, SlotJamPelajaran::where('kelas_id', $kelas->id)->where('hari', 'senin')->count());
         $this->assertSame(1, SlotJamPelajaran::where('kelas_id', $kelas->id)->where('hari', 'sabtu')->count());
 
-        // Matriks kelas 1A memakai frame miliknya sendiri dan masih kosong.
         $resp = $this->actingAs($super, 'sanctum')
             ->getJson("/api/admin/kurikulum/jadwal?kelas_id={$kelas->id}")
             ->assertStatus(200)->json();
@@ -233,7 +228,6 @@ class TemplateJadwalTest extends TestCase
         $this->assertCount(0, $resp['baris']);
         $this->assertSame(['senin', 'senin', 'senin', 'sabtu'], array_column($resp['slot'], 'hari'));
 
-        // Isi satu sel manual dengan pengampu (mapel + guru).
         $slotSenin = SlotJamPelajaran::where('kelas_id', $kelas->id)
             ->where('hari', 'senin')->where('urutan', 1)->firstOrFail();
         $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/jadwal', [
@@ -245,7 +239,6 @@ class TemplateJadwalTest extends TestCase
         $this->assertCount(1, $resp2['baris']);
         $this->assertSame('Fiqih', $resp2['baris'][0]['nama_mapel']);
 
-        // Kelas lain tidak melihat frame 1A dan tidak boleh memakai slotnya.
         $respB = $this->actingAs($super, 'sanctum')
             ->getJson("/api/admin/kurikulum/jadwal?kelas_id={$lain->id}")
             ->assertStatus(200)->json();
@@ -278,7 +271,6 @@ class TemplateJadwalTest extends TestCase
         $this->assertSame(1, SlotJamPelajaran::where('kelas_id', $kelas->id)->where('hari', 'selasa')->count());
         $this->assertSame(2, SlotJamPelajaran::where('kelas_id', $kelas->id)->where('hari', 'sabtu')->count());
 
-        // Jam boleh berbeda antar hari (frame per kelas/hari).
         $selasa = SlotJamPelajaran::where('kelas_id', $kelas->id)->where('hari', 'selasa')->firstOrFail();
         $this->assertSame('08:00', substr((string) $selasa->jam_mulai, 0, 5));
     }
@@ -370,7 +362,6 @@ class TemplateJadwalTest extends TestCase
         $slotA = SlotJamPelajaran::where('kelas_id', $a->id)->firstOrFail();
         $slotB = SlotJamPelajaran::where('kelas_id', $b->id)->firstOrFail();
 
-        // Isi mapel tanpa guru: pengampu dibuat otomatis.
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
             'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
             'mata_pelajaran_id' => $fiqih->id, 'keaktifan_pegawai_id' => null,
@@ -379,14 +370,12 @@ class TemplateJadwalTest extends TestCase
         $this->assertNull($pengampu->keaktifan_pegawai_id);
         $this->assertDatabaseCount('jadwal_pelajaran', 1);
 
-        // Guru boleh dipilih belakangan; pengampu diperbarui.
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
             'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
             'mata_pelajaran_id' => $fiqih->id, 'keaktifan_pegawai_id' => $guruId,
         ])->assertStatus(200);
         $this->assertSame($guruId, (int) $pengampu->fresh()->keaktifan_pegawai_id);
 
-        // Guru yang sama tidak boleh dipakai kelas lain pada waktu yang sama.
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
             'kelas_id' => $b->id, 'slot_jam_id' => $slotB->id, 'hari' => 'senin',
             'mata_pelajaran_id' => $matematika->id, 'keaktifan_pegawai_id' => $guruId,
@@ -396,7 +385,6 @@ class TemplateJadwalTest extends TestCase
             'kelas_id' => $b->id, 'mata_pelajaran_id' => $matematika->id,
         ]);
 
-        // Kosongkan mapel = hapus jadwal, pengampu tetap ada.
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
             'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
             'mata_pelajaran_id' => null, 'keaktifan_pegawai_id' => null,
@@ -423,7 +411,6 @@ class TemplateJadwalTest extends TestCase
         $slotA = SlotJamPelajaran::where('kelas_id', $a->id)->firstOrFail();
         $slotB = SlotJamPelajaran::where('kelas_id', $b->id)->firstOrFail();
 
-        // Guru dulu, mapel menyusul: sel disimpan tanpa pengampu.
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
             'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
             'mata_pelajaran_id' => null, 'keaktifan_pegawai_id' => $guruId,
@@ -444,13 +431,11 @@ class TemplateJadwalTest extends TestCase
         $this->assertSame($guruId, (int) $resp['baris'][0]['keaktifan_pegawai_id']);
         $this->assertTrue($resp['baris'][0]['guru_saja']);
 
-        // Guru yang sama di kelas lain pada waktu yang sama tetap bentrok.
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
             'kelas_id' => $b->id, 'slot_jam_id' => $slotB->id, 'hari' => 'senin',
             'mata_pelajaran_id' => null, 'keaktifan_pegawai_id' => $guruId,
         ])->assertStatus(422)->assertJsonValidationErrors('keaktifan_pegawai_id');
 
-        // Mapel menyusul: pengampu dibuat, guru langsung di sel dibersihkan.
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
             'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
             'mata_pelajaran_id' => $fiqih->id, 'keaktifan_pegawai_id' => $guruId,
@@ -464,7 +449,6 @@ class TemplateJadwalTest extends TestCase
         $this->assertNull($jadwal->keaktifan_pegawai_id);
         $this->assertSame($a->id, (int) $jadwal->kelas_id);
 
-        // Kembali ke guru-saja: mapel dilepas dari sel, pengampu tetap ada.
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
             'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
             'mata_pelajaran_id' => null, 'keaktifan_pegawai_id' => $guruId,
@@ -474,7 +458,6 @@ class TemplateJadwalTest extends TestCase
         $this->assertSame($guruId, (int) $jadwal->keaktifan_pegawai_id);
         $this->assertDatabaseHas('pengampu_mapel', ['id' => $pengampu->id]);
 
-        // Dua-duanya kosong = sel dihapus.
         $this->actingAs($super, 'sanctum')->putJson('/api/admin/kurikulum/jadwal/sel', [
             'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
             'mata_pelajaran_id' => null, 'keaktifan_pegawai_id' => null,
@@ -590,7 +573,6 @@ class TemplateJadwalTest extends TestCase
             'jam_mulai' => '07:00', 'jam_selesai' => '07:45', 'urutan' => 1,
         ])->assertStatus(201)->json();
 
-        // Isi Jumat dulu -> Jumat tak boleh dijadikan libur.
         $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/jadwal', [
             'pengampu_mapel_id' => $pengampuId, 'slot_jam_id' => $slot['id'], 'hari' => 'jumat',
         ])->assertStatus(201);
@@ -598,7 +580,6 @@ class TemplateJadwalTest extends TestCase
             ->putJson('/api/admin/kurikulum/hari-libur', ['jenjang' => 'MI', 'hari_libur' => ['jumat']])
             ->assertStatus(422)->assertJsonValidationErrors('hari_libur');
 
-        // Hapus jadwalnya -> Jumat bisa jadi libur & hilang dari matriks.
         $this->actingAs($super, 'sanctum')
             ->deleteJson('/api/admin/kurikulum/jadwal/'.JadwalPelajaran::value('id'))->assertStatus(200);
         $simpan = $this->actingAs($super, 'sanctum')
@@ -613,7 +594,6 @@ class TemplateJadwalTest extends TestCase
         $this->assertNotContains('jumat', $jadwal['hari']);
         $this->assertSame(['jumat'], $jadwal['hari_libur']);
 
-        // Jadwal baru di hari libur ditolak; semua hari libur juga ditolak.
         $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/jadwal', [
             'pengampu_mapel_id' => $pengampuId, 'slot_jam_id' => $slot['id'], 'hari' => 'jumat',
         ])->assertStatus(422)->assertJsonValidationErrors('hari');
@@ -654,7 +634,6 @@ class TemplateJadwalTest extends TestCase
         $this->assertCount(2, $jadwal['baris']);
         $this->assertSame(['Fiqih', 'Fiqih'], array_column($jadwal['baris'], 'nama_mapel'));
 
-        // Slot + hari yang sama tetap tidak boleh dobel.
         $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/jadwal', [
             'pengampu_mapel_id' => $pengampuId, 'slot_jam_id' => $slot1['id'], 'hari' => 'senin',
         ])->assertStatus(422)->assertJsonValidationErrors('slot_jam_id');
@@ -677,7 +656,6 @@ class TemplateJadwalTest extends TestCase
             'pengampu_mapel_id' => $pengampuId, 'slot_jam_id' => $pembiasaan['id'], 'hari' => 'senin',
         ])->assertStatus(422)->assertJsonValidationErrors('slot_jam_id');
 
-        // Slot pelajaran yang sudah dipakai tidak boleh diubah jadi non-pelajaran.
         $pelajaran = $this->actingAs($super, 'sanctum')->postJson('/api/admin/kurikulum/slot', [
             'jenjang' => 'MI', 'nama_slot' => 'Jam 1', 'jenis' => 'pelajaran',
             'jam_mulai' => '07:00', 'jam_selesai' => '07:45', 'urutan' => 1,

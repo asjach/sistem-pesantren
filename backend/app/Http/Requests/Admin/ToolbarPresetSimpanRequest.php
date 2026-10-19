@@ -23,11 +23,7 @@ class ToolbarPresetSimpanRequest extends FormRequest
             'visibilitas' => ['sometimes', 'array', 'max:20'],
             'visibilitas.*' => ['boolean'],
             'lebar' => ['sometimes', 'array', 'max:60'],
-            // Batas atas disamakan dengan popover (LEBAR_KOMBO_MAKS = 1200):
-            // combobox yang membentang penuh bisa jauh di atas 480px.
-            // Batas bawah longgar (min 0): rentang per jenis kunci (total /
-            // label / kontrol / penanda) ditegakkan di controller agar kunci
-            // galatnya tetap `lebar.<kunci>`.
+
             'lebar.*' => ['integer', 'min:0', 'max:1200'],
             'tinggi' => ['sometimes', 'array', 'max:60'],
             'tinggi.*' => ['integer', 'min:20', 'max:120'],
@@ -35,21 +31,14 @@ class ToolbarPresetSimpanRequest extends FormRequest
             'urutan.*' => ['string', 'max:80', 'regex:/^[a-z0-9_]{1,80}$/'],
             'align' => ['sometimes', 'array', 'max:200'],
             'align.*' => ['string', Rule::in(['left', 'center', 'right'])],
-            // Label kolom per tabel: peta key kolom -> teks bebas (maks 100).
-            // Kunci dibatasi di controller agar galatnya `label.<kunci>`.
+
             'label' => ['sometimes', 'array', 'max:200'],
             'label.*' => ['nullable', 'string', 'max:100'],
-            // Judul tabel yang bisa diisi pengguna. Boleh dikosongkan (dan
-            // `nullable` supaya null eksplisit juga lolos) — controller
-            // menerjemahkan kosong/null jadi "pakai judul bawaan kode".
+
             'judul' => ['sometimes', 'nullable', 'string', 'max:100'],
-            // Info tabel: HTML ter-sanitasi allowlist (dicek di controller via
-            // `HtmlInfo`). `string` + `max` menahan payload besar sebelum
-            // masuk parser DOMDocument, yang mahal untuk input raksasa.
-            // Batas 1,5 juta karakter = `HtmlInfo::PANJANG_MAKS`.
+
             'info_html' => ['sometimes', 'nullable', 'string', 'max:1500000'],
-            // Nilai awal combobox: peta kunci kontrol → label opsi (teks bebas,
-            // maks 100 karakter). Kunci dibatasi di controller (sama seperti lebar).
+
             'nilai_default' => ['sometimes', 'array', 'max:60'],
             'nilai_default.*' => ['string', 'max:100'],
         ];

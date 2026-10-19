@@ -48,7 +48,6 @@ class NisKemenagService
         $urut = str_pad(substr($nisLokal, -4), 4, '0', STR_PAD_LEFT);
         $nisKemenag = $nsm.$yy.$urut;
 
-        // Duplikat dibiarkan (hasil generate; bisa digenerate ulang).
         $lembagaSantri->update(['nis_kemenag' => $nisKemenag]);
 
         return $lembagaSantri->fresh();

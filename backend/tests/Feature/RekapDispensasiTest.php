@@ -91,13 +91,12 @@ class RekapDispensasiTest extends TestCase
         $paketMi = $this->paket('Khusus MI', 'MI', $infaq->id);
         $paketGlobal = $this->paket('Semua Lembaga');
 
-        // MI: tagihan Infaq dengan paket MI (potongan 50% dari 100.000 = 50.000).
         $this->tagihan('MI', $infaq, [$paketMi->id], 50000, 50000, nama: 'A');
-        // MI: tagihan Biaya Masuk dengan paket global (potongan 50% dari 40.000).
+
         $this->tagihan('MI', $masuk, [$paketGlobal->id], 20000, 20000, nama: 'B');
-        // MD: tagihan Infaq paket global.
+
         $this->tagihan('MD', $infaq, [$paketGlobal->id], 50000, 50000, nama: 'C');
-        // Tanpa dispensasi → tidak ikut, baik null maupun larik kosong.
+
         $this->tagihan('MI', $infaq, null, 100000, 0, nama: 'D');
         $this->tagihan('MI', $infaq, [], 100000, 0, nama: 'E');
 
@@ -110,22 +109,17 @@ class RekapDispensasiTest extends TestCase
         $this->assertSame('MI', $data['MI|Khusus MI|Infaq Bulanan']['jenjang']);
         $this->assertSame('2025/2026', $data['MI|Khusus MI|Infaq Bulanan']['tahun_ajaran']);
 
-        // Jenis tagihan memisahkan baris: paket global tampil sekali di Infaq
-        // dan sekali di Biaya Masuk.
         $this->assertSame(20000, $data['MI|Semua Lembaga|Biaya Masuk']['total_potongan']);
         $this->assertSame(1, $data['MI|Semua Lembaga|Biaya Masuk']['jumlah_tagihan']);
         $this->assertSame(50000, $data['MD|Semua Lembaga|Infaq Bulanan']['total_potongan']);
 
-        // Bawaan: urut lembaga → TA → paket → jenis.
         $this->assertSame(['MD', 'MI', 'MI'], array_column($res->json('data'), 'jenjang'));
     }
 
     public function test_potongan_baris_multi_paket_dihitung_ulang_bukan_digandakan(): void
     {
         $admin = $this->admin();
-        // Dua paket berbeda aturan pada satu jenis: 50% persen, lalu potong
-        // nominal Rp 10.000 atas sisa. Nominal kotor 100.000 → paket pertama
-        // memotong 50.000, paket kedua 10.000, total potongan baris 60.000.
+
         $infaq = $this->jenis('Infaq Bulanan');
         $p1 = $this->paket('Paket Persen', null, $infaq->id, 50);
         $p2 = Dispensasi::create(['nama' => 'Paket Nominal', 'tahun_ajaran' => '2025/2026']);
@@ -136,9 +130,6 @@ class RekapDispensasiTest extends TestCase
         $res = $this->actingAs($admin)->getJson('/api/admin/keuangan/dispensasi/rekap')->assertStatus(200);
         $data = collect($res->json('data'))->keyBy('paket');
 
-        // Kalau potongan gabungan (60.000) ditempelkan ke TIAP paket, totalnya
-        // jadi 120.000 — inilah yang dicegah: porsi paket pertama 50.000,
-        // paket kedua 10.000, jumlahnya tetap sama dengan potongan tersimpan.
         $this->assertCount(2, $data);
         $this->assertSame(50000, $data['Paket Persen']['total_potongan']);
         $this->assertSame(10000, $data['Paket Nominal']['total_potongan']);
@@ -150,9 +141,7 @@ class RekapDispensasiTest extends TestCase
     public function test_rekap_memakai_potongan_tersimpan_bila_aturan_berubah(): void
     {
         $admin = $this->admin();
-        // Aturan sekarang 50%, tetapi tagihan lama menyimpan potongan hanya
-        // 30.000 dari nominal 100.000 (aturan dulu 30%). Rekam jejak tetap
-        // dihormati: total porsi paket = potongan TERSIMPAN.
+
         $infaq = $this->jenis('Infaq Bulanan');
         $paket = $this->paket('Berubah', null, $infaq->id, 50);
         $this->tagihan('MI', $infaq, [$paket->id], 70000, 30000, nama: 'A');
@@ -193,15 +182,13 @@ class RekapDispensasiTest extends TestCase
         $paketMi = $this->paket('Khusus MI', 'MI', $infaq->id);
         $lain = $this->paket('Semua Lembaga');
         $this->tagihan('MI', $infaq, [$paketMi->id], 50000, 50000, nama: 'A');
-        $this->tagihan('MD', $infaq, [$paketMi->id], 50000, 50000, nama: 'B'); // jejak lama lintas lembaga
+        $this->tagihan('MD', $infaq, [$paketMi->id], 50000, 50000, nama: 'B');
         $this->tagihan('MI', $infaq, [$lain->id], 80000, 20000, nama: 'C');
 
         $res = $this->actingAs($admin)
             ->getJson("/api/admin/keuangan/dispensasi/rekap?dispensasi_id={$paketMi->id}")
             ->assertStatus(200);
 
-        // Hanya baris paket MI, dan paket MI terlihat di MI DAN MD — inilah
-        // yang dicari saat menelusuri kebocoran lingkup dari angkanya.
         $this->assertSame(['MD', 'MI'], array_column($res->json('data'), 'jenjang'));
         $this->assertSame('Khusus MI', $res->json('data.0.paket'));
         $this->assertSame(50000, $res->json('data.0.total_potongan'));
@@ -222,7 +209,6 @@ class RekapDispensasiTest extends TestCase
         $this->assertSame(['MD', 'MI'], array_column($res->json('data'), 'jenjang'));
         $this->assertSame([99000, 50000], array_column($res->json('data'), 'total_potongan'));
 
-        // Kode tak dikenal = 422 (allowlist UrutKatalog), bukan diabaikan.
         $this->actingAs($admin)
             ->getJson('/api/admin/keuangan/dispensasi/rekap?sort=ngawur')
             ->assertStatus(422);
@@ -243,12 +229,9 @@ class RekapDispensasiTest extends TestCase
             'user_id' => $adminMi->id, 'jenjang' => 'MI', 'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        // Tanpa filter: lingkup pivot + pasangan MI↔MD (aturan `canAccessLembaga`),
-        // jadi MTS tidak muncul.
         $res = $this->actingAs($adminMi)->getJson('/api/admin/keuangan/dispensasi/rekap')->assertStatus(200);
         $this->assertSame(['MD', 'MI'], array_column($res->json('data'), 'jenjang'));
 
-        // Minta lembaga di luar lingkup = 403 (bukan diam-diam dikosongkan).
         $this->actingAs($adminMi)
             ->getJson('/api/admin/keuangan/dispensasi/rekap?jenjang[]=MTS')
             ->assertStatus(403);
@@ -260,13 +243,12 @@ class RekapDispensasiTest extends TestCase
         $admin = $this->admin();
         $infaq = $this->jenis('Infaq Bulanan');
         $paket = $this->paket('Potong Setengah', null, $infaq->id, 50);
-        // Dua baris tagihan kotor 100.000 & 40.000, potongan 50.000 & 10.000.
+
         $this->tagihan('MI', $infaq, [$paket->id], 50000, 50000, nama: 'A');
         $this->tagihan('MI', $infaq, [$paket->id], 30000, 10000, nama: 'B');
 
         $res = $this->actingAs($admin)->getJson('/api/admin/keuangan/dispensasi/rekap')->assertStatus(200);
 
-        // Kotor = 140.000, potongan = 60.000 → 43% (dibulatkan dari 42,857).
         $this->assertSame(140000, $res->json('data.0.total_kotor'));
         $this->assertSame(60000, $res->json('data.0.total_potongan'));
         $this->assertSame(43, $res->json('data.0.persen'));
@@ -284,7 +266,7 @@ class RekapDispensasiTest extends TestCase
             'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
             'jenis_id' => $infaq->id, 'nominal' => 150000,
         ]);
-        // Hanya Infaq yang punya tarif; Biaya Masuk sengaja dibiarkan kosong.
+
         $this->tagihan('MI', $infaq, [$paket->id], 75000, 75000, nama: 'A');
         $this->tagihan('MI', $masuk, [$paket->id], 20000, 20000, nama: 'B');
 
@@ -307,9 +289,9 @@ class RekapDispensasiTest extends TestCase
         $paket = $this->paket('Setengah', null, $infaq->id, 50);
         TarifTagihan::create([
             'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
-            'jenis_id' => $infaq->id, 'nominal' => 200000, // tarif master naik
+            'jenis_id' => $infaq->id, 'nominal' => 200000,
         ]);
-        // Tagihan lama: kotor 100.000, potongan 50.000 → tetap 50%.
+
         $this->tagihan('MI', $infaq, [$paket->id], 50000, 50000, nama: 'A');
 
         $res = $this->actingAs($admin)->getJson('/api/admin/keuangan/dispensasi/rekap')->assertStatus(200);
@@ -339,7 +321,7 @@ class RekapDispensasiTest extends TestCase
         $resPersen = $this->actingAs($admin)
             ->getJson('/api/admin/keuangan/dispensasi/rekap?sort=persen&arah=naik')
             ->assertStatus(200);
-        // MI 50%, MD 97% → menaik MI dulu.
+
         $this->assertSame(['MI', 'MD'], array_column($resPersen->json('data'), 'jenjang'));
     }
 
@@ -350,7 +332,7 @@ class RekapDispensasiTest extends TestCase
         $infaq = $this->jenis('Infaq Bulanan');
         $masuk = $this->jenis('Biaya Masuk', 'non_bulanan');
         $paket = $this->paket('Semua Lembaga');
-        // Paket yang sama menyentuh DUA jenis → dua kolom pada satu baris.
+
         $this->tagihan('MI', $infaq, [$paket->id], 50000, 50000, nama: 'A');
         $this->tagihan('MI', $masuk, [$paket->id], 20000, 20000, nama: 'B');
 
@@ -358,12 +340,10 @@ class RekapDispensasiTest extends TestCase
             ->getJson('/api/admin/keuangan/dispensasi/rekap?bentuk=crosstab')
             ->assertStatus(200);
 
-        // Kolom = jenis terdampak, urut id.
         $kolom = collect($res->json('kolom'))->keyBy('jenis_nama');
         $this->assertSame(['Infaq Bulanan', 'Biaya Masuk'], array_column($res->json('kolom'), 'jenis_nama'));
         $this->assertSame("jenis-{$infaq->id}", $kolom['Infaq Bulanan']['key']);
 
-        // Satu baris (paket) dengan dua sel terisi.
         $this->assertCount(1, $res->json('baris'));
         $baris = $res->json('baris.0');
         $this->assertSame('MI', $baris['jenjang']);
@@ -387,7 +367,6 @@ class RekapDispensasiTest extends TestCase
             ->getJson('/api/admin/keuangan/dispensasi/rekap?bentuk=crosstab')
             ->assertStatus(200);
 
-        // Tiga kombinasi (MI,MD × TA) = tiga baris, satu kolom.
         $this->assertCount(3, $res->json('baris'));
         $this->assertCount(1, $res->json('kolom'));
         $this->assertSame(['MD', 'MI', 'MI'], array_column($res->json('baris'), 'jenjang'));
@@ -399,7 +378,7 @@ class RekapDispensasiTest extends TestCase
     {
         $admin = $this->admin();
         $infaq = $this->jenis('Infaq Bulanan');
-        $this->jenis('Uang Saku'); // ada di katalog, tapi tak punya tagihan berdispensasi
+        $this->jenis('Uang Saku');
         $paket = $this->paket('Semua Lembaga');
         $this->tagihan('MI', $infaq, [$paket->id], 50000, 50000, nama: 'A');
 
@@ -455,7 +434,6 @@ class RekapDispensasiTest extends TestCase
         $paket = $this->paket('Semua Lembaga');
         $this->tagihan('MI', $infaq, [$paket->id], 50000, 50000, nama: 'A');
 
-        // Tanpa `bentuk`: tetap bentuk daftar lama.
         $res = $this->actingAs($admin)->getJson('/api/admin/keuangan/dispensasi/rekap')->assertStatus(200);
         $this->assertNotNull($res->json('data.0.jenis'));
         $this->assertNull($res->json('kolom'));

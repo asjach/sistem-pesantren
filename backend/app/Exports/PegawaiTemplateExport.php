@@ -99,7 +99,6 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
                 $sheet->freezePane('A2');
                 $sheet->setAutoFilter("A1:{$lastCol}1");
 
-                // Baris 2 (CONTOH): italic abu-abu + isian abu muda — tanda wajib diganti/dihapus.
                 $sheet->getRowDimension(2)->setRowHeight(20);
                 $sheet->getStyle("A2:{$lastCol}2")->applyFromArray([
                     'font' => ['italic' => true, 'size' => 10, 'color' => ['argb' => 'FF6B7280']],
@@ -113,7 +112,7 @@ class PegawaiTemplateExport extends DefaultValueBinder implements FromArray, Wit
                     'jenis_kelamin' => ['L', 'P'],
                     'status_aktif' => ['Ya', 'Tidak'],
                     'sertifikasi' => ['sudah', 'belum'],
-                    // efektifSemuaLembaga mengembalikan BARIS objek → petakan ke nama.
+
                     'jenis_ptk' => array_map(fn ($r) => (string) $r->nama, RefService::efektifSemuaLembaga('jenis_ptk')),
                     'status_pernikahan' => array_map(fn ($r) => (string) $r->nama, RefService::efektifSemuaLembaga('status_pernikahan')),
                 ];

@@ -29,7 +29,6 @@ export default function PenilaianRaporPage() {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Peristiwa menentukan jenjang + TA-nya sendiri.
   const peristiwaAktif = useMemo(() => peristiwa.find((p) => p.id === peristiwaId) ?? null, [peristiwa, peristiwaId]);
 
   useEffect(() => {
@@ -38,8 +37,7 @@ export default function PenilaianRaporPage() {
     daftarPeristiwa({ jenjang, tahun_ajaran: ta })
       .then((r) => {
         if (!hidup) return;
-        // Hanya peristiwa yang MENGHASILKAN rapor (ASAS/ASAT; UJIAN/UAP = nilai
-        // ujian/ijazah, tanpa rapor — lihat halaman Leger).
+
         const berRapor = r.peristiwa.filter((p) => p.jenis_rapor !== 'tidak_ada');
         setPeristiwa(berRapor);
         setPeristiwaId((v) => (berRapor.some((p) => p.id === v) ? v : (berRapor[0]?.id ?? '')));
@@ -147,7 +145,7 @@ export default function PenilaianRaporPage() {
       </div>
 
       <div className="flex min-h-0 flex-1">
-        {/* Daftar santri kelas + kelengkapan (kiri) */}
+
         <div className="min-h-0 w-72 shrink-0 overflow-auto border-r border-border print:hidden">
           {!siap && <p className="p-3 text-xs text-muted-foreground">Pilih satu jenjang, TA, dan semester pada filter di atas.</p>}
           {siap && peristiwa.length === 0 && (
@@ -181,7 +179,6 @@ export default function PenilaianRaporPage() {
           )}
         </div>
 
-        {/* Pratinjau rapor */}
         <div className="min-h-0 flex-1 overflow-auto bg-muted/30 p-4">
           {rapor === null ? (
             <p className="text-xs text-muted-foreground">Pilih santri di kiri untuk melihat pratinjau rapor.</p>
@@ -199,7 +196,7 @@ function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string 
   const r = rapor;
   return (
     <div id="area_cetak_rapor" className="mx-auto max-w-[800px] bg-white p-6 text-black shadow-sm print:shadow-none">
-      {/* Kop */}
+
       <div className="flex items-center gap-3 border-b-2 border-black pb-2">
         {r.kop.logo_url && (
           <img src={r.kop.logo_url} alt="" className="h-14 w-14 object-contain" />
@@ -218,7 +215,6 @@ function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string 
         </p>
       )}
 
-      {/* Identitas */}
       <table className="mt-2 w-full text-[12px]">
         <tbody>
           <tr>
@@ -235,7 +231,6 @@ function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string 
         </tbody>
       </table>
 
-      {/* Tabel nilai */}
       <table className="mt-3 w-full border-collapse text-[12px]">
         <thead>
           <tr className="bg-gray-100">
@@ -263,7 +258,6 @@ function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string 
         </tbody>
       </table>
 
-      {/* Rekap */}
       <table className="mt-1 w-full border-collapse text-[12px]">
         <tbody>
           <tr>
@@ -281,7 +275,6 @@ function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string 
         </tbody>
       </table>
 
-      {/* Halaman 2 */}
       <div className="mt-4 border-t-2 border-dashed border-black pt-3 text-[12px]">
         <p className="mb-2 font-bold uppercase">Keterangan</p>
         <table className="w-full border-collapse text-[12px]">
@@ -333,7 +326,6 @@ function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string 
           </tbody>
         </table>
 
-        {/* Tanda tangan */}
         <div className="mt-6 flex justify-between text-center text-[12px]">
           <div className="w-56">
             <p>Orang Tua/Wali</p>

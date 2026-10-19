@@ -105,24 +105,21 @@ function renderPopover(
 }
 
 describe('mode batch (banyak sel terpilih)', () => {
-  /* Bilah pilihan sudah dihapus; aksi massal kini muncul di popover yang
-     dibuka lewat KLIK KANAN saat lebih dari satu sel terpilih. */
+
   const onAksiBatch = vi.fn();
 
   it('>1 sel terpilih menampilkan aksi batch, bukan panel tagihan tunggal', () => {
     renderPopover(tagihan(), { jumlahTerpilih: 3, totalSisaTerpilih: 165000, onAksiBatch });
     expect(screen.getByText('3 sel dipilih')).toBeInTheDocument();
-    // Nominal dipisah dari labelnya (satu simpul teks sendiri) supaya bisa
-    // diberi tabular-nums & warna lebih tegas; dijaga di sini agar nilainya
-    // tetap terbaca berpasangan dengan label "Total sisa".
+
     expect(screen.getByText('Total sisa')).toBeInTheDocument();
     expect(screen.getByText('Rp 165.000')).toBeInTheDocument();
-    // Aksi massal tersedia…
+
     expect(screen.getByText('Bayar Lunas')).toBeInTheDocument();
     expect(screen.getByText('Ubah Massal')).toBeInTheDocument();
     expect(screen.getByText('Hapus Tagihan')).toBeInTheDocument();
     expect(screen.getByText('Hapus Riwayat Bayar')).toBeInTheDocument();
-    // …dan panel tagihan tunggal tidak dirender.
+
     expect(screen.queryByText('Santri Uji')).toBeNull();
   });
 
@@ -137,9 +134,7 @@ describe('mode batch (banyak sel terpilih)', () => {
   });
 
   it('aksi merusak dipisah dari aksi aman dan diberi label peringatan', () => {
-    /* Empat aksi dulu sederet tanpa pembeda, sehingga "Hapus Tagihan" gampang
-       terklik saat niatnya "Bayar". Sekarang ada garis pemisah + label
-       kelompok sebelum dua aksi yang menghapus permanen. */
+
     renderPopover(tagihan(), { jumlahTerpilih: 2, jumlahTagihan: 2, totalSisaTerpilih: 110000, onAksiBatch });
     expect(screen.getByText('Menghapus permanen')).toBeInTheDocument();
 
@@ -147,21 +142,18 @@ describe('mode batch (banyak sel terpilih)', () => {
     const baris = ['btn_batch_bayar', 'btn_batch_ubah', 'btn_batch_hapus_tagihan', 'btn_batch_hapus_riwayat']
       .map((id) => panel.querySelector(`#${id}`)!);
     expect(baris.every((el) => el !== null)).toBe(true);
-    // Dua aksi terakhir bergaya destructive, dua pertama tidak.
+
     expect(baris[0].className).not.toContain('text-destructive');
     expect(baris[1].className).not.toContain('text-destructive');
     expect(baris[2].className).toContain('text-destructive');
     expect(baris[3].className).toContain('text-destructive');
-    // Tiap aksi punya keterangan satu baris (bayar/ubah tidak boleh sekadar
-    // satu kata tanpa konteks).
+
     expect(screen.getByText('Catat sisa 2 tagihan lunas')).toBeInTheDocument();
     expect(screen.getByText('Jatuh tempo & dispensasi')).toBeInTheDocument();
   });
 
   it('panel batch memakai lebar sendiri, bukan 32rem milik panel tunggal', () => {
-    /* Panel tunggal butuh 32rem (foto + tab). Panel batch hanya menu; kalau
-       ikut 32rem, tombolnya terentang ~500px di ruang kosong. Lebar kini
-       diserahkan ke isi + wadah berlebar sendiri. */
+
     renderPopover(tagihan(), { jumlahTerpilih: 3, totalSisaTerpilih: 165000, onAksiBatch });
     const pop = document.getElementById('popover_aksi_tagihan')!;
     expect(pop.className).toContain('w-auto');
@@ -252,7 +244,7 @@ describe('avatar santri', () => {
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('src', 'blob:foto-uji');
     expect(ambilByte).toHaveBeenCalledWith('santri', 11);
-    // Dokumen berhasil → foto profil tak diminta.
+
     expect(ambilFoto).not.toHaveBeenCalled();
   });
 
@@ -320,30 +312,22 @@ describe('panel bayar', () => {
     const { onBayar, onTutup } = renderPopover(tagihan());
     await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
 
-    // Kotak nominal: label "Bayar" menyatu di dalam kotak + tombol kalkulator
-    // (id diturunkan dari htmlFor).
     const tombolPreset = document.getElementById('btn_preset_inp_bayar_jumlah');
     expect(tombolPreset).not.toBeNull();
     const input = screen.getByLabelText('Jumlah pembayaran');
     expect(input).toHaveValue('55.000');
 
-    // Turunkan dulu ke Rp 20.000 agar penambahan preset tetap di bawah sisa
-    // (Rp 55.000) — di atas sisa tombol Simpan memang dinonaktifkan.
     await userEvent.clear(input);
     await userEvent.type(input, '20000');
 
-    // Buka panel nominal cepat (popover BERSARANG di dalam popover aksi) lalu
-    // tambah Rp 5.000 — nominal selalu ditambahkan ke nilai berjalan.
     await userEvent.click(tombolPreset as HTMLElement);
     const cepat = await screen.findByRole('group', { name: 'Nominal cepat' });
     await userEvent.click(within(cepat).getByRole('button', { name: '5.000' }));
 
     await waitFor(() => expect(input).toHaveValue('25.000'));
-    // Interaksi di panel bersarang tidak boleh menutup popover aksi (klik luar
-    // Radix soal "branch") — popover terkontrol, jadi tertutup = onTutup jalan.
+
     expect(onTutup).not.toHaveBeenCalled();
 
-    // Nilai hasil tombol tetap terkirim lewat jalur normal.
     await userEvent.click(document.getElementById('btn_bayar_simpan') as HTMLElement);
     await waitFor(() => expect(onBayar).toHaveBeenCalledWith(
       expect.objectContaining({ jumlah: 25000 }),
@@ -351,8 +335,7 @@ describe('panel bayar', () => {
   });
 
   it('tombol Penuh sudah dihapus — field tetap terisi sisa saat dibuka', async () => {
-    // Aturan main: field nominal sudah default ke sisa tagihan saat panel dibuka,
-    // jadi tombol pintas "Penuh" tidak perlu lagi (memperkecil baris input).
+
     renderPopover(tagihan());
     await userEvent.click(screen.getByRole('tab', { name: 'Bayar' }));
     expect(screen.queryByRole('button', { name: 'Penuh' })).not.toBeInTheDocument();
@@ -395,13 +378,12 @@ describe('panel bayar', () => {
     await klikSelect(screen.getByLabelText('Metode pembayaran'));
     await klikSelect(screen.getByRole('option', { name: 'Transfer' }));
 
-    // Nilai kas lama (tunai_tu) tidak ada di pilihan transfer → ambil yang pertama.
     expect(screen.getByLabelText('Kas tujuan')).toHaveTextContent('Bank Pesantren');
 
     await klikSelect(screen.getByLabelText('Kas tujuan'));
     const opsi = screen.getAllByRole('option').map((o) => o.textContent);
     expect(opsi).toEqual(['Bank Pesantren', 'Bank Jenjang']);
-    await userEvent.keyboard('{Escape}'); // tutup dropdown sebelum klik Simpan
+    await userEvent.keyboard('{Escape}');
 
     await userEvent.click(document.getElementById('btn_bayar_simpan') as HTMLElement);
     await waitFor(() => expect(onBayar).toHaveBeenCalledWith(
@@ -441,8 +423,7 @@ describe('panel ubah', () => {
     await userEvent.type(nominal, '80000');
     await userEvent.click(document.getElementById('btn_ubah_simpan') as HTMLElement);
     await waitFor(() => expect(onUbah).toHaveBeenCalledTimes(1));
-    // TA & jatuh tempo dikirim ulang apa adanya (backend menghitung ulang
-    // yang bulanan; yang non-bulanan dipertahankan).
+
     expect(onUbah).toHaveBeenCalledWith({ nominal: 80000, tahun_ajaran: '2025/2026', jatuh_tempo: '2025-08-10' });
   });
 
@@ -460,7 +441,7 @@ describe('panel ubah', () => {
   it('ubah meneruskan tahun ajaran & jatuh tempo asli (tak bisa diubah)', async () => {
     const { onUbah } = renderPopover(tagihan({ tipe: 'non_bulanan', jatuhTempo: '2025-09-15' }));
     await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
-    // Tak ada lagi kontrol Tahun Ajaran / Jatuh Tempo di tab Ubah.
+
     expect(screen.queryByLabelText('Tahun ajaran')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Jatuh Tempo')).not.toBeInTheDocument();
     const nominal = screen.getByLabelText('Nominal');
@@ -482,7 +463,7 @@ describe('tombol hapus sejajar tab', () => {
   it('klik langsung membuka konfirmasi dan meneruskan saat dikonfirmasi', async () => {
     const { onHapus } = renderPopover(tagihan());
     await userEvent.click(screen.getByRole('button', { name: 'Hapus tagihan' }));
-    // Tetap di tab Detail (bukan pindah tab); konfirmasi tampil di area konten.
+
     expect(screen.getByRole('tab', { name: 'Detail' })).toHaveAttribute('data-state', 'active');
     expect(screen.getByText(/tidak bisa dibatalkan/)).toBeInTheDocument();
 
@@ -509,8 +490,7 @@ describe('panel detail pembayaran', () => {
     renderPopover(tagihan(), {}, {
       rows: [pembayaran(), pembayaran({ id: 2, jumlah: 35000, metode: 'transfer', kas: 'bank_lembaga', no_kwitansi: null, created_at: '2025-08-05T14:30:00' })],
     });
-    // Cakupan assertion ke daftar riwayat saja: nominal yang sama bisa muncul
-    // juga di ringkasan ("Dibayar").
+
     const daftar = within(screen.getByRole('list'));
     expect(daftar.getByText('Rp 20.000')).toBeInTheDocument();
     expect(daftar.getByText('Rp 35.000')).toBeInTheDocument();
@@ -662,7 +642,7 @@ describe('tab Ubah — dispensasi', () => {
   it('semua paket bisa dipilih; bukan-penerima otomatis terdaftar', async () => {
     daftarDispen.mockResolvedValue(PAKET);
     await bukaUbah();
-    // Daftar lintas TA: hanya jenis + aktif yang dikirim.
+
     await waitFor(() => expect(daftarDispen).toHaveBeenCalledWith(
       expect.objectContaining({ jenis_id: 1, is_active: true }),
     ));
@@ -682,7 +662,7 @@ describe('tab Ubah — dispensasi', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
     await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
     await userEvent.click(screen.getByRole('option', { name: 'Prestasi · 50%' }));
-    // Kotor 75.000 − 50% → 37.500, input dikunci mengikuti paket.
+
     expect(screen.getByDisplayValue('37500')).toBeInTheDocument();
     expect(screen.getByText(/Rp 75.000.*Rp 37.500.*Prestasi/)).toBeInTheDocument();
     expect(screen.getByDisplayValue('37500')).toBeDisabled();
@@ -700,7 +680,7 @@ describe('tab Ubah — dispensasi', () => {
     kuotaTerpakai.mockResolvedValue({ 7: { 11: 1 } });
     await bukaUbah();
     await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
-    // Prestasi kuota 1 sudah terpakai 1 → habis; Anak Pegawai sisa → aktif.
+
     expect(screen.getByRole('option', { name: /Prestasi.*kuota habis/ })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByRole('option', { name: /Anak Pegawai/ })).not.toHaveAttribute('aria-disabled', 'true');
   });
@@ -719,7 +699,7 @@ describe('tab Ubah — dispensasi', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Ubah' }));
     await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
     await userEvent.click(screen.getByRole('option', { name: 'Genap · Bebas' }));
-    // Kotor 75.000 → bebas (genap ganti ganjil) → 0.
+
     expect(screen.getByText(/Rp 75\.000.*Genap/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
     expect(p.onUbah).toHaveBeenCalledWith(expect.objectContaining({
@@ -735,7 +715,7 @@ describe('tab Ubah — dispensasi', () => {
     ]);
     await bukaUbah();
     await userEvent.click(screen.getByLabelText('Dispensasi tagihan'));
-    // Tagihan MI: paket MI + paket tanpa lingkup ikut tampil, MD tidak.
+
     expect(screen.getByRole('option', { name: 'Prestasi · 50%' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Semua Lembaga · 50%' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /Anak Pegawai/ })).not.toBeInTheDocument();

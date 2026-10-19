@@ -46,7 +46,7 @@ class ApiTanpaTokenTest extends TestCase
     public function test_setiap_endpoint_api_menjawab_401_bukan_500(): void
     {
         foreach ($this->endpointApi() as $nama => $path) {
-            // 500 di sini berarti ada route login yang dipanggil tanpa sengaja.
+
             $this->getJson($path, ['HTTP_ACCEPT' => '*/*'])
                 ->assertStatus(401)
                 ->assertJsonMissingPath('exception', $nama);

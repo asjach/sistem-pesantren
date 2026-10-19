@@ -34,9 +34,6 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
   /** Tahun pertama blok tahun (dibatas 1900–2100). */
   const [awalBlok, setAwalBlok] = useState(() => batasAwalBlok(awalBlokUntuk(bulanDari(nilai).tahun)));
 
-  /* Nilai berubah (dari luar, atau hasil pilih di panel) → ikuti bulannya;
-     blok tahun ikut bergeser HANYA bila tahunnya di luar blok, supaya daftar
-     tahun tak melompat saat pengguna sedang menelusuri. */
   useEffect(() => {
     const p = pecahIso(nilai);
     if (p === null) return;
@@ -69,19 +66,6 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
   /** Tahun acuan blok: tahun nilai terpilih, atau tahun ini. */
   const tahunAcuan = (dipilih ?? kini)?.tahun ?? tahun;
 
-  /* DAFTAR TAHUN digeser dengan gulir mouse: satu gulungan = satu baris
-     (`TAHUN_PER_BARIS` tahun), bukan satu blok 20 tahun seperti tombol ‹ ›
-     yang dulu ada.
-
-     Listener dipasang langsung pada elemen (bukan `onWheel` React) dengan
-     `{ passive: false }` karena React memasang wheel secara PASIF — di dalam
-     listener pasif `preventDefault` diabaikan browser, sementara di sini
-     gulir halaman memang harus berhenti selama daftar tahun bergerak.
-
-     Elemennya ditahan di STATE (bukan `useRef`) dan efek bergantung padanya:
-     grid tahun baru muncul saat panel terbuka, dan itu terjadi lewat presence
-     Radix yang bisa jadi SATU COMMIT di belakang state `buka` — dengan
-     bergantung `buka`, listener sempat dipasang saat elemennya belum ada. */
   const [elTahun, setElTahun] = useState<HTMLDivElement | null>(null);
   const pasangRefTahun = useCallback((node: HTMLDivElement | null) => setElTahun(node), []);
   useEffect(() => {
@@ -95,8 +79,6 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
     return () => elTahun.removeEventListener('wheel', onGulir);
   }, [elTahun]);
 
-  /* Paging tahun tanpa mouse (tombol ‹ › sudah dihapus): satu baris per
-     PageUp/PageDown, Home = kembali ke tahun acuan. */
   const onKeyDownTahun = (e: KeyboardEvent<HTMLDivElement>) => {
     const geser = e.key === 'PageUp' ? -TAHUN_PER_BARIS : e.key === 'PageDown' ? TAHUN_PER_BARIS : 0;
     if (geser !== 0) {
@@ -126,8 +108,6 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
         </Button>
       </PopoverTrigger>
 
-      {/* Satu panel: TAHUN + BULAN + TANGGAL menempel di bawah kotak dan
-          berbalik bersama bila kepepet tepi viewport (tak ada yang tertimpa). */}
       <PopoverContent
         data-panel={PANEL}
         side="bottom"
@@ -138,9 +118,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
         className={KELAS_PANEL}
       >
         <div className="flex flex-col">
-          {/* Rentang tahun yang tampil sekarang. Daftar tahunnya digeser dengan
-              gulir mouse satu baris sekali (bukan seblok 20 tahun), jadi tak
-              ada lagi tombol ‹ › di sini. */}
+
           <div className="pb-1 text-center text-xs font-medium tabular-nums">{awalBlok}–{akhirBlok}</div>
 
           <div
@@ -172,9 +150,6 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
             })}
           </div>
 
-          {/* Pembatas antara blok TAHUN & blok BULAN: tanpa ini kedua grid
-             berimpit jadi satu blok (border-nya saling menindih) sehingga
-             batas antara tahun dan bulan kabur. */}
           <hr className="my-1 shrink-0 border-t border-foreground/30" />
 
           <div role="group" aria-label={`Bulan ${tahun}`} className="grid grid-cols-6">
@@ -199,7 +174,6 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
             })}
           </div>
 
-          {/* Pembatas antara blok BULAN & grid TANGGAL. */}
           <hr className="my-1 shrink-0 border-t border-foreground/30" />
 
           <div role="group" aria-label={`Tanggal ${NAMA_BULAN[bulan - 1]} ${tahun}`} className="grid grid-cols-7 gap-1">
@@ -208,7 +182,7 @@ export default function PopoverKalender({ htmlFor, nilai, setNilai }: KonteksTip
                 {nama}
               </span>
             ))}
-            {/* Sel kosong sebelum tanggal 1 supaya kolomnya sejajar nama hari. */}
+
             {Array.from({ length: hariPertamaBulan(tahun, bulan) }, (_, i) => (
               <span key={`kosong_${i}`} aria-hidden="true" />
             ))}

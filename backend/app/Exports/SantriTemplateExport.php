@@ -88,7 +88,7 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
     /** Satu sumber daftar kolom (dipakai heading, baris contoh, & validasi). */
     public static function kolom(): array
     {
-        // Buku induk: identitas saja — tanpa kolom penempatan/status.
+
         return Santri::KOLOM_PROFIL;
     }
 
@@ -120,9 +120,7 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
 
         foreach (self::REF_KOLOM as $kolom => $tipe) {
             if (! array_key_exists($kolom, $pilihan)) {
-                // Tanpa penyaring lembaga → union nilai aktif semua lembaga
-                // (super admin); dengan penyaring → kamus lembaga itu.
-                // efektifSemuaLembaga mengembalikan BARIS objek → petakan ke nama.
+
                 $pilihan[$kolom] = $this->kodeDiizinkan === []
                     ? array_map(fn ($r) => (string) $r->nama, RefService::efektifSemuaLembaga($tipe))
                     : RefService::kodeAktif($tipe, $this->kodeDiizinkan[0]);
@@ -156,7 +154,6 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
             'kewarganegaraan' => 'WNI',
         ];
 
-        // Kolom dropdown: pakai nilai efektif pertama agar contoh pasti valid.
         foreach ($this->pilihan() as $kolom => $nilai) {
             if (in_array($kolom, self::kolom(), true) && $nilai !== []) {
                 $contoh[$kolom] = $nilai[0];
@@ -246,9 +243,7 @@ class SantriTemplateExport extends DefaultValueBinder implements FromArray, With
             $target = Coordinate::stringFromColumnIndex($posisi + 1);
             $batas = count($nilai) + 1;
             $validasi = new DataValidation;
-            // CATAT: atribut OOXML `showDropDown` INVERTED — writer PhpSpreadsheet menulis
-            // "0" saat properti true. Tanpa setShowDropDown(true), XML berisi "1" dan Excel
-            // MENGSEMBUNYIKAN panah dropdown (Reader/Xlsx/DataValidations.php:45).
+
             $validasi->setType(DataValidation::TYPE_LIST)
                 ->setShowDropDown(true)
                 ->setErrorStyle(DataValidation::STYLE_STOP)

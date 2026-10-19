@@ -12,8 +12,6 @@ function AlertDialog({
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
 }
 
-// Trigger dipakai sebagai anak `asChild` komponen lain (mis. TooltipTrigger),
-// jadi wrapper wajib forwardRef (React 18) agar ref tidak hilang.
 const AlertDialogTrigger = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Trigger>
@@ -30,8 +28,6 @@ function AlertDialogPortal({
   )
 }
 
-// Sama seperti DialogOverlay: Portal Radix membungkus child dengan Slot,
-// jadi wrapper wajib forwardRef (React 18) agar ref tidak hilang.
 const AlertDialogOverlay = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Overlay>

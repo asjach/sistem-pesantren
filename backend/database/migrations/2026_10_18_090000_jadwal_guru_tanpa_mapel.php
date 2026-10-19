@@ -25,7 +25,6 @@ return new class extends Migration
                 ->constrained('keaktifan_pegawai')->cascadeOnDelete();
         });
 
-        // Backfill kelas dari pengampu; data lama selalu punya pengampu.
         DB::table('jadwal_pelajaran')->orderBy('id')->chunkById(500, function ($rows): void {
             $peta = DB::table('pengampu_mapel')
                 ->whereIn('id', $rows->pluck('pengampu_mapel_id')->filter()->all())
@@ -51,7 +50,7 @@ return new class extends Migration
             $table->dropConstrainedForeignId('keaktifan_pegawai_id');
             $table->dropConstrainedForeignId('kelas_id');
         });
-        // Sel guru-saja tak punya pengampu; hapus dulu sebelum kolom wajib.
+
         DB::table('jadwal_pelajaran')->whereNull('pengampu_mapel_id')->delete();
         Schema::table('jadwal_pelajaran', function (Blueprint $table) {
             $table->foreignId('pengampu_mapel_id')->nullable(false)->change();

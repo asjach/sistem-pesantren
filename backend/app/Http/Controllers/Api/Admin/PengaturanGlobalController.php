@@ -29,9 +29,7 @@ class PengaturanGlobalController extends Controller
     public const KUNCI = [
         'tinggi_baris' => ['min' => 20, 'maks' => 200],
         'tinggi_header' => ['min' => 20, 'maks' => 120],
-        // Jumlah baris per halaman: HARUS salah satu opsi PER_PAGE_OPTIONS di
-        // frontend (10/50/100/500, 0 = semua). Karena itu dijaga sebagai DAFTAR
-        // nilai sah, bukan rentang min-max.
+
         'baris_per_halaman' => ['pilihan' => [0, 10, 50, 100, 500, 10000]],
     ];
 
@@ -108,7 +106,6 @@ class PengaturanGlobalController extends Controller
         $batas = self::KUNCI[$kunci];
         $angka = (int) round((float) $nilai);
 
-        // Dua bentuk batas: DAFTAR nilai sah (pilihan) atau rentang angka.
         if (isset($batas['pilihan'])) {
             if (! in_array($angka, $batas['pilihan'], true)) {
                 throw ValidationException::withMessages([

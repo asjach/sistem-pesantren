@@ -52,7 +52,7 @@ class PembayaranSisaTest extends TestCase
     public function test_melebihi_sisa_ditolak_dan_tidak_menulis_apapun(): void
     {
         $admin = $this->admin();
-        $t = $this->tagihan(100000, 40000); // sisa 60.000
+        $t = $this->tagihan(100000, 40000);
 
         $this->bayar($admin, $t, 60001)->assertStatus(422);
 
@@ -71,17 +71,13 @@ class PembayaranSisaTest extends TestCase
         $this->assertSame(0, Pembayaran::where('tagihan_id', $t->id)->count());
     }
 
-    /* Invarian di bawah berlaku untuk pembayaran yang DIBUAT lewat endpoint:
-       `terbayar` harus selalu sama dengan jumlah baris pembayaran aktif. Tagihan
-       yang `terbayar`-nya di-seed tanpa baris pembayaran (kasusGenerate/seed)
-       tidak memenuhi invarian ini sejak awal, jadi tidak dipakai di sini. */
     public function test_pembayaran_tepat_sisa_diterima_dan_jumlah_konsisten(): void
     {
         $admin = $this->admin();
         $t = $this->tagihan(100000);
 
         $this->bayar($admin, $t, 40000)->assertStatus(201);
-        $this->bayar($admin, $t, 60000)->assertStatus(201); // tepat sisa
+        $this->bayar($admin, $t, 60000)->assertStatus(201);
 
         $t->refresh();
         $this->assertSame(100000, $t->terbayar);

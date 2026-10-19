@@ -14,7 +14,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import nama kelas pasangan MI↔MD: pratinjau + eksekusi, lewati duplikat.
 class KelasImportNamaTest extends TestCase
 {
     use RefreshDatabase;
@@ -44,7 +43,7 @@ class KelasImportNamaTest extends TestCase
             'nama' => 'Tsanawiyah', 'jenjang' => 'MTS',
             'is_seleksi' => false, 'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
-        // TA global (berlaku semua lembaga) — satu baris untuk semua.
+
         $ta = TahunAjaran::create([
             'nama' => '2026/2027',
             'tanggal_mulai' => '2026-07-01', 'tanggal_selesai' => '2027-06-30', 'is_aktif' => true,
@@ -80,7 +79,7 @@ class KelasImportNamaTest extends TestCase
         $res = $this->panggil($f['super'], $body)->assertStatus(200);
         $this->assertSame(1, (int) $res->json('ringkasan.dibuat'));
         $this->assertSame(1, (int) $res->json('ringkasan.dilewati'));
-        $this->assertSame(1, Kelas::where('jenjang', $f['md']->jenjang)->count()); // pratinjau tak menulis
+        $this->assertSame(1, Kelas::where('jenjang', $f['md']->jenjang)->count());
 
         $this->panggil($f['super'], array_merge($body, ['periksa' => false]))->assertStatus(200);
         $dibuat = Kelas::where('jenjang', $f['md']->jenjang)->where('nama_kelas', '1B')->firstOrFail();
@@ -92,7 +91,6 @@ class KelasImportNamaTest extends TestCase
         $f = $this->baseFixture();
         Kelas::create(['jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taMi']->nama, 'nama_kelas' => '2A', 'tingkat' => '2', 'urutan' => 1]);
 
-        // Copy MI → MD: target + TA diselesaikan server.
         $res = $this->panggil($f['super'], [
             'dari_jenjang' => $f['mi']->jenjang, 'dari_tahun_ajaran' => $f['taMi']->nama,
             'ke_kode' => 'MD', 'periksa' => true,
@@ -135,7 +133,6 @@ class KelasImportNamaTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        // Target MI miliknya, sumber MD terbaca via pengecualian pasangan.
         $this->panggil($adminMi, [
             'jenjang' => $f['mi']->jenjang, 'tahun_ajaran' => $f['taMi']->nama,
             'dari_kode' => 'MD', 'periksa' => false,
@@ -169,7 +166,6 @@ class KelasImportNamaTest extends TestCase
             ->get("/api/admin/kelas/export-nama?jenjang={$f['md']->jenjang}&tahun_ajaran={$f['taMd']->nama}")
             ->assertStatus(200);
 
-        // Non-pasangan (MTS) tetap ditolak.
         $adminMts = User::create([
             'name' => 'Admin MTS', 'email' => 'adminmts-ekspor@example.com',
             'phone' => '081000000013', 'password' => 'password',

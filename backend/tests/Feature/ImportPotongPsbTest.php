@@ -15,10 +15,6 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-// Import PSB bertahap (potongan JSON 1000 baris): `gelombang_id` + `jenjang`
-// adalah konteks tetap sesi dan wajib tiap potongan; mode periksa menjalankan
-// SEMUA cek tanpa menulis pendaftar/log status/nomor pendaftaran; eksekusi
-// menulis per potongan; NIK duplikat dilaporkan per baris.
 class ImportPotongPsbTest extends TestCase
 {
     use RefreshDatabase;
@@ -30,7 +26,7 @@ class ImportPotongPsbTest extends TestCase
         parent::setUp();
         $this->seed(RoleSeeder::class);
         $this->withoutMiddleware(ThrottleRequests::class);
-        // Id sesi mulai dari 1 di tiap tes → berkas galat lama tak boleh bocor.
+
         foreach (glob(storage_path('app/imports/galat-*.csv')) ?: [] as $berkas) {
             @unlink($berkas);
         }
@@ -113,7 +109,6 @@ class ImportPotongPsbTest extends TestCase
         $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
         $this->assertSame('nik', $res->json('galat_contoh.0.kolom'));
 
-        // Kering: tak ada pendaftar, log status, maupun nomor pendaftaran.
         $this->assertSame(0, PsbCalonSantri::withTrashed()->count());
         $this->assertSame(0, PsbLogStatus::count());
         $this->assertSame(0, DB::table('psb_calon_lembaga')->count());
@@ -131,7 +126,6 @@ class ImportPotongPsbTest extends TestCase
         $this->assertFalse((bool) $satu->json('selesai'));
         $this->assertSame(1, PsbCalonSantri::count());
 
-        // Gelombang + lembaga ikut pada potongan lanjutan.
         $dua = $this->actingAs($f['admin'], 'sanctum')->postJson('/api/psb/import-potong', $this->konteks($f, [
             'sesi_id' => $satu->json('sesi_id'),
             'mode' => 'eksekusi',
@@ -156,13 +150,11 @@ class ImportPotongPsbTest extends TestCase
     {
         $f = $this->baseFixture();
 
-        // Tanpa gelombang_id / jenjang → 422.
         $this->actingAs($f['admin'], 'sanctum')->postJson('/api/psb/import-potong', [
             'mode' => 'eksekusi', 'total' => 1, 'terakhir' => true,
             'baris' => [$this->baris('1100000000000504', 'Calon Lima')],
         ])->assertStatus(422);
 
-        // Potongan lanjutan tanpa konteks juga 422.
         $satu = $this->actingAs($f['admin'], 'sanctum')->postJson('/api/psb/import-potong', $this->konteks($f, [
             'mode' => 'eksekusi', 'total' => 2,
             'baris' => [$this->baris('1100000000000505', 'Calon Enam')],
@@ -213,12 +205,11 @@ class ImportPotongPsbTest extends TestCase
         $this->assertSame(1, $res->json('ringkasan.dibuat'));
         $this->assertSame(1, $res->json('ringkasan.baris_gagal'));
         $this->assertSame('no_pendaftaran', $res->json('galat_contoh.0.kolom'));
-        // Baris bentrok tak tertulis: hanya pre-existing + 1 hasil import.
+
         $this->assertSame(2, PsbCalonSantri::count());
         $this->assertSame(0, PsbCalonSantri::where('nik', '1100000000000512')->count());
         $this->assertSame(1, PsbCalonSantri::where('no_pendaftaran', 'PSB_MANUAL_0001')->count());
 
-        // Lebih dari 1000 baris per panggilan.
         $this->actingAs($f['admin'], 'sanctum')->postJson('/api/psb/import-potong', $this->konteks($f, [
             'mode' => 'periksa',
             'total' => 1001,
@@ -245,7 +236,6 @@ class ImportPotongPsbTest extends TestCase
         $this->actingAs($lain, 'sanctum')->get("/api/psb/import-potong/{$sesiId}/galat")->assertStatus(404);
         $this->actingAs($lain, 'sanctum')->post("/api/psb/import-potong/{$sesiId}/batal")->assertStatus(404);
 
-        // Pemilik boleh membatalkan (dan berkas galatnya hilang).
         $this->actingAs($f['admin'], 'sanctum')->post("/api/psb/import-potong/{$sesiId}/batal")->assertStatus(200);
         $this->actingAs($f['admin'], 'sanctum')->get("/api/psb/import-potong/{$sesiId}/galat")->assertStatus(404);
     }

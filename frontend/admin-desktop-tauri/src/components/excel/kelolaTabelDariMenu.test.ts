@@ -40,9 +40,7 @@ describe('tenggang menu Kelola Tabel', () => {
   });
 
   it('jendela tenggang menutupi fokus sisa gestur menu, tapi tetap singkat', () => {
-    // Pengukuran browser: fokus sisa gestur menu mendarat di luar panel
-    // ~530ms setelah panel terbuka (400ms terbukti KURANG). Batas atas
-    // menjaga klik-luar manusia yang sungguhan tetap menutup panel.
+
     expect(TENGGANG_BUKA_DARI_MENU_MS).toBeGreaterThanOrEqual(700);
     expect(TENGGANG_BUKA_DARI_MENU_MS).toBeLessThanOrEqual(1500);
   });
@@ -56,8 +54,7 @@ describe('tenggang menu Kelola Tabel', () => {
     } finally {
       tenggangMenu.tandai = tandaiAsli;
     }
-    // Urutan wajib: penanda harus aktif SEBELUM panel hidup, supaya
-    // interaksi-luar pertama sudah terabaikan.
+
     expect(urutan).toEqual(['tandai', 'buka']);
   });
 

@@ -23,7 +23,7 @@ class TeleponTest extends TestCase
             'strip & spasi dibuang' => ['0812-3456-7890', '6281234567890'],
             'plus kode negara diabaikan' => ['+62 812 3456 7890', '6281234567890'],
             'titik & kurung diabaikan' => ['(0812) 3456.7890', '6281234567890'],
-            // Tanpa 0/62: diasumsikan nomor lokal, ditempeli 62.
+
             'tanpa awalan ditempeli 62' => ['8123456789', '628123456789'],
             'string kosong jadi null' => ['', null],
             'spasi saja jadi null' => ['   ', null],
@@ -45,7 +45,7 @@ class TeleponTest extends TestCase
 
     public function test_nilai_non_string_dipaksa_jadi_teks(): void
     {
-        // 8123456789 (10 digit) tak berawalan 0/62 -> ditempeli 62 -> 12 digit.
+
         $this->assertSame('628123456789', Telepon::normalisasi(8123456789));
         $this->assertNull(Telepon::normalisasi(null));
     }

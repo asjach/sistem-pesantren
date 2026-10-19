@@ -20,7 +20,7 @@ class JenisStoreRequest extends FormRequest
             'tipe' => 'in:bulanan,non_bulanan',
             'jenjang' => 'nullable|string|max:50',
             'keterangan' => 'nullable|string|max:1000',
-            // Urutan tampil kolom; boleh kosong (= 0, ikut urutan `id`).
+
             'urutan' => 'sometimes|integer|min:0',
         ];
     }

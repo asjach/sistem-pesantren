@@ -9,13 +9,9 @@ import { listPresetTabel } from '@/api/preset';
 import { muatKomponenCustom } from '@/api/komponenCustom';
 import { renderDenganTema } from '@/test/utils';
 
-// Rel tingkat-kelas butuh Router + provider tahun ajaran; yang diuji cuma
-// apakah ExcelTable merendernya, jadi diganti stub ringan.
 vi.mock('@/components/FilterRail', () => ({
   default: () => <div data-testid="rel_filter" />,
 }));
-
-// ---- Mock API (unit test tidak boleh memanggil fetch nyata) ----
 
 /** Tiruan server stateful untuk preset toolbar: `visibilitas` bisa disemai
  *  per tes, dan `simpan` benar-benar mengubah yang dibaca `muat`. */
@@ -65,15 +61,11 @@ vi.mock('@/api/urutPreset', () => ({
   arahKolomDariOpsi: vi.fn(() => undefined),
 }));
 
-/* Setelan komponen custom (mis. "Nilai awal" preset kolom) disimpan di server;
-   API-nya dimock agar tes bisa menyemai setelan lewat store klien. */
 vi.mock('@/api/komponenCustom', () => ({
   muatKomponenCustom: vi.fn(async () => ({ pesan: '', data: { peta: {} } })),
   simpanKomponenCustom: vi.fn(async () => ({ pesan: '', data: {} })),
   hapusKomponenCustom: vi.fn(async () => ({ pesan: '' })),
 }));
-
-// ---- Stub jsdom untuk react-datasheet-grid ----
 
 vi.mock('react-datasheet-grid', async (importOriginal) => {
   const asli = await importOriginal<typeof import('react-datasheet-grid')>();
@@ -83,8 +75,6 @@ vi.mock('react-datasheet-grid', async (importOriginal) => {
     DynamicDataSheetGrid: stub.DynamicDataSheetGridStub,
   };
 });
-
-// ---- Fixtures ----
 
 interface Baris {
   id: string;
@@ -128,10 +118,7 @@ beforeEach(() => {
 });
 
 describe('ExcelTable — bilah judul', () => {
-  /* Filter milik halaman (prop `filter`) harus dihitung sebagai isi bilah
-     judul. Tanpa itu tabel yang HANYA punya filter — mis. tabel "Kamus Mapel"
-     di halaman Kurikulum → Mata Pelajaran — tak mendapat bilah judul sama
-     sekali, sehingga judul & kontrol filternya tak pernah dirender. */
+
   it('tabel yang hanya punya filter tetap mendapat bilah judul + filternya', () => {
     renderTabel({ filter: <input id="uji_filter" aria-label="Cari uji" /> });
 
@@ -146,12 +133,9 @@ describe('ExcelTable — bilah judul', () => {
     renderTabel();
 
     const tombol = await screen.findByRole('button', { name: 'Info tabel' });
-    // Menempel pada judul: satu wadah dengan teks judulnya, bukan kontrol di
-    // kelompok kanan bilah.
+
     expect(tombol.parentElement).toHaveTextContent('Uji');
 
-    // Hover hanya memunculkan kursor pointer; keterangan tak boleh ikut
-    // terbuka dan menutupi tabel tanpa diminta.
     await userEvent.hover(tombol);
     expect(screen.queryByText(/Ketentuan/)).toBeNull();
 
@@ -161,7 +145,6 @@ describe('ExcelTable — bilah judul', () => {
     expect(isi.tagName).toBe('P');
     expect(isi).toHaveTextContent('Ketentuan tabel.');
 
-    // Klik tombol lagi menutup popover (kontrol bolak-balik, bukan hanya buka).
     await userEvent.click(tombol);
     await waitFor(() => expect(screen.queryByText(/Ketentuan/)).toBeNull());
   });
@@ -175,8 +158,7 @@ describe('ExcelTable — bilah judul', () => {
 });
 
 describe('ExcelTable — baris dipilih (onBarisKlik)', () => {
-  /* Fitur opt-in: tabel pemilih (mis. Daftar Dispensasi) memakai baris aktif
-     DSG untuk memilih baris; tabel lain tak boleh terpengaruh. */
+
   it('sel aktif memanggil onBarisKlik dengan baris pada indeks itu', () => {
     const onBarisKlik = vi.fn();
     renderTabel({ onBarisKlik });
@@ -230,14 +212,13 @@ describe('ExcelTable — nilai awal preset kolom dari popover', () => {
     resetSetelanKomponen();
     vi.mocked(muatKomponenCustom).mockResolvedValueOnce({
       pesan: 'ok',
-      // Kunci setelan = `tableKey|komponen` (komponen hidup di toolbar tabel).
+
       data: { peta: { 'uji|select_preset_kolom_uji': { nilaiDefault: 'Ringkas' } } },
     });
     presetDua();
 
     renderTabel();
 
-    // "Ringkas" hanya memuat kolom Nama → header Kode tak ikut tampil.
     await waitFor(() => expect(screen.getByText('Nama')).toBeInTheDocument());
     await waitFor(() => expect(screen.queryByText('Kode')).toBeNull());
   });
@@ -260,7 +241,6 @@ describe('ExcelTable — corner button (sudut kiri-atas)', () => {
     segitiga.className = 'dsg-corner-indicator';
     sel.appendChild(segitiga);
 
-    // Klik tepat di segitiga maupun di selnya sama-sama dikenali.
     expect(diCornerButton(segitiga)).toBe(true);
     expect(diCornerButton(sel)).toBe(true);
   });
@@ -294,9 +274,7 @@ describe('ExcelTable', () => {
     expect(screen.queryByText('Uji')).not.toBeInTheDocument();
   });
   it('judul isian pengguna menang atas prop header', async () => {
-    // Judul dinamis dari halaman (mis. "Daftar Santri (12)") boleh ditimpa
-    // lewat Kelola Tabel — itu tujuan fiturnya, jadi isian pengguna yang
-    // menang, bukan prop `header`.
+
     serverToolbar.state.judul = 'Buku Induk';
     renderTabel({ header: <span>Judul Halaman</span> });
 
@@ -308,7 +286,6 @@ describe('ExcelTable', () => {
     serverToolbar.state.judul = null;
     renderTabel({ header: <span>Judul Halaman</span> });
 
-    // Menunggu muat selesai dulu supaya pengecekan bukan sekadar kondisi awal.
     await waitFor(() => expect(serverToolbar.muat).toHaveBeenCalled());
     expect(screen.getByText('Judul Halaman')).toBeInTheDocument();
   });
@@ -350,8 +327,6 @@ describe('ExcelTable', () => {
   });
 });
 
-/* Filter toolbar (Urutan & Kolom) bisa dinyalakan/dimatikan per tabel dari
-   dialog Kelola Tabel; setelannya disimpan di toolbar_preset.visibilitas. */
 describe('ExcelTable — filter toolbar mengikuti setelan Kelola Tabel', () => {
   const onUrut = vi.fn();
 
@@ -380,7 +355,7 @@ describe('ExcelTable — filter toolbar mengikuti setelan Kelola Tabel', () => {
     renderTabel({ onUrut });
     await waitFor(() => expect(document.getElementById('select_urut_uji')).toBeNull());
     expect(document.getElementById('select_preset_kolom_uji')).toBeNull();
-    // Judul tabel tetap ada (baris judul tak ikut hilang).
+
     expect(screen.getByText('Uji')).toBeInTheDocument();
   });
 
@@ -412,8 +387,7 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
    *  justru nilai prop itu lewat `top`. */
   function topBarisPertama(): string {
     const semua = document.querySelectorAll('.dsg-row');
-    // Lewati baris kepala kolom (index 0) dan cari baris data pertama yang
-    // punya `top` — skeleton "TabelMemuat" juga memakai kelas `dsg-row`.
+
     for (const el of Array.from(semua) as HTMLElement[]) {
       if (el.style.top !== '') return el.style.top;
     }
@@ -433,8 +407,7 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
     expect(screen.getByText('Filter uji')).toBeInTheDocument();
     expect(screen.getByText('Pager uji')).toBeInTheDocument();
     expect(container.querySelector('[data-part="kaki_tabel"]')).not.toBeNull();
-    // Kepala kolom tetap setinggi DEFAULT_HEADER_H (26), jadi baris data
-    // pertama digeser sebesar itu.
+
     expect(topBarisPertama()).toBe('26px');
   });
 
@@ -457,9 +430,7 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
   });
 
   it('seluruh komponen bilah judul dimatikan → bilah judul ikut hilang', async () => {
-    // Bilah tak perlu dibungkus kalau isinya sudah tak ada satu pun. Gerigi
-    // "Pengaturan tabel ini" juga harus ikut dimatikan — dialah satu-satunya
-    // pintu Kelola Tabel dari tabel ini.
+
     serverToolbar.state.visibilitas = {
       judul_tabel: false, urutan: false, kolom: false, filter: false,
       tombol_aksi: false, tombol_pengaturan: false,
@@ -476,7 +447,7 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
     };
     const { container } = renderTabel({ onUrut: vi.fn(), filter: <span>Filter uji</span> });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
-    // Gerigi hidup → bilah judul tetap ada walau isinya cuma gerigi itu.
+
     expect(container.querySelector('[data-part="header_tabel"]')).not.toBeNull();
     expect(document.getElementById('btn_pengaturan_tabel_uji')).not.toBeNull();
   });
@@ -506,9 +477,7 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
     serverToolbar.state.visibilitas = { header_kolom: false };
     renderTabel();
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
-    // `top` baris data pertama jadi 0 → `headerRowHeight` 0, dan itulah yang
-    // membuat DSG asli tak merender kepala kolom sama sekali (bukan sekadar
-    // tak terlihat, yang menyisakan celah setinggi header di atas grid).
+
     expect(topBarisPertama()).toBe('0px');
   });
 
@@ -517,8 +486,7 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
     const { container } = renderTabel({ pager: <span>Pager uji</span> });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
     expect(screen.queryByText('Pager uji')).toBeNull();
-    // Tombol Edit (halaman uji `canEdit`) masih mengisi kaki tabel. Gerigi
-    // Pengaturan tabel tak lagi ada di kaki — ia di bilah judul.
+
     expect(container.querySelector('[data-part="kaki_tabel"]')).not.toBeNull();
     expect(document.getElementById('btn_mode_edit_uji')).not.toBeNull();
     expect(container.querySelector('[data-part="kaki_tabel"]')?.querySelector('#btn_pengaturan_tabel_uji')).toBeNull();
@@ -535,7 +503,7 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
   });
 
   it('setiap tombol kaki tabel punya sakelarnya sendiri', async () => {
-    // Mematikan "Edit" tak boleh ikut menghilangkan tombol tambah.
+
     serverToolbar.state.visibilitas = { tombol_edit: false };
     renderTabel({ onCreateRow: vi.fn(async () => {}) });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
@@ -550,14 +518,12 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
     const { container } = renderTabel({ pager: <span>Pager uji</span>, canEdit: false });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
     expect(container.querySelector('[data-part="kaki_tabel"]')).toBeNull();
-    // Gerigi tetap ada karena ia hidup di bilah judul.
+
     expect(document.getElementById('btn_pengaturan_tabel_uji')).not.toBeNull();
   });
 
   it('kontrol milik halaman di bilah judul tak bisa dimatikan lewat sakelar tabel', async () => {
-    // `awalanToolbar` milik halaman, tak punya sakelar — bilah judul tetap ada
-    // walau seluruh komponen tabelnya dimatikan, jangan sampai kontrol
-    // halaman ikut hilang diam-diam.
+
     serverToolbar.state.visibilitas = {
       judul_tabel: false, urutan: false, kolom: false, filter: false, tombol_aksi: false,
     };
@@ -579,7 +545,7 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
   it('bawaannya kolom centang & Aksi tampil', async () => {
     renderTabel();
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
-    // 2 baris data → 2 checkbox centang + "pilih semua" di kepala kolom.
+
     expect(kotakCentang()).toBe(2);
     expect(screen.getByLabelText('Pilih semua baris')).toBeInTheDocument();
     expect(screen.getAllByText('Aksi-uji')).toHaveLength(2);
@@ -589,10 +555,10 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
     serverToolbar.state.visibilitas = { kolom_centang: false, kolom_aksi: false };
     renderTabel();
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
-    // Kolom centang: tak ada checkbox baris maupun "pilih semua" di header.
+
     expect(kotakCentang()).toBe(0);
     expect(screen.queryByLabelText('Pilih semua baris')).toBeNull();
-    // Kolom Aksi: tombol aksi per baris ikut hilang.
+
     expect(screen.queryByText('Aksi-uji')).toBeNull();
   });
 
@@ -605,8 +571,7 @@ describe('ExcelTable — visibilitas komponen tabel (setelan Kelola Tabel → Um
   });
 
   it('prop hideCheckbox halaman menang atas sakelar tabel', async () => {
-    // Halaman sudah memaksa sembunyi, jadi sakelarnya tak ada artinya dan
-    // kolom centang tetap tak dirender walau peta server kosong.
+
     renderTabel({ hideCheckbox: true });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
     expect(kotakCentang()).toBe(0);
@@ -665,8 +630,6 @@ describe('ExcelTable — klik kanan baris', () => {
     const { container } = renderTabel({ onIsiBlok, blokAksiLabel: 'Isi mapel & guru…' });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
 
-    // Seleksi 2 baris × 2 kolom data (nama + kode), lalu klik kanan pada
-    // PEMBUNGKUS sel (area padding) yang tidak membawa `data-col-key`.
     act(() => dsgStub.seleksi?.({
       selection: { min: { row: 0, col: 1 }, max: { row: 1, col: 2 } },
     }));
@@ -682,9 +645,6 @@ describe('ExcelTable — klik kanan baris', () => {
     expect(blokFields.map((f) => f.key)).toEqual(['nama', 'kode']);
   });
 
-  /* "Kosongkan blok" merusak isi sel, jadi — seperti seret isi sel — item ini
-     HANYA boleh hidup saat Mode Ubah menyala. Tanpa gerbang itu, tabel yang
-     sedang dibaca punya tombol penghapus yang bisa kepicu tak sengaja. */
   it('aksi kosongkan blok TIDAK muncul sebelum Mode Ubah menyala', async () => {
     const onKosongkanBlok = vi.fn();
     const { container } = renderTabel({ onKosongkanBlok, kosongkanBlokLabel: 'Kosongkan mapel & guru…' });
@@ -695,7 +655,6 @@ describe('ExcelTable — klik kanan baris', () => {
     }));
     fireEvent.contextMenu(within(container).getByText('Ahmad').closest('.dsg-cell') as HTMLElement);
 
-    // Aksi isi blok tetap ada (tak merusak); yang kosongkan yang disembunyikan.
     const menu = await screen.findByRole('menu');
     expect(menu).not.toHaveTextContent('Kosongkan mapel & guru…');
   });
@@ -752,7 +711,7 @@ describe('ExcelTable — tombol ikon kaki tabel', () => {
 
     fireEvent.click(screen.getByLabelText('Tambah baris baru'));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Input aktif'));
-    // Digantikan baris isian di ujung bawah grid.
+
     expect(screen.queryByLabelText('Tambah baris baru')).not.toBeInTheDocument();
   });
 
@@ -787,14 +746,11 @@ describe('ExcelTable — tinggi grid mengisi sisa ruang', () => {
 
   it('pakai ruang wrapper, bukan parent yang ikut menghitung bilah judul', async () => {
     await denganTinggiTiruan(async () => {
-      // `container`: pengukuran AutoFit juga memakai simpul `.simpes-dsg` di luar
-      // pohon ini, jadi kueri harus dibatasi ke wadah hasil render.
+
       const { container } = renderTabel();
       const wrap = container.querySelector('.simpes-dsg') as HTMLElement;
       const kartu = wrap.querySelector('.simpes-dsg-kartu') as HTMLElement;
 
-      // Tinggi kartu = ruang wrapper (203), bukan tinggi parent (231, sudah
-      // termasuk bilah judul) — kalau 231 dipakai, 28 px tabel meluber ke bawah.
       await waitFor(() => expect(kartu.style.height).toBe('203px'));
     });
   });
@@ -803,8 +759,6 @@ describe('ExcelTable — tinggi grid mengisi sisa ruang', () => {
     const { container } = renderTabel();
     const kelas = (container.querySelector('.simpes-dsg') as HTMLElement).className;
 
-    // Lantai `min-h-[280px]` menahan wrapper saat panel resizable lebih pendek
-    // dari 280 px sehingga kartu melewati dasar panel.
     expect(kelas).not.toContain('min-h-[280px]');
     expect(kelas).toContain('min-h-0');
     expect(kelas).toContain('flex-1');
@@ -822,15 +776,10 @@ describe('ExcelTable — klik ganda sel', () => {
     renderTabel();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
-    // Mode Ubah dinyalakan lewat klik ganda sel.
     fireEvent.doubleClick(screen.getByText('Ahmad'));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
   });
 
-  /* Tabel read-saja yang punya fitur manipulasi (bukan `canEdit`) tetap punya
-     tombol Mode Ubah di kaki tabel, jadi klik ganda harus menyalakannya juga.
-     Sebelumnya gerbangnya `canEdit`, sehingga satu-satunya jalan masuk ke mode
-     itu jadi klik tombol — tidak konsisten dengan tabel lain. */
   it('tabel read-saja dengan fitur manipulasi: klik ganda menyalakan Mode Ubah', async () => {
     renderTabel({ canEdit: false, onSeretIsi: vi.fn() });
 
@@ -838,8 +787,6 @@ describe('ExcelTable — klik ganda sel', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
   });
 
-  /* Tanpa fitur manipulasi, tabel read-saja tak punya Mode Ubah sama sekali
-     (tak ada tombol di kaki tabel) — klik ganda harus tetap diam. */
   it('tabel read-saja tanpa fitur manipulasi: klik ganda diam', async () => {
     renderTabel({ canEdit: false });
 
@@ -853,8 +800,7 @@ describe('ExcelTable — klik ganda sel', () => {
    jangkauannya jelas. */
 describe('ExcelTable — gerigi pengaturan tabel', () => {
   it('menonaktifkan gerigi bila halaman ini tak mendaftarkan tabelnya', async () => {
-    // Tanpa registrasi, DialogKelolaTabel tak akan terisi - jadi pintunya
-    // dimatikan daripada membuka dialog kosong.
+
     renderTabel({});
     const gerigi = await screen.findByRole('button', { name: 'Pengaturan tabel ini' });
     expect(gerigi).toBeDisabled();
@@ -901,10 +847,6 @@ describe('ExcelTable — sel statis kustom', () => {
   });
 });
 
-/* Sakelar gestur hidup di bilah Mode Ubah (kanan bawah), bukan di Kelola
-   Tabel: gesturnya HANYA berlaku saat Mode Ubah menyala, jadi tempatnya
-   dipindah ke sana supaya ikhtisar "apa yang boleh dimanipulasi sekarang"
-   terbaca satu mata. */
 describe('ExcelTable — sakelar gestur di bilah Mode Ubah', () => {
   const sakel = (label: RegExp) => screen.getByRole('checkbox', { name: label });
 
@@ -961,8 +903,6 @@ describe('ExcelTable — sakelar gestur di bilah Mode Ubah', () => {
     expect(sakel(/Seret isi sel untuk move/)).not.toBeChecked();
   });
 
-  /* Pref perangkat ditulis ke `localStorage` (bukan Tauri) — memeriksa
-     isinya, bukan spy, jadi yang terbukti benar-benar TERSIMPAN. */
   it('menyalakan satu gestur menyimpan pref perangkatnya & mematikan pref pasangan', async () => {
     renderTabel();
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
@@ -971,7 +911,7 @@ describe('ExcelTable — sakelar gestur di bilah Mode Ubah', () => {
     await userEvent.click(sakel(/Seret isi sel untuk move/));
 
     await waitFor(() => expect(localStorage.getItem('simpes_grid_uji_seret_pindah')).toBe('1'));
-    // Pasangannya ditulis mati, jadi pref lama tak pernah "bangun kembali".
+
     expect(localStorage.getItem('simpes_grid_uji_seret_salin')).toBe('');
   });
 
@@ -998,10 +938,6 @@ const adaPemisahSebelum = (el: HTMLElement): boolean => {
   return sebelum !== null && sebelum.getAttribute('data-slot') === 'separator';
 };
 
-
-/* Ctrl/Cmd+C & Ctrl/Cmd+V = jalur papan-ketik dari salin/tempel isi sel.
-   Gerbangnya Mode Ubah + prop halaman; tabel biasa tak boleh ikut merebut
-   Ctrl+C (yang jadi milik penyalin TSV) maupun Ctrl+V (milik DSG). */
 describe('ExcelTable — salin/tempel blok lewat papan ketik', () => {
   const nyalakanMode = async () => {
     fireEvent.click(screen.getByLabelText('Aktifkan mode Ubah'));
@@ -1029,7 +965,7 @@ describe('ExcelTable — salin/tempel blok lewat papan ketik', () => {
 
     expect(onSalinBlok).toHaveBeenCalledTimes(1);
     const p = onSalinBlok.mock.calls[0][0] as { blok: { r0: number; r1: number; kolom: number[] } };
-    // Kolom grid: [check, nama, kode, __aksi] → kolom 1..2 = nama & kode.
+
     expect(p.blok).toEqual({ r0: 0, r1: 1, kolom: [1, 2] });
   });
 
@@ -1061,9 +997,6 @@ describe('ExcelTable — salin/tempel blok lewat papan ketik', () => {
     expect(onTempelBlok).not.toHaveBeenCalled();
   });
 
-  /* Tabel biasa (tak punya prop blok) mengandalkan jalur lama: Ctrl+C milik
-     penyalin TSV & Ctrl+V milik DSG. Salah merebut di sini akan mematikan
-     salin-tempel bawaan tanpa memberi apa pun sebagai gantinya. */
   it('tanpa prop blok, Ctrl+C/V tidak direbut (jalur lama tetap utuh)', async () => {
     const { container } = renderTabel({ onSeretIsi: vi.fn() });
     await waitFor(() => expect(screen.getByText('Ahmad')).toBeInTheDocument());
@@ -1078,9 +1011,6 @@ describe('ExcelTable — salin/tempel blok lewat papan ketik', () => {
   });
 });
 
-/* Copy & Move satu GRUP (saling mati), "Geser judul kolom" grupnya sendiri.
-   `PillMode` memberi garis pemisah antar-grup — jadi menambah sakelar di
-   grup mana pun tak mengubah tata letak yang sudah ada. */
 describe('ExcelTable — pengelompokan sakelar Mode Ubah', () => {
   it('copy & move rapat, dipisah garis dari geser judul kolom', async () => {
     renderTabel();
@@ -1092,12 +1022,10 @@ describe('ExcelTable — pengelompokan sakelar Mode Ubah', () => {
     const pindah = screen.getByRole('checkbox', { name: /Seret isi sel untuk move/ });
     const geser = screen.getByRole('checkbox', { name: /Geser judul kolom/ });
 
-    // Dua sakelar satu grup berjarak 0: tak ada garis di antaranya.
     expect(adaPemisahSebelum(pindah)).toBe(false);
-    // Grup berikutnya: satu garis pemisah tepat sebelum sakelar pertama
-    // grubunya (bukan di antara dua item dalam grup yang sama).
+
     expect(adaPemisahSebelum(geser)).toBe(true);
-    // Sakelar pertama tak boleh preceded garis (tidak ada grup di atasnya).
+
     expect(adaPemisahSebelum(salin)).toBe(false);
   });
 });

@@ -34,7 +34,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('template_jadwal_id')->constrained('template_jadwal')->cascadeOnDelete();
             $table->enum('hari', ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']);
-            $table->integer('urutan_slot')->default(1); // posisi slot generik (1, 2, 3, ...)
+            $table->integer('urutan_slot')->default(1);
             $table->foreignId('mata_pelajaran_id')->constrained('mata_pelajaran')->cascadeOnDelete();
             $table->timestamps();
 

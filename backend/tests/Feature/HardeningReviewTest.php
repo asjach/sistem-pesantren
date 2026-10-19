@@ -73,18 +73,15 @@ class HardeningReviewTest extends TestCase
         ]);
         $ortu->assignRole('orang_tua');
 
-        // Device desktop dari peran portal → ditolak, tanpa token.
         $this->postJson('/api/auth/login', [
             'identifier' => $ortu->email, 'password' => 'password', 'device' => 'admin-desktop-tauri',
         ])->assertStatus(403);
         $this->assertDatabaseCount('personal_access_tokens', 0);
 
-        // Device non-desktop (mis. portal) tetap boleh login.
         $this->postJson('/api/auth/login', [
             'identifier' => $ortu->email, 'password' => 'password', 'device' => 'portal-web',
         ])->assertStatus(200);
 
-        // Admin boleh login dari desktop.
         $admin = $this->makeAdmin();
         $this->postJson('/api/auth/login', [
             'identifier' => $admin->email, 'password' => 'password', 'device' => 'admin-desktop-tauri',

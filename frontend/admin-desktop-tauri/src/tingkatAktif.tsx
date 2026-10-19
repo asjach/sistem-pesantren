@@ -19,8 +19,7 @@ export function TingkatAktifProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [tingkat, setTingkat] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  // Cukup kunci primitif id: refresh `/me` (identitas `user` baru, isi sama)
-  // tidak boleh memicu muat ulang.
+
   const userId = user?.id;
 
   useEffect(() => {

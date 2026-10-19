@@ -1,12 +1,3 @@
-// Kontrak backend live (003/004):
-// POST /api/auth/login {identifier, password, device?} -> {user, token}
-// GET /api/auth/me -> user+roles+lembagas
-// POST /api/auth/logout, POST /api/auth/logout-all
-// GET /api/dashboard/ringkasan
-// Tenant: pivot user_lembaga satu-satunya; 403 lintas lembaga; throttle login 6/mnt.
-//
-// Penyimpanan: di desktop Tauri pakai plugin-store (file app-data),
-// di web pakai localStorage. Base URL bisa diganti runtime via Pengaturan.
 
 import { LazyStore } from '@tauri-apps/plugin-store';
 
@@ -115,14 +106,14 @@ async function kvSet(key: string, value: string): Promise<void> {
       await s.set(key, value);
       scheduleStoreSave(s);
     } catch {
-      /* gagal simpan (disk/izin): abaikan agar UI tidak macet */
+
     }
     return;
   }
   try {
     localStorage.setItem(key, value);
   } catch {
-    /* kuota/private mode: abaikan */
+
   }
 }
 
@@ -134,14 +125,14 @@ async function kvDel(key: string): Promise<void> {
       await s.delete(key);
       scheduleStoreSave(s);
     } catch {
-      /* abaikan */
+
     }
     return;
   }
   try {
     localStorage.removeItem(key);
   } catch {
-    /* abaikan */
+
   }
 }
 
@@ -188,7 +179,7 @@ async function tokenGet(): Promise<string | null> {
 async function tokenSet(token: string): Promise<void> {
   if (!isTauri()) { await kvSet(TOKEN_KEY, token); return; }
   volatileToken = token;
-  // Penanda non-rahasia mencegah kredensial OS lama dipulihkan jika tulis gagal.
+
   await kvSet(TOKEN_CLEARED_KEY, '1');
   const ok = await tauriInvoke<null>('secure_set', { key: TOKEN_KEY, value: token });
   await kvDel(TOKEN_KEY);
@@ -238,7 +229,7 @@ export async function clearSession(): Promise<void> {
 export async function getBaseUrl(): Promise<string> {
   const custom = await kvGet(BASE_URL_KEY);
   const val = (custom || DEFAULT_API_BASE_URL).replace(/\/$/, '');
-  // Tolak simpanan http non-loopback (token akan terkirim plaintext).
+
   try {
     const u = new URL(val);
     if (u.protocol === 'http:' && !isLoopback(u.hostname)) return DEFAULT_API_BASE_URL;
@@ -296,8 +287,7 @@ function messageOf(body: unknown, fallback: string): string {
     for (const kunci of ['pesan', 'message'] as const) {
       if (kunci in body) {
         const nilai = (body as Record<string, unknown>)[kunci];
-        // Spasi saja dianggap kosong, kalau tidak notifikasi akan tampil
-        // dengan teks yang tidak terbaca.
+
         if (typeof nilai === 'string' && nilai.trim()) return nilai;
       }
     }
@@ -312,14 +302,8 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
   const version = sessionVersion;
   const method = (init.method ?? 'GET').toUpperCase();
 
-  // Setiap request tulis membatalkan cache GET referensi agar data tak basi
-  // (mis. buat lembaga → daftar langsung segar pada muat berikutnya).
   if (method !== 'GET') getCache.clear();
 
-  // Dedup GET identik yang sedang in-flight: React StrictMode (dev) menggandakan
-  // efek, dan beberapa komponen (provider + halaman + tiap grid) sering memuat
-  // daftar referensi yang sama serentak. Permintaan ber-`signal` (abortable)
-  // tidak digabung agar pembatalan satu pemanggil tak mengganggu yang lain.
   if (method === 'GET' && !init.signal) {
     const kunci = `${version}|${init.tanpaPeran ? '' : lembagaAktifId ?? ''}|${path}`;
     if (bolehCache(path)) {
@@ -519,8 +503,7 @@ export function errorMessage(e: unknown): string {
     return messageOf(e.body, `Gagal (${e.status}).`);
   }
   if (typeof e === 'string') {
-    // Galat IPC Tauri (dialog/filesystem) berbentuk string — tampilkan apa
-    // adanya, jangan disamarkan jadi galat server.
+
     return e.trim() !== '' ? e : 'Gagal terhubung ke server.';
   }
   return e instanceof Error ? e.message : 'Gagal terhubung ke server.';

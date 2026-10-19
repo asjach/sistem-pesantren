@@ -97,9 +97,6 @@ describe('useSalinTempelBlok', () => {
     expect(onSalin).not.toHaveBeenCalled();
   });
 
-  /* Di WebView nyata, sel DSG tak fokusable sehingga setelah klik sel fokus
-     tetap di <body> dan `e.target` keydown = body. Listener HARUS tetap jalan
-     di kasus itu — gerbangnya "ada blok aktif", bukan containment target. */
   it('keydown dari body (fokus tak pindah ke sel) tetap memicu', () => {
     const { onSalin } = pasang(true);
     tekan(document.body, 'c');

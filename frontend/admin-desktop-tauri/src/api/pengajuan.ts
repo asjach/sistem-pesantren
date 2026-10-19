@@ -1,8 +1,6 @@
 import { api } from './client';
 import type { Paginate } from './master';
 
-// ---------- Pengajuan biodata santri (portal wali → verifikasi admin) ----------
-
 export interface PengajuanBiodata {
   id: number;
   santri_id: number;

@@ -44,7 +44,6 @@ function IsiPanelAksi({
   );
 }
 
-
 export interface TagihanAktif {
   id: number;
   nama: string;
@@ -244,20 +243,18 @@ export default function PopoverAksiTagihan({
   jumlahTerpilih = 0, jumlahTagihan = 0, totalSisaTerpilih = 0, onAksiBatch, batchBusy = false,
   paksaBatch = false,
 }: Props) {
-  /* Mode batch: beberapa sel terpilih → popover menampilkan aksi massal.
-     Dihitung dari prop (bukan state lokal) supaya mengikuti seleksi terkini. */
+
   const modeBatch = (jumlahTerpilih > 1 || paksaBatch) && onAksiBatch !== undefined;
   const [tab, setTab] = useState<TabKey>('detail');
   const [teksJumlah, setTeksJumlah] = useState('');
   const [metode, setMetode] = useState<DataBayar['metode']>('tunai');
   const [kas, setKas] = useState<DataBayar['kas']>('tunai_tu');
   const [busy, setBusy] = useState(false);
-  /* Mode konfirmasi hapus di kaki popover (ganti tombol Hapus). */
+
   const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
-  /* Id tagihan yang riwayatnya sudah diminta — cegah request ulang tiap
-     render induk (callback `onMuatRiwayat` dibuat baru tiap render). */
+
   const riwayatUntuk = useRef<number | null>(null);
-  /* Form ubah */
+
   const [nominal, setNominal] = useState('');
   /** Pilihan dispensasi tab Ubah: undefined = belum disentuh (jalur lama),
    *  'tanpa' = lepas eksplisit, number = id paket (nominal mengikuti paket). */
@@ -267,14 +264,12 @@ export default function PopoverAksiTagihan({
   const [dispenGagal, setDispenGagal] = useState(false);
   /** Kuota terpakai santri ini per paket (pratinjau; backend otoritatif). */
   const [kuotaPakaiMap, setKuotaPakaiMap] = useState<Record<number, number>>({});
-  /* Form tambah (sel kosong) */
+
   const [nominalBaru, setNominalBaru] = useState('');
   const [jatuhTempoBaru, setJatuhTempoBaru] = useState('');
 
   const terbuka = anchor !== null;
 
-  // Sel baru → isi ulang seluruh form; jumlah defaultnya sisa tagihan (kasus
-  // paling umum adalah membayar penuh, dan nilainya masih bisa dikoreksi).
   useEffect(() => {
     if (tagihan === null) return;
     setTeksJumlah(tagihan.sisa > 0 ? String(tagihan.sisa) : '');
@@ -287,7 +282,6 @@ export default function PopoverAksiTagihan({
     riwayatUntuk.current = null;
   }, [tagihan]);
 
-  // Daftar dispensasi untuk tagihan ini (dipakai combobox tab Ubah).
   useEffect(() => {
     if (tagihan === null) return;
     let hidup = true;
@@ -295,22 +289,19 @@ export default function PopoverAksiTagihan({
     daftarDispensasi({ jenis_id: tagihan.jenisId, is_active: true })
       .then((d) => { if (hidup) setDispenDaftar(d); })
       .catch(() => { if (hidup) { setDispenDaftar([]); setDispenGagal(true); } });
-    // Sisa kuota santri ini (opsi habis dinonaktifkan; sudah-menempel tetap bisa dipilih).
+
     kuotaPakai([tagihan.santri_id])
       .then((m) => { if (hidup) setKuotaPakaiMap(m[tagihan.santri_id] ?? {}); })
       .catch(() => { if (hidup) setKuotaPakaiMap({}); });
     return () => { hidup = false; };
   }, [tagihan]);
 
-  // Konteks tambah berganti → nominal mengikuti tarif yang cocok.
   useEffect(() => {
     if (tambah === null) return;
     setNominalBaru(tambah.nominalAwal != null ? String(tambah.nominalAwal) : '');
     setJatuhTempoBaru('');
   }, [tambah]);
 
-  // Riwayat selalu tampil di kolom info, jadi diminta saat popover dibuka
-  // (sekali per tagihan) — bukan menunggu tab dibuka.
   useEffect(() => {
     if (tagihan === null || riwayatUntuk.current === tagihan.id) return;
     riwayatUntuk.current = tagihan.id;
@@ -331,7 +322,6 @@ export default function PopoverAksiTagihan({
     }
   };
 
-  /* Mode tambah (sel kosong): ringkas + satu form, tanpa tab aksi. */
   if (tambahAktif && tambah) {
     const jangkar = anchor;
     const nBaru = Number(nominalBaru);
@@ -386,10 +376,7 @@ export default function PopoverAksiTagihan({
             <div className="grid grid-cols-[5rem_1fr] items-center gap-x-2 gap-y-1.5">
               <FieldLabel htmlFor="inp_tambah_nominal" className="text-xs">Nominal</FieldLabel>
               <Input
-                /* autoFocus DISENGAJA: panel "tambah tagihan" dibuka lewat
-                   tombol Tambah di baris tagihan; langkah berikutnya pasti
-                   menulis nominal — fokus langsung ke kotak Nominal adalah
-                   alur yang dimaksud. */
+
                 /* eslint-disable-next-line jsx-a11y/no-autofocus */
                 autoFocus
                 id="inp_tambah_nominal"
@@ -453,11 +440,6 @@ export default function PopoverAksiTagihan({
     );
   }
 
-  /* Mode batch: banyak sel terpilih (termasuk sel kosong) → popover menampilkan
-     aksi massal untuk seluruh pilihan. WAJIB punya jalur render sendiri di
-     sini (di atas penjagaan `tagihan === null` di bawah): pilihan massal bisa
-     seluruhnya sel kosong (tanpa tagihan), jadi panel aksi tunggal yang
-     bergantung pada `tagihan` tak akan pernah tampil. */
   if (modeBatch) {
     return (
       <Popover
@@ -474,9 +456,7 @@ export default function PopoverAksiTagihan({
           align="start"
           sideOffset={6}
           collisionPadding={12}
-          /* Panel batch hanya menu, jadi lebarnya diserahkan ke isi (`w-auto`)
-             dan isinya memasang lebar sendiri (w-64) — bukan 32rem panel
-             tunggal yang memuat foto + tab. */
+
           className="max-w-[calc(100vw-24px)] w-auto border-ring/50 p-0"
           id="popover_aksi_tagihan"
         >
@@ -484,8 +464,7 @@ export default function PopoverAksiTagihan({
             <div className="border-b px-3 py-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  {/* Angka + satuan dulu ("3 tagihan"), nominal di baris kedua:
-                      lebih cepat dipindai daripada satu kalimat panjang. */}
+
                   <span className="block text-sm font-semibold">
                     {jumlahTerpilih} sel dipilih
                   </span>
@@ -508,7 +487,6 @@ export default function PopoverAksiTagihan({
               </div>
             </div>
 
-            {/* Kelompok "ubah data": aksi yang tidak menghancurkan apa pun. */}
             <div className="flex flex-col p-1.5">
               <Button
                 id="btn_batch_buat"
@@ -563,9 +541,6 @@ export default function PopoverAksiTagihan({
               </Button>
             </div>
 
-            {/* Kelompok merusak: dipisah garis + label kecil supaya tidak
-                sekadar sebaris dengan aksi aman. Sengaja tetap di dalam panel
-                (bukan submenu) karena jumlahnya cuma dua. */}
             <div className="mt-0.5 flex flex-col border-t p-1.5">
               <span className="px-2 pb-1 pt-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 Menghapus permanen
@@ -668,7 +643,7 @@ export default function PopoverAksiTagihan({
       open={terbuka}
       onOpenChange={(o) => { if (!o) onTutup(); }}
     >
-      {/* Jangkar virtual: satu popover untuk seluruh tabel, bukan per sel. */}
+
       <PopoverAnchor
         virtualRef={{
           current: { getBoundingClientRect: () => anchor.getBoundingClientRect() },
@@ -679,23 +654,18 @@ export default function PopoverAksiTagihan({
         align="start"
         sideOffset={6}
         collisionPadding={12}
-        /* `border-ring/50` (bukan `border` bawaan 12%): panel ini
-           mengambang di atas crosstab yang ramai, garis tipis low-contrast
-           bawaan tak terlihat di antara warna sel. Panel tunggal butuh 32rem
-           (foto + tab aksi). */
+
         className="max-w-[calc(100vw-24px)] w-[32rem] border-ring/50 p-0"
         id="popover_aksi_tagihan"
       >
         <div className="flex w-[32rem] flex-col">
-        {/* Judul: status + tutup — nama pindah ke kolom data pribadi. */}
+
         <div className="border-b px-3 py-2">
           <div className="flex items-center justify-between gap-2">
               <span className={cn('rounded-pil px-2 py-0.5 text-[11px] font-medium', b.kelas)}>
               {b.teks}
             </span>
-            {/* Jalan tutup eksplisit: popover ini terkontrol halaman, jadi
-                tombol memanggil `onTutup` langsung (bukan PopoverClose) —
-                sama dengan yang dilakukan klik luar & Esc. */}
+
             <Button
               id="btn_tutup_popover_tagihan"
               type="button"
@@ -712,8 +682,7 @@ export default function PopoverAksiTagihan({
         </div>
 
         <div className="grid grid-cols-[1fr_2fr]">
-          {/* Kolom data pribadi: foto, nama, orang tua, kelas pada TA filter
-              (null = tanpa patokan TA). */}
+
           <div className="min-w-0">
             <div className="flex flex-col items-center px-3 py-3 text-center">
               <AvatarSantri dokId={tagihan.fotoDokumenId} santriId={tagihan.santri_id} punyaFotoProfil={tagihan.fotoProfil} nama={tagihan.nama} />
@@ -733,21 +702,12 @@ export default function PopoverAksiTagihan({
             </div>
           </div>
 
-          {/* Kolom aksi: tab Bayar + Ubah. */}
           <div className="min-w-0 border-l">
         <Tabs value={tab} onValueChange={(v) => { setTab(v as TabKey); setKonfirmasiHapus(false); }} className="flex flex-col">
-          {/* Tab: ikon di atas, label di bawahnya. */}
+
           <TabsList
             variant="line"
-            /* `h-auto!` (important) wajib: `tabsListVariants` memaksa `h-9`
-               (36px) untuk tab horizontal, padahal isi tab di sini 48,5px
-               (ikon di atas label). Akibatnya trigger meluber 13px melewati
-               tepi bawah tablist dan garis `border-b` lama tergambar melintasi
-               area label — itu sebabnya posisinya terasa salah, bukan karena
-               divider-nya sendiri. Sekarang tinggi tablist mengikuti isinya,
-               divider duduk 4px di bawah penanda tab aktif (`pb-1`), dan
-               penanda aktif dirapatkan dari `bottom:-5px` ke `bottom-0`
-               supaya menempel pada labelnya. */
+
             className={cn(
               'grid h-auto! w-full grid-cols-4 gap-0 rounded-none border-b p-0 pb-1 [&_[role=tab]]:after:bottom-0',
             )}
@@ -755,8 +715,7 @@ export default function PopoverAksiTagihan({
             <TabUji ikon={<Info size={15} />} label="Detail" />
             <TabUji ikon={<Wallet size={15} />} label="Bayar" />
             <TabUji ikon={<Pencil size={15} />} label="Ubah" />
-            {/* Bukan trigger tab Radix: sejajar tab lain tapi langsung membuka
-                konfirmasi hapus, tanpa panel tab. */}
+
             <button
               id="btn_tagihan_hapus"
               type="button"
@@ -794,7 +753,7 @@ export default function PopoverAksiTagihan({
             </div>
           ) : (
           <>
-          {/* --- Detail: info tagihan + pembayaran --- */}
+
           <TabsContent value="detail" className="m-0 space-y-2 p-3">
             <dl className="space-y-0.5 text-xs">
               <BarisRingkas label={tagihan.label} nilai={rupiah(tagihan.nominal)} />
@@ -804,8 +763,7 @@ export default function PopoverAksiTagihan({
                 nilai={rupiah(sisa)}
                 nilaiKelas={lunas ? 'text-emerald-700 dark:text-emerald-300' : 'text-destructive'}
               />
-              {/* Dispensasi yang menempel pada tagihan ini (bukan pratinjau):
-                  nama paket tak dikenal (nonaktif/dihapus) tampil id-nya. */}
+
               <BarisRingkas
                 label="Dispensasi"
                 nilai={(() => {
@@ -854,9 +812,6 @@ export default function PopoverAksiTagihan({
             </div>
           </TabsContent>
 
-          {/* --- Bayar --- */}
-
-          {/* --- Bayar --- */}
           <TabsContent value="bayar" className="m-0 space-y-2 p-3">
             {lunas ? (
               <p className="text-xs text-muted-foreground">
@@ -864,28 +819,11 @@ export default function PopoverAksiTagihan({
               </p>
             ) : (
               <>
-                {/* Satu grid untuk ketiga kontrol: kolom label dikunci
-                    `4rem` supaya "Bayar", "Metode", dan "Posisi Kas" rata kiri
-                    dengan lebar sama (dulu tiap baris `grid-cols-[auto_1fr]`,
-                    jadi tiap label lebarnya mengikuti teksnya sendiri dan
-                    kontrolnya mulai di x berbeda-beda). 4rem cukup untuk
-                    label terpanjang "Posisi Kas" (~52px) plus jarak. */}
+
                 <div className="grid grid-cols-[4rem_1fr] items-center gap-x-2 gap-y-1.5">
-                  {/* Nominal bayar = `LabeledInput` bertipe `nominal`
-                      (registry `tipeInput.tsx`): label "Bayar" menyatu di dalam
-                      kotak + panel nominal cepat & tombol angka. Tipenya
-                      DIKUNCI (`tipeTerkunci`) karena ini kotak kontrak —
-                      nominal bayar tak boleh diganti jadi teks/tanggal — tapi
-                      preset nominalnya tetap bisa diatur dari popover
-                      klik-kanan. Karena labelnya kini bagian dari kotak (bukan
-                      kolom label 4rem terpisah), kotaknya membentang kedua
-                      kolom grid; baris Metode/Posisi Kas di bawahnya tetap
-                      memakai kolom label. */}
+
                   <LabeledInput
-                    /* autoFocus (bukan ref): LabeledInput tidak forwardRef.
-                       DISENGAJA: panel bayar dibuka dari baris tagihan dan
-                       langkah berikutnya pasti menulis jumlah — fokus langsung
-                       ke kotak Bayar adalah alur yang dimaksud. */
+
                     /* eslint-disable-next-line jsx-a11y/no-autofocus */
                     autoFocus
                     nama="nominal"
@@ -908,9 +846,7 @@ export default function PopoverAksiTagihan({
                 onValueChange={(v) => {
                   const baru = v as DataBayar['metode'];
                   setMetode(baru);
-                  /* Kas ikut menyesuaikan metode: kalau nilai kas sekarang
-                     tidak ada di pilihan metode baru, ambil yang pertama —
-                     mencegah form mengirim kombinasi yang tidak ada pilihannya. */
+
                   const opsi = KAS_PER_METODE[baru];
                   setKas((k) => (opsi.some((o) => o.value === k) ? k : opsi[0].value));
                 }}
@@ -969,11 +905,8 @@ export default function PopoverAksiTagihan({
             )}
           </TabsContent>
 
-          {/* --- Ubah: nominal + dispensasi. Tahun ajaran & jatuh tempo
-              sengaja tak bisa diubah di sini (dikirim ulang apa adanya). */}
           <TabsContent value="ubah" className="m-0 space-y-2 p-3">
-            {/* Pola sama seperti panel Bayar: satu grid, kolom label dikunci 5rem
-                supaya keduanya rata kiri dan kontrolnya mulai di x yang sama. */}
+
             <div className="grid grid-cols-[5rem_1fr] items-center gap-x-2 gap-y-1.5">
               <FieldLabel htmlFor="sel_ubah_dispen" className="text-xs">Dispensasi</FieldLabel>
               <Select
@@ -981,8 +914,7 @@ export default function PopoverAksiTagihan({
                 onValueChange={(v) => {
                   if (v === '') setDispenPilih(undefined);
                   else if (v === 'tanpa') {
-                    // Lepas: isi nominal dengan kotor (satu klik kembali);
-                    // tetap bisa diketik ulang sebagai koreksi manual.
+
                     setDispenPilih('tanpa');
                     setNominal(String(nominalKotor));
                   } else setDispenPilih(Number(v));
@@ -1108,13 +1040,12 @@ function AvatarSantri({ dokId, santriId, punyaFotoProfil, nama }: {
         try {
           const bytes = await ambil();
           if (!hidup) return;
-          // `bytes` tampilan penuh atas buffer-nya, jadi `.buffer` tepat
-          // mewakili isi berkas.
+
           obj = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer]));
           setUrl(obj);
           return;
         } catch {
-          // Lanjut ke fallback berikutnya.
+
         }
       }
     })();

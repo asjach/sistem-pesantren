@@ -25,7 +25,6 @@ return new class extends Migration
                 ->after('kurikulum');
         });
 
-        // Peristiwa yang sudah ada: ASAS & ASAT = rapor akhir.
         DB::table('peristiwa_nilai')->whereIn('kode', ['ASAS', 'ASAT'])
             ->update(['jenis_rapor' => 'akhir']);
     }

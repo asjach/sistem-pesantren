@@ -94,7 +94,6 @@ class PeranLembagaTest extends TestCase
         $tempatId = LembagaPegawai::untuk($guru->id, 'MI')->id;
         $this->actingAs($auth, 'sanctum')->postJson("/api/admin/pegawai-lembaga/{$tempatId}/nonaktifkan")->assertOk();
 
-        // Baris guru dicabut; baris admin manual utuh.
         $this->assertSame(['admin'], $this->pivot($user->id, 'MI'));
     }
 
@@ -114,12 +113,10 @@ class PeranLembagaTest extends TestCase
         $this->assertTrue($user->fresh()->punyaPeranDi('guru', 'MLN'));
         $this->assertFalse($user->fresh()->punyaPeranDi('admin', 'MLN'));
 
-        // Peran admin (berizin) hanya efektif dalam konteks MI.
         $this->actingAs($user, 'sanctum')->getJson('/api/admin/pegawai-lembaga?jenjang=MI')->assertOk();
         $this->actingAs($user, 'sanctum')->getJson('/api/admin/pegawai-lembaga?jenjang=MLN')->assertForbidden();
         $this->actingAs($user, 'sanctum')->getJson('/api/admin/pegawai-lembaga')->assertForbidden();
 
-        // /me?jenjang=MI memuat izin peran pivot; /me global memuat gabungannya.
         $denganKonteks = $this->actingAs($user, 'sanctum')->getJson('/api/auth/me?jenjang=MI')->assertOk();
         $this->assertContains('pegawai.lihat', $denganKonteks->json('permissions'));
         $tanpaKonteks = $this->actingAs($user, 'sanctum')->getJson('/api/auth/me')->assertOk();
@@ -164,13 +161,11 @@ class PeranLembagaTest extends TestCase
             ]);
         }
 
-        // Lepas hanya baris guru.
         $this->actingAs($auth, 'sanctum')->deleteJson("/api/admin/users/{$user->id}/lembaga", [
             'jenjang' => 'MI', 'role' => 'guru',
         ])->assertOk();
         $this->assertSame(['admin', null], $this->pivot($user->id, 'MI'));
 
-        // Sync jenjangs (PUT) hanya mengganti baris warisan.
         $this->actingAs($auth, 'sanctum')->putJson("/api/admin/users/{$user->id}", [
             'jenjangs' => ['MI', 'MLN'],
         ])->assertOk();

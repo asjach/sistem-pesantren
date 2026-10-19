@@ -134,9 +134,7 @@ export function PengaturanHalaman({
   const pageKey = pageKeyDariPath(pathname);
   const konfigurasi = konfigurasiFilterHalaman(pageKey);
   const kunci = JSON.stringify(tampil);
-  // Kunci registrasi mencakup susunan field: perubahan kolom tanpa ganti
-  // key tabel (mis. rename key field) wajib mendaftarkan ulang agar section
-  // Kolom/Urutan di dialog Kelola Tabel selalu sinkron dengan halaman.
+
   const kunciTabel = JSON.stringify(tabel.map((t) => `${t.key}:${(t.fields ?? []).map((f) => f.key).join(',')}`));
   const tabelRef = useRef(tabel);
   tabelRef.current = tabel;
@@ -158,8 +156,7 @@ export function PengaturanHalaman({
     return () => {
       setRegistrasi(null);
     };
-    // `kunci` ikut didengar (meski `kunciLengkap` sudah jadi superset-nya):
-    // efek membaca `kunci` langsung, jadi dependensinya disebut eksplisit.
+
   }, [setRegistrasi, pageKey, konfigurasi, kunci, kunciLengkap]);
 
   return null;

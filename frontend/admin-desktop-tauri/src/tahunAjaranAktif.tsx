@@ -63,8 +63,7 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
   const [pilihan, setPilihan] = useState<TahunAjaran[]>([]);
   const [tahunAjaranNames, setTahunAjaranNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  // Cukup kunci primitif id: refresh `/me` (identitas `user` baru, isi sama)
-  // tidak boleh memicu muat ulang.
+
   const userId = user?.id;
 
   useEffect(() => {
@@ -77,10 +76,7 @@ export function TahunAjaranAktifProvider({ children }: { children: ReactNode }) 
         setLoading(false);
         return;
       }
-      // Tunggu lembaga aktif selesai dimuat agar tak memuat dua kali
-      // (untuk "Semua" lalu untuk jenjang terpilih). Selama menunggu lapor
-      // SIBUK (bukan ready-kosong): hilir (rail/tabel) mengira scope final
-      // bila loading false + daftar kosong, lalu memuat ulang sia-sia.
+
       if (lembagaLoading) {
         setLoading(true);
         return;
