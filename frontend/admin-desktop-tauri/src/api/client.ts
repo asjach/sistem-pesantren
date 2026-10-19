@@ -361,28 +361,47 @@ function bolehCache(path: string): boolean {
   return CACHE_PATH.some((p) => path === p || path.startsWith(`${p}?`) || path.startsWith(`${p}/`));
 }
 
+const API_TIMEOUT_MS = 60_000;
+
+/** Deadline mencakup pembacaan badan; pembatalan pemanggil tetap AbortError. */
+async function requestApi<T>(url: string, init: RequestInit, read: (res: Response) => Promise<T>): Promise<T> {
+  const ac = new AbortController();
+  const cancel = () => ac.abort(init.signal?.reason);
+  if (init.signal?.aborted) cancel();
+  else init.signal?.addEventListener('abort', cancel, { once: true });
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; ac.abort(); }, API_TIMEOUT_MS);
+  try {
+    return await read(await fetch(url, { ...init, signal: ac.signal }));
+  } catch (e) {
+    if (init.signal?.aborted) throw new DOMException('Permintaan dibatalkan.', 'AbortError');
+    if (timedOut) {
+      throw new ApiError(0, { pesan: (init.method ?? 'GET').toUpperCase() === 'GET'
+        ? 'Server terlalu lama merespons. Coba lagi.'
+        : 'Waktu tunggu server habis. Periksa hasil transaksi sebelum mencoba lagi.' });
+    }
+    if (e instanceof ApiError || (e !== null && typeof e === 'object' && 'name' in e && e.name === 'AbortError')) throw e;
+    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${new URL(url).origin}). Periksa alamat di Pengaturan.` });
+  } finally {
+    clearTimeout(timer);
+    init.signal?.removeEventListener('abort', cancel);
+  }
+}
+
 async function apiMentah<T>(path: string, init: ApiInit = {}): Promise<T> {
   const version = sessionVersion;
   const { tanpaPeran, ...fetchInit } = init;
   const peranHeaders = headerLembaga(tanpaPeran);
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   assertCurrentSession(version);
-  let res: Response;
-  try {
-    res = await fetch(`${base}${path}`, {
-      ...fetchInit,
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...peranHeaders,
-        ...(init.headers ?? {}),
-      },
-    });
-  } catch {
-    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
-  }
-  return parseResponse<T>(res, version);
+  return requestApi(`${base}${path}`, {
+    ...fetchInit,
+    headers: {
+      'Content-Type': 'application/json', Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...peranHeaders, ...(init.headers ?? {}),
+    },
+  }, (res) => parseResponse<T>(res, version));
 }
 
 /**
@@ -390,63 +409,33 @@ async function apiMentah<T>(path: string, init: ApiInit = {}): Promise<T> {
  * asli, bukan objek URL, dan pembacaannya harus memakai token serta header
  * lembaga yang sama seperti permintaan lain.
  */
-export async function ambilBerkas(path: string): Promise<ArrayBuffer> {
-  getCache.clear();
+export async function ambilBerkas(path: string, signal?: AbortSignal): Promise<ArrayBuffer> {
   const version = sessionVersion;
   const peranHeaders = headerLembaga();
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   assertCurrentSession(version);
-  let res: Response;
-  try {
-    res = await fetch(`${base}${path}`, {
-      // Biner harus segar tiap unduh (server mengirim Cache-Control: public;
-      // tanpa ini WebView bisa menyajikan template/berkas lama dari cache).
-      cache: 'no-store',
-      headers: {
-        Accept: '*/*',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...peranHeaders,
-      },
-    });
-  } catch {
-    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
-  }
-
-  assertCurrentSession(version);
-  if (!res.ok) {
-    if (res.status === 401) {
-      await expireSession(version);
-    }
-    throw new ApiError(res.status, { message: await res.text().catch(() => 'Berkas tidak dapat dibaca.') });
-  }
-
-  const bytes = await res.arrayBuffer();
-  assertCurrentSession(version);
-  return bytes;
+  return requestApi(`${base}${path}`, {
+    cache: 'no-store', signal,
+    headers: { Accept: '*/*', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...peranHeaders },
+  }, async (res) => {
+    if (!res.ok) await parseResponse(res, version);
+    const bytes = await res.arrayBuffer();
+    assertCurrentSession(version);
+    return bytes;
+  });
 }
 
 /** POST multipart (upload file): tanpa header Content-Type agar boundary otomatis. */
-export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
+export async function apiUpload<T>(path: string, body: FormData, signal?: AbortSignal): Promise<T> {
   getCache.clear();
   const version = sessionVersion;
   const peranHeaders = headerLembaga();
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   assertCurrentSession(version);
-  let res: Response;
-  try {
-    res = await fetch(`${base}${path}`, {
-      method: 'POST',
-      body,
-      headers: {
-        Accept: 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...peranHeaders,
-      },
-    });
-  } catch {
-    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
-  }
-  return parseResponse<T>(res, version);
+  return requestApi(`${base}${path}`, {
+    method: 'POST', body, signal,
+    headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...peranHeaders },
+  }, (res) => parseResponse<T>(res, version));
 }
 
 async function expireSession(version: number): Promise<void> {
@@ -492,39 +481,24 @@ export async function simpanUnduhan(nama: string, data: Uint8Array): Promise<voi
 }
 
 /** Unduh file ber-token (template/impor): fetch blob → simpan unduhan. */
-export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+export async function downloadFile(path: string, fallbackName: string, signal?: AbortSignal): Promise<void> {
   const version = sessionVersion;
   const peranHeaders = headerLembaga();
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
   assertCurrentSession(version);
-  let res: Response;
-  try {
-    res = await fetch(`${base}${path}`, {
-      cache: 'no-store',
-      headers: {
-        Accept: '*/*',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...peranHeaders,
-      },
-    });
-  } catch {
-    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
-  }
+  const file = await requestApi(`${base}${path}`, {
+    cache: 'no-store', signal,
+    headers: { Accept: '*/*', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...peranHeaders },
+  }, async (res) => {
+    if (!res.ok) await parseResponse(res, version);
+    const blob = await res.blob();
+    const disposisi = res.headers.get('Content-Disposition') ?? '';
+    const match = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(disposisi);
+    const nama = match ? decodeURIComponent(match[1].replace(/"/g, '')) : fallbackName;
+    return { nama, bytes: new Uint8Array(await blob.arrayBuffer()) };
+  });
   assertCurrentSession(version);
-  if (!res.ok) {
-    if (res.status === 401) {
-      await expireSession(version);
-    }
-    throw new ApiError(res.status, await res.text().catch(() => null));
-  }
-  const blob = await res.blob();
-  assertCurrentSession(version);
-  const disposisi = res.headers.get('Content-Disposition') ?? '';
-  const match = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(disposisi);
-  const nama = match ? decodeURIComponent(match[1].replace(/"/g, '')) : fallbackName;
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  assertCurrentSession(version);
-  await simpanUnduhan(nama, bytes);
+  await simpanUnduhan(file.nama, file.bytes);
 }
 
 function safeJson(text: string): unknown {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiError, downloadFile, errorMessage } from './client';
+import { ApiError, ambilBerkas, downloadFile, errorMessage } from './client';
 
 const saveMock = vi.fn(async (_opsi: unknown): Promise<string | null> => '/tmp/unduhan/template.xlsx');
 const writeMock = vi.fn(async (_tujuan: string, _data: Uint8Array): Promise<void> => {});
@@ -30,10 +30,15 @@ describe('errorMessage', () => {
 
   /* Backend menjawab 503 + `kode: skema_tertinggal` saat migrasi belum jalan.
      Pesannya harus sampai apa adanya ke toast, bukan "Gagal (503)". */
-  it('menampilkan pesan skema database tertinggal dari server', () => {
+  it('menampilkan pesan skema database tertinggal dari server termasuk unduhan', async () => {
     const pesan = 'Database di server belum diperbarui: kemungkinan ada migrasi yang belum dijalankan. Minta admin server menjalankan "php artisan migrate", lalu coba lagi.';
 
     expect(errorMessage(galat(503, { pesan, kode: 'skema_tertinggal' }))).toBe(pesan);
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ pesan, kode: 'skema_tertinggal' }), { status: 503 }));
+    try {
+      const e = await ambilBerkas('/admin/dokumen/santri/1/unduh').catch((error: unknown) => error);
+      expect(errorMessage(e)).toBe(pesan);
+    } finally { fetcher.mockRestore(); }
   });
 
   it('memberi teks cadangan yang mengarahkan saat badan tidak punya pesan', () => {
