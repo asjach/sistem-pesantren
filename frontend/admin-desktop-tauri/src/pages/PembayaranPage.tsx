@@ -110,6 +110,8 @@ export default function PembayaranPage() {
   const { jenjangs, tahunAjaranNames, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
 
   const [err, setErr] = useState('');
+  const [bayarBusy, setBayarBusy] = useState(false);
+  const bayarLock = useRef(false);
   const [metode, setMetode] = useState<'tunai' | 'transfer'>('tunai');
   const [kas, setKas] = useState<'tunai_tu' | 'bank_lembaga' | 'bank_pesantren'>('tunai_tu');
   const [catatan, setCatatan] = useState('');
@@ -184,12 +186,14 @@ export default function PembayaranPage() {
 
   /** Ganti cakupan santri (dua checkbox eksklusif, bawaan Santri Aktif). */
   function gantiModeSantri(buku: boolean) {
+    if (bayarLock.current) return;
     setModeBukuInduk(buku);
     if (santriAktif !== null) void muatTagihanSantri(santriAktif.id, buku);
   }
 
   /** Pilih santri yang dilayani; ganti santri mengosongkan daftar bayar. */
   const pilihSantri = useCallback((s: Santri) => {
+    if (bayarLock.current) return;
     if (santriAktifIdRef.current !== s.id) {
       santriAktifIdRef.current = s.id;
       setSantriAktif(s);
@@ -298,11 +302,13 @@ export default function PembayaranPage() {
   const totalNonBulanan = useMemo(() => nonBulanan.reduce((t, r) => t + sisa(r), 0), [nonBulanan]);
 
   function tambahCheckout(r: TagihanRow) {
+    if (bayarLock.current) return;
     if (sisa(r) <= 0 || dalamCheckout.has(r.id)) return;
     setCheckout((prev) => [...prev, r]);
   }
 
   const bayarCheckout = async () => {
+    if (bayarLock.current) return;
     const items: { tagihan_id: number; jumlah: number }[] = [];
     for (const r of checkout) {
       const j = jumlahBayar(r);
@@ -313,6 +319,8 @@ export default function PembayaranPage() {
       items.push({ tagihan_id: r.id, jumlah: j });
     }
     if (items.length === 0) { toast.warning('Daftar bayar masih kosong.'); return; }
+    bayarLock.current = true;
+    setBayarBusy(true);
     try {
       const t = await catatTransaksi({
         items,
@@ -331,7 +339,10 @@ export default function PembayaranPage() {
       setCheckout([]); setCicilan({}); setCatatan(''); setNoKwitansi('');
       if (santriAktif !== null) await muatTagihanSantri(santriAktif.id);
       await muatHarian();
-    } catch (e) { toast.error(errorMessage(e)); }
+    } catch (e) { toast.error(errorMessage(e)); } finally {
+      bayarLock.current = false;
+      setBayarBusy(false);
+    }
   };
 
   /** NIS lokal per lembaga santri aktif (mis. "MI: 7741 • MD: 221"). */
@@ -468,12 +479,12 @@ export default function PembayaranPage() {
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      <Dialog open={bayarOpen} onOpenChange={(o) => { setBayarOpen(o); }}>
+      <Dialog open={bayarOpen} onOpenChange={(o) => { if (!bayarLock.current) setBayarOpen(o); }}>
         <DialogContent className="h-[100dvh] max-h-none w-screen max-w-none flex flex-col sm:max-w-none">
           <DialogHeader>
             <DialogTitle>Catat Pembayaran</DialogTitle>
           </DialogHeader>
-          <div className="min-h-0 flex-1">
+          <fieldset disabled={bayarBusy} className="min-h-0 flex-1">
           <ResizablePanelGroup orientation="horizontal" className="min-h-0 h-full" id="grup_bayar_kolom">
             <ResizablePanel id="panel_bayar_kiri" defaultSize="45%" minSize="25%" className="flex min-h-0 flex-col">
               <div className="flex h-full min-h-0 flex-col gap-2 pr-1">
@@ -733,11 +744,11 @@ export default function PembayaranPage() {
                   id="btn_bayar_sekaligus"
                   className="w-full"
                   size="lg"
-                  disabled={!canBayar || checkoutBayar.length === 0}
+                  disabled={bayarBusy || !canBayar || checkoutBayar.length === 0}
                   title={canBayar ? 'Bayar seluruh daftar dalam satu kwitansi' : 'Butuh izin keuangan.tambah'}
                   onClick={() => { void bayarCheckout(); }}
                 >
-                  Bayar
+                  {bayarBusy ? 'Menyimpan…' : 'Bayar'}
                 </Button>
               </div>
               </div>
@@ -800,7 +811,7 @@ export default function PembayaranPage() {
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
-          </div>
+          </fieldset>
         </DialogContent>
       </Dialog>
 
