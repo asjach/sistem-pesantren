@@ -435,6 +435,7 @@ class DispensasiController extends Controller
 
     public function updateDispensasi(DispensasiRequest $request, Dispensasi $dispensasi)
     {
+        $this->authorizeDispensasi($request->user(), $dispensasi->load('aturan')->toArray());
         $data = $this->validasiDispensasi($request);
         $this->authorizeDispensasi($request->user(), $data);
         DB::transaction(function () use ($dispensasi, $data) {
@@ -446,8 +447,9 @@ class DispensasiController extends Controller
         return response()->json($dispensasi->load(['aturan.jenis', 'santriTambahan.lembagaAktif']));
     }
 
-    public function destroyDispensasi(Dispensasi $dispensasi)
+    public function destroyDispensasi(Request $request, Dispensasi $dispensasi)
     {
+        $this->authorizeDispensasi($request->user(), $dispensasi->load('aturan')->toArray());
         if (Tagihan::whereJsonContains('dispensasi_ids', $dispensasi->id)->exists()) {
             abort(422, 'Dispensasi sudah dipakai tagihan. Nonaktifkan saja bila tidak ingin dipakai lagi.');
         }

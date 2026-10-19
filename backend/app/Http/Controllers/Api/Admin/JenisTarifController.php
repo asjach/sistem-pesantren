@@ -62,6 +62,11 @@ class JenisTarifController extends Controller
     public function updateJenis(JenisUpdateRequest $request, JenisTagihan $jenis)
     {
         $actor = $request->user();
+        if ($jenis->jenjang !== null) {
+            $this->authorizeLembaga($actor, $jenis->jenjang);
+        } elseif (! $actor->bolehSuperAdmin()) {
+            abort(403, 'Jenis global hanya boleh diubah super_admin.');
+        }
         $data = $request->validated();
         $jenjangBaru = array_key_exists('jenjang', $data) ? $data['jenjang'] : $jenis->jenjang;
         if (! empty($jenjangBaru)) {

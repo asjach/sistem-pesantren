@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Dispensasi;
 use App\Models\JenisTagihan;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
@@ -72,5 +73,17 @@ class AuditKeuanganTenantTest extends TestCase
         }
         $this->actingAs($this->actor('super_admin', []));
         $this->withHeader('X-Lembaga-Aktif', 'MTS')->getJson('/api/admin/keuangan/tagihan')->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    public function test_mutasi_master_memeriksa_pemilik_lama_sebelum_payload_baru(): void
+    {
+        $jenis = JenisTagihan::create(['nama' => 'Jenis MTS', 'tipe' => 'non_bulanan', 'jenjang' => 'MTS']);
+        $paket = Dispensasi::create(['nama' => 'Paket MTS', 'jenjang' => 'MTS', 'tahun_ajaran' => '2025/2026']);
+        $paket->aturan()->create(['jenis_id' => $jenis->id, 'tipe' => 'nominal', 'nilai' => 10]);
+        $this->actingAs($this->actor());
+        $this->patchJson('/api/admin/keuangan/jenis/'.$jenis->id, ['nama' => 'Pindah', 'jenjang' => 'MI'])->assertForbidden();
+        $this->deleteJson('/api/admin/keuangan/dispensasi/'.$paket->id)->assertForbidden();
+        $this->assertDatabaseHas('jenis_tagihan', ['id' => $jenis->id, 'jenjang' => 'MTS']);
+        $this->assertDatabaseHas('dispensasi', ['id' => $paket->id]);
     }
 }
