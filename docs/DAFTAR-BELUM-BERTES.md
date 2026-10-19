@@ -293,8 +293,8 @@ kini 27/27 - FE hijau penuh (938/938) untuk pertama kalinya.
 
 | File | Export | Yang layak diuji |
 |---|---|---|
-| ~~`nilaiTampil.ts`~~ | ✅ `nilaiTampil.test.ts` — 18 tes (2 bug ditemukan, lihat B0) |
-| ~~`urut.ts`~~ | ✅ `urut.test.ts` — 12 tes |
+| ~~`nilaiTampil.ts`~~ | ✅ `nilaiTampil.test.ts` — 18 tes (2 bug ditemukan, lihat B0) | — |
+| ~~`urut.ts`~~ | ✅ `urut.test.ts` — 12 tes | — |
 | `utils.ts` | (periksa — mungkin `cn` kelas Tailwind, nilai rendah) | — |
 
 *Sudah ada:* `arsipDokumen`, `clipboard`, `dispensasi`, `excelDataExisting`, `filterHalaman`,

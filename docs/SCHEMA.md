@@ -1,10 +1,23 @@
 # Skema Database — SIMPES (dokumentasi, bukan kode)
 
-> Sumber: 58 file migrasi (42 create + 16 data/seed/pemindahan). SELURUH migrasi
-> alter sudah disatukan ke file create masing-masing — tak ada lagi migrasi
-> "tambah/ubah kolom" yang berdiri sendiri, jadi kolom di bawah = skema final
-> hasil `migrate:fresh`. Satu-satunya pengecualian yang sah: blok FK
-> `jenjang` → `lembaga` di dalam `create_keuangan_tables` yang dijaga
+> Sumber: **84 file migrasi** = 40 `create_*` + 9 seed/backfill + **35 alter**
+> (tambah kolom, restrukturisasi, hapus tabel). Angka dihitung dari isi
+> `backend/database/migrations` — bukan hasil baca manual.
+>
+> **Konvensi migrasi (diperbarui 2026-10-19).** Dulu semua alter dilipat ke
+> file `create_*` masing-masing sehingga "kolom di bawah = skema final". Konvensi
+> itu **dibatalkan** pada v2.3x: DB dev sudah berisi data, jadi alter tidak bisa
+> dilewati tanpa kehilangan data. Sekarang berlaku:
+> - `create_*` = tabel **baru**;
+> - alter berdiri sendiri (`tambah_*`, `ubah_*`, `restruktur_*`, `hapus_*`) = sah,
+>   dan **wajib** berpasangan dengan pembaruan dokumen ini;
+> - dokumen ini tetap menggambarkan **skema akhir** (hasil `migrate:fresh`),
+>   bukan urutan migrasi. Drift dicegah tes `SchemaDocTest` dua arah: yang
+>   didokumentasikan harus ada di DB, dan setiap tabel/kolom di DB harus
+>   terdokumentasi.
+>
+> Satu-satunya pengecualian yang sah: blok FK `jenjang` → `lembaga` di dalam
+> `create_keuangan_tables` yang dijaga
 > `if (DB::getDriverName() === 'mysql')` (SQLite tak mendukung ADD FOREIGN KEY
 > via ALTER, dan banyak tes membuat tagihan untuk jenjang tanpa baris
 > `lembaga`).
@@ -29,10 +42,13 @@ PSB → kepegawaian → akademik → nilai → presensi → asrama → tahfizh �
 >    **v2.0: kolom lembaga di `santri` dihapus total — legacy = santri tanpa riwayat.**
 > 2. `santri.is_active_pst` turunan murni (default 'Tidak'): 'Ya' iff punya ≥1
 >    `riwayat_belajar.is_active_riwayat='Ya'`. **Sudah diimplementasikan (v1.10.2 + backfill).**
-> 3. Asrama = entitas sendiri (BLOK 10), peran `asrama` (7 peran) + pivot
->    `user_asrama`. Penanda keuangan asrama ditetapkan saat modul keuangan
+> 3. Asrama = entitas sendiri (BLOK 10), **dirancang** dengan peran `asrama` +
+>    pivot `user_asrama`. Penanda keuangan asrama ditetapkan saat modul keuangan
 >    dirumuskan ulang.
->    **Implementasi asrama = pasca production** (belum dibuat sekarang).
+>    **Implementasi asrama = pasca production** — tabel `asrama*`, peran
+>    `asrama`, dan pivot `user_asrama` **belum pernah dibuat**; peran yang
+>    benar-benar ada di `RoleSeeder` hanya 5 (`super_admin, admin, guru,
+>    orang_tua, santri`).
 
 ## Auth bawaan Laravel (`0001_*_create_users_table.php`)
 
