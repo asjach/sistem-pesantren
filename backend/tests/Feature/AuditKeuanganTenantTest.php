@@ -116,4 +116,24 @@ class AuditKeuanganTenantTest extends TestCase
         $this->deleteJson('/api/admin/penilaian/prestasi/'.$prestasi->id)->assertForbidden();
         $this->assertDatabaseHas('prestasi_santri', ['id' => $prestasi->id]);
     }
+
+    public function test_ubah_tagihan_membaca_ulang_saldo_setelah_route_binding(): void
+    {
+        $santri = $this->santri('MI');
+        $jenis = JenisTagihan::create(['nama' => 'Uji saldo', 'tipe' => 'non_bulanan']);
+        $tagihan = Tagihan::create(['santri_id' => $santri->id, 'jenis_id' => $jenis->id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026', 'nominal' => 200]);
+        $sekali = true;
+        Tagihan::retrieved(function (Tagihan $model) use (&$sekali, $tagihan) {
+            if ($sekali && $model->id === $tagihan->id) {
+                $sekali = false;
+                DB::table('tagihan')->where('id', $tagihan->id)->update(['terbayar' => 150]);
+            }
+        });
+        try {
+            $this->actingAs($this->actor())->patchJson('/api/admin/keuangan/tagihan/'.$tagihan->id, ['nominal' => 100, 'tahun_ajaran' => '2025/2026'])->assertUnprocessable();
+            $this->assertDatabaseHas('tagihan', ['id' => $tagihan->id, 'nominal' => 200, 'terbayar' => 150]);
+        } finally {
+            Tagihan::flushEventListeners();
+        }
+    }
 }

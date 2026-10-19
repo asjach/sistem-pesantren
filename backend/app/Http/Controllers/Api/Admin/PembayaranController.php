@@ -232,6 +232,19 @@ class PembayaranController extends Controller
         return response()->json($baris);
     }
 
+    /** Semua mutasi memakai urutan kunci yang sama: tagihan, header, lalu pembayaran. */
+    private function kunciTagihanPembayaran(?int $transaksiId, int $tagihanId = 0)
+    {
+        $ids = $transaksiId === null ? [$tagihanId]
+            : Pembayaran::where('transaksi_id', $transaksiId)->pluck('tagihan_id')->all();
+        $tagihan = Tagihan::whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        if ($transaksiId !== null) {
+            TransaksiPembayaran::whereKey($transaksiId)->lockForUpdate()->first();
+        }
+
+        return $tagihan;
+    }
+
     /** Koreksi `terbayar` satu tagihan setelah barisnya batal/dihapus. */
     private function koreksiTagihan(Tagihan $tagihan, int $kurang): void
     {
@@ -253,12 +266,14 @@ class PembayaranController extends Controller
         }
 
         return DB::transaction(function () use ($trx) {
+            $tagihan = $this->kunciTagihanPembayaran($trx->id);
             $trx = TransaksiPembayaran::whereKey($trx->id)->lockForUpdate()->firstOrFail();
             if ($trx->status === 'batal') {
                 return 0;
             }
             $n = 0;
-            foreach ($trx->pembayaran()->with('tagihan')->orderBy('id')->lockForUpdate()->get() as $p) {
+            foreach ($trx->pembayaran()->orderBy('id')->lockForUpdate()->get() as $p) {
+                $p->setRelation('tagihan', $tagihan->get($p->tagihan_id));
                 if ($p->status !== 'aktif' || $p->tagihan === null) {
                     continue;
                 }
@@ -284,6 +299,11 @@ class PembayaranController extends Controller
                 return response()->json(['pesan' => 'Sudah dibatalkan.']);
             }
             DB::transaction(function () use ($pembayaran, $tagihan) {
+                $tagihan = $this->kunciTagihanPembayaran(null, $tagihan->id)->get($tagihan->id);
+                $pembayaran = Pembayaran::whereKey($pembayaran->id)->lockForUpdate()->firstOrFail();
+                if ($pembayaran->status !== 'aktif') {
+                    return;
+                }
                 $pembayaran->update(['status' => 'batal']);
                 $this->koreksiTagihan($tagihan, (int) $pembayaran->jumlah);
             });
@@ -332,8 +352,9 @@ class PembayaranController extends Controller
     private function hapusBaris(Pembayaran $pembayaran): void
     {
         DB::transaction(function () use ($pembayaran) {
+            $tagihan = $this->kunciTagihanPembayaran($pembayaran->transaksi_id, $pembayaran->tagihan_id);
             $p = Pembayaran::whereKey($pembayaran->id)->lockForUpdate()->firstOrFail();
-            $tagihan = $p->tagihan;
+            $tagihan = $tagihan->get($p->tagihan_id);
             if ($p->status === 'aktif' && $tagihan !== null) {
                 $this->koreksiTagihan($tagihan, (int) $p->jumlah);
             }
