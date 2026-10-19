@@ -17,7 +17,7 @@
 | ---- | ------------------------------------------------------------------------- | ----------- | --------------- |
 | G0   | 001-004 fondasi                                                           | Desktop     | Production awal |
 | G1   | 100 PSB Penerimaan, 101 Santri Master, 102 Siklus Santri                  | Desktop     | Production awal |
-| G2   | Modul Keuangan (master tarif, generate tagihan, kasir, crosstab, dispensasi) | Desktop     | **Live (fondasi)** — 13 fitur lanjutan belum dikerjakan ([PETA-MODUL.md](PETA-MODUL.md) §3.1) |
+| G2   | Modul Keuangan (master tarif, generate tagihan, kasir, crosstab, dispensasi) | Desktop     | **Live (fondasi)** — 13 fitur lanjutan belum dikerjakan ([PETA-MODUL.md](PETA-MODUL.md) bagian I.1) |
 | G3   | 100 daftar, 203 Portal Wali subset                                        | Mobile ortu | Backend sebagian; app belum dibuat |
 | G4+  | 500–505 (presensi, tahfizh, asrama), notif/gateway                        | Menyusul    | Pasca, TBD      |
 
@@ -135,8 +135,9 @@ Diagram Crow's Foot diringkas di Bab 6 (`arsitektur.md`) dan `docs/SCHEMA.md`. F
 
 **Daftar isian terbuka dipindah.** Butir yang belum dikerjakan, per modul,
 beserta rincian teknisnya kini **terpusat** di
-**[PETA-MODUL.md](PETA-MODUL.md)** §1 (peta modul) dan §3 (rincian teknis butir
-sisa). Lampiran ini tidak lagi mendaftarnya agar tidak ada dua versi.
+**[PETA-MODUL.md](PETA-MODUL.md)** bagian A–G (peta modul) dan bagian I (rincian
+teknis butir sisa). Lampiran ini tidak lagi mendaftarnya agar tidak ada dua
+versi.
 
 Yang tetap tinggal di sini: **TBD yang butuh keputusan/rancangan**, bukan
 daftar pekerjaan yang sudah jelas.
@@ -144,9 +145,9 @@ daftar pekerjaan yang sudah jelas.
 **Masih terbuka (butuh keputusan pengguna):**
 
 - **Format penomoran kwitansi runut** — pola `KW-MI-2026-000123` baru usulan;
-  perlu ditetapkan sebelum dikerjakan (peta §3.1 butir 7).
+  perlu ditetapkan sebelum dikerjakan (peta bagian I.1 butir 7).
 - **Bobot UJIAN bawaan** — kini placeholder UM 60 / Rata-rata Rapor 40; menunggu
-  kebijakan pesantren (peta §3.2).
+  kebijakan pesantren (peta bagian I.2).
 - **Tarif per asrama** — belum diakomodasi; keputusan tetap ditunda sampai
   modul 505 dibuka (lihat TBD asrama di bawah).
 - **Aturan peringkat rapor** — cutoff 3/10/semua sudah jadi parameter cetak,
