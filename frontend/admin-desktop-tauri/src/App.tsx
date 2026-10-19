@@ -64,7 +64,6 @@ const DokumenPegawaiPage = lazy(() => import('./pages/DokumenPegawaiPage'));
 const DokumenMadrasahPage = lazy(() => import('./pages/DokumenMadrasahPage'));
 const KelolaIzinPage = lazy(() => import('./pages/KelolaIzinPage'));
 const KomponenPage = lazy(() => import('./pages/KomponenPage'));
-const PapanContohPage = lazy(() => import('./pages/PapanContohPage'));
 const PapanPage = lazy(() => import('./pages/PapanPage'));
 
 function Shell() {
@@ -136,7 +135,6 @@ export default function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route element={<Shell />}>
                       <Route path="/" element={<KhususIzin izin="dashboard.lihat"><DashboardPage /></KhususIzin>} />
-                      <Route path="/contoh-papan" element={<KhususIzin izin="dashboard.lihat"><PapanContohPage /></KhususIzin>} />
                       <Route path="/papan" element={<Navigate to="/papan/redirect" replace />} />
                       <Route path="/papan/:kodeModul" element={<KhususIzin izin="papan.lihat"><PapanPage /></KhususIzin>} />
 
