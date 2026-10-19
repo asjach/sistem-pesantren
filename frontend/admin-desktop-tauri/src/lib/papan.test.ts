@@ -3,6 +3,7 @@ import {
   kartuModul,
   kemajuanModul,
   kelompokkanKolom,
+  kolomSebelah,
   modulDariKode,
   modulPertama,
   ratakanKartu,
@@ -176,6 +177,25 @@ describe('kemajuanModul', () => {
   });
 });
 
+
+describe('kolomSebelah', () => {
+  it('menggeser ke kanan sesuai urutan tampil', () => {
+    expect(kolomSebelah('akan', 1)).toBe('sedang');
+    expect(kolomSebelah('sedang', 1)).toBe('sudah');
+    expect(kolomSebelah('sudah', 1)).toBe('ditunda');
+  });
+
+  it('menggeser ke kiri sesuai urutan tampil', () => {
+    expect(kolomSebelah('ditunda', -1)).toBe('sudah');
+    expect(kolomSebelah('sudah', -1)).toBe('sedang');
+    expect(kolomSebelah('sedang', -1)).toBe('akan');
+  });
+
+  it('mengembalikan null di ujung, bukan membalik ke kolom lain', () => {
+    expect(kolomSebelah('akan', -1)).toBeNull();
+    expect(kolomSebelah('ditunda', 1)).toBeNull();
+  });
+});
 describe('modulDariKode', () => {
   it('menemukan modul dari kode persis', () => {
     expect(modulDariKode(modul, 'E')?.nama).toBe('Keuangan');

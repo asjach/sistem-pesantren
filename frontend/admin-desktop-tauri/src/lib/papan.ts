@@ -112,6 +112,22 @@ export function kartuModul(modul: ModulPapan): KartuPapan[] {
  * (huruf besar, mis. `E`), tapi pencocokan dibuat tidak peka huruf besar-kecil
  * supaya tautan `/papan/e` tetap bekerja.
  */
+
+/**
+ * Kolom tujuan bila kartu digeser satu langkah (jalur keyboard).
+ *
+ * Mengembalikan null bila sudah di ujung, supaya pemanggil bisa memberi
+ * tahu pengguna alih-alih diam saja. Urutannya mengikuti KOLOM_PAPAN
+ * (urutan tampil), bukan urutan kepentingan status, supaya arah panah
+ * terasa sama dengan arah matanya.
+ */
+export function kolomSebelah(status: StatusPapan, arah: -1 | 1): StatusPapan | null {
+  const kini = KOLOM_PAPAN.indexOf(status);
+  if (kini === -1) return null;
+
+  return KOLOM_PAPAN[kini + arah] ?? null;
+}
+
 export function modulDariKode(modul: ModulPapan[], kode: string | undefined): ModulPapan | null {
   if (!kode) return null;
   const cari = kode.trim().toUpperCase();

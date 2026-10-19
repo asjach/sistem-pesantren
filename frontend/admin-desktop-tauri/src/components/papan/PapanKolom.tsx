@@ -1,8 +1,13 @@
 import { useCallback, useMemo, useState, type DragEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronDown } from '@/icons';
-import { muatRiwayatPapan, pindahStatusPapan, type RiwayatPapan, type StatusPapan } from '@/api/papan';
-import { kelompokkanKolom, type KartuPapan } from '@/lib/papan';
+import {
+  muatRiwayatPapan,
+  pindahStatusPapan,
+  type RiwayatPapan,
+  type StatusPapan,
+} from '@/api/papan';
+import { kelompokkanKolom, kolomSebelah, type KartuPapan } from '@/lib/papan';
 import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
 
 /** Posisi sisip saat menyeret: sebelum kartu ke-indeks di kolom. */
@@ -83,25 +88,22 @@ export function GarisSisip({ id }: { id: string }) {
 export function KartuPapan({
   kartu,
   diseret,
-  kolomKini,
-  tujuan,
   tampilkanModul,
   onMulaiSeret,
   onLepasSeret,
   onDiAtas,
-  onPindah,
+  onPindahArah,
   onBuka,
 }: {
   kartu: KartuPapan;
   diseret: boolean;
-  kolomKini: StatusPapan;
-  tujuan: { id: StatusPapan; judul: string }[];
   /** Tampilkan nama modul di kartu. Di halaman per-modul ini berulang, jadi bisa dimatikan. */
   tampilkanModul: boolean;
   onMulaiSeret: (e: DragEvent) => void;
   onLepasSeret: () => void;
   onDiAtas: (e: DragEvent) => void;
-  onPindah: (ke: StatusPapan) => void;
+  /** Pindah lewat keyboard (tanpa seret); arah -1 = kolom sebelumnya. */
+  onPindahArah: (arah: -1 | 1) => void;
   onBuka: () => void;
 }) {
   const idKartu = `butir_${kartu.id}`;
@@ -110,10 +112,18 @@ export function KartuPapan({
     <article
       id={`kartu_papan_${idKartu}`}
       draggable="true"
+      tabIndex={0}
       onDragStart={onMulaiSeret}
       onDragEnd={onLepasSeret}
       onDragOver={onDiAtas}
-      aria-label={`${kartu.subKode} ${kartu.deskripsi}. Seret untuk memindahkan poin ini.`}
+      onKeyDown={(e) => {
+        // Seret tidak bisa dipakai keyboard, jadi panah kiri/kanan
+        // disediakan sebagai jalur setara - bukan combobox lagi.
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        onPindahArah(e.key === 'ArrowLeft' ? -1 : 1);
+      }}
+      aria-label={`${kartu.subKode} ${kartu.deskripsi}. Seret, atau pakai panah kiri dan kanan, untuk memindahkan poin ini.`}
       className={cn(
         'flex cursor-grab flex-col gap-2 p-[10px_12px] transition-shadow active:cursor-grabbing',
         diseret && 'opacity-40',
@@ -151,27 +161,12 @@ export function KartuPapan({
       </p>
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <select
-          id={`select_pindah_papan_${idKartu}`}
-          aria-label={`Pindahkan poin ${kartu.subKode} ke kolom`}
-          value=""
-          onChange={(e) => {
-            if (e.target.value !== '') onPindah(e.target.value as StatusPapan);
-          }}
-          onDragStart={(e) => e.preventDefault()}
-          className="h-5 max-w-[6.5rem] cursor-pointer truncate border bg-transparent pr-0 text-[11px] outline-none hover:text-foreground focus:border-[var(--accent)]"
-          style={{ borderColor: 'var(--divider)' }}
-        >
-          <option value="">Pindah...</option>
-          {tujuan
-            .filter((t) => t.id !== kolomKini)
-            .map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.judul}
-              </option>
-            ))}
-        </select>
-        <span className="ml-auto font-mono text-[10px] tabular-nums">#{kartu.id}</span>
+        <span className="font-mono text-[10px] tabular-nums">#{kartu.id}</span>
+        {/* Tidak ada combobox pindah: perpindahan status HANYA lewat seret.
+            Menyediakan dua jalur berarti keduanya harus dijaga selaras, dan
+            combobox sempat jadi jalur yang tidak pernah dipakai. Kartu tetap
+            wajib draggable - lihat atribut di <article>. */}
+        <span className="ml-auto text-[10px]">Seret, atau panah kiri/kanan</span>
       </div>
     </article>
   );
@@ -273,6 +268,25 @@ export function PapanKolom({
     await onPindah(id, kolomId);
   }
 
+  /**
+   * Pindah kartu satu kolom ke kiri/kanan (jalur keyboard).
+   *
+   * Urutan kolom mengikuti tampilan (lihat KOLOM_PAPAN), bukan urutan
+   * kepentingan status, supaya arah panah terasa sama dengan matanya.
+   */
+  async function pindahArah(kartu: KartuPapan, arah: -1 | 1) {
+    const tujuan = kolomSebelah(kartu.status, arah);
+
+    if (tujuan === null) {
+      setPengumuman(`Poin ${kartu.subKode} sudah di kolom paling ${arah === -1 ? 'kiri' : 'kanan'}.`);
+
+      return;
+    }
+
+    setPengumuman(`Poin ${kartu.subKode} \"${kartu.deskripsi}\" dipindahkan ke ${tujuan}.`);
+    await onPindah(kartu.id, tujuan);
+  }
+
   return (
     <>
       <div id={`status_${awalan}`} role="status" aria-live="polite" className="sr-only">
@@ -348,13 +362,11 @@ export function PapanKolom({
                         <KartuPapan
                           kartu={k}
                           diseret={seret === k.id}
-                          kolomKini={item.id}
-                          tujuan={kolom.map((c) => ({ id: c.id, judul: c.judul }))}
                           tampilkanModul={tampilkanModul}
                           onMulaiSeret={(e) => mulaiSeret(e, k.id)}
                           onLepasSeret={bersihkanSeret}
                           onDiAtas={(e) => diAtasKartu(e, item.id, idx)}
-                          onPindah={(ke) => void onPindah(k.id, ke)}
+                          onPindahArah={(arah) => void pindahArah(k, arah)}
                           onBuka={() => onBuka(k)}
                         />
                       </div>
