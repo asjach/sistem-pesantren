@@ -82,7 +82,7 @@ export default function PenilaianLegerPage() {
         tingkat: tingkat.length ? tingkat : undefined,
         kelas_id: kelasIds.length ? kelasIds : undefined,
         q: cariTertunda || undefined,
-        page, per_page: perPage === 0 ? 'all' : String(perPage),
+        page, per_page: String(perPage),
       });
       if (req !== reqRef.current) return;
       setData(res);

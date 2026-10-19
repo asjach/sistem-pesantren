@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { prefGet, prefSet } from '@/api/client';
 import { muatPengaturanGlobal, type PetaGlobal } from '@/api/pengaturanGlobal';
 import { nilaiBerlapis } from '@/lib/setelanGlobal';
-import { PER_PAGE_DEFAULT, PER_PAGE_OPTIONS, normalizePerPage, type PerPage } from '@/prefs';
+import { PER_PAGE_ALL, PER_PAGE_DEFAULT, PER_PAGE_OPTIONS, normalizePerPage, type PerPage } from '@/prefs';
 
 /** Kunci global jumlah baris per halaman — SATU untuk semua tabel. */
 export const KUNCI_PERPAGE_GLOBAL = 'simpes_perpage';
@@ -14,7 +14,8 @@ const EVENT_PERPAGE_GLOBAL = 'simpes:perpage-global';
 /** Nilai mentah → opsi valid, atau null bila tak dikenal (bedakan "kosong"
  *  dari "sama dengan bawaan" untuk migrasi). */
 function cobaPerPage(v: unknown): PerPage | null {
-  const n = typeof v === 'string' ? Number(v) : (v as number);
+  const lama = typeof v === 'string' ? Number(v) : (v as number);
+  const n = lama === 0 ? PER_PAGE_ALL : lama;
   return (PER_PAGE_OPTIONS as readonly number[]).includes(n) ? (n as PerPage) : null;
 }
 

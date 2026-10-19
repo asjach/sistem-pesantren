@@ -33,6 +33,6 @@ trait PerPageLimit
             return self::PER_PAGE_ALL;
         }
 
-        return max(1, min((int) $raw, 1000));
+        return max(1, min((int) $raw, 10000));
     }
 }
