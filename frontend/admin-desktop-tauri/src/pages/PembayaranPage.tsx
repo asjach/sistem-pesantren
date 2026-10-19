@@ -161,12 +161,22 @@ export default function PembayaranPage() {
   /** Tagihan belum lunas milik santri aktif. */
   const [tagihanRows, setTagihanRows] = useState<TagihanRow[]>([]);
   const [tagihanLoading, setTagihanLoading] = useState(false);
+  const tagihanReq = useRef(0);
+  const tagihanAbort = useRef<AbortController | null>(null);
+  const santriReq = useRef(0);
+  const santriAbort = useRef<AbortController | null>(null);
+  const harianReq = useRef(0);
   /** Daftar biaya yang akan dibayar (satu santri, satu kwitansi). */
   const [checkout, setCheckout] = useState<TagihanRow[]>([]);
   /** Draf cicilan per tagihan (teks ketikan; absen = lunasi sisa). */
   const [cicilan, setCicilan] = useState<Record<number, string>>({});
 
   const muatTagihanSantri = useCallback(async (santriId: number, bukuInduk = modeBukuInduk) => {
+    const req = ++tagihanReq.current;
+    tagihanAbort.current?.abort();
+    const ac = new AbortController();
+    tagihanAbort.current = ac;
+    setTagihanRows([]);
     setErr(''); setTagihanLoading(true);
     try {
       const res = await daftarTagihan({
@@ -174,10 +184,14 @@ export default function PembayaranPage() {
         belum_lunas: true,
         jenjang: jenjangs,
         tahun_ajaran: bukuInduk ? undefined : tahunAjaranNames,
-        per_page: '200',
+        per_page: '200', signal: ac.signal,
       });
-      setTagihanRows(res.data);
-    } catch (e) { setErr(errorMessage(e)); } finally { setTagihanLoading(false); }
+      if (req === tagihanReq.current && !ac.signal.aborted) setTagihanRows(res.data);
+    } catch (e) {
+      if (req === tagihanReq.current && !ac.signal.aborted) setErr(errorMessage(e));
+    } finally {
+      if (req === tagihanReq.current) setTagihanLoading(false);
+    }
   }, [jenjangs, modeBukuInduk, tahunAjaranNames]);
 
   /** Id santri terpilih (cermin ref agar auto-select tak memakai closure basi
@@ -213,6 +227,10 @@ export default function PembayaranPage() {
   }, [filterLoading, jenjangs, tahunAjaranNames]);
 
   const muatSantri = useCallback(async () => {
+    const req = ++santriReq.current;
+    santriAbort.current?.abort();
+    const ac = new AbortController();
+    santriAbort.current = ac;
     const q = cari.trim();
     // Di luar dialog tak perlu memuat apa pun; di dalam dialog daftar tampil
     // semua sejak awal (ketikan menyaring).
@@ -224,29 +242,37 @@ export default function PembayaranPage() {
         jenjang: jenjangs,
         tahun_ajaran: modeBukuInduk ? undefined : tahunAjaranNames,
         kelas_id: !modeBukuInduk && kelasFilterIds.length ? kelasFilterIds : undefined,
-        per_page: 50,
+        per_page: 50, signal: ac.signal,
         sort: urutSantri.length ? tokenUrut(urutSantri, arahKolomSantri) : undefined,
         arah: urutSantri.length ? arahSantri : undefined,
       });
+      if (req !== santriReq.current || ac.signal.aborted) return;
       setSantriRows(res.data);
       // Satu hasil pasti = langsung layani (mis. pindai NIS).
       if (q !== '' && res.data.length === 1) pilihSantri(res.data[0]);
-    } catch (e) { setErr(errorMessage(e)); } finally { setSantriLoading(false); }
+    } catch (e) {
+      if (req === santriReq.current && !ac.signal.aborted) setErr(errorMessage(e));
+    } finally {
+      if (req === santriReq.current) setSantriLoading(false);
+    }
   }, [cari, filterLoading, bayarOpen, modeBukuInduk, kelasFilterIds, urutSantri, arahSantri, arahKolomSantri, jenjangs, tahunAjaranNames, pilihSantri]);
 
   // Ketikan ditahan sebentar agar tidak memanggil API tiap karakter.
   useEffect(() => {
     const t = setTimeout(() => { void muatSantri(); }, 250);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); santriReq.current++; santriAbort.current?.abort(); };
   }, [muatSantri]);
 
-  // Buka dialog dengan santri yang sama → muat ulang tagihannya.
+  // Perubahan cakupan membatalkan daftar lama sebelum memuat lingkup baru.
   useEffect(() => {
-    if (bayarOpen && santriAktif !== null) void muatTagihanSantri(santriAktif.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bayarOpen]);
+    if (bayarOpen && santriAktifIdRef.current !== null) void muatTagihanSantri(santriAktifIdRef.current);
+    return () => { tagihanReq.current++; tagihanAbort.current?.abort(); };
+  }, [bayarOpen, muatTagihanSantri]);
+
+  useEffect(() => () => { harianReq.current++; }, []);
 
   const muatHarian = useCallback(async () => {
+    const req = ++harianReq.current;
     if (filterLoading || tanggal === '') return;
     setErr(''); setLoadingHarian(true);
     try {
@@ -254,10 +280,11 @@ export default function PembayaranPage() {
         jenjang: jenjangs,
         tahun_ajaran: tahunAjaranNames,
       });
+      if (req !== harianReq.current) return;
       setHarian(res.data);
       setRekap(res.rekap);
       setTotalHarian(res.total);
-    } catch (e) { setErr(errorMessage(e)); } finally { setLoadingHarian(false); }
+    } catch (e) { if (req === harianReq.current) setErr(errorMessage(e)); } finally { if (req === harianReq.current) setLoadingHarian(false); }
   }, [tanggal, filterLoading, jenjangs, tahunAjaranNames]);
 
   useEffect(() => { void muatHarian(); }, [muatHarian]);

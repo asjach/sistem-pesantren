@@ -77,7 +77,7 @@ export function hapusTarif(id: number) {
   return api<{ pesan: string }>(`/admin/keuangan/tarif/${id}`, { method: 'DELETE' });
 }
 
-export function daftarTagihan(params: { page?: string; per_page?: string; jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; jenis_id?: string; status?: string; belum_lunas?: boolean; terlambat?: boolean; santri?: string; santri_id?: number | string; sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
+export function daftarTagihan(params: { signal?: AbortSignal; page?: string; per_page?: string; jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string>; jenis_id?: string; status?: string; belum_lunas?: boolean; terlambat?: boolean; santri?: string; santri_id?: number | string; sort?: string[]; arah?: 'naik' | 'turun' } = {}) {
   const q = new URLSearchParams();
   if (params.page) q.set('page', params.page);
   if (params.per_page) q.set('per_page', params.per_page);
@@ -92,7 +92,7 @@ export function daftarTagihan(params: { page?: string; per_page?: string; jenjan
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   const s = q.toString();
-  return api<Paginate<TagihanRow>>(`/admin/keuangan/tagihan${s ? `?${s}` : ''}`);
+  return api<Paginate<TagihanRow>>(`/admin/keuangan/tagihan${s ? `?${s}` : ''}`, { signal: params.signal });
 }
 
 export interface GenerateTagihanInput {

@@ -75,4 +75,22 @@ describe('checkout pembayaran', () => {
     await waitFor(() => expect(document.getElementById('btn_bayar_sekaligus')).toBeEnabled());
     expect(screen.getByLabelText('Jumlah bayar Infaq')).toHaveValue(20);
   });
+  it('respons tagihan santri sebelumnya tidak menimpa santri yang baru dipilih', async () => {
+    let jawabA!: (value: unknown) => void;
+    const a = new Promise((r) => { jawabA = r; });
+    uji.santri.mockResolvedValue({ data: [santri, { ...santri, id: 2, nama_lengkap: 'Budi' }] });
+    uji.tagihan.mockImplementation(({ santri_id }: { santri_id: number }) => santri_id === 1 ? a : Promise.resolve({ data: [{ ...biaya, id: 12, santri_id: 2 }] }));
+    render(<PembayaranPage />);
+    fireEvent.click(document.getElementById('btn_tambah_pembayaran')!);
+    fireEvent.click(document.getElementById('btn_pilih_santri')!);
+    fireEvent.click(await screen.findByText('Ahmad', { selector: 'button' }));
+    await waitFor(() => expect(uji.tagihan).toHaveBeenCalled());
+    fireEvent.click(document.getElementById('btn_pilih_santri')!);
+    fireEvent.click(await screen.findByText('Budi', { selector: 'button' }));
+    await waitFor(() => expect(document.getElementById('btn_bayar_tambah_12')).toBeInTheDocument());
+    await act(async () => jawabA({ data: [biaya] }));
+    expect(document.getElementById('btn_bayar_tambah_11')).not.toBeInTheDocument();
+    expect(document.getElementById('btn_bayar_tambah_12')).toBeInTheDocument();
+  });
+
 });
