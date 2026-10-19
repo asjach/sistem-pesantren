@@ -257,10 +257,12 @@ export function PapanKolom({
               onDrop={(e) => void jatuhkan(e, item.id)}
               className={cn(
                 'flex max-h-full shrink-0 flex-col border',
-                terlipatKolom && 'w-11 cursor-pointer items-center pt-2',
+                // Terlipat: lebar tetap sempit. Terbuka: berbagi lebar layar
+                // sama rata (basis 0 + grow), jadi empat kolom selalu mengisi
+                // penuh tanpa menyisakan ruang kosong di kanan.
+                terlipatKolom ? 'w-11 cursor-pointer items-center pt-2' : 'min-w-0 flex-1 basis-0',
               )}
               style={{
-                width: terlipatKolom ? undefined : 284,
                 background: disorot ? 'color-mix(in srgb, var(--accent) 6%, var(--sunken))' : 'var(--sunken)',
                 borderColor: disorot ? 'var(--accent-line)' : 'var(--divider)',
               }}

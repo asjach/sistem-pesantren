@@ -186,3 +186,4 @@ Aturan praktis:
 | 2.473 | 2026-10-19 | [Alur] Papan modul kini dipecah per modul sebagai tab dinamis (A–G) yang dibangun dari data API, sehingga modul baru langsung muncul jadi tab tanpa mengubah kode; tiap tab tetap papan empat kolom dan komponennya dipakai ulang lewat \`components/papan/PapanKolom.tsx\` |
 | 2.474 | 2026-10-19 | [Tampilan] Judul "Papan Modul" di dalam halaman papan dihilangkan karena area tab sudah menjelaskan isinya, dan label navigasinya dipendekkan jadi "Papan" |
 | 2.475 | 2026-10-19 | [Tampilan] Badge jumlah sub-modul di tab papan diberi warna primary agar mencolok, dan warnanya dibalik otomatis saat tab aktif supaya tetap terbaca di atas latar primary |
+| 2.476 | 2026-10-19 | [Tampilan] Empat kolom status papan kini berbagi lebar layar sama rata (mengisi penuh seluruh lebar) menggantikan lebar tetap 284px, sementara kolom yang dilipat tetap sempit |
