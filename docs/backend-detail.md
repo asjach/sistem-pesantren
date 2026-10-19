@@ -1,5 +1,5 @@
 > Pecahan dari `PRD.md` (v2.56): file ini = Part B apa adanya (snapshot EN 2026-09-09).
-> "Bab N / Lampiran" → `arsitektur.md` / `operasi.md`; changelog induk di `PRD.md`.
+> "Bab N / Lampiran" → `arsitektur.md` / `operasi.md`; changelog induk di `CHANGELOG.md`.
 
 
 # Part B — Detail Backend (EN, dari backend/docs/PRD.md 2026-09-09)
@@ -70,13 +70,14 @@ envelope `{pesan, data}` for portal endpoints, standard pagination elsewhere.
 
 Six roles, hierarchical (decision no.40): `super_admin` → `admin` (full =
 no `user_lembaga` pivot; scoped = via pivot) → `guru` →
-`orang_tua` / `santri`. Plus `asrama` (pengurus asrama, pivot `user_asrama`,
-v1.10; **pasca production** — efektif sekarang 5 peran; `kasir` dihapus
-sementara v2.38). One user may hold multiple roles.
+`orang_tua` / `santri` — these 5 are the only rows `RoleSeeder` creates. Plus
+`asrama` (pengurus asrama, pivot `user_asrama`) which is a **design-only**
+assumption: **the role and the pivot table were never created**; `asrama` is
+pasca production and `kasir` was removed v2.38. One user may hold multiple roles.
 
-* `assignableRolesFor()`: super_admin grants all 6; admin grants
-  `guru, orang_tua, santri` (no privilege escalation; `asrama`
-  dan `admin` khusus super_admin, kecuali create-admin v1.9.x).
+* `assignableRolesFor()`: super_admin grants all roles present (5); admin grants
+  `guru, orang_tua, santri` (no privilege escalation; `admin` khusus
+  super_admin, kecuali create-admin v1.9.x).
 * Aksi vs cakupan (v2.38): *boleh melakukan apa* = izin matriks
   (`IzinKatalog`, `permission:` middleware, policy); *milik lembaga mana* =
   pivot (`User::lembagaIds()`, `canAccessLembaga()`, `isAdminFull()`).
@@ -102,7 +103,8 @@ spec in `docs/SCHEMA.md`, rewritten from the original single-file spec): `lembag
 (`walas_id → pegawai` inline) → santri/riwayat → PSB → finance →
 HR-academic → grades → presensi → tahfizh → wali portal (34 `ref_*`, 24 file migrasi).
 MySQL 64-char index pitfall: 4 composite uniques use short `uq_*` names.
-Status: ✅ `migrate:fresh` green (100 tables incl. framework/package tables).
+Status: ✅ `migrate:fresh` green (**126 tables** incl. framework/package tables —
+dihitung dari `migrate:fresh` di SQLite, 2026-10-19).
 
 **003 Authentication & users.** Multi-identifier login (email/phone/username),
 password minimal 8 karakter, throttle + `login_audits`, 5 peran efektif (`kasir` dihapus sementara),
@@ -421,34 +423,52 @@ Aturan pasangan kini global (v2.61) — lihat butir Tenant di §7.
 `keaktifan_pegawai`, `tugas_utama` kamus, one-to-one `pegawai_sertifikasi`
 (auto-sync flag), `keluarga_pegawai`, `dokumen_pegawai` (dulu `pegawai_dokumen`), manual account link
 (full-admin only), `setWalas()` 3-layer validation (FE filters active keaktifan).
-Status: 🟡 `pegawai` table exists; service/policy pending.
+Status: ✅ live — PTK Aktif, Penempatan (Lembaga Pegawai, Akun Pegawai), Keaktifan
+Pegawai, Akun Pegawai, foto profil (via `dokumen_pegawai`). Master `pegawai` global +
+scope per penempatan (`fd8a8c19`, D3).
 
-**201 Curriculum & subjects.** `kurikulum` per lembaga, `kurikulum_mapel`
-(explicit mapel + `kkm` null=manual + `urutan`; cakupan tingkat opsional di
-`kurikulum_mapel_tingkat`, kosong = semua tingkat), `kelas_kurikulum` dual pivot,
-`PUT komposisi/tingkat-bulk` untuk aksi massal checkbox, `tunjukPengampu` 4-layer
-validation;
-class members read from `riwayat_belajar` (no `kelas_santri` table).
-Status: 🟡 tables exist; service/policy pending.
+**201 Curriculum & subjects.** ~~`kurikulum` per lembaga, `kurikulum_mapel`
+(cakupan tingkat opsional di `kurikulum_mapel_tingkat`), `kelas_kurikulum` dual
+pivot~~ — **DELETED v2.413** (migrasi `2026_10_18_070000`): these tables were
+only used to decide *which* subjects a class has, while the actual unit of
+assessment (`nilai_santri`) and timetable (`jadwal_pelajaran`) was already built
+on `pengampu_mapel`. **The subject list of a class IS now the
+`pengampu_mapel` rows themselves** (class × subject → teacher, `null` = no
+teacher yet). `mata_pelajaran.kkm` (decimal null = manual predikat 202) and
+`.urutan` (int default 0, report/ledger display order) replaced the pivot
+columns. Class members read from `riwayat_belajar` (no `kelas_santri` table).
+Status: ✅ implemented (Mata Pelajaran, Pengampu, Jadwal Pelajaran pages).
 
-**202 Grades & rapor.** Centralized mass input (admin/pengampu/wali, per-item
-partial `{berhasil, gagal[]}`), `akhir=(formatif+sumatif)/2`, fixed predicates
-A90/B80/C70/D (KKM = archive), `keputusan_kenaikan`, PDF rapor
-(terpisah/digabung views).
-Status: 🟡 tables exist; `PenilaianService` pending.
+**202 Grades & rapor.** Grade is bound to an **event** (`peristiwa_nilai`:
+PTS/ASAS/ASAT/UJIAN/UAP per jenjang+TA, with `cakupan` and `jenis_rapor`), NOT to
+a semester. Each event owns its own components (`komponen_nilai`: `bobot` column
++ `sumber` = manual / auto-from-report / from-another-event); `kkm_kegiatan` and
+`rentang_predikat` are per event. `App\Services\PenilaianService` is the single
+source for effective component score, final grade, predicate, `simpanAkhir` and
+scope filtering — used by the controller AND the import services. Import engine:
+4 templates via `import-potong` (nilai with dynamic subject columns, catatan wali,
+prestasi, ekskul). Outputs: crosstab ledger per event + Excel download, report card
+(`rapor`/`rapor-kelas`) with class completeness check, `POST /penilaian/hitung` to
+recompute final grades (skips `sumber='impor'` rows unless `paksa=1`).
+Status: ✅ live — 4 pages (Master, Impor, Leger, Rapor). Deferred: semester lock +
+print audit trail, one-click bulk print, attendance auto-derived from
+`presensi_santri`, signatory snapshot, "copy event from previous TA".
 
 **203 Parent portal.** Read-only aggregator (dashboard, bill summary) +
 biodata proposals (1 active/santri, cancellable) via `PengajuanBiodataService`
 (100); `wali_santri_relasi` + `wali_portal_logs`; `SantriPolicy::view` +
 `{pesan, data}` envelope.
-Status: 🟡 tables exist; portal service/controller pending.
+Status: ✅ live — `PsbPortalController` (family history now loads the
+`lembaga` relation via active membership, `b9de71c1`), `PengajuanBiodataPage`.
+Deferred: bill summary widget on the portal dashboard.
 
-#### Phase 5 + Infra 🔲 (closed drafts, open on demand)
+#### Phase 5 + Infra 🔲 (mostly closed drafts, open on demand)
 
-`500` presensi santri · `501` presensi staff (stub) · `502` jadwal (slot,
-conflict validation) · `503` tahfizh (ziyadah/murajaah) · `504` pimpinan
-dashboard · `900` VPS deploy · `901` production config. Small tenant gates
-already merged; full specs untouched until reactivated.
+`500` presensi santri (tables only, no UI) · `501` presensi staff (tables only, no UI) ·
+`502` jadwal pelajaran (**live** — slot jam, jadwal per kelas, slot × hari × mapel,
+bentrok kelas & guru) · `503` tahfizh (ziyadah/murajaah; tables only, no UI) ·
+`504` pimpinan dashboard · `900` VPS deploy · `901` production config. Small tenant
+gates already merged; full specs untouched until reactivated.
 
 ### 6. Frontend apps (scope per app)
 
@@ -472,13 +492,15 @@ lewat Tab Kolom 3 panel yang bisa diseret; tanpa preset memakai urutan global
 `toolbar_preset.urutan`; halaman Santri Per Lembaga menampilkan seluruh
 identitas santri (mirror Buku Induk, bisa diedit via PATCH santri) lebih dulu
 lalu keanggotaan, dengan preset bawaan `ringkas` dari `PresetKolomSeeder`)
-dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Belum: modul 200+ (pegawai/kurikulum/nilai), Fase 5, portal ortu lanjutan.
+dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Modul 200/201/202 + keuangan + dokumen **sudah live** (10 grup nav, ±55 halaman). Belum: presensi (500/501), tahfizh (503), Fase 5, portal ortu lanjutan.
 
 #### 6.2 `frontend/kasir-mobile-react-native`
 
-Users: kasir (+admin). Scope: DITUNDA — menunggu perumusan ulang modul keuangan dari awal.
-Offline: queue-and-sync for payments is OUT (online only, race safety).
-Status: 🔲 not scaffolded.
+Users: kasir (+admin). Scope: **not built as a separate app** — the cashier flow
+ships as a page of the desktop client (`PembayaranPage` + cashier dialog) inside the
+financial module. Offline: queue-and-sync for payments is OUT (online only, race
+safety).
+Status: 🔲 not scaffolded — **deliberately**, the desktop page covers it.
 
 #### 6.3 `frontend/orangtua-mobile-react-native`
 
