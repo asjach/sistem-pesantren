@@ -299,6 +299,7 @@ export function PapanKolom({
   aksiButir,
   riwayat,
   idAwalan,
+  lipatAwal,
   alat,
 }: {
   kartu: KartuPapan[];
@@ -312,12 +313,14 @@ export function PapanKolom({
   riwayat?: RiwayatPapan[];
   /** Awalan id elemen supaya beberapa papan di satu halaman tidak bertabrakan. */
   idAwalan?: string;
+  /** Status kolom yang mulai terlipat; bawaan kosong (semua terbuka). */
+  lipatAwal?: StatusPapan[];
   /** Aksi tambahan di ujung kanan toolbar (mis. tombol Kelola). */
   alat?: ReactNode;
 }) {
   const [seret, setSeret] = useState<number | null>(null);
   const [sasaran, setSasaran] = useState<SasaranJatuh | null>(null);
-  const [lipat, setLipat] = useState<Set<StatusPapan>>(() => new Set());
+  const [lipat, setLipat] = useState<Set<StatusPapan>>(() => new Set(lipatAwal));
   const [pengumuman, setPengumuman] = useState('');
   /** Id poin yang popover rinciannya sedang terbuka (null = tertutup). */
   const [rincian, setRincian] = useState<number | null>(null);
@@ -484,7 +487,10 @@ export function PapanKolom({
               />
               {terlipatKolom ? (
                 <button
+                  id={`btn_buka_${awalan}_${item.id}`}
                   type="button"
+                  aria-label={`Buka kolom ${item.judul}`}
+                  aria-expanded={false}
                   onClick={() => jungkitLipat(item.id)}
                   className="flex w-full flex-1 cursor-pointer flex-col items-center gap-2 pt-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
                 >
@@ -513,6 +519,7 @@ export function PapanKolom({
                       id={`btn_lipat_${awalan}_${item.id}`}
                       type="button"
                       aria-label={`Lipat kolom ${item.judul}`}
+                      aria-expanded={true}
                       onClick={() => jungkitLipat(item.id)}
                       className="grid size-6 shrink-0 cursor-pointer place-items-center text-muted-foreground transition-colors hover:bg-[var(--surface-3)] hover:text-foreground"
                     >

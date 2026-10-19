@@ -25,6 +25,9 @@ import { kartuModul, kemajuanModul, modulPertama, type KartuPapan } from '@/lib/
 import type { AksiButir } from '@/components/papan/PapanKolom';
 import { KelolaSubModul } from '@/components/papan/KelolaSubModul';
 
+/** Kolom selesai/ditunda mulai terlipat agar fokus ke pekerjaan aktif. */
+const KOLOM_TERTUTUP_AWAL: StatusPapan[] = ['sudah', 'ditunda'];
+
 /**
  * Papan perkembangan modul - satu tab per modul (A, B, C, ...), tiap tab
  * berisi papan empat kolom (akan, sedang, sudah, ditunda).
@@ -283,6 +286,7 @@ export default function PapanPage() {
               aksiButir={aksiButir}
               riwayat={riwayat}
               idAwalan={`modul_${aktif.kode.toLowerCase()}`}
+              lipatAwal={KOLOM_TERTUTUP_AWAL}
               alat={
                 bolehUbah ? (
                   <Button

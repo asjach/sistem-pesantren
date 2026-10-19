@@ -28,6 +28,35 @@ function pasang(daftar: KartuPapan[] = [kartu()]) {
   );
 }
 
+describe('PapanKolom - kolom awal', () => {
+  it('kolom sudah dan ditunda mulai terlipat, lalu bisa dibuka', () => {
+    renderDenganTema(
+      <PapanKolom
+        kartu={[
+          kartu({ id: 1, status: 'akan' }),
+          kartu({ id: 2, status: 'sudah' }),
+          kartu({ id: 3, status: 'ditunda' }),
+        ]}
+        tampilkanModul={false}
+        onPindah={vi.fn()}
+        idAwalan="uji"
+        lipatAwal={['sudah', 'ditunda']}
+      />,
+    );
+
+    // Strip kolom tampil, tetapi isi kartunya belum dirender.
+    expect(document.getElementById('btn_buka_uji_sudah')).not.toBeNull();
+    expect(document.getElementById('btn_buka_uji_ditunda')).not.toBeNull();
+    expect(document.getElementById('kartu_papan_butir_2')).toBeNull();
+    expect(document.getElementById('kartu_papan_butir_3')).toBeNull();
+    // Kolom aktif tetap terbuka.
+    expect(document.getElementById('btn_lipat_uji_akan')).not.toBeNull();
+
+    fireEvent.click(document.getElementById('btn_buka_uji_sudah')!);
+    expect(document.getElementById('kartu_papan_butir_2')).not.toBeNull();
+  });
+});
+
 describe('PapanKolom - rincian poin', () => {
   it('belum menampilkan rincian sebelum judul diklik', () => {
     pasang();
