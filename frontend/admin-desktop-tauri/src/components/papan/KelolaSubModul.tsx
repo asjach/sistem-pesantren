@@ -48,7 +48,11 @@ export function KelolaSubModul({
 
   return (
     <Dialog open onOpenChange={(b) => (b ? undefined : onTutup())}>
-      <DialogContent id="dialog_kelola_papan" className="max-h-[85vh] w-[min(720px,94vw)] overflow-y-auto">
+      <DialogContent
+        id="dialog_kelola_papan"
+        className="max-h-[85dvh] overflow-x-hidden overflow-y-auto"
+        style={{ width: 'calc(100vw - 1rem)', maxWidth: 'calc(100vw - 1rem)' }}
+      >
         <DialogHeader>
           <DialogTitle id="judul_kelola_papan">
             Kelola {modulKode}. {modulNama}
@@ -113,13 +117,13 @@ function BarisSub({
 
   return (
     <div className="flex flex-col gap-2 py-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           id={`input_kode_${sub.kode.replace('.', '_')}`}
           value={kodeBaru}
           onChange={(e) => setKodeBaru(e.target.value)}
           aria-label={`Kode sub-modul ${sub.kode}`}
-          className="w-20 border bg-transparent px-2 py-1 font-mono text-xs"
+          className="w-16 shrink-0 border bg-transparent px-2 py-1 font-mono text-xs sm:w-20"
           style={{ borderColor: 'var(--divider)' }}
         />
         <input
@@ -127,64 +131,66 @@ function BarisSub({
           value={nama}
           onChange={(e) => setNama(e.target.value)}
           aria-label={`Nama sub-modul ${sub.kode}`}
-          className="min-w-0 flex-1 border bg-transparent px-2 py-1 text-[13px]"
+          className="min-w-[150px] flex-1 border bg-transparent px-2 py-1 text-[13px]"
           style={{ borderColor: 'var(--divider)' }}
         />
-        <span className="font-mono text-xs text-muted-foreground tabular-nums">
+        <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
           {sub.butir.length} poin
         </span>
-        <button
-          id={`btn_simpan_sub_${sub.kode.replace('.', '_')}`}
-          type="button"
-          disabled={sibuk || !berubah || nama.trim() === '' || kodeBaru.trim() === ''}
-          onClick={() => onSimpan(nama.trim(), kodeBaru.trim())}
-          className="cursor-pointer px-2 py-1 text-xs font-medium disabled:opacity-30"
-          style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
-        >
-          Simpan
-        </button>
-        {yakinHapus ? (
-          <span className="flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
+          <button
+            id={`btn_simpan_sub_${sub.kode.replace('.', '_')}`}
+            type="button"
+            disabled={sibuk || !berubah || nama.trim() === '' || kodeBaru.trim() === ''}
+            onClick={() => onSimpan(nama.trim(), kodeBaru.trim())}
+            className="cursor-pointer px-2 py-1 text-xs font-medium disabled:opacity-30"
+            style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
+          >
+            Simpan
+          </button>
+          {yakinHapus ? (
+            <span className="flex flex-wrap items-center gap-1">
+              <button
+                id={`btn_yakin_hapus_sub_${sub.kode.replace('.', '_')}`}
+                type="button"
+                disabled={sibuk}
+                onClick={onHapus}
+                className="cursor-pointer text-xs font-medium disabled:opacity-40"
+                style={{ color: 'var(--destructive)' }}
+              >
+                Ya, hapus {sub.butir.length} poin
+              </button>
+              <button
+                type="button"
+                onClick={() => setYakinHapus(false)}
+                className="cursor-pointer text-xs text-muted-foreground hover:text-foreground"
+              >
+                Batal
+              </button>
+            </span>
+          ) : (
             <button
-              id={`btn_yakin_hapus_sub_${sub.kode.replace('.', '_')}`}
+              id={`btn_hapus_sub_${sub.kode.replace('.', '_')}`}
               type="button"
               disabled={sibuk}
-              onClick={onHapus}
-              className="cursor-pointer text-xs font-medium disabled:opacity-40"
-              style={{ color: 'var(--destructive)' }}
+              onClick={() => setYakinHapus(true)}
+              aria-label={`Hapus sub-modul ${sub.kode}`}
+              className="cursor-pointer text-muted-foreground hover:text-foreground disabled:opacity-40"
             >
-              Ya, hapus {sub.butir.length} poin
+              <Trash2 className="size-3.5" />
             </button>
-            <button
-              type="button"
-              onClick={() => setYakinHapus(false)}
-              className="cursor-pointer text-xs text-muted-foreground hover:text-foreground"
-            >
-              Batal
-            </button>
-          </span>
-        ) : (
-          <button
-            id={`btn_hapus_sub_${sub.kode.replace('.', '_')}`}
-            type="button"
-            disabled={sibuk}
-            onClick={() => setYakinHapus(true)}
-            aria-label={`Hapus sub-modul ${sub.kode}`}
-            className="cursor-pointer text-muted-foreground hover:text-foreground disabled:opacity-40"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 pl-[88px]">
+      <div className="flex flex-wrap items-center gap-2 sm:pl-[88px]">
         <input
           id={`input_poin_${sub.kode.replace('.', '_')}`}
           value={poinBaru}
           onChange={(e) => setPoinBaru(e.target.value)}
           placeholder="Poin baru..."
           aria-label={`Poin baru untuk ${sub.kode}`}
-          className="min-w-0 flex-1 border bg-transparent px-2 py-1 text-xs"
+          className="min-w-[120px] flex-1 border bg-transparent px-2 py-1 text-xs"
           style={{ borderColor: 'var(--divider)' }}
         />
         <select
@@ -192,7 +198,7 @@ function BarisSub({
           value={statusBaru}
           onChange={(e) => setStatusBaru(e.target.value as StatusPapan)}
           aria-label={`Status poin baru ${sub.kode}`}
-          className="border bg-transparent px-2 py-1 text-xs"
+          className="w-24 shrink-0 border bg-transparent px-2 py-1 text-xs"
           style={{ borderColor: 'var(--divider)' }}
         >
           {KOLOM_PAPAN.map((s) => (
@@ -209,7 +215,7 @@ function BarisSub({
             onTambahPoin(statusBaru, poinBaru.trim());
             setPoinBaru('');
           }}
-          className="cursor-pointer border px-2 py-1 text-xs disabled:opacity-30"
+          className="shrink-0 cursor-pointer border px-2 py-1 text-xs disabled:opacity-30"
           style={{ borderColor: 'var(--divider)' }}
         >
           Tambah poin
@@ -231,7 +237,7 @@ function FormSubBaru({
   const [nama, setNama] = useState('');
 
   return (
-    <div className="flex items-end gap-2 border-t pt-3" style={{ borderColor: 'var(--divider)' }}>
+    <div className="flex flex-wrap items-end gap-2 border-t pt-3" style={{ borderColor: 'var(--divider)' }}>
       <div className="flex flex-col gap-1">
         <label htmlFor="input_kode_sub_baru" className="text-xs text-muted-foreground">
           Kode
@@ -240,11 +246,11 @@ function FormSubBaru({
           id="input_kode_sub_baru"
           value={kode}
           onChange={(e) => setKode(e.target.value)}
-          className="w-20 border bg-transparent px-2 py-1 font-mono text-xs"
+          className="w-16 border bg-transparent px-2 py-1 font-mono text-xs sm:w-20"
           style={{ borderColor: 'var(--divider)' }}
         />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex min-w-[140px] flex-1 flex-col gap-1">
         <label htmlFor="input_nama_sub_baru" className="text-xs text-muted-foreground">
           Nama sub-modul baru
         </label>
@@ -265,7 +271,7 @@ function FormSubBaru({
           setKode('');
           setNama('');
         }}
-        className="cursor-pointer px-3 py-1 text-xs font-medium disabled:opacity-30"
+        className="shrink-0 cursor-pointer px-3 py-1 text-xs font-medium disabled:opacity-30"
         style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
       >
         Tambah sub-modul
