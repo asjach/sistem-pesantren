@@ -559,6 +559,15 @@ export default function KeuanganPage() {
        dalam pilihan dilewati (sasaran Buat Massal). */
     type EntriAda = [string, { santriId: number; key: string; jenisId: number; sel: CrosstabSel }];
     const ada = entries.filter(([, v]) => v.sel !== undefined) as EntriAda[];
+    const gagal = new Map<string, string>();
+    const laporkan = (jumlah: number, pesan: string) => {
+      if (gagal.size === 0) {
+        toast.success(pesan);
+        return;
+      }
+      if (jumlah > 0) toast.warning(pesan);
+      toast.error(`${gagal.size} tagihan gagal. ${[...new Set(gagal.values())].join(' · ')}`);
+    };
     setBatchBusy(true);
     try {
       if (aksi === 'bayar') {
@@ -569,13 +578,13 @@ export default function KeuanganPage() {
           return;
         }
         let sukses = 0;
-        for (const [, v] of bisa) {
+        for (const [key, v] of bisa) {
           try {
             await catatPembayaran({ tagihan_id: v.sel.id, jumlah: v.sel.sisa, metode: batchMetode, kas: batchKas });
             sukses += 1;
-          } catch { /* lanjut; ringkasan di akhir */ }
+          } catch (e) { gagal.set(key, errorMessage(e)); }
         }
-        toast.success(`${sukses} tagihan dibayar lunas.`);
+        laporkan(sukses, `${sukses} tagihan dibayar lunas.`);
       } else if (aksi === 'hapus_tagihan') {
         if (ada.length === 0) {
           toast.warning('Tidak ada tagihan terpilih.');
@@ -583,10 +592,10 @@ export default function KeuanganPage() {
           return;
         }
         let sukses = 0;
-        for (const [, v] of ada) {
-          try { await hapusTagihan(v.sel.id); sukses += 1; } catch { /* lanjut */ }
+        for (const [key, v] of ada) {
+          try { await hapusTagihan(v.sel.id); sukses += 1; } catch (e) { gagal.set(key, errorMessage(e)); }
         }
-        toast.success(`${sukses} tagihan dihapus.`);
+        laporkan(sukses, `${sukses} tagihan dihapus.`);
       } else if (aksi === 'hapus_riwayat') {
         if (ada.length === 0) {
           toast.warning('Tidak ada tagihan terpilih.');
@@ -594,15 +603,15 @@ export default function KeuanganPage() {
           return;
         }
         let dihapus = 0;
-        for (const [, v] of ada) {
+        for (const [key, v] of ada) {
           try {
             const riwayat = await riwayatPembayaran(v.sel.id);
             for (const r of riwayat) {
-              try { await hapusPembayaran(r.id); dihapus += 1; } catch { /* lanjut */ }
+              try { await hapusPembayaran(r.id); dihapus += 1; } catch (e) { gagal.set(key, errorMessage(e)); }
             }
-          } catch { /* lanjut */ }
+          } catch (e) { gagal.set(key, errorMessage(e)); }
         }
-        toast.success(`${dihapus} baris riwayat dihapus.`);
+        laporkan(dihapus, `${dihapus} baris riwayat dihapus.`);
       } else if (aksi === 'ubah') {
         const pkg = ubahDispen !== '' && ubahDispen !== 'tanpa'
           ? daftarDispenBatch.find((d) => d.id === ubahDispen) ?? null
@@ -616,7 +625,7 @@ export default function KeuanganPage() {
         /** Sel yang paketnya tak berlaku (jenis/lembaga beda) — dilaporkan
          *  supaya pemilihan paket berlingkup lain tak diam-diam tanpa hasil. */
         let lewatDispen = 0;
-        for (const [, v] of ada) {
+        for (const [key, v] of ada) {
           // Dispensasi hanya untuk tagihan yang jenisnya cocok dengan paket
           // (paket mungkin mencakup beberapa jenis lewat `aturan`) DAN
           // lingkup lembaga paketnya cocok dengan lembaga tagihan; selebihnya
@@ -635,9 +644,9 @@ export default function KeuanganPage() {
               ...(dispenIds !== undefined ? { dispensasi_ids: dispenIds } : {}),
             });
             sukses += 1;
-          } catch { /* lanjut */ }
+          } catch (e) { gagal.set(key, errorMessage(e)); }
         }
-        toast.success(`${sukses} tagihan diubah${lewatDispen > 0 ? `, ${lewatDispen} dilewati (paket tidak berlaku untuk jenis/lembaga tagihan itu)` : ''}.`);
+        laporkan(sukses, `${sukses} tagihan diubah${lewatDispen > 0 ? `, ${lewatDispen} dilewati (paket tidak berlaku untuk jenis/lembaga tagihan itu)` : ''}.`);
       } else if (aksi === 'buat') {
         const ta = genTAtopbar;
         if (ta === null) { setGalatBuat('Pilih satu tahun ajaran pada filter di atas.'); return; }
@@ -690,10 +699,10 @@ export default function KeuanganPage() {
         toast.success(`Dibuat ${dibuat} tagihan${dilewati > 0 ? `, dilewati ${dilewati}` : ''}.`);
         if (galat !== null) toast.error(galat);
       }
+      setPilih((prev) => new Map([...prev].filter(([key]) => gagal.has(key))));
+      if (gagal.size === 0) setBatchDialog(null);
       await load();
       await muatCrosstabSekarang();
-      setPilih(() => new Map());
-      setBatchDialog(null);
     } catch (e) {
       toast.error(errorMessage(e));
       // Biarkan dialog terbuka agar pengguna bisa mencoba lagi.
@@ -831,7 +840,7 @@ export default function KeuanganPage() {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const tombol = document.querySelector<HTMLElement>(`#btn_tagihan_sel_${dibuat.id}`);
       if (!tombol) return;
-      const hariIni = new Date().toLocaleDateString('sv-SE');
+      const hariIni = hariIniIso();
       // Respons create membawa datetime penuh; crosstab memakai tanggal saja.
       const jt = dibuat.jatuh_tempo?.slice(0, 10) ?? null;
       pilihSel(

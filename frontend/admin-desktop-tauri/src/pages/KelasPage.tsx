@@ -192,6 +192,10 @@ export default function KelasPage() {
     },
     deps: [filterLoading, jenjangs, tahunAjaranNames, tingkat],
   });
+  // `goFirst` beridentitas stabil (useCallback per tableKey) — dipakai terpisah
+  // agar callback di bawah tak perlu menyandang objek `pager` (identitas baru
+  // tiap render).
+  const { goFirst } = pager;
 
   // Import nama kelas pasangan MI↔MD (pratinjau → eksekusi).
   const [imporOpen, setImporOpen] = useState(false);
@@ -272,7 +276,7 @@ export default function KelasPage() {
     // Muat SEMUA lembaga terdaftar (batas maks backend) agar opsi selalu
     // mencakup lembaga baru di masa depan, bukan hanya halaman pertama.
     listLembaga({ per_page: 1000 }).then((p) => setLembagas(p.data)).catch((e) => setErr(errorMessage(e)));
-  }, []);
+  }, [setErr]);
 
   useEffect(() => {
     if (filterLoading) {
@@ -284,7 +288,7 @@ export default function KelasPage() {
       .then((p) => { if (alive) setTas(p.data); })
       .catch((e) => { if (alive) setErr(errorMessage(e)); });
     return () => { alive = false; };
-  }, [filterLoading, jenjangs]);
+  }, [filterLoading, jenjangs, setErr]);
 
   // Dialog Tambah: muat TA milik lembaga terpilih; **selalu** mengutamakan
   // tahun ajaran aktif (bila belum ada, pertahankan pilihan yang masih valid).
@@ -313,7 +317,7 @@ export default function KelasPage() {
         setTambahTasUntuk('');
         setErr(errorMessage(e));
       });
-  }, [tambahLembagaId]);
+  }, [tambahLembagaId, setErr]);
 
   // Admin terhubung 1 lembaga: pilihannya dikunci (pola SantriPage).
   const { user } = useAuth();
@@ -338,7 +342,7 @@ export default function KelasPage() {
     setBarisKelas([barisKelasKosong()]);
     setErr('');
     setTambahOpen(true);
-  }, [singleLembagaId, jenjang, tambahTas, tambahTasUntuk, tas]);
+  }, [singleLembagaId, jenjang, tambahTas, tambahTasUntuk, tas, setErr]);
 
   // Pintasan Ctrl/Cmd+N = aksi utama halaman ini ("+ Kelas"). Pembukaannya
   // memakai `bukaTambah` yang sama dengan tombol; terhalang saat dialog
@@ -485,12 +489,12 @@ export default function KelasPage() {
       }
       setBarisKelas([barisKelasKosong()]);
       setTambahOpen(false);
-      pager.goFirst();
+      goFirst();
       await load(1);
     } catch (e2) {
       setErr(errorMessage(e2));
     }
-  }, [singleLembagaId, tambahLembagaId, tambahTaId, barisKelas, load, pager.goFirst]);
+  }, [singleLembagaId, tambahLembagaId, tambahTaId, barisKelas, load, goFirst, namaTerpakai, setErr]);
 
   /** Mode Input: buat kelas baru dari baris input (butuh filter lembaga+TA). */
   const createRow = useCallback(async (f: Record<string, string | null>) => {
@@ -561,7 +565,7 @@ export default function KelasPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [editRow, editNama, editAlias, editWali, editTingkat, editUrutan, editKapasitas, namaTerpakai, load]);
+  }, [editRow, editNama, editAlias, editWali, editTingkat, editUrutan, editKapasitas, namaTerpakai, load, setErr]);
 
   const onDelete = useCallback(async (id: number) => {
     try {
@@ -571,7 +575,7 @@ export default function KelasPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [load]);
+  }, [load, setErr]);
 
   const renderActions = useCallback((k: Kelas) => (
     <>

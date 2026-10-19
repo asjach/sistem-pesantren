@@ -141,5 +141,5 @@ export function useTinggiBarisSatuan({
       // Pengukuran gagal (mis. DOM belum siap) → tinggi dasar.
       return effectiveH;
     }
-  }, [tinggiBarisManual, barisIkutIsi, maxRows, effectiveH, effectiveFont, visibleFields, widths, autoWidths, syncAutoWidths]);
+  }, [tinggiBarisManual, barisIkutIsi, maxRows, effectiveH, effectiveFont, visibleFields, widths, autoWidths, syncAutoWidths, wrapRef]);
 }

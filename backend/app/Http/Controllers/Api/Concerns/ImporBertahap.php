@@ -138,7 +138,15 @@ trait ImporBertahap
             fputcsv($tulis, ['baris', 'nis_lokal', 'kolom', 'pesan']);
         }
         foreach ($baru as $galat) {
-            fputcsv($tulis, [$galat['baris'], $galat['nis_lokal'] ?? '', $galat['kolom'], $galat['pesan']]);
+            $sel = [$galat['baris'], $galat['nis_lokal'] ?? '', $galat['kolom'], $galat['pesan']];
+            $sel = array_map(static function ($nilai) {
+                if (is_string($nilai) && preg_match('/^[\\x00-\\x20]*[=+@-]/', $nilai)) {
+                    return "'".$nilai;
+                }
+
+                return $nilai;
+            }, $sel);
+            fputcsv($tulis, $sel);
         }
         fclose($tulis);
 

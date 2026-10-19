@@ -18,6 +18,7 @@ use App\Models\PeristiwaNilai;
 use App\Models\PredikatEkskul;
 use App\Models\PrestasiSantri;
 use App\Models\RentangPredikat;
+use App\Models\Santri;
 use App\Services\PenilaianImporService;
 use App\Services\PenilaianService;
 use App\Support\NilaiRapor;
@@ -501,7 +502,8 @@ class PenilaianController extends Controller
     public function indexPrestasi(Request $request): JsonResponse
     {
         $ta = $this->taWajib($request);
-        $q = PrestasiSantri::with('santri:id,nama_lengkap')->where('tahun_ajaran', $ta);
+        $q = PrestasiSantri::with('santri:id,nama_lengkap')->where('tahun_ajaran', $ta)
+            ->whereHas('santri', fn ($s) => $s->tenantScope());
         if ($request->filled('santri_id')) {
             $q->where('santri_id', (int) $request->input('santri_id'));
         }
@@ -525,12 +527,15 @@ class PenilaianController extends Controller
             'keterangan' => ['nullable', 'string', 'max:500'],
         ]);
 
+        abort_unless(Santri::tenantScope()->whereKey($data['santri_id'])->exists(), 403, 'Akses ditolak.');
+
         return response()->json(PrestasiSantri::create($data), 201);
     }
 
     /** DELETE /admin/penilaian/prestasi/{prestasi} */
     public function destroyPrestasi(PrestasiSantri $prestasi): JsonResponse
     {
+        abort_unless(Santri::tenantScope()->whereKey($prestasi->santri_id)->exists(), 403, 'Akses ditolak.');
         $prestasi->delete();
 
         return response()->json(['pesan' => 'Prestasi dihapus.']);
@@ -622,12 +627,12 @@ class PenilaianController extends Controller
 
         $santri = $this->santriLeger($peristiwa, $semester, $kelasIds, $tingkat, $q);
         $kolom = $this->kolomLeger($jenjang, $kelasIds);
-        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
 
         $perPage = $this->perPage($request);
         $page = max(1, (int) $request->input('page', 1));
         $total = $santri->count();
         $halaman = $santri->slice(($page - 1) * $perPage, $perPage)->values();
+        $peta = $this->petaNilai($halaman->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
 
         $baris = $halaman->map(function ($s) use ($kolom, $peta) {
             $nilai = [];

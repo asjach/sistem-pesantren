@@ -261,7 +261,9 @@ export default function PanelDokumen({
                         </td>
                         <td className="max-w-40 truncate px-2 text-muted-foreground" title={row.catatan ?? undefined}>{row.catatan || '—'}</td>
                         <td className="px-2 text-right">
-                          <span className="inline-block" onClick={(e) => e.stopPropagation()}>
+                          {/* Pembungkus ini murni tata letak; tahan klik agar tak
+                              membuka pratinjau duduk di tombolnya sendiri. */}
+                          <span className="inline-block">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
@@ -269,6 +271,7 @@ export default function PanelDokumen({
                                   size="icon"
                                   variant="ghost"
                                   title="Aksi dokumen"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <MoreVertical size={14} />
                                 </Button>

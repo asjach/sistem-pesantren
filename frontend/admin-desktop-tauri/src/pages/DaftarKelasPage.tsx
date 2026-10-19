@@ -4,7 +4,6 @@ import { bisa } from '../api/auth';
 import { daftarKelas, type DaftarKelasHasil, type RiwayatRow } from '../api/siklus';
 import type { SantriPenuh } from '../api/santri';
 import { listKelas, type Kelas } from '../api/master';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ExcelTable from '@/components/ExcelTable';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';

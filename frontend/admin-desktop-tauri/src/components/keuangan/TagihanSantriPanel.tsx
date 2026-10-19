@@ -3,6 +3,7 @@ import { bisa } from '@/api/auth';
 import { daftarTagihan, type TagihanRow } from '@/api/keuangan';
 import { useAuth } from '@/auth/AuthContext';
 import { Button } from '@/components/ui/button';
+import { hariIniIso } from '@/lib/tanggal';
 import { cn } from '@/lib/utils';
 
 /** Batas halaman yang dikumpulkan (100 baris per halaman) saat menarik
@@ -23,11 +24,6 @@ const LABEL_KELOMPOK: Record<Kelompok, string> = {
 /** Urutan baris tabel: menunggak dulu, lalu lunas, lalu belum aktif. */
 const URUTAN: Kelompok[] = ['menunggak', 'lunas', 'belum_aktif'];
 
-/** Hari ini menurut waktu lokal (YYYY-MM-DD) — pembanding jatuh tempo. */
-function hariIni(): string {
-  return new Date().toLocaleDateString('sv-SE');
-}
-
 function rupiah(nilai: number): string {
   return 'Rp ' + nilai.toLocaleString('id');
 }
@@ -39,7 +35,7 @@ function angka(nilai: number): string {
 
 /** Belum lunas DAN jatuh temponya sudah lewat. */
 function lewatJatuhTempo(t: TagihanRow): boolean {
-  return t.status !== 'lunas' && !!t.jatuh_tempo && t.jatuh_tempo.slice(0, 10) < hariIni();
+  return t.status !== 'lunas' && !!t.jatuh_tempo && t.jatuh_tempo.slice(0, 10) < hariIniIso();
 }
 
 /** Menunggak = belum lunas dan jatuh tempo sudah lewat; tagihan belum lunas

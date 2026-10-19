@@ -11,7 +11,6 @@ import DialogKelolaHalaman from '@/components/kelolaHalaman/DialogKelolaHalaman'
 import { EVENT_KELOLA_HALAMAN } from '@/components/kelolaHalaman/event';
 import { bukaDariMenu } from '@/components/excel/kelolaTabelDariMenu';
 import DialogStandarTampilan from '@/components/kelolaTampilan/DialogStandarTampilan';
-import { EVENT_STANDAR_TAMPILAN } from '@/components/kelolaTampilan/event';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 import { FilterSelect, FilterToggleGroup } from '@/components/FilterMulti';
 import { useTheme, type ModeName, type ThemeName } from '@/theme';

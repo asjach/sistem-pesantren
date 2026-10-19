@@ -101,6 +101,18 @@ describe('arsip per tipe', () => {
     expect(dihapus).toEqual(['/arsip/santri/berkas.jpg']);
   });
 
+  it('edit dan penggantian mode test tidak menyentuh nama sama di produksi', async () => {
+    ada = new Set(['/arsip/santri/sama.jpg', '/arsip-test/santri/sama.jpg']);
+    const produksi = new Uint8Array([1]);
+    isi.set('/arsip/santri/sama.jpg', produksi);
+    await tulisBalikArsip('sama.jpg', 'sama.jpg', 'KK', new Uint8Array([2]), 'santri', 'test');
+    expect(ditulis.map(([p]) => p)).toEqual(['/arsip-test/santri/sama.jpg']);
+    expect(isi.get('/arsip/santri/sama.jpg')).toBe(produksi);
+    await tulisGantiArsip({ namaLama: 'sama.jpg', jenis: 'KK', pemilik: 'Audit', catatan: '', ext: 'jpg', data: new Uint8Array([3]), lokasi: 'test', tipe: 'santri' });
+    expect(ada.has('/arsip/santri/sama.jpg')).toBe(true);
+    expect(dihapus).not.toContain('/arsip/santri/sama.jpg');
+  });
+
   it('tulisBalikArsip tak ditemukan jatuh ke akar sesuai lokasi (test → uji)', async () => {
     await tulisBalikArsip('hilang.jpg', 'hilang.jpg', 'Kartu Keluarga', new Uint8Array([1]), 'santri', 'test');
     expect(ditulis.map(([p]) => p)).toEqual(['/arsip-test/santri/hilang.jpg']);

@@ -80,6 +80,10 @@ class DokumenController extends Controller
                 $ids = $auth->lembagaIdsDenganPasangan();
                 $ids === [] ? $query->whereRaw('1 = 0') : $query->whereExists(fn ($w) => $penempatan($w, $ids));
             }
+            if ($lembaga !== [] || ! $auth->bolehPesantren()) {
+                $ids = $lembaga !== [] ? $lembaga : $auth->lembagaIdsDenganPasangan();
+                $query->where(fn ($w) => $w->whereNull('dokumen_santri.lembaga')->orWhereIn('dokumen_santri.lembaga', $ids));
+            }
             if ($q !== '') {
                 $query->where(fn ($w) => $w
                     ->where('santri.nama_lengkap', 'like', "%{$q}%")
@@ -101,8 +105,7 @@ class DokumenController extends Controller
             // Penempatan aktif via whereExists agar pegawai di >1 lembaga tidak duplikat.
             $penempatanPeg = function ($w, array $jenjang = []) {
                 $w->from('lembaga_pegawai as lp')
-                    ->whereColumn('lp.pegawai_id', 'dokumen_pegawai.pegawai_id')
-                    ->where('lp.is_active_lembaga', 'Ya');
+                    ->whereColumn('lp.pegawai_id', 'dokumen_pegawai.pegawai_id');
                 if ($jenjang !== []) {
                     $w->whereIn('lp.jenjang', $jenjang);
                 }
@@ -274,6 +277,9 @@ class DokumenController extends Controller
             $ubah['status_verifikasi'] = $data['status_verifikasi'];
         }
         if ($tipe === 'santri' && array_key_exists('lembaga', $data)) {
+            if ($data['lembaga'] !== null) {
+                $this->authorizeLembaga($request->user(), $data['lembaga']);
+            }
             $ubah['lembaga'] = $data['lembaga'];
         }
         if (in_array($tipe, ['santri', 'pegawai'], true) && array_key_exists('is_active', $data)) {
@@ -284,10 +290,11 @@ class DokumenController extends Controller
         }
         if (isset($data['nama_file'])) {
             $bersih = basename(trim($data['nama_file']));
+            $this->pastikanNamaBerkas($tipe, $model, $bersih);
+            if ($bersih !== ($model->nama_file ?? '') && Storage::disk('local')->exists($this->direktoriBerkas($tipe).'/'.$bersih)) {
+                throw ValidationException::withMessages(['nama_file' => 'Nama berkas sudah dipakai di server. Unggah berkas melalui dokumen ini.']);
+            }
             $ubah['nama_file'] = $bersih !== '' ? $bersih : null;
-        }
-        if ($tipe === 'santri' && isset($data['nama_file'])) {
-            $ubah['nama_file'] = basename(trim($data['nama_file'])) ?: null;
         }
         if (array_key_exists('catatan', $data)) {
             $ubah['catatan'] = $data['catatan'];
@@ -666,8 +673,8 @@ class DokumenController extends Controller
         // Cakupan lembaga: pemilik harus milik lembaga yang boleh diakses.
         $auth = $request->user();
         if ($tipe === 'santri') {
-            $jenjang = Santri::find($data['santri_id'])?->lembagaAktif()->value('jenjang');
-            if ($jenjang !== null && ! $auth->canAccessLembaga($jenjang)) {
+            $milik = Santri::tenantScope()->whereKey($data['santri_id'])->exists();
+            if (! $milik || (! empty($data['lembaga']) && ! $auth->canAccessLembaga($data['lembaga']))) {
                 throw ValidationException::withMessages(['santri_id' => 'Santri di luar lingkup akses Anda.']);
             }
         } elseif ($tipe === 'pegawai') {
@@ -697,6 +704,33 @@ class DokumenController extends Controller
         return $row;
     }
 
+    private function pastikanNamaBerkas(string $tipe, object $row, string $nama): void
+    {
+        if ($nama === '') {
+            return;
+        }
+        $kolom = match ($tipe) {
+            'santri' => ['santri_id', 'lembaga'],
+            'pegawai' => ['pegawai_id'],
+            default => ['jenjang'],
+        };
+        $asing = DB::table('dokumen_'.$tipe)->where('nama_file', $nama)->where('id', '!=', $row->id)
+            ->where(function ($q) use ($kolom, $row) {
+                foreach ($kolom as $k) {
+                    $q->orWhere(function ($w) use ($k, $row) {
+                        if ($row->{$k} === null) {
+                            $w->whereNotNull($k);
+                        } else {
+                            $w->where($k, '!=', $row->{$k})->orWhereNull($k);
+                        }
+                    });
+                }
+            })->exists();
+        if ($asing) {
+            throw ValidationException::withMessages(['nama_file' => 'Nama berkas sudah terikat pada pemilik dokumen lain.']);
+        }
+    }
+
     /** Temukan baris dokumen milik $id (Eloquent model untuk santri/lembaga; stdClass untuk pegawai). */
     private function temukan(string $tipe, int $id, Request $request): object
     {
@@ -707,10 +741,12 @@ class DokumenController extends Controller
             }
             // Akses mengikuti konteks lembaga baris dulu (selaras lingkup
             // daftar yang memakai riwayat penempatan), baru penempatan aktif.
-            $jenjang = $row->lembaga ?? $row->santri->lembagaAktif()->value('jenjang');
-            if ($jenjang !== null && ! $request->user()->canAccessLembaga($jenjang)) {
+            $milik = Santri::tenantScope()->whereKey($row->santri_id)->exists();
+            if (! $milik || ($row->lembaga !== null && ! $request->user()->canAccessLembaga($row->lembaga))) {
                 abort(403, 'Akses ditolak.');
             }
+
+            $this->pastikanNamaBerkas($tipe, $row, (string) ($row->nama_file ?? ''));
 
             return $row;
         }
@@ -720,10 +756,14 @@ class DokumenController extends Controller
             if (! $row) {
                 abort(404);
             }
-            $jenjang = DB::table('lembaga_pegawai')->where('pegawai_id', $row->pegawai_id)->value('jenjang');
-            if ($jenjang !== null && ! $request->user()->canAccessLembaga($jenjang)) {
+            $milik = $request->user()->bolehPesantren() || DB::table('lembaga_pegawai')
+                ->where('pegawai_id', $row->pegawai_id)
+                ->whereIn('jenjang', $request->user()->lembagaIdsDenganPasangan())->exists();
+            if (! $milik) {
                 abort(403, 'Akses ditolak.');
             }
+
+            $this->pastikanNamaBerkas($tipe, $row, (string) ($row->nama_file ?? ''));
 
             return $row;
         }
@@ -732,6 +772,8 @@ class DokumenController extends Controller
         if (! $request->user()->canAccessLembaga($row->jenjang)) {
             abort(403, 'Akses ditolak.');
         }
+
+        $this->pastikanNamaBerkas($tipe, $row, (string) ($row->nama_file ?? ''));
 
         return $row;
     }

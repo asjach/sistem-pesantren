@@ -61,14 +61,14 @@ function normLembaga(l: LembagaApi): Lembaga {
   return { ...l, id: l.jenjang };
 }
 
-export function listLembaga(params: { search?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal } = {}) {
+export function listLembaga(params: { search?: string; sort?: string[]; arah?: 'naik' | 'turun'; page?: number; per_page?: number; signal?: AbortSignal; tanpaPeran?: boolean } = {}) {
   const q = new URLSearchParams();
   if (params.search) q.set('search', params.search);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
   q.set('page', String(params.page ?? 1));
   q.set('per_page', String(params.per_page ?? PER_PAGE_DEFAULT));
-  return api<Paginate<LembagaApi>>(`/admin/lembaga?${q.toString()}`, { signal: params.signal })
+  return api<Paginate<LembagaApi>>(`/admin/lembaga?${q.toString()}`, { signal: params.signal, tanpaPeran: params.tanpaPeran })
     .then((p) => ({ ...p, data: p.data.map(normLembaga) }));
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,10 +12,9 @@ import { TopBarSearch } from '@/components/TopBarSearch';
 import TagihanCrosstab, { type MetaSel, type SelBlok } from '@/components/keuangan/TagihanCrosstab';
 import PresetUrut from '@/components/PresetUrut';
 import { ActionIcon, DeleteAction, EditAction } from '@/components/RowActions';
-import { Info, Plus, Trash2, TriangleAlert, X } from '@/icons';
+import { Info, Plus, TriangleAlert, X } from '@/icons';
 import { cn } from '@/lib/utils';
 import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
-import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { teksAturan, teksAturanPaket } from '@/lib/dispensasi';
 import type { PetaArahKolom } from '@/lib/urut';
 import type { PilihanLembaga } from '@/lembagaAktif';

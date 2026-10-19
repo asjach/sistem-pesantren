@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import DialogKelolaTabel from './DialogKelolaTabel';
 import { prefSet } from '@/api/client';
-import { listPresetTabel, setPresetAktif } from '@/api/preset';
+import { listPresetTabel } from '@/api/preset';
 import { simpanToolbarPreset } from '@/api/toolbarPreset';
 import { renderDenganTema } from '@/test/utils';
 import { KOMPONEN_INFO_BEKAL, type InfoKomponenTabel } from '@/components/excel/komponenTabel';

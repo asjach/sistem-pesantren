@@ -113,6 +113,10 @@ export default function LembagaPage() {
       signal: a.signal,
     }),
   });
+  // `goFirst` beridentitas stabil (useCallback per tableKey) — dipakai terpisah
+  // agar callback di bawah tak perlu menyandang objek `pager` (identitas baru
+  // tiap render).
+  const { goFirst } = pager;
 
   const [nama, setNama] = useState('');
   const [jenjang, setJenjang] = useState('');
@@ -206,12 +210,12 @@ export default function LembagaPage() {
       setNama(''); setJenjang('');
       setKelompokPsb('eksklusif'); setIsSeleksi(false);
       setTambahOpen(false);
-      pager.goFirst();
+      goFirst();
       await load(1);
     } catch (e2) {
       setErr(errorMessage(e2));
     }
-  }, [nama, jenjang, kelompokPsb, isSeleksi, load, pager.goFirst]);
+  }, [nama, jenjang, kelompokPsb, isSeleksi, load, goFirst, setErr]);
 
   const onUpdate = useCallback(async () => {
     if (!editRow || simpanBusy) return;
@@ -287,7 +291,7 @@ export default function LembagaPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [load]);
+  }, [load, setErr]);
 
   /** Mode Input: buat lembaga baru dari baris input (super_admin). */
   const createRow = useCallback(async (f: Record<string, string | null>) => {

@@ -1,5 +1,4 @@
 import { api, downloadFile } from './client';
-import { appendQueryParam, type ScalarOrArray } from './query';
 import type { PotongHasil } from '@/components/ImportBertahapUmumDialog';
 
 /**

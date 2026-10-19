@@ -56,7 +56,6 @@ export function usePdfDokumen({ aktif, sumber, zoom, ukuranWadah }: {
       hidup = false;
       if (dok) void dok.destroy();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sumber, aktif]);
 
   useEffect(() => {

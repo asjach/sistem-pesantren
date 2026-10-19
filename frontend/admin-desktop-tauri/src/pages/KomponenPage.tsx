@@ -99,6 +99,8 @@ function GagangLebarKolom({ lebar, setLebar }: { lebar: number; setLebar: (px: n
     }
   };
 
+  // Separator yang bisa difokuskan menangani panah untuk mengubah lebar.
+  /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
   return (
     <div
       role="separator"
@@ -119,6 +121,7 @@ function GagangLebarKolom({ lebar, setLebar }: { lebar: number; setLebar: (px: n
       <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors hover:bg-muted-foreground/60" />
     </div>
   );
+  /* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
 }
 
 /** Field contoh untuk demo PresetKolom: key-nya sengaja sama dengan kolom

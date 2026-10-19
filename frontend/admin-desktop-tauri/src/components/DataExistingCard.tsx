@@ -81,7 +81,7 @@ export default function DataExistingCard({
           aria-label="Lembaga sumber data existing"
         >
           {lembagas.length > 1 && (
-            <label className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold">
+            <label htmlFor="check_data_semua" className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-2 rounded-full border bg-card px-3 text-xs has-checked:border-primary has-checked:bg-accent has-checked:font-semibold">
               <Checkbox
                 id="check_data_semua"
                 checked={dataIds.length === lembagas.length && lembagas.length > 0}

@@ -62,6 +62,11 @@ class JenisTarifController extends Controller
     public function updateJenis(JenisUpdateRequest $request, JenisTagihan $jenis)
     {
         $actor = $request->user();
+        if ($jenis->jenjang !== null) {
+            $this->authorizeLembaga($actor, $jenis->jenjang);
+        } elseif (! $actor->bolehSuperAdmin()) {
+            abort(403, 'Jenis global hanya boleh diubah super_admin.');
+        }
         $data = $request->validated();
         $jenjangBaru = array_key_exists('jenjang', $data) ? $data['jenjang'] : $jenis->jenjang;
         if (! empty($jenjangBaru)) {
@@ -100,7 +105,7 @@ class JenisTarifController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('keuangan_tarif'));
         $q = TarifTagihan::with('jenis');
         // Filter global (boleh banyak nilai): `jenjang[]` dan `tahun_ajaran[]`.
-        $this->applyFilter($q, $request, 'jenjang', 'jenjang');
+        $this->scopeLembaga($q, $request->user(), $request, 'tarif_tagihan.jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
         if ($urut === null) {
             $q->orderBy('jenjang')->orderBy('tahun_ajaran');

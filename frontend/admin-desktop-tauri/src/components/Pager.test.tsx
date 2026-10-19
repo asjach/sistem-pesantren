@@ -51,11 +51,11 @@ describe('Pager', () => {
     expect(props.onPage).toHaveBeenCalledWith(1);
   });
 
-  it('tombol All tersedia untuk memuat seluruh data', async () => {
+  it('pilihan All meminta seluruh data', async () => {
     const user = userEvent.setup();
     const props = pasang();
 
-    const all = screen.getByTitle('Semua data per halaman');
+    const all = screen.getByTitle('Semua data');
     await user.click(all);
     expect(props.onPerPage).toHaveBeenCalledWith(0);
   });

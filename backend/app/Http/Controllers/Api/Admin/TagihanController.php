@@ -14,6 +14,7 @@ use App\Http\Requests\Admin\TagihanUpdateRequest;
 use App\Models\Dispensasi;
 use App\Models\GrupSantriCustom;
 use App\Models\JenisTagihan;
+use App\Models\Santri;
 use App\Models\Tagihan;
 use App\Models\TarifTagihan;
 use App\Services\DispensasiService;
@@ -126,9 +127,7 @@ class TagihanController extends Controller
                     $e->selectRaw('1')->from('riwayat_belajar as rb_r')
                         ->whereColumn('rb_r.santri_id', 'rs.id')
                         ->whereIn('rb_r.tahun_ajaran', $tahunAjaran);
-                    if ($jenjang !== []) {
-                        $e->whereIn('rb_r.jenjang', $jenjang);
-                    }
+                    $e->whereIn('rb_r.jenjang', $jenjang);
                 });
             $gabung = $dariRiwayat->union($pemegang);
         }
@@ -184,7 +183,7 @@ class TagihanController extends Controller
     public function crosstabTagihan(TagihanCrosstabRequest $request)
     {
         $q = Tagihan::with(['jenis', 'santri']);
-        $this->applyFilter($q, $request, 'jenjang', 'tagihan.jenjang');
+        $this->scopeLembaga($q, $request->user(), $request, 'tagihan.jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tagihan.tahun_ajaran');
         if ($request->filled('jenis_id')) {
             $q->where('tagihan.jenis_id', (int) $request->input('jenis_id'));
@@ -214,7 +213,7 @@ class TagihanController extends Controller
            belum punya tagihan. `$q` hanya melingkupi data tagihan (sel,
            agregat, kolom). */
         $tahunAjaran = $this->nilaiFilter($request, 'tahun_ajaran');
-        $jenjang = $this->nilaiFilter($request, 'jenjang');
+        $jenjang = $this->jenjangUntukBerkas($request);
         $roster = $this->rosterSantriCrosstab($q, $request, $tahunAjaran, $jenjang);
 
         $page = max(1, (int) $request->input('page', 1));
@@ -531,7 +530,7 @@ class TagihanController extends Controller
         $q = TarifTagihan::query()->with('jenis')
             ->where('is_active', true)
             ->whereHas('jenis', fn ($j) => $j->where('is_active', true));
-        $this->applyFilter($q, $request, 'jenjang', 'tarif_tagihan.jenjang');
+        $this->scopeLembaga($q, $request->user(), $request, 'tarif_tagihan.jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tarif_tagihan.tahun_ajaran');
         if ($request->filled('jenis_id')) {
             $q->where('tarif_tagihan.jenis_id', (int) $request->input('jenis_id'));
@@ -595,7 +594,7 @@ class TagihanController extends Controller
     public function indexTagihan(Request $request)
     {
         $q = Tagihan::with(['jenis', 'santri']);
-        $this->applyFilter($q, $request, 'jenjang', 'jenjang');
+        $this->scopeLembaga($q, $request->user(), $request, 'tagihan.jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
         if ($request->filled('jenis_id')) {
             $q->where('jenis_id', $request->input('jenis_id'));
@@ -630,11 +629,28 @@ class TagihanController extends Controller
         return response()->json($q->paginate($this->perPage($request)));
     }
 
+    private function pastikanJenisLembaga($actor, JenisTagihan $jenis, string $jenjang): void
+    {
+        if ($jenis->jenjang !== null) {
+            $this->authorizeLembaga($actor, $jenis->jenjang);
+            if ($jenis->jenjang !== $jenjang) {
+                abort(422, 'Jenis tagihan tidak berlaku pada lembaga ini.');
+            }
+        }
+    }
+
     public function storeTagihan(TagihanStoreRequest $request)
     {
         $data = $request->validated();
         $this->canLembaga($request->user(), $data['jenjang']) || abort(403);
         $jenis = JenisTagihan::findOrFail($data['jenis_id']);
+        $this->pastikanJenisLembaga($request->user(), $jenis, $data['jenjang']);
+        $santriSesuai = Santri::whereKey($data['santri_id'])->where(fn ($s) => $s
+            ->whereHas('lembagaSantri', fn ($l) => $l->where('jenjang', $data['jenjang']))
+            ->orWhereHas('riwayatBelajar', fn ($r) => $r->where('jenjang', $data['jenjang'])))->exists();
+        if (! $santriSesuai) {
+            abort(422, 'Santri tidak terdaftar pada lembaga tagihan.');
+        }
         $data['jatuh_tempo'] = JatuhTempo::untuk((string) $jenis->tipe, $data['periode'] ?? null, $data['jatuh_tempo'] ?? null);
         $tagihan = Tagihan::create($data + ['status' => 'belum', 'terbayar' => 0]);
 
@@ -666,102 +682,105 @@ class TagihanController extends Controller
      */
     public function updateTagihan(TagihanUpdateRequest $request, Tagihan $tagihan)
     {
-        $data = $request->validated();
-        $this->canLembaga($request->user(), $tagihan->jenjang) || abort(403);
+        return DB::transaction(function () use ($request, $tagihan) {
+            $tagihan = Tagihan::whereKey($tagihan->id)->lockForUpdate()->firstOrFail();
+            $data = $request->validated();
+            $this->canLembaga($request->user(), $tagihan->jenjang) || abort(403);
 
-        $perluDaftar = [];
-        if (array_key_exists('dispensasi_ids', $data)) {
-            $ids = collect($data['dispensasi_ids'] ?? [])
-                ->map(fn ($v) => (int) $v)->unique()->sort()->values();
-            if ($ids->isEmpty()) {
-                // Lepas eksplisit ("Tanpa dispensasi") + koreksi manual: pakai
-                // nominal ketikan, jejak lama dibersihkan.
-                $data['potongan'] = 0;
-                $data['dispensasi_ids'] = null;
-            } else {
-                $aturanSvc = app(DispensasiService::class);
-                $paket = Dispensasi::with(['aturan.jenis', 'santriTambahan'])
-                    ->whereIn('id', $ids)->where('is_active', true)->get();
-                if ($paket->count() !== $ids->count()) {
-                    abort(422, 'Dispensasi tidak valid atau sudah nonaktif.');
-                }
-                foreach ($paket as $d) {
-                    if (! $aturanSvc->lingkupCocok($d->jenjang, $tagihan->jenjang)) {
-                        abort(422, "Dispensasi '{$d->nama}' hanya berlaku untuk lembaga {$d->jenjang}.");
+            $perluDaftar = [];
+            if (array_key_exists('dispensasi_ids', $data)) {
+                $ids = collect($data['dispensasi_ids'] ?? [])
+                    ->map(fn ($v) => (int) $v)->unique()->sort()->values();
+                if ($ids->isEmpty()) {
+                    // Lepas eksplisit ("Tanpa dispensasi") + koreksi manual: pakai
+                    // nominal ketikan, jejak lama dibersihkan.
+                    $data['potongan'] = 0;
+                    $data['dispensasi_ids'] = null;
+                } else {
+                    $aturanSvc = app(DispensasiService::class);
+                    $paket = Dispensasi::with(['aturan.jenis', 'santriTambahan'])
+                        ->whereIn('id', $ids)->where('is_active', true)->get();
+                    if ($paket->count() !== $ids->count()) {
+                        abort(422, 'Dispensasi tidak valid atau sudah nonaktif.');
                     }
-                    if ($aturanSvc->aturanUntukJenis($d, (int) $tagihan->jenis_id) === null) {
-                        abort(422, "Dispensasi '{$d->nama}' tidak punya aturan untuk jenis tagihan ini.");
-                    }
-                    if (! in_array((int) $tagihan->santri_id, $d->santri_ids ?? [], true)) {
-                        $perluDaftar[] = $d->id;
-                    }
-                }
-                if (JenisTagihan::whereKey($tagihan->jenis_id)->value('tipe') === 'bulanan') {
-                    $punya = array_map('intval', (array) ($tagihan->dispensasi_ids ?? []));
-                    $pakai = $this->pakaiKuota($paket, (int) $tagihan->santri_id);
                     foreach ($paket as $d) {
-                        if ($d->kuota_bulan !== null
-                            && ! in_array((int) $d->id, $punya, true)
-                            && ($pakai[(int) $d->id] ?? 0) >= (int) $d->kuota_bulan) {
-                            abort(422, "Kuota {$d->kuota_bulan} bulan paket '{$d->nama}' sudah habis untuk santri ini.");
+                        if (! $aturanSvc->lingkupCocok($d->jenjang, $tagihan->jenjang)) {
+                            abort(422, "Dispensasi '{$d->nama}' hanya berlaku untuk lembaga {$d->jenjang}.");
+                        }
+                        if ($aturanSvc->aturanUntukJenis($d, (int) $tagihan->jenis_id) === null) {
+                            abort(422, "Dispensasi '{$d->nama}' tidak punya aturan untuk jenis tagihan ini.");
+                        }
+                        if (! in_array((int) $tagihan->santri_id, $d->santri_ids ?? [], true)) {
+                            $perluDaftar[] = $d->id;
                         }
                     }
+                    if (JenisTagihan::whereKey($tagihan->jenis_id)->value('tipe') === 'bulanan') {
+                        $punya = array_map('intval', (array) ($tagihan->dispensasi_ids ?? []));
+                        $pakai = $this->pakaiKuota($paket, (int) $tagihan->santri_id);
+                        foreach ($paket as $d) {
+                            if ($d->kuota_bulan !== null
+                                && ! in_array((int) $d->id, $punya, true)
+                                && ($pakai[(int) $d->id] ?? 0) >= (int) $d->kuota_bulan) {
+                                abort(422, "Kuota {$d->kuota_bulan} bulan paket '{$d->nama}' sudah habis untuk santri ini.");
+                            }
+                        }
+                    }
+                    // Pilihan eksplisit menggantikan yang se-grup; grup lain yang
+                    // menempel dipertahankan (digabung, bukan ditimpa semua).
+                    $punya = array_map('intval', (array) ($tagihan->dispensasi_ids ?? []));
+                    $sudahAda = $this->grupMenempel((int) $tagihan->santri_id)->only($punya)->values();
+                    $final = $aturanSvc->selaraskan($paket, $sudahAda);
+                    $hasil = $aturanSvc->terapkan(
+                        (int) $tagihan->nominal + (int) $tagihan->potongan,
+                        $final,
+                        (int) $tagihan->jenis_id,
+                    );
+                    $data['nominal'] = $hasil['nominal'];
+                    $data['potongan'] = $hasil['potongan'];
+                    $data['dispensasi_ids'] = $hasil['ids'] === [] ? null : $hasil['ids'];
                 }
-                // Pilihan eksplisit menggantikan yang se-grup; grup lain yang
-                // menempel dipertahankan (digabung, bukan ditimpa semua).
-                $punya = array_map('intval', (array) ($tagihan->dispensasi_ids ?? []));
-                $sudahAda = $this->grupMenempel((int) $tagihan->santri_id)->only($punya)->values();
-                $final = $aturanSvc->selaraskan($paket, $sudahAda);
-                $hasil = $aturanSvc->terapkan(
-                    (int) $tagihan->nominal + (int) $tagihan->potongan,
-                    $final,
-                    (int) $tagihan->jenis_id,
-                );
-                $data['nominal'] = $hasil['nominal'];
-                $data['potongan'] = $hasil['potongan'];
-                $data['dispensasi_ids'] = $hasil['ids'] === [] ? null : $hasil['ids'];
+            } elseif ((int) $data['nominal'] !== (int) $tagihan->nominal) {
+                // Koreksi manual: jejak potongan lama basi bila nominal berubah.
+                $data['potongan'] = 0;
+                $data['dispensasi_ids'] = null;
             }
-        } elseif ((int) $data['nominal'] !== (int) $tagihan->nominal) {
-            // Koreksi manual: jejak potongan lama basi bila nominal berubah.
-            $data['potongan'] = 0;
-            $data['dispensasi_ids'] = null;
-        }
 
-        if ($data['nominal'] < $tagihan->terbayar) {
-            abort(422, "Nominal tidak boleh lebih kecil dari yang sudah dibayar (Rp {$tagihan->terbayar}).");
-        }
-
-        $jenis = JenisTagihan::findOrFail($tagihan->jenis_id);
-
-        $tagihan->nominal = $data['nominal'];
-        $tagihan->tahun_ajaran = $data['tahun_ajaran'];
-        // Jejak dispensasi hanya berubah lewat dua jalur di atas (terapkan
-        // eksplisit / koreksi manual); ubah TA/tanggal saja mempertahankannya.
-        if (array_key_exists('potongan', $data)) {
-            $tagihan->potongan = $data['potongan'];
-        }
-        if (array_key_exists('dispensasi_ids', $data)) {
-            $tagihan->dispensasi_ids = $data['dispensasi_ids'];
-        }
-        $tagihan->jatuh_tempo = JatuhTempo::untuk(
-            (string) $jenis->tipe,
-            $tagihan->periode,
-            $data['jatuh_tempo'] ?? null,
-        );
-        $tagihan->status = match (true) {
-            $tagihan->terbayar <= 0 => 'belum',
-            $tagihan->terbayar >= $tagihan->nominal => 'lunas',
-            default => 'sebagian',
-        };
-        DB::transaction(function () use ($tagihan, $perluDaftar) {
-            foreach ($perluDaftar as $did) {
-                Dispensasi::whereKey($did)->firstOrFail()
-                    ->santriTambahan()->syncWithoutDetaching([(int) $tagihan->santri_id]);
+            if ($data['nominal'] < $tagihan->terbayar) {
+                abort(422, "Nominal tidak boleh lebih kecil dari yang sudah dibayar (Rp {$tagihan->terbayar}).");
             }
-            $tagihan->save();
+
+            $jenis = JenisTagihan::findOrFail($tagihan->jenis_id);
+
+            $tagihan->nominal = $data['nominal'];
+            $tagihan->tahun_ajaran = $data['tahun_ajaran'];
+            // Jejak dispensasi hanya berubah lewat dua jalur di atas (terapkan
+            // eksplisit / koreksi manual); ubah TA/tanggal saja mempertahankannya.
+            if (array_key_exists('potongan', $data)) {
+                $tagihan->potongan = $data['potongan'];
+            }
+            if (array_key_exists('dispensasi_ids', $data)) {
+                $tagihan->dispensasi_ids = $data['dispensasi_ids'];
+            }
+            $tagihan->jatuh_tempo = JatuhTempo::untuk(
+                (string) $jenis->tipe,
+                $tagihan->periode,
+                $data['jatuh_tempo'] ?? null,
+            );
+            $tagihan->status = match (true) {
+                $tagihan->terbayar <= 0 => 'belum',
+                $tagihan->terbayar >= $tagihan->nominal => 'lunas',
+                default => 'sebagian',
+            };
+            DB::transaction(function () use ($tagihan, $perluDaftar) {
+                foreach ($perluDaftar as $did) {
+                    Dispensasi::whereKey($did)->firstOrFail()
+                        ->santriTambahan()->syncWithoutDetaching([(int) $tagihan->santri_id]);
+                }
+                $tagihan->save();
+            });
+
+            return response()->json($tagihan);
         });
-
-        return response()->json($tagihan);
     }
 
     /**
@@ -797,7 +816,9 @@ class TagihanController extends Controller
            (kompatibel lama) = semua, sama seperti 'aktif'. */
         $anggotaCustom = null;
         if ($data['kelompok'] === 'custom' && isset($data['grup_custom_id'])) {
-            $anggotaCustom = array_flip(GrupSantriCustom::find($data['grup_custom_id'])
+            $grup = GrupSantriCustom::tenantScope()->find($data['grup_custom_id']);
+            abort_unless($grup, 403, 'Grup di luar lingkup lembaga Anda.');
+            $anggotaCustom = array_flip($grup
                 ?->santri()->pluck('santri.id')->map(fn ($v) => (int) $v)->all() ?? []);
         }
         foreach ($peta as $id => $info) {
@@ -887,6 +908,9 @@ class TagihanController extends Controller
         $actor = $request->user();
 
         $jenis = JenisTagihan::findOrFail($data['jenis_id']);
+        if ($jenis->jenjang !== null) {
+            $this->authorizeLembaga($actor, $jenis->jenjang);
+        }
         $periodes = $this->periodesTagihan($jenis, $data['tahun_ajaran'], $data['periode'] ?? null, $data['periode_sampai'] ?? null);
 
         $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
@@ -915,13 +939,25 @@ class TagihanController extends Controller
             $diperbarui = 0;
             $tetap = 0;
             $alasan = [];
+            $santriIds = $diminta->keys()->all();
+            // Kunci santri juga menyerialkan dua generate ketika tagihan belum ada.
+            Santri::whereIn('id', $santriIds)->orderBy('id')->lockForUpdate()->get(['id']);
+            Tagihan::whereIn('santri_id', $santriIds)->orderBy('id')->lockForUpdate()->get(['id']);
+            $posisi = 0;
+            $adaPeta = [];
 
             foreach ($diminta as $santriId => $s) {
+                // Batasi model existing yang ditahan di memori, tanpa query per bulan.
+                if ($posisi % 200 === 0) {
+                    $adaPeta = $this->petaTagihanAda(array_slice($santriIds, $posisi, 200), (int) $jenis->id, $periodes, true);
+                }
+                $posisi++;
                 $info = $peta[$santriId] ?? null;
                 if ($info === null) {
                     abort(422, "Santri #{$santriId} tidak aktif pada tahun ajaran {$data['tahun_ajaran']}.");
                 }
                 $this->canLembaga($actor, $info['jenjang_utama']) || abort(403);
+                $this->pastikanJenisLembaga($actor, $jenis, $info['jenjang_utama']);
 
                 if (array_key_exists('nominal', $s) && $s['nominal'] !== null) {
                     $paketDasar = null;
@@ -937,16 +973,15 @@ class TagihanController extends Controller
                     $pakaiKuota = $this->pakaiKuota($paketDasar, (int) $santriId);
                     // Paket aktif yang menempel di tagihan santri — prioritas
                     // "meneruskan" per grup saat digabung per baris.
-                    $grupMap = $this->grupMenempel((int) $santriId);
+                    $punyaPaket = collect($adaPeta[$santriId] ?? [])
+                        ->contains(fn (Tagihan $t) => ! empty($t->dispensasi_ids));
+                    $grupMap = $punyaPaket ? $this->grupMenempel((int) $santriId) : collect();
                     $nominalManual = null;
                 }
 
                 foreach ($periodes as $periode) {
                     $jatuhTempo = JatuhTempo::untuk((string) $jenis->tipe, $periode, $data['jatuh_tempo'] ?? null);
-                    $ada = Tagihan::where('santri_id', $santriId)
-                        ->where('jenis_id', $jenis->id)
-                        ->where('periode', $periode)
-                        ->first();
+                    $ada = $adaPeta[$santriId][$periode] ?? null;
 
                     if ($ada === null) {
                         if ($paketDasar === null) {
@@ -1087,6 +1122,9 @@ class TagihanController extends Controller
         $actor = $request->user();
 
         $jenis = JenisTagihan::findOrFail($data['jenis_id']);
+        if ($jenis->jenjang !== null) {
+            $this->authorizeLembaga($actor, $jenis->jenjang);
+        }
         $periodes = $this->periodesTagihan($jenis, $data['tahun_ajaran'], $data['periode'] ?? null, $data['periode_sampai'] ?? null);
 
         $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
@@ -1110,6 +1148,7 @@ class TagihanController extends Controller
                 abort(422, "Santri #{$santriId} tidak aktif pada tahun ajaran {$data['tahun_ajaran']}.");
             }
             $this->canLembaga($actor, $info['jenjang_utama']) || abort(403);
+            $this->pastikanJenisLembaga($actor, $jenis, $info['jenjang_utama']);
 
             if (array_key_exists('nominal', $s) && $s['nominal'] !== null) {
                 $paketDasar = null;
@@ -1222,14 +1261,18 @@ class TagihanController extends Controller
      * @param  list<string>  $periodes
      * @return array<int, array<string, Tagihan>>
      */
-    private function petaTagihanAda(array $santriIds, int $jenisId, array $periodes): array
+    private function petaTagihanAda(array $santriIds, int $jenisId, array $periodes, bool $kunci = false): array
     {
         if ($santriIds === [] || $periodes === []) {
             return [];
         }
         $peta = [];
-        foreach (Tagihan::whereIn('santri_id', $santriIds)->where('jenis_id', $jenisId)
-            ->whereIn('periode', $periodes)->get() as $t) {
+        $q = Tagihan::whereIn('santri_id', $santriIds)->where('jenis_id', $jenisId)
+            ->whereIn('periode', $periodes)->orderBy('id');
+        if ($kunci) {
+            $q->lockForUpdate();
+        }
+        foreach ($q->get() as $t) {
             $peta[(int) $t->santri_id][(string) $t->periode] = $t;
         }
 
@@ -1479,11 +1522,14 @@ class TagihanController extends Controller
 
     public function destroyTagihan(Request $request, Tagihan $tagihan)
     {
-        $this->canLembaga($request->user(), $tagihan->jenjang) || abort(403);
-        if ($tagihan->pembayaran()->where('status', 'aktif')->exists()) {
-            abort(422, 'Hapus dulu pembayaran pada tagihan ini.');
-        }
-        $tagihan->delete();
+        DB::transaction(function () use ($request, $tagihan) {
+            $tagihan = Tagihan::whereKey($tagihan->id)->lockForUpdate()->firstOrFail();
+            $this->canLembaga($request->user(), $tagihan->jenjang) || abort(403);
+            if ($tagihan->pembayaran()->where('status', 'aktif')->exists()) {
+                abort(422, 'Hapus dulu pembayaran pada tagihan ini.');
+            }
+            $tagihan->delete();
+        });
 
         return response()->json(['pesan' => 'Tagihan dihapus.']);
     }

@@ -24,6 +24,72 @@ class KeuanganTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_generate_massal_membatasi_query_baca_dan_ulang_tidak_mengubah_tagihan(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq batch', 'tipe' => 'bulanan']);
+        $santri = [];
+        $riwayat = [];
+        for ($id = 1; $id <= 201; $id++) {
+            $santri[] = ['id' => $id, 'nama_lengkap' => "Santri {$id}", 'jk' => 'L'];
+            $riwayat[] = [
+                'santri_id' => $id, 'jenjang' => 'MI', 'tahun_ajaran' => '2025/2026',
+                'semester' => '1', 'status_akhir' => 'aktif', 'is_active_riwayat' => 'Ya',
+            ];
+        }
+        DB::table('santri')->insert($santri);
+        DB::table('riwayat_belajar')->insert($riwayat);
+        $payload = [
+            'jenis_id' => $jenis->id, 'tahun_ajaran' => '2025/2026',
+            'periode' => '2025-07', 'periode_sampai' => '2026-06', 'nominal' => 100000,
+            'santri' => array_map(fn ($s) => ['santri_id' => $s['id']], $santri),
+        ];
+
+        $sebelum = null;
+        foreach ([2412, 0] as $dibuat) {
+            DB::enableQueryLog();
+            DB::flushQueryLog();
+            try {
+                $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload)
+                    ->assertOk()->assertJsonPath('dibuat', $dibuat)
+                    ->assertJsonPath('tetap', 2412 - $dibuat);
+                $baca = array_filter(DB::getQueryLog(), fn ($q) => str_starts_with(strtolower($q['query']), 'select'));
+            } finally {
+                DB::disableQueryLog();
+                DB::flushQueryLog();
+            }
+            $this->assertLessThan(50, count($baca), 'Query baca tidak boleh bertambah per santri/periode.');
+            $sesudah = DB::table('tagihan')->orderBy('id')->get()->toArray();
+            if ($sebelum !== null) {
+                $this->assertEquals($sebelum, $sesudah);
+            }
+            $sebelum = $sesudah;
+            $this->travel(1)->minutes();
+        }
+        $this->assertDatabaseCount('tagihan', 2412);
+    }
+
+    public function test_validasi_generate_batch_tetap_menolak_id_hilang_ganda_dan_bentuk_tidak_sah(): void
+    {
+        $admin = $this->admin();
+        $jenis = JenisTagihan::create(['nama' => 'Infaq validasi', 'tipe' => 'bulanan']);
+        $santri = Santri::create(['nama_lengkap' => 'Santri validasi', 'jk' => 'L']);
+        $payload = [
+            'jenis_id' => $jenis->id, 'tahun_ajaran' => '2025/2026',
+            'periode' => '2025-07', 'nominal' => 100000,
+        ];
+        foreach ([
+            [[['santri_id' => 99999]], ['santri.0.santri_id']],
+            [[['santri_id' => $santri->id], ['santri_id' => (string) $santri->id]], ['santri.0.santri_id', 'santri.1.santri_id']],
+            [[['santri_id' => ['salah']]], ['santri.0.santri_id']],
+            ['salah', ['santri']],
+        ] as [$items, $galat]) {
+            $this->actingAs($admin)->postJson('/api/admin/keuangan/tagihan/generate', $payload + ['santri' => $items])
+                ->assertUnprocessable()->assertJsonValidationErrors($galat);
+        }
+        $this->assertDatabaseCount('tagihan', 0);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

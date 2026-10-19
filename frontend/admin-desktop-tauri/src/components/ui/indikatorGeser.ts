@@ -9,7 +9,7 @@ export interface GeometriIndikator {
  *  `status` = nilai `data-state` yang dilacak (`active` untuk Tabs,
  *  `on` untuk ToggleGroup). Pengukuran ulang dipicu perubahan atribut,
  *  anak, ukuran wadah, ukuran jendela, dan font yang selesai dimuat. */
-export function pakaiIndikatorGeser<T extends HTMLElement>(status: 'active' | 'on'): {
+export function useIndikatorGeser<T extends HTMLElement>(status: 'active' | 'on'): {
   refWadah: React.MutableRefObject<T | null>;
   geometri: GeometriIndikator | null;
 } {

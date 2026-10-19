@@ -27,7 +27,6 @@ import LabeledCombobox from '@/components/LabeledCombobox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
 } from '@/components/ui/combobox';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';

@@ -91,7 +91,7 @@ export default function PengaturanServerPage() {
   async function onPilihFolder(uji = false) {
     try {
       const { open } = await import('@tauri-apps/plugin-dialog');
-      const dipilih = await open({ multiple: false, directory: true });
+      const dipilih = await open({ multiple: false, directory: true, recursive: true });
       if (typeof dipilih === 'string' && dipilih !== '') {
         if (uji) setFolderArsipTest(dipilih);
         else setFolderArsip(dipilih);

@@ -8,6 +8,7 @@ import {
   TriangleAlert as TriangleAlertIcon,
 } from '@/icons'
 import { Toaster as Sonner, type ToasterProps } from "sonner"
+import "sonner/dist/styles.css"
 import { useTheme } from "@/theme"
 
 const Toaster = ({ ...props }: ToasterProps) => {

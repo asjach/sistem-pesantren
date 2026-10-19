@@ -20,8 +20,6 @@ const simpan = (kunci: string, setelan: Parameters<typeof simpanSetelanKomponen>
 /** Setelan komponen di dalam toolbar tabel (tableKey = tabel uji). */
 const setelan = (kunci: string, tableKey = '') => setelanKomponen(tableKey, kunci);
 import {
-  gabungSetelanKomponen,
-  resetSetelanKomponen,
   setelanKomponen,
   simpanSetelanKomponen,
 } from '@/components/komponenCustom';

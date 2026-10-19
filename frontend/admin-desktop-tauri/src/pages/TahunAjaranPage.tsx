@@ -121,6 +121,10 @@ export default function TahunAjaranPage() {
     }),
     deps: [jenjangs],
   });
+  // `goFirst` beridentitas stabil (useCallback per tableKey) — dipakai terpisah
+  // agar callback di bawah tak perlu menyandang objek `pager` (identitas baru
+  // tiap render).
+  const { goFirst } = pager;
 
   const [nama, setNama] = useState('');
   const [mulai, setMulai] = useState('');
@@ -168,12 +172,12 @@ export default function TahunAjaranPage() {
       toast.success('Tahun ajaran dibuat.');
       setNama(''); setMulai(''); setSelesai('');
       setTambahOpen(false);
-      pager.goFirst();
+      goFirst();
       await load(1);
     } catch (e2) {
       setErr(errorMessage(e2));
     }
-  }, [nama, mulai, selesai, load, pager.goFirst]);
+  }, [nama, mulai, selesai, load, goFirst, setErr]);
 
   const onSetAktif = useCallback(async (nama: string) => {
     try {
@@ -183,7 +187,7 @@ export default function TahunAjaranPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [load]);
+  }, [load, setErr]);
 
   const onUpdate = useCallback(async () => {
     if (!editRow) return;
@@ -199,7 +203,7 @@ export default function TahunAjaranPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [editRow, editNama, editMulai, editSelesai, load]);
+  }, [editRow, editNama, editMulai, editSelesai, load, setErr]);
 
   const onDelete = useCallback(async (nama: string) => {
     try {
@@ -209,7 +213,7 @@ export default function TahunAjaranPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [load]);
+  }, [load, setErr]);
 
   const onSembunyikan = useCallback(async (nama: string) => {
     if (lembagaAksi === null) return;
@@ -220,7 +224,7 @@ export default function TahunAjaranPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [lembagaAksi, load]);
+  }, [lembagaAksi, load, setErr]);
 
   const onTampilkan = useCallback(async (nama: string) => {
     if (lembagaAksi === null) return;
@@ -231,7 +235,7 @@ export default function TahunAjaranPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [lembagaAksi, load]);
+  }, [lembagaAksi, load, setErr]);
 
   /** Mode Input: buat TA baru dari baris input (super_admin). */
   const createRow = useCallback(async (f: Record<string, string | null>) => {

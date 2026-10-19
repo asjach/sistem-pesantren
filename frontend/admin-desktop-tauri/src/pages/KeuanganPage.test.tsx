@@ -7,7 +7,7 @@ import KeuanganPage from './KeuanganPage';
 import { CariGlobalProvider } from '@/hooks/useCariGlobal';
 import { TopBarSearchProvider, useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { renderDenganTema } from '@/test/utils';
-import { daftarJenis, daftarTarif, type CrosstabTagihan, type JenisTagihan, type Tarif } from '@/api/keuangan';
+import { daftarJenis, daftarTarif, type JenisTagihan, type Tarif } from '@/api/keuangan';
 
 beforeAll(() => {
   if (!('ResizeObserver' in globalThis)) {
@@ -86,9 +86,11 @@ const ujiAuth = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@/auth/AuthContext', () => ({
-  useAuth: () => ({ user: ujiAuth.user, loading: false, setUser: () => {}, logoutLocal: async () => {} }),
-}));
+vi.mock('@/auth/AuthContext', () => {
+  const setUser = vi.fn();
+  const logoutLocal = vi.fn(async () => {});
+  return { useAuth: () => ({ user: ujiAuth.user, loading: false, setUser, logoutLocal }) };
+});
 
 vi.mock('@/api/keuangan', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/api/keuangan')>();
@@ -192,7 +194,7 @@ beforeEach(() => {
  *  sebabnya tes lama gagal menemukan placeholder. */
 function SlotCari() {
   const ctx = useTopBarSearchCtx();
-  return <div ref={(el) => ctx?.setEl(el)} />;
+  return <div ref={ctx?.setEl} />;
 }
 
 async function bukaTabTagihan() {

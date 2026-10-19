@@ -91,7 +91,6 @@ export function VisibilitasFilterProvider({ children }: { children: ReactNode })
   const registrasiAktif = registrasi?.pageKey === pageKey ? registrasi : fallback;
 
   useEffect(() => {
-    const relevan = registrasiAktif?.filterRelevan ?? konfigurasi.filter;
     const bawaan = registrasiAktif?.bawaan ?? konfigurasi.tampil;
     const modeBawaan = registrasiAktif?.modeBawaan ?? konfigurasi.mode;
 
@@ -109,7 +108,7 @@ export function VisibilitasFilterProvider({ children }: { children: ReactNode })
     filterRelevan: registrasiAktif?.filterRelevan ?? [],
     registrasi: registrasiAktif,
     setRegistrasi,
-  }), [tampil, mode, pageKey, registrasiAktif]);
+  }), [tampil, mode, registrasiAktif]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -159,7 +158,9 @@ export function PengaturanHalaman({
     return () => {
       setRegistrasi(null);
     };
-  }, [setRegistrasi, pageKey, konfigurasi, kunciLengkap]);
+    // `kunci` ikut didengar (meski `kunciLengkap` sudah jadi superset-nya):
+    // efek membaca `kunci` langsung, jadi dependensinya disebut eksplisit.
+  }, [setRegistrasi, pageKey, konfigurasi, kunci, kunciLengkap]);
 
   return null;
 }

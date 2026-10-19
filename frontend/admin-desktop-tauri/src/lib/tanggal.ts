@@ -37,9 +37,13 @@ const pad2 = (n: number): string => String(n).padStart(2, '0');
 
 /* ---------- Tanggal: ISO ⇄ bagian angka ---------- */
 
-/** ISO hari ini menurut zona waktu LOKAL (bukan UTC) — `YYYY-MM-DD`. */
+/** ISO hari operasional pesantren (Asia/Jakarta), terlepas dari zona OS. */
 export function hariIniIso(): string {
-  return new Date().toLocaleDateString('sv-SE');
+  const bagian = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const nilai = (tipe: Intl.DateTimeFormatPartTypes) => bagian.find((b) => b.type === tipe)?.value ?? '';
+  return `${nilai('year')}-${nilai('month')}-${nilai('day')}`;
 }
 
 /** Jumlah hari satu bulan (1–12); `bulan` di luar rentang = 0. */

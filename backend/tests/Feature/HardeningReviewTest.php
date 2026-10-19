@@ -21,7 +21,7 @@ class HardeningReviewTest extends TestCase
     {
         $u = User::create([
             'name' => 'Admin Throttle',
-            'email' => 'throttle_' . uniqid() . '@example.com',
+            'email' => 'throttle_'.uniqid().'@example.com',
             'password' => 'password',
         ]);
         $u->assignRole('admin');
@@ -68,7 +68,7 @@ class HardeningReviewTest extends TestCase
     {
         $ortu = User::create([
             'name' => 'Ortu Desktop',
-            'email' => 'ortu_desktop_' . uniqid() . '@example.com',
+            'email' => 'ortu_desktop_'.uniqid().'@example.com',
             'password' => 'password',
         ]);
         $ortu->assignRole('orang_tua');
@@ -95,7 +95,7 @@ class HardeningReviewTest extends TestCase
     {
         $ortu = User::create([
             'name' => 'Ortu Dashboard',
-            'email' => 'ortu_dash_' . uniqid() . '@example.com',
+            'email' => 'ortu_dash_'.uniqid().'@example.com',
             'password' => 'password',
         ]);
         $ortu->assignRole('orang_tua');

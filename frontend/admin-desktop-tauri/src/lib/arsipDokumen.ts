@@ -9,7 +9,7 @@
  *  terverifikasi. Di browser biasa modul ini tidak dipakai (penjagaan
  *  `isTauri()` di halaman).
  */
-import { prefGet } from '@/api/client';
+import { isTauri, prefGet } from '@/api/client';
 
 /** Nama folder tujuan file asli di lokasi sumbernya. */
 export const FOLDER_SUDAH = 'sudah';
@@ -138,8 +138,17 @@ export async function pilihBerkasDokumen(bebas = false): Promise<BerkasTerpilih 
 }
 
 /** Selesaikan akar arsip: pref absolut bila diisi, sonst bawaan Documents. */
+const akarDiizinkan = new Set<string>();
+
 export async function akarArsip(folderPref: string, bawaan: string): Promise<string> {
-  if (folderPref.trim() !== '') return folderPref;
+  if (folderPref.trim() !== '') {
+    if (isTauri() && !akarDiizinkan.has(folderPref)) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('siapkan_akses_arsip', { sumber: null });
+      akarDiizinkan.add(folderPref);
+    }
+    return folderPref;
+  }
   const { documentDir, join } = await import('@tauri-apps/api/path');
   return join(await documentDir(), bawaan);
 }
@@ -206,20 +215,14 @@ export async function tulisBalikArsip(namaLama: string, namaBaru: string, jenis:
     akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
     akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
   ]);
-  let folder: string | null = null;
-  for (const akar of akars) {
-    const ketemu = await cariArsip(namaLama, jenis, akar, tipe, lokasi);
-    if (ketemu) {
-      const { dirname } = await import('@tauri-apps/api/path');
-      folder = await dirname(ketemu);
-      break;
-    }
-  }
-  folder ??= await folderArsip(lokasi === 'test' ? akars[1] : akars[0], lokasi, tipe);
+  const akarTujuan = lokasi === 'test' ? akars[1] : akars[0];
+  const ketemu = await cariArsip(namaLama, jenis, akarTujuan, tipe, lokasi);
+  const { dirname } = await import('@tauri-apps/api/path');
+  const folder = ketemu ? await dirname(ketemu) : await folderArsip(akarTujuan, lokasi, tipe);
   await mkdir(folder, { recursive: true });
   await writeFile(await join(folder, namaBaru), data);
   if (namaBaru !== namaLama) {
-    for (const akar of akars) await hapusArsip(namaLama, jenis, akar, tipe, lokasi);
+    await hapusArsip(namaLama, jenis, akarTujuan, tipe, lokasi);
   }
 }
 /** Hapus salinan arsip di semua tata (baru + lama); diam bila tak ada. */
@@ -275,7 +278,7 @@ export async function tulisGantiArsip(input: {
   await writeFile(tujuan, input.data);
   if (!(await exists(tujuan))) throw new Error('Salinan arsip tidak terbentuk.');
   if (input.namaLama) {
-    for (const akar of [akarDokumen, akarTest]) await hapusArsip(input.namaLama, input.jenis, akar, input.tipe, input.lokasi);
+    await hapusArsip(input.namaLama, input.jenis, input.lokasi === 'test' ? akarTest : akarDokumen, input.tipe, input.lokasi);
   }
   return namaBaru;
 }
@@ -449,6 +452,10 @@ export async function statLokal(
  *  bila gagal (mis. lintas volume) fallback salin + verifikasi ukuran + hapus.
  *  Mengembalikan path tujuan. */
 export async function pindahKeSudah(pathSumber: string): Promise<string> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('siapkan_akses_arsip', { sumber: pathSumber });
+  }
   const { copyFile, exists, mkdir, remove, rename, size } = await import('@tauri-apps/plugin-fs');
   const { basename, dirname, join } = await import('@tauri-apps/api/path');
   const folderSudah = await join(await dirname(pathSumber), FOLDER_SUDAH);

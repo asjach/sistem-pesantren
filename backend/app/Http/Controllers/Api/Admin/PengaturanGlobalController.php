@@ -32,7 +32,7 @@ class PengaturanGlobalController extends Controller
         // Jumlah baris per halaman: HARUS salah satu opsi PER_PAGE_OPTIONS di
         // frontend (10/50/100/500, 0 = semua). Karena itu dijaga sebagai DAFTAR
         // nilai sah, bukan rentang min-max.
-        'baris_per_halaman' => ['pilihan' => [0, 10, 50, 100, 500]],
+        'baris_per_halaman' => ['pilihan' => [0, 10, 50, 100, 500, 10000]],
     ];
 
     /** GET /api/admin/pengaturan-global — peta kunci → nilai. */

@@ -386,6 +386,11 @@ export default function PopoverAksiTagihan({
             <div className="grid grid-cols-[5rem_1fr] items-center gap-x-2 gap-y-1.5">
               <FieldLabel htmlFor="inp_tambah_nominal" className="text-xs">Nominal</FieldLabel>
               <Input
+                /* autoFocus DISENGAJA: panel "tambah tagihan" dibuka lewat
+                   tombol Tambah di baris tagihan; langkah berikutnya pasti
+                   menulis nominal — fokus langsung ke kotak Nominal adalah
+                   alur yang dimaksud. */
+                /* eslint-disable-next-line jsx-a11y/no-autofocus */
                 autoFocus
                 id="inp_tambah_nominal"
                 type="number"
@@ -877,7 +882,11 @@ export default function PopoverAksiTagihan({
                       kolom grid; baris Metode/Posisi Kas di bawahnya tetap
                       memakai kolom label. */}
                   <LabeledInput
-                    /* autoFocus (bukan ref): LabeledInput tidak forwardRef. */
+                    /* autoFocus (bukan ref): LabeledInput tidak forwardRef.
+                       DISENGAJA: panel bayar dibuka dari baris tagihan dan
+                       langkah berikutnya pasti menulis jumlah — fokus langsung
+                       ke kotak Bayar adalah alur yang dimaksud. */
+                    /* eslint-disable-next-line jsx-a11y/no-autofocus */
                     autoFocus
                     nama="nominal"
                     tipeKontrol="nominal"

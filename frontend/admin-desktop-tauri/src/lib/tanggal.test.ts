@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   bulanDariTampilan,
   bulanIni,
@@ -24,10 +24,12 @@ import {
 } from './tanggal';
 
 describe('hariIniIso', () => {
-  it('memakai tanggal LOKAL dalam bentuk ISO', () => {
-    const d = new Date();
-    const lokal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    expect(hariIniIso()).toBe(lokal);
+  it('memakai hari Jakarta meskipun tanggal UTC masih sehari sebelumnya', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-10-18T18:30:00Z'));
+      expect(hariIniIso()).toBe('2026-10-19');
+    } finally { vi.useRealTimers(); }
   });
 });
 

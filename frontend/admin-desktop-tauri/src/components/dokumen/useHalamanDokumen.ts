@@ -144,7 +144,6 @@ export function useHalamanDokumen({
     const c = new AbortController();
     void muatDokumen(subjekId, c.signal);
     return () => c.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subjekId, muatDokumen]);
 
   /** Ambil byte untuk pratinjau: arsip perangkat bila lokal/test, bila tidak dari server. */
@@ -230,9 +229,8 @@ export function useHalamanDokumen({
         akarArsip(typeof r1 === 'string' ? r1 : '', ROOT_ARSIP_DOKUMEN),
         akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
       ]);
-      for (const akar of akars) {
-        await hapusArsip(nama, jenis, akar, entitas, lokasi);
-      }
+      const akar = lokasi === 'test' ? akars[1] : akars[0];
+      await hapusArsip(nama, jenis, akar, entitas, lokasi);
     } catch (e) {
       toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
     }

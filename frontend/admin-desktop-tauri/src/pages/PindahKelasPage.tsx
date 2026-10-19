@@ -173,7 +173,6 @@ export default function PindahKelasPage() {
     }
     hasil.sort((a, b) => String(a.tingkat ?? '').localeCompare(String(b.tingkat ?? ''), 'id', { numeric: true }));
     return hasil;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kelas, rows, tingkatAktif, kelasAktif]);
 
   const pindah = async (r: RiwayatRow, kelasBaruId: number) => {

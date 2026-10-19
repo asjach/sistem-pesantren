@@ -92,7 +92,13 @@ export default function MultiSelect({
               ) : null}
               <span className="min-w-0 flex-1 truncate">{o.label}</span>
               {terpilih && onMove ? (
-                <span className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
+                /* Toolbar geser: tiap tombol sudah stopPropagation sendiri,
+                   jadi tahan klik tak perlu ditaruh di pembungkus. */
+                <span
+                  role="toolbar"
+                  aria-label={`Urutan ${o.label}`}
+                  className="flex shrink-0 items-center"
+                >
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button

@@ -53,20 +53,20 @@ export function clampSidebarLebar(px: number): number {
   return Math.min(SIDEBAR_LEBAR_MAX, Math.max(SIDEBAR_LEBAR_MIN, Math.round(n)));
 }
 
-/** Nilai "Semua" pada pilihan baris per halaman: dikirim sebagai `per_page=0`
- *  dan diartikan backend sebagai tanpa batas (semua baris dalam satu halaman). */
+/** Pilihan All dikirim sebagai `per_page=0` untuk kontrak semua baris backend. */
 export const PER_PAGE_ALL = 0;
 
 /** Pagination bawaan SEMUA halaman tabel (baru maupun lama).
  *  Bawaan 50/halaman; opsi kecil (10) untuk daftar pendek, besar (500) untuk
- *  borongan, dan "Semua" (0) untuk menampilkan seluruh baris. */
+ *  borongan, dan All (0) untuk seluruh data. */
 export const PER_PAGE_DEFAULT = 50;
 export const PER_PAGE_OPTIONS = [10, 50, 100, 500, PER_PAGE_ALL] as const;
 export type PerPage = (typeof PER_PAGE_OPTIONS)[number];
 
 /** Normalisasi nilai simpanan/URL menjadi salah satu opsi (jatuh ke bawaan). */
 export function normalizePerPage(v: unknown): PerPage {
-  const n = typeof v === 'string' ? Number(v) : (v as number);
+  const lama = typeof v === 'string' ? Number(v) : (v as number);
+  const n = lama === 10_000 ? PER_PAGE_ALL : lama;
   return (PER_PAGE_OPTIONS as readonly number[]).includes(n) ? (n as PerPage) : PER_PAGE_DEFAULT;
 }
 

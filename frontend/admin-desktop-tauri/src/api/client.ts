@@ -18,6 +18,29 @@ const TOKEN_KEY = 'simpes_token';
 const USER_KEY = 'simpes_user';
 const BASE_URL_KEY = 'simpes_base_url';
 
+let sessionVersion = 0;
+let sessionWrite: Promise<void> = Promise.resolve();
+
+export function getSessionVersion(): number {
+  return sessionVersion;
+}
+
+function invalidateSessionContext(): void {
+  sessionVersion++;
+  getCache.clear();
+  inFlightGet.clear();
+}
+
+function assertCurrentSession(version: number): void {
+  if (version !== sessionVersion) throw new DOMException('Sesi permintaan sudah berubah.', 'AbortError');
+}
+
+function writeSession(work: () => Promise<void>): Promise<void> {
+  const next = sessionWrite.then(work, work);
+  sessionWrite = next.catch(() => {});
+  return next;
+}
+
 /** Lembaga yang sedang "diperankan" (mode bertindak sebagai lembaga) — dikirim
  *  sebagai header X-Lembaga-Aktif. `null` = mode penuh. */
 let lembagaAktifId: string | null = null;
@@ -26,23 +49,9 @@ export function setLembagaAktifHeader(id: string | null): void {
   lembagaAktifId = id;
 }
 
-function headerLembaga(): Record<string, string> {
+function headerLembaga(tanpaPeran = false): Record<string, string> {
+  if (tanpaPeran) return {};
   return lembagaAktifId != null ? { 'X-Lembaga-Aktif': String(lembagaAktifId) } : {};
-}
-
-/**
- * Jalankan request tanpa header peran act-as (mode penuh sementara).
- * Dipakai mengambil opsi peran super_admin: daftar lembaga ter-scope saat
- * bertindak, sehingga tanpa ini tombol banner menyusut ke peran aktif saja.
- */
-export async function tanpaHeaderPeran<T>(kerja: () => Promise<T>): Promise<T> {
-  const simpan = lembagaAktifId;
-  lembagaAktifId = null;
-  try {
-    return await kerja();
-  } finally {
-    lembagaAktifId = simpan;
-  }
 }
 
 /** Event global saat sesi kedaluwarsa (401) — didengar AuthProvider. */
@@ -147,39 +156,65 @@ async function tauriInvoke<T>(cmd: string, args: Record<string, unknown>): Promi
   }
 }
 
-/** Token disimpan di OS keychain (desktop); fallback store/localStorage. */
+export const TOKEN_STORAGE_WARNING_EVENT = 'simpes:token-storage-warning';
+const TOKEN_CLEARED_KEY = 'simpes_token_dihapus';
+let volatileToken: string | null | undefined;
+let warnedStorage = false;
+
+function warnTokenStorage(message: string): void {
+  if (warnedStorage) return;
+  warnedStorage = true;
+  window.dispatchEvent(new CustomEvent(TOKEN_STORAGE_WARNING_EVENT, { detail: message }));
+}
+
+/** Desktop memakai keychain; kegagalan hanya memakai memori sesi. */
 async function tokenGet(): Promise<string | null> {
-  if (isTauri()) {
-    const v = await tauriInvoke<string | null>('secure_get', { key: TOKEN_KEY });
-    if (v !== undefined) return v ?? null;
-    // Fallback ke penyimpanan lama + migrasi ke keychain.
-    const old = await kvGet(TOKEN_KEY);
-    if (old) {
-      const migrated = await tauriInvoke<null>('secure_set', { key: TOKEN_KEY, value: old });
-      if (migrated !== undefined) await kvDel(TOKEN_KEY);
-    }
+  if (!isTauri()) return kvGet(TOKEN_KEY);
+  if (volatileToken !== undefined) return volatileToken;
+  if (await kvGet(TOKEN_CLEARED_KEY) === '1') return null;
+  const value = await tauriInvoke<string | null>('secure_get', { key: TOKEN_KEY });
+  if (typeof value === 'string') {
+    await kvDel(TOKEN_KEY);
+    return value;
+  }
+  const old = await kvGet(TOKEN_KEY);
+  if (old) {
+    await tokenSet(old);
     return old;
   }
-  return kvGet(TOKEN_KEY);
+  return null;
 }
 
 async function tokenSet(token: string): Promise<void> {
-  if (isTauri()) {
-    const ok = await tauriInvoke<null>('secure_set', { key: TOKEN_KEY, value: token });
-    if (ok !== undefined) return;
+  if (!isTauri()) { await kvSet(TOKEN_KEY, token); return; }
+  volatileToken = token;
+  // Penanda non-rahasia mencegah kredensial OS lama dipulihkan jika tulis gagal.
+  await kvSet(TOKEN_CLEARED_KEY, '1');
+  const ok = await tauriInvoke<null>('secure_set', { key: TOKEN_KEY, value: token });
+  await kvDel(TOKEN_KEY);
+  if (ok !== undefined) {
+    await kvDel(TOKEN_CLEARED_KEY);
+    volatileToken = undefined;
+    warnedStorage = false;
+  } else {
+    warnTokenStorage('Penyimpanan aman perangkat tidak tersedia. Sesi hanya disimpan selama aplikasi terbuka; Anda perlu login lagi setelah menutup aplikasi.');
   }
-  await kvSet(TOKEN_KEY, token);
 }
 
 async function tokenDel(): Promise<void> {
   if (isTauri()) {
+    volatileToken = null;
+    await kvSet(TOKEN_CLEARED_KEY, '1');
     const ok = await tauriInvoke<null>('secure_delete', { key: TOKEN_KEY });
-    if (ok !== undefined) return;
+    if (ok === undefined) {
+      warnTokenStorage('Token pada penyimpanan sistem tidak dapat dihapus. Sesi lokal sudah ditutup; login ulang diperlukan.');
+    }
   }
   await kvDel(TOKEN_KEY);
 }
 
-export function getToken(): Promise<string | null> {
+export async function getToken(): Promise<string | null> {
+  await sessionWrite;
   return tokenGet();
 }
 
@@ -188,12 +223,16 @@ export const prefGet = kvGet;
 export const prefSet = kvSet;
 
 export async function setSession(token: string, user: unknown): Promise<void> {
-  await tokenSet(token);
-  await kvSet(USER_KEY, JSON.stringify(user));
+  invalidateSessionContext();
+  await writeSession(async () => {
+    await tokenSet(token);
+    await kvSet(USER_KEY, JSON.stringify(user));
+  });
 }
 
 export async function clearSession(): Promise<void> {
-  await Promise.all([tokenDel(), kvDel(USER_KEY)]);
+  invalidateSessionContext();
+  await writeSession(async () => { await Promise.all([tokenDel(), kvDel(USER_KEY)]); });
 }
 
 export async function getBaseUrl(): Promise<string> {
@@ -221,10 +260,12 @@ export async function setBaseUrl(url: string): Promise<void> {
   if (u.protocol === 'http:' && !isLoopback(u.hostname)) {
     throw new Error('http:// hanya diizinkan untuk localhost/127.0.0.1. Gunakan https:// untuk host lain.');
   }
+  invalidateSessionContext();
   await kvSet(BASE_URL_KEY, clean);
 }
 
 export async function resetBaseUrl(): Promise<void> {
+  invalidateSessionContext();
   await kvDel(BASE_URL_KEY);
 }
 
@@ -265,7 +306,10 @@ function messageOf(body: unknown, fallback: string): string {
   return fallback;
 }
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+export type ApiInit = RequestInit & { tanpaPeran?: boolean };
+
+export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
+  const version = sessionVersion;
   const method = (init.method ?? 'GET').toUpperCase();
 
   // Setiap request tulis membatalkan cache GET referensi agar data tak basi
@@ -277,7 +321,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   // daftar referensi yang sama serentak. Permintaan ber-`signal` (abortable)
   // tidak digabung agar pembatalan satu pemanggil tak mengganggu yang lain.
   if (method === 'GET' && !init.signal) {
-    const kunci = `${lembagaAktifId ?? ''}|${path}`;
+    const kunci = `${version}|${init.tanpaPeran ? '' : lembagaAktifId ?? ''}|${path}`;
     if (bolehCache(path)) {
       const c = getCache.get(kunci);
       if (c && Date.now() - c.at < GET_TTL_MS) return c.value as T;
@@ -286,6 +330,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (ada) return ada as Promise<T>;
     const p = apiMentah<T>(path, init)
       .then((v) => {
+        assertCurrentSession(version);
         if (bolehCache(path)) getCache.set(kunci, { at: Date.now(), value: v });
         return v;
       })
@@ -316,24 +361,47 @@ function bolehCache(path: string): boolean {
   return CACHE_PATH.some((p) => path === p || path.startsWith(`${p}?`) || path.startsWith(`${p}/`));
 }
 
-async function apiMentah<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
-  let res: Response;
+const API_TIMEOUT_MS = 60_000;
+
+/** Deadline mencakup pembacaan badan; pembatalan pemanggil tetap AbortError. */
+async function requestApi<T>(url: string, init: RequestInit, read: (res: Response) => Promise<T>): Promise<T> {
+  const ac = new AbortController();
+  const cancel = () => ac.abort(init.signal?.reason);
+  if (init.signal?.aborted) cancel();
+  else init.signal?.addEventListener('abort', cancel, { once: true });
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; ac.abort(); }, API_TIMEOUT_MS);
   try {
-    res = await fetch(`${base}${path}`, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headerLembaga(),
-        ...(init.headers ?? {}),
-      },
-    });
-  } catch {
-    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
+    return await read(await fetch(url, { ...init, signal: ac.signal }));
+  } catch (e) {
+    if (init.signal?.aborted) throw new DOMException('Permintaan dibatalkan.', 'AbortError');
+    if (timedOut) {
+      throw new ApiError(0, { pesan: (init.method ?? 'GET').toUpperCase() === 'GET'
+        ? 'Server terlalu lama merespons. Coba lagi.'
+        : 'Waktu tunggu server habis. Periksa hasil transaksi sebelum mencoba lagi.' });
+    }
+    if (e instanceof ApiError || (e !== null && typeof e === 'object' && 'name' in e && e.name === 'AbortError')) throw e;
+    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${new URL(url).origin}). Periksa alamat di Pengaturan.` });
+  } finally {
+    clearTimeout(timer);
+    init.signal?.removeEventListener('abort', cancel);
   }
-  return parseResponse<T>(res);
+}
+
+async function apiMentah<T>(path: string, init: ApiInit = {}): Promise<T> {
+  const version = sessionVersion;
+  const { tanpaPeran, ...fetchInit } = init;
+  const peranHeaders = headerLembaga(tanpaPeran);
+  const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
+  assertCurrentSession(version);
+  return requestApi(`${base}${path}`, {
+    ...fetchInit,
+    headers: {
+      'Content-Type': 'application/json', Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...peranHeaders, ...(init.headers ?? {}),
+    },
+  }, (res) => parseResponse<T>(res, version));
 }
 
 /**
@@ -341,64 +409,48 @@ async function apiMentah<T>(path: string, init: RequestInit = {}): Promise<T> {
  * asli, bukan objek URL, dan pembacaannya harus memakai token serta header
  * lembaga yang sama seperti permintaan lain.
  */
-export async function ambilBerkas(path: string): Promise<ArrayBuffer> {
-  getCache.clear();
+export async function ambilBerkas(path: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const version = sessionVersion;
+  const peranHeaders = headerLembaga();
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
-  let res: Response;
-  try {
-    res = await fetch(`${base}${path}`, {
-      // Biner harus segar tiap unduh (server mengirim Cache-Control: public;
-      // tanpa ini WebView bisa menyajikan template/berkas lama dari cache).
-      cache: 'no-store',
-      headers: {
-        Accept: '*/*',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headerLembaga(),
-      },
-    });
-  } catch {
-    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
-  }
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      await clearSession();
-      emitUnauthorized();
-    }
-    throw new ApiError(res.status, { message: await res.text().catch(() => 'Berkas tidak dapat dibaca.') });
-  }
-
-  return res.arrayBuffer();
+  assertCurrentSession(version);
+  return requestApi(`${base}${path}`, {
+    cache: 'no-store', signal,
+    headers: { Accept: '*/*', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...peranHeaders },
+  }, async (res) => {
+    if (!res.ok) await parseResponse(res, version);
+    const bytes = await res.arrayBuffer();
+    assertCurrentSession(version);
+    return bytes;
+  });
 }
 
 /** POST multipart (upload file): tanpa header Content-Type agar boundary otomatis. */
-export async function apiUpload<T>(path: string, body: FormData): Promise<T> {
+export async function apiUpload<T>(path: string, body: FormData, signal?: AbortSignal): Promise<T> {
   getCache.clear();
+  const version = sessionVersion;
+  const peranHeaders = headerLembaga();
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
-  let res: Response;
-  try {
-    res = await fetch(`${base}${path}`, {
-      method: 'POST',
-      body,
-      headers: {
-        Accept: 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headerLembaga(),
-      },
-    });
-  } catch {
-    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
-  }
-  return parseResponse<T>(res);
+  assertCurrentSession(version);
+  return requestApi(`${base}${path}`, {
+    method: 'POST', body, signal,
+    headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...peranHeaders },
+  }, (res) => parseResponse<T>(res, version));
 }
 
-async function parseResponse<T>(res: Response): Promise<T> {
+async function expireSession(version: number): Promise<void> {
+  if (version !== sessionVersion) return;
+  await clearSession();
+  if (sessionVersion === version + 1) emitUnauthorized();
+}
+
+async function parseResponse<T>(res: Response, version: number): Promise<T> {
   const text = await res.text();
+  assertCurrentSession(version);
   const body: unknown = text ? safeJson(text) : null;
   if (!res.ok) {
     if (res.status === 401) {
-      await clearSession();
-      emitUnauthorized();
+      await expireSession(version);
     }
     throw new ApiError(res.status, body);
   }
@@ -429,33 +481,24 @@ export async function simpanUnduhan(nama: string, data: Uint8Array): Promise<voi
 }
 
 /** Unduh file ber-token (template/impor): fetch blob → simpan unduhan. */
-export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+export async function downloadFile(path: string, fallbackName: string, signal?: AbortSignal): Promise<void> {
+  const version = sessionVersion;
+  const peranHeaders = headerLembaga();
   const [token, base] = await Promise.all([getToken(), getBaseUrl()]);
-  let res: Response;
-  try {
-    res = await fetch(`${base}${path}`, {
-      cache: 'no-store',
-      headers: {
-        Accept: '*/*',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headerLembaga(),
-      },
-    });
-  } catch {
-    throw new ApiError(0, { message: `Tidak dapat menghubungi server (${base}). Periksa alamat di Pengaturan.` });
-  }
-  if (!res.ok) {
-    if (res.status === 401) {
-      await clearSession();
-      emitUnauthorized();
-    }
-    throw new ApiError(res.status, await res.text().catch(() => null));
-  }
-  const blob = await res.blob();
-  const disposisi = res.headers.get('Content-Disposition') ?? '';
-  const match = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(disposisi);
-  const nama = match ? decodeURIComponent(match[1].replace(/"/g, '')) : fallbackName;
-  await simpanUnduhan(nama, new Uint8Array(await blob.arrayBuffer()));
+  assertCurrentSession(version);
+  const file = await requestApi(`${base}${path}`, {
+    cache: 'no-store', signal,
+    headers: { Accept: '*/*', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...peranHeaders },
+  }, async (res) => {
+    if (!res.ok) await parseResponse(res, version);
+    const blob = await res.blob();
+    const disposisi = res.headers.get('Content-Disposition') ?? '';
+    const match = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(disposisi);
+    const nama = match ? decodeURIComponent(match[1].replace(/"/g, '')) : fallbackName;
+    return { nama, bytes: new Uint8Array(await blob.arrayBuffer()) };
+  });
+  assertCurrentSession(version);
+  await simpanUnduhan(file.nama, file.bytes);
 }
 
 function safeJson(text: string): unknown {

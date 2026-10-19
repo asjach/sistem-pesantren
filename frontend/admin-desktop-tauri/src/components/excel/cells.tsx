@@ -47,7 +47,8 @@ export function TextCell({ rowData, setRowData, columnData, focus, stopEditing, 
       data-col-key={key}
       value={cur}
       maxLength={columnData.maxLength}
-      // eslint-disable-next-line jsx-a11y/no-autofocus
+      // Fokus otomatis memang disengaja di sini: lihat penjelasan pada
+      // `eslint.config.js` (lapisan react-datasheet-grid).
       autoFocus
       onChange={(e) => setVal(e.target.value)}
       onBlur={() => {

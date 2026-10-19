@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\GrupCustomStoreRequest;
 use App\Http\Requests\Admin\GrupCustomUpdateRequest;
 use App\Models\GrupSantriCustom;
+use App\Models\Santri;
 use App\Models\TahunAjaran;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -13,19 +15,27 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Keuangan: grup santri custom — kelompok bentukan manual (mis. peserta
- * ekskul) yang dipakai opsi "Custom" pada dialog Buat Tagihan. Grup tidak
- * terikat lembaga; izin cukup `keuangan.*` di route.
+ * ekskul) yang dipakai opsi "Custom" pada dialog Buat Tagihan. Grup
+ * terikat lembaga melalui `jenjang` dan izin `keuangan.*` di route.
  */
 class GrupCustomController extends Controller
 {
+    use TenantGuard;
+
+    private function authorizeGrup(GrupSantriCustom $grup): void
+    {
+        abort_unless(GrupSantriCustom::tenantScope()->whereKey($grup->id)->exists(), 403, 'Akses ditolak.');
+    }
+
     private function muat(GrupSantriCustom $grup): GrupSantriCustom
     {
-        return $grup->load(['santri:id,nama_lengkap,jk']);
+        return $grup->load(['santri' => fn ($s) => $s->tenantScope()->select('santri.id', 'nama_lengkap', 'jk')]);
     }
 
     public function indexGrup(Request $request)
     {
-        $daftar = GrupSantriCustom::with('santri:id,nama_lengkap,jk')
+        $this->selectedLembaga($request, $request->user());
+        $daftar = GrupSantriCustom::tenantScope()->with(['santri' => fn ($s) => $s->tenantScope()->select('santri.id', 'nama_lengkap', 'jk')])
             ->when($request->filled('jenjang'), fn ($q) => $q->whereIn('jenjang', (array) $request->query('jenjang')))
             ->when($request->filled('tahun_ajaran'), fn ($q) => $q->whereIn('tahun_ajaran', (array) $request->query('tahun_ajaran')))
             ->orderBy('nama')
@@ -89,20 +99,38 @@ class GrupCustomController extends Controller
 
     public function storeGrup(GrupCustomStoreRequest $request)
     {
-        $grup = GrupSantriCustom::create($request->validated());
+        $data = $request->validated();
+        if (empty($data['jenjang']) && ! $request->user()->bolehPesantren()) {
+            $ids = $request->user()->lembagaIds();
+            abort_unless(count($ids) === 1, 422, 'Pilih satu lembaga untuk grup.');
+            $data['jenjang'] = $ids[0];
+        }
+        if (! empty($data['jenjang'])) {
+            $this->authorizeLembaga($request->user(), $data['jenjang']);
+        }
+        $grup = GrupSantriCustom::create($data);
 
         return response()->json($this->muat($grup), 201);
     }
 
     public function updateGrup(GrupCustomUpdateRequest $request, GrupSantriCustom $grup)
     {
-        $grup->update($request->validated());
+        $this->authorizeGrup($grup);
+        $data = $request->validated();
+        $jenjang = array_key_exists('jenjang', $data) ? $data['jenjang'] : $grup->jenjang;
+        if ($jenjang !== null) {
+            $this->authorizeLembaga($request->user(), $jenjang);
+        } else {
+            abort_unless($request->user()->bolehPesantren(), 403, 'Grup global hanya dapat diubah admin pesantren.');
+        }
+        $grup->update($data);
 
         return response()->json($this->muat($grup));
     }
 
     public function destroyGrup(GrupSantriCustom $grup)
     {
+        $this->authorizeGrup($grup);
         $grup->delete();
 
         return response()->json(['pesan' => 'Grup dihapus.']);
@@ -111,11 +139,14 @@ class GrupCustomController extends Controller
     /** Tambah anggota (idempotent: yang sudah masuk dilewati). */
     public function tambahAnggota(Request $request, GrupSantriCustom $grup)
     {
+        $this->authorizeGrup($grup);
         $data = $request->validate([
             'santri_ids' => 'required|array|min:1',
             'santri_ids.*' => 'integer|exists:santri,id',
         ]);
-        $grup->santri()->syncWithoutDetaching($data['santri_ids']);
+        $ids = array_unique($data['santri_ids']);
+        abort_unless(Santri::tenantScope()->whereIn('id', $ids)->count() === count($ids), 403, 'Santri di luar lingkup lembaga Anda.');
+        $grup->santri()->syncWithoutDetaching($ids);
 
         return response()->json($this->muat($grup->refresh()));
     }
@@ -123,6 +154,7 @@ class GrupCustomController extends Controller
     /** Keluarkan satu anggota. */
     public function hapusAnggota(GrupSantriCustom $grup, int $santri)
     {
+        $this->authorizeGrup($grup);
         $grup->santri()->detach($santri);
 
         return response()->json($this->muat($grup->refresh()));

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import PopoverBulan from './PopoverBulan';
 import { renderDenganTema } from '@/test/utils';
-import { bulanIni, NAMA_BULAN, NAMA_BULAN_SINGKAT, pecahBulan, rakitBulan } from '@/lib/tanggal';
+import { bulanIni, NAMA_BULAN_SINGKAT, pecahBulan, rakitBulan } from '@/lib/tanggal';
 
 /* Setelan komponen (server) tak dibutuhkan pemilih bulan; API-nya dimock agar
    tak ada permintaan jaringan saat render. */

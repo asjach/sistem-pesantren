@@ -193,8 +193,6 @@ describe('popover pengaturan komponen — grid ukuran & bagian "Lainnya"', () =>
 });
 
 describe('popover pengaturan komponen — salin & tempel setelan', () => {
-  /** Panel popover pengaturan (ber-portal ke `body`). */
-  const panel = () => document.querySelector('[data-slot="popover-content"]') as HTMLElement;
   /** Klik kanan pada kotak ber-`htmlFor` id — buka popover pengaturannya. */
   const buka = (id: string) => fireEvent.contextMenu(
     document.getElementById(id)?.closest('span')?.parentElement as HTMLElement,

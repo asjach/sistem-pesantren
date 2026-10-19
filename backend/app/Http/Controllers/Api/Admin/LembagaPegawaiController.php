@@ -75,9 +75,11 @@ class LembagaPegawaiController extends Controller
     /** GET /api/admin/pegawai/{pegawai}/penempatan — daftar penempatan satu guru. */
     public function untuk(Request $request, Pegawai $pegawai): JsonResponse
     {
+        abort_unless(Pegawai::tenantScope()->whereKey($pegawai->id)->exists(), 403, 'Akses ditolak.');
+
         return response()->json([
             'pesan' => 'Penempatan berhasil dimuat.',
-            'data' => $pegawai->penempatan()->with('lembaga:jenjang,nama')
+            'data' => $this->scopeLembaga($pegawai->penempatan(), $request->user(), $request, 'lembaga_pegawai.jenjang')->with('lembaga:jenjang,nama')
                 ->orderByDesc('is_active_lembaga')->orderBy('id')->get(),
         ]);
     }
@@ -85,6 +87,7 @@ class LembagaPegawaiController extends Controller
     /** POST /api/admin/pegawai/{pegawai}/tempatkan — buat/aktifkan penempatan (aksi →). */
     public function tempatkan(LembagaPegawaiStoreRequest $request, Pegawai $pegawai, PegawaiService $layanan, AkunPegawaiService $akun): JsonResponse
     {
+        abort_unless(Pegawai::tenantScope()->whereKey($pegawai->id)->exists(), 403, 'Akses ditolak.');
         $data = $request->validated();
         $this->authorizeLembaga($request->user(), $data['jenjang']);
 

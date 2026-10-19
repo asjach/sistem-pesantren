@@ -23,11 +23,14 @@ export function KelasAktifProvider({ children }: { children: ReactNode }) {
   const { tahunAjaranNames } = useTahunAjaranAktif();
   const [kelas, setKelas] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  // Cukup kunci primitif id: refresh `/me` (identitas `user` baru, isi sama)
+  // tidak boleh memicu muat ulang.
+  const userId = user?.id;
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!user) {
+      if (!userId) {
         setKelas([]);
         setLoading(false);
         return;
@@ -45,7 +48,7 @@ export function KelasAktifProvider({ children }: { children: ReactNode }) {
       }
     })();
     return () => { alive = false; };
-  }, [user?.id]);
+  }, [userId]);
 
   const pilih = useMemo(() => (v: string[]) => {
     setKelas(v);

@@ -51,11 +51,14 @@ export function SemesterAktifProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [semesters, setSemesters] = useState<SemesterAktif[]>([]);
   const [loading, setLoading] = useState(false);
+  // Cukup kunci primitif id: refresh `/me` (identitas `user` baru, isi sama)
+  // tidak boleh memicu muat ulang.
+  const userId = user?.id;
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!user) {
+      if (!userId) {
         setSemesters([]);
         setLoading(false);
         return;
@@ -72,7 +75,7 @@ export function SemesterAktifProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     })();
     return () => { alive = false; };
-  }, [user?.id]);
+  }, [userId]);
 
   const pilihBanyak = useMemo(() => (values: string[]) => {
     const next = normalisasiSemester(values);

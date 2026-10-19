@@ -41,6 +41,20 @@ class PsbFlowTest extends TestCase
         $this->withoutMiddleware(ThrottleRequests::class);
     }
 
+    public function test_riwayat_keluarga_memuat_lembaga_dan_hanya_anak_milik_wali(): void
+    {
+        $this->baseFixture();
+        $wali = User::create(['name' => 'Wali', 'email' => 'keluarga@example.com', 'password' => 'password']);
+        $wali->assignRole('orang_tua');
+        $anak = Santri::create(['nama_lengkap' => 'Anak Wali', 'jk' => 'L']);
+        Santri::create(['nama_lengkap' => 'Anak Lain', 'jk' => 'L']);
+        LembagaSantri::create(['santri_id' => $anak->id, 'jenjang' => 'MI', 'is_active_lembaga' => 'Ya']);
+        WaliSantriRelasi::create(['user_id' => $wali->id, 'santri_id' => $anak->id, 'is_active' => true, 'hubungan' => 'ayah']);
+        $this->actingAs($wali, 'sanctum')->getJson('/api/portal/riwayat-keluarga')->assertOk()
+            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $anak->id)
+            ->assertJsonPath('data.0.lembaga.jenjang', 'MI');
+    }
+
     // ---------- helpers ----------
 
     protected function baseFixture(): array

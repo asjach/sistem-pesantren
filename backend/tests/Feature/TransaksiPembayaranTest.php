@@ -45,6 +45,32 @@ class TransaksiPembayaranTest extends TestCase
         ]);
     }
 
+    public function test_hapus_transaksi_rollback_seluruh_baris_jika_salah_satu_gagal(): void
+    {
+        $admin = $this->admin();
+        $santri = $this->santri();
+        $a = $this->tagihan($santri, 100);
+        $b = $this->tagihan($santri, 100);
+        $trx = $this->actingAs($admin)->postJson('/api/admin/keuangan/transaksi', ['items' => [
+            ['tagihan_id' => $a->id, 'jumlah' => 40], ['tagihan_id' => $b->id, 'jumlah' => 30],
+        ]])->assertCreated()->json('id');
+        $kedua = Pembayaran::where('transaksi_id', $trx)->orderByDesc('id')->firstOrFail()->id;
+        Pembayaran::deleting(function (Pembayaran $p) use ($kedua) {
+            if ($p->id === $kedua) {
+                throw new \RuntimeException('Gagal pada baris kedua');
+            }
+        });
+        try {
+            $this->deleteJson('/api/admin/keuangan/transaksi/'.$trx)->assertStatus(500);
+        } finally {
+            Pembayaran::flushEventListeners();
+        }
+        $this->assertSame(2, Pembayaran::where('transaksi_id', $trx)->count());
+        $this->assertSame(40, $a->fresh()->terbayar);
+        $this->assertSame(30, $b->fresh()->terbayar);
+        $this->assertSame(70, TransaksiPembayaran::findOrFail($trx)->total);
+    }
+
     public function test_bayar_multi_tagihan_satu_kwitansi(): void
     {
         $admin = $this->admin();

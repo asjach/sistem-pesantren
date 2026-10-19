@@ -3,7 +3,7 @@
 | Atribut | Keterangan |
 |---|---|
 | Versi Dokumen | 3.0 (header KAPITAL) |
-| Versi Produk | 2.421 (lihat [CHANGELOG.md](CHANGELOG.md)) |
+| Versi Produk | 2.467 (lihat [CHANGELOG.md](CHANGELOG.md)) |
 | Tanggal | 19 Oktober 2026 |
 | Status | PRD produk SIMPES — acuan tunggal kebutuhan, rancangan, dan status implementasi aplikasi yang sedang dibangun |
 | Penyusun | Solo dev + Yayasan |
@@ -13,7 +13,7 @@
 
 ## Riwayat Perubahan
 
-Changelog produk dipisah ke [CHANGELOG.md](CHANGELOG.md) agar dokumen ini tetap berisi kondisi produk saat ini, bukan riwayat aktivitas. Versi produk terakhir: **2.421** (2026-10-19). Rincian teknis tetap tersedia di `git log`.
+Changelog produk dipisah ke [CHANGELOG.md](CHANGELOG.md) agar dokumen ini tetap berisi kondisi produk saat ini, bukan riwayat aktivitas. Versi produk terakhir: **2.467** (2026-10-19). Rincian teknis tetap tersedia di `git log`.
 
 > Rujukan antar-file: "Bab 2–8" → `arsitektur.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N / Part B" → `backend-detail.md`.
 

@@ -203,7 +203,7 @@ const diDalamDaftarOpsi = (target: EventTarget | null) =>
  *  Popover tak punya tombol tutup: KLIK KIRI DI LUAR menutupnya (kecuali klik
  *  pada daftar opsi combobox di dalamnya, yang ber-portal ke `body`). Escape
  *  sengaja tak menutup supaya mengetik di isian panel tak berarti keluar. */
-export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, onSalin, onTempel, bisaSalin, asalSalinan, pengaturanTipe, adaPengaturanTipe, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaTanpaLabel, adaNilaiDefault, expandLabel, labelTransparan, tanpaLabel, opsi, nilaiDefault, langkah, adaLangkah, onUbah, onReset, onResetBaris }: {
+export default function PopoverUkuranKombo({ kunci, refKotak, label, nama = 'combobox', tipeKontrol, opsiTipe, adaTipeKontrol, onSalin, onTempel, bisaSalin, asalSalinan, pengaturanTipe, adaPengaturanTipe, onUbahTipeKontrol, tinggi, lebar, lebarLabel, lebarKontrol, adaTinggi, adaLebar, adaLebarLabel, adaLebarKontrol, adaExpand, adaLabelTransparan, adaNilaiDefault, expandLabel, labelTransparan, tanpaLabel, opsi, nilaiDefault, langkah, adaLangkah, onUbah, onReset, onResetBaris }: {
   kunci: string;
   /** Ref elemen KOTAK yang sedang diatur. Isi kotak (label + kontrol) berada
    *  di luar DOM panel ini, jadi perlu rujukan untuk membedakan "pengguna

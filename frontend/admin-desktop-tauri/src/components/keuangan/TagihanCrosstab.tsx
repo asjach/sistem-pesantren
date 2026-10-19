@@ -246,29 +246,12 @@ interface TooltipSel {
   sisa: number;
 }
 
-const LEBAR_TOOLTIP = 224;
-const TINGGI_TOOLTIP = 200;
-/** Jarak tooltip dari kursor (x, y) — dipakai juga sebagai posisi awal render. */
-const JARAK_X = 12;
-const JARAK_Y = 18;
-
-/**
- * Letak tooltip. Ditulis langsung ke DOM (bukan state) — posisi mengikuti
- * kursor pada tiap frame mouse; lewat state akan merender ulang seluruh
- * tabel (ratusan sel) tiap gerakan dan terasa berat.
- */
-function NeedleLetak(el: HTMLElement | null, x: number, y: number): void {
-  if (el === null) return;
-  el.style.left = `${Math.max(8, Math.min(x + JARAK_X, window.innerWidth - LEBAR_TOOLTIP - 8))}px`;
-  el.style.top = `${Math.max(8, y + TINGGI_TOOLTIP > window.innerHeight ? y - TINGGI_TOOLTIP : y + JARAK_Y)}px`;
-}
-
 /** Satu baris tabel. `memo` + props stabil → saat tooltip berpindah sel, hanya
  *  baris yang di-hover yang dirender ulang, bukan seluruh tabel (ratusan sel). */
 const BarisCrosstab = memo(function BarisCrosstab({
-  baris, kolom, data, onPilih, onTambah, onHoverMasuk, onHoverGerak, onHoverKeluar,
-  selection, onTogglePilih, onPilihBlok, onKlikSel, onPilihIrisan, onMulaiGeser, onTambahBlok, onLepasBlok, onSeleksiRilis, onGeserSelesai,
-  onAksiKanan, onAksiKosong, onPratinjau, laporkanPratinjau, closeHover, agarJauhRef, pratinjau, anchorKunci, onLepasAnchor,
+  baris, kolom, data, onHoverMasuk, onHoverGerak, onHoverKeluar,
+  selection, onTogglePilih, onPilihBlok, onKlikSel, onPilihIrisan, onMulaiGeser, onTambahBlok, onLepasBlok, onSeleksiRilis,
+  onAksiKanan, onAksiKosong, onPratinjau, laporkanPratinjau, closeHover, agarJauhRef, pratinjau, onLepasAnchor,
   anchorRef, activeRef, draggingRef, dragStartRef, dragMovedRef, pernahGeserRef,
 }: {
   baris: CrosstabBaris;

@@ -34,7 +34,7 @@ function Select({
     if (disabled || value !== '' || opsi.length !== 1) return
     if (opsi[0] === '') return
     onValueChange?.(opsi[0])
-  }, [value, kunciOpsi, disabled, onValueChange])
+  }, [value, kunciOpsi, disabled, onValueChange, opsi])
 
   return (
     <SelectPrimitive.Root
