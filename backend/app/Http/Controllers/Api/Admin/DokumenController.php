@@ -80,6 +80,10 @@ class DokumenController extends Controller
                 $ids = $auth->lembagaIdsDenganPasangan();
                 $ids === [] ? $query->whereRaw('1 = 0') : $query->whereExists(fn ($w) => $penempatan($w, $ids));
             }
+            if ($lembaga !== [] || ! $auth->bolehPesantren()) {
+                $ids = $lembaga !== [] ? $lembaga : $auth->lembagaIdsDenganPasangan();
+                $query->where(fn ($w) => $w->whereNull('dokumen_santri.lembaga')->orWhereIn('dokumen_santri.lembaga', $ids));
+            }
             if ($q !== '') {
                 $query->where(fn ($w) => $w
                     ->where('santri.nama_lengkap', 'like', "%{$q}%")
@@ -101,8 +105,7 @@ class DokumenController extends Controller
             // Penempatan aktif via whereExists agar pegawai di >1 lembaga tidak duplikat.
             $penempatanPeg = function ($w, array $jenjang = []) {
                 $w->from('lembaga_pegawai as lp')
-                    ->whereColumn('lp.pegawai_id', 'dokumen_pegawai.pegawai_id')
-                    ->where('lp.is_active_lembaga', 'Ya');
+                    ->whereColumn('lp.pegawai_id', 'dokumen_pegawai.pegawai_id');
                 if ($jenjang !== []) {
                     $w->whereIn('lp.jenjang', $jenjang);
                 }
@@ -274,6 +277,9 @@ class DokumenController extends Controller
             $ubah['status_verifikasi'] = $data['status_verifikasi'];
         }
         if ($tipe === 'santri' && array_key_exists('lembaga', $data)) {
+            if ($data['lembaga'] !== null) {
+                $this->authorizeLembaga($request->user(), $data['lembaga']);
+            }
             $ubah['lembaga'] = $data['lembaga'];
         }
         if (in_array($tipe, ['santri', 'pegawai'], true) && array_key_exists('is_active', $data)) {
@@ -667,8 +673,8 @@ class DokumenController extends Controller
         // Cakupan lembaga: pemilik harus milik lembaga yang boleh diakses.
         $auth = $request->user();
         if ($tipe === 'santri') {
-            $jenjang = Santri::find($data['santri_id'])?->lembagaAktif()->value('jenjang');
-            if ($jenjang !== null && ! $auth->canAccessLembaga($jenjang)) {
+            $milik = Santri::tenantScope()->whereKey($data['santri_id'])->exists();
+            if (! $milik || (! empty($data['lembaga']) && ! $auth->canAccessLembaga($data['lembaga']))) {
                 throw ValidationException::withMessages(['santri_id' => 'Santri di luar lingkup akses Anda.']);
             }
         } elseif ($tipe === 'pegawai') {
@@ -735,8 +741,8 @@ class DokumenController extends Controller
             }
             // Akses mengikuti konteks lembaga baris dulu (selaras lingkup
             // daftar yang memakai riwayat penempatan), baru penempatan aktif.
-            $jenjang = $row->lembaga ?? $row->santri->lembagaAktif()->value('jenjang');
-            if ($jenjang !== null && ! $request->user()->canAccessLembaga($jenjang)) {
+            $milik = Santri::tenantScope()->whereKey($row->santri_id)->exists();
+            if (! $milik || ($row->lembaga !== null && ! $request->user()->canAccessLembaga($row->lembaga))) {
                 abort(403, 'Akses ditolak.');
             }
 
@@ -750,8 +756,10 @@ class DokumenController extends Controller
             if (! $row) {
                 abort(404);
             }
-            $jenjang = DB::table('lembaga_pegawai')->where('pegawai_id', $row->pegawai_id)->value('jenjang');
-            if ($jenjang !== null && ! $request->user()->canAccessLembaga($jenjang)) {
+            $milik = $request->user()->bolehPesantren() || DB::table('lembaga_pegawai')
+                ->where('pegawai_id', $row->pegawai_id)
+                ->whereIn('jenjang', $request->user()->lembagaIdsDenganPasangan())->exists();
+            if (! $milik) {
                 abort(403, 'Akses ditolak.');
             }
 

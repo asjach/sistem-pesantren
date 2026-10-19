@@ -67,6 +67,18 @@ class DokumenHalamanTest extends TestCase
         $this->assertSame('baru_lokal.pdf', $milik->fresh()->nama_file);
     }
 
+    public function test_dokumen_arsip_memakai_riwayat_pemilik_bukan_hanya_penempatan_aktif(): void
+    {
+        $data = $this->fixture();
+        LembagaSantri::where('santri_id', $data['santri']->id)->update(['is_active_lembaga' => 'Tidak']);
+        $dok = DokumenSantri::create(['santri_id' => $data['santri']->id, 'jenis_dokumen_santri' => 'Ijazah', 'nama_file' => 'arsip.pdf']);
+        Storage::disk('local')->put('dokumen/santri/arsip.pdf', 'Arsip MI');
+        $this->actingAs($this->superAdmin(), 'sanctum')->withHeader('X-Lembaga-Aktif', 'MTS');
+        $this->getJson('/api/admin/dokumen/santri/'.$dok->id.'/unduh')->assertForbidden();
+        $this->patchJson('/api/admin/dokumen/santri/'.$dok->id, ['catatan' => 'Asing'])->assertForbidden();
+        $this->withHeader('X-Lembaga-Aktif', 'MI')->get('/api/admin/dokumen/santri/'.$dok->id.'/unduh')->assertOk();
+    }
+
     public function test_daftar_simpan_unduh_hapus_dokumen_lembaga(): void
     {
         $this->fixture();
