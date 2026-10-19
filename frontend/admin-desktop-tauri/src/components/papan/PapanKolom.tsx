@@ -1,12 +1,8 @@
 import { useCallback, useMemo, useState, type DragEvent } from 'react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { ChevronDown } from '@/icons';
-import {
-  muatRiwayatPapan,
-  pindahStatusPapan,
-  type RiwayatPapan,
-  type StatusPapan,
-} from '@/api/papan';
+import type { RiwayatPapan, StatusPapan } from '@/api/papan';
 import { kelompokkanKolom, kolomSebelah, type KartuPapan } from '@/lib/papan';
 import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
 
@@ -26,7 +22,6 @@ export const WARNA_STATUS: Record<StatusPapan, string> = {
 
 /** Urutan kelompok butir di dalam kartu: yang belum selesai lebih dulu supaya
  *  sisa pekerjaan langsung terlihat, baru yang sudah selesai. */
-const KOLOM_KARTU: readonly StatusPapan[] = ['akan', 'sedang', 'ditunda', 'sudah'];
 
 /** Render satu potongan teks butir; markup markdown tidak ditampilkan mentah. */
 function Potongan({ potongan }: { potongan: PotonganButir }) {
@@ -93,7 +88,8 @@ export function KartuPapan({
   onLepasSeret,
   onDiAtas,
   onPindahArah,
-  onBuka,
+  buka,
+  onBukaUbah,
 }: {
   kartu: KartuPapan;
   diseret: boolean;
@@ -104,21 +100,26 @@ export function KartuPapan({
   onDiAtas: (e: DragEvent) => void;
   /** Pindah lewat keyboard (tanpa seret); arah -1 = kolom sebelumnya. */
   onPindahArah: (arah: -1 | 1) => void;
-  onBuka: () => void;
+  /** Popover rincian poin sedang terbuka untuk kartu ini. */
+  buka: boolean;
+  onBukaUbah: (buka: boolean) => void;
 }) {
   const idKartu = `butir_${kartu.id}`;
 
   return (
+    // Kartu ini SENGAJA fokusable: seret tidak bisa dipakai keyboard, jadi
+    // panah kiri/kanan disediakan sebagai jalur setara (lihat onKeyDown).
+    // Tanpa tabIndex + handler itu, memindah poin jadi mustahil tanpa mouse.
+    /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
     <article
       id={`kartu_papan_${idKartu}`}
+      role="group"
       draggable="true"
       tabIndex={0}
       onDragStart={onMulaiSeret}
       onDragEnd={onLepasSeret}
       onDragOver={onDiAtas}
       onKeyDown={(e) => {
-        // Seret tidak bisa dipakai keyboard, jadi panah kiri/kanan
-        // disediakan sebagai jalur setara - bukan combobox lagi.
         if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
         e.preventDefault();
         onPindahArah(e.key === 'ArrowLeft' ? -1 : 1);
@@ -141,19 +142,19 @@ export function KartuPapan({
         <span className="mt-px font-mono text-[11px] font-semibold text-muted-foreground">
           {kartu.subKode}
         </span>
-        <button
-          id={`btn_buka_papan_${idKartu}`}
-          type="button"
-          onClick={onBuka}
-          draggable={false}
-          onDragStart={(e) => e.preventDefault()}
-          // Warna judul TETAP: tidak berubah saat hover. Effek hover
-          // dipindah ke border kartu (lihat .kartu:hover di index.css)
-          // supaya ada satu isyarat saja, bukan dua yang bersaing.
-          className="min-w-0 flex-1 cursor-pointer text-left text-[13px] leading-snug font-medium"
-        >
-          {kartu.subNama}
-        </button>
+        {/* Rincian poin dibuka sebagai POPOVER yang menempel di judul,
+            bukan dialog penuh layar: yang dibaca cuma satu poin, dan
+            popover membiarkan poin itu tetap terlihat di papan.
+            PopoverAnchor dipakai (bukan Trigger) supaya tombol ini tetap
+            jadi tombol biasa - bisa ditarik dan tidak menelan keyboard.
+            Warna judul TETAP: efek hover ada di border kartu.
+            Lihat .kartu:hover di index.css. */}
+        <PopoverButir
+          kartu={kartu}
+          terbuka={buka}
+          onBukaUbah={onBukaUbah}
+          idTombol={`btn_buka_papan_${idKartu}`}
+        />
       </div>
 
       {tampilkanModul ? (
@@ -173,6 +174,7 @@ export function KartuPapan({
           memberi isyarat dan tidak ada lagi yang perlu dibaca di sana.
           Kartu tetap wajib draggable - lihat atribut di <article>. */}
     </article>
+    /* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
   );
 }
 /**
@@ -185,14 +187,12 @@ export function PapanKolom({
   kartu,
   tampilkanModul,
   onPindah,
-  onBuka,
   riwayat,
   idAwalan,
 }: {
   kartu: KartuPapan[];
   tampilkanModul: boolean;
   onPindah: (butirId: number, ke: StatusPapan) => Promise<void>;
-  onBuka: (kartu: KartuPapan) => void;
   /** Riwayat ringkas yang ditampilkan di bawah judul (kosong = tidak tampil). */
   riwayat?: RiwayatPapan[];
   /** Awalan id elemen supaya beberapa papan di satu halaman tidak bertabrakan. */
@@ -202,6 +202,8 @@ export function PapanKolom({
   const [sasaran, setSasaran] = useState<SasaranJatuh | null>(null);
   const [lipat, setLipat] = useState<Set<StatusPapan>>(() => new Set());
   const [pengumuman, setPengumuman] = useState('');
+  /** Id poin yang popover rinciannya sedang terbuka (null = tertutup). */
+  const [rincian, setRincian] = useState<number | null>(null);
 
   const awalan = idAwalan ?? 'papan';
   const kolom = useMemo(() => kelompokkanKolom(kartu), [kartu]);
@@ -287,7 +289,7 @@ export function PapanKolom({
       return;
     }
 
-    setPengumuman(`Poin ${kartu.subKode} \"${kartu.deskripsi}\" dipindahkan ke ${tujuan}.`);
+    setPengumuman(`Poin ${kartu.subKode} "${kartu.deskripsi}" dipindahkan ke ${tujuan}.`);
     await onPindah(kartu.id, tujuan);
   }
 
@@ -371,7 +373,8 @@ export function PapanKolom({
                           onLepasSeret={bersihkanSeret}
                           onDiAtas={(e) => diAtasKartu(e, item.id, idx)}
                           onPindahArah={(arah) => void pindahArah(k, arah)}
-                          onBuka={() => onBuka(k)}
+                          buka={rincian === k.id}
+                          onBukaUbah={(b) => setRincian(b ? k.id : null)}
                         />
                       </div>
                     ))}
@@ -389,64 +392,86 @@ export function PapanKolom({
   );
 }
 
-/**
- * Dialog rincian satu POIN.
- *
- * Sejak kartu papan adalah poin itu sendiri, dialog ini tidak lagi memuat
- * daftar butir: yang ditampilkan adalah poin lengkap beserta konteks
- * sub-modul dan modul induknya.
- */
-export function DialogButir({ kartu, onTutup }: { kartu: KartuPapan; onTutup: () => void }) {
+/** Isi panel rincian poin, dipakai di dalam PopoverButir. */
+function IsiButir({ kartu }: { kartu: KartuPapan }) {
   return (
-    <div
-      id="dialog_butir_papan"
-      role="dialog"
-      aria-label={`Poin ${kartu.subKode}`}
-      className="absolute inset-0 z-20 grid place-items-center"
-      style={{ background: 'color-mix(in srgb, var(--foreground) 24%, transparent)' }}
-      onClick={onTutup}
-    >
-      <div
-        className="max-h-[70vh] w-[min(560px,90vw)] overflow-y-auto border p-4"
-        style={{ background: 'var(--surface)', borderColor: 'var(--divider)', boxShadow: 'var(--shadow-card)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-baseline gap-2">
-          <span className="font-mono text-xs font-semibold text-muted-foreground">{kartu.subKode}</span>
-          <h3 className="text-sm font-semibold">{kartu.subNama}</h3>
-          <button
-            id="btn_tutup_butir_papan"
-            type="button"
-            onClick={onTutup}
-            className="ml-auto cursor-pointer text-xs text-muted-foreground hover:text-foreground"
-          >
-            Tutup
-          </button>
-        </div>
-
-        <div className="mt-3 flex items-center gap-2">
-          <Lencana label={kartu.status} warna={WARNA_STATUS[kartu.status]} />
-        </div>
-
-        <p className="mt-2 text-[13px] leading-snug">
-          <TeksButir deskripsi={kartu.deskripsi} />
-        </p>
-
-        <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t pt-3 text-xs" style={{ borderColor: 'var(--divider)' }}>
-          <dt className="text-muted-foreground">Modul</dt>
-          <dd>
-            {kartu.modulKode}. {kartu.modulNama}
-          </dd>
-          <dt className="text-muted-foreground">Sub-modul</dt>
-          <dd>
-            {kartu.subKode} {kartu.subNama}
-          </dd>
-          <dt className="text-muted-foreground">Status sub-modul</dt>
-          <dd>
-            {kartu.statusSub} <span className="text-muted-foreground">(turunan dari poin)</span>
-          </dd>
-        </dl>
+    <div className="flex flex-col gap-3 p-4">
+      <div className="flex items-baseline gap-2">
+        <span className="font-mono text-xs font-semibold text-muted-foreground">{kartu.subKode}</span>
+        <h3 className="text-sm font-semibold">{kartu.subNama}</h3>
       </div>
+
+      <div className="flex items-center gap-2">
+        <Lencana label={kartu.status} warna={WARNA_STATUS[kartu.status]} />
+      </div>
+
+      <p className="text-[13px] leading-snug">
+        <TeksButir deskripsi={kartu.deskripsi} />
+      </p>
+
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t pt-3 text-xs" style={{ borderColor: 'var(--divider)' }}>
+        <dt className="text-muted-foreground">Modul</dt>
+        <dd>
+          {kartu.modulKode}. {kartu.modulNama}
+        </dd>
+        <dt className="text-muted-foreground">Sub-modul</dt>
+        <dd>
+          {kartu.subKode} {kartu.subNama}
+        </dd>
+        <dt className="text-muted-foreground">Status sub-modul</dt>
+        <dd>
+          {kartu.statusSub} <span className="text-muted-foreground">(turunan dari poin)</span>
+        </dd>
+      </dl>
     </div>
+  );
+}
+
+/**
+ * Popover rincian satu poin, dibuka dari judul kartu.
+ *
+ * Dulu ini dialog yang menutupi seluruh papan dengan lapisan gelap.
+ * Rincian satu poin tidak sepadan dengan gangguan sebesar itu - dan
+ * popover membuat poin yang sedang dibaca tetap terlihat di papan.
+ * Ditempelkan ke judul kartu lewat PopoverAnchor, jadi posisinya
+ * mengikuti kartunya, bukan di tengah layar.
+ */
+export function PopoverButir({
+  kartu,
+  terbuka,
+  onBukaUbah,
+  idTombol,
+}: {
+  kartu: KartuPapan;
+  terbuka: boolean;
+  onBukaUbah: (buka: boolean) => void;
+  idTombol: string;
+}) {
+  return (
+    <Popover open={terbuka} onOpenChange={onBukaUbah}>
+      {/* PopoverTrigger (bukan PopoverAnchor): Anchor hanya menandai
+          posisi dan TIDAK membuka popover saat diklik - kliknya diam
+          saja. Trigger merender <button> sendiri, jadi tombol judul
+          tidak lagi dibuat terpisah. */}
+      <PopoverTrigger
+        id={idTombol}
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
+        className="min-w-0 flex-1 cursor-pointer text-left text-[13px] leading-snug font-medium"
+      >
+        {kartu.subNama}
+      </PopoverTrigger>
+      {/* p-0 dipakai supaya IsiButir yang mengatur paddingnya sendiri;
+          border dan bayangan datang dari PopoverContent bawaan (rounded-md
+          tidak berpengaruh di proyek ini karena --radius-semua: 0px). */}
+      <PopoverContent
+        id="pop_butir_papan"
+        side="bottom"
+        align="start"
+        className="w-[min(400px,90vw)] p-0"
+      >
+        <IsiButir kartu={kartu} />
+      </PopoverContent>
+    </Popover>
   );
 }

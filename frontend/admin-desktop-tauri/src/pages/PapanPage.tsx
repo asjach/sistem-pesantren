@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { PAGE_SHELL } from '@/components/PageHeader';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
-import { DialogButir, PapanKolom } from '@/components/papan/PapanKolom';
+import { PapanKolom } from '@/components/papan/PapanKolom';
 import {
   muatPapan,
   muatRiwayatPapan,
@@ -13,7 +13,7 @@ import {
   type RiwayatPapan,
   type StatusPapan,
 } from '@/api/papan';
-import { kartuModul, kemajuanModul, modulPertama, type KartuPapan } from '@/lib/papan';
+import { kartuModul, kemajuanModul, modulPertama } from '@/lib/papan';
 
 /**
  * Papan perkembangan modul - satu tab per modul (A, B, C, ...), tiap tab
@@ -31,7 +31,6 @@ export default function PapanPage() {
   const [riwayat, setRiwayat] = useState<RiwayatPapan[]>([]);
   const [galat, setGalat] = useState<string | null>(null);
   const [memuat, setMemuat] = useState(true);
-  const [pilihan, setPilihan] = useState<KartuPapan | null>(null);
 
   const muat = useCallback(async () => {
     setMemuat(true);
@@ -185,7 +184,6 @@ export default function PapanPage() {
               kartu={kartu}
               tampilkanModul={false}
               onPindah={pindah}
-              onBuka={setPilihan}
               riwayat={riwayat}
               idAwalan={`modul_${aktif.kode.toLowerCase()}`}
             />
@@ -195,7 +193,6 @@ export default function PapanPage() {
         <div className="px-6 pt-2 text-sm text-muted-foreground">Papan belum berisi modul.</div>
       )}
 
-      {pilihan ? <DialogButir kartu={pilihan} onTutup={() => setPilihan(null)} /> : null}
     </div>
   );
 }
