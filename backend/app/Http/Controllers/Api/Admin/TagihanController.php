@@ -1520,11 +1520,14 @@ class TagihanController extends Controller
 
     public function destroyTagihan(Request $request, Tagihan $tagihan)
     {
-        $this->canLembaga($request->user(), $tagihan->jenjang) || abort(403);
-        if ($tagihan->pembayaran()->where('status', 'aktif')->exists()) {
-            abort(422, 'Hapus dulu pembayaran pada tagihan ini.');
-        }
-        $tagihan->delete();
+        DB::transaction(function () use ($request, $tagihan) {
+            $tagihan = Tagihan::whereKey($tagihan->id)->lockForUpdate()->firstOrFail();
+            $this->canLembaga($request->user(), $tagihan->jenjang) || abort(403);
+            if ($tagihan->pembayaran()->where('status', 'aktif')->exists()) {
+                abort(422, 'Hapus dulu pembayaran pada tagihan ini.');
+            }
+            $tagihan->delete();
+        });
 
         return response()->json(['pesan' => 'Tagihan dihapus.']);
     }
