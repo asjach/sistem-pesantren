@@ -156,34 +156,59 @@ async function tauriInvoke<T>(cmd: string, args: Record<string, unknown>): Promi
   }
 }
 
-/** Token disimpan di OS keychain (desktop); fallback store/localStorage. */
+export const TOKEN_STORAGE_WARNING_EVENT = 'simpes:token-storage-warning';
+const TOKEN_CLEARED_KEY = 'simpes_token_dihapus';
+let volatileToken: string | null | undefined;
+let warnedStorage = false;
+
+function warnTokenStorage(message: string): void {
+  if (warnedStorage) return;
+  warnedStorage = true;
+  window.dispatchEvent(new CustomEvent(TOKEN_STORAGE_WARNING_EVENT, { detail: message }));
+}
+
+/** Desktop memakai keychain; kegagalan hanya memakai memori sesi. */
 async function tokenGet(): Promise<string | null> {
-  if (isTauri()) {
-    const v = await tauriInvoke<string | null>('secure_get', { key: TOKEN_KEY });
-    if (v !== undefined) return v ?? null;
-    // Fallback ke penyimpanan lama + migrasi ke keychain.
-    const old = await kvGet(TOKEN_KEY);
-    if (old) {
-      const migrated = await tauriInvoke<null>('secure_set', { key: TOKEN_KEY, value: old });
-      if (migrated !== undefined) await kvDel(TOKEN_KEY);
-    }
+  if (!isTauri()) return kvGet(TOKEN_KEY);
+  if (volatileToken !== undefined) return volatileToken;
+  if (await kvGet(TOKEN_CLEARED_KEY) === '1') return null;
+  const value = await tauriInvoke<string | null>('secure_get', { key: TOKEN_KEY });
+  if (typeof value === 'string') {
+    await kvDel(TOKEN_KEY);
+    return value;
+  }
+  const old = await kvGet(TOKEN_KEY);
+  if (old) {
+    await tokenSet(old);
     return old;
   }
-  return kvGet(TOKEN_KEY);
+  return null;
 }
 
 async function tokenSet(token: string): Promise<void> {
-  if (isTauri()) {
-    const ok = await tauriInvoke<null>('secure_set', { key: TOKEN_KEY, value: token });
-    if (ok !== undefined) return;
+  if (!isTauri()) { await kvSet(TOKEN_KEY, token); return; }
+  volatileToken = token;
+  // Penanda non-rahasia mencegah kredensial OS lama dipulihkan jika tulis gagal.
+  await kvSet(TOKEN_CLEARED_KEY, '1');
+  const ok = await tauriInvoke<null>('secure_set', { key: TOKEN_KEY, value: token });
+  await kvDel(TOKEN_KEY);
+  if (ok !== undefined) {
+    await kvDel(TOKEN_CLEARED_KEY);
+    volatileToken = undefined;
+    warnedStorage = false;
+  } else {
+    warnTokenStorage('Penyimpanan aman perangkat tidak tersedia. Sesi hanya disimpan selama aplikasi terbuka; Anda perlu login lagi setelah menutup aplikasi.');
   }
-  await kvSet(TOKEN_KEY, token);
 }
 
 async function tokenDel(): Promise<void> {
   if (isTauri()) {
+    volatileToken = null;
+    await kvSet(TOKEN_CLEARED_KEY, '1');
     const ok = await tauriInvoke<null>('secure_delete', { key: TOKEN_KEY });
-    if (ok !== undefined) return;
+    if (ok === undefined) {
+      warnTokenStorage('Token pada penyimpanan sistem tidak dapat dihapus. Sesi lokal sudah ditutup; login ulang diperlukan.');
+    }
   }
   await kvDel(TOKEN_KEY);
 }

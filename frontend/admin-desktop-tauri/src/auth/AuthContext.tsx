@@ -1,6 +1,7 @@
+import { toast } from 'sonner';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { isDesktopRoleAllowed, me, type Me } from '../api/auth';
-import { AUTH_EXPIRED_EVENT, getToken, getSessionVersion, clearSession } from '../api/client';
+import { AUTH_EXPIRED_EVENT, TOKEN_STORAGE_WARNING_EVENT, getToken, getSessionVersion, clearSession } from '../api/client';
 
 interface AuthState {
   user: Me | null;
@@ -50,6 +51,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const onExpired = () => setUser(null);
     window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
+  }, []);
+
+  useEffect(() => {
+    const onWarning = (event: Event) => toast.warning((event as CustomEvent<string>).detail);
+    window.addEventListener(TOKEN_STORAGE_WARNING_EVENT, onWarning);
+    return () => window.removeEventListener(TOKEN_STORAGE_WARNING_EVENT, onWarning);
   }, []);
 
   async function logoutLocal() {
