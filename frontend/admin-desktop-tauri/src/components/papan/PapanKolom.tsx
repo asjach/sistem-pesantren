@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useState, type DragEvent } from 'react';
+import { useCallback, useMemo, useState, type DragEvent, type ReactNode } from 'react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { ChevronDown } from '@/icons';
+import { History, Minus, MoreVertical, Plus } from '@/icons';
 import type { RiwayatPapan, StatusPapan } from '@/api/papan';
 import { kelompokkanKolom, kolomSebelah, type KartuPapan, type KartuSub } from '@/lib/papan';
 import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
@@ -148,14 +148,18 @@ export function KartuPapan({
       )}
     >
       <div className="flex items-start gap-2">
-        <span className="mt-px font-mono text-[11px] font-semibold text-muted-foreground">
+        <span className="mt-px shrink-0 bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
           {kartu.subKode}
         </span>
         <h3 className="min-w-0 flex-1 text-[13px] leading-snug font-medium text-[var(--accent-readable)]">
           {kartu.subNama}
         </h3>
         {/* Jumlah poin di kolom ini; berguna saat poinnya panjang-panjang. */}
-        <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+        <span
+          className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center border px-1 font-mono text-[10px] text-muted-foreground tabular-nums"
+          style={{ borderColor: 'var(--divider)' }}
+          title={`${kartu.poin.length} poin di kolom ini`}
+        >
           {kartu.poin.length}
         </span>
       </div>
@@ -233,22 +237,37 @@ function BarisPoin({
       onDragStart={(e) => onMulaiSeret(poin, e)}
       onDragEnd={onLepasSeret}
       onDragOver={onDiAtas}
+      onClick={(e) => {
+        // Tombol "..." sudah membuka popover sendiri; jangan buka dua kali.
+        if ((e.target as HTMLElement).closest('button')) return;
+        onBukaUbah(poin.id);
+      }}
       onKeyDown={(e) => {
+        // Enter/Space = jalur setara untuk membuka rincian, termasuk saat
+        // pengguna hanya boleh membaca. Di layar sentuh ini alur utamanya,
+        // karena drag HTML5 tidak berjalan dengan jari.
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onBukaUbah(poin.id);
+          return;
+        }
         if (!bolehUbah) return;
         if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
         e.preventDefault();
         onPindahArah(poin, e.key === 'ArrowLeft' ? -1 : 1);
       }}
-      aria-label={`${poin.deskripsi}. Seret, atau pakai panah kiri dan kanan, untuk memindahkan poin ini.`}
+      aria-label={`${poin.deskripsi}. Ketuk atau tekan Enter untuk rincian; seret atau pakai panah kiri/kanan untuk memindahkan di desktop.`}
       className={cn(
-        'flex items-start gap-2 border-l-2 py-1 pl-2',
-        bolehUbah && 'cursor-grab',
-        'focus-visible:border-[var(--accent)] focus-visible:outline-none',
-        diseret && 'opacity-40',
+        'flex touch-manipulation items-start gap-1.5 border-l-2 py-1 pr-0.5 pl-2 transition-colors',
+        'border-[color:var(--divider)]',
+        'hover:border-[color:var(--accent-line)] hover:bg-[var(--surface-2)]',
+        'active:bg-[var(--surface-3)]',
+        bolehUbah ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+        'focus-visible:border-[color:var(--accent)] focus-visible:bg-[var(--surface-2)] focus-visible:outline-none',
+        diseret && 'cursor-grabbing opacity-40',
       )}
-      style={{ borderColor: 'var(--divider)' }}
     >
-      <span className="min-w-0 flex-1 text-[12px] leading-snug">
+      <span className="min-w-0 flex-1 text-[12px] leading-snug [overflow-wrap:anywhere]">
         <TeksButir deskripsi={poin.deskripsi} />
       </span>
       {/* Rincian poin dibuka sebagai POPOVER yang menempel di tombolnya,
@@ -280,6 +299,7 @@ export function PapanKolom({
   aksiButir,
   riwayat,
   idAwalan,
+  alat,
 }: {
   kartu: KartuPapan[];
   tampilkanModul: boolean;
@@ -288,10 +308,12 @@ export function PapanKolom({
   bolehUbah?: boolean;
   /** Aksi sunting untuk poin tertentu; wajib bila bolehUbah true. */
   aksiButir?: (poin: KartuPapan) => AksiButir;
-  /** Riwayat ringkas yang ditampilkan di bawah judul (kosong = tidak tampil). */
+  /** Riwayat ringkas yang ditampilkan di toolbar (kosong = tidak tampil). */
   riwayat?: RiwayatPapan[];
   /** Awalan id elemen supaya beberapa papan di satu halaman tidak bertabrakan. */
   idAwalan?: string;
+  /** Aksi tambahan di ujung kanan toolbar (mis. tombol Kelola). */
+  alat?: ReactNode;
 }) {
   const [seret, setSeret] = useState<number | null>(null);
   const [sasaran, setSasaran] = useState<SasaranJatuh | null>(null);
@@ -394,18 +416,42 @@ export function PapanKolom({
         {pengumuman}
       </div>
 
-      {riwayat && riwayat.length > 0 ? (
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 px-6 pb-2 text-xs text-muted-foreground">
-          {riwayat.slice(0, 6).map((r, i) => (
-            <li key={`${r.kode}-${r.waktu}-${i}`} className="tabular-nums">
-              <span className="font-mono">{r.kode}</span> {r.dari ?? '-'} {'→'} {r.ke}
-              <span className="ml-1 opacity-70">{r.waktu}</span>
-            </li>
-          ))}
-        </ul>
+      {(riwayat && riwayat.length > 0) || alat ? (
+        <div className="flex items-center gap-3 px-3 pb-2 sm:px-6">
+          {riwayat && riwayat.length > 0 ? (
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <span
+                className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground"
+                title="Aktivitas papan"
+              >
+                <History size={12} style={{ color: 'inherit' }} />
+                <span className="hidden sm:inline">Aktivitas papan</span>
+              </span>
+              <ul
+                aria-label="Aktivitas terakhir di papan"
+                className="scroll-tanpa-bar flex min-w-0 items-center gap-3 overflow-x-auto text-[11px] text-muted-foreground"
+              >
+                {riwayat.slice(0, 6).map((r, i) => (
+                  <li
+                    key={`${r.kode}-${r.waktu}-${i}`}
+                    className="flex shrink-0 items-center gap-1 whitespace-nowrap tabular-nums"
+                    title={r.waktu}
+                  >
+                    <span className="font-mono text-[10px] font-semibold text-foreground/75">{r.kode}</span>
+                    <span>{r.dari ?? '-'}</span>
+                    <span aria-hidden="true" className="text-muted-foreground/50">→</span>
+                    <span>{r.ke}</span>
+                    <span className="hidden text-[10px] opacity-60 sm:inline">{r.waktu}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {alat ? <div className="ml-auto shrink-0">{alat}</div> : null}
+        </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-6 pb-6">
+      <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto overscroll-x-contain px-3 pb-4 sm:px-6 sm:pb-6">
         {kolom.map((item) => {
           const terlipatKolom = lipat.has(item.id);
           const disorot = sasaran?.kolom === item.id && seret !== null;
@@ -421,40 +467,68 @@ export function PapanKolom({
               className={cn(
                 'flex max-h-full shrink-0 flex-col border',
                 // Terlipat: lebar tetap sempit. Terbuka: berbagi lebar layar
-                // sama rata (basis 0 + grow), jadi empat kolom selalu mengisi
-                // penuh tanpa menyisakan ruang kosong di kanan.
-                terlipatKolom ? 'w-11 cursor-pointer items-center pt-2' : 'min-w-0 flex-1 basis-0',
+                // sama rata (basis 0 + grow), tapi TIDAK boleh lebih sempit
+                // dari 240px — di layar ponsel kolom bergulir horizontal,
+                // bukan meremas teks sampai tumpang tindih.
+                terlipatKolom ? 'w-11 cursor-pointer items-center' : 'min-w-[240px] flex-1 basis-0',
               )}
               style={{
                 background: disorot ? 'color-mix(in srgb, var(--accent) 6%, var(--sunken))' : 'var(--sunken)',
                 borderColor: disorot ? 'var(--accent-line)' : 'var(--divider)',
               }}
             >
+              <span
+                aria-hidden="true"
+                className="h-[2px] w-full shrink-0"
+                style={{ background: WARNA_STATUS[item.id] }}
+              />
               {terlipatKolom ? (
                 <button
                   type="button"
                   onClick={() => jungkitLipat(item.id)}
-                  className="cursor-pointer text-xs font-medium text-muted-foreground [writing-mode:vertical-rl]"
+                  className="flex w-full flex-1 cursor-pointer flex-col items-center gap-2 pt-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
                 >
-                  {item.judul} . {item.kartu.length}
+                  <Plus size={13} style={{ color: 'inherit' }} />
+                  <span className="[writing-mode:vertical-rl]">{item.judul} · {item.kartu.length}</span>
                 </button>
               ) : (
                 <>
-                  <header className="flex items-center gap-[7px] pt-[10px] pr-2 pb-1.5 pl-3 text-[12.5px] font-semibold">
-                    {item.judul}
-                    <span className="font-medium text-muted-foreground tabular-nums">{item.kartu.length}</span>
+                  <header className="flex items-center gap-2 pt-[10px] pr-2 pb-2 pl-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <h2
+                        className="truncate text-[12.5px] leading-snug font-semibold"
+                        style={{ color: 'var(--foreground)' }}
+                      >
+                        {item.judul}
+                      </h2>
+                      <span
+                        className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center border px-1 font-mono text-[10px] font-medium text-muted-foreground tabular-nums"
+                        style={{ borderColor: 'var(--divider)' }}
+                        title={`${item.kartu.length} kartu`}
+                      >
+                        {item.kartu.length}
+                      </span>
+                    </div>
                     <button
                       id={`btn_lipat_${awalan}_${item.id}`}
                       type="button"
                       aria-label={`Lipat kolom ${item.judul}`}
                       onClick={() => jungkitLipat(item.id)}
-                      className="ml-auto grid size-[26px] place-items-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      className="grid size-6 shrink-0 cursor-pointer place-items-center text-muted-foreground transition-colors hover:bg-[var(--surface-3)] hover:text-foreground"
                     >
-                      <ChevronDown size={13} />
+                      <Minus size={13} style={{ color: 'inherit' }} />
                     </button>
                   </header>
 
                   <div className="flex min-h-[60px] flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
+                    {item.kartu.length === 0 ? (
+                      <div
+                        className="pointer-events-none flex flex-1 items-center justify-center border border-dashed px-3 py-6 text-center text-[11px] leading-relaxed text-muted-foreground"
+                        style={{ borderColor: 'var(--divider)' }}
+                      >
+                        {bolehUbah ? 'Tarik poin ke sini' : 'Belum ada poin'}
+                      </div>
+                    ) : null}
                     {item.kartu.map((k, idx) => (
                       <div key={k.subKode} className="flex flex-col gap-1.5">
                         {sasaran && sasaran.kolom === item.id && sasaran.indeks === idx ? (
@@ -500,13 +574,13 @@ export function PapanKolom({
 }
 
 /**
- * Popover rincian satu poin, dibuka dari judul kartu.
+ * Popover rincian satu poin, dibuka dari tombol di baris poin.
  *
  * Dulu ini dialog yang menutupi seluruh papan dengan lapisan gelap.
  * Rincian satu poin tidak sepadan dengan gangguan sebesar itu - dan
  * popover membuat poin yang sedang dibaca tetap terlihat di papan.
- * Ditempelkan ke judul kartu lewat PopoverAnchor, jadi posisinya
- * mengikuti kartunya, bukan di tengah layar.
+ * Ditempelkan ke tombol rincian, jadi posisinya mengikuti baris poinnya,
+ * bukan di tengah layar.
  */
 export function PopoverButir({
   kartu,
@@ -528,28 +602,29 @@ export function PopoverButir({
     <Popover open={terbuka} onOpenChange={onBukaUbah}>
       {/* PopoverTrigger (bukan PopoverAnchor): Anchor hanya menandai
           posisi dan TIDAK membuka popover saat diklik - kliknya diam
-          saja. Trigger merender <button> sendiri, jadi tombol judul
-          tidak lagi dibuat terpisah. */}
+          saja. Trigger merender <button> sendiri, jadi tombol rincian
+          cukup satu dan tidak perlu dibuat terpisah. */}
       <PopoverTrigger
         id={idTombol}
+        type="button"
+        title="Rincian poin"
+        aria-label={`Buka rincian poin: ${kartu.deskripsi}`}
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
-        // Warna judul memakai --accent-readable, bukan --primary mentah:
-        // --primary di tema gelap cuma 2.10:1 terhadap lantai kartu (jauh
-        // di bawah ambang 4.5:1), sementara accent-readable mencampur
-        // accent dengan foreground sehingga ikut menyesuaikan tema.
-        className="min-w-0 flex-1 cursor-pointer text-left text-[13px] leading-snug font-medium text-[var(--accent-readable)]"
+        className="grid size-6 shrink-0 cursor-pointer place-items-center text-muted-foreground transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--accent-readable)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
       >
-        {kartu.subNama}
+        <MoreVertical size={13} style={{ color: 'inherit' }} />
       </PopoverTrigger>
       {/* p-0 dipakai supaya IsiButir yang mengatur paddingnya sendiri;
           border dan bayangan datang dari PopoverContent bawaan (rounded-md
           tidak berpengaruh di proyek ini karena --radius-semua: 0px). */}
       <PopoverContent
         id="pop_butir_papan"
+        aria-label="Rincian poin"
         side="bottom"
         align="start"
-        className="w-[min(400px,90vw)] p-0"
+        collisionPadding={8}
+        className="w-[min(400px,calc(100vw_-_24px))] p-0"
       >
         <IsiButir kartu={kartu} bolehUbah={bolehUbah} onTutup={() => onBukaUbah(false)} {...aksi} />
       </PopoverContent>

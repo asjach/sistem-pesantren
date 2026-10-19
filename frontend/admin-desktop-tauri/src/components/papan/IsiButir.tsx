@@ -3,8 +3,8 @@ import type { MutableRefObject } from 'react';
 
 import type { StatusPapan } from '@/api/papan';
 import { JUDUL_KOLOM, KOLOM_PAPAN } from '@/api/papan';
-import { cn } from '@/lib/utils';
-import { Pencil, Trash2 } from '@/icons';
+import { Button } from '@/components/ui/button';
+import { Pencil, Trash2, X } from '@/icons';
 import type { KartuPapan } from '@/lib/papan';
 import { TeksButir } from './PapanKolom';
 
@@ -13,10 +13,10 @@ import { TeksButir } from './PapanKolom';
 type Sibuk = '' | 'simpan' | 'naik' | 'turun';
 
 const WARNA_STATUS: Record<StatusPapan, string> = {
-  sudah: 'var(--success, #2c5c38)',
+  sudah: 'var(--success)',
   sedang: 'var(--warning)',
-  akan: 'var(--muted-foreground)',
-  ditunda: 'var(--destructive)',
+  akan: 'var(--info)',
+  ditunda: 'var(--muted-foreground)',
 };
 
 /**
@@ -99,22 +99,36 @@ export function IsiButir({
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <div className="flex items-baseline gap-2">
-        <span className="font-mono text-xs font-semibold text-muted-foreground">{kartu.subKode}</span>
-        <h3 className="text-sm font-semibold">{kartu.subNama}</h3>
-        <button
+    <div className="flex max-h-[min(70vh,640px)] flex-col gap-3 overflow-y-auto p-4">
+      <div
+        className="flex items-start gap-2 border-b pb-3"
+        style={{ borderColor: 'var(--divider)' }}
+      >
+        <span className="mt-px shrink-0 bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
+          {kartu.subKode}
+        </span>
+        <h3 className="min-w-0 flex-1 text-sm font-semibold leading-snug text-[var(--accent-readable)]">
+          {kartu.subNama}
+        </h3>
+        <Button
           id="btn_tutup_butir_papan"
           type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Tutup rincian"
+          title="Tutup"
           onClick={onTutup}
-          className="ml-auto cursor-pointer text-xs text-muted-foreground hover:text-foreground"
+          className="-mt-1 -mr-1 shrink-0 text-muted-foreground hover:text-foreground"
         >
-          Tutup
-        </button>
+          <X size={14} style={{ color: 'inherit' }} />
+        </Button>
       </div>
 
       {galat !== '' ? (
-        <p role="alert" className="text-xs" style={{ color: 'var(--destructive)' }}>
+        <p
+          role="alert"
+          className="border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive"
+        >
           {galat}
         </p>
       ) : null}
@@ -181,56 +195,58 @@ function BacaButir({
       <div className="flex items-center gap-2">
         <LencanaStatus status={kartu.status} />
         {bolehUbah ? (
-          <button
+          <Button
             id="btn_ubah_butir_papan"
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={onMulaiUbah}
-            className="ml-auto flex cursor-pointer items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className="ml-auto text-muted-foreground hover:text-foreground"
           >
-            <Pencil className="size-3" />
+            <Pencil size={12} style={{ color: 'inherit' }} />
             Ubah
-          </button>
+          </Button>
         ) : null}
       </div>
 
-      <p className="text-[13px] leading-snug">
+      <p className="text-[13px] leading-relaxed">
         <TeksButir deskripsi={kartu.deskripsi} />
       </p>
 
       {bolehUbah ? (
         <div className="flex flex-col gap-2">
           <GantiStatus status={kartu.status} sibuk={sibuk} onGanti={onGantiStatus} />
-          <div className="flex items-center gap-2">
-            <button
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="w-14 shrink-0 text-[11px] text-muted-foreground">Urutan</span>
+            <Button
               id="btn_naik_butir_papan"
               type="button"
+              variant="outline"
+              size="sm"
               disabled={sibuk === 'naik'}
               onClick={onNaik}
-              className="cursor-pointer border px-2 py-1 text-xs disabled:opacity-40"
-              style={{ borderColor: 'var(--divider)' }}
             >
               Naik
-            </button>
-            <button
+            </Button>
+            <Button
               id="btn_turun_butir_papan"
               type="button"
+              variant="outline"
+              size="sm"
               disabled={sibuk === 'turun'}
               onClick={onTurun}
-              className="cursor-pointer border px-2 py-1 text-xs disabled:opacity-40"
-              style={{ borderColor: 'var(--divider)' }}
             >
               Turun
-            </button>
+            </Button>
             {konfirmasiHapus ? (
-              <span className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex flex-wrap items-center gap-2 border border-destructive/30 bg-destructive/10 px-2 py-1.5">
                 <span className="text-xs">Hapus poin ini?</span>
                 <button
                   id="btn_yakin_hapus_butir"
                   type="button"
                   disabled={sibuk !== ''}
                   onClick={onHapus}
-                  className="cursor-pointer text-xs font-medium disabled:opacity-40"
-                  style={{ color: 'var(--destructive)' }}
+                  className="cursor-pointer text-xs font-medium text-destructive disabled:opacity-40"
                 >
                   Ya, hapus
                 </button>
@@ -242,16 +258,16 @@ function BacaButir({
                 >
                   Batal
                 </button>
-              </span>
+              </div>
             ) : (
               <button
                 id="btn_hapus_butir_papan"
                 type="button"
                 disabled={sibuk !== ''}
                 onClick={onMintaKonfirmasiHapus}
-                className="ml-auto flex cursor-pointer items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                className="ml-auto flex cursor-pointer items-center gap-1 px-1.5 py-1 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
               >
-                <Trash2 className="size-3" />
+                <Trash2 className="size-3" style={{ color: 'inherit' }} />
                 Hapus
               </button>
             )}
@@ -309,24 +325,25 @@ function UbahButir({
         style={{ borderColor: 'var(--divider)' }}
       />
       <div className="flex items-center gap-2">
-        <button
+        <Button
           id="btn_simpan_butir_papan"
           type="button"
+          size="sm"
           disabled={sibuk !== '' || draf.trim() === ''}
           onClick={onSimpan}
-          className="cursor-pointer px-3 py-1 text-xs font-medium disabled:opacity-40"
-          style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
         >
           Simpan
-        </button>
-        <button
+        </Button>
+        <Button
           id="btn_batal_ubah_butir"
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={onBatal}
-          className="cursor-pointer text-xs text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground"
         >
           Batal
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -343,19 +360,25 @@ function GantiStatus({
   onGanti: (s: StatusPapan) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="w-14 shrink-0 text-[11px] text-muted-foreground">Pindah ke</span>
       {KOLOM_PAPAN.filter((s) => s !== status).map((s) => (
-        <button
+        <Button
           key={s}
           id={`btn_status_${s}`}
           type="button"
+          variant="outline"
+          size="sm"
           disabled={sibuk !== ''}
           onClick={() => onGanti(s)}
-          className="cursor-pointer border px-2 py-1 text-xs disabled:opacity-40"
-          style={{ borderColor: 'var(--divider)' }}
         >
+          <span
+            aria-hidden="true"
+            className="size-1.5 shrink-0"
+            style={{ background: WARNA_STATUS[s] }}
+          />
           {JUDUL_KOLOM[s]}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -365,10 +388,18 @@ function GantiStatus({
 function LencanaStatus({ status }: { status: StatusPapan }) {
   return (
     <span
-      className={cn('font-mono text-[10px] font-semibold tracking-wide uppercase')}
-      style={{ color: WARNA_STATUS[status] }}
+      className="inline-flex h-[22px] items-center gap-1.5 px-2 text-[11px] font-medium"
+      style={{
+        color: WARNA_STATUS[status],
+        background: `color-mix(in srgb, ${WARNA_STATUS[status]} 10%, transparent)`,
+      }}
     >
-      {status}
+      <span
+        aria-hidden="true"
+        className="size-1.5 shrink-0"
+        style={{ background: WARNA_STATUS[status] }}
+      />
+      {JUDUL_KOLOM[status]}
     </span>
   );
 }

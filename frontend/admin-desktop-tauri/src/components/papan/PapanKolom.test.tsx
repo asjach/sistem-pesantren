@@ -48,6 +48,13 @@ describe('PapanKolom - rincian poin', () => {
     expect(document.getElementById('dialog_butir_papan')).toBeNull();
   });
 
+  it('mengetuk baris poin membuka rincian (jalur sentuh)', () => {
+    pasang();
+    fireEvent.click(document.getElementById('kartu_papan_butir_128')!);
+
+    expect(document.getElementById('pop_butir_papan')).not.toBeNull();
+  });
+
   it('rincian hanya terbuka untuk satu kartu', () => {
     pasang([kartu(), kartu({ id: 129, deskripsi: 'Rekap per kas.' })]);
     fireEvent.click(document.getElementById('btn_buka_papan_butir_128')!);

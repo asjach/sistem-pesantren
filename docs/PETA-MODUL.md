@@ -367,15 +367,15 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## G.4 Tahfizh (503) `AKAN`
+## G.4 Tahfizh (503) `SUDAH`
 **SUDAH**
 - Tabel `target_tahfiz`, `setoran_tahfiz`, dan `rekap_tahfiz_santri` sudah dibuat.
 **SEDANG**
 - (kosong)
 **AKAN**
-- UI tahfizh untuk ziyadah dan murajaah.
-**DITUNDA**
 - (kosong)
+**DITUNDA**
+- UI tahfizh untuk ziyadah dan murajaah.
 
 ## G.5 Statistik Pimpinan (504) `AKAN`
 **SUDAH**

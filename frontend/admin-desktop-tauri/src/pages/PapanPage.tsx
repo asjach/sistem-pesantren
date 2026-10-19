@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { PAGE_SHELL } from '@/components/PageHeader';
+import { ErrorNotice, PAGE_SHELL } from '@/components/PageHeader';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { PapanKolom } from '@/components/papan/PapanKolom';
+import { Columns3, Loader2, RefreshCcw, Settings } from '@/icons';
 import {
   geserButirPapan,
   hapusButirPapan,
@@ -196,7 +198,13 @@ export default function PapanPage() {
   if (memuat && !data) {
     return (
       <div id="papan_modul" className={cn(PAGE_SHELL, 'h-full')}>
-        <div className="px-6 pt-7 text-sm text-muted-foreground">Memuat papan...</div>
+        <div
+          role="status"
+          className="flex flex-1 items-center justify-center gap-2 px-6 text-sm text-muted-foreground"
+        >
+          <Loader2 size={15} className="animate-spin" />
+          Memuat papan...
+        </div>
       </div>
     );
   }
@@ -204,8 +212,19 @@ export default function PapanPage() {
   if (galat && !data) {
     return (
       <div id="papan_modul" className={cn(PAGE_SHELL, 'h-full')}>
-        <div className="px-6 pt-7 text-sm" style={{ color: 'var(--danger)' }}>
-          {galat}
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-3 px-6">
+          <ErrorNotice className="mb-0">{galat}</ErrorNotice>
+          <Button
+            id="btn_muat_ulang_papan"
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void muat()}
+            className="self-start"
+          >
+            <RefreshCcw size={13} />
+            Coba lagi
+          </Button>
         </div>
       </div>
     );
@@ -221,7 +240,13 @@ export default function PapanPage() {
           onValueChange={(k) => navigate(`/papan/${k}`)}
           className="min-h-0 flex-1 gap-0"
         >
-          <TabsList className={KELAS_LIST_TAB} indikator="primer">
+          <TabsList
+            className={KELAS_LIST_TAB}
+            indikator="primer"
+            // Daftar tab yang lebih lebar dari layar harus mulai dari kiri.
+            // justify-center bawaan memotong tab awal saat wadah bergulir.
+            style={{ justifyContent: 'flex-start' }}
+          >
             {modul.map((m) => (
               <TabsTrigger
                 key={m.kode}
@@ -243,22 +268,8 @@ export default function PapanPage() {
           </TabsList>
 
           {galat ? (
-            <div className="px-6 py-2 text-xs" style={{ color: 'var(--danger)' }}>
-              {galat}
-            </div>
-          ) : null}
-
-          {bolehUbah && aktif ? (
-            <div className="px-4 pb-1">
-              <button
-                id="btn_kelola_papan"
-                type="button"
-                onClick={() => setKelolaTerbuka(true)}
-                className="cursor-pointer border px-3 py-1 text-xs"
-                style={{ borderColor: 'var(--divider)' }}
-              >
-                Kelola sub-modul & poin
-              </button>
+            <div className="px-3 pt-2 sm:px-6">
+              <ErrorNotice className="mb-0">{galat}</ErrorNotice>
             </div>
           ) : null}
 
@@ -272,11 +283,31 @@ export default function PapanPage() {
               aksiButir={aksiButir}
               riwayat={riwayat}
               idAwalan={`modul_${aktif.kode.toLowerCase()}`}
+              alat={
+                bolehUbah ? (
+                  <Button
+                    id="btn_kelola_papan"
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setKelolaTerbuka(true)}
+                  >
+                    <Settings size={13} />
+                    Kelola <span className="hidden sm:inline">sub-modul &amp; poin</span>
+                  </Button>
+                ) : null
+              }
             />
           ) : null}
         </Tabs>
       ) : (
-        <div className="px-6 pt-2 text-sm text-muted-foreground">Papan belum berisi modul.</div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
+          <Columns3 size={24} className="text-muted-foreground/60" />
+          <p className="text-sm font-medium">Papan belum berisi modul</p>
+          <p className="max-w-sm text-xs text-muted-foreground">
+            Modul akan muncul otomatis setelah datanya tersedia di server.
+          </p>
+        </div>
       )}
 
       {bolehUbah && kelolaTerbuka && aktif ? (
