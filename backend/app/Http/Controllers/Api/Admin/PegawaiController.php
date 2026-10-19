@@ -46,7 +46,7 @@ class PegawaiController extends Controller
     public function index(Request $request): JsonResponse
     {
         $urut = $this->parseUrut($request, UrutKatalog::peta('pegawai'));
-        $query = Pegawai::with(['penempatan.lembaga:jenjang,nama', 'akun:id,name,email']);
+        $query = Pegawai::tenantScope()->with(['penempatan.lembaga:jenjang,nama', 'akun:id,name,email']);
 
         $lembaga = $this->nilaiFilter($request, 'jenjang');
         $this->authorizeLembagaMany($request->user(), $lembaga);
@@ -90,6 +90,7 @@ class PegawaiController extends Controller
 
     public function update(PegawaiUpdateRequest $request, Pegawai $pegawai): JsonResponse
     {
+        abort_unless(Pegawai::tenantScope()->whereKey($pegawai->id)->exists(), 403, 'Akses ditolak.');
         try {
             $pegawai->update($request->validated());
         } catch (QueryException $e) {
@@ -99,8 +100,9 @@ class PegawaiController extends Controller
         return response()->json(['pesan' => 'Pegawai diperbarui.', 'data' => $pegawai->fresh()]);
     }
 
-    public function destroy(Pegawai $pegawai): JsonResponse
+    public function destroy(Request $request, Pegawai $pegawai): JsonResponse
     {
+        abort_unless(Pegawai::tenantScope()->whereKey($pegawai->id)->exists(), 403, 'Akses ditolak.');
         $pegawai->delete();
 
         return response()->json(['pesan' => 'Pegawai dihapus.']);
@@ -109,6 +111,7 @@ class PegawaiController extends Controller
     /** POST /api/admin/pegawai/{pegawai}/tautkan-akun — tautkan/lepas akun login. */
     public function tautkanAkun(PegawaiTautkanAkunRequest $request, Pegawai $pegawai): JsonResponse
     {
+        abort_unless(Pegawai::tenantScope()->whereKey($pegawai->id)->exists(), 403, 'Akses ditolak.');
         $data = $request->validated();
         $pegawai->update(['user_id' => $data['user_id'] ?? null]);
 
@@ -124,6 +127,7 @@ class PegawaiController extends Controller
      */
     public function buatkanAkun(Request $request, Pegawai $pegawai, AkunPegawaiService $akun): JsonResponse
     {
+        abort_unless(Pegawai::tenantScope()->whereKey($pegawai->id)->exists(), 403, 'Akses ditolak.');
         $this->authorize('create', User::class);
 
         if ($pegawai->user_id !== null) {
@@ -183,7 +187,7 @@ class PegawaiController extends Controller
         $hasil = ['dibuat' => 0, 'diperbarui' => 0, 'dilewati' => 0];
         $gagal = [];
 
-        $query = Pegawai::query();
+        $query = Pegawai::tenantScope();
         if ($request->filled('q')) {
             $q = trim((string) $request->input('q'));
             $query->where(fn ($sub) => $sub
@@ -227,6 +231,7 @@ class PegawaiController extends Controller
     // Upload foto profil pegawai. Storage: dokumen/pegawai/foto_profil/* ; DB hanya path di pegawai.foto_url.
     public function uploadFoto(PegawaiFotoRequest $request, Pegawai $pegawai): JsonResponse
     {
+        abort_unless(Pegawai::tenantScope()->whereKey($pegawai->id)->exists(), 403, 'Akses ditolak.');
         $path = $request->file('foto')->store('dokumen/pegawai/foto_profil', 'local');
 
         if ($pegawai->foto_url && Storage::disk('local')->exists($pegawai->foto_url)) {
@@ -275,11 +280,16 @@ class PegawaiController extends Controller
      * `kolom` (cermin `DataSantri::baris()`), karena perakit browser membaca
      * per indeks, bukan per kunci.
      */
-    public function dataExisting(): JsonResponse
+    public function dataExisting(Request $request): JsonResponse
     {
         $kolom = PegawaiTemplateExport::kolom();
         $teks = fn (mixed $nilai): string => $nilai === null ? '' : (string) $nilai;
-        $baris = Pegawai::orderBy('nama_lengkap')->limit(5000)->get()
+        $q = Pegawai::tenantScope();
+        $lembaga = $this->selectedLembaga($request, $request->user());
+        if ($lembaga !== []) {
+            $q->whereHas('penempatan', fn ($p) => $p->whereIn('jenjang', $lembaga));
+        }
+        $baris = $q->orderBy('nama_lengkap')->limit(5000)->get()
             ->map(function (Pegawai $p) use ($kolom, $teks) {
                 $peta = [
                     'pegawai_id' => (string) $p->id,
@@ -361,7 +371,7 @@ class PegawaiController extends Controller
     public function akunIndex(Request $request): JsonResponse
     {
         $urut = $this->parseUrut($request, UrutKatalog::peta('pegawai_akun'));
-        $query = Pegawai::with([
+        $query = Pegawai::tenantScope()->with([
             'akun:id,name,email,phone,username',
             'akun.roles:id,name',
             'akun.lembagas:jenjang,nama',
@@ -371,7 +381,7 @@ class PegawaiController extends Controller
         $lembaga = $this->nilaiFilter($request, 'jenjang');
         $this->authorizeLembagaMany($request->user(), $lembaga);
         if ($lembaga === [] && ! $request->user()->bolehPesantren()) {
-            $lembaga = $request->user()->lembagaIds();
+            $lembaga = $request->user()->lembagaIdsDenganPasangan();
         }
         if ($lembaga !== []) {
             $query->whereHas('akun.lembagas', fn ($l) => $l->whereIn('lembaga.jenjang', $lembaga));

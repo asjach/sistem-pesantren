@@ -132,6 +132,14 @@ class PegawaiImporService extends ImporPotongan
                 $pegawai = Pegawai::where('nipp', $nipp)->first();
             }
 
+            if ($pegawai && $this->aktor !== null && ! $this->aktor->bolehPesantren()
+                && $pegawai->penempatan()->exists()
+                && ! $pegawai->penempatan()->whereIn('jenjang', $this->aktor->lembagaIdsDenganPasangan())->exists()) {
+                $this->fail($no, 'pegawai_id', 'Pegawai di luar lingkup lembaga Anda.');
+
+                return;
+            }
+
             $data = [];
             foreach (['nama_lengkap', 'nip', 'nipp', 'nik', 'gelar_depan', 'gelar_belakang', 'jenis_kelamin',
                 'tempat_lahir', 'tanggal_lahir', 'no_hp', 'email_pribadi', 'email_gws',

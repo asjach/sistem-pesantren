@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Dispensasi;
 use App\Models\JenisTagihan;
 use App\Models\Lembaga;
+use App\Models\LembagaPegawai;
 use App\Models\LembagaSantri;
+use App\Models\Pegawai;
 use App\Models\PrestasiSantri;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
@@ -135,5 +137,30 @@ class AuditKeuanganTenantTest extends TestCase
         } finally {
             Tagihan::flushEventListeners();
         }
+    }
+
+    public function test_master_pegawai_dan_ekspor_tidak_membuka_identitas_lembaga_lain(): void
+    {
+        $asing = null;
+        foreach (['MI', 'MTS'] as $jenjang) {
+            $pegawai = Pegawai::create(['nama_lengkap' => 'Pegawai '.$jenjang, 'jenis_kelamin' => 'L']);
+            LembagaPegawai::create(['pegawai_id' => $pegawai->id, 'jenjang' => $jenjang]);
+            if ($jenjang === 'MTS') {
+                $asing = $pegawai;
+            }
+        }
+        $this->actingAs($this->actor());
+        $this->getJson('/api/admin/pegawai')->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson('/api/admin/pegawai/data-existing')->assertOk()->assertJsonCount(1, 'baris');
+        $this->patchJson('/api/admin/pegawai/'.$asing->id, ['nama_lengkap' => 'Diubah', 'jenis_kelamin' => 'L'])->assertForbidden();
+        $this->deleteJson('/api/admin/pegawai/'.$asing->id)->assertForbidden();
+        $this->postJson('/api/admin/pegawai/'.$asing->id.'/tautkan-akun', ['user_id' => null])->assertForbidden();
+        $this->postJson('/api/admin/pegawai/import-potong', [
+            'mode' => 'eksekusi', 'total' => 1, 'terakhir' => true,
+            'baris' => [['pegawai_id' => $asing->id, 'nama_lengkap' => 'Diubah lewat impor']],
+        ])->assertOk()->assertJsonPath('ringkasan.baris_gagal', 1);
+        $this->assertSame('Pegawai MTS', $asing->fresh()->nama_lengkap);
+        $this->getJson('/api/admin/pegawai/'.$asing->id.'/penempatan')->assertForbidden();
+        $this->postJson('/api/admin/pegawai/'.$asing->id.'/tempatkan', ['jenjang' => 'MI'])->assertForbidden();
     }
 }

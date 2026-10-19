@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,6 +21,19 @@ class Pegawai extends Model
         'tgl_mulai_kerja' => 'date:Y-m-d',
         'tgl_sk_awal' => 'date:Y-m-d',
     ];
+
+    public function scopeTenantScope(Builder $query): Builder
+    {
+        $actor = auth()->user();
+        if ($actor->bolehPesantren()) {
+            return $query;
+        }
+
+        // Identitas tanpa penempatan tetap tersedia untuk penempatan awal.
+        return $query->where(fn ($q) => $q
+            ->whereHas('penempatan', fn ($p) => $p->whereIn('jenjang', $actor->lembagaIdsDenganPasangan()))
+            ->orWhereDoesntHave('penempatan'));
+    }
 
     public function penempatan(): HasMany
     {
