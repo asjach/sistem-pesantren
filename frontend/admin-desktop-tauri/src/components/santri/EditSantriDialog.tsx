@@ -211,9 +211,8 @@ export function EditSantriDialog({ santri, daftar = [], onGanti, open, onOpenCha
         akarArsip(typeof r1 === 'string' ? r1 : '', ROOT_ARSIP_DOKUMEN),
         akarArsip(typeof r2 === 'string' ? r2 : '', ROOT_ARSIP_TEST),
       ]);
-      for (const akar of akars) {
-        await hapusArsip(nama, jenis, akar, 'santri', lokasi);
-      }
+      const akar = lokasi === 'test' ? akars[1] : akars[0];
+      await hapusArsip(nama, jenis, akar, 'santri', lokasi);
     } catch (e) {
       toast.warning(`Arsip lokal gagal dibersihkan: ${errorMessage(e)}`);
     }

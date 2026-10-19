@@ -206,20 +206,14 @@ export async function tulisBalikArsip(namaLama: string, namaBaru: string, jenis:
     akarArsip(typeof a === 'string' ? a : '', ROOT_ARSIP_DOKUMEN),
     akarArsip(typeof b === 'string' ? b : '', ROOT_ARSIP_TEST),
   ]);
-  let folder: string | null = null;
-  for (const akar of akars) {
-    const ketemu = await cariArsip(namaLama, jenis, akar, tipe, lokasi);
-    if (ketemu) {
-      const { dirname } = await import('@tauri-apps/api/path');
-      folder = await dirname(ketemu);
-      break;
-    }
-  }
-  folder ??= await folderArsip(lokasi === 'test' ? akars[1] : akars[0], lokasi, tipe);
+  const akarTujuan = lokasi === 'test' ? akars[1] : akars[0];
+  const ketemu = await cariArsip(namaLama, jenis, akarTujuan, tipe, lokasi);
+  const { dirname } = await import('@tauri-apps/api/path');
+  const folder = ketemu ? await dirname(ketemu) : await folderArsip(akarTujuan, lokasi, tipe);
   await mkdir(folder, { recursive: true });
   await writeFile(await join(folder, namaBaru), data);
   if (namaBaru !== namaLama) {
-    for (const akar of akars) await hapusArsip(namaLama, jenis, akar, tipe, lokasi);
+    await hapusArsip(namaLama, jenis, akarTujuan, tipe, lokasi);
   }
 }
 /** Hapus salinan arsip di semua tata (baru + lama); diam bila tak ada. */
@@ -275,7 +269,7 @@ export async function tulisGantiArsip(input: {
   await writeFile(tujuan, input.data);
   if (!(await exists(tujuan))) throw new Error('Salinan arsip tidak terbentuk.');
   if (input.namaLama) {
-    for (const akar of [akarDokumen, akarTest]) await hapusArsip(input.namaLama, input.jenis, akar, input.tipe, input.lokasi);
+    await hapusArsip(input.namaLama, input.jenis, input.lokasi === 'test' ? akarTest : akarDokumen, input.tipe, input.lokasi);
   }
   return namaBaru;
 }
