@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\PapanTulisUlang;
 use App\Support\PapanMarkdown;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -15,48 +16,52 @@ use RuntimeException;
 class PapanMarkdownCommand extends Command
 {
     /** Hasilkan markdown dari papan; tulis hanya bila --tulis diberikan. */
-    public function handle(PapanMarkdown $generator): int
+    public function handle(PapanMarkdown $generator, PapanTulisUlang $tulisUlang): int
     {
         $berkas = $this->berkas();
 
-        if (! is_file($berkas)) {
-            $this->error("Berkas peta tidak ditemukan: {$berkas}");
-
-            return self::FAILURE;
+        if (! $this->option('tulis')) {
+            return $this->pratinjau($generator, $berkas);
         }
 
-        $lama = (string) file_get_contents($berkas);
-
         try {
-            [$kepala, $ekor] = PapanMarkdown::potong($lama);
+            $hasil = $tulisUlang->jalankan($berkas);
         } catch (RuntimeException $e) {
             $this->error($e->getMessage());
 
             return self::FAILURE;
         }
 
-        $baru = $generator->hasilkan($kepala, $ekor);
-
-        if (! $this->option('tulis')) {
-            $this->line($baru);
-
-            return self::SUCCESS;
-        }
-
-        if ($baru === $lama) {
-            $this->info('Peta sudah selaras dengan papan; tidak ada yang diubah.');
-
-            return self::SUCCESS;
-        }
-
-        file_put_contents($berkas, $baru);
-
-        $this->info("Peta ditulis ulang dari papan: {$berkas}");
+        $this->info($hasil['berubah']
+            ? "Peta ditulis ulang dari papan: {$hasil['berkas']}"
+            : 'Peta sudah selaras dengan papan; tidak ada yang diubah.');
 
         return self::SUCCESS;
     }
 
-    /** Lokasi berkas peta: opsi --berkas, atau docs/PETA-MODUL.md repo. */
+    /** Cetak markdown hasil papan tanpa menyentuh berkas. */
+    private function pratinjau(PapanMarkdown $generator, string $berkas): int
+    {
+        if (! is_file($berkas)) {
+            $this->error("Berkas peta tidak ditemukan: {$berkas}");
+
+            return self::FAILURE;
+        }
+
+        try {
+            [$kepala, $ekor] = PapanMarkdown::potong((string) file_get_contents($berkas));
+        } catch (RuntimeException $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->line($generator->hasilkan($kepala, $ekor));
+
+        return self::SUCCESS;
+    }
+
+    /** Lokasi berkas peta: opsi --berkas, atau lokasi bawaan. */
     private function berkas(): string
     {
         $opsi = $this->option('berkas');
@@ -65,6 +70,6 @@ class PapanMarkdownCommand extends Command
             return $opsi;
         }
 
-        return dirname(base_path()).'/docs/PETA-MODUL.md';
+        return PapanTulisUlang::berkasBawaan();
     }
 }

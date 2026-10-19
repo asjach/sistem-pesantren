@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\PapanService;
+use App\Services\PapanTulisUlang;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * API papan perkembangan proyek (FB-PAPAN-01).
@@ -18,7 +20,10 @@ use InvalidArgumentException;
  */
 class PapanController extends Controller
 {
-    public function __construct(private readonly PapanService $papan) {}
+    public function __construct(
+        private readonly PapanService $papan,
+        private readonly PapanTulisUlang $tulisUlang,
+    ) {}
 
     /** Seluruh papan: modul, sub-modul, butir, plus ringkasan per status. */
     public function index(): JsonResponse
@@ -83,6 +88,7 @@ class PapanController extends Controller
             'kode' => $item->kode,
             'nama' => $item->nama,
             'status' => $item->status,
+            ...$this->segarkanMarkdown(),
         ]);
     }
 
@@ -104,6 +110,7 @@ class PapanController extends Controller
             'id' => $butir->id,
             'status' => $butir->status,
             'deskripsi' => $butir->deskripsi,
+            ...$this->segarkanMarkdown(),
         ], 201);
     }
 
@@ -120,6 +127,28 @@ class PapanController extends Controller
             return response()->json(['message' => "Butir #{$butir} tidak ditemukan di {$kode}."], 404);
         }
 
-        return response()->json(['message' => 'Butir dihapus.']);
+        return response()->json(['message' => 'Butir dihapus.', ...$this->segarkanMarkdown()]);
+    }
+
+    /**
+     * Tulis ulang docs/PETA-MODUL.md dari papan setelah perubahan.
+     *
+     * Markdown hanya turunan, jadi kegagalan menulisnya **tidak** boleh
+     * menggagalkan perubahan papan yang sudah tersimpan. Kegagalannya tetap
+     * dilaporkan lewat kunci \`markdown\` supaya kelihatan dan bisa ditindak.
+     *
+     * @return array{markdown: array{berubah: bool, galat: string|null}}
+     */
+    private function segarkanMarkdown(): array
+    {
+        try {
+            $hasil = $this->tulisUlang->jalankan();
+
+            return ['markdown' => ['berubah' => $hasil['berubah'], 'galat' => null]];
+        } catch (RuntimeException $e) {
+            report($e);
+
+            return ['markdown' => ['berubah' => false, 'galat' => $e->getMessage()]];
+        }
     }
 }
