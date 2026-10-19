@@ -383,21 +383,24 @@ class PembayaranController extends Controller
     /** Hapus permanen SELURUH transaksi (tiap baris dikoreksi seperti hapus). */
     public function destroyTransaksi(Request $request, TransaksiPembayaran $transaksi)
     {
-        $baris = $transaksi->pembayaran()->with('tagihan')->orderBy('id')->get();
-        foreach ($baris as $p) {
-            if ($p->tagihan !== null) {
-                $this->canLembaga($request->user(), $p->tagihan->jenjang) || abort(403);
+        return DB::transaction(function () use ($request, $transaksi) {
+            $this->kunciTagihanPembayaran($transaksi->id);
+            $baris = $transaksi->pembayaran()->with('tagihan')->orderBy('id')->lockForUpdate()->get();
+            foreach ($baris as $p) {
+                if ($p->tagihan !== null) {
+                    $this->canLembaga($request->user(), $p->tagihan->jenjang) || abort(403);
+                }
             }
-        }
-        if ($baris->isEmpty()) {
-            $transaksi->delete();
+            if ($baris->isEmpty()) {
+                $transaksi->delete();
 
-            return response()->json(['pesan' => 'Transaksi dihapus.']);
-        }
-        foreach ($baris as $p) {
-            $this->hapusBaris($p);
-        }
+                return response()->json(['pesan' => 'Transaksi dihapus.']);
+            }
+            foreach ($baris as $p) {
+                $this->hapusBaris($p);
+            }
 
-        return response()->json(['pesan' => "Transaksi dihapus ({$baris->count()} baris)."]);
+            return response()->json(['pesan' => "Transaksi dihapus ({$baris->count()} baris)."]);
+        });
     }
 }
