@@ -6,6 +6,7 @@ use App\Models\Dispensasi;
 use App\Models\JenisTagihan;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
+use App\Models\PrestasiSantri;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\Tagihan;
@@ -102,5 +103,17 @@ class AuditKeuanganTenantTest extends TestCase
         }
         $this->assertDatabaseCount('tagihan', 0);
         $this->postJson('/api/admin/keuangan/tagihan', $payload + ['santri_id' => $mi->id, 'jenis_id' => $global->id])->assertCreated();
+    }
+
+    public function test_prestasi_santri_lain_tidak_bisa_dibaca_ditambah_atau_dihapus(): void
+    {
+        $santri = $this->santri('MTS');
+        $data = ['santri_id' => $santri->id, 'tahun_ajaran' => '2025/2026', 'prestasi' => 'Juara'];
+        $prestasi = PrestasiSantri::create($data);
+        $this->actingAs($this->actor());
+        $this->getJson('/api/admin/penilaian/prestasi?tahun_ajaran=2025%2F2026')->assertOk()->assertExactJson([]);
+        $this->postJson('/api/admin/penilaian/prestasi', $data)->assertForbidden();
+        $this->deleteJson('/api/admin/penilaian/prestasi/'.$prestasi->id)->assertForbidden();
+        $this->assertDatabaseHas('prestasi_santri', ['id' => $prestasi->id]);
     }
 }
