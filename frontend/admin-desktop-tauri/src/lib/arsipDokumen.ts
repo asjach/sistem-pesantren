@@ -9,7 +9,7 @@
  *  terverifikasi. Di browser biasa modul ini tidak dipakai (penjagaan
  *  `isTauri()` di halaman).
  */
-import { prefGet } from '@/api/client';
+import { isTauri, prefGet } from '@/api/client';
 
 /** Nama folder tujuan file asli di lokasi sumbernya. */
 export const FOLDER_SUDAH = 'sudah';
@@ -138,8 +138,17 @@ export async function pilihBerkasDokumen(bebas = false): Promise<BerkasTerpilih 
 }
 
 /** Selesaikan akar arsip: pref absolut bila diisi, sonst bawaan Documents. */
+const akarDiizinkan = new Set<string>();
+
 export async function akarArsip(folderPref: string, bawaan: string): Promise<string> {
-  if (folderPref.trim() !== '') return folderPref;
+  if (folderPref.trim() !== '') {
+    if (isTauri() && !akarDiizinkan.has(folderPref)) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('siapkan_akses_arsip', { sumber: null });
+      akarDiizinkan.add(folderPref);
+    }
+    return folderPref;
+  }
   const { documentDir, join } = await import('@tauri-apps/api/path');
   return join(await documentDir(), bawaan);
 }
@@ -443,6 +452,10 @@ export async function statLokal(
  *  bila gagal (mis. lintas volume) fallback salin + verifikasi ukuran + hapus.
  *  Mengembalikan path tujuan. */
 export async function pindahKeSudah(pathSumber: string): Promise<string> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('siapkan_akses_arsip', { sumber: pathSumber });
+  }
   const { copyFile, exists, mkdir, remove, rename, size } = await import('@tauri-apps/plugin-fs');
   const { basename, dirname, join } = await import('@tauri-apps/api/path');
   const folderSudah = await join(await dirname(pathSumber), FOLDER_SUDAH);

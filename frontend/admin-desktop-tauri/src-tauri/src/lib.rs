@@ -1,4 +1,5 @@
 mod secure_store;
+mod archive_scope;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -8,6 +9,7 @@ pub fn run() {
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_clipboard_manager::init())
     .invoke_handler(tauri::generate_handler![
+      archive_scope::siapkan_akses_arsip,
       secure_store::secure_get,
       secure_store::secure_set,
       secure_store::secure_delete

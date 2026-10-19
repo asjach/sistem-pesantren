@@ -18,7 +18,6 @@
     "dialog:allow-open",
     "dialog:allow-save",
     "clipboard-manager:allow-write-text",
-    "clipboard-manager:allow-read-text",
     "fs:allow-read-file",
     "fs:allow-write-file",
     "fs:allow-copy-file",
@@ -30,7 +29,12 @@
     "fs:allow-stat",
     {
       "identifier": "fs:scope",
-      "allow": ["$HOME/**", "/Volumes/**", "D:/**", "E:/**"]
+      "allow": [
+        "$DOCUMENT/SIMPES-Dokumen",
+        "$DOCUMENT/SIMPES-Dokumen/**",
+        "$DOCUMENT/SIMPES-Dokumen-Test",
+        "$DOCUMENT/SIMPES-Dokumen-Test/**"
+      ]
     }
   ]
 }
