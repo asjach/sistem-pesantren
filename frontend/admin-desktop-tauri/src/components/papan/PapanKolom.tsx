@@ -160,14 +160,11 @@ export function KartuPapan({
         <TeksButir deskripsi={kartu.deskripsi} />
       </p>
 
-      {/* Tidak ada combobox pindah dan tidak ada teks petunjuk: perpindahan
-          status HANYA lewat seret (plus panah kiri/kanan untuk keyboard).
-          Petunjuknya sengaja tidak ditulis di kartu - kursor grab sudah
-          memberi isyarat, dan teks itu mengulang-ulang di tiap kartu.
+      {/* Perpindahan status HANYA lewat seret (plus panah kiri/kanan untuk
+          keyboard), jadi kartu tidak punya kontrol apa pun di footer - tidak
+          combobox, tidak teks petunjuk, tidak nomor id. Kursor grab sudah
+          memberi isyarat dan tidak ada lagi yang perlu dibaca di sana.
           Kartu tetap wajib draggable - lihat atribut di <article>. */}
-      <div className="flex items-center text-xs text-muted-foreground">
-        <span className="font-mono text-[10px] tabular-nums">#{kartu.id}</span>
-      </div>
     </article>
   );
 }
@@ -422,7 +419,6 @@ export function DialogButir({ kartu, onTutup }: { kartu: KartuPapan; onTutup: ()
 
         <div className="mt-3 flex items-center gap-2">
           <Lencana label={kartu.status} warna={WARNA_STATUS[kartu.status]} />
-          <span className="font-mono text-[11px] text-muted-foreground">#{kartu.id}</span>
         </div>
 
         <p className="mt-2 text-[13px] leading-snug">
