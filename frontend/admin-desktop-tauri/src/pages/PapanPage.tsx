@@ -119,10 +119,6 @@ export default function PapanPage() {
 
   return (
     <div id="papan_modul" className={cn(PAGE_SHELL, 'h-full')}>
-      <div className="mx-auto w-full max-w-none px-6 pt-5 pb-1">
-        <h2 className="text-base font-semibold">Papan Modul</h2>
-      </div>
-
       {modul.length > 0 ? (
         <Tabs
           value={aktif?.kode ?? ''}
