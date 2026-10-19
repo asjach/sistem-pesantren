@@ -3,12 +3,37 @@
 > **Satu-satunya tempat** untuk menjawab "modul ini sudah sampai mana, sedang
 > apa, dan akan apa". Dokumen lain (PRD, arsitektur, backend-detail, operasi)
 > **tidak lagi** memuat daftar status/rencana — mereka hanya menunjuk ke sini.
+>
+> Berkas ini adalah **turunan** dari papan proyek di database; lihat "Cara kerja
+> papan" di bawah. Jangan mengubah status di sini secara manual.
 
 - **Terakhir diperbarui:** 2026-10-19
-- **Aturan menulis:** setiap perubahan status/rencana **wajib** mengubah file ini
-  lebih dulu. Bila peta dan kode berbeda, peta yang salah — perbaiki peta.
+- **Aturan menulis:** status dikelola lewat **papan proyek** di database
+  (`backend/database/papan.sqlite`, koneksi `papan`), bukan dengan menyunting
+  berkas ini. Berkas ini adalah **turunan** dari papan.
 - **Aturan mengisi:** tiap deskripsi **1–2 kalimat**, bukan daftar fitur. Rincian
   teknis butir sisa ada di bagian H (sedang) dan I (lainnya).
+
+## Cara kerja papan (sejak 2026-10-19)
+
+Papan hidup di SQLite **terpisah** agar tidak terhapus `migrate:fresh` DB
+pesantren. Cetak birunya ada di kode, jadi bisa dibangun ulang kapan saja:
+
+```bash
+php artisan migrate --path=database/migrations/papan --database=papan
+php artisan db:seed --class=PapanSeeder
+```
+
+Sehari-hari, status dibaca dan diubah lewat command — bukan menyunting markdown:
+
+| Perintah | Guna |
+|---|---|
+| `php artisan papan:lihat` | Daftar modul, sub-modul, dan butirnya |
+| `php artisan papan:lihat E.3` | Satu sub-modul saja |
+| `php artisan papan:lihat --riwayat` | Riwayat perpindahan status |
+| `php artisan papan:tandai E.3 sedang --catatan="..."` | Pindahkan status |
+| `php artisan papan:butir tambah E.3 --deskripsi="..."` | Tambah butir |
+| `php artisan papan:butir hapus E.3 --id=128` | Hapus butir |
 
 ## Cara baca
 

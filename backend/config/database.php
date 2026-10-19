@@ -21,6 +21,24 @@ return [
             'transaction_mode' => 'DEFERRED',
         ],
 
+        /*
+         * Papan perkembangan proyek — database TERPISAH (SQLite) supaya:
+         * 1. tidak ikut terhapus saat `migrate:fresh` DB pesantren;
+         * 2. catatan kerja proyek tidak bercampur data operasional pesantren.
+         * Berkasnya tidak di-commit (lihat .gitignore); cetak birunya ada di
+         * migrasi + `PapanSeeder` sehingga bisa dibangun ulang kapan saja.
+         */
+        'papan' => [
+            'driver' => 'sqlite',
+            'database' => env('DB_PAPAN_DATABASE', database_path('papan.sqlite')),
+            'prefix' => '',
+            'foreign_key_constraints' => true,
+            'busy_timeout' => null,
+            'journal_mode' => null,
+            'synchronous' => null,
+            'transaction_mode' => 'DEFERRED',
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),

@@ -3,6 +3,9 @@
 /node_modules/
 backend/vendor/
 backend/node_modules/
+# Papan proyek (SQLite terpisah) — biner, tak bisa di-diff; cetak birunya ada di
+# migrasi + PapanSeeder, dan ringkasannya di docs/PETA-MODUL.md (turunan).
+backend/database/papan.sqlite
 mobile/*/vendor/
 mobile/*/node_modules/
 mobile/*/dist/

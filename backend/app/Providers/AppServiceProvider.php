@@ -25,6 +25,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Berkas SQLite papan dibuat otomatis bila belum ada, supaya perintah
+        // `migrate --database=papan` tidak gagal di mesin baru (Laravel tidak
+        // membuat berkas SQLite sendiri di luar `database.sqlite` bawaan).
+        $this->siapkanBerkasPapan();
 
         if (! function_exists('terbilang')) {
             $helper = app_path('Helpers/TerbilangHelper.php');
@@ -60,5 +64,33 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(10)->by($request->user()?->getAuthIdentifier() ?: $request->ip());
         });
+    }
+
+    /**
+     * Pastikan berkas SQLite papan ada.
+     *
+     * Papan proyek memakai koneksi `papan` (SQLite terpisah) agar tidak ikut
+     * terhapus saat `migrate:fresh` DB pesantren. Laravel tidak membuat berkas
+     * SQLite baru secara otomatis, jadi dibuat di sini sekali saja.
+     */
+    private function siapkanBerkasPapan(): void
+    {
+        $koneksi = config('database.connections.papan');
+
+        if (($koneksi['driver'] ?? null) !== 'sqlite') {
+            return;
+        }
+
+        $berkas = $koneksi['database'] ?? null;
+
+        if (! is_string($berkas) || $berkas === ':memory:' || is_file($berkas)) {
+            return;
+        }
+
+        $folder = dirname($berkas);
+
+        if (is_dir($folder)) {
+            touch($berkas);
+        }
     }
 }
