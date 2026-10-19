@@ -137,7 +137,8 @@ export default function App() {
                     <Route element={<Shell />}>
                       <Route path="/" element={<KhususIzin izin="dashboard.lihat"><DashboardPage /></KhususIzin>} />
                       <Route path="/contoh-papan" element={<KhususIzin izin="dashboard.lihat"><PapanContohPage /></KhususIzin>} />
-                      <Route path="/papan" element={<KhususIzin izin="papan.lihat"><PapanPage /></KhususIzin>} />
+                      <Route path="/papan" element={<Navigate to="/papan/redirect" replace />} />
+                      <Route path="/papan/:kodeModul" element={<KhususIzin izin="papan.lihat"><PapanPage /></KhususIzin>} />
 
                       <Route path="/data-induk" element={<ArahHalamanTabs def={HALAMAN_DATA_INDUK} />} />
                       <Route element={<HalamanTabs def={HALAMAN_DATA_INDUK} />}>

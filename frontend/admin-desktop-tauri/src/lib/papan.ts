@@ -51,9 +51,36 @@ export function kelompokkanKolom(kartu: KartuPapan[]): KolomPapanData[] {
   }));
 }
 
-/**
- * Ringkasan "berapa dari berapa" untuk sebuah kolom, dipakai di kepala kolom.
- */
+/** Ringkasan "berapa dari berapa" untuk sebuah kolom, dipakai di kepala kolom. */
 export function hitungKolomPenuh(kartu: KartuPapan[]): number {
   return kartu.filter((k) => k.status === 'sudah').length;
+}
+
+/** Jumlah kartu per status dalam satu modul, untuk lencana di tab. */
+export function ringkasanModul(modul: ModulPapan): Record<StatusPapan, number> {
+  const hasil: Record<StatusPapan, number> = { sudah: 0, sedang: 0, akan: 0, ditunda: 0 };
+  for (const s of modul.sub) hasil[s.status] += 1;
+  return hasil;
+}
+
+/** Kartu satu modul saja (untuk halaman bertab per modul). */
+export function kartuModul(modul: ModulPapan): KartuPapan[] {
+  return ratakanKartu([modul]);
+}
+
+/**
+ * Cari modul dari kode pada segmen URL. Kode modul dipakai apa adanya
+ * (huruf besar, mis. \`E\`), tapi pencocokan dibuat tidak peka huruf besar-kecil
+ * supaya tautan \`/papan/e\` tetap bekerja.
+ */
+export function modulDariKode(modul: ModulPapan[], kode: string | undefined): ModulPapan | null {
+  if (!kode) return null;
+  const cari = kode.trim().toUpperCase();
+
+  return modul.find((m) => m.kode.toUpperCase() === cari) ?? null;
+}
+
+/** Kode modul pertama yang punya isi, dipakai sebagai tujuan awal. */
+export function modulPertama(modul: ModulPapan[]): ModulPapan | null {
+  return modul.find((m) => m.sub.length > 0) ?? modul[0] ?? null;
 }

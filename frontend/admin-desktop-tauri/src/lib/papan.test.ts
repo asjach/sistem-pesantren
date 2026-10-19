@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { kelompokkanKolom, ratakanKartu, type KartuPapan } from './papan';
+import {
+  kartuModul,
+  kelompokkanKolom,
+  modulDariKode,
+  modulPertama,
+  ratakanKartu,
+  ringkasanModul,
+  type KartuPapan,
+} from './papan';
 import type { ModulPapan } from '@/api/papan';
 
 const modul: ModulPapan[] = [
@@ -83,5 +91,67 @@ describe('kelompokkanKolom', () => {
     const semua = kolom.flatMap((k) => k.kartu.map((c) => c.kode));
 
     expect(semua.sort()).toEqual(['E.3', 'E.4', 'F.3']);
+  });
+});
+
+describe('kartuModul', () => {
+  it('hanya mengambil kartu milik modul itu', () => {
+    const kartu = kartuModul(modul[0]);
+
+    expect(kartu.map((k) => k.kode)).toEqual(['E.3', 'E.4']);
+    expect(kartu.every((k) => k.modulKode === 'E')).toBe(true);
+  });
+
+  it('modul tanpa sub-modul menghasilkan daftar kosong', () => {
+    expect(kartuModul({ kode: 'Z', nama: 'Kosong', sub: [] })).toEqual([]);
+  });
+});
+
+describe('ringkasanModul', () => {
+  it('menghitung sub-modul per status', () => {
+    expect(ringkasanModul(modul[0])).toEqual({ sudah: 1, sedang: 0, akan: 1, ditunda: 0 });
+    expect(ringkasanModul(modul[1])).toEqual({ sudah: 0, sedang: 1, akan: 0, ditunda: 0 });
+  });
+
+  it('modul kosong menghasilkan semua nol', () => {
+    expect(ringkasanModul({ kode: 'Z', nama: 'Kosong', sub: [] })).toEqual({
+      sudah: 0,
+      sedang: 0,
+      akan: 0,
+      ditunda: 0,
+    });
+  });
+});
+
+describe('modulDariKode', () => {
+  it('menemukan modul dari kode persis', () => {
+    expect(modulDariKode(modul, 'E')?.nama).toBe('Keuangan');
+  });
+
+  it('tidak peka huruf besar-kecil', () => {
+    expect(modulDariKode(modul, 'e')?.nama).toBe('Keuangan');
+    expect(modulDariKode(modul, ' f ')?.nama).toBe('Portal & Klien');
+  });
+
+  it('mengembalikan null untuk kode kosong atau tak dikenal', () => {
+    expect(modulDariKode(modul, undefined)).toBeNull();
+    expect(modulDariKode(modul, '')).toBeNull();
+    expect(modulDariKode(modul, 'ZZ')).toBeNull();
+  });
+});
+
+describe('modulPertama', () => {
+  it('melewati modul yang belum punya sub-modul', () => {
+    const denganKosong = [{ kode: 'A', nama: 'Kosong', sub: [] }, ...modul];
+
+    expect(modulPertama(denganKosong)?.kode).toBe('E');
+  });
+
+  it('memakai modul pertama bila semuanya kosong', () => {
+    expect(modulPertama([{ kode: 'A', nama: 'Kosong', sub: [] }])?.kode).toBe('A');
+  });
+
+  it('mengembalikan null bila tidak ada modul', () => {
+    expect(modulPertama([])).toBeNull();
   });
 });
