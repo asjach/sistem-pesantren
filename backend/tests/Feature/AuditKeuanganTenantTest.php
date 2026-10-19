@@ -86,4 +86,21 @@ class AuditKeuanganTenantTest extends TestCase
         $this->assertDatabaseHas('jenis_tagihan', ['id' => $jenis->id, 'jenjang' => 'MTS']);
         $this->assertDatabaseHas('dispensasi', ['id' => $paket->id]);
     }
+
+    public function test_tagihan_menolak_santri_dan_jenis_dari_lembaga_lain(): void
+    {
+        $santri = $this->santri('MTS');
+        $mi = $this->santri('MI');
+        $jenis = JenisTagihan::create(['nama' => 'MTS', 'tipe' => 'non_bulanan', 'jenjang' => 'MTS']);
+        $global = JenisTagihan::create(['nama' => 'Global', 'tipe' => 'non_bulanan']);
+        $this->actingAs($this->actor());
+        $payload = ['tahun_ajaran' => '2025/2026', 'nominal' => 100, 'jenjang' => 'MI'];
+        $this->postJson('/api/admin/keuangan/tagihan', $payload + ['santri_id' => $santri->id, 'jenis_id' => $global->id])->assertUnprocessable();
+        $this->postJson('/api/admin/keuangan/tagihan', $payload + ['santri_id' => $mi->id, 'jenis_id' => $jenis->id])->assertForbidden();
+        foreach (['generate', 'pratinjau'] as $aksi) {
+            $this->postJson('/api/admin/keuangan/tagihan/'.$aksi, ['jenis_id' => $jenis->id, 'tahun_ajaran' => '2025/2026', 'nominal' => 100, 'santri' => [['santri_id' => $mi->id]]])->assertForbidden();
+        }
+        $this->assertDatabaseCount('tagihan', 0);
+        $this->postJson('/api/admin/keuangan/tagihan', $payload + ['santri_id' => $mi->id, 'jenis_id' => $global->id])->assertCreated();
+    }
 }

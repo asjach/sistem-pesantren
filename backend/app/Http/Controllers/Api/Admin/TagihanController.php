@@ -14,6 +14,7 @@ use App\Http\Requests\Admin\TagihanUpdateRequest;
 use App\Models\Dispensasi;
 use App\Models\GrupSantriCustom;
 use App\Models\JenisTagihan;
+use App\Models\Santri;
 use App\Models\Tagihan;
 use App\Models\TarifTagihan;
 use App\Services\DispensasiService;
@@ -628,11 +629,28 @@ class TagihanController extends Controller
         return response()->json($q->paginate($this->perPage($request)));
     }
 
+    private function pastikanJenisLembaga($actor, JenisTagihan $jenis, string $jenjang): void
+    {
+        if ($jenis->jenjang !== null) {
+            $this->authorizeLembaga($actor, $jenis->jenjang);
+            if ($jenis->jenjang !== $jenjang) {
+                abort(422, 'Jenis tagihan tidak berlaku pada lembaga ini.');
+            }
+        }
+    }
+
     public function storeTagihan(TagihanStoreRequest $request)
     {
         $data = $request->validated();
         $this->canLembaga($request->user(), $data['jenjang']) || abort(403);
         $jenis = JenisTagihan::findOrFail($data['jenis_id']);
+        $this->pastikanJenisLembaga($request->user(), $jenis, $data['jenjang']);
+        $santriSesuai = Santri::whereKey($data['santri_id'])->where(fn ($s) => $s
+            ->whereHas('lembagaSantri', fn ($l) => $l->where('jenjang', $data['jenjang']))
+            ->orWhereHas('riwayatBelajar', fn ($r) => $r->where('jenjang', $data['jenjang'])))->exists();
+        if (! $santriSesuai) {
+            abort(422, 'Santri tidak terdaftar pada lembaga tagihan.');
+        }
         $data['jatuh_tempo'] = JatuhTempo::untuk((string) $jenis->tipe, $data['periode'] ?? null, $data['jatuh_tempo'] ?? null);
         $tagihan = Tagihan::create($data + ['status' => 'belum', 'terbayar' => 0]);
 
@@ -885,6 +903,9 @@ class TagihanController extends Controller
         $actor = $request->user();
 
         $jenis = JenisTagihan::findOrFail($data['jenis_id']);
+        if ($jenis->jenjang !== null) {
+            $this->authorizeLembaga($actor, $jenis->jenjang);
+        }
         $periodes = $this->periodesTagihan($jenis, $data['tahun_ajaran'], $data['periode'] ?? null, $data['periode_sampai'] ?? null);
 
         $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
@@ -928,6 +949,7 @@ class TagihanController extends Controller
                     abort(422, "Santri #{$santriId} tidak aktif pada tahun ajaran {$data['tahun_ajaran']}.");
                 }
                 $this->canLembaga($actor, $info['jenjang_utama']) || abort(403);
+                $this->pastikanJenisLembaga($actor, $jenis, $info['jenjang_utama']);
 
                 if (array_key_exists('nominal', $s) && $s['nominal'] !== null) {
                     $paketDasar = null;
@@ -1092,6 +1114,9 @@ class TagihanController extends Controller
         $actor = $request->user();
 
         $jenis = JenisTagihan::findOrFail($data['jenis_id']);
+        if ($jenis->jenjang !== null) {
+            $this->authorizeLembaga($actor, $jenis->jenjang);
+        }
         $periodes = $this->periodesTagihan($jenis, $data['tahun_ajaran'], $data['periode'] ?? null, $data['periode_sampai'] ?? null);
 
         $diminta = collect($data['santri'])->keyBy(fn ($s) => (int) $s['santri_id']);
@@ -1115,6 +1140,7 @@ class TagihanController extends Controller
                 abort(422, "Santri #{$santriId} tidak aktif pada tahun ajaran {$data['tahun_ajaran']}.");
             }
             $this->canLembaga($actor, $info['jenjang_utama']) || abort(403);
+            $this->pastikanJenisLembaga($actor, $jenis, $info['jenjang_utama']);
 
             if (array_key_exists('nominal', $s) && $s['nominal'] !== null) {
                 $paketDasar = null;
