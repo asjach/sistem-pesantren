@@ -284,10 +284,11 @@ class DokumenController extends Controller
         }
         if (isset($data['nama_file'])) {
             $bersih = basename(trim($data['nama_file']));
+            $this->pastikanNamaBerkas($tipe, $model, $bersih);
+            if ($bersih !== ($model->nama_file ?? '') && Storage::disk('local')->exists($this->direktoriBerkas($tipe).'/'.$bersih)) {
+                throw ValidationException::withMessages(['nama_file' => 'Nama berkas sudah dipakai di server. Unggah berkas melalui dokumen ini.']);
+            }
             $ubah['nama_file'] = $bersih !== '' ? $bersih : null;
-        }
-        if ($tipe === 'santri' && isset($data['nama_file'])) {
-            $ubah['nama_file'] = basename(trim($data['nama_file'])) ?: null;
         }
         if (array_key_exists('catatan', $data)) {
             $ubah['catatan'] = $data['catatan'];
@@ -697,6 +698,33 @@ class DokumenController extends Controller
         return $row;
     }
 
+    private function pastikanNamaBerkas(string $tipe, object $row, string $nama): void
+    {
+        if ($nama === '') {
+            return;
+        }
+        $kolom = match ($tipe) {
+            'santri' => ['santri_id', 'lembaga'],
+            'pegawai' => ['pegawai_id'],
+            default => ['jenjang'],
+        };
+        $asing = DB::table('dokumen_'.$tipe)->where('nama_file', $nama)->where('id', '!=', $row->id)
+            ->where(function ($q) use ($kolom, $row) {
+                foreach ($kolom as $k) {
+                    $q->orWhere(function ($w) use ($k, $row) {
+                        if ($row->{$k} === null) {
+                            $w->whereNotNull($k);
+                        } else {
+                            $w->where($k, '!=', $row->{$k})->orWhereNull($k);
+                        }
+                    });
+                }
+            })->exists();
+        if ($asing) {
+            throw ValidationException::withMessages(['nama_file' => 'Nama berkas sudah terikat pada pemilik dokumen lain.']);
+        }
+    }
+
     /** Temukan baris dokumen milik $id (Eloquent model untuk santri/lembaga; stdClass untuk pegawai). */
     private function temukan(string $tipe, int $id, Request $request): object
     {
@@ -712,6 +740,8 @@ class DokumenController extends Controller
                 abort(403, 'Akses ditolak.');
             }
 
+            $this->pastikanNamaBerkas($tipe, $row, (string) ($row->nama_file ?? ''));
+
             return $row;
         }
 
@@ -725,6 +755,8 @@ class DokumenController extends Controller
                 abort(403, 'Akses ditolak.');
             }
 
+            $this->pastikanNamaBerkas($tipe, $row, (string) ($row->nama_file ?? ''));
+
             return $row;
         }
 
@@ -732,6 +764,8 @@ class DokumenController extends Controller
         if (! $request->user()->canAccessLembaga($row->jenjang)) {
             abort(403, 'Akses ditolak.');
         }
+
+        $this->pastikanNamaBerkas($tipe, $row, (string) ($row->nama_file ?? ''));
 
         return $row;
     }

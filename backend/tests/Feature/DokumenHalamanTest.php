@@ -54,6 +54,19 @@ class DokumenHalamanTest extends TestCase
         return compact('mi', 'ta', 'santri', 'guru');
     }
 
+    public function test_nama_file_tidak_bisa_dialihkan_ke_berkas_pemilik_lain(): void
+    {
+        $this->fixture();
+        $milik = DokumenLembaga::create(['jenjang' => 'MI', 'jenis_dokumen' => 'SK']);
+        $asing = DokumenLembaga::create(['jenjang' => 'MTS', 'jenis_dokumen' => 'SK', 'nama_file' => 'rahasia.pdf']);
+        Storage::disk('local')->put('dokumen/lembaga/rahasia.pdf', 'Rahasia MTS');
+        $this->actingAs($this->superAdmin(), 'sanctum')->withHeader('X-Lembaga-Aktif', 'MI');
+        $this->patchJson('/api/admin/dokumen/lembaga/'.$milik->id, ['nama_file' => $asing->nama_file])->assertUnprocessable();
+        $this->assertNull($milik->fresh()->nama_file);
+        $this->patchJson('/api/admin/dokumen/lembaga/'.$milik->id, ['nama_file' => '/arsip/baru_lokal.pdf', 'penyimpanan' => 'lokal'])->assertOk();
+        $this->assertSame('baru_lokal.pdf', $milik->fresh()->nama_file);
+    }
+
     public function test_daftar_simpan_unduh_hapus_dokumen_lembaga(): void
     {
         $this->fixture();
