@@ -259,6 +259,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
 
   const [cari, setCari] = useState('');
   const [loading, setLoading] = useState(false);
+  const kandidatReq = useRef(0);
+  const kandidatAbort = useRef<AbortController | null>(null);
   const [err, setErr] = useState('');
 
   const [terpilih, setTerpilih] = useState<BarisTerpilih[]>([]);
@@ -563,11 +565,15 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
    *  yang santrinya tak ada di hasil (mis. ganti kelompok) ikut terbuang —
    *  generate hanya memproses populasi yang tampil. */
   const muatSantri = useCallback(async () => {
-    if (!open || tahunAjaran === null) return;
+    const req = ++kandidatReq.current;
+    kandidatAbort.current?.abort();
+    const ac = new AbortController();
+    kandidatAbort.current = ac;
+    if (!open || tahunAjaran === null) { setLoading(false); return; }
     // Belum pilih kelompok → daftar kosong, tanpa request.
-    if (kelompok === '') { setTerpilih([]); return; }
+    if (kelompok === '') { setTerpilih([]); setLoading(false); return; }
     // Custom tanpa grup terpilih → daftar kosong, tanpa request.
-    if (kelompok === 'custom' && grupCustomId === '') { setTerpilih([]); return; }
+    if (kelompok === 'custom' && grupCustomId === '') { setTerpilih([]); setLoading(false); return; }
     setErr(''); setLoading(true);
     try {
       const res = await kandidatTagihan({
@@ -578,8 +584,9 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
         periode: bulanan ? (periodeDari || undefined) : undefined,
         periode_sampai: bulanan ? (periodeSampai || undefined) : undefined,
         page: 1,
-        per_page: 'all',
+        per_page: 'all', signal: ac.signal,
       });
+      if (req !== kandidatReq.current || ac.signal.aborted) return;
       setTerpilih((lama) => {
         const manual = new Map(lama.filter((r) => r.nominalManual).map((r) => [r.santri_id, r]));
         return res.data.map((r) => {
@@ -594,14 +601,19 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
           return susunRef.current(r, nominalDefaultRef.current);
         });
       });
-    } catch (e) { setErr(errorMessage(e)); } finally { setLoading(false); }
+    } catch (e) {
+      if (req === kandidatReq.current && !ac.signal.aborted) setErr(errorMessage(e));
+    } finally {
+      if (req === kandidatReq.current) setLoading(false);
+    }
   }, [open, tahunAjaran, kelompok, grupCustomId, jenisId, bulanan, periodeDari, periodeSampai]);
 
   // Buka dialog / kriteria berubah → muat ulang (tahan 250ms).
   useEffect(() => {
     if (!open) return;
+    setLoading(true);
     const t = setTimeout(() => { void muatSantri(); }, 250);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); kandidatReq.current++; kandidatAbort.current?.abort(); };
   }, [open, muatSantri]);
 
   const ubahNominalDefault = (v: string) => {
@@ -1156,7 +1168,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                   <LangkahNomor n={4} judul="Generate" />
                   <Button
                     id="btn_gen_generate" type="button" className="h-[26px]"
-                    disabled={busy || terpilih.length === 0}
+                    disabled={busy || loading || terpilih.length === 0}
                     aria-describedby={terpilih.length === 0 ? 'ket_gen_generate' : undefined}
                     onClick={mintaKonfirmasi}
                   >
@@ -1277,7 +1289,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                 {konfirmasi ? (
                 <div className="flex gap-2">
                   <Button id="btn_gen_periksa" type="button" variant="outline" className="h-[26px]" disabled={busy} onClick={() => setKonfirmasi(false)}>Periksa lagi</Button>
-                  <Button id="btn_gen_ya" type="button" className="h-[26px]" disabled={busy} onClick={() => void simpan()}>
+                  <Button id="btn_gen_ya" type="button" className="h-[26px]" disabled={busy || loading} onClick={() => void simpan()}>
                     {busy ? 'Memproses…' : `Ya, buat ${ringkasan.baris} tagihan`}
                   </Button>
                 </div>

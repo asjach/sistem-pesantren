@@ -164,7 +164,7 @@ export interface KandidatTagihanRow {
 }
 
 export function kandidatTagihan(params: {
-  tahun_ajaran: string; kelompok: KelompokKandidat; jenis_id?: number | ''; periode?: string;
+  signal?: AbortSignal; tahun_ajaran: string; kelompok: KelompokKandidat; jenis_id?: number | ''; periode?: string;
   periode_sampai?: string; q?: string; page?: number; per_page?: string; sort?: string[]; arah?: 'naik' | 'turun';
   /** Wajib diisi bila kelompok = custom (id grup santri custom). */
   grup_custom_id?: number | '';
@@ -181,7 +181,7 @@ export function kandidatTagihan(params: {
   if (params.per_page) q.set('per_page', params.per_page);
   if (params.sort?.length) q.set('sort', params.sort.join(','));
   if (params.arah) q.set('arah', params.arah);
-  return api<Paginate<KandidatTagihanRow>>(`/admin/keuangan/tagihan/kandidat?${q.toString()}`);
+  return api<Paginate<KandidatTagihanRow>>(`/admin/keuangan/tagihan/kandidat?${q.toString()}`, { signal: params.signal });
 }
 
 export type TipeDispensasi = 'persen' | 'nominal' | 'bebas';

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -167,6 +167,21 @@ async function bukaKonfirmasi() {
 }
 
 describe('GenerateTagihanDialog — pratinjau backend', () => {
+  it('jawaban kelompok lama tidak mengganti daftar kelompok terbaru', async () => {
+    let jawabLama!: (value: unknown) => void;
+    const lama = new Promise((r) => { jawabLama = r; });
+    api.kandidat.mockImplementation((p: { kelompok: string }) => p.kelompok === 'aktif' ? lama : Promise.resolve({ data: [KANDIDAT2] }));
+    renderDialog();
+    await pilihOpsi('sel_gen_tarif', /Rp 100\.000/);
+    await pilihOpsi('sel_gen_kelompok', /Semua Santri MI-MD/);
+    await waitFor(() => expect(api.kandidat).toHaveBeenCalled());
+    await pilihOpsi('sel_gen_kelompok', /MI Saja \(tanpa MD\)/);
+    await waitFor(() => expect(document.getElementById('btn_gen_hapus_8')).not.toBeNull());
+    await act(async () => jawabLama({ data: [KANDIDAT] }));
+    expect(document.getElementById('btn_gen_hapus_7')).toBeNull();
+    expect(document.getElementById('btn_gen_hapus_8')).not.toBeNull();
+  });
+
   it('memakai nominal & dispensasi dari pratinjau backend, bukan hitungan lokal', async () => {
     api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
     api.pratinjau.mockResolvedValue([PRATINJAU]);
