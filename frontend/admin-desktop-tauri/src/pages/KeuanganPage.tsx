@@ -840,7 +840,7 @@ export default function KeuanganPage() {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const tombol = document.querySelector<HTMLElement>(`#btn_tagihan_sel_${dibuat.id}`);
       if (!tombol) return;
-      const hariIni = new Date().toLocaleDateString('sv-SE');
+      const hariIni = hariIniIso();
       // Respons create membawa datetime penuh; crosstab memakai tanggal saja.
       const jt = dibuat.jatuh_tempo?.slice(0, 10) ?? null;
       pilihSel(
