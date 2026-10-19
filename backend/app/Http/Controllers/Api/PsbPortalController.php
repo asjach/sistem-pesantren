@@ -130,11 +130,13 @@ class PsbPortalController extends Controller
     {
         $list = WaliSantriRelasi::where('user_id', $request->user()->id)
             ->where('is_active', true)
-            ->with(['santri.lembaga:jenjang,nama'])
+            ->with(['santri.lembagaAktif.lembaga:jenjang,nama'])
             ->latest('id')
             ->get()
             ->pluck('santri')
-            ->filter();
+            ->filter()
+            ->each(fn ($santri) => $santri->setRelation('lembaga', $santri->lembagaAktif->first()?->lembaga))
+            ->values();
 
         return response()->json(['pesan' => 'Riwayat keluarga berhasil dimuat.', 'data' => $list]);
     }
