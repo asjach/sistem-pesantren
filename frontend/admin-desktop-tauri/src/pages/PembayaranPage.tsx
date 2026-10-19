@@ -260,13 +260,15 @@ export default function PembayaranPage() {
   // Ketikan ditahan sebentar agar tidak memanggil API tiap karakter.
   useEffect(() => {
     const t = setTimeout(() => { void muatSantri(); }, 250);
-    return () => { clearTimeout(t); santriReq.current++; santriAbort.current?.abort(); };
+    const batalkan = () => { santriReq.current++; santriAbort.current?.abort(); };
+    return () => { clearTimeout(t); batalkan(); };
   }, [muatSantri]);
 
   // Perubahan cakupan membatalkan daftar lama sebelum memuat lingkup baru.
   useEffect(() => {
     if (bayarOpen && santriAktifIdRef.current !== null) void muatTagihanSantri(santriAktifIdRef.current);
-    return () => { tagihanReq.current++; tagihanAbort.current?.abort(); };
+    const batalkan = () => { tagihanReq.current++; tagihanAbort.current?.abort(); };
+    return () => batalkan();
   }, [bayarOpen, muatTagihanSantri]);
 
   useEffect(() => () => { harianReq.current++; }, []);

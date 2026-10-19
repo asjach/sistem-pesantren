@@ -613,7 +613,8 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     if (!open) return;
     setLoading(true);
     const t = setTimeout(() => { void muatSantri(); }, 250);
-    return () => { clearTimeout(t); kandidatReq.current++; kandidatAbort.current?.abort(); };
+    const batalkan = () => { kandidatReq.current++; kandidatAbort.current?.abort(); };
+    return () => { clearTimeout(t); batalkan(); };
   }, [open, muatSantri]);
 
   const ubahNominalDefault = (v: string) => {
