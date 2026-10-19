@@ -5,6 +5,21 @@ import { ChevronDown } from '@/icons';
 import type { RiwayatPapan, StatusPapan } from '@/api/papan';
 import { kelompokkanKolom, kolomSebelah, type KartuPapan } from '@/lib/papan';
 import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
+import { IsiButir } from './IsiButir';
+
+/**
+ * Aksi yang bisa dilakukan dari panel rincian poin.
+ *
+ * Dikumpulkan jadi satu objek supaya tidak ada sepuluh prop terpisah yang
+ * harus diteruskan berlapis dari halaman sampai ke panelnya.
+ */
+export interface AksiButir {
+  onSimpanTeks: (deskripsi: string) => Promise<void>;
+  onSimpanStatus: (status: StatusPapan) => Promise<void>;
+  onNaik: () => Promise<void>;
+  onTurun: () => Promise<void>;
+  onHapus: () => Promise<void>;
+}
 
 /** Posisi sisip saat menyeret: sebelum kartu ke-indeks di kolom. */
 export interface SasaranJatuh {
@@ -90,6 +105,8 @@ export function KartuPapan({
   onPindahArah,
   buka,
   onBukaUbah,
+  bolehUbah,
+  aksiKartu,
 }: {
   kartu: KartuPapan;
   diseret: boolean;
@@ -103,6 +120,9 @@ export function KartuPapan({
   /** Popover rincian poin sedang terbuka untuk kartu ini. */
   buka: boolean;
   onBukaUbah: (buka: boolean) => void;
+  bolehUbah: boolean;
+  /** Aksi yang berlaku untuk poin kartu ini. */
+  aksiKartu: AksiButir;
 }) {
   const idKartu = `butir_${kartu.id}`;
 
@@ -154,6 +174,8 @@ export function KartuPapan({
           terbuka={buka}
           onBukaUbah={onBukaUbah}
           idTombol={`btn_buka_papan_${idKartu}`}
+          bolehUbah={bolehUbah}
+          aksi={aksiKartu}
         />
       </div>
 
@@ -187,12 +209,18 @@ export function PapanKolom({
   kartu,
   tampilkanModul,
   onPindah,
+  bolehUbah = false,
+  aksiButir,
   riwayat,
   idAwalan,
 }: {
   kartu: KartuPapan[];
   tampilkanModul: boolean;
   onPindah: (butirId: number, ke: StatusPapan) => Promise<void>;
+  /** Bila false (default), kartu tidak bisa digeser dan panel read-only. */
+  bolehUbah?: boolean;
+  /** Aksi sunting untuk poin tertentu; wajib bila bolehUbah true. */
+  aksiButir?: (kartu: KartuPapan) => AksiButir;
   /** Riwayat ringkas yang ditampilkan di bawah judul (kosong = tidak tampil). */
   riwayat?: RiwayatPapan[];
   /** Awalan id elemen supaya beberapa papan di satu halaman tidak bertabrakan. */
@@ -375,6 +403,16 @@ export function PapanKolom({
                           onPindahArah={(arah) => void pindahArah(k, arah)}
                           buka={rincian === k.id}
                           onBukaUbah={(b) => setRincian(b ? k.id : null)}
+                          bolehUbah={bolehUbah}
+                          aksiKartu={
+                            aksiButir?.(k) ?? {
+                              onSimpanTeks: async () => {},
+                              onSimpanStatus: async () => {},
+                              onNaik: async () => {},
+                              onTurun: async () => {},
+                              onHapus: async () => {},
+                            }
+                          }
                         />
                       </div>
                     ))}
@@ -392,41 +430,6 @@ export function PapanKolom({
   );
 }
 
-/** Isi panel rincian poin, dipakai di dalam PopoverButir. */
-function IsiButir({ kartu }: { kartu: KartuPapan }) {
-  return (
-    <div className="flex flex-col gap-3 p-4">
-      <div className="flex items-baseline gap-2">
-        <span className="font-mono text-xs font-semibold text-muted-foreground">{kartu.subKode}</span>
-        <h3 className="text-sm font-semibold">{kartu.subNama}</h3>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Lencana label={kartu.status} warna={WARNA_STATUS[kartu.status]} />
-      </div>
-
-      <p className="text-[13px] leading-snug">
-        <TeksButir deskripsi={kartu.deskripsi} />
-      </p>
-
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t pt-3 text-xs" style={{ borderColor: 'var(--divider)' }}>
-        <dt className="text-muted-foreground">Modul</dt>
-        <dd>
-          {kartu.modulKode}. {kartu.modulNama}
-        </dd>
-        <dt className="text-muted-foreground">Sub-modul</dt>
-        <dd>
-          {kartu.subKode} {kartu.subNama}
-        </dd>
-        <dt className="text-muted-foreground">Status sub-modul</dt>
-        <dd>
-          {kartu.statusSub} <span className="text-muted-foreground">(turunan dari poin)</span>
-        </dd>
-      </dl>
-    </div>
-  );
-}
-
 /**
  * Popover rincian satu poin, dibuka dari judul kartu.
  *
@@ -441,11 +444,16 @@ export function PopoverButir({
   terbuka,
   onBukaUbah,
   idTombol,
+  bolehUbah,
+  aksi,
 }: {
   kartu: KartuPapan;
   terbuka: boolean;
   onBukaUbah: (buka: boolean) => void;
   idTombol: string;
+  /** Bila false, panel rincian tidak menampilkan kontrol sunting apa pun. */
+  bolehUbah: boolean;
+  aksi: AksiButir;
 }) {
   return (
     <Popover open={terbuka} onOpenChange={onBukaUbah}>
@@ -474,7 +482,7 @@ export function PopoverButir({
         align="start"
         className="w-[min(400px,90vw)] p-0"
       >
-        <IsiButir kartu={kartu} />
+        <IsiButir kartu={kartu} bolehUbah={bolehUbah} onTutup={() => onBukaUbah(false)} {...aksi} />
       </PopoverContent>
     </Popover>
   );

@@ -282,6 +282,195 @@ class PapanService
         return ['butir' => $butir, 'sub' => $sub];
     }
 
+    /**
+     * Ubah isi satu poin: deskripsi dan/atau status.
+     *
+     * Status TIDAK wajib ikut berubah. Kalau status berubah, jejaknya
+     * dicatat di `papan_riwayat` persis seperti {@see pindahButir} - kalau
+     * tidak, riwayat tidak ditambah supaya tidak dipenuhi baris palsu
+     * "sudah -> sudah" hanya karena teksnya disunting.
+     *
+     * @param  string|null  $status  status baru; null = biarkan apa adanya
+     *
+     * @throws InvalidArgumentException bila status tidak dikenal
+     */
+    public function ubahButir(
+        string $kode,
+        int $butirId,
+        ?string $deskripsi = null,
+        ?string $status = null,
+        string $oleh = 'agent',
+        ?string $catatan = null,
+    ): PapanButir {
+        if ($status !== null) {
+            $this->pastikanStatus($status);
+        }
+
+        $butir = $this->butir($kode, $butirId)['butir'];
+        $statusLama = $butir->status;
+
+        if ($deskripsi !== null) {
+            $butir->deskripsi = $deskripsi;
+        }
+
+        if ($status !== null) {
+            $butir->status = $status;
+        }
+
+        $butir->save();
+
+        if ($status !== null && $status !== $statusLama) {
+            PapanRiwayat::create([
+                'item_id' => $butir->item_id,
+                'butir_id' => $butir->id,
+                'dari_status' => $statusLama,
+                'ke_status' => $status,
+                'catatan' => $catatan,
+                'diubah_oleh' => $oleh,
+                'waktu' => now(),
+            ]);
+        }
+
+        return $butir->refresh();
+    }
+
+    /**
+     * Geser satu poin naik/turun di dalam sub-modulnya.
+     *
+     * Urutan ditulis ulang rapat (1..n) setelah pertukaran supaya tidak
+     * ada lubang yang membuat pengurutan jadi tidak stabil.
+     *
+     * @param  int  $arah  -1 = naik, 1 = turun
+     * @return bool false bila sudah di ujung (tidak ada yang berubah)
+     */
+    public function geserButir(string $kode, int $butirId, int $arah): bool
+    {
+        $item = $this->item($kode);
+
+        $daftar = PapanButir::query()
+            ->where('item_id', $item->id)
+            ->orderBy('urutan')
+            ->orderBy('id')
+            ->get()
+            ->values();
+
+        $kini = $daftar->search(fn (PapanButir $b) => $b->id === $butirId);
+
+        if ($kini === false) {
+            return false;
+        }
+
+        $tujuan = $kini + $arah;
+
+        if ($tujuan < 0 || $tujuan >= $daftar->count()) {
+            return false;
+        }
+
+        $urut = $daftar->all();
+        [$urut[$kini], $urut[$tujuan]] = [$urut[$tujuan], $urut[$kini]];
+
+        DB::connection('papan')->transaction(function () use ($urut) {
+            foreach ($urut as $posisi => $b) {
+                $b->urutan = $posisi + 1;
+                $b->save();
+            }
+        });
+
+        return true;
+    }
+
+    /**
+     * Tambah sub-modul baru di bawah sebuah modul.
+     *
+     * Kode sengaja TIDAK dibuat otomatis: kode dipakai di command, di
+     * rujukan, dan (lewat judul) di markdown, jadi pemiliknya yang
+     * menentukan supaya tetap bisa dibaca manusia.
+     *
+     * @throws InvalidArgumentException bila modul tidak ada atau kode sudah dipakai
+     */
+    public function tambahItem(string $kodeModul, string $kode, string $nama): PapanItem
+    {
+        $modul = $this->modul($kodeModul);
+
+        $sudahAda = PapanItem::query()
+            ->where('modul_id', $modul->id)
+            ->where('kode', $kode)
+            ->exists();
+
+        if ($sudahAda) {
+            throw new InvalidArgumentException("Kode sub-modul `{$kode}` sudah dipakai di modul {$kodeModul}.");
+        }
+
+        $urutan = (int) PapanItem::query()->where('modul_id', $modul->id)->max('urutan');
+
+        return PapanItem::create([
+            'modul_id' => $modul->id,
+            'kode' => $kode,
+            'nama' => $nama,
+            'urutan' => $urutan + 1,
+        ]);
+    }
+
+    /**
+     * Ubah nama dan/atau kode sebuah sub-modul.
+     *
+     * Poin-poinnya TIDAK disentuh - ini beda penting dari seed ulang,
+     * yang menghapus lalu membuat ulang poin sehingga id dan status
+     * tanda-tangannya hilang.
+     *
+     * @throws InvalidArgumentException bila kode baru sudah dipakai
+     */
+    public function ubahItem(string $kodeModul, string $kode, ?string $kodeBaru = null, ?string $nama = null): PapanItem
+    {
+        $item = $this->item($kode);
+
+        if ($kodeBaru !== null && $kodeBaru !== $item->kode) {
+            $bentrok = PapanItem::query()
+                ->where('modul_id', $item->modul_id)
+                ->where('kode', $kodeBaru)
+                ->where('id', '!=', $item->id)
+                ->exists();
+
+            if ($bentrok) {
+                throw new InvalidArgumentException("Kode sub-modul `{$kodeBaru}` sudah dipakai di modul {$kodeModul}.");
+            }
+
+            $item->kode = $kodeBaru;
+        }
+
+        if ($nama !== null) {
+            $item->nama = $nama;
+        }
+
+        $item->save();
+
+        return $item->refresh();
+    }
+
+    /**
+     * Hapus sebuah sub-modul BESERTA seluruh poinnya.
+     *
+     * Penghapusan sengaja tidak meminta konfirmasi di sini: keputusan itu
+     * milik pemanggil (UI menampilkan dialog, command meminta --yakin).
+     * Poin ikut terhapus lewat cascade di level model.
+     */
+    public function hapusItem(string $kode): bool
+    {
+        return $this->item($kode)->delete();
+    }
+
+    /** @throws InvalidArgumentException bila modul tidak ada */
+    private function modul(string $kode): PapanModul
+    {
+        $modul = PapanModul::query()->where('kode', $kode)->first();
+
+        if ($modul === null) {
+            throw new InvalidArgumentException("Modul `{$kode}` tidak ditemukan di papan.");
+        }
+
+        return $modul;
+    }
+
     /** @throws InvalidArgumentException bila status tidak dikenal */
     private function pastikanStatus(string $status): void
     {

@@ -33,9 +33,27 @@ Sehari-hari, status dibaca dan diubah lewat command — bukan menyunting markdow
 | `php artisan papan:lihat --riwayat` | Riwayat perpindahan status poin |
 | `php artisan papan:tandai E.3 128 sedang --catatan="..."` | Pindahkan satu **poin** |
 | `php artisan papan:butir tambah E.3 --deskripsi="..."` | Tambah poin |
+| `php artisan papan:butir ubah E.3 --id=128 --deskripsi="..."` | Ubah teks poin (tambahkan `--status=` bila statusnya ikut) |
+| `php artisan papan:butir naik E.3 --id=128` | Geser poin satu langkah ke atas |
+| `php artisan papan:butir turun E.3 --id=128` | Geser poin satu langkah ke bawah |
 | `php artisan papan:butir hapus E.3 --id=128` | Hapus poin |
+| `php artisan papan:sebut --kode=E.3 --nama="..."` | Ganti nama/kode sub-modul (`--kode-baru=` untuk kodenya) |
+| `php artisan papan:sebut --modul=E --kode=E.9 --nama="..." --buat` | Tambah sub-modul baru |
+| `php artisan papan:sebut --kode=E.9 --hapus --yakin` | Hapus sub-modul beserta poinnya |
 | `php artisan papan:markdown` | Pratinjau markdown hasil papan (tidak menulis) |
 | `php artisan papan:markdown --tulis` | Tulis ulang berkas ini dari papan |
+
+**Menyunting isi lebih lengkap lewat aplikasi.** Halaman **Papan** punya tombol
+*Kelola sub-modul & poin* (ganti nama/kode atau tambah/hapus sub-modul, tambah
+poin baru) dan panel rincian tiap kartu (ubah teks, pindah status, geser urutan,
+hapus poin). Sisi tulisnya butuh izin `papan.ubah`; tanpa izin itu halaman tetap
+terbaca penuh, hanya tanpa kontrol sunting.
+
+**Bedanya dengan seed ulang — penting.** Menyunting lewat aplikasi **tidak**
+menyentuh poin lain: poin tetap punya id dan status yang sama. Sebaliknya
+`db:seed --class=PapanSeeder` **menghapus lalu membuat ulang** semua poin, jadi
+id berubah dan seluruh status hasil kerja kembali ke cetak biru. Pakai seeder
+hanya untuk membangun ulang papan dari nol.
 
 **Yang bergerak itu poin, bukan sub-modul.** Setiap poin berstatus sendiri
 (`sudah` | `sedang` | `akan` | `ditunda`), dan status sub-modul **dihitung otomatis**

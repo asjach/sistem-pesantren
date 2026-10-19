@@ -152,6 +152,116 @@ class PapanServiceTest extends TestCase
         $this->assertSame(1, $ringkasan['sub']['akan']);
     }
 
+    public function test_ubah_butir_mengganti_deskripsi_tanpa_menyentuh_riwayat(): void
+    {
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan']);
+        $butir = $item->butir()->firstOrFail();
+
+        $hasil = $this->papan->ubahButir('E.3', (int) $butir->id, 'Rekap per kas harian.');
+
+        $this->assertSame('Rekap per kas harian.', $hasil->deskripsi);
+        $this->assertSame('akan', $hasil->status, 'Status tidak boleh ikut berubah.');
+        // Menyunting teks bukan perpindahan status: riwayat tidak ditambah,
+        // supaya tidak dipenuhi baris palsu "akan -> akan".
+        $this->assertSame(0, PapanRiwayat::query()->count());
+    }
+
+    public function test_ubah_butir_mengganti_status_dan_mencatat_riwayat(): void
+    {
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan']);
+        $butir = $item->butir()->firstOrFail();
+
+        $hasil = $this->papan->ubahButir('E.3', (int) $butir->id, null, 'sudah', 'pengguna');
+
+        $this->assertSame('sudah', $hasil->status);
+        $this->assertDatabaseHas('papan_riwayat', [
+            'butir_id' => $butir->id,
+            'dari_status' => 'akan',
+            'ke_status' => 'sudah',
+            'diubah_oleh' => 'pengguna',
+        ], 'papan');
+    }
+
+    public function test_ubah_butir_menolak_status_di_luar_daftar(): void
+    {
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan']);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->papan->ubahButir('E.3', (int) $item->butir()->firstOrFail()->id, null, 'ngarang');
+    }
+
+    public function test_geser_butir_menukar_urutan_dan_merapatkannya(): void
+    {
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan', 'akan', 'akan']);
+        $id = $item->butir()->orderBy('urutan')->pluck('id')->all();
+
+        $this->assertTrue($this->papan->geserButir('E.3', (int) $id[2], -1));
+
+        $urut = $item->butir()->orderBy('urutan')->pluck('id')->all();
+        $this->assertSame([$id[0], $id[2], $id[1]], $urut);
+        // Urutan ditulis rapat 1..n supaya tidak ada lubang.
+        $this->assertSame([1, 2, 3], $item->butir()->orderBy('urutan')->pluck('urutan')->all());
+    }
+
+    public function test_geser_butir_di_ujung_mengembalikan_false(): void
+    {
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan', 'akan']);
+        $id = $item->butir()->orderBy('urutan')->pluck('id')->all();
+
+        $this->assertFalse($this->papan->geserButir('E.3', (int) $id[0], -1), 'Poin teratas tidak bisa naik.');
+        $this->assertFalse($this->papan->geserButir('E.3', (int) $id[1], 1), 'Poin terbawah tidak bisa turun.');
+    }
+
+    public function test_ubah_item_mengganti_nama_dan_kode_tanpa_menyentuh_poin(): void
+    {
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['sudah', 'akan']);
+        $idButir = $item->butir()->pluck('id')->all();
+
+        $hasil = $this->papan->ubahItem('E', 'E.3', 'E.9', 'Rekap Kas Baru');
+
+        $this->assertSame('E.9', $hasil->kode);
+        $this->assertSame('Rekap Kas Baru', $hasil->nama);
+        // Poin harus SELAMAT: ini pembeda dari seed ulang, yang menghapus
+        // lalu membuat ulang poin sehingga id dan status tanda tangannya hilang.
+        $this->assertSame($idButir, $hasil->butir()->pluck('id')->all());
+        $this->assertSame(['sudah', 'akan'], $hasil->butir()->orderBy('urutan')->pluck('status')->all());
+    }
+
+    public function test_ubah_item_menolak_kode_yang_sudah_dipakai(): void
+    {
+        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas');
+        $this->buatItem('E.4', 'Tutup Buku');
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->papan->ubahItem('E', 'E.3', 'E.4');
+    }
+
+    public function test_tambah_item_menempatkan_urutan_terakhir_dan_menolak_kode_kembar(): void
+    {
+        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas');
+
+        $baru = $this->papan->tambahItem('E', 'E.7', 'Laporan Kas');
+        $this->assertSame('E.7', $baru->kode);
+        $this->assertSame(2, $baru->urutan);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->papan->tambahItem('E', 'E.7', 'Kembar');
+    }
+
+    public function test_hapus_item_ikut_menghapus_poinnya(): void
+    {
+        $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['akan', 'sudah']);
+
+        $this->assertTrue($this->papan->hapusItem('E.3'));
+
+        $this->assertSame(0, PapanItem::query()->where('kode', 'E.3')->count());
+        // Cascade harus benar-benar jalan, bukan meninggalkan poin yatim
+        // yang tak bisa dijangkau UI mana pun.
+        $this->assertSame(0, $item->butir()->count());
+    }
+
     /**
      * Semua poin di sub-modul yang sama diberi status sama; yang menentukan
      * status sub-modul adalah sebaran poinnya, bukan nilai di sub-modul itu.

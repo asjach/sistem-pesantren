@@ -149,6 +149,153 @@ class PapanController extends Controller
     }
 
     /**
+     * Ubah isi sebuah poin: deskripsi dan/atau status.
+     *
+     * Keduanya opsional supaya klien bisa menyunting teks saja tanpa
+     * menyentuh status (dan sebaliknya). Riwayat hanya dicatat bila
+     * statusnya benar-benar berubah.
+     */
+    public function ubahButir(Request $request, string $kode, int $butir): JsonResponse
+    {
+        $valid = $request->validate([
+            'deskripsi' => ['nullable', 'string', 'max:500'],
+            'status' => ['nullable', 'string', 'in:'.implode(',', PapanService::STATUS)],
+            'catatan' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if (($valid['deskripsi'] ?? null) === null && ($valid['status'] ?? null) === null) {
+            return response()->json(['message' => 'Tidak ada yang diubah: isi deskripsi atau status.'], 422);
+        }
+
+        try {
+            $poin = $this->papan->ubahButir(
+                $kode,
+                $butir,
+                $valid['deskripsi'] ?? null,
+                $valid['status'] ?? null,
+                'pengguna',
+                $valid['catatan'] ?? null,
+            );
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
+
+        $item = $this->papan->item($kode)->load('butir');
+
+        $semua = $item->butir->map(fn ($b) => [
+            'id' => $b->id,
+            'status' => $b->status,
+            'deskripsi' => $b->deskripsi,
+        ])->all();
+
+        return response()->json([
+            'id' => $poin->id,
+            'status' => $poin->status,
+            'deskripsi' => $poin->deskripsi,
+            'status_sub_modul' => PapanService::statusTurunan($semua),
+            ...$this->segarkanMarkdown(),
+        ]);
+    }
+
+    /**
+     * Geser satu poin naik/turun di dalam sub-modulnya.
+     *
+     * Mengembalikan 409 bila poin sudah di ujung, supaya klien bisa
+     * memberi tahu pengguna alih-alih diam saja.
+     */
+    public function geserButir(Request $request, string $kode, int $butir): JsonResponse
+    {
+        $valid = $request->validate([
+            'arah' => ['required', 'integer', 'in:-1,1'],
+        ]);
+
+        try {
+            $bergeser = $this->papan->geserButir($kode, $butir, (int) $valid['arah']);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
+
+        if (! $bergeser) {
+            return response()->json(['message' => 'Poin sudah di ujung urutan.'], 409);
+        }
+
+        $item = $this->papan->item($kode)->load('butir');
+
+        return response()->json([
+            'butir' => $item->butir->map(fn ($b) => [
+                'id' => $b->id,
+                'status' => $b->status,
+                'deskripsi' => $b->deskripsi,
+            ])->all(),
+            ...$this->segarkanMarkdown(),
+        ]);
+    }
+
+    /** Tambah sub-modul baru di bawah sebuah modul. */
+    public function tambahItem(Request $request, string $modul): JsonResponse
+    {
+        $valid = $request->validate([
+            'kode' => ['required', 'string', 'max:20'],
+            'nama' => ['required', 'string', 'max:255'],
+        ]);
+
+        try {
+            $item = $this->papan->tambahItem($modul, $valid['kode'], $valid['nama']);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'kode' => $item->kode,
+            'nama' => $item->nama,
+            ...$this->segarkanMarkdown(),
+        ], 201);
+    }
+
+    /** Ubah nama dan/atau kode sebuah sub-modul (poinnya tidak disentuh). */
+    public function ubahItem(Request $request, string $kode): JsonResponse
+    {
+        $valid = $request->validate([
+            'kode_baru' => ['nullable', 'string', 'max:20'],
+            'nama' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if (($valid['kode_baru'] ?? null) === null && ($valid['nama'] ?? null) === null) {
+            return response()->json(['message' => 'Tidak ada yang diubah: isi nama atau kode_baru.'], 422);
+        }
+
+        try {
+            $item = $this->papan->item($kode);
+            $item = $this->papan->ubahItem(
+                $item->modul->kode,
+                $kode,
+                $valid['kode_baru'] ?? null,
+                $valid['nama'] ?? null,
+            );
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'kode' => $item->kode,
+            'nama' => $item->nama,
+            ...$this->segarkanMarkdown(),
+        ]);
+    }
+
+    /** Hapus sebuah sub-modul beserta seluruh poinnya. */
+    public function hapusItem(string $kode): JsonResponse
+    {
+        try {
+            $this->papan->hapusItem($kode);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
+
+        return response()->json(['message' => 'Sub-modul dihapus.', ...$this->segarkanMarkdown()]);
+    }
+
+    /**
      * Tulis ulang docs/PETA-MODUL.md dari papan setelah perubahan.
      *
      * Markdown hanya turunan, jadi kegagalan menulisnya **tidak** boleh

@@ -168,6 +168,104 @@ class PapanApiTest extends TestCase
     }
 
     /** @param array<int, string> $peran */
+    public function test_ubah_butir_mengganti_deskripsi_lewat_api(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $butir = PapanButir::query()->orderBy('urutan')->firstOrFail();
+
+        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", ['deskripsi' => 'Rekap harian per kas.'])
+            ->assertOk()
+            ->assertJsonPath('deskripsi', 'Rekap harian per kas.');
+
+        $this->assertSame('Rekap harian per kas.', $butir->refresh()->deskripsi);
+    }
+
+    public function test_ubah_butir_tanpa_apa_pun_dijawab_422(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $butir = PapanButir::query()->orderBy('urutan')->firstOrFail();
+
+        // Tanpa deskripsi DAN tanpa status: tidak ada yang berubah, jadi
+        // ini kekeliruan pemanggil - bukan sukses diam-diam.
+        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", [])->assertStatus(422);
+    }
+
+    public function test_ubah_butir_dengan_status_ikut_mengembalikan_status_sub_modul(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
+
+        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", ['status' => 'sudah'])
+            ->assertOk()
+            ->assertJsonPath('status', 'sudah')
+            // Semua poin E.3 kini sudah, jadi sub-modul turunannya ikut sudah.
+            ->assertJsonPath('status_sub_modul', 'sudah');
+    }
+
+    public function test_geser_butir_di_ujung_dijawab_409(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $teratas = PapanButir::query()->orderBy('urutan')->firstOrFail();
+
+        $this->patchJson("/api/papan/E.3/butir/{$teratas->id}/urutan", ['arah' => -1])
+            ->assertStatus(409);
+    }
+
+    public function test_geser_butir_menukar_urutan(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $id = PapanButir::query()->orderBy('urutan')->pluck('id')->all();
+
+        $this->patchJson("/api/papan/E.3/butir/{$id[1]}/urutan", ['arah' => -1])->assertOk();
+
+        $this->assertSame([$id[1], $id[0]], PapanButir::query()->orderBy('urutan')->pluck('id')->all());
+    }
+
+    public function test_ubah_item_mengganti_nama_dan_kode(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->patchJson('/api/papan/item/E.3', ['nama' => 'Kas & Bank', 'kode_baru' => 'E.8'])
+            ->assertOk()
+            ->assertJsonPath('kode', 'E.8')
+            ->assertJsonPath('nama', 'Kas & Bank');
+
+        // Poin tidak boleh ikut hilang saat sub-modul dinamai ulang.
+        $this->assertSame(2, PapanButir::query()->count());
+    }
+
+    public function test_tambah_dan_hapus_sub_modul_lewat_api(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->postJson('/api/papan/modul/E/item', ['kode' => 'E.7', 'nama' => 'Laporan Kas'])
+            ->assertStatus(201)
+            ->assertJsonPath('kode', 'E.7');
+
+        $this->deleteJson('/api/papan/item/E.7')->assertOk();
+
+        $this->assertSame(0, PapanItem::query()->where('kode', 'E.7')->count());
+    }
+
+    public function test_kode_sub_modul_kembar_dijawab_422(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->postJson('/api/papan/modul/E/item', ['kode' => 'E.3', 'nama' => 'Kembar'])
+            ->assertStatus(422);
+    }
+
+    public function test_izin_ubah_dibutuhkan_untuk_menyunting(): void
+    {
+        // Izin lihat saja TIDAK cukup untuk mengubah: pagar papan.ubah
+        // harus benar-benar berlaku, bukan sekadar ada di rute.
+        Sanctum::actingAs($this->pengguna(['guru']));
+        $butir = PapanButir::query()->orderBy('urutan')->firstOrFail();
+
+        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", ['deskripsi' => 'Nakal.'])
+            ->assertStatus(403);
+    }
+
     private function pengguna(array $peran): User
     {
         $user = User::create([

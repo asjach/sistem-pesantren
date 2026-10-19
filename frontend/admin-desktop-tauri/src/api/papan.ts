@@ -91,6 +91,62 @@ export function hapusButirPapan(kode: string, id: number) {
   });
 }
 
+
+/**
+ * Ubah isi satu POIN: deskripsi dan/atau statusnya.
+ *
+ * Keduanya opsional — menyunting teks saja tidak perlu menyertakan status,
+ * supaya tidak ada risiko status ikut berubah karena kelalaian pemanggil.
+ */
+export function ubahButirPapan(
+  kode: string,
+  id: number,
+  ubah: { deskripsi?: string; status?: StatusPapan; catatan?: string },
+) {
+  return api<{ id: number; status: StatusPapan; deskripsi: string; status_sub_modul: StatusPapan }>(
+    `/papan/${encodeURIComponent(kode)}/butir/${id}`,
+    { method: 'PATCH', body: JSON.stringify(ubah) },
+  );
+}
+
+/**
+ * Geser satu POIN naik (-1) atau turun (1) di dalam sub-modulnya.
+ *
+ * Backend menjawab 409 bila poin sudah di ujung; pemanggil sebaiknya
+ * menonaktifkan tombolnya lebih dulu supaya 409 jarang terjadi.
+ */
+export function geserButirPapan(kode: string, id: number, arah: -1 | 1) {
+  return api<{ butir: ButirPapan[] }>(`/papan/${encodeURIComponent(kode)}/butir/${id}/urutan`, {
+    method: 'PATCH',
+    body: JSON.stringify({ arah }),
+  });
+}
+
+/** Tambah sub-modul baru di bawah sebuah modul. */
+export function tambahSubPapan(modulKode: string, kode: string, nama: string) {
+  return api<{ kode: string; nama: string }>(`/papan/modul/${encodeURIComponent(modulKode)}/item`, {
+    method: 'POST',
+    body: JSON.stringify({ kode, nama }),
+  });
+}
+
+/**
+ * Ubah nama dan/atau kode sebuah sub-modul.
+ *
+ * Poin-poin di dalamnya TIDAK disentuh — beda dari seed ulang yang menghapus
+ * lalu membuat ulang poin sehingga id dan statusnya hilang.
+ */
+export function ubahSubPapan(kode: string, ubah: { nama?: string; kode_baru?: string }) {
+  return api<{ kode: string; nama: string }>(`/papan/item/${encodeURIComponent(kode)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(ubah),
+  });
+}
+
+/** Hapus sub-modul beserta SELURUH poinnya. */
+export function hapusSubPapan(kode: string) {
+  return api<{ message: string }>(`/papan/item/${encodeURIComponent(kode)}`, { method: 'DELETE' });
+}
 /** Riwayat perpindahan status poin, terbaru lebih dulu. */
 export function muatRiwayatPapan(kode?: string, batas = 20) {
   const qs = new URLSearchParams();

@@ -6,14 +6,22 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { PapanKolom } from '@/components/papan/PapanKolom';
 import {
+  geserButirPapan,
+  hapusButirPapan,
   muatPapan,
   muatRiwayatPapan,
   pindahStatusPapan,
+  tambahButirPapan,
+  ubahButirPapan,
   type DataPapan,
   type RiwayatPapan,
   type StatusPapan,
 } from '@/api/papan';
-import { kartuModul, kemajuanModul, modulPertama } from '@/lib/papan';
+import { bisa } from '@/api/auth';
+import { useAuth } from '@/auth/AuthContext';
+import { kartuModul, kemajuanModul, modulPertama, type KartuPapan } from '@/lib/papan';
+import type { AksiButir } from '@/components/papan/PapanKolom';
+import { KelolaSubModul } from '@/components/papan/KelolaSubModul';
 
 /**
  * Papan perkembangan modul - satu tab per modul (A, B, C, ...), tiap tab
@@ -31,6 +39,13 @@ export default function PapanPage() {
   const [riwayat, setRiwayat] = useState<RiwayatPapan[]>([]);
   const [galat, setGalat] = useState<string | null>(null);
   const [memuat, setMemuat] = useState(true);
+  const [kelolaTerbuka, setKelolaTerbuka] = useState(false);
+
+  const { user } = useAuth();
+  // Satu gerbang untuk seluruh UI sunting. Tanpa izin ini halaman
+  // tetap berfungsi penuh sebagai pembaca - tidak ada tombol mati yang
+  // menggantung, dan kartu tidak bisa diseret ke kolom lain.
+  const bolehUbah = bisa(user, 'papan.ubah');
 
   const muat = useCallback(async () => {
     setMemuat(true);
@@ -116,6 +131,61 @@ export default function PapanPage() {
     [data, muat],
   );
 
+  /**
+   * Simpan perubahan pada satu poin, lalu segarkan papan dari server.
+   *
+   * Berbeda dari pemindahan lewat seret (yang optimistis), suntingan di
+   * sini memuat ulang setelah sukses. Alasannya: menyunting juga bisa
+   * menambah/menghapus poin dan mengubah sub-modul, yang menggeser
+   * banyak kartu sekaligus - menebak hasilnya di layar lebih berisiko
+   * daripada satu permintaan tambahan.
+   */
+  const segarkan = useCallback(async () => {
+    try {
+      const [papan, log] = await Promise.all([muatPapan(), muatRiwayatPapan(undefined, 8)]);
+      setData(papan);
+      setRiwayat(log.riwayat);
+      setGalat(null);
+    } catch (e) {
+      setGalat(e instanceof Error ? e.message : 'Papan gagal dimuat ulang.');
+    }
+  }, []);
+
+  /** Aksi sunting untuk satu kartu poin, dipakai panel rincian. */
+  const aksiButir = useCallback(
+    (kartu: KartuPapan): AksiButir => ({
+      onSimpanTeks: async (deskripsi) => {
+        await ubahButirPapan(kartu.subKode, kartu.id, { deskripsi });
+        await segarkan();
+      },
+      onSimpanStatus: async (status) => {
+        await ubahButirPapan(kartu.subKode, kartu.id, { status });
+        await segarkan();
+      },
+      onNaik: async () => {
+        await geserButirPapan(kartu.subKode, kartu.id, -1);
+        await segarkan();
+      },
+      onTurun: async () => {
+        await geserButirPapan(kartu.subKode, kartu.id, 1);
+        await segarkan();
+      },
+      onHapus: async () => {
+        await hapusButirPapan(kartu.subKode, kartu.id);
+        await segarkan();
+      },
+    }),
+    [segarkan],
+  );
+
+  /** Tambah poin baru ke sebuah sub-modul lalu muat ulang papan. */
+  const tambahPoin = useCallback(
+    async (subKode: string, status: StatusPapan, deskripsi: string) => {
+      await tambahButirPapan(subKode, status, deskripsi);
+      await segarkan();
+    },
+    [segarkan],
+  );
   // Modul tak dikenal atau belum dipilih -> arahkan ke modul pertama yang berisi.
   if (data && (!kodeModul || !aktif)) {
     const tujuan = modulPertama(modul);
@@ -178,12 +248,28 @@ export default function PapanPage() {
             </div>
           ) : null}
 
+          {bolehUbah && aktif ? (
+            <div className="px-4 pb-1">
+              <button
+                id="btn_kelola_papan"
+                type="button"
+                onClick={() => setKelolaTerbuka(true)}
+                className="cursor-pointer border px-3 py-1 text-xs"
+                style={{ borderColor: 'var(--divider)' }}
+              >
+                Kelola sub-modul & poin
+              </button>
+            </div>
+          ) : null}
+
           {aktif ? (
             <PapanKolom
               key={aktif.kode}
               kartu={kartu}
               tampilkanModul={false}
               onPindah={pindah}
+              bolehUbah={bolehUbah}
+              aksiButir={aksiButir}
               riwayat={riwayat}
               idAwalan={`modul_${aktif.kode.toLowerCase()}`}
             />
@@ -193,6 +279,16 @@ export default function PapanPage() {
         <div className="px-6 pt-2 text-sm text-muted-foreground">Papan belum berisi modul.</div>
       )}
 
+      {bolehUbah && kelolaTerbuka && aktif ? (
+        <KelolaSubModul
+          modulKode={aktif.kode}
+          modulNama={aktif.nama}
+          sub={aktif.sub}
+          onTutup={() => setKelolaTerbuka(false)}
+          onBerubah={segarkan}
+          onTambahPoin={tambahPoin}
+        />
+      ) : null}
     </div>
   );
 }

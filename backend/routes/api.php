@@ -73,8 +73,15 @@ Route::middleware(['auth:sanctum', 'throttle:api_user'])
         // diturunkan dari poin, jadi tidak ada endpoint untuk menggeser
         // sub-modul secara langsung.
         Route::patch('{kode}/butir/{butir}/status', [PapanController::class, 'pindah'])->middleware('permission:papan.ubah');
+        Route::patch('{kode}/butir/{butir}', [PapanController::class, 'ubahButir'])->middleware('permission:papan.ubah');
+        Route::patch('{kode}/butir/{butir}/urutan', [PapanController::class, 'geserButir'])->middleware('permission:papan.ubah');
         Route::post('{kode}/butir', [PapanController::class, 'tambahButir'])->middleware('permission:papan.ubah');
         Route::delete('{kode}/butir/{butir}', [PapanController::class, 'hapusButir'])->middleware('permission:papan.ubah');
+        // Sub-modul: nama dan kodenya bisa disunting tanpa menyentuh poin
+        // (beda dari seed ulang yang menghapus lalu membuat ulang poin).
+        Route::post('modul/{modul}/item', [PapanController::class, 'tambahItem'])->middleware('permission:papan.ubah');
+        Route::patch('item/{kode}', [PapanController::class, 'ubahItem'])->middleware('permission:papan.ubah');
+        Route::delete('item/{kode}', [PapanController::class, 'hapusItem'])->middleware('permission:papan.ubah');
     });
 
 Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
