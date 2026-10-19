@@ -134,7 +134,9 @@ export default function PapanPage() {
                 className={KELAS_TRIGGER}
               >
                 {m.kode}. {m.nama}
-                <span className="ml-1.5 tabular-nums opacity-70">{m.sub.length}</span>
+                {/* Warna badge diatur di index.css (.lencana-tab-papan) supaya
+                    bisa dibalik otomatis saat tab aktif — lihat catatan di sana. */}
+                <span className="lencana-tab-papan">{m.sub.length}</span>
               </TabsTrigger>
             ))}
           </TabsList>

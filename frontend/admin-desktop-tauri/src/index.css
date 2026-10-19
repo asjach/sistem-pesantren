@@ -1078,3 +1078,29 @@
   border: 0;
   border-top: 1px solid var(--border);
 }
+
+/* Badge jumlah di tab halaman papan (Papan Modul).
+ *
+ *  Badge dibuat MENGIKUTI warna tab: di tab biasa latarnya primary dengan
+ *  teks primary-foreground; di tab AKTIF latar tab sudah primary, jadi warna
+ *  badge dibalik (latar primary-foreground, teks primary) supaya tetap
+ *  mencolok dan terbaca — bukan primary di atas primary yang tenggelam.
+ *  Karena itu warnanya diatur di CSS, bukan style inline. */
+.lencana-tab-papan {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+  height: 1rem;
+  margin-left: 0.375rem;
+  padding: 0 0.25rem;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+[data-slot='tabs-trigger'][data-state='active'] .lencana-tab-papan {
+  background: var(--primary-foreground);
+  color: var(--primary);
+}

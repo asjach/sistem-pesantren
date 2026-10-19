@@ -185,3 +185,4 @@ Aturan praktis:
 | 2.472 | 2026-10-19 | [Alur] Markdown peta kini ikut ditulis ulang otomatis tiap kartu dipindah atau butir diubah dari halaman papan, dengan pengaman yang membatalkan penulisan bila hasilnya jauh lebih pendek agar berkas tidak terpotong |
 | 2.473 | 2026-10-19 | [Alur] Papan modul kini dipecah per modul sebagai tab dinamis (A–G) yang dibangun dari data API, sehingga modul baru langsung muncul jadi tab tanpa mengubah kode; tiap tab tetap papan empat kolom dan komponennya dipakai ulang lewat \`components/papan/PapanKolom.tsx\` |
 | 2.474 | 2026-10-19 | [Tampilan] Judul "Papan Modul" di dalam halaman papan dihilangkan karena area tab sudah menjelaskan isinya, dan label navigasinya dipendekkan jadi "Papan" |
+| 2.475 | 2026-10-19 | [Tampilan] Badge jumlah sub-modul di tab papan diberi warna primary agar mencolok, dan warnanya dibalik otomatis saat tab aktif supaya tetap terbaca di atas latar primary |
