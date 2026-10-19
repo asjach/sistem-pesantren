@@ -123,16 +123,26 @@
   --warning: #b45309;
   --warning-foreground: #92400e;
 
-  --border: color-mix(in srgb, var(--foreground) 8%, var(--background));
+  /* 8% terlalu tipis untuk batas kartu di papan: kartu dan kolom jadi
+     nyaris sama. 14% memberi hierarki tanpa terasa berat. */
+  --border: color-mix(in srgb, var(--foreground) 14%, var(--background));
   --input: var(--border);
   --ring: var(--accent);
 
   --surface-2: color-mix(in srgb, var(--foreground) 4%, var(--background));
   --surface-3: color-mix(in srgb, var(--foreground) 8%, var(--background));
   --sunken: color-mix(in srgb, var(--foreground) 3%, var(--background));
-  --border-strong: color-mix(in srgb, var(--foreground) 22%, var(--background));
+  /* Selalu lebih tegas dari --border; dipakai saat kartu di-hover/fokus. */
+  --border-strong: color-mix(in srgb, var(--foreground) 32%, var(--background));
   --divider: color-mix(in srgb, var(--foreground) 7%, var(--background));
   --accent-line: color-mix(in srgb, var(--accent) 38%, transparent);
+  /* Border kartu saat disentuh. Memakai accent supaya perubahannya
+     terlihat sebagai warna, bukan cuma abu-abu yang menggelap -
+     dan lebih kontras dari --border-strong. */
+  --border-hover: color-mix(in srgb, var(--accent) 65%, var(--background));
+  /* Di tema gelap accent tenggelam (selisih cuma 46 vs 69 milik
+     --border-strong), jadi dipakai accent yang dicerahkan dulu. */
+  --accent-terang: color-mix(in srgb, var(--accent) 55%, #ffffff);
   --shadow-card: 0 1px 2px rgb(28 25 20 / 0.05), 0 0 0 1px var(--border);
   --shadow-pop: 0 12px 32px -8px rgb(28 25 20 / 0.16), 0 2px 6px -2px rgb(28 25 20 / 0.06), 0 0 0 1px var(--border);
   --shadow-drag: 0 16px 36px -10px rgb(28 25 20 / 0.28), 0 0 0 1px var(--border-strong);
@@ -163,6 +173,8 @@
   --destructive-foreground: #1a0b0a;
   --warning: #fbbf24;
   --warning-foreground: #fcd34d;
+  --accent-terang: color-mix(in srgb, var(--accent) 70%, #ffffff);
+  --border-hover: color-mix(in srgb, var(--accent-terang) 72%, var(--background));
   --shadow-card: 0 0 0 1px var(--border);
   --shadow-pop: 0 16px 40px -10px rgb(0 0 0 / 0.6), 0 0 0 1px var(--border-strong);
   --shadow-drag: 0 18px 40px -10px rgb(0 0 0 / 0.7), 0 0 0 1px var(--border-strong);
@@ -246,7 +258,9 @@
 }
 #crosstab_tagihan_scroll,
 #popover_aksi_tagihan {
-  --border: color-mix(in srgb, var(--foreground) 15%, var(--background));
+  /* Di sini garis sel adalah pemisah utama, jadi sengaja lebih tegas
+     dari --border bawaan. */
+  --border: color-mix(in srgb, var(--foreground) 20%, var(--background));
 }
 
 .pop-nominal,
@@ -973,10 +987,15 @@
    inline bawaan kartu. */
 .kartu {
   background: var(--surface);
-  box-shadow: var(--shadow-card);
-  transition: box-shadow var(--dur) var(--ease);
+  /* Border eksplisit, bukan hanya garis 1px di dalam --shadow-card:
+     garis di shadow ikut memudar saat kartu dinaikkan, dan di papan
+     kartu harus tetap terbaca sebagai kotak di atas kolom.
+     --shadow-card sengaja dibiarkan: ia yang memberi kedalaman. */
+  border: 1px solid var(--border);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .kartu:hover {
+  border-color: var(--border-hover);
   box-shadow: var(--shadow-card-hover);
 }
 

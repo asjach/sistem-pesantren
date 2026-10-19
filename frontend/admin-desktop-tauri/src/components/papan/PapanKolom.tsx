@@ -125,10 +125,14 @@ export function KartuPapan({
       }}
       aria-label={`${kartu.subKode} ${kartu.deskripsi}. Seret, atau pakai panah kiri dan kanan, untuk memindahkan poin ini.`}
       className={cn(
-        'flex cursor-grab flex-col gap-2 p-[10px_12px] transition-shadow active:cursor-grabbing',
+        // Border, latar, dan bayangan datang dari .kartu (index.css) supaya
+        // kartu papan tidak menyimpang dari kartu lain di aplikasi.
+        // focus-visible ditambahkan di sini: kartu ini fokusable lewat Tab
+        // untuk jalur keyboard, dan .kartu hanya mengatur :hover.
+        'kartu flex cursor-grab flex-col gap-2 p-[10px_12px]',
+        'focus-visible:border-[var(--border-strong)] focus-visible:outline-none',
         diseret && 'opacity-40',
       )}
-      style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
     >
       {/* Judul kartu = sub-modul induk. Diulang di tiap poin dengan sengaja:
           satu sub-modul kini bisa muncul di beberapa kolom sekaligus, jadi
@@ -143,7 +147,10 @@ export function KartuPapan({
           onClick={onBuka}
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
-          className="min-w-0 flex-1 cursor-pointer text-left text-[13px] leading-snug font-medium hover:text-[var(--accent)]"
+          // Warna judul TETAP: tidak berubah saat hover. Effek hover
+          // dipindah ke border kartu (lihat .kartu:hover di index.css)
+          // supaya ada satu isyarat saja, bukan dua yang bersaing.
+          className="min-w-0 flex-1 cursor-pointer text-left text-[13px] leading-snug font-medium"
         >
           {kartu.subNama}
         </button>

@@ -192,3 +192,4 @@ Aturan praktis:
 | 2.479 | 2026-10-19 | [Tampilan] Combobox "Pindah..." di kartu papan dihapus: perpindahan status kini HANYA lewat seret, dengan panah kiri/kanan sebagai jalur keyboard yang setara supaya kartu tetap bisa dipindah tanpa mouse |
 | 2.480 | 2026-10-19 | [Tampilan] Teks petunjuk "Seret, atau panah kiri/kanan" di kartu papan dihapus; kursor grab dan atribut draggable sudah cukup memberi isyarat, dan teksnya terulang di tiap kartu |
 | 2.481 | 2026-10-19 | [Tampilan] Nomor id poin (#128) dihapus dari kartu papan dan dialog rincian; angkanya hanya berguna untuk command dan tidak berarti apa-apa saat membaca papan |
+| 2.482 | 2026-10-19 | [Tampilan] Judul kartu papan tidak lagi berubah warna saat hover; efek hover dipindah seluruhnya ke border kartu memakai accent (token baru `--border-hover`, sadar tema terang/gelap) sehingga perubahannya terlihat sebagai warna, bukan teks yang berkedip |
