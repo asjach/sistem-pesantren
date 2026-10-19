@@ -160,13 +160,13 @@ export function KartuPapan({
         <TeksButir deskripsi={kartu.deskripsi} />
       </p>
 
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      {/* Tidak ada combobox pindah dan tidak ada teks petunjuk: perpindahan
+          status HANYA lewat seret (plus panah kiri/kanan untuk keyboard).
+          Petunjuknya sengaja tidak ditulis di kartu - kursor grab sudah
+          memberi isyarat, dan teks itu mengulang-ulang di tiap kartu.
+          Kartu tetap wajib draggable - lihat atribut di <article>. */}
+      <div className="flex items-center text-xs text-muted-foreground">
         <span className="font-mono text-[10px] tabular-nums">#{kartu.id}</span>
-        {/* Tidak ada combobox pindah: perpindahan status HANYA lewat seret.
-            Menyediakan dua jalur berarti keduanya harus dijaga selaras, dan
-            combobox sempat jadi jalur yang tidak pernah dipakai. Kartu tetap
-            wajib draggable - lihat atribut di <article>. */}
-        <span className="ml-auto text-[10px]">Seret, atau panah kiri/kanan</span>
       </div>
     </article>
   );
