@@ -175,4 +175,6 @@ Aturan praktis:
 | 2.419 | 2026-10-19 | [Alur] Aksi massal keuangan melaporkan tagihan gagal dan alasan; kenaikan kelas minta konfirmasi |
 | 2.420 | 2026-10-19 | [Kinerja] Generate tagihan 3.000 Santri turun dari 42.006 menjadi 24 permintaan |
 | 2.421 | 2026-10-19 | [Dokumen] Audit enam berkas: changelog diklasifikasi ulang (460→121 entri, hanya fundamental/signifikan, satu kalimat + kategori per entri), rujukan tabel mati dibersihkan, angka skema diperbaiki |
+| 2.422 | 2026-10-19 | [Alur] Rapor hanya bisa dicetak bila seluruh santri di kelas sudah lengkap nilainya, dengan alasan terkunci tampil di tombol |
+| 2.423 | 2026-10-19 | [Alur] Kwitansi pembayaran kini bisa dicetak atau disimpan PDF, baik dari dialog setelah bayar maupun dari tabel pembayaran harian |
 | 2.467 | 2026-10-19 | [Dokumen] Branch audit digabung ke main; 51 entri changelog lama dirangkum ke entri 2.416–2.421 dan rujukan dokumen diselaraskan |

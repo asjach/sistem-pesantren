@@ -30,10 +30,10 @@ Aturan terkunci:
 | Peran | Tenant | Hak utama |
 |---|---|---|
 | `super_admin` | Semua, tanpa pivot | Semua izin (terkunci di matriks); tulis global `ref_*`; buat semua peran; kelola matriks izin |
-| `admin` | Full tanpa pivot = semua; scoped dengan pivot = subset via `isAdminFull()` | Semua izin kecuali `izin.*`, `server.lihat`, `lembaga.tambah`; CRUD `001–004` (kecuali tambah lembaga = super_admin), `100–102`, attach/detach `user_lembaga`; tak boleh mutasi/hapus pemegang `admin/super_admin` maupun role diri sendiri |
-| `guru` | Wajib pivot ≥1 | Modul 202 Nilai-Rapor: input miliknya/walasnya |
-| `orang_tua` | Wajib pivot, via `wali_santri_relasi` | Modul 203 Portal Wali + Modul 100 PSB Penerimaan daftar + ajukan/batal (1 aktif/santri) |
-| `santri` | Wajib pivot | Portal terbatas |
+| `admin` | Full tanpa pivot = semua; scoped dengan pivot = subset via `isAdminFull()` | Semua izin **minus** `IzinKatalog::EKSKLUSIF_SUPER_ADMIN` (17 nama: `lembaga.tambah`, `server.lihat`, `izin.lihat/ubah`, tulis `preset_tabel`, `semester.aktivasi`, tulis `urut_preset`/`toolbar_preset`/`pengaturan_halaman`) — daftar di kode adalah sumber kebenaran, jangan disalin ulang; ditambah gerbang struktural (mis. CRUD/set-aktif tahun ajaran wajib `super_admin` walau izinnya tidak eksklusif). CRUD `001–004` (kecuali tambah lembaga = super_admin), `100–102`, attach/detach `user_lembaga`; tak boleh mutasi/hapus pemegang `admin/super_admin` maupun role diri sendiri |
+| `guru` | Wajib pivot ≥1 | **Kebutuhan**: input nilai miliknya/walasnya (202). **Kenyataan**: izin bawaan peran ini kosong (`IzinKatalog::untukRole()`) dan klien desktop menolak peran `guru`, jadi jalur guru mandiri belum tersedia — input nilai dikerjakan admin lewat desktop |
+| `orang_tua` | Wajib pivot, via `wali_santri_relasi` | Modul 203 Portal Wali (**sebagian**: PSB lanjutan, riwayat keluarga, pengajuan/batal biodata; tanpa dashboard & ringkasan tagihan) + Modul 100 PSB Penerimaan daftar |
+| `santri` | Wajib pivot | Portal terbatas — **belum ada rute portal khusus santri** (grup portal dijaga `role:orang_tua`) |
 | `asrama` | Wajib pivot `user_asrama` (ditetapkan super_admin saja) | Modul 505 Asrama (**pasca production**; peran belum di-seed sekarang): penghuni/kamar/izin pulang/kegiatan; keuangan mengikuti perumusan ulang modul keuangan |
 | (`kasir` — dihapus sementara; kembali saat modul keuangan dirumuskan ulang) | Wajib pivot ≥1 | Menunggu modul keuangan |
 
@@ -50,9 +50,9 @@ Kewenangan terdiri dari dua dimensi yang dikombinasikan (AND):
 - **Cakupan data** — pivot `user_lembaga` (`bolehPesantren()`/`canAccessLembaga()`); tidak berubah oleh matriks.
 
 Aturan terkunci:
-- Role `super_admin` selalu full (barisnya terkunci di matriks; API menolak `PUT` untuknya) — anti-lockout.
+- Role `super_admin` selalu full (barisnya terkunci di matriks; API menolak `PUT` untuknya) — anti-lockout. **Pengecualian mode bertindak**: saat super_admin memilih "bertindak sebagai lembaga", izin terkunci (`izin.lihat`, `server.lihat`) dianggap nonaktif di klien — cakupan menyempit, bukan pivotnya berubah.
 - Halaman Kelola Izin + endpoint `/api/admin/izin` hanya pemilik `izin.*` (= super_admin).
-- Portal orang_tua/santri dan grup campuran (`portal/psb/{calon}/dokumen`) tetap role-based (pengecualian terdokumentasi, di luar matriks).
+- Portal (`role:orang_tua`) dan grup campuran (`portal/psb/{calon}/dokumen`, `role:orang_tua|admin|super_admin`) tetap role-based (pengecualian terdokumentasi, di luar matriks).
 - Aturan struktural tetap di kode (bukan matriks): tambah lembaga, mutasi target privileged, dan kunci role diri = super_admin saja.
 - Halaman baru wajib didaftarkan di katalog + `HALAMAN.permission`; `frontend/admin-desktop-tauri/scripts/audit-izin.mjs` (predev/prebuild/pretypecheck) dan test pengerasan route menggagalkan drift.
 
@@ -66,7 +66,7 @@ Aturan terkunci:
 | A4 | Data awal Excel per lembaga ke staging lalu verifikasi lalu production; dedup `nik+nama+tgl_lahir` (Modul 101 Santri, 003) |
 | A5 | NIK wajib boleh fiktif tanpa flag (Modul 101) |
 | A6 | `kurikulum`, `dokumen_wajib_lembaga`, `ref_*` per lembaga; kontak/logo dari lembaga sendiri (tanpa fallback root) (Modul 004 Referensi-Master, 100 PSB Penerimaan) |
-| A7 | FE terpisah Tauri/PySide/RN; Flutter dihentikan; base `API_BASE_URL` fallback `127.0.0.1:8000/api` (Modul 003) |
+| A7 | FE berjalan sekarang: Tauri + React (`admin-desktop-tauri`); PySide/Flutter dihentikan; RN masih rencana. Klien desktop hanya menerima peran `super_admin`/`admin`. Base `API_BASE_URL` fallback `127.0.0.1:8000/api` (Modul 003) |
 | A8 | Kapasitas/kinerja ikut Bab 3.2 NFR-01 sampai NFR-07; anggaran Bab 9 |
 
 | ID | Batasan (kode + nama modul) |
@@ -75,7 +75,7 @@ Aturan terkunci:
 | B2 | Register publik ditutup; buat user hanya admin manual/import (Modul 003) |
 | B3 | Guard wajib `sanctum`; throttle login 6/mnt; middleware `permission:` + `authorize` + `canAccessLembaga` wajib (Modul 003) |
 | B4 | UNIQUE nullable tidak cegah duplikat NULL MySQL; dedup wajib service (`RefService`, import 101) (Modul 002) |
-| B5 | Kolom pemakai `ref_*` string tanpa FK; shadow global hanya `is_active` (Modul 004) |
+| B5 | Kolom pemakai `ref_*` string tanpa FK; baris kamus **fan-out per lembaga** sejak v1.x (migrasi fan-out); `jenjang` null hanya sisa legacy, bukan baris global (Modul 004) |
 | B7 | Scope G0-G3 production dulu; G4+ TBD; `500-505`, `900-901` ditutup sementara (Bab 1.4) |
 
 ---
@@ -91,9 +91,9 @@ Aturan terkunci:
 | FR-100                 | 100 PSB Penerimaan Santri                         | 2-jalur via `is_seleksi` + override null ikut default, kuota saat input, waiting_list, paket MI-MD opsional, ACC | Detail (G1+G3 daftar) |
 | FR-101                 | 101 Santri Master                                 | `id` stabil; NIK fiktif boleh; dedup; `is_active_pst` turunan (default 'Tidak'); tanpa kolom lembaga (legacy = santri tanpa riwayat) | Detail (G1)           |
 | FR-102                 | 102 Siklus Santri                                 | status_awal/akhir, naik/pindah/mutasi/lulus                                                                      | Detail (G1)           |
-| FR-203                 | 203 Portal Wali subset                            | Daftar + pengajuan                                                                                               | Detail (G3)           |
-| FR-200, FR-201, FR-202 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | 200: master pegawai + penempatan + keaktifan + akun + foto. 201: master mapel (KKM + urutan), pengampu (kelas × mapel → guru), jadwal pelajaran (pengampu × slot × hari). 202: master peristiwa nilai, impor 4 template, leger crosstab + Excel, rapor cetak + cek kelengkapan | **Detail (live)** |
-| FR-KEU | Modul Keuangan (G2) | Master jenis tagihan + tarif per lembaga/TA, generate tagihan, kasir harian + kwitansi acak, crosstab tagihan, dispensasi; saldo di-row-lock dan nominal melebihi sisa ditolak | **Detail (live, fondasi)** — 13 fitur lanjutan masih rencana |
+| FR-203                 | 203 Portal Wali subset                            | PSB lanjutan + riwayat keluarga + pengajuan/batal biodata (**sebagian**; dashboard & ringkasan tagihan belum ada) | Detail (G3)           |
+| FR-200, FR-201, FR-202 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | 200: master pegawai + penempatan + keaktifan + akun + foto. 201: master mapel (KKM + urutan), pengampu (kelas × mapel → guru), jadwal pelajaran (pengampu × slot × hari). 202: master peristiwa nilai, impor 4 template, leger crosstab + Excel (unduh), rapor cetak per santri + **indikator** kelengkapan kelas | **Detail (live)** — jalur guru mandiri & hard-block cetak = rencana |
+| FR-KEU | Modul Keuangan (G2) | Master jenis tagihan + tarif per lembaga/TA, generate tagihan, kasir harian + **kwitansi bercetak** (dokumen 1 halaman dari dialog bayar atau tabel harian), crosstab tagihan, dispensasi, ringkasan dasbor; saldo di-row-lock dan nominal melebihi sisa ditolak | **Detail (live, fondasi)** — butir lanjutan lain (tutup buku, penomoran runut, rekap per kas, ekspor, aging, audit) masih rencana |
 | FR-505                 | 505 Asrama                                        | Entitas `asrama` (bukan lembaga)+`user_asrama`+peran `asrama`; kamar, penghuni, izin pulang, kegiatan; keuangan menyusul perumusan ulang | Gambaran umum (**pasca production — tabel/peran belum dibuat**) |
 
 ### 3.2 Non-Functional Requirement
@@ -105,7 +105,7 @@ Aturan terkunci:
 | NFR-03 | Bcrypt/argon2, throttle login 6/mnt, `lockForUpdate`, `latest('id')` |
 | NFR-04 | Uptime 99%/bulan |
 | NFR-05 | Sederhana; `control id snake_case` |
-| NFR-06 | API-first; FE Tauri/PySide/RN |
+| NFR-06 | API-first; FE sekarang Tauri+React; RN rencana |
 | NFR-07 | Backup harian + rollback |
 
 ### 3.3 Use Case
@@ -118,9 +118,9 @@ Aturan terkunci:
 | UC-G1-01 | `admin`, `orang_tua` | PSB daftar, verifikasi, seleksi opsional, ACC + paket MI-MD | 100 PSB Penerimaan |
 | UC-G1-02 | `admin` | Kelola `santri` + import dedup | 101 Santri Master |
 | UC-G1-03 | `admin` | Naik/pindah/mutasi/lulus (`riwayat_belajar`) | 102 Siklus Santri |
-| UC-G3-01 | `orang_tua`, `santri` | Portal daftar + pengajuan | 203 Portal Wali subset |
-| UC-KUR | `admin`, `guru` | Kelola mapel & pengampu, susun jadwal pelajaran | 201 Kurikulum-Mapel |
-| UC-NIL | `guru`, `admin` | Isi nilai (impor/manual), hitung akhir, baca leger, cetak rapor | 202 Nilai-Rapor |
+| UC-G3-01 | `orang_tua` (santri = rencana) | Portal daftar + pengajuan | 203 Portal Wali subset |
+| UC-KUR | `admin` (guru = rencana) | Kelola mapel & pengampu, susun jadwal pelajaran | 201 Kurikulum-Mapel |
+| UC-NIL | `admin` (guru = rencana) | Isi nilai (impor/manual), hitung akhir, baca leger, cetak rapor | 202 Nilai-Rapor |
 | UC-KEU | `admin` | Susun tarif & jenis, generate tagihan, catat pembayaran, baca tunggakan | Modul Keuangan |
 | UC-Pasca | `guru` + pasca | Presensi (tabel ada, UI belum), tahfizh, asrama | 500, 503, 505 TBD |
 
@@ -131,10 +131,10 @@ Aturan terkunci:
 | ID | Modul (kode + nama) | Aturan | Input, Proses, Output |
 |---|---|---|---|
 | 4.1 | 100 PSB Penerimaan | Master kegiatan → gelombang (anti-overlap, otomatis saat daftar) → kuota pendaftaran per lembaga; 2-jalur via `lembaga.is_seleksi` (override null ikut default); kuota pool gabungan per kelompok kunci saat input (penuh ke waiting_list); paket MI-MD opsional (1 calon + baris `psb_calon_lembaga`, primer MI, non-asrama) | Input: NIK wajib (fiktif boleh), dokumen wajib per lembaga. Proses: cek-NIK ke daftar ke verifikasi ke seleksi opsional ke pemberkasan ke lengkapi ke ACC tunggal; aksi massal verifikasi/masuk daftar ulang/ACC/undur diri/hapus (soft delete + restore). Output: nomor `PSB_*`, `santri`, `riwayat_belajar` aktif (1 per lembaga) |
-| 4.2 | 101 Santri Master (buku induk), 102 Siklus Santri | `santri` = identitas murni + `is_active_pst` (turunan: ada `riwayat_belajar.is_active_riwayat='Ya'`); keanggotaan per lembaga di `lembaga_santri` (`nis_lokal`, `nis_kemenag` manual, `is_active_lembaga`, `tgl_masuk`/`tgl_selesai`, `tahaj_masuk`/`tingkat_masuk`/`no_urut`, detail sekolah asal); `riwayat_belajar` tanpa `nis` (jejak kelas/semester) | Input identitas: ACC PSB, dialog manual, import Excel identitas. Keanggotaan/riwayat: ACC PSB, dialog Riwayat Belajar, import riwayat terpisah (kunci `nik` → fallback `nis_lokal`+lembaga), kenaikan, kelulusan. Proses: salin ganjil→genap; kenaikan massal per-item (kelas menyusul); pindah/set/keluar kelas; mutasi & kelulusan menutup riwayat + keanggotaan (arsip `mutasi_keluar`/`alumni`). Output: `riwayat_belajar`, `lembaga_santri`, `mutasi_keluar`, `alumni` |
-| 4.3 | Modul Keuangan (dirumuskan ulang v2.286 — **sudah diimplementasikan**) | Inti: pencatatan **tagihan**, **tunggakan**, **pembayaran** (lembaga & asrama). Jenis tagihan: bulanan/rutin vs sekali; cakupan global atau per lembaga. Tarif per lembaga + tahun ajaran; MI+MD ditagih sekali di lembaga primer. Keringanan putra pegawai. Pembayaran: metode + posisi kas (`tunai_tu`/`bank_lembaga`/`bank_pesantren`), kwitansi acak, `diterima_oleh`. Invarian kas: `terbayar` = jumlah pembayaran aktif; nominal melebihi sisa ditolak 422 (bukan dipotong); mutasi saldo di-row-lock | Input: master jenis tagihan + tarif, generate tagihan, pembayaran, dispensasi. Proses: generate per kelompok (≤10.000 baris, kontrak `0`/`all` "Semua"), kasir harian, crosstab tagihan (agregasi SQL). Output: `tagihan`, `transaksi_pembayaran`, `dispensasi`, kwitansi. **13 fitur lanjutan masih rencana** (kwitansi cetak, tutup buku harian, penomoran runut, aging, jejak audit, dst) — lihat `PRD.md` §Rencana Fitur Keuangan |
-| 4.3b | Modul Penilaian (202 Nilai-Rapor — **sudah diimplementasikan**) | Nilai diikat **peristiwa** (`peristiwa_nilai`: PTS/ASAS/ASAT/UJIAN/UAP per jenjang + TA), bukan per semester; tiap peristiwa punya komponen sendiri + bobot + sumber nilai (manual / otomatis dari rapor N tingkat / dari peristiwa lain). KKM per peristiwa, predikat dari `rentang_predikat`. Daftar mapel kelas = baris `pengampu_mapel`. | Input: master peristiwa/komponen/KKM, impor 4 template (nilai ber kolom mapel dinamis, catatan wali, prestasi, ekskul), leger per peristiwa. Proses: hitung ulang nilai akhir, saringan cakupan (semua/kecuali_akhir/tingkat_akhir), leger crosstab, rapor per peristiwa ber-rapor. Output: `nilai_santri`, leger Excel, rapor cetak + cek kelengkapan kelas. **Sisa tertunda**: kunci semester + jejak cetak, cetak massal, absensi dari `presensi_santri`, snapshot penanda tangan |
-| 4.4 | 203 Portal Wali G3 | Daftar + pengajuan (1 aktif/santri); envelope `pesan/data` | Input: akun `orang_tua` via `wali_santri_relasi`. Proses: list anak ke detail. Output: pengajuan |
+| 4.2 | 101 Santri Master (buku induk), 102 Siklus Santri | `santri` = identitas murni + `is_active_pst` (turunan: ada `riwayat_belajar.is_active_riwayat='Ya'`); keanggotaan per lembaga di `lembaga_santri` (`nis_lokal`, `nis_kemenag` manual, `is_active_lembaga`, `tgl_masuk`/`tgl_selesai`, `tahaj_masuk`/`tingkat_masuk`/`no_urut`, detail sekolah asal); `riwayat_belajar` tanpa `nis` (jejak kelas/semester) | Input identitas: ACC PSB, dialog manual, import Excel identitas. Keanggotaan/riwayat: ACC PSB, dialog Riwayat Belajar, import riwayat terpisah (**kunci `nis_lokal`+jenjang, fallback pasangan MI-MD / nama unik per baris — NIK bukan kunci pencocokan**), kenaikan, kelulusan. Proses: salin ganjil→genap; kenaikan massal per-item (kelas menyusul); pindah/set/keluar kelas; mutasi & kelulusan menutup riwayat + keanggotaan (arsip `mutasi_keluar`/`alumni`). Output: `riwayat_belajar`, `lembaga_santri`, `mutasi_keluar`, `alumni` |
+| 4.3 | Modul Keuangan (dirumuskan ulang v2.286 — **sudah diimplementasikan**) | Inti: pencatatan **tagihan**, **tunggakan**, **pembayaran** (lembaga & asrama). Jenis tagihan: bulanan/rutin vs sekali; cakupan global atau per lembaga. Tarif per lembaga + tahun ajaran; MI+MD ditagih sekali di lembaga primer. Keringanan putra pegawai. Pembayaran: metode + posisi kas (`tunai_tu`/`bank_lembaga`/`bank_pesantren`), kwitansi acak, `diterima_oleh`. Invarian kas: `terbayar` = jumlah pembayaran aktif; nominal melebihi sisa ditolak 422 (bukan dipotong); mutasi saldo di-row-lock | Input: master jenis tagihan + tarif, generate tagihan, pembayaran, dispensasi. Proses: generate per kelompok (≤10.000 baris, kontrak `0`/`all` "Semua"), kasir harian, crosstab tagihan (agregasi SQL). Output: `tagihan`, `transaksi_pembayaran`, `dispensasi`, kwitansi. **Sudah jalan**: yang di atas + ringkasan dasbor (tagihan/terbayar/tunggakan + komposisi lunas/belum/sebagian). **Rencana**: 13 butir (kwitansi cetak, tutup buku harian, penomoran runut, aging, rekap per posisi kas, jejak audit, ekspor, dst) — lihat `PRD.md` §Rencana Fitur Keuangan |
+| 4.3b | Modul Penilaian (202 Nilai-Rapor — **sudah diimplementasikan**) | Nilai diikat **peristiwa** (`peristiwa_nilai`: PTS/ASAS/ASAT/UJIAN/UAP per jenjang + TA), bukan per semester; tiap peristiwa punya komponen sendiri + bobot + sumber nilai (manual / otomatis dari rapor N tingkat / dari peristiwa lain). KKM per peristiwa, predikat dari `rentang_predikat`. Daftar mapel kelas = baris `pengampu_mapel`. | Input: master peristiwa/komponen/KKM, impor 4 template (nilai ber kolom mapel dinamis, catatan wali, prestasi, ekskul), leger per peristiwa. Proses: hitung ulang nilai akhir, saringan cakupan (semua/kecuali_akhir/tingkat_akhir), leger crosstab, rapor per peristiwa ber-rapor. Output: `nilai_santri`, leger Excel, rapor cetak per santri + **pengaman cetak** (tombol terkunci bila ada santri belum lengkap; ringkasan per santri). **Sisa tertunda**: kunci semester + jejak cetak, cetak massal, absensi dari `presensi_santri`, snapshot penanda tangan |
+| 4.4 | 203 Portal Wali G3 (**sebagian**) | Daftar + pengajuan (1 aktif/santri); envelope `pesan/data`. Sudah ada: PSB lanjutan, riwayat keluarga, pengajuan/batal biodata. Belum ada: dashboard portal, ringkasan tagihan, aktor `santri`, app mobile | Input: akun `orang_tua` via `wali_santri_relasi`. Proses: list anak ke detail. Output: pengajuan |
 | 4.5 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | **Sudah diimplementasikan.** Pegawai: master + penempatan + keaktifan + akun. Mapel: daftar mapel sebuah kelas = baris `pengampu_mapel` (kelas × mapel → guru) — modul kurikulum, pivot `kurikulum_mapel`, cakupan tingkat, dan peta `kelas_kurikulum` **dihapus v2.413**, KKM + urutan pindah ke master `mata_pelajaran`. Penilaian: nilai diikat peristiwa (`peristiwa_nilai`), leger per peristiwa + rapor. Lihat `PRD.md` §Modul Penilaian | Klien: 4 halaman Penilaian + 3 halaman Kurikulum + halaman PTK & Dokumen |
 | 4.6 | 505 Asrama (gambaran umum v1.10 — **pasca production, tabel & peran belum dibuat**) | Asrama entitas sendiri (bukan `lembaga`); pengurus **dirancang** via peran `asrama` + `user_asrama` (keduanya belum ada di DB); kamar & penghuni punya siklus mandiri; daftar per jenjang/JK dari query (bukan kolom); keuangan asrama belum diputuskan | Input: `asrama` + `asrama_kamar`, penempatan `asrama_penghuni` (kamar menyusul), `asrama_izin_pulang`, `asrama_kegiatan`. Proses: izin pulang diajukan lalu diproses (setujui/tolak), penghuni keluar (tutup baris). Output: daftar penghuni per asrama/jenjang/JK, riwayat izin. Presensi asrama & kegiatan harian detail ditunda (TBD) |
 
@@ -145,8 +145,8 @@ Aturan terkunci:
 ### 5.1 Arsitektur
 
 ```
-[Frontend] → [Backend Laravel 13 API (/api, sanctum+role:)] → [MySQL]
-Service Layer + Policy + transaction; notifikasi DB agregat.
+[Frontend] → [Backend Laravel 13 API (/api, sanctum + permission per endpoint; grup portal role-based)] → [MySQL]
+Service Layer + Policy + transaction; notifikasi DB agregat. Klien berjalan: desktop Tauri+React (`super_admin`/`admin`).
 ```
 
 ### 5.2 Modul (G0–G3 detail; pasca 1 baris)
@@ -158,7 +158,7 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 | FR-100 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri`, `dokumen_lembaga` | Detail |
 | FR-101 | 101 Santri Master | `santri`, `lembaga_santri` | Detail |
 | FR-102 | 102 Siklus Santri | `riwayat_belajar`, `mutasi_keluar`, `alumni` | Detail |
-| FR-203 | 203 Portal Wali subset | `wali_*`, `pengajuan_biodata_santri` | Detail G3 |
+| FR-203 | 203 Portal Wali subset | `wali_*`, `pengajuan_biodata_santri` | Sebagian (G3) |
 | FR-200, FR-201, FR-202 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor | `pegawai`, `lembaga_pegawai`, `keaktifan_pegawai`, `dokumen_pegawai`, `pegawai_pendidikan`, `pegawai_sertifikasi`, `keluarga_pegawai`, `presensi_pegawai`, `pengaturan_hari_lembaga`, `mata_pelajaran`, `pengampu_mapel`, `slot_jam_pelajaran`, `jadwal_pelajaran`, `peristiwa_nilai`, `nilai_santri` | Detail (live; tabel `kurikulum*` dihapus v2.413) |
 | FR-505 | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama` | Gambaran umum (**pasca production**) |
 
@@ -181,7 +181,7 @@ Service Layer + Policy + transaction; notifikasi DB agregat.
 
 | ID | Modul (kode + nama) | Tabel inti | Relasi kunci |
 |---|---|---|---|
-| 6.1 | 003 Auth Login, 004 Referensi-Master | `lembaga`, 34 `ref_*`, `users`, `user_lembaga`, `tahun_ajaran`, `lembaga_tahun_ajaran`, `semester_aktif`, `pegawai`, `kelas` | `tahun_ajaran` global (kunci `nama`, mis. '2025/2026'); visibilitas per lembaga via pivot `lembaga_tahun_ajaran`; semester berjalan per lembaga di `semester_aktif`; `lembaga 1—N kelas`; `kelas.walas_id` inline; ref global + shadow lembaga |
+| 6.1 | 003 Auth Login, 004 Referensi-Master | `lembaga`, 34 `ref_*`, `users`, `user_lembaga`, `tahun_ajaran`, `lembaga_tahun_ajaran`, `semester_aktif`, `pegawai`, `kelas` | `tahun_ajaran` = master global (kunci `nama`, mis. '2025/2026') + pivot visibilitas per lembaga `lembaga_tahun_ajaran`; semester berjalan per lembaga di `semester_aktif`; `lembaga 1—N kelas`; `kelas.walas_id` inline; kamus `ref_*` fan-out per lembaga |
 | 6.2 | 101 Santri Master, 102 Siklus Santri | `santri`, `lembaga_santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` | `santri 1—N riwayat_belajar`; `santri 1—N lembaga_santri`; `riwayat N—1 kelas`; `id` stabil, NIK index tanpa unique; santri tanpa kolom lembaga (lembaga dari riwayat/keanggotaan), `is_active_pst` turunan |
 | 6.3 | 100 PSB Penerimaan | `psb_*`, `dokumen_santri`, `dokumen_lembaga` | `calon` ke `santri` saat ACC; dokumen pindah ke santri |
 | 6.5 | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor, 203 Portal Wali | `mata_pelajaran`, `pengampu_mapel`, `peristiwa_nilai`, `nilai_santri`, `wali_*`, `pengajuan_biodata_santri` | `kelas 1—N pengampu_mapel N—1 mata_pelajaran` (daftar mapel kelas = baris `pengampu_mapel`; pivot `kurikulum_mapel` dihapus v2.413); `peristiwa_nilai 1—N nilai_santri`; wali via `wali_santri_relasi` |
@@ -199,10 +199,10 @@ Contoh kamus ringkas:
 
 | App | Modul (kode + nama) | Fitur | Kontrak |
 |---|---|---|---|
-| Desktop Admin G0-G1 | 001-004, 100 PSB Penerimaan, 101 Santri Master, 102 Siklus Santri | CRUD penuh referensi, PSB, santri/siklus | `control id snake_case`, `per_page=50` + "Semua", tangani 401/403/422/429 |
+| Desktop Admin G0-G1 | 001-004, 100 PSB Penerimaan, 101 Santri Master, 102 Siklus Santri | CRUD penuh referensi, PSB, santri/siklus | `control id snake_case`, `per_page=50` + "Semua" (batas tampilan 10.000; kontrak API tetap `0`/`all`), tangani 401/403/422/429 |
 | Desktop Admin — halaman live | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor, Modul Keuangan | PTK, Dokumen, mapel/pengampu/jadwal, Master/Impor/Leger/Rapor nilai, tagihan/kasir/crosstab/dispensasi | Sama (10 grup nav: Beranda, Data Induk, PSB, Santri, PTK, Dokumen, Keuangan, Penilaian, Kurikulum, Pengaturan) |
-| Mobile Kasir G2 | **Bukan app terpisah** — kasir berjalan sebagai halaman desktop (`PembayaranPage` + dialog kasir) di dalam Modul Keuangan | Catat pembayaran, buka/cetak kwitansi | Sama |
-| Mobile Ortu G3 | 100 daftar, 203 Portal Wali subset | Daftar + ajukan/batal | Sama |
+| Kasir (G2) | **Bukan app terpisah** — berjalan sebagai halaman desktop (`PembayaranPage` + dialog kasir) di dalam Modul Keuangan | Catat pembayaran + cetak/unduh PDF kwitansi (`KwitansiCetak`) | Sama |
+| Mobile Ortu G3 | 100 daftar, 203 Portal Wali subset | **Rencana — belum di-scaffold**; backendnya pun baru sebagian | Sama |
 | Pasca TBD | 500 Presensi, 503 Tahfizh, 505 Asrama | Tabel sudah ada (500/503); asrama hanya gambaran | TBD |
 
 ### 7.1 Prinsip
@@ -217,7 +217,7 @@ Contoh kamus ringkas:
 - Token runtime per bagian (~100 id: tabel, form, dialog, toast, sidebar, dsb.) — font, ukuran, radius, padding, warna per mode; fallback CSS bila standar belum diatur.
 
 ### 7.3 Navigasi
-- Dua mode per perangkat: sidebar rail (lipat ke ikon via tombol & Ctrl/Cmd+B, 5 grup) atau menubar; pemilih di submenu Navigasi pada menu akun, sejajar submenu Tema (25 pilihan), Set ikon (9 set), dan Kaya warna.
+- Dua mode per perangkat: sidebar rail (lipat ke ikon via tombol & Ctrl/Cmd+B) atau menubar — dua mode navigasi saja; baris tools kontekstual halaman ("ribbon") bukan mode ketiga. Katalog menu memakai **10 grup**: Beranda, Data Induk, PSB, Santri, PTK, Dokumen, Keuangan, Penilaian, Kurikulum, Pengaturan. Pemilih mode ada di submenu Navigasi pada menu akun, sejajar submenu Tema (25 pilihan), Set ikon (9 set), dan Kaya warna.
 - Lebar sidebar bisa diseret lewat gagang di tepi kanan (180–480px, pref `simpes_sidebar_lebar`; klik ganda gagang = kembali 240px). Seret ke kiri-mentok (≤96px) menyembunyikan navigasi seketika, dan lebar lamanya disimpan agar dibuka kembali sama; keyboard ←/→ geser 16px (Shift 48px) serta Home = bawaan.
 - Menu akun kanan atas: pengalih lembaga aktif, tahun ajaran aktif, strip mode terang/gelap/sistem, lalu keluar.
 - Bar judul halaman + baris tools kontekstual; halaman menyumbang tools via slot (tab ganda bila halaman + tabel sama-sama punya tools); tombol lipat baris tools per perangkat.
@@ -245,7 +245,7 @@ Contoh kamus ringkas:
 
 ### 8.1 Tumpukan Terkunci
 
-Laravel 13 / PHP 8.4+, Sanctum (`sanctum`), Spatie (`sanctum`), MySQL, Excel, Service Layer. FE: Tauri/PySide/RN (Flutter dihentikan).
+Laravel 13 / PHP 8.4+, Sanctum (`sanctum`), Spatie (`sanctum`), MySQL, Excel, Service Layer. Constraint versi ada di `backend/composer.json`; versi di `composer.lock` = snapshot instalasi, bukan bukti runtime. FE berjalan: Tauri 2 + React 18 + React Router + Tailwind v4; RN rencana.
 
 ### 8.2 Strategi Migration (per alur, per-modul per-file)
 
@@ -256,7 +256,7 @@ Migration per-modul (timestamp bawaan, urutan FK); spec di `docs/SCHEMA.md`. Uru
 | 8.2.1 | PSB | 100 PSB Penerimaan | `psb_gelombang`, `psb_kuota_biaya`, `psb_calon_santri`, `psb_calon_lembaga`, `dokumen_santri`, `dokumen_lembaga`, `dokumen_wajib_lembaga`, `psb_log_status` |
 | 8.2.2 | Santri/Siklus | 101 Santri Master, 102 Siklus Santri | `santri`, `lembaga_santri`, `riwayat_belajar`, `mutasi_keluar`, `alumni` |
 | 8.2.3 | Kepegawaian | 200 Pegawai | `pegawai`, `lembaga_pegawai`, `keaktifan_pegawai`, `dokumen_pegawai`, `pegawai_pendidikan`, `pegawai_sertifikasi`, `keluarga_pegawai`, `presensi_pegawai`, `pengaturan_hari_lembaga` |
-| 8.2.4 | Akademik/Nilai/Presensi/Portal | 200, 201, 202, 203 | `kurikulum*`, `pengampu_mapel`, `nilai_santri`, `rapor_catatan_wali`, `sesi_presensi`, `presensi_santri`, `pelanggaran_santri`, `target_tahfiz`, `setoran_tahfiz`, `rekap_tahfiz_santri`, `wali_*` |
+| 8.2.4 | Akademik/Nilai/Presensi/Portal | 200, 201, 202, 203 | `mata_pelajaran`, `pengampu_mapel`, `slot_jam_pelajaran`, `jadwal_pelajaran`, `peristiwa_nilai`, `nilai_santri`, `rapor_catatan_wali`, `nilai_ekstrakurikuler`, `prestasi_santri`, `sesi_presensi`, `presensi_santri`, `pelanggaran_santri`, `target_tahfiz`, `setoran_tahfiz`, `rekap_tahfiz_santri`, `wali_*` (tabel `kurikulum*` dihapus v2.413) |
 | 8.2.5 | Asrama (gambaran umum — **pasca production**, belum dibuat) | 505 Asrama | `asrama`, `asrama_kamar`, `asrama_penghuni`, `asrama_izin_pulang`, `asrama_kegiatan`, `user_asrama`; perubahan `santri` (`is_active_pst` turunan — dibahas terpisah) |
 | 8.2.6 | Lintas modul | Preset/kamus/impor | `preset_tabel`, `preset_tabel_aktif`, `urut_preset`, `toolbar_preset`, `pengaturan_halaman`, `import_sesi`, `notifications` |
 

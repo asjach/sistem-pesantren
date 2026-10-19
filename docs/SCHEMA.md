@@ -1105,6 +1105,11 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 
 ## BLOK 10 — Asrama (Modul 505 Asrama, pasca production)
 
+> **Belum dibuat di DB.** Blok ini adalah rancangan: tabel `asrama*` dan pivot
+> `user_asrama` sengaja belum ada (lihat pengecualian `TABEL_PRA_PRODUCTION` di
+> `tests/Feature/Concerns/VerifikasiSkemaDokumen.php`). Jangan dipakai sebagai
+> rujukan operasional sebelum Modul 505 dikerjakan.
+
 ### `asrama`
 - `id` PK
 - `kode`: string [null, unique] — mis. 'ASR_PA', 'ASR_PI'

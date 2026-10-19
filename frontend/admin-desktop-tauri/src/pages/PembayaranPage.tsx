@@ -36,6 +36,8 @@ import {
 } from '@/components/ui/popover';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
+import { useLembagaAktif } from '../lembagaAktif';
+import KwitansiCetak, { kwitansiDariHarian, type CetakKwitansi } from '@/components/keuangan/KwitansiCetak';
 import { toast } from 'sonner';
 
 const FIELDS_SANTRI: ExcelField[] = [
@@ -118,6 +120,10 @@ export default function PembayaranPage() {
   /** No. kwitansi ketikan kasir; kosong = otomatis dari server. */
   const [noKwitansi, setNoKwitansi] = useState('');
   const [kwitansi, setKwitansi] = useState<Kwitansi | null>(null);
+  /** Kwitansi siap cetak: dari dialog tersimpan (santri aktif) atau baris tabel harian. */
+  const [cetak, setCetak] = useState<CetakKwitansi | null>(null);
+  const { lembaga: lembagaAktif } = useLembagaAktif();
+  const namaLembaga = lembagaAktif?.nama;
 
   /** Tanggal rekap harian (bisa digeser mundur/maju). */
   const [tanggal, setTanggal] = useState(hariIniIso());
@@ -355,13 +361,7 @@ export default function PembayaranPage() {
         catatan: catatan.trim() === '' ? null : catatan.trim(),
         no_kwitansi: noKwitansi.trim() === '' ? undefined : noKwitansi.trim(),
       });
-      setKwitansi({
-        no: t.no_kwitansi,
-        santri: santriAktif?.nama_lengkap ?? '—',
-        jumlah: t.total,
-        baris: t.jumlah_baris,
-        kas,
-      });
+      bukaKwitansi(t);
       setCheckout([]); setCicilan({}); setCatatan(''); setNoKwitansi('');
       if (santriAktif !== null) await muatTagihanSantri(santriAktif.id);
       await muatHarian();
@@ -377,6 +377,35 @@ export default function PembayaranPage() {
     .join(' • ');
   /** Rekap butuh `id` untuk ExcelTable (jenis_id bisa null). */
   const rekapRows = rekap.map((r, i) => ({ ...r, id: r.jenis_id ?? `tanpa-${i}` }));
+
+  /** Buka dialog konfirmasi + siapkan kwitansi dari transaksi yang baru tersimpan. */
+  const bukaKwitansi = (t: { no_kwitansi: string; total: number; jumlah_baris: number }) => {
+    setCetak({
+      data: {
+        no_kwitansi: t.no_kwitansi,
+        santri: santriAktif?.nama_lengkap ?? '—',
+        metode,
+        kas,
+        catatan: catatan.trim() === '' ? null : catatan.trim(),
+        total: t.total,
+        jumlah_baris: t.jumlah_baris,
+      },
+      lembaga: namaLembaga,
+    });
+    setKwitansi({
+      no: t.no_kwitansi,
+      santri: santriAktif?.nama_lengkap ?? '—',
+      jumlah: t.total,
+      baris: t.jumlah_baris,
+      kas,
+    });
+  };
+
+  /** Cetak kwitansi dari baris tabel harian (rincian tagihan tak dikirim server di sini). */
+  const cetakHarian = (row: TransaksiHarianRow) => {
+    setCetak(kwitansiDariHarian(row, namaLembaga));
+    window.print();
+  };
 
   const tombolTambah = (r: TagihanRow) => {
     const sudah = dalamCheckout.has(r.id);
@@ -462,9 +491,20 @@ export default function PembayaranPage() {
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}
-            renderActions={() => null}
+            renderActions={(r) => (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 px-1.5 text-[11px]"
+                id={`btn_cetak_kwitansi_${r.id}`}
+                title="Cetak / PDF kwitansi"
+                onClick={() => cetakHarian(r)}
+              >
+                Cetak
+              </Button>
+            )}
             hideCheckbox
-            hideActions
           />
           <Button
             id="btn_tambah_pembayaran"
@@ -864,10 +904,15 @@ export default function PembayaranPage() {
             <span className="tabular-nums">{kwitansi?.jumlah.toLocaleString('id')}</span>
           </div>
           <DialogFooter>
-            <Button id="btn_kwitansi_tutup" onClick={() => setKwitansi(null)}>Tutup</Button>
+            <Button id="btn_kwitansi_cetak" onClick={() => window.print()}>Cetak / PDF</Button>
+            <Button id="btn_kwitansi_tutup" variant="outline" onClick={() => setKwitansi(null)}>Tutup</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dokumen cetak: tampil di layar hanya saat dialog kwitansi terbuka,
+          dan selalu siap saat window.print() dari tabel harian. */}
+      {cetak !== null && <KwitansiCetak cetak={cetak} aktif={kwitansi !== null} />}
     </div>
   );
 }

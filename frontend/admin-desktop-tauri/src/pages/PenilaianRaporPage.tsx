@@ -8,6 +8,7 @@ import {
   ambilRapor, daftarPeristiwa, raporKelas,
   type PeristiwaNilai, type RaporKelasResp, type RaporResp,
 } from '@/api/penilaian';
+import { alasanCetakTerkunci, hitungKelengkapanKelas } from '@/lib/kelengkapanRapor';
 
 /** Halaman Rapor: pilih PERISTIWA + kelas → daftar santri → pratinjau & cetak. */
 export default function PenilaianRaporPage() {
@@ -86,6 +87,17 @@ export default function PenilaianRaporPage() {
     if (santriAktif !== null) void bukaRapor(santriAktif, v);
   }, [santriAktif, bukaRapor]);
 
+  /** Kelengkapan nilai seluruh kelas — dasar pengaman cetak (semua santri). */
+  const kelengkapan = useMemo(
+    () => hitungKelengkapanKelas(
+      (daftar?.baris ?? []).map((b) => ({ santri_id: b.santri_id, mapel: b.mapel_terisi })),
+      (daftar?.kolom ?? []).map((k) => ({ id: k.mapel_id })),
+    ),
+    [daftar],
+  );
+  const alasanTerkunci = alasanCetakTerkunci(kelengkapan);
+  const cetakTerkunci = rapor === null || alasanTerkunci !== '';
+
   const kelasNama = useMemo(
     () => kelasOpsi.find((k) => k.id === kelasId)?.nama_kelas ?? '',
     [kelasOpsi, kelasId],
@@ -137,8 +149,15 @@ export default function PenilaianRaporPage() {
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <Button type="button" variant="outline" size="sm" id="btn_cetak_rapor" disabled={rapor === null}
-            onClick={() => window.print()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            id="btn_cetak_rapor"
+            disabled={cetakTerkunci}
+            title={rapor === null ? 'Pilih santri dulu untuk melihat pratinjau rapor.' : alasanTerkunci}
+            onClick={() => window.print()}
+          >
             Cetak / PDF
           </Button>
         </div>
@@ -195,7 +214,7 @@ export default function PenilaianRaporPage() {
 function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string }) {
   const r = rapor;
   return (
-    <div id="area_cetak_rapor" className="mx-auto max-w-[800px] bg-white p-6 text-black shadow-sm print:shadow-none">
+    <div data-area-cetak="rapor" id="area_cetak_rapor" className="mx-auto max-w-[800px] bg-white p-6 text-black shadow-sm print:shadow-none">
 
       <div className="flex items-center gap-3 border-b-2 border-black pb-2">
         {r.kop.logo_url && (

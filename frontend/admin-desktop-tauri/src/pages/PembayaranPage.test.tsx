@@ -19,6 +19,7 @@ vi.mock('@/api/santri', () => ({ listSantri: (...args: unknown[]) => uji.santri(
 vi.mock('@/api/master', () => ({ listKelas: async () => ({ data: [] }) }));
 vi.mock('@/icons', () => ({ Plus: () => null, X: () => null, Check: () => null, Minus: () => null, AlertCircle: () => null }));
 vi.mock('@/components/VisibilitasFilter', () => ({ PengaturanHalaman: () => null }));
+vi.mock('@/lembagaAktif', () => ({ useLembagaAktif: () => ({ lembaga: { jenjang: 'MI', nama: 'Madrasah Ibtidaiyah' } }) }));
 vi.mock('@/components/ui/resizable', () => {
   const Panel = ({ children }: { children: ReactNode }) => <div>{children}</div>;
   return { ResizablePanel: Panel, ResizablePanelGroup: Panel, ResizableHandle: () => null };

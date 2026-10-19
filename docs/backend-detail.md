@@ -62,8 +62,11 @@ envelope `{pesan, data}` for portal endpoints, standard pagination elsewhere.
 * Backend: Laravel 13 (PHP 8.4+), Sanctum (`guard: sanctum`), Spatie Permission
   (`guard_name: sanctum`), MySQL, Maatwebsite Excel,
   Service Layer pattern, `DB::transaction()` + `lockForUpdate()` for critical ops.
-* Admin Tauri: Tauri 2 + frontend webview (to be decided: React/Vue/Svelte).
-* Mobile (×4): React Native (shared API client design, separate apps/releases).
+  Version constraints live in `backend/composer.json`; locked versions in
+  `composer.lock` are a snapshot of the last install, not runtime proof.
+* Admin Tauri: Tauri 2 + React 18 + React Router + Tailwind v4 webview
+  (`frontend/admin-desktop-tauri`).
+* Mobile (×4): React Native — **planned, not scaffolded**; only scope sketches.
 * Infra: single VPS deployment (docs `900`–`901`, currently closed).
 
 ### 4. Actors & roles
@@ -89,8 +92,9 @@ pasca production and `kasir` was removed v2.38. One user may hold multiple roles
 
 ### 5. Backend modules
 
-Status legend: ✅ implemented & migrated · 🟡 spec locked, not implemented ·
-🔲 closed (kept as draft, opens on demand).
+Status legend: ✅ implemented & migrated · 🟨 partial (main path exists, gaps
+listed) · 🔲 not built (draft, opens on demand). The single status matrix for the
+whole project lives in §10 — other files point there.
 
 #### Phase 0 — Foundation ✅ (migrated, seeded)
 
@@ -149,7 +153,7 @@ API: `GET /api/admin/referensi/types`, `GET|POST /api/admin/referensi/{tipe}`,
 `DELETE /api/admin/referensi/{tipe}/{id}`, lembaga/TA/kelas CRUD.
 Status: ✅ migrated + seeded (agama 6, tingkat 12, tugas 2, …).
 
-#### Phase 1 — Core operations 🟡 (spec locked, not implemented)
+#### Phase 1 — Core operations ✅ (implemented; status per capability below)
 
 **100 PSB (new-student admission).** Master kegiatan → gelombang (tanggal shared,
 anti-overlap, satu kegiatan aktif; tanpa status gelombang — gerbang pendaftaran publik
@@ -417,7 +421,7 @@ alumni-mutasi MD), samakan kelas (pindah ke kelas senama di TA berjalan sisi
 tujuan, butuh akses tulis tujuan). Izin halaman memakai ulang `rekap_santri.lihat`. Status: ✅ live.
 Aturan pasangan kini global (v2.61) — lihat butir Tenant di §7.
 
-#### Phase 2 — Academic 🟡 (spec locked, not implemented)
+#### Phase 2 — Academic ✅ (implemented; see per-module status below)
 
 **200 Personnel.** Global `pegawai` master (+11 EMIS cols), multi-lembaga via
 `keaktifan_pegawai`, `tugas_utama` kamus, one-to-one `pegawai_sertifikasi`
@@ -425,7 +429,7 @@ Aturan pasangan kini global (v2.61) — lihat butir Tenant di §7.
 (full-admin only), `setWalas()` 3-layer validation (FE filters active keaktifan).
 Status: ✅ live — PTK Aktif, Penempatan (Lembaga Pegawai, Akun Pegawai), Keaktifan
 Pegawai, Akun Pegawai, foto profil (via `dokumen_pegawai`). Master `pegawai` global +
-scope per penempatan (`fd8a8c19`, D3).
+scope per penempatan (D3).
 
 **201 Curriculum & subjects.** ~~`kurikulum` per lembaga, `kurikulum_mapel`
 (cakupan tingkat opsional di `kurikulum_mapel_tingkat`), `kelas_kurikulum` dual
@@ -450,27 +454,38 @@ scope filtering — used by the controller AND the import services. Import engin
 prestasi, ekskul). Outputs: crosstab ledger per event + Excel download, report card
 (`rapor`/`rapor-kelas`) with class completeness check, `POST /penilaian/hitung` to
 recompute final grades (skips `sumber='impor'` rows unless `paksa=1`).
-Status: ✅ live — 4 pages (Master, Impor, Leger, Rapor). Deferred: semester lock +
+Status: ✅ live — 4 pages (Master, Impor, Leger, Rapor) + pengaman cetak (tombol cetak rapor terkunci selama ada santri belum lengkap). Deferred: semester lock +
 print audit trail, one-click bulk print, attendance auto-derived from
 `presensi_santri`, signatory snapshot, "copy event from previous TA".
 
-**203 Parent portal.** Read-only aggregator (dashboard, bill summary) +
-biodata proposals (1 active/santri, cancellable) via `PengajuanBiodataService`
-(100); `wali_santri_relasi` + `wali_portal_logs`; `SantriPolicy::view` +
-`{pesan, data}` envelope.
-Status: ✅ live — `PsbPortalController` (family history now loads the
-`lembaga` relation via active membership, `b9de71c1`), `PengajuanBiodataPage`.
-Deferred: bill summary widget on the portal dashboard.
+**203 Parent portal — 🟨 partial.** What exists: admission follow-up
+(`portal/psb/*`), family history, and biodata proposals (1 active/santri,
+cancellable) via `PengajuanBiodataService` (100); `wali_santri_relasi` +
+`wali_portal_logs`; `SantriPolicy::view` + `{pesan, data}` envelope. Portal
+routes are guarded by `role:orang_tua` only (`routes/api.php`); there is no
+portal route for a student actor. The read-only aggregator (portal dashboard)
+and the bill summary do **not** exist — the general statistics endpoint
+(`GET /api/dashboard/ringkasan`) needs `dashboard.lihat` and is not a portal
+route.
+Status: 🟨 partial — `PsbPortalController` (family history now loads the
+`lembaga` relation via active membership), `PengajuanBiodataPage`.
+Not built: the mobile app itself, portal dashboard/tuition routes, and the
+student actor.
 
-#### Phase 5 + Infra 🔲 (mostly closed drafts, open on demand)
+#### Phase 5 + Infra 🔲 (draft; open on demand — not part of the current production scope)
 
 `500` presensi santri (tables only, no UI) · `501` presensi staff (tables only, no UI) ·
 `502` jadwal pelajaran (**live** — slot jam, jadwal per kelas, slot × hari × mapel,
-bentrok kelas & guru) · `503` tahfizh (ziyadah/murajaah; tables only, no UI) ·
-`504` pimpinan dashboard · `900` VPS deploy · `901` production config. Small tenant
-gates already merged; full specs untouched until reactivated.
+bentrok kelas & guru; belongs to 201) · `503` tahfizh (ziyadah/murajaah; tables
+only, no UI) · `504` pimpinan dashboard · `900` VPS deploy · `901` production
+config. Small tenant gates already merged; full specs untouched until reactivated.
 
 ### 6. Frontend apps (scope per app)
+
+> Status klien: **1 app berjalan** (`admin-desktop-tauri`) + **4 rencana belum
+di-scaffold**. Kasir bukan app terpisah — alurnya halaman desktop. Klien desktop
+hanya menerima peran `super_admin` dan `admin` (`src/api/auth.ts`), sehingga
+peran `guru`/`orang_tua`/`santri` belum bisa memakai desktop.
 
 All apps: Sanctum token login (identifier + password), secure token storage,
 tenant-aware lists (filter by accessible `lembaga`), Indonesian UI.
@@ -483,7 +498,7 @@ views), PSB antrean (verify/seleksi/ACC/tolak/paket), santri master + import sat
 (kolom NIS per lembaga, samakan NIS MI↔MD) + keanggotaan terpusat, siklus (roster, salin genap, naik/pindah/mutasi/lulus/berhenti),
 rekap, halaman MI-MD (tambah/hapus massal, samakan kelas), pengajuan biodata (setujui/tolak),
 dokumen wajib, preset tabel, pengaturan server/tampilan.
-Status: 🟢 shell v0.5.0 live (Tailwind+shadcn: 25 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, navigasi menubar/ribbon/sidebar per perangkat, pagination 10/50/100/500 + "Semua", dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable`
+Status: 🟢 app live — versi paket `0.5.0`; build native Tauri terakhir **belum dikompilasi ulang** (jeda build), jadi klaim hanya berlaku untuk kode web/shell yang ada di repo (Tailwind+shadcn: 25 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, navigasi menubar/sidebar per perangkat — ribbon = baris tools halaman, bukan mode navigasi ketiga — pagination 10/50/100/500 + "Semua" dengan batas tampilan 10.000, dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable`
 (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan, aksi
 baris >3 jadi dropdown, preset kolom per tabel, tombol aksi toolbar diringkas
 jadi satu menu dropdown per tabel lewat `MenuAksiToolbar`; urutan kolom
@@ -492,9 +507,9 @@ lewat Tab Kolom 3 panel yang bisa diseret; tanpa preset memakai urutan global
 `toolbar_preset.urutan`; halaman Santri Per Lembaga menampilkan seluruh
 identitas santri (mirror Buku Induk, bisa diedit via PATCH santri) lebih dulu
 lalu keanggotaan, dengan preset bawaan `ringkas` dari `PresetKolomSeeder`)
-dengan kontrol global ukuran/tinggi/jenis huruf; **Google Fonts disimpan lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga aplikasi berjalan **tanpa internet** — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Desktop Tauri 0.5.0 dibangun (`.app` 11 MB, `.dmg` 4 MB, aarch64, belum ditandatangani); build desktop hanya dijalankan bila diminta. Modul 200/201/202 + keuangan + dokumen **sudah live** (10 grup nav, ±55 halaman). Belum: presensi (500/501), tahfizh (503), Fase 5, portal ortu lanjutan.
+dengan kontrol global ukuran/tinggi/jenis huruf; **font dibundel lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga tampilan tidak bergantung Google Fonts — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Aset lokal **bukan** mode offline: klien tetap butuh server untuk semua data dan aksi. Paket native pernah dibangun (`.app`/`.dmg`, aarch64, belum ditandatangani) tetapi belum dikompilasi ulang setelah perubahan terakhir. Modul 200/201/202 + keuangan + dokumen **sudah live** (10 grup nav, 62 berkas halaman; sebagian URL jadi satu halaman bertab). Belum: presensi (500/501), tahfizh (503), Fase 5, portal ortu lanjutan, klien mobile.
 
-#### 6.2 `frontend/kasir-mobile-react-native`
+#### 6.2 `frontend/kasir-mobile-react-native` (Rencana — tidak dibuat)
 
 Users: kasir (+admin). Scope: **not built as a separate app** — the cashier flow
 ships as a page of the desktop client (`PembayaranPage` + cashier dialog) inside the
@@ -502,15 +517,16 @@ financial module. Offline: queue-and-sync for payments is OUT (online only, race
 safety).
 Status: 🔲 not scaffolded — **deliberately**, the desktop page covers it.
 
-#### 6.3 `frontend/orangtua-mobile-react-native`
+#### 6.3 `frontend/orangtua-mobile-react-native` (Rencana — belum di-scaffold)
 
 Users: orang_tua. Scope (203): children list → detail (profil, kelas,
 nilai/rapor, presensi poin, tahfizh rekap), ajukan/batalkan
 biodata edits (whitelist fields, NIK needs full-admin), PSB lanjutan for
 registered NIK, document upload status. Read-only except proposals/uploads.
-Status: 🔲 not scaffolded (backend 203 pending).
+Status: 🔲 not scaffolded — 203 backend is partial (see §5), the mobile client
+is not started.
 
-#### 6.4 `frontend/pimpinan-mobile-react-native`
+#### 6.4 `frontend/pimpinan-mobile-react-native` (Rencana — belum di-scaffold)
 
 Users: pimpinan. This is NOT an admin app — it is a read-only statistics app
 for strategic decisions. Scope (504): total santri keseluruhan, santri per
@@ -519,13 +535,15 @@ lembaga, enrollment per gelombang, jumlah guru, kehadiran guru, keuangan
 progress, alumni/mutasi counts. No mutations whatsoever.
 Status: 🔲 not scaffolded (backend 504 closed).
 
-#### 6.5 `frontend/guru-mobile-react-native`
+#### 6.5 `frontend/guru-mobile-react-native` (Rencana — belum di-scaffold)
 
 Users: guru. Scope: my classes (walas + pengampu), anggota kelas
 (from active riwayat), nilai input per pengampu (massal per-item),
 catatan wali, presensi sesi (when 500 opens), jadwal mengajar (when 502
 opens), setoran tahfizh input (when 503 opens).
-Status: 🔲 not scaffolded (backend 201/202 pending).
+Status: 🔲 not scaffolded — the 201/202 **admin** APIs are live, but there is no
+guru-scoped backend flow and the desktop client rejects the `guru` role, so this
+app has no usable backend path yet.
 
 ### 7. Data model summary
 
@@ -540,7 +558,8 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
   `santri.tambah` DAN `santri.ubah` (dua middleware = AND).
 * Kamus pattern: consumer columns are free strings (no FK); `ref_*` tables
   provide suggestions via `RefService::effective(tipe, lembagaId)`; global
-  rows shadowable on/off per lembaga.
+  vocabulary rows are fanned out per lembaga (a `jenjang` null row is legacy
+  residue, not a global fallback); `is_active` toggles a row off.
 * Identity: `santri.id` stable; NIK attribute (required, may be fictitious),
   dedup `nik+nama+tgl_lahir`.
 * Lifecycle: `riwayat_belajar.is_active_riwayat` (iff `status_akhir='aktif'`);
@@ -549,8 +568,13 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 
 ### 8. API conventions
 
-* Prefix `/api`, `auth:sanctum` + `role:` middleware; admin group
-  `role:super_admin|admin`; portal group `role:orang_tua`.
+* Prefix `/api`. The admin group uses `auth:sanctum` + `lembaga_aktif` +
+  `throttle:api_user` with a `permission:` check per endpoint — there is **no**
+  `role:super_admin|admin` gate, so any role granted an action through the
+  permission matrix can call it. The portal group is role-based
+  (`role:orang_tua`), and the mixed document group is
+  `role:orang_tua|admin|super_admin`; those are documented exceptions to the
+  matrix.
 * Service layer (thin controllers); policies per model; `latest('id')`;
   Excel imports use flat keys; NIK-null uses `create()`.
 * Urut daftar (v2.62–2.65, trait `UrutDaftar`): param `sort` (satu nilai /
@@ -619,18 +643,22 @@ Status: 🔲 not scaffolded (backend 201/202 pending).
 
 ### 10. Implementation status matrix
 
-| Area | Spec | Migrated | Seeded | API live |
-|---|---|---|---|---|
-| 001 setup | ✅ | n/a | n/a | n/a |
-| 002 schema (24 file migrasi) | ✅ | ✅ | n/a | n/a |
-| 003 auth/users | ✅ | ✅ | ✅ roles | ✅ |
-| 004 ref/master (34 kamus, lembaga/TA/kelas) | ✅ | ✅ | ✅ no.51 | ✅ |
-| 100 PSB full (daftar, paket MI-MD, verify/seleksi/ACC, portal, dokumen, import) | ✅ | ✅ | ✅ no.51 | ✅ (publik + admin + portal; suite 186/186) |
-| 101 Santri (CRUD, import satu pintu, kamus, policy, kolom NIS, samakan NIS) | ✅ | ✅ | — | ✅ (suite 186/186) |
-| 102 Siklus (salin genap, naik, pindah, mutasi, lulus, roster + arsip, halaman MI-MD, beku kelas) | ✅ | ✅ | — | ✅ (suite 186/186) |
-| 200/201/202/203 | ✅ specs | ✅ tables | — | 🔲 |
-| Fase 5 (500–505), infra (900–901) | 🔲 drafts | ✅ tables | — | 🔲 |
-| 5 frontend apps | §6 above | n/a | n/a | ✅ 1 live (`admin-desktop-tauri`), 4 🔲 |
+Lihat tabel berikut sebagai **satu-satunya matriks status**; dokumen lain merujuk ke sini. Istilah: **Live** = kode ada dan terhubung (bukan jaminan lolos uji runtime/production); **Sebagian** = jalur utama ada dengan celah yang disebut eksplisit; **Rencana** = belum ada kode.
+
+| Area | Migrated | Seeded | API live | Frontend | Catatan |
+|---|---|---|---|---|---|
+| 001 setup | n/a | n/a | n/a | — | Fondasi |
+| 002 schema | ✅ | n/a | n/a | — | Jumlah tabel/file migrasi diperiksa dari DB & `git`, bukan angka statis di dokumen |
+| 003 auth/users | ✅ | ✅ roles | ✅ | Live | 5 peran efektif |
+| 004 ref/master (kamus, lembaga/TA/kelas) | ✅ | ✅ no.51 | ✅ | Live | Kamus = fan-out per lembaga |
+| 100 PSB full (daftar, paket MI-MD, verify/seleksi/ACC, portal, dokumen, import) | ✅ | ✅ no.51 | ✅ | Live | Publik + admin + portal |
+| 101 Santri (CRUD, import satu pintu, kamus, policy, kolom NIS, samakan NIS) | ✅ | — | ✅ | Live | — |
+| 102 Siklus (salin genap, naik, pindah, mutasi, lulus, roster + arsip, MI-MD, beku kelas) | ✅ | — | ✅ | Live | — |
+| 200 Pegawai / 201 Kurikulum-Mapel / 202 Nilai-Rapor | ✅ | — | ✅ | Live | Sisa pekerjaan per modul ada di §5 |
+| Keuangan (G2) | ✅ | — | ✅ | Live (fondasi) | Cetak kwitansi **live**; butir lanjutan (tutup buku, penomoran runut, rekap per kas, ekspor, aging, audit) **Rencana** — lihat `PRD.md` |
+| 203 Portal Wali | ✅ | — | 🟨 sebagian | Rencana (mobile) | Hanya jalur `role:orang_tua`: PSB lanjutan, keluarga, pengajuan; tak ada dashboard/tagihan/aktor santri |
+| Fase 5 (500–505), infra (900–901) | ✅ tabel | — | 🔲 | — | Presensi/tahfizh/asrama & deploy belum dikerjakan |
+| Frontend apps | n/a | n/a | n/a | 1 Live, 4 Rencana | Hanya `admin-desktop-tauri`; kasir = halaman desktop, bukan app terpisah |
 
 ### 11. Roadmap
 

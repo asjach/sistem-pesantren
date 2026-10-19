@@ -17,11 +17,16 @@
 | ---- | ------------------------------------------------------------------------- | ----------- | --------------- |
 | G0   | 001-004 fondasi                                                           | Desktop     | Production awal |
 | G1   | 100 PSB Penerimaan, 101 Santri Master, 102 Siklus Santri                  | Desktop     | Production awal |
-| G2   | DITUNDA — menunggu perumusan ulang modul keuangan                         | —           | Ditunda         |
-| G3   | 100 daftar, 203 Portal Wali subset                                        | Mobile ortu | Production awal |
-| G4+  | 200 Pegawai, 201 Kurikulum-Mapel, 202 Nilai-Rapor, 500-505, notif/gateway | Menyusul    | Pasca, TBD      |
+| G2   | Modul Keuangan (master tarif, generate tagihan, kasir, crosstab, dispensasi) | Desktop     | **Live (fondasi)** — 13 fitur lanjutan rencana |
+| G3   | 100 daftar, 203 Portal Wali subset                                        | Mobile ortu | Backend sebagian; app belum dibuat |
+| G4+  | 500–505 (presensi, tahfizh, asrama), notif/gateway                        | Menyusul    | Pasca, TBD      |
 
 Estimasi solo: G0 3–4 mgg; G1 4–5; G2 2–3; G3 3–4. Total G0–G3 ±4–5 bln.
+
+> Tabel di atas adalah **prioritas pengerjaan**, bukan status kode. Status
+> implementasi terkini hanya ada di matriks tunggal `backend-detail.md` §10;
+> modul 200/201/202 dan keuangan sudah punya kode, rute, dan halaman meski
+> dulunya dijadwalkan sebagai G4+.
 
 | Peran               | Tanggung jawab (RACI ringkas) |
 | ------------------- | ----------------------------- |
@@ -34,7 +39,7 @@ Estimasi solo: G0 3–4 mgg; G1 4–5; G2 2–3; G3 3–4. Total G0–G3 ±4–5
 | ---- | ------------------ | ------------------------------------------------------ |
 | R-01 | Tenant bocor       | Cek `canAccessLembaga` + TC lintas lembaga (Modul 003) |
 | R-03 | Excel berantakan   | Bersihkan + staging (Modul 101, 003)                   |
-| R-04 | Kasir non-komputer | Ditunda bersama G2                                     |
+| R-04 | Kasir non-komputer | Tidak relevan lagi — kasir memakai desktop (bukan perangkat khusus kasir)                                     |
 | R-05 | Scope creep        | Kunci G0–G3 dulu                                       |
 
 **Aturan bisa berubah:** catat Masalah ke Usulan ke Dampak (skema/API/FE) ke putus (terima/tunda/tolak) ke tulis Lampiran E + naik versi `X.Y.Z`. Ubah UI tanpa ubah API: catat ringan. Ubah logika/skema: wajib analisis dampak paket/tenant/kontrak FE v1 (tambah opsional dulu, jangan breaking).
@@ -44,6 +49,10 @@ Estimasi solo: G0 3–4 mgg; G1 4–5; G2 2–3; G3 3–4. Total G0–G3 ±4–5
 ## 10. Rencana Pengujian
 
 Unit, integrasi (Modul 100 PSB Penerimaan ke 101 Santri Master), sistem, UAT.
+
+> Angka hasil uji (mis. "suite 186/186") di dokumen lain adalah catatan historis
+> saat entri itu ditulis, bukan hasil verifikasi ulang hari ini. Jalankan suite
+> terkait untuk keadaan sekarang.
 
 | ID    | Modul (kode + nama)    | Skenario           | Harapan                  |
 | ----- | ---------------------- | ------------------ | ------------------------ |
@@ -57,6 +66,8 @@ Unit, integrasi (Modul 100 PSB Penerimaan ke 101 Santri Master), sistem, UAT.
 | TC-10 | 202 Nilai-Rapor        | Hitung nilai akhir | Semua komponen berbobot terisi; KKM/predikat sesuai offset |
 | TC-11 | Modul Keuangan | Bayar melebihi sisa | 422, nihil perubahan; `terbayar` = jumlah pembayaran aktif |
 | TC-12 | lintas modul (tenant) | Baca tagihan/dokumen/pegawai/grup dari lembaga lain | Kosong atau 403, tak ada kebocoran lintas Tenant (D1–D3) |
+| TC-13 | 003 Auth Login | Daftar izin eksklusif `admin` vs `IzinKatalog::EKSKLUSIF_SUPER_ADMIN` | Tak ada izin eksklusif yang bocor ke `admin`; gerbang struktural (CRUD tahun ajaran) tetap menolak |
+| TC-14 | Modul Keuangan | Generate tagihan dijalankan dua kali untuk periode sama | Tidak ada duplikat; tagihan sudah dibayar dilewati; nominal baru < terbayar dilewati |
 
 ---
 
@@ -65,14 +76,14 @@ Unit, integrasi (Modul 100 PSB Penerimaan ke 101 Santri Master), sistem, UAT.
 | Tahap | Aktivitas (kode + nama modul)                                                                                                                                                                                     |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 11.1  | Staging ke production malam hari ke rollback backup (Modul 900 Deploy VPS, 901 Konfigurasi Produksi TBD)                                                                                                          |
-| 11.2  | Migrasi Excel per lembaga via `SantriLengkapImport` / `UsersImport` ke dedup `nik+nama+tgl_lahir` ke gabung ganda lintas lembaga ke staging ke verifikasi ke production (Modul 101 Santri Master, 003 Auth Login) |
+| 11.2  | Migrasi Excel per lembaga via `SantriLengkapImport` / `UsersImport` ke staging ke verifikasi ke production (Modul 101 Santri Master, 003 Auth Login). **Kunci pencocokan beda per jalur**: PSB memakai `nik+nama+tgl_lahir`; impor santri memakai `santri_id` eksak lalu `nis`+`jenjang` (NIK hanya atribut, boleh ganda, tidak dipakai mencocokkan); impor riwayat memakai `nis`+`jenjang` dengan fallback pasangan MI-MD dan nama unik per baris. Jangan mengandalkan NIK untuk menggabungkan baris |
 
 | ID   | Checklist                                                                             |
 | ---- | ------------------------------------------------------------------------------------- |
 | C-01 | UAT lulus                                                                             |
 | C-02 | `lembaga` / `tahun_ajaran` / `ref_*` terkonfigurasi; mapel & pengampu diisi lewat halaman **Kurikulum** (tabel `kurikulum*` tidak lagi ada — lihat v2.413)                        |
 | C-03 | Paket MI-MD terverifikasi                                                             |
-| C-04 | Akun 5 peran sekarang teruji (peran `asrama` diuji saat Modul 505 / pasca production) |
+| C-04 | Akun 5 peran sekarang teruji (peran `asrama` diuji saat Modul 505 / pasca production). Peran yang bisa memakai desktop hanya `super_admin`/`admin`; `guru`/`orang_tua`/`santri` belum punya klien |
 | C-05 | Training/backup/SSL selesai                                                           |
 
 ---
@@ -87,6 +98,8 @@ Unit, integrasi (Modul 100 PSB Penerimaan ke 101 Santri Master), sistem, UAT.
 | K-04 | Audit (`login_audits`, `psb_log_status`, `wali_portal_logs`)           | 003, 100, 203  |
 | K-05 | Backup offsite + SSL; privasi internal                                 | 900/901 TBD    |
 | K-06 | Izin asrama (v1.10): tarif per asrama belum ada; tunggu keputusan      | 505            |
+| K-09 | Desktop menolak peran di luar `super_admin`/`admin` di klien (`DESKTOP_ROLES`) - bukan pengganti otorisasi server | 003 |
+| K-10 | Izin eksklusif `super_admin` = 17 nama di `IzinKatalog::EKSKLUSIF_SUPER_ADMIN`; `admin` = semua izin minus daftar itu, plus gerbang struktural tambahan | 003, 004 |
 | K-07 | Isolasi tenant berlapis: keuangan, dokumen (per tipe pemilik), prestasi, pegawai (per penempatan), grup custom — **baca dan tulis** | Modul Keuangan, Dokumen, Penilaian, 200 |
 | K-08 | Desktop: token hanya di keychain (fallback plaintext dihentikan v2.459), CORS dibatasi ke origin Tauri + daftar terdaftar (v2.447), scope filesystem hanya folder arsip Documents (v2.462) | 003 |
 
@@ -97,8 +110,8 @@ Unit, integrasi (Modul 100 PSB Penerimaan ke 101 Santri Master), sistem, UAT.
 | Sesi | Peserta     | App         | Modul + Materi                                    |
 | ---- | ----------- | ----------- | ------------------------------------------------- |
 | 1    | `admin`     | Desktop     | 004, 100, 101, 102: referensi, PSB, santri/siklus |
-| 2    | `admin` (kasir/TU) | Desktop | Modul Keuangan: master tarif, generate tagihan, kasir harian, crosstab tunggakan, dispensasi |
-| 3    | `guru`      | Desktop     | 201, 202: mapel & pengampu, jadwal, leger nilai, rapor |
+| 2    | `admin` (TU) | Desktop | Modul Keuangan: master tarif, generate tagihan, kasir harian, crosstab tunggakan, dispensasi |
+| 3    | `admin` (operasional nilai) | Desktop | 201, 202: mapel & pengampu, jadwal, leger nilai, rapor. *Jalur guru mandiri = rencana; desktop menolak peran `guru`* |
 | 4    | `admin`     | Desktop     | 200: PTK, penempatan, keaktifan, dokumen |
 | 5    | `orang_tua` | Mobile ortu | 100, 203: daftar                                  |
 
@@ -108,7 +121,9 @@ Manual per peran, video pendek, FAQ.
 
 ## 14. Pemeliharaan dan Dukungan
 
-Garansi 3 bln; respons 1×24 jam. G4+ dibuka setelah G0–G3 stabil production.
+Garansi 3 bln; respons 1×24 jam. Sisa G4+ (presensi, tahfizh, asrama) dibuka
+setelah G0–G3 stabil production; 200/201/202 dan keuangan sudah dikerjakan
+lebih awal (lihat matriks status).
 
 ---
 
@@ -120,11 +135,17 @@ Diagram Crow's Foot diringkas di Bab 6 (`arsitektur.md`) dan `docs/SCHEMA.md`. F
 
 **Sudah selesai** (tidak lagi TBD): G4 Dokumen Santri/Pegawai/Madrasah, G4 Pegawai/PTK, G5 Laporan Keuangan (crosstab tagihan + kasir), G5 Input Nilai, G7 Rapor, G7 Jadwal Pelajaran.
 
+**Status ringkas**: rujukan tunggal ada di matriks `backend-detail.md` §10.
+Keuangan = live (fondasi) + 13 fitur lanjutan rencana. Portal wali = sebagian
+(PSB/keluarga/pengajuan; tanpa dashboard & tagihan). Klien desktop = 1 app
+berjalan; 4 app mobile rencana.
+
 **Masih terbuka:**
 
 - **Modul Keuangan — 13 fitur lanjutan** (kwitansi cetak, tutup buku harian, penomoran kwitansi runut, laporan aging, rekap per kas, jejak audit, maker-checker, kartu piutang, split payment, ekspor, dasbor). Prioritas disepakati: kwitansi cetak → tutup buku harian → penomoran runut. Lihat `PRD.md` §Rencana Fitur Keuangan.
 - **Modul Penilaian — sisanya**: kunci semester + jejak cetak, cetak massal satu klik, absensi otomatis dari `presensi_santri`, unduh "data existing" di dialog impor, snapshot penanda tangan, bobot UJIAN bawaan (60/40) masih placeholder, mekanisme "salin peristiwa dari TA sebelumnya".
 - **Modul Kurikulum/Mapel — sisanya**: jadwal per guru (bukan per kelas), cetak/unduh jadwal per kelas, salin mapel antar-TA, tes endpoint tersisa.
+- **Klien desktop — sisanya**: jalur peran `guru`/`orang_tua`/`santri` (kini hanya `super_admin`/`admin`), aplikasi mobile (4 klien belum di-scaffold).
 - G4: Absensi Guru (`presensi_pegawai` tabel sudah ada, UI belum).
 - G6: Statistik Pengurus (Modul 504 ringkas).
 - G7: Absen Santri (`presensi_santri` tabel sudah ada, UI belum), **Asrama (505 — gambaran umum v1.10: entitas `asrama`+`user_asrama`+peran `asrama`; tabel/peran/pivot BELUM dibuat, PASCA PRODUCTION, tidak dikerjakan dalam waktu dekat)**, Tahfizh (503, tabel ada, UI belum).
@@ -172,11 +193,19 @@ SIMPES; santri; lembaga (PK `jenjang`: MI=SD formal, MD=SD non-formal paralel, M
 | 2026-10-19 | **"Semua" = batas tampilan 10.000, kontrak API tetap `0`/`all`** (v2.452, v2.466) | Preferensi "Semua" lama dimigrasikan ke batas 10.000 baris **tampilan**; kontrak API `0`/`all` TIDAK diubah agar desktop lama & operasi massal tidak rusak; jaring pengaman backend 100.000 tetap | Membatasi respons besar tanpa merusak klien yang sudah ada | FE pager, crosstab keuangan, leger penilaian |
 | 2026-10-19 | **tanggal operasional = hari Asia/Jakarta** (v2.463) | "Hari ini" pada halaman kasir, tagihan, dan crosstab dihitung lewat `Intl` `id-ID` (bukan `toISOString()` yang bergeser di batas hari UTC) | Angka tunggakan & tanggal transaksi harus sama antar halaman | FE `lib/tanggal.ts`; tes batas pergantian hari UTC |
 | 2026-10-19 | **isolasi tenant diperketat** (D1–D3, v2.436–2.451) | Baca **dan** tulis dibatasi: keuangan, dokumen (izin dipetakan per tipe pemilik; arsip diotorisasi menurut riwayat; alias nama berkas lintas pemilik ditolak), prestasi, master pegawai (per penempatan), grup custom; CORS dibatasi ke origin Tauri + daftar terdaftar | Temuan audit: beberapa endpoint hanya disembunyikan di UI, tidak menolak di server | Backend + FE; tes isolasi per modul |
-| 2026-10-19 | **desktop: kredensial & akses berkas diperketat** (v2.447, v2.459–2.462) | Token hanya di keychain (fallback plaintext dihentikan, migrasi token lama, pembersihan saat logout, platform tanpa backend persisten ditolak eksplisit); scope filesystem statis hanya folder arsip Documents; clipboard read yang tak dipakai dihapus; deadline request 60 detik + galat abort dibedakan dari gangguan jaringan | Skrip prank/ekstraksi token dari file lokal, dan dialog pilihan folder yang bisa menunjuk lokasi mana saja | `src-tauri` (belum dikompilasi — suspend build), `src/lib/client.ts` |
+| 2026-10-19 | **desktop: kredensial & akses berkas diperketat** (v2.447, v2.459–2.462) | Token hanya di keychain (fallback plaintext dihentikan, migrasi token lama, pembersihan saat logout, platform tanpa backend persisten ditolak eksplisit); scope filesystem statis hanya folder arsip Documents; clipboard read yang tak dipakai dihapus; deadline request 60 detik + galat abort dibedakan dari gangguan jaringan | Skrip prank/ekstraksi token dari file lokal, dan dialog pilihan folder yang bisa menunjuk lokasi mana saja | `src-tauri` (belum dikompilasi — suspend build), `src/api/client.ts` |
 
 ## Lampiran F — Keputusan Offline (terkunci v1.4)
 
-Scope: desktop admin + kasir (nanti). Mobile ortu wajib online (tanpa lapisan offline).
+Scope: desktop admin (kasir = halaman desktop). Mobile ortu wajib online (tanpa
+lapisan offline).
+
+> **Status: keputusan desain — BELUM diimplementasikan.** Tidak ada SQLite lokal,
+> replika baca, antrean transaksi, `updated_since`, `client_op_id`, maupun
+> `LOKAL-*` di frontend saat ini; klien selalu membaca server dan menggagalkan
+> aksi saat jaringan mati. Yang sudah nyata hanyalah aset lokal (font dibundel)
+> dan token tersimpan aman. Perlakukan OFF-01…OFF-09 sebagai arah, bukan
+> kemampuan aplikasi sekarang.
 
 | ID     | Keputusan                                                                                                                                                                                                                                             |
 | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -193,6 +222,7 @@ Scope: desktop admin + kasir (nanti). Mobile ortu wajib online (tanpa lapisan of
 
 
 TBD (tidak dikunci): enkripsi SQLite, bentuk endpoint delta, LAN-fallback, UAT chaos.
+Semua butir di atas menunggu keputusan ulang sebelum ada kode.
 
 ## Lampiran G — Operasional Agen (indeks; salinan dari AGENTS.md + `.opencode/`)
 

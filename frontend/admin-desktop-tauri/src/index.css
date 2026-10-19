@@ -13,16 +13,23 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Area cetak: satu atau banyak blok dengan `data-area-cetak`. Yang tampil saat
+   mencetak hanya blok terakhir yang ditandai `data-cetak-aktif="true"`
+   (dipakai kwitansi: dokumen 1 halaman baris tabel harian). Bila tidak ada
+   penanda aktif, semua area cetak ikut tercetak (rapor). */
 @media print {
   body * { visibility: hidden; }
-  #area_cetak_rapor,
-  #area_cetak_rapor * { visibility: visible; }
-  #area_cetak_rapor {
+  [data-area-cetak],
+  [data-area-cetak] * { visibility: visible; }
+  [data-area-cetak] {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
     color: #000;
+  }
+  body:has([data-cetak-aktif="true"]) [data-area-cetak]:not([data-cetak-aktif="true"]) {
+    display: none !important;
   }
   @page { margin: 12mm; }
 }
