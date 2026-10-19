@@ -2,12 +2,12 @@ import type { ModulPapan, StatusPapan, SubPapan } from '@/api/papan';
 import { KOLOM_PAPAN } from '@/api/papan';
 
 /**
- * Satu kartu papan = satu POIN (butir), bukan sub-modul.
+ * Satu kartu papan = satu POIN (butir).
  *
- * Ini perubahan model yang disengaja: yang bergerak antar kolom adalah poin,
- * karena satu sub-modul bisa separuh selesai dan status tunggal tidak bisa
- * mewakilinya. Konteks sub-modul tetap dibawa (kode, nama, modul) supaya
- * kartu bisa menjelaskan dirinya sendiri tanpa kehilangan asal-usulnya.
+ * Ini tetap dipakai sebagai satuan yang BERGESER: yang diseret antar kolom
+ * adalah poinnya, karena satu sub-modul bisa separuh selesai dan status
+ * tunggal tidak bisa mewakilinya. Konteks sub-modul dibawa (kode, nama,
+ * modul) supaya kartu bisa menjelaskan dirinya sendiri.
  */
 export interface KartuPapan {
   /** Id poin, dipakai untuk memindahkan dan menghapus. */
@@ -16,12 +16,36 @@ export interface KartuPapan {
   nama: string;
   status: StatusPapan;
   deskripsi: string;
-  /** Kode sub-modul induk, mis. "E.3". */
+  /** Kode sub-modul induk, mis. E.3. */
   subKode: string;
   subNama: string;
   modulKode: string;
   modulNama: string;
-  /** Status sub-modul induk (turunan) — konteks, bukan status kartu. */
+  /** Status sub-modul induk (turunan) - konteks, bukan status kartu. */
+  statusSub: StatusPapan;
+}
+
+/**
+ * Satu kartu yang TERLIHAT di kolom = satu sub-modul, berisi poin-poinnya.
+ *
+ * Kenapa digabung: satu sub-modul berpoin delapan dulu tampil sebagai
+ * delapan kartu berjudul sama, sehingga judulnya berulang dan pertanyaan
+ * "sub-modul ini sudah sampai mana" justru hilang dari pandangan. Digabung,
+ * judul muncul sekali per kolom dan isinya bisa dibaca sekaligus.
+ *
+ * Yang DISERET tetap poinnya, bukan kartu ini - lihat `poin` di bawah.
+ */
+export interface KartuSub {
+  /** Kode sub-modul, mis. D.1 - sekaligus kunci unik kartu. */
+  subKode: string;
+  subNama: string;
+  modulKode: string;
+  modulNama: string;
+  /** Status kolom tempat kartu ini berada. */
+  status: StatusPapan;
+  /** Poin berstatus ini, urut seperti di papan. */
+  poin: KartuPapan[];
+  /** Status sub-modul induk (turunan dari SELURUH poinnya). */
   statusSub: StatusPapan;
 }
 
@@ -29,7 +53,7 @@ export interface KartuPapan {
 export interface KolomPapanData {
   id: StatusPapan;
   judul: string;
-  kartu: KartuPapan[];
+  kartu: KartuSub[];
 }
 
 const JUDUL: Record<StatusPapan, string> = {
@@ -39,7 +63,7 @@ const JUDUL: Record<StatusPapan, string> = {
   ditunda: 'Ditunda',
 };
 
-/** Ratakan modul -> sub-modul -> poin menjadi daftar kartu. */
+/** Ratakan modul -> sub-modul -> poin menjadi daftar poin. */
 export function ratakanKartu(modul: ModulPapan[]): KartuPapan[] {
   return modul.flatMap((m) =>
     m.sub.flatMap((s) =>
@@ -59,18 +83,64 @@ export function ratakanKartu(modul: ModulPapan[]): KartuPapan[] {
   );
 }
 
-/** Kelompokkan kartu ke empat kolom; kolom kosong tetap ada. */
+/**
+ * Gabungkan poin menjadi satu entri per sub-modul.
+ *
+ * Urutan mengikuti kemunculan pertama di papan, supaya kartu tidak
+ * melompat-lompat saat status salah satu poinnya berubah.
+ */
+export function kelompokkanSub(kartu: KartuPapan[]): KartuSub[] {
+  const peta = new Map<string, KartuSub>();
+
+  for (const k of kartu) {
+    const ada = peta.get(k.subKode);
+
+    if (ada === undefined) {
+      peta.set(k.subKode, {
+        subKode: k.subKode,
+        subNama: k.subNama,
+        modulKode: k.modulKode,
+        modulNama: k.modulNama,
+        status: k.status,
+        poin: [k],
+        statusSub: k.statusSub,
+      });
+
+      continue;
+    }
+
+    ada.poin.push(k);
+  }
+
+  return [...peta.values()];
+}
+
+/**
+ * Kelompokkan poin ke empat kolom sebagai kartu per sub-modul.
+ *
+ * Satu sub-modul muncul di SETIAP kolom yang punya poin berstatus itu, tapi
+ * hanya sekali per kolom - jadi judulnya tidak berulang dalam satu kolom.
+ * Kolom kosong tetap ada supaya susunan empat kolom tidak goyah.
+ */
 export function kelompokkanKolom(kartu: KartuPapan[]): KolomPapanData[] {
+  const perSub = kelompokkanSub(kartu);
+
   return KOLOM_PAPAN.map((id) => ({
     id,
     judul: JUDUL[id],
-    kartu: kartu.filter((k) => k.status === id),
+    kartu: perSub
+      .map((k) => ({
+        ...k,
+        status: id,
+        poin: k.poin.filter((p) => p.status === id),
+      }))
+      .filter((k) => k.poin.length > 0),
   }));
 }
 
-/** Berapa kartu di kolom ini yang berstatus selesai (untuk kepala kolom). */
-export function hitungKolomPenuh(kartu: KartuPapan[]): number {
-  return kartu.filter((k) => k.status === 'sudah').length;
+/** Berapa kartu (sub-modul) di kolom ini yang seluruh poinnya sudah selesai. */
+export function hitungKolomPenuh(kartu: KartuSub[]): number {
+  return kartu.filter((k) => k.statusSub === 'sudah').length;
 }
 
 /** Jumlah POIN per status dalam satu modul, untuk lencana di tab. */
@@ -85,7 +155,7 @@ export function ringkasanModul(modul: ModulPapan): Record<StatusPapan, number> {
 /**
  * Berapa poin yang sudah selesai dari seluruh poin sebuah modul.
  *
- * Dipakai untuk lencana kemajuan di tab; `0/0` berarti modul itu belum
+ * Dipakai untuk lencana kemajuan di tab; 0/0 berarti modul itu belum
  * punya poin sama sekali (bukan berarti selesai).
  */
 export function kemajuanModul(modul: ModulPapan): { selesai: number; total: number } {
@@ -102,16 +172,10 @@ export function kemajuanModul(modul: ModulPapan): { selesai: number; total: numb
   return { selesai, total };
 }
 
-/** Kartu satu modul saja (untuk halaman bertab per modul). */
+/** Poin satu modul saja (untuk halaman bertab per modul). */
 export function kartuModul(modul: ModulPapan): KartuPapan[] {
   return ratakanKartu([modul]);
 }
-
-/**
- * Cari modul dari kode pada segmen URL. Kode modul dipakai apa adanya
- * (huruf besar, mis. `E`), tapi pencocokan dibuat tidak peka huruf besar-kecil
- * supaya tautan `/papan/e` tetap bekerja.
- */
 
 /**
  * Kolom tujuan bila kartu digeser satu langkah (jalur keyboard).
@@ -130,19 +194,17 @@ export function kolomSebelah(status: StatusPapan, arah: -1 | 1): StatusPapan | n
 
 export function modulDariKode(modul: ModulPapan[], kode: string | undefined): ModulPapan | null {
   if (!kode) return null;
+  // .trim() penting: kode datang dari segmen URL, dan spasi nyasar
+  // (mis. /papan/%20f%20) harus tetap menemukan modulnya.
   const cari = kode.trim().toUpperCase();
 
   return modul.find((m) => m.kode.toUpperCase() === cari) ?? null;
 }
 
-/** Kode modul pertama yang punya POIN, dipakai sebagai tujuan awal. */
 export function modulPertama(modul: ModulPapan[]): ModulPapan | null {
-  const berisi = modul.find((m) => m.sub.some((s) => s.butir.length > 0));
-
-  return berisi ?? modul[0] ?? null;
+  return modul.find((m) => m.sub.length > 0) ?? modul[0] ?? null;
 }
 
-/** Sub-modul induk dari sebuah kartu, kalau perlu ditampilkan terpisah. */
 export function subDariKartu(kartu: KartuPapan): Pick<SubPapan, 'kode' | 'nama' | 'status'> {
   return { kode: kartu.subKode, nama: kartu.subNama, status: kartu.statusSub };
 }

@@ -86,13 +86,41 @@ describe('kelompokkanKolom', () => {
     expect(kolom.map((k) => k.judul)).toEqual(['Akan', 'Sedang', 'Sudah', 'Ditunda']);
   });
 
-  it('menempatkan kartu di kolom sesuai status POIN', () => {
+  it('menggabungkan poin satu sub-modul jadi SATU kartu per kolom', () => {
     const kolom = kelompokkanKolom(ratakanKartu(modul));
 
-    expect(kolom[0].kartu.map((k) => k.id)).toEqual([1, 2]);
-    expect(kolom[2].kartu.map((k) => k.id)).toEqual([4]);
-    expect(kolom[3].kartu.map((k) => k.id)).toEqual([3]);
+    // Sebelumnya tiap poin jadi kartu sendiri, sehingga sub-modul berpoin
+    // banyak tampil sebagai banyak kartu berjudul sama.
+    expect(kolom[0].kartu.map((k) => k.subKode)).toEqual(['E.3']);
+    expect(kolom[0].kartu[0].poin.map((p) => p.id)).toEqual([1, 2]);
+    expect(kolom[2].kartu[0].poin.map((p) => p.id)).toEqual([4]);
+    expect(kolom[3].kartu[0].poin.map((p) => p.id)).toEqual([3]);
     expect(kolom[1].kartu).toEqual([]);
+  });
+
+  it('judul sub-modul TIDAK berulang dalam satu kolom', () => {
+    const banyak: ModulPapan[] = [
+      {
+        kode: 'D',
+        nama: 'Penilaian',
+        sub: [
+          {
+            kode: 'D.1',
+            nama: 'Nilai',
+            status: 'akan',
+            butir: [
+              { id: 1, status: 'akan', deskripsi: 'A.' },
+              { id: 2, status: 'akan', deskripsi: 'B.' },
+              { id: 3, status: 'akan', deskripsi: 'C.' },
+            ],
+          },
+        ],
+      },
+    ];
+    const kolom = kelompokkanKolom(ratakanKartu(banyak));
+
+    expect(kolom[0].kartu).toHaveLength(1);
+    expect(kolom[0].kartu[0].poin).toHaveLength(3);
   });
 
   it('menjaga kolom kosong tetap tampil', () => {
@@ -103,9 +131,9 @@ describe('kelompokkanKolom', () => {
     expect(kolom.every((k) => k.kartu.length === 0)).toBe(true);
   });
 
-  it('tidak menggandakan kartu antar kolom', () => {
+  it('setiap poin muncul tepat sekali di seluruh papan', () => {
     const kolom = kelompokkanKolom(ratakanKartu(modul));
-    const semua = kolom.flatMap((k) => k.kartu.map((c) => c.id));
+    const semua = kolom.flatMap((k) => k.kartu.flatMap((c) => c.poin.map((p) => p.id)));
 
     expect(semua.sort()).toEqual([1, 2, 3, 4]);
   });
@@ -130,11 +158,12 @@ describe('kelompokkanKolom', () => {
     ];
     const kolom = kelompokkanKolom(ratakanKartu(denganCampuran));
 
-    expect(kolom[1].kartu.map((k) => k.id)).toEqual([2]);
-    expect(kolom[2].kartu.map((k) => k.id)).toEqual([1]);
-    // Dua kartu itu sub-modulnya sama — itu memang yang diinginkan.
-    expect(kolom[1].kartu[0].subKode).toBe('E.3');
-    expect(kolom[2].kartu[0].subKode).toBe('E.3');
+    // Satu sub-modul tetap muncul di DUA kolom (memang diinginkan), tapi
+    // di tiap kolom hanya sekali, dan isinya hanya poin berstatus itu.
+    expect(kolom[1].kartu).toHaveLength(1);
+    expect(kolom[2].kartu).toHaveLength(1);
+    expect(kolom[1].kartu[0].poin.map((p) => p.id)).toEqual([2]);
+    expect(kolom[2].kartu[0].poin.map((p) => p.id)).toEqual([1]);
   });
 });
 

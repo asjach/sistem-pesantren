@@ -3,7 +3,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { ChevronDown } from '@/icons';
 import type { RiwayatPapan, StatusPapan } from '@/api/papan';
-import { kelompokkanKolom, kolomSebelah, type KartuPapan } from '@/lib/papan';
+import { kelompokkanKolom, kolomSebelah, type KartuPapan, type KartuSub } from '@/lib/papan';
 import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
 import { IsiButir } from './IsiButir';
 
@@ -94,7 +94,17 @@ export function GarisSisip({ id }: { id: string }) {
   return <div id={id} aria-hidden="true" className="h-[2px] shrink-0" style={{ background: 'var(--accent)' }} />;
 }
 
-/** Kartu papan: satu POIN (butir) beserta sub-modul induknya. */
+/**
+ * Satu kartu papan = satu SUB-MODUL di dalam sebuah kolom.
+ *
+ * Judulnya (kode + nama sub-modul) muncul SEKALI, lalu semua poin berstatus
+ * kolom itu didaftar di bawahnya. Sebelumnya satu kartu = satu poin, sehingga
+ * sub-modul berpoin delapan tampil sebagai delapan kartu berjudul sama.
+ *
+ * Yang DISERET tetap poinnya, bukan kartunya: tiap baris poin draggable dan
+ * punya popover rinciannya sendiri. Itu disengaja - satu sub-modul bisa
+ * separuh selesai, jadi memindahkan seluruh kartu sekaligus justru salah.
+ */
 export function KartuPapan({
   kartu,
   diseret,
@@ -108,75 +118,46 @@ export function KartuPapan({
   bolehUbah,
   aksiKartu,
 }: {
-  kartu: KartuPapan;
-  diseret: boolean;
+  kartu: KartuSub;
+  /** Id poin yang sedang diseret (bukan id kartu). */
+  diseret: number | null;
   /** Tampilkan nama modul di kartu. Di halaman per-modul ini berulang, jadi bisa dimatikan. */
   tampilkanModul: boolean;
-  onMulaiSeret: (e: DragEvent) => void;
+  onMulaiSeret: (poin: KartuPapan, e: DragEvent) => void;
   onLepasSeret: () => void;
   onDiAtas: (e: DragEvent) => void;
   /** Pindah lewat keyboard (tanpa seret); arah -1 = kolom sebelumnya. */
-  onPindahArah: (arah: -1 | 1) => void;
-  /** Popover rincian poin sedang terbuka untuk kartu ini. */
-  buka: boolean;
-  onBukaUbah: (buka: boolean) => void;
+  onPindahArah: (poin: KartuPapan, arah: -1 | 1) => void;
+  /** Id poin yang rinciannya sedang terbuka. */
+  buka: number | null;
+  onBukaUbah: (poinId: number | null) => void;
   bolehUbah: boolean;
-  /** Aksi yang berlaku untuk poin kartu ini. */
-  aksiKartu: AksiButir;
+  /** Aksi yang berlaku untuk sebuah poin di kartu ini. */
+  aksiKartu: (poin: KartuPapan) => AksiButir;
 }) {
-  const idKartu = `butir_${kartu.id}`;
+  const idKartu = `sub_${kartu.subKode.replace('.', '_')}`;
 
   return (
-    // Kartu ini SENGAJA fokusable: seret tidak bisa dipakai keyboard, jadi
-    // panah kiri/kanan disediakan sebagai jalur setara (lihat onKeyDown).
-    // Tanpa tabIndex + handler itu, memindah poin jadi mustahil tanpa mouse.
-    /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
     <article
       id={`kartu_papan_${idKartu}`}
-      role="group"
-      draggable="true"
-      tabIndex={0}
-      onDragStart={onMulaiSeret}
-      onDragEnd={onLepasSeret}
-      onDragOver={onDiAtas}
-      onKeyDown={(e) => {
-        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-        e.preventDefault();
-        onPindahArah(e.key === 'ArrowLeft' ? -1 : 1);
-      }}
-      aria-label={`${kartu.subKode} ${kartu.deskripsi}. Seret, atau pakai panah kiri dan kanan, untuk memindahkan poin ini.`}
+      aria-label={`${kartu.subKode} ${kartu.subNama}, ${kartu.poin.length} poin berstatus ${kartu.status}.`}
       className={cn(
         // Border, latar, dan bayangan datang dari .kartu (index.css) supaya
         // kartu papan tidak menyimpang dari kartu lain di aplikasi.
-        // focus-visible ditambahkan di sini: kartu ini fokusable lewat Tab
-        // untuk jalur keyboard, dan .kartu hanya mengatur :hover.
-        'kartu flex cursor-grab flex-col gap-2 p-[10px_12px]',
-        'focus-visible:border-[var(--border-strong)] focus-visible:outline-none',
-        diseret && 'opacity-40',
+        'kartu flex flex-col gap-2 p-[10px_12px]',
       )}
     >
-      {/* Judul kartu = sub-modul induk. Diulang di tiap poin dengan sengaja:
-          satu sub-modul kini bisa muncul di beberapa kolom sekaligus, jadi
-          tiap kartu harus bisa menjelaskan dirinya sendiri. */}
       <div className="flex items-start gap-2">
         <span className="mt-px font-mono text-[11px] font-semibold text-muted-foreground">
           {kartu.subKode}
         </span>
-        {/* Rincian poin dibuka sebagai POPOVER yang menempel di judul,
-            bukan dialog penuh layar: yang dibaca cuma satu poin, dan
-            popover membiarkan poin itu tetap terlihat di papan.
-            PopoverTrigger dipakai sebagai judulnya; ia yang membuka panel
-            saat diklik (Anchor tidak membuka apa pun). Warna judul TETAP -
-            tidak berubah saat hover, karena efek hover ada di border kartu
-            (lihat .kartu:hover di index.css). */}
-        <PopoverButir
-          kartu={kartu}
-          terbuka={buka}
-          onBukaUbah={onBukaUbah}
-          idTombol={`btn_buka_papan_${idKartu}`}
-          bolehUbah={bolehUbah}
-          aksi={aksiKartu}
-        />
+        <h3 className="min-w-0 flex-1 text-[13px] leading-snug font-medium text-[var(--accent-readable)]">
+          {kartu.subNama}
+        </h3>
+        {/* Jumlah poin di kolom ini; berguna saat poinnya panjang-panjang. */}
+        <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+          {kartu.poin.length}
+        </span>
       </div>
 
       {tampilkanModul ? (
@@ -185,17 +166,103 @@ export function KartuPapan({
         </div>
       ) : null}
 
-      {/* Isi kartu = poinnya. Inilah yang berpindah antar kolom. */}
-      <p className="border-t pt-2 text-[12px] leading-snug" style={{ borderColor: 'var(--divider)' }}>
-        <TeksButir deskripsi={kartu.deskripsi} />
-      </p>
-
-      {/* Perpindahan status HANYA lewat seret (plus panah kiri/kanan untuk
-          keyboard), jadi kartu tidak punya kontrol apa pun di footer - tidak
-          combobox, tidak teks petunjuk, tidak nomor id. Kursor grab sudah
-          memberi isyarat dan tidak ada lagi yang perlu dibaca di sana.
-          Kartu tetap wajib draggable - lihat atribut di <article>. */}
+      {/* Daftar poin. Tiap baris sendiri-sendiri: diseret, fokusable lewat
+          Tab, dan punya popover rincian. */}
+      <div className="flex flex-col gap-1.5 border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
+        {kartu.poin.map((poin) => (
+          <BarisPoin
+            key={poin.id}
+            poin={poin}
+            diseret={diseret === poin.id}
+            terbuka={buka === poin.id}
+            onMulaiSeret={onMulaiSeret}
+            onLepasSeret={onLepasSeret}
+            onDiAtas={onDiAtas}
+            onPindahArah={onPindahArah}
+            onBukaUbah={onBukaUbah}
+            bolehUbah={bolehUbah}
+            aksi={aksiKartu(poin)}
+          />
+        ))}
+      </div>
     </article>
+  );
+}
+
+/**
+ * Satu baris poin di dalam kartu sub-modul.
+ *
+ * Inilah satuan yang BERGESER: draggable, fokusable, dan punya panah
+ * kiri/kanan sebagai jalur keyboard yang setara dengan seret.
+ */
+function BarisPoin({
+  poin,
+  diseret,
+  terbuka,
+  onMulaiSeret,
+  onLepasSeret,
+  onDiAtas,
+  onPindahArah,
+  onBukaUbah,
+  bolehUbah,
+  aksi,
+}: {
+  poin: KartuPapan;
+  diseret: boolean;
+  terbuka: boolean;
+  onMulaiSeret: (poin: KartuPapan, e: DragEvent) => void;
+  onLepasSeret: () => void;
+  onDiAtas: (e: DragEvent) => void;
+  onPindahArah: (poin: KartuPapan, arah: -1 | 1) => void;
+  onBukaUbah: (poinId: number | null) => void;
+  bolehUbah: boolean;
+  aksi: AksiButir;
+}) {
+  const idPoin = `butir_${poin.id}`;
+
+  return (
+    // Baris ini SENGAJA fokusable: seret tidak bisa dipakai keyboard, jadi
+    // panah kiri/kanan disediakan sebagai jalur setara (lihat onKeyDown).
+    // Tanpa tabIndex + handler itu, memindah poin jadi mustahil tanpa mouse.
+    /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
+    <div
+      id={`kartu_papan_${idPoin}`}
+      role="group"
+      draggable={bolehUbah}
+      tabIndex={0}
+      onDragStart={(e) => onMulaiSeret(poin, e)}
+      onDragEnd={onLepasSeret}
+      onDragOver={onDiAtas}
+      onKeyDown={(e) => {
+        if (!bolehUbah) return;
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        onPindahArah(poin, e.key === 'ArrowLeft' ? -1 : 1);
+      }}
+      aria-label={`${poin.deskripsi}. Seret, atau pakai panah kiri dan kanan, untuk memindahkan poin ini.`}
+      className={cn(
+        'flex items-start gap-2 border-l-2 py-1 pl-2',
+        bolehUbah && 'cursor-grab',
+        'focus-visible:border-[var(--accent)] focus-visible:outline-none',
+        diseret && 'opacity-40',
+      )}
+      style={{ borderColor: 'var(--divider)' }}
+    >
+      <span className="min-w-0 flex-1 text-[12px] leading-snug">
+        <TeksButir deskripsi={poin.deskripsi} />
+      </span>
+      {/* Rincian poin dibuka sebagai POPOVER yang menempel di tombolnya,
+          bukan dialog penuh layar: yang dibaca cuma satu poin, dan popover
+          membiarkan poin itu tetap terlihat di papan. */}
+      <PopoverButir
+        kartu={poin}
+        terbuka={terbuka}
+        onBukaUbah={(b) => onBukaUbah(b ? poin.id : null)}
+        idTombol={`btn_buka_papan_${idPoin}`}
+        bolehUbah={bolehUbah}
+        aksi={aksi}
+      />
+    </div>
     /* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
   );
 }
@@ -220,7 +287,7 @@ export function PapanKolom({
   /** Bila false (default), kartu tidak bisa digeser dan panel read-only. */
   bolehUbah?: boolean;
   /** Aksi sunting untuk poin tertentu; wajib bila bolehUbah true. */
-  aksiButir?: (kartu: KartuPapan) => AksiButir;
+  aksiButir?: (poin: KartuPapan) => AksiButir;
   /** Riwayat ringkas yang ditampilkan di bawah judul (kosong = tidak tampil). */
   riwayat?: RiwayatPapan[];
   /** Awalan id elemen supaya beberapa papan di satu halaman tidak bertabrakan. */
@@ -250,10 +317,10 @@ export function PapanKolom({
     setSasaran(null);
   }
 
-  function mulaiSeret(e: DragEvent, id: number) {
+  function mulaiSeret(poin: KartuPapan, e: DragEvent) {
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(id));
-    setSeret(id);
+    e.dataTransfer.setData('text/plain', String(poin.id));
+    setSeret(poin.id);
   }
 
   function indeksSisip(e: DragEvent, indeks: number): number {
@@ -389,29 +456,31 @@ export function PapanKolom({
 
                   <div className="flex min-h-[60px] flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
                     {item.kartu.map((k, idx) => (
-                      <div key={k.id} className="flex flex-col gap-1.5">
+                      <div key={k.subKode} className="flex flex-col gap-1.5">
                         {sasaran && sasaran.kolom === item.id && sasaran.indeks === idx ? (
                           <GarisSisip id={`garis_${awalan}_${item.id}_${idx}`} />
                         ) : null}
                         <KartuPapan
                           kartu={k}
-                          diseret={seret === k.id}
+                          diseret={seret}
                           tampilkanModul={tampilkanModul}
-                          onMulaiSeret={(e) => mulaiSeret(e, k.id)}
+                          onMulaiSeret={mulaiSeret}
                           onLepasSeret={bersihkanSeret}
                           onDiAtas={(e) => diAtasKartu(e, item.id, idx)}
-                          onPindahArah={(arah) => void pindahArah(k, arah)}
-                          buka={rincian === k.id}
-                          onBukaUbah={(b) => setRincian(b ? k.id : null)}
+                          onPindahArah={(poin, arah) => void pindahArah(poin, arah)}
+                          buka={rincian}
+                          onBukaUbah={setRincian}
                           bolehUbah={bolehUbah}
                           aksiKartu={
-                            aksiButir?.(k) ?? {
-                              onSimpanTeks: async () => {},
-                              onSimpanStatus: async () => {},
-                              onNaik: async () => {},
-                              onTurun: async () => {},
-                              onHapus: async () => {},
-                            }
+                            aksiButir
+                              ? (poin) => aksiButir(poin)
+                              : () => ({
+                                  onSimpanTeks: async () => {},
+                                  onSimpanStatus: async () => {},
+                                  onNaik: async () => {},
+                                  onTurun: async () => {},
+                                  onHapus: async () => {},
+                                })
                           }
                         />
                       </div>
