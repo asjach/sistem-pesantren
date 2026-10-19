@@ -245,41 +245,12 @@ memicu langkah itu atas inisiatif sendiri.
   normal (jalankan `tauri build`/`tauri dev` seperti biasa saat rilis/ujicoba  
   native).
 
-## CATATAN FITUR BELUM BERTES — wajib dicatat, TIDAK wajib diuji
+## CATATAN FITUR BELUM BERTES — arsip
 
-Status: **WAJIB dicatat; DILARANG dijadikan alasan menjalankan tes.**  
-Berlaku hanya saat SUSPEND TES aktif — sekarang **tidak** (tes aktif kembali  
-sejak 2026-10-13), jadi pencatatan entri baru tidak wajib. Entri lama di  
-`docs/DAFTAR-BELUM-BERTES.md` tetap ada sebagai inventaris untuk dibereskan  
-berdasarkan prioritas.
-
-Selama suspend, setiap fitur/logika baru yang dibuat tanpa test **wajib dicatat**  
-ke `docs/DAFTAR-BELUM-BERTES.md`. Mencatat **bukan** perintah menguji — tes tetap  
-hanya berjalan bila pengguna memerintahkan secara eksplisit (lihat SUSPEND TES).
-
-- **Kapan mencatat** — setiap kali selesai mengerjakan perubahan file, periksa  
-  apakah perubahan itu memuat logika (percabangan, validasi, komputasi, query/  
-  policy, transformasi data, transisi state). Bila ya dan tidak ada test-nya,
-
-
-tambahkan entri ke daftar. Perubahan non-logika (copy/teks, styling, layout,  
-rename tanpa ubah alur, boilerplate config) **tidak** dicatat.
-
-- **Di mana** — `docs/DAFTAR-BELUM-BERTES.md`. Letakkan entri di bagian yang  
-  sesuai (A untuk backend, B untuk frontend) dan ikuti format yang sudah ada:  
-  lokasi `path:line`, daftar logika/fungsi, lalu **failure mode** yang layak diuji.
-- **Format entri wajib** — sebutkan `path` + nomor baris + nama fungsi/metode,  
-  ringkas logika bercabangnya, dan failure mode konkret. Entri tanpa nomor baris  
-  atau tanpa failure mode tidak sah.
-- **Bila sudah ada entri** untuk modul itu: perbarui (tambahkan cabang/logika baru
-  - barisnya), jangan buat duplikat.
-- **Bila fitur akhirnya diberi test** (atas perintah pengguna): hapus entri terkait  
-  dari daftar, atau tandai selesai beserta nama file test-nya.
-- **Larangan tegas** — mencatat di daftar **tidak** membuka izin menjalankan tes,  
-  tidak mengubah status suspend, dan **tidak boleh** dijadikan alasan menawarkan  
-  commit "menunggu tes hijau". Daftar ini murni inventaris, bukan jadwal kerja.
-- **Cara melaporkan** — cukup sebutkan di akhir respons: "Dicatat ke daftar belum  
-  bertes: <modul>". Jangan menawarkan pembuatan test kecuali pengguna memintanya.
+Status: **ARSIP.** Bagian ini hanya berlaku saat SUSPEND TES aktif. Sejak tes
+aktif kembali (2026-10-13), pencatatan entri baru tidak diwajibkan. Inventaris
+lama `docs/DAFTAR-BELUM-BERTES.md` sudah dibereskan dan dihapus pada 2026-10-19;
+cakupan berikutnya mengikuti suite tes aktif (`npm run test`, `php artisan test`).
 
 ## Akun reviewer (AKTIF — jangan dibuat ulang/dihapus)
 

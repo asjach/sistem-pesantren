@@ -91,6 +91,26 @@ class HardeningReviewTest extends TestCase
         ])->assertStatus(200);
     }
 
+    public function test_login_audit_tertulis_untuk_sukses_dan_gagal(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->postJson('/api/auth/login', [
+            'identifier' => $admin->email, 'password' => 'salah',
+        ])->assertStatus(401);
+
+        $this->postJson('/api/auth/login', [
+            'identifier' => $admin->email, 'password' => 'password',
+        ])->assertStatus(200);
+
+        $this->assertDatabaseHas('login_audits', [
+            'user_id' => $admin->id, 'identifier' => $admin->email, 'sukses' => false,
+        ]);
+        $this->assertDatabaseHas('login_audits', [
+            'user_id' => $admin->id, 'identifier' => $admin->email, 'sukses' => true,
+        ]);
+    }
+
     public function test_dashboard_ditolak_untuk_peran_portal(): void
     {
         $ortu = User::create([

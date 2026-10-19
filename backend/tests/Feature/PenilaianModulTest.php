@@ -395,6 +395,69 @@ class PenilaianModulTest extends TestCase
 
     // ---------- 08. komponen PTS mengalir dari peristiwa PTS ----------
 
+    public function test_09_ekskul_crud_dan_lingkup_lembaga(): void
+    {
+        $this->lembaga('MI', 'Madrasah Ibtidaiyah');
+        $this->tahunAjaran();
+        $super = $this->superAdmin();
+
+        $buat = $this->actingAs($super, 'sanctum')->postJson('/api/admin/penilaian/ekskul', [
+            'jenjang' => 'MI', 'tahun_ajaran' => self::TA,
+            'nama' => 'Pramuka', 'pembimbing' => 'Ust. Ahmad',
+        ])->assertCreated()->assertJsonPath('nama', 'Pramuka');
+
+        $id = $buat->json('id');
+        $this->actingAs($super, 'sanctum')->getJson('/api/admin/penilaian/ekskul?jenjang=MI&tahun_ajaran='.self::TA)
+            ->assertOk()->assertJsonCount(1)->assertJsonPath('0.id', $id);
+
+        $this->actingAs($super, 'sanctum')->patchJson("/api/admin/penilaian/ekskul/{$id}", ['is_active' => false])
+            ->assertOk()->assertJsonPath('is_active', false);
+
+        $this->actingAs($super, 'sanctum')->deleteJson("/api/admin/penilaian/ekskul/{$id}")->assertOk();
+        $this->assertDatabaseMissing('ekstrakurikuler', ['id' => $id]);
+    }
+
+    public function test_10_prestasi_crud_terikat_santri_dan_ta(): void
+    {
+        $this->lembaga('MI', 'Madrasah Ibtidaiyah');
+        $this->tahunAjaran();
+        $super = $this->superAdmin();
+        $santri = Santri::create(['nama_lengkap' => 'Santri Prestasi', 'jk' => 'L']);
+        LembagaSantri::create([
+            'santri_id' => $santri->id, 'jenjang' => 'MI', 'is_active_lembaga' => 'Ya',
+        ]);
+
+        $buat = $this->actingAs($super, 'sanctum')->postJson('/api/admin/penilaian/prestasi', [
+            'santri_id' => $santri->id, 'tahun_ajaran' => self::TA,
+            'semester' => '1', 'prestasi' => 'Juara 1', 'level' => 'Kecamatan',
+        ])->assertCreated()->assertJsonPath('prestasi', 'Juara 1');
+
+        $id = $buat->json('id');
+        $this->actingAs($super, 'sanctum')->getJson('/api/admin/penilaian/prestasi?tahun_ajaran='.self::TA.'&santri_id='.$santri->id)
+            ->assertOk()->assertJsonCount(1)->assertJsonPath('0.id', $id);
+
+        $this->actingAs($super, 'sanctum')->deleteJson("/api/admin/penilaian/prestasi/{$id}")->assertOk();
+        $this->assertDatabaseMissing('prestasi_santri', ['id' => $id]);
+    }
+
+    public function test_11_template_impor_empat_tipe_bisa_diunduh(): void
+    {
+        $this->lembaga('MI', 'Madrasah Ibtidaiyah');
+        $this->tahunAjaran();
+        $super = $this->superAdmin();
+
+        foreach (['nilai', 'catatan_wali', 'prestasi', 'ekskul'] as $tipe) {
+            $res = $this->actingAs($super, 'sanctum')->get(
+                "/api/admin/penilaian/import-template?tipe={$tipe}&jenjang=MI&tahun_ajaran=".self::TA,
+            );
+            $res->assertOk();
+            $this->assertStringContainsString(
+                "template-import-penilaian-{$tipe}.xlsx",
+                (string) $res->headers->get('content-disposition'),
+            );
+        }
+    }
+
     public function test_08_komponen_pts_mengalir_dari_peristiwa_pts(): void
     {
         $this->lembaga('MI', 'Madrasah Ibtidaiyah');
