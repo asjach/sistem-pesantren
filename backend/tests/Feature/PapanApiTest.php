@@ -1,0 +1,160 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Papan\PapanItem;
+use App\Models\Papan\PapanModul;
+use App\Models\User;
+use Database\Seeders\PermissionSeeder;
+use Database\Seeders\RoleSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
+
+/**
+ * API papan perkembangan proyek (/api/papan).
+ *
+ * Yang dijaga di sini: pagar izin (lihat vs ubah), bentuk respons, dan yang
+ * paling mudah terlewat — endpoint papan berjalan TANPA lembaga aktif karena
+ * papan bukan data pesantren.
+ */
+class PapanApiTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(RoleSeeder::class);
+        $this->seed(PermissionSeeder::class);
+        $this->withoutMiddleware(ThrottleRequests::class);
+
+        config()->set('database.connections.papan.database', ':memory:');
+
+        $this->artisan('migrate', [
+            '--path' => 'database/migrations/papan',
+            '--database' => 'papan',
+            '--force' => true,
+        ])->run();
+
+        $this->buatPapan();
+    }
+
+    public function test_tanpa_token_menjawab_401(): void
+    {
+        $this->getJson('/api/papan')->assertStatus(401);
+    }
+
+    public function test_index_mengembalikan_modul_ringkasan_dan_daftar_status(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->getJson('/api/papan')
+            ->assertOk()
+            ->assertJsonPath('modul.0.kode', 'E')
+            ->assertJsonPath('modul.0.sub.0.kode', 'E.3')
+            ->assertJsonPath('ringkasan.akan', 1)
+            ->assertJsonPath('status', ['sudah', 'sedang', 'akan', 'ditunda']);
+    }
+
+    public function test_pengguna_tanpa_izin_papan_ditolak(): void
+    {
+        Sanctum::actingAs($this->pengguna(['guru']));
+
+        $this->getJson('/api/papan')->assertStatus(403);
+    }
+
+    public function test_pindah_status_mengubah_dan_mencatat_riwayat(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->patchJson('/api/papan/E.3/status', ['status' => 'sedang', 'catatan' => 'Mulai'])
+            ->assertOk()
+            ->assertJsonPath('status', 'sedang');
+
+        $this->getJson('/api/papan/riwayat')
+            ->assertOk()
+            ->assertJsonPath('riwayat.0.kode', 'E.3')
+            ->assertJsonPath('riwayat.0.ke', 'sedang')
+            ->assertJsonPath('riwayat.0.oleh', 'pengguna');
+    }
+
+    public function test_pindah_dengan_status_tidak_sah_ditolak_validasi(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->patchJson('/api/papan/E.3/status', ['status' => 'ngarang'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status');
+    }
+
+    public function test_pindah_kode_tidak_dikenal_menjawab_404(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->patchJson('/api/papan/Z.9/status', ['status' => 'sedang'])->assertStatus(404);
+    }
+
+    public function test_tambah_dan_hapus_butir(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $id = $this->postJson('/api/papan/E.3/butir', [
+            'status' => 'akan',
+            'deskripsi' => 'Butir baru lewat API.',
+        ])->assertStatus(201)->json('id');
+
+        $this->deleteJson("/api/papan/E.3/butir/{$id}")->assertOk();
+
+        $this->deleteJson("/api/papan/E.3/butir/{$id}")->assertStatus(404);
+    }
+
+    public function test_peran_admin_lembaga_boleh_mengubah(): void
+    {
+        Sanctum::actingAs($this->pengguna(['admin']));
+
+        $this->patchJson('/api/papan/E.3/status', ['status' => 'sedang'])->assertOk();
+    }
+
+    /**
+     * Papan bukan data pesantren: akses tidak boleh mensyaratkan lembaga aktif,
+     * supaya tetap terbaca walau lembaga aktif belum dipilih.
+     */
+    public function test_tidak_mensyaratkan_lembaga_aktif(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->getJson('/api/papan')->assertOk();
+    }
+
+    /** @param array<int, string> $peran */
+    private function pengguna(array $peran): User
+    {
+        $user = User::create([
+            'name' => 'Uji Papan '.uniqid(),
+            'email' => 'papan_'.uniqid().'@example.com',
+            'password' => 'password123',
+        ]);
+        $user->assignRole($peran);
+
+        return $user;
+    }
+
+    /** Satu modul + satu sub-modul + satu butir sebagai bahan uji. */
+    private function buatPapan(): void
+    {
+        $modul = PapanModul::create(['kode' => 'E', 'nama' => 'Keuangan', 'urutan' => 1]);
+
+        $item = PapanItem::create([
+            'modul_id' => $modul->id,
+            'kode' => 'E.3',
+            'nama' => 'Rekap & Tutup Buku Kas',
+            'status' => 'akan',
+            'urutan' => 1,
+        ]);
+
+        $item->butir()->create(['status' => 'akan', 'deskripsi' => 'Rekap per kas.', 'urutan' => 1]);
+    }
+}

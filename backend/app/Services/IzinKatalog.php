@@ -52,6 +52,9 @@ class IzinKatalog
         'penilaian' => ['lihat', 'tambah', 'ubah', 'hapus', 'cetak'],
 
         'kurikulum' => ['lihat', 'tambah', 'ubah', 'hapus'],
+        // Papan perkembangan proyek — bukan data pesantren, jadi tidak ikut
+        // cakupan lembaga. lihat untuk membaca, ubah untuk memindahkan.
+        'papan' => ['lihat', 'ubah'],
         'server' => ['lihat'],
         'izin' => ['lihat', 'ubah'],
     ];

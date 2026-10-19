@@ -65,6 +65,7 @@ const DokumenMadrasahPage = lazy(() => import('./pages/DokumenMadrasahPage'));
 const KelolaIzinPage = lazy(() => import('./pages/KelolaIzinPage'));
 const KomponenPage = lazy(() => import('./pages/KomponenPage'));
 const PapanContohPage = lazy(() => import('./pages/PapanContohPage'));
+const PapanPage = lazy(() => import('./pages/PapanPage'));
 
 function Shell() {
 
@@ -136,6 +137,7 @@ export default function App() {
                     <Route element={<Shell />}>
                       <Route path="/" element={<KhususIzin izin="dashboard.lihat"><DashboardPage /></KhususIzin>} />
                       <Route path="/contoh-papan" element={<KhususIzin izin="dashboard.lihat"><PapanContohPage /></KhususIzin>} />
+                      <Route path="/papan" element={<KhususIzin izin="papan.lihat"><PapanPage /></KhususIzin>} />
 
                       <Route path="/data-induk" element={<ArahHalamanTabs def={HALAMAN_DATA_INDUK} />} />
                       <Route element={<HalamanTabs def={HALAMAN_DATA_INDUK} />}>

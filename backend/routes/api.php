@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\KamusController;
+use App\Http\Controllers\Api\PapanController;
 use App\Http\Controllers\Api\PengajuanBiodataController;
 use App\Http\Controllers\Api\PsbController;
 use App\Http\Controllers\Api\PsbDokumenController;
@@ -59,6 +60,19 @@ Route::prefix('auth')->group(function () {
 Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
     ->get('dashboard/ringkasan', [DashboardController::class, 'ringkasan'])
     ->middleware('permission:dashboard.lihat');
+
+// Papan perkembangan proyek — catatan kerja, bukan data pesantren, jadi
+// sengaja TANPA middleware lembaga_aktif (tidak terikat lembaga mana pun).
+Route::middleware(['auth:sanctum', 'throttle:api_user'])
+    ->prefix('papan')
+    ->group(function () {
+        Route::get('/', [PapanController::class, 'index'])->middleware('permission:papan.lihat');
+        Route::get('riwayat', [PapanController::class, 'riwayat'])->middleware('permission:papan.lihat');
+        Route::get('{kode}', [PapanController::class, 'show'])->middleware('permission:papan.lihat');
+        Route::patch('{kode}/status', [PapanController::class, 'pindah'])->middleware('permission:papan.ubah');
+        Route::post('{kode}/butir', [PapanController::class, 'tambahButir'])->middleware('permission:papan.ubah');
+        Route::delete('{kode}/butir/{butir}', [PapanController::class, 'hapusButir'])->middleware('permission:papan.ubah');
+    });
 
 Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
     ->prefix('admin')
