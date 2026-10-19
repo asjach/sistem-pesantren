@@ -34,30 +34,30 @@ class PapanSeeder extends Seeder
     private const PAPAN = [
         ['kode' => 'A', 'nama' => 'Fondasi', 'sub' => [
             ['kode' => 'A.1', 'nama' => 'Setup (001)', 'status' => 'sudah', 'butir' => [
-                'sudah' => ['Proyek Laravel 13 dengan .env dan guard sanctum sudah berjalan.'],
+                'sudah' => ['Proyek Laravel 13 dengan `.env` dan guard `sanctum` sudah berjalan.'],
             ]],
             ['kode' => 'A.2', 'nama' => 'Skema Database (002)', 'status' => 'sudah', 'butir' => [
                 'sudah' => [
-                    '84 file migrasi; migrate:fresh hijau dengan 126 tabel termasuk tabel framework.',
-                    'Spesifikasi kolom lengkap ada di docs/SCHEMA.md.',
+                    '84 file migrasi; `migrate:fresh` hijau dengan 126 tabel termasuk tabel framework.',
+                    'Spesifikasi kolom lengkap ada di [SCHEMA.md](SCHEMA.md).',
                 ],
             ]],
             ['kode' => 'A.3', 'nama' => 'Autentikasi & Pengguna (003)', 'status' => 'sudah', 'butir' => [
                 'sudah' => [
-                    'Login multi-identifier (email/telepon/username) dengan throttle dan login_audits, lima peran efektif.',
+                    'Login multi-identifier (email/telepon/username) dengan throttle dan `login_audits`, lima peran efektif.',
                     'Ada kunci diri dan anti-eskalasi: pengguna tak bisa mengubah atau menghapus dirinya sendiri.',
-                    'Act-as lembaga lewat header X-Lembaga-Aktif; impor pengguna massal tersedia.',
+                    'Act-as lembaga lewat header `X-Lembaga-Aktif`; impor pengguna massal tersedia.',
                 ],
             ]],
             ['kode' => 'A.4', 'nama' => 'Referensi & Master (004)', 'status' => 'sudah', 'butir' => [
                 'sudah' => [
-                    '34 tabel kamus per lembaga dengan fan-out, dilayani RefService ber-cache.',
+                    '34 tabel kamus per lembaga dengan fan-out, dilayani `RefService` ber-cache.',
                     'CRUD Lembaga, Tahun Ajaran, dan Kelas lengkap dengan scope tenant.',
                 ],
             ]],
             ['kode' => 'A.5', 'nama' => 'Dashboard Ringkas', 'status' => 'sudah', 'butir' => [
                 'sudah' => [
-                    'GET /api/dashboard/ringkasan menyajikan blok lembaga, santri, pegawai, keuangan, siklus, dan PSB.',
+                    '`GET /api/dashboard/ringkasan` menyajikan blok lembaga, santri, pegawai, keuangan, siklus, dan PSB.',
                     'Tiap blok digerbangi izin modulnya dan bernilai null bila akun tak berizin.',
                 ],
                 'akan' => ['Dashboard eksekutif pimpinan (modul 504) yang lebih ringkas dan terarah.'],
@@ -73,7 +73,7 @@ class PapanSeeder extends Seeder
             ]],
             ['kode' => 'B.2', 'nama' => 'Santri (101)', 'status' => 'sudah', 'butir' => [
                 'sudah' => [
-                    'CRUD santri dengan SantriPolicy, impor satu pintu, kamus, dan kolom NIS.',
+                    'CRUD santri dengan `SantriPolicy`, impor satu pintu, kamus, dan kolom NIS.',
                     'Foto dan dokumen per santri bisa diunggah; ada fitur samakan NIS massal.',
                 ],
             ]],
@@ -87,13 +87,13 @@ class PapanSeeder extends Seeder
         ['kode' => 'C', 'nama' => 'Kepegawaian & Kurikulum', 'sub' => [
             ['kode' => 'C.1', 'nama' => 'Pegawai (200)', 'status' => 'sudah', 'butir' => [
                 'sudah' => [
-                    'Master pegawai global dengan kolom EMIS, multi-lembaga lewat keaktifan_pegawai.',
-                    'Sertifikasi, keluarga, dokumen, penautan akun, dan setWalas dengan validasi tiga lapis.',
+                    'Master `pegawai` global dengan kolom EMIS, multi-lembaga lewat `keaktifan_pegawai`.',
+                    'Sertifikasi, keluarga, dokumen, penautan akun, dan `setWalas` dengan validasi tiga lapis.',
                 ],
             ]],
             ['kode' => 'C.2', 'nama' => 'Kurikulum & Mata Pelajaran (201)', 'status' => 'sudah', 'butir' => [
                 'sudah' => [
-                    'Tiga halaman jalan: Mata Pelajaran (KKM dan urutan), Pengampu (kelas x mapel -> guru), Jadwal Pelajaran.',
+                    'Tiga halaman jalan: Mata Pelajaran (KKM dan urutan), Pengampu (kelas × mapel → guru), Jadwal Pelajaran.',
                     'Jadwal memakai slot per jenjang dan menolak bentrok kelas maupun bentrok guru.',
                 ],
                 'akan' => [
@@ -112,7 +112,7 @@ class PapanSeeder extends Seeder
                     'Nilai diikat per peristiwa (PTS, ASAS, ASAT, UJIAN, UAP), bukan per semester.',
                     'Komponen dan bobot bisa bersumber manual, dari rapor tingkat sebelumnya, atau dari peristiwa lain.',
                     'Leger crosstab per peristiwa bisa diunduh Excel; rapor lengkap bisa dicetak per santri maupun per kelas.',
-                    'Empat template impor lewat mesin import-potong.',
+                    'Empat template impor lewat mesin `import-potong`.',
                 ],
                 'akan' => [
                     'Kunci impor/edit setelah batch rapor pertama dicetak, plus log cetak berisi siapa, kapan, dan berapa santri.',
@@ -131,8 +131,8 @@ class PapanSeeder extends Seeder
                 'akan' => [
                     'Cetak massal satu kelas dalam sekali klik, dengan parameter peringkat sekali per batch.',
                     'Snapshot nama dan gelar penanda tangan saat batch pertama dicetak agar cetak ulang identik.',
-                    'Absensi otomatis dari sesi_presensi/presensi_santri; kolom leger jadi override bila presensi kosong.',
-                    'Tombol unduh data existing di dialog impor, memakai pola data-existing.',
+                    'Absensi otomatis dari `sesi_presensi`/`presensi_santri`; kolom leger jadi override bila presensi kosong.',
+                    'Tombol unduh data existing di dialog impor, memakai pola `data-existing`.',
                 ],
             ]],
         ]],
@@ -155,7 +155,7 @@ class PapanSeeder extends Seeder
                 'akan' => [
                     'Penomoran kwitansi runut per lembaga/kas/tahun menggantikan hex acak.',
                     'Split payment: satu kwitansi boleh gabungan metode atau kas, dengan rincian sub-bayar.',
-                    'Format nomor kwitansi (mis. KW-MI-2026-000123) belum ditetapkan; perlu keputusan dulu.',
+                    'Format nomor kwitansi (mis. `KW-MI-2026-000123`) belum ditetapkan; perlu keputusan dulu.',
                 ],
             ]],
             ['kode' => 'E.3', 'nama' => 'Rekap & Tutup Buku Kas', 'status' => 'akan', 'butir' => [
@@ -171,7 +171,7 @@ class PapanSeeder extends Seeder
                     'Crosstab tunggakan per santri/kelas dan dasbor ringkas (total tagihan, terbayar, tunggakan).',
                 ],
                 'akan' => [
-                    'Laporan aging 30/60/90+ hari dari jatuh_tempo sebagai dasar surat tagihan.',
+                    'Laporan aging 30/60/90+ hari dari `jatuh_tempo` sebagai dasar surat tagihan.',
                     'Pengingat tunggakan: penanda di crosstab; WhatsApp menyusul lewat modul notifikasi G8.',
                 ],
                 'ditunda' => ['Tren penerimaan bulanan dan rincian per tahun ajaran di dasbor.'],
@@ -189,13 +189,13 @@ class PapanSeeder extends Seeder
                 'sudah' => ['Jalur PSB lanjutan, riwayat keluarga, dan pengajuan biodata (satu aktif per santri, bisa dibatalkan).'],
                 'akan' => [
                     'Dashboard portal dan ringkasan tagihan untuk wali.',
-                    'Aktor santri, karena rute portal saat ini hanya untuk orang_tua.',
+                    'Aktor santri, karena rute portal saat ini hanya untuk `orang_tua`.',
                 ],
             ]],
             ['kode' => 'F.2', 'nama' => 'Klien Desktop admin-desktop-tauri', 'status' => 'sudah', 'butir' => [
                 'sudah' => [
                     '48 halaman dalam 10 grup navigasi, dengan dua mode: lembaga dan pesantren.',
-                    'Dijaga 123 file tes; klien ini untuk super_admin dan admin lembaga saja.',
+                    'Dijaga 123 file tes; klien ini untuk `super_admin` dan `admin` lembaga saja.',
                 ],
                 'akan' => ['Jalur peran guru, yang izin bawaannya masih kosong.'],
             ]],
@@ -205,22 +205,22 @@ class PapanSeeder extends Seeder
         ]],
         ['kode' => 'G', 'nama' => 'Pasca Production', 'sub' => [
             ['kode' => 'G.1', 'nama' => 'Presensi Santri (500)', 'status' => 'sudah', 'butir' => [
-                'sudah' => ['Tabel sesi_presensi, presensi_santri, dan pelanggaran_santri sudah dibuat.'],
+                'sudah' => ['Tabel `sesi_presensi`, `presensi_santri`, dan `pelanggaran_santri` sudah dibuat.'],
                 'akan' => ['UI presensi dan UI pelanggaran.'],
             ]],
             ['kode' => 'G.2', 'nama' => 'Presensi Pegawai (501)', 'status' => 'sudah', 'butir' => [
-                'sudah' => ['Tabel presensi_pegawai sudah dibuat.'],
+                'sudah' => ['Tabel `presensi_pegawai` sudah dibuat.'],
                 'akan' => ['UI absensi guru.'],
             ]],
             ['kode' => 'G.3', 'nama' => 'Jadwal Pelajaran (502)', 'status' => 'sudah', 'butir' => [
                 'sudah' => ['Sudah live dan menjadi bagian modul 201, bukan lagi pekerjaan pasca production.'],
             ]],
             ['kode' => 'G.4', 'nama' => 'Tahfizh (503)', 'status' => 'sudah', 'butir' => [
-                'sudah' => ['Tabel target_tahfiz, setoran_tahfiz, dan rekap_tahfiz_santri sudah dibuat.'],
+                'sudah' => ['Tabel `target_tahfiz`, `setoran_tahfiz`, dan `rekap_tahfiz_santri` sudah dibuat.'],
                 'akan' => ['UI tahfizh untuk ziyadah dan murajaah.'],
             ]],
             ['kode' => 'G.5', 'nama' => 'Statistik Pimpinan (504)', 'status' => 'akan', 'butir' => [
-                'akan' => ['Dashboard eksekutif pimpinan yang ringkas, terpisah dari /api/dashboard/ringkasan.'],
+                'akan' => ['Dashboard eksekutif pimpinan yang ringkas, terpisah dari `/api/dashboard/ringkasan`.'],
             ]],
             ['kode' => 'G.6', 'nama' => 'Asrama (505)', 'status' => 'ditunda', 'butir' => [
                 'ditunda' => [
