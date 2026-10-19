@@ -89,6 +89,13 @@ Lihat Lampiran D. Inti: `lembaga` (PK `jenjang`: MI/MD/MTS/MLN), `tahun_ajaran`,
 - Keringanan: putra pegawai (override tarif). Status tagihan: belum/sebagian/lunas; batal/hapus pembayaran menyesuaikan total tagihan; hapus tagihan permanen (wajib batalkan dulu pembayaran aktifnya). Pindah/mutasi: tunggakan tetap lembaga asal.
 - Pembayaran: TU/Admin/Kasir lembaga berkemampuan sama (catat + hapus/batal), kwitansi karakter acak; kas memetakan posisi uang (tunai TU | bank lembaga | bank pesantren). Asrama: dibayar melalui TU lalu dicatat di kas asrama (bukan pendapatan lembaga). Tunggakan dibaca per siswa/kelas/semua (admin, TU, bendahara, pimpinan, orang tua).
 
+### Alur Buat Tagihan (generate) — diterapkan 2026-10-19
+- **Satu layar, tanpa tombol Lanjut**: kriteria (tarif, periode, kelompok) dan tabel Santri tampil bersamaan; tabel mulai dimuat begitu kelompok tersedia. Alasan: keluhan utama adalah jumlah langkah, bukan isi field.
+- **Konfirmasi tetap ada, diringkas**: satu paragraf + tombol; angka ringkasan sudah tampil di footer, jadi tidak diulang.
+- **Istilah hasil**: **Kelompok** = penyaring populasi (Semua/MI/MD/Custom; Custom memakai grup santri custom); **Dilewati** = baris tidak dibuat/diubah (sudah dibayar atau nominal baru < terbayar); **Tetap** = tagihan sudah ada dan nominalnya sama; **Manual** = nominal diketik tanpa dispensasi.
+- **Invarian generate**: tidak pernah membuat duplikat; tagihan bulanan yang sudah dibayar dilewati; non-bulanan dilewati bila nominal baru < terbayar; dispensasi aktif diterapkan otomatis hanya untuk paket yang memuat Santri itu dan lingkup jenjangnya cocok (null = semua lembaga), termasuk saat paket dipilih manual di tab Ubah; kuota dialokasikan ke N bulan pertama per Santri; paket se-grup tidak menumpuk ("menempel menang"); generate tidak pernah menambah penerima.
+- **Jatuh tempo**: jenis bulanan otomatis tanggal 10 per periode; non-bulanan boleh dikosongkan (berarti langsung tunggakan).
+
 ### Rencana Fitur Keuangan (2026-10-16 — rencana, BELUM diimplementasikan)
 Prioritas disepakati: kwitansi cetak → tutup buku harian → penomoran runut (ketiganya soal akuntabilitas kas).
 1. **Laporan tunggakan (aging)** — umur piutang 30/60/90+ hari per santri/kelas/lembaga dari `jatuh_tempo`; dasar surat tagihan & prioritas penagihan.

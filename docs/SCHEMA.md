@@ -1,55 +1,5 @@
 # Skema Database — SIMPES (dokumentasi, bukan kode)
 
-> Sumber: **84 file migrasi** = 40 `create_*` + 9 seed/backfill + **35 alter**
-> (tambah kolom, restrukturisasi, hapus tabel). Angka dihitung dari isi
-> `backend/database/migrations` — bukan hasil baca manual.
->
-> **Konvensi migrasi (diperbarui 2026-10-19).** Dulu semua alter dilipat ke
-> file `create_*` masing-masing sehingga "kolom di bawah = skema final". Konvensi
-> itu **dibatalkan** pada v2.3x: DB dev sudah berisi data, jadi alter tidak bisa
-> dilewati tanpa kehilangan data. Sekarang berlaku:
-> - `create_*` = tabel **baru**;
-> - alter berdiri sendiri (`tambah_*`, `ubah_*`, `restruktur_*`, `hapus_*`) = sah,
->   dan **wajib** berpasangan dengan pembaruan dokumen ini;
-> - dokumen ini tetap menggambarkan **skema akhir** (hasil `migrate:fresh`),
->   bukan urutan migrasi. Drift dicegah tes `SchemaDocTest` dua arah: yang
->   didokumentasikan harus ada di DB, dan setiap tabel/kolom di DB harus
->   terdokumentasi.
->
-> Satu-satunya pengecualian yang sah: blok FK `jenjang` → `lembaga` di dalam
-> `create_keuangan_tables` yang dijaga
-> `if (DB::getDriverName() === 'mysql')` (SQLite tak mendukung ADD FOREIGN KEY
-> via ALTER, dan banyak tes membuat tagihan untuk jenjang tanpa baris
-> `lembaga`).
-> Bahasa Indonesia persis DB. Tipe logis umum.
-> Keputusan: single-pesantren via `lembaga` + pivot `user_lembaga` (no.40);
-> 34 `ref_*` global+shadow (no.50); seed no.51; pitfall multi-NULL MySQL →
-> dedup di service, bukan index (`002` catatan 9). Matriks izin (v2.38):
-> aksi = `permissions`/`role_has_permissions`, cakupan tetap pivot.
-> Import gabungan siswa (v2.39): satu file menulis `santri` + `lembaga_santri`
-> (tanpa migrasi; cocok `santri_id`/NIK/NIS, baris luar tenant ditolak).
-> Beku kelas arsip (v2.52): `alumni.kelas_lulus_id` + `mutasi_keluar.kelas_terakhir_id`
-> snapshot dari riwayat aktif terakhir.
-
-Urutan CREATE: `lembaga` → `ref_*` → `users` → `user_lembaga` →
-`tahun_ajaran` → `pegawai` → `kelas` (`walas_id` inline) → santri/riwayat →
-PSB → kepegawaian → akademik → nilai → presensi → asrama → tahfizh → portal.
-`down()` sebaliknya (dependent dulu). `migrate:fresh` boleh pre-production.
-
-> Keputusan desain (v1.10, gambaran umum — masih bisa berubah):
-> 1. `santri` tidak menyimpan kolom lembaga (identitas murni); sumber kebenaran
->    lembaga = `riwayat_belajar`/`lembaga_santri` (FK `jenjang`).
->    **v2.0: kolom lembaga di `santri` dihapus total — legacy = santri tanpa riwayat.**
-> 2. `santri.is_active_pst` turunan murni (default 'Tidak'): 'Ya' iff punya ≥1
->    `riwayat_belajar.is_active_riwayat='Ya'`. **Sudah diimplementasikan (v1.10.2 + backfill).**
-> 3. Asrama = entitas sendiri (BLOK 10), **dirancang** dengan peran `asrama` +
->    pivot `user_asrama`. Penanda keuangan asrama ditetapkan saat modul keuangan
->    dirumuskan ulang.
->    **Implementasi asrama = pasca production** — tabel `asrama*`, peran
->    `asrama`, dan pivot `user_asrama` **belum pernah dibuat**; peran yang
->    benar-benar ada di `RoleSeeder` hanya 5 (`super_admin, admin, guru,
->    orang_tua, santri`).
-
 ## Auth bawaan Laravel (`0001_*_create_users_table.php`)
 
 `users`: `id` PK; `name`; `email`? unique (null boleh, multi-identifier);
@@ -70,7 +20,6 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nsm`: string(30) [null, unique] — EMIS/Kemenag 12 digit, global unique
 - `npwp`: string [null] — EMIS/BOS
 - PK(`jenjang`) — satu baris per jenjang (single-pesantren, tanpa hierarki/root)
-- CATATAN: asrama **bukan** lembaga — entitas + peran + pivot sendiri (BLOK 10).
 - `no_izin_operasional`: string [null] — Legalitas full EMIS:
 - `tgl_izin`: date [null]
 - `no_sk_pendirian`: string [null]
@@ -109,7 +58,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`)
 
 ### `ref_cita_cita`
 - `id` PK
@@ -117,7 +66,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`)
 
 ### `ref_hobi`
 - `id` PK
@@ -125,7 +74,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`)
 
 ### `ref_pekerjaan`
 - `id` PK
@@ -133,7 +82,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`)
 
 ### `ref_pendidikan`
 - `id` PK
@@ -141,7 +90,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`)
 
 ### `ref_kebutuhan_khusus`
 - `id` PK
@@ -149,7 +98,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`)
 
 ### `ref_kota`
 - `id` PK
@@ -157,7 +106,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `nama`: string
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
-- UNIQUE(`jenjang`, `nama`) — PITFALL: MySQL unique membolehkan duplikat NULL — duplikasi baris global dicegah di service (RefService), bukan andalkan index
+- UNIQUE(`jenjang`, `nama`)
 
 ### `ref_alamat`
 - `id` PK
@@ -179,7 +128,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `id` PK
 - `jenjang`: FK → lembaga [null, nullOnDelete]
 - `kode`: string — santri_baru, naik_kelas, mengulang, pindahan (+ custom); NILAI yang disimpan konsumen
-- `nama`: string — teks tampilan (seragam dengan tabel ref lain; dulu bernama `label`)
+- `nama`: string — teks tampilan
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
 - UNIQUE(`jenjang`, `kode`)
@@ -188,7 +137,7 @@ Tanpa kolom tenant — tenant = pivot `user_lembaga`.
 - `id` PK
 - `jenjang`: FK → lembaga [null, nullOnDelete]
 - `kode`: string — aktif, naik, tidak_naik, pindah_keluar, lulus, tidak_lulus (+ custom, no.51); NILAI yang disimpan konsumen
-- `nama`: string — teks tampilan (seragam dengan tabel ref lain; dulu bernama `label`)
+- `nama`: string — teks tampilan
 - `is_aktif_bawaan`: bool [default false] — Sifat logika (terkunci untuk baris sistem): / true HANYA untuk 'aktif' (is_aktif=true iff status_akhir aktif)
 - `terminal_ke`: string [null] — null = bukan terminal (custom baru selalu null = non-aktif netral)
 - `urutan`: int [default 0]
@@ -210,7 +159,6 @@ Izin = AKSI (`modul.aksi`, katalog `IzinKatalog::MODUL_AKSI`); pivot `user_lemba
 - `model_has_permissions`: penugasan izin langsung ke user (tak dipakai; izin selalu lewat role) — `permission_id` FK [cascade] — `model_type` — `model_id` [bigint] — PRIMARY(`permission_id`, `model_id`, `model_type`)
 
 ### `user_asrama`
-Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca production — belum dibuat sekarang**; dibuat bersama BLOK 10 (setelah presensi).
 - `id` PK
 - `user_id`: FK → users [cascade]
 - `asrama_id`: FK → asrama [cascade]
@@ -308,18 +256,16 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `nama_alias`: string(50) [null] — nama tampilan alternatif (mis. 'Umar bin Khattab')
 - `kapasitas`: int [null]
 - `created_at`, `updated_at`
-- UNIQUE(`jenjang`, `tahun_ajaran`, `nama_kelas`) — satu nama kelas hanya sekali per lembaga + tahun ajaran (kolasi CI; migrasi mem-dedupe + merapikan spasi lebih dulu)
+- UNIQUE(`jenjang`, `tahun_ajaran`, `nama_kelas`) — satu nama kelas hanya sekali per lembaga + tahun ajaran
 
 ### Pola `ref_*` (24 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/mapel/status_awal/status_akhir`)
-- Kolom: `id` PK; `jenjang` FK → `lembaga` (nullable teknis, tanpa baris global; `null` = sisa legacy); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`jenjang`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
-- Urut tampil (v1.10.7): `urutan` ASC, tie-break `nama` ASC — termasuk `ref_status_awal/akhir` (kode = nilai, nama = tampilan).
+- Kolom: `id` PK; `jenjang` FK → `lembaga` (nullable teknis, tanpa baris global; `null` = sisa legacy); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`jenjang`,`nama`) — duplikat NULL dicegah di `RefService`.
 - `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`. `ref_mapel` tambahan: `kode` (20) & `singkatan` (50) — keduanya nullable dan hanya ditulis jalur kamus mapel (`ReferensiController`), sebab `RefService::sebar`/benih lembaga hanya mengisi `jenjang/nama/urutan/is_active`.
 - Tabel loop: `ref_penghasilan`, `ref_transportasi`, `ref_status_tinggal`, `ref_jarak`, `ref_waktu_tempuh`, `ref_bahasa_sehari_hari`, `ref_disabilitas`, `ref_tmp_lahir`, `ref_status_ortu`, `ref_yang_membiayai`, `ref_provinsi`, `ref_kecamatan`, `ref_desa_kelurahan`, `ref_alasan_mutasi`, `ref_jenis_dokumen_santri`, `ref_jenis_dokumen_pegawai`, `ref_status_pernikahan`, `ref_gol_darah`, `ref_jenis_ptk`, `ref_jenjang_sertifikasi`, `ref_tingkat`, `ref_tugas_utama`, `ref_tipe_pelanggaran`, `ref_jalur_sertifikasi`
 
 ## BLOK 2 — Santri & Riwayat (Modul 101 Santri Master + 102 Siklus Santri)
 
 ### `santri`
-**Buku induk: identitas murni** — tanpa relasi riwayat (lembaga/kelas/TA tidak ada di sini).
 - `id` PK
 - `nama_lengkap`: string — Identitas Personal
 - `nama_singkat`: string [null]
@@ -392,13 +338,12 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `foto_url`: string [null]
 - `kepala_keluarga`: string [null] — nama kepala keluarga
 - `is_active_pst`: enum('Ya','Tidak') [default 'Tidak'] — TURUNAN murni: 'Ya' iff punya ≥1 `riwayat_belajar.is_active_riwayat='Ya'`. Bukan input manual; dihitung ulang tiap transisi (ACC/penerimaan, penempatan kelas, naik, mutasi, lulus, berhenti). Lulus/mutasi tidak disimpan di sini — dibaca dari tabel alumni / mutasi_keluar. Santri legacy tanpa riwayat tetap 'Tidak' (nonaktif) sampai ditempatkan.
-- CATATAN visibilitas: santri legacy (tanpa riwayat) boleh dilihat/dikelola pemegang `santri.lihat`; guru/wali tetap lewat jalur masing-masing (bukan endpoint admin).
 - `created_at`, `updated_at`
 - INDEX(`nik`)
 - INDEX(`nisn`)
 
 ### `lembaga_santri`
-**Keanggotaan santri per lembaga** (bukan pivot murni): NIS lokal/kemenag + status + rentang keanggotaan. Multi-lembaga paralel diizinkan (mis. MI+MD); maks 1 baris `is_active_lembaga='Ya'` per (santri, lembaga) — invariant aplikasi.
+- Invariant: maks 1 baris `is_active_lembaga='Ya'` per (santri, lembaga).
 - `id` PK
 - `santri_id`: FK → santri [cascade]
 - `jenjang`: FK → lembaga [cascade]
@@ -409,12 +354,11 @@ Penugasan pengurus asrama (peran `asrama`, ditetapkan super_admin saja). **Pasca
 - `no_urut`: string(20) [null] — nomor urut masuk per lembaga (tidak unik; boleh sufiks huruf mis. `706x` untuk data ganda historis)
 - `nama_sekolah_asal`, `npsn_sekolah_asal` (20), `nss_sekolah_asal` (30), `alamat_sekolah_asal` (text): [null] — detail sekolah asal
 - `is_active_lembaga`: enum('Ya','Tidak') [default 'Ya'] — status keanggotaan
-- `tgl_masuk`: date [null] — saat diterima (PSB/dialog/import); dulu `tgl_mulai`
+- `tgl_masuk`: date [null] — saat diterima
 - `tgl_selesai`: date [null] — saat kelulusan/mutasi
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `nis_lokal`) [multi-NULL boleh] · INDEX(`santri_id`,`is_active_lembaga`) · INDEX(`jenjang`,`is_active_lembaga`)
 - NIS Kemenag hasil generate boleh digenerate ulang & duplikat — TANPA unique.
-- PENGECUALIAN PASANGAN MI↔MD (global sejak v2.61, timbal-balik): admin scoped pemegang MI/MD bisa baca-tulis sisi pasangannya di semua endpoint; non-pasangan tetap terisolasi, act-as tetap ketat.
 
 ### `riwayat_belajar`
 - `id` PK
@@ -723,7 +667,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 ### `pengaturan_halaman` (urutan + tampil/sembunyi tab halaman gabungan; global semua pengguna)
 - `id` PK
 - `page_key`: string(60) [unik] — kunci halaman gabungan dari rute (`/data-induk` → `data_induk`)
-- `urutan`: json [null] — daftar rute tab sesuai urutan tampil (mis. `["/users", "/lembaga"]`). Rute tab didefinisikan di KODE (`src/lib/halaman.ts` `tabHalaman`), jadi daftar ini hanya mengatur posisi tab yang sudah terdaftar — tidak bisa membuat tab baru. Rute yang lahir di kode tapi belum ada di sini ditempatkan mengikuti urutan kode setelah rute yang sudah diatur (tidak hilang, lihat `susunTab` di `src/lib/urutanTab.ts`); rute di sini yang tak lagi ada di kode dibuang
+- `urutan`: json [null] — daftar rute tab sesuai urutan tampil (mis. `["/users", "/lembaga"]`); hanya mengatur posisi tab yang sudah terdaftar di kode
 - `sembunyi`: json [null] — daftar rute yang disembunyikan. Disimpan TERPISAH dari `urutan` supaya menyembunyikan lalu menampilkan lagi mengembalikan posisi aslinya
 - `diubah_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
@@ -736,8 +680,6 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `diubah_oleh`: FK → users [null, nullOnDelete]
 - `created_at`, `updated_at`
 - UNIQUE(`kunci`)
-
-Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangkatnya sendiri (`GridPrefs` di frontend membaca server → perangkat → bawaan; perangkat menang). Karena itu tabel ini tidak mengunci preferensi siapa pun.
 
 ## BLOK 4 — Kepegawaian lanjutan (Modul 200 Kepegawaian)
 
@@ -784,7 +726,7 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `created_at`, `updated_at`
 - INDEX(`pegawai_id`, `hubungan`)
 
-### `dokumen_pegawai` (dulu `pegawai_dokumen`)
+### `dokumen_pegawai`
 - `id` PK
 - `pegawai_id`: FK → pegawai [cascade]
 - `jenis_dokumen_pegawai`: string [null] — ref_jenis_dokumen_pegawai
@@ -870,8 +812,6 @@ Setelan di sini adalah LAPISAN BAWAH: pengguna tetap boleh menimpanya di perangk
 - `keaktifan_pegawai_id`: FK → keaktifan_pegawai [null, nullOnDelete]
 - `created_at`, `updated_at`
 - UNIQUE(`kelas_id`, `mata_pelajaran_id`)
-
-Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kurikulum + komposisi + peta kelas→kurikulum sudah dihapus — migrasi `2026_10_18_070000`). Mapel masuk kelas lewat halaman Pengampu (Tambah mapel / Salin dari kelas lain / import) atau dibuat/diperbarui otomatis saat mapel diisi dari daftar jadwal; baris yang sudah punya nilai atau jadwal tak boleh dikeluarkan. Guru boleh diisi lebih dulu di sel jadwal tanpa mapel — guru itu tersimpan di `jadwal_pelajaran.keaktifan_pegawai_id` sampai mapel menyusul dan pengampu terbentuk.
 
 ### `slot_jam_pelajaran`
 - `id` PK
@@ -967,7 +907,6 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `tahun_ajaran`, `kode`, `uq_peristiwa_nilai`)
-- Catatan: peristiwa TIDAK dikaitkan semester (permintaan pengguna) — semester tetap dimensi instans di `nilai_santri`. Rapor & leger dicetak PER PERISTIWA.
 
 ### `komponen_nilai` (komponen MILIK SATU peristiwa; bobot jadi kolom)
 - `id` PK
@@ -1053,10 +992,6 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 - UNIQUE(`jenjang`, `predikat`, `uq_predikat_ekskul`)
 
 ## BLOK 7 — Presensi & Kedisiplinan (Modul 500 Presensi Santri)
-
-> TBD asrama: `sesi_presensi.kategori` sudah punya `kegiatan_asrama`, tetapi
-> `presensi_santri.kelas_id` masih NOT NULL — presensi asrama (tanpa kelas)
-> menunggu penyesuaian; lihat Lampiran C PRD. Ditunda dulu.
 
 ### `sesi_presensi`
 - `id` PK
@@ -1164,21 +1099,11 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 - INDEX(`santri_id`, `status`)
 
 ### Pola `ref_*` (24 tabel loop + eksplisit `ref_agama/cita_cita/hobi/pekerjaan/pendidikan/kebutuhan_khusus/kota/alamat/mapel/status_awal/status_akhir`)
-- Kolom: `id` PK; `jenjang` FK → `lembaga` (nullable teknis, tanpa baris global; `null` = sisa legacy); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`jenjang`,`nama`) — pitfall multi-NULL, dedup di `RefService`.
-- Urut tampil (v1.10.7): `urutan` ASC, tie-break `nama` ASC — termasuk `ref_status_awal/akhir` (kode = nilai, nama = tampilan).
+- Kolom: `id` PK; `jenjang` FK → `lembaga` (nullable teknis, tanpa baris global; `null` = sisa legacy); `nama`; `urutan` [default 0]; `is_active` [default true]; unique(`jenjang`,`nama`) — duplikat NULL dicegah di `RefService`.
 - `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`. `ref_mapel` tambahan: `kode` (20) & `singkatan` (50) — keduanya nullable dan hanya ditulis jalur kamus mapel (`ReferensiController`), sebab `RefService::sebar`/benih lembaga hanya mengisi `jenjang/nama/urutan/is_active`.
 - Tabel loop: `ref_penghasilan`, `ref_transportasi`, `ref_status_tinggal`, `ref_jarak`, `ref_waktu_tempuh`, `ref_bahasa_sehari_hari`, `ref_disabilitas`, `ref_tmp_lahir`, `ref_status_ortu`, `ref_yang_membiayai`, `ref_provinsi`, `ref_kecamatan`, `ref_desa_kelurahan`, `ref_alasan_mutasi`, `ref_jenis_dokumen_santri`, `ref_jenis_dokumen_pegawai`, `ref_status_pernikahan`, `ref_gol_darah`, `ref_jenis_ptk`, `ref_jenjang_sertifikasi`, `ref_tingkat`, `ref_tugas_utama`, `ref_tipe_pelanggaran`, `ref_jalur_sertifikasi`
 
-## BLOK 10 — Asrama (Modul 505 Asrama)
-
-> **Pasca production** — tidak ada tabel/peran/pivot asrama yang dibuat sekarang.
-> Blok ini arah desain agar keputusan sekarang tidak menutup jalan.
->
-> Asrama = entitas sendiri, **bukan** `lembaga`. Kepengurusan & gedung terpisah;
-> akses pengurus lewat peran `asrama` + pivot `user_asrama`. Daftar per jenjang /
-> jenis kelamin = query dari `asrama_penghuni` ⋈ `santri` ⋈ riwayat akademik
-> (tanpa kolom baru). `santri.tipe_santri` tetap sebagai flag kasar (PSB).
-> Presensi/kegiatan asrama ditunda — lihat catatan BLOK 7.
+## BLOK 10 — Asrama (Modul 505 Asrama, pasca production)
 
 ### `asrama`
 - `id` PK
@@ -1201,7 +1126,6 @@ Daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (modul kur
 - UNIQUE(`asrama_id`, `nama`)
 
 ### `asrama_penghuni`
-Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `id` PK
 - `santri_id`: FK → santri [cascade]
 - `asrama_id`: FK → asrama [cascade]
@@ -1238,9 +1162,6 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `created_at`, `updated_at`
 
 ### Aturan izin keuangan asrama (mengikuti perumusan ulang modul keuangan)
-- Prinsip: tagihan dibuat dari **lembaga**; pengurus **asrama** boleh membayar dan membaca keuangan santri asramanya; ubah terbatas lingkup asrama; hapus **hanya admin lembaga**.
-- Mekanisme penanda (dulu `pos_keuangan.kategori`) ditetapkan saat modul keuangan dirumuskan ulang.
-
 
 ## BLOK 11 — Keuangan (Modul Keuangan, G2)
 
@@ -1266,13 +1187,12 @@ Lifecycle mandiri (tidak lewat `riwayat_belajar`); masuk/keluar bisa kapan saja.
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `tahun_ajaran`, `jenis_id`) — nama `uq_tarif_tagihan`; `tingkat` tak ikut karena nullable-value unik tidak menahan baris ganda
 
-
 ### `dispensasi` (paket keringanan: N aturan jenis + daftar santri penerima)
 - `id` PK
 - `nama`: string(100) — label dispensasi (mis. Anak Pegawai, Beasiswa Yatim)
 - `keterangan`: string(255) [null]
 - `tahun_ajaran`: string(20) — FK → tahun_ajaran [cascadeOnUpdate, cascadeOnDelete]; dispensasi terikat TA
-- `jenjang`: FK → lembaga [cascadeOnUpdate, restrictOnDelete] — varchar(20) [null], lingkup lembaga paket (null = berlaku semua lembaga); aturan paket hanya boleh memakai jenis lembaga ini atau jenis global (`jenjang` null), dan saat generate/pratinjau paket hanya berlaku untuk tagihan jenjang ini (`DispensasiService::saring` membandingkan dengan jenjang utama santri — santri dua lembaga ditagih di primer); pemilihan paket manual di tab Ubah dijaga aturan yang sama (`DispensasiService::lingkupCocok` — paket lembaga lain ditolak 422, sel crosstab membawa `jenjang` agar klien menyembunyikannya lebih dulu)
+- `jenjang`: FK → lembaga [cascadeOnUpdate, restrictOnDelete] — varchar(20) [null], lingkup lembaga paket (null = semua lembaga); paket hanya berlaku untuk tagihan jenjang ini
 - `kuota_bulan`: unsignedInteger [null] — kuota pemakaian per bulan (jumlah tagihan bulanan santri yang boleh memuat paket ini); null = tanpa batas
 - `grup`: string(50) [null] — grup eksklusivitas: paket se-grup tidak menumpuk dalam satu tagihan (maks 1, mis. "prestasi"); null = selalu digabung
 - `is_active`: bool [default true]
