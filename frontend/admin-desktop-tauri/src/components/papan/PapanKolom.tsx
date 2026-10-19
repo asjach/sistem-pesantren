@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { ChevronDown } from '@/icons';
 import { muatRiwayatPapan, pindahStatusPapan, type RiwayatPapan, type StatusPapan } from '@/api/papan';
 import { kelompokkanKolom, type KartuPapan } from '@/lib/papan';
+import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
 
 /** Posisi sisip saat menyeret: sebelum kartu ke-indeks di kolom. */
 export interface SasaranJatuh {
@@ -17,6 +18,49 @@ export const WARNA_STATUS: Record<StatusPapan, string> = {
   sudah: 'var(--success)',
   ditunda: 'var(--muted-foreground)',
 };
+
+/** Urutan kelompok butir di dalam kartu: yang belum selesai lebih dulu supaya
+ *  sisa pekerjaan langsung terlihat, baru yang sudah selesai. */
+const KOLOM_KARTU: readonly StatusPapan[] = ['akan', 'sedang', 'ditunda', 'sudah'];
+
+/** Render satu potongan teks butir; markup markdown tidak ditampilkan mentah. */
+function Potongan({ potongan }: { potongan: PotonganButir }) {
+  if (potongan.jenis === 'kode') {
+    return (
+      <code className="px-1 font-mono text-[11px]" style={{ background: 'var(--muted)' }}>
+        {potongan.isi}
+      </code>
+    );
+  }
+
+  if (potongan.jenis === 'tebal') {
+    return <strong className="font-semibold">{potongan.isi}</strong>;
+  }
+
+  // Tautan ditampilkan sebagai teks + tujuannya: kartu bisa diseret, jadi
+  // tautan yang bisa diklik di dalamnya justru mengganggu.
+  if (potongan.jenis === 'tautan' && potongan.tujuan !== potongan.isi) {
+    return (
+      <span>
+        {potongan.isi}
+        <span className="text-muted-foreground"> ({potongan.tujuan})</span>
+      </span>
+    );
+  }
+
+  return <>{potongan.isi}</>;
+}
+
+/** Teks butir dengan markup ringkasnya dirender. */
+export function TeksButir({ deskripsi }: { deskripsi: string }) {
+  return (
+    <>
+      {pecahButir(deskripsi).map((p, i) => (
+        <Potongan key={i} potongan={p} />
+      ))}
+    </>
+  );
+}
 
 /** Lencana kecil berwarna untuk status atau nama modul. */
 export function Lencana({ label, warna }: { label: string; warna: string }) {
@@ -126,6 +170,31 @@ export function KartuPapan({
           {kartu.jumlahButir.sudah}/{total}
         </span>
       </div>
+
+      {/* Butir ditampilkan langsung di kartu (tidak perlu klik). Dikelompokkan
+          per status dengan urutan tetap, dan tiap butir diberi penanda warna
+          statusnya sendiri supaya butir yang belum selesai tetap kelihatan
+          walau kartunya ada di kolom "sudah". */}
+      {total > 0 ? (
+        <ul className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
+          {KOLOM_KARTU.flatMap((s) =>
+            kartu.butir
+              .filter((b) => b.status === s)
+              .map((b) => (
+                <li key={b.id} className="flex items-start gap-1.5 text-[12px] leading-snug">
+                  <span
+                    aria-hidden="true"
+                    className="mt-[5px] size-1.5 shrink-0"
+                    style={{ background: WARNA_STATUS[b.status] }}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <TeksButir deskripsi={b.deskripsi} />
+                  </span>
+                </li>
+              )),
+          )}
+        </ul>
+      ) : null}
     </article>
   );
 }
@@ -357,7 +426,9 @@ export function DialogButir({ kartu, onTutup }: { kartu: KartuPapan; onTutup: ()
           {kartu.butir.map((b) => (
             <li key={b.id} className="flex items-start gap-2 text-[13px] leading-snug">
               <Lencana label={b.status} warna={WARNA_STATUS[b.status]} />
-              <span className="min-w-0 flex-1">{b.deskripsi}</span>
+              <span className="min-w-0 flex-1">
+                <TeksButir deskripsi={b.deskripsi} />
+              </span>
             </li>
           ))}
           {kartu.butir.length === 0 ? (
