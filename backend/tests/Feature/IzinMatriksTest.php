@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\IzinDokumen;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\TahunAjaran;
@@ -218,7 +219,10 @@ class IzinMatriksTest extends TestCase
             if (in_array($tanda, self::TANPA_MIDDLEWARE_SENGAJA, true)) {
                 continue;
             }
-            $ada = collect($mw)->contains(fn ($m) => is_string($m) && str_starts_with($m, 'permission:'));
+            $ada = collect($mw)->contains(fn ($m) => is_string($m) && (
+                str_starts_with($m, 'permission:')
+                || (str_starts_with($uri, 'api/admin/dokumen/') && str_starts_with($m, IzinDokumen::class.':'))
+            ));
             if (! $ada) {
                 $tanpaIzin[] = $tanda;
             }
