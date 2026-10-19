@@ -93,6 +93,10 @@
   --background: #f2f5f1;
   --foreground: #1d241e;
 
+  /* Warna teks beraksen (judul kartu papan, dsb). Persentase accent
+     diturunkan di .dark karena accent dasarnya (#2c5c38) tenggelam di
+     latar gelap - di sana 72% hanya mencapai 3.99:1, di bawah ambang
+     4.5:1 untuk teks normal. */
   --accent-readable: color-mix(in srgb, var(--accent) 72%, var(--foreground));
 
   --success: color-mix(in srgb, #16a34a 72%, var(--foreground));
@@ -173,6 +177,7 @@
   --destructive-foreground: #1a0b0a;
   --warning: #fbbf24;
   --warning-foreground: #fcd34d;
+  --accent-readable: color-mix(in srgb, var(--accent) 60%, var(--foreground));
   --accent-terang: color-mix(in srgb, var(--accent) 70%, #ffffff);
   --border-hover: color-mix(in srgb, var(--accent-terang) 72%, var(--background));
   --shadow-card: 0 0 0 1px var(--border);

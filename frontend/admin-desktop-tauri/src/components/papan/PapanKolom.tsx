@@ -145,10 +145,10 @@ export function KartuPapan({
         {/* Rincian poin dibuka sebagai POPOVER yang menempel di judul,
             bukan dialog penuh layar: yang dibaca cuma satu poin, dan
             popover membiarkan poin itu tetap terlihat di papan.
-            PopoverAnchor dipakai (bukan Trigger) supaya tombol ini tetap
-            jadi tombol biasa - bisa ditarik dan tidak menelan keyboard.
-            Warna judul TETAP: efek hover ada di border kartu.
-            Lihat .kartu:hover di index.css. */}
+            PopoverTrigger dipakai sebagai judulnya; ia yang membuka panel
+            saat diklik (Anchor tidak membuka apa pun). Warna judul TETAP -
+            tidak berubah saat hover, karena efek hover ada di border kartu
+            (lihat .kartu:hover di index.css). */}
         <PopoverButir
           kartu={kartu}
           terbuka={buka}
@@ -457,7 +457,11 @@ export function PopoverButir({
         id={idTombol}
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
-        className="min-w-0 flex-1 cursor-pointer text-left text-[13px] leading-snug font-medium"
+        // Warna judul memakai --accent-readable, bukan --primary mentah:
+        // --primary di tema gelap cuma 2.10:1 terhadap lantai kartu (jauh
+        // di bawah ambang 4.5:1), sementara accent-readable mencampur
+        // accent dengan foreground sehingga ikut menyesuaikan tema.
+        className="min-w-0 flex-1 cursor-pointer text-left text-[13px] leading-snug font-medium text-[var(--accent-readable)]"
       >
         {kartu.subNama}
       </PopoverTrigger>
