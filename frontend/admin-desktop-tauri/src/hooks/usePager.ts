@@ -15,7 +15,7 @@ const EVENT_PERPAGE_GLOBAL = 'simpes:perpage-global';
  *  dari "sama dengan bawaan" untuk migrasi). */
 function cobaPerPage(v: unknown): PerPage | null {
   const lama = typeof v === 'string' ? Number(v) : (v as number);
-  const n = lama === 0 ? PER_PAGE_ALL : lama;
+  const n = lama === 10_000 ? PER_PAGE_ALL : lama;
   return (PER_PAGE_OPTIONS as readonly number[]).includes(n) ? (n as PerPage) : null;
 }
 

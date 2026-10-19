@@ -50,6 +50,16 @@ describe('usePager', () => {
     expect(localStorage.getItem(KUNCI_PERPAGE_GLOBAL)).toBe('100');
   });
 
+  it.each(['0', '10000'])('memuat pilihan All tersimpan %s sebagai semua data', async (nilai) => {
+    localStorage.setItem(KUNCI_PERPAGE_GLOBAL, nilai);
+    const { result } = renderHook(() => usePager('tabel_test'));
+
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.perPage).toBe(0);
+    act(() => result.current.setPerPage(0));
+    await waitFor(() => expect(localStorage.getItem(KUNCI_PERPAGE_GLOBAL)).toBe('0'));
+  });
+
   it('setPage menyimpan pref dan melarangkan nilai di bawah 1', async () => {
     const { result } = renderHook(() => usePager('tabel_test'));
     await waitFor(() => expect(result.current.ready).toBe(true));

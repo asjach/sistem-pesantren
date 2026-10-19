@@ -149,7 +149,7 @@ export default function KeuanganPage() {
     try {
       const res = await crosstabTagihan({
         page,
-        per_page: String(perPage),
+        per_page: perPage === 0 ? 'all' : String(perPage),
         jenjang,
         tahun_ajaran: ta,
         santri: cariTagihanTertunda === '' ? undefined : cariTagihanTertunda,
