@@ -178,3 +178,4 @@ Aturan praktis:
 | 2.422 | 2026-10-19 | [Alur] Rapor hanya bisa dicetak bila seluruh santri di kelas sudah lengkap nilainya, dengan alasan terkunci tampil di tombol |
 | 2.423 | 2026-10-19 | [Alur] Kwitansi pembayaran kini bisa dicetak atau disimpan PDF, baik dari dialog setelah bayar maupun dari tabel pembayaran harian |
 | 2.467 | 2026-10-19 | [Dokumen] Branch audit digabung ke main; 51 entri changelog lama dirangkum ke entri 2.416–2.421 dan rujukan dokumen diselaraskan |
+| 2.468 | 2026-10-19 | [Dokumen] Status dan rencana per modul kini terpusat di `docs/PETA-MODUL.md` (sudah/sedang/akan/ditunda + rincian teknis butir sisa); daftar status di PRD, arsitektur, backend-detail, dan Lampiran C operasi dipindah ke sana dan tinggal menunjuk |

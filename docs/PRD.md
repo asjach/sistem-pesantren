@@ -57,10 +57,14 @@ Pesantren menaungi beberapa lembaga — MI, MD, MTs, Mu'allimin — sebagai bari
 
 ### 1.4 Ruang Lingkup
 
+> **Status per modul (sudah / sedang / akan / ditunda) terpusat di
+> [PETA-MODUL.md](PETA-MODUL.md).** Bab ini hanya memuat **ruang lingkup &
+> prioritas**, bukan status kode — jangan salin status ke sini.
+
 **Production awal (G0–G3, prioritas):**
 - G0: auth, referensi/master (001–004). Desktop admin_lembaga (pengganti Excel).
 - G1: PSB, santri (kelas, mutasi, naik, lulus) (100–102). Desktop.
-- G2: **keuangan — sudah dirumuskan ulang (v2.286) dan diimplementasikan**: master jenis tagihan + tarif, generate tagihan, kasir harian + kwitansi, crosstab tagihan, dispensasi. 13 fitur lanjutan masih rencana (lihat §Rencana Fitur Keuangan). Kliennya **desktop**, bukan mobile kasir.
+- G2: **keuangan — sudah dirumuskan ulang (v2.286) dan diimplementasikan**: master jenis tagihan + tarif, generate tagihan, kasir harian + kwitansi, crosstab tagihan, dispensasi. 13 fitur lanjutan belum dikerjakan (status & urutan di [PETA-MODUL.md](PETA-MODUL.md) §3.1). Kliennya **desktop**, bukan mobile kasir.
 - G3: ortu mobile (daftar; subset 100/203). Setelah ini production.
 
 **Pasca (detail ditunda, kecuali ada di arsip):**
@@ -70,7 +74,7 @@ Pesantren menaungi beberapa lembaga — MI, MD, MTs, Mu'allimin — sebagai bari
 - G7: absen santri (`presensi_santri` tabel sudah ada, UI belum), asrama (**Modul 505 hanya digambar** — tabel/peran/pivot belum dibuat), tahfizh (503, tabel ada, UI belum).
 - G8: notifikasi, pengumuman, gateway, fingerprint (belum ada).
 
-**Kurikulum/nilai:** **sudah dibangun** — halaman Mata Pelajaran, Pengampu, dan Jadwal Pelajaran (modul kurikulum dihapus v2.413, daftar mapel kelas kini baris `pengampu_mapel`), lalu 4 halaman Penilaian (Master/Impor/Leger/Rapor) dengan nilai terikat peristiwa. Sisa tertunda tercatat di §Modul Penilaian.
+**Kurikulum/nilai:** **sudah dibangun** — halaman Mata Pelajaran, Pengampu, dan Jadwal Pelajaran (modul kurikulum dihapus v2.413, daftar mapel kelas kini baris `pengampu_mapel`), lalu 4 halaman Penilaian (Master/Impor/Leger/Rapor) dengan nilai terikat peristiwa. Sisa tertunda di [PETA-MODUL.md](PETA-MODUL.md) §3.2–§3.3.
 
 ### 1.5 Definisi Singkat
 
@@ -96,10 +100,11 @@ Lihat Lampiran D. Inti: `lembaga` (PK `jenjang`: MI/MD/MTS/MLN), `tahun_ajaran`,
 - **Invarian generate**: tidak pernah membuat duplikat; tagihan bulanan yang sudah dibayar dilewati; non-bulanan dilewati bila nominal baru < terbayar; dispensasi aktif diterapkan otomatis hanya untuk paket yang memuat Santri itu dan lingkup jenjangnya cocok (null = semua lembaga), termasuk saat paket dipilih manual di tab Ubah; kuota dialokasikan ke N bulan pertama per Santri; paket se-grup tidak menumpuk ("menempel menang"); generate tidak pernah menambah penerima.
 - **Jatuh tempo**: jenis bulanan otomatis tanggal 10 per periode; non-bulanan boleh dikosongkan (berarti langsung tunggakan).
 
-### Rencana Fitur Keuangan (2026-10-16 — rencana, BELUM diimplementasikan)
-Prioritas disepakati: kwitansi cetak → tutup buku harian → penomoran runut (ketiganya soal akuntabilitas kas).
+### Rencana Fitur Keuangan (konsep — status & urutan ada di PETA-MODUL.md)
+Daftar di bawah adalah **konsep** 13 fitur lanjutan keuangan. **Status tiap butir
+dan urutan pengerjaannya terpusat di [PETA-MODUL.md](PETA-MODUL.md) §1.5 dan
+§3.1** — jangan salin statusnya ke sini.
 
-> **Status per butir.** Sudah jalan: **13. Dasbor ringkasan** (hanya blok dasar — total tagihan/terbayar/tunggakan + komposisi lunas/belum/sebagian; tren bulanan & rincian per TA belum) dan **3. Cetak/ulang kwitansi** (dokumen 1 halaman; dari dialog setelah bayar — berikut rincian tagihan — atau dari tabel pembayaran harian; unduh = dialog cetak → Simpan sebagai PDF). **4. Rekap per kas** dan **12. Ekspor laporan** masih rencana utuh; butir 3 sisanya (tutup buku, penomoran runut) juga rencana.
 1. **Laporan tunggakan (aging)** — umur piutang 30/60/90+ hari per santri/kelas/lembaga dari `jatuh_tempo`; dasar surat tagihan & prioritas penagihan.
 2. **Pengingat tunggakan** — penanda di crosstab + pengingat berkala (WhatsApp menyusul, modul notifikasi G8).
 3. **Kwitansi cetak** — struk per transaksi berkop lembaga: nomor kwitansi, santri, rincian tagihan, total, metode/kas, kasir (`diterima_oleh`), tanggal; cetak ulang dari tabel harian.
@@ -114,7 +119,7 @@ Prioritas disepakati: kwitansi cetak → tutup buku harian → penomoran runut (
 12. **Ekspor laporan** — Excel/PDF untuk crosstab, transaksi harian, rekap per jenis, tunggakan (pakai ulang pola ekspor modul lain).
 13. **Dasbor ringkasan** — total tagihan vs terbayar vs tunggakan per lembaga/TA + tren penerimaan bulanan.
 
-### Modul Penilaian (2026-10-16 — DIIMPLEMENTASIKAN, fondasi lengkap; status terbaru di §Status implementasi modul penilaian di bawah)
+### Modul Penilaian (2026-10-16 — DIIMPLEMENTASIKAN, fondasi lengkap; status & sisa di [PETA-MODUL.md](PETA-MODUL.md) §1.4)
 Keputusan terkunci: (1) nilai akhir dihitung hanya bila SEMUA komponen berbobot terisi (pratinjau melaporkan yang kurang); (2) bobot bawaan per jenjang UH 20 + Tugas 20 + PTS 20 + ASAS 40 (= 100), bisa diubah per TA; (3) offset predikat A ≥ KKM+20, B ≥ KKM+10, C di antaranya, D < KKM, berjangkar ke KKM `AKHIR`. Spesimen rapor per jenjang (MI/MD/MTS) sudah ada pada pengurus — jadi acuan template cetak saat implementasi.
 - **Dua jalur input, komponen tidak di-hardcode.** (A) Hitung: master `komponen_nilai` + bobot per (jenjang, TA) — sekolah bebas tambah/hapus/nonaktifkan komponen (UH, Tugas, PTS, ASAS/ASAT/UAP/UJIAN/UM); tabel `nilai_komponen` (santri, pengampu_mapel, TA, semester, komponen → skor, unik); `nilai_akhir` = Σ skor×bobot, `sumber='hitung'`. (B) Impor langsung: leger wide nilai akhir → `nilai_akhir`, `sumber='impor'`, komponen boleh kosong. Tabel `nilai_santri` dipakai apa adanya (formatif/sumatif dibiarkan 0). Impor menimpa hasil hitungan (dengan hitungan baris tertimpa di pratinjau); hitung-ulang melewati baris impor kecuali dicentang paksa; kolom `sumber` tampil sebagai lencana di leger.
 - **KKM tunggal per peristiwa**: master `kkm_kegiatan` per (kegiatan — baris komponen + satu baris khusus `AKHIR`, jenjang, TA). Skor komponen merah bila < KKM komponennya; nilai akhir (kedua jalur) merah bila < KKM `AKHIR`; predikat dari offset di atas.
@@ -145,18 +150,26 @@ Sampel: rapor semester genap 2025/2026 kelas 1A MI & 1B MD. Struktur SAMA, isi/k
 - **Tes unit fungsi murni**: terbilang per-digit, ordinal peringkat, jumlah, rata-rata, aturan predikat vs KKM (murah dites, mahal bila salah di ratusan rapor).
 - **Bekukan penanda tangan**: nama + gelar wali/kepala di-snapshot saat batch pertama dicetak agar cetak ulang identik.
 
-#### Status implementasi modul penilaian (2026-10-16, revisi per-peristiwa)
+#### Modul penilaian (2026-10-16, revisi per-peristiwa)
+
+> **Status & butir sisa terpusat di [PETA-MODUL.md](PETA-MODUL.md) §1.4 dan §3.2.**
+> Paragraf di bawah adalah **model & keputusan rancangan** (mengapa begitu),
+> bukan daftar status. Jangan salin status ke sini.
+
 **Model terkunci (dikonfirmasi pengguna)**: nilai diikat **PERISTIWA** — `peristiwa_nilai` per (jenjang, TA), tanpa semester; `komponen_nilai` (bobot jadi kolom, `sumber` manual/rapor_otomatis) MILIK satu peristiwa; `kkm_kegiatan` & `rentang_predikat` per peristiwa; `nilai_santri` unik per (santri, pengampu, TA, semester, peristiwa). Cakupan peserta peristiwa: `semua` (ASAS), `kecuali_akhir` (ASAT), `tingkat_akhir` (UJIAN & UAP) — tingkat akhir = `ref_tingkat.urutan` tertinggi jenjang. UJIAN dilewati untuk jenjang MD (jalur Kemenag); komponen UJIAN = UM (manual, bawaan 60) + Rata-rata Rapor (otomatis dari rata-rata rapor `jumlah_tingkat_rapor` tingkat sebelumnya, bawaan 2, boleh ditimpa impor).
-**Sudah jalan** ([changelog](CHANGELOG.md) v2.401 + v2.402 + v2.403 + v2.404): master peristiwa (CRUD + "Muat bawaan" **5 peristiwa**: PTS, ASAS, ASAT, UJIAN, UAP + penanda **`jenis_rapor`**), komponen & bobot per peristiwa dengan **tiga sumber nilai** (manual / otomatis dari rapor N tingkat / **dari peristiwa lain**), KKM, predikat, ekstrakurikuler, predikat ekskul, prestasi; **hitung ulang** nilai akhir dari komponen (`POST /penilaian/hitung`, melewati baris impor kecuali `paksa=1`); leger crosstab (santri × mapel) **per peristiwa, semua peristiwa** + unduh Excel; rapor **per peristiwa ber-rapor** (ASAS/ASAT = akhir, **PTS = sementara**; UJIAN/UAP tidak berapor) dengan kop, identitas, nilai + terbilang + guru, rekap jumlah/rata-rata/peringkat (cutoff 3/10/semua), halaman 2 (status kenaikan, ekskul, prestasi, ketidakhadiran, catatan wali, TTD) + pratinjau cetak browser; cek kelengkapan per kelas (`rapor-kelas`); impor 4 template via mesin `import-potong` (nilai memuat kolom mapel dinamis + konteks peristiwa/komponen); izin `penilaian.*` + grup nav "Penilaian" + 4 halaman (pemilih peristiwa di Master/Impor/Leger/Rapor).
-**Ditunda / belum**: kunci semester + jejak cetak; cetak massal satu klik; absensi otomatis dari `presensi_santri`; unduh "data existing" di dialog impor; snapshot penanda tangan; bobot UJIAN bawaan (60/40) masih placeholder — sesuaikan kebijakan; peristiwa belum punya mekanisme "salin dari TA sebelumnya" (tiap TA dibuat ulang / klik "Muat bawaan").
+**Sudah jalan**: lihat [PETA-MODUL.md](PETA-MODUL.md) §1.4 (daftar fitur yang live) — riwayat per versi di [CHANGELOG.md](CHANGELOG.md) v2.401–v2.404.
+**Belum dikerjakan**: lihat [PETA-MODUL.md](PETA-MODUL.md) §3.2.
 **Prasyarat di luar modul ini**: **SUDAH TERPENUHI** ([changelog](CHANGELOG.md) v2.405, disederhanakan v2.413) — `mata_pelajaran` & `pengampu_mapel` kini punya halaman pengelola lengkap (grup nav "Kurikulum"): master mapel per jenjang (termasuk KKM + urutan rapor) dan pengampu (kelas × mapel → guru dari keaktifan pegawai; daftar mapel kelas ditambah lewat "Tambah mapel", "Salin dari kelas lain", atau import). Selama tabel-tabel itu masih 0 baris (mis. DB yang belum diisi), leger/rapor memang tampil tanpa kolom mapel — itu soal data, bukan kode.
 **Keputusan yang diambil saat implementasi**: (a) impor `nilai` memakai kolom mapel dinamis (seluruh header file diterima) — `konfigurasi.kolomDariFile` ditambahkan ke `ImportBertahapUmumDialog` (aditif); (b) ekstrakurikuler yang belum ada di master **dibuat otomatis** saat impor; (c) `predikat_ekskul` global (jenjang null) hanya super_admin; (d) migrasi restrukturisasi memindahkan konfigurasi lama ke peristiwa ASAS dan **menghapus** tabel `komponen_nilai_bobot`; (e) **PTS = peristiwa sendiri** (keputusan pengguna 2026-10-16, mengoreksi v2.403): rapor sementara + komponen "PTS" di ASAS/ASAT **bersumber dari peristiwa PTS** (`sumber='peristiwa'`) sehingga guru mengisi PTS sekali; rujukan antar-peristiwa **satu tingkat** (tanpa rekursi) dan ditolak bila diri sendiri / beda jenjang / beda TA.
 
-#### Status implementasi modul mapel & pengampu (2026-10-17)
+#### Modul mapel & pengampu (2026-10-17)
+
+> **Status & butir sisa terpusat di [PETA-MODUL.md](PETA-MODUL.md) §1.3 dan §3.3.**
+> Paragraf di bawah adalah **model & keputusan rancangan**.
+
 **Model terkini**: daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (kelas × mapel → guru via `keaktifan_pegawai`, null = belum ada guru). Modul kurikulum (per jenjang) + komposisi (`kurikulum_mapel` + cakupan tingkat `kurikulum_mapel_tingkat`) + peta `kelas_kurikulum` **DIHAPUS** pada v2.413 bersama seluruh endpoint & halamannya. `mata_pelajaran` — KKM + urutan tampil rapor pindah ke master mapel (`kkm` decimal null = predikat manual; `urutan` int default 0) sehingga kolom itu tak hilang. `slot_jam_pelajaran` per jenjang; `jadwal_pelajaran` = pengampu × slot × hari (+ruangan) dengan penjaga bentrok ganda. Kamus nama mapel lintas jenjang: `ref_mapel` (kelola di halaman Referensi).
-**Sudah jalan**: 3 halaman grup nav "Kurikulum" — **Mata Pelajaran** (tabel inline-edit + KKM/urutan + kamus: terapkan/buat dari kamus + import), **Pengampu** (rail tingkat/kelas multi-pilih; kolom Kelas/Mapel/Kelompok/KKM/Guru; dialog **Tambah mapel** [kelas + mapel jenjang yang belum terpasang + guru opsional] dan **Salin dari kelas lain** [mapel sumber yang belum ada ditambahkan tanpa guru]; import Excel), **Jadwal Pelajaran** (matriks hari×slot). Penjaga: hapus mapel ditolak bila sudah dipakai pengampu; baris pengampu bernilai/jadwal tak bisa dikeluarkan (sync per kelas); mapel wajib sejenjang dengan kelas; salin wajib sejenjang; hapus slot ditolak bila terpakai jadwal; bentrok kelas & bentrok guru. Izin `kurikulum.{lihat,tambah,ubah,hapus}`.
-**Verifikasi**: `KurikulumModulTest` **7 tes / 133 asersi** (mapel CRUD + KKM/urutan + validasi + larangan hapus; pengampu simpan + urutan rapor + KKM terbawa + wajib sejenjang + guard nilai; salin [tambah tanpa guru, ulang = 0, kelas sama & beda jenjang ditolak]; pengampus multi-kelas + wewenang per kelas; jadwal bentrok ganda); `KurikulumMapelPage.test.tsx` 13 tes; `npm run typecheck` hijau; Pint hijau.
-**Ditunda / belum**: jadwal belum bisa dilihat per GURU (baru per kelas); cetak/unduh jadwal per kelas; salin antar-TA (kelas tingkat atas ← kelas tingkat bawah); tes endpoint tersisa (slot/jadwal CRUD penuh, `guruAktif`, `indexMapel` filter); halaman Pengampu belum punya tes komponen.
+**Sudah jalan**: 3 halaman grup nav "Kurikulum" (Mata Pelajaran, Pengampu, Jadwal Pelajaran) — daftar fitur & penjaganya di [PETA-MODUL.md](PETA-MODUL.md) §1.3. Izin `kurikulum.{lihat,tambah,ubah,hapus}`.
+**Belum dikerjakan**: [PETA-MODUL.md](PETA-MODUL.md) §3.3.
 **Catatan data**: `mata_pelajaran` & `pengampu_mapel` di DB dev masih **0 baris** — modul siap dipakai, tinggal mengisi master mapel lalu menambah/salin mapel per kelas agar Leger/Rapor Penilaian menampilkan kolom mapel.
 
 

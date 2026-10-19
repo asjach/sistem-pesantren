@@ -93,8 +93,15 @@ pasca production and `kasir` was removed v2.38. One user may hold multiple roles
 ### 5. Backend modules
 
 Status legend: ✅ implemented & migrated · 🟨 partial (main path exists, gaps
-listed) · 🔲 not built (draft, opens on demand). The single status matrix for the
-whole project lives in §10 — other files point there.
+listed) · 🔲 not built (draft, opens on demand).
+
+**Status & rencana per modul terpusat di [PETA-MODUL.md](PETA-MODUL.md)** —
+sudah/sedang/akan/ditunda per modul beserta rincian teknis butir sisanya.
+Matriks status §10 yang lama sudah **dipindah** ke sana (file ini tidak lagi
+memuatnya). Rujukan riwayat perubahan tetap [CHANGELOG.md](CHANGELOG.md).
+
+Legenda di bawah hanya penanda ringkas di dalam teks teknis; otoritasnya ada di
+peta itu.
 
 #### Phase 0 — Foundation ✅ (migrated, seeded)
 
@@ -641,35 +648,28 @@ app has no usable backend path yet.
 * MySQL: index names ≤64 chars (`uq_*` short names); multi-NULL uniques
   guarded in service, not relied on.
 
-### 10. Implementation status matrix
+### 10. Status per modul — dipindah
 
-Lihat tabel berikut sebagai **satu-satunya matriks status**; dokumen lain merujuk ke sini. Istilah: **Live** = kode ada dan terhubung (bukan jaminan lolos uji runtime/production); **Sebagian** = jalur utama ada dengan celah yang disebut eksplisit; **Rencana** = belum ada kode.
+Matriks status per area, roadmap, dan daftar butir sisa **sudah dipindah** ke
+**[PETA-MODUL.md](PETA-MODUL.md)** (satu-satunya tempat status per modul:
+sudah/sedang/akan/ditunda + rincian teknis butir sisanya). File ini tidak lagi
+memuatnya agar tidak ada dua versi yang saling menyimpang.
 
-| Area | Migrated | Seeded | API live | Frontend | Catatan |
-|---|---|---|---|---|---|
-| 001 setup | n/a | n/a | n/a | — | Fondasi |
-| 002 schema | ✅ | n/a | n/a | — | Jumlah tabel/file migrasi diperiksa dari DB & `git`, bukan angka statis di dokumen |
-| 003 auth/users | ✅ | ✅ roles | ✅ | Live | 5 peran efektif |
-| 004 ref/master (kamus, lembaga/TA/kelas) | ✅ | ✅ no.51 | ✅ | Live | Kamus = fan-out per lembaga |
-| 100 PSB full (daftar, paket MI-MD, verify/seleksi/ACC, portal, dokumen, import) | ✅ | ✅ no.51 | ✅ | Live | Publik + admin + portal |
-| 101 Santri (CRUD, import satu pintu, kamus, policy, kolom NIS, samakan NIS) | ✅ | — | ✅ | Live | — |
-| 102 Siklus (salin genap, naik, pindah, mutasi, lulus, roster + arsip, MI-MD, beku kelas) | ✅ | — | ✅ | Live | — |
-| 200 Pegawai / 201 Kurikulum-Mapel / 202 Nilai-Rapor | ✅ | — | ✅ | Live | Sisa pekerjaan per modul ada di §5 |
-| Keuangan (G2) | ✅ | — | ✅ | Live (fondasi) | Cetak kwitansi **live**; butir lanjutan (tutup buku, penomoran runut, rekap per kas, ekspor, aging, audit) **Rencana** — lihat `PRD.md` |
-| 203 Portal Wali | ✅ | — | 🟨 sebagian | Rencana (mobile) | Hanya jalur `role:orang_tua`: PSB lanjutan, keluarga, pengajuan; tak ada dashboard/tagihan/aktor santri |
-| Fase 5 (500–505), infra (900–901) | ✅ tabel | — | 🔲 | — | Presensi/tahfizh/asrama & deploy belum dikerjakan |
-| Frontend apps | n/a | n/a | n/a | 1 Live, 4 Rencana | Hanya `admin-desktop-tauri`; kasir = halaman desktop, bukan app terpisah |
+Yang tetap tinggal di file ini: deskripsi teknis per modul (§5), ringkasan model
+data (§7), konvensi API (§8), dan NFR (§9).
 
-### 11. Roadmap
+### 11. Catatan urutan rilis (konteks)
 
-1. Inti ✅ live (100/101/102 + matriks izin + import satu pintu + halaman MI-MD): pemeliharaan + pengerasan (audit log review, load test, runbook backup/restore).
-2. Berikutnya bila diminta: modul 200 → 201 → 202 → 203 (tiap modul: service + policy + controller + tests), lalu Fase 5 + infra (500–505, 900–901).
-3. Aplikasi admin desktop tetap satu (`admin-desktop-tauri`); 5 aplikasi lain dibuka sesuai modul backend-nya.
-4. `kelas_lulus_id` alumni sudah live (v2.52). **Modul keuangan (termasuk peran
-`kasir`) dirumuskan ulang dari nol dan dikerjakan PALING AKHIR — tahap terakhir
-sebelum production** (cakupan: jenis transaksi, metode bayar, peran loket
-ditentukan saat tahap itu dimulai; tidak dibahas sekarang agar tidak merusak
-susunan yang berjalan).
+- Inti (100/101/102 + matriks izin + import satu pintu + halaman MI-MD) sudah
+  live: yang tersisa untuk tahap ini adalah pengerasan (audit log review, load
+  test, runbook backup/restore).
+- Aplikasi admin desktop tetap satu (`admin-desktop-tauri`); aplikasi mobile
+  dibuka sesuai modul backend-nya.
+- `kelas_lulus_id` alumni sudah live (v2.52).
+- Catatan lama "keuangan dikerjakan paling akhir" **sudah tidak berlaku** —
+  keuangan sudah live (fondasi). Urutan butir lanjutan keuangan ada di
+  [PETA-MODUL.md](PETA-MODUL.md) §3.1. Catatan itu ditulis saat keuangan masih
+  belum dirumuskan ulang (pra v2.286).
 
 ### 12. Out of scope
 

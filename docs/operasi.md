@@ -17,16 +17,16 @@
 | ---- | ------------------------------------------------------------------------- | ----------- | --------------- |
 | G0   | 001-004 fondasi                                                           | Desktop     | Production awal |
 | G1   | 100 PSB Penerimaan, 101 Santri Master, 102 Siklus Santri                  | Desktop     | Production awal |
-| G2   | Modul Keuangan (master tarif, generate tagihan, kasir, crosstab, dispensasi) | Desktop     | **Live (fondasi)** — 13 fitur lanjutan rencana |
+| G2   | Modul Keuangan (master tarif, generate tagihan, kasir, crosstab, dispensasi) | Desktop     | **Live (fondasi)** — 13 fitur lanjutan belum dikerjakan ([PETA-MODUL.md](PETA-MODUL.md) §3.1) |
 | G3   | 100 daftar, 203 Portal Wali subset                                        | Mobile ortu | Backend sebagian; app belum dibuat |
 | G4+  | 500–505 (presensi, tahfizh, asrama), notif/gateway                        | Menyusul    | Pasca, TBD      |
 
 Estimasi solo: G0 3–4 mgg; G1 4–5; G2 2–3; G3 3–4. Total G0–G3 ±4–5 bln.
 
 > Tabel di atas adalah **prioritas pengerjaan**, bukan status kode. Status
-> implementasi terkini hanya ada di matriks tunggal `backend-detail.md` §10;
-> modul 200/201/202 dan keuangan sudah punya kode, rute, dan halaman meski
-> dulunya dijadwalkan sebagai G4+.
+> implementasi terkini hanya ada di **[PETA-MODUL.md](PETA-MODUL.md)** (pusat
+> status per modul); modul 200/201/202 dan keuangan sudah punya kode, rute, dan
+> halaman meski dulunya dijadwalkan sebagai G4+.
 
 | Peran               | Tanggung jawab (RACI ringkas) |
 | ------------------- | ----------------------------- |
@@ -123,7 +123,7 @@ Manual per peran, video pendek, FAQ.
 
 Garansi 3 bln; respons 1×24 jam. Sisa G4+ (presensi, tahfizh, asrama) dibuka
 setelah G0–G3 stabil production; 200/201/202 dan keuangan sudah dikerjakan
-lebih awal (lihat matriks status).
+lebih awal (lihat [PETA-MODUL.md](PETA-MODUL.md)).
 
 ---
 
@@ -133,23 +133,26 @@ Diagram Crow's Foot diringkas di Bab 6 (`arsitektur.md`) dan `docs/SCHEMA.md`. F
 
 ## Lampiran C — Isu Terbuka / TBD
 
-**Sudah selesai** (tidak lagi TBD): G4 Dokumen Santri/Pegawai/Madrasah, G4 Pegawai/PTK, G5 Laporan Keuangan (crosstab tagihan + kasir), G5 Input Nilai, G7 Rapor, G7 Jadwal Pelajaran.
+**Daftar isian terbuka dipindah.** Butir yang belum dikerjakan, per modul,
+beserta rincian teknisnya kini **terpusat** di
+**[PETA-MODUL.md](PETA-MODUL.md)** §1 (peta modul) dan §3 (rincian teknis butir
+sisa). Lampiran ini tidak lagi mendaftarnya agar tidak ada dua versi.
 
-**Status ringkas**: rujukan tunggal ada di matriks `backend-detail.md` §10.
-Keuangan = live (fondasi) + 13 fitur lanjutan rencana. Portal wali = sebagian
-(PSB/keluarga/pengajuan; tanpa dashboard & tagihan). Klien desktop = 1 app
-berjalan; 4 app mobile rencana.
+Yang tetap tinggal di sini: **TBD yang butuh keputusan/rancangan**, bukan
+daftar pekerjaan yang sudah jelas.
 
-**Masih terbuka:**
+**Masih terbuka (butuh keputusan pengguna):**
 
-- **Modul Keuangan — 13 fitur lanjutan** (kwitansi cetak, tutup buku harian, penomoran kwitansi runut, laporan aging, rekap per kas, jejak audit, maker-checker, kartu piutang, split payment, ekspor, dasbor). Prioritas disepakati: kwitansi cetak → tutup buku harian → penomoran runut. Lihat `PRD.md` §Rencana Fitur Keuangan.
-- **Modul Penilaian — sisanya**: kunci semester + jejak cetak, cetak massal satu klik, absensi otomatis dari `presensi_santri`, unduh "data existing" di dialog impor, snapshot penanda tangan, bobot UJIAN bawaan (60/40) masih placeholder, mekanisme "salin peristiwa dari TA sebelumnya".
-- **Modul Kurikulum/Mapel — sisanya**: jadwal per guru (bukan per kelas), cetak/unduh jadwal per kelas, salin mapel antar-TA, tes endpoint tersisa.
-- **Klien desktop — sisanya**: jalur peran `guru`/`orang_tua`/`santri` (kini hanya `super_admin`/`admin`), aplikasi mobile (4 klien belum di-scaffold).
-- G4: Absensi Guru (`presensi_pegawai` tabel sudah ada, UI belum).
-- G6: Statistik Pengurus (Modul 504 ringkas).
-- G7: Absen Santri (`presensi_santri` tabel sudah ada, UI belum), **Asrama (505 — gambaran umum v1.10: entitas `asrama`+`user_asrama`+peran `asrama`; tabel/peran/pivot BELUM dibuat, PASCA PRODUCTION, tidak dikerjakan dalam waktu dekat)**, Tahfizh (503, tabel ada, UI belum).
-- G8: Notifikasi, Pengumuman, Gateway, Fingerprint (belum ada). Fase 3–4 cadangan.
+- **Format penomoran kwitansi runut** — pola `KW-MI-2026-000123` baru usulan;
+  perlu ditetapkan sebelum dikerjakan (peta §3.1 butir 7).
+- **Bobot UJIAN bawaan** — kini placeholder UM 60 / Rata-rata Rapor 40; menunggu
+  kebijakan pesantren (peta §3.2).
+- **Tarif per asrama** — belum diakomodasi; keputusan tetap ditunda sampai
+  modul 505 dibuka (lihat TBD asrama di bawah).
+- **Aturan peringkat rapor** — cutoff 3/10/semua sudah jadi parameter cetak,
+  tetapi aturan bawaannya masih perlu konfirmasi.
+- **Notifikasi/pengingat tunggakan** — bergantung modul notifikasi (G8) yang
+  belum ada; yang bisa dikerjakan sekarang hanya penanda visual.
 
 TBD khusus asrama (v1.10 — semua pasca production):
 
