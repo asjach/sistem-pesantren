@@ -35,7 +35,12 @@ class DispensasiController extends Controller
     {
         $data = $request->validated();
 
-        $q = Dispensasi::with(['aturan.jenis', 'santriTambahan.lembagaAktif']);
+        $q = Dispensasi::with([
+            'aturan.jenis',
+            'santriTambahan' => fn ($s) => $s->tenantScope()->with('lembagaAktif'),
+        ]);
+        $jenjang = $this->jenjangUntukBerkas($request);
+        $q->where(fn ($w) => $w->whereNull('jenjang')->orWhereIn('jenjang', $jenjang));
         if (! empty($data['jenis_id'])) {
             $jenisId = (int) $data['jenis_id'];
             $q->whereHas('aturan', fn ($w) => $w->whereNull('jenis_id')->orWhere('jenis_id', $jenisId));
@@ -89,8 +94,9 @@ class DispensasiController extends Controller
         }
         $jenisBulanan = JenisTagihan::where('tipe', 'bulanan')->pluck('id')
             ->map(fn ($v) => (int) $v)->all();
-        $baris = Tagihan::whereIn('santri_id', $ids)->whereIn('jenis_id', $jenisBulanan)
-            ->get(['santri_id', 'dispensasi_ids']);
+        $q = Tagihan::whereIn('santri_id', $ids)->whereIn('jenis_id', $jenisBulanan);
+        $this->scopeLembaga($q, $request->user(), $request, 'tagihan.jenjang');
+        $baris = $q->get(['santri_id', 'dispensasi_ids']);
         $hasil = [];
         foreach ($baris as $t) {
             foreach ((array) ($t->dispensasi_ids ?? []) as $did) {

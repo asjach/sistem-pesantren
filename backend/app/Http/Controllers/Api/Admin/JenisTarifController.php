@@ -100,7 +100,7 @@ class JenisTarifController extends Controller
         $urut = $this->parseUrut($request, UrutKatalog::peta('keuangan_tarif'));
         $q = TarifTagihan::with('jenis');
         // Filter global (boleh banyak nilai): `jenjang[]` dan `tahun_ajaran[]`.
-        $this->applyFilter($q, $request, 'jenjang', 'jenjang');
+        $this->scopeLembaga($q, $request->user(), $request, 'tarif_tagihan.jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
         if ($urut === null) {
             $q->orderBy('jenjang')->orderBy('tahun_ajaran');

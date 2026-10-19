@@ -126,9 +126,7 @@ class TagihanController extends Controller
                     $e->selectRaw('1')->from('riwayat_belajar as rb_r')
                         ->whereColumn('rb_r.santri_id', 'rs.id')
                         ->whereIn('rb_r.tahun_ajaran', $tahunAjaran);
-                    if ($jenjang !== []) {
-                        $e->whereIn('rb_r.jenjang', $jenjang);
-                    }
+                    $e->whereIn('rb_r.jenjang', $jenjang);
                 });
             $gabung = $dariRiwayat->union($pemegang);
         }
@@ -184,7 +182,7 @@ class TagihanController extends Controller
     public function crosstabTagihan(TagihanCrosstabRequest $request)
     {
         $q = Tagihan::with(['jenis', 'santri']);
-        $this->applyFilter($q, $request, 'jenjang', 'tagihan.jenjang');
+        $this->scopeLembaga($q, $request->user(), $request, 'tagihan.jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tagihan.tahun_ajaran');
         if ($request->filled('jenis_id')) {
             $q->where('tagihan.jenis_id', (int) $request->input('jenis_id'));
@@ -214,7 +212,7 @@ class TagihanController extends Controller
            belum punya tagihan. `$q` hanya melingkupi data tagihan (sel,
            agregat, kolom). */
         $tahunAjaran = $this->nilaiFilter($request, 'tahun_ajaran');
-        $jenjang = $this->nilaiFilter($request, 'jenjang');
+        $jenjang = $this->jenjangUntukBerkas($request);
         $roster = $this->rosterSantriCrosstab($q, $request, $tahunAjaran, $jenjang);
 
         $page = max(1, (int) $request->input('page', 1));
@@ -531,7 +529,7 @@ class TagihanController extends Controller
         $q = TarifTagihan::query()->with('jenis')
             ->where('is_active', true)
             ->whereHas('jenis', fn ($j) => $j->where('is_active', true));
-        $this->applyFilter($q, $request, 'jenjang', 'tarif_tagihan.jenjang');
+        $this->scopeLembaga($q, $request->user(), $request, 'tarif_tagihan.jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tarif_tagihan.tahun_ajaran');
         if ($request->filled('jenis_id')) {
             $q->where('tarif_tagihan.jenis_id', (int) $request->input('jenis_id'));
@@ -595,7 +593,7 @@ class TagihanController extends Controller
     public function indexTagihan(Request $request)
     {
         $q = Tagihan::with(['jenis', 'santri']);
-        $this->applyFilter($q, $request, 'jenjang', 'jenjang');
+        $this->scopeLembaga($q, $request->user(), $request, 'tagihan.jenjang');
         $this->applyFilter($q, $request, 'tahun_ajaran', 'tahun_ajaran');
         if ($request->filled('jenis_id')) {
             $q->where('jenis_id', $request->input('jenis_id'));
