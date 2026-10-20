@@ -83,6 +83,7 @@ erDiagram
         string tahun_ajaran FK
         bigint walas_id FK
         string nama_kelas
+        string status_jadwal
     }
     IMPORT_SESI {
         bigint id PK
@@ -150,6 +151,7 @@ erDiagram
         bigint id PK
         string jenjang FK
         string tahun_ajaran FK
+        string status_jadwal
     }
     SANTRI {
         bigint id PK
@@ -452,6 +454,20 @@ erDiagram
         string hari
         int urutan_slot
     }
+    VARIAN_JADWAL {
+        bigint id PK
+        string jenjang FK
+        string tahun_ajaran FK
+        string nama
+        boolean is_active
+        bigint dibuat_oleh FK
+    }
+    TAHUN_AJARAN {
+        string nama PK
+    }
+    USERS {
+        bigint id PK
+    }
 
     LEMBAGA ||--o{ PENGATURAN_HARI_LEMBAGA : "mengatur hari"
     LEMBAGA ||--o{ MATA_PELAJARAN : "memiliki mata pelajaran"
@@ -467,6 +483,9 @@ erDiagram
     LEMBAGA ||--o{ TEMPLATE_JADWAL : "memiliki template"
     KELAS o|--o{ TEMPLATE_JADWAL : "membatasi template"
     TEMPLATE_JADWAL ||--o{ TEMPLATE_JADWAL_BARIS : "memiliki baris"
+    LEMBAGA ||--o{ VARIAN_JADWAL : "memiliki varian"
+    TAHUN_AJARAN ||--o{ VARIAN_JADWAL : "berlaku pada"
+    USERS o|--o{ VARIAN_JADWAL : "dibuat oleh"
 ```
 
 ## 6. Penilaian dan rapor

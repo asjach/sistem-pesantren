@@ -399,6 +399,11 @@ class KurikulumController extends Controller
         ]);
         $kelas = Kelas::findOrFail($data['kelas_id']);
         $this->authorizeLembaga($request->user(), $kelas->jenjang);
+        if ($kelas->jadwalTerkunci()) {
+            throw ValidationException::withMessages([
+                'kelas_id' => "Jadwal kelas {$kelas->nama_kelas} sudah Final. Ubah statusnya menjadi Draft untuk mengubah pengampu.",
+            ]);
+        }
 
         foreach ($data['baris'] as $b) {
             $this->pastikanMapelSeJenjang((int) $b['mata_pelajaran_id'], $kelas->jenjang);
@@ -445,6 +450,12 @@ class KurikulumController extends Controller
     public function salinPengampus(Request $request): JsonResponse
     {
         [$tujuan, $sumber] = $this->kelasSalin($request);
+
+        if ($tujuan->jadwalTerkunci()) {
+            throw ValidationException::withMessages([
+                'kelas_id' => "Jadwal kelas {$tujuan->nama_kelas} sudah Final. Ubah statusnya menjadi Draft untuk menyalin mapel.",
+            ]);
+        }
 
         $rencana = $this->rencanaSalin($tujuan, $sumber);
         $mapelIds = array_column($rencana['ditambah'], 'id');

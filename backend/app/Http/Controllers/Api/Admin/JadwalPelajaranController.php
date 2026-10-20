@@ -13,6 +13,7 @@ use App\Models\PengampuMapel;
 use App\Models\SlotJamPelajaran;
 use App\Models\TemplateJadwal;
 use App\Models\TemplateJadwalBaris;
+use App\Models\VarianJadwal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -69,6 +70,9 @@ class JadwalPelajaranController extends Controller
             'urutan' => ['nullable', 'integer', 'min:0'],
         ]);
         $this->authorizeLembaga($request->user(), $slot->jenjang);
+        if ($slot->kelas_id !== null) {
+            $this->pastikanJadwalTerbuka(Kelas::findOrFail($slot->kelas_id));
+        }
 
         $jenisBaru = $data['jenis'] ?? $slot->jenis;
         if ($jenisBaru !== 'pelajaran' && $jenisBaru !== $slot->jenis
@@ -87,6 +91,9 @@ class JadwalPelajaranController extends Controller
     public function destroySlot(Request $request, SlotJamPelajaran $slot): JsonResponse
     {
         $this->authorizeLembaga($request->user(), $slot->jenjang);
+        if ($slot->kelas_id !== null) {
+            $this->pastikanJadwalTerbuka(Kelas::findOrFail($slot->kelas_id));
+        }
         if (JadwalPelajaran::where('slot_jam_id', $slot->id)->exists()) {
             abort(422, 'Slot masih dipakai jadwal. Hapus jadwalnya dulu.');
         }
@@ -277,6 +284,7 @@ class JadwalPelajaranController extends Controller
             throw ValidationException::withMessages(['pengampu_mapel_id' => 'Pengampu tidak punya kelas.']);
         }
         $this->authorizeLembaga($request->user(), $kelas->jenjang);
+        $this->pastikanJadwalTerbuka($kelas);
 
         $slot = SlotJamPelajaran::findOrFail($data['slot_jam_id']);
         if ($slot->jenjang !== $kelas->jenjang) {
@@ -333,6 +341,7 @@ class JadwalPelajaranController extends Controller
         ]);
         $kelas = Kelas::findOrFail($data['kelas_id']);
         $this->authorizeLembaga($request->user(), $kelas->jenjang);
+        $this->pastikanJadwalTerbuka($kelas);
 
         $slot = SlotJamPelajaran::findOrFail($data['slot_jam_id']);
         if ($slot->jenjang !== $kelas->jenjang) {
@@ -475,9 +484,346 @@ class JadwalPelajaranController extends Controller
             abort(404);
         }
         $this->authorizeLembaga($request->user(), $jenjang);
+        if ($jadwal->kelas !== null) {
+            $this->pastikanJadwalTerbuka($jadwal->kelas);
+        }
         $jadwal->delete();
 
         return response()->json(['pesan' => 'Jadwal dihapus.']);
+    }
+
+    /** GET /admin/kurikulum/jadwal/status?jenjang=&tahun_ajaran= */
+    public function statusJadwal(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
+            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
+        ]);
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
+
+        return response()->json($this->ringkasStatusJadwal($data['jenjang'], $data['tahun_ajaran']));
+    }
+
+    /** PUT /admin/kurikulum/jadwal/status — ubah status jadwal SATU kelas. */
+    public function simpanStatusJadwal(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'kelas_id' => ['required', 'integer', 'exists:kelas,id'],
+            'status' => ['required', 'in:'.implode(',', Kelas::STATUS_JADWAL)],
+        ]);
+        $kelas = Kelas::findOrFail($data['kelas_id']);
+        $this->authorizeLembaga($request->user(), $kelas->jenjang);
+        $kelas->update(['status_jadwal' => $data['status']]);
+
+        return response()->json($this->ringkasStatusJadwal($kelas->jenjang, $kelas->tahun_ajaran) + [
+            'pesan' => 'Status jadwal disimpan.',
+        ]);
+    }
+
+    /**
+     * Status per kelas + status gabungan lembaga/tahun ajaran (final hanya bila
+     * seluruh kelas final).
+     *
+     * @return array<string, mixed>
+     */
+    private function ringkasStatusJadwal(string $jenjang, string $ta): array
+    {
+        $kelas = Kelas::where('jenjang', $jenjang)->where('tahun_ajaran', $ta)
+            ->orderBy('nama_kelas')
+            ->get(['id', 'nama_kelas', 'tingkat', 'status_jadwal']);
+
+        return [
+            'jenjang' => $jenjang,
+            'tahun_ajaran' => $ta,
+            'status' => Kelas::statusJadwalGabungan($kelas),
+            'kelas' => $kelas,
+        ];
+    }
+
+    /** Tolak perubahan jadwal kelas yang sudah Final. */
+    private function pastikanJadwalTerbuka(Kelas $kelas): void
+    {
+        if ($kelas->jadwalTerkunci()) {
+            throw ValidationException::withMessages([
+                'kelas_id' => "Jadwal kelas {$kelas->nama_kelas} sudah Final. Ubah statusnya menjadi Draft untuk mengubah jadwal.",
+            ]);
+        }
+    }
+
+    /** GET /admin/kurikulum/jadwal/varian?jenjang=&tahun_ajaran= */
+    public function indexVarian(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
+            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
+        ]);
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
+
+        return response()->json($this->daftarVarian($data['jenjang'], $data['tahun_ajaran']));
+    }
+
+    /** POST /admin/kurikulum/jadwal/varian — simpan snapshot jadwal saat ini. */
+    public function simpanVarian(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
+            'tahun_ajaran' => ['required', 'string', 'exists:tahun_ajaran,nama'],
+            'nama' => ['required', 'string', 'max:100'],
+        ]);
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
+
+        $snapshot = $this->snapshotJadwal($data['jenjang'], $data['tahun_ajaran']);
+
+        $varian = DB::transaction(function () use ($data, $snapshot, $request): VarianJadwal {
+            VarianJadwal::where('jenjang', $data['jenjang'])
+                ->where('tahun_ajaran', $data['tahun_ajaran'])
+                ->update(['is_active' => false]);
+
+            return VarianJadwal::create([
+                'jenjang' => $data['jenjang'],
+                'tahun_ajaran' => $data['tahun_ajaran'],
+                'nama' => trim($data['nama']),
+                'is_active' => true,
+                'snapshot' => $snapshot,
+                'dibuat_oleh' => $request->user()?->id,
+            ]);
+        });
+
+        return response()->json($this->daftarVarian($data['jenjang'], $data['tahun_ajaran']) + [
+            'pesan' => "Varian \"{$varian->nama}\" disimpan dan diaktifkan.",
+        ], 201);
+    }
+
+    /** PUT /admin/kurikulum/jadwal/varian/{varian}/aktifkan — pulihkan snapshot. */
+    public function aktifkanVarian(Request $request, VarianJadwal $varian): JsonResponse
+    {
+        $this->authorizeLembaga($request->user(), $varian->jenjang);
+
+        $ringkas = DB::transaction(function () use ($varian): array {
+            $hasil = $this->pulihkanSnapshot($varian->snapshot ?? [], $varian->jenjang, $varian->tahun_ajaran);
+
+            VarianJadwal::where('jenjang', $varian->jenjang)
+                ->where('tahun_ajaran', $varian->tahun_ajaran)
+                ->update(['is_active' => false]);
+            $varian->update(['is_active' => true]);
+
+            return $hasil;
+        });
+
+        return response()->json($this->daftarVarian($varian->jenjang, $varian->tahun_ajaran) + [
+            'pesan' => sprintf(
+                'Varian "%s" diaktifkan: %d kelas dipulihkan, %d jadwal, %d kelas dilewati.',
+                $varian->nama, $ringkas['kelas'], $ringkas['jadwal'], $ringkas['dilewati'],
+            ),
+            'ringkas' => $ringkas,
+        ]);
+    }
+
+    /**
+     * Daftar varian (riwayat) satu jenjang + tahun ajaran, aktif lebih dulu.
+     *
+     * @return array<string, mixed>
+     */
+    private function daftarVarian(string $jenjang, string $ta): array
+    {
+        $varian = VarianJadwal::with('pembuat:id,name')
+            ->where('jenjang', $jenjang)
+            ->where('tahun_ajaran', $ta)
+            ->orderByDesc('is_active')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (VarianJadwal $v): array => [
+                'id' => $v->id,
+                'nama' => $v->nama,
+                'is_active' => $v->is_active,
+                'dibuat_oleh' => $v->pembuat?->name,
+                'dibuat_pada' => $v->created_at?->format('Y-m-d H:i'),
+                'ringkasan' => $v->ringkasan(),
+            ])
+            ->values();
+
+        return ['jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'varian' => $varian];
+    }
+
+    /**
+     * Salinan jadwal satu jenjang + TA memakai kunci alami (nama kelas,
+     * hari + nama slot, id mapel, id pegawai).
+     *
+     * @return array{kelas: array<int, array<string, mixed>>}
+     */
+    private function snapshotJadwal(string $jenjang, string $ta): array
+    {
+        $kelas = Kelas::where('jenjang', $jenjang)->where('tahun_ajaran', $ta)
+            ->orderBy('nama_kelas')->get();
+
+        $hasil = [];
+
+        foreach ($kelas as $k) {
+            $slot = $this->slotKelas($k);
+            $pengampu = PengampuMapel::with('keaktifan')->where('kelas_id', $k->id)->get();
+            $jadwal = JadwalPelajaran::with(['slot', 'pengampuMapel.keaktifan', 'keaktifan'])
+                ->where('kelas_id', $k->id)->get();
+
+            $hasil[] = [
+                'nama' => $k->nama_kelas,
+                'slot' => $slot->map(fn (SlotJamPelajaran $s): array => [
+                    'hari' => $s->hari,
+                    'nama_slot' => $s->nama_slot,
+                    'jenis' => $s->jenis,
+                    'jam_mulai' => $s->jam_mulai,
+                    'jam_selesai' => $s->jam_selesai,
+                    'urutan' => $s->urutan,
+                    'per_kelas' => $s->kelas_id !== null,
+                ])->values()->all(),
+                'pengampu' => $pengampu->map(fn (PengampuMapel $p): array => [
+                    'mata_pelajaran_id' => (int) $p->mata_pelajaran_id,
+                    'pegawai_id' => $p->keaktifan?->pegawai_id,
+                ])->values()->all(),
+                'jadwal' => $jadwal->map(fn (JadwalPelajaran $j): array => [
+                    'slot_key' => $j->slot !== null ? $this->kunciSlot($j->slot) : null,
+                    'hari' => $j->hari,
+                    'mata_pelajaran_id' => $j->pengampuMapel?->mata_pelajaran_id,
+                    'pegawai_id' => $j->pengampuMapel?->keaktifan?->pegawai_id ?? $j->keaktifan?->pegawai_id,
+                    'ruangan' => $j->ruangan,
+                ])->values()->all(),
+            ];
+        }
+
+        return ['kelas' => $hasil];
+    }
+
+    /**
+     * Pulihkan snapshot ke kelas yang namanya cocok. Kelas Final dilewati.
+     *
+     * @param  array<string, mixed>  $snapshot
+     * @return array{kelas:int, jadwal:int, dilewati:int}
+     */
+    private function pulihkanSnapshot(array $snapshot, string $jenjang, string $ta): array
+    {
+        $hasil = ['kelas' => 0, 'jadwal' => 0, 'dilewati' => 0];
+
+        $petaKelas = Kelas::where('jenjang', $jenjang)->where('tahun_ajaran', $ta)->get()
+            ->keyBy(fn (Kelas $k): string => Kelas::normalisasiNama($k->nama_kelas));
+
+        foreach ($snapshot['kelas'] ?? [] as $data) {
+            $kelas = $petaKelas->get(Kelas::normalisasiNama($data['nama'] ?? ''));
+
+            if ($kelas === null || $kelas->jadwalTerkunci()) {
+                $hasil['dilewati']++;
+
+                continue;
+            }
+
+            $kandidatSlot = SlotJamPelajaran::where('jenjang', $jenjang)
+                ->where(fn ($q) => $q->whereNull('kelas_id')->orWhere('kelas_id', $kelas->id))
+                ->get();
+            $petaSlot = [];
+
+            foreach ($data['slot'] ?? [] as $s) {
+                $kunci = mb_strtolower(trim((string) ($s['hari'] ?? ''))).'|'.mb_strtolower(trim((string) ($s['nama_slot'] ?? '')));
+                $ada = $kandidatSlot->first(fn (SlotJamPelajaran $x): bool => $this->kunciSlot($x) === $kunci);
+
+                if ($ada !== null) {
+                    $petaSlot[$kunci] = $ada;
+
+                    continue;
+                }
+
+                if (! ($s['per_kelas'] ?? true)) {
+                    continue;
+                }
+
+                $baru = SlotJamPelajaran::create([
+                    'jenjang' => $jenjang,
+                    'kelas_id' => $kelas->id,
+                    'hari' => $s['hari'] ?? null,
+                    'nama_slot' => $s['nama_slot'] ?? null,
+                    'jenis' => $s['jenis'] ?? 'pelajaran',
+                    'jam_mulai' => $s['jam_mulai'] ?? null,
+                    'jam_selesai' => $s['jam_selesai'] ?? null,
+                    'urutan' => $s['urutan'] ?? 0,
+                ]);
+                $kandidatSlot->push($baru);
+                $petaSlot[$kunci] = $baru;
+            }
+
+            $pengampu = PengampuMapel::where('kelas_id', $kelas->id)->get()->keyBy('mata_pelajaran_id');
+            $petaPengampu = [];
+
+            foreach ($data['pengampu'] ?? [] as $p) {
+                $mapelId = (int) ($p['mata_pelajaran_id'] ?? 0);
+
+                if ($mapelId === 0) {
+                    continue;
+                }
+
+                $ada = $pengampu->get($mapelId);
+
+                if ($ada !== null) {
+                    $petaPengampu[$mapelId] = $ada;
+
+                    continue;
+                }
+
+                $baru = PengampuMapel::create([
+                    'kelas_id' => $kelas->id,
+                    'mata_pelajaran_id' => $mapelId,
+                    'keaktifan_pegawai_id' => $this->guruDariPegawai(
+                        isset($p['pegawai_id']) ? (int) $p['pegawai_id'] : null, $jenjang, $ta,
+                    ),
+                ]);
+                $pengampu->put($mapelId, $baru);
+                $petaPengampu[$mapelId] = $baru;
+            }
+
+            JadwalPelajaran::where('kelas_id', $kelas->id)->delete();
+
+            foreach ($data['jadwal'] ?? [] as $j) {
+                $slot = $petaSlot[$j['slot_key'] ?? ''] ?? null;
+
+                if ($slot === null) {
+                    continue;
+                }
+
+                $mapelId = $j['mata_pelajaran_id'] ?? null;
+                $pengampuRow = $mapelId !== null ? ($petaPengampu[(int) $mapelId] ?? null) : null;
+
+                if ($pengampuRow !== null && JadwalPelajaran::where('pengampu_mapel_id', $pengampuRow->id)
+                    ->where('slot_jam_id', $slot->id)->where('hari', $j['hari'])->exists()) {
+                    continue;
+                }
+
+                JadwalPelajaran::create([
+                    'kelas_id' => $kelas->id,
+                    'pengampu_mapel_id' => $pengampuRow?->id,
+                    'keaktifan_pegawai_id' => $pengampuRow === null
+                        ? $this->guruDariPegawai(isset($j['pegawai_id']) ? (int) $j['pegawai_id'] : null, $jenjang, $ta)
+                        : null,
+                    'slot_jam_id' => $slot->id,
+                    'hari' => $j['hari'],
+                    'ruangan' => $j['ruangan'] ?? null,
+                ]);
+                $hasil['jadwal']++;
+            }
+
+            $hasil['kelas']++;
+        }
+
+        return $hasil;
+    }
+
+    /** Keaktifan aktif sebuah pegawai pada jenjang + TA; null bila tidak ada. */
+    private function guruDariPegawai(?int $pegawaiId, string $jenjang, string $ta): ?int
+    {
+        if ($pegawaiId === null) {
+            return null;
+        }
+
+        return KeaktifanPegawai::where('pegawai_id', $pegawaiId)
+            ->where('jenjang', $jenjang)
+            ->where('tahun_ajaran', $ta)
+            ->where('status_keaktifan', KeaktifanPegawai::AKTIF)
+            ->value('id');
     }
 
     /**
@@ -557,6 +903,15 @@ class JadwalPelajaranController extends Controller
                 $hasil['kelas_dilewati'][] = [
                     'nama' => $asal->nama_kelas,
                     'alasan' => 'Kelas tidak ada di tahun ajaran tujuan.',
+                ];
+
+                continue;
+            }
+
+            if ($tujuan->jadwalTerkunci()) {
+                $hasil['kelas_dilewati'][] = [
+                    'nama' => $asal->nama_kelas,
+                    'alasan' => 'Jadwal kelas tujuan sudah Final.',
                 ];
 
                 continue;
@@ -724,6 +1079,11 @@ class JadwalPelajaranController extends Controller
             if ($pengampuId !== null) {
                 $pengampuTerpakai->put($pengampuId.'|'.$slotId.'|'.$j->hari, $baru);
             }
+        }
+
+        // Jadwal hasil salin selalu berstatus Draft (aturan produk).
+        if ($terapkan) {
+            $tujuan->update(['status_jadwal' => 'draft']);
         }
 
         return $hitung;
@@ -989,6 +1349,12 @@ class JadwalPelajaranController extends Controller
             $dilewati = [];
 
             foreach ($kelasTarget as $kelas) {
+                if ($kelas->jadwalTerkunci()) {
+                    $dilewati[] = ['sel' => $kelas->nama_kelas, 'alasan' => 'Jadwal kelas sudah Final — ubah ke Draft dulu.'];
+
+                    continue;
+                }
+
                 $punyaJadwal = JadwalPelajaran::where('kelas_id', $kelas->id)->exists();
                 $jumlahSlotLama = SlotJamPelajaran::where('kelas_id', $kelas->id)->count();
 

@@ -28,14 +28,22 @@ import {
 } from './matriksJadwal';
 import { klipSeragam, sasaranBlokJadwal, sasaranKosongkanBlok, type BlokGrid, type KlipJadwal } from './jadwalKlip';
 import PanelTemplate, { FIELDS_KERANGKA } from './TemplateJadwalPanel';
+import PanelVarian from './VarianJadwalPanel';
 import PanelHariLibur from './HariLiburPanel';
 import {
   daftarGuruAktif, daftarJadwal, daftarMapel, daftarTemplateJadwal, pratinjauSalinJadwal, salinJadwal,
-  simpanSelJadwal, terapkanTemplate,
+  simpanSelJadwal, simpanStatusJadwal, statusJadwal, terapkanTemplate,
   HARI_LABEL, JENIS_SLOT_LABEL,
   type GuruAktif, type HasilSalinJadwal, type JadwalBaris, type MataPelajaran, type SlotJadwal,
-  type TemplateJadwal, type TerapkanHasil,
+  type StatusJadwal, type StatusJadwalResponse, type TemplateJadwal, type TerapkanHasil,
 } from '@/api/kurikulum';
+
+/** Label status jadwal untuk tampilan. */
+const LABEL_STATUS_JADWAL: Record<StatusJadwal, string> = {
+  draft: 'Draft',
+  pembahasan: 'Pembahasan',
+  final: 'Final',
+};
 
 /** Satu baris matriks = satu kelas × satu nomor JP. Slot tiap hari bisa
  *  berbeda (jumlah, jam, jenis), jadi frame disusun per hari lalu digabung
@@ -153,6 +161,9 @@ export default function KurikulumJadwalPage() {
   const [taOpsi, setTaOpsi] = useState<string[]>([]);
   const [pratinjauSalin, setPratinjauSalin] = useState<HasilSalinJadwal | null>(null);
   const [salinBusy, setSalinBusy] = useState(false);
+  /** Status jadwal per kelas + gabungan untuk jenjang & TA aktif. */
+  const [statusData, setStatusData] = useState<StatusJadwalResponse | null>(null);
+  const [statusBusy, setStatusBusy] = useState(false);
 
   /** Kelas yang ditampilkan dari rail Tingkat/Kelas. All/beberapa kelas =
    *  tampilan gabungan (satu baris per kelas × JP). */
@@ -223,6 +234,44 @@ export default function KurikulumJadwalPage() {
     return () => { hidup = false; };
   }, [salinOpen, jenjang, ta, taSumber]);
 
+  /** Muat status jadwal (per kelas + gabungan) untuk jenjang & TA aktif. */
+  const muatStatus = useCallback(async () => {
+    if (jenjang === null || ta === null) { setStatusData(null); return; }
+    try {
+      setStatusData(await statusJadwal(jenjang, ta));
+    } catch {
+      setStatusData(null);
+    }
+  }, [jenjang, ta]);
+
+  useEffect(() => { void muatStatus(); }, [muatStatus]);
+
+  const statusKelas = useCallback(
+    (kelasId: number): StatusJadwal => (
+      statusData?.kelas.find((k) => k.id === kelasId)?.status_jadwal ?? 'draft'
+    ),
+    [statusData],
+  );
+
+  /** Jadwal kelas final terkunci: perubahan jadwal/pengampu ditolak. */
+  const terkunciKelas = useCallback(
+    (kelasId: number): boolean => statusKelas(kelasId) === 'final',
+    [statusKelas],
+  );
+
+  const ubahStatusJadwal = useCallback(async (kelasId: number, status: StatusJadwal) => {
+    setStatusBusy(true);
+    try {
+      const r = await simpanStatusJadwal(kelasId, status);
+      setStatusData(r);
+      toast.success(r.pesan ?? 'Status jadwal disimpan.');
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setStatusBusy(false);
+    }
+  }, []);
+
   const bukaSalinJadwal = useCallback(() => {
     setTaSumber('');
     setPratinjauSalin(null);
@@ -240,13 +289,13 @@ export default function KurikulumJadwalPage() {
       const r = await salinJadwal(jenjang, taSumber, ta);
       toast.success(r.pesan ?? 'Jadwal disalin.');
       setSalinOpen(false);
-      await muatJadwal();
+      await Promise.all([muatJadwal(), muatStatus()]);
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
       setSalinBusy(false);
     }
-  }, [jenjang, ta, taSumber, pratinjauSalin, muatJadwal]);
+  }, [jenjang, ta, taSumber, pratinjauSalin, muatJadwal, muatStatus]);
 
   useEffect(() => {
     if (jenjang === null || ta === null) { setMapelAktif([]); setGuruAktif([]); return; }
@@ -290,10 +339,15 @@ export default function KurikulumJadwalPage() {
 
   const templateTerpilih = templateSesuai.find((t) => t.id === templateId) ?? null;
   const bisaTerapKelas = canTambah && templateTerpilih !== null
-    && templateTerpilih.is_active && kelasId !== '' && !templateBusy;
+    && templateTerpilih.is_active && kelasId !== '' && !templateBusy
+    && !terkunciKelas(kelasId);
 
   const jalankanTemplateKelas = async (mode: 'pratinjau' | 'eksekusi') => {
     if (templateTerpilih === null || kelasId === '') return;
+    if (mode === 'eksekusi' && terkunciKelas(kelasId)) {
+      toast.error('Jadwal kelas ini sudah Final — ubah ke Draft dulu.');
+      return;
+    }
     setTemplateBusy(true);
     try {
       const r = await terapkanTemplate(templateTerpilih.id, {
@@ -379,18 +433,21 @@ export default function KurikulumJadwalPage() {
         }
       }
     }
-    if (sasaran.length === 0) {
-      toast.error('Blok terpilih tidak memuat sel pelajaran.');
+    const boleh = sasaran.filter((t) => !terkunciKelas(t.kelasId));
+    if (boleh.length === 0) {
+      toast.error(sasaran.length === 0
+        ? 'Blok terpilih tidak memuat sel pelajaran.'
+        : 'Jadwal kelas ini sudah Final — ubah ke Draft dulu.');
       return;
     }
-    const nilai = sasaran.map((t) => petaJadwal.get(`${t.slot.id}|${t.hari}`) ?? null);
+    const nilai = boleh.map((t) => petaJadwal.get(`${t.slot.id}|${t.hari}`) ?? null);
     const mapelSama = nilai.every((n) => (n?.mata_pelajaran_id ?? null) === (nilai[0]?.mata_pelajaran_id ?? null));
     const guruSama = nilai.every((n) => (n?.keaktifan_pegawai_id ?? null) === (nilai[0]?.keaktifan_pegawai_id ?? null));
-    setEditSel(sasaran);
+    setEditSel(boleh);
     setSelMapel(mapelSama ? (nilai[0]?.mata_pelajaran_id ?? '') : '');
 
     setSelGuru(mapelSama && guruSama ? (nilai[0]?.keaktifan_pegawai_id ?? '') : '');
-  }, [canUbah, hari, petaJadwal]);
+  }, [canUbah, hari, petaJadwal, terkunciKelas]);
 
   /** Klik kanan DI DALAM blok seleksi → "Kosongkan blok…": mapel + guru
    *  dihapus dari semua sel pelajaran yang tercakup. Sel yang sudah kosong
@@ -414,15 +471,18 @@ export default function KurikulumJadwalPage() {
         return j !== undefined && (j.mata_pelajaran_id !== null || j.keaktifan_pegawai_id !== null);
       },
     );
-    if (sasaran.length === 0) {
-      toast.error('Blok terpilih sudah kosong.');
+    const boleh = sasaran.filter((t) => !terkunciKelas(t.kelasId));
+    if (boleh.length === 0) {
+      toast.error(sasaran.length === 0
+        ? 'Blok terpilih sudah kosong.'
+        : 'Jadwal kelas ini sudah Final — ubah ke Draft dulu.');
       return;
     }
     setSelBusy(true);
     void (async () => {
       let sukses = 0;
       let galatPertama = '';
-      for (const t of sasaran) {
+      for (const t of boleh) {
         try {
           await simpanSelJadwal({
             kelas_id: t.kelasId,
@@ -443,10 +503,10 @@ export default function KurikulumJadwalPage() {
       if (galatPertama === '') {
         toast.success(`${sukses} sel dikosongkan.`);
       } else {
-        toast.error(`${sukses} dari ${sasaran.length} sel dikosongkan. ${galatPertama}`);
+        toast.error(`${sukses} dari ${boleh.length} sel dikosongkan. ${galatPertama}`);
       }
     })();
-  }, [canUbah, hari, petaJadwal, muatJadwal]);
+  }, [canUbah, hari, petaJadwal, muatJadwal, terkunciKelas]);
 
   /** Baris-baris sel matriks hari `h` pada baris `id` — pitanya antara
    *  peta baris dan peta jadwal. */
@@ -742,15 +802,18 @@ export default function KurikulumJadwalPage() {
     const sasaran = sasaranDariBlok(p.blok, p.kunciKolom, p.rows)
       .map((s) => sasaranPenuh(s, p.rows))
       .filter((t): t is SasaranJadwal => t !== null);
-    if (sasaran.length === 0) {
-      toast.error('Blok tujuan tidak memuat sel pelajaran.');
+    const boleh = sasaran.filter((t) => !terkunciKelas(t.kelasId));
+    if (boleh.length === 0) {
+      toast.error(sasaran.length === 0
+        ? 'Blok tujuan tidak memuat sel pelajaran.'
+        : 'Jadwal kelas ini sudah Final — ubah ke Draft dulu.');
       return;
     }
     setSelBusy(true);
     void (async () => {
       let sukses = 0;
       let galatPertama = '';
-      for (const t of sasaran) {
+      for (const t of boleh) {
         try {
           await simpanSelJadwal({
             kelas_id: t.kelasId,
@@ -774,7 +837,7 @@ export default function KurikulumJadwalPage() {
         toast.error(`${sukses} dari ${sasaran.length} sel ditempel. ${galatPertama}`);
       }
     })();
-  }, [canUbah, muatJadwal, sasaranDariBlok, sasaranPenuh]);
+  }, [canUbah, muatJadwal, sasaranDariBlok, sasaranPenuh, terkunciKelas]);
 
   const simpanSel = async () => {
     if (editSel === null || editSel.length === 0) return;
@@ -829,6 +892,7 @@ export default function KurikulumJadwalPage() {
         <TabsList className={KELAS_LIST_TAB} indikator="primer">
           <TabsTrigger value="jadwal" id="tab_jadwal_pelajaran" className={KELAS_TRIGGER}>Jadwal</TabsTrigger>
           <TabsTrigger value="template" id="tab_template_jadwal" className={KELAS_TRIGGER}>Template Jadwal</TabsTrigger>
+          <TabsTrigger value="varian" id="tab_varian_jadwal" className={KELAS_TRIGGER}>Varian</TabsTrigger>
           <TabsTrigger value="libur" id="tab_hari_libur" className={KELAS_TRIGGER}>Hari Libur</TabsTrigger>
         </TabsList>
 
@@ -932,6 +996,28 @@ export default function KurikulumJadwalPage() {
               </ComboboxRoot>
             </LabeledCombobox>
             <div className="ml-auto flex flex-wrap items-center gap-2">
+              {statusData ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Status jadwal:</span>
+                  {kelasTunggal !== null ? (
+                    <select
+                      id="select_status_jadwal_kelas"
+                      className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                      value={statusKelas(kelasTunggal.id)}
+                      disabled={!canUbah || statusBusy}
+                      onChange={(e) => void ubahStatusJadwal(kelasTunggal.id, e.target.value as StatusJadwal)}
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="pembahasan">Pembahasan</option>
+                      <option value="final">Final</option>
+                    </select>
+                  ) : (
+                    <span className="text-xs font-medium text-foreground">
+                      {LABEL_STATUS_JADWAL[statusData.status]}
+                    </span>
+                  )}
+                </div>
+              ) : null}
               {canTambah && jenjang !== null && ta !== null && (
                 <Button type="button" variant="outline" size="sm" id="btn_salin_jadwal_ta"
                   onClick={bukaSalinJadwal}>
@@ -980,6 +1066,12 @@ export default function KurikulumJadwalPage() {
             </div>
           </div>
 
+          {kelasTunggal !== null && terkunciKelas(kelasTunggal.id) ? (
+            <div className="shrink-0 border-b border-border py-1 text-[11px]" style={{ color: 'var(--warning)' }}>
+              Jadwal kelas {kelasTunggal.nama_kelas} berstatus Final — ubah ke Draft untuk mengedit.
+            </div>
+          ) : null}
+
           {hasilKelas !== null && hasilKelas.dilewati.length > 0 && (
             <div className="shrink-0 border-b border-border py-1 text-[11px] text-muted-foreground">
               <ul className="list-disc pl-5">
@@ -1021,6 +1113,22 @@ export default function KurikulumJadwalPage() {
                 ? 'Belum ada kerangka JP — terapkan template di tab Template Jadwal.'
                 : 'Belum ada jadwal untuk kelas-kelas ini.'}
           />
+        </TabsContent>
+
+        <TabsContent value="varian" className="flex min-h-0 flex-1 flex-col gap-0">
+          {jenjang !== null && ta !== null ? (
+            <PanelVarian
+              jenjang={jenjang}
+              tahunAjaran={ta}
+              canTambah={canTambah}
+              canUbah={canUbah}
+              onDipulihkan={() => { void muatJadwal(); void muatStatus(); }}
+            />
+          ) : (
+            <p className="p-4 text-xs text-muted-foreground">
+              Pilih satu jenjang dan satu tahun ajaran pada filter di atas.
+            </p>
+          )}
         </TabsContent>
 
         <TabsContent value="template" className="flex min-h-0 flex-1 flex-col gap-0">

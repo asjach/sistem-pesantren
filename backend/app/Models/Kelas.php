@@ -8,11 +8,47 @@ use Illuminate\Database\Eloquent\Model;
 
 class Kelas extends Model
 {
+    /** Status jadwal per kelas, berurutan dari yang paling longgar. */
+    public const STATUS_JADWAL = ['draft', 'pembahasan', 'final'];
+
     protected $table = 'kelas';
 
-    protected $fillable = ['jenjang', 'tahun_ajaran', 'walas_id', 'tingkat', 'nama_kelas', 'nama_alias', 'kapasitas', 'urutan'];
+    protected $fillable = ['jenjang', 'tahun_ajaran', 'walas_id', 'tingkat', 'nama_kelas', 'nama_alias', 'status_jadwal', 'kapasitas', 'urutan'];
 
     protected $casts = ['urutan' => 'integer'];
+
+    /**
+     * Status jadwal gabungan satu lembaga + tahun ajaran.
+     *
+     * Final hanya bila SELURUH kelas final; selain itu pembahasan bila ada
+     * kelas yang sedang dibahas, selebihnya draft.
+     *
+     * @param  iterable<int, self>  $kelas
+     */
+    public static function statusJadwalGabungan(iterable $kelas): string
+    {
+        $daftar = collect($kelas);
+
+        if ($daftar->isEmpty()) {
+            return 'draft';
+        }
+
+        if ($daftar->every(fn (self $k): bool => $k->status_jadwal === 'final')) {
+            return 'final';
+        }
+
+        if ($daftar->contains(fn (self $k): bool => $k->status_jadwal === 'pembahasan')) {
+            return 'pembahasan';
+        }
+
+        return 'draft';
+    }
+
+    /** Jadwal kelas terkunci (final) sampai statusnya dikembalikan ke draft. */
+    public function jadwalTerkunci(): bool
+    {
+        return $this->status_jadwal === 'final';
+    }
 
     /**
      * Normalisasi nama kelas (trim + rapatkan spasi ganda).

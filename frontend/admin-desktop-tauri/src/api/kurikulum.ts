@@ -373,6 +373,80 @@ export function salinJadwal(jenjang: string, tahunAjaranSumber: string, tahunAja
   });
 }
 
+/** Status jadwal per kelas. `final` mengunci perubahan jadwal kelas itu. */
+export type StatusJadwal = 'draft' | 'pembahasan' | 'final';
+
+export interface KelasStatusJadwal {
+  id: number;
+  nama_kelas: string;
+  tingkat: string | null;
+  status_jadwal: StatusJadwal;
+}
+
+export interface StatusJadwalResponse {
+  jenjang: string;
+  tahun_ajaran: string;
+  /** Status gabungan: final hanya bila seluruh kelas final. */
+  status: StatusJadwal;
+  kelas: KelasStatusJadwal[];
+  pesan?: string;
+}
+
+/** Status jadwal satu jenjang + tahun ajaran (per kelas + gabungan). */
+export function statusJadwal(jenjang: string, tahunAjaran: string) {
+  const q = new URLSearchParams({ jenjang, tahun_ajaran: tahunAjaran });
+
+  return api<StatusJadwalResponse>(`/admin/kurikulum/jadwal/status?${q.toString()}`);
+}
+
+/** Ubah status jadwal SATU kelas. */
+export function simpanStatusJadwal(kelasId: number, status: StatusJadwal) {
+  return api<StatusJadwalResponse>('/admin/kurikulum/jadwal/status', {
+    method: 'PUT',
+    body: JSON.stringify({ kelas_id: kelasId, status }),
+  });
+}
+
+/** Satu varian (snapshot versi) jadwal. */
+export interface VarianJadwalItem {
+  id: number;
+  nama: string;
+  is_active: boolean;
+  dibuat_oleh: string | null;
+  dibuat_pada: string | null;
+  ringkasan: { kelas: number; slot: number; pengampu: number; jadwal: number };
+}
+
+export interface DaftarVarianJadwal {
+  jenjang: string;
+  tahun_ajaran: string;
+  varian: VarianJadwalItem[];
+  pesan?: string;
+  ringkas?: { kelas: number; jadwal: number; dilewati: number };
+}
+
+/** Riwayat varian jadwal satu jenjang + tahun ajaran. */
+export function daftarVarianJadwal(jenjang: string, tahunAjaran: string) {
+  const q = new URLSearchParams({ jenjang, tahun_ajaran: tahunAjaran });
+
+  return api<DaftarVarianJadwal>(`/admin/kurikulum/jadwal/varian?${q.toString()}`);
+}
+
+/** Simpan snapshot jadwal saat ini sebagai varian aktif baru. */
+export function simpanVarianJadwal(jenjang: string, tahunAjaran: string, nama: string) {
+  return api<DaftarVarianJadwal>('/admin/kurikulum/jadwal/varian', {
+    method: 'POST',
+    body: JSON.stringify({ jenjang, tahun_ajaran: tahunAjaran, nama }),
+  });
+}
+
+/** Aktifkan varian: pulihkan jadwal dari snapshot-nya. */
+export function aktifkanVarianJadwal(id: number) {
+  return api<DaftarVarianJadwal>(`/admin/kurikulum/jadwal/varian/${id}/aktifkan`, {
+    method: 'PUT',
+  });
+}
+
 export interface TemplateJadwal {
   id: number; jenjang: string; tingkat: string | null; kelas_id: number | null;
   nama: string;

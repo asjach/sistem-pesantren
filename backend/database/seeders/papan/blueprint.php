@@ -139,11 +139,10 @@ return [
                     ['Jadwal dari sudut guru', ['agenda mengajar', 'filter guru', 'tampilan mobile']],
                     ['Cetak/unduh jadwal', ['PDF', 'Excel', 'kop']],
                 ],
-                'in_progress' => [
-                    ['Status Jadwal Pelajaran', ['terdapat status untuk jadwal yaitu: "Draft", "Pembahasan", "Final"', 'jadwal final tidak bisa diubah, jika ingin diubah harus diubah dulu menjadi "Draft"', 'jadwal pelajaran hasil import dari tahun ajaran sebelumnya berstatus "Draft"']],
-                ],
                 'for_review' => [
                     ['Salin jadwal pelajaran dari tahun ajaran lain (sejenjang)', ['Pilih TA sumber; tujuan = TA aktif; lembaga/jenjang harus sama', 'Pratinjau: kelas, slot, pengampu, dan sel jadwal yang akan disalin atau dilewati', 'Hanya kelas yang sudah ada di TA tujuan; kelas lain dilewati dan dilaporkan', 'Slot, pengampu, dan sel jadwal ikut disalin; guru tanpa keaktifan di TA tujuan dikosongkan', 'Sel jadwal yang sudah terisi di TA tujuan tidak ditimpa', 'Verifikasi: KurikulumModulTest 9/9 (169 asersi) + suite FE 1427/1427 + npm run typecheck']],
+                    ['Status Jadwal Pelajaran', ['Status per kelas: "Draft", "Pembahasan", "Final"', 'Status lembaga + tahun ajaran turunan: Final bila SELURUH kelas Final; selain itu Draft/Pembahasan', 'Jadwal kelas Final tidak bisa diubah; harus diubah dulu menjadi Draft', 'Jadwal hasil salin dari tahun ajaran sebelumnya berstatus Draft', 'Verifikasi: KurikulumModulTest 10/10 (192 asersi) + suite FE 1427/1427 + npm run typecheck; ERD divalidasi (9 blok, 0 masalah)']],
+                    ['Varian Jadwal Pelajaran', ['Simpan varian manual: snapshot slot, pengampu, dan sel jadwal + nama', 'Riwayat varian: daftar berisi waktu, pembuat, status, dan ringkasan isi', 'Varian aktif yang dipakai; hanya satu aktif per tahun ajaran + lembaga', 'Mengaktifkan varian memulihkan jadwal dari snapshot (kelas Final dilewati)', 'Verifikasi: KurikulumModulTest 11/11 (215 asersi) + suite FE 1427/1427 + typecheck; ERD 116 entitas/154 hubungan, 0 masalah']],
                 ],
                 'done' => [
                     ['Slot per jenjang dan anti bentrok', ['bentrok kelas', 'bentrok guru', 'grid mingguan']],
@@ -151,7 +150,7 @@ return [
                 ],
             ]],
             ['kode' => 'DA5.4', 'nama' => 'Struktur Kurikulum', 'butir' => [
-                'todo' => [
+                'in_progress' => [
                     ['tabel struktur kurikulum', []],
                 ],
             ]],

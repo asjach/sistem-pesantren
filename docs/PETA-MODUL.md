@@ -419,7 +419,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] guru aktif
   - [x] per TA
 
-### DA5.3 Jadwal Pelajaran `Sedang dikerjakan (In Progress)`
+### DA5.3 Jadwal Pelajaran `Siap dikerjakan (To Do)`
 **Belum dijadwalkan (Backlog)**
 - (kosong)
 **Siap dikerjakan (To Do)**
@@ -432,10 +432,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Excel
   - [ ] kop
 **Sedang dikerjakan (In Progress)**
-- Status Jadwal Pelajaran
-  - [ ] terdapat status untuk jadwal yaitu: "Draft", "Pembahasan", "Final"
-  - [ ] jadwal final tidak bisa diubah, jika ingin diubah harus diubah dulu menjadi "Draft"
-  - [ ] jadwal pelajaran hasil import dari tahun ajaran sebelumnya berstatus "Draft"
+- (kosong)
 **Menunggu peninjauan (For Review)**
 - Salin jadwal pelajaran dari tahun ajaran lain (sejenjang)
   - [x] Pilih TA sumber; tujuan = TA aktif; lembaga/jenjang harus sama
@@ -444,6 +441,18 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Slot, pengampu, dan sel jadwal ikut disalin; guru tanpa keaktifan di TA tujuan dikosongkan
   - [x] Sel jadwal yang sudah terisi di TA tujuan tidak ditimpa
   - [x] Verifikasi: KurikulumModulTest 9/9 (169 asersi) + suite FE 1427/1427 + npm run typecheck
+- Status Jadwal Pelajaran
+  - [x] Status per kelas: "Draft", "Pembahasan", "Final"
+  - [x] Status lembaga + tahun ajaran turunan: Final bila SELURUH kelas Final; selain itu Draft/Pembahasan
+  - [x] Jadwal kelas Final tidak bisa diubah; harus diubah dulu menjadi Draft
+  - [x] Jadwal hasil salin dari tahun ajaran sebelumnya berstatus Draft
+  - [x] Verifikasi: KurikulumModulTest 10/10 (192 asersi) + suite FE 1427/1427 + npm run typecheck; ERD divalidasi (9 blok, 0 masalah)
+- Varian Jadwal Pelajaran
+  - [x] Simpan varian manual: snapshot slot, pengampu, dan sel jadwal + nama
+  - [x] Riwayat varian: daftar berisi waktu, pembuat, status, dan ringkasan isi
+  - [x] Varian aktif yang dipakai; hanya satu aktif per tahun ajaran + lembaga
+  - [x] Mengaktifkan varian memulihkan jadwal dari snapshot (kelas Final dilewati)
+  - [x] Verifikasi: KurikulumModulTest 11/11 (215 asersi) + suite FE 1427/1427 + typecheck; ERD 116 entitas/154 hubungan, 0 masalah
 **Selesai (Done)**
 - Slot per jenjang dan anti bentrok
   - [x] bentrok kelas
@@ -454,13 +463,14 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] salin
   - [x] cetak
 
-### DA5.4 Struktur Kurikulum `Siap dikerjakan (To Do)`
+### DA5.4 Struktur Kurikulum `Sedang dikerjakan (In Progress)`
 **Belum dijadwalkan (Backlog)**
 - (kosong)
 **Siap dikerjakan (To Do)**
-- tabel struktur kurikulum
-**Sedang dikerjakan (In Progress)**
 - (kosong)
+**Sedang dikerjakan (In Progress)**
+- tabel struktur kurikulum
+  - [ ] halaman baru di kurikulum
 **Menunggu peninjauan (For Review)**
 - (kosong)
 **Selesai (Done)**
@@ -2365,7 +2375,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 Sub-modul yang sedang dikerjakan:
 
-- **DA5.3 Jadwal Pelajaran** (Kurikulum)
+- **DA5.4 Struktur Kurikulum** (Kurikulum)
 
 ---
 

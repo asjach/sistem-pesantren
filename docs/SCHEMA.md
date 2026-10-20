@@ -254,6 +254,7 @@ Izin = AKSI (`modul.aksi`, katalog `IzinKatalog::MODUL_AKSI`); pivot `user_lemba
 - `urutan`: int [default 0] — urutan tampil per lingkup (0 = belum diatur)
 - `nama_kelas`: string — 'VII-A'; dinormalisasi model (trim + rapat spasi)
 - `nama_alias`: string(50) [null] — nama tampilan alternatif (mis. 'Umar bin Khattab')
+- `status_jadwal`: enum(draft|pembahasan|final) [default 'draft'] — status jadwal KELAS; `final` mengunci perubahan jadwal/pengampu/slot kelas itu sampai dikembalikan ke `draft`. Status lembaga + tahun ajaran diturunkan: `final` hanya bila seluruh kelasnya `final`; selain itu `pembahasan` bila ada kelas yang dibahas, selebihnya `draft`
 - `kapasitas`: int [null]
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `tahun_ajaran`, `nama_kelas`) — satu nama kelas hanya sekali per lembaga + tahun ajaran
@@ -837,6 +838,18 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`kelas_id`, `slot_jam_id`, `hari`) — satu sel per kelas per slot/hari
 - UNIQUE(`pengampu_mapel_id`, `slot_jam_id`, `hari`) — pengampu yang sama boleh dipakai di slot lain (2 JP atau lebih); null (guru-saja) boleh berulang
+
+### `varian_jadwal` (snapshot versi jadwal per lembaga + tahun ajaran)
+- `id` PK
+- `jenjang`: FK → lembaga [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `nama`: string(100) — nama varian (mis. "Normal", "Ramadhan")
+- `is_active`: bool [default false] — hanya SATU yang aktif per (jenjang, tahun_ajaran); varian aktif adalah yang dipakai
+- `snapshot`: json — salinan slot, pengampu, dan sel jadwal dengan kunci alami (nama kelas, hari + nama slot, id mapel, id pegawai) agar bisa dipulihkan walau id baris berubah
+- `dibuat_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+- INDEX(`jenjang`, `tahun_ajaran`, `is_active`)
+- ATURAN: dibuat manual lewat tombol "Simpan sebagai varian"; mengaktifkan varian memulihkan jadwal dari snapshot dan melewati kelas yang berstatus `final`
 
 ### `template_jadwal`
 - `id` PK

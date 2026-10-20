@@ -15,6 +15,7 @@ use App\Models\Santri;
 use App\Models\SlotJamPelajaran;
 use App\Models\TahunAjaran;
 use App\Models\User;
+use App\Models\VarianJadwal;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -672,6 +673,7 @@ class KurikulumModulTest extends TestCase
         $this->assertSame(0, SlotJamPelajaran::where('kelas_id', $tujuan->id)->count());
 
         // Eksekusi.
+        $tujuan->update(['status_jadwal' => 'pembahasan']);
         $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/kurikulum/jadwal/salin', [
                 'jenjang' => 'MI', 'tahun_ajaran_sumber' => $taLalu, 'tahun_ajaran_tujuan' => self::TA,
@@ -680,6 +682,7 @@ class KurikulumModulTest extends TestCase
             ->assertJsonPath('hitung.slot', 1)
             ->assertJsonPath('hitung.pengampu', 2)
             ->assertJsonPath('hitung.jadwal', 2);
+        $this->assertSame('draft', $tujuan->fresh()->status_jadwal, 'hasil salin harus berstatus Draft');
 
         $jadwalTujuan = JadwalPelajaran::where('kelas_id', $tujuan->id)->get();
         $this->assertCount(2, $jadwalTujuan);
@@ -700,5 +703,172 @@ class KurikulumModulTest extends TestCase
             ->assertJsonPath('hitung.jadwal_dilewati', 2);
 
         $this->assertSame(2, JadwalPelajaran::where('kelas_id', $tujuan->id)->count());
+
+        // Kelas tujuan yang Final dilewati seluruhnya.
+        $tujuan->update(['status_jadwal' => 'final']);
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/jadwal/salin', [
+                'jenjang' => 'MI', 'tahun_ajaran_sumber' => $taLalu, 'tahun_ajaran_tujuan' => self::TA,
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('hitung.jadwal', 0)
+            ->assertJsonPath('kelas_dilewati.0.nama', '1A');
+    }
+
+    /**
+     * Status jadwal per kelas + agregat: final hanya bila seluruh kelas final.
+     * Kelas final terkunci (jadwal/pengampu/salin mapel ditolak) sampai
+     * dikembalikan ke draft.
+     */
+    public function test_07_status_jadwal_mengunci_perubahan_kelas_final(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $a = $this->kelas('1A', '1');
+        $b = $this->kelas('1B', '1');
+        $fiqih = $this->mapel('Fiqih');
+        $slotA = SlotJamPelajaran::create([
+            'jenjang' => 'MI', 'kelas_id' => $a->id, 'nama_slot' => 'Jam 1',
+            'jenis' => 'pelajaran', 'urutan' => 1,
+        ]);
+        PengampuMapel::create(['kelas_id' => $a->id, 'mata_pelajaran_id' => $fiqih->id]);
+
+        $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/kurikulum/jadwal/status?'.http_build_query([
+                'jenjang' => 'MI', 'tahun_ajaran' => self::TA,
+            ]))
+            ->assertStatus(200)
+            ->assertJsonPath('status', 'draft');
+
+        // Satu kelas pembahasan -> agregat pembahasan.
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/jadwal/status', ['kelas_id' => $a->id, 'status' => 'pembahasan'])
+            ->assertStatus(200)
+            ->assertJsonPath('status', 'pembahasan');
+
+        // Semua final -> agregat final.
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/jadwal/status', ['kelas_id' => $a->id, 'status' => 'final'])
+            ->assertStatus(200);
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/jadwal/status', ['kelas_id' => $b->id, 'status' => 'final'])
+            ->assertStatus(200)
+            ->assertJsonPath('status', 'final');
+
+        // Kelas final menolak perubahan jadwal, pengampu, dan salin mapel.
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/jadwal/sel', [
+                'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
+                'mata_pelajaran_id' => $fiqih->id, 'keaktifan_pegawai_id' => null,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('kelas_id');
+
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/pengampu', ['kelas_id' => $a->id, 'baris' => []])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('kelas_id');
+
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/pengampu/salin', ['kelas_id' => $a->id, 'dari_kelas_id' => $b->id])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('kelas_id');
+
+        // Kembali ke draft -> boleh diubah lagi.
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/jadwal/status', ['kelas_id' => $a->id, 'status' => 'draft'])
+            ->assertStatus(200)
+            ->assertJsonPath('status', 'draft');
+
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/jadwal/sel', [
+                'kelas_id' => $a->id, 'slot_jam_id' => $slotA->id, 'hari' => 'senin',
+                'mata_pelajaran_id' => $fiqih->id, 'keaktifan_pegawai_id' => null,
+            ])
+            ->assertStatus(200);
+    }
+
+    /**
+     * Varian jadwal: snapshot manual, hanya satu aktif per TA + lembaga, dan
+     * aktivasi memulihkan jadwal dari snapshot. Kelas Final dilewati.
+     */
+    public function test_08_varian_jadwal_snapshot_dan_aktifkan(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $kelas = $this->kelas('1A', '1');
+        $fiqih = $this->mapel('Fiqih');
+        $arab = $this->mapel('Bahasa Arab');
+        $slot = SlotJamPelajaran::create([
+            'jenjang' => 'MI', 'kelas_id' => $kelas->id, 'nama_slot' => 'Jam 1',
+            'jenis' => 'pelajaran', 'urutan' => 1,
+        ]);
+        PengampuMapel::create(['kelas_id' => $kelas->id, 'mata_pelajaran_id' => $fiqih->id]);
+
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/jadwal/sel', [
+                'kelas_id' => $kelas->id, 'slot_jam_id' => $slot->id, 'hari' => 'senin',
+                'mata_pelajaran_id' => $fiqih->id, 'keaktifan_pegawai_id' => null,
+            ])
+            ->assertStatus(200);
+
+        // Varian "Normal": satu sel.
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/jadwal/varian', [
+                'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'nama' => 'Normal',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('varian.0.nama', 'Normal')
+            ->assertJsonPath('varian.0.is_active', true)
+            ->assertJsonPath('varian.0.ringkasan.jadwal', 1);
+
+        // Ubah jadwal, lalu simpan varian "Revisi".
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/jadwal/sel', [
+                'kelas_id' => $kelas->id, 'slot_jam_id' => $slot->id, 'hari' => 'selasa',
+                'mata_pelajaran_id' => $arab->id, 'keaktifan_pegawai_id' => null,
+            ])
+            ->assertStatus(200);
+
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/jadwal/varian', [
+                'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'nama' => 'Revisi',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('varian.0.nama', 'Revisi')
+            ->assertJsonPath('varian.0.is_active', true)
+            ->assertJsonPath('varian.1.nama', 'Normal')
+            ->assertJsonPath('varian.1.is_active', false);
+
+        // Hanya satu yang aktif.
+        $this->assertSame(1, VarianJadwal::where('is_active', true)->count());
+
+        // Aktifkan "Normal" -> jadwal kembali ke satu sel (Senin).
+        $normal = VarianJadwal::where('nama', 'Normal')->firstOrFail();
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/jadwal/varian/{$normal->id}/aktifkan")
+            ->assertStatus(200)
+            ->assertJsonPath('varian.0.nama', 'Normal')
+            ->assertJsonPath('varian.0.is_active', true)
+            ->assertJsonPath('ringkas.jadwal', 1);
+
+        $this->assertSame(1, JadwalPelajaran::where('kelas_id', $kelas->id)->count());
+        $this->assertSame('senin', JadwalPelajaran::where('kelas_id', $kelas->id)->value('hari'));
+        $this->assertSame(1, VarianJadwal::where('is_active', true)->count());
+
+        // Kelas Final dilewati saat aktivasi.
+        $kelas->update(['status_jadwal' => 'final']);
+        $revisi = VarianJadwal::where('nama', 'Revisi')->firstOrFail();
+        $this->actingAs($super, 'sanctum')
+            ->putJson("/api/admin/kurikulum/jadwal/varian/{$revisi->id}/aktifkan")
+            ->assertStatus(200)
+            ->assertJsonPath('ringkas.dilewati', 1)
+            ->assertJsonPath('ringkas.kelas', 0);
+
+        $this->assertSame(1, JadwalPelajaran::where('kelas_id', $kelas->id)->count());
     }
 }
