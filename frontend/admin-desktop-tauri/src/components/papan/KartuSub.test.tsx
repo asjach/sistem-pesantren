@@ -65,16 +65,6 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
     expect(document.getElementById('kartu_papan_butir_2')).not.toBeNull();
   });
 
-  it('tiap poin tetap bisa dibuka rinciannya sendiri', () => {
-    pasang([poin({ id: 1, deskripsi: 'Poin A.' }), poin({ id: 2, deskripsi: 'Poin B.' })]);
-
-    fireEvent.click(document.getElementById('kartu_papan_butir_2')!);
-
-    const rincian = document.getElementById('rincian_butir_2');
-    expect(rincian?.textContent).toContain('Poin B.');
-    expect(rincian?.textContent).not.toContain('Poin A.');
-  });
-
   it('poin tetap draggable saat boleh ubah, dan tidak saat tidak boleh', () => {
     const { unmount } = pasang([poin({ id: 1 })]);
     expect(document.getElementById('kartu_papan_butir_1')?.getAttribute('draggable')).toBe('true');
@@ -123,6 +113,9 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
     fireEvent.click(document.getElementById('btn_simpan_sub_d_2_akan')!);
     await vi.waitFor(() => expect(onSimpan).toHaveBeenCalledWith('D.2', 'Rencana terinci'));
 
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn_tambah_poin_sub_d_2_akan')).not.toBeNull();
+    });
     fireEvent.click(document.getElementById('btn_tambah_poin_sub_d_2_akan')!);
     fireEvent.change(document.getElementById('input_poin_baru_sub_d_2_akan')!, {
       target: { value: 'Mulai pekerjaan.' },

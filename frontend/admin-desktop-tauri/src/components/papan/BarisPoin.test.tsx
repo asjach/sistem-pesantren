@@ -30,9 +30,6 @@ function aksi(ubah: Partial<AksiButir> = {}): AksiButir {
   return {
     onSimpanTeks: vi.fn(async () => {}),
     onSimpanSubpoin: vi.fn(async () => {}),
-    onSimpanStatus: vi.fn(async () => {}),
-    onNaik: vi.fn(async () => {}),
-    onTurun: vi.fn(async () => {}),
     onHapus: vi.fn(async () => {}),
     ...ubah,
   };
@@ -54,43 +51,29 @@ function pasang(
   );
 }
 
-/** Buka panel rincian kartu pertama lewat barisnya. */
-function buka(id = 128) {
-  fireEvent.click(document.getElementById(`kartu_papan_butir_${id}`)!);
-}
-
 /** Masuk mode sunting poin lewat pensil di baris. */
 function mulaiUbah(id = 128) {
   fireEvent.click(document.getElementById(`btn_ubah_papan_butir_${id}`)!);
 }
 
-describe('PapanKolom - gerbang izin ubah', () => {
-  it('tanpa izin ubah, tidak ada pensil, hapus, maupun kontrol rincian', () => {
+describe('BarisPoin - gerbang izin ubah', () => {
+  it('tanpa izin ubah tidak ada pensil maupun kontrol sunting', () => {
     pasang([kartu()], { bolehUbah: false });
-    expect(document.getElementById('btn_ubah_papan_butir_128')).toBeNull();
-    buka();
 
-    // Rincian tetap terbaca penuh - yang hilang hanya kendali mengubahnya.
-    const rincian = document.getElementById('rincian_butir_128');
-    expect(rincian?.textContent).toContain('Ekspor rekap per kas.');
-    expect(document.getElementById('btn_naik_butir_papan')).toBeNull();
-    expect(document.getElementById('btn_status_sudah')).toBeNull();
+    expect(document.getElementById('btn_ubah_papan_butir_128')).toBeNull();
+    expect(document.getElementById('kartu_papan_butir_128')?.textContent).toContain(
+      'Ekspor rekap per kas.',
+    );
   });
 
-  it('dengan izin ubah, pensil baris dan kontrol rincian muncul', () => {
+  it('dengan izin ubah pensil baris muncul', () => {
     pasang([kartu()], { bolehUbah: true });
+
     expect(document.getElementById('btn_ubah_papan_butir_128')).not.toBeNull();
-    buka();
-    expect(document.getElementById('btn_status_sudah')).not.toBeNull();
-    // Tombol status menawarkan ketiga kolom LAIN, bukan status yang kini
-    // dipegang poin itu - memindah ke kolom yang sama tidak ada artinya.
-    expect(document.getElementById('btn_status_sedang')).not.toBeNull();
-    expect(document.getElementById('btn_status_ditunda')).not.toBeNull();
-    expect(document.getElementById('btn_status_akan')).toBeNull();
   });
 });
 
-describe('PapanKolom - menyunting poin di baris', () => {
+describe('BarisPoin - menyunting poin di baris', () => {
   it('menyimpan teks baru lewat onSimpanTeks', async () => {
     const onSimpanTeks = vi.fn(async () => {});
     pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
@@ -104,6 +87,36 @@ describe('PapanKolom - menyunting poin di baris', () => {
     fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
 
     expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap harian.');
+  });
+
+  it('tombol simpan mati selama teks belum berubah', () => {
+    pasang([kartu()], { bolehUbah: true });
+    mulaiUbah();
+
+    expect((document.getElementById('btn_simpan_butir_128') as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(document.getElementById('input_ubah_butir_128')!, {
+      target: { value: 'Ekspor rekap harian.' },
+    });
+
+    expect((document.getElementById('btn_simpan_butir_128') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('mengubah status lewat pilihan di editor dan menyimpannya bersama teks', async () => {
+    const onSimpanTeks = vi.fn(async () => {});
+    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    mulaiUbah();
+
+    const pilih = document.getElementById('status_butir_128') as HTMLSelectElement;
+    expect(pilih.value).toBe('akan');
+
+    fireEvent.change(pilih, { target: { value: 'sudah' } });
+    expect((document.getElementById('btn_simpan_butir_128') as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
+    await vi.waitFor(() => {
+      expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', 'sudah');
+    });
   });
 
   it('teks kosong tidak disimpan dan tombol simpan mati', () => {
@@ -155,29 +168,6 @@ describe('PapanKolom - menyunting poin di baris', () => {
 
     expect(onHapus).not.toHaveBeenCalled();
     expect(document.getElementById('btn_hapus_butir_128')).not.toBeNull();
-  });
-
-  it('tombol status mengirim status yang dipilih', () => {
-    const onSimpanStatus = vi.fn(async () => {});
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanStatus }) });
-    buka();
-
-    fireEvent.click(document.getElementById('btn_status_sudah')!);
-
-    expect(onSimpanStatus).toHaveBeenCalledWith('sudah');
-  });
-
-  it('tombol naik dan turun meneruskan aksinya', () => {
-    const onNaik = vi.fn(async () => {});
-    const onTurun = vi.fn(async () => {});
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onNaik, onTurun }) });
-    buka();
-
-    fireEvent.click(document.getElementById('btn_naik_butir_papan')!);
-    fireEvent.click(document.getElementById('btn_turun_butir_papan')!);
-
-    expect(onNaik).toHaveBeenCalled();
-    expect(onTurun).toHaveBeenCalled();
   });
 
   it('galat dari server ditampilkan di baris, bukan ditelan', async () => {

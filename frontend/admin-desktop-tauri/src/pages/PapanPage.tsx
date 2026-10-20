@@ -6,9 +6,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { PapanKolom } from '@/components/papan/PapanKolom';
-import { Columns3, Loader2, Plus, RefreshCcw } from '@/icons';
+import { Columns3, Loader2, RefreshCcw } from '@/icons';
 import {
-  geserButirPapan,
   hapusButirPapan,
   muatPapan,
   muatRiwayatPapan,
@@ -158,27 +157,15 @@ export default function PapanPage() {
     }
   }, []);
 
-  /** Aksi sunting untuk satu kartu poin, dipakai panel rincian. */
+  /** Aksi sunting untuk satu baris poin. */
   const aksiButir = useCallback(
     (kartu: KartuPapan): AksiButir => ({
-      onSimpanTeks: async (deskripsi) => {
-        await ubahButirPapan(kartu.subKode, kartu.id, { deskripsi });
+      onSimpanTeks: async (deskripsi, status) => {
+        await ubahButirPapan(kartu.subKode, kartu.id, status ? { deskripsi, status } : { deskripsi });
         await segarkan();
       },
       onSimpanSubpoin: async (subpoin) => {
         await ubahButirPapan(kartu.subKode, kartu.id, { subpoin });
-        await segarkan();
-      },
-      onSimpanStatus: async (status) => {
-        await ubahButirPapan(kartu.subKode, kartu.id, { status });
-        await segarkan();
-      },
-      onNaik: async () => {
-        await geserButirPapan(kartu.subKode, kartu.id, -1);
-        await segarkan();
-      },
-      onTurun: async () => {
-        await geserButirPapan(kartu.subKode, kartu.id, 1);
         await segarkan();
       },
       onHapus: async () => {
@@ -310,20 +297,7 @@ export default function PapanPage() {
               riwayat={riwayat}
               idAwalan={`modul_${aktif.kode.toLowerCase()}`}
               lipatAwal={KOLOM_TERTUTUP_AWAL}
-              alat={
-                bolehUbah ? (
-                  <Button
-                    id="btn_kelola_papan"
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setKelolaTerbuka(true)}
-                  >
-                    <Plus size={13} />
-                    Tambah sub-modul
-                  </Button>
-                ) : null
-              }
+              onTambahSub={bolehUbah ? () => setKelolaTerbuka(true) : undefined}
             />
           ) : null}
         </Tabs>

@@ -58,40 +58,39 @@ describe('PapanKolom - kolom awal', () => {
   });
 });
 
-describe('PapanKolom - rincian poin', () => {
-  it('belum menampilkan rincian sebelum judul diklik', () => {
-    pasang();
-    expect(document.getElementById('rincian_butir_128')).toBeNull();
+describe('PapanKolom - tambah sub-modul', () => {
+  it('tombol muncul di kolom akan dan sedang saat boleh ubah', () => {
+    const onTambahSub = vi.fn();
+    renderDenganTema(
+      <PapanKolom
+        kartu={[kartu()]}
+        tampilkanModul={false}
+        onPindah={vi.fn()}
+        bolehUbah
+        onTambahSub={onTambahSub}
+        idAwalan="uji"
+      />,
+    );
+
+    fireEvent.click(document.getElementById('btn_tambah_sub_uji_akan')!);
+    expect(onTambahSub).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('btn_tambah_sub_uji_sedang')).not.toBeNull();
+    expect(document.getElementById('btn_tambah_sub_uji_sudah')).toBeNull();
+    expect(document.getElementById('btn_tambah_sub_uji_ditunda')).toBeNull();
   });
 
-  it('klik baris membuka rincian di dalam kartu', () => {
-    pasang();
-    fireEvent.click(document.getElementById('kartu_papan_butir_128')!);
+  it('tanpa izin ubah tombol tambah sub-modul tidak muncul', () => {
+    renderDenganTema(
+      <PapanKolom
+        kartu={[kartu()]}
+        tampilkanModul={false}
+        onPindah={vi.fn()}
+        onTambahSub={vi.fn()}
+        idAwalan="uji"
+      />,
+    );
 
-    const rincian = document.getElementById('rincian_butir_128');
-    expect(rincian).not.toBeNull();
-    // Rincian konteks: modul, sub-modul, dan status turunan.
-    expect(rincian?.textContent).toContain('Keuangan');
-    expect(rincian?.textContent).toContain('Ekspor rekap per kas.');
-    expect(rincian?.textContent).toContain('turunan dari poin');
-    expect(document.getElementById('pop_butir_papan')).toBeNull();
-    expect(document.getElementById('dialog_butir_papan')).toBeNull();
-  });
-
-  it('mengetuk baris poin membuka rincian (jalur sentuh)', () => {
-    pasang();
-    fireEvent.click(document.getElementById('kartu_papan_butir_128')!);
-
-    expect(document.getElementById('rincian_butir_128')).not.toBeNull();
-  });
-
-  it('rincian hanya terbuka untuk satu kartu', () => {
-    pasang([kartu(), kartu({ id: 129, deskripsi: 'Rekap per kas.' })]);
-    fireEvent.click(document.getElementById('kartu_papan_butir_128')!);
-    fireEvent.click(document.getElementById('kartu_papan_butir_129')!);
-
-    const rincian = document.getElementById('rincian_butir_129');
-    expect(rincian?.textContent).toContain('Rekap per kas.');
-    expect(document.getElementById('rincian_butir_128')).toBeNull();
+    expect(document.getElementById('btn_tambah_sub_uji_akan')).toBeNull();
+    expect(document.getElementById('btn_tambah_sub_uji_sedang')).toBeNull();
   });
 });

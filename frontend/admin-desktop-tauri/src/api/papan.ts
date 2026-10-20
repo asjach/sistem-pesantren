@@ -110,19 +110,6 @@ export function ubahButirPapan(
   );
 }
 
-/**
- * Geser satu POIN naik (-1) atau turun (1) di dalam sub-modulnya.
- *
- * Backend menjawab 409 bila poin sudah di ujung; pemanggil sebaiknya
- * menonaktifkan tombolnya lebih dulu supaya 409 jarang terjadi.
- */
-export function geserButirPapan(kode: string, id: number, arah: -1 | 1) {
-  return api<{ butir: ButirPapan[] }>(`/board/${encodeURIComponent(kode)}/butir/${id}/urutan`, {
-    method: 'PATCH',
-    body: JSON.stringify({ arah }),
-  });
-}
-
 /** Tambah sub-modul baru di bawah sebuah modul. */
 export function tambahSubPapan(modulKode: string, kode: string, nama: string) {
   return api<{ kode: string; nama: string }>(`/board/modul/${encodeURIComponent(modulKode)}/item`, {
