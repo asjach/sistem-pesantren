@@ -17,7 +17,7 @@ class PapanModul extends Model
 
     protected $table = 'papan_modul';
 
-    protected $fillable = ['kode', 'nama', 'urutan', 'catatan'];
+    protected $fillable = ['aplikasi', 'kode', 'nama', 'urutan', 'catatan'];
 
     /** @return HasMany<PapanItem, $this> */
     public function item(): HasMany

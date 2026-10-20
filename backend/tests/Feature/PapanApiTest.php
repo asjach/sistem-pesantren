@@ -54,8 +54,9 @@ class PapanApiTest extends TestCase
 
         $this->getJson('/api/board')
             ->assertOk()
-            ->assertJsonPath('modul.0.kode', 'E')
-            ->assertJsonPath('modul.0.sub.0.kode', 'E.3')
+            ->assertJsonPath('aplikasi.0.kode', 'desktop-admin')
+            ->assertJsonPath('aplikasi.0.modul.0.kode', 'E')
+            ->assertJsonPath('aplikasi.0.modul.0.sub.0.kode', 'E.3')
             // Ringkasan dipisah: poin (yang bergerak) dan sub-modul (turunan).
             ->assertJsonPath('ringkasan.butir.akan', 1)
             ->assertJsonPath('ringkasan.butir.sudah', 1)
@@ -67,7 +68,7 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->postJson('/api/board/modul', ['kode' => 'h', 'nama' => 'Laporan'])
+        $this->postJson('/api/board/modul', ['aplikasi' => 'desktop-admin', 'kode' => 'h', 'nama' => 'Laporan'])
             ->assertStatus(201)
             ->assertJsonPath('kode', 'H')
             ->assertJsonPath('nama', 'Laporan');
@@ -81,7 +82,7 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->postJson('/api/board/modul', ['kode' => 'e', 'nama' => 'Kembar'])
+        $this->postJson('/api/board/modul', ['aplikasi' => 'desktop-admin', 'kode' => 'e', 'nama' => 'Kembar'])
             ->assertStatus(422);
     }
 
@@ -89,8 +90,25 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['guru']));
 
-        $this->postJson('/api/board/modul', ['kode' => 'H', 'nama' => 'Laporan'])
+        $this->postJson('/api/board/modul', ['aplikasi' => 'desktop-admin', 'kode' => 'H', 'nama' => 'Laporan'])
             ->assertStatus(403);
+    }
+
+    public function test_timeline_bisa_diaktifkan_dan_dinonaktifkan(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->getJson('/api/board')->assertOk()->assertJsonPath('timeline_aktif', false);
+
+        $this->patchJson('/api/board/timeline', ['aktif' => true])
+            ->assertOk()
+            ->assertJsonPath('timeline_aktif', true);
+
+        $this->getJson('/api/board')->assertOk()->assertJsonPath('timeline_aktif', true);
+
+        $this->patchJson('/api/board/timeline', ['aktif' => false])
+            ->assertOk()
+            ->assertJsonPath('timeline_aktif', false);
     }
 
     public function test_pengguna_tanpa_izin_papan_ditolak(): void

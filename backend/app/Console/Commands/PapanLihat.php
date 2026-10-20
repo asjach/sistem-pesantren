@@ -7,8 +7,8 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('papan:lihat {kode? : Batasi ke satu sub-modul, mis. E.3} {--riwayat : Tampilkan riwayat perpindahan status}')]
-#[Description('Baca papan perkembangan proyek: daftar modul, sub-modul, dan butirnya.')]
+#[Signature('papan:lihat {kode? : Batasi ke satu sub-modul, mis. DA1.1} {--riwayat : Tampilkan riwayat perpindahan status}')]
+#[Description('Baca papan perkembangan proyek per aplikasi: modul, sub-modul, dan butirnya.')]
 class PapanLihat extends Command
 {
     /** Tampilkan papan; tanpa argumen cetak semuanya. */
@@ -33,6 +33,7 @@ class PapanLihat extends Command
         $item = $papan->item($kode);
 
         $this->line("<options=bold>{$item->kode} {$item->nama}</>  [<options=bold>{$item->status}</>]");
+        $this->line('Aplikasi: '.(PapanService::APLIKASI[$item->modul->aplikasi] ?? $item->modul->aplikasi));
         $this->line("Modul: {$item->modul->nama}");
         $this->newLine();
 
@@ -55,36 +56,43 @@ class PapanLihat extends Command
         return self::SUCCESS;
     }
 
-    /** Cetak seluruh papan dikelompokkan per modul. */
+    /** Cetak seluruh papan dikelompokkan per aplikasi lalu modul. */
     private function cetakSemua(PapanService $papan): int
     {
-        foreach ($papan->semua() as $modul) {
-            $this->line("<options=bold>{$modul['kode']}. {$modul['nama']}</>");
+        $this->line('Timeline: <options=bold>'.($papan->timelineAktif() ? 'AKTIF' : 'DRAF').'</>');
+        $this->newLine();
 
-            foreach ($modul['sub'] as $sub) {
-                // Tampilkan sebaran poin per status di sebelah nama, supaya
-                // kelihatan kenapa status turunannya begitu (mis. "akan" karena
-                // masih ada 2 poin yang belum selesai).
-                $ada = [];
-                foreach ($sub['butir'] as $b) {
-                    $ada[$b['status']] = ($ada[$b['status']] ?? 0) + 1;
-                }
+        foreach ($papan->semuaAplikasi() as $aplikasi) {
+            $this->line("<options=bold>{$aplikasi['nama']}</>");
 
-                $rinci = [];
-                foreach (PapanService::STATUS as $s) {
-                    if (($ada[$s] ?? 0) > 0) {
-                        $rinci[] = "{$s}:{$ada[$s]}";
+            foreach ($aplikasi['modul'] as $modul) {
+                $this->line("  {$modul['kode']}. {$modul['nama']}");
+
+                foreach ($modul['sub'] as $sub) {
+                    // Tampilkan sebaran poin per status di sebelah nama, supaya
+                    // kelihatan kenapa status turunannya begitu (mis. "akan" karena
+                    // masih ada 2 poin yang belum selesai).
+                    $ada = [];
+                    foreach ($sub['butir'] as $b) {
+                        $ada[$b['status']] = ($ada[$b['status']] ?? 0) + 1;
                     }
-                }
 
-                $this->line(sprintf(
-                    '  %-5s [%-7s] %-38s <fg=gray>(%d poin%s)</>',
-                    $sub['kode'],
-                    $sub['status'],
-                    mb_strimwidth($sub['nama'], 0, 38, '…'),
-                    count($sub['butir']),
-                    $rinci === [] ? '' : ' — '.implode(' ', $rinci),
-                ));
+                    $rinci = [];
+                    foreach (PapanService::STATUS as $s) {
+                        if (($ada[$s] ?? 0) > 0) {
+                            $rinci[] = "{$s}:{$ada[$s]}";
+                        }
+                    }
+
+                    $this->line(sprintf(
+                        '    %-7s [%-7s] %-38s <fg=gray>(%d poin%s)</>',
+                        $sub['kode'],
+                        $sub['status'],
+                        mb_strimwidth($sub['nama'], 0, 38, '…'),
+                        count($sub['butir']),
+                        $rinci === [] ? '' : ' — '.implode(' ', $rinci),
+                    ));
+                }
             }
 
             $this->newLine();

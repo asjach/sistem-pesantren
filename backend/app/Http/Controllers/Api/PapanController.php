@@ -25,14 +25,25 @@ class PapanController extends Controller
         private readonly PapanTulisUlang $tulisUlang,
     ) {}
 
-    /** Seluruh papan: modul, sub-modul, butir, plus ringkasan per status. */
+    /** Seluruh papan: aplikasi -> modul -> sub-modul -> butir + status timeline. */
     public function index(): JsonResponse
     {
         return response()->json([
-            'modul' => $this->papan->semua(),
+            'aplikasi' => $this->papan->semuaAplikasi(),
+            'timeline_aktif' => $this->papan->timelineAktif(),
             'ringkasan' => $this->papan->ringkasan(),
             'status' => PapanService::STATUS,
         ]);
+    }
+
+    /** Aktifkan/nonaktifkan pemakaian timeline oleh agen. */
+    public function timeline(Request $request): JsonResponse
+    {
+        $valid = $request->validate(['aktif' => ['required', 'boolean']]);
+
+        $this->papan->setTimelineAktif((bool) $valid['aktif']);
+
+        return response()->json(['timeline_aktif' => $this->papan->timelineAktif()]);
     }
 
     /** Riwayat perpindahan status, terbaru lebih dulu. */
@@ -248,17 +259,19 @@ class PapanController extends Controller
     public function tambahModul(Request $request): JsonResponse
     {
         $valid = $request->validate([
+            'aplikasi' => ['required', 'string', 'in:'.implode(',', array_keys(PapanService::APLIKASI))],
             'kode' => ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
             'nama' => ['required', 'string', 'max:100'],
         ]);
 
         try {
-            $modul = $this->papan->tambahModul($valid['kode'], $valid['nama']);
+            $modul = $this->papan->tambahModul($valid['aplikasi'], $valid['kode'], $valid['nama']);
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
         return response()->json([
+            'aplikasi' => $modul->aplikasi,
             'kode' => $modul->kode,
             'nama' => $modul->nama,
             ...$this->segarkanMarkdown(),

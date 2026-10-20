@@ -30,6 +30,16 @@ class PapanService
 {
     public const STATUS = ['sudah', 'sedang', 'akan', 'ditunda'];
 
+    /** Aplikasi klien pada Board; urutan di sini = urutan tab horizontal. */
+    public const APLIKASI = [
+        'desktop-admin' => 'Desktop Admin',
+        'mobile-orang-tua' => 'Mobile Orang Tua',
+        'mobile-guru' => 'Mobile Guru',
+        'mobile-pimpinan' => 'Mobile Pimpinan',
+        'mobile-kasir' => 'Mobile Kasir',
+        'landing-pesantren' => 'Landing Page Pesantren',
+    ];
+
     /**
      * Status sub-modul yang DITURUNKAN dari status poin-poinnya.
      *
@@ -37,7 +47,7 @@ class PapanService
      * 1. belum punya poin        -> `akan` (belum dikerjakan);
      * 2. ada poin `sedang`        -> `sedang` (sedang berjalan);
      * 3. ada poin `akan`          -> `akan` (masih ada sisa);
-     * 4. semua poin `ditunda`     -> `ditunda`;
+     * 4. ada poin `ditunda`       -> `ditunda` (ada bagian yang ditunda);
      * 5. selain itu (semua sudah) -> `sudah`.
      *
      * Urutan ini penting: satu poin `akan` saja sudah membuat sub-modul
@@ -61,7 +71,7 @@ class PapanService
             return 'akan';
         }
 
-        if (($ada['sudah'] ?? 0) === 0) {
+        if (($ada['ditunda'] ?? 0) > 0) {
             return 'ditunda';
         }
 
@@ -84,6 +94,7 @@ class PapanService
             ->map(fn (PapanModul $m) => [
                 'kode' => $m->kode,
                 'nama' => $m->nama,
+                'aplikasi' => $m->aplikasi,
                 'urut' => (int) $m->urutan,
                 'catatan' => $m->catatan,
                 'sub' => $m->item->map(function (PapanItem $i) {
@@ -104,6 +115,47 @@ class PapanService
                 })->all(),
             ])
             ->all();
+    }
+
+    /**
+     * Seluruh modul dikelompokkan per aplikasi, urut sesuai tab.
+     *
+     * @return array<int, array{kode: string, nama: string, modul: array<int, array<string, mixed>>}>
+     */
+    public function semuaAplikasi(): array
+    {
+        $hasil = [];
+
+        foreach (self::APLIKASI as $kode => $nama) {
+            $hasil[$kode] = ['kode' => $kode, 'nama' => $nama, 'modul' => []];
+        }
+
+        foreach ($this->semua() as $modul) {
+            $hasil[$modul['aplikasi']]['modul'][] = $modul;
+        }
+
+        return array_values($hasil);
+    }
+
+    /**
+     * Status timeline: hanya saat `Aktif` Board boleh dipakai sebagai rujukan.
+     */
+    public function timelineAktif(): bool
+    {
+        $baris = DB::connection('papan')
+            ->table('papan_pengaturan')
+            ->where('kunci', 'timeline_aktif')
+            ->first();
+
+        return $baris !== null && (string) $baris->nilai === '1';
+    }
+
+    public function setTimelineAktif(bool $aktif): void
+    {
+        DB::connection('papan')->table('papan_pengaturan')->updateOrInsert(
+            ['kunci' => 'timeline_aktif'],
+            ['nilai' => $aktif ? '1' : '0'],
+        );
     }
 
     /**
@@ -472,8 +524,12 @@ class PapanService
      *
      * @throws InvalidArgumentException bila kode sudah dipakai
      */
-    public function tambahModul(string $kode, string $nama): PapanModul
+    public function tambahModul(string $aplikasi, string $kode, string $nama): PapanModul
     {
+        if (! array_key_exists($aplikasi, self::APLIKASI)) {
+            throw new InvalidArgumentException("Aplikasi `{$aplikasi}` tidak dikenal.");
+        }
+
         $kode = strtoupper(trim($kode));
 
         $sudahAda = PapanModul::query()
@@ -484,9 +540,10 @@ class PapanService
             throw new InvalidArgumentException("Kode modul `{$kode}` sudah dipakai.");
         }
 
-        $urutan = (int) PapanModul::query()->max('urutan');
+        $urutan = (int) PapanModul::query()->where('aplikasi', $aplikasi)->max('urutan');
 
         return PapanModul::create([
+            'aplikasi' => $aplikasi,
             'kode' => $kode,
             'nama' => trim($nama),
             'urutan' => $urutan + 1,

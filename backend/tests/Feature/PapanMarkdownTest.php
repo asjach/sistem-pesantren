@@ -10,9 +10,8 @@ use RuntimeException;
 use Tests\TestCase;
 
 /**
- * Generator markdown papan: bagian A–G dihasilkan dari database, bagian H ke
- * bawah dipertahankan apa adanya. Yang diuji di sini adalah pemotongan berkas
- * dan bentuk keluaran — bagian yang bisa rusak diam-diam tanpa disadari.
+ * Generator markdown papan: modul dihasilkan dari database, bagian "Sedang
+ * dikerjakan" dan rincian teknis dipertahankan dari berkas lama.
  */
 class PapanMarkdownTest extends TestCase
 {
@@ -20,7 +19,7 @@ class PapanMarkdownTest extends TestCase
 
     private const KEPALA = "# PETA\n\n> kepala\n\n";
 
-    private const EKOR = "# H. SEDANG DIKERJAKAN\n\n**Kosong.**\n\n---\n\n# I. RINCIAN TEKNIS LAINNYA\n\n- Sesuatu\n";
+    private const EKOR = "# SEDANG DIKERJAKAN\n\n**Kosong.**\n\n---\n\n# RINCIAN TEKNIS LAINNYA\n\n- Sesuatu\n";
 
     protected function setUp(): void
     {
@@ -37,7 +36,7 @@ class PapanMarkdownTest extends TestCase
 
     public function test_potong_memisahkan_kepala_dan_ekor(): void
     {
-        $isi = self::KEPALA."# A. Fondasi\n\n## A.1 Setup\n**SUDAH**\n- Satu.\n\n".self::EKOR;
+        $isi = self::KEPALA."# Aplikasi: Desktop Admin\n\n## A. Fondasi\n\n### A.1 Setup\n**SUDAH**\n- Satu.\n\n".self::EKOR;
 
         [$kepala, $ekor] = PapanMarkdown::potong($isi);
 
@@ -59,10 +58,11 @@ class PapanMarkdownTest extends TestCase
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
         $this->assertStringStartsWith(self::KEPALA, $hasil);
-        $this->assertStringContainsString('# A. Fondasi', $hasil);
-        $this->assertStringContainsString('## A.1 Setup (001)', $hasil);
+        $this->assertStringContainsString('# Aplikasi: Desktop Admin', $hasil);
+        $this->assertStringContainsString('## A. Fondasi', $hasil);
+        $this->assertStringContainsString('### A.1 Setup (001)', $hasil);
         $this->assertStringContainsString('- Proyek berjalan.', $hasil);
-        $this->assertStringContainsString('# I. RINCIAN TEKNIS LAINNYA', $hasil);
+        $this->assertStringContainsString('# RINCIAN TEKNIS LAINNYA', $hasil);
     }
 
     public function test_subpoin_ditulis_sebagai_checklist_di_bawah_poin(): void
@@ -91,7 +91,7 @@ class PapanMarkdownTest extends TestCase
 
         // Tanpa ini, `papan:tandai` tidak terlihat di markdown selama
         // butir-butirnya belum ikut dipindahkan.
-        $this->assertStringContainsString('## A.1 Setup (001) '.chr(96).'SEDANG'.chr(96), $hasil);
+        $this->assertStringContainsString('### A.1 Setup (001) '.chr(96).'SEDANG'.chr(96), $hasil);
     }
 
     public function test_bagian_sedang_kosong_saat_tidak_ada_yang_dikerjakan(): void
@@ -101,7 +101,7 @@ class PapanMarkdownTest extends TestCase
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
         $this->assertStringContainsString(
-            "# H. SEDANG DIKERJAKAN\n\n**Kosong.**",
+            "# SEDANG DIKERJAKAN\n\n**Kosong.**",
             $hasil,
         );
     }

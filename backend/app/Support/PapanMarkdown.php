@@ -7,25 +7,31 @@ use App\Services\PapanService;
 /**
  * Penghasil markdown papan perkembangan proyek.
  *
- * Bagian A–G dihasilkan dari isi papan (modul -> sub-modul -> butir, lengkap
- * dengan status). Bagian H ke bawah **bukan** data papan, jadi dipertahankan
- * apa adanya dari berkas lama: semuanya setelah penanda `# H. ` pertama.
+ * Modul dihasilkan dari isi papan (modul -> sub-modul -> butir, lengkap
+ * dengan status). Bagian "SEDANG DIKERJAKAN" dan "RINCIAN TEKNIS LAINNYA"
+ * **bukan** data papan, jadi dipertahankan dari berkas lama.
  *
  * Dengan begitu `PETA-MODUL.md` selalu turunan yang setia: sekali
  * `papan:markdown` dijalankan, markdown tidak mungkin lagi basi.
  */
 class PapanMarkdown
 {
+    /** Penanda awal bagian yang dihasilkan dari Board (per aplikasi). */
+    public const PENANDA_AWAL = '# Aplikasi: ';
+
     /** Judul bagian pertama yang bukan data papan; sisanya dipertahankan. */
-    public const PENANDA_EKOR = '# H. SEDANG DIKERJAKAN';
+    public const PENANDA_EKOR = '# SEDANG DIKERJAKAN';
+
+    /** Awal bagian rincian teknis yang dipertahankan dari berkas lama. */
+    public const PENANDA_RINCIAN = '# RINCIAN TEKNIS LAINNYA';
 
     public function __construct(private readonly PapanService $papan) {}
 
     /**
-     * Hasilkan markdown lengkap: kepala + bagian A–G dari papan + ekor lama.
+     * Hasilkan markdown lengkap: kepala + modul dari papan + ekor lama.
      *
      * @param  string  $kepala  bagian sebelum "# A. " (header, cara baca, dst.)
-     * @param  string  $ekor  bagian mulai "# H. " ke bawah
+     * @param  string  $ekor  bagian mulai "# SEDANG DIKERJAKAN" ke bawah
      */
     public function hasilkan(string $kepala, string $ekor): string
     {
@@ -35,7 +41,7 @@ class PapanMarkdown
     }
 
     /**
-     * Bagian "H. SEDANG DIKERJAKAN" dihasilkan dari sub-modul berstatus SEDANG,
+     * Bagian "SEDANG DIKERJAKAN" dihasilkan dari sub-modul berstatus SEDANG,
      * supaya tidak bisa lagi bilang "Kosong" padahal ada pekerjaan berjalan.
      */
     public function bagianSedang(): string
@@ -54,51 +60,62 @@ class PapanMarkdown
             ? ['**Kosong.** Tidak ada sub-modul yang disetujui sebagai pekerjaan berjalan.']
             : ['Sub-modul yang sedang dikerjakan:', '', ...$sedang];
 
-        return implode("\n", ['# H. SEDANG DIKERJAKAN', '', ...$isi, '', '---', '', '']);
+        return implode("\n", [self::PENANDA_EKOR, '', ...$isi, '', '---', '', '']);
     }
 
     /**
-     * Buang bagian "H. SEDANG DIKERJAKAN" dari ekor lama (isi sebelumnya),
-     * sisakan dari "# I. " ke bawah.
+     * Buang bagian "SEDANG DIKERJAKAN" dari ekor lama, sisakan rincian teknis.
      *
-     * @throws \RuntimeException bila penanda bagian I tidak ada — lebih baik
-     *                           gagal terang-terangan daripada membuang seluruh
-     *                           isi bagian I–K tanpa suara saat menulis ulang.
+     * @throws \RuntimeException bila penanda rincian tidak ada — lebih baik
+     *                           gagal terang-terangan daripada membuang isinya
+     *                           tanpa suara saat menulis ulang.
      */
     private function ekorTanpaBagianSedang(string $ekor): string
     {
-        $awalI = strpos($ekor, '# I. ');
+        $awal = strpos($ekor, self::PENANDA_RINCIAN);
 
-        if ($awalI === false) {
+        if ($awal === false) {
             throw new \RuntimeException(
-                'Bagian \`# I. \` tidak ditemukan di ekor berkas peta; menulis ulang akan membuang isinya.'
+                'Bagian `'.self::PENANDA_RINCIAN.'` tidak ditemukan di ekor berkas peta; menulis ulang akan membuang isinya.'
             );
         }
 
-        return rtrim(substr($ekor, $awalI));
+        return rtrim(substr($ekor, $awal));
     }
 
-    /** Markdown untuk seluruh modul A–G beserta sub-modul dan butirnya. */
+    /** Markdown untuk seluruh aplikasi beserta modul, sub-modul, dan butirnya. */
     public function bagianModul(): string
     {
         $blok = [];
 
-        foreach ($this->papan->semua() as $modul) {
+        foreach ($this->papan->semuaAplikasi() as $aplikasi) {
             if ($blok !== []) {
                 $blok[] = '---';
                 $blok[] = '';
             }
 
-            $blok[] = "# {$modul['kode']}. {$modul['nama']}";
+            $blok[] = self::PENANDA_AWAL.$aplikasi['nama'];
 
-            if (is_string($modul['catatan'] ?? null) && trim($modul['catatan']) !== '') {
+            if ($aplikasi['modul'] === []) {
                 $blok[] = '';
-                $blok[] = trim($modul['catatan']);
+                $blok[] = '- (kosong)';
+
+                continue;
             }
 
-            foreach ($modul['sub'] as $sub) {
+            foreach ($aplikasi['modul'] as $modul) {
                 $blok[] = '';
-                $blok[] = $this->subModul($sub);
+                $blok[] = '## '.$modul['kode'].'. '.$modul['nama'];
+
+                if (is_string($modul['catatan'] ?? null) && trim($modul['catatan']) !== '') {
+                    $blok[] = '';
+                    $blok[] = trim($modul['catatan']);
+                }
+
+                foreach ($modul['sub'] as $sub) {
+                    $blok[] = '';
+                    $blok[] = $this->subModul($sub);
+                }
             }
         }
 
@@ -118,7 +135,7 @@ class PapanMarkdown
         // menghitung sendiri sebaran poin di bawahnya.
         $statusJudul = mb_strtoupper($sub['status']);
         $petik = chr(96);
-        $baris = ["## {$sub['kode']} {$sub['nama']} {$petik}{$statusJudul}{$petik}"];
+        $baris = ["### {$sub['kode']} {$sub['nama']} {$petik}{$statusJudul}{$petik}"];
 
         foreach (PapanService::STATUS as $status) {
             $butir = $this->butirBerstatus($sub, $status);
@@ -170,12 +187,12 @@ class PapanMarkdown
      */
     public static function potong(string $isi): array
     {
-        $awalModul = strpos($isi, '# A. ');
+        $awalModul = strpos($isi, self::PENANDA_AWAL);
         $awalEkor = strpos($isi, self::PENANDA_EKOR);
 
         if ($awalModul === false || $awalEkor === false || $awalEkor < $awalModul) {
             throw new \RuntimeException(
-                'Berkas peta tidak memuat penanda \`# A. \` dan \`'.self::PENANDA_EKOR.'\`; tidak bisa dipotong.'
+                'Berkas peta tidak memuat penanda \`'.self::PENANDA_AWAL.'\` dan \`'.self::PENANDA_EKOR.'\`; tidak bisa dipotong.'
             );
         }
 

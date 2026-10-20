@@ -133,9 +133,9 @@ class PapanTulisUlangTest extends TestCase
     {
         $daftar = implode("\n", array_map(fn (string $b): string => "- {$b}", $butir));
 
-        return "# PETA\n\n> kepala\n\n# A. Fondasi\n\n## A.1 Setup (001) {$status}\n**"
-            .strtoupper($status)."**\n{$daftar}\n\n# H. SEDANG DIKERJAKAN\n\n**Kosong.**\n\n---\n\n"
-            ."# I. RINCIAN TEKNIS LAINNYA\n\n- Sesuatu\n";
+        return "# PETA\n\n> kepala\n\n# Aplikasi: Desktop Admin\n\n## A. Fondasi\n\n### A.1 Setup (001) {$status}\n**"
+            .strtoupper($status)."**\n{$daftar}\n\n# SEDANG DIKERJAKAN\n\n**Kosong.**\n\n---\n\n"
+            ."# RINCIAN TEKNIS LAINNYA\n\n- Sesuatu\n";
     }
 
     /** Tulis berkas lalu kembalikan lokasinya. */

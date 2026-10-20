@@ -44,7 +44,16 @@ export interface SubPapan {
 export interface ModulPapan {
   kode: string;
   nama: string;
+  /** Kode aplikasi pemilik modul, mis. desktop-admin. */
+  aplikasi?: string;
   sub: SubPapan[];
+}
+
+/** Satu tab horizontal Board beserta modul-modulnya. */
+export interface AplikasiPapan {
+  kode: string;
+  nama: string;
+  modul: ModulPapan[];
 }
 
 /** Ringkasan dipisah: poin (yang bergerak) dan sub-modul (turunan). */
@@ -54,7 +63,9 @@ export interface RingkasanPapan {
 }
 
 export interface DataPapan {
-  modul: ModulPapan[];
+  aplikasi: AplikasiPapan[];
+  /** Hanya saat true timeline boleh dipakai sebagai rujukan agen. */
+  timeline_aktif: boolean;
   ringkasan: RingkasanPapan;
   status: StatusPapan[];
 }
@@ -116,11 +127,19 @@ export function ubahButirPapan(
   );
 }
 
-/** Tambah modul baru; tab dibangun dari data sehingga langsung muncul. */
-export function tambahModulPapan(kode: string, nama: string) {
-  return api<{ kode: string; nama: string }>('/board/modul', {
+/** Aktifkan/nonaktifkan pemakaian timeline oleh agen. */
+export function setTimelinePapan(aktif: boolean) {
+  return api<{ timeline_aktif: boolean }>('/board/timeline', {
+    method: 'PATCH',
+    body: JSON.stringify({ aktif }),
+  });
+}
+
+/** Tambah modul baru di sebuah aplikasi; tab modul langsung muncul. */
+export function tambahModulPapan(aplikasi: string, kode: string, nama: string) {
+  return api<{ aplikasi: string; kode: string; nama: string }>('/board/modul', {
     method: 'POST',
-    body: JSON.stringify({ kode, nama }),
+    body: JSON.stringify({ aplikasi, kode, nama }),
   });
 }
 

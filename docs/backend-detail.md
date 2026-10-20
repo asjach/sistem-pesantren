@@ -651,9 +651,10 @@ app has no usable backend path yet.
 ### 10. Status per modul — dipindah
 
 Matriks status per area, roadmap, dan daftar butir sisa **sudah dipindah** ke
-**[PETA-MODUL.md](PETA-MODUL.md)** (satu-satunya tempat status per modul:
-sudah/sedang/akan/ditunda + rincian teknis butir sisanya). File ini tidak lagi
-memuatnya agar tidak ada dua versi yang saling menyimpang.
+**Board** (`/board`, API `/api/board`, DB `backend/database/papan.sqlite`) dan
+ringkasannya di **[PETA-MODUL.md](PETA-MODUL.md)** (turunan Board, bukan sumber).
+Board hanya berlaku sebagai rujukan saat status timeline **Aktif**. File ini
+tidak lagi memuatnya agar tidak ada dua versi yang saling menyimpang.
 
 Yang tetap tinggal di file ini: deskripsi teknis per modul (§5), ringkasan model
 data (§7), konvensi API (§8), dan NFR (§9).

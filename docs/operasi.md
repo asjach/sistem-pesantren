@@ -5,28 +5,11 @@
 
 ## 9. Manajemen Proyek (Hybrid Solo)
 
-**Metode:** Fase-gate + Kanban WIP=1. Fondasi waterfall (`001–004` stabil dulu). Modul tarik 1-1 sesuai dependensi. Siklus 1 minggu: tarik → kerjakan → demo pengurus → done.
+**Metode:** Fase-gate + Kanban WIP=1 (siklus 1 minggu: tarik → kerjakan → demo → selesai).
 
-```
-[001-004] ▶ [100-102] ▶ [200-203 subset] ▶ [UAT]
-```
+**Timeline, prioritas, dan status:** satu-satunya sumber ada di **Board** — halaman `/board`, API `/api/board`, DB `backend/database/papan.sqlite` — dan hanya berlaku saat status Board **Aktif**. Ringkasan yang dihasilkan: [PETA-MODUL.md](PETA-MODUL.md).
 
-**Roadmap:**
-
-| Gel. | ID-Modul                                                                  | App         | Status          |
-| ---- | ------------------------------------------------------------------------- | ----------- | --------------- |
-| G0   | 001-004 fondasi                                                           | Desktop     | Production awal |
-| G1   | 100 PSB Penerimaan, 101 Santri Master, 102 Siklus Santri                  | Desktop     | Production awal |
-| G2   | Modul Keuangan (master tarif, generate tagihan, kasir, crosstab, dispensasi) | Desktop     | **Live (fondasi)** — 13 fitur lanjutan belum dikerjakan ([PETA-MODUL.md](PETA-MODUL.md) bagian E.3) |
-| G3   | 100 daftar, 203 Portal Wali subset                                        | Mobile ortu | Backend sebagian; app belum dibuat |
-| G4+  | 500–505 (presensi, tahfizh, asrama), notif/gateway                        | Menyusul    | Pasca, TBD      |
-
-Estimasi solo: G0 3–4 mgg; G1 4–5; G2 2–3; G3 3–4. Total G0–G3 ±4–5 bln.
-
-> Tabel di atas adalah **prioritas pengerjaan**, bukan status kode. Status
-> implementasi terkini hanya ada di **[PETA-MODUL.md](PETA-MODUL.md)** (pusat
-> status per modul); modul 200/201/202 dan keuangan sudah punya kode, rute, dan
-> halaman meski dulunya dijadwalkan sebagai G4+.
+Jangan memelihara roadmap, tabel gelombang, atau estimasi terpisah di dokumen ini. Setiap rencana baru ditulis di Board sebagai modul → sub-modul → poin (status + subpoin checklist); bila perlu, buat modul baru. Baca Board sebelum merencanakan dan perbarui setelah status berubah.
 
 | Peran               | Tanggung jawab (RACI ringkas) |
 | ------------------- | ----------------------------- |

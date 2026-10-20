@@ -33,6 +33,7 @@ pengingat akun reviewer; lihat bagian "STATUS TES" di root.
 
 ## Aturan kerja
 - UI Bahasa Indonesia; `id` elemen snake_case (NFR-05).
+- Timeline & perencanaan proyek: **Board satu-satunya sumber saat statusnya Aktif** (lihat aturan di `AGENTS.md` root); saat Draf jangan dipakai sebagai rujukan, dan jangan membuat roadmap/TODO/milestone terpisah.
 - Commit mengikuti aturan di `AGENTS.md` root (jangan parafrase — ikuti 4 pemicu di sana).
 - Playwright / browser otomatis wajib minta persetujuan pengguna dulu.
 - Backend dev: `php artisan serve` (127.0.0.1:8000); frontend: `npm run dev`

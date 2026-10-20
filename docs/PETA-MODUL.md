@@ -65,10 +65,14 @@ Konsekuensinya, di UI satu sub-modul bisa muncul di beberapa kolom sekaligus —
 memang begitu yang diinginkan: `E.3` yang separuh selesai tampil sebagai kartu di
 kolom **Sudah** dan **Akan** bersamaan.
 
-Bagian A–G di berkas ini **dihasilkan** `papan:markdown --tulis`; bagian H ke
-bawah dipertahankan apa adanya. Jadi setelah mengubah status lewat command,
-jalankan `--tulis` supaya berkas ini ikut segar, lalu commit markdown-nya
-sebagai jejak yang tahan lama.
+Modul di berkas ini **dihasilkan** `papan:markdown --tulis`; bagian SEDANG
+DIKERJAKAN dan RINCIAN TEKNIS LAINNYA dipertahankan apa adanya. Jadi setelah
+mengubah status lewat command, jalankan `--tulis` supaya berkas ini ikut segar,
+lalu commit markdown-nya sebagai jejak yang tahan lama.
+
+**Status timeline:** Board berada pada status **Draf** sampai diaktifkan. Timeline
+hanya menjadi rujukan agen/pengguna saat status Board **Aktif**; saat Draf,
+PRD dan kode yang berlaku.
 
 ## Cara baca
 
@@ -77,17 +81,27 @@ Empat status dipakai konsisten di seluruh berkas:
 - **SUDAH** — kode ada, terhubung, dipakai dari UI.
 - **SEDANG** — dikerjakan sekarang. Hanya boleh **satu** sub-modul bertanda ini.
 - **AKAN** — belum ada kode, sudah dirancang cukup untuk dikerjakan.
-- **DITUNDA** — belum ada kode dan belum dirancang; sengaja tidak dikerjakan.
+- **DITUNDA** — belum dikerjakan dan sengaja ditunda; bisa karena masih rencana
+  awal atau menunggu pelaksanaan pasca production.
 
 Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ---
 
-# A. Fondasi
+# Aplikasi: Desktop Admin
 
-## A.1 Setup (001) `SUDAH`
+## DA1. Fondasi & Infrastruktur
+
+### DA1.1 Setup & Runtime `SUDAH`
 **SUDAH**
-- Proyek Laravel 13 dengan `.env` dan guard `sanctum` sudah berjalan.
+- Proyek Laravel 13, Vite, dan Tauri berjalan
+  - [x] API-first
+  - [x] Sanctum
+  - [x] SQLite/MySQL siap
+- Konfigurasi dev dan produksi terdokumentasi
+  - [x] .env contoh
+  - [x] CORS localhost
+  - [x] perintah artisan/npm
 **SEDANG**
 - (kosong)
 **AKAN**
@@ -95,10 +109,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## A.2 Skema Database (002) `SUDAH`
+### DA1.2 Skema Database `SUDAH`
 **SUDAH**
-- 84 file migrasi; `migrate:fresh` hijau dengan 126 tabel termasuk tabel framework.
-- Spesifikasi kolom lengkap ada di [SCHEMA.md](SCHEMA.md).
+- Migrasi dan skema pesantren terkendali
+  - [x] 84 file migrasi
+  - [x] 126 tabel termasuk framework
+  - [x] SCHEMA.md
+- Database papan terpisah dari database pesantren
+  - [x] koneksi papan
+  - [x] migrasi path papan
+  - [x] tidak ikut migrate:fresh
 **SEDANG**
 - (kosong)
 **AKAN**
@@ -106,11 +126,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## A.3 Autentikasi & Pengguna (003) `SUDAH`
+### DA1.3 Referensi & Master `SUDAH`
 **SUDAH**
-- Login multi-identifier (email/telepon/username) dengan throttle dan `login_audits`, lima peran efektif.
-- Ada kunci diri dan anti-eskalasi: pengguna tak bisa mengubah atau menghapus dirinya sendiri.
-- Act-as lembaga lewat header `X-Lembaga-Aktif`; impor pengguna massal tersedia.
+- Kamus referensi per lembaga
+  - [x] 34 tabel kamus
+  - [x] RefService ber-cache
+  - [x] fan-out
+- CRUD Lembaga, Tahun Ajaran, dan Kelas
+  - [x] scope tenant
+  - [x] validasi jenjang
+  - [x] kode unik
 **SEDANG**
 - (kosong)
 **AKAN**
@@ -118,10 +143,18 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## A.4 Referensi & Master (004) `SUDAH`
+## DA2. Autentikasi & Pengguna
+
+### DA2.1 Login & Sesi `SUDAH`
 **SUDAH**
-- 34 tabel kamus per lembaga dengan fan-out, dilayani `RefService` ber-cache.
-- CRUD Lembaga, Tahun Ajaran, dan Kelas lengkap dengan scope tenant.
+- Login multi-identifier
+  - [x] email/HP/username
+  - [x] throttle 6/menit
+  - [x] login_audits
+- Kunci diri dan anti-eskalasi
+  - [x] tidak bisa hapus diri
+  - [x] role tidak naik sendiri
+  - [x] kebijakan izin
 **SEDANG**
 - (kosong)
 **AKAN**
@@ -129,25 +162,767 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## A.5 Dashboard Ringkas `AKAN`
+### DA2.2 Peran & Izin `SUDAH`
 **SUDAH**
-- `GET /api/dashboard/ringkasan` menyajikan blok lembaga, santri, pegawai, keuangan, siklus, dan PSB.
-- Tiap blok digerbangi izin modulnya dan bernilai null bila akun tak berizin.
+- Lima peran efektif dan matriks izin
+  - [x] super_admin/admin/guru/orang_tua/santri
+  - [x] IzinKatalog
+  - [x] PermissionSeeder
+- Mode lembaga dan pesantren
+  - [x] X-Lembaga-Aktif
+  - [x] scope tenant
+  - [x] act-as
 **SEDANG**
 - (kosong)
 **AKAN**
-- Dashboard eksekutif pimpinan (modul 504) yang lebih ringkas dan terarah.
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### DA2.3 Akun PTK `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Undangan dan aktivasi akun guru
+  - [ ] email/WA
+  - [ ] token sekali pakai
+  - [ ] reset kata sandi
+- Sinkron akun dengan data pegawai
+  - [ ] tautan pegawai_id
+  - [ ] peran guru/kasir
+  - [ ] nonaktif otomatis
+**DITUNDA**
+- (kosong)
+
+## DA3. PSB & Santri
+
+### DA3.1 PSB `SUDAH`
+**SUDAH**
+- Master kegiatan, gelombang, dan kuota
+  - [x] per lembaga
+  - [x] anti-tumpang
+  - [x] kuota
+- Pendaftaran dua jalur dan tahapan
+  - [x] langsung/seleksi
+  - [x] verifikasi
+  - [x] daftar ulang/ACC/undur
+- Aksi massal dan impor
+  - [x] promosi calon
+  - [x] dokumen
+  - [x] impor
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### DA3.2 Santri `SUDAH`
+**SUDAH**
+- CRUD santri dan NIS
+  - [x] SantriPolicy
+  - [x] impor satu pintu
+  - [x] samakan NIS massal
+- Foto dan dokumen santri
+  - [x] unggah
+  - [x] jenis dokumen
+  - [x] viewer
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### DA3.3 Siklus Santri `SUDAH`
+**SUDAH**
+- Naik kelas, pindah, mutasi, lulus
+  - [x] massal/otomatis
+  - [x] arsip
+  - [x] MI-MD
+- Roster dan status global
+  - [x] riwayat_belajar
+  - [x] status turunan
+  - [x] beku kelas
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### DA3.4 Presensi Santri `DITUNDA`
+**SUDAH**
+- Tabel presensi dan pelanggaran
+  - [x] sesi_presensi
+  - [x] presensi_santri
+  - [x] pelanggaran_santri
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- UI presensi dan pelanggaran
+  - [ ] input per sesi
+  - [ ] rekap kehadiran
+  - [ ] poin pelanggaran
+
+### DA3.5 Asrama `DITUNDA`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- Fondasi asrama
+  - [ ] tabel asrama/kamar/penghuni
+  - [ ] peran asrama
+  - [ ] pivot user_asrama
+- Alur izin pulang dan kegiatan
+  - [ ] pengajuan
+  - [ ] persetujuan
+  - [ ] kalender kegiatan
+
+## DA4. Kepegawaian
+
+### DA4.1 Pegawai `SUDAH`
+**SUDAH**
+- Master pegawai global
+  - [x] EMIS
+  - [x] keaktifan_pegawai
+  - [x] sertifikasi
+- Walas dan akun PTK
+  - [x] setWalas tiga lapis
+  - [x] penautan akun
+  - [x] dokumen
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### DA4.2 Presensi Pegawai `DITUNDA`
+**SUDAH**
+- Tabel presensi pegawai
+  - [x] presensi_pegawai
+  - [x] status harian
+  - [x] rekap
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- UI absensi guru
+  - [ ] input harian
+  - [ ] koreksi
+  - [ ] izin/cuti
+
+## DA5. Kurikulum
+
+### DA5.1 Mata Pelajaran `AKAN`
+**SUDAH**
+- Master mapel dan KKM
+  - [x] per jenjang
+  - [x] kelompok formal/pesantren
+  - [x] urutan rapor
+**SEDANG**
+- (kosong)
+**AKAN**
+- Salin mapel antar tahun ajaran
+  - [ ] pilih sumber
+  - [ ] pratinjau
+  - [ ] hindari duplikat
+**DITUNDA**
+- (kosong)
+
+### DA5.2 Pengampu `DITUNDA`
+**SUDAH**
+- Pivot kelas × mapel → guru
+  - [x] validasi bentrok
+  - [x] guru aktif
+  - [x] per TA
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- Tes komponen halaman Pengampu
+  - [ ] tes render
+  - [ ] tes validasi
+  - [ ] tes izin
+
+### DA5.3 Jadwal Pelajaran `AKAN`
+**SUDAH**
+- Slot per jenjang dan anti bentrok
+  - [x] bentrok kelas
+  - [x] bentrok guru
+  - [x] grid mingguan
+- Jadwal per kelas
+  - [x] template
+  - [x] salin
+  - [x] cetak
+**SEDANG**
+- (kosong)
+**AKAN**
+- Jadwal dari sudut guru
+  - [ ] agenda mengajar
+  - [ ] filter guru
+  - [ ] tampilan mobile
+- Cetak/unduh jadwal
+  - [ ] PDF
+  - [ ] Excel
+  - [ ] kop
+**DITUNDA**
+- (kosong)
+
+## DA6. Penilaian
+
+### DA6.1 Nilai & Peristiwa `AKAN`
+**SUDAH**
+- Nilai per peristiwa
+  - [x] PTS/ASAS/ASAT/UJIAN/UAP
+  - [x] komponen/bobot
+  - [x] sumber nilai
+- Leger crosstab dan rapor
+  - [x] ekspor Excel
+  - [x] cetak per santri/kelas
+  - [x] rekap
+- Impor nilai
+  - [x] empat template
+  - [x] import-potong
+  - [x] validasi
+**SEDANG**
+- (kosong)
+**AKAN**
+- Kunci dan buka kunci nilai
+  - [ ] kunci setelah cetak
+  - [ ] alasan buka
+  - [ ] log audit
+**DITUNDA**
+- Bobot UJIAN final
+  - [ ] UM 60
+  - [ ] rata-rata rapor 40
+  - [ ] kebijakan pesantren
+
+### DA6.2 Cetak Rapor `AKAN`
+**SUDAH**
+- Rapor per santri/kelas
+  - [x] kop
+  - [x] identitas
+  - [x] nilai + terbilang
+- Validasi kelengkapan
+  - [x] kelas lengkap
+  - [x] tombol cetak terkunci
+  - [x] halaman 2
+**SEDANG**
+- (kosong)
+**AKAN**
+- Cetak massal satu kelas
+  - [ ] sekali klik
+  - [ ] peringkat per batch
+  - [ ] snapshot penanda tangan
+- Absensi otomatis
+  - [ ] sesi_presensi
+  - [ ] override leger
+  - [ ] rekap kehadiran
+**DITUNDA**
+- (kosong)
+
+### DA6.3 Tahfizh `DITUNDA`
+**SUDAH**
+- Tabel tahfizh
+  - [x] target_tahfiz
+  - [x] setoran_tahfiz
+  - [x] rekap_tahfiz_santri
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- UI tahfizh
+  - [ ] ziyadah
+  - [ ] murajaah
+  - [ ] rekap per santri
+
+## DA7. Keuangan
+
+### DA7.1 Tagihan & Tarif `AKAN`
+**SUDAH**
+- Master jenis tagihan dan tarif
+  - [x] per lembaga/TA
+  - [x] bulanan
+  - [x] dispensasi
+- Generate tagihan
+  - [x] anti duplikat
+  - [x] terbayar dilewati
+  - [x] kuota
+- Crosstab tagihan
+  - [x] dispensasi
+  - [x] grup custom
+  - [x] ekspor
+**SEDANG**
+- (kosong)
+**AKAN**
+- Kartu piutang per santri
+  - [ ] lintas TA
+  - [ ] surat tagihan
+  - [ ] cetak
+**DITUNDA**
+- (kosong)
+
+### DA7.2 Kasir & Kwitansi `AKAN`
+**SUDAH**
+- Kasir harian
+  - [x] pembayaran
+  - [x] saldo terkunci
+  - [x] batal/hapus
+- Kwitansi
+  - [x] cetak
+  - [x] cetak ulang
+  - [x] dialog/tabel
+**SEDANG**
+- (kosong)
+**AKAN**
+- Nomor kwitansi runut
+  - [ ] per lembaga/kas/tahun
+  - [ ] format final
+  - [ ] tidak ada hex acak
+- Split payment
+  - [ ] gabungan metode
+  - [ ] sub-bayar
+  - [ ] rincian
+**DITUNDA**
+- (kosong)
+
+### DA7.3 Rekap & Tutup Buku `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Rekap per posisi kas
+  - [ ] tunai TU
+  - [ ] bank lembaga
+  - [ ] bank pesantren
+- Mutasi kas harian
+  - [ ] arus masuk
+  - [ ] per hari
+  - [ ] filter
+- Tutup buku
+  - [ ] tolak mundur
+  - [ ] buka kunci
+  - [ ] alasan
+**DITUNDA**
+- Tarif per asrama
+  - [ ] menunggu modul asrama
+  - [ ] tarif kamar
+  - [ ] penghuni
+
+### DA7.4 Tunggakan `AKAN`
+**SUDAH**
+- Crosstab tunggakan
+  - [x] per santri/kelas
+  - [x] total tagihan
+  - [x] terbayar
+**SEDANG**
+- (kosong)
+**AKAN**
+- Aging 30/60/90
+  - [ ] jatuh tempo
+  - [ ] surat tagihan
+  - [ ] ekspor
+- Pengingat WhatsApp
+  - [ ] template
+  - [ ] antrean kirim
+  - [ ] log
+**DITUNDA**
+- Tren penerimaan
+  - [ ] bulanan
+  - [ ] per TA
+  - [ ] dasbor
+
+### DA7.5 Audit & Kontrol `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Jejak audit transaksi
+  - [ ] siapa
+  - [ ] kapan
+  - [ ] alasan
+- Maker-checker
+  - [ ] pencatat
+  - [ ] penyetuju
+  - [ ] konflik peran
+- Ekspor laporan
+  - [ ] Excel
+  - [ ] PDF
+  - [ ] crosstab/harian/rekap
+**DITUNDA**
+- (kosong)
+
+## DA8. Portal & Integrasi
+
+### DA8.1 Portal Wali `AKAN`
+**SUDAH**
+- Jalur PSB lanjutan dan pengajuan biodata
+  - [x] satu aktif per santri
+  - [x] batal
+  - [x] riwayat keluarga
+**SEDANG**
+- (kosong)
+**AKAN**
+- Dashboard portal wali
+  - [ ] ringkasan anak
+  - [ ] tagihan
+  - [ ] pengumuman
+- Aktor santri
+  - [ ] peran santri
+  - [ ] rute portal
+  - [ ] batas data
+**DITUNDA**
+- (kosong)
+
+### DA8.2 API Mobile & Publik `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Kontrak API mobile
+  - [ ] versi API
+  - [ ] token per device
+  - [ ] dokumentasi
+- Endpoint publik landing
+  - [ ] profil
+  - [ ] berita
+  - [ ] PSB
+- Rate limit dan observability
+  - [ ] throttle
+  - [ ] log
+  - [ ] metrics
+**DITUNDA**
+- (kosong)
+
+## DA9. Production & Operasional
+
+### DA9.1 Deploy `DITUNDA`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- Deploy VPS dan production
+  - [ ] domain
+  - [ ] TLS
+  - [ ] queue/scheduler
+- Migrasi dan rollback
+  - [ ] backup
+  - [ ] urutan migrasi
+  - [ ] rollback
+
+### DA9.2 Backup & Restore `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Backup terjadwal
+  - [ ] DB pesantren
+  - [ ] DB papan
+  - [ ] retensi
+- Uji restore
+  - [ ] RTO/RPO
+  - [ ] dokumentasi
+  - [ ] simulasi
+**DITUNDA**
+- (kosong)
+
+### DA9.3 Monitoring & Log `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Log aplikasi dan error
+  - [ ] Laravel log
+  - [ ] error tracking
+  - [ ] rotasi
+- Monitoring uptime
+  - [ ] health check
+  - [ ] disk/DB
+  - [ ] alert
+**DITUNDA**
+- (kosong)
+
+## DA10. Dashboard & Laporan
+
+### DA10.1 Dashboard Ringkas `SUDAH`
+**SUDAH**
+- Ringkasan lintas modul
+  - [x] lembaga/santri/pegawai
+  - [x] keuangan/siklus/PSB
+  - [x] izin per blok
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### DA10.2 Statistik Pimpinan `DITUNDA`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- Dashboard eksekutif
+  - [ ] KPI
+  - [ ] tren
+  - [ ] perbandingan lembaga
+- Ekspor laporan pimpinan
+  - [ ] PDF/Excel
+  - [ ] jadwal kirim
+  - [ ] filter periode
+---
+
+# Aplikasi: Mobile Orang Tua
+
+## MO1. Akun & Onboarding
+
+### MO1.1 API Autentikasi `SUDAH`
+**SUDAH**
+- Login wali lewat API
+  - [x] Sanctum
+  - [x] multi-identifier
+  - [x] peran orang_tua
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MO1.2 UI Mobile `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Login dan onboarding wali
+  - [ ] email/HP
+  - [ ] OTP
+  - [ ] pilih santri
+- Verifikasi relasi wali-santri
+  - [ ] data wali
+  - [ ] data santri
+  - [ ] batas akses
+**DITUNDA**
+- (kosong)
+
+## MO2. Profil Santri
+
+### MO2.1 API Portal `SUDAH`
+**SUDAH**
+- Rute portal wali
+  - [x] portal/*
+  - [x] role orang_tua
+  - [x] agregator baca
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MO2.2 UI Profil `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Biodata dan dokumen anak
+  - [ ] lihat
+  - [ ] unduh
+  - [ ] pengajuan perubahan
+- Riwayat belajar
+  - [ ] per lembaga
+  - [ ] kelas
+  - [ ] status aktif
+**DITUNDA**
+- (kosong)
+
+## MO3. Tagihan & Pembayaran
+
+### MO3.1 API Keuangan `SUDAH`
+**SUDAH**
+- Data tagihan dan pembayaran
+  - [x] tagihan
+  - [x] kwitansi
+  - [x] tunggakan
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MO3.2 UI Tagihan `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Daftar tagihan per anak
+  - [ ] jatuh tempo
+  - [ ] status
+  - [ ] filter
+- Pembayaran digital
+  - [ ] metode
+  - [ ] bukti
+  - [ ] kwitansi
+- Tunggakan
+  - [ ] aging
+  - [ ] pengingat
+  - [ ] riwayat
+**DITUNDA**
+- (kosong)
+
+## MO4. Presensi & Perilaku
+
+### MO4.1 API Presensi `SUDAH`
+**SUDAH**
+- Tabel presensi santri
+  - [x] sesi
+  - [x] kehadiran
+  - [x] pelanggaran
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MO4.2 UI Presensi `DITUNDA`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- Presensi harian anak
+  - [ ] per sesi
+  - [ ] izin/sakit
+  - [ ] rekap
+- Pelanggaran
+  - [ ] jenis
+  - [ ] poin
+  - [ ] tindak lanjut
+
+## MO5. Tahfizh
+
+### MO5.1 API Tahfizh `SUDAH`
+**SUDAH**
+- Tabel target dan setoran
+  - [x] target
+  - [x] setoran
+  - [x] rekap
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MO5.2 UI Tahfizh `DITUNDA`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- Target dan setoran
+  - [ ] ziyadah
+  - [ ] murajaah
+  - [ ] grafik
+- Rekap tahfizh
+  - [ ] periode
+  - [ ] catatan guru
+  - [ ] unduh
+
+## MO6. PSB & Pengajuan
+
+### MO6.1 API PSB `SUDAH`
+**SUDAH**
+- Pendaftaran dan pengajuan
+  - [x] PSB
+  - [x] biodata
+  - [x] dokumen
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MO6.2 UI PSB `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- PSB online
+  - [ ] formulir
+  - [ ] unggah dokumen
+  - [ ] status
+- Pengajuan biodata
+  - [ ] satu aktif
+  - [ ] batal
+  - [ ] verifikasi
+**DITUNDA**
+- (kosong)
+
+## MO7. Notifikasi
+
+### MO7.1 Push & WhatsApp `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Notifikasi tagihan dan presensi
+  - [ ] push
+  - [ ] WhatsApp
+  - [ ] deep link
+- Preferensi notifikasi
+  - [ ] jenis
+  - [ ] jam tenang
+  - [ ] per anak
 **DITUNDA**
 - (kosong)
 ---
 
-# B. PSB & Santri
+# Aplikasi: Mobile Guru
 
-## B.1 PSB (100) `SUDAH`
+## MG1. Akun & Login
+
+### MG1.1 API Autentikasi `SUDAH`
 **SUDAH**
-- Master kegiatan, gelombang anti-tumpang, dan kuota pendaftaran per lembaga.
-- Dua jalur pendaftaran (langsung atau seleksi), plus verifikasi, seleksi, daftar ulang, ACC, dan undur diri.
-- Aksi massal untuk semua tahap, impor, dokumen, dan promosi calon menjadi santri.
+- Login guru lewat API
+  - [x] Sanctum
+  - [x] multi-identifier
+  - [x] peran guru
 **SEDANG**
 - (kosong)
 **AKAN**
@@ -155,10 +930,27 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## B.2 Santri (101) `SUDAH`
+### MG1.2 UI Guru `AKAN`
 **SUDAH**
-- CRUD santri dengan `SantriPolicy`, impor satu pintu, kamus, dan kolom NIS.
-- Foto dan dokumen per santri bisa diunggah; ada fitur samakan NIS massal.
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Login mobile dan profil guru
+  - [ ] email/HP
+  - [ ] sesi perangkat
+  - [ ] penempatan
+**DITUNDA**
+- (kosong)
+
+## MG2. Jadwal Mengajar
+
+### MG2.1 API Jadwal `SUDAH`
+**SUDAH**
+- Jadwal per kelas
+  - [x] slot
+  - [x] anti bentrok
+  - [x] per TA
 **SEDANG**
 - (kosong)
 **AKAN**
@@ -166,24 +958,181 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## B.3 Siklus Santri (102) `SUDAH`
+### MG2.2 UI Jadwal `AKAN`
 **SUDAH**
-- Salin genap, naik kelas (massal dan otomatis), pindah kelas, mutasi keluar beserta arsipnya.
-- Lulus/batal, roster dan arsip, penanganan MI-MD, beku kelas, serta berhenti jenjang.
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Agenda mengajar guru
+  - [ ] hari ini
+  - [ ] minggu
+  - [ ] filter
+- Detail kelas
+  - [ ] mapel
+  - [ ] jam
+  - [ ] ruang
+**DITUNDA**
+- (kosong)
+
+## MG3. Input Nilai
+
+### MG3.1 API Nilai `SUDAH`
+**SUDAH**
+- Nilai per peristiwa
+  - [x] komponen
+  - [x] impor
+  - [x] leger
 **SEDANG**
 - (kosong)
 **AKAN**
 - (kosong)
+**DITUNDA**
+- (kosong)
+
+### MG3.2 UI Input `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Input nilai per kelas
+  - [ ] mapel
+  - [ ] komponen
+  - [ ] validasi
+- Rekap dan submit nilai
+  - [ ] kunci
+  - [ ] status
+  - [ ] koreksi
+**DITUNDA**
+- (kosong)
+
+## MG4. Presensi Pegawai
+
+### MG4.1 API Presensi `SUDAH`
+**SUDAH**
+- Tabel presensi pegawai
+  - [x] status harian
+  - [x] rekap
+  - [x] koreksi
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MG4.2 UI Presensi `DITUNDA`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- Absen harian guru
+  - [ ] masuk/pulang
+  - [ ] lokasi
+  - [ ] riwayat
+- Izin dan cuti
+  - [ ] pengajuan
+  - [ ] persetujuan
+  - [ ] lampiran
+
+## MG5. Setoran Tahfizh
+
+### MG5.1 API Tahfizh `SUDAH`
+**SUDAH**
+- Tabel setoran tahfizh
+  - [x] target
+  - [x] setoran
+  - [x] rekap
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MG5.2 UI Setoran `DITUNDA`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- Input setoran
+  - [ ] ziyadah
+  - [ ] murajaah
+  - [ ] catatan
+- Rekap santri
+  - [ ] per kelas
+  - [ ] periode
+  - [ ] unduh
+
+## MG6. Pengampu & Kelas
+
+### MG6.1 API Pengampu `SUDAH`
+**SUDAH**
+- Pivot pengampu
+  - [x] kelas × mapel
+  - [x] guru
+  - [x] per TA
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MG6.2 UI Pendampingan `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Daftar kelas dan mapel
+  - [ ] TA aktif
+  - [ ] daftar siswa
+  - [ ] filter
+- Catatan kelas
+  - [ ] jurnal
+  - [ ] tindak lanjut
+  - [ ] riwayat
+**DITUNDA**
+- (kosong)
+
+## MG7. Pengajuan & Izin
+
+### MG7.1 Alur Pengajuan `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Pengajuan izin guru
+  - [ ] jenis
+  - [ ] lampiran
+  - [ ] atasan
+- Status pengajuan
+  - [ ] riwayat
+  - [ ] notifikasi
+  - [ ] pembatalan
 **DITUNDA**
 - (kosong)
 ---
 
-# C. Kepegawaian & Kurikulum
+# Aplikasi: Mobile Pimpinan
 
-## C.1 Pegawai (200) `SUDAH`
+## MP1. Akun & Login
+
+### MP1.1 API Autentikasi `SUDAH`
 **SUDAH**
-- Master `pegawai` global dengan kolom EMIS, multi-lembaga lewat `keaktifan_pegawai`.
-- Sertifikasi, keluarga, dokumen, penautan akun, dan `setWalas` dengan validasi tiga lapis.
+- Login pimpinan lewat API
+  - [x] Sanctum
+  - [x] multi-identifier
+  - [x] batas izin
 **SEDANG**
 - (kosong)
 **AKAN**
@@ -191,264 +1140,656 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **DITUNDA**
 - (kosong)
 
-## C.2 Kurikulum & Mata Pelajaran (201) `AKAN`
+### MP1.2 UI Pimpinan `AKAN`
 **SUDAH**
-- Tiga halaman jalan: Mata Pelajaran (KKM dan urutan), Pengampu (kelas × mapel → guru), Jadwal Pelajaran.
-- Jadwal memakai slot per jenjang dan menolak bentrok kelas maupun bentrok guru.
+- (kosong)
 **SEDANG**
 - (kosong)
 **AKAN**
-- Tampilan jadwal dari sudut guru, bukan hanya per kelas.
-- Cetak dan unduh jadwal per kelas.
-- Salin daftar mapel antar tahun ajaran.
+- Login mobile pimpinan
+  - [ ] email/HP
+  - [ ] sesi perangkat
+  - [ ] profil
 **DITUNDA**
-- Tes endpoint yang belum tertulis dan tes komponen halaman Pengampu.
+- (kosong)
+
+## MP2. Dashboard Eksekutif
+
+### MP2.1 API Ringkasan `SUDAH`
+**SUDAH**
+- Ringkasan lintas modul
+  - [x] dashboard/ringkasan
+  - [x] izin per blok
+  - [x] null bila tak berizin
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MP2.2 UI KPI `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- KPI dan tren
+  - [ ] per lembaga
+  - [ ] periode
+  - [ ] perbandingan
+**DITUNDA**
+- Statistik pimpinan lanjutan
+  - [ ] modul 504
+  - [ ] ekspor
+  - [ ] jadwal kirim
+
+## MP3. Statistik Keuangan
+
+### MP3.1 API Keuangan `SUDAH`
+**SUDAH**
+- Data tagihan dan pembayaran
+  - [x] tagihan
+  - [x] terbayar
+  - [x] tunggakan
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MP3.2 UI Keuangan `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Tren keuangan
+  - [ ] per lembaga
+  - [ ] per kas
+  - [ ] periode
+**DITUNDA**
+- (kosong)
+
+## MP4. Statistik Santri & PSB
+
+### MP4.1 API Santri & PSB `SUDAH`
+**SUDAH**
+- Data santri dan PSB
+  - [x] jumlah aktif
+  - [x] funnel PSB
+  - [x] per lembaga
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MP4.2 UI Santri `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Statistik santri
+  - [ ] per jenjang
+  - [ ] siklus
+  - [ ] mutasi
+**DITUNDA**
+- (kosong)
+
+## MP5. Statistik Akademik
+
+### MP5.1 API Akademik `SUDAH`
+**SUDAH**
+- Data nilai dan kehadiran
+  - [x] nilai
+  - [x] jadwal
+  - [x] presensi
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MP5.2 UI Akademik `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Distribusi nilai dan kehadiran
+  - [ ] per kelas
+  - [ ] per mapel
+  - [ ] peringatan
+**DITUNDA**
+- (kosong)
+
+## MP6. Laporan & Ekspor
+
+### MP6.1 Laporan `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Laporan PDF/Excel
+  - [ ] periode
+  - [ ] per lembaga
+  - [ ] filter
+- Jadwal kirim laporan
+  - [ ] email/WA
+  - [ ] rekap berkala
+  - [ ] riwayat
+**DITUNDA**
+- (kosong)
+
+## MP7. Notifikasi & Alert
+
+### MP7.1 Alert `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Ambang batas otomatis
+  - [ ] tunggakan
+  - [ ] kehadiran
+  - [ ] nilai
+- Push dan riwayat alert
+  - [ ] peristiwa
+  - [ ] penerima
+  - [ ] tindak lanjut
+**DITUNDA**
+- (kosong)
 ---
 
-# D. Penilaian
+# Aplikasi: Mobile Kasir
 
-## D.1 Nilai & Peristiwa (202) `AKAN`
+## MK1. Akun & Login
+
+### MK1.1 API Autentikasi `SUDAH`
 **SUDAH**
-- Nilai diikat per peristiwa (PTS, ASAS, ASAT, UJIAN, UAP), bukan per semester.
-- Komponen dan bobot bisa bersumber manual, dari rapor tingkat sebelumnya, atau dari peristiwa lain.
-- Leger crosstab per peristiwa bisa diunduh Excel; rapor lengkap bisa dicetak per santri maupun per kelas.
-- Empat template impor lewat mesin `import-potong`.
+- Login kasir lewat API
+  - [x] Sanctum
+  - [x] multi-identifier
+  - [x] batas izin
 **SEDANG**
 - (kosong)
 **AKAN**
-- Kunci impor/edit setelah batch rapor pertama dicetak, plus log cetak berisi siapa, kapan, dan berapa santri.
-- Buka-kunci dengan alasan tercatat, karena mengubah nilai setelah rapor beredar harus bisa diaudit.
+- (kosong)
 **DITUNDA**
-- Bobot UJIAN bawaan (UM 60 / Rata-rata Rapor 40) masih placeholder, menunggu kebijakan pesantren.
-- Salin peristiwa dari tahun ajaran sebelumnya; kini tiap TA dibuat ulang atau klik "Muat bawaan".
+- (kosong)
 
-## D.2 Cetak Rapor `AKAN`
+### MK1.2 UI Kasir `AKAN`
 **SUDAH**
-- Rapor per santri dan per kelas dengan kop, identitas, nilai + terbilang, rekap, dan halaman 2.
-- Cek kelengkapan kelas; tombol cetak terkunci selama masih ada santri yang nilainya belum lengkap.
+- (kosong)
 **SEDANG**
 - (kosong)
 **AKAN**
-- Cetak massal satu kelas dalam sekali klik, dengan parameter peringkat sekali per batch.
-- Snapshot nama dan gelar penanda tangan saat batch pertama dicetak agar cetak ulang identik.
-- Absensi otomatis dari `sesi_presensi`/`presensi_santri`; kolom leger jadi override bila presensi kosong.
-- Tombol unduh data existing di dialog impor, memakai pola `data-existing`.
+- Login dan profil kasir
+  - [ ] role kasir
+  - [ ] perangkat
+  - [ ] shift
+**DITUNDA**
+- (kosong)
+
+## MK2. Kasir Harian
+
+### MK2.1 API Kasir `SUDAH`
+**SUDAH**
+- Pembayaran dan pembatalan
+  - [x] kasir
+  - [x] saldo terkunci
+  - [x] batal/hapus
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MK2.2 UI Kasir `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Cari santri dan pilih tagihan
+  - [ ] pencarian
+  - [ ] filter
+  - [ ] rincian
+- Bayar dan cetak
+  - [ ] metode
+  - [ ] konfirmasi
+  - [ ] kwitansi
+**DITUNDA**
+- (kosong)
+
+## MK3. Kwitansi
+
+### MK3.1 API Kwitansi `SUDAH`
+**SUDAH**
+- Kwitansi dan cetak ulang
+  - [x] nomor
+  - [x] data bayar
+  - [x] riwayat
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MK3.2 UI Kwitansi `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Cetak thermal dan bagikan
+  - [ ] thermal
+  - [ ] PDF
+  - [ ] WhatsApp
+- Nomor kwitansi runut
+  - [ ] per kas
+  - [ ] per tahun
+  - [ ] format final
+**DITUNDA**
+- (kosong)
+
+## MK4. Tunggakan
+
+### MK4.1 API Tunggakan `SUDAH`
+**SUDAH**
+- Crosstab tunggakan
+  - [x] per santri/kelas
+  - [x] total
+  - [x] terbayar
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MK4.2 UI Tunggakan `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Daftar tunggakan kasir
+  - [ ] aging
+  - [ ] surat
+  - [ ] pengingat
+**DITUNDA**
+- (kosong)
+
+## MK5. Tutup Buku & Rekap
+
+### MK5.1 API Rekap `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Rekap per posisi kas
+  - [ ] tunai
+  - [ ] bank
+  - [ ] periode
+**DITUNDA**
+- (kosong)
+
+### MK5.2 UI Tutup Buku `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Tutup buku harian
+  - [ ] rekap
+  - [ ] kunci
+  - [ ] buka kunci
+**DITUNDA**
+- (kosong)
+
+## MK6. Dispensasi
+
+### MK6.1 API Dispensasi `SUDAH`
+**SUDAH**
+- Dispensasi dan grup santri
+  - [x] disponsasi
+  - [x] grup custom
+  - [x] tagihan
+**SEDANG**
+- (kosong)
+**AKAN**
+- (kosong)
+**DITUNDA**
+- (kosong)
+
+### MK6.2 UI Dispensasi `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Pengajuan dan persetujuan
+  - [ ] ajukan
+  - [ ] setujui
+  - [ ] riwayat
+**DITUNDA**
+- (kosong)
+
+## MK7. Offline & Sinkronisasi
+
+### MK7.1 Mode Offline `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Cache data tagihan
+  - [ ] santri
+  - [ ] tagihan
+  - [ ] saldo
+- Antrean transaksi
+  - [ ] simpan lokal
+  - [ ] retry
+  - [ ] status
+**DITUNDA**
+- (kosong)
+
+### MK7.2 Sinkronisasi `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Sinkron dan konflik
+  - [ ] timestamp
+  - [ ] konflik
+  - [ ] audit
 **DITUNDA**
 - (kosong)
 ---
 
-# E. Keuangan
+# Aplikasi: Landing Page Pesantren
 
-## E.1 Tagihan & Tarif `AKAN`
-**SUDAH**
-- Master jenis tagihan dan tarif per lembaga/tahun ajaran.
-- Generate tagihan satu layar tanpa duplikat: bulanan terbayar dilewati, dispensasi dan kuota diterapkan otomatis.
-- Crosstab tagihan, dispensasi, dan grup santri custom.
-**SEDANG**
-- (kosong)
-**AKAN**
-- Kartu piutang per santri lintas tahun ajaran, bisa dicetak sebagai surat tagihan resmi.
-**DITUNDA**
-- (kosong)
+## LP1. Profil & Identitas
 
-## E.2 Kasir & Kwitansi `AKAN`
-**SUDAH**
-- Kasir harian, pencatatan pembayaran, batal/hapus transaksi dengan saldo terkunci barisnya.
-- Kwitansi cetak dan cetak ulang, baik dari dialog setelah bayar maupun dari tabel harian.
-**SEDANG**
-- (kosong)
-**AKAN**
-- Penomoran kwitansi runut per lembaga/kas/tahun menggantikan hex acak.
-- Split payment: satu kwitansi boleh gabungan metode atau kas, dengan rincian sub-bayar.
-- Format nomor kwitansi (mis. `KW-MI-2026-000123`) belum ditetapkan; perlu keputusan dulu.
-**DITUNDA**
-- (kosong)
-
-## E.3 Rekap & Tutup Buku Kas `AKAN`
+### LP1.1 Struktur Halaman `AKAN`
 **SUDAH**
 - (kosong)
 **SEDANG**
 - (kosong)
 **AKAN**
-- Rekap penerimaan per posisi kas (tunai TU, bank lembaga, bank pesantren) per tanggal atau periode.
-- Mutasi kas harian untuk melihat arus masuk per kas per hari.
-- Tutup buku harian yang menolak tambah/batal/hapus mundur, dengan jalur buka-kunci beralasan.
+- Halaman profil pesantren
+  - [ ] sejarah
+  - [ ] visi-misi
+  - [ ] struktur
+- Profil per lembaga
+  - [ ] MI
+  - [ ] MD
+  - [ ] MTS
+  - [ ] MLN
 **DITUNDA**
-- Tarif per asrama belum diakomodasi; menunggu modul 505 dibuka.
-
-## E.4 Tunggakan `AKAN`
-**SUDAH**
-- Crosstab tunggakan per santri/kelas dan dasbor ringkas (total tagihan, terbayar, tunggakan).
-**SEDANG**
 - (kosong)
-**AKAN**
-- Laporan aging 30/60/90+ hari dari `jatuh_tempo` sebagai dasar surat tagihan.
-- Pengingat tunggakan: penanda di crosstab; WhatsApp menyusul lewat modul notifikasi G8.
-**DITUNDA**
-- Tren penerimaan bulanan dan rincian per tahun ajaran di dasbor.
 
-## E.5 Audit & Kontrol `AKAN`
+### LP1.2 Konten Identitas `AKAN`
 **SUDAH**
 - (kosong)
 **SEDANG**
 - (kosong)
 **AKAN**
-- Jejak audit: log siapa mencatat, membatalkan, atau menghapus transaksi, dengan alasan wajib.
-- Maker-checker pembatalan agar pencatat tidak sekaligus menyetujui pembatalan.
-- Ekspor laporan ke Excel/PDF untuk crosstab, transaksi harian, rekap per jenis, dan tunggakan.
-**DITUNDA**
-- (kosong)
----
-
-# F. Portal & Klien
-
-## F.1 Portal Wali (203) `AKAN`
-**SUDAH**
-- Jalur PSB lanjutan, riwayat keluarga, dan pengajuan biodata (satu aktif per santri, bisa dibatalkan).
-**SEDANG**
-- (kosong)
-**AKAN**
-- Dashboard portal dan ringkasan tagihan untuk wali.
-- Aktor santri, karena rute portal saat ini hanya untuk `orang_tua`.
+- Fasilitas dan prestasi
+  - [ ] fasilitas
+  - [ ] prestasi
+  - [ ] galeri
 **DITUNDA**
 - (kosong)
 
-## F.2 Klien Desktop admin-desktop-tauri `AKAN`
-**SUDAH**
-- 48 halaman dalam 10 grup navigasi, dengan dua mode: lembaga dan pesantren.
-- Dijaga 123 file tes; klien ini untuk `super_admin` dan `admin` lembaga saja.
-**SEDANG**
-- (kosong)
-**AKAN**
-- Jalur peran guru, yang izin bawaannya masih kosong.
-**DITUNDA**
-- (kosong)
+## LP2. PSB Online
 
-## F.3 Aplikasi Mobile `AKAN`
+### LP2.1 Formulir PSB `AKAN`
 **SUDAH**
 - (kosong)
 **SEDANG**
 - (kosong)
 **AKAN**
-- Empat klien belum di-scaffold: kasir, orang tua, pimpinan, dan guru.
-**DITUNDA**
-- (kosong)
----
-
-# G. Pasca Production
-
-## G.1 Presensi Santri (500) `AKAN`
-**SUDAH**
-- Tabel `sesi_presensi`, `presensi_santri`, dan `pelanggaran_santri` sudah dibuat.
-**SEDANG**
-- (kosong)
-**AKAN**
-- UI presensi dan UI pelanggaran.
+- Formulir pendaftaran publik
+  - [ ] jalur
+  - [ ] data calon
+  - [ ] unggah
 **DITUNDA**
 - (kosong)
 
-## G.2 Presensi Pegawai (501) `AKAN`
-**SUDAH**
-- Tabel `presensi_pegawai` sudah dibuat.
-**SEDANG**
-- (kosong)
-**AKAN**
-- UI absensi guru.
-**DITUNDA**
-- (kosong)
-
-## G.3 Jadwal Pelajaran (502) `SUDAH`
-**SUDAH**
-- Sudah live dan menjadi bagian modul 201, bukan lagi pekerjaan pasca production.
-**SEDANG**
-- (kosong)
-**AKAN**
-- (kosong)
-**DITUNDA**
-- (kosong)
-
-## G.4 Tahfizh (503) `SUDAH`
-**SUDAH**
-- Tabel `target_tahfiz`, `setoran_tahfiz`, dan `rekap_tahfiz_santri` sudah dibuat.
-**SEDANG**
-- (kosong)
-**AKAN**
-- (kosong)
-**DITUNDA**
-- UI tahfizh untuk ziyadah dan murajaah.
-
-## G.5 Statistik Pimpinan (504) `AKAN`
+### LP2.2 Status & Biaya `AKAN`
 **SUDAH**
 - (kosong)
 **SEDANG**
 - (kosong)
 **AKAN**
-- Dashboard eksekutif pimpinan yang ringkas, terpisah dari `/api/dashboard/ringkasan`.
+- Cek status dan biaya
+  - [ ] status
+  - [ ] biaya
+  - [ ] konfirmasi
 **DITUNDA**
 - (kosong)
 
-## G.6 Asrama (505) `DITUNDA`
+## LP3. Berita & Pengumuman
+
+### LP3.1 CMS Berita `AKAN`
 **SUDAH**
 - (kosong)
 **SEDANG**
 - (kosong)
 **AKAN**
-- (kosong)
+- Kelola berita dan pengumuman
+  - [ ] kategori
+  - [ ] editor
+  - [ ] jadwal terbit
 **DITUNDA**
-- Baru sebatas gambaran; tabel, peran, dan pivot belum dibuat.
-- Pasca production dan tidak dikerjakan dalam waktu dekat.
+- (kosong)
 
-## G.7 Deploy (900/901) `AKAN`
+### LP3.2 Tampilan Publik `AKAN`
 **SUDAH**
 - (kosong)
 **SEDANG**
 - (kosong)
 **AKAN**
-- Deploy VPS dan konfigurasi production.
+- Daftar dan detail berita
+  - [ ] daftar
+  - [ ] detail
+  - [ ] pencarian
 **DITUNDA**
 - (kosong)
 
-# H. SEDANG DIKERJAKAN
+## LP4. Galeri & Fasilitas
+
+### LP4.1 Album `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Album foto dan video
+  - [ ] kategori
+  - [ ] lazy load
+  - [ ] caption
+**DITUNDA**
+- (kosong)
+
+### LP4.2 Virtual Tour `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Tur 360 dan peta
+  - [ ] 360
+  - [ ] peta
+  - [ ] aksesibilitas
+**DITUNDA**
+- (kosong)
+
+## LP5. Kontak & WhatsApp
+
+### LP5.1 Kontak `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Form kontak dan lokasi
+  - [ ] form
+  - [ ] maps
+  - [ ] jam layanan
+**DITUNDA**
+- (kosong)
+
+### LP5.2 WhatsApp `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- WhatsApp dan antispam
+  - [ ] deep link
+  - [ ] template
+  - [ ] antispam
+**DITUNDA**
+- (kosong)
+
+## LP6. SEO & Analytics
+
+### LP6.1 SEO Teknis `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Metadata dan sitemap
+  - [ ] metadata
+  - [ ] sitemap
+  - [ ] schema.org
+**DITUNDA**
+- (kosong)
+
+### LP6.2 Analytics `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Analytics dan consent
+  - [ ] GA4
+  - [ ] event PSB
+  - [ ] consent
+**DITUNDA**
+- (kosong)
+
+## LP7. Multi-lembaga & Bahasa
+
+### LP7.1 Multi-lembaga `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Halaman per lembaga
+  - [ ] jenjang
+  - [ ] navigasi
+  - [ ] konten
+**DITUNDA**
+- (kosong)
+
+### LP7.2 Bahasa & Aksesibilitas `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Bahasa dan aksesibilitas
+  - [ ] ID/EN
+  - [ ] kontras
+  - [ ] keyboard
+**DITUNDA**
+- (kosong)
+
+## LP8. Keamanan & Performa
+
+### LP8.1 Keamanan `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Keamanan publik
+  - [ ] HTTPS
+  - [ ] anti-spam
+  - [ ] rate limit
+**DITUNDA**
+- (kosong)
+
+### LP8.2 Performa `AKAN`
+**SUDAH**
+- (kosong)
+**SEDANG**
+- (kosong)
+**AKAN**
+- Performa halaman
+  - [ ] cache
+  - [ ] gambar
+  - [ ] Lighthouse
+**DITUNDA**
+- (kosong)
+
+# SEDANG DIKERJAKAN
 
 **Kosong.** Tidak ada sub-modul yang disetujui sebagai pekerjaan berjalan.
 
 ---
 
-# I. RINCIAN TEKNIS LAINNYA
+# RINCIAN TEKNIS LAINNYA
 
-Bagian ini memuat hal teknis yang terlalu rinci untuk masuk ke bagian A–G, dan
+Bagian ini memuat hal teknis yang terlalu rinci untuk masuk ke modul papan, dan
 tidak terikat pada modul Keuangan maupun Penilaian.
 
-## I.1 Kurikulum & Mata Pelajaran (201)
+## Kurikulum & Mata Pelajaran (201)
 
-### I.1.1 Jadwal per guru
+### Jadwal per guru
 - **FE:** tampilan jadwal dari sudut guru; saat ini baru per kelas.
 
-### I.1.2 Cetak & unduh jadwal per kelas
+### Cetak & unduh jadwal per kelas
 - **FE:** keluaran cetak/Excel untuk jadwal yang sudah tersusun.
 
-### I.1.3 Salin mapel antar tahun ajaran
+### Salin mapel antar tahun ajaran
 - **FE:** kelas tingkat atas menyalin daftar mapel dari tingkat bawah.
 
-### I.1.4 Tes tersisa
+### Tes tersisa
 - Endpoint yang belum tertulis: `kurikulum/slot` CRUD penuh, `guruAktif`, `indexMapel` filter.
 - `KurikulumPengampuPage` belum punya tes komponen.
 
-## I.2 Portal
+## Portal
 
-### I.2.1 Dashboard portal wali
+### Dashboard portal wali
 - **BE:** agregator baca-saja lewat rute `portal/*` dengan penjaga `role:orang_tua`.
 
-### I.2.2 Ringkasan tagihan di portal
+### Ringkasan tagihan di portal
 - **BE:** tagihan milik anak, dibaca dari akun wali.
 
-### I.2.3 Aktor santri
+### Aktor santri
 - **BE:** peran `santri` sudah ada, tetapi belum punya rute portal sendiri.
 
-## I.3 Keputusan Offline
+## Keputusan Offline
 
 Lampiran F `operasi.md` (OFF-01…OFF-09) masih berstatus keputusan desain dan
-belum diimplementasikan. Bila mulai dikerjakan, pindahkan butirnya ke bagian A–G
+belum diimplementasikan. Bila mulai dikerjakan, pindahkan butirnya ke modul yang sesuai
 dan tandai SEDANG.
 
 ---

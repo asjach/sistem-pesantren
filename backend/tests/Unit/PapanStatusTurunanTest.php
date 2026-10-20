@@ -26,7 +26,7 @@ class PapanStatusTurunanTest extends TestCase
             'sedang menang atas akan' => [['akan', 'sedang'], 'sedang'],
             'satu akan menahan sub-modul tetap akan' => [['sudah', 'sudah', 'akan'], 'akan'],
             'semua ditunda berarti ditunda' => [['ditunda', 'ditunda'], 'ditunda'],
-            'ditunda bercampur sudah tetap dianggap sudah' => [['ditunda', 'sudah'], 'sudah'],
+            'ditunda bercampur sudah tetap dianggap ditunda' => [['ditunda', 'sudah'], 'ditunda'],
             'ditunda bercampur akan berarti akan' => [['ditunda', 'akan'], 'akan'],
         ];
     }

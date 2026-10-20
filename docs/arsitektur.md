@@ -2,6 +2,8 @@
 
 > Pecahan dari `PRD.md` (v2.56). changelog induk ada di `CHANGELOG.md`.
 > "Bab 1" → `PRD.md`; "Bab 9–14 + Lampiran" → `operasi.md`; "§N" → `backend-detail.md`.
+>
+> Timeline, prioritas, dan status implementasi ada di **Board** (`/board`) **saat status Board Aktif**; istilah "pasca production" di dokumen ini menandai cakupan rancangan, bukan jadwal.
 
 
 ## 2. Gambaran Sistem
