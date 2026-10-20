@@ -133,6 +133,9 @@ class PapanMarkdown
 
             foreach ($butir as $b) {
                 $baris[] = '- '.$b['deskripsi'];
+                foreach ($b['subpoin'] ?? [] as $subpoin) {
+                    $baris[] = '  - '.$subpoin;
+                }
             }
         }
 

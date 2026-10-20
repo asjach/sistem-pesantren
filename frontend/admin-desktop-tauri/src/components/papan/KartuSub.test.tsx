@@ -13,6 +13,7 @@ function poin(ubah: Partial<KartuPapan> = {}): KartuPapan {
     nama: 'Nilai & Peristiwa',
     status: 'akan',
     deskripsi: 'Poin contoh.',
+    subpoin: [],
     subKode: 'D.1',
     subNama: 'Nilai & Peristiwa',
     modulKode: 'D',
@@ -69,9 +70,9 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
 
     fireEvent.click(document.getElementById('btn_buka_papan_butir_2')!);
 
-    const pop = document.getElementById('pop_butir_papan');
-    expect(pop?.textContent).toContain('Poin B.');
-    expect(pop?.textContent).not.toContain('Poin A.');
+    const rincian = document.getElementById('rincian_butir_2');
+    expect(rincian?.textContent).toContain('Poin B.');
+    expect(rincian?.textContent).not.toContain('Poin A.');
   });
 
   it('poin tetap draggable saat boleh ubah, dan tidak saat tidak boleh', () => {
@@ -89,5 +90,44 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
       />,
     );
     expect(document.getElementById('kartu_papan_butir_1')?.getAttribute('draggable')).toBe('false');
+  });
+
+  it('subpoin terlihat langsung di bawah poin', () => {
+    pasang([poin({ subpoin: ['Periksa saldo.', 'Unduh laporan.'] })]);
+
+    const baris = document.getElementById('kartu_papan_butir_1');
+    expect(baris?.textContent).toContain('Periksa saldo.');
+    expect(baris?.textContent).toContain('Unduh laporan.');
+  });
+
+  it('sub-modul kosong tetap punya kartu untuk ubah nama dan tambah poin', async () => {
+    const onSimpan = vi.fn(async () => {});
+    const onTambahPoin = vi.fn(async () => {});
+    renderDenganTema(
+      <PapanKolom
+        kartu={[]}
+        subKosong={[{ kode: 'D.2', nama: 'Rencana baru', status: 'akan', butir: [] }]}
+        tampilkanModul={false}
+        onPindah={vi.fn()}
+        bolehUbah
+        aksiSub={() => ({ onSimpan, onHapus: vi.fn(async () => {}) })}
+        onTambahPoin={onTambahPoin}
+        idAwalan="uji_kosong"
+      />,
+    );
+
+    fireEvent.click(document.getElementById('btn_ubah_sub_sub_d_2_akan')!);
+    fireEvent.change(document.getElementById('input_nama_sub_d_2_akan')!, {
+      target: { value: 'Rencana terinci' },
+    });
+    fireEvent.click(document.getElementById('btn_simpan_sub_d_2_akan')!);
+    await vi.waitFor(() => expect(onSimpan).toHaveBeenCalledWith('D.2', 'Rencana terinci'));
+
+    fireEvent.click(document.getElementById('btn_tambah_poin_sub_d_2_akan')!);
+    fireEvent.change(document.getElementById('input_poin_baru_sub_d_2_akan')!, {
+      target: { value: 'Mulai pekerjaan.' },
+    });
+    fireEvent.click(document.getElementById('btn_simpan_poin_sub_d_2_akan')!);
+    await vi.waitFor(() => expect(onTambahPoin).toHaveBeenCalledWith('D.2', 'akan', 'Mulai pekerjaan.'));
   });
 });

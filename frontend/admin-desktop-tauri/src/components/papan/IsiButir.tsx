@@ -20,10 +20,10 @@ const WARNA_STATUS: Record<StatusPapan, string> = {
 };
 
 /**
- * Panel rincian satu poin, dipakai di dalam popover kartu.
+ * Panel rincian satu poin, terbuka langsung di dalam kartu sub-modul.
  *
  * Punya dua wajah: mode BACA dan mode UBAH. Saat boleh mengubah, ada tombol
- * sunting; setelah masuk mode ubah, teks dan statusnya bisa diganti sekaligus
+ * sunting; setelah masuk mode ubah, teks poin dan subpoinnya bisa diganti
  * lalu disimpan atau dibatalkan.
  *
  * Semua penyimpanan diserahkan ke pemanggil lewat callback, supaya komponen
@@ -42,7 +42,7 @@ export function IsiButir({
   kartu: KartuPapan;
   /** Bila false, panel hanya menampilkan rincian tanpa satu pun kontrol. */
   bolehUbah: boolean;
-  onSimpanTeks: (deskripsi: string) => Promise<void>;
+  onSimpanTeks: (deskripsi: string, subpoin: string[]) => Promise<void>;
   onSimpanStatus: (status: StatusPapan) => Promise<void>;
   onNaik: () => Promise<void>;
   onTurun: () => Promise<void>;
@@ -51,6 +51,7 @@ export function IsiButir({
 }) {
   const [mode, setMode] = useState<'baca' | 'ubah'>('baca');
   const [draf, setDraf] = useState(kartu.deskripsi);
+  const [subpoin, setSubpoin] = useState<string[]>(kartu.subpoin);
   // Melacak aksi MANA yang sedang berjalan, bukan sekadar 'ada yang
   // berjalan'. Dengan begitu menekan Naik tidak ikut mematikan tombol
   // Turun - keduanya aksi berbeda pada poin yang sama, dan memblokir
@@ -85,21 +86,24 @@ export function IsiButir({
 
   async function simpanTeks() {
     const teks = draf.trim();
+    const rincian = subpoin.map((isi) => isi.trim()).filter(Boolean);
 
-    if (teks === '' || teks === kartu.deskripsi) {
+    if (teks === '') return;
+
+    if (teks === kartu.deskripsi && JSON.stringify(rincian) === JSON.stringify(kartu.subpoin)) {
       setMode('baca');
 
       return;
     }
 
     await jalan('simpan', async () => {
-      await onSimpanTeks(teks);
+      await onSimpanTeks(teks, rincian);
       setMode('baca');
     });
   }
 
   return (
-    <div className="flex max-h-[min(70vh,640px)] flex-col gap-3 overflow-y-auto p-4">
+    <div className="flex flex-col gap-3 p-3">
       <div
         className="flex items-start gap-2 border-b pb-3"
         style={{ borderColor: 'var(--divider)' }}
@@ -141,6 +145,7 @@ export function IsiButir({
           konfirmasiHapus={konfirmasiHapus}
           onMulaiUbah={() => {
             setDraf(kartu.deskripsi);
+            setSubpoin(kartu.subpoin);
             setMode('ubah');
           }}
           onGantiStatus={(s) => void jalan('simpan', () => onSimpanStatus(s))}
@@ -154,6 +159,8 @@ export function IsiButir({
         <UbahButir
           draf={draf}
           setDraf={setDraf}
+          subpoin={subpoin}
+          setSubpoin={setSubpoin}
           sibuk={sibuk}
           kotak={kotakTeks}
           onSimpan={() => void simpanTeks()}
@@ -297,6 +304,8 @@ function BacaButir({
 function UbahButir({
   draf,
   setDraf,
+  subpoin,
+  setSubpoin,
   kotak,
   sibuk,
   onSimpan,
@@ -304,6 +313,8 @@ function UbahButir({
 }: {
   draf: string;
   setDraf: (s: string) => void;
+  subpoin: string[];
+  setSubpoin: (s: string[]) => void;
   sibuk: Sibuk;
   onSimpan: () => void;
   onBatal: () => void;
@@ -324,6 +335,34 @@ function UbahButir({
         className="w-full resize-y border bg-transparent p-2 text-[13px] leading-snug outline-none focus:border-[var(--accent)]"
         style={{ borderColor: 'var(--divider)' }}
       />
+      <span className="text-xs text-muted-foreground">Subpoin · langkah atau fitur terperinci</span>
+      {subpoin.map((isi, indeks) => (
+        <div key={indeks} className="flex items-start gap-1">
+          <textarea
+            id={`input_subpoin_${indeks}`}
+            value={isi}
+            rows={2}
+            maxLength={500}
+            aria-label={`Subpoin ${indeks + 1}`}
+            onChange={(e) => setSubpoin(subpoin.map((teks, i) => i === indeks ? e.target.value : teks))}
+            className="min-w-0 flex-1 resize-y border bg-transparent p-2 text-xs"
+            style={{ borderColor: 'var(--divider)' }}
+          />
+          <button
+            type="button"
+            aria-label={`Hapus subpoin ${indeks + 1}`}
+            onClick={() => setSubpoin(subpoin.filter((_, i) => i !== indeks))}
+            className="p-1 text-muted-foreground hover:text-destructive"
+          ><Trash2 size={13} /></button>
+        </div>
+      ))}
+      <button
+        id="btn_tambah_subpoin"
+        type="button"
+        disabled={subpoin.length >= 30}
+        onClick={() => setSubpoin([...subpoin, ''])}
+        className="self-start text-xs text-[var(--accent-readable)] disabled:opacity-40"
+      >+ Tambah subpoin</button>
       <div className="flex items-center gap-2">
         <Button
           id="btn_simpan_butir_papan"

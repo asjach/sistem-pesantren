@@ -180,6 +180,35 @@ class PapanApiTest extends TestCase
         $this->assertSame('Rekap harian per kas.', $butir->refresh()->deskripsi);
     }
 
+    public function test_subpoin_bisa_disimpan_ditampilkan_dan_dihapus_tanpa_mengubah_status(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
+
+        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", [
+            'subpoin' => ['Periksa saldo kas.', 'Unduh rekap bulanan.'],
+        ])->assertOk()->assertJsonPath('subpoin.1', 'Unduh rekap bulanan.');
+
+        $this->getJson('/api/papan')
+            ->assertOk()
+            ->assertJsonFragment(['subpoin' => ['Periksa saldo kas.', 'Unduh rekap bulanan.']]);
+        $this->assertSame('akan', $butir->refresh()->status);
+
+        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", ['subpoin' => []])
+            ->assertOk()
+            ->assertJsonPath('subpoin', []);
+    }
+
+    public function test_subpoin_kosong_ditolak_validasi(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $butir = PapanButir::query()->firstOrFail();
+
+        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", ['subpoin' => ['']])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('subpoin.0');
+    }
+
     public function test_ubah_butir_tanpa_apa_pun_dijawab_422(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));

@@ -13,6 +13,7 @@ function kartu(ubah: Partial<KartuPapan> = {}): KartuPapan {
     nama: 'Rekap & Tutup Buku Kas',
     status: 'akan',
     deskripsi: 'Ekspor rekap per kas.',
+    subpoin: [],
     subKode: 'E.3',
     subNama: 'Rekap & Tutup Buku Kas',
     modulKode: 'E',
@@ -60,20 +61,20 @@ describe('PapanKolom - kolom awal', () => {
 describe('PapanKolom - rincian poin', () => {
   it('belum menampilkan rincian sebelum judul diklik', () => {
     pasang();
-    expect(document.getElementById('pop_butir_papan')).toBeNull();
+    expect(document.getElementById('rincian_butir_128')).toBeNull();
   });
 
-  it('klik judul membuka popover rincian, bukan dialog penuh layar', () => {
+  it('klik judul membuka rincian di dalam kartu', () => {
     pasang();
     fireEvent.click(document.getElementById('btn_buka_papan_butir_128')!);
 
-    const pop = document.getElementById('pop_butir_papan');
-    expect(pop).not.toBeNull();
+    const rincian = document.getElementById('rincian_butir_128');
+    expect(rincian).not.toBeNull();
     // Rincian konteks: modul, sub-modul, dan status turunan.
-    expect(pop?.textContent).toContain('Keuangan');
-    expect(pop?.textContent).toContain('Ekspor rekap per kas.');
-    expect(pop?.textContent).toContain('turunan dari poin');
-    // Tidak ada lagi lapisan gelap penuh layar milik dialog lama.
+    expect(rincian?.textContent).toContain('Keuangan');
+    expect(rincian?.textContent).toContain('Ekspor rekap per kas.');
+    expect(rincian?.textContent).toContain('turunan dari poin');
+    expect(document.getElementById('pop_butir_papan')).toBeNull();
     expect(document.getElementById('dialog_butir_papan')).toBeNull();
   });
 
@@ -81,7 +82,7 @@ describe('PapanKolom - rincian poin', () => {
     pasang();
     fireEvent.click(document.getElementById('kartu_papan_butir_128')!);
 
-    expect(document.getElementById('pop_butir_papan')).not.toBeNull();
+    expect(document.getElementById('rincian_butir_128')).not.toBeNull();
   });
 
   it('rincian hanya terbuka untuk satu kartu', () => {
@@ -89,9 +90,8 @@ describe('PapanKolom - rincian poin', () => {
     fireEvent.click(document.getElementById('btn_buka_papan_butir_128')!);
     fireEvent.click(document.getElementById('btn_buka_papan_butir_129')!);
 
-    const pop = document.getElementById('pop_butir_papan');
-    expect(pop?.textContent).toContain('Rekap per kas.');
-    // Popover lama tidak menumpuk: hanya satu panel di DOM.
-    expect(document.querySelectorAll('#pop_butir_papan').length).toBe(1);
+    const rincian = document.getElementById('rincian_butir_129');
+    expect(rincian?.textContent).toContain('Rekap per kas.');
+    expect(document.getElementById('rincian_butir_128')).toBeNull();
   });
 });

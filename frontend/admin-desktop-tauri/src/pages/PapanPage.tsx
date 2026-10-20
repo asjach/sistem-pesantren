@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { PapanKolom } from '@/components/papan/PapanKolom';
-import { Columns3, Loader2, RefreshCcw, Settings } from '@/icons';
+import { Columns3, Loader2, Plus, RefreshCcw } from '@/icons';
 import {
   geserButirPapan,
   hapusButirPapan,
@@ -15,6 +15,8 @@ import {
   pindahStatusPapan,
   tambahButirPapan,
   ubahButirPapan,
+  ubahSubPapan,
+  hapusSubPapan,
   type DataPapan,
   type RiwayatPapan,
   type StatusPapan,
@@ -22,7 +24,7 @@ import {
 import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { kartuModul, kemajuanModul, modulPertama, type KartuPapan } from '@/lib/papan';
-import type { AksiButir } from '@/components/papan/PapanKolom';
+import type { AksiButir, AksiSub } from '@/components/papan/PapanKolom';
 import { KelolaSubModul } from '@/components/papan/KelolaSubModul';
 
 /** Kolom selesai/ditunda mulai terlipat agar fokus ke pekerjaan aktif. */
@@ -159,8 +161,8 @@ export default function PapanPage() {
   /** Aksi sunting untuk satu kartu poin, dipakai panel rincian. */
   const aksiButir = useCallback(
     (kartu: KartuPapan): AksiButir => ({
-      onSimpanTeks: async (deskripsi) => {
-        await ubahButirPapan(kartu.subKode, kartu.id, { deskripsi });
+      onSimpanTeks: async (deskripsi, subpoin) => {
+        await ubahButirPapan(kartu.subKode, kartu.id, { deskripsi, subpoin });
         await segarkan();
       },
       onSimpanStatus: async (status) => {
@@ -177,6 +179,20 @@ export default function PapanPage() {
       },
       onHapus: async () => {
         await hapusButirPapan(kartu.subKode, kartu.id);
+        await segarkan();
+      },
+    }),
+    [segarkan],
+  );
+
+  const aksiSub = useCallback(
+    (kartu: { subKode: string }): AksiSub => ({
+      onSimpan: async (kode, nama) => {
+        await ubahSubPapan(kartu.subKode, { kode_baru: kode, nama });
+        await segarkan();
+      },
+      onHapus: async () => {
+        await hapusSubPapan(kartu.subKode);
         await segarkan();
       },
     }),
@@ -284,6 +300,9 @@ export default function PapanPage() {
               onPindah={pindah}
               bolehUbah={bolehUbah}
               aksiButir={aksiButir}
+              aksiSub={aksiSub}
+              onTambahPoin={tambahPoin}
+              subKosong={aktif.sub.filter((s) => s.butir.length === 0)}
               riwayat={riwayat}
               idAwalan={`modul_${aktif.kode.toLowerCase()}`}
               lipatAwal={KOLOM_TERTUTUP_AWAL}
@@ -296,8 +315,8 @@ export default function PapanPage() {
                     size="sm"
                     onClick={() => setKelolaTerbuka(true)}
                   >
-                    <Settings size={13} />
-                    Kelola <span className="hidden sm:inline">sub-modul &amp; poin</span>
+                    <Plus size={13} />
+                    Tambah sub-modul
                   </Button>
                 ) : null
               }
@@ -318,10 +337,8 @@ export default function PapanPage() {
         <KelolaSubModul
           modulKode={aktif.kode}
           modulNama={aktif.nama}
-          sub={aktif.sub}
           onTutup={() => setKelolaTerbuka(false)}
           onBerubah={segarkan}
-          onTambahPoin={tambahPoin}
         />
       ) : null}
     </div>

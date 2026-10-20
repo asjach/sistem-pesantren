@@ -57,6 +57,7 @@ class PapanController extends Controller
             'id' => $b->id,
             'status' => $b->status,
             'deskripsi' => $b->deskripsi,
+            'subpoin' => $b->subpoin ?? [],
         ])->all();
 
         return response()->json([
@@ -110,16 +111,18 @@ class PapanController extends Controller
         ]);
     }
 
-    /** Tambah butir di bawah sebuah sub-modul. */
+    /** Tambah butir beserta subpoin opsional di bawah sebuah sub-modul. */
     public function tambahButir(Request $request, string $kode): JsonResponse
     {
         $valid = $request->validate([
             'status' => ['required', 'string', 'in:'.implode(',', PapanService::STATUS)],
             'deskripsi' => ['required', 'string', 'max:500'],
+            'subpoin' => ['sometimes', 'array', 'max:30'],
+            'subpoin.*' => ['required', 'string', 'max:500'],
         ]);
 
         try {
-            $butir = $this->papan->tambahButir($kode, $valid['status'], $valid['deskripsi']);
+            $butir = $this->papan->tambahButir($kode, $valid['status'], $valid['deskripsi'], $valid['subpoin'] ?? []);
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         }
@@ -128,6 +131,7 @@ class PapanController extends Controller
             'id' => $butir->id,
             'status' => $butir->status,
             'deskripsi' => $butir->deskripsi,
+            'subpoin' => $butir->subpoin ?? [],
             ...$this->segarkanMarkdown(),
         ], 201);
     }
@@ -149,7 +153,7 @@ class PapanController extends Controller
     }
 
     /**
-     * Ubah isi sebuah poin: deskripsi dan/atau status.
+     * Ubah isi sebuah poin: deskripsi, subpoin, dan/atau status.
      *
      * Keduanya opsional supaya klien bisa menyunting teks saja tanpa
      * menyentuh status (dan sebaliknya). Riwayat hanya dicatat bila
@@ -159,12 +163,14 @@ class PapanController extends Controller
     {
         $valid = $request->validate([
             'deskripsi' => ['nullable', 'string', 'max:500'],
+            'subpoin' => ['sometimes', 'array', 'max:30'],
+            'subpoin.*' => ['required', 'string', 'max:500'],
             'status' => ['nullable', 'string', 'in:'.implode(',', PapanService::STATUS)],
             'catatan' => ['nullable', 'string', 'max:255'],
         ]);
 
-        if (($valid['deskripsi'] ?? null) === null && ($valid['status'] ?? null) === null) {
-            return response()->json(['message' => 'Tidak ada yang diubah: isi deskripsi atau status.'], 422);
+        if (($valid['deskripsi'] ?? null) === null && ($valid['status'] ?? null) === null && ! array_key_exists('subpoin', $valid)) {
+            return response()->json(['message' => 'Tidak ada yang diubah: isi deskripsi, status, atau subpoin.'], 422);
         }
 
         try {
@@ -175,6 +181,7 @@ class PapanController extends Controller
                 $valid['status'] ?? null,
                 'pengguna',
                 $valid['catatan'] ?? null,
+                $valid['subpoin'] ?? null,
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 404);
@@ -192,6 +199,7 @@ class PapanController extends Controller
             'id' => $poin->id,
             'status' => $poin->status,
             'deskripsi' => $poin->deskripsi,
+            'subpoin' => $poin->subpoin ?? [],
             'status_sub_modul' => PapanService::statusTurunan($semua),
             ...$this->segarkanMarkdown(),
         ]);
@@ -226,6 +234,7 @@ class PapanController extends Controller
                 'id' => $b->id,
                 'status' => $b->status,
                 'deskripsi' => $b->deskripsi,
+                'subpoin' => $b->subpoin ?? [],
             ])->all(),
             ...$this->segarkanMarkdown(),
         ]);

@@ -16,6 +16,7 @@ export interface KartuPapan {
   nama: string;
   status: StatusPapan;
   deskripsi: string;
+  subpoin: string[];
   /** Kode sub-modul induk, mis. E.3. */
   subKode: string;
   subNama: string;
@@ -73,6 +74,7 @@ export function ratakanKartu(modul: ModulPapan[]): KartuPapan[] {
         nama: s.nama,
         status: b.status,
         deskripsi: b.deskripsi,
+        subpoin: b.subpoin ?? [],
         subKode: s.kode,
         subNama: s.nama,
         modulKode: m.kode,

@@ -14,6 +14,7 @@ function kartu(ubah: Partial<KartuPapan> = {}): KartuPapan {
     nama: 'Rekap & Tutup Buku Kas',
     status: 'akan',
     deskripsi: 'Ekspor rekap per kas.',
+    subpoin: [],
     subKode: 'E.3',
     subNama: 'Rekap & Tutup Buku Kas',
     modulKode: 'E',
@@ -62,8 +63,8 @@ describe('PapanKolom - gerbang izin ubah', () => {
     buka();
 
     // Rincian tetap terbaca penuh - yang hilang hanya kendali mengubahnya.
-    const pop = document.getElementById('pop_butir_papan');
-    expect(pop?.textContent).toContain('Ekspor rekap per kas.');
+    const rincian = document.getElementById('rincian_butir_128');
+    expect(rincian?.textContent).toContain('Ekspor rekap per kas.');
     expect(document.getElementById('btn_ubah_butir_papan')).toBeNull();
     expect(document.getElementById('btn_hapus_butir_papan')).toBeNull();
     expect(document.getElementById('btn_naik_butir_papan')).toBeNull();
@@ -98,7 +99,7 @@ describe('PapanKolom - menyunting poin', () => {
     fireEvent.change(kotak, { target: { value: 'Ekspor rekap harian.' } });
     fireEvent.click(document.getElementById('btn_simpan_butir_papan')!);
 
-    expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap harian.');
+    expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap harian.', []);
   });
 
   it('teks kosong tidak disimpan dan kembali ke mode baca', () => {
@@ -191,9 +192,25 @@ describe('PapanKolom - menyunting poin', () => {
     // Pesannya harus terlihat pengguna - kegagalan simpan yang senyap
     // membuat orang mengira perubahannya tersimpan.
     await vi.waitFor(() => {
-      expect(document.getElementById('pop_butir_papan')?.textContent).toContain(
+      expect(document.getElementById('rincian_butir_128')?.textContent).toContain(
         'Gagal menyimpan ke server.',
       );
+    });
+  });
+
+  it('menambah subpoin dan menyimpannya bersama isi poin', async () => {
+    const onSimpanTeks = vi.fn(async () => {});
+    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    buka();
+    fireEvent.click(document.getElementById('btn_ubah_butir_papan')!);
+    fireEvent.click(document.getElementById('btn_tambah_subpoin')!);
+    fireEvent.change(document.getElementById('input_subpoin_0')!, {
+      target: { value: 'Periksa saldo tiap kas.' },
+    });
+    fireEvent.click(document.getElementById('btn_simpan_butir_papan')!);
+
+    await vi.waitFor(() => {
+      expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', ['Periksa saldo tiap kas.']);
     });
   });
 });

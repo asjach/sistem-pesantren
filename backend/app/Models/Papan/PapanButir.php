@@ -16,7 +16,12 @@ class PapanButir extends Model
 
     protected $table = 'papan_butir';
 
-    protected $fillable = ['item_id', 'status', 'deskripsi', 'urutan'];
+    protected $fillable = ['item_id', 'status', 'deskripsi', 'subpoin', 'urutan'];
+
+    protected function casts(): array
+    {
+        return ['subpoin' => 'array'];
+    }
 
     /** @return BelongsTo<PapanItem, $this> */
     public function item(): BelongsTo

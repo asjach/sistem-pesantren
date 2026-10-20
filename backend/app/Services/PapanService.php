@@ -90,6 +90,7 @@ class PapanService
                         'id' => $b->id,
                         'status' => $b->status,
                         'deskripsi' => $b->deskripsi,
+                        'subpoin' => $b->subpoin ?? [],
                     ])->all();
 
                     return [
@@ -201,7 +202,7 @@ class PapanService
      *
      * @param  string  $status  status poin, salah satu {@see self::STATUS}
      */
-    public function tambahButir(string $kode, string $status, string $deskripsi): PapanButir
+    public function tambahButir(string $kode, string $status, string $deskripsi, array $subpoin = []): PapanButir
     {
         $this->pastikanStatus($status);
 
@@ -213,6 +214,7 @@ class PapanService
             'item_id' => $item->id,
             'status' => $status,
             'deskripsi' => $deskripsi,
+            'subpoin' => array_values(array_map(trim(...), $subpoin)),
             'urutan' => $urutan + 1,
         ]);
     }
@@ -301,6 +303,7 @@ class PapanService
         ?string $status = null,
         string $oleh = 'agent',
         ?string $catatan = null,
+        ?array $subpoin = null,
     ): PapanButir {
         if ($status !== null) {
             $this->pastikanStatus($status);
@@ -315,6 +318,10 @@ class PapanService
 
         if ($status !== null) {
             $butir->status = $status;
+        }
+
+        if ($subpoin !== null) {
+            $butir->subpoin = array_values(array_map(trim(...), $subpoin));
         }
 
         $butir->save();

@@ -18,6 +18,7 @@ export interface ButirPapan {
   id: number;
   status: StatusPapan;
   deskripsi: string;
+  subpoin?: string[];
 }
 
 /**
@@ -77,10 +78,10 @@ export function pindahStatusPapan(kode: string, butirId: number, status: StatusP
 }
 
 /** Tambah poin di bawah sebuah sub-modul. */
-export function tambahButirPapan(kode: string, status: StatusPapan, deskripsi: string) {
+export function tambahButirPapan(kode: string, status: StatusPapan, deskripsi: string, subpoin: string[] = []) {
   return api<ButirPapan>(`/papan/${encodeURIComponent(kode)}/butir`, {
     method: 'POST',
-    body: JSON.stringify({ status, deskripsi }),
+    body: JSON.stringify({ status, deskripsi, subpoin }),
   });
 }
 
@@ -93,7 +94,7 @@ export function hapusButirPapan(kode: string, id: number) {
 
 
 /**
- * Ubah isi satu POIN: deskripsi dan/atau statusnya.
+ * Ubah isi satu POIN: deskripsi, subpoin, dan/atau statusnya.
  *
  * Keduanya opsional — menyunting teks saja tidak perlu menyertakan status,
  * supaya tidak ada risiko status ikut berubah karena kelalaian pemanggil.
@@ -101,7 +102,7 @@ export function hapusButirPapan(kode: string, id: number) {
 export function ubahButirPapan(
   kode: string,
   id: number,
-  ubah: { deskripsi?: string; status?: StatusPapan; catatan?: string },
+  ubah: { deskripsi?: string; subpoin?: string[]; status?: StatusPapan; catatan?: string },
 ) {
   return api<{ id: number; status: StatusPapan; deskripsi: string; status_sub_modul: StatusPapan }>(
     `/papan/${encodeURIComponent(kode)}/butir/${id}`,

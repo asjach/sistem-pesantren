@@ -1,8 +1,7 @@
 import { useCallback, useMemo, useState, type DragEvent, type ReactNode } from 'react';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { History, Minus, MoreVertical, Plus } from '@/icons';
-import type { RiwayatPapan, StatusPapan } from '@/api/papan';
+import { History, Minus, Pencil, Plus, Trash2 } from '@/icons';
+import { JUDUL_KOLOM, KOLOM_PAPAN, type RiwayatPapan, type StatusPapan, type SubPapan } from '@/api/papan';
 import { kelompokkanKolom, kolomSebelah, type KartuPapan, type KartuSub } from '@/lib/papan';
 import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
 import { IsiButir } from './IsiButir';
@@ -14,10 +13,15 @@ import { IsiButir } from './IsiButir';
  * harus diteruskan berlapis dari halaman sampai ke panelnya.
  */
 export interface AksiButir {
-  onSimpanTeks: (deskripsi: string) => Promise<void>;
+  onSimpanTeks: (deskripsi: string, subpoin: string[]) => Promise<void>;
   onSimpanStatus: (status: StatusPapan) => Promise<void>;
   onNaik: () => Promise<void>;
   onTurun: () => Promise<void>;
+  onHapus: () => Promise<void>;
+}
+
+export interface AksiSub {
+  onSimpan: (kode: string, nama: string) => Promise<void>;
   onHapus: () => Promise<void>;
 }
 
@@ -117,6 +121,8 @@ export function KartuPapan({
   onBukaUbah,
   bolehUbah,
   aksiKartu,
+  aksiSub,
+  onTambahPoin,
 }: {
   kartu: KartuSub;
   /** Id poin yang sedang diseret (bukan id kartu). */
@@ -134,8 +140,32 @@ export function KartuPapan({
   bolehUbah: boolean;
   /** Aksi yang berlaku untuk sebuah poin di kartu ini. */
   aksiKartu: (poin: KartuPapan) => AksiButir;
+  aksiSub?: (kartu: KartuSub) => AksiSub;
+  onTambahPoin?: (kode: string, status: StatusPapan, deskripsi: string) => Promise<void>;
 }) {
-  const idKartu = `sub_${kartu.subKode.replace('.', '_')}`;
+  const idKartu = `sub_${kartu.subKode.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${kartu.status}`;
+  const [ubahSub, setUbahSub] = useState(false);
+  const [kode, setKode] = useState(kartu.subKode);
+  const [nama, setNama] = useState(kartu.subNama);
+  const [poinBaru, setPoinBaru] = useState('');
+  const [statusBaru, setStatusBaru] = useState<StatusPapan>(kartu.status);
+  const [tambahTerbuka, setTambahTerbuka] = useState(false);
+  const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
+  const [sibuk, setSibuk] = useState(false);
+  const [galat, setGalat] = useState('');
+
+  async function jalankan(aksi: () => Promise<void>, selesai?: () => void) {
+    setSibuk(true);
+    setGalat('');
+    try {
+      await aksi();
+      selesai?.();
+    } catch (e) {
+      setGalat(e instanceof Error ? e.message : 'Gagal menyimpan.');
+    } finally {
+      setSibuk(false);
+    }
+  }
 
   return (
     <article
@@ -154,6 +184,11 @@ export function KartuPapan({
         <h3 className="min-w-0 flex-1 text-[13px] leading-snug font-medium text-[var(--accent-readable)]">
           {kartu.subNama}
         </h3>
+        {bolehUbah && aksiSub ? (
+          <button id={`btn_ubah_sub_${idKartu}`} type="button" aria-label={`Ubah sub-modul ${kartu.subKode}`} onClick={() => setUbahSub((v) => !v)} className="grid size-5 shrink-0 place-items-center text-muted-foreground hover:text-foreground">
+            <Pencil size={12} />
+          </button>
+        ) : null}
         {/* Jumlah poin di kolom ini; berguna saat poinnya panjang-panjang. */}
         <span
           className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center border px-1 font-mono text-[10px] text-muted-foreground tabular-nums"
@@ -164,14 +199,42 @@ export function KartuPapan({
         </span>
       </div>
 
+      {galat ? <p role="alert" className="text-xs text-destructive">{galat}</p> : null}
+      {ubahSub && bolehUbah && aksiSub ? (
+        <div className="flex flex-col gap-2 border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
+          <label className="text-[11px] text-muted-foreground" htmlFor={`input_kode_${idKartu}`}>Kode sub-modul</label>
+          <input id={`input_kode_${idKartu}`} value={kode} onChange={(e) => setKode(e.target.value)} maxLength={20} className="w-full border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
+          <label className="text-[11px] text-muted-foreground" htmlFor={`input_nama_${idKartu}`}>Nama sub-modul</label>
+          <input id={`input_nama_${idKartu}`} value={nama} onChange={(e) => setNama(e.target.value)} className="w-full border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
+          <div className="flex flex-wrap gap-2">
+            <button
+              id={`btn_simpan_${idKartu}`}
+              type="button"
+              disabled={sibuk || !kode.trim() || !nama.trim()}
+              onClick={() => void jalankan(() => aksiSub(kartu).onSimpan(kode.trim(), nama.trim()), () => setUbahSub(false))}
+              className="border px-2 py-1 text-xs disabled:opacity-40"
+            >
+              Simpan
+            </button>
+            <button type="button" onClick={() => setUbahSub(false)} className="px-2 py-1 text-xs text-muted-foreground">Batal</button>
+            {konfirmasiHapus ? (
+              <span className="ml-auto flex flex-wrap items-center gap-2 text-xs">
+                <span>Hapus sub-modul dan semua poin?</span>
+                <button type="button" disabled={sibuk} onClick={() => void jalankan(() => aksiSub(kartu).onHapus())} className="text-destructive">Ya, hapus</button>
+                <button type="button" onClick={() => setKonfirmasiHapus(false)}>Batal</button>
+              </span>
+            ) : <button type="button" onClick={() => setKonfirmasiHapus(true)} aria-label={`Hapus sub-modul ${kartu.subKode}`} className="ml-auto flex items-center gap-1 text-xs text-destructive"><Trash2 size={12} /> Hapus</button>}
+          </div>
+        </div>
+      ) : null}
+
       {tampilkanModul ? (
         <div className="flex flex-wrap gap-1">
           <Lencana label={kartu.modulNama} warna="var(--accent)" />
         </div>
       ) : null}
 
-      {/* Daftar poin. Tiap baris sendiri-sendiri: diseret, fokusable lewat
-          Tab, dan punya popover rincian. */}
+      {/* Daftar poin. Tiap baris tetap satuan seret; suntingan terbuka di bawahnya. */}
       <div className="flex flex-col gap-1.5 border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
         {kartu.poin.map((poin) => (
           <BarisPoin
@@ -189,6 +252,42 @@ export function KartuPapan({
           />
         ))}
       </div>
+      {bolehUbah && onTambahPoin ? (
+        <div className="border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
+          {tambahTerbuka ? (
+            <div className="flex flex-col gap-2">
+              <input id={`input_poin_baru_${idKartu}`} value={poinBaru} onChange={(e) => setPoinBaru(e.target.value)} placeholder="Tulis poin baru..." aria-label={`Poin baru ${kartu.subKode}`} className="w-full border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
+              <select id={`status_poin_baru_${idKartu}`} value={statusBaru} onChange={(e) => setStatusBaru(e.target.value as StatusPapan)} aria-label="Status poin baru" className="border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }}>
+                {KOLOM_PAPAN.map((status) => <option key={status} value={status}>{JUDUL_KOLOM[status]}</option>)}
+              </select>
+              <div className="flex gap-2">
+                <button
+                  id={`btn_simpan_poin_${idKartu}`}
+                  type="button"
+                  disabled={sibuk || !poinBaru.trim()}
+                  onClick={() => void jalankan(
+                    () => onTambahPoin(kartu.subKode, statusBaru, poinBaru.trim()),
+                    () => { setPoinBaru(''); setTambahTerbuka(false); },
+                  )}
+                  className="border px-2 py-1 text-xs disabled:opacity-40"
+                >
+                  Simpan poin
+                </button>
+                <button type="button" onClick={() => setTambahTerbuka(false)} className="text-xs text-muted-foreground">Batal</button>
+              </div>
+            </div>
+          ) : (
+            <button
+              id={`btn_tambah_poin_${idKartu}`}
+              type="button"
+              onClick={() => setTambahTerbuka(true)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Plus size={12} /> Tambah poin
+            </button>
+          )}
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -229,59 +328,72 @@ function BarisPoin({
     // panah kiri/kanan disediakan sebagai jalur setara (lihat onKeyDown).
     // Tanpa tabIndex + handler itu, memindah poin jadi mustahil tanpa mouse.
     /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
-    <div
-      id={`kartu_papan_${idPoin}`}
-      role="group"
-      draggable={bolehUbah}
-      tabIndex={0}
-      onDragStart={(e) => onMulaiSeret(poin, e)}
-      onDragEnd={onLepasSeret}
-      onDragOver={onDiAtas}
-      onClick={(e) => {
-        // Tombol "..." sudah membuka popover sendiri; jangan buka dua kali.
-        if ((e.target as HTMLElement).closest('button')) return;
-        onBukaUbah(poin.id);
-      }}
-      onKeyDown={(e) => {
-        // Enter/Space = jalur setara untuk membuka rincian, termasuk saat
-        // pengguna hanya boleh membaca. Di layar sentuh ini alur utamanya,
-        // karena drag HTML5 tidak berjalan dengan jari.
-        if (e.key === 'Enter' || e.key === ' ') {
+    <>
+      <div
+        id={`kartu_papan_${idPoin}`}
+        role="group"
+        draggable={bolehUbah}
+        tabIndex={0}
+        onDragStart={(e) => onMulaiSeret(poin, e)}
+        onDragEnd={onLepasSeret}
+        onDragOver={onDiAtas}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
+          onBukaUbah(terbuka ? null : poin.id);
+        }}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          // Enter/Space = jalur setara untuk membuka rincian, termasuk saat
+          // pengguna hanya boleh membaca. Di layar sentuh ini alur utamanya,
+          // karena drag HTML5 tidak berjalan dengan jari.
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onBukaUbah(terbuka ? null : poin.id);
+            return;
+          }
+          if (!bolehUbah) return;
+          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
           e.preventDefault();
-          onBukaUbah(poin.id);
-          return;
-        }
-        if (!bolehUbah) return;
-        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-        e.preventDefault();
-        onPindahArah(poin, e.key === 'ArrowLeft' ? -1 : 1);
-      }}
-      aria-label={`${poin.deskripsi}. Ketuk atau tekan Enter untuk rincian; seret atau pakai panah kiri/kanan untuk memindahkan di desktop.`}
-      className={cn(
-        'flex touch-manipulation items-start gap-1.5 border-l-2 py-1 pr-0.5 pl-2 transition-colors',
-        'border-[color:var(--divider)]',
-        'hover:border-[color:var(--accent-line)] hover:bg-[var(--surface-2)]',
-        'active:bg-[var(--surface-3)]',
-        bolehUbah ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-        'focus-visible:border-[color:var(--accent)] focus-visible:bg-[var(--surface-2)] focus-visible:outline-none',
-        diseret && 'cursor-grabbing opacity-40',
-      )}
-    >
-      <span className="min-w-0 flex-1 text-[12px] leading-snug [overflow-wrap:anywhere]">
-        <TeksButir deskripsi={poin.deskripsi} />
-      </span>
-      {/* Rincian poin dibuka sebagai POPOVER yang menempel di tombolnya,
-          bukan dialog penuh layar: yang dibaca cuma satu poin, dan popover
-          membiarkan poin itu tetap terlihat di papan. */}
-      <PopoverButir
-        kartu={poin}
-        terbuka={terbuka}
-        onBukaUbah={(b) => onBukaUbah(b ? poin.id : null)}
-        idTombol={`btn_buka_papan_${idPoin}`}
-        bolehUbah={bolehUbah}
-        aksi={aksi}
-      />
-    </div>
+          onPindahArah(poin, e.key === 'ArrowLeft' ? -1 : 1);
+        }}
+        aria-label={`${poin.deskripsi}. Ketuk atau tekan Enter untuk rincian; seret atau pakai panah kiri/kanan untuk memindahkan di desktop.`}
+        className={cn(
+          'flex touch-manipulation items-start gap-1.5 border-l-2 py-1 pr-0.5 pl-2 transition-colors',
+          'border-[color:var(--divider)]',
+          'hover:border-[color:var(--accent-line)] hover:bg-[var(--surface-2)]',
+          'active:bg-[var(--surface-3)]',
+          bolehUbah ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+          'focus-visible:border-[color:var(--accent)] focus-visible:bg-[var(--surface-2)] focus-visible:outline-none',
+          diseret && 'cursor-grabbing opacity-40',
+        )}
+      >
+        <div className="min-w-0 flex-1 text-[12px] leading-snug [overflow-wrap:anywhere]">
+          <TeksButir deskripsi={poin.deskripsi} />
+          {poin.subpoin.length > 0 ? (
+            <ul className="mt-1 list-disc pl-4 text-[11px] text-muted-foreground">
+              {poin.subpoin.map((teks, i) => <li key={i}><TeksButir deskripsi={teks} /></li>)}
+            </ul>
+          ) : null}
+        </div>
+        <button
+          id={`btn_buka_papan_${idPoin}`}
+          type="button"
+          aria-label={`${terbuka ? 'Tutup' : 'Buka'} rincian poin: ${poin.deskripsi}`}
+          aria-expanded={terbuka}
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          onClick={() => onBukaUbah(terbuka ? null : poin.id)}
+          className="grid size-6 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
+        >
+          <Pencil size={12} />
+        </button>
+      </div>
+      {terbuka ? (
+        <div id={`rincian_${idPoin}`} className="border-l-2 bg-[var(--surface-2)]" style={{ borderColor: 'var(--accent-line)' }}>
+          <IsiButir kartu={poin} bolehUbah={bolehUbah} onTutup={() => onBukaUbah(null)} {...aksi} />
+        </div>
+      ) : null}
+    </>
     /* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
   );
 }
@@ -297,6 +409,9 @@ export function PapanKolom({
   onPindah,
   bolehUbah = false,
   aksiButir,
+  aksiSub,
+  onTambahPoin,
+  subKosong = [],
   riwayat,
   idAwalan,
   lipatAwal,
@@ -309,6 +424,9 @@ export function PapanKolom({
   bolehUbah?: boolean;
   /** Aksi sunting untuk poin tertentu; wajib bila bolehUbah true. */
   aksiButir?: (poin: KartuPapan) => AksiButir;
+  aksiSub?: (kartu: KartuSub) => AksiSub;
+  onTambahPoin?: (kode: string, status: StatusPapan, deskripsi: string) => Promise<void>;
+  subKosong?: SubPapan[];
   /** Riwayat ringkas yang ditampilkan di toolbar (kosong = tidak tampil). */
   riwayat?: RiwayatPapan[];
   /** Awalan id elemen supaya beberapa papan di satu halaman tidak bertabrakan. */
@@ -322,11 +440,25 @@ export function PapanKolom({
   const [sasaran, setSasaran] = useState<SasaranJatuh | null>(null);
   const [lipat, setLipat] = useState<Set<StatusPapan>>(() => new Set(lipatAwal));
   const [pengumuman, setPengumuman] = useState('');
-  /** Id poin yang popover rinciannya sedang terbuka (null = tertutup). */
+  /** Id poin yang rincian dalam kartunya sedang terbuka. */
   const [rincian, setRincian] = useState<number | null>(null);
 
   const awalan = idAwalan ?? 'papan';
-  const kolom = useMemo(() => kelompokkanKolom(kartu), [kartu]);
+  const kolom = useMemo(() => {
+    const hasil = kelompokkanKolom(kartu);
+    for (const sub of subKosong) {
+      hasil[0].kartu.push({
+        subKode: sub.kode,
+        subNama: sub.nama,
+        modulKode: '',
+        modulNama: '',
+        status: 'akan',
+        poin: [],
+        statusSub: 'akan',
+      });
+    }
+    return hasil;
+  }, [kartu, subKosong]);
 
   const jungkitLipat = useCallback((id: StatusPapan) => {
     setLipat((prev) => {
@@ -563,6 +695,8 @@ export function PapanKolom({
                                   onHapus: async () => {},
                                 })
                           }
+                          aksiSub={aksiSub}
+                          onTambahPoin={onTambahPoin}
                         />
                       </div>
                     ))}
@@ -577,64 +711,5 @@ export function PapanKolom({
         })}
       </div>
     </>
-  );
-}
-
-/**
- * Popover rincian satu poin, dibuka dari tombol di baris poin.
- *
- * Dulu ini dialog yang menutupi seluruh papan dengan lapisan gelap.
- * Rincian satu poin tidak sepadan dengan gangguan sebesar itu - dan
- * popover membuat poin yang sedang dibaca tetap terlihat di papan.
- * Ditempelkan ke tombol rincian, jadi posisinya mengikuti baris poinnya,
- * bukan di tengah layar.
- */
-export function PopoverButir({
-  kartu,
-  terbuka,
-  onBukaUbah,
-  idTombol,
-  bolehUbah,
-  aksi,
-}: {
-  kartu: KartuPapan;
-  terbuka: boolean;
-  onBukaUbah: (buka: boolean) => void;
-  idTombol: string;
-  /** Bila false, panel rincian tidak menampilkan kontrol sunting apa pun. */
-  bolehUbah: boolean;
-  aksi: AksiButir;
-}) {
-  return (
-    <Popover open={terbuka} onOpenChange={onBukaUbah}>
-      {/* PopoverTrigger (bukan PopoverAnchor): Anchor hanya menandai
-          posisi dan TIDAK membuka popover saat diklik - kliknya diam
-          saja. Trigger merender <button> sendiri, jadi tombol rincian
-          cukup satu dan tidak perlu dibuat terpisah. */}
-      <PopoverTrigger
-        id={idTombol}
-        type="button"
-        title="Rincian poin"
-        aria-label={`Buka rincian poin: ${kartu.deskripsi}`}
-        draggable={false}
-        onDragStart={(e) => e.preventDefault()}
-        className="grid size-6 shrink-0 cursor-pointer place-items-center text-muted-foreground transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--accent-readable)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-      >
-        <MoreVertical size={13} style={{ color: 'inherit' }} />
-      </PopoverTrigger>
-      {/* p-0 dipakai supaya IsiButir yang mengatur paddingnya sendiri;
-          border dan bayangan datang dari PopoverContent bawaan (rounded-md
-          tidak berpengaruh di proyek ini karena --radius-semua: 0px). */}
-      <PopoverContent
-        id="pop_butir_papan"
-        aria-label="Rincian poin"
-        side="bottom"
-        align="start"
-        collisionPadding={8}
-        className="w-[min(400px,calc(100vw_-_24px))] p-0"
-      >
-        <IsiButir kartu={kartu} bolehUbah={bolehUbah} onTutup={() => onBukaUbah(false)} {...aksi} />
-      </PopoverContent>
-    </Popover>
   );
 }
