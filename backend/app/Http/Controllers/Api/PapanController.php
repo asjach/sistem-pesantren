@@ -244,6 +244,27 @@ class PapanController extends Controller
         ]);
     }
 
+    /** Tambah modul baru; tab di UI dibangun dari data sehingga ikut muncul. */
+    public function tambahModul(Request $request): JsonResponse
+    {
+        $valid = $request->validate([
+            'kode' => ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
+            'nama' => ['required', 'string', 'max:100'],
+        ]);
+
+        try {
+            $modul = $this->papan->tambahModul($valid['kode'], $valid['nama']);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'kode' => $modul->kode,
+            'nama' => $modul->nama,
+            ...$this->segarkanMarkdown(),
+        ], 201);
+    }
+
     /** Tambah sub-modul baru di bawah sebuah modul. */
     public function tambahItem(Request $request, string $modul): JsonResponse
     {

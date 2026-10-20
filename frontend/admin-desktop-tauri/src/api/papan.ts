@@ -116,6 +116,14 @@ export function ubahButirPapan(
   );
 }
 
+/** Tambah modul baru; tab dibangun dari data sehingga langsung muncul. */
+export function tambahModulPapan(kode: string, nama: string) {
+  return api<{ kode: string; nama: string }>('/board/modul', {
+    method: 'POST',
+    body: JSON.stringify({ kode, nama }),
+  });
+}
+
 /** Tambah sub-modul baru di bawah sebuah modul. */
 export function tambahSubPapan(modulKode: string, kode: string, nama: string) {
   return api<{ kode: string; nama: string }>(`/board/modul/${encodeURIComponent(modulKode)}/item`, {

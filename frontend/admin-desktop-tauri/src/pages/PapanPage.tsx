@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { PapanKolom } from '@/components/papan/PapanKolom';
-import { Columns3, History, Loader2, RefreshCcw } from '@/icons';
+import { Columns3, History, Loader2, Plus, RefreshCcw } from '@/icons';
 import {
   hapusButirPapan,
   muatPapan,
   muatRiwayatPapan,
   pindahStatusPapan,
   tambahButirPapan,
+  tambahModulPapan,
   ubahButirPapan,
   ubahSubPapan,
   hapusSubPapan,
@@ -26,6 +27,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { kartuModul, kemajuanModul, modulPertama, type KartuPapan } from '@/lib/papan';
 import type { AksiButir, AksiSub } from '@/components/papan/PapanKolom';
 import { KelolaSubModul } from '@/components/papan/KelolaSubModul';
+import { TambahModul } from '@/components/papan/TambahModul';
 
 /** Kolom selesai/ditunda mulai terlipat agar fokus ke pekerjaan aktif. */
 const KOLOM_TERTUTUP_AWAL: StatusPapan[] = ['sudah', 'ditunda'];
@@ -47,6 +49,7 @@ export default function PapanPage() {
   const [galat, setGalat] = useState<string | null>(null);
   const [memuat, setMemuat] = useState(true);
   const [kelolaTerbuka, setKelolaTerbuka] = useState(false);
+  const [modulTerbuka, setModulTerbuka] = useState(false);
 
   const { user } = useAuth();
   // Satu gerbang untuk seluruh UI sunting. Tanpa izin ini halaman
@@ -279,6 +282,20 @@ export default function PapanPage() {
                 ))}
               </TabsList>
             </div>
+            {bolehUbah ? (
+              <Button
+                id="btn_tambah_modul"
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Tambah modul"
+                title="Tambah modul"
+                onClick={() => setModulTerbuka(true)}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                <Plus size={14} />
+              </Button>
+            ) : null}
             {riwayat.length > 0 ? (
               <Popover>
                 <PopoverTrigger asChild>
@@ -350,8 +367,33 @@ export default function PapanPage() {
           <p className="max-w-sm text-xs text-muted-foreground">
             Modul akan muncul otomatis setelah datanya tersedia di server.
           </p>
+          {bolehUbah ? (
+            <Button id="btn_tambah_modul_kosong" type="button" variant="outline" size="sm" onClick={() => setModulTerbuka(true)}>
+              <Plus size={13} />
+              Tambah modul
+            </Button>
+          ) : null}
         </div>
       )}
+
+      {bolehUbah && modulTerbuka ? (
+        <TambahModul
+          onTutup={() => setModulTerbuka(false)}
+          onSimpan={async (kode, nama) => {
+            const modulBaru = await tambahModulPapan(kode, nama);
+
+            // Sisipkan lebih dulu supaya rute tab baru langsung menemukan
+            // modulnya, lalu segarkan dari server.
+            setData((prev) => (
+              prev
+                ? { ...prev, modul: [...prev.modul, { kode: modulBaru.kode, nama: modulBaru.nama, sub: [] }] }
+                : prev
+            ));
+            navigate(`/board/${modulBaru.kode}`);
+            void segarkan();
+          }}
+        />
+      ) : null}
 
       {bolehUbah && kelolaTerbuka && aktif ? (
         <KelolaSubModul

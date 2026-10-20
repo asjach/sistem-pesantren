@@ -465,6 +465,39 @@ class PapanService
      *
      * @throws InvalidArgumentException bila modul tidak ada atau kode sudah dipakai
      */
+    /**
+     * Tambah modul baru di akhir urutan.
+     *
+     * Kode disimpan dalam huruf besar dan unik tanpa peduli besar-kecil.
+     *
+     * @throws InvalidArgumentException bila kode sudah dipakai
+     */
+    public function tambahModul(string $kode, string $nama): PapanModul
+    {
+        $kode = strtoupper(trim($kode));
+
+        $sudahAda = PapanModul::query()
+            ->whereRaw('UPPER(kode) = ?', [$kode])
+            ->exists();
+
+        if ($sudahAda) {
+            throw new InvalidArgumentException("Kode modul `{$kode}` sudah dipakai.");
+        }
+
+        $urutan = (int) PapanModul::query()->max('urutan');
+
+        return PapanModul::create([
+            'kode' => $kode,
+            'nama' => trim($nama),
+            'urutan' => $urutan + 1,
+        ]);
+    }
+
+    /**
+     * Tambah sub-modul baru di bawah sebuah modul.
+     *
+     * @throws InvalidArgumentException bila modul tidak ada atau kode sub-modul kembar
+     */
     public function tambahItem(string $kodeModul, string $kode, string $nama): PapanItem
     {
         $modul = $this->modul($kodeModul);

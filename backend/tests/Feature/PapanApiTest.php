@@ -63,6 +63,36 @@ class PapanApiTest extends TestCase
             ->assertJsonPath('status', ['sudah', 'sedang', 'akan', 'ditunda']);
     }
 
+    public function test_tambah_modul_membuat_modul_baru_di_papan(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->postJson('/api/board/modul', ['kode' => 'h', 'nama' => 'Laporan'])
+            ->assertStatus(201)
+            ->assertJsonPath('kode', 'H')
+            ->assertJsonPath('nama', 'Laporan');
+
+        $this->getJson('/api/board')
+            ->assertOk()
+            ->assertJsonFragment(['kode' => 'H', 'nama' => 'Laporan']);
+    }
+
+    public function test_tambah_modul_menolak_kode_kembar(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->postJson('/api/board/modul', ['kode' => 'e', 'nama' => 'Kembar'])
+            ->assertStatus(422);
+    }
+
+    public function test_tambah_modul_butuh_izin_ubah(): void
+    {
+        Sanctum::actingAs($this->pengguna(['guru']));
+
+        $this->postJson('/api/board/modul', ['kode' => 'H', 'nama' => 'Laporan'])
+            ->assertStatus(403);
+    }
+
     public function test_pengguna_tanpa_izin_papan_ditolak(): void
     {
         Sanctum::actingAs($this->pengguna(['guru']));

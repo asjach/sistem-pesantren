@@ -77,6 +77,9 @@ Route::middleware(['auth:sanctum', 'throttle:api_user'])
         Route::patch('{kode}/butir/{butir}/urutan', [PapanController::class, 'geserButir'])->middleware('permission:papan.ubah');
         Route::post('{kode}/butir', [PapanController::class, 'tambahButir'])->middleware('permission:papan.ubah');
         Route::delete('{kode}/butir/{butir}', [PapanController::class, 'hapusButir'])->middleware('permission:papan.ubah');
+        // Modul baru: tab di UI dibangun dari daftar modul sehingga modul ini
+        // langsung muncul sebagai tab tanpa perubahan kode.
+        Route::post('modul', [PapanController::class, 'tambahModul'])->middleware('permission:papan.ubah');
         // Sub-modul: nama dan kodenya bisa disunting tanpa menyentuh poin
         // (beda dari seed ulang yang menghapus lalu membuat ulang poin).
         Route::post('modul/{modul}/item', [PapanController::class, 'tambahItem'])->middleware('permission:papan.ubah');
