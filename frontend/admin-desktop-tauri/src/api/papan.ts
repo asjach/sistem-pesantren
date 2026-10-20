@@ -53,6 +53,10 @@ export interface ModulPapan {
 export interface AplikasiPapan {
   kode: string;
   nama: string;
+  /** Status mentah aplikasi, sebelum memperhitungkan master switch. */
+  timeline_aktif: boolean;
+  /** true hanya bila master dan status aplikasi sama-sama aktif. */
+  timeline_efektif: boolean;
   modul: ModulPapan[];
 }
 
@@ -64,8 +68,8 @@ export interface RingkasanPapan {
 
 export interface DataPapan {
   aplikasi: AplikasiPapan[];
-  /** Hanya saat true timeline boleh dipakai sebagai rujukan agen. */
-  timeline_aktif: boolean;
+  /** Master switch; bila false semua timeline aplikasi efektif Draf. */
+  timeline_master_aktif: boolean;
   ringkasan: RingkasanPapan;
   status: StatusPapan[];
 }
@@ -127,11 +131,16 @@ export function ubahButirPapan(
   );
 }
 
-/** Aktifkan/nonaktifkan pemakaian timeline oleh agen. */
-export function setTimelinePapan(aktif: boolean) {
-  return api<{ timeline_aktif: boolean }>('/board/timeline', {
+export interface StatusTimelinePapan {
+  timeline_master_aktif: boolean;
+  aplikasi: Record<string, { kode: string; timeline_aktif: boolean; timeline_efektif: boolean }>;
+}
+
+/** Aktifkan/nonaktifkan master timeline atau timeline satu aplikasi. */
+export function setTimelinePapan(aktif: boolean, aplikasi?: string) {
+  return api<StatusTimelinePapan>('/board/timeline', {
     method: 'PATCH',
-    body: JSON.stringify({ aktif }),
+    body: JSON.stringify(aplikasi ? { aktif, aplikasi } : { aktif }),
   });
 }
 

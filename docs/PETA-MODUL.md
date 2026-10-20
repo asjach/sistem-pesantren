@@ -70,9 +70,7 @@ DIKERJAKAN dan RINCIAN TEKNIS LAINNYA dipertahankan apa adanya. Jadi setelah
 mengubah status lewat command, jalankan `--tulis` supaya berkas ini ikut segar,
 lalu commit markdown-nya sebagai jejak yang tahan lama.
 
-**Status timeline:** Board berada pada status **Draf** sampai diaktifkan. Timeline
-hanya menjadi rujukan agen/pengguna saat status Board **Aktif**; saat Draf,
-PRD dan kode yang berlaku.
+**Status timeline:** status efektif = master + flag aplikasi; cek di Board. Timeline hanya menjadi rujukan agen/pengguna untuk aplikasi yang status efektifnya **Aktif**; saat **Draf**, PRD dan kode yang berlaku.
 
 ## Cara baca
 

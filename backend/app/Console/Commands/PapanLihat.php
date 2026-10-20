@@ -59,7 +59,18 @@ class PapanLihat extends Command
     /** Cetak seluruh papan dikelompokkan per aplikasi lalu modul. */
     private function cetakSemua(PapanService $papan): int
     {
-        $this->line('Timeline: <options=bold>'.($papan->timelineAktif() ? 'AKTIF' : 'DRAF').'</>');
+        $status = $papan->statusTimeline();
+        $this->line('Timeline master: <options=bold>'.($status['timeline_master_aktif'] ? 'AKTIF' : 'DRAF').'</>');
+
+        foreach ($status['aplikasi'] as $kode => $aplikasi) {
+            $this->line(sprintf(
+                '  %-18s %-5s (efektif: %s)',
+                PapanService::APLIKASI[$kode],
+                $aplikasi['timeline_aktif'] ? 'AKTIF' : 'DRAF',
+                $aplikasi['timeline_efektif'] ? 'AKTIF' : 'DRAF',
+            ));
+        }
+
         $this->newLine();
 
         foreach ($papan->semuaAplikasi() as $aplikasi) {

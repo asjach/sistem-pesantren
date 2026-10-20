@@ -94,21 +94,43 @@ class PapanApiTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_timeline_bisa_diaktifkan_dan_dinonaktifkan(): void
+    public function test_timeline_master_dan_status_per_aplikasi(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->getJson('/api/board')->assertOk()->assertJsonPath('timeline_aktif', false);
+        $this->getJson('/api/board')
+            ->assertOk()
+            ->assertJsonPath('timeline_master_aktif', false)
+            ->assertJsonPath('aplikasi.0.timeline_aktif', false)
+            ->assertJsonPath('aplikasi.0.timeline_efektif', false);
 
         $this->patchJson('/api/board/timeline', ['aktif' => true])
             ->assertOk()
-            ->assertJsonPath('timeline_aktif', true);
+            ->assertJsonPath('timeline_master_aktif', true)
+            ->assertJsonPath('aplikasi.desktop-admin.timeline_efektif', false);
 
-        $this->getJson('/api/board')->assertOk()->assertJsonPath('timeline_aktif', true);
+        $this->patchJson('/api/board/timeline', [
+            'aplikasi' => 'desktop-admin',
+            'aktif' => true,
+        ])
+            ->assertOk()
+            ->assertJsonPath('aplikasi.desktop-admin.timeline_aktif', true)
+            ->assertJsonPath('aplikasi.desktop-admin.timeline_efektif', true)
+            ->assertJsonPath('aplikasi.mobile-guru.timeline_efektif', false);
+
+        $this->patchJson('/api/board/timeline', [
+            'aplikasi' => 'mobile-guru',
+            'aktif' => true,
+        ])
+            ->assertOk()
+            ->assertJsonPath('aplikasi.desktop-admin.timeline_efektif', true)
+            ->assertJsonPath('aplikasi.mobile-guru.timeline_efektif', true);
 
         $this->patchJson('/api/board/timeline', ['aktif' => false])
             ->assertOk()
-            ->assertJsonPath('timeline_aktif', false);
+            ->assertJsonPath('timeline_master_aktif', false)
+            ->assertJsonPath('aplikasi.desktop-admin.timeline_aktif', true)
+            ->assertJsonPath('aplikasi.desktop-admin.timeline_efektif', false);
     }
 
     public function test_pengguna_tanpa_izin_papan_ditolak(): void

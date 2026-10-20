@@ -30,20 +30,31 @@ class PapanController extends Controller
     {
         return response()->json([
             'aplikasi' => $this->papan->semuaAplikasi(),
-            'timeline_aktif' => $this->papan->timelineAktif(),
+            'timeline_master_aktif' => $this->papan->timelineMasterAktif(),
             'ringkasan' => $this->papan->ringkasan(),
             'status' => PapanService::STATUS,
         ]);
     }
 
-    /** Aktifkan/nonaktifkan pemakaian timeline oleh agen. */
+    /** Aktifkan/nonaktifkan master timeline atau timeline satu aplikasi. */
     public function timeline(Request $request): JsonResponse
     {
-        $valid = $request->validate(['aktif' => ['required', 'boolean']]);
+        $valid = $request->validate([
+            'aktif' => ['required', 'boolean'],
+            'aplikasi' => ['nullable', 'string', 'in:'.implode(',', array_keys(PapanService::APLIKASI))],
+        ]);
 
-        $this->papan->setTimelineAktif((bool) $valid['aktif']);
+        try {
+            if (($valid['aplikasi'] ?? null) !== null) {
+                $this->papan->setTimelineAplikasiAktif($valid['aplikasi'], (bool) $valid['aktif']);
+            } else {
+                $this->papan->setTimelineMasterAktif((bool) $valid['aktif']);
+            }
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
-        return response()->json(['timeline_aktif' => $this->papan->timelineAktif()]);
+        return response()->json($this->papan->statusTimeline());
     }
 
     /** Riwayat perpindahan status, terbaru lebih dulu. */

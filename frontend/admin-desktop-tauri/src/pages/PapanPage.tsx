@@ -292,13 +292,30 @@ export default function PapanPage() {
     [segarkan],
   );
 
-  async function ubahTimeline() {
+  async function ubahTimeline(aplikasi?: string) {
     if (!data || sibukTimeline) return;
+
+    const app = aplikasi ? data.aplikasi.find((a) => a.kode === aplikasi) : null;
+    const aktif = aplikasi ? !(app?.timeline_aktif ?? false) : !data.timeline_master_aktif;
 
     setSibukTimeline(true);
     try {
-      const hasil = await setTimelinePapan(!data.timeline_aktif);
-      setData({ ...data, timeline_aktif: hasil.timeline_aktif });
+      const hasil = await setTimelinePapan(aktif, aplikasi);
+      setData((prev) => (
+        prev
+          ? {
+              ...prev,
+              timeline_master_aktif: hasil.timeline_master_aktif,
+              aplikasi: prev.aplikasi.map((a) => {
+                const baru = hasil.aplikasi[a.kode];
+
+                return baru
+                  ? { ...a, timeline_aktif: baru.timeline_aktif, timeline_efektif: baru.timeline_efektif }
+                  : a;
+              }),
+            }
+          : prev
+      ));
       setGalat(null);
     } catch (e) {
       setGalat(e instanceof Error ? e.message : 'Status timeline gagal diubah.');
@@ -383,30 +400,57 @@ export default function PapanPage() {
               ))}
             </TabsList>
           </div>
-          {bolehUbah ? (
-            <Button
-              id="btn_timeline"
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={sibukTimeline || !data}
-              aria-label={data?.timeline_aktif ? 'Nonaktifkan timeline' : 'Aktifkan timeline'}
-              onClick={() => void ubahTimeline()}
-              className={cn(
-                'shrink-0',
-                data?.timeline_aktif ? 'text-success' : 'text-muted-foreground',
-              )}
-            >
-              Timeline: {data?.timeline_aktif ? 'Aktif' : 'Draf'}
-            </Button>
-          ) : (
-            <span
-              className="shrink-0 border px-2 py-1 text-[11px] text-muted-foreground"
-              style={{ borderColor: 'var(--divider)' }}
-            >
-              Timeline: {data?.timeline_aktif ? 'Aktif' : 'Draf'}
-            </span>
-          )}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                id="btn_timeline"
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={sibukTimeline || !data}
+                aria-label="Atur status timeline"
+                className={cn(
+                  'shrink-0',
+                  data?.timeline_master_aktif ? 'text-success' : 'text-muted-foreground',
+                )}
+              >
+                Timeline: {data?.timeline_master_aktif ? 'Aktif' : 'Draf'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 border border-foreground/30 p-2">
+              <label className="flex items-center gap-2 text-xs font-medium">
+                <input
+                  id="cek_timeline_master"
+                  type="checkbox"
+                  checked={!!data?.timeline_master_aktif}
+                  disabled={!bolehUbah || sibukTimeline}
+                  onChange={() => void ubahTimeline()}
+                  className="size-3.5 accent-[var(--success)]"
+                />
+                Master
+              </label>
+              <ul className="mt-1.5 flex flex-col gap-1 border-t pt-1.5" style={{ borderColor: 'var(--divider)' }}>
+                {aplikasi.map((a) => (
+                  <li key={a.kode}>
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        id={`cek_timeline_${a.kode}`}
+                        type="checkbox"
+                        checked={a.timeline_aktif}
+                        disabled={!bolehUbah || sibukTimeline || !data?.timeline_master_aktif}
+                        onChange={() => void ubahTimeline(a.kode)}
+                        className="size-3.5 accent-[var(--success)]"
+                      />
+                      <span className="min-w-0 flex-1 truncate">{a.nama}</span>
+                      {a.timeline_efektif ? (
+                        <span className="shrink-0 text-[10px] text-success">Aktif</span>
+                      ) : null}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </PopoverContent>
+          </Popover>
           {bolehUbah ? (
             <Button
               id="btn_tambah_modul"

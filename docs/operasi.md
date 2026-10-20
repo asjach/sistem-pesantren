@@ -5,7 +5,7 @@
 
 ## 9. Manajemen Proyek (Hybrid Solo)
 
-**Metode:** Fase-gate + Kanban WIP=1 (siklus 1 minggu: tarik → kerjakan → demo → selesai).
+**Metode:** Fase-gate + Kanban WIP=1.
 
 **Timeline, prioritas, dan status:** satu-satunya sumber ada di **Board** — halaman `/board`, API `/api/board`, DB `backend/database/papan.sqlite` — dan hanya berlaku saat status Board **Aktif**. Ringkasan yang dihasilkan: [PETA-MODUL.md](PETA-MODUL.md).
 
@@ -23,7 +23,7 @@ Jangan memelihara roadmap, tabel gelombang, atau estimasi terpisah di dokumen in
 | R-01 | Tenant bocor       | Cek `canAccessLembaga` + TC lintas lembaga (Modul 003) |
 | R-03 | Excel berantakan   | Bersihkan + staging (Modul 101, 003)                   |
 | R-04 | Kasir non-komputer | Tidak relevan lagi — kasir memakai desktop (bukan perangkat khusus kasir)                                     |
-| R-05 | Scope creep        | Kunci G0–G3 dulu                                       |
+| R-05 | Scope creep        | Batasi scope sesuai prioritas di Board                  |
 
 **Aturan bisa berubah:** catat Masalah ke Usulan ke Dampak (skema/API/FE) ke putus (terima/tunda/tolak) ke tulis Lampiran E + naik versi `X.Y.Z`. Ubah UI tanpa ubah API: catat ringan. Ubah logika/skema: wajib analisis dampak paket/tenant/kontrak FE v1 (tambah opsional dulu, jangan breaking).
 
@@ -66,7 +66,7 @@ Unit, integrasi (Modul 100 PSB Penerimaan ke 101 Santri Master), sistem, UAT.
 | C-01 | UAT lulus                                                                             |
 | C-02 | `lembaga` / `tahun_ajaran` / `ref_*` terkonfigurasi; mapel & pengampu diisi lewat halaman **Kurikulum** (tabel `kurikulum*` tidak lagi ada — lihat v2.413)                        |
 | C-03 | Paket MI-MD terverifikasi                                                             |
-| C-04 | Akun 5 peran sekarang teruji (peran `asrama` diuji saat Modul 505 / pasca production). Peran yang bisa memakai desktop hanya `super_admin`/`admin`; `guru`/`orang_tua`/`santri` belum punya klien |
+| C-04 | Akun 5 peran sekarang teruji (peran `asrama` diuji saat Modul 505 / belum diimplementasikan). Peran yang bisa memakai desktop hanya `super_admin`/`admin`; `guru`/`orang_tua`/`santri` belum punya klien |
 | C-05 | Training/backup/SSL selesai                                                           |
 
 ---
@@ -104,9 +104,8 @@ Manual per peran, video pendek, FAQ.
 
 ## 14. Pemeliharaan dan Dukungan
 
-Garansi 3 bln; respons 1×24 jam. Sisa G4+ (presensi, tahfizh, asrama) dibuka
-setelah G0–G3 stabil production; 200/201/202 dan keuangan sudah dikerjakan
-lebih awal (lihat [PETA-MODUL.md](PETA-MODUL.md)).
+Garansi 3 bln; respons 1×24 jam. Sisa pekerjaan dan urutannya ada di Board
+(`/board`; ringkasan [PETA-MODUL.md](PETA-MODUL.md)).
 
 ---
 
@@ -117,10 +116,9 @@ Diagram Crow's Foot diringkas di Bab 6 (`arsitektur.md`) dan `docs/SCHEMA.md`. F
 ## Lampiran C — Isu Terbuka / TBD
 
 **Daftar isian terbuka dipindah.** Butir yang belum dikerjakan, per modul,
-beserta rincian teknisnya kini **terpusat** di
-**[PETA-MODUL.md](PETA-MODUL.md)** bagian A–G (peta modul) dan bagian I (rincian
-teknis butir sisa). Lampiran ini tidak lagi mendaftarnya agar tidak ada dua
-versi.
+beserta rincian teknisnya kini **terpusat** di **Board** (`/board`; ringkasan
+turunannya di [PETA-MODUL.md](PETA-MODUL.md)). Lampiran ini tidak lagi
+mendaftarnya agar tidak ada dua versi.
 
 Yang tetap tinggal di sini: **TBD yang butuh keputusan/rancangan**, bukan
 daftar pekerjaan yang sudah jelas.
@@ -128,9 +126,9 @@ daftar pekerjaan yang sudah jelas.
 **Masih terbuka (butuh keputusan pengguna):**
 
 - **Format penomoran kwitansi runut** — pola `KW-MI-2026-000123` baru usulan;
-  perlu ditetapkan sebelum dikerjakan (peta bagian E.3 butir 7).
+  perlu ditetapkan sebelum dikerjakan (lihat Board).
 - **Bobot UJIAN bawaan** — kini placeholder UM 60 / Rata-rata Rapor 40; menunggu
-  kebijakan pesantren (peta bagian D.1).
+  kebijakan pesantren (lihat Board).
 - **Tarif per asrama** — belum diakomodasi; keputusan tetap ditunda sampai
   modul 505 dibuka (lihat TBD asrama di bawah).
 - **Aturan peringkat rapor** — cutoff 3/10/semua sudah jadi parameter cetak,
@@ -138,7 +136,7 @@ daftar pekerjaan yang sudah jelas.
 - **Notifikasi/pengingat tunggakan** — bergantung modul notifikasi (G8) yang
   belum ada; yang bisa dikerjakan sekarang hanya penanda visual.
 
-TBD khusus asrama (v1.10 — semua pasca production):
+TBD khusus asrama (v1.10 — semua belum diimplementasikan):
 
 - Implementasi asrama tidak dalam waktu dekat; tidak ada tabel/peran/pivot dibuat sekarang.
 - Yang perlu dijaga sekarang agar tidak menutup jalan: peran baru cukup ditambah saat itu.
@@ -149,7 +147,7 @@ TBD khusus asrama (v1.10 — semua pasca production):
 
 ## Lampiran D — Glosarium (Opsi A)
 
-SIMPES; santri; lembaga (PK `jenjang`: MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Aliyah beda nama; tanpa root/hierarki); tahun_ajaran; kelas; pegawai/guru; **5 peran** (`super_admin, admin, guru, orang_tua, santri` — inilah isi `RoleSeeder`; peran `asrama` & `kasir` tidak pernah dibuat: `kasir` dihapus v2.38, `asrama` masih rancangan pasca production); PSB (`is_seleksi`); riwayat_belajar; asrama (**rancangan**, entitas sendiri — bukan `lembaga`; kamar, penghuni, izin pulang, kegiatan; tabel & peran belum dibuat, pasca production); pengurus asrama (peran `asrama` + pivot `user_asrama` — **dirancang, belum ada**); santri legacy (tanpa jejak riwayat).
+SIMPES; santri; lembaga (PK `jenjang`: MI=SD formal, MD=SD non-formal paralel, MTS=SMP, MLN=Aliyah beda nama; tanpa root/hierarki); tahun_ajaran; kelas; pegawai/guru; **5 peran** (`super_admin, admin, guru, orang_tua, santri` — inilah isi `RoleSeeder`; peran `asrama` & `kasir` tidak pernah dibuat: `kasir` dihapus v2.38, `asrama` masih rancangan); PSB (`is_seleksi`); riwayat_belajar; asrama (**rancangan**, entitas sendiri — bukan `lembaga`; kamar, penghuni, izin pulang, kegiatan; tabel & peran belum dibuat); pengurus asrama (peran `asrama` + pivot `user_asrama` — **dirancang, belum ada**); santri legacy (tanpa jejak riwayat).
 
 ## Lampiran E — Catatan Perubahan Aturan
 
@@ -158,7 +156,7 @@ SIMPES; santri; lembaga (PK `jenjang`: MI=SD formal, MD=SD non-formal paralel, M
 | 2026-09-10 | Bab 2.2 poin 1                                | Paket wajib ke opsional (MI/MD mandiri boleh)                                                                                                                                                                                                                                                                                                                                                                                                                            | Fleksibilitas SD                                                                                             | Bab 3 FR-100, Bab 4.1                                                                                          |
 | 2026-09-10 | Bab 2.2 poin 2                                | `psb_butuh_seleksi_default` ke `lembaga.is_seleksi`; override null ikut default                                                                                                                                                                                                                                                                                                                                                                                          | Sederhanakan nama                                                                                            | Modul 002, 004, 100; kontrak FE                                                                                |
 | 2026-09-10 | Bab 2.2 poin 3                                | `MUA` ke `MLN`; istilah beku ke hardcoded; PK tetap id INT                                                                                                                                                                                                                                                                                                                                                                                                               | Samakan singkatan                                                                                            | Seed kode, nomor PSB, filter FE                                                                                |
-| 2026-09-10 | Bab 2.2 poin 4                                | Fallback tambah placeholder bila root null                                                                                                                                                                                                                                                                                                                                                                                                                               | Kop dokumen G0                                                                                               | Profil lembaga, kuitansi                                                                                       |
+| 2026-09-10 | Bab 2.2 poin 4                                | Fallback tambah placeholder bila root null                                                                                                                                                                                                                                                                                                                                                                                                                               | Kop dokumen awal                                                                                               | Profil lembaga, kuitansi                                                                                       |
 | 2026-09-10 | OFF-01 s/d OFF-10                             | Online-only ke online-first + SQLite lokal (detail Lampiran F)                                                                                                                                                                                                                                                                                                                                                                                                           | PC putus-nyambung                                                                                            | Kontrak FE, API bayar (`client_op_id`), SOP kasir                                                              |
 | 2026-09-10 | status_awal                                   | `naik_kelas` ke `kenaikan`; ACC dari flag `is_pindahan`; `masuk_tingkat` per jenjang; `tidak_lulus` buka baris mengulang                                                                                                                                                                                                                                                                                                                                                 | Putusan domain                                                                                               | 100/102, seeder, tests                                                                                         |
 | 2026-09-10 | sesi 2a-2d, 4a                                | Token per-device; staf 30 hari / murni ortu-santri 365 hari; revokasi saat peran berubah; `logout-all`; prune harian; SQLite tanpa enkripsi (SOP akun OS + kunci layar)                                                                                                                                                                                                                                                                                                  | PC admin + HP hilang                                                                                         | AuthController, UserManagement, scheduler, tests                                                               |
@@ -167,7 +165,7 @@ SIMPES; santri; lembaga (PK `jenjang`: MI=SD formal, MD=SD non-formal paralel, M
 | 2026-09-11 | anti-eskalasi admin                           | Admin bisa hapus super_admin / tambah role ke super_admin / tambah lembaga ke tutup: mutasi target pemegang `admin/super_admin` (update/assign/remove/attach/detach/destroy) 403 bila actor bukan super_admin; `store` lembaga 403 bila bukan super_admin (gantikan auto-attach v1.9.1)                                                                                                                                                                                  | Hanya super_admin kelola admin & lembaga                                                                     | UserManagement, LembagaController, tests, FE users/lembaga                                                     |
 | 2026-09-14 | buat admin oleh admin                         | Larangan role `admin` dilonggarkan **khusus create**: `admin` (full/scoped) boleh membuat user ber-role `admin`, lembaga ⊆ kewenangannya (boleh subset; scoped tanpa `lembaga_ids` = pivot sendiri, tak bisa jadi admin global). Jalur update/assignRole/removeRole/import tetap dilarang; admin tetap tak bisa memutasi sesama/admin                                                                                                                                    | admin_lembaga bisa menambah admin di lembaganya tanpa menunggu super_admin                                   | UserManagement (`creatableRolesFor`), UserRoleGuardTest, FE users                                              |
 | 2026-09-14 | desain santri & asrama (v1.10, gambaran umum) | (1) `santri.lembaga_id` NOT NULL → **nullable** = legacy tanpa track, terlihat **semua admin**, sumber kebenaran lembaga = `riwayat_belajar`; (2) `status_global` default true + hardcode → **turunan murni** default false (= punya ≥1 riwayat aktif); (3) asrama dari flag biaya di lembaga → **entitas sendiri** (bukan `lembaga`) + peran `asrama` (dirancang, **belum dibuat**) + pivot `user_asrama` (dirancang, belum dibuat), super_admin saja; (4) keuangan asrama ditandai lewat `pos_keuangan.kategori` | Data lama tanpa jejak riwayat/pembayaran perlu hidup tanpa tenant; kepengurusan asrama terpisah dari lembaga | SCHEMA (santri, pos_keuangan, BLOK 11), PRD 2.3/4.2/4.6/6/8.2/12, policy/tenant scope 101, seeder peran, tests |
-| 2026-09-14 | lingkup asrama (v1.10.1)                      | Asrama (505) dipastikan **pasca production** — tidak dikerjakan dalam waktu dekat, tidak ada tabel/peran/pivot sekarang. Poin (1)(2) di atas (santri legacy/status_global) dipisah dari asrama dan dibahas sendiri                                                                                                                                                                                                                                                       | Fokus G0–G3 production; desain dicatat agar sistem sekarang mendekati bentuk akhir tanpa menutup jalan       | Lampiran C, PRD 1.2/2.3/3.1/4.6/5.2/6.6/8.2.5, SCHEMA BLOK 11                                                  |
+| 2026-09-14 | lingkup asrama (v1.10.1)                      | Asrama (505) dipastikan **di luar cakupan saat itu** — tidak dikerjakan dalam waktu dekat, tidak ada tabel/peran/pivot sekarang. Poin (1)(2) di atas (santri legacy/status_global) dipisah dari asrama dan dibahas sendiri                                                                                                                                                                                                                                                       | Fokus lingkup production saat itu; desain dicatat agar sistem sekarang mendekati bentuk akhir tanpa menutup jalan       | Lampiran C, PRD 1.2/2.3/3.1/4.6/5.2/6.6/8.2.5, SCHEMA BLOK 11                                                  |
 | 2026-09-16 | konvensi migrasi "semua alter dilipat ke create" | Diterapkan di awal: seluruh kolom hasil perubahan digabung ke file `create_*`, jadi tak ada migrasi alter berdiri sendiri | Sederhana, skema final terbaca dari satu tempat | Berlaku hanya sampai DB dev terisi data |
 | 2026-10-19 | **konvensi migrasi dibatalkan** (terbit setelah 40+ entri changelog) | `create_*` = tabel baru saja; alter berdiri sendiri (`tambah_*`, `ubah_*`, `restruktur_*`, `hapus_*`) = **sah** dan wajib berpasangan dengan pembaruan SCHEMA.md. Konvensi lama mustahil dilanjutkan: DB dev sudah berisi data, jadi alter tak bisa dilewati tanpa kehilangan data. Skema akhir tetap terdokusi SCHEMA.md | Reality check — 35 migrasi alter sudah ada (terakhir `tambah_info_html_ke_toolbar_preset` 2026-10-18); lebih jujur mencatat keadaan daripada menjaga klaim yang tak benar | `docs/SCHEMA.md` header; drift tetap dijaga `SchemaDocTest` (dua arah) |
 | 2026-09-16 | modul keuangan DIHAPUS total (v2.36/v2.37) | 21 file BE + 3 halaman FE dihapus; sisa keuangan PSB (flag paid, nominal, tabel biaya) ikut dibuang | Modul keuangan akan dirumuskan ulang dari awal, bukan diperbaiki | Lalu **dibangun ulang** v2.286 — lihat entri 2026-10-19 di bawah |

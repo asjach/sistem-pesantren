@@ -76,7 +76,7 @@ no `user_lembaga` pivot; scoped = via pivot) → `guru` →
 `orang_tua` / `santri` — these 5 are the only rows `RoleSeeder` creates. Plus
 `asrama` (pengurus asrama, pivot `user_asrama`) which is a **design-only**
 assumption: **the role and the pivot table were never created**; `asrama` is
-pasca production and `kasir` was removed v2.38. One user may hold multiple roles.
+not yet implemented and `kasir` was removed v2.38. One user may hold multiple roles.
 
 * `assignableRolesFor()`: super_admin grants all roles present (5); admin grants
   `guru, orang_tua, santri` (no privilege escalation; `admin` khusus
@@ -514,9 +514,9 @@ lewat Tab Kolom 3 panel yang bisa diseret; tanpa preset memakai urutan global
 `toolbar_preset.urutan`; halaman Santri Per Lembaga menampilkan seluruh
 identitas santri (mirror Buku Induk, bisa diedit via PATCH santri) lebih dulu
 lalu keanggotaan, dengan preset bawaan `ringkas` dari `PresetKolomSeeder`)
-dengan kontrol global ukuran/tinggi/jenis huruf; **font dibundel lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga tampilan tidak bergantung Google Fonts — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Aset lokal **bukan** mode offline: klien tetap butuh server untuk semua data dan aksi. Paket native pernah dibangun (`.app`/`.dmg`, aarch64, belum ditandatangani) tetapi belum dikompilasi ulang setelah perubahan terakhir. Modul 200/201/202 + keuangan + dokumen **sudah live** (10 grup nav, 62 berkas halaman; sebagian URL jadi satu halaman bertab). Belum: presensi (500/501), tahfizh (503), Fase 5, portal ortu lanjutan, klien mobile.
+dengan kontrol global ukuran/tinggi/jenis huruf; **font dibundel lokal di repo** (`frontend/admin-desktop-tauri/src/assets/fonts`, 8 keluarga × Light/Regular) sehingga tampilan tidak bergantung Google Fonts — dihasilkan ulang via `frontend/admin-desktop-tauri/scripts/fonts-offline.py`. Aset lokal **bukan** mode offline: klien tetap butuh server untuk semua data dan aksi. Paket native pernah dibangun (`.app`/`.dmg`, aarch64, belum ditandatangani) tetapi belum dikompilasi ulang setelah perubahan terakhir. Status modul dan cakupan yang belum ada tersedia di Board.
 
-#### 6.2 `frontend/kasir-mobile-react-native` (Rencana — tidak dibuat)
+#### 6.2 `frontend/kasir-mobile-react-native` (belum dibuat)
 
 Users: kasir (+admin). Scope: **not built as a separate app** — the cashier flow
 ships as a page of the desktop client (`PembayaranPage` + cashier dialog) inside the
@@ -524,7 +524,7 @@ financial module. Offline: queue-and-sync for payments is OUT (online only, race
 safety).
 Status: 🔲 not scaffolded — **deliberately**, the desktop page covers it.
 
-#### 6.3 `frontend/orangtua-mobile-react-native` (Rencana — belum di-scaffold)
+#### 6.3 `frontend/orangtua-mobile-react-native` (belum di-scaffold)
 
 Users: orang_tua. Scope (203): children list → detail (profil, kelas,
 nilai/rapor, presensi poin, tahfizh rekap), ajukan/batalkan
@@ -533,7 +533,7 @@ registered NIK, document upload status. Read-only except proposals/uploads.
 Status: 🔲 not scaffolded — 203 backend is partial (see §5), the mobile client
 is not started.
 
-#### 6.4 `frontend/pimpinan-mobile-react-native` (Rencana — belum di-scaffold)
+#### 6.4 `frontend/pimpinan-mobile-react-native` (belum di-scaffold)
 
 Users: pimpinan. This is NOT an admin app — it is a read-only statistics app
 for strategic decisions. Scope (504): total santri keseluruhan, santri per
@@ -542,7 +542,7 @@ lembaga, enrollment per gelombang, jumlah guru, kehadiran guru, keuangan
 progress, alumni/mutasi counts. No mutations whatsoever.
 Status: 🔲 not scaffolded (backend 504 closed).
 
-#### 6.5 `frontend/guru-mobile-react-native` (Rencana — belum di-scaffold)
+#### 6.5 `frontend/guru-mobile-react-native` (belum di-scaffold)
 
 Users: guru. Scope: my classes (walas + pengampu), anggota kelas
 (from active riwayat), nilai input per pengampu (massal per-item),
@@ -653,7 +653,7 @@ app has no usable backend path yet.
 Matriks status per area, roadmap, dan daftar butir sisa **sudah dipindah** ke
 **Board** (`/board`, API `/api/board`, DB `backend/database/papan.sqlite`) dan
 ringkasannya di **[PETA-MODUL.md](PETA-MODUL.md)** (turunan Board, bukan sumber).
-Board hanya berlaku sebagai rujukan saat status timeline **Aktif**. File ini
+Board hanya berlaku sebagai rujukan saat status efektif aplikasi **Aktif** (master + flag aplikasi). File ini
 tidak lagi memuatnya agar tidak ada dua versi yang saling menyimpang.
 
 Yang tetap tinggal di file ini: deskripsi teknis per modul (§5), ringkasan model
@@ -668,9 +668,7 @@ data (§7), konvensi API (§8), dan NFR (§9).
   dibuka sesuai modul backend-nya.
 - `kelas_lulus_id` alumni sudah live (v2.52).
 - Catatan lama "keuangan dikerjakan paling akhir" **sudah tidak berlaku** —
-  keuangan sudah live (fondasi). Urutan butir lanjutan keuangan ada di
-  [PETA-MODUL.md](PETA-MODUL.md) bagian E.3. Catatan itu ditulis saat keuangan masih
-  belum dirumuskan ulang (pra v2.286).
+  status dan urutan butir keuangan ada di Board.
 
 ### 12. Out of scope
 

@@ -80,6 +80,10 @@ class PapanSeeder extends Seeder
                 }
             }
 
+            DB::connection('papan')->table('papan_pengaturan')
+                ->where('kunci', 'like', 'timeline_aktif:%')
+                ->delete();
+
             DB::connection('papan')->table('papan_pengaturan')->updateOrInsert(
                 ['kunci' => 'timeline_aktif'],
                 ['nilai' => '0'],

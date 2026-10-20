@@ -1103,7 +1103,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `ref_alamat` tambahan: wilayah free string + snapshot autofill. `ref_status_akhir`: `is_aktif_bawaan`, `terminal_ke`. `ref_mapel` tambahan: `kode` (20) & `singkatan` (50) — keduanya nullable dan hanya ditulis jalur kamus mapel (`ReferensiController`), sebab `RefService::sebar`/benih lembaga hanya mengisi `jenjang/nama/urutan/is_active`.
 - Tabel loop: `ref_penghasilan`, `ref_transportasi`, `ref_status_tinggal`, `ref_jarak`, `ref_waktu_tempuh`, `ref_bahasa_sehari_hari`, `ref_disabilitas`, `ref_tmp_lahir`, `ref_status_ortu`, `ref_yang_membiayai`, `ref_provinsi`, `ref_kecamatan`, `ref_desa_kelurahan`, `ref_alasan_mutasi`, `ref_jenis_dokumen_santri`, `ref_jenis_dokumen_pegawai`, `ref_status_pernikahan`, `ref_gol_darah`, `ref_jenis_ptk`, `ref_jenjang_sertifikasi`, `ref_tingkat`, `ref_tugas_utama`, `ref_tipe_pelanggaran`, `ref_jalur_sertifikasi`
 
-## BLOK 10 — Asrama (Modul 505 Asrama, pasca production)
+## BLOK 10 — Asrama (Modul 505 Asrama, belum diimplementasikan)
 
 > **Belum dibuat di DB.** Blok ini adalah rancangan: tabel `asrama*` dan pivot
 > `user_asrama` sengaja belum ada (lihat pengecualian `TABEL_PRA_PRODUCTION` di
@@ -1168,7 +1168,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 
 ### Aturan izin keuangan asrama (mengikuti perumusan ulang modul keuangan)
 
-## BLOK 11 — Keuangan (Modul Keuangan, G2)
+## BLOK 11 — Keuangan (Modul Keuangan)
 
 ### `jenis_tagihan`
 - `id` PK

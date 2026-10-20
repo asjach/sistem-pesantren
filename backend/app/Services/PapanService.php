@@ -120,14 +120,21 @@ class PapanService
     /**
      * Seluruh modul dikelompokkan per aplikasi, urut sesuai tab.
      *
-     * @return array<int, array{kode: string, nama: string, modul: array<int, array<string, mixed>>}>
+     * @return array<int, array{kode: string, nama: string, timeline_aktif: bool, timeline_efektif: bool, modul: array<int, array<string, mixed>>}>
      */
     public function semuaAplikasi(): array
     {
+        $status = $this->statusTimeline();
         $hasil = [];
 
         foreach (self::APLIKASI as $kode => $nama) {
-            $hasil[$kode] = ['kode' => $kode, 'nama' => $nama, 'modul' => []];
+            $hasil[$kode] = [
+                'kode' => $kode,
+                'nama' => $nama,
+                'timeline_aktif' => $status['aplikasi'][$kode]['timeline_aktif'],
+                'timeline_efektif' => $status['aplikasi'][$kode]['timeline_efektif'],
+                'modul' => [],
+            ];
         }
 
         foreach ($this->semua() as $modul) {
@@ -137,25 +144,77 @@ class PapanService
         return array_values($hasil);
     }
 
+    /** Master switch timeline; bila mati, semua aplikasi efektif Draf. */
+    public function timelineMasterAktif(): bool
+    {
+        return $this->pengaturanBool('timeline_aktif');
+    }
+
+    public function setTimelineMasterAktif(bool $aktif): void
+    {
+        $this->setPengaturanBool('timeline_aktif', $aktif);
+    }
+
+    /** Status mentah timeline satu aplikasi (belum memperhitungkan master). */
+    public function timelineAplikasiAktif(string $aplikasi): bool
+    {
+        $this->pastikanAplikasi($aplikasi);
+
+        return $this->pengaturanBool("timeline_aktif:{$aplikasi}");
+    }
+
+    public function setTimelineAplikasiAktif(string $aplikasi, bool $aktif): void
+    {
+        $this->pastikanAplikasi($aplikasi);
+        $this->setPengaturanBool("timeline_aktif:{$aplikasi}", $aktif);
+    }
+
     /**
-     * Status timeline: hanya saat `Aktif` Board boleh dipakai sebagai rujukan.
+     * Status master + status mentah/efektif tiap aplikasi.
+     *
+     * @return array{timeline_master_aktif: bool, aplikasi: array<string, array{kode: string, timeline_aktif: bool, timeline_efektif: bool}>}
      */
-    public function timelineAktif(): bool
+    public function statusTimeline(): array
+    {
+        $master = $this->timelineMasterAktif();
+        $aplikasi = [];
+
+        foreach (array_keys(self::APLIKASI) as $kode) {
+            $aktif = $this->timelineAplikasiAktif($kode);
+            $aplikasi[$kode] = [
+                'kode' => $kode,
+                'timeline_aktif' => $aktif,
+                'timeline_efektif' => $master && $aktif,
+            ];
+        }
+
+        return ['timeline_master_aktif' => $master, 'aplikasi' => $aplikasi];
+    }
+
+    private function pengaturanBool(string $kunci): bool
     {
         $baris = DB::connection('papan')
             ->table('papan_pengaturan')
-            ->where('kunci', 'timeline_aktif')
+            ->where('kunci', $kunci)
             ->first();
 
         return $baris !== null && (string) $baris->nilai === '1';
     }
 
-    public function setTimelineAktif(bool $aktif): void
+    private function setPengaturanBool(string $kunci, bool $nilai): void
     {
         DB::connection('papan')->table('papan_pengaturan')->updateOrInsert(
-            ['kunci' => 'timeline_aktif'],
-            ['nilai' => $aktif ? '1' : '0'],
+            ['kunci' => $kunci],
+            ['nilai' => $nilai ? '1' : '0'],
         );
+    }
+
+    /** @throws InvalidArgumentException bila aplikasi tidak dikenal */
+    private function pastikanAplikasi(string $aplikasi): void
+    {
+        if (! array_key_exists($aplikasi, self::APLIKASI)) {
+            throw new InvalidArgumentException("Aplikasi `{$aplikasi}` tidak dikenal.");
+        }
     }
 
     /**
