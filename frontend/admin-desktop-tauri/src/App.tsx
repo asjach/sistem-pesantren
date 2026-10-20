@@ -55,6 +55,7 @@ const PenilaianRaporPage = lazy(() => import('./pages/PenilaianRaporPage'));
 const KurikulumMapelPage = lazy(() => import('./pages/KurikulumMapelPage'));
 const KurikulumPengampuPage = lazy(() => import('./pages/KurikulumPengampuPage'));
 const KurikulumJadwalPage = lazy(() => import('./pages/KurikulumJadwalPage'));
+const KurikulumStrukturPage = lazy(() => import('./pages/KurikulumStrukturPage'));
 const MutasiKeluarPage = lazy(() => import('./pages/MutasiKeluarPage'));
 const PengajuanBiodataPage = lazy(() => import('./pages/PengajuanBiodataPage'));
 const DaftarDokumenSantriPage = lazy(() => import('./pages/DaftarDokumenSantriPage'));
@@ -195,6 +196,7 @@ export default function App() {
                       <Route path="/kurikulum/mapel" element={<KhususIzin izin="kurikulum.lihat"><KurikulumMapelPage /></KhususIzin>} />
                       <Route path="/kurikulum/pengampu" element={<KhususIzin izin="kurikulum.lihat"><KurikulumPengampuPage /></KhususIzin>} />
                       <Route path="/kurikulum/jadwal" element={<KhususIzin izin="kurikulum.lihat"><KurikulumJadwalPage /></KhususIzin>} />
+                      <Route path="/kurikulum/struktur" element={<KhususIzin izin="kurikulum.lihat"><KurikulumStrukturPage /></KhususIzin>} />
                       <Route path="/siklus" element={<Navigate to="/riwayat-belajar" replace />} />
                       <Route path="/dokumen-santri" element={<KhususIzin izin="dokumen_santri.lihat"><DaftarDokumenSantriPage /></KhususIzin>} />
                       <Route path="/dokumen-santri/lihat" element={<KhususIzin izin="dokumen_santri.lihat"><DokumenSantriPage /></KhususIzin>} />

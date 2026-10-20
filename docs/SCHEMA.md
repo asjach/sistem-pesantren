@@ -851,6 +851,26 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - INDEX(`jenjang`, `tahun_ajaran`, `is_active`)
 - ATURAN: dibuat manual lewat tombol "Simpan sebagai varian"; mengaktifkan varian memulihkan jadwal dari snapshot dan melewati kelas yang berstatus `final`
 
+### `struktur_kurikulum` (referensi JP per mapel × tingkat)
+- `id` PK
+- `jenjang`: FK → lembaga [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `tingkat`: string(20) — tingkat jenjang (dari `ref_tingkat`)
+- `mata_pelajaran_id`: FK → mata_pelajaran [cascade]
+- `jp_per_minggu`: smallint [default 0] — 0 = tidak diisi (tidak disimpan)
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`, `tahun_ajaran`, `tingkat`, `mata_pelajaran_id`)
+- INDEX(`jenjang`, `tahun_ajaran`)
+- ATURAN: hanya **REFERENSI** — tidak mengunci atau memvalidasi jadwal. Baris = mapel aktif jenjang; kolom = tingkat dari `ref_tingkat` aktif (cadangan: tingkat kelas TA itu)
+
+### `struktur_kurikulum_pengaturan`
+- `id` PK
+- `jenjang`: FK → lembaga [cascade]
+- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
+- `minggu_efektif`: smallint [default 36] — dasar hitungan JP per tahun (JP/minggu × minggu efektif)
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`, `tahun_ajaran`)
+
 ### `template_jadwal`
 - `id` PK
 - `jenjang`: FK → lembaga [cascade]

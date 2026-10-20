@@ -447,6 +447,53 @@ export function aktifkanVarianJadwal(id: number) {
   });
 }
 
+/** Satu baris mapel pada struktur kurikulum. */
+export interface StrukturMapel {
+  id: number;
+  nama_mapel: string;
+  kelompok: string;
+  urutan: number;
+}
+
+/** Satu sel struktur: JP/minggu sebuah mapel pada satu tingkat. */
+export interface StrukturSel {
+  mata_pelajaran_id: number;
+  tingkat: string;
+  jp_per_minggu: number;
+}
+
+export interface StrukturKurikulumData {
+  jenjang: string;
+  tahun_ajaran: string;
+  minggu_efektif: number;
+  /** Kolom tingkat jenjang (dari ref_tingkat; cadangan: tingkat kelas TA itu). */
+  tingkat: string[];
+  /** Baris: mapel aktif jenjang. */
+  mapel: StrukturMapel[];
+  sel: StrukturSel[];
+  pesan?: string;
+}
+
+/** Struktur kurikulum satu jenjang + tahun ajaran (referensi). */
+export function daftarStrukturKurikulum(jenjang: string, tahunAjaran: string) {
+  const q = new URLSearchParams({ jenjang, tahun_ajaran: tahunAjaran });
+
+  return api<StrukturKurikulumData>(`/admin/kurikulum/struktur?${q.toString()}`);
+}
+
+/** Simpan struktur kurikulum (mengganti seluruh sel lingkup itu). */
+export function simpanStrukturKurikulum(input: {
+  jenjang: string;
+  tahun_ajaran: string;
+  minggu_efektif: number;
+  sel: StrukturSel[];
+}) {
+  return api<StrukturKurikulumData>('/admin/kurikulum/struktur', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
 export interface TemplateJadwal {
   id: number; jenjang: string; tingkat: string | null; kelas_id: number | null;
   nama: string;

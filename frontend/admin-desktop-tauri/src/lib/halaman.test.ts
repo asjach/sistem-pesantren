@@ -154,14 +154,16 @@ describe('halamanDariPath & halaman bertab', () => {
     }
   });
 
-  it('Kurikulum grup sendiri: mapel, pengampu, jadwal (tanpa subgrup)', () => {
+  it('Kurikulum grup sendiri: mapel, pengampu, jadwal, struktur (tanpa subgrup)', () => {
     expect(halamanGrupLangsung('kurikulum').map((h) => h.to)).toEqual([
       '/kurikulum/mapel',
       '/kurikulum/pengampu',
       '/kurikulum/jadwal',
+      '/kurikulum/struktur',
     ]);
     expect(halamanDariPath('/kurikulum/mapel')?.tab).toBe('kurikulum');
     expect(halamanDariPath('/kurikulum/jadwal')?.tab).toBe('kurikulum');
+    expect(halamanDariPath('/kurikulum/struktur')?.tab).toBe('kurikulum');
 
     for (const h of halamanGrupLangsung('kurikulum')) {
       expect(izinHalaman(h)).toEqual(['kurikulum.lihat']);

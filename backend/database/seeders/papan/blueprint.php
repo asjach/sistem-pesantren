@@ -150,8 +150,8 @@ return [
                 ],
             ]],
             ['kode' => 'DA5.4', 'nama' => 'Struktur Kurikulum', 'butir' => [
-                'in_progress' => [
-                    ['tabel struktur kurikulum', []],
+                'for_review' => [
+                    ['tabel struktur kurikulum', ['Halaman baru Kurikulum → Struktur Kurikulum (satu tabel per jenjang + tahun ajaran)', 'Baris = master mapel aktif jenjang; kolom = tingkat jenjang', 'Isi JP per minggu per mapel × tingkat; JP per tahun = JP/minggu × minggu efektif', 'Minggu efektif diatur sekali per jenjang + tahun ajaran; struktur hanya referensi (tidak mengunci jadwal)', 'Verifikasi: KurikulumModulTest 12/12 (228 asersi) + suite FE 1427/1427 + typecheck; ERD 118 entitas/159 hubungan, 0 masalah']],
                 ],
             ]],
         ]],
@@ -188,6 +188,12 @@ return [
                 ],
                 'done' => [
                     ['Tabel tahfizh', ['target_tahfiz', 'setoran_tahfiz', 'rekap_tahfiz_santri']],
+                ],
+            ]],
+            ['kode' => 'DA6.X', 'nama' => 'Cetak Kartu Peserta', 'butir' => [
+                'todo' => [
+                    ['cetak kartu peserta peristiwa', []],
+                    ['ukuran (tinggi dan lebar) bisa dicustom', []],
                 ],
             ]],
         ]],

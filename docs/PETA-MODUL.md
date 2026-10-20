@@ -463,16 +463,20 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] salin
   - [x] cetak
 
-### DA5.4 Struktur Kurikulum `Sedang dikerjakan (In Progress)`
+### DA5.4 Struktur Kurikulum `Menunggu peninjauan (For Review)`
 **Belum dijadwalkan (Backlog)**
 - (kosong)
 **Siap dikerjakan (To Do)**
 - (kosong)
 **Sedang dikerjakan (In Progress)**
-- tabel struktur kurikulum
-  - [ ] halaman baru di kurikulum
-**Menunggu peninjauan (For Review)**
 - (kosong)
+**Menunggu peninjauan (For Review)**
+- tabel struktur kurikulum
+  - [x] Halaman baru Kurikulum → Struktur Kurikulum (satu tabel per jenjang + tahun ajaran)
+  - [x] Baris = master mapel aktif jenjang; kolom = tingkat jenjang
+  - [x] Isi JP per minggu per mapel × tingkat; JP per tahun = JP/minggu × minggu efektif
+  - [x] Minggu efektif diatur sekali per jenjang + tahun ajaran; struktur hanya referensi (tidak mengunci jadwal)
+  - [x] Verifikasi: KurikulumModulTest 12/12 (228 asersi) + suite FE 1427/1427 + typecheck; ERD 118 entitas/159 hubungan, 0 masalah
 **Selesai (Done)**
 - (kosong)
 
@@ -553,6 +557,19 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] target_tahfiz
   - [x] setoran_tahfiz
   - [x] rekap_tahfiz_santri
+
+### DA6.X Cetak Kartu Peserta `Siap dikerjakan (To Do)`
+**Belum dijadwalkan (Backlog)**
+- (kosong)
+**Siap dikerjakan (To Do)**
+- cetak kartu peserta peristiwa
+- ukuran (tinggi dan lebar) bisa dicustom
+**Sedang dikerjakan (In Progress)**
+- (kosong)
+**Menunggu peninjauan (For Review)**
+- (kosong)
+**Selesai (Done)**
+- (kosong)
 
 ## DA7. Keuangan
 
@@ -2373,9 +2390,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 # SEDANG DIKERJAKAN
 
-Sub-modul yang sedang dikerjakan:
-
-- **DA5.4 Struktur Kurikulum** (Kurikulum)
+**Kosong.** Tidak ada sub-modul yang disetujui sebagai pekerjaan berjalan.
 
 ---
 

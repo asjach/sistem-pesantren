@@ -186,6 +186,7 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/kurikulum/mapel', label: 'Mata Pelajaran', deskripsi: 'Master mata pelajaran per jenjang (kelompok formal / pesantren, KKM, urutan rapor).', tab: 'kurikulum', grid: true, icon: ClipboardList, permission: 'kurikulum.lihat' },
   { to: '/kurikulum/pengampu', label: 'Pengampu', deskripsi: 'Pengampu mapel per kelas (kelas × mapel → guru) — daftar mapel kelas bisa disalin dari kelas lain.', tab: 'kurikulum', grid: true, icon: Users, permission: 'kurikulum.lihat' },
   { to: '/kurikulum/jadwal', label: 'Jadwal Pelajaran', deskripsi: 'Slot jam per jenjang dan jadwal pelajaran per kelas (anti-bentrok kelas & guru).', tab: 'kurikulum', grid: true, icon: CalendarDays, permission: 'kurikulum.lihat' },
+  { to: '/kurikulum/struktur', label: 'Struktur Kurikulum', deskripsi: 'JP per minggu per mapel × tingkat (referensi) dan minggu efektif untuk hitungan JP per tahun.', tab: 'kurikulum', grid: true, icon: Grid, permission: 'kurikulum.lihat' },
   {
     to: '/pengaturan/izin',
     label: 'Kelola Izin',

@@ -13,6 +13,7 @@ use App\Models\PengampuMapel;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\SlotJamPelajaran;
+use App\Models\StrukturKurikulum;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use App\Models\VarianJadwal;
@@ -870,5 +871,69 @@ class KurikulumModulTest extends TestCase
             ->assertJsonPath('ringkas.kelas', 0);
 
         $this->assertSame(1, JadwalPelajaran::where('kelas_id', $kelas->id)->count());
+    }
+
+    /**
+     * Struktur kurikulum (referensi): baris = mapel aktif jenjang, kolom =
+     * tingkat, isi = JP/minggu, plus minggu efektif per jenjang + TA.
+     */
+    public function test_09_struktur_kurikulum_disimpan_dan_diganti_utuh(): void
+    {
+        $this->lembaga('MI');
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $this->kelas('1A', '1');
+        $this->kelas('2A', '2');
+        $fiqih = $this->mapel('Fiqih');
+        $arab = $this->mapel('Bahasa Arab');
+        $nonaktif = $this->mapel('Mapel Lama', 'MI', ['is_active' => false]);
+
+        $awal = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/kurikulum/struktur?'.http_build_query([
+                'jenjang' => 'MI', 'tahun_ajaran' => self::TA,
+            ]))
+            ->assertStatus(200)
+            ->assertJsonPath('minggu_efektif', 36)
+            ->json();
+
+        $this->assertSame(['1', '2'], $awal['tingkat']);
+        $this->assertCount(2, $awal['mapel'], 'hanya mapel aktif yang menjadi baris');
+
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/struktur', [
+                'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'minggu_efektif' => 40,
+                'sel' => [
+                    ['mata_pelajaran_id' => $fiqih->id, 'tingkat' => '1', 'jp_per_minggu' => 4],
+                    ['mata_pelajaran_id' => $arab->id, 'tingkat' => '1', 'jp_per_minggu' => 2],
+                    ['mata_pelajaran_id' => $fiqih->id, 'tingkat' => '2', 'jp_per_minggu' => 3],
+                    ['mata_pelajaran_id' => $arab->id, 'tingkat' => '2', 'jp_per_minggu' => 0],
+                ],
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('minggu_efektif', 40)
+            ->assertJsonPath('pesan', 'Struktur kurikulum disimpan.');
+
+        $lingkup = ['jenjang' => 'MI', 'tahun_ajaran' => self::TA];
+        $this->assertSame(3, StrukturKurikulum::where($lingkup)->count(), 'JP 0 tidak disimpan');
+
+        // Simpan ulang mengganti isi utuh (tidak menumpuk).
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/struktur', [
+                'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'minggu_efektif' => 36,
+                'sel' => [['mata_pelajaran_id' => $fiqih->id, 'tingkat' => '1', 'jp_per_minggu' => 5]],
+            ])
+            ->assertStatus(200);
+
+        $this->assertSame(1, StrukturKurikulum::where($lingkup)->count());
+
+        // Mapel nonaktif ditolak.
+        $this->actingAs($super, 'sanctum')
+            ->putJson('/api/admin/kurikulum/struktur', [
+                'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'minggu_efektif' => 36,
+                'sel' => [['mata_pelajaran_id' => $nonaktif->id, 'tingkat' => '1', 'jp_per_minggu' => 2]],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('sel');
     }
 }

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Admin\KeaktifanPegawaiController;
 use App\Http\Controllers\Api\Admin\KelasController;
 use App\Http\Controllers\Api\Admin\KomponenCustomController;
 use App\Http\Controllers\Api\Admin\KurikulumController;
+use App\Http\Controllers\Api\Admin\StrukturKurikulumController;
 use App\Http\Controllers\Api\Admin\LembagaController;
 use App\Http\Controllers\Api\Admin\LembagaPegawaiController;
 use App\Http\Controllers\Api\Admin\LembagaSantriController;
@@ -392,6 +393,8 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('penilaian/import-potong/{sesi}/galat', [PenilaianController::class, 'galatPotong'])->middleware('permission:penilaian.lihat');
 
         Route::get('kurikulum/mapel', [KurikulumController::class, 'indexMapel'])->middleware('permission:kurikulum.lihat');
+        Route::get('kurikulum/struktur', [StrukturKurikulumController::class, 'index'])->middleware('permission:kurikulum.lihat');
+        Route::put('kurikulum/struktur', [StrukturKurikulumController::class, 'simpan'])->middleware('permission:kurikulum.ubah');
         Route::post('kurikulum/mapel', [KurikulumController::class, 'storeMapel'])->middleware('permission:kurikulum.tambah');
         Route::match(['put', 'patch'], 'kurikulum/mapel/{mapel}', [KurikulumController::class, 'updateMapel'])->middleware('permission:kurikulum.ubah');
         Route::delete('kurikulum/mapel/{mapel}', [KurikulumController::class, 'destroyMapel'])->middleware('permission:kurikulum.hapus');
