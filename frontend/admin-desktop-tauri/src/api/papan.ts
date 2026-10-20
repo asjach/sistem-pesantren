@@ -66,20 +66,20 @@ export interface RiwayatPapan {
 
 /** Muat seluruh papan: modul, sub-modul, poin, dan ringkasan per status. */
 export function muatPapan() {
-  return api<DataPapan>('/papan');
+  return api<DataPapan>('/board');
 }
 
 /** Pindahkan satu POIN; status sub-modulnya menyusul secara turunan. */
 export function pindahStatusPapan(kode: string, butirId: number, status: StatusPapan, catatan?: string) {
   return api<{ kode: string; id: number; status: StatusPapan; status_sub_modul: StatusPapan }>(
-    `/papan/${encodeURIComponent(kode)}/butir/${butirId}/status`,
+    `/board/${encodeURIComponent(kode)}/butir/${butirId}/status`,
     { method: 'PATCH', body: JSON.stringify({ status, catatan }) },
   );
 }
 
 /** Tambah poin di bawah sebuah sub-modul. */
 export function tambahButirPapan(kode: string, status: StatusPapan, deskripsi: string, subpoin: string[] = []) {
-  return api<ButirPapan>(`/papan/${encodeURIComponent(kode)}/butir`, {
+  return api<ButirPapan>(`/board/${encodeURIComponent(kode)}/butir`, {
     method: 'POST',
     body: JSON.stringify({ status, deskripsi, subpoin }),
   });
@@ -87,7 +87,7 @@ export function tambahButirPapan(kode: string, status: StatusPapan, deskripsi: s
 
 /** Hapus satu poin milik sebuah sub-modul. */
 export function hapusButirPapan(kode: string, id: number) {
-  return api<{ message: string }>(`/papan/${encodeURIComponent(kode)}/butir/${id}`, {
+  return api<{ message: string }>(`/board/${encodeURIComponent(kode)}/butir/${id}`, {
     method: 'DELETE',
   });
 }
@@ -105,7 +105,7 @@ export function ubahButirPapan(
   ubah: { deskripsi?: string; subpoin?: string[]; status?: StatusPapan; catatan?: string },
 ) {
   return api<{ id: number; status: StatusPapan; deskripsi: string; status_sub_modul: StatusPapan }>(
-    `/papan/${encodeURIComponent(kode)}/butir/${id}`,
+    `/board/${encodeURIComponent(kode)}/butir/${id}`,
     { method: 'PATCH', body: JSON.stringify(ubah) },
   );
 }
@@ -117,7 +117,7 @@ export function ubahButirPapan(
  * menonaktifkan tombolnya lebih dulu supaya 409 jarang terjadi.
  */
 export function geserButirPapan(kode: string, id: number, arah: -1 | 1) {
-  return api<{ butir: ButirPapan[] }>(`/papan/${encodeURIComponent(kode)}/butir/${id}/urutan`, {
+  return api<{ butir: ButirPapan[] }>(`/board/${encodeURIComponent(kode)}/butir/${id}/urutan`, {
     method: 'PATCH',
     body: JSON.stringify({ arah }),
   });
@@ -125,7 +125,7 @@ export function geserButirPapan(kode: string, id: number, arah: -1 | 1) {
 
 /** Tambah sub-modul baru di bawah sebuah modul. */
 export function tambahSubPapan(modulKode: string, kode: string, nama: string) {
-  return api<{ kode: string; nama: string }>(`/papan/modul/${encodeURIComponent(modulKode)}/item`, {
+  return api<{ kode: string; nama: string }>(`/board/modul/${encodeURIComponent(modulKode)}/item`, {
     method: 'POST',
     body: JSON.stringify({ kode, nama }),
   });
@@ -138,7 +138,7 @@ export function tambahSubPapan(modulKode: string, kode: string, nama: string) {
  * lalu membuat ulang poin sehingga id dan statusnya hilang.
  */
 export function ubahSubPapan(kode: string, ubah: { nama?: string; kode_baru?: string }) {
-  return api<{ kode: string; nama: string }>(`/papan/item/${encodeURIComponent(kode)}`, {
+  return api<{ kode: string; nama: string }>(`/board/item/${encodeURIComponent(kode)}`, {
     method: 'PATCH',
     body: JSON.stringify(ubah),
   });
@@ -146,12 +146,12 @@ export function ubahSubPapan(kode: string, ubah: { nama?: string; kode_baru?: st
 
 /** Hapus sub-modul beserta SELURUH poinnya. */
 export function hapusSubPapan(kode: string) {
-  return api<{ message: string }>(`/papan/item/${encodeURIComponent(kode)}`, { method: 'DELETE' });
+  return api<{ message: string }>(`/board/item/${encodeURIComponent(kode)}`, { method: 'DELETE' });
 }
 /** Riwayat perpindahan status poin, terbaru lebih dulu. */
 export function muatRiwayatPapan(kode?: string, batas = 20) {
   const qs = new URLSearchParams();
   if (kode) qs.set('kode', kode);
   qs.set('batas', String(batas));
-  return api<{ riwayat: RiwayatPapan[] }>(`/papan/riwayat?${qs.toString()}`);
+  return api<{ riwayat: RiwayatPapan[] }>(`/board/riwayat?${qs.toString()}`);
 }

@@ -14,7 +14,7 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * API papan perkembangan proyek (/api/papan).
+ * API papan perkembangan proyek (/api/board).
  *
  * Yang dijaga di sini: pagar izin (lihat vs ubah), bentuk respons, dan yang
  * paling mudah terlewat — endpoint papan berjalan TANPA lembaga aktif karena
@@ -45,14 +45,14 @@ class PapanApiTest extends TestCase
 
     public function test_tanpa_token_menjawab_401(): void
     {
-        $this->getJson('/api/papan')->assertStatus(401);
+        $this->getJson('/api/board')->assertStatus(401);
     }
 
     public function test_index_mengembalikan_modul_ringkasan_dan_daftar_status(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->getJson('/api/papan')
+        $this->getJson('/api/board')
             ->assertOk()
             ->assertJsonPath('modul.0.kode', 'E')
             ->assertJsonPath('modul.0.sub.0.kode', 'E.3')
@@ -67,7 +67,7 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['guru']));
 
-        $this->getJson('/api/papan')->assertStatus(403);
+        $this->getJson('/api/board')->assertStatus(403);
     }
 
     public function test_pindah_status_poin_mengubah_dan_mencatat_riwayat(): void
@@ -76,13 +76,13 @@ class PapanApiTest extends TestCase
 
         $poin = PapanButir::query()->where('status', 'akan')->firstOrFail();
 
-        $this->patchJson("/api/papan/E.3/butir/{$poin->id}/status", ['status' => 'sedang', 'catatan' => 'Mulai'])
+        $this->patchJson("/api/board/E.3/butir/{$poin->id}/status", ['status' => 'sedang', 'catatan' => 'Mulai'])
             ->assertOk()
             ->assertJsonPath('status', 'sedang')
             // Sub-modul ikut jadi "sedang" karena ada poin yang sedang.
             ->assertJsonPath('status_sub_modul', 'sedang');
 
-        $this->getJson('/api/papan/riwayat')
+        $this->getJson('/api/board/riwayat')
             ->assertOk()
             ->assertJsonPath('riwayat.0.kode', 'E.3')
             ->assertJsonPath('riwayat.0.ke', 'sedang')
@@ -97,15 +97,15 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->getJson('/api/papan/E.3')->assertJsonPath('status', 'akan');
+        $this->getJson('/api/board/E.3')->assertJsonPath('status', 'akan');
 
         $sisa = PapanButir::query()->where('status', 'akan')->firstOrFail();
 
-        $this->patchJson("/api/papan/E.3/butir/{$sisa->id}/status", ['status' => 'sudah'])
+        $this->patchJson("/api/board/E.3/butir/{$sisa->id}/status", ['status' => 'sudah'])
             ->assertOk()
             ->assertJsonPath('status_sub_modul', 'sudah');
 
-        $this->getJson('/api/papan/E.3')->assertJsonPath('status', 'sudah');
+        $this->getJson('/api/board/E.3')->assertJsonPath('status', 'sudah');
     }
 
     public function test_pindah_dengan_status_tidak_sah_ditolak_validasi(): void
@@ -114,7 +114,7 @@ class PapanApiTest extends TestCase
 
         $poin = PapanButir::query()->firstOrFail();
 
-        $this->patchJson("/api/papan/E.3/butir/{$poin->id}/status", ['status' => 'ngarang'])
+        $this->patchJson("/api/board/E.3/butir/{$poin->id}/status", ['status' => 'ngarang'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('status');
     }
@@ -123,28 +123,28 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->patchJson('/api/papan/Z.9/butir/1/status', ['status' => 'sedang'])->assertStatus(404);
+        $this->patchJson('/api/board/Z.9/butir/1/status', ['status' => 'sedang'])->assertStatus(404);
     }
 
     public function test_pindah_poin_yang_tidak_ada_menjawab_404(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->patchJson('/api/papan/E.3/butir/99999/status', ['status' => 'sedang'])->assertStatus(404);
+        $this->patchJson('/api/board/E.3/butir/99999/status', ['status' => 'sedang'])->assertStatus(404);
     }
 
     public function test_tambah_dan_hapus_butir(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $id = $this->postJson('/api/papan/E.3/butir', [
+        $id = $this->postJson('/api/board/E.3/butir', [
             'status' => 'akan',
             'deskripsi' => 'Butir baru lewat API.',
         ])->assertStatus(201)->json('id');
 
-        $this->deleteJson("/api/papan/E.3/butir/{$id}")->assertOk();
+        $this->deleteJson("/api/board/E.3/butir/{$id}")->assertOk();
 
-        $this->deleteJson("/api/papan/E.3/butir/{$id}")->assertStatus(404);
+        $this->deleteJson("/api/board/E.3/butir/{$id}")->assertStatus(404);
     }
 
     public function test_peran_admin_lembaga_boleh_mengubah(): void
@@ -153,7 +153,7 @@ class PapanApiTest extends TestCase
 
         $poin = PapanButir::query()->where('status', 'akan')->firstOrFail();
 
-        $this->patchJson("/api/papan/E.3/butir/{$poin->id}/status", ['status' => 'sedang'])->assertOk();
+        $this->patchJson("/api/board/E.3/butir/{$poin->id}/status", ['status' => 'sedang'])->assertOk();
     }
 
     /**
@@ -164,7 +164,7 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->getJson('/api/papan')->assertOk();
+        $this->getJson('/api/board')->assertOk();
     }
 
     /** @param array<int, string> $peran */
@@ -173,7 +173,7 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $butir = PapanButir::query()->orderBy('urutan')->firstOrFail();
 
-        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", ['deskripsi' => 'Rekap harian per kas.'])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['deskripsi' => 'Rekap harian per kas.'])
             ->assertOk()
             ->assertJsonPath('deskripsi', 'Rekap harian per kas.');
 
@@ -185,16 +185,16 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
 
-        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", [
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", [
             'subpoin' => ['Periksa saldo kas.', 'Unduh rekap bulanan.'],
         ])->assertOk()->assertJsonPath('subpoin.1', 'Unduh rekap bulanan.');
 
-        $this->getJson('/api/papan')
+        $this->getJson('/api/board')
             ->assertOk()
             ->assertJsonFragment(['subpoin' => ['Periksa saldo kas.', 'Unduh rekap bulanan.']]);
         $this->assertSame('akan', $butir->refresh()->status);
 
-        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", ['subpoin' => []])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => []])
             ->assertOk()
             ->assertJsonPath('subpoin', []);
     }
@@ -204,7 +204,7 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $butir = PapanButir::query()->firstOrFail();
 
-        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", ['subpoin' => ['']])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => ['']])
             ->assertStatus(422)
             ->assertJsonValidationErrors('subpoin.0');
     }
@@ -216,7 +216,7 @@ class PapanApiTest extends TestCase
 
         // Tanpa deskripsi DAN tanpa status: tidak ada yang berubah, jadi
         // ini kekeliruan pemanggil - bukan sukses diam-diam.
-        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", [])->assertStatus(422);
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", [])->assertStatus(422);
     }
 
     public function test_ubah_butir_dengan_status_ikut_mengembalikan_status_sub_modul(): void
@@ -224,7 +224,7 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
 
-        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", ['status' => 'sudah'])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['status' => 'sudah'])
             ->assertOk()
             ->assertJsonPath('status', 'sudah')
             // Semua poin E.3 kini sudah, jadi sub-modul turunannya ikut sudah.
@@ -236,7 +236,7 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $teratas = PapanButir::query()->orderBy('urutan')->firstOrFail();
 
-        $this->patchJson("/api/papan/E.3/butir/{$teratas->id}/urutan", ['arah' => -1])
+        $this->patchJson("/api/board/E.3/butir/{$teratas->id}/urutan", ['arah' => -1])
             ->assertStatus(409);
     }
 
@@ -245,7 +245,7 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $id = PapanButir::query()->orderBy('urutan')->pluck('id')->all();
 
-        $this->patchJson("/api/papan/E.3/butir/{$id[1]}/urutan", ['arah' => -1])->assertOk();
+        $this->patchJson("/api/board/E.3/butir/{$id[1]}/urutan", ['arah' => -1])->assertOk();
 
         $this->assertSame([$id[1], $id[0]], PapanButir::query()->orderBy('urutan')->pluck('id')->all());
     }
@@ -254,7 +254,7 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->patchJson('/api/papan/item/E.3', ['nama' => 'Kas & Bank', 'kode_baru' => 'E.8'])
+        $this->patchJson('/api/board/item/E.3', ['nama' => 'Kas & Bank', 'kode_baru' => 'E.8'])
             ->assertOk()
             ->assertJsonPath('kode', 'E.8')
             ->assertJsonPath('nama', 'Kas & Bank');
@@ -267,11 +267,11 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->postJson('/api/papan/modul/E/item', ['kode' => 'E.7', 'nama' => 'Laporan Kas'])
+        $this->postJson('/api/board/modul/E/item', ['kode' => 'E.7', 'nama' => 'Laporan Kas'])
             ->assertStatus(201)
             ->assertJsonPath('kode', 'E.7');
 
-        $this->deleteJson('/api/papan/item/E.7')->assertOk();
+        $this->deleteJson('/api/board/item/E.7')->assertOk();
 
         $this->assertSame(0, PapanItem::query()->where('kode', 'E.7')->count());
     }
@@ -280,7 +280,7 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->postJson('/api/papan/modul/E/item', ['kode' => 'E.3', 'nama' => 'Kembar'])
+        $this->postJson('/api/board/modul/E/item', ['kode' => 'E.3', 'nama' => 'Kembar'])
             ->assertStatus(422);
     }
 
@@ -291,7 +291,7 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['guru']));
         $butir = PapanButir::query()->orderBy('urutan')->firstOrFail();
 
-        $this->patchJson("/api/papan/E.3/butir/{$butir->id}", ['deskripsi' => 'Nakal.'])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['deskripsi' => 'Nakal.'])
             ->assertStatus(403);
     }
 

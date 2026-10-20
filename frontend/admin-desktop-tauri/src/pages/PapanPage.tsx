@@ -35,7 +35,7 @@ const KOLOM_TERTUTUP_AWAL: StatusPapan[] = ['sudah', 'ditunda'];
  * berisi papan empat kolom (akan, sedang, sudah, ditunda).
  *
  * Tab dibangun dari modul yang ada di papan, jadi modul baru langsung muncul
- * tanpa mengubah kode. Sumbernya API /papan, bukan data pesantren, jadi
+ * tanpa mengubah kode. Sumbernya API /board, bukan data pesantren, jadi
  * halaman ini tidak ikut mode lembaga aktif.
  */
 export default function PapanPage() {
@@ -61,7 +61,7 @@ export default function PapanPage() {
       setData(papan);
       setGalat(null);
     } catch (e) {
-      setGalat(e instanceof Error ? e.message : 'Papan gagal dimuat.');
+      setGalat(e instanceof Error ? e.message : 'Board gagal dimuat.');
     } finally {
       setMemuat(false);
     }
@@ -154,7 +154,7 @@ export default function PapanPage() {
       setRiwayat(log.riwayat);
       setGalat(null);
     } catch (e) {
-      setGalat(e instanceof Error ? e.message : 'Papan gagal dimuat ulang.');
+      setGalat(e instanceof Error ? e.message : 'Board gagal dimuat ulang.');
     }
   }, []);
 
@@ -211,7 +211,7 @@ export default function PapanPage() {
   if (data && (!kodeModul || !aktif)) {
     const tujuan = modulPertama(modul);
 
-    return <Navigate to={tujuan ? `/papan/${tujuan.kode}` : '/papan/redirect'} replace />;
+    return <Navigate to={tujuan ? `/board/${tujuan.kode}` : '/board/redirect'} replace />;
   }
 
   if (memuat && !data) {
@@ -222,7 +222,7 @@ export default function PapanPage() {
           className="flex flex-1 items-center justify-center gap-2 px-6 text-sm text-muted-foreground"
         >
           <Loader2 size={15} className="animate-spin" />
-          Memuat papan...
+          Memuat Board...
         </div>
       </div>
     );
@@ -256,7 +256,7 @@ export default function PapanPage() {
       {modul.length > 0 ? (
         <Tabs
           value={aktif?.kode ?? ''}
-          onValueChange={(k) => navigate(`/papan/${k}`)}
+          onValueChange={(k) => navigate(`/board/${k}`)}
           className="min-h-0 flex-1 gap-0"
         >
           <TabsList
@@ -326,7 +326,7 @@ export default function PapanPage() {
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
           <Columns3 size={24} className="text-muted-foreground/60" />
-          <p className="text-sm font-medium">Papan belum berisi modul</p>
+          <p className="text-sm font-medium">Board belum berisi modul</p>
           <p className="max-w-sm text-xs text-muted-foreground">
             Modul akan muncul otomatis setelah datanya tersedia di server.
           </p>

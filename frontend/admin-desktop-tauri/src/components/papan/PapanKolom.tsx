@@ -400,7 +400,7 @@ function BarisPoin({
 /**
  * Papan empat kolom untuk SEKELOMPOK kartu.
  *
- * Dipakai halaman /papan (satu modul per tab). Perpindahan ditangani pemanggil
+ * Dipakai halaman /board (satu modul per tab). Perpindahan ditangani pemanggil
  * lewat onPindah supaya penyimpanan & pemulihan galat tinggal di satu tempat.
  */
 export function PapanKolom({

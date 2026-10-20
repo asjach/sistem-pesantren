@@ -64,7 +64,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
 // Papan perkembangan proyek — catatan kerja, bukan data pesantren, jadi
 // sengaja TANPA middleware lembaga_aktif (tidak terikat lembaga mana pun).
 Route::middleware(['auth:sanctum', 'throttle:api_user'])
-    ->prefix('papan')
+    ->prefix('board')
     ->group(function () {
         Route::get('/', [PapanController::class, 'index'])->middleware('permission:papan.lihat');
         Route::get('riwayat', [PapanController::class, 'riwayat'])->middleware('permission:papan.lihat');

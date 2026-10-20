@@ -160,7 +160,7 @@ export const HALAMAN_PENEMPATAN_PEGAWAI: HalamanDef = {
 
 export const HALAMAN: HalamanDef[] = [
   { to: '/', label: 'Dashboard', deskripsi: 'Ringkasan data pesantren.', tab: 'beranda', icon: Home, permission: 'dashboard.lihat' },
-  { to: '/papan', label: 'Papan', deskripsi: 'Papan perkembangan modul proyek (sudah, sedang, akan, ditunda).', tab: 'beranda', icon: Columns3, permission: 'papan.lihat' },
+  { to: '/board', label: 'Board', deskripsi: 'Papan perkembangan modul proyek (sudah, sedang, akan, ditunda).', tab: 'beranda', icon: Columns3, permission: 'papan.lihat' },
   HALAMAN_DATA_INDUK,
   { to: '/dokumen-santri', label: 'Daftar Dokumen', deskripsi: 'Berkas dokumen santri (KK, akta, ijazah, dll).', tab: 'dokumen', sub: 'santri', grid: true, icon: FolderOpen, permission: 'dokumen_santri.lihat' },
   { to: '/dokumen-santri/lihat', label: 'Dokumen Santri', deskripsi: 'Pratinjau dokumen per santri (lihat, unduh, ganti).', tab: 'dokumen', sub: 'santri', icon: Eye, permission: 'dokumen_santri.lihat' },

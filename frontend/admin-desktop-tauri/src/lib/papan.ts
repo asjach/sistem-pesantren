@@ -197,7 +197,7 @@ export function kolomSebelah(status: StatusPapan, arah: -1 | 1): StatusPapan | n
 export function modulDariKode(modul: ModulPapan[], kode: string | undefined): ModulPapan | null {
   if (!kode) return null;
   // .trim() penting: kode datang dari segmen URL, dan spasi nyasar
-  // (mis. /papan/%20f%20) harus tetap menemukan modulnya.
+  // (mis. /board/%20f%20) harus tetap menemukan modulnya.
   const cari = kode.trim().toUpperCase();
 
   return modul.find((m) => m.kode.toUpperCase() === cari) ?? null;
