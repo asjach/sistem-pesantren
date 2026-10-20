@@ -29,6 +29,7 @@ function kartu(ubah: Partial<KartuPapan> = {}): KartuPapan {
 function aksi(ubah: Partial<AksiButir> = {}): AksiButir {
   return {
     onSimpanTeks: vi.fn(async () => {}),
+    onSimpanSubpoin: vi.fn(async () => {}),
     onSimpanStatus: vi.fn(async () => {}),
     onNaik: vi.fn(async () => {}),
     onTurun: vi.fn(async () => {}),
@@ -102,7 +103,7 @@ describe('PapanKolom - menyunting poin di baris', () => {
     fireEvent.change(kotak, { target: { value: 'Ekspor rekap harian.' } });
     fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
 
-    expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap harian.', []);
+    expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap harian.');
   });
 
   it('teks kosong tidak disimpan dan tombol simpan mati', () => {
@@ -200,19 +201,78 @@ describe('PapanKolom - menyunting poin di baris', () => {
     });
   });
 
-  it('menambah subpoin dan menyimpannya bersama isi poin', async () => {
+  it('menyimpan satu subpoin lewat tombol simpan baris', async () => {
     const onSimpanTeks = vi.fn(async () => {});
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    const onSimpanSubpoin = vi.fn(async () => {});
+    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks, onSimpanSubpoin }) });
     mulaiUbah();
 
     fireEvent.click(document.getElementById('btn_tambah_subpoin_128')!);
     fireEvent.change(document.getElementById('input_subpoin_128_0')!, {
       target: { value: 'Periksa saldo tiap kas.' },
     });
-    fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
+    fireEvent.click(document.getElementById('btn_simpan_subpoin_128_0')!);
 
     await vi.waitFor(() => {
-      expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', ['Periksa saldo tiap kas.']);
+      expect(onSimpanSubpoin).toHaveBeenCalledWith(['Periksa saldo tiap kas.']);
+    });
+    expect(onSimpanTeks).not.toHaveBeenCalled();
+  });
+
+  it('simpan utama hanya mengirim teks poin, bukan subpoin', async () => {
+    const onSimpanTeks = vi.fn(async () => {});
+    const onSimpanSubpoin = vi.fn(async () => {});
+    pasang([kartu({ subpoin: ['Langkah lama.'] })], {
+      bolehUbah: true,
+      a: aksi({ onSimpanTeks, onSimpanSubpoin }),
+    });
+    mulaiUbah();
+
+    fireEvent.change(document.getElementById('input_ubah_butir_128')!, {
+      target: { value: 'Teks baru.' },
+    });
+    fireEvent.change(document.getElementById('input_subpoin_128_0')!, {
+      target: { value: 'Draf lain.' },
+    });
+    fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
+
+    await vi.waitFor(() => expect(onSimpanTeks).toHaveBeenCalledWith('Teks baru.'));
+    expect(onSimpanSubpoin).not.toHaveBeenCalled();
+  });
+
+  it('menyimpan satu subpoin tidak ikut mengirim draf baris lain', async () => {
+    const onSimpanSubpoin = vi.fn(async () => {});
+    pasang([kartu({ subpoin: ['Langkah satu.', 'Langkah dua.'] })], {
+      bolehUbah: true,
+      a: aksi({ onSimpanSubpoin }),
+    });
+    mulaiUbah();
+
+    fireEvent.change(document.getElementById('input_subpoin_128_0')!, {
+      target: { value: 'Draf satu.' },
+    });
+    fireEvent.change(document.getElementById('input_subpoin_128_1')!, {
+      target: { value: 'Langkah dua baru.' },
+    });
+    fireEvent.click(document.getElementById('btn_simpan_subpoin_128_1')!);
+
+    await vi.waitFor(() => {
+      expect(onSimpanSubpoin).toHaveBeenCalledWith(['Langkah satu.', 'Langkah dua baru.']);
+    });
+  });
+
+  it('menghapus subpoin tersimpan langsung menyimpan daftar baru', async () => {
+    const onSimpanSubpoin = vi.fn(async () => {});
+    pasang([kartu({ subpoin: ['Langkah satu.', 'Langkah dua.'] })], {
+      bolehUbah: true,
+      a: aksi({ onSimpanSubpoin }),
+    });
+    mulaiUbah();
+
+    fireEvent.click(document.getElementById('btn_hapus_subpoin_128_0')!);
+
+    await vi.waitFor(() => {
+      expect(onSimpanSubpoin).toHaveBeenCalledWith(['Langkah dua.']);
     });
   });
 });

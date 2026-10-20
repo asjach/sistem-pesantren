@@ -14,7 +14,8 @@ import { IsiButir } from './IsiButir';
  * harus diteruskan berlapis dari halaman sampai ke panelnya.
  */
 export interface AksiButir {
-  onSimpanTeks: (deskripsi: string, subpoin: string[]) => Promise<void>;
+  onSimpanTeks: (deskripsi: string) => Promise<void>;
+  onSimpanSubpoin: (subpoin: string[]) => Promise<void>;
   onSimpanStatus: (status: StatusPapan) => Promise<void>;
   onNaik: () => Promise<void>;
   onTurun: () => Promise<void>;
@@ -390,13 +391,18 @@ function BarisPoin({
   const [ubah, setUbah] = useState(false);
   const [draf, setDraf] = useState(poin.deskripsi);
   const [subpoin, setSubpoin] = useState<string[]>(poin.subpoin);
+  // Nilai subpoin yang sudah tersimpan di server; dipakai saat menyimpan satu
+  // baris agar draf baris lain tidak ikut terkirim.
+  const [asli, setAsli] = useState<string[]>(poin.subpoin);
   const [sibuk, setSibuk] = useState(false);
+  const [sibukSub, setSibukSub] = useState<number | null>(null);
   const [galat, setGalat] = useState('');
   const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
 
   function mulaiUbah() {
     setDraf(poin.deskripsi);
     setSubpoin(poin.subpoin);
+    setAsli(poin.subpoin);
     setGalat('');
     setKonfirmasiHapus(false);
     setUbah(true);
@@ -407,6 +413,7 @@ function BarisPoin({
   function batalUbah() {
     setDraf(poin.deskripsi);
     setSubpoin(poin.subpoin);
+    setAsli(poin.subpoin);
     setGalat('');
     setKonfirmasiHapus(false);
     setUbah(false);
@@ -421,12 +428,64 @@ function BarisPoin({
     setGalat('');
 
     try {
-      await aksi.onSimpanTeks(teks, subpoin.map((isi) => isi.trim()).filter(Boolean));
+      await aksi.onSimpanTeks(teks);
       setUbah(false);
     } catch (e) {
       setGalat(e instanceof Error ? e.message : 'Gagal menyimpan.');
     } finally {
       setSibuk(false);
+    }
+  }
+
+  async function simpanSubpoin(indeks: number) {
+    const isi = subpoin[indeks]?.trim() ?? '';
+
+    if (isi === '') return;
+
+    setSibukSub(indeks);
+    setGalat('');
+
+    try {
+      // Baris lain memakai nilai yang sudah tersimpan, bukan drafnya.
+      const hasil = subpoin
+        .map((teks, i) => (i === indeks ? isi : (asli[i] ?? '')).trim())
+        .filter(Boolean);
+
+      await aksi.onSimpanSubpoin(hasil);
+      setAsli((prev) => prev.map((teks, i) => (i === indeks ? isi : teks)));
+    } catch (e) {
+      setGalat(e instanceof Error ? e.message : 'Gagal menyimpan subpoin.');
+    } finally {
+      setSibukSub(null);
+    }
+  }
+
+  function tambahSubpoin() {
+    setSubpoin([...subpoin, '']);
+    setAsli([...asli, '']);
+  }
+
+  async function hapusSubpoin(indeks: number) {
+    const barisBaru = (asli[indeks] ?? '').trim() === '';
+    const sisaAsli = asli.filter((_, i) => i !== indeks);
+
+    setSubpoin(subpoin.filter((_, i) => i !== indeks));
+    setAsli(sisaAsli);
+
+    // Baris yang belum pernah tersimpan cukup dibuang dari draf.
+    if (barisBaru) return;
+
+    setSibukSub(indeks);
+    setGalat('');
+
+    try {
+      await aksi.onSimpanSubpoin(sisaAsli.map((teks) => teks.trim()).filter(Boolean));
+    } catch (e) {
+      setSubpoin(subpoin);
+      setAsli(asli);
+      setGalat(e instanceof Error ? e.message : 'Gagal menghapus subpoin.');
+    } finally {
+      setSibukSub(null);
     }
   }
 
@@ -501,6 +560,63 @@ function BarisPoin({
               className="w-full resize-y border bg-transparent p-1.5 text-[12px] leading-snug outline-none focus:border-[var(--accent)]"
               style={{ borderColor: 'var(--divider)' }}
             />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                id={`btn_tambah_subpoin_${poin.id}`}
+                type="button"
+                disabled={subpoin.length >= 30}
+                onClick={tambahSubpoin}
+                className="flex items-center gap-1 text-[11px] text-[var(--accent-readable)] disabled:opacity-40"
+              ><Plus size={11} /> subpoin</button>
+              <div className="ml-auto flex items-center gap-1.5">
+                <button
+                  id={`btn_simpan_butir_${poin.id}`}
+                  type="button"
+                  disabled={sibuk || sibukSub !== null || draf.trim() === ''}
+                  onClick={() => void simpan()}
+                  aria-label={`Simpan poin ${poin.deskripsi}`}
+                  className="grid size-6 shrink-0 place-items-center text-success enabled:hover:opacity-80 disabled:opacity-40"
+                >
+                  <Check size={12} />
+                </button>
+                <button
+                  id={`btn_batal_butir_${poin.id}`}
+                  type="button"
+                  onClick={batalUbah}
+                  aria-label={`Batal ubah poin ${poin.deskripsi}`}
+                  className="grid size-6 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
+                >
+                  <Undo2 size={12} />
+                </button>
+                <Popover open={konfirmasiHapus} onOpenChange={setKonfirmasiHapus}>
+                  <PopoverTrigger asChild>
+                    <button
+                      id={`btn_hapus_butir_${poin.id}`}
+                      type="button"
+                      aria-label={`Hapus poin ${poin.deskripsi}`}
+                      className="grid size-6 shrink-0 place-items-center text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-52 border border-foreground/30 p-2">
+                    <p className="text-xs">Hapus poin ini?</p>
+                    <div className="mt-2 flex items-center justify-end gap-2">
+                      <button
+                        id={`btn_yakin_hapus_butir_${poin.id}`}
+                        type="button"
+                        disabled={sibuk || sibukSub !== null}
+                        onClick={() => void hapus()}
+                        className="text-xs font-medium text-destructive disabled:opacity-40"
+                      >
+                        Ya, hapus
+                      </button>
+                      <button id={`btn_batal_hapus_butir_${poin.id}`} type="button" onClick={() => setKonfirmasiHapus(false)} className="text-xs text-muted-foreground hover:text-foreground">Batal</button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
             {subpoin.map((isi, indeks) => (
               <div key={indeks} className="flex items-start gap-1">
                 <textarea
@@ -514,20 +630,25 @@ function BarisPoin({
                   style={{ borderColor: 'var(--divider)' }}
                 />
                 <button
+                  id={`btn_simpan_subpoin_${poin.id}_${indeks}`}
                   type="button"
+                  disabled={sibukSub !== null || isi.trim() === ''}
+                  onClick={() => void simpanSubpoin(indeks)}
+                  aria-label={`Simpan subpoin ${indeks + 1}`}
+                  className="grid size-6 shrink-0 place-items-center text-success enabled:hover:opacity-80 disabled:opacity-40"
+                >
+                  <Check size={12} />
+                </button>
+                <button
+                  id={`btn_hapus_subpoin_${poin.id}_${indeks}`}
+                  type="button"
+                  disabled={sibukSub !== null}
                   aria-label={`Hapus subpoin ${indeks + 1}`}
-                  onClick={() => setSubpoin(subpoin.filter((_, i) => i !== indeks))}
-                  className="p-1 text-muted-foreground hover:text-destructive"
+                  onClick={() => void hapusSubpoin(indeks)}
+                  className="grid size-6 shrink-0 place-items-center p-1 text-muted-foreground hover:text-destructive disabled:opacity-40"
                 ><Trash2 size={11} /></button>
               </div>
             ))}
-            <button
-              id={`btn_tambah_subpoin_${poin.id}`}
-              type="button"
-              disabled={subpoin.length >= 30}
-              onClick={() => setSubpoin([...subpoin, ''])}
-              className="self-start text-[11px] text-[var(--accent-readable)] disabled:opacity-40"
-            >+ Tambah subpoin</button>
             {galat ? <p role="alert" className="text-[11px] text-destructive">{galat}</p> : null}
           </div>
         ) : (
@@ -540,56 +661,7 @@ function BarisPoin({
             ) : null}
           </div>
         )}
-        {ubah ? (
-          <>
-            <button
-              id={`btn_simpan_butir_${poin.id}`}
-              type="button"
-              disabled={sibuk || draf.trim() === ''}
-              onClick={() => void simpan()}
-              aria-label={`Simpan poin ${poin.deskripsi}`}
-              className="grid size-6 shrink-0 place-items-center text-success enabled:hover:opacity-80 disabled:opacity-40"
-            >
-              <Check size={12} />
-            </button>
-            <button
-              id={`btn_batal_butir_${poin.id}`}
-              type="button"
-              onClick={batalUbah}
-              aria-label={`Batal ubah poin ${poin.deskripsi}`}
-              className="grid size-6 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
-            >
-              <Undo2 size={12} />
-            </button>
-            <Popover open={konfirmasiHapus} onOpenChange={setKonfirmasiHapus}>
-              <PopoverTrigger asChild>
-                <button
-                  id={`btn_hapus_butir_${poin.id}`}
-                  type="button"
-                  aria-label={`Hapus poin ${poin.deskripsi}`}
-                  className="grid size-6 shrink-0 place-items-center text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-52 border border-foreground/30 p-2">
-                <p className="text-xs">Hapus poin ini?</p>
-                <div className="mt-2 flex items-center justify-end gap-2">
-                  <button
-                    id={`btn_yakin_hapus_butir_${poin.id}`}
-                    type="button"
-                    disabled={sibuk}
-                    onClick={() => void hapus()}
-                    className="text-xs font-medium text-destructive disabled:opacity-40"
-                  >
-                    Ya, hapus
-                  </button>
-                  <button id={`btn_batal_hapus_butir_${poin.id}`} type="button" onClick={() => setKonfirmasiHapus(false)} className="text-xs text-muted-foreground hover:text-foreground">Batal</button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </>
-        ) : bolehUbah ? (
+        {!ubah && bolehUbah ? (
           <button
             id={`btn_ubah_papan_${idPoin}`}
             type="button"
@@ -909,6 +981,7 @@ export function PapanKolom({
                               ? (poin) => aksiButir(poin)
                               : () => ({
                                   onSimpanTeks: async () => {},
+                                  onSimpanSubpoin: async () => {},
                                   onSimpanStatus: async () => {},
                                   onNaik: async () => {},
                                   onTurun: async () => {},

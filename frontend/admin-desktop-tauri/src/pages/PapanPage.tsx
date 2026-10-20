@@ -161,8 +161,12 @@ export default function PapanPage() {
   /** Aksi sunting untuk satu kartu poin, dipakai panel rincian. */
   const aksiButir = useCallback(
     (kartu: KartuPapan): AksiButir => ({
-      onSimpanTeks: async (deskripsi, subpoin) => {
-        await ubahButirPapan(kartu.subKode, kartu.id, { deskripsi, subpoin });
+      onSimpanTeks: async (deskripsi) => {
+        await ubahButirPapan(kartu.subKode, kartu.id, { deskripsi });
+        await segarkan();
+      },
+      onSimpanSubpoin: async (subpoin) => {
+        await ubahButirPapan(kartu.subKode, kartu.id, { subpoin });
         await segarkan();
       },
       onSimpanStatus: async (status) => {
