@@ -480,6 +480,295 @@ class JadwalPelajaranController extends Controller
         return response()->json(['pesan' => 'Jadwal dihapus.']);
     }
 
+    /**
+     * GET /admin/kurikulum/jadwal/salin/pratinjau — perkiraan salin jadwal
+     * antar tahun ajaran untuk satu jenjang. Tidak menulis apa pun.
+     */
+    public function pratinjauSalinJadwal(Request $request): JsonResponse
+    {
+        [$jenjang, $taSumber, $taTujuan] = $this->taSalinJadwal($request);
+
+        return response()->json($this->jalankanSalinJadwal($jenjang, $taSumber, $taTujuan, false));
+    }
+
+    /**
+     * POST /admin/kurikulum/jadwal/salin — salin jadwal dari TA sumber ke TA
+     * tujuan (jenjang sama). Aturannya:
+     *  - hanya kelas yang SUDAH ada di TA tujuan (dicocokkan lewat nama kelas);
+     *  - slot, pengampu, dan sel jadwal ikut disalin;
+     *  - guru tanpa keaktifan di TA tujuan dikosongkan;
+     *  - sel yang sudah terisi di TA tujuan TIDAK ditimpa.
+     */
+    public function salinJadwal(Request $request): JsonResponse
+    {
+        [$jenjang, $taSumber, $taTujuan] = $this->taSalinJadwal($request);
+
+        $hasil = DB::transaction(fn (): array => $this->jalankanSalinJadwal($jenjang, $taSumber, $taTujuan, true));
+
+        return response()->json($hasil + ['pesan' => sprintf(
+            'Salin jadwal selesai: %d kelas, %d slot, %d pengampu, %d sel jadwal.',
+            count($hasil['kelas']),
+            $hasil['hitung']['slot'],
+            $hasil['hitung']['pengampu'],
+            $hasil['hitung']['jadwal'],
+        )]);
+    }
+
+    /** Validasi bersama salin/pratinjau jadwal antar tahun ajaran. */
+    private function taSalinJadwal(Request $request): array
+    {
+        $data = $request->validate([
+            'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
+            'tahun_ajaran_sumber' => ['required', 'string', 'exists:tahun_ajaran,nama'],
+            'tahun_ajaran_tujuan' => ['required', 'string', 'exists:tahun_ajaran,nama', 'different:tahun_ajaran_sumber'],
+        ]);
+        $this->authorizeLembaga($request->user(), $data['jenjang']);
+
+        return [$data['jenjang'], $data['tahun_ajaran_sumber'], $data['tahun_ajaran_tujuan']];
+    }
+
+    /**
+     * Hitung (dan bila `$terapkan` benar, jalankan) salin jadwal antar TA.
+     *
+     * Dipakai pratinjau dan eksekusi supaya angkanya tidak mungkin berbeda.
+     *
+     * @return array<string, mixed>
+     */
+    private function jalankanSalinJadwal(string $jenjang, string $taSumber, string $taTujuan, bool $terapkan): array
+    {
+        $kelasSumber = Kelas::where('jenjang', $jenjang)->where('tahun_ajaran', $taSumber)
+            ->orderBy('nama_kelas')->get();
+        $kelasTujuan = Kelas::where('jenjang', $jenjang)->where('tahun_ajaran', $taTujuan)->get()
+            ->keyBy(fn (Kelas $k): string => Kelas::normalisasiNama($k->nama_kelas));
+
+        $hasil = [
+            'jenjang' => $jenjang,
+            'sumber' => $taSumber,
+            'tujuan' => $taTujuan,
+            'kelas' => [],
+            'kelas_dilewati' => [],
+            'hitung' => ['slot' => 0, 'pengampu' => 0, 'jadwal' => 0, 'jadwal_dilewati' => 0, 'guru_dikosongkan' => 0],
+        ];
+
+        foreach ($kelasSumber as $asal) {
+            $tujuan = $kelasTujuan->get(Kelas::normalisasiNama($asal->nama_kelas));
+
+            if (! $tujuan) {
+                $hasil['kelas_dilewati'][] = [
+                    'nama' => $asal->nama_kelas,
+                    'alasan' => 'Kelas tidak ada di tahun ajaran tujuan.',
+                ];
+
+                continue;
+            }
+
+            $ringkas = $this->salinJadwalKelas($asal, $tujuan, $taTujuan, $terapkan);
+            $hasil['kelas'][] = ['dari' => $asal->nama_kelas, 'ke' => $tujuan->nama_kelas] + $ringkas;
+
+            foreach ($ringkas as $kunci => $nilai) {
+                if (array_key_exists($kunci, $hasil['hitung'])) {
+                    $hasil['hitung'][$kunci] += $nilai;
+                }
+            }
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Salin slot, pengampu, dan jadwal satu kelas sumber ke kelas tujuan.
+     *
+     * @return array{slot:int, pengampu:int, jadwal:int, jadwal_dilewati:int, guru_dikosongkan:int}
+     */
+    private function salinJadwalKelas(Kelas $asal, Kelas $tujuan, string $taTujuan, bool $terapkan): array
+    {
+        $hitung = ['slot' => 0, 'pengampu' => 0, 'jadwal' => 0, 'jadwal_dilewati' => 0, 'guru_dikosongkan' => 0];
+
+        $jadwalAsal = JadwalPelajaran::where('kelas_id', $asal->id)->get();
+
+        // Slot yang dipakai kelas sumber: slot per kelas bila ada, selain itu slot jenjang.
+        // Slot yang dirujuk jadwal tetapi tidak ikut daftar tetap disertakan.
+        $slotAsal = $this->slotKelas($asal);
+        $kurang = $jadwalAsal->pluck('slot_jam_id')->unique()->diff($slotAsal->pluck('id'));
+        if ($kurang->isNotEmpty()) {
+            $slotAsal = $slotAsal->concat(SlotJamPelajaran::whereIn('id', $kurang)->get());
+        }
+
+        $kandidatSlot = SlotJamPelajaran::where('jenjang', $asal->jenjang)
+            ->where(fn ($q) => $q->whereNull('kelas_id')->orWhere('kelas_id', $tujuan->id))
+            ->get();
+
+        /** @var array<int, SlotJamPelajaran|null> $petaSlot null = akan dibuat (pratinjau) */
+        $petaSlot = [];
+
+        foreach ($slotAsal as $slot) {
+            $kunci = $this->kunciSlot($slot);
+            $ada = $kandidatSlot->first(fn (SlotJamPelajaran $s): bool => $this->kunciSlot($s) === $kunci);
+
+            if ($ada) {
+                $petaSlot[$slot->id] = $ada;
+
+                continue;
+            }
+
+            // Slot jenjang dipakai bersama lintas TA — tidak perlu dibuat ulang.
+            if ($slot->kelas_id === null) {
+                $petaSlot[$slot->id] = $slot;
+
+                continue;
+            }
+
+            $hitung['slot']++;
+
+            if (! $terapkan) {
+                $petaSlot[$slot->id] = null;
+
+                continue;
+            }
+
+            $baru = SlotJamPelajaran::create([
+                'jenjang' => $tujuan->jenjang,
+                'kelas_id' => $tujuan->id,
+                'hari' => $slot->hari,
+                'nama_slot' => $slot->nama_slot,
+                'jenis' => $slot->jenis,
+                'jam_mulai' => $slot->jam_mulai,
+                'jam_selesai' => $slot->jam_selesai,
+                'urutan' => $slot->urutan,
+            ]);
+            $kandidatSlot->push($baru);
+            $petaSlot[$slot->id] = $baru;
+        }
+
+        $pengampuAsal = PengampuMapel::where('kelas_id', $asal->id)->get();
+        $pengampuTujuan = PengampuMapel::where('kelas_id', $tujuan->id)->get()->keyBy('mata_pelajaran_id');
+
+        /** @var array<int, PengampuMapel|null> $petaPengampu null = akan dibuat (pratinjau) */
+        $petaPengampu = [];
+
+        foreach ($pengampuAsal as $p) {
+            $ada = $pengampuTujuan->get($p->mata_pelajaran_id);
+
+            if ($ada) {
+                $petaPengampu[$p->id] = $ada;
+
+                continue;
+            }
+
+            $guru = $this->guruTujuan($p->keaktifan_pegawai_id, $asal->jenjang, $taTujuan);
+            if ($p->keaktifan_pegawai_id !== null && $guru === null) {
+                $hitung['guru_dikosongkan']++;
+            }
+
+            $hitung['pengampu']++;
+
+            if (! $terapkan) {
+                $petaPengampu[$p->id] = null;
+
+                continue;
+            }
+
+            $baru = PengampuMapel::create([
+                'kelas_id' => $tujuan->id,
+                'mata_pelajaran_id' => $p->mata_pelajaran_id,
+                'keaktifan_pegawai_id' => $guru,
+            ]);
+            $pengampuTujuan->put($p->mata_pelajaran_id, $baru);
+            $petaPengampu[$p->id] = $baru;
+        }
+
+        $terisi = JadwalPelajaran::where('kelas_id', $tujuan->id)->get()
+            ->keyBy(fn (JadwalPelajaran $j): string => $j->slot_jam_id.'|'.$j->hari);
+        $pengampuTerpakai = JadwalPelajaran::whereNotNull('pengampu_mapel_id')
+            ->get(['pengampu_mapel_id', 'slot_jam_id', 'hari'])
+            ->keyBy(fn (JadwalPelajaran $j): string => $j->pengampu_mapel_id.'|'.$j->slot_jam_id.'|'.$j->hari);
+
+        foreach ($jadwalAsal as $j) {
+            $slot = $petaSlot[$j->slot_jam_id] ?? null;
+            $slotId = $slot?->id;
+
+            if ($slotId !== null && $terisi->has($slotId.'|'.$j->hari)) {
+                $hitung['jadwal_dilewati']++;
+
+                continue;
+            }
+
+            $pengampu = $j->pengampu_mapel_id !== null ? ($petaPengampu[$j->pengampu_mapel_id] ?? null) : null;
+            $pengampuId = $pengampu?->id;
+
+            // Bentrok guru: pengampu yang sama di slot & hari yang sama pada kelas lain.
+            if ($pengampuId !== null && $slotId !== null && $pengampuTerpakai->has($pengampuId.'|'.$slotId.'|'.$j->hari)) {
+                $hitung['jadwal_dilewati']++;
+
+                continue;
+            }
+
+            $hitung['jadwal']++;
+
+            if (! $terapkan || $slotId === null) {
+                continue;
+            }
+
+            $baru = JadwalPelajaran::create([
+                'kelas_id' => $tujuan->id,
+                'pengampu_mapel_id' => $pengampuId,
+                'keaktifan_pegawai_id' => $pengampuId === null
+                    ? $this->guruTujuan($j->keaktifan_pegawai_id, $asal->jenjang, $taTujuan)
+                    : null,
+                'slot_jam_id' => $slotId,
+                'hari' => $j->hari,
+                'ruangan' => $j->ruangan,
+            ]);
+
+            $terisi->put($slotId.'|'.$j->hari, $baru);
+            if ($pengampuId !== null) {
+                $pengampuTerpakai->put($pengampuId.'|'.$slotId.'|'.$j->hari, $baru);
+            }
+        }
+
+        return $hitung;
+    }
+
+    /** Slot yang dipakai sebuah kelas: per kelas bila ada, selain itu slot jenjang. */
+    private function slotKelas(Kelas $kelas): Collection
+    {
+        $perKelas = SlotJamPelajaran::where('kelas_id', $kelas->id)
+            ->orderBy('urutan')->orderBy('hari')->orderBy('jam_mulai')->orderBy('nama_slot')
+            ->get();
+
+        return $perKelas->isNotEmpty()
+            ? $perKelas
+            : SlotJamPelajaran::whereNull('kelas_id')->where('jenjang', $kelas->jenjang)
+                ->orderBy('urutan')->orderBy('jam_mulai')->orderBy('nama_slot')
+                ->get();
+    }
+
+    /** Kunci pencocokan slot lintas tahun ajaran: hari + nama slot. */
+    private function kunciSlot(SlotJamPelajaran $slot): string
+    {
+        return mb_strtolower(trim((string) $slot->hari)).'|'.mb_strtolower(trim((string) $slot->nama_slot));
+    }
+
+    /** Keaktifan guru yang sama di TA tujuan; null bila tidak aktif di sana. */
+    private function guruTujuan(?int $keaktifanAsal, string $jenjang, string $taTujuan): ?int
+    {
+        if ($keaktifanAsal === null) {
+            return null;
+        }
+
+        $pegawaiId = KeaktifanPegawai::whereKey($keaktifanAsal)->value('pegawai_id');
+
+        if ($pegawaiId === null) {
+            return null;
+        }
+
+        return KeaktifanPegawai::where('pegawai_id', $pegawaiId)
+            ->where('jenjang', $jenjang)
+            ->where('tahun_ajaran', $taTujuan)
+            ->where('status_keaktifan', KeaktifanPegawai::AKTIF)
+            ->value('id');
+    }
+
     /** GET /admin/kurikulum/template-jadwal?jenjang= */
     public function indexTemplate(Request $request): JsonResponse
     {

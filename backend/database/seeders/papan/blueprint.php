@@ -119,8 +119,8 @@ return [
         ]],
         ['kode' => 'DA5', 'nama' => 'Kurikulum', 'sub' => [
             ['kode' => 'DA5.1', 'nama' => 'Mata Pelajaran', 'butir' => [
-                'todo' => [
-                    ['Salin mapel antar tahun ajaran', ['pilih sumber', 'pratinjau', 'hindari duplikat']],
+                'for_review' => [
+                    ['Salin daftar mapel antar kelas (TA sama) dengan pratinjau', ['Sumber hanya kelas pada tahun ajaran yang sama', 'Pratinjau mapel yang akan ditambahkan vs dilewati', 'Hindari duplikat: mapel yang sudah ada tidak disalin ulang', 'Verifikasi: KurikulumModulTest 9/9 (169 asersi) + suite FE 1427/1427 + npm run typecheck']],
                 ],
                 'done' => [
                     ['Master mapel dan KKM', ['per jenjang', 'kelompok formal/pesantren', 'urutan rapor']],
@@ -139,9 +139,20 @@ return [
                     ['Jadwal dari sudut guru', ['agenda mengajar', 'filter guru', 'tampilan mobile']],
                     ['Cetak/unduh jadwal', ['PDF', 'Excel', 'kop']],
                 ],
+                'in_progress' => [
+                    ['Status Jadwal Pelajaran', ['terdapat status untuk jadwal yaitu: "Draft", "Pembahasan", "Final"', 'jadwal final tidak bisa diubah, jika ingin diubah harus diubah dulu menjadi "Draft"', 'jadwal pelajaran hasil import dari tahun ajaran sebelumnya berstatus "Draft"']],
+                ],
+                'for_review' => [
+                    ['Salin jadwal pelajaran dari tahun ajaran lain (sejenjang)', ['Pilih TA sumber; tujuan = TA aktif; lembaga/jenjang harus sama', 'Pratinjau: kelas, slot, pengampu, dan sel jadwal yang akan disalin atau dilewati', 'Hanya kelas yang sudah ada di TA tujuan; kelas lain dilewati dan dilaporkan', 'Slot, pengampu, dan sel jadwal ikut disalin; guru tanpa keaktifan di TA tujuan dikosongkan', 'Sel jadwal yang sudah terisi di TA tujuan tidak ditimpa', 'Verifikasi: KurikulumModulTest 9/9 (169 asersi) + suite FE 1427/1427 + npm run typecheck']],
+                ],
                 'done' => [
                     ['Slot per jenjang dan anti bentrok', ['bentrok kelas', 'bentrok guru', 'grid mingguan']],
                     ['Jadwal per kelas', ['template', 'salin', 'cetak']],
+                ],
+            ]],
+            ['kode' => 'DA5.4', 'nama' => 'Struktur Kurikulum', 'butir' => [
+                'todo' => [
+                    ['tabel struktur kurikulum', []],
                 ],
             ]],
         ]],
@@ -330,6 +341,12 @@ return [
                     ['Tema, density, dan mode navigasi', ['Terang/gelap/sistem', 'Density dan radius sudut', 'Sidebar/menubar dan sembilan set ikon']],
                 ],
             ]],
+            ['kode' => 'DA11.4', 'nama' => 'Halaman Board', 'butir' => [
+                'done' => [
+                    ['Kolom status tanpa sub-modul terlipat saat Board dibuka', ['Kolom tanpa sub-modul tertutup saat halaman Board dibuka', 'Kolom yang punya sub-modul terbuka', 'Kolom Selesai (Done) selalu tertutup secara default', 'Bukaan manual pengguna tetap setelah data disegarkan', 'Verifikasi: 27 tes komponen Board lulus + npm run typecheck']],
+                    ['Rail modul menandai modul yang punya pekerjaan For Review', ['Modul dengan poin For Review berlatar warna berbeda di rail modul', 'Modul tanpa For Review tetap netral', 'Warna tetap terbaca saat modul itu sedang aktif', 'Verifikasi: tes pustaka + typecheck + pratinjau visual']],
+                ],
+            ]],
         ]],
         ['kode' => 'DA12', 'nama' => 'Dokumen & Berkas', 'sub' => [
             ['kode' => 'DA12.1', 'nama' => 'Arsip Dokumen', 'butir' => [
@@ -383,7 +400,7 @@ return [
         ]],
         ['kode' => 'MO3', 'nama' => 'Tagihan & Pembayaran', 'sub' => [
             ['kode' => 'MO3.1', 'nama' => 'API Keuangan', 'butir' => [
-                'in_progress' => [
+                'todo' => [
                     ['API tagihan dan pembayaran untuk portal wali', ['Daftar tagihan per anak', 'Riwayat pembayaran', 'Sisa tunggakan per anak']],
                 ],
             ]],

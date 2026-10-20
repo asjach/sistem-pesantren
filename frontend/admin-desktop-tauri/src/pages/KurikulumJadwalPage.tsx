@@ -15,9 +15,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
+import { Copy } from '@/icons';
 import { jamPendek } from '@/lib/jadwal';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
-import { listKelas, type Kelas } from '@/api/master';
+import { listKelas, listTahunAjaran, type Kelas } from '@/api/master';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
@@ -29,9 +30,10 @@ import { klipSeragam, sasaranBlokJadwal, sasaranKosongkanBlok, type BlokGrid, ty
 import PanelTemplate, { FIELDS_KERANGKA } from './TemplateJadwalPanel';
 import PanelHariLibur from './HariLiburPanel';
 import {
-  daftarGuruAktif, daftarJadwal, daftarMapel, daftarTemplateJadwal, simpanSelJadwal, terapkanTemplate,
+  daftarGuruAktif, daftarJadwal, daftarMapel, daftarTemplateJadwal, pratinjauSalinJadwal, salinJadwal,
+  simpanSelJadwal, terapkanTemplate,
   HARI_LABEL, JENIS_SLOT_LABEL,
-  type GuruAktif, type JadwalBaris, type MataPelajaran, type SlotJadwal,
+  type GuruAktif, type HasilSalinJadwal, type JadwalBaris, type MataPelajaran, type SlotJadwal,
   type TemplateJadwal, type TerapkanHasil,
 } from '@/api/kurikulum';
 
@@ -145,6 +147,12 @@ export default function KurikulumJadwalPage() {
   const [formatMapel, setFormatMapel] = useState<FormatMapel>('nama');
   const [formatGuru, setFormatGuru] = useState<FormatGuru>('nama');
   const [err, setErr] = useState('');
+  /** Dialog salin jadwal antar tahun ajaran (berlaku untuk satu jenjang). */
+  const [salinOpen, setSalinOpen] = useState(false);
+  const [taSumber, setTaSumber] = useState('');
+  const [taOpsi, setTaOpsi] = useState<string[]>([]);
+  const [pratinjauSalin, setPratinjauSalin] = useState<HasilSalinJadwal | null>(null);
+  const [salinBusy, setSalinBusy] = useState(false);
 
   /** Kelas yang ditampilkan dari rail Tingkat/Kelas. All/beberapa kelas =
    *  tampilan gabungan (satu baris per kelas × JP). */
@@ -191,6 +199,54 @@ export default function KurikulumJadwalPage() {
   }, [filterLoading, jenjang, ta]);
 
   useEffect(() => { void muatJadwal(); }, [muatJadwal]);
+
+  /** Daftar TA untuk pemilih sumber salin jadwal. */
+  useEffect(() => {
+    if (!salinOpen) return;
+    let hidup = true;
+    listTahunAjaran({ per_page: 100, termasuk_nonaktif: true })
+      .then((r) => { if (hidup) setTaOpsi(r.data.map((t) => t.nama)); })
+      .catch(() => { if (hidup) setTaOpsi([]); });
+    return () => { hidup = false; };
+  }, [salinOpen]);
+
+  /** Pratinjau otomatis saat TA sumber dipilih (tujuan = TA aktif). */
+  useEffect(() => {
+    if (!salinOpen || jenjang === null || ta === null || taSumber === '') {
+      setPratinjauSalin(null);
+      return;
+    }
+    let hidup = true;
+    pratinjauSalinJadwal(jenjang, taSumber, ta)
+      .then((r) => { if (hidup) setPratinjauSalin(r); })
+      .catch((e) => { if (hidup) { setPratinjauSalin(null); setErr(errorMessage(e)); } });
+    return () => { hidup = false; };
+  }, [salinOpen, jenjang, ta, taSumber]);
+
+  const bukaSalinJadwal = useCallback(() => {
+    setTaSumber('');
+    setPratinjauSalin(null);
+    setSalinOpen(true);
+  }, []);
+
+  const jalankanSalinJadwal = useCallback(async () => {
+    if (jenjang === null || ta === null || taSumber === '') return;
+    if (pratinjauSalin === null || pratinjauSalin.hitung.jadwal === 0) {
+      toast.error('Tidak ada jadwal baru untuk disalin.');
+      return;
+    }
+    setSalinBusy(true);
+    try {
+      const r = await salinJadwal(jenjang, taSumber, ta);
+      toast.success(r.pesan ?? 'Jadwal disalin.');
+      setSalinOpen(false);
+      await muatJadwal();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setSalinBusy(false);
+    }
+  }, [jenjang, ta, taSumber, pratinjauSalin, muatJadwal]);
 
   useEffect(() => {
     if (jenjang === null || ta === null) { setMapelAktif([]); setGuruAktif([]); return; }
@@ -875,8 +931,15 @@ export default function KurikulumJadwalPage() {
                 </ComboboxContent>
               </ComboboxRoot>
             </LabeledCombobox>
-            {kelasTunggal !== null && (
             <div className="ml-auto flex flex-wrap items-center gap-2">
+              {canTambah && jenjang !== null && ta !== null && (
+                <Button type="button" variant="outline" size="sm" id="btn_salin_jadwal_ta"
+                  onClick={bukaSalinJadwal}>
+                  <Copy data-icon="inline-start" size={14} /> Salin dari TA lain
+                </Button>
+              )}
+              {kelasTunggal !== null && (
+              <>
               <label className="text-xs text-muted-foreground" htmlFor="select_template_kelas">Template</label>
               <select
                 id="select_template_kelas"
@@ -912,8 +975,9 @@ export default function KurikulumJadwalPage() {
                   </Button>
                 </>
               )}
+              </>
+              )}
             </div>
-            )}
           </div>
 
           {hasilKelas !== null && hasilKelas.dilewati.length > 0 && (
@@ -1030,6 +1094,73 @@ export default function KurikulumJadwalPage() {
             <Button type="button" variant="default" id="btn_simpan_sel_jadwal" disabled={selBusy}
               onClick={() => void simpanSel()}>
               Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={salinOpen} onOpenChange={setSalinOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Salin jadwal dari tahun ajaran lain</DialogTitle>
+            <DialogDescription>
+              Menyalin seluruh jadwal satu jenjang: kelas, slot jam, pengampu, dan sel jadwal.
+              Hanya kelas yang sudah ada di tahun ajaran tujuan yang disalin; sel yang sudah terisi tidak ditimpa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="text-xs text-muted-foreground">
+              Lembaga: <span className="font-medium text-foreground">{jenjang ?? '—'}</span>
+              {' · '}Tujuan: <span className="font-medium text-foreground">{ta ?? '—'}</span>
+            </div>
+            <label className="flex flex-col gap-1 text-xs" htmlFor="sel_salin_jadwal_ta">
+              Tahun ajaran sumber
+              <select
+                id="sel_salin_jadwal_ta"
+                className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+                value={taSumber}
+                onChange={(e) => { setTaSumber(e.target.value); setPratinjauSalin(null); }}
+              >
+                <option value="">— pilih tahun ajaran —</option>
+                {taOpsi.filter((t) => t !== ta).map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+
+            {pratinjauSalin ? (
+              <div className="border p-2 text-[11px]" style={{ borderColor: 'var(--divider)' }}>
+                <p className="font-medium">
+                  Kelas: {pratinjauSalin.kelas.length} · slot: {pratinjauSalin.hitung.slot} · pengampu: {pratinjauSalin.hitung.pengampu} · sel jadwal: {pratinjauSalin.hitung.jadwal}
+                </p>
+                {pratinjauSalin.hitung.jadwal_dilewati > 0 ? (
+                  <p className="mt-1 text-muted-foreground">
+                    Dilewati karena sel sudah terisi: {pratinjauSalin.hitung.jadwal_dilewati} sel.
+                  </p>
+                ) : null}
+                {pratinjauSalin.hitung.guru_dikosongkan > 0 ? (
+                  <p className="mt-1 text-muted-foreground">
+                    Guru tanpa keaktifan di TA tujuan (dikosongkan): {pratinjauSalin.hitung.guru_dikosongkan}.
+                  </p>
+                ) : null}
+                {pratinjauSalin.kelas_dilewati.length > 0 ? (
+                  <p className="mt-1 text-muted-foreground">
+                    Kelas dilewati (tidak ada di TA tujuan): {pratinjauSalin.kelas_dilewati.map((k) => k.nama).join(', ')}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => setSalinOpen(false)}>Batal</Button>
+            <Button
+              type="button"
+              size="sm"
+              id="btn_salin_jadwal_jalankan"
+              disabled={salinBusy || pratinjauSalin === null || pratinjauSalin.hitung.jadwal === 0}
+              onClick={() => void jalankanSalinJadwal()}
+            >
+              {pratinjauSalin ? `Salin ${pratinjauSalin.hitung.jadwal} sel` : 'Salin'}
             </Button>
           </DialogFooter>
         </DialogContent>

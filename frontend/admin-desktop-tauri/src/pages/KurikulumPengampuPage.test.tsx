@@ -20,6 +20,15 @@ const uji = vi.hoisted(() => {
   const GURU = [
     { keaktifan_pegawai_id: 7, pegawai_id: 5, nama_lengkap: 'Ust. Ahmad', nip: null, gelar_depan: null, gelar_belakang: null, jenis_kelamin: 'L' },
   ];
+  /** Pratinjau salin: sumber punya 2 mapel, tujuan sudah punya Fiqih. */
+  const PRATINJAU = {
+    tujuan: { kelas_id: 1, nama_kelas: '1A', tahun_ajaran: '2026/2027', jenjang: 'MI' },
+    sumber: { kelas_id: 2, nama_kelas: '1B', tahun_ajaran: '2026/2027', jenjang: 'MI' },
+    ditambah: [{ id: 11, nama_mapel: 'Bahasa Arab', kelompok: 'formal', kkm: null }],
+    dilewati: [{ id: 10, nama_mapel: 'Fiqih', kelompok: 'formal', kkm: 70 }],
+    jumlah_ditambah: 1,
+    jumlah_dilewati: 1,
+  };
   /** Daftar pengampu kelas 1A: Fiqih sudah berguru. Kelas 1B masih kosong. */
   const PENGAMPU = {
     kelas: KELAS,
@@ -30,7 +39,7 @@ const uji = vi.hoisted(() => {
     }],
   };
   return {
-    KELAS, MAPEL, GURU, PENGAMPU,
+    KELAS, MAPEL, GURU, PENGAMPU, PRATINJAU,
     listKelas: vi.fn(async () => ({
       pesan: 'ok', data: KELAS,
       meta: { current_page: 1, last_page: 1, total: 2, per_page: 1000 },
@@ -40,6 +49,7 @@ const uji = vi.hoisted(() => {
     daftarPengampus: vi.fn(async () => PENGAMPU),
     simpanPengampu: vi.fn(async () => ({ pesan: 'Pengampu disimpan.' })),
     salinPengampu: vi.fn(async () => ({ pesan: 'Daftar mapel disalin: 1 mapel ditambahkan (guru belum diisi).', ditambah: 1 })),
+    pratinjauSalinPengampu: vi.fn(async () => PRATINJAU),
   };
 });
 
@@ -83,6 +93,7 @@ vi.mock('@/api/kurikulum', async (importOriginal) => {
     daftarPengampus: uji.daftarPengampus,
     simpanPengampu: uji.simpanPengampu,
     salinPengampu: uji.salinPengampu,
+    pratinjauSalinPengampu: uji.pratinjauSalinPengampu,
   };
 });
 
@@ -211,15 +222,22 @@ describe('KurikulumPengampuPage', () => {
     await waitFor(() => expect(uji.daftarPengampus).toHaveBeenCalledTimes(2));
   });
 
-  it('dialog Salin memanggil salinPengampu dengan kelas tujuan & sumber', async () => {
+  it('dialog Salin menampilkan pratinjau lalu menyalin', async () => {
     renderHalaman();
     await waitFor(() => expect(teksSel('nama_mapel')).toContain('Fiqih'));
 
     await userEvent.click(screen.getByRole('button', { name: 'Salin dari kelas lain' }));
     expect(await screen.findByText('Salin daftar mapel dari kelas lain')).toBeInTheDocument();
 
+    // Sumber: kelas lain pada TA yang sama.
     await userEvent.selectOptions(screen.getByLabelText('Kelas sumber'), '2');
-    await userEvent.click(screen.getByRole('button', { name: 'Salin' }));
+
+    // Pratinjau muncul sebelum menyimpan: yang ditambah & yang dilewati.
+    expect(await screen.findByText(/Akan ditambahkan: 1 mapel/)).toBeInTheDocument();
+    expect(screen.getByText(/Bahasa Arab/)).toBeInTheDocument();
+    expect(uji.pratinjauSalinPengampu).toHaveBeenCalledWith(1, 2);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Salin 1 mapel' }));
 
     await waitFor(() => expect(uji.salinPengampu).toHaveBeenCalledWith(1, 2));
     await waitFor(() => expect(uji.daftarPengampus).toHaveBeenCalledTimes(2));

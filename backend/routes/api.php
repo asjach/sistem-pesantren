@@ -406,6 +406,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('kurikulum/pengampus', [KurikulumController::class, 'indexPengampus'])->middleware('permission:kurikulum.lihat');
         Route::put('kurikulum/pengampu', [KurikulumController::class, 'simpanPengampu'])->middleware('permission:kurikulum.ubah');
         Route::post('kurikulum/pengampu/salin', [KurikulumController::class, 'salinPengampus'])->middleware('permission:kurikulum.tambah');
+        Route::get('kurikulum/pengampu/salin/pratinjau', [KurikulumController::class, 'pratinjauSalinPengampus'])->middleware('permission:kurikulum.lihat');
         Route::get('kurikulum/pengampu/import-template', [KurikulumController::class, 'templatePengampu'])->middleware('permission:kurikulum.lihat');
         Route::post('kurikulum/pengampu/import-potong', [KurikulumController::class, 'potongPengampu'])->middleware(['permission:kurikulum.ubah', 'throttle:imports']);
         Route::post('kurikulum/pengampu/import-potong/{sesi}/batal', [KurikulumController::class, 'batalPotongPengampu'])->middleware('permission:kurikulum.ubah');
@@ -415,6 +416,8 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::match(['put', 'patch'], 'kurikulum/slot/{slot}', [JadwalPelajaranController::class, 'updateSlot'])->middleware('permission:kurikulum.ubah');
         Route::delete('kurikulum/slot/{slot}', [JadwalPelajaranController::class, 'destroySlot'])->middleware('permission:kurikulum.hapus');
         Route::get('kurikulum/jadwal', [JadwalPelajaranController::class, 'indexJadwal'])->middleware('permission:kurikulum.lihat');
+        Route::get('kurikulum/jadwal/salin/pratinjau', [JadwalPelajaranController::class, 'pratinjauSalinJadwal'])->middleware('permission:kurikulum.lihat');
+        Route::post('kurikulum/jadwal/salin', [JadwalPelajaranController::class, 'salinJadwal'])->middleware('permission:kurikulum.tambah');
         Route::post('kurikulum/jadwal', [JadwalPelajaranController::class, 'storeJadwal'])->middleware('permission:kurikulum.tambah');
         Route::put('kurikulum/jadwal/sel', [JadwalPelajaranController::class, 'simpanSelJadwal'])->middleware('permission:kurikulum.ubah');
         Route::delete('kurikulum/jadwal/{jadwal}', [JadwalPelajaranController::class, 'destroyJadwal'])->middleware('permission:kurikulum.hapus');

@@ -243,6 +243,35 @@ export function salinPengampu(kelasId: number, dariKelasId: number) {
   });
 }
 
+/** Satu mapel pada pratinjau salin. */
+export interface MapelSalin {
+  id: number;
+  nama_mapel: string | null;
+  kelompok: string | null;
+  kkm: number | null;
+}
+
+/** Perkiraan hasil salin: mana yang akan ditambah dan mana yang sudah ada.
+ *  Sumber boleh dari tahun ajaran lain. */
+export interface PratinjauSalinPengampu {
+  tujuan: { kelas_id: number; nama_kelas: string; tahun_ajaran: string; jenjang: string };
+  sumber: { kelas_id: number; nama_kelas: string; tahun_ajaran: string; jenjang: string };
+  ditambah: MapelSalin[];
+  dilewati: MapelSalin[];
+  jumlah_ditambah: number;
+  jumlah_dilewati: number;
+}
+
+/** Pratinjau salin mapel tanpa menyimpan apa pun. */
+export function pratinjauSalinPengampu(kelasId: number, dariKelasId: number) {
+  const q = new URLSearchParams({
+    kelas_id: String(kelasId),
+    dari_kelas_id: String(dariKelasId),
+  });
+
+  return api<PratinjauSalinPengampu>(`/admin/kurikulum/pengampu/salin/pratinjau?${q.toString()}`);
+}
+
 /** Kolom template import pengampu (multi-lembaga/TA; `guru` = NIP/nama, kosong = tanpa guru). */
 export const KOLOM_IMPORT_PENGAMPU = ['jenjang', 'tahun_ajaran', 'nama_kelas', 'nama_mapel', 'guru'];
 
@@ -299,6 +328,49 @@ export function simpanSelJadwal(data: {
 
 export function hapusJadwal(id: number) {
   return api<{ pesan: string }>(`/admin/kurikulum/jadwal/${id}`, { method: 'DELETE' });
+}
+
+/** Angka ringkas hasil salin jadwal antar tahun ajaran. */
+export interface HitungSalinJadwal {
+  slot: number;
+  pengampu: number;
+  jadwal: number;
+  jadwal_dilewati: number;
+  guru_dikosongkan: number;
+}
+
+/** Hasil pratinjau/eksekusi salin jadwal antar tahun ajaran. */
+export interface HasilSalinJadwal {
+  jenjang: string;
+  sumber: string;
+  tujuan: string;
+  kelas: ({ dari: string; ke: string } & HitungSalinJadwal)[];
+  kelas_dilewati: { nama: string; alasan: string }[];
+  hitung: HitungSalinJadwal;
+  pesan?: string;
+}
+
+/** Pratinjau salin jadwal antar TA (tidak menulis apa pun). */
+export function pratinjauSalinJadwal(jenjang: string, tahunAjaranSumber: string, tahunAjaranTujuan: string) {
+  const q = new URLSearchParams({
+    jenjang,
+    tahun_ajaran_sumber: tahunAjaranSumber,
+    tahun_ajaran_tujuan: tahunAjaranTujuan,
+  });
+
+  return api<HasilSalinJadwal>(`/admin/kurikulum/jadwal/salin/pratinjau?${q.toString()}`);
+}
+
+/** Jalankan salin jadwal antar TA (sejenjang). */
+export function salinJadwal(jenjang: string, tahunAjaranSumber: string, tahunAjaranTujuan: string) {
+  return api<HasilSalinJadwal>('/admin/kurikulum/jadwal/salin', {
+    method: 'POST',
+    body: JSON.stringify({
+      jenjang,
+      tahun_ajaran_sumber: tahunAjaranSumber,
+      tahun_ajaran_tujuan: tahunAjaranTujuan,
+    }),
+  });
 }
 
 export interface TemplateJadwal {

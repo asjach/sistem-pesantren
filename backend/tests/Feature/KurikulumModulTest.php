@@ -2,14 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Models\JadwalPelajaran;
 use App\Models\KeaktifanPegawai;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\MataPelajaran;
 use App\Models\Pegawai;
+use App\Models\PengampuMapel;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
+use App\Models\SlotJamPelajaran;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -63,10 +66,10 @@ class KurikulumModulTest extends TestCase
         ]);
     }
 
-    private function kelas(string $nama, string $tingkat, string $jenjang = 'MI'): Kelas
+    private function kelas(string $nama, string $tingkat, string $jenjang = 'MI', string $ta = self::TA): Kelas
     {
         return Kelas::create([
-            'jenjang' => $jenjang, 'tahun_ajaran' => self::TA, 'nama_kelas' => $nama, 'tingkat' => $tingkat,
+            'jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'nama_kelas' => $nama, 'tingkat' => $tingkat,
         ]);
     }
 
@@ -551,5 +554,151 @@ class KurikulumModulTest extends TestCase
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('dari_kelas_id');
+    }
+
+    /**
+     * Pratinjau salin mapel: menunjukkan mana yang ditambah vs dilewati, tidak
+     * menulis apa pun, dan menolak sumber dari tahun ajaran lain — salin antar
+     * tahun ajaran adalah fitur halaman Jadwal Pelajaran.
+     */
+    public function test_05b_pratinjau_salin_mapel_dan_penolakan_antar_tahun_ajaran(): void
+    {
+        $this->lembaga('MI');
+        $taLalu = '2025/2026';
+        TahunAjaran::create(['nama' => $taLalu, 'is_aktif' => false]);
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $sumber = $this->kelas('1A', '1');
+        $tujuan = $this->kelas('2A', '2');
+        $fiqih = $this->mapel('Fiqih');
+        $arab = $this->mapel('Bahasa Arab');
+
+        // Sumber: Fiqih + Bahasa Arab. Tujuan: baru punya Fiqih.
+        PengampuMapel::create(['kelas_id' => $sumber->id, 'mata_pelajaran_id' => $fiqih->id]);
+        PengampuMapel::create(['kelas_id' => $sumber->id, 'mata_pelajaran_id' => $arab->id]);
+        PengampuMapel::create(['kelas_id' => $tujuan->id, 'mata_pelajaran_id' => $fiqih->id]);
+
+        $pratinjau = $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/pengampu/salin/pratinjau?kelas_id={$tujuan->id}&dari_kelas_id={$sumber->id}")
+            ->assertStatus(200)
+            ->assertJsonPath('jumlah_ditambah', 1)
+            ->assertJsonPath('jumlah_dilewati', 1)
+            ->assertJsonPath('sumber.tahun_ajaran', self::TA)
+            ->json();
+
+        $this->assertSame([$arab->id], array_column($pratinjau['ditambah'], 'id'));
+        $this->assertSame([$fiqih->id], array_column($pratinjau['dilewati'], 'id'));
+
+        // Pratinjau murni baca: belum ada baris baru.
+        $this->assertSame(1, PengampuMapel::where('kelas_id', $tujuan->id)->count());
+
+        // Sumber dari tahun ajaran lain ditolak.
+        $lama = $this->kelas('1A', '1', 'MI', $taLalu);
+        $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/pengampu/salin/pratinjau?kelas_id={$tujuan->id}&dari_kelas_id={$lama->id}")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('dari_kelas_id');
+
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/pengampu/salin', [
+                'kelas_id' => $tujuan->id, 'dari_kelas_id' => $sumber->id,
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('ditambah', 1);
+
+        $this->assertSame(2, PengampuMapel::where('kelas_id', $tujuan->id)->count());
+
+        // Setelah salin, tidak ada lagi yang bisa ditambahkan.
+        $this->actingAs($super, 'sanctum')
+            ->getJson("/api/admin/kurikulum/pengampu/salin/pratinjau?kelas_id={$tujuan->id}&dari_kelas_id={$sumber->id}")
+            ->assertStatus(200)
+            ->assertJsonPath('jumlah_ditambah', 0)
+            ->assertJsonPath('jumlah_dilewati', 2);
+    }
+
+    /**
+     * Salin JADWAL antar tahun ajaran: hanya kelas yang sudah ada di TA tujuan,
+     * guru dipetakan ke keaktifan TA tujuan (kosong bila tidak aktif), dan sel
+     * yang sudah terisi tidak ditimpa.
+     */
+    public function test_06_salin_jadwal_antar_tahun_ajaran(): void
+    {
+        $this->lembaga('MI');
+        $taLalu = '2025/2026';
+        TahunAjaran::create(['nama' => $taLalu, 'is_aktif' => false]);
+        TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
+        $super = $this->superAdmin();
+
+        $asal = $this->kelas('1A', '1', 'MI', $taLalu);
+        $tujuan = $this->kelas('1A', '1');
+        $this->kelas('2A', '2', 'MI', $taLalu); // tanpa pasangan di TA tujuan
+
+        $fiqih = $this->mapel('Fiqih');
+        $arab = $this->mapel('Bahasa Arab');
+
+        // Guru aktif di kedua TA, dan guru yang hanya aktif di TA lama.
+        $p1 = Pegawai::create(['nama_lengkap' => 'Ust. Ahmad', 'jenis_kelamin' => 'L']);
+        $kSumber1 = KeaktifanPegawai::create(['pegawai_id' => $p1->id, 'jenjang' => 'MI', 'tahun_ajaran' => $taLalu, 'status_keaktifan' => 'Ya']);
+        $kTujuan1 = KeaktifanPegawai::create(['pegawai_id' => $p1->id, 'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'status_keaktifan' => 'Ya']);
+
+        $p2 = Pegawai::create(['nama_lengkap' => 'Ust. Lama', 'jenis_kelamin' => 'L']);
+        $kSumber2 = KeaktifanPegawai::create(['pegawai_id' => $p2->id, 'jenjang' => 'MI', 'tahun_ajaran' => $taLalu, 'status_keaktifan' => 'Ya']);
+
+        $pengampuFiqih = PengampuMapel::create(['kelas_id' => $asal->id, 'mata_pelajaran_id' => $fiqih->id, 'keaktifan_pegawai_id' => $kSumber1->id]);
+        $pengampuArab = PengampuMapel::create(['kelas_id' => $asal->id, 'mata_pelajaran_id' => $arab->id, 'keaktifan_pegawai_id' => $kSumber2->id]);
+
+        $slot1 = SlotJamPelajaran::create([
+            'jenjang' => 'MI', 'kelas_id' => $asal->id, 'nama_slot' => 'Jam 1',
+            'jenis' => 'pelajaran', 'urutan' => 1,
+        ]);
+        JadwalPelajaran::create(['kelas_id' => $asal->id, 'pengampu_mapel_id' => $pengampuFiqih->id, 'slot_jam_id' => $slot1->id, 'hari' => 'senin']);
+        JadwalPelajaran::create(['kelas_id' => $asal->id, 'pengampu_mapel_id' => $pengampuArab->id, 'slot_jam_id' => $slot1->id, 'hari' => 'selasa']);
+
+        // Pratinjau: angka benar, tetapi belum ada yang ditulis.
+        $pratinjau = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/kurikulum/jadwal/salin/pratinjau?'.http_build_query([
+                'jenjang' => 'MI', 'tahun_ajaran_sumber' => $taLalu, 'tahun_ajaran_tujuan' => self::TA,
+            ]))
+            ->assertStatus(200)
+            ->assertJsonPath('hitung.slot', 1)
+            ->assertJsonPath('hitung.pengampu', 2)
+            ->assertJsonPath('hitung.jadwal', 2)
+            ->assertJsonPath('hitung.guru_dikosongkan', 1)
+            ->json();
+
+        $this->assertCount(1, $pratinjau['kelas']);
+        $this->assertSame('2A', $pratinjau['kelas_dilewati'][0]['nama']);
+        $this->assertSame(0, SlotJamPelajaran::where('kelas_id', $tujuan->id)->count());
+
+        // Eksekusi.
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/jadwal/salin', [
+                'jenjang' => 'MI', 'tahun_ajaran_sumber' => $taLalu, 'tahun_ajaran_tujuan' => self::TA,
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('hitung.slot', 1)
+            ->assertJsonPath('hitung.pengampu', 2)
+            ->assertJsonPath('hitung.jadwal', 2);
+
+        $jadwalTujuan = JadwalPelajaran::where('kelas_id', $tujuan->id)->get();
+        $this->assertCount(2, $jadwalTujuan);
+        $this->assertEqualsCanonicalizing(['senin', 'selasa'], $jadwalTujuan->pluck('hari')->all());
+
+        // Guru dipetakan ke keaktifan TA tujuan; yang tidak aktif dikosongkan.
+        $peta = PengampuMapel::where('kelas_id', $tujuan->id)->get()->keyBy('mata_pelajaran_id');
+        $this->assertSame($kTujuan1->id, $peta[$fiqih->id]->keaktifan_pegawai_id);
+        $this->assertNull($peta[$arab->id]->keaktifan_pegawai_id);
+
+        // Salin ulang: semua sel sudah terisi -> tidak ada yang ditambah.
+        $this->actingAs($super, 'sanctum')
+            ->postJson('/api/admin/kurikulum/jadwal/salin', [
+                'jenjang' => 'MI', 'tahun_ajaran_sumber' => $taLalu, 'tahun_ajaran_tujuan' => self::TA,
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('hitung.jadwal', 0)
+            ->assertJsonPath('hitung.jadwal_dilewati', 2);
+
+        $this->assertSame(2, JadwalPelajaran::where('kelas_id', $tujuan->id)->count());
     }
 }

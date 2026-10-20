@@ -444,26 +444,10 @@ class KurikulumController extends Controller
      */
     public function salinPengampus(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'kelas_id' => ['required', 'integer', 'exists:kelas,id'],
-            'dari_kelas_id' => ['required', 'integer', 'exists:kelas,id', 'different:kelas_id'],
-        ]);
-        $tujuan = Kelas::findOrFail($data['kelas_id']);
-        $sumber = Kelas::findOrFail($data['dari_kelas_id']);
-        $this->authorizeLembaga($request->user(), $tujuan->jenjang);
-        $this->authorizeLembaga($request->user(), $sumber->jenjang);
+        [$tujuan, $sumber] = $this->kelasSalin($request);
 
-        if ($sumber->jenjang !== $tujuan->jenjang) {
-            throw ValidationException::withMessages([
-                'dari_kelas_id' => 'Kelas sumber harus sejenjang dengan kelas tujuan.',
-            ]);
-        }
-
-        $sudah = PengampuMapel::where('kelas_id', $tujuan->id)->pluck('mata_pelajaran_id')->all();
-        $mapelIds = PengampuMapel::where('kelas_id', $sumber->id)
-            ->whereNotIn('mata_pelajaran_id', $sudah)
-            ->pluck('mata_pelajaran_id')
-            ->all();
+        $rencana = $this->rencanaSalin($tujuan, $sumber);
+        $mapelIds = array_column($rencana['ditambah'], 'id');
 
         DB::transaction(function () use ($tujuan, $mapelIds) {
             foreach ($mapelIds as $mapelId) {
@@ -481,6 +465,100 @@ class KurikulumController extends Controller
                 : 'Semua mapel kelas sumber sudah ada di kelas tujuan — tidak ada yang ditambahkan.',
             'ditambah' => count($mapelIds),
         ]);
+    }
+
+    /**
+     * GET /admin/kurikulum/pengampu/salin/pratinjau — perkiraan hasil salin
+     * SEBELUM menyimpan: mapel mana yang akan ditambahkan dan mana yang sudah ada.
+     */
+    public function pratinjauSalinPengampus(Request $request): JsonResponse
+    {
+        [$tujuan, $sumber] = $this->kelasSalin($request);
+
+        $rencana = $this->rencanaSalin($tujuan, $sumber);
+
+        return response()->json([
+            'tujuan' => [
+                'kelas_id' => $tujuan->id,
+                'nama_kelas' => $tujuan->nama_kelas,
+                'tahun_ajaran' => $tujuan->tahun_ajaran,
+                'jenjang' => $tujuan->jenjang,
+            ],
+            'sumber' => [
+                'kelas_id' => $sumber->id,
+                'nama_kelas' => $sumber->nama_kelas,
+                'tahun_ajaran' => $sumber->tahun_ajaran,
+                'jenjang' => $sumber->jenjang,
+            ],
+            'ditambah' => $rencana['ditambah'],
+            'dilewati' => $rencana['dilewati'],
+            'jumlah_ditambah' => count($rencana['ditambah']),
+            'jumlah_dilewati' => count($rencana['dilewati']),
+        ]);
+    }
+
+    /**
+     * Validasi bersama salin/pratinjau: dua kelas sejenjang DAN satu tahun
+     * ajaran, keduanya dalam lingkup lembaga pengguna.
+     *
+     * Salin antar tahun ajaran sengaja ditolak di sini — itu tugas halaman
+     * Jadwal Pelajaran, bukan salin daftar mapel.
+     *
+     * @return array{0: Kelas, 1: Kelas}
+     */
+    private function kelasSalin(Request $request): array
+    {
+        $data = $request->validate([
+            'kelas_id' => ['required', 'integer', 'exists:kelas,id'],
+            'dari_kelas_id' => ['required', 'integer', 'exists:kelas,id', 'different:kelas_id'],
+        ]);
+
+        $tujuan = Kelas::findOrFail($data['kelas_id']);
+        $sumber = Kelas::findOrFail($data['dari_kelas_id']);
+        $this->authorizeLembaga($request->user(), $tujuan->jenjang);
+        $this->authorizeLembaga($request->user(), $sumber->jenjang);
+
+        if ($sumber->jenjang !== $tujuan->jenjang) {
+            throw ValidationException::withMessages([
+                'dari_kelas_id' => 'Kelas sumber harus sejenjang dengan kelas tujuan.',
+            ]);
+        }
+
+        if ($sumber->tahun_ajaran !== $tujuan->tahun_ajaran) {
+            throw ValidationException::withMessages([
+                'dari_kelas_id' => 'Kelas sumber harus berada di tahun ajaran yang sama. Untuk menyalin antar tahun ajaran, gunakan halaman Jadwal Pelajaran.',
+            ]);
+        }
+
+        return [$tujuan, $sumber];
+    }
+
+    /**
+     * Rencana salin: pisahkan mapel sumber yang belum ada di kelas tujuan
+     * (ditambah) dari yang sudah ada (dilewati). Dipakai pratinjau dan eksekusi
+     * agar keduanya tidak mungkin berbeda.
+     *
+     * @return array{ditambah: array<int, array<string, mixed>>, dilewati: array<int, array<string, mixed>>}
+     */
+    private function rencanaSalin(Kelas $tujuan, Kelas $sumber): array
+    {
+        $sudah = array_map('intval', PengampuMapel::where('kelas_id', $tujuan->id)->pluck('mata_pelajaran_id')->all());
+
+        $mapel = fn (PengampuMapel $p): array => [
+            'id' => (int) $p->mata_pelajaran_id,
+            'nama_mapel' => $p->mataPelajaran?->nama_mapel,
+            'kelompok' => $p->mataPelajaran?->kelompok,
+            'kkm' => $p->mataPelajaran?->kkm,
+        ];
+
+        $baris = PengampuMapel::with('mataPelajaran')->where('kelas_id', $sumber->id)->get();
+
+        $belum = $baris->reject(fn (PengampuMapel $p): bool => in_array((int) $p->mata_pelajaran_id, $sudah, true));
+
+        return [
+            'ditambah' => $belum->map($mapel)->values()->all(),
+            'dilewati' => $baris->filter(fn (PengampuMapel $p): bool => in_array((int) $p->mata_pelajaran_id, $sudah, true))->map($mapel)->values()->all(),
+        ];
     }
 
     /** GET /api/admin/kurikulum/pengampu/import-template — template Excel import pengampu (multi-lembaga/TA). */

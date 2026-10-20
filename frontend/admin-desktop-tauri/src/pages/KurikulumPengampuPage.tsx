@@ -16,10 +16,10 @@ import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
-  daftarGuruAktif, daftarMapel, daftarPengampus, salinPengampu, simpanPengampu,
+  daftarGuruAktif, daftarMapel, daftarPengampus, pratinjauSalinPengampu, salinPengampu, simpanPengampu,
   batalPotongPengampu, importPengampuPotong, unduhGalatPengampu, unduhTemplatePengampu,
   KOLOM_IMPORT_PENGAMPU,
-  type GuruAktif, type MataPelajaran, type PengampusBaris,
+  type GuruAktif, type MataPelajaran, type PengampusBaris, type PratinjauSalinPengampu,
 } from '@/api/kurikulum';
 
 /**
@@ -90,10 +90,14 @@ export default function KurikulumPengampuPage() {
   const [tambahKelas, setTambahKelas] = useState<number | ''>('');
   const [tambahMapel, setTambahMapel] = useState<number | ''>('');
   const [tambahGuru, setTambahGuru] = useState<number | ''>('');
-  /** Dialog "Salin dari kelas lain": kelas tujuan + kelas sumber. */
+  /** Dialog "Salin dari kelas lain": kelas tujuan + kelas sumber (TA yang sama). */
   const [salinOpen, setSalinOpen] = useState(false);
   const [salinTujuan, setSalinTujuan] = useState<number | ''>('');
   const [salinSumber, setSalinSumber] = useState<number | ''>('');
+  const [pratinjau, setPratinjau] = useState<PratinjauSalinPengampu | null>(null);
+  const [pratinjauLoading, setPratinjauLoading] = useState(false);
+  /** Nomor urut pratinjau: hanya hasil TERAKHIR yang boleh menulis state. */
+  const pratinjauSeq = useRef(0);
   /** Nilai guru terbaru per baris (kunci baris = `kelas-mapel`) — sumber payload
    *  sync. Berisi ref (bukan state) karena dua edit sel beruntun dalam satu
    *  antrean simpan harus saling membaca nilai terbaru: endpoint
@@ -153,6 +157,25 @@ export default function KurikulumPengampuPage() {
       .catch((e) => { if (hidup) setErr(errorMessage(e)); });
     return () => { hidup = false; };
   }, [jenjang, ta]);
+
+  /** Pratinjau dimuat otomatis begitu kelas tujuan & sumber dipilih. Nomor urut
+   *  mencegah hasil lama menimpa pilihan yang lebih baru. */
+  useEffect(() => {
+    if (!salinOpen || salinTujuan === '' || salinSumber === '') {
+      setPratinjau(null);
+      setPratinjauLoading(false);
+      return;
+    }
+
+    const seq = ++pratinjauSeq.current;
+    setPratinjauLoading(true);
+    pratinjauSalinPengampu(salinTujuan, salinSumber)
+      .then((r) => { if (seq === pratinjauSeq.current) setPratinjau(r); })
+      .catch((e) => {
+        if (seq === pratinjauSeq.current) { setPratinjau(null); setErr(errorMessage(e)); }
+      })
+      .finally(() => { if (seq === pratinjauSeq.current) setPratinjauLoading(false); });
+  }, [salinOpen, salinTujuan, salinSumber]);
 
   /** Pengampu seluruh kelas terpilih dalam SATU request (`daftarPengampus`) —
    *  endpoint per-kelas membuat N request yang saling antre dan tabel tampil
@@ -267,18 +290,21 @@ export default function KurikulumPengampuPage() {
   const bukaSalin = useCallback(() => {
     setSalinTujuan(kelasIds[0] ?? '');
     setSalinSumber('');
+    setPratinjau(null);
     setSalinOpen(true);
   }, [kelasIds]);
 
   const simpanSalin = useCallback(async () => {
     if (salinTujuan === '' || salinSumber === '') { toast.error('Pilih kelas tujuan dan kelas sumber dulu.'); return; }
+    if (pratinjau === null || pratinjau.jumlah_ditambah === 0) { toast.error('Tidak ada mapel baru untuk disalin.'); return; }
     try {
       const r = await salinPengampu(salinTujuan, salinSumber);
       toast.success(r.pesan);
       setSalinOpen(false);
+      setPratinjau(null);
       await muatPengampu(kelasIds);
     } catch (e) { toast.error(errorMessage(e)); }
-  }, [salinTujuan, salinSumber, muatPengampu, kelasIds]);
+  }, [salinTujuan, salinSumber, pratinjau, muatPengampu, kelasIds]);
 
   /** Kolom tabel pengampu. "Guru pengampu" = select yang langsung tersimpan
    *  saat dipilih (tanpa mode Edit); pilihannya mengikuti daftar guru aktif
@@ -451,7 +477,7 @@ export default function KurikulumPengampuPage() {
           <DialogHeader>
             <DialogTitle>Salin daftar mapel dari kelas lain</DialogTitle>
             <DialogDescription>
-              Mapel kelas sumber yang belum ada di kelas tujuan ditambahkan tanpa guru — isi guru kemudian lewat kolom “Guru pengampu”.
+              Kelas sumber harus berada di tahun ajaran yang sama dan sejenjang — pilih kelas dengan struktur kurikulum yang sama (mis. tingkat 1 ke tingkat 2). Mapel yang belum ada ditambahkan tanpa guru.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
@@ -461,7 +487,7 @@ export default function KurikulumPengampuPage() {
                 id="sel_salin_tujuan"
                 className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
                 value={salinTujuan === '' ? '' : String(salinTujuan)}
-                onChange={(e) => setSalinTujuan(e.target.value === '' ? '' : Number(e.target.value))}
+                onChange={(e) => { setSalinTujuan(e.target.value === '' ? '' : Number(e.target.value)); setPratinjau(null); }}
               >
                 <option value="">— pilih kelas —</option>
                 {kelasTampil.map((k) => (
@@ -475,7 +501,7 @@ export default function KurikulumPengampuPage() {
                 id="sel_salin_sumber"
                 className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
                 value={salinSumber === '' ? '' : String(salinSumber)}
-                onChange={(e) => setSalinSumber(e.target.value === '' ? '' : Number(e.target.value))}
+                onChange={(e) => { setSalinSumber(e.target.value === '' ? '' : Number(e.target.value)); setPratinjau(null); }}
               >
                 <option value="">— pilih kelas —</option>
                 {kelasOpsi.filter((k) => k.id !== salinTujuan).map((k) => (
@@ -483,11 +509,38 @@ export default function KurikulumPengampuPage() {
                 ))}
               </select>
             </label>
+
+            {pratinjauLoading ? (
+              <p className="text-[11px] text-muted-foreground">Memeriksa daftar mapel…</p>
+            ) : null}
+            {!pratinjauLoading && pratinjau ? (
+              <div className="border p-2 text-[11px]" style={{ borderColor: 'var(--divider)' }}>
+                <p className="font-medium">
+                  Akan ditambahkan: {pratinjau.jumlah_ditambah} mapel
+                  {pratinjau.jumlah_dilewati > 0 ? ` · dilewati karena sudah ada: ${pratinjau.jumlah_dilewati}` : ''}
+                </p>
+                {pratinjau.jumlah_ditambah > 0 ? (
+                  <ul className="mt-1 flex max-h-40 flex-col gap-0.5 overflow-y-auto text-muted-foreground">
+                    {pratinjau.ditambah.map((m) => (
+                      <li key={m.id}>• {m.nama_mapel}{m.kkm === null ? '' : ` · KKM ${m.kkm}`}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-1 text-muted-foreground">Semua mapel kelas sumber sudah ada di kelas tujuan.</p>
+                )}
+              </div>
+            ) : null}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" size="sm" onClick={() => setSalinOpen(false)}>Batal</Button>
-            <Button type="button" size="sm" id="btn_salin_pengampu_jalankan" onClick={() => void simpanSalin()}>
-              Salin
+            <Button
+              type="button"
+              size="sm"
+              id="btn_salin_pengampu_jalankan"
+              disabled={pratinjauLoading || pratinjau === null || pratinjau.jumlah_ditambah === 0}
+              onClick={() => void simpanSalin()}
+            >
+              {pratinjau ? `Salin ${pratinjau.jumlah_ditambah} mapel` : 'Salin'}
             </Button>
           </DialogFooter>
         </DialogContent>

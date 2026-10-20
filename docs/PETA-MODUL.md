@@ -382,18 +382,19 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA5. Kurikulum
 
-### DA5.1 Mata Pelajaran `Siap dikerjakan (To Do)`
+### DA5.1 Mata Pelajaran `Menunggu peninjauan (For Review)`
 **Belum dijadwalkan (Backlog)**
 - (kosong)
 **Siap dikerjakan (To Do)**
-- Salin mapel antar tahun ajaran
-  - [ ] pilih sumber
-  - [ ] pratinjau
-  - [ ] hindari duplikat
+- (kosong)
 **Sedang dikerjakan (In Progress)**
 - (kosong)
 **Menunggu peninjauan (For Review)**
-- (kosong)
+- Salin daftar mapel antar kelas (TA sama) dengan pratinjau
+  - [x] Sumber hanya kelas pada tahun ajaran yang sama
+  - [x] Pratinjau mapel yang akan ditambahkan vs dilewati
+  - [x] Hindari duplikat: mapel yang sudah ada tidak disalin ulang
+  - [x] Verifikasi: KurikulumModulTest 9/9 (169 asersi) + suite FE 1427/1427 + npm run typecheck
 **Selesai (Done)**
 - Master mapel dan KKM
   - [x] per jenjang
@@ -418,7 +419,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] guru aktif
   - [x] per TA
 
-### DA5.3 Jadwal Pelajaran `Siap dikerjakan (To Do)`
+### DA5.3 Jadwal Pelajaran `Sedang dikerjakan (In Progress)`
 **Belum dijadwalkan (Backlog)**
 - (kosong)
 **Siap dikerjakan (To Do)**
@@ -431,9 +432,18 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Excel
   - [ ] kop
 **Sedang dikerjakan (In Progress)**
-- (kosong)
+- Status Jadwal Pelajaran
+  - [ ] terdapat status untuk jadwal yaitu: "Draft", "Pembahasan", "Final"
+  - [ ] jadwal final tidak bisa diubah, jika ingin diubah harus diubah dulu menjadi "Draft"
+  - [ ] jadwal pelajaran hasil import dari tahun ajaran sebelumnya berstatus "Draft"
 **Menunggu peninjauan (For Review)**
-- (kosong)
+- Salin jadwal pelajaran dari tahun ajaran lain (sejenjang)
+  - [x] Pilih TA sumber; tujuan = TA aktif; lembaga/jenjang harus sama
+  - [x] Pratinjau: kelas, slot, pengampu, dan sel jadwal yang akan disalin atau dilewati
+  - [x] Hanya kelas yang sudah ada di TA tujuan; kelas lain dilewati dan dilaporkan
+  - [x] Slot, pengampu, dan sel jadwal ikut disalin; guru tanpa keaktifan di TA tujuan dikosongkan
+  - [x] Sel jadwal yang sudah terisi di TA tujuan tidak ditimpa
+  - [x] Verifikasi: KurikulumModulTest 9/9 (169 asersi) + suite FE 1427/1427 + npm run typecheck
 **Selesai (Done)**
 - Slot per jenjang dan anti bentrok
   - [x] bentrok kelas
@@ -443,6 +453,18 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] template
   - [x] salin
   - [x] cetak
+
+### DA5.4 Struktur Kurikulum `Siap dikerjakan (To Do)`
+**Belum dijadwalkan (Backlog)**
+- (kosong)
+**Siap dikerjakan (To Do)**
+- tabel struktur kurikulum
+**Sedang dikerjakan (In Progress)**
+- (kosong)
+**Menunggu peninjauan (For Review)**
+- (kosong)
+**Selesai (Done)**
+- (kosong)
 
 ## DA6. Penilaian
 
@@ -933,6 +955,28 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Density dan radius sudut
   - [x] Sidebar/menubar dan sembilan set ikon
 
+### DA11.4 Halaman Board `Selesai (Done)`
+**Belum dijadwalkan (Backlog)**
+- (kosong)
+**Siap dikerjakan (To Do)**
+- (kosong)
+**Sedang dikerjakan (In Progress)**
+- (kosong)
+**Menunggu peninjauan (For Review)**
+- (kosong)
+**Selesai (Done)**
+- Kolom status tanpa sub-modul terlipat saat Board dibuka
+  - [x] Kolom tanpa sub-modul tertutup saat halaman Board dibuka
+  - [x] Kolom yang punya sub-modul terbuka
+  - [x] Kolom Selesai (Done) selalu tertutup secara default
+  - [x] Bukaan manual pengguna tetap setelah data disegarkan
+  - [x] Verifikasi: 27 tes komponen Board lulus + npm run typecheck
+- Rail modul menandai modul yang punya pekerjaan For Review
+  - [x] Modul dengan poin For Review berlatar warna berbeda di rail modul
+  - [x] Modul tanpa For Review tetap netral
+  - [x] Warna tetap terbaca saat modul itu sedang aktif
+  - [x] Verifikasi: tes pustaka + typecheck + pratinjau visual
+
 ## DA12. Dokumen & Berkas
 
 ### DA12.1 Arsip Dokumen `Selesai (Done)`
@@ -1074,16 +1118,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## MO3. Tagihan & Pembayaran
 
-### MO3.1 API Keuangan `Sedang dikerjakan (In Progress)`
+### MO3.1 API Keuangan `Siap dikerjakan (To Do)`
 **Belum dijadwalkan (Backlog)**
 - (kosong)
 **Siap dikerjakan (To Do)**
-- (kosong)
-**Sedang dikerjakan (In Progress)**
 - API tagihan dan pembayaran untuk portal wali
   - [ ] Daftar tagihan per anak
   - [ ] Riwayat pembayaran
   - [ ] Sisa tunggakan per anak
+**Sedang dikerjakan (In Progress)**
+- (kosong)
 **Menunggu peninjauan (For Review)**
 - (kosong)
 **Selesai (Done)**
@@ -2321,7 +2365,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 Sub-modul yang sedang dikerjakan:
 
-- **MO3.1 API Keuangan** (Tagihan & Pembayaran)
+- **DA5.3 Jadwal Pelajaran** (Kurikulum)
 
 ---
 
