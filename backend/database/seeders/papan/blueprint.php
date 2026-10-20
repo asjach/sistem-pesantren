@@ -10,7 +10,7 @@
  * Urutan aplikasi mengikuti PapanService::APLIKASI. Modul dan sub-modul
  * diurutkan sesuai urutan array.
  */
-return [
+$blueprint = [
     'desktop-admin' => [
         ['kode' => 'DA1', 'nama' => 'Fondasi & Infrastruktur', 'sub' => [
             ['kode' => 'DA1.1', 'nama' => 'Setup & Runtime', 'butir' => [
@@ -872,3 +872,29 @@ return [
         ]],
     ],
 ];
+
+// Pekerjaan baru selalu bermula di Backlog. Pengguna memilihnya untuk riset
+// dengan memindahkan poin ke To Do pada Board aktif; cetak biru tidak boleh
+// menentukan pilihan itu atas nama pengguna.
+foreach ($blueprint as &$modulAplikasi) {
+    foreach ($modulAplikasi as &$modul) {
+        foreach ($modul['sub'] as &$subModul) {
+            $poinSiapDiriset = $subModul['butir']['todo'] ?? [];
+
+            if ($poinSiapDiriset === []) {
+                continue;
+            }
+
+            $subModul['butir']['backlog'] = array_merge(
+                $subModul['butir']['backlog'] ?? [],
+                $poinSiapDiriset,
+            );
+            unset($subModul['butir']['todo']);
+        }
+        unset($subModul);
+    }
+    unset($modul);
+}
+unset($modulAplikasi);
+
+return $blueprint;

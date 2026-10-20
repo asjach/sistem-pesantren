@@ -39,7 +39,7 @@
 
 | Status efektif | Yang WAJIB dilakukan | Yang DILARANG |
 | --- | --- | --- |
-| **Aktif** (master + aplikasi yang dikerjakan aktif) | 1) Baca Board sebelum merencanakan/mengerjakan; jadikan status dan urutan aplikasi itu acuan. 2) Sebelum mengubah kode/dokumen, tulis rencana ke Board sebagai aplikasi → modul → sub-modul → poin (status + subpoin); tempatkan di modul yang sesuai atau buat modul baru. 3) Perbarui status dan subpoin Board saat pekerjaan mulai dan saat siap dievaluasi pengguna. 4) Setelah setiap perubahan Board, jalankan `papan:markdown --tulis`. 5) Jika dokumen lain bertentangan, Board yang menang. | Membuat roadmap/TODO/milestone terpisah; memulai rencana yang belum tercatat di Board; menulis rencana hanya di PRD/chat; menyelesaikan tugas tanpa memperbarui Board; memindahkan poin ke Done secara otomatis; mengedit PETA-MODUL manual. |
+| **Aktif** (master + aplikasi yang dikerjakan aktif) | 1) Baca Board sebelum merencanakan/mengerjakan; jadikan status dan urutan aplikasi itu acuan. 2) Tunggu pengguna memilih pekerjaan pada aplikasi yang status efektifnya Aktif dengan memindahkan poin dari Backlog ke To Do. 3) Riset poin To Do dari alur kerja aktif tersebut, sertakan rekomendasi tampilan dan pengalaman pengguna (UI/UX) bila relevan, susun rancangan subpoin, dan konfirmasikan hal yang belum jelas kepada pengguna. 4) Tampilkan subpoin final dan minta satu konfirmasi untuk mulai mengerjakan; selama belum disetujui, poin tetap To Do. 5) Setelah disetujui, catat subpoin final, pindahkan poin ke In Progress, dan mulai mengerjakan. 6) Setelah selesai, perbarui Board sampai For Review. 7) Setelah setiap perubahan Board, jalankan `papan:markdown --tulis`. 8) Jika dokumen lain bertentangan, Board yang menang. | Membuat roadmap/TODO/milestone terpisah; memindahkan Backlog ke To Do atas inisiatif agen; memakai To Do dari aplikasi yang efektif Draf; mengerjakan poin yang masih Backlog/To Do; memiliki lebih dari satu In Progress per aplikasi; menulis rencana hanya di PRD/chat; menyelesaikan tugas tanpa memperbarui Board; memindahkan poin ke Done secara otomatis; mengedit PETA-MODUL manual. |
 | **Draf** (pengaturan utama/master mati atau aplikasi itu belum aktif) | 1) Pakai PRD dan kode sebagai rujukan kebutuhan/status. 2) Saat pengguna meminta rencana, prioritas, atau "apa selanjutnya", beri tahu bahwa tidak ada Board efektif Aktif dan sarankan pengguna mengaktifkan pengaturan utama + aplikasi terkait. 3) Boleh mengubah Board hanya bila tugasnya memang membangun/memperbaiki Board itu sendiri. 4) Cek ulang status sebelum memakai Board lagi. | Memakai Board/PETA-MODUL aplikasi itu sebagai acuan alur kerja (workflow), prioritas, atau status; menulis rencana baru ke Board sebagai alur kerja; menyimpulkan pekerjaan sudah/akan dari Board; mengaktifkan alur kerja sendiri. |
 
 ### Siklus wajib rencana dan penyelesaian saat Board Aktif
@@ -56,6 +56,15 @@
   dimulai = **Sedang dikerjakan (In Progress)**; implementasi selesai tetapi
   masih menunggu pemeriksaan/peninjauan = **Menunggu peninjauan (For Review)**;
   evaluasi manual pengguna diterima = **Selesai (Done)**.
+- **Pengguna memilih pekerjaan.** Semua rencana baru masuk ke Belum dijadwalkan
+  (Backlog). Hanya pengguna yang memindahkan poin dari Backlog ke Siap
+  dikerjakan (To Do). Pemilihan itu berlaku sebagai pekerjaan agen hanya bila
+  status efektif alur kerja aplikasi tersebut Aktif. Agen tidak boleh memilih
+  atau memprioritaskan Backlog dengan memindahkannya sendiri.
+- **To Do berarti siap diriset, belum siap diimplementasikan.** Agen boleh
+  membaca kode, kebutuhan, skema, dan sumber terkait untuk memahami poin, tetapi
+  belum boleh mengubah kode atau dokumen produk. Poin To Do dari aplikasi yang
+  efektif Draf tidak boleh diriset atau dikerjakan berdasarkan Board.
 - **For Review adalah gerbang evaluasi manual pengguna.** Setelah implementasi
   dan pemeriksaan otomatis selesai, agen memindahkan poin ke Menunggu peninjauan
   (For Review) dan berhenti. Agen tidak boleh otomatis memindahkan poin ke
@@ -93,11 +102,14 @@
 
 ### Menentukan pekerjaan selanjutnya saat Board Aktif
 
-- Saat pengguna bertanya "apa selanjutnya", pilih pekerjaan berdasarkan urutan
-  berikut: 1) lanjutkan poin paling atas yang berstatus Sedang dikerjakan (In
-  Progress); 2) bila tidak ada, ambil poin paling atas yang berstatus Siap
-  dikerjakan (To Do); 3) jangan mengambil poin Belum dijadwalkan (Backlog) tanpa
-  keputusan pengguna.
+- Saat pengguna bertanya "apa selanjutnya", gunakan urutan berikut: 1) lanjutkan
+  poin paling atas pada alur kerja efektif Aktif yang berstatus Sedang dikerjakan
+  (In Progress) dan sudah mendapat konfirmasi pengerjaan; 2) bila tidak ada,
+  riset poin To Do yang disebut langsung oleh pengguna pada alur kerja efektif
+  Aktif; 3) bila pengguna tidak menyebut poin tertentu, riset poin To Do paling
+  atas pada aplikasi yang sedang dibahas; 4) bila alur kerja aktif hanya memiliki
+  Backlog, minta pengguna memilih pekerjaan dengan memindahkannya sendiri ke To
+  Do.
 - Poin Menunggu peninjauan (For Review) diberitahukan kepada pengguna sebagai
   pekerjaan yang menunggu evaluasi manual, bukan sebagai pekerjaan baru untuk
   agen. Agen baru mengerjakannya lagi bila pengguna memberi hasil evaluasi atau
@@ -105,6 +117,50 @@
 - Adanya poin For Review tidak otomatis menghalangi agen mengambil poin To Do
   berikutnya, kecuali pengguna menetapkan bahwa evaluasi harus diselesaikan lebih
   dahulu.
+
+### Gerbang riset, penyusunan subpoin, dan konfirmasi
+
+- Untuk poin To Do pada aplikasi yang alur kerjanya efektif Aktif, lakukan riset
+  hanya-baca (read-only) terlebih dahulu. Riset harus mencakup tujuan pengguna,
+  keadaan kode/data saat ini, ketergantungan, risiko, dan hasil yang dapat
+  dievaluasi secara manual.
+- Bila pekerjaan berdampak pada antarmuka, hasil riset wajib menyertakan
+  rekomendasi tampilan dan pengalaman pengguna (UI/UX). Bahas seperlunya alur
+  pengguna, susunan informasi, keadaan memuat (loading), kosong (empty), gagal
+  (error), dan berhasil (success), penyesuaian terhadap ukuran layar
+  (responsive), kemudahan akses (accessibility), serta keselarasan dengan pola
+  aplikasi yang sudah ada. Rekomendasi ini masih berupa rancangan untuk
+  dikonfirmasi pengguna, bukan izin untuk mengubah produk.
+- Bila pekerjaan tidak berdampak pada antarmuka, hasil riset cukup menyatakan
+  **tidak ada dampak UI**; jangan memaksakan atau mengarang rekomendasi UI.
+- Dari hasil riset, susun rancangan subpoin yang ringkas sesuai aturan batas isi
+  Board. Subpoin harus berupa hasil yang dapat diperiksa atau syarat selesai
+  (acceptance criteria), bukan catatan riset, nama berkas, atau langkah teknis.
+  Tampilkan rancangan itu kepada pengguna dan tanyakan hanya keputusan yang
+  benar-benar diperlukan untuk memastikan hasilnya sesuai maksud pengguna.
+- Rancangan selama diskusi belum dianggap isi Board final. Jangan mengubah kode
+  atau dokumen produk, dan jangan memindahkan poin ke In Progress, sampai
+  pertanyaan penting dijawab dan pengguna menyetujui arah akhirnya.
+- Jika tidak ada hal yang perlu ditanyakan, agen tetap menampilkan subpoin final
+  dan meminta satu konfirmasi eksplisit untuk mulai mengerjakan. Selama pengguna
+  belum menjawab, poin tetap To Do dan agen tidak mengubah produk.
+- Setelah pengguna menyetujui subpoin final sekaligus mengizinkan pengerjaan,
+  simpan poin/subpoin final ke Board, pindahkan statusnya ke Sedang dikerjakan
+  (In Progress), jalankan generator `PETA-MODUL.md`, lalu langsung mulai
+  mengerjakan. Jangan meminta konfirmasi pengerjaan kedua untuk ruang lingkup
+  yang sama.
+- Batasi satu poin In Progress per aplikasi. Poin kedua baru boleh dimulai
+  setelah poin pertama masuk For Review atau pengguna memindahkan poin pertama
+  kembali ke Backlog.
+- Bila riset menunjukkan satu poin terlalu besar, usulkan pemecahan sebelum
+  pengerjaan. Poin tambahan dicatat sebagai Backlog dan hanya menjadi To Do bila
+  pengguna memilihnya secara manual.
+- Konfirmasi pengerjaan berlaku untuk ruang lingkup dan subpoin yang sudah
+  disepakati; bila ruang lingkup berubah secara berarti, kembali ke tahap riset
+  dan konfirmasi.
+- Setelah seluruh subpoin dan verifikasi selesai, pindahkan poin ke Menunggu
+  peninjauan (For Review). Status Selesai (Done) tetap menjadi keputusan manual
+  pengguna.
 
 ### Saat pekerjaan gagal, terhenti, atau Board tidak dapat diperbarui
 
