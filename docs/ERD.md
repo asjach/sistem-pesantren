@@ -579,6 +579,12 @@ erDiagram
         bigint kelas_id FK
         string tahun_ajaran FK
     }
+    BATCH_CETAK_RAPOR {
+        bigint id PK
+        bigint peristiwa_id FK
+        string semester
+        bigint kelas_id FK
+    }
     EKSTRAKURIKULER {
         bigint id PK
         string jenjang FK
@@ -624,6 +630,8 @@ erDiagram
     SANTRI ||--o{ RAPOR_CATATAN_WALI : "memiliki catatan rapor"
     KELAS ||--o{ RAPOR_CATATAN_WALI : "memiliki catatan wali"
     TAHUN_AJARAN ||--o{ RAPOR_CATATAN_WALI : "mencakup"
+    PERISTIWA_NILAI ||--o{ BATCH_CETAK_RAPOR : "memiliki batch cetak"
+    KELAS ||--o{ BATCH_CETAK_RAPOR : "memiliki batch cetak"
     LEMBAGA ||--o{ EKSTRAKURIKULER : "memiliki kegiatan"
     TAHUN_AJARAN ||--o{ EKSTRAKURIKULER : "mencakup"
     SANTRI ||--o{ NILAI_EKSTRAKURIKULER : "memperoleh nilai"

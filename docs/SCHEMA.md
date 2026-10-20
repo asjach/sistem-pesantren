@@ -917,6 +917,16 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`santri_id`, `kelas_id`, `tahun_ajaran`, `semester`, `unique_catatan_wali`)
 
+### `batch_cetak_rapor` (snapshot penanda tangan per batch cetak)
+- `id` PK
+- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `semester`: string(2) — '1' atau '2'
+- `kelas_id`: FK → kelas [cascade]
+- `wali_kelas`: varchar(255) [null] — nama + sapaan + gelar saat batch pertama; nama kosong diisi data terbaru pada cetak berikutnya lalu dibekukan
+- `kepala`: varchar(255) [null] — kepala madrasah saat batch pertama, aturan pengisian sama dengan `wali_kelas`
+- `created_at`, `updated_at`
+- UNIQUE(`peristiwa_id`, `semester`, `kelas_id`, `uq_batch_cetak_rapor`) — satu snapshot per kelas + peristiwa + semester; cetak ulang (massal maupun tunggal) memakai snapshot ini
+
 ### `peristiwa_nilai` (master peristiwa penilaian per jenjang + TA)
 - `id` PK
 - `jenjang`: varchar(20) FK → lembaga.jenjang [cascade update + delete]

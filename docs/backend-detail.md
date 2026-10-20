@@ -461,9 +461,11 @@ scope filtering — used by the controller AND the import services. Import engin
 prestasi, ekskul). Outputs: crosstab ledger per event + Excel download, report card
 (`rapor`/`rapor-kelas`) with class completeness check, `POST /penilaian/hitung` to
 recompute final grades (skips `sumber='impor'` rows unless `paksa=1`).
-Status: ✅ live — 4 pages (Master, Impor, Leger, Rapor) + pengaman cetak (tombol cetak rapor terkunci selama ada santri belum lengkap). Deferred: semester lock +
-print audit trail, one-click bulk print, attendance auto-derived from
-`presensi_santri`, signatory snapshot, "copy event from previous TA".
+Status: ✅ live — 4 pages (Master, Impor, Leger, Rapor) + pengaman cetak (tombol
+cetak rapor terkunci selama ada santri belum lengkap), cetak massal satu kelas
+sekali klik dengan peringkat per batch dan snapshot penanda tangan. Deferred:
+semester lock + print audit trail, attendance auto-derived from
+`presensi_santri`, "copy event from previous TA".
 
 **203 Parent portal — 🟨 partial.** What exists: admission follow-up
 (`portal/psb/*`), family history, and biodata proposals (1 active/santri,

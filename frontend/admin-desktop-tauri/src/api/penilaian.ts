@@ -214,6 +214,14 @@ export interface RaporKelasResp {
   ringkasan: { santri: number; lengkap: number; tanpa_catatan: number; mapel: number };
 }
 
+export interface RaporKelasCetakResp {
+  peristiwa: PeristiwaNilai;
+  kelas: { id: number; nama_kelas: string };
+  peringkat: '3' | '10' | 'semua';
+  penandatangan: { wali_kelas: string | null; kepala: string | null };
+  rapor: RaporResp[];
+}
+
 type Lingkup = { jenjang?: ScalarOrArray<string>; tahun_ajaran?: ScalarOrArray<string> };
 
 function lingkupQuery(params: Lingkup): URLSearchParams {
@@ -487,6 +495,17 @@ export function raporKelas(params: {
   q.set('semester', params.semester);
   q.set('kelas_id', String(params.kelas_id));
   return api<RaporKelasResp>(`/admin/penilaian/rapor-kelas?${q.toString()}`);
+}
+
+export function cetakRaporKelas(params: {
+  peristiwa_id: number; semester: string; kelas_id: number; peringkat?: '3' | '10' | 'semua';
+}) {
+  const q = new URLSearchParams();
+  q.set('peristiwa_id', String(params.peristiwa_id));
+  q.set('semester', params.semester);
+  q.set('kelas_id', String(params.kelas_id));
+  if (params.peringkat) q.set('peringkat', params.peringkat);
+  return api<RaporKelasCetakResp>(`/admin/penilaian/rapor-kelas-cetak?${q.toString()}`);
 }
 
 export type TipeImpor = 'nilai' | 'catatan_wali' | 'prestasi' | 'ekskul';

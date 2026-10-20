@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { listKelas, type Kelas } from '@/api/master';
 import { errorMessage } from '@/api/client';
 import {
-  ambilRapor, daftarPeristiwa, raporKelas,
-  type PeristiwaNilai, type RaporKelasResp, type RaporResp,
+  ambilRapor, cetakRaporKelas, daftarPeristiwa, raporKelas,
+  type PeristiwaNilai, type RaporKelasCetakResp, type RaporKelasResp, type RaporResp,
 } from '@/api/penilaian';
 import { alasanCetakTerkunci, hitungKelengkapanKelas } from '@/lib/kelengkapanRapor';
 
@@ -29,6 +30,8 @@ export default function PenilaianRaporPage() {
   const [peringkat, setPeringkat] = useState<'3' | '10' | 'semua'>('10');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
+  const [menyiapkanKelas, setMenyiapkanKelas] = useState(false);
+  const [siapCetakKelas, setSiapCetakKelas] = useState<RaporKelasCetakResp | null>(null);
 
   const peristiwaAktif = useMemo(() => peristiwa.find((p) => p.id === peristiwaId) ?? null, [peristiwa, peristiwaId]);
 
@@ -72,6 +75,39 @@ export default function PenilaianRaporPage() {
 
   useEffect(() => { void muatDaftar(); }, [muatDaftar]);
 
+  useEffect(() => {
+    if (!siapCetakKelas) return;
+    const root = document.getElementById('root');
+    const displayAwal = root?.style.display ?? '';
+    let pulih = false;
+
+    const kembalikan = () => {
+      if (pulih) return;
+      pulih = true;
+      if (root) root.style.display = displayAwal;
+      window.removeEventListener('afterprint', kembalikan);
+      setSiapCetakKelas(null);
+    };
+
+    const mulaiCetak = setTimeout(() => {
+      if (root) root.style.display = 'none';
+      window.addEventListener('afterprint', kembalikan);
+      try {
+        window.print();
+      } catch {
+        kembalikan();
+      }
+    }, 250);
+    const cadangan = setTimeout(kembalikan, 15000);
+
+    return () => {
+      clearTimeout(mulaiCetak);
+      clearTimeout(cadangan);
+      window.removeEventListener('afterprint', kembalikan);
+      if (root) root.style.display = displayAwal;
+    };
+  }, [siapCetakKelas]);
+
   const bukaRapor = useCallback(async (santriId: number, urut: '3' | '10' | 'semua' = peringkat) => {
     if (peristiwaId === '' || semester === null) return;
     setSantriAktif(santriId); setErr('');
@@ -87,6 +123,24 @@ export default function PenilaianRaporPage() {
     if (santriAktif !== null) void bukaRapor(santriAktif, v);
   }, [santriAktif, bukaRapor]);
 
+  const cetakKelas = useCallback(async () => {
+    if (peristiwaId === '' || semester === null || kelasId === '') return;
+    setMenyiapkanKelas(true);
+    setErr('');
+    try {
+      setSiapCetakKelas(await cetakRaporKelas({
+        peristiwa_id: Number(peristiwaId),
+        semester,
+        kelas_id: Number(kelasId),
+        peringkat,
+      }));
+    } catch (e) {
+      setErr(errorMessage(e));
+    } finally {
+      setMenyiapkanKelas(false);
+    }
+  }, [peristiwaId, semester, kelasId, peringkat]);
+
   /** Kelengkapan nilai seluruh kelas — dasar pengaman cetak (semua santri). */
   const kelengkapan = useMemo(
     () => hitungKelengkapanKelas(
@@ -97,6 +151,8 @@ export default function PenilaianRaporPage() {
   );
   const alasanTerkunci = alasanCetakTerkunci(kelengkapan);
   const cetakTerkunci = rapor === null || alasanTerkunci !== '';
+  const cetakKelasTerkunci = menyiapkanKelas || daftar === null || daftar.baris.length === 0 || alasanTerkunci !== '';
+  const alasanKelas = daftar === null || daftar.baris.length === 0 ? 'Daftar kelas belum siap.' : alasanTerkunci;
 
   const kelasNama = useMemo(
     () => kelasOpsi.find((k) => k.id === kelasId)?.nama_kelas ?? '',
@@ -151,6 +207,16 @@ export default function PenilaianRaporPage() {
         <div className="ml-auto flex items-center gap-2">
           <Button
             type="button"
+            size="sm"
+            id="btn_cetak_kelas_rapor"
+            disabled={cetakKelasTerkunci}
+            title={alasanKelas !== '' ? alasanKelas : `Cetak ${daftar?.baris.length ?? 0} rapor sekaligus`}
+            onClick={() => void cetakKelas()}
+          >
+            {menyiapkanKelas ? 'Menyiapkan…' : 'Cetak satu kelas'}
+          </Button>
+          <Button
+            type="button"
             variant="outline"
             size="sm"
             id="btn_cetak_rapor"
@@ -202,19 +268,43 @@ export default function PenilaianRaporPage() {
           {rapor === null ? (
             <p className="text-xs text-muted-foreground">Pilih santri di kiri untuk melihat pratinjau rapor.</p>
           ) : (
-            <RaporCetak rapor={rapor} kelasNama={kelasNama} />
+            <RaporCetak rapor={rapor} kelasNama={kelasNama} area />
           )}
         </div>
       </div>
+
+      {siapCetakKelas && createPortal(
+        <div
+          id="area_cetak_rapor_massal"
+          data-area-cetak="rapor"
+          data-cetak-aktif="true"
+          className="hidden bg-white text-black print:block"
+          style={{ position: 'static', width: '100%', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as CSSProperties}
+        >
+          {siapCetakKelas.rapor.map((item, index) => (
+            <div
+              key={item.santri.id}
+              style={{ breakAfter: index === siapCetakKelas.rapor.length - 1 ? 'auto' : 'page' }}
+            >
+              <RaporCetak rapor={item} kelasNama={siapCetakKelas.kelas.nama_kelas} />
+            </div>
+          ))}
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
 
 /** Pratinjau rapor siap-cetak (satu halaman per jenjang; spesimen MI/MD). */
-function RaporCetak({ rapor, kelasNama }: { rapor: RaporResp; kelasNama: string }) {
+function RaporCetak({ rapor, kelasNama, area = false }: { rapor: RaporResp; kelasNama: string; area?: boolean }) {
   const r = rapor;
   return (
-    <div data-area-cetak="rapor" id="area_cetak_rapor" className="mx-auto max-w-[800px] bg-white p-6 text-black shadow-sm print:shadow-none">
+    <div
+      data-area-cetak={area ? 'rapor' : undefined}
+      id={area ? 'area_cetak_rapor' : undefined}
+      className="mx-auto max-w-[800px] bg-white p-6 text-black shadow-sm print:shadow-none"
+    >
 
       <div className="flex items-center gap-3 border-b-2 border-black pb-2">
         {r.kop.logo_url && (

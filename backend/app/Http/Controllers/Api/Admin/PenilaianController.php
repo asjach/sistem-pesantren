@@ -701,15 +701,145 @@ class PenilaianController extends Controller
             'semester' => ['required', 'in:1,2'],
             'peringkat' => ['nullable', 'in:3,10,semua'],
         ]);
-        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+        $peristiwa = $this->peristiwaRapor((int) $data['peristiwa_id']);
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+
+        return response()->json($this->bangunRapor(
+            $peristiwa,
+            (int) $data['santri_id'],
+            (string) $data['semester'],
+            $data['peringkat'] ?? '10',
+        ));
+    }
+
+    /**
+     * GET /admin/penilaian/rapor-kelas-cetak?peristiwa_id=&semester=&kelas_id=&peringkat=
+     * Cetak massal satu kelas; peringkat dihitung SEKALI untuk seluruh batch.
+     */
+    public function raporKelasCetak(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'semester' => ['required', 'in:1,2'],
+            'kelas_id' => ['required', 'integer', 'exists:kelas,id'],
+            'peringkat' => ['nullable', 'in:3,10,semua'],
+        ]);
+        $peristiwa = $this->peristiwaRapor((int) $data['peristiwa_id']);
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $ta = $peristiwa->tahun_ajaran;
+        $semester = (string) $data['semester'];
+        $batas = $data['peringkat'] ?? '10';
+
+        $kelas = DB::table('kelas')->where('id', (int) $data['kelas_id'])
+            ->where('jenjang', $peristiwa->jenjang)->where('tahun_ajaran', $ta)
+            ->select('id', 'nama_kelas')->first();
+        if ($kelas === null) {
+            throw ValidationException::withMessages(['kelas_id' => 'Kelas tidak ada pada jenjang/TA peristiwa ini.']);
+        }
+        $kelasId = (int) $kelas->id;
+
+        $santri = $this->santriLeger($peristiwa, $semester, [$kelasId], [], '');
+        if ($santri->isEmpty()) {
+            return response()->json([
+                'peristiwa' => $peristiwa,
+                'kelas' => ['id' => $kelasId, 'nama_kelas' => $kelas->nama_kelas],
+                'peringkat' => $batas,
+                'penandatangan' => $this->penandatanganKelas($kelasId, $peristiwa->jenjang),
+                'rapor' => [],
+            ]);
+        }
+
+        $batch = $this->batchCetak($peristiwa, $semester, $kelasId);
+        $peringkatKelas = $this->hitungPeringkatKelas($peristiwa->id, $kelasId, $ta, $semester);
+        $rapor = $santri->map(fn ($s) => $this->bangunRapor(
+            $peristiwa,
+            (int) $s->santri_id,
+            $semester,
+            $batas,
+            $peringkatKelas,
+            $batch,
+        ))->values();
+
+        return response()->json([
+            'peristiwa' => $peristiwa,
+            'kelas' => ['id' => $kelasId, 'nama_kelas' => $kelas->nama_kelas],
+            'peringkat' => $batas,
+            'penandatangan' => [
+                'wali_kelas' => $batch->wali_kelas,
+                'kepala' => $batch->kepala,
+            ],
+            'rapor' => $rapor,
+        ]);
+    }
+
+    private function peristiwaRapor(int $peristiwaId): PeristiwaNilai
+    {
+        $peristiwa = PeristiwaNilai::findOrFail($peristiwaId);
         if (! $peristiwa->menghasilkanRapor()) {
             throw ValidationException::withMessages([
                 'peristiwa_id' => "Peristiwa {$peristiwa->kode} tidak menghasilkan rapor (hanya nilai ujian) — lihat halaman Leger.",
             ]);
         }
+
+        return $peristiwa;
+    }
+
+    /** Snapshot penanda tangan; nama yang masih kosong diisi data terbaru lalu dibekukan. */
+    private function batchCetak(PeristiwaNilai $peristiwa, string $semester, int $kelasId): object
+    {
+        $kunci = ['peristiwa_id' => $peristiwa->id, 'semester' => $semester, 'kelas_id' => $kelasId];
+        $hidup = $this->penandatanganKelas($kelasId, $peristiwa->jenjang);
+
+        DB::table('batch_cetak_rapor')->insertOrIgnore([
+            ...$kunci,
+            'wali_kelas' => $hidup['wali_kelas'],
+            'kepala' => $hidup['kepala'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $batch = DB::table('batch_cetak_rapor')->where($kunci)->first();
+
+        $isi = [];
+        if ($batch->wali_kelas === null && $hidup['wali_kelas'] !== null) {
+            $isi['wali_kelas'] = $hidup['wali_kelas'];
+        }
+        if ($batch->kepala === null && $hidup['kepala'] !== null) {
+            $isi['kepala'] = $hidup['kepala'];
+        }
+        if ($isi !== []) {
+            $isi['updated_at'] = now();
+            DB::table('batch_cetak_rapor')->where('id', $batch->id)->update($isi);
+            $batch = DB::table('batch_cetak_rapor')->where('id', $batch->id)->first();
+        }
+
+        return $batch;
+    }
+
+    /** @return array{wali_kelas: ?string, kepala: ?string} */
+    private function penandatanganKelas(int $kelasId, string $jenjang): array
+    {
+        $walas = DB::table('kelas')->leftJoin('pegawai', 'pegawai.id', '=', 'kelas.walas_id')
+            ->where('kelas.id', $kelasId)
+            ->select('pegawai.nama_lengkap', 'pegawai.gelar_depan', 'pegawai.gelar_belakang', 'pegawai.jenis_kelamin')
+            ->first();
+        $kepala = DB::table('lembaga')->where('jenjang', $jenjang)->value('mudir_am');
+
+        return [
+            'wali_kelas' => $this->namaGuru($walas),
+            'kepala' => $kepala === null ? null : (string) $kepala,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function bangunRapor(
+        PeristiwaNilai $peristiwa,
+        int $santriId,
+        string $semester,
+        string $batasPeringkat,
+        ?array $peringkatKelas = null,
+        ?object $batch = null,
+    ): array {
         $ta = $peristiwa->tahun_ajaran;
-        $semester = (string) $data['semester'];
-        $batasPeringkat = $data['peringkat'] ?? '10';
 
         $riwayat = DB::table('riwayat_belajar')
             ->join('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
@@ -718,7 +848,7 @@ class PenilaianController extends Controller
                 $j->on('lembaga_santri.santri_id', '=', 'riwayat_belajar.santri_id')
                     ->on('lembaga_santri.jenjang', '=', 'riwayat_belajar.jenjang');
             })
-            ->where('riwayat_belajar.santri_id', $data['santri_id'])
+            ->where('riwayat_belajar.santri_id', $santriId)
             ->where('riwayat_belajar.jenjang', $peristiwa->jenjang)
             ->where('riwayat_belajar.tahun_ajaran', $ta)
             ->where('riwayat_belajar.semester', $semester)
@@ -733,10 +863,9 @@ class PenilaianController extends Controller
         if ($riwayat === null) {
             throw ValidationException::withMessages(['santri_id' => 'Santri tidak punya riwayat pada jenjang/TA/semester itu.']);
         }
-        $this->authorizeLembaga($request->user(), $riwayat->jenjang);
 
         $nilai = NilaiSantri::with(['pengampuMapel.mataPelajaran', 'pengampuMapel.keaktifan.pegawai'])
-            ->where('santri_id', $data['santri_id'])
+            ->where('santri_id', $santriId)
             ->where('tahun_ajaran', $ta)
             ->where('semester', $semester)
             ->where('peristiwa_id', $peristiwa->id)
@@ -754,17 +883,25 @@ class PenilaianController extends Controller
         })->sortBy('nama_mapel')->values();
 
         $angka = $mapel->pluck('nilai_akhir')->all();
-        $rekap = $this->rekapKelas($peristiwa->id, $riwayat->kelas_id, $ta, $semester, (int) $data['santri_id'], $batasPeringkat);
+        $rekap = $this->rekapKelas(
+            $peristiwa->id,
+            $riwayat->kelas_id,
+            $ta,
+            $semester,
+            $santriId,
+            $batasPeringkat,
+            $peringkatKelas,
+        );
 
         $catatan = DB::table('rapor_catatan_wali')
-            ->where('santri_id', $data['santri_id'])
+            ->where('santri_id', $santriId)
             ->where('tahun_ajaran', $ta)->where('semester', $semester)
             ->first();
 
         $ekskul = DB::table('nilai_ekstrakurikuler as ne')
             ->join('ekstrakurikuler as e', 'e.id', '=', 'ne.ekstrakurikuler_id')
             ->leftJoin('predikat_ekskul as pe', 'pe.predikat', '=', 'ne.predikat')
-            ->where('ne.santri_id', $data['santri_id'])
+            ->where('ne.santri_id', $santriId)
             ->where('ne.tahun_ajaran', $ta)->where('ne.semester', $semester)
             ->select('e.nama', 'e.pembimbing', 'ne.predikat', 'ne.nilai', 'ne.deskripsi', 'pe.deskripsi as deskripsi_predikat')
             ->orderBy('e.nama')
@@ -777,7 +914,7 @@ class PenilaianController extends Controller
                 'deskripsi' => $r->deskripsi ?? $r->deskripsi_predikat,
             ]);
 
-        $prestasi = PrestasiSantri::where('santri_id', $data['santri_id'])
+        $prestasi = PrestasiSantri::where('santri_id', $santriId)
             ->where('tahun_ajaran', $ta)
             ->where(fn ($w) => $w->whereNull('semester')->orWhere('semester', $semester))
             ->get(['prestasi', 'level', 'keterangan']);
@@ -790,10 +927,16 @@ class PenilaianController extends Controller
             ->select('pegawai.nama_lengkap', 'pegawai.gelar_depan', 'pegawai.gelar_belakang', 'pegawai.jenis_kelamin')
             ->first();
 
-        return response()->json([
+        $batch ??= $riwayat->kelas_id === null ? null : DB::table('batch_cetak_rapor')->where([
+            'peristiwa_id' => $peristiwa->id,
+            'semester' => $semester,
+            'kelas_id' => $riwayat->kelas_id,
+        ])->first();
+
+        return [
             'peristiwa' => $peristiwa,
             'santri' => [
-                'id' => (int) $data['santri_id'],
+                'id' => $santriId,
                 'nama' => $riwayat->nama_lengkap,
                 'nis_lokal' => $riwayat->nis_lokal,
                 'nisn' => $riwayat->nisn,
@@ -833,10 +976,10 @@ class PenilaianController extends Controller
             'ekskul' => $ekskul,
             'prestasi' => $prestasi,
             'penandatangan' => [
-                'wali_kelas' => $this->namaGuru($walas),
-                'kepala' => $lembaga->mudir_am ?? null,
+                'wali_kelas' => $batch?->wali_kelas ?? $this->namaGuru($walas),
+                'kepala' => $batch?->kepala ?? ($lembaga->mudir_am ?? null),
             ],
-        ]);
+        ];
     }
 
     /** GET /admin/penilaian/rapor-kelas?peristiwa_id=&semester=&kelas_id= */
@@ -1241,11 +1384,11 @@ class PenilaianController extends Controller
         return $peta;
     }
 
-    /** @return array{peringkat: ?int, total: int} */
-    private function rekapKelas(int $peristiwaId, ?int $kelasId, string $ta, string $semester, int $santriId, string $batas): array
+    /** @return array{peta: array<int, int>, total: int} */
+    private function hitungPeringkatKelas(int $peristiwaId, ?int $kelasId, string $ta, string $semester): array
     {
         if ($kelasId === null) {
-            return ['peringkat' => null, 'total' => 0];
+            return ['peta' => [], 'total' => 0];
         }
         $rows = DB::table('nilai_santri as ns')
             ->join('riwayat_belajar as rb', 'rb.santri_id', '=', 'ns.santri_id')
@@ -1259,9 +1402,22 @@ class PenilaianController extends Controller
             ->map(fn ($v) => $v === null ? null : (float) $v)
             ->all();
 
-        $peringkat = NilaiRapor::peringkat($rows);
-        $nilai = $peringkat[$santriId] ?? null;
-        $total = count($rows);
+        return ['peta' => NilaiRapor::peringkat($rows), 'total' => count($rows)];
+    }
+
+    /** @return array{peringkat: ?int, total: int} */
+    private function rekapKelas(
+        int $peristiwaId,
+        ?int $kelasId,
+        string $ta,
+        string $semester,
+        int $santriId,
+        string $batas,
+        ?array $peringkatKelas = null,
+    ): array {
+        $data = $peringkatKelas ?? $this->hitungPeringkatKelas($peristiwaId, $kelasId, $ta, $semester);
+        $nilai = $data['peta'][$santriId] ?? null;
+        $total = $data['total'];
         $cutoff = $batas === 'semua' ? $total : (int) $batas;
         if ($nilai !== null && $nilai > $cutoff) {
             $nilai = null;

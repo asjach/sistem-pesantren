@@ -398,6 +398,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('penilaian/leger/unduh', [PenilaianController::class, 'unduhLeger'])->middleware('permission:penilaian.lihat');
         Route::get('penilaian/rapor', [PenilaianController::class, 'rapor'])->middleware('permission:penilaian.lihat');
         Route::get('penilaian/rapor-kelas', [PenilaianController::class, 'raporKelas'])->middleware('permission:penilaian.lihat');
+        Route::get('penilaian/rapor-kelas-cetak', [PenilaianController::class, 'raporKelasCetak'])->middleware('permission:penilaian.lihat');
         Route::get('penilaian/import-template', [PenilaianController::class, 'template'])->middleware('permission:penilaian.lihat');
         Route::post('penilaian/import-potong', [PenilaianController::class, 'potongImport'])->middleware(['permission:penilaian.tambah', 'throttle:imports']);
         Route::post('penilaian/import-potong/{sesi}/batal', [PenilaianController::class, 'batalPotong'])->middleware('permission:penilaian.tambah');

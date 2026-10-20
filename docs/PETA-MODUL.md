@@ -520,10 +520,6 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ### DA6.2 Cetak Rapor `Belum dijadwalkan (Backlog)`
 **Belum dijadwalkan (Backlog)**
-- Cetak massal satu kelas
-  - [ ] sekali klik
-  - [ ] peringkat per batch
-  - [ ] snapshot penanda tangan
 - Absensi otomatis
   - [ ] sesi_presensi
   - [ ] override leger
@@ -533,7 +529,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **Sedang dikerjakan (In Progress)**
 - (kosong)
 **Menunggu peninjauan (For Review)**
-- (kosong)
+- Cetak massal satu kelas
+  - [x] Satu tombol Cetak satu kelas mencetak seluruh santri kelas/peristiwa/semester terpilih dalam satu dialog
+  - [x] Opsi peringkat dipilih sekali per batch (3/10/semua); peringkat di luar batas dikosongkan
+  - [x] Cetak massal memakai gerbang kelengkapan yang sama; tombol terkunci dengan alasan bila nilai belum lengkap
+  - [x] Nama wali kelas dan kepala dibekukan saat batch pertama; cetak massal dan cetak tunggal lingkup sama memakai snapshot; nama kosong diisi data terbaru lalu dibekukan
+  - [x] Setiap rapor tercetak pada halaman terpisah dan utuh di A4/PDF
+  - [x] Tabel batch terdokumentasi di SCHEMA/ERD dan tes backend/frontend terkait hijau
 **Selesai (Done)**
 - Rapor per santri/kelas
   - [x] kop
