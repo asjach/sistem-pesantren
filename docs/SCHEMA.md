@@ -851,20 +851,6 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - INDEX(`jenjang`, `tahun_ajaran`, `is_active`)
 - ATURAN: dibuat manual lewat tombol "Simpan sebagai varian"; mengaktifkan varian memulihkan jadwal dari snapshot dan melewati kelas yang berstatus `final`
 
-### `struktur_kurikulum` (referensi JP per mapel × tingkat, per varian jadwal)
-- `id` PK
-- `varian_jadwal_id`: FK → varian_jadwal [cascade] — varian pemilik struktur; dipilih lewat combobox (termasuk varian yang tidak aktif)
-- `jenjang`: FK → lembaga [cascade]
-- `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
-- `tingkat`: string(20) — tingkat jenjang (dari `ref_tingkat`)
-- `mata_pelajaran_id`: FK → mata_pelajaran [cascade]
-- `jp_per_minggu`: smallint [default 0] — 0 = tidak diisi (tidak disimpan)
-- `created_at`, `updated_at`
-- UNIQUE(`varian_jadwal_id`, `tingkat`, `mata_pelajaran_id`)
-- INDEX(`varian_jadwal_id`)
-- INDEX(`jenjang`, `tahun_ajaran`)
-- ATURAN: hanya **REFERENSI** — tidak mengunci atau memvalidasi jadwal. Struktur **per varian** (bukan hanya varian aktif); baris = mapel aktif jenjang; kolom = tingkat dari `ref_tingkat` aktif (cadangan: tingkat kelas TA itu)
-
 ### `struktur_kurikulum_pengaturan`
 - `id` PK
 - `jenjang`: FK → lembaga [cascade]
@@ -872,6 +858,8 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `minggu_efektif`: smallint [default 36] — dasar hitungan JP per tahun (JP/minggu × minggu efektif); berlaku untuk semua varian pada jenjang + TA itu
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `tahun_ajaran`)
+
+> Struktur kurikulum (JP per mapel × tingkat) **tidak punya tabel sendiri**: nilainya dihitung dari snapshot `varian_jadwal` saat halaman dibuka (JP terbanyak antar kelas pada tingkat yang sama). Tabel ini hanya menyimpan minggu efektif.
 
 ### `template_jadwal`
 - `id` PK

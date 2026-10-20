@@ -482,6 +482,8 @@ export interface StrukturKurikulumData {
   /** Baris: mapel aktif jenjang. */
   mapel: StrukturMapel[];
   sel: StrukturSel[];
+  /** Penjelasan cara nilai JP dihitung (dari snapshot varian). */
+  catatan?: string;
   pesan?: string;
 }
 
@@ -492,11 +494,10 @@ export function daftarStrukturKurikulum(varianId: number) {
   return api<StrukturKurikulumData>(`/admin/kurikulum/struktur?${q.toString()}`);
 }
 
-/** Simpan struktur kurikulum satu varian (mengganti seluruh selnya). */
+/** Simpan minggu efektif (berlaku satu jenjang + tahun ajaran). */
 export function simpanStrukturKurikulum(input: {
   varian_id: number;
   minggu_efektif: number;
-  sel: StrukturSel[];
 }) {
   return api<StrukturKurikulumData>('/admin/kurikulum/struktur', {
     method: 'PUT',

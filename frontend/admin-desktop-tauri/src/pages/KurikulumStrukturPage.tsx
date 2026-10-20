@@ -14,11 +14,11 @@ import {
 
 /**
  * Struktur Kurikulum (REFERENSI) PER VARIAN jadwal: baris = mapel aktif
- * jenjang, kolom = tingkat, isi = JP per minggu. Varian dipilih lewat
- * combobox — termasuk varian yang TIDAK aktif. JP per tahun = JP/minggu ×
- * minggu efektif (minggu efektif tetap per jenjang + tahun ajaran).
+ * jenjang, kolom = tingkat, isi = JP per minggu HASIL HITUNG dari snapshot
+ * varian terpilih. Varian dipilih lewat combobox — termasuk yang tidak aktif.
+ * JP per tahun = JP/minggu × minggu efektif (minggu efektif per jenjang + TA).
  *
- * Tidak mengunci atau memvalidasi jadwal pelajaran.
+ * Tabel baca-saja; tidak mengunci atau memvalidasi jadwal pelajaran.
  */
 export default function KurikulumStrukturPage() {
   const { jenjangs, tahunAjaranNames } = useFilterGlobalAktif();
@@ -38,9 +38,6 @@ export default function KurikulumStrukturPage() {
   const [sibuk, setSibuk] = useState(false);
   const [err, setErr] = useState('');
 
-  /** Cermin nilai terbaru: antrean auto-save bisa berjalan sebelum render ulang. */
-  const selRef = useRef<Map<string, number>>(new Map());
-  const mingguRef = useRef(36);
   /** Varian yang sedang dimuat — mencegah hasil varian lama menimpa varian baru. */
   const varianRef = useRef<number | null>(null);
 
@@ -49,12 +46,10 @@ export default function KurikulumStrukturPage() {
   const terapkan = useCallback((r: StrukturKurikulumData) => {
     setData(r);
     setMinggu(r.minggu_efektif);
-    mingguRef.current = r.minggu_efektif;
     setOpsi(r.varian_opsi);
 
     const peta = new Map(r.sel.map((s) => [`${s.mata_pelajaran_id}|${s.tingkat}`, s.jp_per_minggu] as const));
 
-    selRef.current = peta;
     setSel(peta);
   }, []);
 
@@ -93,7 +88,7 @@ export default function KurikulumStrukturPage() {
     return () => { hidup = false; };
   }, [jenjang, ta]);
 
-  /** Muat struktur varian terpilih. */
+  /** Muat struktur varian terpilih (nilai JP dihitung server dari snapshot). */
   useEffect(() => {
     let hidup = true;
 
@@ -123,47 +118,17 @@ export default function KurikulumStrukturPage() {
     return () => { hidup = false; };
   }, [varianId, terapkan]);
 
-  /** Simpan seluruh matriks varian aktif (auto-save sel dan tombol Simpan). */
-  const simpanSel = useCallback(async (peta: Map<string, number>, mingguEfektif: number) => {
+  async function simpanMinggu() {
     if (data === null) return;
 
-    const r = await simpanStrukturKurikulum({
-      varian_id: data.varian.id,
-      minggu_efektif: mingguEfektif,
-      sel: [...peta.entries()].map(([k, v]) => {
-        const [mid, tk] = k.split('|');
-        return { mata_pelajaran_id: Number(mid), tingkat: tk, jp_per_minggu: v };
-      }),
-    });
-
-    terapkan(r);
-  }, [data, terapkan]);
-
-  /** Auto-save satu sel dari ExcelTable: gabungkan dengan nilai lain lalu simpan. */
-  const onCommit = useCallback(async (id: number, values: Record<string, string | null>) => {
-    const next = new Map(selRef.current);
-
-    for (const [key, raw] of Object.entries(values)) {
-      if (!key.startsWith('jp_')) continue;
-
-      const tk = key.slice(3);
-      const n = Math.max(0, Math.min(60, Number(raw) || 0));
-      const k = kunci(id, tk);
-
-      if (n === 0) next.delete(k);
-      else next.set(k, n);
-    }
-
-    selRef.current = next;
-    setSel(next);
-    await simpanSel(next, mingguRef.current);
-  }, [simpanSel]);
-
-  async function simpanMinggu() {
     setSibuk(true);
+
     try {
-      await simpanSel(selRef.current, minggu);
-      toast.success('Struktur kurikulum disimpan.');
+      terapkan(await simpanStrukturKurikulum({
+        varian_id: data.varian.id,
+        minggu_efektif: minggu,
+      }));
+      toast.success('Minggu efektif disimpan.');
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
@@ -179,15 +144,9 @@ export default function KurikulumStrukturPage() {
       ...data.tingkat.map((t) => ({
         key: `jp_${t}`,
         label: `Tingkat ${t} (JP/minggu)`,
-        kind: 'text' as const,
+        kind: 'static' as const,
         width: 120,
         format: 'angka' as const,
-        validate: (v: string | null): string | null => {
-          if (v === null || v.trim() === '') return null;
-          const n = Number(v);
-          if (!Number.isFinite(n) || n < 0 || n > 60) return 'JP harus berupa angka 0–60.';
-          return null;
-        },
       })),
     ];
   }, [data]);
@@ -296,8 +255,8 @@ export default function KurikulumStrukturPage() {
             getValues={getValues}
             loading={memuat}
             emptyText="Belum ada mapel aktif untuk jenjang ini."
-            canEdit={canUbah}
-            onCommit={onCommit}
+            canEdit={false}
+            onCommit={async () => {}}
             onSaved={() => {}}
             renderActions={() => null}
             hideCheckbox
@@ -316,7 +275,6 @@ export default function KurikulumStrukturPage() {
                     onChange={(e) => {
                       const n = Math.max(1, Math.min(60, Number(e.target.value) || 1));
                       setMinggu(n);
-                      mingguRef.current = n;
                     }}
                     className="h-8 w-20 rounded-md border border-input bg-transparent px-2 text-xs"
                   />
@@ -336,6 +294,10 @@ export default function KurikulumStrukturPage() {
             }
           />
         )}
+
+        {data?.catatan !== undefined ? (
+          <p className="pt-2 text-[11px] text-muted-foreground">{data.catatan}</p>
+        ) : null}
       </div>
     </div>
   );

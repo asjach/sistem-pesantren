@@ -475,8 +475,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Halaman baru Kurikulum → Struktur Kurikulum
   - [x] Struktur per VARIAN jadwal; combobox memilih varian, termasuk yang tidak aktif
   - [x] Baris = mapel aktif jenjang; kolom = tingkat jenjang
-  - [x] JP per minggu per mapel × tingkat; JP per tahun = JP/minggu × minggu efektif
-  - [x] Minggu efektif per jenjang + tahun ajaran; struktur hanya referensi (tidak mengunci jadwal)
+  - [x] JP per minggu dihitung otomatis dari snapshot varian (terbanyak antar kelas satu tingkat); JP per tahun = JP/minggu × minggu efektif
+  - [x] Minggu efektif per jenjang + tahun ajaran; tabel baca-saja dan hanya referensi (tidak mengunci jadwal)
   - [x] Verifikasi: tes backend + frontend + typecheck; SCHEMA/ERD diselaraskan
 **Selesai (Done)**
 - (kosong)

@@ -4,20 +4,21 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
+use App\Models\Kelas;
 use App\Models\MataPelajaran;
-use App\Models\StrukturKurikulum;
 use App\Models\StrukturKurikulumPengaturan;
 use App\Models\VarianJadwal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 /**
- * Struktur kurikulum (REFERENSI) per VARIAN jadwal: JP per minggu per mapel ×
- * tingkat, plus minggu efektif per jenjang + tahun ajaran.
+ * Struktur kurikulum (REFERENSI) per VARIAN jadwal.
  *
- * Varian dipilih eksplisit lewat `varian_id` — termasuk varian yang TIDAK aktif.
+ * JP per minggu DIHITUNG dari snapshot varian terpilih: jumlah sel jadwal tiap
+ * mapel per tingkat. Bila satu tingkat punya beberapa kelas, dipakai jumlah
+ * terbanyak. JP per tahun = JP/minggu × minggu efektif (per jenjang + TA).
+ *
  * Tidak mengunci atau memvalidasi jadwal pelajaran.
  */
 class StrukturKurikulumController extends Controller
@@ -30,64 +31,24 @@ class StrukturKurikulumController extends Controller
         return response()->json($this->data($this->varian($request)));
     }
 
-    /** PUT /api/admin/kurikulum/struktur */
+    /**
+     * PUT /api/admin/kurikulum/struktur
+     * Hanya menyimpan minggu efektif; sel JP selalu dihitung dari snapshot.
+     */
     public function simpan(Request $request): JsonResponse
     {
         $varian = $this->varian($request);
 
         $data = $request->validate([
             'minggu_efektif' => ['required', 'integer', 'min:1', 'max:60'],
-            'sel' => ['present', 'array'],
-            'sel.*.mata_pelajaran_id' => ['required', 'integer'],
-            'sel.*.tingkat' => ['required', 'string', 'max:20'],
-            'sel.*.jp_per_minggu' => ['required', 'integer', 'min:0', 'max:60'],
         ]);
 
-        $mapelAktif = MataPelajaran::where('jenjang', $varian->jenjang)->where('is_active', true)
-            ->pluck('id')->map(fn ($v): int => (int) $v)->all();
-        $idMapel = array_flip($mapelAktif);
-        $tingkat = $this->daftarTingkat($varian->jenjang);
-        $idTingkat = array_flip($tingkat);
+        StrukturKurikulumPengaturan::updateOrCreate(
+            ['jenjang' => $varian->jenjang, 'tahun_ajaran' => $varian->tahun_ajaran],
+            ['minggu_efektif' => (int) $data['minggu_efektif']],
+        );
 
-        $baris = [];
-        foreach ($data['sel'] as $s) {
-            $mapelId = (int) $s['mata_pelajaran_id'];
-            $tk = (string) $s['tingkat'];
-
-            if (! isset($idMapel[$mapelId])) {
-                throw ValidationException::withMessages(['sel' => 'Mapel tidak aktif di jenjang ini.']);
-            }
-            if ($tingkat !== [] && ! isset($idTingkat[$tk])) {
-                throw ValidationException::withMessages(['sel' => "Tingkat {$tk} tidak dikenal untuk jenjang ini."]);
-            }
-            if ((int) $s['jp_per_minggu'] <= 0) {
-                continue;
-            }
-
-            $baris[$mapelId.'|'.$tk] = [
-                'varian_jadwal_id' => $varian->id,
-                'jenjang' => $varian->jenjang,
-                'tahun_ajaran' => $varian->tahun_ajaran,
-                'tingkat' => $tk,
-                'mata_pelajaran_id' => $mapelId,
-                'jp_per_minggu' => (int) $s['jp_per_minggu'],
-            ];
-        }
-
-        DB::transaction(function () use ($varian, $data, $baris): void {
-            StrukturKurikulumPengaturan::updateOrCreate(
-                ['jenjang' => $varian->jenjang, 'tahun_ajaran' => $varian->tahun_ajaran],
-                ['minggu_efektif' => (int) $data['minggu_efektif']],
-            );
-
-            StrukturKurikulum::where('varian_jadwal_id', $varian->id)->delete();
-
-            foreach ($baris as $b) {
-                StrukturKurikulum::create($b);
-            }
-        });
-
-        return response()->json($this->data($varian) + ['pesan' => 'Struktur kurikulum disimpan.']);
+        return response()->json($this->data($varian) + ['pesan' => 'Minggu efektif disimpan.']);
     }
 
     /** Varian yang diminta (wajib) + otorisasi lembaganya. */
@@ -136,8 +97,79 @@ class StrukturKurikulumController extends Controller
     }
 
     /**
+     * Hitung JP per minggu per mapel × tingkat dari snapshot varian.
+     *
+     * @param  list<int>  $mapelIds
+     * @param  list<string>  $tingkat
+     * @return list<array{mata_pelajaran_id:int, tingkat:string, jp_per_minggu:int}>
+     */
+    private function selDariVarian(VarianJadwal $varian, array $mapelIds, array $tingkat): array
+    {
+        $petaKelas = Kelas::where('jenjang', $varian->jenjang)
+            ->where('tahun_ajaran', $varian->tahun_ajaran)
+            ->get()
+            ->keyBy(fn (Kelas $k): string => Kelas::normalisasiNama($k->nama_kelas));
+
+        $idMapel = array_flip($mapelIds);
+        $idTingkat = array_flip($tingkat);
+        $maks = [];
+
+        foreach ($varian->snapshot['kelas'] ?? [] as $data) {
+            $nama = (string) ($data['nama'] ?? '');
+            $kelas = $petaKelas->get(Kelas::normalisasiNama($nama));
+            $tk = $kelas?->tingkat;
+
+            // Cadangan: nama kelas diawali angka tingkat (mis. "1A").
+            if (($tk === null || $tk === '') && preg_match('/^\s*(\d+)/', $nama, $m) === 1) {
+                $tk = $m[1];
+            }
+
+            if ($tk === null || $tk === '') {
+                continue;
+            }
+
+            $tk = (string) $tk;
+
+            if (! isset($idTingkat[$tk])) {
+                continue;
+            }
+
+            $hitung = [];
+
+            foreach ($data['jadwal'] ?? [] as $j) {
+                $mapelId = (int) ($j['mata_pelajaran_id'] ?? 0);
+
+                if ($mapelId <= 0 || ! isset($idMapel[$mapelId])) {
+                    continue;
+                }
+
+                $hitung[$mapelId] = ($hitung[$mapelId] ?? 0) + 1;
+            }
+
+            foreach ($hitung as $mapelId => $n) {
+                $k = $mapelId.'|'.$tk;
+                $maks[$k] = max($maks[$k] ?? 0, $n);
+            }
+        }
+
+        $hasil = [];
+
+        foreach ($maks as $k => $n) {
+            [$mapelId, $tk] = explode('|', $k);
+            $hasil[] = [
+                'mata_pelajaran_id' => (int) $mapelId,
+                'tingkat' => $tk,
+                'jp_per_minggu' => (int) $n,
+            ];
+        }
+
+        return $hasil;
+    }
+
+    /**
      * Data lengkap halaman untuk satu varian: pengaturan minggu efektif,
-     * daftar varian (untuk combobox), kolom tingkat, baris mapel, dan sel.
+     * daftar varian (untuk combobox), kolom tingkat, baris mapel, dan sel
+     * hasil hitung dari snapshot.
      *
      * @return array<string, mixed>
      */
@@ -159,14 +191,7 @@ class StrukturKurikulumController extends Controller
             ])
             ->values();
 
-        $sel = StrukturKurikulum::where('varian_jadwal_id', $varian->id)
-            ->get(['mata_pelajaran_id', 'tingkat', 'jp_per_minggu'])
-            ->map(fn (StrukturKurikulum $s): array => [
-                'mata_pelajaran_id' => (int) $s->mata_pelajaran_id,
-                'tingkat' => $s->tingkat,
-                'jp_per_minggu' => (int) $s->jp_per_minggu,
-            ])
-            ->values();
+        $tingkat = $this->daftarTingkat($varian->jenjang);
 
         $opsi = VarianJadwal::where('jenjang', $varian->jenjang)
             ->where('tahun_ajaran', $varian->tahun_ajaran)
@@ -187,9 +212,10 @@ class StrukturKurikulumController extends Controller
             'varian' => ['id' => $varian->id, 'nama' => $varian->nama, 'is_active' => $varian->is_active],
             'varian_opsi' => $opsi,
             'minggu_efektif' => $pengaturan->minggu_efektif,
-            'tingkat' => $this->daftarTingkat($varian->jenjang),
+            'tingkat' => $tingkat,
             'mapel' => $mapel,
-            'sel' => $sel,
+            'sel' => $this->selDariVarian($varian, $mapel->pluck('id')->all(), $tingkat),
+            'catatan' => 'JP per minggu dihitung dari snapshot varian terpilih; bila satu tingkat punya beberapa kelas, dipakai jumlah JP terbanyak.',
         ];
     }
 }

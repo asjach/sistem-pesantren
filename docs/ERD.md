@@ -468,15 +468,6 @@ erDiagram
     USERS {
         bigint id PK
     }
-    STRUKTUR_KURIKULUM {
-        bigint id PK
-        bigint varian_jadwal_id FK
-        string jenjang FK
-        string tahun_ajaran FK
-        string tingkat
-        bigint mata_pelajaran_id FK
-        int jp_per_minggu
-    }
     STRUKTUR_KURIKULUM_PENGATURAN {
         bigint id PK
         string jenjang FK
@@ -501,10 +492,6 @@ erDiagram
     LEMBAGA ||--o{ VARIAN_JADWAL : "memiliki varian"
     TAHUN_AJARAN ||--o{ VARIAN_JADWAL : "berlaku pada"
     USERS o|--o{ VARIAN_JADWAL : "dibuat oleh"
-    VARIAN_JADWAL ||--o{ STRUKTUR_KURIKULUM : "memiliki struktur"
-    LEMBAGA ||--o{ STRUKTUR_KURIKULUM : "memiliki struktur"
-    TAHUN_AJARAN ||--o{ STRUKTUR_KURIKULUM : "berlaku pada"
-    MATA_PELAJARAN ||--o{ STRUKTUR_KURIKULUM : "diatur JP-nya"
     LEMBAGA ||--o{ STRUKTUR_KURIKULUM_PENGATURAN : "memiliki pengaturan"
     TAHUN_AJARAN ||--o{ STRUKTUR_KURIKULUM_PENGATURAN : "berlaku pada"
 ```
