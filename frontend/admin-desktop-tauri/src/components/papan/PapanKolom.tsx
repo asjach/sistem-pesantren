@@ -96,6 +96,24 @@ export function GarisSisip({ id }: { id: string }) {
   return <div id={id} aria-hidden="true" className="h-[2px] shrink-0" style={{ background: 'var(--accent)' }} />;
 }
 
+/** Palet hue yang jaraknya cukup jauh agar kartu antar sub-modul mudah dibedakan. */
+const HUE_KARTU_SUB = [12, 38, 62, 95, 140, 170, 195, 220, 250, 275, 300, 330];
+
+/** Warna latar kartu per sub-modul; kode yang sama selalu menghasilkan warna
+ *  yang sama sehingga kartu lintas kolom tetap dikenali sebagai satu sub-modul. */
+function warnaKartuSub(kode: string): string {
+  let h = 2166136261;
+
+  for (let i = 0; i < kode.length; i++) {
+    h ^= kode.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+
+  const hue = HUE_KARTU_SUB[Math.abs(h) % HUE_KARTU_SUB.length];
+
+  return `color-mix(in srgb, hsl(${hue} 52% 48%) 12%, var(--surface))`;
+}
+
 /**
  * Satu kartu papan = satu SUB-MODUL di dalam sebuah kolom.
  *
@@ -183,6 +201,7 @@ export function KartuPapan({
         // kartu papan tidak menyimpang dari kartu lain di aplikasi.
         'kartu flex flex-col gap-2 p-[10px_12px]',
       )}
+      style={{ background: warnaKartuSub(kartu.subKode) }}
     >
       <div className="flex items-start gap-2">
         {ubahSub ? (
@@ -559,34 +578,36 @@ function BarisPoin({
       >
         {ubah ? (
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start">
-              <textarea
-                id={`input_ubah_butir_${poin.id}`}
-                value={draf}
-                rows={2}
-                aria-label={`Isi poin ${poin.deskripsi}`}
-                onChange={(e) => setDraf(e.target.value)}
-                className="min-w-0 flex-1 resize-y border bg-transparent p-1.5 text-[12px] leading-snug outline-none focus:border-[var(--accent)]"
-                style={{ borderColor: 'var(--divider)' }}
-              />
-              <select
-                id={`status_butir_${poin.id}`}
-                value={statusDraf}
-                onChange={(e) => setStatusDraf(e.target.value as StatusPapan)}
-                aria-label={`Status poin ${poin.deskripsi}`}
-                className="self-start border bg-transparent px-1.5 py-1 text-[11px] sm:shrink-0"
-                style={{ borderColor: 'var(--divider)' }}
-              >
-                {KOLOM_PAPAN.map((status) => (
-                  <option
-                    key={status}
-                    value={status}
-                    disabled={status === 'sudah' && !semuaSubpoinSelesai}
-                  >
-                    {JUDUL_KOLOM[status]}
-                  </option>
-                ))}
-              </select>
+            <div className="@container/editor">
+              <div className="flex flex-col gap-1.5 @min-[280px]/editor:flex-row @min-[280px]/editor:items-start">
+                <textarea
+                  id={`input_ubah_butir_${poin.id}`}
+                  value={draf}
+                  rows={2}
+                  aria-label={`Isi poin ${poin.deskripsi}`}
+                  onChange={(e) => setDraf(e.target.value)}
+                  className="min-w-0 flex-1 resize-y border bg-transparent p-1.5 text-[12px] leading-snug outline-none focus:border-[var(--accent)]"
+                  style={{ borderColor: 'var(--divider)' }}
+                />
+                <select
+                  id={`status_butir_${poin.id}`}
+                  value={statusDraf}
+                  onChange={(e) => setStatusDraf(e.target.value as StatusPapan)}
+                  aria-label={`Status poin ${poin.deskripsi}`}
+                  className="self-start border bg-transparent px-1.5 py-1 text-[11px] @min-[280px]/editor:shrink-0"
+                  style={{ borderColor: 'var(--divider)' }}
+                >
+                  {KOLOM_PAPAN.map((status) => (
+                    <option
+                      key={status}
+                      value={status}
+                      disabled={status === 'sudah' && !semuaSubpoinSelesai}
+                    >
+                      {JUDUL_KOLOM[status]}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <button
@@ -870,7 +891,7 @@ export function PapanKolom({
         {pengumuman}
       </div>
 
-      <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto overscroll-x-contain px-3 pb-4 sm:px-6 sm:pb-6">
+      <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto overscroll-x-contain px-0 pb-0 sm:px-0 sm:pb-0">
         {kolom.map((item) => {
           const terlipatKolom = lipat.has(item.id);
           const disorot = sasaran?.kolom === item.id && seret !== null;

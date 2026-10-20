@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ErrorNotice, PAGE_SHELL } from '@/components/PageHeader';
@@ -25,6 +25,7 @@ import {
   type StatusPapan,
 } from '@/api/papan';
 import { bisa } from '@/api/auth';
+import { prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { kartuModul, kemajuanModul, modulPertama, type KartuPapan } from '@/lib/papan';
 import type { AksiButir, AksiSub } from '@/components/papan/PapanKolom';
@@ -33,6 +34,22 @@ import { TambahModul } from '@/components/papan/TambahModul';
 
 /** Kolom selesai/ditunda mulai terlipat agar fokus ke pekerjaan aktif. */
 const KOLOM_TERTUTUP_AWAL: StatusPapan[] = ['sudah', 'ditunda'];
+
+/** Lebar rail modul: batas, bawaan, dan kunci simpanan preferensi. */
+const RAIL_MIN = 128;
+const RAIL_MAX = 360;
+const RAIL_DEFAULT = 224;
+const RAIL_KEY = 'simpes_rail_papan';
+
+function lebarRailAwal(): number {
+  if (typeof window !== 'undefined' && window.innerWidth < 640) return 144;
+
+  return RAIL_DEFAULT;
+}
+
+function jepitRail(px: number): number {
+  return Math.min(RAIL_MAX, Math.max(RAIL_MIN, Math.round(px)));
+}
 
 /** Modul pertama yang berisi, atau modul pertama bila semuanya kosong. */
 function modulAwal(modul: ModulPapan[]): ModulPapan | null {
@@ -54,6 +71,8 @@ export default function PapanPage() {
   const [kelolaTerbuka, setKelolaTerbuka] = useState(false);
   const [modulTerbuka, setModulTerbuka] = useState(false);
   const [sibukTimeline, setSibukTimeline] = useState(false);
+  const [lebarRail, setLebarRail] = useState(lebarRailAwal);
+  const seretRail = useRef({ mulaiX: 0, mulaiW: RAIL_DEFAULT, akhir: RAIL_DEFAULT });
 
   const { user } = useAuth();
   // Satu gerbang untuk seluruh UI sunting. Tanpa izin ini halaman
@@ -83,6 +102,44 @@ export default function PapanPage() {
       .then((log) => setRiwayat(log.riwayat))
       .catch(() => setRiwayat([]));
   }, []);
+
+  useEffect(() => {
+    void prefGet(RAIL_KEY).then((nilai) => {
+      const n = Number(nilai);
+
+      if (Number.isFinite(n) && n > 0) setLebarRail(jepitRail(n));
+    });
+  }, []);
+
+  function simpanLebarRail(px: number) {
+    setLebarRail(jepitRail(px));
+    void prefSet(RAIL_KEY, String(jepitRail(px)));
+  }
+
+  function mulaiSeretRail(e: ReactMouseEvent<HTMLButtonElement>) {
+    if (e.button !== 0) return;
+
+    e.preventDefault();
+    const mulaiX = e.clientX;
+    const mulaiW = lebarRail;
+    seretRail.current = { mulaiX, mulaiW, akhir: mulaiW };
+    document.body.style.cursor = 'col-resize';
+
+    const geser = (ev: globalThis.MouseEvent) => {
+      const w = jepitRail(mulaiW + ev.clientX - mulaiX);
+      seretRail.current.akhir = w;
+      setLebarRail(w);
+    };
+    const selesai = () => {
+      window.removeEventListener('mousemove', geser);
+      window.removeEventListener('mouseup', selesai);
+      document.body.style.cursor = '';
+      void prefSet(RAIL_KEY, String(seretRail.current.akhir));
+    };
+
+    window.addEventListener('mousemove', geser);
+    window.addEventListener('mouseup', selesai);
+  }
 
   const aplikasi = useMemo(() => data?.aplikasi ?? [], [data]);
   const aplikasiAktif = useMemo(
@@ -308,7 +365,7 @@ export default function PapanPage() {
         className="min-h-0 flex-1 gap-0"
       >
         <div className="flex flex-wrap items-center gap-2 px-3 sm:px-6">
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
             <TabsList
               className={KELAS_LIST_TAB}
               indikator="primer"
@@ -411,29 +468,54 @@ export default function PapanPage() {
             value={aktif?.kode ?? ''}
             orientation="vertical"
             onValueChange={(k) => navigate(`/board/${aplikasiAktif.kode}/${k}`)}
-            className="flex min-h-0 flex-1 gap-3 px-3 pb-4 sm:px-6 sm:pb-6"
+            className="flex min-h-0 flex-1 gap-3 overflow-x-auto overscroll-x-contain px-0 pb-0 sm:px-0 sm:pb-0"
           >
-            <TabsList
-              className="flex h-full w-32 shrink-0 flex-col items-stretch justify-start gap-1 overflow-y-auto border p-1 sm:w-52"
-              style={{ borderColor: 'var(--divider)' }}
-            >
-              {modul.map((m) => (
-                <TabsTrigger
-                  key={m.kode}
-                  id={`tab_papan_${m.kode.toLowerCase()}`}
-                  value={m.kode}
-                  className="flex w-full flex-none items-start justify-between gap-2 whitespace-normal px-2 py-1.5 text-left text-[12px] leading-snug"
-                >
-                  <span className="min-w-0">
-                    <span className="font-mono text-[10px] text-muted-foreground">{m.kode}</span>
-                    <span className="block">{m.nama}</span>
-                  </span>
-                  <span className="lencana-tab-papan shrink-0" title="Subpoin selesai dari total subpoin">
-                    {kemajuanModul(m).selesai}/{kemajuanModul(m).total}
-                  </span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
+            <div className="relative h-full shrink-0" style={{ width: `min(${lebarRail}px, 36vw)` }}>
+              <TabsList
+                aria-label="Modul aplikasi"
+                className="flex h-full w-full flex-col items-stretch justify-start gap-0.5 overflow-y-auto border-t bg-transparent p-1 group-data-[orientation=vertical]/tabs:h-full group-data-[orientation=vertical]/tabs:w-full [&_[data-slot=tabs-indicator]]:hidden"
+                style={{ borderColor: 'var(--divider)' }}
+              >
+                {modul.map((m) => (
+                  <TabsTrigger
+                    key={m.kode}
+                    id={`tab_papan_${m.kode.toLowerCase()}`}
+                    value={m.kode}
+                    className="group relative flex !h-auto w-full flex-none items-start justify-between gap-2 whitespace-normal border border-transparent px-2 py-2 text-left transition-colors before:absolute before:top-1 before:bottom-1 before:left-0 before:w-[2px] before:bg-transparent hover:bg-[var(--surface-3)] data-[state=active]:border-[color:var(--divider)] data-[state=active]:bg-[var(--surface-2)] data-[state=active]:before:bg-[var(--accent)]"
+                  >
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="font-mono text-[10px] tracking-wide text-muted-foreground">
+                        {m.kode}
+                      </span>
+                      <span className="text-[12px] leading-snug font-medium">
+                        {m.nama}
+                      </span>
+                    </span>
+                    <span className="lencana-rail shrink-0" title="Subpoin selesai dari total subpoin">
+                      {kemajuanModul(m).selesai}/{kemajuanModul(m).total}
+                    </span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              <button
+                id="btn_lebar_rail"
+                type="button"
+                aria-label="Atur lebar daftar modul"
+                title="Seret untuk mengatur lebar"
+                onMouseDown={mulaiSeretRail}
+                onKeyDown={(e) => {
+                  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home') return;
+                  e.preventDefault();
+                  if (e.key === 'Home') {
+                    simpanLebarRail(RAIL_DEFAULT);
+
+                    return;
+                  }
+                  simpanLebarRail(lebarRail + (e.key === 'ArrowRight' ? 1 : -1) * (e.shiftKey ? 24 : 8));
+                }}
+                className="absolute -right-1 top-0 z-10 h-full w-2 cursor-col-resize touch-none select-none before:absolute before:inset-y-3 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-[var(--divider)] before:content-[''] hover:before:bg-[var(--accent)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent)]"
+              />
+            </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               {galat ? (
