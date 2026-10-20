@@ -4,6 +4,29 @@
 
 - UI & docs Bahasa Indonesia; `id` elemen snake_case (NFR-05).
 
+## SINKRONISASI SKEMA DAN DIAGRAM HUBUNGAN ENTITAS (ERD)
+
+- `docs/SCHEMA.md` adalah sumber utama struktur basis data (database), sedangkan
+  `docs/ERD.md` adalah diagram hubungan entitas (Entity Relationship Diagram/ERD)
+  turunannya. Jika keduanya berbeda, `SCHEMA.md` yang berlaku.
+- **Setiap perubahan pada `docs/SCHEMA.md` WAJIB diikuti pembuatan ulang
+  `docs/ERD.md` dalam pekerjaan dan commit yang sama.** Ini mencakup penambahan,
+  penghapusan, atau penggantian nama tabel/kolom; perubahan kunci utama (Primary
+  Key/PK), kunci asing (Foreign Key/FK), kardinalitas hubungan, serta perubahan
+  status tabel dari rancangan menjadi sudah diimplementasikan atau sebaliknya.
+- Pembuatan ulang dilakukan dengan menyelaraskan seluruh blok ERD yang terdampak,
+  bukan hanya menambahkan hubungan baru. Pertahankan pembagian diagram per bidang
+  agar tetap terbaca dan pastikan setiap blok Mermaid memakai `erDiagram`.
+- Setelah membuat ulang ERD, wajib periksa bahwa: 1) setiap entitas pada garis
+  hubungan didefinisikan dalam blok yang sama; 2) arah dan kardinalitas hubungan
+  sesuai `SCHEMA.md`; 3) tabel rancangan diberi penanda belum diimplementasikan;
+  dan 4) `git diff --check` lulus.
+- **Jangan menaruh diagram Mermaid di `docs/SCHEMA.md`.** Diagram tetap disimpan
+  terpisah di `docs/ERD.md` dan harus menautkan kembali ke `SCHEMA.md`.
+- Bila `docs/ERD.md` tidak dapat dibuat ulang atau diverifikasi, perubahan
+  `docs/SCHEMA.md` dianggap belum selesai dan tidak boleh di-commit sebagai
+  pekerjaan tuntas.
+
 ## SUMBER ALUR KERJA (WORKFLOW) & PERENCANAAN — BOARD (ATURAN UMUM)
 
 - **Alur kerja (workflow) berlaku per aplikasi dan hanya saat status efektifnya `Aktif`.** Status efektif = pengaturan utama (master) `workflow_master_aktif` DAN penanda (flag) aplikasi `aplikasi[].workflow_aktif`. Cek: popover "Alur kerja (Workflow)" di `/board`, `GET /api/board` (`workflow_master_aktif` + `aplikasi[].workflow_efektif`), `php artisan papan:lihat` (pengaturan utama + status tiap aplikasi), atau basis data (database/DB) `papan` (`papan_pengaturan.workflow_aktif` untuk pengaturan utama dan `workflow_aktif:<aplikasi>` per aplikasi). **Bila status tidak bisa dipastikan, anggap Draf.**
@@ -16,10 +39,133 @@
 
 | Status efektif | Yang WAJIB dilakukan | Yang DILARANG |
 | --- | --- | --- |
-| **Aktif** (master + aplikasi yang dikerjakan aktif) | 1) Baca Board sebelum merencanakan/mengerjakan; jadikan status dan urutan aplikasi itu acuan. 2) Tulis setiap rencana, prioritas, atau perubahan status ke Board sebagai aplikasi → modul → sub-modul → poin (status + subpoin); tempatkan di modul yang sesuai atau buat modul baru. 3) Setelah mengubah Board, jalankan `papan:markdown --tulis`. 4) Jika dokumen lain bertentangan, Board yang menang. | Membuat roadmap/TODO/milestone terpisah; menulis rencana hanya di PRD/chat; mengedit PETA-MODUL manual. |
-| **Draf** (pengaturan utama/master mati atau aplikasi itu belum aktif) | 1) Pakai PRD dan kode sebagai rujukan kebutuhan/status. 2) Boleh mengubah Board hanya bila tugasnya memang membangun/memperbaiki Board itu sendiri. 3) Cek ulang status sebelum memakai Board lagi. | Memakai Board/PETA-MODUL aplikasi itu sebagai acuan alur kerja (workflow), prioritas, atau status; menulis rencana baru ke Board sebagai alur kerja; menyimpulkan pekerjaan sudah/akan dari Board; mengaktifkan alur kerja sendiri. |
+| **Aktif** (master + aplikasi yang dikerjakan aktif) | 1) Baca Board sebelum merencanakan/mengerjakan; jadikan status dan urutan aplikasi itu acuan. 2) Sebelum mengubah kode/dokumen, tulis rencana ke Board sebagai aplikasi → modul → sub-modul → poin (status + subpoin); tempatkan di modul yang sesuai atau buat modul baru. 3) Perbarui status dan subpoin Board saat pekerjaan mulai dan saat siap dievaluasi pengguna. 4) Setelah setiap perubahan Board, jalankan `papan:markdown --tulis`. 5) Jika dokumen lain bertentangan, Board yang menang. | Membuat roadmap/TODO/milestone terpisah; memulai rencana yang belum tercatat di Board; menulis rencana hanya di PRD/chat; menyelesaikan tugas tanpa memperbarui Board; memindahkan poin ke Done secara otomatis; mengedit PETA-MODUL manual. |
+| **Draf** (pengaturan utama/master mati atau aplikasi itu belum aktif) | 1) Pakai PRD dan kode sebagai rujukan kebutuhan/status. 2) Saat pengguna meminta rencana, prioritas, atau "apa selanjutnya", beri tahu bahwa tidak ada Board efektif Aktif dan sarankan pengguna mengaktifkan pengaturan utama + aplikasi terkait. 3) Boleh mengubah Board hanya bila tugasnya memang membangun/memperbaiki Board itu sendiri. 4) Cek ulang status sebelum memakai Board lagi. | Memakai Board/PETA-MODUL aplikasi itu sebagai acuan alur kerja (workflow), prioritas, atau status; menulis rencana baru ke Board sebagai alur kerja; menyimpulkan pekerjaan sudah/akan dari Board; mengaktifkan alur kerja sendiri. |
 
-- **Pekerjaan lintas aplikasi:** pakai alur kerja (workflow) hanya jika SEMUA aplikasi yang terlibat berstatus efektif Aktif. Bila salah satu masih Draf, perlakukan keseluruhan pekerjaan sebagai Draf (aman bila ragu/fail closed).
+### Siklus wajib rencana dan penyelesaian saat Board Aktif
+
+- **Rencana harus masuk Board lebih dahulu.** Setiap rencana implementasi,
+  perbaikan, penataan ulang kode (refactor), perubahan skema, dokumentasi, atau
+  pengujian mandiri yang akan dikerjakan wajib sudah memiliki poin dan subpoin di
+  Board sebelum agen mulai mengubah berkas. Rencana yang belum tercatat dianggap
+  belum siap dikerjakan. Dokumentasi dan pengujian rutin yang hanya mengikuti
+  poin utama tunduk pada aturan batas isi Board di bawah, bukan menjadi poin
+  terpisah.
+- Gunakan alur status berikut: belum siap dijadwalkan = **Belum dijadwalkan
+  (Backlog)**; siap dikerjakan = **Siap dikerjakan (To Do)**; saat pekerjaan
+  dimulai = **Sedang dikerjakan (In Progress)**; implementasi selesai tetapi
+  masih menunggu pemeriksaan/peninjauan = **Menunggu peninjauan (For Review)**;
+  evaluasi manual pengguna diterima = **Selesai (Done)**.
+- **For Review adalah gerbang evaluasi manual pengguna.** Setelah implementasi
+  dan pemeriksaan otomatis selesai, agen memindahkan poin ke Menunggu peninjauan
+  (For Review) dan berhenti. Agen tidak boleh otomatis memindahkan poin ke
+  Selesai (Done), meskipun tidak ada pekerjaan teknis tambahan.
+- Nilai teknis status Menunggu peninjauan adalah `for_review`, bukan
+  `in_review`.
+- Hanya pengguna yang menentukan hasil evaluasi manual. Pengguna dapat langsung
+  memindahkan poin dari For Review ke Done di Board tanpa pekerjaan tambahan.
+  Agen hanya boleh membantu memindahkannya bila pengguna memberi perintah
+  eksplisit setelah evaluasi.
+- Bila pengguna menolak hasil evaluasi atau meminta perbaikan, pindahkan poin
+  dari Menunggu peninjauan (For Review) kembali ke Sedang dikerjakan (In
+  Progress). Catat alasan atau hasil evaluasi pengguna secara ringkas pada
+  subpoin yang relevan, lalu kerjakan perbaikannya dalam poin yang sama selama
+  hasil yang dituju tidak berubah.
+- Poin Selesai (Done) hanya boleh dibuka kembali (reopen) ke Sedang dikerjakan
+  (In Progress) atas perintah eksplisit pengguna. Catat alasan pembukaan kembali
+  agar perubahan status dapat dipahami pada pemeriksaan berikutnya.
+- Pekerjaan yang dibatalkan bukan pekerjaan Selesai (Done). Arsipkan atau hapus
+  poin hanya atas keputusan eksplisit pengguna; jangan memindahkannya ke Done
+  untuk sekadar membersihkan Board.
+- **Board wajib diperbarui setelah menyelesaikan sesuatu.** Sebelum memberi
+  jawaban akhir, agen harus mencentang subpoin yang selesai, mencatat hasil
+  verifikasi yang relevan, dan memindahkan status poin ke Menunggu peninjauan
+  (For Review). Jangan menyatakan implementasi siap dievaluasi bila Board belum
+  selaras.
+- Jika saat mengerjakan ditemukan pekerjaan tambahan yang belum tercatat,
+  nilai dulu dengan aturan batas isi Board di bawah. Hanya pekerjaan yang layak
+  menjadi poin/subpoin yang wajib ditambahkan sebelum dikerjakan.
+- Setelah setiap penambahan atau pembaruan Board, jalankan
+  `php artisan papan:markdown --tulis` agar `docs/PETA-MODUL.md` selaras.
+- Bila tidak ada satu pun aplikasi dengan status efektif Aktif, saran pengaktifan
+  Board bersifat wajib tetapi keputusan tetap milik pengguna. Agen tidak boleh
+  mengaktifkan pengaturan utama (master) atau aplikasi tanpa perintah pengguna.
+
+### Menentukan pekerjaan selanjutnya saat Board Aktif
+
+- Saat pengguna bertanya "apa selanjutnya", pilih pekerjaan berdasarkan urutan
+  berikut: 1) lanjutkan poin paling atas yang berstatus Sedang dikerjakan (In
+  Progress); 2) bila tidak ada, ambil poin paling atas yang berstatus Siap
+  dikerjakan (To Do); 3) jangan mengambil poin Belum dijadwalkan (Backlog) tanpa
+  keputusan pengguna.
+- Poin Menunggu peninjauan (For Review) diberitahukan kepada pengguna sebagai
+  pekerjaan yang menunggu evaluasi manual, bukan sebagai pekerjaan baru untuk
+  agen. Agen baru mengerjakannya lagi bila pengguna memberi hasil evaluasi atau
+  meminta perubahan.
+- Adanya poin For Review tidak otomatis menghalangi agen mengambil poin To Do
+  berikutnya, kecuali pengguna menetapkan bahwa evaluasi harus diselesaikan lebih
+  dahulu.
+
+### Saat pekerjaan gagal, terhenti, atau Board tidak dapat diperbarui
+
+- Bila perubahan sudah dimulai tetapi belum selesai, pertahankan status Sedang
+  dikerjakan (In Progress). Bila belum ada perubahan yang dimulai, pertahankan
+  status Siap dikerjakan (To Do).
+- Bila pemeriksaan atau pengujian yang wajib gagal, jangan pindahkan poin ke
+  Menunggu peninjauan (For Review). Perbaiki dalam poin yang sama selama masih
+  termasuk hasil yang disepakati.
+- Catat hambatan pada Board hanya bila memerlukan keputusan pengguna, mengubah
+  ruang lingkup pekerjaan, atau membuat pekerjaan tidak dapat dilanjutkan.
+  Kegagalan percobaan dan rincian teknis rutin tidak perlu dimasukkan ke Board.
+- Bila Board tidak dapat dibaca atau diperbarui ketika alur kerja (workflow)
+  efektif Aktif, hentikan pekerjaan baru, beri tahu pengguna, dan jangan mengaku
+  bahwa Board atau pekerjaan sudah selaras. Lanjutkan setelah Board kembali dapat
+  dipakai atau pengguna memberi arahan.
+
+### Batas isi Board agar tetap ringkas
+
+- **Satu poin Board = satu hasil yang dapat dievaluasi pengguna secara manual
+  pada For Review.** Jangan membuat satu poin per berkas, fungsi, lapisan teknis,
+  perintah, atau langkah implementasi.
+- Subpoin hanya memuat syarat selesai yang dapat diamati, keluaran penting,
+  risiko utama, hasil verifikasi yang wajib, atau pemeriksaan manual pengguna.
+  Usahakan sekitar 3–7 subpoin; bila jauh lebih banyak, pertimbangkan apakah ada
+  dua hasil mandiri yang seharusnya dipisahkan.
+- Hal berikut **tidak perlu masuk Board** sebagai poin atau subpoin tersendiri:
+  1) pertanyaan, penjelasan, diskusi, dan konsultasi tanpa perubahan proyek;
+  2) penyelidikan hanya-baca (read-only) dan pencarian penyebab;
+  3) ide yang masih dibahas dan belum dipilih untuk dikerjakan;
+  4) nama berkas, fungsi, kelas, komponen, atau baris kode yang diubah;
+  5) langkah teknis internal seperti membuat pengendali (controller), kait React
+  (hook), rute, kueri, atau fungsi pembantu;
+  6) pemeriksaan rutin seperti pemeriksaan tipe (typecheck), tes, penataan kode
+  (lint/format), dan pemeriksaan hasil perubahan;
+  7) percobaan sementara, pendekatan gagal, dan pengulangan perintah;
+  8) menyalakan server pengembangan, membersihkan berkas sementara, membuat
+  screenshot pemeriksaan, atau kegiatan Git seperti commit/cabang/merge;
+  9) pembaruan dokumen turunan wajib seperti `PETA-MODUL.md` dan `ERD.md`; dan
+  10) perbaikan kecil, perubahan teks, impor, format, atau tes yang hanya
+  mengikuti perubahan utama dan diperlukan agar poin induk berfungsi.
+- Pekerjaan temuan menjadi poin baru hanya bila sedikitnya satu kondisi berikut
+  terpenuhi: menghasilkan perilaku yang dapat dilihat pengguna; dapat ditunda
+  tanpa menghalangi poin aktif; memerlukan keputusan/evaluasi manual tersendiri;
+  mengubah aturan bisnis, skema basis data, izin, atau kontrak antarmuka
+  pemrograman aplikasi (API); atau berdampak lintas modul/cukup besar untuk sesi
+  terpisah. Selain itu, tangani sebagai bagian internal poin aktif.
+- Dokumentasi atau pengujian menjadi poin tersendiri hanya bila menghasilkan
+  keluaran mandiri yang dapat dievaluasi pengguna. Pemeriksaan rutin, tes yang
+  mengikuti perubahan utama, serta dokumen turunan cukup menjadi syarat selesai,
+  hasil verifikasi, atau bagian dari subpoin induk yang relevan; jangan dibuat
+  sebagai poin rencana terpisah.
+
+- **Pekerjaan lintas aplikasi:** pakai alur kerja (workflow) hanya jika SEMUA
+  aplikasi yang terlibat berstatus efektif Aktif. Aplikasi dianggap terlibat bila
+  perilaku yang dilihat pengguna, aturan bisnis, data, izin, atau kesepakatan
+  komunikasi antaraplikasinya ikut berubah. Pemakaian komponen atau fungsi teknis
+  bersama tidak otomatis membuat semua aplikasi pemakainya terlibat, kecuali
+  perubahan tersebut turut mengubah perilaku atau kesepakatan komunikasinya.
+  Bila salah satu aplikasi yang benar-benar terlibat masih Draf, perlakukan
+  keseluruhan pekerjaan sebagai Draf (aman bila ragu/fail closed).
 - **Mengaktifkan/menonaktifkan master atau aplikasi adalah keputusan pengguna.** Jangan mengubahnya sendiri; minta konfirmasi. Pengguna dapat menonaktifkan kapan saja, dan sejak saat itu aturan Draf berlaku untuk aplikasi tersebut sampai diaktifkan kembali.
 
 ## Skill (katalog otomatis)
