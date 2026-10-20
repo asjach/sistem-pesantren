@@ -83,7 +83,10 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
   });
 
   it('subpoin terlihat langsung di bawah poin', () => {
-    pasang([poin({ subpoin: ['Periksa saldo.', 'Unduh laporan.'] })]);
+    pasang([poin({ subpoin: [
+      { teks: 'Periksa saldo.', selesai: false },
+      { teks: 'Unduh laporan.', selesai: true },
+    ] })]);
 
     const baris = document.getElementById('kartu_papan_butir_1');
     expect(baris?.textContent).toContain('Periksa saldo.');

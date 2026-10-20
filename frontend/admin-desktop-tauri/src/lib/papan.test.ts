@@ -201,6 +201,38 @@ describe('kemajuanModul', () => {
     expect(kemajuanModul(modul[0])).toEqual({ selesai: 1, total: 4 });
   });
 
+  it('menghitung subpoin sebagai unit, poin tanpa subpoin tetap satu unit', () => {
+    const denganSubpoin: ModulPapan = {
+      kode: 'S',
+      nama: 'Subpoin',
+      sub: [{
+        kode: 'S.1',
+        nama: 'Satu',
+        status: 'sedang',
+        butir: [
+          {
+            id: 10,
+            status: 'sedang',
+            deskripsi: 'Poin A.',
+            subpoin: [
+              { teks: 'A1.', selesai: true },
+              { teks: 'A2.', selesai: false },
+            ],
+          },
+          {
+            id: 11,
+            status: 'sudah',
+            deskripsi: 'Poin B.',
+            subpoin: [{ teks: 'B1.', selesai: true }],
+          },
+          { id: 12, status: 'sudah', deskripsi: 'Poin C.' },
+        ],
+      }],
+    };
+
+    expect(kemajuanModul(denganSubpoin)).toEqual({ selesai: 3, total: 4 });
+  });
+
   it('modul tanpa poin menghasilkan 0/0, bukan dianggap selesai', () => {
     expect(kemajuanModul({ kode: 'Z', nama: 'Kosong', sub: [] })).toEqual({ selesai: 0, total: 0 });
   });

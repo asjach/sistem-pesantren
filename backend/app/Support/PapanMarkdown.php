@@ -134,7 +134,14 @@ class PapanMarkdown
             foreach ($butir as $b) {
                 $baris[] = '- '.$b['deskripsi'];
                 foreach ($b['subpoin'] ?? [] as $subpoin) {
-                    $baris[] = '  - '.$subpoin;
+                    $teks = is_array($subpoin) ? (string) ($subpoin['teks'] ?? '') : (string) $subpoin;
+                    $selesai = is_array($subpoin) && (bool) ($subpoin['selesai'] ?? false);
+
+                    if ($teks === '') {
+                        continue;
+                    }
+
+                    $baris[] = '  - ['.($selesai ? 'x' : ' ').'] '.$teks;
                 }
             }
         }

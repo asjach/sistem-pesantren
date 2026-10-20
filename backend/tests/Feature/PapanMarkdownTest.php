@@ -65,17 +65,20 @@ class PapanMarkdownTest extends TestCase
         $this->assertStringContainsString('# I. RINCIAN TEKNIS LAINNYA', $hasil);
     }
 
-    public function test_subpoin_ditulis_sebagai_daftar_di_bawah_poin(): void
+    public function test_subpoin_ditulis_sebagai_checklist_di_bawah_poin(): void
     {
         $this->buatItem('A.1', 'Setup (001)', 'akan', ['Siapkan proyek.']);
         PapanItem::query()->firstOrFail()->butir()->firstOrFail()->update([
-            'subpoin' => ['Pasang dependensi.', 'Jalankan aplikasi.'],
+            'subpoin' => [
+                ['teks' => 'Pasang dependensi.', 'selesai' => true],
+                ['teks' => 'Jalankan aplikasi.', 'selesai' => false],
+            ],
         ]);
 
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
         $this->assertStringContainsString(
-            "- Siapkan proyek.\n  - Pasang dependensi.\n  - Jalankan aplikasi.",
+            "- Siapkan proyek.\n  - [x] Pasang dependensi.\n  - [ ] Jalankan aplikasi.",
             $hasil,
         );
     }

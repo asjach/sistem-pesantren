@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, type DragEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { Check, History, Minus, Pencil, Plus, Trash2, Undo2 } from '@/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { JUDUL_KOLOM, KOLOM_PAPAN, type RiwayatPapan, type StatusPapan, type SubPapan } from '@/api/papan';
+import { JUDUL_KOLOM, KOLOM_PAPAN, type RiwayatPapan, type StatusPapan, type SubPapan, type SubpoinPapan } from '@/api/papan';
 import { kelompokkanKolom, kolomSebelah, type KartuPapan, type KartuSub } from '@/lib/papan';
 import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
 
@@ -14,7 +14,7 @@ import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
  */
 export interface AksiButir {
   onSimpanTeks: (deskripsi: string, status?: StatusPapan) => Promise<void>;
-  onSimpanSubpoin: (subpoin: string[]) => Promise<void>;
+  onSimpanSubpoin: (subpoin: SubpoinPapan[]) => Promise<void>;
   onHapus: () => Promise<void>;
 }
 
@@ -378,10 +378,10 @@ function BarisPoin({
   const [ubah, setUbah] = useState(false);
   const [draf, setDraf] = useState(poin.deskripsi);
   const [statusDraf, setStatusDraf] = useState<StatusPapan>(poin.status);
-  const [subpoin, setSubpoin] = useState<string[]>(poin.subpoin);
+  const [subpoin, setSubpoin] = useState<SubpoinPapan[]>(poin.subpoin);
   // Nilai subpoin yang sudah tersimpan di server; dipakai saat menyimpan satu
   // baris agar draf baris lain tidak ikut terkirim.
-  const [asli, setAsli] = useState<string[]>(poin.subpoin);
+  const [asli, setAsli] = useState<SubpoinPapan[]>(poin.subpoin);
   const [sibuk, setSibuk] = useState(false);
   const [sibukSub, setSibukSub] = useState<number | null>(null);
   const [galat, setGalat] = useState('');
@@ -427,7 +427,7 @@ function BarisPoin({
   }
 
   async function simpanSubpoin(indeks: number) {
-    const isi = subpoin[indeks]?.trim() ?? '';
+    const isi = subpoin[indeks]?.teks.trim() ?? '';
 
     if (isi === '') return;
 
@@ -437,11 +437,20 @@ function BarisPoin({
     try {
       // Baris lain memakai nilai yang sudah tersimpan, bukan drafnya.
       const hasil = subpoin
-        .map((teks, i) => (i === indeks ? isi : (asli[i] ?? '')).trim())
-        .filter(Boolean);
+        .map((item, i) => {
+          if (i === indeks) {
+            return { teks: isi, selesai: item.selesai };
+          }
+
+          return {
+            teks: (asli[i]?.teks ?? '').trim(),
+            selesai: asli[i]?.selesai ?? false,
+          };
+        })
+        .filter((item) => item.teks !== '');
 
       await aksi.onSimpanSubpoin(hasil);
-      setAsli((prev) => prev.map((teks, i) => (i === indeks ? isi : teks)));
+      setAsli((prev) => prev.map((item, i) => (i === indeks ? { ...item, teks: isi } : item)));
     } catch (e) {
       setGalat(e instanceof Error ? e.message : 'Gagal menyimpan subpoin.');
     } finally {
@@ -450,12 +459,12 @@ function BarisPoin({
   }
 
   function tambahSubpoin() {
-    setSubpoin([...subpoin, '']);
-    setAsli([...asli, '']);
+    setSubpoin([...subpoin, { teks: '', selesai: false }]);
+    setAsli([...asli, { teks: '', selesai: false }]);
   }
 
   async function hapusSubpoin(indeks: number) {
-    const barisBaru = (asli[indeks] ?? '').trim() === '';
+    const barisBaru = (asli[indeks]?.teks ?? '').trim() === '';
     const sisaAsli = asli.filter((_, i) => i !== indeks);
 
     setSubpoin(subpoin.filter((_, i) => i !== indeks));
@@ -468,11 +477,30 @@ function BarisPoin({
     setGalat('');
 
     try {
-      await aksi.onSimpanSubpoin(sisaAsli.map((teks) => teks.trim()).filter(Boolean));
+      await aksi.onSimpanSubpoin(sisaAsli.filter((item) => item.teks.trim() !== ''));
     } catch (e) {
       setSubpoin(subpoin);
       setAsli(asli);
       setGalat(e instanceof Error ? e.message : 'Gagal menghapus subpoin.');
+    } finally {
+      setSibukSub(null);
+    }
+  }
+
+  async function toggleSubpoin(indeks: number) {
+    if (!bolehUbah || sibukSub !== null) return;
+
+    const hasil = poin.subpoin.map((item, i) => (
+      i === indeks ? { ...item, selesai: !item.selesai } : item
+    ));
+
+    setSibukSub(indeks);
+    setGalat('');
+
+    try {
+      await aksi.onSimpanSubpoin(hasil);
+    } catch (e) {
+      setGalat(e instanceof Error ? e.message : 'Gagal menyimpan subpoin.');
     } finally {
       setSibukSub(null);
     }
@@ -495,6 +523,7 @@ function BarisPoin({
 
   const teksBerubah = draf.trim() !== poin.deskripsi.trim();
   const statusBerubah = statusDraf !== poin.status;
+  const semuaSubpoinSelesai = poin.subpoin.every((item) => item.selesai);
 
   return (
     // Baris ini SENGAJA fokusable: seret tidak bisa dipakai keyboard, jadi
@@ -549,7 +578,13 @@ function BarisPoin({
                 style={{ borderColor: 'var(--divider)' }}
               >
                 {KOLOM_PAPAN.map((status) => (
-                  <option key={status} value={status}>{JUDUL_KOLOM[status]}</option>
+                  <option
+                    key={status}
+                    value={status}
+                    disabled={status === 'sudah' && !semuaSubpoinSelesai}
+                  >
+                    {JUDUL_KOLOM[status]}
+                  </option>
                 ))}
               </select>
               <button
@@ -608,22 +643,22 @@ function BarisPoin({
                 </Popover>
               </div>
             </div>
-            {subpoin.map((isi, indeks) => (
+            {subpoin.map((item, indeks) => (
               <div key={indeks} className="flex items-start gap-1">
                 <textarea
                   id={`input_subpoin_${poin.id}_${indeks}`}
-                  value={isi}
+                  value={item.teks}
                   rows={1}
                   maxLength={500}
                   aria-label={`Subpoin ${indeks + 1}`}
-                  onChange={(e) => setSubpoin(subpoin.map((teks, i) => (i === indeks ? e.target.value : teks)))}
+                  onChange={(e) => setSubpoin(subpoin.map((x, i) => (i === indeks ? { ...x, teks: e.target.value } : x)))}
                   className="min-w-0 flex-1 resize-y border bg-transparent p-1.5 text-[11px]"
                   style={{ borderColor: 'var(--divider)' }}
                 />
                 <button
                   id={`btn_simpan_subpoin_${poin.id}_${indeks}`}
                   type="button"
-                  disabled={sibukSub !== null || isi.trim() === '' || isi.trim() === (asli[indeks] ?? '').trim()}
+                  disabled={sibukSub !== null || item.teks.trim() === '' || item.teks.trim() === (asli[indeks]?.teks ?? '').trim()}
                   onClick={() => void simpanSubpoin(indeks)}
                   aria-label={`Simpan subpoin ${indeks + 1}`}
                   className="grid size-6 shrink-0 place-items-center text-success enabled:hover:opacity-80 disabled:opacity-40"
@@ -646,8 +681,21 @@ function BarisPoin({
           <div className="min-w-0 flex-1 text-[12px] leading-snug [overflow-wrap:anywhere]">
             <TeksButir deskripsi={poin.deskripsi} />
             {poin.subpoin.length > 0 ? (
-              <ul className="mt-1 list-disc pl-4 text-[11px] text-muted-foreground">
-                {poin.subpoin.map((teks, i) => <li key={i}><TeksButir deskripsi={teks} /></li>)}
+              <ul className="mt-1 flex flex-col gap-0.5 text-[11px] text-muted-foreground">
+                {poin.subpoin.map((item, i) => (
+                  <li key={i} className="flex items-start gap-1.5">
+                    <input
+                      id={`cek_subpoin_${poin.id}_${i}`}
+                      type="checkbox"
+                      checked={item.selesai}
+                      disabled={!bolehUbah || sibukSub !== null}
+                      onChange={() => void toggleSubpoin(i)}
+                      aria-label={`Subpoin ${i + 1}: ${item.teks}`}
+                      className="mt-[3px] size-3 shrink-0 accent-[var(--success)] disabled:opacity-60"
+                    />
+                    <span className="min-w-0 flex-1"><TeksButir deskripsi={item.teks} /></span>
+                  </li>
+                ))}
               </ul>
             ) : null}
           </div>
@@ -664,6 +712,9 @@ function BarisPoin({
           </button>
         ) : null}
       </div>
+      {!ubah && galat ? (
+        <p role="alert" className="pl-2 pb-1 text-[11px] text-destructive">{galat}</p>
+      ) : null}
     </>
     /* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
   );

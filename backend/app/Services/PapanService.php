@@ -7,6 +7,7 @@ use App\Models\Papan\PapanItem;
 use App\Models\Papan\PapanModul;
 use App\Models\Papan\PapanRiwayat;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
@@ -176,6 +177,12 @@ class PapanService
         ['butir' => $butir, 'item' => $item] = $this->butir($kode, $butirId);
         $asal = $butir->status;
 
+        if ($status === 'sudah' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
+            throw ValidationException::withMessages([
+                'status' => 'Selesaikan semua subpoin sebelum menandai poin sudah.',
+            ]);
+        }
+
         if ($asal === $status && $catatan === null) {
             return $butir;
         }
@@ -206,6 +213,14 @@ class PapanService
     {
         $this->pastikanStatus($status);
 
+        $subpoin = self::normalisasiSubpoin($subpoin);
+
+        if ($status === 'sudah' && ! self::semuaSubpoinSelesai($subpoin)) {
+            throw ValidationException::withMessages([
+                'status' => 'Selesaikan semua subpoin sebelum menandai poin sudah.',
+            ]);
+        }
+
         $item = $this->item($kode);
 
         $urutan = (int) PapanButir::query()->where('item_id', $item->id)->max('urutan');
@@ -214,7 +229,7 @@ class PapanService
             'item_id' => $item->id,
             'status' => $status,
             'deskripsi' => $deskripsi,
-            'subpoin' => array_values(array_map(trim(...), $subpoin)),
+            'subpoin' => $subpoin,
             'urutan' => $urutan + 1,
         ]);
     }
@@ -316,29 +331,84 @@ class PapanService
             $butir->deskripsi = $deskripsi;
         }
 
-        if ($status !== null) {
-            $butir->status = $status;
+        if ($subpoin !== null) {
+            $butir->subpoin = self::normalisasiSubpoin($subpoin);
         }
 
-        if ($subpoin !== null) {
-            $butir->subpoin = array_values(array_map(trim(...), $subpoin));
+        if ($status === 'sudah' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
+            throw ValidationException::withMessages([
+                'status' => 'Selesaikan semua subpoin sebelum menandai poin sudah.',
+            ]);
+        }
+
+        // Poin yang sudah `sudah` tidak boleh tetap di sana bila ada subpoin
+        // yang dibuka kembali atau subpoin baru yang belum selesai.
+        $statusBaru = $status;
+        $catatanRiwayat = $catatan;
+
+        if ($statusBaru === null && $statusLama === 'sudah' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
+            $statusBaru = 'sedang';
+            $catatanRiwayat ??= 'Subpoin dibuka kembali.';
+        }
+
+        if ($statusBaru !== null) {
+            $butir->status = $statusBaru;
         }
 
         $butir->save();
 
-        if ($status !== null && $status !== $statusLama) {
+        if ($statusBaru !== null && $statusBaru !== $statusLama) {
             PapanRiwayat::create([
                 'item_id' => $butir->item_id,
                 'butir_id' => $butir->id,
                 'dari_status' => $statusLama,
-                'ke_status' => $status,
-                'catatan' => $catatan,
+                'ke_status' => $statusBaru,
+                'catatan' => $catatanRiwayat,
                 'diubah_oleh' => $oleh,
                 'waktu' => now(),
             ]);
         }
 
         return $butir->refresh();
+    }
+
+    /**
+     * Samakan bentuk subpoin: selalu daftar {teks, selesai}.
+     *
+     * Data lama masih berupa daftar teks; migrasi mengubahnya, tetapi fungsi
+     * ini tetap menerima string agar jalur command/test lama tidak pecah.
+     *
+     * @param  array<int, array{teks?: string, selesai?: bool}|string>  $subpoin
+     * @return array<int, array{teks: string, selesai: bool}>
+     */
+    private static function normalisasiSubpoin(array $subpoin): array
+    {
+        return array_values(array_map(function ($item): array {
+            if (is_string($item)) {
+                return ['teks' => trim($item), 'selesai' => false];
+            }
+
+            return [
+                'teks' => trim((string) ($item['teks'] ?? '')),
+                'selesai' => (bool) ($item['selesai'] ?? false),
+            ];
+        }, $subpoin));
+    }
+
+    /**
+     * @param  array<int, array{teks?: string, selesai?: bool}|string>  $subpoin
+     */
+    private static function semuaSubpoinSelesai(array $subpoin): bool
+    {
+        foreach ($subpoin as $item) {
+            $selesai = is_array($item) ? (bool) ($item['selesai'] ?? false) : false;
+
+            if (! $selesai) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

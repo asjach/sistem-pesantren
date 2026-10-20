@@ -118,7 +118,9 @@ class PapanController extends Controller
             'status' => ['required', 'string', 'in:'.implode(',', PapanService::STATUS)],
             'deskripsi' => ['required', 'string', 'max:500'],
             'subpoin' => ['sometimes', 'array', 'max:30'],
-            'subpoin.*' => ['required', 'string', 'max:500'],
+            'subpoin.*' => ['array'],
+            'subpoin.*.teks' => ['required', 'string', 'max:500'],
+            'subpoin.*.selesai' => ['required', 'boolean'],
         ]);
 
         try {
@@ -164,7 +166,9 @@ class PapanController extends Controller
         $valid = $request->validate([
             'deskripsi' => ['nullable', 'string', 'max:500'],
             'subpoin' => ['sometimes', 'array', 'max:30'],
-            'subpoin.*' => ['required', 'string', 'max:500'],
+            'subpoin.*' => ['array'],
+            'subpoin.*.teks' => ['required', 'string', 'max:500'],
+            'subpoin.*.selesai' => ['required', 'boolean'],
             'status' => ['nullable', 'string', 'in:'.implode(',', PapanService::STATUS)],
             'catatan' => ['nullable', 'string', 'max:255'],
         ]);

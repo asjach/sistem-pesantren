@@ -185,13 +185,19 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
 
-        $this->patchJson("/api/board/E.3/butir/{$butir->id}", [
-            'subpoin' => ['Periksa saldo kas.', 'Unduh rekap bulanan.'],
-        ])->assertOk()->assertJsonPath('subpoin.1', 'Unduh rekap bulanan.');
+        $subpoin = [
+            ['teks' => 'Periksa saldo kas.', 'selesai' => false],
+            ['teks' => 'Unduh rekap bulanan.', 'selesai' => true],
+        ];
+
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => $subpoin])
+            ->assertOk()
+            ->assertJsonPath('subpoin.1.teks', 'Unduh rekap bulanan.')
+            ->assertJsonPath('subpoin.1.selesai', true);
 
         $this->getJson('/api/board')
             ->assertOk()
-            ->assertJsonFragment(['subpoin' => ['Periksa saldo kas.', 'Unduh rekap bulanan.']]);
+            ->assertJsonFragment(['subpoin' => $subpoin]);
         $this->assertSame('akan', $butir->refresh()->status);
 
         $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => []])
@@ -204,9 +210,83 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $butir = PapanButir::query()->firstOrFail();
 
-        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => ['']])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", [
+            'subpoin' => [['teks' => '', 'selesai' => false]],
+        ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('subpoin.0');
+            ->assertJsonValidationErrors('subpoin.0.teks');
+    }
+
+    public function test_status_sudah_ditolak_bila_ada_subpoin_belum_selesai(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
+        $butir->update(['subpoin' => [
+            ['teks' => 'Satu.', 'selesai' => true],
+            ['teks' => 'Dua.', 'selesai' => false],
+        ]]);
+
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}/status", ['status' => 'sudah'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('status');
+
+        $this->assertSame('akan', $butir->refresh()->status);
+    }
+
+    public function test_status_sudah_boleh_bila_semua_subpoin_selesai(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
+        $butir->update(['subpoin' => [
+            ['teks' => 'Satu.', 'selesai' => true],
+            ['teks' => 'Dua.', 'selesai' => true],
+        ]]);
+
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}/status", ['status' => 'sudah'])
+            ->assertOk()
+            ->assertJsonPath('status', 'sudah');
+
+        $this->assertSame('sudah', $butir->refresh()->status);
+    }
+
+    public function test_uncheck_subpoin_menurunkan_poin_sudah_ke_sedang(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $butir = PapanButir::query()->where('status', 'sudah')->firstOrFail();
+        $butir->update(['subpoin' => [
+            ['teks' => 'Satu.', 'selesai' => true],
+            ['teks' => 'Dua.', 'selesai' => true],
+        ]]);
+
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => [
+            ['teks' => 'Satu.', 'selesai' => true],
+            ['teks' => 'Dua.', 'selesai' => false],
+        ]])
+            ->assertOk()
+            ->assertJsonPath('status', 'sedang');
+
+        $this->assertSame('sedang', $butir->refresh()->status);
+        $this->assertDatabaseHas('papan_riwayat', [
+            'butir_id' => $butir->id,
+            'dari_status' => 'sudah',
+            'ke_status' => 'sedang',
+        ], 'papan');
+    }
+
+    public function test_subpoin_baru_pada_poin_sudah_ikut_menurunkan_ke_sedang(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $butir = PapanButir::query()->where('status', 'sudah')->firstOrFail();
+        $butir->update(['subpoin' => [['teks' => 'Satu.', 'selesai' => true]]]);
+
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => [
+            ['teks' => 'Satu.', 'selesai' => true],
+            ['teks' => 'Dua.', 'selesai' => false],
+        ]])
+            ->assertOk()
+            ->assertJsonPath('status', 'sedang');
+
+        $this->assertSame('sedang', $butir->refresh()->status);
     }
 
     public function test_ubah_butir_tanpa_apa_pun_dijawab_422(): void

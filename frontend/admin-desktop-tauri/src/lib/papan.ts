@@ -1,4 +1,4 @@
-import type { ModulPapan, StatusPapan, SubPapan } from '@/api/papan';
+import type { ModulPapan, StatusPapan, SubPapan, SubpoinPapan } from '@/api/papan';
 import { KOLOM_PAPAN } from '@/api/papan';
 
 /**
@@ -16,7 +16,7 @@ export interface KartuPapan {
   nama: string;
   status: StatusPapan;
   deskripsi: string;
-  subpoin: string[];
+  subpoin: SubpoinPapan[];
   /** Kode sub-modul induk, mis. E.3. */
   subKode: string;
   subNama: string;
@@ -155,7 +155,10 @@ export function ringkasanModul(modul: ModulPapan): Record<StatusPapan, number> {
 }
 
 /**
- * Berapa poin yang sudah selesai dari seluruh poin sebuah modul.
+ * Berapa unit yang sudah selesai dari seluruh unit sebuah modul.
+ *
+ * Satu subpoin = satu unit. Poin yang tidak punya subpoin tetap dihitung
+ * satu unit dan selesai bila status poinnya `sudah`.
  *
  * Dipakai untuk lencana kemajuan di tab; 0/0 berarti modul itu belum
  * punya poin sama sekali (bukan berarti selesai).
@@ -166,8 +169,17 @@ export function kemajuanModul(modul: ModulPapan): { selesai: number; total: numb
 
   for (const s of modul.sub) {
     for (const b of s.butir) {
-      total += 1;
-      if (b.status === 'sudah') selesai += 1;
+      const subpoin = b.subpoin ?? [];
+
+      if (subpoin.length === 0) {
+        total += 1;
+        if (b.status === 'sudah') selesai += 1;
+
+        continue;
+      }
+
+      total += subpoin.length;
+      selesai += subpoin.filter((item) => item.selesai).length;
     }
   }
 

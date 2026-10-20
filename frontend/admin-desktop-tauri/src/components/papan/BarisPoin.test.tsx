@@ -73,6 +73,47 @@ describe('BarisPoin - gerbang izin ubah', () => {
   });
 });
 
+describe('BarisPoin - checklist subpoin', () => {
+  it('mencentang subpoin langsung menyimpan', async () => {
+    const onSimpanSubpoin = vi.fn(async () => {});
+    pasang([kartu({ subpoin: [
+      { teks: 'Langkah satu.', selesai: false },
+      { teks: 'Langkah dua.', selesai: true },
+    ] })], { bolehUbah: true, a: aksi({ onSimpanSubpoin }) });
+
+    fireEvent.click(document.getElementById('cek_subpoin_128_0')!);
+
+    await vi.waitFor(() => {
+      expect(onSimpanSubpoin).toHaveBeenCalledWith([
+        { teks: 'Langkah satu.', selesai: true },
+        { teks: 'Langkah dua.', selesai: true },
+      ]);
+    });
+  });
+
+  it('pilihan Sudah nonaktif selama ada subpoin belum selesai', () => {
+    pasang([kartu({ subpoin: [
+      { teks: 'Satu.', selesai: true },
+      { teks: 'Dua.', selesai: false },
+    ] })], { bolehUbah: true });
+    mulaiUbah();
+
+    const opsi = document.querySelector('#status_butir_128 option[value="sudah"]') as HTMLOptionElement;
+    expect(opsi.disabled).toBe(true);
+  });
+
+  it('pilihan Sudah aktif saat semua subpoin selesai', () => {
+    pasang([kartu({ subpoin: [
+      { teks: 'Satu.', selesai: true },
+      { teks: 'Dua.', selesai: true },
+    ] })], { bolehUbah: true });
+    mulaiUbah();
+
+    const opsi = document.querySelector('#status_butir_128 option[value="sudah"]') as HTMLOptionElement;
+    expect(opsi.disabled).toBe(false);
+  });
+});
+
 describe('BarisPoin - menyunting poin di baris', () => {
   it('menyimpan teks baru lewat onSimpanTeks', async () => {
     const onSimpanTeks = vi.fn(async () => {});
@@ -204,7 +245,9 @@ describe('BarisPoin - menyunting poin di baris', () => {
     fireEvent.click(document.getElementById('btn_simpan_subpoin_128_0')!);
 
     await vi.waitFor(() => {
-      expect(onSimpanSubpoin).toHaveBeenCalledWith(['Periksa saldo tiap kas.']);
+      expect(onSimpanSubpoin).toHaveBeenCalledWith([
+        { teks: 'Periksa saldo tiap kas.', selesai: false },
+      ]);
     });
     expect(onSimpanTeks).not.toHaveBeenCalled();
   });
@@ -212,7 +255,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
   it('simpan utama hanya mengirim teks poin, bukan subpoin', async () => {
     const onSimpanTeks = vi.fn(async () => {});
     const onSimpanSubpoin = vi.fn(async () => {});
-    pasang([kartu({ subpoin: ['Langkah lama.'] })], {
+    pasang([kartu({ subpoin: [{ teks: 'Langkah lama.', selesai: false }] })], {
       bolehUbah: true,
       a: aksi({ onSimpanTeks, onSimpanSubpoin }),
     });
@@ -232,7 +275,10 @@ describe('BarisPoin - menyunting poin di baris', () => {
 
   it('menyimpan satu subpoin tidak ikut mengirim draf baris lain', async () => {
     const onSimpanSubpoin = vi.fn(async () => {});
-    pasang([kartu({ subpoin: ['Langkah satu.', 'Langkah dua.'] })], {
+    pasang([kartu({ subpoin: [
+      { teks: 'Langkah satu.', selesai: false },
+      { teks: 'Langkah dua.', selesai: false },
+    ] })], {
       bolehUbah: true,
       a: aksi({ onSimpanSubpoin }),
     });
@@ -247,13 +293,19 @@ describe('BarisPoin - menyunting poin di baris', () => {
     fireEvent.click(document.getElementById('btn_simpan_subpoin_128_1')!);
 
     await vi.waitFor(() => {
-      expect(onSimpanSubpoin).toHaveBeenCalledWith(['Langkah satu.', 'Langkah dua baru.']);
+      expect(onSimpanSubpoin).toHaveBeenCalledWith([
+        { teks: 'Langkah satu.', selesai: false },
+        { teks: 'Langkah dua baru.', selesai: false },
+      ]);
     });
   });
 
   it('menghapus subpoin tersimpan langsung menyimpan daftar baru', async () => {
     const onSimpanSubpoin = vi.fn(async () => {});
-    pasang([kartu({ subpoin: ['Langkah satu.', 'Langkah dua.'] })], {
+    pasang([kartu({ subpoin: [
+      { teks: 'Langkah satu.', selesai: false },
+      { teks: 'Langkah dua.', selesai: true },
+    ] })], {
       bolehUbah: true,
       a: aksi({ onSimpanSubpoin }),
     });
@@ -262,7 +314,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
     fireEvent.click(document.getElementById('btn_hapus_subpoin_128_0')!);
 
     await vi.waitFor(() => {
-      expect(onSimpanSubpoin).toHaveBeenCalledWith(['Langkah dua.']);
+      expect(onSimpanSubpoin).toHaveBeenCalledWith([{ teks: 'Langkah dua.', selesai: true }]);
     });
   });
 });
