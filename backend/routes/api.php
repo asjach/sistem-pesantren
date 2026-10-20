@@ -385,6 +385,7 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::get('penilaian/predikat', [PenilaianController::class, 'indexPredikat'])->middleware('permission:penilaian.lihat');
         Route::put('penilaian/predikat', [PenilaianController::class, 'simpanPredikat'])->middleware('permission:penilaian.ubah');
         Route::post('penilaian/hitung', [PenilaianController::class, 'hitungUlang'])->middleware('permission:penilaian.ubah');
+        Route::put('penilaian/nilai', [PenilaianController::class, 'simpanNilaiManual'])->middleware('permission:penilaian.ubah');
         Route::get('penilaian/ekskul', [PenilaianController::class, 'indexEkskul'])->middleware('permission:penilaian.lihat');
         Route::post('penilaian/ekskul', [PenilaianController::class, 'storeEkskul'])->middleware('permission:penilaian.tambah');
         Route::match(['put', 'patch'], 'penilaian/ekskul/{ekskul}', [PenilaianController::class, 'updateEkskul'])->middleware('permission:penilaian.ubah');

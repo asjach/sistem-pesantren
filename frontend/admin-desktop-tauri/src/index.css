@@ -512,6 +512,18 @@
   background-color: color-mix(in srgb, var(--accent) 14%, var(--background));
 }
 
+/* Blok baris peringkat Leger: nomor baris ikut berwarna agar seluruh baris utuh.
+   Warna sel data diatur lewat kelas !bg di halaman; di sini hanya gutter. */
+.simpes-dsg .dsg-row:has(.simpes-baris-peringkat-1) .dsg-cell-gutter {
+  background-color: color-mix(in srgb, #10b981 20%, var(--background));
+}
+.simpes-dsg .dsg-row:has(.simpes-baris-peringkat-2) .dsg-cell-gutter {
+  background-color: color-mix(in srgb, #fbbf24 30%, var(--background));
+}
+.simpes-dsg .dsg-row:has(.simpes-baris-peringkat-3) .dsg-cell-gutter {
+  background-color: color-mix(in srgb, #0ea5e9 20%, var(--background));
+}
+
 .simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell,
 .simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell-gutter {
   background-color: color-mix(in srgb, var(--primary) 16%, var(--background));

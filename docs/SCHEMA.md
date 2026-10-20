@@ -896,7 +896,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `nilai_formatif`: decimal(5, 2) [default 0]
 - `nilai_sumatif`: decimal(5, 2) [default 0]
 - `nilai_akhir`: decimal(5, 2) [default 0]
-- `sumber`: varchar(10) [default 'hitung'] — 'hitung' (dari komponen × bobot) atau 'impor' (leger langsung)
+- `sumber`: varchar(10) [default 'hitung'] — 'hitung' (dari komponen × bobot), 'impor' (leger langsung), atau 'manual' (input langsung per sel di Leger); hitung ulang melewati impor/manual kecuali paksa
 - `predikat`: string(2) [null] — A, B, C, D
 - `catatan_capaian`: text [null]
 - `created_at`, `updated_at`

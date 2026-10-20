@@ -488,7 +488,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA6. Penilaian
 
-### DA6.1 Nilai & Peristiwa `Siap dikerjakan (To Do)`
+### DA6.1 Nilai & Peristiwa `Belum dijadwalkan (Backlog)`
 **Belum dijadwalkan (Backlog)**
 - Kunci dan buka kunci nilai
   - [ ] kunci setelah cetak
@@ -499,11 +499,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] rata-rata rapor 40
   - [ ] kebijakan pesantren
 **Siap dikerjakan (To Do)**
-- Halaman Input Manual Nilai Akhir
-  - [ ] tabel untuk input seperti legger
-  - [ ] gunakan rail tingkat dan kelas yang ada untuk filter tingkat dan kelas
-  - [ ] input langsung di tabel, harus edit mode
-  - [ ] atau gunakan tabel legger di halaman legger. karena sebenarnya input manual ini formatnya sama persis seperti legger
+- (kosong)
 **Sedang dikerjakan (In Progress)**
 - (kosong)
 **Menunggu peninjauan (For Review)**
@@ -515,6 +511,15 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Judul kolom crosstab memakai kode mapel; kode kosong/duplikat memakai singkatan lalu nama mapel, sementara kunci kolom tetap stabil
   - [x] Penanda nilai hasil impor tetap tampil dan tabel tetap baca-saja
   - [x] Pemeriksaan: typecheck, tes backend/frontend terkait, serta uji kolom dinamis dan pagination hijau
+- Halaman Input Manual Nilai Akhir
+  - [x] Leger menyediakan input langsung sel mapel lewat Mode Ubah ExcelTable, dengan rail Tingkat/Kelas yang ada
+  - [x] Nilai akhir 0–100 tersimpan per santri + mapel + peristiwa + semester; sel kosong menghapus nilai; predikat dihitung
+  - [x] Nilai manual memakai sumber manual (badge M) dan tidak ditimpa Hitung ulang kecuali paksa; impor tetap I
+  - [x] Pengguna tanpa penilaian.ubah tetap baca-saja; input di luar 0–100 dan mapel tanpa pengampu ditolak
+  - [x] Perubahan nilai ditahan selama Mode Ubah dan disimpan sekaligus saat keluar mode, bukan setiap sel berubah
+  - [x] Typecheck, tes backend/frontend, serta uji edit/kosongkan di UI hijau
+  - [x] Leger menampilkan kolom Jumlah dan Peringkat di akhir kolom; peringkat dihitung per kelas
+  - [x] Baris peringkat 1, 2, dan 3 diberi latar hijau, kuning, dan biru dengan teks/nilai tetap terbaca
 **Selesai (Done)**
 - Nilai per peristiwa
   - [x] PTS/ASAS/ASAT/UJIAN/UAP

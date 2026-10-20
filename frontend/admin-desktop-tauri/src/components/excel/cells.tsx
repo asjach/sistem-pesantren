@@ -32,7 +32,7 @@ export function TextCell({ rowData, setRowData, columnData, focus, stopEditing, 
           columnData.onClickCell?.(rowData.id);
         }}
       >
-        {committed}
+        {columnData.renderView ? columnData.renderView(rowData) : committed}
       </span>
     );
   }

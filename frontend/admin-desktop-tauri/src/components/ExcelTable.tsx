@@ -118,6 +118,8 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   emptyText?: string;
   /** Gerbang hak akses: bila false, grid selalu baca-saja (tanpa checkbox Edit). */
   canEdit: boolean;
+  /** Simpan perubahan sel saat keluar Mode Ubah, bukan tiap sel berubah. */
+  simpanSaatKeluarMode?: boolean;
   /** Simpan satu baris hasil edit sel (auto-save, dipanggil saat sel berubah). */
   onCommit: (id: T['id'], fields: Record<string, string | null>) => Promise<void>;
   /** Dipanggil sekali setelah antrean auto-save selesai (biasanya reload halaman). */
@@ -284,6 +286,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   loading = false,
   emptyText = 'Belum ada data.',
   canEdit,
+  simpanSaatKeluarMode = false,
   onCommit,
   onSaved,
   renderActions,
@@ -332,16 +335,19 @@ export default function ExcelTable<T extends { id: string | number }>({
    *  isi) tak pernah aktif, sehingga tabel selalu aman sekadar dibaca. */
   const [modeUbah, setModeUbahRaw] = useState(false);
   const [inputMode, setInputModeRaw] = useState(false);
+  const flushSaatKeluarRef = useRef<() => Promise<void>>(async () => {});
   /** Mode tabel saling eksklusif: hanya satu boleh aktif. Mengaktifkan mode
    *  Ubah mematikan mode Input, dan sebaliknya. */
   const setModeUbah = useCallback((v: boolean) => {
+    if (!v && simpanSaatKeluarMode) void flushSaatKeluarRef.current();
     setModeUbahRaw(v);
     if (v) setInputModeRaw(false);
-  }, []);
+  }, [simpanSaatKeluarMode]);
   const setInputMode = useCallback((v: boolean) => {
+    if (v && simpanSaatKeluarMode) void flushSaatKeluarRef.current();
     setInputModeRaw(v);
     if (v) setModeUbahRaw(false);
-  }, []);
+  }, [simpanSaatKeluarMode]);
   const [drafts, setDrafts] = useState<Drafts>({});
   const [checkedIds, setCheckedIds] = useState<Set<T['id']>>(new Set());
   const [range, setRange] = useState<GridSelection | null>(null);
@@ -445,7 +451,11 @@ export default function ExcelTable<T extends { id: string | number }>({
   const onSavedRef = useRef(onSaved);
   onSavedRef.current = onSaved;
   const dropDraftRef = useRef<(idKey: string, keys: string[]) => void>(() => {});
-  const { enqueueSave } = useAntreanSimpan<T>({ rowsRef, fieldsRef, onCommitRef, onSavedRef, dropDraftRef });
+  const { enqueueSave, flush } = useAntreanSimpan<T>({
+    rowsRef, fieldsRef, onCommitRef, onSavedRef, dropDraftRef,
+    autoDrain: !simpanSaatKeluarMode,
+  });
+  flushSaatKeluarRef.current = flush;
   fieldsRef.current = fields;
   const getValuesRef = useRef(getValues);
   getValuesRef.current = getValues;
@@ -1468,6 +1478,7 @@ export default function ExcelTable<T extends { id: string | number }>({
           columnData: {
             fieldKey: f.key,
             maxLength: f.maxLength,
+            renderView: f.renderCell,
             onEnter: (col: number) => inputEnterRef.current(col),
 
             onDblClick: (id: string | number) => {

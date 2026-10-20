@@ -114,6 +114,9 @@ export interface TextColData {
   onDblClick?: (id: string | number) => void;
   /** Klik 1× sel (mode Edit): buka editor sel ini. */
   onClickCell?: (id: string | number) => void;
+  /** Tampilan baca-saja kustom saat sel tidak sedang fokus; input tetap
+   *  memakai nilai mentah. Dipakai kolom editable yang perlu lencana sumber. */
+  renderView?: (rowData: GridRow) => ReactNode;
 }
 
 export interface SelectColData {

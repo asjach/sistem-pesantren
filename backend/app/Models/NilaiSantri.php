@@ -7,14 +7,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Nilai akhir santri per (pengampu × TA × semester × PERISTIWA).
- * `sumber` menandai jalur pengisian: 'hitung' (komponen × bobot) atau
- * 'impor' (leger langsung, menimpa hitungan).
+ * `sumber` menandai jalur pengisian: 'hitung' (komponen × bobot),
+ * 'impor' (leger langsung), atau 'manual' (input langsung per sel di Leger).
  */
 class NilaiSantri extends Model
 {
     public const HITUNG = 'hitung';
 
     public const IMPOR = 'impor';
+
+    public const MANUAL = 'manual';
 
     protected $table = 'nilai_santri';
 

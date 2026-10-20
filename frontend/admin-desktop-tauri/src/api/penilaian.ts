@@ -93,7 +93,10 @@ export interface BarisLeger {
   santri_id: number; nis_lokal: string | null; nama: string;
   kelas: string | null; tingkat: string | null;
   sel: Record<string, SelLeger | null>;
+  jumlah: number | null;
   rata_rata: number | null;
+  peringkat: number | null;
+  peringkat_total: number;
 }
 
 export interface LegerResp {
@@ -384,6 +387,14 @@ export function legerNilai(params: {
   if (params.page) q.set('page', String(params.page));
   if (params.per_page) q.set('per_page', params.per_page);
   return api<LegerResp>(`/admin/penilaian/leger?${q.toString()}`);
+}
+
+export function simpanNilaiManual(data: {
+  peristiwa_id: number; semester: string; santri_id: number; mapel_id: number; nilai_akhir: number | null;
+}) {
+  return api<{ pesan: string; sel: SelLeger | null }>('/admin/penilaian/nilai', {
+    method: 'PUT', body: JSON.stringify(data),
+  });
 }
 
 export function daftarPesertaPeristiwa(params: {

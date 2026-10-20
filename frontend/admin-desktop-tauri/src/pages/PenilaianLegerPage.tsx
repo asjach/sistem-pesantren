@@ -14,11 +14,28 @@ import { listKelas, type Kelas } from '@/api/master';
 import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Download, RefreshCw } from '@/icons';
 import {
-  daftarPeristiwa, hitungUlang, legerNilai, unduhLeger,
+  daftarPeristiwa, hitungUlang, legerNilai, simpanNilaiManual, unduhLeger,
   type BarisLeger, type LegerResp, type PeristiwaNilai,
 } from '@/api/penilaian';
 
 type BarisLegerGrid = BarisLeger & { id: number };
+
+/** Nilai sel: kosong = null; koma diterima sebagai pemisah desimal. */
+function angkaNilai(teks: string): number | null {
+  const bersih = teks.trim().replace(',', '.');
+  if (bersih === '') return null;
+  const angka = Number(bersih);
+  return Number.isFinite(angka) ? angka : Number.NaN;
+}
+
+/** Latar seluruh baris peringkat 1-3; opasitas dijaga agar teks tetap terbaca. */
+function kelasPeringkat(row: GridRow): string | undefined {
+  const peringkat = Number(row.peringkat);
+  if (peringkat === 1) return 'simpes-baris-peringkat-1 !bg-emerald-500/20 dark:!bg-emerald-400/15';
+  if (peringkat === 2) return 'simpes-baris-peringkat-2 !bg-amber-400/30 dark:!bg-amber-300/15';
+  if (peringkat === 3) return 'simpes-baris-peringkat-3 !bg-sky-500/20 dark:!bg-sky-400/15';
+  return undefined;
+}
 
 /** Halaman Leger Nilai: crosstab santri × mapel untuk SATU PERISTIWA. */
 export default function PenilaianLegerPage() {
@@ -166,7 +183,18 @@ export default function PenilaianLegerPage() {
       key: k.key,
       label: k.judul,
       width: 84,
-      kind: 'static',
+      kind: canUbah ? 'text' : 'static',
+      maxLength: 6,
+      cellClass: kelasPeringkat,
+      validate: canUbah
+        ? (nilai) => {
+          if (nilai === null || nilai.trim() === '') return null;
+          const angka = angkaNilai(nilai);
+          return angka !== null && Number.isFinite(angka) && angka >= 0 && angka <= 100
+            ? null
+            : 'Nilai harus 0–100.';
+        }
+        : undefined,
       renderCell: (row: GridRow) => {
         const nilai = row[k.key];
         if (nilai === null || nilai === '') {
@@ -184,6 +212,14 @@ export default function PenilaianLegerPage() {
                 I
               </span>
             )}
+            {sumber === 'manual' && (
+              <span
+                className="rounded bg-emerald-500/20 px-1 text-[10px] text-emerald-700 dark:text-emerald-300"
+                title="Diisi manual"
+              >
+                M
+              </span>
+            )}
           </span>
         );
       },
@@ -191,27 +227,40 @@ export default function PenilaianLegerPage() {
 
     return [
       {
-        key: 'nis_lokal', label: 'NIS', kind: 'static', width: 100,
+        key: 'nis_lokal', label: 'NIS', kind: 'static', width: 100, cellClass: kelasPeringkat,
         renderCell: (row) => row.nis_lokal === null || row.nis_lokal === ''
           ? <span className="text-muted-foreground">—</span>
           : String(row.nis_lokal),
       },
-      { key: 'nama', label: 'Nama', kind: 'static', width: 200 },
+      { key: 'nama', label: 'Nama', kind: 'static', width: 200, cellClass: kelasPeringkat },
       {
-        key: 'kelas', label: 'Kelas', kind: 'static', width: 90,
+        key: 'kelas', label: 'Kelas', kind: 'static', width: 90, cellClass: kelasPeringkat,
         renderCell: (row) => row.kelas === null || row.kelas === ''
           ? <span className="text-muted-foreground">—</span>
           : String(row.kelas),
       },
       ...mapel,
       {
-        key: 'rata_rata', label: 'Rata²', kind: 'static', width: 80,
+        key: 'rata_rata', label: 'Rata²', kind: 'static', width: 80, cellClass: kelasPeringkat,
         renderCell: (row) => row.rata_rata === null || row.rata_rata === ''
           ? <span className="text-muted-foreground">—</span>
           : String(row.rata_rata),
       },
+      {
+        key: 'jumlah', label: 'Jumlah', kind: 'static', width: 80, cellClass: kelasPeringkat,
+        renderCell: (row) => row.jumlah === null || row.jumlah === ''
+          ? <span className="text-muted-foreground">—</span>
+          : String(row.jumlah),
+      },
+      {
+        key: 'peringkat', label: 'Peringkat', kind: 'static', width: 90, cellClass: kelasPeringkat,
+        renderCell: (row) => row.peringkat === null || row.peringkat === ''
+          ? <span className="text-muted-foreground">—</span>
+          : <span className="font-semibold">{String(row.peringkat)}</span>,
+      },
+
     ];
-  }, [data, sumberSel]);
+  }, [data, sumberSel, canUbah]);
 
   const getValues = useCallback((b: BarisLegerGrid) => {
     const nilai: Record<string, string | null> = {
@@ -219,6 +268,8 @@ export default function PenilaianLegerPage() {
       nama: b.nama,
       kelas: b.kelas,
       rata_rata: b.rata_rata === null ? null : String(b.rata_rata),
+      jumlah: b.jumlah === null ? null : String(b.jumlah),
+      peringkat: b.peringkat === null ? null : String(b.peringkat),
     };
     for (const k of data?.kolom ?? []) {
       const angka = b.sel[k.key]?.nilai;
@@ -226,6 +277,30 @@ export default function PenilaianLegerPage() {
     }
     return nilai;
   }, [data]);
+
+  const simpanSel = useCallback(async (santriId: number, fields: Record<string, string | null>) => {
+    if (peristiwaId === '' || semester === null || data === null) return;
+    const petaMapel = new Map(data.kolom.map((k) => [k.key, k.mapel_id]));
+    for (const [key, nilai] of Object.entries(fields)) {
+      const mapelId = petaMapel.get(key);
+      if (mapelId === undefined) continue;
+      const angka = nilai === null ? null : angkaNilai(nilai);
+      if (angka !== null && (!Number.isFinite(angka) || angka < 0 || angka > 100)) {
+        throw new Error('Nilai harus 0–100.');
+      }
+      await simpanNilaiManual({
+        peristiwa_id: Number(peristiwaId),
+        semester,
+        santri_id: santriId,
+        mapel_id: mapelId,
+        nilai_akhir: angka,
+      });
+    }
+  }, [peristiwaId, semester, data]);
+
+  const selesaiSimpan = useCallback(async () => {
+    await muat(pager.page, pager.perPage);
+  }, [muat, pager.page, pager.perPage]);
 
   const presetLuar = useMemo(
     () => ({ keys: fields.map((f) => f.key), presetId: null }),
@@ -299,14 +374,16 @@ export default function PenilaianLegerPage() {
             getValues={getValues}
             loading={loading}
             emptyText="Tidak ada santri pada lingkup ini."
-            canEdit={false}
-            onCommit={async () => {}}
-            onSaved={() => {}}
+            canEdit={canUbah}
+            simpanSaatKeluarMode
+            onCommit={simpanSel}
+            onSaved={selesaiSimpan}
             renderActions={() => null}
             hideCheckbox
             hideActions
             hidePreset
             presetLuar={presetLuar}
+            rail
             pager={pagerNode}
           />
         )}

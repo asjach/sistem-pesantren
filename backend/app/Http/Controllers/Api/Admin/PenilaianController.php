@@ -536,6 +536,82 @@ class PenilaianController extends Controller
      * untuk seluruh santri dalam lingkup. Baris ber-`sumber='impor'` DILEWATI
      * kecuali `paksa=1` (sesuai keputusan PRD).
      */
+    /** PUT /admin/penilaian/nilai — input manual satu sel nilai akhir di Leger. */
+    public function simpanNilaiManual(Request $request, PenilaianService $nilai): JsonResponse
+    {
+        $data = $request->validate([
+            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'semester' => ['required', 'in:1,2'],
+            'santri_id' => ['required', 'integer', 'exists:santri,id'],
+            'mapel_id' => ['required', 'integer', 'exists:mata_pelajaran,id'],
+            'nilai_akhir' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ]);
+        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
+        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $ta = $peristiwa->tahun_ajaran;
+        $semester = (string) $data['semester'];
+        $santriId = (int) $data['santri_id'];
+
+        $riwayat = DB::table('riwayat_belajar')
+            ->where('santri_id', $santriId)
+            ->where('jenjang', $peristiwa->jenjang)
+            ->where('tahun_ajaran', $ta)
+            ->where('semester', $semester)
+            ->where('status_akhir', '!=', 'pindah_keluar')
+            ->orderByDesc('is_active_riwayat')
+            ->first(['kelas_id', 'tingkat']);
+
+        if ($riwayat === null || $riwayat->kelas_id === null) {
+            throw ValidationException::withMessages(['santri_id' => 'Santri tidak punya kelas pada jenjang/TA/semester ini.']);
+        }
+        if (! $nilai->tingkatCocokCakupan($peristiwa, $riwayat->tingkat)) {
+            throw ValidationException::withMessages(['santri_id' => 'Santri tidak termasuk cakupan peserta peristiwa ini.']);
+        }
+
+        $pengampu = PengampuMapel::query()
+            ->where('kelas_id', (int) $riwayat->kelas_id)
+            ->where('mata_pelajaran_id', (int) $data['mapel_id'])
+            ->first();
+
+        if ($pengampu === null) {
+            throw ValidationException::withMessages(['mapel_id' => 'Mapel tidak punya pengampu di kelas santri.']);
+        }
+
+        $kunci = [
+            'santri_id' => $santriId,
+            'pengampu_mapel_id' => $pengampu->id,
+            'tahun_ajaran' => $ta,
+            'semester' => $semester,
+            'peristiwa_id' => $peristiwa->id,
+        ];
+
+        if ($data['nilai_akhir'] === null) {
+            NilaiSantri::query()->where($kunci)->delete();
+
+            return response()->json(['pesan' => 'Nilai dihapus.', 'sel' => null]);
+        }
+
+        $baris = $nilai->simpanAkhir(
+            $santriId,
+            (int) $pengampu->id,
+            $ta,
+            $semester,
+            $peristiwa->id,
+            (float) $data['nilai_akhir'],
+            NilaiSantri::MANUAL,
+        );
+
+        return response()->json([
+            'pesan' => 'Nilai disimpan.',
+            'sel' => [
+                'nilai' => $baris->nilai_akhir,
+                'predikat' => $baris->predikat,
+                'sumber' => $baris->sumber,
+                'guru' => null,
+            ],
+        ]);
+    }
+
     public function hitungUlang(Request $request, PenilaianService $nilai): JsonResponse
     {
         $data = $request->validate([
@@ -572,7 +648,7 @@ class PenilaianController extends Controller
                     ->where('tahun_ajaran', $ta)->where('semester', $semester)
                     ->where('peristiwa_id', $peristiwa->id)
                     ->first();
-                if ($ada !== null && $ada->sumber === NilaiSantri::IMPOR && ! $paksa) {
+                if ($ada !== null && in_array($ada->sumber, [NilaiSantri::IMPOR, NilaiSantri::MANUAL], true) && ! $paksa) {
                     $dilewatiImpor++;
 
                     continue;
@@ -592,7 +668,7 @@ class PenilaianController extends Controller
         }
 
         return response()->json([
-            'pesan' => "Hitung ulang selesai: {$dihitung} baris dihitung, {$dilewatiImpor} dilewati (impor), {$belumLengkap} belum lengkap.",
+            'pesan' => "Hitung ulang selesai: {$dihitung} baris dihitung, {$dilewatiImpor} dilewati (impor/manual), {$belumLengkap} belum lengkap.",
             'dihitung' => $dihitung,
             'dilewati_impor' => $dilewatiImpor,
             'belum_lengkap' => $belumLengkap,
@@ -620,7 +696,14 @@ class PenilaianController extends Controller
         $halaman = $santri->slice(($page - 1) * $perPage, $perPage)->values();
         $peta = $this->petaNilai($halaman->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
 
-        $baris = $halaman->map(function ($s) use ($kolom, $peta) {
+        $petaPeringkat = $this->peringkatPerKelas(
+            $peristiwa->id,
+            $halaman->pluck('kelas_id')->all(),
+            $ta,
+            $semester,
+        );
+
+        $baris = $halaman->map(function ($s) use ($kolom, $peta, $petaPeringkat) {
             $nilai = [];
             $angka = [];
             foreach ($kolom as $k) {
@@ -628,6 +711,9 @@ class PenilaianController extends Controller
                 $nilai[$k['key']] = $sel;
                 $angka[] = $sel['nilai'] ?? null;
             }
+            $ada = array_values(array_filter($angka, fn ($v) => $v !== null));
+            $kelasId = $s->kelas_id === null ? null : (int) $s->kelas_id;
+            $rekap = $kelasId === null ? null : ($petaPeringkat[$kelasId] ?? null);
 
             return [
                 'santri_id' => $s->santri_id,
@@ -636,7 +722,10 @@ class PenilaianController extends Controller
                 'kelas' => $s->kelas,
                 'tingkat' => $s->tingkat,
                 'sel' => $nilai,
+                'jumlah' => $ada === [] ? null : round(array_sum($ada), 2),
                 'rata_rata' => NilaiRapor::rataRata($angka),
+                'peringkat' => $rekap === null ? null : ($rekap['peta'][(int) $s->santri_id] ?? null),
+                'peringkat_total' => $rekap === null ? 0 : $rekap['total'],
             ];
         });
 
@@ -665,12 +754,19 @@ class PenilaianController extends Controller
         $kolom = $this->kolomLeger($jenjang, $kelasIds);
         $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
 
+        $petaPeringkat = $this->peringkatPerKelas(
+            $peristiwa->id,
+            $santri->pluck('kelas_id')->all(),
+            $ta,
+            $semester,
+        );
+
         $headings = array_merge(
             ['nis_lokal', 'nama', 'kelas'],
             array_map(fn ($k) => $k['judul'], $kolom),
-            ['rata_rata'],
+            ['rata_rata', 'jumlah', 'peringkat'],
         );
-        $rows = $santri->map(function ($s) use ($kolom, $peta) {
+        $rows = $santri->map(function ($s) use ($kolom, $peta, $petaPeringkat) {
             $nilai = [];
             $angka = [];
             foreach ($kolom as $k) {
@@ -678,11 +774,20 @@ class PenilaianController extends Controller
                 $nilai[] = $sel['nilai'] ?? '';
                 $angka[] = $sel['nilai'] ?? null;
             }
+            $ada = array_values(array_filter($angka, fn ($v) => $v !== null));
+            $kelasId = $s->kelas_id === null ? null : (int) $s->kelas_id;
+            $rekap = $kelasId === null ? null : ($petaPeringkat[$kelasId] ?? null);
+            $jumlah = $ada === [] ? null : round(array_sum($ada), 2);
+            $peringkat = $rekap === null ? null : ($rekap['peta'][(int) $s->santri_id] ?? null);
 
             return array_merge(
                 [(string) $s->nis_lokal, $s->nama, (string) $s->kelas],
                 array_map(fn ($v) => $v === null ? '' : (string) $v, $nilai),
-                [(string) (NilaiRapor::rataRata($angka) ?? '')],
+                [
+                    (string) (NilaiRapor::rataRata($angka) ?? ''),
+                    (string) ($jumlah ?? ''),
+                    (string) ($peringkat ?? ''),
+                ],
             );
         })->all();
 
@@ -1429,6 +1534,20 @@ class PenilaianController extends Controller
             ->all();
 
         return ['peta' => NilaiRapor::peringkat($rows), 'total' => count($rows)];
+    }
+
+    /**
+     * @param  list<int|null>  $kelasIds
+     * @return array<int, array{peta: array<int, int>, total: int}>
+     */
+    private function peringkatPerKelas(int $peristiwaId, array $kelasIds, string $ta, string $semester): array
+    {
+        $hasil = [];
+        foreach (array_unique(array_filter($kelasIds, fn ($id) => $id !== null)) as $kelasId) {
+            $hasil[(int) $kelasId] = $this->hitungPeringkatKelas($peristiwaId, (int) $kelasId, $ta, $semester);
+        }
+
+        return $hasil;
     }
 
     /** @return array{peringkat: ?int, total: int} */

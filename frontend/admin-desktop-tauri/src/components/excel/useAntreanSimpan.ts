@@ -9,6 +9,8 @@ export interface AntreanSimpanOpts<T extends { id: string | number }> {
   onCommitRef: MutableRefObject<(id: T['id'], fields: Record<string, string | null>) => Promise<void>>;
   onSavedRef: MutableRefObject<() => Promise<void> | void>;
   dropDraftRef: MutableRefObject<(idKey: string, keys: string[]) => void>;
+  /** false = tahan antrean sampai `flush()` (mis. simpan saat keluar Mode Ubah). */
+  autoDrain?: boolean;
 }
 
 /**
@@ -22,6 +24,7 @@ export function useAntreanSimpan<T extends { id: string | number }>({
   onCommitRef,
   onSavedRef,
   dropDraftRef,
+  autoDrain = true,
 }: AntreanSimpanOpts<T>) {
   const queueRef = useRef<Map<string, Record<string, string | null>>>(new Map());
   const drainingRef = useRef(false);
@@ -87,8 +90,8 @@ export function useAntreanSimpan<T extends { id: string | number }>({
   const enqueueSave = useCallback((idKey: string, flds: Record<string, string | null>) => {
     const prev = queueRef.current.get(idKey) ?? {};
     queueRef.current.set(idKey, { ...prev, ...flds });
-    void drain();
-  }, [drain]);
+    if (autoDrain) void drain();
+  }, [autoDrain, drain]);
 
-  return { enqueueSave, drain };
+  return { enqueueSave, flush: drain };
 }
