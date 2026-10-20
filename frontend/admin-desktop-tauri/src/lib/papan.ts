@@ -198,6 +198,16 @@ export function kemajuanModul(modul: ModulPapan): Kemajuan {
   return kemajuanButir(modul.sub.flatMap((s) => s.butir));
 }
 
+/**
+ * Apakah modul punya pekerjaan yang menunggu peninjauan.
+ *
+ * Satu poin berstatus `for_review` sudah cukup. Rail modul memakainya untuk
+ * menandai modul yang perlu dievaluasi tanpa membuka modulnya lebih dulu.
+ */
+export function modulAdaTinjauan(modul: ModulPapan): boolean {
+  return modul.sub.some((s) => s.butir.some((b) => b.status === 'for_review'));
+}
+
 /** Jumlah POIN per status dari daftar poin papan (untuk ringkasan & meter). */
 export function ringkasanPoin(poin: KartuPapan[]): Record<StatusPapan, number> {
   const hasil: Record<StatusPapan, number> = {

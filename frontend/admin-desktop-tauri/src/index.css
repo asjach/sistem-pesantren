@@ -1227,3 +1227,17 @@
 .papan-poin-sudah {
   color: var(--muted-foreground);
 }
+
+/* Modul di rail yang punya poin menunggu peninjauan: latarnya diberi warna
+   status For Review supaya mudah ditemukan tanpa membuka modulnya lebih dulu.
+   Aturan ini sengaja diletakkan setelah hover/aktif bawaan agar menang, dan
+   tetap terbaca saat modul itu sedang aktif. */
+[data-slot='tabs-trigger'][data-tinjau='ya'] {
+  background: color-mix(in srgb, var(--accent-readable) 18%, transparent);
+}
+[data-slot='tabs-trigger'][data-tinjau='ya']:hover {
+  background: color-mix(in srgb, var(--accent-readable) 26%, transparent);
+}
+[data-slot='tabs-trigger'][data-tinjau='ya'][data-state='active'] {
+  background: color-mix(in srgb, var(--accent-readable) 22%, var(--surface-2));
+}

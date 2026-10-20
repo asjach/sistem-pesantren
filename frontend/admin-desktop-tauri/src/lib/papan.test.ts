@@ -7,6 +7,7 @@ import {
   kelompokkanKolom,
   kolomSebelah,
   modulDariKode,
+  modulAdaTinjauan,
   modulPertama,
   persenKemajuan,
   ratakanKartu,
@@ -377,5 +378,34 @@ describe('modulPertama', () => {
 
   it('mengembalikan null bila tidak ada modul', () => {
     expect(modulPertama([])).toBeNull();
+  });
+});
+
+describe('modulAdaTinjauan', () => {
+  const denganStatus = (...status: ButirPapan['status'][]): ModulPapan => ({
+    kode: 'T',
+    nama: 'Uji',
+    sub: [{
+      kode: 'T.1',
+      nama: 'Sub uji',
+      status: 'todo',
+      butir: status.map((s, i) => ({ id: i + 1, status: s, deskripsi: `Poin ${i + 1}.` })),
+    }],
+  });
+
+  it('true bila ada satu poin for_review', () => {
+    expect(modulAdaTinjauan(denganStatus('done', 'for_review'))).toBe(true);
+  });
+
+  it('true bila seluruh poin for_review', () => {
+    expect(modulAdaTinjauan(denganStatus('for_review', 'for_review'))).toBe(true);
+  });
+
+  it('false bila tidak ada poin for_review', () => {
+    expect(modulAdaTinjauan(denganStatus('todo', 'in_progress', 'done'))).toBe(false);
+  });
+
+  it('false untuk modul tanpa poin', () => {
+    expect(modulAdaTinjauan({ kode: 'K', nama: 'Kosong', sub: [] })).toBe(false);
   });
 });

@@ -58,6 +58,50 @@ describe('PapanKolom - kolom awal', () => {
   });
 });
 
+describe('PapanKolom - lipatan awal dari isi', () => {
+  it('kolom tanpa sub-modul terlipat, kolom berisi terbuka, Done selalu terlipat', () => {
+    renderDenganTema(
+      <PapanKolom
+        kartu={[
+          kartu({ id: 1, status: 'todo' }),
+          kartu({ id: 2, status: 'in_progress' }),
+          kartu({ id: 3, status: 'done' }),
+        ]}
+        tampilkanModul={false}
+        onPindah={vi.fn()}
+        idAwalan="uji"
+      />,
+    );
+
+    // Berisi -> terbuka.
+    expect(document.getElementById('btn_lipat_uji_todo')).not.toBeNull();
+    expect(document.getElementById('btn_lipat_uji_in_progress')).not.toBeNull();
+
+    // Kosong -> terlipat.
+    expect(document.getElementById('btn_buka_uji_backlog')).not.toBeNull();
+    expect(document.getElementById('btn_buka_uji_for_review')).not.toBeNull();
+
+    // Done punya sub-modul, tetapi tetap terlipat secara default.
+    expect(document.getElementById('btn_buka_uji_done')).not.toBeNull();
+    expect(document.getElementById('kartu_papan_butir_3')).toBeNull();
+  });
+
+  it('sub-modul tanpa poin tetap membuka kolom Backlog', () => {
+    renderDenganTema(
+      <PapanKolom
+        kartu={[]}
+        tampilkanModul={false}
+        onPindah={vi.fn()}
+        idAwalan="uji"
+        subKosong={[{ kode: 'A.1', nama: 'Belum berisi', status: 'backlog', butir: [] }]}
+      />,
+    );
+
+    expect(document.getElementById('btn_lipat_uji_backlog')).not.toBeNull();
+    expect(document.getElementById('btn_buka_uji_done')).not.toBeNull();
+  });
+});
+
 describe('PapanKolom - tambah sub-modul', () => {
   it('tombol muncul di kolom Backlog dan To Do saat boleh ubah', () => {
     const onTambahSub = vi.fn();
@@ -72,6 +116,8 @@ describe('PapanKolom - tambah sub-modul', () => {
       />,
     );
 
+    // Backlog kosong mulai terlipat; buka dulu sebelum memakai tombol tambah.
+    fireEvent.click(document.getElementById('btn_buka_uji_backlog')!);
     fireEvent.click(document.getElementById('btn_tambah_sub_uji_backlog')!);
     expect(onTambahSub).toHaveBeenCalledTimes(1);
     expect(document.getElementById('btn_tambah_sub_uji_todo')).not.toBeNull();

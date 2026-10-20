@@ -31,6 +31,8 @@ function pasang(kartu: KartuPapan[]) {
       onPindah={vi.fn()}
       bolehUbah
       idAwalan="uji"
+      // Tes ini soal penggabungan kartu, bukan lipatan awal: buka semua kolom.
+      lipatAwal={[]}
     />,
   );
 }

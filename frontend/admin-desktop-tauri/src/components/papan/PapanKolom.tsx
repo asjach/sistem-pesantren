@@ -823,14 +823,14 @@ export function PapanKolom({
   subKosong?: SubPapan[];
   /** Awalan id elemen supaya beberapa papan di satu halaman tidak bertabrakan. */
   idAwalan?: string;
-  /** Status kolom yang mulai terlipat; bawaan kosong (semua terbuka). */
+  /** Paksa status kolom yang mulai terlipat. Bila kosong, diturunkan dari isi
+   *  (kolom tanpa kartu) dan kolom Selesai (Done) selalu ikut terlipat. */
   lipatAwal?: StatusPapan[];
   /** Bila diisi, tombol tambah sub-modul muncul di kolom Backlog & To Do. */
   onTambahSub?: () => void;
 }) {
   const [seret, setSeret] = useState<number | null>(null);
   const [sasaran, setSasaran] = useState<SasaranJatuh | null>(null);
-  const [lipat, setLipat] = useState<Set<StatusPapan>>(() => new Set(lipatAwal));
   const [pengumuman, setPengumuman] = useState('');
 
   const awalan = idAwalan ?? 'papan';
@@ -849,6 +849,21 @@ export function PapanKolom({
     }
     return hasil;
   }, [kartu, subKosong]);
+
+  /**
+   * Kolom yang mulai terlipat.
+   *
+   * Bawaannya diturunkan dari isi: kolom tanpa sub-modul dilipat supaya lima
+   * kolom kosong tidak memakan lebar, sedangkan kolom yang berisi tetap
+   * terbuka. Kolom Selesai (Done) SELALU terlipat — isinya arsip, bukan
+   * pekerjaan aktif. `lipatAwal` tetap bisa memaksa daftar tertentu.
+   *
+   * Hanya dipakai sebagai nilai awal: setelah pengguna membuka/melipat sendiri,
+   * pilihannya tidak diubah lagi walau data disegarkan.
+   */
+  const [lipat, setLipat] = useState<Set<StatusPapan>>(() => new Set(
+    lipatAwal ?? [...kolom.filter((k) => k.kartu.length === 0).map((k) => k.id), 'done'],
+  ));
 
   /** Jumlah POIN di satu kolom (kartu di sana bisa satu sub-modul banyak poin). */
   const jumlahPoinKolom = (item: KolomPapanData): number =>
