@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
  *
  * Ini inti model papan: yang bergerak adalah POIN, dan status sub-modul
  * hanyalah ringkasannya. Kalau aturan ini salah, papan bisa bilang
- * "sudah" padahal masih ada pekerjaan — karena itu tiap cabang diuji
+ * "Done" padahal masih ada pekerjaan — karena itu tiap cabang diuji
  * terpisah, termasuk urutan prioritasnya.
  */
 class PapanStatusTurunanTest extends TestCase
@@ -20,14 +20,16 @@ class PapanStatusTurunanTest extends TestCase
     public static function kasus(): array
     {
         return [
-            'tanpa poin dianggap belum dikerjakan' => [[], 'akan'],
-            'semua sudah berarti selesai' => [['sudah', 'sudah'], 'sudah'],
-            'satu sedang menang atas sudah' => [['sudah', 'sedang'], 'sedang'],
-            'sedang menang atas akan' => [['akan', 'sedang'], 'sedang'],
-            'satu akan menahan sub-modul tetap akan' => [['sudah', 'sudah', 'akan'], 'akan'],
-            'semua ditunda berarti ditunda' => [['ditunda', 'ditunda'], 'ditunda'],
-            'ditunda bercampur sudah tetap dianggap ditunda' => [['ditunda', 'sudah'], 'ditunda'],
-            'ditunda bercampur akan berarti akan' => [['ditunda', 'akan'], 'akan'],
+            'tanpa poin masuk Backlog' => [[], 'backlog'],
+            'semua Done berarti selesai' => [['done', 'done'], 'done'],
+            'In Progress menang atas Done' => [['done', 'in_progress'], 'in_progress'],
+            'In Progress menang atas To Do' => [['todo', 'in_progress'], 'in_progress'],
+            'To Do menahan sub-modul' => [['done', 'done', 'todo'], 'todo'],
+            'semua Backlog berarti Backlog' => [['backlog', 'backlog'], 'backlog'],
+            'Backlog bercampur Done tetap Backlog' => [['backlog', 'done'], 'backlog'],
+            'Backlog bercampur To Do berarti To Do' => [['backlog', 'todo'], 'todo'],
+            'For Review menang atas Done' => [['done', 'for_review'], 'for_review'],
+            'To Do menang atas For Review' => [['for_review', 'todo'], 'todo'],
         ];
     }
 

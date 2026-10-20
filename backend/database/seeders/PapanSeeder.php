@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Seeder ini BERSIFAT DESTRUKTIF: seluruh modul, sub-modul, poin, dan riwayat
  * di koneksi `papan` dihapus lalu dibuat ulang dari
- * `database/seeders/papan/blueprint.php`. Status timeline dikembalikan ke Draf.
+ * `database/seeders/papan/blueprint.php`. Status workflow dikembalikan ke Draf.
  *
  *     backup dulu: cp database/papan.sqlite /tmp/papan.sqlite.bak
  *     php artisan migrate --path=database/migrations/papan --database=papan
@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\DB;
 class PapanSeeder extends Seeder
 {
     /** Status yang dipakai berulang; diurutkan sesuai tampilan papan. */
-    private const URUTAN_STATUS = ['akan', 'sedang', 'sudah', 'ditunda'];
+    private const URUTAN_STATUS = ['backlog', 'todo', 'in_progress', 'for_review', 'done'];
 
     public function run(): void
     {
@@ -68,7 +68,7 @@ class PapanSeeder extends Seeder
                                     'subpoin' => array_map(
                                         fn (string $teks): array => [
                                             'teks' => $teks,
-                                            'selesai' => $status === 'sudah',
+                                            'selesai' => $status === 'done',
                                         ],
                                         $subpoin,
                                     ),
@@ -81,15 +81,15 @@ class PapanSeeder extends Seeder
             }
 
             DB::connection('papan')->table('papan_pengaturan')
-                ->where('kunci', 'like', 'timeline_aktif:%')
+                ->where('kunci', 'like', 'workflow_aktif:%')
                 ->delete();
 
             DB::connection('papan')->table('papan_pengaturan')->updateOrInsert(
-                ['kunci' => 'timeline_aktif'],
+                ['kunci' => 'workflow_aktif'],
                 ['nilai' => '0'],
             );
 
-            $this->command?->info('Timeline direset ke Draf.');
+            $this->command?->info('Workflow direset ke Draf.');
         });
 
         $jumlah = 'Aplikasi: '.count(PapanService::APLIKASI).

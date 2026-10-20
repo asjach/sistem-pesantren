@@ -5,13 +5,13 @@
 | Versi Dokumen | 3.0 (header KAPITAL) |
 | Versi Produk | 2.467 (lihat [CHANGELOG.md](CHANGELOG.md)) |
 | Tanggal | 19 Oktober 2026 |
-| Status | PRD produk SIMPES — acuan tunggal kebutuhan dan rancangan; status/timeline ada di Board |
+| Status | PRD produk SIMPES — acuan tunggal kebutuhan dan rancangan; status/alur kerja (workflow) ada di Board |
 | Penyusun | Solo dev + Yayasan |
 | Skema versi | **Dokumen**: restrukturisasi = X.0; satu bab final = X.Y; perbaikan kecil = X.Y.Z. **Produk**: nomor rilis dicatat di [CHANGELOG.md](CHANGELOG.md). |
 
 > **Konvensi.** Bahasa Indonesia persis DB. Logika saja, tanpa kode mentah, format kode + nama modul. Tanpa asumsi umum. Aturan bisa berubah via Lampiran E. Penulisan Bab 3 (tanpa simbol paragraf).
 
-> **Timeline & perencanaan.** Satu-satunya sumber timeline, prioritas, status, dan rencana kerja adalah **Board** (`/board`, API `/api/board`, DB `backend/database/papan.sqlite`), dan hanya berlaku per aplikasi saat status efektifnya **Aktif** (master + flag aplikasi). Dokumen ini hanya memuat kebutuhan dan rancangan; jangan menulis roadmap/status di sini. Ringkasan status di [PETA-MODUL.md](PETA-MODUL.md) adalah turunan Board.
+> **Alur kerja (workflow) & perencanaan.** Satu-satunya sumber alur kerja, prioritas, status, dan rencana kerja adalah **Board** (`/board`, antarmuka pemrograman aplikasi/API `/api/board`, basis data/DB `backend/database/papan.sqlite`), dan hanya berlaku per aplikasi saat status efektifnya **Aktif** (pengaturan utama/master + penanda/flag aplikasi). Dokumen ini hanya memuat kebutuhan dan rancangan; jangan menulis peta jalan (roadmap)/status di sini. Ringkasan status di [PETA-MODUL.md](PETA-MODUL.md) adalah turunan Board.
 
 ## Riwayat Perubahan
 
@@ -30,7 +30,7 @@ Changelog produk dipisah ke [CHANGELOG.md](CHANGELOG.md) agar dokumen ini tetap 
 
 ### 1.1 Tujuan Dokumen
 
-Dokumen ini adalah PRD produk SIMPES — dasar pembangunan dan pemeliharaan aplikasi. Acuan tunggal: kebutuhan, proses, rancangan, dan rencana uji/penyebaran. Status, prioritas, dan timeline implementasi ada di **Board** (lihat aturan di `AGENTS.md`). Kriteria selesai per bab: ringkas, tercermin di kode + test, TBD eksplisit.
+Dokumen ini adalah dokumen kebutuhan produk (Product Requirements Document/PRD) SIMPES — dasar pembangunan dan pemeliharaan aplikasi. Acuan tunggal: kebutuhan, proses, rancangan, dan rencana uji/penyebaran. Status, prioritas, dan alur kerja (workflow) implementasi ada di **Board** (lihat aturan di `AGENTS.md`). Kriteria selesai per bab: ringkas, tercermin di kode + tes (test), dan hal yang belum ditentukan (TBD) ditulis secara jelas.
 
 ### 1.2 Latar Belakang
 

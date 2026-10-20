@@ -11,14 +11,14 @@ function poin(ubah: Partial<KartuPapan> = {}): KartuPapan {
     id: 1,
     kode: 'D.1',
     nama: 'Nilai & Peristiwa',
-    status: 'akan',
+    status: 'todo',
     deskripsi: 'Poin contoh.',
     subpoin: [],
     subKode: 'D.1',
     subNama: 'Nilai & Peristiwa',
     modulKode: 'D',
     modulNama: 'Penilaian',
-    statusSub: 'akan',
+    statusSub: 'todo',
     ...ubah,
   };
 }
@@ -54,8 +54,8 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
 
   it('poin beda status muncul sebagai kartu terpisah per kolom', () => {
     pasang([
-      poin({ id: 1, status: 'akan' }),
-      poin({ id: 2, status: 'sudah' }),
+      poin({ id: 1, status: 'todo' }),
+      poin({ id: 2, status: 'done' }),
     ]);
 
     // Satu sub-modul, dua kolom: kartunya dua, tapi tiap kolom hanya satu.
@@ -99,7 +99,7 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
     renderDenganTema(
       <PapanKolom
         kartu={[]}
-        subKosong={[{ kode: 'D.2', nama: 'Rencana baru', status: 'akan', butir: [] }]}
+        subKosong={[{ kode: 'D.2', nama: 'Rencana baru', status: 'backlog', butir: [] }]}
         tampilkanModul={false}
         onPindah={vi.fn()}
         bolehUbah
@@ -109,21 +109,21 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
       />,
     );
 
-    fireEvent.click(document.getElementById('btn_ubah_sub_sub_d_2_akan')!);
-    fireEvent.change(document.getElementById('input_nama_sub_d_2_akan')!, {
+    fireEvent.click(document.getElementById('btn_ubah_sub_sub_d_2_backlog')!);
+    fireEvent.change(document.getElementById('input_nama_sub_d_2_backlog')!, {
       target: { value: 'Rencana terinci' },
     });
-    fireEvent.click(document.getElementById('btn_simpan_sub_d_2_akan')!);
+    fireEvent.click(document.getElementById('btn_simpan_sub_d_2_backlog')!);
     await vi.waitFor(() => expect(onSimpan).toHaveBeenCalledWith('D.2', 'Rencana terinci'));
 
     await vi.waitFor(() => {
-      expect(document.getElementById('btn_tambah_poin_sub_d_2_akan')).not.toBeNull();
+      expect(document.getElementById('btn_tambah_poin_sub_d_2_backlog')).not.toBeNull();
     });
-    fireEvent.click(document.getElementById('btn_tambah_poin_sub_d_2_akan')!);
-    fireEvent.change(document.getElementById('input_poin_baru_sub_d_2_akan')!, {
+    fireEvent.click(document.getElementById('btn_tambah_poin_sub_d_2_backlog')!);
+    fireEvent.change(document.getElementById('input_poin_baru_sub_d_2_backlog')!, {
       target: { value: 'Mulai pekerjaan.' },
     });
-    fireEvent.click(document.getElementById('btn_simpan_poin_sub_d_2_akan')!);
-    await vi.waitFor(() => expect(onTambahPoin).toHaveBeenCalledWith('D.2', 'akan', 'Mulai pekerjaan.'));
+    fireEvent.click(document.getElementById('btn_simpan_poin_sub_d_2_backlog')!);
+    await vi.waitFor(() => expect(onTambahPoin).toHaveBeenCalledWith('D.2', 'backlog', 'Mulai pekerjaan.'));
   });
 });

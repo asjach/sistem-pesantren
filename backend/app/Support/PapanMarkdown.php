@@ -35,13 +35,13 @@ class PapanMarkdown
      */
     public function hasilkan(string $kepala, string $ekor): string
     {
-        $potongan = [rtrim($kepala), '', $this->bagianModul(), $this->bagianSedang()];
+        $potongan = [rtrim($this->normalisasiKepalaWorkflow($kepala)), '', $this->bagianModul(), $this->bagianSedang()];
 
         return implode("\n", $potongan).$this->ekorTanpaBagianSedang($ekor)."\n";
     }
 
     /**
-     * Bagian "SEDANG DIKERJAKAN" dihasilkan dari sub-modul berstatus SEDANG,
+     * Bagian "SEDANG DIKERJAKAN" dihasilkan dari sub-modul berstatus In Progress,
      * supaya tidak bisa lagi bilang "Kosong" padahal ada pekerjaan berjalan.
      */
     public function bagianSedang(): string
@@ -50,7 +50,7 @@ class PapanMarkdown
 
         foreach ($this->papan->semua() as $modul) {
             foreach ($modul['sub'] as $sub) {
-                if ($sub['status'] === 'sedang') {
+                if ($sub['status'] === 'in_progress') {
                     $sedang[] = "- **{$sub['kode']} {$sub['nama']}** ({$modul['nama']})";
                 }
             }
@@ -133,14 +133,14 @@ class PapanMarkdown
         // PapanService::statusTurunan). Ditulis di judul supaya pembaca
         // markdown langsung tahu sampai mana sub-modul ini, tanpa harus
         // menghitung sendiri sebaran poin di bawahnya.
-        $statusJudul = mb_strtoupper($sub['status']);
+        $statusJudul = PapanService::LABEL_STATUS[$sub['status']] ?? $sub['status'];
         $petik = chr(96);
         $baris = ["### {$sub['kode']} {$sub['nama']} {$petik}{$statusJudul}{$petik}"];
 
         foreach (PapanService::STATUS as $status) {
             $butir = $this->butirBerstatus($sub, $status);
 
-            $baris[] = '**'.mb_strtoupper($status).'**';
+            $baris[] = '**'.(PapanService::LABEL_STATUS[$status] ?? $status).'**';
 
             if ($butir === []) {
                 $baris[] = '- (kosong)';
@@ -164,6 +164,66 @@ class PapanMarkdown
         }
 
         return implode("\n", $baris);
+    }
+
+    /** Selaraskan bagian statis lama tanpa mengedit PETA-MODUL secara manual. */
+    private function normalisasiKepalaWorkflow(string $kepala): string
+    {
+        return strtr($kepala, [
+            "disusul To Do, Backlog, dan For Review; sub-modul menjadi Done hanya bila semua\n".
+            'poinnya sudah Done.' => "disusul siap dikerjakan (To Do), belum dijadwalkan (Backlog), dan menunggu\n".
+                "peninjauan (For Review); sub-modul menjadi selesai (Done) hanya bila semua\n".
+                'poinnya sudah selesai (Done).',
+            "Lima status workflow dipakai konsisten di seluruh berkas:\n\n".
+            "- **Backlog** — belum siap dijadwalkan atau masih ditahan.\n".
+            "- **To Do** — siap dikerjakan.\n".
+            "- **In Progress** — sedang dikerjakan.\n".
+            "- **For Review** — implementasi selesai dan menunggu peninjauan.\n".
+            '- **Done** — pekerjaan dan seluruh subpoin sudah selesai.' => "Lima status alur kerja (workflow) dipakai konsisten di seluruh berkas:\n\n".
+                "- **Belum dijadwalkan (Backlog)** — belum siap dijadwalkan atau masih ditahan.\n".
+                "- **Siap dikerjakan (To Do)** — siap dikerjakan.\n".
+                "- **Sedang dikerjakan (In Progress)** — sedang dikerjakan.\n".
+                "- **Menunggu peninjauan (For Review)** — implementasi selesai dan menunggu peninjauan.\n".
+                '- **Selesai (Done)** — pekerjaan dan seluruh subpoin sudah selesai.',
+            'kolom **Done** dan **To Do** bersamaan' => 'kolom **Selesai (Done)** dan **Siap dikerjakan (To Do)** bersamaan',
+            '**Status workflow:**' => '**Status alur kerja (workflow):**',
+            'Workflow hanya menjadi rujukan' => 'Alur kerja (workflow) hanya menjadi rujukan',
+            'status efektif = master + flag aplikasi' => 'status efektif = pengaturan utama (master) + penanda aplikasi (flag)',
+            '(`backlog` | `todo` | `in_progress` | `for_review` | `done`)' => '(belum dijadwalkan (`backlog`) | siap dikerjakan (`todo`) | sedang dikerjakan (`in_progress`) | menunggu peninjauan (`for_review`) | selesai (`done`))',
+            "(`sudah` | `sedang` | `akan` | `ditunda`), dan status sub-modul **dihitung otomatis**\n".
+            "dari poin-poinnya: ada poin `sedang` → sub-modul `sedang`; kalau tidak, ada poin\n".
+            "`akan` → `akan`; semua `ditunda` → `ditunda`; selain itu (semua sudah) → `sudah`.\n".
+            'Jadi satu poin yang belum selesai sudah cukup menahan sub-modul tetap `akan`.' => "(`backlog` | `todo` | `in_progress` | `for_review` | `done`), dan status\n".
+                "sub-modul **dihitung otomatis** dari poin-poinnya. Pekerjaan aktif didahulukan,\n".
+                "disusul siap dikerjakan (To Do), belum dijadwalkan (Backlog), dan menunggu\n".
+                "peninjauan (For Review); sub-modul menjadi selesai (Done) hanya bila semua\n".
+                'poinnya sudah selesai (Done).',
+            "Empat status dipakai konsisten di seluruh berkas:\n\n".
+            "- **SUDAH** — kode ada, terhubung, dipakai dari UI.\n".
+            "- **SEDANG** — dikerjakan sekarang. Hanya boleh **satu** sub-modul bertanda ini.\n".
+            "- **AKAN** — belum ada kode, sudah dirancang cukup untuk dikerjakan.\n".
+            "- **DITUNDA** — belum dikerjakan dan sengaja ditunda; bisa karena masih rencana\n".
+                '  awal atau menunggu pelaksanaan pasca production.' => "Lima status alur kerja (workflow) dipakai konsisten di seluruh berkas:\n\n".
+                "- **Belum dijadwalkan (Backlog)** — belum siap dijadwalkan atau masih ditahan.\n".
+                "- **Siap dikerjakan (To Do)** — siap dikerjakan.\n".
+                "- **Sedang dikerjakan (In Progress)** — sedang dikerjakan.\n".
+                "- **Menunggu peninjauan (For Review)** — implementasi selesai dan menunggu peninjauan.\n".
+                '- **Selesai (Done)** — pekerjaan dan seluruh subpoin sudah selesai.',
+            '`sudah`' => '`done`',
+            '`sedang`' => '`in_progress`',
+            '`akan`' => '`todo`',
+            '`ditunda`' => '`backlog`',
+            'Empat status dipakai konsisten' => 'Lima status alur kerja (workflow) dipakai konsisten',
+            '**SUDAH**' => '**Selesai (Done)**',
+            '**SEDANG**' => '**Sedang dikerjakan (In Progress)**',
+            '**AKAN**' => '**Siap dikerjakan (To Do)**',
+            '**DITUNDA**' => '**Belum dijadwalkan (Backlog)**',
+            '**Status timeline:**' => '**Status alur kerja (workflow):**',
+            'Timeline hanya menjadi rujukan' => 'Alur kerja (workflow) hanya menjadi rujukan',
+            'papan:tandai E.3 128 sedang' => 'papan:tandai E.3 128 in_progress',
+            'kolom **Sudah** dan **Akan** bersamaan' => 'kolom **Selesai (Done)** dan **Siap dikerjakan (To Do)** bersamaan',
+            'dan tandai SEDANG.' => 'dan pindahkan ke Sedang dikerjakan (In Progress).',
+        ]);
     }
 
     /**

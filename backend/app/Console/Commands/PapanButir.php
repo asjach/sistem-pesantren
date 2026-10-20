@@ -12,7 +12,7 @@ use InvalidArgumentException;
     {aksi : tambah | hapus | ubah | naik | turun}
     {kode : Kode sub-modul, mis. E.3}
     {--id= : Id butir (wajib untuk hapus, ubah, naik, turun)}
-    {--status= : Status butir: sudah | sedang | akan | ditunda}
+    {--status= : Status: belum dijadwalkan (backlog) | siap dikerjakan (todo) | sedang dikerjakan (in_progress) | menunggu peninjauan (for_review) | selesai (done)}
     {--deskripsi= : Isi butir (wajib untuk tambah, opsional untuk ubah)}
     {--catatan= : Alasan singkat bila status ikut berubah}
     {--oleh=agent : Pencatat: agent atau pengguna}')]
@@ -52,10 +52,11 @@ class PapanButir extends Command
             return self::FAILURE;
         }
 
-        $status = (string) ($this->option('status') ?: 'akan');
+        $status = (string) ($this->option('status') ?: 'backlog');
         $butir = $papan->tambahButir($kode, $status, trim($deskripsi));
 
-        $this->info("Butir #{$butir->id} ditambahkan ke {$kode} [{$butir->status}].");
+        $labelStatus = PapanService::LABEL_STATUS[$butir->status] ?? $butir->status;
+        $this->info("Butir #{$butir->id} ditambahkan ke {$kode} [{$labelStatus}].");
 
         return self::SUCCESS;
     }
@@ -66,7 +67,7 @@ class PapanButir extends Command
      * Hanya yang benar-benar disebut pengguna yang dikirim: tanpa --deskripsi
      * teksnya dibiarkan, tanpa --status statusnya dibiarkan. Opsi status di
      * sini sengaja TIDAK punya nilai bawaan, supaya "tidak disebut" bisa
-     * dibedakan dari "disebut bernilai sedang".
+     * dibedakan dari "disebut bernilai in_progress".
      */
     private function ubah(PapanService $papan, string $kode): int
     {
@@ -96,7 +97,8 @@ class PapanButir extends Command
             $this->option('catatan') === null ? null : (string) $this->option('catatan'),
         );
 
-        $this->info("Butir #{$butir->id} diperbarui [{$butir->status}].");
+        $labelStatus = PapanService::LABEL_STATUS[$butir->status] ?? $butir->status;
+        $this->info("Butir #{$butir->id} diperbarui [{$labelStatus}].");
 
         return self::SUCCESS;
     }

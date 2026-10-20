@@ -58,10 +58,10 @@ class PapanApiTest extends TestCase
             ->assertJsonPath('aplikasi.0.modul.0.kode', 'E')
             ->assertJsonPath('aplikasi.0.modul.0.sub.0.kode', 'E.3')
             // Ringkasan dipisah: poin (yang bergerak) dan sub-modul (turunan).
-            ->assertJsonPath('ringkasan.butir.akan', 1)
-            ->assertJsonPath('ringkasan.butir.sudah', 1)
-            ->assertJsonPath('ringkasan.sub.akan', 1)
-            ->assertJsonPath('status', ['sudah', 'sedang', 'akan', 'ditunda']);
+            ->assertJsonPath('ringkasan.butir.todo', 1)
+            ->assertJsonPath('ringkasan.butir.done', 1)
+            ->assertJsonPath('ringkasan.sub.todo', 1)
+            ->assertJsonPath('status', ['backlog', 'todo', 'in_progress', 'for_review', 'done']);
     }
 
     public function test_tambah_modul_membuat_modul_baru_di_papan(): void
@@ -94,43 +94,43 @@ class PapanApiTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_timeline_master_dan_status_per_aplikasi(): void
+    public function test_workflow_master_dan_status_per_aplikasi(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
         $this->getJson('/api/board')
             ->assertOk()
-            ->assertJsonPath('timeline_master_aktif', false)
-            ->assertJsonPath('aplikasi.0.timeline_aktif', false)
-            ->assertJsonPath('aplikasi.0.timeline_efektif', false);
+            ->assertJsonPath('workflow_master_aktif', false)
+            ->assertJsonPath('aplikasi.0.workflow_aktif', false)
+            ->assertJsonPath('aplikasi.0.workflow_efektif', false);
 
-        $this->patchJson('/api/board/timeline', ['aktif' => true])
+        $this->patchJson('/api/board/workflow', ['aktif' => true])
             ->assertOk()
-            ->assertJsonPath('timeline_master_aktif', true)
-            ->assertJsonPath('aplikasi.desktop-admin.timeline_efektif', false);
+            ->assertJsonPath('workflow_master_aktif', true)
+            ->assertJsonPath('aplikasi.desktop-admin.workflow_efektif', false);
 
-        $this->patchJson('/api/board/timeline', [
+        $this->patchJson('/api/board/workflow', [
             'aplikasi' => 'desktop-admin',
             'aktif' => true,
         ])
             ->assertOk()
-            ->assertJsonPath('aplikasi.desktop-admin.timeline_aktif', true)
-            ->assertJsonPath('aplikasi.desktop-admin.timeline_efektif', true)
-            ->assertJsonPath('aplikasi.mobile-guru.timeline_efektif', false);
+            ->assertJsonPath('aplikasi.desktop-admin.workflow_aktif', true)
+            ->assertJsonPath('aplikasi.desktop-admin.workflow_efektif', true)
+            ->assertJsonPath('aplikasi.mobile-guru.workflow_efektif', false);
 
-        $this->patchJson('/api/board/timeline', [
+        $this->patchJson('/api/board/workflow', [
             'aplikasi' => 'mobile-guru',
             'aktif' => true,
         ])
             ->assertOk()
-            ->assertJsonPath('aplikasi.desktop-admin.timeline_efektif', true)
-            ->assertJsonPath('aplikasi.mobile-guru.timeline_efektif', true);
+            ->assertJsonPath('aplikasi.desktop-admin.workflow_efektif', true)
+            ->assertJsonPath('aplikasi.mobile-guru.workflow_efektif', true);
 
-        $this->patchJson('/api/board/timeline', ['aktif' => false])
+        $this->patchJson('/api/board/workflow', ['aktif' => false])
             ->assertOk()
-            ->assertJsonPath('timeline_master_aktif', false)
-            ->assertJsonPath('aplikasi.desktop-admin.timeline_aktif', true)
-            ->assertJsonPath('aplikasi.desktop-admin.timeline_efektif', false);
+            ->assertJsonPath('workflow_master_aktif', false)
+            ->assertJsonPath('aplikasi.desktop-admin.workflow_aktif', true)
+            ->assertJsonPath('aplikasi.desktop-admin.workflow_efektif', false);
     }
 
     public function test_pengguna_tanpa_izin_papan_ditolak(): void
@@ -144,38 +144,44 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $poin = PapanButir::query()->where('status', 'akan')->firstOrFail();
+        $poin = PapanButir::query()->where('status', 'todo')->firstOrFail();
 
-        $this->patchJson("/api/board/E.3/butir/{$poin->id}/status", ['status' => 'sedang', 'catatan' => 'Mulai'])
+        $this->patchJson("/api/board/E.3/butir/{$poin->id}/status", ['status' => 'in_progress', 'catatan' => 'Mulai'])
             ->assertOk()
-            ->assertJsonPath('status', 'sedang')
-            // Sub-modul ikut jadi "sedang" karena ada poin yang sedang.
-            ->assertJsonPath('status_sub_modul', 'sedang');
+            ->assertJsonPath('status', 'in_progress')
+            // Sub-modul ikut In Progress karena ada poin yang sedang dikerjakan.
+            ->assertJsonPath('status_sub_modul', 'in_progress');
 
         $this->getJson('/api/board/riwayat')
             ->assertOk()
             ->assertJsonPath('riwayat.0.kode', 'E.3')
-            ->assertJsonPath('riwayat.0.ke', 'sedang')
+            ->assertJsonPath('riwayat.0.ke', 'in_progress')
             ->assertJsonPath('riwayat.0.oleh', 'pengguna');
     }
 
     /**
-     * Inti model baru: sub-modul baru dianggap "sudah" kalau SEMUA poinnya
-     * sudah. Satu poin yang masih "akan" sudah cukup menahannya.
+     * Sub-modul baru menjadi Done kalau SEMUA poinnya Done. Satu poin yang
+     * masih To Do cukup menahannya.
      */
-    public function test_status_sub_modul_baru_sudah_bila_semua_poin_sudah(): void
+    public function test_status_sub_modul_melewati_review_sebelum_done(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->getJson('/api/board/E.3')->assertJsonPath('status', 'akan');
+        $this->getJson('/api/board/E.3')->assertJsonPath('status', 'todo');
 
-        $sisa = PapanButir::query()->where('status', 'akan')->firstOrFail();
+        $sisa = PapanButir::query()->where('status', 'todo')->firstOrFail();
 
-        $this->patchJson("/api/board/E.3/butir/{$sisa->id}/status", ['status' => 'sudah'])
+        $this->patchJson("/api/board/E.3/butir/{$sisa->id}/status", ['status' => 'for_review'])
             ->assertOk()
-            ->assertJsonPath('status_sub_modul', 'sudah');
+            ->assertJsonPath('status_sub_modul', 'for_review');
 
-        $this->getJson('/api/board/E.3')->assertJsonPath('status', 'sudah');
+        $this->getJson('/api/board/E.3')->assertJsonPath('status', 'for_review');
+
+        $this->patchJson("/api/board/E.3/butir/{$sisa->id}/status", ['status' => 'done'])
+            ->assertOk()
+            ->assertJsonPath('status_sub_modul', 'done');
+
+        $this->getJson('/api/board/E.3')->assertJsonPath('status', 'done');
     }
 
     public function test_pindah_dengan_status_tidak_sah_ditolak_validasi(): void
@@ -193,14 +199,14 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->patchJson('/api/board/Z.9/butir/1/status', ['status' => 'sedang'])->assertStatus(404);
+        $this->patchJson('/api/board/Z.9/butir/1/status', ['status' => 'in_progress'])->assertStatus(404);
     }
 
     public function test_pindah_poin_yang_tidak_ada_menjawab_404(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
-        $this->patchJson('/api/board/E.3/butir/99999/status', ['status' => 'sedang'])->assertStatus(404);
+        $this->patchJson('/api/board/E.3/butir/99999/status', ['status' => 'in_progress'])->assertStatus(404);
     }
 
     public function test_tambah_dan_hapus_butir(): void
@@ -208,7 +214,7 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['super_admin']));
 
         $id = $this->postJson('/api/board/E.3/butir', [
-            'status' => 'akan',
+            'status' => 'todo',
             'deskripsi' => 'Butir baru lewat API.',
         ])->assertStatus(201)->json('id');
 
@@ -221,9 +227,9 @@ class PapanApiTest extends TestCase
     {
         Sanctum::actingAs($this->pengguna(['admin']));
 
-        $poin = PapanButir::query()->where('status', 'akan')->firstOrFail();
+        $poin = PapanButir::query()->where('status', 'todo')->firstOrFail();
 
-        $this->patchJson("/api/board/E.3/butir/{$poin->id}/status", ['status' => 'sedang'])->assertOk();
+        $this->patchJson("/api/board/E.3/butir/{$poin->id}/status", ['status' => 'in_progress'])->assertOk();
     }
 
     /**
@@ -253,7 +259,7 @@ class PapanApiTest extends TestCase
     public function test_subpoin_bisa_disimpan_ditampilkan_dan_dihapus_tanpa_mengubah_status(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
-        $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
+        $butir = PapanButir::query()->where('status', 'todo')->firstOrFail();
 
         $subpoin = [
             ['teks' => 'Periksa saldo kas.', 'selesai' => false],
@@ -268,7 +274,7 @@ class PapanApiTest extends TestCase
         $this->getJson('/api/board')
             ->assertOk()
             ->assertJsonFragment(['subpoin' => $subpoin]);
-        $this->assertSame('akan', $butir->refresh()->status);
+        $this->assertSame('todo', $butir->refresh()->status);
 
         $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => []])
             ->assertOk()
@@ -287,42 +293,42 @@ class PapanApiTest extends TestCase
             ->assertJsonValidationErrors('subpoin.0.teks');
     }
 
-    public function test_status_sudah_ditolak_bila_ada_subpoin_belum_selesai(): void
+    public function test_status_done_ditolak_bila_ada_subpoin_belum_selesai(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
-        $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
+        $butir = PapanButir::query()->where('status', 'todo')->firstOrFail();
         $butir->update(['subpoin' => [
             ['teks' => 'Satu.', 'selesai' => true],
             ['teks' => 'Dua.', 'selesai' => false],
         ]]);
 
-        $this->patchJson("/api/board/E.3/butir/{$butir->id}/status", ['status' => 'sudah'])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}/status", ['status' => 'done'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('status');
 
-        $this->assertSame('akan', $butir->refresh()->status);
+        $this->assertSame('todo', $butir->refresh()->status);
     }
 
-    public function test_status_sudah_boleh_bila_semua_subpoin_selesai(): void
+    public function test_status_done_boleh_bila_semua_subpoin_selesai(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
-        $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
+        $butir = PapanButir::query()->where('status', 'todo')->firstOrFail();
         $butir->update(['subpoin' => [
             ['teks' => 'Satu.', 'selesai' => true],
             ['teks' => 'Dua.', 'selesai' => true],
         ]]);
 
-        $this->patchJson("/api/board/E.3/butir/{$butir->id}/status", ['status' => 'sudah'])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}/status", ['status' => 'done'])
             ->assertOk()
-            ->assertJsonPath('status', 'sudah');
+            ->assertJsonPath('status', 'done');
 
-        $this->assertSame('sudah', $butir->refresh()->status);
+        $this->assertSame('done', $butir->refresh()->status);
     }
 
-    public function test_uncheck_subpoin_menurunkan_poin_sudah_ke_sedang(): void
+    public function test_uncheck_subpoin_menurunkan_poin_done_ke_in_progress(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
-        $butir = PapanButir::query()->where('status', 'sudah')->firstOrFail();
+        $butir = PapanButir::query()->where('status', 'done')->firstOrFail();
         $butir->update(['subpoin' => [
             ['teks' => 'Satu.', 'selesai' => true],
             ['teks' => 'Dua.', 'selesai' => true],
@@ -333,20 +339,20 @@ class PapanApiTest extends TestCase
             ['teks' => 'Dua.', 'selesai' => false],
         ]])
             ->assertOk()
-            ->assertJsonPath('status', 'sedang');
+            ->assertJsonPath('status', 'in_progress');
 
-        $this->assertSame('sedang', $butir->refresh()->status);
+        $this->assertSame('in_progress', $butir->refresh()->status);
         $this->assertDatabaseHas('papan_riwayat', [
             'butir_id' => $butir->id,
-            'dari_status' => 'sudah',
-            'ke_status' => 'sedang',
+            'dari_status' => 'done',
+            'ke_status' => 'in_progress',
         ], 'papan');
     }
 
-    public function test_subpoin_baru_pada_poin_sudah_ikut_menurunkan_ke_sedang(): void
+    public function test_subpoin_baru_pada_poin_done_ikut_menurunkan_ke_in_progress(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
-        $butir = PapanButir::query()->where('status', 'sudah')->firstOrFail();
+        $butir = PapanButir::query()->where('status', 'done')->firstOrFail();
         $butir->update(['subpoin' => [['teks' => 'Satu.', 'selesai' => true]]]);
 
         $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => [
@@ -354,9 +360,9 @@ class PapanApiTest extends TestCase
             ['teks' => 'Dua.', 'selesai' => false],
         ]])
             ->assertOk()
-            ->assertJsonPath('status', 'sedang');
+            ->assertJsonPath('status', 'in_progress');
 
-        $this->assertSame('sedang', $butir->refresh()->status);
+        $this->assertSame('in_progress', $butir->refresh()->status);
     }
 
     public function test_ubah_butir_tanpa_apa_pun_dijawab_422(): void
@@ -372,13 +378,13 @@ class PapanApiTest extends TestCase
     public function test_ubah_butir_dengan_status_ikut_mengembalikan_status_sub_modul(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
-        $butir = PapanButir::query()->where('status', 'akan')->firstOrFail();
+        $butir = PapanButir::query()->where('status', 'todo')->firstOrFail();
 
-        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['status' => 'sudah'])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['status' => 'done'])
             ->assertOk()
-            ->assertJsonPath('status', 'sudah')
-            // Semua poin E.3 kini sudah, jadi sub-modul turunannya ikut sudah.
-            ->assertJsonPath('status_sub_modul', 'sudah');
+            ->assertJsonPath('status', 'done')
+            // Semua poin E.3 kini Done, jadi sub-modul turunannya ikut Done.
+            ->assertJsonPath('status_sub_modul', 'done');
     }
 
     public function test_geser_butir_di_ujung_dijawab_409(): void
@@ -469,10 +475,9 @@ class PapanApiTest extends TestCase
             'urutan' => 1,
         ]);
 
-        // Dua poin: satu sudah, satu akan. Status sub-modulnya turunan, jadi
-        // fixture ini sekaligus membuktikan E.3 dianggap "akan" (masih ada
-        // sisa), bukan "sudah" walau ada poin yang selesai.
-        $item->butir()->create(['status' => 'sudah', 'deskripsi' => 'Rekap per kas.', 'urutan' => 1]);
-        $item->butir()->create(['status' => 'akan', 'deskripsi' => 'Ekspor rekap.', 'urutan' => 2]);
+        // Dua poin: satu Done, satu To Do. Status sub-modulnya turunan, jadi
+        // fixture ini membuktikan E.3 tetap To Do selama masih ada sisa.
+        $item->butir()->create(['status' => 'done', 'deskripsi' => 'Rekap per kas.', 'urutan' => 1]);
+        $item->butir()->create(['status' => 'todo', 'deskripsi' => 'Ekspor rekap.', 'urutan' => 2]);
     }
 }

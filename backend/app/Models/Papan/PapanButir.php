@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Satu butir pekerjaan di bawah sub-modul, dengan statusnya sendiri.
  *
- * `status` memakai kosakata sama seperti item: sudah | sedang | akan | ditunda.
+ * `status` memakai workflow: backlog | todo | in_progress | for_review | done.
  */
 class PapanButir extends Model
 {

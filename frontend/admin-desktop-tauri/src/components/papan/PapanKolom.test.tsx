@@ -11,14 +11,14 @@ function kartu(ubah: Partial<KartuPapan> = {}): KartuPapan {
     id: 128,
     kode: 'E.3',
     nama: 'Rekap & Tutup Buku Kas',
-    status: 'akan',
+    status: 'todo',
     deskripsi: 'Ekspor rekap per kas.',
     subpoin: [],
     subKode: 'E.3',
     subNama: 'Rekap & Tutup Buku Kas',
     modulKode: 'E',
     modulNama: 'Keuangan',
-    statusSub: 'akan',
+    statusSub: 'todo',
     ...ubah,
   };
 }
@@ -30,36 +30,36 @@ function pasang(daftar: KartuPapan[] = [kartu()]) {
 }
 
 describe('PapanKolom - kolom awal', () => {
-  it('kolom sudah dan ditunda mulai terlipat, lalu bisa dibuka', () => {
+  it('kolom Backlog dan Done mulai terlipat, lalu bisa dibuka', () => {
     renderDenganTema(
       <PapanKolom
         kartu={[
-          kartu({ id: 1, status: 'akan' }),
-          kartu({ id: 2, status: 'sudah' }),
-          kartu({ id: 3, status: 'ditunda' }),
+          kartu({ id: 1, status: 'todo' }),
+          kartu({ id: 2, status: 'done' }),
+          kartu({ id: 3, status: 'backlog' }),
         ]}
         tampilkanModul={false}
         onPindah={vi.fn()}
         idAwalan="uji"
-        lipatAwal={['sudah', 'ditunda']}
+        lipatAwal={['done', 'backlog']}
       />,
     );
 
     // Strip kolom tampil, tetapi isi kartunya belum dirender.
-    expect(document.getElementById('btn_buka_uji_sudah')).not.toBeNull();
-    expect(document.getElementById('btn_buka_uji_ditunda')).not.toBeNull();
+    expect(document.getElementById('btn_buka_uji_done')).not.toBeNull();
+    expect(document.getElementById('btn_buka_uji_backlog')).not.toBeNull();
     expect(document.getElementById('kartu_papan_butir_2')).toBeNull();
     expect(document.getElementById('kartu_papan_butir_3')).toBeNull();
     // Kolom aktif tetap terbuka.
-    expect(document.getElementById('btn_lipat_uji_akan')).not.toBeNull();
+    expect(document.getElementById('btn_lipat_uji_todo')).not.toBeNull();
 
-    fireEvent.click(document.getElementById('btn_buka_uji_sudah')!);
+    fireEvent.click(document.getElementById('btn_buka_uji_done')!);
     expect(document.getElementById('kartu_papan_butir_2')).not.toBeNull();
   });
 });
 
 describe('PapanKolom - tambah sub-modul', () => {
-  it('tombol muncul di kolom akan dan sedang saat boleh ubah', () => {
+  it('tombol muncul di kolom Backlog dan To Do saat boleh ubah', () => {
     const onTambahSub = vi.fn();
     renderDenganTema(
       <PapanKolom
@@ -72,11 +72,11 @@ describe('PapanKolom - tambah sub-modul', () => {
       />,
     );
 
-    fireEvent.click(document.getElementById('btn_tambah_sub_uji_akan')!);
+    fireEvent.click(document.getElementById('btn_tambah_sub_uji_backlog')!);
     expect(onTambahSub).toHaveBeenCalledTimes(1);
-    expect(document.getElementById('btn_tambah_sub_uji_sedang')).not.toBeNull();
-    expect(document.getElementById('btn_tambah_sub_uji_sudah')).toBeNull();
-    expect(document.getElementById('btn_tambah_sub_uji_ditunda')).toBeNull();
+    expect(document.getElementById('btn_tambah_sub_uji_todo')).not.toBeNull();
+    expect(document.getElementById('btn_tambah_sub_uji_in_progress')).toBeNull();
+    expect(document.getElementById('btn_tambah_sub_uji_done')).toBeNull();
   });
 
   it('tanpa izin ubah tombol tambah sub-modul tidak muncul', () => {
@@ -90,7 +90,7 @@ describe('PapanKolom - tambah sub-modul', () => {
       />,
     );
 
-    expect(document.getElementById('btn_tambah_sub_uji_akan')).toBeNull();
-    expect(document.getElementById('btn_tambah_sub_uji_sedang')).toBeNull();
+    expect(document.getElementById('btn_tambah_sub_uji_backlog')).toBeNull();
+    expect(document.getElementById('btn_tambah_sub_uji_todo')).toBeNull();
   });
 });

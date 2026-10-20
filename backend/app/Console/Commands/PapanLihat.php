@@ -32,7 +32,8 @@ class PapanLihat extends Command
     {
         $item = $papan->item($kode);
 
-        $this->line("<options=bold>{$item->kode} {$item->nama}</>  [<options=bold>{$item->status}</>]");
+        $labelStatus = PapanService::LABEL_STATUS[$item->status] ?? $item->status;
+        $this->line("<options=bold>{$item->kode} {$item->nama}</>  [<options=bold>{$labelStatus}</>]");
         $this->line('Aplikasi: '.(PapanService::APLIKASI[$item->modul->aplikasi] ?? $item->modul->aplikasi));
         $this->line("Modul: {$item->modul->nama}");
         $this->newLine();
@@ -44,7 +45,7 @@ class PapanLihat extends Command
                 continue;
             }
 
-            $this->line("<options=bold>{$status}</>");
+            $this->line('<options=bold>'.(PapanService::LABEL_STATUS[$status] ?? $status).'</>');
 
             foreach ($butir as $b) {
                 $this->line("  <fg=gray>#{$b->id}</> {$b->deskripsi}");
@@ -59,15 +60,15 @@ class PapanLihat extends Command
     /** Cetak seluruh papan dikelompokkan per aplikasi lalu modul. */
     private function cetakSemua(PapanService $papan): int
     {
-        $status = $papan->statusTimeline();
-        $this->line('Timeline master: <options=bold>'.($status['timeline_master_aktif'] ? 'AKTIF' : 'DRAF').'</>');
+        $status = $papan->statusWorkflow();
+        $this->line('Alur kerja utama (Workflow master): <options=bold>'.($status['workflow_master_aktif'] ? 'AKTIF' : 'DRAF').'</>');
 
         foreach ($status['aplikasi'] as $kode => $aplikasi) {
             $this->line(sprintf(
                 '  %-18s %-5s (efektif: %s)',
                 PapanService::APLIKASI[$kode],
-                $aplikasi['timeline_aktif'] ? 'AKTIF' : 'DRAF',
-                $aplikasi['timeline_efektif'] ? 'AKTIF' : 'DRAF',
+                $aplikasi['workflow_aktif'] ? 'AKTIF' : 'DRAF',
+                $aplikasi['workflow_efektif'] ? 'AKTIF' : 'DRAF',
             ));
         }
 
@@ -81,7 +82,7 @@ class PapanLihat extends Command
 
                 foreach ($modul['sub'] as $sub) {
                     // Tampilkan sebaran poin per status di sebelah nama, supaya
-                    // kelihatan kenapa status turunannya begitu (mis. "akan" karena
+                    // kelihatan kenapa status turunannya begitu (mis. "todo" karena
                     // masih ada 2 poin yang belum selesai).
                     $ada = [];
                     foreach ($sub['butir'] as $b) {
@@ -91,14 +92,14 @@ class PapanLihat extends Command
                     $rinci = [];
                     foreach (PapanService::STATUS as $s) {
                         if (($ada[$s] ?? 0) > 0) {
-                            $rinci[] = "{$s}:{$ada[$s]}";
+                            $rinci[] = (PapanService::LABEL_STATUS[$s] ?? $s).":{$ada[$s]}";
                         }
                     }
 
                     $this->line(sprintf(
-                        '    %-7s [%-7s] %-38s <fg=gray>(%d poin%s)</>',
+                        '    %-7s [%s] %-38s <fg=gray>(%d poin%s)</>',
                         $sub['kode'],
-                        $sub['status'],
+                        PapanService::LABEL_STATUS[$sub['status']] ?? $sub['status'],
                         mb_strimwidth($sub['nama'], 0, 38, '…'),
                         count($sub['butir']),
                         $rinci === [] ? '' : ' — '.implode(' ', $rinci),
@@ -114,11 +115,11 @@ class PapanLihat extends Command
         // Dua ringkasan ditampilkan terpisah: yang bergerak di papan adalah
         // POIN, sedangkan jumlah sub-modul cuma gambaran turunannya.
         $this->line('Poin     : '.collect($ringkasan['butir'])
-            ->map(fn (int $jumlah, string $status) => "{$status}={$jumlah}")
+            ->map(fn (int $jumlah, string $status) => (PapanService::LABEL_STATUS[$status] ?? $status)."={$jumlah}")
             ->implode('  '));
 
         $this->line('Sub-modul: '.collect($ringkasan['sub'])
-            ->map(fn (int $jumlah, string $status) => "{$status}={$jumlah}")
+            ->map(fn (int $jumlah, string $status) => (PapanService::LABEL_STATUS[$status] ?? $status)."={$jumlah}")
             ->implode('  '));
 
         return self::SUCCESS;
@@ -141,8 +142,8 @@ class PapanLihat extends Command
                 '%s  %-5s  %s -> %s  <fg=gray>(%s)%s</>',
                 $r['waktu'],
                 $r['kode'],
-                $r['dari'] ?? '-',
-                $r['ke'],
+                $r['dari'] === null ? '-' : (PapanService::LABEL_STATUS[$r['dari']] ?? $r['dari']),
+                PapanService::LABEL_STATUS[$r['ke']] ?? $r['ke'],
                 $r['oleh'],
                 $r['catatan'] !== null ? ' '.$r['catatan'] : '',
             ));

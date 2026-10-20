@@ -24,18 +24,18 @@ const modul: ModulPapan[] = [
       {
         kode: 'E.3',
         nama: 'Rekap & Tutup Buku Kas',
-        status: 'akan',
+        status: 'todo',
         butir: [
-          { id: 1, status: 'akan', deskripsi: 'Rekap per kas.' },
-          { id: 2, status: 'akan', deskripsi: 'Mutasi harian.' },
-          { id: 3, status: 'ditunda', deskripsi: 'Tarif asrama.' },
+          { id: 1, status: 'todo', deskripsi: 'Rekap per kas.' },
+          { id: 2, status: 'todo', deskripsi: 'Mutasi harian.' },
+          { id: 3, status: 'backlog', deskripsi: 'Tarif asrama.' },
         ],
       },
       {
         kode: 'E.4',
         nama: 'Tunggakan',
-        status: 'sudah',
-        butir: [{ id: 4, status: 'sudah', deskripsi: 'Crosstab tunggakan.' }],
+        status: 'done',
+        butir: [{ id: 4, status: 'done', deskripsi: 'Crosstab tunggakan.' }],
       },
     ],
   },
@@ -43,7 +43,7 @@ const modul: ModulPapan[] = [
     kode: 'F',
     nama: 'Portal & Klien',
     sub: [
-      { kode: 'F.3', nama: 'Aplikasi Mobile', status: 'akan', butir: [] },
+      { kode: 'F.3', nama: 'Aplikasi Mobile', status: 'todo', butir: [] },
     ],
   },
 ];
@@ -70,9 +70,9 @@ describe('ratakanKartu', () => {
   it('status kartu mengikuti status poinnya, bukan status sub-modul', () => {
     const kartu = ratakanKartu(modul);
 
-    // E.3 berstatus 'akan' (turunan), tapi poin #3 sendiri 'ditunda'.
-    expect(kartu[2].status).toBe('ditunda');
-    expect(kartu[2].statusSub).toBe('akan');
+    // E.3 berstatus 'todo' (turunan), tapi poin #3 sendiri 'backlog'.
+    expect(kartu[2].status).toBe('backlog');
+    expect(kartu[2].statusSub).toBe('todo');
   });
 
   it('sub-modul tanpa poin tidak menghasilkan kartu sama sekali', () => {
@@ -83,11 +83,17 @@ describe('ratakanKartu', () => {
 });
 
 describe('kelompokkanKolom', () => {
-  it('selalu menghasilkan empat kolom berurutan', () => {
+  it('selalu menghasilkan lima tahap workflow berurutan', () => {
     const kolom = kelompokkanKolom(ratakanKartu(modul));
 
-    expect(kolom.map((k) => k.id)).toEqual(['akan', 'sedang', 'sudah', 'ditunda']);
-    expect(kolom.map((k) => k.judul)).toEqual(['Akan', 'Sedang', 'Sudah', 'Ditunda']);
+    expect(kolom.map((k) => k.id)).toEqual(['backlog', 'todo', 'in_progress', 'for_review', 'done']);
+    expect(kolom.map((k) => k.judul)).toEqual([
+      'Belum dijadwalkan (Backlog)',
+      'Siap dikerjakan (To Do)',
+      'Sedang dikerjakan (In Progress)',
+      'Menunggu peninjauan (For Review)',
+      'Selesai (Done)',
+    ]);
   });
 
   it('menggabungkan poin satu sub-modul jadi SATU kartu per kolom', () => {
@@ -95,11 +101,12 @@ describe('kelompokkanKolom', () => {
 
     // Sebelumnya tiap poin jadi kartu sendiri, sehingga sub-modul berpoin
     // banyak tampil sebagai banyak kartu berjudul sama.
-    expect(kolom[0].kartu.map((k) => k.subKode)).toEqual(['E.3']);
-    expect(kolom[0].kartu[0].poin.map((p) => p.id)).toEqual([1, 2]);
-    expect(kolom[2].kartu[0].poin.map((p) => p.id)).toEqual([4]);
-    expect(kolom[3].kartu[0].poin.map((p) => p.id)).toEqual([3]);
-    expect(kolom[1].kartu).toEqual([]);
+    expect(kolom[0].kartu[0].poin.map((p) => p.id)).toEqual([3]);
+    expect(kolom[1].kartu.map((k) => k.subKode)).toEqual(['E.3']);
+    expect(kolom[1].kartu[0].poin.map((p) => p.id)).toEqual([1, 2]);
+    expect(kolom[4].kartu[0].poin.map((p) => p.id)).toEqual([4]);
+    expect(kolom[2].kartu).toEqual([]);
+    expect(kolom[3].kartu).toEqual([]);
   });
 
   it('judul sub-modul TIDAK berulang dalam satu kolom', () => {
@@ -111,11 +118,11 @@ describe('kelompokkanKolom', () => {
           {
             kode: 'D.1',
             nama: 'Nilai',
-            status: 'akan',
+            status: 'todo',
             butir: [
-              { id: 1, status: 'akan', deskripsi: 'A.' },
-              { id: 2, status: 'akan', deskripsi: 'B.' },
-              { id: 3, status: 'akan', deskripsi: 'C.' },
+              { id: 1, status: 'todo', deskripsi: 'A.' },
+              { id: 2, status: 'todo', deskripsi: 'B.' },
+              { id: 3, status: 'todo', deskripsi: 'C.' },
             ],
           },
         ],
@@ -123,15 +130,15 @@ describe('kelompokkanKolom', () => {
     ];
     const kolom = kelompokkanKolom(ratakanKartu(banyak));
 
-    expect(kolom[0].kartu).toHaveLength(1);
-    expect(kolom[0].kartu[0].poin).toHaveLength(3);
+    expect(kolom[1].kartu).toHaveLength(1);
+    expect(kolom[1].kartu[0].poin).toHaveLength(3);
   });
 
   it('menjaga kolom kosong tetap tampil', () => {
     const kosong: KartuPapan[] = [];
     const kolom = kelompokkanKolom(kosong);
 
-    expect(kolom).toHaveLength(4);
+    expect(kolom).toHaveLength(5);
     expect(kolom.every((k) => k.kartu.length === 0)).toBe(true);
   });
 
@@ -151,10 +158,10 @@ describe('kelompokkanKolom', () => {
           {
             kode: 'E.3',
             nama: 'Rekap',
-            status: 'sedang',
+            status: 'in_progress',
             butir: [
-              { id: 1, status: 'sudah', deskripsi: 'A.' },
-              { id: 2, status: 'sedang', deskripsi: 'B.' },
+              { id: 1, status: 'done', deskripsi: 'A.' },
+              { id: 2, status: 'in_progress', deskripsi: 'B.' },
             ],
           },
         ],
@@ -164,10 +171,10 @@ describe('kelompokkanKolom', () => {
 
     // Satu sub-modul tetap muncul di DUA kolom (memang diinginkan), tapi
     // di tiap kolom hanya sekali, dan isinya hanya poin berstatus itu.
-    expect(kolom[1].kartu).toHaveLength(1);
     expect(kolom[2].kartu).toHaveLength(1);
-    expect(kolom[1].kartu[0].poin.map((p) => p.id)).toEqual([2]);
-    expect(kolom[2].kartu[0].poin.map((p) => p.id)).toEqual([1]);
+    expect(kolom[4].kartu).toHaveLength(1);
+    expect(kolom[2].kartu[0].poin.map((p) => p.id)).toEqual([2]);
+    expect(kolom[4].kartu[0].poin.map((p) => p.id)).toEqual([1]);
   });
 });
 
@@ -186,16 +193,17 @@ describe('kartuModul', () => {
 
 describe('ringkasanModul', () => {
   it('menghitung POIN per status', () => {
-    expect(ringkasanModul(modul[0])).toEqual({ sudah: 1, sedang: 0, akan: 2, ditunda: 1 });
-    expect(ringkasanModul(modul[1])).toEqual({ sudah: 0, sedang: 0, akan: 0, ditunda: 0 });
+    expect(ringkasanModul(modul[0])).toEqual({ backlog: 1, todo: 2, in_progress: 0, for_review: 0, done: 1 });
+    expect(ringkasanModul(modul[1])).toEqual({ backlog: 0, todo: 0, in_progress: 0, for_review: 0, done: 0 });
   });
 
   it('modul kosong menghasilkan semua nol', () => {
     expect(ringkasanModul({ kode: 'Z', nama: 'Kosong', sub: [] })).toEqual({
-      sudah: 0,
-      sedang: 0,
-      akan: 0,
-      ditunda: 0,
+      backlog: 0,
+      todo: 0,
+      in_progress: 0,
+      for_review: 0,
+      done: 0,
     });
   });
 });
@@ -212,11 +220,11 @@ describe('kemajuanModul', () => {
       sub: [{
         kode: 'S.1',
         nama: 'Satu',
-        status: 'sedang',
+        status: 'in_progress',
         butir: [
           {
             id: 10,
-            status: 'sedang',
+            status: 'in_progress',
             deskripsi: 'Poin A.',
             subpoin: [
               { teks: 'A1.', selesai: true },
@@ -225,11 +233,11 @@ describe('kemajuanModul', () => {
           },
           {
             id: 11,
-            status: 'sudah',
+            status: 'done',
             deskripsi: 'Poin B.',
             subpoin: [{ teks: 'B1.', selesai: true }],
           },
-          { id: 12, status: 'sudah', deskripsi: 'Poin C.' },
+          { id: 12, status: 'done', deskripsi: 'Poin C.' },
         ],
       }],
     };
@@ -245,17 +253,17 @@ describe('kemajuanModul', () => {
 
 describe('kemajuanButir', () => {
   const butir: ButirPapan[] = [
-    { id: 1, status: 'sedang', deskripsi: 'A.' },
+    { id: 1, status: 'in_progress', deskripsi: 'A.' },
     {
       id: 2,
-      status: 'sedang',
+      status: 'in_progress',
       deskripsi: 'B.',
       subpoin: [
         { teks: 'B1.', selesai: true },
         { teks: 'B2.', selesai: false },
       ],
     },
-    { id: 3, status: 'sudah', deskripsi: 'C.' },
+    { id: 3, status: 'done', deskripsi: 'C.' },
   ];
 
   it('menghitung subpoin sebagai unit dan poin tanpa subpoin satu unit', () => {
@@ -266,11 +274,11 @@ describe('kemajuanButir', () => {
     expect(kemajuanButir([])).toEqual({ selesai: 0, total: 0 });
   });
 
-  it('poin sudah dengan subpoin dihitung dari subpoinnya, bukan statusnya', () => {
+  it('poin Done dengan subpoin dihitung dari subpoinnya, bukan statusnya', () => {
     const campur: ButirPapan[] = [
       {
         id: 9,
-        status: 'sudah',
+        status: 'done',
         deskripsi: 'Sudah.',
         subpoin: [
           { teks: 'x', selesai: true },
@@ -305,30 +313,32 @@ describe('persenKemajuan', () => {
 describe('ringkasanPoin', () => {
   it('menghitung poin per status dari daftar poin', () => {
     const ringkasan = ringkasanPoin(kartuModul(modul[0]));
-    expect(ringkasan).toEqual({ sudah: 1, sedang: 0, akan: 2, ditunda: 1 });
+    expect(ringkasan).toEqual({ backlog: 1, todo: 2, in_progress: 0, for_review: 0, done: 1 });
   });
 
   it('daftar kosong menghasilkan semua nol', () => {
-    expect(ringkasanPoin([])).toEqual({ sudah: 0, sedang: 0, akan: 0, ditunda: 0 });
+    expect(ringkasanPoin([])).toEqual({ backlog: 0, todo: 0, in_progress: 0, for_review: 0, done: 0 });
   });
 });
 
 describe('kolomSebelah', () => {
   it('menggeser ke kanan sesuai urutan tampil', () => {
-    expect(kolomSebelah('akan', 1)).toBe('sedang');
-    expect(kolomSebelah('sedang', 1)).toBe('sudah');
-    expect(kolomSebelah('sudah', 1)).toBe('ditunda');
+    expect(kolomSebelah('backlog', 1)).toBe('todo');
+    expect(kolomSebelah('todo', 1)).toBe('in_progress');
+    expect(kolomSebelah('in_progress', 1)).toBe('for_review');
+    expect(kolomSebelah('for_review', 1)).toBe('done');
   });
 
   it('menggeser ke kiri sesuai urutan tampil', () => {
-    expect(kolomSebelah('ditunda', -1)).toBe('sudah');
-    expect(kolomSebelah('sudah', -1)).toBe('sedang');
-    expect(kolomSebelah('sedang', -1)).toBe('akan');
+    expect(kolomSebelah('done', -1)).toBe('for_review');
+    expect(kolomSebelah('for_review', -1)).toBe('in_progress');
+    expect(kolomSebelah('in_progress', -1)).toBe('todo');
+    expect(kolomSebelah('todo', -1)).toBe('backlog');
   });
 
   it('mengembalikan null di ujung, bukan membalik ke kolom lain', () => {
-    expect(kolomSebelah('akan', -1)).toBeNull();
-    expect(kolomSebelah('ditunda', 1)).toBeNull();
+    expect(kolomSebelah('backlog', -1)).toBeNull();
+    expect(kolomSebelah('done', 1)).toBeNull();
   });
 });
 describe('modulDariKode', () => {

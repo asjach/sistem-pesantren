@@ -48,20 +48,20 @@ class PapanTulisUlangTest extends TestCase
 
     public function test_menulis_ulang_saat_isi_berbeda(): void
     {
-        $this->buatItem('A.1', 'Setup (001)', 'sudah', ['Proyek berjalan.']);
-        $this->tulisBerkas($this->isiPeta('akan'));
+        $this->buatItem('A.1', 'Setup (001)', 'done', ['Proyek berjalan.']);
+        $this->tulisBerkas($this->isiPeta('todo'));
 
         $hasil = app(PapanTulisUlang::class)->jalankan($this->berkas);
 
         $this->assertTrue($hasil['berubah']);
-        $this->assertStringContainsString('## A.1 Setup (001) '.chr(96).'SUDAH'.chr(96), file_get_contents($this->berkas));
+        $this->assertStringContainsString('## A.1 Setup (001) '.chr(96).'Selesai (Done)'.chr(96), file_get_contents($this->berkas));
     }
 
     public function test_tidak_menulis_saat_sudah_selaras(): void
     {
-        $this->buatItem('A.1', 'Setup (001)', 'sudah', ['Proyek berjalan.']);
+        $this->buatItem('A.1', 'Setup (001)', 'done', ['Proyek berjalan.']);
 
-        $sekali = app(PapanTulisUlang::class)->jalankan($this->berkas($this->isiPeta('akan')));
+        $sekali = app(PapanTulisUlang::class)->jalankan($this->berkas($this->isiPeta('todo')));
         $duaKali = app(PapanTulisUlang::class)->jalankan($this->berkas);
 
         $this->assertTrue($sekali['berubah']);
@@ -86,11 +86,11 @@ class PapanTulisUlangTest extends TestCase
     public function test_menolak_hasil_yang_jauh_lebih_pendek(): void
     {
         // Berkas kaya butir (kepala panjang + banyak butir di A.1).
-        $gemuk = $this->isiPeta('akan', array_fill(0, 300, 'Butir panjang sekali supaya berkasnya gemuk.'));
+        $gemuk = $this->isiPeta('todo', array_fill(0, 300, 'Butir panjang sekali supaya berkasnya gemuk.'));
         $this->tulisBerkas($gemuk);
 
         // Papan hanya punya satu sub-modul berbutir satu -> hasil jauh lebih pendek.
-        $this->buatItem('A.1', 'Setup (001)', 'sudah', ['Proyek berjalan.']);
+        $this->buatItem('A.1', 'Setup (001)', 'done', ['Proyek berjalan.']);
 
         $pesan = null;
 

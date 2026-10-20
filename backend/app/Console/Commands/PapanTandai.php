@@ -11,7 +11,7 @@ use InvalidArgumentException;
 #[Signature('papan:tandai
     {kode : Kode sub-modul, mis. E.3}
     {id : Id poin (butir) yang dipindah}
-    {status : sudah | sedang | akan | ditunda}
+    {status : Belum dijadwalkan (backlog) | siap dikerjakan (todo) | sedang dikerjakan (in_progress) | menunggu peninjauan (for_review) | selesai (done)}
     {--catatan= : Alasan singkat perpindahan}
     {--oleh=agent : Pencatat: agent atau pengguna}')]
 #[Description('Pindahkan status sebuah poin di papan perkembangan proyek.')]
@@ -28,7 +28,7 @@ class PapanTandai extends Command
         $catatan = is_string($catatan) && trim($catatan) !== '' ? trim($catatan) : null;
 
         if (! is_numeric($id)) {
-            $this->error('Argumen id harus angka, mis. " . P + "papan:tandai E.3 12 sedang" . P + ".');
+            $this->error('Argumen id harus angka, mis. "papan:tandai E.3 12 in_progress".');
 
             return self::FAILURE;
         }
@@ -50,8 +50,8 @@ class PapanTandai extends Command
             ->firstWhere('kode', $kode);
 
         if ($sub !== null) {
-            $this->line('  status poin      : '.$butir->status);
-            $this->line('  status sub-modul : '.$sub['status'].' <fg=gray>(turunan)</>');
+            $this->line('  status poin      : '.(PapanService::LABEL_STATUS[$butir->status] ?? $butir->status));
+            $this->line('  status sub-modul : '.(PapanService::LABEL_STATUS[$sub['status']] ?? $sub['status']).' <fg=gray>(turunan)</>');
         }
 
         return self::SUCCESS;

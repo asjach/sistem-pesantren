@@ -1,5 +1,5 @@
 import type { ButirPapan, ModulPapan, StatusPapan, SubPapan, SubpoinPapan } from '@/api/papan';
-import { KOLOM_PAPAN } from '@/api/papan';
+import { JUDUL_KOLOM, KOLOM_PAPAN } from '@/api/papan';
 
 /** Unit kemajuan: berapa yang sudah selesai dari total unit yang bisa diselesaikan. */
 export interface Kemajuan {
@@ -63,13 +63,6 @@ export interface KolomPapanData {
   kartu: KartuSub[];
 }
 
-const JUDUL: Record<StatusPapan, string> = {
-  akan: 'Akan',
-  sedang: 'Sedang',
-  sudah: 'Sudah',
-  ditunda: 'Ditunda',
-};
-
 /** Ratakan modul -> sub-modul -> poin menjadi daftar poin. */
 export function ratakanKartu(modul: ModulPapan[]): KartuPapan[] {
   return modul.flatMap((m) =>
@@ -124,18 +117,18 @@ export function kelompokkanSub(kartu: KartuPapan[]): KartuSub[] {
 }
 
 /**
- * Kelompokkan poin ke empat kolom sebagai kartu per sub-modul.
+ * Kelompokkan poin ke lima kolom workflow sebagai kartu per sub-modul.
  *
  * Satu sub-modul muncul di SETIAP kolom yang punya poin berstatus itu, tapi
  * hanya sekali per kolom - jadi judulnya tidak berulang dalam satu kolom.
- * Kolom kosong tetap ada supaya susunan empat kolom tidak goyah.
+ * Kolom kosong tetap ada supaya susunan workflow tidak goyah.
  */
 export function kelompokkanKolom(kartu: KartuPapan[]): KolomPapanData[] {
   const perSub = kelompokkanSub(kartu);
 
   return KOLOM_PAPAN.map((id) => ({
     id,
-    judul: JUDUL[id],
+    judul: JUDUL_KOLOM[id],
     kartu: perSub
       .map((k) => ({
         ...k,
@@ -148,7 +141,7 @@ export function kelompokkanKolom(kartu: KartuPapan[]): KolomPapanData[] {
 
 /** Berapa kartu (sub-modul) di kolom ini yang seluruh poinnya sudah selesai. */
 export function hitungKolomPenuh(kartu: KartuSub[]): number {
-  return kartu.filter((k) => k.statusSub === 'sudah').length;
+  return kartu.filter((k) => k.statusSub === 'done').length;
 }
 
 /** Jumlah POIN per status dalam satu modul, untuk lencana di tab. */
@@ -172,7 +165,7 @@ export function kemajuanButir(butir: ButirPapan[]): Kemajuan {
 
     if (subpoin.length === 0) {
       total += 1;
-      if (b.status === 'sudah') selesai += 1;
+      if (b.status === 'done') selesai += 1;
 
       continue;
     }
@@ -207,7 +200,13 @@ export function kemajuanModul(modul: ModulPapan): Kemajuan {
 
 /** Jumlah POIN per status dari daftar poin papan (untuk ringkasan & meter). */
 export function ringkasanPoin(poin: KartuPapan[]): Record<StatusPapan, number> {
-  const hasil: Record<StatusPapan, number> = { sudah: 0, sedang: 0, akan: 0, ditunda: 0 };
+  const hasil: Record<StatusPapan, number> = {
+    backlog: 0,
+    todo: 0,
+    in_progress: 0,
+    for_review: 0,
+    done: 0,
+  };
   for (const p of poin) hasil[p.status] += 1;
 
   return hasil;

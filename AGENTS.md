@@ -4,22 +4,22 @@
 
 - UI & docs Bahasa Indonesia; `id` elemen snake_case (NFR-05).
 
-## SUMBER TIMELINE & PERENCANAAN — BOARD (ATURAN UMUM)
+## SUMBER ALUR KERJA (WORKFLOW) & PERENCANAAN — BOARD (ATURAN UMUM)
 
-- **Timeline berlaku per aplikasi dan hanya saat status efektifnya `Aktif`.** Status efektif = master `timeline_master_aktif` DAN flag aplikasi `aplikasi[].timeline_aktif`. Cek: popover "Timeline" di `/board`, `GET /api/board` (`timeline_master_aktif` + `aplikasi[].timeline_efektif`), `php artisan papan:lihat` (master + status tiap aplikasi), atau DB `papan` (`papan_pengaturan.timeline_aktif` untuk master dan `timeline_aktif:<aplikasi>` per aplikasi). **Bila status tidak bisa dipastikan, anggap Draf.**
-- **Saat efektif Aktif untuk aplikasi yang dikerjakan, Board adalah satu-satunya sumber timeline, prioritas, status, dan perencanaan aplikasi itu.** Sumber data: `backend/database/papan.sqlite` (koneksi `papan`), API `/api/board`, halaman `/board`. `docs/PETA-MODUL.md` hanyalah turunan generator dari Board.
-- **Tidak ada timeline/roadmap lain.** Jangan membuat atau memelihara roadmap, TODO, milestone, tabel gelombang, atau jadwal terpisah di PRD, `operasi.md`, issue tracker, maupun file baru. PRD/arsitektur hanya memuat kebutuhan dan rancangan; status dan urutan pengerjaan tetap di Board.
+- **Alur kerja (workflow) berlaku per aplikasi dan hanya saat status efektifnya `Aktif`.** Status efektif = pengaturan utama (master) `workflow_master_aktif` DAN penanda (flag) aplikasi `aplikasi[].workflow_aktif`. Cek: popover "Alur kerja (Workflow)" di `/board`, `GET /api/board` (`workflow_master_aktif` + `aplikasi[].workflow_efektif`), `php artisan papan:lihat` (pengaturan utama + status tiap aplikasi), atau basis data (database/DB) `papan` (`papan_pengaturan.workflow_aktif` untuk pengaturan utama dan `workflow_aktif:<aplikasi>` per aplikasi). **Bila status tidak bisa dipastikan, anggap Draf.**
+- **Saat efektif Aktif untuk aplikasi yang dikerjakan, Board adalah satu-satunya sumber alur kerja (workflow), prioritas, status, dan perencanaan aplikasi itu.** Sumber data: `backend/database/papan.sqlite` (koneksi `papan`), antarmuka pemrograman aplikasi (API) `/api/board`, halaman `/board`. `docs/PETA-MODUL.md` hanyalah turunan generator dari Board.
+- **Tidak ada alur kerja/peta jalan (workflow/roadmap) lain.** Jangan membuat atau memelihara peta jalan (roadmap), daftar pekerjaan (TODO), target tahap (milestone), tabel gelombang, atau jadwal terpisah di PRD, `operasi.md`, pelacak masalah (issue tracker), maupun file baru. PRD/arsitektur hanya memuat kebutuhan dan rancangan; status dan urutan pengerjaan tetap di Board.
 - **Jangan mengedit `docs/PETA-MODUL.md` manual.** Ubah Board lalu jalankan `php artisan papan:markdown --tulis`.
-- **CHANGELOG bukan timeline:** hanya riwayat rilis. Jangan mencatat rencana/progres di sana.
+- **Catatan perubahan (CHANGELOG) bukan alur kerja (workflow):** hanya riwayat rilis. Jangan mencatat rencana/progres di sana.
 
 ### Perilaku agen: Aktif vs Draf
 
 | Status efektif | Yang WAJIB dilakukan | Yang DILARANG |
 | --- | --- | --- |
 | **Aktif** (master + aplikasi yang dikerjakan aktif) | 1) Baca Board sebelum merencanakan/mengerjakan; jadikan status dan urutan aplikasi itu acuan. 2) Tulis setiap rencana, prioritas, atau perubahan status ke Board sebagai aplikasi → modul → sub-modul → poin (status + subpoin); tempatkan di modul yang sesuai atau buat modul baru. 3) Setelah mengubah Board, jalankan `papan:markdown --tulis`. 4) Jika dokumen lain bertentangan, Board yang menang. | Membuat roadmap/TODO/milestone terpisah; menulis rencana hanya di PRD/chat; mengedit PETA-MODUL manual. |
-| **Draf** (master mati atau aplikasi itu belum aktif) | 1) Pakai PRD dan kode sebagai rujukan kebutuhan/status. 2) Boleh mengubah Board hanya bila tugasnya memang membangun/memperbaiki Board itu sendiri. 3) Cek ulang status sebelum memakai Board lagi. | Memakai Board/PETA-MODUL aplikasi itu sebagai acuan timeline, prioritas, atau status; menulis rencana baru ke Board sebagai timeline; menyimpulkan pekerjaan sudah/akan dari Board; mengaktifkan timeline sendiri. |
+| **Draf** (pengaturan utama/master mati atau aplikasi itu belum aktif) | 1) Pakai PRD dan kode sebagai rujukan kebutuhan/status. 2) Boleh mengubah Board hanya bila tugasnya memang membangun/memperbaiki Board itu sendiri. 3) Cek ulang status sebelum memakai Board lagi. | Memakai Board/PETA-MODUL aplikasi itu sebagai acuan alur kerja (workflow), prioritas, atau status; menulis rencana baru ke Board sebagai alur kerja; menyimpulkan pekerjaan sudah/akan dari Board; mengaktifkan alur kerja sendiri. |
 
-- **Pekerjaan lintas aplikasi:** pakai timeline hanya jika SEMUA aplikasi yang terlibat berstatus efektif Aktif. Bila salah satu masih Draf, perlakukan keseluruhan pekerjaan sebagai Draf (fail closed).
+- **Pekerjaan lintas aplikasi:** pakai alur kerja (workflow) hanya jika SEMUA aplikasi yang terlibat berstatus efektif Aktif. Bila salah satu masih Draf, perlakukan keseluruhan pekerjaan sebagai Draf (aman bila ragu/fail closed).
 - **Mengaktifkan/menonaktifkan master atau aplikasi adalah keputusan pengguna.** Jangan mengubahnya sendiri; minta konfirmasi. Pengguna dapat menonaktifkan kapan saja, dan sejak saat itu aturan Draf berlaku untuk aplikasi tersebut sampai diaktifkan kembali.
 
 ## Skill (katalog otomatis)

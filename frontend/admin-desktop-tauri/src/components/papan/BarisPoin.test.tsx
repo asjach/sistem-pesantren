@@ -13,14 +13,14 @@ function kartu(ubah: Partial<KartuPapan> = {}): KartuPapan {
     id: 128,
     kode: 'E.3',
     nama: 'Rekap & Tutup Buku Kas',
-    status: 'akan',
+    status: 'todo',
     deskripsi: 'Ekspor rekap per kas.',
     subpoin: [],
     subKode: 'E.3',
     subNama: 'Rekap & Tutup Buku Kas',
     modulKode: 'E',
     modulNama: 'Keuangan',
-    statusSub: 'akan',
+    statusSub: 'todo',
     ...ubah,
   };
 }
@@ -98,7 +98,7 @@ describe('BarisPoin - checklist subpoin', () => {
     ] })], { bolehUbah: true });
     mulaiUbah();
 
-    const opsi = document.querySelector('#status_butir_128 option[value="sudah"]') as HTMLOptionElement;
+    const opsi = document.querySelector('#status_butir_128 option[value="done"]') as HTMLOptionElement;
     expect(opsi.disabled).toBe(true);
   });
 
@@ -109,7 +109,7 @@ describe('BarisPoin - checklist subpoin', () => {
     ] })], { bolehUbah: true });
     mulaiUbah();
 
-    const opsi = document.querySelector('#status_butir_128 option[value="sudah"]') as HTMLOptionElement;
+    const opsi = document.querySelector('#status_butir_128 option[value="done"]') as HTMLOptionElement;
     expect(opsi.disabled).toBe(false);
   });
 });
@@ -149,14 +149,14 @@ describe('BarisPoin - menyunting poin di baris', () => {
     mulaiUbah();
 
     const pilih = document.getElementById('status_butir_128') as HTMLSelectElement;
-    expect(pilih.value).toBe('akan');
+    expect(pilih.value).toBe('todo');
 
-    fireEvent.change(pilih, { target: { value: 'sudah' } });
+    fireEvent.change(pilih, { target: { value: 'done' } });
     expect((document.getElementById('btn_simpan_butir_128') as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
     await vi.waitFor(() => {
-      expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', 'sudah');
+      expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', 'done');
     });
   });
 

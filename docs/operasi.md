@@ -7,7 +7,7 @@
 
 **Metode:** Fase-gate + Kanban WIP=1.
 
-**Timeline, prioritas, dan status:** satu-satunya sumber ada di **Board** — halaman `/board`, API `/api/board`, DB `backend/database/papan.sqlite` — dan hanya berlaku saat status Board **Aktif**. Ringkasan yang dihasilkan: [PETA-MODUL.md](PETA-MODUL.md).
+**Alur kerja (workflow), prioritas, dan status:** satu-satunya sumber ada di **Board** — halaman `/board`, antarmuka pemrograman aplikasi (API) `/api/board`, basis data (database/DB) `backend/database/papan.sqlite` — dan hanya berlaku saat status Board **Aktif**. Ringkasan yang dihasilkan: [PETA-MODUL.md](PETA-MODUL.md).
 
 Jangan memelihara roadmap, tabel gelombang, atau estimasi terpisah di dokumen ini. Setiap rencana baru ditulis di Board sebagai modul → sub-modul → poin (status + subpoin checklist); bila perlu, buat modul baru. Baca Board sebelum merencanakan dan perbarui setelah status berubah.
 

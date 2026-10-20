@@ -31,10 +31,11 @@ export interface SasaranJatuh {
 
 /** Warna lencana per status - memakai token semantik yang sudah ada. */
 export const WARNA_STATUS: Record<StatusPapan, string> = {
-  akan: 'var(--info)',
-  sedang: 'var(--warning)',
-  sudah: 'var(--success)',
-  ditunda: 'var(--muted-foreground)',
+  backlog: 'var(--muted-foreground)',
+  todo: 'var(--info)',
+  in_progress: 'var(--warning)',
+  for_review: 'var(--accent-readable)',
+  done: 'var(--success)',
 };
 
 /** Urutan kelompok butir di dalam kartu: yang belum selesai lebih dulu supaya
@@ -211,7 +212,7 @@ export function KartuPapan({
   return (
     <article
       id={`kartu_papan_${idKartu}`}
-      aria-label={`${kartu.subKode} ${kartu.subNama}, ${kartu.poin.length} poin berstatus ${kartu.status}.`}
+      aria-label={`${kartu.subKode} ${kartu.subNama}, ${kartu.poin.length} poin berstatus ${JUDUL_KOLOM[kartu.status]}.`}
       className={cn(
         // Border, latar, dan bayangan datang dari .kartu (index.css) supaya
         // kartu papan tidak menyimpang dari kartu lain di aplikasi.
@@ -643,7 +644,7 @@ function BarisPoin({
                     <option
                       key={status}
                       value={status}
-                      disabled={status === 'sudah' && !semuaSubpoinSelesai}
+                      disabled={status === 'done' && !semuaSubpoinSelesai}
                     >
                       {JUDUL_KOLOM[status]}
                     </option>
@@ -746,9 +747,9 @@ function BarisPoin({
           <div
             className={cn(
               'min-w-0 flex-1 text-[12px] leading-snug [overflow-wrap:anywhere]',
-              // Poin di kolom Sudah diredupkan, bukan disembunyikan: isinya
-              // masih sering perlu dibaca (apa yang sudah dikerjakan).
-              poin.status === 'sudah' && 'papan-poin-sudah',
+              // Poin di kolom Done diredupkan, bukan disembunyikan: isinya
+              // masih sering perlu dibaca sebagai riwayat pekerjaan.
+              poin.status === 'done' && 'papan-poin-sudah',
             )}
           >
             <TeksButir deskripsi={poin.deskripsi} />
@@ -824,7 +825,7 @@ export function PapanKolom({
   idAwalan?: string;
   /** Status kolom yang mulai terlipat; bawaan kosong (semua terbuka). */
   lipatAwal?: StatusPapan[];
-  /** Bila diisi, tombol tambah sub-modul muncul di kolom Akan & Sedang. */
+  /** Bila diisi, tombol tambah sub-modul muncul di kolom Backlog & To Do. */
   onTambahSub?: () => void;
 }) {
   const [seret, setSeret] = useState<number | null>(null);
@@ -841,9 +842,9 @@ export function PapanKolom({
         subNama: sub.nama,
         modulKode: '',
         modulNama: '',
-        status: 'akan',
+        status: 'backlog',
         poin: [],
-        statusSub: 'akan',
+        statusSub: 'backlog',
       });
     }
     return hasil;
@@ -922,7 +923,7 @@ export function PapanKolom({
 
     // Pengumuman menyebut sub-modul DAN isi poinnya, karena kini satu
     // sub-modul bisa muncul di beberapa kolom sekaligus.
-    setPengumuman(`Poin ${asal.subKode} "${asal.deskripsi}" dipindahkan ke ${kolomId}.`);
+    setPengumuman(`Poin ${asal.subKode} "${asal.deskripsi}" dipindahkan ke ${JUDUL_KOLOM[kolomId]}.`);
     await onPindah(id, kolomId);
   }
 
@@ -941,7 +942,7 @@ export function PapanKolom({
       return;
     }
 
-    setPengumuman(`Poin ${kartu.subKode} "${kartu.deskripsi}" dipindahkan ke ${tujuan}.`);
+    setPengumuman(`Poin ${kartu.subKode} "${kartu.deskripsi}" dipindahkan ke ${JUDUL_KOLOM[tujuan]}.`);
     await onPindah(kartu.id, tujuan);
   }
 
@@ -1006,6 +1007,7 @@ export function PapanKolom({
                       <h2
                         className="truncate text-[12.5px] leading-snug font-semibold"
                         style={{ color: 'var(--foreground)' }}
+                        title={item.judul}
                       >
                         {item.judul}
                       </h2>
@@ -1020,7 +1022,7 @@ export function PapanKolom({
                         {jumlahPoinKolom(item)}
                       </span>
                     </div>
-                    {bolehUbah && onTambahSub && (item.id === 'akan' || item.id === 'sedang') ? (
+                    {bolehUbah && onTambahSub && (item.id === 'backlog' || item.id === 'todo') ? (
                       <button
                         id={`btn_tambah_sub_${awalan}_${item.id}`}
                         type="button"

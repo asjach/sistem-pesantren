@@ -13,7 +13,7 @@ import {
   muatPapan,
   muatRiwayatPapan,
   pindahStatusPapan,
-  setTimelinePapan,
+  setWorkflowPapan,
   tambahButirPapan,
   tambahModulPapan,
   ubahButirPapan,
@@ -34,8 +34,8 @@ import { WARNA_STATUS as WARNA_KOLOM } from '@/components/papan/PapanKolom';
 import { KelolaSubModul } from '@/components/papan/KelolaSubModul';
 import { TambahModul } from '@/components/papan/TambahModul';
 
-/** Kolom selesai/ditunda mulai terlipat agar fokus ke pekerjaan aktif. */
-const KOLOM_TERTUTUP_AWAL: StatusPapan[] = ['sudah', 'ditunda'];
+/** Backlog dan Done mulai terlipat agar fokus ke pekerjaan aktif. */
+const KOLOM_TERTUTUP_AWAL: StatusPapan[] = ['done', 'backlog'];
 
 /** Lebar rail modul: batas, bawaan, dan kunci simpanan preferensi. */
 const RAIL_MIN = 128;
@@ -60,7 +60,7 @@ function modulAwal(modul: ModulPapan[]): ModulPapan | null {
 
 /**
  * Board perkembangan proyek: tab aplikasi (horizontal), modul (vertikal),
- * lalu empat kolom status. Sumbernya API /board, bukan data pesantren.
+ * lalu lima tahap workflow. Sumbernya API /board, bukan data pesantren.
  */
 export default function PapanPage() {
   const { kodeAplikasi, kodeModul } = useParams<{ kodeAplikasi?: string; kodeModul?: string }>();
@@ -72,7 +72,7 @@ export default function PapanPage() {
   const [memuat, setMemuat] = useState(true);
   const [kelolaTerbuka, setKelolaTerbuka] = useState(false);
   const [modulTerbuka, setModulTerbuka] = useState(false);
-  const [sibukTimeline, setSibukTimeline] = useState(false);
+  const [sibukWorkflow, setSibukWorkflow] = useState(false);
   const [lebarRail, setLebarRail] = useState(lebarRailAwal);
   const seretRail = useRef({ mulaiX: 0, mulaiW: RAIL_DEFAULT, akhir: RAIL_DEFAULT });
 
@@ -205,11 +205,13 @@ export default function PapanPage() {
         .find((s) => s.butir.some((b) => b.id === butirId));
 
       const hitungTurunan = (status: StatusPapan[]): StatusPapan => {
-        if (status.includes('sedang')) return 'sedang';
-        if (status.includes('akan')) return 'akan';
-        if (status.includes('ditunda')) return 'ditunda';
+        if (status.length === 0) return 'backlog';
+        if (status.includes('in_progress')) return 'in_progress';
+        if (status.includes('todo')) return 'todo';
+        if (status.includes('backlog')) return 'backlog';
+        if (status.includes('for_review')) return 'for_review';
 
-        return 'sudah';
+        return 'done';
       };
 
       setData({
@@ -304,25 +306,25 @@ export default function PapanPage() {
     [segarkan],
   );
 
-  async function ubahTimeline(aplikasi?: string) {
-    if (!data || sibukTimeline) return;
+  async function ubahWorkflow(aplikasi?: string) {
+    if (!data || sibukWorkflow) return;
 
     const app = aplikasi ? data.aplikasi.find((a) => a.kode === aplikasi) : null;
-    const aktif = aplikasi ? !(app?.timeline_aktif ?? false) : !data.timeline_master_aktif;
+    const aktif = aplikasi ? !(app?.workflow_aktif ?? false) : !data.workflow_master_aktif;
 
-    setSibukTimeline(true);
+    setSibukWorkflow(true);
     try {
-      const hasil = await setTimelinePapan(aktif, aplikasi);
+      const hasil = await setWorkflowPapan(aktif, aplikasi);
       setData((prev) => (
         prev
           ? {
               ...prev,
-              timeline_master_aktif: hasil.timeline_master_aktif,
+              workflow_master_aktif: hasil.workflow_master_aktif,
               aplikasi: prev.aplikasi.map((a) => {
                 const baru = hasil.aplikasi[a.kode];
 
                 return baru
-                  ? { ...a, timeline_aktif: baru.timeline_aktif, timeline_efektif: baru.timeline_efektif }
+                  ? { ...a, workflow_aktif: baru.workflow_aktif, workflow_efektif: baru.workflow_efektif }
                   : a;
               }),
             }
@@ -330,9 +332,9 @@ export default function PapanPage() {
       ));
       setGalat(null);
     } catch (e) {
-      setGalat(e instanceof Error ? e.message : 'Status timeline gagal diubah.');
+      setGalat(e instanceof Error ? e.message : 'Status alur kerja (workflow) gagal diubah.');
     } finally {
-      setSibukTimeline(false);
+      setSibukWorkflow(false);
     }
   }
 
@@ -413,46 +415,46 @@ export default function PapanPage() {
           <Popover>
             <PopoverTrigger asChild>
               <Button
-                id="btn_timeline"
+                id="btn_workflow"
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={sibukTimeline || !data}
-                aria-label="Atur status timeline"
+                disabled={sibukWorkflow || !data}
+                aria-label="Atur status alur kerja (workflow)"
                 className={cn(
                   'shrink-0',
-                  data?.timeline_master_aktif ? 'text-success' : 'text-muted-foreground',
+                  data?.workflow_master_aktif ? 'text-success' : 'text-muted-foreground',
                 )}
               >
-                Timeline: {data?.timeline_master_aktif ? 'Aktif' : 'Draf'}
+                Alur kerja (Workflow): {data?.workflow_master_aktif ? 'Aktif' : 'Draf'}
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 border border-foreground/30 p-2">
               <label className="flex items-center gap-2 text-xs font-medium">
                 <input
-                  id="cek_timeline_master"
+                  id="cek_workflow_master"
                   type="checkbox"
-                  checked={!!data?.timeline_master_aktif}
-                  disabled={!bolehUbah || sibukTimeline}
-                  onChange={() => void ubahTimeline()}
+                  checked={!!data?.workflow_master_aktif}
+                  disabled={!bolehUbah || sibukWorkflow}
+                  onChange={() => void ubahWorkflow()}
                   className="size-3.5 accent-[var(--success)]"
                 />
-                Master
+                Pengaturan utama (Master)
               </label>
               <ul className="mt-1.5 flex flex-col gap-1 border-t pt-1.5" style={{ borderColor: 'var(--divider)' }}>
                 {aplikasi.map((a) => (
                   <li key={a.kode}>
                     <label className="flex items-center gap-2 text-xs">
                       <input
-                        id={`cek_timeline_${a.kode}`}
+                        id={`cek_workflow_${a.kode}`}
                         type="checkbox"
-                        checked={a.timeline_aktif}
-                        disabled={!bolehUbah || sibukTimeline || !data?.timeline_master_aktif}
-                        onChange={() => void ubahTimeline(a.kode)}
+                        checked={a.workflow_aktif}
+                        disabled={!bolehUbah || sibukWorkflow || !data?.workflow_master_aktif}
+                        onChange={() => void ubahWorkflow(a.kode)}
                         className="size-3.5 accent-[var(--success)]"
                       />
                       <span className="min-w-0 flex-1 truncate">{a.nama}</span>
-                      {a.timeline_efektif ? (
+                      {a.workflow_efektif ? (
                         <span className="shrink-0 text-[10px] text-success">Aktif</span>
                       ) : null}
                     </label>
@@ -505,9 +507,9 @@ export default function PapanPage() {
                       title={r.waktu}
                     >
                       <span className="font-mono text-[10px] font-semibold text-foreground/75">{r.kode}</span>
-                      <span>{r.dari ?? '-'}</span>
+                      <span>{r.dari ? JUDUL_KOLOM[r.dari] : '-'}</span>
                       <span aria-hidden="true" className="text-muted-foreground/50">→</span>
-                      <span>{r.ke}</span>
+                      <span>{JUDUL_KOLOM[r.ke]}</span>
                       <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{r.waktu}</span>
                     </li>
                   ))}

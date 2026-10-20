@@ -1,17 +1,18 @@
 import { api } from './client';
 
 /** Status yang dipakai papan — sama dengan kosakata di docs/PETA-MODUL.md. */
-export type StatusPapan = 'sudah' | 'sedang' | 'akan' | 'ditunda';
+export type StatusPapan = 'backlog' | 'todo' | 'in_progress' | 'for_review' | 'done';
 
-/** Empat kolom papan, dalam urutan tampil. */
-export const KOLOM_PAPAN: StatusPapan[] = ['akan', 'sedang', 'sudah', 'ditunda'];
+/** Lima tahap alur kerja Kanban (workflow), dalam urutan tampil. */
+export const KOLOM_PAPAN: StatusPapan[] = ['backlog', 'todo', 'in_progress', 'for_review', 'done'];
 
 /** Judul kolom untuk tampilan. */
 export const JUDUL_KOLOM: Record<StatusPapan, string> = {
-  akan: 'Akan',
-  sedang: 'Sedang',
-  sudah: 'Sudah',
-  ditunda: 'Ditunda',
+  backlog: 'Belum dijadwalkan (Backlog)',
+  todo: 'Siap dikerjakan (To Do)',
+  in_progress: 'Sedang dikerjakan (In Progress)',
+  for_review: 'Menunggu peninjauan (For Review)',
+  done: 'Selesai (Done)',
 };
 
 /** Satu baris checklist di bawah poin. */
@@ -54,9 +55,9 @@ export interface AplikasiPapan {
   kode: string;
   nama: string;
   /** Status mentah aplikasi, sebelum memperhitungkan master switch. */
-  timeline_aktif: boolean;
+  workflow_aktif: boolean;
   /** true hanya bila master dan status aplikasi sama-sama aktif. */
-  timeline_efektif: boolean;
+  workflow_efektif: boolean;
   modul: ModulPapan[];
 }
 
@@ -68,8 +69,8 @@ export interface RingkasanPapan {
 
 export interface DataPapan {
   aplikasi: AplikasiPapan[];
-  /** Master switch; bila false semua timeline aplikasi efektif Draf. */
-  timeline_master_aktif: boolean;
+  /** Master switch; bila false semua workflow aplikasi efektif Draf. */
+  workflow_master_aktif: boolean;
   ringkasan: RingkasanPapan;
   status: StatusPapan[];
 }
@@ -131,14 +132,14 @@ export function ubahButirPapan(
   );
 }
 
-export interface StatusTimelinePapan {
-  timeline_master_aktif: boolean;
-  aplikasi: Record<string, { kode: string; timeline_aktif: boolean; timeline_efektif: boolean }>;
+export interface StatusWorkflowPapan {
+  workflow_master_aktif: boolean;
+  aplikasi: Record<string, { kode: string; workflow_aktif: boolean; workflow_efektif: boolean }>;
 }
 
-/** Aktifkan/nonaktifkan master timeline atau timeline satu aplikasi. */
-export function setTimelinePapan(aktif: boolean, aplikasi?: string) {
-  return api<StatusTimelinePapan>('/board/timeline', {
+/** Aktifkan/nonaktifkan master workflow atau workflow satu aplikasi. */
+export function setWorkflowPapan(aktif: boolean, aplikasi?: string) {
+  return api<StatusWorkflowPapan>('/board/workflow', {
     method: 'PATCH',
     body: JSON.stringify(aplikasi ? { aktif, aplikasi } : { aktif }),
   });

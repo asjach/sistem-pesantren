@@ -67,7 +67,7 @@ Route::middleware(['auth:sanctum', 'throttle:api_user'])
     ->prefix('board')
     ->group(function () {
         Route::get('/', [PapanController::class, 'index'])->middleware('permission:papan.lihat');
-        Route::patch('timeline', [PapanController::class, 'timeline'])->middleware('permission:papan.ubah');
+        Route::patch('workflow', [PapanController::class, 'workflow'])->middleware('permission:papan.ubah');
         Route::get('riwayat', [PapanController::class, 'riwayat'])->middleware('permission:papan.lihat');
         Route::get('{kode}', [PapanController::class, 'show'])->middleware('permission:papan.lihat');
         // Yang dipindah adalah POIN, bukan sub-modulnya: status sub-modul

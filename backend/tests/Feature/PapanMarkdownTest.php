@@ -53,7 +53,7 @@ class PapanMarkdownTest extends TestCase
 
     public function test_hasilkan_menyisipkan_modul_di_antara_kepala_dan_ekor(): void
     {
-        $this->buatItem('A.1', 'Setup (001)', 'sudah', ['Proyek berjalan.']);
+        $this->buatItem('A.1', 'Setup (001)', 'done', ['Proyek berjalan.']);
 
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
@@ -67,7 +67,7 @@ class PapanMarkdownTest extends TestCase
 
     public function test_subpoin_ditulis_sebagai_checklist_di_bawah_poin(): void
     {
-        $this->buatItem('A.1', 'Setup (001)', 'akan', ['Siapkan proyek.']);
+        $this->buatItem('A.1', 'Setup (001)', 'todo', ['Siapkan proyek.']);
         PapanItem::query()->firstOrFail()->butir()->firstOrFail()->update([
             'subpoin' => [
                 ['teks' => 'Pasang dependensi.', 'selesai' => true],
@@ -85,18 +85,18 @@ class PapanMarkdownTest extends TestCase
 
     public function test_status_sub_modul_tampil_di_judul(): void
     {
-        $this->buatItem('A.1', 'Setup (001)', 'sedang', ['Sedang jalan.']);
+        $this->buatItem('A.1', 'Setup (001)', 'in_progress', ['Sedang jalan.']);
 
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
         // Tanpa ini, `papan:tandai` tidak terlihat di markdown selama
         // butir-butirnya belum ikut dipindahkan.
-        $this->assertStringContainsString('### A.1 Setup (001) '.chr(96).'SEDANG'.chr(96), $hasil);
+        $this->assertStringContainsString('### A.1 Setup (001) '.chr(96).'Sedang dikerjakan (In Progress)'.chr(96), $hasil);
     }
 
     public function test_bagian_sedang_kosong_saat_tidak_ada_yang_dikerjakan(): void
     {
-        $this->buatItem('A.1', 'Setup (001)', 'sudah', ['Proyek berjalan.']);
+        $this->buatItem('A.1', 'Setup (001)', 'done', ['Proyek berjalan.']);
 
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
@@ -108,7 +108,7 @@ class PapanMarkdownTest extends TestCase
 
     public function test_bagian_sedang_mendaftar_sub_modul_yang_dikerjakan(): void
     {
-        $this->buatItem('A.1', 'Setup (001)', 'sedang', ['Sedang jalan.']);
+        $this->buatItem('A.1', 'Setup (001)', 'in_progress', ['Sedang jalan.']);
 
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
@@ -116,29 +116,35 @@ class PapanMarkdownTest extends TestCase
         $this->assertStringNotContainsString('**Kosong.**', $hasil);
     }
 
-    public function test_hasil_selalu_memuat_empat_blok_status(): void
+    public function test_hasil_selalu_memuat_lima_blok_status(): void
     {
-        $this->buatItem('A.1', 'Setup (001)', 'sudah', ['Proyek berjalan.']);
+        $this->buatItem('A.1', 'Setup (001)', 'done', ['Proyek berjalan.']);
 
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
-        foreach (['SUDAH', 'SEDANG', 'AKAN', 'DITUNDA'] as $status) {
+        foreach ([
+            'Belum dijadwalkan (Backlog)',
+            'Siap dikerjakan (To Do)',
+            'Sedang dikerjakan (In Progress)',
+            'Menunggu peninjauan (For Review)',
+            'Selesai (Done)',
+        ] as $status) {
             $this->assertStringContainsString("**{$status}**", $hasil);
         }
     }
 
     public function test_blok_status_kosong_ditulis_kosong(): void
     {
-        $this->buatItem('A.1', 'Setup (001)', 'sudah', ['Proyek berjalan.']);
+        $this->buatItem('A.1', 'Setup (001)', 'done', ['Proyek berjalan.']);
 
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
-        $this->assertStringContainsString("**SEDANG**\n- (kosong)", $hasil);
+        $this->assertStringContainsString("**Sedang dikerjakan (In Progress)**\n- (kosong)", $hasil);
     }
 
     public function test_hasil_stabil_saat_dijalankan_ulang(): void
     {
-        $this->buatItem('A.1', 'Setup (001)', 'sudah', ['Proyek berjalan.']);
+        $this->buatItem('A.1', 'Setup (001)', 'done', ['Proyek berjalan.']);
 
         $papan = app(PapanMarkdown::class);
 

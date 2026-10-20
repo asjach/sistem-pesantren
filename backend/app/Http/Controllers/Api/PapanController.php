@@ -25,19 +25,19 @@ class PapanController extends Controller
         private readonly PapanTulisUlang $tulisUlang,
     ) {}
 
-    /** Seluruh papan: aplikasi -> modul -> sub-modul -> butir + status timeline. */
+    /** Seluruh papan: aplikasi -> modul -> sub-modul -> butir + status workflow. */
     public function index(): JsonResponse
     {
         return response()->json([
             'aplikasi' => $this->papan->semuaAplikasi(),
-            'timeline_master_aktif' => $this->papan->timelineMasterAktif(),
+            'workflow_master_aktif' => $this->papan->workflowMasterAktif(),
             'ringkasan' => $this->papan->ringkasan(),
             'status' => PapanService::STATUS,
         ]);
     }
 
-    /** Aktifkan/nonaktifkan master timeline atau timeline satu aplikasi. */
-    public function timeline(Request $request): JsonResponse
+    /** Aktifkan/nonaktifkan master workflow atau workflow satu aplikasi. */
+    public function workflow(Request $request): JsonResponse
     {
         $valid = $request->validate([
             'aktif' => ['required', 'boolean'],
@@ -46,15 +46,15 @@ class PapanController extends Controller
 
         try {
             if (($valid['aplikasi'] ?? null) !== null) {
-                $this->papan->setTimelineAplikasiAktif($valid['aplikasi'], (bool) $valid['aktif']);
+                $this->papan->setWorkflowAplikasiAktif($valid['aplikasi'], (bool) $valid['aktif']);
             } else {
-                $this->papan->setTimelineMasterAktif((bool) $valid['aktif']);
+                $this->papan->setWorkflowMasterAktif((bool) $valid['aktif']);
             }
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json($this->papan->statusTimeline());
+        return response()->json($this->papan->statusWorkflow());
     }
 
     /** Riwayat perpindahan status, terbaru lebih dulu. */

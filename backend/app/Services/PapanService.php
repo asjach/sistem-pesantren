@@ -23,12 +23,20 @@ use InvalidArgumentException;
  *
  * Catatan model: sub-modul sengaja TIDAK menyimpan statusnya sendiri. Kalau
  * status ada di dua tempat, keduanya bisa saling bertentangan (sub-modul
- * bilang "sudah" padahal masih ada poin "akan"), dan tidak jelas mana yang
+ * bilang "Done" padahal masih ada poin "To Do"), dan tidak jelas mana yang
  * benar. Dengan hanya poin yang berstatus, papan selalu konsisten.
  */
 class PapanService
 {
-    public const STATUS = ['sudah', 'sedang', 'akan', 'ditunda'];
+    public const STATUS = ['backlog', 'todo', 'in_progress', 'for_review', 'done'];
+
+    public const LABEL_STATUS = [
+        'backlog' => 'Belum dijadwalkan (Backlog)',
+        'todo' => 'Siap dikerjakan (To Do)',
+        'in_progress' => 'Sedang dikerjakan (In Progress)',
+        'for_review' => 'Menunggu peninjauan (For Review)',
+        'done' => 'Selesai (Done)',
+    ];
 
     /** Aplikasi klien pada Board; urutan di sini = urutan tab horizontal. */
     public const APLIKASI = [
@@ -44,38 +52,43 @@ class PapanService
      * Status sub-modul yang DITURUNKAN dari status poin-poinnya.
      *
      * Aturannya, berurutan:
-     * 1. belum punya poin        -> `akan` (belum dikerjakan);
-     * 2. ada poin `sedang`        -> `sedang` (sedang berjalan);
-     * 3. ada poin `akan`          -> `akan` (masih ada sisa);
-     * 4. ada poin `ditunda`       -> `ditunda` (ada bagian yang ditunda);
-     * 5. selain itu (semua sudah) -> `sudah`.
+     * 1. belum punya poin           -> `backlog`;
+     * 2. ada poin `in_progress`     -> `in_progress`;
+     * 3. ada poin `todo`            -> `todo`;
+     * 4. ada poin `backlog`         -> `backlog`;
+     * 5. ada poin `for_review`      -> `for_review`;
+     * 6. selain itu (semua selesai) -> `done`.
      *
-     * Urutan ini penting: satu poin `akan` saja sudah membuat sub-modul
-     * tidak dianggap selesai, walau mayoritas poinnya `sudah`.
+     * Urutan ini penting: satu poin yang belum melewati tahap kerja/review
+     * membuat sub-modul belum dianggap selesai.
      *
      * @param  array<int, array<string, mixed>>  $butir
      */
     public static function statusTurunan(array $butir): string
     {
         if ($butir === []) {
-            return 'akan';
+            return 'backlog';
         }
 
         $ada = array_count_values(array_map(fn (array $b) => (string) $b['status'], $butir));
 
-        if (($ada['sedang'] ?? 0) > 0) {
-            return 'sedang';
+        if (($ada['in_progress'] ?? 0) > 0) {
+            return 'in_progress';
         }
 
-        if (($ada['akan'] ?? 0) > 0) {
-            return 'akan';
+        if (($ada['todo'] ?? 0) > 0) {
+            return 'todo';
         }
 
-        if (($ada['ditunda'] ?? 0) > 0) {
-            return 'ditunda';
+        if (($ada['backlog'] ?? 0) > 0) {
+            return 'backlog';
         }
 
-        return 'sudah';
+        if (($ada['for_review'] ?? 0) > 0) {
+            return 'for_review';
+        }
+
+        return 'done';
     }
 
     /**
@@ -120,19 +133,19 @@ class PapanService
     /**
      * Seluruh modul dikelompokkan per aplikasi, urut sesuai tab.
      *
-     * @return array<int, array{kode: string, nama: string, timeline_aktif: bool, timeline_efektif: bool, modul: array<int, array<string, mixed>>}>
+     * @return array<int, array{kode: string, nama: string, workflow_aktif: bool, workflow_efektif: bool, modul: array<int, array<string, mixed>>}>
      */
     public function semuaAplikasi(): array
     {
-        $status = $this->statusTimeline();
+        $status = $this->statusWorkflow();
         $hasil = [];
 
         foreach (self::APLIKASI as $kode => $nama) {
             $hasil[$kode] = [
                 'kode' => $kode,
                 'nama' => $nama,
-                'timeline_aktif' => $status['aplikasi'][$kode]['timeline_aktif'],
-                'timeline_efektif' => $status['aplikasi'][$kode]['timeline_efektif'],
+                'workflow_aktif' => $status['aplikasi'][$kode]['workflow_aktif'],
+                'workflow_efektif' => $status['aplikasi'][$kode]['workflow_efektif'],
                 'modul' => [],
             ];
         }
@@ -144,51 +157,51 @@ class PapanService
         return array_values($hasil);
     }
 
-    /** Master switch timeline; bila mati, semua aplikasi efektif Draf. */
-    public function timelineMasterAktif(): bool
+    /** Master switch workflow; bila mati, semua aplikasi efektif Draf. */
+    public function workflowMasterAktif(): bool
     {
-        return $this->pengaturanBool('timeline_aktif');
+        return $this->pengaturanBool('workflow_aktif');
     }
 
-    public function setTimelineMasterAktif(bool $aktif): void
+    public function setWorkflowMasterAktif(bool $aktif): void
     {
-        $this->setPengaturanBool('timeline_aktif', $aktif);
+        $this->setPengaturanBool('workflow_aktif', $aktif);
     }
 
-    /** Status mentah timeline satu aplikasi (belum memperhitungkan master). */
-    public function timelineAplikasiAktif(string $aplikasi): bool
+    /** Status mentah workflow satu aplikasi (belum memperhitungkan master). */
+    public function workflowAplikasiAktif(string $aplikasi): bool
     {
         $this->pastikanAplikasi($aplikasi);
 
-        return $this->pengaturanBool("timeline_aktif:{$aplikasi}");
+        return $this->pengaturanBool("workflow_aktif:{$aplikasi}");
     }
 
-    public function setTimelineAplikasiAktif(string $aplikasi, bool $aktif): void
+    public function setWorkflowAplikasiAktif(string $aplikasi, bool $aktif): void
     {
         $this->pastikanAplikasi($aplikasi);
-        $this->setPengaturanBool("timeline_aktif:{$aplikasi}", $aktif);
+        $this->setPengaturanBool("workflow_aktif:{$aplikasi}", $aktif);
     }
 
     /**
      * Status master + status mentah/efektif tiap aplikasi.
      *
-     * @return array{timeline_master_aktif: bool, aplikasi: array<string, array{kode: string, timeline_aktif: bool, timeline_efektif: bool}>}
+     * @return array{workflow_master_aktif: bool, aplikasi: array<string, array{kode: string, workflow_aktif: bool, workflow_efektif: bool}>}
      */
-    public function statusTimeline(): array
+    public function statusWorkflow(): array
     {
-        $master = $this->timelineMasterAktif();
+        $master = $this->workflowMasterAktif();
         $aplikasi = [];
 
         foreach (array_keys(self::APLIKASI) as $kode) {
-            $aktif = $this->timelineAplikasiAktif($kode);
+            $aktif = $this->workflowAplikasiAktif($kode);
             $aplikasi[$kode] = [
                 'kode' => $kode,
-                'timeline_aktif' => $aktif,
-                'timeline_efektif' => $master && $aktif,
+                'workflow_aktif' => $aktif,
+                'workflow_efektif' => $master && $aktif,
             ];
         }
 
-        return ['timeline_master_aktif' => $master, 'aplikasi' => $aplikasi];
+        return ['workflow_master_aktif' => $master, 'aplikasi' => $aplikasi];
     }
 
     private function pengaturanBool(string $kunci): bool
@@ -288,9 +301,9 @@ class PapanService
         ['butir' => $butir, 'item' => $item] = $this->butir($kode, $butirId);
         $asal = $butir->status;
 
-        if ($status === 'sudah' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
+        if ($status === 'done' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
             throw ValidationException::withMessages([
-                'status' => 'Selesaikan semua subpoin sebelum menandai poin sudah.',
+                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Selesai (Done).',
             ]);
         }
 
@@ -326,9 +339,9 @@ class PapanService
 
         $subpoin = self::normalisasiSubpoin($subpoin);
 
-        if ($status === 'sudah' && ! self::semuaSubpoinSelesai($subpoin)) {
+        if ($status === 'done' && ! self::semuaSubpoinSelesai($subpoin)) {
             throw ValidationException::withMessages([
-                'status' => 'Selesaikan semua subpoin sebelum menandai poin sudah.',
+                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Selesai (Done).',
             ]);
         }
 
@@ -416,7 +429,7 @@ class PapanService
      * Status TIDAK wajib ikut berubah. Kalau status berubah, jejaknya
      * dicatat di `papan_riwayat` persis seperti {@see pindahButir} - kalau
      * tidak, riwayat tidak ditambah supaya tidak dipenuhi baris palsu
-     * "sudah -> sudah" hanya karena teksnya disunting.
+     * "Done -> Done" hanya karena teksnya disunting.
      *
      * @param  string|null  $status  status baru; null = biarkan apa adanya
      *
@@ -446,19 +459,19 @@ class PapanService
             $butir->subpoin = self::normalisasiSubpoin($subpoin);
         }
 
-        if ($status === 'sudah' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
+        if ($status === 'done' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
             throw ValidationException::withMessages([
-                'status' => 'Selesaikan semua subpoin sebelum menandai poin sudah.',
+                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Selesai (Done).',
             ]);
         }
 
-        // Poin yang sudah `sudah` tidak boleh tetap di sana bila ada subpoin
+        // Poin `done` tidak boleh tetap di sana bila ada subpoin
         // yang dibuka kembali atau subpoin baru yang belum selesai.
         $statusBaru = $status;
         $catatanRiwayat = $catatan;
 
-        if ($statusBaru === null && $statusLama === 'sudah' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
-            $statusBaru = 'sedang';
+        if ($statusBaru === null && $statusLama === 'done' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
+            $statusBaru = 'in_progress';
             $catatanRiwayat ??= 'Subpoin dibuka kembali.';
         }
 
@@ -702,7 +715,7 @@ class PapanService
     {
         if (! in_array($status, self::STATUS, true)) {
             throw new InvalidArgumentException(
-                "Status `{$status}` tidak dikenal. Pakai salah satu: ".implode(', ', self::STATUS).'.'
+                "Status `{$status}` tidak dikenal. Pakai salah satu: ".implode(', ', self::LABEL_STATUS).'.'
             );
         }
     }
