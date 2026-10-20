@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\AlumniArsipController;
+use App\Http\Controllers\Api\Admin\DesainKartuPesertaController;
 use App\Http\Controllers\Api\Admin\DispensasiController;
 use App\Http\Controllers\Api\Admin\DokumenController;
 use App\Http\Controllers\Api\Admin\GrupCustomController;
@@ -370,6 +371,11 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::put('penilaian/peserta-kartu/pengaturan', [PesertaPeristiwaController::class, 'simpanPengaturan'])->middleware('permission:penilaian.ubah');
         Route::post('penilaian/peserta-kartu/generate', [PesertaPeristiwaController::class, 'generate'])->middleware('permission:penilaian.ubah');
         Route::put('penilaian/peserta-kartu/{santri}', [PesertaPeristiwaController::class, 'ubahNomor'])->middleware('permission:penilaian.ubah');
+        Route::get('penilaian/desain-kartu', [DesainKartuPesertaController::class, 'index'])->middleware('permission:penilaian.lihat');
+        Route::post('penilaian/desain-kartu', [DesainKartuPesertaController::class, 'simpan'])->middleware('permission:penilaian.ubah');
+        Route::put('penilaian/pengaturan-kartu', [DesainKartuPesertaController::class, 'simpanPengaturan'])->middleware('permission:penilaian.ubah');
+        Route::get('penilaian/desain-kartu/{desain}/latar', [DesainKartuPesertaController::class, 'latar'])->middleware('permission:penilaian.lihat');
+        Route::delete('penilaian/desain-kartu/{desain}', [DesainKartuPesertaController::class, 'hapus'])->middleware('permission:penilaian.ubah');
         Route::get('penilaian/komponen', [PenilaianController::class, 'indexKomponen'])->middleware('permission:penilaian.lihat');
         Route::post('penilaian/komponen', [PenilaianController::class, 'storeKomponen'])->middleware('permission:penilaian.tambah');
         Route::match(['put', 'patch'], 'penilaian/komponen/{komponen}', [PenilaianController::class, 'updateKomponen'])->middleware('permission:penilaian.ubah');

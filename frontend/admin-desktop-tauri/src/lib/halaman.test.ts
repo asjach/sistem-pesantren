@@ -139,15 +139,17 @@ describe('halamanDariPath & halaman bertab', () => {
     expect(halamanSubgrup('santri', 'psb')).toEqual([]);
   });
 
-  it('Penilaian grup sendiri: master, impor, leger, rapor (tanpa subgrup)', () => {
+  it('Penilaian grup sendiri: master, impor, leger, kartu peserta, rapor (tanpa subgrup)', () => {
     expect(halamanGrupLangsung('penilaian').map((h) => h.to)).toEqual([
       '/penilaian/master',
       '/penilaian/impor',
       '/penilaian/leger',
+      '/penilaian/kartu-peserta',
       '/penilaian/rapor',
     ]);
     expect(halamanDariPath('/penilaian/master')?.tab).toBe('penilaian');
     expect(halamanDariPath('/penilaian/leger')?.tab).toBe('penilaian');
+    expect(halamanDariPath('/penilaian/kartu-peserta')?.tab).toBe('penilaian');
 
     for (const h of halamanGrupLangsung('penilaian')) {
       expect(izinHalaman(h)).toEqual(['penilaian.lihat']);

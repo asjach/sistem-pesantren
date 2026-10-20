@@ -1,4 +1,4 @@
-import { api, downloadFile } from './client';
+import { ambilBerkas, api, apiUpload, downloadFile } from './client';
 import { appendQueryParam, type ScalarOrArray } from './query';
 
 /**
@@ -121,10 +121,58 @@ export interface BarisPesertaPeristiwa {
 
 export interface PesertaPeristiwaResp {
   peristiwa: PeristiwaNilai;
+  lembaga?: { jenjang: string; nama: string; logo_url: string | null } | null;
   pengaturan: { template: string; mode_urutan: ModeUrutanNomorPeserta };
   token: TokenNomorPeserta[];
   peserta: BarisPesertaPeristiwa[];
   ringkasan: { total: number; belum_bernomor: number; manual: number; otomatis: number };
+}
+
+export type FieldKartuPeserta =
+  | 'nama' | 'nomor_peserta' | 'nis_lokal' | 'kelas' | 'tingkat'
+  | 'peristiwa' | 'tahun_ajaran' | 'semester' | 'lembaga';
+export type TipeElemenKartu = 'data' | 'teks' | 'foto';
+export type RataTeksKartu = 'left' | 'center' | 'right';
+export type GayaLatarKartu = 'klasik' | 'modern' | 'bersih' | 'foto';
+export type TemplateBawaanKartu = 'klasik' | 'modern' | 'bersih';
+
+export interface ElemenKartuPeserta {
+  id: string;
+  tipe: TipeElemenKartu;
+  field?: FieldKartuPeserta | null;
+  teks?: string | null;
+  x: number;
+  y: number;
+  lebar: number;
+  tinggi: number;
+  ukuran_font: number;
+  warna: string;
+  tebal: boolean;
+  rata: RataTeksKartu;
+}
+
+export interface DesainKartuServer {
+  id: number;
+  jenjang: string;
+  nama: string;
+  elemen: ElemenKartuPeserta[];
+  warna_latar: string;
+  gaya_latar: GayaLatarKartu;
+  latar_ada: boolean;
+  latar_url: string | null;
+}
+
+export interface PengaturanKartuPeserta {
+  peristiwa_id: number;
+  desain_id: number | null;
+  template_bawaan: TemplateBawaanKartu;
+  lebar_mm: number;
+  tinggi_mm: number;
+}
+
+export interface DesainKartuResp {
+  desain: DesainKartuServer[];
+  pengaturan: PengaturanKartuPeserta;
 }
 
 export interface RaporMapel {
@@ -362,6 +410,49 @@ export function generateNomorPeserta(data: {
   }>('/admin/penilaian/peserta-kartu/generate', {
     method: 'POST', body: JSON.stringify(data),
   });
+}
+
+export function daftarDesainKartu(peristiwaId: number) {
+  const q = new URLSearchParams({ peristiwa_id: String(peristiwaId) });
+  return api<DesainKartuResp>(`/admin/penilaian/desain-kartu?${q.toString()}`);
+}
+
+export function simpanDesainKartu(data: {
+  peristiwa_id: number;
+  id?: number;
+  nama: string;
+  warna_latar: string;
+  gaya_latar: GayaLatarKartu;
+  elemen: ElemenKartuPeserta[];
+  latar?: File | null;
+  hapus_latar?: boolean;
+}) {
+  const fd = new FormData();
+  fd.set('peristiwa_id', String(data.peristiwa_id));
+  if (data.id != null) fd.set('id', String(data.id));
+  fd.set('nama', data.nama);
+  fd.set('warna_latar', data.warna_latar);
+  fd.set('gaya_latar', data.gaya_latar);
+  fd.set('elemen', JSON.stringify(data.elemen));
+  if (data.latar) fd.set('latar', data.latar);
+  if (data.hapus_latar) fd.set('hapus_latar', '1');
+  return apiUpload<{ pesan: string; desain: DesainKartuServer }>('/admin/penilaian/desain-kartu', fd);
+}
+
+export function simpanPengaturanKartu(data: {
+  peristiwa_id: number;
+  desain_id: number | null;
+  template_bawaan: TemplateBawaanKartu | null;
+  lebar_mm: number;
+  tinggi_mm: number;
+}) {
+  return api<{ pesan: string; pengaturan: PengaturanKartuPeserta }>('/admin/penilaian/pengaturan-kartu', {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+}
+
+export function hapusDesainKartu(id: number) {
+  return api<{ pesan: string }>(`/admin/penilaian/desain-kartu/${id}`, { method: 'DELETE' });
 }
 
 export function unduhLeger(params: {

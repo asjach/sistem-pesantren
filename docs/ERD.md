@@ -536,6 +536,16 @@ erDiagram
         string nomor_peserta
         string sumber_nomor
     }
+    DESAIN_KARTU_PESERTA {
+        bigint id PK
+        string jenjang FK
+        string nama
+    }
+    PENGATURAN_KARTU_PESERTA {
+        bigint id PK
+        bigint peristiwa_id FK
+        bigint desain_id FK
+    }
     KOMPONEN_NILAI {
         bigint id PK
         bigint peristiwa_id FK
@@ -596,6 +606,9 @@ erDiagram
     PERISTIWA_NILAI ||--o{ PENGATURAN_NOMOR_PESERTA : "memiliki pola nomor"
     PERISTIWA_NILAI ||--o{ PESERTA_PERISTIWA_NILAI : "memiliki peserta"
     SANTRI ||--o{ PESERTA_PERISTIWA_NILAI : "memiliki nomor peserta"
+    LEMBAGA ||--o{ DESAIN_KARTU_PESERTA : "memiliki desain kartu"
+    DESAIN_KARTU_PESERTA ||--o{ PENGATURAN_KARTU_PESERTA : "dipakai pengaturan"
+    PERISTIWA_NILAI ||--o| PENGATURAN_KARTU_PESERTA : "memiliki pengaturan kartu"
     PERISTIWA_NILAI ||--o{ KOMPONEN_NILAI : "memiliki komponen"
     PERISTIWA_NILAI o|--o{ KOMPONEN_NILAI : "menjadi sumber komponen"
     PERISTIWA_NILAI ||--o{ KKM_KEGIATAN : "memiliki KKM"

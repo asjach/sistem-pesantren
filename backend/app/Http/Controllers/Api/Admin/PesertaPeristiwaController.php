@@ -22,7 +22,7 @@ class PesertaPeristiwaController extends Controller
     public function index(PesertaPeristiwaIndexRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $peristiwa = PeristiwaNilai::query()->findOrFail($data['peristiwa_id']);
+        $peristiwa = PeristiwaNilai::query()->with('lembaga:jenjang,nama,logo_url')->findOrFail($data['peristiwa_id']);
         $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
 
         $peserta = $this->nomorPeserta->daftar(
@@ -35,6 +35,7 @@ class PesertaPeristiwaController extends Controller
 
         return response()->json([
             'peristiwa' => $peristiwa,
+            'lembaga' => $peristiwa->lembaga,
             'pengaturan' => $this->nomorPeserta->pengaturan($peristiwa, $data['semester']),
             'token' => $this->nomorPeserta->tokenTersedia(),
             'peserta' => $peserta,

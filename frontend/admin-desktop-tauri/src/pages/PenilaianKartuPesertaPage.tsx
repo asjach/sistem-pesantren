@@ -13,13 +13,20 @@ import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import { listKelas, type Kelas } from '@/api/master';
 import {
-  daftarPeristiwa, daftarPesertaPeristiwa, generateNomorPeserta,
+  daftarDesainKartu, daftarPeristiwa, daftarPesertaPeristiwa, generateNomorPeserta,
   simpanPengaturanNomorPeserta, ubahNomorPeserta,
-  type BarisPesertaPeristiwa, type ModeUrutanNomorPeserta,
+  type BarisPesertaPeristiwa, type DesainKartuResp, type ModeUrutanNomorPeserta,
   type PeristiwaNilai, type PesertaPeristiwaResp,
 } from '@/api/penilaian';
 import { RefreshCw, RotateCcw, Save } from '@/icons';
 import { formatContohNomorPeserta } from '@/lib/nomorPeserta';
+import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import KartuPesertaDesainTab from '@/components/kartuPeserta/KartuPesertaDesainTab';
+import KartuPesertaCetakTab from '@/components/kartuPeserta/KartuPesertaCetakTab';
+import { useFotoPeserta } from '@/components/kartuPeserta/useFotoPeserta';
+
+type TabKartu = 'nomor' | 'desain' | 'cetak';
 
 export default function PenilaianKartuPesertaPage() {
   const { jenjangs, tahunAjaranNames, semesters, tingkat, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
@@ -43,7 +50,10 @@ export default function PenilaianKartuPesertaPage() {
   const [menyimpan, setMenyimpan] = useState(false);
   const [konfirmasiUlang, setKonfirmasiUlang] = useState(false);
   const [err, setErr] = useState('');
+  const [tab, setTab] = useState<TabKartu>('nomor');
+  const [muatanDesain, setMuatanDesain] = useState<DesainKartuResp | null>(null);
   const pengaturanKey = useRef('');
+  const permintaanDesain = useRef(0);
 
   useEffect(() => {
     if (filterLoading || jenjang === null || tahunAjaran === null) {
@@ -124,6 +134,32 @@ export default function PenilaianKartuPesertaPage() {
     if (filterLoading) return;
     void muat();
   }, [filterLoading, muat]);
+
+  const muatDesain = useCallback(async () => {
+    if (peristiwaId === '') {
+      setMuatanDesain(null);
+      return;
+    }
+    const permintaan = ++permintaanDesain.current;
+    setErr('');
+    try {
+      const hasil = await daftarDesainKartu(Number(peristiwaId));
+      if (permintaan === permintaanDesain.current) setMuatanDesain(hasil);
+    } catch (e) {
+      if (permintaan === permintaanDesain.current) setErr(errorMessage(e));
+    }
+  }, [peristiwaId]);
+
+  useEffect(() => {
+    setMuatanDesain(null);
+    void muatDesain();
+  }, [muatDesain]);
+
+  const pesertaSemua = useMemo(() => data?.peserta ?? [], [data]);
+  const { foto, memuat: memuatFoto } = useFotoPeserta(pesertaSemua, tab !== 'nomor');
+  const peristiwaAktif = peristiwa.find((item) => item.id === peristiwaId) ?? null;
+  const lembagaNama = data?.lembaga?.nama ?? jenjang ?? '';
+  const pesertaContoh = pesertaSemua[0] ?? null;
 
   const contoh = useMemo(() => {
     const pilihan = peristiwa.find((item) => item.id === peristiwaId);
@@ -213,6 +249,18 @@ export default function PenilaianKartuPesertaPage() {
         </span>
       </div>
 
+      <Tabs
+        value={tab}
+        onValueChange={(nilai) => setTab(nilai as TabKartu)}
+        className="flex min-h-0 flex-1 flex-col gap-0"
+      >
+        <TabsList className={KELAS_LIST_TAB} indikator="primer">
+          <TabsTrigger value="nomor" id="tab_nomor_kartu_peserta" className={KELAS_TRIGGER}>Nomor peserta</TabsTrigger>
+          <TabsTrigger value="desain" id="tab_desain_kartu_peserta" className={KELAS_TRIGGER}>Desain kartu</TabsTrigger>
+          <TabsTrigger value="cetak" id="tab_cetak_kartu_peserta" className={KELAS_TRIGGER}>Cetak</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="nomor" className="flex min-h-0 flex-1 flex-col">
       <section className="shrink-0 border-b border-border bg-muted/20 px-3 py-3" aria-labelledby="judul_penyusun_pola">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_240px_260px]">
           <div className="min-w-0">
@@ -325,6 +373,42 @@ export default function PenilaianKartuPesertaPage() {
           </table>
         )}
       </div>
+        </TabsContent>
+
+        <TabsContent value="desain" className="min-h-0 flex-1 overflow-auto p-3">
+          {!siap || peristiwaAktif === null ? (
+            <p className="text-xs text-muted-foreground">Pilih peristiwa aktif terlebih dahulu.</p>
+          ) : (
+            <KartuPesertaDesainTab
+              peristiwaId={Number(peristiwaId)}
+              peristiwa={peristiwaAktif}
+              semester={semester ?? '1'}
+              lembaga={lembagaNama}
+              pesertaContoh={pesertaContoh}
+              foto={foto}
+              muatan={muatanDesain}
+              canUbah={canUbah}
+              onMuatUlang={muatDesain}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="cetak" className="min-h-0 flex-1 overflow-auto p-3">
+          {!siap || peristiwaAktif === null ? (
+            <p className="text-xs text-muted-foreground">Pilih peristiwa aktif terlebih dahulu.</p>
+          ) : (
+            <KartuPesertaCetakTab
+              peristiwa={peristiwaAktif}
+              semester={semester ?? '1'}
+              lembaga={lembagaNama}
+              peserta={pesertaSemua}
+              foto={foto}
+              memuatFoto={memuatFoto}
+              muatan={muatanDesain}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={konfirmasiUlang} onOpenChange={setKonfirmasiUlang}>
         <AlertDialogContent>

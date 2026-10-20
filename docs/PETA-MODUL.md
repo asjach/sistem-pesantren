@@ -566,17 +566,11 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] setoran_tahfiz
   - [x] rekap_tahfiz_santri
 
-### DA6.X Cetak Kartu Peserta `Siap dikerjakan (To Do)`
+### DA6.X Cetak Kartu Peserta `Menunggu peninjauan (For Review)`
 **Belum dijadwalkan (Backlog)**
 - (kosong)
 **Siap dikerjakan (To Do)**
-- Perancang desain, ukuran, dan cetak kartu peserta
-  - [ ] Tersedia beberapa desain bawaan dan desain buatan pengguna
-  - [ ] Gambar latar, data dinamis, dan teks tetap dapat dipilih
-  - [ ] Elemen dapat dipindahkan dan diatur pada bidang desain
-  - [ ] Foto kosong memakai siluet sesuai jenis kelamin
-  - [ ] Ukuran tersimpan per peristiwa dan lembaga
-  - [ ] Peserta terpilih atau seluruh peserta dapat dicetak ke A4/PDF
+- (kosong)
 **Sedang dikerjakan (In Progress)**
 - (kosong)
 **Menunggu peninjauan (For Review)**
@@ -588,6 +582,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Pembuatan nomor hanya mengisi yang kosong dan tidak menimpa nomor manual
   - [x] Pembuatan ulang nomor otomatis bersifat eksplisit dan nomor tetap tersimpan saat dibuka kembali
   - [x] Perubahan struktur data, dokumentasi, dan pemeriksaan terkait terselaraskan
+- Perancang desain, ukuran, dan cetak kartu peserta
+  - [x] Tersedia beberapa desain bawaan dan desain buatan pengguna
+  - [x] Gambar latar, data dinamis, dan teks tetap dapat dipilih
+  - [x] Elemen dapat dipindahkan dan diatur pada bidang desain
+  - [x] Foto kosong memakai siluet sesuai jenis kelamin
+  - [x] Ukuran tersimpan per peristiwa dan lembaga
+  - [x] Peserta terpilih atau seluruh peserta dapat dicetak ke A4/PDF
 **Selesai (Done)**
 - (kosong)
 

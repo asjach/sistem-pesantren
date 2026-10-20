@@ -951,6 +951,27 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - UNIQUE(`peristiwa_id`, `semester`, `santri_id`, `uq_peserta_peristiwa_semester`)
 - UNIQUE(`peristiwa_id`, `semester`, `nomor_peserta`, `uq_nomor_peristiwa_semester`)
 
+### `desain_kartu_peserta` (desain kartu peserta per lembaga)
+- `id` PK
+- `jenjang`: varchar(20) FK → lembaga.jenjang [cascade update + delete]
+- `nama`: varchar(100) — nama desain, unik per lembaga
+- `elemen`: json — daftar elemen kartu (posisi/ukuran persen, ukuran font, warna, perataan, serta jenis isi `data`/`teks`/`foto`)
+- `warna_latar`: varchar(7) [default '#ffffff']
+- `gaya_latar`: varchar(30) [default 'bersih'] — `klasik` | `modern` | `bersih` | `foto`
+- `latar_path`: varchar(255) [null] — berkas gambar latar pada disk `local`
+- `created_at`, `updated_at`
+- UNIQUE(`jenjang`, `nama`, `uq_desain_kartu_jenjang_nama`)
+
+### `pengaturan_kartu_peserta` (pilihan desain + ukuran kartu per peristiwa)
+- `id` PK
+- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `desain_id`: FK → desain_kartu_peserta [null, nullOnDelete] — desain milik lembaga peristiwa
+- `template_bawaan`: varchar(30) [null] — `klasik` | `modern` | `bersih`; dipakai bila `desain_id` kosong
+- `lebar_mm`: decimal(6,2) [default 85.60]
+- `tinggi_mm`: decimal(6,2) [default 53.98]
+- `created_at`, `updated_at`
+- UNIQUE(`peristiwa_id`, `uq_pengaturan_kartu_peristiwa`)
+
 ### `komponen_nilai` (komponen MILIK SATU peristiwa; bobot jadi kolom)
 - `id` PK
 - `peristiwa_id`: FK → peristiwa_nilai [cascade]
