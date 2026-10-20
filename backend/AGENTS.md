@@ -174,4 +174,8 @@ pengingat akun reviewer; lihat bagian "STATUS TES" di root.
 - Rerun a test after each change to it.
 - Run `vendor/bin/phpunit` to call the test runner directly. It accepts the same file path and `--filter=testName` arguments.
 
+## Project rule — timeline
+
+Board (`/board`, API `/api/board`, DB `papan`) adalah satu-satunya sumber timeline/perencanaan **saat statusnya Aktif**. Saat **Draf**, jangan pakai Board sebagai rujukan dan jangan aktifkan sendiri. Detail aturan ada di `../AGENTS.md` dan `.ai/rules/board-timeline.md`.
+
 </laravel-boost-guidelines>

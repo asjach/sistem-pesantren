@@ -44,4 +44,8 @@ php artisan boost:install
 ```
 
 Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
+## Project rule — timeline
+
+Board (`/board`, API `/api/board`, DB `papan`) adalah satu-satunya sumber timeline/perencanaan **saat statusnya Aktif**. Saat **Draf**, jangan pakai Board sebagai rujukan dan jangan aktifkan sendiri. Detail aturan ada di `../AGENTS.md` dan `.ai/rules/board-timeline.md`.
+
 </laravel-boost-guidelines>
