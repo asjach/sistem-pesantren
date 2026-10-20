@@ -472,11 +472,12 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 - (kosong)
 **Menunggu peninjauan (For Review)**
 - tabel struktur kurikulum
-  - [x] Halaman baru Kurikulum → Struktur Kurikulum (satu tabel per jenjang + tahun ajaran)
-  - [x] Baris = master mapel aktif jenjang; kolom = tingkat jenjang
-  - [x] Isi JP per minggu per mapel × tingkat; JP per tahun = JP/minggu × minggu efektif
-  - [x] Minggu efektif diatur sekali per jenjang + tahun ajaran; struktur hanya referensi (tidak mengunci jadwal)
-  - [x] Verifikasi: KurikulumModulTest 12/12 (228 asersi) + suite FE 1427/1427 + typecheck; ERD 118 entitas/159 hubungan, 0 masalah
+  - [x] Halaman baru Kurikulum → Struktur Kurikulum
+  - [x] Struktur per VARIAN jadwal; combobox memilih varian, termasuk yang tidak aktif
+  - [x] Baris = mapel aktif jenjang; kolom = tingkat jenjang
+  - [x] JP per minggu per mapel × tingkat; JP per tahun = JP/minggu × minggu efektif
+  - [x] Minggu efektif per jenjang + tahun ajaran; struktur hanya referensi (tidak mengunci jadwal)
+  - [x] Verifikasi: tes backend + frontend + typecheck; SCHEMA/ERD diselaraskan
 **Selesai (Done)**
 - (kosong)
 

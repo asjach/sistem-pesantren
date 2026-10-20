@@ -462,9 +462,20 @@ export interface StrukturSel {
   jp_per_minggu: number;
 }
 
+export interface StrukturVarianOpsi {
+  id: number;
+  nama: string;
+  is_active: boolean;
+  dibuat_pada: string | null;
+}
+
 export interface StrukturKurikulumData {
   jenjang: string;
   tahun_ajaran: string;
+  /** Varian yang sedang dilihat. */
+  varian: { id: number; nama: string; is_active: boolean };
+  /** Semua varian jenjang + TA (termasuk yang tidak aktif) untuk combobox. */
+  varian_opsi: StrukturVarianOpsi[];
   minggu_efektif: number;
   /** Kolom tingkat jenjang (dari ref_tingkat; cadangan: tingkat kelas TA itu). */
   tingkat: string[];
@@ -474,17 +485,16 @@ export interface StrukturKurikulumData {
   pesan?: string;
 }
 
-/** Struktur kurikulum satu jenjang + tahun ajaran (referensi). */
-export function daftarStrukturKurikulum(jenjang: string, tahunAjaran: string) {
-  const q = new URLSearchParams({ jenjang, tahun_ajaran: tahunAjaran });
+/** Struktur kurikulum untuk satu VARIAN jadwal (referensi). */
+export function daftarStrukturKurikulum(varianId: number) {
+  const q = new URLSearchParams({ varian_id: String(varianId) });
 
   return api<StrukturKurikulumData>(`/admin/kurikulum/struktur?${q.toString()}`);
 }
 
-/** Simpan struktur kurikulum (mengganti seluruh sel lingkup itu). */
+/** Simpan struktur kurikulum satu varian (mengganti seluruh selnya). */
 export function simpanStrukturKurikulum(input: {
-  jenjang: string;
-  tahun_ajaran: string;
+  varian_id: number;
   minggu_efektif: number;
   sel: StrukturSel[];
 }) {

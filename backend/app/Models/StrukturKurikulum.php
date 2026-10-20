@@ -22,6 +22,12 @@ class StrukturKurikulum extends Model
         return $this->belongsTo(MataPelajaran::class);
     }
 
+    /** Varian jadwal pemilik sel ini (struktur mengikuti varian). */
+    public function varian(): BelongsTo
+    {
+        return $this->belongsTo(VarianJadwal::class, 'varian_jadwal_id');
+    }
+
     public function lembaga(): BelongsTo
     {
         return $this->belongsTo(Lembaga::class, 'jenjang', 'jenjang');

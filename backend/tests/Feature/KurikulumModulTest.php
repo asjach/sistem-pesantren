@@ -874,10 +874,10 @@ class KurikulumModulTest extends TestCase
     }
 
     /**
-     * Struktur kurikulum (referensi): baris = mapel aktif jenjang, kolom =
-     * tingkat, isi = JP/minggu, plus minggu efektif per jenjang + TA.
+     * Struktur kurikulum per VARIAN jadwal: combobox memuat semua varian
+     * (termasuk nonaktif), sel terpisah per varian, dan simpan mengganti utuh.
      */
-    public function test_09_struktur_kurikulum_disimpan_dan_diganti_utuh(): void
+    public function test_09_struktur_kurikulum_per_varian_dan_diganti_utuh(): void
     {
         $this->lembaga('MI');
         TahunAjaran::create(['nama' => self::TA, 'is_aktif' => true]);
@@ -889,20 +889,29 @@ class KurikulumModulTest extends TestCase
         $arab = $this->mapel('Bahasa Arab');
         $nonaktif = $this->mapel('Mapel Lama', 'MI', ['is_active' => false]);
 
+        $normal = VarianJadwal::create([
+            'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'nama' => 'Normal',
+            'is_active' => true, 'snapshot' => ['kelas' => []],
+        ]);
+        $ramadhan = VarianJadwal::create([
+            'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'nama' => 'Ramadhan',
+            'is_active' => false, 'snapshot' => ['kelas' => []],
+        ]);
+
         $awal = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/admin/kurikulum/struktur?'.http_build_query([
-                'jenjang' => 'MI', 'tahun_ajaran' => self::TA,
-            ]))
+            ->getJson('/api/admin/kurikulum/struktur?'.http_build_query(['varian_id' => $normal->id]))
             ->assertStatus(200)
             ->assertJsonPath('minggu_efektif', 36)
+            ->assertJsonPath('varian.nama', 'Normal')
             ->json();
 
         $this->assertSame(['1', '2'], $awal['tingkat']);
         $this->assertCount(2, $awal['mapel'], 'hanya mapel aktif yang menjadi baris');
+        $this->assertSame(['Normal', 'Ramadhan'], array_column($awal['varian_opsi'], 'nama'), 'varian nonaktif tetap muncul di combobox');
 
         $this->actingAs($super, 'sanctum')
             ->putJson('/api/admin/kurikulum/struktur', [
-                'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'minggu_efektif' => 40,
+                'varian_id' => $normal->id, 'minggu_efektif' => 40,
                 'sel' => [
                     ['mata_pelajaran_id' => $fiqih->id, 'tingkat' => '1', 'jp_per_minggu' => 4],
                     ['mata_pelajaran_id' => $arab->id, 'tingkat' => '1', 'jp_per_minggu' => 2],
@@ -914,26 +923,39 @@ class KurikulumModulTest extends TestCase
             ->assertJsonPath('minggu_efektif', 40)
             ->assertJsonPath('pesan', 'Struktur kurikulum disimpan.');
 
-        $lingkup = ['jenjang' => 'MI', 'tahun_ajaran' => self::TA];
-        $this->assertSame(3, StrukturKurikulum::where($lingkup)->count(), 'JP 0 tidak disimpan');
+        $this->assertSame(3, StrukturKurikulum::where('varian_jadwal_id', $normal->id)->count(), 'JP 0 tidak disimpan');
 
-        // Simpan ulang mengganti isi utuh (tidak menumpuk).
+        // Varian lain tidak terpengaruh; minggu efektif tetap satu TA.
+        $lain = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/kurikulum/struktur?'.http_build_query(['varian_id' => $ramadhan->id]))
+            ->assertStatus(200)
+            ->json();
+        $this->assertSame([], $lain['sel']);
+        $this->assertSame(40, $lain['minggu_efektif']);
+
+        // Simpan ulang mengganti isi varian itu saja.
         $this->actingAs($super, 'sanctum')
             ->putJson('/api/admin/kurikulum/struktur', [
-                'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'minggu_efektif' => 36,
+                'varian_id' => $normal->id, 'minggu_efektif' => 40,
                 'sel' => [['mata_pelajaran_id' => $fiqih->id, 'tingkat' => '1', 'jp_per_minggu' => 5]],
             ])
             ->assertStatus(200);
 
-        $this->assertSame(1, StrukturKurikulum::where($lingkup)->count());
+        $this->assertSame(1, StrukturKurikulum::where('varian_jadwal_id', $normal->id)->count());
 
         // Mapel nonaktif ditolak.
         $this->actingAs($super, 'sanctum')
             ->putJson('/api/admin/kurikulum/struktur', [
-                'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'minggu_efektif' => 36,
+                'varian_id' => $normal->id, 'minggu_efektif' => 40,
                 'sel' => [['mata_pelajaran_id' => $nonaktif->id, 'tingkat' => '1', 'jp_per_minggu' => 2]],
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('sel');
+
+        // Varian wajib dipilih.
+        $this->actingAs($super, 'sanctum')
+            ->getJson('/api/admin/kurikulum/struktur?jenjang=MI&tahun_ajaran='.self::TA)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('varian_id');
     }
 }

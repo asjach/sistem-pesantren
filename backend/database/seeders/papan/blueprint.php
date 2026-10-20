@@ -151,7 +151,7 @@ return [
             ]],
             ['kode' => 'DA5.4', 'nama' => 'Struktur Kurikulum', 'butir' => [
                 'for_review' => [
-                    ['tabel struktur kurikulum', ['Halaman baru Kurikulum → Struktur Kurikulum (satu tabel per jenjang + tahun ajaran)', 'Baris = master mapel aktif jenjang; kolom = tingkat jenjang', 'Isi JP per minggu per mapel × tingkat; JP per tahun = JP/minggu × minggu efektif', 'Minggu efektif diatur sekali per jenjang + tahun ajaran; struktur hanya referensi (tidak mengunci jadwal)', 'Verifikasi: KurikulumModulTest 12/12 (228 asersi) + suite FE 1427/1427 + typecheck; ERD 118 entitas/159 hubungan, 0 masalah']],
+                    ['tabel struktur kurikulum', ['Halaman baru Kurikulum → Struktur Kurikulum', 'Struktur per VARIAN jadwal; combobox memilih varian, termasuk yang tidak aktif', 'Baris = mapel aktif jenjang; kolom = tingkat jenjang', 'JP per minggu per mapel × tingkat; JP per tahun = JP/minggu × minggu efektif', 'Minggu efektif per jenjang + tahun ajaran; struktur hanya referensi (tidak mengunci jadwal)', 'Verifikasi: tes backend + frontend + typecheck; SCHEMA/ERD diselaraskan']],
                 ],
             ]],
         ]],

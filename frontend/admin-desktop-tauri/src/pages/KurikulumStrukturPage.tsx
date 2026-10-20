@@ -8,15 +8,16 @@ import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import {
-  daftarStrukturKurikulum, simpanStrukturKurikulum,
-  type StrukturKurikulumData, type StrukturMapel,
+  daftarStrukturKurikulum, daftarVarianJadwal, simpanStrukturKurikulum,
+  type StrukturKurikulumData, type StrukturMapel, type StrukturVarianOpsi,
 } from '@/api/kurikulum';
 
 /**
- * Struktur Kurikulum (REFERENSI): baris = mapel aktif jenjang, kolom = tingkat,
- * isi = JP per minggu. JP per tahun = JP/minggu × minggu efektif.
+ * Struktur Kurikulum (REFERENSI) PER VARIAN jadwal: baris = mapel aktif
+ * jenjang, kolom = tingkat, isi = JP per minggu. Varian dipilih lewat
+ * combobox — termasuk varian yang TIDAK aktif. JP per tahun = JP/minggu ×
+ * minggu efektif (minggu efektif tetap per jenjang + tahun ajaran).
  *
- * Tabel memakai komponen bersama `ExcelTable` (mode Ubah + auto-save sel).
  * Tidak mengunci atau memvalidasi jadwal pelajaran.
  */
 export default function KurikulumStrukturPage() {
@@ -28,16 +29,20 @@ export default function KurikulumStrukturPage() {
   const ta = targetTunggal(tahunAjaranNames);
   const siap = jenjang !== null && ta !== null;
 
+  const [opsi, setOpsi] = useState<StrukturVarianOpsi[] | null>(null);
+  const [varianId, setVarianId] = useState<number | null>(null);
   const [data, setData] = useState<StrukturKurikulumData | null>(null);
   const [minggu, setMinggu] = useState(36);
   const [sel, setSel] = useState<Map<string, number>>(new Map());
-  const [memuat, setMemuat] = useState(true);
+  const [memuat, setMemuat] = useState(false);
   const [sibuk, setSibuk] = useState(false);
   const [err, setErr] = useState('');
 
   /** Cermin nilai terbaru: antrean auto-save bisa berjalan sebelum render ulang. */
   const selRef = useRef<Map<string, number>>(new Map());
   const mingguRef = useRef(36);
+  /** Varian yang sedang dimuat — mencegah hasil varian lama menimpa varian baru. */
+  const varianRef = useRef<number | null>(null);
 
   const kunci = (mapelId: number, tingkat: string): string => `${mapelId}|${tingkat}`;
 
@@ -45,56 +50,110 @@ export default function KurikulumStrukturPage() {
     setData(r);
     setMinggu(r.minggu_efektif);
     mingguRef.current = r.minggu_efektif;
+    setOpsi(r.varian_opsi);
+
     const peta = new Map(r.sel.map((s) => [`${s.mata_pelajaran_id}|${s.tingkat}`, s.jp_per_minggu] as const));
+
     selRef.current = peta;
     setSel(peta);
   }, []);
 
-  const muat = useCallback(async () => {
+  /** Muat daftar varian (semua status) untuk combobox, lalu pilih yang aktif. */
+  useEffect(() => {
+    let hidup = true;
+
+    setData(null);
+    setVarianId(null);
+    varianRef.current = null;
+    setErr('');
+
     if (jenjang === null || ta === null) {
+      setOpsi([]);
+      return () => { hidup = false; };
+    }
+
+    setOpsi(null);
+    daftarVarianJadwal(jenjang, ta)
+      .then((r) => {
+        if (!hidup) return;
+
+        setOpsi(r.varian.map((v) => ({
+          id: v.id, nama: v.nama, is_active: v.is_active, dibuat_pada: v.dibuat_pada,
+        })));
+
+        const aktif = r.varian.find((v) => v.is_active) ?? r.varian[0];
+        setVarianId(aktif?.id ?? null);
+      })
+      .catch((e) => {
+        if (!hidup) return;
+        setOpsi([]);
+        setErr(errorMessage(e));
+      });
+
+    return () => { hidup = false; };
+  }, [jenjang, ta]);
+
+  /** Muat struktur varian terpilih. */
+  useEffect(() => {
+    let hidup = true;
+
+    if (varianId === null) {
       setData(null);
-      setMemuat(false);
-      return;
+      return () => { hidup = false; };
     }
+
+    varianRef.current = varianId;
+    setData(null);
     setMemuat(true);
-    try {
-      terapkan(await daftarStrukturKurikulum(jenjang, ta));
-      setErr('');
-    } catch (e) {
-      setErr(errorMessage(e));
-    } finally {
-      setMemuat(false);
-    }
-  }, [jenjang, ta, terapkan]);
 
-  useEffect(() => { void muat(); }, [muat]);
+    daftarStrukturKurikulum(varianId)
+      .then((r) => {
+        if (!hidup || varianRef.current !== varianId) return;
+        terapkan(r);
+        setErr('');
+      })
+      .catch((e) => {
+        if (!hidup || varianRef.current !== varianId) return;
+        setErr(errorMessage(e));
+      })
+      .finally(() => {
+        if (hidup && varianRef.current === varianId) setMemuat(false);
+      });
 
-  /** Simpan seluruh matriks (dipakai auto-save sel dan tombol Simpan). */
+    return () => { hidup = false; };
+  }, [varianId, terapkan]);
+
+  /** Simpan seluruh matriks varian aktif (auto-save sel dan tombol Simpan). */
   const simpanSel = useCallback(async (peta: Map<string, number>, mingguEfektif: number) => {
     if (data === null) return;
+
     const r = await simpanStrukturKurikulum({
-      jenjang: data.jenjang,
-      tahun_ajaran: data.tahun_ajaran,
+      varian_id: data.varian.id,
       minggu_efektif: mingguEfektif,
       sel: [...peta.entries()].map(([k, v]) => {
         const [mid, tk] = k.split('|');
         return { mata_pelajaran_id: Number(mid), tingkat: tk, jp_per_minggu: v };
       }),
     });
+
     terapkan(r);
   }, [data, terapkan]);
 
   /** Auto-save satu sel dari ExcelTable: gabungkan dengan nilai lain lalu simpan. */
   const onCommit = useCallback(async (id: number, values: Record<string, string | null>) => {
     const next = new Map(selRef.current);
+
     for (const [key, raw] of Object.entries(values)) {
       if (!key.startsWith('jp_')) continue;
+
       const tk = key.slice(3);
       const n = Math.max(0, Math.min(60, Number(raw) || 0));
       const k = kunci(id, tk);
+
       if (n === 0) next.delete(k);
       else next.set(k, n);
     }
+
     selRef.current = next;
     setSel(next);
     await simpanSel(next, mingguRef.current);
@@ -146,11 +205,13 @@ export default function KurikulumStrukturPage() {
 
   const totalPerTingkat = useMemo(() => {
     const peta = new Map<string, number>();
+
     for (const t of data?.tingkat ?? []) {
       let n = 0;
       for (const m of data?.mapel ?? []) n += sel.get(`${m.id}|${t}`) ?? 0;
       peta.set(t, n);
     }
+
     return peta;
   }, [data, sel]);
 
@@ -164,17 +225,49 @@ export default function KurikulumStrukturPage() {
     );
   }
 
+  const kosong = opsi !== null && opsi.length === 0;
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
 
-      <div className="flex flex-wrap items-center gap-2 px-3 pb-2 text-[11px] sm:px-6">
+      <div className="flex flex-wrap items-center gap-3 px-3 pb-2 text-[11px] sm:px-6">
+        <label className="flex items-center gap-1.5" htmlFor="select_varian_struktur">
+          <span className="text-muted-foreground">Varian jadwal</span>
+          <select
+            id="select_varian_struktur"
+            value={varianId ?? ''}
+            disabled={opsi === null || opsi.length === 0}
+            onChange={(e) => setVarianId(Number(e.target.value) || null)}
+            className="h-8 min-w-44 rounded-md border border-input bg-transparent px-2 text-xs"
+          >
+            {opsi === null ? <option value="">Memuat…</option> : null}
+            {(opsi ?? []).map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.nama}{v.is_active ? ' (Aktif)' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {data !== null ? (
+          <span
+            className="border px-2 py-0.5"
+            style={{ borderColor: 'var(--divider)' }}
+            title="Struktur mengikuti varian, bukan status aktif varian"
+          >
+            {data.varian.is_active ? 'Varian aktif' : 'Varian tidak aktif'}
+          </span>
+        ) : null}
+
         <p className="text-muted-foreground">
           {jenjang} · {ta} · JP per minggu per mapel × tingkat (referensi, tidak mengunci jadwal).
         </p>
+
         {data !== null
           ? data.tingkat.map((t) => {
             const total = totalPerTingkat.get(t) ?? 0;
+
             return (
               <span
                 key={t}
@@ -189,53 +282,60 @@ export default function KurikulumStrukturPage() {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 sm:px-6">
-        <ExcelTable<StrukturMapel>
-          tableKey="kurikulum_struktur"
-          header={`Struktur Kurikulum · ${jenjang}`}
-          fields={fields}
-          rows={data?.mapel ?? []}
-          getValues={getValues}
-          loading={memuat}
-          emptyText="Belum ada mapel aktif untuk jenjang ini."
-          canEdit={canUbah}
-          onCommit={onCommit}
-          onSaved={() => {}}
-          renderActions={() => null}
-          hideCheckbox
-          hideActions
-          akhirToolbar={
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-xs" htmlFor="input_minggu_efektif">
-                Minggu efektif
-                <input
-                  id="input_minggu_efektif"
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={minggu}
-                  disabled={!canUbah || sibuk}
-                  onChange={(e) => {
-                    const n = Math.max(1, Math.min(60, Number(e.target.value) || 1));
-                    setMinggu(n);
-                    mingguRef.current = n;
-                  }}
-                  className="h-8 w-20 rounded-md border border-input bg-transparent px-2 text-xs"
-                />
-              </label>
-              {canUbah ? (
-                <Button
-                  id="btn_simpan_struktur"
-                  type="button"
-                  size="sm"
-                  disabled={sibuk || memuat}
-                  onClick={() => void simpanMinggu()}
-                >
-                  Simpan
-                </Button>
-              ) : null}
-            </div>
-          }
-        />
+        {kosong ? (
+          <p className="border border-dashed p-4 text-xs text-muted-foreground" style={{ borderColor: 'var(--divider)' }}>
+            Belum ada varian jadwal untuk {jenjang} · {ta}. Struktur kurikulum mengikuti varian —
+            buat varian dulu di halaman <b>Jadwal Pelajaran → Varian</b>.
+          </p>
+        ) : (
+          <ExcelTable<StrukturMapel>
+            tableKey="kurikulum_struktur"
+            header={data === null ? 'Struktur Kurikulum' : `Struktur Kurikulum · ${data.varian.nama}`}
+            fields={fields}
+            rows={data?.mapel ?? []}
+            getValues={getValues}
+            loading={memuat}
+            emptyText="Belum ada mapel aktif untuk jenjang ini."
+            canEdit={canUbah}
+            onCommit={onCommit}
+            onSaved={() => {}}
+            renderActions={() => null}
+            hideCheckbox
+            hideActions
+            akhirToolbar={
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 text-xs" htmlFor="input_minggu_efektif">
+                  Minggu efektif
+                  <input
+                    id="input_minggu_efektif"
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={minggu}
+                    disabled={!canUbah || sibuk || data === null}
+                    onChange={(e) => {
+                      const n = Math.max(1, Math.min(60, Number(e.target.value) || 1));
+                      setMinggu(n);
+                      mingguRef.current = n;
+                    }}
+                    className="h-8 w-20 rounded-md border border-input bg-transparent px-2 text-xs"
+                  />
+                </label>
+                {canUbah ? (
+                  <Button
+                    id="btn_simpan_struktur"
+                    type="button"
+                    size="sm"
+                    disabled={sibuk || memuat || data === null}
+                    onClick={() => void simpanMinggu()}
+                  >
+                    Simpan
+                  </Button>
+                ) : null}
+              </div>
+            }
+          />
+        )}
       </div>
     </div>
   );
