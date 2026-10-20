@@ -488,7 +488,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA6. Penilaian
 
-### DA6.1 Nilai & Peristiwa `Belum dijadwalkan (Backlog)`
+### DA6.1 Nilai & Peristiwa `Siap dikerjakan (To Do)`
 **Belum dijadwalkan (Backlog)**
 - Kunci dan buka kunci nilai
   - [ ] kunci setelah cetak
@@ -499,20 +499,27 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] rata-rata rapor 40
   - [ ] kebijakan pesantren
 **Siap dikerjakan (To Do)**
-- (kosong)
+- Halaman Input Manual Nilai Akhir
+  - [ ] tabel untuk input seperti legger
+  - [ ] gunakan rail tingkat dan kelas yang ada untuk filter tingkat dan kelas
+  - [ ] input langsung di tabel, harus edit mode
+  - [ ] atau gunakan tabel legger di halaman legger. karena sebenarnya input manual ini formatnya sama persis seperti legger
 **Sedang dikerjakan (In Progress)**
 - (kosong)
 **Menunggu peninjauan (For Review)**
-- (kosong)
+- Leger crosstab dan rapor
+  - [x] ekspor Excel
+  - [x] cetak per santri/kelas
+  - [x] rekap
+  - [x] Leger memakai ExcelTable baca-saja dengan NIS, Nama, Kelas, kolom mapel dinamis, dan Rata²; pagination, unduh, dan hitung ulang tetap berjalan
+  - [x] Judul kolom crosstab memakai kode mapel; kode kosong/duplikat memakai singkatan lalu nama mapel, sementara kunci kolom tetap stabil
+  - [x] Penanda nilai hasil impor tetap tampil dan tabel tetap baca-saja
+  - [x] Pemeriksaan: typecheck, tes backend/frontend terkait, serta uji kolom dinamis dan pagination hijau
 **Selesai (Done)**
 - Nilai per peristiwa
   - [x] PTS/ASAS/ASAT/UJIAN/UAP
   - [x] komponen/bobot
   - [x] sumber nilai
-- Leger crosstab dan rapor
-  - [x] ekspor Excel
-  - [x] cetak per santri/kelas
-  - [x] rekap
 - Impor nilai
   - [x] empat template
   - [x] import-potong

@@ -80,7 +80,14 @@ export interface SelLeger {
   nilai: number | null; predikat: string | null; sumber: string | null; guru: string | null;
 }
 
-export interface KolomLeger { key: string; mapel_id: number; nama_mapel: string }
+export interface KolomLeger {
+  key: string;
+  mapel_id: number;
+  nama_mapel: string;
+  kode_mapel: string | null;
+  singkatan: string | null;
+  judul: string;
+}
 
 export interface BarisLeger {
   santri_id: number; nis_lokal: string | null; nama: string;

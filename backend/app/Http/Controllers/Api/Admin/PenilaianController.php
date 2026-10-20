@@ -667,7 +667,7 @@ class PenilaianController extends Controller
 
         $headings = array_merge(
             ['nis_lokal', 'nama', 'kelas'],
-            array_map(fn ($k) => $k['nama_mapel'], $kolom),
+            array_map(fn ($k) => $k['judul'], $kolom),
             ['rata_rata'],
         );
         $rows = $santri->map(function ($s) use ($kolom, $peta) {
@@ -1319,7 +1319,7 @@ class PenilaianController extends Controller
      * Kolom leger: satu kolom per mapel yang punya pengampu dalam lingkup.
      *
      * @param  list<int>  $kelasIds
-     * @return list<array{key: string, mapel_id: int, nama_mapel: string}>
+     * @return list<array{key: string, mapel_id: int, nama_mapel: string, kode_mapel: ?string, singkatan: ?string, judul: string}>
      */
     private function kolomLeger(string $jenjang, array $kelasIds): array
     {
@@ -1331,11 +1331,37 @@ class PenilaianController extends Controller
             $q->whereIn('pengampu_mapel.kelas_id', $kelasIds);
         }
 
-        return $q->orderBy('mata_pelajaran.nama_mapel')
+        $rows = $q->orderBy('mata_pelajaran.nama_mapel')
             ->distinct()
-            ->get(['mata_pelajaran.id as mapel_id', 'mata_pelajaran.nama_mapel'])
-            ->map(fn ($r) => ['key' => 'm'.$r->mapel_id, 'mapel_id' => (int) $r->mapel_id, 'nama_mapel' => $r->nama_mapel])
+            ->get([
+                'mata_pelajaran.id as mapel_id',
+                'mata_pelajaran.nama_mapel',
+                'mata_pelajaran.kode_mapel',
+                'mata_pelajaran.singkatan',
+            ]);
+
+        $kodeDipakai = $rows
+            ->map(fn ($r) => trim((string) ($r->kode_mapel ?? '')))
+            ->filter(fn (string $kode) => $kode !== '')
+            ->countBy()
             ->all();
+
+        return $rows->map(function ($r) use ($kodeDipakai) {
+            $kode = trim((string) ($r->kode_mapel ?? ''));
+            $singkatan = trim((string) ($r->singkatan ?? ''));
+            $judul = $kode !== '' && ($kodeDipakai[$kode] ?? 0) === 1
+                ? $kode
+                : ($singkatan !== '' ? $singkatan : $r->nama_mapel);
+
+            return [
+                'key' => 'm'.$r->mapel_id,
+                'mapel_id' => (int) $r->mapel_id,
+                'nama_mapel' => $r->nama_mapel,
+                'kode_mapel' => $r->kode_mapel,
+                'singkatan' => $r->singkatan,
+                'judul' => $judul,
+            ];
+        })->all();
     }
 
     /**

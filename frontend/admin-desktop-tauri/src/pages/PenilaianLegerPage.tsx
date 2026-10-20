@@ -4,17 +4,21 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Pager from '@/components/Pager';
+import ExcelTable, { type ExcelField, type GridRow } from '@/components/ExcelTable';
+import { freezeKey } from '@/components/excel/helpers';
 import { usePager } from '@/hooks/usePager';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { listKelas, type Kelas } from '@/api/master';
-import { errorMessage } from '@/api/client';
+import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Download, RefreshCw } from '@/icons';
 import {
   daftarPeristiwa, hitungUlang, legerNilai, unduhLeger,
-  type LegerResp, type PeristiwaNilai,
+  type BarisLeger, type LegerResp, type PeristiwaNilai,
 } from '@/api/penilaian';
+
+type BarisLegerGrid = BarisLeger & { id: number };
 
 /** Halaman Leger Nilai: crosstab santri × mapel untuk SATU PERISTIWA. */
 export default function PenilaianLegerPage() {
@@ -36,6 +40,17 @@ export default function PenilaianLegerPage() {
   const [cari, setCari] = useState('');
   const [cariTertunda, setCariTertunda] = useState('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
+  const [bekuSiap, setBekuSiap] = useState(false);
+
+  useEffect(() => {
+    let hidup = true;
+    const kunci = freezeKey('penilaian_leger');
+    prefGet(kunci)
+      .then((nilai) => (nilai === null ? prefSet(kunci, '2') : null))
+      .catch(() => {})
+      .finally(() => { if (hidup) setBekuSiap(true); });
+    return () => { hidup = false; };
+  }, []);
 
   useEffect(() => {
     if (filterLoading || jenjang === null || ta === null) { setKelasOpsi([]); return; }
@@ -58,6 +73,11 @@ export default function PenilaianLegerPage() {
       .catch((e) => { if (hidup) { setPeristiwa([]); setPeristiwaId(''); setErr(errorMessage(e)); } });
     return () => { hidup = false; };
   }, [filterLoading, jenjang, ta]);
+
+  const peristiwaAktif = useMemo(
+    () => peristiwa.find((p) => p.id === peristiwaId) ?? null,
+    [peristiwa, peristiwaId],
+  );
 
   const kelasIds = useMemo(
     () => kelasOpsi.filter((k) => kelasAktif.includes(k.nama_kelas)).map((k) => k.id),
@@ -126,6 +146,103 @@ export default function PenilaianLegerPage() {
     }
   }, [peristiwaId, semester, kelasIds, muat, pager.page, pager.perPage]);
 
+  const baris = useMemo<BarisLegerGrid[]>(
+    () => (data?.baris ?? []).map((b) => ({ ...b, id: b.santri_id })),
+    [data],
+  );
+
+  const sumberSel = useMemo(() => {
+    const peta = new Map<string, string | null>();
+    for (const b of data?.baris ?? []) {
+      for (const k of data?.kolom ?? []) {
+        peta.set(`${b.santri_id}:${k.key}`, b.sel[k.key]?.sumber ?? null);
+      }
+    }
+    return peta;
+  }, [data]);
+
+  const fields = useMemo<ExcelField[]>(() => {
+    const mapel: ExcelField[] = (data?.kolom ?? []).map((k) => ({
+      key: k.key,
+      label: k.judul,
+      width: 84,
+      kind: 'static',
+      renderCell: (row: GridRow) => {
+        const nilai = row[k.key];
+        if (nilai === null || nilai === '') {
+          return <span className="text-muted-foreground">·</span>;
+        }
+        const sumber = sumberSel.get(`${row.id}:${k.key}`);
+        return (
+          <span className="inline-flex items-center gap-1">
+            {String(nilai)}
+            {sumber === 'impor' && (
+              <span
+                className="rounded bg-amber-500/20 px-1 text-[10px] text-amber-700 dark:text-amber-300"
+                title="Diisi lewat impor"
+              >
+                I
+              </span>
+            )}
+          </span>
+        );
+      },
+    }));
+
+    return [
+      {
+        key: 'nis_lokal', label: 'NIS', kind: 'static', width: 100,
+        renderCell: (row) => row.nis_lokal === null || row.nis_lokal === ''
+          ? <span className="text-muted-foreground">—</span>
+          : String(row.nis_lokal),
+      },
+      { key: 'nama', label: 'Nama', kind: 'static', width: 200 },
+      {
+        key: 'kelas', label: 'Kelas', kind: 'static', width: 90,
+        renderCell: (row) => row.kelas === null || row.kelas === ''
+          ? <span className="text-muted-foreground">—</span>
+          : String(row.kelas),
+      },
+      ...mapel,
+      {
+        key: 'rata_rata', label: 'Rata²', kind: 'static', width: 80,
+        renderCell: (row) => row.rata_rata === null || row.rata_rata === ''
+          ? <span className="text-muted-foreground">—</span>
+          : String(row.rata_rata),
+      },
+    ];
+  }, [data, sumberSel]);
+
+  const getValues = useCallback((b: BarisLegerGrid) => {
+    const nilai: Record<string, string | null> = {
+      nis_lokal: b.nis_lokal,
+      nama: b.nama,
+      kelas: b.kelas,
+      rata_rata: b.rata_rata === null ? null : String(b.rata_rata),
+    };
+    for (const k of data?.kolom ?? []) {
+      const angka = b.sel[k.key]?.nilai;
+      nilai[k.key] = angka === null || angka === undefined ? null : String(angka);
+    }
+    return nilai;
+  }, [data]);
+
+  const presetLuar = useMemo(
+    () => ({ keys: fields.map((f) => f.key), presetId: null }),
+    [fields],
+  );
+
+  const pagerNode = data !== null ? (
+    <Pager
+      page={pager.page}
+      lastPage={data.last_page ?? 1}
+      total={data.total ?? 0}
+      perPage={pager.perPage}
+      onPage={(p) => { pager.setPage(p); void muat(p, pager.perPage); }}
+      onPerPage={(pp) => { pager.setPerPage(pp); void muat(1, pp); }}
+    />
+  ) : undefined;
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
@@ -152,11 +269,12 @@ export default function PenilaianLegerPage() {
           value={cari}
           onChange={(e) => { setCari(e.target.value); pager.goFirst(); }}
         />
-        <span className="text-xs text-muted-foreground">
-          {!siap ? 'Pilih satu jenjang, TA, dan semester pada filter di atas.'
-            : peristiwa.length === 0 ? 'Belum ada peristiwa — muat bawaan di halaman Master Penilaian.'
-              : `${data?.total ?? 0} santri · ${data?.kolom.length ?? 0} mapel`}
-        </span>
+        {!siap && (
+          <span className="text-xs text-muted-foreground">Pilih satu jenjang, TA, dan semester pada filter di atas.</span>
+        )}
+        {siap && peristiwa.length === 0 && (
+          <span className="text-xs text-muted-foreground">Belum ada peristiwa — muat bawaan di halaman Master Penilaian.</span>
+        )}
         <div className="ml-auto flex gap-2">
           <Button type="button" variant="outline" size="sm" id="btn_hitung_ulang" disabled={!canUbah || peristiwaId === ''}
             title="Hitung ulang nilai akhir dari komponen (baris hasil impor dilewati)"
@@ -169,71 +287,30 @@ export default function PenilaianLegerPage() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        {loading && <p className="p-3 text-xs text-muted-foreground">Memuat…</p>}
-        {!loading && data !== null && (
-          <table className="w-max border-collapse text-xs" id="tabel_leger_nilai">
-            <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
-              <tr>
-                <th className="sticky left-0 z-20 border border-border bg-muted/80 px-2 py-1 text-left">NIS</th>
-                <th className="sticky left-[70px] z-20 border border-border bg-muted/80 px-2 py-1 text-left">Nama</th>
-                <th className="border border-border px-2 py-1 text-left">Kelas</th>
-                {data.kolom.map((k) => (
-                  <th key={k.key} className="border border-border px-2 py-1 text-center" title={k.nama_mapel}>
-                    {k.nama_mapel}
-                  </th>
-                ))}
-                <th className="border border-border px-2 py-1 text-center">Rata²</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.baris.map((b) => (
-                <tr key={b.santri_id} className="hover:bg-muted/40">
-                  <td className="sticky left-0 z-10 border border-border bg-background px-2 py-1 font-mono">{b.nis_lokal ?? '—'}</td>
-                  <td className="sticky left-[70px] z-10 border border-border bg-background px-2 py-1">{b.nama}</td>
-                  <td className="border border-border px-2 py-1">{b.kelas ?? '—'}</td>
-                  {data.kolom.map((k) => {
-                    const sel = b.sel[k.key] ?? null;
-                    return (
-                      <td key={k.key} className="border border-border px-2 py-1 text-center">
-                        {sel === null || sel.nilai === null ? (
-                          <span className="text-muted-foreground">·</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1">
-                            {sel.nilai}
-                            {sel.sumber === 'impor' && (
-                              <span className="rounded bg-amber-500/20 px-1 text-[10px] text-amber-700 dark:text-amber-300" title="Diisi lewat impor">I</span>
-                            )}
-                          </span>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className="border border-border px-2 py-1 text-center font-medium">{b.rata_rata ?? '—'}</td>
-                </tr>
-              ))}
-              {data.baris.length === 0 && (
-                <tr>
-                  <td colSpan={4 + data.kolom.length} className="border border-border px-3 py-6 text-center text-muted-foreground">
-                    Tidak ada santri pada lingkup ini.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 sm:px-6">
+        {loading && data === null && <p className="p-3 text-xs text-muted-foreground">Memuat…</p>}
+        {bekuSiap && data !== null && (
+          <ExcelTable<BarisLegerGrid>
+            tableKey="penilaian_leger"
+            header={peristiwaAktif === null ? 'Leger Nilai' : `Leger Nilai · ${peristiwaAktif.kode} — ${peristiwaAktif.nama}`}
+            tengah={data === null ? undefined : `${data.total} santri · ${data.kolom.length} mapel`}
+            fields={fields}
+            rows={baris}
+            getValues={getValues}
+            loading={loading}
+            emptyText="Tidak ada santri pada lingkup ini."
+            canEdit={false}
+            onCommit={async () => {}}
+            onSaved={() => {}}
+            renderActions={() => null}
+            hideCheckbox
+            hideActions
+            hidePreset
+            presetLuar={presetLuar}
+            pager={pagerNode}
+          />
         )}
       </div>
-
-      {data !== null && (
-        <Pager
-          page={pager.page}
-          lastPage={data.last_page ?? 1}
-          total={data.total ?? 0}
-          perPage={pager.perPage}
-          onPage={(p) => { pager.setPage(p); void muat(p, pager.perPage); }}
-          onPerPage={(pp) => { pager.setPerPage(pp); void muat(1, pp); }}
-        />
-      )}
     </div>
   );
 }
