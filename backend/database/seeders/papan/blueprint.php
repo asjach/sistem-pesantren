@@ -31,6 +31,12 @@ return [
                     ['CRUD Lembaga, Tahun Ajaran, dan Kelas', ['scope tenant', 'validasi jenjang', 'kode unik']],
                 ],
             ]],
+            ['kode' => 'DA1.4', 'nama' => 'Pengaturan Aplikasi Desktop', 'butir' => [
+                'done' => [
+                    ['Pengaturan server dan sesi aman', ['URL API tersimpan', 'Uji koneksi', 'Token di keychain dengan fallback memori']],
+                    ['Folder arsip dan mode dokumen', ['Pilih folder arsip', 'Mode dokumen', 'Peringatan bila akses folder ditolak']],
+                ],
+            ]],
         ]],
         ['kode' => 'DA2', 'nama' => 'Autentikasi & Pengguna', 'sub' => [
             ['kode' => 'DA2.1', 'nama' => 'Login & Sesi', 'butir' => [
@@ -73,17 +79,22 @@ return [
                 ],
             ]],
             ['kode' => 'DA3.4', 'nama' => 'Presensi Santri', 'butir' => [
-                'done' => [
-                    ['Tabel presensi dan pelanggaran', ['sesi_presensi', 'presensi_santri', 'pelanggaran_santri']],
-                ],
                 'backlog' => [
                     ['UI presensi dan pelanggaran', ['input per sesi', 'rekap kehadiran', 'poin pelanggaran']],
+                ],
+                'todo' => [
+                    ['Pencatatan presensi harian lewat API', ['Sesi presensi per kelas', 'Input kehadiran massal', 'Status hadir/sakit/izin/alpa', 'Rekap kehadiran per santri']],
+                    ['Poin pelanggaran dan tindak lanjut', ['Kategori dan bobot pelanggaran', 'Poin otomatis dari kejadian', 'Riwayat dan tindak lanjut']],
+                ],
+                'done' => [
+                    ['Tabel presensi dan pelanggaran', ['sesi_presensi', 'presensi_santri', 'pelanggaran_santri']],
                 ],
             ]],
             ['kode' => 'DA3.5', 'nama' => 'Asrama', 'butir' => [
                 'backlog' => [
                     ['Fondasi asrama', ['tabel asrama/kamar/penghuni', 'peran asrama', 'pivot user_asrama']],
                     ['Alur izin pulang dan kegiatan', ['pengajuan', 'persetujuan', 'kalender kegiatan']],
+                    ['Kamar dan penempatan santri', ['Data kamar dan kapasitas', 'Penempatan dan mutasi kamar', 'Pembina per kamar']],
                 ],
             ]],
         ]],
@@ -95,116 +106,122 @@ return [
                 ],
             ]],
             ['kode' => 'DA4.2', 'nama' => 'Presensi Pegawai', 'butir' => [
-                'done' => [
-                    ['Tabel presensi pegawai', ['presensi_pegawai', 'status harian', 'rekap']],
-                ],
                 'backlog' => [
                     ['UI absensi guru', ['input harian', 'koreksi', 'izin/cuti']],
+                ],
+                'todo' => [
+                    ['Pencatatan presensi pegawai lewat API', ['Absen masuk dan pulang', 'Izin dan cuti', 'Rekap kehadiran per pegawai']],
+                ],
+                'done' => [
+                    ['Tabel presensi pegawai', ['presensi_pegawai', 'status harian', 'rekap']],
                 ],
             ]],
         ]],
         ['kode' => 'DA5', 'nama' => 'Kurikulum', 'sub' => [
             ['kode' => 'DA5.1', 'nama' => 'Mata Pelajaran', 'butir' => [
-                'done' => [
-                    ['Master mapel dan KKM', ['per jenjang', 'kelompok formal/pesantren', 'urutan rapor']],
-                ],
                 'todo' => [
                     ['Salin mapel antar tahun ajaran', ['pilih sumber', 'pratinjau', 'hindari duplikat']],
                 ],
+                'done' => [
+                    ['Master mapel dan KKM', ['per jenjang', 'kelompok formal/pesantren', 'urutan rapor']],
+                ],
             ]],
             ['kode' => 'DA5.2', 'nama' => 'Pengampu', 'butir' => [
-                'done' => [
-                    ['Pivot kelas × mapel → guru', ['validasi bentrok', 'guru aktif', 'per TA']],
-                ],
                 'backlog' => [
                     ['Tes komponen halaman Pengampu', ['tes render', 'tes validasi', 'tes izin']],
                 ],
+                'done' => [
+                    ['Pivot kelas × mapel → guru', ['validasi bentrok', 'guru aktif', 'per TA']],
+                ],
             ]],
             ['kode' => 'DA5.3', 'nama' => 'Jadwal Pelajaran', 'butir' => [
-                'done' => [
-                    ['Slot per jenjang dan anti bentrok', ['bentrok kelas', 'bentrok guru', 'grid mingguan']],
-                    ['Jadwal per kelas', ['template', 'salin', 'cetak']],
-                ],
                 'todo' => [
                     ['Jadwal dari sudut guru', ['agenda mengajar', 'filter guru', 'tampilan mobile']],
                     ['Cetak/unduh jadwal', ['PDF', 'Excel', 'kop']],
+                ],
+                'done' => [
+                    ['Slot per jenjang dan anti bentrok', ['bentrok kelas', 'bentrok guru', 'grid mingguan']],
+                    ['Jadwal per kelas', ['template', 'salin', 'cetak']],
                 ],
             ]],
         ]],
         ['kode' => 'DA6', 'nama' => 'Penilaian', 'sub' => [
             ['kode' => 'DA6.1', 'nama' => 'Nilai & Peristiwa', 'butir' => [
+                'backlog' => [
+                    ['Bobot UJIAN final', ['UM 60', 'rata-rata rapor 40', 'kebijakan pesantren']],
+                ],
+                'todo' => [
+                    ['Kunci dan buka kunci nilai', ['kunci setelah cetak', 'alasan buka', 'log audit']],
+                ],
                 'done' => [
                     ['Nilai per peristiwa', ['PTS/ASAS/ASAT/UJIAN/UAP', 'komponen/bobot', 'sumber nilai']],
                     ['Leger crosstab dan rapor', ['ekspor Excel', 'cetak per santri/kelas', 'rekap']],
                     ['Impor nilai', ['empat template', 'import-potong', 'validasi']],
                 ],
-                'todo' => [
-                    ['Kunci dan buka kunci nilai', ['kunci setelah cetak', 'alasan buka', 'log audit']],
-                ],
-                'backlog' => [
-                    ['Bobot UJIAN final', ['UM 60', 'rata-rata rapor 40', 'kebijakan pesantren']],
-                ],
             ]],
             ['kode' => 'DA6.2', 'nama' => 'Cetak Rapor', 'butir' => [
-                'done' => [
-                    ['Rapor per santri/kelas', ['kop', 'identitas', 'nilai + terbilang']],
-                    ['Validasi kelengkapan', ['kelas lengkap', 'tombol cetak terkunci', 'halaman 2']],
-                ],
                 'todo' => [
                     ['Cetak massal satu kelas', ['sekali klik', 'peringkat per batch', 'snapshot penanda tangan']],
                     ['Absensi otomatis', ['sesi_presensi', 'override leger', 'rekap kehadiran']],
                 ],
+                'done' => [
+                    ['Rapor per santri/kelas', ['kop', 'identitas', 'nilai + terbilang']],
+                    ['Validasi kelengkapan', ['kelas lengkap', 'tombol cetak terkunci', 'halaman 2']],
+                ],
             ]],
             ['kode' => 'DA6.3', 'nama' => 'Tahfizh', 'butir' => [
-                'done' => [
-                    ['Tabel tahfizh', ['target_tahfiz', 'setoran_tahfiz', 'rekap_tahfiz_santri']],
-                ],
                 'backlog' => [
                     ['UI tahfizh', ['ziyadah', 'murajaah', 'rekap per santri']],
+                ],
+                'todo' => [
+                    ['Target dan setoran tahfizh lewat API', ['Target per santri', 'Setoran ziyadah dan murajaah', 'Rekap capaian per periode']],
+                ],
+                'done' => [
+                    ['Tabel tahfizh', ['target_tahfiz', 'setoran_tahfiz', 'rekap_tahfiz_santri']],
                 ],
             ]],
         ]],
         ['kode' => 'DA7', 'nama' => 'Keuangan', 'sub' => [
             ['kode' => 'DA7.1', 'nama' => 'Tagihan & Tarif', 'butir' => [
+                'todo' => [
+                    ['Kartu piutang per santri', ['lintas TA', 'surat tagihan', 'cetak']],
+                ],
                 'done' => [
                     ['Master jenis tagihan dan tarif', ['per lembaga/TA', 'bulanan', 'dispensasi']],
                     ['Generate tagihan', ['anti duplikat', 'terbayar dilewati', 'kuota']],
                     ['Crosstab tagihan', ['dispensasi', 'grup custom', 'ekspor']],
                 ],
-                'todo' => [
-                    ['Kartu piutang per santri', ['lintas TA', 'surat tagihan', 'cetak']],
-                ],
             ]],
             ['kode' => 'DA7.2', 'nama' => 'Kasir & Kwitansi', 'butir' => [
-                'done' => [
-                    ['Kasir harian', ['pembayaran', 'saldo terkunci', 'batal/hapus']],
-                    ['Kwitansi', ['cetak', 'cetak ulang', 'dialog/tabel']],
-                ],
                 'todo' => [
                     ['Nomor kwitansi runut', ['per lembaga/kas/tahun', 'format final', 'tidak ada hex acak']],
                     ['Split payment', ['gabungan metode', 'sub-bayar', 'rincian']],
                 ],
+                'done' => [
+                    ['Kasir harian', ['pembayaran', 'saldo terkunci', 'batal/hapus']],
+                    ['Kwitansi', ['cetak', 'cetak ulang', 'dialog/tabel']],
+                ],
             ]],
             ['kode' => 'DA7.3', 'nama' => 'Rekap & Tutup Buku', 'butir' => [
+                'backlog' => [
+                    ['Tarif per asrama', ['menunggu modul asrama', 'tarif kamar', 'penghuni']],
+                ],
                 'todo' => [
                     ['Rekap per posisi kas', ['tunai TU', 'bank lembaga', 'bank pesantren']],
                     ['Mutasi kas harian', ['arus masuk', 'per hari', 'filter']],
                     ['Tutup buku', ['tolak mundur', 'buka kunci', 'alasan']],
                 ],
-                'backlog' => [
-                    ['Tarif per asrama', ['menunggu modul asrama', 'tarif kamar', 'penghuni']],
-                ],
             ]],
             ['kode' => 'DA7.4', 'nama' => 'Tunggakan', 'butir' => [
-                'done' => [
-                    ['Crosstab tunggakan', ['per santri/kelas', 'total tagihan', 'terbayar']],
+                'backlog' => [
+                    ['Tren penerimaan', ['bulanan', 'per TA', 'dasbor']],
                 ],
                 'todo' => [
                     ['Aging 30/60/90', ['jatuh tempo', 'surat tagihan', 'ekspor']],
                     ['Pengingat WhatsApp', ['template', 'antrean kirim', 'log']],
                 ],
-                'backlog' => [
-                    ['Tren penerimaan', ['bulanan', 'per TA', 'dasbor']],
+                'done' => [
+                    ['Crosstab tunggakan', ['per santri/kelas', 'total tagihan', 'terbayar']],
                 ],
             ]],
             ['kode' => 'DA7.5', 'nama' => 'Audit & Kontrol', 'butir' => [
@@ -217,12 +234,14 @@ return [
         ]],
         ['kode' => 'DA8', 'nama' => 'Portal & Integrasi', 'sub' => [
             ['kode' => 'DA8.1', 'nama' => 'Portal Wali', 'butir' => [
-                'done' => [
-                    ['Jalur PSB lanjutan dan pengajuan biodata', ['satu aktif per santri', 'batal', 'riwayat keluarga']],
-                ],
                 'todo' => [
                     ['Dashboard portal wali', ['ringkasan anak', 'tagihan', 'pengumuman']],
                     ['Aktor santri', ['peran santri', 'rute portal', 'batas data']],
+                    ['Portal tagihan dan pembayaran anak', ['Ringkasan tagihan per anak', 'Riwayat pembayaran', 'Unduh kwitansi']],
+                    ['Portal akademik dan tahfizh anak', ['Nilai dan rapor', 'Presensi harian', 'Capaian tahfizh']],
+                ],
+                'done' => [
+                    ['Jalur PSB lanjutan dan pengajuan biodata', ['satu aktif per santri', 'batal', 'riwayat keluarga']],
                 ],
             ]],
             ['kode' => 'DA8.2', 'nama' => 'API Mobile & Publik', 'butir' => [
@@ -230,6 +249,14 @@ return [
                     ['Kontrak API mobile', ['versi API', 'token per device', 'dokumentasi']],
                     ['Endpoint publik landing', ['profil', 'berita', 'PSB']],
                     ['Rate limit dan observability', ['throttle', 'log', 'metrics']],
+                    ['Izin bawaan peran guru', ['Jadwal dan kelas yang diampu', 'Input nilai', 'Presensi pegawai', 'Setoran tahfizh']],
+                ],
+            ]],
+            ['kode' => 'DA8.3', 'nama' => 'Notifikasi & Gateway', 'butir' => [
+                'todo' => [
+                    ['Gateway WhatsApp dan email', ['Penyedia dan kredensial', 'Antrean pengiriman', 'Status dan percobaan ulang']],
+                    ['Push notification mobile', ['Pendaftaran perangkat', 'Topik per peran', 'Preferensi pengguna']],
+                    ['Riwayat dan status notifikasi', ['Log pengiriman', 'Status dibaca', 'Penanganan gagal kirim']],
                 ],
             ]],
         ]],
@@ -252,6 +279,15 @@ return [
                     ['Monitoring uptime', ['health check', 'disk/DB', 'alert']],
                 ],
             ]],
+            ['kode' => 'DA9.4', 'nama' => 'Rilis & Distribusi', 'butir' => [
+                'backlog' => [
+                    ['Paket rilis desktop', ['DMG macOS', 'Installer Windows', 'Versi dan changelog']],
+                    ['Tanda tangan dan pembaruan otomatis', ['Signing', 'Notarization', 'Auto-update']],
+                ],
+                'todo' => [
+                    ['Build otomatis lintas sistem', ['CI backend', 'CI desktop', 'Artefak rilis tersimpan']],
+                ],
+            ]],
         ]],
         ['kode' => 'DA10', 'nama' => 'Dashboard & Laporan', 'sub' => [
             ['kode' => 'DA10.1', 'nama' => 'Dashboard Ringkas', 'butir' => [
@@ -265,10 +301,60 @@ return [
                     ['Ekspor laporan pimpinan', ['PDF/Excel', 'jadwal kirim', 'filter periode']],
                 ],
             ]],
+            ['kode' => 'DA10.3', 'nama' => 'Laporan Terpusat', 'butir' => [
+                'todo' => [
+                    ['Katalog laporan lintas modul', ['Santri dan siklus', 'Akademik dan rapor', 'Keuangan dan tunggakan', 'Kepegawaian dan PSB']],
+                    ['Ekspor dan pengiriman terjadwal', ['Ekspor PDF dan Excel', 'Jadwal kirim', 'Riwayat pengiriman']],
+                ],
+            ]],
+        ]],
+        ['kode' => 'DA11', 'nama' => 'Kerangka UI & Tampilan', 'sub' => [
+            ['kode' => 'DA11.1', 'nama' => 'Tabel & Grid', 'butir' => [
+                'done' => [
+                    ['Grid tabel bergaya Excel', ['Seleksi blok dan salin/tempel TSV', 'Autofit dan atur lebar kolom', 'Header beku dan scrollbar melayang', 'Simpan otomatis per sel']],
+                    ['Preset kolom, urutan, dan toolbar', ['Preset kolom per pengguna', 'Urutan dan visibilitas kolom', 'Toolbar preset dan komponen input custom']],
+                ],
+            ]],
+            ['kode' => 'DA11.2', 'nama' => 'Navigasi & Pencarian', 'butir' => [
+                'done' => [
+                    ['Command palette dan pencarian global', ['Pintasan membuka palette', 'Pencarian halaman dan tabel', 'Pencarian cepat di topbar']],
+                    ['Tab halaman dan jendela terpisah', ['Tab halaman gabungan', 'Preferensi tab terakhir', 'Profil santri di jendela lepas']],
+                    ['Filter dan visibilitas per halaman', ['Pilihan filter yang tampil', 'Visibilitas kolom per tabel', 'Tersimpan per halaman']],
+                ],
+            ]],
+            ['kode' => 'DA11.3', 'nama' => 'Tampilan & Aksesibilitas', 'butir' => [
+                'todo' => [
+                    ['Bantuan keyboard dan pembaca layar', ['Overlay peta pintasan', 'Navigasi VoiceOver di halaman utama', 'Uji aksesibilitas dan kontras']],
+                ],
+                'done' => [
+                    ['Tema, density, dan mode navigasi', ['Terang/gelap/sistem', 'Density dan radius sudut', 'Sidebar/menubar dan sembilan set ikon']],
+                ],
+            ]],
+        ]],
+        ['kode' => 'DA12', 'nama' => 'Dokumen & Berkas', 'sub' => [
+            ['kode' => 'DA12.1', 'nama' => 'Arsip Dokumen', 'butir' => [
+                'done' => [
+                    ['Dokumen santri, pegawai, dan lembaga', ['Tiga jenis pemilik dokumen', 'Unggah dan unduh berkas', 'Penampil PDF dan gambar', 'Status kelengkapan berkas wajib']],
+                    ['Arsip lokal desktop dan sinkron dokumen', ['Folder arsip lokal', 'Pindai dan garis panduan', 'Sinkron dokumen massal', 'Pilihan mode penyimpanan']],
+                ],
+            ]],
+            ['kode' => 'DA12.2', 'nama' => 'Impor & Ekspor Berkas', 'butir' => [
+                'done' => [
+                    ['Impor XLSX bertahap dengan pratinjau', ['Unduh template per modul', 'Pratinjau baris sebelum simpan', 'Potong baris dan unduh daftar galat', 'Batal dan pulihkan hasil impor']],
+                    ['Ekspor tabel ke XLSX dan TSV', ['Ekspor mengikuti filter aktif', 'Salin blok sebagai TSV', 'Simpan berkas lewat dialog desktop']],
+                ],
+            ]],
         ]],
     ],
-
     'mobile-orang-tua' => [
+        ['kode' => 'MO0', 'nama' => 'Fondasi & Rilis', 'sub' => [
+            ['kode' => 'MO0.1', 'nama' => 'Kerangka & Distribusi', 'butir' => [
+                'backlog' => [
+                    ['Kerangka aplikasi mobile', ['Pilihan stack dan struktur proyek', 'Navigasi dan tema dasar', 'Konfigurasi API dan sesi']],
+                    ['Build dan distribusi rilis', ['Build debug dan rilis', 'Distribusi uji internal', 'Tanda tangan dan rilis toko']],
+                ],
+            ]],
+        ]],
         ['kode' => 'MO1', 'nama' => 'Akun & Onboarding', 'sub' => [
             ['kode' => 'MO1.1', 'nama' => 'API Autentikasi', 'butir' => [
                 'done' => [
@@ -297,8 +383,8 @@ return [
         ]],
         ['kode' => 'MO3', 'nama' => 'Tagihan & Pembayaran', 'sub' => [
             ['kode' => 'MO3.1', 'nama' => 'API Keuangan', 'butir' => [
-                'done' => [
-                    ['Data tagihan dan pembayaran', ['tagihan', 'kwitansi', 'tunggakan']],
+                'in_progress' => [
+                    ['API tagihan dan pembayaran untuk portal wali', ['Daftar tagihan per anak', 'Riwayat pembayaran', 'Sisa tunggakan per anak']],
                 ],
             ]],
             ['kode' => 'MO3.2', 'nama' => 'UI Tagihan', 'butir' => [
@@ -357,8 +443,15 @@ return [
             ]],
         ]],
     ],
-
     'mobile-guru' => [
+        ['kode' => 'MG0', 'nama' => 'Fondasi & Rilis', 'sub' => [
+            ['kode' => 'MG0.1', 'nama' => 'Kerangka & Distribusi', 'butir' => [
+                'backlog' => [
+                    ['Kerangka aplikasi mobile', ['Pilihan stack dan struktur proyek', 'Navigasi dan tema dasar', 'Konfigurasi API dan sesi']],
+                    ['Build dan distribusi rilis', ['Build debug dan rilis', 'Distribusi uji internal', 'Tanda tangan dan rilis toko']],
+                ],
+            ]],
+        ]],
         ['kode' => 'MG1', 'nama' => 'Akun & Login', 'sub' => [
             ['kode' => 'MG1.1', 'nama' => 'API Autentikasi', 'butir' => [
                 'done' => [
@@ -445,8 +538,15 @@ return [
             ]],
         ]],
     ],
-
     'mobile-pimpinan' => [
+        ['kode' => 'MP0', 'nama' => 'Fondasi & Rilis', 'sub' => [
+            ['kode' => 'MP0.1', 'nama' => 'Kerangka & Distribusi', 'butir' => [
+                'backlog' => [
+                    ['Kerangka aplikasi mobile', ['Pilihan stack dan struktur proyek', 'Navigasi dan tema dasar', 'Konfigurasi API dan sesi']],
+                    ['Build dan distribusi rilis', ['Build debug dan rilis', 'Distribusi uji internal', 'Tanda tangan dan rilis toko']],
+                ],
+            ]],
+        ]],
         ['kode' => 'MP1', 'nama' => 'Akun & Login', 'sub' => [
             ['kode' => 'MP1.1', 'nama' => 'API Autentikasi', 'butir' => [
                 'done' => [
@@ -466,11 +566,11 @@ return [
                 ],
             ]],
             ['kode' => 'MP2.2', 'nama' => 'UI KPI', 'butir' => [
-                'todo' => [
-                    ['KPI dan tren', ['per lembaga', 'periode', 'perbandingan']],
-                ],
                 'backlog' => [
                     ['Statistik pimpinan lanjutan', ['modul 504', 'ekspor', 'jadwal kirim']],
+                ],
+                'todo' => [
+                    ['KPI dan tren', ['per lembaga', 'periode', 'perbandingan']],
                 ],
             ]],
         ]],
@@ -527,8 +627,15 @@ return [
             ]],
         ]],
     ],
-
     'mobile-kasir' => [
+        ['kode' => 'MK0', 'nama' => 'Fondasi & Rilis', 'sub' => [
+            ['kode' => 'MK0.1', 'nama' => 'Kerangka & Distribusi', 'butir' => [
+                'backlog' => [
+                    ['Kerangka aplikasi mobile', ['Pilihan stack dan struktur proyek', 'Navigasi dan tema dasar', 'Konfigurasi API dan sesi']],
+                    ['Build dan distribusi rilis', ['Build debug dan rilis', 'Distribusi uji internal', 'Tanda tangan dan rilis toko']],
+                ],
+            ]],
+        ]],
         ['kode' => 'MK1', 'nama' => 'Akun & Login', 'sub' => [
             ['kode' => 'MK1.1', 'nama' => 'API Autentikasi', 'butir' => [
                 'done' => [
@@ -538,6 +645,11 @@ return [
             ['kode' => 'MK1.2', 'nama' => 'UI Kasir', 'butir' => [
                 'todo' => [
                     ['Login dan profil kasir', ['role kasir', 'perangkat', 'shift']],
+                ],
+            ]],
+            ['kode' => 'MK1.3', 'nama' => 'Peran & Izin Kasir', 'butir' => [
+                'backlog' => [
+                    ['Peran dan izin kasir untuk aplikasi mobile', ['Buat peran kasir', 'Izin kasir: pembayaran, kwitansi, tunggakan', 'Uji login dan akses kasir']],
                 ],
             ]],
         ]],
@@ -617,8 +729,25 @@ return [
             ]],
         ]],
     ],
-
     'landing-pesantren' => [
+        ['kode' => 'LP0', 'nama' => 'Fondasi & Peluncuran', 'sub' => [
+            ['kode' => 'LP0.1', 'nama' => 'Fondasi Teknis', 'butir' => [
+                'backlog' => [
+                    ['Keputusan stack dan hosting', ['Pilihan framework/static site', 'Hosting dan CDN', 'Alur build dan rilis']],
+                    ['Domain, HTTPS, dan email resmi', ['Domain dan DNS', 'Sertifikat HTTPS', 'Email resmi pesantren']],
+                ],
+                'todo' => [
+                    ['Integrasi data publik', ['Profil pesantren dan lembaga', 'Formulir PSB publik', 'Berita dan pengumuman']],
+                ],
+            ]],
+            ['kode' => 'LP0.2', 'nama' => 'Peluncuran', 'butir' => [
+                'backlog' => [
+                    ['Migrasi konten awal', ['Teks profil dan visi-misi', 'Foto fasilitas dan kegiatan', 'Daftar prestasi']],
+                    ['Uji aksesibilitas dan performa', ['Kontras dan navigasi keyboard', 'Skor Lighthouse', 'Uji di perangkat mobile']],
+                    ['Peluncuran dan pemantauan', ['Pemeriksaan akhir', 'Pemantauan uptime', 'Rencana perbaikan']],
+                ],
+            ]],
+        ]],
         ['kode' => 'LP1', 'nama' => 'Profil & Identitas', 'sub' => [
             ['kode' => 'LP1.1', 'nama' => 'Struktur Halaman', 'butir' => [
                 'todo' => [
@@ -636,6 +765,9 @@ return [
             ['kode' => 'LP2.1', 'nama' => 'Formulir PSB', 'butir' => [
                 'todo' => [
                     ['Formulir pendaftaran publik', ['jalur', 'data calon', 'unggah']],
+                ],
+                'done' => [
+                    ['Prototipe formulir PSB publik berjalan', ['Pilihan lembaga dan paket', 'Data calon dan cek NIK', 'Unggah bukti transfer', 'Nomor pendaftaran']],
                 ],
             ]],
             ['kode' => 'LP2.2', 'nama' => 'Status & Biaya', 'butir' => [
