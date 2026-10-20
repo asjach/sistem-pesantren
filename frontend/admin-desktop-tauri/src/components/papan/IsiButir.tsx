@@ -1,16 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import type { MutableRefObject } from 'react';
+import { useState } from 'react';
 
 import type { StatusPapan } from '@/api/papan';
 import { JUDUL_KOLOM, KOLOM_PAPAN } from '@/api/papan';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash2, X } from '@/icons';
+import { X } from '@/icons';
 import type { KartuPapan } from '@/lib/papan';
 import { TeksButir } from './PapanKolom';
 
-/** Warna lencana per status - samakan dengan kolom papan. */
 /** Aksi yang bisa sedang berjalan di panel; '' = tidak ada. */
-type Sibuk = '' | 'simpan' | 'naik' | 'turun';
+type Sibuk = '' | 'status' | 'naik' | 'turun';
 
 const WARNA_STATUS: Record<StatusPapan, string> = {
   sudah: 'var(--success)',
@@ -22,56 +20,34 @@ const WARNA_STATUS: Record<StatusPapan, string> = {
 /**
  * Panel rincian satu poin, terbuka langsung di dalam kartu sub-modul.
  *
- * Punya dua wajah: mode BACA dan mode UBAH. Saat boleh mengubah, ada tombol
- * sunting; setelah masuk mode ubah, teks poin dan subpoinnya bisa diganti
- * lalu disimpan atau dibatalkan.
- *
- * Semua penyimpanan diserahkan ke pemanggil lewat callback, supaya komponen
- * ini tidak perlu tahu soal API, pemuatan ulang, atau penanganan galat.
+ * Penyuntingan teks dan subpoin ada di baris poin itu sendiri; panel ini
+ * menangani perpindahan status dan urutan, plus konteks modul/sub-modul.
  */
 export function IsiButir({
   kartu,
   bolehUbah,
-  onSimpanTeks,
   onSimpanStatus,
   onNaik,
   onTurun,
-  onHapus,
   onTutup,
 }: {
   kartu: KartuPapan;
   /** Bila false, panel hanya menampilkan rincian tanpa satu pun kontrol. */
   bolehUbah: boolean;
-  onSimpanTeks: (deskripsi: string, subpoin: string[]) => Promise<void>;
   onSimpanStatus: (status: StatusPapan) => Promise<void>;
   onNaik: () => Promise<void>;
   onTurun: () => Promise<void>;
-  onHapus: () => Promise<void>;
   onTutup: () => void;
 }) {
-  const [mode, setMode] = useState<'baca' | 'ubah'>('baca');
-  const [draf, setDraf] = useState(kartu.deskripsi);
-  const [subpoin, setSubpoin] = useState<string[]>(kartu.subpoin);
   // Melacak aksi MANA yang sedang berjalan, bukan sekadar 'ada yang
   // berjalan'. Dengan begitu menekan Naik tidak ikut mematikan tombol
   // Turun - keduanya aksi berbeda pada poin yang sama, dan memblokir
   // yang satu karena yang lain sibuk hanya membuat klik pengguna hilang.
   const [sibuk, setSibuk] = useState<Sibuk>('');
   const [galat, setGalat] = useState('');
-  const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
-  // autoFocus dilarang aturan a11y (menyerobot fokus tanpa diminta).
-  // Fokus dipindah ke kotak teks HANYA setelah pengguna sendiri menekan
-  // Ubah - momen itu memang meminta fokus, jadi aman dan tidak mengejutkan.
-  const kotakTeks = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    if (mode === 'ubah') {
-      kotakTeks.current?.focus();
-    }
-  }, [mode]);
 
   /** Jalankan aksi yang menyentuh server; seragamkan status sibuk & galat. */
-  async function jalan(label: 'simpan' | 'naik' | 'turun', aksi: () => Promise<void>) {
+  async function jalan(label: Sibuk, aksi: () => Promise<void>) {
     setSibuk(label);
     setGalat('');
 
@@ -82,24 +58,6 @@ export function IsiButir({
     } finally {
       setSibuk('');
     }
-  }
-
-  async function simpanTeks() {
-    const teks = draf.trim();
-    const rincian = subpoin.map((isi) => isi.trim()).filter(Boolean);
-
-    if (teks === '') return;
-
-    if (teks === kartu.deskripsi && JSON.stringify(rincian) === JSON.stringify(kartu.subpoin)) {
-      setMode('baca');
-
-      return;
-    }
-
-    await jalan('simpan', async () => {
-      await onSimpanTeks(teks, rincian);
-      setMode('baca');
-    });
   }
 
   return (
@@ -137,83 +95,8 @@ export function IsiButir({
         </p>
       ) : null}
 
-      {mode === 'baca' ? (
-        <BacaButir
-          kartu={kartu}
-          sibuk={sibuk}
-          bolehUbah={bolehUbah}
-          konfirmasiHapus={konfirmasiHapus}
-          onMulaiUbah={() => {
-            setDraf(kartu.deskripsi);
-            setSubpoin(kartu.subpoin);
-            setMode('ubah');
-          }}
-          onGantiStatus={(s) => void jalan('simpan', () => onSimpanStatus(s))}
-          onNaik={() => void jalan('naik', onNaik)}
-          onTurun={() => void jalan('turun', onTurun)}
-          onMintaKonfirmasiHapus={() => setKonfirmasiHapus(true)}
-          onBatalHapus={() => setKonfirmasiHapus(false)}
-          onHapus={() => void jalan('simpan', async () => { await onHapus(); onTutup(); })}
-        />
-      ) : (
-        <UbahButir
-          draf={draf}
-          setDraf={setDraf}
-          subpoin={subpoin}
-          setSubpoin={setSubpoin}
-          sibuk={sibuk}
-          kotak={kotakTeks}
-          onSimpan={() => void simpanTeks()}
-          onBatal={() => setMode('baca')}
-        />
-      )}
-    </div>
-  );
-}
-
-/** Mode baca: rincian poin + kontrol bila pengguna berizin mengubah. */
-function BacaButir({
-  kartu,
-  sibuk,
-  bolehUbah,
-  konfirmasiHapus,
-  onMulaiUbah,
-  onGantiStatus,
-  onNaik,
-  onTurun,
-  onMintaKonfirmasiHapus,
-  onBatalHapus,
-  onHapus,
-}: {
-  kartu: KartuPapan;
-  sibuk: Sibuk;
-  bolehUbah: boolean;
-  konfirmasiHapus: boolean;
-  onMulaiUbah: () => void;
-  onGantiStatus: (s: StatusPapan) => void;
-  onNaik: () => void;
-  onTurun: () => void;
-  onMintaKonfirmasiHapus: () => void;
-  onBatalHapus: () => void;
-  onHapus: () => void;
-}) {
-  return (
-    <>
       <div className="flex items-center gap-2">
         <LencanaStatus status={kartu.status} />
-        {bolehUbah ? (
-          <Button
-            id="btn_ubah_butir_papan"
-            type="button"
-            variant="ghost"
-            size="xs"
-            onClick={onMulaiUbah}
-            className="ml-auto text-muted-foreground hover:text-foreground"
-          >
-            <Pencil size={12} style={{ color: 'inherit' }} />
-            Ubah
-          </Button>
-        ) : null}
       </div>
 
       <p className="text-[13px] leading-relaxed">
@@ -222,7 +105,11 @@ function BacaButir({
 
       {bolehUbah ? (
         <div className="flex flex-col gap-2">
-          <GantiStatus status={kartu.status} sibuk={sibuk} onGanti={onGantiStatus} />
+          <GantiStatus
+            status={kartu.status}
+            sibuk={sibuk}
+            onGanti={(s) => void jalan('status', () => onSimpanStatus(s))}
+          />
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="w-14 shrink-0 text-[11px] text-muted-foreground">Urutan</span>
             <Button
@@ -231,7 +118,7 @@ function BacaButir({
               variant="outline"
               size="sm"
               disabled={sibuk === 'naik'}
-              onClick={onNaik}
+              onClick={() => void jalan('naik', onNaik)}
             >
               Naik
             </Button>
@@ -241,43 +128,10 @@ function BacaButir({
               variant="outline"
               size="sm"
               disabled={sibuk === 'turun'}
-              onClick={onTurun}
+              onClick={() => void jalan('turun', onTurun)}
             >
               Turun
             </Button>
-            {konfirmasiHapus ? (
-              <div className="ml-auto flex flex-wrap items-center gap-2 border border-destructive/30 bg-destructive/10 px-2 py-1.5">
-                <span className="text-xs">Hapus poin ini?</span>
-                <button
-                  id="btn_yakin_hapus_butir"
-                  type="button"
-                  disabled={sibuk !== ''}
-                  onClick={onHapus}
-                  className="cursor-pointer text-xs font-medium text-destructive disabled:opacity-40"
-                >
-                  Ya, hapus
-                </button>
-                <button
-                  id="btn_batal_hapus_butir"
-                  type="button"
-                  onClick={onBatalHapus}
-                  className="cursor-pointer text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Batal
-                </button>
-              </div>
-            ) : (
-              <button
-                id="btn_hapus_butir_papan"
-                type="button"
-                disabled={sibuk !== ''}
-                onClick={onMintaKonfirmasiHapus}
-                className="ml-auto flex cursor-pointer items-center gap-1 px-1.5 py-1 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
-              >
-                <Trash2 className="size-3" style={{ color: 'inherit' }} />
-                Hapus
-              </button>
-            )}
           </div>
         </div>
       ) : null}
@@ -296,94 +150,6 @@ function BacaButir({
           {kartu.statusSub} <span className="text-muted-foreground">(turunan dari poin)</span>
         </dd>
       </dl>
-    </>
-  );
-}
-
-/** Mode ubah: sunting teks poin. */
-function UbahButir({
-  draf,
-  setDraf,
-  subpoin,
-  setSubpoin,
-  kotak,
-  sibuk,
-  onSimpan,
-  onBatal,
-}: {
-  draf: string;
-  setDraf: (s: string) => void;
-  subpoin: string[];
-  setSubpoin: (s: string[]) => void;
-  sibuk: Sibuk;
-  onSimpan: () => void;
-  onBatal: () => void;
-  /** Kotak teksnya, dipakai induk untuk memfokuskan tanpa autoFocus. */
-  kotak: MutableRefObject<HTMLTextAreaElement | null>;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor="input_ubah_butir" className="text-xs text-muted-foreground">
-        Isi poin
-      </label>
-      <textarea
-        id="input_ubah_butir"
-        value={draf}
-        rows={3}
-        ref={kotak}
-        onChange={(e) => setDraf(e.target.value)}
-        className="w-full resize-y border bg-transparent p-2 text-[13px] leading-snug outline-none focus:border-[var(--accent)]"
-        style={{ borderColor: 'var(--divider)' }}
-      />
-      <span className="text-xs text-muted-foreground">Subpoin · langkah atau fitur terperinci</span>
-      {subpoin.map((isi, indeks) => (
-        <div key={indeks} className="flex items-start gap-1">
-          <textarea
-            id={`input_subpoin_${indeks}`}
-            value={isi}
-            rows={2}
-            maxLength={500}
-            aria-label={`Subpoin ${indeks + 1}`}
-            onChange={(e) => setSubpoin(subpoin.map((teks, i) => i === indeks ? e.target.value : teks))}
-            className="min-w-0 flex-1 resize-y border bg-transparent p-2 text-xs"
-            style={{ borderColor: 'var(--divider)' }}
-          />
-          <button
-            type="button"
-            aria-label={`Hapus subpoin ${indeks + 1}`}
-            onClick={() => setSubpoin(subpoin.filter((_, i) => i !== indeks))}
-            className="p-1 text-muted-foreground hover:text-destructive"
-          ><Trash2 size={13} /></button>
-        </div>
-      ))}
-      <button
-        id="btn_tambah_subpoin"
-        type="button"
-        disabled={subpoin.length >= 30}
-        onClick={() => setSubpoin([...subpoin, ''])}
-        className="self-start text-xs text-[var(--accent-readable)] disabled:opacity-40"
-      >+ Tambah subpoin</button>
-      <div className="flex items-center gap-2">
-        <Button
-          id="btn_simpan_butir_papan"
-          type="button"
-          size="sm"
-          disabled={sibuk !== '' || draf.trim() === ''}
-          onClick={onSimpan}
-        >
-          Simpan
-        </Button>
-        <Button
-          id="btn_batal_ubah_butir"
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onBatal}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Batal
-        </Button>
-      </div>
     </div>
   );
 }

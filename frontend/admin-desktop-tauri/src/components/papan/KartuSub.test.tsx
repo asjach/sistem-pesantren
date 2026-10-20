@@ -68,7 +68,7 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
   it('tiap poin tetap bisa dibuka rinciannya sendiri', () => {
     pasang([poin({ id: 1, deskripsi: 'Poin A.' }), poin({ id: 2, deskripsi: 'Poin B.' })]);
 
-    fireEvent.click(document.getElementById('btn_buka_papan_butir_2')!);
+    fireEvent.click(document.getElementById('kartu_papan_butir_2')!);
 
     const rincian = document.getElementById('rincian_butir_2');
     expect(rincian?.textContent).toContain('Poin B.');

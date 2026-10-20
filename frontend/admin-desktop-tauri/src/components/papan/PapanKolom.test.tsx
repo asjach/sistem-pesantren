@@ -64,9 +64,9 @@ describe('PapanKolom - rincian poin', () => {
     expect(document.getElementById('rincian_butir_128')).toBeNull();
   });
 
-  it('klik judul membuka rincian di dalam kartu', () => {
+  it('klik baris membuka rincian di dalam kartu', () => {
     pasang();
-    fireEvent.click(document.getElementById('btn_buka_papan_butir_128')!);
+    fireEvent.click(document.getElementById('kartu_papan_butir_128')!);
 
     const rincian = document.getElementById('rincian_butir_128');
     expect(rincian).not.toBeNull();
@@ -87,8 +87,8 @@ describe('PapanKolom - rincian poin', () => {
 
   it('rincian hanya terbuka untuk satu kartu', () => {
     pasang([kartu(), kartu({ id: 129, deskripsi: 'Rekap per kas.' })]);
-    fireEvent.click(document.getElementById('btn_buka_papan_butir_128')!);
-    fireEvent.click(document.getElementById('btn_buka_papan_butir_129')!);
+    fireEvent.click(document.getElementById('kartu_papan_butir_128')!);
+    fireEvent.click(document.getElementById('kartu_papan_butir_129')!);
 
     const rincian = document.getElementById('rincian_butir_129');
     expect(rincian?.textContent).toContain('Rekap per kas.');
