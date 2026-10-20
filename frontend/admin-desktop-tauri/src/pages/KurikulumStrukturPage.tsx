@@ -12,13 +12,22 @@ import {
   type StrukturKurikulumData, type StrukturMapel, type StrukturVarianOpsi,
 } from '@/api/kurikulum';
 
+/** Id semu baris Jumlah (id mapel selalu positif). */
+const JUMLAH_ID = -1;
+const BARIS_JUMLAH: StrukturMapel = {
+  id: JUMLAH_ID, nama_mapel: 'Jumlah', kelompok: '', urutan: 9999,
+};
+
+type Satuan = 'minggu' | 'tahun';
+
 /**
  * Struktur Kurikulum (REFERENSI) PER VARIAN jadwal: baris = mapel aktif
- * jenjang, kolom = tingkat, isi = JP per minggu HASIL HITUNG dari snapshot
- * varian terpilih. Varian dipilih lewat combobox — termasuk yang tidak aktif.
- * JP per tahun = JP/minggu × minggu efektif (minggu efektif per jenjang + TA).
+ * jenjang, kolom = tingkat, isi = JP per minggu/tahun HASIL HITUNG dari
+ * snapshot varian terpilih. Baris terakhir = jumlah per tingkat.
  *
- * Tabel baca-saja; tidak mengunci atau memvalidasi jadwal pelajaran.
+ * Varian dipilih lewat combobox — termasuk yang tidak aktif. Satuan tabel
+ * (per minggu / per tahun) juga dipilih lewat combobox. Tabel baca-saja;
+ * tidak mengunci atau memvalidasi jadwal pelajaran.
  */
 export default function KurikulumStrukturPage() {
   const { jenjangs, tahunAjaranNames } = useFilterGlobalAktif();
@@ -32,6 +41,7 @@ export default function KurikulumStrukturPage() {
   const [opsi, setOpsi] = useState<StrukturVarianOpsi[] | null>(null);
   const [varianId, setVarianId] = useState<number | null>(null);
   const [data, setData] = useState<StrukturKurikulumData | null>(null);
+  const [satuan, setSatuan] = useState<Satuan>('minggu');
   const [minggu, setMinggu] = useState(36);
   const [sel, setSel] = useState<Map<string, number>>(new Map());
   const [memuat, setMemuat] = useState(false);
@@ -136,32 +146,6 @@ export default function KurikulumStrukturPage() {
     }
   }
 
-  const fields = useMemo<ExcelField[]>(() => {
-    if (data === null) return [];
-
-    return [
-      { key: 'nama_mapel', label: 'Mata Pelajaran', kind: 'static', width: 250 },
-      ...data.tingkat.map((t) => ({
-        key: `jp_${t}`,
-        label: `Tingkat ${t} (JP/minggu)`,
-        kind: 'static' as const,
-        width: 120,
-        format: 'angka' as const,
-      })),
-    ];
-  }, [data]);
-
-  const getValues = useCallback((row: StrukturMapel): Record<string, string | null> => {
-    const hasil: Record<string, string | null> = { nama_mapel: row.nama_mapel };
-
-    for (const t of data?.tingkat ?? []) {
-      const n = sel.get(kunci(row.id, t)) ?? 0;
-      hasil[`jp_${t}`] = n === 0 ? '' : String(n);
-    }
-
-    return hasil;
-  }, [data, sel]);
-
   const totalPerTingkat = useMemo(() => {
     const peta = new Map<string, number>();
 
@@ -173,6 +157,53 @@ export default function KurikulumStrukturPage() {
 
     return peta;
   }, [data, sel]);
+
+  const nilai = useCallback(
+    (jp: number): number => (satuan === 'tahun' ? jp * minggu : jp),
+    [satuan, minggu],
+  );
+
+  const fields = useMemo<ExcelField[]>(() => {
+    if (data === null) return [];
+
+    const kelasJumlah = (rowData: { id: string | number }): string | undefined =>
+      (rowData.id === JUMLAH_ID ? 'font-semibold' : undefined);
+
+    return [
+      {
+        key: 'nama_mapel', label: 'Mata Pelajaran', kind: 'static', width: 250, cellClass: kelasJumlah,
+      },
+      ...data.tingkat.map((t) => ({
+        key: `jp_${t}`,
+        label: `Tingkat ${t} (JP/${satuan})`,
+        kind: 'static' as const,
+        width: 120,
+        format: 'angka' as const,
+        cellClass: kelasJumlah,
+      })),
+    ];
+  }, [data, satuan]);
+
+  const getValues = useCallback((row: StrukturMapel): Record<string, string | null> => {
+    const hasil: Record<string, string | null> = { nama_mapel: row.nama_mapel };
+
+    for (const t of data?.tingkat ?? []) {
+      if (row.id === JUMLAH_ID) {
+        hasil[`jp_${t}`] = String(nilai(totalPerTingkat.get(t) ?? 0));
+        continue;
+      }
+
+      const n = sel.get(kunci(row.id, t)) ?? 0;
+      hasil[`jp_${t}`] = n === 0 ? '' : String(nilai(n));
+    }
+
+    return hasil;
+  }, [data, sel, nilai, totalPerTingkat]);
+
+  const rows = useMemo(
+    () => (data === null ? [] : [...data.mapel, BARIS_JUMLAH]),
+    [data],
+  );
 
   if (!siap) {
     return (
@@ -209,6 +240,19 @@ export default function KurikulumStrukturPage() {
           </select>
         </label>
 
+        <label className="flex items-center gap-1.5" htmlFor="select_satuan_struktur">
+          <span className="text-muted-foreground">Tampilkan</span>
+          <select
+            id="select_satuan_struktur"
+            value={satuan}
+            onChange={(e) => setSatuan(e.target.value === 'tahun' ? 'tahun' : 'minggu')}
+            className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+          >
+            <option value="minggu">JP per minggu</option>
+            <option value="tahun">JP per tahun</option>
+          </select>
+        </label>
+
         {data !== null ? (
           <span
             className="border px-2 py-0.5"
@@ -220,24 +264,8 @@ export default function KurikulumStrukturPage() {
         ) : null}
 
         <p className="text-muted-foreground">
-          {jenjang} · {ta} · JP per minggu per mapel × tingkat (referensi, tidak mengunci jadwal).
+          {jenjang} · {ta} · jumlah JP per mapel × tingkat (referensi, tidak mengunci jadwal).
         </p>
-
-        {data !== null
-          ? data.tingkat.map((t) => {
-            const total = totalPerTingkat.get(t) ?? 0;
-
-            return (
-              <span
-                key={t}
-                className="border px-2 py-0.5"
-                style={{ borderColor: 'var(--divider)' }}
-              >
-                Tingkat {t}: <b>{total}</b> JP/minggu · <b>{total * minggu}</b> JP/tahun
-              </span>
-            );
-          })
-          : null}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 sm:px-6">
@@ -251,7 +279,7 @@ export default function KurikulumStrukturPage() {
             tableKey="kurikulum_struktur"
             header={data === null ? 'Struktur Kurikulum' : `Struktur Kurikulum · ${data.varian.nama}`}
             fields={fields}
-            rows={data?.mapel ?? []}
+            rows={rows}
             getValues={getValues}
             loading={memuat}
             emptyText="Belum ada mapel aktif untuk jenjang ini."

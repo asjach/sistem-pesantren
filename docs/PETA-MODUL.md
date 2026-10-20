@@ -476,6 +476,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Struktur per VARIAN jadwal; combobox memilih varian, termasuk yang tidak aktif
   - [x] Baris = mapel aktif jenjang; kolom = tingkat jenjang
   - [x] JP per minggu dihitung otomatis dari snapshot varian (terbanyak antar kelas satu tingkat); JP per tahun = JP/minggu × minggu efektif
+  - [x] Baris terakhir = jumlah per tingkat; combobox menampilkan JP per minggu atau per tahun
   - [x] Minggu efektif per jenjang + tahun ajaran; tabel baca-saja dan hanya referensi (tidak mengunci jadwal)
   - [x] Verifikasi: tes backend + frontend + typecheck; SCHEMA/ERD diselaraskan
 **Selesai (Done)**
