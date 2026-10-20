@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
-  kartuModul,
+  kemajuanButir,
   kemajuanModul,
+  kemajuanPoin,
+  kartuModul,
   kelompokkanKolom,
   kolomSebelah,
   modulDariKode,
   modulPertama,
+  persenKemajuan,
   ratakanKartu,
   ringkasanModul,
+  ringkasanPoin,
   type KartuPapan,
 } from './papan';
-import type { ModulPapan } from '@/api/papan';
+import type { ButirPapan, ModulPapan } from '@/api/papan';
 
 const modul: ModulPapan[] = [
   {
@@ -238,6 +242,76 @@ describe('kemajuanModul', () => {
   });
 });
 
+
+describe('kemajuanButir', () => {
+  const butir: ButirPapan[] = [
+    { id: 1, status: 'sedang', deskripsi: 'A.' },
+    {
+      id: 2,
+      status: 'sedang',
+      deskripsi: 'B.',
+      subpoin: [
+        { teks: 'B1.', selesai: true },
+        { teks: 'B2.', selesai: false },
+      ],
+    },
+    { id: 3, status: 'sudah', deskripsi: 'C.' },
+  ];
+
+  it('menghitung subpoin sebagai unit dan poin tanpa subpoin satu unit', () => {
+    expect(kemajuanButir(butir)).toEqual({ selesai: 2, total: 4 });
+  });
+
+  it('daftar kosong menghasilkan 0/0', () => {
+    expect(kemajuanButir([])).toEqual({ selesai: 0, total: 0 });
+  });
+
+  it('poin sudah dengan subpoin dihitung dari subpoinnya, bukan statusnya', () => {
+    const campur: ButirPapan[] = [
+      {
+        id: 9,
+        status: 'sudah',
+        deskripsi: 'Sudah.',
+        subpoin: [
+          { teks: 'x', selesai: true },
+          { teks: 'y', selesai: false },
+        ],
+      },
+    ];
+
+    expect(kemajuanButir(campur)).toEqual({ selesai: 1, total: 2 });
+  });
+});
+
+describe('kemajuanPoin', () => {
+  it('sama hasilnya dengan kemajuanButir untuk daftar poin papan', () => {
+    const poin: KartuPapan[] = ratakanKartu(modul);
+    expect(kemajuanPoin(poin)).toEqual(kemajuanButir(modul[0].sub.flatMap((s) => s.butir)));
+  });
+});
+
+describe('persenKemajuan', () => {
+  it('membulatkan ke persen bulat', () => {
+    expect(persenKemajuan({ selesai: 1, total: 3 })).toBe(33);
+    expect(persenKemajuan({ selesai: 3, total: 4 })).toBe(75);
+    expect(persenKemajuan({ selesai: 4, total: 4 })).toBe(100);
+  });
+
+  it('tanpa isi bernilai 0, bukan 100', () => {
+    expect(persenKemajuan({ selesai: 0, total: 0 })).toBe(0);
+  });
+});
+
+describe('ringkasanPoin', () => {
+  it('menghitung poin per status dari daftar poin', () => {
+    const ringkasan = ringkasanPoin(kartuModul(modul[0]));
+    expect(ringkasan).toEqual({ sudah: 1, sedang: 0, akan: 2, ditunda: 1 });
+  });
+
+  it('daftar kosong menghasilkan semua nol', () => {
+    expect(ringkasanPoin([])).toEqual({ sudah: 0, sedang: 0, akan: 0, ditunda: 0 });
+  });
+});
 
 describe('kolomSebelah', () => {
   it('menggeser ke kanan sesuai urutan tampil', () => {

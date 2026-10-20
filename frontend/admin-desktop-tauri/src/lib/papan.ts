@@ -1,5 +1,11 @@
-import type { ModulPapan, StatusPapan, SubPapan, SubpoinPapan } from '@/api/papan';
+import type { ButirPapan, ModulPapan, StatusPapan, SubPapan, SubpoinPapan } from '@/api/papan';
 import { KOLOM_PAPAN } from '@/api/papan';
+
+/** Unit kemajuan: berapa yang sudah selesai dari total unit yang bisa diselesaikan. */
+export interface Kemajuan {
+  selesai: number;
+  total: number;
+}
 
 /**
  * Satu kartu papan = satu POIN (butir).
@@ -147,43 +153,64 @@ export function hitungKolomPenuh(kartu: KartuSub[]): number {
 
 /** Jumlah POIN per status dalam satu modul, untuk lencana di tab. */
 export function ringkasanModul(modul: ModulPapan): Record<StatusPapan, number> {
-  const hasil: Record<StatusPapan, number> = { sudah: 0, sedang: 0, akan: 0, ditunda: 0 };
-  for (const s of modul.sub) {
-    for (const b of s.butir) hasil[b.status] += 1;
+  return ringkasanPoin(ratakanKartu([modul]));
+}
+
+/**
+ * Kemajuan sekumpulan poin (butir) mentah.
+ *
+ * Satu subpoin = satu unit. Poin yang tidak punya subpoin tetap dihitung
+ * satu unit dan selesai bila status poinnya `sudah`; 0/0 berarti belum
+ * ada isi, bukan berarti selesai.
+ */
+export function kemajuanButir(butir: ButirPapan[]): Kemajuan {
+  let selesai = 0;
+  let total = 0;
+
+  for (const b of butir) {
+    const subpoin = b.subpoin ?? [];
+
+    if (subpoin.length === 0) {
+      total += 1;
+      if (b.status === 'sudah') selesai += 1;
+
+      continue;
+    }
+
+    total += subpoin.length;
+    selesai += subpoin.filter((item) => item.selesai).length;
   }
-  return hasil;
+
+  return { selesai, total };
+}
+
+/** Versi kartu (poin papan) dari `kemajuanButir`, dipakai kartu & ringkasan. */
+export function kemajuanPoin(poin: KartuPapan[]): Kemajuan {
+  return kemajuanButir(poin);
+}
+
+/** Persen bulat 0-100; modul tanpa isi bernilai 0, bukan 100. */
+export function persenKemajuan({ selesai, total }: Kemajuan): number {
+  if (total <= 0) return 0;
+
+  return Math.round((selesai / total) * 100);
 }
 
 /**
  * Berapa unit yang sudah selesai dari seluruh unit sebuah modul.
  *
- * Satu subpoin = satu unit. Poin yang tidak punya subpoin tetap dihitung
- * satu unit dan selesai bila status poinnya `sudah`.
- *
- * Dipakai untuk lencana kemajuan di tab; 0/0 berarti modul itu belum
- * punya poin sama sekali (bukan berarti selesai).
+ * Dipakai untuk lencana kemajuan di tab.
  */
-export function kemajuanModul(modul: ModulPapan): { selesai: number; total: number } {
-  let selesai = 0;
-  let total = 0;
+export function kemajuanModul(modul: ModulPapan): Kemajuan {
+  return kemajuanButir(modul.sub.flatMap((s) => s.butir));
+}
 
-  for (const s of modul.sub) {
-    for (const b of s.butir) {
-      const subpoin = b.subpoin ?? [];
+/** Jumlah POIN per status dari daftar poin papan (untuk ringkasan & meter). */
+export function ringkasanPoin(poin: KartuPapan[]): Record<StatusPapan, number> {
+  const hasil: Record<StatusPapan, number> = { sudah: 0, sedang: 0, akan: 0, ditunda: 0 };
+  for (const p of poin) hasil[p.status] += 1;
 
-      if (subpoin.length === 0) {
-        total += 1;
-        if (b.status === 'sudah') selesai += 1;
-
-        continue;
-      }
-
-      total += subpoin.length;
-      selesai += subpoin.filter((item) => item.selesai).length;
-    }
-  }
-
-  return { selesai, total };
+  return hasil;
 }
 
 /** Poin satu modul saja (untuk halaman bertab per modul). */

@@ -27,8 +27,10 @@ import {
 import { bisa } from '@/api/auth';
 import { prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { kartuModul, kemajuanModul, modulPertama, type KartuPapan } from '@/lib/papan';
+import { kartuModul, kemajuanModul, modulPertama, persenKemajuan, ringkasanPoin, type KartuPapan } from '@/lib/papan';
+import { JUDUL_KOLOM, KOLOM_PAPAN } from '@/api/papan';
 import type { AksiButir, AksiSub } from '@/components/papan/PapanKolom';
+import { WARNA_STATUS as WARNA_KOLOM } from '@/components/papan/PapanKolom';
 import { KelolaSubModul } from '@/components/papan/KelolaSubModul';
 import { TambahModul } from '@/components/papan/TambahModul';
 
@@ -152,6 +154,16 @@ export default function PapanPage() {
 
     return modul.find((m) => m.kode.toUpperCase() === kodeModul.toUpperCase()) ?? null;
   }, [modul, kodeModul]);
+
+  /** Ringkasan modul aktif untuk strip di atas kolom (aman dipanggil lebih
+   *  awal supaya posisi hook tetap stabil pada semua render). */
+  const kartu = useMemo(() => (aktif ? kartuModul(aktif) : []), [aktif]);
+  const kemajuanModulAktif = useMemo(
+    () => (aktif ? kemajuanModul(aktif) : { selesai: 0, total: 0 }),
+    [aktif],
+  );
+  const persenModul = persenKemajuan(kemajuanModulAktif);
+  const ringkasModul = useMemo(() => ringkasanPoin(kartu), [kartu]);
 
   /**
    * Arahkan ke aplikasi/modul yang valid. Aplikasi yang belum punya modul
@@ -367,8 +379,6 @@ export default function PapanPage() {
     return <Navigate to={alamat} replace />;
   }
 
-  const kartu = aktif ? kartuModul(aktif) : [];
-
   return (
     <div id="papan_modul" className={cn(PAGE_SHELL, 'h-full')}>
       <Tabs
@@ -520,26 +530,36 @@ export default function PapanPage() {
                 className="flex h-full w-full flex-col items-stretch justify-start gap-0.5 overflow-y-auto border-t bg-transparent p-1 group-data-[orientation=vertical]/tabs:h-full group-data-[orientation=vertical]/tabs:w-full [&_[data-slot=tabs-indicator]]:hidden"
                 style={{ borderColor: 'var(--divider)' }}
               >
-                {modul.map((m) => (
-                  <TabsTrigger
-                    key={m.kode}
-                    id={`tab_papan_${m.kode.toLowerCase()}`}
-                    value={m.kode}
-                    className="group relative flex !h-auto w-full flex-none items-start justify-between gap-2 whitespace-normal border border-transparent px-2 py-2 text-left transition-colors before:absolute before:top-1 before:bottom-1 before:left-0 before:w-[2px] before:bg-transparent hover:bg-[var(--surface-3)] data-[state=active]:border-[color:var(--divider)] data-[state=active]:bg-[var(--surface-2)] data-[state=active]:before:bg-[var(--accent)]"
-                  >
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="font-mono text-[10px] tracking-wide text-muted-foreground">
-                        {m.kode}
+                {modul.map((m) => {
+                  const kemajuan = kemajuanModul(m);
+                  const persen = persenKemajuan(kemajuan);
+
+                  return (
+                    <TabsTrigger
+                      key={m.kode}
+                      id={`tab_papan_${m.kode.toLowerCase()}`}
+                      value={m.kode}
+                      className="group relative flex !h-auto w-full flex-none items-start justify-between gap-2 whitespace-normal border border-transparent px-2 py-2 text-left transition-colors before:absolute before:top-1 before:bottom-1 before:left-0 before:w-[2px] before:bg-transparent hover:bg-[var(--surface-3)] data-[state=active]:border-[color:var(--divider)] data-[state=active]:bg-[var(--surface-2)] data-[state=active]:before:bg-[var(--accent)]"
+                    >
+                      <span className="flex min-w-0 flex-1 flex-col gap-1">
+                        <span className="flex items-baseline gap-2">
+                          <span className="min-w-0 flex-1 font-mono text-[10px] tracking-wide text-muted-foreground">
+                            {m.kode}
+                          </span>
+                          <span className="lencana-rail shrink-0" title="Unit selesai dari total unit modul ini">
+                            {kemajuan.selesai}/{kemajuan.total}
+                          </span>
+                        </span>
+                        <span className="text-[12px] leading-snug font-medium">{m.nama}</span>
+                        {/* Meter tipis: jumlah lencana sepadan, tapi bentuknya
+                            langsung terbaca sebagai kemajuan. */}
+                        <span className="papan-meter papan-meter--tipis w-full">
+                          <span className="papan-meter__isi" style={{ width: `${persen}%` }} />
+                        </span>
                       </span>
-                      <span className="text-[12px] leading-snug font-medium">
-                        {m.nama}
-                      </span>
-                    </span>
-                    <span className="lencana-rail shrink-0" title="Subpoin selesai dari total subpoin">
-                      {kemajuanModul(m).selesai}/{kemajuanModul(m).total}
-                    </span>
-                  </TabsTrigger>
-                ))}
+                    </TabsTrigger>
+                  );
+                })}
               </TabsList>
               <button
                 id="btn_lebar_rail"
@@ -562,6 +582,64 @@ export default function PapanPage() {
             </div>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              {/* Ringkasan kemajuan modul aktif: satu baris sebelum kolom,
+                  sehingga "sudah sampai mana" terbaca tanpa menghitung kartu. */}
+              {aktif ? (
+                <div id="ringkasan_papan" aria-label={`Ringkasan modul ${aktif.kode} ${aktif.nama}`}>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="papan-ringkas-angka text-[17px]"
+                      style={{ color: persenModul >= 100 ? 'var(--success)' : 'var(--foreground)' }}
+                    >
+                      {persenModul}%
+                    </span>
+                    <span className="papan-ringkas-label">
+                      {kemajuanModulAktif.selesai} dari {kemajuanModulAktif.total} unit selesai
+                      <br />
+                      {aktif.sub.length} sub-modul · {kartu.length} poin
+                    </span>
+                  </div>
+
+                  <span
+                    className="flex h-[6px] min-w-[140px] flex-1 items-stretch overflow-hidden"
+                    style={{ background: 'color-mix(in srgb, var(--foreground) 10%, transparent)' }}
+                    aria-hidden="true"
+                  >
+                    {KOLOM_PAPAN.map((status) => {
+                      const jumlah = ringkasModul[status];
+                      if (jumlah === 0) return null;
+
+                      return (
+                        <span
+                          key={status}
+                          className="papan-meter__isi"
+                          style={{
+                            width: `${(jumlah / Math.max(kartu.length, 1)) * 100}%`,
+                            background: WARNA_KOLOM[status],
+                          }}
+                        />
+                      );
+                    })}
+                  </span>
+
+                  <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                    {KOLOM_PAPAN.map((status) => (
+                      <li key={status} className="flex items-center gap-1.5">
+                        <span
+                          aria-hidden="true"
+                          className="size-2 shrink-0"
+                          style={{ background: WARNA_KOLOM[status] }}
+                        />
+                        <span className="text-muted-foreground">{JUDUL_KOLOM[status]}</span>
+                        <span className="font-mono text-[11px] font-semibold tabular-nums">
+                          {ringkasModul[status]}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
               {galat ? (
                 <div className="pb-2">
                   <ErrorNotice className="mb-0">{galat}</ErrorNotice>

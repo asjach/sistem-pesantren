@@ -1150,3 +1150,80 @@
   background: var(--primary);
   color: var(--primary-foreground);
 }
+
+/* ---------- Papan (Board): ringkasan, rail modul, kolom, kartu ----------
+   Gaya khusus papan dikumpulkan di sini supaya PapanPage/PapanKolom tidak
+   diulang-ulang dengan utility. Semua warna memakai token yang sudah ada
+   atau `--hue-kartu` yang disetel per kartu (lihat warnaKartuSub). */
+
+/* Meter kemajuan horizontal: jalur + isi. Dipakai di ringkasan papan,
+   rail modul, kartu sub-modul, dan kepala kolom — satu bentuk, empat tempat. */
+.papan-meter {
+  display: block;
+  overflow: hidden;
+  height: 4px;
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+.papan-meter__isi {
+  display: block;
+  height: 100%;
+  background: var(--warna-meter, var(--accent));
+  transition: width var(--dur) var(--ease);
+}
+/* Meter setinggi 2px untuk tempat sempit (kepala kolom, kartu). */
+.papan-meter--tipis {
+  height: 2px;
+}
+
+/* Ringkasan di atas kolom: satu baris, angka besar + meter beragam warna
+   supaya sebaran status terbaca tanpa membuka satu kolom pun. */
+#ringkasan_papan {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--divider);
+  background: var(--surface);
+}
+#ringkasan_papan .papan-ringkas-angka {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+#ringkasan_papan .papan-ringkas-label {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+/* Kartu sub-modul: garis hue di kiri supaya satu sub-modul tetap dikenali
+   lintas kolom walau latarnya tipis. */
+.papan-kartu {
+  --hue-kartu: color-mix(in srgb, var(--foreground) 18%, var(--background));
+  border-left: 3px solid var(--hue-kartu);
+}
+.papan-kartu:hover {
+  border-left-color: var(--hue-kartu);
+}
+
+/* Kode sub-modul: cip berwarna hue, bukan kotak abu netral. */
+.papan-cip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  background: color-mix(in srgb, var(--hue-kartu) 16%, transparent);
+  color: color-mix(in srgb, var(--hue-kartu) 78%, var(--foreground));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Poin yang sudah selesai: teksnya meredup, tapi tetap bisa dibaca &
+   diseret — bukan display:none atau line-through yang sulit dibaca. */
+.papan-poin-sudah {
+  color: var(--muted-foreground);
+}

@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useState, type DragEvent } from 'react';
+import { useCallback, useMemo, useState, type DragEvent, type CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 import { Check, Minus, Pencil, Plus, Trash2, Undo2 } from '@/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { JUDUL_KOLOM, KOLOM_PAPAN, type StatusPapan, type SubPapan, type SubpoinPapan } from '@/api/papan';
-import { kelompokkanKolom, kolomSebelah, type KartuPapan, type KartuSub } from '@/lib/papan';
+import { kemajuanPoin, kolomSebelah, kelompokkanKolom, persenKemajuan, type KartuPapan, type KartuSub, type KolomPapanData } from '@/lib/papan';
 import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
 
 /**
@@ -99,9 +99,15 @@ export function GarisSisip({ id }: { id: string }) {
 /** Palet hue yang jaraknya cukup jauh agar kartu antar sub-modul mudah dibedakan. */
 const HUE_KARTU_SUB = [12, 38, 62, 95, 140, 170, 195, 220, 250, 275, 300, 330];
 
-/** Warna latar kartu per sub-modul; kode yang sama selalu menghasilkan warna
- *  yang sama sehingga kartu lintas kolom tetap dikenali sebagai satu sub-modul. */
-function warnaKartuSub(kode: string): string {
+/**
+ * Warna kartu per sub-modul; kode yang sama selalu menghasilkan warna
+ * yang sama sehingga kartu lintas kolom tetap dikenali sebagai satu sub-modul.
+ *
+ * Dikembalikan tiga muka warna: `latar` (nyaris putih ber-tint), `garis`
+ * (untuk garis kiri kartu & cip kode), dan `teks` yang kontrasnya dijamin
+ * terbaca di atas latar terang maupun gelap.
+ */
+function warnaKartuSub(kode: string): { latar: string; garis: string; teks: string } {
   let h = 2166136261;
 
   for (let i = 0; i < kode.length; i++) {
@@ -110,8 +116,13 @@ function warnaKartuSub(kode: string): string {
   }
 
   const hue = HUE_KARTU_SUB[Math.abs(h) % HUE_KARTU_SUB.length];
+  const garis = `hsl(${hue} 52% 48%)`;
 
-  return `color-mix(in srgb, hsl(${hue} 52% 48%) 12%, var(--surface))`;
+  return {
+    latar: `color-mix(in srgb, ${garis} 10%, var(--surface))`,
+    garis,
+    teks: `color-mix(in srgb, ${garis} 70%, var(--foreground))`,
+  };
 }
 
 /**
@@ -155,6 +166,11 @@ export function KartuPapan({
   onTambahPoin?: (kode: string, status: StatusPapan, deskripsi: string) => Promise<void>;
 }) {
   const idKartu = `sub_${kartu.subKode.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${kartu.status}`;
+  const warna = warnaKartuSub(kartu.subKode);
+  // Kemajuan sub-modul ini DI KOLOM INI saja (subpoin per poin), supaya
+  // kartu di kolom Akan dan kolom Sudah menunjukkan kemajuan berbeda.
+  const kemajuan = kemajuanPoin(kartu.poin);
+  const persen = persenKemajuan(kemajuan);
   const [ubahSub, setUbahSub] = useState(false);
   const [kode, setKode] = useState(kartu.subKode);
   const [nama, setNama] = useState(kartu.subNama);
@@ -199,9 +215,15 @@ export function KartuPapan({
       className={cn(
         // Border, latar, dan bayangan datang dari .kartu (index.css) supaya
         // kartu papan tidak menyimpang dari kartu lain di aplikasi.
-        'kartu flex flex-col gap-2 p-[10px_12px]',
+        'kartu papan-kartu flex flex-col gap-2 p-[10px_12px]',
       )}
-      style={{ background: warnaKartuSub(kartu.subKode) }}
+      style={
+        {
+          background: warna.latar,
+          '--hue-kartu': warna.garis,
+          '--warna-hue': warna.garis,
+        } as React.CSSProperties
+      }
     >
       <div className="flex items-start gap-2">
         {ubahSub ? (
@@ -215,7 +237,10 @@ export function KartuPapan({
             style={{ borderColor: 'var(--divider)' }}
           />
         ) : (
-          <span className="mt-px shrink-0 bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
+          <span
+            className="papan-cip mt-px shrink-0"
+            style={{ '--hue-kartu': warna.garis } as React.CSSProperties}
+          >
             {kartu.subKode}
           </span>
         )}
@@ -306,8 +331,8 @@ export function KartuPapan({
         ) : (
           /* Jumlah poin di kolom ini; berguna saat poinnya panjang-panjang. */
           <span
-            className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center border px-1 font-mono text-[10px] text-muted-foreground tabular-nums"
-            style={{ borderColor: 'var(--divider)' }}
+            className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center border px-1 font-mono text-[10px] tabular-nums"
+            style={{ borderColor: `color-mix(in srgb, ${warna.garis} 35%, var(--divider))`, color: warna.teks }}
             title={`${kartu.poin.length} poin di kolom ini`}
           >
             {kartu.poin.length}
@@ -320,6 +345,23 @@ export function KartuPapan({
       {tampilkanModul ? (
         <div className="flex flex-wrap gap-1">
           <Lencana label={kartu.modulNama} warna="var(--accent)" />
+        </div>
+      ) : null}
+
+      {/* Meter kemajuan sub-modul DI KOLOM INI: satu sub-modul boleh separuh
+          selesai, jadi kolom Akan dan kolom Sudah menampilkan angka berbeda. */}
+      {kemajuan.total > 0 ? (
+        <div className="flex items-center gap-2">
+          <span
+            className="papan-meter papan-meter--tipis min-w-0 flex-1"
+            style={{ '--warna-meter': warna.garis } as React.CSSProperties}
+            title={`${kemajuan.selesai} dari ${kemajuan.total} unit selesai`}
+          >
+            <span className="papan-meter__isi" style={{ width: `${persen}%` }} />
+          </span>
+          <span className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums">
+            {kemajuan.selesai}/{kemajuan.total}
+          </span>
         </div>
       ) : null}
 
@@ -701,7 +743,14 @@ function BarisPoin({
             {galat ? <p role="alert" className="text-[11px] text-destructive">{galat}</p> : null}
           </div>
         ) : (
-          <div className="min-w-0 flex-1 text-[12px] leading-snug [overflow-wrap:anywhere]">
+          <div
+            className={cn(
+              'min-w-0 flex-1 text-[12px] leading-snug [overflow-wrap:anywhere]',
+              // Poin di kolom Sudah diredupkan, bukan disembunyikan: isinya
+              // masih sering perlu dibaca (apa yang sudah dikerjakan).
+              poin.status === 'sudah' && 'papan-poin-sudah',
+            )}
+          >
             <TeksButir deskripsi={poin.deskripsi} />
             {poin.subpoin.length > 0 ? (
               <ul className="mt-1 flex flex-col gap-0.5 text-[11px] text-muted-foreground">
@@ -799,6 +848,17 @@ export function PapanKolom({
     }
     return hasil;
   }, [kartu, subKosong]);
+
+  /** Jumlah POIN di satu kolom (kartu di sana bisa satu sub-modul banyak poin). */
+  const jumlahPoinKolom = (item: KolomPapanData): number =>
+    item.kartu.reduce((n, k) => n + k.poin.length, 0);
+
+  /** Porsi poin kolom ini dari seluruh poin papan, bulat 0-100. */
+  const porsiKolom = (item: KolomPapanData): number => {
+    if (kartu.length === 0) return 0;
+
+    return Math.round((jumlahPoinKolom(item) / kartu.length) * 100);
+  };
 
   const jungkitLipat = useCallback((id: StatusPapan) => {
     setLipat((prev) => {
@@ -932,12 +992,17 @@ export function PapanKolom({
                   className="flex w-full flex-1 cursor-pointer flex-col items-center gap-2 pt-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
                 >
                   <Plus size={13} style={{ color: 'inherit' }} />
-                  <span className="[writing-mode:vertical-rl]">{item.judul} · {item.kartu.length}</span>
+                  <span className="[writing-mode:vertical-rl]">{item.judul} · {jumlahPoinKolom(item)}</span>
                 </button>
               ) : (
                 <>
                   <header className="flex items-center gap-2 pt-[10px] pr-2 pb-2 pl-3">
                     <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="size-2 shrink-0"
+                        style={{ background: WARNA_STATUS[item.id] }}
+                      />
                       <h2
                         className="truncate text-[12.5px] leading-snug font-semibold"
                         style={{ color: 'var(--foreground)' }}
@@ -945,11 +1010,14 @@ export function PapanKolom({
                         {item.judul}
                       </h2>
                       <span
-                        className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center border px-1 font-mono text-[10px] font-medium text-muted-foreground tabular-nums"
-                        style={{ borderColor: 'var(--divider)' }}
-                        title={`${item.kartu.length} kartu`}
+                        className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center border px-1 font-mono text-[10px] font-medium tabular-nums"
+                        style={{
+                          borderColor: `color-mix(in srgb, ${WARNA_STATUS[item.id]} 35%, var(--divider))`,
+                          color: WARNA_STATUS[item.id],
+                        }}
+                        title={`${jumlahPoinKolom(item)} poin`}
                       >
-                        {item.kartu.length}
+                        {jumlahPoinKolom(item)}
                       </span>
                     </div>
                     {bolehUbah && onTambahSub && (item.id === 'akan' || item.id === 'sedang') ? (
@@ -975,6 +1043,22 @@ export function PapanKolom({
                       <Minus size={13} style={{ color: 'inherit' }} />
                     </button>
                   </header>
+
+                  {/* Sebaran poin kolom ini terhadap seluruh poin modul.
+                      Angka mentah "12" tidak pernah terlihat seperti sebaran;
+                      meter 2px di bawah kepala kolom membuatnya terbaca. */}
+                  <div className="px-3 pb-2">
+                    <span
+                      className="papan-meter papan-meter--tipis w-full"
+                      style={{ '--warna-meter': WARNA_STATUS[item.id] } as CSSProperties}
+                      aria-hidden="true"
+                    >
+                      <span
+                        className="papan-meter__isi"
+                        style={{ width: `${porsiKolom(item)}%` }}
+                      />
+                    </span>
+                  </div>
 
                   <div className="flex min-h-[60px] flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
                     {item.kartu.length === 0 ? (
