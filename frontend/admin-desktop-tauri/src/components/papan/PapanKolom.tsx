@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState, type DragEvent } from 'react';
 import { cn } from '@/lib/utils';
-import { Check, History, Minus, Pencil, Plus, Trash2, Undo2 } from '@/icons';
+import { Check, Minus, Pencil, Plus, Trash2, Undo2 } from '@/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { JUDUL_KOLOM, KOLOM_PAPAN, type RiwayatPapan, type StatusPapan, type SubPapan, type SubpoinPapan } from '@/api/papan';
+import { JUDUL_KOLOM, KOLOM_PAPAN, type StatusPapan, type SubPapan, type SubpoinPapan } from '@/api/papan';
 import { kelompokkanKolom, kolomSebelah, type KartuPapan, type KartuSub } from '@/lib/papan';
 import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
 
@@ -559,22 +559,22 @@ function BarisPoin({
       >
         {ubah ? (
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <textarea
-              id={`input_ubah_butir_${poin.id}`}
-              value={draf}
-              rows={2}
-              aria-label={`Isi poin ${poin.deskripsi}`}
-              onChange={(e) => setDraf(e.target.value)}
-              className="w-full resize-y border bg-transparent p-1.5 text-[12px] leading-snug outline-none focus:border-[var(--accent)]"
-              style={{ borderColor: 'var(--divider)' }}
-            />
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start">
+              <textarea
+                id={`input_ubah_butir_${poin.id}`}
+                value={draf}
+                rows={2}
+                aria-label={`Isi poin ${poin.deskripsi}`}
+                onChange={(e) => setDraf(e.target.value)}
+                className="min-w-0 flex-1 resize-y border bg-transparent p-1.5 text-[12px] leading-snug outline-none focus:border-[var(--accent)]"
+                style={{ borderColor: 'var(--divider)' }}
+              />
               <select
                 id={`status_butir_${poin.id}`}
                 value={statusDraf}
                 onChange={(e) => setStatusDraf(e.target.value as StatusPapan)}
                 aria-label={`Status poin ${poin.deskripsi}`}
-                className="border bg-transparent px-1.5 py-1 text-[11px]"
+                className="self-start border bg-transparent px-1.5 py-1 text-[11px] sm:shrink-0"
                 style={{ borderColor: 'var(--divider)' }}
               >
                 {KOLOM_PAPAN.map((status) => (
@@ -587,6 +587,8 @@ function BarisPoin({
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
                 id={`btn_tambah_subpoin_${poin.id}`}
                 type="button"
@@ -734,7 +736,6 @@ export function PapanKolom({
   aksiSub,
   onTambahPoin,
   subKosong = [],
-  riwayat,
   idAwalan,
   lipatAwal,
   onTambahSub,
@@ -749,8 +750,6 @@ export function PapanKolom({
   aksiSub?: (kartu: KartuSub) => AksiSub;
   onTambahPoin?: (kode: string, status: StatusPapan, deskripsi: string) => Promise<void>;
   subKosong?: SubPapan[];
-  /** Riwayat ringkas yang ditampilkan di toolbar (kosong = tidak tampil). */
-  riwayat?: RiwayatPapan[];
   /** Awalan id elemen supaya beberapa papan di satu halaman tidak bertabrakan. */
   idAwalan?: string;
   /** Status kolom yang mulai terlipat; bawaan kosong (semua terbuka). */
@@ -870,38 +869,6 @@ export function PapanKolom({
       <div id={`status_${awalan}`} role="status" aria-live="polite" className="sr-only">
         {pengumuman}
       </div>
-
-      {riwayat && riwayat.length > 0 ? (
-        <div className="flex items-center gap-3 px-3 pb-2 sm:px-6">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span
-              className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground"
-              title="Aktivitas papan"
-            >
-              <History size={12} style={{ color: 'inherit' }} />
-              <span className="hidden sm:inline">Aktivitas papan</span>
-            </span>
-            <ul
-              aria-label="Aktivitas terakhir di papan"
-              className="scroll-tanpa-bar flex min-w-0 items-center gap-3 overflow-x-auto text-[11px] text-muted-foreground"
-            >
-              {riwayat.slice(0, 6).map((r, i) => (
-                <li
-                  key={`${r.kode}-${r.waktu}-${i}`}
-                  className="flex shrink-0 items-center gap-1 whitespace-nowrap tabular-nums"
-                  title={r.waktu}
-                >
-                  <span className="font-mono text-[10px] font-semibold text-foreground/75">{r.kode}</span>
-                  <span>{r.dari ?? '-'}</span>
-                  <span aria-hidden="true" className="text-muted-foreground/50">→</span>
-                  <span>{r.ke}</span>
-                  <span className="hidden text-[10px] opacity-60 sm:inline">{r.waktu}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ) : null}
 
       <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto overscroll-x-contain px-3 pb-4 sm:px-6 sm:pb-6">
         {kolom.map((item) => {

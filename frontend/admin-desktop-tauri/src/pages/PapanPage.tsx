@@ -4,9 +4,10 @@ import { cn } from '@/lib/utils';
 import { ErrorNotice, PAGE_SHELL } from '@/components/PageHeader';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { PapanKolom } from '@/components/papan/PapanKolom';
-import { Columns3, Loader2, RefreshCcw } from '@/icons';
+import { Columns3, History, Loader2, RefreshCcw } from '@/icons';
 import {
   hapusButirPapan,
   muatPapan,
@@ -250,32 +251,74 @@ export default function PapanPage() {
           onValueChange={(k) => navigate(`/board/${k}`)}
           className="min-h-0 flex-1 gap-0"
         >
-          <TabsList
-            className={KELAS_LIST_TAB}
-            indikator="primer"
-            // Daftar tab yang lebih lebar dari layar harus mulai dari kiri.
-            // justify-center bawaan memotong tab awal saat wadah bergulir.
-            style={{ justifyContent: 'flex-start' }}
-          >
-            {modul.map((m) => (
-              <TabsTrigger
-                key={m.kode}
-                id={`tab_papan_${m.kode.toLowerCase()}`}
-                value={m.kode}
-                className={KELAS_TRIGGER}
+          <div className="flex items-center gap-2 px-3 sm:px-6">
+            <div className="min-w-0 flex-1">
+              <TabsList
+                className={KELAS_LIST_TAB}
+                indikator="primer"
+                // Daftar tab yang lebih lebar dari layar harus mulai dari kiri.
+                // justify-center bawaan memotong tab awal saat wadah bergulir.
+                style={{ justifyContent: 'flex-start' }}
               >
-                {m.kode}. {m.nama}
-                {/* Lencana = kemajuan POIN (selesai/total), bukan jumlah
-                    sub-modul: sejak yang bergerak adalah poin, angka sub-modul
-                    tidak lagi menggambarkan kemajuan. Warna diatur di
-                    index.css (.lencana-tab-papan) supaya bisa dibalik saat tab
-                    aktif — lihat catatan di sana. */}
-                <span className="lencana-tab-papan" title="Poin selesai dari total poin">
-                  {kemajuanModul(m).selesai}/{kemajuanModul(m).total}
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+                {modul.map((m) => (
+                  <TabsTrigger
+                    key={m.kode}
+                    id={`tab_papan_${m.kode.toLowerCase()}`}
+                    value={m.kode}
+                    className={KELAS_TRIGGER}
+                  >
+                    {m.kode}. {m.nama}
+                    {/* Lencana = kemajuan unit (subpoin selesai/total); poin
+                        tanpa subpoin tetap satu unit. Warna diatur di
+                        index.css (.lencana-tab-papan) supaya bisa dibalik saat
+                        tab aktif — lihat catatan di sana. */}
+                    <span className="lencana-tab-papan" title="Subpoin selesai dari total subpoin">
+                      {kemajuanModul(m).selesai}/{kemajuanModul(m).total}
+                    </span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+            {riwayat.length > 0 ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="btn_riwayat_papan"
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Aktivitas papan"
+                    title="Aktivitas papan"
+                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <History size={14} />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 max-w-[calc(100vw-1.5rem)] border border-foreground/30 p-2">
+                  <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                    <History size={12} />
+                    Aktivitas papan
+                  </p>
+                  <ul aria-label="Aktivitas terakhir di papan" className="flex max-h-64 flex-col gap-1 overflow-y-auto text-[11px]">
+                    {riwayat.map((r, i) => (
+                      <li
+                        key={`${r.kode}-${r.waktu}-${i}`}
+                        className="flex items-center gap-1.5 border-b pb-1 last:border-0"
+                        style={{ borderColor: 'var(--divider)' }}
+                        title={r.waktu}
+                      >
+                        <span className="font-mono text-[10px] font-semibold text-foreground/75">{r.kode}</span>
+                        <span>{r.dari ?? '-'}</span>
+                        <span aria-hidden="true" className="text-muted-foreground/50">→</span>
+                        <span>{r.ke}</span>
+                        <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{r.waktu}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            ) : null}
+          </div>
 
           {galat ? (
             <div className="px-3 pt-2 sm:px-6">
@@ -294,7 +337,6 @@ export default function PapanPage() {
               aksiSub={aksiSub}
               onTambahPoin={tambahPoin}
               subKosong={aktif.sub.filter((s) => s.butir.length === 0)}
-              riwayat={riwayat}
               idAwalan={`modul_${aktif.kode.toLowerCase()}`}
               lipatAwal={KOLOM_TERTUTUP_AWAL}
               onTambahSub={bolehUbah ? () => setKelolaTerbuka(true) : undefined}
