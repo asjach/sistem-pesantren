@@ -96,6 +96,37 @@ export interface LegerResp {
   total: number; per_page: number; current_page: number; last_page: number;
 }
 
+export type ModeUrutanNomorPeserta = 'per_tingkat' | 'semua_tingkat';
+export type SumberNomorPeserta = 'manual' | 'otomatis' | null;
+
+export interface TokenNomorPeserta {
+  token: string;
+  label: string;
+  contoh: string;
+}
+
+export interface BarisPesertaPeristiwa {
+  santri_id: number;
+  nama: string;
+  jk: string | null;
+  foto_url: string | null;
+  nis_lokal: string | null;
+  kelas_id: number | null;
+  kelas: string | null;
+  tingkat: string | null;
+  no_absen: number | null;
+  nomor_peserta: string | null;
+  sumber_nomor: SumberNomorPeserta;
+}
+
+export interface PesertaPeristiwaResp {
+  peristiwa: PeristiwaNilai;
+  pengaturan: { template: string; mode_urutan: ModeUrutanNomorPeserta };
+  token: TokenNomorPeserta[];
+  peserta: BarisPesertaPeristiwa[];
+  ringkasan: { total: number; belum_bernomor: number; manual: number; otomatis: number };
+}
+
 export interface RaporMapel {
   nama_mapel: string; guru: string | null; nilai_akhir: number | null;
   predikat: string | null; terbilang: string; sumber: string | null;
@@ -290,6 +321,47 @@ export function legerNilai(params: {
   if (params.page) q.set('page', String(params.page));
   if (params.per_page) q.set('per_page', params.per_page);
   return api<LegerResp>(`/admin/penilaian/leger?${q.toString()}`);
+}
+
+export function daftarPesertaPeristiwa(params: {
+  peristiwa_id: number; semester: string;
+  tingkat?: ScalarOrArray<string>; kelas_id?: ScalarOrArray<number>; q?: string;
+}) {
+  const q = new URLSearchParams();
+  q.set('peristiwa_id', String(params.peristiwa_id));
+  q.set('semester', params.semester);
+  appendQueryParam(q, 'tingkat', params.tingkat);
+  appendQueryParam(q, 'kelas_id', params.kelas_id);
+  if (params.q) q.set('q', params.q);
+  return api<PesertaPeristiwaResp>(`/admin/penilaian/peserta-kartu?${q.toString()}`);
+}
+
+export function simpanPengaturanNomorPeserta(data: {
+  peristiwa_id: number; semester: string; template: string; mode_urutan: ModeUrutanNomorPeserta;
+}) {
+  return api<{ pesan: string }>('/admin/penilaian/peserta-kartu/pengaturan', {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+}
+
+export function ubahNomorPeserta(santriId: number, data: {
+  peristiwa_id: number; semester: string; nomor_peserta: string | null;
+}) {
+  return api<{ pesan: string }>(`/admin/penilaian/peserta-kartu/${santriId}`, {
+    method: 'PUT', body: JSON.stringify(data),
+  });
+}
+
+export function generateNomorPeserta(data: {
+  peristiwa_id: number; semester: string; template: string;
+  mode_urutan: ModeUrutanNomorPeserta; buat_ulang_otomatis?: boolean;
+}) {
+  return api<{
+    pesan: string;
+    hasil: { dibuat: number; dipertahankan_manual: number; dipertahankan_otomatis: number; total_peserta: number };
+  }>('/admin/penilaian/peserta-kartu/generate', {
+    method: 'POST', body: JSON.stringify(data),
+  });
 }
 
 export function unduhLeger(params: {

@@ -36,13 +36,16 @@ describe('konfigurasiFilterHalaman', () => {
     expect(master.filter).toEqual(['lembaga', 'tahun_ajaran']);
     expect(master.tampil).toMatchObject({ lembaga: true, tahun_ajaran: true, semester: false });
 
-    for (const key of ['penilaian_leger', 'penilaian_rapor']) {
+    for (const key of ['penilaian_leger', 'penilaian_kartu_peserta', 'penilaian_rapor']) {
       const k = konfigurasiFilterHalaman(key);
       expect(k.filter).toContain('semester');
       expect(k.filter).toContain('tingkat');
       expect(k.filter).toContain('kelas');
       expect(k.tampil).toMatchObject({ lembaga: true, tahun_ajaran: true, semester: true, tingkat: true, kelas: true });
     }
+
+    const kartu = konfigurasiFilterHalaman('penilaian_kartu_peserta');
+    expect(kartu.mode).toMatchObject({ tingkat: 'multiple', kelas: 'multiple' });
 
     const impor = konfigurasiFilterHalaman('penilaian_impor');
     expect(impor.filter).toContain('semester');

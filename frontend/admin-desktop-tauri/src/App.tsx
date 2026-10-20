@@ -51,6 +51,7 @@ const DispensasiPage = lazy(() => import('./pages/DispensasiPage'));
 const PenilaianMasterPage = lazy(() => import('./pages/PenilaianMasterPage'));
 const PenilaianImporPage = lazy(() => import('./pages/PenilaianImporPage'));
 const PenilaianLegerPage = lazy(() => import('./pages/PenilaianLegerPage'));
+const PenilaianKartuPesertaPage = lazy(() => import('./pages/PenilaianKartuPesertaPage'));
 const PenilaianRaporPage = lazy(() => import('./pages/PenilaianRaporPage'));
 const KurikulumMapelPage = lazy(() => import('./pages/KurikulumMapelPage'));
 const KurikulumPengampuPage = lazy(() => import('./pages/KurikulumPengampuPage'));
@@ -191,6 +192,7 @@ export default function App() {
                       <Route path="/penilaian/master" element={<KhususIzin izin="penilaian.lihat"><PenilaianMasterPage /></KhususIzin>} />
                       <Route path="/penilaian/impor" element={<KhususIzin izin="penilaian.lihat"><PenilaianImporPage /></KhususIzin>} />
                       <Route path="/penilaian/leger" element={<KhususIzin izin="penilaian.lihat"><PenilaianLegerPage /></KhususIzin>} />
+                      <Route path="/penilaian/kartu-peserta" element={<KhususIzin izin="penilaian.lihat"><PenilaianKartuPesertaPage /></KhususIzin>} />
                       <Route path="/penilaian/rapor" element={<KhususIzin izin="penilaian.lihat"><PenilaianRaporPage /></KhususIzin>} />
 
                       <Route path="/kurikulum/mapel" element={<KhususIzin izin="kurikulum.lihat"><KurikulumMapelPage /></KhususIzin>} />

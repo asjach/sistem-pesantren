@@ -106,6 +106,12 @@ export const KONFIGURASI_FILTER_HALAMAN = {
 
   penilaian_leger: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
 
+  penilaian_kartu_peserta: buatKonfigurasi(
+    FILTER_SEMUA,
+    { tingkat: true, kelas: true },
+    { tingkat: 'multiple', kelas: 'multiple' },
+  ),
+
   penilaian_rapor: buatKonfigurasi(FILTER_SEMUA, { tingkat: true, kelas: true }),
 
   kurikulum_mapel: buatKonfigurasi(['lembaga']),

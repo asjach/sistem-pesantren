@@ -521,6 +521,21 @@ erDiagram
         string tahun_ajaran FK
         string kode
     }
+    PENGATURAN_NOMOR_PESERTA {
+        bigint id PK
+        bigint peristiwa_id FK
+        string semester
+        string template
+        string mode_urutan
+    }
+    PESERTA_PERISTIWA_NILAI {
+        bigint id PK
+        bigint peristiwa_id FK
+        bigint santri_id FK
+        string semester
+        string nomor_peserta
+        string sumber_nomor
+    }
     KOMPONEN_NILAI {
         bigint id PK
         bigint peristiwa_id FK
@@ -578,6 +593,9 @@ erDiagram
 
     LEMBAGA ||--o{ PERISTIWA_NILAI : "memiliki peristiwa"
     TAHUN_AJARAN ||--o{ PERISTIWA_NILAI : "mencakup"
+    PERISTIWA_NILAI ||--o{ PENGATURAN_NOMOR_PESERTA : "memiliki pola nomor"
+    PERISTIWA_NILAI ||--o{ PESERTA_PERISTIWA_NILAI : "memiliki peserta"
+    SANTRI ||--o{ PESERTA_PERISTIWA_NILAI : "memiliki nomor peserta"
     PERISTIWA_NILAI ||--o{ KOMPONEN_NILAI : "memiliki komponen"
     PERISTIWA_NILAI o|--o{ KOMPONEN_NILAI : "menjadi sumber komponen"
     PERISTIWA_NILAI ||--o{ KKM_KEGIATAN : "memiliki KKM"

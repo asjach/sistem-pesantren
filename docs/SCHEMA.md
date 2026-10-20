@@ -931,6 +931,26 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `tahun_ajaran`, `kode`, `uq_peristiwa_nilai`)
 
+### `pengaturan_nomor_peserta` (pola nomor per peristiwa + semester)
+- `id` PK
+- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `semester`: string(2) — '1' atau '2'
+- `template`: varchar(200) — pola dengan bagian dinamis (token), mis. `{ta_awal_2}.{ta_akhir_2}.{kode_peristiwa}.{tingkat_2}.{nomor_4}`
+- `mode_urutan`: enum('per_tingkat','semua_tingkat') [default 'per_tingkat'] — nomor dimulai kembali pada setiap tingkat atau bersambung untuk seluruh tingkat
+- `created_at`, `updated_at`
+- UNIQUE(`peristiwa_id`, `semester`, `uq_atur_nomor_peristiwa_semester`)
+
+### `peserta_peristiwa_nilai` (nomor peserta per peristiwa + semester)
+- `id` PK
+- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `santri_id`: FK → santri [cascade]
+- `semester`: string(2) — '1' atau '2'
+- `nomor_peserta`: varchar(100) [null] — boleh kosong, diisi manual, atau dibuat dari pola
+- `sumber_nomor`: enum('manual','otomatis') [null] — nomor manual tidak ditimpa saat pembuatan ulang nomor otomatis
+- `created_at`, `updated_at`
+- UNIQUE(`peristiwa_id`, `semester`, `santri_id`, `uq_peserta_peristiwa_semester`)
+- UNIQUE(`peristiwa_id`, `semester`, `nomor_peserta`, `uq_nomor_peristiwa_semester`)
+
 ### `komponen_nilai` (komponen MILIK SATU peristiwa; bobot jadi kolom)
 - `id` PK
 - `peristiwa_id`: FK → peristiwa_nilai [cascade]

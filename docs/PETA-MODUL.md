@@ -570,12 +570,24 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **Belum dijadwalkan (Backlog)**
 - (kosong)
 **Siap dikerjakan (To Do)**
-- cetak kartu peserta peristiwa
-- ukuran (tinggi dan lebar) bisa dicustom
+- Perancang desain, ukuran, dan cetak kartu peserta
+  - [ ] Tersedia beberapa desain bawaan dan desain buatan pengguna
+  - [ ] Gambar latar, data dinamis, dan teks tetap dapat dipilih
+  - [ ] Elemen dapat dipindahkan dan diatur pada bidang desain
+  - [ ] Foto kosong memakai siluet sesuai jenis kelamin
+  - [ ] Ukuran tersimpan per peristiwa dan lembaga
+  - [ ] Peserta terpilih atau seluruh peserta dapat dicetak ke A4/PDF
 **Sedang dikerjakan (In Progress)**
 - (kosong)
 **Menunggu peninjauan (For Review)**
-- (kosong)
+- Pengelolaan nomor peserta peristiwa
+  - [x] Peserta mengikuti cakupan peristiwa, semester, tingkat, dan kelas
+  - [x] Nomor peserta boleh kosong atau diisi manual, unik, dan asalnya tercatat
+  - [x] Penyusun pola nomor memakai token dengan contoh hasil langsung
+  - [x] Urutan dapat direset per tingkat atau disambung untuk seluruh tingkat
+  - [x] Pembuatan nomor hanya mengisi yang kosong dan tidak menimpa nomor manual
+  - [x] Pembuatan ulang nomor otomatis bersifat eksplisit dan nomor tetap tersimpan saat dibuka kembali
+  - [x] Perubahan struktur data, dokumentasi, dan pemeriksaan terkait terselaraskan
 **Selesai (Done)**
 - (kosong)
 
