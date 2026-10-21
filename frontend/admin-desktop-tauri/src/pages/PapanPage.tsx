@@ -27,7 +27,7 @@ import {
 import { bisa } from '@/api/auth';
 import { prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { kartuModul, kemajuanModul, modulAdaTinjauan, modulPertama, persenKemajuan, ringkasanPoin, type KartuPapan } from '@/lib/papan';
+import { kartuModul, kemajuanModul, modulPertama, persenKemajuan, ringkasanPoin, type KartuPapan } from '@/lib/papan';
 import { JUDUL_KOLOM, KOLOM_PAPAN } from '@/api/papan';
 import type { AksiButir, AksiSub } from '@/components/papan/PapanKolom';
 import { WARNA_STATUS as WARNA_KOLOM } from '@/components/papan/PapanKolom';
@@ -536,15 +536,13 @@ export default function PapanPage() {
                 {modul.map((m) => {
                   const kemajuan = kemajuanModul(m);
                   const persen = persenKemajuan(kemajuan);
-                  const adaTinjauan = modulAdaTinjauan(m);
+                  const jumlahTinjauan = ringkasanPoin(kartuModul(m)).for_review;
 
                   return (
                     <TabsTrigger
                       key={m.kode}
                       id={`tab_papan_${m.kode.toLowerCase()}`}
                       value={m.kode}
-                      data-tinjau={adaTinjauan ? 'ya' : undefined}
-                      title={adaTinjauan ? 'Ada poin menunggu peninjauan' : undefined}
                       className="group relative flex !h-auto w-full flex-none items-start justify-between gap-2 whitespace-normal border border-transparent px-2 py-2 text-left transition-colors before:absolute before:top-1 before:bottom-1 before:left-0 before:w-[2px] before:bg-transparent hover:bg-[var(--surface-3)] data-[state=active]:border-[color:var(--divider)] data-[state=active]:bg-[var(--surface-2)] data-[state=active]:before:bg-[var(--accent)]"
                     >
                       <span className="flex min-w-0 flex-1 flex-col gap-1">
@@ -552,9 +550,14 @@ export default function PapanPage() {
                           <span className="min-w-0 flex-1 font-mono text-[10px] tracking-wide text-muted-foreground">
                             {m.kode}
                           </span>
-                          <span className="lencana-rail shrink-0" title="Unit selesai dari total unit modul ini">
-                            {kemajuan.selesai}/{kemajuan.total}
-                          </span>
+                          {jumlahTinjauan > 0 ? (
+                            <span
+                              className="lencana-rail shrink-0"
+                              title={`${jumlahTinjauan} poin For Review`}
+                            >
+                              {jumlahTinjauan}
+                            </span>
+                          ) : null}
                         </span>
                         <span className="text-[12px] leading-snug font-medium">{m.nama}</span>
                         {/* Meter tipis: jumlah lencana sepadan, tapi bentuknya

@@ -1067,6 +1067,12 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] PETA-MODUL dan keluaran perintah Board memakai istilah teknis yang sama
   - [x] Pesan validasi dan bantuan perintah tidak lagi memakai label penjelas status
   - [x] Pemeriksaan: tes backend Board, tes komponen Board, dan typecheck hijau
+- Rail modul menandai For Review dengan jumlah poin
+  - [x] Rail modul tidak lagi menampilkan angka selesai/total
+  - [x] Modul yang punya poin For Review menampilkan jumlah poin For Review di rail
+  - [x] Latar khusus For Review pada rail dihapus; penandanya hanya angka tersebut
+  - [x] Lencana memakai latar primary dan warnanya tetap sama saat rail dipilih maupun tidak dipilih
+  - [x] Pemeriksaan: typecheck dan tes komponen Board hijau
 **Done**
 - Kolom status tanpa sub-modul terlipat saat Board dibuka
   - [x] Kolom tanpa sub-modul tertutup saat halaman Board dibuka
