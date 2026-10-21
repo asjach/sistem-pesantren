@@ -1,32 +1,23 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
+import { errorMessage } from '@/api/client';
+import { muatNavigasiTersembunyi, simpanNavigasiTersembunyi } from '@/api/navigasi';
 import { semuaKunciNavigasi } from '@/lib/halaman';
 
-const KUNCI_SIMPAN = 'simpes_navigasi_tersembunyi';
-
-function baca(): Set<string> {
-  try {
-    const mentah = localStorage.getItem(KUNCI_SIMPAN);
-    if (!mentah) return new Set();
-    const daftar: unknown = JSON.parse(mentah);
-    if (!Array.isArray(daftar)) return new Set();
-    const valid = semuaKunciNavigasi();
-
-    return new Set(daftar.filter((k): k is string => typeof k === 'string' && valid.has(k)));
-  } catch {
-    return new Set();
+function samaSet(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const k of a) {
+    if (!b.has(k)) return false;
   }
-}
 
-function tulis(nilai: Set<string>) {
-  try {
-    localStorage.setItem(KUNCI_SIMPAN, JSON.stringify([...nilai]));
-  } catch {
-    // Preferensi tampilan: gagal menyimpan tidak boleh menghentikan UI.
-  }
+  return true;
 }
 
 interface NavigasiVisibilitas {
   tersembunyi: ReadonlySet<string>;
+  globalTersembunyi: ReadonlySet<string>;
+  mode: 'global' | 'pribadi';
+  memuat: boolean;
   jungkit: (kunci: string) => void;
   atur: (kunci: string[], terlihat: boolean) => void;
   reset: () => void;
@@ -35,42 +26,127 @@ interface NavigasiVisibilitas {
 const Ctx = createContext<NavigasiVisibilitas | null>(null);
 const FALLBACK: NavigasiVisibilitas = {
   tersembunyi: new Set(),
+  globalTersembunyi: new Set(),
+  mode: 'global',
+  memuat: false,
   jungkit: () => {},
   atur: () => {},
   reset: () => {},
 };
 
-/** Visibilitas entri navigasi (grup/sub/halaman/tab) per perangkat. */
+/** Visibilitas navigasi global (super_admin) + pilihan pribadi admin. */
 export function NavigasiVisibilitasProvider({ children }: { children: ReactNode }) {
-  const [tersembunyi, setTersembunyi] = useState<Set<string>>(baca);
+  const [globalSet, setGlobalSet] = useState<Set<string>>(new Set());
+  const [pribadiSet, setPribadiSet] = useState<Set<string>>(new Set());
+  const [mode, setMode] = useState<'global' | 'pribadi'>('global');
+  const [memuat, setMemuat] = useState(true);
+  const globalRef = useRef(globalSet);
+  const pribadiRef = useRef(pribadiSet);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
-  const ubah = useCallback((fn: (sebelum: Set<string>) => Set<string>) => {
-    setTersembunyi((sebelum) => {
-      const sesudah = fn(new Set(sebelum));
-      tulis(sesudah);
+  useEffect(() => {
+    let hidup = true;
+    muatNavigasiTersembunyi()
+      .then((res) => {
+        if (!hidup) return;
+        const valid = semuaKunciNavigasi();
+        const g = new Set(res.global_tersembunyi.filter((k) => valid.has(k)));
+        const p = new Set(res.pribadi_tersembunyi.filter((k) => valid.has(k)));
+        globalRef.current = g;
+        pribadiRef.current = p;
+        setGlobalSet(g);
+        setPribadiSet(p);
+        setMode(res.mode);
+      })
+      .catch(() => {})
+      .finally(() => { if (hidup) setMemuat(false); });
 
-      return sesudah;
-    });
+    return () => { hidup = false; };
   }, []);
 
-  const value = useMemo<NavigasiVisibilitas>(() => ({
-    tersembunyi,
-    jungkit: (kunci) => ubah((sebelum) => {
-      if (sebelum.has(kunci)) sebelum.delete(kunci);
-      else sebelum.add(kunci);
+  const simpan = useCallback(async (
+    modeBaru: 'global' | 'pribadi',
+    g: Set<string>,
+    p: Set<string>,
+    sebelumG: Set<string>,
+    sebelumP: Set<string>,
+  ) => {
+    try {
+      const res = await simpanNavigasiTersembunyi([...(modeBaru === 'global' ? g : p)]);
+      const valid = semuaKunciNavigasi();
+      const gBaru = new Set(res.global_tersembunyi.filter((k) => valid.has(k)));
+      const pBaru = new Set(res.pribadi_tersembunyi.filter((k) => valid.has(k)));
+      globalRef.current = gBaru;
+      pribadiRef.current = pBaru;
+      setGlobalSet(gBaru);
+      setPribadiSet(pBaru);
+      setMode(res.mode);
+    } catch (e) {
+      globalRef.current = sebelumG;
+      pribadiRef.current = sebelumP;
+      setGlobalSet(sebelumG);
+      setPribadiSet(sebelumP);
+      toast.error(errorMessage(e));
+    }
+  }, []);
 
-      return sebelum;
-    }),
-    atur: (kunci, terlihat) => ubah((sebelum) => {
-      for (const k of kunci) {
-        if (terlihat) sebelum.delete(k);
-        else sebelum.add(k);
+  const ubah = useCallback((fn: (g: Set<string>, p: Set<string>) => { g: Set<string>; p: Set<string> }) => {
+    const modeKini = modeRef.current;
+    const sebelumG = globalRef.current;
+    const sebelumP = pribadiRef.current;
+    const { g, p } = fn(new Set(sebelumG), new Set(sebelumP));
+
+    if (samaSet(g, sebelumG) && samaSet(p, sebelumP)) return;
+
+    globalRef.current = g;
+    pribadiRef.current = p;
+    setGlobalSet(g);
+    setPribadiSet(p);
+    void simpan(modeKini, g, p, sebelumG, sebelumP);
+  }, [simpan]);
+
+  const efektif = useMemo(
+    () => new Set([...globalSet, ...pribadiSet]),
+    [globalSet, pribadiSet],
+  );
+
+  const value = useMemo<NavigasiVisibilitas>(() => ({
+    tersembunyi: efektif,
+    globalTersembunyi: globalSet,
+    mode,
+    memuat,
+    jungkit: (kunci) => ubah((g, p) => {
+      if (modeRef.current === 'global') {
+        if (g.has(kunci)) g.delete(kunci);
+        else g.add(kunci);
+      } else if (!g.has(kunci)) {
+        if (p.has(kunci)) p.delete(kunci);
+        else p.add(kunci);
       }
 
-      return sebelum;
+      return { g, p };
     }),
-    reset: () => ubah(() => new Set()),
-  }), [tersembunyi, ubah]);
+    atur: (kunci, terlihat) => ubah((g, p) => {
+      for (const k of kunci) {
+        if (modeRef.current === 'global') {
+          if (terlihat) g.delete(k);
+          else g.add(k);
+        } else if (!g.has(k)) {
+          if (terlihat) p.delete(k);
+          else p.add(k);
+        }
+      }
+
+      return { g, p };
+    }),
+    reset: () => ubah((g, p) => {
+      if (modeRef.current === 'global') g.clear();
+      else p.clear();
+
+      return { g, p };
+    }),
+  }), [efektif, globalSet, mode, memuat, ubah]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

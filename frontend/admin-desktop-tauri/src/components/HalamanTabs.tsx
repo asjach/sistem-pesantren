@@ -80,7 +80,7 @@ export function useSetelanTab(def: HalamanDef) {
  *  tab pertama yang diizinkan. */
 export function ArahHalamanTabs({ def }: { def: HalamanDef }) {
   const { user } = useAuth();
-  const { tersembunyi } = useNavigasiVisibilitas();
+  const { tersembunyi, memuat } = useNavigasiVisibilitas();
   const kunciPref = kunciTab(def);
   const setelan = useSetelanTab(def);
   const kunciIzin = useMemo(
@@ -89,7 +89,7 @@ export function ArahHalamanTabs({ def }: { def: HalamanDef }) {
   );
   const [tujuan, setTujuan] = useState<string | null>(null);
   useEffect(() => {
-    if (setelan === null) return;
+    if (memuat || setelan === null) return;
     const boleh = kunciIzin === '' ? [] : kunciIzin.split('|');
     const { tampil } = susunTab(def.tabHalaman ?? [], setelan.urutan, setelan.sembunyi);
     const urutSemua = tampil.filter((t) => boleh.includes(t.to)).map((t) => t.to);
@@ -105,8 +105,8 @@ export function ArahHalamanTabs({ def }: { def: HalamanDef }) {
     };
     prefGet(kunciPref).then(pilih).catch(() => pilih(null));
     return () => { hidup = false; };
-  }, [setelan, kunciIzin, kunciPref, def, tersembunyi]);
-  if (tujuan === null) return null;
+  }, [setelan, kunciIzin, kunciPref, def, tersembunyi, memuat]);
+  if (memuat || tujuan === null) return null;
   return <Navigate to={tujuan} replace />;
 }
 
@@ -117,7 +117,7 @@ export function ArahHalamanTabs({ def }: { def: HalamanDef }) {
  *  mengubah rute. `def` = entri registri halaman yang punya `tabHalaman`. */
 export default function HalamanTabs({ def }: { def: HalamanDef }) {
   const { user } = useAuth();
-  const { tersembunyi } = useNavigasiVisibilitas();
+  const { tersembunyi, memuat } = useNavigasiVisibilitas();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const kunciPref = kunciTab(def);
@@ -143,9 +143,9 @@ export default function HalamanTabs({ def }: { def: HalamanDef }) {
   }, [aktif, kunciPref]);
 
   useEffect(() => {
-    if (setelan === null || aktif !== undefined || tabs.length === 0) return;
+    if (memuat || setelan === null || aktif !== undefined || tabs.length === 0) return;
     navigate(tabs[0].to, { replace: true });
-  }, [setelan, aktif, tabs, navigate]);
+  }, [setelan, aktif, tabs, navigate, memuat]);
 
   return (
     <div className={PAGE_SHELL}>

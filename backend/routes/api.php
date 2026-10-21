@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\Admin\PembayaranController;
 use App\Http\Controllers\Api\Admin\PencarianGlobalController;
 use App\Http\Controllers\Api\Admin\PengaturanGlobalController;
 use App\Http\Controllers\Api\Admin\PengaturanHalamanController;
+use App\Http\Controllers\Api\Admin\PengaturanNavigasiController;
 use App\Http\Controllers\Api\Admin\PenilaianController;
 use App\Http\Controllers\Api\Admin\PesertaKegiatanEvaluatifController;
 use App\Http\Controllers\Api\Admin\PresetTabelController;
@@ -462,6 +463,11 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
         Route::put('pencarian-global', [PencarianGlobalController::class, 'simpan'])->middleware('permission:pengaturan_halaman.ubah');
         Route::get('pencarian', [PencarianGlobalController::class, 'cari'])
             ->middleware('permission:santri.lihat|pegawai.lihat|keuangan.lihat|daftar_kelas.lihat');
+
+        Route::get('pengaturan-navigasi', [PengaturanNavigasiController::class, 'setelan'])
+            ->middleware('permission:pengaturan_halaman.lihat');
+        Route::put('pengaturan-navigasi', [PengaturanNavigasiController::class, 'simpan'])
+            ->middleware('permission:pengaturan_halaman.ubah|navigasi.atur');
     });
 
 // PSB publik (tanpa auth; captcha SKIP — spec §5 hanya sebut sepintas tanpa implementasi).

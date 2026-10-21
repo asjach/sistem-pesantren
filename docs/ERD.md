@@ -324,6 +324,16 @@ erDiagram
         boolean aktif
         bigint diubah_oleh FK
     }
+    PENGATURAN_NAVIGASI {
+        bigint id PK
+        json tersembunyi
+        bigint diubah_oleh FK
+    }
+    PENGATURAN_NAVIGASI_PENGGUNA {
+        bigint id PK
+        bigint user_id FK
+        json tersembunyi
+    }
     PENGATURAN_GLOBAL {
         bigint id PK
         string kunci
@@ -339,6 +349,8 @@ erDiagram
     USERS o|--o{ KOMPONEN_CUSTOM : "membuat"
     USERS o|--o{ PENGATURAN_HALAMAN : "mengubah"
     USERS o|--o{ PENGATURAN_PENCARIAN : "mengubah"
+    USERS o|--o{ PENGATURAN_NAVIGASI : "mengubah"
+    USERS ||--o| PENGATURAN_NAVIGASI_PENGGUNA : "memiliki setelan navigasi"
     USERS o|--o{ PENGATURAN_GLOBAL : "mengubah"
 ```
 

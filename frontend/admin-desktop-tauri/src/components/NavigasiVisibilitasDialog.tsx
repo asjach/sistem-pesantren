@@ -77,21 +77,24 @@ function Baris({
   level: number;
   indukTersembunyi?: boolean;
 }) {
-  const { tersembunyi, atur } = useNavigasiVisibilitas();
-  const aktif = !tersembunyi.has(node.key) && !indukTersembunyi;
+  const { tersembunyi, globalTersembunyi, mode, atur } = useNavigasiVisibilitas();
+  const diblokirGlobal = mode === 'pribadi'
+    && (globalTersembunyi.has(node.key) || indukTersembunyi);
+  const aktif = !diblokirGlobal && !tersembunyi.has(node.key);
   const id = `cek_nav_${node.key.replace(/[^a-z0-9]+/gi, '_')}`;
 
   return (
     <li>
       <label
-        className={`flex items-center gap-2 py-1 text-xs ${indukTersembunyi ? 'opacity-50' : ''}`}
+        className={`flex items-center gap-2 py-1 text-xs ${diblokirGlobal || indukTersembunyi ? 'opacity-50' : ''}`}
         style={{ paddingLeft: `${level * 14}px` }}
+        title={diblokirGlobal ? 'Dinonaktifkan super_admin' : undefined}
       >
         <input
           id={id}
           type="checkbox"
           checked={aktif}
-          disabled={indukTersembunyi}
+          disabled={diblokirGlobal || indukTersembunyi}
           onChange={() => atur(kumpulanKunci(node), !aktif)}
           className="size-3.5 shrink-0 accent-[var(--accent)]"
         />
@@ -104,7 +107,7 @@ function Baris({
               key={anak.key}
               node={anak}
               level={level + 1}
-              indukTersembunyi={indukTersembunyi || !aktif}
+              indukTersembunyi={indukTersembunyi || diblokirGlobal || !aktif}
             />
           ))}
         </ul>
@@ -121,7 +124,7 @@ export default function NavigasiVisibilitasDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { reset } = useNavigasiVisibilitas();
+  const { reset, memuat, mode } = useNavigasiVisibilitas();
   const pohon = NAV_GRUP.map((g) => grupNode(g.id, g.label));
 
   return (
@@ -130,22 +133,28 @@ export default function NavigasiVisibilitasDialog({
         <DialogHeader>
           <DialogTitle>Navigasi sidebar</DialogTitle>
           <DialogDescription>
-            Pilih grup, sub-grup, halaman, dan tab yang tampil di navigasi.
-            Pengaturan ini hanya tampilan di perangkat ini; alamat langsung tetap bisa dibuka.
+            {mode === 'global'
+              ? 'Atur entri yang tampil untuk semua pengguna. Alamat langsung tetap bisa dibuka.'
+              : 'Anda dapat mengatur entri yang diaktifkan super_admin. Entri yang dinonaktifkan super_admin tidak dapat diubah.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[60vh] overflow-y-auto border px-2 py-1" style={{ borderColor: 'var(--divider)' }}>
-          <ul id="pohon_navigasi_sidebar">
-            {pohon.map((node) => <Baris key={node.key} node={node} level={0} />)}
-          </ul>
-        </div>
+        {memuat ? (
+          <p className="py-6 text-center text-xs text-muted-foreground">Memuat…</p>
+        ) : (
+          <div className="max-h-[60vh] overflow-y-auto border px-2 py-1" style={{ borderColor: 'var(--divider)' }}>
+            <ul id="pohon_navigasi_sidebar">
+              {pohon.map((node) => <Baris key={node.key} node={node} level={0} />)}
+            </ul>
+          </div>
+        )}
 
         <DialogFooter className="gap-2 sm:justify-between">
           <Button
             id="btn_tampilkan_semua_navigasi"
             type="button"
             variant="ghost"
+            disabled={memuat}
             onClick={reset}
           >
             <RotateCcw size={14} />

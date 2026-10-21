@@ -39,6 +39,27 @@ vi.mock('@/api/pengaturanHalaman', () => ({
   },
 }));
 
+/** Setelan visibilitas navigasi dari server. */
+const navigasi = vi.hoisted(() => ({ tersembunyi: [] as string[] }));
+vi.mock('@/api/navigasi', () => ({
+  muatNavigasiTersembunyi: async () => ({
+    mode: 'global' as const,
+    global_tersembunyi: navigasi.tersembunyi,
+    pribadi_tersembunyi: [],
+    tersembunyi: navigasi.tersembunyi,
+  }),
+  simpanNavigasiTersembunyi: async (tersembunyi: string[]) => {
+    navigasi.tersembunyi = tersembunyi;
+    return {
+      pesan: 'ok',
+      mode: 'global' as const,
+      global_tersembunyi: tersembunyi,
+      pribadi_tersembunyi: [],
+      tersembunyi,
+    };
+  },
+}));
+
 const IZIN_DATA_INDUK = [
   'pengguna.lihat',
   'lembaga.lihat',
@@ -123,6 +144,7 @@ beforeEach(() => {
   };
   for (const kunci of Object.keys(status.pref)) delete status.pref[kunci];
   server.peta = {};
+  navigasi.tersembunyi = [];
 });
 
 describe('HalamanTabs — Data Induk', () => {
@@ -398,16 +420,16 @@ describe('ArahHalamanTabs (rute halaman gabungan)', () => {
   });
 
   it('tab tersembunyi tidak tampil, tetapi URL langsung tetap merender isinya', async () => {
-    localStorage.setItem('simpes_navigasi_tersembunyi', JSON.stringify(['tab:/lembaga']));
+    navigasi.tersembunyi = ['tab:/lembaga'];
     render(<Halaman path="/lembaga" navigasi />);
 
-    expect(await screen.findByText('ISI LEMBAGA')).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Lembaga' })).toBeNull();
+    await waitFor(() => expect(document.body.textContent).toContain('ISI LEMBAGA'));
+    await waitFor(() => expect(screen.queryByRole('tab', { name: 'Lembaga' })).toBeNull());
     expect(screen.getByRole('tab', { name: 'Pengguna' })).toBeInTheDocument();
   });
 
   it('ArahHalamanTabs melewati tab tersembunyi', async () => {
-    localStorage.setItem('simpes_navigasi_tersembunyi', JSON.stringify(['tab:/users']));
+    navigasi.tersembunyi = ['tab:/users'];
     render(<Halaman path="/data-induk" navigasi />);
 
     expect(await screen.findByText('ISI LEMBAGA')).toBeInTheDocument();

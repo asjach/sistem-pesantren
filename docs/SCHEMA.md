@@ -682,6 +682,19 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`page_key`)
 
+### `pengaturan_navigasi` (visibilitas navigasi global; satu baris, diatur super_admin)
+- `id` PK
+- `tersembunyi`: json [null] — daftar kunci navigasi yang disembunyikan (`grup:*`, `sub:*`, `halaman:*`, `tab:*`); daftar kosong = semua tampil
+- `diubah_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+
+### `pengaturan_navigasi_pengguna` (visibilitas navigasi pribadi admin; satu baris per pengguna)
+- `id` PK
+- `user_id`: FK → users [unik, cascadeOnDelete]
+- `tersembunyi`: json [null] — kunci yang disembunyikan admin untuk dirinya sendiri; hanya boleh berisi entri yang tidak disembunyikan global
+- `created_at`, `updated_at`
+- UNIQUE(`user_id`)
+
 ### `pengaturan_global` (standar tampilan global, key-value; satu baris per kunci)
 - `id` PK
 - `kunci`: string(60) [unik] — kunci setelan yang dikenal: `tinggi_baris` (20–200px), `tinggi_header` (20–120px). Kunci lain DITOLAK; sengaja sempit, hanya setelan yang bermakna sebagai standar bersama. Setelan yang mengikuti ukuran layar (lebar sidebar, mode navigasi) TIDAK boleh masuk sini
