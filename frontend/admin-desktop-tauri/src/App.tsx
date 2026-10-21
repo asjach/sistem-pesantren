@@ -67,6 +67,7 @@ const DokumenMadrasahPage = lazy(() => import('./pages/DokumenMadrasahPage'));
 const KelolaIzinPage = lazy(() => import('./pages/KelolaIzinPage'));
 const KomponenPage = lazy(() => import('./pages/KomponenPage'));
 const PapanPage = lazy(() => import('./pages/PapanPage'));
+const AnotasiDev = import.meta.env.DEV ? lazy(() => import('./dev/AnotasiLayer')) : null;
 
 function Shell() {
 
@@ -133,6 +134,11 @@ export default function App() {
               <BrowserRouter>
                   <Toaster richColors position="bottom-center" />
                   <CommandPalette />
+                  {AnotasiDev && (
+                    <Suspense fallback={null}>
+                      <AnotasiDev />
+                    </Suspense>
+                  )}
                   <Routes>
                     <Route path="/login" element={<LoginPage />} />
                     <Route element={<Shell />}>

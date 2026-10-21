@@ -4,6 +4,24 @@
 
 - UI & docs Bahasa Indonesia; `id` elemen snake_case (NFR-05).
 
+## ANOTASI UI (MODE DEV) — menandai elemen untuk agen
+
+- Saat `npm run dev` (termasuk `tauri dev`), tombol mengambang di kanan bawah
+  mengaktifkan **mode tandai**. Klik elemen mana pun, tulis instruksi, lalu
+  Simpan. Panel daftar anotasi ada di tombol sebelahnya.
+- Anotasi ditulis ke `frontend/admin-desktop-tauri/.dev/anotasi.json`
+  (di-ignore git) dan memuat rute, selector, teks, komponen React, serta
+  `sumber` berupa `src/...:baris`.
+- **Saat pengguna menyebut "cek anotasi" atau meminta perubahan atas elemen
+  yang ditandai, baca file itu lebih dulu** sebelum menelusuri kode. Pakai
+  `sumber`/`komponen` untuk membuka berkas yang tepat, verifikasi dengan kode,
+  lalu kerjakan instruksinya.
+- Setelah anotasi selesai ditindaklanjuti, hapus entri terkait dari file
+  tersebut. Jangan biarkan anotasi selesai menumpuk dan jangan memasukkannya
+  ke commit.
+- Lapisan ini hanya hidup di dev (`import.meta.env.DEV`); build produksi tidak
+  boleh memuatnya.
+
 ## SINKRONISASI SKEMA DAN DIAGRAM HUBUNGAN ENTITAS (ERD)
 
 - `docs/SCHEMA.md` adalah sumber utama struktur basis data (database), sedangkan

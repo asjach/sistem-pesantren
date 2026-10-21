@@ -25,3 +25,5 @@ __pycache__/
 .workbuddy-ai/
 # Sesi wawancara grill-with-ui (artefak lokal, bukan bagian project).
 .tmp-grill/
+# Anotasi UI mode dev (ditulis dev server, dibaca agen; bukan bagian project).
+frontend/admin-desktop-tauri/.dev/

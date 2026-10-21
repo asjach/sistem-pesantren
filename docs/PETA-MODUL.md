@@ -90,7 +90,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA1. Fondasi & Infrastruktur
 
-### DA1.1 Setup & Runtime `Done`
+### DA1.1 Setup & Runtime `For Review`
 **Backlog**
 - (kosong)
 **To Do**
@@ -98,7 +98,12 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **In Progress**
 - (kosong)
 **For Review**
-- (kosong)
+- Anotasi UI mode dev untuk instruksi agent
+  - [x] Tombol Tandai hanya tampil saat dev dan tidak ikut build produksi
+  - [x] Klik elemen membuka input instruksi dan menyimpan anotasi ke .dev/anotasi.json berisi rute, selector, komponen, file:line, teks, dan instruksi
+  - [x] Panel daftar anotasi dapat dibuka dan tiap entri dapat dihapus
+  - [x] Alur agen membaca .dev/anotasi.json dan menindaklanjuti anotasi terdokumentasi
+  - [x] Verifikasi: tes terfokus, typecheck, dan build web tanpa memuat lapisan anotasi
 **Done**
 - Proyek Laravel 13, Vite, dan Tauri berjalan
   - [x] API-first
@@ -1063,12 +1068,15 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Klik hasil membuka detail bila tersedia, selain itu halaman terfilter yang tepat
   - [x] Halaman target membaca kata kunci dari URL dan memfilter datanya
   - [x] Pemeriksaan: tes backend/frontend dan typecheck hijau
-- Pengaturan visibilitas navigasi sidebar per perangkat
-  - [x] Pengaturan navigasi menampilkan grup, sub-grup, halaman, dan tab dengan checkbox aktif/nonaktif
-  - [x] Sidebar dan menubar menyembunyikan entri yang nonaktif tanpa mengubah hak akses
-  - [x] Tab halaman gabungan yang nonaktif tidak tampil, tetapi URL langsung tetap membuka kontennya
-  - [x] Pilihan tersimpan per perangkat dan ada tombol tampilkan semua
-  - [x] Pemeriksaan: tes filter navigasi/tab, typecheck, dan suite frontend hijau
+- Pengaturan visibilitas navigasi terpusat dengan delegasi admin
+  - [x] Super_admin mengatur visibilitas navigasi global yang tersimpan di server
+  - [x] Admin dapat mengatur tampilan pribadinya hanya untuk entri yang tidak dinonaktifkan super_admin
+  - [x] Sidebar, menubar, dan tab memakai gabungan setelan global dan pribadi; URL langsung tetap membuka konten
+  - [x] Dialog menyesuaikan mode: super_admin mengubah global, admin mengubah pilihan pribadi; tampilkan semua sesuai mode
+  - [x] Pemeriksaan: tes backend/frontend, typecheck, schema, dan izin hijau
+- Samakan font NIS di tab Nomor Peserta
+  - [x] Kolom NIS memakai font yang sama dengan kolom lain di tabel nomor peserta
+  - [x] Pemeriksaan: typecheck hijau
 **Done**
 - Kolom status tanpa sub-modul terlipat saat Board dibuka
   - [x] Kolom tanpa sub-modul tertutup saat halaman Board dibuka

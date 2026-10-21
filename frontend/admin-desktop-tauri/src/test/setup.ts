@@ -46,6 +46,10 @@ if (typeof globalThis.Element !== 'undefined'
   globalThis.Element.prototype.scrollIntoView = function scrollIntoView(): void {};
 }
 
+if (typeof globalThis.Document !== 'undefined' && typeof document.elementFromPoint !== 'function') {
+  document.elementFromPoint = () => null;
+}
+
 if (typeof globalThis.Element !== 'undefined'
   && typeof globalThis.Element.prototype.hasPointerCapture !== 'function') {
   globalThis.Element.prototype.hasPointerCapture = function hasPointerCapture(): boolean {
