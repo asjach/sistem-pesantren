@@ -12,7 +12,7 @@ use InvalidArgumentException;
     {aksi : tambah | hapus | ubah | naik | turun}
     {kode : Kode sub-modul, mis. E.3}
     {--id= : Id butir (wajib untuk hapus, ubah, naik, turun)}
-    {--status= : Status: belum dijadwalkan (backlog) | siap dikerjakan (todo) | sedang dikerjakan (in_progress) | menunggu peninjauan (for_review) | selesai (done)}
+    {--status= : Status: backlog | todo | in_progress | for_review | done}
     {--deskripsi= : Isi butir (wajib untuk tambah, opsional untuk ubah)}
     {--catatan= : Alasan singkat bila status ikut berubah}
     {--oleh=agent : Pencatat: agent atau pengguna}')]

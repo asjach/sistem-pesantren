@@ -91,7 +91,7 @@ class PapanMarkdownTest extends TestCase
 
         // Tanpa ini, `papan:tandai` tidak terlihat di markdown selama
         // butir-butirnya belum ikut dipindahkan.
-        $this->assertStringContainsString('### A.1 Setup (001) '.chr(96).'Sedang dikerjakan (In Progress)'.chr(96), $hasil);
+        $this->assertStringContainsString('### A.1 Setup (001) '.chr(96).'In Progress'.chr(96), $hasil);
     }
 
     public function test_bagian_sedang_kosong_saat_tidak_ada_yang_dikerjakan(): void
@@ -123,11 +123,11 @@ class PapanMarkdownTest extends TestCase
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
         foreach ([
-            'Belum dijadwalkan (Backlog)',
-            'Siap dikerjakan (To Do)',
-            'Sedang dikerjakan (In Progress)',
-            'Menunggu peninjauan (For Review)',
-            'Selesai (Done)',
+            'Backlog',
+            'To Do',
+            'In Progress',
+            'For Review',
+            'Done',
         ] as $status) {
             $this->assertStringContainsString("**{$status}**", $hasil);
         }
@@ -139,7 +139,7 @@ class PapanMarkdownTest extends TestCase
 
         $hasil = app(PapanMarkdown::class)->hasilkan(self::KEPALA, self::EKOR);
 
-        $this->assertStringContainsString("**Sedang dikerjakan (In Progress)**\n- (kosong)", $hasil);
+        $this->assertStringContainsString("**In Progress**\n- (kosong)", $hasil);
     }
 
     public function test_hasil_stabil_saat_dijalankan_ulang(): void

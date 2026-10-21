@@ -264,8 +264,12 @@ export default function PapanPage() {
   /** Aksi sunting untuk satu baris poin. */
   const aksiButir = useCallback(
     (kartu: KartuPapan): AksiButir => ({
-      onSimpanTeks: async (deskripsi, status) => {
-        await ubahButirPapan(kartu.subKode, kartu.id, status ? { deskripsi, status } : { deskripsi });
+      onSimpanTeks: async (deskripsi, status, keterangan) => {
+        await ubahButirPapan(kartu.subKode, kartu.id, {
+          deskripsi,
+          ...(status ? { status } : {}),
+          ...(keterangan !== undefined ? { keterangan } : {}),
+        });
         await segarkan();
       },
       onSimpanSubpoin: async (subpoin) => {
@@ -296,8 +300,8 @@ export default function PapanPage() {
 
   /** Tambah poin baru ke sebuah sub-modul lalu muat ulang papan. */
   const tambahPoin = useCallback(
-    async (subKode: string, status: StatusPapan, deskripsi: string) => {
-      await tambahButirPapan(subKode, status, deskripsi);
+    async (subKode: string, status: StatusPapan, deskripsi: string, keterangan?: string | null) => {
+      await tambahButirPapan(subKode, status, deskripsi, [], keterangan ?? null);
       await segarkan();
     },
     [segarkan],

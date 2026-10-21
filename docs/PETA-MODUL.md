@@ -56,15 +56,14 @@ id berubah dan seluruh status hasil kerja kembali ke cetak biru. Pakai seeder
 hanya untuk membangun ulang papan dari nol.
 
 **Yang bergerak itu poin, bukan sub-modul.** Setiap poin berstatus sendiri
-(belum dijadwalkan (`backlog`) | siap dikerjakan (`todo`) | sedang dikerjakan (`in_progress`) | menunggu peninjauan (`for_review`) | selesai (`done`)), dan status
+(`backlog` | `todo` | `in_progress` | `for_review` | `done`), dan status
 sub-modul **dihitung otomatis** dari poin-poinnya. Pekerjaan aktif didahulukan,
-disusul siap dikerjakan (To Do), belum dijadwalkan (Backlog), dan menunggu
-peninjauan (For Review); sub-modul menjadi selesai (Done) hanya bila semua
-poinnya sudah selesai (Done).
+disusul To Do, Backlog, dan For Review; sub-modul menjadi Done hanya bila semua
+poinnya sudah Done.
 
 Konsekuensinya, di UI satu sub-modul bisa muncul di beberapa kolom sekaligus —
 memang begitu yang diinginkan: `E.3` yang separuh selesai tampil sebagai kartu di
-kolom **Selesai (Done)** dan **Siap dikerjakan (To Do)** bersamaan.
+kolom **Done** dan **To Do** bersamaan.
 
 Modul di berkas ini **dihasilkan** `papan:markdown --tulis`; bagian SEDANG
 DIKERJAKAN dan RINCIAN TEKNIS LAINNYA dipertahankan apa adanya. Jadi setelah
@@ -77,11 +76,11 @@ lalu commit markdown-nya sebagai jejak yang tahan lama.
 
 Lima status alur kerja (workflow) dipakai konsisten di seluruh berkas:
 
-- **Belum dijadwalkan (Backlog)** — belum siap dijadwalkan atau masih ditahan.
-- **Siap dikerjakan (To Do)** — siap dikerjakan.
-- **Sedang dikerjakan (In Progress)** — sedang dikerjakan.
-- **Menunggu peninjauan (For Review)** — implementasi selesai dan menunggu peninjauan.
-- **Selesai (Done)** — pekerjaan dan seluruh subpoin sudah selesai.
+- **Backlog** — belum siap dijadwalkan atau masih ditahan.
+- **To Do** — siap dikerjakan.
+- **In Progress** — sedang dikerjakan.
+- **For Review** — implementasi selesai dan menunggu peninjauan.
+- **Done** — pekerjaan dan seluruh subpoin sudah selesai.
 
 Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
@@ -91,16 +90,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA1. Fondasi & Infrastruktur
 
-### DA1.1 Setup & Runtime `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA1.1 Setup & Runtime `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Proyek Laravel 13, Vite, dan Tauri berjalan
   - [x] API-first
   - [x] Sanctum
@@ -110,16 +109,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] CORS localhost
   - [x] perintah artisan/npm
 
-### DA1.2 Skema Database `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA1.2 Skema Database `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Migrasi dan skema pesantren terkendali
   - [x] 84 file migrasi
   - [x] 126 tabel termasuk framework
@@ -129,16 +128,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] migrasi path papan
   - [x] tidak ikut migrate:fresh
 
-### DA1.3 Referensi & Master `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA1.3 Referensi & Master `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Kamus referensi per lembaga
   - [x] 34 tabel kamus
   - [x] RefService ber-cache
@@ -148,16 +147,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] validasi jenjang
   - [x] kode unik
 
-### DA1.4 Pengaturan Aplikasi Desktop `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA1.4 Pengaturan Aplikasi Desktop `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Pengaturan server dan sesi aman
   - [x] URL API tersimpan
   - [x] Uji koneksi
@@ -169,16 +168,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA2. Autentikasi & Pengguna
 
-### DA2.1 Login & Sesi `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA2.1 Login & Sesi `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Login multi-identifier
   - [x] email/HP/username
   - [x] throttle 6/menit
@@ -188,16 +187,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] role tidak naik sendiri
   - [x] kebijakan izin
 
-### DA2.2 Peran & Izin `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA2.2 Peran & Izin `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Lima peran efektif dan matriks izin
   - [x] super_admin/admin/guru/orang_tua/santri
   - [x] IzinKatalog
@@ -207,8 +206,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] scope tenant
   - [x] act-as
 
-### DA2.3 Akun PTK `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA2.3 Akun PTK `Backlog`
+**Backlog**
 - Undangan dan aktivasi akun guru
   - [ ] email/WA
   - [ ] token sekali pakai
@@ -217,27 +216,27 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] tautan pegawai_id
   - [ ] peran guru/kasir
   - [ ] nonaktif otomatis
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## DA3. PSB & Santri
 
-### DA3.1 PSB `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA3.1 PSB `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Master kegiatan, gelombang, dan kuota
   - [x] per lembaga
   - [x] anti-tumpang
@@ -251,16 +250,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] dokumen
   - [x] impor
 
-### DA3.2 Santri `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA3.2 Santri `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - CRUD santri dan NIS
   - [x] SantriPolicy
   - [x] impor satu pintu
@@ -270,16 +269,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] jenis dokumen
   - [x] viewer
 
-### DA3.3 Siklus Santri `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA3.3 Siklus Santri `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Naik kelas, pindah, mutasi, lulus
   - [x] massal/otomatis
   - [x] arsip
@@ -289,8 +288,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] status turunan
   - [x] beku kelas
 
-### DA3.4 Presensi Santri `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA3.4 Presensi Santri `Backlog`
+**Backlog**
 - UI presensi dan pelanggaran
   - [ ] input per sesi
   - [ ] rekap kehadiran
@@ -304,20 +303,20 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Kategori dan bobot pelanggaran
   - [ ] Poin otomatis dari kejadian
   - [ ] Riwayat dan tindak lanjut
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Tabel presensi dan pelanggaran
   - [x] sesi_presensi
   - [x] presensi_santri
   - [x] pelanggaran_santri
 
-### DA3.5 Asrama `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA3.5 Asrama `Backlog`
+**Backlog**
 - Fondasi asrama
   - [ ] tabel asrama/kamar/penghuni
   - [ ] peran asrama
@@ -330,27 +329,27 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Data kamar dan kapasitas
   - [ ] Penempatan dan mutasi kamar
   - [ ] Pembina per kamar
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## DA4. Kepegawaian
 
-### DA4.1 Pegawai `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA4.1 Pegawai `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Master pegawai global
   - [x] EMIS
   - [x] keaktifan_pegawai
@@ -360,8 +359,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] penautan akun
   - [x] dokumen
 
-### DA4.2 Presensi Pegawai `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA4.2 Presensi Pegawai `Backlog`
+**Backlog**
 - UI absensi guru
   - [ ] input harian
   - [ ] koreksi
@@ -370,13 +369,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Absen masuk dan pulang
   - [ ] Izin dan cuti
   - [ ] Rekap kehadiran per pegawai
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Tabel presensi pegawai
   - [x] presensi_pegawai
   - [x] status harian
@@ -384,16 +383,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA5. Kurikulum
 
-### DA5.1 Mata Pelajaran `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA5.1 Mata Pelajaran `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Salin daftar mapel antar kelas (TA sama) dengan pratinjau
   - [x] Sumber hanya kelas pada tahun ajaran yang sama
   - [x] Pratinjau mapel yang akan ditambahkan vs dilewati
@@ -404,26 +403,26 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] kelompok formal/pesantren
   - [x] urutan rapor
 
-### DA5.2 Pengampu `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA5.2 Pengampu `Backlog`
+**Backlog**
 - Tes komponen halaman Pengampu
   - [ ] tes render
   - [ ] tes validasi
   - [ ] tes izin
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Pivot kelas × mapel → guru
   - [x] validasi bentrok
   - [x] guru aktif
   - [x] per TA
 
-### DA5.3 Jadwal Pelajaran `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA5.3 Jadwal Pelajaran `Backlog`
+**Backlog**
 - Jadwal dari sudut guru
   - [ ] agenda mengajar
   - [ ] filter guru
@@ -432,13 +431,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] PDF
   - [ ] Excel
   - [ ] kop
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Slot per jenjang dan anti bentrok
   - [x] bentrok kelas
   - [x] bentrok guru
@@ -467,16 +466,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Mengaktifkan varian memulihkan jadwal dari snapshot (kelas Final dilewati)
   - [x] Verifikasi: KurikulumModulTest 11/11 (215 asersi) + suite FE 1427/1427 + typecheck; ERD 116 entitas/154 hubungan, 0 masalah
 
-### DA5.4 Struktur Kurikulum `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA5.4 Struktur Kurikulum `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - tabel struktur kurikulum
   - [x] Halaman baru Kurikulum → Struktur Kurikulum
   - [x] Struktur per VARIAN jadwal; combobox memilih varian, termasuk yang tidak aktif
@@ -488,8 +487,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA6. Penilaian
 
-### DA6.1 Nilai & Kegiatan Evaluatif `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA6.1 Nilai & Kegiatan Evaluatif `Backlog`
+**Backlog**
 - Kunci dan buka kunci nilai
   - [ ] kunci setelah cetak
   - [ ] alasan buka
@@ -498,11 +497,11 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] UM 60
   - [ ] rata-rata rapor 40
   - [ ] kebijakan pesantren
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - Leger crosstab dan rapor
   - [x] ekspor Excel
   - [x] cetak per santri/kelas
@@ -529,7 +528,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Frontend memakai tipe/API KegiatanEvaluatif dan seluruh label UI berganti dari Peristiwa menjadi Kegiatan Evaluatif
   - [x] SCHEMA/ERD/PRD/backend-detail serta istilah Board/PETA selaras; riwayat/CHANGELOG lama tidak diubah
   - [x] Pemeriksaan: migrasi data-preserving, tes backend/frontend, typecheck, Pint; istilah peristiwa tersisa hanya di migrasi lama, riwayat CHANGELOG/operasi, serta nama indeks/constraint historis di database
-**Selesai (Done)**
+**Done**
 - Nilai per kegiatan evaluatif
   - [x] PTS/ASAS/ASAT/UJIAN/UAP
   - [x] komponen/bobot
@@ -539,17 +538,17 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] import-potong
   - [x] validasi
 
-### DA6.2 Cetak Rapor `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA6.2 Cetak Rapor `Backlog`
+**Backlog**
 - Absensi otomatis
   - [ ] sesi_presensi
   - [ ] override leger
   - [ ] rekap kehadiran
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - Cetak massal satu kelas
   - [x] Satu tombol Cetak satu kelas mencetak seluruh santri kelas/kegiatan evaluatif/semester terpilih dalam satu dialog
   - [x] Opsi peringkat dipilih sekali per batch (3/10/semua); peringkat di luar batas dikosongkan
@@ -557,7 +556,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Nama wali kelas dan kepala dibekukan saat batch pertama; cetak massal dan cetak tunggal lingkup sama memakai snapshot; nama kosong diisi data terbaru lalu dibekukan
   - [x] Setiap rapor tercetak pada halaman terpisah dan utuh di A4/PDF
   - [x] Tabel batch terdokumentasi di SCHEMA/ERD dan tes backend/frontend terkait hijau
-**Selesai (Done)**
+**Done**
 - Rapor per santri/kelas
   - [x] kop
   - [x] identitas
@@ -567,8 +566,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] tombol cetak terkunci
   - [x] halaman 2
 
-### DA6.3 Tahfizh `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA6.3 Tahfizh `Backlog`
+**Backlog**
 - UI tahfizh
   - [ ] ziyadah
   - [ ] murajaah
@@ -577,26 +576,26 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Target per santri
   - [ ] Setoran ziyadah dan murajaah
   - [ ] Rekap capaian per periode
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Tabel tahfizh
   - [x] target_tahfiz
   - [x] setoran_tahfiz
   - [x] rekap_tahfiz_santri
 
-### DA6.X Cetak Kartu Peserta `Menunggu peninjauan (For Review)`
-**Belum dijadwalkan (Backlog)**
+### DA6.X Cetak Kartu Peserta `For Review`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - Pengelolaan nomor peserta kegiatan evaluatif
   - [x] Peserta mengikuti cakupan kegiatan evaluatif, semester, tingkat, dan kelas
   - [x] Nomor peserta boleh kosong atau diisi manual, unik, dan asalnya tercatat
@@ -618,24 +617,24 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Foto kosong memakai siluet sesuai jenis kelamin
   - [x] Ukuran tersimpan per kegiatan evaluatif dan lembaga
   - [x] Peserta terpilih atau seluruh peserta dapat dicetak ke A4/PDF
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## DA7. Keuangan
 
-### DA7.1 Tagihan & Tarif `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA7.1 Tagihan & Tarif `Backlog`
+**Backlog**
 - Kartu piutang per santri
   - [ ] lintas TA
   - [ ] surat tagihan
   - [ ] cetak
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Master jenis tagihan dan tarif
   - [x] per lembaga/TA
   - [x] bulanan
@@ -649,8 +648,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] grup custom
   - [x] ekspor
 
-### DA7.2 Kasir & Kwitansi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA7.2 Kasir & Kwitansi `Backlog`
+**Backlog**
 - Nomor kwitansi runut
   - [ ] per lembaga/kas/tahun
   - [ ] format final
@@ -659,13 +658,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] gabungan metode
   - [ ] sub-bayar
   - [ ] rincian
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Kasir harian
   - [x] pembayaran
   - [x] saldo terkunci
@@ -675,8 +674,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] cetak ulang
   - [x] dialog/tabel
 
-### DA7.3 Rekap & Tutup Buku `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA7.3 Rekap & Tutup Buku `Backlog`
+**Backlog**
 - Rekap per posisi kas
   - [ ] tunai TU
   - [ ] bank lembaga
@@ -693,17 +692,17 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] menunggu modul asrama
   - [ ] tarif kamar
   - [ ] penghuni
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### DA7.4 Tunggakan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA7.4 Tunggakan `Backlog`
+**Backlog**
 - Aging 30/60/90
   - [ ] jatuh tempo
   - [ ] surat tagihan
@@ -716,20 +715,20 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] bulanan
   - [ ] per TA
   - [ ] dasbor
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Crosstab tunggakan
   - [x] per santri/kelas
   - [x] total tagihan
   - [x] terbayar
 
-### DA7.5 Audit & Kontrol `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA7.5 Audit & Kontrol `Backlog`
+**Backlog**
 - Jejak audit transaksi
   - [ ] siapa
   - [ ] kapan
@@ -742,19 +741,19 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Excel
   - [ ] PDF
   - [ ] crosstab/harian/rekap
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## DA8. Portal & Integrasi
 
-### DA8.1 Portal Wali `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA8.1 Portal Wali `Backlog`
+**Backlog**
 - Dashboard portal wali
   - [ ] ringkasan anak
   - [ ] tagihan
@@ -771,20 +770,20 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Nilai dan rapor
   - [ ] Presensi harian
   - [ ] Capaian tahfizh
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Jalur PSB lanjutan dan pengajuan biodata
   - [x] satu aktif per santri
   - [x] batal
   - [x] riwayat keluarga
 
-### DA8.2 API Mobile & Publik `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA8.2 API Mobile & Publik `Backlog`
+**Backlog**
 - Kontrak API mobile
   - [ ] versi API
   - [ ] token per device
@@ -802,17 +801,17 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Input nilai
   - [ ] Presensi pegawai
   - [ ] Setoran tahfizh
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### DA8.3 Notifikasi & Gateway `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA8.3 Notifikasi & Gateway `Backlog`
+**Backlog**
 - Gateway WhatsApp dan email
   - [ ] Penyedia dan kredensial
   - [ ] Antrean pengiriman
@@ -825,19 +824,19 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Log pengiriman
   - [ ] Status dibaca
   - [ ] Penanganan gagal kirim
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## DA9. Production & Operasional
 
-### DA9.1 Deploy `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA9.1 Deploy `Backlog`
+**Backlog**
 - Deploy VPS dan production
   - [ ] domain
   - [ ] TLS
@@ -846,17 +845,17 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] backup
   - [ ] urutan migrasi
   - [ ] rollback
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### DA9.2 Backup & Restore `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA9.2 Backup & Restore `Backlog`
+**Backlog**
 - Backup terjadwal
   - [ ] DB pesantren
   - [ ] DB papan
@@ -865,17 +864,17 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] RTO/RPO
   - [ ] dokumentasi
   - [ ] simulasi
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### DA9.3 Monitoring & Log `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA9.3 Monitoring & Log `Backlog`
+**Backlog**
 - Log aplikasi dan error
   - [ ] Laravel log
   - [ ] error tracking
@@ -884,17 +883,17 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] health check
   - [ ] disk/DB
   - [ ] alert
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### DA9.4 Rilis & Distribusi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA9.4 Rilis & Distribusi `Backlog`
+**Backlog**
 - Build otomatis lintas sistem
   - [ ] CI backend
   - [ ] CI desktop
@@ -907,34 +906,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Signing
   - [ ] Notarization
   - [ ] Auto-update
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## DA10. Dashboard & Laporan
 
-### DA10.1 Dashboard Ringkas `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA10.1 Dashboard Ringkas `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Ringkasan lintas modul
   - [x] lembaga/santri/pegawai
   - [x] keuangan/siklus/PSB
   - [x] izin per blok
 
-### DA10.2 Statistik Pimpinan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA10.2 Statistik Pimpinan `Backlog`
+**Backlog**
 - Dashboard eksekutif
   - [ ] KPI
   - [ ] tren
@@ -943,17 +942,17 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] PDF/Excel
   - [ ] jadwal kirim
   - [ ] filter periode
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### DA10.3 Laporan Terpusat `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA10.3 Laporan Terpusat `Backlog`
+**Backlog**
 - Katalog laporan lintas modul
   - [ ] Santri dan siklus
   - [ ] Akademik dan rapor
@@ -963,27 +962,27 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Ekspor PDF dan Excel
   - [ ] Jadwal kirim
   - [ ] Riwayat pengiriman
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA11.1 Tabel & Grid `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Grid tabel bergaya Excel
   - [x] Seleksi blok dan salin/tempel TSV
   - [x] Autofit dan atur lebar kolom
@@ -994,16 +993,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Urutan dan visibilitas kolom
   - [x] Toolbar preset dan komponen input custom
 
-### DA11.2 Navigasi & Pencarian `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA11.2 Navigasi & Pencarian `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Command palette dan pencarian global
   - [x] Pintasan membuka palette
   - [x] Pencarian halaman dan tabel
@@ -1017,32 +1016,32 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Visibilitas kolom per tabel
   - [x] Tersimpan per halaman
 
-### DA11.3 Tampilan & Aksesibilitas `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### DA11.3 Tampilan & Aksesibilitas `Backlog`
+**Backlog**
 - Bantuan keyboard dan pembaca layar
   - [ ] Overlay peta pintasan
   - [ ] Navigasi VoiceOver di halaman utama
   - [ ] Uji aksesibilitas dan kontras
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Tema, density, dan mode navigasi
   - [x] Terang/gelap/sistem
   - [x] Density dan radius sudut
   - [x] Sidebar/menubar dan sembilan set ikon
 
-### DA11.4 Halaman Board `Menunggu peninjauan (For Review)`
-**Belum dijadwalkan (Backlog)**
+### DA11.4 Halaman Board `For Review`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - Alur pemilihan, riset, dan konfirmasi pekerjaan melalui Board
   - [x] Seluruh 103 poin To Do dikembalikan ke Backlog dengan riwayat perubahan
   - [x] Pengguna memilih To Do hanya pada alur kerja aplikasi yang efektif Aktif
@@ -1051,11 +1050,28 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Poin tetap To Do sampai subpoin final dan izin pengerjaan disetujui
   - [x] Maksimal satu In Progress per aplikasi dan urutan beberapa To Do ditentukan
   - [x] Setelah disetujui poin masuk In Progress, dikerjakan, lalu masuk For Review
-**Selesai (Done)**
+- Kartu sub-modul di Board bisa dilipat dan tertutup secara bawaan
+  - [x] Seluruh area header kartu selain tombol aksi dapat membuka/menutup kartu; semua kartu tertutup saat Board dibuka
+  - [x] Kepala kartu yang tertutup tetap menampilkan kode, nama, dan ringkasan kemajuan
+  - [x] Membuka kartu menampilkan meter, daftar poin, dan form tambah poin; aksi tambah/ubah otomatis membuka kartu
+  - [x] Keadaan buka/tutup tetap terjaga saat data Board disegarkan dan dapat dioperasikan lewat keyboard
+  - [x] Pemeriksaan: typecheck dan tes komponen Board hijau
+- Keterangan opsional pada setiap poin Board
+  - [x] Setiap poin punya keterangan opsional yang tampil di bawah teks poin bila terisi
+  - [x] Keterangan dapat diisi, diubah, dan dikosongkan lewat mode ubah poin lalu tersimpan di Board
+  - [x] Form tambah poin menerima keterangan opsional
+  - [x] Data poin lama tetap aman; keterangan kosong tidak mengubah tampilan
+  - [x] Pemeriksaan: tes backend Board, tes komponen Board, dan typecheck hijau
+- Label status Board memakai istilah teknis saja
+  - [x] Kolom, dropdown, riwayat, dan pengumuman Board memakai Backlog, To Do, In Progress, For Review, Done
+  - [x] PETA-MODUL dan keluaran perintah Board memakai istilah teknis yang sama
+  - [x] Pesan validasi dan bantuan perintah tidak lagi memakai label penjelas status
+  - [x] Pemeriksaan: tes backend Board, tes komponen Board, dan typecheck hijau
+**Done**
 - Kolom status tanpa sub-modul terlipat saat Board dibuka
   - [x] Kolom tanpa sub-modul tertutup saat halaman Board dibuka
   - [x] Kolom yang punya sub-modul terbuka
-  - [x] Kolom Selesai (Done) selalu tertutup secara default
+  - [x] Kolom Done selalu tertutup secara default
   - [x] Bukaan manual pengguna tetap setelah data disegarkan
   - [x] Verifikasi: 27 tes komponen Board lulus + npm run typecheck
 - Rail modul menandai modul yang punya pekerjaan For Review
@@ -1066,16 +1082,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA12. Dokumen & Berkas
 
-### DA12.1 Arsip Dokumen `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA12.1 Arsip Dokumen `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Dokumen santri, pegawai, dan lembaga
   - [x] Tiga jenis pemilik dokumen
   - [x] Unggah dan unduh berkas
@@ -1087,16 +1103,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Sinkron dokumen massal
   - [x] Pilihan mode penyimpanan
 
-### DA12.2 Impor & Ekspor Berkas `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### DA12.2 Impor & Ekspor Berkas `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Impor XLSX bertahap dengan pratinjau
   - [x] Unduh template per modul
   - [x] Pratinjau baris sebelum simpan
@@ -1112,8 +1128,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## MO0. Fondasi & Rilis
 
-### MO0.1 Kerangka & Distribusi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MO0.1 Kerangka & Distribusi `Backlog`
+**Backlog**
 - Kerangka aplikasi mobile
   - [ ] Pilihan stack dan struktur proyek
   - [ ] Navigasi dan tema dasar
@@ -1122,34 +1138,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Build debug dan rilis
   - [ ] Distribusi uji internal
   - [ ] Tanda tangan dan rilis toko
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MO1. Akun & Onboarding
 
-### MO1.1 API Autentikasi `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MO1.1 API Autentikasi `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Login wali lewat API
   - [x] Sanctum
   - [x] multi-identifier
   - [x] peran orang_tua
 
-### MO1.2 UI Mobile `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MO1.2 UI Mobile `Backlog`
+**Backlog**
 - Login dan onboarding wali
   - [ ] email/HP
   - [ ] OTP
@@ -1158,34 +1174,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] data wali
   - [ ] data santri
   - [ ] batas akses
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MO2. Profil Santri
 
-### MO2.1 API Portal `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MO2.1 API Portal `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Rute portal wali
   - [x] portal/*
   - [x] role orang_tua
   - [x] agregator baca
 
-### MO2.2 UI Profil `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MO2.2 UI Profil `Backlog`
+**Backlog**
 - Biodata dan dokumen anak
   - [ ] lihat
   - [ ] unduh
@@ -1194,34 +1210,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] per lembaga
   - [ ] kelas
   - [ ] status aktif
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MO3. Tagihan & Pembayaran
 
-### MO3.1 API Keuangan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MO3.1 API Keuangan `Backlog`
+**Backlog**
 - API tagihan dan pembayaran untuk portal wali
   - [ ] Daftar tagihan per anak
   - [ ] Riwayat pembayaran
   - [ ] Sisa tunggakan per anak
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### MO3.2 UI Tagihan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MO3.2 UI Tagihan `Backlog`
+**Backlog**
 - Daftar tagihan per anak
   - [ ] jatuh tempo
   - [ ] status
@@ -1234,34 +1250,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] aging
   - [ ] pengingat
   - [ ] riwayat
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MO4. Presensi & Perilaku
 
-### MO4.1 API Presensi `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MO4.1 API Presensi `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Tabel presensi santri
   - [x] sesi
   - [x] kehadiran
   - [x] pelanggaran
 
-### MO4.2 UI Presensi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MO4.2 UI Presensi `Backlog`
+**Backlog**
 - Presensi harian anak
   - [ ] per sesi
   - [ ] izin/sakit
@@ -1270,34 +1286,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] jenis
   - [ ] poin
   - [ ] tindak lanjut
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MO5. Tahfizh
 
-### MO5.1 API Tahfizh `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MO5.1 API Tahfizh `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Tabel target dan setoran
   - [x] target
   - [x] setoran
   - [x] rekap
 
-### MO5.2 UI Tahfizh `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MO5.2 UI Tahfizh `Backlog`
+**Backlog**
 - Target dan setoran
   - [ ] ziyadah
   - [ ] murajaah
@@ -1306,34 +1322,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] periode
   - [ ] catatan guru
   - [ ] unduh
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MO6. PSB & Pengajuan
 
-### MO6.1 API PSB `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MO6.1 API PSB `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Pendaftaran dan pengajuan
   - [x] PSB
   - [x] biodata
   - [x] dokumen
 
-### MO6.2 UI PSB `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MO6.2 UI PSB `Backlog`
+**Backlog**
 - PSB online
   - [ ] formulir
   - [ ] unggah dokumen
@@ -1342,19 +1358,19 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] satu aktif
   - [ ] batal
   - [ ] verifikasi
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MO7. Notifikasi
 
-### MO7.1 Push & WhatsApp `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MO7.1 Push & WhatsApp `Backlog`
+**Backlog**
 - Notifikasi tagihan dan presensi
   - [ ] push
   - [ ] WhatsApp
@@ -1363,13 +1379,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] jenis
   - [ ] jam tenang
   - [ ] per anak
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 ---
 
@@ -1377,8 +1393,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## MG0. Fondasi & Rilis
 
-### MG0.1 Kerangka & Distribusi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MG0.1 Kerangka & Distribusi `Backlog`
+**Backlog**
 - Kerangka aplikasi mobile
   - [ ] Pilihan stack dan struktur proyek
   - [ ] Navigasi dan tema dasar
@@ -1387,66 +1403,66 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Build debug dan rilis
   - [ ] Distribusi uji internal
   - [ ] Tanda tangan dan rilis toko
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MG1. Akun & Login
 
-### MG1.1 API Autentikasi `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MG1.1 API Autentikasi `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Login guru lewat API
   - [x] Sanctum
   - [x] multi-identifier
   - [x] peran guru
 
-### MG1.2 UI Guru `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MG1.2 UI Guru `Backlog`
+**Backlog**
 - Login mobile dan profil guru
   - [ ] email/HP
   - [ ] sesi perangkat
   - [ ] penempatan
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MG2. Jadwal Mengajar
 
-### MG2.1 API Jadwal `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MG2.1 API Jadwal `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Jadwal per kelas
   - [x] slot
   - [x] anti bentrok
   - [x] per TA
 
-### MG2.2 UI Jadwal `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MG2.2 UI Jadwal `Backlog`
+**Backlog**
 - Agenda mengajar guru
   - [ ] hari ini
   - [ ] minggu
@@ -1455,34 +1471,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] mapel
   - [ ] jam
   - [ ] ruang
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MG3. Input Nilai
 
-### MG3.1 API Nilai `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MG3.1 API Nilai `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Nilai per kegiatan evaluatif
   - [x] komponen
   - [x] impor
   - [x] leger
 
-### MG3.2 UI Input `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MG3.2 UI Input `Backlog`
+**Backlog**
 - Input nilai per kelas
   - [ ] mapel
   - [ ] komponen
@@ -1491,34 +1507,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] kunci
   - [ ] status
   - [ ] koreksi
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MG4. Presensi Pegawai
 
-### MG4.1 API Presensi `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MG4.1 API Presensi `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Tabel presensi pegawai
   - [x] status harian
   - [x] rekap
   - [x] koreksi
 
-### MG4.2 UI Presensi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MG4.2 UI Presensi `Backlog`
+**Backlog**
 - Absen harian guru
   - [ ] masuk/pulang
   - [ ] lokasi
@@ -1527,34 +1543,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] pengajuan
   - [ ] persetujuan
   - [ ] lampiran
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MG5. Setoran Tahfizh
 
-### MG5.1 API Tahfizh `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MG5.1 API Tahfizh `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Tabel setoran tahfizh
   - [x] target
   - [x] setoran
   - [x] rekap
 
-### MG5.2 UI Setoran `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MG5.2 UI Setoran `Backlog`
+**Backlog**
 - Input setoran
   - [ ] ziyadah
   - [ ] murajaah
@@ -1563,34 +1579,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] per kelas
   - [ ] periode
   - [ ] unduh
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MG6. Pengampu & Kelas
 
-### MG6.1 API Pengampu `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MG6.1 API Pengampu `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Pivot pengampu
   - [x] kelas × mapel
   - [x] guru
   - [x] per TA
 
-### MG6.2 UI Pendampingan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MG6.2 UI Pendampingan `Backlog`
+**Backlog**
 - Daftar kelas dan mapel
   - [ ] TA aktif
   - [ ] daftar siswa
@@ -1599,19 +1615,19 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] jurnal
   - [ ] tindak lanjut
   - [ ] riwayat
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MG7. Pengajuan & Izin
 
-### MG7.1 Alur Pengajuan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MG7.1 Alur Pengajuan `Backlog`
+**Backlog**
 - Pengajuan izin guru
   - [ ] jenis
   - [ ] lampiran
@@ -1620,13 +1636,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] riwayat
   - [ ] notifikasi
   - [ ] pembatalan
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 ---
 
@@ -1634,8 +1650,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## MP0. Fondasi & Rilis
 
-### MP0.1 Kerangka & Distribusi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MP0.1 Kerangka & Distribusi `Backlog`
+**Backlog**
 - Kerangka aplikasi mobile
   - [ ] Pilihan stack dan struktur proyek
   - [ ] Navigasi dan tema dasar
@@ -1644,66 +1660,66 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Build debug dan rilis
   - [ ] Distribusi uji internal
   - [ ] Tanda tangan dan rilis toko
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MP1. Akun & Login
 
-### MP1.1 API Autentikasi `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MP1.1 API Autentikasi `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Login pimpinan lewat API
   - [x] Sanctum
   - [x] multi-identifier
   - [x] batas izin
 
-### MP1.2 UI Pimpinan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MP1.2 UI Pimpinan `Backlog`
+**Backlog**
 - Login mobile pimpinan
   - [ ] email/HP
   - [ ] sesi perangkat
   - [ ] profil
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MP2. Dashboard Eksekutif
 
-### MP2.1 API Ringkasan `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MP2.1 API Ringkasan `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Ringkasan lintas modul
   - [x] dashboard/ringkasan
   - [x] izin per blok
   - [x] null bila tak berizin
 
-### MP2.2 UI KPI `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MP2.2 UI KPI `Backlog`
+**Backlog**
 - KPI dan tren
   - [ ] per lembaga
   - [ ] periode
@@ -1712,115 +1728,115 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] modul 504
   - [ ] ekspor
   - [ ] jadwal kirim
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MP3. Statistik Keuangan
 
-### MP3.1 API Keuangan `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MP3.1 API Keuangan `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Data tagihan dan pembayaran
   - [x] tagihan
   - [x] terbayar
   - [x] tunggakan
 
-### MP3.2 UI Keuangan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MP3.2 UI Keuangan `Backlog`
+**Backlog**
 - Tren keuangan
   - [ ] per lembaga
   - [ ] per kas
   - [ ] periode
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MP4. Statistik Santri & PSB
 
-### MP4.1 API Santri & PSB `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MP4.1 API Santri & PSB `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Data santri dan PSB
   - [x] jumlah aktif
   - [x] funnel PSB
   - [x] per lembaga
 
-### MP4.2 UI Santri `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MP4.2 UI Santri `Backlog`
+**Backlog**
 - Statistik santri
   - [ ] per jenjang
   - [ ] siklus
   - [ ] mutasi
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MP5. Statistik Akademik
 
-### MP5.1 API Akademik `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MP5.1 API Akademik `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Data nilai dan kehadiran
   - [x] nilai
   - [x] jadwal
   - [x] presensi
 
-### MP5.2 UI Akademik `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MP5.2 UI Akademik `Backlog`
+**Backlog**
 - Distribusi nilai dan kehadiran
   - [ ] per kelas
   - [ ] per mapel
   - [ ] peringatan
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MP6. Laporan & Ekspor
 
-### MP6.1 Laporan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MP6.1 Laporan `Backlog`
+**Backlog**
 - Laporan PDF/Excel
   - [ ] periode
   - [ ] per lembaga
@@ -1829,19 +1845,19 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] email/WA
   - [ ] rekap berkala
   - [ ] riwayat
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MP7. Notifikasi & Alert
 
-### MP7.1 Alert `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MP7.1 Alert `Backlog`
+**Backlog**
 - Ambang batas otomatis
   - [ ] tunggakan
   - [ ] kehadiran
@@ -1850,13 +1866,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] kegiatan evaluatif
   - [ ] penerima
   - [ ] tindak lanjut
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 ---
 
@@ -1864,8 +1880,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## MK0. Fondasi & Rilis
 
-### MK0.1 Kerangka & Distribusi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK0.1 Kerangka & Distribusi `Backlog`
+**Backlog**
 - Kerangka aplikasi mobile
   - [ ] Pilihan stack dan struktur proyek
   - [ ] Navigasi dan tema dasar
@@ -1874,81 +1890,81 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Build debug dan rilis
   - [ ] Distribusi uji internal
   - [ ] Tanda tangan dan rilis toko
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MK1. Akun & Login
 
-### MK1.1 API Autentikasi `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MK1.1 API Autentikasi `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Login kasir lewat API
   - [x] Sanctum
   - [x] multi-identifier
   - [x] batas izin
 
-### MK1.2 UI Kasir `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK1.2 UI Kasir `Backlog`
+**Backlog**
 - Login dan profil kasir
   - [ ] role kasir
   - [ ] perangkat
   - [ ] shift
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### MK1.3 Peran & Izin Kasir `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK1.3 Peran & Izin Kasir `Backlog`
+**Backlog**
 - Peran dan izin kasir untuk aplikasi mobile
   - [ ] Buat peran kasir
   - [ ] Izin kasir: pembayaran, kwitansi, tunggakan
   - [ ] Uji login dan akses kasir
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MK2. Kasir Harian
 
-### MK2.1 API Kasir `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MK2.1 API Kasir `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Pembayaran dan pembatalan
   - [x] kasir
   - [x] saldo terkunci
   - [x] batal/hapus
 
-### MK2.2 UI Kasir `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK2.2 UI Kasir `Backlog`
+**Backlog**
 - Cari santri dan pilih tagihan
   - [ ] pencarian
   - [ ] filter
@@ -1957,34 +1973,34 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] metode
   - [ ] konfirmasi
   - [ ] kwitansi
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MK3. Kwitansi
 
-### MK3.1 API Kwitansi `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MK3.1 API Kwitansi `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Kwitansi dan cetak ulang
   - [x] nomor
   - [x] data bayar
   - [x] riwayat
 
-### MK3.2 UI Kwitansi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK3.2 UI Kwitansi `Backlog`
+**Backlog**
 - Cetak thermal dan bagikan
   - [ ] thermal
   - [ ] PDF
@@ -1993,115 +2009,115 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] per kas
   - [ ] per tahun
   - [ ] format final
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MK4. Tunggakan
 
-### MK4.1 API Tunggakan `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MK4.1 API Tunggakan `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Crosstab tunggakan
   - [x] per santri/kelas
   - [x] total
   - [x] terbayar
 
-### MK4.2 UI Tunggakan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK4.2 UI Tunggakan `Backlog`
+**Backlog**
 - Daftar tunggakan kasir
   - [ ] aging
   - [ ] surat
   - [ ] pengingat
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MK5. Tutup Buku & Rekap
 
-### MK5.1 API Rekap `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK5.1 API Rekap `Backlog`
+**Backlog**
 - Rekap per posisi kas
   - [ ] tunai
   - [ ] bank
   - [ ] periode
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### MK5.2 UI Tutup Buku `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK5.2 UI Tutup Buku `Backlog`
+**Backlog**
 - Tutup buku harian
   - [ ] rekap
   - [ ] kunci
   - [ ] buka kunci
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MK6. Dispensasi
 
-### MK6.1 API Dispensasi `Selesai (Done)`
-**Belum dijadwalkan (Backlog)**
+### MK6.1 API Dispensasi `Done`
+**Backlog**
 - (kosong)
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Dispensasi dan grup santri
   - [x] disponsasi
   - [x] grup custom
   - [x] tagihan
 
-### MK6.2 UI Dispensasi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK6.2 UI Dispensasi `Backlog`
+**Backlog**
 - Pengajuan dan persetujuan
   - [ ] ajukan
   - [ ] setujui
   - [ ] riwayat
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## MK7. Offline & Sinkronisasi
 
-### MK7.1 Mode Offline `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK7.1 Mode Offline `Backlog`
+**Backlog**
 - Cache data tagihan
   - [ ] santri
   - [ ] tagihan
@@ -2110,28 +2126,28 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] simpan lokal
   - [ ] retry
   - [ ] status
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### MK7.2 Sinkronisasi `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### MK7.2 Sinkronisasi `Backlog`
+**Backlog**
 - Sinkron dan konflik
   - [ ] timestamp
   - [ ] konflik
   - [ ] audit
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 ---
 
@@ -2139,8 +2155,8 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## LP0. Fondasi & Peluncuran
 
-### LP0.1 Fondasi Teknis `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP0.1 Fondasi Teknis `Backlog`
+**Backlog**
 - Keputusan stack dan hosting
   - [ ] Pilihan framework/static site
   - [ ] Hosting dan CDN
@@ -2153,17 +2169,17 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Profil pesantren dan lembaga
   - [ ] Formulir PSB publik
   - [ ] Berita dan pengumuman
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### LP0.2 Peluncuran `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP0.2 Peluncuran `Backlog`
+**Backlog**
 - Migrasi konten awal
   - [ ] Teks profil dan visi-misi
   - [ ] Foto fasilitas dan kegiatan
@@ -2176,19 +2192,19 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] Pemeriksaan akhir
   - [ ] Pemantauan uptime
   - [ ] Rencana perbaikan
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## LP1. Profil & Identitas
 
-### LP1.1 Struktur Halaman `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP1.1 Struktur Halaman `Backlog`
+**Backlog**
 - Halaman profil pesantren
   - [ ] sejarah
   - [ ] visi-misi
@@ -2198,256 +2214,256 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] MD
   - [ ] MTS
   - [ ] MLN
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### LP1.2 Konten Identitas `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP1.2 Konten Identitas `Backlog`
+**Backlog**
 - Fasilitas dan prestasi
   - [ ] fasilitas
   - [ ] prestasi
   - [ ] galeri
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## LP2. PSB Online
 
-### LP2.1 Formulir PSB `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP2.1 Formulir PSB `Backlog`
+**Backlog**
 - Formulir pendaftaran publik
   - [ ] jalur
   - [ ] data calon
   - [ ] unggah
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - Prototipe formulir PSB publik berjalan
   - [x] Pilihan lembaga dan paket
   - [x] Data calon dan cek NIK
   - [x] Unggah bukti transfer
   - [x] Nomor pendaftaran
 
-### LP2.2 Status & Biaya `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP2.2 Status & Biaya `Backlog`
+**Backlog**
 - Cek status dan biaya
   - [ ] status
   - [ ] biaya
   - [ ] konfirmasi
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## LP3. Berita & Pengumuman
 
-### LP3.1 CMS Berita `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP3.1 CMS Berita `Backlog`
+**Backlog**
 - Kelola berita dan pengumuman
   - [ ] kategori
   - [ ] editor
   - [ ] jadwal terbit
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### LP3.2 Tampilan Publik `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP3.2 Tampilan Publik `Backlog`
+**Backlog**
 - Daftar dan detail berita
   - [ ] daftar
   - [ ] detail
   - [ ] pencarian
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## LP4. Galeri & Fasilitas
 
-### LP4.1 Album `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP4.1 Album `Backlog`
+**Backlog**
 - Album foto dan video
   - [ ] kategori
   - [ ] lazy load
   - [ ] caption
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### LP4.2 Virtual Tour `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP4.2 Virtual Tour `Backlog`
+**Backlog**
 - Tur 360 dan peta
   - [ ] 360
   - [ ] peta
   - [ ] aksesibilitas
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## LP5. Kontak & WhatsApp
 
-### LP5.1 Kontak `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP5.1 Kontak `Backlog`
+**Backlog**
 - Form kontak dan lokasi
   - [ ] form
   - [ ] maps
   - [ ] jam layanan
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### LP5.2 WhatsApp `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP5.2 WhatsApp `Backlog`
+**Backlog**
 - WhatsApp dan antispam
   - [ ] deep link
   - [ ] template
   - [ ] antispam
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## LP6. SEO & Analytics
 
-### LP6.1 SEO Teknis `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP6.1 SEO Teknis `Backlog`
+**Backlog**
 - Metadata dan sitemap
   - [ ] metadata
   - [ ] sitemap
   - [ ] schema.org
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### LP6.2 Analytics `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP6.2 Analytics `Backlog`
+**Backlog**
 - Analytics dan consent
   - [ ] GA4
   - [ ] event PSB
   - [ ] consent
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## LP7. Multi-lembaga & Bahasa
 
-### LP7.1 Multi-lembaga `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP7.1 Multi-lembaga `Backlog`
+**Backlog**
 - Halaman per lembaga
   - [ ] jenjang
   - [ ] navigasi
   - [ ] konten
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### LP7.2 Bahasa & Aksesibilitas `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP7.2 Bahasa & Aksesibilitas `Backlog`
+**Backlog**
 - Bahasa dan aksesibilitas
   - [ ] ID/EN
   - [ ] kontras
   - [ ] keyboard
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 ## LP8. Keamanan & Performa
 
-### LP8.1 Keamanan `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP8.1 Keamanan `Backlog`
+**Backlog**
 - Keamanan publik
   - [ ] HTTPS
   - [ ] anti-spam
   - [ ] rate limit
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
-### LP8.2 Performa `Belum dijadwalkan (Backlog)`
-**Belum dijadwalkan (Backlog)**
+### LP8.2 Performa `Backlog`
+**Backlog**
 - Performa halaman
   - [ ] cache
   - [ ] gambar
   - [ ] Lighthouse
-**Siap dikerjakan (To Do)**
+**To Do**
 - (kosong)
-**Sedang dikerjakan (In Progress)**
+**In Progress**
 - (kosong)
-**Menunggu peninjauan (For Review)**
+**For Review**
 - (kosong)
-**Selesai (Done)**
+**Done**
 - (kosong)
 
 # SEDANG DIKERJAKAN

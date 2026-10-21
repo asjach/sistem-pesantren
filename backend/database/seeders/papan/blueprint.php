@@ -348,7 +348,7 @@ $blueprint = [
             ]],
             ['kode' => 'DA11.4', 'nama' => 'Halaman Board', 'butir' => [
                 'done' => [
-                    ['Kolom status tanpa sub-modul terlipat saat Board dibuka', ['Kolom tanpa sub-modul tertutup saat halaman Board dibuka', 'Kolom yang punya sub-modul terbuka', 'Kolom Selesai (Done) selalu tertutup secara default', 'Bukaan manual pengguna tetap setelah data disegarkan', 'Verifikasi: 27 tes komponen Board lulus + npm run typecheck']],
+                    ['Kolom status tanpa sub-modul terlipat saat Board dibuka', ['Kolom tanpa sub-modul tertutup saat halaman Board dibuka', 'Kolom yang punya sub-modul terbuka', 'Kolom Done selalu tertutup secara default', 'Bukaan manual pengguna tetap setelah data disegarkan', 'Verifikasi: 27 tes komponen Board lulus + npm run typecheck']],
                     ['Rail modul menandai modul yang punya pekerjaan For Review', ['Modul dengan poin For Review berlatar warna berbeda di rail modul', 'Modul tanpa For Review tetap netral', 'Warna tetap terbaca saat modul itu sedang aktif', 'Verifikasi: tes pustaka + typecheck + pratinjau visual']],
                 ],
             ]],

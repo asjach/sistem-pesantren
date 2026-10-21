@@ -31,11 +31,11 @@ class PapanService
     public const STATUS = ['backlog', 'todo', 'in_progress', 'for_review', 'done'];
 
     public const LABEL_STATUS = [
-        'backlog' => 'Belum dijadwalkan (Backlog)',
-        'todo' => 'Siap dikerjakan (To Do)',
-        'in_progress' => 'Sedang dikerjakan (In Progress)',
-        'for_review' => 'Menunggu peninjauan (For Review)',
-        'done' => 'Selesai (Done)',
+        'backlog' => 'Backlog',
+        'todo' => 'To Do',
+        'in_progress' => 'In Progress',
+        'for_review' => 'For Review',
+        'done' => 'Done',
     ];
 
     /** Aplikasi klien pada Board; urutan di sini = urutan tab horizontal. */
@@ -115,6 +115,7 @@ class PapanService
                         'id' => $b->id,
                         'status' => $b->status,
                         'deskripsi' => $b->deskripsi,
+                        'keterangan' => $b->keterangan,
                         'subpoin' => $b->subpoin ?? [],
                     ])->all();
 
@@ -303,7 +304,7 @@ class PapanService
 
         if ($status === 'done' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
             throw ValidationException::withMessages([
-                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Selesai (Done).',
+                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Done.',
             ]);
         }
 
@@ -333,15 +334,16 @@ class PapanService
      *
      * @param  string  $status  status poin, salah satu {@see self::STATUS}
      */
-    public function tambahButir(string $kode, string $status, string $deskripsi, array $subpoin = []): PapanButir
+    public function tambahButir(string $kode, string $status, string $deskripsi, array $subpoin = [], ?string $keterangan = null): PapanButir
     {
         $this->pastikanStatus($status);
 
         $subpoin = self::normalisasiSubpoin($subpoin);
+        $keterangan = $keterangan === null || trim($keterangan) === '' ? null : trim($keterangan);
 
         if ($status === 'done' && ! self::semuaSubpoinSelesai($subpoin)) {
             throw ValidationException::withMessages([
-                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Selesai (Done).',
+                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Done.',
             ]);
         }
 
@@ -353,6 +355,7 @@ class PapanService
             'item_id' => $item->id,
             'status' => $status,
             'deskripsi' => $deskripsi,
+            'keterangan' => $keterangan,
             'subpoin' => $subpoin,
             'urutan' => $urutan + 1,
         ]);
@@ -443,6 +446,7 @@ class PapanService
         string $oleh = 'agent',
         ?string $catatan = null,
         ?array $subpoin = null,
+        ?string $keterangan = null,
     ): PapanButir {
         if ($status !== null) {
             $this->pastikanStatus($status);
@@ -459,9 +463,13 @@ class PapanService
             $butir->subpoin = self::normalisasiSubpoin($subpoin);
         }
 
+        if ($keterangan !== null) {
+            $butir->keterangan = trim($keterangan) === '' ? null : trim($keterangan);
+        }
+
         if ($status === 'done' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
             throw ValidationException::withMessages([
-                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Selesai (Done).',
+                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Done.',
             ]);
         }
 

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type DragEvent, type CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
-import { Check, Minus, Pencil, Plus, Trash2, Undo2 } from '@/icons';
+import { Check, ChevronDown, ChevronUp, Minus, Pencil, Plus, Trash2, Undo2 } from '@/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { JUDUL_KOLOM, KOLOM_PAPAN, type StatusPapan, type SubPapan, type SubpoinPapan } from '@/api/papan';
 import { kemajuanPoin, kolomSebelah, kelompokkanKolom, persenKemajuan, type KartuPapan, type KartuSub, type KolomPapanData } from '@/lib/papan';
@@ -13,7 +13,7 @@ import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
  * harus diteruskan berlapis dari halaman sampai ke barisnya.
  */
 export interface AksiButir {
-  onSimpanTeks: (deskripsi: string, status?: StatusPapan) => Promise<void>;
+  onSimpanTeks: (deskripsi: string, status?: StatusPapan, keterangan?: string | null) => Promise<void>;
   onSimpanSubpoin: (subpoin: SubpoinPapan[]) => Promise<void>;
   onHapus: () => Promise<void>;
 }
@@ -164,7 +164,7 @@ export function KartuPapan({
   /** Aksi yang berlaku untuk sebuah poin di kartu ini. */
   aksiKartu: (poin: KartuPapan) => AksiButir;
   aksiSub?: (kartu: KartuSub) => AksiSub;
-  onTambahPoin?: (kode: string, status: StatusPapan, deskripsi: string) => Promise<void>;
+  onTambahPoin?: (kode: string, status: StatusPapan, deskripsi: string, keterangan?: string | null) => Promise<void>;
 }) {
   const idKartu = `sub_${kartu.subKode.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${kartu.status}`;
   const warna = warnaKartuSub(kartu.subKode);
@@ -176,7 +176,9 @@ export function KartuPapan({
   const [kode, setKode] = useState(kartu.subKode);
   const [nama, setNama] = useState(kartu.subNama);
   const [poinBaru, setPoinBaru] = useState('');
+  const [keteranganBaru, setKeteranganBaru] = useState('');
   const [statusBaru, setStatusBaru] = useState<StatusPapan>(kartu.status);
+  const [terbuka, setTerbuka] = useState(false);
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
   const [sibuk, setSibuk] = useState(false);
@@ -199,7 +201,13 @@ export function KartuPapan({
     setKode(kartu.subKode);
     setNama(kartu.subNama);
     setKonfirmasiHapus(false);
+    setTerbuka(true);
     setUbahSub(true);
+  }
+
+  function jungkitKartu() {
+    if (terbuka) setTambahTerbuka(false);
+    setTerbuka(!terbuka);
   }
 
   function batalUbah() {
@@ -228,44 +236,65 @@ export function KartuPapan({
     >
       <div className="flex items-start gap-2">
         {ubahSub ? (
-          <input
-            id={`input_kode_${idKartu}`}
-            value={kode}
-            onChange={(e) => setKode(e.target.value)}
-            maxLength={20}
-            aria-label={`Kode sub-modul ${kartu.subKode}`}
-            className="mt-px w-[68px] shrink-0 border bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground"
-            style={{ borderColor: 'var(--divider)' }}
-          />
+          <>
+            <input
+              id={`input_kode_${idKartu}`}
+              value={kode}
+              onChange={(e) => setKode(e.target.value)}
+              maxLength={20}
+              aria-label={`Kode sub-modul ${kartu.subKode}`}
+              className="mt-px w-[68px] shrink-0 border bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground"
+              style={{ borderColor: 'var(--divider)' }}
+            />
+            <input
+              id={`input_nama_${idKartu}`}
+              value={nama}
+              onChange={(e) => setNama(e.target.value)}
+              aria-label={`Nama sub-modul ${kartu.subKode}`}
+              className="min-w-0 flex-1 border bg-transparent px-1 text-[13px] leading-snug font-medium text-[var(--accent-readable)]"
+              style={{ borderColor: 'var(--divider)' }}
+            />
+          </>
         ) : (
-          <span
-            className="papan-cip mt-px shrink-0"
-            style={{ '--hue-kartu': warna.garis } as React.CSSProperties}
+          <button
+            id={`btn_lipat_area_${idKartu}`}
+            type="button"
+            onClick={jungkitKartu}
+            aria-expanded={terbuka}
+            aria-controls={`isi_${idKartu}`}
+            aria-label={`${terbuka ? 'Tutup' : 'Buka'} kartu ${kartu.subKode} ${kartu.subNama}`}
+            title={terbuka ? 'Tutup kartu' : 'Buka kartu'}
+            className="flex min-w-0 flex-1 cursor-pointer items-start gap-2 text-left transition-opacity hover:opacity-80"
           >
-            {kartu.subKode}
-          </span>
-        )}
-        {ubahSub ? (
-          <input
-            id={`input_nama_${idKartu}`}
-            value={nama}
-            onChange={(e) => setNama(e.target.value)}
-            aria-label={`Nama sub-modul ${kartu.subKode}`}
-            className="min-w-0 flex-1 border bg-transparent px-1 text-[13px] leading-snug font-medium text-[var(--accent-readable)]"
-            style={{ borderColor: 'var(--divider)' }}
-          />
-        ) : (
-          <h3 className="min-w-0 flex-1 text-[13px] leading-snug font-medium text-[var(--accent-readable)]">
-            {kartu.subNama}
-          </h3>
+            <span
+              className="papan-cip mt-px shrink-0"
+              style={{ '--hue-kartu': warna.garis } as React.CSSProperties}
+            >
+              {kartu.subKode}
+            </span>
+            <span className="min-w-0 flex-1 text-[13px] leading-snug font-medium text-[var(--accent-readable)]">
+              {kartu.subNama}
+            </span>
+            {!terbuka && kemajuan.total > 0 ? (
+              <span
+                className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums"
+                title={`${kemajuan.selesai} dari ${kemajuan.total} unit selesai`}
+              >
+                {kemajuan.selesai}/{kemajuan.total}
+              </span>
+            ) : null}
+          </button>
         )}
         {bolehUbah && onTambahPoin && !ubahSub ? (
           <button
             id={`btn_tambah_poin_${idKartu}`}
             type="button"
-            onClick={() => setTambahTerbuka((v) => !v)}
+            onClick={() => {
+              setTerbuka(true);
+              setTambahTerbuka((v) => !v);
+            }}
             aria-label={`${tambahTerbuka ? 'Tutup' : 'Tambah'} poin di ${kartu.subKode}`}
-            aria-expanded={tambahTerbuka}
+            aria-expanded={terbuka && tambahTerbuka}
             title="Tambah poin"
             className="grid size-5 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
           >
@@ -329,82 +358,92 @@ export function KartuPapan({
               </div>
             </PopoverContent>
           </Popover>
-        ) : (
-          /* Jumlah poin di kolom ini; berguna saat poinnya panjang-panjang. */
-          <span
-            className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center border px-1 font-mono text-[10px] tabular-nums"
-            style={{ borderColor: `color-mix(in srgb, ${warna.garis} 35%, var(--divider))`, color: warna.teks }}
-            title={`${kartu.poin.length} poin di kolom ini`}
+        ) : null}
+        {!ubahSub ? (
+          <button
+            id={`btn_lipat_${idKartu}`}
+            type="button"
+            onClick={jungkitKartu}
+            aria-expanded={terbuka}
+            aria-controls={`isi_${idKartu}`}
+            aria-label={`${terbuka ? 'Tutup' : 'Buka'} kartu ${kartu.subKode} ${kartu.subNama}`}
+            title={terbuka ? 'Tutup kartu' : 'Buka kartu'}
+            className="mt-px grid size-5 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
           >
-            {kartu.poin.length}
-          </span>
-        )}
+            {terbuka ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        ) : null}
       </div>
 
       {galat ? <p role="alert" className="text-xs text-destructive">{galat}</p> : null}
 
-      {tampilkanModul ? (
-        <div className="flex flex-wrap gap-1">
-          <Lencana label={kartu.modulNama} warna="var(--accent)" />
-        </div>
-      ) : null}
-
-      {/* Meter kemajuan sub-modul DI KOLOM INI: satu sub-modul boleh separuh
-          selesai, jadi kolom Akan dan kolom Sudah menampilkan angka berbeda. */}
-      {kemajuan.total > 0 ? (
-        <div className="flex items-center gap-2">
-          <span
-            className="papan-meter papan-meter--tipis min-w-0 flex-1"
-            style={{ '--warna-meter': warna.garis } as React.CSSProperties}
-            title={`${kemajuan.selesai} dari ${kemajuan.total} unit selesai`}
-          >
-            <span className="papan-meter__isi" style={{ width: `${persen}%` }} />
-          </span>
-          <span className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums">
-            {kemajuan.selesai}/{kemajuan.total}
-          </span>
-        </div>
-      ) : null}
-
-      {/* Daftar poin. Tiap baris tetap satuan seret; suntingan terbuka di bawahnya. */}
-      <div className="flex flex-col gap-1.5 border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
-        {kartu.poin.map((poin) => (
-          <BarisPoin
-            key={poin.id}
-            poin={poin}
-            diseret={diseret === poin.id}
-            onMulaiSeret={onMulaiSeret}
-            onLepasSeret={onLepasSeret}
-            onDiAtas={onDiAtas}
-            onPindahArah={onPindahArah}
-            bolehUbah={bolehUbah}
-            aksi={aksiKartu(poin)}
-          />
-        ))}
-      </div>
-      {bolehUbah && onTambahPoin && tambahTerbuka ? (
-        <div className="border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
-          <div className="flex flex-col gap-2">
-            <input id={`input_poin_baru_${idKartu}`} value={poinBaru} onChange={(e) => setPoinBaru(e.target.value)} placeholder="Tulis poin baru..." aria-label={`Poin baru ${kartu.subKode}`} className="w-full border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
-            <select id={`status_poin_baru_${idKartu}`} value={statusBaru} onChange={(e) => setStatusBaru(e.target.value as StatusPapan)} aria-label="Status poin baru" className="border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }}>
-              {KOLOM_PAPAN.map((status) => <option key={status} value={status}>{JUDUL_KOLOM[status]}</option>)}
-            </select>
-            <div className="flex gap-2">
-              <button
-                id={`btn_simpan_poin_${idKartu}`}
-                type="button"
-                disabled={sibuk || !poinBaru.trim()}
-                onClick={() => void jalankan(
-                  () => onTambahPoin(kartu.subKode, statusBaru, poinBaru.trim()),
-                  () => { setPoinBaru(''); setTambahTerbuka(false); },
-                )}
-                className="border px-2 py-1 text-xs disabled:opacity-40"
-              >
-                Simpan poin
-              </button>
-              <button type="button" onClick={() => setTambahTerbuka(false)} className="text-xs text-muted-foreground">Batal</button>
+      {terbuka ? (
+        <div id={`isi_${idKartu}`} className="flex flex-col gap-2">
+          {tampilkanModul ? (
+            <div className="flex flex-wrap gap-1">
+              <Lencana label={kartu.modulNama} warna="var(--accent)" />
             </div>
+          ) : null}
+
+          {/* Meter kemajuan sub-modul DI KOLOM INI: satu sub-modul boleh separuh
+              selesai, jadi kolom Akan dan kolom Sudah menampilkan angka berbeda. */}
+          {kemajuan.total > 0 ? (
+            <div className="flex items-center gap-2">
+              <span
+                className="papan-meter papan-meter--tipis min-w-0 flex-1"
+                style={{ '--warna-meter': warna.garis } as React.CSSProperties}
+                title={`${kemajuan.selesai} dari ${kemajuan.total} unit selesai`}
+              >
+                <span className="papan-meter__isi" style={{ width: `${persen}%` }} />
+              </span>
+              <span className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums">
+                {kemajuan.selesai}/{kemajuan.total}
+              </span>
+            </div>
+          ) : null}
+
+          {/* Daftar poin. Tiap baris tetap satuan seret; suntingan terbuka di bawahnya. */}
+          <div className="flex flex-col gap-1.5 border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
+            {kartu.poin.map((poin) => (
+              <BarisPoin
+                key={poin.id}
+                poin={poin}
+                diseret={diseret === poin.id}
+                onMulaiSeret={onMulaiSeret}
+                onLepasSeret={onLepasSeret}
+                onDiAtas={onDiAtas}
+                onPindahArah={onPindahArah}
+                bolehUbah={bolehUbah}
+                aksi={aksiKartu(poin)}
+              />
+            ))}
           </div>
+          {bolehUbah && onTambahPoin && tambahTerbuka ? (
+            <div className="border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
+              <div className="flex flex-col gap-2">
+                <input id={`input_poin_baru_${idKartu}`} value={poinBaru} onChange={(e) => setPoinBaru(e.target.value)} placeholder="Tulis poin baru..." aria-label={`Poin baru ${kartu.subKode}`} className="w-full border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
+                <textarea id={`input_keterangan_poin_baru_${idKartu}`} value={keteranganBaru} onChange={(e) => setKeteranganBaru(e.target.value)} rows={2} maxLength={2000} placeholder="Keterangan (opsional)" aria-label={`Keterangan poin baru ${kartu.subKode}`} className="w-full resize-y border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
+                <select id={`status_poin_baru_${idKartu}`} value={statusBaru} onChange={(e) => setStatusBaru(e.target.value as StatusPapan)} aria-label="Status poin baru" className="border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }}>
+                  {KOLOM_PAPAN.map((status) => <option key={status} value={status}>{JUDUL_KOLOM[status]}</option>)}
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    id={`btn_simpan_poin_${idKartu}`}
+                    type="button"
+                    disabled={sibuk || !poinBaru.trim()}
+                    onClick={() => void jalankan(
+                      () => onTambahPoin(kartu.subKode, statusBaru, poinBaru.trim(), keteranganBaru.trim() || null),
+                      () => { setPoinBaru(''); setKeteranganBaru(''); setTambahTerbuka(false); },
+                    )}
+                    className="border px-2 py-1 text-xs disabled:opacity-40"
+                  >
+                    Simpan poin
+                  </button>
+                  <button type="button" onClick={() => setTambahTerbuka(false)} className="text-xs text-muted-foreground">Batal</button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </article>
@@ -439,6 +478,7 @@ function BarisPoin({
   const idPoin = `butir_${poin.id}`;
   const [ubah, setUbah] = useState(false);
   const [draf, setDraf] = useState(poin.deskripsi);
+  const [keteranganDraf, setKeteranganDraf] = useState(poin.keterangan ?? '');
   const [statusDraf, setStatusDraf] = useState<StatusPapan>(poin.status);
   const [subpoin, setSubpoin] = useState<SubpoinPapan[]>(poin.subpoin);
   // Nilai subpoin yang sudah tersimpan di server; dipakai saat menyimpan satu
@@ -451,6 +491,7 @@ function BarisPoin({
 
   function mulaiUbah() {
     setDraf(poin.deskripsi);
+    setKeteranganDraf(poin.keterangan ?? '');
     setStatusDraf(poin.status);
     setSubpoin(poin.subpoin);
     setAsli(poin.subpoin);
@@ -461,6 +502,7 @@ function BarisPoin({
 
   function batalUbah() {
     setDraf(poin.deskripsi);
+    setKeteranganDraf(poin.keterangan ?? '');
     setStatusDraf(poin.status);
     setSubpoin(poin.subpoin);
     setAsli(poin.subpoin);
@@ -478,8 +520,16 @@ function BarisPoin({
     setGalat('');
 
     try {
-      if (statusBerubah) await aksi.onSimpanTeks(teks, statusDraf);
-      else await aksi.onSimpanTeks(teks);
+      const keterangan = keteranganDraf.trim();
+      const keteranganBerubah = keterangan !== (poin.keterangan ?? '').trim();
+
+      if (keteranganBerubah) {
+        await aksi.onSimpanTeks(teks, statusBerubah ? statusDraf : undefined, keterangan);
+      } else if (statusBerubah) {
+        await aksi.onSimpanTeks(teks, statusDraf);
+      } else {
+        await aksi.onSimpanTeks(teks);
+      }
       setUbah(false);
     } catch (e) {
       setGalat(e instanceof Error ? e.message : 'Gagal menyimpan.');
@@ -585,6 +635,7 @@ function BarisPoin({
 
   const teksBerubah = draf.trim() !== poin.deskripsi.trim();
   const statusBerubah = statusDraf !== poin.status;
+  const keteranganBerubah = keteranganDraf.trim() !== (poin.keterangan ?? '').trim();
   const semuaSubpoinSelesai = poin.subpoin.every((item) => item.selesai);
 
   return (
@@ -652,6 +703,19 @@ function BarisPoin({
                 </select>
               </div>
             </div>
+            <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+              Keterangan (opsional)
+              <textarea
+                id={`input_keterangan_butir_${poin.id}`}
+                value={keteranganDraf}
+                onChange={(e) => setKeteranganDraf(e.target.value)}
+                rows={2}
+                maxLength={2000}
+                aria-label={`Keterangan poin ${poin.deskripsi}`}
+                className="min-w-0 resize-y border bg-transparent p-1.5 text-[11px] leading-snug outline-none focus:border-[var(--accent)]"
+                style={{ borderColor: 'var(--divider)' }}
+              />
+            </label>
             <div className="flex flex-wrap items-center gap-1.5">
               <button
                 id={`btn_tambah_subpoin_${poin.id}`}
@@ -664,7 +728,7 @@ function BarisPoin({
                 <button
                   id={`btn_simpan_butir_${poin.id}`}
                   type="button"
-                  disabled={sibuk || sibukSub !== null || draf.trim() === '' || (!teksBerubah && !statusBerubah)}
+                  disabled={sibuk || sibukSub !== null || draf.trim() === '' || (!teksBerubah && !statusBerubah && !keteranganBerubah)}
                   onClick={() => void simpan()}
                   aria-label={`Simpan poin ${poin.deskripsi}`}
                   className="grid size-6 shrink-0 place-items-center text-success enabled:hover:opacity-80 disabled:opacity-40"
@@ -753,6 +817,14 @@ function BarisPoin({
             )}
           >
             <TeksButir deskripsi={poin.deskripsi} />
+            {poin.keterangan ? (
+              <p
+                className="mt-1 border-l-2 pl-1.5 text-[11px] leading-snug whitespace-pre-line text-muted-foreground [overflow-wrap:anywhere]"
+                style={{ borderColor: 'var(--divider)' }}
+              >
+                {poin.keterangan}
+              </p>
+            ) : null}
             {poin.subpoin.length > 0 ? (
               <ul className="mt-1 flex flex-col gap-0.5 text-[11px] text-muted-foreground">
                 {poin.subpoin.map((item, i) => (
@@ -819,12 +891,12 @@ export function PapanKolom({
   /** Aksi sunting untuk poin tertentu; wajib bila bolehUbah true. */
   aksiButir?: (poin: KartuPapan) => AksiButir;
   aksiSub?: (kartu: KartuSub) => AksiSub;
-  onTambahPoin?: (kode: string, status: StatusPapan, deskripsi: string) => Promise<void>;
+  onTambahPoin?: (kode: string, status: StatusPapan, deskripsi: string, keterangan?: string | null) => Promise<void>;
   subKosong?: SubPapan[];
   /** Awalan id elemen supaya beberapa papan di satu halaman tidak bertabrakan. */
   idAwalan?: string;
   /** Paksa status kolom yang mulai terlipat. Bila kosong, diturunkan dari isi
-   *  (kolom tanpa kartu) dan kolom Selesai (Done) selalu ikut terlipat. */
+   *  (kolom tanpa kartu) dan kolom Done selalu ikut terlipat. */
   lipatAwal?: StatusPapan[];
   /** Bila diisi, tombol tambah sub-modul muncul di kolom Backlog & To Do. */
   onTambahSub?: () => void;
@@ -855,7 +927,7 @@ export function PapanKolom({
    *
    * Bawaannya diturunkan dari isi: kolom tanpa sub-modul dilipat supaya lima
    * kolom kosong tidak memakan lebar, sedangkan kolom yang berisi tetap
-   * terbuka. Kolom Selesai (Done) SELALU terlipat — isinya arsip, bukan
+   * terbuka. Kolom Done SELALU terlipat — isinya arsip, bukan
    * pekerjaan aktif. `lipatAwal` tetap bisa memaksa daftar tertentu.
    *
    * Hanya dipakai sebagai nilai awal: setelah pengguna membuka/melipat sendiri,

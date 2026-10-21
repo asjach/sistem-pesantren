@@ -89,11 +89,11 @@ describe('kelompokkanKolom', () => {
 
     expect(kolom.map((k) => k.id)).toEqual(['backlog', 'todo', 'in_progress', 'for_review', 'done']);
     expect(kolom.map((k) => k.judul)).toEqual([
-      'Belum dijadwalkan (Backlog)',
-      'Siap dikerjakan (To Do)',
-      'Sedang dikerjakan (In Progress)',
-      'Menunggu peninjauan (For Review)',
-      'Selesai (Done)',
+      'Backlog',
+      'To Do',
+      'In Progress',
+      'For Review',
+      'Done',
     ]);
   });
 

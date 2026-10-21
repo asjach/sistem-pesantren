@@ -8,11 +8,11 @@ export const KOLOM_PAPAN: StatusPapan[] = ['backlog', 'todo', 'in_progress', 'fo
 
 /** Judul kolom untuk tampilan. */
 export const JUDUL_KOLOM: Record<StatusPapan, string> = {
-  backlog: 'Belum dijadwalkan (Backlog)',
-  todo: 'Siap dikerjakan (To Do)',
-  in_progress: 'Sedang dikerjakan (In Progress)',
-  for_review: 'Menunggu peninjauan (For Review)',
-  done: 'Selesai (Done)',
+  backlog: 'Backlog',
+  todo: 'To Do',
+  in_progress: 'In Progress',
+  for_review: 'For Review',
+  done: 'Done',
 };
 
 /** Satu baris checklist di bawah poin. */
@@ -25,6 +25,7 @@ export interface ButirPapan {
   id: number;
   status: StatusPapan;
   deskripsi: string;
+  keterangan?: string | null;
   subpoin?: SubpoinPapan[];
 }
 
@@ -100,10 +101,16 @@ export function pindahStatusPapan(kode: string, butirId: number, status: StatusP
 }
 
 /** Tambah poin di bawah sebuah sub-modul. */
-export function tambahButirPapan(kode: string, status: StatusPapan, deskripsi: string, subpoin: SubpoinPapan[] = []) {
+export function tambahButirPapan(
+  kode: string,
+  status: StatusPapan,
+  deskripsi: string,
+  subpoin: SubpoinPapan[] = [],
+  keterangan: string | null = null,
+) {
   return api<ButirPapan>(`/board/${encodeURIComponent(kode)}/butir`, {
     method: 'POST',
-    body: JSON.stringify({ status, deskripsi, subpoin }),
+    body: JSON.stringify({ status, deskripsi, subpoin, keterangan }),
   });
 }
 
@@ -124,9 +131,9 @@ export function hapusButirPapan(kode: string, id: number) {
 export function ubahButirPapan(
   kode: string,
   id: number,
-  ubah: { deskripsi?: string; subpoin?: SubpoinPapan[]; status?: StatusPapan; catatan?: string },
+  ubah: { deskripsi?: string; keterangan?: string | null; subpoin?: SubpoinPapan[]; status?: StatusPapan; catatan?: string },
 ) {
-  return api<{ id: number; status: StatusPapan; deskripsi: string; status_sub_modul: StatusPapan }>(
+  return api<{ id: number; status: StatusPapan; deskripsi: string; keterangan: string | null; status_sub_modul: StatusPapan }>(
     `/board/${encodeURIComponent(kode)}/butir/${id}`,
     { method: 'PATCH', body: JSON.stringify(ubah) },
   );

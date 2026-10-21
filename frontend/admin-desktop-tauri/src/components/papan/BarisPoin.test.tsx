@@ -15,6 +15,7 @@ function kartu(ubah: Partial<KartuPapan> = {}): KartuPapan {
     nama: 'Rekap & Tutup Buku Kas',
     status: 'todo',
     deskripsi: 'Ekspor rekap per kas.',
+    keterangan: null,
     subpoin: [],
     subKode: 'E.3',
     subNama: 'Rekap & Tutup Buku Kas',
@@ -39,7 +40,7 @@ function pasang(
   daftar: KartuPapan[] = [kartu()],
   { bolehUbah = false, a }: { bolehUbah?: boolean; a?: AksiButir } = {},
 ) {
-  return renderDenganTema(
+  const hasil = renderDenganTema(
     <PapanKolom
       kartu={daftar}
       tampilkanModul={false}
@@ -49,6 +50,13 @@ function pasang(
       idAwalan="uji"
     />,
   );
+
+  // Baris poin baru dirender setelah kartu sub-modul dibuka.
+  document.querySelectorAll<HTMLElement>('[id^="btn_lipat_sub_"]').forEach((tombol) => {
+    fireEvent.click(tombol);
+  });
+
+  return hasil;
 }
 
 /** Masuk mode sunting poin lewat pensil di baris. */
@@ -128,6 +136,43 @@ describe('BarisPoin - menyunting poin di baris', () => {
     fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
 
     expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap harian.');
+  });
+
+  it('menampilkan keterangan poin bila terisi', () => {
+    pasang([kartu({ keterangan: 'Catatan rinci per kas.' })]);
+
+    expect(document.getElementById('kartu_papan_butir_128')?.textContent).toContain('Catatan rinci per kas.');
+  });
+
+  it('menyimpan keterangan bersama poin', async () => {
+    const onSimpanTeks = vi.fn(async () => {});
+    pasang([kartu({ keterangan: 'Catatan lama.' })], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    mulaiUbah();
+
+    const kotak = document.getElementById('input_keterangan_butir_128') as HTMLTextAreaElement;
+    expect(kotak.value).toBe('Catatan lama.');
+
+    fireEvent.change(kotak, { target: { value: 'Catatan baru.' } });
+    fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
+
+    await vi.waitFor(() => {
+      expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', undefined, 'Catatan baru.');
+    });
+  });
+
+  it('mengosongkan keterangan mengirim string kosong', async () => {
+    const onSimpanTeks = vi.fn(async () => {});
+    pasang([kartu({ keterangan: 'Catatan lama.' })], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    mulaiUbah();
+
+    fireEvent.change(document.getElementById('input_keterangan_butir_128')!, {
+      target: { value: '' },
+    });
+    fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
+
+    await vi.waitFor(() => {
+      expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', undefined, '');
+    });
   });
 
   it('tombol simpan mati selama teks belum berubah', () => {

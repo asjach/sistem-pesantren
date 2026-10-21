@@ -169,60 +169,73 @@ class PapanMarkdown
     /** Selaraskan bagian statis lama tanpa mengedit PETA-MODUL secara manual. */
     private function normalisasiKepalaWorkflow(string $kepala): string
     {
-        return strtr($kepala, [
+        $hasil = strtr($kepala, [
             "disusul To Do, Backlog, dan For Review; sub-modul menjadi Done hanya bila semua\n".
-            'poinnya sudah Done.' => "disusul siap dikerjakan (To Do), belum dijadwalkan (Backlog), dan menunggu\n".
-                "peninjauan (For Review); sub-modul menjadi selesai (Done) hanya bila semua\n".
-                'poinnya sudah selesai (Done).',
+            'poinnya sudah Done.' => "disusul To Do, Backlog, dan For Review; sub-modul menjadi Done hanya bila semua\n".
+                'poinnya sudah Done.',
             "Lima status workflow dipakai konsisten di seluruh berkas:\n\n".
             "- **Backlog** — belum siap dijadwalkan atau masih ditahan.\n".
             "- **To Do** — siap dikerjakan.\n".
             "- **In Progress** — sedang dikerjakan.\n".
             "- **For Review** — implementasi selesai dan menunggu peninjauan.\n".
             '- **Done** — pekerjaan dan seluruh subpoin sudah selesai.' => "Lima status alur kerja (workflow) dipakai konsisten di seluruh berkas:\n\n".
-                "- **Belum dijadwalkan (Backlog)** — belum siap dijadwalkan atau masih ditahan.\n".
-                "- **Siap dikerjakan (To Do)** — siap dikerjakan.\n".
-                "- **Sedang dikerjakan (In Progress)** — sedang dikerjakan.\n".
-                "- **Menunggu peninjauan (For Review)** — implementasi selesai dan menunggu peninjauan.\n".
-                '- **Selesai (Done)** — pekerjaan dan seluruh subpoin sudah selesai.',
-            'kolom **Done** dan **To Do** bersamaan' => 'kolom **Selesai (Done)** dan **Siap dikerjakan (To Do)** bersamaan',
+                "- **Backlog** — belum siap dijadwalkan atau masih ditahan.\n".
+                "- **To Do** — siap dikerjakan.\n".
+                "- **In Progress** — sedang dikerjakan.\n".
+                "- **For Review** — implementasi selesai dan menunggu peninjauan.\n".
+                '- **Done** — pekerjaan dan seluruh subpoin sudah selesai.',
+            'kolom **Done** dan **To Do** bersamaan' => 'kolom **Done** dan **To Do** bersamaan',
             '**Status workflow:**' => '**Status alur kerja (workflow):**',
             'Workflow hanya menjadi rujukan' => 'Alur kerja (workflow) hanya menjadi rujukan',
             'status efektif = master + flag aplikasi' => 'status efektif = pengaturan utama (master) + penanda aplikasi (flag)',
-            '(`backlog` | `todo` | `in_progress` | `for_review` | `done`)' => '(belum dijadwalkan (`backlog`) | siap dikerjakan (`todo`) | sedang dikerjakan (`in_progress`) | menunggu peninjauan (`for_review`) | selesai (`done`))',
+            '(`backlog` | `todo` | `in_progress` | `for_review` | `done`)' => '(`backlog` | `todo` | `in_progress` | `for_review` | `done`)',
             "(`sudah` | `sedang` | `akan` | `ditunda`), dan status sub-modul **dihitung otomatis**\n".
             "dari poin-poinnya: ada poin `sedang` → sub-modul `sedang`; kalau tidak, ada poin\n".
             "`akan` → `akan`; semua `ditunda` → `ditunda`; selain itu (semua sudah) → `sudah`.\n".
             'Jadi satu poin yang belum selesai sudah cukup menahan sub-modul tetap `akan`.' => "(`backlog` | `todo` | `in_progress` | `for_review` | `done`), dan status\n".
                 "sub-modul **dihitung otomatis** dari poin-poinnya. Pekerjaan aktif didahulukan,\n".
-                "disusul siap dikerjakan (To Do), belum dijadwalkan (Backlog), dan menunggu\n".
-                "peninjauan (For Review); sub-modul menjadi selesai (Done) hanya bila semua\n".
-                'poinnya sudah selesai (Done).',
+                "disusul To Do, Backlog, dan For Review; sub-modul menjadi Done hanya bila semua\n".
+                'poinnya sudah Done.',
             "Empat status dipakai konsisten di seluruh berkas:\n\n".
             "- **SUDAH** — kode ada, terhubung, dipakai dari UI.\n".
             "- **SEDANG** — dikerjakan sekarang. Hanya boleh **satu** sub-modul bertanda ini.\n".
             "- **AKAN** — belum ada kode, sudah dirancang cukup untuk dikerjakan.\n".
             "- **DITUNDA** — belum dikerjakan dan sengaja ditunda; bisa karena masih rencana\n".
                 '  awal atau menunggu pelaksanaan pasca production.' => "Lima status alur kerja (workflow) dipakai konsisten di seluruh berkas:\n\n".
-                "- **Belum dijadwalkan (Backlog)** — belum siap dijadwalkan atau masih ditahan.\n".
-                "- **Siap dikerjakan (To Do)** — siap dikerjakan.\n".
-                "- **Sedang dikerjakan (In Progress)** — sedang dikerjakan.\n".
-                "- **Menunggu peninjauan (For Review)** — implementasi selesai dan menunggu peninjauan.\n".
-                '- **Selesai (Done)** — pekerjaan dan seluruh subpoin sudah selesai.',
+                "- **Backlog** — belum siap dijadwalkan atau masih ditahan.\n".
+                "- **To Do** — siap dikerjakan.\n".
+                "- **In Progress** — sedang dikerjakan.\n".
+                "- **For Review** — implementasi selesai dan menunggu peninjauan.\n".
+                '- **Done** — pekerjaan dan seluruh subpoin sudah selesai.',
             '`sudah`' => '`done`',
             '`sedang`' => '`in_progress`',
             '`akan`' => '`todo`',
             '`ditunda`' => '`backlog`',
             'Empat status dipakai konsisten' => 'Lima status alur kerja (workflow) dipakai konsisten',
-            '**SUDAH**' => '**Selesai (Done)**',
-            '**SEDANG**' => '**Sedang dikerjakan (In Progress)**',
-            '**AKAN**' => '**Siap dikerjakan (To Do)**',
-            '**DITUNDA**' => '**Belum dijadwalkan (Backlog)**',
+            '**SUDAH**' => '**Done**',
+            '**SEDANG**' => '**In Progress**',
+            '**AKAN**' => '**To Do**',
+            '**DITUNDA**' => '**Backlog**',
             '**Status timeline:**' => '**Status alur kerja (workflow):**',
             'Timeline hanya menjadi rujukan' => 'Alur kerja (workflow) hanya menjadi rujukan',
             'papan:tandai E.3 128 sedang' => 'papan:tandai E.3 128 in_progress',
-            'kolom **Sudah** dan **Akan** bersamaan' => 'kolom **Selesai (Done)** dan **Siap dikerjakan (To Do)** bersamaan',
-            'dan tandai SEDANG.' => 'dan pindahkan ke Sedang dikerjakan (In Progress).',
+            'kolom **Sudah** dan **Akan** bersamaan' => 'kolom **Done** dan **To Do** bersamaan',
+            'dan tandai SEDANG.' => 'dan pindahkan ke In Progress.',
+        ]);
+
+        return strtr($hasil, [
+            'Belum dijadwalkan (Backlog)' => 'Backlog',
+            'Siap dikerjakan (To Do)' => 'To Do',
+            'Sedang dikerjakan (In Progress)' => 'In Progress',
+            'Menunggu peninjauan (For Review)' => 'For Review',
+            'Selesai (Done)' => 'Done',
+            'belum dijadwalkan (Backlog)' => 'Backlog',
+            'siap dikerjakan (To Do)' => 'To Do',
+            'sedang dikerjakan (In Progress)' => 'In Progress',
+            "menunggu\npeninjauan (For Review)" => 'For Review',
+            'selesai (Done)' => 'Done',
+            'belum dijadwalkan (`backlog`) | siap dikerjakan (`todo`) | sedang dikerjakan (`in_progress`) | menunggu peninjauan (`for_review`) | selesai (`done`)' => '`backlog` | `todo` | `in_progress` | `for_review` | `done`',
+            '((`backlog` | `todo` | `in_progress` | `for_review` | `done`))' => '(`backlog` | `todo` | `in_progress` | `for_review` | `done`)',
         ]);
     }
 

@@ -13,6 +13,7 @@ function kartu(ubah: Partial<KartuPapan> = {}): KartuPapan {
     nama: 'Rekap & Tutup Buku Kas',
     status: 'todo',
     deskripsi: 'Ekspor rekap per kas.',
+    keterangan: null,
     subpoin: [],
     subKode: 'E.3',
     subNama: 'Rekap & Tutup Buku Kas',
@@ -54,6 +55,7 @@ describe('PapanKolom - kolom awal', () => {
     expect(document.getElementById('btn_lipat_uji_todo')).not.toBeNull();
 
     fireEvent.click(document.getElementById('btn_buka_uji_done')!);
+    fireEvent.click(document.getElementById('btn_lipat_sub_e_3_done')!);
     expect(document.getElementById('kartu_papan_butir_2')).not.toBeNull();
   });
 });

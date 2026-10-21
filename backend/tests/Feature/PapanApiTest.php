@@ -256,6 +256,40 @@ class PapanApiTest extends TestCase
         $this->assertSame('Rekap harian per kas.', $butir->refresh()->deskripsi);
     }
 
+    public function test_keterangan_bisa_disimpan_ditampilkan_dan_dikosongkan(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $butir = PapanButir::query()->where('status', 'todo')->firstOrFail();
+
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['keterangan' => 'Catatan rinci per kas.'])
+            ->assertOk()
+            ->assertJsonPath('keterangan', 'Catatan rinci per kas.');
+
+        $this->getJson('/api/board')
+            ->assertOk()
+            ->assertJsonFragment(['keterangan' => 'Catatan rinci per kas.']);
+
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['keterangan' => ''])
+            ->assertOk()
+            ->assertJsonPath('keterangan', null);
+
+        $this->assertNull($butir->refresh()->keterangan);
+    }
+
+    public function test_tambah_butir_dengan_keterangan(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+
+        $this->postJson('/api/board/E.3/butir', [
+            'status' => 'todo',
+            'deskripsi' => 'Poin berketerangan.',
+            'keterangan' => 'Rincian singkat.',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('deskripsi', 'Poin berketerangan.')
+            ->assertJsonPath('keterangan', 'Rincian singkat.');
+    }
+
     public function test_subpoin_bisa_disimpan_ditampilkan_dan_dihapus_tanpa_mengubah_status(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));

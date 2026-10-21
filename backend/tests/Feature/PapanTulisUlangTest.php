@@ -54,7 +54,7 @@ class PapanTulisUlangTest extends TestCase
         $hasil = app(PapanTulisUlang::class)->jalankan($this->berkas);
 
         $this->assertTrue($hasil['berubah']);
-        $this->assertStringContainsString('## A.1 Setup (001) '.chr(96).'Selesai (Done)'.chr(96), file_get_contents($this->berkas));
+        $this->assertStringContainsString('## A.1 Setup (001) '.chr(96).'Done'.chr(96), file_get_contents($this->berkas));
     }
 
     public function test_tidak_menulis_saat_sudah_selaras(): void

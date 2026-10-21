@@ -13,6 +13,7 @@ function poin(ubah: Partial<KartuPapan> = {}): KartuPapan {
     nama: 'Nilai & Kegiatan Evaluatif',
     status: 'todo',
     deskripsi: 'Poin contoh.',
+    keterangan: null,
     subpoin: [],
     subKode: 'D.1',
     subNama: 'Nilai & Kegiatan Evaluatif',
@@ -37,13 +38,42 @@ function pasang(kartu: KartuPapan[]) {
   );
 }
 
+function bukaKartu(id: string) {
+  fireEvent.click(document.getElementById(`btn_lipat_${id}`)!);
+}
+
 describe('PapanKolom - kartu digabung per sub-modul', () => {
+  it('kartu sub-modul tertutup secara bawaan lalu bisa dibuka dan ditutup', () => {
+    pasang([poin({ id: 1 })]);
+
+    expect(document.getElementById('btn_lipat_sub_d_1_todo')?.getAttribute('aria-expanded')).toBe('false');
+    expect(document.getElementById('kartu_papan_butir_1')).toBeNull();
+
+    bukaKartu('sub_d_1_todo');
+    expect(document.getElementById('btn_lipat_sub_d_1_todo')?.getAttribute('aria-expanded')).toBe('true');
+    expect(document.getElementById('kartu_papan_butir_1')).not.toBeNull();
+
+    bukaKartu('sub_d_1_todo');
+    expect(document.getElementById('kartu_papan_butir_1')).toBeNull();
+  });
+
+  it('area header selain tombol juga membuka kartu', () => {
+    pasang([poin({ id: 1 })]);
+
+    expect(document.getElementById('kartu_papan_butir_1')).toBeNull();
+
+    fireEvent.click(document.getElementById('btn_lipat_area_sub_d_1_todo')!);
+
+    expect(document.getElementById('kartu_papan_butir_1')).not.toBeNull();
+  });
+
   it('tiga poin satu sub-modul jadi SATU kartu berisi tiga poin', () => {
     pasang([
       poin({ id: 1, deskripsi: 'Poin A.' }),
       poin({ id: 2, deskripsi: 'Poin B.' }),
       poin({ id: 3, deskripsi: 'Poin C.' }),
     ]);
+    bukaKartu('sub_d_1_todo');
 
     // Judul sub-modul muncul sekali, bukan tiga kali.
     const kartu = document.querySelectorAll('[id^="kartu_papan_sub_"]');
@@ -59,6 +89,8 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
       poin({ id: 1, status: 'todo' }),
       poin({ id: 2, status: 'done' }),
     ]);
+    bukaKartu('sub_d_1_todo');
+    bukaKartu('sub_d_1_done');
 
     // Satu sub-modul, dua kolom: kartunya dua, tapi tiap kolom hanya satu.
     const kartu = document.querySelectorAll('[id^="kartu_papan_sub_"]');
@@ -69,6 +101,7 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
 
   it('poin tetap draggable saat boleh ubah, dan tidak saat tidak boleh', () => {
     const { unmount } = pasang([poin({ id: 1 })]);
+    bukaKartu('sub_d_1_todo');
     expect(document.getElementById('kartu_papan_butir_1')?.getAttribute('draggable')).toBe('true');
     unmount();
 
@@ -81,6 +114,7 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
         idAwalan="uji2"
       />,
     );
+    bukaKartu('sub_d_1_todo');
     expect(document.getElementById('kartu_papan_butir_1')?.getAttribute('draggable')).toBe('false');
   });
 
@@ -89,6 +123,7 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
       { teks: 'Periksa saldo.', selesai: false },
       { teks: 'Unduh laporan.', selesai: true },
     ] })]);
+    bukaKartu('sub_d_1_todo');
 
     const baris = document.getElementById('kartu_papan_butir_1');
     expect(baris?.textContent).toContain('Periksa saldo.');
@@ -125,7 +160,10 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
     fireEvent.change(document.getElementById('input_poin_baru_sub_d_2_backlog')!, {
       target: { value: 'Mulai pekerjaan.' },
     });
+    fireEvent.change(document.getElementById('input_keterangan_poin_baru_sub_d_2_backlog')!, {
+      target: { value: 'Catatan tambahan.' },
+    });
     fireEvent.click(document.getElementById('btn_simpan_poin_sub_d_2_backlog')!);
-    await vi.waitFor(() => expect(onTambahPoin).toHaveBeenCalledWith('D.2', 'backlog', 'Mulai pekerjaan.'));
+    await vi.waitFor(() => expect(onTambahPoin).toHaveBeenCalledWith('D.2', 'backlog', 'Mulai pekerjaan.', 'Catatan tambahan.'));
   });
 });

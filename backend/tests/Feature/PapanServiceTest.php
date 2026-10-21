@@ -166,6 +166,17 @@ class PapanServiceTest extends TestCase
         $this->assertSame(0, PapanRiwayat::query()->count());
     }
 
+    public function test_tambah_dan_ubah_butir_menyimpan_keterangan(): void
+    {
+        $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['todo']);
+
+        $butir = $this->papan->tambahButir('E.3', 'todo', 'Poin berketerangan.', [], 'Catatan awal.');
+        $this->assertSame('Catatan awal.', $butir->keterangan);
+
+        $hasil = $this->papan->ubahButir('E.3', (int) $butir->id, null, null, 'agent', null, null, '');
+        $this->assertNull($hasil->keterangan);
+    }
+
     public function test_ubah_butir_mengganti_status_dan_mencatat_riwayat(): void
     {
         $item = $this->buatItem('E.3', 'Rekap & Tutup Buku Kas', ['todo']);

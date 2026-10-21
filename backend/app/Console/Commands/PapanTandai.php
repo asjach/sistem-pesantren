@@ -11,7 +11,7 @@ use InvalidArgumentException;
 #[Signature('papan:tandai
     {kode : Kode sub-modul, mis. E.3}
     {id : Id poin (butir) yang dipindah}
-    {status : Belum dijadwalkan (backlog) | siap dikerjakan (todo) | sedang dikerjakan (in_progress) | menunggu peninjauan (for_review) | selesai (done)}
+    {status : Status: backlog | todo | in_progress | for_review | done}
     {--catatan= : Alasan singkat perpindahan}
     {--oleh=agent : Pencatat: agent atau pengguna}')]
 #[Description('Pindahkan status sebuah poin di papan perkembangan proyek.')]

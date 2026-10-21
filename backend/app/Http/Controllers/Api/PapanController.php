@@ -79,6 +79,7 @@ class PapanController extends Controller
             'id' => $b->id,
             'status' => $b->status,
             'deskripsi' => $b->deskripsi,
+            'keterangan' => $b->keterangan,
             'subpoin' => $b->subpoin ?? [],
         ])->all();
 
@@ -139,6 +140,7 @@ class PapanController extends Controller
         $valid = $request->validate([
             'status' => ['required', 'string', 'in:'.implode(',', PapanService::STATUS)],
             'deskripsi' => ['required', 'string', 'max:500'],
+            'keterangan' => ['nullable', 'string', 'max:2000'],
             'subpoin' => ['sometimes', 'array', 'max:30'],
             'subpoin.*' => ['array'],
             'subpoin.*.teks' => ['required', 'string', 'max:500'],
@@ -146,7 +148,13 @@ class PapanController extends Controller
         ]);
 
         try {
-            $butir = $this->papan->tambahButir($kode, $valid['status'], $valid['deskripsi'], $valid['subpoin'] ?? []);
+            $butir = $this->papan->tambahButir(
+                $kode,
+                $valid['status'],
+                $valid['deskripsi'],
+                $valid['subpoin'] ?? [],
+                $valid['keterangan'] ?? null,
+            );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         }
@@ -155,6 +163,7 @@ class PapanController extends Controller
             'id' => $butir->id,
             'status' => $butir->status,
             'deskripsi' => $butir->deskripsi,
+            'keterangan' => $butir->keterangan,
             'subpoin' => $butir->subpoin ?? [],
             ...$this->segarkanMarkdown(),
         ], 201);
@@ -187,6 +196,7 @@ class PapanController extends Controller
     {
         $valid = $request->validate([
             'deskripsi' => ['nullable', 'string', 'max:500'],
+            'keterangan' => ['nullable', 'string', 'max:2000'],
             'subpoin' => ['sometimes', 'array', 'max:30'],
             'subpoin.*' => ['array'],
             'subpoin.*.teks' => ['required', 'string', 'max:500'],
@@ -195,9 +205,13 @@ class PapanController extends Controller
             'catatan' => ['nullable', 'string', 'max:255'],
         ]);
 
-        if (($valid['deskripsi'] ?? null) === null && ($valid['status'] ?? null) === null && ! array_key_exists('subpoin', $valid)) {
-            return response()->json(['message' => 'Tidak ada yang diubah: isi deskripsi, status, atau subpoin.'], 422);
+        if (($valid['deskripsi'] ?? null) === null && ($valid['status'] ?? null) === null && ! array_key_exists('subpoin', $valid) && ! array_key_exists('keterangan', $valid)) {
+            return response()->json(['message' => 'Tidak ada yang diubah: isi deskripsi, keterangan, status, atau subpoin.'], 422);
         }
+
+        $keterangan = array_key_exists('keterangan', $valid)
+            ? (string) ($valid['keterangan'] ?? '')
+            : null;
 
         try {
             $poin = $this->papan->ubahButir(
@@ -208,6 +222,7 @@ class PapanController extends Controller
                 'pengguna',
                 $valid['catatan'] ?? null,
                 $valid['subpoin'] ?? null,
+                $keterangan,
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 404);
@@ -225,6 +240,7 @@ class PapanController extends Controller
             'id' => $poin->id,
             'status' => $poin->status,
             'deskripsi' => $poin->deskripsi,
+            'keterangan' => $poin->keterangan,
             'subpoin' => $poin->subpoin ?? [],
             'status_sub_modul' => PapanService::statusTurunan($semua),
             ...$this->segarkanMarkdown(),
@@ -260,6 +276,7 @@ class PapanController extends Controller
                 'id' => $b->id,
                 'status' => $b->status,
                 'deskripsi' => $b->deskripsi,
+                'keterangan' => $b->keterangan,
                 'subpoin' => $b->subpoin ?? [],
             ])->all(),
             ...$this->segarkanMarkdown(),
