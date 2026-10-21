@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
-use App\Models\PeristiwaNilai;
+use App\Models\KegiatanEvaluatif;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
@@ -16,7 +16,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-class PesertaPeristiwaTest extends TestCase
+class PesertaKegiatanEvaluatifTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -24,7 +24,7 @@ class PesertaPeristiwaTest extends TestCase
 
     private User $admin;
 
-    private PeristiwaNilai $peristiwa;
+    private KegiatanEvaluatif $kegiatanEvaluatif;
 
     /** @var array<string, Santri> */
     private array $santri = [];
@@ -53,11 +53,11 @@ class PesertaPeristiwaTest extends TestCase
         $this->santri['satu_b'] = $this->santriDiKelas('Badrun', '26002', $kelasSatu, '1', 2);
         $this->santri['dua_a'] = $this->santriDiKelas('Candra', '26003', $kelasDua, '2', 1);
 
-        $this->peristiwa = PeristiwaNilai::create([
+        $this->kegiatanEvaluatif = KegiatanEvaluatif::create([
             'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'kode' => 'ASAS',
             'nama' => 'Asesmen Sumatif Akhir Semester',
-            'cakupan' => PeristiwaNilai::CAKUPAN_SEMUA,
-            'kurikulum' => 'keduanya', 'jenis_rapor' => PeristiwaNilai::RAPOR_AKHIR,
+            'cakupan' => KegiatanEvaluatif::CAKUPAN_SEMUA,
+            'kurikulum' => 'keduanya', 'jenis_rapor' => KegiatanEvaluatif::RAPOR_AKHIR,
             'urutan' => 1, 'is_active' => true,
         ]);
 
@@ -71,12 +71,12 @@ class PesertaPeristiwaTest extends TestCase
     public function test_daftar_memuat_peserta_dan_pengaturan_bawaan(): void
     {
         $this->actingAs($this->admin, 'sanctum')
-            ->getJson('/api/admin/penilaian/peserta-kartu?peristiwa_id='.$this->peristiwa->id.'&semester=1')
+            ->getJson('/api/admin/penilaian/peserta-kartu?kegiatan_evaluatif_id='.$this->kegiatanEvaluatif->id.'&semester=1')
             ->assertOk()
             ->assertJsonPath('ringkasan.total', 3)
             ->assertJsonPath('ringkasan.belum_bernomor', 3)
             ->assertJsonPath('pengaturan.mode_urutan', 'per_tingkat')
-            ->assertJsonPath('pengaturan.template', '{ta_awal_2}.{ta_akhir_2}.{kode_peristiwa}.{tingkat_2}.{nomor_4}')
+            ->assertJsonPath('pengaturan.template', '{ta_awal_2}.{ta_akhir_2}.{kode_kegiatan_evaluatif}.{tingkat_2}.{nomor_4}')
             ->assertJsonCount(9, 'token');
     }
 
@@ -84,29 +84,29 @@ class PesertaPeristiwaTest extends TestCase
     {
         $this->actingAs($this->admin, 'sanctum')
             ->putJson('/api/admin/penilaian/peserta-kartu/'.$this->santri['satu_a']->id, [
-                'peristiwa_id' => $this->peristiwa->id, 'semester' => '1',
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id, 'semester' => '1',
                 'nomor_peserta' => 'MANUAL-001',
             ])->assertOk();
 
         $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/admin/penilaian/peserta-kartu/generate', [
-                'peristiwa_id' => $this->peristiwa->id, 'semester' => '1',
-                'template' => '{ta_awal_2}.{ta_akhir_2}.{kode_peristiwa}.{tingkat_2}.{nomor_4}',
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id, 'semester' => '1',
+                'template' => '{ta_awal_2}.{ta_akhir_2}.{kode_kegiatan_evaluatif}.{tingkat_2}.{nomor_4}',
                 'mode_urutan' => 'per_tingkat',
             ])
             ->assertOk()
             ->assertJsonPath('hasil.dibuat', 2)
             ->assertJsonPath('hasil.dipertahankan_manual', 1);
 
-        $this->assertDatabaseHas('peserta_peristiwa_nilai', [
+        $this->assertDatabaseHas('peserta_kegiatan_evaluatif', [
             'santri_id' => $this->santri['satu_a']->id, 'nomor_peserta' => 'MANUAL-001',
             'sumber_nomor' => 'manual',
         ]);
-        $this->assertDatabaseHas('peserta_peristiwa_nilai', [
+        $this->assertDatabaseHas('peserta_kegiatan_evaluatif', [
             'santri_id' => $this->santri['satu_b']->id, 'nomor_peserta' => '26.27.ASAS.01.0002',
             'sumber_nomor' => 'otomatis',
         ]);
-        $this->assertDatabaseHas('peserta_peristiwa_nilai', [
+        $this->assertDatabaseHas('peserta_kegiatan_evaluatif', [
             'santri_id' => $this->santri['dua_a']->id, 'nomor_peserta' => '26.27.ASAS.02.0001',
             'sumber_nomor' => 'otomatis',
         ]);
@@ -115,14 +115,14 @@ class PesertaPeristiwaTest extends TestCase
     public function test_generate_berurutan_semua_tingkat_dan_buat_ulang_bersifat_eksplisit(): void
     {
         $payload = [
-            'peristiwa_id' => $this->peristiwa->id, 'semester' => '1',
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id, 'semester' => '1',
             'template' => 'ASAS-{nomor_3}', 'mode_urutan' => 'semua_tingkat',
         ];
 
         $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/admin/penilaian/peserta-kartu/generate', $payload)
             ->assertOk()->assertJsonPath('hasil.dibuat', 3);
-        $this->assertDatabaseHas('peserta_peristiwa_nilai', [
+        $this->assertDatabaseHas('peserta_kegiatan_evaluatif', [
             'santri_id' => $this->santri['dua_a']->id, 'nomor_peserta' => 'ASAS-003',
         ]);
 
@@ -132,7 +132,7 @@ class PesertaPeristiwaTest extends TestCase
             ->assertOk()
             ->assertJsonPath('hasil.dibuat', 0)
             ->assertJsonPath('hasil.dipertahankan_otomatis', 3);
-        $this->assertDatabaseHas('peserta_peristiwa_nilai', [
+        $this->assertDatabaseHas('peserta_kegiatan_evaluatif', [
             'santri_id' => $this->santri['dua_a']->id, 'nomor_peserta' => 'ASAS-003',
         ]);
 
@@ -140,7 +140,7 @@ class PesertaPeristiwaTest extends TestCase
         $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/admin/penilaian/peserta-kartu/generate', $payload)
             ->assertOk()->assertJsonPath('hasil.dibuat', 3);
-        $this->assertDatabaseHas('peserta_peristiwa_nilai', [
+        $this->assertDatabaseHas('peserta_kegiatan_evaluatif', [
             'santri_id' => $this->santri['dua_a']->id, 'nomor_peserta' => 'BARU-003',
         ]);
     }
@@ -150,7 +150,7 @@ class PesertaPeristiwaTest extends TestCase
         $urlSatu = '/api/admin/penilaian/peserta-kartu/'.$this->santri['satu_a']->id;
         $urlDua = '/api/admin/penilaian/peserta-kartu/'.$this->santri['satu_b']->id;
         $payload = [
-            'peristiwa_id' => $this->peristiwa->id, 'semester' => '1',
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id, 'semester' => '1',
             'nomor_peserta' => 'SAMA-001',
         ];
 
@@ -161,9 +161,9 @@ class PesertaPeristiwaTest extends TestCase
 
         $payload['nomor_peserta'] = null;
         $this->actingAs($this->admin, 'sanctum')->putJson($urlSatu, $payload)->assertOk();
-        $this->assertDatabaseMissing('peserta_peristiwa_nilai', [
+        $this->assertDatabaseMissing('peserta_kegiatan_evaluatif', [
             'santri_id' => $this->santri['satu_a']->id,
-            'peristiwa_id' => $this->peristiwa->id, 'semester' => '1',
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id, 'semester' => '1',
         ]);
     }
 

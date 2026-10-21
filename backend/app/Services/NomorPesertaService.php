@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\KegiatanEvaluatif;
 use App\Models\PengaturanNomorPeserta;
-use App\Models\PeristiwaNilai;
-use App\Models\PesertaPeristiwaNilai;
+use App\Models\PesertaKegiatanEvaluatif;
 use App\Models\Santri;
 use App\Support\TingkatJenjang;
 use Illuminate\Database\Query\Builder;
@@ -14,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 class NomorPesertaService
 {
-    public const TEMPLATE_BAWAAN = '{ta_awal_2}.{ta_akhir_2}.{kode_peristiwa}.{tingkat_2}.{nomor_4}';
+    public const TEMPLATE_BAWAAN = '{ta_awal_2}.{ta_akhir_2}.{kode_kegiatan_evaluatif}.{tingkat_2}.{nomor_4}';
 
     /** @return list<array{token: string, label: string, contoh: string}> */
     public function tokenTersedia(): array
@@ -22,7 +22,7 @@ class NomorPesertaService
         return [
             ['token' => '{ta_awal_2}', 'label' => '2 digit awal tahun ajaran', 'contoh' => '26'],
             ['token' => '{ta_akhir_2}', 'label' => '2 digit akhir tahun ajaran', 'contoh' => '27'],
-            ['token' => '{kode_peristiwa}', 'label' => 'Kode peristiwa', 'contoh' => 'ASAS'],
+            ['token' => '{kode_kegiatan_evaluatif}', 'label' => 'Kode kegiatan evaluatif', 'contoh' => 'ASAS'],
             ['token' => '{semester}', 'label' => 'Semester', 'contoh' => '1'],
             ['token' => '{tingkat}', 'label' => 'Tingkat', 'contoh' => '1'],
             ['token' => '{tingkat_2}', 'label' => 'Tingkat 2 karakter', 'contoh' => '01'],
@@ -33,10 +33,10 @@ class NomorPesertaService
     }
 
     /** @return array{template: string, mode_urutan: string} */
-    public function pengaturan(PeristiwaNilai $peristiwa, string $semester): array
+    public function pengaturan(KegiatanEvaluatif $kegiatanEvaluatif, string $semester): array
     {
         $pengaturan = PengaturanNomorPeserta::query()
-            ->where('peristiwa_id', $peristiwa->id)
+            ->where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
             ->where('semester', $semester)
             ->first();
 
@@ -51,13 +51,13 @@ class NomorPesertaService
      * @param  list<string>  $tingkat
      */
     public function daftar(
-        PeristiwaNilai $peristiwa,
+        KegiatanEvaluatif $kegiatanEvaluatif,
         string $semester,
         array $kelasIds = [],
         array $tingkat = [],
         string $pencarian = '',
     ): Collection {
-        $query = $this->queryPeserta($peristiwa, $semester);
+        $query = $this->queryPeserta($kegiatanEvaluatif, $semester);
 
         if ($kelasIds !== []) {
             $query->whereIn('rb.kelas_id', $kelasIds);
@@ -77,7 +77,7 @@ class NomorPesertaService
     }
 
     public function simpanPengaturan(
-        PeristiwaNilai $peristiwa,
+        KegiatanEvaluatif $kegiatanEvaluatif,
         string $semester,
         string $template,
         string $modeUrutan,
@@ -85,27 +85,27 @@ class NomorPesertaService
         $this->pastikanTemplateValid($template, $modeUrutan);
 
         return PengaturanNomorPeserta::query()->updateOrCreate(
-            ['peristiwa_id' => $peristiwa->id, 'semester' => $semester],
+            ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id, 'semester' => $semester],
             ['template' => trim($template), 'mode_urutan' => $modeUrutan],
         );
     }
 
     public function simpanManual(
-        PeristiwaNilai $peristiwa,
+        KegiatanEvaluatif $kegiatanEvaluatif,
         Santri $santri,
         string $semester,
         ?string $nomor,
-    ): ?PesertaPeristiwaNilai {
-        if (! $this->queryPeserta($peristiwa, $semester)->where('rb.santri_id', $santri->id)->exists()) {
+    ): ?PesertaKegiatanEvaluatif {
+        if (! $this->queryPeserta($kegiatanEvaluatif, $semester)->where('rb.santri_id', $santri->id)->exists()) {
             throw ValidationException::withMessages([
-                'santri_id' => 'Santri tidak termasuk peserta peristiwa pada semester ini.',
+                'santri_id' => 'Santri tidak termasuk peserta kegiatanEvaluatif pada semester ini.',
             ]);
         }
 
         $nomor = trim((string) $nomor);
         if ($nomor === '') {
-            PesertaPeristiwaNilai::query()
-                ->where('peristiwa_id', $peristiwa->id)
+            PesertaKegiatanEvaluatif::query()
+                ->where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
                 ->where('semester', $semester)
                 ->where('santri_id', $santri->id)
                 ->delete();
@@ -113,27 +113,27 @@ class NomorPesertaService
             return null;
         }
 
-        $sudahDipakai = PesertaPeristiwaNilai::query()
-            ->where('peristiwa_id', $peristiwa->id)
+        $sudahDipakai = PesertaKegiatanEvaluatif::query()
+            ->where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
             ->where('semester', $semester)
             ->where('nomor_peserta', $nomor)
             ->where('santri_id', '!=', $santri->id)
             ->exists();
         if ($sudahDipakai) {
             throw ValidationException::withMessages([
-                'nomor_peserta' => 'Nomor peserta sudah dipakai santri lain pada peristiwa dan semester ini.',
+                'nomor_peserta' => 'Nomor peserta sudah dipakai santri lain pada kegiatanEvaluatif dan semester ini.',
             ]);
         }
 
-        return PesertaPeristiwaNilai::query()->updateOrCreate(
-            ['peristiwa_id' => $peristiwa->id, 'semester' => $semester, 'santri_id' => $santri->id],
-            ['nomor_peserta' => $nomor, 'sumber_nomor' => PesertaPeristiwaNilai::MANUAL],
+        return PesertaKegiatanEvaluatif::query()->updateOrCreate(
+            ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id, 'semester' => $semester, 'santri_id' => $santri->id],
+            ['nomor_peserta' => $nomor, 'sumber_nomor' => PesertaKegiatanEvaluatif::MANUAL],
         );
     }
 
     /** @return array{dibuat: int, dipertahankan_manual: int, dipertahankan_otomatis: int, total_peserta: int} */
     public function buatNomor(
-        PeristiwaNilai $peristiwa,
+        KegiatanEvaluatif $kegiatanEvaluatif,
         string $semester,
         string $template,
         string $modeUrutan,
@@ -141,14 +141,14 @@ class NomorPesertaService
     ): array {
         $this->pastikanTemplateValid($template, $modeUrutan);
 
-        return DB::transaction(function () use ($peristiwa, $semester, $template, $modeUrutan, $buatUlangOtomatis) {
-            PeristiwaNilai::query()->whereKey($peristiwa->id)->lockForUpdate()->firstOrFail();
-            $this->simpanPengaturan($peristiwa, $semester, $template, $modeUrutan);
+        return DB::transaction(function () use ($kegiatanEvaluatif, $semester, $template, $modeUrutan, $buatUlangOtomatis) {
+            KegiatanEvaluatif::query()->whereKey($kegiatanEvaluatif->id)->lockForUpdate()->firstOrFail();
+            $this->simpanPengaturan($kegiatanEvaluatif, $semester, $template, $modeUrutan);
 
-            $peserta = $this->queryPeserta($peristiwa, $semester)->get();
+            $peserta = $this->queryPeserta($kegiatanEvaluatif, $semester)->get();
             $santriPeserta = $peserta->pluck('santri_id')->map(fn ($id) => (int) $id)->all();
-            $tersimpan = PesertaPeristiwaNilai::query()
-                ->where('peristiwa_id', $peristiwa->id)
+            $tersimpan = PesertaKegiatanEvaluatif::query()
+                ->where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
                 ->where('semester', $semester)
                 ->lockForUpdate()
                 ->get()
@@ -159,7 +159,7 @@ class NomorPesertaService
                 $diCakupan = in_array((int) $baris->santri_id, $santriPeserta, true);
                 $bolehDiganti = $diCakupan
                     && $buatUlangOtomatis
-                    && $baris->sumber_nomor === PesertaPeristiwaNilai::OTOMATIS;
+                    && $baris->sumber_nomor === PesertaKegiatanEvaluatif::OTOMATIS;
                 if ($baris->nomor_peserta !== null && ! $bolehDiganti) {
                     $nomorTerpakai[$baris->nomor_peserta] = true;
                 }
@@ -180,12 +180,12 @@ class NomorPesertaService
                 $urutan[$kunciUrutan] = ($urutan[$kunciUrutan] ?? 0) + 1;
 
                 $lama = $tersimpan->get($baris->santri_id);
-                if ($lama?->sumber_nomor === PesertaPeristiwaNilai::MANUAL && $lama->nomor_peserta !== null) {
+                if ($lama?->sumber_nomor === PesertaKegiatanEvaluatif::MANUAL && $lama->nomor_peserta !== null) {
                     $hasil['dipertahankan_manual']++;
 
                     continue;
                 }
-                if (! $buatUlangOtomatis && $lama?->sumber_nomor === PesertaPeristiwaNilai::OTOMATIS && $lama->nomor_peserta !== null) {
+                if (! $buatUlangOtomatis && $lama?->sumber_nomor === PesertaKegiatanEvaluatif::OTOMATIS && $lama->nomor_peserta !== null) {
                     $hasil['dipertahankan_otomatis']++;
 
                     continue;
@@ -193,7 +193,7 @@ class NomorPesertaService
 
                 $nomor = $this->formatNomor(
                     $template,
-                    $peristiwa,
+                    $kegiatanEvaluatif,
                     $semester,
                     $baris->tingkat === null ? null : (string) $baris->tingkat,
                     $urutan[$kunciUrutan],
@@ -205,9 +205,9 @@ class NomorPesertaService
                 }
                 $nomorTerpakai[$nomor] = true;
 
-                PesertaPeristiwaNilai::query()->updateOrCreate(
-                    ['peristiwa_id' => $peristiwa->id, 'semester' => $semester, 'santri_id' => $baris->santri_id],
-                    ['nomor_peserta' => $nomor, 'sumber_nomor' => PesertaPeristiwaNilai::OTOMATIS],
+                PesertaKegiatanEvaluatif::query()->updateOrCreate(
+                    ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id, 'semester' => $semester, 'santri_id' => $baris->santri_id],
+                    ['nomor_peserta' => $nomor, 'sumber_nomor' => PesertaKegiatanEvaluatif::OTOMATIS],
                 );
                 $hasil['dibuat']++;
             }
@@ -218,18 +218,18 @@ class NomorPesertaService
 
     public function formatNomor(
         string $template,
-        PeristiwaNilai $peristiwa,
+        KegiatanEvaluatif $kegiatanEvaluatif,
         string $semester,
         ?string $tingkat,
         int $urutan,
     ): string {
-        [$tahunAwal, $tahunAkhir] = array_pad(explode('/', $peristiwa->tahun_ajaran, 2), 2, '');
+        [$tahunAwal, $tahunAkhir] = array_pad(explode('/', $kegiatanEvaluatif->tahun_ajaran, 2), 2, '');
         $tingkat = $tingkat ?? '';
 
         $nilai = [
             '{ta_awal_2}' => substr($tahunAwal, -2),
             '{ta_akhir_2}' => substr($tahunAkhir, -2),
-            '{kode_peristiwa}' => (string) $peristiwa->kode,
+            '{kode_kegiatan_evaluatif}' => (string) $kegiatanEvaluatif->kode,
             '{semester}' => $semester,
             '{tingkat}' => $tingkat,
             '{tingkat_2}' => str_pad($tingkat, 2, '0', STR_PAD_LEFT),
@@ -266,9 +266,9 @@ class NomorPesertaService
         }
     }
 
-    private function queryPeserta(PeristiwaNilai $peristiwa, string $semester): Builder
+    private function queryPeserta(KegiatanEvaluatif $kegiatanEvaluatif, string $semester): Builder
     {
-        $akhir = TingkatJenjang::akhir($peristiwa->jenjang);
+        $akhir = TingkatJenjang::akhir($kegiatanEvaluatif->jenjang);
         $query = DB::table('riwayat_belajar as rb')
             ->join('santri', 'santri.id', '=', 'rb.santri_id')
             ->leftJoin('kelas', 'kelas.id', '=', 'rb.kelas_id')
@@ -276,13 +276,13 @@ class NomorPesertaService
                 $join->on('ls.santri_id', '=', 'rb.santri_id')
                     ->on('ls.jenjang', '=', 'rb.jenjang');
             })
-            ->leftJoin('peserta_peristiwa_nilai as ppn', function ($join) use ($peristiwa, $semester) {
+            ->leftJoin('peserta_kegiatan_evaluatif as ppn', function ($join) use ($kegiatanEvaluatif, $semester) {
                 $join->on('ppn.santri_id', '=', 'rb.santri_id')
-                    ->where('ppn.peristiwa_id', '=', $peristiwa->id)
+                    ->where('ppn.kegiatan_evaluatif_id', '=', $kegiatanEvaluatif->id)
                     ->where('ppn.semester', '=', $semester);
             })
-            ->where('rb.jenjang', $peristiwa->jenjang)
-            ->where('rb.tahun_ajaran', $peristiwa->tahun_ajaran)
+            ->where('rb.jenjang', $kegiatanEvaluatif->jenjang)
+            ->where('rb.tahun_ajaran', $kegiatanEvaluatif->tahun_ajaran)
             ->where('rb.semester', $semester)
             ->where('rb.status_akhir', '!=', 'pindah_keluar')
             ->select(
@@ -297,9 +297,9 @@ class NomorPesertaService
             ->orderBy('rb.santri_id');
 
         if ($akhir !== null) {
-            if ($peristiwa->cakupan === PeristiwaNilai::CAKUPAN_TINGKAT_AKHIR) {
+            if ($kegiatanEvaluatif->cakupan === KegiatanEvaluatif::CAKUPAN_TINGKAT_AKHIR) {
                 $query->where('rb.tingkat', $akhir);
-            } elseif ($peristiwa->cakupan === PeristiwaNilai::CAKUPAN_KECUALI_AKHIR) {
+            } elseif ($kegiatanEvaluatif->cakupan === KegiatanEvaluatif::CAKUPAN_KECUALI_AKHIR) {
                 $query->where(function (Builder $where) use ($akhir) {
                     $where->whereNull('rb.tingkat')->orWhere('rb.tingkat', '!=', $akhir);
                 });

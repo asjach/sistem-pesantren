@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Predikat berjangkar ke KKM `AKHIR` per peristiwa: berlaku bila nilai ≥ KKM +
+ * Predikat berjangkar ke KKM `AKHIR` per kegiatanEvaluatif: berlaku bila nilai ≥ KKM +
  * `offset_bawah`. `offset_bawah` null = tanpa batas bawah (mis. D).
  */
 class RentangPredikat extends Model
@@ -17,8 +17,8 @@ class RentangPredikat extends Model
 
     protected $casts = ['offset_bawah' => 'float'];
 
-    public function peristiwa(): BelongsTo
+    public function kegiatanEvaluatif(): BelongsTo
     {
-        return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_id');
+        return $this->belongsTo(KegiatanEvaluatif::class, 'kegiatan_evaluatif_id');
     }
 }

@@ -11,31 +11,31 @@ import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import { Plus, Save, Trash2 } from '@/icons';
 import {
-  buatEkskul, buatKomponen, buatPeristiwa, daftarEkskul, daftarKkm, daftarKomponen,
-  daftarPeristiwa, daftarPredikat, daftarPrestasi, hapusEkskul, hapusKomponen, hapusPeristiwa,
-  hapusPrestasi, muatBawaan, simpanKkm, simpanPredikat, ubahEkskul, ubahKomponen, ubahPeristiwa,
-  type CakupanPeristiwa, type Ekstrakurikuler, type JenisRapor, type KkmBaris,
-  type KomponenNilai, type KurikulumPeristiwa, type PeristiwaNilai,
+  buatEkskul, buatKomponen, buatKegiatanEvaluatif, daftarEkskul, daftarKkm, daftarKomponen,
+  daftarKegiatanEvaluatif, daftarPredikat, daftarPrestasi, hapusEkskul, hapusKomponen, hapusKegiatanEvaluatif,
+  hapusPrestasi, muatBawaan, simpanKkm, simpanPredikat, ubahEkskul, ubahKomponen, ubahKegiatanEvaluatif,
+  type CakupanKegiatanEvaluatif, type Ekstrakurikuler, type JenisRapor, type KkmBaris,
+  type KomponenNilai, type KurikulumKegiatanEvaluatif, type KegiatanEvaluatif,
   type PredikatBaris, type PrestasiSantri,
 } from '@/api/penilaian';
 
-/** Label cakupan peserta peristiwa. */
-const CAKUPAN: { nilai: CakupanPeristiwa; label: string }[] = [
+/** Label cakupan peserta kegiatanEvaluatif. */
+const CAKUPAN: { nilai: CakupanKegiatanEvaluatif; label: string }[] = [
   { nilai: 'semua', label: 'Semua tingkat' },
   { nilai: 'kecuali_akhir', label: 'Semua kecuali tingkat akhir' },
   { nilai: 'tingkat_akhir', label: 'Hanya tingkat akhir' },
 ];
 
-const KURIKULUM: KurikulumPeristiwa[] = ['keduanya', 'kemenag', 'pesantren'];
+const KURIKULUM: KurikulumKegiatanEvaluatif[] = ['keduanya', 'kemenag', 'pesantren'];
 
-/** Peristiwa mana yang menghasilkan rapor (ASAS/ASAT = akhir; UJIAN/UAP tidak). */
+/** Kegiatan evaluatif mana yang menghasilkan rapor (ASAS/ASAT = akhir; UJIAN/UAP tidak). */
 const JENIS_RAPOR: { nilai: JenisRapor; label: string }[] = [
   { nilai: 'akhir', label: 'Rapor akhir' },
   { nilai: 'sementara', label: 'Rapor sementara' },
   { nilai: 'tidak_ada', label: 'Tanpa rapor (nilai ujian)' },
 ];
 
-/** Halaman Master Penilaian: peristiwa, komponen & bobot, KKM, predikat, ekskul, prestasi. */
+/** Halaman Master Penilaian: kegiatanEvaluatif, komponen & bobot, KKM, predikat, ekskul, prestasi. */
 export default function PenilaianMasterPage() {
   const { jenjangs, tahunAjaranNames, loading: filterLoading } = useFilterGlobalAktif();
   const { user } = useAuth();
@@ -47,11 +47,11 @@ export default function PenilaianMasterPage() {
   const ta = targetTunggal(tahunAjaranNames);
   const siap = jenjang !== null && ta !== null;
 
-  const [tab, setTab] = useState<string>('peristiwa');
+  const [tab, setTab] = useState<string>('kegiatan_evaluatif');
   const [err, setErr] = useState('');
-  const [peristiwa, setPeristiwa] = useState<PeristiwaNilai[]>([]);
+  const [kegiatanEvaluatif, setKegiatanEvaluatif] = useState<KegiatanEvaluatif[]>([]);
   const [tingkatAkhir, setTingkatAkhir] = useState<string | null>(null);
-  const [peristiwaId, setPeristiwaId] = useState<number | ''>('');
+  const [kegiatanEvaluatifId, setKegiatanEvaluatifId] = useState<number | ''>('');
   const [komponen, setKomponen] = useState<KomponenNilai[]>([]);
   const [totalBobot, setTotalBobot] = useState(0);
   const [kkm, setKkm] = useState<KkmBaris[]>([]);
@@ -59,33 +59,33 @@ export default function PenilaianMasterPage() {
   const [ekskul, setEkskul] = useState<Ekstrakurikuler[]>([]);
   const [prestasi, setPrestasi] = useState<PrestasiSantri[]>([]);
 
-  /** Tab yang isinya milik satu peristiwa (butuh pemilih peristiwa). */
-  const butuhPeristiwa = tab === 'komponen' || tab === 'kkm' || tab === 'predikat';
+  /** Tab yang isinya milik satu kegiatanEvaluatif (butuh pemilih kegiatanEvaluatif). */
+  const butuhKegiatanEvaluatif = tab === 'komponen' || tab === 'kkm' || tab === 'predikat';
 
-  const muatPeristiwa = useCallback(async () => {
+  const muatKegiatanEvaluatif = useCallback(async () => {
     if (jenjang === null || ta === null) return;
     try {
-      const r = await daftarPeristiwa({ jenjang, tahun_ajaran: ta });
-      setPeristiwa(r.peristiwa);
+      const r = await daftarKegiatanEvaluatif({ jenjang, tahun_ajaran: ta });
+      setKegiatanEvaluatif(r.kegiatan_evaluatif);
       setTingkatAkhir(r.tingkat_akhir);
-      setPeristiwaId((v) => (r.peristiwa.some((p) => p.id === v) ? v : (r.peristiwa[0]?.id ?? '')));
+      setKegiatanEvaluatifId((v) => (r.kegiatan_evaluatif.some((p) => p.id === v) ? v : (r.kegiatan_evaluatif[0]?.id ?? '')));
     } catch (e) {
       setErr(errorMessage(e));
     }
   }, [jenjang, ta]);
 
-  const muatPeristiwaTerkait = useCallback(async () => {
-    if (peristiwaId === '') { setKomponen([]); setKkm([]); setPredikat([]); return; }
+  const muatKegiatanEvaluatifTerkait = useCallback(async () => {
+    if (kegiatanEvaluatifId === '') { setKomponen([]); setKkm([]); setPredikat([]); return; }
     try {
       const [k, km, pr] = await Promise.all([
-        daftarKomponen(peristiwaId), daftarKkm(peristiwaId), daftarPredikat(peristiwaId),
+        daftarKomponen(kegiatanEvaluatifId), daftarKkm(kegiatanEvaluatifId), daftarPredikat(kegiatanEvaluatifId),
       ]);
       setKomponen(k.komponen); setTotalBobot(k.total_bobot);
       setKkm(km.baris); setPredikat(pr.baris);
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [peristiwaId]);
+  }, [kegiatanEvaluatifId]);
 
   const muatUmum = useCallback(async () => {
     if (jenjang === null || ta === null) return;
@@ -100,17 +100,17 @@ export default function PenilaianMasterPage() {
   useEffect(() => {
     if (filterLoading) return;
     setErr('');
-    void muatPeristiwa();
+    void muatKegiatanEvaluatif();
     void muatUmum();
-  }, [filterLoading, muatPeristiwa, muatUmum]);
+  }, [filterLoading, muatKegiatanEvaluatif, muatUmum]);
 
-  useEffect(() => { void muatPeristiwaTerkait(); }, [muatPeristiwaTerkait]);
+  useEffect(() => { void muatKegiatanEvaluatifTerkait(); }, [muatKegiatanEvaluatifTerkait]);
 
   const segarkan = useCallback(async () => {
-    await muatPeristiwa();
-    await muatPeristiwaTerkait();
+    await muatKegiatanEvaluatif();
+    await muatKegiatanEvaluatifTerkait();
     await muatUmum();
-  }, [muatPeristiwa, muatPeristiwaTerkait, muatUmum]);
+  }, [muatKegiatanEvaluatif, muatKegiatanEvaluatifTerkait, muatUmum]);
 
   const jalankan = useCallback(async (kerja: () => Promise<unknown>, sukses: string) => {
     try { await kerja(); toast.success(sukses); await segarkan(); }
@@ -125,14 +125,14 @@ export default function PenilaianMasterPage() {
     );
   }
 
-  const peristiwaAktif = peristiwa.find((p) => p.id === peristiwaId) ?? null;
+  const kegiatanEvaluatifAktif = kegiatanEvaluatif.find((p) => p.id === kegiatanEvaluatifId) ?? null;
 
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
         <TabsList className={KELAS_LIST_TAB} indikator="primer">
-          <TabsTrigger value="peristiwa" id="pen_tab_peristiwa" className={KELAS_TRIGGER}>Peristiwa</TabsTrigger>
+          <TabsTrigger value="kegiatan_evaluatif" id="pen_tab_kegiatan_evaluatif" className={KELAS_TRIGGER}>Kegiatan Evaluatif</TabsTrigger>
           <TabsTrigger value="komponen" id="pen_tab_komponen" className={KELAS_TRIGGER}>Komponen &amp; Bobot</TabsTrigger>
           <TabsTrigger value="kkm" id="pen_tab_kkm" className={KELAS_TRIGGER}>KKM</TabsTrigger>
           <TabsTrigger value="predikat" id="pen_tab_predikat" className={KELAS_TRIGGER}>Predikat</TabsTrigger>
@@ -140,31 +140,31 @@ export default function PenilaianMasterPage() {
           <TabsTrigger value="prestasi" id="pen_tab_prestasi" className={KELAS_TRIGGER}>Prestasi</TabsTrigger>
         </TabsList>
 
-        {butuhPeristiwa && (
+        {butuhKegiatanEvaluatif && (
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-            <label className="text-xs text-muted-foreground" htmlFor="select_peristiwa_master">Peristiwa</label>
+            <label className="text-xs text-muted-foreground" htmlFor="select_kegiatan_evaluatif_master">Kegiatan Evaluatif</label>
             <select
-              id="select_peristiwa_master"
+              id="select_kegiatan_evaluatif_master"
               className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-              value={peristiwaId === '' ? '' : String(peristiwaId)}
-              onChange={(e) => setPeristiwaId(e.target.value === '' ? '' : Number(e.target.value))}
+              value={kegiatanEvaluatifId === '' ? '' : String(kegiatanEvaluatifId)}
+              onChange={(e) => setKegiatanEvaluatifId(e.target.value === '' ? '' : Number(e.target.value))}
             >
-              <option value="">— pilih peristiwa —</option>
-              {peristiwa.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
+              <option value="">— pilih kegiatan evaluatif —</option>
+              {kegiatanEvaluatif.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
             </select>
-            {peristiwaAktif && (
+            {kegiatanEvaluatifAktif && (
               <span className="text-xs text-muted-foreground">
-                {CAKUPAN.find((c) => c.nilai === peristiwaAktif.cakupan)?.label}
-                {peristiwaAktif.kurikulum !== 'keduanya' && ` · kurikulum ${peristiwaAktif.kurikulum}`}
+                {CAKUPAN.find((c) => c.nilai === kegiatanEvaluatifAktif.cakupan)?.label}
+                {kegiatanEvaluatifAktif.kurikulum !== 'keduanya' && ` · kurikulum ${kegiatanEvaluatifAktif.kurikulum}`}
               </span>
             )}
-            {peristiwa.length === 0 && (
-              <span className="text-xs text-destructive">Belum ada peristiwa — buka tab Peristiwa dan klik “Muat bawaan”.</span>
+            {kegiatanEvaluatif.length === 0 && (
+              <span className="text-xs text-destructive">Belum ada kegiatan evaluatif — buka tab Kegiatan Evaluatif dan klik “Muat bawaan”.</span>
             )}
           </div>
         )}
 
-        <TabsContent value="peristiwa" className={`min-h-0 flex-1 overflow-auto p-3 ${KELAS_PANEL_TAB}`}>
+        <TabsContent value="kegiatan_evaluatif" className={`min-h-0 flex-1 overflow-auto p-3 ${KELAS_PANEL_TAB}`}>
           <div className="mb-2 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
               Lingkup <strong>{jenjang}</strong> · TA <strong>{ta}</strong>
@@ -175,16 +175,16 @@ export default function PenilaianMasterPage() {
                 onClick={() => void jalankan(() => muatBawaan(jenjang, ta), 'Bawaan dimuat.')}>
                 Muat bawaan
               </Button>
-              <Button type="button" size="sm" id="btn_tambah_peristiwa" disabled={!canTambah}
+              <Button type="button" size="sm" id="btn_tambah_kegiatan_evaluatif" disabled={!canTambah}
                 onClick={() => void jalankan(
-                  () => buatPeristiwa({ jenjang, tahun_ajaran: ta, kode: 'BARU', nama: 'Peristiwa Baru', cakupan: 'semua', jenis_rapor: 'tidak_ada' }),
-                  'Peristiwa ditambah.',
+                  () => buatKegiatanEvaluatif({ jenjang, tahun_ajaran: ta, kode: 'BARU', nama: 'Kegiatan Evaluatif Baru', cakupan: 'semua', jenis_rapor: 'tidak_ada' }),
+                  'Kegiatan Evaluatif ditambah.',
                 )}>
                 <Plus data-icon="inline-start" size={16} /> Tambah
               </Button>
             </div>
           </div>
-          <table className="w-full border-collapse text-xs" id="tabel_peristiwa_nilai">
+          <table className="w-full border-collapse text-xs" id="tabel_kegiatan_evaluatif_nilai">
             <thead className="bg-muted/60">
               <tr>
                 <th className="border border-border px-2 py-1 w-24 text-left">Kode</th>
@@ -198,12 +198,12 @@ export default function PenilaianMasterPage() {
               </tr>
             </thead>
             <tbody>
-              {peristiwa.map((p) => (
-                <BarisPeristiwa key={p.id} p={p} canUbah={canUbah} canHapus={canHapus} onSimpan={jalankan} />
+              {kegiatanEvaluatif.map((p) => (
+                <BarisKegiatanEvaluatif key={p.id} p={p} canUbah={canUbah} canHapus={canHapus} onSimpan={jalankan} />
               ))}
-              {peristiwa.length === 0 && (
+              {kegiatanEvaluatif.length === 0 && (
                 <tr><td colSpan={8} className="border border-border px-2 py-4 text-center text-muted-foreground">
-                  Belum ada peristiwa. Klik “Muat bawaan” untuk ASAS + ASAT + UJIAN + UAP.
+                  Belum ada kegiatan evaluatif. Klik “Muat bawaan” untuk ASAS + ASAT + UJIAN + UAP.
                 </td></tr>
               )}
             </tbody>
@@ -217,9 +217,9 @@ export default function PenilaianMasterPage() {
               {totalBobot !== 100 && <span className="ml-1 text-destructive">(idealnya 100)</span>}
             </span>
             <div className="ml-auto">
-              <Button type="button" size="sm" id="btn_tambah_komponen" disabled={!canTambah || peristiwaId === ''}
+              <Button type="button" size="sm" id="btn_tambah_komponen" disabled={!canTambah || kegiatanEvaluatifId === ''}
                 onClick={() => void jalankan(
-                  () => buatKomponen({ peristiwa_id: Number(peristiwaId), nama: 'Komponen Baru', bobot: 0 }),
+                  () => buatKomponen({ kegiatan_evaluatif_id: Number(kegiatanEvaluatifId), nama: 'Komponen Baru', bobot: 0 }),
                   'Komponen ditambah.',
                 )}>
                 <Plus data-icon="inline-start" size={16} /> Tambah
@@ -243,7 +243,7 @@ export default function PenilaianMasterPage() {
                 <BarisKomponen
                   key={k.id}
                   k={k}
-                  peristiwaLain={peristiwa.filter((p) => p.id !== peristiwaId)}
+                  kegiatanEvaluatifLain={kegiatanEvaluatif.filter((p) => p.id !== kegiatanEvaluatifId)}
                   canUbah={canUbah}
                   canHapus={canHapus}
                   onSimpan={jalankan}
@@ -251,7 +251,7 @@ export default function PenilaianMasterPage() {
               ))}
               {komponen.length === 0 && (
                 <tr><td colSpan={7} className="border border-border px-2 py-4 text-center text-muted-foreground">
-                  {peristiwaId === '' ? 'Pilih peristiwa dulu.' : 'Belum ada komponen pada peristiwa ini.'}
+                  {kegiatanEvaluatifId === '' ? 'Pilih kegiatan evaluatif dulu.' : 'Belum ada komponen pada kegiatan evaluatif ini.'}
                 </td></tr>
               )}
             </tbody>
@@ -260,7 +260,7 @@ export default function PenilaianMasterPage() {
 
         <TabsContent value="kkm" className={`min-h-0 flex-1 overflow-auto p-3 ${KELAS_PANEL_TAB}`}>
           <p className="mb-2 text-xs text-muted-foreground">
-            KKM per komponen; baris <strong>AKHIR</strong> jadi jangkar predikat rapor peristiwa ini.
+            KKM per komponen; baris <strong>AKHIR</strong> jadi jangkar predikat rapor kegiatan evaluatif ini.
           </p>
           <table className="w-full max-w-lg border-collapse text-xs" id="tabel_kkm">
             <thead className="bg-muted/60">
@@ -283,8 +283,8 @@ export default function PenilaianMasterPage() {
               ))}
             </tbody>
           </table>
-          <Button type="button" size="sm" className="mt-2" id="btn_simpan_kkm" disabled={!canUbah || peristiwaId === ''}
-            onClick={() => void jalankan(() => simpanKkm(Number(peristiwaId), kkm), 'KKM disimpan.')}>
+          <Button type="button" size="sm" className="mt-2" id="btn_simpan_kkm" disabled={!canUbah || kegiatanEvaluatifId === ''}
+            onClick={() => void jalankan(() => simpanKkm(Number(kegiatanEvaluatifId), kkm), 'KKM disimpan.')}>
             <Save data-icon="inline-start" size={16} /> Simpan KKM
           </Button>
         </TabsContent>
@@ -328,8 +328,8 @@ export default function PenilaianMasterPage() {
               ))}
             </tbody>
           </table>
-          <Button type="button" size="sm" className="mt-2" id="btn_simpan_predikat" disabled={!canUbah || peristiwaId === ''}
-            onClick={() => void jalankan(() => simpanPredikat(Number(peristiwaId), predikat), 'Predikat disimpan.')}>
+          <Button type="button" size="sm" className="mt-2" id="btn_simpan_predikat" disabled={!canUbah || kegiatanEvaluatifId === ''}
+            onClick={() => void jalankan(() => simpanPredikat(Number(kegiatanEvaluatifId), predikat), 'Predikat disimpan.')}>
             <Save data-icon="inline-start" size={16} /> Simpan Predikat
           </Button>
         </TabsContent>
@@ -403,14 +403,14 @@ export default function PenilaianMasterPage() {
   );
 }
 
-/** Baris peristiwa dengan penyuntingan inline. */
-function BarisPeristiwa({ p, canUbah, canHapus, onSimpan }: {
-  p: PeristiwaNilai; canUbah: boolean; canHapus: boolean;
+/** Baris kegiatanEvaluatif dengan penyuntingan inline. */
+function BarisKegiatanEvaluatif({ p, canUbah, canHapus, onSimpan }: {
+  p: KegiatanEvaluatif; canUbah: boolean; canHapus: boolean;
   onSimpan: (kerja: () => Promise<unknown>, sukses: string) => Promise<void>;
 }) {
   const [nama, setNama] = useState(p.nama);
-  const [cakupan, setCakupan] = useState<CakupanPeristiwa>(p.cakupan);
-  const [kurikulum, setKurikulum] = useState<KurikulumPeristiwa>(p.kurikulum);
+  const [cakupan, setCakupan] = useState<CakupanKegiatanEvaluatif>(p.cakupan);
+  const [kurikulum, setKurikulum] = useState<KurikulumKegiatanEvaluatif>(p.kurikulum);
   const [jenisRapor, setJenisRapor] = useState<JenisRapor>(p.jenis_rapor);
   const [urutan, setUrutan] = useState(String(p.urutan));
   const [aktif, setAktif] = useState(p.is_active);
@@ -424,17 +424,17 @@ function BarisPeristiwa({ p, canUbah, canHapus, onSimpan }: {
     <tr>
       <td className="border border-border px-2 py-1 font-mono font-semibold">{p.kode}</td>
       <td className="border border-border px-1 py-0.5">
-        <Input className="h-7 text-xs" aria-label="Nama peristiwa" disabled={!canUbah} value={nama} onChange={(e) => setNama(e.target.value)} />
+        <Input className="h-7 text-xs" aria-label="Nama kegiatan evaluatif" disabled={!canUbah} value={nama} onChange={(e) => setNama(e.target.value)} />
       </td>
       <td className="border border-border px-1 py-0.5">
         <select className="h-7 w-full rounded-md border border-input bg-transparent px-1 text-xs" aria-label="Peserta"
-          disabled={!canUbah} value={cakupan} onChange={(e) => setCakupan(e.target.value as CakupanPeristiwa)}>
+          disabled={!canUbah} value={cakupan} onChange={(e) => setCakupan(e.target.value as CakupanKegiatanEvaluatif)}>
           {CAKUPAN.map((c) => <option key={c.nilai} value={c.nilai}>{c.label}</option>)}
         </select>
       </td>
       <td className="border border-border px-1 py-0.5">
         <select className="h-7 w-full rounded-md border border-input bg-transparent px-1 text-xs" aria-label="Kurikulum"
-          disabled={!canUbah} value={kurikulum} onChange={(e) => setKurikulum(e.target.value as KurikulumPeristiwa)}>
+          disabled={!canUbah} value={kurikulum} onChange={(e) => setKurikulum(e.target.value as KurikulumKegiatanEvaluatif)}>
           {KURIKULUM.map((k) => <option key={k} value={k}>{k}</option>)}
         </select>
       </td>
@@ -453,17 +453,17 @@ function BarisPeristiwa({ p, canUbah, canHapus, onSimpan }: {
       <td className="border border-border px-1 py-0.5">
         <div className="flex justify-center gap-1">
           {canUbah && (
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="Simpan peristiwa"
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Simpan kegiatan evaluatif"
               onClick={() => void onSimpan(
-                () => ubahPeristiwa(p.id, { nama, cakupan, kurikulum, jenis_rapor: jenisRapor, urutan: Number(urutan) || 0, is_active: aktif }),
-                'Peristiwa disimpan.',
+                () => ubahKegiatanEvaluatif(p.id, { nama, cakupan, kurikulum, jenis_rapor: jenisRapor, urutan: Number(urutan) || 0, is_active: aktif }),
+                'Kegiatan Evaluatif disimpan.',
               )}>
               <Save size={14} />
             </Button>
           )}
           {canHapus && (
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="Hapus peristiwa"
-              onClick={() => void onSimpan(() => hapusPeristiwa(p.id), 'Peristiwa dihapus.')}>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Hapus kegiatan evaluatif"
+              onClick={() => void onSimpan(() => hapusKegiatanEvaluatif(p.id), 'Kegiatan Evaluatif dihapus.')}>
               <Trash2 size={14} />
             </Button>
           )}
@@ -473,9 +473,9 @@ function BarisPeristiwa({ p, canUbah, canHapus, onSimpan }: {
   );
 }
 
-/** Baris komponen (per peristiwa) dengan penyuntingan inline. */
-function BarisKomponen({ k, peristiwaLain, canUbah, canHapus, onSimpan }: {
-  k: KomponenNilai; peristiwaLain: PeristiwaNilai[]; canUbah: boolean; canHapus: boolean;
+/** Baris komponen (per kegiatanEvaluatif) dengan penyuntingan inline. */
+function BarisKomponen({ k, kegiatanEvaluatifLain, canUbah, canHapus, onSimpan }: {
+  k: KomponenNilai; kegiatanEvaluatifLain: KegiatanEvaluatif[]; canUbah: boolean; canHapus: boolean;
   onSimpan: (kerja: () => Promise<unknown>, sukses: string) => Promise<void>;
 }) {
   const [nama, setNama] = useState(k.nama);
@@ -483,15 +483,15 @@ function BarisKomponen({ k, peristiwaLain, canUbah, canHapus, onSimpan }: {
   const [bobot, setBobot] = useState(String(k.bobot));
   const [sumber, setSumber] = useState(k.sumber);
   const [nTingkat, setNTingkat] = useState(k.jumlah_tingkat_rapor === null ? '' : String(k.jumlah_tingkat_rapor));
-  const [peristiwaSumberId, setPeristiwaSumberId] = useState(
-    k.peristiwa_sumber_id === null ? '' : String(k.peristiwa_sumber_id),
+  const [kegiatanEvaluatifSumberId, setKegiatanEvaluatifSumberId] = useState(
+    k.kegiatan_evaluatif_sumber_id === null ? '' : String(k.kegiatan_evaluatif_sumber_id),
   );
   const [aktif, setAktif] = useState(k.is_active);
 
   useEffect(() => {
     setNama(k.nama); setKode(k.kode ?? ''); setBobot(String(k.bobot));
     setSumber(k.sumber); setNTingkat(k.jumlah_tingkat_rapor === null ? '' : String(k.jumlah_tingkat_rapor));
-    setPeristiwaSumberId(k.peristiwa_sumber_id === null ? '' : String(k.peristiwa_sumber_id));
+    setKegiatanEvaluatifSumberId(k.kegiatan_evaluatif_sumber_id === null ? '' : String(k.kegiatan_evaluatif_sumber_id));
     setAktif(k.is_active);
   }, [k]);
 
@@ -511,7 +511,7 @@ function BarisKomponen({ k, peristiwaLain, canUbah, canHapus, onSimpan }: {
           disabled={!canUbah} value={sumber} onChange={(e) => setSumber(e.target.value as KomponenNilai['sumber'])}>
           <option value="manual">Manual (diisi/diimpor)</option>
           <option value="rapor_otomatis">Otomatis dari rapor</option>
-          <option value="peristiwa">Dari peristiwa lain</option>
+          <option value="kegiatan_evaluatif">Dari kegiatan evaluatif lain</option>
         </select>
       </td>
       <td className="border border-border px-1 py-0.5">
@@ -524,16 +524,16 @@ function BarisKomponen({ k, peristiwaLain, canUbah, canHapus, onSimpan }: {
             onChange={(e) => setNTingkat(e.target.value)}
           />
         )}
-        {sumber === 'peristiwa' && (
+        {sumber === 'kegiatan_evaluatif' && (
           <select
             className="h-7 w-full rounded-md border border-input bg-transparent px-1 text-xs"
-            aria-label="Peristiwa sumber"
+            aria-label="Kegiatan Evaluatif sumber"
             disabled={!canUbah}
-            value={peristiwaSumberId}
-            onChange={(e) => setPeristiwaSumberId(e.target.value)}
+            value={kegiatanEvaluatifSumberId}
+            onChange={(e) => setKegiatanEvaluatifSumberId(e.target.value)}
           >
-            <option value="">— pilih peristiwa —</option>
-            {peristiwaLain.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
+            <option value="">— pilih kegiatan evaluatif —</option>
+            {kegiatanEvaluatifLain.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
           </select>
         )}
         {sumber === 'manual' && <span className="block text-center text-[10px] text-muted-foreground">diisi guru</span>}
@@ -550,7 +550,7 @@ function BarisKomponen({ k, peristiwaLain, canUbah, canHapus, onSimpan }: {
                   nama, kode: kode || null, bobot: Number(bobot) || 0,
                   sumber,
                   jumlah_tingkat_rapor: sumber === 'rapor_otomatis' && nTingkat !== '' ? Number(nTingkat) : null,
-                  peristiwa_sumber_id: sumber === 'peristiwa' && peristiwaSumberId !== '' ? Number(peristiwaSumberId) : null,
+                  kegiatan_evaluatif_sumber_id: sumber === 'kegiatan_evaluatif' && kegiatanEvaluatifSumberId !== '' ? Number(kegiatanEvaluatifSumberId) : null,
                   is_active: aktif,
                 }),
                 'Komponen disimpan.',

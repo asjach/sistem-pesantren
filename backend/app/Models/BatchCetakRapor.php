@@ -10,12 +10,12 @@ class BatchCetakRapor extends Model
 {
     protected $table = 'batch_cetak_rapor';
 
-    protected $fillable = ['peristiwa_id', 'semester', 'kelas_id', 'wali_kelas', 'kepala'];
+    protected $fillable = ['kegiatan_evaluatif_id', 'semester', 'kelas_id', 'wali_kelas', 'kepala'];
 
-    /** @return BelongsTo<PeristiwaNilai, $this> */
-    public function peristiwa(): BelongsTo
+    /** @return BelongsTo<KegiatanEvaluatif, $this> */
+    public function kegiatanEvaluatif(): BelongsTo
     {
-        return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_id');
+        return $this->belongsTo(KegiatanEvaluatif::class, 'kegiatan_evaluatif_id');
     }
 
     /** @return BelongsTo<Kelas, $this> */

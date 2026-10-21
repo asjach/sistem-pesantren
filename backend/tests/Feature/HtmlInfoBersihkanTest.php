@@ -15,7 +15,6 @@ use Tests\TestCase;
  */
 class HtmlInfoBersihkanTest extends TestCase
 {
-
     public function test_script_dibuang(): void
     {
         $hasil = HtmlInfo::bersihkan('<p>halo</p><script>alert(1)</script>');
@@ -23,7 +22,7 @@ class HtmlInfoBersihkanTest extends TestCase
         $this->assertSame('<p>halo</p>', $hasil);
     }
 
-    public function test_atribut_peristiwa_dibuang(): void
+    public function test_atribut_kegiatan_evaluatif_dibuang(): void
     {
         $hasil = HtmlInfo::bersihkan('<img src="https://x.test/a.png" onerror="alert(1)">');
 

@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\KegiatanEvaluatif;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\MataPelajaran;
 use App\Models\NilaiSantri;
 use App\Models\PengampuMapel;
-use App\Models\PeristiwaNilai;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
@@ -27,7 +27,7 @@ class NilaiManualTest extends TestCase
 
     private User $admin;
 
-    private PeristiwaNilai $peristiwa;
+    private KegiatanEvaluatif $kegiatanEvaluatif;
 
     private Santri $santri;
 
@@ -65,7 +65,7 @@ class NilaiManualTest extends TestCase
             'jenjang' => 'MI', 'nama_mapel' => 'Fiqih', 'kelompok' => 'formal',
         ]);
         PengampuMapel::create(['kelas_id' => $kelas->id, 'mata_pelajaran_id' => $this->mapel->id]);
-        $this->peristiwa = PeristiwaNilai::create([
+        $this->kegiatanEvaluatif = KegiatanEvaluatif::create([
             'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'kode' => 'ASAS',
             'nama' => 'Asesmen Sumatif Akhir Semester', 'cakupan' => 'semua',
             'kurikulum' => 'keduanya', 'jenis_rapor' => 'akhir', 'urutan' => 1, 'is_active' => true,
@@ -83,7 +83,7 @@ class NilaiManualTest extends TestCase
 
         $this->assertDatabaseHas('nilai_santri', [
             'santri_id' => $this->santri->id,
-            'peristiwa_id' => $this->peristiwa->id,
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
             'semester' => '1',
             'nilai_akhir' => 88.5,
             'sumber' => NilaiSantri::MANUAL,
@@ -98,7 +98,7 @@ class NilaiManualTest extends TestCase
 
         $this->assertDatabaseHas('nilai_santri', [
             'santri_id' => $this->santri->id,
-            'peristiwa_id' => $this->peristiwa->id,
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
             'nilai_akhir' => 0,
             'sumber' => NilaiSantri::MANUAL,
         ]);
@@ -113,19 +113,19 @@ class NilaiManualTest extends TestCase
 
         $this->assertDatabaseMissing('nilai_santri', [
             'santri_id' => $this->santri->id,
-            'peristiwa_id' => $this->peristiwa->id,
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
         ]);
     }
 
     public function test_nilai_manual_mengikuti_rentang_0_10(): void
     {
         $this->setUpDasar();
-        $this->peristiwa->update(['rentang_nilai' => '0-10']);
+        $this->kegiatanEvaluatif->update(['rentang_nilai' => '0-10']);
 
         $this->simpan(10)->assertOk();
         $this->assertDatabaseHas('nilai_santri', [
             'santri_id' => $this->santri->id,
-            'peristiwa_id' => $this->peristiwa->id,
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
             'nilai_akhir' => 10,
             'sumber' => NilaiSantri::MANUAL,
         ]);
@@ -137,12 +137,12 @@ class NilaiManualTest extends TestCase
     public function test_nilai_manual_mengikuti_rentang_0_4(): void
     {
         $this->setUpDasar();
-        $this->peristiwa->update(['rentang_nilai' => '0-4']);
+        $this->kegiatanEvaluatif->update(['rentang_nilai' => '0-4']);
 
         $this->simpan(4)->assertOk();
         $this->assertDatabaseHas('nilai_santri', [
             'santri_id' => $this->santri->id,
-            'peristiwa_id' => $this->peristiwa->id,
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
             'nilai_akhir' => 4,
             'sumber' => NilaiSantri::MANUAL,
         ]);
@@ -153,7 +153,7 @@ class NilaiManualTest extends TestCase
     public function test_nilai_di_luar_rentang_ditolak(): void
     {
         $this->setUpDasar();
-        $this->assertSame('0-100', $this->peristiwa->fresh()->rentang_nilai);
+        $this->assertSame('0-100', $this->kegiatanEvaluatif->fresh()->rentang_nilai);
 
         $this->simpan(101)
             ->assertUnprocessable()
@@ -169,7 +169,7 @@ class NilaiManualTest extends TestCase
 
         $this->actingAs($this->admin, 'sanctum')
             ->putJson('/api/admin/penilaian/nilai', [
-                'peristiwa_id' => $this->peristiwa->id,
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'semester' => '1',
                 'santri_id' => $this->santri->id,
                 'mapel_id' => $mapelLain->id,
@@ -186,7 +186,7 @@ class NilaiManualTest extends TestCase
 
         $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/admin/penilaian/hitung', [
-                'peristiwa_id' => $this->peristiwa->id,
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'semester' => '1',
             ])
             ->assertOk()
@@ -194,23 +194,23 @@ class NilaiManualTest extends TestCase
 
         $this->assertDatabaseHas('nilai_santri', [
             'santri_id' => $this->santri->id,
-            'peristiwa_id' => $this->peristiwa->id,
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
             'nilai_akhir' => 88,
             'sumber' => NilaiSantri::MANUAL,
         ]);
     }
 
-    public function test_impor_nilai_mengikuti_rentang_peristiwa(): void
+    public function test_impor_nilai_mengikuti_rentang_kegiatan_evaluatif(): void
     {
         $this->setUpDasar();
-        $this->peristiwa->update(['rentang_nilai' => '0-10']);
+        $this->kegiatanEvaluatif->update(['rentang_nilai' => '0-10']);
 
         $invalid = $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/admin/penilaian/import-potong', [
                 'tipe' => 'nilai',
                 'tahun_ajaran' => self::TA,
                 'semester' => '1',
-                'peristiwa_id' => $this->peristiwa->id,
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'jenjang' => ['MI'],
                 'mode' => 'periksa',
                 'total' => 1,
@@ -234,7 +234,7 @@ class NilaiManualTest extends TestCase
                 'tipe' => 'nilai',
                 'tahun_ajaran' => self::TA,
                 'semester' => '1',
-                'peristiwa_id' => $this->peristiwa->id,
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'jenjang' => ['MI'],
                 'mode' => 'eksekusi',
                 'total' => 1,
@@ -248,7 +248,7 @@ class NilaiManualTest extends TestCase
 
         $this->assertDatabaseHas('nilai_santri', [
             'santri_id' => $this->santri->id,
-            'peristiwa_id' => $this->peristiwa->id,
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
             'nilai_akhir' => 10,
             'sumber' => NilaiSantri::IMPOR,
         ]);
@@ -258,7 +258,7 @@ class NilaiManualTest extends TestCase
     {
         return $this->actingAs($this->admin, 'sanctum')
             ->putJson('/api/admin/penilaian/nilai', [
-                'peristiwa_id' => $this->peristiwa->id,
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'semester' => '1',
                 'santri_id' => $this->santri->id,
                 'mapel_id' => $this->mapel->id,

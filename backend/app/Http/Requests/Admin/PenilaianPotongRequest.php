@@ -19,7 +19,7 @@ class PenilaianPotongRequest extends PotongImportRequest
             'jenjang' => ['nullable', 'array'],
             'jenjang.*' => ['string', 'exists:lembaga,jenjang'],
 
-            'peristiwa_id' => ['nullable', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['nullable', 'integer', 'exists:kegiatan_evaluatif,id'],
             'komponen_id' => ['nullable', 'integer', 'exists:komponen_nilai,id'],
         ];
     }

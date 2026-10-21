@@ -7,8 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DesainKartuPesertaRequest;
 use App\Http\Requests\Admin\PengaturanKartuPesertaRequest;
 use App\Models\DesainKartuPeserta;
+use App\Models\KegiatanEvaluatif;
 use App\Models\PengaturanKartuPeserta;
-use App\Models\PeristiwaNilai;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -22,24 +22,24 @@ class DesainKartuPesertaController extends Controller
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
         ]);
-        $peristiwa = PeristiwaNilai::query()->findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $kegiatanEvaluatif = KegiatanEvaluatif::query()->findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
         $pengaturan = PengaturanKartuPeserta::query()
-            ->where('peristiwa_id', $peristiwa->id)
+            ->where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
             ->first();
 
         return response()->json([
             'desain' => DesainKartuPeserta::query()
-                ->where('jenjang', $peristiwa->jenjang)
+                ->where('jenjang', $kegiatanEvaluatif->jenjang)
                 ->orderBy('nama')
                 ->orderBy('id')
                 ->get()
                 ->map(fn (DesainKartuPeserta $desain) => $this->untukRespons($desain)),
             'pengaturan' => [
-                'peristiwa_id' => $peristiwa->id,
+                'kegiatan_evaluatif_id' => $kegiatanEvaluatif->id,
                 'desain_id' => $pengaturan?->desain_id,
                 'template_bawaan' => $pengaturan?->template_bawaan ?? 'klasik',
                 'lebar_mm' => (float) ($pengaturan?->lebar_mm ?? 85.60),
@@ -51,18 +51,18 @@ class DesainKartuPesertaController extends Controller
     public function simpan(DesainKartuPesertaRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $peristiwa = PeristiwaNilai::query()->findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $kegiatanEvaluatif = KegiatanEvaluatif::query()->findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
         $desain = isset($data['id'])
             ? DesainKartuPeserta::query()->findOrFail($data['id'])
             : new DesainKartuPeserta;
-        if ($desain->exists && $desain->jenjang !== $peristiwa->jenjang) {
+        if ($desain->exists && $desain->jenjang !== $kegiatanEvaluatif->jenjang) {
             abort(403, 'Akses ditolak.');
         }
 
         $namaDipakai = DesainKartuPeserta::query()
-            ->where('jenjang', $peristiwa->jenjang)
+            ->where('jenjang', $kegiatanEvaluatif->jenjang)
             ->where('nama', trim($data['nama']))
             ->when($desain->exists, fn ($query) => $query->whereKeyNot($desain->id))
             ->exists();
@@ -78,7 +78,7 @@ class DesainKartuPesertaController extends Controller
 
         try {
             $desain->fill([
-                'jenjang' => $peristiwa->jenjang,
+                'jenjang' => $kegiatanEvaluatif->jenjang,
                 'nama' => trim($data['nama']),
                 'elemen' => $data['elemen'],
                 'warna_latar' => strtolower($data['warna_latar']),
@@ -107,22 +107,22 @@ class DesainKartuPesertaController extends Controller
     public function simpanPengaturan(PengaturanKartuPesertaRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $peristiwa = PeristiwaNilai::query()->findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $kegiatanEvaluatif = KegiatanEvaluatif::query()->findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
         $desainId = $data['desain_id'] ?? null;
         if ($desainId !== null) {
             $sesuaiLembaga = DesainKartuPeserta::query()
                 ->whereKey($desainId)
-                ->where('jenjang', $peristiwa->jenjang)
+                ->where('jenjang', $kegiatanEvaluatif->jenjang)
                 ->exists();
             if (! $sesuaiLembaga) {
-                throw ValidationException::withMessages(['desain_id' => 'Desain bukan milik lembaga peristiwa ini.']);
+                throw ValidationException::withMessages(['desain_id' => 'Desain bukan milik lembaga kegiatanEvaluatif ini.']);
             }
         }
 
         $pengaturan = PengaturanKartuPeserta::query()->updateOrCreate(
-            ['peristiwa_id' => $peristiwa->id],
+            ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id],
             [
                 'desain_id' => $desainId,
                 'template_bawaan' => $desainId === null ? ($data['template_bawaan'] ?? 'klasik') : null,

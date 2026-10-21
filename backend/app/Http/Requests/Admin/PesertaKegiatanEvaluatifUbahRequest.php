@@ -4,7 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class PesertaPeristiwaUbahRequest extends FormRequest
+class PesertaKegiatanEvaluatifUbahRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,7 +14,7 @@ class PesertaPeristiwaUbahRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'semester' => ['required', 'in:1,2'],
             'nomor_peserta' => ['present', 'nullable', 'string', 'max:100'],
         ];

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Nilai akhir santri per (pengampu × TA × semester × PERISTIWA).
+ * Nilai akhir santri per (pengampu × TA × semester × KEGIATAN EVALUATIF).
  * `sumber` menandai jalur pengisian: 'hitung' (komponen × bobot),
  * 'impor' (leger langsung), atau 'manual' (input langsung per sel di Leger).
  */
@@ -38,9 +38,9 @@ class NilaiSantri extends Model
         return $this->belongsTo(PengampuMapel::class);
     }
 
-    public function peristiwa(): BelongsTo
+    public function kegiatanEvaluatif(): BelongsTo
     {
-        return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_id');
+        return $this->belongsTo(KegiatanEvaluatif::class, 'kegiatan_evaluatif_id');
     }
 
     public function tahunAjaran(): BelongsTo

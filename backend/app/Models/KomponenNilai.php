@@ -6,16 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Komponen penilaian MILIK SATU PERISTIWA (daftar komponen terpisah tiap
- * peristiwa — keputusan pengguna 2026-10-16). Bobot jadi kolom karena
- * peristiwa sudah terikat tahun ajaran.
+ * Komponen penilaian MILIK SATU KEGIATAN EVALUATIF (daftar komponen terpisah tiap
+ * kegiatanEvaluatif — keputusan pengguna 2026-10-16). Bobot jadi kolom karena
+ * kegiatanEvaluatif sudah terikat tahun ajaran.
  *
  *  Tiga sumber nilai:
  *  - `manual`         : diisi guru lewat impor/edit;
  *  - `rapor_otomatis` : rata-rata rapor `jumlah_tingkat_rapor` tingkat sebelumnya;
- *  - `peristiwa`      : nilai akhir peristiwa LAIN (`peristiwa_sumber_id`) untuk
+ *  - `kegiatanEvaluatif`      : nilai akhir kegiatanEvaluatif LAIN (`kegiatan_evaluatif_sumber_id`) untuk
  *                       mapel yang sama — mis. komponen "PTS" di ASAS/ASAT
- *                       mengambil nilai akhir peristiwa PTS.
+ *                       mengambil nilai akhir kegiatanEvaluatif PTS.
  *
  *  Dua sumber otomatis tetap boleh ditimpa baris `nilai_komponen` manual.
  */
@@ -25,7 +25,7 @@ class KomponenNilai extends Model
 
     public const RAPOR_OTOMATIS = 'rapor_otomatis';
 
-    public const PERISTIWA = 'peristiwa';
+    public const KEGIATAN_EVALUATIF = 'kegiatan_evaluatif';
 
     protected $table = 'komponen_nilai';
 
@@ -36,18 +36,18 @@ class KomponenNilai extends Model
         'urutan' => 'integer',
         'bobot' => 'float',
         'jumlah_tingkat_rapor' => 'integer',
-        'peristiwa_sumber_id' => 'integer',
+        'kegiatan_evaluatif_sumber_id' => 'integer',
     ];
 
-    public function peristiwa(): BelongsTo
+    public function kegiatanEvaluatif(): BelongsTo
     {
-        return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_id');
+        return $this->belongsTo(KegiatanEvaluatif::class, 'kegiatan_evaluatif_id');
     }
 
-    /** Peristiwa asal bila `sumber='peristiwa'`. */
-    public function peristiwaSumber(): BelongsTo
+    /** Kegiatan evaluatif asal bila `sumber='kegiatan_evaluatif'`. */
+    public function kegiatanEvaluatifSumber(): BelongsTo
     {
-        return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_sumber_id');
+        return $this->belongsTo(KegiatanEvaluatif::class, 'kegiatan_evaluatif_sumber_id');
     }
 
     public function otomatisDariRapor(): bool
@@ -55,8 +55,8 @@ class KomponenNilai extends Model
         return $this->sumber === self::RAPOR_OTOMATIS;
     }
 
-    public function otomatisDariPeristiwa(): bool
+    public function otomatisDariKegiatanEvaluatif(): bool
     {
-        return $this->sumber === self::PERISTIWA && $this->peristiwa_sumber_id !== null;
+        return $this->sumber === self::KEGIATAN_EVALUATIF && $this->kegiatan_evaluatif_sumber_id !== null;
     }
 }

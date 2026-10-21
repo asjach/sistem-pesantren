@@ -3,30 +3,64 @@ import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import { listKelas, type Kelas } from '@/api/master';
 import {
-  daftarDesainKartu, daftarPeristiwa, daftarPesertaPeristiwa, generateNomorPeserta,
+  daftarDesainKartu, daftarKegiatanEvaluatif, daftarPesertaKegiatanEvaluatif, generateNomorPeserta,
   simpanPengaturanNomorPeserta, ubahNomorPeserta,
-  type BarisPesertaPeristiwa, type DesainKartuResp, type ModeUrutanNomorPeserta,
-  type PeristiwaNilai, type PesertaPeristiwaResp,
+  type BarisPesertaKegiatanEvaluatif, type DesainKartuResp, type ModeUrutanNomorPeserta,
+  type KegiatanEvaluatif, type PesertaKegiatanEvaluatifResp,
 } from '@/api/penilaian';
-import { RefreshCw, RotateCcw, Save } from '@/icons';
+import { RefreshCw, RotateCcw, Save, Settings } from '@/icons';
 import { formatContohNomorPeserta } from '@/lib/nomorPeserta';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import KartuPesertaDesainTab from '@/components/kartuPeserta/KartuPesertaDesainTab';
 import KartuPesertaCetakTab from '@/components/kartuPeserta/KartuPesertaCetakTab';
 import { useFotoPeserta } from '@/components/kartuPeserta/useFotoPeserta';
+import { TopBarSearch } from '@/components/TopBarSearch';
 
 type TabKartu = 'nomor' | 'desain' | 'cetak';
+
+type BarisNomorGrid = BarisPesertaKegiatanEvaluatif & { id: number };
+
+const FIELDS_NOMOR: ExcelField[] = [
+  {
+    key: 'nis_lokal', label: 'NIS', kind: 'static', width: 110,
+    renderCell: (row) => row.nis_lokal === null || row.nis_lokal === ''
+      ? <span className="text-muted-foreground">—</span>
+      : <span className="font-mono">{String(row.nis_lokal)}</span>,
+  },
+  { key: 'nama', label: 'Nama', kind: 'static', width: 200 },
+  {
+    key: 'kelas', label: 'Kelas', kind: 'static', width: 90,
+    renderCell: (row) => row.kelas === null || row.kelas === ''
+      ? <span className="text-muted-foreground">—</span>
+      : String(row.kelas),
+  },
+  {
+    key: 'tingkat', label: 'Tingkat', kind: 'static', width: 80,
+    renderCell: (row) => row.tingkat === null || row.tingkat === ''
+      ? <span className="text-muted-foreground">—</span>
+      : String(row.tingkat),
+  },
+  { key: 'nomor_peserta', label: 'Nomor peserta', kind: 'text', width: 230, maxLength: 100 },
+  {
+    key: 'sumber_nomor', label: 'Sumber', kind: 'static', width: 100,
+    renderCell: (row) => row.sumber_nomor
+      ? <span className="text-[10px] uppercase tracking-wide">{String(row.sumber_nomor)}</span>
+      : <span className="text-muted-foreground">—</span>,
+  },
+];
 
 export default function PenilaianKartuPesertaPage() {
   const { jenjangs, tahunAjaranNames, semesters, tingkat, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
@@ -38,10 +72,10 @@ export default function PenilaianKartuPesertaPage() {
   const semester = targetTunggal(semesters);
   const siap = jenjang !== null && tahunAjaran !== null && semester !== null;
 
-  const [peristiwa, setPeristiwa] = useState<PeristiwaNilai[]>([]);
-  const [peristiwaId, setPeristiwaId] = useState<number | ''>('');
+  const [kegiatanEvaluatif, setKegiatanEvaluatif] = useState<KegiatanEvaluatif[]>([]);
+  const [kegiatanEvaluatifId, setKegiatanEvaluatifId] = useState<number | ''>('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
-  const [data, setData] = useState<PesertaPeristiwaResp | null>(null);
+  const [data, setData] = useState<PesertaKegiatanEvaluatifResp | null>(null);
   const [template, setTemplate] = useState('');
   const [modeUrutan, setModeUrutan] = useState<ModeUrutanNomorPeserta>('per_tingkat');
   const [cari, setCari] = useState('');
@@ -49,6 +83,7 @@ export default function PenilaianKartuPesertaPage() {
   const [loading, setLoading] = useState(false);
   const [menyimpan, setMenyimpan] = useState(false);
   const [konfirmasiUlang, setKonfirmasiUlang] = useState(false);
+  const [polaOpen, setPolaOpen] = useState(false);
   const [err, setErr] = useState('');
   const [tab, setTab] = useState<TabKartu>('nomor');
   const [muatanDesain, setMuatanDesain] = useState<DesainKartuResp | null>(null);
@@ -69,17 +104,17 @@ export default function PenilaianKartuPesertaPage() {
 
   useEffect(() => {
     if (filterLoading || jenjang === null || tahunAjaran === null) {
-      setPeristiwa([]);
-      setPeristiwaId('');
+      setKegiatanEvaluatif([]);
+      setKegiatanEvaluatifId('');
       return;
     }
     let hidup = true;
-    daftarPeristiwa({ jenjang, tahun_ajaran: tahunAjaran })
+    daftarKegiatanEvaluatif({ jenjang, tahun_ajaran: tahunAjaran })
       .then((hasil) => {
         if (!hidup) return;
-        const aktif = hasil.peristiwa.filter((item) => item.is_active);
-        setPeristiwa(aktif);
-        setPeristiwaId((saatIni) => aktif.some((item) => item.id === saatIni) ? saatIni : (aktif[0]?.id ?? ''));
+        const aktif = hasil.kegiatan_evaluatif.filter((item) => item.is_active);
+        setKegiatanEvaluatif(aktif);
+        setKegiatanEvaluatifId((saatIni) => aktif.some((item) => item.id === saatIni) ? saatIni : (aktif[0]?.id ?? ''));
       })
       .catch((e) => { if (hidup) setErr(errorMessage(e)); });
     return () => { hidup = false; };
@@ -98,7 +133,7 @@ export default function PenilaianKartuPesertaPage() {
 
   const permintaanTerakhir = useRef(0);
   const muat = useCallback(async () => {
-    if (peristiwaId === '' || semester === null) {
+    if (kegiatanEvaluatifId === '' || semester === null) {
       setData(null);
       return;
     }
@@ -106,8 +141,8 @@ export default function PenilaianKartuPesertaPage() {
     setLoading(true);
     setErr('');
     try {
-      const hasil = await daftarPesertaPeristiwa({
-        peristiwa_id: Number(peristiwaId),
+      const hasil = await daftarPesertaKegiatanEvaluatif({
+        kegiatan_evaluatif_id: Number(kegiatanEvaluatifId),
         semester,
         tingkat: tingkat.length > 0 ? tingkat : undefined,
         kelas_id: kelasIds.length > 0 ? kelasIds : undefined,
@@ -115,7 +150,7 @@ export default function PenilaianKartuPesertaPage() {
       });
       if (permintaan !== permintaanTerakhir.current) return;
       setData(hasil);
-      const key = `${peristiwaId}:${semester}`;
+      const key = `${kegiatanEvaluatifId}:${semester}`;
       if (pengaturanKey.current !== key) {
         pengaturanKey.current = key;
         setTemplate(hasil.pengaturan.template);
@@ -128,7 +163,7 @@ export default function PenilaianKartuPesertaPage() {
     } finally {
       if (permintaan === permintaanTerakhir.current) setLoading(false);
     }
-  }, [peristiwaId, semester, tingkat, kelasIds, cariTertunda]);
+  }, [kegiatanEvaluatifId, semester, tingkat, kelasIds, cariTertunda]);
 
   useEffect(() => {
     if (filterLoading) return;
@@ -136,19 +171,19 @@ export default function PenilaianKartuPesertaPage() {
   }, [filterLoading, muat]);
 
   const muatDesain = useCallback(async () => {
-    if (peristiwaId === '') {
+    if (kegiatanEvaluatifId === '') {
       setMuatanDesain(null);
       return;
     }
     const permintaan = ++permintaanDesain.current;
     setErr('');
     try {
-      const hasil = await daftarDesainKartu(Number(peristiwaId));
+      const hasil = await daftarDesainKartu(Number(kegiatanEvaluatifId));
       if (permintaan === permintaanDesain.current) setMuatanDesain(hasil);
     } catch (e) {
       if (permintaan === permintaanDesain.current) setErr(errorMessage(e));
     }
-  }, [peristiwaId]);
+  }, [kegiatanEvaluatifId]);
 
   useEffect(() => {
     setMuatanDesain(null);
@@ -157,31 +192,56 @@ export default function PenilaianKartuPesertaPage() {
 
   const pesertaSemua = useMemo(() => data?.peserta ?? [], [data]);
   const { foto, memuat: memuatFoto } = useFotoPeserta(pesertaSemua, tab !== 'nomor');
-  const peristiwaAktif = peristiwa.find((item) => item.id === peristiwaId) ?? null;
+  const kegiatanEvaluatifAktif = kegiatanEvaluatif.find((item) => item.id === kegiatanEvaluatifId) ?? null;
   const lembagaNama = data?.lembaga?.nama ?? jenjang ?? '';
   const pesertaContoh = pesertaSemua[0] ?? null;
 
+  const barisNomor = useMemo<BarisNomorGrid[]>(
+    () => (data?.peserta ?? []).map((b) => ({ ...b, id: b.santri_id })),
+    [data],
+  );
+
+  const getValuesNomor = useCallback((b: BarisNomorGrid) => ({
+    nis_lokal: b.nis_lokal,
+    nama: b.nama,
+    kelas: b.kelas,
+    tingkat: b.tingkat,
+    nomor_peserta: b.nomor_peserta,
+    sumber_nomor: b.sumber_nomor,
+  }), []);
+
+  const simpanNomor = useCallback(async (santriId: number, fields: Record<string, string | null>) => {
+    if (kegiatanEvaluatifId === '' || semester === null || fields.nomor_peserta === undefined) return;
+    await ubahNomorPeserta(santriId, {
+      kegiatan_evaluatif_id: Number(kegiatanEvaluatifId),
+      semester,
+      nomor_peserta: fields.nomor_peserta?.trim() || null,
+    });
+  }, [kegiatanEvaluatifId, semester]);
+
+  const selesaiNomor = useCallback(async () => { await muat(); }, [muat]);
+
   const contoh = useMemo(() => {
-    const pilihan = peristiwa.find((item) => item.id === peristiwaId);
+    const pilihan = kegiatanEvaluatif.find((item) => item.id === kegiatanEvaluatifId);
     if (!pilihan || semester === null || template === '') return '—';
     return formatContohNomorPeserta(template, {
       tahunAjaran: pilihan.tahun_ajaran,
-      kodePeristiwa: pilihan.kode,
+      kodeKegiatanEvaluatif: pilihan.kode,
       semester,
       tingkat: tingkat[0] ?? data?.peserta[0]?.tingkat ?? '1',
       urutan: 1,
     });
-  }, [peristiwa, peristiwaId, semester, template, tingkat, data]);
+  }, [kegiatanEvaluatif, kegiatanEvaluatifId, semester, template, tingkat, data]);
 
   const payload = useCallback(() => {
-    if (peristiwaId === '' || semester === null) return null;
+    if (kegiatanEvaluatifId === '' || semester === null) return null;
     return {
-      peristiwa_id: Number(peristiwaId),
+      kegiatan_evaluatif_id: Number(kegiatanEvaluatifId),
       semester,
       template,
       mode_urutan: modeUrutan,
     };
-  }, [peristiwaId, semester, template, modeUrutan]);
+  }, [kegiatanEvaluatifId, semester, template, modeUrutan]);
 
   const simpanPola = useCallback(async () => {
     const isi = payload();
@@ -214,40 +274,13 @@ export default function PenilaianKartuPesertaPage() {
   }, [payload, muat]);
 
   const tambahToken = useCallback((token: string) => setTemplate((nilai) => `${nilai}${token}`), []);
-  const aksiNonaktif = !canUbah || !siap || peristiwaId === '' || template.trim() === '' || menyimpan;
+  const aksiNonaktif = !canUbah || !siap || kegiatanEvaluatifId === '' || template.trim() === '' || menyimpan;
 
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-        <label className="text-xs text-muted-foreground" htmlFor="select_peristiwa_kartu">Peristiwa</label>
-        <select
-          id="select_peristiwa_kartu"
-          className="h-8 border border-input bg-transparent px-2 text-xs"
-          value={peristiwaId === '' ? '' : String(peristiwaId)}
-          onChange={(e) => {
-            pengaturanKey.current = '';
-            setPeristiwaId(e.target.value === '' ? '' : Number(e.target.value));
-          }}
-        >
-          <option value="">— pilih peristiwa —</option>
-          {peristiwa.map((item) => <option key={item.id} value={item.id}>{item.kode} — {item.nama}</option>)}
-        </select>
-        <Input
-          id="input_cari_peserta_kartu"
-          aria-label="Cari nama, NIS, atau nomor peserta"
-          placeholder="Cari nama, NIS, atau nomor…"
-          className="h-8 w-64 text-xs"
-          value={cari}
-          onChange={(e) => setCari(e.target.value)}
-        />
-        <span className="text-xs text-muted-foreground">
-          {!siap ? 'Pilih satu lembaga, tahun ajaran, dan semester.'
-            : peristiwa.length === 0 ? 'Belum ada peristiwa aktif.'
-              : `${data?.ringkasan.total ?? 0} peserta · ${data?.ringkasan.belum_bernomor ?? 0} belum bernomor`}
-        </span>
-      </div>
+      <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama, NIS, atau nomor…" />
 
       <Tabs
         value={tab}
@@ -261,127 +294,64 @@ export default function PenilaianKartuPesertaPage() {
         </TabsList>
 
         <TabsContent value="nomor" className="flex min-h-0 flex-1 flex-col">
-      <section className="shrink-0 border-b border-border bg-muted/20 px-3 py-3" aria-labelledby="judul_penyusun_pola">
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_240px_260px]">
-          <div className="min-w-0">
-            <div className="mb-2 flex items-center gap-2">
-              <h2 id="judul_penyusun_pola" className="text-xs font-semibold">Penyusun pola nomor</h2>
-              <span className="text-[11px] text-muted-foreground">Bagian pola (token)</span>
-            </div>
-            <Input
-              id="input_template_nomor_peserta"
-              aria-label="Pola nomor peserta"
-              className="h-9 font-mono text-xs"
-              value={template}
-              onChange={(e) => setTemplate(e.target.value)}
-              placeholder="{ta_awal_2}.{ta_akhir_2}.{kode_peristiwa}.{tingkat_2}.{nomor_4}"
-            />
-            <div className="mt-2 flex flex-wrap gap-1">
-              {(data?.token ?? []).map((item) => (
-                <Button
-                  key={item.token}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 font-mono text-[11px]"
-                  title={`${item.label}; contoh ${item.contoh}`}
-                  onClick={() => tambahToken(item.token)}
-                  disabled={!canUbah}
-                >
-                  {item.token}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-xs font-semibold" htmlFor="select_mode_urutan_peserta">Urutan nomor</label>
-            <select
-              id="select_mode_urutan_peserta"
-              className="h-9 w-full border border-input bg-background px-2 text-xs"
-              value={modeUrutan}
-              onChange={(e) => setModeUrutan(e.target.value as ModeUrutanNomorPeserta)}
-              disabled={!canUbah}
+      <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 sm:px-6">
+        <ExcelTable<BarisNomorGrid>
+          tableKey="penilaian_kartu_nomor"
+          header="Nomor peserta"
+          fields={FIELDS_NOMOR}
+          rows={barisNomor}
+          getValues={getValuesNomor}
+          loading={loading}
+          emptyText={!siap ? 'Pilih satu lembaga, tahun ajaran, dan semester.'
+            : kegiatanEvaluatif.length === 0 ? 'Belum ada kegiatan evaluatif aktif.'
+              : 'Tidak ada peserta pada lingkup ini.'}
+          canEdit={canUbah}
+          onCommit={simpanNomor}
+          onSaved={selesaiNomor}
+          renderActions={() => null}
+          hideCheckbox
+          hideActions
+          rail
+          awalanToolbar={(
+            <label className="flex items-center gap-1.5 text-xs" htmlFor="select_kegiatan_evaluatif_kartu">
+              <span className="text-muted-foreground">Kegiatan Evaluatif</span>
+              <select
+                id="select_kegiatan_evaluatif_kartu"
+                className="h-7 border border-input bg-transparent px-2 text-xs"
+                value={kegiatanEvaluatifId === '' ? '' : String(kegiatanEvaluatifId)}
+                onChange={(e) => {
+                  pengaturanKey.current = '';
+                  setKegiatanEvaluatifId(e.target.value === '' ? '' : Number(e.target.value));
+                }}
+              >
+                <option value="">— pilih kegiatan evaluatif —</option>
+                {kegiatanEvaluatif.map((item) => <option key={item.id} value={item.id}>{item.kode} — {item.nama}</option>)}
+              </select>
+            </label>
+          )}
+          akhirToolbar={(
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              id="btn_pola_nomor"
+              disabled={!siap || kegiatanEvaluatifId === ''}
+              onClick={() => setPolaOpen(true)}
             >
-              <option value="per_tingkat">Mulai kembali per tingkat</option>
-              <option value="semua_tingkat">Bersambung semua tingkat</option>
-            </select>
-            <div className="mt-3 border-l-4 border-primary bg-background px-3 py-2">
-              <span className="block text-[11px] text-muted-foreground">Contoh langsung (pratinjau)</span>
-              <strong className="block truncate font-mono text-sm" title={contoh}>{contoh}</strong>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-px border border-border bg-border">
-            <Ringkasan label="Total" nilai={data?.ringkasan.total ?? 0} />
-            <Ringkasan label="Belum bernomor" nilai={data?.ringkasan.belum_bernomor ?? 0} />
-            <Ringkasan label="Manual" nilai={data?.ringkasan.manual ?? 0} />
-            <Ringkasan label="Otomatis" nilai={data?.ringkasan.otomatis ?? 0} />
-          </div>
-        </div>
-
-        <div className="mt-3 flex flex-wrap justify-end gap-2">
-          <Button type="button" variant="outline" size="sm" id="btn_simpan_pola_nomor" disabled={aksiNonaktif} onClick={() => void simpanPola()}>
-            <Save data-icon="inline-start" size={16} /> Simpan pola
-          </Button>
-          <Button type="button" size="sm" id="btn_isi_nomor_kosong" disabled={aksiNonaktif} onClick={() => void buatNomor(false)}>
-            <RefreshCw data-icon="inline-start" size={16} /> Isi yang kosong
-          </Button>
-          <Button type="button" variant="outline" size="sm" id="btn_buat_ulang_nomor" disabled={aksiNonaktif} onClick={() => setKonfirmasiUlang(true)}>
-            <RotateCcw data-icon="inline-start" size={16} /> Buat ulang otomatis
-          </Button>
-        </div>
-      </section>
-
-      <div className="min-h-0 flex-1 overflow-auto">
-        {loading && <p className="p-3 text-xs text-muted-foreground">Memuat peserta…</p>}
-        {!loading && data !== null && (
-          <table className="w-full min-w-[820px] border-collapse text-xs" id="tabel_nomor_peserta">
-            <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur">
-              <tr>
-                <th className="border border-border px-2 py-1 text-left">No.</th>
-                <th className="border border-border px-2 py-1 text-left">NIS</th>
-                <th className="border border-border px-2 py-1 text-left">Nama</th>
-                <th className="border border-border px-2 py-1 text-left">Kelas</th>
-                <th className="border border-border px-2 py-1 text-left">Tingkat</th>
-                <th className="w-[330px] border border-border px-2 py-1 text-left">Nomor peserta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.peserta.map((baris, index) => (
-                <tr key={baris.santri_id} className="hover:bg-muted/40">
-                  <td className="border border-border px-2 py-1 text-muted-foreground">{index + 1}</td>
-                  <td className="border border-border px-2 py-1 font-mono">{baris.nis_lokal ?? '—'}</td>
-                  <td className="border border-border px-2 py-1 font-medium">{baris.nama}</td>
-                  <td className="border border-border px-2 py-1">{baris.kelas ?? '—'}</td>
-                  <td className="border border-border px-2 py-1">{baris.tingkat ?? '—'}</td>
-                  <td className="border border-border p-1">
-                    <InputNomor
-                      baris={baris}
-                      peristiwaId={Number(peristiwaId)}
-                      semester={semester ?? '1'}
-                      canUbah={canUbah}
-                      onSaved={muat}
-                    />
-                  </td>
-                </tr>
-              ))}
-              {data.peserta.length === 0 && (
-                <tr><td colSpan={6} className="border border-border px-3 py-8 text-center text-muted-foreground">Tidak ada peserta pada lingkup ini.</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
+              <Settings data-icon="inline-start" size={16} /> Pola nomor
+            </Button>
+          )}
+        />
       </div>
         </TabsContent>
 
         <TabsContent value="desain" className="min-h-0 flex-1 overflow-auto p-3">
-          {!siap || peristiwaAktif === null ? (
-            <p className="text-xs text-muted-foreground">Pilih peristiwa aktif terlebih dahulu.</p>
+          {!siap || kegiatanEvaluatifAktif === null ? (
+            <p className="text-xs text-muted-foreground">Pilih kegiatan evaluatif aktif terlebih dahulu.</p>
           ) : (
             <KartuPesertaDesainTab
-              peristiwaId={Number(peristiwaId)}
-              peristiwa={peristiwaAktif}
+              kegiatanEvaluatifId={Number(kegiatanEvaluatifId)}
+              kegiatanEvaluatif={kegiatanEvaluatifAktif}
               semester={semester ?? '1'}
               lembaga={lembagaNama}
               pesertaContoh={pesertaContoh}
@@ -394,11 +364,11 @@ export default function PenilaianKartuPesertaPage() {
         </TabsContent>
 
         <TabsContent value="cetak" className="min-h-0 flex-1 overflow-auto p-3">
-          {!siap || peristiwaAktif === null ? (
-            <p className="text-xs text-muted-foreground">Pilih peristiwa aktif terlebih dahulu.</p>
+          {!siap || kegiatanEvaluatifAktif === null ? (
+            <p className="text-xs text-muted-foreground">Pilih kegiatan evaluatif aktif terlebih dahulu.</p>
           ) : (
             <KartuPesertaCetakTab
-              peristiwa={peristiwaAktif}
+              kegiatanEvaluatif={kegiatanEvaluatifAktif}
               semester={semester ?? '1'}
               lembaga={lembagaNama}
               peserta={pesertaSemua}
@@ -409,6 +379,82 @@ export default function PenilaianKartuPesertaPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={polaOpen} onOpenChange={setPolaOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Penyusun pola nomor</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="min-w-0">
+                <span className="mb-2 block text-xs font-semibold">Bagian pola (token)</span>
+                <Input
+                  id="input_template_nomor_peserta"
+                  aria-label="Pola nomor peserta"
+                  className="h-9 font-mono text-xs"
+                  value={template}
+                  onChange={(e) => setTemplate(e.target.value)}
+                  placeholder="{ta_awal_2}.{ta_akhir_2}.{kode_kegiatan_evaluatif}.{tingkat_2}.{nomor_4}"
+                />
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {(data?.token ?? []).map((item) => (
+                    <Button
+                      key={item.token}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 font-mono text-[11px]"
+                      title={`${item.label}; contoh ${item.contoh}`}
+                      onClick={() => tambahToken(item.token)}
+                      disabled={!canUbah}
+                    >
+                      {item.token}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-semibold" htmlFor="select_mode_urutan_peserta">Urutan nomor</label>
+                <select
+                  id="select_mode_urutan_peserta"
+                  className="h-9 w-full border border-input bg-background px-2 text-xs"
+                  value={modeUrutan}
+                  onChange={(e) => setModeUrutan(e.target.value as ModeUrutanNomorPeserta)}
+                  disabled={!canUbah}
+                >
+                  <option value="per_tingkat">Mulai kembali per tingkat</option>
+                  <option value="semua_tingkat">Bersambung semua tingkat</option>
+                </select>
+                <div className="mt-3 border-l-4 border-primary bg-background px-3 py-2">
+                  <span className="block text-[11px] text-muted-foreground">Contoh langsung (pratinjau)</span>
+                  <strong className="block truncate font-mono text-sm" title={contoh}>{contoh}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-4">
+              <Ringkasan label="Total" nilai={data?.ringkasan.total ?? 0} />
+              <Ringkasan label="Belum bernomor" nilai={data?.ringkasan.belum_bernomor ?? 0} />
+              <Ringkasan label="Manual" nilai={data?.ringkasan.manual ?? 0} />
+              <Ringkasan label="Otomatis" nilai={data?.ringkasan.otomatis ?? 0} />
+            </div>
+
+            <DialogFooter className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" id="btn_simpan_pola_nomor" disabled={aksiNonaktif} onClick={() => void simpanPola()}>
+                <Save data-icon="inline-start" size={16} /> Simpan pola
+              </Button>
+              <Button type="button" size="sm" id="btn_isi_nomor_kosong" disabled={aksiNonaktif} onClick={() => void buatNomor(false)}>
+                <RefreshCw data-icon="inline-start" size={16} /> Isi yang kosong
+              </Button>
+              <Button type="button" variant="outline" size="sm" id="btn_buat_ulang_nomor" disabled={aksiNonaktif} onClick={() => setKonfirmasiUlang(true)}>
+                <RotateCcw data-icon="inline-start" size={16} /> Buat ulang otomatis
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={konfirmasiUlang} onOpenChange={setKonfirmasiUlang}>
         <AlertDialogContent>
@@ -433,66 +479,6 @@ function Ringkasan({ label, nilai }: { label: string; nilai: number }) {
     <div className="bg-background px-3 py-2">
       <span className="block text-[11px] text-muted-foreground">{label}</span>
       <strong className="text-lg tabular-nums">{nilai}</strong>
-    </div>
-  );
-}
-
-function InputNomor({ baris, peristiwaId, semester, canUbah, onSaved }: {
-  baris: BarisPesertaPeristiwa;
-  peristiwaId: number;
-  semester: string;
-  canUbah: boolean;
-  onSaved: () => Promise<void>;
-}) {
-  const [nilai, setNilai] = useState(baris.nomor_peserta ?? '');
-  const [menyimpan, setMenyimpan] = useState(false);
-
-  useEffect(() => setNilai(baris.nomor_peserta ?? ''), [baris.nomor_peserta]);
-  const berubah = nilai.trim() !== (baris.nomor_peserta ?? '');
-
-  const simpan = async () => {
-    setMenyimpan(true);
-    try {
-      const hasil = await ubahNomorPeserta(baris.santri_id, {
-        peristiwa_id: peristiwaId,
-        semester,
-        nomor_peserta: nilai.trim() || null,
-      });
-      toast.success(hasil.pesan);
-      await onSaved();
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setMenyimpan(false);
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-1">
-      <Input
-        id={`input_nomor_peserta_${baris.santri_id}`}
-        aria-label={`Nomor peserta ${baris.nama}`}
-        className="h-8 flex-1 font-mono text-xs"
-        value={nilai}
-        onChange={(e) => setNilai(e.target.value)}
-        disabled={!canUbah || menyimpan}
-        placeholder="Kosong"
-      />
-      <span className="w-14 text-center text-[10px] uppercase text-muted-foreground">
-        {baris.sumber_nomor ?? 'kosong'}
-      </span>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        id={`btn_simpan_nomor_peserta_${baris.santri_id}`}
-        aria-label={`Simpan nomor peserta ${baris.nama}`}
-        title="Simpan sebagai nomor manual"
-        disabled={!canUbah || !berubah || menyimpan}
-        onClick={() => void simpan()}
-      >
-        <Save size={15} />
-      </Button>
     </div>
   );
 }

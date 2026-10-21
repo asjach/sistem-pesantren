@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\DesainKartuPeserta;
+use App\Models\KegiatanEvaluatif;
 use App\Models\Lembaga;
-use App\Models\PeristiwaNilai;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -20,7 +20,7 @@ class DesainKartuPesertaTest extends TestCase
 
     private User $admin;
 
-    private PeristiwaNilai $peristiwa;
+    private KegiatanEvaluatif $kegiatanEvaluatif;
 
     protected function setUp(): void
     {
@@ -34,7 +34,7 @@ class DesainKartuPesertaTest extends TestCase
             'kelompok_psb' => 'eksklusif', 'is_active' => true,
         ]);
         TahunAjaran::create(['nama' => '2026/2027', 'is_aktif' => true]);
-        $this->peristiwa = PeristiwaNilai::create([
+        $this->kegiatanEvaluatif = KegiatanEvaluatif::create([
             'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'kode' => 'ASAS',
             'nama' => 'Asesmen Sumatif Akhir Semester', 'cakupan' => 'semua',
             'kurikulum' => 'keduanya', 'jenis_rapor' => 'akhir', 'urutan' => 1,
@@ -50,7 +50,7 @@ class DesainKartuPesertaTest extends TestCase
     public function test_daftar_mengembalikan_ukuran_kartu_bawaan(): void
     {
         $this->actingAs($this->admin, 'sanctum')
-            ->getJson('/api/admin/penilaian/desain-kartu?peristiwa_id='.$this->peristiwa->id)
+            ->getJson('/api/admin/penilaian/desain-kartu?kegiatan_evaluatif_id='.$this->kegiatanEvaluatif->id)
             ->assertOk()
             ->assertJsonCount(0, 'desain')
             ->assertJsonPath('pengaturan.template_bawaan', 'klasik')
@@ -62,7 +62,7 @@ class DesainKartuPesertaTest extends TestCase
     {
         $respons = $this->actingAs($this->admin, 'sanctum')
             ->post('/api/admin/penilaian/desain-kartu', [
-                'peristiwa_id' => $this->peristiwa->id,
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'nama' => 'Desain Ujian',
                 'warna_latar' => '#ffffff',
                 'gaya_latar' => 'foto',
@@ -82,7 +82,7 @@ class DesainKartuPesertaTest extends TestCase
             ->assertOk();
     }
 
-    public function test_ukuran_dan_desain_disimpan_per_peristiwa(): void
+    public function test_ukuran_dan_desain_disimpan_per_kegiatan_evaluatif(): void
     {
         $desain = DesainKartuPeserta::create([
             'jenjang' => 'MI', 'nama' => 'Bersih', 'elemen' => [$this->elemenNama()],
@@ -91,7 +91,7 @@ class DesainKartuPesertaTest extends TestCase
 
         $this->actingAs($this->admin, 'sanctum')
             ->putJson('/api/admin/penilaian/pengaturan-kartu', [
-                'peristiwa_id' => $this->peristiwa->id,
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'desain_id' => $desain->id,
                 'template_bawaan' => null,
                 'lebar_mm' => 90,
@@ -100,7 +100,7 @@ class DesainKartuPesertaTest extends TestCase
             ->assertOk();
 
         $this->assertDatabaseHas('pengaturan_kartu_peserta', [
-            'peristiwa_id' => $this->peristiwa->id,
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
             'desain_id' => $desain->id,
             'lebar_mm' => 90,
             'tinggi_mm' => 60,
@@ -110,7 +110,7 @@ class DesainKartuPesertaTest extends TestCase
             ->deleteJson('/api/admin/penilaian/desain-kartu/'.$desain->id)
             ->assertOk();
         $this->assertDatabaseHas('pengaturan_kartu_peserta', [
-            'peristiwa_id' => $this->peristiwa->id,
+            'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
             'desain_id' => null,
         ]);
     }
@@ -129,7 +129,7 @@ class DesainKartuPesertaTest extends TestCase
         $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/admin/penilaian/desain-kartu', [
                 'id' => $desain->id,
-                'peristiwa_id' => $this->peristiwa->id,
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'nama' => 'Diubah',
                 'warna_latar' => '#123456',
                 'gaya_latar' => 'modern',
@@ -142,7 +142,7 @@ class DesainKartuPesertaTest extends TestCase
         $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/admin/penilaian/desain-kartu', [
                 'id' => $desain->id,
-                'peristiwa_id' => $this->peristiwa->id,
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'nama' => 'Sudah Ada',
                 'warna_latar' => '#ffffff',
                 'gaya_latar' => 'bersih',
@@ -159,7 +159,7 @@ class DesainKartuPesertaTest extends TestCase
 
         $this->actingAs($this->admin, 'sanctum')
             ->post('/api/admin/penilaian/desain-kartu', [
-                'peristiwa_id' => $this->peristiwa->id,
+                'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'nama' => 'Tidak Valid',
                 'warna_latar' => '#ffffff',
                 'gaya_latar' => 'bersih',

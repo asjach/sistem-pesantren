@@ -6,12 +6,12 @@ import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAkti
 import { listKelas, type Kelas } from '@/api/master';
 import { errorMessage } from '@/api/client';
 import {
-  ambilRapor, cetakRaporKelas, daftarPeristiwa, raporKelas,
-  type PeristiwaNilai, type RaporKelasCetakResp, type RaporKelasResp, type RaporResp,
+  ambilRapor, cetakRaporKelas, daftarKegiatanEvaluatif, raporKelas,
+  type KegiatanEvaluatif, type RaporKelasCetakResp, type RaporKelasResp, type RaporResp,
 } from '@/api/penilaian';
 import { alasanCetakTerkunci, hitungKelengkapanKelas } from '@/lib/kelengkapanRapor';
 
-/** Halaman Rapor: pilih PERISTIWA + kelas → daftar santri → pratinjau & cetak. */
+/** Halaman Rapor: pilih KEGIATAN EVALUATIF + kelas → daftar santri → pratinjau & cetak. */
 export default function PenilaianRaporPage() {
   const { jenjangs, tahunAjaranNames, semesters, loading: filterLoading } = useFilterGlobalAktif();
 
@@ -20,8 +20,8 @@ export default function PenilaianRaporPage() {
   const semester = targetTunggal(semesters);
   const siap = jenjang !== null && ta !== null && semester !== null;
 
-  const [peristiwa, setPeristiwa] = useState<PeristiwaNilai[]>([]);
-  const [peristiwaId, setPeristiwaId] = useState<number | ''>('');
+  const [kegiatanEvaluatif, setKegiatanEvaluatif] = useState<KegiatanEvaluatif[]>([]);
+  const [kegiatanEvaluatifId, setKegiatanEvaluatifId] = useState<number | ''>('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
   const [daftar, setDaftar] = useState<RaporKelasResp | null>(null);
@@ -33,27 +33,27 @@ export default function PenilaianRaporPage() {
   const [menyiapkanKelas, setMenyiapkanKelas] = useState(false);
   const [siapCetakKelas, setSiapCetakKelas] = useState<RaporKelasCetakResp | null>(null);
 
-  const peristiwaAktif = useMemo(() => peristiwa.find((p) => p.id === peristiwaId) ?? null, [peristiwa, peristiwaId]);
+  const kegiatanEvaluatifAktif = useMemo(() => kegiatanEvaluatif.find((p) => p.id === kegiatanEvaluatifId) ?? null, [kegiatanEvaluatif, kegiatanEvaluatifId]);
 
   useEffect(() => {
-    if (filterLoading || jenjang === null || ta === null) { setPeristiwa([]); setPeristiwaId(''); return; }
+    if (filterLoading || jenjang === null || ta === null) { setKegiatanEvaluatif([]); setKegiatanEvaluatifId(''); return; }
     let hidup = true;
-    daftarPeristiwa({ jenjang, tahun_ajaran: ta })
+    daftarKegiatanEvaluatif({ jenjang, tahun_ajaran: ta })
       .then((r) => {
         if (!hidup) return;
 
-        const berRapor = r.peristiwa.filter((p) => p.jenis_rapor !== 'tidak_ada');
-        setPeristiwa(berRapor);
-        setPeristiwaId((v) => (berRapor.some((p) => p.id === v) ? v : (berRapor[0]?.id ?? '')));
+        const berRapor = r.kegiatan_evaluatif.filter((p) => p.jenis_rapor !== 'tidak_ada');
+        setKegiatanEvaluatif(berRapor);
+        setKegiatanEvaluatifId((v) => (berRapor.some((p) => p.id === v) ? v : (berRapor[0]?.id ?? '')));
       })
-      .catch((e) => { if (hidup) { setPeristiwa([]); setPeristiwaId(''); setErr(errorMessage(e)); } });
+      .catch((e) => { if (hidup) { setKegiatanEvaluatif([]); setKegiatanEvaluatifId(''); setErr(errorMessage(e)); } });
     return () => { hidup = false; };
   }, [filterLoading, jenjang, ta]);
 
   useEffect(() => {
-    if (peristiwaAktif === null) { setKelasOpsi([]); setKelasId(''); return; }
+    if (kegiatanEvaluatifAktif === null) { setKelasOpsi([]); setKelasId(''); return; }
     let hidup = true;
-    listKelas({ jenjang: peristiwaAktif.jenjang, tahun_ajaran: peristiwaAktif.tahun_ajaran, per_page: 1000 })
+    listKelas({ jenjang: kegiatanEvaluatifAktif.jenjang, tahun_ajaran: kegiatanEvaluatifAktif.tahun_ajaran, per_page: 1000 })
       .then((p) => {
         if (!hidup) return;
         setKelasOpsi(p.data);
@@ -61,17 +61,17 @@ export default function PenilaianRaporPage() {
       })
       .catch(() => { if (hidup) { setKelasOpsi([]); setKelasId(''); } });
     return () => { hidup = false; };
-  }, [peristiwaAktif]);
+  }, [kegiatanEvaluatifAktif]);
 
   const muatDaftar = useCallback(async () => {
-    if (peristiwaId === '' || semester === null || kelasId === '') { setDaftar(null); return; }
+    if (kegiatanEvaluatifId === '' || semester === null || kelasId === '') { setDaftar(null); return; }
     setErr(''); setLoading(true);
     try {
-      setDaftar(await raporKelas({ peristiwa_id: Number(peristiwaId), semester, kelas_id: Number(kelasId) }));
+      setDaftar(await raporKelas({ kegiatan_evaluatif_id: Number(kegiatanEvaluatifId), semester, kelas_id: Number(kelasId) }));
     } catch (e) {
       setErr(errorMessage(e)); setDaftar(null);
     } finally { setLoading(false); }
-  }, [peristiwaId, semester, kelasId]);
+  }, [kegiatanEvaluatifId, semester, kelasId]);
 
   useEffect(() => { void muatDaftar(); }, [muatDaftar]);
 
@@ -109,14 +109,14 @@ export default function PenilaianRaporPage() {
   }, [siapCetakKelas]);
 
   const bukaRapor = useCallback(async (santriId: number, urut: '3' | '10' | 'semua' = peringkat) => {
-    if (peristiwaId === '' || semester === null) return;
+    if (kegiatanEvaluatifId === '' || semester === null) return;
     setSantriAktif(santriId); setErr('');
     try {
-      setRapor(await ambilRapor({ santri_id: santriId, peristiwa_id: Number(peristiwaId), semester, peringkat: urut }));
+      setRapor(await ambilRapor({ santri_id: santriId, kegiatan_evaluatif_id: Number(kegiatanEvaluatifId), semester, peringkat: urut }));
     } catch (e) {
       setErr(errorMessage(e)); setRapor(null);
     }
-  }, [peristiwaId, semester, peringkat]);
+  }, [kegiatanEvaluatifId, semester, peringkat]);
 
   const ubahPeringkat = useCallback((v: '3' | '10' | 'semua') => {
     setPeringkat(v);
@@ -124,12 +124,12 @@ export default function PenilaianRaporPage() {
   }, [santriAktif, bukaRapor]);
 
   const cetakKelas = useCallback(async () => {
-    if (peristiwaId === '' || semester === null || kelasId === '') return;
+    if (kegiatanEvaluatifId === '' || semester === null || kelasId === '') return;
     setMenyiapkanKelas(true);
     setErr('');
     try {
       setSiapCetakKelas(await cetakRaporKelas({
-        peristiwa_id: Number(peristiwaId),
+        kegiatan_evaluatif_id: Number(kegiatanEvaluatifId),
         semester,
         kelas_id: Number(kelasId),
         peringkat,
@@ -139,7 +139,7 @@ export default function PenilaianRaporPage() {
     } finally {
       setMenyiapkanKelas(false);
     }
-  }, [peristiwaId, semester, kelasId, peringkat]);
+  }, [kegiatanEvaluatifId, semester, kelasId, peringkat]);
 
   /** Kelengkapan nilai seluruh kelas — dasar pengaman cetak (semua santri). */
   const kelengkapan = useMemo(
@@ -164,15 +164,15 @@ export default function PenilaianRaporPage() {
       <ErrorNotice>{err}</ErrorNotice>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 print:hidden">
-        <label className="text-xs text-muted-foreground" htmlFor="select_peristiwa_rapor">Peristiwa</label>
+        <label className="text-xs text-muted-foreground" htmlFor="select_kegiatan_evaluatif_rapor">Kegiatan Evaluatif</label>
         <select
-          id="select_peristiwa_rapor"
+          id="select_kegiatan_evaluatif_rapor"
           className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-          value={peristiwaId === '' ? '' : String(peristiwaId)}
-          onChange={(e) => { setPeristiwaId(e.target.value === '' ? '' : Number(e.target.value)); setSantriAktif(null); setRapor(null); }}
+          value={kegiatanEvaluatifId === '' ? '' : String(kegiatanEvaluatifId)}
+          onChange={(e) => { setKegiatanEvaluatifId(e.target.value === '' ? '' : Number(e.target.value)); setSantriAktif(null); setRapor(null); }}
         >
-          <option value="">— pilih peristiwa —</option>
-          {peristiwa.map((p) => (
+          <option value="">— pilih kegiatan evaluatif —</option>
+          {kegiatanEvaluatif.map((p) => (
             <option key={p.id} value={p.id}>
               {p.kode} — {p.nama}{p.jenis_rapor === 'sementara' ? ' (sementara)' : ''}
             </option>
@@ -233,9 +233,9 @@ export default function PenilaianRaporPage() {
 
         <div className="min-h-0 w-72 shrink-0 overflow-auto border-r border-border print:hidden">
           {!siap && <p className="p-3 text-xs text-muted-foreground">Pilih satu jenjang, TA, dan semester pada filter di atas.</p>}
-          {siap && peristiwa.length === 0 && (
+          {siap && kegiatanEvaluatif.length === 0 && (
             <p className="p-3 text-xs text-muted-foreground">
-              Tidak ada peristiwa yang menghasilkan rapor. Tandai “Rapor akhir”/“Rapor sementara” pada peristiwa di
+              Tidak ada kegiatanEvaluatif yang menghasilkan rapor. Tandai “Rapor akhir”/“Rapor sementara” pada kegiatanEvaluatif di
               halaman Master Penilaian (UJIAN/UAP hanya nilai ujian → pakai halaman Leger).
             </p>
           )}
@@ -260,7 +260,7 @@ export default function PenilaianRaporPage() {
             </button>
           ))}
           {!loading && daftar !== null && daftar.baris.length === 0 && (
-            <p className="p-3 text-xs text-muted-foreground">Tidak ada santri pada kelas/peristiwa ini.</p>
+            <p className="p-3 text-xs text-muted-foreground">Tidak ada santri pada kelas/kegiatan evaluatif ini.</p>
           )}
         </div>
 
@@ -317,8 +317,8 @@ function RaporCetak({ rapor, kelasNama, area = false }: { rapor: RaporResp; kela
         </div>
       </div>
 
-      <p className="mt-2 text-center text-[13px] font-bold uppercase">{r.peristiwa.nama}</p>
-      {r.peristiwa.jenis_rapor === 'sementara' && (
+      <p className="mt-2 text-center text-[13px] font-bold uppercase">{r.kegiatan_evaluatif.nama}</p>
+      {r.kegiatan_evaluatif.jenis_rapor === 'sementara' && (
         <p className="text-center text-[11px] font-semibold tracking-wide text-gray-600">
           LAPORAN CAPAIAN PEMBELAJARAN SEMENTARA
         </p>

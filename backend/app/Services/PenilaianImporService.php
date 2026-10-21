@@ -3,13 +3,13 @@
 namespace App\Services;
 
 use App\Models\Ekstrakurikuler;
+use App\Models\KegiatanEvaluatif;
 use App\Models\KomponenNilai;
 use App\Models\MataPelajaran;
 use App\Models\NilaiEkstrakurikuler;
 use App\Models\NilaiKomponen;
 use App\Models\NilaiSantri;
 use App\Models\PengampuMapel;
-use App\Models\PeristiwaNilai;
 use App\Models\PrestasiSantri;
 use App\Models\RaporCatatanWali;
 use Illuminate\Support\Facades\DB;
@@ -18,15 +18,15 @@ use Illuminate\Support\Facades\DB;
  * Impor modul Penilaian — satu layanan untuk EMPAT template terpisah
  * (keputusan PRD):
  *  1. `nilai`        — leger wide: kolom tetap + kolom MAPEL dinamis.
- *                      Konteks `komponen_id` = null → nilai akhir peristiwa
+ *                      Konteks `komponen_id` = null → nilai akhir kegiatanEvaluatif
  *                      (impor langsung); terisi → skor komponen (hitung ulang).
  *  2. `catatan_wali` — ketidakhadiran + catatan + status kenaikan.
  *  3. `prestasi`     — satu baris per prestasi.
  *  4. `ekskul`       — pasangan kolom `ekskul{n}` + `predikat{n}`.
  *
- * Semua nilai terikat PERISTIWA (`peristiwa_id` wajib untuk tipe `nilai`).
+ * Semua nilai terikat KEGIATAN EVALUATIF (`kegiatan_evaluatif_id` wajib untuk tipe `nilai`).
  * Kunci pencocokan santri: `nis_lokal` + `jenjang` (unik per lembaga); `nama`
- * jadi pembanding bila diisi. Santri di luar cakupan peristiwa (mis. tingkat
+ * jadi pembanding bila diisi. Santri di luar cakupan kegiatanEvaluatif (mis. tingkat
  * akhir pada ASAT) ditolak dengan pesan jelas.
  */
 class PenilaianImporService extends ImporPotongan
@@ -51,14 +51,14 @@ class PenilaianImporService extends ImporPotongan
 
     private array $cacheTingkat = [];
 
-    private ?PeristiwaNilai $peristiwa = null;
+    private ?KegiatanEvaluatif $kegiatanEvaluatif = null;
 
     /**
      * @param  string  $tipe  nilai|catatan_wali|prestasi|ekskul
      * @param  string  $tahunAjaran  TA konteks (kolom file boleh menimpa)
      * @param  string  $semester  semester konteks (kolom file boleh menimpa)
      * @param  list<string>  $jenjang  jenjang yang boleh diakses pengguna
-     * @param  int|null  $peristiwaId  peristiwa target (wajib untuk tipe `nilai`)
+     * @param  int|null  $kegiatanEvaluatifId  kegiatanEvaluatif target (wajib untuk tipe `nilai`)
      * @param  int|null  $komponenId  komponen target (null = isi nilai akhir)
      */
     public function __construct(
@@ -66,7 +66,7 @@ class PenilaianImporService extends ImporPotongan
         private string $tahunAjaran,
         private string $semester,
         private array $jenjang,
-        private ?int $peristiwaId = null,
+        private ?int $kegiatanEvaluatifId = null,
         private ?int $komponenId = null,
         ?PenilaianService $nilai = null,
     ) {
@@ -140,16 +140,16 @@ class PenilaianImporService extends ImporPotongan
     /** @param array<string, mixed> $baris */
     private function prosesNilai(array $baris, int $no, bool $kering, int $santriId, string $jenjang, string $ta, string $semester): void
     {
-        $peristiwa = $this->peristiwa();
-        if ($peristiwa === null) {
-            $this->fail($no, 'peristiwa', 'Peristiwa penilaian tidak ditemukan / tidak dipilih.');
+        $kegiatanEvaluatif = $this->kegiatanEvaluatif();
+        if ($kegiatanEvaluatif === null) {
+            $this->fail($no, 'kegiatan_evaluatif', 'Kegiatan Evaluatif penilaian tidak ditemukan / tidak dipilih.');
 
             return;
         }
 
         $tingkat = $this->tingkat($santriId, $jenjang, $ta, $semester);
-        if (! $this->nilai->tingkatCocokCakupan($peristiwa, $tingkat)) {
-            $this->fail($no, 'nis_lokal', "Santri tidak termasuk peserta peristiwa {$peristiwa->kode} (cakupan: {$peristiwa->cakupan}).");
+        if (! $this->nilai->tingkatCocokCakupan($kegiatanEvaluatif, $tingkat)) {
+            $this->fail($no, 'nis_lokal', "Santri tidak termasuk peserta kegiatanEvaluatif {$kegiatanEvaluatif->kode} (cakupan: {$kegiatanEvaluatif->cakupan}).");
 
             return;
         }
@@ -191,11 +191,11 @@ class PenilaianImporService extends ImporPotongan
 
                 continue;
             }
-            if ($skor < 0 || $skor > $peristiwa->nilaiMaks()) {
+            if ($skor < 0 || $skor > $kegiatanEvaluatif->nilaiMaks()) {
                 $namaSantri = $this->teks($baris, 'nama')
                     ?? (string) DB::table('santri')->where('id', $santriId)->value('nama_lengkap');
                 $namaMapel = (string) (MataPelajaran::whereKey($mapelId)->value('nama_mapel') ?? $kolom);
-                $this->fail($no, (string) $kolom, "{$namaSantri} — {$namaMapel}: nilai di luar rentang {$peristiwa->rentang_nilai}.");
+                $this->fail($no, (string) $kolom, "{$namaSantri} — {$namaMapel}: nilai di luar rentang {$kegiatanEvaluatif->rentang_nilai}.");
 
                 continue;
             }
@@ -207,10 +207,10 @@ class PenilaianImporService extends ImporPotongan
 
             if ($this->komponenId !== null) {
                 $komponen = KomponenNilai::where('id', $this->komponenId)
-                    ->where('peristiwa_id', $peristiwa->id)
+                    ->where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
                     ->first();
                 if ($komponen === null) {
-                    $this->fail($no, (string) $kolom, 'Komponen tidak termasuk peristiwa terpilih.');
+                    $this->fail($no, (string) $kolom, 'Komponen tidak termasuk kegiatanEvaluatif terpilih.');
 
                     continue;
                 }
@@ -222,9 +222,9 @@ class PenilaianImporService extends ImporPotongan
                     ],
                     ['skor' => $skor],
                 );
-                $this->hitungUlangAkhir($santriId, $pengampuId, $mapelId, $jenjang, $tingkat, $ta, $semester, $peristiwa->id);
+                $this->hitungUlangAkhir($santriId, $pengampuId, $mapelId, $jenjang, $tingkat, $ta, $semester, $kegiatanEvaluatif->id);
             } else {
-                $this->nilai->simpanAkhir($santriId, $pengampuId, $ta, $semester, $peristiwa->id, $skor, NilaiSantri::IMPOR);
+                $this->nilai->simpanAkhir($santriId, $pengampuId, $ta, $semester, $kegiatanEvaluatif->id, $skor, NilaiSantri::IMPOR);
             }
             $this->dibuat++;
         }
@@ -234,7 +234,7 @@ class PenilaianImporService extends ImporPotongan
         }
     }
 
-    /** Hitung ulang nilai akhir dari SELURUH komponen berbobot peristiwa. */
+    /** Hitung ulang nilai akhir dari SELURUH komponen berbobot kegiatanEvaluatif. */
     private function hitungUlangAkhir(
         int $santriId,
         int $pengampuId,
@@ -243,13 +243,13 @@ class PenilaianImporService extends ImporPotongan
         ?string $tingkat,
         string $ta,
         string $semester,
-        int $peristiwaId,
+        int $kegiatanEvaluatifId,
     ): void {
-        $hasil = $this->nilai->hitungAkhir($santriId, $pengampuId, $mapelId, $jenjang, $tingkat, $ta, $semester, $peristiwaId);
+        $hasil = $this->nilai->hitungAkhir($santriId, $pengampuId, $mapelId, $jenjang, $tingkat, $ta, $semester, $kegiatanEvaluatifId);
         if ($hasil['nilai'] === null) {
             return;
         }
-        $this->nilai->simpanAkhir($santriId, $pengampuId, $ta, $semester, $peristiwaId, $hasil['nilai'], NilaiSantri::HITUNG);
+        $this->nilai->simpanAkhir($santriId, $pengampuId, $ta, $semester, $kegiatanEvaluatifId, $hasil['nilai'], NilaiSantri::HITUNG);
     }
 
     /** @param array<string, mixed> $baris */
@@ -337,13 +337,13 @@ class PenilaianImporService extends ImporPotongan
         }
     }
 
-    private function peristiwa(): ?PeristiwaNilai
+    private function kegiatanEvaluatif(): ?KegiatanEvaluatif
     {
-        if ($this->peristiwa === null && $this->peristiwaId !== null) {
-            $this->peristiwa = PeristiwaNilai::find($this->peristiwaId);
+        if ($this->kegiatanEvaluatif === null && $this->kegiatanEvaluatifId !== null) {
+            $this->kegiatanEvaluatif = KegiatanEvaluatif::find($this->kegiatanEvaluatifId);
         }
 
-        return $this->peristiwa;
+        return $this->kegiatanEvaluatif;
     }
 
     private function tingkat(int $santriId, string $jenjang, string $ta, string $semester): ?string

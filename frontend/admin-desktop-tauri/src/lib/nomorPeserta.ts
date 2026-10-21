@@ -1,6 +1,6 @@
 export interface ContohNomorPeserta {
   tahunAjaran: string;
-  kodePeristiwa: string;
+  kodeKegiatanEvaluatif: string;
   semester: string;
   tingkat: string;
   urutan: number;
@@ -11,7 +11,7 @@ export function formatContohNomorPeserta(template: string, contoh: ContohNomorPe
   const nilai: Record<string, string> = {
     '{ta_awal_2}': tahunAwal.slice(-2),
     '{ta_akhir_2}': tahunAkhir.slice(-2),
-    '{kode_peristiwa}': contoh.kodePeristiwa,
+    '{kode_kegiatan_evaluatif}': contoh.kodeKegiatanEvaluatif,
     '{semester}': contoh.semester,
     '{tingkat}': contoh.tingkat,
     '{tingkat_2}': contoh.tingkat.padStart(2, '0'),

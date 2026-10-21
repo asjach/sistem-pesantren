@@ -14,7 +14,7 @@ class PengaturanNomorPesertaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'semester' => ['required', 'in:1,2'],
             'template' => ['required', 'string', 'max:200'],
             'mode_urutan' => ['required', 'in:per_tingkat,semua_tingkat'],

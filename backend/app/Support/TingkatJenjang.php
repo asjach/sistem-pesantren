@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
  * Tingkat akhir & tingkat sebelumnya per jenjang — sumbernya `ref_tingkat`
  * (`urutan` tertinggi = tingkat akhir; MI 6, MTS 9, MLN 12, MD 6).
  *
- *  Dipakai peristiwa penilaian: ASAT berlaku "semua kecuali tingkat akhir",
+ *  Dipakai kegiatanEvaluatif penilaian: ASAT berlaku "semua kecuali tingkat akhir",
  *  UJIAN/UAP hanya tingkat akhir, dan komponen "rata-rata rapor N tingkat
  *  sebelumnya" pada UJIAN.
  *

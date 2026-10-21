@@ -7,14 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Master peristiwa penilaian per (jenjang, tahun ajaran).
+ * Master kegiatan evaluatif penilaian per (jenjang, tahun ajaran).
  *
  *  Kode kanonis: ASAS (semua tingkat), ASAT (semua kecuali tingkat akhir),
  *  UJIAN (tingkat akhir jenjang Kemenag — MD tak punya), UAP (tingkat akhir,
- *  termasuk MD). Peristiwa TIDAK dikaitkan semester; semester tetap dimensi
+ *  termasuk MD). Kegiatan Evaluatif TIDAK dikaitkan semester; semester tetap dimensi
  *  instans pencatatan skor di `nilai_santri`.
  */
-class PeristiwaNilai extends Model
+class KegiatanEvaluatif extends Model
 {
     public const ASAS = 'ASAS';
 
@@ -36,7 +36,7 @@ class PeristiwaNilai extends Model
     /** Menghasilkan rapor akhir semester/tahun (mis. ASAS, ASAT). */
     public const RAPOR_AKHIR = 'akhir';
 
-    /** Rapor sementara di tengah periode (mis. PTS bila dijadikan peristiwa). */
+    /** Rapor sementara di tengah periode (mis. PTS bila dijadikan kegiatan evaluatif). */
     public const RAPOR_SEMENTARA = 'sementara';
 
     /** Tidak menghasilkan rapor — hanya nilai ujian/ijazah (mis. UJIAN, UAP). */
@@ -47,13 +47,13 @@ class PeristiwaNilai extends Model
 
     public const RENTANG_BAWAAN = '0-100';
 
-    protected $table = 'peristiwa_nilai';
+    protected $table = 'kegiatan_evaluatif';
 
     protected $guarded = ['id'];
 
     protected $casts = ['is_active' => 'boolean', 'urutan' => 'integer'];
 
-    /** Batas atas nilai sesuai rentang peristiwa (0-10, 0-100, atau 0-4). */
+    /** Batas atas nilai sesuai rentang kegiatanEvaluatif (0-10, 0-100, atau 0-4). */
     public function nilaiMaks(): float
     {
         return match ($this->rentang_nilai ?? self::RENTANG_BAWAAN) {
@@ -63,7 +63,7 @@ class PeristiwaNilai extends Model
         };
     }
 
-    /** Apakah peristiwa ini boleh dicetak sebagai rapor. */
+    /** Apakah kegiatan evaluatif ini boleh dicetak sebagai rapor. */
     public function menghasilkanRapor(): bool
     {
         return $this->jenis_rapor !== self::RAPOR_TIDAK_ADA;
@@ -81,16 +81,16 @@ class PeristiwaNilai extends Model
 
     public function komponen(): HasMany
     {
-        return $this->hasMany(KomponenNilai::class, 'peristiwa_id')->orderBy('urutan')->orderBy('nama');
+        return $this->hasMany(KomponenNilai::class, 'kegiatan_evaluatif_id')->orderBy('urutan')->orderBy('nama');
     }
 
     public function kkm(): HasMany
     {
-        return $this->hasMany(KkmKegiatan::class, 'peristiwa_id');
+        return $this->hasMany(KkmKegiatan::class, 'kegiatan_evaluatif_id');
     }
 
     public function predikat(): HasMany
     {
-        return $this->hasMany(RentangPredikat::class, 'peristiwa_id');
+        return $this->hasMany(RentangPredikat::class, 'kegiatan_evaluatif_id');
     }
 }

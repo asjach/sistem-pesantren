@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { BarisPesertaPeristiwa } from '@/api/penilaian';
+import type { BarisPesertaKegiatanEvaluatif } from '@/api/penilaian';
 import { ambilFotoProfilSantri } from '@/api/santri';
 
 const cache = new Map<number, string>();
@@ -9,7 +9,7 @@ const BATAS_AKTIF = 4;
 /** Muat foto profil peserta yang punya foto, dengan batas permintaan paralel.
  *  Hasil disimpan sebagai blob URL agar aman dipakai di area cetak. */
 export function useFotoPeserta(
-  peserta: readonly BarisPesertaPeristiwa[],
+  peserta: readonly BarisPesertaKegiatanEvaluatif[],
   aktif: boolean,
 ): { foto: Record<number, string>; memuat: boolean } {
   const [, setVersi] = useState(0);

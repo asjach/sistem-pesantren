@@ -9,9 +9,9 @@ import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import {
-  batalPotongPenilaian, daftarKomponen, daftarPeristiwa, potongImportPenilaian,
+  batalPotongPenilaian, daftarKomponen, daftarKegiatanEvaluatif, potongImportPenilaian,
   unduhGalatPenilaian, unduhTemplatePenilaian,
-  type KomponenNilai, type PeristiwaNilai, type TipeImpor,
+  type KomponenNilai, type KegiatanEvaluatif, type TipeImpor,
 } from '@/api/penilaian';
 
 interface KartuImpor {
@@ -22,19 +22,19 @@ interface KartuImpor {
   wajib: string[];
   /** Template nilai & ekskul menerima kolom dinamis (mapel / ekskul{n}). */
   kolomDinamis?: boolean;
-  /** Perlu peristiwa penilaian (hanya template nilai). */
-  butuhPeristiwa?: boolean;
+  /** Perlu kegiatanEvaluatif penilaian (hanya template nilai). */
+  butuhKegiatanEvaluatif?: boolean;
 }
 
 const KARTU: KartuImpor[] = [
   {
     tipe: 'nilai',
     judul: 'Nilai / Leger',
-    deskripsi: 'Satu baris per santri; kolom tetap + kolom mata pelajaran. Pilih PERISTIWA (ASAS/ASAT/UJIAN/UAP) dan komponen bila mengisi skor komponen, atau biarkan "Nilai akhir peristiwa" untuk mengisi langsung nilai akhir (menimpa hasil hitungan).',
+    deskripsi: 'Satu baris per santri; kolom tetap + kolom mata pelajaran. Pilih KEGIATAN EVALUATIF (ASAS/ASAT/UJIAN/UAP) dan komponen bila mengisi skor komponen, atau biarkan "Nilai akhir kegiatan evaluatif" untuk mengisi langsung nilai akhir (menimpa hasil hitungan).',
     kolom: ['nis_lokal', 'nama', 'jenjang', 'kelas', 'tahun_ajaran', 'semester'],
     wajib: ['nis_lokal', 'kelas'],
     kolomDinamis: true,
-    butuhPeristiwa: true,
+    butuhKegiatanEvaluatif: true,
   },
   {
     tipe: 'catatan_wali',
@@ -60,7 +60,7 @@ const KARTU: KartuImpor[] = [
   },
 ];
 
-/** Halaman Impor Nilai: empat template terpisah, nilai terikat PERISTIWA. */
+/** Halaman Impor Nilai: empat template terpisah, nilai terikat KEGIATAN EVALUATIF. */
 export default function PenilaianImporPage() {
   const { jenjangs, tahunAjaranNames, semesters, loading: filterLoading } = useFilterGlobalAktif();
   const { user } = useAuth();
@@ -71,34 +71,34 @@ export default function PenilaianImporPage() {
   const semester = targetTunggal(semesters);
   const siap = jenjang !== null && ta !== null && semester !== null;
 
-  const [peristiwa, setPeristiwa] = useState<PeristiwaNilai[]>([]);
-  const [peristiwaId, setPeristiwaId] = useState<number | ''>('');
+  const [kegiatanEvaluatif, setKegiatanEvaluatif] = useState<KegiatanEvaluatif[]>([]);
+  const [kegiatanEvaluatifId, setKegiatanEvaluatifId] = useState<number | ''>('');
   const [komponen, setKomponen] = useState<KomponenNilai[]>([]);
   const [komponenId, setKomponenId] = useState<number | ''>('');
   const [dialog, setDialog] = useState<TipeImpor | null>(null);
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    if (jenjang === null || ta === null) { setPeristiwa([]); setPeristiwaId(''); return; }
+    if (jenjang === null || ta === null) { setKegiatanEvaluatif([]); setKegiatanEvaluatifId(''); return; }
     let hidup = true;
-    daftarPeristiwa({ jenjang, tahun_ajaran: ta })
+    daftarKegiatanEvaluatif({ jenjang, tahun_ajaran: ta })
       .then((r) => {
         if (!hidup) return;
-        setPeristiwa(r.peristiwa);
-        setPeristiwaId((v) => (r.peristiwa.some((p) => p.id === v) ? v : (r.peristiwa[0]?.id ?? '')));
+        setKegiatanEvaluatif(r.kegiatan_evaluatif);
+        setKegiatanEvaluatifId((v) => (r.kegiatan_evaluatif.some((p) => p.id === v) ? v : (r.kegiatan_evaluatif[0]?.id ?? '')));
       })
-      .catch((e) => { if (hidup) { setPeristiwa([]); setPeristiwaId(''); setErr(errorMessage(e)); } });
+      .catch((e) => { if (hidup) { setKegiatanEvaluatif([]); setKegiatanEvaluatifId(''); setErr(errorMessage(e)); } });
     return () => { hidup = false; };
   }, [jenjang, ta]);
 
   useEffect(() => {
-    if (peristiwaId === '') { setKomponen([]); setKomponenId(''); return; }
+    if (kegiatanEvaluatifId === '') { setKomponen([]); setKomponenId(''); return; }
     let hidup = true;
-    daftarKomponen(peristiwaId)
+    daftarKomponen(kegiatanEvaluatifId)
       .then((r) => { if (hidup) setKomponen(r.komponen.filter((k) => k.is_active)); })
       .catch((e) => { if (hidup) setErr(errorMessage(e)); });
     return () => { hidup = false; };
-  }, [peristiwaId]);
+  }, [kegiatanEvaluatifId]);
 
   const konfig = useCallback((kartu: KartuImpor): KonfigurasiImportBertahap => ({
     judul: `Impor ${kartu.judul}`,
@@ -110,7 +110,7 @@ export default function PenilaianImporPage() {
     labelTemplate: 'Unduh template Excel',
     unduhTemplate: () => unduhTemplatePenilaian(kartu.tipe, {
       jenjang: jenjang!, tahun_ajaran: ta!,
-      ...(kartu.butuhPeristiwa && peristiwaId !== '' ? { peristiwa_id: Number(peristiwaId) } : {}),
+      ...(kartu.butuhKegiatanEvaluatif && kegiatanEvaluatifId !== '' ? { kegiatan_evaluatif_id: Number(kegiatanEvaluatifId) } : {}),
     }),
     kirim: ({ sesi_id, mode, total, baris, terakhir }) => potongImportPenilaian({
       ...(sesi_id !== undefined ? { sesi_id } : {}),
@@ -119,15 +119,15 @@ export default function PenilaianImporPage() {
       tahun_ajaran: ta!,
       semester: semester!,
       jenjang: [jenjang!],
-      peristiwa_id: kartu.butuhPeristiwa && peristiwaId !== '' ? Number(peristiwaId) : null,
+      kegiatan_evaluatif_id: kartu.butuhKegiatanEvaluatif && kegiatanEvaluatifId !== '' ? Number(kegiatanEvaluatifId) : null,
       komponen_id: kartu.tipe === 'nilai' ? (komponenId === '' ? null : Number(komponenId)) : null,
       ...(terakhir ? { terakhir } : {}),
     }),
     batal: (sesiId) => batalPotongPenilaian(sesiId),
     unduhGalat: (sesiId) => unduhGalatPenilaian(sesiId),
-    konteksSiap: siap && (!kartu.butuhPeristiwa || peristiwaId !== ''),
+    konteksSiap: siap && (!kartu.butuhKegiatanEvaluatif || kegiatanEvaluatifId !== ''),
     onSelesai: () => toast.success('Impor selesai. Muat ulang leger untuk melihat hasilnya.'),
-  }), [jenjang, ta, semester, peristiwaId, komponenId, siap]);
+  }), [jenjang, ta, semester, kegiatanEvaluatifId, komponenId, siap]);
 
   const kartuAktif = useMemo(() => KARTU.find((k) => k.tipe === dialog) ?? null, [dialog]);
 
@@ -144,23 +144,23 @@ export default function PenilaianImporPage() {
           ) : (
             <>Pilih satu jenjang, satu tahun ajaran, dan satu semester pada filter di atas untuk mengaktifkan impor.</>
           )}
-          <label className="ml-auto flex items-center gap-2" htmlFor="select_peristiwa_impor">
-            <span>Peristiwa</span>
+          <label className="ml-auto flex items-center gap-2" htmlFor="select_kegiatan_evaluatif_impor">
+            <span>Kegiatan Evaluatif</span>
             <select
-              id="select_peristiwa_impor"
+              id="select_kegiatan_evaluatif_impor"
               className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-              value={peristiwaId === '' ? '' : String(peristiwaId)}
-              onChange={(e) => { setPeristiwaId(e.target.value === '' ? '' : Number(e.target.value)); setKomponenId(''); }}
+              value={kegiatanEvaluatifId === '' ? '' : String(kegiatanEvaluatifId)}
+              onChange={(e) => { setKegiatanEvaluatifId(e.target.value === '' ? '' : Number(e.target.value)); setKomponenId(''); }}
             >
-              <option value="">— pilih peristiwa —</option>
-              {peristiwa.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
+              <option value="">— pilih kegiatan evaluatif —</option>
+              {kegiatanEvaluatif.map((p) => <option key={p.id} value={p.id}>{p.kode} — {p.nama}</option>)}
             </select>
           </label>
           {!filterLoading && !canTambah && (
             <span className="w-full text-destructive">Anda tidak punya izin menambah data penilaian.</span>
           )}
-          {siap && peristiwa.length === 0 && (
-            <span className="w-full text-destructive">Belum ada peristiwa — muat bawaan di halaman Master Penilaian.</span>
+          {siap && kegiatanEvaluatif.length === 0 && (
+            <span className="w-full text-destructive">Belum ada kegiatan evaluatif — muat bawaan di halaman Master Penilaian.</span>
           )}
         </div>
 
@@ -174,14 +174,14 @@ export default function PenilaianImporPage() {
               <CardContent className="flex flex-col gap-2">
                 {k.tipe === 'nilai' && (
                   <label className="flex flex-col gap-1 text-xs">
-                    <span className="text-muted-foreground">Komponen (kosong = nilai akhir peristiwa)</span>
+                    <span className="text-muted-foreground">Komponen (kosong = nilai akhir kegiatan evaluatif)</span>
                     <select
                       id="penilaian_impor_komponen"
                       className="h-9 rounded-md border border-input bg-transparent px-2 text-xs"
                       value={komponenId === '' ? '' : String(komponenId)}
                       onChange={(e) => setKomponenId(e.target.value === '' ? '' : Number(e.target.value))}
                     >
-                      <option value="">Nilai akhir peristiwa (impor langsung)</option>
+                      <option value="">Nilai akhir kegiatan evaluatif (impor langsung)</option>
                       {komponen.map((km) => (
                         <option key={km.id} value={km.id}>
                           {km.nama} (bobot {km.bobot}{km.sumber === 'rapor_otomatis' ? ', otomatis rapor' : ''})
@@ -194,7 +194,7 @@ export default function PenilaianImporPage() {
                   type="button"
                   variant="outline"
                   id={`btn_buka_impor_${k.tipe}`}
-                  disabled={!siap || !canTambah || (k.butuhPeristiwa === true && peristiwaId === '')}
+                  disabled={!siap || !canTambah || (k.butuhKegiatanEvaluatif === true && kegiatanEvaluatifId === '')}
                   onClick={() => setDialog(k.tipe)}
                 >
                   Buka impor {k.judul}

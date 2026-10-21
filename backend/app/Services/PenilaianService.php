@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\KegiatanEvaluatif;
 use App\Models\KkmKegiatan;
 use App\Models\KomponenNilai;
 use App\Models\NilaiKomponen;
 use App\Models\NilaiSantri;
-use App\Models\PeristiwaNilai;
 use App\Models\RentangPredikat;
 use App\Support\NilaiRapor;
 use App\Support\TingkatJenjang;
@@ -17,13 +17,13 @@ use Illuminate\Support\Collection;
  * rapor) DAN layanan impor supaya keduanya tak bisa menyimpang.
  *
  *  Aturan:
- *  - komponen & bobot MILIK PERISTIWA;
+ *  - komponen & bobot MILIK KEGIATAN EVALUATIF;
  *  - komponen `rapor_otomatis` mengambil skor dari rata-rata rapor N tingkat
  *    sebelumnya (boleh ditimpa baris `nilai_komponen`);
  *  - nilai akhir = Σ skor×bobot, hanya bila SEMUA komponen berbobot terisi;
- *  - predikat dari `rentang_predikat` berjangkar KKM `AKHIR` per peristiwa.
+ *  - predikat dari `rentang_predikat` berjangkar KKM `AKHIR` per kegiatanEvaluatif.
  *
- *  Cache per-instans (satu request): konfigurasi peristiwa dibaca berulang
+ *  Cache per-instans (satu request): konfigurasi kegiatanEvaluatif dibaca berulang
  *  untuk ratusan baris leger.
  */
 class PenilaianService
@@ -38,39 +38,39 @@ class PenilaianService
     private array $predikat = [];
 
     /** @return Collection<int, KomponenNilai> */
-    public function komponenAktif(int $peristiwaId): Collection
+    public function komponenAktif(int $kegiatanEvaluatifId): Collection
     {
-        return $this->komponen[$peristiwaId] ??= KomponenNilai::where('peristiwa_id', $peristiwaId)
+        return $this->komponen[$kegiatanEvaluatifId] ??= KomponenNilai::where('kegiatan_evaluatif_id', $kegiatanEvaluatifId)
             ->where('is_active', true)
             ->orderBy('urutan')->orderBy('nama')
             ->get();
     }
 
-    public function kkmAkhir(int $peristiwaId): float
+    public function kkmAkhir(int $kegiatanEvaluatifId): float
     {
-        return $this->kkmAkhir[$peristiwaId] ??= (float) (KkmKegiatan::where('peristiwa_id', $peristiwaId)
+        return $this->kkmAkhir[$kegiatanEvaluatifId] ??= (float) (KkmKegiatan::where('kegiatan_evaluatif_id', $kegiatanEvaluatifId)
             ->where('kegiatan', KkmKegiatan::AKHIR)
             ->value('kkm') ?? 0);
     }
 
     /** @return list<array{predikat: string, offset_bawah: float|null}> */
-    public function rentangPredikat(int $peristiwaId): array
+    public function rentangPredikat(int $kegiatanEvaluatifId): array
     {
-        return $this->predikat[$peristiwaId] ??= RentangPredikat::where('peristiwa_id', $peristiwaId)
+        return $this->predikat[$kegiatanEvaluatifId] ??= RentangPredikat::where('kegiatan_evaluatif_id', $kegiatanEvaluatifId)
             ->get(['predikat', 'offset_bawah'])
             ->map(fn ($r) => ['predikat' => $r->predikat, 'offset_bawah' => $r->offset_bawah])
             ->all();
     }
 
-    public function predikatUntuk(float $nilai, int $peristiwaId): ?string
+    public function predikatUntuk(float $nilai, int $kegiatanEvaluatifId): ?string
     {
-        return NilaiRapor::predikat($nilai, $this->kkmAkhir($peristiwaId), $this->rentangPredikat($peristiwaId));
+        return NilaiRapor::predikat($nilai, $this->kkmAkhir($kegiatanEvaluatifId), $this->rentangPredikat($kegiatanEvaluatifId));
     }
 
     /**
      * Rata-rata rapor satu MAPEL pada N tingkat sebelumnya (untuk komponen
      * `rapor_otomatis`, mis. UJIAN). Dihitung dari seluruh baris `nilai_santri`
-     * santri+mapel pada tingkat-tingkat itu (semua peristiwa & semester),
+     * santri+mapel pada tingkat-tingkat itu (semua kegiatanEvaluatif & semester),
      * lalu dirata-rata. null bila tak ada data.
      */
     public function rataRataRapor(int $santriId, string $jenjang, ?string $tingkat, int $mapelId, int $n): ?float
@@ -110,23 +110,23 @@ class PenilaianService
         ?string $tingkat,
         string $ta,
         string $semester,
-        int $peristiwaId,
+        int $kegiatanEvaluatifId,
     ): array {
         $tersimpan = NilaiKomponen::where('santri_id', $santriId)
             ->where('pengampu_mapel_id', $pengampuId)
             ->where('tahun_ajaran', $ta)
             ->where('semester', $semester)
-            ->whereIn('komponen_nilai_id', $this->komponenAktif($peristiwaId)->pluck('id'))
+            ->whereIn('komponen_nilai_id', $this->komponenAktif($kegiatanEvaluatifId)->pluck('id'))
             ->pluck('skor', 'komponen_nilai_id');
 
         $hasil = [];
-        foreach ($this->komponenAktif($peristiwaId) as $k) {
+        foreach ($this->komponenAktif($kegiatanEvaluatifId) as $k) {
             $nilai = $tersimpan[$k->id] ?? null;
             if ($nilai === null && $k->otomatisDariRapor()) {
                 $nilai = $this->rataRataRapor($santriId, $jenjang, $tingkat, $mapelId, (int) ($k->jumlah_tingkat_rapor ?? 0));
             }
-            if ($nilai === null && $k->otomatisDariPeristiwa()) {
-                $nilai = $this->nilaiAkhirPeristiwaLain($santriId, $mapelId, $ta, $semester, (int) $k->peristiwa_sumber_id, $peristiwaId);
+            if ($nilai === null && $k->otomatisDariKegiatanEvaluatif()) {
+                $nilai = $this->nilaiAkhirKegiatanEvaluatifLain($santriId, $mapelId, $ta, $semester, (int) $k->kegiatan_evaluatif_sumber_id, $kegiatanEvaluatifId);
             }
             $hasil[$k->id] = $nilai === null ? null : (float) $nilai;
         }
@@ -135,20 +135,20 @@ class PenilaianService
     }
 
     /**
-     * Nilai akhir peristiwa LAIN untuk mapel yang sama (mis. komponen "PTS" di
-     * ASAS mengambil nilai akhir peristiwa PTS). SATU tingkat — nilai akhir
-     * peristiwa asal dibaca apa adanya, tidak dihitung ulang (tanpa rekursi).
-     * `$peristiwaSendiri` menutup rujukan-diri.
+     * Nilai akhir kegiatan evaluatif LAIN untuk mapel yang sama (mis. komponen "PTS" di
+     * ASAS mengambil nilai akhir kegiatanEvaluatif PTS). SATU tingkat — nilai akhir
+     * kegiatanEvaluatif asal dibaca apa adanya, tidak dihitung ulang (tanpa rekursi).
+     * `$kegiatanEvaluatifSendiri` menutup rujukan-diri.
      */
-    public function nilaiAkhirPeristiwaLain(
+    public function nilaiAkhirKegiatanEvaluatifLain(
         int $santriId,
         int $mapelId,
         string $ta,
         string $semester,
-        int $peristiwaSumberId,
-        int $peristiwaSendiri,
+        int $kegiatanEvaluatifSumberId,
+        int $kegiatanEvaluatifSendiri,
     ): ?float {
-        if ($peristiwaSumberId === $peristiwaSendiri) {
+        if ($kegiatanEvaluatifSumberId === $kegiatanEvaluatifSendiri) {
             return null;
         }
 
@@ -157,7 +157,7 @@ class PenilaianService
             ->where('nilai_santri.santri_id', $santriId)
             ->where('nilai_santri.tahun_ajaran', $ta)
             ->where('nilai_santri.semester', $semester)
-            ->where('nilai_santri.peristiwa_id', $peristiwaSumberId)
+            ->where('nilai_santri.kegiatan_evaluatif_id', $kegiatanEvaluatifSumberId)
             ->where('pm.mata_pelajaran_id', $mapelId)
             ->value('nilai_santri.nilai_akhir');
 
@@ -165,7 +165,7 @@ class PenilaianService
     }
 
     /**
-     * Hitung nilai akhir satu (santri × mapel × peristiwa).
+     * Hitung nilai akhir satu (santri × mapel × kegiatanEvaluatif).
      *
      * @return array{nilai: float|null, kurang: list<int>, skor: array<int, float|null>}
      */
@@ -177,11 +177,11 @@ class PenilaianService
         ?string $tingkat,
         string $ta,
         string $semester,
-        int $peristiwaId,
+        int $kegiatanEvaluatifId,
     ): array {
-        $skor = $this->skorKomponen($santriId, $pengampuId, $mapelId, $jenjang, $tingkat, $ta, $semester, $peristiwaId);
+        $skor = $this->skorKomponen($santriId, $pengampuId, $mapelId, $jenjang, $tingkat, $ta, $semester, $kegiatanEvaluatifId);
         $bobot = [];
-        foreach ($this->komponenAktif($peristiwaId) as $k) {
+        foreach ($this->komponenAktif($kegiatanEvaluatifId) as $k) {
             $bobot[$k->id] = (float) $k->bobot;
         }
         $hasil = NilaiRapor::nilaiAkhir($skor, $bobot);
@@ -195,7 +195,7 @@ class PenilaianService
         int $pengampuId,
         string $ta,
         string $semester,
-        int $peristiwaId,
+        int $kegiatanEvaluatifId,
         float $nilai,
         string $sumber,
     ): NilaiSantri {
@@ -205,22 +205,22 @@ class PenilaianService
                 'pengampu_mapel_id' => $pengampuId,
                 'tahun_ajaran' => $ta,
                 'semester' => $semester,
-                'peristiwa_id' => $peristiwaId,
+                'kegiatan_evaluatif_id' => $kegiatanEvaluatifId,
             ],
             [
                 'nilai_akhir' => $nilai,
-                'predikat' => $this->predikatUntuk($nilai, $peristiwaId),
+                'predikat' => $this->predikatUntuk($nilai, $kegiatanEvaluatifId),
                 'sumber' => $sumber,
             ],
         );
     }
 
-    /** Saring daftar santri menurut cakupan peserta peristiwa (tingkat akhir). */
-    public function tingkatCocokCakupan(PeristiwaNilai $peristiwa, ?string $tingkat): bool
+    /** Saring daftar santri menurut cakupan peserta kegiatanEvaluatif (tingkat akhir). */
+    public function tingkatCocokCakupan(KegiatanEvaluatif $kegiatanEvaluatif, ?string $tingkat): bool
     {
-        return match ($peristiwa->cakupan) {
-            PeristiwaNilai::CAKUPAN_TINGKAT_AKHIR => TingkatJenjang::adalahAkhir($peristiwa->jenjang, $tingkat),
-            PeristiwaNilai::CAKUPAN_KECUALI_AKHIR => ! TingkatJenjang::adalahAkhir($peristiwa->jenjang, $tingkat),
+        return match ($kegiatanEvaluatif->cakupan) {
+            KegiatanEvaluatif::CAKUPAN_TINGKAT_AKHIR => TingkatJenjang::adalahAkhir($kegiatanEvaluatif->jenjang, $tingkat),
+            KegiatanEvaluatif::CAKUPAN_KECUALI_AKHIR => ! TingkatJenjang::adalahAkhir($kegiatanEvaluatif->jenjang, $tingkat),
             default => true,
         };
     }

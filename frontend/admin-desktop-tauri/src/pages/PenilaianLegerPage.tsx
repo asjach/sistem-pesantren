@@ -14,8 +14,8 @@ import { listKelas, type Kelas } from '@/api/master';
 import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Download, RefreshCw } from '@/icons';
 import {
-  daftarPeristiwa, hitungUlang, legerNilai, simpanNilaiManual, ubahPeristiwa, unduhLeger,
-  type BarisLeger, type LegerResp, type PeristiwaNilai, type RentangNilai,
+  daftarKegiatanEvaluatif, hitungUlang, legerNilai, simpanNilaiManual, ubahKegiatanEvaluatif, unduhLeger,
+  type BarisLeger, type LegerResp, type KegiatanEvaluatif, type RentangNilai,
 } from '@/api/penilaian';
 import { batasAtasRentang, nilaiDalamRentang } from '@/lib/nilaiRentang';
 
@@ -38,7 +38,7 @@ function kelasPeringkat(row: GridRow): string | undefined {
   return undefined;
 }
 
-/** Halaman Leger Nilai: crosstab santri × mapel untuk SATU PERISTIWA. */
+/** Halaman Leger Nilai: crosstab santri × mapel untuk SATU KEGIATAN EVALUATIF. */
 export default function PenilaianLegerPage() {
   const { jenjangs, tahunAjaranNames, semesters, tingkat, kelas: kelasAktif, loading: filterLoading } = useFilterGlobalAktif();
   const { user } = useAuth();
@@ -50,8 +50,8 @@ export default function PenilaianLegerPage() {
   const semester = targetTunggal(semesters);
   const siap = jenjang !== null && ta !== null && semester !== null;
 
-  const [peristiwa, setPeristiwa] = useState<PeristiwaNilai[]>([]);
-  const [peristiwaId, setPeristiwaId] = useState<number | ''>('');
+  const [kegiatanEvaluatif, setKegiatanEvaluatif] = useState<KegiatanEvaluatif[]>([]);
+  const [kegiatanEvaluatifId, setKegiatanEvaluatifId] = useState<number | ''>('');
   const [data, setData] = useState<LegerResp | null>(null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
@@ -82,26 +82,26 @@ export default function PenilaianLegerPage() {
   }, [filterLoading, jenjang, ta]);
 
   useEffect(() => {
-    if (filterLoading || jenjang === null || ta === null) { setPeristiwa([]); setPeristiwaId(''); return; }
+    if (filterLoading || jenjang === null || ta === null) { setKegiatanEvaluatif([]); setKegiatanEvaluatifId(''); return; }
     let hidup = true;
-    daftarPeristiwa({ jenjang, tahun_ajaran: ta })
+    daftarKegiatanEvaluatif({ jenjang, tahun_ajaran: ta })
       .then((r) => {
         if (!hidup) return;
-        setPeristiwa(r.peristiwa);
-        setPeristiwaId((v) => (r.peristiwa.some((p) => p.id === v) ? v : (r.peristiwa[0]?.id ?? '')));
+        setKegiatanEvaluatif(r.kegiatan_evaluatif);
+        setKegiatanEvaluatifId((v) => (r.kegiatan_evaluatif.some((p) => p.id === v) ? v : (r.kegiatan_evaluatif[0]?.id ?? '')));
       })
-      .catch((e) => { if (hidup) { setPeristiwa([]); setPeristiwaId(''); setErr(errorMessage(e)); } });
+      .catch((e) => { if (hidup) { setKegiatanEvaluatif([]); setKegiatanEvaluatifId(''); setErr(errorMessage(e)); } });
     return () => { hidup = false; };
   }, [filterLoading, jenjang, ta]);
 
-  const peristiwaAktif = useMemo(
-    () => peristiwa.find((p) => p.id === peristiwaId) ?? null,
-    [peristiwa, peristiwaId],
+  const kegiatanEvaluatifAktif = useMemo(
+    () => kegiatanEvaluatif.find((p) => p.id === kegiatanEvaluatifId) ?? null,
+    [kegiatanEvaluatif, kegiatanEvaluatifId],
   );
 
   useEffect(() => {
-    setRentangAktif(peristiwaAktif?.rentang_nilai ?? '0-100');
-  }, [peristiwaAktif]);
+    setRentangAktif(kegiatanEvaluatifAktif?.rentang_nilai ?? '0-100');
+  }, [kegiatanEvaluatifAktif]);
 
   const kelasIds = useMemo(
     () => kelasOpsi.filter((k) => kelasAktif.includes(k.nama_kelas)).map((k) => k.id),
@@ -116,12 +116,12 @@ export default function PenilaianLegerPage() {
 
   const reqRef = useRef(0);
   const muat = useCallback(async (page: number, perPage: number) => {
-    if (peristiwaId === '' || semester === null) { setData(null); return; }
+    if (kegiatanEvaluatifId === '' || semester === null) { setData(null); return; }
     const req = ++reqRef.current;
     setErr(''); setLoading(true);
     try {
       const res = await legerNilai({
-        peristiwa_id: Number(peristiwaId),
+        kegiatan_evaluatif_id: Number(kegiatanEvaluatifId),
         semester,
         tingkat: tingkat.length ? tingkat : undefined,
         kelas_id: kelasIds.length ? kelasIds : undefined,
@@ -138,29 +138,29 @@ export default function PenilaianLegerPage() {
     } finally {
       if (req === reqRef.current) setLoading(false);
     }
-  }, [peristiwaId, semester, tingkat, kelasIds, cariTertunda, pager]);
+  }, [kegiatanEvaluatifId, semester, tingkat, kelasIds, cariTertunda, pager]);
 
   useEffect(() => {
     if (!pager.ready || filterLoading) return;
     void muat(pager.page, pager.perPage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pager.ready, filterLoading, peristiwaId, semester, tingkat, kelasIds, cariTertunda, pager.perPage]);
+  }, [pager.ready, filterLoading, kegiatanEvaluatifId, semester, tingkat, kelasIds, cariTertunda, pager.perPage]);
 
   const unduh = useCallback(() => {
-    if (peristiwaId === '') return;
+    if (kegiatanEvaluatifId === '') return;
     void unduhLeger({
-      peristiwa_id: Number(peristiwaId), semester: semester ?? undefined,
+      kegiatan_evaluatif_id: Number(kegiatanEvaluatifId), semester: semester ?? undefined,
       tingkat: tingkat.length ? tingkat : undefined,
       kelas_id: kelasIds.length ? kelasIds : undefined,
       q: cariTertunda || undefined,
     }).catch((e) => toast.error(errorMessage(e)));
-  }, [peristiwaId, semester, tingkat, kelasIds, cariTertunda]);
+  }, [kegiatanEvaluatifId, semester, tingkat, kelasIds, cariTertunda]);
 
   const hitung = useCallback(async () => {
-    if (peristiwaId === '' || semester === null) return;
+    if (kegiatanEvaluatifId === '' || semester === null) return;
     try {
       const r = await hitungUlang({
-        peristiwa_id: Number(peristiwaId), semester,
+        kegiatan_evaluatif_id: Number(kegiatanEvaluatifId), semester,
         kelas_id: kelasIds.length === 1 ? kelasIds[0] : null,
       });
       toast.success(r.pesan);
@@ -168,19 +168,19 @@ export default function PenilaianLegerPage() {
     } catch (e) {
       toast.error(errorMessage(e));
     }
-  }, [peristiwaId, semester, kelasIds, muat, pager.page, pager.perPage]);
+  }, [kegiatanEvaluatifId, semester, kelasIds, muat, pager.page, pager.perPage]);
 
   const ubahRentang = useCallback(async (nilai: RentangNilai) => {
-    if (peristiwaAktif === null || !canUbah || nilai === rentangAktif) return;
+    if (kegiatanEvaluatifAktif === null || !canUbah || nilai === rentangAktif) return;
     const lama = rentangAktif;
     setRentangAktif(nilai);
     setMenyimpanRentang(true);
     try {
-      await ubahPeristiwa(peristiwaAktif.id, { rentang_nilai: nilai });
-      setPeristiwa((daftar) => daftar.map((p) => (
-        p.id === peristiwaAktif.id ? { ...p, rentang_nilai: nilai } : p
+      await ubahKegiatanEvaluatif(kegiatanEvaluatifAktif.id, { rentang_nilai: nilai });
+      setKegiatanEvaluatif((daftar) => daftar.map((p) => (
+        p.id === kegiatanEvaluatifAktif.id ? { ...p, rentang_nilai: nilai } : p
       )));
-      setData((d) => d === null ? d : { ...d, peristiwa: { ...d.peristiwa, rentang_nilai: nilai } });
+      setData((d) => d === null ? d : { ...d, kegiatan_evaluatif: { ...d.kegiatan_evaluatif, rentang_nilai: nilai } });
       toast.success(`Rentang nilai ${nilai.replace('-', '–')} disimpan.`);
     } catch (e) {
       setRentangAktif(lama);
@@ -188,7 +188,7 @@ export default function PenilaianLegerPage() {
     } finally {
       setMenyimpanRentang(false);
     }
-  }, [peristiwaAktif, canUbah, rentangAktif]);
+  }, [kegiatanEvaluatifAktif, canUbah, rentangAktif]);
 
   const baris = useMemo<BarisLegerGrid[]>(
     () => (data?.baris ?? []).map((b) => ({ ...b, id: b.santri_id })),
@@ -312,7 +312,7 @@ export default function PenilaianLegerPage() {
   }, [data]);
 
   const simpanSel = useCallback(async (santriId: number, fields: Record<string, string | null>) => {
-    if (peristiwaId === '' || semester === null || data === null) return;
+    if (kegiatanEvaluatifId === '' || semester === null || data === null) return;
     const petaMapel = new Map(data.kolom.map((k) => [k.key, k.mapel_id]));
     for (const [key, nilai] of Object.entries(fields)) {
       const mapelId = petaMapel.get(key);
@@ -322,14 +322,14 @@ export default function PenilaianLegerPage() {
         throw new Error(`Nilai harus 0–${batasAtasRentang(rentangAktif)}.`);
       }
       await simpanNilaiManual({
-        peristiwa_id: Number(peristiwaId),
+        kegiatan_evaluatif_id: Number(kegiatanEvaluatifId),
         semester,
         santri_id: santriId,
         mapel_id: mapelId,
         nilai_akhir: angka,
       });
     }
-  }, [peristiwaId, semester, data, rentangAktif]);
+  }, [kegiatanEvaluatifId, semester, data, rentangAktif]);
 
   const selesaiSimpan = useCallback(async () => {
     await muat(pager.page, pager.perPage);
@@ -355,15 +355,15 @@ export default function PenilaianLegerPage() {
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-        <label className="text-xs text-muted-foreground" htmlFor="select_peristiwa_leger">Peristiwa</label>
+        <label className="text-xs text-muted-foreground" htmlFor="select_kegiatan_evaluatif_leger">Kegiatan Evaluatif</label>
         <select
-          id="select_peristiwa_leger"
+          id="select_kegiatan_evaluatif_leger"
           className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
-          value={peristiwaId === '' ? '' : String(peristiwaId)}
-          onChange={(e) => { setPeristiwaId(e.target.value === '' ? '' : Number(e.target.value)); pager.goFirst(); }}
+          value={kegiatanEvaluatifId === '' ? '' : String(kegiatanEvaluatifId)}
+          onChange={(e) => { setKegiatanEvaluatifId(e.target.value === '' ? '' : Number(e.target.value)); pager.goFirst(); }}
         >
-          <option value="">— pilih peristiwa —</option>
-          {peristiwa.map((p) => (
+          <option value="">— pilih kegiatan evaluatif —</option>
+          {kegiatanEvaluatif.map((p) => (
             <option key={p.id} value={p.id}>
               {p.kode} — {p.nama}{p.jenis_rapor === 'tidak_ada' ? ' (nilai ujian, tanpa rapor)' : ''}
             </option>
@@ -375,8 +375,8 @@ export default function PenilaianLegerPage() {
           className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
           value={rentangAktif}
           onChange={(e) => void ubahRentang(e.target.value as RentangNilai)}
-          disabled={!canUbah || peristiwaAktif === null || menyimpanRentang}
-          title={!canUbah ? 'Butuh izin ubah nilai.' : 'Batas nilai input dan impor peristiwa ini'}
+          disabled={!canUbah || kegiatanEvaluatifAktif === null || menyimpanRentang}
+          title={!canUbah ? 'Butuh izin ubah nilai.' : 'Batas nilai input dan impor kegiatan evaluatif ini'}
         >
           <option value="0-100">0–100</option>
           <option value="0-10">0–10</option>
@@ -393,16 +393,16 @@ export default function PenilaianLegerPage() {
         {!siap && (
           <span className="text-xs text-muted-foreground">Pilih satu jenjang, TA, dan semester pada filter di atas.</span>
         )}
-        {siap && peristiwa.length === 0 && (
-          <span className="text-xs text-muted-foreground">Belum ada peristiwa — muat bawaan di halaman Master Penilaian.</span>
+        {siap && kegiatanEvaluatif.length === 0 && (
+          <span className="text-xs text-muted-foreground">Belum ada kegiatan evaluatif — muat bawaan di halaman Master Penilaian.</span>
         )}
         <div className="ml-auto flex gap-2">
-          <Button type="button" variant="outline" size="sm" id="btn_hitung_ulang" disabled={!canUbah || peristiwaId === ''}
+          <Button type="button" variant="outline" size="sm" id="btn_hitung_ulang" disabled={!canUbah || kegiatanEvaluatifId === ''}
             title="Hitung ulang nilai akhir dari komponen (baris hasil impor dilewati)"
             onClick={() => void hitung()}>
             <RefreshCw data-icon="inline-start" size={16} /> Hitung ulang
           </Button>
-          <Button type="button" variant="outline" size="sm" id="btn_unduh_leger" disabled={peristiwaId === ''} onClick={unduh}>
+          <Button type="button" variant="outline" size="sm" id="btn_unduh_leger" disabled={kegiatanEvaluatifId === ''} onClick={unduh}>
             <Download data-icon="inline-start" size={16} /> Unduh Excel
           </Button>
         </div>
@@ -413,7 +413,7 @@ export default function PenilaianLegerPage() {
         {bekuSiap && data !== null && (
           <ExcelTable<BarisLegerGrid>
             tableKey="penilaian_leger"
-            header={peristiwaAktif === null ? 'Leger Nilai' : `Leger Nilai · ${peristiwaAktif.kode} — ${peristiwaAktif.nama}`}
+            header={kegiatanEvaluatifAktif === null ? 'Leger Nilai' : `Leger Nilai · ${kegiatanEvaluatifAktif.kode} — ${kegiatanEvaluatifAktif.nama}`}
             tengah={data === null ? undefined : `${data.total} santri · ${data.kolom.length} mapel`}
             fields={fields}
             rows={baris}

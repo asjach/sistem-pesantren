@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * KKM per peristiwa: satu baris per komponen (`kegiatan` = nama komponen)
+ * KKM per kegiatanEvaluatif: satu baris per komponen (`kegiatan` = nama komponen)
  * + satu baris khusus `AKHIR` yang jadi jangkar predikat rapor.
  */
 class KkmKegiatan extends Model
@@ -20,8 +20,8 @@ class KkmKegiatan extends Model
 
     protected $casts = ['kkm' => 'float'];
 
-    public function peristiwa(): BelongsTo
+    public function kegiatanEvaluatif(): BelongsTo
     {
-        return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_id');
+        return $this->belongsTo(KegiatanEvaluatif::class, 'kegiatan_evaluatif_id');
     }
 }

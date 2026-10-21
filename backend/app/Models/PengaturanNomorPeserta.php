@@ -14,15 +14,15 @@ class PengaturanNomorPeserta extends Model
     protected $table = 'pengaturan_nomor_peserta';
 
     protected $fillable = [
-        'peristiwa_id',
+        'kegiatan_evaluatif_id',
         'semester',
         'template',
         'mode_urutan',
     ];
 
-    /** @return BelongsTo<PeristiwaNilai, $this> */
-    public function peristiwa(): BelongsTo
+    /** @return BelongsTo<KegiatanEvaluatif, $this> */
+    public function kegiatanEvaluatif(): BelongsTo
     {
-        return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_id');
+        return $this->belongsTo(KegiatanEvaluatif::class, 'kegiatan_evaluatif_id');
     }
 }

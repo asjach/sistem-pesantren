@@ -27,7 +27,7 @@ class DesainKartuPesertaRequest extends FormRequest
     {
         return [
             'id' => ['nullable', 'integer', 'exists:desain_kartu_peserta,id'],
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'nama' => ['required', 'string', 'max:100'],
             'warna_latar' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'gaya_latar' => ['required', Rule::in(['klasik', 'modern', 'bersih', 'foto'])],
@@ -36,7 +36,7 @@ class DesainKartuPesertaRequest extends FormRequest
             'elemen.*.tipe' => ['required', Rule::in(['data', 'teks', 'foto'])],
             'elemen.*.field' => ['nullable', Rule::in([
                 'nama', 'nomor_peserta', 'nis_lokal', 'kelas', 'tingkat',
-                'peristiwa', 'tahun_ajaran', 'semester', 'lembaga',
+                'kegiatan_evaluatif', 'tahun_ajaran', 'semester', 'lembaga',
             ])],
             'elemen.*.teks' => ['nullable', 'string', 'max:200'],
             'elemen.*.x' => ['required', 'numeric', 'min:0', 'max:100'],

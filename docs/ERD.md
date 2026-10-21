@@ -515,7 +515,7 @@ erDiagram
     PENGAMPU_MAPEL {
         bigint id PK
     }
-    PERISTIWA_NILAI {
+    KEGIATAN_EVALUATIF {
         bigint id PK
         string jenjang FK
         string tahun_ajaran FK
@@ -523,14 +523,14 @@ erDiagram
     }
     PENGATURAN_NOMOR_PESERTA {
         bigint id PK
-        bigint peristiwa_id FK
+        bigint kegiatan_evaluatif_id FK
         string semester
         string template
         string mode_urutan
     }
-    PESERTA_PERISTIWA_NILAI {
+    PESERTA_KEGIATAN_EVALUATIF {
         bigint id PK
-        bigint peristiwa_id FK
+        bigint kegiatan_evaluatif_id FK
         bigint santri_id FK
         string semester
         string nomor_peserta
@@ -543,21 +543,21 @@ erDiagram
     }
     PENGATURAN_KARTU_PESERTA {
         bigint id PK
-        bigint peristiwa_id FK
+        bigint kegiatan_evaluatif_id FK
         bigint desain_id FK
     }
     KOMPONEN_NILAI {
         bigint id PK
-        bigint peristiwa_id FK
-        bigint peristiwa_sumber_id FK
+        bigint kegiatan_evaluatif_id FK
+        bigint kegiatan_evaluatif_sumber_id FK
     }
     KKM_KEGIATAN {
         bigint id PK
-        bigint peristiwa_id FK
+        bigint kegiatan_evaluatif_id FK
     }
     RENTANG_PREDIKAT {
         bigint id PK
-        bigint peristiwa_id FK
+        bigint kegiatan_evaluatif_id FK
     }
     NILAI_KOMPONEN {
         bigint id PK
@@ -571,7 +571,7 @@ erDiagram
         bigint santri_id FK
         bigint pengampu_mapel_id FK
         string tahun_ajaran FK
-        bigint peristiwa_id FK
+        bigint kegiatan_evaluatif_id FK
     }
     RAPOR_CATATAN_WALI {
         bigint id PK
@@ -581,7 +581,7 @@ erDiagram
     }
     BATCH_CETAK_RAPOR {
         bigint id PK
-        bigint peristiwa_id FK
+        bigint kegiatan_evaluatif_id FK
         string semester
         bigint kelas_id FK
     }
@@ -607,18 +607,18 @@ erDiagram
         string predikat
     }
 
-    LEMBAGA ||--o{ PERISTIWA_NILAI : "memiliki peristiwa"
-    TAHUN_AJARAN ||--o{ PERISTIWA_NILAI : "mencakup"
-    PERISTIWA_NILAI ||--o{ PENGATURAN_NOMOR_PESERTA : "memiliki pola nomor"
-    PERISTIWA_NILAI ||--o{ PESERTA_PERISTIWA_NILAI : "memiliki peserta"
-    SANTRI ||--o{ PESERTA_PERISTIWA_NILAI : "memiliki nomor peserta"
+    LEMBAGA ||--o{ KEGIATAN_EVALUATIF : "memiliki kegiatan evaluatif"
+    TAHUN_AJARAN ||--o{ KEGIATAN_EVALUATIF : "mencakup"
+    KEGIATAN_EVALUATIF ||--o{ PENGATURAN_NOMOR_PESERTA : "memiliki pola nomor"
+    KEGIATAN_EVALUATIF ||--o{ PESERTA_KEGIATAN_EVALUATIF : "memiliki peserta"
+    SANTRI ||--o{ PESERTA_KEGIATAN_EVALUATIF : "memiliki nomor peserta"
     LEMBAGA ||--o{ DESAIN_KARTU_PESERTA : "memiliki desain kartu"
     DESAIN_KARTU_PESERTA ||--o{ PENGATURAN_KARTU_PESERTA : "dipakai pengaturan"
-    PERISTIWA_NILAI ||--o| PENGATURAN_KARTU_PESERTA : "memiliki pengaturan kartu"
-    PERISTIWA_NILAI ||--o{ KOMPONEN_NILAI : "memiliki komponen"
-    PERISTIWA_NILAI o|--o{ KOMPONEN_NILAI : "menjadi sumber komponen"
-    PERISTIWA_NILAI ||--o{ KKM_KEGIATAN : "memiliki KKM"
-    PERISTIWA_NILAI ||--o{ RENTANG_PREDIKAT : "memiliki rentang"
+    KEGIATAN_EVALUATIF ||--o| PENGATURAN_KARTU_PESERTA : "memiliki pengaturan kartu"
+    KEGIATAN_EVALUATIF ||--o{ KOMPONEN_NILAI : "memiliki komponen"
+    KEGIATAN_EVALUATIF o|--o{ KOMPONEN_NILAI : "menjadi sumber komponen"
+    KEGIATAN_EVALUATIF ||--o{ KKM_KEGIATAN : "memiliki KKM"
+    KEGIATAN_EVALUATIF ||--o{ RENTANG_PREDIKAT : "memiliki rentang"
     SANTRI ||--o{ NILAI_KOMPONEN : "memperoleh skor"
     PENGAMPU_MAPEL ||--o{ NILAI_KOMPONEN : "memberi skor"
     TAHUN_AJARAN ||--o{ NILAI_KOMPONEN : "mencakup"
@@ -626,11 +626,11 @@ erDiagram
     SANTRI ||--o{ NILAI_SANTRI : "memperoleh nilai akhir"
     PENGAMPU_MAPEL ||--o{ NILAI_SANTRI : "memberi nilai akhir"
     TAHUN_AJARAN ||--o{ NILAI_SANTRI : "mencakup"
-    PERISTIWA_NILAI ||--o{ NILAI_SANTRI : "menghasilkan"
+    KEGIATAN_EVALUATIF ||--o{ NILAI_SANTRI : "menghasilkan"
     SANTRI ||--o{ RAPOR_CATATAN_WALI : "memiliki catatan rapor"
     KELAS ||--o{ RAPOR_CATATAN_WALI : "memiliki catatan wali"
     TAHUN_AJARAN ||--o{ RAPOR_CATATAN_WALI : "mencakup"
-    PERISTIWA_NILAI ||--o{ BATCH_CETAK_RAPOR : "memiliki batch cetak"
+    KEGIATAN_EVALUATIF ||--o{ BATCH_CETAK_RAPOR : "memiliki batch cetak"
     KELAS ||--o{ BATCH_CETAK_RAPOR : "memiliki batch cetak"
     LEMBAGA ||--o{ EKSTRAKURIKULER : "memiliki kegiatan"
     TAHUN_AJARAN ||--o{ EKSTRAKURIKULER : "mencakup"

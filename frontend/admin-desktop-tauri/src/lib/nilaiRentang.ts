@@ -1,6 +1,6 @@
 import type { RentangNilai } from '@/api/penilaian';
 
-/** Batas atas nilai untuk pilihan rentang peristiwa. */
+/** Batas atas nilai untuk pilihan rentang kegiatan evaluatif. */
 export function batasAtasRentang(rentang: RentangNilai): number {
   return rentang === '0-10' ? 10 : rentang === '0-4' ? 4 : 100;
 }

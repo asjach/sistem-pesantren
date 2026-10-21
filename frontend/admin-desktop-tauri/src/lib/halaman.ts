@@ -181,7 +181,7 @@ export const HALAMAN: HalamanDef[] = [
   { to: '/penilaian/master', label: 'Master Penilaian', deskripsi: 'Komponen & bobot, KKM, predikat, ekstrakurikuler, dan prestasi.', tab: 'penilaian', grid: true, icon: Calculator, permission: 'penilaian.lihat' },
   { to: '/penilaian/impor', label: 'Impor Nilai', deskripsi: 'Impor leger, catatan wali, prestasi, dan ekstrakurikuler dari Excel.', tab: 'penilaian', icon: FileUp, permission: 'penilaian.lihat' },
   { to: '/penilaian/leger', label: 'Leger Nilai', deskripsi: 'Leger nilai akhir santri × mata pelajaran (crosstab).', tab: 'penilaian', grid: true, icon: Grid, permission: 'penilaian.lihat' },
-  { to: '/penilaian/kartu-peserta', label: 'Kartu Peserta', deskripsi: 'Nomor peserta per peristiwa penilaian.', tab: 'penilaian', grid: true, icon: ClipboardCheck, permission: 'penilaian.lihat' },
+  { to: '/penilaian/kartu-peserta', label: 'Kartu Peserta', deskripsi: 'Nomor peserta per kegiatanEvaluatif penilaian.', tab: 'penilaian', grid: true, icon: ClipboardCheck, permission: 'penilaian.lihat' },
   { to: '/penilaian/rapor', label: 'Rapor', deskripsi: 'Pratinjau & cetak rapor per santri / per kelas.', tab: 'penilaian', grid: true, icon: NotebookTabs, permission: 'penilaian.lihat' },
 
   { to: '/kurikulum/mapel', label: 'Mata Pelajaran', deskripsi: 'Master mata pelajaran per jenjang (kelompok formal / pesantren, KKM, urutan rapor).', tab: 'kurikulum', grid: true, icon: ClipboardList, permission: 'kurikulum.lihat' },

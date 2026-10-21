@@ -10,11 +10,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PenilaianPotongRequest;
 use App\Models\Ekstrakurikuler;
 use App\Models\ImportSesi;
+use App\Models\KegiatanEvaluatif;
 use App\Models\KkmKegiatan;
 use App\Models\KomponenNilai;
 use App\Models\NilaiSantri;
 use App\Models\PengampuMapel;
-use App\Models\PeristiwaNilai;
 use App\Models\PredikatEkskul;
 use App\Models\PrestasiSantri;
 use App\Models\RentangPredikat;
@@ -31,11 +31,11 @@ use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
- * Modul Penilaian — nilai diikat PERISTIWA (ASAS, ASAT, UJIAN, UAP).
+ * Modul Penilaian — nilai diikat KEGIATAN EVALUATIF (ASAS, ASAT, UJIAN, UAP).
  *
- *  Peristiwa milik (jenjang, tahun ajaran), bukan semester; semester tetap
- *  dimensi instans pencatatan skor. Rapor & leger dicetak PER PERISTIWA.
- *  Cakupan peserta peristiwa (`semua` / `kecuali_akhir` / `tingkat_akhir`)
+ *  Kegiatan Evaluatif milik (jenjang, tahun ajaran), bukan semester; semester tetap
+ *  dimensi instans pencatatan skor. Rapor & leger dicetak PER KEGIATAN EVALUATIF.
+ *  Cakupan peserta kegiatanEvaluatif (`semua` / `kecuali_akhir` / `tingkat_akhir`)
  *  disaring memakai tingkat akhir jenjang dari `ref_tingkat.urutan`.
  */
 class PenilaianController extends Controller
@@ -45,18 +45,18 @@ class PenilaianController extends Controller
 
     /**
      * Komponen sumatif ASAS/ASAT/UAP. "PTS" TIDAK diisi manual — ia mengambil
-     * nilai akhir PERISTIWA PTS per mapel (`dari_peristiwa`), jadi guru mengisi
+     * nilai akhir KEGIATAN EVALUATIF PTS per mapel (`dari_kegiatanEvaluatif`), jadi guru mengisi
      * PTS sekali saja.
      */
     private const KOMPONEN_SUMATIF = [
         ['nama' => 'Harian', 'kode' => 'HARIAN', 'bobot' => 20, 'urutan' => 1],
         ['nama' => 'Tugas', 'kode' => 'TUGAS', 'bobot' => 20, 'urutan' => 2],
-        ['nama' => 'PTS', 'kode' => 'PTS', 'bobot' => 20, 'urutan' => 3, 'dari_peristiwa' => 'PTS'],
+        ['nama' => 'PTS', 'kode' => 'PTS', 'bobot' => 20, 'urutan' => 3, 'dari_kegiatanEvaluatif' => 'PTS'],
         ['nama' => 'Sumatif', 'kode' => 'SUMATIF', 'bobot' => 40, 'urutan' => 4],
     ];
 
-    /** Bawaan peristiwa per jenjang (UJIAN dilewati untuk MD — jalur Kemenag). */
-    private const PERISTIWA_BAWAAN = [
+    /** Bawaan kegiatanEvaluatif per jenjang (UJIAN dilewati untuk MD — jalur Kemenag). */
+    private const KEGIATAN_EVALUATIF_BAWAAN = [
         [
             'kode' => 'PTS', 'nama' => 'Penilaian Tengah Semester', 'cakupan' => 'semua',
             'kurikulum' => 'keduanya', 'urutan' => 1, 'rapor' => 'sementara',
@@ -89,17 +89,17 @@ class PenilaianController extends Controller
         ],
     ];
 
-    /** GET /admin/penilaian/peristiwa?jenjang=&tahun_ajaran= */
-    public function indexPeristiwa(Request $request): JsonResponse
+    /** GET /admin/penilaian/kegiatan-evaluatif?jenjang=&tahun_ajaran= */
+    public function indexKegiatanEvaluatif(Request $request): JsonResponse
     {
         $jenjang = $this->jenjangWajib($request);
         $ta = $this->taWajib($request);
 
-        $peristiwa = PeristiwaNilai::with('komponen')
+        $kegiatanEvaluatif = KegiatanEvaluatif::with('komponen')
             ->where('jenjang', $jenjang)->where('tahun_ajaran', $ta)
             ->orderBy('urutan')->orderBy('kode')
             ->get()
-            ->map(function (PeristiwaNilai $p) {
+            ->map(function (KegiatanEvaluatif $p) {
                 $p->setAttribute('jumlah_komponen', $p->komponen->count());
                 $p->setAttribute('total_bobot', (float) $p->komponen->sum('bobot'));
 
@@ -107,13 +107,13 @@ class PenilaianController extends Controller
             });
 
         return response()->json([
-            'peristiwa' => $peristiwa,
+            'kegiatan_evaluatif' => $kegiatanEvaluatif,
             'tingkat_akhir' => TingkatJenjang::akhir($jenjang),
         ]);
     }
 
-    /** POST /admin/penilaian/peristiwa */
-    public function storePeristiwa(Request $request): JsonResponse
+    /** POST /admin/penilaian/kegiatan-evaluatif */
+    public function storeKegiatanEvaluatif(Request $request): JsonResponse
     {
         $data = $request->validate([
             'jenjang' => ['required', 'string', 'exists:lembaga,jenjang'],
@@ -129,13 +129,13 @@ class PenilaianController extends Controller
         ]);
         $this->authorizeLembaga($request->user(), $data['jenjang']);
 
-        $peristiwa = PeristiwaNilai::create($data + ['kurikulum' => $data['kurikulum'] ?? 'keduanya']);
+        $kegiatanEvaluatif = KegiatanEvaluatif::create($data + ['kurikulum' => $data['kurikulum'] ?? 'keduanya']);
 
-        return response()->json($peristiwa, 201);
+        return response()->json($kegiatanEvaluatif, 201);
     }
 
-    /** PUT /admin/penilaian/peristiwa/{peristiwa} */
-    public function updatePeristiwa(Request $request, PeristiwaNilai $peristiwa): JsonResponse
+    /** PUT /admin/penilaian/kegiatan-evaluatif/{kegiatanEvaluatif} */
+    public function updateKegiatanEvaluatif(Request $request, KegiatanEvaluatif $kegiatanEvaluatif): JsonResponse
     {
         $data = $request->validate([
             'nama' => ['sometimes', 'string', 'max:100'],
@@ -146,30 +146,30 @@ class PenilaianController extends Controller
             'urutan' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
-        $peristiwa->update($data);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
+        $kegiatanEvaluatif->update($data);
 
-        return response()->json($peristiwa->fresh());
+        return response()->json($kegiatanEvaluatif->fresh());
     }
 
-    /** DELETE /admin/penilaian/peristiwa/{peristiwa} */
-    public function destroyPeristiwa(Request $request, PeristiwaNilai $peristiwa): JsonResponse
+    /** DELETE /admin/penilaian/kegiatan-evaluatif/{kegiatanEvaluatif} */
+    public function destroyKegiatanEvaluatif(Request $request, KegiatanEvaluatif $kegiatanEvaluatif): JsonResponse
     {
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
-        if (NilaiSantri::where('peristiwa_id', $peristiwa->id)->exists()) {
-            abort(422, 'Peristiwa sudah punya nilai. Nonaktifkan saja bila tidak ingin dipakai lagi.');
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
+        if (NilaiSantri::where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)->exists()) {
+            abort(422, 'Kegiatan Evaluatif sudah punya nilai. Nonaktifkan saja bila tidak ingin dipakai lagi.');
         }
-        $peristiwa->delete();
+        $kegiatanEvaluatif->delete();
 
-        return response()->json(['pesan' => 'Peristiwa dihapus.']);
+        return response()->json(['pesan' => 'Kegiatan Evaluatif dihapus.']);
     }
 
     /**
-     * POST /admin/penilaian/bawaan — muat peristiwa bawaan per (jenjang, TA):
+     * POST /admin/penilaian/bawaan — muat kegiatanEvaluatif bawaan per (jenjang, TA):
      * PTS (semua tingkat, rapor sementara), ASAS & ASAT (rapor akhir), UJIAN
      * (tingkat akhir, jenjang non-MD; rapor tidak ada), UAP (tingkat akhir).
      * Komponen ASAS/ASAT/UAP = Harian 20 + Tugas 20 + **PTS 20 (otomatis dari
-     * peristiwa PTS)** + Sumatif 40; UJIAN = UM 60 + Rata-rata Rapor 40
+     * kegiatanEvaluatif PTS)** + Sumatif 40; UJIAN = UM 60 + Rata-rata Rapor 40
      * (otomatis). KKM 75 dan predikat A/B/C/D ikut dibuat.
      */
     public function bawaan(Request $request): JsonResponse
@@ -186,11 +186,11 @@ class PenilaianController extends Controller
         DB::transaction(function () use ($jenjang, $ta, &$dibuat) {
 
             $peta = [];
-            foreach (self::PERISTIWA_BAWAAN as $p) {
-                if ($p['kode'] === PeristiwaNilai::UJIAN && $jenjang === 'MD') {
+            foreach (self::KEGIATAN_EVALUATIF_BAWAAN as $p) {
+                if ($p['kode'] === KegiatanEvaluatif::UJIAN && $jenjang === 'MD') {
                     continue;
                 }
-                $peta[$p['kode']] = PeristiwaNilai::updateOrCreate(
+                $peta[$p['kode']] = KegiatanEvaluatif::updateOrCreate(
                     ['jenjang' => $jenjang, 'tahun_ajaran' => $ta, 'kode' => $p['kode']],
                     [
                         'nama' => $p['nama'], 'cakupan' => $p['cakupan'], 'kurikulum' => $p['kurikulum'],
@@ -200,66 +200,66 @@ class PenilaianController extends Controller
                 $dibuat[] = $p['kode'];
             }
 
-            foreach (self::PERISTIWA_BAWAAN as $p) {
-                $peristiwa = $peta[$p['kode']] ?? null;
-                if ($peristiwa === null) {
+            foreach (self::KEGIATAN_EVALUATIF_BAWAAN as $p) {
+                $kegiatanEvaluatif = $peta[$p['kode']] ?? null;
+                if ($kegiatanEvaluatif === null) {
                     continue;
                 }
 
                 foreach ($p['komponen'] as $k) {
-                    $sumberId = isset($k['dari_peristiwa'])
-                        ? (($peta[$k['dari_peristiwa']] ?? null)?->id)
+                    $sumberId = isset($k['dari_kegiatanEvaluatif'])
+                        ? (($peta[$k['dari_kegiatanEvaluatif']] ?? null)?->id)
                         : null;
                     KomponenNilai::updateOrCreate(
-                        ['peristiwa_id' => $peristiwa->id, 'nama' => $k['nama']],
+                        ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id, 'nama' => $k['nama']],
                         [
                             'kode' => $k['kode'],
                             'bobot' => $k['bobot'],
                             'urutan' => $k['urutan'],
                             'sumber' => $sumberId !== null
-                                ? KomponenNilai::PERISTIWA
+                                ? KomponenNilai::KEGIATAN_EVALUATIF
                                 : ($k['sumber'] ?? KomponenNilai::MANUAL),
                             'jumlah_tingkat_rapor' => $k['n'] ?? null,
-                            'peristiwa_sumber_id' => $sumberId,
+                            'kegiatan_evaluatif_sumber_id' => $sumberId,
                             'is_active' => true,
                         ],
                     );
                     KkmKegiatan::updateOrCreate(
-                        ['peristiwa_id' => $peristiwa->id, 'kegiatan' => $k['nama']],
+                        ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id, 'kegiatan' => $k['nama']],
                         ['kkm' => 75],
                     );
                 }
 
                 KkmKegiatan::updateOrCreate(
-                    ['peristiwa_id' => $peristiwa->id, 'kegiatan' => KkmKegiatan::AKHIR],
+                    ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id, 'kegiatan' => KkmKegiatan::AKHIR],
                     ['kkm' => 75],
                 );
 
                 foreach ([['A', 20.0], ['B', 10.0], ['C', 0.0], ['D', null]] as [$predikat, $offset]) {
                     RentangPredikat::updateOrCreate(
-                        ['peristiwa_id' => $peristiwa->id, 'predikat' => $predikat],
+                        ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id, 'predikat' => $predikat],
                         ['offset_bawah' => $offset],
                     );
                 }
             }
         });
 
-        return response()->json(['pesan' => 'Bawaan dimuat: '.implode(', ', $dibuat).'.', 'peristiwa' => $dibuat]);
+        return response()->json(['pesan' => 'Bawaan dimuat: '.implode(', ', $dibuat).'.', 'kegiatan_evaluatif' => $dibuat]);
     }
 
-    /** GET /admin/penilaian/komponen?peristiwa_id= */
+    /** GET /admin/penilaian/komponen?kegiatan_evaluatif_id= */
     public function indexKomponen(Request $request): JsonResponse
     {
-        $peristiwa = $this->peristiwaWajib($request);
+        $kegiatanEvaluatif = $this->kegiatanEvaluatifWajib($request);
 
-        $komponen = KomponenNilai::where('peristiwa_id', $peristiwa->id)
+        $komponen = KomponenNilai::where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
             ->orderBy('urutan')->orderBy('nama')
             ->get();
 
         return response()->json([
             'komponen' => $komponen,
             'total_bobot' => (float) $komponen->sum('bobot'),
-            'peristiwa' => $peristiwa,
+            'kegiatan_evaluatif' => $kegiatanEvaluatif,
         ]);
     }
 
@@ -267,19 +267,19 @@ class PenilaianController extends Controller
     public function storeKomponen(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'nama' => ['required', 'string', 'max:100'],
             'kode' => ['nullable', 'string', 'max:20'],
             'bobot' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'sumber' => ['nullable', 'in:manual,rapor_otomatis,peristiwa'],
+            'sumber' => ['nullable', 'in:manual,rapor_otomatis,kegiatanEvaluatif'],
             'jumlah_tingkat_rapor' => ['nullable', 'integer', 'min:1', 'max:6'],
-            'peristiwa_sumber_id' => ['nullable', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_sumber_id' => ['nullable', 'integer', 'exists:kegiatan_evaluatif,id'],
             'urutan' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
-        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
-        $this->validasiSumberKomponen($peristiwa, $data);
+        $kegiatanEvaluatif = KegiatanEvaluatif::findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
+        $this->validasiSumberKomponen($kegiatanEvaluatif, $data);
 
         return response()->json(KomponenNilai::create($data), 201);
     }
@@ -291,18 +291,18 @@ class PenilaianController extends Controller
             'nama' => ['sometimes', 'string', 'max:100'],
             'kode' => ['nullable', 'string', 'max:20'],
             'bobot' => ['sometimes', 'numeric', 'min:0', 'max:100'],
-            'sumber' => ['sometimes', 'in:manual,rapor_otomatis,peristiwa'],
+            'sumber' => ['sometimes', 'in:manual,rapor_otomatis,kegiatanEvaluatif'],
             'jumlah_tingkat_rapor' => ['nullable', 'integer', 'min:1', 'max:6'],
-            'peristiwa_sumber_id' => ['nullable', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_sumber_id' => ['nullable', 'integer', 'exists:kegiatan_evaluatif,id'],
             'urutan' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
-        $this->authorizeLembaga($request->user(), $komponen->peristiwa->jenjang);
-        $this->validasiSumberKomponen($komponen->peristiwa, [
+        $this->authorizeLembaga($request->user(), $komponen->kegiatanEvaluatif->jenjang);
+        $this->validasiSumberKomponen($komponen->kegiatanEvaluatif, [
             'sumber' => $data['sumber'] ?? $komponen->sumber,
-            'peristiwa_sumber_id' => array_key_exists('peristiwa_sumber_id', $data)
-                ? $data['peristiwa_sumber_id']
-                : $komponen->peristiwa_sumber_id,
+            'kegiatan_evaluatif_sumber_id' => array_key_exists('kegiatan_evaluatif_sumber_id', $data)
+                ? $data['kegiatan_evaluatif_sumber_id']
+                : $komponen->kegiatan_evaluatif_sumber_id,
         ]);
         $komponen->update($data);
 
@@ -312,19 +312,19 @@ class PenilaianController extends Controller
     /** DELETE /admin/penilaian/komponen/{komponen} */
     public function destroyKomponen(Request $request, KomponenNilai $komponen): JsonResponse
     {
-        $this->authorizeLembaga($request->user(), $komponen->peristiwa->jenjang);
+        $this->authorizeLembaga($request->user(), $komponen->kegiatanEvaluatif->jenjang);
         $komponen->delete();
 
         return response()->json(['pesan' => 'Komponen dihapus.']);
     }
 
-    /** GET /admin/penilaian/kkm?peristiwa_id= */
+    /** GET /admin/penilaian/kkm?kegiatan_evaluatif_id= */
     public function indexKkm(Request $request): JsonResponse
     {
-        $peristiwa = $this->peristiwaWajib($request);
-        $kkm = KkmKegiatan::where('peristiwa_id', $peristiwa->id)->pluck('kkm', 'kegiatan');
+        $kegiatanEvaluatif = $this->kegiatanEvaluatifWajib($request);
+        $kkm = KkmKegiatan::where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)->pluck('kkm', 'kegiatan');
 
-        $baris = KomponenNilai::where('peristiwa_id', $peristiwa->id)
+        $baris = KomponenNilai::where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
             ->orderBy('urutan')->orderBy('nama')
             ->get()
             ->map(fn (KomponenNilai $k) => [
@@ -346,18 +346,18 @@ class PenilaianController extends Controller
     public function simpanKkm(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'baris' => ['required', 'array'],
             'baris.*.kegiatan' => ['required', 'string', 'max:50'],
             'baris.*.kkm' => ['required', 'numeric', 'min:0', 'max:100'],
         ]);
-        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $kegiatanEvaluatif = KegiatanEvaluatif::findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
-        DB::transaction(function () use ($data, $peristiwa) {
+        DB::transaction(function () use ($data, $kegiatanEvaluatif) {
             foreach ($data['baris'] as $b) {
                 KkmKegiatan::updateOrCreate(
-                    ['peristiwa_id' => $peristiwa->id, 'kegiatan' => $b['kegiatan']],
+                    ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id, 'kegiatan' => $b['kegiatan']],
                     ['kkm' => $b['kkm']],
                 );
             }
@@ -366,12 +366,12 @@ class PenilaianController extends Controller
         return response()->json(['pesan' => 'KKM disimpan.']);
     }
 
-    /** GET /admin/penilaian/predikat?peristiwa_id= */
+    /** GET /admin/penilaian/predikat?kegiatan_evaluatif_id= */
     public function indexPredikat(Request $request): JsonResponse
     {
-        $peristiwa = $this->peristiwaWajib($request);
+        $kegiatanEvaluatif = $this->kegiatanEvaluatifWajib($request);
 
-        $baris = RentangPredikat::where('peristiwa_id', $peristiwa->id)
+        $baris = RentangPredikat::where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
             ->orderByRaw('offset_bawah IS NULL')->orderByDesc('offset_bawah')
             ->get();
 
@@ -382,19 +382,19 @@ class PenilaianController extends Controller
     public function simpanPredikat(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'baris' => ['required', 'array'],
             'baris.*.predikat' => ['required', 'string', 'max:2'],
             'baris.*.offset_bawah' => ['nullable', 'numeric'],
             'baris.*.keterangan' => ['nullable', 'string', 'max:100'],
         ]);
-        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $kegiatanEvaluatif = KegiatanEvaluatif::findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
-        DB::transaction(function () use ($data, $peristiwa) {
+        DB::transaction(function () use ($data, $kegiatanEvaluatif) {
             foreach ($data['baris'] as $b) {
                 RentangPredikat::updateOrCreate(
-                    ['peristiwa_id' => $peristiwa->id, 'predikat' => strtoupper($b['predikat'])],
+                    ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id, 'predikat' => strtoupper($b['predikat'])],
                     ['offset_bawah' => $b['offset_bawah'] ?? null, 'keterangan' => $b['keterangan'] ?? null],
                 );
             }
@@ -542,26 +542,26 @@ class PenilaianController extends Controller
     public function simpanNilaiManual(Request $request, PenilaianService $nilai): JsonResponse
     {
         $data = $request->validate([
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'semester' => ['required', 'in:1,2'],
             'santri_id' => ['required', 'integer', 'exists:santri,id'],
             'mapel_id' => ['required', 'integer', 'exists:mata_pelajaran,id'],
             'nilai_akhir' => ['nullable', 'numeric', 'min:0'],
         ]);
-        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
-        if ($data['nilai_akhir'] !== null && (float) $data['nilai_akhir'] > $peristiwa->nilaiMaks()) {
+        $kegiatanEvaluatif = KegiatanEvaluatif::findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
+        if ($data['nilai_akhir'] !== null && (float) $data['nilai_akhir'] > $kegiatanEvaluatif->nilaiMaks()) {
             throw ValidationException::withMessages([
-                'nilai_akhir' => "Nilai harus dalam rentang {$peristiwa->rentang_nilai}.",
+                'nilai_akhir' => "Nilai harus dalam rentang {$kegiatanEvaluatif->rentang_nilai}.",
             ]);
         }
-        $ta = $peristiwa->tahun_ajaran;
+        $ta = $kegiatanEvaluatif->tahun_ajaran;
         $semester = (string) $data['semester'];
         $santriId = (int) $data['santri_id'];
 
         $riwayat = DB::table('riwayat_belajar')
             ->where('santri_id', $santriId)
-            ->where('jenjang', $peristiwa->jenjang)
+            ->where('jenjang', $kegiatanEvaluatif->jenjang)
             ->where('tahun_ajaran', $ta)
             ->where('semester', $semester)
             ->where('status_akhir', '!=', 'pindah_keluar')
@@ -571,8 +571,8 @@ class PenilaianController extends Controller
         if ($riwayat === null || $riwayat->kelas_id === null) {
             throw ValidationException::withMessages(['santri_id' => 'Santri tidak punya kelas pada jenjang/TA/semester ini.']);
         }
-        if (! $nilai->tingkatCocokCakupan($peristiwa, $riwayat->tingkat)) {
-            throw ValidationException::withMessages(['santri_id' => 'Santri tidak termasuk cakupan peserta peristiwa ini.']);
+        if (! $nilai->tingkatCocokCakupan($kegiatanEvaluatif, $riwayat->tingkat)) {
+            throw ValidationException::withMessages(['santri_id' => 'Santri tidak termasuk cakupan peserta kegiatan evaluatif ini.']);
         }
 
         $pengampu = PengampuMapel::query()
@@ -589,7 +589,7 @@ class PenilaianController extends Controller
             'pengampu_mapel_id' => $pengampu->id,
             'tahun_ajaran' => $ta,
             'semester' => $semester,
-            'peristiwa_id' => $peristiwa->id,
+            'kegiatan_evaluatif_id' => $kegiatanEvaluatif->id,
         ];
 
         if ($data['nilai_akhir'] === null) {
@@ -603,7 +603,7 @@ class PenilaianController extends Controller
             (int) $pengampu->id,
             $ta,
             $semester,
-            $peristiwa->id,
+            $kegiatanEvaluatif->id,
             (float) $data['nilai_akhir'],
             NilaiSantri::MANUAL,
         );
@@ -622,15 +622,15 @@ class PenilaianController extends Controller
     public function hitungUlang(Request $request, PenilaianService $nilai): JsonResponse
     {
         $data = $request->validate([
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'semester' => ['required', 'in:1,2'],
             'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
             'paksa' => ['nullable', 'boolean'],
         ]);
-        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
-        $jenjang = $peristiwa->jenjang;
-        $ta = $peristiwa->tahun_ajaran;
+        $kegiatanEvaluatif = KegiatanEvaluatif::findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
+        $jenjang = $kegiatanEvaluatif->jenjang;
+        $ta = $kegiatanEvaluatif->tahun_ajaran;
         $semester = (string) $data['semester'];
         $paksa = $request->boolean('paksa');
 
@@ -647,13 +647,13 @@ class PenilaianController extends Controller
         foreach ($pengampu as $pm) {
             $santri = $this->santriKelas($pm->kelas_id, $jenjang, $ta, $semester);
             foreach ($santri as $s) {
-                if (! $nilai->tingkatCocokCakupan($peristiwa, $s->tingkat)) {
+                if (! $nilai->tingkatCocokCakupan($kegiatanEvaluatif, $s->tingkat)) {
                     continue;
                 }
                 $ada = NilaiSantri::where('santri_id', $s->santri_id)
                     ->where('pengampu_mapel_id', $pm->id)
                     ->where('tahun_ajaran', $ta)->where('semester', $semester)
-                    ->where('peristiwa_id', $peristiwa->id)
+                    ->where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
                     ->first();
                 if ($ada !== null && in_array($ada->sumber, [NilaiSantri::IMPOR, NilaiSantri::MANUAL], true) && ! $paksa) {
                     $dilewatiImpor++;
@@ -662,14 +662,14 @@ class PenilaianController extends Controller
                 }
                 $hasil = $nilai->hitungAkhir(
                     (int) $s->santri_id, (int) $pm->id, (int) $pm->mata_pelajaran_id,
-                    $jenjang, $s->tingkat, $ta, $semester, $peristiwa->id,
+                    $jenjang, $s->tingkat, $ta, $semester, $kegiatanEvaluatif->id,
                 );
                 if ($hasil['nilai'] === null) {
                     $belumLengkap++;
 
                     continue;
                 }
-                $nilai->simpanAkhir((int) $s->santri_id, (int) $pm->id, $ta, $semester, $peristiwa->id, $hasil['nilai'], NilaiSantri::HITUNG);
+                $nilai->simpanAkhir((int) $s->santri_id, (int) $pm->id, $ta, $semester, $kegiatanEvaluatif->id, $hasil['nilai'], NilaiSantri::HITUNG);
                 $dihitung++;
             }
         }
@@ -682,29 +682,29 @@ class PenilaianController extends Controller
         ]);
     }
 
-    /** GET /admin/penilaian/leger — crosstab santri × mapel untuk satu peristiwa. */
+    /** GET /admin/penilaian/leger — crosstab santri × mapel untuk satu kegiatanEvaluatif. */
     public function leger(Request $request): JsonResponse
     {
-        $peristiwa = $this->peristiwaWajib($request);
+        $kegiatanEvaluatif = $this->kegiatanEvaluatifWajib($request);
         $semester = $this->semesterWajib($request);
-        [$jenjang, $ta] = [$peristiwa->jenjang, $peristiwa->tahun_ajaran];
+        [$jenjang, $ta] = [$kegiatanEvaluatif->jenjang, $kegiatanEvaluatif->tahun_ajaran];
         $this->authorizeLembaga($request->user(), $jenjang);
 
         $kelasIds = $this->kelasFilter($request, $jenjang, $ta);
         $tingkat = $this->nilaiFilter($request, 'tingkat');
         $q = trim((string) $request->input('q', ''));
 
-        $santri = $this->santriLeger($peristiwa, $semester, $kelasIds, $tingkat, $q);
+        $santri = $this->santriLeger($kegiatanEvaluatif, $semester, $kelasIds, $tingkat, $q);
         $kolom = $this->kolomLeger($jenjang, $kelasIds);
 
         $perPage = $this->perPage($request);
         $page = max(1, (int) $request->input('page', 1));
         $total = $santri->count();
         $halaman = $santri->slice(($page - 1) * $perPage, $perPage)->values();
-        $peta = $this->petaNilai($halaman->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
+        $peta = $this->petaNilai($halaman->pluck('santri_id')->all(), $kolom, $ta, $semester, $kegiatanEvaluatif->id);
 
         $petaPeringkat = $this->peringkatPerKelas(
-            $peristiwa->id,
+            $kegiatanEvaluatif->id,
             $halaman->pluck('kelas_id')->all(),
             $ta,
             $semester,
@@ -737,7 +737,7 @@ class PenilaianController extends Controller
         });
 
         return response()->json([
-            'peristiwa' => $peristiwa,
+            'kegiatan_evaluatif' => $kegiatanEvaluatif,
             'kolom' => $kolom,
             'baris' => $baris,
             'total' => $total,
@@ -747,22 +747,22 @@ class PenilaianController extends Controller
         ]);
     }
 
-    /** GET /admin/penilaian/leger/unduh — Excel leger satu peristiwa. */
+    /** GET /admin/penilaian/leger/unduh — Excel leger satu kegiatanEvaluatif. */
     public function unduhLeger(Request $request)
     {
-        $peristiwa = $this->peristiwaWajib($request);
+        $kegiatanEvaluatif = $this->kegiatanEvaluatifWajib($request);
         $semester = $this->semesterWajib($request);
-        [$jenjang, $ta] = [$peristiwa->jenjang, $peristiwa->tahun_ajaran];
+        [$jenjang, $ta] = [$kegiatanEvaluatif->jenjang, $kegiatanEvaluatif->tahun_ajaran];
         $this->authorizeLembaga($request->user(), $jenjang);
 
         $kelasIds = $this->kelasFilter($request, $jenjang, $ta);
         $tingkat = $this->nilaiFilter($request, 'tingkat');
-        $santri = $this->santriLeger($peristiwa, $semester, $kelasIds, $tingkat, trim((string) $request->input('q', '')));
+        $santri = $this->santriLeger($kegiatanEvaluatif, $semester, $kelasIds, $tingkat, trim((string) $request->input('q', '')));
         $kolom = $this->kolomLeger($jenjang, $kelasIds);
-        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
+        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester, $kegiatanEvaluatif->id);
 
         $petaPeringkat = $this->peringkatPerKelas(
-            $peristiwa->id,
+            $kegiatanEvaluatif->id,
             $santri->pluck('kelas_id')->all(),
             $ta,
             $semester,
@@ -800,24 +800,24 @@ class PenilaianController extends Controller
 
         return Excel::download(
             new LegerPenilaianExport($headings, $rows),
-            "leger-{$peristiwa->kode}-{$jenjang}-{$semester}.xlsx",
+            "leger-{$kegiatanEvaluatif->kode}-{$jenjang}-{$semester}.xlsx",
         );
     }
 
-    /** GET /admin/penilaian/rapor?santri_id=&semester=&peristiwa_id=&peringkat= */
+    /** GET /admin/penilaian/rapor?santri_id=&semester=&kegiatan_evaluatif_id=&peringkat= */
     public function rapor(Request $request): JsonResponse
     {
         $data = $request->validate([
             'santri_id' => ['required', 'integer', 'exists:santri,id'],
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'semester' => ['required', 'in:1,2'],
             'peringkat' => ['nullable', 'in:3,10,semua'],
         ]);
-        $peristiwa = $this->peristiwaRapor((int) $data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $kegiatanEvaluatif = $this->kegiatanEvaluatifRapor((int) $data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
         return response()->json($this->bangunRapor(
-            $peristiwa,
+            $kegiatanEvaluatif,
             (int) $data['santri_id'],
             (string) $data['semester'],
             $data['peringkat'] ?? '10',
@@ -825,46 +825,46 @@ class PenilaianController extends Controller
     }
 
     /**
-     * GET /admin/penilaian/rapor-kelas-cetak?peristiwa_id=&semester=&kelas_id=&peringkat=
+     * GET /admin/penilaian/rapor-kelas-cetak?kegiatan_evaluatif_id=&semester=&kelas_id=&peringkat=
      * Cetak massal satu kelas; peringkat dihitung SEKALI untuk seluruh batch.
      */
     public function raporKelasCetak(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'semester' => ['required', 'in:1,2'],
             'kelas_id' => ['required', 'integer', 'exists:kelas,id'],
             'peringkat' => ['nullable', 'in:3,10,semua'],
         ]);
-        $peristiwa = $this->peristiwaRapor((int) $data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
-        $ta = $peristiwa->tahun_ajaran;
+        $kegiatanEvaluatif = $this->kegiatanEvaluatifRapor((int) $data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
+        $ta = $kegiatanEvaluatif->tahun_ajaran;
         $semester = (string) $data['semester'];
         $batas = $data['peringkat'] ?? '10';
 
         $kelas = DB::table('kelas')->where('id', (int) $data['kelas_id'])
-            ->where('jenjang', $peristiwa->jenjang)->where('tahun_ajaran', $ta)
+            ->where('jenjang', $kegiatanEvaluatif->jenjang)->where('tahun_ajaran', $ta)
             ->select('id', 'nama_kelas')->first();
         if ($kelas === null) {
-            throw ValidationException::withMessages(['kelas_id' => 'Kelas tidak ada pada jenjang/TA peristiwa ini.']);
+            throw ValidationException::withMessages(['kelas_id' => 'Kelas tidak ada pada jenjang/TA kegiatan evaluatif ini.']);
         }
         $kelasId = (int) $kelas->id;
 
-        $santri = $this->santriLeger($peristiwa, $semester, [$kelasId], [], '');
+        $santri = $this->santriLeger($kegiatanEvaluatif, $semester, [$kelasId], [], '');
         if ($santri->isEmpty()) {
             return response()->json([
-                'peristiwa' => $peristiwa,
+                'kegiatan_evaluatif' => $kegiatanEvaluatif,
                 'kelas' => ['id' => $kelasId, 'nama_kelas' => $kelas->nama_kelas],
                 'peringkat' => $batas,
-                'penandatangan' => $this->penandatanganKelas($kelasId, $peristiwa->jenjang),
+                'penandatangan' => $this->penandatanganKelas($kelasId, $kegiatanEvaluatif->jenjang),
                 'rapor' => [],
             ]);
         }
 
-        $batch = $this->batchCetak($peristiwa, $semester, $kelasId);
-        $peringkatKelas = $this->hitungPeringkatKelas($peristiwa->id, $kelasId, $ta, $semester);
+        $batch = $this->batchCetak($kegiatanEvaluatif, $semester, $kelasId);
+        $peringkatKelas = $this->hitungPeringkatKelas($kegiatanEvaluatif->id, $kelasId, $ta, $semester);
         $rapor = $santri->map(fn ($s) => $this->bangunRapor(
-            $peristiwa,
+            $kegiatanEvaluatif,
             (int) $s->santri_id,
             $semester,
             $batas,
@@ -873,7 +873,7 @@ class PenilaianController extends Controller
         ))->values();
 
         return response()->json([
-            'peristiwa' => $peristiwa,
+            'kegiatan_evaluatif' => $kegiatanEvaluatif,
             'kelas' => ['id' => $kelasId, 'nama_kelas' => $kelas->nama_kelas],
             'peringkat' => $batas,
             'penandatangan' => [
@@ -884,23 +884,23 @@ class PenilaianController extends Controller
         ]);
     }
 
-    private function peristiwaRapor(int $peristiwaId): PeristiwaNilai
+    private function kegiatanEvaluatifRapor(int $kegiatanEvaluatifId): KegiatanEvaluatif
     {
-        $peristiwa = PeristiwaNilai::findOrFail($peristiwaId);
-        if (! $peristiwa->menghasilkanRapor()) {
+        $kegiatanEvaluatif = KegiatanEvaluatif::findOrFail($kegiatanEvaluatifId);
+        if (! $kegiatanEvaluatif->menghasilkanRapor()) {
             throw ValidationException::withMessages([
-                'peristiwa_id' => "Peristiwa {$peristiwa->kode} tidak menghasilkan rapor (hanya nilai ujian) — lihat halaman Leger.",
+                'kegiatan_evaluatif_id' => "Kegiatan Evaluatif {$kegiatanEvaluatif->kode} tidak menghasilkan rapor (hanya nilai ujian) — lihat halaman Leger.",
             ]);
         }
 
-        return $peristiwa;
+        return $kegiatanEvaluatif;
     }
 
     /** Snapshot penanda tangan; nama yang masih kosong diisi data terbaru lalu dibekukan. */
-    private function batchCetak(PeristiwaNilai $peristiwa, string $semester, int $kelasId): object
+    private function batchCetak(KegiatanEvaluatif $kegiatanEvaluatif, string $semester, int $kelasId): object
     {
-        $kunci = ['peristiwa_id' => $peristiwa->id, 'semester' => $semester, 'kelas_id' => $kelasId];
-        $hidup = $this->penandatanganKelas($kelasId, $peristiwa->jenjang);
+        $kunci = ['kegiatan_evaluatif_id' => $kegiatanEvaluatif->id, 'semester' => $semester, 'kelas_id' => $kelasId];
+        $hidup = $this->penandatanganKelas($kelasId, $kegiatanEvaluatif->jenjang);
 
         DB::table('batch_cetak_rapor')->insertOrIgnore([
             ...$kunci,
@@ -944,14 +944,14 @@ class PenilaianController extends Controller
 
     /** @return array<string, mixed> */
     private function bangunRapor(
-        PeristiwaNilai $peristiwa,
+        KegiatanEvaluatif $kegiatanEvaluatif,
         int $santriId,
         string $semester,
         string $batasPeringkat,
         ?array $peringkatKelas = null,
         ?object $batch = null,
     ): array {
-        $ta = $peristiwa->tahun_ajaran;
+        $ta = $kegiatanEvaluatif->tahun_ajaran;
 
         $riwayat = DB::table('riwayat_belajar')
             ->join('santri', 'santri.id', '=', 'riwayat_belajar.santri_id')
@@ -961,7 +961,7 @@ class PenilaianController extends Controller
                     ->on('lembaga_santri.jenjang', '=', 'riwayat_belajar.jenjang');
             })
             ->where('riwayat_belajar.santri_id', $santriId)
-            ->where('riwayat_belajar.jenjang', $peristiwa->jenjang)
+            ->where('riwayat_belajar.jenjang', $kegiatanEvaluatif->jenjang)
             ->where('riwayat_belajar.tahun_ajaran', $ta)
             ->where('riwayat_belajar.semester', $semester)
             ->orderByDesc('riwayat_belajar.is_active_riwayat')
@@ -980,7 +980,7 @@ class PenilaianController extends Controller
             ->where('santri_id', $santriId)
             ->where('tahun_ajaran', $ta)
             ->where('semester', $semester)
-            ->where('peristiwa_id', $peristiwa->id)
+            ->where('kegiatan_evaluatif_id', $kegiatanEvaluatif->id)
             ->get();
 
         $mapel = $nilai->map(function (NilaiSantri $n) {
@@ -996,7 +996,7 @@ class PenilaianController extends Controller
 
         $angka = $mapel->pluck('nilai_akhir')->all();
         $rekap = $this->rekapKelas(
-            $peristiwa->id,
+            $kegiatanEvaluatif->id,
             $riwayat->kelas_id,
             $ta,
             $semester,
@@ -1040,13 +1040,13 @@ class PenilaianController extends Controller
             ->first();
 
         $batch ??= $riwayat->kelas_id === null ? null : DB::table('batch_cetak_rapor')->where([
-            'peristiwa_id' => $peristiwa->id,
+            'kegiatan_evaluatif_id' => $kegiatanEvaluatif->id,
             'semester' => $semester,
             'kelas_id' => $riwayat->kelas_id,
         ])->first();
 
         return [
-            'peristiwa' => $peristiwa,
+            'kegiatan_evaluatif' => $kegiatanEvaluatif,
             'santri' => [
                 'id' => $santriId,
                 'nama' => $riwayat->nama_lengkap,
@@ -1094,34 +1094,34 @@ class PenilaianController extends Controller
         ];
     }
 
-    /** GET /admin/penilaian/rapor-kelas?peristiwa_id=&semester=&kelas_id= */
+    /** GET /admin/penilaian/rapor-kelas?kegiatan_evaluatif_id=&semester=&kelas_id= */
     public function raporKelas(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'semester' => ['required', 'in:1,2'],
             'kelas_id' => ['required', 'integer', 'exists:kelas,id'],
         ]);
-        $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
-        if (! $peristiwa->menghasilkanRapor()) {
+        $kegiatanEvaluatif = KegiatanEvaluatif::findOrFail($data['kegiatan_evaluatif_id']);
+        if (! $kegiatanEvaluatif->menghasilkanRapor()) {
             throw ValidationException::withMessages([
-                'peristiwa_id' => "Peristiwa {$peristiwa->kode} tidak menghasilkan rapor (hanya nilai ujian) — lihat halaman Leger.",
+                'kegiatan_evaluatif_id' => "Kegiatan Evaluatif {$kegiatanEvaluatif->kode} tidak menghasilkan rapor (hanya nilai ujian) — lihat halaman Leger.",
             ]);
         }
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
-        $ta = $peristiwa->tahun_ajaran;
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
+        $ta = $kegiatanEvaluatif->tahun_ajaran;
         $semester = (string) $data['semester'];
 
         $kelasIds = DB::table('kelas')->where('id', (int) $data['kelas_id'])
-            ->where('jenjang', $peristiwa->jenjang)->where('tahun_ajaran', $ta)
+            ->where('jenjang', $kegiatanEvaluatif->jenjang)->where('tahun_ajaran', $ta)
             ->pluck('id')->map(fn ($v) => (int) $v)->all();
         if ($kelasIds === []) {
-            throw ValidationException::withMessages(['kelas_id' => 'Kelas tidak ada pada jenjang/TA peristiwa ini.']);
+            throw ValidationException::withMessages(['kelas_id' => 'Kelas tidak ada pada jenjang/TA kegiatan evaluatif ini.']);
         }
 
-        $santri = $this->santriLeger($peristiwa, $semester, $kelasIds, [], '');
-        $kolom = $this->kolomLeger($peristiwa->jenjang, $kelasIds);
-        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester, $peristiwa->id);
+        $santri = $this->santriLeger($kegiatanEvaluatif, $semester, $kelasIds, [], '');
+        $kolom = $this->kolomLeger($kegiatanEvaluatif->jenjang, $kelasIds);
+        $peta = $this->petaNilai($santri->pluck('santri_id')->all(), $kolom, $ta, $semester, $kegiatanEvaluatif->id);
         $jumlahMapel = count($kolom);
 
         $catatanAda = DB::table('rapor_catatan_wali')
@@ -1149,7 +1149,7 @@ class PenilaianController extends Controller
         });
 
         return response()->json([
-            'peristiwa' => $peristiwa,
+            'kegiatan_evaluatif' => $kegiatanEvaluatif,
             'kolom' => $kolom,
             'baris' => $baris,
             'ringkasan' => [
@@ -1161,7 +1161,7 @@ class PenilaianController extends Controller
         ]);
     }
 
-    /** GET /admin/penilaian/import-template?tipe=&peristiwa_id=&kelas_id= */
+    /** GET /admin/penilaian/import-template?tipe=&kegiatan_evaluatif_id=&kelas_id= */
     public function template(Request $request)
     {
         $tipe = (string) $request->input('tipe', 'nilai');
@@ -1200,9 +1200,9 @@ class PenilaianController extends Controller
             $this->authorizeLembagaMany($request->user(), $jenjang);
         }
 
-        if (! empty($data['peristiwa_id'])) {
-            $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
-            $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        if (! empty($data['kegiatan_evaluatif_id'])) {
+            $kegiatanEvaluatif = KegiatanEvaluatif::findOrFail($data['kegiatan_evaluatif_id']);
+            $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
         }
 
         $layanan = new PenilaianImporService(
@@ -1210,7 +1210,7 @@ class PenilaianController extends Controller
             $data['tahun_ajaran'],
             (string) $data['semester'],
             array_values(array_map('strval', $jenjang)),
-            $data['peristiwa_id'] ?? null,
+            $data['kegiatan_evaluatif_id'] ?? null,
             $data['komponen_id'] ?? null,
         );
 
@@ -1271,20 +1271,20 @@ class PenilaianController extends Controller
     }
 
     /**
-     * Aturan komponen bersumber peristiwa lain: wajib memilih peristiwa asal,
+     * Aturan komponen bersumber kegiatanEvaluatif lain: wajib memilih kegiatanEvaluatif asal,
      * sejenjang + setahun ajaran, dan bukan dirinya sendiri.
      *
      * @param  array<string, mixed>  $data
      */
-    private function validasiSumberKomponen(PeristiwaNilai $peristiwa, array $data): void
+    private function validasiSumberKomponen(KegiatanEvaluatif $kegiatanEvaluatif, array $data): void
     {
         $sumber = $data['sumber'] ?? KomponenNilai::MANUAL;
-        $sumberId = $data['peristiwa_sumber_id'] ?? null;
+        $sumberId = $data['kegiatan_evaluatif_sumber_id'] ?? null;
 
-        if ($sumber !== KomponenNilai::PERISTIWA) {
+        if ($sumber !== KomponenNilai::KEGIATAN_EVALUATIF) {
             if ($sumberId !== null) {
                 throw ValidationException::withMessages([
-                    'peristiwa_sumber_id' => 'Peristiwa sumber hanya dipakai bila sumber = "peristiwa".',
+                    'kegiatan_evaluatif_sumber_id' => 'Kegiatan Evaluatif sumber hanya dipakai bila sumber = "kegiatan_evaluatif".',
                 ]);
             }
 
@@ -1292,32 +1292,32 @@ class PenilaianController extends Controller
         }
 
         if ($sumberId === null) {
-            throw ValidationException::withMessages(['peristiwa_sumber_id' => 'Pilih peristiwa sumber.']);
+            throw ValidationException::withMessages(['kegiatan_evaluatif_sumber_id' => 'Pilih kegiatan evaluatif sumber.']);
         }
-        if ((int) $sumberId === $peristiwa->id) {
-            throw ValidationException::withMessages(['peristiwa_sumber_id' => 'Peristiwa sumber tidak boleh dirinya sendiri.']);
+        if ((int) $sumberId === $kegiatanEvaluatif->id) {
+            throw ValidationException::withMessages(['kegiatan_evaluatif_sumber_id' => 'Kegiatan Evaluatif sumber tidak boleh dirinya sendiri.']);
         }
-        $asal = PeristiwaNilai::find($sumberId);
-        if ($asal === null || $asal->jenjang !== $peristiwa->jenjang || $asal->tahun_ajaran !== $peristiwa->tahun_ajaran) {
+        $asal = KegiatanEvaluatif::find($sumberId);
+        if ($asal === null || $asal->jenjang !== $kegiatanEvaluatif->jenjang || $asal->tahun_ajaran !== $kegiatanEvaluatif->tahun_ajaran) {
             throw ValidationException::withMessages([
-                'peristiwa_sumber_id' => 'Peristiwa sumber harus sejenjang dan setahun ajaran.',
+                'kegiatan_evaluatif_sumber_id' => 'Kegiatan Evaluatif sumber harus sejenjang dan setahun ajaran.',
             ]);
         }
     }
 
-    private function peristiwaWajib(Request $request): PeristiwaNilai
+    private function kegiatanEvaluatifWajib(Request $request): KegiatanEvaluatif
     {
-        $id = $request->input('peristiwa_id');
+        $id = $request->input('kegiatan_evaluatif_id');
         if ($id === null || $id === '') {
-            throw ValidationException::withMessages(['peristiwa_id' => 'Pilih peristiwa penilaian.']);
+            throw ValidationException::withMessages(['kegiatan_evaluatif_id' => 'Pilih kegiatan evaluatif penilaian.']);
         }
-        $peristiwa = PeristiwaNilai::find($id);
-        if ($peristiwa === null) {
-            throw ValidationException::withMessages(['peristiwa_id' => 'Peristiwa tidak ditemukan.']);
+        $kegiatanEvaluatif = KegiatanEvaluatif::find($id);
+        if ($kegiatanEvaluatif === null) {
+            throw ValidationException::withMessages(['kegiatan_evaluatif_id' => 'Kegiatan Evaluatif tidak ditemukan.']);
         }
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
-        return $peristiwa;
+        return $kegiatanEvaluatif;
     }
 
     private function jenjangWajib(Request $request): string
@@ -1366,15 +1366,15 @@ class PenilaianController extends Controller
 
     /**
      * Santri peserta leger: riwayat pada (jenjang, TA, semester) + saringan
-     * CAKUPAN peristiwa (tingkat akhir) + filter kelas/tingkat/pencarian.
+     * CAKUPAN kegiatanEvaluatif (tingkat akhir) + filter kelas/tingkat/pencarian.
      *
      * @param  list<int>  $kelasIds
      * @param  list<string>  $tingkat
      */
-    private function santriLeger(PeristiwaNilai $peristiwa, string $semester, array $kelasIds, array $tingkat, string $q)
+    private function santriLeger(KegiatanEvaluatif $kegiatanEvaluatif, string $semester, array $kelasIds, array $tingkat, string $q)
     {
-        $jenjang = $peristiwa->jenjang;
-        $ta = $peristiwa->tahun_ajaran;
+        $jenjang = $kegiatanEvaluatif->jenjang;
+        $ta = $kegiatanEvaluatif->tahun_ajaran;
         $akhir = TingkatJenjang::akhir($jenjang);
 
         $query = DB::table('riwayat_belajar as rb')
@@ -1394,9 +1394,9 @@ class PenilaianController extends Controller
             ->orderBy('rb.tingkat')->orderBy('kelas.nama_kelas')->orderBy('rb.no_absen')->orderBy('santri.nama_lengkap');
 
         if ($akhir !== null) {
-            if ($peristiwa->cakupan === PeristiwaNilai::CAKUPAN_TINGKAT_AKHIR) {
+            if ($kegiatanEvaluatif->cakupan === KegiatanEvaluatif::CAKUPAN_TINGKAT_AKHIR) {
                 $query->where('rb.tingkat', $akhir);
-            } elseif ($peristiwa->cakupan === PeristiwaNilai::CAKUPAN_KECUALI_AKHIR) {
+            } elseif ($kegiatanEvaluatif->cakupan === KegiatanEvaluatif::CAKUPAN_KECUALI_AKHIR) {
                 $query->where(fn ($w) => $w->whereNull('rb.tingkat')->orWhere('rb.tingkat', '!=', $akhir));
             }
         }
@@ -1482,7 +1482,7 @@ class PenilaianController extends Controller
      * @param  list<int>  $santriIds
      * @param  list<array{key: string, mapel_id: int}>  $kolom
      */
-    private function petaNilai(array $santriIds, array $kolom, string $ta, string $semester, int $peristiwaId): array
+    private function petaNilai(array $santriIds, array $kolom, string $ta, string $semester, int $kegiatanEvaluatifId): array
     {
         if ($santriIds === [] || $kolom === []) {
             return [];
@@ -1498,7 +1498,7 @@ class PenilaianController extends Controller
             ->whereIn('pm.mata_pelajaran_id', $mapelIds)
             ->where('ns.tahun_ajaran', $ta)
             ->where('ns.semester', $semester)
-            ->where('ns.peristiwa_id', $peristiwaId)
+            ->where('ns.kegiatan_evaluatif_id', $kegiatanEvaluatifId)
             ->select(
                 'ns.santri_id', 'pm.mata_pelajaran_id', 'ns.nilai_akhir', 'ns.predikat', 'ns.sumber',
                 'pg.nama_lengkap', 'pg.gelar_depan', 'pg.gelar_belakang', 'pg.jenis_kelamin',
@@ -1523,7 +1523,7 @@ class PenilaianController extends Controller
     }
 
     /** @return array{peta: array<int, int>, total: int} */
-    private function hitungPeringkatKelas(int $peristiwaId, ?int $kelasId, string $ta, string $semester): array
+    private function hitungPeringkatKelas(int $kegiatanEvaluatifId, ?int $kelasId, string $ta, string $semester): array
     {
         if ($kelasId === null) {
             return ['peta' => [], 'total' => 0];
@@ -1533,7 +1533,7 @@ class PenilaianController extends Controller
             ->where('rb.tahun_ajaran', $ta)->where('rb.semester', $semester)
             ->where('rb.kelas_id', $kelasId)
             ->where('ns.tahun_ajaran', $ta)->where('ns.semester', $semester)
-            ->where('ns.peristiwa_id', $peristiwaId)
+            ->where('ns.kegiatan_evaluatif_id', $kegiatanEvaluatifId)
             ->groupBy('ns.santri_id')
             ->selectRaw('ns.santri_id, AVG(ns.nilai_akhir) as rata')
             ->pluck('rata', 'ns.santri_id')
@@ -1547,11 +1547,11 @@ class PenilaianController extends Controller
      * @param  list<int|null>  $kelasIds
      * @return array<int, array{peta: array<int, int>, total: int}>
      */
-    private function peringkatPerKelas(int $peristiwaId, array $kelasIds, string $ta, string $semester): array
+    private function peringkatPerKelas(int $kegiatanEvaluatifId, array $kelasIds, string $ta, string $semester): array
     {
         $hasil = [];
         foreach (array_unique(array_filter($kelasIds, fn ($id) => $id !== null)) as $kelasId) {
-            $hasil[(int) $kelasId] = $this->hitungPeringkatKelas($peristiwaId, (int) $kelasId, $ta, $semester);
+            $hasil[(int) $kelasId] = $this->hitungPeringkatKelas($kegiatanEvaluatifId, (int) $kelasId, $ta, $semester);
         }
 
         return $hasil;
@@ -1559,7 +1559,7 @@ class PenilaianController extends Controller
 
     /** @return array{peringkat: ?int, total: int} */
     private function rekapKelas(
-        int $peristiwaId,
+        int $kegiatanEvaluatifId,
         ?int $kelasId,
         string $ta,
         string $semester,
@@ -1567,7 +1567,7 @@ class PenilaianController extends Controller
         string $batas,
         ?array $peringkatKelas = null,
     ): array {
-        $data = $peringkatKelas ?? $this->hitungPeringkatKelas($peristiwaId, $kelasId, $ta, $semester);
+        $data = $peringkatKelas ?? $this->hitungPeringkatKelas($kegiatanEvaluatifId, $kelasId, $ta, $semester);
         $nilai = $data['peta'][$santriId] ?? null;
         $total = $data['total'];
         $cutoff = $batas === 'semua' ? $total : (int) $batas;

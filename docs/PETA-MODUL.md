@@ -488,7 +488,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA6. Penilaian
 
-### DA6.1 Nilai & Peristiwa `Belum dijadwalkan (Backlog)`
+### DA6.1 Nilai & Kegiatan Evaluatif `Belum dijadwalkan (Backlog)`
 **Belum dijadwalkan (Backlog)**
 - Kunci dan buka kunci nilai
   - [ ] kunci setelah cetak
@@ -513,18 +513,24 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Pemeriksaan: typecheck, tes backend/frontend terkait, serta uji kolom dinamis dan pagination hijau
 - Halaman Input Manual Nilai Akhir
   - [x] Leger menyediakan input langsung sel mapel lewat Mode Ubah ExcelTable, dengan rail Tingkat/Kelas yang ada
-  - [x] Nilai akhir mengikuti rentang peristiwa (0–10/0–100/0–4) dan tersimpan per santri + mapel + peristiwa + semester; sel kosong menghapus nilai; predikat dihitung
+  - [x] Nilai akhir mengikuti rentang kegiatan evaluatif (0–10/0–100/0–4) dan tersimpan per santri + mapel + kegiatan evaluatif + semester; sel kosong menghapus nilai; predikat dihitung
   - [x] Nilai manual memakai sumber manual (badge M) dan tidak ditimpa Hitung ulang kecuali paksa; impor tetap I
   - [x] Pengguna tanpa penilaian.ubah tetap baca-saja; mapel tanpa pengampu ditolak
   - [x] Perubahan nilai ditahan selama Mode Ubah dan disimpan sekaligus saat keluar mode, bukan setiap sel berubah
   - [x] Typecheck, tes backend/frontend, serta uji edit/kosongkan di UI hijau
   - [x] Leger menampilkan kolom Jumlah dan Peringkat di akhir kolom; peringkat dihitung per kelas
   - [x] Baris peringkat 1, 2, dan 3 diberi latar hijau, kuning, dan biru dengan teks/nilai tetap terbaca
-  - [x] Rentang nilai per peristiwa (0-10/0-100/0-4, default 0-100) dapat dipilih di Leger dan tersimpan
+  - [x] Rentang nilai per kegiatan evaluatif (0-10/0-100/0-4, default 0-100) dapat dipilih di Leger dan tersimpan
   - [x] Nilai di luar rentang dilewati tanpa menggagalkan input/update lain; sel/baris valid tetap disimpan; toast memuat nama dan mapel
   - [x] Dokumentasi skema dan tes validasi rentang hijau
+- Ganti istilah Peristiwa menjadi Kegiatan Evaluatif (backend, database, frontend)
+  - [x] Skema dan migrasi rename: peristiwa_nilai → kegiatan_evaluatif, peserta_peristiwa_nilai → peserta_kegiatan_evaluatif, peristiwa_id → kegiatan_evaluatif_id, peristiwa_sumber_id → kegiatan_evaluatif_sumber_id; data dan relasi tetap utuh
+  - [x] Backend aktif memakai KegiatanEvaluatif: model, service, controller, request, route /penilaian/kegiatan-evaluatif, key JSON kegiatan_evaluatif, dan tes
+  - [x] Frontend memakai tipe/API KegiatanEvaluatif dan seluruh label UI berganti dari Peristiwa menjadi Kegiatan Evaluatif
+  - [x] SCHEMA/ERD/PRD/backend-detail serta istilah Board/PETA selaras; riwayat/CHANGELOG lama tidak diubah
+  - [x] Pemeriksaan: migrasi data-preserving, tes backend/frontend, typecheck, Pint; istilah peristiwa tersisa hanya di migrasi lama, riwayat CHANGELOG/operasi, serta nama indeks/constraint historis di database
 **Selesai (Done)**
-- Nilai per peristiwa
+- Nilai per kegiatan evaluatif
   - [x] PTS/ASAS/ASAT/UJIAN/UAP
   - [x] komponen/bobot
   - [x] sumber nilai
@@ -545,7 +551,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 - (kosong)
 **Menunggu peninjauan (For Review)**
 - Cetak massal satu kelas
-  - [x] Satu tombol Cetak satu kelas mencetak seluruh santri kelas/peristiwa/semester terpilih dalam satu dialog
+  - [x] Satu tombol Cetak satu kelas mencetak seluruh santri kelas/kegiatan evaluatif/semester terpilih dalam satu dialog
   - [x] Opsi peringkat dipilih sekali per batch (3/10/semua); peringkat di luar batas dikosongkan
   - [x] Cetak massal memakai gerbang kelengkapan yang sama; tombol terkunci dengan alasan bila nilai belum lengkap
   - [x] Nama wali kelas dan kepala dibekukan saat batch pertama; cetak massal dan cetak tunggal lingkup sama memakai snapshot; nama kosong diisi data terbaru lalu dibekukan
@@ -591,20 +597,26 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **Sedang dikerjakan (In Progress)**
 - (kosong)
 **Menunggu peninjauan (For Review)**
-- Pengelolaan nomor peserta peristiwa
-  - [x] Peserta mengikuti cakupan peristiwa, semester, tingkat, dan kelas
+- Pengelolaan nomor peserta kegiatan evaluatif
+  - [x] Peserta mengikuti cakupan kegiatan evaluatif, semester, tingkat, dan kelas
   - [x] Nomor peserta boleh kosong atau diisi manual, unik, dan asalnya tercatat
   - [x] Penyusun pola nomor memakai token dengan contoh hasil langsung
   - [x] Urutan dapat direset per tingkat atau disambung untuk seluruh tingkat
   - [x] Pembuatan nomor hanya mengisi yang kosong dan tidak menimpa nomor manual
   - [x] Pembuatan ulang nomor otomatis bersifat eksplisit dan nomor tetap tersimpan saat dibuka kembali
   - [x] Perubahan struktur data, dokumentasi, dan pemeriksaan terkait terselaraskan
+  - [x] Tabel nomor peserta memakai ExcelTable; nomor dapat diedit langsung di sel, sumber manual/otomatis tetap terlihat, dan penyimpanan/validasi berjalan
+  - [x] Penyusun pola nomor tampil sebagai dialog dari tombol pemicu, bukan seksi tetap di atas tabel
+  - [x] Tombol Pola nomor ditempatkan di toolbar ExcelTable, bukan di bar atas tab
+  - [x] Pencarian memakai TopBarSearch global dan combobox kegiatan evaluatif berada di toolbar ExcelTable, bukan bar atas tab
+  - [x] Rail Tingkat/Kelas tersedia di halaman kartu peserta dan menyaring daftar peserta
+  - [x] Label ringkasan peserta/belum bernomor di toolbar ExcelTable dihilangkan
 - Perancang desain, ukuran, dan cetak kartu peserta
   - [x] Tersedia beberapa desain bawaan dan desain buatan pengguna
   - [x] Gambar latar, data dinamis, dan teks tetap dapat dipilih
   - [x] Elemen dapat dipindahkan dan diatur pada bidang desain
   - [x] Foto kosong memakai siluet sesuai jenis kelamin
-  - [x] Ukuran tersimpan per peristiwa dan lembaga
+  - [x] Ukuran tersimpan per kegiatan evaluatif dan lembaga
   - [x] Peserta terpilih atau seluruh peserta dapat dicetak ke A4/PDF
 **Selesai (Done)**
 - (kosong)
@@ -1464,7 +1476,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **Menunggu peninjauan (For Review)**
 - (kosong)
 **Selesai (Done)**
-- Nilai per peristiwa
+- Nilai per kegiatan evaluatif
   - [x] komponen
   - [x] impor
   - [x] leger
@@ -1835,7 +1847,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [ ] kehadiran
   - [ ] nilai
 - Push dan riwayat alert
-  - [ ] peristiwa
+  - [ ] kegiatan evaluatif
   - [ ] penerima
   - [ ] tindak lanjut
 **Siap dikerjakan (To Do)**

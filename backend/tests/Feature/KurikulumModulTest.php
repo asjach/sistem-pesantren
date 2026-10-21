@@ -328,7 +328,7 @@ class KurikulumModulTest extends TestCase
             'kelas_id' => $kelas->id, 'tingkat' => '1', 'status_awal' => 'santri_baru',
             'status_akhir' => 'aktif', 'is_active_riwayat' => RiwayatBelajar::YA,
         ]);
-        $peristiwaId = DB::table('peristiwa_nilai')->insertGetId([
+        $kegiatanEvaluatifId = DB::table('kegiatan_evaluatif')->insertGetId([
             'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'kode' => 'ASAS', 'nama' => 'ASAS',
             'cakupan' => 'semua', 'kurikulum' => 'keduanya', 'jenis_rapor' => 'akhir', 'urutan' => 1,
             'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
@@ -337,7 +337,7 @@ class KurikulumModulTest extends TestCase
             ->where('mata_pelajaran_id', $fiqih->id)->value('id');
         DB::table('nilai_santri')->insert([
             'santri_id' => $santri->id, 'pengampu_mapel_id' => $pengampuId,
-            'tahun_ajaran' => self::TA, 'semester' => '1', 'peristiwa_id' => $peristiwaId,
+            'tahun_ajaran' => self::TA, 'semester' => '1', 'kegiatan_evaluatif_id' => $kegiatanEvaluatifId,
             'nilai_akhir' => 80, 'sumber' => 'impor', 'created_at' => now(), 'updated_at' => now(),
         ]);
 

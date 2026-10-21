@@ -892,7 +892,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `pengampu_mapel_id`: FK → pengampu_mapel [cascade]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
 - `semester`: string(2) — '1' atau '2'
-- `peristiwa_id`: FK → peristiwa_nilai [cascade] — nilai akhir PER PERISTIWA
+- `kegiatan_evaluatif_id`: FK → kegiatan_evaluatif [cascade] — nilai akhir PER KEGIATAN EVALUATIF
 - `nilai_formatif`: decimal(5, 2) [default 0]
 - `nilai_sumatif`: decimal(5, 2) [default 0]
 - `nilai_akhir`: decimal(5, 2) [default 0]
@@ -900,7 +900,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `predikat`: string(2) [null] — A, B, C, D
 - `catatan_capaian`: text [null]
 - `created_at`, `updated_at`
-- UNIQUE(`santri_id`, `pengampu_mapel_id`, `tahun_ajaran`, `semester`, `peristiwa_id`, `uq_nilai_santri_peristiwa`)
+- UNIQUE(`santri_id`, `pengampu_mapel_id`, `tahun_ajaran`, `semester`, `kegiatan_evaluatif_id`, `uq_nilai_santri_peristiwa`)
 
 ### `rapor_catatan_wali`
 - `id` PK
@@ -919,15 +919,15 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 
 ### `batch_cetak_rapor` (snapshot penanda tangan per batch cetak)
 - `id` PK
-- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `kegiatan_evaluatif_id`: FK → kegiatan_evaluatif [cascade]
 - `semester`: string(2) — '1' atau '2'
 - `kelas_id`: FK → kelas [cascade]
 - `wali_kelas`: varchar(255) [null] — nama + sapaan + gelar saat batch pertama; nama kosong diisi data terbaru pada cetak berikutnya lalu dibekukan
 - `kepala`: varchar(255) [null] — kepala madrasah saat batch pertama, aturan pengisian sama dengan `wali_kelas`
 - `created_at`, `updated_at`
-- UNIQUE(`peristiwa_id`, `semester`, `kelas_id`, `uq_batch_cetak_rapor`) — satu snapshot per kelas + peristiwa + semester; cetak ulang (massal maupun tunggal) memakai snapshot ini
+- UNIQUE(`kegiatan_evaluatif_id`, `semester`, `kelas_id`, `uq_batch_cetak_rapor`) — satu snapshot per kelas + kegiatan evaluatif + semester; cetak ulang (massal maupun tunggal) memakai snapshot ini
 
-### `peristiwa_nilai` (master peristiwa penilaian per jenjang + TA)
+### `kegiatan_evaluatif` (master kegiatan evaluatif penilaian per jenjang + TA)
 - `id` PK
 - `jenjang`: varchar(20) FK → lembaga.jenjang [cascade update + delete]
 - `tahun_ajaran`: varchar(9) FK → tahun_ajaran.nama [cascade update + delete]
@@ -935,32 +935,32 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `nama`: varchar(100)
 - `cakupan`: enum('semua','kecuali_akhir','tingkat_akhir') [default 'semua'] — peserta (tingkat akhir dari `ref_tingkat.urutan` tertinggi)
 - `kurikulum`: enum('kemenag','pesantren','keduanya') [default 'keduanya']
-- `jenis_rapor`: enum('akhir','sementara','tidak_ada') [default 'tidak_ada'] — `akhir` = rapor akhir semester/tahun (ASAS/ASAT); `sementara` = rapor tengah periode; `tidak_ada` = nilai ujian/ijazah tanpa rapor (UJIAN/UAP). Hanya peristiwa ber-rapor yang muncul di halaman Rapor; endpoint `rapor`/`rapor-kelas` menolak (422) peristiwa `tidak_ada`.
-- `rentang_nilai`: varchar(10) [default '0-100'] — pilihan `0-10` | `0-100` | `0-4`; batas atas input manual Leger dan impor nilai untuk peristiwa ini. Nilai lama tidak dikonversi saat rentang berubah.
+- `jenis_rapor`: enum('akhir','sementara','tidak_ada') [default 'tidak_ada'] — `akhir` = rapor akhir semester/tahun (ASAS/ASAT); `sementara` = rapor tengah periode; `tidak_ada` = nilai ujian/ijazah tanpa rapor (UJIAN/UAP). Hanya kegiatan evaluatif ber-rapor yang muncul di halaman Rapor; endpoint `rapor`/`rapor-kelas` menolak (422) kegiatan evaluatif `tidak_ada`.
+- `rentang_nilai`: varchar(10) [default '0-100'] — pilihan `0-10` | `0-100` | `0-4`; batas atas input manual Leger dan impor nilai untuk kegiatan evaluatif ini. Nilai lama tidak dikonversi saat rentang berubah.
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `tahun_ajaran`, `kode`, `uq_peristiwa_nilai`)
 
-### `pengaturan_nomor_peserta` (pola nomor per peristiwa + semester)
+### `pengaturan_nomor_peserta` (pola nomor per kegiatan evaluatif + semester)
 - `id` PK
-- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `kegiatan_evaluatif_id`: FK → kegiatan_evaluatif [cascade]
 - `semester`: string(2) — '1' atau '2'
-- `template`: varchar(200) — pola dengan bagian dinamis (token), mis. `{ta_awal_2}.{ta_akhir_2}.{kode_peristiwa}.{tingkat_2}.{nomor_4}`
+- `template`: varchar(200) — pola dengan bagian dinamis (token), mis. `{ta_awal_2}.{ta_akhir_2}.{kode_kegiatan_evaluatif}.{tingkat_2}.{nomor_4}`
 - `mode_urutan`: enum('per_tingkat','semua_tingkat') [default 'per_tingkat'] — nomor dimulai kembali pada setiap tingkat atau bersambung untuk seluruh tingkat
 - `created_at`, `updated_at`
-- UNIQUE(`peristiwa_id`, `semester`, `uq_atur_nomor_peristiwa_semester`)
+- UNIQUE(`kegiatan_evaluatif_id`, `semester`, `uq_atur_nomor_peristiwa_semester`)
 
-### `peserta_peristiwa_nilai` (nomor peserta per peristiwa + semester)
+### `peserta_kegiatan_evaluatif` (nomor peserta per kegiatan evaluatif + semester)
 - `id` PK
-- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `kegiatan_evaluatif_id`: FK → kegiatan_evaluatif [cascade]
 - `santri_id`: FK → santri [cascade]
 - `semester`: string(2) — '1' atau '2'
 - `nomor_peserta`: varchar(100) [null] — boleh kosong, diisi manual, atau dibuat dari pola
 - `sumber_nomor`: enum('manual','otomatis') [null] — nomor manual tidak ditimpa saat pembuatan ulang nomor otomatis
 - `created_at`, `updated_at`
-- UNIQUE(`peristiwa_id`, `semester`, `santri_id`, `uq_peserta_peristiwa_semester`)
-- UNIQUE(`peristiwa_id`, `semester`, `nomor_peserta`, `uq_nomor_peristiwa_semester`)
+- UNIQUE(`kegiatan_evaluatif_id`, `semester`, `santri_id`, `uq_peserta_peristiwa_semester`)
+- UNIQUE(`kegiatan_evaluatif_id`, `semester`, `nomor_peserta`, `uq_nomor_peristiwa_semester`)
 
 ### `desain_kartu_peserta` (desain kartu peserta per lembaga)
 - `id` PK
@@ -973,46 +973,46 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`jenjang`, `nama`, `uq_desain_kartu_jenjang_nama`)
 
-### `pengaturan_kartu_peserta` (pilihan desain + ukuran kartu per peristiwa)
+### `pengaturan_kartu_peserta` (pilihan desain + ukuran kartu per kegiatan evaluatif)
 - `id` PK
-- `peristiwa_id`: FK → peristiwa_nilai [cascade]
-- `desain_id`: FK → desain_kartu_peserta [null, nullOnDelete] — desain milik lembaga peristiwa
+- `kegiatan_evaluatif_id`: FK → kegiatan_evaluatif [cascade]
+- `desain_id`: FK → desain_kartu_peserta [null, nullOnDelete] — desain milik lembaga kegiatan evaluatif
 - `template_bawaan`: varchar(30) [null] — `klasik` | `modern` | `bersih`; dipakai bila `desain_id` kosong
 - `lebar_mm`: decimal(6,2) [default 85.60]
 - `tinggi_mm`: decimal(6,2) [default 53.98]
 - `created_at`, `updated_at`
-- UNIQUE(`peristiwa_id`, `uq_pengaturan_kartu_peristiwa`)
+- UNIQUE(`kegiatan_evaluatif_id`, `uq_pengaturan_kartu_peristiwa`)
 
-### `komponen_nilai` (komponen MILIK SATU peristiwa; bobot jadi kolom)
+### `komponen_nilai` (komponen MILIK SATU kegiatan evaluatif; bobot jadi kolom)
 - `id` PK
-- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `kegiatan_evaluatif_id`: FK → kegiatan_evaluatif [cascade]
 - `nama`: string
 - `kode`: varchar(20) [null]
 - `bobot`: decimal(5, 2) [default 0]
-- `sumber`: enum('manual','rapor_otomatis','peristiwa') [default 'manual'] — `rapor_otomatis` = dihitung dari rata-rata rapor N tingkat sebelumnya; `peristiwa` = mengambil **nilai akhir peristiwa lain** (`peristiwa_sumber_id`) untuk mapel yang sama (mis. komponen "PTS" di ASAS/ASAT ← peristiwa PTS). Dua sumber otomatis boleh ditimpa baris `nilai_komponen` manual.
+- `sumber`: enum('manual','rapor_otomatis','kegiatan_evaluatif') [default 'manual'] — `rapor_otomatis` = dihitung dari rata-rata rapor N tingkat sebelumnya; `kegiatan evaluatif` = mengambil **nilai akhir kegiatan evaluatif lain** (`kegiatan_evaluatif_sumber_id`) untuk mapel yang sama (mis. komponen "PTS" di ASAS/ASAT ← kegiatan evaluatif PTS). Dua sumber otomatis boleh ditimpa baris `nilai_komponen` manual.
 - `jumlah_tingkat_rapor`: tinyint unsigned [null] — N (2/3), hanya bermakna bila `sumber='rapor_otomatis'`
-- `peristiwa_sumber_id`: FK → peristiwa_nilai [null, nullOnDelete] — peristiwa asal bila `sumber='peristiwa'`; wajib sejenjang + setahun ajaran dan bukan dirinya sendiri (divalidasi controller). Rujukan SATU tingkat (nilai akhir peristiwa asal dibaca apa adanya → tanpa rekursi).
+- `kegiatan_evaluatif_sumber_id`: FK → kegiatan_evaluatif [null, nullOnDelete] — kegiatan evaluatif asal bila `sumber='kegiatan_evaluatif'`; wajib sejenjang + setahun ajaran dan bukan dirinya sendiri (divalidasi controller). Rujukan SATU tingkat (nilai akhir kegiatan evaluatif asal dibaca apa adanya → tanpa rekursi).
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`
-- UNIQUE(`peristiwa_id`, `nama`, `uq_komponen_peristiwa`)
+- UNIQUE(`kegiatan_evaluatif_id`, `nama`, `uq_komponen_peristiwa`)
 
-### `kkm_kegiatan` (KKM per peristiwa; satu baris khusus `AKHIR`)
+### `kkm_kegiatan` (KKM per kegiatan evaluatif; satu baris khusus `AKHIR`)
 - `id` PK
-- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `kegiatan_evaluatif_id`: FK → kegiatan_evaluatif [cascade]
 - `kegiatan`: varchar(50) — nama komponen, atau `AKHIR` untuk KKM nilai akhir
 - `kkm`: decimal(5, 2) [default 0]
 - `created_at`, `updated_at`
-- UNIQUE(`peristiwa_id`, `kegiatan`, `uq_kkm_peristiwa`)
+- UNIQUE(`kegiatan_evaluatif_id`, `kegiatan`, `uq_kkm_peristiwa`)
 
-### `rentang_predikat` (predikat berjangkar ke KKM `AKHIR` per peristiwa)
+### `rentang_predikat` (predikat berjangkar ke KKM `AKHIR` per kegiatan evaluatif)
 - `id` PK
-- `peristiwa_id`: FK → peristiwa_nilai [cascade]
+- `kegiatan_evaluatif_id`: FK → kegiatan_evaluatif [cascade]
 - `predikat`: string(2) — A, B, C, D
 - `offset_bawah`: decimal(5, 2) [null] — berlaku bila nilai ≥ KKM + offset; null = tanpa batas bawah
 - `keterangan`: string [null]
 - `created_at`, `updated_at`
-- UNIQUE(`peristiwa_id`, `predikat`, `uq_predikat_peristiwa`)
+- UNIQUE(`kegiatan_evaluatif_id`, `predikat`, `uq_predikat_peristiwa`)
 
 ### `nilai_komponen` (skor per komponen — jalur HITUNG)
 - `id` PK

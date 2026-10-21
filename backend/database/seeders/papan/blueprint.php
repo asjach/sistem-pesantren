@@ -156,7 +156,7 @@ $blueprint = [
             ]],
         ]],
         ['kode' => 'DA6', 'nama' => 'Penilaian', 'sub' => [
-            ['kode' => 'DA6.1', 'nama' => 'Nilai & Peristiwa', 'butir' => [
+            ['kode' => 'DA6.1', 'nama' => 'Nilai & Kegiatan Evaluatif', 'butir' => [
                 'backlog' => [
                     ['Bobot UJIAN final', ['UM 60', 'rata-rata rapor 40', 'kebijakan pesantren']],
                 ],
@@ -164,7 +164,7 @@ $blueprint = [
                     ['Kunci dan buka kunci nilai', ['kunci setelah cetak', 'alasan buka', 'log audit']],
                 ],
                 'done' => [
-                    ['Nilai per peristiwa', ['PTS/ASAS/ASAT/UJIAN/UAP', 'komponen/bobot', 'sumber nilai']],
+                    ['Nilai per kegiatan evaluatif', ['PTS/ASAS/ASAT/UJIAN/UAP', 'komponen/bobot', 'sumber nilai']],
                     ['Leger crosstab dan rapor', ['ekspor Excel', 'cetak per santri/kelas', 'rekap']],
                     ['Impor nilai', ['empat template', 'import-potong', 'validasi']],
                 ],
@@ -192,7 +192,7 @@ $blueprint = [
             ]],
             ['kode' => 'DA6.X', 'nama' => 'Cetak Kartu Peserta', 'butir' => [
                 'todo' => [
-                    ['cetak kartu peserta peristiwa', []],
+                    ['cetak kartu peserta kegiatan evaluatif', []],
                     ['ukuran (tinggi dan lebar) bisa dicustom', []],
                 ],
             ]],
@@ -502,7 +502,7 @@ $blueprint = [
         ['kode' => 'MG3', 'nama' => 'Input Nilai', 'sub' => [
             ['kode' => 'MG3.1', 'nama' => 'API Nilai', 'butir' => [
                 'done' => [
-                    ['Nilai per peristiwa', ['komponen', 'impor', 'leger']],
+                    ['Nilai per kegiatan evaluatif', ['komponen', 'impor', 'leger']],
                 ],
             ]],
             ['kode' => 'MG3.2', 'nama' => 'UI Input', 'butir' => [

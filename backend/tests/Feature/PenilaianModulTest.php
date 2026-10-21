@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\KegiatanEvaluatif;
 use App\Models\Kelas;
 use App\Models\KomponenNilai;
 use App\Models\Lembaga;
@@ -9,7 +10,6 @@ use App\Models\LembagaSantri;
 use App\Models\MataPelajaran;
 use App\Models\NilaiKomponen;
 use App\Models\PengampuMapel;
-use App\Models\PeristiwaNilai;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
@@ -21,9 +21,9 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Modul Penilaian per PERISTIWA: bawaan peristiwa (ASAS/ASAT/UJIAN/UAP),
+ * Modul Penilaian per KEGIATAN EVALUATIF: bawaan kegiatanEvaluatif (ASAS/ASAT/UJIAN/UAP),
  * saringan cakupan tingkat akhir di leger, hitung nilai akhir dari komponen,
- * dan rapor per peristiwa.
+ * dan rapor per kegiatanEvaluatif.
  */
 class PenilaianModulTest extends TestCase
 {
@@ -109,7 +109,7 @@ class PenilaianModulTest extends TestCase
         return [$mapel, $pengampu];
     }
 
-    public function test_01_bawaan_membuat_peristiwa_dengan_cakupan(): void
+    public function test_01_bawaan_membuat_kegiatan_evaluatif_dengan_cakupan(): void
     {
         $this->lembaga('MI', 'Madrasah Ibtidaiyah');
         $this->tahunAjaran();
@@ -119,40 +119,40 @@ class PenilaianModulTest extends TestCase
             ->postJson('/api/admin/penilaian/bawaan', ['jenjang' => 'MI', 'tahun_ajaran' => self::TA])
             ->assertStatus(200);
 
-        $peristiwa = PeristiwaNilai::orderBy('urutan')->get();
-        $this->assertSame(['PTS', 'ASAS', 'ASAT', 'UJIAN', 'UAP'], $peristiwa->pluck('kode')->all());
+        $kegiatanEvaluatif = KegiatanEvaluatif::orderBy('urutan')->get();
+        $this->assertSame(['PTS', 'ASAS', 'ASAT', 'UJIAN', 'UAP'], $kegiatanEvaluatif->pluck('kode')->all());
         $this->assertSame(
             ['semua', 'semua', 'kecuali_akhir', 'tingkat_akhir', 'tingkat_akhir'],
-            $peristiwa->pluck('cakupan')->all(),
+            $kegiatanEvaluatif->pluck('cakupan')->all(),
         );
 
         $this->assertSame(
             ['sementara', 'akhir', 'akhir', 'tidak_ada', 'tidak_ada'],
-            $peristiwa->pluck('jenis_rapor')->all(),
+            $kegiatanEvaluatif->pluck('jenis_rapor')->all(),
         );
 
-        $pts = $peristiwa->firstWhere('kode', 'PTS');
-        $this->assertSame(100.0, (float) KomponenNilai::where('peristiwa_id', $pts->id)->sum('bobot'));
+        $pts = $kegiatanEvaluatif->firstWhere('kode', 'PTS');
+        $this->assertSame(100.0, (float) KomponenNilai::where('kegiatan_evaluatif_id', $pts->id)->sum('bobot'));
 
-        $asas = $peristiwa->firstWhere('kode', 'ASAS');
-        $this->assertSame(100.0, (float) KomponenNilai::where('peristiwa_id', $asas->id)->sum('bobot'));
+        $asas = $kegiatanEvaluatif->firstWhere('kode', 'ASAS');
+        $this->assertSame(100.0, (float) KomponenNilai::where('kegiatan_evaluatif_id', $asas->id)->sum('bobot'));
 
-        $komponenPts = KomponenNilai::where('peristiwa_id', $asas->id)->where('nama', 'PTS')->first();
+        $komponenPts = KomponenNilai::where('kegiatan_evaluatif_id', $asas->id)->where('nama', 'PTS')->first();
         $this->assertNotNull($komponenPts);
-        $this->assertSame(KomponenNilai::PERISTIWA, $komponenPts->sumber);
-        $this->assertSame($pts->id, $komponenPts->peristiwa_sumber_id);
+        $this->assertSame(KomponenNilai::KEGIATAN_EVALUATIF, $komponenPts->sumber);
+        $this->assertSame($pts->id, $komponenPts->kegiatan_evaluatif_sumber_id);
 
-        $ujian = $peristiwa->firstWhere('kode', 'UJIAN');
-        $rapor = KomponenNilai::where('peristiwa_id', $ujian->id)->where('nama', 'Rata-rata Rapor')->first();
+        $ujian = $kegiatanEvaluatif->firstWhere('kode', 'UJIAN');
+        $rapor = KomponenNilai::where('kegiatan_evaluatif_id', $ujian->id)->where('nama', 'Rata-rata Rapor')->first();
         $this->assertNotNull($rapor);
         $this->assertSame(KomponenNilai::RAPOR_OTOMATIS, $rapor->sumber);
         $this->assertSame(2, $rapor->jumlah_tingkat_rapor);
 
-        $this->assertDatabaseHas('kkm_kegiatan', ['peristiwa_id' => $asas->id, 'kegiatan' => 'AKHIR', 'kkm' => 75]);
-        $this->assertSame(4, DB::table('rentang_predikat')->where('peristiwa_id', $asas->id)->count());
+        $this->assertDatabaseHas('kkm_kegiatan', ['kegiatan_evaluatif_id' => $asas->id, 'kegiatan' => 'AKHIR', 'kkm' => 75]);
+        $this->assertSame(4, DB::table('rentang_predikat')->where('kegiatan_evaluatif_id', $asas->id)->count());
     }
 
-    public function test_02_bawaan_m_d_tanpa_peristiwa_ujian_kemenag(): void
+    public function test_02_bawaan_m_d_tanpa_kegiatan_evaluatif_ujian_kemenag(): void
     {
         $this->lembaga('MD', 'Madrasah Diniyah');
         $this->tahunAjaran();
@@ -164,7 +164,7 @@ class PenilaianModulTest extends TestCase
 
         $this->assertSame(
             ['PTS', 'ASAS', 'ASAT', 'UAP'],
-            PeristiwaNilai::orderBy('urutan')->pluck('kode')->all(),
+            KegiatanEvaluatif::orderBy('urutan')->pluck('kode')->all(),
         );
     }
 
@@ -185,21 +185,21 @@ class PenilaianModulTest extends TestCase
             ->postJson('/api/admin/penilaian/bawaan', ['jenjang' => 'MI', 'tahun_ajaran' => self::TA])
             ->assertStatus(200);
 
-        $id = fn (string $kode) => PeristiwaNilai::where('kode', $kode)->value('id');
+        $id = fn (string $kode) => KegiatanEvaluatif::where('kode', $kode)->value('id');
 
         $asas = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/admin/penilaian/leger?jenjang=MI&tahun_ajaran='.urlencode(self::TA)."&semester=1&peristiwa_id={$id('ASAS')}")
+            ->getJson('/api/admin/penilaian/leger?jenjang=MI&tahun_ajaran='.urlencode(self::TA)."&semester=1&kegiatan_evaluatif_id={$id('ASAS')}")
             ->assertStatus(200)->json();
         $this->assertSame(2, $asas['total']);
 
         $asat = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/admin/penilaian/leger?jenjang=MI&tahun_ajaran='.urlencode(self::TA)."&semester=1&peristiwa_id={$id('ASAT')}")
+            ->getJson('/api/admin/penilaian/leger?jenjang=MI&tahun_ajaran='.urlencode(self::TA)."&semester=1&kegiatan_evaluatif_id={$id('ASAT')}")
             ->assertStatus(200)->json();
         $this->assertSame(1, $asat['total']);
         $this->assertSame('5', $asat['baris'][0]['tingkat']);
 
         $ujian = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/admin/penilaian/leger?jenjang=MI&tahun_ajaran='.urlencode(self::TA)."&semester=1&peristiwa_id={$id('UJIAN')}")
+            ->getJson('/api/admin/penilaian/leger?jenjang=MI&tahun_ajaran='.urlencode(self::TA)."&semester=1&kegiatan_evaluatif_id={$id('UJIAN')}")
             ->assertStatus(200)->json();
         $this->assertSame(1, $ujian['total']);
         $this->assertSame('6', $ujian['baris'][0]['tingkat']);
@@ -220,9 +220,9 @@ class PenilaianModulTest extends TestCase
             ->postJson('/api/admin/penilaian/bawaan', ['jenjang' => 'MI', 'tahun_ajaran' => self::TA])
             ->assertStatus(200);
 
-        $asas = PeristiwaNilai::where('kode', 'ASAS')->first();
+        $asas = KegiatanEvaluatif::where('kode', 'ASAS')->first();
         $skor = ['Harian' => 80, 'Tugas' => 90, 'PTS' => 70, 'Sumatif' => 100];
-        foreach (KomponenNilai::where('peristiwa_id', $asas->id)->get() as $k) {
+        foreach (KomponenNilai::where('kegiatan_evaluatif_id', $asas->id)->get() as $k) {
             NilaiKomponen::create([
                 'santri_id' => $santri->id, 'pengampu_mapel_id' => $pengampu->id,
                 'tahun_ajaran' => self::TA, 'semester' => '1',
@@ -232,7 +232,7 @@ class PenilaianModulTest extends TestCase
 
         $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/penilaian/hitung', [
-                'peristiwa_id' => $asas->id, 'semester' => '1', 'kelas_id' => $kelas->id,
+                'kegiatan_evaluatif_id' => $asas->id, 'semester' => '1', 'kelas_id' => $kelas->id,
             ])
             ->assertStatus(200)
             ->assertJsonPath('dihitung', 1)
@@ -240,11 +240,11 @@ class PenilaianModulTest extends TestCase
 
         $this->assertDatabaseHas('nilai_santri', [
             'santri_id' => $santri->id, 'pengampu_mapel_id' => $pengampu->id,
-            'peristiwa_id' => $asas->id, 'semester' => '1', 'nilai_akhir' => 88, 'sumber' => 'hitung',
+            'kegiatan_evaluatif_id' => $asas->id, 'semester' => '1', 'nilai_akhir' => 88, 'sumber' => 'hitung',
         ]);
 
         $this->assertSame('B', DB::table('nilai_santri')
-            ->where('santri_id', $santri->id)->where('peristiwa_id', $asas->id)->value('predikat'));
+            ->where('santri_id', $santri->id)->where('kegiatan_evaluatif_id', $asas->id)->value('predikat'));
     }
 
     public function test_05_hitung_melewati_baris_impor_kecuali_paksa(): void
@@ -261,16 +261,16 @@ class PenilaianModulTest extends TestCase
         $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/penilaian/bawaan', ['jenjang' => 'MI', 'tahun_ajaran' => self::TA])
             ->assertStatus(200);
-        $asas = PeristiwaNilai::where('kode', 'ASAS')->first();
+        $asas = KegiatanEvaluatif::where('kode', 'ASAS')->first();
 
         DB::table('nilai_santri')->insert([
             'santri_id' => $santri->id, 'pengampu_mapel_id' => $pengampu->id,
-            'tahun_ajaran' => self::TA, 'semester' => '1', 'peristiwa_id' => $asas->id,
+            'tahun_ajaran' => self::TA, 'semester' => '1', 'kegiatan_evaluatif_id' => $asas->id,
             'nilai_akhir' => 95, 'sumber' => 'impor', 'predikat' => 'A',
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        foreach (KomponenNilai::where('peristiwa_id', $asas->id)->get() as $k) {
+        foreach (KomponenNilai::where('kegiatan_evaluatif_id', $asas->id)->get() as $k) {
             NilaiKomponen::create([
                 'santri_id' => $santri->id, 'pengampu_mapel_id' => $pengampu->id,
                 'tahun_ajaran' => self::TA, 'semester' => '1',
@@ -279,23 +279,23 @@ class PenilaianModulTest extends TestCase
         }
 
         $this->actingAs($super, 'sanctum')
-            ->postJson('/api/admin/penilaian/hitung', ['peristiwa_id' => $asas->id, 'semester' => '1'])
+            ->postJson('/api/admin/penilaian/hitung', ['kegiatan_evaluatif_id' => $asas->id, 'semester' => '1'])
             ->assertStatus(200)
             ->assertJsonPath('dihitung', 0)
             ->assertJsonPath('dilewati_impor', 1);
 
         $this->assertSame(95.0, (float) DB::table('nilai_santri')
-            ->where('santri_id', $santri->id)->where('peristiwa_id', $asas->id)->value('nilai_akhir'));
+            ->where('santri_id', $santri->id)->where('kegiatan_evaluatif_id', $asas->id)->value('nilai_akhir'));
 
         $this->actingAs($super, 'sanctum')
-            ->postJson('/api/admin/penilaian/hitung', ['peristiwa_id' => $asas->id, 'semester' => '1', 'paksa' => true])
+            ->postJson('/api/admin/penilaian/hitung', ['kegiatan_evaluatif_id' => $asas->id, 'semester' => '1', 'paksa' => true])
             ->assertStatus(200)
             ->assertJsonPath('dihitung', 1);
         $this->assertSame('hitung', DB::table('nilai_santri')
-            ->where('santri_id', $santri->id)->where('peristiwa_id', $asas->id)->value('sumber'));
+            ->where('santri_id', $santri->id)->where('kegiatan_evaluatif_id', $asas->id)->value('sumber'));
     }
 
-    public function test_06_rapor_per_peristiwa_memuat_nilai_dan_terbilang(): void
+    public function test_06_rapor_per_kegiatan_evaluatif_memuat_nilai_dan_terbilang(): void
     {
         $this->lembaga('MI', 'Madrasah Ibtidaiyah');
         $this->tahunAjaran();
@@ -309,9 +309,9 @@ class PenilaianModulTest extends TestCase
         $this->actingAs($super, 'sanctum')
             ->postJson('/api/admin/penilaian/bawaan', ['jenjang' => 'MI', 'tahun_ajaran' => self::TA])
             ->assertStatus(200);
-        $asas = PeristiwaNilai::where('kode', 'ASAS')->first();
+        $asas = KegiatanEvaluatif::where('kode', 'ASAS')->first();
 
-        foreach (KomponenNilai::where('peristiwa_id', $asas->id)->get() as $k) {
+        foreach (KomponenNilai::where('kegiatan_evaluatif_id', $asas->id)->get() as $k) {
             NilaiKomponen::create([
                 'santri_id' => $santri->id, 'pengampu_mapel_id' => $pengampu->id,
                 'tahun_ajaran' => self::TA, 'semester' => '1',
@@ -319,21 +319,21 @@ class PenilaianModulTest extends TestCase
             ]);
         }
         $this->actingAs($super, 'sanctum')
-            ->postJson('/api/admin/penilaian/hitung', ['peristiwa_id' => $asas->id, 'semester' => '1'])
+            ->postJson('/api/admin/penilaian/hitung', ['kegiatan_evaluatif_id' => $asas->id, 'semester' => '1'])
             ->assertStatus(200);
 
         $res = $this->actingAs($super, 'sanctum')
-            ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&peristiwa_id={$asas->id}&semester=1")
+            ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&kegiatan_evaluatif_id={$asas->id}&semester=1")
             ->assertStatus(200)->json();
 
-        $this->assertSame('ASAS', $res['peristiwa']['kode']);
+        $this->assertSame('ASAS', $res['kegiatan_evaluatif']['kode']);
         $this->assertSame('Fiqih', $res['mapel'][0]['nama_mapel']);
         $this->assertSame(88.0, (float) $res['mapel'][0]['nilai_akhir']);
         $this->assertSame('delapan delapan', $res['mapel'][0]['terbilang']);
         $this->assertSame(1, $res['rekap']['peringkat']);
     }
 
-    public function test_07_rapor_ditolak_untuk_peristiwa_tanpa_rapor(): void
+    public function test_07_rapor_ditolak_untuk_kegiatan_evaluatif_tanpa_rapor(): void
     {
         $this->lembaga('MI', 'Madrasah Ibtidaiyah');
         $this->tahunAjaran();
@@ -348,20 +348,20 @@ class PenilaianModulTest extends TestCase
             ->postJson('/api/admin/penilaian/bawaan', ['jenjang' => 'MI', 'tahun_ajaran' => self::TA])
             ->assertStatus(200);
 
-        $ujian = PeristiwaNilai::where('kode', 'UJIAN')->first();
+        $ujian = KegiatanEvaluatif::where('kode', 'UJIAN')->first();
         $this->actingAs($super, 'sanctum')
-            ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&peristiwa_id={$ujian->id}&semester=1")
+            ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&kegiatan_evaluatif_id={$ujian->id}&semester=1")
             ->assertStatus(422)
-            ->assertJsonValidationErrors('peristiwa_id');
+            ->assertJsonValidationErrors('kegiatan_evaluatif_id');
 
         $this->actingAs($super, 'sanctum')
-            ->getJson("/api/admin/penilaian/rapor-kelas?peristiwa_id={$ujian->id}&semester=1&kelas_id={$kelas->id}")
+            ->getJson("/api/admin/penilaian/rapor-kelas?kegiatan_evaluatif_id={$ujian->id}&semester=1&kelas_id={$kelas->id}")
             ->assertStatus(422)
-            ->assertJsonValidationErrors('peristiwa_id');
+            ->assertJsonValidationErrors('kegiatan_evaluatif_id');
 
-        $asas = PeristiwaNilai::where('kode', 'ASAS')->first();
+        $asas = KegiatanEvaluatif::where('kode', 'ASAS')->first();
         $this->actingAs($super, 'sanctum')
-            ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&peristiwa_id={$asas->id}&semester=1")
+            ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&kegiatan_evaluatif_id={$asas->id}&semester=1")
             ->assertStatus(200);
     }
 
@@ -428,7 +428,7 @@ class PenilaianModulTest extends TestCase
         }
     }
 
-    public function test_08_komponen_pts_mengalir_dari_peristiwa_pts(): void
+    public function test_08_komponen_pts_mengalir_dari_kegiatan_evaluatif_pts(): void
     {
         $this->lembaga('MI', 'Madrasah Ibtidaiyah');
         $this->tahunAjaran();
@@ -443,18 +443,18 @@ class PenilaianModulTest extends TestCase
             ->postJson('/api/admin/penilaian/bawaan', ['jenjang' => 'MI', 'tahun_ajaran' => self::TA])
             ->assertStatus(200);
 
-        $pts = PeristiwaNilai::where('kode', 'PTS')->first();
-        $asas = PeristiwaNilai::where('kode', 'ASAS')->first();
+        $pts = KegiatanEvaluatif::where('kode', 'PTS')->first();
+        $asas = KegiatanEvaluatif::where('kode', 'ASAS')->first();
 
         DB::table('nilai_santri')->insert([
             'santri_id' => $santri->id, 'pengampu_mapel_id' => $pengampu->id,
-            'tahun_ajaran' => self::TA, 'semester' => '1', 'peristiwa_id' => $pts->id,
+            'tahun_ajaran' => self::TA, 'semester' => '1', 'kegiatan_evaluatif_id' => $pts->id,
             'nilai_akhir' => 90, 'sumber' => 'impor', 'predikat' => 'B',
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
         $skor = ['Harian' => 80, 'Tugas' => 90, 'Sumatif' => 100];
-        foreach (KomponenNilai::where('peristiwa_id', $asas->id)->get() as $k) {
+        foreach (KomponenNilai::where('kegiatan_evaluatif_id', $asas->id)->get() as $k) {
             if (! isset($skor[$k->nama])) {
                 continue;
             }
@@ -466,12 +466,12 @@ class PenilaianModulTest extends TestCase
         }
 
         $this->actingAs($super, 'sanctum')
-            ->postJson('/api/admin/penilaian/hitung', ['peristiwa_id' => $asas->id, 'semester' => '1'])
+            ->postJson('/api/admin/penilaian/hitung', ['kegiatan_evaluatif_id' => $asas->id, 'semester' => '1'])
             ->assertStatus(200)
             ->assertJsonPath('dihitung', 1)
             ->assertJsonPath('belum_lengkap', 0);
 
         $this->assertSame(92.0, (float) DB::table('nilai_santri')
-            ->where('santri_id', $santri->id)->where('peristiwa_id', $asas->id)->value('nilai_akhir'));
+            ->where('santri_id', $santri->id)->where('kegiatan_evaluatif_id', $asas->id)->value('nilai_akhir'));
     }
 }

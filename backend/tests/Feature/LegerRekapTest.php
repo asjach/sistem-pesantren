@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\KegiatanEvaluatif;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\MataPelajaran;
 use App\Models\NilaiSantri;
 use App\Models\PengampuMapel;
-use App\Models\PeristiwaNilai;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
@@ -27,7 +27,7 @@ class LegerRekapTest extends TestCase
 
     private User $admin;
 
-    private PeristiwaNilai $peristiwa;
+    private KegiatanEvaluatif $kegiatanEvaluatif;
 
     protected function setUp(): void
     {
@@ -45,7 +45,7 @@ class LegerRekapTest extends TestCase
             'phone' => '081555555555', 'password' => 'password',
         ]);
         $this->admin->assignRole('super_admin');
-        $this->peristiwa = PeristiwaNilai::create([
+        $this->kegiatanEvaluatif = KegiatanEvaluatif::create([
             'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'kode' => 'ASAS',
             'nama' => 'Asesmen Sumatif Akhir Semester', 'cakupan' => 'semua',
             'kurikulum' => 'keduanya', 'jenis_rapor' => 'akhir', 'urutan' => 1, 'is_active' => true,
@@ -79,7 +79,7 @@ class LegerRekapTest extends TestCase
         $this->santri('Daud', '26004', $kelasB, $wc, $wd, 60, 60);
 
         $respons = $this->actingAs($this->admin, 'sanctum')
-            ->getJson("/api/admin/penilaian/leger?peristiwa_id={$this->peristiwa->id}&semester=1")
+            ->getJson("/api/admin/penilaian/leger?kegiatan_evaluatif_id={$this->kegiatanEvaluatif->id}&semester=1")
             ->assertOk()
             ->json();
 
@@ -124,7 +124,7 @@ class LegerRekapTest extends TestCase
         foreach ([[$pengampuFikih, $nilaiFikih], [$pengampuMtk, $nilaiMtk]] as [$pengampuId, $nilai]) {
             NilaiSantri::create([
                 'santri_id' => $santri->id, 'pengampu_mapel_id' => $pengampuId,
-                'tahun_ajaran' => self::TA, 'semester' => '1', 'peristiwa_id' => $this->peristiwa->id,
+                'tahun_ajaran' => self::TA, 'semester' => '1', 'kegiatan_evaluatif_id' => $this->kegiatanEvaluatif->id,
                 'nilai_akhir' => $nilai, 'sumber' => NilaiSantri::IMPOR,
             ]);
         }

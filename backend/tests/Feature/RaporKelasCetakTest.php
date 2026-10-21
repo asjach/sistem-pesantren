@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\KegiatanEvaluatif;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
@@ -9,7 +10,6 @@ use App\Models\MataPelajaran;
 use App\Models\NilaiSantri;
 use App\Models\Pegawai;
 use App\Models\PengampuMapel;
-use App\Models\PeristiwaNilai;
 use App\Models\RiwayatBelajar;
 use App\Models\Santri;
 use App\Models\TahunAjaran;
@@ -33,7 +33,7 @@ class RaporKelasCetakTest extends TestCase
 
     private Kelas $kelas;
 
-    private PeristiwaNilai $asas;
+    private KegiatanEvaluatif $asas;
 
     private PengampuMapel $pengampu;
 
@@ -59,7 +59,7 @@ class RaporKelasCetakTest extends TestCase
         ]);
         $mapel = MataPelajaran::create(['jenjang' => 'MI', 'nama_mapel' => 'Fiqih', 'kelompok' => 'formal']);
         $this->pengampu = PengampuMapel::create(['kelas_id' => $this->kelas->id, 'mata_pelajaran_id' => $mapel->id]);
-        $this->asas = PeristiwaNilai::create([
+        $this->asas = KegiatanEvaluatif::create([
             'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'kode' => 'ASAS',
             'nama' => 'Asesmen Sumatif Akhir Semester', 'cakupan' => 'semua',
             'kurikulum' => 'keduanya', 'jenis_rapor' => 'akhir', 'urutan' => 1, 'is_active' => true,
@@ -91,7 +91,7 @@ class RaporKelasCetakTest extends TestCase
         $this->assertSame(4, $daud['rekap']['peringkat_total']);
 
         $this->assertDatabaseHas('batch_cetak_rapor', [
-            'peristiwa_id' => $this->asas->id,
+            'kegiatan_evaluatif_id' => $this->asas->id,
             'semester' => '1',
             'kelas_id' => $this->kelas->id,
             'kepala' => 'Kepala Madrasah',
@@ -117,7 +117,7 @@ class RaporKelasCetakTest extends TestCase
         $this->assertSame($waliBeku, $kedua['rapor'][0]['penandatangan']['wali_kelas']);
 
         $tunggal = $this->actingAs($this->admin, 'sanctum')
-            ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&peristiwa_id={$this->asas->id}&semester=1&peringkat=10")
+            ->getJson("/api/admin/penilaian/rapor?santri_id={$santri->id}&kegiatan_evaluatif_id={$this->asas->id}&semester=1&peringkat=10")
             ->assertOk()->json();
         $this->assertSame($waliBeku, $tunggal['penandatangan']['wali_kelas']);
         $this->assertSame($kepalaBeku, $tunggal['penandatangan']['kepala']);
@@ -142,26 +142,26 @@ class RaporKelasCetakTest extends TestCase
         $this->assertSame($kedua['penandatangan']['kepala'], $ketiga['penandatangan']['kepala']);
     }
 
-    public function test_cetak_massal_ditolak_untuk_peristiwa_tanpa_rapor(): void
+    public function test_cetak_massal_ditolak_untuk_kegiatan_evaluatif_tanpa_rapor(): void
     {
         $this->santri('Ahmad', '26001', 90);
-        $ujian = PeristiwaNilai::create([
+        $ujian = KegiatanEvaluatif::create([
             'jenjang' => 'MI', 'tahun_ajaran' => self::TA, 'kode' => 'UJIAN',
             'nama' => 'Ujian Madrasah', 'cakupan' => 'semua',
             'kurikulum' => 'keduanya', 'jenis_rapor' => 'tidak_ada', 'urutan' => 2, 'is_active' => true,
         ]);
 
         $this->actingAs($this->admin, 'sanctum')
-            ->getJson("/api/admin/penilaian/rapor-kelas-cetak?peristiwa_id={$ujian->id}&semester=1&kelas_id={$this->kelas->id}")
+            ->getJson("/api/admin/penilaian/rapor-kelas-cetak?kegiatan_evaluatif_id={$ujian->id}&semester=1&kelas_id={$this->kelas->id}")
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('peristiwa_id');
+            ->assertJsonValidationErrors('kegiatan_evaluatif_id');
     }
 
     /** @return TestResponse */
     private function cetak(string $peringkat)
     {
         return $this->actingAs($this->admin, 'sanctum')
-            ->getJson("/api/admin/penilaian/rapor-kelas-cetak?peristiwa_id={$this->asas->id}&semester=1&kelas_id={$this->kelas->id}&peringkat={$peringkat}");
+            ->getJson("/api/admin/penilaian/rapor-kelas-cetak?kegiatan_evaluatif_id={$this->asas->id}&semester=1&kelas_id={$this->kelas->id}&peringkat={$peringkat}");
     }
 
     private function santri(string $nama, string $nis, float $nilai): Santri
@@ -177,7 +177,7 @@ class RaporKelasCetakTest extends TestCase
         ]);
         NilaiSantri::create([
             'santri_id' => $santri->id, 'pengampu_mapel_id' => $this->pengampu->id,
-            'tahun_ajaran' => self::TA, 'semester' => '1', 'peristiwa_id' => $this->asas->id,
+            'tahun_ajaran' => self::TA, 'semester' => '1', 'kegiatan_evaluatif_id' => $this->asas->id,
             'nilai_akhir' => $nilai, 'sumber' => NilaiSantri::IMPOR,
         ]);
 

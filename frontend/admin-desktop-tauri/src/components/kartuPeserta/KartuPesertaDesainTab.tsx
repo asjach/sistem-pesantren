@@ -3,8 +3,8 @@ import { toast } from 'sonner';
 import { errorMessage } from '@/api/client';
 import {
   hapusDesainKartu, simpanDesainKartu, simpanPengaturanKartu,
-  type BarisPesertaPeristiwa, type DesainKartuResp, type ElemenKartuPeserta,
-  type FieldKartuPeserta, type GayaLatarKartu, type PeristiwaNilai, type TemplateBawaanKartu,
+  type BarisPesertaKegiatanEvaluatif, type DesainKartuResp, type ElemenKartuPeserta,
+  type FieldKartuPeserta, type GayaLatarKartu, type KegiatanEvaluatif, type TemplateBawaanKartu,
 } from '@/api/penilaian';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -23,7 +23,7 @@ import {
 import KartuPeserta from './KartuPeserta';
 import { useLatarDesain } from './useLatarDesain';
 
-const PESERTA_CONTOH: BarisPesertaPeristiwa = {
+const PESERTA_CONTOH: BarisPesertaKegiatanEvaluatif = {
   santri_id: 0, nama: 'Nama Peserta', jk: 'L', foto_url: null, nis_lokal: '0000',
   kelas_id: null, kelas: 'Kelas', tingkat: '1', no_absen: null,
   nomor_peserta: 'Nomor peserta', sumber_nomor: null,
@@ -37,11 +37,11 @@ const GAYA_LATAR: readonly { nilai: GayaLatarKartu; label: string }[] = [
 ];
 
 interface Props {
-  peristiwaId: number;
-  peristiwa: PeristiwaNilai;
+  kegiatanEvaluatifId: number;
+  kegiatanEvaluatif: KegiatanEvaluatif;
   semester: string;
   lembaga: string;
-  pesertaContoh: BarisPesertaPeristiwa | null;
+  pesertaContoh: BarisPesertaKegiatanEvaluatif | null;
   foto: Record<number, string>;
   muatan: DesainKartuResp | null;
   canUbah: boolean;
@@ -49,7 +49,7 @@ interface Props {
 }
 
 export default function KartuPesertaDesainTab({
-  peristiwaId, peristiwa, semester, lembaga, pesertaContoh, foto, muatan, canUbah, onMuatUlang,
+  kegiatanEvaluatifId, kegiatanEvaluatif, semester, lembaga, pesertaContoh, foto, muatan, canUbah, onMuatUlang,
 }: Props) {
   const [desain, setDesain] = useState<DesainKartuPeserta | null>(null);
   const [lebarMm, setLebarMm] = useState(85.6);
@@ -67,7 +67,7 @@ export default function KartuPesertaDesainTab({
 
   useEffect(() => {
     if (!muatan) return;
-    const kunci = `${peristiwaId}:${muatan.pengaturan.desain_id ?? 'bawaan'}:${muatan.pengaturan.template_bawaan}:${muatan.desain.length}`;
+    const kunci = `${kegiatanEvaluatifId}:${muatan.pengaturan.desain_id ?? 'bawaan'}:${muatan.pengaturan.template_bawaan}:${muatan.desain.length}`;
     if (kunciSinkron.current === kunci) return;
     kunciSinkron.current = kunci;
 
@@ -79,7 +79,7 @@ export default function KartuPesertaDesainTab({
     setTerpilih(null);
     setLatarFile(null);
     setHapusLatar(false);
-  }, [muatan, peristiwaId]);
+  }, [muatan, kegiatanEvaluatifId]);
 
   const latarServer = useLatarDesain(desain, versiLatar);
   const [latarPratinjau, setLatarPratinjau] = useState<string | null>(null);
@@ -105,7 +105,7 @@ export default function KartuPesertaDesainTab({
   const adaFoto = desain?.elemen.some((item) => item.tipe === 'foto') ?? false;
   const konteks: KonteksKartuPeserta = {
     peserta: pesertaContoh ?? PESERTA_CONTOH,
-    peristiwa,
+    kegiatanEvaluatif,
     semester,
     lembaga,
   };
@@ -172,7 +172,7 @@ export default function KartuPesertaDesainTab({
     setMenyimpan(true);
     try {
       const hasil = await simpanDesainKartu({
-        peristiwa_id: peristiwaId,
+        kegiatan_evaluatif_id: kegiatanEvaluatifId,
         id: desain.sumber === 'pengguna' ? Number(desain.id) : undefined,
         nama: nama.trim(),
         warna_latar: desain.warna_latar,
@@ -182,7 +182,7 @@ export default function KartuPesertaDesainTab({
         hapus_latar: hapusLatar && latarFile === null,
       });
       await simpanPengaturanKartu({
-        peristiwa_id: peristiwaId,
+        kegiatan_evaluatif_id: kegiatanEvaluatifId,
         desain_id: hasil.desain.id,
         template_bawaan: null,
         lebar_mm: lebarMm,
@@ -208,7 +208,7 @@ export default function KartuPesertaDesainTab({
     try {
       const pengguna = desain.sumber === 'pengguna';
       const hasil = await simpanPengaturanKartu({
-        peristiwa_id: peristiwaId,
+        kegiatan_evaluatif_id: kegiatanEvaluatifId,
         desain_id: pengguna ? Number(desain.id) : null,
         template_bawaan: pengguna || desain.gaya_latar === 'foto'
           ? null
@@ -658,7 +658,7 @@ export default function KartuPesertaDesainTab({
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus desain kartu ini?</AlertDialogTitle>
             <AlertDialogDescription>
-              Desain akan dihapus dari lembaga. Peristiwa yang memakainya kembali ke desain Klasik.
+              Desain akan dihapus dari lembaga. Kegiatan Evaluatif yang memakainya kembali ke desain Klasik.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

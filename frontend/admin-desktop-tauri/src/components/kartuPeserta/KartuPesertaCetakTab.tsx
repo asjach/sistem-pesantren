@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { toast } from 'sonner';
 import {
-  type BarisPesertaPeristiwa, type DesainKartuResp, type PeristiwaNilai,
+  type BarisPesertaKegiatanEvaluatif, type DesainKartuResp, type KegiatanEvaluatif,
 } from '@/api/penilaian';
 import { Button } from '@/components/ui/button';
 import { pilihDesainKartu, type KonteksKartuPeserta } from '@/lib/desainKartuPeserta';
@@ -9,17 +9,17 @@ import KartuPeserta, { PX_PER_MM } from './KartuPeserta';
 import { useLatarDesain } from './useLatarDesain';
 
 interface Props {
-  peristiwa: PeristiwaNilai;
+  kegiatanEvaluatif: KegiatanEvaluatif;
   semester: string;
   lembaga: string;
-  peserta: BarisPesertaPeristiwa[];
+  peserta: BarisPesertaKegiatanEvaluatif[];
   foto: Record<number, string>;
   memuatFoto: boolean;
   muatan: DesainKartuResp | null;
 }
 
 export default function KartuPesertaCetakTab({
-  peristiwa, semester, lembaga, peserta, foto, memuatFoto, muatan,
+  kegiatanEvaluatif, semester, lembaga, peserta, foto, memuatFoto, muatan,
 }: Props) {
   const desain = useMemo(
     () => muatan ? pilihDesainKartu(muatan.desain, muatan.pengaturan) : null,
@@ -30,7 +30,7 @@ export default function KartuPesertaCetakTab({
   const latarUrl = useLatarDesain(desain);
 
   const [dipilih, setDipilih] = useState<Set<number>>(new Set());
-  const [siapCetak, setSiapCetak] = useState<BarisPesertaPeristiwa[] | null>(null);
+  const [siapCetak, setSiapCetak] = useState<BarisPesertaKegiatanEvaluatif[] | null>(null);
 
   useEffect(() => {
     setDipilih(new Set());
@@ -59,7 +59,7 @@ export default function KartuPesertaCetakTab({
     });
   };
 
-  const cetak = (daftar: BarisPesertaPeristiwa[]) => {
+  const cetak = (daftar: BarisPesertaKegiatanEvaluatif[]) => {
     if (daftar.length === 0) return;
     if (memuatFoto) {
       toast.info('Foto peserta sedang disiapkan. Coba lagi sebentar.');
@@ -161,7 +161,7 @@ export default function KartuPesertaCetakTab({
               >
                 <KartuPeserta
                   desain={desain}
-                  konteks={konteksKartu(item, peristiwa, semester, lembaga)}
+                  konteks={konteksKartu(item, kegiatanEvaluatif, semester, lembaga)}
                   lebarMm={lebarMm}
                   tinggiMm={tinggiMm}
                   skala={2.4}
@@ -205,7 +205,7 @@ export default function KartuPesertaCetakTab({
               >
                 <KartuPeserta
                   desain={desain}
-                  konteks={konteksKartu(item, peristiwa, semester, lembaga)}
+                  konteks={konteksKartu(item, kegiatanEvaluatif, semester, lembaga)}
                   lebarMm={lebarMm}
                   tinggiMm={tinggiMm}
                   skala={PX_PER_MM}
@@ -222,10 +222,10 @@ export default function KartuPesertaCetakTab({
 }
 
 function konteksKartu(
-  peserta: BarisPesertaPeristiwa,
-  peristiwa: PeristiwaNilai,
+  peserta: BarisPesertaKegiatanEvaluatif,
+  kegiatanEvaluatif: KegiatanEvaluatif,
   semester: string,
   lembaga: string,
 ): KonteksKartuPeserta {
-  return { peserta, peristiwa, semester, lembaga };
+  return { peserta, kegiatanEvaluatif, semester, lembaga };
 }

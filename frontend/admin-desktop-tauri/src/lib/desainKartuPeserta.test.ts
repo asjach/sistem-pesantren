@@ -47,7 +47,7 @@ describe('desain kartu peserta', () => {
         kelas_id: 1, kelas: '1A', tingkat: '1', no_absen: 1,
         nomor_peserta: '26.27.ASAS.01.0001', sumber_nomor: 'otomatis',
       },
-      peristiwa: {
+      kegiatanEvaluatif: {
         id: 1, jenjang: 'MI', tahun_ajaran: '2026/2027', kode: 'ASAS', nama: 'ASAS',
         cakupan: 'semua', kurikulum: 'keduanya', rentang_nilai: '0-100', jenis_rapor: 'akhir', urutan: 1, is_active: true,
       },

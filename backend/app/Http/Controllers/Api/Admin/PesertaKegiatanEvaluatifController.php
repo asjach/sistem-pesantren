@@ -5,28 +5,28 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\Concerns\TenantGuard;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PengaturanNomorPesertaRequest;
-use App\Http\Requests\Admin\PesertaPeristiwaGenerateRequest;
-use App\Http\Requests\Admin\PesertaPeristiwaIndexRequest;
-use App\Http\Requests\Admin\PesertaPeristiwaUbahRequest;
-use App\Models\PeristiwaNilai;
+use App\Http\Requests\Admin\PesertaKegiatanEvaluatifGenerateRequest;
+use App\Http\Requests\Admin\PesertaKegiatanEvaluatifIndexRequest;
+use App\Http\Requests\Admin\PesertaKegiatanEvaluatifUbahRequest;
+use App\Models\KegiatanEvaluatif;
 use App\Models\Santri;
 use App\Services\NomorPesertaService;
 use Illuminate\Http\JsonResponse;
 
-class PesertaPeristiwaController extends Controller
+class PesertaKegiatanEvaluatifController extends Controller
 {
     use TenantGuard;
 
     public function __construct(private readonly NomorPesertaService $nomorPeserta) {}
 
-    public function index(PesertaPeristiwaIndexRequest $request): JsonResponse
+    public function index(PesertaKegiatanEvaluatifIndexRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $peristiwa = PeristiwaNilai::query()->with('lembaga:jenjang,nama,logo_url')->findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $kegiatanEvaluatif = KegiatanEvaluatif::query()->with('lembaga:jenjang,nama,logo_url')->findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
         $peserta = $this->nomorPeserta->daftar(
-            $peristiwa,
+            $kegiatanEvaluatif,
             $data['semester'],
             array_map('intval', $data['kelas_id'] ?? []),
             array_map('strval', $data['tingkat'] ?? []),
@@ -34,9 +34,9 @@ class PesertaPeristiwaController extends Controller
         );
 
         return response()->json([
-            'peristiwa' => $peristiwa,
-            'lembaga' => $peristiwa->lembaga,
-            'pengaturan' => $this->nomorPeserta->pengaturan($peristiwa, $data['semester']),
+            'kegiatan_evaluatif' => $kegiatanEvaluatif,
+            'lembaga' => $kegiatanEvaluatif->lembaga,
+            'pengaturan' => $this->nomorPeserta->pengaturan($kegiatanEvaluatif, $data['semester']),
             'token' => $this->nomorPeserta->tokenTersedia(),
             'peserta' => $peserta,
             'ringkasan' => [
@@ -51,11 +51,11 @@ class PesertaPeristiwaController extends Controller
     public function simpanPengaturan(PengaturanNomorPesertaRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $peristiwa = PeristiwaNilai::query()->findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $kegiatanEvaluatif = KegiatanEvaluatif::query()->findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
         $pengaturan = $this->nomorPeserta->simpanPengaturan(
-            $peristiwa,
+            $kegiatanEvaluatif,
             $data['semester'],
             $data['template'],
             $data['mode_urutan'],
@@ -67,14 +67,14 @@ class PesertaPeristiwaController extends Controller
         ]);
     }
 
-    public function ubahNomor(PesertaPeristiwaUbahRequest $request, Santri $santri): JsonResponse
+    public function ubahNomor(PesertaKegiatanEvaluatifUbahRequest $request, Santri $santri): JsonResponse
     {
         $data = $request->validated();
-        $peristiwa = PeristiwaNilai::query()->findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $kegiatanEvaluatif = KegiatanEvaluatif::query()->findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
         $peserta = $this->nomorPeserta->simpanManual(
-            $peristiwa,
+            $kegiatanEvaluatif,
             $santri,
             $data['semester'],
             $data['nomor_peserta'],
@@ -86,14 +86,14 @@ class PesertaPeristiwaController extends Controller
         ]);
     }
 
-    public function generate(PesertaPeristiwaGenerateRequest $request): JsonResponse
+    public function generate(PesertaKegiatanEvaluatifGenerateRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $peristiwa = PeristiwaNilai::query()->findOrFail($data['peristiwa_id']);
-        $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        $kegiatanEvaluatif = KegiatanEvaluatif::query()->findOrFail($data['kegiatan_evaluatif_id']);
+        $this->authorizeLembaga($request->user(), $kegiatanEvaluatif->jenjang);
 
         $hasil = $this->nomorPeserta->buatNomor(
-            $peristiwa,
+            $kegiatanEvaluatif,
             $data['semester'],
             $data['template'],
             $data['mode_urutan'],

@@ -10,7 +10,7 @@ class PengaturanKartuPeserta extends Model
     protected $table = 'pengaturan_kartu_peserta';
 
     protected $fillable = [
-        'peristiwa_id', 'desain_id', 'template_bawaan', 'lebar_mm', 'tinggi_mm',
+        'kegiatan_evaluatif_id', 'desain_id', 'template_bawaan', 'lebar_mm', 'tinggi_mm',
     ];
 
     protected function casts(): array
@@ -21,10 +21,10 @@ class PengaturanKartuPeserta extends Model
         ];
     }
 
-    /** @return BelongsTo<PeristiwaNilai, $this> */
-    public function peristiwa(): BelongsTo
+    /** @return BelongsTo<KegiatanEvaluatif, $this> */
+    public function kegiatanEvaluatif(): BelongsTo
     {
-        return $this->belongsTo(PeristiwaNilai::class, 'peristiwa_id');
+        return $this->belongsTo(KegiatanEvaluatif::class, 'kegiatan_evaluatif_id');
     }
 
     /** @return BelongsTo<DesainKartuPeserta, $this> */

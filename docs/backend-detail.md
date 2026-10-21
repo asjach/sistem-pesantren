@@ -450,7 +450,7 @@ teacher yet). `mata_pelajaran.kkm` (decimal null = manual predikat 202) and
 columns. Class members read from `riwayat_belajar` (no `kelas_santri` table).
 Status: ✅ implemented (Mata Pelajaran, Pengampu, Jadwal Pelajaran pages).
 
-**202 Grades & rapor.** Grade is bound to an **event** (`peristiwa_nilai`:
+**202 Grades & rapor.** Grade is bound to an **event** (`kegiatan_evaluatif`:
 PTS/ASAS/ASAT/UJIAN/UAP per jenjang+TA, with `cakupan` and `jenis_rapor`), NOT to
 a semester. Each event owns its own components (`komponen_nilai`: `bobot` column
 + `sumber` = manual / auto-from-report / from-another-event); `kkm_kegiatan` and
@@ -465,7 +465,7 @@ Status: ✅ live — 4 pages (Master, Impor, Leger, Rapor) + pengaman cetak (tom
 cetak rapor terkunci selama ada santri belum lengkap), cetak massal satu kelas
 sekali klik dengan peringkat per batch dan snapshot penanda tangan, input
 manual sel nilai akhir di Leger (sumber `manual`), serta rentang nilai per
-peristiwa (0–10/0–100/0–4, default 0–100) untuk input manual & impor; nilai
+kegiatan evaluatif (0–10/0–100/0–4, default 0–100) untuk input manual & impor; nilai
 di luar rentang dilewati (nilai sah tetap disimpan) dengan toast nama + mapel. Deferred:
 semester lock + print audit trail, attendance auto-derived from
 `presensi_santri`, "copy event from previous TA".

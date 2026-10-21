@@ -1,6 +1,6 @@
 import type {
-  BarisPesertaPeristiwa, DesainKartuServer, ElemenKartuPeserta,
-  FieldKartuPeserta, GayaLatarKartu, PengaturanKartuPeserta, PeristiwaNilai, TipeElemenKartu,
+  BarisPesertaKegiatanEvaluatif, DesainKartuServer, ElemenKartuPeserta,
+  FieldKartuPeserta, GayaLatarKartu, PengaturanKartuPeserta, KegiatanEvaluatif, TipeElemenKartu,
 } from '@/api/penilaian';
 
 export type {
@@ -19,8 +19,8 @@ export interface DesainKartuPeserta {
 }
 
 export interface KonteksKartuPeserta {
-  peserta: BarisPesertaPeristiwa;
-  peristiwa: PeristiwaNilai;
+  peserta: BarisPesertaKegiatanEvaluatif;
+  kegiatanEvaluatif: KegiatanEvaluatif;
   semester: string;
   lembaga: string;
 }
@@ -31,7 +31,7 @@ export const KATALOG_DATA_KARTU: readonly { field: FieldKartuPeserta; label: str
   { field: 'nis_lokal', label: 'NIS lokal' },
   { field: 'kelas', label: 'Kelas' },
   { field: 'tingkat', label: 'Tingkat' },
-  { field: 'peristiwa', label: 'Nama peristiwa' },
+  { field: 'kegiatan_evaluatif', label: 'Nama kegiatan evaluatif' },
   { field: 'tahun_ajaran', label: 'Tahun ajaran' },
   { field: 'semester', label: 'Semester' },
   { field: 'lembaga', label: 'Nama lembaga' },
@@ -66,7 +66,7 @@ export const DESAIN_BAWAAN_KARTU: readonly DesainKartuPeserta[] = [
       elemen('nama', 'data', { x: 31, y: 42, lebar: 62, tinggi: 12 }, { field: 'nama', ukuran_font: 16, tebal: true }),
       elemen('nomor', 'data', { x: 31, y: 57, lebar: 62, tinggi: 10 }, { field: 'nomor_peserta', ukuran_font: 13, tebal: true }),
       elemen('kelas', 'data', { x: 31, y: 70, lebar: 30, tinggi: 9 }, { field: 'kelas', ukuran_font: 11 }),
-      elemen('peristiwa', 'data', { x: 31, y: 82, lebar: 62, tinggi: 9 }, { field: 'peristiwa', ukuran_font: 10 }),
+      elemen('kegiatan_evaluatif', 'data', { x: 31, y: 82, lebar: 62, tinggi: 9 }, { field: 'kegiatan_evaluatif', ukuran_font: 10 }),
     ],
   },
   {
@@ -87,7 +87,7 @@ export const DESAIN_BAWAAN_KARTU: readonly DesainKartuPeserta[] = [
     warna_latar: '#ffffff', gaya_latar: 'bersih', latar_ada: false, latar_url: null,
     elemen: [
       elemen('judul', 'teks', { x: 7, y: 8, lebar: 86, tinggi: 9 }, { teks: 'KARTU PESERTA', ukuran_font: 14, tebal: true, rata: 'center' }),
-      elemen('peristiwa', 'data', { x: 7, y: 19, lebar: 86, tinggi: 8 }, { field: 'peristiwa', ukuran_font: 10, rata: 'center' }),
+      elemen('kegiatan_evaluatif', 'data', { x: 7, y: 19, lebar: 86, tinggi: 8 }, { field: 'kegiatan_evaluatif', ukuran_font: 10, rata: 'center' }),
       elemen('foto', 'foto', { x: 8, y: 35, lebar: 20, tinggi: 50 }, { rata: 'center' }),
       elemen('nama', 'data', { x: 34, y: 38, lebar: 58, tinggi: 12 }, { field: 'nama', ukuran_font: 16, tebal: true }),
       elemen('nomor', 'data', { x: 34, y: 54, lebar: 58, tinggi: 10 }, { field: 'nomor_peserta', ukuran_font: 13, tebal: true }),
@@ -110,8 +110,8 @@ export function nilaiElemenKartu(elemenKartu: ElemenKartuPeserta, konteks: Konte
     nis_lokal: konteks.peserta.nis_lokal ?? '—',
     kelas: konteks.peserta.kelas ?? '—',
     tingkat: konteks.peserta.tingkat ?? '—',
-    peristiwa: konteks.peristiwa.nama,
-    tahun_ajaran: konteks.peristiwa.tahun_ajaran,
+    kegiatan_evaluatif: konteks.kegiatanEvaluatif.nama,
+    tahun_ajaran: konteks.kegiatanEvaluatif.tahun_ajaran,
     semester: konteks.semester,
     lembaga: konteks.lembaga,
   };

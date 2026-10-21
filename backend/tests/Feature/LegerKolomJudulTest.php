@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\KegiatanEvaluatif;
 use App\Models\Kelas;
 use App\Models\Lembaga;
 use App\Models\MataPelajaran;
 use App\Models\PengampuMapel;
-use App\Models\PeristiwaNilai;
 use App\Models\TahunAjaran;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -42,7 +42,7 @@ class LegerKolomJudulTest extends TestCase
         $kelas = Kelas::create([
             'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'nama_kelas' => '6A', 'tingkat' => '6',
         ]);
-        $peristiwa = PeristiwaNilai::create([
+        $kegiatanEvaluatif = KegiatanEvaluatif::create([
             'jenjang' => 'MI', 'tahun_ajaran' => '2026/2027', 'kode' => 'ASAS',
             'nama' => 'Asesmen Sumatif Akhir Semester', 'cakupan' => 'semua',
             'kurikulum' => 'keduanya', 'jenis_rapor' => 'akhir', 'urutan' => 1, 'is_active' => true,
@@ -55,7 +55,7 @@ class LegerKolomJudulTest extends TestCase
         $this->mapel($kelas->id, 'Mapel Duplikat B', 'DUP', 'MDB');
 
         $respons = $this->actingAs($admin, 'sanctum')
-            ->getJson("/api/admin/penilaian/leger?peristiwa_id={$peristiwa->id}&semester=1&kelas_id={$kelas->id}")
+            ->getJson("/api/admin/penilaian/leger?kegiatan_evaluatif_id={$kegiatanEvaluatif->id}&semester=1&kelas_id={$kelas->id}")
             ->assertOk()
             ->json();
 

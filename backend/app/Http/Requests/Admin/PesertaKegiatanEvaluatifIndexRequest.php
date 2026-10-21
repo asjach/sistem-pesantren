@@ -5,7 +5,7 @@ namespace App\Http\Requests\Admin;
 use App\Http\Controllers\Api\Concerns\FilterGlobal;
 use Illuminate\Foundation\Http\FormRequest;
 
-class PesertaPeristiwaIndexRequest extends FormRequest
+class PesertaKegiatanEvaluatifIndexRequest extends FormRequest
 {
     use FilterGlobal;
 
@@ -22,7 +22,7 @@ class PesertaPeristiwaIndexRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'peristiwa_id' => ['required', 'integer', 'exists:peristiwa_nilai,id'],
+            'kegiatan_evaluatif_id' => ['required', 'integer', 'exists:kegiatan_evaluatif,id'],
             'semester' => ['required', 'in:1,2'],
             'kelas_id' => ['nullable', 'array'],
             'kelas_id.*' => ['integer', 'exists:kelas,id'],
