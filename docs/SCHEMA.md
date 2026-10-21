@@ -936,6 +936,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `cakupan`: enum('semua','kecuali_akhir','tingkat_akhir') [default 'semua'] — peserta (tingkat akhir dari `ref_tingkat.urutan` tertinggi)
 - `kurikulum`: enum('kemenag','pesantren','keduanya') [default 'keduanya']
 - `jenis_rapor`: enum('akhir','sementara','tidak_ada') [default 'tidak_ada'] — `akhir` = rapor akhir semester/tahun (ASAS/ASAT); `sementara` = rapor tengah periode; `tidak_ada` = nilai ujian/ijazah tanpa rapor (UJIAN/UAP). Hanya peristiwa ber-rapor yang muncul di halaman Rapor; endpoint `rapor`/`rapor-kelas` menolak (422) peristiwa `tidak_ada`.
+- `rentang_nilai`: varchar(10) [default '0-100'] — pilihan `0-10` | `0-100` | `0-4`; batas atas input manual Leger dan impor nilai untuk peristiwa ini. Nilai lama tidak dikonversi saat rentang berubah.
 - `urutan`: int [default 0]
 - `is_active`: bool [default true]
 - `created_at`, `updated_at`

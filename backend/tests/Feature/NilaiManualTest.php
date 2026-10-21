@@ -117,9 +117,43 @@ class NilaiManualTest extends TestCase
         ]);
     }
 
+    public function test_nilai_manual_mengikuti_rentang_0_10(): void
+    {
+        $this->setUpDasar();
+        $this->peristiwa->update(['rentang_nilai' => '0-10']);
+
+        $this->simpan(10)->assertOk();
+        $this->assertDatabaseHas('nilai_santri', [
+            'santri_id' => $this->santri->id,
+            'peristiwa_id' => $this->peristiwa->id,
+            'nilai_akhir' => 10,
+            'sumber' => NilaiSantri::MANUAL,
+        ]);
+
+        $this->simpan(10.5)->assertUnprocessable()->assertJsonValidationErrors('nilai_akhir');
+        $this->simpan(-0.5)->assertUnprocessable()->assertJsonValidationErrors('nilai_akhir');
+    }
+
+    public function test_nilai_manual_mengikuti_rentang_0_4(): void
+    {
+        $this->setUpDasar();
+        $this->peristiwa->update(['rentang_nilai' => '0-4']);
+
+        $this->simpan(4)->assertOk();
+        $this->assertDatabaseHas('nilai_santri', [
+            'santri_id' => $this->santri->id,
+            'peristiwa_id' => $this->peristiwa->id,
+            'nilai_akhir' => 4,
+            'sumber' => NilaiSantri::MANUAL,
+        ]);
+
+        $this->simpan(4.5)->assertUnprocessable()->assertJsonValidationErrors('nilai_akhir');
+    }
+
     public function test_nilai_di_luar_rentang_ditolak(): void
     {
         $this->setUpDasar();
+        $this->assertSame('0-100', $this->peristiwa->fresh()->rentang_nilai);
 
         $this->simpan(101)
             ->assertUnprocessable()
@@ -163,6 +197,60 @@ class NilaiManualTest extends TestCase
             'peristiwa_id' => $this->peristiwa->id,
             'nilai_akhir' => 88,
             'sumber' => NilaiSantri::MANUAL,
+        ]);
+    }
+
+    public function test_impor_nilai_mengikuti_rentang_peristiwa(): void
+    {
+        $this->setUpDasar();
+        $this->peristiwa->update(['rentang_nilai' => '0-10']);
+
+        $invalid = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/admin/penilaian/import-potong', [
+                'tipe' => 'nilai',
+                'tahun_ajaran' => self::TA,
+                'semester' => '1',
+                'peristiwa_id' => $this->peristiwa->id,
+                'jenjang' => ['MI'],
+                'mode' => 'periksa',
+                'total' => 1,
+                'terakhir' => true,
+                'baris' => [[
+                    'nis_lokal' => '99001', 'jenjang' => 'MI', 'kelas' => '6A',
+                    'tahun_ajaran' => self::TA, 'semester' => '1', 'Fiqih' => '10.5',
+                ]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('galat_baru', 1)
+            ->json();
+
+        $this->assertSame('fiqih', $invalid['galat_contoh'][0]['kolom']);
+        $this->assertStringContainsString('Santri Manual', $invalid['galat_contoh'][0]['pesan']);
+        $this->assertStringContainsString('Fiqih', $invalid['galat_contoh'][0]['pesan']);
+        $this->assertStringContainsString('0-10', $invalid['galat_contoh'][0]['pesan']);
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/admin/penilaian/import-potong', [
+                'tipe' => 'nilai',
+                'tahun_ajaran' => self::TA,
+                'semester' => '1',
+                'peristiwa_id' => $this->peristiwa->id,
+                'jenjang' => ['MI'],
+                'mode' => 'eksekusi',
+                'total' => 1,
+                'terakhir' => true,
+                'baris' => [[
+                    'nis_lokal' => '99001', 'jenjang' => 'MI', 'kelas' => '6A',
+                    'tahun_ajaran' => self::TA, 'semester' => '1', 'Fiqih' => '10',
+                ]],
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('nilai_santri', [
+            'santri_id' => $this->santri->id,
+            'peristiwa_id' => $this->peristiwa->id,
+            'nilai_akhir' => 10,
+            'sumber' => NilaiSantri::IMPOR,
         ]);
     }
 

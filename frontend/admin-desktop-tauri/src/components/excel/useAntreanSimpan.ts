@@ -11,6 +11,9 @@ export interface AntreanSimpanOpts<T extends { id: string | number }> {
   dropDraftRef: MutableRefObject<(idKey: string, keys: string[]) => void>;
   /** false = tahan antrean sampai `flush()` (mis. simpan saat keluar Mode Ubah). */
   autoDrain?: boolean;
+  /** Bila ada: sel yang gagal validasi dilewati, sel lain tetap disimpan,
+   *  dan pemanggil diberi tahu (mis. untuk toast nama + mapel). */
+  onInvalidRef?: MutableRefObject<((info: { id: string | number; key: string; pesan: string }) => void) | undefined>;
 }
 
 /**
@@ -25,6 +28,7 @@ export function useAntreanSimpan<T extends { id: string | number }>({
   onSavedRef,
   dropDraftRef,
   autoDrain = true,
+  onInvalidRef,
 }: AntreanSimpanOpts<T>) {
   const queueRef = useRef<Map<string, Record<string, string | null>>>(new Map());
   const drainingRef = useRef(false);
@@ -86,12 +90,43 @@ export function useAntreanSimpan<T extends { id: string | number }>({
     if (queueRef.current.size > 0) void drain();
   }, [saveRow, onSavedRef, dropDraftRef]);
 
-  /** Antrean simpan per baris: perubahan beruntun di baris yang sama digabung. */
+  /** Antrean simpan per baris: perubahan beruntun di baris yang sama digabung.
+   *  Validasi dilakukan di sini agar nilai tidak sah langsung ditolak (draft
+   *  kembali), bukan baru saat antrean di-flush ketika keluar mode. Bila
+   *  `onInvalidRef` tersedia, hanya sel yang gagal yang dilewati; sel valid
+   *  pada baris yang sama tetap disimpan. */
   const enqueueSave = useCallback((idKey: string, flds: Record<string, string | null>) => {
+    const valid: Record<string, string | null> = {};
+    const invalid: { key: string; pesan: string }[] = [];
+
+    for (const [key, value] of Object.entries(flds)) {
+      const field = fieldsRef.current.find((f) => f.key === key);
+      const blocked = field?.validate?.(value) ?? null;
+      if (blocked) invalid.push({ key, pesan: blocked });
+      else valid[key] = value;
+    }
+
+    if (invalid.length > 0) {
+      if (onInvalidRef?.current) {
+        const domain = rowsRef.current.find((r) => String(r.id) === idKey);
+        const id = domain?.id ?? idKey;
+        for (const item of invalid) {
+          onInvalidRef.current({ id, key: item.key, pesan: item.pesan });
+        }
+        dropDraftRef.current(idKey, invalid.map((item) => item.key));
+      } else {
+        dropDraftRef.current(idKey, Object.keys(flds));
+        toast.error(invalid[0].pesan);
+        return;
+      }
+    }
+
+    if (Object.keys(valid).length === 0) return;
+
     const prev = queueRef.current.get(idKey) ?? {};
-    queueRef.current.set(idKey, { ...prev, ...flds });
+    queueRef.current.set(idKey, { ...prev, ...valid });
     if (autoDrain) void drain();
-  }, [autoDrain, drain]);
+  }, [autoDrain, drain, fieldsRef, dropDraftRef, onInvalidRef, rowsRef]);
 
   return { enqueueSave, flush: drain };
 }

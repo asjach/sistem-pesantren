@@ -123,6 +123,7 @@ class PenilaianController extends Controller
             'cakupan' => ['required', 'in:semua,kecuali_akhir,tingkat_akhir'],
             'kurikulum' => ['nullable', 'in:kemenag,pesantren,keduanya'],
             'jenis_rapor' => ['nullable', 'in:akhir,sementara,tidak_ada'],
+            'rentang_nilai' => ['nullable', 'in:0-10,0-100,0-4'],
             'urutan' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -141,6 +142,7 @@ class PenilaianController extends Controller
             'cakupan' => ['sometimes', 'in:semua,kecuali_akhir,tingkat_akhir'],
             'kurikulum' => ['sometimes', 'in:kemenag,pesantren,keduanya'],
             'jenis_rapor' => ['sometimes', 'in:akhir,sementara,tidak_ada'],
+            'rentang_nilai' => ['sometimes', 'in:0-10,0-100,0-4'],
             'urutan' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
@@ -544,10 +546,15 @@ class PenilaianController extends Controller
             'semester' => ['required', 'in:1,2'],
             'santri_id' => ['required', 'integer', 'exists:santri,id'],
             'mapel_id' => ['required', 'integer', 'exists:mata_pelajaran,id'],
-            'nilai_akhir' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'nilai_akhir' => ['nullable', 'numeric', 'min:0'],
         ]);
         $peristiwa = PeristiwaNilai::findOrFail($data['peristiwa_id']);
         $this->authorizeLembaga($request->user(), $peristiwa->jenjang);
+        if ($data['nilai_akhir'] !== null && (float) $data['nilai_akhir'] > $peristiwa->nilaiMaks()) {
+            throw ValidationException::withMessages([
+                'nilai_akhir' => "Nilai harus dalam rentang {$peristiwa->rentang_nilai}.",
+            ]);
+        }
         $ta = $peristiwa->tahun_ajaran;
         $semester = (string) $data['semester'];
         $santriId = (int) $data['santri_id'];

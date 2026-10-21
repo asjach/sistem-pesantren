@@ -463,8 +463,10 @@ prestasi, ekskul). Outputs: crosstab ledger per event + Excel download, report c
 recompute final grades (skips `sumber='impor'` rows unless `paksa=1`).
 Status: ✅ live — 4 pages (Master, Impor, Leger, Rapor) + pengaman cetak (tombol
 cetak rapor terkunci selama ada santri belum lengkap), cetak massal satu kelas
-sekali klik dengan peringkat per batch dan snapshot penanda tangan, serta input
-manual sel nilai akhir di Leger (sumber `manual`). Deferred:
+sekali klik dengan peringkat per batch dan snapshot penanda tangan, input
+manual sel nilai akhir di Leger (sumber `manual`), serta rentang nilai per
+peristiwa (0–10/0–100/0–4, default 0–100) untuk input manual & impor; nilai
+di luar rentang dilewati (nilai sah tetap disimpan) dengan toast nama + mapel. Deferred:
 semester lock + print audit trail, attendance auto-derived from
 `presensi_santri`, "copy event from previous TA".
 

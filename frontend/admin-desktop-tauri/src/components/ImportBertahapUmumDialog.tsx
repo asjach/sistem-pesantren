@@ -204,6 +204,8 @@ export default function ImportBertahapUmumDialog({ open, onOpenChange, config }:
     setGalatUnduh(false);
     batalRef.current = false;
     let sid: number | null = null;
+    let gagalTotal = 0;
+    let galatTerakhir: PotongGalat[] = [];
     const konteks = config.konteks?.() ?? {};
     try {
       for (let i = 0; i < baris.length; i += POTONGAN_IMPORT) {
@@ -222,13 +224,20 @@ export default function ImportBertahapUmumDialog({ open, onOpenChange, config }:
         setRingkasan(res.ringkasan);
         setContoh(res.galat_contoh);
         setGalatUnduh(res.galat_unduh);
+        gagalTotal = res.ringkasan.baris_gagal;
+        galatTerakhir = res.galat_contoh;
         if (res.selesai) break;
       }
       if (batalRef.current && sid !== null) {
         await config.batal(sid).catch(() => {});
         toast('Import dibatalkan.');
       } else {
-        toast.success(modeJalan === 'periksa' ? 'Periksa bertahap selesai.' : 'Import bertahap selesai.');
+        if (modeJalan === 'eksekusi' && gagalTotal > 0) {
+          const rinci = galatTerakhir.slice(0, 3).map((x) => x.pesan).join('; ');
+          toast.warning(`${gagalTotal} input dilewati.${rinci ? ` ${rinci}` : ''}`);
+        } else {
+          toast.success(modeJalan === 'periksa' ? 'Periksa bertahap selesai.' : 'Import bertahap selesai.');
+        }
         if (modeJalan === 'eksekusi') config.onSelesai();
       }
     } catch (e) {

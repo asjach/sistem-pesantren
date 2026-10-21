@@ -14,9 +14,10 @@ import { listKelas, type Kelas } from '@/api/master';
 import { errorMessage, prefGet, prefSet } from '@/api/client';
 import { Download, RefreshCw } from '@/icons';
 import {
-  daftarPeristiwa, hitungUlang, legerNilai, simpanNilaiManual, unduhLeger,
-  type BarisLeger, type LegerResp, type PeristiwaNilai,
+  daftarPeristiwa, hitungUlang, legerNilai, simpanNilaiManual, ubahPeristiwa, unduhLeger,
+  type BarisLeger, type LegerResp, type PeristiwaNilai, type RentangNilai,
 } from '@/api/penilaian';
+import { batasAtasRentang, nilaiDalamRentang } from '@/lib/nilaiRentang';
 
 type BarisLegerGrid = BarisLeger & { id: number };
 
@@ -58,6 +59,8 @@ export default function PenilaianLegerPage() {
   const [cariTertunda, setCariTertunda] = useState('');
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);
   const [bekuSiap, setBekuSiap] = useState(false);
+  const [rentangAktif, setRentangAktif] = useState<RentangNilai>('0-100');
+  const [menyimpanRentang, setMenyimpanRentang] = useState(false);
 
   useEffect(() => {
     let hidup = true;
@@ -95,6 +98,10 @@ export default function PenilaianLegerPage() {
     () => peristiwa.find((p) => p.id === peristiwaId) ?? null,
     [peristiwa, peristiwaId],
   );
+
+  useEffect(() => {
+    setRentangAktif(peristiwaAktif?.rentang_nilai ?? '0-100');
+  }, [peristiwaAktif]);
 
   const kelasIds = useMemo(
     () => kelasOpsi.filter((k) => kelasAktif.includes(k.nama_kelas)).map((k) => k.id),
@@ -163,10 +170,36 @@ export default function PenilaianLegerPage() {
     }
   }, [peristiwaId, semester, kelasIds, muat, pager.page, pager.perPage]);
 
+  const ubahRentang = useCallback(async (nilai: RentangNilai) => {
+    if (peristiwaAktif === null || !canUbah || nilai === rentangAktif) return;
+    const lama = rentangAktif;
+    setRentangAktif(nilai);
+    setMenyimpanRentang(true);
+    try {
+      await ubahPeristiwa(peristiwaAktif.id, { rentang_nilai: nilai });
+      setPeristiwa((daftar) => daftar.map((p) => (
+        p.id === peristiwaAktif.id ? { ...p, rentang_nilai: nilai } : p
+      )));
+      setData((d) => d === null ? d : { ...d, peristiwa: { ...d.peristiwa, rentang_nilai: nilai } });
+      toast.success(`Rentang nilai ${nilai.replace('-', '–')} disimpan.`);
+    } catch (e) {
+      setRentangAktif(lama);
+      toast.error(errorMessage(e));
+    } finally {
+      setMenyimpanRentang(false);
+    }
+  }, [peristiwaAktif, canUbah, rentangAktif]);
+
   const baris = useMemo<BarisLegerGrid[]>(
     () => (data?.baris ?? []).map((b) => ({ ...b, id: b.santri_id })),
     [data],
   );
+
+  const laporNilaiLewat = useCallback((info: { id: string | number; key: string; pesan: string }) => {
+    const baris = data?.baris.find((b) => b.santri_id === Number(info.id));
+    const kolom = data?.kolom.find((k) => k.key === info.key);
+    toast.warning(`${baris?.nama ?? 'Peserta'} — ${kolom?.nama_mapel ?? info.key}: ${info.pesan}`);
+  }, [data]);
 
   const sumberSel = useMemo(() => {
     const peta = new Map<string, string | null>();
@@ -190,9 +223,9 @@ export default function PenilaianLegerPage() {
         ? (nilai) => {
           if (nilai === null || nilai.trim() === '') return null;
           const angka = angkaNilai(nilai);
-          return angka !== null && Number.isFinite(angka) && angka >= 0 && angka <= 100
+          return angka !== null && nilaiDalamRentang(angka, rentangAktif)
             ? null
-            : 'Nilai harus 0–100.';
+            : `Nilai harus 0–${batasAtasRentang(rentangAktif)}.`;
         }
         : undefined,
       renderCell: (row: GridRow) => {
@@ -260,7 +293,7 @@ export default function PenilaianLegerPage() {
       },
 
     ];
-  }, [data, sumberSel, canUbah]);
+  }, [data, sumberSel, canUbah, rentangAktif]);
 
   const getValues = useCallback((b: BarisLegerGrid) => {
     const nilai: Record<string, string | null> = {
@@ -285,8 +318,8 @@ export default function PenilaianLegerPage() {
       const mapelId = petaMapel.get(key);
       if (mapelId === undefined) continue;
       const angka = nilai === null ? null : angkaNilai(nilai);
-      if (angka !== null && (!Number.isFinite(angka) || angka < 0 || angka > 100)) {
-        throw new Error('Nilai harus 0–100.');
+      if (angka !== null && !nilaiDalamRentang(angka, rentangAktif)) {
+        throw new Error(`Nilai harus 0–${batasAtasRentang(rentangAktif)}.`);
       }
       await simpanNilaiManual({
         peristiwa_id: Number(peristiwaId),
@@ -296,7 +329,7 @@ export default function PenilaianLegerPage() {
         nilai_akhir: angka,
       });
     }
-  }, [peristiwaId, semester, data]);
+  }, [peristiwaId, semester, data, rentangAktif]);
 
   const selesaiSimpan = useCallback(async () => {
     await muat(pager.page, pager.perPage);
@@ -335,6 +368,19 @@ export default function PenilaianLegerPage() {
               {p.kode} — {p.nama}{p.jenis_rapor === 'tidak_ada' ? ' (nilai ujian, tanpa rapor)' : ''}
             </option>
           ))}
+        </select>
+        <label className="ml-2 text-xs text-muted-foreground" htmlFor="select_rentang_nilai_leger">Rentang nilai</label>
+        <select
+          id="select_rentang_nilai_leger"
+          className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+          value={rentangAktif}
+          onChange={(e) => void ubahRentang(e.target.value as RentangNilai)}
+          disabled={!canUbah || peristiwaAktif === null || menyimpanRentang}
+          title={!canUbah ? 'Butuh izin ubah nilai.' : 'Batas nilai input dan impor peristiwa ini'}
+        >
+          <option value="0-100">0–100</option>
+          <option value="0-10">0–10</option>
+          <option value="0-4">0–4</option>
         </select>
         <Input
           id="input_cari_leger"
@@ -376,6 +422,7 @@ export default function PenilaianLegerPage() {
             emptyText="Tidak ada santri pada lingkup ini."
             canEdit={canUbah}
             simpanSaatKeluarMode
+            onValidasiGagal={laporNilaiLewat}
             onCommit={simpanSel}
             onSaved={selesaiSimpan}
             renderActions={() => null}

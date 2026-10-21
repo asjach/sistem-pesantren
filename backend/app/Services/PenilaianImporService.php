@@ -168,6 +168,7 @@ class PenilaianImporService extends ImporPotongan
         }
 
         $ada = false;
+        $adaNilai = false;
         foreach ($baris as $kolom => $nilaiKolom) {
             if (in_array($kolom, self::KOLOM_TETAP_NILAI, true)) {
                 continue;
@@ -176,12 +177,7 @@ class PenilaianImporService extends ImporPotongan
             if ($skor === null) {
                 continue;
             }
-            if ($skor < 0 || $skor > 100) {
-                $this->fail($no, (string) $kolom, 'Nilai di luar 0–100.');
-
-                continue;
-            }
-            $ada = true;
+            $adaNilai = true;
 
             $mapelId = $this->mapelId($jenjang, (string) $kolom);
             if ($mapelId === null) {
@@ -195,6 +191,15 @@ class PenilaianImporService extends ImporPotongan
 
                 continue;
             }
+            if ($skor < 0 || $skor > $peristiwa->nilaiMaks()) {
+                $namaSantri = $this->teks($baris, 'nama')
+                    ?? (string) DB::table('santri')->where('id', $santriId)->value('nama_lengkap');
+                $namaMapel = (string) (MataPelajaran::whereKey($mapelId)->value('nama_mapel') ?? $kolom);
+                $this->fail($no, (string) $kolom, "{$namaSantri} — {$namaMapel}: nilai di luar rentang {$peristiwa->rentang_nilai}.");
+
+                continue;
+            }
+            $ada = true;
 
             if ($kering) {
                 continue;
@@ -224,7 +229,7 @@ class PenilaianImporService extends ImporPotongan
             $this->dibuat++;
         }
 
-        if (! $ada) {
+        if (! $ada && ! $adaNilai) {
             $this->fail($no, 'nilai', 'Tidak ada kolom mapel berisi nilai.');
         }
     }
@@ -377,7 +382,7 @@ class PenilaianImporService extends ImporPotongan
             $this->cacheKelas[$kunci] = DB::table('kelas')
                 ->where('jenjang', $jenjang)
                 ->where('tahun_ajaran', $ta)
-                ->where('nama_kelas', $this->normalkan($nama))
+                ->whereRaw('LOWER(nama_kelas) = ?', [$this->normalkan($nama)])
                 ->value('id');
         }
 

@@ -513,13 +513,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Pemeriksaan: typecheck, tes backend/frontend terkait, serta uji kolom dinamis dan pagination hijau
 - Halaman Input Manual Nilai Akhir
   - [x] Leger menyediakan input langsung sel mapel lewat Mode Ubah ExcelTable, dengan rail Tingkat/Kelas yang ada
-  - [x] Nilai akhir 0–100 tersimpan per santri + mapel + peristiwa + semester; sel kosong menghapus nilai; predikat dihitung
+  - [x] Nilai akhir mengikuti rentang peristiwa (0–10/0–100/0–4) dan tersimpan per santri + mapel + peristiwa + semester; sel kosong menghapus nilai; predikat dihitung
   - [x] Nilai manual memakai sumber manual (badge M) dan tidak ditimpa Hitung ulang kecuali paksa; impor tetap I
-  - [x] Pengguna tanpa penilaian.ubah tetap baca-saja; input di luar 0–100 dan mapel tanpa pengampu ditolak
+  - [x] Pengguna tanpa penilaian.ubah tetap baca-saja; mapel tanpa pengampu ditolak
   - [x] Perubahan nilai ditahan selama Mode Ubah dan disimpan sekaligus saat keluar mode, bukan setiap sel berubah
   - [x] Typecheck, tes backend/frontend, serta uji edit/kosongkan di UI hijau
   - [x] Leger menampilkan kolom Jumlah dan Peringkat di akhir kolom; peringkat dihitung per kelas
   - [x] Baris peringkat 1, 2, dan 3 diberi latar hijau, kuning, dan biru dengan teks/nilai tetap terbaca
+  - [x] Rentang nilai per peristiwa (0-10/0-100/0-4, default 0-100) dapat dipilih di Leger dan tersimpan
+  - [x] Nilai di luar rentang dilewati tanpa menggagalkan input/update lain; sel/baris valid tetap disimpan; toast memuat nama dan mapel
+  - [x] Dokumentasi skema dan tes validasi rentang hijau
 **Selesai (Done)**
 - Nilai per peristiwa
   - [x] PTS/ASAS/ASAT/UJIAN/UAP

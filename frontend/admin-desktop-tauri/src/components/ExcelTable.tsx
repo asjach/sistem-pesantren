@@ -120,6 +120,8 @@ export interface ExcelTableProps<T extends { id: string | number }> {
   canEdit: boolean;
   /** Simpan perubahan sel saat keluar Mode Ubah, bukan tiap sel berubah. */
   simpanSaatKeluarMode?: boolean;
+  /** Lapor sel yang ditolak validasi tanpa membatalkan sel lain di baris yang sama. */
+  onValidasiGagal?: (info: { id: string | number; key: string; pesan: string }) => void;
   /** Simpan satu baris hasil edit sel (auto-save, dipanggil saat sel berubah). */
   onCommit: (id: T['id'], fields: Record<string, string | null>) => Promise<void>;
   /** Dipanggil sekali setelah antrean auto-save selesai (biasanya reload halaman). */
@@ -287,6 +289,7 @@ export default function ExcelTable<T extends { id: string | number }>({
   emptyText = 'Belum ada data.',
   canEdit,
   simpanSaatKeluarMode = false,
+  onValidasiGagal,
   onCommit,
   onSaved,
   renderActions,
@@ -450,9 +453,11 @@ export default function ExcelTable<T extends { id: string | number }>({
   onCommitRef.current = onCommit;
   const onSavedRef = useRef(onSaved);
   onSavedRef.current = onSaved;
+  const onValidasiGagalRef = useRef(onValidasiGagal);
+  onValidasiGagalRef.current = onValidasiGagal;
   const dropDraftRef = useRef<(idKey: string, keys: string[]) => void>(() => {});
   const { enqueueSave, flush } = useAntreanSimpan<T>({
-    rowsRef, fieldsRef, onCommitRef, onSavedRef, dropDraftRef,
+    rowsRef, fieldsRef, onCommitRef, onSavedRef, dropDraftRef, onInvalidRef: onValidasiGagalRef,
     autoDrain: !simpanSaatKeluarMode,
   });
   flushSaatKeluarRef.current = flush;

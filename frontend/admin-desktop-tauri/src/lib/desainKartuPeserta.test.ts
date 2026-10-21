@@ -49,7 +49,7 @@ describe('desain kartu peserta', () => {
       },
       peristiwa: {
         id: 1, jenjang: 'MI', tahun_ajaran: '2026/2027', kode: 'ASAS', nama: 'ASAS',
-        cakupan: 'semua', kurikulum: 'keduanya', jenis_rapor: 'akhir', urutan: 1, is_active: true,
+        cakupan: 'semua', kurikulum: 'keduanya', rentang_nilai: '0-100', jenis_rapor: 'akhir', urutan: 1, is_active: true,
       },
       semester: '1', lembaga: 'Madrasah Ibtidaiyah',
     })).toBe('26.27.ASAS.01.0001');

@@ -42,11 +42,26 @@ class PeristiwaNilai extends Model
     /** Tidak menghasilkan rapor — hanya nilai ujian/ijazah (mis. UJIAN, UAP). */
     public const RAPOR_TIDAK_ADA = 'tidak_ada';
 
+    /** Pilihan rentang nilai yang sah untuk input manual/impor. */
+    public const RENTANG_VALID = ['0-10', '0-100', '0-4'];
+
+    public const RENTANG_BAWAAN = '0-100';
+
     protected $table = 'peristiwa_nilai';
 
     protected $guarded = ['id'];
 
     protected $casts = ['is_active' => 'boolean', 'urutan' => 'integer'];
+
+    /** Batas atas nilai sesuai rentang peristiwa (0-10, 0-100, atau 0-4). */
+    public function nilaiMaks(): float
+    {
+        return match ($this->rentang_nilai ?? self::RENTANG_BAWAAN) {
+            '0-10' => 10.0,
+            '0-4' => 4.0,
+            default => 100.0,
+        };
+    }
 
     /** Apakah peristiwa ini boleh dicetak sebagai rapor. */
     public function menghasilkanRapor(): bool

@@ -8,6 +8,7 @@ import { appendQueryParam, type ScalarOrArray } from './query';
  */
 
 export type CakupanPeristiwa = 'semua' | 'kecuali_akhir' | 'tingkat_akhir';
+export type RentangNilai = '0-10' | '0-100' | '0-4';
 export type KurikulumPeristiwa = 'kemenag' | 'pesantren' | 'keduanya';
 /** `akhir` = rapor akhir semester/tahun (ASAS/ASAT); `sementara` = rapor tengah
  *  periode; `tidak_ada` = nilai ujian/ijazah saja (UJIAN/UAP), tanpa rapor. */
@@ -17,6 +18,7 @@ export interface PeristiwaNilai {
   id: number; jenjang: string; tahun_ajaran: string;
   kode: string; nama: string;
   cakupan: CakupanPeristiwa; kurikulum: KurikulumPeristiwa;
+  rentang_nilai: RentangNilai;
   jenis_rapor: JenisRapor;
   urutan: number; is_active: boolean;
   /** Terisi pada respons daftar. */
@@ -255,7 +257,7 @@ export function buatPeristiwa(data: {
 
 export function ubahPeristiwa(id: number, data: {
   nama?: string; cakupan?: CakupanPeristiwa; kurikulum?: KurikulumPeristiwa;
-  jenis_rapor?: JenisRapor; urutan?: number; is_active?: boolean;
+  rentang_nilai?: RentangNilai; jenis_rapor?: JenisRapor; urutan?: number; is_active?: boolean;
 }) {
   return api<PeristiwaNilai>(`/admin/penilaian/peristiwa/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
