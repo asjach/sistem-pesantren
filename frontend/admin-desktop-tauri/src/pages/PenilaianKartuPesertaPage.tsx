@@ -38,7 +38,7 @@ const FIELDS_NOMOR: ExcelField[] = [
     key: 'nis_lokal', label: 'NIS', kind: 'static', width: 110,
     renderCell: (row) => row.nis_lokal === null || row.nis_lokal === ''
       ? <span className="text-muted-foreground">—</span>
-      : <span className="font-mono">{String(row.nis_lokal)}</span>,
+      : <span>{String(row.nis_lokal)}</span>,
   },
   { key: 'nama', label: 'Nama', kind: 'static', width: 200 },
   {
