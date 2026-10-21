@@ -138,13 +138,15 @@ describe('BarisPoin - menyunting poin di baris', () => {
     expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap harian.');
   });
 
-  it('menampilkan keterangan poin bila terisi', () => {
+  it('menampilkan requirement poin bila terisi', () => {
     pasang([kartu({ keterangan: 'Catatan rinci per kas.' })]);
 
-    expect(document.getElementById('kartu_papan_butir_128')?.textContent).toContain('Catatan rinci per kas.');
+    const baris = document.getElementById('kartu_papan_butir_128');
+    expect(baris?.textContent).toContain('Requirement');
+    expect(baris?.textContent).toContain('Catatan rinci per kas.');
   });
 
-  it('menyimpan keterangan bersama poin', async () => {
+  it('menyimpan requirement bersama poin', async () => {
     const onSimpanTeks = vi.fn(async () => {});
     pasang([kartu({ keterangan: 'Catatan lama.' })], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
     mulaiUbah();
@@ -160,7 +162,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
     });
   });
 
-  it('mengosongkan keterangan mengirim string kosong', async () => {
+  it('mengosongkan requirement mengirim string kosong', async () => {
     const onSimpanTeks = vi.fn(async () => {});
     pasang([kartu({ keterangan: 'Catatan lama.' })], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
     mulaiUbah();

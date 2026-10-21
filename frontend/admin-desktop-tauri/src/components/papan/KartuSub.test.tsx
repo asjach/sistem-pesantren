@@ -24,7 +24,7 @@ function poin(ubah: Partial<KartuPapan> = {}): KartuPapan {
   };
 }
 
-function pasang(kartu: KartuPapan[]) {
+function pasang(kartu: KartuPapan[], poinDisorot: number | null = null) {
   return renderDenganTema(
     <PapanKolom
       kartu={kartu}
@@ -32,6 +32,7 @@ function pasang(kartu: KartuPapan[]) {
       onPindah={vi.fn()}
       bolehUbah
       idAwalan="uji"
+      poinDisorot={poinDisorot}
       // Tes ini soal penggabungan kartu, bukan lipatan awal: buka semua kolom.
       lipatAwal={[]}
     />,
@@ -65,6 +66,31 @@ describe('PapanKolom - kartu digabung per sub-modul', () => {
     fireEvent.click(document.getElementById('btn_lipat_area_sub_d_1_todo')!);
 
     expect(document.getElementById('kartu_papan_butir_1')).not.toBeNull();
+  });
+
+  it('membuka kartu dan menyorot poin dari hasil pencarian', async () => {
+    pasang([poin({ id: 1 })], 1);
+
+    const baris = document.getElementById('kartu_papan_butir_1');
+
+    expect(baris).not.toBeNull();
+    expect(baris?.className).toContain('ring-1');
+    await vi.waitFor(() => expect(document.activeElement).toBe(baris));
+  });
+
+  it('membuka kolom Done yang terlipat saat poin disorot', () => {
+    renderDenganTema(
+      <PapanKolom
+        kartu={[poin({ id: 2, status: 'done' })]}
+        tampilkanModul={false}
+        onPindah={vi.fn()}
+        bolehUbah
+        idAwalan="uji_done"
+        poinDisorot={2}
+      />,
+    );
+
+    expect(document.getElementById('kartu_papan_butir_2')).not.toBeNull();
   });
 
   it('tiga poin satu sub-modul jadi SATU kartu berisi tiga poin', () => {

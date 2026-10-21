@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, izinHalaman, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
+import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, izinHalaman, kunciGrupNavigasi, kunciHalamanNavigasi, kunciSubNavigasi, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
+import { useNavigasiVisibilitas } from '@/components/NavigasiVisibilitasProvider';
 import { bisa, logout } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -42,6 +43,7 @@ const TERKUNCI = new Set(['izin.lihat', 'server.lihat']);
 export default function Menubar() {
   const { user, logoutLocal } = useAuth();
   const { bertindak } = useLembagaAktif();
+  const { tersembunyi } = useNavigasiVisibilitas();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const halAktif = halamanDariPath(pathname);
@@ -65,7 +67,8 @@ export default function Menubar() {
 
   /** Halaman gabungan (mis. Data Induk) cukup punya SALAH SATU izin tab. */
   function bolehLihat(h: HalamanDef): boolean {
-    return izinHalaman(h).some((izin) => bisa(user, izin) && !(bertindak && TERKUNCI.has(izin)));
+    return !tersembunyi.has(kunciHalamanNavigasi(h.to))
+      && izinHalaman(h).some((izin) => bisa(user, izin) && !(bertindak && TERKUNCI.has(izin)));
   }
 
   /** Submenu siap render (rekursif): halaman terizin + anak terisi. */
@@ -87,6 +90,7 @@ export default function Menubar() {
           anak: siapkan(grup, s.anak, kunci),
         };
       })
+      .filter((n) => !tersembunyi.has(kunciSubNavigasi(n.kunci)))
       .filter((n) => n.items.length > 0 || n.anak.length > 0);
   }
 
@@ -140,6 +144,7 @@ export default function Menubar() {
         SIMPES
       </span>
       {NAV_GRUP.map((g) => {
+        if (tersembunyi.has(kunciGrupNavigasi(g.id))) return null;
 
         const entri: ({ sub: NodeMenu } | { hal: HalamanDef })[] = [];
         for (const b of blokGrup(g.id)) {

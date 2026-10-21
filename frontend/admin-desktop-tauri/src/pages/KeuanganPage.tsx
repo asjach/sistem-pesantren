@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { errorMessage, prefGet, prefSet } from '../api/client';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
@@ -16,6 +17,7 @@ import { listKelas, listLembaga, listTahunAjaran, type Kelas, type Lembaga, type
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import PopoverAksiTagihan, { type TagihanAktif, type TambahCtx } from '@/components/keuangan/PopoverAksiTagihan';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
@@ -103,6 +105,15 @@ export default function KeuanganPage() {
   /** Crosstab tagihan: baris = santri, kolom = jenis (bulanan per bulan). */
   const [crosstab, setCrosstab] = useState<CrosstabTagihan | null>(null);
   const [cariTagihan, setCariTagihan] = useState('');
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const tabUrl = searchParams.get('tab');
+    const cariUrl = searchParams.get('cari');
+
+    if (tabUrl && (TAB_KEUANGAN as readonly string[]).includes(tabUrl)) setTab(tabUrl);
+    if (cariUrl !== null) setCariTagihan(cariUrl);
+  }, [searchParams]);
   /** Pencarian yang benar-benar dipakai saat muat: ditunda 400 ms supaya tak
    *  memanggil API tiap ketikan (pola sama dengan `useDaftarTabel`). */
   const [cariTagihanTertunda, setCariTagihanTertunda] = useState('');
@@ -954,6 +965,11 @@ export default function KeuanganPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch
+        value={cariTagihan}
+        onChange={setCariTagihan}
+        placeholder="Cari santri / tagihan…"
+      />
       <PengaturanHalaman
         tampil={{ lembaga: true, tahun_ajaran: true, tingkat: true, kelas: true }}
         tabel={[

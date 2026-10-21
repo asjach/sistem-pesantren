@@ -2,6 +2,8 @@ import { Fragment, type ReactNode } from 'react';
 import { GridPrefsProvider } from '@/components/GridPrefs';
 import { TopBarSearchProvider } from '@/components/TopBarSearch';
 import { CariGlobalProvider } from '@/hooks/useCariGlobal';
+import { PencarianGlobalProvider } from '@/components/PencarianGlobalProvider';
+import { NavigasiVisibilitasProvider } from '@/components/NavigasiVisibilitasProvider';
 import { VisibilitasFilterProvider } from '@/components/VisibilitasFilter';
 import Sidebar from '@/components/Sidebar';
 import Menubar from '@/components/Menubar';
@@ -19,10 +21,12 @@ export default function Layout({ children }: { children: ReactNode }) {
   const pakaiMenubar = navigasi === 'menubar';
 
   return (
-    <GridPrefsProvider>
-      <VisibilitasFilterProvider>
-        <CariGlobalProvider>
-          <TopBarSearchProvider>
+    <NavigasiVisibilitasProvider>
+      <GridPrefsProvider>
+        <VisibilitasFilterProvider>
+          <CariGlobalProvider>
+            <PencarianGlobalProvider>
+              <TopBarSearchProvider>
 
             <SeretSidebarProvider>
               <div className="flex h-screen overflow-hidden bg-background">
@@ -39,9 +43,11 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </div>
               </div>
             </SeretSidebarProvider>
-          </TopBarSearchProvider>
+            </TopBarSearchProvider>
+          </PencarianGlobalProvider>
         </CariGlobalProvider>
       </VisibilitasFilterProvider>
-    </GridPrefsProvider>
+      </GridPrefsProvider>
+    </NavigasiVisibilitasProvider>
   );
 }

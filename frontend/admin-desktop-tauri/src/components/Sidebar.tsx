@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, izinHalaman, jalurSubgrup, type AnakNav, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
+import { NAV_GRUP, blokGrup, halamanDariPath, halamanSubgrup, izinHalaman, jalurSubgrup, kunciGrupNavigasi, kunciHalamanNavigasi, kunciSubNavigasi, type AnakNav, type HalamanDef, type SubgrupNav, type TabKategori } from '@/lib/halaman';
+import { useNavigasiVisibilitas } from '@/components/NavigasiVisibilitasProvider';
 import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -118,6 +119,7 @@ export default function Sidebar() {
   const { mulaiSeret, onKeyDown, resetLebar } = useAksiSeretSidebar();
   const { user } = useAuth();
   const { bertindak } = useLembagaAktif();
+  const { tersembunyi } = useNavigasiVisibilitas();
 
   const terkunci = new Set(['izin.lihat', 'server.lihat']);
   /** Grup/subgrup yang sedang tertutup (bawaan semua terbuka). */
@@ -146,7 +148,8 @@ export default function Sidebar() {
   /** Halaman diizinkan untuk user ini (termasuk penguncian saat bertindak).
    *  Halaman gabungan (mis. Data Induk) cukup punya SALAH SATU izin tab. */
   function bolehLihat(h: HalamanDef): boolean {
-    return izinHalaman(h).some((izin) => bisa(user, izin) && !(bertindak && terkunci.has(izin)));
+    return !tersembunyi.has(kunciHalamanNavigasi(h.to))
+      && izinHalaman(h).some((izin) => bisa(user, izin) && !(bertindak && terkunci.has(izin)));
   }
 
   /** Kunci jalur halaman aktif (grup + tiap tingkat sub) untuk sorot induk. */
@@ -212,6 +215,7 @@ export default function Sidebar() {
           anak: siapkan(grup, s.anak, kunci),
         };
       })
+      .filter((n) => !tersembunyi.has(kunciSubNavigasi(n.kunci)))
       .filter((n) => n.items.length > 0 || n.anak.length > 0);
   }
 
@@ -327,6 +331,7 @@ export default function Sidebar() {
 
         <nav className="flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
           {NAV_GRUP.map((g) => {
+          if (tersembunyi.has(kunciGrupNavigasi(g.id))) return null;
 
           const entri: ({ sub: NodeSiap } | { hal: HalamanDef })[] = [];
           for (const b of blokGrup(g.id)) {

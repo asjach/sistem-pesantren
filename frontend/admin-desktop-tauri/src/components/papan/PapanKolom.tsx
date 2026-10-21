@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type DragEvent, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState, type DragEvent, type CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 import { Check, ChevronDown, ChevronUp, Minus, Pencil, Plus, Trash2, Undo2 } from '@/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -149,6 +149,8 @@ export function KartuPapan({
   aksiKartu,
   aksiSub,
   onTambahPoin,
+  disorot = false,
+  poinDisorot = null,
 }: {
   kartu: KartuSub;
   /** Id poin yang sedang diseret (bukan id kartu). */
@@ -165,6 +167,9 @@ export function KartuPapan({
   aksiKartu: (poin: KartuPapan) => AksiButir;
   aksiSub?: (kartu: KartuSub) => AksiSub;
   onTambahPoin?: (kode: string, status: StatusPapan, deskripsi: string, keterangan?: string | null) => Promise<void>;
+  /** true bila poin yang disorot dari hasil pencarian ada di kartu ini. */
+  disorot?: boolean;
+  poinDisorot?: number | null;
 }) {
   const idKartu = `sub_${kartu.subKode.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${kartu.status}`;
   const warna = warnaKartuSub(kartu.subKode);
@@ -178,14 +183,13 @@ export function KartuPapan({
   const [poinBaru, setPoinBaru] = useState('');
   const [keteranganBaru, setKeteranganBaru] = useState('');
   const [statusBaru, setStatusBaru] = useState<StatusPapan>(kartu.status);
-  const [terbuka, setTerbuka] = useState(false);
+  const [terbuka, setTerbuka] = useState(disorot);
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
   const [sibuk, setSibuk] = useState(false);
   const [galat, setGalat] = useState('');
 
-  async function jalankan(aksi: () => Promise<void>, selesai?: () => void) {
-    setSibuk(true);
+  async function jalankan(aksi: () => Promise<void>, selesai?: () => void) {    setSibuk(true);
     setGalat('');
     try {
       await aksi();
@@ -209,6 +213,10 @@ export function KartuPapan({
     if (terbuka) setTambahTerbuka(false);
     setTerbuka(!terbuka);
   }
+
+  useEffect(() => {
+    if (disorot) setTerbuka(true);
+  }, [disorot]);
 
   function batalUbah() {
     setKode(kartu.subKode);
@@ -415,6 +423,7 @@ export function KartuPapan({
                 onPindahArah={onPindahArah}
                 bolehUbah={bolehUbah}
                 aksi={aksiKartu(poin)}
+                sorot={poinDisorot === poin.id}
               />
             ))}
           </div>
@@ -422,7 +431,7 @@ export function KartuPapan({
             <div className="border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
               <div className="flex flex-col gap-2">
                 <input id={`input_poin_baru_${idKartu}`} value={poinBaru} onChange={(e) => setPoinBaru(e.target.value)} placeholder="Tulis poin baru..." aria-label={`Poin baru ${kartu.subKode}`} className="w-full border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
-                <textarea id={`input_keterangan_poin_baru_${idKartu}`} value={keteranganBaru} onChange={(e) => setKeteranganBaru(e.target.value)} rows={2} maxLength={2000} placeholder="Keterangan (opsional)" aria-label={`Keterangan poin baru ${kartu.subKode}`} className="w-full resize-y border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
+                <textarea id={`input_keterangan_poin_baru_${idKartu}`} value={keteranganBaru} onChange={(e) => setKeteranganBaru(e.target.value)} rows={2} maxLength={2000} placeholder="Requirement (instruksi khusus)" aria-label={`Requirement poin baru ${kartu.subKode}`} className="w-full resize-y border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
                 <select id={`status_poin_baru_${idKartu}`} value={statusBaru} onChange={(e) => setStatusBaru(e.target.value as StatusPapan)} aria-label="Status poin baru" className="border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }}>
                   {KOLOM_PAPAN.map((status) => <option key={status} value={status}>{JUDUL_KOLOM[status]}</option>)}
                 </select>
@@ -465,6 +474,7 @@ function BarisPoin({
   onPindahArah,
   bolehUbah,
   aksi,
+  sorot = false,
 }: {
   poin: KartuPapan;
   diseret: boolean;
@@ -474,6 +484,8 @@ function BarisPoin({
   onPindahArah: (poin: KartuPapan, arah: -1 | 1) => void;
   bolehUbah: boolean;
   aksi: AksiButir;
+  /** true bila poin ini tujuan dari hasil pencarian Board. */
+  sorot?: boolean;
 }) {
   const idPoin = `butir_${poin.id}`;
   const [ubah, setUbah] = useState(false);
@@ -488,6 +500,13 @@ function BarisPoin({
   const [sibukSub, setSibukSub] = useState<number | null>(null);
   const [galat, setGalat] = useState('');
   const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
+
+  useEffect(() => {
+    if (!sorot) return;
+    const el = document.getElementById(`kartu_papan_butir_${poin.id}`);
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el?.focus({ preventScroll: true });
+  }, [sorot, poin.id]);
 
   function mulaiUbah() {
     setDraf(poin.deskripsi);
@@ -668,6 +687,7 @@ function BarisPoin({
           bolehUbah ? 'cursor-grab active:cursor-grabbing' : '',
           'focus-visible:border-[color:var(--accent)] focus-visible:bg-[var(--surface-2)] focus-visible:outline-none',
           diseret && 'cursor-grabbing opacity-40',
+          sorot && 'border-[color:var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] ring-1 ring-[var(--accent)]',
         )}
       >
         {ubah ? (
@@ -704,17 +724,20 @@ function BarisPoin({
               </div>
             </div>
             <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-              Keterangan (opsional)
+              Requirement (instruksi khusus)
               <textarea
                 id={`input_keterangan_butir_${poin.id}`}
                 value={keteranganDraf}
                 onChange={(e) => setKeteranganDraf(e.target.value)}
                 rows={2}
                 maxLength={2000}
-                aria-label={`Keterangan poin ${poin.deskripsi}`}
+                aria-label={`Requirement poin ${poin.deskripsi}`}
                 className="min-w-0 resize-y border bg-transparent p-1.5 text-[11px] leading-snug outline-none focus:border-[var(--accent)]"
                 style={{ borderColor: 'var(--divider)' }}
               />
+              <span className="text-[10px] leading-snug">
+                Agen akan meriset requirement ini, menambahkan subpoin, lalu mengosongkannya.
+              </span>
             </label>
             <div className="flex flex-wrap items-center gap-1.5">
               <button
@@ -818,12 +841,17 @@ function BarisPoin({
           >
             <TeksButir deskripsi={poin.deskripsi} />
             {poin.keterangan ? (
-              <p
-                className="mt-1 border-l-2 pl-1.5 text-[11px] leading-snug whitespace-pre-line text-muted-foreground [overflow-wrap:anywhere]"
+              <div
+                className="mt-1 border-l-2 pl-1.5"
                 style={{ borderColor: 'var(--divider)' }}
               >
-                {poin.keterangan}
-              </p>
+                <span className="font-mono text-[9px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  Requirement
+                </span>
+                <p className="text-[11px] leading-snug whitespace-pre-line text-muted-foreground [overflow-wrap:anywhere]">
+                  {poin.keterangan}
+                </p>
+              </div>
             ) : null}
             {poin.subpoin.length > 0 ? (
               <ul className="mt-1 flex flex-col gap-0.5 text-[11px] text-muted-foreground">
@@ -882,6 +910,7 @@ export function PapanKolom({
   idAwalan,
   lipatAwal,
   onTambahSub,
+  poinDisorot = null,
 }: {
   kartu: KartuPapan[];
   tampilkanModul: boolean;
@@ -900,6 +929,8 @@ export function PapanKolom({
   lipatAwal?: StatusPapan[];
   /** Bila diisi, tombol tambah sub-modul muncul di kolom Backlog & To Do. */
   onTambahSub?: () => void;
+  /** Poin yang disorot setelah pengguna memilih hasil pencarian. */
+  poinDisorot?: number | null;
 }) {
   const [seret, setSeret] = useState<number | null>(null);
   const [sasaran, setSasaran] = useState<SasaranJatuh | null>(null);
@@ -936,6 +967,20 @@ export function PapanKolom({
   const [lipat, setLipat] = useState<Set<StatusPapan>>(() => new Set(
     lipatAwal ?? [...kolom.filter((k) => k.kartu.length === 0).map((k) => k.id), 'done'],
   ));
+
+  useEffect(() => {
+    if (poinDisorot === null) return;
+    const kolomPoin = kartu.find((poin) => poin.id === poinDisorot)?.status;
+    if (!kolomPoin) return;
+
+    setLipat((prev) => {
+      if (!prev.has(kolomPoin)) return prev;
+      const next = new Set(prev);
+      next.delete(kolomPoin);
+
+      return next;
+    });
+  }, [poinDisorot, kartu]);
 
   /** Jumlah POIN di satu kolom (kartu di sana bisa satu sub-modul banyak poin). */
   const jumlahPoinKolom = (item: KolomPapanData): number =>
@@ -1183,6 +1228,8 @@ export function PapanKolom({
                           }
                           aksiSub={aksiSub}
                           onTambahPoin={onTambahPoin}
+                          disorot={poinDisorot !== null && k.poin.some((poin) => poin.id === poinDisorot)}
+                          poinDisorot={poinDisorot}
                         />
                       </div>
                     ))}

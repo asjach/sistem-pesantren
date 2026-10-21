@@ -340,6 +340,48 @@ function ruteHalaman(h: HalamanDef): string[] {
   return [h.to, ...(h.tabHalaman ?? []).map((t) => t.to)];
 }
 
+/** Kunci preferensi visibilitas navigasi (frontend-only). */
+export function kunciGrupNavigasi(id: string): string {
+  return `grup:${id}`;
+}
+
+export function kunciSubNavigasi(path: string): string {
+  return `sub:${path}`;
+}
+
+export function kunciHalamanNavigasi(to: string): string {
+  return `halaman:${to}`;
+}
+
+export function kunciTabNavigasi(to: string): string {
+  return `tab:${to}`;
+}
+
+/** Semua kunci navigasi yang valid; kunci asing dari penyimpanan diabaikan. */
+export function semuaKunciNavigasi(): Set<string> {
+  const hasil = new Set<string>();
+  const jalanSub = (subs: AnakNav[] | undefined, prefix: string) => {
+    for (const s of subs ?? []) {
+      if ('langsung' in s) continue;
+      const kunci = `${prefix}:${s.id}`;
+      hasil.add(kunciSubNavigasi(kunci));
+      jalanSub(s.anak, kunci);
+    }
+  };
+
+  for (const g of NAV_GRUP) {
+    hasil.add(kunciGrupNavigasi(g.id));
+    jalanSub(g.anak, g.id);
+  }
+
+  for (const h of HALAMAN) {
+    hasil.add(kunciHalamanNavigasi(h.to));
+    for (const t of h.tabHalaman ?? []) hasil.add(kunciTabNavigasi(t.to));
+  }
+
+  return hasil;
+}
+
 /** Halaman yang cocok dengan rute (prefix terpanjang menang; rute tab
  *  halaman gabungan ikut dikenali). */
 export function halamanDariPath(pathname: string): HalamanDef | null {

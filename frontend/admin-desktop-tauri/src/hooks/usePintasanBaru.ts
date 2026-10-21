@@ -7,7 +7,7 @@ function tombol(kunci: string): string {
 
 /** Elemen yang sedang menerima ketikan: input, textarea, select, atau editor
  *  kaya (contenteditable). Pintasan papan-ketik TIDAK boleh menyergapnya. */
-function sedangMengetik(el: HTMLElement | null): boolean {
+export function sedangMengetik(el: HTMLElement | null): boolean {
   if (!el) return false;
   if (el.isContentEditable) return true;
   const tag = el.tagName;

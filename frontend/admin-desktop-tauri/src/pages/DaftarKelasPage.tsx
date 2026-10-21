@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
 import { daftarKelas, type DaftarKelasHasil, type RiwayatRow } from '../api/siklus';
@@ -51,6 +52,12 @@ export default function DaftarKelasPage() {
   const [kelompok, setKelompok] = useState('aktif');
   /** Pencarian tunggal halaman (topBar). */
   const [cari, setCari] = useState('');
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const dariUrl = searchParams.get('cari');
+    if (dariUrl !== null) setCari(dariUrl);
+  }, [searchParams]);
   /** Opsi kelas lingkup (tanpa TA saat lintas periode) untuk memetakan nama
    *  filter global → id kelas param server. */
   const [kelasOpsi, setKelasOpsi] = useState<Kelas[]>([]);

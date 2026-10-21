@@ -96,6 +96,8 @@ class IzinMatriksTest extends TestCase
         }
         $this->assertTrue($admin->hasPermissionTo('santri.hapus'));
         $this->assertTrue($admin->hasPermissionTo('santri.lihat'));
+        $this->assertFalse($admin->hasPermissionTo('papan.lihat'));
+        $this->assertFalse($admin->hasPermissionTo('papan.ubah'));
     }
 
     public function test_03_matriks_hanya_super_admin(): void

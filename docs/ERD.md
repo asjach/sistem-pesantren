@@ -318,6 +318,12 @@ erDiagram
         string page_key
         bigint diubah_oleh FK
     }
+    PENGATURAN_PENCARIAN {
+        bigint id PK
+        string page_key
+        boolean aktif
+        bigint diubah_oleh FK
+    }
     PENGATURAN_GLOBAL {
         bigint id PK
         string kunci
@@ -332,6 +338,7 @@ erDiagram
     USERS o|--o{ TOOLBAR_PRESET : "membuat"
     USERS o|--o{ KOMPONEN_CUSTOM : "membuat"
     USERS o|--o{ PENGATURAN_HALAMAN : "mengubah"
+    USERS o|--o{ PENGATURAN_PENCARIAN : "mengubah"
     USERS o|--o{ PENGATURAN_GLOBAL : "mengubah"
 ```
 

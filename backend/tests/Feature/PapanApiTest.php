@@ -223,13 +223,14 @@ class PapanApiTest extends TestCase
         $this->deleteJson("/api/board/E.3/butir/{$id}")->assertStatus(404);
     }
 
-    public function test_peran_admin_lembaga_boleh_mengubah(): void
+    public function test_peran_admin_tidak_boleh_membaca_atau_mengubah(): void
     {
         Sanctum::actingAs($this->pengguna(['admin']));
 
         $poin = PapanButir::query()->where('status', 'todo')->firstOrFail();
 
-        $this->patchJson("/api/board/E.3/butir/{$poin->id}/status", ['status' => 'in_progress'])->assertOk();
+        $this->getJson('/api/board')->assertStatus(403);
+        $this->patchJson("/api/board/E.3/butir/{$poin->id}/status", ['status' => 'in_progress'])->assertStatus(403);
     }
 
     /**

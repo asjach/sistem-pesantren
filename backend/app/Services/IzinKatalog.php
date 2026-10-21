@@ -63,6 +63,8 @@ class IzinKatalog
     public const EKSKLUSIF_SUPER_ADMIN = [
         'lembaga.tambah',
         'server.lihat',
+        'papan.lihat',
+        'papan.ubah',
         'izin.lihat',
         'izin.ubah',
         'preset_tabel.tambah',

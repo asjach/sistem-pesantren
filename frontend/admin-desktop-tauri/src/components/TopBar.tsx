@@ -37,12 +37,15 @@ import {
 import { ICON_SETS } from '@/iconSets';
 import { THEME_PRESETS } from '@/themes';
 import { DEFAULT_PREFS, DENSITY_PX, DensityName, RADIUS_MAX, RADIUS_MIN, WARNA_UI } from '@/prefs';
-import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Crop, DensityMedium, LogOut, Minus, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Plus, Settings, Sun, Users } from '@/icons';
+import { Blend, Check, ChevronDown, ChevronLeft, ChevronRight, Columns3, Crop, DensityMedium, Info, LogOut, Minus, Monitor, Moon, NotebookTabs, Paintbrush, Palette, Plus, Search, Settings, Sun, Users } from '@/icons';
 import { useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { useAksiSeretSidebar } from '@/components/SeretSidebar';
 import { apakahKlik } from '@/components/useLebarSidebar';
 import BannerBertindak from '@/components/BannerBertindak';
 import SheetPengaturanTampilan from '@/components/pengaturan/SheetPengaturanTampilan';
+import BantuanKeyboard from '@/components/BantuanKeyboard';
+import PencarianGlobalDialog from '@/components/PencarianGlobalDialog';
+import NavigasiVisibilitasDialog from '@/components/NavigasiVisibilitasDialog';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import { Button } from '@/components/ui/button';
 import {
@@ -163,6 +166,9 @@ export default function TopBar() {
   const [kelolaHalamanOpen, setKelolaHalamanOpen] = useState(false);
   /** Panel geser pengaturan tampilan GLOBAL (tinggi baris, huruf, warna). */
   const [pengaturanTampilanOpen, setPengaturanTampilanOpen] = useState(false);
+  const [pencarianOpen, setPencarianOpen] = useState(false);
+  const [navigasiOpen, setNavigasiOpen] = useState(false);
+  const [bantuanOpen, setBantuanOpen] = useState(false);
   /** Halaman gabungan (punya tab) yang sedang dibuka, mis. Data Induk.
    *  "Kelola Halaman" hanya ada bila halaman ini punya tab untuk diatur. */
   const defTabs = useMemo(() => {
@@ -388,6 +394,25 @@ export default function TopBar() {
         </div>
 
         <div data-part="area_akun" className="flex min-w-0 items-center justify-end gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                id="btn_bantuan_keyboard"
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Bantuan keyboard"
+                aria-keyshortcuts="?"
+                onClick={() => setBantuanOpen(true)}
+                className="mr-1 text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--chrome-ring)]"
+              >
+                <Info size={14} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Bantuan keyboard (?)</p>
+            </TooltipContent>
+          </Tooltip>
           {/* Gerigi TOPBAR = pengaturan GLOBAL APLIKASI, termasuk tampilan
               tabel: berlaku semua tabel & semua halaman. Ini pintu yang
               BERBEDA dari gerigi di kanan bawah tiap tabel (yang khusus tabel
@@ -414,6 +439,22 @@ export default function TopBar() {
                 <Paintbrush data-icon="inline-start" size={16} />
                 Tampilan tabel
               </DropdownMenuItem>
+              <DropdownMenuItem
+                id="menu_navigasi_sidebar"
+                onSelect={() => setNavigasiOpen(true)}
+              >
+                <Columns3 data-icon="inline-start" size={16} />
+                Navigasi sidebar
+              </DropdownMenuItem>
+              {efektifSuper ? (
+                <DropdownMenuItem
+                  id="menu_pencarian_global"
+                  onSelect={() => setPencarianOpen(true)}
+                >
+                  <Search data-icon="inline-start" size={16} />
+                  Pencarian global
+                </DropdownMenuItem>
+              ) : null}
               {efektifSuper ? (
                 <DropdownMenuItem
                   id="menu_standar_tampilan"
@@ -683,6 +724,14 @@ export default function TopBar() {
         </div>
 
       </div>
+
+      <BantuanKeyboard open={bantuanOpen} onOpenChange={setBantuanOpen} />
+
+      {efektifSuper ? (
+        <PencarianGlobalDialog open={pencarianOpen} onOpenChange={setPencarianOpen} />
+      ) : null}
+
+      <NavigasiVisibilitasDialog open={navigasiOpen} onOpenChange={setNavigasiOpen} />
 
       <BannerBertindak terbuka={false} onTutup={() => {}} />
 

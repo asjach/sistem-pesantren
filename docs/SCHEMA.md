@@ -674,6 +674,14 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `created_at`, `updated_at`
 - UNIQUE(`page_key`)
 
+### `pengaturan_pencarian` (halaman yang ikut pencarian global non-Board; global semua pengguna)
+- `id` PK
+- `page_key`: string(60) [unik] — kunci halaman yang didukung: `daftar_kelas`, `santri`, `pegawai`, `keuangan`; halaman baru default nonaktif
+- `aktif`: boolean [bawaan false] — hanya halaman aktif yang dicari oleh endpoint pencarian global
+- `diubah_oleh`: FK → users [null, nullOnDelete]
+- `created_at`, `updated_at`
+- UNIQUE(`page_key`)
+
 ### `pengaturan_global` (standar tampilan global, key-value; satu baris per kunci)
 - `id` PK
 - `kunci`: string(60) [unik] — kunci setelan yang dikenal: `tinggi_baris` (20–200px), `tinggi_header` (20–120px). Kunci lain DITOLAK; sengaja sempit, hanya setelan yang bermakna sebagai standar bersama. Setelan yang mengikuti ukuran layar (lebar sidebar, mode navigasi) TIDAK boleh masuk sini

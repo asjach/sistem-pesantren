@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Admin\MiMdController;
 use App\Http\Controllers\Api\Admin\MutasiKeluarArsipController;
 use App\Http\Controllers\Api\Admin\PegawaiController;
 use App\Http\Controllers\Api\Admin\PembayaranController;
+use App\Http\Controllers\Api\Admin\PencarianGlobalController;
 use App\Http\Controllers\Api\Admin\PengaturanGlobalController;
 use App\Http\Controllers\Api\Admin\PengaturanHalamanController;
 use App\Http\Controllers\Api\Admin\PenilaianController;
@@ -456,6 +457,11 @@ Route::middleware(['auth:sanctum', 'lembaga_aktif', 'throttle:api_user'])
 
         Route::get('izin', [IzinController::class, 'index'])->middleware('permission:izin.lihat');
         Route::put('izin', [IzinController::class, 'update'])->middleware('permission:izin.ubah');
+
+        Route::get('pencarian-global', [PencarianGlobalController::class, 'setelan'])->middleware('permission:pengaturan_halaman.ubah');
+        Route::put('pencarian-global', [PencarianGlobalController::class, 'simpan'])->middleware('permission:pengaturan_halaman.ubah');
+        Route::get('pencarian', [PencarianGlobalController::class, 'cari'])
+            ->middleware('permission:santri.lihat|pegawai.lihat|keuangan.lihat|daftar_kelas.lihat');
     });
 
 // PSB publik (tanpa auth; captcha SKIP — spec §5 hanya sebut sepintas tanpa implementasi).

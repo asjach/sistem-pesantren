@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Satu butir pekerjaan di bawah sub-modul, dengan statusnya sendiri.
  *
  * `status` memakai workflow: backlog | todo | in_progress | for_review | done.
+ * `keterangan` adalah requirement khusus pengguna; agen merisetnya, menyusun
+ * subpoin, lalu mengosongkannya setelah subpoin tersimpan.
  */
 class PapanButir extends Model
 {

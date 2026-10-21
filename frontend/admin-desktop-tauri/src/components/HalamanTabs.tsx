@@ -5,6 +5,8 @@ import { prefGet, prefSet } from '@/api/client';
 import { muatPengaturanHalaman } from '@/api/pengaturanHalaman';
 import { useAuth } from '@/auth/AuthContext';
 import type { HalamanDef, TabHalamanDef } from '@/lib/halaman';
+import { kunciTabNavigasi } from '@/lib/halaman';
+import { useNavigasiVisibilitas } from '@/components/NavigasiVisibilitasProvider';
 import { susunTab } from '@/lib/urutanTab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PAGE_SHELL } from '@/components/PageHeader';
@@ -78,6 +80,7 @@ export function useSetelanTab(def: HalamanDef) {
  *  tab pertama yang diizinkan. */
 export function ArahHalamanTabs({ def }: { def: HalamanDef }) {
   const { user } = useAuth();
+  const { tersembunyi } = useNavigasiVisibilitas();
   const kunciPref = kunciTab(def);
   const setelan = useSetelanTab(def);
   const kunciIzin = useMemo(
@@ -89,15 +92,20 @@ export function ArahHalamanTabs({ def }: { def: HalamanDef }) {
     if (setelan === null) return;
     const boleh = kunciIzin === '' ? [] : kunciIzin.split('|');
     const { tampil } = susunTab(def.tabHalaman ?? [], setelan.urutan, setelan.sembunyi);
-    const urutBoleh = tampil.filter((t) => boleh.includes(t.to)).map((t) => t.to);
+    const urutSemua = tampil.filter((t) => boleh.includes(t.to)).map((t) => t.to);
+    const urutBoleh = urutSemua.filter((to) => !tersembunyi.has(kunciTabNavigasi(to)));
     let hidup = true;
     const pilih = (tersimpan: string | null) => {
       if (!hidup) return;
-      setTujuan(tersimpan !== null && urutBoleh.includes(tersimpan) ? tersimpan : urutBoleh[0] ?? '/');
+      setTujuan(
+        tersimpan !== null && urutBoleh.includes(tersimpan)
+          ? tersimpan
+          : urutBoleh[0] ?? urutSemua[0] ?? '/',
+      );
     };
     prefGet(kunciPref).then(pilih).catch(() => pilih(null));
     return () => { hidup = false; };
-  }, [setelan, kunciIzin, kunciPref, def]);
+  }, [setelan, kunciIzin, kunciPref, def, tersembunyi]);
   if (tujuan === null) return null;
   return <Navigate to={tujuan} replace />;
 }
@@ -109,6 +117,7 @@ export function ArahHalamanTabs({ def }: { def: HalamanDef }) {
  *  mengubah rute. `def` = entri registri halaman yang punya `tabHalaman`. */
 export default function HalamanTabs({ def }: { def: HalamanDef }) {
   const { user } = useAuth();
+  const { tersembunyi } = useNavigasiVisibilitas();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const kunciPref = kunciTab(def);
@@ -118,11 +127,16 @@ export default function HalamanTabs({ def }: { def: HalamanDef }) {
     () => susunTab(def.tabHalaman ?? [], setelan?.urutan ?? [], setelan?.sembunyi ?? []),
     [def, setelan],
   );
-  const tabs = useMemo(
+  const tabsSemua = useMemo(
     () => susunan.tampil.filter((t) => bisa(user, t.permission)),
     [susunan, user],
   );
-  const aktif = tabs.find((t) => pathname === t.to || pathname.startsWith(`${t.to}/`))?.to;
+  const tabs = useMemo(
+    () => tabsSemua.filter((t) => !tersembunyi.has(kunciTabNavigasi(t.to))),
+    [tabsSemua, tersembunyi],
+  );
+  const aktif = tabsSemua.find((t) => pathname === t.to || pathname.startsWith(`${t.to}/`))?.to;
+  const aktifTersembunyi = aktif !== undefined && !tabs.some((t) => t.to === aktif);
 
   useEffect(() => {
     if (aktif) prefSet(kunciPref, aktif).catch(() => {});
@@ -153,9 +167,15 @@ export default function HalamanTabs({ def }: { def: HalamanDef }) {
             </TabsTrigger>
           ))}
         </TabsList>
-        <TabsContent value={aktif ?? ''} className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <Outlet />
-        </TabsContent>
+        {aktifTersembunyi ? (
+          <div className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+            <Outlet />
+          </div>
+        ) : (
+          <TabsContent value={aktif ?? ''} className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
+            <Outlet />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

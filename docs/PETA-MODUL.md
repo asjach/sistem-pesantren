@@ -1016,12 +1016,9 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Visibilitas kolom per tabel
   - [x] Tersimpan per halaman
 
-### DA11.3 Tampilan & Aksesibilitas `Backlog`
+### DA11.3 Tampilan & Aksesibilitas `Done`
 **Backlog**
-- Bantuan keyboard dan pembaca layar
-  - [ ] Overlay peta pintasan
-  - [ ] Navigasi VoiceOver di halaman utama
-  - [ ] Uji aksesibilitas dan kontras
+- (kosong)
 **To Do**
 - (kosong)
 **In Progress**
@@ -1033,6 +1030,12 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Terang/gelap/sistem
   - [x] Density dan radius sudut
   - [x] Sidebar/menubar dan sembilan set ikon
+- Bantuan keyboard dan pembaca layar
+  - [x] Overlay bantuan keyboard dapat dibuka dari tombol TopBar dan pintasan ?; ? diabaikan saat mengetik atau saat dialog lain terbuka
+  - [x] Overlay memuat pintasan global dan kontekstual: palet Ctrl/Cmd+K, cari /, sidebar Ctrl/Cmd+B, tambah Ctrl/Cmd+N, bantuan ?, serta navigasi grid/Board
+  - [x] Dialog memakai judul/deskripsi yang terbaca pembaca layar, focus trap, Escape, dan mengembalikan fokus
+  - [x] Pencarian halaman pindah ke /; Ctrl/Cmd+K hanya milik palet; chip, tooltip, dan aria-keyshortcuts diperbarui
+  - [x] Verifikasi: tes komponen overlay/pintasan, typecheck, dan pemeriksaan keyboard
 
 ### DA11.4 Halaman Board `For Review`
 **Backlog**
@@ -1042,6 +1045,42 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **In Progress**
 - (kosong)
 **For Review**
+- Pencarian Board lewat TopBar
+  - [x] Pencarian TopBar di Board mencakup semua aplikasi dan modul
+  - [x] Hasil muncul sebagai popup tepat di bawah input search, dikelompokkan per aplikasi lalu modul dengan konteks sub-modul dan status
+  - [x] Klik hasil membuka aplikasi/modul terkait, mengosongkan pencarian, menutup popup, dan menyorot poin termasuk membuka kolom/kartu yang terlipat
+  - [x] Popup menutup saat klik di luar atau Escape; fokus ulang input membuka lagi selama kata kunci masih ada
+  - [x] Saat pencarian kosong, Board kembali menampilkan modul aktif seperti biasa
+  - [x] Pemeriksaan: tes popup/pencarian, tes sorotan, dan typecheck
+- Batasi akses Board hanya untuk super_admin
+  - [x] Admin tidak lagi memiliki izin papan.lihat dan papan.ubah
+  - [x] Menu dan rute Board hanya dapat diakses super_admin
+  - [x] Pemeriksaan: tes izin dan typecheck hijau
+- Pencarian global non-Board dengan pengaturan per halaman
+  - [x] Pengaturan Pencarian global menyediakan checkbox per halaman; default nonaktif, dengan Daftar Kelas, Buku Induk Santri, Buku Induk Guru, dan Tagihan aktif
+  - [x] Endpoint pencarian hanya mengembalikan halaman yang aktif dan boleh diakses pengguna
+  - [x] Popup TopBar di halaman non-Board menampilkan hasil lintas halaman; Board tetap memakai pencarian Board sendiri
+  - [x] Klik hasil membuka detail bila tersedia, selain itu halaman terfilter yang tepat
+  - [x] Halaman target membaca kata kunci dari URL dan memfilter datanya
+  - [x] Pemeriksaan: tes backend/frontend dan typecheck hijau
+- Pengaturan visibilitas navigasi sidebar per perangkat
+  - [x] Pengaturan navigasi menampilkan grup, sub-grup, halaman, dan tab dengan checkbox aktif/nonaktif
+  - [x] Sidebar dan menubar menyembunyikan entri yang nonaktif tanpa mengubah hak akses
+  - [x] Tab halaman gabungan yang nonaktif tidak tampil, tetapi URL langsung tetap membuka kontennya
+  - [x] Pilihan tersimpan per perangkat dan ada tombol tampilkan semua
+  - [x] Pemeriksaan: tes filter navigasi/tab, typecheck, dan suite frontend hijau
+**Done**
+- Kolom status tanpa sub-modul terlipat saat Board dibuka
+  - [x] Kolom tanpa sub-modul tertutup saat halaman Board dibuka
+  - [x] Kolom yang punya sub-modul terbuka
+  - [x] Kolom Done selalu tertutup secara default
+  - [x] Bukaan manual pengguna tetap setelah data disegarkan
+  - [x] Verifikasi: 27 tes komponen Board lulus + npm run typecheck
+- Rail modul menandai modul yang punya pekerjaan For Review
+  - [x] Modul dengan poin For Review berlatar warna berbeda di rail modul
+  - [x] Modul tanpa For Review tetap netral
+  - [x] Warna tetap terbaca saat modul itu sedang aktif
+  - [x] Verifikasi: tes pustaka + typecheck + pratinjau visual
 - Alur pemilihan, riset, dan konfirmasi pekerjaan melalui Board
   - [x] Seluruh 103 poin To Do dikembalikan ke Backlog dengan riwayat perubahan
   - [x] Pengguna memilih To Do hanya pada alur kerja aplikasi yang efektif Aktif
@@ -1056,11 +1095,11 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Membuka kartu menampilkan meter, daftar poin, dan form tambah poin; aksi tambah/ubah otomatis membuka kartu
   - [x] Keadaan buka/tutup tetap terjaga saat data Board disegarkan dan dapat dioperasikan lewat keyboard
   - [x] Pemeriksaan: typecheck dan tes komponen Board hijau
-- Keterangan opsional pada setiap poin Board
-  - [x] Setiap poin punya keterangan opsional yang tampil di bawah teks poin bila terisi
-  - [x] Keterangan dapat diisi, diubah, dan dikosongkan lewat mode ubah poin lalu tersimpan di Board
-  - [x] Form tambah poin menerima keterangan opsional
-  - [x] Data poin lama tetap aman; keterangan kosong tidak mengubah tampilan
+- Field Requirement pada setiap poin Board
+  - [x] Setiap poin punya requirement opsional yang tampil di bawah teks poin bila terisi
+  - [x] Requirement dapat diisi, diubah, dan dikosongkan lewat mode ubah poin lalu tersimpan di Board
+  - [x] Form tambah poin menerima requirement opsional
+  - [x] Data poin lama tetap aman; requirement kosong tidak mengubah tampilan
   - [x] Pemeriksaan: tes backend Board, tes komponen Board, dan typecheck hijau
 - Label status Board memakai istilah teknis saja
   - [x] Kolom, dropdown, riwayat, dan pengumuman Board memakai Backlog, To Do, In Progress, For Review, Done
@@ -1073,18 +1112,11 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Latar khusus For Review pada rail dihapus; penandanya hanya angka tersebut
   - [x] Lencana memakai latar primary dan warnanya tetap sama saat rail dipilih maupun tidak dipilih
   - [x] Pemeriksaan: typecheck dan tes komponen Board hijau
-**Done**
-- Kolom status tanpa sub-modul terlipat saat Board dibuka
-  - [x] Kolom tanpa sub-modul tertutup saat halaman Board dibuka
-  - [x] Kolom yang punya sub-modul terbuka
-  - [x] Kolom Done selalu tertutup secara default
-  - [x] Bukaan manual pengguna tetap setelah data disegarkan
-  - [x] Verifikasi: 27 tes komponen Board lulus + npm run typecheck
-- Rail modul menandai modul yang punya pekerjaan For Review
-  - [x] Modul dengan poin For Review berlatar warna berbeda di rail modul
-  - [x] Modul tanpa For Review tetap netral
-  - [x] Warna tetap terbaca saat modul itu sedang aktif
-  - [x] Verifikasi: tes pustaka + typecheck + pratinjau visual
+- Requirement poin diproses menjadi subpoin lalu dikosongkan
+  - [x] Field poin disebut Requirement (instruksi khusus) di form tambah dan editor
+  - [x] Requirement tampil di kartu dengan label jelas dan tidak dianggap catatan permanen
+  - [x] Aturan workflow wajib di AGENTS.md: riset requirement, tambah subpoin, kosongkan requirement setelah subpoin tersimpan, tanpa melewati konfirmasi
+  - [x] Pemeriksaan: typecheck dan tes komponen Board hijau
 
 ## DA12. Dokumen & Berkas
 

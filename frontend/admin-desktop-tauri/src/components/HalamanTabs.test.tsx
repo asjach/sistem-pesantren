@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import HalamanTabs, { ArahHalamanTabs } from './HalamanTabs';
+import { NavigasiVisibilitasProvider } from './NavigasiVisibilitasProvider';
 import {
   HALAMAN_AKADEMIK,
   HALAMAN_DATA_INDUK,
@@ -58,50 +59,54 @@ const IZIN_SANTRI_AKTIF = ['daftar_kelas.lihat', 'rekap_santri.lihat', 'pengajua
 const IZIN_PENEMPATAN_PEGAWAI = ['pegawai.lihat'];
 
 /** Rute tiruan: dua halaman gabungan + penanda teks tiap tab. */
-function Halaman({ path }: { path: string }) {
+function Halaman({ path, navigasi = false }: { path: string; navigasi?: boolean }) {
+  const isi = (
+    <Routes>
+      <Route path="/data-induk" element={<ArahHalamanTabs def={HALAMAN_DATA_INDUK} />} />
+      <Route element={<HalamanTabs def={HALAMAN_DATA_INDUK} />}>
+        <Route path="/users" element={<p>ISI PENGGUNA</p>} />
+        <Route path="/lembaga" element={<p>ISI LEMBAGA</p>} />
+        <Route path="/tahun-ajaran" element={<p>ISI TAHUN AJARAN</p>} />
+        <Route path="/pengaturan/semester" element={<p>ISI SEMESTER</p>} />
+        <Route path="/kelas" element={<p>ISI KELAS</p>} />
+        <Route path="/santri" element={<p>ISI BUKU INDUK</p>} />
+        <Route path="/referensi" element={<p>ISI REFERENSI</p>} />
+      </Route>
+      <Route path="/penempatan" element={<ArahHalamanTabs def={HALAMAN_PENEMPATAN} />} />
+      <Route element={<HalamanTabs def={HALAMAN_PENEMPATAN} />}>
+        <Route path="/keanggotaan" element={<p>ISI SANTRI PER LEMBAGA</p>} />
+        <Route path="/mi-md" element={<p>ISI MI-MD</p>} />
+        <Route path="/riwayat-belajar" element={<p>ISI RIWAYAT BELAJAR</p>} />
+      </Route>
+      <Route path="/santri-aktif" element={<ArahHalamanTabs def={HALAMAN_SANTRI_AKTIF} />} />
+      <Route element={<HalamanTabs def={HALAMAN_SANTRI_AKTIF} />}>
+        <Route path="/daftar-kelas" element={<p>ISI DAFTAR KELAS</p>} />
+        <Route path="/rekap-santri" element={<p>ISI REKAP</p>} />
+        <Route path="/pengajuan-biodata" element={<p>ISI PENGAJUAN BIODATA</p>} />
+      </Route>
+      <Route
+        path="/penempatan-pegawai"
+        element={<ArahHalamanTabs def={HALAMAN_PENEMPATAN_PEGAWAI} />}
+      />
+      <Route element={<HalamanTabs def={HALAMAN_PENEMPATAN_PEGAWAI} />}>
+        <Route path="/pegawai" element={<p>ISI PEGAWAI</p>} />
+        <Route path="/pegawai-penempatan" element={<p>ISI LEMBAGA PEGAWAI</p>} />
+        <Route path="/pegawai-akun" element={<p>ISI AKUN PEGAWAI</p>} />
+      </Route>
+      <Route path="/akademik" element={<ArahHalamanTabs def={HALAMAN_AKADEMIK} />} />
+      <Route element={<HalamanTabs def={HALAMAN_AKADEMIK} />}>
+        <Route path="/pindah-kelas" element={<p>ISI PINDAH KELAS</p>} />
+        <Route path="/mutasi-keluar" element={<p>ISI MUTASI KELUAR</p>} />
+        <Route path="/kenaikan" element={<p>ISI KENAIKAN KELAS</p>} />
+        <Route path="/kelulusan" element={<p>ISI KELULUSAN</p>} />
+      </Route>
+      <Route path="/" element={<p>BERANDA</p>} />
+    </Routes>
+  );
+
   return (
     <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/data-induk" element={<ArahHalamanTabs def={HALAMAN_DATA_INDUK} />} />
-        <Route element={<HalamanTabs def={HALAMAN_DATA_INDUK} />}>
-          <Route path="/users" element={<p>ISI PENGGUNA</p>} />
-          <Route path="/lembaga" element={<p>ISI LEMBAGA</p>} />
-          <Route path="/tahun-ajaran" element={<p>ISI TAHUN AJARAN</p>} />
-          <Route path="/pengaturan/semester" element={<p>ISI SEMESTER</p>} />
-          <Route path="/kelas" element={<p>ISI KELAS</p>} />
-          <Route path="/santri" element={<p>ISI BUKU INDUK</p>} />
-          <Route path="/referensi" element={<p>ISI REFERENSI</p>} />
-        </Route>
-        <Route path="/penempatan" element={<ArahHalamanTabs def={HALAMAN_PENEMPATAN} />} />
-        <Route element={<HalamanTabs def={HALAMAN_PENEMPATAN} />}>
-          <Route path="/keanggotaan" element={<p>ISI SANTRI PER LEMBAGA</p>} />
-          <Route path="/mi-md" element={<p>ISI MI-MD</p>} />
-          <Route path="/riwayat-belajar" element={<p>ISI RIWAYAT BELAJAR</p>} />
-        </Route>
-        <Route path="/santri-aktif" element={<ArahHalamanTabs def={HALAMAN_SANTRI_AKTIF} />} />
-        <Route element={<HalamanTabs def={HALAMAN_SANTRI_AKTIF} />}>
-          <Route path="/daftar-kelas" element={<p>ISI DAFTAR KELAS</p>} />
-          <Route path="/rekap-santri" element={<p>ISI REKAP</p>} />
-          <Route path="/pengajuan-biodata" element={<p>ISI PENGAJUAN BIODATA</p>} />
-        </Route>
-        <Route
-          path="/penempatan-pegawai"
-          element={<ArahHalamanTabs def={HALAMAN_PENEMPATAN_PEGAWAI} />}
-        />
-        <Route element={<HalamanTabs def={HALAMAN_PENEMPATAN_PEGAWAI} />}>
-          <Route path="/pegawai" element={<p>ISI PEGAWAI</p>} />
-          <Route path="/pegawai-penempatan" element={<p>ISI LEMBAGA PEGAWAI</p>} />
-          <Route path="/pegawai-akun" element={<p>ISI AKUN PEGAWAI</p>} />
-        </Route>
-        <Route path="/akademik" element={<ArahHalamanTabs def={HALAMAN_AKADEMIK} />} />
-        <Route element={<HalamanTabs def={HALAMAN_AKADEMIK} />}>
-          <Route path="/pindah-kelas" element={<p>ISI PINDAH KELAS</p>} />
-          <Route path="/mutasi-keluar" element={<p>ISI MUTASI KELUAR</p>} />
-          <Route path="/kenaikan" element={<p>ISI KENAIKAN KELAS</p>} />
-          <Route path="/kelulusan" element={<p>ISI KELULUSAN</p>} />
-        </Route>
-        <Route path="/" element={<p>BERANDA</p>} />
-      </Routes>
+      {navigasi ? <NavigasiVisibilitasProvider>{isi}</NavigasiVisibilitasProvider> : isi}
     </MemoryRouter>
   );
 }
@@ -390,5 +395,21 @@ describe('ArahHalamanTabs (rute halaman gabungan)', () => {
     render(<Halaman path="/data-induk" />);
 
     expect(await screen.findByText('BERANDA')).toBeInTheDocument();
+  });
+
+  it('tab tersembunyi tidak tampil, tetapi URL langsung tetap merender isinya', async () => {
+    localStorage.setItem('simpes_navigasi_tersembunyi', JSON.stringify(['tab:/lembaga']));
+    render(<Halaman path="/lembaga" navigasi />);
+
+    expect(await screen.findByText('ISI LEMBAGA')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Lembaga' })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Pengguna' })).toBeInTheDocument();
+  });
+
+  it('ArahHalamanTabs melewati tab tersembunyi', async () => {
+    localStorage.setItem('simpes_navigasi_tersembunyi', JSON.stringify(['tab:/users']));
+    render(<Halaman path="/data-induk" navigasi />);
+
+    expect(await screen.findByText('ISI LEMBAGA')).toBeInTheDocument();
   });
 });

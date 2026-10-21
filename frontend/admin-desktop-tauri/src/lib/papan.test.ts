@@ -10,12 +10,14 @@ import {
   modulAdaTinjauan,
   modulPertama,
   persenKemajuan,
+  poinCocok,
+  cariPapan,
   ratakanKartu,
   ringkasanModul,
   ringkasanPoin,
   type KartuPapan,
 } from './papan';
-import type { ButirPapan, ModulPapan } from '@/api/papan';
+import type { AplikasiPapan, ButirPapan, ModulPapan } from '@/api/papan';
 
 const modul: ModulPapan[] = [
   {
@@ -378,6 +380,72 @@ describe('modulPertama', () => {
 
   it('mengembalikan null bila tidak ada modul', () => {
     expect(modulPertama([])).toBeNull();
+  });
+});
+
+describe('poinCocok', () => {
+  const contoh = ratakanKartu(modul)[0];
+
+  it('mencocokkan deskripsi tanpa peduli huruf besar/kecil', () => {
+    expect(poinCocok(contoh, 'REKAP')).toBe(true);
+    expect(poinCocok(contoh, 'tidak ada')).toBe(false);
+  });
+
+  it('mencocokkan requirement, subpoin, sub-modul, dan status', () => {
+    const poin = {
+      ...contoh,
+      keterangan: 'Wajib ekspor bulanan.',
+      subpoin: [{ teks: 'Unduh rekap', selesai: false }],
+    };
+
+    expect(poinCocok(poin, 'ekspor')).toBe(true);
+    expect(poinCocok(poin, 'unduh')).toBe(true);
+    expect(poinCocok(poin, 'E.3')).toBe(true);
+    expect(poinCocok({ ...poin, status: 'for_review' }, 'for review')).toBe(true);
+  });
+
+  it('kueri kosong selalu cocok', () => {
+    expect(poinCocok(contoh, '   ')).toBe(true);
+  });
+});
+
+describe('cariPapan', () => {
+  const aplikasiPapan: AplikasiPapan[] = [
+    { kode: 'desktop-admin', nama: 'Desktop Admin', workflow_aktif: true, workflow_efektif: true, modul },
+    {
+      kode: 'mobile-guru',
+      nama: 'Mobile Guru',
+      workflow_aktif: true,
+      workflow_efektif: true,
+      modul: [{
+        kode: 'MG1',
+        nama: 'Akun & Login',
+        sub: [{
+          kode: 'MG1.1',
+          nama: 'API Autentikasi',
+          status: 'todo',
+          butir: [{ id: 90, status: 'todo', deskripsi: 'Login guru.' }],
+        }],
+      }],
+    },
+  ];
+
+  it('menemukan poin dari aplikasi lain', () => {
+    const hasil = cariPapan(aplikasiPapan, 'login guru');
+
+    expect(hasil).toHaveLength(1);
+    expect(hasil[0].aplikasiKode).toBe('mobile-guru');
+    expect(hasil[0].modulKode).toBe('MG1');
+    expect(hasil[0].poin.id).toBe(90);
+  });
+
+  it('mencocokkan nama aplikasi dan nama modul', () => {
+    expect(cariPapan(aplikasiPapan, 'Mobile Guru')).toHaveLength(1);
+    expect(cariPapan(aplikasiPapan, 'Akun & Login')).toHaveLength(1);
+  });
+
+  it('kueri kosong tidak mengembalikan hasil', () => {
+    expect(cariPapan(aplikasiPapan, '   ')).toEqual([]);
   });
 });
 

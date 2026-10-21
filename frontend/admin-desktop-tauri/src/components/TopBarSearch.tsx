@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { createPortal } from 'react-dom';
 import { Search, X } from '@/icons';
 import { useCariGlobal } from '@/hooks/useCariGlobal';
+import { sedangMengetik } from '@/hooks/usePintasanBaru';
+import { usePencarianGlobal } from '@/components/PencarianGlobalProvider';
+import PopupCariGlobal from '@/components/PopupCariGlobal';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 /** Slot pencarian tunggal di baris atas TopBar (menggantikan judul halaman).
@@ -41,10 +44,14 @@ export function TopBarSearch({
   value,
   onChange,
   placeholder = 'Cari…',
+  onFocus,
+  popup,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  onFocus?: () => void;
+  popup?: ReactNode;
 }) {
   const ctx = useContext(Ctx);
   const setAda = ctx?.setAda;
@@ -54,6 +61,9 @@ export function TopBarSearch({
     return () => setAda(false);
   }, [setAda]);
   const { nilai: cariGlobal, ubah: ubahGlobal } = useCariGlobal();
+  const pencarianGlobal = usePencarianGlobal();
+  const [popupGlobal, setPopupGlobal] = useState(false);
+  const pakaiGlobal = popup === undefined && pencarianGlobal !== null;
 
   // tapi value sudah sama dengan global sehingga no-op).
   const adopsiRef = useRef(false);
@@ -66,16 +76,22 @@ export function TopBarSearch({
   const ketik = (v: string) => {
     ubahGlobal(v);
     onChange(v);
+    if (pakaiGlobal) setPopupGlobal(v.trim() !== '');
+  };
+  const fokus = () => {
+    onFocus?.();
+    if (pakaiGlobal && value.trim() !== '') setPopupGlobal(true);
   };
 
   useEffect(() => {
     const fokus = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        const el = document.getElementById('input_cari_topbar');
-        if (el) {
-          e.preventDefault();
-          el.focus();
-        }
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (sedangMengetik(e.target as HTMLElement | null)) return;
+      if (document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]')) return;
+      const el = document.getElementById('input_cari_topbar');
+      if (el) {
+        e.preventDefault();
+        el.focus();
       }
     };
     window.addEventListener('keydown', fokus);
@@ -95,15 +111,17 @@ export function TopBarSearch({
         type="search"
         value={value}
         onChange={(e) => ketik(e.target.value)}
+        onFocus={fokus}
         aria-label={placeholder}
+        aria-keyshortcuts="/"
         className="h-[26px] w-full rounded-md border border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] pr-14 pl-7 text-xs text-[var(--sidebar-foreground)] outline-none placeholder:text-[color-mix(in_srgb,var(--sidebar-foreground)_60%,transparent)] focus:border-[var(--accent)] focus:bg-[color-mix(in_srgb,var(--sidebar-foreground)_15%,transparent)] [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:appearance-none"
       />
       <kbd
         aria-hidden="true"
-        title="Fokus pencarian (Ctrl/⌘+K)"
+        title="Fokus pencarian (/)"
         className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border border-[color-mix(in_srgb,var(--sidebar-foreground)_20%,transparent)] px-1 font-mono text-[10px] text-[color-mix(in_srgb,var(--sidebar-foreground)_60%,transparent)] sm:inline"
       >
-        ⌘K
+        /
       </kbd>
       {value !== '' && (
         <Tooltip>
@@ -123,6 +141,17 @@ export function TopBarSearch({
           </TooltipContent>
         </Tooltip>
       )}
+      {popup}
+      {pakaiGlobal && popupGlobal && value.trim() !== '' ? (
+        <PopupCariGlobal
+          kueri={value}
+          onPilih={(target) => {
+            setPopupGlobal(false);
+            pencarianGlobal?.pilih(target);
+          }}
+          onTutup={() => setPopupGlobal(false)}
+        />
+      ) : null}
     </form>,
     ctx.el,
   );

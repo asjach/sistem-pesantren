@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { errorMessage } from '../api/client';
 import {
   KOLOM_IMPORT_PEGAWAI,
@@ -161,6 +162,12 @@ export default function PegawaiPage() {
   const canHapus = bisa(user, 'pegawai.hapus');
   const canBuatAkun = canUbah && bisa(user, 'pengguna.tambah');
   const [cari, setCari] = useState('');
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const dariUrl = searchParams.get('cari');
+    if (dariUrl !== null) setCari(dariUrl);
+  }, [searchParams]);
   /** Status aktif pegawai; `'semua'` dikirim eksplisit ke backend. */
   const [status, setStatus] = useState<'semua' | 'Ya' | 'Tidak'>('semua');
 

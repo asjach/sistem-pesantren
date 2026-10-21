@@ -65,6 +65,12 @@
   membaca kode, kebutuhan, skema, dan sumber terkait untuk memahami poin, tetapi
   belum boleh mengubah kode atau dokumen produk. Poin To Do dari aplikasi yang
   efektif Draf tidak boleh diriset atau dikerjakan berdasarkan Board.
+- **Requirement poin adalah instruksi wajib.** Bila poin memiliki field
+  `keterangan`, baca dan riset requirement itu sebelum menyusun subpoin. Subpoin
+  final harus menjawab requirement; setelah subpoin tersimpan, kosongkan
+  requirement (`keterangan: ""`). Requirement tidak membuka izin implementasi:
+  gerbang konfirmasi dan status Board tetap berlaku. Lihat bagian "Requirement
+  khusus pada poin Board".
 - **For Review adalah gerbang evaluasi manual pengguna.** Setelah implementasi
   dan pemeriksaan otomatis selesai, agen memindahkan poin ke Menunggu peninjauan
   (For Review) dan berhenti. Agen tidak boleh otomatis memindahkan poin ke
@@ -161,6 +167,28 @@
 - Setelah seluruh subpoin dan verifikasi selesai, pindahkan poin ke Menunggu
   peninjauan (For Review). Status Selesai (Done) tetap menjadi keputusan manual
   pengguna.
+
+### Requirement khusus pada poin Board
+
+Aturan ini **WAJIB** dan berlaku setiap kali sebuah poin Board memiliki field
+`keterangan` yang terisi.
+
+1. **Baca requirement sebelum riset.** Field `keterangan` adalah requirement
+   khusus dari pengguna, bukan catatan permanen. Anggap isinya sebagai instruksi
+   yang mengikat poin tersebut.
+2. **Riset requirement lebih dahulu.** Riset hanya-baca harus menjawab tujuan,
+   kendala, dan hasil yang diminta requirement. Subpoin yang disusun harus
+   menjawab requirement tersebut, bukan mengulang teksnya.
+3. **Simpan subpoin, lalu kosongkan requirement.** Setelah subpoin final
+   tersimpan di poin yang sama (`keterangan: ""`), hapus isi requirement agar
+   tidak diproses ulang. Jangan mengosongkannya sebelum subpoin tersimpan.
+4. **Jangan melompati gerbang konfirmasi.** Menambahkan subpoin bukan izin untuk
+   mulai mengimplementasikan; status poin dan konfirmasi pengguna tetap mengikuti
+   alur Board.
+5. **Tanyakan bila ambigu.** Bila requirement tidak jelas, tanyakan kepada
+   pengguna sebelum mengubah atau mengosongkannya.
+6. **Bukan pengganti subpoin.** Requirement tidak boleh menggantikan subpoin,
+   menjadi roadmap terpisah, atau dianggap sebagai hasil pekerjaan.
 
 ### Saat pekerjaan gagal, terhenti, atau Board tidak dapat diperbarui
 

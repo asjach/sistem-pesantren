@@ -1,4 +1,4 @@
-import type { ButirPapan, ModulPapan, StatusPapan, SubPapan, SubpoinPapan } from '@/api/papan';
+import type { AplikasiPapan, ButirPapan, ModulPapan, StatusPapan, SubPapan, SubpoinPapan } from '@/api/papan';
 import { JUDUL_KOLOM, KOLOM_PAPAN } from '@/api/papan';
 
 /** Unit kemajuan: berapa yang sudah selesai dari total unit yang bisa diselesaikan. */
@@ -210,9 +210,72 @@ export function modulAdaTinjauan(modul: ModulPapan): boolean {
   return modul.sub.some((s) => s.butir.some((b) => b.status === 'for_review'));
 }
 
+/** Apakah satu poin cocok dengan kata kunci pencarian Board. */
+export function poinCocok(poin: KartuPapan, kueri: string): boolean {
+  const q = kueri.trim().toLowerCase();
+  if (!q) return true;
+
+  return [
+    poin.deskripsi,
+    poin.keterangan ?? '',
+    poin.kode,
+    poin.nama,
+    poin.subKode,
+    poin.subNama,
+    poin.modulKode,
+    poin.modulNama,
+    poin.status,
+    JUDUL_KOLOM[poin.status],
+    ...poin.subpoin.map((item) => item.teks),
+  ].join(' ').toLowerCase().includes(q);
+}
+
+/** Satu poin yang cocok pada pencarian global Board. */
+export interface HasilCariPapan {
+  aplikasiKode: string;
+  aplikasiNama: string;
+  modulKode: string;
+  modulNama: string;
+  poin: KartuPapan;
+}
+
+/**
+ * Cari poin di SELURUH aplikasi dan modul Board.
+ *
+ * Kecocokan nama aplikasi/modul membuat semua poin di dalamnya ikut tampil;
+ * kecocokan lain memakai aturan {@see poinCocok}.
+ */
+export function cariPapan(aplikasi: AplikasiPapan[], kueri: string): HasilCariPapan[] {
+  const q = kueri.trim().toLowerCase();
+  if (!q) return [];
+
+  const hasil: HasilCariPapan[] = [];
+
+  for (const app of aplikasi) {
+    const appCocok = `${app.kode} ${app.nama}`.toLowerCase().includes(q);
+
+    for (const modul of app.modul) {
+      const modulCocok = appCocok || `${modul.kode} ${modul.nama}`.toLowerCase().includes(q);
+
+      for (const poin of kartuModul(modul)) {
+        if (!modulCocok && !poinCocok(poin, q)) continue;
+
+        hasil.push({
+          aplikasiKode: app.kode,
+          aplikasiNama: app.nama,
+          modulKode: modul.kode,
+          modulNama: modul.nama,
+          poin,
+        });
+      }
+    }
+  }
+
+  return hasil;
+}
+
 /** Jumlah POIN per status dari daftar poin papan (untuk ringkasan & meter). */
-export function ringkasanPoin(poin: KartuPapan[]): Record<StatusPapan, number> {
-  const hasil: Record<StatusPapan, number> = {
+export function ringkasanPoin(poin: KartuPapan[]): Record<StatusPapan, number> {  const hasil: Record<StatusPapan, number> = {
     backlog: 0,
     todo: 0,
     in_progress: 0,

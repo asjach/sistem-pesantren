@@ -27,12 +27,15 @@ import {
 import { bisa } from '@/api/auth';
 import { prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { kartuModul, kemajuanModul, modulPertama, persenKemajuan, ringkasanPoin, type KartuPapan } from '@/lib/papan';
+import { useCariGlobal } from '@/hooks/useCariGlobal';
+import { kartuModul, kemajuanModul, kemajuanPoin, modulPertama, persenKemajuan, ringkasanPoin, type HasilCariPapan, type KartuPapan } from '@/lib/papan';
 import { JUDUL_KOLOM, KOLOM_PAPAN } from '@/api/papan';
 import type { AksiButir, AksiSub } from '@/components/papan/PapanKolom';
 import { WARNA_STATUS as WARNA_KOLOM } from '@/components/papan/PapanKolom';
 import { KelolaSubModul } from '@/components/papan/KelolaSubModul';
 import { TambahModul } from '@/components/papan/TambahModul';
+import { TopBarSearch } from '@/components/TopBarSearch';
+import PopupCariPapan from '@/components/papan/PopupCariPapan';
 
 /** Lebar rail modul: batas, bawaan, dan kunci simpanan preferensi. */
 const RAIL_MIN = 128;
@@ -67,6 +70,9 @@ export default function PapanPage() {
   const [riwayat, setRiwayat] = useState<RiwayatPapan[]>([]);
   const [galat, setGalat] = useState<string | null>(null);
   const [memuat, setMemuat] = useState(true);
+  const [cari, setCari] = useState('');
+  const [popupCari, setPopupCari] = useState(false);
+  const [sorot, setSorot] = useState<number | null>(null);
   const [kelolaTerbuka, setKelolaTerbuka] = useState(false);
   const [modulTerbuka, setModulTerbuka] = useState(false);
   const [sibukWorkflow, setSibukWorkflow] = useState(false);
@@ -74,6 +80,7 @@ export default function PapanPage() {
   const seretRail = useRef({ mulaiX: 0, mulaiW: RAIL_DEFAULT, akhir: RAIL_DEFAULT });
 
   const { user } = useAuth();
+  const { ubah: ubahCariGlobal } = useCariGlobal();
   // Satu gerbang untuk seluruh UI sunting. Tanpa izin ini halaman
   // tetap berfungsi penuh sebagai pembaca - tidak ada tombol mati yang
   // menggantung, dan kartu tidak bisa diseret ke kolom lain.
@@ -155,12 +162,21 @@ export default function PapanPage() {
   /** Ringkasan modul aktif untuk strip di atas kolom (aman dipanggil lebih
    *  awal supaya posisi hook tetap stabil pada semua render). */
   const kartu = useMemo(() => (aktif ? kartuModul(aktif) : []), [aktif]);
-  const kemajuanModulAktif = useMemo(
-    () => (aktif ? kemajuanModul(aktif) : { selesai: 0, total: 0 }),
-    [aktif],
-  );
+  const kueri = cari.trim().toLowerCase();
+  const kemajuanModulAktif = useMemo(() => kemajuanPoin(kartu), [kartu]);
   const persenModul = persenKemajuan(kemajuanModulAktif);
   const ringkasModul = useMemo(() => ringkasanPoin(kartu), [kartu]);
+
+  useEffect(() => {
+    if (sorot === null) return;
+    const timer = window.setTimeout(() => setSorot(null), 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [sorot]);
+
+  useEffect(() => {
+    if (cari.trim() !== '') setSorot(null);
+  }, [cari]);
 
   /**
    * Arahkan ke aplikasi/modul yang valid. Aplikasi yang belum punya modul
@@ -184,6 +200,19 @@ export default function PapanPage() {
 
     return { aplikasi: aplikasiBerisi.kode, modul: m?.kode ?? null };
   }, [data, aplikasiAktif, aktif, aplikasi]);
+
+  function bukaHasil(hasil: HasilCariPapan) {
+    setSorot(hasil.poin.id);
+    setCari('');
+    ubahCariGlobal('');
+    setPopupCari(false);
+    navigate(`/board/${hasil.aplikasiKode}/${hasil.modulKode}`);
+  }
+
+  function ubahCari(nilai: string) {
+    setCari(nilai);
+    setPopupCari(nilai.trim() !== '');
+  }
 
   /**
    * Simpan perpindahan satu POIN; gagal = kembalikan tampilan ke data server.
@@ -384,6 +413,22 @@ export default function PapanPage() {
 
   return (
     <div id="papan_modul" className={cn(PAGE_SHELL, 'h-full')}>
+      <TopBarSearch
+        value={cari}
+        onChange={ubahCari}
+        onFocus={() => {
+          if (cari.trim() !== '') setPopupCari(true);
+        }}
+        placeholder="Cari poin, subpoin, atau requirement di semua aplikasi…"
+        popup={popupCari && kueri ? (
+          <PopupCariPapan
+            aplikasi={aplikasi}
+            kueri={cari}
+            onPilih={bukaHasil}
+            onTutup={() => setPopupCari(false)}
+          />
+        ) : null}
+      />
       <Tabs
         value={aplikasiAktif?.kode ?? ''}
         onValueChange={(k) => {
@@ -668,6 +713,7 @@ export default function PapanPage() {
                   subKosong={aktif.sub.filter((s) => s.butir.length === 0)}
                   idAwalan={`modul_${aktif.kode.toLowerCase()}`}
                   onTambahSub={bolehUbah ? () => setKelolaTerbuka(true) : undefined}
+                  poinDisorot={sorot}
                 />
               ) : (
                 <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
