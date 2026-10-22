@@ -68,6 +68,9 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   hideActions?: boolean;
   /** Tabel ringkas baca-saja: sembunyikan pemilih preset kolom. */
   hidePreset?: boolean;
+  /** Susunan dari kontrol Kolom halaman; undefined memakai preset internal.
+   *  Perubahan urutan dikabarkan kembali lewat onApplyPreset. */
+  presetLuar?: { keys: string[] | null; presetId?: number | null };
   /** Tabel ringkas baca-saja: sembunyikan footer (jumlah baris, paginasi,
    *  tombol tambah baris). Pakai hanya pada tabel tanpa pager/aksi footer. */
   hideFooter?: boolean;
@@ -140,6 +143,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   hideCheckbox = false,
   hideActions = false,
   hidePreset = false,
+  presetLuar,
   hideFooter = false,
   awalanToolbar,
   akhirToolbar,
@@ -158,11 +162,16 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
 }: ExcelTabelV2Props<T>) {
   const [dipilih, setDipilih] = useState<Set<string | number>>(() => new Set());
   /** Susunan kolom dari preset. null = semua kolom, urutan asli halaman. */
-  const [kolomPreset, setKolomPreset] = useState<string[] | null>(null);
+  const [kolomPresetDalam, setKolomPreset] = useState<string[] | null>(null);
   /** Id preset aktif; null = susunan Lengkap/kustom tanpa preset bernama. */
-  const [presetId, setPresetId] = useState<number | null>(null);
+  const [presetIdDalam, setPresetId] = useState<number | null>(null);
+  const luar = presetLuar !== undefined;
+  const kolomPreset = luar ? presetLuar.keys : kolomPresetDalam;
+  const presetId = luar ? (presetLuar.presetId ?? null) : presetIdDalam;
   const kolomPresetRef = useRef(kolomPreset);
   kolomPresetRef.current = kolomPreset;
+  const sumberPresetRef = useRef({ tableKey, presetId, kolomPreset });
+  sumberPresetRef.current = { tableKey, presetId, kolomPreset };
   const [kelolaOpen, setKelolaOpen] = useState(false);
   /** Nilai efektif dari GridV2, termasuk hasil ukur headerAutoH. */
   const [tinggiHeaderGrid, setTinggiHeaderGrid] = useState(DEFAULT_HEADER_H);
@@ -231,15 +240,23 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   }, []);
 
   const terapkanPreset = useCallback((keys: string[] | null, id?: number | null) => {
-    setKolomPreset(keys && keys.length > 0 ? keys : null);
-    setPresetId(id ?? null);
+    if (!luar) {
+      setKolomPreset(keys && keys.length > 0 ? keys : null);
+      setPresetId(id ?? null);
+    }
     onApplyPreset(keys, id);
-  }, [onApplyPreset]);
+  }, [luar, onApplyPreset]);
+
+  const ubahKolomPreset = useCallback((keys: string[] | null) => {
+    if (luar) onApplyPreset(keys, presetId);
+    else setKolomPreset(keys);
+  }, [luar, onApplyPreset, presetId]);
 
   /** Muat preset aktif saat mount supaya urutan kolom tetap sama setelah
    *  reload walau area filter (tempat `PresetKolom` hidup) masih tertutup.
    *  Dilewati bila pengguna sudah memilih preset lebih dulu. */
   useEffect(() => {
+    if (luar) return;
     let batal = false;
     const fieldKeys = new Set(fields.map((f) => f.key));
     void listPresetTabel(tableKey)
@@ -274,7 +291,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     return () => { batal = true; };
     // Hanya saat tabel berganti; `terapkanPreset` stabil per render callback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tableKey]);
+  }, [tableKey, luar]);
 
   const fieldsTampil = useMemo(() => {
     let tampil = susunKolom(fields, kolomPreset);
@@ -294,34 +311,38 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
    *  global. Optimistis, dengan rollback saat server menolak. */
   const simpanUrutanKolom = useCallback((urutan: string[]) => {
     const sebelum = kolomPresetRef.current;
+    const rollback = (e: unknown) => {
+      const kini = sumberPresetRef.current;
+      // Respons simpan lama tidak boleh mengganti preset/urutan yang dipilih
+      // pengguna setelah drag dimulai. Toast tetap menjelaskan kegagalan.
+      if (kini.tableKey === tableKey && kini.presetId === presetId
+        && (kini.kolomPreset === urutan || kini.kolomPreset === sebelum)) {
+        ubahKolomPreset(sebelum);
+      }
+      toast.error(errorMessage(e));
+    };
     if (presetId !== null) {
-      setKolomPreset(urutan);
+      ubahKolomPreset(urutan);
       void updatePresetTabel(presetId, { kolom: urutan })
         .then(() => {
           kabariPreset(tableKey);
           kabariTampilanPerangkat(tableKey);
         })
-        .catch((e: unknown) => {
-          setKolomPreset(sebelum);
-          toast.error(errorMessage(e));
-        });
+        .catch(rollback);
       return;
     }
     if (sebelum !== null) {
-      setKolomPreset(urutan);
+      ubahKolomPreset(urutan);
       void setPresetAktif(tableKey, null, urutan)
         .then(() => {
           kabariPreset(tableKey);
           kabariTampilanPerangkat(tableKey);
         })
-        .catch((e: unknown) => {
-          setKolomPreset(sebelum);
-          toast.error(errorMessage(e));
-        });
+        .catch(rollback);
       return;
     }
     simpanUrutan(urutan);
-  }, [presetId, tableKey, simpanUrutan]);
+  }, [presetId, tableKey, simpanUrutan, ubahKolomPreset]);
 
   /** Baris domain yang tercentang, seurutan tabel. */
   const checkedRows = useMemo(() => rows.filter((r) => dipilih.has(r.id)), [rows, dipilih]);
@@ -340,7 +361,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     cari: false,
     keaktifan: false,
     urut: onUrut != null,
-    kolom: !hidePreset,
+    kolom: !hidePreset && !luar,
     tombolAksi: aksi != null || addButton != null,
     relFilter: rail,
     pager: pager != null,
@@ -348,14 +369,14 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     tombolEdit: false,
     kolomCentang: !hideCheckbox,
     kolomAksi: !hideActions,
-  }), [filter, onUrut, hidePreset, aksi, addButton, rail, pager, hideCheckbox, hideActions, onCreateRow]);
+  }), [filter, onUrut, hidePreset, luar, aksi, addButton, rail, pager, hideCheckbox, hideActions, onCreateRow]);
 
   const judulAktif = komponenAktif(visibilitas, 'judul_tabel');
   const aksiAktif = aksi != null && komponenAktif(visibilitas, 'tombol_aksi');
   const addAktif = addButton != null && komponenAktif(visibilitas, 'tombol_aksi');
   const filterAktif = filter != null && komponenAktif(visibilitas, 'filter');
   const urutTampil = onUrut != null && komponenAktif(visibilitas, 'urutan');
-  const kolomTampil = !hidePreset && komponenAktif(visibilitas, 'kolom');
+  const kolomTampil = !hidePreset && !luar && komponenAktif(visibilitas, 'kolom');
   const headerAktif = komponenAktif(visibilitas, 'header_kolom');
   const centangAktif = !hideCheckbox && komponenAktif(visibilitas, 'kolom_centang');
   const aksiKolomAktif = !hideActions && komponenAktif(visibilitas, 'kolom_aksi');

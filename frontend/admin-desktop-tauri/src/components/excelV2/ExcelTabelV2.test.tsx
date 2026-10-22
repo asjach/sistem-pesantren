@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ExcelTabelV2 from './ExcelTabelV2';
@@ -555,6 +556,65 @@ describe('ExcelTabelV2', () => {
 });
 
 describe('ExcelTabelV2 — urutan kolom dan preset aktif', () => {
+  it('preset eksternal mengatur visibility dan urutan tanpa pemilih internal', async () => {
+    const onApply = vi.fn();
+    const props = { tableKey: 'daftar_kelas', fields: DUA_KOLOM, rows, getValues: (r: typeof rows[number]) => ({ nama: r.nama }), onApplyPreset: onApply };
+    const { rerender } = render(<ExcelTabelV2 {...props} presetLuar={{ keys: ['nis'], presetId: 9 }} />);
+    expect(screen.getByTestId('kolom-grid')).toHaveTextContent(/^nis$/);
+    expect(apiPreset.listPresetTabel).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Area filter' })).toBeNull();
+    rerender(<ExcelTabelV2 {...props} presetLuar={{ keys: ['nama', 'nis'], presetId: 10 }} />);
+    expect(screen.getByTestId('kolom-grid')).toHaveTextContent('nama,nis');
+    rerender(<ExcelTabelV2 {...props} presetLuar={{ keys: null }} />);
+    expect(screen.getByTestId('kolom-grid')).toHaveTextContent('nama,nis');
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
+  it('respons preset internal terlambat tidak menimpa pilihan eksternal', async () => {
+    let selesai!: (nilai: unknown) => void;
+    apiPreset.listPresetTabel.mockReturnValueOnce(new Promise((resolve) => { selesai = resolve; }));
+    const props = { tableKey: 'daftar_kelas', fields: DUA_KOLOM, rows, getValues: (r: typeof rows[number]) => ({ nama: r.nama }), onApplyPreset: vi.fn() };
+    const { rerender } = render(<ExcelTabelV2 {...props} />);
+    rerender(<ExcelTabelV2 {...props} presetLuar={{ keys: ['nis'], presetId: 9 }} />);
+    await act(async () => { selesai({ data: { presets: [], aktif_kolom: ['nama'], aktif_preset_id: null } }); });
+    expect(screen.getByTestId('kolom-grid')).toHaveTextContent(/^nis$/);
+    expect(props.onApplyPreset).not.toHaveBeenCalled();
+  });
+
+  it.each([7, null])('reorder preset eksternal %s tersimpan melalui sumber aktif dan rollback saat gagal', async (id) => {
+    const urut = ['nis', 'nama'];
+    const api = id === null ? apiPreset.setPresetAktif : apiPreset.updatePresetTabel;
+    api.mockRejectedValueOnce(new Error('ditolak'));
+    function Halaman() {
+      const [preset, setPreset] = useState({ keys: urut as string[] | null, presetId: id });
+      return <ExcelTabelV2 tableKey="daftar_kelas" fields={DUA_KOLOM} rows={rows} getValues={(r) => ({ nama: r.nama })}
+        presetLuar={preset} onApplyPreset={(keys, presetId) => setPreset({ keys, presetId: presetId ?? null })} />;
+    }
+    render(<Halaman />);
+    await act(async () => { gridState.onPindahKolom?.(['nama', 'nis']); });
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+    expect(screen.getByTestId('kolom-grid')).toHaveTextContent('nis,nama');
+    if (id === null) expect(api).toHaveBeenCalledWith('daftar_kelas', null, ['nama', 'nis']);
+    else expect(api).toHaveBeenCalledWith(7, { kolom: ['nama', 'nis'] });
+    await act(async () => { gridState.onPindahKolom?.(['nama', 'nis']); });
+    expect(screen.getByTestId('kolom-grid')).toHaveTextContent('nama,nis');
+    expect(presetState.simpanUrutan).not.toHaveBeenCalled();
+  });
+
+  it('kegagalan reorder lama tidak menimpa preset eksternal yang baru dipilih', async () => {
+    let tolak!: (e: Error) => void;
+    apiPreset.updatePresetTabel.mockReturnValueOnce(new Promise((_resolve, reject) => { tolak = reject; }));
+    const props = { tableKey: 'daftar_kelas', fields: DUA_KOLOM, rows, getValues: (r: typeof rows[number]) => ({ nama: r.nama }), onApplyPreset: vi.fn() };
+    const { rerender } = render(<ExcelTabelV2 {...props} presetLuar={{ keys: ['nis', 'nama'], presetId: 7 }} />);
+    act(() => { gridState.onPindahKolom?.(['nama', 'nis']); });
+    props.onApplyPreset.mockClear();
+    rerender(<ExcelTabelV2 {...props} presetLuar={{ keys: ['nis'], presetId: 8 }} />);
+    await act(async () => { tolak(new Error('gagal')); });
+    expect(props.onApplyPreset).not.toHaveBeenCalled();
+    expect(screen.getByTestId('kolom-grid')).toHaveTextContent(/^nis$/);
+    expect(toastMock.error).toHaveBeenCalled();
+  });
+
   it('memakai urutan tabel tersimpan saat tidak ada preset aktif', async () => {
     presetState.urutanDb = ['nis', 'nama'];
     tampilkan({ fields: DUA_KOLOM });

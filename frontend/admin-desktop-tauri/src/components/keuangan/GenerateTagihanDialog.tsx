@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/excel/types';
 import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import PresetKolom from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
@@ -445,6 +445,15 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
     });
     return rows;
   }, [terpilih, cari, statusFilter, urutKolom, arahUrutKolom]);
+
+  // Cell V2 menerima nilai grid; rincian periode tetap di row domain.
+  const fieldsTerpilih = useMemo(() => FIELDS_TERPILIH.map((f) => f.kartuHover ? {
+    ...f,
+    kartuHover: (row: Parameters<NonNullable<ExcelField['kartuHover']>>[0]) => {
+      const periode = terpilih.find((r) => r.santri_id === row.id)?.periode;
+      return periode == null ? null : <RincianBulanKartu periode={periode} />;
+    },
+  } : f), [terpilih]);
 
   /** Berapa periode yang akan digenerate — dipakai ringkasan "N/M bulan" + konsumsi kuota. */
   const jumlahPeriode = useMemo(
@@ -1148,7 +1157,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
               <RingkasanGalat id="ringkas_galat_daftar" daftar={galatDaftar} />
               {err !== '' && <ErrorNotice>{err}</ErrorNotice>}
               <div className="flex min-h-0 flex-1 flex-col">
-                <ExcelTable<BarisTerpilih & { id: number }>
+                <ExcelTabelV2<BarisTerpilih & { id: number }>
                   tableKey="keuangan_gen_terpilih"
                   header={(
                     <span id="judul_daftar_gen" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
@@ -1199,8 +1208,10 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     />
                     </>
                   )}
-                  fields={FIELDS_TERPILIH}
+                  fields={fieldsTerpilih}
                   presetLuar={presetLuar}
+                  onApplyPreset={terapkanKolomLuar}
+                  hidePreset
                   rows={tampil.map((r) => ({ ...r, id: r.santri_id }))}
                   getValues={(r) => ({
                     nama: r.nominalManual ? `● ${r.nama_lengkap}` : r.nama_lengkap,
@@ -1222,7 +1233,6 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                         : x));
                     }}
                     onSaved={() => {}}
-                    aksiLangsung
                     hideCheckbox
                     renderActions={(r) => (
                       <span className="flex items-center gap-1">

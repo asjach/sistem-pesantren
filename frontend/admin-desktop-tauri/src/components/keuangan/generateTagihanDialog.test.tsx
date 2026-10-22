@@ -1,12 +1,13 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import GenerateTagihanDialog from './GenerateTagihanDialog';
 import type { JenisTagihan, KandidatTagihanRow, PratinjauSantri, Tarif } from '@/api/keuangan';
 import { hariIniIso, tanggalKeTampilan } from '@/lib/tanggal';
 import { renderDenganTema } from '@/test/utils';
+import { dsgStub, kolomTerakhir } from '@/components/excel/_dsgStubDom';
 
 /** Kandidat & pratinjau dipanggil komponen; sisanya dijinakkan agar test ini
  *  tidak menyentuh jaringan lewat ExcelTable/preset. */
@@ -59,7 +60,10 @@ vi.mock('react-datasheet-grid', async (importOriginal) => {
   return { ...asli, DynamicDataSheetGrid: stub.DynamicDataSheetGridStub };
 });
 
+const tinggi = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
 beforeAll(() => {
+  // Grid V2 menunggu ukuran container; stub ini tidak memverifikasi layout.
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 320 });
 
   if (!('PointerEvent' in globalThis)) {
     (globalThis as unknown as { PointerEvent: unknown }).PointerEvent = MouseEvent;
@@ -83,6 +87,9 @@ beforeAll(() => {
     Range.prototype.getClientRects = () => ({ length: 0, item: () => null }) as unknown as DOMRectList;
   }
   HTMLCanvasElement.prototype.getContext = (() => null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+});
+afterAll(() => {
+  if (tinggi) Object.defineProperty(HTMLElement.prototype, 'clientHeight', tinggi);
 });
 
 const JENIS: JenisTagihan[] = [{ id: 1, nama: 'Infaq Bulanan', tipe: 'bulanan', jenjang: null, keterangan: null, urutan: 0, is_active: true }];
@@ -398,8 +405,8 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     expect(api.kandidat).toHaveBeenCalledWith(expect.objectContaining({ kelompok: 'aktif' }));
   });
 
-  it('kartu 1: Buat Tarif di atas, lalu Tarif, lalu Nominal (susunan vertikal)', () => {
-    renderDialog();
+  it('kartu 1: Buat Tarif di atas, lalu Tarif, lalu Nominal (susunan vertikal)', async () => {
+    await act(async () => { renderDialog(); });
     const tarif = document.getElementById('sel_gen_tarif') as HTMLElement;
     const nominal = document.getElementById('inp_gen_nominal') as HTMLElement;
     const buatTarif = document.getElementById('btn_buat_tarif') as HTMLElement;
@@ -609,5 +616,48 @@ describe('GenerateTagihanDialog — pratinjau backend', () => {
     await waitFor(() => {
       expect(document.getElementById('select_preset_kolom_keuangan_gen_terpilih')).not.toBeNull();
     });
+    expect(document.querySelectorAll('#select_preset_kolom_keuangan_gen_terpilih')).toHaveLength(1);
+  });
+
+  it('paste/delete nominal menjaga mode Manual, validasi Generate, serta aksi kembali Otomatis dan keluarkan', async () => {
+    api.kandidat.mockResolvedValue({ data: [KANDIDAT], current_page: 1, last_page: 1, total: 1, per_page: 50 });
+    api.pratinjau.mockResolvedValue([PRATINJAU]);
+    await siapkanSatuBaris();
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByText(/−Rp 50.000 · Anak Pegawai/)).toBeInTheDocument());
+    // Query struktural hanya untuk mengaktifkan Mode Ubah: cell belum punya
+    // accessible name; clipboard fisik/geometri DSG tetap pemeriksaan manual.
+    const sel = document.querySelector('.dsg-row:not(.dsg-row-header) [data-col-key="nominal"]') as HTMLElement;
+    fireEvent.doubleClick(sel);
+    await screen.findByRole('status');
+    const row = { id: 7, nominal: '50000', checked: false };
+    const column = kolomTerakhir().find((c) => c.id === 'nominal')!;
+    expect(column.pasteValue).toBeTypeOf('function');
+    expect(column.deleteValue).toBeTypeOf('function');
+    await act(async () => { dsgStub.ubah?.([column.pasteValue!({ rowData: row, value: '75000' })]); });
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByText('Manual')).toBeInTheDocument());
+    await bukaKonfirmasi();
+    expect(screen.getByText(/estimasi Rp 900\.000/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Periksa lagi' }));
+    // V1 mengabaikan nilai null pada callback dialog; delete tidak mengubah
+    // nominal menjadi nol atau kembali ke mode otomatis.
+    await act(async () => { dsgStub.ubah?.([column.deleteValue!({ rowData: { ...row, nominal: '75000' } })]); });
+    expect(within(screen.getByRole('dialog')).getByText('Manual')).toBeInTheDocument();
+    await bukaKonfirmasi();
+    expect(screen.getByText(/estimasi Rp 900\.000/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Periksa lagi' }));
+    await act(async () => { dsgStub.ubah?.([column.pasteValue!({ rowData: { ...row, nominal: '75000' }, value: '-1' })]); });
+    await userEvent.click(screen.getByRole('button', { name: 'Generate' }));
+    expect(await screen.findByText('Nominal Ahmad Fauzi tidak valid.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Periksa lagi' })).toBeNull();
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Kembalikan ke otomatis (hitung ulang + dispensasi)' }));
+    const menu = await screen.findByRole('menu');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /Kembalikan ke otomatis/ }));
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByText('Otomatis')).toBeInTheDocument());
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByText(/−Rp 50.000 · Anak Pegawai/)).toBeInTheDocument());
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Keluarkan dari daftar' }));
+    await screen.findByRole('menu');
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Keluarkan dari daftar' }));
+    expect(screen.getByText('Tidak ada santri pada kelompok ini.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Generate' })).toBeDisabled();
   });
 });
