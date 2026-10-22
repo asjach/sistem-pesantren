@@ -438,7 +438,12 @@ describe('DispensasiPage — tab Kelola / Rekap', () => {
     const pertama = panggil.mock.calls.at(-1)?.[0] as { is_active_pst?: unknown };
     expect(pertama.is_active_pst).toBe(true);
 
-    const status = await screen.findByLabelText('Filter status keaktifan santri');
+    const rootKandidat = document.getElementById('judul_dispensasi_santri')
+      ?.closest('[data-slot="excel-table"]') as HTMLElement | null;
+    expect(rootKandidat).not.toBeNull();
+    await userEvent.click(within(rootKandidat!).getByRole('button', { name: 'Area filter' }));
+
+    const status = await within(rootKandidat!).findByLabelText('Filter status keaktifan santri');
     await userEvent.click(status);
     await userEvent.click(await screen.findByRole('option', { name: 'Semua' }));
 

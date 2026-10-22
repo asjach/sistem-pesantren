@@ -16,7 +16,8 @@ import { KELAS_LIST_TAB, KELAS_PANEL_TAB, KELAS_TRIGGER } from '@/components/Hal
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PemisahGeser } from '@/components/ui/resizable';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import Pager from '@/components/Pager';
 import { ActionIcon } from '@/components/RowActions';
 import { Button } from '@/components/ui/button';
@@ -475,7 +476,7 @@ export default function DispensasiPage() {
               />
 
               <div className="flex min-h-0 flex-1 flex-col">
-                <ExcelTable<Santri>
+                <ExcelTabelV2<Santri>
                   tableKey="dispensasi_kandidat"
                   rail
                   header={(
@@ -522,7 +523,8 @@ export default function DispensasiPage() {
                   canEdit={false}
                   onCommit={async () => {}}
                   onSaved={() => {}}
-                  aksiLangsung
+                  // Preset kolom V2 sudah menentukan kolom yang tampil.
+                  onApplyPreset={() => {}}
                   renderActions={!bolehUbah || aktif === null ? () => null : (r) => (
                     <ActionIcon
                       id={`btn_dispensasi_masukkan_${r.id}`}
