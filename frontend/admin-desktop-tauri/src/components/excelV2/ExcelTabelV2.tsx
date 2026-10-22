@@ -43,6 +43,8 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   emptyText?: string;
   /** Isi kolom Aksi per baris (sudah digerbang izin oleh halaman). */
   renderActions?: (row: T) => ReactNode;
+  /** Aksi tambahan yang hanya muncul di menu klik kanan (tidak di kolom Aksi). */
+  renderActionsKonteks?: (row: T) => ReactNode;
   /** Tombol aksi halaman di area aksi toolbar. */
   aksi?: ReactNode;
   /** Isi subzona kiri area filter. */
@@ -130,6 +132,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   loading = false,
   emptyText = 'Belum ada data.',
   renderActions,
+  renderActionsKonteks,
   aksi,
   filter,
   pager,
@@ -457,6 +460,10 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
           renderActions={aksiKolomAktif && renderActions ? (id) => {
             const sumber = rows.find((r) => r.id === id);
             return sumber ? renderActions(sumber) : null;
+          } : undefined}
+          renderActionsKonteks={renderActionsKonteks ? (id) => {
+            const sumber = rows.find((r) => r.id === id);
+            return sumber ? renderActionsKonteks(sumber) : null;
           } : undefined}
           hideCheckbox={!centangAktif}
           hideHeader={!headerAktif}

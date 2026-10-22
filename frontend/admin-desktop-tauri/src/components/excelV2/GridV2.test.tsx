@@ -47,7 +47,7 @@ import { widthCache, widthsKey } from '@/components/excel/helpers';
 import { autoBarisKey, tinggiDasarKey } from '@/components/excel/useTinggiBaris';
 import { dsgStub, kolomTerakhir } from '@/components/excel/_dsgStubDom';
 import type { ExcelField } from '@/components/excel/types';
-import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
+import { ActionIcon, DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
 import { Button } from '@/components/ui/button';
 
 const FIELDS: ExcelField[] = [
@@ -618,6 +618,25 @@ describe('GridV2 - menu klik kanan & salin TSV', () => {
     expect(dialog).toHaveTextContent('Hapus data?');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Hapus' }));
     expect(hapus).toHaveBeenCalledWith(1);
+  });
+
+  it('aksi konteks saja muncul di menu klik kanan, bukan kolom Aksi', async () => {
+    const profil = vi.fn();
+    tampilkan({
+      renderActions: (id: string | number) => <ViewAction id={`lihat_${id}`} onClick={() => {}} />,
+      renderActionsKonteks: (id: string | number) => (
+        <ActionIcon id={`profil_${id}`} title="Profil santri" onClick={() => profil(id)}>
+          P
+        </ActionIcon>
+      ),
+    });
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+    expect(document.getElementById('profil_1')).toBeNull();
+
+    const sel = document.querySelector('.dsg-row:not(.dsg-row-header) [data-col-key="nama"]') as HTMLElement;
+    const menu = await bukaMenu(sel);
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /Profil santri/ }));
+    expect(profil).toHaveBeenCalledWith(1);
   });
 
   it('aksi yang dibungkus span tetap diratakan menjadi item menu', async () => {

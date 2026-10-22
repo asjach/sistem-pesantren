@@ -22,7 +22,8 @@ import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ResizableAutoHidePanel, ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -250,7 +251,7 @@ export default function MutasiKeluarPage() {
         <ResizableAutoHidePanel id="panel_mutasi_santri_aktif" defaultSize="33%" minSize="20%">
           <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
             <div className="flex min-h-0 flex-1 flex-col px-0 pb-0">
-              <ExcelTable
+              <ExcelTabelV2
                 tableKey="mutasi_santri_aktif"
                 rail
                  header={<span>Santri aktif</span>}
@@ -263,6 +264,8 @@ export default function MutasiKeluarPage() {
                 canEdit={false}
                 onCommit={async () => {}}
                 onSaved={() => {}}
+                // Preset kolom V2 sudah menentukan kolom yang tampil.
+                onApplyPreset={() => {}}
                 renderActions={(r) => (
                   bisa(user, 'mutasi_keluar.ubah') && (
                     <ActionIcon
@@ -288,7 +291,7 @@ export default function MutasiKeluarPage() {
         <ResizablePanel defaultSize="67%" minSize="20%">
         <section className="flex h-full min-h-0 min-w-0 flex-col rounded-md">
           <div className="flex min-h-0 flex-1 flex-col px-0 pb-0">
-            <ExcelTable
+            <ExcelTabelV2
                tableKey="mutasi_arsip"
                 header={<span>Arsip mutasi keluar</span>}
                 addButton={canImportMutasi ? (
@@ -323,6 +326,8 @@ export default function MutasiKeluarPage() {
               canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
+              // Preset kolom V2 sudah menentukan kolom yang tampil.
+              onApplyPreset={() => {}}
 renderActions={(m) => (
                   canHapusMutasi && (
                     <DeleteAction

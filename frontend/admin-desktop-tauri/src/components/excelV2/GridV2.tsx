@@ -334,6 +334,8 @@ export interface GridV2Props {
   loading?: boolean;
   emptyText?: string;
   renderActions?: (id: string | number) => ReactNode;
+  /** Aksi tambahan yang hanya muncul di menu klik kanan, bukan kolom Aksi. */
+  renderActionsKonteks?: (id: string | number) => ReactNode;
   /** Tabel ringkas baca-saja: sembunyikan kolom centang. */
   hideCheckbox?: boolean;
   /** Sembunyikan baris header kolom (sakelar visibilitas header_kolom). */
@@ -391,6 +393,7 @@ export default function GridV2({
   loading = false,
   emptyText = 'Belum ada data.',
   renderActions,
+  renderActionsKonteks,
   hideCheckbox = false,
   hideHeader = false,
   labelDb = LABEL_KOSONG,
@@ -1314,8 +1317,11 @@ export default function GridV2({
     : '';
   /** Aksi record halaman untuk baris yang diklik kanan. Halaman sudah
    *  menggerbang izin di `renderActions`, jadi menu tinggal menampilkannya. */
-  const ctxAksi = ctx.area === 'row' && renderActions
-    ? flattenAksiMenu(renderActions(ctx.rowId))
+  const ctxAksi = ctx.area === 'row'
+    ? [
+        ...(renderActions ? flattenAksiMenu(renderActions(ctx.rowId)) : []),
+        ...(renderActionsKonteks ? flattenAksiMenu(renderActionsKonteks(ctx.rowId)) : []),
+      ]
     : [];
 
   return (
