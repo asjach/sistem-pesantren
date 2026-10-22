@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import {
   aktifkanMassalKeaktifan,
@@ -17,7 +17,8 @@ import {
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -178,20 +179,20 @@ export default function KeaktifanPegawaiPage() {
   const [tercentang, setTercentang] = useState<KeaktifanPegawai[]>([]);
   const [bulkHapusOpen, setBulkHapusOpen] = useState(false);
   const [bulkHapusProses, setBulkHapusProses] = useState(false);
+  const clearSeleksiRef = useRef<() => void>(() => {});
 
-  const tombolBulkHapus = canHapus ? (
+  const renderBulkActions = canHapus ? (checked: KeaktifanPegawai[], clear: () => void) => (
     <Button
       id="btn_bulk_hapus_keaktifan"
       size="sm"
       variant="destructive"
-      disabled={tercentang.length === 0 || bulkHapusProses}
-
-      onClick={() => { setTimeout(() => setBulkHapusOpen(true), 0); }}
+      disabled={bulkHapusProses}
+      onClick={() => { setTercentang(checked); clearSeleksiRef.current = clear; setTimeout(() => setBulkHapusOpen(true), 0); }}
     >
       <Trash2 size={14} />
-      Hapus ({tercentang.length})
+      Hapus ({checked.length})
     </Button>
-  ) : null;
+  ) : undefined;
 
   const jalankanBulkHapus = useCallback(async () => {
     setBulkHapusProses(true);
@@ -207,6 +208,7 @@ export default function KeaktifanPegawaiPage() {
     }
     setBulkHapusOpen(false);
     setTercentang([]);
+    clearSeleksiRef.current();
     if (gagal.length === 0) {
       toast.success(`${sukses} keaktifan dihapus.`);
     } else {
@@ -222,9 +224,8 @@ export default function KeaktifanPegawaiPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tampil={{ semester: false, tingkat: false }} tabel={[{ key: 'pegawai_keaktifan', judul: 'Keaktifan', fields: FIELDS }]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIP / NIPP / No. SK…" />
-      <ExcelTable
+      <ExcelTabelV2
         tableKey="pegawai_keaktifan"
-        sumberTabel="keaktifan_pegawai"
         fields={FIELDS}
         rows={rows}
         getValues={nilaiBaris}
@@ -233,10 +234,11 @@ export default function KeaktifanPegawaiPage() {
         canEdit={canUbah}
         onCommit={commitBaris}
         onSaved={onSaved}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
-        onCheckedChange={setTercentang}
         filter={
           <LabeledCombobox label="Status" htmlFor="select_status_keaktifan">
             <ComboboxRoot
@@ -276,10 +278,10 @@ export default function KeaktifanPegawaiPage() {
                 </Tooltip>
               </>
             )}
-            {tombolBulkHapus}
           </>
         }
         renderActions={renderActions}
+        renderBulkActions={renderBulkActions}
         pager={(
           <Pager
             page={pager.page}
