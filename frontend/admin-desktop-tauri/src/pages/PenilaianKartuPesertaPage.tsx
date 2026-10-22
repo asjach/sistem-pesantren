@@ -3,7 +3,8 @@ import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -295,7 +296,7 @@ export default function PenilaianKartuPesertaPage() {
 
         <TabsContent value="nomor" className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1 flex-col">
-        <ExcelTable<BarisNomorGrid>
+        <ExcelTabelV2<BarisNomorGrid>
           tableKey="penilaian_kartu_nomor"
           header="Nomor peserta"
           fields={FIELDS_NOMOR}
@@ -308,6 +309,8 @@ export default function PenilaianKartuPesertaPage() {
           canEdit={canUbah}
           onCommit={simpanNomor}
           onSaved={selesaiNomor}
+          // Preset kolom V2 sudah menentukan kolom yang tampil.
+          onApplyPreset={() => {}}
           renderActions={() => null}
           hideCheckbox
           hideActions
