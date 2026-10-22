@@ -13,7 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -293,9 +294,8 @@ export default function TahunAjaranPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari tahun ajaran…" />
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'tahun_ajaran', judul: 'Tahun ajaran', fields: FIELDS }]} />
-      <ExcelTable
+      <ExcelTabelV2
         tableKey="tahun_ajaran"
-        sumberTabel="tahun_ajaran"
         fields={FIELDS}
         rows={rowsTampil}
         getValues={gridValues}
@@ -304,6 +304,8 @@ export default function TahunAjaranPage() {
         canEdit={bolehKelola}
         onCommit={commitDraft}
         onSaved={onSaved}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
