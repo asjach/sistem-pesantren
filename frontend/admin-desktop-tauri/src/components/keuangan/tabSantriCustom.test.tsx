@@ -163,6 +163,68 @@ describe('SantriCustomTab', () => {
     return within(document.getElementById('judul_sc_santri')!.closest('[data-slot="excel-table"]') as HTMLElement);
   }
 
+  function panelAnggota() {
+    // Header mengidentifikasi panel anggota tanpa bergantung pada posisi panel di layout.
+    return within(document.getElementById('judul_sc_anggota')!.closest('[data-slot="excel-table"]') as HTMLElement);
+  }
+
+  it('Keluarkan lewat klik kanan mempertahankan anggota saat gagal dan mengembalikan kandidat setelah sukses', async () => {
+    const user = userEvent.setup();
+    api.santri.mockResolvedValue({ data: [{ ...CALON, id: 10, nama_lengkap: 'Ahmad' }, CALON], current_page: 1, last_page: 1, total: 2 });
+    renderTab();
+    await user.click(await screen.findByText('Ekskul MTK'));
+    await panelKandidat().findByText('Budi');
+    expect(panelKandidat().queryByText('Ahmad')).not.toBeInTheDocument();
+    api.keluarkan.mockRejectedValueOnce(new Error('Gagal mengeluarkan anggota.'));
+    fireEvent.contextMenu(panelAnggota().getByText('Ahmad'));
+    await user.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Keluarkan Ahmad' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Gagal mengeluarkan anggota.'));
+    expect(panelAnggota().getByText('Ahmad')).toBeInTheDocument();
+
+    api.daftar.mockResolvedValue([{ ...GRUP, santri: [] }]);
+    await user.click(panelAnggota().getByRole('button', { name: 'Keluarkan Ahmad' }));
+    await waitFor(() => expect(api.keluarkan).toHaveBeenLastCalledWith(1, 10));
+    expect(await screen.findByText('Anggota Ekskul MTK (0)')).toBeInTheDocument();
+    expect(panelAnggota().getByText('Belum ada anggota — masukkan dari daftar santri di kiri.')).toBeInTheDocument();
+    expect(await panelKandidat().findByText('Ahmad')).toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith('1 santri keluar dari grup Ekskul MTK.');
+    expect(api.hapus).not.toHaveBeenCalled();
+  });
+
+  it('Keluarkan massal memakai ID anggota grup aktif dan menahan aksi saat busy', async () => {
+    const user = userEvent.setup();
+    const anggota = [...GRUP.santri, { ...GRUP.santri[0], id: 20, nama_lengkap: 'Dedi' }];
+    api.daftar.mockResolvedValue([{ ...GRUP, santri: anggota }]);
+    let selesai!: (value: GrupSantriCustom) => void;
+    api.keluarkan.mockImplementationOnce(() => new Promise<GrupSantriCustom>((resolve) => { selesai = resolve; }));
+    renderTab();
+    await user.click(await screen.findByText('Ekskul MTK'));
+    await user.click(panelAnggota().getByRole('checkbox', { name: 'Pilih semua baris' }));
+    await user.click(panelAnggota().getByRole('button', { name: 'Keluarkan (2)' }));
+    expect(api.keluarkan).toHaveBeenCalledWith(1, 10);
+    await user.click(panelAnggota().getByRole('checkbox', { name: 'Pilih baris 20' }));
+    expect(panelAnggota().getByRole('button', { name: 'Keluarkan (1)' })).toBeDisabled();
+    api.daftar.mockResolvedValue([{ ...GRUP, santri: [] }]);
+    await act(async () => { selesai(GRUP); });
+    await waitFor(() => expect(api.keluarkan).toHaveBeenNthCalledWith(2, 1, 20));
+    expect(await screen.findByText('Anggota Ekskul MTK (0)')).toBeInTheDocument();
+    expect(api.hapus).not.toHaveBeenCalled();
+  });
+
+  it('pergantian grup menyelaraskan panel anggota dan tujuan Keluarkan', async () => {
+    const user = userEvent.setup();
+    api.daftar.mockResolvedValue([GRUP, { ...GRUP, id: 2, nama: 'Grup Kedua', santri: [{ ...GRUP.santri[0], id: 20, nama_lengkap: 'Dedi' }] }]);
+    renderTab();
+    expect(await screen.findByText('Pilih grup di tabel kiri (ikon orang) untuk melihat anggotanya.')).toBeInTheDocument();
+    await user.click(await screen.findByText('Ekskul MTK'));
+    expect(panelAnggota().getByText('Ahmad')).toBeInTheDocument();
+    await user.click(screen.getByText('Grup Kedua'));
+    expect(panelAnggota().queryByText('Ahmad')).not.toBeInTheDocument();
+    await user.click(panelAnggota().getByRole('button', { name: 'Keluarkan Dedi' }));
+    await waitFor(() => expect(api.keluarkan).toHaveBeenCalledWith(2, 20));
+    expect(panelAnggota().queryByRole('button', { name: /Tambah baris/ })).not.toBeInTheDocument();
+  });
+
   it('aksi kandidat mempertahankan data saat gagal dan reload anggota setelah sukses lewat klik kanan', async () => {
     const user = userEvent.setup();
     renderTab();

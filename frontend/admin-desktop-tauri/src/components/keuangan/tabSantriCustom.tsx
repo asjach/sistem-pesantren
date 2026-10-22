@@ -10,7 +10,7 @@ import { listSantri, type Santri } from '../../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/ExcelTable';
 import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import Pager from '@/components/Pager';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -500,8 +500,9 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
             Pilih grup di tabel kiri (ikon orang) untuk melihat anggotanya.
           </p>
         ) : (
-          <ExcelTable<AnggotaGrupCustom>
+          <ExcelTabelV2<AnggotaGrupCustom>
             tableKey="grup_custom_anggota"
+            onApplyPreset={() => {}}
             header={(
               <span id="judul_sc_anggota" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
                 Anggota {grupAktif.nama} ({grupAktif.santri.length})
@@ -512,9 +513,6 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
             getValues={(r) => ({ nama_lengkap: r.nama_lengkap, nis: r.nis, jk: r.jk, kelas: r.kelas, jenjang: r.jenjang })}
             emptyText="Belum ada anggota — masukkan dari daftar santri di kiri."
             canEdit={false}
-            onCommit={async () => {}}
-            onSaved={() => {}}
-            aksiLangsung
             renderActions={(r) => (
               <ActionIcon id={`btn_grup_custom_keluarkan_${r.id}`} title={`Keluarkan ${r.nama_lengkap}`} onClick={() => keluarkanAnggota([r.id])}>
                 <X size={16} />
