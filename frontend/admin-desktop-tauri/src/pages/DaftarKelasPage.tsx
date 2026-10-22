@@ -5,7 +5,6 @@ import { bisa } from '../api/auth';
 import { daftarKelas, type DaftarKelasHasil, type RiwayatRow } from '../api/siklus';
 import type { SantriPenuh } from '../api/santri';
 import { listKelas, type Kelas } from '../api/master';
-import ExcelTable from '@/components/ExcelTable';
 import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -140,7 +139,7 @@ export default function DaftarKelasPage() {
   }, [rows]);
   const [editRow, setEditRow] = useState<SantriPenuh | null>(null);
 
-  /** Filter status akhir — dipakai toolbar V1 maupun area filter V2. */
+  /** Filter status akhir pada area filter tabel. */
   const filterStatus = (
     <LabeledCombobox label="Status" htmlFor="select_status_daftar_kelas">
       <ComboboxRoot
@@ -163,7 +162,7 @@ export default function DaftarKelasPage() {
     </LabeledCombobox>
   );
 
-  /** Paginasi kaki tabel — dipakai V1 maupun V2. */
+  /** Pagination footer tabel. */
   const pagerEl = (
     <Pager
       page={pager.page}
@@ -192,30 +191,8 @@ export default function DaftarKelasPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'daftar_kelas', judul: 'Daftar kelas', fields }]} />
-      {import.meta.env.DEV ? (
-        <ExcelTabelV2
-          header={<span id="judul_daftar_kelas" className="text-xs font-semibold">Daftar kelas</span>}
-          tableKey="daftar_kelas"
-          rail
-          fields={fields}
-          rows={rows}
-          getValues={daftarKelasValues}
-          loading={loading}
-          emptyText="Pilih lembaga untuk menampilkan daftar kelas."
-          renderActions={aksiBaris}
-          filter={filterStatus}
-          pager={pagerEl}
-          urutAktif={urut}
-          arahUrut={arahUrut}
-          onUrut={terapkanUrut}
-          canEdit={canSantri || canRiwayat}
-          onCommit={commitDaftar}
-          onSaved={onSaved}
-          // Preset kolom V2 sudah menentukan kolom yang tampil.
-          onApplyPreset={() => {}}
-        />
-      ) : (
-      <ExcelTable<RiwayatRow>
+      <ExcelTabelV2<RiwayatRow>
+        header={<span id="judul_daftar_kelas" className="text-xs font-semibold">Daftar kelas</span>}
         tableKey="daftar_kelas"
         rail
         fields={fields}
@@ -223,17 +200,18 @@ export default function DaftarKelasPage() {
         getValues={daftarKelasValues}
         loading={loading}
         emptyText="Pilih lembaga untuk menampilkan daftar kelas."
-        canEdit={canSantri || canRiwayat}
-        onCommit={commitDaftar}
-        onSaved={onSaved}
-        urutAktif={urut}
-        arahUrut={arahUrut}
-        onUrut={terapkanUrut}
         renderActions={aksiBaris}
         filter={filterStatus}
         pager={pagerEl}
+        urutAktif={urut}
+        arahUrut={arahUrut}
+        onUrut={terapkanUrut}
+        canEdit={canSantri || canRiwayat}
+        onCommit={commitDaftar}
+        onSaved={onSaved}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
       />
-      )}
 
       <EditSantriDialog
         santri={editRow}
