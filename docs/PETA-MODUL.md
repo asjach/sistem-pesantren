@@ -104,6 +104,9 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Panel daftar anotasi dapat dibuka dan tiap entri dapat dihapus
   - [x] Alur agen membaca .dev/anotasi.json dan menindaklanjuti anotasi terdokumentasi
   - [x] Verifikasi: tes terfokus, typecheck, dan build web tanpa memuat lapisan anotasi
+  - [x] Pintasan Ctrl/⌘+Shift+A mengaktifkan mode tandai, termasuk saat dialog terbuka
+  - [x] Elemen di dalam popup/modal dapat ditandai dan instruksinya dapat diketik
+  - [x] Verifikasi: tes lapisan anotasi dan typecheck
 **Done**
 - Proyek Laravel 13, Vite, dan Tauri berjalan
   - [x] API-first
@@ -622,6 +625,10 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Foto kosong memakai siluet sesuai jenis kelamin
   - [x] Ukuran tersimpan per kegiatan evaluatif dan lembaga
   - [x] Peserta terpilih atau seluruh peserta dapat dicetak ke A4/PDF
+- Padding tabel pada halaman bertabel menjadi 0
+  - [x] Tab Nomor peserta kartu peserta tidak memiliki padding area tabel
+  - [x] Leger Nilai, Struktur Kurikulum, dan Pengampu tidak memiliki padding pembungkus tabel
+  - [x] Verifikasi: typecheck, lint, dan tampilan halaman
 **Done**
 - (kosong)
 
@@ -978,15 +985,31 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `Done`
+### DA11.1 Tabel & Grid `Backlog`
 **Backlog**
-- (kosong)
+- ExcelTabelV2 — struktur toolbar awal
+  - [x] Toolbar memiliki judul, area aksi kosong, dan tombol ikon ellipsis vertikal tanpa label visual
+  - [x] Toolbar memakai padding kiri 8px dan kanan 0; footer memakai padding horizontal 8px; tidak ada gap
+  - [x] Halaman daftar kelas mode dev menampilkan toolbar V2; produksi tetap memakai ExcelTable lama
+  - [x] Verifikasi: typecheck, lint, tes komponen, dan build
+  - [x] Tombol menu memakai lebar 24px dan tinggi memenuhi toolbar
+  - [x] Ikon ellipsis berada di tengah tombol
+  - [ ] Tes ExcelTabelV2 hanya menguji struktur dan aksesibilitas, bukan class CSS
 **To Do**
 - (kosong)
 **In Progress**
 - (kosong)
 **For Review**
-- (kosong)
+- ExcelTabelV2 — fondasi pembungkus
+  - [x] Komponen ExcelTabelV2 memiliki root data-slot=excel-table dan data-varian=v2 tanpa isi
+  - [x] Halaman daftar kelas menampilkan wrapper kosong di mode dev; build produksi tetap memakai ExcelTable lama
+  - [x] Verifikasi: typecheck, lint, dan tes komponen
+- ExcelTabelV2 — layout tiga bagian
+  - [x] ExcelTabelV2 menyusun zona header, body, dan footer dengan penanda data-slot
+  - [x] Header dan footer setinggi 32px serta shrink-0; body flex-1 min-h-0
+  - [x] Halaman daftar kelas mode dev menampilkan skeleton layout; produksi tetap memakai ExcelTable lama
+  - [x] Verifikasi: typecheck, lint, tes komponen, dan build
+  - [x] Header dan footer tidak memiliki padding; inset diatur oleh isi zona
 **Done**
 - Grid tabel bergaya Excel
   - [x] Seleksi blok dan salin/tempel TSV
@@ -1021,15 +1044,20 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Visibilitas kolom per tabel
   - [x] Tersimpan per halaman
 
-### DA11.3 Tampilan & Aksesibilitas `Done`
+### DA11.3 Tampilan & Aksesibilitas `Backlog`
 **Backlog**
-- (kosong)
+- Evaluasi terhadap penggunaan tes untuk UI
+  - [ ] Kebijakan penggunaan tes UI untuk SIMPES ditetapkan dan dapat diterapkan pada komponen bersama
 **To Do**
 - (kosong)
 **In Progress**
 - (kosong)
 **For Review**
-- (kosong)
+- Jarak tombol footer dialog dari border dan kontrol
+  - [x] Dialog standar memakai jarak minimum 8px antar bagian sehingga footer tidak menempel pada border atau kontrol
+  - [x] Dialog bertata letak kustom (p-0/gap-0) tetap rapat sesuai rancangannya
+  - [x] Tombol tutup tetap berada di atas konten yang bergulir
+  - [x] Verifikasi: typecheck dan tes dialog terkait
 **Done**
 - Tema, density, dan mode navigasi
   - [x] Terang/gelap/sistem
