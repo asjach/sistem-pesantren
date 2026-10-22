@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { TopBarSearch } from '@/components/TopBarSearch';
-import ExcelTable, { type ExcelField, type GridRow } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField, GridRow } from '@/components/excel/types';
 import type { BarisSel } from '@/components/excel/types';
 import type { BlokIsi } from '@/components/excel/seretIsiSel';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -183,7 +184,7 @@ export default function KurikulumJadwalPage() {
   /** Satu kelas = target pintasan template & label judul tunggal. */
   const kelasTunggal = kelasTampil.length === 1 ? kelasTampil[0] : null;
   const kelasId = kelasTunggal?.id ?? '';
-  const hari = dataKelas[0]?.hari ?? [];
+  const hari = useMemo(() => dataKelas[0]?.hari ?? [], [dataKelas]);
 
   /** Muat jadwal SEMUA kelas terpilih; slot id unik per kelas sehingga
    *  peta baris gabungan tidak bentrok. */
@@ -1102,7 +1103,7 @@ export default function KurikulumJadwalPage() {
             </div>
           )}
 
-          <ExcelTable<BarisMatriks>
+          <ExcelTabelV2<BarisMatriks>
             key={`matriks-${dataKelas.map((d) => `${d.kelas.id}:${d.slot.map((s) => s.id).join('.')}`).join('|')}`}
             tableKey="kurikulum_jadwal"
             header={`Jadwal${kelasTampil.length === 1
@@ -1116,6 +1117,8 @@ export default function KurikulumJadwalPage() {
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}
+            // Preset kolom V2 sudah menentukan kolom yang tampil.
+            onApplyPreset={() => {}}
             renderActions={() => null}
             hideCheckbox
             hideActions
