@@ -985,7 +985,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `To Do`
+### DA11.1 Tabel & Grid `Backlog`
 **Backlog**
 - Tinggi baris V2 bisa diatur per tabel, ikut isi, dan dibatasi N baris.
 - V2 bisa menambah record baru lewat baris input di kaki tabel.
@@ -994,7 +994,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 - Kolom V2 bisa dibekukan: sejumlah N kolom data pertama tetap terlihat saat tabel digulir horizontal, dengan jumlah beku tersimpan per tabel.
 - Judul kolom V2 bisa digeser untuk menyusun ulang urutan kolom, lengkap dengan indikator drop, dan urutannya tersimpan per tabel.
 **To Do**
-- Migrasi halaman MiMd ke ExcelTabelV2: tiga panel MI Only, MD Semua, dan Perbandingan Kelas memakai header, rail, dan aksi massal V2.
+- (kosong)
 **In Progress**
 - (kosong)
 **For Review**
@@ -1097,6 +1097,14 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Menyeret blok terpilih menyalin atau memindahkan isinya ke sel tujuan (sumber dikosongkan pada move), dengan umpan balik sumber/tujuan, badge Salin/Pindahkan, draft langsung terlihat, dan simpan otomatis per baris.
   - [x] Seret isi sel hanya mengubah kolom yang bisa disunting; kolom static tetap, tabel tanpa izin edit tidak menampilkan sakelar/seret, dan nilai yang gagal validasi dikembalikan dengan pesan galat.
   - [ ] npm run typecheck dan tes tersempit V2 hijau; V1 tidak berubah; pemeriksaan pengguna: klik kanan header/baris/sudut, Ctrl+C blok, lalu seret blok dengan mode copy dan move di Daftar Kelas (mode dev).
+- Migrasi halaman MiMd ke ExcelTabelV2: tiga panel MI Only, MD Semua, dan Perbandingan Kelas memakai header, rail, dan aksi massal V2.
+  - [x] Tiga panel MiMd memakai ExcelTabelV2 dengan judul header, urutan, pencarian, dan data yang sama seperti V1.
+  - [x] Panel MI Only memakai rel filter Tingkat/Kelas V2; panel MD Semua dan Perbandingan Kelas tanpa rel.
+  - [x] Aksi massal V2 berfungsi di ketiga panel (Ke MD, Ikut MI/Ikut MD, Keluarkan), termasuk jumlah tercentang dan pengosongan pilihan setelah aksi.
+  - [x] Aksi baris (Masukkan ke MD, Samakan MI/MD, Keluarkan dari MD) tetap berfungsi, tidak memicu pemilihan sel, dan kolom Aksi cukup lebar untuk tombol teks MI/MD.
+  - [x] Setelan tabel V2 per mi_md_* bekerja (Kelola Tabel, visibilitas komponen, preset kolom) tanpa perubahan API/data.
+  - [x] Tiga panel tetap resizable dan masing-masing menggulir sendiri; tidak muncul scrollbar halaman kedua.
+  - [ ] npm run typecheck dan tes tersempit V2/MiMd hijau; V1 halaman lain tidak berubah; pemeriksaan pengguna di halaman MiMd.
 **Done**
 - Grid tabel bergaya Excel
   - [x] Seleksi blok dan salin/tempel TSV

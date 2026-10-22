@@ -79,6 +79,10 @@ export interface LebarKolomOptions<T extends { id: string | number }> {
   getSelectedColumnKeys: () => string[];
   labelKolom: (key: string, bawaan: string) => string;
   hideActions: boolean;
+  /** Berubah saat jumlah aksi maksimum berubah (mis. baris/aksi baru
+   *  terender). Memicu pengukuran ulang lebar kolom Aksi supaya pengukuran
+   *  parsial saat mount tidak terkunci. V1 tidak memakai (absen). */
+  sinyalAksi?: number;
   hideCheckbox: boolean;
   loading: boolean;
   headerH: number | null;
@@ -118,6 +122,7 @@ export function useLebarKolom<T extends { id: string | number }>({
   getSelectedColumnKeys,
   labelKolom,
   hideActions,
+  sinyalAksi,
   hideCheckbox,
   loading,
   headerH,
@@ -308,7 +313,7 @@ export function useLebarKolom<T extends { id: string | number }>({
     if (w == null) return;
     setAutoWidths((prev) => (prev.__aksi === w ? prev : { ...prev, __aksi: w }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lebarStabil, rows, fields, visibleFields]);
+  }, [lebarStabil, rows, fields, visibleFields, sinyalAksi]);
 
   useLayoutEffect(() => {
     if (headerH != null || !lebarStabil) return;

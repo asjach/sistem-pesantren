@@ -18,7 +18,8 @@ import { ResizableAutoHidePanel, ResizableHandle, ResizablePanel, ResizablePanel
 import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight, X } from '@/icons';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import type { PetaArahKolom } from '@/lib/urut';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -254,19 +255,18 @@ export default function MiMdPage() {
     const tampil = urutkan(rows, urutTabel[key].kolom, urutTabel[key].arah, urutTabel[key].arahKolom);
     return (
     <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <ExcelTable
+      <ExcelTabelV2
         tableKey={`mi_md_${key}`}
         rail={rail}
         fields={fields}
         rows={tampil}
         getValues={getValues}
-         header={<span>{judul}</span>}
+        header={<span>{judul}</span>}
         urutAktif={urutTabel[key].kolom}
         arahUrut={urutTabel[key].arah}
         onUrut={(kolom, arah, arahKolom) => terapkanUrut(key, kolom, arah, arahKolom)}
-        canEdit={false}
-        onCommit={async () => {}}
-        onSaved={() => {}}
+        onApplyPreset={() => {}}
+        loading={loading}
         renderActions={(r) => (<>{aksiProfil(r.santri_id, { prefix: key, daftar: tampil.map((x) => x.santri_id) })}{aksi?.(r)}</>)}
         renderBulkActions={renderBulk}
         emptyText="Tidak ada data."

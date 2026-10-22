@@ -183,10 +183,19 @@ function SelCentangV2({ rowData, columnData }: CellProps<GridRow, { onToggle: (i
 }
 
 /** Sel aksi V2: isi kolom dari halaman, menempel di kanan. Padding dan gap
- *  di sini adalah cermin AKSI_PAD_X dan AKSI_GAP di lebarAksi.ts. */
+ *  di sini adalah cermin AKSI_PAD_X dan AKSI_GAP di lebarAksi.ts.
+ *
+ *  `simpes-dsg-actions` adalah penanda yang dibaca `measureActionsWidth` V1:
+ *  lebar kolom Aksi diukur dari tombol yang benar-benar dirender, jadi tombol
+ *  teks (mis. MI/MD di halaman MiMd) tidak terpotong seperti asumsi ikon 24px.
+ *  Klik aksi juga dihentikan agar tidak menyeleksi sel grid di belakangnya. */
 function SelAksiV2({ rowData, columnData }: CellProps<GridRow, { render: (id: string | number) => ReactNode }>) {
   return (
-    <div className="flex h-full w-full items-center justify-end gap-0.5 px-1">
+    <div
+      className="simpes-dsg-actions flex h-full w-full items-center justify-end gap-0.5 px-1 [&>*]:shrink-0"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
       {columnData.render(rowData.id)}
     </div>
   );
@@ -592,6 +601,25 @@ export default function GridV2({
   const skalaIsiRef = useRef(1);
   /** Lebar efekti+ area gulir, dasar penskalaan (0 = belum terukur). */
   const lebarWadah = useLebarWadah(wrapRef, isiLebarAktif);
+
+  /** renderActions dari halaman biasanya fungsi inline yang berganti
+   *  identitas tiap render; dibaca lewat ref agar hitung ulang seluruh baris
+   *  hanya terjadi saat data berubah. */
+  const renderAksiRef = useRef(renderActions);
+  renderAksiRef.current = renderActions;
+
+  /** Jumlah ikon/aksi terbanyak di antara baris yang tampil: izin bisa
+   *  berbeda per baris, sedangkan satu kolom dipakai bersama. Nilainya juga
+   *  menjadi sinyal agar lebar kolom Aksi diukur ulang setelah aksi terender. */
+  const jumlahAksi = useMemo(() => {
+    let maks = 0;
+    for (const r of rows) {
+      const n = flattenAksi(renderAksiRef.current?.(r.id)).length;
+      if (n > maks) maks = n;
+    }
+    return maks;
+  }, [rows]);
+
   const lebar = useLebarKolom<GridRow>({
     tableKey,
     fields,
@@ -605,6 +633,7 @@ export default function GridV2({
     getSelectedColumnKeys: () => [],
     labelKolom: labelKolomEfektif,
     hideActions: !renderActions,
+    sinyalAksi: jumlahAksi,
     hideCheckbox,
     loading,
     headerH,
@@ -698,42 +727,34 @@ export default function GridV2({
     return cols;
   }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit, skalaIsi]);
 
-  /** renderActions dari halaman biasanya fungsi inline yang berganti
-   *  identitas tiap render; dibaca lewat ref agar hitung ulang seluruh baris
-   *  hanya terjadi saat data berubah. */
-  const renderAksiRef = useRef(renderActions);
-  renderAksiRef.current = renderActions;
-
-  /** Jumlah ikon terbanyak di antara baris yang tampil: izin bisa berbeda per
-   *  baris, sedangkan satu kolom dipakai bersama. */
-  const jumlahAksi = useMemo(() => {
-    let maks = 0;
-    for (const r of rows) {
-      const n = flattenAksi(renderAksiRef.current?.(r.id)).length;
-      if (n > maks) maks = n;
-    }
-    return maks;
-  }, [rows]);
-
   /** Kolom Aksi = kolom sticky kanan DSG. Sengaja TIDAK ikut columns:
    *  DSG menggambarnya terpisah agar menempel saat digulir horizontal.
-   *  Lebarnya mengikuti jumlah ikon (lihat lebarAksi.ts), jadi tidak perlu
-   *  ditebak per halaman. */
+   *  Lebarnya memakai hasil ukur DOM (termasuk tombol teks); asumsi jumlah
+   *  ikon di lebarAksi.ts hanya cadangan saat pengukuran belum tersedia. */
   const kolomAksi = useMemo<Column<GridRow> | undefined>(() => {
     if (!renderActions) return undefined;
-    const lebar = lebarKolomAksi(jumlahAksi);
+    // V1 mengukur tombol yang benar-benar dirender lewat `measureActionsWidth`
+    // (hasilnya di autoWidths.__aksi). Pakai hasil ukur itu lebih dulu supaya
+    // tombol teks (mis. MI/MD) tidak terpotong; asumsi ikon hanya cadangan.
+    const lebarTerukur = lebar.widths.__aksi
+      ?? lebar.autoWidths.__aksi
+      ?? lebar.syncAutoWidths.__aksi
+      ?? 0;
+    // Hasil ukur bisa parsial saat mount (aksi kedua belum terender); jangan
+    // sampai lebih sempit dari kebutuhan minimum jumlah aksi.
+    const lebarAksi = Math.max(lebarTerukur, lebarKolomAksi(jumlahAksi));
     return {
       id: '__aksi',
       title: <JudulKolomV2 teks="" rata="kanan" />,
       component: SelAksiV2,
       columnData: { render: renderActions },
-      basis: lebar,
+      basis: lebarAksi,
       grow: 0,
       shrink: 0,
-      minWidth: lebar,
+      minWidth: lebarAksi,
       disabled: true,
     };
-  }, [renderActions, jumlahAksi]);
+  }, [renderActions, jumlahAksi, lebar.widths.__aksi, lebar.autoWidths.__aksi, lebar.syncAutoWidths.__aksi]);
 
   const onBarisAktifRef = useRef(onBarisAktif);
   onBarisAktifRef.current = onBarisAktif;

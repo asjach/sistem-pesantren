@@ -19,6 +19,13 @@ vi.mock('@/theme', () => ({
   useTheme: () => ({ iconSet: 'lucide' }),
 }));
 
+/** jsdom tak punya layout; ukur lebar aksi dikembalikan tetap supaya jalur
+ *  "lebar kolom Aksi memakai hasil ukur DOM" bisa diuji. */
+vi.mock('@/components/excel/measure', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/components/excel/measure')>();
+  return { ...asli, measureActionsWidth: () => 137 };
+});
+
 const prefs = vi.hoisted(() => ({
   rowH: null as number | null,
   headerH: null as number | null,
@@ -190,6 +197,14 @@ describe('GridV2 - lebar kolom', () => {
     tampilkan({ renderActions: () => null });
 
     expect(document.querySelector('[data-gagang-lebar="__aksi"]')).toBeNull();
+  });
+
+  it('lebar kolom aksi memakai hasil ukur tombol, bukan asumsi ikon', async () => {
+    tampilkan({ renderActions: () => <button type="button">MI</button> });
+
+    await waitFor(() => {
+      expect(kolomTerakhir().find((k) => k.id === '__aksi')?.basis).toBe(137);
+    });
   });
 
   it('lebar tersimpan pengguna dipakai sebagai basis kolom saat muat', () => {
