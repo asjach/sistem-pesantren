@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** DSG asli merender lebar berbasis pengukuran DOM; di jsdom semua 0 sehingga
@@ -8,6 +9,15 @@ vi.mock('react-datasheet-grid', async () => {
   const { DynamicDataSheetGridStub } = await import('@/components/excel/_dsgStubDom');
   return { DynamicDataSheetGrid: DynamicDataSheetGridStub };
 });
+
+vi.mock('@/lib/clipboard', async (importOriginal) => {
+  const asli = await importOriginal<typeof import('@/lib/clipboard')>();
+  return { ...asli, copyText: vi.fn(async () => true) };
+});
+
+vi.mock('@/theme', () => ({
+  useTheme: () => ({ iconSet: 'lucide' }),
+}));
 
 const prefs = vi.hoisted(() => ({
   rowH: null as number | null,
@@ -21,6 +31,7 @@ vi.mock('@/components/GridPrefs', async (asli) => ({
 }));
 
 import GridV2 from './GridV2';
+import { copyText } from '@/lib/clipboard';
 import { widthCache, widthsKey } from '@/components/excel/helpers';
 import { kolomTerakhir, type KolomStub } from '@/components/excel/_dsgStubDom';
 import type { ExcelField } from '@/components/excel/types';
@@ -69,6 +80,8 @@ Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
 
 beforeEach(() => {
   localStorage.clear();
+  vi.mocked(copyText).mockClear();
+  vi.mocked(copyText).mockResolvedValue(true);
   prefs.rowH = null;
   prefs.headerH = null;
   prefs.fontPx = 11;
@@ -236,5 +249,102 @@ describe('GridV2 - isi lebar wadah', () => {
   });
   it('kunci penyimpanan lebar memakai tableKey', () => {
     expect(widthsKey('daftar_kelas')).toBe('simpes_grid_daftar_kelas_w_v2');
+  });
+});
+
+describe('GridV2 - menu klik kanan & salin TSV', () => {
+  const bukaMenu = async (target: Element) => {
+    fireEvent.contextMenu(target);
+    return screen.findByRole('menu');
+  };
+
+  it('klik kanan judul kolom menampilkan AutoFit dan menyalin kolom sebagai TSV', async () => {
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    const judul = document.querySelector('.dsg-row-header [data-col-key="nama"]') as HTMLElement;
+    expect(judul).not.toBeNull();
+    const menu = await bukaMenu(judul);
+
+    expect(menu).toHaveTextContent('KOLOM: Nama');
+    expect(screen.getByRole('button', { name: 'Sesuaikan lebar kolom ini' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Salin kolom (TSV)' }));
+
+    await waitFor(() => expect(copyText).toHaveBeenCalledWith('Nama\nAhmad\nBilal'));
+  });
+
+  it('klik kanan baris menyalin nilai sel dan baris sebagai TSV', async () => {
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    const sel = document.querySelector('.dsg-row:not(.dsg-row-header) [data-col-key="nama"]') as HTMLElement;
+    const menu = await bukaMenu(sel);
+    expect(menu).toHaveTextContent('Salin baris (TSV)');
+
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Salin nilai sel' }));
+    await waitFor(() => expect(copyText).toHaveBeenLastCalledWith('Ahmad'));
+
+    await bukaMenu(sel);
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Salin baris (TSV)' }));
+    await waitFor(() => expect(copyText).toHaveBeenLastCalledWith('Nama\tNIS\nAhmad\t001'));
+  });
+
+  it('klik kanan sudut kiri-atas menyalin seluruh tabel', async () => {
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    const sudut = document.querySelector('.dsg-row-header .dsg-cell-gutter') as HTMLElement;
+    const menu = await bukaMenu(sudut);
+    expect(menu).toHaveTextContent('Salin semua (TSV)');
+
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Salin semua (TSV)' }));
+    await waitFor(() => expect(copyText).toHaveBeenCalledWith('Nama\tNIS\nAhmad\t001\nBilal\t002'));
+  });
+
+  it('klik kanan di area kosong tidak membuka menu', async () => {
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.contextMenu(grid);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+});
+
+describe('GridV2 - sakelar gestur seret isi sel', () => {
+  const nyalakanMode = async () => {
+    tampilkan({ canEdit: true, onCommit: async () => {} });
+    await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
+
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+  };
+
+  it('sakelar copy/move mati bawaan dan saling eksklusif saat dinyalakan', async () => {
+    await nyalakanMode();
+
+    const salin = screen.getByLabelText('Seret isi sel untuk copy');
+    const pindah = screen.getByLabelText('Seret isi sel untuk move');
+    expect(salin).not.toBeChecked();
+    expect(pindah).not.toBeChecked();
+
+    fireEvent.click(salin);
+    await waitFor(() => expect(localStorage.getItem('simpes_grid_daftar_kelas_seret_salin')).toBe('1'));
+
+    fireEvent.click(pindah);
+    await waitFor(() => expect(localStorage.getItem('simpes_grid_daftar_kelas_seret_pindah')).toBe('1'));
+    expect(localStorage.getItem('simpes_grid_daftar_kelas_seret_salin')).toBe('');
+    expect(screen.getByLabelText('Seret isi sel untuk copy')).not.toBeChecked();
+    expect(screen.getByLabelText('Seret isi sel untuk move')).toBeChecked();
+  });
+
+  it('membaca sakelar tersimpan per perangkat saat Mode Ubah dinyalakan', async () => {
+    localStorage.setItem('simpes_grid_daftar_kelas_seret_salin', '1');
+    await nyalakanMode();
+
+    await waitFor(() => expect(screen.getByLabelText('Seret isi sel untuk copy')).toBeChecked());
+    expect(screen.getByLabelText('Seret isi sel untuk move')).not.toBeChecked();
   });
 });

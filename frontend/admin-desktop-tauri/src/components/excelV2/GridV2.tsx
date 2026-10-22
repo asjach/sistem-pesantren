@@ -1,24 +1,42 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import {
   DynamicDataSheetGrid as DataSheetGrid,
   type CellProps,
   type Column,
 } from 'react-datasheet-grid';
 import 'react-datasheet-grid/dist/style.css';
+import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { prefSet } from '@/api/client';
 import { useGridPrefs, DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_OPTIONS, FONT_FAMILY_DEFAULT } from '@/components/GridPrefs';
 import { TINGGI_BARIS_BAWAAN } from '@/components/excel/tinggiBaris';
-import { TabelMemuat } from '@/components/excel/primitives';
+import { PillMode, TabelMemuat } from '@/components/excel/primitives';
 import { cn } from '@/lib/utils';
 import { labelKolom } from '@/lib/labelKolom';
 import ScrollbarMelayang from '@/components/excel/ScrollbarMelayang';
 import { flattenAksi } from '@/components/excel/actions';
-import { CHECK_W, GUTTER_W, MIN_COL_W, teksTampilSel } from '@/components/excel/helpers';
-import type { ExcelField, GridRow } from '@/components/excel/types';
-import type { AlignKolom } from '@/components/kelolaTabel/jenis';
+import {
+  CHECK_W,
+  GUTTER_W,
+  MIN_COL_W,
+  loadSakelarGestur,
+  seretPindahKey,
+  seretSalinKey,
+  teksTampilSel,
+} from '@/components/excel/helpers';
+import type { ExcelField, GridRow, GridSelection } from '@/components/excel/types';
+import { EVENT_TAMPILAN_PERANGKAT_BERUBAH, kabariTampilanPerangkat, type AlignKolom } from '@/components/kelolaTabel/jenis';
+import type { BlokIsi, ModeSeret } from '@/components/excel/seretIsiSel';
+import { useSalinTabel } from '@/components/excel/useSalinTabel';
+import { useSalinClipboard } from '@/components/excel/useSalinClipboard';
+import { useSeretIsiSel } from '@/components/excel/useSeretIsiSel';
+import { Pencil } from '@/icons';
 import { lebarKolomAksi } from './lebarAksi';
+import { susunPerubahanSeret } from './seretV2';
+import MenuKonteksV2 from './MenuKonteksV2';
 import { useLebarKolom } from '@/components/excel/useLebarKolom';
 import { useAntreanSimpan } from '@/components/excel/useAntreanSimpan';
 import { useIsiLebar } from '@/components/excel/useIsiLebar';
@@ -84,7 +102,7 @@ function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelFie
   if (f.kind === 'toggle') {
     const nyala = rowData[f.key] === 'ya';
     return (
-      <div className="flex h-full w-full items-center justify-center">
+      <div data-col-key={f.key} className="flex h-full w-full items-center justify-center">
         <Switch
           size="xs"
           checked={nyala}
@@ -102,7 +120,7 @@ function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelFie
    *  ke antrean simpan otomatis lewat `onSimpan` (validasi ada di antrean). */
   if (bisaEdit && buka) {
     return (
-      <div className="flex h-full w-full min-w-0 items-center px-2">
+      <div data-col-key={f.key} className="flex h-full w-full min-w-0 items-center px-2">
         <input
           autoFocus
           className="h-full w-full min-w-0 bg-transparent text-inherit outline-none"
@@ -127,6 +145,7 @@ function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelFie
   const sel = (
     <div
       ref={selRef}
+      data-col-key={f.key}
       className={cn(
         'flex h-full w-full min-w-0 items-center px-2',
         f.format === 'angka' && 'tabular-nums',
@@ -201,7 +220,7 @@ function JudulKolomV2({
     // dipotong (pernah terukur 110px untuk kolom 66px), sehingga `w-full`
     // membuat pembungkus ini meluber keluar kolom dan gagang lebar — yang
     // ditambatkan ke pembungkus — ikut meleset dari garis kolom.
-    <div className="absolute inset-0 flex items-center">
+    <div data-col-key={colKey} className="absolute inset-0 flex items-center">
       <div
         className={cn(
           'w-full truncate px-2',
@@ -229,7 +248,10 @@ function JudulKolomV2({
             'after:absolute after:top-0 after:bottom-0 after:right-[5px] after:w-0.5 after:bg-primary',
             'after:opacity-0 hover:after:opacity-100',
           )}
-          onMouseDown={(e) => onResizeStart(colKey, e)}
+          onMouseDown={(e) => {
+            if (e.button !== 0) return;
+            onResizeStart(colKey, e);
+          }}
           onDoubleClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -271,6 +293,12 @@ export interface GridV2Props {
   onCommit?: (id: string | number, fields: Record<string, string | null>) => Promise<void>;
   /** Muat ulang data setelah antrean simpan habis (satu kali, bukan per sel). */
   onSaved?: () => Promise<void> | void;
+  /** Buka dialog Kelola Tabel dari menu klik kanan header. Absen = item
+   *  disembunyikan (mis. halaman belum mendaftarkan tabelnya). */
+  onKelolaTabel?: () => void;
+  /** Tulis perataan kolom ke setelan tabel. Absen = tombol perataan
+   *  disembunyikan (bukan super admin efektif). */
+  onUbahAlign?: (key: string, nilai: AlignKolom) => void;
   /** Introspeksi lebar kolom ke halaman (AutoFit semua, reset lebar).
    *  Dipanggil tiap hook siap; dipakai menu klik kanan & kontrol halaman
    *  pada poin berikutnya agar tak ada pekerjaan ulang. */
@@ -306,6 +334,8 @@ export default function GridV2({
   canEdit = false,
   onCommit,
   onSaved,
+  onKelolaTabel,
+  onUbahAlign,
 }: GridV2Props) {
   const { rowH, headerH, fontPx, fontFamily } = useGridPrefs();
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -325,13 +355,9 @@ export default function GridV2({
     [rows, dipilih],
   );
 
-  /** Baris grid per id: dipakai AutoFit untuk membaca teks sel seperti yang
-   *  benar-benar dirender SelTeksV2. */
+  /** Baris grid per id: dipakai AutoFit & salin untuk membaca teks sel
+   *  seperti yang benar-benar dirender SelTeksV2 (termasuk draft). */
   const gridByIdRef = useRef(new Map<string, GridRow>());
-  gridByIdRef.current = useMemo(
-    () => new Map(rows.map((r) => [String(r.id), r])),
-    [rows],
-  );
 
   const labelKolomEfektif = useCallback(
     (key: string, bawaan: string) => labelTampil(key, bawaan, labelDb),
@@ -357,12 +383,88 @@ export default function GridV2({
   /** Mode Ubah: pagar agar tabel tidak tersunting tak sengaja (pola V1). */
   const [modeUbah, setModeUbah] = useState(false);
   useEffect(() => { if (!bisaEdit) setModeUbah(false); }, [bisaEdit]);
+
+  /** Gestur seret isi sel: MATI bawaan, per perangkat, satu aktif pada satu
+   *  waktu (copy ATAU move). Kuncinya sama dengan V1 supaya tabel yang sama
+   *  berperilaku konsisten di kedua varian. */
+  const [seretSalin, setSeretSalin] = useState(false);
+  const [seretPindah, setSeretPindah] = useState(false);
+  useEffect(() => {
+    let batal = false;
+    const muat = () => {
+      Promise.all([
+        loadSakelarGestur(seretSalinKey(tableKey)),
+        loadSakelarGestur(seretPindahKey(tableKey)),
+      ]).then(([salin, pindah]) => {
+        if (batal) return;
+        setSeretSalin(salin);
+        setSeretPindah(pindah);
+      });
+    };
+    muat();
+    const segarkan = (e: Event) => {
+      if ((e as CustomEvent).detail?.tableKey === tableKey) muat();
+    };
+    window.addEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
+    return () => {
+      batal = true;
+      window.removeEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
+    };
+  }, [tableKey]);
+
+  const ubahSeretIsi = useCallback((mode: ModeSeret, nyala: boolean) => {
+    const salin = mode === 'salin' ? nyala : false;
+    const pindah = mode === 'pindah' ? nyala : false;
+    setSeretSalin(salin);
+    setSeretPindah(pindah);
+    prefSet(seretSalinKey(tableKey), salin ? '1' : '').catch(() => {});
+    prefSet(seretPindahKey(tableKey), pindah ? '1' : '').catch(() => {});
+    kabariTampilanPerangkat(tableKey);
+  }, [tableKey]);
+
+  const modeSeret: ModeSeret | null = seretSalin ? 'salin' : (seretPindah ? 'pindah' : null);
+
+  /** Seleksi blok aktif (dipakai salin blok & seret isi sel). Tanpa seleksi,
+   *  sel aktif tunggal menjadi sumber — sama seperti V1. */
+  const [range, setRange] = useState<GridSelection | null>(null);
+  const rangeRef = useRef<GridSelection | null>(null);
+  rangeRef.current = range;
+  const [selAktif, setSelAktif] = useState<{ row: number; col: number } | null>(null);
+
+  /** Area yang diklik kanan: header kolom, baris, sudut, atau kosong. */
+  const [ctx, setCtx] = useState<
+    | { area: 'header'; colKey: string }
+    | { area: 'row'; rowId: string | number; rowLabel: string; colKey: string | null }
+    | { area: 'sudut' }
+    | { area: 'grid' }
+  >({ area: 'grid' });
   /** Draft lokal per baris; nilai grid = data server ditimpa draft ini. */
   const [drafts, setDrafts] = useState<Record<string, Record<string, string | null>>>({});
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
   const rowsRefEdit = useRef(rows);
   rowsRefEdit.current = rows;
+
+  /** Baris grid: nilai server ditimpa draft lokal, plus status centang.
+   *  Dipakai render DSG, salin TSV, dan seret isi sel — semuanya harus
+   *  melihat nilai yang sedang tampil, bukan data server yang belum tersimpan. */
+  const nilai = useMemo(
+    () => rows.map((r) => ({ ...r, ...(drafts[String(r.id)] ?? {}), checked: dipilih.has(r.id) })),
+    [rows, dipilih, drafts],
+  );
+  const nilaiRef = useRef<GridRow[]>(nilai);
+  nilaiRef.current = nilai;
+  const gridRowsRef = useRef<GridRow[]>(nilai);
+  gridRowsRef.current = nilai;
+  gridByIdRef.current = useMemo(
+    () => new Map(nilai.map((r) => [String(r.id), r])),
+    [nilai],
+  );
+
+  /** Pilihan baris dalam bentuk ref: hook salin membacanya saat Ctrl+C,
+   *  sedangkan pilihan datang dari props (dikelola ExcelTabelV2). */
+  const dipilihRef = useRef<Set<string | number>>(new Set());
+  dipilihRef.current = dipilih as Set<string | number>;
 
   /** Kembalikan sel ke nilai data server (dipakai saat simpan sukses/gagal). */
   const dropDraft = useCallback((idKey: string, keys: string[]) => {
@@ -404,6 +506,74 @@ export default function GridV2({
     setDrafts((prev) => ({ ...prev, [idKey]: { ...(prev[idKey] ?? {}), [key]: nilai } }));
     enqueueSave(idKey, { [key]: nilai });
   }, [enqueueSave]);
+
+  /** Urutan kunci kolom grid (indeks seleksi DSG): centang, data, Aksi. */
+  const kunciKolomGrid = useMemo(() => [
+    ...(hideCheckbox ? [] : ['check']),
+    ...fields.map((f) => f.key),
+    ...(renderActions ? ['__aksi'] : []),
+  ], [hideCheckbox, fields, renderActions]);
+
+  /** Kolom yang boleh berubah karena seret: sama dengan yang bisa disunting. */
+  const editableSet = useMemo(() => new Set(editableKeys), [editableKeys]);
+
+  /** Seleksi untuk seret: blok aktif, atau sel aktif tunggal bila belum ada. */
+  const seleksiSeret = useMemo<GridSelection | null>(() => {
+    if (range) return range;
+    return selAktif ? { min: selAktif, max: selAktif } : null;
+  }, [range, selAktif]);
+
+  /** Terapkan seret isi sel: tulis draft per baris lalu antrekan simpan. */
+  const terapkanSeretIsi = useCallback((sumber: BlokIsi, target: BlokIsi, mode: ModeSeret) => {
+    const perubahan = susunPerubahanSeret(
+      nilaiRef.current, sumber, target, kunciKolomGrid, editableSet, mode,
+    );
+    if (perubahan.length === 0) return;
+
+    setDrafts((prev) => {
+      const next = { ...prev };
+      for (const p of perubahan) {
+        next[p.id] = { ...(next[p.id] ?? {}), ...p.fields };
+      }
+      return next;
+    });
+    for (const p of perubahan) enqueueSave(p.id, p.fields);
+    toast.success(mode === 'pindah' ? 'Isi sel dipindahkan.' : 'Isi sel disalin.');
+  }, [kunciKolomGrid, editableSet, enqueueSave]);
+
+  useSeretIsiSel(wrapRef, {
+    aktif: modeSeret !== null && modeUbah && bisaEdit,
+    mode: modeSeret,
+    bisaTulis: bisaEdit,
+    onTerapkan: terapkanSeretIsi,
+  }, {
+    kunciKolom: kunciKolomGrid,
+    jumlahBaris: nilai.length,
+    seleksi: seleksiSeret,
+  });
+
+  /** Salin TSV dari menu konteks & Ctrl/Cmd+C (mesin V1 dipakai apa adanya). */
+  const {
+    displayOf,
+    salinBarisCtx,
+    salinSelCtx,
+    salinKolomCtx,
+    salinSemuaCtx,
+    teksSalinan,
+    salinFisik,
+  } = useSalinTabel<GridRow>({
+    hideCheckbox,
+    hideActions: !renderActions,
+    visibleFieldsRef: fieldsRef,
+    fieldsRef,
+    rowsRef: gridRowsRef,
+    gridValueRef: gridRowsRef,
+    gridByIdRef,
+    checkedIdsRef: dipilihRef,
+    rangeRef,
+    labelKolom: labelKolomEfektif,
+  });
+  useSalinClipboard({ wrapRef, rangeRef, teksSalinan, salinFisik });
 
   /** data-server + draft; dipakai grid & pengukuran teks. */
   const nilaiTampil = useCallback((row: GridRow): GridRow => {
@@ -563,22 +733,20 @@ export default function GridV2({
     };
   }, [renderActions, jumlahAksi]);
 
-  /** Baris grid: checked mengikuti pilihan agar sel centang terkendali, dan
-   *  nilai sel ditimpa draft lokal supaya ketikan langsung terlihat tanpa
-   *  menunggu muat ulang server. */
-  const nilai = useMemo(
-    () => rows.map((r) => ({ ...r, ...(drafts[String(r.id)] ?? {}), checked: dipilih.has(r.id) })),
-    [rows, dipilih, drafts],
-  );
-
   const onBarisAktifRef = useRef(onBarisAktif);
   onBarisAktifRef.current = onBarisAktif;
 
-  /** DSG memberi indeks baris; halaman butuh id baris domain. */
-  const tanganiSelAktif = useCallback(({ cell }: { cell: { row: number } | null }) => {
+  /** DSG memberi indeks baris; halaman butuh id baris domain. Posisi sel
+   *  aktif juga disimpan sebagai fallback sumber seret isi sel. */
+  const tanganiSelAktif = useCallback(({ cell }: { cell: { row: number; col: number } | null }) => {
+    setSelAktif(cell ? { row: cell.row, col: cell.col } : null);
     if (!cell) return;
     const r = rowsRef.current[cell.row];
     if (r) onBarisAktifRef.current?.(r.id);
+  }, []);
+
+  const tanganiSeleksi = useCallback(({ selection }: { selection: GridSelection | null }) => {
+    setRange(selection);
   }, []);
 
   const rowClassName = useCallback((args: { rowData?: GridRow }) => {
@@ -617,70 +785,179 @@ export default function GridV2({
   );
   const kunciKolom = `${tableKey}-${fields.map((f) => f.key).join('|')}`;
 
+  /** Cari baris + kolom di bawah pointer klik kanan. Target bisa jatuh di
+   *  padding sel atau lapisan seleksi DSG yang tidak membawa `data-col-key`. */
+  function cariSelPointer(e: ReactMouseEvent): { rowEl: HTMLElement | null; colKey: string | null } {
+    const diTitik = typeof document.elementsFromPoint === 'function'
+      ? document.elementsFromPoint(e.clientX, e.clientY)
+      : [];
+    const kandidat: Element[] = [e.target as Element, ...diTitik];
+    let rowCadangan: HTMLElement | null = null;
+    for (const el of kandidat) {
+      const sel = el.closest?.('.dsg-cell') as HTMLElement | null;
+      const rowEl = (sel?.closest('.dsg-row:not(.dsg-row-header)')
+        ?? el.closest?.('.dsg-row:not(.dsg-row-header)')) as HTMLElement | null;
+      if (rowEl === null) continue;
+      rowCadangan ??= rowEl;
+      const colKey = el.closest?.('[data-col-key]')?.getAttribute('data-col-key')
+        ?? sel?.querySelector('[data-col-key]')?.getAttribute('data-col-key')
+        ?? null;
+      if (colKey !== null) return { rowEl, colKey };
+    }
+    return { rowEl: rowCadangan, colKey: null };
+  }
+
+  /** Klik kanan: tentukan area. Area kosong tidak punya menu; preventDefault
+   *  menahan menu bawaan Radix maupun WebView. */
+  function onGridContextMenu(e: ReactMouseEvent) {
+    const t = e.target as HTMLElement;
+
+    if (t.closest('.dsg-cell-gutter.dsg-cell-header')) {
+      setCtx({ area: 'sudut' });
+      return;
+    }
+    const colKey = t.closest('[data-col-key]')?.getAttribute('data-col-key') ?? null;
+    if (t.closest('.dsg-cell-header')) {
+      const f = colKey ? fieldsRef.current.find((x) => x.key === colKey) : null;
+      if (f) {
+        setCtx({ area: 'header', colKey: f.key });
+        return;
+      }
+      e.preventDefault();
+      return;
+    }
+    const { rowEl, colKey: colKeyBaris } = cariSelPointer(e);
+    if (rowEl) {
+      const nomor = Number.parseInt(rowEl.querySelector('.dsg-cell-gutter')?.textContent ?? '', 10);
+      const g = Number.isFinite(nomor) ? nilaiRef.current[nomor - 1] : undefined;
+      if (g) {
+        const rowLabel = displayOf(g.id, fieldsRef.current[0]?.key ?? '') || String(g.id);
+        setCtx({ area: 'row', rowId: g.id, rowLabel, colKey: colKeyBaris });
+        return;
+      }
+    }
+    e.preventDefault();
+  }
+
+  const ctxHeaderLabel = ctx.area === 'header'
+    ? labelKolomEfektif(ctx.colKey, fieldsRef.current.find((f) => f.key === ctx.colKey)?.label ?? ctx.colKey)
+    : '';
+
   return (
-    <div
-      ref={wrapRef}
-      data-slot="excel-table-grid"
-      data-siap={siapTampil ? 'ya' : 'belum'}
-      className={cn(
-        'simpes-dsg-v2 relative min-h-0 flex-1 overflow-hidden',
-        // visibility (bukan hidden/opacity): ruang tetap dialokasikan sehingga
-        // pengukuran tinggi & lebar tetap sah, teksnya saja yang belum tampak.
-        !siapTampil && 'invisible',
-      )}
-      style={gayaWadah}
-      onDoubleClick={() => { if (bisaEdit && !modeUbah) setModeUbah(true); }}
-    >
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            ref={wrapRef}
+            data-slot="excel-table-grid"
+            data-siap={siapTampil ? 'ya' : 'belum'}
+            className={cn(
+              'simpes-dsg-v2 relative min-h-0 flex-1 overflow-hidden',
+              // visibility (bukan hidden/opacity): ruang tetap dialokasikan
+              // sehingga pengukuran tinggi & lebar tetap sah, teksnya saja
+              // yang belum tampak.
+              !siapTampil && 'invisible',
+            )}
+            style={gayaWadah}
+            onDoubleClick={() => { if (bisaEdit && !modeUbah) setModeUbah(true); }}
+            onContextMenu={onGridContextMenu}
+          >
+
+            {loading && rows.length > 0 && (
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden" aria-hidden="true">
+                <div className="simpes-muat-bar h-full bg-primary/70" />
+              </div>
+            )}
+
+            {memuatAwal ? (
+              <TabelMemuat rowH={rowH ?? TINGGI_BARIS_BAWAAN} />
+            ) : tinggi > 0 && (
+              <PilihSemuaContext.Provider value={nilaiPilihSemua}>
+                <DataSheetGrid
+                  key={kunciKolom}
+                  value={nilai}
+                  // Penyuntingan ditangani per sel (lihat SelTeksV2) supaya sel
+                  // lain di baris yang sama tidak ikut jadi draft; `onChange`
+                  // DSG tak dipakai.
+                  onChange={() => {}}
+                  columns={kolom}
+                  gutterColumn={GUTTER_COLUMN}
+                  stickyLeftColumnCount={hideCheckbox ? 0 : 1}
+                  stickyRightColumn={kolomAksi}
+                  rowKey="id"
+                  height={tinggi}
+                  rowHeight={rowH ?? TINGGI_BARIS_BAWAAN}
+                  headerRowHeight={hideHeader ? 0 : (headerH ?? DEFAULT_HEADER_H)}
+                  lockRows
+                  addRowsComponent={false}
+                  disableContextMenu
+                  rowClassName={rowClassName}
+                  onActiveCellChange={tanganiSelAktif}
+                  onSelectionChange={tanganiSeleksi}
+                />
+              </PilihSemuaContext.Provider>
+            )}
+
+            {nilai.length === 0 && !loading && (
+              <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                <p className="text-xs text-muted-foreground">{emptyText}</p>
+              </div>
+            )}
+
+            <ScrollbarMelayang orientasi="vertikal" wadahRef={wrapRef} />
+            <ScrollbarMelayang orientasi="horizontal" wadahRef={wrapRef} />
+          </div>
+        </ContextMenuTrigger>
+
+        <MenuKonteksV2
+          tableKey={tableKey}
+          header={ctx.area === 'header' ? ctx : null}
+          headerLabel={ctxHeaderLabel}
+          row={ctx.area === 'row' ? ctx : null}
+          sudut={ctx.area === 'sudut'}
+          onAutoFit={lebar.onAutoFit}
+          onAutoFitAll={lebar.onAutoFitAll}
+          align={alignDb}
+          onUbahAlign={onUbahAlign}
+          onKelolaTabel={onKelolaTabel}
+          salinBaris={(id) => void salinBarisCtx(id)}
+          salinSel={(id, key) => void salinSelCtx(id, key)}
+          salinKolom={(key) => void salinKolomCtx(key)}
+          onSalinSemua={() => void salinSemuaCtx()}
+        />
+      </ContextMenu>
+
       {bisaEdit && modeUbah && (
-        <div
-          role="status"
-          className="pointer-events-none absolute bottom-2 right-3 z-20 rounded-sm border border-[var(--part-tabel_grid-border,var(--border))] bg-background px-2 py-0.5 text-[11px] text-muted-foreground shadow-sm"
-        >
-          Mode Ubah aktif
-        </div>
-      )}
-
-      {loading && rows.length > 0 && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden" aria-hidden="true">
-          <div className="simpes-muat-bar h-full bg-primary/70" />
-        </div>
-      )}
-
-      {memuatAwal ? (
-        <TabelMemuat rowH={rowH ?? TINGGI_BARIS_BAWAAN} />
-      ) : tinggi > 0 && (
-        <PilihSemuaContext.Provider value={nilaiPilihSemua}>
-          <DataSheetGrid
-            key={kunciKolom}
-            value={nilai}
-            // Penyuntingan ditangani per sel (lihat SelTeksV2) supaya sel lain
-            // di baris yang sama tidak ikut jadi draft; `onChange` DSG tak dipakai.
-            onChange={() => {}}
-            columns={kolom}
-            gutterColumn={GUTTER_COLUMN}
-            stickyLeftColumnCount={hideCheckbox ? 0 : 1}
-            stickyRightColumn={kolomAksi}
-            rowKey="id"
-            height={tinggi}
-            rowHeight={rowH ?? TINGGI_BARIS_BAWAAN}
-            headerRowHeight={hideHeader ? 0 : (headerH ?? DEFAULT_HEADER_H)}
-            lockRows
-            addRowsComponent={false}
-            disableContextMenu
-            rowClassName={rowClassName}
-            onActiveCellChange={onBarisAktif ? tanganiSelAktif : undefined}
+        <div className="absolute bottom-2 right-3 z-20">
+          <PillMode
+            id={`banner_mode_edit_${tableKey}`}
+            btnId={`btn_keluar_mode_edit_${tableKey}`}
+            aksen="warning"
+            ikon={<Pencil size={14} />}
+            judul="Mode Ubah aktif"
+            petunjuk="Sel yang ditandai bisa disunting. Nyalakan salah satu gestur seret untuk menyalin atau memindahkan blok sel."
+            sakelar={[
+              {
+                id: `sakelar_seret_salin_${tableKey}`,
+                label: 'Seret isi sel untuk copy',
+                grup: 'seret_isi',
+                hint: 'Tekan-tahan blok terpilih lalu geser ke sel lain — isinya disalin ke sel tujuan.',
+                checked: seretSalin,
+                onCheckedChange: (nyala) => ubahSeretIsi('salin', nyala),
+              },
+              {
+                id: `sakelar_seret_pindah_${tableKey}`,
+                label: 'Seret isi sel untuk move',
+                grup: 'seret_isi',
+                hint: 'Tekan-tahan blok terpilih lalu geser ke sel lain — isinya dipindah dan sel asal dikosongkan.',
+                checked: seretPindah,
+                onCheckedChange: (nyala) => ubahSeretIsi('pindah', nyala),
+              },
+            ]}
+            onKeluar={() => setModeUbah(false)}
           />
-        </PilihSemuaContext.Provider>
-      )}
-
-      {nilai.length === 0 && !loading && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <p className="text-xs text-muted-foreground">{emptyText}</p>
         </div>
       )}
-
-      <ScrollbarMelayang orientasi="vertikal" wadahRef={wrapRef} />
-      <ScrollbarMelayang orientasi="horizontal" wadahRef={wrapRef} />
     </div>
   );
 }

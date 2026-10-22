@@ -135,7 +135,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   const [kelolaOpen, setKelolaOpen] = useState(false);
 
   /** Setelan tabel milik pengguna: judul, label, perataan, visibilitas. */
-  const { judulDb, labelDb, alignDb, visibilitas, infoHtmlDb } = useToolbarPresetState(tableKey);
+  const { judulDb, labelDb, alignDb, visibilitas, infoHtmlDb, simpanAlign } = useToolbarPresetState(tableKey);
   /** Presedensi judul mengikuti V1: setelan pengguna → header (node) →
    *  judul teks → bawaan dari tableKey. */
   const judulTampil: ReactNode = judulDb?.trim() || header || judul || judulTabel(tableKey);
@@ -322,6 +322,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
           canEdit={canEdit}
           onCommit={onCommit}
           onSaved={onSaved}
+          onKelolaTabel={tabelTerdaftar ? () => setKelolaOpen(true) : undefined}
+          onUbahAlign={bolehKelola ? simpanAlign : undefined}
         />
       </div>
 

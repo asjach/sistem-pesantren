@@ -27,24 +27,31 @@ export interface KolomStub {
   key?: string;
   /** Lebar basis kolom yang dipakai DSG (px). */
   basis?: number;
-  /** true = kolom terkunci (DSG tak memberi fokus/editor ke selnya). */
-  disabled?: boolean;
   title?: React.ReactNode;
   component?: (props: {
     rowData: GridRow;
     columnData: unknown;
     disabled?: boolean;
   }) => React.ReactNode;
+  /** DSG asli menerima boolean ATAU fungsi per baris; stub wajib
+   *  mengevaluasinya sebelum diteruskan ke sel. */
+  disabled?: boolean | ((opts: { rowData: GridRow }) => boolean);
   columnData?: unknown;
 }
 
-/** Render satu sel: komponen kolom (isi baris) atau judul (baris header). */
+/** Render satu sel: komponen kolom (isi baris) atau judul (baris header).
+ *  Sel header diberi `dsg-cell-header` seperti DSG asli supaya deteksi area
+ *  klik kanan (header vs baris) ikut teruji. */
 function renderKolom(kolom: KolomStub, row: GridRow | null) {
   const Comp = kolom.component;
+  const header = row == null;
+  const disabled = row != null
+    ? (typeof kolom.disabled === 'function' ? kolom.disabled({ rowData: row }) : kolom.disabled)
+    : undefined;
   const isi = Comp && row != null
-    ? <Comp rowData={row} columnData={kolom.columnData} disabled={kolom.disabled} />
+    ? <Comp rowData={row} columnData={kolom.columnData} disabled={disabled} />
     : kolom.title;
-  return <div className="dsg-cell">{isi}</div>;
+  return <div className={cn('dsg-cell', header && 'dsg-cell-header')}>{isi}</div>;
 }
 
 /** Jembatan untuk tes: stub tak merender grid interaktif, jadi callback sel
@@ -100,7 +107,7 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     <div className="dsg">
 
       <div className="dsg-row dsg-row-header">
-        <div className="dsg-cell dsg-cell-gutter" />
+        <div className="dsg-cell dsg-cell-gutter dsg-cell-header" />
         {semua.map((k, i) => (
           <div key={`h${i}`}>{renderKolom(k, null)}</div>
         ))}

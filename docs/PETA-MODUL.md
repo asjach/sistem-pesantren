@@ -985,7 +985,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `To Do`
+### DA11.1 Tabel & Grid `Backlog`
 **Backlog**
 - Tinggi baris V2 bisa diatur per tabel, ikut isi, dan dibatasi N baris.
 - V2 bisa menambah record baru lewat baris input di kaki tabel.
@@ -995,7 +995,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 - Kolom V2 bisa dibekukan: sejumlah N kolom data pertama tetap terlihat saat tabel digulir horizontal, dengan jumlah beku tersimpan per tabel.
 - Judul kolom V2 bisa digeser untuk menyusun ulang urutan kolom, lengkap dengan indikator drop, dan urutannya tersimpan per tabel.
 **To Do**
-- Menu klik kanan, salin TSV, dan seret isi sel berfungsi di V2.
+- (kosong)
 **In Progress**
 - (kosong)
 **For Review**
@@ -1090,6 +1090,14 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Tabel tanpa izin edit (canEdit false) tidak menampilkan Mode Ubah sama sekali; sel tetap baca-saja.
   - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
   - [ ] Pemeriksaan pengguna: klik ganda sebuah sel teks, ubah isinya, lalu pastikan tersimpan setelah muat ulang dan nilai tidak valid ditolak.
+- Menu klik kanan, salin TSV, dan seret isi sel berfungsi di V2.
+  - [x] Klik kanan judul kolom V2 menampilkan AutoFit kolom, AutoFit semua, salin kolom (TSV), perataan (super admin), dan Kelola Tabel; area kosong tidak memunculkan menu bawaan WebView.
+  - [x] Klik kanan baris/sel menampilkan salin baris (TSV) dan salin nilai sel; klik kanan sudut kiri-atas menyalin seluruh tabel (label header + semua baris) sebagai TSV memakai label kolom setelan pengguna dan nilai yang sedang tampil.
+  - [x] Ctrl/Cmd+C menyalin blok seleksi sebagai TSV, sel tunggal sebagai nilainya saja, dan baris tercentang menang atas blok; saat fokus di input/dialog salin native tidak direbut.
+  - [x] Mode Ubah menampilkan sakelar Seret isi sel untuk copy dan move di pill status; keduanya mati bawaan, saling eksklusif, tersimpan per tabel/perangkat, dan hanya hidup selama Mode Ubah + izin edit.
+  - [x] Menyeret blok terpilih menyalin atau memindahkan isinya ke sel tujuan (sumber dikosongkan pada move), dengan umpan balik sumber/tujuan, badge Salin/Pindahkan, draft langsung terlihat, dan simpan otomatis per baris.
+  - [x] Seret isi sel hanya mengubah kolom yang bisa disunting; kolom static tetap, tabel tanpa izin edit tidak menampilkan sakelar/seret, dan nilai yang gagal validasi dikembalikan dengan pesan galat.
+  - [ ] npm run typecheck dan tes tersempit V2 hijau; V1 tidak berubah; pemeriksaan pengguna: klik kanan header/baris/sudut, Ctrl+C blok, lalu seret blok dengan mode copy dan move di Daftar Kelas (mode dev).
 **Done**
 - Grid tabel bergaya Excel
   - [x] Seleksi blok dan salin/tempel TSV
