@@ -17,7 +17,8 @@ import { Button } from '@/components/ui/button';
 import LabeledInput from '@/components/LabeledInput';
 import { FieldLabel } from '@/components/ui/field';
 import { Checkbox } from '@/components/ui/checkbox';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { UserViewDialog } from '@/components/UserViewDialog';
@@ -268,7 +269,7 @@ export default function UsersPage() {
         if (req !== lembagaReqRef.current) return;
         setErr(errorMessage(e));
       });
-  }, []);
+  }, [setErr]);
 
   const openEdit = useCallback((u: AdminUser) => {
     setEditRow(u);
@@ -349,7 +350,7 @@ export default function UsersPage() {
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [load]);
+  }, [load, setErr]);
 
   /** Mode Input (admin & super_admin): buat pengguna baru dari baris input.
    *  Peran default orang_tua, tanpa lembaga — ubah lewat tombol Ubah bila perlu. */
@@ -404,9 +405,8 @@ export default function UsersPage() {
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari pengguna (nama/email/username/phone/role)…" />
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'users', judul: 'Pengguna', fields }]} />
 
-      <ExcelTable
+      <ExcelTabelV2
         tableKey="users"
-        sumberTabel="users"
         fields={fields}
         rows={rows}
         getValues={getValues}
@@ -415,6 +415,8 @@ export default function UsersPage() {
         canEdit={canUbah}
         onCommit={commitDraft}
         onSaved={onSaved}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         onCreateRow={canTambah ? createRow : undefined}
         inputRowValues={{ peran: 'orang_tua' }}
         urutAktif={urut}
