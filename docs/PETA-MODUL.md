@@ -985,18 +985,17 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `Backlog`
+### DA11.1 Tabel & Grid `To Do`
 **Backlog**
-- Aksi halaman di toolbar V2: aksi massal baris tercentang, tombol aksi utama, dan slot kontrol halaman.
-- Rel filter tingkat/kelas tampil di kiri grid V2.
-- Lebar kolom V2 bisa diubah lewat handle, AutoFit, dan tersimpan per perangkat.
 - Tabel V2 bisa mengisi lebar, membekukan kolom, dan menyusun ulang kolom lewat geser judul.
 - Tinggi baris V2 bisa diatur per tabel, ikut isi, dan dibatasi N baris.
 - Sel V2 bisa disunting langsung dengan simpan otomatis dan validasi.
 - V2 bisa menambah record baru lewat baris input di kaki tabel.
 - Menu klik kanan, salin TSV, dan seret isi sel berfungsi di V2.
 **To Do**
-- (kosong)
+- Aksi halaman di toolbar V2: aksi massal baris tercentang, tombol aksi utama, dan slot kontrol halaman.
+- Rel filter tingkat/kelas tampil di kiri grid V2.
+- Lebar kolom V2 bisa diubah lewat handle, AutoFit, dan tersimpan per perangkat.
 **In Progress**
 - (kosong)
 **For Review**
