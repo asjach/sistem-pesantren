@@ -164,7 +164,7 @@ export default function MutasiKeluarPage() {
       setLastPage(res.last_page);
       setTotal(res.total);
     } catch (e) { setErr(errorMessage(e)); }
-  }, [filterLoading, jenjangs, tingkatAktif, cari, pager.page, pager.perPage, urut, arahUrut, arahKolom]);
+  }, [filterLoading, jenjangs, tahunAjaranNames, tingkatAktif, cari, pager.page, pager.perPage, urut, arahUrut, arahKolom]);
 
   /** Klik header: simpan urut baru lalu muat ulang arsip dari halaman 1. */
   function terapkanUrut(nilai: string[], arah: 'naik' | 'turun', arahKolomBaru?: PetaArahKolom) {
