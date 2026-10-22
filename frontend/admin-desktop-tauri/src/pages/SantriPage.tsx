@@ -20,7 +20,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
 import LabelTombolTambah from '@/components/LabelTombolTambah';
@@ -246,9 +247,8 @@ export default function SantriPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri (nama/NISN/ayah/ibu)…" />
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'santri', judul: 'Santri', fields: semuaFields }]} />
-      <ExcelTable<Santri>
+      <ExcelTabelV2<Santri>
         tableKey="santri"
-        sumberTabel="santri"
         fields={semuaFields}
         rows={rows}
         getValues={getNilai}
@@ -257,6 +257,8 @@ export default function SantriPage() {
         canEdit={bisa(user, 'santri.ubah')}
         onCommit={commitBaris}
         onSaved={() => load()}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
