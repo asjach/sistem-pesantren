@@ -8,7 +8,6 @@ import Pager from '@/components/Pager';
 import FilterRail from '@/components/FilterRail';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import { ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger } from '@/components/ui/combobox';
-import { TopBarSearch } from '@/components/TopBarSearch';
 import TagihanCrosstab, { type MetaSel, type SelBlok } from '@/components/keuangan/TagihanCrosstab';
 import PresetUrut from '@/components/PresetUrut';
 import { ActionIcon, DeleteAction, EditAction } from '@/components/RowActions';
@@ -669,7 +668,9 @@ export function PenerimaDispensasiPanel({ rows, loading, nama, kuota, terpakai, 
 
 /** Tab Tagihan: bilah alat (cari/urut/filter) + crosstab + pager.
  *  Popover aksi sel dititipkan lewat `popover` agar strukturnya sama seperti
- *  sebelumnya (di dalam wadah gulir crosstab) tanpa memindahkan logikanya. */
+ *  sebelumnya (di dalam wadah gulir crosstab) tanpa memindahkan logikanya.
+ *  Pencarian dipegang halaman lewat satu `TopBarSearch`; jangan tambah input
+ *  kedua di sini — dua instance TopBarSearch = dua kolom cari di TopBar. */
 
 /** Opsi filter keaktifan santri (label tampil + nilai ke state). */
 const OPSI_KEAKTIFAN: { nilai: '' | 'aktif' | 'nonaktif'; label: string }[] = [
@@ -680,7 +681,7 @@ const OPSI_KEAKTIFAN: { nilai: '' | 'aktif' | 'nonaktif'; label: string }[] = [
 
 export function TagihanTab({
   crosstab, loading, terpilihId, total,
-  cari, onCari, sort, terlambat, onTerlambat, keaktifan, onKeaktifan,
+  sort, terlambat, onTerlambat, keaktifan, onKeaktifan,
   onPilih, aksiSel, onAksiSel, onAksiKosong, onTambah, onBukaGenerate,
   selection, onTogglePilih, onPilihBlok, onKlikSel, onPilihIrisan, onMulaiGeser, onGeserSelesai, onTambahBlok, onLepasBlok, pager, popover,
 }: {
@@ -688,8 +689,7 @@ export function TagihanTab({
   loading: boolean;
   terpilihId: number | null;
   total: number;
-  cari: string;
-  onCari: (v: string) => void;  /** Urut baris (kode + arah) dari Preset Urut `keuangan_tagihan_crosstab`. */
+  /** Urut baris (kode + arah) dari Preset Urut `keuangan_tagihan_crosstab`. */
   sort: SortTabel;
   terlambat: boolean;
   onTerlambat: (v: boolean) => void;
@@ -744,9 +744,6 @@ export function TagihanTab({
 
   return (
     <>
-
-      <TopBarSearch value={cari} onChange={onCari} placeholder="Cari nama / ayah / ibu…" />
-
       <div className="border bg-[var(--sidebar)] p-1 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
 

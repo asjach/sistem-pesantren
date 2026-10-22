@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import Pager from '@/components/Pager';
 import ExcelTable, { type ExcelField, type GridRow } from '@/components/ExcelTable';
 import { freezeKey } from '@/components/excel/helpers';
@@ -354,6 +354,11 @@ export default function PenilaianLegerPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch
+        value={cari}
+        onChange={(v) => { setCari(v); pager.goFirst(); }}
+        placeholder="Cari nama / NIS…"
+      />
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
         <label className="text-xs text-muted-foreground" htmlFor="select_kegiatan_evaluatif_leger">Kegiatan Evaluatif</label>
         <select
@@ -382,14 +387,6 @@ export default function PenilaianLegerPage() {
           <option value="0-10">0–10</option>
           <option value="0-4">0–4</option>
         </select>
-        <Input
-          id="input_cari_leger"
-          aria-label="Cari nama / NIS"
-          placeholder="Cari nama / NIS…"
-          className="h-8 w-56 text-xs"
-          value={cari}
-          onChange={(e) => { setCari(e.target.value); pager.goFirst(); }}
-        />
         {!siap && (
           <span className="text-xs text-muted-foreground">Pilih satu jenjang, TA, dan semester pada filter di atas.</span>
         )}
@@ -408,7 +405,7 @@ export default function PenilaianLegerPage() {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 sm:px-6">
+      <div className="flex min-h-0 flex-1 flex-col">
         {loading && data === null && <p className="p-3 text-xs text-muted-foreground">Memuat…</p>}
         {bekuSiap && data !== null && (
           <ExcelTable<BarisLegerGrid>

@@ -965,11 +965,19 @@ export default function KeuanganPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
-      <TopBarSearch
-        value={cariTagihan}
-        onChange={setCariTagihan}
-        placeholder="Cari santri / tagihan…"
-      />
+      {/* Satu input pencarian per halaman: tab Santri Custom memasang
+          `TopBarSearch`-nya sendiri (kata kunci grup/kandidat), jadi input
+          halaman disembunyikan di tab itu supaya TopBar tidak punya dua kolom
+          cari. */}
+      {tab === 'custom' ? null : (
+        <TopBarSearch
+          value={cariTagihan}
+          onChange={setCariTagihan}
+          placeholder={
+            tab === 'tagihan' ? 'Cari nama / ayah / ibu…' : 'Cari santri / tagihan…'
+          }
+        />
+      )}
       <PengaturanHalaman
         tampil={{ lembaga: true, tahun_ajaran: true, tingkat: true, kelas: true }}
         tabel={[
@@ -1031,8 +1039,6 @@ export default function KeuanganPage() {
             loading={loadingTagihan}
             terpilihId={selTagihan?.id ?? null}
             total={tagihanTotal}
-            cari={cariTagihan}
-            onCari={setCariTagihan}
             sort={uTagihan}
             terlambat={terlambatTagihan}
             onTerlambat={(v) => { setTerlambatTagihan(v); setTagihanPage(1); }}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import ExcelTable, { type ExcelField, type GridRow } from '@/components/ExcelTable';
 import type { BarisSel } from '@/components/excel/types';
 import type { BlokIsi } from '@/components/excel/seretIsiSel';
@@ -151,6 +152,10 @@ export default function KurikulumJadwalPage() {
   const [selGuru, setSelGuru] = useState<number | ''>('');
   const [selBusy, setSelBusy] = useState(false);
   const [tampilan, setTampilan] = useState<TampilanJadwal>('keduanya');
+  /** Pencarian tunggal halaman (topBar) untuk tab Jadwal: menyisakan baris
+   *  (jam) yang punya minimal satu sel cocok. Tab lain memakai panel
+   *  pengaturan sendiri, jadi input disembunyikan di sana. */
+  const [cari, setCari] = useState('');
   const [warna, setWarna] = useState<WarnaJadwal>('polos');
   const [formatMapel, setFormatMapel] = useState<FormatMapel>('nama');
   const [formatGuru, setFormatGuru] = useState<FormatGuru>('nama');
@@ -606,6 +611,18 @@ export default function KurikulumJadwalPage() {
     return v;
   }, [hari, petaJadwal, tampilan, formatMapel, formatGuru]);
 
+  /** Baris matriks yang ditampilkan: semua baris jam, atau hanya baris yang
+   *  punya sel memuat kata kunci (mapel/guru sesuai tampilan aktif). */
+  const barisTampil = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    if (q === '') return barisMatriks;
+
+    return barisMatriks.filter((r) => {
+      const v = nilaiMatriks(r);
+      return Object.values(v).some((t) => (t ?? '').toLowerCase().includes(q));
+    });
+  }, [barisMatriks, cari, nilaiMatriks]);
+
   const sasaranTunggal = editSel !== null && editSel.length === 1 ? editSel[0] : null;
   const selJadwal = sasaranTunggal === null
     ? null
@@ -884,6 +901,9 @@ export default function KurikulumJadwalPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      {tab === 'jadwal' ? (
+        <TopBarSearch value={cari} onChange={setCari} placeholder="Cari mapel / guru…" />
+      ) : null}
       <PengaturanHalaman tabel={[
         { key: 'kurikulum_jadwal', judul: 'Jadwal', fields: fieldsMatriks },
         { key: 'kurikulum_template_jadwal', judul: 'Kerangka jam', fields: FIELDS_KERANGKA },
@@ -1091,7 +1111,7 @@ export default function KurikulumJadwalPage() {
                 ? ` · ${kelasTampil.length} kelas`
                 : ''}`}
             fields={fieldsMatriks}
-            rows={barisMatriks}
+            rows={barisTampil}
             getValues={nilaiMatriks}
             canEdit={false}
             onCommit={async () => {}}
@@ -1107,11 +1127,13 @@ export default function KurikulumJadwalPage() {
             onSeretIsi={canUbah ? seretIsiSel : undefined}
             onSalinBlok={canUbah ? salinBlokJadwal : undefined}
             onTempelBlok={canUbah ? tempelBlokJadwal : undefined}
-            emptyText={kelasTampil.length === 0
-              ? 'Pilih kelas pada rel Kelas.'
-              : barisMatriks.length === 0
-                ? 'Belum ada kerangka JP — terapkan template di tab Template Jadwal.'
-                : 'Belum ada jadwal untuk kelas-kelas ini.'}
+            emptyText={cari.trim() !== '' && barisMatriks.length > 0
+              ? `Tidak ada baris jadwal yang memuat “${cari.trim()}”.`
+              : kelasTampil.length === 0
+                ? 'Pilih kelas pada rel Kelas.'
+                : barisMatriks.length === 0
+                  ? 'Belum ada kerangka JP — terapkan template di tab Template Jadwal.'
+                  : 'Belum ada jadwal untuk kelas-kelas ini.'}
           />
         </TabsContent>
 

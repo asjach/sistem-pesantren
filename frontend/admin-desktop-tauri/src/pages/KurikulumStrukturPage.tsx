@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { Button } from '@/components/ui/button';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
 import { useAuth } from '@/auth/AuthContext';
@@ -44,6 +45,10 @@ export default function KurikulumStrukturPage() {
   const [satuan, setSatuan] = useState<Satuan>('minggu');
   const [minggu, setMinggu] = useState(36);
   const [sel, setSel] = useState<Map<string, number>>(new Map());
+  /** Pencarian tunggal halaman (topBar): saring baris mapel menurut nama atau
+   *  kelompok. Baris "Jumlah" disembunyikan saat menyaring karena angkanya
+   *  total SELURUH mapel, bukan total baris yang tampil. */
+  const [cari, setCari] = useState('');
   const [memuat, setMemuat] = useState(false);
   const [sibuk, setSibuk] = useState(false);
   const [err, setErr] = useState('');
@@ -200,10 +205,16 @@ export default function KurikulumStrukturPage() {
     return hasil;
   }, [data, sel, nilai, totalPerTingkat]);
 
-  const rows = useMemo(
-    () => (data === null ? [] : [...data.mapel, BARIS_JUMLAH]),
-    [data],
-  );
+  const rows = useMemo(() => {
+    if (data === null) return [];
+
+    const q = cari.trim().toLowerCase();
+    if (q === '') return [...data.mapel, BARIS_JUMLAH];
+
+    return data.mapel.filter((m) =>
+      `${m.nama_mapel} ${m.kelompok ?? ''}`.toLowerCase().includes(q),
+    );
+  }, [data, cari]);
 
   if (!siap) {
     return (
@@ -220,6 +231,11 @@ export default function KurikulumStrukturPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch
+        value={cari}
+        onChange={setCari}
+        placeholder="Cari mata pelajaran…"
+      />
 
       <div className="flex flex-wrap items-center gap-3 px-3 pb-2 text-[11px] sm:px-6">
         <label className="flex items-center gap-1.5" htmlFor="select_varian_struktur">
@@ -268,7 +284,7 @@ export default function KurikulumStrukturPage() {
         </p>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 sm:px-6">
+      <div className="flex min-h-0 flex-1 flex-col">
         {kosong ? (
           <p className="border border-dashed p-4 text-xs text-muted-foreground" style={{ borderColor: 'var(--divider)' }}>
             Belum ada varian jadwal untuk {jenjang} · {ta}. Struktur kurikulum mengikuti varian —
@@ -282,7 +298,11 @@ export default function KurikulumStrukturPage() {
             rows={rows}
             getValues={getValues}
             loading={memuat}
-            emptyText="Belum ada mapel aktif untuk jenjang ini."
+            emptyText={
+              cari.trim() !== ''
+                ? `Tidak ada mata pelajaran yang cocok dengan “${cari.trim()}”.`
+                : 'Belum ada mapel aktif untuk jenjang ini.'
+            }
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}

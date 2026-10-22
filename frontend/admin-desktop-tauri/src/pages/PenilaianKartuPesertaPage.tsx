@@ -294,7 +294,7 @@ export default function PenilaianKartuPesertaPage() {
         </TabsList>
 
         <TabsContent value="nomor" className="flex min-h-0 flex-1 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 sm:px-6">
+      <div className="flex min-h-0 flex-1 flex-col">
         <ExcelTable<BarisNomorGrid>
           tableKey="penilaian_kartu_nomor"
           header="Nomor peserta"

@@ -14,6 +14,7 @@ import { Copy, FileUp, Plus } from '@/icons';
 import { DeleteAction } from '@/components/RowActions';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import {
   daftarGuruAktif, daftarMapel, daftarPengampus, pratinjauSalinPengampu, salinPengampu, simpanPengampu,
@@ -82,6 +83,9 @@ export default function KurikulumPengampuPage() {
   const [mapelAktif, setMapelAktif] = useState<MataPelajaran[]>([]);
   const [guru, setGuru] = useState<GuruAktif[]>([]);
   const [baris, setBaris] = useState<BarisPengampu[]>([]);
+  /** Pencarian tunggal halaman (topBar): saring baris pengampu menurut kelas,
+   *  mapel, kelompok, atau nama guru pengampu. */
+  const [cari, setCari] = useState('');
   const [pengampuLoading, setPengampuLoading] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [err, setErr] = useState('');
@@ -326,6 +330,26 @@ export default function KurikulumPengampuPage() {
     },
   ], [guru]);
 
+  /** Baris yang ditampilkan: seluruh baris pengampu kelas terpilih, disaring
+   *  kata kunci topBar (kelas / mapel / kelompok / guru). */
+  const barisTampil = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    if (q === '') return baris;
+
+    const namaGuruPeta = new Map(guru.map((g) => [g.keaktifan_pegawai_id, namaGuru(g)]));
+
+    return baris.filter((b) => {
+      const teks = [
+        b.nama_kelas,
+        b.nama_mapel,
+        b.kelompok,
+        b.keaktifan_pegawai_id === null ? '' : (namaGuruPeta.get(b.keaktifan_pegawai_id) ?? ''),
+      ].join(' ').toLowerCase();
+
+      return teks.includes(q);
+    });
+  }, [baris, cari, guru]);
+
   /** Aksi baris: keluarkan mapel dari pengampu kelas. Baris yang sudah punya
    *  nilai/jadwal ditolak endpoint sync — pesannya muncul lewat toast galat. */
   const renderActions = useCallback((b: BarisPengampu) => {
@@ -354,26 +378,33 @@ export default function KurikulumPengampuPage() {
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch
+        value={cari}
+        onChange={setCari}
+        placeholder="Cari kelas / mapel / guru…"
+      />
       <PengaturanHalaman tabel={[
 
         { key: 'kurikulum_pengampu_kelas', judul: 'Pengampu', fields: fieldsPengampu },
       ]} />
 
-      <div className="flex min-h-0 flex-1 flex-col p-3">
+      <div className="flex min-h-0 flex-1 flex-col">
         <ExcelTable<BarisPengampu>
           tableKey="kurikulum_pengampu_kelas"
 
           rail
           fields={fieldsPengampu}
-          rows={baris}
+          rows={barisTampil}
           getValues={nilaiPengampu}
           loading={pengampuLoading}
           emptyText={
-            kelasOpsi.length === 0
-              ? 'Belum ada kelas untuk jenjang + tahun ajaran ini.'
-              : !semuaTingkat && kelasTampil.length === 0 && !semuaKelas
-                ? 'Kelas yang dipilih tidak ada di tingkat tersebut — longgarkan filter Tingkat atau pilih kelas lain di rel Kelas.'
-                : 'Belum ada mapel untuk kelas terpilih — tambahkan lewat tombol “Tambah mapel” atau “Salin dari kelas lain”.'
+            cari.trim() !== '' && baris.length > 0
+              ? `Tidak ada baris pengampu yang cocok dengan “${cari.trim()}”.`
+              : kelasOpsi.length === 0
+                ? 'Belum ada kelas untuk jenjang + tahun ajaran ini.'
+                : !semuaTingkat && kelasTampil.length === 0 && !semuaKelas
+                  ? 'Kelas yang dipilih tidak ada di tingkat tersebut — longgarkan filter Tingkat atau pilih kelas lain di rel Kelas.'
+                  : 'Belum ada mapel untuk kelas terpilih — tambahkan lewat tombol “Tambah mapel” atau “Salin dari kelas lain”.'
           }
           canEdit={canUbah}
           onCommit={commitSel}

@@ -35,6 +35,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
+import { TopBarSearch } from '@/components/TopBarSearch';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useLembagaAktif } from '../lembagaAktif';
 import KwitansiCetak, { kwitansiDariHarian, type CetakKwitansi } from '@/components/keuangan/KwitansiCetak';
@@ -136,6 +137,10 @@ export default function PembayaranPage() {
 
   /** Dialog kasir: pencarian santri → daftar santri. */
   const [cari, setCari] = useState('');
+  /** Pencarian tunggal halaman (topBar): saring tabel Transaksi Harian menurut
+   *  no. kwitansi, nama santri, atau kas. Pencarian di dialog kasir tetap
+   *  terpisah karena ia memilih santri, bukan menyaring tabel halaman. */
+  const [cariHarian, setCariHarian] = useState('');
   const [santriRows, setSantriRows] = useState<Santri[]>([]);
   const [santriLoading, setSantriLoading] = useState(false);
   /** Santri yang sedang dilayani kasir. */
@@ -429,9 +434,30 @@ export default function PembayaranPage() {
     sisa: sisa(r).toLocaleString('id'),
   });
 
+  /** Transaksi Harian setelah disaring kata kunci topBar (kwitansi/santri/kas). */
+  const harianTampil = useMemo(() => {
+    const q = cariHarian.trim().toLowerCase();
+    if (q === '') return harian;
+
+    return harian.filter((r) => {
+      const teks = [
+        r.no_kwitansi ?? '',
+        r.santri ?? '',
+        r.kas === null ? '' : (LABEL_KAS[r.kas] ?? r.kas),
+      ].join(' ').toLowerCase();
+
+      return teks.includes(q);
+    });
+  }, [harian, cariHarian]);
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
+      <TopBarSearch
+        value={cariHarian}
+        onChange={setCariHarian}
+        placeholder="Cari kwitansi / santri / kas…"
+      />
       <PengaturanHalaman tampil={{}} tabel={[
         { key: 'pembayaran_harian', judul: 'Transaksi Harian', fields: FIELDS_HARIAN },
         { key: 'pembayaran_rekap', judul: 'Rekap Harian', fields: FIELDS_REKAP },
@@ -477,7 +503,7 @@ export default function PembayaranPage() {
           <ExcelTable<TransaksiHarianRow>
             tableKey="pembayaran_harian"
             fields={FIELDS_HARIAN}
-            rows={harian}
+            rows={harianTampil}
             getValues={(r) => ({
               tanggal: tanggalKeTampilan(r.tanggal),
               kwitansi: r.no_kwitansi ?? null,
@@ -487,7 +513,11 @@ export default function PembayaranPage() {
               kas: r.kas === null ? null : (LABEL_KAS[r.kas] ?? r.kas),
             })}
             loading={loadingHarian}
-            emptyText="Belum ada transaksi pada tanggal ini."
+            emptyText={
+              cariHarian.trim() !== '' && harian.length > 0
+                ? `Tidak ada transaksi yang cocok dengan “${cariHarian.trim()}”.`
+                : 'Belum ada transaksi pada tanggal ini.'
+            }
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}
