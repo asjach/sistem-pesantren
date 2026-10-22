@@ -88,22 +88,42 @@ describe('TopBarSearch - pintasan', () => {
     expect(document.activeElement).not.toBe(cari);
   });
 
-  it('menampilkan popup pencarian global di halaman biasa', async () => {
+  it('bawaan: pencarian hanya untuk halaman aktif, tanpa popup global', async () => {
+    pasangGlobal();
+    const input = await waitFor(
+      () => document.getElementById('input_cari_topbar') as HTMLInputElement,
+    );
+    const toggle = document.getElementById('btn_toggle_cari_global');
+
+    expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.change(input, { target: { value: 'a' } });
+
+    expect(document.getElementById('popup_cari_global')).toBeNull();
+  });
+
+  it('toggle global membuka popup hasil lintas halaman', async () => {
     pasangGlobal();
     const input = await waitFor(
       () => document.getElementById('input_cari_topbar') as HTMLInputElement,
     );
 
+    fireEvent.click(document.getElementById('btn_toggle_cari_global') as HTMLButtonElement);
     fireEvent.change(input, { target: { value: 'a' } });
 
+    expect(
+      document.getElementById('btn_toggle_cari_global')?.getAttribute('aria-pressed'),
+    ).toBe('true');
     expect(document.getElementById('popup_cari_global')).not.toBeNull();
   });
 
-  it('popup khusus menonaktifkan popup pencarian global', async () => {
+  it('popup khusus menonaktifkan toggle & popup pencarian global', async () => {
     pasangGlobal(<div id="popup_khusus" />);
     const input = await waitFor(
       () => document.getElementById('input_cari_topbar') as HTMLInputElement,
     );
+
+    expect(document.getElementById('btn_toggle_cari_global')).toBeNull();
 
     fireEvent.change(input, { target: { value: 'a' } });
 

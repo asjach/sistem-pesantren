@@ -49,7 +49,7 @@ describe('PopupCariGlobal', () => {
     await waitFor(() => expect(screen.getByText('Ahmad Fauzi')).toBeInTheDocument());
     fireEvent.click(document.getElementById('cari_global_santri_1')!);
 
-    expect(onPilih).toHaveBeenCalledWith('/santri/1/profil');
+    expect(onPilih).toHaveBeenCalledWith('/santri/1/profil', '001');
   });
 
   it('menutup saat klik di luar dan Escape', () => {

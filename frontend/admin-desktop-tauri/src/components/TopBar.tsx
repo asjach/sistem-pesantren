@@ -317,7 +317,7 @@ export default function TopBar() {
             </span>
           )}
 
-          <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'w-[150px] shrink-0')} />
+          <div ref={searchHostRef} className={cn('flex min-w-0 items-center', searchAda && 'w-[180px] shrink-0')} />
         </div>
 
         {/* Kolom tengah: filter global — selalu di tengah baris. Pembungkus

@@ -9,7 +9,9 @@ export default function PopupCariGlobal({
   onTutup,
 }: {
   kueri: string;
-  onPilih: (target: string) => void;
+  /** `kueri` = kata kunci spesifik hasil ini (NIS/NIP/nama) untuk menyaring
+   *  tabel halaman tujuan. */
+  onPilih: (target: string, kueri: string) => void;
   onTutup: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -57,6 +59,9 @@ export default function PopupCariGlobal({
       const target = e.target as Element | null;
       if (ref.current?.contains(target)) return;
       if (target?.closest?.('form[role="search"]')) return;
+      // Tombol toggle jangkauan ada di luar form; jangan tutup popup saat
+      // pengguna baru mengaktifkan/mematikan pencarian global.
+      if (target?.closest?.('#btn_toggle_cari_global')) return;
       onTutup();
     }
 
@@ -115,7 +120,7 @@ export default function PopupCariGlobal({
                   key={`${item.halaman}-${hasil.id}`}
                   id={`cari_global_${item.halaman}_${hasil.id}`}
                   type="button"
-                  onClick={() => onPilih(hasil.target)}
+                  onClick={() => onPilih(hasil.target, hasil.kueri)}
                   className="block w-full border-t px-2 py-1.5 text-left hover:bg-[var(--surface-2)]"
                   style={{ borderColor: 'var(--divider)' }}
                 >
