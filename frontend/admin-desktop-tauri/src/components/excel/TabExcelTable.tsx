@@ -4,7 +4,8 @@ import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import Pager from '@/components/Pager';
 import type { PerPage } from '@/prefs';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/excel/types';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import { Info, Plus, Settings, MoreVertical, Pencil, Check } from '@/icons';
 import { cn } from '@/lib/utils';
 import ContohInputV2 from '@/components/excelV2/ContohInputV2';
@@ -1518,6 +1519,10 @@ function ContohHidup() {
 
   return (
     <div className="flex flex-col gap-2">
+      <p className="text-[10px] text-muted-foreground">
+        Contoh hidup ini memakai <strong>ExcelTabelV2</strong>. Denah dan inventaris di atas
+        tetap merujuk ExcelTable V1 yang masih dipakai tabel lain.
+      </p>
       <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
         <Sakelar id="contoh_excel_hide_checkbox" label="hideCheckbox" aktif={hideCheckbox} onUbah={setHideCheckbox}
           keterangan="Sembunyikan kolom centang (tabel baca-saja)." />
@@ -1539,8 +1544,10 @@ function ContohHidup() {
       </p>
 
       <div className="flex min-h-0 flex-col" style={{ height: maxRows ? undefined : '22rem' }}>
-        <ExcelTable<ContohBaris>
+        <ExcelTabelV2<ContohBaris>
           tableKey="komponen_excel_demo"
+          onApplyPreset={() => {}}
+          addButtonLangsung={false}
           fields={CONTOH_FIELDS}
           rows={rows}
           getValues={(r) => ({
@@ -1587,7 +1594,7 @@ function ContohHidup() {
           hidePreset={hidePreset}
           rail={rail}
           onCheckedChange={(r) => setTercentang(r.length)}
-          header="Contoh ExcelTable"
+          header="Contoh ExcelTabelV2"
           pager={pager ? (
             <Pager page={page} lastPage={1} total={rows.length} onPage={setPage} perPage={perPage} onPerPage={setPerPage} />
           ) : undefined}

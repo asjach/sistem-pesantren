@@ -54,6 +54,7 @@ import { useLebarWadah } from '@/components/excel/useLebarWadah';
 import { skalaLebarIsi, RESIZER_OVERHANG } from '@/components/excel/lebarIsi';
 import { labelTampil, rataKolom, statusPilihSemua, type RataKolom } from './kolom';
 import SelInputV2 from './SelInputV2';
+import SelSelectV2 from './SelSelectV2';
 import { bisaInput, type BarisInputV2State } from './useBarisInputV2';
 
 const InputContextV2 = createContext<{ state: BarisInputV2State; tableKey: string } | null>(null);
@@ -101,7 +102,8 @@ function KepalaPilihSemuaV2() {
 }
 
 /** Sel data V2: baca-saja, kecuali saat Mode Ubah dan kolomnya bisa disunting. */
-function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelField; rata: RataKolom; modeUbah: boolean; barisIkutIsi: boolean; onSimpan?: (id: string | number, key: string, nilai: string | null) => void }>) {
+function SelTeksV2(props: CellProps<GridRow, { field: ExcelField; rata: RataKolom; modeUbah: boolean; barisIkutIsi: boolean; bisaSelect?: boolean; onSimpan?: (id: string | number, key: string, nilai: string | null) => void }>) {
+  const { rowData, columnData } = props;
   const input = useContext(InputContextV2);
   const { field: f, rata, modeUbah, barisIkutIsi, onSimpan } = columnData;
   const bisaEdit = modeUbah && f.kind !== 'static' && onSimpan != null;
@@ -121,6 +123,11 @@ function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelFie
 
   if (rowData.id === INPUT_ROW_ID && input) {
     return <SelInputV2 field={f} state={input.state} tableKey={input.tableKey} />;
+  }
+
+  /** Record lama berjenis select memakai dropdown, bukan input teks. */
+  if (f.kind === 'select') {
+    return <SelSelectV2 {...props} />;
   }
 
   /** Kolom toggle digambar sebagai sakelar; saat Mode Ubah bisa diklik. */
@@ -634,6 +641,56 @@ export default function GridV2({
     enqueueSave(idKey, { [key]: nilai });
   }, [enqueueSave]);
 
+  /** DSG tetap menangani tempel TSV/blok dan hapus nilai sel saat kolomnya
+   *  terbuka (Mode Ubah / selectTanpaEdit). Perubahan dibandingkan dengan nilai
+   *  tampil (server + draft) lalu masuk antrean simpan yang sama dengan
+   *  penyuntingan sel, sehingga validasi, toast, dan muat ulang tetap satu
+   *  jalur. Tanpa handler ini DSG mengubah nilai internalnya sendiri lalu
+   *  ditimpa render berikutnya — perubahan hilang tanpa pesan. */
+  const tanganiPerubahanDsg = useCallback((baru: GridRow[]) => {
+    if (!bisaEdit) return;
+    const lamaById = new Map(nilaiRef.current.map((r) => [String(r.id), r]));
+    const perBaris = new Map<string, Record<string, string | null>>();
+
+    for (const g of baru) {
+      if (String(g.id) === INPUT_ROW_ID) continue;
+      const lama = lamaById.get(String(g.id));
+      if (!lama) continue;
+      for (const key of editableKeys) {
+        const f = fieldsRef.current.find((x) => x.key === key);
+        if (!f) continue;
+        let val = (g[key] as string | null) ?? null;
+        // Samakan normalisasi tempel V1: toggle jadi 'ya'/'tidak', select
+        // hanya menerima nilai yang ada di daftar pilihan (selain kosong).
+        if (f.kind === 'toggle') {
+          val = ['', 'tidak', 'no', 'false', '0'].includes(String(val ?? '').trim().toLowerCase())
+            ? 'tidak'
+            : 'ya';
+        }
+        if (f.kind === 'select' && val !== null) {
+          const opsi = f.choicesForRow?.(g.id) ?? f.choices ?? [];
+          if (!opsi.some((o) => o.value === val)) continue;
+        }
+        const old = (lama[key] as string | null) ?? null;
+        if ((val ?? '') === (old ?? '')) continue;
+        const flds = perBaris.get(String(g.id)) ?? {};
+        flds[key] = val;
+        perBaris.set(String(g.id), flds);
+      }
+    }
+
+    if (perBaris.size === 0) return;
+
+    setDrafts((prev) => {
+      const next = { ...prev };
+      for (const [id, flds] of perBaris) {
+        next[id] = { ...(next[id] ?? {}), ...flds };
+      }
+      return next;
+    });
+    for (const [id, flds] of perBaris.entries()) enqueueSave(id, flds);
+  }, [bisaEdit, editableKeys, enqueueSave]);
+
   /** Urutan kunci kolom grid (indeks seleksi DSG): centang, data, Aksi. */
   const kunciKolomGrid = useMemo(() => [
     ...(hideCheckbox ? [] : ['check']),
@@ -994,6 +1051,11 @@ export default function GridV2({
 
     for (const [iData, f] of fields.entries()) {
       const rata = rataKolom(f, alignDb);
+      /** Select record lama: Mode Ubah, atau langsung bila selectTanpaEdit. */
+      const selectBisa = f.kind === 'select' && bisaEdit && (modeUbah || !!f.selectTanpaEdit);
+      const onSimpanKolom = f.kind === 'select'
+        ? (selectBisa ? simpanSel : undefined)
+        : (bisaEdit ? simpanSel : undefined);
       /** Tepi kanan area beku: DSG sendiri sudah menempelkan kolomnya lewat
        *  `stickyLeftColumnCount`, kelas ini hanya menambah garis pemisah. */
       const tepiBeku = freezeAktif > 0 && iData === freezeAktif - 1;
@@ -1014,8 +1076,9 @@ export default function GridV2({
           field: f,
           rata,
           modeUbah,
+          ...(f.kind === 'select' ? { bisaSelect: selectBisa } : {}),
           barisIkutIsi: barisIkutIsi && maxRows === undefined,
-          onSimpan: bisaEdit ? simpanSel : undefined,
+          onSimpan: onSimpanKolom,
         },
         basis: skalaIsi?.lebar[f.key] ?? lebar.widths[f.key] ?? lebar.autoWidths[f.key] ?? lebar.syncAutoWidths[f.key] ?? f.width ?? 160,
         // Sama seperti V1: lebar ditentukan `basis`, bukan diregangkan DSG.
@@ -1025,8 +1088,11 @@ export default function GridV2({
         shrink: 0,
         minWidth: MIN_COL_W,
         // Hanya kolom yang benar-benar bisa disunting yang dibuka; kolom
-        // `static` tetap terkunci meski Mode Ubah menyala.
-        disabled: !(bisaEdit && f.kind !== 'static'),
+        // `static` tetap terkunci meski Mode Ubah menyala. Select bisa hidup
+        // tanpa Mode Ubah bila field meminta `selectTanpaEdit`.
+        disabled: f.kind === 'select'
+          ? !selectBisa
+          : !(bisaEdit && f.kind !== 'static'),
         headerClassName: tepiBeku ? 'simpes-dsg-v2-beku-tepi' : undefined,
         cellClassName: ({ rowData }: { rowData?: GridRow }) => cn(
           barisIkutIsi && maxRows === undefined && 'px-2',
@@ -1227,6 +1293,11 @@ export default function GridV2({
   const ctxHeaderLabel = ctx.area === 'header'
     ? labelKolomEfektif(ctx.colKey, fieldsRef.current.find((f) => f.key === ctx.colKey)?.label ?? ctx.colKey)
     : '';
+  /** Aksi record halaman untuk baris yang diklik kanan. Halaman sudah
+   *  menggerbang izin di `renderActions`, jadi menu tinggal menampilkannya. */
+  const ctxAksi = ctx.area === 'row' && renderActions
+    ? flattenAksi(renderActions(ctx.rowId))
+    : [];
 
   return (
     // PENTING: `min-w-0` + `overflow-hidden` mengunci lebar pembungkus ini ke
@@ -1275,10 +1346,9 @@ export default function GridV2({
                   key={`${kunciKolom}-input-${!!inputRow}`}
                   ref={gridRef}
                   value={nilaiDenganInput}
-                  // Penyuntingan ditangani per sel (lihat SelTeksV2) supaya sel
-                  // lain di baris yang sama tidak ikut jadi draft; `onChange`
-                  // DSG tak dipakai.
-                  onChange={() => {}}
+                  // Penyuntingan per sel ditangani SelTeksV2/SelSelectV2; DSG
+                  // hanya dipakai untuk tempel TSV/blok dan hapus nilai sel.
+                  onChange={tanganiPerubahanDsg}
                   columns={kolom}
                   gutterColumn={GUTTER_COLUMN}
                   // DSG menghitung kolom dari indeks 0 = gutter, jadi jumlah
@@ -1317,6 +1387,7 @@ export default function GridV2({
           header={ctx.area === 'header' ? ctx : null}
           headerLabel={ctxHeaderLabel}
           row={ctx.area === 'row' ? ctx : null}
+          aksi={ctxAksi}
           sudut={ctx.area === 'sudut'}
           onAutoFit={lebar.onAutoFit}
           onAutoFitAll={lebar.onAutoFitAll}

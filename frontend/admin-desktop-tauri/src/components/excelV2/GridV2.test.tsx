@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,8 +45,9 @@ import GridV2 from './GridV2';
 import { copyText } from '@/lib/clipboard';
 import { widthCache, widthsKey } from '@/components/excel/helpers';
 import { autoBarisKey, tinggiDasarKey } from '@/components/excel/useTinggiBaris';
-import { dsgStub, kolomTerakhir, type KolomStub } from '@/components/excel/_dsgStubDom';
+import { dsgStub, kolomTerakhir } from '@/components/excel/_dsgStubDom';
 import type { ExcelField } from '@/components/excel/types';
+import { DeleteAction, ViewAction } from '@/components/RowActions';
 
 const FIELDS: ExcelField[] = [
   { key: 'nama', label: 'Nama', kind: 'text' },
@@ -182,6 +183,102 @@ describe('GridV2 - penyuntingan sel (Mode Ubah)', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
     // Kolom 'kode' tetap disabled meski mode menyala.
     expect(kolomTerakhir().find((k) => k.id === 'kode')?.disabled).toBe(true);
+  });
+
+  it('dropdown select record lama menyimpan pilihan lewat antrean', async () => {
+    const simpan = vi.fn<(id: string | number, f: Record<string, string | null>) => Promise<void>>(async () => {});
+    const fields: ExcelField[] = [
+      FIELDS[0],
+      {
+        key: 'jenjang', label: 'Jenjang', kind: 'select',
+        choices: [{ value: 'MI', label: 'MI' }, { value: 'MTs', label: 'MTs' }],
+      },
+    ];
+    tampilkan({
+      fields,
+      rows: [{ id: 1, nama: 'Ahmad', jenjang: 'MI', checked: false }],
+      canEdit: true,
+      onCommit: simpan,
+    });
+    await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
+
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox', { name: 'Jenjang' }));
+    await user.click(await screen.findByRole('option', { name: 'MTs' }));
+
+    await waitFor(() => expect(simpan).toHaveBeenCalledTimes(1));
+    expect(simpan.mock.calls[0][1]).toEqual({ jenjang: 'MTs' });
+  });
+
+  it('bolehSelect=false mengunci sel dan tetap menampilkan nilai', async () => {
+    const fields: ExcelField[] = [
+      FIELDS[0],
+      {
+        key: 'jenjang', label: 'Jenjang', kind: 'select',
+        choices: [{ value: 'MI', label: 'MI' }],
+        bolehSelect: () => false,
+      },
+    ];
+    tampilkan({
+      fields,
+      rows: [{ id: 1, nama: 'Ahmad', jenjang: 'MI', checked: false }],
+      canEdit: true,
+      onCommit: async () => {},
+    });
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+
+    expect(screen.queryByRole('combobox', { name: 'Jenjang' })).toBeNull();
+    expect(document.querySelector('.dsg-row:not(.dsg-row-header) [data-col-key="jenjang"]')?.textContent).toContain('MI');
+  });
+
+  it('tempel/hapus dari DSG menyimpan perubahan lewat antrean', async () => {
+    const simpan = vi.fn<(id: string | number, f: Record<string, string | null>) => Promise<void>>(async () => {});
+    tampilkan({ canEdit: true, onCommit: simpan });
+    await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
+
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+
+    act(() => {
+      dsgStub.ubah?.([
+        { id: 1, nama: 'Ahmad Baru', nis: null, checked: false },
+        { id: 2, nama: 'Bilal', nis: '002', checked: false },
+      ]);
+    });
+
+    await waitFor(() => expect(simpan).toHaveBeenCalledTimes(1));
+    expect(simpan.mock.calls[0][1]).toEqual({ nama: 'Ahmad Baru', nis: null });
+  });
+
+  it('nilai tempel yang gagal validasi tidak disimpan', async () => {
+    const simpan = vi.fn<(id: string | number, f: Record<string, string | null>) => Promise<void>>(async () => {});
+    const fields: ExcelField[] = [
+      FIELDS[0],
+      { ...FIELDS[1], validate: (v) => (v === 'salah' ? 'NIS tidak sah' : null) },
+    ];
+    tampilkan({ fields, canEdit: true, onCommit: simpan });
+    await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
+
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+
+    act(() => {
+      dsgStub.ubah?.([
+        { id: 1, nama: 'Ahmad', nis: 'salah', checked: false },
+        { id: 2, nama: 'Bilal', nis: '002', checked: false },
+      ]);
+    });
+
+    expect(simpan).not.toHaveBeenCalled();
   });
 });
 
@@ -425,6 +522,39 @@ describe('GridV2 - menu klik kanan & salin TSV', () => {
 
     await userEvent.click(screen.getByRole('menuitem', { name: 'Salin semua (TSV)' }));
     await waitFor(() => expect(copyText).toHaveBeenCalledWith('Nama\tNIS\nAhmad\t001\nBilal\t002'));
+  });
+
+  it('klik kanan baris menampilkan aksi record dan konfirmasi hapus', async () => {
+    const lihat = vi.fn();
+    const hapus = vi.fn();
+    tampilkan({
+      renderActions: (id: string | number) => (
+        <>
+          <ViewAction id={`lihat_${id}`} onClick={() => lihat(id)} />
+          <DeleteAction
+            id={`hapus_${id}`}
+            title="Hapus data?"
+            description="Data yang dihapus tidak bisa dikembalikan."
+            onConfirm={() => hapus(id)}
+          />
+        </>
+      ),
+    });
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    const sel = document.querySelector('.dsg-row:not(.dsg-row-header) [data-col-key="nama"]') as HTMLElement;
+    const menu = await bukaMenu(sel);
+    expect(menu).toHaveTextContent('AKSI');
+
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Lihat' }));
+    expect(lihat).toHaveBeenCalledWith(1);
+
+    await bukaMenu(sel);
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Hapus' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Hapus data?');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Hapus' }));
+    expect(hapus).toHaveBeenCalledWith(1);
   });
 
   it('klik kanan di area kosong tidak membuka menu', async () => {

@@ -1,10 +1,23 @@
+import { useState, type ReactElement } from 'react';
 import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuLabel,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
-import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { metaAksi } from '@/components/excel/actions';
+import type { AksiMenu } from '@/components/excel/types';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { bukaDariMenu } from '@/components/excel/kelolaTabelDariMenu';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
@@ -28,6 +41,9 @@ export interface MenuKonteksV2Props {
   headerLabel: string;
   /** Area baris yang diklik kanan. */
   row: { rowId: string | number; rowLabel: string; colKey: string | null } | null;
+  /** Aksi record halaman (hasil `renderActions`) untuk baris yang diklik
+   *  kanan; sudah digerbang izin oleh halaman. */
+  aksi?: ReactElement[];
   /** Klik kanan di sudut kiri-atas: salin seluruh tabel. */
   sudut?: boolean;
   onAutoFit: (key: string) => void;
@@ -61,6 +77,7 @@ export default function MenuKonteksV2({
   header,
   headerLabel,
   row,
+  aksi = [],
   sudut,
   onAutoFit,
   onAutoFitAll,
@@ -75,7 +92,10 @@ export default function MenuKonteksV2({
   salinKolom,
   onSalinSemua,
 }: MenuKonteksV2Props) {
+  const [konfirmasi, setKonfirmasi] = useState<AksiMenu['konfirmasi'] | null>(null);
+
   return (
+    <>
     <ContextMenuContent>
       {sudut && (
         <>
@@ -226,6 +246,31 @@ export default function MenuKonteksV2({
         <>
           <ContextMenuLabel>{row.rowLabel}</ContextMenuLabel>
           <ContextMenuSeparator />
+
+          {aksi.length > 0 && (
+            <>
+              <ContextMenuLabel>AKSI</ContextMenuLabel>
+              {aksi.map((el, i) => {
+                const m = metaAksi(el);
+                return (
+                  <ContextMenuItem
+                    key={el.key ?? i}
+                    onSelect={() => {
+                      // Menu ditutup dulu; dialog konfirmasi dibuka pada tick
+                      // berikutnya agar fokus Radix tidak berebut.
+                      if (m.konfirmasi) setTimeout(() => setKonfirmasi(m.konfirmasi ?? null), 0);
+                      else m.onClick?.();
+                    }}
+                  >
+                    {m.icon}
+                    <span>{m.label}</span>
+                  </ContextMenuItem>
+                );
+              })}
+              <ContextMenuSeparator />
+            </>
+          )}
+
           <ContextMenuLabel>SALIN</ContextMenuLabel>
           <ContextMenuItem onSelect={() => salinBaris(row.rowId)}>
             <Copy size={16} />
@@ -243,5 +288,27 @@ export default function MenuKonteksV2({
         </>
       )}
     </ContextMenuContent>
+
+    <AlertDialog open={konfirmasi !== null} onOpenChange={(o) => { if (!o) setKonfirmasi(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{konfirmasi?.title}</AlertDialogTitle>
+          <AlertDialogDescription>{konfirmasi?.description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogAction
+            className={cn(buttonVariants({ variant: 'destructive' }))}
+            onClick={() => {
+              konfirmasi?.onConfirm();
+              setKonfirmasi(null);
+            }}
+          >
+            {konfirmasi?.confirmLabel ?? 'Hapus'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

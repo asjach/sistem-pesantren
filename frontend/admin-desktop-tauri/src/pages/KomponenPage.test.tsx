@@ -337,7 +337,7 @@ describe('KomponenPage — tab ExcelTable', () => {
     renderDenganTema(<KomponenPage />);
     await klik.click(screen.getByRole('tab', { name: 'ExcelTable' }));
 
-    expect(screen.getByText('Contoh ExcelTable')).toBeInTheDocument();
+    expect(screen.getByText('Contoh ExcelTabelV2')).toBeInTheDocument();
     expect(document.getElementById('btn_aksi_komponen_excel_demo')).not.toBeNull();
     expect(document.getElementById('contoh_excel_tercentang')).toHaveTextContent('0');
 

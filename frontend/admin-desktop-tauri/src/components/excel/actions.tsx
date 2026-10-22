@@ -61,6 +61,9 @@ export function metaAksi(el: ReactElement): AksiMenu {
     /** TombolIkon memakai `tip` (bukan `title`) — dibaca juga agar label
      *  menu hamburger tidak jatuh ke "Aksi" generik. */
     tip?: string;
+    /** Tombol ikon aksesibel hanya memberi `aria-label`; pakai sebagai label
+     *  menu supaya aksi record tidak semuanya tampil sebagai "Aksi". */
+    'aria-label'?: string;
     onClick?: () => void;
     onConfirm?: () => void;
     confirmLabel?: string;
@@ -77,7 +80,9 @@ export function metaAksi(el: ReactElement): AksiMenu {
   if (el.type === EditAction) return { label: 'Ubah', icon: <Pencil size={16} />, onClick: p.onClick };
   if (el.type === ViewAction) return { label: 'Lihat', icon: <Eye size={16} />, onClick: p.onClick };
   if (el.type === SetAktifAction) return { label: 'Set aktif', icon: <Check size={16} />, onClick: p.onClick };
-  const title = typeof p.title === 'string' ? p.title.replace(/\?$/, '') : (typeof p.tip === 'string' ? p.tip : 'Aksi');
+  const title = typeof p.title === 'string'
+    ? p.title.replace(/\?$/, '')
+    : (typeof p.tip === 'string' ? p.tip : (typeof p['aria-label'] === 'string' ? p['aria-label'] : 'Aksi'));
 
   if (typeof p.onConfirm === 'function') {
     return {

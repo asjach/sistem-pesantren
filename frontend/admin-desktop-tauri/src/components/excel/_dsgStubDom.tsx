@@ -67,6 +67,8 @@ export const dsgStub = {
   tinggiHeader: null as number | null,
   /** Jumlah kolom sticky kiri yang diterima DSG (termasuk gutter). */
   stickyLeft: 0,
+  /** Callback perubahan nilai (tempel TSV/blok, hapus sel). */
+  ubah: null as null | ((nilai: GridRow[]) => void),
 };
 
 /** Kolom (termasuk sticky kanan) dari render terakhir. Dipakai tes lebar kolom
@@ -91,6 +93,7 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     stickyLeftColumnCount = 0,
     onActiveCellChange,
     onSelectionChange,
+    onChange,
   }: {
     columns: Column<GridRow>[];
     value: GridRow[];
@@ -102,6 +105,7 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     headerRowHeight?: number;
     onActiveCellChange?: (opts: { cell: { row: number } | null }) => void;
     onSelectionChange?: (opts: { selection: GridSelection | null }) => void;
+    onChange?: (nilai: GridRow[]) => void;
   },
   _ref,
 ) {
@@ -111,6 +115,7 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
   dsgStub.tinggiBaris = rowHeight ?? null;
   dsgStub.tinggiHeader = headerRowHeight ?? null;
   dsgStub.stickyLeft = stickyLeftColumnCount;
+  dsgStub.ubah = onChange ?? null;
   const semua: KolomStub[] = [
     ...(columns as KolomMasuk[]),
     ...(stickyRightColumn ? [stickyRightColumn as KolomMasuk] : []),
