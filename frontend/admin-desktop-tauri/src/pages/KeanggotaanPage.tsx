@@ -29,7 +29,8 @@ import {
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
 import LabelTombolTambah from '@/components/LabelTombolTambah';
 import Pager from '@/components/Pager';
@@ -323,9 +324,8 @@ export default function KeanggotaanPage() {
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri (nama/NIK)…" />
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'keanggotaan', judul: 'Santri per lembaga', fields }]} />
 
-      <ExcelTable
+      <ExcelTabelV2
         tableKey="keanggotaan"
-        sumberTabel="santri"
         filter={(
           <>
             <LabeledCombobox label="Status" htmlFor="filter_status_keanggotaan">
@@ -396,6 +396,8 @@ export default function KeanggotaanPage() {
         canEdit={canUbah}
         onCommit={commitBaris}
         onSaved={() => void load()}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         renderActions={(r) => (
           <>
             {aksiProfil(r.santri_id, { daftar: daftarAnggota })}
