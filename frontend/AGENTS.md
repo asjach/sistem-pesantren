@@ -9,11 +9,27 @@ bersama (lihat "KEBIJAKAN MENJALANKAN TES" di root). Baseline bersih per
 **Setiap sesi, beri tahu pengguna status tes** (aktif/suspend) — sama seperti
 pengingat akun reviewer; lihat bagian "STATUS TES" di root.
 
-## Aturan test (hanya logika)
-- Tambah/perbarui `*.test.ts(x)` HANYA untuk perubahan logika (`src/lib`, `src/api`, hooks, transformasi/validasi/komputasi, state/filter/preset/toolbar yang bercabang).
-- Tidak ada file yang otomatis mewajibkan test.
-- Copy/teks, styling, layout TIDAK PERNAH wajib test.
-- Bila test logika berlaku: `npm run test` tersempit + `npm run typecheck` hijau.
+## Aturan test (logika + UI)
+
+Rujukan wajib: `../docs/KEBIJAKAN-TES-UI.md` — tingkat tes, pola query/mock,
+stub DSG, batas jsdom, dan checklist manual/browser.
+
+- Tes **logika** wajib untuk perubahan percabangan, validasi, komputasi,
+  transformasi, state/filter/preset/toolbar yang bercabang (`src/lib`, `src/api`,
+  hooks).
+- Tes **UI** dipakai untuk mengunci kontrak perilaku komponen bersama
+  (interaksi, state tampil, empty/loading/error, keyboard/focus, accessible
+  name/role) dan wiring halaman. Bukan untuk copy/teks, styling, layout, pixel,
+  atau snapshot.
+- Kontrak komponen bersama diuji sekali di komponennya; page test mem-mock
+  komponen bersama atau hanya menguji wiring unik halaman.
+- Tidak ada file yang otomatis mewajibkan test; yang menentukan adalah logika
+  atau kontrak yang berubah.
+- Gunakan `renderDenganTema` untuk provider, `_dsgStubDom` untuk DSG,
+  role/label sebelum `data-testid`, `userEvent` untuk alur pengguna, dan
+  `findBy*`/`waitFor` tanpa sleep tetap. `act(...)` warning adalah utang;
+  perbaiki saat tes terkait disentuh.
+- Bila tes berlaku: `npm run test` tersempit + `npm run typecheck` hijau.
 - Bila perubahan menyentuh **modul bersama** (mis. `components/ExcelTable.tsx`,
   `components/excel/**`, `api/*`, `index.css`, `components/ui/**`, `hooks/**`),
   **tawarkan suite penuh** ke pengguna lebih dulu — lihat "KEBIJAKAN

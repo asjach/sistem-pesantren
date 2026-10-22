@@ -405,6 +405,10 @@ describe('ExcelTabelV2', () => {
 
     expect(screen.getByTestId('max-rows-grid')).toHaveTextContent('3');
     const root = container.querySelector('[data-slot="excel-table"]');
+    // Pengecualian struktural yang disengaja: jsdom tidak menghitung layout,
+    // jadi kelas flex adalah satu-satunya sinyal stabil bahwa tabel ringkas
+    // tidak mengambil sisa tinggi. Perilaku tinggi grid sendiri diuji di
+    // GridV2.test (data-max-rows + tinggi).
     expect(root).toHaveClass('shrink-0');
     expect(root).not.toHaveClass('flex-1');
   });

@@ -295,11 +295,6 @@ describe('GridV2 - tinggi row dan header', () => {
 
     await waitFor(() => expect(typeof dsgStub.tinggiBaris).toBe('number'));
     await waitFor(() => expect(dsgStub.tinggiBaris as number).toBeGreaterThan(24));
-    const teks = document.querySelector(
-      '.dsg-row:not(.dsg-row-header) [data-col-key="nama"] span',
-    );
-    expect(teks).toHaveClass('whitespace-normal');
-    expect(teks).not.toHaveClass('truncate');
   });
 
   it('maxRows membatasi tinggi grid dan tetap memakai row seragam', async () => {
@@ -352,9 +347,6 @@ describe('GridV2 - tinggi row dan header', () => {
         ],
       });
 
-      const judul = document.querySelector('.simpes-dsg-v2-teks-judul');
-      expect(judul).toHaveClass('whitespace-normal');
-      expect(judul).not.toHaveClass('truncate');
       await waitFor(() => expect(dsgStub.tinggiHeader ?? 0).toBeGreaterThan(26));
     } finally {
       Range.prototype.getClientRects = asli;

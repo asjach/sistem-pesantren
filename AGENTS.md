@@ -447,6 +447,8 @@ dijalankan diam-diam maupun dilewati diam-diam — bila perubahan menyentuh
 Cukup **tes tersempit** bila dampaknya sempit: satu halaman + komponennya  
 sendiri, copy/teks, styling atau layout lokal, satu tab/dialog.
 
+- **Kebijakan tingkat/pola tes UI** (komponen bersama, batas jsdom, stub DSG,
+  manual/browser): lihat `docs/KEBIJAKAN-TES-UI.md`.
 - **"Hijau" = tak ada gagal BARU.** Per 2026-10-15 **baseline bersih**: kedua  
   kegagalan lama sudah hilang — `src/pages/KeuanganPage.test.tsx` 27/27 hijau,  
   dan `SchemaDocTest::test_tabel_dan_kolom_db_ikut_terdokumentasi` hijau.  
