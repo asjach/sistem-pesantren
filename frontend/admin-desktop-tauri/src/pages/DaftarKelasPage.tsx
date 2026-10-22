@@ -208,8 +208,10 @@ export default function DaftarKelasPage() {
           urutAktif={urut}
           arahUrut={arahUrut}
           onUrut={terapkanUrut}
-          // Grid V2 baca-saja: sel belum bisa disunting, tetapi preset kolom
-          // sudah menentukan kolom yang tampil.
+          canEdit={canSantri || canRiwayat}
+          onCommit={commitDaftar}
+          onSaved={onSaved}
+          // Preset kolom V2 sudah menentukan kolom yang tampil.
           onApplyPreset={() => {}}
         />
       ) : (

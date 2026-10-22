@@ -11,15 +11,24 @@
 import { forwardRef } from 'react';
 import type { Column } from 'react-datasheet-grid';
 
+/** Tipe kolom yang diterima stub; `Column` DSG dipakai bila tersedia, tetapi
+ *  tes yang men-mock modul DSG membuat tipenya kosong — bentuk lokal ini
+ *  menjaga properti yang stub memang baca tetap terdeklarasi. */
+type KolomMasuk = Partial<Column<GridRow, unknown>> & KolomStub;
+
 import { cn } from '@/lib/utils';
 import type { GridRow, GridSelection } from './types';
 
-/** Props yang dipakai stub dari Column DSG. */
-interface KolomStub {
+/** Props yang dipakai stub dari Column DSG. Diekspor supaya berkas tes yang
+ *  men-mock modul DSG tetap bisa memeriksa properti kolom tanpa bergantung
+ *  pada tipe modul yang di-mock (yang jadi kosong saat di-mock). */
+export interface KolomStub {
   id?: string;
   key?: string;
   /** Lebar basis kolom yang dipakai DSG (px). */
   basis?: number;
+  /** true = kolom terkunci (DSG tak memberi fokus/editor ke selnya). */
+  disabled?: boolean;
   title?: React.ReactNode;
   component?: (props: {
     rowData: GridRow;
@@ -33,7 +42,7 @@ interface KolomStub {
 function renderKolom(kolom: KolomStub, row: GridRow | null) {
   const Comp = kolom.component;
   const isi = Comp && row != null
-    ? <Comp rowData={row} columnData={kolom.columnData} />
+    ? <Comp rowData={row} columnData={kolom.columnData} disabled={kolom.disabled} />
     : kolom.title;
   return <div className="dsg-cell">{isi}</div>;
 }
@@ -80,8 +89,8 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
   dsgStub.aktifSel = onActiveCellChange ?? null;
   dsgStub.seleksi = onSelectionChange ?? null;
   const semua: KolomStub[] = [
-    ...(columns as KolomStub[]),
-    ...(stickyRightColumn ? [stickyRightColumn as KolomStub] : []),
+    ...(columns as KolomMasuk[]),
+    ...(stickyRightColumn ? [stickyRightColumn as KolomMasuk] : []),
   ];
   dsgKolom.length = 0;
   dsgKolom.push(...semua);

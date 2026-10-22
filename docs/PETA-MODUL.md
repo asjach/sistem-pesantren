@@ -995,7 +995,6 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 - Kolom V2 bisa dibekukan: sejumlah N kolom data pertama tetap terlihat saat tabel digulir horizontal, dengan jumlah beku tersimpan per tabel.
 - Judul kolom V2 bisa digeser untuk menyusun ulang urutan kolom, lengkap dengan indikator drop, dan urutannya tersimpan per tabel.
 **To Do**
-- Sel V2 bisa disunting langsung dengan simpan otomatis dan validasi.
 - Menu klik kanan, salin TSV, dan seret isi sel berfungsi di V2.
 **In Progress**
 - (kosong)
@@ -1082,6 +1081,15 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Mematikan isi-lebar mengembalikan lebar kolom seperti semula tanpa merusak lebar tersimpan pengguna.
   - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
   - [ ] Pemeriksaan pengguna: aktifkan "isi lebar penuh" di Kelola Tabel -> Umum pada tabel berkolom sedikit dan pastikan kolom mengisi lebar tanpa sisa ruang kanan.
+- Sel V2 bisa disunting langsung dengan simpan otomatis dan validasi.
+  - [x] Sel V2 bisa disunting langsung dengan klik ganda, hanya untuk kolom yang bisa disunting (kind selain static); kolom static tetap terkunci.
+  - [x] Klik ganda menyalakan Mode Ubah yang ditandai pill status "Mode Ubah aktif"; sebelum itu sel tetap baca-saja (pagar sama seperti V1).
+  - [x] Perubahan tersimpan otomatis ke server tanpa tombol simpan, memakai rute simpan yang sudah ada di halaman (pakaiCommitDaftarKelas).
+  - [x] Ketikan beruntun pada satu baris digabung: hanya satu simpanan dan satu notifikasi setelah antrean habis, bukan satu per ketikan.
+  - [x] Nilai yang gagal validasi ditolak: sel kembali ke nilai server, muncul pesan galat, dan sel lain di baris yang sama tetap tersimpan.
+  - [x] Tabel tanpa izin edit (canEdit false) tidak menampilkan Mode Ubah sama sekali; sel tetap baca-saja.
+  - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
+  - [ ] Pemeriksaan pengguna: klik ganda sebuah sel teks, ubah isinya, lalu pastikan tersimpan setelah muat ulang dan nilai tidak valid ditolak.
 **Done**
 - Grid tabel bergaya Excel
   - [x] Seleksi blok dan salin/tempel TSV

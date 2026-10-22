@@ -20,6 +20,7 @@ import type { ExcelField, GridRow } from '@/components/excel/types';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import { lebarKolomAksi } from './lebarAksi';
 import { useLebarKolom } from '@/components/excel/useLebarKolom';
+import { useAntreanSimpan } from '@/components/excel/useAntreanSimpan';
 import { useIsiLebar } from '@/components/excel/useIsiLebar';
 import { useLebarWadah } from '@/components/excel/useLebarWadah';
 import { skalaLebarIsi, RESIZER_OVERHANG } from '@/components/excel/lebarIsi';
@@ -61,22 +62,63 @@ function KepalaPilihSemuaV2() {
   );
 }
 
-/** Sel data V2: baca-saja, teks diformat sesuai format field. */
-function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelField; rata: RataKolom }>) {
-  const { field: f, rata } = columnData;
+/** Sel data V2: baca-saja, kecuali saat Mode Ubah dan kolomnya bisa disunting. */
+function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelField; rata: RataKolom; modeUbah: boolean; onSimpan?: (id: string | number, key: string, nilai: string | null) => void }>) {
+  const { field: f, rata, modeUbah, onSimpan } = columnData;
+  const bisaEdit = modeUbah && f.kind !== 'static' && onSimpan != null;
+  const [buka, setBuka] = useState(false);
+  /** Nilai mentah baris (tanpa format tampilan) yang sedang disunting. */
+  const [nilaiDraft, setNilaiDraft] = useState('');
+  /** Sel dibuka lewat listener native: DSG menangani pointer-nya sendiri
+   *  sehingga `onDoubleClick` React sintetis tidak selalu sampai ke sel. */
+  const selRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = selRef.current;
+    if (!el || !bisaEdit) return;
+    const bukaEditor = () => { setNilaiDraft(String(rowData[f.key] ?? '')); setBuka(true); };
+    el.addEventListener('dblclick', bukaEditor);
+    return () => el.removeEventListener('dblclick', bukaEditor);
+  });
 
-  /** Kolom toggle digambar sebagai sakelar mati (baca-saja), bukan teks kosong.
-   *  Ukuran xs (24x14px) sama dengan sel switch V1; ukuran bawaan terlalu
-   *  besar untuk baris tabel. */
+  /** Kolom toggle digambar sebagai sakelar; saat Mode Ubah bisa diklik. */
   if (f.kind === 'toggle') {
+    const nyala = rowData[f.key] === 'ya';
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Switch size="xs" checked={rowData[f.key] === 'ya'} disabled aria-label={labelKolom(f.label || f.key)} />
+        <Switch
+          size="xs"
+          checked={nyala}
+          disabled={!bisaEdit}
+          onCheckedChange={bisaEdit ? (v) => onSimpan?.(rowData.id, f.key, v ? 'ya' : 'tidak') : undefined}
+          aria-label={labelKolom(f.label || f.key)}
+        />
       </div>
     );
   }
 
   const teks = teksTampilSel(f, rowData[f.key]);
+
+  /** Editor inline: dibuka klik 2x, ditutup Enter/blur/Escape. Nilai dikirim
+   *  ke antrean simpan otomatis lewat `onSimpan` (validasi ada di antrean). */
+  if (bisaEdit && buka) {
+    return (
+      <div className="flex h-full w-full min-w-0 items-center px-2">
+        <input
+          autoFocus
+          className="h-full w-full min-w-0 bg-transparent text-inherit outline-none"
+          defaultValue={nilaiDraft}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { onSimpan?.(rowData.id, f.key, nilaiDraft); setBuka(false); }
+            if (e.key === 'Escape') setBuka(false);
+          }}
+          onChange={(e) => setNilaiDraft(e.target.value)}
+          onBlur={() => { onSimpan?.(rowData.id, f.key, nilaiDraft); setBuka(false); }}
+        />
+      </div>
+    );
+  }
+
   const isi = (
     <span className="min-w-0 truncate" title={teks || undefined}>
       {f.renderCell ? f.renderCell(rowData) : teks}
@@ -84,9 +126,11 @@ function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelFie
   );
   const sel = (
     <div
+      ref={selRef}
       className={cn(
         'flex h-full w-full min-w-0 items-center px-2',
         f.format === 'angka' && 'tabular-nums',
+        bisaEdit && 'bg-primary/5',
         rata === 'kanan' ? 'justify-end' : rata === 'tengah' ? 'justify-center' : 'justify-start',
       )}
     >
@@ -221,6 +265,12 @@ export interface GridV2Props {
   onBarisAktif?: (id: string | number) => void;
   /** Keadaan awal sakelar "tabel mengisi lebar wadah" (pref perangkat menang). */
   isiLebarPenuh?: boolean;
+  /** Izin menyunting sel. false = tabel murni baca-saja (Mode Ubah tak ada). */
+  canEdit?: boolean;
+  /** Simpan satu baris ke server; dipanggil antrean simpan otomatis. */
+  onCommit?: (id: string | number, fields: Record<string, string | null>) => Promise<void>;
+  /** Muat ulang data setelah antrean simpan habis (satu kali, bukan per sel). */
+  onSaved?: () => Promise<void> | void;
   /** Introspeksi lebar kolom ke halaman (AutoFit semua, reset lebar).
    *  Dipanggil tiap hook siap; dipakai menu klik kanan & kontrol halaman
    *  pada poin berikutnya agar tak ada pekerjaan ulang. */
@@ -253,6 +303,9 @@ export default function GridV2({
   onBarisAktif,
   onSiapLebar,
   isiLebarPenuh = false,
+  canEdit = false,
+  onCommit,
+  onSaved,
 }: GridV2Props) {
   const { rowH, headerH, fontPx, fontFamily } = useGridPrefs();
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -296,6 +349,69 @@ export default function GridV2({
   fieldsRef.current = fields;
   const getValuesRef = useRef<(row: GridRow) => Record<string, string | null>>(() => ({}));
   getValuesRef.current = (row) => row as unknown as Record<string, string | null>;
+
+  /** ===== Penyuntingan sel (Mode Ubah) ===== */
+  /** Kolom yang boleh disunting: sama seperti V1, `kind` selain `static`. */
+  const editableKeys = useMemo(() => fields.filter((f) => f.kind !== 'static').map((f) => f.key), [fields]);
+  const bisaEdit = canEdit && editableKeys.length > 0 && onCommit != null;
+  /** Mode Ubah: pagar agar tabel tidak tersunting tak sengaja (pola V1). */
+  const [modeUbah, setModeUbah] = useState(false);
+  useEffect(() => { if (!bisaEdit) setModeUbah(false); }, [bisaEdit]);
+  /** Draft lokal per baris; nilai grid = data server ditimpa draft ini. */
+  const [drafts, setDrafts] = useState<Record<string, Record<string, string | null>>>({});
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+  const rowsRefEdit = useRef(rows);
+  rowsRefEdit.current = rows;
+
+  /** Kembalikan sel ke nilai data server (dipakai saat simpan sukses/gagal). */
+  const dropDraft = useCallback((idKey: string, keys: string[]) => {
+    setDrafts((prev) => {
+      const baris = { ...(prev[idKey] ?? {}) };
+      for (const k of keys) delete baris[k];
+      const next = { ...prev };
+      if (Object.keys(baris).length === 0) delete next[idKey];
+      else next[idKey] = baris;
+      return next;
+    });
+  }, []);
+  const dropDraftRef = useRef(dropDraft);
+  dropDraftRef.current = dropDraft;
+
+  const onCommitRef = useRef<(id: string | number, f: Record<string, string | null>) => Promise<void>>(async () => {});
+  onCommitRef.current = onCommit ?? (async () => {});
+  const onSavedRef = useRef<() => Promise<void> | void>(() => {});
+  onSavedRef.current = onSaved ?? (() => {});
+
+  /** Antrean simpan V1 dipakai apa adanya: gabung ketikan beruntun, urut,
+   *  validasi per field, satu muat ulang + satu toast setelah antrean habis. */
+  const { enqueueSave, flush } = useAntreanSimpan<GridRow>({
+    rowsRef: rowsRefEdit,
+    fieldsRef,
+    onCommitRef,
+    onSavedRef,
+    dropDraftRef,
+  });
+
+  /** Simpan nilai satu sel: tulis draft lalu antrekan ke server. */
+  const simpanSel = useCallback((id: string | number, key: string, nilai: string | null) => {
+    // Sel menyerahkan id apa adanya dari baris (number), sedangkan kunci draft
+    // dan antrean simpan selalu string. Normalkan SEKALI di sini: tanpa ini
+    // `String(r.id) === idKey` di useAntreanSimpan tak pernah bertemu
+    // ("485" !== 485) sehingga baris dianggap tak ada dan simpanan dibatalkan
+    // diam-diam tanpa galat.
+    const idKey = String(id);
+    setDrafts((prev) => ({ ...prev, [idKey]: { ...(prev[idKey] ?? {}), [key]: nilai } }));
+    enqueueSave(idKey, { [key]: nilai });
+  }, [enqueueSave]);
+
+  /** data-server + draft; dipakai grid & pengukuran teks. */
+  const nilaiTampil = useCallback((row: GridRow): GridRow => {
+    const d = draftsRef.current[String(row.id)];
+    return d ? ({ ...row, ...d } as GridRow) : row;
+  }, []);
+  const nilaiTampilRef = useRef(nilaiTampil);
+  nilaiTampilRef.current = nilaiTampil;
   /** Mesin lebar kolom V1 dipakai ulang apa adanya: lebar tersimpan pengguna,
    *  AutoFit, persistensi per perangkat, dan gerbang anti-lompat. */
   /** Sakelar "tabel mengisi lebar wadah" (pref perangkat menang atas bawaan). */
@@ -386,7 +502,12 @@ export default function GridV2({
           />
         ),
         component: SelTeksV2,
-        columnData: { field: f, rata },
+        columnData: {
+          field: f,
+          rata,
+          modeUbah,
+          onSimpan: bisaEdit ? simpanSel : undefined,
+        },
         basis: skalaIsi?.lebar[f.key] ?? lebar.widths[f.key] ?? lebar.autoWidths[f.key] ?? lebar.syncAutoWidths[f.key] ?? f.width ?? 160,
         // Sama seperti V1: lebar ditentukan `basis`, bukan diregangkan DSG.
         // `grow: 1` membuat DSG mengabaikan `basis` saat tabel lebih sempit
@@ -394,7 +515,9 @@ export default function GridV2({
         grow: 0,
         shrink: 0,
         minWidth: MIN_COL_W,
-        disabled: true,
+        // Hanya kolom yang benar-benar bisa disunting yang dibuka; kolom
+        // `static` tetap terkunci meski Mode Ubah menyala.
+        disabled: !(bisaEdit && f.kind !== 'static'),
         cellClassName: ({ rowData }: { rowData?: GridRow }) =>
           rowData ? f.cellClass?.(rowData) : undefined,
       });
@@ -440,10 +563,12 @@ export default function GridV2({
     };
   }, [renderActions, jumlahAksi]);
 
-  /** Baris grid: checked mengikuti pilihan agar sel centang terkendali. */
+  /** Baris grid: checked mengikuti pilihan agar sel centang terkendali, dan
+   *  nilai sel ditimpa draft lokal supaya ketikan langsung terlihat tanpa
+   *  menunggu muat ulang server. */
   const nilai = useMemo(
-    () => rows.map((r) => ({ ...r, checked: dipilih.has(r.id) })),
-    [rows, dipilih],
+    () => rows.map((r) => ({ ...r, ...(drafts[String(r.id)] ?? {}), checked: dipilih.has(r.id) })),
+    [rows, dipilih, drafts],
   );
 
   const onBarisAktifRef = useRef(onBarisAktif);
@@ -504,7 +629,17 @@ export default function GridV2({
         !siapTampil && 'invisible',
       )}
       style={gayaWadah}
+      onDoubleClick={() => { if (bisaEdit && !modeUbah) setModeUbah(true); }}
     >
+      {bisaEdit && modeUbah && (
+        <div
+          role="status"
+          className="pointer-events-none absolute bottom-2 right-3 z-20 rounded-sm border border-[var(--part-tabel_grid-border,var(--border))] bg-background px-2 py-0.5 text-[11px] text-muted-foreground shadow-sm"
+        >
+          Mode Ubah aktif
+        </div>
+      )}
+
       {loading && rows.length > 0 && (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden" aria-hidden="true">
           <div className="simpes-muat-bar h-full bg-primary/70" />
@@ -518,6 +653,8 @@ export default function GridV2({
           <DataSheetGrid
             key={kunciKolom}
             value={nilai}
+            // Penyuntingan ditangani per sel (lihat SelTeksV2) supaya sel lain
+            // di baris yang sama tidak ikut jadi draft; `onChange` DSG tak dipakai.
             onChange={() => {}}
             columns={kolom}
             gutterColumn={GUTTER_COLUMN}

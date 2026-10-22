@@ -74,6 +74,12 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   /** Keadaan awal "tabel mengisi lebar wadah" untuk tabel ini. Pref perangkat
    *  (diatur dari Kelola Tabel -> Umum) menang atas nilai ini. */
   isiLebarPenuh?: boolean;
+  /** Izin menyunting sel (klik 2x menyalakan Mode Ubah). */
+  canEdit?: boolean;
+  /** Simpan satu baris ke server; dipakai antrean simpan otomatis. */
+  onCommit?: (id: T['id'], fields: Record<string, string | null>) => Promise<void>;
+  /** Muat ulang data setelah antrean simpan habis (satu kali, bukan per sel). */
+  onSaved?: () => Promise<void> | void;
   /** Tampilkan rel filter Tingkat/Kelas di kiri grid (di bawah bilah judul,
    *  sejajar judul kolom). Pakai hanya pada tabel utama halaman — satu rel
    *  per halaman; halaman tanpa filter tingkat/kelas tidak menampilkannya. */
@@ -118,6 +124,9 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   renderBulkActions,
   onSiapLebar,
   isiLebarPenuh = false,
+  canEdit = false,
+  onCommit,
+  onSaved,
   rail = false,
 }: ExcelTabelV2Props<T>) {
   const [dipilih, setDipilih] = useState<Set<string | number>>(() => new Set());
@@ -310,6 +319,9 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
           onBarisAktif={onBarisKlik ? tanganiBarisAktif : undefined}
           onSiapLebar={onSiapLebar}
           isiLebarPenuh={isiLebarPenuh}
+          canEdit={canEdit}
+          onCommit={onCommit}
+          onSaved={onSaved}
         />
       </div>
 

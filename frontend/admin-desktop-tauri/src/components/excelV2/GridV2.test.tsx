@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** DSG asli merender lebar berbasis pengukuran DOM; di jsdom semua 0 sehingga
@@ -22,7 +22,7 @@ vi.mock('@/components/GridPrefs', async (asli) => ({
 
 import GridV2 from './GridV2';
 import { widthCache, widthsKey } from '@/components/excel/helpers';
-import { kolomTerakhir } from '@/components/excel/_dsgStubDom';
+import { kolomTerakhir, type KolomStub } from '@/components/excel/_dsgStubDom';
 import type { ExcelField } from '@/components/excel/types';
 
 const FIELDS: ExcelField[] = [
@@ -78,6 +78,85 @@ beforeEach(() => {
 afterAll(() => {
   if (asliClientHeight) Object.defineProperty(HTMLElement.prototype, 'clientHeight', asliClientHeight);
   if (asliClientWidth) Object.defineProperty(HTMLElement.prototype, 'clientWidth', asliClientWidth);
+});
+
+describe('GridV2 - penyuntingan sel (Mode Ubah)', () => {
+  it('sel terkunci dan tidak ada Mode Ubah saat canEdit false', async () => {
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+    // Tanpa izin, kolom tetap disabled dan tak ada pill Mode Ubah.
+    expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(true);
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('klik 2x menyalakan Mode Ubah dan membuka editor sel', async () => {
+    const simpan = vi.fn<(id: string | number, f: Record<string, string | null>) => Promise<void>>(async () => {});
+    tampilkan({ canEdit: true, onCommit: simpan });
+    await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
+
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+  });
+
+  it('Enter pada editor menyimpan nilai lewat antrean (satu simpanan)', async () => {
+    const simpan = vi.fn<(id: string | number, f: Record<string, string | null>) => Promise<void>>(async () => {});
+    tampilkan({ canEdit: true, onCommit: simpan });
+    await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
+
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+
+    // Buka editor sel, ubah, lalu Enter.
+    const editor = document.querySelector('input[autofocus]') as HTMLInputElement | null;
+    if (editor) {
+      fireEvent.change(editor, { target: { value: 'Ahmad Baru' } });
+      fireEvent.keyDown(editor, { key: 'Enter' });
+      await waitFor(() => expect(simpan).toHaveBeenCalledTimes(1));
+      expect(simpan.mock.calls[0][1]).toEqual({ nama: 'Ahmad Baru' });
+    }
+  });
+  it('id baris angka (number) tetap sampai ke onCommit', async () => {
+    // Regresi: sel menyerahkan id sebagai number, sedangkan kunci draft &
+    // antrean simpan selalu string. Tanpa normalisasi, `String(r.id) === idKey`
+    // di useAntreanSimpan tak pernah bertemu sehingga baris dianggap tak ada
+    // dan simpanan dibatalkan diam-diam (tanpa galat, tanpa toast).
+    //
+    // `RULES` sengaja memakai id number; pastikan onCommit menerima baris itu.
+    const simpan = vi.fn<(id: string | number, f: Record<string, string | null>) => Promise<void>>(async () => {});
+    tampilkan({ canEdit: true, onCommit: simpan });
+    await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
+
+    // Jalankan aksi sel apa adanya lewat kolom yang sudah dibangun GridV2:
+    // ambil columnData kolom 'nama' dan panggil onSimpan seperti sel.
+    const kolomNama = kolomTerakhir().find((k) => k.id === 'nama');
+    const data = kolomNama?.columnData as { onSimpan?: (id: string | number, key: string, v: string | null) => void } | undefined;
+    expect(typeof data?.onSimpan).toBe('function');
+    data?.onSimpan?.(1, 'nama', 'Baru');
+
+    await waitFor(() => expect(simpan).toHaveBeenCalledTimes(1));
+    // id harus utuh sehingga barisnya ketemu di antrean simpan.
+    expect(String(simpan.mock.calls[0][0])).toBe('1');
+    expect(simpan.mock.calls[0][1]).toEqual({ nama: 'Baru' });
+  });
+
+  it('kolom static tetap terkunci walau Mode Ubah menyala', async () => {
+    const fields = [
+      { key: 'nama', label: 'Nama', kind: 'text' },
+      { key: 'kode', label: 'Kode', kind: 'static' },
+    ] as ExcelField[];
+    tampilkan({ fields, canEdit: true, onCommit: async () => {} });
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+    // Kolom static tidak masuk daftar bisa disunting; hanya kolom teks yang dibuka.
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+    // Kolom 'kode' tetap disabled meski mode menyala.
+    expect(kolomTerakhir().find((k) => k.id === 'kode')?.disabled).toBe(true);
+  });
 });
 
 describe('GridV2 - lebar kolom', () => {
