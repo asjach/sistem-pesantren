@@ -639,6 +639,46 @@ describe('GridV2 - menu klik kanan & salin TSV', () => {
     expect(profil).toHaveBeenCalledWith(1);
   });
 
+  it('menu blok memanggil onIsiBlok dengan baris dan kolom terpilih', async () => {
+    const isi = vi.fn();
+    tampilkan({ onIsiBlok: isi, onSalinBlok: () => {} });
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    act(() => {
+      dsgStub.seleksi?.({ selection: { min: { row: 0, col: 1 }, max: { row: 1, col: 2 } } });
+    });
+    const sel = document.querySelector('.dsg-row:not(.dsg-row-header) [data-col-key="nama"]') as HTMLElement;
+    const menu = await bukaMenu(sel);
+    expect(menu).toHaveTextContent('BLOK 4 SEL');
+
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /Isi blok/ }));
+    expect(isi).toHaveBeenCalledTimes(1);
+    const [rowsBlok, fieldsBlok] = isi.mock.calls[0] as [Array<{ id: number }>, Array<{ key: string }>];
+    expect(rowsBlok.map((r) => r.id)).toEqual([1, 2]);
+    expect(fieldsBlok.map((f) => f.key)).toEqual(['nama', 'nis']);
+  });
+
+  it('Ctrl+C dan Ctrl+V blok khusus memanggil callback halaman saat Mode Ubah', async () => {
+    const salin = vi.fn();
+    const tempel = vi.fn();
+    tampilkan({ onSalinBlok: salin, onTempelBlok: tempel });
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    act(() => {
+      dsgStub.seleksi?.({ selection: { min: { row: 0, col: 1 }, max: { row: 1, col: 2 } } });
+    });
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+
+    fireEvent.keyDown(document, { key: 'c', ctrlKey: true });
+    expect(salin).toHaveBeenCalledTimes(1);
+    expect((salin.mock.calls[0][0] as { blok: unknown }).blok).toEqual({ r0: 0, r1: 1, kolom: [1, 2] });
+
+    fireEvent.keyDown(document, { key: 'v', ctrlKey: true });
+    expect(tempel).toHaveBeenCalledTimes(1);
+  });
+
   it('aksi yang dibungkus span tetap diratakan menjadi item menu', async () => {
     // Halaman lazim membungkus aksi dalam `<span className="flex">`; tanpa
     // perataan, seluruh pembungkus tampil sebagai satu item generik "Aksi".

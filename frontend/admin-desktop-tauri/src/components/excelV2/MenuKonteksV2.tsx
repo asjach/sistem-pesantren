@@ -26,10 +26,12 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  Ban,
   Columns3,
   Copy,
   MoveHorizontal,
   NotebookTabs,
+  Pencil,
   Pin,
   PinOff,
 } from '@/icons';
@@ -44,6 +46,12 @@ export interface MenuKonteksV2Props {
   /** Aksi record halaman (hasil `renderActions`) untuk baris yang diklik
    *  kanan; sudah digerbang izin oleh halaman. */
   aksi?: ReactElement[];
+  /** Jumlah sel pada blok terpilih; 0 = tak ada aksi blok. */
+  blokJumlah?: number;
+  onIsiBlok?: () => void;
+  blokLabel?: string;
+  onKosongkanBlok?: () => void;
+  kosongkanLabel?: string;
   /** Klik kanan di sudut kiri-atas: salin seluruh tabel. */
   sudut?: boolean;
   onAutoFit: (key: string) => void;
@@ -78,6 +86,11 @@ export default function MenuKonteksV2({
   headerLabel,
   row,
   aksi = [],
+  blokJumlah,
+  onIsiBlok,
+  blokLabel,
+  onKosongkanBlok,
+  kosongkanLabel,
   sudut,
   onAutoFit,
   onAutoFitAll,
@@ -246,6 +259,33 @@ export default function MenuKonteksV2({
         <>
           <ContextMenuLabel>{row.rowLabel}</ContextMenuLabel>
           <ContextMenuSeparator />
+
+          {(onIsiBlok || onKosongkanBlok) && (
+            <>
+              <ContextMenuLabel>BLOK {blokJumlah ?? 0} SEL</ContextMenuLabel>
+              {onIsiBlok && (
+                <ContextMenuItem
+                  id={`menu_ctx_v2_isi_blok_${tableKey}`}
+                  onPointerDown={(e) => e.preventDefault()}
+                  onSelect={onIsiBlok}
+                >
+                  <Pencil size={16} />
+                  <span>{blokLabel ?? 'Isi blok…'}</span>
+                </ContextMenuItem>
+              )}
+              {onKosongkanBlok && (
+                <ContextMenuItem
+                  id={`menu_ctx_v2_kosongkan_blok_${tableKey}`}
+                  onPointerDown={(e) => e.preventDefault()}
+                  onSelect={onKosongkanBlok}
+                >
+                  <Ban size={16} />
+                  <span>{kosongkanLabel ?? 'Kosongkan blok…'}</span>
+                </ContextMenuItem>
+              )}
+              <ContextMenuSeparator />
+            </>
+          )}
 
           {aksi.length > 0 && (
             <>

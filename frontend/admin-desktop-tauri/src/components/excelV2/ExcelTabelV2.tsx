@@ -22,6 +22,7 @@ import { Settings } from '@/icons';
 import { cn } from '@/lib/utils';
 import { bisaInput, useBarisInputV2 } from './useBarisInputV2';
 import type { ExcelField, GridRow } from '@/components/excel/types';
+import type { BlokIsi, ModeSeret } from '@/components/excel/seretIsiSel';
 
 /** Samakan nama preset "Lengkap" tanpa peduli besar-kecil huruf. */
 function namaLengkap(nama: string): boolean {
@@ -47,6 +48,21 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   renderActionsKonteks?: (row: T) => ReactNode;
   /** Ringkasan info di tengah toolbar (mis. jumlah tagihan dan total). */
   tengah?: ReactNode;
+  /** Isi blok sel terpilih dari menu klik kanan. */
+  onIsiBlok?: (rows: T[], fields: ExcelField[]) => void;
+  blokAksiLabel?: string;
+  /** Kosongkan blok sel terpilih; hanya tersedia saat Mode Ubah. */
+  onKosongkanBlok?: (rows: T[], fields: ExcelField[]) => void;
+  kosongkanBlokLabel?: string;
+  /** Seret isi sel ditangani halaman (kolom statis dengan semantik sendiri). */
+  onSeretIsi?: (p: {
+    mode: ModeSeret; sumber: BlokIsi; target: BlokIsi;
+    kunciKolom: string[]; rows: T[];
+  }) => void;
+  /** Ctrl/Cmd+C blok ditangani halaman saat Mode Ubah. */
+  onSalinBlok?: (p: { blok: BlokIsi; kunciKolom: string[]; rows: T[] }) => void;
+  /** Ctrl/Cmd+V blok ditangani halaman saat Mode Ubah. */
+  onTempelBlok?: (p: { blok: BlokIsi; kunciKolom: string[]; rows: T[] }) => void;
   /** Tombol aksi halaman di area aksi toolbar. */
   aksi?: ReactNode;
   /** Isi subzona kiri area filter. */
@@ -140,6 +156,13 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   renderActions,
   renderActionsKonteks,
   tengah,
+  onIsiBlok,
+  blokAksiLabel,
+  onKosongkanBlok,
+  kosongkanBlokLabel,
+  onSeretIsi,
+  onSalinBlok,
+  onTempelBlok,
   aksi,
   filter,
   pager,
@@ -225,6 +248,12 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     () => rows.map((r) => ({ id: r.id, checked: false, ...getValues(r) })),
     [rows, getValues],
   );
+
+  /** Petakan baris grid kembali ke baris domain untuk aksi blok halaman. */
+  const keDomainBlok = useCallback((daftar: GridRow[]): T[] => {
+    const byId = new Map(rows.map((r) => [String(r.id), r]));
+    return daftar.map((g) => byId.get(String(g.id))).filter((r): r is T => r != null);
+  }, [rows]);
 
   /** Semua jalur ubah pilihan lewat sini supaya halaman selalu menerima satu
    *  kabar dengan baris domain (bukan id grid). */
@@ -476,6 +505,15 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
             const sumber = rows.find((r) => r.id === id);
             return sumber ? renderActionsKonteks(sumber) : null;
           } : undefined}
+          onIsiBlok={onIsiBlok ? (gridRows, flds) => onIsiBlok(keDomainBlok(gridRows), flds) : undefined}
+          blokAksiLabel={blokAksiLabel}
+          onKosongkanBlok={onKosongkanBlok
+            ? (gridRows, flds) => onKosongkanBlok(keDomainBlok(gridRows), flds)
+            : undefined}
+          kosongkanBlokLabel={kosongkanBlokLabel}
+          onSeretIsi={onSeretIsi ? (p) => onSeretIsi({ ...p, rows: keDomainBlok(p.rows) }) : undefined}
+          onSalinBlok={onSalinBlok ? (p) => onSalinBlok({ ...p, rows: keDomainBlok(p.rows) }) : undefined}
+          onTempelBlok={onTempelBlok ? (p) => onTempelBlok({ ...p, rows: keDomainBlok(p.rows) }) : undefined}
           hideCheckbox={!centangAktif}
           hideHeader={!headerAktif}
           labelDb={labelDb}

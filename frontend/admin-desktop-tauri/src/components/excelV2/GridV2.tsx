@@ -38,9 +38,10 @@ import {
 } from '@/components/excel/helpers';
 import type { ExcelField, GridRow, GridSelection } from '@/components/excel/types';
 import { EVENT_TAMPILAN_PERANGKAT_BERUBAH, kabariTampilanPerangkat, type AlignKolom } from '@/components/kelolaTabel/jenis';
-import type { BlokIsi, ModeSeret } from '@/components/excel/seretIsiSel';
+import { blokDariSeleksi, type BlokIsi, type ModeSeret } from '@/components/excel/seretIsiSel';
 import { useSalinTabel } from '@/components/excel/useSalinTabel';
 import { useSalinClipboard } from '@/components/excel/useSalinClipboard';
+import { useSalinTempelBlok } from '@/components/excel/useSalinTempelBlok';
 import { useSeretIsiSel } from '@/components/excel/useSeretIsiSel';
 import { useSeretKolomHeader } from '@/components/excel/useSeretKolomHeader';
 import { Pencil } from '@/icons';
@@ -364,6 +365,21 @@ export interface GridV2Props {
   simpanSaatKeluarMode?: boolean;
   /** Sel yang gagal validasi dilewati; sel lain tetap disimpan. */
   onValidasiGagal?: (info: { id: string | number; key: string; pesan: string }) => void;
+  /** Isi blok sel terpilih dari menu klik kanan (mis. matriks jadwal). */
+  onIsiBlok?: (rows: GridRow[], fields: ExcelField[]) => void;
+  blokAksiLabel?: string;
+  /** Kosongkan blok sel terpilih; hanya tersedia saat Mode Ubah. */
+  onKosongkanBlok?: (rows: GridRow[], fields: ExcelField[]) => void;
+  kosongkanBlokLabel?: string;
+  /** Seret isi sel ditangani halaman (kolom statis dengan semantik sendiri). */
+  onSeretIsi?: (p: {
+    mode: ModeSeret; sumber: BlokIsi; target: BlokIsi;
+    kunciKolom: string[]; rows: GridRow[];
+  }) => void;
+  /** Ctrl/Cmd+C blok ditangani halaman saat Mode Ubah. */
+  onSalinBlok?: (p: { blok: BlokIsi; kunciKolom: string[]; rows: GridRow[] }) => void;
+  /** Ctrl/Cmd+V blok ditangani halaman saat Mode Ubah. */
+  onTempelBlok?: (p: { blok: BlokIsi; kunciKolom: string[]; rows: GridRow[] }) => void;
   /** Buka dialog Kelola Tabel dari menu klik kanan header. Absen = item
    *  disembunyikan (mis. halaman belum mendaftarkan tabelnya). */
   onKelolaTabel?: () => void;
@@ -415,6 +431,13 @@ export default function GridV2({
   onSaved,
   simpanSaatKeluarMode = false,
   onValidasiGagal,
+  onIsiBlok,
+  blokAksiLabel = 'Isi blok…',
+  onKosongkanBlok,
+  kosongkanBlokLabel = 'Kosongkan blok…',
+  onSeretIsi,
+  onSalinBlok,
+  onTempelBlok,
   onKelolaTabel,
   onUbahAlign,
   bolehGeser = false,
@@ -472,9 +495,12 @@ export default function GridV2({
   /** Kolom yang boleh disunting: sama seperti V1, `kind` selain `static`. */
   const editableKeys = useMemo(() => fields.filter((f) => f.kind !== 'static').map((f) => f.key), [fields]);
   const bisaEdit = canEdit && editableKeys.length > 0 && onCommit != null;
+  /** Fitur blok khusus halaman (mis. matriks jadwal) juga membuka Mode Ubah. */
+  const blokKustom = onSeretIsi != null || onSalinBlok != null || onTempelBlok != null;
+  const bolehModeUbah = bisaEdit || blokKustom;
   /** Mode Ubah: pagar agar tabel tidak tersunting tak sengaja (pola V1). */
   const [modeUbah, setModeUbah] = useState(false);
-  useEffect(() => { if (!bisaEdit) setModeUbah(false); }, [bisaEdit]);
+  useEffect(() => { if (!bolehModeUbah) setModeUbah(false); }, [bolehModeUbah]);
 
   /** Gestur seret isi sel: MATI bawaan, per perangkat, satu aktif pada satu
    *  waktu (copy ATAU move). Kuncinya sama dengan V1 supaya tabel yang sama
@@ -723,8 +749,13 @@ export default function GridV2({
     return selAktif ? { min: selAktif, max: selAktif } : null;
   }, [range, selAktif]);
 
-  /** Terapkan seret isi sel: tulis draft per baris lalu antrekan simpan. */
+  /** Terapkan seret isi sel: halaman boleh menangani sendiri, atau tulis
+   *  draft per baris lalu antrekan simpan seperti biasa. */
   const terapkanSeretIsi = useCallback((sumber: BlokIsi, target: BlokIsi, mode: ModeSeret) => {
+    if (onSeretIsi) {
+      onSeretIsi({ mode, sumber, target, kunciKolom: kunciKolomGrid, rows: nilaiRef.current });
+      return;
+    }
     const perubahan = susunPerubahanSeret(
       nilaiRef.current, sumber, target, kunciKolomGrid, editableSet, mode,
     );
@@ -739,12 +770,12 @@ export default function GridV2({
     });
     for (const p of perubahan) enqueueSave(p.id, p.fields);
     toast.success(mode === 'pindah' ? 'Isi sel dipindahkan.' : 'Isi sel disalin.');
-  }, [kunciKolomGrid, editableSet, enqueueSave]);
+  }, [onSeretIsi, kunciKolomGrid, editableSet, enqueueSave]);
 
   useSeretIsiSel(wrapRef, {
-    aktif: modeSeret !== null && modeUbah && bisaEdit,
+    aktif: modeSeret !== null && modeUbah && (bisaEdit || onSeretIsi != null),
     mode: modeSeret,
-    bisaTulis: bisaEdit,
+    bisaTulis: onSeretIsi != null || bisaEdit,
     onTerapkan: terapkanSeretIsi,
   }, {
     kunciKolom: kunciKolomGrid,
@@ -774,6 +805,16 @@ export default function GridV2({
     labelKolom: labelKolomEfektif,
   });
   useSalinClipboard({ wrapRef, rangeRef, teksSalinan, salinFisik });
+
+  /** Salin/tempel blok khusus halaman (mis. jadwal) menang atas penyalin TSV
+   *  saat Mode Ubah menyala. */
+  useSalinTempelBlok(wrapRef, {
+    aktif: modeUbah && (onSalinBlok != null || onTempelBlok != null),
+    blokAktif: () => blokDariSeleksi(seleksiSeret, kunciKolomGrid, nilai.length),
+    kunciKolom: () => kunciKolomGrid,
+    onSalin: (p) => onSalinBlok?.({ blok: p.blok, kunciKolom: p.kunciKolom, rows: nilaiRef.current }),
+    onTempel: (p) => onTempelBlok?.({ blok: p.blok, kunciKolom: p.kunciKolom, rows: nilaiRef.current }),
+  });
 
   /** data-server + draft; dipakai grid & pengukuran teks. */
   const nilaiTampil = useCallback((row: GridRow): GridRow => {
@@ -1334,6 +1375,28 @@ export default function GridV2({
       ]
     : [];
 
+  /** Blok sel untuk menu klik kanan: seleksi aktif bila klik di dalamnya,
+   *  sel yang diklik saja bila di luar seleksi — sama seperti V1. */
+  const blokCtx = useMemo(() => {
+    if ((!onIsiBlok && !onKosongkanBlok) || ctx.area !== 'row' || seleksiSeret === null) return null;
+    const rowIdx = nilai.findIndex((g) => String(g.id) === String(ctx.rowId));
+    const colIdx = ctx.colKey ? kunciKolomGrid.indexOf(ctx.colKey) : -1;
+    if (rowIdx < 0 || colIdx < 0) return null;
+    const r0 = Math.min(seleksiSeret.min.row, seleksiSeret.max.row);
+    const r1 = Math.max(seleksiSeret.min.row, seleksiSeret.max.row);
+    const c0 = Math.min(seleksiSeret.min.col, seleksiSeret.max.col);
+    const c1 = Math.max(seleksiSeret.min.col, seleksiSeret.max.col);
+    const diDalam = rowIdx >= r0 && rowIdx <= r1 && colIdx >= c0 && colIdx <= c1;
+    const rowsBlok = nilai.slice(diDalam ? r0 : rowIdx, (diDalam ? r1 : rowIdx) + 1);
+    const fieldsBlok = kunciKolomGrid
+      .slice(diDalam ? c0 : colIdx, (diDalam ? c1 : colIdx) + 1)
+      .filter((k) => k !== 'check' && k !== '__aksi')
+      .map((k) => fields.find((f) => f.key === k))
+      .filter((f): f is ExcelField => f != null);
+    if (rowsBlok.length === 0 || fieldsBlok.length === 0) return null;
+    return { rows: rowsBlok, fields: fieldsBlok, jumlah: rowsBlok.length * fieldsBlok.length };
+  }, [onIsiBlok, onKosongkanBlok, ctx, seleksiSeret, nilai, kunciKolomGrid, fields]);
+
   return (
     // PENTING: `min-w-0` + `overflow-hidden` mengunci lebar pembungkus ini ke
     // sisa ruang flex. Tanpa keduanya, pembungkus ikut melebar mengikuti lebar
@@ -1362,7 +1425,7 @@ export default function GridV2({
               !siapTampil && 'invisible',
             )}
             style={gayaWadah}
-            onDoubleClick={() => { if (bisaEdit && !modeUbah) setModeUbah(true); }}
+            onDoubleClick={() => { if (bolehModeUbah && !modeUbah) setModeUbah(true); }}
             onContextMenu={onGridContextMenu}
           >
 
@@ -1423,6 +1486,13 @@ export default function GridV2({
           headerLabel={ctxHeaderLabel}
           row={ctx.area === 'row' ? ctx : null}
           aksi={ctxAksi}
+          blokJumlah={blokCtx?.jumlah}
+          onIsiBlok={blokCtx && onIsiBlok ? () => onIsiBlok(blokCtx.rows, blokCtx.fields) : undefined}
+          blokLabel={blokAksiLabel}
+          onKosongkanBlok={blokCtx && modeUbah && onKosongkanBlok
+            ? () => onKosongkanBlok(blokCtx.rows, blokCtx.fields)
+            : undefined}
+          kosongkanLabel={kosongkanBlokLabel}
           sudut={ctx.area === 'sudut'}
           onAutoFit={lebar.onAutoFit}
           onAutoFitAll={lebar.onAutoFitAll}
@@ -1439,7 +1509,7 @@ export default function GridV2({
         />
       </ContextMenu>
 
-      {bisaEdit && modeUbah && (
+      {bolehModeUbah && modeUbah && (
         <div className="absolute bottom-2 right-3 z-20">
           <PillMode
             id={`banner_mode_edit_${tableKey}`}
