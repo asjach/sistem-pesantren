@@ -1,15 +1,21 @@
 import { MemoryRouter } from 'react-router-dom';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import KeuanganPage from './KeuanganPage';
 import { CariGlobalProvider } from '@/hooks/useCariGlobal';
 import { TopBarSearchProvider, useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { renderDenganTema } from '@/test/utils';
-import { daftarJenis, daftarTarif, type JenisTagihan, type Tarif } from '@/api/keuangan';
+import { buatJenis, buatTarif, daftarJenis, daftarTarif, hapusJenis, hapusTarif, ubahJenis, ubahTarif, type JenisTagihan, type Tarif } from '@/api/keuangan';
+import { dsgStub, kolomTerakhir } from '@/components/excel/_dsgStubDom';
 
+const tinggi = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
 beforeAll(() => {
+  // V2 tidak render sampai container terukur; ini bukan tes geometri/layout.
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true, get() { return this.dataset?.slot === 'excel-table-grid' ? 320 : (tinggi?.get?.call(this) ?? 0); },
+  });
   if (!('ResizeObserver' in globalThis)) {
     (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
       observe() {}
@@ -29,6 +35,9 @@ beforeAll(() => {
     Range.prototype.getClientRects = () => ({ length: 0, item: () => null }) as unknown as DOMRectList;
   }
   HTMLCanvasElement.prototype.getContext = (() => null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+});
+afterAll(() => {
+  if (tinggi) Object.defineProperty(HTMLElement.prototype, 'clientHeight', tinggi);
 });
 
 const uji = vi.hoisted(() => {
@@ -89,6 +98,12 @@ vi.mock('@/api/keuangan', async (importOriginal) => {
     ...asli,
     crosstabTagihan: uji.crosstabTagihan,
     daftarJenis: vi.fn(async () => []),
+    buatJenis: vi.fn(async () => ({})),
+    ubahJenis: vi.fn(async () => ({})),
+    hapusJenis: vi.fn(async () => ({})),
+    buatTarif: vi.fn(async () => ({})),
+    ubahTarif: vi.fn(async () => ({})),
+    hapusTarif: vi.fn(async () => ({})),
     daftarTarif: vi.fn(async () => []),
     daftarDispensasi: vi.fn(async () => []),
 
@@ -141,7 +156,9 @@ vi.mock('@/api/toolbarPreset', () => ({
 }));
 
 vi.mock('@/api/preset', () => ({
-  listPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: [] })),
+  listPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: {
+    presets: [], aktif_preset_id: null, default_preset_id: null, aktif_kolom: null,
+  } })),
   createPresetTabel: vi.fn(),
   updatePresetTabel: vi.fn(),
   deletePresetTabel: vi.fn(),
@@ -165,6 +182,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   uji.tertunda.saisi = null;
   ujiAuth.user = null;
+  FILTER.jenjangs = ['MI'];
+  FILTER.tahunAjaranNames = ['2025/2026'];
 });
 
 /** Buka tab Tagihan dan tunggu muat awal selesai. Halaman memakai
@@ -258,7 +277,7 @@ describe('KeuanganPage — mode Edit tabel Tarif', () => {
     expect((await screen.findAllByText('75.000')).length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Aktif')).toBeEnabled();
 
-    await userEvent.click(screen.getByLabelText('Aktifkan mode Ubah'));
+    fireEvent.doubleClick(within(screen.getByRole('tabpanel')).getByText('75.000'));
     expect(await screen.findByText('Mode Ubah aktif')).toBeInTheDocument();
   });
 
@@ -280,8 +299,8 @@ describe('KeuanganPage — mode Edit tabel Tarif', () => {
     vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
     await bukaTabTarif();
 
-    await userEvent.click(await screen.findByLabelText('Tambah baris baru'));
-    expect(await screen.findByText('Mode Input aktif')).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: 'Tambah baris' }));
+    expect(await screen.findByRole('combobox', { name: 'Jenis' })).toBeInTheDocument();
   });
 
   it('baris input mengambil lingkup lembaga + TA dari filter (dasar penjaga duplikat)', async () => {
@@ -292,11 +311,12 @@ describe('KeuanganPage — mode Edit tabel Tarif', () => {
     };
     vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
     await bukaTabTarif();
-    await userEvent.click(await screen.findByLabelText('Tambah baris baru'));
-    await screen.findByText('Mode Input aktif');
+    await userEvent.click(await screen.findByRole('button', { name: 'Tambah baris' }));
+    await screen.findByRole('combobox', { name: 'Jenis' });
 
-    const selJenjang = document.querySelector('.simpes-dsg-row-input [data-col-key="jenjang"]');
-    const selTa = document.querySelector('.simpes-dsg-row-input [data-col-key="tahun_ajaran"]');
+    // Kolom statis row input tidak mempunyai kontrol/role sendiri.
+    const selJenjang = document.querySelector('[data-baris-input="jenjang"]');
+    const selTa = document.querySelector('[data-baris-input="tahun_ajaran"]');
     expect(selJenjang?.textContent).toBe('MI');
     expect(selTa?.textContent).toBe('2025/2026');
   });
@@ -311,7 +331,98 @@ describe('KeuanganPage — mode Edit tabel Tarif', () => {
     await bukaTabTarif();
 
     expect((await screen.findAllByText('75.000')).length).toBeGreaterThan(0);
-    expect(screen.queryByLabelText('Tambah baris baru')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tambah baris' })).toBeNull();
+  });
+
+  it('row input menolak duplikat, menjaga draft saat gagal, lalu reload dan reset setelah berhasil', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }], lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.tambah'],
+    };
+    vi.mocked(daftarJenis).mockResolvedValue([
+      { id: 1, nama: 'Infaq Bulanan', tipe: 'bulanan', jenjang: 'MI', keterangan: null, urutan: 0, is_active: true },
+      { id: 2, nama: 'Iuran Baru', tipe: 'non_bulanan', jenjang: null, keterangan: null, urutan: 0, is_active: true },
+    ]);
+    vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
+    await bukaTabTarif();
+    await userEvent.click(await screen.findByRole('button', { name: 'Tambah baris' }));
+    const jenis = await screen.findByRole('combobox', { name: 'Jenis' });
+    expect(within(jenis).getByRole('option', { name: 'Infaq Bulanan · sudah ada' })).toBeInTheDocument();
+    await userEvent.selectOptions(jenis, '1');
+    const nominal = screen.getByRole('textbox', { name: 'Nominal' });
+    await userEvent.type(nominal, '75.000');
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(await screen.findByText(/sudah ada — ubah baris itu/)).toBeInTheDocument();
+    expect(buatTarif).not.toHaveBeenCalled();
+    await userEvent.selectOptions(jenis, '2');
+    vi.mocked(buatTarif).mockRejectedValueOnce(new Error('Gagal membuat tarif.'));
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(await screen.findByText('Gagal membuat tarif.')).toBeInTheDocument();
+    expect(nominal).toHaveValue('75.000');
+    const sebelum = vi.mocked(daftarTarif).mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    await waitFor(() => expect(buatTarif).toHaveBeenLastCalledWith({
+      jenjang: 'MI', tahun_ajaran: '2025/2026', jenis_id: 2, nominal: 75000,
+    }));
+    await waitFor(() => expect(vi.mocked(daftarTarif).mock.calls.length).toBeGreaterThan(sebelum));
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Nominal' })).toHaveValue(''));
+  });
+
+  it.each(['lembaga', 'tahun ajaran'])('row input menolak penyimpanan bila filter %s tidak tunggal', async (filter) => {
+    if (filter === 'lembaga') FILTER.jenjangs = ['MI', 'MD'];
+    else FILTER.tahunAjaranNames = ['2025/2026', '2026/2027'];
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }], lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.tambah'],
+    };
+    vi.mocked(daftarJenis).mockResolvedValue([
+      { id: 2, nama: 'Global', tipe: 'bulanan', jenjang: null, keterangan: null, urutan: 0, is_active: true },
+    ]);
+    vi.mocked(daftarTarif).mockResolvedValue([]);
+    await bukaTabTarif();
+    await userEvent.click(await screen.findByRole('button', { name: 'Tambah baris' }));
+    await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Jenis' }), '2');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Nominal' }), '75000');
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(await screen.findByText('Pilih satu lembaga & satu tahun ajaran di filter dulu untuk mode Input.')).toBeInTheDocument();
+    expect(buatTarif).not.toHaveBeenCalled();
+  });
+
+  it('paste nominal V2 mempertahankan format dan payload; delete nominal wajib ditolak', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }], lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.ubah'],
+    };
+    vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
+    await bukaTabTarif();
+    await screen.findAllByText('75.000');
+    fireEvent.doubleClick(within(screen.getByRole('tabpanel')).getByText('75.000'));
+    await screen.findByText('Mode Ubah aktif');
+    // DSG stub tidak mensimulasikan clipboard; uji wiring callback nilai.
+    const column = kolomTerakhir().find((c) => c.id === 'nominal')!;
+    const row = { id: 11, nominal: '75.000', aktif: 'ya', checked: false };
+    await act(async () => { dsgStub.ubah?.([column.deleteValue!({ rowData: row })]); });
+    expect(ubahTarif).not.toHaveBeenCalled();
+    await act(async () => { dsgStub.ubah?.([column.pasteValue!({ rowData: row, value: '80.000' })]); });
+    await waitFor(() => expect(ubahTarif).toHaveBeenCalledWith(11, 80000, true));
+  });
+
+  it('klik kanan tarif mempertahankan konfirmasi hapus', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }], lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.hapus'],
+    };
+    vi.mocked(daftarTarif).mockResolvedValue([TARIF]);
+    await bukaTabTarif();
+    await screen.findAllByText('75.000');
+    fireEvent.contextMenu(within(screen.getByRole('tabpanel')).getByText('75.000'));
+    const menu = await screen.findByRole('menu');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Hapus' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Hapus tarif?');
+    expect(hapusTarif).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Hapus' }));
+    await waitFor(() => expect(hapusTarif).toHaveBeenCalledWith(11));
   });
 });
 
@@ -339,7 +450,7 @@ describe('KeuanganPage — tabel Jenis Tagihan (mode Edit & Input)', () => {
     await bukaTabJenis();
 
     expect((await screen.findAllByText('HIPA')).length).toBeGreaterThan(0);
-    await userEvent.click(screen.getByLabelText('Aktifkan mode Ubah'));
+    fireEvent.doubleClick(within(screen.getByRole('tabpanel')).getByText('HIPA'));
     expect(await screen.findByText('Mode Ubah aktif')).toBeInTheDocument();
   });
 
@@ -352,8 +463,115 @@ describe('KeuanganPage — tabel Jenis Tagihan (mode Edit & Input)', () => {
     vi.mocked(daftarJenis).mockResolvedValue([JENIS]);
     await bukaTabJenis();
 
-    await userEvent.click(await screen.findByLabelText('Tambah baris baru'));
-    expect(await screen.findByText('Mode Input aktif')).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: 'Tambah baris' }));
+    expect(await screen.findByRole('textbox', { name: 'Jenis Tagihan' })).toBeInTheDocument();
+    const lembaga = screen.getByRole('combobox', { name: 'Lembaga' });
+    expect(within(lembaga).getByRole('option', { name: /MI/ })).toBeInTheDocument();
+    expect(within(lembaga).queryByRole('option', { name: 'Semua (global)' })).toBeNull();
+  });
+
+  it('row input membuat payload jenis dan mempertahankan draft saat gagal lalu reload saat berhasil', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }], lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.tambah'],
+    };
+    vi.mocked(daftarJenis).mockResolvedValue([JENIS]);
+    vi.mocked(buatJenis).mockRejectedValueOnce(new Error('Jenis sudah ada.'));
+    await bukaTabJenis();
+    await userEvent.click(await screen.findByRole('button', { name: 'Tambah baris' }));
+    const nama = await screen.findByRole('textbox', { name: 'Jenis Tagihan' });
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(buatJenis).not.toHaveBeenCalled();
+    await userEvent.type(nama, '  Iuran Baru ');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Tipe' }), 'bulanan');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Lembaga' }), 'MI');
+    const sebelum = vi.mocked(daftarJenis).mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(await screen.findByText('Jenis sudah ada.')).toBeInTheDocument();
+    expect(nama).toHaveValue('  Iuran Baru ');
+    expect(buatJenis).toHaveBeenLastCalledWith({ nama: 'Iuran Baru', tipe: 'bulanan', jenjang: 'MI', keterangan: null, urutan: 0 });
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    await waitFor(() => expect(vi.mocked(daftarJenis).mock.calls.length).toBeGreaterThan(sebelum));
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Jenis Tagihan' })).toHaveValue(''));
+    expect(screen.getByRole('textbox', { name: 'Jenis Tagihan' })).toHaveFocus();
+  });
+
+  it('super_admin efektif dapat memilih jenis global dan membatalkan input tanpa API', async () => {
+    ujiAuth.user = {
+      id: 1, roles: [{ name: 'super_admin' }], lembagas: [],
+      permissions: ['keuangan.lihat', 'keuangan.tambah'],
+    };
+    vi.mocked(daftarJenis).mockResolvedValue([JENIS]);
+    await bukaTabJenis();
+    await userEvent.click(await screen.findByRole('button', { name: 'Tambah baris' }));
+    expect(within(await screen.findByRole('combobox', { name: 'Lembaga' })).getByRole('option', { name: 'Semua (global)' })).toBeInTheDocument();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Jenis Tagihan' }), 'Batal{Escape}');
+    expect(screen.queryByRole('textbox', { name: 'Jenis Tagihan' })).toBeNull();
+    expect(buatJenis).not.toHaveBeenCalled();
+  });
+
+  it('tanpa izin tambah/ubah tidak menawarkan row input atau edit cell', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }], lembagas: [{ jenjang: 'MI', nama: 'MI' }], permissions: ['keuangan.lihat'],
+    };
+    vi.mocked(daftarJenis).mockResolvedValue([JENIS]);
+    await bukaTabJenis();
+    await screen.findAllByText('HIPA');
+    expect(screen.queryByRole('button', { name: 'Tambah baris' })).toBeNull();
+    fireEvent.doubleClick(within(screen.getByRole('tabpanel')).getByText('HIPA'));
+    expect(screen.queryByText('Mode Ubah aktif')).toBeNull();
+    expect(ubahJenis).not.toHaveBeenCalled();
+  });
+
+  it('select tipe record lama mempertahankan payload API dan lembaga baca-saja', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }], lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.ubah'],
+    };
+    vi.mocked(daftarJenis).mockResolvedValue([JENIS]);
+    await bukaTabJenis();
+    await screen.findAllByText('HIPA');
+    fireEvent.doubleClick(within(screen.getByRole('tabpanel')).getByText('HIPA'));
+    const tipe = await screen.findByRole('combobox', { name: 'Tipe' });
+    expect(screen.queryByRole('combobox', { name: 'Lembaga' })).toBeNull();
+    vi.mocked(daftarJenis).mockResolvedValue([{ ...JENIS, tipe: 'bulanan' }]);
+    await userEvent.click(tipe);
+    await userEvent.click(await screen.findByRole('option', { name: 'Bulanan' }));
+    await waitFor(() => expect(ubahJenis).toHaveBeenCalledWith(5, {
+      nama: 'HIPA', tipe: 'bulanan', is_active: true, keterangan: null, urutan: 0,
+    }));
+    expect(vi.mocked(daftarJenis).mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it('aksi klik kanan meminta konfirmasi sebelum menghapus jenis', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }], lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.hapus'],
+    };
+    vi.mocked(daftarJenis).mockResolvedValue([JENIS]);
+    await bukaTabJenis();
+    await screen.findAllByText('HIPA');
+    fireEvent.contextMenu(within(screen.getByRole('tabpanel')).getByText('HIPA'));
+    const menu = await screen.findByRole('menu');
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Hapus' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Hapus jenis?');
+    expect(hapusJenis).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Hapus' }));
+    await waitFor(() => expect(hapusJenis).toHaveBeenCalledWith(5));
+  });
+
+  it('jenis global tidak menawarkan aksi record bagi admin lembaga', async () => {
+    ujiAuth.user = {
+      id: 7, roles: [{ name: 'admin' }], lembagas: [{ jenjang: 'MI', nama: 'MI' }],
+      permissions: ['keuangan.lihat', 'keuangan.ubah'],
+    };
+    vi.mocked(daftarJenis).mockResolvedValue([{ ...JENIS, jenjang: null }]);
+    await bukaTabJenis();
+    await screen.findAllByText('HIPA');
+    const panel = within(screen.getByRole('tabpanel'));
+    expect(panel.queryByRole('button', { name: 'Ubah' })).toBeNull();
+    expect(panel.queryByRole('button', { name: 'Hapus' })).toBeNull();
   });
 });
 

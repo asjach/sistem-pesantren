@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import Pager from '@/components/Pager';
 import FilterRail from '@/components/FilterRail';
 import LabeledCombobox from '@/components/LabeledCombobox';
@@ -90,7 +91,7 @@ export const FIELDS_TARIF: ExcelField[] = [
       : (nominalDariTeks(v) === null ? 'Nominal harus angka bulat ≥ 0.' : null)),
   },
 
-  { key: 'aktif', label: 'Aktif', kind: 'toggle', width: 70 },
+  { key: 'aktif', label: 'Aktif', kind: 'toggle', width: 70, toggleTanpaEdit: true },
 ];
 
 export const FIELDS_DISPENSASI: ExcelField[] = [
@@ -295,13 +296,14 @@ export function JenisTab({ rows, loading, sort, efektifSuper, pilihanLembaga, ca
   }, [pilihanLembaga, efektifSuper]);
 
   return (
-    <ExcelTable<JenisTagihan & { id: number }>
+    <ExcelTabelV2<JenisTagihan & { id: number }>
       tableKey="keuangan_jenis"
       fields={fields}
       rows={rows.map((j) => ({ ...j, id: j.id }))}
       urutAktif={sort.urut}
       arahUrut={sort.arah}
       onUrut={sort.terapkan}
+      onApplyPreset={() => {}}
       getValues={nilaiGridJenis}
       loading={loading}
       emptyText="Belum ada jenis tagihan."
@@ -402,13 +404,14 @@ export function TarifTab({ rows, loading, sort, jenis, jenjangFilter, jenisTerpa
   }, [jenis, jenjangFilter, jenisTerpakai]);
 
   return (
-    <ExcelTable<Tarif & { id: number }>
+    <ExcelTabelV2<Tarif & { id: number }>
       tableKey="keuangan_tarif"
       fields={fields}
       rows={rows.map((t) => ({ ...t, id: t.id }))}
       urutAktif={sort.urut}
       arahUrut={sort.arah}
       onUrut={sort.terapkan}
+      onApplyPreset={() => {}}
       getValues={nilaiGridTarif}
       loading={loading}
       emptyText="Belum ada tarif."

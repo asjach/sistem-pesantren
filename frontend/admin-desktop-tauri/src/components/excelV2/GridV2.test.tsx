@@ -109,6 +109,28 @@ afterAll(() => {
 });
 
 describe('GridV2 - penyuntingan sel (Mode Ubah)', () => {
+  it.each([
+    [false, true, false],
+    [true, false, false],
+    [true, true, true],
+  ])('toggle langsung tetap digerbang izin: canEdit=%s, flag=%s', async (canEdit, toggleTanpaEdit, enabled) => {
+    const simpan = vi.fn(async () => {});
+    tampilkan({
+      fields: [{ key: 'aktif', label: 'Aktif', kind: 'toggle', toggleTanpaEdit }],
+      canEdit, onCommit: simpan,
+    });
+    const tombol = (await screen.findAllByRole('switch', { name: 'Aktif' }))[0];
+    expect(tombol).toHaveProperty('disabled', !enabled);
+    if (enabled) {
+      await userEvent.click(tombol);
+      await waitFor(() => expect(simpan).toHaveBeenCalledWith(1, { aktif: 'ya' }));
+    } else {
+      await userEvent.click(tombol);
+      expect(simpan).not.toHaveBeenCalled();
+    }
+    expect(screen.queryByText('Mode Ubah aktif')).toBeNull();
+  });
+
   it('sel terkunci dan tidak ada Mode Ubah saat canEdit false', async () => {
     tampilkan();
     await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));

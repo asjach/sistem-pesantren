@@ -130,16 +130,19 @@ function SelTeksV2(props: CellProps<GridRow, { field: ExcelField; rata: RataKolo
     return <SelSelectV2 {...props} />;
   }
 
-  /** Kolom toggle digambar sebagai sakelar; saat Mode Ubah bisa diklik. */
+  /** Toggle mengikuti Mode Ubah, kecuali field meminta toggleTanpaEdit. */
   if (f.kind === 'toggle') {
     const nyala = rowData[f.key] === 'ya';
+    // onSimpan sudah digerbang canEdit oleh grid; flag ini hanya melewati
+    // Mode Ubah, bukan melewati izin halaman.
+    const bisaToggle = onSimpan != null && (modeUbah || !!f.toggleTanpaEdit);
     return (
       <div data-col-key={f.key} className="flex h-full w-full items-center justify-center">
         <Switch
           size="xs"
           checked={nyala}
-          disabled={!bisaEdit}
-          onCheckedChange={bisaEdit ? (v) => onSimpan?.(rowData.id, f.key, v ? 'ya' : 'tidak') : undefined}
+          disabled={!bisaToggle}
+          onCheckedChange={bisaToggle ? (v) => onSimpan?.(rowData.id, f.key, v ? 'ya' : 'tidak') : undefined}
           aria-label={labelKolom(f.label || f.key)}
         />
       </div>
