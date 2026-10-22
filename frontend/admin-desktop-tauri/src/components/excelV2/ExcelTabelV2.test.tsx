@@ -446,6 +446,35 @@ describe('ExcelTabelV2', () => {
     expect(screen.getByTestId('dipilih-grid')).toHaveTextContent('');
   });
 
+  it('rail tetap dirender untuk halaman apa pun supaya FilterRail sendiri yang menyembunyikan diri bila tak relevan', () => {
+    // V2 tidak menebak relevansi tingkat/kelas; keputusan itu milik FilterRail
+    // lewat useVisibilitasFilter().filterRelevan.
+    tampilkan({ rail: true });
+
+    expect(screen.getByTestId('filter-rail')).toBeInTheDocument();
+  });
+
+  it('rail kembali tampil setelah sakelar rel_filter dinyalakan lagi', () => {
+    presetState.visibilitas = { rel_filter: false };
+    const { rerender } = tampilkan({ rail: true });
+    expect(screen.queryByTestId('filter-rail')).toBeNull();
+
+    presetState.visibilitas = { rel_filter: true };
+    rerender(
+      <ExcelTabelV2
+        judul="Daftar kelas"
+        tableKey="daftar_kelas"
+        fields={[]}
+        rows={rows}
+        getValues={(r) => ({ nama: r.nama })}
+        onApplyPreset={() => {}}
+        rail
+      />,
+    );
+
+    expect(screen.getByTestId('filter-rail')).toBeInTheDocument();
+  });
+
   it('menampilkan info tabel di popover', async () => {
     presetState.infoHtmlDb = '<p>Info penting</p>';
     const user = userEvent.setup();

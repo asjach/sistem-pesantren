@@ -121,11 +121,37 @@ export function ukurAutoFit(root: HTMLElement | null, key: string, o: OpsiAutoFi
   const f = o.fields.find((x) => x.key === key);
   if (!f) return null;
 
-  const cellEl =
-    root.querySelector<HTMLElement>(
-      '.dsg-row:not(.dsg-row-header) .dsg-cell:not(.dsg-cell-gutter):not(:has(> input.dsg-checkbox))',
-    ) ??
-    root.querySelector<HTMLElement>('.dsg-row:not(.dsg-row-header) .dsg-cell:not(.dsg-cell-gutter)');
+  // Sel contoh harus berasal dari KOLOM YANG DIUKUR. Memakai sel pertama grid
+  // (dulu) mengambil kolom sticky/checkbox yang padding-nya 0, sehingga
+  // padding kolom teks (mis. `px-2` di V2) tidak pernah ikut terhitung dan
+  // hasil AutoFit terlalu sempit -> teks terpotong (elipsis).
+  // Tentukan indeks kolom dari JUDUL kolom yang sesuai, bukan dari urutan
+  // `fields`: kolom sticky (centang/beku) menambah anak di DOM sehingga
+  // indeks field tidak sejajar dengan indeks anak baris.
+  const selKolom = (baris: HTMLElement, idx: number): HTMLElement | null => {
+    const anak = Array.from(baris.children) as HTMLElement[];
+    return anak[idx] ?? null;
+  };
+  const barisContoh = Array.from(root.querySelectorAll<HTMLElement>('.dsg-row:not(.dsg-row-header)'));
+  let cellEl: HTMLElement | null = null;
+  const barisJudul = root.querySelector<HTMLElement>('.dsg-row.dsg-row-header');
+  if (barisJudul) {
+    const selJudul = Array.from(barisJudul.children) as HTMLElement[];
+    const idx = selJudul.findIndex((h) => h.querySelector(`[data-gagang-lebar="${key}"]`));
+    if (idx >= 0) {
+      for (const b of barisContoh) {
+        const c = selKolom(b, idx);
+        if (c) { cellEl = c; break; }
+      }
+    }
+  }
+  if (!cellEl) {
+    cellEl =
+      root.querySelector<HTMLElement>(
+        '.dsg-row:not(.dsg-row-header) .dsg-cell:not(.dsg-cell-gutter):not(:has(> input.dsg-checkbox))',
+      ) ??
+      root.querySelector<HTMLElement>('.dsg-row:not(.dsg-row-header) .dsg-cell:not(.dsg-cell-gutter)');
+  }
   const headEl = root.querySelector<HTMLElement>('.dsg-row-header .dsg-cell');
   if (!cellEl || !headEl) return null;
   const ctx = o.dapatkanCtx();
@@ -145,7 +171,25 @@ export function ukurAutoFit(root: HTMLElement | null, key: string, o: OpsiAutoFi
     (headCont ? padOf(getComputedStyle(headCont)) : 0) +
     PAD_JUDUL_X;
   const csCell = getComputedStyle(cellEl);
-  const padCell = padOf(csCell);
+  // Padding teks bisa berada di pembungkus DALAM sel, bukan di `.dsg-cell`.
+  // V2 merender isi sel sebagai `flex ... px-2`, sedangkan `.dsg-cell` sendiri
+  // ber-padding 0 — memakai padOf(csCell) saja membuat hasil AutoFit ~16px
+  // terlalu sempit sehingga teks terpotong (elipsis). Jumlahkan padding
+  // pembungkus isi selama ia tidak menyerap lebar sel (bukan scroll container).
+  const padIsiCell = (() => {
+    let n = cellEl.firstElementChild as HTMLElement | null;
+    let total = 0;
+    let dalam = 0;
+    while (n && dalam < 3) {
+      const cs = getComputedStyle(n);
+      if (cs.display === 'none') break;
+      total += padOf(cs);
+      n = n.firstElementChild as HTMLElement | null;
+      dalam += 1;
+    }
+    return total;
+  })();
+  const padCell = padOf(csCell) + padIsiCell;
 
   const CANDIDATE_MARGIN = 40;
   const values: { b: BarisSel[]; cw: number }[] = [];

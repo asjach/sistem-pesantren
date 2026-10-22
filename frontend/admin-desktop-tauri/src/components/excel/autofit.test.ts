@@ -70,3 +70,80 @@ describe('lebarDariBaris', () => {
     expect(lebarDariBaris([], ukur)).toBe(0);
   });
 });
+describe('ukurAutoFit — sel contoh dari kolom yang diukur', () => {
+  /** Regresi: dulu `ukurAutoFit` memakai sel PERTAMA grid sebagai contoh.
+   *  Di V2 sel pertama adalah kolom sticky/centang yang padding-nya 0 dan
+   *  isinya bukan teks kolom, sehingga padding kolom teks tidak ikut terhitung
+   *  dan hasil AutoFit terlalu sempit -> teks terpotong (elipsis). */
+  it('mengukur sel pada kolom yang diminta, bukan sel pertama grid', () => {
+    document.body.innerHTML = [
+      '<div class="root">',
+      '  <div class="dsg-row dsg-row-header">',
+      '    <div class="dsg-cell dsg-cell-gutter"><span>#</span></div>',
+      '    <div class="dsg-cell dsg-cell-header">',
+      '      <div class="dsg-cell-header-container">',
+      '        <span data-gagang-lebar="nis_lokal">NIS Lokal</span>',
+      '      </div>',
+      '    </div>',
+      '  </div>',
+      '  <div class="dsg-row">',
+      '    <div class="dsg-cell dsg-cell-gutter" style="padding:0"><span>x</span></div>',
+      '    <div class="dsg-cell" style="padding:0">',
+      '      <div style="padding-left:8px;padding-right:8px"><span>26.27.01.0005</span></div>',
+      '    </div>',
+      '  </div>',
+      '</div>',
+    ].join('\n');
+
+    const root = document.body.querySelector('.root') as HTMLElement;
+    const barisJudul = root.querySelector('.dsg-row.dsg-row-header') as HTMLElement;
+    const selJudul = Array.from(barisJudul.children) as HTMLElement[];
+    // Indeks kolom ditemukan lewat gagang judul, bukan urutan fields.
+    const idx = selJudul.findIndex((h) => h.querySelector('[data-gagang-lebar="nis_lokal"]'));
+    expect(idx).toBe(1);
+
+    const barisData = root.querySelector('.dsg-row:not(.dsg-row-header)') as HTMLElement;
+    const selKolom = (barisData.children[idx] as HTMLElement);
+    const isi = selKolom.firstElementChild as HTMLElement;
+
+    // Sel kolom yang benar punya padding pembungkus 16px; sel gutter 0px.
+    expect(getComputedStyle(isi).paddingLeft).toBe('8px');
+    const gutter = barisData.children[0] as HTMLElement;
+    expect(getComputedStyle(gutter).paddingLeft).toBe('0px');
+  });
+});
+
+describe('padding isi sel (ukurAutoFit)', () => {
+  /** Regresi: V2 merender isi sel sebagai `flex ... px-2` sedangkan `.dsg-cell`
+   *  sendiri ber-padding 0. Sebelum diperbaiki, padding pembungkus dalam tidak
+   *  ikut terhitung sehingga hasil AutoFit ~16px terlalu sempit dan teks
+   *  terpotong (elipsis) walau kolom baru saja di-AutoFit. V1 tidak terpengaruh
+   *  karena padding-nya memang ada di `.dsg-cell` (`--part-tabel_sel-padx`). */
+  it('menjumlahkan padding pembungkus dalam sel', () => {
+    document.body.innerHTML = [
+      '<div class="root">',
+      '  <div class="dsg-row dsg-row-header">',
+      '    <div class="dsg-cell dsg-cell-header">',
+      '      <div class="dsg-cell-header-container"><span>Nama</span></div>',
+      '    </div>',
+      '  </div>',
+      '  <div class="dsg-row">',
+      '    <div class="dsg-cell" style="padding:0">',
+      '      <div class="isi" style="padding-left:8px;padding-right:8px"><span>Ahmad</span></div>',
+      '    </div>',
+      '  </div>',
+      '</div>',
+    ].join('\n');
+
+    const root = document.body.querySelector('.root') as HTMLElement;
+    const cellEl = root.querySelector('.dsg-row:not(.dsg-row-header) .dsg-cell') as HTMLElement;
+    const isi = cellEl.firstElementChild as HTMLElement;
+
+    // Padding pembungkus dalam memang terbaca dari DOM.
+    const cs = getComputedStyle(isi);
+    expect(parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)).toBe(16);
+    // Dan `.dsg-cell` sendiri tanpa padding (kondisi V2).
+    const csCell = getComputedStyle(cellEl);
+    expect(parseFloat(csCell.paddingLeft) + parseFloat(csCell.paddingRight)).toBe(0);
+  });
+});

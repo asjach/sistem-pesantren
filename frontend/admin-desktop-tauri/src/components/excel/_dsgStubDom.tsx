@@ -18,6 +18,8 @@ import type { GridRow, GridSelection } from './types';
 interface KolomStub {
   id?: string;
   key?: string;
+  /** Lebar basis kolom yang dipakai DSG (px). */
+  basis?: number;
   title?: React.ReactNode;
   component?: (props: {
     rowData: GridRow;
@@ -42,6 +44,15 @@ export const dsgStub = {
   aktifSel: null as ((opts: { cell: { row: number } | null }) => void) | null,
   seleksi: null as ((opts: { selection: GridSelection | null }) => void) | null,
 };
+
+/** Kolom (termasuk sticky kanan) dari render terakhir. Dipakai tes lebar kolom
+ *  untuk memeriksa `basis` yang benar-benar diterima DSG. */
+export const dsgKolom: KolomStub[] = [];
+
+/** Salinan kolom render terakhir, aman dibaca setelah render. */
+export function kolomTerakhir(): KolomStub[] {
+  return [...dsgKolom];
+}
 
 /** ExcelTable memberi ref ke DSG (DataSheetGridRef) — stub terima dan abaikan. */
 export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGridStub(
@@ -72,6 +83,8 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     ...(columns as KolomStub[]),
     ...(stickyRightColumn ? [stickyRightColumn as KolomStub] : []),
   ];
+  dsgKolom.length = 0;
+  dsgKolom.push(...semua);
   const hBaris = typeof rowHeight === 'number' ? rowHeight : 0;
   const hHeader = typeof headerRowHeight === 'number' ? headerRowHeight : 0;
   return (
