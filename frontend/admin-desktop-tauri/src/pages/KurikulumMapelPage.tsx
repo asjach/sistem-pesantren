@@ -23,7 +23,8 @@ import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import { referensiList, type ReferensiRow } from '@/api/master';
 import { Plus, FileUp, BookMarked, ArrowRight } from '@/icons';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import {
   ResizableHandle, ResizablePanel, ResizablePanelGroup,
 } from '@/components/ui/resizable';
@@ -578,7 +579,7 @@ export default function KurikulumMapelPage() {
           className="flex min-h-0 flex-col"
         >
           <div id="kolom_kamus_mapel" className="flex h-full min-h-0 flex-col">
-            <ExcelTable<ReferensiRow>
+            <ExcelTabelV2<ReferensiRow>
               tableKey="kurikulum_mapel_kamus"
               fields={FIELDS_KAMUS}
               rows={refBelumDipakai}
@@ -595,7 +596,8 @@ export default function KurikulumMapelPage() {
               onSaved={() => {}}
               hideCheckbox
               hidePreset
-              aksiLangsung
+              // Preset kolom V2 sudah menentukan kolom yang tampil.
+              onApplyPreset={() => {}}
 
               header={judulTabel('kurikulum_mapel_kamus')}
               renderActions={(r) => {
@@ -629,9 +631,8 @@ export default function KurikulumMapelPage() {
         >
           <div className="flex min-h-0 flex-col min-w-0 h-full">
             <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / kode / singkatan…" />
-            <ExcelTable
+            <ExcelTabelV2
               tableKey="kurikulum_mapel"
-              sumberTabel="mata_pelajaran"
               fields={FIELDS}
               rows={rows}
               getValues={nilaiBaris}
@@ -640,6 +641,8 @@ export default function KurikulumMapelPage() {
               canEdit={canUbah}
               onCommit={commitBaris}
               onSaved={onSaved}
+              // Preset kolom V2 sudah menentukan kolom yang tampil.
+              onApplyPreset={() => {}}
 
               filter={(
                 <LabeledCombobox label="Status" htmlFor="sel_status_mapel">
