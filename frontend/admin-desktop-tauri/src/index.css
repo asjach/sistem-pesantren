@@ -650,8 +650,24 @@
   touch-action: none;
   z-index: 5;
 }
-.simpes-dsg .simpes-dsg-resizer:hover {
-  background: color-mix(in srgb, var(--accent) 35%, transparent);
+
+/* Umpan balik hover pengubah lebar: GARIS 2 px primary pada BORDER SEL header,
+   bukan pada kotak teks judul. `.dsg-cell` sudah `position: absolute` dan
+   setinggi baris header, jadi `top: 0 / bottom: 0` menutup penuh garis pemisah;
+   `right: -1px` menimpa box-shadow 1 px yang dipakai library sebagai garis
+   kanan sel. Kalau ditempel di `.simpes-dsg-headtitle`, garisnya cuma
+   setinggi teks (sel header `align-items: center`, bukan stretch). */
+.simpes-dsg .dsg-row-header .dsg-cell:has(.simpes-dsg-resizer:hover)::after,
+.simpes-dsg .dsg-row-header .dsg-cell:has(.simpes-dsg-resizer:active)::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -1px;
+  width: 2px;
+  background: var(--primary);
+  pointer-events: none;
+  z-index: 6;
 }
 
 .simpes-dsg-teks-judul {

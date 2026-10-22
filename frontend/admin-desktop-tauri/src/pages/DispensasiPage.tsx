@@ -442,7 +442,7 @@ export default function DispensasiPage() {
         </TabsList>
 
         <TabsContent value="kelola" className={`min-h-0 flex-1 flex flex-col gap-1 ${KELAS_PANEL_TAB}`}>
-          <div className="flex min-h-0 flex-1">
+          <div className="flex min-h-0 min-w-0 flex-1">
             <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIS…" />
 
             <div style={{ width: lebarKiri }} className="flex min-h-0 shrink-0 flex-col gap-2">
@@ -567,30 +567,42 @@ export default function DispensasiPage() {
               onPointerCancel={selesaiGeser}
             />
 
-            <div className="flex min-h-0 flex-1 flex-col gap-2">
-              {aktif === null ? (
-                <p className="grid flex-1 place-items-center text-sm text-muted-foreground">
-                  Pilih dispensasi di tabel kiri untuk melihat daftar penerimanya.
-                </p>
-              ) : (
-                <>
-
-                  <KartuDispensasiTerpilih d={aktif} jumlahPenerima={penerima.length} />
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <PenerimaDispensasiPanel
-                      rows={penerimaTampil}
-                      loading={loading}
-                      nama={aktif.nama}
-                      kuota={aktif.kuota_bulan}
-                      terpakai={kuotaTerpakai}
-                      busy={busy}
-                      bolehUbah={bolehUbah}
-                      emptyText={adaCari ? 'Tidak ada penerima yang cocok dengan pencarian.' : undefined}
-                      onKeluarkan={(ids) => void keluarkan(ids)}
-                    />
-                  </div>
-                </>
+            {/* Panel kanan TIDAK di-unmount saat belum ada paket terpilih:
+                tabel penerima dipasang sekali saat halaman dibuka (disembunyikan
+                `invisible` + ditutup placeholder). Kalau tabelnya baru dipasang
+                saat baris diklik, pengukuran lebar wadahnya berjalan dua tahap —
+                lebar basis dulu (bisa lebih lebar dari wadah) lalu diskalakan —
+                dan bilah gulir horizontal sempat muncul lalu hilang (kedip).
+                `min-w-0` di rantai flex menjaga kolom ini tak didorong melebar
+                oleh isi tabelnya. */}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+              {aktif === null ? null : (
+                <KartuDispensasiTerpilih d={aktif} jumlahPenerima={penerima.length} />
               )}
+              <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+                <div
+                  className={aktif === null
+                    ? 'invisible flex min-h-0 min-w-0 flex-1 flex-col'
+                    : 'flex min-h-0 min-w-0 flex-1 flex-col'}
+                >
+                  <PenerimaDispensasiPanel
+                    rows={penerimaTampil}
+                    loading={loading}
+                    nama={aktif?.nama ?? ''}
+                    kuota={aktif?.kuota_bulan ?? null}
+                    terpakai={kuotaTerpakai}
+                    busy={busy}
+                    bolehUbah={bolehUbah}
+                    emptyText={adaCari ? 'Tidak ada penerima yang cocok dengan pencarian.' : undefined}
+                    onKeluarkan={(ids) => void keluarkan(ids)}
+                  />
+                </div>
+                {aktif === null ? (
+                  <p className="pointer-events-none absolute inset-0 grid place-items-center px-4 text-center text-sm text-muted-foreground">
+                    Pilih dispensasi di tabel kiri untuk melihat daftar penerimanya.
+                  </p>
+                ) : null}
+              </div>
             </div>
           </div>
         </TabsContent>

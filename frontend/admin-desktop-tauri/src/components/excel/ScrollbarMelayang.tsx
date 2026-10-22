@@ -25,6 +25,10 @@ export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
   const relRef = useRef<HTMLDivElement>(null);
   const seret = useRef<{ awalPointer: number; awalGulir: number } | null>(null);
   const [tampil, setTampil] = useState(false);
+  /** Cermin `tampil` untuk `selaraskan` yang juga dipanggil dari listener
+   *  gulir ber-`useEffect([])` — tanpa ref itu nilainya basi (selalu `false`). */
+  const tampilRef = useRef(false);
+  tampilRef.current = tampil;
   const [awal, setAwal] = useState(0);
   const [panjang, setPanjang] = useState(JEMPOL_MIN);
 
@@ -41,7 +45,12 @@ export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
     const total = vertikal ? sc.scrollHeight : sc.scrollWidth;
     const tampak = vertikal ? sc.clientHeight : sc.clientWidth;
     const posisi = vertikal ? sc.scrollTop : sc.scrollLeft;
-    if (total <= tampak + 1) {
+    // Histeresis: muncul hanya bila kelebihan > 3 px, sembunyi bila <= 1 px.
+    // Kelebihan 1–3 px (pembulatan lebar kolom, gagang resizer, atau kolom aksi
+    // yang baru di-AutoFit) tak boleh memunculkan bilah: saat lebar berosilasi
+    // di sekitar batas itu bilahnya berkedip muncul-hilang tiap render.
+    const ambang = tampilRef.current ? 1 : 3;
+    if (total <= tampak + ambang) {
       setTampil(false);
       return;
     }
