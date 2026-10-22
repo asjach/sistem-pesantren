@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { errorMessage } from '../api/client';
 import { referensiList } from '../api/master';
 import {
@@ -19,7 +19,8 @@ import {
   type Pegawai,
 } from '../api/pegawai';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
@@ -243,23 +244,27 @@ export default function LembagaPegawaiPage() {
   const [tercentangKanan, setTercentangKanan] = useState<LembagaPegawai[]>([]);
   const [bulkHapusOpen, setBulkHapusOpen] = useState(false);
   const [bulkHapusProses, setBulkHapusProses] = useState(false);
+  const clearSeleksiKanan = useRef<() => void>(() => {});
 
-  const renderBulkHapusKanan = useCallback(() => {
+  const renderBulkHapusKanan = useCallback((checked: LembagaPegawai[], clear: () => void) => {
     if (!canHapus) return null;
     return (
       <Button
         id="btn_bulk_hapus_tempat"
         size="sm"
         variant="destructive"
-        disabled={tercentangKanan.length === 0 || bulkHapusProses}
-
-        onClick={() => { setTimeout(() => setBulkHapusOpen(true), 0); }}
+        disabled={bulkHapusProses}
+        onClick={() => {
+          setTercentangKanan(checked);
+          clearSeleksiKanan.current = clear;
+          setTimeout(() => setBulkHapusOpen(true), 0);
+        }}
       >
         <Trash2 size={14} />
-        Hapus ({tercentangKanan.length})
+        Hapus ({checked.length})
       </Button>
     );
-  }, [canHapus, tercentangKanan.length, bulkHapusProses]);
+  }, [canHapus, bulkHapusProses]);
 
   const jalankanBulkHapus = useCallback(async () => {
     setBulkHapusProses(true);
@@ -275,6 +280,7 @@ export default function LembagaPegawaiPage() {
     }
     setBulkHapusOpen(false);
     setTercentangKanan([]);
+    clearSeleksiKanan.current();
     if (gagal.length === 0) {
       toast.success(`${sukses} penempatan dihapus.`);
     } else {
@@ -295,18 +301,18 @@ export default function LembagaPegawaiPage() {
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_pegawai_kolom">
         <ResizableAutoHidePanel id="panel_pegawai_sumber" defaultSize="40%" minSize="20%" className="flex min-h-0 flex-col">
           <div className="flex h-full min-h-0 flex-col">
-          <ExcelTable
+          <ExcelTabelV2
             tableKey="pegawai_ringkas"
-            sumberTabel="pegawai"
             fields={FIELDS_KIRI}
             rows={kiriTampil}
             getValues={nilaiKiri}
             loading={kiri.loading}
             emptyText={kiriKosongSemuaMasuk ? 'Semua pegawai sudah masuk ke lembaga ini.' : 'Belum ada pegawai.'}
             canEdit={false}
-            aksiLangsung
             onCommit={async () => {}}
             onSaved={kiri.onSaved}
+            // Preset kolom V2 sudah menentukan kolom yang tampil.
+            onApplyPreset={() => {}}
             urutAktif={kiri.urut}
             arahUrut={kiri.arahUrut}
             onUrut={kiri.terapkanUrut}
@@ -318,37 +324,32 @@ export default function LembagaPegawaiPage() {
         <ResizableHandle orientation="horizontal" withHandle id="gagang_pegawai_kolom" />
         <ResizablePanel defaultSize="60%" minSize="20%" className="flex min-h-0 flex-col">
           <div className="flex h-full min-h-0 flex-col">
-          <ExcelTable
+          <ExcelTabelV2
             tableKey="pegawai_lembaga"
-            sumberTabel="lembaga_pegawai"
             fields={fieldsKanan}
             rows={kanan.rows}
             getValues={nilaiKanan}
             loading={kanan.loading}
             emptyText="Belum ada penempatan di lembaga ini."
             canEdit={canUbah}
-            aksiLangsung
             onCommit={commitKanan}
             onSaved={kanan.onSaved}
+            // Preset kolom V2 sudah menentukan kolom yang tampil.
+            onApplyPreset={() => {}}
             urutAktif={kanan.urut}
             arahUrut={kanan.arahUrut}
             onUrut={kanan.terapkanUrut}
-            onCheckedChange={setTercentangKanan}
-            addButton={(
-              <>
-                {canUbah && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button id="btn_buka_import_penempatan" variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-                        <FileUp data-icon="inline-start" size={16} /> Import
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Untuk file besar (puluhan hingga ratusan ribu baris)</p></TooltipContent>
-                  </Tooltip>
-                )}
-                {renderBulkHapusKanan()}
-              </>
-            )}
+            renderBulkActions={renderBulkHapusKanan}
+            addButton={canUbah ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button id="btn_buka_import_penempatan" variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                    <FileUp data-icon="inline-start" size={16} /> Import
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Untuk file besar (puluhan hingga ratusan ribu baris)</p></TooltipContent>
+              </Tooltip>
+            ) : undefined}
             renderActions={renderKanan}
           />
           </div>
