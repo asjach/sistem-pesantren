@@ -456,13 +456,14 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, 
   usePintasanBaru({ kunci: 'n', aktif: aktif !== false, onPicu: onTambah });
 
   return (
-    <ExcelTable<Dispensasi & { id: number }>
+    <ExcelTabelV2<Dispensasi & { id: number }>
       tableKey="keuangan_dispensasi"
       fields={FIELDS_DISPENSASI}
       rows={rows}
       urutAktif={sort.urut}
       arahUrut={sort.arah}
       onUrut={sort.terapkan}
+      onApplyPreset={() => {}}
       onBarisKlik={onPilih}
       barisAktifId={aktifId}
       getValues={(r) => ({
@@ -476,8 +477,6 @@ export function DispensasiTab({ rows, loading, sort, onTambah, onEdit, onHapus, 
       loading={loading}
       emptyText="Belum ada dispensasi."
       canEdit={false}
-      onCommit={async () => {}}
-      onSaved={() => {}}
       renderActions={(r) => (
         <>
           <EditAction id={`btn_dispensasi_ubah_${r.id}`} onClick={() => onEdit(r)} />
@@ -620,8 +619,9 @@ export function PenerimaDispensasiPanel({ rows, loading, nama, kuota, terpakai, 
   );
 
   return (
-    <ExcelTable<BarisPenerima>
+    <ExcelTabelV2<BarisPenerima>
       tableKey="keuangan_penerima_dispensasi"
+      onApplyPreset={() => {}}
       header={(
         <span id="judul_penerima_dispensasi" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
           Daftar Penerima {nama} ({rows.length})
@@ -640,9 +640,6 @@ export function PenerimaDispensasiPanel({ rows, loading, nama, kuota, terpakai, 
       loading={loading}
       emptyText={emptyText ?? 'Belum ada penerima — masukkan santri dari daftar di kiri.'}
       canEdit={false}
-      onCommit={async () => {}}
-      onSaved={() => {}}
-      aksiLangsung
       renderActions={bolehUbah
         ? (r) => (
           <ActionIcon
@@ -653,7 +650,7 @@ export function PenerimaDispensasiPanel({ rows, loading, nama, kuota, terpakai, 
             <X size={16} />
           </ActionIcon>
         )
-        : () => null}
+        : undefined}
       renderBulkActions={!bolehUbah ? undefined : (checked, clear) => checked.length === 0 ? null : (
         <Button
           id="btn_penerima_dispensasi_keluar_banyak"
