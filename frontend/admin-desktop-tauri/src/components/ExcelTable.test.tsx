@@ -163,10 +163,10 @@ describe('ExcelTable — baris dipilih (onBarisKlik)', () => {
     const onBarisKlik = vi.fn();
     renderTabel({ onBarisKlik });
 
-    dsgStub.aktifSel?.({ cell: { row: 1 } });
+    dsgStub.aktifSel?.({ cell: { row: 1, col: 0 } });
     expect(onBarisKlik).toHaveBeenCalledWith(rows[1]);
 
-    dsgStub.aktifSel?.({ cell: { row: 0 } });
+    dsgStub.aktifSel?.({ cell: { row: 0, col: 0 } });
     expect(onBarisKlik).toHaveBeenLastCalledWith(rows[0]);
   });
 
@@ -175,7 +175,7 @@ describe('ExcelTable — baris dipilih (onBarisKlik)', () => {
     renderTabel({ onBarisKlik });
 
     dsgStub.aktifSel?.({ cell: null });
-    dsgStub.aktifSel?.({ cell: { row: 99 } });
+    dsgStub.aktifSel?.({ cell: { row: 99, col: 0 } });
     expect(onBarisKlik).not.toHaveBeenCalled();
   });
 

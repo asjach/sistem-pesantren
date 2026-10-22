@@ -57,7 +57,7 @@ function renderKolom(kolom: KolomStub, row: GridRow | null) {
 /** Jembatan untuk tes: stub tak merender grid interaktif, jadi callback sel
  *  aktif DSG dititipkan di sini agar tes bisa meniru klik baris. */
 export const dsgStub = {
-  aktifSel: null as ((opts: { cell: { row: number } | null }) => void) | null,
+  aktifSel: null as ((opts: { cell: { row: number; col: number } | null }) => void) | null,
   seleksi: null as ((opts: { selection: GridSelection | null }) => void) | null,
 };
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,7 +33,7 @@ vi.mock('@/components/GridPrefs', async (asli) => ({
 import GridV2 from './GridV2';
 import { copyText } from '@/lib/clipboard';
 import { widthCache, widthsKey } from '@/components/excel/helpers';
-import { kolomTerakhir, type KolomStub } from '@/components/excel/_dsgStubDom';
+import { dsgStub, kolomTerakhir, type KolomStub } from '@/components/excel/_dsgStubDom';
 import type { ExcelField } from '@/components/excel/types';
 
 const FIELDS: ExcelField[] = [
@@ -249,6 +249,23 @@ describe('GridV2 - isi lebar wadah', () => {
   });
   it('kunci penyimpanan lebar memakai tableKey', () => {
     expect(widthsKey('daftar_kelas')).toBe('simpes_grid_daftar_kelas_w_v2');
+  });
+});
+
+describe('GridV2 - dedupe callback DSG', () => {
+  it('laporan sel aktif yang sama berulang tidak memicu callback baris berulang', async () => {
+    const onBarisAktif = vi.fn();
+    tampilkan({ onBarisAktif });
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    act(() => {
+      dsgStub.aktifSel?.({ cell: { row: 0, col: 1 } });
+      dsgStub.aktifSel?.({ cell: { row: 0, col: 1 } });
+      dsgStub.aktifSel?.({ cell: { row: 0, col: 1 } });
+    });
+
+    expect(onBarisAktif).toHaveBeenCalledTimes(1);
+    expect(onBarisAktif).toHaveBeenCalledWith(1);
   });
 });
 

@@ -985,17 +985,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `Backlog`
+### DA11.1 Tabel & Grid `To Do`
 **Backlog**
 - Tinggi baris V2 bisa diatur per tabel, ikut isi, dan dibatasi N baris.
 - V2 bisa menambah record baru lewat baris input di kaki tabel.
-- Migrasi halaman MiMd ke ExcelTabelV2: tiga panel MI Only, MD Semua, dan Perbandingan Kelas memakai header, rail, dan aksi massal V2.
 - Tinggi header otomatis (headerAutoH) berlaku di V2: header kolom meninggi mengikuti judul yang membungkus seperti V1, agar spinbox mode otomatis berfungsi.
 - Judul kolom V2 tidak terpotong (elipsis): header tabel V2 memotong judul yang panjang, sedangkan V1 membungkusnya jadi beberapa baris. Perlu diselaraskan agar judul terbaca penuh.
 - Kolom V2 bisa dibekukan: sejumlah N kolom data pertama tetap terlihat saat tabel digulir horizontal, dengan jumlah beku tersimpan per tabel.
 - Judul kolom V2 bisa digeser untuk menyusun ulang urutan kolom, lengkap dengan indikator drop, dan urutannya tersimpan per tabel.
 **To Do**
-- (kosong)
+- Migrasi halaman MiMd ke ExcelTabelV2: tiga panel MI Only, MD Semua, dan Perbandingan Kelas memakai header, rail, dan aksi massal V2.
 **In Progress**
 - (kosong)
 **For Review**
@@ -1071,7 +1070,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] onAutoFitAll dan resetLebar tersedia dari ExcelTabelV2 agar poin menu klik kanan dan ribbon bisa menyambung tanpa pekerjaan ulang.
   - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
   - [x] Gagang lebar duduk tepat di border kolom (pembungkus judul dikunci ke lebar sel, bukan w-full pada container DSG yang bisa lebih lebar).
-  - [ ] Pemeriksaan pengguna: seret gagang, klik 2x AutoFit pada nis_lokal, dan pastikan tidak ada elipsis lagi.
+  - [x] Pemeriksaan pengguna: seret gagang, klik 2x AutoFit pada nis_lokal, dan pastikan tidak ada elipsis lagi.
 - Tabel V2 bisa mengisi lebar wadah penuh (isi-lebar) dengan pembagian lebar kolom proporsional.
   - [x] Ada sakelar "isi lebar penuh" untuk tabel V2; saat aktif dan tabel lebih sempit dari wadah, total lebar kolom mengisi wadah sehingga tidak ada sisa ruang di kanan.
   - [x] Pembagian lebar antar kolom proporsional mengikuti lebar basisnya masing-masing (kolom lebar tetap lebih lebar), bukan dibagi rata.
@@ -1089,7 +1088,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Nilai yang gagal validasi ditolak: sel kembali ke nilai server, muncul pesan galat, dan sel lain di baris yang sama tetap tersimpan.
   - [x] Tabel tanpa izin edit (canEdit false) tidak menampilkan Mode Ubah sama sekali; sel tetap baca-saja.
   - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
-  - [ ] Pemeriksaan pengguna: klik ganda sebuah sel teks, ubah isinya, lalu pastikan tersimpan setelah muat ulang dan nilai tidak valid ditolak.
+  - [x] Pemeriksaan pengguna: klik ganda sebuah sel teks, ubah isinya, lalu pastikan tersimpan setelah muat ulang dan nilai tidak valid ditolak.
 - Menu klik kanan, salin TSV, dan seret isi sel berfungsi di V2.
   - [x] Klik kanan judul kolom V2 menampilkan AutoFit kolom, AutoFit semua, salin kolom (TSV), perataan (super admin), dan Kelola Tabel; area kosong tidak memunculkan menu bawaan WebView.
   - [x] Klik kanan baris/sel menampilkan salin baris (TSV) dan salin nilai sel; klik kanan sudut kiri-atas menyalin seluruh tabel (label header + semua baris) sebagai TSV memakai label kolom setelan pengguna dan nilai yang sedang tampil.

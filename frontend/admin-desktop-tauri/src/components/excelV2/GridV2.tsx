@@ -430,6 +430,8 @@ export default function GridV2({
   const rangeRef = useRef<GridSelection | null>(null);
   rangeRef.current = range;
   const [selAktif, setSelAktif] = useState<{ row: number; col: number } | null>(null);
+  /** Cermin sel aktif untuk dedupe callback DSG (lihat tanganiSelAktif). */
+  const selAktifRef = useRef<{ row: number; col: number } | null>(null);
 
   /** Area yang diklik kanan: header kolom, baris, sudut, atau kosong. */
   const [ctx, setCtx] = useState<
@@ -737,16 +739,40 @@ export default function GridV2({
   onBarisAktifRef.current = onBarisAktif;
 
   /** DSG memberi indeks baris; halaman butuh id baris domain. Posisi sel
-   *  aktif juga disimpan sebagai fallback sumber seret isi sel. */
+   *  aktif juga disimpan sebagai fallback sumber seret isi sel.
+   *
+   *  PENTING: DSG memanggil callback ini ulang setiap `columns` berganti
+   *  identitas, termasuk untuk sel yang SAMA. Tanpa dedupe, `setSelAktif`
+   *  membuat objek baru → render → kolom dibangun ulang → callback lagi
+   *  (loop render tanpa henti; gejalanya kolom Aksi berkedip). */
   const tanganiSelAktif = useCallback(({ cell }: { cell: { row: number; col: number } | null }) => {
-    setSelAktif(cell ? { row: cell.row, col: cell.col } : null);
-    if (!cell) return;
+    const prev = selAktifRef.current;
+    if (cell === null) {
+      if (prev === null) return;
+      selAktifRef.current = null;
+      setSelAktif(null);
+      return;
+    }
+    if (prev && prev.row === cell.row && prev.col === cell.col) return;
+
+    const posisi = { row: cell.row, col: cell.col };
+    selAktifRef.current = posisi;
+    setSelAktif(posisi);
+
     const r = rowsRef.current[cell.row];
     if (r) onBarisAktifRef.current?.(r.id);
   }, []);
 
   const tanganiSeleksi = useCallback(({ selection }: { selection: GridSelection | null }) => {
-    setRange(selection);
+    setRange((prev) => {
+      if (prev === selection) return prev;
+      if (prev && selection
+        && prev.min.row === selection.min.row && prev.min.col === selection.min.col
+        && prev.max.row === selection.max.row && prev.max.col === selection.max.col) {
+        return prev;
+      }
+      return selection;
+    });
   }, []);
 
   const rowClassName = useCallback((args: { rowData?: GridRow }) => {
@@ -844,7 +870,12 @@ export default function GridV2({
     : '';
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    // PENTING: `min-w-0` + `overflow-hidden` mengunci lebar pembungkus ini ke
+    // sisa ruang flex. Tanpa keduanya, pembungkus ikut melebar mengikuti lebar
+    // konten DSG (yang bisa puluhan kolom) sehingga muncul scrollbar horizontal
+    // KEDUA di pembungkus tabel — selain scrollbar milik grid sendiri — dan
+    // lebar kolom Aksi ikut terukur ulang/berkedip.
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
