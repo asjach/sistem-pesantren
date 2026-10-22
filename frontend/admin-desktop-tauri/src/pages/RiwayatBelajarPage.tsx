@@ -26,7 +26,8 @@ import {
   ComboboxTrigger,
 } from '@/components/ui/combobox';
 import LabeledCombobox from '@/components/LabeledCombobox';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -325,7 +326,7 @@ export default function RiwayatBelajarPage() {
          <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" id="grup_riwayat_belajar">
            <ResizableAutoHidePanel id="panel_riwayat_ganjil" defaultSize="50%" minSize="20%">
           {panel(
-            <ExcelTable<RiwayatRow>
+            <ExcelTabelV2<RiwayatRow>
                tableKey="riwayat_belum_masuk"
                rail
                  header={<span>Semester Ganjil</span>}
@@ -379,6 +380,8 @@ export default function RiwayatBelajarPage() {
                hideActions
                onCommit={noopCommit}
                onSaved={noopCommit}
+               // Preset kolom V2 sudah menentukan kolom yang tampil.
+               onApplyPreset={() => {}}
                renderActions={(r) => aksiProfil(r.santri_id, { prefix: 'ganjil', daftar: daftarGanjil })}
             pager={(
               <Pager
@@ -396,7 +399,7 @@ export default function RiwayatBelajarPage() {
            <ResizableHandle orientation="horizontal" withHandle id="gagang_riwayat_belajar" />
            <ResizablePanel id="panel_riwayat_genap" defaultSize="50%" minSize="20%">
            {panel(
-            <ExcelTable<RiwayatRow>
+            <ExcelTabelV2<RiwayatRow>
                tableKey="riwayat_belajar"
                  header={<span>Semester Genap</span>}
                addButton={canPindah || canTambah ? (
@@ -447,6 +450,8 @@ export default function RiwayatBelajarPage() {
                hideActions
                onCommit={noopCommit}
                onSaved={noopCommit}
+               // Preset kolom V2 sudah menentukan kolom yang tampil.
+               onApplyPreset={() => {}}
                renderActions={(r) => aksiProfil(r.santri_id, { prefix: 'genap', daftar: daftarGenap })}
             pager={(
               <Pager
