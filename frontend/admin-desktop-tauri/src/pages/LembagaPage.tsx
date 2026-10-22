@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import DialogLihatLembaga from '@/components/lembaga/DialogLihatLembaga';
@@ -362,9 +363,8 @@ export default function LembagaPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari lembaga…" />
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'lembaga', judul: 'Lembaga', fields: FIELDS }]} />
-      <ExcelTable
+      <ExcelTabelV2
         tableKey="lembaga"
-        sumberTabel="lembaga"
         fields={FIELDS}
         rows={rows}
         getValues={gridValues}
@@ -373,6 +373,8 @@ export default function LembagaPage() {
         canEdit={canUbah}
         onCommit={commitDraft}
         onSaved={onSaved}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
