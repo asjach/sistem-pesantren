@@ -3,7 +3,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import LabeledInput from '@/components/LabeledInput';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { DeleteAction } from '@/components/RowActions';
 import { errorMessage } from '@/api/client';
 import type { Kelas } from '@/api/master';
@@ -354,19 +355,19 @@ export default function PanelTemplate({ jenjang, ta, kelasOpsi, kelasId, canTamb
           </div>
 
           <div className="min-h-0 flex-1 p-3">
-            <ExcelTable<TemplateJadwalBaris>
+            <ExcelTabelV2<TemplateJadwalBaris>
               tableKey="kurikulum_template_jadwal"
-              sumberTabel="template_jadwal_baris"
               fields={FIELDS_KERANGKA}
               rows={detail.baris}
               getValues={nilaiKerangka}
               canEdit={canUbah}
               onCommit={commitBaris}
               onSaved={() => segarkan(terpilih)}
+              // Preset kolom V2 sudah menentukan kolom yang tampil.
+              onApplyPreset={() => {}}
               renderActions={renderActions}
               hideCheckbox
               hidePreset
-              aksiLangsung
               emptyText="Belum ada jam di kerangka ini — tambah lewat tombol di atas."
             />
           </div>
