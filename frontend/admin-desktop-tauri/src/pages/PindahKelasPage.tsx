@@ -4,7 +4,8 @@ import { bisa } from '../api/auth';
 import { errorMessage } from '../api/client';
 import { daftarKelas, pindahKelas, type RiwayatRow } from '../api/siklus';
 import { listKelas, type Kelas } from '../api/master';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import Pager from '@/components/Pager';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useTingkatAktif } from '@/tingkatAktif';
@@ -275,7 +276,7 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
   return (
      <section className="flex min-h-0 min-w-0 flex-col rounded-md">
        <div className="flex min-h-0 flex-1 flex-col pb-0">
-        <ExcelTable
+        <ExcelTabelV2
            tableKey="pindah_kelas"
            rail={rail}
            header={<span>{kolom.kelasId == null ? 'Santri Belum Masuk Kelas' : `Kelas ${kolom.kelas}`}</span>}
@@ -294,6 +295,8 @@ function TabelKelas({ tingkat, kolom, tetangga, bisaPindah, busyId, cari, onPind
           canEdit={false}
           onCommit={async () => {}}
           onSaved={() => {}}
+          // Preset kolom V2 sudah menentukan kolom yang tampil.
+          onApplyPreset={() => {}}
           renderActions={(r) => (
             <>
               {aksi && bisaPindah && tetangga.kiri?.kelasId != null && tetangga.kiri.kelasId !== kolom.kelasId && (
