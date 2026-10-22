@@ -1,11 +1,39 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { toast } from 'sonner';
 
 import SantriCustomTab from './tabSantriCustom';
 import type { GrupSantriCustom } from '@/api/grupCustom';
 import { TopBarSearchProvider, useTopBarSearchCtx } from '@/components/TopBarSearch';
 import { CariGlobalProvider } from '@/hooks/useCariGlobal';
 import { renderDenganTema } from '@/test/utils';
+
+const tinggi = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+const canvas = HTMLCanvasElement.prototype.getContext;
+beforeAll(() => {
+  // Hanya membuka jalur render V2 di jsdom, bukan memverifikasi layout.
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true, get() { return this.dataset?.slot === 'excel-table-grid' ? 320 : (tinggi?.get?.call(this) ?? 0); },
+  });
+  HTMLCanvasElement.prototype.getContext = (() => null) as typeof canvas;
+});
+afterAll(() => {
+  if (tinggi) Object.defineProperty(HTMLElement.prototype, 'clientHeight', tinggi);
+  HTMLCanvasElement.prototype.getContext = canvas;
+});
+
+vi.mock('sonner', async (asli) => ({
+  ...(await asli<typeof import('sonner')>()),
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
+}));
+vi.mock('@/api/preset', () => ({
+  listPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: {
+    presets: [], aktif_preset_id: null, default_preset_id: null, aktif_kolom: null,
+  } })),
+  createPresetTabel: vi.fn(), updatePresetTabel: vi.fn(), deletePresetTabel: vi.fn(),
+  setPresetAktif: vi.fn(), setPresetBawaan: vi.fn(),
+}));
 
 const api = vi.hoisted(() => ({
   daftar: vi.fn(),
@@ -103,6 +131,8 @@ const PROPS = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  api.tambah.mockReset().mockResolvedValue(GRUP);
+  api.keluarkan.mockReset().mockResolvedValue(GRUP);
   api.daftar.mockResolvedValue([GRUP]);
   api.santri.mockResolvedValue({ data: [CALON], current_page: 1, last_page: 1, per_page: 10, total: 1 });
   api.kelas.mockResolvedValue({ data: [{ id: 3, nama_kelas: '3A', tingkat: '3' }], current_page: 1, last_page: 1, per_page: 100, total: 1 });
@@ -128,6 +158,76 @@ function renderTab() {
 }
 
 describe('SantriCustomTab', () => {
+  function panelKandidat() {
+    // Header mengidentifikasi panel kandidat; kedua panel belum memiliki accessible name pada container.
+    return within(document.getElementById('judul_sc_santri')!.closest('[data-slot="excel-table"]') as HTMLElement);
+  }
+
+  it('aksi kandidat mempertahankan data saat gagal dan reload anggota setelah sukses lewat klik kanan', async () => {
+    const user = userEvent.setup();
+    renderTab();
+    await user.click(await screen.findByText('Ekskul MTK'));
+    await panelKandidat().findByText('Budi');
+    api.tambah.mockRejectedValueOnce(new Error('Gagal menambah anggota.'));
+    await user.click(panelKandidat().getByRole('button', { name: 'Masukkan Budi ke Ekskul MTK' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Gagal menambah anggota.'));
+    expect(panelKandidat().getByText('Budi')).toBeInTheDocument();
+
+    api.daftar.mockResolvedValue([{ ...GRUP, santri: [...GRUP.santri, {
+      id: 11, nama_lengkap: 'Budi', jk: 'L', nis: '88001', kelas: '3A', jenjang: 'MI',
+    }] }]);
+    fireEvent.contextMenu(panelKandidat().getByText('Budi'));
+    const menu = await screen.findByRole('menu');
+    await user.click(within(menu).getByRole('menuitem', { name: 'Masukkan Budi ke Ekskul MTK' }));
+    await waitFor(() => expect(api.tambah).toHaveBeenLastCalledWith(1, [11]));
+    await waitFor(() => expect(panelKandidat().queryByText('Budi')).not.toBeInTheDocument());
+    expect(await screen.findByText('Anggota Ekskul MTK (2)')).toBeInTheDocument();
+    expect(api.hapus).not.toHaveBeenCalled();
+  });
+
+  it('checkbox massal mengirim ID kandidat dan menahan aksi selama request berjalan', async () => {
+    const user = userEvent.setup();
+    api.santri.mockResolvedValue({ data: [CALON, { ...CALON, id: 12, nama_lengkap: 'Cici' }], current_page: 1, last_page: 1, total: 2 });
+    let selesai!: (value: GrupSantriCustom) => void;
+    api.tambah.mockImplementation(() => new Promise<GrupSantriCustom>((resolve) => { selesai = resolve; }));
+    renderTab();
+    await user.click(await screen.findByText('Ekskul MTK'));
+    await panelKandidat().findByText('Cici');
+    await user.click(panelKandidat().getByRole('checkbox', { name: 'Pilih semua baris' }));
+    await user.click(panelKandidat().getByRole('button', { name: 'Masukkan (2)' }));
+    expect(api.tambah).toHaveBeenCalledWith(1, [11, 12]);
+    await user.click(panelKandidat().getByRole('checkbox', { name: 'Pilih baris 11' }));
+    expect(panelKandidat().getByRole('button', { name: 'Masukkan (1)' })).toBeDisabled();
+    await act(async () => { selesai(GRUP); });
+    await waitFor(() => expect(panelKandidat().getByRole('button', { name: 'Masukkan (1)' })).toBeEnabled());
+  });
+
+  it('pergantian grup menyelaraskan kandidat dan tujuan aksi tanpa mengubah panel anggota', async () => {
+    const user = userEvent.setup();
+    api.daftar.mockResolvedValue([GRUP, { ...GRUP, id: 2, nama: 'Grup Kedua', santri: [] }]);
+    api.santri.mockResolvedValue({ data: [{ ...CALON, id: 10, nama_lengkap: 'Ahmad' }, CALON], current_page: 1, last_page: 1, total: 2 });
+    renderTab();
+    await user.click(await screen.findByText('Ekskul MTK'));
+    await panelKandidat().findByText('Budi');
+    expect(panelKandidat().queryByText('Ahmad')).not.toBeInTheDocument();
+    await user.click(screen.getByText('Grup Kedua'));
+    expect(await panelKandidat().findByText('Ahmad')).toBeInTheDocument();
+    await user.click(panelKandidat().getByRole('button', { name: 'Masukkan Budi ke Grup Kedua' }));
+    await waitFor(() => expect(api.tambah).toHaveBeenCalledWith(2, [11]));
+    expect(panelKandidat().queryByRole('button', { name: /Tambah baris/ })).not.toBeInTheDocument();
+  });
+
+  it('pagination dan per-page kandidat tetap diteruskan bersama lingkup filter', async () => {
+    const user = userEvent.setup();
+    api.santri.mockResolvedValue({ data: [CALON], current_page: 1, last_page: 2, total: 51 });
+    renderTab();
+    await waitFor(() => expect(api.santri).toHaveBeenCalled());
+    await user.click(panelKandidat().getByRole('button', { name: 'Halaman berikutnya' }));
+    await waitFor(() => expect(api.santri).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, jenjang: ['MI'], tahun_ajaran: ['2025/2026'], semester: ['1'] })));
+    await user.click(panelKandidat().getByRole('radio', { name: '10 data per halaman' }));
+    await waitFor(() => expect(api.santri).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, per_page: 10 })));
+  });
+
   it('filter topBar diteruskan ke API grup + santri; rail tingkat/kelas tampil', async () => {
     renderTab();
     await waitFor(() => expect(document.getElementById('judul_grup_custom')).not.toBeNull());

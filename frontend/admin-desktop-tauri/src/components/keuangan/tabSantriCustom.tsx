@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import Pager from '@/components/Pager';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import LabeledInput from '@/components/LabeledInput';
@@ -447,8 +448,9 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
         />
         <div className="flex min-h-0 flex-1 flex-col gap-2">
         <div className="flex min-h-0 flex-1 flex-col">
-          <ExcelTable<Santri>
+          <ExcelTabelV2<Santri>
             tableKey="grup_custom_kandidat"
+            onApplyPreset={() => {}}
             rail
             header={(
               <span id="judul_sc_santri" tabIndex={-1} className="text-sm font-semibold focus:outline-none">
@@ -463,10 +465,7 @@ export default function SantriCustomTab({ canEdit, canTambah, jenjangs, tahunAja
               ? 'Pilih grup dulu (ikon orang), lalu masukkan santri dari daftar ini.'
               : 'Tidak ada santri (yang belum jadi anggota).'}
             canEdit={false}
-            onCommit={async () => {}}
-            onSaved={() => {}}
-            aksiLangsung
-            renderActions={grupAktif === null ? () => null : (r) => (
+            renderActions={grupAktif === null ? undefined : (r) => (
               <ActionIcon id={`btn_grup_custom_tambah_${r.id}`} title={`Masukkan ${r.nama_lengkap} ke ${grupAktif.nama}`} onClick={() => tambahAnggota([r.id])}>
                 <ArrowRight size={16} />
               </ActionIcon>
