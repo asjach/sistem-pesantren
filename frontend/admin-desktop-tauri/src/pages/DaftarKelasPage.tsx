@@ -6,6 +6,7 @@ import { daftarKelas, type DaftarKelasHasil, type RiwayatRow } from '../api/sikl
 import type { SantriPenuh } from '../api/santri';
 import { listKelas, type Kelas } from '../api/master';
 import ExcelTable from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -144,6 +145,9 @@ export default function DaftarKelasPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'daftar_kelas', judul: 'Daftar kelas', fields }]} />
+      {import.meta.env.DEV ? (
+        <ExcelTabelV2 judul="Daftar kelas" />
+      ) : (
       <ExcelTable<RiwayatRow>
         tableKey="daftar_kelas"
         rail
@@ -198,6 +202,7 @@ export default function DaftarKelasPage() {
           />
         )}
       />
+      )}
 
       <EditSantriDialog
         santri={editRow}
