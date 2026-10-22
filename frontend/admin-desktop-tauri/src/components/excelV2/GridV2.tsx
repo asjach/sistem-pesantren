@@ -149,6 +149,8 @@ export interface GridV2Props {
   renderActions?: (id: string | number) => ReactNode;
   /** Tabel ringkas baca-saja: sembunyikan kolom centang. */
   hideCheckbox?: boolean;
+  /** Sembunyikan baris header kolom (sakelar visibilitas header_kolom). */
+  hideHeader?: boolean;
   /** Label header kustom per tabel (key kolom -> teks); absen = label field. */
   labelDb?: Record<string, string>;
   /** Perataan per tabel (key kolom -> left/center/right); absen = tengah. */
@@ -177,6 +179,7 @@ export default function GridV2({
   emptyText = 'Belum ada data.',
   renderActions,
   hideCheckbox = false,
+  hideHeader = false,
   labelDb = LABEL_KOSONG,
   alignDb = ALIGN_KOSONG,
   dipilih,
@@ -347,7 +350,7 @@ export default function GridV2({
             rowKey="id"
             height={tinggi}
             rowHeight={rowH ?? TINGGI_BARIS_BAWAAN}
-            headerRowHeight={headerH ?? DEFAULT_HEADER_H}
+            headerRowHeight={hideHeader ? 0 : (headerH ?? DEFAULT_HEADER_H)}
             lockRows
             addRowsComponent={false}
             disableContextMenu

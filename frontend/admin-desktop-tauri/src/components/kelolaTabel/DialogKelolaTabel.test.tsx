@@ -130,7 +130,7 @@ const fields = [
   { key: 'kode', label: 'Kode', kind: 'static' as const },
 ];
 
-function renderDialog(infoKomponen: InfoKomponenTabel = KOMPONEN_INFO_BEKAL) {
+function renderDialog(infoKomponen: InfoKomponenTabel = KOMPONEN_INFO_BEKAL, ringkas = false) {
   return renderDenganTema(
     <DialogKelolaTabel
       open
@@ -139,6 +139,7 @@ function renderDialog(infoKomponen: InfoKomponenTabel = KOMPONEN_INFO_BEKAL) {
       judul="Santri"
       fields={fields}
       infoKomponen={infoKomponen}
+      ringkas={ringkas}
     />,
   );
 }
@@ -175,6 +176,19 @@ beforeEach(() => {
 });
 
 describe('DialogKelolaTabel — tab Umum', () => {
+  it('mode ringkas menyembunyikan sakelar visibilitas, tetapi input judul dan sakelar perangkat tetap', async () => {
+    renderDialog(LENGKAP, true);
+
+    await waitFor(() => expect(document.getElementById('input_judul_tabel_uji')).toBeInTheDocument());
+
+    expect(screen.queryByText('Visibilitas komponen tabel')).toBeNull();
+    expect(document.getElementById('chk_komponen_uji_judul_tabel')).toBeNull();
+    expect(document.getElementById('sakelar_ikut_isi_uji')).toBeInTheDocument();
+    expect(document.getElementById('sakelar_isi_lebar_uji')).toBeInTheDocument();
+    expect(document.getElementById('input_beku_uji')).toBeInTheDocument();
+    expect(document.getElementById('tinggi_baris_uji')).toBeInTheDocument();
+  });
+
   it('menampilkan identitas tabel: kunci, jumlah kolom, preset aktif & bawaan', async () => {
     renderDialog();
     await waitFor(() => expect(document.getElementById('nilai_umum_kunci_uji')).toBeInTheDocument());

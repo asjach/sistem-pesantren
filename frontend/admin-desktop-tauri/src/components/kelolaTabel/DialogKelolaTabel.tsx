@@ -337,6 +337,8 @@ export default function DialogKelolaTabel({
   fields,
   infoKomponen = KOMPONEN_INFO_BEKAL,
   nonModal = false,
+  /** V2: bagian yang sudah pindah ke dropdown toolbar disembunyikan. */
+  ringkas = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -353,6 +355,10 @@ export default function DialogKelolaTabel({
    *  bukan dialog modal. Dipakai jalur tabel; dari topBar tetap modal karena
    *  tak jelas tabel mana yang "di belakang". */
   nonModal?: boolean;
+  /** Sembunyikan bagian yang sudah dipindah ke dropdown toolbar V2: daftar
+   *  sakelar visibilitas dan dua sakelar tampilan perangkat. Judul tabel,
+   *  label/perataan, urutan, info, kolom beku, tinggi baris, dan reset tetap. */
+  ringkas?: boolean;
 }) {
   /** Status kotor per bagian (dipakai badge di tab + penanda simpan). */
   const [kotorBagian, setKotorBagian] = useState<Record<string, boolean>>({});
@@ -517,7 +523,7 @@ export default function DialogKelolaTabel({
                   <TabVisibilitasKomponen
                     tableKey={tableKey}
                     info={infoKomponen}
-
+                    sakelarTampil={!ringkas}
                     judulBawaan={typeof judul === 'string' ? judul : ''}
                   />
                   <TabUmum tableKey={tableKey} judul={judul} fields={fields} />

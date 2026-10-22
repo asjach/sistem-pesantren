@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronRight } from '@/icons';
+import { Check, ChevronRight } from '@/icons';
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
 
 function DropdownMenu(props: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
@@ -60,6 +60,37 @@ function DropdownMenuItem({
       )}
       {...props}
     />
+  );
+}
+
+/** Item menu dengan status tercentang. Indikator memakai kotak kecil agar
+ *  konsisten dengan Checkbox tabel; klik item men-toggle nilainya dan menu
+ *  TETAP TERBUKA (pemanggil mencegah onSelect) bila dipakai untuk beberapa
+ *  sakelar sekaligus. */
+function DropdownMenuCheckboxItem({
+  className,
+  children,
+  checked,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+  return (
+    <DropdownMenuPrimitive.CheckboxItem
+      data-slot="dropdown-menu-checkbox-item"
+      className={cn(
+        'relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-xs outline-none transition-colors',
+        'focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        className,
+      )}
+      checked={checked}
+      {...props}
+    >
+      <span className="flex size-3.5 shrink-0 items-center justify-center rounded-[2px] border border-input">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <Check size={12} />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+    </DropdownMenuPrimitive.CheckboxItem>
   );
 }
 
@@ -125,6 +156,7 @@ export {
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubTrigger,

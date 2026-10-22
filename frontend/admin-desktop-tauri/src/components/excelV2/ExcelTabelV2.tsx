@@ -2,8 +2,15 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import BilahToolbarV2 from './BilahToolbarV2';
 import GridV2 from './GridV2';
 import TableFooterV2 from './TableFooterV2';
+import MenuPengaturanV2 from './MenuPengaturanV2';
 import { susunKolom } from './kolom';
 import { useToolbarPresetState } from '@/components/excel/useToolbarPreset';
+import { komponenAktif, type InfoKomponenTabel } from '@/components/excel/komponenTabel';
+import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
+import { useLembagaAktif } from '@/lembagaAktif';
+import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
+import { Button } from '@/components/ui/button';
+import { Settings } from '@/icons';
 import type { ExcelField, GridRow } from '@/components/excel/types';
 
 export interface ExcelTabelV2Props<T extends { id: string | number }> {
@@ -47,9 +54,10 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
 /**
  * ExcelTabelV2 — tabel gaya baru.
  *
- *  Tiga zona: toolbar, badan (grid), footer. Komponen ini berdiri sendiri dan
- *  tidak memakai ExcelTable lama; integrasi ke halaman lain menyusul setelah
- *  tampilannya disetujui. Tahap ini baca-saja.
+ *  Tiga zona: toolbar, badan (grid), footer. Setelan tabel (judul, label,
+ *  perataan, visibilitas komponen, tampilan perangkat) dibaca dari setelan
+ *  yang sama dengan ExcelTable V1; pengaturan cepatnya ada di dropdown
+ *  "Menu lainnya", sedangkan penyuntingan teks/angka tetap di Kelola Tabel.
  */
 export default function ExcelTabelV2<T extends { id: string | number }>({
   judul,
@@ -77,10 +85,16 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   const [dipilih, setDipilih] = useState<Set<string | number>>(() => new Set());
   /** Susunan kolom dari preset. null = semua kolom, urutan asli halaman. */
   const [kolomPreset, setKolomPreset] = useState<string[] | null>(null);
+  const [kelolaOpen, setKelolaOpen] = useState(false);
 
-  /** Setelan tabel milik pengguna: judul, label kolom, dan perataan. */
-  const { judulDb, labelDb, alignDb } = useToolbarPresetState(tableKey);
+  /** Setelan tabel milik pengguna: judul, label, perataan, visibilitas. */
+  const { judulDb, labelDb, alignDb, visibilitas, infoHtmlDb } = useToolbarPresetState(tableKey);
   const judulTampil = judulDb?.trim() || judul;
+
+  const { efektifSuper } = useLembagaAktif();
+  const visHalaman = useVisibilitasFilter();
+  const tabelTerdaftar = visHalaman?.registrasi != null;
+  const bolehKelola = tabelTerdaftar && efektifSuper;
 
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -128,6 +142,62 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
 
   const fieldsTampil = useMemo(() => susunKolom(fields, kolomPreset), [fields, kolomPreset]);
 
+  /** Komponen yang BENAR-BENAR ada di V2 (bukan yang sedang tampil) — dipakai
+   *  dialog dan menu agar tak menawarkan sakelar mati. */
+  const infoKomponen = useMemo<InfoKomponenTabel>(() => ({
+    adaBilahJudul: true,
+    infoTengah: false,
+    filter: filter != null,
+    cari: false,
+    keaktifan: false,
+    urut: onUrut != null,
+    kolom: !hidePreset,
+    tombolAksi: aksi != null,
+    relFilter: false,
+    pager: pager != null,
+    tombolTambah: false,
+    tombolEdit: false,
+    kolomCentang: !hideCheckbox,
+    kolomAksi: !hideActions,
+  }), [filter, onUrut, hidePreset, aksi, pager, hideCheckbox, hideActions]);
+
+  const judulAktif = komponenAktif(visibilitas, 'judul_tabel');
+  const aksiAktif = aksi != null && komponenAktif(visibilitas, 'tombol_aksi');
+  const filterAktif = filter != null && komponenAktif(visibilitas, 'filter');
+  const urutTampil = onUrut != null && komponenAktif(visibilitas, 'urutan');
+  const kolomTampil = !hidePreset && komponenAktif(visibilitas, 'kolom');
+  const headerAktif = komponenAktif(visibilitas, 'header_kolom');
+  const centangAktif = !hideCheckbox && komponenAktif(visibilitas, 'kolom_centang');
+  const aksiKolomAktif = !hideActions && komponenAktif(visibilitas, 'kolom_aksi');
+  const pagerAktif = pager != null && komponenAktif(visibilitas, 'pager');
+  const pengaturanAktif = komponenAktif(visibilitas, 'tombol_pengaturan');
+
+  const pengaturan = pengaturanAktif ? (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      id={`btn_pengaturan_tabel_${tableKey}`}
+      aria-label="Pengaturan tabel"
+      title={tabelTerdaftar ? 'Pengaturan tabel (kolom, urutan, info)' : 'Halaman ini belum mendaftarkan tabelnya'}
+      disabled={!tabelTerdaftar}
+      onClick={() => setKelolaOpen(true)}
+      className="!h-full !w-6"
+    >
+      <Settings size={14} />
+    </Button>
+  ) : undefined;
+
+  const menu = (
+    <MenuPengaturanV2
+      tableKey={tableKey}
+      info={infoKomponen}
+      tabelTerdaftar={tabelTerdaftar}
+      bolehKelola={bolehKelola}
+      onKelolaTabel={() => setKelolaOpen(true)}
+    />
+  );
+
   return (
     <div
       data-slot="excel-table"
@@ -138,9 +208,15 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
         judul={judulTampil}
         tableKey={tableKey}
         fields={fields}
-        aksi={aksi}
-        filter={filter}
+        aksi={aksiAktif ? aksi : undefined}
+        filter={filterAktif ? filter : undefined}
         hidePreset={hidePreset}
+        tampilJudul={judulAktif}
+        tampilUrut={urutTampil}
+        tampilKolom={kolomTampil}
+        infoHtml={infoHtmlDb}
+        pengaturan={pengaturan}
+        menu={menu}
         urutAktif={urutAktif}
         arahUrut={arahUrut}
         onUrut={onUrut}
@@ -153,11 +229,12 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
         rows={nilai}
         loading={loading}
         emptyText={emptyText}
-        renderActions={hideActions ? undefined : renderActions ? (id) => {
+        renderActions={aksiKolomAktif && renderActions ? (id) => {
           const sumber = rows.find((r) => r.id === id);
           return sumber ? renderActions(sumber) : null;
         } : undefined}
-        hideCheckbox={hideCheckbox}
+        hideCheckbox={!centangAktif}
+        hideHeader={!headerAktif}
         labelDb={labelDb}
         alignDb={alignDb}
         dipilih={dipilih}
@@ -167,7 +244,20 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
         onBarisAktif={onBarisKlik ? tanganiBarisAktif : undefined}
       />
 
-      <TableFooterV2 jumlah={rows.length} dipilih={dipilih.size} pager={pager} />
+      <TableFooterV2 jumlah={rows.length} dipilih={dipilih.size} pager={pagerAktif ? pager : undefined} />
+
+      {tabelTerdaftar && (
+        <DialogKelolaTabel
+          open={kelolaOpen}
+          onOpenChange={setKelolaOpen}
+          tableKey={tableKey}
+          judul={judulTampil}
+          fields={fields}
+          infoKomponen={infoKomponen}
+          nonModal
+          ringkas
+        />
+      )}
     </div>
   );
 }

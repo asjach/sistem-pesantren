@@ -5,12 +5,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ExcelTabelV2 from './ExcelTabelV2';
 import type { ExcelField } from '@/components/excel/types';
 
-const { presetState } = vi.hoisted(() => ({
+const { presetState, halamanState } = vi.hoisted(() => ({
   presetState: {
     judulDb: null as string | null,
     labelDb: {} as Record<string, string>,
     alignDb: {} as Record<string, 'left' | 'center' | 'right'>,
+    visibilitas: {} as Record<string, boolean>,
+    infoHtmlDb: null as string | null,
   },
+  halamanState: { superAdmin: true, terdaftar: true },
+}));
+
+vi.mock('@/lembagaAktif', () => ({
+  useLembagaAktif: () => ({ efektifSuper: halamanState.superAdmin }),
+}));
+
+vi.mock('@/components/VisibilitasFilter', () => ({
+  useVisibilitasFilter: () => halamanState.terdaftar
+    ? { registrasi: { pageKey: 'daftar_kelas', tabel: [], filterRelevan: [], bawaan: {}, modeBawaan: {} } }
+    : null,
+}));
+
+vi.mock('@/components/kelolaTabel/DialogKelolaTabel', () => ({
+  default: ({ open, ringkas }: { open: boolean; ringkas?: boolean }) => (
+    open ? <div data-testid="dialog-kelola" data-ringkas={String(!!ringkas)} /> : null
+  ),
 }));
 
 vi.mock('@/components/excel/useToolbarPreset', () => ({
@@ -41,6 +60,7 @@ vi.mock('./GridV2', () => ({
     dipilih,
     onTogglePilih,
     hideCheckbox,
+    hideHeader,
     labelDb,
     alignDb,
     renderActions,
@@ -52,6 +72,7 @@ vi.mock('./GridV2', () => ({
     dipilih: ReadonlySet<string | number>;
     onTogglePilih: (id: string | number) => void;
     hideCheckbox?: boolean;
+    hideHeader?: boolean;
     labelDb?: Record<string, string>;
     alignDb?: Record<string, string>;
     renderActions?: (id: string | number) => unknown;
@@ -63,6 +84,7 @@ vi.mock('./GridV2', () => ({
       <span data-testid="dipilih-grid">{[...dipilih].join(',')}</span>
       <span data-testid="kolom-grid">{fields.map((f) => f.key).join(',')}</span>
       <span data-testid="hide-checkbox">{String(!!hideCheckbox)}</span>
+      <span data-testid="hide-header">{String(!!hideHeader)}</span>
       <span data-testid="ada-aksi">{String(!!renderActions)}</span>
       <span data-testid="baris-aktif">{String(barisAktifId ?? '')}</span>
       <span data-testid="label-db">{JSON.stringify(labelDb ?? {})}</span>
@@ -101,6 +123,10 @@ beforeEach(() => {
   presetState.judulDb = null;
   presetState.labelDb = {};
   presetState.alignDb = {};
+  presetState.visibilitas = {};
+  presetState.infoHtmlDb = null;
+  halamanState.superAdmin = true;
+  halamanState.terdaftar = true;
 });
 
 describe('ExcelTabelV2', () => {
@@ -139,7 +165,7 @@ describe('ExcelTabelV2', () => {
 
   it('membuka area filter selebar toolbar saat tombol diklik', async () => {
     const user = userEvent.setup();
-    const { container } = tampilkan({ filter: <span data-testid="filter-halaman" /> });
+    const { container } = tampilkan({ filter: <span data-testid="filter-halaman" />, onUrut: () => {} });
     const tombol = screen.getByRole('button', { name: 'Area filter' });
 
     expect(container.querySelector('[data-slot="excel-table-filter-area"]')).toBeNull();
@@ -216,7 +242,7 @@ describe('ExcelTabelV2', () => {
 
   it('menyembunyikan pemilih preset kolom saat hidePreset', async () => {
     const user = userEvent.setup();
-    tampilkan({ hidePreset: true });
+    tampilkan({ hidePreset: true, onUrut: () => {} });
 
     await user.click(screen.getByRole('button', { name: 'Area filter' }));
     expect(screen.queryByTestId('preset-kolom')).toBeNull();
@@ -261,5 +287,51 @@ describe('ExcelTabelV2', () => {
 
     expect(screen.getByTestId('label-db').textContent).toBe('{"nama":"Nama Santri"}');
     expect(screen.getByTestId('align-db').textContent).toBe('{"nama":"right"}');
+  });
+
+  it('menghormati visibilitas judul, centang, header, dan pager', () => {
+    presetState.visibilitas = {
+      judul_tabel: false,
+      kolom_centang: false,
+      header_kolom: false,
+      pager: false,
+    };
+    tampilkan({ pager: <span data-testid="pager" /> });
+
+    expect(screen.queryByText('Daftar kelas')).toBeNull();
+    expect(screen.getByTestId('hide-checkbox')).toHaveTextContent('true');
+    expect(screen.getByTestId('hide-header')).toHaveTextContent('true');
+    expect(screen.queryByTestId('pager')).toBeNull();
+  });
+
+  it('menampilkan pager secara bawaan', () => {
+    tampilkan({ pager: <span data-testid="pager" /> });
+    expect(screen.getByTestId('pager')).toBeInTheDocument();
+  });
+
+  it('membuka Kelola Tabel ringkas dari gerigi', async () => {
+    const user = userEvent.setup();
+    tampilkan();
+
+    await user.click(screen.getByRole('button', { name: 'Pengaturan tabel' }));
+
+    expect(screen.getByTestId('dialog-kelola')).toHaveAttribute('data-ringkas', 'true');
+  });
+
+  it('menyembunyikan gerigi saat sakelar tombol_pengaturan mati', () => {
+    presetState.visibilitas = { tombol_pengaturan: false };
+    tampilkan();
+
+    expect(screen.queryByRole('button', { name: 'Pengaturan tabel' })).toBeNull();
+  });
+
+  it('menampilkan info tabel di popover', async () => {
+    presetState.infoHtmlDb = '<p>Info penting</p>';
+    const user = userEvent.setup();
+    tampilkan();
+
+    await user.click(screen.getByRole('button', { name: 'Info tabel' }));
+
+    expect(await screen.findByText('Info penting')).toBeInTheDocument();
   });
 });

@@ -987,7 +987,6 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ### DA11.1 Tabel & Grid `Backlog`
 **Backlog**
-- Setelan tabel berlaku pada ExcelTabelV2: visibilitas komponen, filter toolbar, gerigi Pengaturan tabel, dan menu toolbar.
 - Aksi halaman di toolbar V2: aksi massal baris tercentang, tombol aksi utama, dan slot kontrol halaman.
 - Rel filter tingkat/kelas tampil di kiri grid V2.
 - Lebar kolom V2 bisa diubah lewat handle, AutoFit, dan tersimpan per perangkat.
@@ -1044,6 +1043,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Perataan kolom dari setelan berlaku pada cell dan header; kolom tanpa setelan default tengah seperti V1.
   - [x] Perubahan setelan dari Kelola Tabel/TopBar langsung terlihat tanpa reload lewat event yang sudah ada.
   - [x] npm run typecheck dan tes tersempit hijau; docs/PETA-MODUL.md diperbarui.
+- Setelan tabel berlaku pada ExcelTabelV2: visibilitas komponen, filter toolbar, gerigi Pengaturan tabel, dan menu toolbar.
+  - [x] Dropdown Menu lainnya berisi sakelar visibilitas komponen yang tersedia di V2 (Judul tabel, Filter, Urutan, Kolom, Tombol aksi, Header kolom, Kolom centang, Kolom Aksi, Pager, Tombol pengaturan) plus pintasan Kelola Tabel dan Pengaturan tampilan; menu tetap terbuka saat mencentang.
+  - [x] Sakelar tampilan perangkat (Tabel mengisi lebar, Baris ikut isi) tetap di Kelola Tabel: V2 belum menerapkan keduanya, jadi tidak dipindah agar tidak menjadi tombol mati.
+  - [x] Perubahan visibilitas langsung berlaku tanpa reload lewat merge peta server dan kabariToolbar; V1 tidak terpengaruh.
+  - [x] Kelola Tabel dari V2 (mode ringkas) menyembunyikan sakelar visibilitas; input judul, label/perataan, urutan, info, kolom beku, tinggi baris, dan reset tetap tersedia.
+  - [x] Gerigi Pengaturan tabel, ikon Info, dan item menu pintasan berfungsi sesuai izin; tidak ada tombol mati.
+  - [x] npm run typecheck dan tes tersempit hijau (70 tes); anotasi Menu lainnya dihapus setelah selesai.
 **Done**
 - Grid tabel bergaya Excel
   - [x] Seleksi blok dan salin/tempel TSV

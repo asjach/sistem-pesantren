@@ -42,11 +42,15 @@ import { toast } from 'sonner';
 export default function TabVisibilitasKomponen({
   tableKey,
   info,
+  sakelarTampil = true,
   judulBawaan = '',
 }: {
   tableKey: string;
   /** Komponen mana yang benar-benar ada di tabel ini. */
   info: InfoKomponenTabel;
+  /** V2: sakelar visibilitas sudah pindah ke dropdown toolbar; sisakan
+   *  input judul saja. Bawaan true = perilaku V1/topBar tidak berubah. */
+  sakelarTampil?: boolean;
   /** Judul bawaan tabel (teks) — dipakai sebagai placeholder input judul. */
   judulBawaan?: string;
 }) {
@@ -162,6 +166,7 @@ export default function TabVisibilitasKomponen({
 
   return (
     <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
+      {sakelarTampil && (
       <div className="flex items-center gap-2">
         <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           Visibilitas komponen tabel
@@ -178,6 +183,7 @@ export default function TabVisibilitasKomponen({
           Kembalikan ke bawaan
         </Button>
       </div>
+      )}
 
       <div className="flex items-center gap-2 rounded-md border px-2 py-1">
         <label htmlFor={`input_judul_tabel_${tableKey}`} className="shrink-0 text-xs">
@@ -194,7 +200,7 @@ export default function TabVisibilitasKomponen({
           className="h-6 min-w-0 flex-1 text-xs"
         />
       </div>
-      {grup.length === 0 ? (
+      {sakelarTampil && (grup.length === 0 ? (
         <p className="px-1 text-xs text-muted-foreground">
           Tabel ini tidak punya komponen yang bisa diatur.
         </p>
@@ -229,7 +235,7 @@ export default function TabVisibilitasKomponen({
             </fieldset>
           ))}
         </div>
-      )}
+      ))}
     </div>
   );
 }
