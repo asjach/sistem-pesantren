@@ -3,7 +3,8 @@ import { errorMessage } from '../api/client';
 import { daftarSemester, tetapkanSemester, type SemesterLembaga } from '../api/semesterAktif';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import { Button } from '@/components/ui/button';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
@@ -70,7 +71,7 @@ export default function SemesterPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari lembaga…" />
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'semester_aktif', judul: 'Semester aktif', fields: FIELDS_SEMESTER }]} />
-      <ExcelTable<SemesterLembaga & { id: string }>
+      <ExcelTabelV2<SemesterLembaga & { id: string }>
         tableKey="semester_aktif"
         fields={FIELDS_SEMESTER}
         rows={rowsTampil.map((r) => ({ ...r, id: r.jenjang }))}
@@ -87,6 +88,8 @@ export default function SemesterPage() {
         canEdit={false}
         onCommit={async () => {}}
         onSaved={() => {}}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         renderActions={(r) => (
           <>
             <Button
