@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import ExcelTable from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
 import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { useLembagaAktif } from '@/lembagaAktif';
@@ -534,7 +534,7 @@ export default function KegiatanPsbPage() {
       {kegiatanId ? (
         <>
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Gelombang</h2>
-          <ExcelTable
+          <ExcelTabelV2
             tableKey="kegiatan_psb_gelombang"
             maxRows={3}
             fields={KEGIATAN_FIELDS}
@@ -548,6 +548,8 @@ export default function KegiatanPsbPage() {
             canEdit={isAdminPesantren}
             onCommit={commitGelombang}
             onSaved={reloadGelombang}
+            // Preset kolom V2 sudah menentukan kolom yang tampil.
+            onApplyPreset={() => {}}
             addButton={isAdminPesantren ? (
               <Button
                 id="btn_tambah_gelombang_psb"
@@ -597,7 +599,7 @@ export default function KegiatanPsbPage() {
               </span>
             )}
           </div>
-          <ExcelTable
+          <ExcelTabelV2
             tableKey="kegiatan_psb_kuota"
             maxRows={6}
             fields={KUOTA_FIELDS}
@@ -611,6 +613,8 @@ export default function KegiatanPsbPage() {
             canEdit={bisa(me, 'kegiatan_psb.tambah')}
             onCommit={commitKuota}
             onSaved={reloadKuota}
+            // Preset kolom V2 sudah menentukan kolom yang tampil.
+            onApplyPreset={() => {}}
             addButton={bisa(me, 'kegiatan_psb.tambah') ? (
               <Button
                 id="btn_tambah_kuota_psb"
