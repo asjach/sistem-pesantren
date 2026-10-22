@@ -4,7 +4,8 @@ import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import Pager from '@/components/Pager';
-import ExcelTable, { type ExcelField, type GridRow } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField, GridRow } from '@/components/excel/types';
 import { freezeKey } from '@/components/excel/helpers';
 import { usePager } from '@/hooks/usePager';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
@@ -408,7 +409,7 @@ export default function PenilaianLegerPage() {
       <div className="flex min-h-0 flex-1 flex-col">
         {loading && data === null && <p className="p-3 text-xs text-muted-foreground">Memuat…</p>}
         {bekuSiap && data !== null && (
-          <ExcelTable<BarisLegerGrid>
+          <ExcelTabelV2<BarisLegerGrid>
             tableKey="penilaian_leger"
             header={kegiatanEvaluatifAktif === null ? 'Leger Nilai' : `Leger Nilai · ${kegiatanEvaluatifAktif.kode} — ${kegiatanEvaluatifAktif.nama}`}
             tengah={data === null ? undefined : `${data.total} santri · ${data.kolom.length} mapel`}
@@ -422,6 +423,8 @@ export default function PenilaianLegerPage() {
             onValidasiGagal={laporNilaiLewat}
             onCommit={simpanSel}
             onSaved={selesaiSimpan}
+            // Preset kolom V2 sudah menentukan kolom yang tampil.
+            onApplyPreset={() => {}}
             renderActions={() => null}
             hideCheckbox
             hideActions

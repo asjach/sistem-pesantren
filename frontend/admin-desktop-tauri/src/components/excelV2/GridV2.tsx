@@ -360,6 +360,10 @@ export interface GridV2Props {
   onCommit?: (id: string | number, fields: Record<string, string | null>) => Promise<void>;
   /** Muat ulang data setelah antrean simpan habis (satu kali, bukan per sel). */
   onSaved?: () => Promise<void> | void;
+  /** Tahan antrean sampai Mode Ubah ditutup (mis. Leger Nilai). */
+  simpanSaatKeluarMode?: boolean;
+  /** Sel yang gagal validasi dilewati; sel lain tetap disimpan. */
+  onValidasiGagal?: (info: { id: string | number; key: string; pesan: string }) => void;
   /** Buka dialog Kelola Tabel dari menu klik kanan header. Absen = item
    *  disembunyikan (mis. halaman belum mendaftarkan tabelnya). */
   onKelolaTabel?: () => void;
@@ -409,6 +413,8 @@ export default function GridV2({
   canEdit = false,
   onCommit,
   onSaved,
+  simpanSaatKeluarMode = false,
+  onValidasiGagal,
   onKelolaTabel,
   onUbahAlign,
   bolehGeser = false,
@@ -624,6 +630,8 @@ export default function GridV2({
   onCommitRef.current = onCommit ?? (async () => {});
   const onSavedRef = useRef<() => Promise<void> | void>(() => {});
   onSavedRef.current = onSaved ?? (() => {});
+  const onInvalidRef = useRef(onValidasiGagal);
+  onInvalidRef.current = onValidasiGagal;
 
   /** Antrean simpan V1 dipakai apa adanya: gabung ketikan beruntun, urut,
    *  validasi per field, satu muat ulang + satu toast setelah antrean habis. */
@@ -633,6 +641,8 @@ export default function GridV2({
     onCommitRef,
     onSavedRef,
     dropDraftRef,
+    autoDrain: !simpanSaatKeluarMode,
+    onInvalidRef,
   });
 
   /** Simpan nilai satu sel: tulis draft lalu antrekan ke server. */
@@ -1464,7 +1474,7 @@ export default function GridV2({
                 onCheckedChange: ubahGeserHeader,
               }] : []),
             ]}
-            onKeluar={() => setModeUbah(false)}
+            onKeluar={() => { setModeUbah(false); if (simpanSaatKeluarMode) void flush(); }}
           />
         </div>
       )}

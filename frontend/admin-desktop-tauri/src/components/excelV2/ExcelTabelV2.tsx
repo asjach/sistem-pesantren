@@ -110,6 +110,10 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   onCommit?: (id: T['id'], fields: Record<string, string | null>) => Promise<void>;
   /** Muat ulang data setelah antrean simpan habis (satu kali, bukan per sel). */
   onSaved?: () => Promise<void> | void;
+  /** Tahan antrean simpan sampai Mode Ubah ditutup. */
+  simpanSaatKeluarMode?: boolean;
+  /** Sel yang gagal validasi dilewati; sel lain tetap disimpan. */
+  onValidasiGagal?: (info: { id: T['id']; key: string; pesan: string }) => void;
   /** Tampilkan rel filter Tingkat/Kelas di kiri grid (di bawah bilah judul,
    *  sejajar judul kolom). Pakai hanya pada tabel utama halaman — satu rel
    *  per halaman; halaman tanpa filter tingkat/kelas tidak menampilkannya. */
@@ -164,6 +168,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   canEdit = false,
   onCommit,
   onSaved,
+  simpanSaatKeluarMode = false,
+  onValidasiGagal,
   rail = false,
 }: ExcelTabelV2Props<T>) {
   const [dipilih, setDipilih] = useState<Set<string | number>>(() => new Set());
@@ -486,6 +492,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
           inputRow={input.state}
           onCommit={onCommit}
           onSaved={onSaved}
+          simpanSaatKeluarMode={simpanSaatKeluarMode}
+          onValidasiGagal={onValidasiGagal}
           onKelolaTabel={tabelTerdaftar ? () => setKelolaOpen(true) : undefined}
           onUbahAlign={bolehKelola ? simpanAlign : undefined}
           bolehGeser={bolehKelola}
