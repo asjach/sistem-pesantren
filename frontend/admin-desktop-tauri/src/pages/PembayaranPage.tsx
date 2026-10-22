@@ -10,8 +10,8 @@ import { listSantri, type Santri } from '../api/santri';
 import { listKelas, type Kelas } from '../api/master';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import { hariIniIso, tanggalKeTampilan } from '@/lib/tanggal';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -501,7 +501,7 @@ export default function PembayaranPage() {
             </CardContent>
           </Card>
 
-          <ExcelTable<TransaksiHarianRow>
+          <ExcelTabelV2<TransaksiHarianRow>
             tableKey="pembayaran_harian"
             fields={FIELDS_HARIAN}
             rows={harianTampil}
@@ -522,6 +522,8 @@ export default function PembayaranPage() {
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}
+            // Preset kolom V2 sudah menentukan kolom yang tampil.
+            onApplyPreset={() => {}}
             renderActions={(r) => (
               <Button
                 type="button"
@@ -772,7 +774,7 @@ export default function PembayaranPage() {
                   />
                 </CardContent>
               </Card>
-              <ExcelTable<TagihanRow>
+              <ExcelTabelV2<TagihanRow>
                 tableKey="pembayaran_checkout"
                 fields={FIELDS_CHECKOUT}
                 rows={checkout}
@@ -781,6 +783,8 @@ export default function PembayaranPage() {
                 canEdit={false}
                 onCommit={async () => {}}
                 onSaved={() => {}}
+                // Preset kolom V2 sudah menentukan kolom yang tampil.
+                onApplyPreset={() => {}}
                 renderActions={(r) => (
                   <div className="flex items-center gap-1">
                     <Input
@@ -856,7 +860,7 @@ export default function PembayaranPage() {
 
             <ResizablePanel id="panel_bayar_kanan" defaultSize="55%" minSize="25%" className="flex min-h-0 flex-col">
               <div className="flex h-full min-h-0 flex-col gap-2 pl-1">
-              <ExcelTable<TagihanRow>
+              <ExcelTabelV2<TagihanRow>
                 tableKey="pembayaran_bulanan"
                 fields={FIELDS_BIAYA}
                 rows={bulanan}
@@ -868,6 +872,8 @@ export default function PembayaranPage() {
                 canEdit={false}
                 onCommit={async () => {}}
                 onSaved={() => {}}
+                // Preset kolom V2 sudah menentukan kolom yang tampil.
+                onApplyPreset={() => {}}
                 renderActions={tombolTambah}
                 hideCheckbox
                 tengah={
@@ -881,7 +887,7 @@ export default function PembayaranPage() {
                   </span>
                 }
               />
-              <ExcelTable<TagihanRow>
+              <ExcelTabelV2<TagihanRow>
                 tableKey="pembayaran_non_bulanan"
                 fields={FIELDS_BIAYA}
                 rows={nonBulanan}
@@ -893,6 +899,8 @@ export default function PembayaranPage() {
                 canEdit={false}
                 onCommit={async () => {}}
                 onSaved={() => {}}
+                // Preset kolom V2 sudah menentukan kolom yang tampil.
+                onApplyPreset={() => {}}
                 renderActions={tombolTambah}
                 hideCheckbox
                 tengah={

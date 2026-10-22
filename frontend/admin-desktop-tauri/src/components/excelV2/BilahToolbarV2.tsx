@@ -21,6 +21,8 @@ interface Props {
   aksi?: ReactNode;
   /** Isi subzona kiri area filter (mis. dropdown status). */
   filter?: ReactNode;
+  /** Ringkasan info di tengah toolbar. */
+  tengah?: ReactNode;
   /** Tabel ringkas baca-saja: sembunyikan pemilih preset kolom. */
   hidePreset?: boolean;
   /** Visibilitas komponen dari setelan tabel. */
@@ -56,6 +58,7 @@ export default function BilahToolbarV2({
   fields,
   aksi,
   filter,
+  tengah,
   hidePreset = false,
   tampilJudul = true,
   tampilUrut = true,
@@ -112,7 +115,13 @@ export default function BilahToolbarV2({
           )}
         </div>
 
-        <div className="min-w-0 flex-1" />
+        <div className="flex min-w-0 flex-1 justify-center overflow-hidden">
+          {tengah != null && (
+            <span className="max-w-full truncate rounded-pil border bg-muted/60 px-4 py-1 text-center text-[11px] text-muted-foreground">
+              {tengah}
+            </span>
+          )}
+        </div>
 
         {aksi != null && (
           <div

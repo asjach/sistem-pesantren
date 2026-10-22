@@ -45,6 +45,8 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   renderActions?: (row: T) => ReactNode;
   /** Aksi tambahan yang hanya muncul di menu klik kanan (tidak di kolom Aksi). */
   renderActionsKonteks?: (row: T) => ReactNode;
+  /** Ringkasan info di tengah toolbar (mis. jumlah tagihan dan total). */
+  tengah?: ReactNode;
   /** Tombol aksi halaman di area aksi toolbar. */
   aksi?: ReactNode;
   /** Isi subzona kiri area filter. */
@@ -133,6 +135,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   emptyText = 'Belum ada data.',
   renderActions,
   renderActionsKonteks,
+  tengah,
   aksi,
   filter,
   pager,
@@ -359,7 +362,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
    *  dialog dan menu agar tak menawarkan sakelar mati. */
   const infoKomponen = useMemo<InfoKomponenTabel>(() => ({
     adaBilahJudul: true,
-    infoTengah: false,
+    infoTengah: tengah != null,
     filter: filter != null,
     cari: false,
     keaktifan: false,
@@ -372,7 +375,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     tombolEdit: false,
     kolomCentang: !hideCheckbox,
     kolomAksi: !hideActions,
-  }), [filter, onUrut, hidePreset, luar, aksi, addButton, rail, pager, hideCheckbox, hideActions, onCreateRow]);
+  }), [filter, onUrut, hidePreset, luar, aksi, addButton, rail, pager, hideCheckbox, hideActions, onCreateRow, tengah]);
 
   const judulAktif = komponenAktif(visibilitas, 'judul_tabel');
   const aksiAktif = aksi != null && komponenAktif(visibilitas, 'tombol_aksi');
@@ -386,6 +389,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   const pagerAktif = pager != null && komponenAktif(visibilitas, 'pager');
   const pengaturanAktif = komponenAktif(visibilitas, 'tombol_pengaturan');
   const railTampil = rail && komponenAktif(visibilitas, 'rel_filter');
+  const tengahTampil = tengah != null && komponenAktif(visibilitas, 'info_tengah');
   /** Tinggi manual langsung menang; bila mode otomatis, ikuti hasil ukur grid. */
   const tinggiLabelRail = headerAktif ? (headerH ?? tinggiHeaderGrid) : 0;
 
@@ -430,6 +434,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
         fields={fields}
         aksi={aksiAktif ? aksi : undefined}
         filter={filterAktif ? filter : undefined}
+        tengah={tengahTampil ? tengah : undefined}
         hidePreset={hidePreset}
         tampilJudul={judulAktif}
         tampilUrut={urutTampil}
