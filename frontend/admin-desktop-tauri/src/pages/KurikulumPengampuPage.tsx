@@ -12,7 +12,8 @@ import { bisa } from '@/api/auth';
 import { errorMessage } from '@/api/client';
 import { Copy, FileUp, Plus } from '@/icons';
 import { DeleteAction } from '@/components/RowActions';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import ImportBertahapUmumDialog from '@/components/ImportBertahapUmumDialog';
@@ -389,7 +390,7 @@ export default function KurikulumPengampuPage() {
       ]} />
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <ExcelTable<BarisPengampu>
+        <ExcelTabelV2<BarisPengampu>
           tableKey="kurikulum_pengampu_kelas"
 
           rail
@@ -410,6 +411,8 @@ export default function KurikulumPengampuPage() {
           onCommit={commitSel}
 
           onSaved={() => void muatPengampu(kelasIds)}
+          // Preset kolom V2 sudah menentukan kolom yang tampil.
+          onApplyPreset={() => {}}
           addButtonLangsung
           addButton={
             <>
