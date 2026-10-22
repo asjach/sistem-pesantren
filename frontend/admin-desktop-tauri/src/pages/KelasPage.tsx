@@ -33,7 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { useTingkatAktif } from '@/tingkatAktif';
 import { PengaturanHalaman } from '@/components/VisibilitasFilter';
@@ -584,10 +585,9 @@ export default function KelasPage() {
 
       <PengaturanHalaman tampil={{ semester: false, tingkat: true }} tabel={[{ key: 'kelas', judul: 'Kelas', fields: FIELDS }]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari kelas…" />
-      <ExcelTable
+      <ExcelTabelV2
         tableKey="kelas"
         rail
-        sumberTabel="kelas"
         fields={FIELDS}
         rows={rows}
         getValues={gridValues}
@@ -596,6 +596,8 @@ export default function KelasPage() {
         canEdit={canUbahKelas}
         onCommit={commitDraft}
         onSaved={onSaved}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
