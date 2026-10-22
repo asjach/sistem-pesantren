@@ -99,13 +99,15 @@ export function HeaderTitle({
  *  Tidak bergantung tinggi baris saat ini sehingga stabil (tidak loop). */
 export function ukurPerluTinggiHeader(akar: HTMLElement): number {
   let maks = 0;
-  akar.querySelectorAll<HTMLElement>('.dsg-row-header .simpes-dsg-headtitle').forEach((ht) => {
+  akar.querySelectorAll<HTMLElement>(
+    '.dsg-row-header .simpes-dsg-headtitle, .dsg-row-header .simpes-dsg-v2-headtitle',
+  ).forEach((ht) => {
     const cs = getComputedStyle(ht);
     const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2 || 15;
     const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
     let baris = 1;
 
-    const judul = ht.querySelector('.simpes-dsg-teks-judul');
+    const judul = ht.querySelector('.simpes-dsg-teks-judul, .simpes-dsg-v2-teks-judul');
     const node = judul?.firstChild
       ?? Array.from(ht.childNodes).find(
         (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== '',

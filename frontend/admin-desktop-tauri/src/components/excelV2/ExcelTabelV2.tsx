@@ -14,6 +14,7 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import { Button } from '@/components/ui/button';
 import { Settings } from '@/icons';
+import { cn } from '@/lib/utils';
 import type { ExcelField, GridRow } from '@/components/excel/types';
 
 export interface ExcelTabelV2Props<T extends { id: string | number }> {
@@ -68,6 +69,9 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   /** Aksi massal untuk baris tercentang. Hanya dipanggil saat ada centang;
    *  `clearSelection` mengosongkan pilihan setelah aksi selesai. */
   renderBulkActions?: (checkedRows: T[], clearSelection: () => void) => ReactNode;
+  /** Batasi tinggi badan grid maksimal N row. Tabel mengikuti jumlah data
+   *  sampai batas ini, lalu memakai scroll vertikal di dalam grid. */
+  maxRows?: number;
   /** Introspeksi lebar kolom (AutoFit semua, reset lebar). Dipanggil saat grid
    *  siap; dipakai menu klik kanan dan kontrol halaman pada poin berikutnya. */
   onSiapLebar?: (aksi: { autoFitSemua: () => void; resetLebar: () => void }) => void;
@@ -122,6 +126,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   addButton,
   addButtonLangsung = true,
   renderBulkActions,
+  maxRows,
   onSiapLebar,
   isiLebarPenuh = false,
   canEdit = false,
@@ -133,6 +138,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   /** Susunan kolom dari preset. null = semua kolom, urutan asli halaman. */
   const [kolomPreset, setKolomPreset] = useState<string[] | null>(null);
   const [kelolaOpen, setKelolaOpen] = useState(false);
+  /** Nilai efektif dari GridV2, termasuk hasil ukur headerAutoH. */
+  const [tinggiHeaderGrid, setTinggiHeaderGrid] = useState(DEFAULT_HEADER_H);
 
   /** Setelan tabel milik pengguna: judul, label, perataan, visibilitas. */
   const { judulDb, labelDb, alignDb, visibilitas, infoHtmlDb, simpanAlign } = useToolbarPresetState(tableKey);
@@ -234,10 +241,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   const pagerAktif = pager != null && komponenAktif(visibilitas, 'pager');
   const pengaturanAktif = komponenAktif(visibilitas, 'tombol_pengaturan');
   const railTampil = rail && komponenAktif(visibilitas, 'rel_filter');
-  /** Samakan dengan `headerRowHeight` GridV2 supaya label rail sejajar dengan
-   *  judul kolom: GridV2 memakai `headerH ?? DEFAULT_HEADER_H`. Tinggi header
-   *  otomatis (`headerAutoH`) belum ada di V2. */
-  const tinggiLabelRail = headerH ?? DEFAULT_HEADER_H;
+  /** Tinggi manual langsung menang; bila mode otomatis, ikuti hasil ukur grid. */
+  const tinggiLabelRail = headerAktif ? (headerH ?? tinggiHeaderGrid) : 0;
 
   const pengaturan = pengaturanAktif ? (
     <Button
@@ -269,7 +274,10 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     <div
       data-slot="excel-table"
       data-varian="v2"
-      className="relative flex min-h-0 flex-1 flex-col border border-border bg-card"
+      className={cn(
+        'relative flex min-h-0 flex-col border border-border bg-card',
+        maxRows === undefined ? 'flex-1' : 'shrink-0',
+      )}
     >
       <BilahToolbarV2
         judul={judulTampil}
@@ -318,12 +326,14 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
           barisAktifId={barisAktifId ?? null}
           onBarisAktif={onBarisKlik ? tanganiBarisAktif : undefined}
           onSiapLebar={onSiapLebar}
+          maxRows={maxRows}
           isiLebarPenuh={isiLebarPenuh}
           canEdit={canEdit}
           onCommit={onCommit}
           onSaved={onSaved}
           onKelolaTabel={tabelTerdaftar ? () => setKelolaOpen(true) : undefined}
           onUbahAlign={bolehKelola ? simpanAlign : undefined}
+          onTinggiHeaderChange={setTinggiHeaderGrid}
         />
       </div>
 

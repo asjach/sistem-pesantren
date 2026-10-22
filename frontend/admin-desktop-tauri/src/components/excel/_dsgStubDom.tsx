@@ -59,6 +59,9 @@ function renderKolom(kolom: KolomStub, row: GridRow | null) {
 export const dsgStub = {
   aktifSel: null as ((opts: { cell: { row: number; col: number } | null }) => void) | null,
   seleksi: null as ((opts: { selection: GridSelection | null }) => void) | null,
+  tinggi: null as number | null,
+  tinggiBaris: null as number | ((opts: { rowData: GridRow }) => number) | null,
+  tinggiHeader: null as number | null,
 };
 
 /** Kolom (termasuk sticky kanan) dari render terakhir. Dipakai tes lebar kolom
@@ -77,6 +80,7 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     value,
     rowClassName,
     stickyRightColumn,
+    height,
     rowHeight,
     headerRowHeight,
     onActiveCellChange,
@@ -86,7 +90,8 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     value: GridRow[];
     rowClassName?: (args: { rowIndex: number }) => string | undefined;
     stickyRightColumn?: Column<GridRow>;
-    rowHeight?: number;
+    height?: number;
+    rowHeight?: number | ((opts: { rowData: GridRow }) => number);
     headerRowHeight?: number;
     onActiveCellChange?: (opts: { cell: { row: number } | null }) => void;
     onSelectionChange?: (opts: { selection: GridSelection | null }) => void;
@@ -95,6 +100,9 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
 ) {
   dsgStub.aktifSel = onActiveCellChange ?? null;
   dsgStub.seleksi = onSelectionChange ?? null;
+  dsgStub.tinggi = height ?? null;
+  dsgStub.tinggiBaris = rowHeight ?? null;
+  dsgStub.tinggiHeader = headerRowHeight ?? null;
   const semua: KolomStub[] = [
     ...(columns as KolomMasuk[]),
     ...(stickyRightColumn ? [stickyRightColumn as KolomMasuk] : []),

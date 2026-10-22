@@ -77,6 +77,8 @@ vi.mock('./GridV2', () => ({
     renderActions,
     barisAktifId,
     onBarisAktif,
+    maxRows,
+    onTinggiHeaderChange,
   }: {
     fields: { key: string }[];
     rows: { id: string | number }[];
@@ -89,6 +91,8 @@ vi.mock('./GridV2', () => ({
     renderActions?: (id: string | number) => unknown;
     barisAktifId?: string | number | null;
     onBarisAktif?: (id: string | number) => void;
+    maxRows?: number;
+    onTinggiHeaderChange?: (tinggi: number) => void;
   }) => (
     <div data-slot="excel-table-grid">
       <span data-testid="jumlah-grid">{rows.length}</span>
@@ -100,8 +104,10 @@ vi.mock('./GridV2', () => ({
       <span data-testid="baris-aktif">{String(barisAktifId ?? '')}</span>
       <span data-testid="label-db">{JSON.stringify(labelDb ?? {})}</span>
       <span data-testid="align-db">{JSON.stringify(alignDb ?? {})}</span>
+      <span data-testid="max-rows-grid">{String(maxRows ?? '')}</span>
       <button type="button" onClick={() => onTogglePilih(1)}>pilih-1</button>
       <button type="button" onClick={() => onBarisAktif?.(1)}>baris-1</button>
+      <button type="button" onClick={() => onTinggiHeaderChange?.(52)}>ubah-tinggi-header</button>
     </div>
   ),
 }));
@@ -383,6 +389,24 @@ describe('ExcelTabelV2', () => {
     const rail = screen.getByTestId('filter-rail');
     expect(rail).toBeInTheDocument();
     expect(rail).toHaveAttribute('data-tinggi', '26');
+  });
+
+  it('memperbarui tinggi label rail saat tinggi header grid berubah', async () => {
+    const user = userEvent.setup();
+    tampilkan({ rail: true });
+
+    await user.click(screen.getByRole('button', { name: 'ubah-tinggi-header' }));
+
+    expect(screen.getByTestId('filter-rail')).toHaveAttribute('data-tinggi', '52');
+  });
+
+  it('meneruskan maxRows dan membuat root tabel ringkas tidak mengambil sisa tinggi', () => {
+    const { container } = tampilkan({ maxRows: 3 });
+
+    expect(screen.getByTestId('max-rows-grid')).toHaveTextContent('3');
+    const root = container.querySelector('[data-slot="excel-table"]');
+    expect(root).toHaveClass('shrink-0');
+    expect(root).not.toHaveClass('flex-1');
   });
 
   it('menyembunyikan rail saat sakelar rel_filter mati', () => {

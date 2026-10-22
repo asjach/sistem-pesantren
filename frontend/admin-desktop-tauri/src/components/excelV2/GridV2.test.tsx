@@ -23,7 +23,11 @@ vi.mock('@/theme', () => ({
  *  "lebar kolom Aksi memakai hasil ukur DOM" bisa diuji. */
 vi.mock('@/components/excel/measure', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/components/excel/measure')>();
-  return { ...asli, measureActionsWidth: () => 137 };
+  return {
+    ...asli,
+    measureActionsWidth: () => 137,
+    measureTextWidth: (teks: string) => teks.length * 7,
+  };
 });
 
 const prefs = vi.hoisted(() => ({
@@ -40,6 +44,7 @@ vi.mock('@/components/GridPrefs', async (asli) => ({
 import GridV2 from './GridV2';
 import { copyText } from '@/lib/clipboard';
 import { widthCache, widthsKey } from '@/components/excel/helpers';
+import { autoBarisKey, tinggiDasarKey } from '@/components/excel/useTinggiBaris';
 import { dsgStub, kolomTerakhir, type KolomStub } from '@/components/excel/_dsgStubDom';
 import type { ExcelField } from '@/components/excel/types';
 
@@ -93,6 +98,7 @@ beforeEach(() => {
   prefs.headerH = null;
   prefs.fontPx = 11;
   prefs.fontFamily = 'x';
+  widthCache.delete('daftar_kelas');
 });
 
 afterAll(() => {
@@ -223,6 +229,7 @@ describe('GridV2 - lebar kolom', () => {
     expect(typeof nis).toBe('number');
     expect(nis).toBeGreaterThan(0);
   });
+});
 
 describe('GridV2 - isi lebar wadah', () => {
   it('membagi lebar wadah secara proporsional saat isi-lebar aktif', async () => {
@@ -247,7 +254,6 @@ describe('GridV2 - isi lebar wadah', () => {
       expect(kolomTerakhir().find((k) => k.id === 'nama')?.basis).toBe(321);
     });
   });
-});
 
   it('tidak menyusut saat total kolom melebihi wadah (tabel dibiarkan menggulir)', async () => {
     // Opsi A: isi-lebar hanya MEMBESARKAN. Di halaman nyata tabel bisa memuat
@@ -264,6 +270,102 @@ describe('GridV2 - isi lebar wadah', () => {
   });
   it('kunci penyimpanan lebar memakai tableKey', () => {
     expect(widthsKey('daftar_kelas')).toBe('simpes_grid_daftar_kelas_w_v2');
+  });
+});
+
+describe('GridV2 - tinggi row dan header', () => {
+  it('memakai tinggi dasar yang tersimpan khusus untuk tabel ini', async () => {
+    localStorage.setItem(tinggiDasarKey('daftar_kelas'), '38');
+    tampilkan();
+
+    await waitFor(() => expect(dsgStub.tinggiBaris).toBe(38));
+  });
+
+  it('membungkus teks dan membesarkan row saat Baris ikut isi aktif', async () => {
+    localStorage.setItem(autoBarisKey('daftar_kelas'), '1');
+    widthCache.set('daftar_kelas', { widths: { nama: 60, nis: 60 }, autoWidths: {} });
+    tampilkan({
+      rows: [{
+        id: 1,
+        nama: 'Nama santri yang sangat panjang dan perlu membungkus ke beberapa baris',
+        nis: '001',
+        checked: false,
+      }],
+    });
+
+    await waitFor(() => expect(typeof dsgStub.tinggiBaris).toBe('number'));
+    await waitFor(() => expect(dsgStub.tinggiBaris as number).toBeGreaterThan(24));
+    const teks = document.querySelector(
+      '.dsg-row:not(.dsg-row-header) [data-col-key="nama"] span',
+    );
+    expect(teks).toHaveClass('whitespace-normal');
+    expect(teks).not.toHaveClass('truncate');
+  });
+
+  it('maxRows membatasi tinggi grid dan tetap memakai row seragam', async () => {
+    tampilkan({
+      maxRows: 2,
+      rows: [...ROWS, { id: 3, nama: 'Candra', nis: '003', checked: false }],
+    });
+
+    await waitFor(() => expect(dsgStub.tinggi).toBe(75));
+    expect(dsgStub.tinggiBaris).toBe(24);
+    expect(document.querySelector('[data-max-rows="2"]')).toHaveStyle({ height: '75px' });
+  });
+
+  it('maxRows menjaga empty state tetap terbaca', async () => {
+    tampilkan({ tableKey: 'daftar_kelas_kosong', maxRows: 3, rows: [] });
+
+    await waitFor(() => expect(dsgStub.tinggi).toBe(280));
+    expect(document.querySelector('[data-max-rows="3"]')).toHaveStyle({ height: '280px' });
+  });
+
+  it('maxRows mengikuti jumlah data dan mempertahankan tinggi saat refetch', async () => {
+    const props = {
+      tableKey: 'daftar_kelas_stabil',
+      fields: FIELDS,
+      dipilih: new Set<string | number>(),
+      onTogglePilih: () => {},
+      onTogglePilihSemua: () => {},
+      maxRows: 4,
+    };
+    const { rerender } = render(<GridV2 {...props} rows={[ROWS[0]]} />);
+    await waitFor(() => expect(dsgStub.tinggi).toBe(51));
+
+    rerender(<GridV2 {...props} rows={[...ROWS, { id: 3, nama: 'Candra', nis: '003', checked: false }]} />);
+    await waitFor(() => expect(dsgStub.tinggi).toBe(99));
+
+    rerender(<GridV2 {...props} rows={[...ROWS, { id: 3, nama: 'Candra', nis: '003', checked: false }]} loading />);
+    expect(document.querySelector('[data-max-rows="4"]')).toHaveStyle({ height: '99px' });
+  });
+
+  it('judul header membungkus dan headerAutoH mengikuti hasil ukur', async () => {
+    const asli = Range.prototype.getClientRects;
+    Range.prototype.getClientRects = function getClientRects() {
+      return { length: 3, item: () => null, [Symbol.iterator]: function* () {} } as unknown as DOMRectList;
+    };
+    try {
+      tampilkan({
+        fields: [
+          { key: 'nama', label: 'Nama lengkap santri yang sangat panjang', kind: 'text', width: 70 },
+          FIELDS[1],
+        ],
+      });
+
+      const judul = document.querySelector('.simpes-dsg-v2-teks-judul');
+      expect(judul).toHaveClass('whitespace-normal');
+      expect(judul).not.toHaveClass('truncate');
+      await waitFor(() => expect(dsgStub.tinggiHeader ?? 0).toBeGreaterThan(26));
+    } finally {
+      Range.prototype.getClientRects = asli;
+    }
+  });
+
+  it('tinggi header manual menang atas hasil otomatis', async () => {
+    prefs.headerH = 48;
+    tampilkan();
+
+    await waitFor(() => expect(dsgStub.tinggiHeader).toBe(48));
   });
 });
 

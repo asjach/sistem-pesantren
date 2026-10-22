@@ -989,10 +989,7 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 **Backlog**
 - (kosong)
 **To Do**
-- Tinggi baris V2 bisa diatur per tabel, ikut isi, dan dibatasi N baris.
 - V2 bisa menambah record baru lewat baris input di kaki tabel.
-- Tinggi header otomatis (headerAutoH) berlaku di V2: header kolom meninggi mengikuti judul yang membungkus seperti V1, agar spinbox mode otomatis berfungsi.
-- Judul kolom V2 tidak terpotong (elipsis): header tabel V2 memotong judul yang panjang, sedangkan V1 membungkusnya jadi beberapa baris. Perlu diselaraskan agar judul terbaca penuh.
 - Kolom V2 bisa dibekukan: sejumlah N kolom data pertama tetap terlihat saat tabel digulir horizontal, dengan jumlah beku tersimpan per tabel.
 - Judul kolom V2 bisa digeser untuk menyusun ulang urutan kolom, lengkap dengan indikator drop, dan urutannya tersimpan per tabel.
 **In Progress**
@@ -1080,6 +1077,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Mematikan isi-lebar mengembalikan lebar kolom seperti semula tanpa merusak lebar tersimpan pengguna.
   - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
   - [ ] Pemeriksaan pengguna: aktifkan "isi lebar penuh" di Kelola Tabel -> Umum pada tabel berkolom sedikit dan pastikan kolom mengisi lebar tanpa sisa ruang kanan.
+- ExcelTabelV2 menyesuaikan tinggi row dan header secara adaptif, termasuk batas maxRows.
+  - [x] Tinggi row V2 mengikuti pengaturan per tabel, tersimpan per perangkat, dan dapat dikembalikan ke bawaan global.
+  - [x] Mode Baris ikut isi membungkus teks dan menambah tinggi row otomatis dalam batas 18–240 px; saat dimatikan, row tetap satu baris.
+  - [x] Prop maxRows membatasi tinggi tabel kompak secara stabil pada kondisi loading, empty, dan jumlah data berubah.
+  - [x] Judul header panjang membungkus tanpa elipsis; headerAutoH menyesuaikan tinggi otomatis, sedangkan tinggi manual tetap menjadi prioritas.
+  - [x] Filter rail, resize column, pagination, dan panel sempit tetap sejajar tanpa scrollbar tambahan atau render berkedip.
+  - [x] Verifikasi lulus: targeted tests 72/72, typecheck, build Vite, full frontend suite 1.598/1.598, dan git diff --check.
 - Sel V2 bisa disunting langsung dengan simpan otomatis dan validasi.
   - [x] Sel V2 bisa disunting langsung dengan klik ganda, hanya untuk kolom yang bisa disunting (kind selain static); kolom static tetap terkunci.
   - [x] Klik ganda menyalakan Mode Ubah yang ditandai pill status "Mode Ubah aktif"; sebelum itu sel tetap baca-saja (pagar sama seperti V1).

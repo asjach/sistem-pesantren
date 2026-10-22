@@ -13,6 +13,8 @@ import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { prefSet } from '@/api/client';
 import { useGridPrefs, DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_OPTIONS, FONT_FAMILY_DEFAULT } from '@/components/GridPrefs';
 import { TINGGI_BARIS_BAWAAN } from '@/components/excel/tinggiBaris';
+import { useTinggiBaris } from '@/components/excel/useTinggiBaris';
+import { useTinggiBarisSatuan } from '@/components/excel/useTinggiBarisSatuan';
 import { PillMode, TabelMemuat } from '@/components/excel/primitives';
 import { cn } from '@/lib/utils';
 import { labelKolom } from '@/lib/labelKolom';
@@ -57,6 +59,9 @@ const GUTTER_COLUMN = { basis: GUTTER_W };
 /** Nilai bawaan stabil agar memo kolom tidak dihitung ulang tiap render. */
 const LABEL_KOSONG: Record<string, string> = {};
 const ALIGN_KOSONG: Partial<Record<string, AlignKolom>> = {};
+/** Pertahankan tinggi tabel kompak selama refetch supaya skeleton tidak
+ *  melonjak ke tinggi `maxRows` setelah tabel sempat menampilkan lebih sedikit row. */
+const tinggiKompakCache = new Map<string, number>();
 
 /** Status "pilih semua" dibaca header lewat context agar klik centang tidak
  *  membangun ulang definisi kolom DSG (sama seperti CheckAllContext V1). */
@@ -81,8 +86,8 @@ function KepalaPilihSemuaV2() {
 }
 
 /** Sel data V2: baca-saja, kecuali saat Mode Ubah dan kolomnya bisa disunting. */
-function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelField; rata: RataKolom; modeUbah: boolean; onSimpan?: (id: string | number, key: string, nilai: string | null) => void }>) {
-  const { field: f, rata, modeUbah, onSimpan } = columnData;
+function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelField; rata: RataKolom; modeUbah: boolean; barisIkutIsi: boolean; onSimpan?: (id: string | number, key: string, nilai: string | null) => void }>) {
+  const { field: f, rata, modeUbah, barisIkutIsi, onSimpan } = columnData;
   const bisaEdit = modeUbah && f.kind !== 'static' && onSimpan != null;
   const [buka, setBuka] = useState(false);
   /** Nilai mentah baris (tanpa format tampilan) yang sedang disunting. */
@@ -138,7 +143,13 @@ function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelFie
   }
 
   const isi = (
-    <span className="min-w-0 truncate" title={teks || undefined}>
+    <span
+      className={cn(
+        'min-w-0 overflow-hidden',
+        barisIkutIsi ? 'whitespace-normal break-words' : 'truncate',
+      )}
+      title={teks || undefined}
+    >
       {f.renderCell ? f.renderCell(rowData) : teks}
     </span>
   );
@@ -147,7 +158,8 @@ function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelFie
       ref={selRef}
       data-col-key={f.key}
       className={cn(
-        'flex h-full w-full min-w-0 items-center px-2',
+        'flex h-full w-full min-w-0 items-center',
+        barisIkutIsi ? 'py-1' : 'px-2',
         f.format === 'angka' && 'tabular-nums',
         bisaEdit && 'bg-primary/5',
         rata === 'kanan' ? 'justify-end' : rata === 'tengah' ? 'justify-center' : 'justify-start',
@@ -201,7 +213,7 @@ function SelAksiV2({ rowData, columnData }: CellProps<GridRow, { render: (id: st
   );
 }
 
-/** Judul kolom V2: satu baris, terpotong, sejajar dengan isinya.
+/** Judul kolom V2 membungkus mengikuti lebar kolom dan tetap sejajar isinya.
  *
  *  Gagang pengubah lebar digambar sendiri dengan Tailwind — BUKAN memakai
  *  HeaderTitle V1, sebab V2 tidak mewarisi index.css (.simpes-dsg-*).
@@ -229,10 +241,13 @@ function JudulKolomV2({
     // dipotong (pernah terukur 110px untuk kolom 66px), sehingga `w-full`
     // membuat pembungkus ini meluber keluar kolom dan gagang lebar — yang
     // ditambatkan ke pembungkus — ikut meleset dari garis kolom.
-    <div data-col-key={colKey} className="absolute inset-0 flex items-center">
+    <div
+      data-col-key={colKey}
+      className="simpes-dsg-v2-headtitle absolute inset-0 flex items-center py-1"
+    >
       <div
         className={cn(
-          'w-full truncate px-2',
+          'simpes-dsg-v2-teks-judul w-full min-w-0 whitespace-normal break-words px-2 leading-[1.2]',
           rata === 'kanan' ? 'text-right' : rata === 'tengah' ? 'text-center' : 'text-left',
         )}
         title={teks}
@@ -296,6 +311,8 @@ export interface GridV2Props {
   onBarisAktif?: (id: string | number) => void;
   /** Keadaan awal sakelar "tabel mengisi lebar wadah" (pref perangkat menang). */
   isiLebarPenuh?: boolean;
+  /** Batasi tinggi badan grid maksimal N row. */
+  maxRows?: number;
   /** Izin menyunting sel. false = tabel murni baca-saja (Mode Ubah tak ada). */
   canEdit?: boolean;
   /** Simpan satu baris ke server; dipanggil antrean simpan otomatis. */
@@ -312,6 +329,8 @@ export interface GridV2Props {
    *  Dipanggil tiap hook siap; dipakai menu klik kanan & kontrol halaman
    *  pada poin berikutnya agar tak ada pekerjaan ulang. */
   onSiapLebar?: (aksi: { autoFitSemua: () => void; resetLebar: () => void }) => void;
+  /** Kabarkan tinggi header efektif agar FilterRail di luar grid tetap sejajar. */
+  onTinggiHeaderChange?: (tinggi: number) => void;
 }
 
 /**
@@ -340,15 +359,23 @@ export default function GridV2({
   onBarisAktif,
   onSiapLebar,
   isiLebarPenuh = false,
+  maxRows,
   canEdit = false,
   onCommit,
   onSaved,
   onKelolaTabel,
   onUbahAlign,
+  onTinggiHeaderChange,
 }: GridV2Props) {
   const { rowH, headerH, fontPx, fontFamily } = useGridPrefs();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [tinggi, setTinggi] = useState(0);
+  const {
+    manual: tinggiBarisManual,
+    sigManual: sigTinggiBarisManual,
+    autoIkut: barisIkutIsi,
+    dasar: tinggiBarisDasar,
+  } = useTinggiBaris(tableKey);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -672,6 +699,44 @@ export default function GridV2({
   }, [isiLebarAktif, lebarWadah, fields, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, hideCheckbox, renderActions]);
   skalaIsiRef.current = skalaIsi?.rasio ?? 1;
 
+  /** Tinggi row memakai preference per tabel lebih dulu, kemudian preference
+   *  global, lalu bawaan 24px. */
+  const effectiveH = tinggiBarisDasar ?? rowH ?? TINGGI_BARIS_BAWAAN;
+  const lebarUntukTinggi = useMemo(
+    () => ({ ...lebar.widths, ...(skalaIsi?.lebar ?? {}) }),
+    [lebar.widths, skalaIsi],
+  );
+  const tinggiBarisSatuan = useTinggiBarisSatuan({
+    wrapRef,
+    effectiveH,
+    effectiveFont,
+    visibleFields: fields,
+    widths: lebarUntukTinggi,
+    autoWidths: lebar.autoWidths,
+    syncAutoWidths: lebar.syncAutoWidths,
+    tinggiBarisManual,
+    barisIkutIsi,
+    maxRows,
+  });
+  const tinggiPerBaris = useMemo(() => nilai.map(tinggiBarisSatuan), [nilai, tinggiBarisSatuan]);
+  const tinggiSeragam = tinggiPerBaris.length > 0
+    && tinggiPerBaris.every((h) => h === tinggiPerBaris[0]);
+  const gridRowHeight = useMemo(
+    () => (tinggiSeragam
+      ? tinggiPerBaris[0]
+      : (nilai.length === 0
+          ? effectiveH
+          : ({ rowData }: { rowData: GridRow }) => tinggiBarisSatuan(rowData))),
+    [tinggiSeragam, tinggiPerBaris, nilai.length, effectiveH, tinggiBarisSatuan],
+  );
+  /** DSG menyimpan offset row; remount hanya diperlukan saat tinggi berbeda
+   *  antar-row. Jalur seragam tetap stabil saat pagination atau sort. */
+  const sigTinggiBaris = useMemo(() => {
+    if (tinggiPerBaris.length === 0) return `kosong:${effectiveH}`;
+    if (tinggiSeragam) return `seragam:${tinggiPerBaris[0]}`;
+    return `${sigTinggiBarisManual}|${tinggiPerBaris.join(',')}`;
+  }, [tinggiPerBaris, tinggiSeragam, effectiveH, sigTinggiBarisManual]);
+
   const kolom = useMemo<Column<GridRow>[]>(() => {
     const cols: Column<GridRow>[] = [];
 
@@ -707,6 +772,7 @@ export default function GridV2({
           field: f,
           rata,
           modeUbah,
+          barisIkutIsi: barisIkutIsi && maxRows === undefined,
           onSimpan: bisaEdit ? simpanSel : undefined,
         },
         basis: skalaIsi?.lebar[f.key] ?? lebar.widths[f.key] ?? lebar.autoWidths[f.key] ?? lebar.syncAutoWidths[f.key] ?? f.width ?? 160,
@@ -719,13 +785,15 @@ export default function GridV2({
         // Hanya kolom yang benar-benar bisa disunting yang dibuka; kolom
         // `static` tetap terkunci meski Mode Ubah menyala.
         disabled: !(bisaEdit && f.kind !== 'static'),
-        cellClassName: ({ rowData }: { rowData?: GridRow }) =>
+        cellClassName: ({ rowData }: { rowData?: GridRow }) => cn(
+          barisIkutIsi && maxRows === undefined && 'px-2',
           rowData ? f.cellClass?.(rowData) : undefined,
+        ) || undefined,
       });
     }
 
     return cols;
-  }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit, skalaIsi]);
+  }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit, skalaIsi, modeUbah, bisaEdit, simpanSel, barisIkutIsi, maxRows]);
 
   /** Kolom Aksi = kolom sticky kanan DSG. Sengaja TIDAK ikut columns:
    *  DSG menggambarnya terpisah agar menempel saat digulir horizontal.
@@ -813,6 +881,31 @@ export default function GridV2({
    *  benar terpasang, supaya judul kolom tidak terlihat melompat. */
   const siapTampil = lebar.lebarStabil && lebar.tampilGrid;
 
+  const tinggiHeaderEfektif = hideHeader ? 0 : (headerH ?? lebar.headerAutoH ?? DEFAULT_HEADER_H);
+  useEffect(() => {
+    onTinggiHeaderChange?.(tinggiHeaderEfektif);
+  }, [onTinggiHeaderChange, tinggiHeaderEfektif]);
+
+  const batasBaris = maxRows === undefined ? undefined : Math.max(1, Math.round(maxRows));
+  const jumlahRowKompak = batasBaris === undefined
+    ? 0
+    : Math.min(Math.max(nilai.length, 1), batasBaris);
+  const tinggiKompak = batasBaris === undefined
+    ? undefined
+    : loading
+      ? tinggiKompakCache.get(tableKey)
+        ?? tinggiHeaderEfektif + 1 + batasBaris * effectiveH
+      : nilai.length === 0
+        ? 280
+        : tinggiHeaderEfektif + 1 + jumlahRowKompak * effectiveH;
+  const tinggiGrid = tinggiKompak ?? tinggi;
+
+  useEffect(() => {
+    if (batasBaris !== undefined && !loading && tinggiKompak !== undefined) {
+      tinggiKompakCache.set(tableKey, tinggiKompak);
+    }
+  }, [tableKey, batasBaris, loading, tinggiKompak]);
+
   /** Preferensi grid perangkat dipasang sebagai variabel CSS supaya rantai
    *  fallback di index.css bekerja: setelan bagian (--part-tabel_sel-*)
    *  menang atas preferensi perangkat, dan preferensi menang atas bawaan. */
@@ -826,11 +919,12 @@ export default function GridV2({
   }, [onSiapLebar, lebar.onAutoFitAll, lebar.resetLebar]);
 
   const memuatAwal = loading && rows.length === 0;
+  const pakaiMemuat = memuatAwal || (loading && batasBaris !== undefined);
   const nilaiPilihSemua = useMemo(
     () => ({ status: statusPilih, onToggle: onTogglePilihSemua }),
     [statusPilih, onTogglePilihSemua],
   );
-  const kunciKolom = `${tableKey}-${fields.map((f) => f.key).join('|')}`;
+  const kunciKolom = `${tableKey}-${fields.map((f) => f.key).join('|')}-baris-${sigTinggiBaris}`;
 
   /** Cari baris + kolom di bawah pointer klik kanan. Target bisa jatuh di
    *  padding sel atau lapisan seleksi DSG yang tidak membawa `data-col-key`. */
@@ -896,7 +990,14 @@ export default function GridV2({
     // konten DSG (yang bisa puluhan kolom) sehingga muncul scrollbar horizontal
     // KEDUA di pembungkus tabel — selain scrollbar milik grid sendiri — dan
     // lebar kolom Aksi ikut terukur ulang/berkedip.
-    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <div
+      className={cn(
+        'relative flex min-h-0 min-w-0 flex-col overflow-hidden',
+        batasBaris === undefined ? 'flex-1' : 'shrink-0 transition-[height] duration-200 ease-out',
+      )}
+      data-max-rows={batasBaris}
+      style={tinggiKompak === undefined ? undefined : { height: tinggiKompak }}
+    >
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
@@ -921,9 +1022,9 @@ export default function GridV2({
               </div>
             )}
 
-            {memuatAwal ? (
-              <TabelMemuat rowH={rowH ?? TINGGI_BARIS_BAWAAN} />
-            ) : tinggi > 0 && (
+            {pakaiMemuat ? (
+              <TabelMemuat rowH={effectiveH} baris={batasBaris ?? 14} />
+            ) : tinggiGrid > 0 && (
               <PilihSemuaContext.Provider value={nilaiPilihSemua}>
                 <DataSheetGrid
                   key={kunciKolom}
@@ -937,9 +1038,9 @@ export default function GridV2({
                   stickyLeftColumnCount={hideCheckbox ? 0 : 1}
                   stickyRightColumn={kolomAksi}
                   rowKey="id"
-                  height={tinggi}
-                  rowHeight={rowH ?? TINGGI_BARIS_BAWAAN}
-                  headerRowHeight={hideHeader ? 0 : (headerH ?? DEFAULT_HEADER_H)}
+                  height={tinggiGrid}
+                  rowHeight={gridRowHeight}
+                  headerRowHeight={tinggiHeaderEfektif}
                   lockRows
                   addRowsComponent={false}
                   disableContextMenu
