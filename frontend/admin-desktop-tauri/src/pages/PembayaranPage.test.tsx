@@ -33,6 +33,9 @@ vi.mock('@/components/ui/combobox', () => {
 vi.mock('@/components/ExcelTable', () => ({
   default: ({ rows, renderActions, onBarisKlik }: { rows: { id: number; nama_lengkap?: string }[]; renderActions: (r: unknown) => ReactNode; onBarisKlik?: (r: unknown) => void }) => <div>{rows.map((r) => <div key={r.id}>{onBarisKlik && <button onClick={() => onBarisKlik(r)}>{r.nama_lengkap}</button>}{renderActions(r)}</div>)}</div>,
 }));
+vi.mock('@/components/excelV2/ExcelTabelV2', () => ({
+  default: ({ rows, renderActions, onBarisKlik }: { rows: { id: number | string; nama_lengkap?: string }[]; renderActions?: (r: unknown) => ReactNode; onBarisKlik?: (r: unknown) => void }) => <div>{rows.map((r) => <div key={r.id}>{onBarisKlik && <button onClick={() => onBarisKlik(r)}>{r.nama_lengkap}</button>}{renderActions?.(r)}</div>)}</div>,
+}));
 
 const santri = { id: 1, nama_lengkap: 'Ahmad', lembaga_aktif: [] };
 const biaya = { id: 11, santri_id: 1, nominal: 100, terbayar: 0, jenis: { nama: 'Infaq', tipe: 'bulanan' }, periode: '2025-07' };

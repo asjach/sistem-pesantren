@@ -70,34 +70,37 @@ vi.mock('@/hooks/useFilterGlobalAktif', () => ({
   }),
 }));
 
-vi.mock('@/api/toolbarPreset', () => ({
-  muatToolbarPreset: vi.fn(async () => ({
-    pesan: 'ok',
-    data: { table_key: 'uji', visibilitas: {}, lebar: {}, urutan: [], align: {} },
-  })),
-  simpanToolbarPreset: vi.fn(async () => ({ pesan: 'ok', data: null })),
+/** Grid V2 tidak menggambar badan tabel bila tinggi wadah 0 (jsdom). Stub ini
+ *  memeriksa pemetaan data halaman → tabel: label kolom dan tiap nilai sel. */
+vi.mock('@/components/excelV2/ExcelTabelV2', () => ({
+  default: ({
+    tableKey, fields, rows, getValues, emptyText,
+  }: {
+    tableKey: string;
+    fields: { key: string; label: string }[];
+    rows: { id: string }[];
+    getValues: (row: { id: string }) => Record<string, string | null>;
+    emptyText?: string;
+  }) => (
+    <table data-table={tableKey}>
+      <thead>
+        <tr>{fields.map((f) => <th key={f.key}>{f.label}</th>)}</tr>
+      </thead>
+      <tbody>
+        {rows.length === 0
+          ? <tr><td>{emptyText}</td></tr>
+          : rows.map((r) => {
+            const nilai = getValues(r);
+            return (
+              <tr key={r.id}>
+                {fields.map((f) => <td key={f.key}>{nilai[f.key] ?? ''}</td>)}
+              </tr>
+            );
+          })}
+      </tbody>
+    </table>
+  ),
 }));
-
-vi.mock('@/api/preset', () => ({
-  listPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: [] })),
-  createPresetTabel: vi.fn(),
-  updatePresetTabel: vi.fn(),
-  deletePresetTabel: vi.fn(),
-  setPresetAktif: vi.fn(),
-  setPresetBawaan: vi.fn(),
-}));
-
-vi.mock('@/api/urutPreset', () => ({
-  muatUrutPreset: vi.fn(async () => ({ pesan: 'ok', data: { table_key: 'uji', opsi: [], tersedia: [] } })),
-  simpanUrutPreset: vi.fn(),
-  hapusUrutPreset: vi.fn(),
-}));
-
-vi.mock('react-datasheet-grid', async (importOriginal) => {
-  const asli = await importOriginal<typeof import('react-datasheet-grid')>();
-  const stub = await import('@/components/excel/_dsgStubDom');
-  return { ...asli, DynamicDataSheetGrid: stub.DynamicDataSheetGridStub };
-});
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -11,6 +11,7 @@ import { listKelas, type Kelas } from '../api/master';
 import { tokenUrut, type PetaArahKolom } from '@/lib/urut';
 import { hariIniIso, tanggalKeTampilan } from '@/lib/tanggal';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -553,8 +554,9 @@ export default function PembayaranPage() {
 
         <ResizablePanel id="panel_pembayaran_rekap" defaultSize="40%" minSize="20%" groupResizeBehavior="preserve-relative-size" className="flex min-h-0 flex-col">
           <div className="flex h-full min-h-0 flex-col pl-1">
-          <ExcelTable<RekapHarianJenis & { id: string | number }>
+          <ExcelTabelV2<RekapHarianJenis & { id: string | number }>
             tableKey="pembayaran_rekap"
+            onApplyPreset={() => {}}
             fields={FIELDS_REKAP}
             rows={rekapRows}
             getValues={(r) => ({
@@ -567,9 +569,9 @@ export default function PembayaranPage() {
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}
-            renderActions={() => null}
             hideCheckbox
             hideActions
+            hideFooter
           />
           </div>
         </ResizablePanel>
@@ -623,9 +625,9 @@ export default function PembayaranPage() {
                       onChange={(e) => setCari(e.target.value)}
                       className="mb-2 shrink-0"
                     />
-                    <ExcelTable<Santri>
+                    <ExcelTabelV2<Santri>
                       tableKey="pembayaran_santri"
-                      sumberTabel="santri"
+                      onApplyPreset={() => {}}
                       fields={FIELDS_SANTRI}
                       rows={santriRows}
                       getValues={(r) => ({
@@ -638,9 +640,9 @@ export default function PembayaranPage() {
                       canEdit={false}
                       onCommit={async () => {}}
                       onSaved={() => {}}
-                      renderActions={() => null}
                       hideCheckbox
                       hideActions
+                      hideFooter
                       rail={!modeBukuInduk}
                       urutAktif={urutSantri}
                       arahUrut={arahSantri}

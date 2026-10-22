@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { FieldDescription, FieldLabel } from '@/components/ui/field';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
 import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
@@ -555,7 +556,7 @@ export default function ReferensiPage() {
           >
 
             <div className="flex min-h-0 flex-1 flex-col">
-              <ExcelTable<BarisTipe>
+              <ExcelTabelV2<BarisTipe>
                 tableKey="referensi_tipe"
                 fields={FIELDS_TIPE}
                 rows={tipeRows}
@@ -565,6 +566,7 @@ export default function ReferensiPage() {
                 canEdit={false}
                 onCommit={async () => {}}
                 onSaved={() => {}}
+                onApplyPreset={() => {}}
 
                 urutAktif={urutTipe}
                 arahUrut={arahTipe}
@@ -572,11 +574,11 @@ export default function ReferensiPage() {
 
                 onBarisKlik={(r) => pilihTipe(r.tipe)}
                 barisAktifId={tipe || null}
-                renderActions={() => null}
 
                 isiLebarPenuh
                 hideCheckbox
                 hideActions
+                hideFooter
 
                 hidePreset
               />

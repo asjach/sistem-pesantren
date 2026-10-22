@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import { Button } from '@/components/ui/button';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
@@ -291,8 +292,9 @@ export default function KurikulumStrukturPage() {
             buat varian dulu di halaman <b>Jadwal Pelajaran → Varian</b>.
           </p>
         ) : (
-          <ExcelTable<StrukturMapel>
+          <ExcelTabelV2<StrukturMapel>
             tableKey="kurikulum_struktur"
+            onApplyPreset={() => {}}
             header={data === null ? 'Struktur Kurikulum' : `Struktur Kurikulum · ${data.varian.nama}`}
             fields={fields}
             rows={rows}
@@ -306,9 +308,9 @@ export default function KurikulumStrukturPage() {
             canEdit={false}
             onCommit={async () => {}}
             onSaved={() => {}}
-            renderActions={() => null}
             hideCheckbox
             hideActions
+            hideFooter
             akhirToolbar={
               <div className="flex items-center gap-2">
                 <label className="flex items-center gap-1.5 text-xs" htmlFor="input_minggu_efektif">

@@ -68,6 +68,9 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   hideActions?: boolean;
   /** Tabel ringkas baca-saja: sembunyikan pemilih preset kolom. */
   hidePreset?: boolean;
+  /** Tabel ringkas baca-saja: sembunyikan footer (jumlah baris, paginasi,
+   *  tombol tambah baris). Pakai hanya pada tabel tanpa pager/aksi footer. */
+  hideFooter?: boolean;
   /** Kontrol bebas halaman di awal area judul (mis. pemilih tabel). */
   awalanToolbar?: ReactNode;
   /** Kontrol bebas halaman di ujung kanan area judul, sebelum aksi massal. */
@@ -137,6 +140,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   hideCheckbox = false,
   hideActions = false,
   hidePreset = false,
+  hideFooter = false,
   awalanToolbar,
   akhirToolbar,
   addButton,
@@ -458,13 +462,15 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
       </div>
 
       {input.state && <p role="status" aria-live="polite" className="px-2 text-xs text-muted-foreground">{input.pesan || 'Mode Input aktif'}</p>}
-      <TableFooterV2 jumlah={rows.length} dipilih={dipilih.size} pager={pagerAktif ? pager : undefined}
-        aksi={onCreateRow && (input.state || komponenAktif(visibilitas, 'tombol_tambah')) ? (
-          input.state ? <>
-            <Button type="button" size="sm" disabled={input.state.menyimpan} onClick={() => void input.state?.simpan()}>{input.menyimpan ? 'Menyimpan…' : 'Simpan'}</Button>
-            <Button type="button" variant="outline" size="sm" disabled={input.state.menyimpan} onClick={input.state.batal}>Batal</Button>
-          </> : <Button ref={tombolTambahRef} id={`btn_tambah_baris_${tableKey}`} type="button" size="sm" variant="outline" disabled={loading} onClick={input.mulai}>Tambah baris</Button>
-        ) : undefined} />
+      {!hideFooter && (
+        <TableFooterV2 jumlah={rows.length} dipilih={dipilih.size} pager={pagerAktif ? pager : undefined}
+          aksi={onCreateRow && (input.state || komponenAktif(visibilitas, 'tombol_tambah')) ? (
+            input.state ? <>
+              <Button type="button" size="sm" disabled={input.state.menyimpan} onClick={() => void input.state?.simpan()}>{input.menyimpan ? 'Menyimpan…' : 'Simpan'}</Button>
+              <Button type="button" variant="outline" size="sm" disabled={input.state.menyimpan} onClick={input.state.batal}>Batal</Button>
+            </> : <Button ref={tombolTambahRef} id={`btn_tambah_baris_${tableKey}`} type="button" size="sm" variant="outline" disabled={loading} onClick={input.mulai}>Tambah baris</Button>
+          ) : undefined} />
+      )}
 
       {tabelTerdaftar && (
         <DialogKelolaTabel

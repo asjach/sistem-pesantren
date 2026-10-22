@@ -197,6 +197,12 @@ describe('ExcelTabelV2', () => {
     expect(root).toContainElement(footer as HTMLElement);
   });
 
+  it('menyembunyikan footer pada tabel ringkas baca-saja', () => {
+    const { container } = tampilkan({ hideFooter: true });
+    expect(container.querySelector('[data-slot="table-footer"]')).toBeNull();
+    expect(screen.queryByText('2 baris')).toBeNull();
+  });
+
   it('menampilkan judul, aksi halaman, dan trigger tanpa label visual', () => {
     const { container } = tampilkan({ aksi: <button type="button">Tambah</button> });
 

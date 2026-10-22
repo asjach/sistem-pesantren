@@ -1,78 +1,75 @@
+import type { ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderDenganTema } from '@/test/utils';
 
-vi.mock('@/api/toolbarPreset', () => ({
-  muatToolbarPreset: vi.fn(async () => ({
-    pesan: 'ok',
-    data: { table_key: 'uji', visibilitas: {}, lebar: {}, urutan: [], align: {} },
-  })),
-  simpanToolbarPreset: vi.fn(async () => ({ pesan: 'ok', data: null })),
+const v2 = vi.hoisted(() => ({
+  props: null as null | Record<string, unknown>,
 }));
 
-vi.mock('@/api/preset', () => ({
-  listPresetTabel: vi.fn(async () => ({ pesan: 'ok', data: [] })),
-  createPresetTabel: vi.fn(),
-  updatePresetTabel: vi.fn(),
-  deletePresetTabel: vi.fn(),
-  setPresetAktif: vi.fn(),
-  setPresetBawaan: vi.fn(),
+/** Grid V2 mengukur tinggi wadah; di jsdom tingginya 0 sehingga badan grid tak
+ *  digambar. Tes ini memeriksa kontrak TabelRingkas → ExcelTabelV2 (pemetaan
+ *  kolom/baris dan sakelar baca-saja), bukan mesin grid. */
+vi.mock('@/components/excelV2/ExcelTabelV2', () => ({
+  default: (props: {
+    tableKey: string;
+    header?: ReactNode;
+    akhirToolbar?: ReactNode;
+    fields: { key: string; label: string }[];
+    rows: { id: string }[];
+    getValues: (row: { id: string }) => Record<string, string | null>;
+    emptyText?: string;
+    maxRows?: number;
+    hideCheckbox?: boolean;
+    hideActions?: boolean;
+    hidePreset?: boolean;
+  }) => {
+    v2.props = props;
+    const isi = props.rows.length === 0
+      ? <p>{props.emptyText}</p>
+      : props.rows.map((r) => {
+        const nilai = props.getValues(r);
+        return (
+          <p key={r.id}>
+            {props.fields.map((f) => `${f.label}: ${nilai[f.key] ?? '—'}`).join(' | ')}
+          </p>
+        );
+      });
+    return (
+      <div data-table={props.tableKey}>
+        <div>{props.header}</div>
+        {props.akhirToolbar}
+        {isi}
+      </div>
+    );
+  },
 }));
-
-vi.mock('@/api/urutPreset', () => ({
-  muatUrutPreset: vi.fn(async () => ({ pesan: 'ok', data: { table_key: 'uji', opsi: [], tersedia: [] } })),
-  simpanUrutPreset: vi.fn(),
-  hapusUrutPreset: vi.fn(),
-  arahKolomDariOpsi: vi.fn(() => undefined),
-}));
-
-vi.mock('react-datasheet-grid', async (importOriginal) => {
-  const asli = await importOriginal<typeof import('react-datasheet-grid')>();
-  const stub = await import('./excel/_dsgStubDom');
-  return { ...asli, DynamicDataSheetGrid: stub.DynamicDataSheetGridStub };
-});
 
 import TabelRingkas from './TabelRingkas';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  localStorage.clear();
+  v2.props = null;
 });
 
-/** Root <section> pembungkus kartu tabel. */
-function kartu(container: HTMLElement): HTMLElement {
-  const el = container.querySelector('section');
-  expect(el).not.toBeNull();
-  return el as HTMLElement;
-}
-
-describe('TabelRingkas — jarak judul vs tabel', () => {
-  it('section pembungkus tanpa padding; bilah judul tetap berpadding', () => {
+describe('TabelRingkas — tabel baca-saja', () => {
+  it('meneruskan judul, kolom, dan nilai baris ke ExcelTabelV2', () => {
     const { container } = renderDenganTema(
       <TabelRingkas
         tableKey="uji"
         judul="Per tahun ajaran"
-        kolom={[{ key: 'ta', label: 'Tahun ajaran' }]}
-        baris={[['2026/2027']]}
+        kolom={[{ key: 'ta', label: 'Tahun ajaran' }, { key: 'jumlah', label: 'JML' }]}
+        baris={[['2026/2027', 12], ['2025/2026', 10]]}
       />,
     );
 
-    const section = kartu(container);
-
-    expect(section.className).not.toMatch(/\bp[xytblr]?-\d/);
-
-    const bilah = container.querySelector<HTMLElement>('[data-part="header_tabel"]');
-    expect(bilah).not.toBeNull();
-    expect(bilah?.className).toMatch(/\bpl-3\b/);
-    expect(bilah?.className).toMatch(/\bpr-1\b/);
-    expect(bilah?.className).toMatch(/\bmin-h-8\b/);
-
-    const spanJudul = bilah?.querySelector('span');
-    expect(spanJudul?.className ?? '').not.toMatch(/\buppercase\b/);
-    expect(spanJudul?.textContent).toBe('Per tahun ajaran');
+    expect(v2.props?.tableKey).toBe('uji');
+    expect(container.textContent).toContain('Per tahun ajaran');
+    expect(container.textContent).toContain('Tahun ajaran: 2026/2027');
+    expect(container.textContent).toContain('JML: 12');
+    expect(container.textContent).toContain('Tahun ajaran: 2025/2026');
   });
 
-  it('gerigi Pengaturan tabel ini tampil di bilah judul tabel ringkas', () => {
-
+  it('selalu baca-saja: tanpa centang, tanpa Aksi, tanpa preset kolom', () => {
     renderDenganTema(
       <TabelRingkas
         tableKey="uji"
@@ -81,41 +78,45 @@ describe('TabelRingkas — jarak judul vs tabel', () => {
         baris={[['VII-A']]}
       />,
     );
-    expect(document.getElementById('btn_pengaturan_tabel_uji')).not.toBeNull();
+
+    expect(v2.props).toMatchObject({
+      hideCheckbox: true,
+      hideActions: true,
+      hidePreset: true,
+    });
   });
 
-  it('wrapper grid di dalam header tidak menambah padding', () => {
-    const { container } = renderDenganTema(
-      <TabelRingkas
-        tableKey="uji"
-        judul="Per kelas"
-        kolom={[{ key: 'kelas', label: 'Kelas' }]}
-        baris={[['VII-A']]}
-      />,
-    );
-
-    const wrapper = kartu(container).querySelector(':scope > div');
-    expect(wrapper).not.toBeNull();
-    expect((wrapper as HTMLElement).className).not.toMatch(/\bp[xytblr]?-\d/);
-  });
-
-  it('wrapper grid tidak menambah jarak vertikal (mt-2) antara judul dan tabel', () => {
-    const { container } = renderDenganTema(
+  it('meneruskan aksi tambahan di sisi kanan judul', () => {
+    renderDenganTema(
       <TabelRingkas
         tableKey="uji"
         judul="Per tingkat"
         kolom={[{ key: 'tingkat', label: 'Tingkat' }]}
         baris={[['VII']]}
+        aksi={<span>12 santri</span>}
       />,
     );
 
-    const grid = container.querySelector<HTMLElement>('.simpes-dsg');
-    expect(grid).not.toBeNull();
+    expect(v2.props?.akhirToolbar).not.toBeNull();
+    expect(document.body.textContent).toContain('12 santri');
+  });
 
-    let atas: HTMLElement | null = (grid as HTMLElement).parentElement;
-    while (atas && !atas.className.includes('simpes-dsg')) {
-      expect(atas.className).not.toMatch(/(^|\s)mt-\d/);
-      atas = atas.parentElement;
-    }
+  it('meneruskan batas tinggi dan teks kosong', () => {
+    renderDenganTema(
+      <TabelRingkas
+        tableKey="uji"
+        judul="Usia per tingkat"
+        kolom={[{ key: 'tingkat', label: 'Tingkat' }]}
+        baris={[]}
+        maxRows={5}
+        emptyText="Belum ada data usia (tgl lahir kosong)."
+      />,
+    );
+
+    expect(v2.props).toMatchObject({
+      maxRows: 5,
+      emptyText: 'Belum ada data usia (tgl lahir kosong).',
+    });
+    expect(document.body.textContent).toContain('Belum ada data usia (tgl lahir kosong).');
   });
 });

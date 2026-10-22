@@ -15,6 +15,7 @@ import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import PresetKolom from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
 import LabeledCombobox from '@/components/LabeledCombobox';
@@ -823,8 +824,9 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
               <div className="flex min-h-0 flex-1 flex-col gap-1">
                 <p className="text-sm font-medium">Dilewati ({hasil.alasan.length})</p>
                 <div className="flex min-h-0 flex-1 flex-col">
-                  <ExcelTable<AlasanHasil>
+                  <ExcelTabelV2<AlasanHasil>
                     tableKey="keuangan_gen_hasil"
+                    onApplyPreset={() => {}}
                     fields={FIELDS_HASIL}
                     rows={hasil.alasan}
                     getValues={(r) => ({
@@ -837,7 +839,7 @@ export default function GenerateTagihanDialog({ open, onOpenChange, jenis, tarif
                     onSaved={() => {}}
                     hideCheckbox
                     hideActions
-                    renderActions={() => null}
+                    hideFooter
                   />
                 </div>
               </div>

@@ -3,7 +3,8 @@ import {
   listAkunPegawai,
   type AkunPegawai,
 } from '../api/pegawai';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import Pager from '@/components/Pager';
 import { useDaftarTabel } from '@/hooks/useDaftarTabel';
 import { useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -56,9 +57,8 @@ export default function AkunPegawaiPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'pegawai_akun', judul: 'Akun Pegawai', fields: FIELDS }]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIPP / email / no. HP / username…" />
-      <ExcelTable
+      <ExcelTabelV2<AkunPegawai>
         tableKey="pegawai_akun"
-        sumberTabel="pegawai"
         fields={FIELDS}
         rows={rows}
         getValues={nilaiBaris}
@@ -70,7 +70,8 @@ export default function AkunPegawaiPage() {
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
-        renderActions={() => <></>}
+        onApplyPreset={() => {}}
+        hideActions
         pager={(
           <Pager
             page={pager.page}
