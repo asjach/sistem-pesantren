@@ -4,9 +4,12 @@ import GridV2 from './GridV2';
 import TableFooterV2 from './TableFooterV2';
 import MenuPengaturanV2 from './MenuPengaturanV2';
 import { susunKolom } from './kolom';
+import { judulTabel } from '@/components/excel/judul';
 import { useToolbarPresetState } from '@/components/excel/useToolbarPreset';
 import { komponenAktif, type InfoKomponenTabel } from '@/components/excel/komponenTabel';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
+import FilterRail from '@/components/FilterRail';
+import { DEFAULT_HEADER_H, useGridPrefs } from '@/components/GridPrefs';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import { Button } from '@/components/ui/button';
@@ -14,7 +17,11 @@ import { Settings } from '@/icons';
 import type { ExcelField, GridRow } from '@/components/excel/types';
 
 export interface ExcelTabelV2Props<T extends { id: string | number }> {
-  judul: string;
+  /** Judul tabel berupa teks. Dipakai bila `header` tidak diberikan. */
+  judul?: string;
+  /** Judul tabel berupa node (mis. `<span>{judul}</span>`), mengikuti V1.
+   *  Menang atas `judul` teks, kalah dari judul setelan pengguna. */
+  header?: ReactNode;
   tableKey: string;
   fields: ExcelField[];
   rows: T[];
@@ -49,6 +56,22 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   hideActions?: boolean;
   /** Tabel ringkas baca-saja: sembunyikan pemilih preset kolom. */
   hidePreset?: boolean;
+  /** Kontrol bebas halaman di awal area judul (mis. pemilih tabel). */
+  awalanToolbar?: ReactNode;
+  /** Kontrol bebas halaman di ujung kanan area judul, sebelum aksi massal. */
+  akhirToolbar?: ReactNode;
+  /** Tombol aksi utama halaman (mis. "+ Tambah"). */
+  addButton?: ReactNode;
+  /** Tampilkan `addButton` langsung (bawaan V2). `false` = dibungkus menu
+   *  hamburger "Aksi" (MenuAksiToolbar). */
+  addButtonLangsung?: boolean;
+  /** Aksi massal untuk baris tercentang. Hanya dipanggil saat ada centang;
+   *  `clearSelection` mengosongkan pilihan setelah aksi selesai. */
+  renderBulkActions?: (checkedRows: T[], clearSelection: () => void) => ReactNode;
+  /** Tampilkan rel filter Tingkat/Kelas di kiri grid (di bawah bilah judul,
+   *  sejajar judul kolom). Pakai hanya pada tabel utama halaman — satu rel
+   *  per halaman; halaman tanpa filter tingkat/kelas tidak menampilkannya. */
+  rail?: boolean;
 }
 
 /**
@@ -61,6 +84,7 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
  */
 export default function ExcelTabelV2<T extends { id: string | number }>({
   judul,
+  header,
   tableKey,
   fields,
   rows,
@@ -81,6 +105,12 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   hideCheckbox = false,
   hideActions = false,
   hidePreset = false,
+  awalanToolbar,
+  akhirToolbar,
+  addButton,
+  addButtonLangsung = true,
+  renderBulkActions,
+  rail = false,
 }: ExcelTabelV2Props<T>) {
   const [dipilih, setDipilih] = useState<Set<string | number>>(() => new Set());
   /** Susunan kolom dari preset. null = semua kolom, urutan asli halaman. */
@@ -89,9 +119,15 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
 
   /** Setelan tabel milik pengguna: judul, label, perataan, visibilitas. */
   const { judulDb, labelDb, alignDb, visibilitas, infoHtmlDb } = useToolbarPresetState(tableKey);
-  const judulTampil = judulDb?.trim() || judul;
+  /** Presedensi judul mengikuti V1: setelan pengguna → header (node) →
+   *  judul teks → bawaan dari tableKey. */
+  const judulTampil: ReactNode = judulDb?.trim() || header || judul || judulTabel(tableKey);
+  /** Judul untuk input di Kelola Tabel harus teks; node header tak bisa
+   *  dipakai sebagai nilai input, jadi jatuh ke judul teks/tableKey. */
+  const judulDbDefault = typeof judulTampil === 'string' ? judulTampil : (judul ?? judulTabel(tableKey));
 
   const { efektifSuper } = useLembagaAktif();
+  const { headerH } = useGridPrefs();
   const visHalaman = useVisibilitasFilter();
   const tabelTerdaftar = visHalaman?.registrasi != null;
   const bolehKelola = tabelTerdaftar && efektifSuper;
@@ -142,6 +178,14 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
 
   const fieldsTampil = useMemo(() => susunKolom(fields, kolomPreset), [fields, kolomPreset]);
 
+  /** Baris domain yang tercentang, seurutan tabel. */
+  const checkedRows = useMemo(() => rows.filter((r) => dipilih.has(r.id)), [rows, dipilih]);
+  const clearSelection = useCallback(() => terapkanPilih(new Set()), [terapkanPilih]);
+  /** Aksi massal hanya diberikan saat ada centang, seperti V1. */
+  const aksiMassal = renderBulkActions && checkedRows.length > 0
+    ? renderBulkActions(checkedRows, clearSelection)
+    : null;
+
   /** Komponen yang BENAR-BENAR ada di V2 (bukan yang sedang tampil) — dipakai
    *  dialog dan menu agar tak menawarkan sakelar mati. */
   const infoKomponen = useMemo<InfoKomponenTabel>(() => ({
@@ -152,8 +196,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     keaktifan: false,
     urut: onUrut != null,
     kolom: !hidePreset,
-    tombolAksi: aksi != null,
-    relFilter: false,
+    tombolAksi: aksi != null || addButton != null,
+    relFilter: rail,
     pager: pager != null,
     tombolTambah: false,
     tombolEdit: false,
@@ -163,6 +207,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
 
   const judulAktif = komponenAktif(visibilitas, 'judul_tabel');
   const aksiAktif = aksi != null && komponenAktif(visibilitas, 'tombol_aksi');
+  const addAktif = addButton != null && komponenAktif(visibilitas, 'tombol_aksi');
   const filterAktif = filter != null && komponenAktif(visibilitas, 'filter');
   const urutTampil = onUrut != null && komponenAktif(visibilitas, 'urutan');
   const kolomTampil = !hidePreset && komponenAktif(visibilitas, 'kolom');
@@ -171,6 +216,11 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   const aksiKolomAktif = !hideActions && komponenAktif(visibilitas, 'kolom_aksi');
   const pagerAktif = pager != null && komponenAktif(visibilitas, 'pager');
   const pengaturanAktif = komponenAktif(visibilitas, 'tombol_pengaturan');
+  const railTampil = rail && komponenAktif(visibilitas, 'rel_filter');
+  /** Samakan dengan `headerRowHeight` GridV2 supaya label rail sejajar dengan
+   *  judul kolom: GridV2 memakai `headerH ?? DEFAULT_HEADER_H`. Tinggi header
+   *  otomatis (`headerAutoH`) belum ada di V2. */
+  const tinggiLabelRail = headerH ?? DEFAULT_HEADER_H;
 
   const pengaturan = pengaturanAktif ? (
     <Button
@@ -217,32 +267,41 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
         infoHtml={infoHtmlDb}
         pengaturan={pengaturan}
         menu={menu}
+        awalanToolbar={awalanToolbar}
+        akhirToolbar={akhirToolbar}
+        addButton={addAktif ? addButton : undefined}
+        addButtonLangsung={addButtonLangsung}
+        aksiMassal={aksiMassal}
         urutAktif={urutAktif}
         arahUrut={arahUrut}
         onUrut={onUrut}
         onApplyPreset={terapkanPreset}
       />
 
-      <GridV2
-        tableKey={tableKey}
-        fields={fieldsTampil}
-        rows={nilai}
-        loading={loading}
-        emptyText={emptyText}
-        renderActions={aksiKolomAktif && renderActions ? (id) => {
-          const sumber = rows.find((r) => r.id === id);
-          return sumber ? renderActions(sumber) : null;
-        } : undefined}
-        hideCheckbox={!centangAktif}
-        hideHeader={!headerAktif}
-        labelDb={labelDb}
-        alignDb={alignDb}
-        dipilih={dipilih}
-        onTogglePilih={togglePilih}
-        onTogglePilihSemua={togglePilihSemua}
-        barisAktifId={barisAktifId ?? null}
-        onBarisAktif={onBarisKlik ? tanganiBarisAktif : undefined}
-      />
+      <div className={railTampil ? 'flex min-h-0 flex-1' : 'contents'}>
+        {railTampil && <FilterRail tinggiLabel={tinggiLabelRail} />}
+
+        <GridV2
+          tableKey={tableKey}
+          fields={fieldsTampil}
+          rows={nilai}
+          loading={loading}
+          emptyText={emptyText}
+          renderActions={aksiKolomAktif && renderActions ? (id) => {
+            const sumber = rows.find((r) => r.id === id);
+            return sumber ? renderActions(sumber) : null;
+          } : undefined}
+          hideCheckbox={!centangAktif}
+          hideHeader={!headerAktif}
+          labelDb={labelDb}
+          alignDb={alignDb}
+          dipilih={dipilih}
+          onTogglePilih={togglePilih}
+          onTogglePilihSemua={togglePilihSemua}
+          barisAktifId={barisAktifId ?? null}
+          onBarisAktif={onBarisKlik ? tanganiBarisAktif : undefined}
+        />
+      </div>
 
       <TableFooterV2 jumlah={rows.length} dipilih={dipilih.size} pager={pagerAktif ? pager : undefined} />
 
@@ -251,7 +310,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
           open={kelolaOpen}
           onOpenChange={setKelolaOpen}
           tableKey={tableKey}
-          judul={judulTampil}
+          judul={judulDbDefault}
           fields={fields}
           infoKomponen={infoKomponen}
           nonModal

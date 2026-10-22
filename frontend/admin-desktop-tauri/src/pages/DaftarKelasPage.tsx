@@ -194,8 +194,9 @@ export default function DaftarKelasPage() {
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'daftar_kelas', judul: 'Daftar kelas', fields }]} />
       {import.meta.env.DEV ? (
         <ExcelTabelV2
-          judul="Daftar kelas"
+          header={<span id="judul_daftar_kelas" className="text-xs font-semibold">Daftar kelas</span>}
           tableKey="daftar_kelas"
+          rail
           fields={fields}
           rows={rows}
           getValues={daftarKelasValues}

@@ -985,17 +985,19 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `To Do`
+### DA11.1 Tabel & Grid `Backlog`
 **Backlog**
+- Rel filter tingkat/kelas tampil di kiri grid V2.
+- Lebar kolom V2 bisa diubah lewat handle, AutoFit, dan tersimpan per perangkat.
 - Tabel V2 bisa mengisi lebar, membekukan kolom, dan menyusun ulang kolom lewat geser judul.
 - Tinggi baris V2 bisa diatur per tabel, ikut isi, dan dibatasi N baris.
 - Sel V2 bisa disunting langsung dengan simpan otomatis dan validasi.
 - V2 bisa menambah record baru lewat baris input di kaki tabel.
 - Menu klik kanan, salin TSV, dan seret isi sel berfungsi di V2.
+- Migrasi halaman MiMd ke ExcelTabelV2: tiga panel MI Only, MD Semua, dan Perbandingan Kelas memakai header, rail, dan aksi massal V2.
+- Tinggi header otomatis (headerAutoH) berlaku di V2: header kolom meninggi mengikuti judul yang membungkus seperti V1, agar spinbox mode otomatis berfungsi.
 **To Do**
-- Aksi halaman di toolbar V2: aksi massal baris tercentang, tombol aksi utama, dan slot kontrol halaman.
-- Rel filter tingkat/kelas tampil di kiri grid V2.
-- Lebar kolom V2 bisa diubah lewat handle, AutoFit, dan tersimpan per perangkat.
+- (kosong)
 **In Progress**
 - (kosong)
 **For Review**
@@ -1049,6 +1051,13 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Kelola Tabel dari V2 (mode ringkas) menyembunyikan sakelar visibilitas; input judul, label/perataan, urutan, info, kolom beku, tinggi baris, dan reset tetap tersedia.
   - [x] Gerigi Pengaturan tabel, ikon Info, dan item menu pintasan berfungsi sesuai izin; tidak ada tombol mati.
   - [x] npm run typecheck dan tes tersempit hijau (70 tes); anotasi Menu lainnya dihapus setelah selesai.
+- Aksi halaman di toolbar V2: aksi massal baris tercentang, tombol aksi utama, dan slot kontrol halaman.
+  - [x] ExcelTabelV2 menerima judul sebagai node (header) selain judul berupa string, dengan presedensi judul setelan pengguna, lalu header, lalu judul string, lalu bawaan dari tableKey.
+  - [x] Halaman yang hanya mengirim judul string tampil persis seperti sekarang; tidak ada perubahan layout.
+  - [x] Halaman V2 contoh memakai header berupa node dan judulnya tampil benar, termasuk saat judul setelan pengguna diisi.
+  - [x] Rail filter Tingkat/Kelas tampil di kiri grid V2 lewat prop rail, sejajar judul kolom memakai tinggi header yang sama dengan GridV2, dan menghormati sakelar rel_filter.
+  - [x] ExcelTabelV2 menerima slot aksi halaman: awalanToolbar, akhirToolbar, addButton (langsung atau menu Aksi lewat addButtonLangsung), dan renderBulkActions yang hanya dipanggil saat ada centang serta bisa mengosongkan pilihan.
+  - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
 **Done**
 - Grid tabel bergaya Excel
   - [x] Seleksi blok dan salin/tempel TSV

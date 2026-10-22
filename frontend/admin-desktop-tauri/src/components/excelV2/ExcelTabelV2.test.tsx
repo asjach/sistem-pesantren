@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -24,6 +24,17 @@ vi.mock('@/components/VisibilitasFilter', () => ({
   useVisibilitasFilter: () => halamanState.terdaftar
     ? { registrasi: { pageKey: 'daftar_kelas', tabel: [], filterRelevan: [], bawaan: {}, modeBawaan: {} } }
     : null,
+}));
+
+vi.mock('@/components/GridPrefs', async (asli) => ({
+  ...(await asli<typeof import('@/components/GridPrefs')>()),
+  useGridPrefs: () => ({ rowH: null, headerH: null, fontPx: 12, fontFamily: null }),
+}));
+
+vi.mock('@/components/FilterRail', () => ({
+  default: ({ tinggiLabel }: { tinggiLabel?: number }) => (
+    <aside data-testid="filter-rail" data-tinggi={String(tinggiLabel ?? '')} />
+  ),
 }));
 
 vi.mock('@/components/kelolaTabel/DialogKelolaTabel', () => ({
@@ -323,6 +334,116 @@ describe('ExcelTabelV2', () => {
     tampilkan();
 
     expect(screen.queryByRole('button', { name: 'Pengaturan tabel' })).toBeNull();
+  });
+
+  it('menampilkan judul dari header node dan mengalahkan judul teks', () => {
+    tampilkan({ judul: 'Judul teks', header: <span data-testid="header-halaman">MI Only</span> });
+
+    expect(screen.getByTestId('header-halaman')).toHaveTextContent('MI Only');
+    expect(screen.queryByText('Judul teks')).toBeNull();
+  });
+
+  it('judul setelan pengguna mengalahkan header node', () => {
+    presetState.judulDb = 'Judul dari setelan';
+    tampilkan({ judul: 'Judul teks', header: <span data-testid="header-halaman">MI Only</span> });
+
+    expect(screen.getByText('Judul dari setelan')).toBeInTheDocument();
+    expect(screen.queryByTestId('header-halaman')).toBeNull();
+  });
+
+  it('jatuh ke judul teks bila header tidak diberikan', () => {
+    tampilkan({ judul: 'Daftar kelas' });
+
+    expect(screen.getByText('Daftar kelas')).toBeInTheDocument();
+  });
+
+  it('jatuh ke judul bawaan tableKey bila judul dan header kosong', () => {
+    render(
+      <ExcelTabelV2
+        tableKey="mi_md_mi"
+        fields={DUA_KOLOM}
+        rows={rows}
+        getValues={(r) => ({ nama: r.nama })}
+        onApplyPreset={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('MI Only')).toBeInTheDocument();
+  });
+
+  it('tidak menampilkan rail secara bawaan', () => {
+    tampilkan();
+
+    expect(screen.queryByTestId('filter-rail')).toBeNull();
+  });
+
+  it('menampilkan rail dengan tinggi label mengikuti header grid saat rail aktif', () => {
+    tampilkan({ rail: true });
+
+    const rail = screen.getByTestId('filter-rail');
+    expect(rail).toBeInTheDocument();
+    expect(rail).toHaveAttribute('data-tinggi', '26');
+  });
+
+  it('menyembunyikan rail saat sakelar rel_filter mati', () => {
+    presetState.visibilitas = { rel_filter: false };
+    tampilkan({ rail: true });
+
+    expect(screen.queryByTestId('filter-rail')).toBeNull();
+  });
+
+  it('menampilkan tombol aksi utama secara langsung secara bawaan', () => {
+    tampilkan({ addButton: <button type="button">Tambah</button> });
+
+    expect(screen.getByRole('button', { name: 'Tambah' })).toBeInTheDocument();
+  });
+
+  it('membungkus tombol aksi utama jadi menu Aksi saat addButtonLangsung false', () => {
+    tampilkan({
+      addButton: <button type="button">Tambah</button>,
+      addButtonLangsung: false,
+    });
+
+    expect(screen.queryByRole('button', { name: 'Tambah' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Aksi' })).toBeInTheDocument();
+  });
+
+  it('menyembunyikan tombol aksi utama saat sakelar tombol_aksi mati', () => {
+    presetState.visibilitas = { tombol_aksi: false };
+    tampilkan({ addButton: <button type="button">Tambah</button> });
+
+    expect(screen.queryByRole('button', { name: 'Tambah' })).toBeNull();
+  });
+
+  it('menampilkan kontrol awalan dan akhir toolbar halaman', () => {
+    tampilkan({
+      awalanToolbar: <span data-testid="awalan">awalan</span>,
+      akhirToolbar: <span data-testid="akhir">akhir</span>,
+    });
+
+    expect(screen.getByTestId('awalan')).toBeInTheDocument();
+    expect(screen.getByTestId('akhir')).toBeInTheDocument();
+  });
+
+  it('memanggil aksi massal hanya saat ada baris tercentang lalu mengosongkan pilihan', async () => {
+    const user = userEvent.setup();
+    const aksi = vi.fn((checked: { id: number }[], clear: () => void) => (
+      <button type="button" onClick={clear}>Bulk ({checked.length})</button>
+    ));
+    tampilkan({ renderBulkActions: aksi });
+
+    expect(aksi).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /Bulk/ })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'pilih-1' }));
+
+    expect(await screen.findByRole('button', { name: 'Bulk (1)' })).toBeInTheDocument();
+    expect(aksi).toHaveBeenCalledWith([rows[0]], expect.any(Function));
+
+    await user.click(screen.getByRole('button', { name: 'Bulk (1)' }));
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Bulk/ })).toBeNull());
+    expect(screen.getByTestId('dipilih-grid')).toHaveTextContent('');
   });
 
   it('menampilkan info tabel di popover', async () => {

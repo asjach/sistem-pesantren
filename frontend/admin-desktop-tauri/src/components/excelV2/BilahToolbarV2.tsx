@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import PresetKolom from '@/components/PresetKolom';
 import PresetUrut from '@/components/PresetUrut';
+import MenuAksiToolbar from '@/components/MenuAksiToolbar';
 import InfoTampil from '@/components/info/InfoTampil';
 import { htmlAdaIsi } from '@/components/info/sanitasiHtml';
 import { ChevronDown, Info } from '@/icons';
@@ -12,7 +13,8 @@ function Pemisah() {
 }
 
 interface Props {
-  judul: string;
+  /** Judul tabel: node (header halaman) atau teks biasa. */
+  judul: ReactNode;
   tableKey: ComponentProps<typeof PresetUrut>['tableKey'];
   fields: ComponentProps<typeof PresetKolom>['fields'];
   /** Tombol aksi halaman (mis. Tambah) di area aksi. */
@@ -31,6 +33,15 @@ interface Props {
   pengaturan?: ReactNode;
   /** Trigger menu pengaturan tabel (MenuPengaturanV2). */
   menu?: ReactNode;
+  /** Kontrol bebas halaman di area judul. */
+  awalanToolbar?: ReactNode;
+  akhirToolbar?: ReactNode;
+  /** Tombol aksi utama halaman; `addButtonLangsung=false` membungkusnya jadi
+   *  menu hamburger "Aksi" (MenuAksiToolbar). */
+  addButton?: ReactNode;
+  addButtonLangsung?: boolean;
+  /** Aksi massal baris tercentang (sudah dirender halaman). */
+  aksiMassal?: ReactNode;
   urutAktif?: ComponentProps<typeof PresetUrut>['urutAktif'];
   arahUrut?: ComponentProps<typeof PresetUrut>['arahUrut'];
   onUrut?: ComponentProps<typeof PresetUrut>['onUrut'];
@@ -52,6 +63,11 @@ export default function BilahToolbarV2({
   infoHtml = null,
   pengaturan,
   menu,
+  awalanToolbar,
+  akhirToolbar,
+  addButton,
+  addButtonLangsung = true,
+  aksiMassal,
   urutAktif,
   arahUrut,
   onUrut,
@@ -104,6 +120,30 @@ export default function BilahToolbarV2({
             className="flex h-full min-w-0 shrink-0 items-center gap-1 overflow-hidden"
           >
             {aksi}
+          </div>
+        )}
+
+        {(awalanToolbar != null || akhirToolbar != null) && (
+          <div className="flex h-full min-w-0 shrink-0 items-center gap-1 overflow-hidden">
+            {awalanToolbar}
+            {akhirToolbar}
+          </div>
+        )}
+
+        {aksiMassal != null && (
+          <div
+            data-slot="excel-table-aksi-massal"
+            className="flex h-full shrink-0 flex-nowrap items-center gap-1.5 [&>*]:shrink-0"
+          >
+            {aksiMassal}
+          </div>
+        )}
+
+        {addButton != null && (
+          <div className="h-full shrink-0">
+            {addButtonLangsung
+              ? addButton
+              : <MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar>}
           </div>
         )}
 
