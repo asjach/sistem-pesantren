@@ -16,6 +16,7 @@ import { useGridPrefs, DEFAULT_FONT_PX, DEFAULT_HEADER_H, FONT_OPTIONS, FONT_FAM
 import { TINGGI_BARIS_BAWAAN } from '@/components/excel/tinggiBaris';
 import { useTinggiBaris } from '@/components/excel/useTinggiBaris';
 import { useTinggiBarisSatuan } from '@/components/excel/useTinggiBarisSatuan';
+import { targetGulirBeku } from '@/components/excel/beku';
 import { PillMode, TabelMemuat } from '@/components/excel/primitives';
 import { cn } from '@/lib/utils';
 import { labelKolom } from '@/lib/labelKolom';
@@ -26,6 +27,8 @@ import {
   INPUT_ROW_ID,
   GUTTER_W,
   MIN_COL_W,
+  freezeKey,
+  loadFreeze,
   loadSakelarGestur,
   seretPindahKey,
   seretSalinKey,
@@ -476,6 +479,39 @@ export default function GridV2({
 
   const modeSeret: ModeSeret | null = seretSalin ? 'salin' : (seretPindah ? 'pindah' : null);
 
+  /** ===== Kolom beku (freeze pane kiri) ===== */
+  /** Jumlah kolom DATA pertama yang menempel saat grid digulir horizontal.
+   *  Pref PER PERANGKAT, satu kunci per tabel — kuncinya sama dengan V1, jadi
+   *  angka yang disetel di Kelola Tabel -> Umum berlaku untuk kedua varian. */
+  const [freeze, setFreeze] = useState(0);
+  useEffect(() => {
+    let batal = false;
+    const muat = () => {
+      loadFreeze(freezeKey(tableKey)).then((n) => {
+        if (!batal) setFreeze(n);
+      });
+    };
+    muat();
+    const segarkan = (e: Event) => {
+      if ((e as CustomEvent).detail?.tableKey === tableKey) muat();
+    };
+    window.addEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
+    return () => {
+      batal = true;
+      window.removeEventListener(EVENT_TAMPILAN_PERANGKAT_BERUBAH, segarkan);
+    };
+  }, [tableKey]);
+
+  /** Dibatasi jumlah kolom yang benar-benar tampil: preset kolom bisa
+   *  mengurangi kolom sehingga angka tersimpan jadi terlalu besar. */
+  const freezeAktif = Math.min(freeze, fields.length);
+  const ubahFreeze = useCallback((n: number) => {
+    const v = Math.max(0, Math.min(fieldsRef.current.length, Math.round(n)));
+    setFreeze(v);
+    prefSet(freezeKey(tableKey), String(v)).catch(() => {});
+    kabariTampilanPerangkat(tableKey);
+  }, [tableKey]);
+
   /** Seleksi blok aktif (dipakai salin blok & seret isi sel). Tanpa seleksi,
    *  sel aktif tunggal menjadi sumber — sama seperti V1. */
   const [range, setRange] = useState<GridSelection | null>(null);
@@ -696,6 +732,143 @@ export default function GridV2({
     skalaRef: skalaIsiRef,
   });
 
+  /** Kolom beku menutupi konten yang digulir ke arahnya: bila gulir berhenti
+   *  di tengah kolom, kolom pertama setelah area beku tampil terpotong.
+   *  Setelah gulir berhenti, ratakan tepi kolom terdekat dengan tepi area
+   *  beku — memakai mesin V1 (`targetGulirBeku`) supaya rasa gulirnya sama. */
+  const snapBekuTimerRef = useRef<number | null>(null);
+  /** Thumb scrollbar sedang diseret: snap ditahan sampai pointer dilepas,
+   *  supaya posisi tidak melompat di bawah jari pengguna. */
+  const seretScrollbarRef = useRef(false);
+  const snapBeku = useCallback(() => {
+    if (snapBekuTimerRef.current !== null) window.clearTimeout(snapBekuTimerRef.current);
+    snapBekuTimerRef.current = null;
+    // Sedang menyeret lebar kolom atau thumb scrollbar: jangan lawan gerakan
+    // pengguna. Setelah pointer dilepas, snap dijadwalkan ulang dari efek.
+    if (freezeAktif <= 0 || lebar.sedangLebar || seretScrollbarRef.current) return;
+    snapBekuTimerRef.current = window.setTimeout(() => {
+      snapBekuTimerRef.current = null;
+      if (seretScrollbarRef.current) return;
+      const el = wrapRef.current;
+      const cont = el?.querySelector<HTMLElement>('.dsg-container');
+      if (!el || !cont) return;
+
+      // Tepi kanan area beku = kanan sel header terakhir yang menempel.
+      const beku = [...el.querySelectorAll<HTMLElement>(
+        '.dsg-row-header .dsg-cell.dsg-cell-sticky-left, .dsg-row-header .dsg-cell-gutter',
+      )];
+      if (beku.length === 0) return;
+      const batas = Math.max(...beku.map((c) => c.getBoundingClientRect().right));
+      // Area beku sudah menutupi seluruh lebar yang terlihat: tak ada kolom
+      // bergulir yang bisa diratakan.
+      if (batas >= cont.getBoundingClientRect().right - 1) return;
+
+      // Kiri tiap kolom yang masih bergulir (beku, gutter, aksi dilewati).
+      const kolomKiri: number[] = [];
+      el.querySelectorAll<HTMLElement>('.dsg-row-header .dsg-cell').forEach((c) => {
+        if (c.classList.contains('dsg-cell-sticky-left')
+          || c.classList.contains('dsg-cell-gutter')
+          || c.classList.contains('dsg-cell-sticky-right')) return;
+        if (c.querySelector('[data-col-key]') === null) return;
+        const r = c.getBoundingClientRect();
+        if (r.width > 0) kolomKiri.push(r.left);
+      });
+
+      const target = targetGulirBeku(
+        kolomKiri,
+        batas,
+        cont.scrollLeft,
+        Math.max(0, cont.scrollWidth - cont.clientWidth),
+      );
+      if (target !== null && Math.abs(target - cont.scrollLeft) > 0.5) cont.scrollLeft = target;
+    }, 140);
+  }, [freezeAktif, lebar.sedangLebar]);
+
+  /** Scrollbar melayang memakai pointer event. Selama thumb masih ditahan,
+   *  snap ditahan; begitu pointer dilepas, snap dijalankan sekali supaya
+   *  kolom tetap rata tanpa posisi melompat di bawah jari.
+   *
+   *  Sekaligus menangani bug DSG: klik sel di kolom beku membuat DSG
+   *  menggulir ke posisi STATIS kolom itu (`scrollTo(activeCell)`), sehingga
+   *  grid melompat ke kiri walau selnya sedang menempel. Posisi gulir
+   *  dikembalikan bila pointer tidak bergerak (klik, bukan seret seleksi). */
+  const klikBekuRef = useRef<{ left: number; x: number; y: number } | null>(null);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const kontainer = () => el.querySelector<HTMLElement>('.dsg-container');
+    /** Selama pointer masih di bawah (klik/seret dari kolom beku), posisi
+     *  gulir dikunci ke nilai sebelum klik. DSG menggulir ke posisi statis
+     *  sel lewat effect setelah state seleksi berubah; guard ini menahannya
+     *  sampai pointer dilepas. */
+    let jaga = false;
+    const jagaScroll = () => {
+      if (!jaga) return;
+      const k = klikBekuRef.current;
+      const cont = kontainer();
+      if (k && cont && Math.abs(cont.scrollLeft - k.left) > 0.5) cont.scrollLeft = k.left;
+    };
+    const mulai = (e: PointerEvent) => {
+      const target = e.target as Element | null;
+      if (target?.closest?.('[role="scrollbar"]')) {
+        seretScrollbarRef.current = true;
+        return;
+      }
+      const cont = kontainer();
+      if (cont && target?.closest?.('.dsg-cell-sticky-left')) {
+        klikBekuRef.current = { left: cont.scrollLeft, x: e.clientX, y: e.clientY };
+        jaga = true;
+        cont.addEventListener('scroll', jagaScroll);
+      }
+    };
+    const selesai = (e: PointerEvent) => {
+      const k = klikBekuRef.current;
+      klikBekuRef.current = null;
+      const cont = kontainer();
+      if (jaga) {
+        jaga = false;
+        cont?.removeEventListener('scroll', jagaScroll);
+      }
+      // Sisa geseran kecil setelah guard dilepas (mis. DSG menggulir lagi
+      // pada frame berikutnya) dikembalikan bila pointer tidak bergerak.
+      if (k && cont && Math.hypot(e.clientX - k.x, e.clientY - k.y) <= 4
+        && Math.abs(cont.scrollLeft - k.left) > 0.5) {
+        cont.scrollLeft = k.left;
+      }
+      if (!seretScrollbarRef.current) return;
+      seretScrollbarRef.current = false;
+      snapBeku();
+    };
+    /** Pointer dilepas di luar jendela: guard tidak boleh tertinggal aktif. */
+    const batal = () => {
+      klikBekuRef.current = null;
+      if (!jaga) return;
+      jaga = false;
+      kontainer()?.removeEventListener('scroll', jagaScroll);
+    };
+    el.addEventListener('pointerdown', mulai, true);
+    window.addEventListener('pointerup', selesai);
+    window.addEventListener('pointercancel', selesai);
+    window.addEventListener('blur', batal);
+    return () => {
+      el.removeEventListener('pointerdown', mulai, true);
+      window.removeEventListener('pointerup', selesai);
+      window.removeEventListener('pointercancel', selesai);
+      window.removeEventListener('blur', batal);
+      kontainer()?.removeEventListener('scroll', jagaScroll);
+    };
+  }, [snapBeku]);
+
+  useEffect(() => () => {
+    if (snapBekuTimerRef.current !== null) window.clearTimeout(snapBekuTimerRef.current);
+  }, []);
+
+  /** Freeze dinyalakan atau lebar kolom berubah: tepi area beku ikut bergeser,
+   *  jadi ratakan lagi tanpa menunggu pengguna menggulir. */
+  useEffect(() => {
+    if (freezeAktif > 0 && !lebar.sedangLebar) snapBeku();
+  }, [freezeAktif, lebar.sedangLebar, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, snapBeku]);
+
   /** Lebar kolom data hasil skala agar tabel mengisi wadah; `null` = pakai
    *  lebar basis apa adanya (fitur mati / wadah belum terukur). Kolom tetap
    *  (gutter, centang, Aksi) tidak ikut diskalakan — itu chrome tabel.
@@ -778,8 +951,11 @@ export default function GridV2({
       });
     }
 
-    for (const f of fields) {
+    for (const [iData, f] of fields.entries()) {
       const rata = rataKolom(f, alignDb);
+      /** Tepi kanan area beku: DSG sendiri sudah menempelkan kolomnya lewat
+       *  `stickyLeftColumnCount`, kelas ini hanya menambah garis pemisah. */
+      const tepiBeku = freezeAktif > 0 && iData === freezeAktif - 1;
       cols.push({
         id: f.key,
         title: (
@@ -809,15 +985,17 @@ export default function GridV2({
         // Hanya kolom yang benar-benar bisa disunting yang dibuka; kolom
         // `static` tetap terkunci meski Mode Ubah menyala.
         disabled: !(bisaEdit && f.kind !== 'static'),
+        headerClassName: tepiBeku ? 'simpes-dsg-v2-beku-tepi' : undefined,
         cellClassName: ({ rowData }: { rowData?: GridRow }) => cn(
           barisIkutIsi && maxRows === undefined && 'px-2',
+          tepiBeku && 'simpes-dsg-v2-beku-tepi',
           rowData ? f.cellClass?.(rowData) : undefined,
         ) || undefined,
       });
     }
 
     return cols;
-  }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit, skalaIsi, modeUbah, bisaEdit, simpanSel, barisIkutIsi, maxRows, !!inputRow]);
+  }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit, skalaIsi, modeUbah, bisaEdit, simpanSel, barisIkutIsi, maxRows, !!inputRow, freezeAktif]);
 
   /** Kolom Aksi = kolom sticky kanan DSG. Sengaja TIDAK ikut columns:
    *  DSG menggambarnya terpisah agar menempel saat digulir horizontal.
@@ -1061,7 +1239,9 @@ export default function GridV2({
                   onChange={() => {}}
                   columns={kolom}
                   gutterColumn={GUTTER_COLUMN}
-                  stickyLeftColumnCount={hideCheckbox ? 0 : 1}
+                  // DSG menghitung kolom dari indeks 0 = gutter, jadi jumlah
+                  // sticky = kolom centang (bila ada) + kolom data yang dibekukan.
+                  stickyLeftColumnCount={(hideCheckbox ? 0 : 1) + freezeAktif}
                   stickyRightColumn={kolomAksi}
                   rowKey="id"
                   height={tinggiGrid}
@@ -1073,6 +1253,7 @@ export default function GridV2({
                   rowClassName={rowClassName}
                   onActiveCellChange={tanganiSelAktif}
                   onSelectionChange={tanganiSeleksi}
+                  onScroll={snapBeku}
                 />
               </PilihSemuaContext.Provider>
               </InputContextV2.Provider>
@@ -1097,6 +1278,9 @@ export default function GridV2({
           sudut={ctx.area === 'sudut'}
           onAutoFit={lebar.onAutoFit}
           onAutoFitAll={lebar.onAutoFitAll}
+          freezeAktif={freezeAktif}
+          headerIdx={ctx.area === 'header' ? fields.findIndex((f) => f.key === ctx.colKey) : -1}
+          onFreeze={ubahFreeze}
           align={alignDb}
           onUbahAlign={onUbahAlign}
           onKelolaTabel={onKelolaTabel}

@@ -482,3 +482,77 @@ describe('GridV2 - sakelar gestur seret isi sel', () => {
     expect(screen.getByLabelText('Seret isi sel untuk move')).not.toBeChecked();
   });
 });
+
+describe('GridV2 - kolom beku', () => {
+  const bukaMenu = async (target: Element) => {
+    fireEvent.contextMenu(target);
+    return screen.findByRole('menu');
+  };
+
+  it('tanpa setelan, hanya kolom centang yang menempel', async () => {
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    // Indeks 0 DSG = gutter, jadi 1 = kolom centang saja.
+    expect(dsgStub.stickyLeft).toBe(1);
+    expect(kolomTerakhir().find((k) => k.id === 'nama')?.headerClassName).toBeUndefined();
+  });
+
+  it('membaca jumlah beku tersimpan dan menandai tepi kanan area beku', async () => {
+    localStorage.setItem('simpes_grid_daftar_kelas_freeze', '1');
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    // Kolom centang + satu kolom data.
+    expect(dsgStub.stickyLeft).toBe(2);
+    const nama = kolomTerakhir().find((k) => k.id === 'nama');
+    const nis = kolomTerakhir().find((k) => k.id === 'nis');
+    expect(nama?.headerClassName).toContain('simpes-dsg-v2-beku-tepi');
+    const kelasSel = nama?.cellClassName;
+    expect(typeof kelasSel).toBe('function');
+    if (typeof kelasSel === 'function') {
+      expect(kelasSel({ rowData: ROWS[0] })).toContain('simpes-dsg-v2-beku-tepi');
+    }
+    expect(nis?.headerClassName).toBeUndefined();
+  });
+
+  it('menu klik kanan membekukan sampai kolom yang diklik dan bisa dilepas', async () => {
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    const judulNis = document.querySelector('.dsg-row-header [data-col-key="nis"]') as HTMLElement;
+    await bukaMenu(judulNis);
+    await userEvent.click(screen.getByRole('button', { name: 'Bekukan kolom sampai di sini' }));
+
+    await waitFor(() => expect(localStorage.getItem('simpes_grid_daftar_kelas_freeze')).toBe('2'));
+    // Kolom centang + dua kolom data.
+    await waitFor(() => expect(dsgStub.stickyLeft).toBe(3));
+
+    await bukaMenu(judulNis);
+    await userEvent.click(screen.getByRole('button', { name: 'Lepas semua kolom beku' }));
+
+    await waitFor(() => expect(localStorage.getItem('simpes_grid_daftar_kelas_freeze')).toBe('0'));
+    await waitFor(() => expect(dsgStub.stickyLeft).toBe(1));
+  });
+
+  it('tombol bekukan nonaktif bila kolom itu sudah di dalam area beku', async () => {
+    localStorage.setItem('simpes_grid_daftar_kelas_freeze', '1');
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    const judulNama = document.querySelector('.dsg-row-header [data-col-key="nama"]') as HTMLElement;
+    await bukaMenu(judulNama);
+    expect(screen.getByRole('button', { name: 'Bekukan kolom sampai di sini' })).toBeDisabled();
+  });
+  it('jumlah beku dibatasi jumlah kolom yang tampil', async () => {
+    localStorage.setItem('simpes_grid_daftar_kelas_freeze', '99');
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    // Kolom centang + semua kolom data; tak ada indeks di luar daftar kolom.
+    expect(dsgStub.stickyLeft).toBe(1 + FIELDS.length);
+    // Tepi area beku jatuh di kolom data terakhir.
+    expect(kolomTerakhir().find((k) => k.id === 'nis')?.headerClassName)
+      .toContain('simpes-dsg-v2-beku-tepi');
+  });
+});

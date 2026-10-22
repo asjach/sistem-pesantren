@@ -17,6 +17,8 @@ import {
   Copy,
   MoveHorizontal,
   NotebookTabs,
+  Pin,
+  PinOff,
 } from '@/icons';
 
 export interface MenuKonteksV2Props {
@@ -30,6 +32,12 @@ export interface MenuKonteksV2Props {
   sudut?: boolean;
   onAutoFit: (key: string) => void;
   onAutoFitAll: () => void;
+  /** Jumlah kolom data yang sedang dibekukan; 0 = tak ada. */
+  freezeAktif: number;
+  /** Indeks kolom header yang diklik kanan di dalam `fields`; -1 = tak dikenal. */
+  headerIdx: number;
+  /** Ubah jumlah kolom beku (0 = lepas semua). */
+  onFreeze: (n: number) => void;
   /** Perataan global per tabel (DB; satu sumber dengan Kelola Tabel). */
   align: Partial<Record<string, AlignKolom>>;
   /** Tulis perataan ke DB. Absen = tombol perataan disembunyikan. */
@@ -45,8 +53,8 @@ export interface MenuKonteksV2Props {
 /** Menu klik-kanan V2.
  *
  *  Sengaja terpisah dari MenuKonteksGrid V1: menu V2 hanya memuat fitur yang
- *  benar-benar sudah ada di V2 (AutoFit, salin TSV, perataan, Kelola Tabel).
- *  Kolom beku, tinggi baris, dan geser judul belum ada di V2 sehingga tidak
+ *  benar-benar sudah ada di V2 (AutoFit, kolom beku, salin TSV, perataan,
+ *  Kelola Tabel). Tinggi baris dan geser judul belum ada di V2 sehingga tidak
  *  ditampilkan sebagai tombol mati. */
 export default function MenuKonteksV2({
   tableKey,
@@ -56,6 +64,9 @@ export default function MenuKonteksV2({
   sudut,
   onAutoFit,
   onAutoFitAll,
+  freezeAktif,
+  headerIdx,
+  onFreeze,
   align,
   onUbahAlign,
   onKelolaTabel,
@@ -145,6 +156,41 @@ export default function MenuKonteksV2({
                 <p>Sesuaikan lebar semua kolom</p>
               </TooltipContent>
             </Tooltip>
+            <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon"
+                  type="button"
+                  id={`btn_ctx_v2_bekukan_${tableKey}`}
+                  aria-label="Bekukan kolom sampai di sini"
+                  disabled={headerIdx < 0 || freezeAktif >= headerIdx + 1}
+                  onClick={() => { if (headerIdx >= 0) onFreeze(headerIdx + 1); }}
+                  className={cn('disabled:pointer-events-none disabled:opacity-40')}
+                >
+                  <Pin size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Bekukan kolom sampai di sini</p>
+              </TooltipContent>
+            </Tooltip>
+            {freezeAktif > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon"
+                    type="button"
+                    id={`btn_ctx_v2_lepas_bekukan_${tableKey}`}
+                    aria-label="Lepas semua kolom beku"
+                    onClick={() => onFreeze(0)}
+                  >
+                    <PinOff size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Lepas semua kolom beku</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
             <Tooltip>
               <TooltipTrigger asChild>

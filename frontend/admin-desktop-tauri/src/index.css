@@ -383,6 +383,64 @@
   box-shadow: inset 1px 0 0 var(--part-tabel_grid-border, var(--border));
 }
 
+/* Kolom beku (freeze pane kiri). DSG hanya menambahkan kelas
+   `dsg-cell-sticky-left`; aturan posisinya TIDAK ada di stylesheet bawaan
+   (berbeda dari sticky kanan), jadi V2 memasangnya sendiri. `left` tiap sel
+   sudah diisi DSG dengan posisi kolom aslinya — untuk kolom kiri yang
+   berurutan, nilai itu sama dengan jarak tempelnya. Latar sel sudah opaque
+   dari `--dsg-cell-background-color`, jadi isi yang digulir tidak tembus.
+
+   PENTING: `position: sticky` mengeluarkan sel dari posisi absolute, jadi sel
+   ikut alur normal baris. Tanpa `display: flex` pada baris, sel-sel beku
+   menumpuk VERTIKAL (header kolom beku turun menimpa baris data). V1 memakai
+   aturan yang sama; sel non-sticky tetap absolute sehingga tidak terpengaruh. */
+.simpes-dsg-v2 .dsg-row {
+  display: flex;
+}
+
+.simpes-dsg-v2 .dsg-cell.dsg-cell-sticky-left {
+  position: sticky;
+  z-index: 20;
+}
+
+/* Header row menempel di atas dengan z-index 40 (bawaan DSG); kolom beku di
+   header harus di atas sel body yang lewat di bawahnya. */
+.simpes-dsg-v2 .dsg-row-header .dsg-cell.dsg-cell-sticky-left {
+  z-index: 42;
+}
+
+/* Sticky kanan: `transform: translateY(-100%)` bawaan DSG hanya diperlukan
+   saat sel berada di alur block. Dengan baris flex, sel sudah di posisi yang
+   benar sehingga transform itu justru menggesernya ke atas (pola V1). */
+.simpes-dsg-v2 .dsg-cell.dsg-cell-sticky-right {
+  transform: none;
+  margin-left: auto;
+  height: 100%;
+}
+
+/* Tepi kanan area beku: garis pemisah supaya batas "berhenti bergulir"
+   terlihat. `box-shadow` bawaan DSG (1px 1px) diganti 0 1px agar garis
+   kanannya tidak dobel dengan border ini. */
+.simpes-dsg-v2 .dsg-cell.simpes-dsg-v2-beku-tepi {
+  border-right: 1px solid var(--part-tabel_grid-border, var(--border));
+  box-shadow: 0 1px var(--part-tabel_grid-border, var(--border));
+}
+
+/* Sel pertama setelah area beku kehilangan garis kirinya: garis batas sudah
+   digambar border kanan kolom beku. */
+.simpes-dsg-v2 .dsg-cell.simpes-dsg-v2-beku-tepi + .dsg-cell {
+  border-left: none;
+}
+
+/* Bug DSG 4.11.6: bila jumlah kolom beku melebihi kolom yang sedang terlihat,
+   `rangeExtractor` menyisipkan indeks 0 dua kali sehingga gutter digambar dua
+   kali per baris (keduanya identik di posisi yang sama). Yang kedua
+   disembunyikan supaya tidak ada dua corner button di DOM. Peringatan React
+   soal key duplikat tetap muncul di console saat kondisi itu tercapai. */
+.simpes-dsg-v2 .dsg-row .dsg-cell-gutter ~ .dsg-cell-gutter {
+  display: none;
+}
+
 /* Baris tercentang & baris aktif memakai warna aksen yang sama dengan V1,
    tetapi latar V2 (--part-tabel_sel-bg). Diletakkan SETELAH aturan hover
    supaya warnanya menang saat kursor berada di baris. */

@@ -36,6 +36,9 @@ export interface KolomStub {
   /** DSG asli menerima boolean ATAU fungsi per baris; stub wajib
    *  mengevaluasinya sebelum diteruskan ke sel. */
   disabled?: boolean | ((opts: { rowData: GridRow }) => boolean);
+  /** Kelas tambahan per kolom (dipakai V2 untuk tepi area beku). */
+  headerClassName?: string;
+  cellClassName?: string | ((opts: { rowData: GridRow }) => string | undefined);
   columnData?: unknown;
 }
 
@@ -62,6 +65,8 @@ export const dsgStub = {
   tinggi: null as number | null,
   tinggiBaris: null as number | ((opts: { rowData: GridRow }) => number) | null,
   tinggiHeader: null as number | null,
+  /** Jumlah kolom sticky kiri yang diterima DSG (termasuk gutter). */
+  stickyLeft: 0,
 };
 
 /** Kolom (termasuk sticky kanan) dari render terakhir. Dipakai tes lebar kolom
@@ -83,6 +88,7 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     height,
     rowHeight,
     headerRowHeight,
+    stickyLeftColumnCount = 0,
     onActiveCellChange,
     onSelectionChange,
   }: {
@@ -90,6 +96,7 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
     value: GridRow[];
     rowClassName?: (args: { rowIndex: number }) => string | undefined;
     stickyRightColumn?: Column<GridRow>;
+    stickyLeftColumnCount?: number;
     height?: number;
     rowHeight?: number | ((opts: { rowData: GridRow }) => number);
     headerRowHeight?: number;
@@ -103,6 +110,7 @@ export const DynamicDataSheetGridStub = forwardRef(function DynamicDataSheetGrid
   dsgStub.tinggi = height ?? null;
   dsgStub.tinggiBaris = rowHeight ?? null;
   dsgStub.tinggiHeader = headerRowHeight ?? null;
+  dsgStub.stickyLeft = stickyLeftColumnCount;
   const semua: KolomStub[] = [
     ...(columns as KolomMasuk[]),
     ...(stickyRightColumn ? [stickyRightColumn as KolomMasuk] : []),
