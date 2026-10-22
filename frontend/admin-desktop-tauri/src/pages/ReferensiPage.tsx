@@ -21,7 +21,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { FieldDescription, FieldLabel } from '@/components/ui/field';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/excel/types';
 import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -481,7 +481,7 @@ export default function ReferensiPage() {
         ) : null}
       </>
     );
-  }, [canUbahRow, canHapusRow, openEdit, onHapusPermanen, rowText, lembagaName]);
+  }, [canUbahRow, canHapusRow, openEdit, onHapusPermanen, lembagaName]);
 
   /** Simpan perubahan sel dari grid (auto-save antrean).
    *
@@ -589,7 +589,7 @@ export default function ReferensiPage() {
 
           <ResizablePanel id="panel_referensi_isi" minSize="40%" className="flex min-h-0 flex-col">
             <div className="flex min-h-0 flex-1 flex-col">
-              <ExcelTable
+              <ExcelTabelV2
                 key={tipe}
                 tableKey="referensi"
                 fields={fields}
@@ -604,6 +604,8 @@ export default function ReferensiPage() {
                 canEdit={canManage}
                 onCommit={onCommit}
                 onSaved={reload}
+                // Preset kolom V2 sudah menentukan kolom yang tampil.
+                onApplyPreset={() => {}}
 
                 isiLebarPenuh
 
