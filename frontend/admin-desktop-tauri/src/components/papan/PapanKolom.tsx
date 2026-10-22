@@ -839,6 +839,13 @@ function BarisPoin({
               poin.status === 'done' && 'papan-poin-sudah',
             )}
           >
+            <span
+              data-slot="papan-poin-id"
+              className="mr-1 font-mono text-[11px] font-semibold text-muted-foreground select-all"
+              title={`Nomor poin #${poin.id}`}
+            >
+              #{poin.id}
+            </span>
             <TeksButir deskripsi={poin.deskripsi} />
             {poin.keterangan ? (
               <div

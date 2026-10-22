@@ -30,6 +30,19 @@ function pasang(daftar: KartuPapan[] = [kartu()]) {
   );
 }
 
+describe('PapanKolom - nomor poin', () => {
+  it('menampilkan nomor poin #id pada kartu agar mudah dirujuk', () => {
+    pasang([kartu({ id: 563 })]);
+
+    // Sub-modul E.3 mulai terlipat; buka agar kartunya dirender.
+    fireEvent.click(document.getElementById('btn_lipat_sub_e_3_todo')!);
+
+    const nomor = document.querySelector('[data-slot="papan-poin-id"]');
+    expect(nomor).not.toBeNull();
+    expect(nomor).toHaveTextContent('#563');
+  });
+});
+
 describe('PapanKolom - kolom awal', () => {
   it('kolom Backlog dan Done mulai terlipat, lalu bisa dibuka', () => {
     renderDenganTema(
