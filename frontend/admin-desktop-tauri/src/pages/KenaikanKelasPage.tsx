@@ -6,7 +6,8 @@ import { batalKenaikan, listRiwayatBelajar, naikKelasOtomatis, type RiwayatRow }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import FilterField from '@/components/FilterField';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { ActionIcon } from '@/components/RowActions';
 import { Check, X } from '@/icons';
 import { targetTunggal, useFilterGlobalAktif } from '@/hooks/useFilterGlobalAktif';
@@ -95,11 +96,6 @@ export default function KenaikanKelasPage() {
   const [kiri, setKiri] = useState<RiwayatRow[]>([]);
   const [hasilNaik, setHasilNaik] = useState<Baris[]>([]);
   const [hasilTidak, setHasilTidak] = useState<Baris[]>([]);
-  /** Baris tercentang pada tabel kandidat (untuk tombol naik/tidak naik). */
-  const [tercentangKiri, setTercentangKiri] = useState<RiwayatRow[]>([]);
-  /** Baris tercentang pada tabel hasil (untuk tombol Batalkan di header). */
-  const [tercentangNaik, setTercentangNaik] = useState<Baris[]>([]);
-  const [tercentangTidak, setTercentangTidak] = useState<Baris[]>([]);
   const [err, setErr] = useState('');
   const { aksiProfil, dialogProfil } = useAksiProfilSantri();
   /** Urutan tiap tabel asal untuk navigasi tetangga pada dialog profil. */
@@ -224,9 +220,6 @@ export default function KenaikanKelasPage() {
 
   /** Muat ulang semua tabel (setelah proses/batal). */
   const muatUlang = useCallback(async () => {
-    setTercentangKiri([]);
-    setTercentangNaik([]);
-    setTercentangTidak([]);
     await Promise.all([loadKiri(), loadNaik(), loadTidak()]);
   }, [loadKiri, loadNaik, loadTidak]);
 
@@ -325,46 +318,30 @@ export default function KenaikanKelasPage() {
     setKonfirmasi({ judul, pesan, jalankan });
   }, [busy, targetJenjang, taDasar, taTahunDepan, tglMasuk]);
 
-  /** Tombol massal kandidat, diletakkan di kanan tanggal masuk kelas baru. */
-  const tombolKandidat = useMemo(() => {
-    if (!canUbah) {
-      return (
-        <FilterField label="Tanggal masuk kelas baru" htmlFor="input_tgl_kenaikan">
-          <Input id="input_tgl_kenaikan" type="date" value={tglMasuk} onChange={(e) => setTglMasuk(e.target.value)} className="w-40" />
-        </FilterField>
-      );
-    }
-    const mati = busy || !tglMasuk || targetJenjang === null || tercentangKiri.length === 0;
-    return (
-      <div className="flex items-center gap-1.5">
-        <FilterField label="Tanggal masuk kelas baru" htmlFor="input_tgl_kenaikan">
-          <Input id="input_tgl_kenaikan" type="date" value={tglMasuk} onChange={(e) => setTglMasuk(e.target.value)} className="w-40" />
-        </FilterField>
-        <Button id="btn_naik_terpilih" size="sm" disabled={mati} onClick={() => mintaKonfirmasi('naik', tercentangKiri.length, () => prosesMassal(tercentangKiri, 'naik', () => setTercentangKiri([])))}>
-          Naik ({tercentangKiri.length})
-        </Button>
-        <Button id="btn_tidak_naik_terpilih" size="sm" variant="outline" disabled={mati} onClick={() => mintaKonfirmasi('tidak_naik', tercentangKiri.length, () => prosesMassal(tercentangKiri, 'tidak_naik', () => setTercentangKiri([])))}>
-          Tidak naik ({tercentangKiri.length})
-        </Button>
-      </div>
-    );
-  }, [canUbah, busy, tglMasuk, targetJenjang, tercentangKiri, prosesMassal, mintaKonfirmasi]);
+  /** Tanggal masuk kelas baru untuk proses kenaikan; hidup di Area filter V2. */
+  const filterTanggal = (
+    <FilterField sejajar label="Tanggal masuk kelas baru" htmlFor="input_tgl_kenaikan">
+      <Input id="input_tgl_kenaikan" type="date" value={tglMasuk} onChange={(e) => setTglMasuk(e.target.value)} className="w-40" />
+    </FilterField>
+  );
 
-  /** Tombol Batalkan pada baris judul tabel hasil: memproses baris tercentang. */
-  const tombolBatalkan = useCallback((idPrefix: string, tercentang: Baris[]) => {
+  /** Tombol Batalkan massal panel hasil; hanya baris yang bisa dibatalkan dihitung. */
+  const renderBatalkanMassal = useCallback((idPrefix: string) => {
     if (!canUbah) return undefined;
-    const eligible = tercentang.filter(bisaBatalkan);
-    return (
-      <Button
-        id={`btn_batalkan_${idPrefix}_terpilih`}
-        size="sm"
-        variant="ghost"
-        disabled={busy || targetJenjang === null || eligible.length === 0}
-        onClick={() => mintaKonfirmasi('batal', eligible.length, () => batalkan(eligible))}
-      >
-        Batalkan ({eligible.length})
-      </Button>
-    );
+    return (checked: Baris[], clear: () => void) => {
+      const eligible = checked.filter(bisaBatalkan);
+      return (
+        <Button
+          id={`btn_batalkan_${idPrefix}_terpilih`}
+          size="sm"
+          variant="ghost"
+          disabled={busy || targetJenjang === null || eligible.length === 0}
+          onClick={() => mintaKonfirmasi('batal', eligible.length, () => batalkan(eligible, clear))}
+        >
+          Batalkan ({eligible.length})
+        </Button>
+      );
+    };
   }, [canUbah, busy, targetJenjang, batalkan, mintaKonfirmasi]);
 
   return (
@@ -382,12 +359,11 @@ export default function KenaikanKelasPage() {
         <ResizableAutoHidePanel id="panel_kenaikan_santri_genap" defaultSize="50%" minSize="25%">
         <section className="flex h-full min-h-0 min-w-0 flex-col">
            <div className="flex min-h-0 flex-1 flex-col">
-            <ExcelTable
+            <ExcelTabelV2
                tableKey="kenaikan_santri_genap"
                rail
                 header={<span>Santri semester 2 — {taDasar ?? '—'}</span>}
-                filter={tombolKandidat}
-                onCheckedChange={setTercentangKiri}
+                filter={filterTanggal}
                 fields={FIELDS_KENAIKAN}
               rows={kiri}
               urutAktif={urutKiri}
@@ -402,6 +378,8 @@ export default function KenaikanKelasPage() {
                 canEdit={false}
               onCommit={async () => {}}
               onSaved={() => {}}
+              // Preset kolom V2 sudah menentukan kolom yang tampil.
+              onApplyPreset={() => {}}
               renderActions={(r) => (
                 <>
                   {aksiProfil(r.santri_id, { prefix: 'kandidat', daftar: daftarKandidat })}
@@ -429,6 +407,16 @@ export default function KenaikanKelasPage() {
                   )}
                 </>
               )}
+              renderBulkActions={canUbah ? (checked, clear) => (
+                <>
+                  <Button id="btn_naik_terpilih" size="sm" disabled={busy || !tglMasuk || targetJenjang === null} onClick={() => mintaKonfirmasi('naik', checked.length, () => prosesMassal(checked, 'naik', clear))}>
+                    Naik ({checked.length})
+                  </Button>
+                  <Button id="btn_tidak_naik_terpilih" size="sm" variant="outline" disabled={busy || !tglMasuk || targetJenjang === null} onClick={() => mintaKonfirmasi('tidak_naik', checked.length, () => prosesMassal(checked, 'tidak_naik', clear))}>
+                    Tidak naik ({checked.length})
+                  </Button>
+                </>
+              ) : undefined}
                emptyText="Tidak ada Santri semester 2 aktif pada tahun ajaran ini."
             />
           </div>
@@ -446,8 +434,7 @@ export default function KenaikanKelasPage() {
             urutAktif={urutNaik}
             arahUrut={arahNaik}
             onUrut={terapkanUrutNaik}
-            tombolHeader={tombolBatalkan('naik_kelas', tercentangNaik)}
-            onCheckedChange={setTercentangNaik}
+            renderBulkActions={renderBatalkanMassal('naik_kelas')}
             onBatalkan={(b) => mintaKonfirmasi('batal', 1, () => batalkan([b]))}
             aksiProfil={aksiProfil}
             daftar={daftarNaik}
@@ -462,8 +449,7 @@ export default function KenaikanKelasPage() {
             urutAktif={urutTidak}
             arahUrut={arahTidak}
             onUrut={terapkanUrutTidak}
-            tombolHeader={tombolBatalkan('tidak_naik_kelas', tercentangTidak)}
-            onCheckedChange={setTercentangTidak}
+            renderBulkActions={renderBatalkanMassal('tidak_naik_kelas')}
             onBatalkan={(b) => mintaKonfirmasi('batal', 1, () => batalkan([b]))}
             aksiProfil={aksiProfil}
             daftar={daftarTidak}
@@ -502,8 +488,7 @@ function PanelDaftar({
   idPrefix,
   judul,
   baris,
-  tombolHeader,
-  onCheckedChange,
+  renderBulkActions,
   onBatalkan,
   aksiProfil,
   daftar,
@@ -514,8 +499,7 @@ function PanelDaftar({
   idPrefix: string;
   judul: string;
   baris: Baris[];
-  tombolHeader?: ReactNode;
-  onCheckedChange: (tercentang: Baris[]) => void;
+  renderBulkActions?: (checked: Baris[], clear: () => void) => ReactNode;
   onBatalkan: (b: Baris) => void;
   aksiProfil: AksiProfilSantri['aksiProfil'];
   /** Id Santri sesuai urutan baris tabel ini (untuk navigasi tetangga). */
@@ -529,24 +513,20 @@ function PanelDaftar({
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col">
        <div className="flex min-h-0 flex-1 flex-col pb-0">
-        <ExcelTable
+        <ExcelTabelV2
            tableKey={`kenaikan_${idPrefix}`}
-           header={(
-             <span className="flex w-full min-w-0 items-center justify-between gap-2">
-               <span className="min-w-0 truncate">{judul}</span>
-               {tombolHeader ? <span className="shrink-0">{tombolHeader}</span> : null}
-             </span>
-           )}
+           header={<span>{judul}</span>}
            fields={FIELDS_KENAIKAN}
           rows={rows}
           urutAktif={urutAktif}
           arahUrut={arahUrut}
           onUrut={onUrut}
           getValues={(b) => ({ nama: b.nama, kelas: b.kelas, tingkat: b.tingkat, tahun_ajaran: b.tahun_ajaran })}
-          onCheckedChange={onCheckedChange}
           canEdit={false}
           onCommit={async () => {}}
           onSaved={() => {}}
+          // Preset kolom V2 sudah menentukan kolom yang tampil.
+          onApplyPreset={() => {}}
           renderActions={(b) => (
             <>
               {aksiProfil(b.santri_id, { prefix: idPrefix, daftar })}
@@ -562,6 +542,7 @@ function PanelDaftar({
           ) : null}
             </>
           )}
+          renderBulkActions={renderBulkActions}
            emptyText="Belum ada."
         />
       </div>
