@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
 import BilahToolbarV2 from './BilahToolbarV2';
 import GridV2 from './GridV2';
 import TableFooterV2 from './TableFooterV2';
 import MenuPengaturanV2 from './MenuPengaturanV2';
 import { susunKolom } from './kolom';
+import { errorMessage } from '@/api/client';
+import { listPresetTabel, setPresetAktif, updatePresetTabel } from '@/api/preset';
 import { judulTabel } from '@/components/excel/judul';
 import { useToolbarPresetState } from '@/components/excel/useToolbarPreset';
+import { gabungUrutan } from '@/components/excel/urutanKolom';
 import { komponenAktif, type InfoKomponenTabel } from '@/components/excel/komponenTabel';
+import { kabariPreset, kabariTampilanPerangkat } from '@/components/kelolaTabel/jenis';
 import DialogKelolaTabel from '@/components/kelolaTabel/DialogKelolaTabel';
 import FilterRail from '@/components/FilterRail';
 import { DEFAULT_HEADER_H, useGridPrefs } from '@/components/GridPrefs';
@@ -17,6 +22,11 @@ import { Settings } from '@/icons';
 import { cn } from '@/lib/utils';
 import { bisaInput, useBarisInputV2 } from './useBarisInputV2';
 import type { ExcelField, GridRow } from '@/components/excel/types';
+
+/** Samakan nama preset "Lengkap" tanpa peduli besar-kecil huruf. */
+function namaLengkap(nama: string): boolean {
+  return nama.trim().toLowerCase() === 'lengkap';
+}
 
 export interface ExcelTabelV2Props<T extends { id: string | number }> {
   /** Judul tabel berupa teks. Dipakai bila `header` tidak diberikan. */
@@ -145,6 +155,10 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   const [dipilih, setDipilih] = useState<Set<string | number>>(() => new Set());
   /** Susunan kolom dari preset. null = semua kolom, urutan asli halaman. */
   const [kolomPreset, setKolomPreset] = useState<string[] | null>(null);
+  /** Id preset aktif; null = susunan Lengkap/kustom tanpa preset bernama. */
+  const [presetId, setPresetId] = useState<number | null>(null);
+  const kolomPresetRef = useRef(kolomPreset);
+  kolomPresetRef.current = kolomPreset;
   const [kelolaOpen, setKelolaOpen] = useState(false);
   /** Nilai efektif dari GridV2, termasuk hasil ukur headerAutoH. */
   const [tinggiHeaderGrid, setTinggiHeaderGrid] = useState(DEFAULT_HEADER_H);
@@ -156,8 +170,10 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     inputAktifSebelumnya.current = !!input.state;
   }, [input.state]);
 
-  /** Setelan tabel milik pengguna: judul, label, perataan, visibilitas. */
-  const { judulDb, labelDb, alignDb, visibilitas, infoHtmlDb, simpanAlign } = useToolbarPresetState(tableKey);
+  /** Setelan tabel milik pengguna: judul, label, perataan, visibilitas, urutan. */
+  const {
+    judulDb, labelDb, alignDb, visibilitas, infoHtmlDb, simpanAlign, urutanDb, simpanUrutan,
+  } = useToolbarPresetState(tableKey);
   /** Presedensi judul mengikuti V1: setelan pengguna → header (node) →
    *  judul teks → bawaan dari tableKey. */
   const judulTampil: ReactNode = judulDb?.trim() || header || judul || judulTabel(tableKey);
@@ -210,17 +226,98 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     if (sumber) onBarisKlikRef.current?.(sumber);
   }, []);
 
-  const terapkanPreset = useCallback((keys: string[] | null, presetId?: number | null) => {
+  const terapkanPreset = useCallback((keys: string[] | null, id?: number | null) => {
     setKolomPreset(keys && keys.length > 0 ? keys : null);
-    onApplyPreset(keys, presetId);
+    setPresetId(id ?? null);
+    onApplyPreset(keys, id);
   }, [onApplyPreset]);
 
+  /** Muat preset aktif saat mount supaya urutan kolom tetap sama setelah
+   *  reload walau area filter (tempat `PresetKolom` hidup) masih tertutup.
+   *  Dilewati bila pengguna sudah memilih preset lebih dulu. */
+  useEffect(() => {
+    let batal = false;
+    const fieldKeys = new Set(fields.map((f) => f.key));
+    void listPresetTabel(tableKey)
+      .then((res) => {
+        if (batal || kolomPresetRef.current !== null) return;
+        const aktifId = res.data.aktif_preset_id;
+        let target = aktifId == null
+          ? null
+          : res.data.presets.find((p) => p.id === aktifId) ?? null;
+
+        const kustom = target === null ? res.data.aktif_kolom : null;
+        if (kustom && kustom.length > 0) {
+          const dikenal = kustom.filter((k) => fieldKeys.has(k));
+          if (dikenal.length > 0) {
+            terapkanPreset(dikenal, null);
+            return;
+          }
+        }
+
+        if (target === null) {
+          target = res.data.presets.find((p) => namaLengkap(p.nama)) ?? null;
+        }
+        if (target === null) return;
+
+        const dikenal = target.kolom.filter((k) => fieldKeys.has(k));
+        const urut = namaLengkap(target.nama)
+          ? [...dikenal, ...[...fieldKeys].filter((k) => !dikenal.includes(k))]
+          : dikenal;
+        terapkanPreset(urut.length > 0 ? urut : null, target.id);
+      })
+      .catch(() => {});
+    return () => { batal = true; };
+    // Hanya saat tabel berganti; `terapkanPreset` stabil per render callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableKey]);
+
   const fieldsTampil = useMemo(() => {
-    const tampil = susunKolom(fields, kolomPreset);
+    let tampil = susunKolom(fields, kolomPreset);
+    // Tanpa preset: urutan global tersimpan (super_admin) menata kolom.
+    if (kolomPreset === null && urutanDb != null && urutanDb.length > 0) {
+      const byKey = new Map(tampil.map((f) => [f.key, f]));
+      const urut = gabungUrutan(urutanDb, tampil.map((f) => f.key));
+      const hasil = urut.map((k) => byKey.get(k)).filter((f): f is ExcelField => !!f);
+      if (hasil.length > 0) tampil = hasil;
+    }
     if (!input.state) return tampil;
     const keys = new Set(tampil.map((f) => f.key));
     return [...tampil, ...fields.filter((f) => f.required && bisaInput(f) && !keys.has(f.key))];
-  }, [fields, kolomPreset, !!input.state]);
+  }, [fields, kolomPreset, urutanDb, !!input.state]);
+
+  /** Simpan urutan hasil geser judul: preset aktif → preset kustom → urutan
+   *  global. Optimistis, dengan rollback saat server menolak. */
+  const simpanUrutanKolom = useCallback((urutan: string[]) => {
+    const sebelum = kolomPresetRef.current;
+    if (presetId !== null) {
+      setKolomPreset(urutan);
+      void updatePresetTabel(presetId, { kolom: urutan })
+        .then(() => {
+          kabariPreset(tableKey);
+          kabariTampilanPerangkat(tableKey);
+        })
+        .catch((e: unknown) => {
+          setKolomPreset(sebelum);
+          toast.error(errorMessage(e));
+        });
+      return;
+    }
+    if (sebelum !== null) {
+      setKolomPreset(urutan);
+      void setPresetAktif(tableKey, null, urutan)
+        .then(() => {
+          kabariPreset(tableKey);
+          kabariTampilanPerangkat(tableKey);
+        })
+        .catch((e: unknown) => {
+          setKolomPreset(sebelum);
+          toast.error(errorMessage(e));
+        });
+      return;
+    }
+    simpanUrutan(urutan);
+  }, [presetId, tableKey, simpanUrutan]);
 
   /** Baris domain yang tercentang, seurutan tabel. */
   const checkedRows = useMemo(() => rows.filter((r) => dipilih.has(r.id)), [rows, dipilih]);
@@ -354,6 +451,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
           onSaved={onSaved}
           onKelolaTabel={tabelTerdaftar ? () => setKelolaOpen(true) : undefined}
           onUbahAlign={bolehKelola ? simpanAlign : undefined}
+          bolehGeser={bolehKelola}
+          onPindahKolom={simpanUrutanKolom}
           onTinggiHeaderChange={setTinggiHeaderGrid}
         />
       </div>

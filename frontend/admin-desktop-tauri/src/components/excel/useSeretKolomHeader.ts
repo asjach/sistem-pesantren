@@ -30,9 +30,12 @@ const KELAS_ANGKAT = 'simpes-dsg-angkat';
  * Aman dipanggil kapan pun (termasuk saat tak ada seret): hanya menyapu kelas
  * yang memang milik fitur ini, jadi tak mengganggu kelas lain.
  */
-export function bersihkanIndikator(wrap: HTMLElement | null): void {
+export function bersihkanIndikator(
+  wrap: HTMLElement | null,
+  kelasJudul = 'simpes-dsg-headtitle',
+): void {
   if (!wrap) return;
-  wrap.querySelectorAll<HTMLElement>('.simpes-dsg-headtitle').forEach((ht) => {
+  wrap.querySelectorAll<HTMLElement>(`.${kelasJudul}`).forEach((ht) => {
     ht.classList.remove(...KELAS_SISIP, KELAS_DISERET);
   });
 }
@@ -51,11 +54,12 @@ export function lukisIndikator(
   keys: readonly string[],
   dariKey: string,
   tanda: { indeks: number; sisi: SisiSisip } | null,
+  kelasJudul = 'simpes-dsg-headtitle',
 ): void {
   if (!wrap) return;
-  bersihkanIndikator(wrap);
+  bersihkanIndikator(wrap, kelasJudul);
   const peta = new Map<string, HTMLElement>();
-  wrap.querySelectorAll<HTMLElement>('.dsg-row-header .simpes-dsg-headtitle').forEach((ht) => {
+  wrap.querySelectorAll<HTMLElement>(`.dsg-row-header .${kelasJudul}`).forEach((ht) => {
     const k = ht.dataset.colKey;
     if (k) peta.set(k, ht);
   });
@@ -79,6 +83,9 @@ interface Props {
   /** Izin dari Kelola Tabel. Saat mati, tak ada listener sama sekali —
    *  jadi perilaku klik judul lama tetap persis seperti sebelumnya. */
   aktif: boolean;
+  /** Kelas penanda pembungkus judul. V1 memakai `simpes-dsg-headtitle`,
+   *  V2 memakai `simpes-dsg-v2-headtitle`. */
+  kelasJudul?: string;
   /** Dipanggil saat seret selesai dengan urutan BARU (hanya kolom data). */
   onPindah: (urutanBaru: string[]) => void;
 }
@@ -129,7 +136,14 @@ interface GeometriAwal {
  * agar kursor yang keluar area tabel tak memutus seret. `pointercancel`/`blur`
  * ikut membersihkan supaya tak ada seret \"hantu\".
  */
-export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Props) {
+export function useSeretKolomHeader({
+  terlihat,
+  wrapRef,
+  aktif,
+  kelasJudul = 'simpes-dsg-headtitle',
+  onPindah,
+}: Props) {
+  const selectorJudul = `.${kelasJudul}`;
   const [status, setStatus] = useState<StatusSeretKolom | null>(null);
   /** Cermin terbaru untuk listener (dipasang sekali per seret). */
   const terlihatRef = useRef(terlihat);
@@ -166,7 +180,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       const kunci = [...hdr.children].map((el) =>
         el.classList.contains('dsg-cell-sticky-right')
           ? null
-          : ((el.querySelector<HTMLElement>('.simpes-dsg-headtitle')?.dataset.colKey) ?? null),
+          : ((el.querySelector<HTMLElement>(selectorJudul)?.dataset.colKey) ?? null),
       );
       const baris: Element[] = [hdr, ...wrap.querySelectorAll('.dsg-row:not(.dsg-row-header)')];
       for (const row of baris) {
@@ -181,7 +195,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
         }
       }
     },
-    [],
+    [selectorJudul],
   );
 
   /** Bersihkan semua jejak geser (transform, kelas angkat, kelas transisi). */
@@ -203,7 +217,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
     const peta = new Map<string, DOMRect>();
     wadah.querySelectorAll<HTMLElement>('.dsg-cell-header').forEach((sel) => {
 
-      const key = sel.querySelector<HTMLElement>('.simpes-dsg-headtitle')?.dataset.colKey;
+      const key = sel.querySelector<HTMLElement>(selectorJudul)?.dataset.colKey;
       if (key) peta.set(key, sel.getBoundingClientRect());
     });
     const keys: string[] = [];
@@ -219,7 +233,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       lebar.push(r.width);
     }
     return { kiriBaris: kotak.left, keys, iFull, kiri, lebar };
-  }, [wrapRef]);
+  }, [wrapRef, selectorJudul]);
 
   /** Selisih gulir grid sejak seret dimulai (baris header ikut isi yang digulir). */
   const geserGulir = useCallback(
@@ -271,7 +285,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
         pratinjauRef.current = baru;
       }
 
-      lukisIndikator(wrap, terukur, key, tandaSisip(terukur.length, sisipLokal));
+      lukisIndikator(wrap, terukur, key, tandaSisip(terukur.length, sisipLokal), kelasJudul);
       e.preventDefault();
     };
 
@@ -293,7 +307,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
 
     const lepas = (e: { clientX: number; clientY: number }) => {
       bersih();
-      bersihkanIndikator(wrapRef.current);
+      bersihkanIndikator(wrapRef.current, kelasJudul);
       const pratinjau = pratinjauRef.current;
       pratinjauRef.current = null;
 
@@ -312,7 +326,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
     const batal = () => {
       bersih();
       setStatus(null);
-      bersihkanIndikator(wrapRef.current);
+      bersihkanIndikator(wrapRef.current, kelasJudul);
       pratinjauRef.current = null;
       bersihkanGeser(wrapRef.current);
     };
@@ -351,7 +365,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
     window.addEventListener('pointercancel', batal, true);
     window.addEventListener('blur', batal);
     window.addEventListener('keydown', tombol, true);
-  }, [geserGulir, lukisGeser, bersihkanGeser, ukurAwal, wrapRef]);
+  }, [geserGulir, lukisGeser, bersihkanGeser, ukurAwal, wrapRef, kelasJudul]);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -362,7 +376,8 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       const target = e.target as HTMLElement | null;
 
       if (target?.closest('.simpes-dsg-resizer')) return;
-      const ht = target?.closest<HTMLElement>('.simpes-dsg-headtitle');
+      if (target?.closest('[data-gagang-lebar]')) return;
+      const ht = target?.closest<HTMLElement>(selectorJudul);
       const key = ht?.dataset.colKey;
       if (!key) return;
 
@@ -374,7 +389,8 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       if (!aktifRef.current || e.button !== 0 || e.ctrlKey || e.metaKey) return;
       const target = e.target as HTMLElement | null;
       if (target?.closest('.simpes-dsg-resizer')) return;
-      const ht = target?.closest<HTMLElement>('.simpes-dsg-headtitle');
+      if (target?.closest('[data-gagang-lebar]')) return;
+      const ht = target?.closest<HTMLElement>(selectorJudul);
       if (!ht?.closest('.dsg-row-header')) return;
       e.preventDefault();
       e.stopPropagation();
@@ -386,7 +402,7 @@ export function useSeretKolomHeader({ terlihat, wrapRef, aktif, onPindah }: Prop
       wrap.removeEventListener('pointerdown', turun, true);
       wrap.removeEventListener('mousedown', tahan, true);
     };
-  }, [aktif, mulai, wrapRef]);
+  }, [aktif, mulai, wrapRef, selectorJudul]);
 
   useEffect(() => () => {
     bersihRef.current?.();

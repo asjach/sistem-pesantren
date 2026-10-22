@@ -548,3 +548,36 @@ describe('GridV2 - kolom beku', () => {
       .toContain('simpes-dsg-v2-beku-tepi');
   });
 });
+
+describe('GridV2 - geser judul kolom', () => {
+  const nyalakanMode = async (extra: Record<string, unknown> = {}) => {
+    tampilkan({ canEdit: true, onCommit: async () => {}, ...extra });
+    await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
+    fireEvent.doubleClick(document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+  };
+
+  it('sakelar geser judul tampil untuk super admin dan tersimpan per perangkat', async () => {
+    await nyalakanMode({ bolehGeser: true, onPindahKolom: vi.fn() });
+
+    const cb = screen.getByLabelText('Geser judul kolom');
+    expect(cb).not.toBeChecked();
+
+    fireEvent.click(cb);
+    await waitFor(() => expect(localStorage.getItem('simpes_grid_daftar_kelas_geser_header')).toBe('1'));
+    expect(cb).toBeChecked();
+  });
+
+  it('sakelar geser judul tidak tampil tanpa izin super admin', async () => {
+    await nyalakanMode({ onPindahKolom: vi.fn() });
+
+    expect(screen.queryByLabelText('Geser judul kolom')).toBeNull();
+  });
+
+  it('sakelar geser judul tidak tampil saat isi-lebar aktif', async () => {
+    localStorage.setItem('simpes_grid_daftar_kelas_isi_lebar', '1');
+    await nyalakanMode({ bolehGeser: true, onPindahKolom: vi.fn() });
+
+    expect(screen.queryByLabelText('Geser judul kolom')).toBeNull();
+  });
+});

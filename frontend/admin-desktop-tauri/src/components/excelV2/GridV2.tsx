@@ -28,7 +28,9 @@ import {
   GUTTER_W,
   MIN_COL_W,
   freezeKey,
+  geserHeaderKey,
   loadFreeze,
+  loadGeserHeader,
   loadSakelarGestur,
   seretPindahKey,
   seretSalinKey,
@@ -40,6 +42,7 @@ import type { BlokIsi, ModeSeret } from '@/components/excel/seretIsiSel';
 import { useSalinTabel } from '@/components/excel/useSalinTabel';
 import { useSalinClipboard } from '@/components/excel/useSalinClipboard';
 import { useSeretIsiSel } from '@/components/excel/useSeretIsiSel';
+import { useSeretKolomHeader } from '@/components/excel/useSeretKolomHeader';
 import { Pencil } from '@/icons';
 import { lebarKolomAksi } from './lebarAksi';
 import { susunPerubahanSeret } from './seretV2';
@@ -64,6 +67,9 @@ const CHECKBOX_TABEL = 'border-[var(--part-tabel_grid-border,var(--border))] dat
 /** Kolom gutter DSG (nomor urut): identitas stabil agar memo kolom DSG tak
  *  dihitung ulang tiap render. */
 const GUTTER_COLUMN = { basis: GUTTER_W };
+
+/** Callback stabil saat halaman tidak menyediakan penyimpanan urutan kolom. */
+const TANPA_PINDAH_KOLOM = () => {};
 
 /** Nilai bawaan stabil agar memo kolom tidak dihitung ulang tiap render. */
 const LABEL_KOSONG: Record<string, string> = {};
@@ -242,11 +248,14 @@ function JudulKolomV2({
   colKey,
   onResizeStart,
   onAutoFit,
+  seretAktif = false,
 }: {
   teks: string;
   rata: RataKolom;
   /** Absen = kolom tidak bisa diubah lebarnya (mis. kolom Aksi). */
   colKey?: string;
+  /** Mode geser judul aktif: tampilkan kursor grab. */
+  seretAktif?: boolean;
   onResizeStart?: (key: string, e: { preventDefault(): void; stopPropagation(): void; clientX: number }) => void;
   onAutoFit?: (key: string) => void;
 }) {
@@ -259,7 +268,10 @@ function JudulKolomV2({
     // ditambatkan ke pembungkus — ikut meleset dari garis kolom.
     <div
       data-col-key={colKey}
-      className="simpes-dsg-v2-headtitle absolute inset-0 flex items-center py-1"
+      className={cn(
+        'simpes-dsg-v2-headtitle absolute inset-0 flex items-center py-1',
+        seretAktif && 'cursor-grab select-none active:cursor-grabbing',
+      )}
     >
       <div
         className={cn(
@@ -342,6 +354,10 @@ export interface GridV2Props {
   /** Tulis perataan kolom ke setelan tabel. Absen = tombol perataan
    *  disembunyikan (bukan super admin efektif). */
   onUbahAlign?: (key: string, nilai: AlignKolom) => void;
+  /** Izinkan geser judul kolom (super admin efektif). */
+  bolehGeser?: boolean;
+  /** Simpan urutan baru hasil geser judul. Absen = gestur tidak aktif. */
+  onPindahKolom?: (urutan: string[]) => void;
   /** Introspeksi lebar kolom ke halaman (AutoFit semua, reset lebar).
    *  Dipanggil tiap hook siap; dipakai menu klik kanan & kontrol halaman
    *  pada poin berikutnya agar tak ada pekerjaan ulang. */
@@ -382,6 +398,8 @@ export default function GridV2({
   onSaved,
   onKelolaTabel,
   onUbahAlign,
+  bolehGeser = false,
+  onPindahKolom,
   onTinggiHeaderChange,
   inputRow,
 }: GridV2Props) {
@@ -444,16 +462,21 @@ export default function GridV2({
    *  berperilaku konsisten di kedua varian. */
   const [seretSalin, setSeretSalin] = useState(false);
   const [seretPindah, setSeretPindah] = useState(false);
+  /** Geser judul kolom: MATI bawaan, per perangkat, dan hanya ditawarkan
+   *  kepada super admin efektif (sama seperti V1). */
+  const [geserHeader, setGeserHeader] = useState(false);
   useEffect(() => {
     let batal = false;
     const muat = () => {
       Promise.all([
         loadSakelarGestur(seretSalinKey(tableKey)),
         loadSakelarGestur(seretPindahKey(tableKey)),
-      ]).then(([salin, pindah]) => {
+        loadGeserHeader(geserHeaderKey(tableKey)),
+      ]).then(([salin, pindah, geser]) => {
         if (batal) return;
         setSeretSalin(salin);
         setSeretPindah(pindah);
+        setGeserHeader(geser);
       });
     };
     muat();
@@ -474,6 +497,12 @@ export default function GridV2({
     setSeretPindah(pindah);
     prefSet(seretSalinKey(tableKey), salin ? '1' : '').catch(() => {});
     prefSet(seretPindahKey(tableKey), pindah ? '1' : '').catch(() => {});
+    kabariTampilanPerangkat(tableKey);
+  }, [tableKey]);
+
+  const ubahGeserHeader = useCallback((nyala: boolean) => {
+    setGeserHeader(nyala);
+    prefSet(geserHeaderKey(tableKey), nyala ? '1' : '').catch(() => {});
     kabariTampilanPerangkat(tableKey);
   }, [tableKey]);
 
@@ -684,6 +713,18 @@ export default function GridV2({
    *  AutoFit, persistensi per perangkat, dan gerbang anti-lompat. */
   /** Sakelar "tabel mengisi lebar wadah" (pref perangkat menang atas bawaan). */
   const isiLebarAktif = useIsiLebar(tableKey, isiLebarPenuh);
+
+  /** Geser judul hanya hidup di Mode Ubah, untuk super admin efektif, saat
+   *  isi-lebar mati, dan bila halaman menyediakan penyimpanan urutan. */
+  const geserHidup = bolehGeser && geserHeader && modeUbah && !isiLebarAktif && !!onPindahKolom;
+  useSeretKolomHeader({
+    terlihat: fields.map((f) => f.key),
+    wrapRef,
+    aktif: geserHidup,
+    kelasJudul: 'simpes-dsg-v2-headtitle',
+    onPindah: onPindahKolom ?? TANPA_PINDAH_KOLOM,
+  });
+
   /** Rasio skala dipakai seret gagang agar gerakan kursor 1 px tetap 1 px. */
   const skalaIsiRef = useRef(1);
   /** Lebar efekti+ area gulir, dasar penskalaan (0 = belum terukur). */
@@ -965,6 +1006,7 @@ export default function GridV2({
             colKey={f.key}
             onResizeStart={lebar.startResize}
             onAutoFit={lebar.onAutoFit}
+            seretAktif={geserHidup}
           />
         ),
         component: SelTeksV2,
@@ -995,7 +1037,7 @@ export default function GridV2({
     }
 
     return cols;
-  }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit, skalaIsi, modeUbah, bisaEdit, simpanSel, barisIkutIsi, maxRows, !!inputRow, freezeAktif]);
+  }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit, skalaIsi, modeUbah, bisaEdit, simpanSel, barisIkutIsi, maxRows, !!inputRow, freezeAktif, geserHidup]);
 
   /** Kolom Aksi = kolom sticky kanan DSG. Sengaja TIDAK ikut columns:
    *  DSG menggambarnya terpisah agar menempel saat digulir horizontal.
@@ -1317,6 +1359,14 @@ export default function GridV2({
                 checked: seretPindah,
                 onCheckedChange: (nyala) => ubahSeretIsi('pindah', nyala),
               },
+              ...(bolehGeser && !isiLebarAktif ? [{
+                id: `sakelar_geser_judul_${tableKey}`,
+                label: 'Geser judul kolom',
+                grup: 'geser_judul',
+                hint: 'Tarik judul kolom untuk menyusun ulang urutan; urutan disimpan ke preset aktif atau urutan tabel.',
+                checked: geserHeader,
+                onCheckedChange: ubahGeserHeader,
+              }] : []),
             ]}
             onKeluar={() => setModeUbah(false)}
           />

@@ -1,19 +1,28 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ExcelTabelV2 from './ExcelTabelV2';
 import type { ExcelField } from '@/components/excel/types';
 
-const { presetState, halamanState } = vi.hoisted(() => ({
+const { presetState, halamanState, apiPreset, toastMock, gridState } = vi.hoisted(() => ({
   presetState: {
     judulDb: null as string | null,
     labelDb: {} as Record<string, string>,
     alignDb: {} as Record<string, 'left' | 'center' | 'right'>,
     visibilitas: {} as Record<string, boolean>,
     infoHtmlDb: null as string | null,
+    urutanDb: [] as string[] | null,
+    simpanUrutan: vi.fn(),
   },
   halamanState: { superAdmin: true, terdaftar: true },
+  apiPreset: {
+    listPresetTabel: vi.fn(),
+    updatePresetTabel: vi.fn(),
+    setPresetAktif: vi.fn(),
+  },
+  toastMock: { error: vi.fn(), success: vi.fn() },
+  gridState: { onPindahKolom: null as null | ((urutan: string[]) => void) },
 }));
 
 vi.mock('@/lembagaAktif', () => ({
@@ -47,6 +56,14 @@ vi.mock('@/components/excel/useToolbarPreset', () => ({
   useToolbarPresetState: () => presetState,
 }));
 
+vi.mock('@/api/preset', () => ({
+  listPresetTabel: apiPreset.listPresetTabel,
+  updatePresetTabel: apiPreset.updatePresetTabel,
+  setPresetAktif: apiPreset.setPresetAktif,
+}));
+
+vi.mock('sonner', () => ({ toast: toastMock }));
+
 vi.mock('@/theme', () => ({
   useTheme: () => ({ iconSet: 'lucide' }),
 }));
@@ -59,6 +76,7 @@ vi.mock('@/components/PresetKolom', () => ({
     <>
       <span data-testid="preset-kolom" />
       <button type="button" onClick={() => onApply(['nama'], 7)}>terapkan-preset</button>
+      <button type="button" onClick={() => onApply(['nis', 'nama'], 7)}>terapkan-preset-urut</button>
     </>
   ),
 }));
@@ -79,6 +97,7 @@ vi.mock('./GridV2', () => ({
     onBarisAktif,
     maxRows,
     onTinggiHeaderChange,
+    onPindahKolom,
   }: {
     fields: { key: string }[];
     rows: { id: string | number }[];
@@ -93,23 +112,28 @@ vi.mock('./GridV2', () => ({
     onBarisAktif?: (id: string | number) => void;
     maxRows?: number;
     onTinggiHeaderChange?: (tinggi: number) => void;
-  }) => (
-    <div data-slot="excel-table-grid">
-      <span data-testid="jumlah-grid">{rows.length}</span>
-      <span data-testid="dipilih-grid">{[...dipilih].join(',')}</span>
-      <span data-testid="kolom-grid">{fields.map((f) => f.key).join(',')}</span>
-      <span data-testid="hide-checkbox">{String(!!hideCheckbox)}</span>
-      <span data-testid="hide-header">{String(!!hideHeader)}</span>
-      <span data-testid="ada-aksi">{String(!!renderActions)}</span>
-      <span data-testid="baris-aktif">{String(barisAktifId ?? '')}</span>
-      <span data-testid="label-db">{JSON.stringify(labelDb ?? {})}</span>
-      <span data-testid="align-db">{JSON.stringify(alignDb ?? {})}</span>
-      <span data-testid="max-rows-grid">{String(maxRows ?? '')}</span>
-      <button type="button" onClick={() => onTogglePilih(1)}>pilih-1</button>
-      <button type="button" onClick={() => onBarisAktif?.(1)}>baris-1</button>
-      <button type="button" onClick={() => onTinggiHeaderChange?.(52)}>ubah-tinggi-header</button>
-    </div>
-  ),
+    onPindahKolom?: (urutan: string[]) => void;
+  }) => {
+    gridState.onPindahKolom = onPindahKolom ?? null;
+    return (
+      <div data-slot="excel-table-grid">
+        <span data-testid="jumlah-grid">{rows.length}</span>
+        <span data-testid="dipilih-grid">{[...dipilih].join(',')}</span>
+        <span data-testid="kolom-grid">{fields.map((f) => f.key).join(',')}</span>
+        <span data-testid="hide-checkbox">{String(!!hideCheckbox)}</span>
+        <span data-testid="hide-header">{String(!!hideHeader)}</span>
+        <span data-testid="ada-aksi">{String(!!renderActions)}</span>
+        <span data-testid="baris-aktif">{String(barisAktifId ?? '')}</span>
+        <span data-testid="label-db">{JSON.stringify(labelDb ?? {})}</span>
+        <span data-testid="align-db">{JSON.stringify(alignDb ?? {})}</span>
+        <span data-testid="max-rows-grid">{String(maxRows ?? '')}</span>
+        <button type="button" onClick={() => onTogglePilih(1)}>pilih-1</button>
+        <button type="button" onClick={() => onBarisAktif?.(1)}>baris-1</button>
+        <button type="button" onClick={() => onTinggiHeaderChange?.(52)}>ubah-tinggi-header</button>
+        <button type="button" onClick={() => onPindahKolom?.(['nama', 'nis'])}>pindah-kolom</button>
+      </div>
+    );
+  },
 }));
 
 const rows = [
@@ -142,8 +166,18 @@ beforeEach(() => {
   presetState.alignDb = {};
   presetState.visibilitas = {};
   presetState.infoHtmlDb = null;
+  presetState.urutanDb = [];
+  presetState.simpanUrutan.mockClear();
   halamanState.superAdmin = true;
   halamanState.terdaftar = true;
+  gridState.onPindahKolom = null;
+  toastMock.error.mockClear();
+  toastMock.success.mockClear();
+  apiPreset.listPresetTabel.mockReset().mockResolvedValue({
+    data: { presets: [], aktif_preset_id: null, aktif_kolom: null },
+  });
+  apiPreset.updatePresetTabel.mockReset().mockResolvedValue({ pesan: 'ok', data: [] });
+  apiPreset.setPresetAktif.mockReset().mockResolvedValue({ pesan: 'ok' });
 });
 
 describe('ExcelTabelV2', () => {
@@ -511,5 +545,58 @@ describe('ExcelTabelV2', () => {
     await user.click(screen.getByRole('button', { name: 'Info tabel' }));
 
     expect(await screen.findByText('Info penting')).toBeInTheDocument();
+  });
+});
+
+describe('ExcelTabelV2 — urutan kolom dan preset aktif', () => {
+  it('memakai urutan tabel tersimpan saat tidak ada preset aktif', async () => {
+    presetState.urutanDb = ['nis', 'nama'];
+    tampilkan({ fields: DUA_KOLOM });
+
+    await waitFor(() => expect(screen.getByTestId('kolom-grid')).toHaveTextContent('nis,nama'));
+  });
+
+  it('memuat preset aktif saat mount walau area filter tertutup', async () => {
+    apiPreset.listPresetTabel.mockResolvedValueOnce({
+      data: {
+        presets: [{ id: 7, table_key: 'daftar_kelas', nama: 'Urut', kolom: ['nis', 'nama'] }],
+        aktif_preset_id: 7,
+        aktif_kolom: null,
+      },
+    });
+    tampilkan({ fields: DUA_KOLOM });
+
+    await waitFor(() => expect(screen.getByTestId('kolom-grid')).toHaveTextContent('nis,nama'));
+  });
+
+  it('menyimpan urutan hasil geser ke preset aktif', async () => {
+    const user = userEvent.setup();
+    tampilkan({ fields: DUA_KOLOM });
+    await user.click(screen.getByRole('button', { name: 'Area filter' }));
+    await user.click(screen.getByRole('button', { name: 'terapkan-preset-urut' }));
+    expect(screen.getByTestId('kolom-grid')).toHaveTextContent('nis,nama');
+
+    act(() => { gridState.onPindahKolom?.(['nama', 'nis']); });
+    await waitFor(() => expect(apiPreset.updatePresetTabel).toHaveBeenCalledWith(7, { kolom: ['nama', 'nis'] }));
+    expect(screen.getByTestId('kolom-grid')).toHaveTextContent('nama,nis');
+  });
+
+  it('mengembalikan urutan jika simpan preset gagal', async () => {
+    const user = userEvent.setup();
+    apiPreset.updatePresetTabel.mockRejectedValueOnce(new Error('gagal simpan'));
+    tampilkan({ fields: DUA_KOLOM });
+    await user.click(screen.getByRole('button', { name: 'Area filter' }));
+    await user.click(screen.getByRole('button', { name: 'terapkan-preset-urut' }));
+
+    act(() => { gridState.onPindahKolom?.(['nama', 'nis']); });
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+    expect(screen.getByTestId('kolom-grid')).toHaveTextContent('nis,nama');
+  });
+
+  it('menyimpan urutan global saat tidak ada preset', () => {
+    tampilkan({ fields: DUA_KOLOM });
+
+    gridState.onPindahKolom?.(['nis', 'nama']);
+    expect(presetState.simpanUrutan).toHaveBeenCalledWith(['nis', 'nama']);
   });
 });
