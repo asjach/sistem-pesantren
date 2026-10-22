@@ -985,16 +985,16 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `Backlog`
+### DA11.1 Tabel & Grid `To Do`
 **Backlog**
+- (kosong)
+**To Do**
 - Tinggi baris V2 bisa diatur per tabel, ikut isi, dan dibatasi N baris.
 - V2 bisa menambah record baru lewat baris input di kaki tabel.
 - Tinggi header otomatis (headerAutoH) berlaku di V2: header kolom meninggi mengikuti judul yang membungkus seperti V1, agar spinbox mode otomatis berfungsi.
 - Judul kolom V2 tidak terpotong (elipsis): header tabel V2 memotong judul yang panjang, sedangkan V1 membungkusnya jadi beberapa baris. Perlu diselaraskan agar judul terbaca penuh.
 - Kolom V2 bisa dibekukan: sejumlah N kolom data pertama tetap terlihat saat tabel digulir horizontal, dengan jumlah beku tersimpan per tabel.
 - Judul kolom V2 bisa digeser untuk menyusun ulang urutan kolom, lengkap dengan indikator drop, dan urutannya tersimpan per tabel.
-**To Do**
-- (kosong)
 **In Progress**
 - (kosong)
 **For Review**
