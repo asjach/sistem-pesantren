@@ -24,7 +24,8 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
 import LabelTombolTambah from '@/components/LabelTombolTambah';
 import ComboCari from '@/components/ComboCari';
@@ -366,7 +367,8 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tampil={{ semester: false, tingkat: false, kelas: false }} tabel={[{ key: konfig.tableKey, judul: konfig.judul, fields }]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder={`Cari ${konfig.judul.toLowerCase()}…`} />
-      <ExcelTable
+      <ExcelTabelV2
+        judul={konfig.judul}
         tableKey={konfig.tableKey}
         fields={fields}
         rows={rows}
@@ -376,6 +378,8 @@ export default function DokumenPage({ tipe }: { tipe: TipeDokumen }) {
         canEdit={canUbah}
         onCommit={commitBaris}
         onSaved={() => {}}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         addButton={(canTambah || sinkronMassal) ? (
           <>
             {canTambah && (
