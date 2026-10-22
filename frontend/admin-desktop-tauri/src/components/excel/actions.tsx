@@ -47,6 +47,68 @@ export function flattenAksi(node: ReactNode): ReactElement[] {
   return out;
 }
 
+/** Elemen non-interaktif yang lazim membungkus aksi, mis.
+ *  `<span className="flex items-center gap-0.5">`. Tanpa diratakan, seluruh
+ *  pembungkus terbaca sebagai satu aksi generik "Aksi" di menu klik kanan. */
+const PEMBUNGKUS_AKSI = new Set(['span', 'div']);
+
+/** Pembungkus layout tidak punya handler sendiri; elemen yang memegang
+ *  `onClick`/`onConfirm` dianggap aksi dan tidak diturunkan lagi. */
+function pembungkusAksi(el: ReactElement): boolean {
+  const p = el.props as Record<string, unknown>;
+  return typeof el.type === 'string'
+    && PEMBUNGKUS_AKSI.has(el.type)
+    && typeof p.onClick !== 'function'
+    && typeof p.onConfirm !== 'function';
+}
+
+/** Tombol aksi yang tetap ditampilkan di menu walau belum diberi handler
+ *  (mis. contoh hidup di halaman Komponen, tombolnya hanya peraga). */
+const KOMPONEN_AKSI = new Set<unknown>([
+  Button, ActionIcon, ViewAction, EditAction, DeleteAction, SetAktifAction,
+]);
+
+function elemenAksi(el: ReactElement): boolean {
+  const p = el.props as { onClick?: () => void; onConfirm?: () => void };
+  return typeof p.onClick === 'function'
+    || typeof p.onConfirm === 'function'
+    || el.type === 'button'
+    || KOMPONEN_AKSI.has(el.type);
+}
+
+/** Ratakan `renderActions` khusus untuk menu klik kanan.
+ *
+ *  Berbeda dari `flattenAksi` (dipakai sel Aksi V1 yang merender kontrol apa
+ *  adanya): menu hanya memuat tombol/aksi, jadi pembungkus layout ditelusuri
+ *  dan kontrol seperti input atau teks hiasan dilewati. Dengan begitu
+ *  `<span><Lihat/><Ubah/></span>` menjadi dua item menu, bukan satu item
+ *  "Aksi". */
+export function flattenAksiMenu(node: ReactNode): ReactElement[] {
+  const out: ReactElement[] = [];
+  Children.forEach(node, (child) => {
+    if (!isValidElement(child)) return;
+    if (child.type === Fragment || child.type === TooltipTrigger) {
+      out.push(...flattenAksiMenu((child.props as { children?: ReactNode }).children));
+      return;
+    }
+    if (child.type === Tooltip) {
+      Children.forEach((child.props as { children?: ReactNode }).children, (c) => {
+        if (isValidElement(c) && c.type === TooltipTrigger) {
+          out.push(...flattenAksiMenu((c.props as { children?: ReactNode }).children));
+        }
+      });
+      return;
+    }
+    if (pembungkusAksi(child)) {
+      out.push(...flattenAksiMenu((child.props as { children?: ReactNode }).children));
+      return;
+    }
+    if (!elemenAksi(child)) return;
+    out.push(child);
+  });
+  return out;
+}
+
 /** Ambil isi ikon dari elemen tombol aksi agar menu tidak menyarangkan button. */
 export function ikonAksi(node: ReactNode): ReactNode {
   if (isValidElement(node) && node.type === ActionIcon) {

@@ -21,7 +21,7 @@ import { PillMode, TabelMemuat } from '@/components/excel/primitives';
 import { cn } from '@/lib/utils';
 import { labelKolom } from '@/lib/labelKolom';
 import ScrollbarMelayang from '@/components/excel/ScrollbarMelayang';
-import { flattenAksi } from '@/components/excel/actions';
+import { flattenAksiMenu } from '@/components/excel/actions';
 import {
   CHECK_W,
   INPUT_ROW_ID,
@@ -799,7 +799,7 @@ export default function GridV2({
   const jumlahAksi = useMemo(() => {
     let maks = 0;
     for (const r of rows) {
-      const n = flattenAksi(renderAksiRef.current?.(r.id)).length;
+      const n = flattenAksiMenu(renderAksiRef.current?.(r.id)).length;
       if (n > maks) maks = n;
     }
     return maks;
@@ -1053,6 +1053,8 @@ export default function GridV2({
       const rata = rataKolom(f, alignDb);
       /** Select record lama: Mode Ubah, atau langsung bila selectTanpaEdit. */
       const selectBisa = f.kind === 'select' && bisaEdit && (modeUbah || !!f.selectTanpaEdit);
+      /** Satu gerbang untuk semua jalur DSG (disabled, tempel, hapus). */
+      const bisaUbahSel = f.kind === 'select' ? selectBisa : (bisaEdit && f.kind !== 'static');
       const onSimpanKolom = f.kind === 'select'
         ? (selectBisa ? simpanSel : undefined)
         : (bisaEdit ? simpanSel : undefined);
@@ -1090,9 +1092,23 @@ export default function GridV2({
         // Hanya kolom yang benar-benar bisa disunting yang dibuka; kolom
         // `static` tetap terkunci meski Mode Ubah menyala. Select bisa hidup
         // tanpa Mode Ubah bila field meminta `selectTanpaEdit`.
-        disabled: f.kind === 'select'
-          ? !selectBisa
-          : !(bisaEdit && f.kind !== 'static'),
+        disabled: !bisaUbahSel,
+        // DSG hanya mengubah nilai lewat `pasteValue`/`deleteValue`: tanpa
+        // keduanya, tempel TSV dan tombol Delete tidak menghasilkan perubahan
+        // sehingga onChange tak pernah melihat baris yang berbeda. Nilai
+        // mentah sengaja diteruskan apa adanya; normalisasi toggle/select dan
+        // validasi tetap ditangani `tanganiPerubahanDsg` + antrean simpan.
+        copyValue: ({ rowData }: { rowData: GridRow }) => String(rowData[f.key] ?? ''),
+        deleteValue: ({ rowData }: { rowData: GridRow }) => (
+          bisaUbahSel
+            ? ({ ...rowData, [f.key]: f.kind === 'toggle' ? 'tidak' : null } as GridRow)
+            : rowData
+        ),
+        pasteValue: ({ rowData, value }: { rowData: GridRow; value: string }) => (
+          bisaUbahSel ? ({ ...rowData, [f.key]: value } as GridRow) : rowData
+        ),
+        isCellEmpty: ({ rowData }: { rowData: GridRow }) =>
+          rowData[f.key] == null || rowData[f.key] === '',
         headerClassName: tepiBeku ? 'simpes-dsg-v2-beku-tepi' : undefined,
         cellClassName: ({ rowData }: { rowData?: GridRow }) => cn(
           barisIkutIsi && maxRows === undefined && 'px-2',
@@ -1296,7 +1312,7 @@ export default function GridV2({
   /** Aksi record halaman untuk baris yang diklik kanan. Halaman sudah
    *  menggerbang izin di `renderActions`, jadi menu tinggal menampilkannya. */
   const ctxAksi = ctx.area === 'row' && renderActions
-    ? flattenAksi(renderActions(ctx.rowId))
+    ? flattenAksiMenu(renderActions(ctx.rowId))
     : [];
 
   return (

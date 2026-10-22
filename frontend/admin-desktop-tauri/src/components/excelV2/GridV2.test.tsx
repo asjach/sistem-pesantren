@@ -47,7 +47,8 @@ import { widthCache, widthsKey } from '@/components/excel/helpers';
 import { autoBarisKey, tinggiDasarKey } from '@/components/excel/useTinggiBaris';
 import { dsgStub, kolomTerakhir } from '@/components/excel/_dsgStubDom';
 import type { ExcelField } from '@/components/excel/types';
-import { DeleteAction, ViewAction } from '@/components/RowActions';
+import { DeleteAction, EditAction, ViewAction } from '@/components/RowActions';
+import { Button } from '@/components/ui/button';
 
 const FIELDS: ExcelField[] = [
   { key: 'nama', label: 'Nama', kind: 'text' },
@@ -256,6 +257,46 @@ describe('GridV2 - penyuntingan sel (Mode Ubah)', () => {
 
     await waitFor(() => expect(simpan).toHaveBeenCalledTimes(1));
     expect(simpan.mock.calls[0][1]).toEqual({ nama: 'Ahmad Baru', nis: null });
+  });
+
+  it('kolom menyediakan jalur tempel/hapus DSG sehingga perubahan sampai ke antrean', async () => {
+    // Regresi: DSG hanya mengubah nilai lewat `pasteValue`/`deleteValue` milik
+    // kolom. Tanpa keduanya, tempel TSV dan tombol Delete tidak mengubah data
+    // sehingga onChange tak pernah melihat baris yang berbeda — tes lama yang
+    // memanggil onChange langsung tetap hijau padahal fitur mati.
+    const simpan = vi.fn<(id: string | number, f: Record<string, string | null>) => Promise<void>>(async () => {});
+    tampilkan({ canEdit: true, onCommit: simpan });
+    await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
+
+    const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
+    fireEvent.doubleClick(grid);
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
+
+    const kolomNama = kolomTerakhir().find((k) => k.id === 'nama');
+    const sesudahTempel = kolomNama?.pasteValue?.({ rowData: ROWS[0], value: 'Ahmad Baru' });
+    expect(sesudahTempel).toMatchObject({ nama: 'Ahmad Baru' });
+    act(() => {
+      dsgStub.ubah?.([sesudahTempel as (typeof ROWS)[number], ROWS[1]]);
+    });
+    await waitFor(() => expect(simpan).toHaveBeenCalledTimes(1));
+    expect(simpan.mock.calls[0][1]).toEqual({ nama: 'Ahmad Baru' });
+
+    const sesudahHapus = kolomNama?.deleteValue?.({ rowData: ROWS[0] });
+    expect(sesudahHapus).toMatchObject({ nama: null });
+    act(() => {
+      dsgStub.ubah?.([sesudahHapus as (typeof ROWS)[number], ROWS[1]]);
+    });
+    await waitFor(() => expect(simpan).toHaveBeenCalledTimes(2));
+    expect(simpan.mock.calls[1][1]).toEqual({ nama: null });
+  });
+
+  it('kolom terkunci tidak meneruskan tempel/hapus ke DSG', async () => {
+    tampilkan();
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    const kolomNama = kolomTerakhir().find((k) => k.id === 'nama');
+    expect(kolomNama?.pasteValue?.({ rowData: ROWS[0], value: 'Baru' })).toBe(ROWS[0]);
+    expect(kolomNama?.deleteValue?.({ rowData: ROWS[0] })).toBe(ROWS[0]);
   });
 
   it('nilai tempel yang gagal validasi tidak disimpan', async () => {
@@ -555,6 +596,36 @@ describe('GridV2 - menu klik kanan & salin TSV', () => {
     expect(dialog).toHaveTextContent('Hapus data?');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Hapus' }));
     expect(hapus).toHaveBeenCalledWith(1);
+  });
+
+  it('aksi yang dibungkus span tetap diratakan menjadi item menu', async () => {
+    // Halaman lazim membungkus aksi dalam `<span className="flex">`; tanpa
+    // perataan, seluruh pembungkus tampil sebagai satu item generik "Aksi".
+    const lihat = vi.fn();
+    const ubah = vi.fn();
+    tampilkan({
+      renderActions: (id: string | number) => (
+        <span className="flex items-center gap-0.5">
+          {/* Kontrol ber-input tetap dirender di sel, tapi bukan item menu. */}
+          <input aria-label="Cicilan" />
+          {/* Tombol peraga tanpa handler (seperti contoh hidup) tetap tampil. */}
+          <Button title="Cetak" aria-label="Cetak" />
+          <ViewAction id={`lihat_${id}`} onClick={() => lihat(id)} />
+          <EditAction id={`ubah_${id}`} onClick={() => ubah(id)} />
+        </span>
+      ),
+    });
+    await waitFor(() => expect(kolomTerakhir().length).toBeGreaterThan(0));
+
+    const sel = document.querySelector('.dsg-row:not(.dsg-row-header) [data-col-key="nama"]') as HTMLElement;
+    const menu = await bukaMenu(sel);
+    expect(within(menu).queryByRole('menuitem', { name: 'Aksi' })).toBeNull();
+    expect(within(menu).queryByRole('menuitem', { name: /Cicilan/ })).toBeNull();
+    expect(within(menu).getByRole('menuitem', { name: 'Cetak' })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: 'Ubah' })).toBeInTheDocument();
+
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Lihat' }));
+    expect(lihat).toHaveBeenCalledWith(1);
   });
 
   it('klik kanan di area kosong tidak membuka menu', async () => {

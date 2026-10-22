@@ -40,6 +40,13 @@ export interface KolomStub {
   headerClassName?: string;
   cellClassName?: string | ((opts: { rowData: GridRow }) => string | undefined);
   columnData?: unknown;
+  /** Jalur nilai DSG asli: tanpa ini tempel TSV/blok dan tombol Delete tidak
+   *  mengubah apa pun. Stub tak memanggilnya sendiri, jadi berkas tes memanggil
+   *  langsung untuk memastikan kolom benar-benar menyediakan jalur tersebut. */
+  copyValue?: (opts: { rowData: GridRow }) => string | null;
+  pasteValue?: (opts: { rowData: GridRow; value: string; rowIndex?: number }) => GridRow;
+  deleteValue?: (opts: { rowData: GridRow; rowIndex?: number }) => GridRow;
+  isCellEmpty?: (opts: { rowData: GridRow }) => boolean;
 }
 
 /** Render satu sel: komponen kolom (isi baris) atau judul (baris header).
