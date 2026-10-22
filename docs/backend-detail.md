@@ -95,13 +95,13 @@ not yet implemented and `kasir` was removed v2.38. One user may hold multiple ro
 Status legend: ✅ implemented & migrated · 🟨 partial (main path exists, gaps
 listed) · 🔲 not built (draft, opens on demand).
 
-**Status & rencana per modul terpusat di [PETA-MODUL.md](PETA-MODUL.md)** —
+**Status & rencana per modul terpusat di Board** (`/board`, API `/api/board`) —
 sudah/sedang/akan/ditunda per modul beserta rincian teknis butir sisanya.
 Matriks status §10 yang lama sudah **dipindah** ke sana (file ini tidak lagi
 memuatnya). Rujukan riwayat perubahan tetap [CHANGELOG.md](CHANGELOG.md).
 
 Legenda di bawah hanya penanda ringkas di dalam teks teknis; otoritasnya ada di
-peta itu.
+Board saat workflow aplikasi efektif Aktif.
 
 #### Phase 0 — Foundation ✅ (migrated, seeded)
 
@@ -656,8 +656,8 @@ app has no usable backend path yet.
 ### 10. Status per modul — dipindah
 
 Matriks status per area, roadmap, dan daftar butir sisa **sudah dipindah** ke
-**Board** (`/board`, API `/api/board`, DB `backend/database/papan.sqlite`) dan
-ringkasannya di **[PETA-MODUL.md](PETA-MODUL.md)** (turunan Board, bukan sumber).
+**Board** (`/board`, API `/api/board`, DB `backend/database/papan.sqlite`).
+Data dibaca langsung melalui halaman atau API Board.
 Board hanya berlaku sebagai rujukan saat status efektif aplikasi **Aktif** (master + flag aplikasi). File ini
 tidak lagi memuatnya agar tidak ada dua versi yang saling menyimpang.
 

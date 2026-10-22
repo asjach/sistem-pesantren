@@ -2,7 +2,7 @@
  * Perender markup ringkas untuk teks butir papan di kartu.
  *
  * Butir di papan disimpan sebagai teks yang boleh memuat markup markdown
- * sederhana (dipakai saat ditulis ke PETA-MODUL.md): `kode`, **tebal**, dan
+ * sederhana: `kode`, **tebal**, dan
  * tautan [teks](tujuan). Di kartu, markup itu TIDAK boleh tampil mentah —
  * tapi juga tidak perlu perender markdown penuh (tak ada dependensinya).
  * Jadi di sini hanya tiga pola yang didukung, dan SEBAGIAN di antaranya

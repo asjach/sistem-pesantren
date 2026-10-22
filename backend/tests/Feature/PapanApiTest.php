@@ -148,9 +148,17 @@ class PapanApiTest extends TestCase
 
         $this->patchJson("/api/board/E.3/butir/{$poin->id}/status", ['status' => 'in_progress', 'catatan' => 'Mulai'])
             ->assertOk()
-            ->assertJsonPath('status', 'in_progress')
-            // Sub-modul ikut In Progress karena ada poin yang sedang dikerjakan.
-            ->assertJsonPath('status_sub_modul', 'in_progress');
+            ->assertExactJson([
+                'kode' => 'E.3',
+                'id' => $poin->id,
+                'status' => 'in_progress',
+                'status_sub_modul' => 'in_progress',
+            ]);
+
+        $this->assertDatabaseHas('papan_butir', [
+            'id' => $poin->id,
+            'status' => 'in_progress',
+        ], 'papan');
 
         $this->getJson('/api/board/riwayat')
             ->assertOk()

@@ -7,7 +7,7 @@
 
 **Metode:** Fase-gate + Kanban WIP=1.
 
-**Alur kerja (workflow), prioritas, dan status:** satu-satunya sumber ada di **Board** — halaman `/board`, antarmuka pemrograman aplikasi (API) `/api/board`, basis data (database/DB) `backend/database/papan.sqlite` — dan hanya berlaku saat status Board **Aktif**. Ringkasan yang dihasilkan: [PETA-MODUL.md](PETA-MODUL.md).
+**Alur kerja (workflow), prioritas, dan status:** satu-satunya sumber ada di **Board** — halaman `/board`, antarmuka pemrograman aplikasi (API) `/api/board`, basis data (database/DB) `backend/database/papan.sqlite` — dan hanya berlaku saat status Board **Aktif**.
 
 Jangan memelihara roadmap, tabel gelombang, atau estimasi terpisah di dokumen ini. Setiap rencana baru ditulis di Board sebagai modul → sub-modul → poin (status + subpoin checklist); bila perlu, buat modul baru. Baca Board sebelum merencanakan dan perbarui setelah status berubah.
 
@@ -105,7 +105,7 @@ Manual per peran, video pendek, FAQ.
 ## 14. Pemeliharaan dan Dukungan
 
 Garansi 3 bln; respons 1×24 jam. Sisa pekerjaan dan urutannya ada di Board
-(`/board`; ringkasan [PETA-MODUL.md](PETA-MODUL.md)).
+(`/board`).
 
 ---
 
@@ -116,8 +116,8 @@ Diagram Crow's Foot diringkas di Bab 6 (`arsitektur.md`) dan `docs/SCHEMA.md`. F
 ## Lampiran C — Isu Terbuka / TBD
 
 **Daftar isian terbuka dipindah.** Butir yang belum dikerjakan, per modul,
-beserta rincian teknisnya kini **terpusat** di **Board** (`/board`; ringkasan
-turunannya di [PETA-MODUL.md](PETA-MODUL.md)). Lampiran ini tidak lagi
+beserta rincian teknisnya kini **terpusat** di **Board** (`/board`,
+API `/api/board`). Lampiran ini tidak lagi
 mendaftarnya agar tidak ada dua versi.
 
 Yang tetap tinggal di sini: **TBD yang butuh keputusan/rancangan**, bukan

@@ -1,6 +1,6 @@
 import { api } from './client';
 
-/** Status yang dipakai papan — sama dengan kosakata di docs/PETA-MODUL.md. */
+/** Status yang dipakai papan — sesuai kontrak API Board. */
 export type StatusPapan = 'backlog' | 'todo' | 'in_progress' | 'for_review' | 'done';
 
 /** Lima tahap alur kerja Kanban (workflow), dalam urutan tampil. */

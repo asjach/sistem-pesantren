@@ -11,7 +11,7 @@
 
 > **Konvensi.** Bahasa Indonesia persis DB. Logika saja, tanpa kode mentah, format kode + nama modul. Tanpa asumsi umum. Aturan bisa berubah via Lampiran E. Penulisan Bab 3 (tanpa simbol paragraf).
 
-> **Alur kerja (workflow) & perencanaan.** Satu-satunya sumber alur kerja, prioritas, status, dan rencana kerja adalah **Board** (`/board`, antarmuka pemrograman aplikasi/API `/api/board`, basis data/DB `backend/database/papan.sqlite`), dan hanya berlaku per aplikasi saat status efektifnya **Aktif** (pengaturan utama/master + penanda/flag aplikasi). Dokumen ini hanya memuat kebutuhan dan rancangan; jangan menulis peta jalan (roadmap)/status di sini. Ringkasan status di [PETA-MODUL.md](PETA-MODUL.md) adalah turunan Board.
+> **Alur kerja (workflow) & perencanaan.** Satu-satunya sumber alur kerja, prioritas, status, dan rencana kerja adalah **Board** (`/board`, antarmuka pemrograman aplikasi/API `/api/board`, basis data/DB `backend/database/papan.sqlite`), dan hanya berlaku per aplikasi saat status efektifnya **Aktif** (pengaturan utama/master + penanda/flag aplikasi). Dokumen ini hanya memuat kebutuhan dan rancangan; jangan menulis peta jalan (roadmap)/status di sini.
 
 ## Riwayat Perubahan
 
@@ -47,6 +47,15 @@ Pesantren menaungi beberapa lembaga — MI, MD, MTs, Mu'allimin — sebagai bari
 
 **Santri legacy:** santri lama tanpa jejak `riwayat_belajar`. Sumber kebenaran lembaga adalah `riwayat_belajar`. `status_global` bukan input manual — turunan "punya ≥1 riwayat aktif" (default nonaktif sampai ditempatkan).
 
+### Kebutuhan kurikulum dan portal
+
+Kebutuhan kurikulum mencakup tampilan jadwal per guru, cetak dan unduh Excel
+jadwal per kelas, serta penyalinan daftar mapel antar tahun ajaran. Portal wali
+menyediakan dashboard baca-saja dan ringkasan tagihan anak melalui rute
+`portal/*` dengan penjaga peran `orang_tua`; akses dibatasi ke anak milik akun
+wali. Aktor `santri` memerlukan rancangan akses portal tersendiri. Status dan
+urutan implementasinya mengikuti Board saat workflow aplikasi efektif Aktif.
+
 ### 1.3 Tujuan Proyek
 
 1. Sistem terpusat untuk santri, pegawai/guru, dan pengguna lintas lembaga via model single-pesantren (`lembaga`).
@@ -59,7 +68,7 @@ Pesantren menaungi beberapa lembaga — MI, MD, MTs, Mu'allimin — sebagai bari
 
 ### 1.4 Ruang Lingkup
 
-> **Status per modul (sudah / sedang / akan / ditunda), prioritas, dan urutan pengerjaan terpusat di Board.** Ringkasan di [PETA-MODUL.md](PETA-MODUL.md) adalah turunannya. Bab ini hanya memuat ruang lingkup produk, bukan roadmap/gelombang/status.
+> **Status per modul (sudah / sedang / akan / ditunda), prioritas, dan urutan pengerjaan terpusat di Board.** Bab ini hanya memuat ruang lingkup produk, bukan roadmap/gelombang/status.
 
 Ruang lingkup produk mencakup fondasi/auth, PSB & santri, kepegawaian & kurikulum, penilaian/rapor, keuangan, portal wali, serta aplikasi klien (Desktop Admin, mobile ortu/guru/pimpinan/kasir, dan landing page). Rincian fitur, status, dan urutan per aplikasi ada di Board. Kurikulum/nilai termasuk cakupan produk; status terkini ada di Board.
 
@@ -138,24 +147,24 @@ Sampel: rapor semester genap 2025/2026 kelas 1A MI & 1B MD. Struktur SAMA, isi/k
 
 #### Modul penilaian (2026-10-16, revisi per-kegiatan evaluatif)
 
-> **Status & butir sisa terpusat di [PETA-MODUL.md](PETA-MODUL.md) bagian D.1 dan D.2.**
+> **Status & butir sisa terpusat di Board (`/board`), modul Penilaian.**
 > Paragraf di bawah adalah **model & keputusan rancangan** (mengapa begitu),
 > bukan daftar status. Jangan salin status ke sini.
 
 **Model terkunci (dikonfirmasi pengguna)**: nilai diikat **KEGIATAN EVALUATIF** — `kegiatan_evaluatif` per (jenjang, TA), tanpa semester; `komponen_nilai` (bobot jadi kolom, `sumber` manual/rapor_otomatis) MILIK satu kegiatan evaluatif; `kkm_kegiatan` & `rentang_predikat` per kegiatan evaluatif; `nilai_santri` unik per (santri, pengampu, TA, semester, kegiatan evaluatif). Cakupan peserta kegiatan evaluatif: `semua` (ASAS), `kecuali_akhir` (ASAT), `tingkat_akhir` (UJIAN & UAP) — tingkat akhir = `ref_tingkat.urutan` tertinggi jenjang. UJIAN dilewati untuk jenjang MD (jalur Kemenag); komponen UJIAN = UM (manual, bawaan 60) + Rata-rata Rapor (otomatis dari rata-rata rapor `jumlah_tingkat_rapor` tingkat sebelumnya, bawaan 2, boleh ditimpa impor).
-**Sudah jalan**: lihat [PETA-MODUL.md](PETA-MODUL.md) bagian D.1 dan D.2 (daftar fitur yang live) — riwayat per versi di [CHANGELOG.md](CHANGELOG.md) v2.401–v2.404.
-**Belum dikerjakan**: lihat [PETA-MODUL.md](PETA-MODUL.md) bagian D.1 dan D.2.
+**Sudah jalan**: lihat Board (`/board`), modul Penilaian (daftar fitur yang live) — riwayat per versi di [CHANGELOG.md](CHANGELOG.md) v2.401–v2.404.
+**Belum dikerjakan**: lihat Board (`/board`), modul Penilaian.
 **Prasyarat di luar modul ini**: **SUDAH TERPENUHI** ([changelog](CHANGELOG.md) v2.405, disederhanakan v2.413) — `mata_pelajaran` & `pengampu_mapel` kini punya halaman pengelola lengkap (grup nav "Kurikulum"): master mapel per jenjang (termasuk KKM + urutan rapor) dan pengampu (kelas × mapel → guru dari keaktifan pegawai; daftar mapel kelas ditambah lewat "Tambah mapel", "Salin dari kelas lain", atau import). Selama tabel-tabel itu masih 0 baris (mis. DB yang belum diisi), leger/rapor memang tampil tanpa kolom mapel — itu soal data, bukan kode.
 **Keputusan yang diambil saat implementasi**: (a) impor `nilai` memakai kolom mapel dinamis (seluruh header file diterima) — `konfigurasi.kolomDariFile` ditambahkan ke `ImportBertahapUmumDialog` (aditif); (b) ekstrakurikuler yang belum ada di master **dibuat otomatis** saat impor; (c) `predikat_ekskul` global (jenjang null) hanya super_admin; (d) migrasi restrukturisasi memindahkan konfigurasi lama ke kegiatan evaluatif ASAS dan **menghapus** tabel `komponen_nilai_bobot`; (e) **PTS = kegiatan evaluatif sendiri** (keputusan pengguna 2026-10-16, mengoreksi v2.403): rapor sementara + komponen "PTS" di ASAS/ASAT **bersumber dari kegiatan evaluatif PTS** (`sumber='kegiatan_evaluatif'`) sehingga guru mengisi PTS sekali; rujukan antar-kegiatan evaluatif **satu tingkat** (tanpa rekursi) dan ditolak bila diri sendiri / beda jenjang / beda TA.
 
 #### Modul mapel & pengampu (2026-10-17)
 
-> **Status & butir sisa terpusat di [PETA-MODUL.md](PETA-MODUL.md) bagian C.2 dan bagian C.2.**
+> **Status & butir sisa terpusat di Board (`/board`), modul Kurikulum.**
 > Paragraf di bawah adalah **model & keputusan rancangan**.
 
 **Model terkini**: daftar mapel sebuah kelas **YAITUH** baris `pengampu_mapel` kelas itu (kelas × mapel → guru via `keaktifan_pegawai`, null = belum ada guru). Modul kurikulum (per jenjang) + komposisi (`kurikulum_mapel` + cakupan tingkat `kurikulum_mapel_tingkat`) + peta `kelas_kurikulum` **DIHAPUS** pada v2.413 bersama seluruh endpoint & halamannya. `mata_pelajaran` — KKM + urutan tampil rapor pindah ke master mapel (`kkm` decimal null = predikat manual; `urutan` int default 0) sehingga kolom itu tak hilang. `slot_jam_pelajaran` per jenjang; `jadwal_pelajaran` = pengampu × slot × hari (+ruangan) dengan penjaga bentrok ganda. Kamus nama mapel lintas jenjang: `ref_mapel` (kelola di halaman Referensi).
 **Sudah jalan**: 3 halaman grup nav "Kurikulum" (Mata Pelajaran, Pengampu, Jadwal Pelajaran) — daftar fitur & status ada di Board. Izin `kurikulum.{lihat,tambah,ubah,hapus}`.
-**Belum dikerjakan**: [PETA-MODUL.md](PETA-MODUL.md) bagian C.2.
+**Belum dikerjakan**: Board (`/board`), modul Kurikulum.
 **Catatan data**: `mata_pelajaran` & `pengampu_mapel` di DB dev masih **0 baris** — modul siap dipakai, tinggal mengisi master mapel lalu menambah/salin mapel per kelas agar Leger/Rapor Penilaian menampilkan kolom mapel.
 
 

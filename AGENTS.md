@@ -67,17 +67,17 @@
 ## SUMBER ALUR KERJA (WORKFLOW) & PERENCANAAN — BOARD (ATURAN UMUM)
 
 - **Alur kerja (workflow) berlaku per aplikasi dan hanya saat status efektifnya `Aktif`.** Status efektif = pengaturan utama (master) `workflow_master_aktif` DAN penanda (flag) aplikasi `aplikasi[].workflow_aktif`. Cek: popover "Alur kerja (Workflow)" di `/board`, `GET /api/board` (`workflow_master_aktif` + `aplikasi[].workflow_efektif`), `php artisan papan:lihat` (pengaturan utama + status tiap aplikasi), atau basis data (database/DB) `papan` (`papan_pengaturan.workflow_aktif` untuk pengaturan utama dan `workflow_aktif:<aplikasi>` per aplikasi). **Bila status tidak bisa dipastikan, anggap Draf.**
-- **Saat efektif Aktif untuk aplikasi yang dikerjakan, Board adalah satu-satunya sumber alur kerja (workflow), prioritas, status, dan perencanaan aplikasi itu.** Sumber data: `backend/database/papan.sqlite` (koneksi `papan`), antarmuka pemrograman aplikasi (API) `/api/board`, halaman `/board`. `docs/PETA-MODUL.md` hanyalah turunan generator dari Board.
+- **Saat efektif Aktif untuk aplikasi yang dikerjakan, Board adalah satu-satunya sumber alur kerja (workflow), prioritas, status, dan perencanaan aplikasi itu.** Sumber data: `backend/database/papan.sqlite` (koneksi `papan`), antarmuka pemrograman aplikasi (API) `/api/board`, halaman `/board`.
 - **Tidak ada alur kerja/peta jalan (workflow/roadmap) lain.** Jangan membuat atau memelihara peta jalan (roadmap), daftar pekerjaan (TODO), target tahap (milestone), tabel gelombang, atau jadwal terpisah di PRD, `operasi.md`, pelacak masalah (issue tracker), maupun file baru. PRD/arsitektur hanya memuat kebutuhan dan rancangan; status dan urutan pengerjaan tetap di Board.
-- **Jangan mengedit `docs/PETA-MODUL.md` manual.** Ubah Board lalu jalankan `php artisan papan:markdown --tulis`.
+- **Perubahan Board disimpan di database.** Tidak ada sinkronisasi file markdown.
 - **Catatan perubahan (CHANGELOG) bukan alur kerja (workflow):** hanya riwayat rilis. Jangan mencatat rencana/progres di sana.
 
 ### Perilaku agen: Aktif vs Draf
 
 | Status efektif | Yang WAJIB dilakukan | Yang DILARANG |
 | --- | --- | --- |
-| **Aktif** (master + aplikasi yang dikerjakan aktif) | 1) Baca Board sebelum merencanakan/mengerjakan; jadikan status dan urutan aplikasi itu acuan. 2) Tunggu pengguna memilih pekerjaan pada aplikasi yang status efektifnya Aktif dengan memindahkan poin dari Backlog ke To Do. 3) Riset poin To Do dari alur kerja aktif tersebut, sertakan rekomendasi tampilan dan pengalaman pengguna (UI/UX) bila relevan, susun rancangan subpoin, dan konfirmasikan hal yang belum jelas kepada pengguna. 4) Tampilkan subpoin final dan minta satu konfirmasi untuk mulai mengerjakan; selama belum disetujui, poin tetap To Do. 5) Setelah disetujui, catat subpoin final, pindahkan poin ke In Progress, dan mulai mengerjakan. 6) Setelah selesai, perbarui Board sampai For Review. 7) Setelah setiap perubahan Board, jalankan `papan:markdown --tulis`. 8) Jika dokumen lain bertentangan, Board yang menang. | Membuat roadmap/TODO/milestone terpisah; memindahkan Backlog ke To Do atas inisiatif agen; memakai To Do dari aplikasi yang efektif Draf; mengerjakan poin yang masih Backlog/To Do; memiliki lebih dari satu In Progress per aplikasi; menulis rencana hanya di PRD/chat; menyelesaikan tugas tanpa memperbarui Board; memindahkan poin ke Done secara otomatis; mengedit PETA-MODUL manual. |
-| **Draf** (pengaturan utama/master mati atau aplikasi itu belum aktif) | 1) Pakai PRD dan kode sebagai rujukan kebutuhan/status. 2) Saat pengguna meminta rencana, prioritas, atau "apa selanjutnya", beri tahu bahwa tidak ada Board efektif Aktif dan sarankan pengguna mengaktifkan pengaturan utama + aplikasi terkait. 3) Boleh mengubah Board hanya bila tugasnya memang membangun/memperbaiki Board itu sendiri. 4) Cek ulang status sebelum memakai Board lagi. | Memakai Board/PETA-MODUL aplikasi itu sebagai acuan alur kerja (workflow), prioritas, atau status; menulis rencana baru ke Board sebagai alur kerja; menyimpulkan pekerjaan sudah/akan dari Board; mengaktifkan alur kerja sendiri. |
+| **Aktif** (master + aplikasi yang dikerjakan aktif) | 1) Baca Board sebelum merencanakan/mengerjakan; jadikan status dan urutan aplikasi itu acuan. 2) Tunggu pengguna memilih pekerjaan pada aplikasi yang status efektifnya Aktif dengan memindahkan poin dari Backlog ke To Do. 3) Riset poin To Do dari alur kerja aktif tersebut, sertakan rekomendasi tampilan dan pengalaman pengguna (UI/UX) bila relevan, susun rancangan subpoin, dan konfirmasikan hal yang belum jelas kepada pengguna. 4) Tampilkan subpoin final dan minta satu konfirmasi untuk mulai mengerjakan; selama belum disetujui, poin tetap To Do. 5) Setelah disetujui, catat subpoin final, pindahkan poin ke In Progress, dan mulai mengerjakan. 6) Setelah selesai, perbarui Board sampai For Review. 7) Pastikan perubahan Board tersimpan. 8) Jika dokumen lain bertentangan, Board yang menang. | Membuat roadmap/TODO/milestone terpisah; memindahkan Backlog ke To Do atas inisiatif agen; memakai To Do dari aplikasi yang efektif Draf; mengerjakan poin yang masih Backlog/To Do; memiliki lebih dari satu In Progress per aplikasi; menulis rencana hanya di PRD/chat; menyelesaikan tugas tanpa memperbarui Board; memindahkan poin ke Done secara otomatis. |
+| **Draf** (pengaturan utama/master mati atau aplikasi itu belum aktif) | 1) Pakai PRD dan kode sebagai rujukan kebutuhan/status. 2) Saat pengguna meminta rencana, prioritas, atau "apa selanjutnya", beri tahu bahwa tidak ada Board efektif Aktif dan sarankan pengguna mengaktifkan pengaturan utama + aplikasi terkait. 3) Boleh mengubah Board hanya bila tugasnya memang membangun/memperbaiki Board itu sendiri. 4) Cek ulang status sebelum memakai Board lagi. | Memakai Board aplikasi itu sebagai acuan alur kerja (workflow), prioritas, atau status; menulis rencana baru ke Board sebagai alur kerja; menyimpulkan pekerjaan sudah/akan dari Board; mengaktifkan alur kerja sendiri. |
 
 ### Siklus wajib rencana dan penyelesaian saat Board Aktif
 
@@ -137,8 +137,8 @@
 - Jika saat mengerjakan ditemukan pekerjaan tambahan yang belum tercatat,
   nilai dulu dengan aturan batas isi Board di bawah. Hanya pekerjaan yang layak
   menjadi poin/subpoin yang wajib ditambahkan sebelum dikerjakan.
-- Setelah setiap penambahan atau pembaruan Board, jalankan
-  `php artisan papan:markdown --tulis` agar `docs/PETA-MODUL.md` selaras.
+- Setelah setiap penambahan atau pembaruan Board, pastikan data dan status
+  tersimpan di database Board.
 - Bila tidak ada satu pun aplikasi dengan status efektif Aktif, saran pengaktifan
   Board bersifat wajib tetapi keputusan tetap milik pengguna. Agen tidak boleh
   mengaktifkan pengaturan utama (master) atau aplikasi tanpa perintah pengguna.
@@ -189,7 +189,7 @@
   belum menjawab, poin tetap To Do dan agen tidak mengubah produk.
 - Setelah pengguna menyetujui subpoin final sekaligus mengizinkan pengerjaan,
   simpan poin/subpoin final ke Board, pindahkan statusnya ke Sedang dikerjakan
-  (In Progress), jalankan generator `PETA-MODUL.md`, lalu langsung mulai
+  (In Progress), pastikan perubahan tersimpan, lalu langsung mulai
   mengerjakan. Jangan meminta konfirmasi pengerjaan kedua untuk ruang lingkup
   yang sama.
 - Batasi satu poin In Progress per aplikasi. Poin kedua baru boleh dimulai
@@ -264,7 +264,7 @@ Aturan ini **WAJIB** dan berlaku setiap kali sebuah poin Board memiliki field
   7) percobaan sementara, pendekatan gagal, dan pengulangan perintah;
   8) menyalakan server pengembangan, membersihkan berkas sementara, membuat
   screenshot pemeriksaan, atau kegiatan Git seperti commit/cabang/merge;
-  9) pembaruan dokumen turunan wajib seperti `PETA-MODUL.md` dan `ERD.md`; dan
+  9) pembaruan dokumen turunan wajib seperti `ERD.md`; dan
   10) perbaikan kecil, perubahan teks, impor, format, atau tes yang hanya
   mengikuti perubahan utama dan diperlukan agar poin induk berfungsi.
 - Pekerjaan temuan menjadi poin baru hanya bila sedikitnya satu kondisi berikut
