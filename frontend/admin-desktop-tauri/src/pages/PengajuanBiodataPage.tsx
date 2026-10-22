@@ -7,7 +7,8 @@ import type { Paginate } from '../api/master';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -116,7 +117,7 @@ export default function PengajuanBiodataPage() {
     } finally {
       setBusy(false);
     }
-  }, [load]);
+  }, [load, setErr]);
 
   const onTolak = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,14 +151,14 @@ export default function PengajuanBiodataPage() {
         </>
       )}
     </>
-  ), [run, canProses, aksiProfil]);
+  ), [run, canProses, aksiProfil, daftarPengajuan]);
 
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={{}} tabel={[{ key: 'pengajuan_biodata', judul: 'Pengajuan biodata', fields: FIELDS }]} />
-      <ExcelTable
+      <ExcelTabelV2
         tableKey="pengajuan_biodata"
         fields={FIELDS}
         rows={rows}
@@ -167,6 +168,8 @@ export default function PengajuanBiodataPage() {
         canEdit={false}
         onCommit={noopCommit}
         onSaved={onSaved}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
