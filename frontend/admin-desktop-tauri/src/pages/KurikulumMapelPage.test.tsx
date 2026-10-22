@@ -42,6 +42,14 @@ const uji = vi.hoisted(() => {
 });
 
 beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get() { return this.dataset?.slot === 'excel-table-grid' ? 320 : 0; },
+  });
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get() { return this.dataset?.slot === 'excel-table-grid' ? 900 : 0; },
+  });
   if (!('ResizeObserver' in globalThis)) {
     (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
       observe() {}
@@ -162,13 +170,11 @@ function SlotCari() {
   return <div ref={(el) => ctx?.setEl(el)} />;
 }
 
-/** Teks sel kolom kamus (kolom kiri). Span pengukur lebar ExcelTable
- *  (`data-ukur`) sengaja dilewati: isinya sama dengan sel aslinya sehingga
- *  query teks biasa jadi ambigu. */
+/** Teks sel kolom kamus (kolom kiri). V2 memakai `data-col-key` langsung. */
 function teksSel(colKey: string): string[] {
   const kolom = document.getElementById('kolom_kamus_mapel');
   if (kolom === null) return [];
-  return Array.from(kolom.querySelectorAll(`.simpes-dsg-fill[data-col-key="${colKey}"]`))
+  return Array.from(kolom.querySelectorAll(`.dsg-row:not(.dsg-row-header) [data-col-key="${colKey}"]`))
     .map((el) => el.textContent ?? '');
 }
 
@@ -256,6 +262,7 @@ describe('KurikulumMapelPage — filter status tabel mapel', () => {
     uji.izin = ['kurikulum.lihat', 'kurikulum.ubah', 'kurikulum.hapus'];
     renderHalaman();
 
+    await userEvent.click(await screen.findByRole('button', { name: 'Area filter' }));
     const input = await screen.findByLabelText('Filter status mapel');
     expect(input.tagName).toBe('INPUT');
     expect(input).toHaveValue('Aktif');

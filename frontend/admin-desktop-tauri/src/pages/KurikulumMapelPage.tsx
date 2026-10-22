@@ -668,6 +668,7 @@ export default function KurikulumMapelPage() {
                   </ComboboxRoot>
                 </LabeledCombobox>
               )}
+              addButtonLangsung={false}
               addButton={
                 <>
 

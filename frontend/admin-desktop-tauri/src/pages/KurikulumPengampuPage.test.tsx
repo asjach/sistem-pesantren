@@ -54,6 +54,14 @@ const uji = vi.hoisted(() => {
 });
 
 beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get() { return this.dataset?.slot === 'excel-table-grid' ? 320 : 0; },
+  });
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get() { return this.dataset?.slot === 'excel-table-grid' ? 900 : 0; },
+  });
   if (!('ResizeObserver' in globalThis)) {
     (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
       observe() {}
@@ -170,9 +178,9 @@ function SlotCari() {
   return <div ref={(el) => ctx?.setEl(el)} />;
 }
 
-/** Teks semua sel kolom `colKey` tabel pengampu. */
+/** Teks semua sel kolom `colKey` tabel pengampu (V2 memakai `data-col-key`). */
 function teksSel(colKey: string): string[] {
-  return Array.from(document.querySelectorAll(`.simpes-dsg-fill[data-col-key="${colKey}"]`))
+  return Array.from(document.querySelectorAll(`.dsg-row:not(.dsg-row-header) [data-col-key="${colKey}"]`))
     .map((el) => el.textContent ?? '');
 }
 
