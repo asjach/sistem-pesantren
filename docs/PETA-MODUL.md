@@ -985,16 +985,9 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `Backlog`
+### DA11.1 Tabel & Grid `For Review`
 **Backlog**
-- ExcelTabelV2 — struktur toolbar awal
-  - [x] Toolbar memiliki judul, area aksi kosong, dan tombol ikon ellipsis vertikal tanpa label visual
-  - [x] Toolbar memakai padding kiri 8px dan kanan 0; footer memakai padding horizontal 8px; tidak ada gap
-  - [x] Halaman daftar kelas mode dev menampilkan toolbar V2; produksi tetap memakai ExcelTable lama
-  - [x] Verifikasi: typecheck, lint, tes komponen, dan build
-  - [x] Tombol menu memakai lebar 24px dan tinggi memenuhi toolbar
-  - [x] Ikon ellipsis berada di tengah tombol
-  - [ ] Tes ExcelTabelV2 hanya menguji struktur dan aksesibilitas, bukan class CSS
+- (kosong)
 **To Do**
 - (kosong)
 **In Progress**
@@ -1010,6 +1003,23 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Halaman daftar kelas mode dev menampilkan skeleton layout; produksi tetap memakai ExcelTable lama
   - [x] Verifikasi: typecheck, lint, tes komponen, dan build
   - [x] Header dan footer tidak memiliki padding; inset diatur oleh isi zona
+- ExcelTabelV2 — struktur toolbar awal
+  - [x] Toolbar memiliki judul, area aksi kosong, dan tombol ikon ellipsis vertikal tanpa label visual
+  - [x] Toolbar memakai padding kiri 8px dan kanan 0; footer memakai padding horizontal 8px; tidak ada gap
+  - [x] Halaman daftar kelas mode dev menampilkan toolbar V2; produksi tetap memakai ExcelTable lama
+  - [x] Verifikasi: typecheck, lint, tes komponen, dan build
+  - [x] Tombol menu memakai lebar 24px dan tinggi memenuhi toolbar
+  - [x] Ikon ellipsis berada di tengah tombol
+  - [x] Tes ExcelTabelV2 hanya menguji struktur dan aksesibilitas, bukan class CSS
+  - [x] Tombol chevron-down 24px berada di antara area aksi dan ellipsis
+  - [x] Separator vertikal memisahkan judul, area aksi, chevron, dan ellipsis
+  - [x] Klik chevron menampilkan area 32px selebar toolbar di bawahnya
+  - [x] Zona toolbar memakai nama toolbar, bukan header (slot excel-table-toolbar)
+  - [x] Panel chevron dinamai area filter (slot excel-table-filter-area)
+  - [x] Footer V2 memakai nama table-footer (slot table-footer)
+  - [x] PresetUrut dan PresetKolom tampil di area filter
+  - [x] Area filter terbagi kiri (sisa) dan kanan (PresetUrut/PresetKolom)
+  - [x] Area filter tampil sebagai overlay dan tidak menggeser body tabel
 **Done**
 - Grid tabel bergaya Excel
   - [x] Seleksi blok dan salin/tempel TSV

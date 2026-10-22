@@ -146,7 +146,16 @@ export default function DaftarKelasPage() {
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'daftar_kelas', judul: 'Daftar kelas', fields }]} />
       {import.meta.env.DEV ? (
-        <ExcelTabelV2 judul="Daftar kelas" />
+        <ExcelTabelV2
+          judul="Daftar kelas"
+          tableKey="daftar_kelas"
+          fields={fields}
+          urutAktif={urut}
+          arahUrut={arahUrut}
+          onUrut={terapkanUrut}
+          // Grid V2 belum ada; pilihan preset kolom belum mengubah tampilan.
+          onApplyPreset={() => {}}
+        />
       ) : (
       <ExcelTable<RiwayatRow>
         tableKey="daftar_kelas"
