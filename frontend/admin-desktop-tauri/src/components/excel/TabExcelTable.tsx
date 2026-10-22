@@ -7,6 +7,7 @@ import type { PerPage } from '@/prefs';
 import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
 import { Info, Plus, Settings, MoreVertical, Pencil, Check } from '@/icons';
 import { cn } from '@/lib/utils';
+import ContohInputV2 from '@/components/excelV2/ContohInputV2';
 
 /** Tab "ExcelTable" di halaman Komponen: peta hidup komponen ExcelTable.
  *
@@ -1742,6 +1743,10 @@ export default function TabExcelTable() {
           ExcelTable sungguhan dengan data contoh. Nyalakan sakelar untuk melihat pengaruh tiap prop opsional.
         </p>
         <ContohHidup />
+      </section>
+      <section className="flex flex-col gap-1 pb-2">
+        <h2 className="text-sm font-semibold">12. Input record baru ExcelTabelV2</h2>
+        <ContohInputV2 />
       </section>
     </div>
   );

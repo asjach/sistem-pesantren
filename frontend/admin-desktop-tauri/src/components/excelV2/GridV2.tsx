@@ -3,6 +3,7 @@ import {
   DynamicDataSheetGrid as DataSheetGrid,
   type CellProps,
   type Column,
+  type DataSheetGridRef,
 } from 'react-datasheet-grid';
 import 'react-datasheet-grid/dist/style.css';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ import ScrollbarMelayang from '@/components/excel/ScrollbarMelayang';
 import { flattenAksi } from '@/components/excel/actions';
 import {
   CHECK_W,
+  INPUT_ROW_ID,
   GUTTER_W,
   MIN_COL_W,
   loadSakelarGestur,
@@ -45,6 +47,10 @@ import { useIsiLebar } from '@/components/excel/useIsiLebar';
 import { useLebarWadah } from '@/components/excel/useLebarWadah';
 import { skalaLebarIsi, RESIZER_OVERHANG } from '@/components/excel/lebarIsi';
 import { labelTampil, rataKolom, statusPilihSemua, type RataKolom } from './kolom';
+import SelInputV2 from './SelInputV2';
+import { bisaInput, type BarisInputV2State } from './useBarisInputV2';
+
+const InputContextV2 = createContext<{ state: BarisInputV2State; tableKey: string } | null>(null);
 
 /** Border checkbox tabel memakai warna garis grid (--part-tabel_grid-border,
  *  sama seperti header row, gutter, dan sel), bukan border-foreground/40
@@ -87,6 +93,7 @@ function KepalaPilihSemuaV2() {
 
 /** Sel data V2: baca-saja, kecuali saat Mode Ubah dan kolomnya bisa disunting. */
 function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelField; rata: RataKolom; modeUbah: boolean; barisIkutIsi: boolean; onSimpan?: (id: string | number, key: string, nilai: string | null) => void }>) {
+  const input = useContext(InputContextV2);
   const { field: f, rata, modeUbah, barisIkutIsi, onSimpan } = columnData;
   const bisaEdit = modeUbah && f.kind !== 'static' && onSimpan != null;
   const [buka, setBuka] = useState(false);
@@ -102,6 +109,10 @@ function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelFie
     el.addEventListener('dblclick', bukaEditor);
     return () => el.removeEventListener('dblclick', bukaEditor);
   });
+
+  if (rowData.id === INPUT_ROW_ID && input) {
+    return <SelInputV2 field={f} state={input.state} tableKey={input.tableKey} />;
+  }
 
   /** Kolom toggle digambar sebagai sakelar; saat Mode Ubah bisa diklik. */
   if (f.kind === 'toggle') {
@@ -182,6 +193,7 @@ function SelTeksV2({ rowData, columnData }: CellProps<GridRow, { field: ExcelFie
 
 /** Sel centang V2: pilihan baris untuk aksi massal. */
 function SelCentangV2({ rowData, columnData }: CellProps<GridRow, { onToggle: (id: string | number) => void }>) {
+  if (rowData.id === INPUT_ROW_ID) return <></>;
   return (
     <div className="flex h-full w-full items-center justify-center">
       <Checkbox
@@ -202,6 +214,7 @@ function SelCentangV2({ rowData, columnData }: CellProps<GridRow, { onToggle: (i
  *  teks (mis. MI/MD di halaman MiMd) tidak terpotong seperti asumsi ikon 24px.
  *  Klik aksi juga dihentikan agar tidak menyeleksi sel grid di belakangnya. */
 function SelAksiV2({ rowData, columnData }: CellProps<GridRow, { render: (id: string | number) => ReactNode }>) {
+  if (rowData.id === INPUT_ROW_ID) return <></>;
   return (
     <div
       className="simpes-dsg-actions flex h-full w-full items-center justify-end gap-0.5 px-1 [&>*]:shrink-0"
@@ -289,6 +302,7 @@ function JudulKolomV2({
 }
 
 export interface GridV2Props {
+  inputRow?: BarisInputV2State;
   tableKey: string;
   fields: ExcelField[];
   rows: GridRow[];
@@ -366,9 +380,11 @@ export default function GridV2({
   onKelolaTabel,
   onUbahAlign,
   onTinggiHeaderChange,
+  inputRow,
 }: GridV2Props) {
   const { rowH, headerH, fontPx, fontFamily } = useGridPrefs();
   const wrapRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<DataSheetGridRef>(null);
   const [tinggi, setTinggi] = useState(0);
   const {
     manual: tinggiBarisManual,
@@ -491,6 +507,14 @@ export default function GridV2({
     [rows, dipilih, drafts],
   );
   const nilaiRef = useRef<GridRow[]>(nilai);
+  const nilaiDenganInput = useMemo<GridRow[]>(() => inputRow
+    ? [...nilai, { ...inputRow.nilai, id: INPUT_ROW_ID, checked: false }]
+    : nilai, [nilai, inputRow?.nilai]);
+  useEffect(() => {
+    if (!inputRow || loading) return;
+    const col = fields.findIndex((f) => f.key === inputRow.focusKey);
+    if (col >= 0) gridRef.current?.setActiveCell({ row: nilai.length, col: col + (hideCheckbox ? 0 : 1) });
+  }, [!!inputRow, inputRow?.generasi, loading, nilai.length, fields, hideCheckbox]);
   nilaiRef.current = nilai;
   const gridRowsRef = useRef<GridRow[]>(nilai);
   gridRowsRef.current = nilai;
@@ -760,7 +784,7 @@ export default function GridV2({
         id: f.key,
         title: (
           <JudulKolomV2
-            teks={labelTampil(f.key, f.label, labelDb)}
+            teks={`${labelTampil(f.key, f.label, labelDb)}${inputRow && f.required && bisaInput(f) ? ' *' : ''}`}
             rata={rata}
             colKey={f.key}
             onResizeStart={lebar.startResize}
@@ -793,7 +817,7 @@ export default function GridV2({
     }
 
     return cols;
-  }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit, skalaIsi, modeUbah, bisaEdit, simpanSel, barisIkutIsi, maxRows]);
+  }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit, skalaIsi, modeUbah, bisaEdit, simpanSel, barisIkutIsi, maxRows, !!inputRow]);
 
   /** Kolom Aksi = kolom sticky kanan DSG. Sengaja TIDAK ikut columns:
    *  DSG menggambarnya terpisah agar menempel saat digulir horizontal.
@@ -887,15 +911,15 @@ export default function GridV2({
   }, [onTinggiHeaderChange, tinggiHeaderEfektif]);
 
   const batasBaris = maxRows === undefined ? undefined : Math.max(1, Math.round(maxRows));
-  const jumlahRowKompak = batasBaris === undefined
-    ? 0
-    : Math.min(Math.max(nilai.length, 1), batasBaris);
+  const jumlahRowKompak = batasBaris === undefined ? 0
+    : inputRow ? Math.min(nilai.length, batasBaris) + 1
+      : Math.min(Math.max(nilai.length, 1), batasBaris);
   const tinggiKompak = batasBaris === undefined
     ? undefined
     : loading
       ? tinggiKompakCache.get(tableKey)
         ?? tinggiHeaderEfektif + 1 + batasBaris * effectiveH
-      : nilai.length === 0
+      : nilai.length === 0 && !inputRow
         ? 280
         : tinggiHeaderEfektif + 1 + jumlahRowKompak * effectiveH;
   const tinggiGrid = tinggiKompak ?? tinggi;
@@ -919,7 +943,7 @@ export default function GridV2({
   }, [onSiapLebar, lebar.onAutoFitAll, lebar.resetLebar]);
 
   const memuatAwal = loading && rows.length === 0;
-  const pakaiMemuat = memuatAwal || (loading && batasBaris !== undefined);
+  const pakaiMemuat = !inputRow && (memuatAwal || (loading && batasBaris !== undefined));
   const nilaiPilihSemua = useMemo(
     () => ({ status: statusPilih, onToggle: onTogglePilihSemua }),
     [statusPilih, onTogglePilihSemua],
@@ -1025,10 +1049,12 @@ export default function GridV2({
             {pakaiMemuat ? (
               <TabelMemuat rowH={effectiveH} baris={batasBaris ?? 14} />
             ) : tinggiGrid > 0 && (
+              <InputContextV2.Provider value={inputRow ? { state: inputRow, tableKey } : null}>
               <PilihSemuaContext.Provider value={nilaiPilihSemua}>
                 <DataSheetGrid
-                  key={kunciKolom}
-                  value={nilai}
+                  key={`${kunciKolom}-input-${!!inputRow}`}
+                  ref={gridRef}
+                  value={nilaiDenganInput}
                   // Penyuntingan ditangani per sel (lihat SelTeksV2) supaya sel
                   // lain di baris yang sama tidak ikut jadi draft; `onChange`
                   // DSG tak dipakai.
@@ -1039,7 +1065,7 @@ export default function GridV2({
                   stickyRightColumn={kolomAksi}
                   rowKey="id"
                   height={tinggiGrid}
-                  rowHeight={gridRowHeight}
+                  rowHeight={inputRow ? ({ rowData }) => tinggiBarisSatuan(rowData) : gridRowHeight}
                   headerRowHeight={tinggiHeaderEfektif}
                   lockRows
                   addRowsComponent={false}
@@ -1049,9 +1075,10 @@ export default function GridV2({
                   onSelectionChange={tanganiSeleksi}
                 />
               </PilihSemuaContext.Provider>
+              </InputContextV2.Provider>
             )}
 
-            {nilai.length === 0 && !loading && (
+            {nilai.length === 0 && !loading && !inputRow && (
               <div className="pointer-events-none absolute inset-0 grid place-items-center">
                 <p className="text-xs text-muted-foreground">{emptyText}</p>
               </div>

@@ -7,10 +7,11 @@ interface Props {
   dipilih: number;
   /** Kontrol paginasi halaman. */
   pager?: ReactNode;
+  aksi?: ReactNode;
 }
 
 /** Footer ExcelTabelV2: ringkasan baris di kiri, paginasi di kanan. */
-export default function TableFooterV2({ jumlah, dipilih, pager }: Props) {
+export default function TableFooterV2({ jumlah, dipilih, pager, aksi }: Props) {
   return (
     <div
       data-slot="table-footer"
@@ -23,6 +24,7 @@ export default function TableFooterV2({ jumlah, dipilih, pager }: Props) {
       </span>
 
       {pager && <div data-slot="table-footer-pager" className="ml-auto flex items-center">{pager}</div>}
+      {aksi && <div data-slot="table-footer-aksi" className="ml-auto flex items-center gap-1">{aksi}</div>}
     </div>
   );
 }

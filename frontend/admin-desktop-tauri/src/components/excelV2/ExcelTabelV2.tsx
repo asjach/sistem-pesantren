@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import BilahToolbarV2 from './BilahToolbarV2';
 import GridV2 from './GridV2';
 import TableFooterV2 from './TableFooterV2';
@@ -15,6 +15,7 @@ import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import { Button } from '@/components/ui/button';
 import { Settings } from '@/icons';
 import { cn } from '@/lib/utils';
+import { bisaInput, useBarisInputV2 } from './useBarisInputV2';
 import type { ExcelField, GridRow } from '@/components/excel/types';
 
 export interface ExcelTabelV2Props<T extends { id: string | number }> {
@@ -72,6 +73,11 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   /** Batasi tinggi badan grid maksimal N row. Tabel mengikuti jumlah data
    *  sampai batas ini, lalu memakai scroll vertikal di dalam grid. */
   maxRows?: number;
+  /** Absen = tombol tambah tidak ditawarkan. Halaman mengurus izin tambah
+   *  dan memperbarui rows setelah record berhasil dibuat. */
+  onCreateRow?: (fields: Record<string, string | null>) => Promise<void>;
+  /** Nilai awal row input; draft pengguna, termasuk null, selalu menang. */
+  inputRowValues?: Record<string, string | null>;
   /** Introspeksi lebar kolom (AutoFit semua, reset lebar). Dipanggil saat grid
    *  siap; dipakai menu klik kanan dan kontrol halaman pada poin berikutnya. */
   onSiapLebar?: (aksi: { autoFitSemua: () => void; resetLebar: () => void }) => void;
@@ -127,6 +133,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   addButtonLangsung = true,
   renderBulkActions,
   maxRows,
+  onCreateRow,
+  inputRowValues,
   onSiapLebar,
   isiLebarPenuh = false,
   canEdit = false,
@@ -140,6 +148,13 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   const [kelolaOpen, setKelolaOpen] = useState(false);
   /** Nilai efektif dari GridV2, termasuk hasil ukur headerAutoH. */
   const [tinggiHeaderGrid, setTinggiHeaderGrid] = useState(DEFAULT_HEADER_H);
+  const input = useBarisInputV2({ fields, onCreateRow, inputRowValues, loading: !!loading, tableKey });
+  const tombolTambahRef = useRef<HTMLButtonElement>(null);
+  const inputAktifSebelumnya = useRef(false);
+  useEffect(() => {
+    if (inputAktifSebelumnya.current && !input.state) tombolTambahRef.current?.focus();
+    inputAktifSebelumnya.current = !!input.state;
+  }, [input.state]);
 
   /** Setelan tabel milik pengguna: judul, label, perataan, visibilitas. */
   const { judulDb, labelDb, alignDb, visibilitas, infoHtmlDb, simpanAlign } = useToolbarPresetState(tableKey);
@@ -200,7 +215,12 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     onApplyPreset(keys, presetId);
   }, [onApplyPreset]);
 
-  const fieldsTampil = useMemo(() => susunKolom(fields, kolomPreset), [fields, kolomPreset]);
+  const fieldsTampil = useMemo(() => {
+    const tampil = susunKolom(fields, kolomPreset);
+    if (!input.state) return tampil;
+    const keys = new Set(tampil.map((f) => f.key));
+    return [...tampil, ...fields.filter((f) => f.required && bisaInput(f) && !keys.has(f.key))];
+  }, [fields, kolomPreset, !!input.state]);
 
   /** Baris domain yang tercentang, seurutan tabel. */
   const checkedRows = useMemo(() => rows.filter((r) => dipilih.has(r.id)), [rows, dipilih]);
@@ -223,11 +243,11 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     tombolAksi: aksi != null || addButton != null,
     relFilter: rail,
     pager: pager != null,
-    tombolTambah: false,
+    tombolTambah: onCreateRow != null,
     tombolEdit: false,
     kolomCentang: !hideCheckbox,
     kolomAksi: !hideActions,
-  }), [filter, onUrut, hidePreset, aksi, addButton, rail, pager, hideCheckbox, hideActions]);
+  }), [filter, onUrut, hidePreset, aksi, addButton, rail, pager, hideCheckbox, hideActions, onCreateRow]);
 
   const judulAktif = komponenAktif(visibilitas, 'judul_tabel');
   const aksiAktif = aksi != null && komponenAktif(visibilitas, 'tombol_aksi');
@@ -328,7 +348,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
           onSiapLebar={onSiapLebar}
           maxRows={maxRows}
           isiLebarPenuh={isiLebarPenuh}
-          canEdit={canEdit}
+          canEdit={canEdit && !input.state}
+          inputRow={input.state}
           onCommit={onCommit}
           onSaved={onSaved}
           onKelolaTabel={tabelTerdaftar ? () => setKelolaOpen(true) : undefined}
@@ -337,7 +358,14 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
         />
       </div>
 
-      <TableFooterV2 jumlah={rows.length} dipilih={dipilih.size} pager={pagerAktif ? pager : undefined} />
+      {input.state && <p role="status" aria-live="polite" className="px-2 text-xs text-muted-foreground">{input.pesan || 'Mode Input aktif'}</p>}
+      <TableFooterV2 jumlah={rows.length} dipilih={dipilih.size} pager={pagerAktif ? pager : undefined}
+        aksi={onCreateRow && (input.state || komponenAktif(visibilitas, 'tombol_tambah')) ? (
+          input.state ? <>
+            <Button type="button" size="sm" disabled={input.state.menyimpan} onClick={() => void input.state?.simpan()}>{input.menyimpan ? 'Menyimpan…' : 'Simpan'}</Button>
+            <Button type="button" variant="outline" size="sm" disabled={input.state.menyimpan} onClick={input.state.batal}>Batal</Button>
+          </> : <Button ref={tombolTambahRef} id={`btn_tambah_baris_${tableKey}`} type="button" size="sm" variant="outline" disabled={loading} onClick={input.mulai}>Tambah baris</Button>
+        ) : undefined} />
 
       {tabelTerdaftar && (
         <DialogKelolaTabel
