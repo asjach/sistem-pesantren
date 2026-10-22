@@ -42,7 +42,7 @@ import {
   ComboboxTrigger,
 } from '@/components/ui/combobox';
 import LabeledCombobox from '@/components/LabeledCombobox';
-import ExcelTable from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import { labelPintasan, usePintasanBaru } from '@/hooks/usePintasanBaru';
 import LabelTombolTambah from '@/components/LabelTombolTambah';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -217,7 +217,7 @@ export default function PsbPage() {
         setGelombangs(r.data);
       })
       .catch(() => {});
-  }, []);
+  }, [setErr]);
 
   usePintasanBaru({
     kunci: 'n',
@@ -279,7 +279,7 @@ export default function PsbPage() {
     } finally {
       setBusy(false);
     }
-  }, [load]);
+  }, [load, setErr]);
 
   const openDokumen = useCallback(async (c: PsbCalon) => {
     const reqId = ++dokumenReqRef.current;
@@ -293,7 +293,7 @@ export default function PsbPage() {
       if (reqId !== dokumenReqRef.current) return;
       setErr(errorMessage(e));
     }
-  }, []);
+  }, [setErr]);
 
   async function onBatalkanFase(e: React.FormEvent) {
     e.preventDefault();
@@ -615,7 +615,7 @@ export default function PsbPage() {
         </ActionIcon>
       </>
     );
-  }, [run, openDokumen, bukaAcc, canUbahPsb, canHapusPsb]);
+  }, [run, openDokumen, bukaAcc, canUbahPsb, canHapusPsb, setErr]);
 
   return (
     <div className={PAGE_SHELL}>
@@ -639,7 +639,7 @@ export default function PsbPage() {
         </TabsList>
         <TabsContent value={stage} className={`flex min-h-0 flex-1 flex-col gap-1 ${KELAS_PANEL_TAB}`}>
 
-      <ExcelTable
+      <ExcelTabelV2
         tableKey="psb"
         fields={psbFieldsMemo}
         rows={rows}
@@ -649,6 +649,8 @@ export default function PsbPage() {
         canEdit={false}
         onCommit={onCommit}
         onSaved={onSaved}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
