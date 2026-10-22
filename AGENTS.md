@@ -4,6 +4,22 @@
 
 - UI & docs Bahasa Indonesia; `id` elemen snake_case (NFR-05).
 
+## ISTILAH TEKNIS — pakai istilah umum, jangan diterjemahkan
+
+- Istilah teknis ditulis apa adanya dalam bahasa Inggris. Jangan membuat
+  padanan Indonesia untuk istilah yang sudah lazim berbahasa Inggris.
+- Berlaku untuk: komunikasi agen ke pengguna, komentar kode, nama variabel,
+  nama fungsi, dan dokumentasi teknis.
+- Contoh yang WAJIB dipakai: `thumb` (bukan jempol), `track` (bukan rel),
+  `scrollbar` (bukan bilah gulir), `handle`, `focus ring` (bukan cincin fokus),
+  `row`, `column`, `header`, `footer`, `cell`, `grid`, `container`, `toolbar`,
+  `input`, `button`, `dropdown`, `overlay`, `hover`, `drag`, `render`.
+- Teks yang dibaca pengguna akhir (label tombol, judul kolom, pesan galat,
+  placeholder) TETAP Bahasa Indonesia sesuai aturan kerja di atas. Aturan ini
+  hanya menyangkut istilah teknis, bukan copy UI.
+- Bila ragu: pakai istilah yang muncul di dokumentasi resmi library atau di
+  nama prop/API, bukan terjemahan bebas.
+
 ## ANOTASI UI (MODE DEV) — menandai elemen untuk agen
 
 - Saat `npm run dev` (termasuk `tauri dev`), tombol mengambang di kanan bawah

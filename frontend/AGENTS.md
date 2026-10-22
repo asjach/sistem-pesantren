@@ -33,6 +33,7 @@ pengingat akun reviewer; lihat bagian "STATUS TES" di root.
 
 ## Aturan kerja
 - UI Bahasa Indonesia; `id` elemen snake_case (NFR-05).
+- Istilah teknis (thumb, track, scrollbar, row, column, header, cell, render, dst.) tetap bahasa Inggris — lihat "ISTILAH TEKNIS" di `AGENTS.md` root.
 - Alur kerja (workflow) & perencanaan proyek: **Board satu-satunya sumber saat statusnya Aktif** (lihat aturan di `AGENTS.md` utama/root); saat Draf jangan dipakai sebagai rujukan, dan jangan membuat peta jalan (roadmap), daftar pekerjaan (TODO), atau target tahap (milestone) terpisah.
 - Commit mengikuti aturan di `AGENTS.md` root (jangan parafrase — ikuti 4 pemicu di sana).
 - Playwright / browser otomatis wajib minta persetujuan pengguna dulu.

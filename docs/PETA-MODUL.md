@@ -985,9 +985,17 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `For Review`
+### DA11.1 Tabel & Grid `Backlog`
 **Backlog**
-- (kosong)
+- Setelan tabel berlaku pada ExcelTabelV2: visibilitas komponen, filter toolbar, gerigi Pengaturan tabel, dan menu toolbar.
+- Aksi halaman di toolbar V2: aksi massal baris tercentang, tombol aksi utama, dan slot kontrol halaman.
+- Rel filter tingkat/kelas tampil di kiri grid V2.
+- Lebar kolom V2 bisa diubah lewat handle, AutoFit, dan tersimpan per perangkat.
+- Tabel V2 bisa mengisi lebar, membekukan kolom, dan menyusun ulang kolom lewat geser judul.
+- Tinggi baris V2 bisa diatur per tabel, ikut isi, dan dibatasi N baris.
+- Sel V2 bisa disunting langsung dengan simpan otomatis dan validasi.
+- V2 bisa menambah record baru lewat baris input di kaki tabel.
+- Menu klik kanan, salin TSV, dan seret isi sel berfungsi di V2.
 **To Do**
 - (kosong)
 **In Progress**
@@ -1003,6 +1011,10 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Halaman daftar kelas mode dev menampilkan skeleton layout; produksi tetap memakai ExcelTable lama
   - [x] Verifikasi: typecheck, lint, tes komponen, dan build
   - [x] Header dan footer tidak memiliki padding; inset diatur oleh isi zona
+  - [x] Kolom Aksi melebar mengikuti jumlah ikon terbanyak pada baris yang tampil (24px per ikon, jarak 2px).
+  - [x] Tanpa ikon, kolom Aksi hanya menyisakan padding 4px per sisi; tiga ikon umum (view, edit, delete) memakai 84px.
+  - [x] Verifikasi: typecheck, lint, dan tes lebar kolom Aksi lulus.
+  - [x] Sel kolom switch memakai Switch ukuran xs (24x14px), sama dengan sel switch V1, sehingga tidak mendominasi tinggi baris.
 - ExcelTabelV2 — struktur toolbar awal
   - [x] Toolbar memiliki judul, area aksi kosong, dan tombol ikon ellipsis vertikal tanpa label visual
   - [x] Toolbar memakai padding kiri 8px dan kanan 0; footer memakai padding horizontal 8px; tidak ada gap
@@ -1020,6 +1032,18 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] PresetUrut dan PresetKolom tampil di area filter
   - [x] Area filter terbagi kiri (sisa) dan kanan (PresetUrut/PresetKolom)
   - [x] Area filter tampil sebagai overlay dan tidak menggeser body tabel
+- ExcelTabelV2 — paritas komponen aman (tanpa ubah layout)
+  - [x] Preset kolom (visibilitas + urutan) berlaku saat dipilih; tampilan awal tetap semua kolom.
+  - [x] Pilihan baris dikabarkan lewat onCheckedChange, pilih-semua berstatus indeterminate, klik baris bisa memilih dan menyorot baris aktif.
+  - [x] Opsi tabel ringkas (hideCheckbox, hideActions, hidePreset) dan sel kaya (kartuHover, cellClass) berfungsi tanpa mengubah bawaan.
+  - [x] Loading memakai skeleton dan progress bar; gaya baris checked/aktif serta warna sel dibatasi di .simpes-dsg-v2.
+  - [x] npm run typecheck dan tes tersempit hijau; docs/PETA-MODUL.md diperbarui.
+- Judul, label kolom, dan perataan tabel V2 mengikuti setelan pengguna.
+  - [x] Judul tabel memakai isian pengguna bila ada; bila kosong tetap prop judul, tanpa kontrol baru.
+  - [x] Label header memakai label kustom per tabel; bila tidak ada, label field lalu humanize labelKolom.
+  - [x] Perataan kolom dari setelan berlaku pada cell dan header; kolom tanpa setelan default tengah seperti V1.
+  - [x] Perubahan setelan dari Kelola Tabel/TopBar langsung terlihat tanpa reload lewat event yang sudah ada.
+  - [x] npm run typecheck dan tes tersempit hijau; docs/PETA-MODUL.md diperbarui.
 **Done**
 - Grid tabel bergaya Excel
   - [x] Seleksi blok dan salin/tempel TSV
