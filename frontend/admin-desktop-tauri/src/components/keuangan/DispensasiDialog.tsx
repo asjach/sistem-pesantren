@@ -18,7 +18,8 @@ import LabeledInput from '@/components/LabeledInput';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import { jenisCocokJenjang, saringAturanJenjang } from '@/lib/dispensasi';
 import type { PilihanLembaga } from '@/lembagaAktif';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/excel/types';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import { ActionIcon } from '@/components/RowActions';
 import { ArrowRight, Info, Loader2, Save, X } from '@/icons';
 
@@ -298,7 +299,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
 
         <div className="flex min-h-0 flex-1 gap-2 p-2.5">
           <div className="flex min-h-0 w-[36%] min-w-56 flex-col">
-            <ExcelTable<JenisTagihan>
+            <ExcelTabelV2<JenisTagihan>
               tableKey="dispensasi_tagihan"
               header={`Tagihan (${belumDiatur.length})`}
               fields={FIELDS_TAGIHAN}
@@ -308,9 +309,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                 ? 'Semua jenis tagihan sudah punya aturan.'
                 : `Tidak ada jenis tagihan lembaga ${jenjang} (atau jenis global) yang bisa diatur.`}
               canEdit={false}
-              onCommit={async () => {}}
-              onSaved={() => {}}
-              aksiLangsung
+              onApplyPreset={() => {}}
               hideCheckbox
               renderActions={(j) => (
                 <ActionIcon
@@ -324,7 +323,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
             />
           </div>
           <div className="flex min-h-0 flex-1 flex-col">
-            <ExcelTable<BarisAturan & { id: number }>
+            <ExcelTabelV2<BarisAturan & { id: number }>
               tableKey="dispensasi_aturan"
               header={`Aturan Dispensasi (${baris.length})`}
               fields={FIELDS_ATURAN}
@@ -342,7 +341,7 @@ export default function DispensasiDialog({ open, onOpenChange, editing, jenis, d
                   : x));
               }}
               onSaved={() => {}}
-              aksiLangsung
+              onApplyPreset={() => {}}
               hideCheckbox
               renderActions={(r) => (
                 <ActionIcon id={`btn_dispensasi_hapus_aturan_${r.jenisId}`} title={`Hapus ${namaJenis(r.jenisId)}`} onClick={() => setBaris((lama) => lama.filter((x) => x.jenisId !== r.jenisId))}>
