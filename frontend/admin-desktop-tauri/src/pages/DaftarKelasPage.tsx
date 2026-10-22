@@ -140,6 +140,53 @@ export default function DaftarKelasPage() {
   }, [rows]);
   const [editRow, setEditRow] = useState<SantriPenuh | null>(null);
 
+  /** Filter status akhir — dipakai toolbar V1 maupun area filter V2. */
+  const filterStatus = (
+    <LabeledCombobox label="Status" htmlFor="select_status_daftar_kelas">
+      <ComboboxRoot
+        items={OPSI_STATUS_AKHIR}
+        autoHighlight
+        itemToStringLabel={(o) => o.label}
+        isItemEqualToValue={(a, b) => a.nilai === b.nilai}
+        value={OPSI_STATUS_AKHIR.find((o) => o.nilai === kelompok) ?? OPSI_STATUS_AKHIR[2]}
+        onValueChange={(o) => { if (o !== null) setKelompok(o.nilai); }}
+      >
+        <ComboboxInput id="select_status_daftar_kelas" aria-label="Filter status akhir" placeholder="Cari status…" />
+        <ComboboxTrigger aria-label="Buka daftar status" />
+        <ComboboxContent>
+          <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
+          <ComboboxList>
+            {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
+          </ComboboxList>
+        </ComboboxContent>
+      </ComboboxRoot>
+    </LabeledCombobox>
+  );
+
+  /** Paginasi kaki tabel — dipakai V1 maupun V2. */
+  const pagerEl = (
+    <Pager
+      page={pager.page}
+      lastPage={lastPage}
+      total={total}
+      perPage={pager.perPage}
+      onPage={(p) => { pager.setPage(p); load(p); }}
+      onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
+    />
+  );
+
+  /** Aksi baris: buka profil santri dan ubah detail. */
+  const aksiBaris = (r: RiwayatRow) => (
+    <>
+      {aksiProfil(r.santri_id, { daftar: daftarSantri })}
+      {canSantri && r.santri && (
+        <ActionIcon id={`btn_edit_santri_${r.id}`} title="Ubah detail santri" onClick={() => setEditRow(r.santri as SantriPenuh)}>
+          <Pencil size={16} />
+        </ActionIcon>
+      )}
+    </>
+  );
+
   return (
     <div className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
@@ -150,10 +197,18 @@ export default function DaftarKelasPage() {
           judul="Daftar kelas"
           tableKey="daftar_kelas"
           fields={fields}
+          rows={rows}
+          getValues={daftarKelasValues}
+          loading={loading}
+          emptyText="Pilih lembaga untuk menampilkan daftar kelas."
+          renderActions={aksiBaris}
+          filter={filterStatus}
+          pager={pagerEl}
           urutAktif={urut}
           arahUrut={arahUrut}
           onUrut={terapkanUrut}
-          // Grid V2 belum ada; pilihan preset kolom belum mengubah tampilan.
+          // Grid V2 baca-saja: sel belum bisa disunting, tetapi preset kolom
+          // sudah menentukan kolom yang tampil.
           onApplyPreset={() => {}}
         />
       ) : (
@@ -171,45 +226,9 @@ export default function DaftarKelasPage() {
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
-        renderActions={(r) => (
-          <>
-            {aksiProfil(r.santri_id, { daftar: daftarSantri })}
-            {canSantri && r.santri && (
-              <ActionIcon id={`btn_edit_santri_${r.id}`} title="Ubah detail santri" onClick={() => setEditRow(r.santri as SantriPenuh)}><Pencil size={16} /></ActionIcon>
-            )}
-          </>
-        )}
-        filter={(
-          <LabeledCombobox label="Status" htmlFor="select_status_daftar_kelas">
-            <ComboboxRoot
-              items={OPSI_STATUS_AKHIR}
-              autoHighlight
-                            itemToStringLabel={(o) => o.label}
-              isItemEqualToValue={(a, b) => a.nilai === b.nilai}
-              value={OPSI_STATUS_AKHIR.find((o) => o.nilai === kelompok) ?? OPSI_STATUS_AKHIR[2]}
-              onValueChange={(o) => { if (o !== null) setKelompok(o.nilai); }}
-            >
-              <ComboboxInput id="select_status_daftar_kelas" aria-label="Filter status akhir" placeholder="Cari status…" />
-              <ComboboxTrigger aria-label="Buka daftar status" />
-              <ComboboxContent>
-                <ComboboxEmpty>Tidak ada status.</ComboboxEmpty>
-                <ComboboxList>
-                  {(o) => <ComboboxItem key={o.nilai} value={o}>{o.label}</ComboboxItem>}
-                </ComboboxList>
-              </ComboboxContent>
-            </ComboboxRoot>
-          </LabeledCombobox>
-        )}
-        pager={(
-          <Pager
-            page={pager.page}
-            lastPage={lastPage}
-            total={total}
-            perPage={pager.perPage}
-            onPage={(p) => { pager.setPage(p); load(p); }}
-            onPerPage={(pp) => { pager.setPerPage(pp); load(1, pp); }}
-          />
-        )}
+        renderActions={aksiBaris}
+        filter={filterStatus}
+        pager={pagerEl}
       />
       )}
 

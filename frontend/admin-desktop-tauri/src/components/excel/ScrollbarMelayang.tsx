@@ -191,7 +191,7 @@ export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
       onMouseUp={(e) => { if (seret.current) e.stopPropagation(); }}
       onKeyDown={tekanTombol}
       className={cn(
-        'absolute z-10 touch-none outline-none select-none focus-visible:ring-2 focus-visible:ring-ring',
+        'group absolute z-10 touch-none select-none outline-none',
         vertikal ? 'inset-y-0 right-0 w-2.5' : 'inset-x-0 bottom-0 h-2.5',
       )}
     >
@@ -203,8 +203,8 @@ export default function ScrollbarMelayang({ orientasi, wadahRef }: Props) {
         onPointerCancel={lepasSeret}
         style={vertikal ? { top: awal, height: panjang } : { left: awal, width: panjang }}
         className={cn(
-          'absolute rounded-full bg-[color-mix(in_srgb,var(--accent)_55%,transparent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_75%,transparent)]',
-          vertikal ? 'left-1/2 w-[6px] -translate-x-1/2' : 'top-1/2 h-[6px] -translate-y-1/2',
+          'absolute bg-[color-mix(in_srgb,var(--accent)_55%,transparent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_75%,transparent)] group-focus-visible:bg-[color-mix(in_srgb,var(--accent)_85%,transparent)]',
+          vertikal ? 'left-1/2 w-[8px] -translate-x-1/2' : 'top-1/2 h-[8px] -translate-y-1/2',
         )}
       />
     </div>

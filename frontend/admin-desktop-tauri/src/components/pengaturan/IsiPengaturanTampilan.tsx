@@ -160,6 +160,10 @@ export default function IsiPengaturanTampilan({ idPrefix = '' }: {
   const headerSizeManual = gayaHeader?.size != null;
   const warnaCell = parts[mode]?.tabel_sel;
   const warnaHeader = parts[mode]?.tabel_header;
+  const warnaGrid = parts[mode]?.tabel_grid;
+  /** Fallback swatch mengikuti `--border` mode aktif supaya warna yang
+   *  ditampilkan sebelum diatur tidak menyesatkan. */
+  const gridBorder = warnaGrid?.border ?? (dark ? '#373735' : '#dcdbd9');
   const cellColor = warnaCell?.fg ?? '#9ca3af';
   const headerColor = warnaHeader?.fg ?? '#9ca3af';
   const cellBg = warnaCell?.bg ?? '#1e1e1e';
@@ -333,6 +337,23 @@ export default function IsiPengaturanTampilan({ idPrefix = '' }: {
           label="Kembalikan warna sel ke bawaan"
           disabled={!cellWarnaDiatur}
           onClick={() => setWarnaBagian(mode, 'tabel_sel', { fg: undefined, bg: undefined })}
+        />
+      </Baris>
+
+      <Judul>Grid Tabel</Judul>
+      <Baris label="Warna">
+        <WarnaInput
+          id={p + 'set_warna_border_grid'}
+          value={gridBorder}
+          title="Warna garis grid tabel — header row, kolom nomor, dan sel (mode aktif)"
+          ariaLabel="Warna garis grid tabel"
+          onChange={(v) => setWarnaBagian(mode, 'tabel_grid', { border: v })}
+        />
+        <TombolReset
+          id={p + 'set_reset_warna_grid'}
+          label="Kembalikan warna garis grid ke bawaan"
+          disabled={!warnaGrid?.border}
+          onClick={() => setWarnaBagian(mode, 'tabel_grid', { border: undefined })}
         />
       </Baris>
     </div>

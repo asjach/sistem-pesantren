@@ -35,6 +35,7 @@ export type PartId =
   | 'accordion'
   | 'tabel_header'
   | 'tabel_sel'
+  | 'tabel_grid'
   | 'tabel'
   | 'pager'
   | 'toolbar_tabel'
@@ -377,6 +378,18 @@ export const PARTS: PartMeta[] = [
     ukurSel: '.dsg-cell',
     hint: 'Isi sel grid (baca-saja & editor).',
     sel: '.simpes-dsg',
+  },
+  {
+    id: 'tabel_grid',
+    label: 'Grid Tabel',
+    grup: 'Tabel',
+    sub: 'Grid',
+    ukurSel: '.dsg-cell',
+    hint: 'Warna garis grid: header row, kolom nomor, dan sel tabel memakai satu warna yang sama.',
+    /* Sengaja hanya `.simpes-dsg-v2`: ExcelTabelV2 masih pilot, jadi setelan
+       ini belum boleh mengubah tampilan ExcelTable lama. Saat V2 menggantikan
+       V1, selector-nya diperluas. */
+    sel: '.simpes-dsg-v2',
   },
   {
     id: 'tabel',

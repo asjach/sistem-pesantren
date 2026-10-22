@@ -290,13 +290,117 @@
   font-size: var(--simpes-font-size, var(--part-tabel_sel-size, 11px));
 }
 
+/* ExcelTabelV2 — mesin DSG yang sama, palet sendiri. Sengaja TIDAK memakai
+   `.simpes-dsg` supaya gaya V1 tidak ikut terwarisi dan V1 tidak terpengaruh
+   saat V2 diubah. */
+.simpes-dsg-v2 {
+  /* Garis grid (header row, gutter, sel) satu sumber: setelan global
+     "Grid Tabel" (`--part-tabel_grid-border`). Fallback token tema `--border`
+     yang sudah ikut mode terang/gelap. */
+  --dsg-border-color: var(--part-tabel_grid-border, var(--border));
+  /* Warna sel mengikuti setelan global "Sel tabel grid"
+     (`--part-tabel_sel-bg`). Semua sel V2 read-only sehingga `disabled`
+     memakai nilai yang sama dengan sel biasa. */
+  --dsg-cell-background-color: var(--part-tabel_sel-bg, var(--card));
+  --dsg-cell-disabled-background-color: var(--part-tabel_sel-bg, var(--card));
+  --dsg-header-text-color: var(--part-tabel_header-fg, var(--muted-foreground));
+  --dsg-header-active-text-color: var(--part-tabel_header-fg, var(--foreground));
+  --dsg-selection-border-color: var(--primary);
+  --dsg-selection-border-width: 1px;
+  --dsg-selection-background-color: color-mix(in srgb, var(--primary) 14%, transparent);
+  --dsg-selection-disabled-background-color: color-mix(in srgb, var(--primary) 14%, transparent);
+  --dsg-selection-disabled-border-color: var(--primary);
+}
+
+/* DSG menanam `color: black; background: white` di `.dsg-container` (bukan
+   variabel), jadi mode gelap wajib ditimpa eksplisit di sini.
+
+   Warna & font SEL mengikuti setelan "Sel tabel grid" (`--part-tabel_sel-*`),
+   dengan fallback ke preferensi grid perangkat (`--simpes-font-*`, dipasang
+   GridV2 dari GridPrefs). Header row dan gutter menimpa sendiri lewat aturan
+   `.dsg-row-header .dsg-cell` / `.dsg-cell-gutter` — dua variabel yang
+   BERBEDA (`--part-tabel_header-*`), sesuai permintaan. */
+.simpes-dsg-v2 .dsg-container {
+  color: var(--part-tabel_sel-fg, var(--foreground));
+  background: var(--part-tabel_sel-bg, var(--card));
+  border-color: var(--border);
+  font-family: var(--part-tabel_sel-font, var(--simpes-font-family, "Roboto", sans-serif));
+  font-size: var(--part-tabel_sel-size, var(--simpes-font-size, 11px));
+  /* Bilah gulir bawaan disembunyikan: penggantinya ScrollbarMelayang.
+     Tanpa ini ada DUA gagang — bawaan + melayang. */
+  scrollbar-width: none;
+}
+
+.simpes-dsg-v2 .dsg-container::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.simpes-dsg-v2 .dsg-scrollable-view {
+  border-top: none;
+  border-left: none;
+  box-shadow: none;
+}
+
+/* Header row: satu gaya untuk SEMUA header cell — termasuk gutter (nomor
+   urut) dan kolom aksi. Selector sengaja memakai `.dsg-row-header` (0,3,0)
+   supaya menang atas aturan `.dsg-cell-gutter` dan `.dsg-cell-sticky-right`
+   yang datang setelahnya; tanpa itu dua kolom tadi memakai warna body.
+
+   Background, warna teks, font, weight, dan ukuran mengikuti pengaturan
+   global "Header tabel grid" (`--part-tabel_header-*`). Warna GARIS mengikuti
+   pengaturan "Grid Tabel" (`--part-tabel_grid-border`) — sama dengan gutter
+   dan sel, supaya satu warna untuk seluruh garis tabel. Fallback-nya tampilan
+   bawaan V2. `box-shadow` di sini menggantikan garis kanan+bawah bawaan DSG
+   (`1px 1px var(--dsg-border-color)`) agar warnanya ikut setelan grid. */
+.simpes-dsg-v2 .dsg-row-header .dsg-cell {
+  background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 6%, var(--card)));
+  border-color: var(--part-tabel_grid-border, var(--border));
+  color: var(--part-tabel_header-fg, var(--foreground));
+  font-family: var(--part-tabel_header-font, inherit);
+  font-weight: var(--part-tabel_header-weight, 600);
+  font-size: var(--part-tabel_header-size, inherit);
+  box-shadow: 1px 1px var(--part-tabel_grid-border, var(--border));
+}
+
+.simpes-dsg-v2 .dsg-row:not(.dsg-row-header):hover .dsg-cell {
+  background: color-mix(in srgb, var(--accent) 35%, var(--dsg-cell-background-color));
+}
+
+/* Gutter (nomor urut) memakai background & warna teks yang SAMA dengan header
+   row, dan garis yang SAMA dengan seluruh grid (`--part-tabel_grid-border`).
+   Selector header (`.dsg-row-header .dsg-cell`, 0,3,0) tetap menang untuk sel
+   sudut, jadi sudut kiri-atas dan kolom nomor tampil seragam. */
+.simpes-dsg-v2 .dsg-cell-gutter {
+  background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 6%, var(--card)));
+  border-color: var(--part-tabel_grid-border, var(--border));
+  color: var(--part-tabel_header-fg, var(--muted-foreground));
+  box-shadow: 1px 1px var(--part-tabel_grid-border, var(--border));
+}
+
+.simpes-dsg-v2 .dsg-cell-sticky-right:not(.dsg-cell-header) {
+  background: var(--part-tabel_sel-bg, var(--card));
+  box-shadow: inset 1px 0 0 var(--part-tabel_grid-border, var(--border));
+}
+
+/* Baris tercentang & baris aktif memakai warna aksen yang sama dengan V1,
+   tetapi latar V2 (--part-tabel_sel-bg). Diletakkan SETELAH aturan hover
+   supaya warnanya menang saat kursor berada di baris. */
+.simpes-dsg-v2 .dsg-row.simpes-dsg-v2-row-checked .dsg-cell,
+.simpes-dsg-v2 .dsg-row.simpes-dsg-v2-row-checked .dsg-cell-gutter {
+  background-color: color-mix(in srgb, var(--accent) 14%, var(--part-tabel_sel-bg, var(--card)));
+}
+
+.simpes-dsg-v2 .dsg-row.simpes-dsg-v2-row-aktif .dsg-cell,
+.simpes-dsg-v2 .dsg-row.simpes-dsg-v2-row-aktif .dsg-cell-gutter {
+  background-color: color-mix(in srgb, var(--primary) 16%, var(--part-tabel_sel-bg, var(--card)));
+}
+
 .simpes-dsg .dsg-selection-rect,
 .simpes-dsg .dsg-selection-rect-disabled {
   border-color: var(--dsg-selection-border-color);
   background: var(--dsg-selection-background-color);
-}
-
-.simpes-dsg .dsg-active-cell,
+}.simpes-dsg .dsg-active-cell,
 .simpes-dsg .dsg-active-cell-disabled {
   border-color: var(--dsg-selection-border-color);
   background: transparent;
