@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { ClipboardList, RefreshCw, SquareMousePointer, Trash2, X } from '@/icons';
@@ -13,7 +14,9 @@ import {
 
 const LEBAR_POPOVER = 340;
 const TINGGI_POPOVER = 200;
+const LABEL_PINTASAN = 'Ctrl/⌘+Shift+A';
 const PEMILIH_INTERAKTIF = 'button, a, input, select, textarea, label, [role="button"], [role="tab"], [role="menuitem"]';
+const WADAH_FOKUS = '[data-slot="dialog-content"], [data-slot="alert-dialog-content"]';
 
 /** Abaikan lapisan anotasi; klik ikon di dalam tombol tetap menandai tombolnya. */
 function sasaranTerpilih(el: Element): Element | null {
@@ -21,12 +24,26 @@ function sasaranTerpilih(el: Element): Element | null {
   return el.closest(PEMILIH_INTERAKTIF) ?? el;
 }
 
-function posisiPopover(rect: DOMRect) {
-  const lebar = Math.min(LEBAR_POPOVER, window.innerWidth - 16);
-  const kiri = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - lebar - 8));
-  const bawah = rect.bottom + 8;
-  const atas = bawah + TINGGI_POPOVER > window.innerHeight - 8
-    ? Math.max(8, rect.top - TINGGI_POPOVER - 8)
+function posisiPopover(rect: DOMRect, wadah: Element | null) {
+  const kotakWadah = wadah?.getBoundingClientRect() ?? null;
+  const lebar = Math.min(
+    LEBAR_POPOVER,
+    window.innerWidth - 16,
+    kotakWadah ? kotakWadah.width - 8 : Number.POSITIVE_INFINITY,
+  );
+
+  const kiri = kotakWadah
+    ? Math.min(
+      Math.max(4, rect.left - kotakWadah.left),
+      Math.max(4, kotakWadah.width - lebar - 4),
+    )
+    : Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - lebar - 8));
+
+  const batasBawah = kotakWadah ? kotakWadah.height - 4 : window.innerHeight - 8;
+  const bawah = (kotakWadah ? rect.bottom - kotakWadah.top : rect.bottom) + 8;
+  const atasCadangan = (kotakWadah ? rect.top - kotakWadah.top : rect.top) - TINGGI_POPOVER - 8;
+  const atas = bawah + TINGGI_POPOVER > batasBawah
+    ? Math.max(kotakWadah ? 4 : 8, atasCadangan)
     : bawah;
 
   return { left: kiri, top: atas, width: lebar };
@@ -78,6 +95,20 @@ export default function AnotasiLayer() {
   }, []);
 
   useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.repeat || !(e.ctrlKey || e.metaKey) || !e.shiftKey || e.altKey) return;
+      if (e.key.toLowerCase() !== 'a') return;
+      e.preventDefault();
+      e.stopPropagation();
+      batal();
+      setAktif((nyala) => !nyala);
+    }
+
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [batal]);
+
+  useEffect(() => {
     if (!aktif) return;
 
     const akar = document.documentElement;
@@ -104,18 +135,20 @@ export default function AnotasiLayer() {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
       setAktif(false);
       setSorot(null);
     };
 
     document.addEventListener('mousemove', onMove, true);
     document.addEventListener('click', onClick, true);
-    window.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
 
     return () => {
       document.removeEventListener('mousemove', onMove, true);
       document.removeEventListener('click', onClick, true);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
       akar.style.cursor = kursorLama;
     };
   }, [aktif, pilih]);
@@ -150,11 +183,14 @@ export default function AnotasiLayer() {
     if (!target) return;
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') batal();
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      batal();
     };
 
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [target, batal]);
 
   async function simpan() {
@@ -190,10 +226,11 @@ export default function AnotasiLayer() {
     }
   }
 
-  const posisi = target && sorot ? posisiPopover(sorot) : null;
+  const wadahFokus = target?.closest(WADAH_FOKUS) ?? null;
+  const posisi = target && sorot ? posisiPopover(sorot, wadahFokus) : null;
   const konteks = useMemo(() => (target ? bacaKonteks(target) : null), [target]);
 
-  return (
+  return createPortal(
     <div
       data-anotasi-abaikan
       data-slot="anotasi-dev"
@@ -209,12 +246,14 @@ export default function AnotasiLayer() {
 
       {aktif && (
         <div className="pointer-events-none fixed top-2 left-1/2 -translate-x-1/2 border border-primary bg-popover px-2 py-1 text-[11px] text-popover-foreground shadow-lg">
-          Klik elemen untuk diberi instruksi · Esc batal
+          Klik elemen untuk diberi instruksi · {LABEL_PINTASAN} · Esc batal
         </div>
       )}
 
-      {target && posisi && konteks && (
+      {target && posisi && konteks && (() => {
+        const isi = (
         <div
+          data-anotasi-abaikan
           className="pointer-events-auto fixed z-20 border border-border bg-popover p-2 text-popover-foreground shadow-lg"
           style={{ left: posisi.left, top: posisi.top, width: posisi.width }}
         >
@@ -263,7 +302,9 @@ export default function AnotasiLayer() {
             </span>
           </div>
         </div>
-      )}
+        );
+        return wadahFokus ? createPortal(isi, wadahFokus) : isi;
+      })()}
 
       {panel && (
         <section
@@ -296,6 +337,7 @@ export default function AnotasiLayer() {
 
           <p className="border-b border-border px-2 py-1 text-[10px] text-muted-foreground">
             Tersimpan di <span className="font-mono">.dev/anotasi.json</span> untuk dibaca agent.
+            {' '}Pintasan <span className="font-mono">{LABEL_PINTASAN}</span> juga aktif saat dialog terbuka.
           </p>
 
           {galat && (
@@ -367,8 +409,9 @@ export default function AnotasiLayer() {
           variant={aktif ? 'default' : 'outline'}
           size="icon-lg"
           aria-label={aktif ? 'Matikan mode tandai elemen' : 'Tandai elemen untuk agent'}
+          aria-keyshortcuts="Control+Shift+A Meta+Shift+A"
           aria-pressed={aktif}
-          title="Tandai elemen untuk agent (mode dev)"
+          title={`Tandai elemen untuk agent (mode dev, ${LABEL_PINTASAN})`}
           onClick={() => {
             batal();
             setAktif((nyala) => !nyala);
@@ -377,6 +420,7 @@ export default function AnotasiLayer() {
           <SquareMousePointer />
         </Button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

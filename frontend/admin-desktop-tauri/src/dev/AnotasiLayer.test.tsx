@@ -3,6 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ThemeProvider } from '@/theme';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import AnotasiLayer from './AnotasiLayer';
 import type { Anotasi } from './anotasi';
 
@@ -89,6 +96,43 @@ describe('AnotasiLayer', () => {
       instruksi: 'Samakan font NIS',
     }));
     expect(screen.queryByRole('textbox', { name: 'Instruksi untuk agent' })).not.toBeInTheDocument();
+  });
+
+  it('mengaktifkan mode tandai lewat pintasan dan menandai elemen dalam dialog', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ThemeProvider>
+        <Dialog open>
+          <DialogContent showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Uji modal</DialogTitle>
+              <DialogDescription>Dialog untuk menguji anotasi.</DialogDescription>
+            </DialogHeader>
+            <button type="button">Tombol dalam modal</button>
+          </DialogContent>
+        </Dialog>
+        <AnotasiLayer />
+      </ThemeProvider>,
+    );
+
+    const target = screen.getByRole('button', { name: 'Tombol dalam modal' });
+    vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+
+    await user.keyboard('{Control>}{Shift>}a{/Shift}{/Control}');
+    expect(await screen.findByText(/Klik elemen untuk diberi instruksi/)).toBeInTheDocument();
+
+    await user.click(target);
+    const input = document.querySelector<HTMLTextAreaElement>('#input_instruksi_anotasi');
+    expect(input).not.toBeNull();
+    await waitFor(() => expect(input).toHaveFocus());
+
+    await user.type(input!, 'Perbaiki tombol modal');
+    expect(input).toHaveValue('Perbaiki tombol modal');
+
+    await user.keyboard('{Escape}');
+    expect(document.querySelector('#input_instruksi_anotasi')).toBeNull();
+    expect(screen.getByText('Uji modal')).toBeInTheDocument();
   });
 
   it('menampilkan daftar anotasi dan menghapus entri', async () => {

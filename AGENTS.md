@@ -12,6 +12,9 @@
 - Anotasi ditulis ke `frontend/admin-desktop-tauri/.dev/anotasi.json`
   (di-ignore git) dan memuat rute, selector, teks, komponen React, serta
   `sumber` berupa `src/...:baris`.
+- Pintasan `Ctrl/⌘+Shift+A` mengaktifkan atau mematikan mode tandai, termasuk
+  saat dialog/modal terbuka. Untuk elemen di dalam dialog, editor instruksi
+  ditempatkan di dialog agar tetap bisa difokuskan dan diketik.
 - **Saat pengguna menyebut "cek anotasi" atau meminta perubahan atas elemen
   yang ditandai, baca file itu lebih dulu** sebelum menelusuri kode. Pakai
   `sumber`/`komponen` untuk membuka berkas yang tepat, verifikasi dengan kode,
