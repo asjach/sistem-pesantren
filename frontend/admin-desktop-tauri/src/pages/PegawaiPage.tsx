@@ -26,7 +26,8 @@ import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ExcelTable, { type ExcelField } from '@/components/ExcelTable';
+import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import type { ExcelField } from '@/components/excel/types';
 import LabeledCombobox from '@/components/LabeledCombobox';
 import {
   ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxRoot, ComboboxTrigger,
@@ -332,9 +333,8 @@ export default function PegawaiPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <PengaturanHalaman tampil={{ semester: false, tingkat: false }} tabel={[{ key: 'pegawai', judul: 'Pegawai', fields: FIELDS }]} />
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari nama / NIP / NIK…" />
-      <ExcelTable
+      <ExcelTabelV2
         tableKey="pegawai"
-        sumberTabel="pegawai"
         fields={FIELDS}
         rows={rows}
         getValues={gridValues}
@@ -343,6 +343,8 @@ export default function PegawaiPage() {
         canEdit={canUbah}
         onCommit={commitDraft}
         onSaved={onSaved}
+        // Preset kolom V2 sudah menentukan kolom yang tampil.
+        onApplyPreset={() => {}}
         urutAktif={urut}
         arahUrut={arahUrut}
         onUrut={terapkanUrut}
