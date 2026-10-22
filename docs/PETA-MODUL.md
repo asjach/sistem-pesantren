@@ -985,19 +985,18 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
 
 ## DA11. Kerangka UI & Tampilan
 
-### DA11.1 Tabel & Grid `Backlog`
+### DA11.1 Tabel & Grid `To Do`
 **Backlog**
-- Rel filter tingkat/kelas tampil di kiri grid V2.
-- Lebar kolom V2 bisa diubah lewat handle, AutoFit, dan tersimpan per perangkat.
-- Tabel V2 bisa mengisi lebar, membekukan kolom, dan menyusun ulang kolom lewat geser judul.
 - Tinggi baris V2 bisa diatur per tabel, ikut isi, dan dibatasi N baris.
-- Sel V2 bisa disunting langsung dengan simpan otomatis dan validasi.
 - V2 bisa menambah record baru lewat baris input di kaki tabel.
-- Menu klik kanan, salin TSV, dan seret isi sel berfungsi di V2.
 - Migrasi halaman MiMd ke ExcelTabelV2: tiga panel MI Only, MD Semua, dan Perbandingan Kelas memakai header, rail, dan aksi massal V2.
 - Tinggi header otomatis (headerAutoH) berlaku di V2: header kolom meninggi mengikuti judul yang membungkus seperti V1, agar spinbox mode otomatis berfungsi.
+- Judul kolom V2 tidak terpotong (elipsis): header tabel V2 memotong judul yang panjang, sedangkan V1 membungkusnya jadi beberapa baris. Perlu diselaraskan agar judul terbaca penuh.
+- Kolom V2 bisa dibekukan: sejumlah N kolom data pertama tetap terlihat saat tabel digulir horizontal, dengan jumlah beku tersimpan per tabel.
+- Judul kolom V2 bisa digeser untuk menyusun ulang urutan kolom, lengkap dengan indikator drop, dan urutannya tersimpan per tabel.
 **To Do**
-- (kosong)
+- Sel V2 bisa disunting langsung dengan simpan otomatis dan validasi.
+- Menu klik kanan, salin TSV, dan seret isi sel berfungsi di V2.
 **In Progress**
 - (kosong)
 **For Review**
@@ -1058,6 +1057,31 @@ Status yang tidak berlaku ditulis **(kosong)** agar tidak tampak terlewat.
   - [x] Rail filter Tingkat/Kelas tampil di kiri grid V2 lewat prop rail, sejajar judul kolom memakai tinggi header yang sama dengan GridV2, dan menghormati sakelar rel_filter.
   - [x] ExcelTabelV2 menerima slot aksi halaman: awalanToolbar, akhirToolbar, addButton (langsung atau menu Aksi lewat addButtonLangsung), dan renderBulkActions yang hanya dipanggil saat ada centang serta bisa mengosongkan pilihan.
   - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
+- Rel filter tingkat/kelas tampil di kiri grid V2.
+  - [x] Rail filter tingkat/kelas tampil di kiri grid V2 dan sejajar judul kolom pada halaman contoh.
+  - [x] Rail menghormati sakelar rel_filter: hilang saat dimatikan dan kembali saat dinyalakan (paritas V1).
+  - [x] infoKomponen ikut berubah saat rail atau addButton berubah, bukan menyisakan nilai basi.
+  - [x] Halaman tanpa filter tingkat/kelas tidak menampilkan rail meski prop rail diaktifkan.
+  - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
+- Lebar kolom V2 bisa diubah lewat handle, AutoFit, dan tersimpan per perangkat.
+  - [x] Kolom V2 bisa diubah lebarnya dengan menyeret handle di judul kolom.
+  - [x] Klik 2x pada handle menjalankan AutoFit lebar kolom itu.
+  - [x] AutoFit mengukur isi sel V2 secara akurat memakai teks yang sama dengan yang dirender (sel contoh diambil dari kolom yang diukur dan padding pembungkus isi ikut terhitung; V1 tidak terpengaruh).
+  - [x] Lebar kolom tersimpan per perangkat dan bertahan setelah aplikasi dibuka ulang.
+  - [x] Grid tidak tampil sebelum DSG memakai lebar basis, sehingga judul kolom tidak melompat saat muat.
+  - [x] onAutoFitAll dan resetLebar tersedia dari ExcelTabelV2 agar poin menu klik kanan dan ribbon bisa menyambung tanpa pekerjaan ulang.
+  - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
+  - [x] Gagang lebar duduk tepat di border kolom (pembungkus judul dikunci ke lebar sel, bukan w-full pada container DSG yang bisa lebih lebar).
+  - [ ] Pemeriksaan pengguna: seret gagang, klik 2x AutoFit pada nis_lokal, dan pastikan tidak ada elipsis lagi.
+- Tabel V2 bisa mengisi lebar wadah penuh (isi-lebar) dengan pembagian lebar kolom proporsional.
+  - [x] Ada sakelar "isi lebar penuh" untuk tabel V2; saat aktif dan tabel lebih sempit dari wadah, total lebar kolom mengisi wadah sehingga tidak ada sisa ruang di kanan.
+  - [x] Pembagian lebar antar kolom proporsional mengikuti lebar basisnya masing-masing (kolom lebar tetap lebih lebar), bukan dibagi rata.
+  - [x] Tabel yang total kolomnya melebihi wadah DIBIARKAN menggulir horizontal; kolom tidak menyusut sampai batas minimum (keputusan pengguna: opsi A, hanya membesarkan).
+  - [x] Sakelar tersimpan per tabel dan per perangkat, serta bertahan setelah aplikasi dibuka ulang.
+  - [x] Saat isi-lebar aktif, menyeret gagang lebar kolom tetap bekerja dan hasil seret tidak langsung ditimpa pembagian otomatis (rasio dipakai agar seret terasa 1:1).
+  - [x] Mematikan isi-lebar mengembalikan lebar kolom seperti semula tanpa merusak lebar tersimpan pengguna.
+  - [x] npm run typecheck dan tes tersempit hijau; V1 tidak berubah.
+  - [ ] Pemeriksaan pengguna: aktifkan "isi lebar penuh" di Kelola Tabel -> Umum pada tabel berkolom sedikit dan pastikan kolom mengisi lebar tanpa sisa ruang kanan.
 **Done**
 - Grid tabel bergaya Excel
   - [x] Seleksi blok dan salin/tempel TSV

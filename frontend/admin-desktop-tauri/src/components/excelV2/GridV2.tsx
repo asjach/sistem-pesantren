@@ -20,6 +20,9 @@ import type { ExcelField, GridRow } from '@/components/excel/types';
 import type { AlignKolom } from '@/components/kelolaTabel/jenis';
 import { lebarKolomAksi } from './lebarAksi';
 import { useLebarKolom } from '@/components/excel/useLebarKolom';
+import { useIsiLebar } from '@/components/excel/useIsiLebar';
+import { useLebarWadah } from '@/components/excel/useLebarWadah';
+import { skalaLebarIsi, RESIZER_OVERHANG } from '@/components/excel/lebarIsi';
 import { labelTampil, rataKolom, statusPilihSemua, type RataKolom } from './kolom';
 
 /** Border checkbox tabel memakai warna garis grid (--part-tabel_grid-border,
@@ -216,6 +219,8 @@ export interface GridV2Props {
   /** Id baris yang disorot (dipetakan halaman dari klik sel aktif). */
   barisAktifId?: string | number | null;
   onBarisAktif?: (id: string | number) => void;
+  /** Keadaan awal sakelar "tabel mengisi lebar wadah" (pref perangkat menang). */
+  isiLebarPenuh?: boolean;
   /** Introspeksi lebar kolom ke halaman (AutoFit semua, reset lebar).
    *  Dipanggil tiap hook siap; dipakai menu klik kanan & kontrol halaman
    *  pada poin berikutnya agar tak ada pekerjaan ulang. */
@@ -247,6 +252,7 @@ export default function GridV2({
   barisAktifId = null,
   onBarisAktif,
   onSiapLebar,
+  isiLebarPenuh = false,
 }: GridV2Props) {
   const { rowH, headerH, fontPx, fontFamily } = useGridPrefs();
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -292,6 +298,12 @@ export default function GridV2({
   getValuesRef.current = (row) => row as unknown as Record<string, string | null>;
   /** Mesin lebar kolom V1 dipakai ulang apa adanya: lebar tersimpan pengguna,
    *  AutoFit, persistensi per perangkat, dan gerbang anti-lompat. */
+  /** Sakelar "tabel mengisi lebar wadah" (pref perangkat menang atas bawaan). */
+  const isiLebarAktif = useIsiLebar(tableKey, isiLebarPenuh);
+  /** Rasio skala dipakai seret gagang agar gerakan kursor 1 px tetap 1 px. */
+  const skalaIsiRef = useRef(1);
+  /** Lebar efekti+ area gulir, dasar penskalaan (0 = belum terukur). */
+  const lebarWadah = useLebarWadah(wrapRef, isiLebarAktif);
   const lebar = useLebarKolom<GridRow>({
     tableKey,
     fields,
@@ -313,8 +325,35 @@ export default function GridV2({
     effectiveFont,
     fontStack,
     fontStackWeight,
+    skalaRef: skalaIsiRef,
   });
 
+  /** Lebar kolom data hasil skala agar tabel mengisi wadah; `null` = pakai
+   *  lebar basis apa adanya (fitur mati / wadah belum terukur). Kolom tetap
+   *  (gutter, centang, Aksi) tidak ikut diskalakan — itu chrome tabel.
+   *
+   *  PENTING: hanya MEMBESARKAN. Halaman V2 boleh memuat banyak kolom (halaman
+   *  ini memuat seluruh kolom 3 tabel, ~92), sehingga total lebar basis hampir
+   *  selalu melebihi wadah. Bila rasio dipakai apa adanya, semua kolom menyusut
+   *  ke lebar minimum dan tabel jadi tak terbaca. Saat tabel memang lebih lebar
+   *  dari wadah, membiarkannya menggulir horizontal adalah perilaku yang benar. */
+  const skalaIsi = useMemo(() => {
+    if (!isiLebarAktif || lebarWadah <= 0) return null;
+    const lebarTetap = GUTTER_W
+      + (hideCheckbox ? 0 : CHECK_W)
+      + (renderActions ? (lebar.widths.__aksi ?? lebar.autoWidths.__aksi ?? lebar.syncAutoWidths.__aksi ?? lebarKolomAksi(3)) : 0)
+      + RESIZER_OVERHANG;
+    const kolom = fields.map((f) => ({
+      key: f.key,
+      lebar: lebar.widths[f.key] ?? lebar.autoWidths[f.key] ?? lebar.syncAutoWidths[f.key] ?? f.width ?? 160,
+    }));
+    const hasil = skalaLebarIsi(kolom, lebarWadah, lebarTetap);
+    // Opsi A: hanya membesarkan. Tabel yang total kolomnya melebihi wadah
+    // dibiarkan menggulir horizontal — menyusutkan semua kolom sampai batas
+    // minimum akan membuat tabel tak terbaca.
+    return hasil && hasil.rasio > 1 ? hasil : null;
+  }, [isiLebarAktif, lebarWadah, fields, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, hideCheckbox, renderActions]);
+  skalaIsiRef.current = skalaIsi?.rasio ?? 1;
 
   const kolom = useMemo<Column<GridRow>[]>(() => {
     const cols: Column<GridRow>[] = [];
@@ -348,7 +387,7 @@ export default function GridV2({
         ),
         component: SelTeksV2,
         columnData: { field: f, rata },
-        basis: lebar.widths[f.key] ?? lebar.autoWidths[f.key] ?? lebar.syncAutoWidths[f.key] ?? f.width ?? 160,
+        basis: skalaIsi?.lebar[f.key] ?? lebar.widths[f.key] ?? lebar.autoWidths[f.key] ?? lebar.syncAutoWidths[f.key] ?? f.width ?? 160,
         // Sama seperti V1: lebar ditentukan `basis`, bukan diregangkan DSG.
         // `grow: 1` membuat DSG mengabaikan `basis` saat tabel lebih sempit
         // dari wadah, sehingga hasil penskalaan isi-lebar tak terpakai.
@@ -362,7 +401,7 @@ export default function GridV2({
     }
 
     return cols;
-  }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit]);
+  }, [fields, hideCheckbox, labelDb, alignDb, onTogglePilih, onTogglePilihSemua, lebar.widths, lebar.autoWidths, lebar.syncAutoWidths, lebar.startResize, lebar.onAutoFit, skalaIsi]);
 
   /** renderActions dari halaman biasanya fungsi inline yang berganti
    *  identitas tiap render; dibaca lewat ref agar hitung ulang seluruh baris

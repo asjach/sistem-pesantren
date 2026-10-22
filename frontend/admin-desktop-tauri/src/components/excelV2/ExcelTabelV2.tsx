@@ -68,6 +68,12 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   /** Aksi massal untuk baris tercentang. Hanya dipanggil saat ada centang;
    *  `clearSelection` mengosongkan pilihan setelah aksi selesai. */
   renderBulkActions?: (checkedRows: T[], clearSelection: () => void) => ReactNode;
+  /** Introspeksi lebar kolom (AutoFit semua, reset lebar). Dipanggil saat grid
+   *  siap; dipakai menu klik kanan dan kontrol halaman pada poin berikutnya. */
+  onSiapLebar?: (aksi: { autoFitSemua: () => void; resetLebar: () => void }) => void;
+  /** Keadaan awal "tabel mengisi lebar wadah" untuk tabel ini. Pref perangkat
+   *  (diatur dari Kelola Tabel -> Umum) menang atas nilai ini. */
+  isiLebarPenuh?: boolean;
   /** Tampilkan rel filter Tingkat/Kelas di kiri grid (di bawah bilah judul,
    *  sejajar judul kolom). Pakai hanya pada tabel utama halaman — satu rel
    *  per halaman; halaman tanpa filter tingkat/kelas tidak menampilkannya. */
@@ -110,6 +116,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   addButton,
   addButtonLangsung = true,
   renderBulkActions,
+  onSiapLebar,
+  isiLebarPenuh = false,
   rail = false,
 }: ExcelTabelV2Props<T>) {
   const [dipilih, setDipilih] = useState<Set<string | number>>(() => new Set());
@@ -203,7 +211,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     tombolEdit: false,
     kolomCentang: !hideCheckbox,
     kolomAksi: !hideActions,
-  }), [filter, onUrut, hidePreset, aksi, pager, hideCheckbox, hideActions]);
+  }), [filter, onUrut, hidePreset, aksi, addButton, rail, pager, hideCheckbox, hideActions]);
 
   const judulAktif = komponenAktif(visibilitas, 'judul_tabel');
   const aksiAktif = aksi != null && komponenAktif(visibilitas, 'tombol_aksi');
@@ -300,6 +308,8 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
           onTogglePilihSemua={togglePilihSemua}
           barisAktifId={barisAktifId ?? null}
           onBarisAktif={onBarisKlik ? tanganiBarisAktif : undefined}
+          onSiapLebar={onSiapLebar}
+          isiLebarPenuh={isiLebarPenuh}
         />
       </div>
 
