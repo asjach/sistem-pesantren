@@ -24,10 +24,18 @@ function Select({
   onValueChange,
   children,
   disabled,
+  tanpaAutoPilih = false,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+}: React.ComponentProps<typeof SelectPrimitive.Root> & {
+  /** Lewati pemindaian opsi untuk auto-pilih. Dipakai sel tabel dengan daftar
+   *  pilihan panjang; pilihan tidak boleh terpilih otomatis. */
+  tanpaAutoPilih?: boolean
+}) {
 
-  const opsi = React.useMemo(() => kumpulkanNilaiOpsi(children), [children])
+  const opsi = React.useMemo(
+    () => (tanpaAutoPilih ? [] : kumpulkanNilaiOpsi(children)),
+    [children, tanpaAutoPilih],
+  )
   const kunciOpsi = opsi.join('|')
   React.useEffect(() => {
     if (disabled || value !== '' || opsi.length !== 1) return

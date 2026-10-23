@@ -323,7 +323,7 @@ export default function KurikulumPengampuPage() {
     { key: 'kkm', label: 'KKM', width: 70, kind: 'static' },
     {
 
-      key: 'guru', label: 'Guru pengampu', width: 260, kind: 'select', selectTanpaEdit: true,
+      key: 'guru', label: 'Guru pengampu', width: 260, kind: 'select',
       choices: [
         { value: '', label: '— belum ada guru —' },
         ...guru.map((g) => ({ value: String(g.keaktifan_pegawai_id), label: namaGuru(g) })),

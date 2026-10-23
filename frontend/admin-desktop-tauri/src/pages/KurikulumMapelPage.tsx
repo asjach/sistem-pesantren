@@ -75,7 +75,6 @@ const FIELDS: ExcelField[] = [
   },
   {
     key: 'kelompok', label: 'Kelompok', width: 140, kind: 'select',
-    selectTanpaEdit: true,
     choices: [
       { value: 'formal', label: 'Formal' },
       { value: 'pesantren', label: 'Pesantren' },

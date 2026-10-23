@@ -684,7 +684,7 @@ export default function GridV2({
   }, [enqueueSave]);
 
   /** DSG tetap menangani tempel TSV/blok dan hapus nilai sel saat kolomnya
-   *  terbuka (Mode Ubah / selectTanpaEdit). Perubahan dibandingkan dengan nilai
+   *  terbuka (Mode Ubah). Perubahan dibandingkan dengan nilai
    *  tampil (server + draft) lalu masuk antrean simpan yang sama dengan
    *  penyuntingan sel, sehingga validasi, toast, dan muat ulang tetap satu
    *  jalur. Tanpa handler ini DSG mengubah nilai internalnya sendiri lalu
@@ -1108,8 +1108,9 @@ export default function GridV2({
 
     for (const [iData, f] of fields.entries()) {
       const rata = rataKolom(f, alignDb);
-      /** Select record lama: Mode Ubah, atau langsung bila selectTanpaEdit. */
-      const selectBisa = f.kind === 'select' && bisaEdit && (modeUbah || !!f.selectTanpaEdit);
+      /** Select record lama: teks saat view, dropdown hanya saat Mode Ubah.
+       *  `selectTanpaEdit` adalah perilaku V1 legacy dan sengaja diabaikan V2. */
+      const selectBisa = f.kind === 'select' && bisaEdit && modeUbah;
       /** Satu gerbang untuk semua jalur DSG (disabled, tempel, hapus). */
       const bisaUbahSel = f.kind === 'select' ? selectBisa : (bisaEdit && f.kind !== 'static');
       const onSimpanKolom = f.kind === 'select'
@@ -1147,8 +1148,8 @@ export default function GridV2({
         shrink: 0,
         minWidth: MIN_COL_W,
         // Hanya kolom yang benar-benar bisa disunting yang dibuka; kolom
-        // `static` tetap terkunci meski Mode Ubah menyala. Select bisa hidup
-        // tanpa Mode Ubah bila field meminta `selectTanpaEdit`.
+        // `static` tetap terkunci meski Mode Ubah menyala, dan select V2
+        // tetap teks sampai Mode Ubah aktif.
         disabled: !bisaUbahSel,
         // DSG hanya mengubah nilai lewat `pasteValue`/`deleteValue`: tanpa
         // keduanya, tempel TSV dan tombol Delete tidak menghasilkan perubahan

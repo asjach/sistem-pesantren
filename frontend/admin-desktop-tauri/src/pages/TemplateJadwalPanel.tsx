@@ -37,12 +37,12 @@ function validasiUrutan(v: string | null): string | null {
 }
 
 export const FIELDS_KERANGKA: ExcelField[] = [
-  { key: 'hari', label: 'Hari', width: 130, kind: 'select', selectTanpaEdit: true, choices: OPSI_HARI },
+  { key: 'hari', label: 'Hari', width: 130, kind: 'select', choices: OPSI_HARI },
   { key: 'urutan_slot', label: 'Jam ke-', width: 90, kind: 'text', maxLength: 2, format: 'angka', required: true, validate: validasiUrutan },
   { key: 'nama_slot', label: 'Nama', width: 180, kind: 'text', maxLength: 50 },
   { key: 'jam_mulai', label: 'Mulai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
   { key: 'jam_selesai', label: 'Selesai', width: 110, kind: 'text', maxLength: 5, validate: validasiJam },
-  { key: 'jenis', label: 'Jenis', width: 150, kind: 'select', selectTanpaEdit: true, choices: JENIS_SLOT_OPTIONS },
+  { key: 'jenis', label: 'Jenis', width: 150, kind: 'select', choices: JENIS_SLOT_OPTIONS },
 ];
 
 function nilaiKerangka(b: TemplateJadwalBaris): Record<string, string | null> {

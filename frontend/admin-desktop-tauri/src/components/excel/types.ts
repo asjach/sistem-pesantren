@@ -21,8 +21,8 @@ export interface ExcelField {
   /** Toggle yang hidup tanpa Mode Edit (tetap tersimpan langsung);
    *  mis. kolom is_active referensi yang dikelola lewat aksi baris. */
   toggleTanpaEdit?: boolean;
-  /** Select yang hidup tanpa Mode Edit (tetap tersimpan langsung);
-   *  tetap digerbang `canEdit` halaman — pengguna tanpa izin tetap baca-saja. */
+  /** V1 legacy: select yang hidup tanpa Mode Edit. V2 mengabaikan flag ini;
+   *  sel select V2 selalu menampilkan teks sampai Mode Ubah aktif. */
   selectTanpaEdit?: boolean;
   /** Boleh toggle per baris (id grid) — mis. baris global butuh konteks
    *  lembaga. Null/absen = semua boleh (selain baris input). */

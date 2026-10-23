@@ -208,12 +208,12 @@ describe('GridV2 - penyuntingan sel (Mode Ubah)', () => {
     expect(kolomTerakhir().find((k) => k.id === 'kode')?.disabled).toBe(true);
   });
 
-  it('dropdown select record lama menyimpan pilihan lewat antrean', async () => {
+  it('select menampilkan teks di view dan menjadi dropdown saat Mode Ubah', async () => {
     const simpan = vi.fn<(id: string | number, f: Record<string, string | null>) => Promise<void>>(async () => {});
     const fields: ExcelField[] = [
       FIELDS[0],
       {
-        key: 'jenjang', label: 'Jenjang', kind: 'select',
+        key: 'jenjang', label: 'Jenjang', kind: 'select', selectTanpaEdit: true,
         choices: [{ value: 'MI', label: 'MI' }, { value: 'MTs', label: 'MTs' }],
       },
     ];
@@ -225,12 +225,18 @@ describe('GridV2 - penyuntingan sel (Mode Ubah)', () => {
     });
     await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
 
+    // V2 mengabaikan selectTanpaEdit: view tetap teks, tanpa combobox.
+    expect(screen.queryByRole('combobox', { name: 'Jenjang' })).toBeNull();
+    expect(document.querySelector('.dsg-row:not(.dsg-row-header) [data-col-key="jenjang"]')?.textContent).toContain('MI');
+
     const grid = document.querySelector('[data-slot="excel-table-grid"]') as HTMLElement;
     fireEvent.doubleClick(grid);
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Mode Ubah aktif'));
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('combobox', { name: 'Jenjang' }));
+    const pemicu = screen.getByRole('combobox', { name: 'Jenjang' });
+    expect(pemicu).toHaveTextContent('MI');
+    await user.click(pemicu);
     await user.click(await screen.findByRole('option', { name: 'MTs' }));
 
     await waitFor(() => expect(simpan).toHaveBeenCalledTimes(1));

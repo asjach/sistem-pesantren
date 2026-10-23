@@ -221,7 +221,7 @@ export default function LembagaPegawaiPage() {
     { key: 'nama', label: 'Nama Lengkap', width: 220, kind: 'static' },
     { key: 'nipp', label: 'NIPP', width: 130, kind: 'static' },
     { key: 'lembaga', label: 'Jenjang', width: 100, kind: 'static' },
-    { key: 'tugas', label: 'Tugas', width: 160, kind: 'select', selectTanpaEdit: true, choices: tugasOpsi },
+    { key: 'tugas', label: 'Tugas', width: 160, kind: 'select', choices: tugasOpsi },
     { key: 'aktif', label: 'Aktif', width: 90, kind: 'toggle' },
     { key: 'tgl_masuk', label: 'Tgl Masuk', width: 130, kind: 'text', maxLength: 10 },
     { key: 'no_sk_awal_ptk', label: 'No. SK Awal PTK', width: 180, kind: 'text', maxLength: 100 },

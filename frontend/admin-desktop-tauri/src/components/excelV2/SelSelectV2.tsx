@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { CellProps } from 'react-datasheet-grid';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import type { ExcelField, GridRow } from '@/components/excel/types';
 import { cn } from '@/lib/utils';
 import type { RataKolom } from './kolom';
@@ -36,7 +36,16 @@ export default function SelSelectV2({ rowData, columnData }: CellProps<GridRow, 
   const [buka, setBuka] = useState(false);
   const cur = (rowData[f.key] as string | null) ?? '';
   const opsi = f.choicesForRow?.(rowData.id) ?? f.choices ?? [];
-  const label = opsi.find((o) => o.value === cur)?.label ?? cur;
+  const label = useMemo(
+    () => opsi.find((o) => o.value === cur)?.label ?? cur,
+    [opsi, cur],
+  );
+  /** Nilai di luar daftar pilihan ikut ditampilkan sebagai opsi agar tidak
+   *  hilang dari pandangan; memilihnya kembali tidak mengubah data. */
+  const opsiTampil = useMemo(
+    () => (cur !== '' && !opsi.some((o) => o.value === cur) ? [...opsi, { value: cur, label: cur }] : opsi),
+    [opsi, cur],
+  );
   const terkunci = !bisaSelect || onSimpan == null || f.bolehSelect?.(rowData.id) === false;
 
   /** Tampilan baca-saja (atau sel terkunci): teks label, tanpa kontrol. */
@@ -51,12 +60,6 @@ export default function SelSelectV2({ rowData, columnData }: CellProps<GridRow, 
     );
   }
 
-  /** Nilai di luar daftar pilihan ikut ditampilkan sebagai opsi agar tidak
-   *  hilang dari pandangan; memilihnya kembali tidak mengubah data. */
-  const opsiTampil = cur !== '' && !opsi.some((o) => o.value === cur)
-    ? [...opsi, { value: cur, label: cur }]
-    : opsi;
-
   return (
     <div data-col-key={f.key} className="flex h-full w-full min-w-0 items-center">
       <Select
@@ -64,6 +67,7 @@ export default function SelSelectV2({ rowData, columnData }: CellProps<GridRow, 
         onOpenChange={setBuka}
         value={cur === '' ? KOSONG : cur}
         onValueChange={(v) => onSimpan(rowData.id, f.key, v === KOSONG ? null : v)}
+        tanpaAutoPilih
       >
         <SelectTrigger
           aria-label={f.label || f.key}
@@ -75,13 +79,20 @@ export default function SelSelectV2({ rowData, columnData }: CellProps<GridRow, 
             RATA_STYLE[rata],
           )}
         >
-          <SelectValue placeholder={cur === '' ? 'Pilih…' : label} />
+          <span className="min-w-0 truncate">{cur === '' ? 'Pilih…' : label}</span>
         </SelectTrigger>
-        <SelectContent align="start" onCloseAutoFocus={(e) => e.preventDefault()}>
-          {opsiTampil.map((o) => (
-            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-          ))}
-        </SelectContent>
+        {buka ? (
+          <SelectContent
+            position="popper"
+            align="start"
+            sideOffset={4}
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
+            {opsiTampil.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        ) : null}
       </Select>
     </div>
   );
