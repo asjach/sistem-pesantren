@@ -6,7 +6,10 @@ use App\Services\PapanService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use JsonException;
 
 #[Signature('papan:butir
     {aksi : tambah | hapus | ubah | naik | turun}
@@ -15,6 +18,7 @@ use InvalidArgumentException;
     {--status= : Status: backlog | todo | in_progress | for_review | done}
     {--deskripsi= : Isi butir (wajib untuk tambah, opsional untuk ubah)}
     {--catatan= : Alasan singkat bila status ikut berubah}
+    {--file= : Payload JSON UTF-8 untuk tambah/ubah, tanpa menimpa field yang tidak dikirim}
     {--oleh=agent : Pencatat: agent atau pengguna}')]
 #[Description('Tambah, ubah, geser, atau hapus butir di bawah sebuah sub-modul papan.')]
 class PapanButir extends Command
@@ -34,7 +38,11 @@ class PapanButir extends Command
                 'hapus' => $this->hapus($papan, $kode),
                 default => $this->aksiTidakDikenal($aksi),
             };
-        } catch (InvalidArgumentException $e) {
+        } catch (ValidationException $e) {
+            $this->error(implode(' ', array_merge(...array_values($e->errors()))));
+
+            return self::FAILURE;
+        } catch (InvalidArgumentException|JsonException $e) {
             $this->error($e->getMessage());
 
             return self::FAILURE;
@@ -44,6 +52,20 @@ class PapanButir extends Command
     /** Tambah butir baru berstatus tertentu. */
     private function tambah(PapanService $papan, string $kode): int
     {
+        if ($this->option('file') !== null) {
+            $data = $this->payload();
+            if (! isset($data['deskripsi'])) {
+                throw new InvalidArgumentException('Payload tambah memerlukan deskripsi.');
+            }
+            if (array_diff(array_keys($data), ['deskripsi', 'status', 'keterangan', 'subpoin']) !== []) {
+                throw new InvalidArgumentException('Payload tambah hanya menerima deskripsi, status, keterangan, dan subpoin. Catatan ditambahkan melalui papan:catat.');
+            }
+            $this->pastikanJalurAgen($data['status'] ?? 'backlog');
+            $butir = $papan->tambahButir($kode, $data['status'] ?? 'backlog', $data['deskripsi'], $data['subpoin'] ?? [], $data['keterangan'] ?? null);
+            $this->line(json_encode($butir->toArray(), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+
+            return self::SUCCESS;
+        }
         $deskripsi = (string) $this->option('deskripsi');
 
         if (trim($deskripsi) === '') {
@@ -53,6 +75,7 @@ class PapanButir extends Command
         }
 
         $status = (string) ($this->option('status') ?: 'backlog');
+        $this->pastikanJalurAgen($status);
         $butir = $papan->tambahButir($kode, $status, trim($deskripsi));
 
         $labelStatus = PapanService::LABEL_STATUS[$butir->status] ?? $butir->status;
@@ -79,8 +102,27 @@ class PapanButir extends Command
             return self::FAILURE;
         }
 
+        if ($this->option('file') !== null) {
+            $data = $this->payload();
+            $this->pastikanJalurAgen($data['status'] ?? null);
+            $butir = $papan->ubahButir($kode, (int) $id,
+                deskripsi: $data['deskripsi'] ?? null,
+                status: $data['status'] ?? null,
+                oleh: 'agent',
+                catatan: $data['catatan'] ?? null,
+                subpoin: $data['subpoin'] ?? null,
+                keterangan: array_key_exists('keterangan', $data) ? (string) ($data['keterangan'] ?? '') : null,
+                konfirmasiReopen: $data['konfirmasi_reopen'] ?? false,
+                jenisPerubahan: $data['jenis_perubahan'] ?? null,
+                persetujuanScope: $data['persetujuan_scope'] ?? null);
+            $this->line(json_encode($butir->toArray(), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+
+            return self::SUCCESS;
+        }
+
         $deskripsi = trim((string) $this->option('deskripsi'));
         $status = $this->option('status');
+        $this->pastikanJalurAgen($status);
 
         if ($deskripsi === '' && $status === null) {
             $this->error('Isi --deskripsi dan/atau --status untuk aksi ubah.');
@@ -101,6 +143,51 @@ class PapanButir extends Command
         $this->info("Butir #{$butir->id} diperbarui [{$labelStatus}].");
 
         return self::SUCCESS;
+    }
+
+    private function pastikanJalurAgen(?string $status): void
+    {
+        if ($status === 'done' || $this->option('oleh') !== 'agent') {
+            throw new InvalidArgumentException('CLI adalah jalur agen. Done hanya ditetapkan pengguna melalui UI; --oleh tidak memberi kewenangan pengguna.');
+        }
+    }
+
+    /** @return array<string, mixed> */
+    private function payload(): array
+    {
+        foreach (['status', 'deskripsi', 'catatan'] as $option) {
+            if ($this->option($option) !== null) {
+                throw new InvalidArgumentException('Jangan gabungkan --file dengan --status, --deskripsi, atau --catatan.');
+            }
+        }
+        $file = (string) $this->option('file');
+        if (! is_file($file) || ! is_readable($file) || filesize($file) > 131072) {
+            throw new InvalidArgumentException('Payload harus berupa file JSON UTF-8 yang terbaca, maksimal 128 KiB.');
+        }
+        $json = file_get_contents($file);
+        $data = json_decode(str_starts_with($json, "\xEF\xBB\xBF") ? substr($json, 3) : $json, true, 64, JSON_THROW_ON_ERROR);
+        $rules = [
+            'deskripsi' => ['sometimes', 'required', 'string', 'max:500'],
+            'status' => ['sometimes', 'required', 'in:'.implode(',', PapanService::STATUS)],
+            'keterangan' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'subpoin' => ['sometimes', 'array', 'max:30'],
+            'subpoin.*' => ['array:teks,selesai'],
+            'subpoin.*.teks' => ['required', 'string', 'max:500'],
+            'subpoin.*.selesai' => ['required', 'boolean'],
+            'catatan' => ['sometimes', 'required', 'string', 'max:4000'],
+            'konfirmasi_reopen' => ['sometimes', 'boolean'],
+            'jenis_perubahan' => ['sometimes', 'in:scope,typo'],
+            'persetujuan_scope' => ['sometimes', 'required', 'string', 'max:4000'],
+        ];
+        $allowed = array_filter(array_keys($rules), fn ($key) => ! str_contains($key, '.'));
+        if (! is_array($data) || $data === [] || array_diff(array_keys($data), $allowed) !== []) {
+            throw new InvalidArgumentException('Payload harus object JSON dengan field Board yang dikenal.');
+        }
+        if (array_intersect(array_keys($data), ['deskripsi', 'status', 'keterangan', 'subpoin', 'catatan']) === []) {
+            throw new InvalidArgumentException('Payload tidak berisi perubahan poin.');
+        }
+
+        return Validator::make($data, $rules)->validate();
     }
 
     /** Geser butir naik (-1) atau turun (1) satu langkah. */

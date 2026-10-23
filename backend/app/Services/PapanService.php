@@ -7,6 +7,7 @@ use App\Models\Papan\PapanItem;
 use App\Models\Papan\PapanModul;
 use App\Models\Papan\PapanRiwayat;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -117,6 +118,9 @@ class PapanService
                         'deskripsi' => $b->deskripsi,
                         'keterangan' => $b->keterangan,
                         'subpoin' => $b->subpoin ?? [],
+                        'catatan' => $b->catatan ?? [],
+                        'scope_versi' => $b->scope_versi ?? [],
+                        'legacy' => $b->scope_versi === null,
                     ])->all();
 
                     return [
@@ -296,37 +300,10 @@ class PapanService
         string $status,
         string $oleh = 'agent',
         ?string $catatan = null,
+        bool $konfirmasiReopen = false,
     ): PapanButir {
-        $this->pastikanStatus($status);
-
-        ['butir' => $butir, 'item' => $item] = $this->butir($kode, $butirId);
-        $asal = $butir->status;
-
-        if ($status === 'done' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
-            throw ValidationException::withMessages([
-                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Done.',
-            ]);
-        }
-
-        if ($asal === $status && $catatan === null) {
-            return $butir;
-        }
-
-        DB::connection('papan')->transaction(function () use ($butir, $item, $asal, $status, $oleh, $catatan) {
-            $butir->update(['status' => $status]);
-
-            PapanRiwayat::create([
-                'item_id' => $item->id,
-                'butir_id' => $butir->id,
-                'dari_status' => $asal,
-                'ke_status' => $status,
-                'catatan' => $catatan,
-                'diubah_oleh' => $oleh,
-                'waktu' => now(),
-            ]);
-        });
-
-        return $butir->refresh();
+        return $this->ubahButir($kode, $butirId, status: $status, oleh: $oleh,
+            catatan: $catatan, konfirmasiReopen: $konfirmasiReopen);
     }
 
     /**
@@ -357,6 +334,8 @@ class PapanService
             'deskripsi' => $deskripsi,
             'keterangan' => $keterangan,
             'subpoin' => $subpoin,
+            'catatan' => [],
+            'scope_versi' => [],
             'urutan' => $urutan + 1,
         ]);
     }
@@ -447,61 +426,169 @@ class PapanService
         ?string $catatan = null,
         ?array $subpoin = null,
         ?string $keterangan = null,
+        bool $konfirmasiReopen = false,
+        ?string $jenisPerubahan = null,
+        ?string $persetujuanScope = null,
     ): PapanButir {
         if ($status !== null) {
             $this->pastikanStatus($status);
         }
-
-        $butir = $this->butir($kode, $butirId)['butir'];
-        $statusLama = $butir->status;
-
-        if ($deskripsi !== null) {
-            $butir->deskripsi = $deskripsi;
+        if ($oleh !== 'pengguna' && $status === 'done') {
+            throw ValidationException::withMessages(['status' => 'Done hanya ditetapkan pengguna melalui UI.']);
         }
 
-        if ($subpoin !== null) {
-            $butir->subpoin = self::normalisasiSubpoin($subpoin);
-        }
+        return DB::connection('papan')->transaction(function () use ($kode, $butirId, $deskripsi, $status, $oleh, $catatan, $subpoin, $keterangan, $konfirmasiReopen, $jenisPerubahan, $persetujuanScope) {
+            $butir = $this->butir($kode, $butirId)['butir'];
+            $statusLama = $butir->status;
+            $scopeLama = $this->isiScope($butir);
+            $sudahDisetujui = $this->scopePernahDisetujui($butir);
+            $this->snapshotAwal($butir, $oleh);
 
-        if ($keterangan !== null) {
-            $butir->keterangan = trim($keterangan) === '' ? null : trim($keterangan);
-        }
+            if ($deskripsi !== null) {
+                $butir->deskripsi = $deskripsi;
+            }
+            if ($subpoin !== null) {
+                $butir->subpoin = self::normalisasiSubpoin($subpoin);
+            }
+            if ($keterangan !== null) {
+                $butir->keterangan = trim($keterangan) === '' ? null : trim($keterangan);
+            }
 
-        if ($status === 'done' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
-            throw ValidationException::withMessages([
-                'status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Done.',
-            ]);
-        }
+            $scopeBerubah = $scopeLama !== $this->isiScope($butir);
+            if ($scopeBerubah && $sudahDisetujui) {
+                if ($jenisPerubahan === 'typo' && trim($catatan ?? '') !== '') {
+                    $this->tambahkanCatatan($butir, 'catatan', 'Koreksi typo: '.$catatan, $oleh);
+                } elseif ($jenisPerubahan === 'scope' && trim($persetujuanScope ?? '') !== '') {
+                    $this->tambahkanSnapshot($butir, 'perubahan', $oleh, $persetujuanScope, $catatan);
+                    $this->tambahkanCatatan($butir, 'persetujuan', $persetujuanScope, $oleh);
+                } else {
+                    throw ValidationException::withMessages(['scope' => 'Perubahan scope yang sudah dimulai memerlukan jenis_perubahan=scope dan persetujuan_scope nyata pengguna. Koreksi typo memakai jenis_perubahan=typo dan catatan. Gunakan CLI Board.']);
+                }
+            }
 
-        // Poin `done` tidak boleh tetap di sana bila ada subpoin
-        // yang dibuka kembali atau subpoin baru yang belum selesai.
-        $statusBaru = $status;
-        $catatanRiwayat = $catatan;
-
-        if ($statusBaru === null && $statusLama === 'done' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
-            $statusBaru = 'in_progress';
-            $catatanRiwayat ??= 'Subpoin dibuka kembali.';
-        }
-
-        if ($statusBaru !== null) {
+            $statusBaru = $status ?? $statusLama;
+            if ($statusLama === 'done' && $subpoin !== null && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
+                if ($status !== null && $status !== 'in_progress') {
+                    throw ValidationException::withMessages(['status' => 'Checklist Done yang dibuka kembali harus masuk In Progress.']);
+                }
+                $statusBaru = 'in_progress';
+            }
+            if ($statusBaru === 'done' && ! self::semuaSubpoinSelesai($butir->subpoin ?? [])) {
+                throw ValidationException::withMessages(['status' => 'Selesaikan semua subpoin sebelum memindahkan poin ke Done.']);
+            }
+            if ($statusLama === 'done' && $statusBaru === 'in_progress' && ! $konfirmasiReopen) {
+                throw ValidationException::withMessages(['konfirmasi_reopen' => 'Konfirmasikan Reopen: status Done akan berubah menjadi In Progress.']);
+            }
+            if ($statusBaru === 'in_progress' && $statusLama !== 'in_progress') {
+                $aplikasi = $butir->item->modul->aplikasi;
+                $adaAktif = PapanButir::query()->where('id', '!=', $butir->id)
+                    ->where('status', 'in_progress')
+                    ->whereHas('item.modul', fn ($q) => $q->where('aplikasi', $aplikasi))->exists();
+                if ($adaAktif) {
+                    throw ValidationException::withMessages(['status' => 'Sudah ada poin In Progress pada aplikasi ini. Selesaikan atau kembalikan poin aktif ke Backlog terlebih dahulu.']);
+                }
+                if (! $sudahDisetujui) {
+                    $this->snapshotScopeTerkini($butir, $oleh);
+                }
+            }
             $butir->status = $statusBaru;
+            $butir->save();
+            if ($statusBaru !== $statusLama) {
+                PapanRiwayat::create([
+                    'item_id' => $butir->item_id, 'butir_id' => $butir->id,
+                    'dari_status' => $statusLama, 'ke_status' => $statusBaru,
+                    'catatan' => $catatan ?? ($statusLama === 'done' ? 'Pengguna mengonfirmasi Reopen.' : null),
+                    'diubah_oleh' => $oleh, 'waktu' => now(),
+                ]);
+            }
+            if ($catatan !== null && ! ($scopeBerubah && $sudahDisetujui && $jenisPerubahan === 'typo')) {
+                $this->tambahkanCatatan($butir, 'catatan', $catatan, $oleh);
+                $butir->save();
+            }
+
+            return $butir->refresh();
+        });
+    }
+
+    /** Catatan berdiri sendiri; pembacaan tidak pernah membuat snapshot legacy. */
+    public function catatButir(string $kode, int $butirId, string $jenis, string $teks, string $oleh = 'agent'): PapanButir
+    {
+        Validator::make(compact('jenis', 'teks'), [
+            'jenis' => ['required', 'in:persetujuan,revisi,verifikasi,keputusan,catatan'],
+            'teks' => ['required', 'string', 'max:4000'],
+        ])->validate();
+        if (trim($teks) === '') {
+            throw ValidationException::withMessages(['teks' => 'Catatan tidak boleh kosong.']);
         }
 
-        $butir->save();
+        return DB::connection('papan')->transaction(function () use ($kode, $butirId, $jenis, $teks, $oleh) {
+            $butir = $this->butir($kode, $butirId)['butir'];
+            $this->snapshotAwal($butir, $oleh);
+            if ($jenis === 'persetujuan' && ! $this->scopePernahDisetujui($butir)) {
+                $this->snapshotScopeTerkini($butir, $oleh, $teks);
+            }
+            $this->tambahkanCatatan($butir, $jenis, $teks, $oleh);
+            $butir->save();
 
-        if ($statusBaru !== null && $statusBaru !== $statusLama) {
-            PapanRiwayat::create([
-                'item_id' => $butir->item_id,
-                'butir_id' => $butir->id,
-                'dari_status' => $statusLama,
-                'ke_status' => $statusBaru,
-                'catatan' => $catatanRiwayat,
-                'diubah_oleh' => $oleh,
-                'waktu' => now(),
-            ]);
+            return $butir->refresh();
+        });
+    }
+
+    /** @return array{deskripsi: string, subpoin: array<int, string>} */
+    private function isiScope(PapanButir $butir): array
+    {
+        return ['deskripsi' => $butir->deskripsi,
+            'subpoin' => array_column(self::normalisasiSubpoin($butir->subpoin ?? []), 'teks')];
+    }
+
+    /** Kembali ke Backlog tidak menghapus kebutuhan versioning scope yang pernah dimulai. */
+    private function scopePernahDisetujui(PapanButir $butir): bool
+    {
+        $aktif = ['in_progress', 'for_review', 'done'];
+        if (in_array($butir->status, $aktif, true)
+            || collect($butir->catatan ?? [])->contains(fn ($c) => $c['jenis'] === 'persetujuan')
+            || collect($butir->scope_versi ?? [])->contains(fn ($s) => trim($s['persetujuan'] ?? '') !== '')) {
+            return true;
         }
 
-        return $butir->refresh();
+        return PapanRiwayat::query()->where('butir_id', $butir->id)
+            ->where(fn ($q) => $q->whereIn('dari_status', $aktif)->orWhereIn('ke_status', $aktif))->exists();
+    }
+
+    private function snapshotAwal(PapanButir $butir, string $oleh): void
+    {
+        if ($butir->scope_versi === null || $butir->scope_versi === []) {
+            $this->tambahkanSnapshot($butir, $butir->scope_versi === null ? 'legacy' : 'awal', $oleh);
+        }
+    }
+
+    private function tambahkanSnapshot(PapanButir $butir, string $jenis, string $oleh, ?string $persetujuan = null, ?string $alasan = null): void
+    {
+        $versi = $butir->scope_versi ?? [];
+        $versi[] = ['versi' => count($versi) + 1, 'jenis' => $jenis,
+            ...$this->isiScope($butir), 'persetujuan' => $persetujuan,
+            'alasan' => $alasan, 'oleh' => $oleh, 'waktu' => now()->toIso8601String()];
+        $butir->scope_versi = $versi;
+    }
+
+    /** Baseline legacy tetap utuh; persetujuan baru mengacu scope yang sekarang. */
+    private function snapshotScopeTerkini(PapanButir $butir, string $oleh, ?string $persetujuan = null): void
+    {
+        $versi = $butir->scope_versi ?? [];
+        $terakhir = $versi === [] ? null : $versi[array_key_last($versi)];
+        $scope = $this->isiScope($butir);
+        if ($terakhir === null || $scope !== ['deskripsi' => $terakhir['deskripsi'], 'subpoin' => $terakhir['subpoin']]) {
+            $this->tambahkanSnapshot($butir, 'awal', $oleh, $persetujuan);
+        }
+    }
+
+    private function tambahkanCatatan(PapanButir $butir, string $jenis, string $teks, string $oleh): void
+    {
+        $catatan = $butir->catatan ?? [];
+        $catatan[] = ['jenis' => $jenis, 'teks' => trim($teks), 'oleh' => $oleh,
+            'versi_scope' => count($butir->scope_versi ?? []), 'scope' => $this->isiScope($butir),
+            'waktu' => now()->toIso8601String()];
+        $butir->catatan = $catatan;
     }
 
     /**

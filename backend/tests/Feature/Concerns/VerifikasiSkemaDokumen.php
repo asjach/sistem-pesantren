@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Concerns;
 
+use Illuminate\Database\Schema\Builder;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -12,8 +13,9 @@ use Illuminate\Support\Facades\Schema;
  *
  * Dipakai bersama oleh `SchemaDocTest` (SQLite in-memory) dan
  * `SchemaMysqlSmokeTest` (MySQL `migrate:fresh`), sehingga perbedaan driver
- * tertangkap tanpa menggandakan aturan. Guard memakai koneksi DB **default**,
- * jadi pemanggil yang bertanggung jawab mengarahkannya.
+ * tertangkap tanpa menggandakan aturan. Tabel pada koneksi lain dipetakan lewat
+ * `koneksiTabel()`; pemanggil yang mengarahkan ke koneksi lain bertanggung
+ * jawab menyiapkan migrasinya.
  *
  * Parser sengaja konservatif: hanya baris berbentuk definisi kolom yang dibaca
  * untuk daftar kolom, dan hanya `NAMA(...)` pada baris batasan yang dibaca
@@ -63,7 +65,8 @@ trait VerifikasiSkemaDokumen
 
         $masalah = [];
         foreach ($dokumen['kolom'] as $tabel => $kolom) {
-            if (! Schema::hasTable($tabel)) {
+            $skema = $this->skemaTabel($tabel);
+            if (! $skema->hasTable($tabel)) {
                 if (! in_array($tabel, self::TABEL_PRA_PRODUCTION, true)) {
                     $masalah[] = "tabel `{$tabel}` didokumentasikan tetapi tidak ada di DB";
                 }
@@ -72,7 +75,7 @@ trait VerifikasiSkemaDokumen
             }
 
             foreach ($kolom as $k) {
-                if (! Schema::hasColumn($tabel, $k)) {
+                if (! $skema->hasColumn($tabel, $k)) {
                     $masalah[] = "`{$tabel}.{$k}` didokumentasikan tetapi tidak ada di DB";
                 }
             }
@@ -98,7 +101,7 @@ trait VerifikasiSkemaDokumen
                 continue;
             }
 
-            foreach (Schema::getColumnListing($tabel) as $kolom) {
+            foreach ($this->skemaTabel($tabel)->getColumnListing($tabel) as $kolom) {
                 if (! in_array($kolom, $dokumen['kolom'][$tabel], true)) {
                     $masalah[] = "`{$tabel}.{$kolom}` ada di DB tetapi belum didokumentasikan";
                 }
@@ -115,11 +118,12 @@ trait VerifikasiSkemaDokumen
 
         $this->assertGreaterThanOrEqual(50, array_sum(array_map('count', $daftarBatas)), 'Terlalu sedikit index/unique terbaca dari SCHEMA.md — parser meleset?');
         foreach ($daftarBatas as $tabel => $daftar) {
-            if (! Schema::hasTable($tabel) || in_array($tabel, self::TABEL_PRA_PRODUCTION, true)) {
+            $skema = $this->skemaTabel($tabel);
+            if (! $skema->hasTable($tabel) || in_array($tabel, self::TABEL_PRA_PRODUCTION, true)) {
                 continue;
             }
 
-            $indeks = Schema::getIndexes($tabel);
+            $indeks = $skema->getIndexes($tabel);
             foreach ($daftar as $batas) {
 
                 [$kolom, $ganjil] = $this->pisahTokenBatas($tabel, $batas['kolom']);
@@ -159,13 +163,14 @@ trait VerifikasiSkemaDokumen
         $daftarFk = $this->uraiDokumen()['fk'];
         $this->assertGreaterThanOrEqual(90, array_sum(array_map('count', $daftarFk)), 'Terlalu sedikit foreign key terbaca dari SCHEMA.md — parser meleset?');
         foreach ($daftarFk as $tabel => $daftar) {
-            if (! Schema::hasTable($tabel) || in_array($tabel, self::TABEL_PRA_PRODUCTION, true)) {
+            $skema = $this->skemaTabel($tabel);
+            if (! $skema->hasTable($tabel) || in_array($tabel, self::TABEL_PRA_PRODUCTION, true)) {
                 continue;
             }
 
-            $fk = Schema::getForeignKeys($tabel);
+            $fk = $skema->getForeignKeys($tabel);
             foreach ($daftar as $relasi) {
-                if (! Schema::hasColumn($tabel, $relasi['kolom'])) {
+                if (! $skema->hasColumn($tabel, $relasi['kolom'])) {
                     continue;
                 }
 
@@ -192,12 +197,34 @@ trait VerifikasiSkemaDokumen
             ? Schema::getTables($koneksi->getDatabaseName())
             : Schema::getTables();
 
-        return collect($tabel)
+        return collect([...$tabel, ...$this->tabelTambahanDiDb()])
             ->map(fn ($t) => is_array($t) ? (string) ($t['name'] ?? '') : (string) $t)
             ->filter()
+            ->unique()
             ->sort()
             ->values()
             ->all();
+    }
+
+    /** Koneksi tempat tabel didokumentasikan; null berarti koneksi default. */
+    protected function koneksiTabel(string $tabel): ?string
+    {
+        return null;
+    }
+
+    /**
+     * Tabel dari koneksi lain yang ikut diverifikasi arah balik.
+     *
+     * @return list<string>
+     */
+    protected function tabelTambahanDiDb(): array
+    {
+        return [];
+    }
+
+    private function skemaTabel(string $tabel): Builder
+    {
+        return Schema::connection($this->koneksiTabel($tabel));
     }
 
     private function diLuarDokumen(string $tabel): bool
@@ -215,8 +242,9 @@ trait VerifikasiSkemaDokumen
      */
     private function pisahTokenBatas(string $tabel, array $token): array
     {
-        $nyata = Schema::getColumnListing($tabel);
-        $namaIndeks = collect(Schema::getIndexes($tabel))
+        $skema = $this->skemaTabel($tabel);
+        $nyata = $skema->getColumnListing($tabel);
+        $namaIndeks = collect($skema->getIndexes($tabel))
             ->map(fn (array $i): string => strtolower((string) $i['name']))
             ->all();
 

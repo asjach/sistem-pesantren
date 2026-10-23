@@ -258,7 +258,11 @@ class PapanApiTest extends TestCase
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $butir = PapanButir::query()->orderBy('urutan')->firstOrFail();
 
-        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['deskripsi' => 'Rekap harian per kas.'])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", [
+            'deskripsi' => 'Rekap harian per kas.',
+            'jenis_perubahan' => 'scope',
+            'persetujuan_scope' => 'Persetujuan fixture tes untuk perubahan hasil rekap.',
+        ])
             ->assertOk()
             ->assertJsonPath('deskripsi', 'Rekap harian per kas.');
 
@@ -368,7 +372,7 @@ class PapanApiTest extends TestCase
         $this->assertSame('done', $butir->refresh()->status);
     }
 
-    public function test_uncheck_subpoin_menurunkan_poin_done_ke_in_progress(): void
+    public function test_uncheck_subpoin_dengan_konfirmasi_menurunkan_done_ke_in_progress(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $butir = PapanButir::query()->where('status', 'done')->firstOrFail();
@@ -377,7 +381,7 @@ class PapanApiTest extends TestCase
             ['teks' => 'Dua.', 'selesai' => true],
         ]]);
 
-        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => [
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['konfirmasi_reopen' => true, 'subpoin' => [
             ['teks' => 'Satu.', 'selesai' => true],
             ['teks' => 'Dua.', 'selesai' => false],
         ]])
@@ -392,16 +396,20 @@ class PapanApiTest extends TestCase
         ], 'papan');
     }
 
-    public function test_subpoin_baru_pada_poin_done_ikut_menurunkan_ke_in_progress(): void
+    public function test_subpoin_baru_pada_done_memerlukan_scope_disetujui_dan_konfirmasi_reopen(): void
     {
         Sanctum::actingAs($this->pengguna(['super_admin']));
         $butir = PapanButir::query()->where('status', 'done')->firstOrFail();
         $butir->update(['subpoin' => [['teks' => 'Satu.', 'selesai' => true]]]);
 
-        $this->patchJson("/api/board/E.3/butir/{$butir->id}", ['subpoin' => [
-            ['teks' => 'Satu.', 'selesai' => true],
-            ['teks' => 'Dua.', 'selesai' => false],
-        ]])
+        $this->patchJson("/api/board/E.3/butir/{$butir->id}", [
+            'konfirmasi_reopen' => true,
+            'jenis_perubahan' => 'scope',
+            'persetujuan_scope' => 'Persetujuan fixture tes untuk menambah syarat hasil.',
+            'subpoin' => [
+                ['teks' => 'Satu.', 'selesai' => true],
+                ['teks' => 'Dua.', 'selesai' => false],
+            ]])
             ->assertOk()
             ->assertJsonPath('status', 'in_progress');
 

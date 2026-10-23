@@ -23,6 +23,51 @@ Keterangan hubungan:
 - Bagian Asrama masih berupa rancangan dan belum dibuat di basis data
   (database/DB), sesuai catatan di `SCHEMA.md`.
 
+## Board proyek — database terpisah
+
+Sudah diimplementasikan pada koneksi SQLite `papan`; mengikuti bagian Board
+di [SCHEMA.md](SCHEMA.md#board-proyek--koneksi-sqlite-papan-sudah-diimplementasikan).
+Tidak ada relasi ke tabel bisnis pesantren. Catatan dan snapshot scope adalah
+kolom JSON pada poin, bukan tabel atau workflow lain.
+
+```mermaid
+erDiagram
+    PAPAN_PENGATURAN {
+        string kunci PK
+        text nilai
+    }
+    PAPAN_MODUL {
+        integer id PK
+        string kode UK
+        string aplikasi
+    }
+    PAPAN_ITEM {
+        integer id PK
+        integer modul_id FK
+        string kode
+    }
+    PAPAN_BUTIR {
+        integer id PK
+        integer item_id FK
+        string status
+        text subpoin
+        text catatan
+        text scope_versi
+    }
+    PAPAN_RIWAYAT {
+        integer id PK
+        integer item_id FK
+        integer butir_id FK
+        string dari_status
+        string ke_status
+    }
+
+    PAPAN_MODUL ||--o{ PAPAN_ITEM : "mengelompokkan"
+    PAPAN_ITEM ||--o{ PAPAN_BUTIR : "memiliki poin"
+    PAPAN_ITEM ||--o{ PAPAN_RIWAYAT : "memiliki riwayat"
+    PAPAN_BUTIR o|--o{ PAPAN_RIWAYAT : "dirujuk opsional"
+```
+
 ## 1. Dasar, pengguna, dan referensi
 
 ```mermaid

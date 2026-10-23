@@ -78,6 +78,9 @@ class PapanController extends Controller
             'deskripsi' => $b->deskripsi,
             'keterangan' => $b->keterangan,
             'subpoin' => $b->subpoin ?? [],
+            'catatan' => $b->catatan ?? [],
+            'scope_versi' => $b->scope_versi ?? [],
+            'legacy' => $b->scope_versi === null,
         ])->all();
 
         return response()->json([
@@ -100,6 +103,7 @@ class PapanController extends Controller
         $valid = $request->validate([
             'status' => ['required', 'string', 'in:'.implode(',', PapanService::STATUS)],
             'catatan' => ['nullable', 'string', 'max:255'],
+            'konfirmasi_reopen' => ['sometimes', 'boolean'],
         ]);
 
         try {
@@ -109,6 +113,7 @@ class PapanController extends Controller
                 $valid['status'],
                 'pengguna',
                 $valid['catatan'] ?? null,
+                $valid['konfirmasi_reopen'] ?? false,
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 404);
@@ -198,6 +203,9 @@ class PapanController extends Controller
             'subpoin.*.selesai' => ['required', 'boolean'],
             'status' => ['nullable', 'string', 'in:'.implode(',', PapanService::STATUS)],
             'catatan' => ['nullable', 'string', 'max:255'],
+            'konfirmasi_reopen' => ['sometimes', 'boolean'],
+            'jenis_perubahan' => ['sometimes', 'in:scope,typo'],
+            'persetujuan_scope' => ['nullable', 'string', 'max:4000'],
         ]);
 
         if (($valid['deskripsi'] ?? null) === null && ($valid['status'] ?? null) === null && ! array_key_exists('subpoin', $valid) && ! array_key_exists('keterangan', $valid)) {
@@ -218,6 +226,9 @@ class PapanController extends Controller
                 $valid['catatan'] ?? null,
                 $valid['subpoin'] ?? null,
                 $keterangan,
+                $valid['konfirmasi_reopen'] ?? false,
+                $valid['jenis_perubahan'] ?? null,
+                $valid['persetujuan_scope'] ?? null,
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 404);

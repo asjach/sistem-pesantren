@@ -1,5 +1,87 @@
 # Skema Database — SIMPES (dokumentasi, bukan kode)
 
+## Board proyek — koneksi SQLite `papan` (sudah diimplementasikan)
+
+Terpisah dari database bisnis pesantren; migrasi berada di
+`backend/database/migrations/papan`. Tidak memiliki FK ke data bisnis/users.
+Diagram hubungan tersedia pada [ERD.md](ERD.md#board-proyek--database-terpisah).
+
+### `papan_pengaturan`
+
+- `kunci`: string PK
+- `nilai`: text [null]
+- Master memakai `workflow_aktif`, flag aplikasi memakai
+  `workflow_aktif:<kode>`; efektif = master AND flag.
+
+### `papan_modul`
+
+- `id`: integer PK
+- `kode`: string
+- `nama`: string
+- `urutan`: integer [default 0]
+- `catatan`: text [null]
+- `aplikasi`: string [default `desktop-admin`]
+- `created_at`, `updated_at`
+- UNIQUE(`kode`)
+- INDEX(`aplikasi`)
+
+### `papan_item`
+
+- `id`: integer PK
+- `modul_id`: FK → `papan_modul.id` [cascadeOnDelete]
+- `kode`, `nama`: string
+- `rujukan`: string [null]
+- `urutan`: integer [default 0]
+- `created_at`, `updated_at`
+- UNIQUE(`modul_id`, `kode`)
+- Status sub-modul dihitung dari poin, bukan kolom tersimpan.
+
+### `papan_butir`
+
+- `id`: integer PK
+- `item_id`: FK → `papan_item.id` [cascadeOnDelete]
+- `status`: string [default `backlog`] — nilai `backlog|todo|in_progress|for_review|done`.
+- `deskripsi`: text
+- `urutan`: integer [default 0]
+- `keterangan`: text [null] — requirement, dikosongkan setelah diterjemahkan
+  menjadi acceptance criteria yang disetujui dan disimpan.
+- `subpoin`: text JSON [null] — array `{teks, selesai}`.
+- `catatan`: text JSON [null] — array append-only melalui service, terpisah dari
+  acceptance criteria: `{jenis, teks, oleh, waktu, versi_scope, scope}`.
+  Jenis `persetujuan|revisi|verifikasi|keputusan|catatan`; `scope` menyimpan
+  deskripsi dan teks subpoin saat catatan dibuat. Label `oleh` bukan bukti
+  autentikasi atau bukti kriptografis persetujuan pengguna.
+- `scope_versi`: text JSON [null] — array snapshot immutable
+  `{versi, jenis, deskripsi, subpoin, persetujuan, alasan, oleh, waktu}`.
+  `subpoin` hanya teks; checkbox tidak menjadi scope. Jenis baseline `legacy`
+  atau `awal`, perubahan substantif yang disetujui memakai `perubahan`.
+- `created_at`, `updated_at`
+- INDEX(`item_id`, `status`)
+- Migrasi hanya menambah dua kolom nullable; tidak melakukan backfill atau
+  perubahan status/ID/riwayat. `scope_versi=null` adalah data legacy yang belum
+  disentuh. Pada write pertama, snapshot legacy dibuat dengan `persetujuan=null`;
+  pembacaan tidak membuat snapshot. Poin baru memakai array kosong sampai
+  snapshot awal dibuat. Scope awal yang disetujui dapat dicatat terpisah dari
+  baseline legacy. Koreksi typo dicatat, bukan versi scope baru.
+- Checklist Done yang dibuka kembali membutuhkan konfirmasi perubahan status
+  ke In Progress. Jika sudah ada poin In Progress lain pada aplikasi yang sama,
+  operasi ditolak tanpa menyimpan perubahan parsial.
+
+### `papan_riwayat`
+
+- `id`: integer PK
+- `item_id`: FK → `papan_item.id` [cascadeOnDelete]
+- `butir_id`: FK → `papan_butir.id` [null, nullOnDelete]
+- `dari_status`: string [null]
+- `ke_status`: string
+- `catatan`: string [null]
+- `diubah_oleh`: string [default `agent`]
+- `waktu`: datetime
+- Riwayat perpindahan status tetap terpisah dari catatan poin. Update poin,
+  catatan/snapshot, serta riwayat status disimpan pada transaction yang sama.
+- Rollback migration catatan/scope menghapus kedua kolom berikut isinya;
+  gunakan backup atau forward-fix, bukan rollback untuk mempertahankan catatan.
+
 ## Auth bawaan Laravel (`0001_*_create_users_table.php`)
 
 `users`: `id` PK; `name`; `email`? unique (null boleh, multi-identifier);

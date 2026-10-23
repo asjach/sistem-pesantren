@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { KELAS_LIST_TAB, KELAS_TRIGGER } from '@/components/HalamanTabs';
-import { PapanKolom } from '@/components/papan/PapanKolom';
+import { KonfirmasiReopen, PapanKolom } from '@/components/papan/PapanKolom';
 import { Columns3, History, Loader2, Plus, RefreshCcw } from '@/icons';
 import {
   hapusButirPapan,
@@ -76,6 +76,7 @@ export default function PapanPage() {
   const [kelolaTerbuka, setKelolaTerbuka] = useState(false);
   const [modulTerbuka, setModulTerbuka] = useState(false);
   const [sibukWorkflow, setSibukWorkflow] = useState(false);
+  const [reopen, setReopen] = useState<{ id: number; status: StatusPapan } | null>(null);
   const [lebarRail, setLebarRail] = useState(lebarRailAwal);
   const seretRail = useRef({ mulaiX: 0, mulaiW: RAIL_DEFAULT, akhir: RAIL_DEFAULT });
 
@@ -222,13 +223,19 @@ export default function PapanPage() {
    * supaya tidak ada jeda; kalau server menolak, seluruh papan dimuat ulang.
    */
   const pindah = useCallback(
-    async (butirId: number, ke: StatusPapan) => {
-      if (!data) return;
+    async (butirId: number, ke: StatusPapan, konfirmasiReopen = false) => {
+      if (!data) return false;
 
       const subTersentuh = data.aplikasi
         .flatMap((a) => a.modul)
         .flatMap((m) => m.sub)
         .find((s) => s.butir.some((b) => b.id === butirId));
+
+      const butir = subTersentuh?.butir.find((b) => b.id === butirId);
+      if (butir?.status === 'done' && ke === 'in_progress' && !konfirmasiReopen) {
+        setReopen({ id: butirId, status: ke });
+        return false;
+      }
 
       const hitungTurunan = (status: StatusPapan[]): StatusPapan => {
         if (status.length === 0) return 'backlog';
@@ -240,7 +247,7 @@ export default function PapanPage() {
         return 'done';
       };
 
-      setData({
+      const dataBerubah: DataPapan = {
         ...data,
         aplikasi: data.aplikasi.map((a) => ({
           ...a,
@@ -258,16 +265,22 @@ export default function PapanPage() {
             }),
           })),
         })),
-      });
+      };
+      // Reopen tidak optimistis: penolakan backend tidak boleh mengubah status di layar.
+      if (!konfirmasiReopen) setData(dataBerubah);
 
       try {
-        await pindahStatusPapan(subTersentuh?.kode ?? '', butirId, ke);
-        const log = await muatRiwayatPapan(undefined, 8);
-        setRiwayat(log.riwayat);
+        await pindahStatusPapan(subTersentuh?.kode ?? '', butirId, ke, undefined, konfirmasiReopen || undefined);
+        if (konfirmasiReopen) setData(dataBerubah);
+        const log = await muatRiwayatPapan(undefined, 8).catch(() => null);
+        if (log) setRiwayat(log.riwayat);
         setGalat(null);
+        return true;
       } catch (e) {
         setGalat(e instanceof Error ? e.message : 'Perpindahan gagal disimpan.');
+        if (konfirmasiReopen) throw e;
         void muat();
+        return false;
       }
     },
     [data, muat],
@@ -293,16 +306,20 @@ export default function PapanPage() {
   /** Aksi sunting untuk satu baris poin. */
   const aksiButir = useCallback(
     (kartu: KartuPapan): AksiButir => ({
-      onSimpanTeks: async (deskripsi, status, keterangan) => {
+      onSimpanTeks: async (deskripsi, status, keterangan, konfirmasiReopen) => {
         await ubahButirPapan(kartu.subKode, kartu.id, {
           deskripsi,
           ...(status ? { status } : {}),
           ...(keterangan !== undefined ? { keterangan } : {}),
+          ...(konfirmasiReopen ? { konfirmasi_reopen: true } : {}),
         });
         await segarkan();
       },
-      onSimpanSubpoin: async (subpoin) => {
-        await ubahButirPapan(kartu.subKode, kartu.id, { subpoin });
+      onSimpanSubpoin: async (subpoin, konfirmasiReopen) => {
+        await ubahButirPapan(kartu.subKode, kartu.id, {
+          subpoin,
+          ...(konfirmasiReopen ? { konfirmasi_reopen: true } : {}),
+        });
         await segarkan();
       },
       onHapus: async () => {
@@ -742,6 +759,13 @@ export default function PapanPage() {
           </div>
         )}
       </Tabs>
+
+      {reopen ? (
+        <KonfirmasiReopen
+          onKonfirmasi={async () => { await pindah(reopen.id, reopen.status, true); }}
+          onBatal={() => setReopen(null)}
+        />
+      ) : null}
 
       {bolehUbah && modulTerbuka && aplikasiAktif ? (
         <TambahModul

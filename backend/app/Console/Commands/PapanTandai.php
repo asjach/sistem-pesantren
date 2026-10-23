@@ -6,6 +6,7 @@ use App\Services\PapanService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 #[Signature('papan:tandai
@@ -24,6 +25,11 @@ class PapanTandai extends Command
         $id = $this->argument('id');
         $status = (string) $this->argument('status');
         $oleh = (string) $this->option('oleh');
+        if ($status === 'done' || $oleh !== 'agent') {
+            $this->error('CLI adalah jalur agen. Done hanya ditetapkan pengguna melalui UI; --oleh tidak memberi kewenangan pengguna.');
+
+            return self::FAILURE;
+        }
         $catatan = $this->option('catatan');
         $catatan = is_string($catatan) && trim($catatan) !== '' ? trim($catatan) : null;
 
@@ -35,6 +41,10 @@ class PapanTandai extends Command
 
         try {
             $butir = $papan->pindahButir($kode, (int) $id, $status, $oleh, $catatan);
+        } catch (ValidationException $e) {
+            $this->error(implode(' ', array_merge(...array_values($e->errors()))));
+
+            return self::FAILURE;
         } catch (InvalidArgumentException $e) {
             $this->error($e->getMessage());
 

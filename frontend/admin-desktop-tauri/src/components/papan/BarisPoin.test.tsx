@@ -1,4 +1,4 @@
-import { fireEvent } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -36,7 +36,7 @@ function aksi(ubah: Partial<AksiButir> = {}): AksiButir {
   };
 }
 
-function pasang(
+async function pasang(
   daftar: KartuPapan[] = [kartu()],
   { bolehUbah = false, a }: { bolehUbah?: boolean; a?: AksiButir } = {},
 ) {
@@ -48,8 +48,11 @@ function pasang(
       bolehUbah={bolehUbah}
       aksiButir={() => a ?? aksi()}
       idAwalan="uji"
+      lipatAwal={[]}
     />,
   );
+
+  await act(async () => {});
 
   // Baris poin baru dirender setelah kartu sub-modul dibuka.
   document.querySelectorAll<HTMLElement>('[id^="btn_lipat_sub_"]').forEach((tombol) => {
@@ -65,8 +68,8 @@ function mulaiUbah(id = 128) {
 }
 
 describe('BarisPoin - gerbang izin ubah', () => {
-  it('tanpa izin ubah tidak ada pensil maupun kontrol sunting', () => {
-    pasang([kartu()], { bolehUbah: false });
+  it('tanpa izin ubah tidak ada pensil maupun kontrol sunting', async () => {
+    await pasang([kartu()], { bolehUbah: false });
 
     expect(document.getElementById('btn_ubah_papan_butir_128')).toBeNull();
     expect(document.getElementById('kartu_papan_butir_128')?.textContent).toContain(
@@ -74,8 +77,8 @@ describe('BarisPoin - gerbang izin ubah', () => {
     );
   });
 
-  it('dengan izin ubah pensil baris muncul', () => {
-    pasang([kartu()], { bolehUbah: true });
+  it('dengan izin ubah pensil baris muncul', async () => {
+    await pasang([kartu()], { bolehUbah: true });
 
     expect(document.getElementById('btn_ubah_papan_butir_128')).not.toBeNull();
   });
@@ -84,14 +87,14 @@ describe('BarisPoin - gerbang izin ubah', () => {
 describe('BarisPoin - checklist subpoin', () => {
   it('mencentang subpoin langsung menyimpan', async () => {
     const onSimpanSubpoin = vi.fn(async () => {});
-    pasang([kartu({ subpoin: [
+    await pasang([kartu({ subpoin: [
       { teks: 'Langkah satu.', selesai: false },
       { teks: 'Langkah dua.', selesai: true },
     ] })], { bolehUbah: true, a: aksi({ onSimpanSubpoin }) });
 
     fireEvent.click(document.getElementById('cek_subpoin_128_0')!);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(onSimpanSubpoin).toHaveBeenCalledWith([
         { teks: 'Langkah satu.', selesai: true },
         { teks: 'Langkah dua.', selesai: true },
@@ -99,8 +102,8 @@ describe('BarisPoin - checklist subpoin', () => {
     });
   });
 
-  it('pilihan Sudah nonaktif selama ada subpoin belum selesai', () => {
-    pasang([kartu({ subpoin: [
+  it('pilihan Sudah nonaktif selama ada subpoin belum selesai', async () => {
+    await pasang([kartu({ subpoin: [
       { teks: 'Satu.', selesai: true },
       { teks: 'Dua.', selesai: false },
     ] })], { bolehUbah: true });
@@ -110,8 +113,8 @@ describe('BarisPoin - checklist subpoin', () => {
     expect(opsi.disabled).toBe(true);
   });
 
-  it('pilihan Sudah aktif saat semua subpoin selesai', () => {
-    pasang([kartu({ subpoin: [
+  it('pilihan Sudah aktif saat semua subpoin selesai', async () => {
+    await pasang([kartu({ subpoin: [
       { teks: 'Satu.', selesai: true },
       { teks: 'Dua.', selesai: true },
     ] })], { bolehUbah: true });
@@ -122,10 +125,117 @@ describe('BarisPoin - checklist subpoin', () => {
   });
 });
 
+describe('BarisPoin - konfirmasi Reopen', () => {
+  const selesai = () => kartu({ status: 'done', subpoin: [{ teks: 'Saldo cocok.', selesai: true }] });
+
+  it('uncheck Done menunggu konfirmasi dan Batal mempertahankan checkbox tanpa write', async () => {
+    const user = userEvent.setup();
+    const onSimpanSubpoin = vi.fn(async () => {});
+    await pasang([selesai()], { bolehUbah: true, a: aksi({ onSimpanSubpoin }) });
+
+    await user.click(screen.getByRole('checkbox', { name: 'Subpoin 1: Saldo cocok.' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Buka kembali poin selesai?' });
+    expect(within(dialog).getByText(/dari Done menjadi In Progress/)).toBeInTheDocument();
+    expect(onSimpanSubpoin).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('button', { name: 'Batal' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Subpoin 1: Saldo cocok.' })).toBeChecked();
+    expect(onSimpanSubpoin).not.toHaveBeenCalled();
+  });
+
+  it('Escape membatalkan konfirmasi tanpa mengubah data', async () => {
+    const user = userEvent.setup();
+    const onSimpanSubpoin = vi.fn(async () => {});
+    await pasang([selesai()], { bolehUbah: true, a: aksi({ onSimpanSubpoin }) });
+    await user.click(screen.getByRole('checkbox'));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onSimpanSubpoin).not.toHaveBeenCalled();
+    expect(screen.getByRole('checkbox')).toBeChecked();
+    await waitFor(() => expect(screen.getByRole('checkbox')).toHaveFocus());
+  });
+
+  it('persetujuan mengirim flag Reopen dan menonaktifkan dialog selama penyimpanan', async () => {
+    const user = userEvent.setup();
+    let selesaiSimpan!: () => void;
+    const onSimpanSubpoin = vi.fn(() => new Promise<void>((resolve) => { selesaiSimpan = resolve; }));
+    await pasang([selesai()], { bolehUbah: true, a: aksi({ onSimpanSubpoin }) });
+
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Ya, buka kembali' }));
+
+    expect(onSimpanSubpoin).toHaveBeenCalledWith([{ teks: 'Saldo cocok.', selesai: false }], true);
+    expect(screen.getByRole('button', { name: 'Menyimpan…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Batal' })).toBeDisabled();
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await act(async () => selesaiSimpan());
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('penolakan backend tetap menampilkan galat dan mempertahankan checkbox Done', async () => {
+    const user = userEvent.setup();
+    const onSimpanSubpoin = vi.fn(async () => { throw new Error('Selesaikan poin In Progress lain terlebih dahulu.'); });
+    await pasang([selesai()], { bolehUbah: true, a: aksi({ onSimpanSubpoin }) });
+
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Ya, buka kembali' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Selesaikan poin In Progress lain terlebih dahulu.');
+    await user.click(within(dialog).getByRole('button', { name: 'Batal' }));
+    expect(screen.getByRole('checkbox')).toBeChecked();
+    expect(screen.getByRole('region', { name: 'Kolom Done, 1 kartu' })).toBeInTheDocument();
+  });
+
+  it('penambahan subpoin belum selesai pada Done juga memerlukan persetujuan', async () => {
+    const user = userEvent.setup();
+    const onSimpanSubpoin = vi.fn(async () => {});
+    await pasang([selesai()], { bolehUbah: true, a: aksi({ onSimpanSubpoin }) });
+    mulaiUbah();
+    await user.click(screen.getByRole('button', { name: 'subpoin' }));
+    await user.type(screen.getByRole('textbox', { name: 'Subpoin 2' }), 'Periksa ulang.');
+    await user.click(screen.getByRole('button', { name: 'Simpan subpoin 2' }));
+    expect(onSimpanSubpoin).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Ya, buka kembali' }));
+    expect(onSimpanSubpoin).toHaveBeenCalledWith([
+      { teks: 'Saldo cocok.', selesai: true },
+      { teks: 'Periksa ulang.', selesai: false },
+    ], true);
+  });
+
+  it('penghapusan pada Done legacy yang menyisakan checklist belum selesai menunggu persetujuan', async () => {
+    const user = userEvent.setup();
+    const onSimpanSubpoin = vi.fn(async () => {});
+    await pasang([kartu({ status: 'done', subpoin: [
+      { teks: 'Saldo cocok.', selesai: true },
+      { teks: 'Legacy belum dicentang.', selesai: false },
+    ] })], { bolehUbah: true, a: aksi({ onSimpanSubpoin }) });
+    mulaiUbah();
+    await user.click(screen.getByRole('button', { name: 'Hapus subpoin 1' }));
+    expect(onSimpanSubpoin).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Batal' }));
+    expect(screen.getByRole('textbox', { name: 'Subpoin 1' })).toHaveValue('Saldo cocok.');
+  });
+
+  it('status Done ke In Progress melalui editor memerlukan konfirmasi sebelum write', async () => {
+    const user = userEvent.setup();
+    const onSimpanTeks = vi.fn(async () => {});
+    await pasang([selesai()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    mulaiUbah();
+    await user.selectOptions(screen.getByRole('combobox', { name: /Status poin/ }), 'in_progress');
+    await user.click(screen.getByRole('button', { name: 'Simpan poin Ekspor rekap per kas.' }));
+    expect(onSimpanTeks).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Ya, buka kembali' }));
+    expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', 'in_progress', undefined, true);
+  });
+});
+
 describe('BarisPoin - menyunting poin di baris', () => {
   it('menyimpan teks baru lewat onSimpanTeks', async () => {
     const onSimpanTeks = vi.fn(async () => {});
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    await pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
     mulaiUbah();
 
     const kotak = document.getElementById('input_ubah_butir_128') as HTMLTextAreaElement;
@@ -135,11 +245,11 @@ describe('BarisPoin - menyunting poin di baris', () => {
     fireEvent.change(kotak, { target: { value: 'Ekspor rekap harian.' } });
     fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
 
-    expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap harian.');
+    await waitFor(() => expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap harian.'));
   });
 
-  it('menampilkan requirement poin bila terisi', () => {
-    pasang([kartu({ keterangan: 'Catatan rinci per kas.' })]);
+  it('menampilkan requirement poin bila terisi', async () => {
+    await pasang([kartu({ keterangan: 'Catatan rinci per kas.' })]);
 
     const baris = document.getElementById('kartu_papan_butir_128');
     expect(baris?.textContent).toContain('Requirement');
@@ -148,7 +258,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
 
   it('menyimpan requirement bersama poin', async () => {
     const onSimpanTeks = vi.fn(async () => {});
-    pasang([kartu({ keterangan: 'Catatan lama.' })], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    await pasang([kartu({ keterangan: 'Catatan lama.' })], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
     mulaiUbah();
 
     const kotak = document.getElementById('input_keterangan_butir_128') as HTMLTextAreaElement;
@@ -157,14 +267,14 @@ describe('BarisPoin - menyunting poin di baris', () => {
     fireEvent.change(kotak, { target: { value: 'Catatan baru.' } });
     fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', undefined, 'Catatan baru.');
     });
   });
 
   it('mengosongkan requirement mengirim string kosong', async () => {
     const onSimpanTeks = vi.fn(async () => {});
-    pasang([kartu({ keterangan: 'Catatan lama.' })], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    await pasang([kartu({ keterangan: 'Catatan lama.' })], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
     mulaiUbah();
 
     fireEvent.change(document.getElementById('input_keterangan_butir_128')!, {
@@ -172,13 +282,13 @@ describe('BarisPoin - menyunting poin di baris', () => {
     });
     fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', undefined, '');
     });
   });
 
-  it('tombol simpan mati selama teks belum berubah', () => {
-    pasang([kartu()], { bolehUbah: true });
+  it('tombol simpan mati selama teks belum berubah', async () => {
+    await pasang([kartu()], { bolehUbah: true });
     mulaiUbah();
 
     expect((document.getElementById('btn_simpan_butir_128') as HTMLButtonElement).disabled).toBe(true);
@@ -192,7 +302,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
 
   it('mengubah status lewat pilihan di editor dan menyimpannya bersama teks', async () => {
     const onSimpanTeks = vi.fn(async () => {});
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    await pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
     mulaiUbah();
 
     const pilih = document.getElementById('status_butir_128') as HTMLSelectElement;
@@ -202,14 +312,14 @@ describe('BarisPoin - menyunting poin di baris', () => {
     expect((document.getElementById('btn_simpan_butir_128') as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(onSimpanTeks).toHaveBeenCalledWith('Ekspor rekap per kas.', 'done');
     });
   });
 
-  it('teks kosong tidak disimpan dan tombol simpan mati', () => {
+  it('teks kosong tidak disimpan dan tombol simpan mati', async () => {
     const onSimpanTeks = vi.fn(async () => {});
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    await pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
     mulaiUbah();
 
     fireEvent.change(document.getElementById('input_ubah_butir_128')!, {
@@ -220,9 +330,9 @@ describe('BarisPoin - menyunting poin di baris', () => {
     expect(onSimpanTeks).not.toHaveBeenCalled();
   });
 
-  it('tombol batal menutup editor tanpa mengirim apa pun', () => {
+  it('tombol batal menutup editor tanpa mengirim apa pun', async () => {
     const onSimpanTeks = vi.fn(async () => {});
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    await pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
     mulaiUbah();
 
     fireEvent.click(document.getElementById('btn_batal_butir_128')!);
@@ -234,7 +344,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
   it('hapus perlu konfirmasi di popover', async () => {
     const user = userEvent.setup();
     const onHapus = vi.fn(async () => {});
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onHapus }) });
+    await pasang([kartu()], { bolehUbah: true, a: aksi({ onHapus }) });
     mulaiUbah();
 
     await user.click(document.getElementById('btn_hapus_butir_128')!);
@@ -242,13 +352,13 @@ describe('BarisPoin - menyunting poin di baris', () => {
     expect(onHapus).not.toHaveBeenCalled();
 
     fireEvent.click(document.getElementById('btn_yakin_hapus_butir_128')!);
-    await vi.waitFor(() => expect(onHapus).toHaveBeenCalled());
+    await waitFor(() => expect(onHapus).toHaveBeenCalled());
   });
 
   it('batal di konfirmasi hapus tidak menghapus apa pun', async () => {
     const user = userEvent.setup();
     const onHapus = vi.fn(async () => {});
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onHapus }) });
+    await pasang([kartu()], { bolehUbah: true, a: aksi({ onHapus }) });
     mulaiUbah();
 
     await user.click(document.getElementById('btn_hapus_butir_128')!);
@@ -262,7 +372,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
     const onSimpanTeks = vi.fn(async () => {
       throw new Error('Gagal menyimpan ke server.');
     });
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
+    await pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks }) });
     mulaiUbah();
 
     fireEvent.change(document.getElementById('input_ubah_butir_128')!, {
@@ -272,7 +382,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
 
     // Pesannya harus terlihat pengguna - kegagalan simpan yang senyap
     // membuat orang mengira perubahannya tersimpan.
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(document.getElementById('kartu_papan_butir_128')?.textContent).toContain(
         'Gagal menyimpan ke server.',
       );
@@ -282,7 +392,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
   it('menyimpan satu subpoin lewat tombol simpan baris', async () => {
     const onSimpanTeks = vi.fn(async () => {});
     const onSimpanSubpoin = vi.fn(async () => {});
-    pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks, onSimpanSubpoin }) });
+    await pasang([kartu()], { bolehUbah: true, a: aksi({ onSimpanTeks, onSimpanSubpoin }) });
     mulaiUbah();
 
     fireEvent.click(document.getElementById('btn_tambah_subpoin_128')!);
@@ -291,7 +401,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
     });
     fireEvent.click(document.getElementById('btn_simpan_subpoin_128_0')!);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(onSimpanSubpoin).toHaveBeenCalledWith([
         { teks: 'Periksa saldo tiap kas.', selesai: false },
       ]);
@@ -302,7 +412,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
   it('simpan utama hanya mengirim teks poin, bukan subpoin', async () => {
     const onSimpanTeks = vi.fn(async () => {});
     const onSimpanSubpoin = vi.fn(async () => {});
-    pasang([kartu({ subpoin: [{ teks: 'Langkah lama.', selesai: false }] })], {
+    await pasang([kartu({ subpoin: [{ teks: 'Langkah lama.', selesai: false }] })], {
       bolehUbah: true,
       a: aksi({ onSimpanTeks, onSimpanSubpoin }),
     });
@@ -316,13 +426,13 @@ describe('BarisPoin - menyunting poin di baris', () => {
     });
     fireEvent.click(document.getElementById('btn_simpan_butir_128')!);
 
-    await vi.waitFor(() => expect(onSimpanTeks).toHaveBeenCalledWith('Teks baru.'));
+    await waitFor(() => expect(onSimpanTeks).toHaveBeenCalledWith('Teks baru.'));
     expect(onSimpanSubpoin).not.toHaveBeenCalled();
   });
 
   it('menyimpan satu subpoin tidak ikut mengirim draf baris lain', async () => {
     const onSimpanSubpoin = vi.fn(async () => {});
-    pasang([kartu({ subpoin: [
+    await pasang([kartu({ subpoin: [
       { teks: 'Langkah satu.', selesai: false },
       { teks: 'Langkah dua.', selesai: false },
     ] })], {
@@ -339,7 +449,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
     });
     fireEvent.click(document.getElementById('btn_simpan_subpoin_128_1')!);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(onSimpanSubpoin).toHaveBeenCalledWith([
         { teks: 'Langkah satu.', selesai: false },
         { teks: 'Langkah dua baru.', selesai: false },
@@ -349,7 +459,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
 
   it('menghapus subpoin tersimpan langsung menyimpan daftar baru', async () => {
     const onSimpanSubpoin = vi.fn(async () => {});
-    pasang([kartu({ subpoin: [
+    await pasang([kartu({ subpoin: [
       { teks: 'Langkah satu.', selesai: false },
       { teks: 'Langkah dua.', selesai: true },
     ] })], {
@@ -360,7 +470,7 @@ describe('BarisPoin - menyunting poin di baris', () => {
 
     fireEvent.click(document.getElementById('btn_hapus_subpoin_128_0')!);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(onSimpanSubpoin).toHaveBeenCalledWith([{ teks: 'Langkah dua.', selesai: true }]);
     });
   });

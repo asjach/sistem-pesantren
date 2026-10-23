@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PDO;
 use Tests\Feature\Concerns\VerifikasiSkemaDokumen;
 use Tests\TestCase;
@@ -57,6 +58,33 @@ class SchemaMysqlSmokeTest extends TestCase
         }
 
         $this->siapkanDatabaseSmoke($nama);
+        $this->siapkanKoneksiPapan();
+    }
+
+    protected function koneksiTabel(string $tabel): ?string
+    {
+        return str_starts_with($tabel, 'papan_') ? 'papan' : null;
+    }
+
+    protected function tabelTambahanDiDb(): array
+    {
+        return collect(Schema::connection('papan')->getTables())
+            ->map(fn ($t) => is_array($t) ? (string) ($t['name'] ?? '') : (string) $t)
+            ->filter(fn (string $t) => str_starts_with($t, 'papan_'))
+            ->values()
+            ->all();
+    }
+
+    /** Koneksi `papan` tetap SQLite terpisah; jangan sentuh database Board pengguna. */
+    private function siapkanKoneksiPapan(): void
+    {
+        config()->set('database.connections.papan.database', ':memory:');
+        DB::purge('papan');
+        Artisan::call('migrate', [
+            '--path' => 'database/migrations/papan',
+            '--database' => 'papan',
+            '--force' => true,
+        ]);
     }
 
     public static function tearDownAfterClass(): void

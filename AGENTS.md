@@ -20,6 +20,31 @@
 - Bila ragu: pakai istilah yang muncul di dokumentasi resmi library atau di
   nama prop/API, bukan terjemahan bebas.
 
+## KOORDINASI AGEN — LUFFY DAN KRU
+
+- Agen utama berperan sebagai **Luffy**, coordinator yang bertanggung jawab
+  kepada pengguna. Pembagian role software dan batas delegasi ada di
+  [docs/KRU.md](docs/KRU.md); aturan pemakaian lintas model/harness dan fallback
+  ada di [docs/HARNESS.md](docs/HARNESS.md). Baca keduanya sebelum mendelegasikan.
+- Nama kru adalah label tanggung jawab dan gaya komunikasi, bukan identitas
+  model, akun baru, izin tambahan, atau alasan mengabaikan aturan project.
+  Aturan ini tidak mengharuskan provider, model, subscription, atau tool tertentu.
+- **Hanya Luffy yang menulis Board dalam pekerjaan agen.** Sub-agent mengirim
+  hasil dan bukti kepada Luffy; pengguna tetap berwenang mengubah Board melalui
+  UI. Delegasi tidak mengubah gerbang persetujuan atau batas satu In Progress
+  per aplikasi.
+- Gunakan sub-agent hanya jika tersedia dan bermanfaat: biasanya 2–3 spesialis
+  independen pada scope poin yang sama. Satu file hanya memiliki satu writer
+  pada satu waktu. Jika tidak tersedia, gunakan role secara berurutan dalam
+  satu agen dan jangan mengaku melakukan independent review.
+- Setiap kru membaca instruksi folder dan skill yang berlaku sebelum bertindak.
+  Kebijakan tes, anotasi, autentikasi, izin tool, dan suspend native Tauri tetap
+  berlaku; delegasi tidak boleh digunakan untuk melewatinya.
+- SIMPES adalah project existing: baca PRD, arsitektur, SCHEMA, kode, dan Board
+  yang relevan sebelum bertanya. Jangan mengulang discovery dari nol atau
+  membuat `BRIEF.md` yang menduplikasi sumber kebutuhan existing. Jangan membuat
+  workflow, roadmap, atau status kru terpisah dari Board.
+
 ## ANOTASI UI (MODE DEV) — menandai elemen untuk agen
 
 - Saat `npm run dev` (termasuk `tauri dev`), tombol anotasi di area akun
@@ -153,22 +178,28 @@
   khusus pada poin Board".
 - **For Review adalah gerbang evaluasi manual pengguna.** Setelah implementasi
   dan pemeriksaan otomatis selesai, agen memindahkan poin ke Menunggu peninjauan
-  (For Review) dan berhenti. Agen tidak boleh otomatis memindahkan poin ke
-  Selesai (Done), meskipun tidak ada pekerjaan teknis tambahan.
+  (For Review) dan berhenti. Agen tidak boleh memindahkan poin ke Selesai
+  (Done), meskipun diminta membantu perpindahan setelah evaluasi.
 - Nilai teknis status Menunggu peninjauan adalah `for_review`, bukan
   `in_review`.
-- Hanya pengguna yang menentukan hasil evaluasi manual. Pengguna dapat langsung
-  memindahkan poin dari For Review ke Done di Board tanpa pekerjaan tambahan.
-  Agen hanya boleh membantu memindahkannya bila pengguna memberi perintah
-  eksplisit setelah evaluasi.
+- Hanya pengguna yang menentukan hasil evaluasi manual dan memindahkan poin
+  dari For Review ke Done melalui UI Board. Jalur agen/CLI tidak digunakan
+  untuk menetapkan Done; bila diminta, arahkan pengguna melakukan aksi di UI.
 - Bila pengguna menolak hasil evaluasi atau meminta perbaikan, pindahkan poin
   dari Menunggu peninjauan (For Review) kembali ke Sedang dikerjakan (In
-  Progress). Catat alasan atau hasil evaluasi pengguna secara ringkas pada
-  subpoin yang relevan, lalu kerjakan perbaikannya dalam poin yang sama selama
-  hasil yang dituju tidak berubah.
+  Progress), selama tidak ada poin In Progress lain pada aplikasi yang sama.
+  Catat alasan atau hasil evaluasi pada catatan poin, terpisah dari acceptance
+  criteria, lalu kerjakan perbaikannya dalam poin yang sama selama hasil yang
+  dituju tidak berubah.
 - Poin Selesai (Done) hanya boleh dibuka kembali (reopen) ke Sedang dikerjakan
   (In Progress) atas perintah eksplisit pengguna. Catat alasan pembukaan kembali
   agar perubahan status dapat dipahami pada pemeriksaan berikutnya.
+- Uncheck pada Done boleh menjadi perintah Reopen melalui UI hanya setelah
+  pengguna mengonfirmasi penjelasan perubahan Done → In Progress. Pembatalan,
+  kegagalan penyimpanan, atau adanya poin In Progress lain pada aplikasi yang
+  sama tidak boleh mengubah checkbox, status, atau meninggalkan write parsial.
+  Bila terhalang poin aktif, minta pengguna menyelesaikan atau mengembalikan
+  poin aktif ke Backlog terlebih dahulu; agen tidak memilihkannya sendiri.
 - Pekerjaan yang dibatalkan bukan pekerjaan Selesai (Done). Arsipkan atau hapus
   poin hanya atas keputusan eksplisit pengguna; jangan memindahkannya ke Done
   untuk sekadar membersihkan Board.
@@ -246,7 +277,32 @@
   dan konfirmasi.
 - Setelah seluruh subpoin dan verifikasi selesai, pindahkan poin ke Menunggu
   peninjauan (For Review). Status Selesai (Done) tetap menjadi keputusan manual
-  pengguna.
+  pengguna melalui UI.
+
+### Catatan, versi scope, dan data legacy
+
+- Subpoin adalah acceptance criteria, bukan tempat menumpuk diskusi, persetujuan,
+  revisi, atau hasil tes. Simpan catatan tersebut terpisah pada poin yang sama.
+  Catatan persetujuan harus merujuk keputusan nyata pengguna; klaim agen tidak
+  menggantikan persetujuan pengguna.
+- Perubahan substantif pada hasil atau acceptance criteria yang telah disetujui
+  memerlukan riset seperlunya, persetujuan pengguna, catatan alasan, dan snapshot
+  versi scope baru pada poin yang sama sebelum implementasi scope baru.
+  Pertahankan snapshot terdahulu agar perubahan dapat ditelusuri.
+- Checkbox selesai/belum selesai dan penambahan catatan tidak menambah versi
+  scope. Koreksi typo yang tidak mengubah makna cukup dicatat, bukan dianggap
+  persetujuan scope baru. Jangan menyamarkan perubahan makna sebagai typo.
+- Jika hasil yang dituju menjadi hasil mandiri yang berbeda, buat poin baru
+  Backlog dan tunggu pengguna memilihnya; jangan menumpangkannya pada revisi
+  poin aktif atau membuat daftar pekerjaan di luar Board.
+- Pertahankan ID, status, dan riwayat poin existing. Pada write pertama yang
+  menangani poin legacy, buat snapshot awal yang diberi penanda legacy dan
+  waktu pencatatan sebenarnya; pembacaan saja tidak boleh memutasi data.
+  Snapshot ini bukan bukti persetujuan atau verifikasi historis; jangan
+  mengarang bukti atau memundurkan status secara massal.
+- Aturan agen tetap wajib meskipun belum seluruhnya menjadi guardrail backend.
+  Penerapan guardrail ketat lainnya memerlukan keputusan tersendiri; jangan
+  menganggap seluruh jalur API/UI/CLI telah memiliki proteksi yang sama.
 
 ### Requirement khusus pada poin Board
 

@@ -93,10 +93,10 @@ export function muatPapan() {
 }
 
 /** Pindahkan satu POIN; status sub-modulnya menyusul secara turunan. */
-export function pindahStatusPapan(kode: string, butirId: number, status: StatusPapan, catatan?: string) {
+export function pindahStatusPapan(kode: string, butirId: number, status: StatusPapan, catatan?: string, konfirmasiReopen?: boolean) {
   return api<{ kode: string; id: number; status: StatusPapan; status_sub_modul: StatusPapan }>(
     `/board/${encodeURIComponent(kode)}/butir/${butirId}/status`,
-    { method: 'PATCH', body: JSON.stringify({ status, catatan }) },
+    { method: 'PATCH', body: JSON.stringify({ status, catatan, ...(konfirmasiReopen ? { konfirmasi_reopen: true } : {}) }) },
   );
 }
 
@@ -131,7 +131,7 @@ export function hapusButirPapan(kode: string, id: number) {
 export function ubahButirPapan(
   kode: string,
   id: number,
-  ubah: { deskripsi?: string; keterangan?: string | null; subpoin?: SubpoinPapan[]; status?: StatusPapan; catatan?: string },
+  ubah: { deskripsi?: string; keterangan?: string | null; subpoin?: SubpoinPapan[]; status?: StatusPapan; catatan?: string; konfirmasi_reopen?: boolean },
 ) {
   return api<{ id: number; status: StatusPapan; deskripsi: string; keterangan: string | null; status_sub_modul: StatusPapan }>(
     `/board/${encodeURIComponent(kode)}/butir/${id}`,

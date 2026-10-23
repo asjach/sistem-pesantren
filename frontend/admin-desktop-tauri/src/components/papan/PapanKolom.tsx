@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 import { Check, ChevronDown, ChevronUp, Minus, Pencil, Plus, Trash2, Undo2 } from '@/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { JUDUL_KOLOM, KOLOM_PAPAN, type StatusPapan, type SubPapan, type SubpoinPapan } from '@/api/papan';
 import { kemajuanPoin, kolomSebelah, kelompokkanKolom, persenKemajuan, type KartuPapan, type KartuSub, type KolomPapanData } from '@/lib/papan';
 import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
@@ -13,14 +15,66 @@ import { pecahButir, type PotonganButir } from '@/lib/butirTeks';
  * harus diteruskan berlapis dari halaman sampai ke barisnya.
  */
 export interface AksiButir {
-  onSimpanTeks: (deskripsi: string, status?: StatusPapan, keterangan?: string | null) => Promise<void>;
-  onSimpanSubpoin: (subpoin: SubpoinPapan[]) => Promise<void>;
+  onSimpanTeks: (deskripsi: string, status?: StatusPapan, keterangan?: string | null, konfirmasiReopen?: boolean) => Promise<void>;
+  onSimpanSubpoin: (subpoin: SubpoinPapan[], konfirmasiReopen?: boolean) => Promise<void>;
   onHapus: () => Promise<void>;
 }
 
 export interface AksiSub {
   onSimpan: (kode: string, nama: string) => Promise<void>;
   onHapus: () => Promise<void>;
+}
+
+/** Tetap terbuka saat menyimpan atau gagal; tidak ada perubahan sebelum persetujuan. */
+export function KonfirmasiReopen({ onKonfirmasi, onBatal }: {
+  onKonfirmasi: () => Promise<void>;
+  onBatal: () => void;
+}) {
+  const [sibuk, setSibuk] = useState(false);
+  const [galat, setGalat] = useState('');
+  const pemicu = useRef(document.activeElement as HTMLElement | null);
+
+  async function simpan() {
+    if (sibuk) return;
+    setSibuk(true);
+    setGalat('');
+    try {
+      await onKonfirmasi();
+      onBatal();
+    } catch (e) {
+      setGalat(e instanceof Error ? e.message : 'Gagal membuka kembali poin.');
+    } finally {
+      setSibuk(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(terbuka) => { if (!terbuka && !sibuk) onBatal(); }}>
+      <DialogContent
+        showCloseButton={false}
+        aria-busy={sibuk}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (pemicu.current?.isConnected) pemicu.current.focus();
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Buka kembali poin selesai?</DialogTitle>
+          <DialogDescription>
+            Perubahan ini akan membuka kembali poin dari Done menjadi In Progress.
+            Jika aplikasi sudah memiliki poin lain In Progress, perubahan akan ditolak tanpa mengubah data.
+          </DialogDescription>
+        </DialogHeader>
+        {galat ? <p role="alert" className="text-xs text-destructive">{galat}</p> : null}
+        <DialogFooter>
+          <Button type="button" variant="outline" disabled={sibuk} onClick={onBatal}>Batal</Button>
+          <Button type="button" disabled={sibuk} onClick={() => void simpan()}>
+            {sibuk ? 'Menyimpan…' : 'Ya, buka kembali'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 /** Posisi sisip saat menyeret: sebelum kartu ke-indeks di kolom. */
@@ -500,6 +554,7 @@ function BarisPoin({
   const [sibukSub, setSibukSub] = useState<number | null>(null);
   const [galat, setGalat] = useState('');
   const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
+  const [reopen, setReopen] = useState<{ jalankan: () => Promise<void> } | null>(null);
 
   useEffect(() => {
     if (!sorot) return;
@@ -530,10 +585,14 @@ function BarisPoin({
     setUbah(false);
   }
 
-  async function simpan() {
+  async function simpan(konfirmasiReopen = false) {
     const teks = draf.trim();
 
     if (teks === '') return;
+    if (poin.status === 'done' && statusDraf === 'in_progress' && !konfirmasiReopen) {
+      setReopen({ jalankan: () => simpan(true) });
+      return;
+    }
 
     setSibuk(true);
     setGalat('');
@@ -542,7 +601,9 @@ function BarisPoin({
       const keterangan = keteranganDraf.trim();
       const keteranganBerubah = keterangan !== (poin.keterangan ?? '').trim();
 
-      if (keteranganBerubah) {
+      if (konfirmasiReopen) {
+        await aksi.onSimpanTeks(teks, statusDraf, keteranganBerubah ? keterangan : undefined, true);
+      } else if (keteranganBerubah) {
         await aksi.onSimpanTeks(teks, statusBerubah ? statusDraf : undefined, keterangan);
       } else if (statusBerubah) {
         await aksi.onSimpanTeks(teks, statusDraf);
@@ -552,38 +613,46 @@ function BarisPoin({
       setUbah(false);
     } catch (e) {
       setGalat(e instanceof Error ? e.message : 'Gagal menyimpan.');
+      if (konfirmasiReopen) throw e;
     } finally {
       setSibuk(false);
     }
   }
 
-  async function simpanSubpoin(indeks: number) {
+  async function simpanSubpoin(indeks: number, konfirmasiReopen = false) {
     const isi = subpoin[indeks]?.teks.trim() ?? '';
 
     if (isi === '') return;
+
+    // Baris lain memakai nilai yang sudah tersimpan, bukan drafnya.
+    const hasil = subpoin
+      .map((item, i) => {
+        if (i === indeks) {
+          return { teks: isi, selesai: item.selesai };
+        }
+
+        return {
+          teks: (asli[i]?.teks ?? '').trim(),
+          selesai: asli[i]?.selesai ?? false,
+        };
+      })
+      .filter((item) => item.teks !== '');
+
+    if (poin.status === 'done' && hasil.some((item) => !item.selesai) && !konfirmasiReopen) {
+      setReopen({ jalankan: () => simpanSubpoin(indeks, true) });
+      return;
+    }
 
     setSibukSub(indeks);
     setGalat('');
 
     try {
-      // Baris lain memakai nilai yang sudah tersimpan, bukan drafnya.
-      const hasil = subpoin
-        .map((item, i) => {
-          if (i === indeks) {
-            return { teks: isi, selesai: item.selesai };
-          }
-
-          return {
-            teks: (asli[i]?.teks ?? '').trim(),
-            selesai: asli[i]?.selesai ?? false,
-          };
-        })
-        .filter((item) => item.teks !== '');
-
-      await aksi.onSimpanSubpoin(hasil);
+      if (konfirmasiReopen) await aksi.onSimpanSubpoin(hasil, true);
+      else await aksi.onSimpanSubpoin(hasil);
       setAsli((prev) => prev.map((item, i) => (i === indeks ? { ...item, teks: isi } : item)));
     } catch (e) {
       setGalat(e instanceof Error ? e.message : 'Gagal menyimpan subpoin.');
+      if (konfirmasiReopen) throw e;
     } finally {
       setSibukSub(null);
     }
@@ -594,44 +663,59 @@ function BarisPoin({
     setAsli([...asli, { teks: '', selesai: false }]);
   }
 
-  async function hapusSubpoin(indeks: number) {
+  async function hapusSubpoin(indeks: number, konfirmasiReopen = false) {
     const barisBaru = (asli[indeks]?.teks ?? '').trim() === '';
     const sisaAsli = asli.filter((_, i) => i !== indeks);
 
-    setSubpoin(subpoin.filter((_, i) => i !== indeks));
-    setAsli(sisaAsli);
-
     // Baris yang belum pernah tersimpan cukup dibuang dari draf.
-    if (barisBaru) return;
+    if (barisBaru) {
+      setSubpoin(subpoin.filter((_, i) => i !== indeks));
+      setAsli(sisaAsli);
+      return;
+    }
+
+    const hasil = sisaAsli.filter((item) => item.teks.trim() !== '');
+    if (poin.status === 'done' && hasil.some((item) => !item.selesai) && !konfirmasiReopen) {
+      setReopen({ jalankan: () => hapusSubpoin(indeks, true) });
+      return;
+    }
 
     setSibukSub(indeks);
     setGalat('');
 
     try {
-      await aksi.onSimpanSubpoin(sisaAsli.filter((item) => item.teks.trim() !== ''));
+      if (konfirmasiReopen) await aksi.onSimpanSubpoin(hasil, true);
+      else await aksi.onSimpanSubpoin(hasil);
+      setSubpoin(subpoin.filter((_, i) => i !== indeks));
+      setAsli(sisaAsli);
     } catch (e) {
-      setSubpoin(subpoin);
-      setAsli(asli);
       setGalat(e instanceof Error ? e.message : 'Gagal menghapus subpoin.');
+      if (konfirmasiReopen) throw e;
     } finally {
       setSibukSub(null);
     }
   }
 
-  async function toggleSubpoin(indeks: number) {
+  async function toggleSubpoin(indeks: number, konfirmasiReopen = false) {
     if (!bolehUbah || sibukSub !== null) return;
 
     const hasil = poin.subpoin.map((item, i) => (
       i === indeks ? { ...item, selesai: !item.selesai } : item
     ));
+    if (poin.status === 'done' && hasil.some((item) => !item.selesai) && !konfirmasiReopen) {
+      setReopen({ jalankan: () => toggleSubpoin(indeks, true) });
+      return;
+    }
 
     setSibukSub(indeks);
     setGalat('');
 
     try {
-      await aksi.onSimpanSubpoin(hasil);
+      if (konfirmasiReopen) await aksi.onSimpanSubpoin(hasil, true);
+      else await aksi.onSimpanSubpoin(hasil);
     } catch (e) {
       setGalat(e instanceof Error ? e.message : 'Gagal menyimpan subpoin.');
+      if (konfirmasiReopen) throw e;
     } finally {
       setSibukSub(null);
     }
@@ -895,6 +979,7 @@ function BarisPoin({
       {!ubah && galat ? (
         <p role="alert" className="pl-2 pb-1 text-[11px] text-destructive">{galat}</p>
       ) : null}
+      {reopen ? <KonfirmasiReopen onKonfirmasi={reopen.jalankan} onBatal={() => setReopen(null)} /> : null}
     </>
     /* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
   );
@@ -921,7 +1006,8 @@ export function PapanKolom({
 }: {
   kartu: KartuPapan[];
   tampilkanModul: boolean;
-  onPindah: (butirId: number, ke: StatusPapan) => Promise<void>;
+  /** false berarti belum tersimpan (menunggu konfirmasi, batal, atau gagal). */
+  onPindah: (butirId: number, ke: StatusPapan) => Promise<void | boolean>;
   /** Bila false (default), kartu tidak bisa digeser dan tidak bisa disunting. */
   bolehUbah?: boolean;
   /** Aksi sunting untuk poin tertentu; wajib bila bolehUbah true. */
@@ -1060,10 +1146,12 @@ export function PapanKolom({
 
     if (!asal || asal.status === kolomId) return;
 
-    // Pengumuman menyebut sub-modul DAN isi poinnya, karena kini satu
-    // sub-modul bisa muncul di beberapa kolom sekaligus.
-    setPengumuman(`Poin ${asal.subKode} "${asal.deskripsi}" dipindahkan ke ${JUDUL_KOLOM[kolomId]}.`);
-    await onPindah(id, kolomId);
+    setPengumuman('');
+    const tersimpan = await onPindah(id, kolomId);
+    // Permintaan Reopen yang masih menunggu konfirmasi bukan perpindahan tersimpan.
+    if (tersimpan !== false) {
+      setPengumuman(`Poin ${asal.subKode} "${asal.deskripsi}" dipindahkan ke ${JUDUL_KOLOM[kolomId]}.`);
+    }
   }
 
   /**
@@ -1081,8 +1169,11 @@ export function PapanKolom({
       return;
     }
 
-    setPengumuman(`Poin ${kartu.subKode} "${kartu.deskripsi}" dipindahkan ke ${JUDUL_KOLOM[tujuan]}.`);
-    await onPindah(kartu.id, tujuan);
+    setPengumuman('');
+    const tersimpan = await onPindah(kartu.id, tujuan);
+    if (tersimpan !== false) {
+      setPengumuman(`Poin ${kartu.subKode} "${kartu.deskripsi}" dipindahkan ke ${JUDUL_KOLOM[tujuan]}.`);
+    }
   }
 
   return (

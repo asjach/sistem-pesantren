@@ -7,13 +7,36 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('papan:lihat {kode? : Batasi ke satu sub-modul, mis. DA1.1} {--riwayat : Tampilkan riwayat perpindahan status}')]
+#[Signature('papan:lihat {kode? : Batasi ke satu sub-modul, mis. DA1.1} {--riwayat : Tampilkan riwayat perpindahan status} {--json : Keluarkan JSON lengkap tanpa mengubah data}')]
 #[Description('Baca papan perkembangan proyek per aplikasi: modul, sub-modul, dan butirnya.')]
 class PapanLihat extends Command
 {
     /** Tampilkan papan; tanpa argumen cetak semuanya. */
     public function handle(PapanService $papan): int
     {
+        if ($this->option('json')) {
+            $kode = $this->argument('kode');
+            $aplikasi = $papan->semuaAplikasi();
+            if (is_string($kode) && $kode !== '') {
+                $papan->item($kode);
+                foreach ($aplikasi as &$app) {
+                    foreach ($app['modul'] as &$modul) {
+                        $modul['sub'] = array_values(array_filter($modul['sub'], fn ($sub) => $sub['kode'] === $kode));
+                    }
+                    unset($modul);
+                    $app['modul'] = array_values(array_filter($app['modul'], fn ($m) => $m['sub'] !== []));
+                }
+                unset($app);
+                $aplikasi = array_values(array_filter($aplikasi, fn ($a) => $a['modul'] !== []));
+            }
+            $this->line(json_encode([
+                'workflow_master_aktif' => $papan->workflowMasterAktif(),
+                'aplikasi' => $aplikasi,
+                'riwayat' => $this->option('riwayat') ? $papan->riwayat($kode ?: null) : [],
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+
+            return self::SUCCESS;
+        }
         if ($this->option('riwayat')) {
             return $this->cetakRiwayat($papan);
         }
@@ -49,6 +72,18 @@ class PapanLihat extends Command
 
             foreach ($butir as $b) {
                 $this->line("  <fg=gray>#{$b->id}</> {$b->deskripsi}");
+                if (trim($b->keterangan ?? '') !== '') {
+                    $this->line('    Requirement: '.$b->keterangan);
+                }
+                foreach ($b->subpoin ?? [] as $subpoin) {
+                    $this->line('    ['.($subpoin['selesai'] ? 'x' : ' ').'] '.$subpoin['teks']);
+                }
+                foreach ($b->catatan ?? [] as $catatan) {
+                    $this->line('    '.$catatan['jenis'].': '.$catatan['teks']);
+                }
+                foreach ($b->scope_versi ?? [] as $scope) {
+                    $this->line('    Scope v'.$scope['versi'].' ('.$scope['jenis'].'): '.json_encode($scope, JSON_UNESCAPED_UNICODE));
+                }
             }
 
             $this->newLine();
