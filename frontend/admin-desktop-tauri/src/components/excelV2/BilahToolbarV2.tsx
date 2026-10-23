@@ -149,7 +149,7 @@ export default function BilahToolbarV2({
         )}
 
         {addButton != null && (
-          <div className="h-full shrink-0">
+          <div className="flex h-full shrink-0 items-center gap-1">
             {addButtonLangsung
               ? addButton
               : <MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar>}
