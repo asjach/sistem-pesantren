@@ -1,23 +1,24 @@
 /** Anotasi UI mode dev — kontrak data dan pembacaan konteks elemen. */
 
-export interface Anotasi {
-  id: string;
-  dibuat: string;
-  rute: string;
-  selector: string;
-  tag: string;
-  teks: string;
-  komponen: string[];
-  sumber: string | null;
-  instruksi: string;
+import type { Anotasi, KonteksElemen } from './anotasiData';
+import { bacaStyleElemen } from './styleAnotasi';
+export type { Anotasi, KonteksElemen } from './anotasiData';
+
+/** Breadcrumb hingga body atau batas dialog; UI anotasi tidak boleh dipilih. */
+export function parentElemen(el: Element): Element[] {
+  const hasil: Element[] = [];
+  let node: Element | null = el;
+  while (node && node !== document.documentElement) {
+    if (node.closest('[data-anotasi-abaikan]')) break;
+    hasil.push(node);
+    if (node.matches('[data-slot="dialog-content"], [data-slot="alert-dialog-content"]')) break;
+    node = node.parentElement;
+  }
+  return hasil;
 }
 
-export interface KonteksElemen {
-  selector: string;
-  tag: string;
-  teks: string;
-  komponen: string[];
-  sumber: string | null;
+export function tujuanValid(asal: Element, tujuan: Element): boolean {
+  return asal !== tujuan && !asal.contains(tujuan);
 }
 
 interface SumberDebug {
@@ -142,7 +143,7 @@ export function bacaKonteksReact(el: Element): { komponen: string[]; sumber: str
   return { komponen: nama.reverse().slice(-8), sumber };
 }
 
-export function bacaKonteks(el: Element): KonteksElemen {
+export function bacaKonteks(el: Element, sertakanStyle = false): KonteksElemen {
   const { komponen, sumber } = bacaKonteksReact(el);
 
   return {
@@ -151,6 +152,7 @@ export function bacaKonteks(el: Element): KonteksElemen {
     teks: teksElemen(el),
     komponen,
     sumber,
+    ...(sertakanStyle ? { style: bacaStyleElemen(el) } : {}),
   };
 }
 

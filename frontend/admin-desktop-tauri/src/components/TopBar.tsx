@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '@/api/auth';
 import { isTauri } from '@/api/client';
@@ -57,6 +57,8 @@ import {
 } from '@/components/ui/dialog';
 import { halamanDariPath } from '@/lib/halaman';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
+const AnotasiDev = import.meta.env.DEV ? lazy(() => import('@/dev/AnotasiLayer')) : null;
 
 /** Mode tampilan terang/gelap/sistem (ikon saja) — di dekat akun pengguna. */
 const MODE_STRIP: { id: ModeName; nama: string; icon: typeof Sun }[] = [
@@ -394,6 +396,11 @@ export default function TopBar() {
         </div>
 
         <div data-part="area_akun" className="flex min-w-0 items-center justify-end gap-0.5">
+          {AnotasiDev && (
+            <Suspense fallback={null}>
+              <AnotasiDev />
+            </Suspense>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

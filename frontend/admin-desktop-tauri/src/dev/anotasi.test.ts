@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { bacaKonteksReact, buatSelector, rapikanSumber, teksElemen } from './anotasi';
+import { bacaKonteksReact, buatSelector, parentElemen, rapikanSumber, teksElemen, tujuanValid } from './anotasi';
 
 beforeEach(() => {
   document.body.innerHTML = '';
@@ -14,6 +14,34 @@ describe('rapikanSumber', () => {
   it('membiarkan jalur relatif dan menormalkan pemisah Windows', () => {
     expect(rapikanSumber('src\\lib\\x.ts', 7)).toBe('src/lib/x.ts:7');
     expect(rapikanSumber('berkas-luar.ts')).toBe('berkas-luar.ts');
+  });
+});
+
+describe('pemilihan parent dan tujuan', () => {
+  it('menyediakan urutan breadcrumb hingga body, tanpa html', () => {
+    document.body.innerHTML = '<header><div><button>Tombol</button></div></header>';
+    expect(parentElemen(document.querySelector('button')!).map((el) => el.tagName.toLowerCase()))
+      .toEqual(['button', 'div', 'header', 'body']);
+  });
+
+  it('tidak memasukkan kontrol editor anotasi sebagai kandidat', () => {
+    document.body.innerHTML = '<div data-anotasi-abaikan><button>Kontrol</button></div>';
+    expect(parentElemen(document.querySelector('button')!)).toEqual([]);
+  });
+
+  it('membatasi breadcrumb di dialog agar editor tidak keluar dari focus trap', () => {
+    document.body.innerHTML = '<div data-slot="dialog-content"><section><button>Asal</button></section></div>';
+    expect(parentElemen(document.querySelector('button')!).map((el) => el.tagName.toLowerCase()))
+      .toEqual(['button', 'section', 'div']);
+  });
+
+  it('menolak diri sendiri dan descendant; menerima parent atau sibling', () => {
+    document.body.innerHTML = '<div><button><span>Ikon</span></button><aside></aside></div>';
+    const asal = document.querySelector('button')!;
+    expect(tujuanValid(asal, asal)).toBe(false);
+    expect(tujuanValid(asal, document.querySelector('span')!)).toBe(false);
+    expect(tujuanValid(asal, document.querySelector('div')!)).toBe(true);
+    expect(tujuanValid(asal, document.querySelector('aside')!)).toBe(true);
   });
 });
 

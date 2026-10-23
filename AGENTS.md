@@ -22,12 +22,24 @@
 
 ## ANOTASI UI (MODE DEV) — menandai elemen untuk agen
 
-- Saat `npm run dev` (termasuk `tauri dev`), tombol mengambang di kanan bawah
-  mengaktifkan **mode tandai**. Klik elemen mana pun, tulis instruksi, lalu
-  Simpan. Panel daftar anotasi ada di tombol sebelahnya.
+- Saat `npm run dev` (termasuk `tauri dev`), tombol anotasi di area akun
+  TopBar (sebelum tombol bantuan) mengaktifkan **mode tandai**. Klik elemen
+  mana pun, tulis instruksi, lalu Simpan. Panel daftar anotasi ada di tombol
+  sebelahnya dan terbuka di area atas.
 - Anotasi ditulis ke `frontend/admin-desktop-tauri/.dev/anotasi.json`
   (di-ignore git) dan memuat rute, selector, teks, komponen React, serta
   `sumber` berupa `src/...:baris`.
+- Untuk instruksi dengan tujuan, pilih elemen asal, tulis instruksi, lalu
+  klik **Pilih tujuan**. Breadcrumb dapat memilih parent/container. Tentukan
+  posisi **Di dalam**, **Sebelum**, atau **Sesudah**, lalu Simpan. Field opsional
+  `tujuan` menyimpan konteks elemen tujuan dan `posisi` (`di_dalam`, `sebelum`,
+  `sesudah`). Agen wajib membaca asal, tujuan, dan posisi sebagai satu instruksi.
+  Esc saat memilih tujuan kembali ke editor tanpa menghapus draft.
+- **Detail tampilan** pada asal/tujuan menampilkan computed style browser.
+  Nilai dapat disalin atau dimuat ulang. Snapshot `style` (properti CSS → nilai)
+  dibaca kembali saat Simpan dan ikut disimpan pada konteks masing-masing elemen.
+  Anotasi lama tanpa `style` tetap valid. Snapshot bukan lokasi rule CSS asalnya;
+  background transparan tidak otomatis sama dengan background parent.
 - Pintasan `Ctrl/⌘+Shift+A` mengaktifkan atau mematikan mode tandai, termasuk
   saat dialog/modal terbuka. Untuk elemen di dalam dialog, editor instruksi
   ditempatkan di dialog agar tetap bisa difokuskan dan diketik.

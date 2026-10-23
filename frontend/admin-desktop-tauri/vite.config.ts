@@ -5,26 +5,9 @@ import Icons from 'unplugin-icons/vite';
 import fs from 'fs';
 import path from 'path';
 import type { IncomingMessage, ServerResponse } from 'http';
-
-/** Bentuk anotasi yang ditulis lapisan anotasi mode dev. */
-interface AnotasiTersimpan {
-  id: string;
-  dibuat: string;
-  rute: string;
-  selector: string;
-  tag: string;
-  teks: string;
-  komponen: string[];
-  sumber: string | null;
-  instruksi: string;
-}
+import { normalisasiAnotasi, type Anotasi as AnotasiTersimpan } from './src/dev/anotasiData';
 
 const BATAS_BADAN = 64_000;
-
-/** Potong teks agar berkas anotasi tetap ringkas. */
-function teks(nilai: unknown, batas: number): string {
-  return typeof nilai === 'string' ? nilai.slice(0, batas) : '';
-}
 
 /**
  * Simpan anotasi UI mode dev ke `.dev/anotasi.json` lewat dev server.
@@ -95,26 +78,7 @@ function anotasiDev(): Plugin {
 
             if (req.method === 'POST') {
               const data = await bacaBadan(req);
-              const instruksi = teks(data.instruksi, 4000).trim();
-
-              if (instruksi === '') {
-                kirim(res, 400, { pesan: 'Instruksi wajib diisi.' });
-                return;
-              }
-
-              const baru: AnotasiTersimpan = {
-                id: teks(data.id, 120) || `anotasi-${Date.now()}`,
-                dibuat: teks(data.dibuat, 40) || new Date().toISOString(),
-                rute: teks(data.rute, 600),
-                selector: teks(data.selector, 4000),
-                tag: teks(data.tag, 40),
-                teks: teks(data.teks, 400),
-                komponen: Array.isArray(data.komponen)
-                  ? data.komponen.filter((k): k is string => typeof k === 'string').slice(0, 12).map((k) => k.slice(0, 120))
-                  : [],
-                sumber: typeof data.sumber === 'string' ? data.sumber.slice(0, 600) : null,
-                instruksi,
-              };
+              const baru = normalisasiAnotasi(data);
 
               const daftar = baca();
               daftar.push(baru);
