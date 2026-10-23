@@ -581,7 +581,7 @@ export default function PapanPage() {
                 {modul.map((m) => {
                   const kemajuan = kemajuanModul(m);
                   const persen = persenKemajuan(kemajuan);
-                  const jumlahTinjauan = ringkasanPoin(kartuModul(m)).for_review;
+                  const jumlahTodo = ringkasanPoin(kartuModul(m)).todo;
 
                   return (
                     <TabsTrigger
@@ -595,12 +595,12 @@ export default function PapanPage() {
                           <span className="min-w-0 flex-1 font-mono text-[10px] tracking-wide text-muted-foreground">
                             {m.kode}
                           </span>
-                          {jumlahTinjauan > 0 ? (
+                          {jumlahTodo > 0 ? (
                             <span
                               className="lencana-rail shrink-0"
-                              title={`${jumlahTinjauan} poin For Review`}
+                              title={`${jumlahTodo} poin To Do`}
                             >
-                              {jumlahTinjauan}
+                              {jumlahTodo}
                             </span>
                           ) : null}
                         </span>
