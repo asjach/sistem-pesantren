@@ -1,10 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { normalisasiAnotasi } from './anotasiData';
+import { bandingkanStyle, normalisasiAnotasi, stylePerbandinganTersedia } from './anotasiData';
 
 const asal = { selector: '#tombol', tag: 'button', teks: 'Simpan', komponen: ['TopBar'], sumber: 'src/components/TopBar.tsx:20' };
 const tujuan = { selector: '#wadah', tag: 'div', teks: '', komponen: ['Layout'], sumber: 'src/components/Layout.tsx:10', posisi: 'di_dalam' };
 
+describe('bandingkanStyle', () => {
+  it('mencakup jarak, border, warna, dan font tanpa memasukkan ukuran/layout', () => {
+    expect(bandingkanStyle({ 'padding-top': '4px', 'border-top-width': '1px', color: 'red', 'font-size': '12px', width: '50px', display: 'block' }, { 'padding-top': '8px', 'border-top-width': '2px', color: 'blue', 'font-size': '14px', width: '80px', display: 'flex' })).toEqual([
+      { properti: 'padding-top', asal: '4px', referensi: '8px' },
+      { properti: 'border-top-width', asal: '1px', referensi: '2px' },
+      { properti: 'color', asal: 'red', referensi: 'blue' },
+      { properti: 'font-size', asal: '12px', referensi: '14px' },
+    ]);
+  });
+  it('mengabaikan nilai sama dan whitespace, tetapi tidak menyamakan nilai hilang dengan nol', () => {
+    expect(bandingkanStyle({ color: ' red ', 'margin-top': '0px' }, { color: 'red', 'row-gap': '0px' })).toEqual([
+      { properti: 'margin-top', asal: '0px', referensi: null },
+      { properti: 'row-gap', asal: null, referensi: '0px' },
+    ]);
+    expect(bandingkanStyle({}, {})).toEqual([]);
+    expect(stylePerbandinganTersedia({})).toBe(false);
+    expect(stylePerbandinganTersedia({ width: '20px' })).toBe(false);
+    expect(stylePerbandinganTersedia({ color: 'red' })).toBe(true);
+  });
+});
+
 describe('normalisasiAnotasi', () => {
+  const referensi = { ...tujuan, style: { color: 'blue', 'font-size': '14px' } };
+  it('memisahkan referensi dan tujuan serta menghitung ulang diff dari snapshot valid', () => {
+    const hasil = normalisasiAnotasi({ ...asal, instruksi: 'Samakan style', style: { color: 'red' }, tujuan, referensi, perbedaan_style: [{ properti: 'palsu' }] });
+    expect(hasil.tujuan?.posisi).toBe('di_dalam');
+    expect(hasil.referensi).toMatchObject({ selector: '#wadah', style: referensi.style });
+    expect(hasil.referensi).not.toHaveProperty('posisi');
+    expect(hasil.perbedaan_style).toEqual([{ properti: 'color', asal: 'red', referensi: 'blue' }, { properti: 'font-size', asal: null, referensi: '14px' }]);
+  });
+  it('mendukung anotasi tanpa tujuan dan style sama dengan referensi', () => {
+    const hasil = normalisasiAnotasi({ ...asal, instruksi: 'Acuan', style: referensi.style, referensi });
+    expect(hasil.perbedaan_style).toEqual([]);
+    expect(hasil).not.toHaveProperty('tujuan');
+  });
+  it.each([[], 'x', {}, { ...referensi, selector: '#tombol' }, { ...referensi, tag: '' }, { ...referensi, style: undefined }, { ...referensi, style: { asing: 'x' } }])('menolak referensi tidak valid: %j', (nilai) => {
+    expect(() => normalisasiAnotasi({ ...asal, instruksi: 'Acuan', style: { color: 'red' }, referensi: nilai })).toThrow();
+  });
+  it('menolak diff tanpa referensi dan referensi tanpa snapshot asal', () => {
+    expect(() => normalisasiAnotasi({ ...asal, instruksi: 'Acuan', perbedaan_style: [] })).toThrow();
+    expect(() => normalisasiAnotasi({ ...asal, instruksi: 'Acuan', referensi })).toThrow();
+  });
   const gambar = { berkas: 'screenshots/a1.png', lebar: 640, tinggi: 480, dibuat: '2026-10-23T00:00:00Z', preview_aktif: true };
   it('mengaitkan screenshot dengan ID anotasi tanpa mempertahankan field asing', () => {
     expect(normalisasiAnotasi({ ...asal, id: 'a1', instruksi: 'Ubah', gambar: { ...gambar, asing: 'x' } }).gambar).toEqual(gambar);

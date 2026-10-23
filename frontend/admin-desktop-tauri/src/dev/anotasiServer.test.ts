@@ -35,6 +35,16 @@ function multipart(data: unknown, file = png) {
 const upload = (data: unknown = { ...catatan, gambar }, file = png) => minta('POST', multipart(data, file), '/', 'multipart/form-data; boundary=simpes');
 
 describe('penyimpanan anotasi dan screenshot dev', () => {
+  it('menyimpan referensi dan diff yang dihitung server bersama screenshot tanpa menjadikannya tujuan', async () => {
+    const referensi = { ...catatan, selector: '#acuan', style: { color: 'blue' } };
+    const respons = await upload({ ...catatan, style: { color: 'red' }, referensi, perbedaan_style: [], gambar });
+    expect(respons.status).toBe(201);
+    const tersimpan = (await minta('GET')).json().anotasi[0];
+    expect(tersimpan.referensi).toMatchObject({ selector: '#acuan', style: { color: 'blue' } });
+    expect(tersimpan.perbedaan_style).toEqual([{ properti: 'color', asal: 'red', referensi: 'blue' }]);
+    expect(tersimpan).not.toHaveProperty('tujuan');
+    expect(fs.readFileSync(path.join(folder, gambar.berkas))).toEqual(png);
+  });
   it('tetap mendukung JSON lama tanpa screenshot', async () => {
     expect((await minta('POST', JSON.stringify(catatan))).status).toBe(201);
     expect((await minta('GET')).json().anotasi).toEqual([catatan]);

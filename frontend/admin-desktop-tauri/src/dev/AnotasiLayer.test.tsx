@@ -100,7 +100,158 @@ async function terapkanPreview(user: ReturnType<typeof userEvent.setup>, label: 
   return panel;
 }
 
+async function pilihReferensi(user: ReturnType<typeof userEvent.setup>, pointer: { mockReturnValue: (el: Element) => unknown }, el: Element) {
+  await user.click(screen.getByRole('button', { name: /^(Pilih|Ganti) referensi tampilan$/ }));
+  pointer.mockReturnValue(el);
+  await user.click(el);
+}
+
 describe('AnotasiLayer', () => {
+  it('referensi boleh berupa descendant asal, berbeda dari aturan tujuan pemindahan', async () => {
+    const { user, pointer, asal } = await mulaiPasangan();
+    await user.click(screen.getByRole('button', { name: 'Pilih asal: article#asal_wadah' }));
+    await pilihReferensi(user, pointer, asal);
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[0][0]).toMatchObject({ selector: '#asal_wadah', referensi: { selector: '#asal_tombol' } });
+  });
+
+  it('mengunci ganti/hapus referensi dan perbandingan selama penyimpanan', async () => {
+    const { user, pointer, tujuan } = await mulaiPasangan();
+    await pilihReferensi(user, pointer, tujuan);
+    let selesai!: (catatan: Anotasi) => void;
+    api.simpan.mockImplementationOnce(() => new Promise((resolve) => { selesai = resolve; }));
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(screen.getByRole('button', { name: 'Ganti referensi tampilan' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Hapus referensi' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Muat ulang perbandingan' })).toBeDisabled();
+    await act(async () => selesai(api.simpan.mock.calls[0][0]));
+    expect(screen.queryByRole('region', { name: 'Editor anotasi' })).not.toBeInTheDocument();
+  });
+
+  it('gagal membaca snapshot referensi saat Simpan mempertahankan draft tanpa mengirim diff kosong', async () => {
+    const { user, pointer, tujuan } = await mulaiPasangan();
+    await pilihReferensi(user, pointer, tujuan);
+    await user.hover(screen.getByRole('button', { name: 'Simpan' }));
+    const asli = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) => {
+      if (el === tujuan) throw new Error('gagal');
+      return asli(el, pseudo);
+    });
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Style asal atau referensi tidak dapat dibaca');
+    expect(screen.getByRole('textbox', { name: 'Instruksi untuk agent' })).toHaveValue('Pindahkan ke container');
+  });
+
+  it('memisahkan referensi dari tujuan meski memakai elemen sama, tanpa menerapkan style otomatis', async () => {
+    const { user, pointer, asal, tujuan } = await mulaiPasangan();
+    (asal as HTMLElement).style.color = 'red';
+    (tujuan as HTMLElement).style.color = 'blue';
+    await pilihReferensi(user, pointer, tujuan);
+    expect(screen.queryByRole('combobox', { name: 'Posisi terhadap tujuan' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Preview tampilan referensi' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Perbandingan tampilan' })).toHaveTextContent('rgb(0, 0, 255)');
+    await user.click(screen.getByRole('button', { name: 'Pilih tujuan' }));
+    await user.click(tujuan);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Posisi terhadap tujuan' }), 'sebelum');
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    expect(api.screenshot).toHaveBeenCalledWith(asal, tujuan, false);
+    expect((asal as HTMLElement).style.color).toBe('red');
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[0][0]).toMatchObject({
+      tujuan: { selector: '#tujuan_teks', posisi: 'sebelum' },
+      referensi: { selector: '#tujuan_teks', style: { color: 'rgb(0, 0, 255)' } },
+      perbedaan_style: expect.arrayContaining([{ properti: 'color', asal: 'rgb(255, 0, 0)', referensi: 'rgb(0, 0, 255)' }]),
+    });
+    expect(api.simpan.mock.calls[0][0].referensi).not.toHaveProperty('posisi');
+    await user.click(screen.getByRole('button', { name: 'Buka daftar anotasi (1)' }));
+    expect(screen.getByRole('region', { name: 'Daftar anotasi UI' })).toHaveTextContent('Referensi tampilan:');
+  });
+
+  it('menolak referensi asal sendiri, tetapi menerima parent asal', async () => {
+    const { user, pointer, asal } = await mulaiPasangan();
+    await user.click(screen.getByRole('button', { name: 'Pilih referensi tampilan' }));
+    await user.click(asal);
+    expect(screen.getByRole('alert')).toHaveTextContent('harus berbeda dari asal');
+    const referensi = document.getElementById('tujuan_lain')!;
+    pointer.mockReturnValue(referensi);
+    await user.click(referensi);
+    // Breadcrumb referensi dapat memilih parent; aturan descendant khusus tujuan tidak dipakai.
+    await user.click(screen.getByRole('button', { name: 'Pilih referensi: main' }));
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[0][0].referensi?.tag).toBe('main');
+  });
+
+  it.each(['Escape', 'button'])('batal memilih referensi melalui %s mempertahankan draft dan referensi lama', async (cara) => {
+    const { user, pointer, tujuan } = await mulaiPasangan();
+    await pilihReferensi(user, pointer, tujuan);
+    await user.click(screen.getByRole('button', { name: 'Ganti referensi tampilan' }));
+    if (cara === 'Escape') await user.keyboard('{Escape}');
+    else await user.click(screen.getByRole('button', { name: 'Batal memilih referensi' }));
+    expect(screen.getByRole('textbox', { name: 'Instruksi untuk agent' })).toHaveValue('Pindahkan ke container');
+    expect(screen.getByRole('textbox', { name: 'Instruksi untuk agent' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[0][0].referensi?.selector).toBe('#tujuan_teks');
+  });
+
+  it('breadcrumb referensi mengikuti parent dan asal baru tidak boleh sama dengan referensi', async () => {
+    const { user, pointer, tujuan } = await mulaiPasangan();
+    await pilihReferensi(user, pointer, tujuan);
+    await user.click(screen.getByRole('button', { name: 'Pilih referensi: section#tujuan_wadah' }));
+    expect(screen.getByRole('region', { name: 'Elemen referensi' })).toHaveTextContent('#tujuan_wadah');
+    await user.click(screen.getByRole('button', { name: 'Pilih referensi: main' }));
+    await user.click(screen.getByRole('button', { name: 'Pilih asal: main' }));
+    expect(screen.queryByRole('region', { name: 'Elemen referensi' })).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Asal baru sama dengan referensi');
+    expect(screen.getByRole('textbox', { name: 'Instruksi untuk agent' })).toHaveValue('Pindahkan ke container');
+  });
+
+  it('mengganti dan menghapus referensi tidak mengubah tujuan atau preview', async () => {
+    const { user, pointer, asal, tujuan } = await mulaiPasangan();
+    await user.click(screen.getByRole('button', { name: 'Pilih tujuan' }));
+    pointer.mockReturnValue(tujuan);
+    await user.click(tujuan);
+    await terapkanPreview(user, 'asal', 'color', 'blue');
+    await pilihReferensi(user, pointer, tujuan);
+    expect(screen.getByRole('region', { name: 'Perbandingan tampilan' })).toHaveTextContent('Preview aktif');
+    await pilihReferensi(user, pointer, document.getElementById('tujuan_lain')!);
+    await user.click(screen.getByRole('button', { name: 'Hapus referensi' }));
+    expect((asal as HTMLElement).style.color).toBe('blue');
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[0][0].tujuan?.selector).toBe('#tujuan_teks');
+    expect(api.simpan.mock.calls[0][0]).not.toHaveProperty('referensi');
+    expect(api.simpan.mock.calls[0][0]).not.toHaveProperty('perbedaan_style');
+  });
+
+  it('referensi yang terlepas memblokir simpan sampai dipilih ulang atau dihapus', async () => {
+    const { user, pointer, tujuan } = await mulaiPasangan();
+    await pilihReferensi(user, pointer, tujuan);
+    await act(async () => tujuan.remove());
+    expect(await screen.findByRole('alert')).toHaveTextContent('referensi sudah tidak tersedia');
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Hapus referensi' }));
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan).toHaveBeenCalledTimes(1);
+  });
+
+  it('Simpan membaca ulang snapshot referensi dan diff setelah kegagalan tanpa menghapus draft', async () => {
+    const { user, pointer, asal, tujuan } = await mulaiPasangan();
+    (asal as HTMLElement).style.color = 'red';
+    (tujuan as HTMLElement).style.color = 'blue';
+    await pilihReferensi(user, pointer, tujuan);
+    api.simpan.mockRejectedValueOnce(new Error('gagal'));
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(screen.getByRole('region', { name: 'Elemen referensi' })).toBeInTheDocument();
+    (tujuan as HTMLElement).style.color = 'green';
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[1][0]).toMatchObject({
+      id: api.simpan.mock.calls[0][0].id,
+      referensi: { style: { color: 'rgb(0, 128, 0)' } },
+      perbedaan_style: expect.arrayContaining([{ properti: 'color', asal: 'rgb(255, 0, 0)', referensi: 'rgb(0, 128, 0)' }]),
+    });
+  });
+
   it('capture ulang mengganti gambar sebelumnya dan melepaskan URL lama', async () => {
     const { user } = await mulaiPasangan();
     vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:pertama').mockReturnValueOnce('blob:kedua');
@@ -341,14 +492,17 @@ describe('AnotasiLayer', () => {
   });
 
   it('memulihkan preview saat rute berubah dan ketika layer dilepas', async () => {
-    const { user, asal, tampilan } = await mulaiPasangan();
+    const { user, pointer, asal, tujuan, tampilan } = await mulaiPasangan();
     const awal = asal.getAttribute('style');
     await terapkanPreview(user, 'asal', 'color', 'blue');
+    await pilihReferensi(user, pointer, tujuan);
     tampilan.rerender(<ThemeProvider><header aria-label="TopBar"><AnotasiLayer rute="/halaman_lain" /></header></ThemeProvider>);
     expect(asal.getAttribute('style')).toBe(awal);
     expect(screen.queryByRole('region', { name: 'Editor anotasi' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Tandai elemen untuk agent' }));
+    pointer.mockReturnValue(asal);
     await user.click(asal);
+    expect(screen.queryByRole('region', { name: 'Elemen referensi' })).not.toBeInTheDocument();
     await terapkanPreview(user, 'asal', 'color', 'blue');
     tampilan.unmount();
     expect(asal.getAttribute('style')).toBe(awal);
@@ -536,13 +690,16 @@ describe('AnotasiLayer', () => {
     pointer.mockReturnValue(tujuan);
     await user.click(tujuan);
     expect(screen.getByRole('textbox', { name: 'Instruksi untuk agent' })).toHaveFocus();
+    await pilihReferensi(user, pointer, tujuan);
+    expect(within(screen.getByRole('dialog')).getByRole('region', { name: 'Perbandingan tampilan' })).toBeInTheDocument();
+    expect(tutup).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
     await user.click(screen.getByRole('button', { name: 'Perbesar screenshot' }));
     expect(tutup).not.toHaveBeenCalled();
     expect(within(screen.getByRole('dialog')).getByRole('img', { name: /Screenshot anotasi/ })).toBeInTheDocument();
     screen.getByRole('textbox', { name: 'Instruksi untuk agent' }).focus();
     await user.keyboard('{Control>}{Enter}{/Control}');
-    expect(api.simpan).toHaveBeenCalledWith(expect.objectContaining({ selector: '#asal_modal', tujuan: expect.objectContaining({ selector: '#tujuan_modal', posisi: 'di_dalam' }), gambar: expect.any(Object) }), expect.any(Blob));
+    expect(api.simpan).toHaveBeenCalledWith(expect.objectContaining({ selector: '#asal_modal', tujuan: expect.objectContaining({ selector: '#tujuan_modal', posisi: 'di_dalam' }), referensi: expect.objectContaining({ selector: '#tujuan_modal' }), gambar: expect.any(Object) }), expect.any(Blob));
     expect(tutup).not.toHaveBeenCalled();
     expect(screen.getByText('Dialog pasangan')).toBeInTheDocument();
     expect(asal.getAttribute('style')).toBe(styleAwal);

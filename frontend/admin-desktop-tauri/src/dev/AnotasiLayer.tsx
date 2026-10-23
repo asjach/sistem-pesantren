@@ -13,12 +13,13 @@ import {
   tujuanValid,
   type Anotasi,
 } from './anotasi';
-import { POSISI_RELATIF, type PosisiRelatif } from './anotasiData';
+import { bandingkanStyle, POSISI_RELATIF, stylePerbandinganTersedia, type PosisiRelatif } from './anotasiData';
 import DetailStyleAnotasi from './DetailStyleAnotasi';
 import PreviewStyleAnotasi from './PreviewStyleAnotasi';
 import { PengelolaPreviewStyle } from './previewStyle';
 import { useScreenshotAnotasi } from './useScreenshotAnotasi';
 import GambarAnotasi from './GambarAnotasi';
+import PerbandinganStyleAnotasi from './PerbandinganStyleAnotasi';
 
 const LEBAR_POPOVER = 480;
 const TINGGI_POPOVER = 520;
@@ -61,7 +62,7 @@ function posisiPopover(rect: DOMRect, wadah: Element | null) {
 }
 
 function DetailElemen({ label, elemen, awal, onPilih, onSorot, pengelolaPreview, onPreview, menyimpan }: {
-  label: 'Asal' | 'Tujuan';
+  label: 'Asal' | 'Tujuan' | 'Referensi';
   elemen: Element;
   awal: Element;
   onPilih: (el: Element) => void;
@@ -106,19 +107,19 @@ function DetailElemen({ label, elemen, awal, onPilih, onSorot, pengelolaPreview,
         <dd className="min-w-0 break-all font-mono select-text">{konteks.selector}</dd>
       </dl>
       <DetailStyleAnotasi elemen={elemen} label={label.toLowerCase()} />
-      <PreviewStyleAnotasi key={konteks.selector} elemen={elemen} label={label.toLowerCase()} pengelola={pengelolaPreview} onUbah={onPreview} disabled={menyimpan} />
+      {label !== 'Referensi' && <PreviewStyleAnotasi key={konteks.selector} elemen={elemen} label={label.toLowerCase()} pengelola={pengelolaPreview} onUbah={onPreview} disabled={menyimpan} />}
     </section>
   );
 }
 
-function Sorotan({ rect, label, tujuan = false }: { rect: DOMRect; label: string; tujuan?: boolean }) {
+function Sorotan({ rect, label, tujuan = false, referensi = false }: { rect: DOMRect; label: string; tujuan?: boolean; referensi?: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none fixed border-2 ${tujuan ? 'border-amber-500 bg-amber-500/10' : 'border-primary bg-primary/10'}`}
+      className={`pointer-events-none fixed border-2 ${referensi ? 'border-violet-500 bg-violet-500/10' : tujuan ? 'border-amber-500 bg-amber-500/10' : 'border-primary bg-primary/10'}`}
       style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
     >
-      <span className={`absolute left-0 max-w-full px-1 text-[10px] ${rect.top > 20 ? 'bottom-full' : 'top-0'} ${tujuan ? 'bg-amber-500 text-black' : 'bg-primary text-primary-foreground'}`}>
+      <span className={`absolute left-0 max-w-full px-1 text-[10px] ${rect.top > 20 ? 'bottom-full' : 'top-0'} ${referensi ? 'bg-violet-700 text-white' : tujuan ? 'bg-amber-500 text-black' : 'bg-primary text-primary-foreground'}`}>
         {label}
       </span>
     </div>
@@ -141,7 +142,11 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
   const [asalAwal, setAsalAwal] = useState<Element | null>(null);
   const [tujuan, setTujuan] = useState<Element | null>(null);
   const [tujuanAwal, setTujuanAwal] = useState<Element | null>(null);
-  const [memilihTujuan, setMemilihTujuan] = useState(false);
+  const [memilih, setMemilih] = useState<'tujuan' | 'referensi' | null>(null);
+  const memilihTujuan = memilih === 'tujuan';
+  const [referensi, setReferensi] = useState<Element | null>(null);
+  const [referensiAwal, setReferensiAwal] = useState<Element | null>(null);
+  const [galatReferensi, setGalatReferensi] = useState<string | null>(null);
   const [posisiRelatif, setPosisiRelatif] = useState<PosisiRelatif>('di_dalam');
   const [sorotParent, setSorotParent] = useState<DOMRect | null>(null);
   const [galatPilihan, setGalatPilihan] = useState<string | null>(null);
@@ -170,6 +175,17 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
   }, [muat]);
 
   const pilih = useCallback((el: Element) => {
+    if (memilih === 'referensi' && target) {
+      if (el === target) { setGalatPilihan('Referensi tampilan harus berbeda dari asal.'); return; }
+      setReferensi(el);
+      setReferensiAwal(el);
+      setGalatReferensi(null);
+      setMemilih(null);
+      setSorot(target.getBoundingClientRect());
+      setGalatPilihan(null);
+      setAktif(false);
+      return;
+    }
     if (memilihTujuan && target) {
       if (!tujuanValid(target, el)) {
         setGalatPilihan('Pilih tujuan yang berbeda dari asal dan bukan elemen di dalam asal.');
@@ -178,7 +194,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
       if (tujuan && tujuan !== el) pengelolaPreview.reset(tujuan);
       setTujuan(el);
       setTujuanAwal(el);
-      setMemilihTujuan(false);
+      setMemilih(null);
       setSorot(target.getBoundingClientRect());
       setGalatPilihan(null);
       setAktif(false);
@@ -189,7 +205,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
     setSorot(el.getBoundingClientRect());
     setInstruksi('');
     setAktif(false);
-  }, [memilihTujuan, target, tujuan, pengelolaPreview]);
+  }, [memilih, memilihTujuan, target, tujuan, pengelolaPreview]);
 
   const batal = useCallback(() => {
     pengelolaPreview.resetSemua();
@@ -198,7 +214,10 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
     setAsalAwal(null);
     setTujuan(null);
     setTujuanAwal(null);
-    setMemilihTujuan(false);
+    setMemilih(null);
+    setReferensi(null);
+    setReferensiAwal(null);
+    setGalatReferensi(null);
     setPosisiRelatif('di_dalam');
     setSorotParent(null);
     setGalatPilihan(null);
@@ -218,9 +237,9 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
     setSorot(target?.getBoundingClientRect() ?? null);
   }, [target]);
 
-  const batalPilihTujuan = useCallback(() => {
+  const batalPemilihan = useCallback(() => {
     setAktif(false);
-    setMemilihTujuan(false);
+    setMemilih(null);
     setGalatPilihan(null);
     setSorot(target?.getBoundingClientRect() ?? null);
   }, [target]);
@@ -231,7 +250,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
         e.preventDefault();
         e.stopImmediatePropagation();
         if (sibuk) return;
-        if (memilihTujuan) batalPilihTujuan();
+        if (memilih) batalPemilihan();
         else { batal(); setAktif(false); }
         return;
       }
@@ -246,7 +265,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
 
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [batal, aktif, target, memilihTujuan, batalPilihTujuan, sibuk]);
+  }, [batal, aktif, target, memilih, batalPemilihan, sibuk]);
 
   useEffect(() => {
     if (!aktif) return;
@@ -327,22 +346,27 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
     if (!target) return;
 
     const periksa = () => {
-      if (!target.isConnected) { batal(); setAktif(false); }
+      if (!target.isConnected) { batal(); setAktif(false); return; }
       else if (tujuan && !tujuan.isConnected) {
         pengelolaPreview.reset(tujuan);
         setTujuan(null);
         setTujuanAwal(null);
         setGalatPilihan('Elemen tujuan sudah tidak tersedia. Pilih tujuan kembali.');
       }
+      if (referensi && !referensi.isConnected) setGalatReferensi('Elemen referensi sudah tidak tersedia. Pilih kembali atau hapus referensi sebelum Simpan.');
     };
     const observer = new MutationObserver(periksa);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [target, tujuan, batal, pengelolaPreview]);
+  }, [target, tujuan, referensi, batal, pengelolaPreview]);
 
   async function simpan() {
     if (!target || !target.isConnected || !instruksi.trim() || sibuk || aktif) return;
     if (!screenshot.validasi()) return;
+    if (referensi && (!referensi.isConnected || referensi === target)) {
+      setGalatReferensi('Referensi tidak valid. Pilih kembali atau hapus referensi sebelum Simpan.');
+      return;
+    }
     if (tujuan && (!tujuan.isConnected || !tujuanValid(target, tujuan))) {
       setGalatPilihan('Tujuan tidak valid. Pilih tujuan kembali.');
       return;
@@ -354,13 +378,23 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
         const preview = pengelolaPreview.snapshot(elemen);
         return { ...bacaKonteks(elemen, true), ...(preview ? { preview } : {}) };
       };
+      const konteksAsal = konteksPreview(target);
+      const konteksReferensi = referensi ? konteksPreview(referensi) : null;
+      if (konteksReferensi && (!stylePerbandinganTersedia(konteksAsal.style) || !stylePerbandinganTersedia(konteksReferensi.style))) {
+        setGalatReferensi('Style asal atau referensi tidak dapat dibaca. Pilih kembali atau hapus referensi.');
+        return;
+      }
       const baru: Anotasi = {
         ...(identitasDraft.current ??= { id: buatId(), dibuat: new Date().toISOString() }),
         rute: `${window.location.pathname}${window.location.search}`,
-        ...konteksPreview(target),
+        ...konteksAsal,
         instruksi: instruksi.trim(),
         ...(tujuan ? { tujuan: { ...konteksPreview(tujuan), posisi: posisiRelatif } } : {}),
       };
+      if (konteksReferensi) {
+        baru.referensi = konteksReferensi;
+        baru.perbedaan_style = bandingkanStyle(konteksAsal.style!, konteksReferensi.style!);
+      }
       if (screenshot.gambar) baru.gambar = { ...screenshot.gambar.metadata, berkas: `screenshots/${baru.id}.png` };
       const tersimpan = screenshot.gambar ? await simpanAnotasi(baru, screenshot.gambar.blob) : await simpanAnotasi(baru);
       setDaftar((lama) => [...lama, tersimpan]);
@@ -387,9 +421,9 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
   const posisi = target && sorot ? posisiPopover(sorot, wadahFokus) : null;
   const infoPemilihan = (
     <div data-anotasi-abaikan onFocus={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} className="pointer-events-auto fixed top-2 left-1/2 z-[10000] flex max-w-[calc(100%-16px)] -translate-x-1/2 flex-col gap-1 border border-primary bg-popover p-2 text-xs text-popover-foreground shadow-lg">
-      <p>{memilihTujuan ? 'Klik elemen tujuan · Esc kembali ke instruksi' : `Klik elemen untuk diberi instruksi · ${LABEL_PINTASAN} · Esc batal`}</p>
+      <p>{memilih ? `Klik elemen ${memilih === 'referensi' ? 'referensi tampilan' : 'tujuan'} · Esc kembali ke instruksi` : `Klik elemen untuk diberi instruksi · ${LABEL_PINTASAN} · Esc batal`}</p>
       {galatPilihan && <p role="alert" className="text-destructive">{galatPilihan}</p>}
-      {memilihTujuan && <Button type="button" size="sm" variant="outline" onClick={batalPilihTujuan}>Batal memilih tujuan</Button>}
+      {memilih && <Button type="button" size="sm" variant="outline" onClick={batalPemilihan}>Batal memilih {memilih}</Button>}
     </div>
   );
 
@@ -400,8 +434,9 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
       className="pointer-events-none fixed inset-0 z-[9999]"
     >
       {target && <Sorotan rect={target.getBoundingClientRect()} label="Asal" />}
-      {tujuan && <Sorotan rect={tujuan.getBoundingClientRect()} label="Tujuan" tujuan />}
-      {aktif && sorot && <Sorotan rect={sorot} label={memilihTujuan ? 'Calon tujuan' : 'Calon asal'} tujuan={memilihTujuan} />}
+      {tujuan && <Sorotan rect={tujuan.getBoundingClientRect()} label={tujuan === referensi ? 'Tujuan · Referensi tampilan' : 'Tujuan'} tujuan />}
+      {referensi?.isConnected && referensi !== tujuan && <Sorotan rect={referensi.getBoundingClientRect()} label="Referensi tampilan" referensi />}
+      {aktif && sorot && <Sorotan rect={sorot} label={memilih ? `Calon ${memilih}` : 'Calon asal'} tujuan={memilihTujuan} referensi={memilih === 'referensi'} />}
       {sorotParent && <Sorotan rect={sorotParent} label="Parent" />}
 
       {aktif && (wadahFokus ? createPortal(infoPemilihan, wadahFokus) : infoPemilihan)}
@@ -431,6 +466,11 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
               if (target !== el) pengelolaPreview.reset(target);
               setTarget(el);
               setSorot(el.getBoundingClientRect());
+              if (el === referensi) {
+                setReferensi(null);
+                setReferensiAwal(null);
+                setGalatReferensi('Asal baru sama dengan referensi. Pilih referensi tampilan kembali bila diperlukan.');
+              }
               if (tujuan && !tujuanValid(el, tujuan)) {
                 pengelolaPreview.reset(tujuan);
                 setTujuan(null);
@@ -450,7 +490,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
             }} />}
             <div className="flex flex-wrap items-center gap-1">
               <Button type="button" variant="outline" size="sm" disabled={sibuk} onClick={() => {
-                setMemilihTujuan(true);
+                setMemilih('tujuan');
                 setGalatPilihan(null);
                 setPanel(false);
                 setAktif(true);
@@ -469,6 +509,32 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
                 {Object.entries(POSISI_RELATIF).map(([nilai, label]) => <option key={nilai} value={nilai}>{label}</option>)}
               </select>
             </label> : <p className="text-[11px] text-muted-foreground">Tujuan opsional; anotasi biasa dapat langsung disimpan.</p>}
+            <div className="border-t border-border pt-2">
+              <p className="mb-1 text-[11px] text-muted-foreground">Referensi tampilan adalah acuan style, bukan tujuan pemindahan. Keduanya dapat dipilih secara terpisah.</p>
+              <div className="flex flex-wrap gap-1">
+                <Button type="button" variant="outline" size="sm" disabled={sibuk} onClick={() => {
+                  setMemilih('referensi');
+                  setGalatPilihan(null);
+                  setPanel(false);
+                  setAktif(true);
+                }}>{referensi ? 'Ganti referensi tampilan' : 'Pilih referensi tampilan'}</Button>
+                {referensi && <Button type="button" variant="ghost" size="sm" disabled={sibuk} onClick={() => {
+                  setReferensi(null);
+                  setReferensiAwal(null);
+                  setGalatReferensi(null);
+                }}>Hapus referensi</Button>}
+              </div>
+            </div>
+            {referensi && referensiAwal && <>
+              <DetailElemen label="Referensi" elemen={referensi} awal={referensiAwal} onSorot={setSorotParent} pengelolaPreview={pengelolaPreview} onPreview={perbaruiPreview} menyimpan={sibuk} onPilih={(el) => {
+                if (sibuk) return;
+                if (el === target) { setGalatReferensi('Referensi tampilan harus berbeda dari asal.'); return; }
+                setReferensi(el);
+                setGalatReferensi(null);
+              }} />
+              <PerbandinganStyleAnotasi key={`${bacaKonteks(target).selector}|${bacaKonteks(referensi).selector}`} asal={target} referensi={referensi} disabled={sibuk} previewAktif={!!pengelolaPreview.snapshot(target) || !!pengelolaPreview.snapshot(referensi)} />
+            </>}
+            {galatReferensi && <p role="alert" className="text-xs text-destructive">{galatReferensi}</p>}
             {galatPilihan && <p role="alert" className="text-xs text-destructive">{galatPilihan}</p>}
             <section aria-label="Screenshot anotasi" className="border-t border-border pt-2">
               <p className="mb-1 text-[11px] text-muted-foreground">Opsional: ambil area asal dan tujuan yang terlihat, tanpa editor. Periksa gambar sebelum Simpan; render canvas atau konten eksternal mungkin berbeda.</p>
@@ -582,6 +648,10 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
                       <p><span className="font-semibold">Asal:</span> <span className="break-all font-mono select-text">{a.selector}</span></p>
                       <p><span className="font-semibold">Tujuan · {POSISI_RELATIF[a.tujuan.posisi]}:</span> <span className="break-all font-mono select-text">{a.tujuan.selector}</span></p>
                       {a.tujuan.sumber && <p className="break-all font-mono text-muted-foreground select-text">{a.tujuan.sumber}</p>}
+                    </div>}
+                    {a.referensi && <div className="mt-1 text-[11px]">
+                      <p><span className="font-semibold">Referensi tampilan:</span> <span className="break-all font-mono select-text">{a.referensi.selector}</span></p>
+                      <p className="text-muted-foreground">{a.perbedaan_style?.length ?? 0} properti berbeda · bukan tujuan pemindahan.</p>
                     </div>}
                     <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
                       {a.komponen.join(' > ') || a.tag}

@@ -13,6 +13,25 @@ export const PROPERTI_STYLE: readonly PropertiStyle[] = GRUP_STYLE.flatMap((grup
 export const GRUP_PREVIEW = GRUP_STYLE.filter((grup) => ['Jarak', 'Border', 'Warna', 'Font'].includes(grup.label));
 export const PROPERTI_PREVIEW: readonly PropertiStyle[] = GRUP_PREVIEW.flatMap((grup) => [...grup.properti]);
 
+export interface PerbedaanStyle {
+  properti: PropertiStyle;
+  asal: string | null;
+  referensi: string | null;
+}
+
+/** Bandingkan nilai computed style, tanpa menebak kesetaraan visual atau rule asal. */
+export function bandingkanStyle(asal: StyleElemen, referensi: StyleElemen): PerbedaanStyle[] {
+  return PROPERTI_PREVIEW.flatMap((properti) => {
+    const nilaiAsal = asal[properti]?.trim() || null;
+    const nilaiReferensi = referensi[properti]?.trim() || null;
+    return nilaiAsal === nilaiReferensi ? [] : [{ properti, asal: nilaiAsal, referensi: nilaiReferensi }];
+  });
+}
+
+export function stylePerbandinganTersedia(style?: StyleElemen): style is StyleElemen {
+  return !!style && PROPERTI_PREVIEW.some((properti) => !!style[properti]?.trim());
+}
+
 export interface PreviewElemen {
   sebelum: StyleElemen;
   sesudah: StyleElemen;
@@ -54,6 +73,8 @@ export interface Anotasi extends KonteksElemen {
   instruksi: string;
   tujuan?: KonteksElemen & { posisi: PosisiRelatif };
   gambar?: GambarAnotasi;
+  referensi?: KonteksElemen;
+  perbedaan_style?: PerbedaanStyle[];
 }
 
 function teks(nilai: unknown, batas: number): string {
@@ -126,6 +147,16 @@ export function normalisasiAnotasi(data: Record<string, unknown>): Anotasi {
     if (tujuan.selector === hasil.selector) throw new Error('Asal dan tujuan harus berbeda.');
     hasil.tujuan = { ...tujuan, posisi: posisi as PosisiRelatif };
   }
+
+  if (data.referensi != null) {
+    if (typeof data.referensi !== 'object' || Array.isArray(data.referensi)) throw new Error('Referensi tampilan tidak valid.');
+    const referensi = konteks(data.referensi as Record<string, unknown>);
+    if (!referensi.selector.trim() || !referensi.tag.trim() || referensi.selector === hasil.selector) throw new Error('Referensi harus lengkap dan berbeda dari asal.');
+    if (!stylePerbandinganTersedia(hasil.style) || !stylePerbandinganTersedia(referensi.style)) throw new Error('Snapshot asal dan referensi wajib tersedia.');
+    hasil.referensi = referensi;
+    // Hitung ulang dari snapshot yang dinormalisasi; jangan percaya diff kiriman client.
+    hasil.perbedaan_style = bandingkanStyle(hasil.style, referensi.style);
+  } else if (data.perbedaan_style != null) throw new Error('Perbedaan style memerlukan referensi tampilan.');
 
   if (data.gambar != null) {
     const gambar = data.gambar as GambarAnotasi;

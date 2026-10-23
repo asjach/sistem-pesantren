@@ -48,6 +48,18 @@
   Field opsional `preview` berisi `sebelum`, `sesudah` (computed style), dan
   `perubahan` (nilai CSS yang diminta). Agen membaca ketiganya sebagai acuan
   perubahan, bukan menganggap preview sudah mengubah kode produk.
+- **Pilih referensi tampilan** membandingkan asal dengan elemen acuan, terpisah
+  dari **Pilih tujuan** pemindahan. Referensi mendukung breadcrumb, ganti/hapus,
+  serta Esc kembali ke draft. Referensi hanya dibaca; tidak ada penerapan CSS
+  otomatis. Perbandingan font, warna/background, border, padding, margin, dan gap
+  menampilkan perbedaan lebih dahulu, dengan opsi **Tampilkan semua** dan **Muat
+  ulang perbandingan**. Preview aktif ikut terbaca dan diberi penanda.
+- Field opsional `referensi` menyimpan konteks dan snapshot style elemen acuan;
+  `perbedaan_style` berisi daftar `{properti, asal, referensi}` berdasarkan
+  snapshot terbaru saat Simpan. Nilai tidak tersedia adalah `null`, bukan
+  disamakan dengan nol atau style parent. Agen wajib membedakan referensi style
+  dari `tujuan` pemindahan; keduanya bisa menunjuk elemen yang sama dalam peran
+  berbeda. Screenshot tetap hanya mencakup asal dan tujuan, bukan referensi.
 - **Ambil screenshot** menyertakan area asal (biru) dan tujuan (jingga) yang
   terlihat, tanpa editor anotasi. Thumbnail bisa diperbesar, diambil ulang,
   atau dibuang. Perubahan pilihan, preview, scroll halaman, atau ukuran window
