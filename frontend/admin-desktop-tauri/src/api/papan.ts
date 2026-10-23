@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, apiUpload, downloadFile } from './client';
 
 /** Status yang dipakai papan — sesuai kontrak API Board. */
 export type StatusPapan = 'backlog' | 'todo' | 'in_progress' | 'for_review' | 'done';
@@ -191,4 +191,48 @@ export function muatRiwayatPapan(kode?: string, batas = 20) {
   if (kode) qs.set('kode', kode);
   qs.set('batas', String(batas));
   return api<{ riwayat: RiwayatPapan[] }>(`/board/riwayat?${qs.toString()}`);
+}
+
+/** Ringkasan file backup sebelum restore benar-benar mengganti Board. */
+export interface RingkasanBackupPapan {
+  dibuat_pada: string;
+  versi: number;
+  modul: number;
+  sub_modul: number;
+  butir: number;
+  riwayat: number;
+  status: Record<StatusPapan, number>;
+  workflow: {
+    master: boolean;
+    aplikasi: { kode: string; nama: string; aktif: boolean; efektif: boolean }[];
+  };
+}
+
+/** Unduh seluruh isi Board sebagai file JSON. */
+export function unduhBackupPapan() {
+  return downloadFile('/board/backup', 'papan-backup.json');
+}
+
+/** Validasi file restore dan minta ringkasannya tanpa menulis data. */
+export function pratinjauRestorePapan(berkas: File) {
+  const data = new FormData();
+  data.append('berkas', berkas);
+
+  return apiUpload<{ ringkasan: RingkasanBackupPapan }>('/board/backup/pratinjau', data);
+}
+
+/** Ganti seluruh isi Board dengan isi file backup. */
+export function restorePapan(berkas: File) {
+  const data = new FormData();
+  data.append('berkas', berkas);
+
+  return apiUpload<{ pesan: string; ringkasan: RingkasanBackupPapan; backup_keamanan: string }>(
+    '/board/backup/restore',
+    data,
+  );
+}
+
+/** Unduh backup otomatis yang dibuat tepat sebelum restore. */
+export function unduhBackupKeamanan(nama: string) {
+  return downloadFile(`/board/backup/keamanan/${encodeURIComponent(nama)}`, nama);
 }

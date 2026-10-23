@@ -74,6 +74,10 @@ Route::middleware(['auth:sanctum', 'throttle:api_user'])
         Route::get('/', [PapanController::class, 'index'])->middleware('permission:papan.lihat');
         Route::patch('workflow', [PapanController::class, 'workflow'])->middleware('permission:papan.ubah');
         Route::get('riwayat', [PapanController::class, 'riwayat'])->middleware('permission:papan.lihat');
+        Route::get('backup', [PapanController::class, 'backup'])->middleware('permission:papan.lihat');
+        Route::post('backup/pratinjau', [PapanController::class, 'pratinjauRestore'])->middleware('permission:papan.ubah');
+        Route::post('backup/restore', [PapanController::class, 'restore'])->middleware('permission:papan.ubah');
+        Route::get('backup/keamanan/{berkas}', [PapanController::class, 'unduhBackupKeamanan'])->middleware('permission:papan.ubah');
         Route::get('{kode}', [PapanController::class, 'show'])->middleware('permission:papan.lihat');
         // Yang dipindah adalah POIN, bukan sub-modulnya: status sub-modul
         // diturunkan dari poin, jadi tidak ada endpoint untuk menggeser

@@ -3,10 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\PapanBackupService;
 use App\Services\PapanService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 /**
  * API papan perkembangan proyek (FB-PAPAN-01).
@@ -20,6 +25,7 @@ class PapanController extends Controller
 {
     public function __construct(
         private readonly PapanService $papan,
+        private readonly PapanBackupService $backup,
     ) {}
 
     /** Seluruh papan: aplikasi -> modul -> sub-modul -> butir + status workflow. */
@@ -52,6 +58,69 @@ class PapanController extends Controller
         }
 
         return response()->json($this->papan->statusWorkflow());
+    }
+
+    /** Unduh seluruh isi Board sebagai satu file JSON. */
+    public function backup(): StreamedResponse
+    {
+        try {
+            $json = $this->backup->eksporJson();
+        } catch (Throwable $e) {
+            report($e);
+            abort(500, 'Backup Board gagal dibuat.');
+        }
+
+        return response()->streamDownload(
+            function () use ($json): void {
+                echo $json;
+            },
+            $this->backup->namaBerkas(),
+            ['Content-Type' => 'application/json; charset=UTF-8'],
+        );
+    }
+
+    /** Validasi file restore dan kembalikan ringkasan tanpa menulis data. */
+    public function pratinjauRestore(Request $request): JsonResponse
+    {
+        $isi = $this->isiBerkas($request);
+        $data = $this->backup->urai($isi);
+
+        return response()->json(['ringkasan' => $this->backup->ringkasan($data)]);
+    }
+
+    /** Ganti seluruh isi Board dengan isi file setelah backup keamanan. */
+    public function restore(Request $request): JsonResponse
+    {
+        $isi = $this->isiBerkas($request);
+
+        try {
+            $hasil = $this->backup->pulihkan($isi);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json(['pesan' => 'Restore gagal; Board lama tidak diubah.'], 500);
+        }
+
+        return response()->json([
+            'pesan' => 'Restore Board selesai.',
+            'ringkasan' => $hasil['ringkasan'],
+            'backup_keamanan' => $hasil['backup_keamanan'],
+        ]);
+    }
+
+    /** Unduh backup keamanan yang dibuat tepat sebelum restore terakhir. */
+    public function unduhBackupKeamanan(string $berkas): StreamedResponse
+    {
+        $path = $this->backup->pathBackupKeamanan($berkas);
+        if ($path === null) {
+            abort(404);
+        }
+
+        return Storage::disk('local')->download($path, basename($path), [
+            'Content-Type' => 'application/json; charset=UTF-8',
+        ]);
     }
 
     /** Riwayat perpindahan status, terbaru lebih dulu. */
@@ -369,5 +438,19 @@ class PapanController extends Controller
         }
 
         return response()->json(['message' => 'Sub-modul dihapus.']);
+    }
+
+    private function isiBerkas(Request $request): string
+    {
+        $request->validate([
+            'berkas' => ['required', 'file', 'max:10240'],
+        ]);
+
+        $isi = $request->file('berkas')?->getContent();
+        if (! is_string($isi)) {
+            throw ValidationException::withMessages(['berkas' => 'File backup tidak dapat dibaca.']);
+        }
+
+        return $isi;
     }
 }

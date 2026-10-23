@@ -32,6 +32,7 @@ import { kartuModul, kemajuanModul, kemajuanPoin, modulPertama, persenKemajuan, 
 import { JUDUL_KOLOM, KOLOM_PAPAN } from '@/api/papan';
 import type { AksiButir, AksiSub } from '@/components/papan/PapanKolom';
 import { WARNA_STATUS as WARNA_KOLOM } from '@/components/papan/PapanKolom';
+import { BackupRestorePapan } from '@/components/papan/BackupRestorePapan';
 import { KelolaSubModul } from '@/components/papan/KelolaSubModul';
 import { TambahModul } from '@/components/papan/TambahModul';
 import { TopBarSearch } from '@/components/TopBarSearch';
@@ -526,6 +527,7 @@ export default function PapanPage() {
               </ul>
             </PopoverContent>
           </Popover>
+          {bolehUbah ? <BackupRestorePapan onSelesai={segarkan} /> : null}
           {bolehUbah ? (
             <Button
               id="btn_tambah_modul"
