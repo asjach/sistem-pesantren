@@ -75,14 +75,158 @@ async function mulaiPasangan() {
   const asal = document.getElementById('asal_tombol')!;
   const tujuan = document.getElementById('tujuan_teks')!;
   const pointer = vi.spyOn(document, 'elementFromPoint').mockReturnValue(asal);
-  tampilkan();
+  const tampilan = tampilkan();
   await user.click(screen.getByRole('button', { name: 'Tandai elemen untuk agent' }));
   await user.click(asal);
   await user.type(screen.getByRole('textbox', { name: 'Instruksi untuk agent' }), 'Pindahkan ke container');
-  return { user, pointer, asal, tujuan };
+  return { user, pointer, asal, tujuan, tampilan };
+}
+
+async function terapkanPreview(user: ReturnType<typeof userEvent.setup>, label: string, properti: string, nilai: string) {
+  const buka = screen.getByRole('button', { name: `Preview tampilan ${label}` });
+  if (buka.getAttribute('aria-expanded') === 'false') await user.click(buka);
+  const panel = within(screen.getByRole('region', { name: `Preview ${label}` }));
+  await user.selectOptions(panel.getByLabelText('Properti'), properti);
+  await user.clear(panel.getByLabelText('Nilai CSS'));
+  await user.type(panel.getByLabelText('Nilai CSS'), nilai);
+  await user.click(panel.getByRole('button', { name: 'Terapkan preview' }));
+  return panel;
 }
 
 describe('AnotasiLayer', () => {
+  it('Enter pada nilai CSS menerapkan preview tanpa menyimpan anotasi', async () => {
+    const { user, asal } = await mulaiPasangan();
+    await user.click(screen.getByRole('button', { name: 'Preview tampilan asal' }));
+    const panel = within(screen.getByRole('region', { name: 'Preview asal' }));
+    await user.type(panel.getByLabelText('Nilai CSS'), 'blue{Enter}');
+    expect((asal as HTMLElement).style.color).toBe('blue');
+    expect(api.simpan).not.toHaveBeenCalled();
+    await user.keyboard('{Escape}');
+    expect((asal as HTMLElement).style.color).toBe('');
+  });
+
+  it('mengunci perubahan dan Reset preview sampai penyimpanan selesai', async () => {
+    const { user, asal } = await mulaiPasangan();
+    (asal as HTMLElement).style.color = 'red';
+    const panel = await terapkanPreview(user, 'asal', 'color', 'blue');
+    let selesai!: (anotasi: Anotasi) => void;
+    api.simpan.mockImplementationOnce(() => new Promise((resolve) => { selesai = resolve; }));
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(panel.getByLabelText('Properti')).toBeDisabled();
+    expect(panel.getByLabelText('Nilai CSS')).toBeDisabled();
+    expect(panel.getByRole('button', { name: 'Reset preview' })).toBeDisabled();
+    expect(panel.getByRole('button', { name: 'Terapkan preview' })).toBeDisabled();
+    expect((asal as HTMLElement).style.color).toBe('blue');
+    await act(async () => selesai(api.simpan.mock.calls[0][0]));
+    expect((asal as HTMLElement).style.color).toBe('red');
+  });
+
+  it('menyimpan preview kedua elemen beserta sebelum/sesudah, lalu memulihkan tampilan', async () => {
+    const { user, pointer, asal, tujuan } = await mulaiPasangan();
+    (asal as HTMLElement).style.color = 'red';
+    (tujuan as HTMLElement).style.color = 'green';
+    const asalPanel = await terapkanPreview(user, 'asal', 'color', 'blue');
+    expect(asalPanel.getByText('rgb(255, 0, 0) → rgb(0, 0, 255)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Pilih tujuan' }));
+    pointer.mockReturnValue(tujuan);
+    await user.click(tujuan);
+    expect((asal as HTMLElement).style.color).toBe('blue');
+    await terapkanPreview(user, 'tujuan', 'color', 'yellow');
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan).toHaveBeenCalledWith(expect.objectContaining({
+      preview: expect.objectContaining({ sebelum: expect.objectContaining({ color: 'rgb(255, 0, 0)' }), sesudah: expect.objectContaining({ color: 'rgb(0, 0, 255)' }), perubahan: { color: 'blue' } }),
+      tujuan: expect.objectContaining({ preview: expect.objectContaining({ perubahan: { color: 'yellow' } }) }),
+    }));
+    expect((asal as HTMLElement).style.color).toBe('red');
+    expect((tujuan as HTMLElement).style.color).toBe('green');
+  });
+
+  it('nilai CSS salah tidak merusak preview aktif dan menampilkan error', async () => {
+    const { user, asal } = await mulaiPasangan();
+    await terapkanPreview(user, 'asal', 'color', 'blue');
+    const panel = await terapkanPreview(user, 'asal', 'color', 'bukan_warna');
+    expect(panel.getByRole('alert')).toHaveTextContent('Nilai CSS tidak valid');
+    expect((asal as HTMLElement).style.color).toBe('blue');
+  });
+
+  it('Reset mengembalikan style dan anotasi berikutnya tidak menyimpan preview', async () => {
+    const { user, asal } = await mulaiPasangan();
+    (asal as HTMLElement).style.color = 'red';
+    const panel = await terapkanPreview(user, 'asal', 'color', 'blue');
+    await user.click(panel.getByRole('button', { name: 'Reset preview' }));
+    expect((asal as HTMLElement).style.color).toBe('red');
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[0][0]).not.toHaveProperty('preview');
+  });
+
+  it.each(['Batal', 'Escape', 'pintasan'])('memulihkan preview saat editor dibatalkan melalui %s', async (cara) => {
+    const { user, asal } = await mulaiPasangan();
+    const awal = asal.getAttribute('style');
+    await terapkanPreview(user, 'asal', 'color', 'blue');
+    if (cara === 'Batal') await user.click(screen.getByRole('button', { name: 'Batal' }));
+    else if (cara === 'Escape') await user.keyboard('{Escape}');
+    else await user.keyboard('{Control>}{Shift>}a{/Shift}{/Control}');
+    expect(asal.getAttribute('style')).toBe(awal);
+    expect(screen.queryByRole('region', { name: 'Editor anotasi' })).not.toBeInTheDocument();
+  });
+
+  it('memulihkan preview asal ketika parent dipilih, tanpa menghapus instruksi', async () => {
+    const { user, asal } = await mulaiPasangan();
+    (asal as HTMLElement).style.color = 'red';
+    await terapkanPreview(user, 'asal', 'color', 'blue');
+    await user.click(screen.getByRole('button', { name: 'Pilih asal: article#asal_wadah' }));
+    expect((asal as HTMLElement).style.color).toBe('red');
+    expect(screen.getByRole('textbox', { name: 'Instruksi untuk agent' })).toHaveValue('Pindahkan ke container');
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[0][0]).not.toHaveProperty('preview');
+  });
+
+  it('mempertahankan preview saat Simpan gagal, lalu memulihkannya ketika retry berhasil', async () => {
+    const { user, asal } = await mulaiPasangan();
+    (asal as HTMLElement).style.color = 'red';
+    await terapkanPreview(user, 'asal', 'color', 'blue');
+    api.simpan.mockRejectedValueOnce(new Error('gagal'));
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect((asal as HTMLElement).style.color).toBe('blue');
+    expect(screen.getByRole('textbox', { name: 'Instruksi untuk agent' })).toHaveValue('Pindahkan ke container');
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[1][0].preview?.perubahan).toEqual({ color: 'blue' });
+    expect((asal as HTMLElement).style.color).toBe('red');
+  });
+
+  it('memulihkan preview tujuan lama saat tujuan diganti atau dihapus', async () => {
+    const { user, pointer, asal, tujuan } = await mulaiPasangan();
+    (tujuan as HTMLElement).style.color = 'green';
+    await terapkanPreview(user, 'asal', 'color', 'blue');
+    await user.click(screen.getByRole('button', { name: 'Pilih tujuan' }));
+    pointer.mockReturnValue(tujuan);
+    await user.click(tujuan);
+    await terapkanPreview(user, 'tujuan', 'color', 'yellow');
+    await user.click(screen.getByRole('button', { name: 'Ganti tujuan' }));
+    const lain = document.getElementById('tujuan_lain')!;
+    pointer.mockReturnValue(lain);
+    await user.click(lain);
+    expect((tujuan as HTMLElement).style.color).toBe('green');
+    await terapkanPreview(user, 'tujuan', 'color', 'purple');
+    await user.click(screen.getByRole('button', { name: 'Hapus tujuan' }));
+    expect(lain.style.color).toBe('');
+    expect((asal as HTMLElement).style.color).toBe('blue');
+  });
+
+  it('memulihkan preview saat rute berubah dan ketika layer dilepas', async () => {
+    const { user, asal, tampilan } = await mulaiPasangan();
+    const awal = asal.getAttribute('style');
+    await terapkanPreview(user, 'asal', 'color', 'blue');
+    tampilan.rerender(<ThemeProvider><header aria-label="TopBar"><AnotasiLayer rute="/halaman_lain" /></header></ThemeProvider>);
+    expect(asal.getAttribute('style')).toBe(awal);
+    expect(screen.queryByRole('region', { name: 'Editor anotasi' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Tandai elemen untuk agent' }));
+    await user.click(asal);
+    await terapkanPreview(user, 'asal', 'color', 'blue');
+    tampilan.unmount();
+    expect(asal.getAttribute('style')).toBe(awal);
+  });
+
   it('menyimpan snapshot terbaru kedua elemen meskipun detail tidak dibuka', async () => {
     const { user, pointer, asal, tujuan } = await mulaiPasangan();
     asal.setAttribute('style', 'padding-left: 8px; color: red;');
@@ -253,6 +397,9 @@ describe('AnotasiLayer', () => {
     await user.click(screen.getByRole('button', { name: 'Detail tampilan asal' }));
     expect(screen.getByRole('region', { name: 'Style asal' })).toBeInTheDocument();
     expect(tutup).not.toHaveBeenCalled();
+    const styleAwal = asal.getAttribute('style');
+    await terapkanPreview(user, 'asal', 'color', 'blue');
+    expect(tutup).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Pilih tujuan' }));
     await user.keyboard('{Escape}');
     expect(tutup).not.toHaveBeenCalled();
@@ -266,6 +413,7 @@ describe('AnotasiLayer', () => {
     expect(api.simpan).toHaveBeenCalledWith(expect.objectContaining({ selector: '#asal_modal', tujuan: expect.objectContaining({ selector: '#tujuan_modal', posisi: 'di_dalam' }) }));
     expect(tutup).not.toHaveBeenCalled();
     expect(screen.getByText('Dialog pasangan')).toBeInTheDocument();
+    expect(asal.getAttribute('style')).toBe(styleAwal);
   });
 
   it('menyediakan kontrol di TopBar dan membuka serta menutup daftar dari sana', async () => {

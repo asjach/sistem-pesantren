@@ -148,7 +148,7 @@ export default function TopBar() {
    *  Pembeda klik (toggle) vs seretan (atur lebar) — lihat `apakahKlik`. */
   const xKlikKenop = useRef<number | null>(null);
   const nav = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search: kueriRute } = useLocation();
   const search = useTopBarSearchCtx();
   const setSearchEl = search?.setEl;
   const searchAda = search?.ada ?? false;
@@ -398,7 +398,7 @@ export default function TopBar() {
         <div data-part="area_akun" className="flex min-w-0 items-center justify-end gap-0.5">
           {AnotasiDev && (
             <Suspense fallback={null}>
-              <AnotasiDev />
+              <AnotasiDev rute={`${pathname}${kueriRute}`} />
             </Suspense>
           )}
           <Tooltip>

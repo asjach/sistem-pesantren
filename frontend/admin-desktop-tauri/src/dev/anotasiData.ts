@@ -10,6 +10,14 @@ export const GRUP_STYLE = [
 export type PropertiStyle = (typeof GRUP_STYLE)[number]['properti'][number];
 export type StyleElemen = Partial<Record<PropertiStyle, string>>;
 export const PROPERTI_STYLE: readonly PropertiStyle[] = GRUP_STYLE.flatMap((grup) => [...grup.properti]);
+export const GRUP_PREVIEW = GRUP_STYLE.filter((grup) => ['Jarak', 'Border', 'Warna', 'Font'].includes(grup.label));
+export const PROPERTI_PREVIEW: readonly PropertiStyle[] = GRUP_PREVIEW.flatMap((grup) => [...grup.properti]);
+
+export interface PreviewElemen {
+  sebelum: StyleElemen;
+  sesudah: StyleElemen;
+  perubahan: StyleElemen;
+}
 
 export interface KonteksElemen {
   selector: string;
@@ -18,6 +26,7 @@ export interface KonteksElemen {
   komponen: string[];
   sumber: string | null;
   style?: StyleElemen;
+  preview?: PreviewElemen;
 }
 
 export const POSISI_RELATIF = {
@@ -39,6 +48,18 @@ function teks(nilai: unknown, batas: number): string {
   return typeof nilai === 'string' ? nilai.slice(0, batas) : '';
 }
 
+function normalisasiStyle(data: unknown): StyleElemen {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Snapshot style tidak valid.');
+  const hasil: StyleElemen = {};
+  for (const properti of PROPERTI_STYLE) {
+    const nilai = (data as Record<string, unknown>)[properti];
+    if (nilai == null) continue;
+    if (typeof nilai !== 'string') throw new Error('Nilai snapshot style harus berupa teks.');
+    if (nilai.trim()) hasil[properti] = nilai.trim().slice(0, 256);
+  }
+  return hasil;
+}
+
 function konteks(data: Record<string, unknown>): KonteksElemen {
   const hasil: KonteksElemen = {
     selector: teks(data.selector, 4000),
@@ -50,18 +71,18 @@ function konteks(data: Record<string, unknown>): KonteksElemen {
     sumber: typeof data.sumber === 'string' ? data.sumber.slice(0, 600) : null,
   };
   if (data.style != null) {
-    if (typeof data.style !== 'object' || Array.isArray(data.style)) {
-      throw new Error('Snapshot style tidak valid.');
+    hasil.style = normalisasiStyle(data.style);
+  }
+  if (data.preview != null) {
+    if (typeof data.preview !== 'object' || Array.isArray(data.preview)) throw new Error('Preview tidak valid.');
+    const preview = data.preview as Record<string, unknown>;
+    const sebelum = normalisasiStyle(preview.sebelum);
+    const sesudah = normalisasiStyle(preview.sesudah);
+    const perubahan = normalisasiStyle(preview.perubahan);
+    if (!Object.keys(perubahan).length || Object.keys(preview.perubahan as object).some((p) => !PROPERTI_PREVIEW.includes(p as PropertiStyle))) {
+      throw new Error('Properti preview tidak didukung.');
     }
-    const dataStyle = data.style as Record<string, unknown>;
-    const style: StyleElemen = {};
-    for (const properti of PROPERTI_STYLE) {
-      const nilai = dataStyle[properti];
-      if (nilai == null) continue;
-      if (typeof nilai !== 'string') throw new Error('Nilai snapshot style harus berupa teks.');
-      if (nilai.trim()) style[properti] = nilai.trim().slice(0, 256);
-    }
-    hasil.style = style;
+    hasil.preview = { sebelum, sesudah, perubahan };
   }
   return hasil;
 }

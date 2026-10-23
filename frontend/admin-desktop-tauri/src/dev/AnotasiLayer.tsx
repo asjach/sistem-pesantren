@@ -15,6 +15,8 @@ import {
 } from './anotasi';
 import { POSISI_RELATIF, type PosisiRelatif } from './anotasiData';
 import DetailStyleAnotasi from './DetailStyleAnotasi';
+import PreviewStyleAnotasi from './PreviewStyleAnotasi';
+import { PengelolaPreviewStyle } from './previewStyle';
 
 const LEBAR_POPOVER = 480;
 const TINGGI_POPOVER = 520;
@@ -56,12 +58,15 @@ function posisiPopover(rect: DOMRect, wadah: Element | null) {
   };
 }
 
-function DetailElemen({ label, elemen, awal, onPilih, onSorot }: {
+function DetailElemen({ label, elemen, awal, onPilih, onSorot, pengelolaPreview, onPreview, menyimpan }: {
   label: 'Asal' | 'Tujuan';
   elemen: Element;
   awal: Element;
   onPilih: (el: Element) => void;
   onSorot: (rect: DOMRect | null) => void;
+  pengelolaPreview: PengelolaPreviewStyle;
+  onPreview: () => void;
+  menyimpan: boolean;
 }) {
   const konteks = bacaKonteks(elemen);
   return (
@@ -98,6 +103,7 @@ function DetailElemen({ label, elemen, awal, onPilih, onSorot }: {
         <dd className="min-w-0 break-all font-mono select-text">{konteks.selector}</dd>
       </dl>
       <DetailStyleAnotasi elemen={elemen} label={label.toLowerCase()} />
+      <PreviewStyleAnotasi key={konteks.selector} elemen={elemen} label={label.toLowerCase()} pengelola={pengelolaPreview} onUbah={onPreview} disabled={menyimpan} />
     </section>
   );
 }
@@ -120,7 +126,8 @@ function Sorotan({ rect, label, tujuan = false }: { rect: DOMRect; label: string
  * Lapisan anotasi UI mode dev. Aktifkan mode tandai, klik elemen, lalu tulis
  * instruksi; hasilnya ditulis ke `.dev/anotasi.json` untuk dibaca agen.
  */
-export default function AnotasiLayer() {
+export default function AnotasiLayer({ rute }: { rute?: string }) {
+  const [pengelolaPreview] = useState(() => new PengelolaPreviewStyle());
   const [aktif, setAktif] = useState(false);
   const [panel, setPanel] = useState(false);
   const [daftar, setDaftar] = useState<Anotasi[]>([]);
@@ -161,6 +168,7 @@ export default function AnotasiLayer() {
         setGalatPilihan('Pilih tujuan yang berbeda dari asal dan bukan elemen di dalam asal.');
         return;
       }
+      if (tujuan && tujuan !== el) pengelolaPreview.reset(tujuan);
       setTujuan(el);
       setTujuanAwal(el);
       setMemilihTujuan(false);
@@ -174,9 +182,10 @@ export default function AnotasiLayer() {
     setSorot(el.getBoundingClientRect());
     setInstruksi('');
     setAktif(false);
-  }, [memilihTujuan, target]);
+  }, [memilihTujuan, target, tujuan, pengelolaPreview]);
 
   const batal = useCallback(() => {
+    pengelolaPreview.resetSemua();
     setTarget(null);
     setAsalAwal(null);
     setTujuan(null);
@@ -187,7 +196,18 @@ export default function AnotasiLayer() {
     setGalatPilihan(null);
     setSorot(null);
     setInstruksi('');
-  }, []);
+  }, [pengelolaPreview]);
+
+  useEffect(() => {
+    batal();
+    setAktif(false);
+  }, [rute, batal]);
+
+  useEffect(() => () => pengelolaPreview.resetSemua(), [pengelolaPreview]);
+
+  const perbaruiPreview = useCallback(() => {
+    setSorot(target?.getBoundingClientRect() ?? null);
+  }, [target]);
 
   const batalPilihTujuan = useCallback(() => {
     setAktif(false);
@@ -272,6 +292,7 @@ export default function AnotasiLayer() {
         return;
       }
       if (tujuan && !tujuan.isConnected) {
+        pengelolaPreview.reset(tujuan);
         setTujuan(null);
         setTujuanAwal(null);
         setGalatPilihan('Elemen tujuan sudah tidak tersedia. Pilih tujuan kembali.');
@@ -287,7 +308,7 @@ export default function AnotasiLayer() {
       window.removeEventListener('scroll', perbarui, true);
       window.removeEventListener('resize', perbarui);
     };
-  }, [target, tujuan, batal]);
+  }, [target, tujuan, batal, pengelolaPreview]);
 
   useEffect(() => {
     if (target && !aktif) refTextarea.current?.focus();
@@ -299,6 +320,7 @@ export default function AnotasiLayer() {
     const periksa = () => {
       if (!target.isConnected) { batal(); setAktif(false); }
       else if (tujuan && !tujuan.isConnected) {
+        pengelolaPreview.reset(tujuan);
         setTujuan(null);
         setTujuanAwal(null);
         setGalatPilihan('Elemen tujuan sudah tidak tersedia. Pilih tujuan kembali.');
@@ -307,7 +329,7 @@ export default function AnotasiLayer() {
     const observer = new MutationObserver(periksa);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [target, tujuan, batal]);
+  }, [target, tujuan, batal, pengelolaPreview]);
 
   async function simpan() {
     if (!target || !target.isConnected || !instruksi.trim() || menyimpan || aktif) return;
@@ -318,13 +340,17 @@ export default function AnotasiLayer() {
 
     setMenyimpan(true);
     try {
+      const konteksPreview = (elemen: Element) => {
+        const preview = pengelolaPreview.snapshot(elemen);
+        return { ...bacaKonteks(elemen, true), ...(preview ? { preview } : {}) };
+      };
       const baru: Anotasi = {
         id: buatId(),
         dibuat: new Date().toISOString(),
         rute: `${window.location.pathname}${window.location.search}`,
-        ...bacaKonteks(target, true),
+        ...konteksPreview(target),
         instruksi: instruksi.trim(),
-        ...(tujuan ? { tujuan: { ...bacaKonteks(tujuan, true), posisi: posisiRelatif } } : {}),
+        ...(tujuan ? { tujuan: { ...konteksPreview(tujuan), posisi: posisiRelatif } } : {}),
       };
       const tersimpan = await simpanAnotasi(baru);
       setDaftar((lama) => [...lama, tersimpan]);
@@ -390,22 +416,25 @@ export default function AnotasiLayer() {
           </div>
 
           <div className="mb-2 flex min-h-0 flex-col gap-2 overflow-y-auto">
-            <DetailElemen label="Asal" elemen={target} awal={asalAwal} onSorot={setSorotParent} onPilih={(el) => {
+            <DetailElemen label="Asal" elemen={target} awal={asalAwal} onSorot={setSorotParent} pengelolaPreview={pengelolaPreview} onPreview={perbaruiPreview} menyimpan={menyimpan} onPilih={(el) => {
               if (menyimpan) return;
+              if (target !== el) pengelolaPreview.reset(target);
               setTarget(el);
               setSorot(el.getBoundingClientRect());
               if (tujuan && !tujuanValid(el, tujuan)) {
+                pengelolaPreview.reset(tujuan);
                 setTujuan(null);
                 setTujuanAwal(null);
                 setGalatPilihan('Tujuan tidak sesuai dengan asal yang baru. Pilih tujuan kembali.');
               }
             }} />
-            {tujuan && tujuanAwal && <DetailElemen label="Tujuan" elemen={tujuan} awal={tujuanAwal} onSorot={setSorotParent} onPilih={(el) => {
+            {tujuan && tujuanAwal && <DetailElemen label="Tujuan" elemen={tujuan} awal={tujuanAwal} onSorot={setSorotParent} pengelolaPreview={pengelolaPreview} onPreview={perbaruiPreview} menyimpan={menyimpan} onPilih={(el) => {
               if (menyimpan) return;
               if (!tujuanValid(target, el)) {
                 setGalatPilihan('Asal dan tujuan harus berbeda; tujuan tidak boleh berada di dalam asal.');
                 return;
               }
+              if (tujuan !== el) pengelolaPreview.reset(tujuan);
               setTujuan(el);
               setGalatPilihan(null);
             }} />}
@@ -417,6 +446,7 @@ export default function AnotasiLayer() {
                 setAktif(true);
               }}>{tujuan ? 'Ganti tujuan' : 'Pilih tujuan'}</Button>
               {tujuan && <Button type="button" variant="ghost" size="sm" disabled={menyimpan} onClick={() => {
+                pengelolaPreview.reset(tujuan);
                 setTujuan(null);
                 setTujuanAwal(null);
                 setPosisiRelatif('di_dalam');

@@ -40,6 +40,14 @@
   dibaca kembali saat Simpan dan ikut disimpan pada konteks masing-masing elemen.
   Anotasi lama tanpa `style` tetap valid. Snapshot bukan lokasi rule CSS asalnya;
   background transparan tidak otomatis sama dengan background parent.
+- **Preview tampilan** dapat mencoba nilai CSS pada asal/tujuan tanpa mengubah
+  berkas kode. Pilih properti, isi nilai, lalu **Terapkan preview**. **Reset
+  preview** memulihkan style awal. Pergantian elemen memulihkan preview elemen
+  sebelumnya; Batal, Simpan berhasil, navigasi halaman, atau layer dilepas
+  memulihkan seluruh preview. Simpan gagal mempertahankan preview dan draft.
+  Field opsional `preview` berisi `sebelum`, `sesudah` (computed style), dan
+  `perubahan` (nilai CSS yang diminta). Agen membaca ketiganya sebagai acuan
+  perubahan, bukan menganggap preview sudah mengubah kode produk.
 - Pintasan `Ctrl/⌘+Shift+A` mengaktifkan atau mematikan mode tandai, termasuk
   saat dialog/modal terbuka. Untuk elemen di dalam dialog, editor instruksi
   ditempatkan di dialog agar tetap bisa difokuskan dan diketik.

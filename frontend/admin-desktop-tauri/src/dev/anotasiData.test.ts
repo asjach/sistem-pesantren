@@ -5,6 +5,23 @@ const asal = { selector: '#tombol', tag: 'button', teks: 'Simpan', komponen: ['T
 const tujuan = { selector: '#wadah', tag: 'div', teks: '', komponen: ['Layout'], sumber: 'src/components/Layout.tsx:10', posisi: 'di_dalam' };
 
 describe('normalisasiAnotasi', () => {
+  it('mempertahankan preview sebelum dan sesudah pada asal maupun tujuan', () => {
+    const preview = { sebelum: { color: 'red' }, sesudah: { color: 'rgb(0, 0, 255)' }, perubahan: { color: 'blue' } };
+    const hasil = normalisasiAnotasi({ ...asal, instruksi: 'Samakan', preview, tujuan: { ...tujuan, preview } });
+    expect(hasil.preview).toEqual(preview);
+    expect(hasil.tujuan?.preview).toEqual(preview);
+  });
+
+  it.each([
+    [], 'preview', {}, { sebelum: {}, sesudah: {}, perubahan: {} },
+    { sebelum: {}, sesudah: {}, perubahan: { display: 'none' } },
+    { sebelum: {}, sesudah: {}, perubahan: { color: 12 } },
+    { sebelum: {}, sesudah: {}, perubahan: { asing: 'x' } },
+  ])('menolak preview yang tidak valid atau tidak didukung: %j', (preview) => {
+    expect(() => normalisasiAnotasi({ ...asal, instruksi: 'Samakan', preview })).toThrow();
+    expect(() => normalisasiAnotasi({ ...asal, instruksi: 'Samakan', tujuan: { ...tujuan, preview } })).toThrow();
+  });
+
   it('mempertahankan snapshot asal dan tujuan yang didukung', () => {
     const hasil = normalisasiAnotasi({ ...asal, instruksi: 'Samakan', style: { 'padding-top': '4px', color: 'red' }, tujuan: { ...tujuan, style: { 'background-color': 'rgba(0, 0, 0, 0)', 'font-size': '14px' } } });
     expect(hasil.style).toEqual({ 'padding-top': '4px', color: 'red' });
