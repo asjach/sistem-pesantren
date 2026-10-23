@@ -31,8 +31,6 @@ interface Props {
   tampilKolom?: boolean;
   /** HTML info tabel (sudah tersanitasi); kosong = tanpa tombol Info. */
   infoHtml?: string | null;
-  /** Gerigi Pengaturan tabel (dirakit ExcelTabelV2). */
-  pengaturan?: ReactNode;
   /** Trigger menu pengaturan tabel (MenuPengaturanV2). */
   menu?: ReactNode;
   /** Kontrol bebas halaman di area judul. */
@@ -64,7 +62,6 @@ export default function BilahToolbarV2({
   tampilUrut = true,
   tampilKolom = true,
   infoHtml = null,
-  pengaturan,
   menu,
   awalanToolbar,
   akhirToolbar,
@@ -155,9 +152,6 @@ export default function BilahToolbarV2({
               : <MenuAksiToolbar triggerId={`btn_aksi_${tableKey}`}>{addButton}</MenuAksiToolbar>}
           </div>
         )}
-
-        {(pengaturan != null || areaFilterAda) && <Pemisah />}
-        {pengaturan}
 
         {areaFilterAda && (
           <>

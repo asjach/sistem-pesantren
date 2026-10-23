@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MenuPengaturanV2 from './MenuPengaturanV2';
 import type { InfoKomponenTabel } from '@/components/excel/komponenTabel';
+import { tenggangMenu } from '@/components/excel/kelolaTabelDariMenu';
 
 const { api } = vi.hoisted(() => ({
   api: {
@@ -122,12 +123,18 @@ describe('MenuPengaturanV2', () => {
 
   it('menampilkan pintasan Kelola Tabel hanya untuk super_admin pada tabel terdaftar', async () => {
     const user = userEvent.setup();
-    tampilkan({ tabelTerdaftar: true, bolehKelola: true, onKelolaTabel: api.kelola });
+    const tandai = vi.spyOn(tenggangMenu, 'tandai');
+    try {
+      tampilkan({ tabelTerdaftar: true, bolehKelola: true, onKelolaTabel: api.kelola });
 
-    await user.click(screen.getByRole('button', { name: 'Menu lainnya' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Kelola Tabel…' }));
+      await user.click(screen.getByRole('button', { name: 'Menu lainnya' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Kelola Tabel…' }));
 
-    expect(api.kelola).toHaveBeenCalledTimes(1);
+      expect(api.kelola).toHaveBeenCalledTimes(1);
+      expect(tandai).toHaveBeenCalledTimes(1);
+    } finally {
+      tandai.mockRestore();
+    }
   });
 
   it('menyembunyikan pintasan Kelola Tabel tanpa izin', async () => {

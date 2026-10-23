@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreVertical } from '@/icons';
+import { MoreVertical, Settings } from '@/icons';
 import { errorMessage } from '@/api/client';
 import { muatToolbarPreset, simpanToolbarPreset } from '@/api/toolbarPreset';
 import { gabungVisibilitas } from '@/components/excel/filterTabel';
 import { grupTersedia, type InfoKomponenTabel } from '@/components/excel/komponenTabel';
 import { kabariToolbar } from '@/components/kelolaTabel/jenis';
+import { bukaDariMenu } from '@/components/excel/kelolaTabelDariMenu';
 import { bukaPengaturanTampilan } from '@/components/pengaturan/SheetPengaturanTampilan';
 import { toast } from 'sonner';
 
@@ -124,7 +125,12 @@ export default function MenuPengaturanV2({
         {tabelTerdaftar && bolehKelola && onKelolaTabel ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onKelolaTabel()}>Kelola Tabel…</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => bukaDariMenu(() => onKelolaTabel())}>
+              <span className="flex shrink-0 items-center text-muted-foreground">
+                <Settings size={14} aria-hidden="true" />
+              </span>
+              Kelola Tabel…
+            </DropdownMenuItem>
           </>
         ) : null}
         <DropdownMenuItem onSelect={() => bukaPengaturanTampilan()}>

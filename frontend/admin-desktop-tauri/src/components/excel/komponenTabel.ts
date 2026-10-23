@@ -88,7 +88,7 @@ export const GRUP_KOMPONEN_TABEL: readonly GrupKomponenTabel[] = [
       { kunci: 'urutan', label: 'Urutan', tersedia: (i) => i.urut },
       { kunci: 'kolom', label: 'Kolom', tersedia: (i) => i.kolom },
       { kunci: 'tombol_aksi', label: 'Tombol aksi utama', tersedia: (i) => i.tombolAksi },
-      { kunci: 'tombol_pengaturan', label: 'Tombol Pengaturan tabel' },
+      { kunci: 'tombol_pengaturan', label: 'Tombol Pengaturan tabel', tersedia: (i) => i.tombolPengaturan !== false },
     ],
   },
   {
@@ -146,6 +146,9 @@ export interface InfoKomponenTabel {
   kolom: boolean;
   /** Ada tombol aksi utama (prop `addButton`). */
   tombolAksi: boolean;
+  /** V1 legacy punya gerigi "Pengaturan tabel" terpisah. V2 tidak; default
+   *  (undefined) tetap menampilkan sakelar untuk jalur lama. */
+  tombolPengaturan?: boolean;
   /** Tabel punya rel/filter di kiri grid (prop `rail`). */
   relFilter: boolean;
   /** Halaman TIDAK memaksa sembunyikan kolom centang (prop `hideCheckbox`). */

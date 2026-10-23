@@ -18,7 +18,6 @@ import { DEFAULT_HEADER_H, useGridPrefs } from '@/components/GridPrefs';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import { Button } from '@/components/ui/button';
-import { Settings } from '@/icons';
 import { cn } from '@/lib/utils';
 import { bisaInput, useBarisInputV2 } from './useBarisInputV2';
 import type { ExcelField, GridRow } from '@/components/excel/types';
@@ -404,6 +403,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
     urut: onUrut != null,
     kolom: !hidePreset && !luar,
     tombolAksi: aksi != null || addButton != null,
+    tombolPengaturan: false,
     relFilter: rail,
     pager: pager != null,
     tombolTambah: onCreateRow != null,
@@ -422,27 +422,10 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   const centangAktif = !hideCheckbox && komponenAktif(visibilitas, 'kolom_centang');
   const aksiKolomAktif = !hideActions && komponenAktif(visibilitas, 'kolom_aksi');
   const pagerAktif = pager != null && komponenAktif(visibilitas, 'pager');
-  const pengaturanAktif = komponenAktif(visibilitas, 'tombol_pengaturan');
   const railTampil = rail && komponenAktif(visibilitas, 'rel_filter');
   const tengahTampil = tengah != null && komponenAktif(visibilitas, 'info_tengah');
   /** Tinggi manual langsung menang; bila mode otomatis, ikuti hasil ukur grid. */
   const tinggiLabelRail = headerAktif ? (headerH ?? tinggiHeaderGrid) : 0;
-
-  const pengaturan = pengaturanAktif ? (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      id={`btn_pengaturan_tabel_${tableKey}`}
-      aria-label="Pengaturan tabel"
-      title={tabelTerdaftar ? 'Pengaturan tabel (kolom, urutan, info)' : 'Halaman ini belum mendaftarkan tabelnya'}
-      disabled={!tabelTerdaftar}
-      onClick={() => setKelolaOpen(true)}
-      className="!h-full !w-6"
-    >
-      <Settings size={14} />
-    </Button>
-  ) : undefined;
 
   const menu = (
     <MenuPengaturanV2
@@ -475,7 +458,6 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
         tampilUrut={urutTampil}
         tampilKolom={kolomTampil}
         infoHtml={infoHtmlDb}
-        pengaturan={pengaturan}
         menu={menu}
         awalanToolbar={awalanToolbar}
         akhirToolbar={akhirToolbar}

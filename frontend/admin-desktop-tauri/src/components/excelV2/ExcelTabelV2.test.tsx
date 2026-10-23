@@ -367,17 +367,7 @@ describe('ExcelTabelV2', () => {
     expect(screen.getByTestId('pager')).toBeInTheDocument();
   });
 
-  it('membuka Kelola Tabel ringkas dari gerigi', async () => {
-    const user = userEvent.setup();
-    tampilkan();
-
-    await user.click(screen.getByRole('button', { name: 'Pengaturan tabel' }));
-
-    expect(screen.getByTestId('dialog-kelola')).toHaveAttribute('data-ringkas', 'true');
-  });
-
-  it('menyembunyikan gerigi saat sakelar tombol_pengaturan mati', () => {
-    presetState.visibilitas = { tombol_pengaturan: false };
+  it('tidak merender tombol Pengaturan tabel terpisah di toolbar', () => {
     tampilkan();
 
     expect(screen.queryByRole('button', { name: 'Pengaturan tabel' })).toBeNull();

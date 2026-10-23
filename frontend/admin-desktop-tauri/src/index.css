@@ -378,6 +378,12 @@
   box-shadow: 1px 1px var(--part-tabel_grid-border, var(--border));
 }
 
+/* Nomor urut body sengaja lebih redup dari teks header; header gutter tetap
+   memakai warna header penuh. */
+.simpes-dsg-v2 .dsg-row:not(.dsg-row-header) .dsg-cell-gutter {
+  color: color-mix(in srgb, var(--part-tabel_header-fg, var(--muted-foreground)) 70%, transparent);
+}
+
 .simpes-dsg-v2 .dsg-cell-sticky-right:not(.dsg-cell-header) {
   background: var(--part-tabel_sel-bg, var(--card));
   box-shadow: inset 1px 0 0 var(--part-tabel_grid-border, var(--border));
