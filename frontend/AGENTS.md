@@ -30,7 +30,7 @@ stub DSG, batas jsdom, dan checklist manual/browser.
   `findBy*`/`waitFor` tanpa sleep tetap. `act(...)` warning adalah utang;
   perbaiki saat tes terkait disentuh.
 - Bila tes berlaku: `npm run test` tersempit + `npm run typecheck` hijau.
-- Bila perubahan menyentuh **modul bersama** (mis. `components/ExcelTable.tsx`,
+- Bila perubahan menyentuh **modul bersama** (mis. `components/excelV2/ExcelTabelV2.tsx`,
   `components/excel/**`, `api/*`, `index.css`, `components/ui/**`, `hooks/**`),
   **tawarkan suite penuh** ke pengguna lebih dulu — lihat "KEBIJAKAN
   MENJALANKAN TES" di `AGENTS.md` root.

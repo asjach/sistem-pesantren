@@ -140,7 +140,7 @@ export function hostUkur(): HTMLDivElement | null {
   if (typeof document === 'undefined') return null;
   if (!ukurHostEl) {
     const h = document.createElement('div');
-    h.className = 'simpes-dsg';
+    h.className = 'simpes-dsg-v2';
     h.setAttribute('aria-hidden', 'true');
     h.style.cssText =
       'position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none;white-space:nowrap';

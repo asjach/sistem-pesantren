@@ -1,4 +1,4 @@
-import type { ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/excel/types';
 import type { Santri } from '@/api/santri';
 
 /** Definisi kolom identitas santri (Buku Induk) + helper pemetaan nilainya.

@@ -1,4 +1,4 @@
-import type { ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/excel/types';
 
 function angkaInput(label: string) {
   return (v: string | null) => {

@@ -254,7 +254,7 @@ Tambahan: mapping import penuh (tanpa drop diam-diam), `uploadFoto`,
 nama kelas/id (dropdown template per lembaga+TA). Recalc `is_active_pst` tetap di 102.
 
 **Preset tampilan kolom tabel (lintas modul).** Combobox di toolbar setiap tabel
-(`ExcelTable`) berisi bawaan "Lengkap" + preset buatan user; preset menyimpan
+(`ExcelTabelV2`) berisi bawaan "Lengkap" + preset buatan user; preset menyimpan
 daftar kolom (`preset_tabel.kolom`) per tabel & per lembaga. Saat membuat preset,
 user dapat memilih satu atau beberapa lembaga tujuan (multi-generate); tiap lembaga
 lalu dapat mengedit salinannya sendiri. Pilihan terakhir per user per tabel diingat
@@ -265,7 +265,7 @@ Status: ✅ live.
 
 **Aksi baris tabel (lintas modul).** Bila jumlah tombol aksi baris lebih dari 3,
 otomatis diringkas menjadi dropdown (ikon titik-tiga vertikal) berisi seluruh aksi +
-labelnya; 1–3 aksi tetap tampil langsung. Berlaku di semua tabel `ExcelTable`.
+labelnya; 1–3 aksi tetap tampil langsung. Berlaku di semua tabel `ExcelTabelV2`.
 
 **Baris per halaman + "Semua" (lintas modul).** Opsi 10/50/100/500 + "Semua",
 bawaan 50 per tabel; "Semua" dikirim `per_page=0` (batas 100.000), pager tetap
@@ -510,7 +510,7 @@ views), PSB antrean (verify/seleksi/ACC/tolak/paket), santri master + import sat
 (kolom NIS per lembaga, samakan NIS MI↔MD) + keanggotaan terpusat, siklus (roster, salin genap, naik/pindah/mutasi/lulus/berhenti),
 rekap, halaman MI-MD (tambah/hapus massal, samakan kelas), pengajuan biodata (setujui/tolak),
 dokumen wajib, preset tabel, pengaturan server/tampilan.
-Status: 🟢 app live — versi paket `0.5.0`; build native Tauri terakhir **belum dikompilasi ulang** (jeda build), jadi klaim hanya berlaku untuk kode web/shell yang ada di repo (Tailwind+shadcn: 25 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, navigasi menubar/sidebar per perangkat — ribbon = baris tools halaman, bukan mode navigasi ketiga — pagination 10/50/100/500 + "Semua" dengan batas tampilan 10.000, dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTable`
+Status: 🟢 app live — versi paket `0.5.0`; build native Tauri terakhir **belum dikompilasi ulang** (jeda build), jadi klaim hanya berlaku untuk kode web/shell yang ada di repo (Tailwind+shadcn: 25 tema ala VSCode data-driven + kustom, Gelap/Terang/Sistem per perangkat, galeri pratinjau, border lembut tanpa shadow, navigasi menubar/sidebar per perangkat — ribbon = baris tools halaman, bukan mode navigasi ketiga — pagination 10/50/100/500 + "Semua" dengan batas tampilan 10.000, dialog/toast/skeleton). Tabel master memakai `react-datasheet-grid` lewat wrapper `ExcelTabelV2`
 (seleksi gaya spreadsheet, resize + AutoFit, edit klik-2× langsung simpan, aksi
 baris >3 jadi dropdown, preset kolom per tabel, tombol aksi toolbar diringkas
 jadi satu menu dropdown per tabel lewat `MenuAksiToolbar`; urutan kolom

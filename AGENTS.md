@@ -537,8 +537,8 @@ Suite penuh **direkomendasikan** — tawarkan ke pengguna lebih dulu, jangan
 dijalankan diam-diam maupun dilewati diam-diam — bila perubahan menyentuh  
 **modul bersama**:
 
-- **Frontend**: `components/ExcelTable.tsx` + `components/excel/**`, `api/*`,  
-  `index.css`, `components/ui/**`, `hooks/**`, `lib/**`, `auth/**`,  
+- **Frontend**: `components/excelV2/ExcelTabelV2.tsx` + `components/excel/**`, `api/*`,
+  `index.css`, `components/ui/**`, `hooks/**`, `lib/**`, `auth/**`,
   `lembagaAktif`, `theme`, dan stub tes `components/excel/_dsgStubDom.tsx`.
 - **Backend**: `Services/UrutKatalog.php`, `Concerns/*`, `Support/*`,  
   model/relasi bersama, migrasi, dan endpoint yang dipakai beberapa halaman.

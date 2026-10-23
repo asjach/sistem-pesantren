@@ -76,10 +76,10 @@ describe('pasangPenyalinPolosDesktop', () => {
     expect(simpan.get('text/html')).not.toMatch(/style|color|white|#fff/i);
   });
 
-  it('melewatkan area tabel .simpes-dsg (milik ExcelTable)', () => {
+  it('melewatkan area tabel .simpes-dsg-v2 (milik ExcelTabelV2)', () => {
     (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
     const bungkus = document.createElement('div');
-    bungkus.className = 'simpes-dsg';
+    bungkus.className = 'simpes-dsg-v2';
     bungkus.textContent = 'Sel tabel';
     document.body.appendChild(bungkus);
     const rentang = document.createRange();

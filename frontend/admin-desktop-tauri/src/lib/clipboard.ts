@@ -83,7 +83,7 @@ export function tulisPolosSinkron(e: ClipboardEvent, teks: string): void {
  * menyamai perilaku salin web yang benar.
  *
  * Dilewati untuk: input/textarea/select/contentEditable (bawaan sudah polos)
- * dan area tabel `.simpes-dsg` (punya penyalin TSV sendiri di ExcelTable).
+ * dan area tabel `.simpes-dsg-v2` (punya penyalin TSV sendiri di ExcelTabelV2).
  */
 export function pasangPenyalinPolosDesktop(): () => void {
   if (lepasPenyalinGlobal) return lepasPenyalinGlobal;
@@ -101,12 +101,12 @@ export function pasangPenyalinPolosDesktop(): () => void {
     ) {
       return;
     }
-    if (t && typeof t.closest === 'function' && t.closest('.simpes-dsg')) return;
+    if (t && typeof t.closest === 'function' && t.closest('.simpes-dsg-v2')) return;
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) return;
     const anchorEl =
       sel.anchorNode instanceof Element ? sel.anchorNode : sel.anchorNode?.parentElement;
-    if (anchorEl?.closest?.('.simpes-dsg')) return;
+    if (anchorEl?.closest?.('.simpes-dsg-v2')) return;
     const teks = sel.toString();
     if (!teks) return;
     e.preventDefault();

@@ -48,7 +48,6 @@ vi.mock('@/components/excelV2/ExcelTabelV2', () => ({
     </section>;
   },
 }));
-vi.mock('@/components/ExcelTable', () => ({ default: () => { throw new Error('V1 tidak boleh dipakai'); } }));
 vi.mock('@/components/VisibilitasFilter', () => ({ PengaturanHalaman: () => null }));
 vi.mock('@/components/TopBarSearch', () => ({ TopBarSearch: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => <input aria-label="Cari santri" value={value} onChange={(e) => onChange(e.target.value)} /> }));
 vi.mock('@/components/santri/EditSantriDialog', () => ({

@@ -13,6 +13,7 @@ export const BELUM_DIPAKAI: ReadonlySet<string> = new Set([
   'empty',
   'accordion',
   'tabel',
+  'toolbar_tabel',
   'input_group',
   'textarea',
   'radio',

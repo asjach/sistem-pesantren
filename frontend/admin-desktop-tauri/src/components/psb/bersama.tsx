@@ -1,4 +1,4 @@
-import type { ExcelChoice, ExcelField } from '@/components/ExcelTable';
+import type { ExcelChoice, ExcelField } from '@/components/excel/types';
 import type { PsbCalon } from '@/api/psb';
 import { tanggal } from '@/lib/tanggal';
 

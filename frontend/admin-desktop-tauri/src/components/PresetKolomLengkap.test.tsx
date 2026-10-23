@@ -2,7 +2,7 @@ import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import PresetKolom from './PresetKolom';
-import type { ExcelField } from './ExcelTable';
+import type { ExcelField } from './excel/types';
 import { renderDenganTema } from '@/test/utils';
 
 /** Pengguna bisa ditukar per tes (mis. tanpa izin kelola preset). */

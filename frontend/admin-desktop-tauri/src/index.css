@@ -271,26 +271,7 @@
 .pop-nominal,
 .pop-kalender {
   --input: color-mix(in oklab, var(--foreground) 30%, transparent);
-}
-
-.simpes-dsg {
-  --dsg-border-color: var(--part-tabel_sel-border, var(--border));
-  --dsg-cell-background-color: var(--part-tabel_sel-bg, var(--background));
-  --dsg-cell-disabled-background-color: var(--part-tabel_sel-bg, var(--background));
-  --dsg-header-text-color: var(--part-tabel_header-fg, var(--muted-foreground));
-  --dsg-header-active-text-color: var(--part-tabel_header-fg, var(--foreground));
-  --dsg-selection-border-color: var(--accent);
-  --dsg-selection-border-width: 1px;
-  --dsg-selection-background-color: color-mix(in srgb, var(--accent) 20%, transparent);
-  --dsg-selection-disabled-background-color: color-mix(in srgb, var(--accent) 20%, transparent);
-  --dsg-selection-disabled-border-color: var(--accent);
-  color-scheme: light;
-
-  font-family: var(--simpes-font-family, var(--part-tabel_sel-font, "Roboto", sans-serif));
-  font-size: var(--simpes-font-size, var(--part-tabel_sel-size, 11px));
-}
-
-/* ExcelTabelV2 — mesin DSG yang sama, palet sendiri. Sengaja TIDAK memakai
+}/* ExcelTabelV2 — mesin DSG yang sama, palet sendiri. Sengaja TIDAK memakai
    `.simpes-dsg` supaya gaya V1 tidak ikut terwarisi dan V1 tidak terpengaruh
    saat V2 diubah. */
 .simpes-dsg-v2 {
@@ -458,255 +439,19 @@
 .simpes-dsg-v2 .dsg-row.simpes-dsg-v2-row-aktif .dsg-cell,
 .simpes-dsg-v2 .dsg-row.simpes-dsg-v2-row-aktif .dsg-cell-gutter {
   background-color: color-mix(in srgb, var(--primary) 16%, var(--part-tabel_sel-bg, var(--card)));
-}
-
-.simpes-dsg .dsg-selection-rect,
-.simpes-dsg .dsg-selection-rect-disabled {
-  border-color: var(--dsg-selection-border-color);
-  background: var(--dsg-selection-background-color);
-}.simpes-dsg .dsg-active-cell,
-.simpes-dsg .dsg-active-cell-disabled {
-  border-color: var(--dsg-selection-border-color);
-  background: transparent;
-}
-
-.simpes-dsg .dsg-active-cell,
-.simpes-dsg .dsg-selection-rect {
-  z-index: 36;
-}
-
-.simpes-dsg:not(:has(.dsg-active-cell-focus)) .dsg-selection-rect {
-  clip-path: none !important;
-}
-
-.simpes-dsg .dsg-cell.simpes-warna-0 { --warna-sel: #e57373; }
-.simpes-dsg .dsg-cell.simpes-warna-1 { --warna-sel: #f06292; }
-.simpes-dsg .dsg-cell.simpes-warna-2 { --warna-sel: #ba68c8; }
-.simpes-dsg .dsg-cell.simpes-warna-3 { --warna-sel: #9575cd; }
-.simpes-dsg .dsg-cell.simpes-warna-4 { --warna-sel: #7986cb; }
-.simpes-dsg .dsg-cell.simpes-warna-5 { --warna-sel: #64b5f6; }
-.simpes-dsg .dsg-cell.simpes-warna-6 { --warna-sel: #4fc3f7; }
-.simpes-dsg .dsg-cell.simpes-warna-7 { --warna-sel: #4dd0e1; }
-.simpes-dsg .dsg-cell.simpes-warna-8 { --warna-sel: #4db6ac; }
-.simpes-dsg .dsg-cell.simpes-warna-9 { --warna-sel: #81c784; }
-.simpes-dsg .dsg-cell.simpes-warna-10 { --warna-sel: #aed581; }
-.simpes-dsg .dsg-cell.simpes-warna-11 { --warna-sel: #dce775; }
-.simpes-dsg .dsg-cell.simpes-warna-12 { --warna-sel: #ffd54f; }
-.simpes-dsg .dsg-cell.simpes-warna-13 { --warna-sel: #ffb74d; }
-.simpes-dsg .dsg-cell.simpes-warna-14 { --warna-sel: #ff8a65; }
-.simpes-dsg .dsg-cell.simpes-warna-15 { --warna-sel: #a1887f; }
-.simpes-dsg .dsg-cell.simpes-warna-16 { --warna-sel: #90a4ae; }
-.simpes-dsg .dsg-cell.simpes-warna-17 { --warna-sel: #f48fb1; }
-.simpes-dsg .dsg-cell.simpes-warna-18 { --warna-sel: #ce93d8; }
-.simpes-dsg .dsg-cell.simpes-warna-19 { --warna-sel: #9fa8da; }
-.simpes-dsg .dsg-cell.simpes-warna-20 { --warna-sel: #90caf9; }
-.simpes-dsg .dsg-cell.simpes-warna-21 { --warna-sel: #80cbc4; }
-.simpes-dsg .dsg-cell.simpes-warna-22 { --warna-sel: #c5e1a5; }
-.simpes-dsg .dsg-cell.simpes-warna-23 { --warna-sel: #ffe082; }
-.simpes-dsg .dsg-cell.simpes-warna-24 { --warna-sel: #ffab91; }
-.simpes-dsg .dsg-cell.simpes-warna-25 { --warna-sel: #ffe0b2; }
-.simpes-dsg .dsg-cell.simpes-warna-26 { --warna-sel: #fff59d; }
-.simpes-dsg .dsg-cell.simpes-warna-27 { --warna-sel: #e6ee9c; }
-.simpes-dsg .dsg-cell.simpes-warna-28 { --warna-sel: #b2dfdb; }
-.simpes-dsg .dsg-cell.simpes-warna-29 { --warna-sel: #b2ebf2; }
-.simpes-dsg .dsg-cell.simpes-warna-30 { --warna-sel: #b3e5fc; }
-.simpes-dsg .dsg-cell.simpes-warna-31 { --warna-sel: #c5cae9; }
-.simpes-dsg .dsg-cell.simpes-warna-32 { --warna-sel: #d1c4e9; }
-.simpes-dsg .dsg-cell.simpes-warna-33 { --warna-sel: #e1bee7; }
-.simpes-dsg .dsg-cell.simpes-warna-34 { --warna-sel: #f8bbd0; }
-.simpes-dsg .dsg-cell.simpes-warna-35 { --warna-sel: #ffcdd2; }
-.simpes-dsg .dsg-cell[class*='simpes-warna-'] {
-  background-color: color-mix(
-    in srgb,
-    var(--warna-sel, transparent) 22%,
-    var(--dsg-cell-background-color, var(--background))
-  );
-}
-
-.simpes-dsg .dsg-cell.simpes-dsg-kelas-awal {
-  border-top: 2px solid color-mix(in srgb, var(--foreground) 32%, var(--dsg-border-color));
-}
-
-.simpes-dsg:has(.dsg-selection-rect) .dsg-active-cell:not(.dsg-active-cell-focus) {
-  border-color: transparent;
-  box-shadow: none;
-  background: transparent;
-}
-
-.simpes-dsg .dsg-cell-header-active,
-.simpes-dsg .dsg-cell-gutter-active {
-  background-color: color-mix(in srgb, var(--accent) 18%, var(--background));
-  color: var(--foreground);
-}
-
-.simpes-dsg .dsg-selection-col-marker-container,
-.simpes-dsg .dsg-selection-row-marker-container {
-  display: none;
-}
-.simpes-dsg .dsg-expand-rows-indicator-disabled {
-  border-color: var(--dsg-selection-border-color);
-}
-
-.simpes-dsg-readonly .dsg-expand-rows-indicator,
+}.simpes-dsg-readonly .dsg-expand-rows-indicator,
 .simpes-dsg-readonly .dsg-expand-rows-rect {
   display: none;
-}
-.dark .simpes-dsg {
-  color-scheme: dark;
-}
-.simpes-dsg .dsg-container {
-  color: var(--part-tabel_sel-fg, var(--foreground));
-  background: var(--part-tabel_sel-bg, var(--background));
-
-  font-family: var(--simpes-font-family, var(--part-tabel_sel-font, "Roboto", sans-serif));
-
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-
-  border-right: none;
-  border-bottom: none;
-
-  scrollbar-width: none;
-}
-.simpes-dsg .dsg-container::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-.simpes-dsg .dsg-scrollable-view {
-  border-top: none;
-  border-left: none;
-  box-shadow: none;
-}
-
-.simpes-dsg > .simpes-dsg-kartu > div:first-child {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.simpes-dsg,
-.simpes-dsg > .simpes-dsg-kartu {
-  background: var(--part-tabel_sel-bg, var(--background));
-}
-
-.simpes-muat-bar {
+}.simpes-muat-bar {
   width: 33.333%;
   animation: simpes-muat-geser 1.1s ease-in-out infinite;
 }
 @keyframes simpes-muat-geser {
   0% { margin-left: -33.333%; }
   100% { margin-left: 100%; }
-}
-.simpes-dsg .dsg-row.dsg-row-header {
-
-  background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 4%, var(--background)));
-  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--foreground) 18%, transparent);
-}
-
-.simpes-dsg-bilah-judul .dsg-row-header .dsg-cell {
+}.simpes-dsg-bilah-judul .dsg-row-header .dsg-cell {
   border-top: none;
-}
-
-.simpes-dsg .dsg-cell-gutter.dsg-cell-header {
-  position: sticky;
-  left: 0;
-  z-index: 32;
-}
-.simpes-dsg .dsg-cell-gutter.dsg-cell-header .dsg-corner-indicator {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  margin: 0;
-}
-.simpes-dsg .dsg-cell-header .dsg-cell-header-container {
-  color: var(--part-tabel_header-fg, inherit);
-
-  font-family: var(--part-tabel_header-font, "Roboto", sans-serif);
-  font-weight: var(--part-tabel_header-weight, 300);
-
-  font-size: var(--part-tabel_header-size, 11px);
-
-  padding: 0;
-
-  flex: 1;
-  min-width: 0;
-}
-.simpes-dsg .dsg-cell {
-  padding-left: var(--part-tabel_sel-padx, 8px);
-  padding-right: var(--part-tabel_sel-padx, 8px);
-
-  font-weight: var(--simpes-font-weight, var(--part-tabel_sel-weight, 300));
-  font-variant-numeric: tabular-nums;
-}
-
-.simpes-dsg .dsg-cell.simpes-dsg-col-aksi {
-  padding-left: 2px;
-  padding-right: 2px;
-}
-
-.simpes-dsg .simpes-dsg-col-last {
-  border-right: 1px solid var(--dsg-border-color);
-}
-.simpes-dsg .simpes-dsg-row-last::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: var(--dsg-border-color);
-  pointer-events: none;
-
-  z-index: 35;
-}
-
-.simpes-dsg .simpes-dsg-row-last .dsg-cell {
-  box-shadow: 1px 0 var(--dsg-border-color);
-}
-
-.simpes-dsg .dsg-cell.simpes-dsg-col-last {
-  box-shadow: 0 1px var(--dsg-border-color);
-}
-.simpes-dsg .simpes-dsg-row-last .dsg-cell.simpes-dsg-col-last,
-.simpes-dsg .simpes-dsg-row-last .dsg-cell.simpes-dsg-beku-tepi {
-  box-shadow: none;
-}
-
-.simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell,
-.simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell-gutter {
-  background-color: color-mix(in srgb, var(--accent) 14%, var(--background));
-}
-
-/* Blok baris peringkat Leger: nomor baris ikut berwarna agar seluruh baris utuh.
-   Warna sel data diatur lewat kelas !bg di halaman; di sini hanya gutter. */
-.simpes-dsg .dsg-row:has(.simpes-baris-peringkat-1) .dsg-cell-gutter {
-  background-color: color-mix(in srgb, #10b981 20%, var(--background));
-}
-.simpes-dsg .dsg-row:has(.simpes-baris-peringkat-2) .dsg-cell-gutter {
-  background-color: color-mix(in srgb, #fbbf24 30%, var(--background));
-}
-.simpes-dsg .dsg-row:has(.simpes-baris-peringkat-3) .dsg-cell-gutter {
-  background-color: color-mix(in srgb, #0ea5e9 20%, var(--background));
-}
-
-.simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell,
-.simpes-dsg .dsg-row.simpes-dsg-row-aktif .dsg-cell-gutter {
-  background-color: color-mix(in srgb, var(--primary) 16%, var(--background));
-}
-
-.simpes-dsg .dsg-row-header .dsg-cell {
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.simpes-dsg:not(:has(.dsg-row:not(.dsg-row-header))) .dsg-row-header .dsg-cell:not(.dsg-cell-gutter) {
-  box-shadow: 0 1px var(--dsg-border-color);
-}
-
-.simpes-dsg-headtitle {
+}.simpes-dsg-headtitle {
   position: relative;
   display: flex;
   align-items: center;
@@ -757,34 +502,7 @@
 }
 .simpes-dsg-sisip-kanan::after {
   right: 0;
-}
-
-.simpes-dsg .dsg-row-header {
-  user-select: none;
-}
-
-.simpes-dsg.simpes-dsg-seret-isi,
-.simpes-dsg.simpes-dsg-seret-isi .dsg-cell {
-  cursor: copy;
-  user-select: none;
-}
-
-.simpes-dsg.simpes-dsg-seret-isi.simpes-dsg-seret-pindah,
-.simpes-dsg.simpes-dsg-seret-isi.simpes-dsg-seret-pindah .dsg-cell {
-  cursor: move;
-}
-
-.simpes-dsg .dsg-cell.simpes-dsg-seret-sumber {
-  opacity: 0.45;
-}
-
-.simpes-dsg .dsg-cell.simpes-dsg-seret-tujuan {
-  z-index: 21;
-  background-color: color-mix(in srgb, var(--accent) 18%, var(--background));
-  box-shadow: inset 0 0 0 2px var(--accent-foreground, var(--primary));
-}
-
-/* Umpan balik seret yang sama untuk V2. Kelasnya dipasang langsung ke wadah
+}/* Umpan balik seret yang sama untuk V2. Kelasnya dipasang langsung ke wadah
    grid oleh useSeretIsiSel; hanya selector-nya yang perlu versi V2. */
 .simpes-dsg-v2.simpes-dsg-seret-isi,
 .simpes-dsg-v2.simpes-dsg-seret-isi .dsg-cell {
@@ -826,115 +544,6 @@
   border-style: dashed;
 }
 
-.simpes-dsg-resizer.simpes-dsg-resizer-kiri {
-  left: -6px;
-  right: auto;
-}
-
-.simpes-dsg-resizer {
-  position: absolute;
-  right: -6px;
-  top: -6px;
-  bottom: -6px;
-  width: 12px;
-  cursor: ew-resize;
-  touch-action: none;
-  z-index: 5;
-}
-
-/* Umpan balik hover pengubah lebar: GARIS 2 px primary pada BORDER SEL header,
-   bukan pada kotak teks judul. `.dsg-cell` sudah `position: absolute` dan
-   setinggi baris header, jadi `top: 0 / bottom: 0` menutup penuh garis pemisah;
-   `right: -1px` menimpa box-shadow 1 px yang dipakai library sebagai garis
-   kanan sel. Kalau ditempel di `.simpes-dsg-headtitle`, garisnya cuma
-   setinggi teks (sel header `align-items: center`, bukan stretch). */
-.simpes-dsg .dsg-row-header .dsg-cell:has(.simpes-dsg-resizer:hover)::after,
-.simpes-dsg .dsg-row-header .dsg-cell:has(.simpes-dsg-resizer:active)::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: -1px;
-  width: 2px;
-  background: var(--primary);
-  pointer-events: none;
-  z-index: 6;
-}
-
-.simpes-dsg-teks-judul {
-  min-width: 0;
-  overflow-wrap: break-word;
-}
-.simpes-dsg .dsg-input {
-  font-size: var(--simpes-font-size, 11px);
-
-  font-family: inherit;
-  font-weight: inherit;
-  color: var(--foreground);
-
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.simpes-dsg .simpes-dsg-fill {
-  flex: 1;
-  min-width: 0;
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-
-  position: relative;
-
-  overflow: hidden;
-}
-
-.simpes-dsg.simpes-dsg-baris-tetap .simpes-dsg-fill {
-  white-space: nowrap;
-}
-.simpes-dsg .simpes-dsg-select {
-  flex: 1;
-  align-self: stretch;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  outline: none;
-  cursor: pointer;
-  padding: 0;
-}
-/* Select Radix (tombol di dalam sel grid) harus tampil polos seperti select
-   native: tanpa border, tanpa shadow, dan tanpa cincin fokus. Penanda fokus di
-   grid sudah ada pada selnya sendiri, jadi cincin fokus pada tombol hanya
-   mengganggu. Selektor di bawah butuh specificity lebih tinggi dari utilitas
-   Tailwind (mis. `focus-visible:ring-[3px]`), makanya ditulis di sini. */
-.simpes-dsg .simpes-dsg-select[data-slot='select-trigger'],
-.simpes-dsg .simpes-dsg-select[data-slot='select-trigger']:hover,
-.simpes-dsg .simpes-dsg-select[data-slot='select-trigger']:focus,
-.simpes-dsg .simpes-dsg-select[data-slot='select-trigger']:focus-visible {
-  border: none;
-  box-shadow: none;
-  outline: none;
-}
-
-.simpes-dsg .dsg-cell.simpes-dsg-align-center .simpes-dsg-fill {
-  justify-content: center;
-}
-.simpes-dsg .dsg-cell.simpes-dsg-align-right .simpes-dsg-fill {
-  justify-content: flex-end;
-}
-.simpes-dsg .dsg-cell.simpes-dsg-align-center .dsg-input,
-.simpes-dsg .dsg-cell.simpes-dsg-align-center .simpes-dsg-select {
-  text-align: center;
-}
-.simpes-dsg .dsg-cell.simpes-dsg-align-right .dsg-input,
-.simpes-dsg .dsg-cell.simpes-dsg-align-right .simpes-dsg-select {
-  text-align: right;
-}
-
-.simpes-dsg .dsg-cell-header .simpes-dsg-headtitle {
-  justify-content: center;
-}
-
 [data-part='kaki_tabel'] button {
   border-radius: 0 !important;
 }
@@ -958,65 +567,7 @@
 
 #pager [data-slot='toggle-group-item']:first-child {
   border-left: 0 !important;
-}
-
-.simpes-dsg .simpes-dsg-wajib-tanda {
-  margin-left: 2px;
-  color: var(--destructive);
-  font-weight: 700;
-}
-
-.simpes-dsg .simpes-dsg-tak-input {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  color: var(--destructive);
-  opacity: 0.85;
-}
-
-.simpes-dsg .dsg-row.simpes-dsg-row-input .dsg-cell {
-  background-color: color-mix(in srgb, var(--primary) 6%, var(--background));
-}
-
-.simpes-dsg .dsg-cell.simpes-dsg-wajib {
-  box-shadow: 1px 0 var(--dsg-border-color), inset 3px 0 0 var(--destructive);
-}
-
-.simpes-dsg .simpes-dsg-dirty {
-  background-color: color-mix(in srgb, var(--accent) 14%, var(--background));
-}
-
-.simpes-dsg .dsg-cell.simpes-dsg-editable {
-  background-color: color-mix(in srgb, var(--primary) 7%, var(--background));
-}
-.simpes-dsg .dsg-cell.simpes-dsg-readonly {
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent 0 5px,
-    color-mix(in srgb, var(--muted-foreground) 12%, transparent) 5px 6px
-  );
-  color: var(--muted-foreground);
-}
-
-.simpes-dsg .dsg-row:not(.dsg-row-header) .dsg-cell {
-  overflow: hidden;
-}
-.simpes-dsg .dsg-cell:has(> input.dsg-checkbox) {
-  justify-content: center;
-}
-
-.simpes-dsg .dsg-row {
-  display: flex;
-}
-
-.simpes-dsg .dsg-cell.dsg-cell-sticky-right {
-  transform: none;
-  margin-left: auto;
-  height: 100%;
-  z-index: 30;
-}
-
-.simpes-panel-tab {
+}.simpes-panel-tab {
   margin-left: -1px;
 }
 
@@ -1076,97 +627,10 @@
   [data-slot='tooltip-content'] {
     animation: none !important;
   }
-}
-
-.simpes-panel-tab .simpes-dsg:not(.simpes-dsg-bleed) {
-  left: -1px;
-  margin-right: -1px;
-}
-
-[data-slot='resizable-panel'] .simpes-dsg-bleed {
+}[data-slot='resizable-panel'] .simpes-dsg-bleed {
   margin-left: 0;
   margin-right: 0;
-}
-
-.simpes-dsg .dsg-cell.dsg-cell-sticky-left {
-  position: sticky;
-  z-index: 20;
-}
-.simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-sticky-left,
-.simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-gutter,
-.simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-sticky-right {
-
-  position: sticky;
-}
-.simpes-dsg .dsg-row-header .dsg-cell.dsg-cell-sticky-left {
-  z-index: 42;
-}
-
-.simpes-dsg .dsg-cell.dsg-cell-sticky-left.simpes-dsg-beku-tepi {
-  border-right: 1px solid var(--dsg-border-color);
-  box-shadow: 0 1px var(--dsg-border-color);
-}
-
-.simpes-dsg .dsg-cell.simpes-dsg-beku-tepi + .dsg-cell {
-  border-left: none;
-}
-
-.simpes-dsg .dsg-cell.dsg-cell-sticky-left.dsg-cell-active {
-  outline: 2px solid var(--dsg-selection-border-color);
-  outline-offset: -2px;
-  border-radius: var(--dsg-selection-border-radius);
-}
-.simpes-dsg .dsg-row-header .dsg-cell:has(input.simpes-dsg-checkall),
-.simpes-dsg .dsg-row:not(.dsg-row-header) .dsg-cell:has(> input.dsg-checkbox) {
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-  cursor: pointer;
-}
-
-.simpes-dsg input.dsg-checkbox {
-  position: relative;
-  appearance: none;
-  -webkit-appearance: none;
-  width: 11px;
-  height: 11px;
-  margin: auto;
-  border: 1px solid color-mix(in srgb, var(--foreground) 28%, transparent);
-  border-radius: 2px;
-  background: transparent;
-  cursor: pointer;
-}
-.simpes-dsg input.dsg-checkbox:checked {
-
-  border-color: color-mix(in srgb, var(--foreground) 28%, transparent);
-  background: transparent;
-}
-
-.simpes-dsg input.dsg-checkbox:checked::after {
-  content: '';
-  position: absolute;
-  top: 45%;
-  left: 48%;
-  width: 4px;
-  height: 7px;
-  border-right: 1.5px solid var(--accent);
-  border-bottom: 1.5px solid var(--accent);
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.simpes-dsg input.simpes-dsg-checkall {
-  width: 11px;
-  height: 11px;
-  margin: auto;
-  cursor: pointer;
-}
-.simpes-dsg input.dsg-checkbox:focus-visible {
-  border-width: 1.5px;
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.dsg-context-menu {
+}.dsg-context-menu {
   background: var(--card);
   color: var(--foreground);
   border: 1px solid var(--border);
@@ -1206,7 +670,7 @@
 /* ---------- Kartu permukaan seragam (Card) ----------
    Latar, bayangan, dan angkat-hover terpusat di sini supaya seluruh kartu
    di aplikasi seragam — pengganti inline style background/boxShadow yang
-   selama ini diulang di DashboardPage, DataExistingCard, ExcelTable, dll.
+   selama ini diulang di DashboardPage, DataExistingCard, ExcelTabelV2, dll.
    `hover` lewat kelas (bukan utilitas Tailwind) agar menimpa box-shadow
    inline bawaan kartu. */
 .kartu {
@@ -1251,24 +715,7 @@
   [class*='text-info'] svg.simpes-ikon
 ) {
   color: inherit;
-}
-
-[data-warna='aksen'] .simpes-dsg .dsg-row-header .dsg-cell-header-container,
-[data-warna='kaya'] .simpes-dsg .dsg-row-header .dsg-cell-header-container {
-  color: var(--part-tabel_header-fg, var(--accent-readable));
-}
-
-[data-warna='kaya'] .simpes-dsg .dsg-row.dsg-row-header {
-  background: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 4%, var(--background)));
-}
-[data-warna='kaya'] .simpes-dsg .dsg-row:not(.dsg-row-header):hover .dsg-cell {
-  background-color: color-mix(in srgb, var(--accent) 6%, var(--background));
-}
-[data-warna='kaya'] .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell,
-[data-warna='kaya'] .simpes-dsg .dsg-row.simpes-dsg-row-checked .dsg-cell-gutter {
-  background-color: color-mix(in srgb, var(--accent) 20%, var(--background));
-}
-[data-warna='kaya'] :is(section.rounded-xl, .rounded-xl.border) {
+}[data-warna='kaya'] :is(section.rounded-xl, .rounded-xl.border) {
   border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
 }
 

@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import ExcelTable, { type ExcelChoice, type ExcelField } from '@/components/ExcelTable';
+import type { ExcelChoice, ExcelField } from '@/components/excel/types';
 import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import Pager from '@/components/Pager';
 import FilterRail from '@/components/FilterRail';

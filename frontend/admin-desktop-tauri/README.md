@@ -22,11 +22,11 @@ sebagai `forwardRef` (template registry default React-19), dan `Button`/`ActionI
 sudah `forwardRef` agar aman dipakai sebagai trigger `asChild`. Sebelum update
 komponen dari registry, cek `shadcn add --diff` dulu.
 
-## Grid data ala Excel (`src/components/ExcelTable.tsx`)
+## Grid data ala Excel (`src/components/excelV2/ExcelTabelV2.tsx`)
 
 Semua tabel master (users, lembaga, tahun-ajaran, kelas, pos, tarif) memakai
 `react-datasheet-grid` (satu-satunya lib tabel; `react-data-grid`, `ag-grid`,
-dan `react-data-table-component` sudah dicabut) lewat wrapper `ExcelTable`.
+dan `react-data-table-component` sudah dicabut) lewat wrapper `ExcelTabelV2`.
 `ViewDialog` dipisah ke `src/components/ViewDialog.tsx`.
 
 **Seleksi (gaya spreadsheet)**

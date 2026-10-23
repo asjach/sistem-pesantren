@@ -224,7 +224,7 @@ Contoh kamus ringkas:
 - Bar judul halaman + baris tools kontekstual; halaman menyumbang tools via slot (tab ganda bila halaman + tabel sama-sama punya tools); tombol lipat baris tools per perangkat.
 
 ### 7.4 Tabel (pola Excel)
-- Wrapper tunggal `ExcelTable`: seleksi gaya spreadsheet, resize kolom drag, AutoFit (klik-2× gagang, klik-kanan header, atau semua kolom), edit klik-2× langsung simpan, salin blok TSV siap tempel ke Excel.
+- Wrapper tunggal `ExcelTabelV2`: seleksi gaya spreadsheet, resize kolom drag, AutoFit (klik-2× gagang, klik-kanan header, atau semua kolom), edit klik-2× langsung simpan, salin blok TSV siap tempel ke Excel.
 - Kerapatan Ramping/Sedang/Nyaman (20/24/30 px) + tinggi baris manual; bekukan N kolom; tinggi header otomatis mengikuti judul multibaris; ukuran huruf sel (bawaan 11 px) dan header (bawaan 11 px) mandiri.
 - Preset kolom per tabel (bawaan "Lengkap" terkunci + buatan user, multi-generate per lembaga); pilihan terakhir diingat per user.
 - Aksi baris ≤3 tampil langsung, >3 diringkas ke dropdown titik-tiga; pagination 10/50/100/500 + "Semua"; skeleton saat muat, teks "Belum ada data." saat kosong.

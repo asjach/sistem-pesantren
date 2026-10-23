@@ -1,4 +1,4 @@
-import type { ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/excel/types';
 import { updateLembagaSantri, updateSantri } from '@/api/santri';
 import { updateRiwayatBelajar, type RiwayatRow } from '@/api/siklus';
 import { formatStatus, namaLembaga, namaTahunAjaran } from '@/lib/nilaiTampil';

@@ -10,7 +10,7 @@ import { listSantri, type Santri } from '../../api/santri';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import type { ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/excel/types';
 import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
 import Pager from '@/components/Pager';
 import { TopBarSearch } from '@/components/TopBarSearch';

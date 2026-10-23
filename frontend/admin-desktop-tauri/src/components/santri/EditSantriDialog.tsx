@@ -40,7 +40,7 @@ import {
   hanyaIdentitas,
   nilaiIdentitas,
 } from '@/components/santri/kolomIdentitas';
-import type { ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/excel/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 

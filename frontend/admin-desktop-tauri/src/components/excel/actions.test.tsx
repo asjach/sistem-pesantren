@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import TombolIkon from '@/components/TombolIkon';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { flattenAksi, metaAksi } from './actions';
+import { flattenAksiMenu, metaAksi } from './actions';
 
 describe('metaAksi', () => {
   it('jatuhan umum membaca `tip` TombolIkon agar label menu tidak generik', () => {
@@ -18,9 +18,9 @@ describe('metaAksi', () => {
   });
 });
 
-describe('flattenAksi', () => {
+describe('flattenAksiMenu', () => {
   it('meneruskan Tooltip: tombol dihitung, bukan pembungkusnya', () => {
-    const els = flattenAksi(
+    const els = flattenAksiMenu(
       <>
         <Tooltip>
           <TooltipTrigger asChild>

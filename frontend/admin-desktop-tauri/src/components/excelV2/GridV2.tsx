@@ -1108,8 +1108,7 @@ export default function GridV2({
 
     for (const [iData, f] of fields.entries()) {
       const rata = rataKolom(f, alignDb);
-      /** Select record lama: teks saat view, dropdown hanya saat Mode Ubah.
-       *  `selectTanpaEdit` adalah perilaku V1 legacy dan sengaja diabaikan V2. */
+      /** Select record lama: teks saat view, dropdown hanya saat Mode Ubah. */
       const selectBisa = f.kind === 'select' && bisaEdit && modeUbah;
       /** Satu gerbang untuk semua jalur DSG (disabled, tempel, hapus). */
       const bisaUbahSel = f.kind === 'select' ? selectBisa : (bisaEdit && f.kind !== 'static');

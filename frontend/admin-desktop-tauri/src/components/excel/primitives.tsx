@@ -1,9 +1,8 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import type { CheckAllState } from './types';
 
 /**
  * Satu sakelar gestur manipulasi tabel yang ditawarkan Mode Ubah.
@@ -126,34 +125,5 @@ export function TabelMemuat({ rowH, baris = 14 }: { rowH: number; baris?: number
         ))}
       </div>
     </div>
-  );
-}
-
-export const CheckAllContext = createContext<CheckAllState | null>(null);
-
-export function CheckAllCell() {
-  const ctx = useContext(CheckAllContext);
-  if (!ctx) return null;
-  const all = ctx.ids.length > 0 && ctx.ids.every((id) => ctx.checked.has(id));
-  const some = ctx.ids.some((id) => ctx.checked.has(id));
-  return (
-    <span className="flex w-full items-center justify-center">
-      <input
-        type="checkbox"
-        aria-label="Pilih semua baris"
-        className="simpes-dsg-checkall"
-        checked={all}
-        ref={(el) => {
-          if (el) el.indeterminate = some && !all;
-        }}
-        onChange={(e) => {
-          const next = new Set<string | number>();
-          if (e.target.checked) for (const id of ctx.ids) next.add(id);
-          ctx.setChecked(next);
-        }}
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-      />
-    </span>
   );
 }

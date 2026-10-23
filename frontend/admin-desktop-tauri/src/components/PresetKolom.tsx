@@ -8,7 +8,7 @@ import {
   type PresetTabel,
 } from '../api/preset';
 import { useAuth } from '../auth/AuthContext';
-import type { ExcelField } from './ExcelTable';
+import type { ExcelField } from './excel/types';
 import { toast } from 'sonner';
 import LabeledCombobox from './LabeledCombobox';
 import {

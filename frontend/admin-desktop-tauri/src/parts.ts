@@ -8,7 +8,7 @@ import { BELUM_DIPAKAI } from './parts-belum.gen';
  *  hanya warna (bg/fg/border) yang dipisah per mode terang/gelap.
  *  Tiap bagian punya `sel` (selektor akar) untuk generator gaya runtime
  *  (src/partStyles.ts); sebagian memakai atribut `data-part` yang dipasang di
- *  komponen (TopBar, ExcelTable), sisanya `data-slot` komponen shadcn atau
+ *  komponen (TopBar, ExcelTabelV2), sisanya `data-slot` komponen shadcn atau
  *  selektor struktural yang sudah ada. */
 export type PartId =
   | 'ribbon'
@@ -368,7 +368,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Grid',
     ukurSel: '.dsg-cell-header-container',
     hint: 'Baris judul kolom grid spreadsheet.',
-    sel: '.simpes-dsg .dsg-row.dsg-row-header',
+    sel: '.simpes-dsg-v2 .dsg-row.dsg-row-header',
   },
   {
     id: 'tabel_sel',
@@ -377,7 +377,7 @@ export const PARTS: PartMeta[] = [
     sub: 'Grid',
     ukurSel: '.dsg-cell',
     hint: 'Isi sel grid (baca-saja & editor).',
-    sel: '.simpes-dsg',
+    sel: '.simpes-dsg-v2',
   },
   {
     id: 'tabel_grid',
@@ -386,9 +386,6 @@ export const PARTS: PartMeta[] = [
     sub: 'Grid',
     ukurSel: '.dsg-cell',
     hint: 'Warna garis grid: header row, kolom nomor, dan sel tabel memakai satu warna yang sama.',
-    /* Sengaja hanya `.simpes-dsg-v2`: ExcelTabelV2 masih pilot, jadi setelan
-       ini belum boleh mengubah tampilan ExcelTable lama. Saat V2 menggantikan
-       V1, selector-nya diperluas. */
     sel: '.simpes-dsg-v2',
   },
   {

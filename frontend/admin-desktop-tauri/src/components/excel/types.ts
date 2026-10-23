@@ -21,9 +21,6 @@ export interface ExcelField {
   /** Toggle yang hidup tanpa Mode Edit (tetap tersimpan langsung);
    *  mis. kolom is_active referensi yang dikelola lewat aksi baris. */
   toggleTanpaEdit?: boolean;
-  /** V1 legacy: select yang hidup tanpa Mode Edit. V2 mengabaikan flag ini;
-   *  sel select V2 selalu menampilkan teks sampai Mode Ubah aktif. */
-  selectTanpaEdit?: boolean;
   /** Boleh toggle per baris (id grid) — mis. baris global butuh konteks
    *  lembaga. Null/absen = semua boleh (selain baris input). */
   bolehToggle?: (id: string | number) => boolean;
@@ -84,96 +81,10 @@ export interface GridRow {
   [key: string]: string | boolean | number | null;
 }
 
-/** Data kolom centang (columnData bawaan keyColumn; tidak dipakai). */
-export interface CheckColData {
-  key: string;
-  original?: unknown;
-}
-
 /** Seleksi blok gaya spreadsheet (indeks baris/kolom numerik). */
 export interface GridSelection {
   min: { row: number; col: number };
   max: { row: number; col: number };
-}
-
-/** Status "pilih semua" lewat context agar klik checkbox tidak membangun ulang
- *  definisi kolom DSG (kolom tetap stabil, hanya header ini yang re-render). */
-export interface CheckAllState {
-  ids: readonly (string | number)[];
-  checked: ReadonlySet<string | number>;
-  setChecked: (s: Set<string | number>) => void;
-}
-
-export interface TextColData {
-  fieldKey: string;
-  maxLength?: number;
-  /** Enter saat mengedit baris input = simpan baris (mode Input).
-   *  Kembalikan true bila baris boleh pindah ke bawah (kolom wajib lengkap). */
-  onEnter?: (columnIndex: number) => boolean;
-  /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
-  onDblClick?: (id: string | number) => void;
-  /** Klik 1× sel (mode Edit): buka editor sel ini. */
-  onClickCell?: (id: string | number) => void;
-  /** Tampilan baca-saja kustom saat sel tidak sedang fokus; input tetap
-   *  memakai nilai mentah. Dipakai kolom editable yang perlu lencana sumber. */
-  renderView?: (rowData: GridRow) => ReactNode;
-}
-
-export interface SelectColData {
-  fieldKey: string;
-  choices: ExcelChoice[];
-  /** Pilihan per baris; menang atas `choices` untuk baris data. */
-  choicesForRow?: (id: string | number) => ExcelChoice[];
-  /** False = sel baris ini terkunci (nilai tetap tampil, tidak bisa dibuka). */
-  bolehSelect?: (id: string | number) => boolean;
-  /** Teks opsi kosong saat nilai sel belum ada di daftar pilihan (mis.
-   *  "Pilih jenis…"). Bawaannya `Pilih…`. Opsi kosong ini wajib ada supaya
-   *  pilihan pertama yang sebenarnya jadi perubahan saat dipilih — tanpa itu
-   *  browser menampilkannya seolah sudah terpilih sehingga klik pertama
-   *  tidak menghasilkan apa-apa. */
-  placeholder?: string;
-  /** Pilihan khusus baris input (mode Input) — mis. kolom mengikuti tabel terpilih. */
-  choicesInput?: ExcelChoice[];
-  /** Enter saat mengedit baris input = simpan baris (mode Input).
-   *  Kembalikan true bila baris boleh pindah ke bawah (kolom wajib lengkap). */
-  onEnter?: (columnIndex: number) => boolean;
-  /** Klik 2× sel (mode view): nyalakan checkbox Edit. */
-  onDblClick?: (id: string | number) => void;
-  /** Klik 1× sel (mode Edit): buka editor sel ini. */
-  onClickCell?: (id: string | number) => void;
-  /** Fokuskan kembali sel ini (baris `id`) setelah daftar select ditutup.
-   *  Dipakai sel Select Radix: memilih opsi di panel portal (atau menekan
-   *  Escape) berarti klik/key yang terjadi di LUAR grid, sehingga DSG
-   *  menganggapnya "klik luar" lalu menghapus sel aktif. Tanpa pemulih ini,
-   *  tombol panah/Enter tak lagi memindahkan sel setelah nilai diganti. */
-  fokuskanSel?: (id: string | number) => void;
-}
-
-export interface ToggleColData {
-  fieldKey: string;
-  /** Label kolom (untuk aria). */
-  label: string;
-  /** Gerbang izin halaman; false = switch selalu nonaktif. */
-  bisaEdit: boolean;
-}
-
-export interface StaticColData {
-  fieldKey: string;
-  /** Isi kartu hover sel — absen = sel teks polos tanpa kartu. */
-  kartuHover?: (rowData: GridRow) => ReactNode;
-  /** Isi sel kustom; absen = teks polos dari nilai field. */
-  render?: (rowData: GridRow) => ReactNode;
-  /** Klik sel (bila disediakan). */
-  onClick?: (id: string | number) => void;
-  /** Klik 2× sel (menyalakan Mode Ubah). */
-  onDblClick?: () => void;
-}
-
-export interface ActionsColData {
-  render: (id: string | number) => ReactNode;
-  /** True bila kapasitas aksi tabel pernah melebihi 3 (high-water mark) —
-   *  seluruh baris memakai dropdown hamburger walau aksi baris ini ≤ 3. */
-  ringkas: boolean;
 }
 
 /** Data menu yang diekstrak dari elemen aksi (tanpa menyarangkan tombol asli). */

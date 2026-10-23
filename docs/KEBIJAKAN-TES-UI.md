@@ -29,7 +29,7 @@ runner, status suspend) tetap mengikuti `AGENTS.md` root dan
 | --- | --- | --- | --- |
 | Pure logic/utility | `lib/*.test.ts`, `kolom.test.ts`, `seretIsiSel.test.ts` | percabangan, validasi, komputasi, transformasi data | DOM, styling |
 | Hook | `useAntreanSimpan.test.ts`, `useLebarKolom` (via komponen), `useSalinTabel.test.ts` | state, efek, antrean, side effect, kegagalan | markup/CSS |
-| Shared component | `ExcelTable.test.tsx`, `ExcelTabelV2.test.tsx`, `GridV2.test.tsx`, `ui/resizable.test.tsx` | kontrak props/event, state tampil, empty/loading/error, keyboard/focus, accessible name/role | snapshot, pixel, kelas CSS |
+| Shared component | `ExcelTabelV2.test.tsx`, `GridV2.test.tsx`, `ui/resizable.test.tsx` | kontrak props/event, state tampil, empty/loading/error, keyboard/focus, accessible name/role | snapshot, pixel, kelas CSS |
 | Page/integration | `pages/*.test.tsx` | wiring halaman ↔ komponen, izin/visibilitas, alur API yang dimock, side effect halaman | mengulang detail internal komponen bersama |
 | Manual/browser | tabel, drag, scroll, Tauri | layout, virtualisasi, sticky/freeze, geometri drag, clipboard, print/PDF, native | dianggap otomatis oleh jsdom |
 | E2E/visual regression | belum ada di repo | hanya dengan persetujuan pengguna dan keputusan tooling | menambah dependency diam-diam |

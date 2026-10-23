@@ -1,5 +1,5 @@
 import { pihakFields, SANTRI_IDENTITAS_FIELDS } from '@/components/santri/kolomIdentitas';
-import type { ExcelField } from '@/components/ExcelTable';
+import type { ExcelField } from '@/components/excel/types';
 
 /** Kelompokan field profil Santri — sumber tunggal untuk tampilan profil
  *  (baca-saja) dan form ubah detail, supaya label, urutan, dan pembagiannya

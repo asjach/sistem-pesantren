@@ -30,9 +30,6 @@ vi.mock('@/components/ui/combobox', () => {
   const Box = ({ children }: { children?: ReactNode }) => typeof children === 'function' ? null : <div>{children}</div>;
   return { ComboboxRoot: Box, ComboboxContent: () => null, ComboboxEmpty: Box, ComboboxInput: () => null, ComboboxItem: Box, ComboboxList: Box, ComboboxTrigger: () => null };
 });
-vi.mock('@/components/ExcelTable', () => ({
-  default: ({ rows, renderActions, onBarisKlik }: { rows: { id: number; nama_lengkap?: string }[]; renderActions: (r: unknown) => ReactNode; onBarisKlik?: (r: unknown) => void }) => <div>{rows.map((r) => <div key={r.id}>{onBarisKlik && <button onClick={() => onBarisKlik(r)}>{r.nama_lengkap}</button>}{renderActions(r)}</div>)}</div>,
-}));
 vi.mock('@/components/excelV2/ExcelTabelV2', () => ({
   default: ({ rows, renderActions, onBarisKlik }: { rows: { id: number | string; nama_lengkap?: string }[]; renderActions?: (r: unknown) => ReactNode; onBarisKlik?: (r: unknown) => void }) => <div>{rows.map((r) => <div key={r.id}>{onBarisKlik && <button onClick={() => onBarisKlik(r)}>{r.nama_lengkap}</button>}{renderActions?.(r)}</div>)}</div>,
 }));

@@ -14,7 +14,7 @@ vi.mock('@/api/komponenCustom', () => ({
 beforeEach(() => {
   resetSetelanKomponen();
 });
-import type { ExcelField } from './ExcelTable';
+import type { ExcelField } from './excel/types';
 
 const { muatUrutPreset, listPresetTabel } = vi.hoisted(() => ({
   muatUrutPreset: vi.fn((..._a: unknown[]): Promise<unknown> => Promise.resolve({

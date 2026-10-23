@@ -213,7 +213,7 @@ describe('GridV2 - penyuntingan sel (Mode Ubah)', () => {
     const fields: ExcelField[] = [
       FIELDS[0],
       {
-        key: 'jenjang', label: 'Jenjang', kind: 'select', selectTanpaEdit: true,
+        key: 'jenjang', label: 'Jenjang', kind: 'select',
         choices: [{ value: 'MI', label: 'MI' }, { value: 'MTs', label: 'MTs' }],
       },
     ];
@@ -225,7 +225,7 @@ describe('GridV2 - penyuntingan sel (Mode Ubah)', () => {
     });
     await waitFor(() => expect(kolomTerakhir().find((k) => k.id === 'nama')?.disabled).toBe(false));
 
-    // V2 mengabaikan selectTanpaEdit: view tetap teks, tanpa combobox.
+    // View tetap teks; combobox baru muncul setelah Mode Ubah.
     expect(screen.queryByRole('combobox', { name: 'Jenjang' })).toBeNull();
     expect(document.querySelector('.dsg-row:not(.dsg-row-header) [data-col-key="jenjang"]')?.textContent).toContain('MI');
 
