@@ -1,9 +1,33 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { bacaKonteksReact, buatSelector, parentElemen, rapikanSumber, teksElemen, tujuanValid } from './anotasi';
+import { bacaKonteksReact, buatSelector, parentElemen, rapikanSumber, simpanAnotasi, teksElemen, tujuanValid } from './anotasi';
 
 beforeEach(() => {
   document.body.innerHTML = '';
+});
+afterEach(() => vi.unstubAllGlobals());
+
+describe('kirim anotasi', () => {
+  const catatan = { id: 'a1', dibuat: '2026-10-23T00:00:00Z', rute: '/', selector: '#asal', tag: 'div', teks: '', komponen: [], sumber: null, instruksi: 'Ubah' };
+  it('memakai JSON untuk anotasi tanpa screenshot', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => catatan });
+    vi.stubGlobal('fetch', fetch);
+    await expect(simpanAnotasi(catatan)).resolves.toEqual(catatan);
+    expect(fetch).toHaveBeenCalledWith('/__anotasi', expect.objectContaining({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(catatan) }));
+  });
+  it('memakai multipart JSON dan PNG tanpa menetapkan boundary sendiri', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => catatan });
+    vi.stubGlobal('fetch', fetch);
+    const blob = new Blob(['png'], { type: 'image/png' });
+    await simpanAnotasi(catatan, blob);
+    const init = fetch.mock.calls[0][1] as RequestInit;
+    expect(init.headers).toBeUndefined();
+    const form = init.body as FormData;
+    expect(form.get('anotasi')).toBe(JSON.stringify(catatan));
+    const file = form.get('gambar') as File;
+    expect(file.type).toBe('image/png');
+    expect(file.name).toBe('a1.png');
+  });
 });
 
 describe('rapikanSumber', () => {

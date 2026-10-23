@@ -48,6 +48,17 @@
   Field opsional `preview` berisi `sebelum`, `sesudah` (computed style), dan
   `perubahan` (nilai CSS yang diminta). Agen membaca ketiganya sebagai acuan
   perubahan, bukan menganggap preview sudah mengubah kode produk.
+- **Ambil screenshot** menyertakan area asal (biru) dan tujuan (jingga) yang
+  terlihat, tanpa editor anotasi. Thumbnail bisa diperbesar, diambil ulang,
+  atau dibuang. Perubahan pilihan, preview, scroll halaman, atau ukuran window
+  memerlukan capture ulang. Gagal capture tidak menghapus draft; anotasi tetap
+  bisa disimpan tanpa gambar. Screenshot dengan preview aktif diberi penanda.
+- Field opsional `gambar` menyimpan `berkas` relatif terhadap `.dev/`, ukuran,
+  waktu capture, dan `preview_aktif`. PNG berada di `.dev/screenshots/<id>.png`
+  dan ikut dihapus lewat endpoint saat anotasi dihapus. Agen wajib membuka gambar
+  terkait bila tersedia; bila membersihkan anotasi lewat file, hapus PNG terkait
+  juga. Jangan commit screenshot. Render DOM bukan screenshot native: konten
+  eksternal, canvas, sticky/fixed pada scroll, dan WebView perlu pemeriksaan visual.
 - Pintasan `Ctrl/⌘+Shift+A` mengaktifkan atau mematikan mode tandai, termasuk
   saat dialog/modal terbuka. Untuk elemen di dalam dialog, editor instruksi
   ditempatkan di dialog agar tetap bisa difokuskan dan diketik.

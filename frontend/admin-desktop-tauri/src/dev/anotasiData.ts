@@ -36,12 +36,24 @@ export const POSISI_RELATIF = {
 } as const;
 export type PosisiRelatif = keyof typeof POSISI_RELATIF;
 
+export interface GambarAnotasi {
+  berkas: string;
+  lebar: number;
+  tinggi: number;
+  dibuat: string;
+  preview_aktif: boolean;
+}
+
+export const ID_GAMBAR_VALID = /^[a-zA-Z0-9_-]{1,120}$/;
+export const BATAS_GAMBAR = 8 * 1024 * 1024;
+
 export interface Anotasi extends KonteksElemen {
   id: string;
   dibuat: string;
   rute: string;
   instruksi: string;
   tujuan?: KonteksElemen & { posisi: PosisiRelatif };
+  gambar?: GambarAnotasi;
 }
 
 function teks(nilai: unknown, batas: number): string {
@@ -115,5 +127,15 @@ export function normalisasiAnotasi(data: Record<string, unknown>): Anotasi {
     hasil.tujuan = { ...tujuan, posisi: posisi as PosisiRelatif };
   }
 
+  if (data.gambar != null) {
+    const gambar = data.gambar as GambarAnotasi;
+    if (!ID_GAMBAR_VALID.test(hasil.id) || typeof gambar !== 'object' || Array.isArray(gambar)
+      || gambar.berkas !== `screenshots/${hasil.id}.png`
+      || !Number.isInteger(gambar.lebar) || gambar.lebar < 1 || gambar.lebar > 4096
+      || !Number.isInteger(gambar.tinggi) || gambar.tinggi < 1 || gambar.tinggi > 4096
+      || typeof gambar.dibuat !== 'string' || gambar.dibuat.length > 40 || !Number.isFinite(Date.parse(gambar.dibuat))
+      || typeof gambar.preview_aktif !== 'boolean') throw new Error('Metadata screenshot tidak valid.');
+    hasil.gambar = { berkas: gambar.berkas, lebar: gambar.lebar, tinggi: gambar.tinggi, dibuat: gambar.dibuat, preview_aktif: gambar.preview_aktif };
+  }
   return hasil;
 }

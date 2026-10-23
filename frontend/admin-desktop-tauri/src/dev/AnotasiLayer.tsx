@@ -17,6 +17,8 @@ import { POSISI_RELATIF, type PosisiRelatif } from './anotasiData';
 import DetailStyleAnotasi from './DetailStyleAnotasi';
 import PreviewStyleAnotasi from './PreviewStyleAnotasi';
 import { PengelolaPreviewStyle } from './previewStyle';
+import { useScreenshotAnotasi } from './useScreenshotAnotasi';
+import GambarAnotasi from './GambarAnotasi';
 
 const LEBAR_POPOVER = 480;
 const TINGGI_POPOVER = 520;
@@ -80,6 +82,7 @@ function DetailElemen({ label, elemen, awal, onPilih, onSorot, pengelolaPreview,
               {index > 0 && <span aria-hidden="true">→</span>}
               <button
                 type="button"
+                disabled={menyimpan}
                 aria-label={`Pilih ${label.toLowerCase()}: ${nama}`}
                 aria-pressed={el === elemen}
                 title={nama}
@@ -144,6 +147,10 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
   const [galatPilihan, setGalatPilihan] = useState<string | null>(null);
   const [instruksi, setInstruksi] = useState('');
   const [menyimpan, setMenyimpan] = useState(false);
+  const [versiPreview, setVersiPreview] = useState(0);
+  const screenshot = useScreenshotAnotasi(target, tujuan, versiPreview, !!(target && pengelolaPreview.snapshot(target)) || !!(tujuan && pengelolaPreview.snapshot(tujuan)));
+  const sibuk = menyimpan || screenshot.mengambil;
+  const identitasDraft = useRef<{ id: string; dibuat: string } | null>(null);
   const refTextarea = useRef<HTMLTextAreaElement>(null);
 
   const muat = useCallback(async () => {
@@ -186,6 +193,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
 
   const batal = useCallback(() => {
     pengelolaPreview.resetSemua();
+    identitasDraft.current = null;
     setTarget(null);
     setAsalAwal(null);
     setTujuan(null);
@@ -206,6 +214,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
   useEffect(() => () => pengelolaPreview.resetSemua(), [pengelolaPreview]);
 
   const perbaruiPreview = useCallback(() => {
+    setVersiPreview((versi) => versi + 1);
     setSorot(target?.getBoundingClientRect() ?? null);
   }, [target]);
 
@@ -221,7 +230,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
       if (e.key === 'Escape' && (aktif || target)) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        if (menyimpan) return;
+        if (sibuk) return;
         if (memilihTujuan) batalPilihTujuan();
         else { batal(); setAktif(false); }
         return;
@@ -230,14 +239,14 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
       if (e.key.toLowerCase() !== 'a') return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      if (menyimpan) return;
+      if (sibuk) return;
       batal();
       setAktif((nyala) => !nyala);
     }
 
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [batal, aktif, target, memilihTujuan, batalPilihTujuan, menyimpan]);
+  }, [batal, aktif, target, memilihTujuan, batalPilihTujuan, sibuk]);
 
   useEffect(() => {
     if (!aktif) return;
@@ -332,7 +341,8 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
   }, [target, tujuan, batal, pengelolaPreview]);
 
   async function simpan() {
-    if (!target || !target.isConnected || !instruksi.trim() || menyimpan || aktif) return;
+    if (!target || !target.isConnected || !instruksi.trim() || sibuk || aktif) return;
+    if (!screenshot.validasi()) return;
     if (tujuan && (!tujuan.isConnected || !tujuanValid(target, tujuan))) {
       setGalatPilihan('Tujuan tidak valid. Pilih tujuan kembali.');
       return;
@@ -345,14 +355,14 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
         return { ...bacaKonteks(elemen, true), ...(preview ? { preview } : {}) };
       };
       const baru: Anotasi = {
-        id: buatId(),
-        dibuat: new Date().toISOString(),
+        ...(identitasDraft.current ??= { id: buatId(), dibuat: new Date().toISOString() }),
         rute: `${window.location.pathname}${window.location.search}`,
         ...konteksPreview(target),
         instruksi: instruksi.trim(),
         ...(tujuan ? { tujuan: { ...konteksPreview(tujuan), posisi: posisiRelatif } } : {}),
       };
-      const tersimpan = await simpanAnotasi(baru);
+      if (screenshot.gambar) baru.gambar = { ...screenshot.gambar.metadata, berkas: `screenshots/${baru.id}.png` };
+      const tersimpan = screenshot.gambar ? await simpanAnotasi(baru, screenshot.gambar.blob) : await simpanAnotasi(baru);
       setDaftar((lama) => [...lama, tersimpan]);
       batal();
       toast.success('Anotasi tersimpan');
@@ -416,8 +426,8 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
           </div>
 
           <div className="mb-2 flex min-h-0 flex-col gap-2 overflow-y-auto">
-            <DetailElemen label="Asal" elemen={target} awal={asalAwal} onSorot={setSorotParent} pengelolaPreview={pengelolaPreview} onPreview={perbaruiPreview} menyimpan={menyimpan} onPilih={(el) => {
-              if (menyimpan) return;
+            <DetailElemen label="Asal" elemen={target} awal={asalAwal} onSorot={setSorotParent} pengelolaPreview={pengelolaPreview} onPreview={perbaruiPreview} menyimpan={sibuk} onPilih={(el) => {
+              if (sibuk) return;
               if (target !== el) pengelolaPreview.reset(target);
               setTarget(el);
               setSorot(el.getBoundingClientRect());
@@ -428,8 +438,8 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
                 setGalatPilihan('Tujuan tidak sesuai dengan asal yang baru. Pilih tujuan kembali.');
               }
             }} />
-            {tujuan && tujuanAwal && <DetailElemen label="Tujuan" elemen={tujuan} awal={tujuanAwal} onSorot={setSorotParent} pengelolaPreview={pengelolaPreview} onPreview={perbaruiPreview} menyimpan={menyimpan} onPilih={(el) => {
-              if (menyimpan) return;
+            {tujuan && tujuanAwal && <DetailElemen label="Tujuan" elemen={tujuan} awal={tujuanAwal} onSorot={setSorotParent} pengelolaPreview={pengelolaPreview} onPreview={perbaruiPreview} menyimpan={sibuk} onPilih={(el) => {
+              if (sibuk) return;
               if (!tujuanValid(target, el)) {
                 setGalatPilihan('Asal dan tujuan harus berbeda; tujuan tidak boleh berada di dalam asal.');
                 return;
@@ -439,13 +449,13 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
               setGalatPilihan(null);
             }} />}
             <div className="flex flex-wrap items-center gap-1">
-              <Button type="button" variant="outline" size="sm" disabled={menyimpan} onClick={() => {
+              <Button type="button" variant="outline" size="sm" disabled={sibuk} onClick={() => {
                 setMemilihTujuan(true);
                 setGalatPilihan(null);
                 setPanel(false);
                 setAktif(true);
               }}>{tujuan ? 'Ganti tujuan' : 'Pilih tujuan'}</Button>
-              {tujuan && <Button type="button" variant="ghost" size="sm" disabled={menyimpan} onClick={() => {
+              {tujuan && <Button type="button" variant="ghost" size="sm" disabled={sibuk} onClick={() => {
                 pengelolaPreview.reset(tujuan);
                 setTujuan(null);
                 setTujuanAwal(null);
@@ -455,11 +465,21 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
             </div>
             {tujuan ? <label className="flex flex-col gap-1 text-xs" htmlFor="posisi_tujuan_anotasi">
               Posisi terhadap tujuan
-              <select id="posisi_tujuan_anotasi" disabled={menyimpan} value={posisiRelatif} onChange={(e) => setPosisiRelatif(e.target.value as PosisiRelatif)} className="w-full border border-border bg-background px-2 py-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <select id="posisi_tujuan_anotasi" disabled={sibuk} value={posisiRelatif} onChange={(e) => setPosisiRelatif(e.target.value as PosisiRelatif)} className="w-full border border-border bg-background px-2 py-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
                 {Object.entries(POSISI_RELATIF).map(([nilai, label]) => <option key={nilai} value={nilai}>{label}</option>)}
               </select>
             </label> : <p className="text-[11px] text-muted-foreground">Tujuan opsional; anotasi biasa dapat langsung disimpan.</p>}
             {galatPilihan && <p role="alert" className="text-xs text-destructive">{galatPilihan}</p>}
+            <section aria-label="Screenshot anotasi" className="border-t border-border pt-2">
+              <p className="mb-1 text-[11px] text-muted-foreground">Opsional: ambil area asal dan tujuan yang terlihat, tanpa editor. Periksa gambar sebelum Simpan; render canvas atau konten eksternal mungkin berbeda.</p>
+              <div className="flex flex-wrap gap-1">
+                <Button type="button" size="sm" variant="outline" disabled={sibuk} onClick={() => void screenshot.ambil()}>{screenshot.mengambil ? 'Mengambil screenshot…' : screenshot.gambar ? 'Ambil ulang screenshot' : 'Ambil screenshot'}</Button>
+                {screenshot.gambar && <Button type="button" size="sm" variant="ghost" disabled={sibuk} onClick={screenshot.reset}>Buang screenshot</Button>}
+              </div>
+              {screenshot.mengambil && <p role="status" className="text-xs">Sedang menyiapkan gambar…</p>}
+              {screenshot.galat && <p role="alert" className="mt-1 text-xs text-destructive">{screenshot.galat}</p>}
+              {screenshot.gambar && <GambarAnotasi key={screenshot.gambar.url} url={screenshot.gambar.url} metadata={screenshot.gambar.metadata} />}
+            </section>
           </div>
 
           <textarea
@@ -467,7 +487,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
             id="input_instruksi_anotasi"
             aria-label="Instruksi untuk agent"
             rows={3}
-            disabled={menyimpan}
+            disabled={sibuk}
             className="min-h-20 w-full shrink-0 resize-none border border-border bg-background px-2 py-1 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
             placeholder="Contoh: samakan font NIS dengan kolom lain"
             value={instruksi}
@@ -482,13 +502,13 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
 
           <div className="mt-1 flex shrink-0 items-center justify-end gap-2">
             <span className="flex shrink-0 gap-1">
-              <Button type="button" variant="ghost" size="sm" disabled={menyimpan} onClick={batal}>
+              <Button type="button" variant="ghost" size="sm" disabled={sibuk} onClick={batal}>
                 Batal
               </Button>
               <Button
                 type="button"
                 size="sm"
-                disabled={!instruksi.trim() || menyimpan}
+                disabled={!instruksi.trim() || sibuk}
                 onClick={() => void simpan()}
               >
                 {menyimpan ? 'Menyimpan…' : 'Simpan'}
@@ -557,6 +577,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
                       <span className="truncate font-mono">{a.sumber ?? a.selector}</span>
                     </div>
                     <p className="mt-0.5 text-xs leading-snug">{a.instruksi}</p>
+                    {a.gambar && <GambarAnotasi url={`/__anotasi/gambar?id=${encodeURIComponent(a.id)}`} metadata={a.gambar} />}
                     {a.tujuan && <div className="mt-1 text-[11px]">
                       <p><span className="font-semibold">Asal:</span> <span className="break-all font-mono select-text">{a.selector}</span></p>
                       <p><span className="font-semibold">Tujuan · {POSISI_RELATIF[a.tujuan.posisi]}:</span> <span className="break-all font-mono select-text">{a.tujuan.selector}</span></p>
@@ -618,7 +639,7 @@ export default function AnotasiLayer({ rute }: { rute?: string }) {
           aria-label={aktif ? 'Matikan mode tandai elemen' : 'Tandai elemen untuk agent'}
           aria-keyshortcuts="Control+Shift+A Meta+Shift+A"
           aria-pressed={aktif}
-          disabled={menyimpan}
+          disabled={sibuk}
           className={aktif ? 'focus-visible:ring-[color:var(--chrome-ring)]' : 'text-[color-mix(in_srgb,var(--sidebar-foreground)_75%,transparent)] hover:bg-[color-mix(in_srgb,var(--sidebar-foreground)_10%,transparent)] hover:text-[var(--sidebar-foreground)] focus-visible:ring-[color:var(--chrome-ring)]'}
           title={`Tandai elemen untuk agent (mode dev, ${LABEL_PINTASAN})`}
           onClick={() => {

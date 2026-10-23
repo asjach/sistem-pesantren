@@ -5,6 +5,13 @@ const asal = { selector: '#tombol', tag: 'button', teks: 'Simpan', komponen: ['T
 const tujuan = { selector: '#wadah', tag: 'div', teks: '', komponen: ['Layout'], sumber: 'src/components/Layout.tsx:10', posisi: 'di_dalam' };
 
 describe('normalisasiAnotasi', () => {
+  const gambar = { berkas: 'screenshots/a1.png', lebar: 640, tinggi: 480, dibuat: '2026-10-23T00:00:00Z', preview_aktif: true };
+  it('mengaitkan screenshot dengan ID anotasi tanpa mempertahankan field asing', () => {
+    expect(normalisasiAnotasi({ ...asal, id: 'a1', instruksi: 'Ubah', gambar: { ...gambar, asing: 'x' } }).gambar).toEqual(gambar);
+  });
+  it.each([{}, [], 'x', { ...gambar, berkas: '../a1.png' }, { ...gambar, lebar: 0 }, { ...gambar, tinggi: 4097 }, { ...gambar, lebar: 1.5 }, { ...gambar, preview_aktif: 'true' }, { ...gambar, dibuat: 'bukan_tanggal' }])('menolak metadata screenshot tidak valid: %j', (nilai) => {
+    expect(() => normalisasiAnotasi({ ...asal, id: 'a1', instruksi: 'Ubah', gambar: nilai })).toThrow();
+  });
   it('mempertahankan preview sebelum dan sesudah pada asal maupun tujuan', () => {
     const preview = { sebelum: { color: 'red' }, sesudah: { color: 'rgb(0, 0, 255)' }, perubahan: { color: 'blue' } };
     const hasil = normalisasiAnotasi({ ...asal, instruksi: 'Samakan', preview, tujuan: { ...tujuan, preview } });

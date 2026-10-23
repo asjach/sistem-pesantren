@@ -174,7 +174,13 @@ export async function muatAnotasi(): Promise<Anotasi[]> {
   return Array.isArray(data.anotasi) ? data.anotasi : [];
 }
 
-export async function simpanAnotasi(anotasi: Anotasi): Promise<Anotasi> {
+export async function simpanAnotasi(anotasi: Anotasi, gambar?: Blob): Promise<Anotasi> {
+  if (gambar) {
+    const form = new FormData();
+    form.set('anotasi', JSON.stringify(anotasi));
+    form.set('gambar', gambar, `${anotasi.id}.png`);
+    return minta<Anotasi>('/__anotasi', { method: 'POST', body: form });
+  }
   return minta<Anotasi>('/__anotasi', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

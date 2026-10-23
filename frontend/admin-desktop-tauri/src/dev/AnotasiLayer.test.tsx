@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,12 +12,16 @@ import {
 } from '@/components/ui/dialog';
 import AnotasiLayer from './AnotasiLayer';
 import type { Anotasi } from './anotasi';
+import type { DraftScreenshot } from './screenshotAnotasi';
 
 const api = vi.hoisted(() => ({
   muat: vi.fn<() => Promise<Anotasi[]>>(async () => []),
-  simpan: vi.fn<(anotasi: Anotasi) => Promise<Anotasi>>(async (anotasi) => anotasi),
+  simpan: vi.fn<(anotasi: Anotasi, gambar?: Blob) => Promise<Anotasi>>(async (anotasi) => anotasi),
   hapus: vi.fn<(id: string) => Promise<void>>(async () => {}),
+  screenshot: vi.fn<(...args: unknown[]) => Promise<DraftScreenshot>>(),
+  revoke: vi.fn(),
 }));
+vi.mock('./screenshotAnotasi', () => ({ ambilScreenshot: api.screenshot }));
 
 vi.mock('@/dev/anotasi', async (importOriginal) => {
   const asli = await importOriginal<typeof import('@/dev/anotasi')>();
@@ -49,6 +53,9 @@ beforeEach(() => {
   api.muat.mockResolvedValue([]);
   api.simpan.mockImplementation(async (anotasi) => anotasi);
   api.hapus.mockResolvedValue(undefined);
+  api.screenshot.mockResolvedValue({ blob: new Blob(['png'], { type: 'image/png' }), metadata: { lebar: 120, tinggi: 80, dibuat: '2026-10-23T00:00:00Z', preview_aktif: false } });
+  Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:anotasi') });
+  Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: api.revoke });
   window.history.replaceState({}, '', '/');
   document.body.innerHTML = '';
 });
@@ -94,6 +101,126 @@ async function terapkanPreview(user: ReturnType<typeof userEvent.setup>, label: 
 }
 
 describe('AnotasiLayer', () => {
+  it('capture ulang mengganti gambar sebelumnya dan melepaskan URL lama', async () => {
+    const { user } = await mulaiPasangan();
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:pertama').mockReturnValueOnce('blob:kedua');
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    await user.click(screen.getByRole('button', { name: 'Ambil ulang screenshot' }));
+    expect(screen.getByRole('img', { name: /Screenshot anotasi/ })).toHaveAttribute('src', 'blob:kedua');
+    expect(api.revoke).toHaveBeenCalledWith('blob:pertama');
+  });
+
+  it('menolak hasil capture yang selesai setelah scroll berubah', async () => {
+    const { user } = await mulaiPasangan();
+    let selesai!: (gambar: DraftScreenshot) => void;
+    api.screenshot.mockImplementationOnce(() => new Promise((resolve) => { selesai = resolve; }));
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    fireEvent.scroll(window);
+    await act(async () => selesai({ blob: new Blob(['png']), metadata: { lebar: 10, tinggi: 10, dibuat: CATATAN.dibuat, preview_aktif: false } }));
+    expect(screen.queryByRole('img', { name: /Screenshot anotasi/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Area atau tampilan berubah');
+    expect(screen.getByRole('button', { name: 'Simpan' })).toBeEnabled();
+  });
+
+  it('menampilkan screenshot tersimpan di daftar dan error gambar hilang', async () => {
+    api.muat.mockResolvedValueOnce([{ ...CATATAN, gambar: { berkas: 'screenshots/a1.png', lebar: 100, tinggi: 80, dibuat: CATATAN.dibuat, preview_aktif: true } }]);
+    const user = userEvent.setup();
+    tampilkan();
+    await user.click(await screen.findByRole('button', { name: 'Buka daftar anotasi (1)' }));
+    const image = screen.getByRole('img', { name: /Screenshot anotasi/ });
+    expect(image).toHaveAttribute('src', '/__anotasi/gambar?id=a1');
+    expect(screen.getByText(/Diambil dengan preview style aktif/)).toBeInTheDocument();
+    fireEvent.error(image);
+    expect(screen.getByRole('alert')).toHaveTextContent('Screenshot tidak dapat dibuka');
+  });
+
+  it('mengambil screenshot pasangan dengan preview aktif, memperbesar, lalu menyimpan PNG terkait', async () => {
+    const { user, pointer, asal, tujuan } = await mulaiPasangan();
+    await user.click(screen.getByRole('button', { name: 'Pilih tujuan' }));
+    pointer.mockReturnValue(tujuan);
+    await user.click(tujuan);
+    await terapkanPreview(user, 'asal', 'color', 'blue');
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    expect(api.screenshot).toHaveBeenCalledWith(asal, tujuan, true);
+    expect(screen.getByRole('img', { name: /Screenshot anotasi/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Perbesar screenshot' }));
+    expect(screen.getByRole('button', { name: 'Kecilkan screenshot' })).toHaveAttribute('aria-expanded', 'true');
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    const [catatan, blob] = api.simpan.mock.calls[0];
+    expect(catatan.gambar?.berkas).toBe(`screenshots/${catatan.id}.png`);
+    expect(blob).toBeInstanceOf(Blob);
+    expect(api.revoke).toHaveBeenCalledWith('blob:anotasi');
+  });
+
+  it('capture gagal mempertahankan draft dan tetap mengizinkan simpan tanpa screenshot', async () => {
+    const { user } = await mulaiPasangan();
+    api.screenshot.mockRejectedValueOnce(new Error('Canvas tidak tersedia'));
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Canvas tidak tersedia');
+    expect(screen.getByRole('textbox', { name: 'Instruksi untuk agent' })).toHaveValue('Pindahkan ke container');
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[0][0]).not.toHaveProperty('gambar');
+  });
+
+  it('mengunci perubahan selama capture dan membuang hasil jika rute berubah', async () => {
+    const { user, tampilan } = await mulaiPasangan();
+    let selesai!: (gambar: DraftScreenshot) => void;
+    api.screenshot.mockImplementationOnce(() => new Promise((resolve) => { selesai = resolve; }));
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Sedang menyiapkan');
+    expect(screen.getByRole('button', { name: 'Simpan' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Pilih tujuan' })).toBeDisabled();
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('region', { name: 'Editor anotasi' })).toBeInTheDocument();
+    tampilan.rerender(<ThemeProvider><AnotasiLayer rute="/lain" /></ThemeProvider>);
+    await act(async () => selesai({ blob: new Blob(['png']), metadata: { lebar: 120, tinggi: 80, dibuat: '2026-10-23T00:00:00Z', preview_aktif: false } }));
+    expect(screen.queryByRole('img', { name: /Screenshot anotasi/ })).not.toBeInTheDocument();
+  });
+
+  it.each(['preview', 'parent', 'tujuan', 'scroll', 'resize'])('mewajibkan capture ulang setelah perubahan %s', async (cara) => {
+    const { user, pointer, tujuan } = await mulaiPasangan();
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    expect(screen.getByRole('img', { name: /Screenshot anotasi/ })).toBeInTheDocument();
+    if (cara === 'preview') await terapkanPreview(user, 'asal', 'color', 'blue');
+    else if (cara === 'parent') await user.click(screen.getByRole('button', { name: 'Pilih asal: article#asal_wadah' }));
+    else if (cara === 'tujuan') {
+      await user.click(screen.getByRole('button', { name: 'Pilih tujuan' }));
+      pointer.mockReturnValue(tujuan);
+      await user.click(tujuan);
+    } else fireEvent(window, new Event(cara));
+    expect(screen.queryByRole('img', { name: /Screenshot anotasi/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[0][0]).not.toHaveProperty('gambar');
+  });
+
+  it('scroll editor tidak membatalkan screenshot dan pengguna dapat membuangnya', async () => {
+    const { user } = await mulaiPasangan();
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    fireEvent.scroll(screen.getByRole('region', { name: 'Editor anotasi' }));
+    expect(screen.getByRole('img', { name: /Screenshot anotasi/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Buang screenshot' }));
+    expect(screen.queryByRole('img', { name: /Screenshot anotasi/ })).not.toBeInTheDocument();
+  });
+
+  it('retry simpan mempertahankan gambar dan ID, sedangkan perubahan geometri tidak memakai gambar lama', async () => {
+    const { user, asal } = await mulaiPasangan();
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    api.simpan.mockRejectedValueOnce(new Error('server gagal'));
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(screen.getByRole('img', { name: /Screenshot anotasi/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan.mock.calls[1]).toEqual(api.simpan.mock.calls[0]);
+    // Draft baru untuk memeriksa perubahan runtime di luar preview.
+    await user.click(screen.getByRole('button', { name: 'Tandai elemen untuk agent' }));
+    await user.click(asal);
+    await user.type(screen.getByRole('textbox', { name: 'Instruksi untuk agent' }), 'Ubah');
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    (asal as HTMLElement).style.color = 'red';
+    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(api.simpan).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('alert')).toHaveTextContent('Area atau tampilan berubah');
+  });
+
   it('Enter pada nilai CSS menerapkan preview tanpa menyimpan anotasi', async () => {
     const { user, asal } = await mulaiPasangan();
     await user.click(screen.getByRole('button', { name: 'Preview tampilan asal' }));
@@ -409,8 +536,13 @@ describe('AnotasiLayer', () => {
     pointer.mockReturnValue(tujuan);
     await user.click(tujuan);
     expect(screen.getByRole('textbox', { name: 'Instruksi untuk agent' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Ambil screenshot' }));
+    await user.click(screen.getByRole('button', { name: 'Perbesar screenshot' }));
+    expect(tutup).not.toHaveBeenCalled();
+    expect(within(screen.getByRole('dialog')).getByRole('img', { name: /Screenshot anotasi/ })).toBeInTheDocument();
+    screen.getByRole('textbox', { name: 'Instruksi untuk agent' }).focus();
     await user.keyboard('{Control>}{Enter}{/Control}');
-    expect(api.simpan).toHaveBeenCalledWith(expect.objectContaining({ selector: '#asal_modal', tujuan: expect.objectContaining({ selector: '#tujuan_modal', posisi: 'di_dalam' }) }));
+    expect(api.simpan).toHaveBeenCalledWith(expect.objectContaining({ selector: '#asal_modal', tujuan: expect.objectContaining({ selector: '#tujuan_modal', posisi: 'di_dalam' }), gambar: expect.any(Object) }), expect.any(Blob));
     expect(tutup).not.toHaveBeenCalled();
     expect(screen.getByText('Dialog pasangan')).toBeInTheDocument();
     expect(asal.getAttribute('style')).toBe(styleAwal);
