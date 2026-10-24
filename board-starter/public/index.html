@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Board — Ruang kerja lokal</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#papan_utama">Lewati ke papan</a>
+  <header class="topbar">
+    <a class="brand" href="/board"><span class="brand_mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M8 3v14M12 3v8"/></svg></span> Board <span class="local">Lokal</span></a>
+    <nav class="breadcrumb" aria-label="Lokasi halaman"><span>Ruang kerja</span><span aria-hidden="true">/</span><span>Papan</span></nav>
+    <div class="connection"><span class="dot" aria-hidden="true"></span> Tersimpan di komputer Anda</div>
+    <button id="tombol_panduan" class="quiet">Panduan</button>
+  </header>
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Pengaturan area kerja">
+      <a class="sidebar_current" href="#papan_utama" aria-current="page"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M8 3v14M12 3v8"/></svg>Papan pekerjaan</a>
+      <p class="eyebrow">Ruang kerja</p>
+      <label for="pilih_area">Area kerja</label><select id="pilih_area"></select>
+      <div class="side_actions"><button id="tambah_area" class="quiet">+ Area</button><button id="ubah_area" class="quiet">Ubah nama</button></div>
+      <div class="separator"></div>
+      <p class="eyebrow">Alur kerja</p>
+      <label class="toggle"><input type="checkbox" id="workflow_master"> Pengaturan utama</label>
+      <label class="toggle"><input type="checkbox" id="workflow_area"> Aktif untuk area ini</label>
+      <p id="workflow_hint" class="hint"></p>
+      <div class="separator"></div>
+      <label for="pilih_modul">Modul</label><select id="pilih_modul"></select>
+      <div class="side_actions"><button id="tambah_modul" class="quiet">+ Modul</button><button id="ubah_modul" class="quiet">Ubah nama</button></div>
+      <label for="pilih_submodul">Submodul</label><select id="pilih_submodul"></select>
+      <div class="side_actions"><button id="tambah_submodul" class="quiet">+ Submodul</button><button id="ubah_submodul" class="quiet">Ubah nama</button></div>
+      <p class="sidebar_footer"><span class="dot" aria-hidden="true"></span> Penyimpanan lokal<br><span>Review tetap di tangan Anda.</span></p>
+    </aside>
+    <main id="papan_utama" tabindex="-1">
+      <div class="heading"><div class="project_heading"><span class="project_mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c4 4 4 12 0 16-4-4-4-12 0-16Z"/></svg></span><div><h1 id="nama_area">Memuat Board…</h1><p id="ringkasan" class="muted">Menghubungkan penyimpanan lokal.</p></div></div><span id="workflow_badge" class="badge">Draf</span></div>
+      <div class="viewbar"><a href="#papan_utama" class="view_active" aria-current="page"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M8 3v14M12 3v8"/></svg>Papan</a><span>Lima tahap, satu alur kerja</span></div>
+      <div class="toolbar"><label class="search"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><span class="sr_only">Cari poin</span><input id="cari_poin" type="search" placeholder="Cari poin…"></label><button id="muat_ulang" class="quiet"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M16 7a6.5 6.5 0 1 0 .3 5M16 3v4h-4"/></svg>Muat ulang</button><button id="tambah_poin" class="primary"><span aria-hidden="true">+</span> Tambah poin</button></div>
+      <p id="pesan" role="status" aria-live="polite"></p>
+      <div id="papan" class="kanban" aria-label="Poin berdasarkan status"></div>
+      <footer class="board_footer"><span>Backlog → To Do → In Progress → For Review → Done</span><span id="sinkronisasi">Lokal · SQLite</span></footer>
+    </main>
+  </div>
+  <dialog id="editor_poin" aria-labelledby="judul_editor">
+    <div class="dialog_heading"><div><p class="eyebrow">DETAIL PEKERJAAN</p><h2 id="judul_editor">Tambah poin</h2></div><button id="tutup_editor" class="quiet" aria-label="Tutup detail poin">✕</button></div>
+    <p id="error_editor" class="error" role="alert"></p>
+    <form id="form_poin">
+      <label for="submodul_poin">Submodul tujuan</label><select id="submodul_poin" required></select>
+      <label for="deskripsi_poin">Hasil yang ingin dicapai</label><textarea id="deskripsi_poin" rows="2" maxlength="500" required placeholder="Misalnya: Pengguna dapat membuka dan mengunci penyimpanan"></textarea>
+      <label for="keterangan_poin">Requirement</label><textarea id="keterangan_poin" rows="3" maxlength="2000" placeholder="Tujuan, batasan, atau instruksi khusus"></textarea>
+      <p class="hint">Setelah requirement menjadi acceptance criteria yang disetujui, kosongkan field ini sebelum mulai.</p>
+      <div class="field_heading"><h3>Acceptance criteria</h3><button type="button" id="tambah_subpoin" class="quiet">+ Subpoin</button></div>
+      <div id="daftar_subpoin"></div>
+      <label for="status_poin">Status</label><select id="status_poin"></select>
+      <label for="alasan_status">Alasan perubahan status / reopen</label><input id="alasan_status" maxlength="2000" placeholder="Isi alasan bila diperlukan">
+      <div class="dialog_actions"><button type="button" id="hapus_poin" class="danger">Hapus poin</button><button type="submit" class="primary">Simpan perubahan</button></div>
+    </form>
+    <section id="bagian_catatan" class="note_section" aria-labelledby="judul_catatan">
+      <h3 id="judul_catatan">Keputusan &amp; verifikasi</h3><p class="hint">Simpan acceptance criteria terlebih dahulu, lalu catat persetujuan sebelum memulai. Catat verifikasi sebelum For Review. Catatan menyimpan bukti, bukan menjalankan agen.</p>
+      <form id="form_catatan"><label for="jenis_catatan">Jenis catatan</label><select id="jenis_catatan"><option value="persetujuan">Persetujuan scope</option><option value="revisi">Permintaan revisi</option><option value="verifikasi">Hasil verifikasi</option><option value="keputusan">Keputusan / reopen</option><option value="catatan">Catatan lain</option></select><label for="teks_catatan">Isi catatan</label><textarea id="teks_catatan" rows="2" maxlength="4000" required placeholder="Keputusan pengguna atau hasil pemeriksaan yang benar-benar dilakukan"></textarea><button type="submit" class="quiet">Simpan catatan</button></form>
+      <ol id="daftar_catatan" class="notes"></ol><h3>Riwayat status</h3><ol id="riwayat_poin" class="notes"></ol>
+    </section>
+  </dialog>
+  <dialog id="dialog_nama" aria-labelledby="judul_nama"><div class="dialog_heading"><h2 id="judul_nama">Nama</h2><button id="tutup_nama" class="quiet" aria-label="Tutup">✕</button></div><form id="form_nama"><label for="input_nama">Nama</label><input id="input_nama" maxlength="120" required><p id="error_nama" class="error" role="alert"></p><div class="dialog_actions"><button type="submit" class="primary">Simpan</button></div></form></dialog>
+  <dialog id="dialog_panduan" aria-labelledby="judul_panduan"><div class="dialog_heading"><h2 id="judul_panduan">Board lokal Anda</h2><button id="tutup_panduan" class="quiet" aria-label="Tutup panduan">✕</button></div><p>Board menyimpan kebutuhan pekerjaan, acceptance criteria, keputusan, dan hasil review di komputer ini.</p><ol class="guide"><li>Aktifkan pengaturan utama dan area kerja jika Board sudah siap menjadi acuan.</li><li>Tambahkan hasil yang dibutuhkan ke Backlog. Pilih pekerjaan dengan memindahkannya ke To Do.</li><li>Diskusikan scope dengan Luffy di lingkungan agen pilihan Anda. Simpan subpoin final dan catatan persetujuan, lalu mulai In Progress.</li><li>Setelah pemeriksaan, centang subpoin dan catat hasil verifikasi sebelum For Review.</li><li>Coba hasilnya. Pilih Done jika diterima, atau catat revisi dan kembalikan ke In Progress.</li></ol><p class="hint">Aturan Luffy dan kru tidak mewajibkan model atau aplikasi agen tertentu. Delegasi mengikuti kemampuan lingkungan; jika tidak tersedia, satu agen menggunakan role secara berurutan. Halaman ini tidak menjalankan AI, tidak membutuhkan API key, dan tidak menampilkan aktivitas kru yang dibuat-buat.</p><p class="hint">Default dark mode, tanpa font atau aset eksternal. Gunakan Ctrl+C di terminal untuk menghentikan server. Data tetap tersimpan.</p></dialog>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Adapter opsional; salin ke root project hanya jika menggunakan Codex.
+# Gabungkan dengan konfigurasi yang sudah ada; model/provider mengikuti host.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3
