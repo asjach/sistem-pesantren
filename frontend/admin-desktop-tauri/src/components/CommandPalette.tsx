@@ -13,6 +13,7 @@ import { bisa } from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
 import { useTheme, type ThemeName } from '@/theme';
+import { useMintaJalan } from '@/draftGuard';
 import { THEME_PRESETS } from '@/themes';
 import { ICON_SETS } from '@/iconSets';
 import { WARNA_UI, RADIUS_MIN, RADIUS_MAX, type DensityName } from '@/prefs';
@@ -40,6 +41,7 @@ export default function CommandPalette() {
   const { user } = useAuth();
   const { bertindak } = useLembagaAktif();
   const navigate = useNavigate();
+  const mintaJalan = useMintaJalan();
   const {
     setTheme, setIconSet, setWarnaUI, setNavigasi, setDensity, setRadius, radius,
   } = useTheme();
@@ -84,7 +86,7 @@ export default function CommandPalette() {
         label: h.label,
         group: 'Halaman',
         icon: Icon ? <Icon size={16} /> : undefined,
-        run: () => navigate(h.to),
+        run: () => mintaJalan('berpindah halaman', () => navigate(h.to)),
       });
     };
     for (const g of NAV_GRUP) {
@@ -164,7 +166,7 @@ export default function CommandPalette() {
     }
 
     return [...nav, ...tampilan];
-  }, [user, bertindak, navigate, setTheme, setIconSet, setWarnaUI, setNavigasi, setDensity, setRadius, radius]);
+  }, [user, bertindak, navigate, mintaJalan, setTheme, setIconSet, setWarnaUI, setNavigasi, setDensity, setRadius, radius]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

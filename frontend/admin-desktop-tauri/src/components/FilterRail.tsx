@@ -7,6 +7,7 @@ import { useTingkatAktif } from '@/tingkatAktif';
 import { useVisibilitasFilter, pageKeyDariPath } from '@/components/VisibilitasFilter';
 import { Switch } from '@/components/ui/switch';
 import { useLembagaAktif } from '@/lembagaAktif';
+import { useMintaJalan } from '@/draftGuard';
 import type { ModeFilterGlobal } from '@/lib/filterHalaman';
 import { cn } from '@/lib/utils';
 
@@ -74,6 +75,7 @@ export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
   const { jenjangs, tahunAjaranNames, tingkat, kelas, loading: filterLoading } = useFilterGlobalAktif();
   const { pilih: pilihTingkat } = useTingkatAktif();
   const { pilih: pilihKelas } = useKelasAktif();
+  const mintaJalan = useMintaJalan();
   /** `null` = BELUM dimuat (tampilkan "Memuat…"), `[]` = sudah dimuat kosong.
    *  Tanpa pembeda ini cat pertama menampilkan "Tidak ada …" lalu berganti
    *  "Memuat…" lalu daftar — dua kali kedip teks tiap masuk halaman. */
@@ -214,21 +216,23 @@ export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
   if (!showTingkat && !showKelas) return null;
 
   function applyLevelSelection(next: string[], currentKelas: readonly string[] = stateFilterRef.current.kelas) {
-    pilihTingkat(next);
-    const validClasses = new Set(
-      (stateFilterRef.current.kelasTersedia ?? [])
-        .filter((item) => next.length === 0 || (item.tingkat != null && next.includes(String(item.tingkat))))
-        .map((item) => item.nama_kelas),
-    );
-    const kelasSekarang = stateFilterRef.current.kelas;
-    const nextKelas = currentKelas.filter((item) => validClasses.has(item));
-    if (nextKelas.length !== kelasSekarang.length || nextKelas.some((item, index) => item !== kelasSekarang[index])) {
-      pilihKelas(nextKelas);
-    }
+    mintaJalan('mengubah filter tingkat', () => {
+      pilihTingkat(next);
+      const validClasses = new Set(
+        (stateFilterRef.current.kelasTersedia ?? [])
+          .filter((item) => next.length === 0 || (item.tingkat != null && next.includes(String(item.tingkat))))
+          .map((item) => item.nama_kelas),
+      );
+      const kelasSekarang = stateFilterRef.current.kelas;
+      const nextKelas = currentKelas.filter((item) => validClasses.has(item));
+      if (nextKelas.length !== kelasSekarang.length || nextKelas.some((item, index) => item !== kelasSekarang[index])) {
+        pilihKelas(nextKelas);
+      }
+    });
   }
 
   function applyClassSelection(next: string[]) {
-    pilihKelas(next);
+    mintaJalan('mengubah filter kelas', () => pilihKelas(next));
   }
 
   function addDragValue(group: RailGroup, value: string) {
@@ -314,7 +318,7 @@ export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
                disabled={loading}
                aria-label="Pilih semua tingkat"
                aria-pressed={tingkat.length === 0}
-               onClick={() => pilihTingkat([])}
+               onClick={() => mintaJalan('mengubah filter tingkat', () => pilihTingkat([]))}
                className={itemClass(tingkat.length === 0)}
              >
                All
@@ -363,7 +367,7 @@ export default function FilterRail({ tinggiLabel }: { tinggiLabel?: number }) {
                disabled={loading}
                aria-label="Pilih semua kelas"
                aria-pressed={kelas.length === 0}
-               onClick={() => pilihKelas([])}
+               onClick={() => mintaJalan('mengubah filter kelas', () => pilihKelas([]))}
                className={itemClass(kelas.length === 0)}
              >
                All

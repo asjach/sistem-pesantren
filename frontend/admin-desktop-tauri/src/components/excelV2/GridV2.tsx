@@ -49,7 +49,7 @@ import { lebarKolomAksi } from './lebarAksi';
 import { susunPerubahanSeret } from './seretV2';
 import MenuKonteksV2 from './MenuKonteksV2';
 import { useLebarKolom } from '@/components/excel/useLebarKolom';
-import { useAntreanSimpan } from '@/components/excel/useAntreanSimpan';
+import { useAntreanSimpan, type AksiDraftTabel } from '@/components/excel/useAntreanSimpan';
 import { useIsiLebar } from '@/components/excel/useIsiLebar';
 import { useLebarWadah } from '@/components/excel/useLebarWadah';
 import { skalaLebarIsi, RESIZER_OVERHANG } from '@/components/excel/lebarIsi';
@@ -365,6 +365,8 @@ export interface GridV2Props {
   simpanSaatKeluarMode?: boolean;
   /** Sel yang gagal validasi dilewati; sel lain tetap disimpan. */
   onValidasiGagal?: (info: { id: string | number; key: string; pesan: string }) => void;
+  /** Aksi untuk menyimpan/membuang draft, dipakai penjaga konteks halaman. */
+  onAksiDraftSiap?: (aksi: AksiDraftTabel | null) => void;
   /** Isi blok sel terpilih dari menu klik kanan (mis. matriks jadwal). */
   onIsiBlok?: (rows: GridRow[], fields: ExcelField[]) => void;
   blokAksiLabel?: string;
@@ -431,6 +433,7 @@ export default function GridV2({
   onSaved,
   simpanSaatKeluarMode = false,
   onValidasiGagal,
+  onAksiDraftSiap,
   onIsiBlok,
   blokAksiLabel = 'Isi blok…',
   onKosongkanBlok,
@@ -661,15 +664,31 @@ export default function GridV2({
 
   /** Antrean simpan V1 dipakai apa adanya: gabung ketikan beruntun, urut,
    *  validasi per field, satu muat ulang + satu toast setelah antrean habis. */
-  const { enqueueSave, flush } = useAntreanSimpan<GridRow>({
+  const { enqueueSave, flush, batalkanAntrean } = useAntreanSimpan<GridRow>({
     rowsRef: rowsRefEdit,
     fieldsRef,
     onCommitRef,
     onSavedRef,
     dropDraftRef,
     autoDrain: !simpanSaatKeluarMode,
+    pertahankanGagal: simpanSaatKeluarMode,
     onInvalidRef,
   });
+
+  const buangDraft = useCallback(() => {
+    setDrafts({});
+    batalkanAntrean();
+  }, [batalkanAntrean]);
+  const adaDraft = useCallback(() => Object.keys(draftsRef.current).length > 0, []);
+  const aksiDraft = useMemo<AksiDraftTabel>(
+    () => ({ adaDraft, flush, buang: buangDraft }),
+    [adaDraft, flush, buangDraft],
+  );
+
+  useEffect(() => {
+    onAksiDraftSiap?.(aksiDraft);
+    return () => onAksiDraftSiap?.(null);
+  }, [aksiDraft, onAksiDraftSiap]);
 
   /** Simpan nilai satu sel: tulis draft lalu antrekan ke server. */
   const simpanSel = useCallback((id: string | number, key: string, nilai: string | null) => {

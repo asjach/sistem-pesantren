@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCariGlobal } from '@/hooks/useCariGlobal';
+import { useMintaJalan } from '@/draftGuard';
 
 interface PencarianGlobalCtx {
   /** Buka halaman hasil; `kueri` (NIS/NIP/nama) dipakai halaman tujuan sebagai
@@ -20,11 +21,14 @@ const Ctx = createContext<PencarianGlobalCtx | null>(null);
 export function PencarianGlobalProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { ubah } = useCariGlobal();
+  const mintaJalan = useMintaJalan();
 
   const pilih = useCallback((target: string, kueri?: string) => {
-    ubah((kueri ?? '').trim());
-    navigate(target);
-  }, [navigate, ubah]);
+    mintaJalan('berpindah halaman', () => {
+      ubah((kueri ?? '').trim());
+      navigate(target);
+    });
+  }, [mintaJalan, navigate, ubah]);
 
   return <Ctx.Provider value={{ pilih }}>{children}</Ctx.Provider>;
 }

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { useLembagaAktif } from '@/lembagaAktif';
+import { useMintaJalan } from '@/draftGuard';
 import { hasOpenEditor } from '@/components/excel/helpers';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -22,6 +23,7 @@ export default function BannerBertindak({ terbuka, onTutup }: {
   const { user } = useAuth();
   /** Opsi peran SELALU penuh (pilihan filter menyempit saat bertindak). */
   const { peranJenjang, peran, pilihanPeran: pilihan, pilihPeran } = useLembagaAktif();
+  const mintaJalan = useMintaJalan();
 
   const superAdmin = !!user?.roles.some((r) => r.name === 'super_admin');
   const bertindak = peranJenjang != null;
@@ -43,12 +45,12 @@ export default function BannerBertindak({ terbuka, onTutup }: {
       e.preventDefault();
 
       e.stopImmediatePropagation();
-      if (bertindak) pilihPeran(null);
+      if (bertindak) mintaJalan('mengakhiri peran lembaga', () => pilihPeran(null));
       onTutup();
     }
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  }, [tampil, bertindak, pilihPeran, onTutup]);
+  }, [tampil, bertindak, pilihPeran, mintaJalan, onTutup]);
 
   if (!tampil) return null;
 
@@ -83,7 +85,7 @@ export default function BannerBertindak({ terbuka, onTutup }: {
                   type="button"
                   aria-label={`Berperan sebagai ${p.nama}`}
                   aria-pressed={aktif}
-                  onClick={() => { pilihPeran(p.jenjang); onTutup(); }}
+                  onClick={() => { mintaJalan('mengubah peran lembaga', () => pilihPeran(p.jenjang)); onTutup(); }}
                   className={cn(
                     'rounded-md px-2.5 py-1 font-medium transition-colors',
                     aktif
@@ -107,7 +109,7 @@ export default function BannerBertindak({ terbuka, onTutup }: {
           <button
             id="btn_kembali_dari_bertindak"
             type="button"
-            onClick={() => { pilihPeran(null); onTutup(); }}
+            onClick={() => { mintaJalan('mengakhiri peran lembaga', () => pilihPeran(null)); onTutup(); }}
             className="inline-flex items-center gap-1.5 rounded-md bg-black/10 px-2.5 py-1 font-medium transition-colors hover:bg-black/20 dark:bg-white/15 dark:hover:bg-white/25"
           >
             <RotateCcw size={13} aria-hidden="true" /> Kembali ke {user?.name}

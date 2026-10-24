@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PAGE_SHELL, ErrorNotice } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import Pager from '@/components/Pager';
 import ExcelTabelV2 from '@/components/excelV2/ExcelTabelV2';
+import { KonfirmasiDraftTabel } from '@/components/excelV2/KonfirmasiDraftTabel';
+import type { AksiDraftTabel } from '@/components/excel/useAntreanSimpan';
 import type { ExcelField, GridRow } from '@/components/excel/types';
 import { freezeKey } from '@/components/excel/helpers';
 import { usePager } from '@/hooks/usePager';
 import { useFilterGlobalAktif, targetTunggal } from '@/hooks/useFilterGlobalAktif';
+import { useDraftGuard } from '@/draftGuard';
 import { useAuth } from '@/auth/AuthContext';
 import { bisa } from '@/api/auth';
 import { listKelas, type Kelas } from '@/api/master';
@@ -45,6 +49,14 @@ export default function PenilaianLegerPage() {
   const { user } = useAuth();
   const canUbah = bisa(user, 'penilaian.ubah');
   const pager = usePager('penilaian_leger');
+  const navigate = useNavigate();
+  const aksiDraftRef = useRef<AksiDraftTabel | null>(null);
+  const [perubahanTertunda, setPerubahanTertunda] = useState<{
+    tujuan: string;
+    jalankan: () => void;
+  } | null>(null);
+  const [dialogGalat, setDialogGalat] = useState('');
+  const [dialogSibuk, setDialogSibuk] = useState(false);
 
   const jenjang = targetTunggal(jenjangs);
   const ta = targetTunggal(tahunAjaranNames);
@@ -202,6 +214,85 @@ export default function PenilaianLegerPage() {
     toast.warning(`${baris?.nama ?? 'Peserta'} — ${kolom?.nama_mapel ?? info.key}: ${info.pesan}`);
   }, [data]);
 
+  const daftarkanAksiDraft = useCallback((aksi: AksiDraftTabel | null) => {
+    aksiDraftRef.current = aksi;
+  }, []);
+
+  const mintaPerubahan = useCallback((tujuan: string, jalankan: () => void) => {
+    if (aksiDraftRef.current?.adaDraft()) {
+      setDialogGalat('');
+      setPerubahanTertunda({ tujuan, jalankan });
+      return;
+    }
+    jalankan();
+  }, []);
+
+  const draftGuard = useDraftGuard();
+
+  /** Filter global (TopBar/rail) dan peran ikut menunggu draft diselesaikan. */
+  useEffect(() => {
+    if (!draftGuard) return;
+    return draftGuard.daftarkan(mintaPerubahan);
+  }, [draftGuard, mintaPerubahan]);
+
+  const simpanDraftLanjut = useCallback(async () => {
+    const tertunda = perubahanTertunda;
+    const aksi = aksiDraftRef.current;
+    if (!tertunda || !aksi) return;
+
+    setDialogSibuk(true);
+    setDialogGalat('');
+    try {
+      const hasil = await aksi.flush();
+      if (hasil.sukses) {
+        setPerubahanTertunda(null);
+        tertunda.jalankan();
+      } else {
+        setDialogGalat(hasil.pesan ?? 'Sebagian nilai gagal disimpan. Perbaiki nilai lalu coba lagi.');
+      }
+    } catch (e) {
+      setDialogGalat(errorMessage(e));
+    } finally {
+      setDialogSibuk(false);
+    }
+  }, [perubahanTertunda]);
+
+  const buangDraftLanjut = useCallback(() => {
+    const tertunda = perubahanTertunda;
+    if (!tertunda) return;
+    aksiDraftRef.current?.buang();
+    setPerubahanTertunda(null);
+    setDialogGalat('');
+    tertunda.jalankan();
+  }, [perubahanTertunda]);
+
+  const tetapDiHalaman = useCallback(() => {
+    if (dialogSibuk) return;
+    setPerubahanTertunda(null);
+    setDialogGalat('');
+  }, [dialogSibuk]);
+
+  /** Cegah navigasi lewat link sidebar/topBar selama draft belum diselesaikan. */
+  useEffect(() => {
+    const onClick = (ev: MouseEvent) => {
+      if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      const anchor = (ev.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!anchor || anchor.hasAttribute('download') || (anchor.target !== '' && anchor.target !== '_self')) return;
+
+      const url = new URL(anchor.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash === window.location.hash) return;
+      if (!aksiDraftRef.current?.adaDraft()) return;
+
+      ev.preventDefault();
+      ev.stopPropagation();
+      mintaPerubahan('berpindah halaman', () => navigate(url.pathname + url.search + url.hash));
+    };
+
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [mintaPerubahan, navigate]);
+
   const sumberSel = useMemo(() => {
     const peta = new Map<string, string | null>();
     for (const b of data?.baris ?? []) {
@@ -347,8 +438,8 @@ export default function PenilaianLegerPage() {
       lastPage={data.last_page ?? 1}
       total={data.total ?? 0}
       perPage={pager.perPage}
-      onPage={(p) => { pager.setPage(p); void muat(p, pager.perPage); }}
-      onPerPage={(pp) => { pager.setPerPage(pp); void muat(1, pp); }}
+      onPage={(p) => mintaPerubahan('berpindah halaman', () => { pager.setPage(p); void muat(p, pager.perPage); })}
+      onPerPage={(pp) => mintaPerubahan('mengubah jumlah data per halaman', () => { pager.setPerPage(pp); void muat(1, pp); })}
     />
   ) : undefined;
 
@@ -357,7 +448,7 @@ export default function PenilaianLegerPage() {
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch
         value={cari}
-        onChange={(v) => { setCari(v); pager.goFirst(); }}
+        onChange={(v) => mintaPerubahan('mengubah pencarian', () => { setCari(v); pager.goFirst(); })}
         placeholder="Cari nama / NIS…"
       />
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
@@ -366,7 +457,13 @@ export default function PenilaianLegerPage() {
           id="select_kegiatan_evaluatif_leger"
           className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
           value={kegiatanEvaluatifId === '' ? '' : String(kegiatanEvaluatifId)}
-          onChange={(e) => { setKegiatanEvaluatifId(e.target.value === '' ? '' : Number(e.target.value)); pager.goFirst(); }}
+          onChange={(e) => {
+            const nilai = e.target.value === '' ? '' : Number(e.target.value);
+            mintaPerubahan('berpindah kegiatan evaluatif', () => {
+              setKegiatanEvaluatifId(nilai);
+              pager.goFirst();
+            });
+          }}
         >
           <option value="">— pilih kegiatan evaluatif —</option>
           {kegiatanEvaluatif.map((p) => (
@@ -380,7 +477,10 @@ export default function PenilaianLegerPage() {
           id="select_rentang_nilai_leger"
           className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
           value={rentangAktif}
-          onChange={(e) => void ubahRentang(e.target.value as RentangNilai)}
+          onChange={(e) => {
+            const nilai = e.target.value as RentangNilai;
+            mintaPerubahan('mengubah rentang nilai', () => void ubahRentang(nilai));
+          }}
           disabled={!canUbah || kegiatanEvaluatifAktif === null || menyimpanRentang}
           title={!canUbah ? 'Butuh izin ubah nilai.' : 'Batas nilai input dan impor kegiatan evaluatif ini'}
         >
@@ -421,6 +521,7 @@ export default function PenilaianLegerPage() {
             canEdit={canUbah}
             simpanSaatKeluarMode
             onValidasiGagal={laporNilaiLewat}
+            onAksiDraftSiap={daftarkanAksiDraft}
             onCommit={simpanSel}
             onSaved={selesaiSimpan}
             // Preset kolom V2 sudah menentukan kolom yang tampil.
@@ -435,6 +536,16 @@ export default function PenilaianLegerPage() {
           />
         )}
       </div>
+
+      <KonfirmasiDraftTabel
+        open={perubahanTertunda !== null}
+        tujuan={perubahanTertunda?.tujuan ?? ''}
+        sibuk={dialogSibuk}
+        galat={dialogGalat}
+        onSimpan={() => void simpanDraftLanjut()}
+        onBuang={buangDraftLanjut}
+        onTetap={tetapDiHalaman}
+      />
     </div>
   );
 }

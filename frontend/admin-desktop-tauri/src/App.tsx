@@ -11,6 +11,7 @@ import { SemesterAktifProvider } from './semesterAktif';
 import { TingkatAktifProvider } from './tingkatAktif';
 import { KelasAktifProvider } from './kelasAktif';
 import { ThemeProvider } from './theme';
+import { DraftGuardProvider } from './draftGuard';
 import Layout from './components/Layout';
 import CommandPalette from './components/CommandPalette';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -130,6 +131,7 @@ export default function App() {
           <TingkatAktifProvider>
           <KelasAktifProvider>
             <ThemeProvider>
+              <DraftGuardProvider>
               <BrowserRouter>
                   <Toaster richColors position="bottom-center" />
                   <CommandPalette />
@@ -245,6 +247,7 @@ export default function App() {
                     />
                   </Routes>
               </BrowserRouter>
+              </DraftGuardProvider>
             </ThemeProvider>
           </KelasAktifProvider>
           </TingkatAktifProvider>

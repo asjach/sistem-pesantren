@@ -20,6 +20,7 @@ import { useVisibilitasFilter } from '@/components/VisibilitasFilter';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { bisaInput, useBarisInputV2 } from './useBarisInputV2';
+import type { AksiDraftTabel } from '@/components/excel/useAntreanSimpan';
 import type { ExcelField, GridRow } from '@/components/excel/types';
 import type { BlokIsi, ModeSeret } from '@/components/excel/seretIsiSel';
 
@@ -129,6 +130,8 @@ export interface ExcelTabelV2Props<T extends { id: string | number }> {
   simpanSaatKeluarMode?: boolean;
   /** Sel yang gagal validasi dilewati; sel lain tetap disimpan. */
   onValidasiGagal?: (info: { id: T['id']; key: string; pesan: string }) => void;
+  /** Aksi simpan/buang draft untuk penjaga konteks halaman. */
+  onAksiDraftSiap?: (aksi: AksiDraftTabel | null) => void;
   /** Tampilkan rel filter Tingkat/Kelas di kiri grid (di bawah bilah judul,
    *  sejajar judul kolom). Pakai hanya pada tabel utama halaman — satu rel
    *  per halaman; halaman tanpa filter tingkat/kelas tidak menampilkannya. */
@@ -192,6 +195,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
   onSaved,
   simpanSaatKeluarMode = false,
   onValidasiGagal,
+  onAksiDraftSiap,
   rail = false,
 }: ExcelTabelV2Props<T>) {
   const [dipilih, setDipilih] = useState<Set<string | number>>(() => new Set());
@@ -514,6 +518,7 @@ export default function ExcelTabelV2<T extends { id: string | number }>({
           onSaved={onSaved}
           simpanSaatKeluarMode={simpanSaatKeluarMode}
           onValidasiGagal={onValidasiGagal}
+          onAksiDraftSiap={onAksiDraftSiap}
           onKelolaTabel={tabelTerdaftar ? () => setKelolaOpen(true) : undefined}
           onUbahAlign={bolehKelola ? simpanAlign : undefined}
           bolehGeser={bolehKelola}

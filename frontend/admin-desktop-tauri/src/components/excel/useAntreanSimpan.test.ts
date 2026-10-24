@@ -14,25 +14,28 @@ function pasang(
   autoDrain: boolean,
   fields: ExcelField[] = [],
   onInvalid?: (info: { id: string | number; key: string; pesan: string }) => void,
+  pertahankanGagal = false,
+  baris: Baris[] = [{ id: 1 }],
 ) {
-  const baris: Baris[] = [{ id: 1 }];
   const onCommit = vi.fn<(id: number, fields: Record<string, string | null>) => Promise<void>>(
     async () => {},
   );
   const onSaved = vi.fn(async () => {});
   const dropDraft = vi.fn();
+  const onCommitRef = { current: onCommit };
 
   const { result } = renderHook(() => useAntreanSimpan<Baris>({
     rowsRef: { current: baris },
     fieldsRef: { current: fields },
-    onCommitRef: { current: onCommit },
+    onCommitRef,
     onSavedRef: { current: onSaved },
     dropDraftRef: { current: dropDraft },
     onInvalidRef: { current: onInvalid },
     autoDrain,
+    pertahankanGagal,
   }));
 
-  return { result, onCommit, onSaved, dropDraft, onInvalid };
+  return { result, onCommit, onCommitRef, onSaved, dropDraft, onInvalid };
 }
 
 describe('useAntreanSimpan', () => {
@@ -95,5 +98,53 @@ describe('useAntreanSimpan', () => {
     result.current.enqueueSave('1', { m1: '80' });
 
     await waitFor(() => expect(onCommit).toHaveBeenCalledWith(1, { m1: '80' }));
+  });
+
+  it('membekukan callback commit saat edit diantrekan', async () => {
+    const { result, onCommit, onCommitRef } = pasang(false);
+    const konteksLain = vi.fn(async () => {});
+
+    result.current.enqueueSave('1', { m1: '80' });
+    onCommitRef.current = konteksLain;
+
+    await result.current.flush();
+
+    expect(onCommit).toHaveBeenCalledWith(1, { m1: '80' });
+    expect(konteksLain).not.toHaveBeenCalled();
+  });
+
+  it('mempertahankan draft gagal dan hanya mengulang baris yang gagal', async () => {
+    const baris: Baris[] = [{ id: 1 }, { id: 2 }];
+    const { result, onCommit, dropDraft } = pasang(false, [], undefined, true, baris);
+    let gagalSekali = true;
+    onCommit.mockImplementation(async (id) => {
+      if (id === 2 && gagalSekali) {
+        gagalSekali = false;
+        throw new Error('jaringan');
+      }
+    });
+
+    result.current.enqueueSave('1', { m1: '80' });
+    result.current.enqueueSave('2', { m1: '90' });
+
+    const pertama = await result.current.flush();
+    expect(pertama).toMatchObject({ sukses: false, tersimpan: 1, gagal: 1 });
+    expect(dropDraft).toHaveBeenCalledWith('1', ['m1']);
+    expect(dropDraft).not.toHaveBeenCalledWith('2', ['m1']);
+
+    const kedua = await result.current.flush();
+    expect(kedua).toMatchObject({ sukses: true, tersimpan: 1, gagal: 0 });
+    expect(onCommit).toHaveBeenCalledTimes(3);
+    expect(dropDraft).toHaveBeenCalledWith('2', ['m1']);
+  });
+
+  it('membuang antrean yang belum disimpan', async () => {
+    const { result, onCommit } = pasang(false);
+
+    result.current.enqueueSave('1', { m1: '80' });
+    result.current.batalkanAntrean();
+    await result.current.flush();
+
+    expect(onCommit).not.toHaveBeenCalled();
   });
 });

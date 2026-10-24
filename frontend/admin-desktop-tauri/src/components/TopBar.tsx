@@ -7,6 +7,7 @@ import { useLembagaAktif } from '@/lembagaAktif';
 import { useTahunAjaranAktif } from '@/tahunAjaranAktif';
 import { useSemesterAktif } from '@/semesterAktif';
 import { useVisibilitasFilter, TAMPIL_BAWAAN } from '@/components/VisibilitasFilter';
+import { useMintaJalan } from '@/draftGuard';
 import DialogKelolaHalaman from '@/components/kelolaHalaman/DialogKelolaHalaman';
 import { EVENT_KELOLA_HALAMAN } from '@/components/kelolaHalaman/event';
 import { bukaDariMenu } from '@/components/excel/kelolaTabelDariMenu';
@@ -149,6 +150,7 @@ export default function TopBar() {
   const xKlikKenop = useRef<number | null>(null);
   const nav = useNavigate();
   const { pathname, search: kueriRute } = useLocation();
+  const mintaJalan = useMintaJalan();
   const search = useTopBarSearchCtx();
   const setSearchEl = search?.setEl;
   const searchAda = search?.ada ?? false;
@@ -200,17 +202,23 @@ export default function TopBar() {
   }, [registrasi, efektifSuper]);
 
   function pilihLembagaNilai(v: string) {
-    pilihNilaiFilter(v, jenjangs, modeLembaga, pilihBanyakLembaga, pilihLembaga);
+    mintaJalan('mengubah filter lembaga', () => {
+      pilihNilaiFilter(v, jenjangs, modeLembaga, pilihBanyakLembaga, pilihLembaga);
+    });
   }
   function pilihTahunAjaranNilai(v: string) {
-    pilihNilaiFilter(v, tahunAjaranNames, modeTahunAjaran, pilihBanyakTahunAjaran, pilihTahunAjaran);
+    mintaJalan('mengubah filter tahun ajaran', () => {
+      pilihNilaiFilter(v, tahunAjaranNames, modeTahunAjaran, pilihBanyakTahunAjaran, pilihTahunAjaran);
+    });
   }
   function pilihSemesterNilai(v: string) {
-    if (modeSemester === 'single' && (v === '1' || v === '2')) {
-      pilihSemester(v);
-      return;
-    }
-    pilihNilaiFilter(v, semesters, modeSemester, pilihBanyakSemester);
+    mintaJalan('mengubah filter semester', () => {
+      if (modeSemester === 'single' && (v === '1' || v === '2')) {
+        pilihSemester(v);
+        return;
+      }
+      pilihNilaiFilter(v, semesters, modeSemester, pilihBanyakSemester);
+    });
   }
   const halaman = halamanDariPath(pathname);
   /** Tabel yang dibuka di dialog Kelola Tabel (null = tidak ada). */
@@ -542,13 +550,13 @@ export default function TopBar() {
                 <>
                   <DropdownMenuLabel className="text-foreground">Peran sebagai</DropdownMenuLabel>
                   {pilihanPeran.map((p) => (
-                    <DropdownMenuItem key={p.jenjang} id={`menu_peran_${p.jenjang.toLowerCase()}`} onSelect={() => pilihPeran(p.jenjang)}>
+                    <DropdownMenuItem key={p.jenjang} id={`menu_peran_${p.jenjang.toLowerCase()}`} onSelect={() => mintaJalan('mengubah peran lembaga', () => pilihPeran(p.jenjang))}>
                       <span className="flex-1 truncate">{`${p.jenjang} — ${p.nama}`}</span>
                       {peranJenjang === p.jenjang && <Check data-icon="inline-end" size={14} />}
                     </DropdownMenuItem>
                   ))}
                   {bertindak && (
-                    <DropdownMenuItem id="menu_peran_kembali" onSelect={() => pilihPeran(null)}>
+                    <DropdownMenuItem id="menu_peran_kembali" onSelect={() => mintaJalan('mengakhiri peran lembaga', () => pilihPeran(null))}>
                       <span className="flex-1">Kembali ke {user?.name}</span>
                     </DropdownMenuItem>
                   )}
