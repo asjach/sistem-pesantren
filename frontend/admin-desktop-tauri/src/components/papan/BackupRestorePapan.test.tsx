@@ -23,7 +23,7 @@ const ringkasan = {
   sub_modul: 5,
   butir: 10,
   riwayat: 7,
-  status: { backlog: 1, todo: 2, in_progress: 0, for_review: 3, done: 4 },
+  status: { pending: 0, backlog: 1, todo: 2, in_progress: 0, for_review: 3, done: 4 },
   workflow: {
     master: true,
     aplikasi: [

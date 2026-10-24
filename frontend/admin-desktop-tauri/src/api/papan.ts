@@ -1,13 +1,14 @@
 import { api, apiUpload, downloadFile } from './client';
 
 /** Status yang dipakai papan — sesuai kontrak API Board. */
-export type StatusPapan = 'backlog' | 'todo' | 'in_progress' | 'for_review' | 'done';
+export type StatusPapan = 'pending' | 'backlog' | 'todo' | 'in_progress' | 'for_review' | 'done';
 
-/** Lima tahap alur kerja Kanban (workflow), dalam urutan tampil. */
-export const KOLOM_PAPAN: StatusPapan[] = ['backlog', 'todo', 'in_progress', 'for_review', 'done'];
+/** Enam status Board, dalam urutan tampil. */
+export const KOLOM_PAPAN: StatusPapan[] = ['pending', 'backlog', 'todo', 'in_progress', 'for_review', 'done'];
 
 /** Judul kolom untuk tampilan. */
 export const JUDUL_KOLOM: Record<StatusPapan, string> = {
+  pending: 'Pending',
   backlog: 'Backlog',
   todo: 'To Do',
   in_progress: 'In Progress',

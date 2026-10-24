@@ -15,7 +15,8 @@ use JsonException;
     {aksi : tambah | hapus | ubah | naik | turun}
     {kode : Kode sub-modul, mis. E.3}
     {--id= : Id butir (wajib untuk hapus, ubah, naik, turun)}
-    {--status= : Status: backlog | todo | in_progress | for_review | done}
+    {--status= : Status: pending | backlog | todo | in_progress | for_review | done}
+    {--instruksi-pending= : Instruksi langsung pengguna untuk perpindahan ke/dari Pending}
     {--deskripsi= : Isi butir (wajib untuk tambah, opsional untuk ubah)}
     {--catatan= : Alasan singkat bila status ikut berubah}
     {--file= : Payload JSON UTF-8 untuk tambah/ubah, tanpa menimpa field yang tidak dikirim}
@@ -57,11 +58,12 @@ class PapanButir extends Command
             if (! isset($data['deskripsi'])) {
                 throw new InvalidArgumentException('Payload tambah memerlukan deskripsi.');
             }
-            if (array_diff(array_keys($data), ['deskripsi', 'status', 'keterangan', 'subpoin']) !== []) {
-                throw new InvalidArgumentException('Payload tambah hanya menerima deskripsi, status, keterangan, dan subpoin. Catatan ditambahkan melalui papan:catat.');
+            if (array_diff(array_keys($data), ['deskripsi', 'status', 'keterangan', 'subpoin', 'instruksi_pending']) !== []) {
+                throw new InvalidArgumentException('Payload tambah hanya menerima deskripsi, status, keterangan, subpoin, dan instruksi_pending. Catatan ditambahkan melalui papan:catat.');
             }
             $this->pastikanJalurAgen($data['status'] ?? 'backlog');
-            $butir = $papan->tambahButir($kode, $data['status'] ?? 'backlog', $data['deskripsi'], $data['subpoin'] ?? [], $data['keterangan'] ?? null);
+            $butir = $papan->tambahButir($kode, $data['status'] ?? 'backlog', $data['deskripsi'], $data['subpoin'] ?? [], $data['keterangan'] ?? null,
+                instruksiPending: $data['instruksi_pending'] ?? null);
             $this->line(json_encode($butir->toArray(), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
 
             return self::SUCCESS;
@@ -76,7 +78,7 @@ class PapanButir extends Command
 
         $status = (string) ($this->option('status') ?: 'backlog');
         $this->pastikanJalurAgen($status);
-        $butir = $papan->tambahButir($kode, $status, trim($deskripsi));
+        $butir = $papan->tambahButir($kode, $status, trim($deskripsi), instruksiPending: $this->option('instruksi-pending'));
 
         $labelStatus = PapanService::LABEL_STATUS[$butir->status] ?? $butir->status;
         $this->info("Butir #{$butir->id} ditambahkan ke {$kode} [{$labelStatus}].");
@@ -114,7 +116,8 @@ class PapanButir extends Command
                 keterangan: array_key_exists('keterangan', $data) ? (string) ($data['keterangan'] ?? '') : null,
                 konfirmasiReopen: $data['konfirmasi_reopen'] ?? false,
                 jenisPerubahan: $data['jenis_perubahan'] ?? null,
-                persetujuanScope: $data['persetujuan_scope'] ?? null);
+                persetujuanScope: $data['persetujuan_scope'] ?? null,
+                instruksiPending: $data['instruksi_pending'] ?? null);
             $this->line(json_encode($butir->toArray(), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
 
             return self::SUCCESS;
@@ -137,6 +140,7 @@ class PapanButir extends Command
             $status === null ? null : (string) $status,
             (string) ($this->option('oleh') ?: 'agent'),
             $this->option('catatan') === null ? null : (string) $this->option('catatan'),
+            instruksiPending: $this->option('instruksi-pending'),
         );
 
         $labelStatus = PapanService::LABEL_STATUS[$butir->status] ?? $butir->status;
@@ -155,9 +159,9 @@ class PapanButir extends Command
     /** @return array<string, mixed> */
     private function payload(): array
     {
-        foreach (['status', 'deskripsi', 'catatan'] as $option) {
+        foreach (['status', 'deskripsi', 'catatan', 'instruksi-pending'] as $option) {
             if ($this->option($option) !== null) {
-                throw new InvalidArgumentException('Jangan gabungkan --file dengan --status, --deskripsi, atau --catatan.');
+                throw new InvalidArgumentException('Jangan gabungkan --file dengan --status, --deskripsi, --catatan, atau --instruksi-pending.');
             }
         }
         $file = (string) $this->option('file');
@@ -178,6 +182,7 @@ class PapanButir extends Command
             'konfirmasi_reopen' => ['sometimes', 'boolean'],
             'jenis_perubahan' => ['sometimes', 'in:scope,typo'],
             'persetujuan_scope' => ['sometimes', 'required', 'string', 'max:4000'],
+            'instruksi_pending' => ['sometimes', 'required', 'string', 'max:4000'],
         ];
         $allowed = array_filter(array_keys($rules), fn ($key) => ! str_contains($key, '.'));
         if (! is_array($data) || $data === [] || array_diff(array_keys($data), $allowed) !== []) {

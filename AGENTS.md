@@ -182,6 +182,14 @@
   (Done), meskipun diminta membantu perpindahan setelah evaluasi.
 - Nilai teknis status Menunggu peninjauan adalah `for_review`, bukan
   `in_review`.
+- **Pending** (`pending`) tampil sebelum Backlog dan berada di luar pemilihan
+  pekerjaan otomatis agen. Perpindahan ke maupun dari Pending hanya dilakukan
+  pengguna melalui UI, atau agen atas instruksi langsung pengguna untuk poin
+  terkait. Jangan memakai Pending atas inisiatif agen. Poin baru tetap Backlog.
+  CLI memerlukan `--instruksi-pending` (atau `instruksi_pending` pada payload
+  JSON) berisi instruksi nyata pengguna; field ini adalah catatan, bukan
+  pengganti persetujuan atau autentikasi. Pemilihan ke To Do, konfirmasi scope,
+  batas In Progress, dan gerbang For Review tetap berlaku.
 - Hanya pengguna yang menentukan hasil evaluasi manual dan memindahkan poin
   dari For Review ke Done melalui UI Board. Jalur agen/CLI tidak digunakan
   untuk menetapkan Done; bila diminta, arahkan pengguna melakukan aksi di UI.

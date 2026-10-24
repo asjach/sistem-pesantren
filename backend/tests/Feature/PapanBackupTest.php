@@ -71,6 +71,20 @@ class PapanBackupTest extends TestCase
         $this->assertTrue(Storage::disk('local')->exists(PapanBackupService::DIREKTORI.'/'.$hasil['backup_keamanan']));
     }
 
+    public function test_backup_restore_mempertahankan_pending_pada_poin_dan_riwayat(): void
+    {
+        PapanButir::query()->update(['status' => 'pending']);
+        PapanRiwayat::query()->update(['dari_status' => 'todo', 'ke_status' => 'pending']);
+        $json = $this->backup->eksporJson();
+        $awal = $this->backup->ekspor();
+        PapanButir::query()->update(['status' => 'backlog']);
+        $hasil = $this->backup->pulihkan($json);
+        $akhir = $this->backup->ekspor();
+        $this->assertSame($awal['butir'], $akhir['butir']);
+        $this->assertSame($awal['riwayat'], $akhir['riwayat']);
+        $this->assertSame(1, $hasil['ringkasan']['status']['pending']);
+    }
+
     public function test_restore_mengembalikan_pengaturan_workflow(): void
     {
         $json = $this->backup->eksporJson();

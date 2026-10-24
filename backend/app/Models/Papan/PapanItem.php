@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class PapanItem extends Model
 {
     /** Kosakata status yang sah untuk POIN di dalam sub-modul ini. */
-    public const STATUS = ['backlog', 'todo', 'in_progress', 'for_review', 'done'];
+    public const STATUS = ['pending', 'backlog', 'todo', 'in_progress', 'for_review', 'done'];
 
     protected $connection = 'papan';
 

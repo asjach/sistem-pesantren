@@ -21,6 +21,12 @@ class PapanStatusTurunanTest extends TestCase
     {
         return [
             'tanpa poin masuk Backlog' => [[], 'backlog'],
+            'semua Pending tetap Pending' => [['pending', 'pending'], 'pending'],
+            'Pending bercampur Done tetap Pending' => [['pending', 'done'], 'pending'],
+            'Pending menahan For Review' => [['pending', 'for_review'], 'pending'],
+            'pekerjaan aktif tetap didahulukan dari Pending' => [['pending', 'in_progress'], 'in_progress'],
+            'To Do tetap didahulukan dari Pending' => [['pending', 'todo'], 'todo'],
+            'Backlog tetap didahulukan dari Pending' => [['pending', 'backlog'], 'backlog'],
             'semua Done berarti selesai' => [['done', 'done'], 'done'],
             'In Progress menang atas Done' => [['done', 'in_progress'], 'in_progress'],
             'In Progress menang atas To Do' => [['todo', 'in_progress'], 'in_progress'],

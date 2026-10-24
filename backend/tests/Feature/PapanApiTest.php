@@ -61,7 +61,21 @@ class PapanApiTest extends TestCase
             ->assertJsonPath('ringkasan.butir.todo', 1)
             ->assertJsonPath('ringkasan.butir.done', 1)
             ->assertJsonPath('ringkasan.sub.todo', 1)
-            ->assertJsonPath('status', ['backlog', 'todo', 'in_progress', 'for_review', 'done']);
+            ->assertJsonPath('status', ['pending', 'backlog', 'todo', 'in_progress', 'for_review', 'done']);
+    }
+
+    public function test_pengguna_dapat_membuat_dan_memindahkan_pending_melalui_ui_api(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $id = $this->postJson('/api/board/E.3/butir', ['status' => 'pending', 'deskripsi' => 'Menunggu instruksi.'])
+            ->assertCreated()->assertJsonPath('status', 'pending')->json('id');
+        $this->getJson('/api/board')->assertOk()->assertJsonPath('ringkasan.butir.pending', 1);
+        $this->patchJson('/api/board/E.3/butir/'.$id.'/status', ['status' => 'backlog'])
+            ->assertOk()->assertJsonPath('status', 'backlog');
+        $this->patchJson('/api/board/E.3/butir/'.$id, ['status' => 'pending'])
+            ->assertOk()->assertJsonPath('status', 'pending');
+        $this->getJson('/api/board/riwayat?kode=E.3')->assertOk()
+            ->assertJsonFragment(['ke' => 'pending'])->assertJsonFragment(['ke' => 'backlog']);
     }
 
     public function test_tambah_modul_membuat_modul_baru_di_papan(): void

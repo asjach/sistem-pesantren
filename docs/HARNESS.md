@@ -91,9 +91,10 @@ signature aktual sebelum memakai opsi baru.
 - `php artisan papan:butir tambah|ubah <kode> --file=<json>` menerima payload
   JSON UTF-8 maksimal 128 KiB. Field `ubah` yang dikenal: `deskripsi`, `status`,
   `keterangan`, `subpoin`, `catatan`, `jenis_perubahan`, dan
-  `persetujuan_scope`. Jangan menggabungkan `--file` dengan `--status`,
-  `--deskripsi`, atau `--catatan`. `tambah` hanya menerima `deskripsi`, `status`,
-  `keterangan`, dan `subpoin`.
+  `persetujuan_scope`, dan `instruksi_pending`. Jangan menggabungkan `--file`
+  dengan `--status`, `--deskripsi`, `--catatan`, atau `--instruksi-pending`.
+  `tambah` hanya menerima `deskripsi`, `status`, `keterangan`, `subpoin`, dan
+  `instruksi_pending`.
 - `php artisan papan:catat <kode> <id> <jenis> --teks=<isi>` menambah catatan
   `persetujuan|revisi|verifikasi|keputusan|catatan` tanpa mengubah status atau
   acceptance criteria. Catatan `persetujuan` harus merujuk keputusan nyata
@@ -102,6 +103,18 @@ signature aktual sebelum memakai opsi baru.
   adalah jalur agen: status `done` ditolak, dan `--oleh=pengguna` tidak memberi
   kewenangan pengguna. Reopen Done → In Progress hanya melalui UI setelah
   pengguna mengonfirmasi.
+- Status tampil berurutan: Pending, Backlog, To Do, In Progress, For Review,
+  Done. Pending hanya dipilih pengguna, atau agen atas instruksi langsung
+  pengguna untuk poin terkait. CLI menolak perpindahan ke/dari Pending tanpa
+  `--instruksi-pending='<instruksi nyata pengguna>'` (atau `instruksi_pending`
+  pada payload JSON); instruksi disimpan dalam catatan poin. Field ini bukan
+  bukti autentikasi atau pengganti persetujuan nyata. Agen tidak boleh
+  mengisinya atas inisiatif sendiri. Poin baru tetap default Backlog.
+- Tombol **Kolom** pada toolbar Board memuat checkbox untuk menampilkan atau
+  menyembunyikan keenam kolom. Preferensi disimpan pada perangkat, terpisah dari
+  data Board dan backup database. Default menampilkan semua kolom; semua boleh
+  disembunyikan. Pencarian tetap mencakup seluruh poin dan membuka kolom hasil
+  yang dipilih. Lipatan kolom tetap terpisah dari visibilitasnya.
 - Perubahan scope substantif pada poin yang sudah disetujui memerlukan
   `jenis_perubahan=scope` dan `persetujuan_scope`; koreksi typo memakai
   `jenis_perubahan=typo` beserta `catatan`.

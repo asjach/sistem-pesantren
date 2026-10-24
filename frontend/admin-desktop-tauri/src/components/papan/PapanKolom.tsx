@@ -85,6 +85,7 @@ export interface SasaranJatuh {
 
 /** Warna lencana per status - memakai token semantik yang sudah ada. */
 export const WARNA_STATUS: Record<StatusPapan, string> = {
+  pending: 'var(--muted-foreground)',
   backlog: 'var(--muted-foreground)',
   todo: 'var(--info)',
   in_progress: 'var(--warning)',
@@ -985,7 +986,7 @@ function BarisPoin({
   );
 }
 /**
- * Papan empat kolom untuk SEKELOMPOK kartu.
+ * Kolom status untuk SEKELOMPOK kartu.
  *
  * Dipakai halaman /board (satu modul per tab). Perpindahan ditangani pemanggil
  * lewat onPindah supaya penyimpanan & pemulihan galat tinggal di satu tempat.
@@ -1003,6 +1004,7 @@ export function PapanKolom({
   lipatAwal,
   onTambahSub,
   poinDisorot = null,
+  kolomTerlihat = KOLOM_PAPAN,
 }: {
   kartu: KartuPapan[];
   tampilkanModul: boolean;
@@ -1024,6 +1026,8 @@ export function PapanKolom({
   onTambahSub?: () => void;
   /** Poin yang disorot setelah pengguna memilih hasil pencarian. */
   poinDisorot?: number | null;
+  /** Kolom yang ditampilkan, terpisah dari keadaan lipat. */
+  kolomTerlihat?: StatusPapan[];
 }) {
   const [seret, setSeret] = useState<number | null>(null);
   const [sasaran, setSasaran] = useState<SasaranJatuh | null>(null);
@@ -1033,7 +1037,7 @@ export function PapanKolom({
   const kolom = useMemo(() => {
     const hasil = kelompokkanKolom(kartu);
     for (const sub of subKosong) {
-      hasil[0].kartu.push({
+      hasil.find((kolom) => kolom.id === 'backlog')!.kartu.push({
         subKode: sub.kode,
         subNama: sub.nama,
         modulKode: '',
@@ -1049,7 +1053,7 @@ export function PapanKolom({
   /**
    * Kolom yang mulai terlipat.
    *
-   * Bawaannya diturunkan dari isi: kolom tanpa sub-modul dilipat supaya lima
+   * Bawaannya diturunkan dari isi: kolom tanpa sub-modul dilipat supaya
    * kolom kosong tidak memakan lebar, sedangkan kolom yang berisi tetap
    * terbuka. Kolom Done SELALU terlipat — isinya arsip, bukan
    * pekerjaan aktif. `lipatAwal` tetap bisa memaksa daftar tertentu.
@@ -1161,7 +1165,8 @@ export function PapanKolom({
    * kepentingan status, supaya arah panah terasa sama dengan matanya.
    */
   async function pindahArah(kartu: KartuPapan, arah: -1 | 1) {
-    const tujuan = kolomSebelah(kartu.status, arah);
+    const terlihat = KOLOM_PAPAN.filter((status) => kolomTerlihat.includes(status));
+    const tujuan = kolomSebelah(kartu.status, arah, terlihat);
 
     if (tujuan === null) {
       setPengumuman(`Poin ${kartu.subKode} sudah di kolom paling ${arah === -1 ? 'kiri' : 'kanan'}.`);
@@ -1183,7 +1188,7 @@ export function PapanKolom({
       </div>
 
       <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto overscroll-x-contain px-0 pb-0 sm:px-0 sm:pb-0">
-        {kolom.map((item) => {
+        {kolom.filter((item) => kolomTerlihat.includes(item.id)).map((item) => {
           const terlipatKolom = lipat.has(item.id);
           const disorot = sasaran?.kolom === item.id && seret !== null;
 

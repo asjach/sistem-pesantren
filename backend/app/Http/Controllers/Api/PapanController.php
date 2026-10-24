@@ -224,6 +224,7 @@ class PapanController extends Controller
                 $valid['deskripsi'],
                 $valid['subpoin'] ?? [],
                 $valid['keterangan'] ?? null,
+                'pengguna',
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 404);

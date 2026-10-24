@@ -29,7 +29,7 @@ import { bisa } from '@/api/auth';
 import { prefGet, prefSet } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useCariGlobal } from '@/hooks/useCariGlobal';
-import { kartuModul, kemajuanModul, kemajuanPoin, modulPertama, persenKemajuan, ringkasanPoin, type HasilCariPapan, type KartuPapan } from '@/lib/papan';
+import { bacaKolomTerlihat, kartuModul, kemajuanModul, kemajuanPoin, modulPertama, persenKemajuan, ringkasanPoin, type HasilCariPapan, type KartuPapan } from '@/lib/papan';
 import { JUDUL_KOLOM, KOLOM_PAPAN } from '@/api/papan';
 import type { AksiButir, AksiSub } from '@/components/papan/PapanKolom';
 import { WARNA_STATUS as WARNA_KOLOM } from '@/components/papan/PapanKolom';
@@ -45,6 +45,7 @@ const RAIL_MIN = 128;
 const RAIL_MAX = 360;
 const RAIL_DEFAULT = 224;
 const RAIL_KEY = 'simpes_rail_papan';
+const KOLOM_KEY = 'simpes_kolom_papan';
 
 function lebarRailAwal(): number {
   if (typeof window !== 'undefined' && window.innerWidth < 640) return 144;
@@ -63,7 +64,7 @@ function modulAwal(modul: ModulPapan[]): ModulPapan | null {
 
 /**
  * Board perkembangan proyek: tab aplikasi (horizontal), modul (vertikal),
- * lalu lima tahap workflow. Sumbernya API /board, bukan data pesantren.
+ * lalu enam kolom status. Sumbernya API /board, bukan data pesantren.
  */
 export default function PapanPage() {
   const { kodeAplikasi, kodeModul } = useParams<{ kodeAplikasi?: string; kodeModul?: string }>();
@@ -82,6 +83,8 @@ export default function PapanPage() {
   const [sibukWorkflow, setSibukWorkflow] = useState(false);
   const [reopen, setReopen] = useState<{ id: number; status: StatusPapan } | null>(null);
   const [lebarRail, setLebarRail] = useState(lebarRailAwal);
+  const [kolomTerlihat, setKolomTerlihat] = useState<StatusPapan[]>([...KOLOM_PAPAN]);
+  const kolomDiubah = useRef(false);
   const seretRail = useRef({ mulaiX: 0, mulaiW: RAIL_DEFAULT, akhir: RAIL_DEFAULT });
 
   const { user } = useAuth();
@@ -125,6 +128,21 @@ export default function PapanPage() {
   function simpanLebarRail(px: number) {
     setLebarRail(jepitRail(px));
     void prefSet(RAIL_KEY, String(jepitRail(px)));
+  }
+
+  useEffect(() => {
+    let aktif = true;
+    void prefGet(KOLOM_KEY).then((nilai) => {
+      if (aktif && !kolomDiubah.current) setKolomTerlihat(bacaKolomTerlihat(nilai));
+    }).catch(() => {});
+
+    return () => { aktif = false; };
+  }, []);
+
+  function simpanKolomTerlihat(kolom: StatusPapan[]) {
+    kolomDiubah.current = true;
+    setKolomTerlihat(kolom);
+    void prefSet(KOLOM_KEY, JSON.stringify(kolom)).catch(() => {});
   }
 
   function mulaiSeretRail(e: ReactMouseEvent<HTMLButtonElement>) {
@@ -207,6 +225,9 @@ export default function PapanPage() {
   }, [data, aplikasiAktif, aktif, aplikasi]);
 
   function bukaHasil(hasil: HasilCariPapan) {
+    if (!kolomTerlihat.includes(hasil.poin.status)) {
+      simpanKolomTerlihat(KOLOM_PAPAN.filter((status) => kolomTerlihat.includes(status) || status === hasil.poin.status));
+    }
     setSorot(hasil.poin.id);
     setCari('');
     ubahCariGlobal('');
@@ -246,6 +267,7 @@ export default function PapanPage() {
         if (status.includes('in_progress')) return 'in_progress';
         if (status.includes('todo')) return 'todo';
         if (status.includes('backlog')) return 'backlog';
+        if (status.includes('pending')) return 'pending';
         if (status.includes('for_review')) return 'for_review';
 
         return 'done';
@@ -530,6 +552,30 @@ export default function PapanPage() {
               </ul>
             </PopoverContent>
           </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button id="btn_kolom_papan" type="button" variant="outline" size="sm" aria-label="Atur kolom Board" className="shrink-0">
+                <Columns3 size={14} />
+                Kolom
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-44 border border-foreground/30 p-2">
+              <div className="flex flex-col gap-2">
+                {KOLOM_PAPAN.map((status) => (
+                  <label key={status} className="flex cursor-pointer items-center gap-2 text-xs">
+                    <input
+                      id={`cek_kolom_papan_${status}`}
+                      type="checkbox"
+                      checked={kolomTerlihat.includes(status)}
+                      onChange={(e) => simpanKolomTerlihat(KOLOM_PAPAN.filter((kolom) => kolom === status ? e.target.checked : kolomTerlihat.includes(kolom)))}
+                      className="size-3.5 accent-[var(--accent)]"
+                    />
+                    {JUDUL_KOLOM[status]}
+                  </label>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
           {bolehUbah ? <BackupRestorePapan onSelesai={segarkan} /> : null}
           {bolehUbah ? (
             <Button
@@ -741,6 +787,7 @@ export default function PapanPage() {
                   idAwalan={`modul_${aktif.kode.toLowerCase()}`}
                   onTambahSub={bolehUbah ? () => setKelolaTerbuka(true) : undefined}
                   poinDisorot={sorot}
+                  kolomTerlihat={kolomTerlihat}
                 />
               ) : (
                 <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">

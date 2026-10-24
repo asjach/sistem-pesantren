@@ -119,7 +119,7 @@ export function kelompokkanSub(kartu: KartuPapan[]): KartuSub[] {
 }
 
 /**
- * Kelompokkan poin ke lima kolom workflow sebagai kartu per sub-modul.
+ * Kelompokkan poin ke enam kolom status sebagai kartu per sub-modul.
  *
  * Satu sub-modul muncul di SETIAP kolom yang punya poin berstatus itu, tapi
  * hanya sekali per kolom - jadi judulnya tidak berulang dalam satu kolom.
@@ -275,7 +275,9 @@ export function cariPapan(aplikasi: AplikasiPapan[], kueri: string): HasilCariPa
 }
 
 /** Jumlah POIN per status dari daftar poin papan (untuk ringkasan & meter). */
-export function ringkasanPoin(poin: KartuPapan[]): Record<StatusPapan, number> {  const hasil: Record<StatusPapan, number> = {
+export function ringkasanPoin(poin: KartuPapan[]): Record<StatusPapan, number> {
+  const hasil: Record<StatusPapan, number> = {
+    pending: 0,
     backlog: 0,
     todo: 0,
     in_progress: 0,
@@ -300,11 +302,25 @@ export function kartuModul(modul: ModulPapan): KartuPapan[] {
  * (urutan tampil), bukan urutan kepentingan status, supaya arah panah
  * terasa sama dengan arah matanya.
  */
-export function kolomSebelah(status: StatusPapan, arah: -1 | 1): StatusPapan | null {
-  const kini = KOLOM_PAPAN.indexOf(status);
+export function kolomSebelah(status: StatusPapan, arah: -1 | 1, kolom: StatusPapan[] = KOLOM_PAPAN): StatusPapan | null {
+  const kini = kolom.indexOf(status);
   if (kini === -1) return null;
 
-  return KOLOM_PAPAN[kini + arah] ?? null;
+  return kolom[kini + arah] ?? null;
+}
+
+/** Preferensi rusak kembali ke semua kolom; array kosong berarti semua disembunyikan. */
+export function bacaKolomTerlihat(nilai: string | null): StatusPapan[] {
+  try {
+    const isi: unknown = JSON.parse(nilai ?? 'null');
+    if (Array.isArray(isi) && isi.every((status) => KOLOM_PAPAN.includes(status))) {
+      return KOLOM_PAPAN.filter((status) => isi.includes(status));
+    }
+  } catch {
+    // Preferensi perangkat tidak boleh menghalangi pemuatan Board.
+  }
+
+  return [...KOLOM_PAPAN];
 }
 
 export function modulDariKode(modul: ModulPapan[], kode: string | undefined): ModulPapan | null {

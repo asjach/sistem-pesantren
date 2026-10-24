@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -32,6 +32,43 @@ async function pasang(daftar: KartuPapan[] = [kartu()]) {
   await act(async () => {});
   return hasil;
 }
+
+describe('PapanKolom - visibilitas kolom', () => {
+  it('Pending tampil paling awal, sedangkan kolom tersembunyi tidak meninggalkan strip lipatan', async () => {
+    renderDenganTema(<PapanKolom kartu={[kartu({ status: 'pending' })]} tampilkanModul={false} onPindah={vi.fn()} kolomTerlihat={['pending', 'todo']} />);
+    await act(async () => {});
+    expect(screen.getAllByRole('region').map((el) => el.getAttribute('aria-label'))).toEqual(['Kolom Pending, 1 kartu', 'Kolom To Do, 0 kartu']);
+    expect(screen.queryByRole('button', { name: 'Buka kolom Backlog' })).not.toBeInTheDocument();
+  });
+
+  it('semua kolom dapat disembunyikan lalu ditampilkan kembali tanpa kehilangan poin', async () => {
+    const props = { kartu: [kartu()], tampilkanModul: false, onPindah: vi.fn() };
+    const hasil = renderDenganTema(<PapanKolom {...props} kolomTerlihat={[]} />);
+    await act(async () => {});
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+    hasil.rerender(<PapanKolom {...props} kolomTerlihat={['todo']} />);
+    expect(screen.getByRole('region', { name: 'Kolom To Do, 1 kartu' })).toBeInTheDocument();
+  });
+
+  it('keyboard memindahkan poin sesuai urutan kolom terlihat', async () => {
+    const user = userEvent.setup();
+    const onPindah = vi.fn(async () => true);
+    renderDenganTema(<PapanKolom kartu={[kartu({ status: 'pending' })]} tampilkanModul={false} onPindah={onPindah} bolehUbah kolomTerlihat={['pending', 'in_progress']} />);
+    await act(async () => {});
+    await user.click(screen.getAllByRole('button', { name: /Buka kartu E.3/ })[0]);
+    const poin = screen.getByRole('group', { name: /Ekspor rekap per kas/ });
+    poin.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(onPindah).toHaveBeenCalledWith(128, 'in_progress');
+  });
+
+  it('sub-modul kosong tetap berada di Backlog saat Pending menjadi kolom pertama', async () => {
+    renderDenganTema(<PapanKolom kartu={[]} tampilkanModul={false} onPindah={vi.fn()} subKosong={[{ kode: 'A.1', nama: 'Sub kosong', status: 'backlog', butir: [] }]} />);
+    await act(async () => {});
+    expect(within(screen.getByRole('region', { name: 'Kolom Backlog, 1 kartu' })).getAllByRole('button', { name: /Buka kartu A.1/ })[0]).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Kolom Pending, 0 kartu' })).toBeInTheDocument();
+  });
+});
 
 describe('PapanKolom - nomor poin', () => {
   it('menampilkan nomor poin #id pada kartu agar mudah dirujuk', async () => {

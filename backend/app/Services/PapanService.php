@@ -29,9 +29,10 @@ use InvalidArgumentException;
  */
 class PapanService
 {
-    public const STATUS = ['backlog', 'todo', 'in_progress', 'for_review', 'done'];
+    public const STATUS = ['pending', 'backlog', 'todo', 'in_progress', 'for_review', 'done'];
 
     public const LABEL_STATUS = [
+        'pending' => 'Pending',
         'backlog' => 'Backlog',
         'todo' => 'To Do',
         'in_progress' => 'In Progress',
@@ -57,8 +58,9 @@ class PapanService
      * 2. ada poin `in_progress`     -> `in_progress`;
      * 3. ada poin `todo`            -> `todo`;
      * 4. ada poin `backlog`         -> `backlog`;
-     * 5. ada poin `for_review`      -> `for_review`;
-     * 6. selain itu (semua selesai) -> `done`.
+     * 5. ada poin `pending`         -> `pending`;
+     * 6. ada poin `for_review`      -> `for_review`;
+     * 7. selain itu (semua selesai) -> `done`.
      *
      * Urutan ini penting: satu poin yang belum melewati tahap kerja/review
      * membuat sub-modul belum dianggap selesai.
@@ -83,6 +85,10 @@ class PapanService
 
         if (($ada['backlog'] ?? 0) > 0) {
             return 'backlog';
+        }
+
+        if (($ada['pending'] ?? 0) > 0) {
+            return 'pending';
         }
 
         if (($ada['for_review'] ?? 0) > 0) {
@@ -301,9 +307,10 @@ class PapanService
         string $oleh = 'agent',
         ?string $catatan = null,
         bool $konfirmasiReopen = false,
+        ?string $instruksiPending = null,
     ): PapanButir {
         return $this->ubahButir($kode, $butirId, status: $status, oleh: $oleh,
-            catatan: $catatan, konfirmasiReopen: $konfirmasiReopen);
+            catatan: $catatan, konfirmasiReopen: $konfirmasiReopen, instruksiPending: $instruksiPending);
     }
 
     /**
@@ -311,9 +318,10 @@ class PapanService
      *
      * @param  string  $status  status poin, salah satu {@see self::STATUS}
      */
-    public function tambahButir(string $kode, string $status, string $deskripsi, array $subpoin = [], ?string $keterangan = null): PapanButir
+    public function tambahButir(string $kode, string $status, string $deskripsi, array $subpoin = [], ?string $keterangan = null, string $oleh = 'agent', ?string $instruksiPending = null): PapanButir
     {
         $this->pastikanStatus($status);
+        $this->pastikanInstruksiPending(null, $status, $oleh, $instruksiPending);
 
         $subpoin = self::normalisasiSubpoin($subpoin);
         $keterangan = $keterangan === null || trim($keterangan) === '' ? null : trim($keterangan);
@@ -328,16 +336,25 @@ class PapanService
 
         $urutan = (int) PapanButir::query()->where('item_id', $item->id)->max('urutan');
 
-        return PapanButir::create([
-            'item_id' => $item->id,
-            'status' => $status,
-            'deskripsi' => $deskripsi,
-            'keterangan' => $keterangan,
-            'subpoin' => $subpoin,
-            'catatan' => [],
-            'scope_versi' => [],
-            'urutan' => $urutan + 1,
-        ]);
+        return DB::connection('papan')->transaction(function () use ($item, $status, $deskripsi, $keterangan, $subpoin, $urutan, $oleh, $instruksiPending) {
+            $butir = PapanButir::create([
+                'item_id' => $item->id,
+                'status' => $status,
+                'deskripsi' => $deskripsi,
+                'keterangan' => $keterangan,
+                'subpoin' => $subpoin,
+                'catatan' => [],
+                'scope_versi' => [],
+                'urutan' => $urutan + 1,
+            ]);
+            if ($status === 'pending' && $oleh !== 'pengguna') {
+                $this->snapshotAwal($butir, $oleh);
+                $this->tambahkanCatatan($butir, 'keputusan', 'Instruksi langsung pengguna untuk Pending: '.$instruksiPending, $oleh);
+                $butir->save();
+            }
+
+            return $butir;
+        });
     }
 
     /**
@@ -429,6 +446,7 @@ class PapanService
         bool $konfirmasiReopen = false,
         ?string $jenisPerubahan = null,
         ?string $persetujuanScope = null,
+        ?string $instruksiPending = null,
     ): PapanButir {
         if ($status !== null) {
             $this->pastikanStatus($status);
@@ -437,7 +455,7 @@ class PapanService
             throw ValidationException::withMessages(['status' => 'Done hanya ditetapkan pengguna melalui UI.']);
         }
 
-        return DB::connection('papan')->transaction(function () use ($kode, $butirId, $deskripsi, $status, $oleh, $catatan, $subpoin, $keterangan, $konfirmasiReopen, $jenisPerubahan, $persetujuanScope) {
+        return DB::connection('papan')->transaction(function () use ($kode, $butirId, $deskripsi, $status, $oleh, $catatan, $subpoin, $keterangan, $konfirmasiReopen, $jenisPerubahan, $persetujuanScope, $instruksiPending) {
             $butir = $this->butir($kode, $butirId)['butir'];
             $statusLama = $butir->status;
             $scopeLama = $this->isiScope($butir);
@@ -479,6 +497,10 @@ class PapanService
             if ($statusLama === 'done' && $statusBaru === 'in_progress' && ! $konfirmasiReopen) {
                 throw ValidationException::withMessages(['konfirmasi_reopen' => 'Konfirmasikan Reopen: status Done akan berubah menjadi In Progress.']);
             }
+            $this->pastikanInstruksiPending($statusLama, $statusBaru, $oleh, $instruksiPending);
+            if ($statusLama !== $statusBaru && ($statusLama === 'pending' || $statusBaru === 'pending') && $oleh !== 'pengguna') {
+                $this->tambahkanCatatan($butir, 'keputusan', 'Instruksi langsung pengguna untuk Pending: '.$instruksiPending, $oleh);
+            }
             if ($statusBaru === 'in_progress' && $statusLama !== 'in_progress') {
                 $aplikasi = $butir->item->modul->aplikasi;
                 $adaAktif = PapanButir::query()->where('id', '!=', $butir->id)
@@ -508,6 +530,21 @@ class PapanService
 
             return $butir->refresh();
         });
+    }
+
+    /** Instruksi adalah catatan keputusan manusia, bukan pengganti autentikasi atau persetujuan nyata. */
+    private function pastikanInstruksiPending(?string $asal, string $tujuan, string $oleh, ?string $instruksi): void
+    {
+        if ($asal === $tujuan || ($asal !== 'pending' && $tujuan !== 'pending') || $oleh === 'pengguna') {
+            return;
+        }
+
+        Validator::make(['instruksi_pending' => $instruksi], [
+            'instruksi_pending' => ['required', 'string', 'max:4000'],
+        ], ['instruksi_pending.required' => 'Perpindahan ke/dari Pending oleh agen memerlukan instruksi langsung pengguna.'])->validate();
+        if (trim($instruksi ?? '') === '') {
+            throw ValidationException::withMessages(['instruksi_pending' => 'Instruksi langsung pengguna untuk Pending tidak boleh kosong.']);
+        }
     }
 
     /** Catatan berdiri sendiri; pembacaan tidak pernah membuat snapshot legacy. */

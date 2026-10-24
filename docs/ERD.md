@@ -49,7 +49,7 @@ erDiagram
     PAPAN_BUTIR {
         integer id PK
         integer item_id FK
-        string status
+        string status "pending|backlog|todo|in_progress|for_review|done"
         text subpoin
         text catatan
         text scope_versi
@@ -58,8 +58,8 @@ erDiagram
         integer id PK
         integer item_id FK
         integer butir_id FK
-        string dari_status
-        string ke_status
+        string dari_status "nullable; pending|backlog|todo|in_progress|for_review|done"
+        string ke_status "pending|backlog|todo|in_progress|for_review|done"
     }
 
     PAPAN_MODUL ||--o{ PAPAN_ITEM : "mengelompokkan"

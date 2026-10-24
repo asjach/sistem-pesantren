@@ -40,7 +40,9 @@ Diagram hubungan tersedia pada [ERD.md](ERD.md#board-proyek--database-terpisah).
 
 - `id`: integer PK
 - `item_id`: FK → `papan_item.id` [cascadeOnDelete]
-- `status`: string [default `backlog`] — nilai `backlog|todo|in_progress|for_review|done`.
+- `status`: string [default `backlog`] — nilai `pending|backlog|todo|in_progress|for_review|done`.
+  `pending` adalah status manual; perpindahan ke/darinya oleh agen memerlukan
+  instruksi langsung pengguna. Poin baru tetap memakai default `backlog`.
 - `deskripsi`: text
 - `urutan`: integer [default 0]
 - `keterangan`: text [null] — requirement, dikosongkan setelah diterjemahkan

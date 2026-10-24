@@ -12,8 +12,9 @@ use InvalidArgumentException;
 #[Signature('papan:tandai
     {kode : Kode sub-modul, mis. E.3}
     {id : Id poin (butir) yang dipindah}
-    {status : Status: backlog | todo | in_progress | for_review | done}
+    {status : Status: pending | backlog | todo | in_progress | for_review | done}
     {--catatan= : Alasan singkat perpindahan}
+    {--instruksi-pending= : Instruksi langsung pengguna untuk perpindahan ke/dari Pending}
     {--oleh=agent : Pencatat: agent atau pengguna}')]
 #[Description('Pindahkan status sebuah poin di papan perkembangan proyek.')]
 class PapanTandai extends Command
@@ -40,7 +41,8 @@ class PapanTandai extends Command
         }
 
         try {
-            $butir = $papan->pindahButir($kode, (int) $id, $status, $oleh, $catatan);
+            $butir = $papan->pindahButir($kode, (int) $id, $status, $oleh, $catatan,
+                instruksiPending: $this->option('instruksi-pending'));
         } catch (ValidationException $e) {
             $this->error(implode(' ', array_merge(...array_values($e->errors()))));
 

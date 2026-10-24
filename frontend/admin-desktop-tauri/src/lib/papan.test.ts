@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bacaKolomTerlihat,
   kemajuanButir,
   kemajuanModul,
   kemajuanPoin,
@@ -86,11 +87,12 @@ describe('ratakanKartu', () => {
 });
 
 describe('kelompokkanKolom', () => {
-  it('selalu menghasilkan lima tahap workflow berurutan', () => {
+  it('selalu menghasilkan enam status Board berurutan', () => {
     const kolom = kelompokkanKolom(ratakanKartu(modul));
 
-    expect(kolom.map((k) => k.id)).toEqual(['backlog', 'todo', 'in_progress', 'for_review', 'done']);
+    expect(kolom.map((k) => k.id)).toEqual(['pending', 'backlog', 'todo', 'in_progress', 'for_review', 'done']);
     expect(kolom.map((k) => k.judul)).toEqual([
+      'Pending',
       'Backlog',
       'To Do',
       'In Progress',
@@ -104,12 +106,12 @@ describe('kelompokkanKolom', () => {
 
     // Sebelumnya tiap poin jadi kartu sendiri, sehingga sub-modul berpoin
     // banyak tampil sebagai banyak kartu berjudul sama.
-    expect(kolom[0].kartu[0].poin.map((p) => p.id)).toEqual([3]);
-    expect(kolom[1].kartu.map((k) => k.subKode)).toEqual(['E.3']);
-    expect(kolom[1].kartu[0].poin.map((p) => p.id)).toEqual([1, 2]);
-    expect(kolom[4].kartu[0].poin.map((p) => p.id)).toEqual([4]);
-    expect(kolom[2].kartu).toEqual([]);
-    expect(kolom[3].kartu).toEqual([]);
+    expect(kolom.find((k) => k.id === 'backlog')!.kartu[0].poin.map((p) => p.id)).toEqual([3]);
+    expect(kolom.find((k) => k.id === 'todo')!.kartu.map((k) => k.subKode)).toEqual(['E.3']);
+    expect(kolom.find((k) => k.id === 'todo')!.kartu[0].poin.map((p) => p.id)).toEqual([1, 2]);
+    expect(kolom.find((k) => k.id === 'done')!.kartu[0].poin.map((p) => p.id)).toEqual([4]);
+    expect(kolom.find((k) => k.id === 'in_progress')!.kartu).toEqual([]);
+    expect(kolom.find((k) => k.id === 'for_review')!.kartu).toEqual([]);
   });
 
   it('judul sub-modul TIDAK berulang dalam satu kolom', () => {
@@ -133,15 +135,15 @@ describe('kelompokkanKolom', () => {
     ];
     const kolom = kelompokkanKolom(ratakanKartu(banyak));
 
-    expect(kolom[1].kartu).toHaveLength(1);
-    expect(kolom[1].kartu[0].poin).toHaveLength(3);
+    expect(kolom.find((k) => k.id === 'todo')!.kartu).toHaveLength(1);
+    expect(kolom.find((k) => k.id === 'todo')!.kartu[0].poin).toHaveLength(3);
   });
 
   it('menjaga kolom kosong tetap tampil', () => {
     const kosong: KartuPapan[] = [];
     const kolom = kelompokkanKolom(kosong);
 
-    expect(kolom).toHaveLength(5);
+    expect(kolom).toHaveLength(6);
     expect(kolom.every((k) => k.kartu.length === 0)).toBe(true);
   });
 
@@ -174,10 +176,10 @@ describe('kelompokkanKolom', () => {
 
     // Satu sub-modul tetap muncul di DUA kolom (memang diinginkan), tapi
     // di tiap kolom hanya sekali, dan isinya hanya poin berstatus itu.
-    expect(kolom[2].kartu).toHaveLength(1);
-    expect(kolom[4].kartu).toHaveLength(1);
-    expect(kolom[2].kartu[0].poin.map((p) => p.id)).toEqual([2]);
-    expect(kolom[4].kartu[0].poin.map((p) => p.id)).toEqual([1]);
+    expect(kolom.find((k) => k.id === 'in_progress')!.kartu).toHaveLength(1);
+    expect(kolom.find((k) => k.id === 'done')!.kartu).toHaveLength(1);
+    expect(kolom.find((k) => k.id === 'in_progress')!.kartu[0].poin.map((p) => p.id)).toEqual([2]);
+    expect(kolom.find((k) => k.id === 'done')!.kartu[0].poin.map((p) => p.id)).toEqual([1]);
   });
 });
 
@@ -196,12 +198,13 @@ describe('kartuModul', () => {
 
 describe('ringkasanModul', () => {
   it('menghitung POIN per status', () => {
-    expect(ringkasanModul(modul[0])).toEqual({ backlog: 1, todo: 2, in_progress: 0, for_review: 0, done: 1 });
-    expect(ringkasanModul(modul[1])).toEqual({ backlog: 0, todo: 0, in_progress: 0, for_review: 0, done: 0 });
+    expect(ringkasanModul(modul[0])).toEqual({ pending: 0, backlog: 1, todo: 2, in_progress: 0, for_review: 0, done: 1 });
+    expect(ringkasanModul(modul[1])).toEqual({ pending: 0, backlog: 0, todo: 0, in_progress: 0, for_review: 0, done: 0 });
   });
 
   it('modul kosong menghasilkan semua nol', () => {
     expect(ringkasanModul({ kode: 'Z', nama: 'Kosong', sub: [] })).toEqual({
+      pending: 0,
       backlog: 0,
       todo: 0,
       in_progress: 0,
@@ -316,15 +319,22 @@ describe('persenKemajuan', () => {
 describe('ringkasanPoin', () => {
   it('menghitung poin per status dari daftar poin', () => {
     const ringkasan = ringkasanPoin(kartuModul(modul[0]));
-    expect(ringkasan).toEqual({ backlog: 1, todo: 2, in_progress: 0, for_review: 0, done: 1 });
+    expect(ringkasan).toEqual({ pending: 0, backlog: 1, todo: 2, in_progress: 0, for_review: 0, done: 1 });
   });
 
   it('daftar kosong menghasilkan semua nol', () => {
-    expect(ringkasanPoin([])).toEqual({ backlog: 0, todo: 0, in_progress: 0, for_review: 0, done: 0 });
+    expect(ringkasanPoin([])).toEqual({ pending: 0, backlog: 0, todo: 0, in_progress: 0, for_review: 0, done: 0 });
   });
 });
 
 describe('kolomSebelah', () => {
+  it('melewati kolom tersembunyi dan berhenti di batas kolom terlihat', () => {
+    expect(kolomSebelah('pending', 1, ['pending', 'todo', 'done'])).toBe('todo');
+    expect(kolomSebelah('todo', -1, ['pending', 'todo', 'done'])).toBe('pending');
+    expect(kolomSebelah('todo', -1, ['todo', 'done'])).toBeNull();
+    expect(kolomSebelah('todo', 1, [])).toBeNull();
+  });
+
   it('menggeser ke kanan sesuai urutan tampil', () => {
     expect(kolomSebelah('backlog', 1)).toBe('todo');
     expect(kolomSebelah('todo', 1)).toBe('in_progress');
@@ -340,8 +350,30 @@ describe('kolomSebelah', () => {
   });
 
   it('mengembalikan null di ujung, bukan membalik ke kolom lain', () => {
-    expect(kolomSebelah('backlog', -1)).toBeNull();
+    expect(kolomSebelah('backlog', -1)).toBe('pending');
+    expect(kolomSebelah('pending', -1)).toBeNull();
     expect(kolomSebelah('done', 1)).toBeNull();
+  });
+});
+describe('bacaKolomTerlihat', () => {
+  it('menjaga urutan status, membuang duplikat, dan mendukung semua tersembunyi', () => {
+    expect(bacaKolomTerlihat('["done","pending","done"]')).toEqual(['pending', 'done']);
+    expect(bacaKolomTerlihat('[]')).toEqual([]);
+  });
+
+  it.each([null, '', 'rusak', '{}', '["asing"]', '[null]', '["pending",1]'])('preferensi %s kembali ke seluruh kolom', (nilai) => {
+    expect(bacaKolomTerlihat(nilai)).toEqual(['pending', 'backlog', 'todo', 'in_progress', 'for_review', 'done']);
+  });
+});
+
+describe('poin Pending', () => {
+  it('masuk ke kolom pertama dan ringkasan tanpa dianggap Done', () => {
+    const poin = ratakanKartu([{ kode: 'P', nama: 'Pending', sub: [{
+      kode: 'P.1', nama: 'Menunggu', status: 'pending', butir: [{ id: 19, status: 'pending', deskripsi: 'Menunggu instruksi.' }],
+    }] }]);
+    expect(kelompokkanKolom(poin)[0].kartu[0].poin[0].id).toBe(19);
+    expect(ringkasanPoin(poin)).toMatchObject({ pending: 1, done: 0 });
+    expect(kemajuanPoin(poin)).toEqual({ selesai: 0, total: 1 });
   });
 });
 describe('modulDariKode', () => {
