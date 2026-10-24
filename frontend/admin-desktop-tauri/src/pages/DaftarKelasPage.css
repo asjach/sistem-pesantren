@@ -1,0 +1,32 @@
+/* Hanya select-all header Daftar Kelas; override preferensi !important tetap menang. */
+#halaman_daftar_kelas .dsg-row-header [data-slot='checkbox'] {
+  border-color: var(--part-tabel_header-fg, var(--foreground));
+  background-color: transparent;
+}
+
+#halaman_daftar_kelas .dsg-row-header [data-slot='checkbox']:is([data-state='checked'], [data-state='indeterminate']) {
+  background-color: var(--part-tabel_header-fg, var(--foreground));
+  color: var(--part-tabel_header-bg, color-mix(in srgb, var(--foreground) 6%, var(--card)));
+}
+
+#halaman_daftar_kelas .dsg-row-header [data-slot='checkbox']:focus-visible {
+  outline: 2px solid var(--part-tabel_header-fg, var(--foreground));
+  outline-offset: 2px;
+}
+
+/* Mixed memakai garis, checked mempertahankan ikon centang existing. */
+#halaman_daftar_kelas .dsg-row-header [data-state='indeterminate'] [data-slot='checkbox-indicator'] {
+  width: 14px;
+  height: 14px;
+}
+
+#halaman_daftar_kelas .dsg-row-header [data-state='indeterminate'] [data-slot='checkbox-indicator'] svg {
+  display: none;
+}
+
+#halaman_daftar_kelas .dsg-row-header [data-state='indeterminate'] [data-slot='checkbox-indicator']::after {
+  content: '';
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+}

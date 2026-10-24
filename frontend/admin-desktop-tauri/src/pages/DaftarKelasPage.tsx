@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import './DaftarKelasPage.css';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { bisa } from '../api/auth';
@@ -187,7 +188,7 @@ export default function DaftarKelasPage() {
   );
 
   return (
-    <div className={PAGE_SHELL}>
+    <div id="halaman_daftar_kelas" className={PAGE_SHELL}>
       <ErrorNotice>{err}</ErrorNotice>
       <TopBarSearch value={cari} onChange={setCari} placeholder="Cari santri…" />
       <PengaturanHalaman tampil={{ tingkat: true, kelas: true }} tabel={[{ key: 'daftar_kelas', judul: 'Daftar kelas', fields }]} />
