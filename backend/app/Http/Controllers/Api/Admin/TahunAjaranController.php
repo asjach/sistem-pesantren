@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\TahunAjaranUpdateRequest;
 use App\Http\Requests\Admin\TahunAjaranVisibilitasRequest;
 use App\Models\LembagaTahunAjaran;
 use App\Models\TahunAjaran;
+use App\Services\HapusMasterService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -150,20 +151,14 @@ class TahunAjaranController extends Controller
         return response()->json($row->fresh());
     }
 
-    public function destroy(Request $request)
+    public function destroy(Request $request, HapusMasterService $hapusMaster)
     {
         if (! $request->user()->bolehSuperAdmin()) {
             abort(403, 'Tahun ajaran global hanya super_admin.');
         }
 
         $data = $request->validate(['nama' => ['required', 'string']]);
-        $row = TahunAjaran::findOrFail($data['nama']);
-
-        if ($row->is_aktif) {
-            return response()->json(['message' => 'Tahun ajaran aktif tidak boleh dihapus.'], 422);
-        }
-
-        $row->delete();
+        $hapusMaster->hapusTahunAjaran($data['nama']);
 
         return response()->json(['message' => 'Tahun ajaran dihapus.']);
     }

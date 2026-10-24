@@ -111,6 +111,7 @@ class DispensasiTest extends TestCase
 
     public function test_batas_lembaga_mengikuti_jenjang_jenis(): void
     {
+        DB::table('lembaga')->insert(['nama' => 'MTS', 'jenjang' => 'MTS', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         $adminMi = User::create(['name' => 'Admin MI', 'email' => 'adminmi@example.com', 'phone' => '081234567891', 'password' => 'password']);
         $adminMi->assignRole('admin');
         DB::table('user_lembaga')->insert(['user_id' => $adminMi->id, 'jenjang' => 'MI', 'created_at' => now(), 'updated_at' => now()]);

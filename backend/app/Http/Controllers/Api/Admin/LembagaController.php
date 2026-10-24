@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\LembagaStoreRequest;
 use App\Http\Requests\Admin\LembagaUpdateRequest;
 use App\Models\Lembaga;
+use App\Services\HapusMasterService;
 use App\Services\RefService;
 use App\Services\UrutKatalog;
 use Illuminate\Http\Request;
@@ -84,7 +85,7 @@ class LembagaController extends Controller
         }
     }
 
-    public function destroy(Lembaga $lembaga)
+    public function destroy(Lembaga $lembaga, HapusMasterService $hapusMaster)
     {
         $auth = auth()->user();
         if (! $auth->can('lembaga.hapus')) {
@@ -92,7 +93,7 @@ class LembagaController extends Controller
         }
         $this->authorizeLembaga($auth, $lembaga->jenjang);
 
-        $lembaga->delete();
+        $hapusMaster->hapusLembaga($lembaga->jenjang);
 
         return response()->json(['message' => 'Lembaga dihapus.']);
     }

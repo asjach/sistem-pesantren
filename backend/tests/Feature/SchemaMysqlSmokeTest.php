@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Services\HapusMasterService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use PDO;
+use Tests\Feature\Concerns\VerifikasiFkKeuangan;
 use Tests\Feature\Concerns\VerifikasiSkemaDokumen;
 use Tests\TestCase;
 use Throwable;
@@ -29,6 +33,7 @@ use Throwable;
  */
 class SchemaMysqlSmokeTest extends TestCase
 {
+    use VerifikasiFkKeuangan;
     use VerifikasiSkemaDokumen;
 
     private const NAMA_DATABASE_BAWAAAN = 'simpes_schema_smoke';
@@ -40,6 +45,61 @@ class SchemaMysqlSmokeTest extends TestCase
     private static array $kredensial = [];
 
     private static bool $sudahMigrasi = false;
+
+    public function test_hapus_lembaga_melindungi_referensi_lokal_dan_teks_tanpa_fk(): void
+    {
+        DB::beginTransaction();
+        try {
+            DB::table('lembaga')->insert(['jenjang' => 'HAPUS_GUARD', 'nama' => 'Guard hapus lembaga']);
+            DB::table('ref_agama')->insert(['jenjang' => 'HAPUS_GUARD', 'nama' => 'Referensi lokal']);
+            $hapus = app(HapusMasterService::class);
+            try {
+                $hapus->hapusLembaga('HAPUS_GUARD');
+                $this->fail('Referensi lokal harus menghalangi penghapusan.');
+            } catch (ValidationException $e) {
+                $this->assertStringContainsString('kamus referensi', $e->getMessage());
+            }
+            $this->assertTrue(DB::table('ref_agama')->where('jenjang', 'HAPUS_GUARD')->exists());
+            DB::table('ref_agama')->where('jenjang', 'HAPUS_GUARD')->delete();
+            DB::table('grup_santri_custom')->insert(['nama' => 'Guard lembaga', 'jenjang' => 'HAPUS_GUARD']);
+            try {
+                $hapus->hapusLembaga('HAPUS_GUARD');
+                $this->fail('Reference teks harus menghalangi penghapusan.');
+            } catch (ValidationException $e) {
+                $this->assertStringContainsString('grup santri', $e->getMessage());
+            }
+            DB::table('grup_santri_custom')->where('nama', 'Guard lembaga')->delete();
+            $hapus->hapusLembaga('HAPUS_GUARD');
+            $this->assertFalse(DB::table('lembaga')->where('jenjang', 'HAPUS_GUARD')->exists());
+        } finally {
+            DB::rollBack();
+        }
+    }
+
+    public function test_hapus_tahun_ajaran_menolak_reference_teks_dan_menerima_pivot_saja(): void
+    {
+        DB::beginTransaction();
+        try {
+            DB::table('tahun_ajaran')->insert(['nama' => '1990/1991', 'is_aktif' => false]);
+            DB::table('grup_santri_custom')->insert(['nama' => 'Guard tahun ajaran', 'tahun_ajaran' => '1990/1991']);
+            $hapus = app(HapusMasterService::class);
+            try {
+                $hapus->hapusTahunAjaran('1990/1991');
+                $this->fail('Reference teks harus menghalangi penghapusan.');
+            } catch (ValidationException $e) {
+                $this->assertStringContainsString('grup santri', $e->getMessage());
+            }
+            $this->assertTrue(DB::table('tahun_ajaran')->where('nama', '1990/1991')->exists());
+            DB::table('grup_santri_custom')->where('nama', 'Guard tahun ajaran')->delete();
+            DB::table('lembaga')->insert(['jenjang' => 'TA_GUARD', 'nama' => 'Guard tahun ajaran']);
+            DB::table('lembaga_tahun_ajaran')->insert(['jenjang' => 'TA_GUARD', 'tahun_ajaran' => '1990/1991', 'is_active' => false]);
+            $hapus->hapusTahunAjaran('1990/1991');
+            $this->assertFalse(DB::table('tahun_ajaran')->where('nama', '1990/1991')->exists());
+            $this->assertFalse(DB::table('lembaga_tahun_ajaran')->where('tahun_ajaran', '1990/1991')->exists());
+        } finally {
+            DB::rollBack();
+        }
+    }
 
     protected function setUp(): void
     {
@@ -57,6 +117,9 @@ class SchemaMysqlSmokeTest extends TestCase
             );
         }
 
+        // Migration lama juga memindahkan berkas: isolasi storage sebelum
+        // migrate:fresh, selain database smoke yang sudah terpisah.
+        Storage::fake('local');
         $this->siapkanDatabaseSmoke($nama);
         $this->siapkanKoneksiPapan();
     }

@@ -312,7 +312,7 @@ export default function LembagaPage() {
           <DeleteAction
             id={`btn_hapus_lembaga_${l.id}`}
             title="Hapus lembaga?"
-            description={`${l.nama} akan dihapus permanen.`}
+            description={`${l.nama} akan dihapus permanen. Hanya lembaga tanpa data terkait, akses pengguna, atau kamus referensi yang dapat dihapus, termasuk referensi bawaan. Nonaktifkan melalui editor jika lembaga sudah tidak digunakan.`}
             onConfirm={() => onDelete(l.jenjang)}
           />
         </>

@@ -863,12 +863,12 @@ erDiagram
     JENIS_TAGIHAN {
         bigint id PK
         string nama
-        string jenjang
+        string jenjang FK
     }
     TARIF_TAGIHAN {
         bigint id PK
         bigint jenis_id FK
-        string jenjang
+        string jenjang FK
         string tahun_ajaran
     }
     DISPENSASI {
@@ -902,6 +902,7 @@ erDiagram
         bigint id PK
         bigint santri_id FK
         bigint jenis_id FK
+        string jenjang FK
         string periode
     }
     TRANSAKSI_PEMBAYARAN {
@@ -915,6 +916,9 @@ erDiagram
         bigint transaksi_id FK
     }
 
+    LEMBAGA o|--o{ JENIS_TAGIHAN : "membatasi jenis"
+    LEMBAGA ||--o{ TARIF_TAGIHAN : "menerbitkan tarif"
+    LEMBAGA ||--o{ TAGIHAN : "menerbitkan tagihan"
     JENIS_TAGIHAN ||--o{ TARIF_TAGIHAN : "memiliki tarif"
     TAHUN_AJARAN ||--o{ DISPENSASI : "mencakup"
     LEMBAGA o|--o{ DISPENSASI : "membatasi lingkup"
@@ -931,7 +935,7 @@ erDiagram
     USERS o|--o{ TRANSAKSI_PEMBAYARAN : "menerima pembayaran"
 ```
 
-Catatan: `jenis_tagihan.jenjang`, `tarif_tagihan.jenjang`,
-`tarif_tagihan.tahun_ajaran`, serta lingkup pada `grup_santri_custom` masih
-berupa nilai teks tanpa kunci asing (Foreign Key/FK). Karena itu, hubungan
-fisiknya tidak digambar sebagai relasi ke `lembaga` atau `tahun_ajaran`.
+Relasi lembaga pada jenis tagihan (opsional), tarif, dan tagihan memakai
+`cascadeOnUpdate` serta `restrictOnDelete` pada MySQL dan SQLite.
+`tarif_tagihan.tahun_ajaran`, `tagihan.tahun_ajaran`, serta lingkup pada
+`grup_santri_custom` tetap berupa teks tanpa FK; relasi fisiknya tidak digambar.

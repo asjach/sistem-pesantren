@@ -262,7 +262,7 @@ export default function TahunAjaranPage() {
             <DeleteAction
               id={`btn_hapus_ta_${id}`}
               title="Hapus tahun ajaran?"
-              description={`${t.nama} akan dihapus permanen.`}
+              description={`${t.nama} berlaku untuk seluruh lembaga dan akan dihapus permanen. Hanya tahun ajaran nonaktif tanpa data operasional atau historis yang dapat dihapus. Gunakan Sembunyikan jika hanya ingin menyembunyikannya dari lembaga tertentu.`}
               onConfirm={() => onDelete(t.nama)}
             />
           </>

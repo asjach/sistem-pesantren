@@ -126,9 +126,6 @@ class KeuanganTest extends TestCase
         ]);
         $this->assertSame('MI', $tagihan->lembaga->jenjang);
 
-        if (DB::getDriverName() !== 'mysql') {
-            $this->markTestSkipped('Penegakan FK butuh MySQL.');
-        }
         $this->expectException(QueryException::class);
         Tagihan::create([
             'santri_id' => $santri->id, 'jenjang' => 'XX', 'tahun_ajaran' => '2025/2026',

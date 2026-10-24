@@ -385,6 +385,7 @@ class TabelUrutTest extends TestCase
 
     public function test_keuangan_tarif_urut_nominal(): void
     {
+        Lembaga::create(['jenjang' => 'MI', 'nama' => 'MI']);
         $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);
 
         foreach ([[200000, '2026/2027'], [100000, '2025/2026']] as [$nominal, $ta]) {
@@ -402,6 +403,7 @@ class TabelUrutTest extends TestCase
 
     public function test_keuangan_tagihan_urut_nominal_dan_santri(): void
     {
+        Lembaga::create(['jenjang' => 'MI', 'nama' => 'MI']);
         $zed = Santri::create(['nama_lengkap' => 'Zed', 'jk' => 'L']);
         $alfa = Santri::create(['nama_lengkap' => 'Alfa', 'jk' => 'L']);
         $jenis = JenisTagihan::create(['nama' => 'SPP', 'tipe' => 'bulanan']);

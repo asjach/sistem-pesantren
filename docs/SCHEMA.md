@@ -1354,7 +1354,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 - `id` PK
 - `nama`: string — unik, daftar jenis (Infaq Bulanan, ASAS, ASAT, Ujian, HIPA, Pendaftaran, Biaya Masuk, …)
 - `tipe`: enum('bulanan','non_bulanan') [default 'non_bulanan'] — frekuensi: bulanan/rutin vs non-bulanan (satu periode per generate; ASAS/ASAT berkala, Ujian tingkat akhir, HIPA setahun, tarif masuk/daftar)
-- `jenjang`: string(50) [null] — null = berlaku semua lembaga; terisi = khusus lembaga itu
+- `jenjang`: FK → lembaga.jenjang [cascadeOnUpdate, restrictOnDelete] — string(20) [null]; null = berlaku semua lembaga; terisi = khusus lembaga itu. Ditegakkan pada MySQL dan SQLite.
 - `urutan`: unsignedInteger [default 0] — urutan tampil jenis; mengurutkan KOLOM crosstab Tagihan (jenis lalu periode). 0 = belum diatur → kolomnya jatuh ke BELAKANG yang sudah diatur, lalu kembali ke urutan `id` — jadi tampilan lama tidak berubah sampai angkanya diisi. Tidak unik (boleh seri; seri dipecah `id`) supaya penomoran 10/20/30 tetap mungkin
 - `keterangan`: text [null] — catatan bebas jenis tagihan (kolom "Keterangan" di tab Jenis Tagihan); divalidasi maks 1000 karakter
 - `is_active`: bool [default true]
@@ -1363,7 +1363,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 
 ### `tarif_tagihan`
 - `id` PK
-- `jenjang`: string(50) — lembaga penerbit tagihan (santri dua lembaga tetap ditagih di primer)
+- `jenjang`: FK → lembaga.jenjang [cascadeOnUpdate, restrictOnDelete] — string(20), lembaga penerbit tagihan (santri dua lembaga tetap ditagih di primer). Ditegakkan pada MySQL dan SQLite.
 - `tahun_ajaran`: string(20) — tarif boleh berubah/tetap per tahun ajaran
 - `jenis_id`: FK → jenis_tagihan [cascade]
 - `tingkat`: string(100) [null] — sisa kolom lama; **bukan** identitas tarif (generate tak membacanya, index unik mengabaikannya)
@@ -1419,7 +1419,7 @@ Detail lembaga tujuan per calon (1 baris = 1 lembaga): satuan 1 baris `primer`; 
 ### `tagihan`
 - `id` PK
 - `santri_id`: FK → santri [cascade]
-- `jenjang`: string(50) — lembaga penerbit
+- `jenjang`: FK → lembaga.jenjang [cascadeOnUpdate, restrictOnDelete] — string(20), lembaga penerbit. Ditegakkan pada MySQL dan SQLite.
 - `tahun_ajaran`: string(20)
 - `jenis_id`: FK → jenis_tagihan
 - `periode`: string(20) [null] — mis. '2025-07' (bulanan) / '2025/2026' (non-bulanan, otomatis kode TA) / null (legacy)

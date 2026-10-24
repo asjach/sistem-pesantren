@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\JenisTagihan;
+use App\Models\Lembaga;
 use App\Models\Pembayaran;
 use App\Models\Santri;
 use App\Models\Tagihan;
@@ -21,6 +22,12 @@ use Tests\TestCase;
 class PembayaranSisaTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Lembaga::create(['jenjang' => 'MI', 'nama' => 'MI']);
+    }
 
     private function admin(): User
     {

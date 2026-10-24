@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\JenisTagihan;
+use App\Models\Lembaga;
 use App\Models\Santri;
 use App\Models\Tagihan;
 use App\Models\User;
@@ -20,6 +21,12 @@ use Tests\TestCase;
 class CrosstabPaginasiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Lembaga::create(['nama' => 'Madrasah Ibtidaiyah', 'jenjang' => 'MI']);
+    }
 
     private function admin(): User
     {
