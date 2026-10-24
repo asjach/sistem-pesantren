@@ -184,6 +184,59 @@ class NisKemenagServiceTest extends TestCase
         $this->assertSame('123456789012196001', $this->svc->generate($a)->nis_kemenag);
     }
 
+    /** Nama TA legacy tanpa tahun memakai tanggal_mulai string, bukan error format. */
+    public function test_fallback_tanggal_mulai_legacy_string(): void
+    {
+        $this->lembaga('MI');
+        $a = $this->anggota('MI', '26001');
+        TahunAjaran::create([
+            'nama' => 'TA-Lama', 'tanggal_mulai' => '2020-07-01', 'tanggal_selesai' => '2021-06-30',
+        ]);
+        RiwayatBelajar::create([
+            'santri_id' => $a->santri_id, 'jenjang' => 'MI',
+            'tahun_ajaran' => 'TA-Lama', 'semester' => '1',
+            'status_awal' => 'santri_baru', 'status_akhir' => 'aktif',
+            'is_active_riwayat' => 'Ya',
+        ]);
+
+        $this->assertSame('123456789012206001', $this->svc->generate($a)->nis_kemenag);
+    }
+
+    /** Tanggal mulai TA tidak valid jatuh ke tgl_masuk keanggotaan. */
+    public function test_tanggal_mulai_tidak_valid_jatuh_ke_tgl_masuk(): void
+    {
+        $this->lembaga('MI');
+        $a = $this->anggota('MI', '26001', '2019-07-15');
+        TahunAjaran::create([
+            'nama' => 'TA-Rusak', 'tanggal_mulai' => 'bukan-tanggal', 'tanggal_selesai' => null,
+        ]);
+        RiwayatBelajar::create([
+            'santri_id' => $a->santri_id, 'jenjang' => 'MI',
+            'tahun_ajaran' => 'TA-Rusak', 'semester' => '1',
+            'status_awal' => 'santri_baru', 'status_akhir' => 'aktif',
+            'is_active_riwayat' => 'Ya',
+        ]);
+
+        $this->assertSame('123456789012196001', $this->svc->generate($a)->nis_kemenag);
+    }
+
+    /** Gagal menentukan tahun tidak boleh menimpa NIS Kemenag existing. */
+    public function test_gagal_menentukan_tahun_tidak_menimpa_nis_existing(): void
+    {
+        $this->lembaga('MI');
+        $a = $this->anggota('MI', '26001', null);
+        $a->update(['nis_kemenag' => 'NIS-LAMA']);
+
+        try {
+            $this->svc->generate($a);
+            $this->fail('Seharusnya menolak bila tahun diterima tak diketahui.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('nis_kemenag', $e->errors());
+        }
+
+        $this->assertSame('NIS-LAMA', $a->fresh()->nis_kemenag);
+    }
+
     /** Tanpa riwayat DAN tanpa tgl_masuk → tahun tak diketahui, ditolak. */
     public function test_tanpa_tahun_diterima_ditolak(): void
     {

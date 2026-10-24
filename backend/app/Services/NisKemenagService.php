@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Lembaga;
 use App\Models\LembagaSantri;
 use App\Models\RiwayatBelajar;
+use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * NIS Kemenag (`lembaga_santri.nis_kemenag`) — digenerate MANUAL dari halaman
@@ -70,12 +72,41 @@ class NisKemenagService
         $tahun = null;
         if (is_string($namaTa) && preg_match('/(\d{4})/', $namaTa, $m) === 1) {
             $tahun = $m[1];
-        } elseif ($riwayat?->tahunAjaran?->tanggal_mulai) {
-            $tahun = $riwayat->tahunAjaran->tanggal_mulai->format('Y');
-        } elseif ($tglMulaiTahun !== null) {
-            $tahun = $tglMulaiTahun;
+        } else {
+            $tahun = $this->tahunDariTanggal($riwayat?->tahunAjaran?->tanggal_mulai)
+                ?? $this->tahunDariTanggal($tglMulaiTahun);
         }
 
         return $tahun !== null ? substr($tahun, -2) : null;
+    }
+
+    /**
+     * Ambil tahun dari tanggal yang mungkin berupa objek date atau string.
+     * `TahunAjaran.tanggal_mulai` tidak di-cast, jadi fallback legacy harus
+     * aman untuk string tanggal; nilai tidak valid diperlakukan sebagai tidak
+     * tersedia agar sumber berikutnya bisa dipakai.
+     */
+    private function tahunDariTanggal(mixed $nilai): ?string
+    {
+        if ($nilai instanceof \DateTimeInterface) {
+            return $nilai->format('Y');
+        }
+        if (! is_string($nilai) || trim($nilai) === '') {
+            return null;
+        }
+
+        $teks = trim($nilai);
+        if (preg_match('/^(\d{4})$/', $teks, $m) === 1) {
+            return $m[1];
+        }
+        if (preg_match('/^(\d{4})-\d{2}-\d{2}/', $teks, $m) === 1) {
+            return $m[1];
+        }
+
+        try {
+            return CarbonImmutable::parse($teks)->format('Y');
+        } catch (Throwable) {
+            return null;
+        }
     }
 }
