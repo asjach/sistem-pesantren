@@ -32,6 +32,7 @@ import IcHomeHeroicons from '~icons/heroicons/home';
 import IcLandmarkHeroicons from '~icons/heroicons/building-library';
 import IcLink2Heroicons from '~icons/heroicons/link';
 import IcLogOutHeroicons from '~icons/heroicons/arrow-right-start-on-rectangle';
+import IcMenuHeroicons from '~icons/heroicons/bars-3';
 import IcMinusHeroicons from '~icons/heroicons/minus';
 import IcMonitorHeroicons from '~icons/heroicons/computer-desktop';
 import IcMoonHeroicons from '~icons/heroicons/moon';
@@ -97,6 +98,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Landmark: IcLandmarkHeroicons,
   Link2: IcLink2Heroicons,
   LogOut: IcLogOutHeroicons,
+  Menu: IcMenuHeroicons,
   Minus: IcMinusHeroicons,
   Monitor: IcMonitorHeroicons,
   Moon: IcMoonHeroicons,

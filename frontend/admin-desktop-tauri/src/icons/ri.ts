@@ -43,6 +43,7 @@ import IcImageUpRi from '~icons/ri/image-upload-line';
 import IcLandmarkRi from '~icons/ri/bank-line';
 import IcLink2Ri from '~icons/ri/link';
 import IcLogOutRi from '~icons/ri/logout-box-r-line';
+import IcMenuRi from '~icons/ri/menu-line';
 import IcMinusRi from '~icons/ri/subtract-line';
 import IcMonitorRi from '~icons/ri/computer-line';
 import IcMoonRi from '~icons/ri/moon-fill';
@@ -123,6 +124,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Landmark: IcLandmarkRi,
   Link2: IcLink2Ri,
   LogOut: IcLogOutRi,
+  Menu: IcMenuRi,
   Minus: IcMinusRi,
   Monitor: IcMonitorRi,
   Moon: IcMoonRi,

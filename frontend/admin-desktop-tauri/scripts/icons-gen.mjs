@@ -65,6 +65,7 @@ const IKON = {
   Landmark: ['landmark', 'bank', 'building-library', 'building-bank', 'museum', 'bank-line', 'institution', 'building-2', 'building'],
   Link2: ['link-2', 'link', 'chain', 'link-2-line', 'insert-link'],
   LogOut: ['log-out', 'exit', 'sign-out', 'signout', 'logout', 'arrow-right-from-bracket', 'log-out-2', 'arrow-right-start-on-rectangle', 'box-arrow-right', 'logout-box-r-line', 'exit-line'],
+  Menu: ['menu', 'menu-2', 'bars-3', 'hamburger-menu', 'menu-line', 'menu-scale', 'list'],
   Minus: ['minus', 'minus-line', 'remove', 'dash', 'subtract', 'horizontal-rule', 'minus-2'],
   Monitor: ['monitor', 'desktop', 'computer-desktop', 'screen', 'display', 'device-desktop', 'monitor-2', 'computer-line', 'computer'],
   Moon: ['moon', 'dark-mode', 'weather-night', 'night', 'moon-fill', 'moon-simple', 'moon-line', 'half-moon'],

@@ -36,6 +36,7 @@ import IcHomePh from '~icons/ph/house';
 import IcLandmarkPh from '~icons/ph/bank';
 import IcLink2Ph from '~icons/ph/link';
 import IcLogOutPh from '~icons/ph/sign-out';
+import IcMenuPh from '~icons/ph/list';
 import IcMinusPh from '~icons/ph/minus';
 import IcMonitorPh from '~icons/ph/monitor';
 import IcMoonPh from '~icons/ph/moon';
@@ -114,6 +115,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Landmark: IcLandmarkPh,
   Link2: IcLink2Ph,
   LogOut: IcLogOutPh,
+  Menu: IcMenuPh,
   Minus: IcMinusPh,
   Monitor: IcMonitorPh,
   Moon: IcMoonPh,

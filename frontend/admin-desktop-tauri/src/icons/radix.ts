@@ -27,6 +27,7 @@ import IcHistoryRadix from '~icons/radix-icons/clock';
 import IcHomeRadix from '~icons/radix-icons/home';
 import IcLink2Radix from '~icons/radix-icons/link-2';
 import IcLogOutRadix from '~icons/radix-icons/exit';
+import IcMenuRadix from '~icons/radix-icons/hamburger-menu';
 import IcMinusRadix from '~icons/radix-icons/minus';
 import IcMonitorRadix from '~icons/radix-icons/desktop';
 import IcMoonRadix from '~icons/radix-icons/moon';
@@ -79,6 +80,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Home: IcHomeRadix,
   Link2: IcLink2Radix,
   LogOut: IcLogOutRadix,
+  Menu: IcMenuRadix,
   Minus: IcMinusRadix,
   Monitor: IcMonitorRadix,
   Moon: IcMoonRadix,

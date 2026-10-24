@@ -40,6 +40,7 @@ import IcHomeBi from '~icons/bi/house';
 import IcLandmarkBi from '~icons/bi/bank';
 import IcLink2Bi from '~icons/bi/link';
 import IcLogOutBi from '~icons/bi/box-arrow-right';
+import IcMenuBi from '~icons/bi/list';
 import IcMinusBi from '~icons/bi/dash';
 import IcMonitorBi from '~icons/bi/display';
 import IcMoonBi from '~icons/bi/moon';
@@ -118,6 +119,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Landmark: IcLandmarkBi,
   Link2: IcLink2Bi,
   LogOut: IcLogOutBi,
+  Menu: IcMenuBi,
   Minus: IcMinusBi,
   Monitor: IcMonitorBi,
   Moon: IcMoonBi,

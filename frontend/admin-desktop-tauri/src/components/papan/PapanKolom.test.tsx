@@ -75,7 +75,7 @@ describe('PapanKolom - nomor poin', () => {
     await pasang([kartu({ id: 563 })]);
 
     // Sub-modul E.3 mulai terlipat; buka agar kartunya dirender.
-    fireEvent.click(document.getElementById('btn_lipat_sub_e_3_todo')!);
+    fireEvent.click(document.getElementById('btn_lipat_area_sub_e_3_todo')!);
 
     const nomor = document.querySelector('[data-slot="papan-poin-id"]');
     expect(nomor).not.toBeNull();
@@ -109,7 +109,7 @@ describe('PapanKolom - kolom awal', () => {
     expect(document.getElementById('btn_lipat_uji_todo')).not.toBeNull();
 
     fireEvent.click(document.getElementById('btn_buka_uji_done')!);
-    fireEvent.click(document.getElementById('btn_lipat_sub_e_3_done')!);
+    fireEvent.click(document.getElementById('btn_lipat_area_sub_e_3_done')!);
     expect(document.getElementById('kartu_papan_butir_2')).not.toBeNull();
   });
 });

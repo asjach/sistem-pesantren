@@ -44,6 +44,7 @@ import IcImageUpLucide from '~icons/lucide/image-up';
 import IcLandmarkLucide from '~icons/lucide/landmark';
 import IcLink2Lucide from '~icons/lucide/link-2';
 import IcLogOutLucide from '~icons/lucide/log-out';
+import IcMenuLucide from '~icons/lucide/menu';
 import IcMinusLucide from '~icons/lucide/minus';
 import IcMonitorLucide from '~icons/lucide/monitor';
 import IcMoonLucide from '~icons/lucide/moon';
@@ -138,6 +139,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Landmark: IcLandmarkLucide,
   Link2: IcLink2Lucide,
   LogOut: IcLogOutLucide,
+  Menu: IcMenuLucide,
   Minus: IcMinusLucide,
   Monitor: IcMonitorLucide,
   Moon: IcMoonLucide,

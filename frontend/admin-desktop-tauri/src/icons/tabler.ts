@@ -43,6 +43,7 @@ import IcImageUpTabler from '~icons/tabler/photo-up';
 import IcLandmarkTabler from '~icons/tabler/building-bank';
 import IcLink2Tabler from '~icons/tabler/link';
 import IcLogOutTabler from '~icons/tabler/logout';
+import IcMenuTabler from '~icons/tabler/menu';
 import IcMinusTabler from '~icons/tabler/minus';
 import IcMonitorTabler from '~icons/tabler/device-desktop';
 import IcMoonTabler from '~icons/tabler/moon';
@@ -128,6 +129,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Landmark: IcLandmarkTabler,
   Link2: IcLink2Tabler,
   LogOut: IcLogOutTabler,
+  Menu: IcMenuTabler,
   Minus: IcMinusTabler,
   Monitor: IcMonitorTabler,
   Moon: IcMoonTabler,

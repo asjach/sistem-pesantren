@@ -450,6 +450,17 @@
   "bi": "box-arrow-right",
   "material": "logout"
  },
+ "Menu": {
+  "lucide": "menu",
+  "tabler": "menu",
+  "ph": "list",
+  "heroicons": "bars-3",
+  "ri": "menu-line",
+  "iconoir": "menu",
+  "radix": "hamburger-menu",
+  "bi": "list",
+  "material": "menu"
+ },
  "Minus": {
   "lucide": "minus",
   "tabler": "minus",

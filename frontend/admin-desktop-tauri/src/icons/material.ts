@@ -41,6 +41,7 @@ import IcImageUpMaterial from '~icons/material-symbols/add-photo-alternate';
 import IcLandmarkMaterial from '~icons/material-symbols/museum';
 import IcLink2Material from '~icons/material-symbols/link-2';
 import IcLogOutMaterial from '~icons/material-symbols/logout';
+import IcMenuMaterial from '~icons/material-symbols/menu';
 import IcMinusMaterial from '~icons/material-symbols/remove';
 import IcMonitorMaterial from '~icons/material-symbols/monitor';
 import IcMoonMaterial from '~icons/material-symbols/dark-mode';
@@ -124,6 +125,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Landmark: IcLandmarkMaterial,
   Link2: IcLink2Material,
   LogOut: IcLogOutMaterial,
+  Menu: IcMenuMaterial,
   Minus: IcMinusMaterial,
   Monitor: IcMonitorMaterial,
   Moon: IcMoonMaterial,

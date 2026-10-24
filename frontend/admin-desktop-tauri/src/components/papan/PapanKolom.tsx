@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
-import { Check, ChevronDown, ChevronUp, Minus, Pencil, Plus, Trash2, Undo2 } from '@/icons';
+import { Check, Menu, Minus, Pencil, Plus, Trash2, Undo2 } from '@/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -184,7 +184,7 @@ function warnaKartuSub(kode: string): { latar: string; garis: string; teks: stri
 /**
  * Satu kartu papan = satu SUB-MODUL di dalam sebuah kolom.
  *
- * Judulnya (kode + nama sub-modul) muncul SEKALI, lalu semua poin berstatus
+ * Judul sub-modul muncul SEKALI, lalu semua poin berstatus
  * kolom itu didaftar di bawahnya. Sebelumnya satu kartu = satu poin, sehingga
  * sub-modul berpoin delapan tampil sebagai delapan kartu berjudul sama.
  *
@@ -233,6 +233,10 @@ export function KartuPapan({
   const kemajuan = kemajuanPoin(kartu.poin);
   const persen = persenKemajuan(kemajuan);
   const [ubahSub, setUbahSub] = useState(false);
+  const [menuTerbuka, setMenuTerbuka] = useState(false);
+  const fokusMenu = useRef<'tambah' | 'ubah' | null>(null);
+  const inputNamaRef = useRef<HTMLInputElement>(null);
+  const inputPoinRef = useRef<HTMLInputElement>(null);
   const [kode, setKode] = useState(kartu.subKode);
   const [nama, setNama] = useState(kartu.subNama);
   const [poinBaru, setPoinBaru] = useState('');
@@ -260,6 +264,7 @@ export function KartuPapan({
     setKode(kartu.subKode);
     setNama(kartu.subNama);
     setKonfirmasiHapus(false);
+    setTambahTerbuka(false);
     setTerbuka(true);
     setUbahSub(true);
   }
@@ -311,6 +316,7 @@ export function KartuPapan({
             />
             <input
               id={`input_nama_${idKartu}`}
+              ref={inputNamaRef}
               value={nama}
               onChange={(e) => setNama(e.target.value)}
               aria-label={`Nama sub-modul ${kartu.subKode}`}
@@ -329,69 +335,33 @@ export function KartuPapan({
             title={terbuka ? 'Tutup kartu' : 'Buka kartu'}
             className="flex min-w-0 flex-1 cursor-pointer items-start gap-2 text-left transition-opacity hover:opacity-80"
           >
-            <span
-              className="papan-cip mt-px shrink-0"
-              style={{ '--hue-kartu': warna.garis } as React.CSSProperties}
-            >
-              {kartu.subKode}
-            </span>
             <span className="min-w-0 flex-1 text-[13px] leading-snug font-medium text-[var(--accent-readable)]">
               {kartu.subNama}
             </span>
-            {!terbuka && kemajuan.total > 0 ? (
-              <span
-                className="shrink-0 font-mono text-[10px] text-muted-foreground tabular-nums"
-                title={`${kemajuan.selesai} dari ${kemajuan.total} unit selesai`}
-              >
-                {kemajuan.selesai}/{kemajuan.total}
-              </span>
-            ) : null}
           </button>
         )}
-        {bolehUbah && onTambahPoin && !ubahSub ? (
-          <button
-            id={`btn_tambah_poin_${idKartu}`}
-            type="button"
-            onClick={() => {
-              setTerbuka(true);
-              setTambahTerbuka((v) => !v);
-            }}
-            aria-label={`${tambahTerbuka ? 'Tutup' : 'Tambah'} poin di ${kartu.subKode}`}
-            aria-expanded={terbuka && tambahTerbuka}
-            title="Tambah poin"
-            className="grid size-5 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
-          >
-            <Plus size={12} />
-          </button>
-        ) : null}
-        {bolehUbah && aksiSub ? (
-          ubahSub ? (
-            <>
-              <button
-                id={`btn_simpan_${idKartu}`}
-                type="button"
-                disabled={sibuk || !kode.trim() || !nama.trim()}
-                onClick={() => void jalankan(() => aksiSub(kartu).onSimpan(kode.trim(), nama.trim()), batalUbah)}
-                aria-label={`Simpan sub-modul ${kartu.subKode}`}
-                className="grid size-5 shrink-0 place-items-center text-success enabled:hover:opacity-80 disabled:opacity-40"
-              >
-                <Check size={12} />
-              </button>
-              <button
-                id={`btn_batal_${idKartu}`}
-                type="button"
-                onClick={batalUbah}
-                aria-label={`Batal ubah sub-modul ${kartu.subKode}`}
-                className="grid size-5 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
-              >
-                <Undo2 size={12} />
-              </button>
-            </>
-          ) : (
-            <button id={`btn_ubah_sub_${idKartu}`} type="button" aria-label={`Ubah sub-modul ${kartu.subKode}`} onClick={mulaiUbah} className="grid size-5 shrink-0 place-items-center text-muted-foreground hover:text-foreground">
-              <Pencil size={12} />
+        {bolehUbah && aksiSub && ubahSub ? (
+          <>
+            <button
+              id={`btn_simpan_${idKartu}`}
+              type="button"
+              disabled={sibuk || !kode.trim() || !nama.trim()}
+              onClick={() => void jalankan(() => aksiSub(kartu).onSimpan(kode.trim(), nama.trim()), batalUbah)}
+              aria-label={`Simpan sub-modul ${kartu.subKode}`}
+              className="grid size-5 shrink-0 place-items-center text-success enabled:hover:opacity-80 disabled:opacity-40"
+            >
+              <Check size={12} />
             </button>
-          )
+            <button
+              id={`btn_batal_${idKartu}`}
+              type="button"
+              onClick={batalUbah}
+              aria-label={`Batal ubah sub-modul ${kartu.subKode}`}
+              className="grid size-5 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
+            >
+              <Undo2 size={12} />
+            </button>
+          </>
         ) : null}
         {ubahSub && bolehUbah && aksiSub ? (
           <Popover open={konfirmasiHapus} onOpenChange={setKonfirmasiHapus}>
@@ -422,19 +392,69 @@ export function KartuPapan({
             </PopoverContent>
           </Popover>
         ) : null}
-        {!ubahSub ? (
-          <button
-            id={`btn_lipat_${idKartu}`}
-            type="button"
-            onClick={jungkitKartu}
-            aria-expanded={terbuka}
-            aria-controls={`isi_${idKartu}`}
-            aria-label={`${terbuka ? 'Tutup' : 'Buka'} kartu ${kartu.subKode} ${kartu.subNama}`}
-            title={terbuka ? 'Tutup kartu' : 'Buka kartu'}
-            className="mt-px grid size-5 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
-          >
-            {terbuka ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
+        {bolehUbah && !ubahSub && (onTambahPoin || aksiSub) ? (
+          <Popover open={menuTerbuka} onOpenChange={setMenuTerbuka}>
+            <PopoverTrigger asChild>
+              <button
+                id={`btn_menu_${idKartu}`}
+                type="button"
+                aria-label={`Aksi kartu ${kartu.subKode} ${kartu.subNama}`}
+                title="Aksi kartu"
+                className="mt-px grid size-5 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
+              >
+                <Menu size={12} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              aria-label={`Aksi kartu ${kartu.subKode} ${kartu.subNama}`}
+              className="w-auto border border-foreground/30 p-1.5"
+              onCloseAutoFocus={(event) => {
+                const input = fokusMenu.current === 'ubah' ? inputNamaRef.current : fokusMenu.current === 'tambah' ? inputPoinRef.current : null;
+                if (input) {
+                  event.preventDefault();
+                  input.focus();
+                }
+                fokusMenu.current = null;
+              }}
+            >
+              <div className="flex items-center gap-1">
+                {onTambahPoin ? (
+                  <button
+                    id={`btn_tambah_poin_${idKartu}`}
+                    type="button"
+                    aria-label={`Tambah poin di ${kartu.subKode}`}
+                    title="Tambah poin"
+                    onClick={() => {
+                      fokusMenu.current = 'tambah';
+                      setTerbuka(true);
+                      setTambahTerbuka(true);
+                      setMenuTerbuka(false);
+                    }}
+                    className="grid size-7 place-items-center text-muted-foreground hover:bg-[var(--surface-3)] hover:text-foreground"
+                  >
+                    <Plus size={14} />
+                  </button>
+                ) : null}
+                {aksiSub ? (
+                  <button
+                    id={`btn_ubah_sub_${idKartu}`}
+                    type="button"
+                    aria-label={`Ubah sub-modul ${kartu.subKode}`}
+                    title="Ubah sub-modul"
+                    onClick={() => {
+                      fokusMenu.current = 'ubah';
+                      mulaiUbah();
+                      setMenuTerbuka(false);
+                    }}
+                    className="grid size-7 place-items-center text-muted-foreground hover:bg-[var(--surface-3)] hover:text-foreground"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                ) : null}
+              </div>
+            </PopoverContent>
+          </Popover>
         ) : null}
       </div>
 
@@ -485,7 +505,7 @@ export function KartuPapan({
           {bolehUbah && onTambahPoin && tambahTerbuka ? (
             <div className="border-t pt-2" style={{ borderColor: 'var(--divider)' }}>
               <div className="flex flex-col gap-2">
-                <input id={`input_poin_baru_${idKartu}`} value={poinBaru} onChange={(e) => setPoinBaru(e.target.value)} placeholder="Tulis poin baru..." aria-label={`Poin baru ${kartu.subKode}`} className="w-full border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
+                <input ref={inputPoinRef} id={`input_poin_baru_${idKartu}`} value={poinBaru} onChange={(e) => setPoinBaru(e.target.value)} placeholder="Tulis poin baru..." aria-label={`Poin baru ${kartu.subKode}`} className="w-full border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
                 <textarea id={`input_keterangan_poin_baru_${idKartu}`} value={keteranganBaru} onChange={(e) => setKeteranganBaru(e.target.value)} rows={2} maxLength={2000} placeholder="Requirement (instruksi khusus)" aria-label={`Requirement poin baru ${kartu.subKode}`} className="w-full resize-y border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }} />
                 <select id={`status_poin_baru_${idKartu}`} value={statusBaru} onChange={(e) => setStatusBaru(e.target.value as StatusPapan)} aria-label="Status poin baru" className="border bg-transparent px-2 py-1 text-xs" style={{ borderColor: 'var(--divider)' }}>
                   {KOLOM_PAPAN.map((status) => <option key={status} value={status}>{JUDUL_KOLOM[status]}</option>)}

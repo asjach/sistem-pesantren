@@ -744,21 +744,6 @@ export default function PapanPage() {
                     })}
                   </span>
 
-                  <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-                    {KOLOM_PAPAN.map((status) => (
-                      <li key={status} className="flex items-center gap-1.5">
-                        <span
-                          aria-hidden="true"
-                          className="size-2 shrink-0"
-                          style={{ background: WARNA_KOLOM[status] }}
-                        />
-                        <span className="text-muted-foreground">{JUDUL_KOLOM[status]}</span>
-                        <span className="font-mono text-[11px] font-semibold tabular-nums">
-                          {ringkasModul[status]}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
                   {bolehUbah && aplikasiAktif ? (
                     <Button id="btn_hapus_modul_papan" variant="destructive" size="sm" onClick={() => setHapusModul({ modul: aktif, aplikasi: aplikasiAktif.kode })}>
                       Hapus modul

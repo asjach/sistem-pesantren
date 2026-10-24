@@ -55,7 +55,7 @@ async function pasang(
   await act(async () => {});
 
   // Baris poin baru dirender setelah kartu sub-modul dibuka.
-  document.querySelectorAll<HTMLElement>('[id^="btn_lipat_sub_"]').forEach((tombol) => {
+  document.querySelectorAll<HTMLElement>('[id^="btn_lipat_area_sub_"]').forEach((tombol) => {
     fireEvent.click(tombol);
   });
 

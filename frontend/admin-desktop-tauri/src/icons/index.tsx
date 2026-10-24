@@ -1,5 +1,5 @@
 /* AUTO-GENERATED oleh scripts/icons-gen.mjs — JANGAN edit manual.
- * 92 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
+ * 93 ikon × 9 set (Iconify/unplugin-icons). Set aktif dari prefs
  * `iconSet`; nama yang tidak tersedia di suatu set jatuh ke Lucide.
  * Regenerasi: node scripts/icons-gen.mjs */
 import type { ComponentType, SVGProps } from 'react';
@@ -14,6 +14,8 @@ import setIconoir from './iconoir';
 import setRadix from './radix';
 import setBi from './bi';
 import setMaterial from './material';
+
+/* ---------- API publik ---------- */
 
 export interface IkonProps extends Omit<SVGProps<SVGSVGElement>, 'ref'> {
   /** Ukuran sisi ikon (px). Bawaan 24. */
@@ -49,6 +51,7 @@ function IkonDinamis({ nama, size = 24, className, ...rest }: IkonProps & { nama
   );
 }
 
+/* ---------- komponen ikon (nama sama dengan lucide-react) ---------- */
 export const AlignCenter = (p: IkonProps) => <IkonDinamis {...p} nama="AlignCenter" />;
 export const AlignLeft = (p: IkonProps) => <IkonDinamis {...p} nama="AlignLeft" />;
 export const AlignRight = (p: IkonProps) => <IkonDinamis {...p} nama="AlignRight" />;
@@ -90,6 +93,7 @@ export const ImageUp = (p: IkonProps) => <IkonDinamis {...p} nama="ImageUp" />;
 export const Landmark = (p: IkonProps) => <IkonDinamis {...p} nama="Landmark" />;
 export const Link2 = (p: IkonProps) => <IkonDinamis {...p} nama="Link2" />;
 export const LogOut = (p: IkonProps) => <IkonDinamis {...p} nama="LogOut" />;
+export const Menu = (p: IkonProps) => <IkonDinamis {...p} nama="Menu" />;
 export const Minus = (p: IkonProps) => <IkonDinamis {...p} nama="Minus" />;
 export const Monitor = (p: IkonProps) => <IkonDinamis {...p} nama="Monitor" />;
 export const Moon = (p: IkonProps) => <IkonDinamis {...p} nama="Moon" />;

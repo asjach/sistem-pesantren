@@ -39,6 +39,7 @@ import IcImageUpIconoir from '~icons/iconoir/media-image-plus';
 import IcLandmarkIconoir from '~icons/iconoir/bank';
 import IcLink2Iconoir from '~icons/iconoir/link';
 import IcLogOutIconoir from '~icons/iconoir/log-out';
+import IcMenuIconoir from '~icons/iconoir/menu';
 import IcMinusIconoir from '~icons/iconoir/minus';
 import IcMonitorIconoir from '~icons/iconoir/computer';
 import IcMoonIconoir from '~icons/iconoir/half-moon';
@@ -111,6 +112,7 @@ const set: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   Landmark: IcLandmarkIconoir,
   Link2: IcLink2Iconoir,
   LogOut: IcLogOutIconoir,
+  Menu: IcMenuIconoir,
   Minus: IcMinusIconoir,
   Monitor: IcMonitorIconoir,
   Moon: IcMoonIconoir,
