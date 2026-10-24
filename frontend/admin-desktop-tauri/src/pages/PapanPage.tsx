@@ -10,6 +10,7 @@ import { KonfirmasiReopen, PapanKolom } from '@/components/papan/PapanKolom';
 import { Columns3, History, Loader2, Plus, RefreshCcw } from '@/icons';
 import {
   hapusButirPapan,
+  hapusModulPapan,
   muatPapan,
   muatRiwayatPapan,
   pindahStatusPapan,
@@ -35,6 +36,7 @@ import { WARNA_STATUS as WARNA_KOLOM } from '@/components/papan/PapanKolom';
 import { BackupRestorePapan } from '@/components/papan/BackupRestorePapan';
 import { KelolaSubModul } from '@/components/papan/KelolaSubModul';
 import { TambahModul } from '@/components/papan/TambahModul';
+import { HapusModul } from '@/components/papan/HapusModul';
 import { TopBarSearch } from '@/components/TopBarSearch';
 import PopupCariPapan from '@/components/papan/PopupCariPapan';
 
@@ -76,6 +78,7 @@ export default function PapanPage() {
   const [sorot, setSorot] = useState<number | null>(null);
   const [kelolaTerbuka, setKelolaTerbuka] = useState(false);
   const [modulTerbuka, setModulTerbuka] = useState(false);
+  const [hapusModul, setHapusModul] = useState<{ modul: ModulPapan; aplikasi: string } | null>(null);
   const [sibukWorkflow, setSibukWorkflow] = useState(false);
   const [reopen, setReopen] = useState<{ id: number; status: StatusPapan } | null>(null);
   const [lebarRail, setLebarRail] = useState(lebarRailAwal);
@@ -710,6 +713,11 @@ export default function PapanPage() {
                       </li>
                     ))}
                   </ul>
+                  {bolehUbah && aplikasiAktif ? (
+                    <Button id="btn_hapus_modul_papan" variant="destructive" size="sm" onClick={() => setHapusModul({ modul: aktif, aplikasi: aplikasiAktif.kode })}>
+                      Hapus modul
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -790,6 +798,28 @@ export default function PapanPage() {
                 : prev
             ));
             navigate(`/board/${aplikasiAktif.kode}/${modulBaru.kode}`);
+            void segarkan();
+          }}
+        />
+      ) : null}
+
+      {bolehUbah && hapusModul ? (
+        <HapusModul
+          modul={hapusModul.modul}
+          onTutup={() => setHapusModul(null)}
+          onHapus={async () => {
+            const target = hapusModul;
+            await hapusModulPapan(target.modul.kode);
+            const sisa = aplikasi.find((a) => a.kode === target.aplikasi)?.modul.filter((m) => m.kode !== target.modul.kode) ?? [];
+            setData((prev) => prev ? {
+              ...prev,
+              aplikasi: prev.aplikasi.map((a) => a.kode === target.aplikasi ? { ...a, modul: a.modul.filter((m) => m.kode !== target.modul.kode) } : a),
+            } : prev);
+            const subTerhapus = new Set(target.modul.sub.map((sub) => sub.kode));
+            setRiwayat((prev) => prev.filter((log) => !subTerhapus.has(log.kode)));
+            setHapusModul(null);
+            const berikut = modulAwal(sisa);
+            navigate(berikut ? `/board/${target.aplikasi}/${berikut.kode}` : `/board/${target.aplikasi}`, { replace: true });
             void segarkan();
           }}
         />

@@ -6,7 +6,9 @@ use App\Models\Papan\PapanItem;
 use App\Models\Papan\PapanModul;
 use App\Models\Papan\PapanRiwayat;
 use App\Services\PapanService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -273,12 +275,60 @@ class PapanServiceTest extends TestCase
         $this->assertSame(0, $item->butir()->count());
     }
 
-    /**
-     * Semua poin di sub-modul yang sama diberi status sama; yang menentukan
-     * status sub-modul adalah sebaran poinnya, bukan nilai di sub-modul itu.
-     *
-     * @param  array<int, string>  $statusButir
-     */
+    public function test_hapus_modul_menghapus_turunan_dan_riwayat_hanya_pada_target(): void
+    {
+        $item = $this->buatItem('E.3', 'Kas', ['todo']);
+        $butir = $item->butir()->firstOrFail();
+        $butir->update(['subpoin' => [['teks' => 'Periksa saldo', 'selesai' => false]]]);
+        $this->papan->pindahButir('E.3', $butir->id, 'in_progress', 'pengguna');
+        $lain = PapanModul::create(['kode' => 'LAIN', 'nama' => 'Lainnya']);
+        $subLain = $lain->item()->create(['kode' => 'LAIN.1', 'nama' => 'Tetap']);
+        $poinLain = $subLain->butir()->create(['deskripsi' => 'Tetap', 'status' => 'todo']);
+        $db = DB::connection('papan');
+        $db->table('papan_pengaturan')->insert(['kunci' => 'workflow_aktif', 'nilai' => '1']);
+        $userCount = DB::table('users')->count();
+
+        $this->assertTrue($this->papan->hapusModul('E'));
+
+        $this->assertDatabaseMissing('papan_modul', ['kode' => 'E'], 'papan');
+        $this->assertDatabaseMissing('papan_item', ['id' => $item->id], 'papan');
+        $this->assertDatabaseMissing('papan_butir', ['id' => $butir->id], 'papan');
+        $this->assertDatabaseMissing('papan_riwayat', ['item_id' => $item->id], 'papan');
+        $this->assertDatabaseHas('papan_butir', ['id' => $poinLain->id], 'papan');
+        $this->assertDatabaseHas('papan_modul', ['id' => $lain->id], 'papan');
+        $this->assertDatabaseHas('papan_pengaturan', ['kunci' => 'workflow_aktif', 'nilai' => '1'], 'papan');
+        $this->assertSame($userCount, DB::table('users')->count());
+    }
+
+    public function test_hapus_modul_kosong_dan_modul_tidak_ditemukan(): void
+    {
+        PapanModul::create(['kode' => 'KOSONG', 'nama' => 'Kosong']);
+        $this->assertTrue($this->papan->hapusModul('KOSONG'));
+        $this->expectException(InvalidArgumentException::class);
+        $this->papan->hapusModul('KOSONG');
+    }
+
+    public function test_gagal_delete_turunan_mempertahankan_seluruh_data_papan(): void
+    {
+        $item = $this->buatItem('E.3', 'Kas', ['todo', 'done']);
+        $this->papan->pindahButir('E.3', $item->butir()->firstOrFail()->id, 'in_progress', 'pengguna');
+        $db = DB::connection('papan');
+        $tables = ['papan_modul', 'papan_item', 'papan_butir', 'papan_riwayat'];
+        $snapshot = fn () => array_map(fn ($table) => $db->table($table)->orderBy('id')->get()->toArray(), $tables);
+        $before = $snapshot();
+        $db->statement("CREATE TRIGGER gagalkan_hapus_poin BEFORE DELETE ON papan_butir BEGIN SELECT RAISE(ABORT, 'Gagal terkontrol'); END");
+        try {
+            $this->papan->hapusModul('E');
+            $this->fail('Delete harus gagal.');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('Gagal terkontrol', $e->getMessage());
+        } finally {
+            $db->statement('DROP TRIGGER gagalkan_hapus_poin');
+        }
+        $this->assertEquals($before, $snapshot());
+    }
+
+    /** @param array<int, string> $statusButir */
     private function buatItem(string $kode, string $nama, array $statusButir = []): PapanItem
     {
         $modul = PapanModul::query()->firstOrCreate(

@@ -90,6 +90,7 @@ Route::middleware(['auth:sanctum', 'throttle:api_user'])
         // Modul baru: tab di UI dibangun dari daftar modul sehingga modul ini
         // langsung muncul sebagai tab tanpa perubahan kode.
         Route::post('modul', [PapanController::class, 'tambahModul'])->middleware('permission:papan.ubah');
+        Route::delete('modul/{modul}', [PapanController::class, 'hapusModul'])->middleware('permission:papan.ubah');
         // Sub-modul: nama dan kodenya bisa disunting tanpa menyentuh poin
         // (beda dari seed ulang yang menghapus lalu membuat ulang poin).
         Route::post('modul/{modul}/item', [PapanController::class, 'tambahItem'])->middleware('permission:papan.ubah');

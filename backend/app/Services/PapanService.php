@@ -717,6 +717,14 @@ class PapanService
         ]);
     }
 
+    /** Hapus modul dan turunannya secara atomic pada koneksi Board. */
+    public function hapusModul(string $kode): bool
+    {
+        return DB::connection('papan')->transaction(function () use ($kode): bool {
+            return (bool) $this->modul($kode)->delete();
+        });
+    }
+
     /**
      * Tambah sub-modul baru di bawah sebuah modul.
      *

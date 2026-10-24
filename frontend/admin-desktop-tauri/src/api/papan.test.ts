@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { pindahStatusPapan, ubahButirPapan } from './papan';
+import { hapusModulPapan, pindahStatusPapan, ubahButirPapan } from './papan';
 
 const { api } = vi.hoisted(() => ({
   api: vi.fn(async (_url: string, _init?: { method?: string; body?: string }) => ({})),
@@ -8,6 +8,12 @@ vi.mock('./client', () => ({ api }));
 
 beforeEach(() => api.mockClear());
 const body = () => JSON.parse(api.mock.calls[0][1]?.body ?? '{}') as Record<string, unknown>;
+
+it('hapus modul mengirim konfirmasi dan memakai kode target yang di-encode', async () => {
+  await hapusModulPapan('MOD/1');
+  expect(api).toHaveBeenCalledWith('/board/modul/MOD%2F1', expect.objectContaining({ method: 'DELETE' }));
+  expect(body()).toEqual({ konfirmasi: true });
+});
 
 describe('API Board - persetujuan Reopen', () => {
   it('perpindahan biasa tidak mengirim persetujuan Reopen', async () => {

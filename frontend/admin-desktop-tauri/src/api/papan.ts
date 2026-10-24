@@ -160,6 +160,14 @@ export function tambahModulPapan(aplikasi: string, kode: string, nama: string) {
   });
 }
 
+/** Hapus modul dan seluruh turunannya setelah konfirmasi pengguna. */
+export function hapusModulPapan(kode: string) {
+  return api<{ message: string }>(`/board/modul/${encodeURIComponent(kode)}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ konfirmasi: true }),
+  });
+}
+
 /** Tambah sub-modul baru di bawah sebuah modul. */
 export function tambahSubPapan(modulKode: string, kode: string, nama: string) {
   return api<{ kode: string; nama: string }>(`/board/modul/${encodeURIComponent(modulKode)}/item`, {

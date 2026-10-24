@@ -378,6 +378,22 @@ class PapanController extends Controller
         ], 201);
     }
 
+    public function hapusModul(Request $request, string $modul): JsonResponse
+    {
+        $request->validate(['konfirmasi' => ['required', 'accepted']], [
+            'konfirmasi.required' => 'Konfirmasi penghapusan modul diperlukan.',
+            'konfirmasi.accepted' => 'Penghapusan modul harus dikonfirmasi.',
+        ]);
+
+        try {
+            $this->papan->hapusModul($modul);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
+        }
+
+        return response()->json(['message' => 'Modul beserta seluruh turunannya dihapus.']);
+    }
+
     /** Tambah sub-modul baru di bawah sebuah modul. */
     public function tambahItem(Request $request, string $modul): JsonResponse
     {

@@ -502,6 +502,27 @@ class PapanApiTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_hapus_modul_wajib_konfirmasi_dan_menghapus_target_setelah_dikonfirmasi(): void
+    {
+        Sanctum::actingAs($this->pengguna(['super_admin']));
+        $this->deleteJson('/api/board/modul/E')->assertUnprocessable();
+        $this->deleteJson('/api/board/modul/E', ['konfirmasi' => false])->assertUnprocessable();
+        $this->assertSame(2, PapanButir::count());
+        $this->deleteJson('/api/board/modul/E', ['konfirmasi' => true])->assertOk();
+        $this->assertSame(0, PapanModul::count());
+        $this->assertSame(0, PapanItem::count());
+        $this->assertSame(0, PapanButir::count());
+        $this->deleteJson('/api/board/modul/E', ['konfirmasi' => true])->assertNotFound();
+    }
+
+    public function test_hapus_modul_ditolak_tanpa_izin_ubah(): void
+    {
+        Sanctum::actingAs($this->pengguna(['guru']));
+        $this->deleteJson('/api/board/modul/E', ['konfirmasi' => true])->assertForbidden();
+        $this->assertSame(1, PapanModul::count());
+        $this->assertSame(2, PapanButir::count());
+    }
+
     private function pengguna(array $peran): User
     {
         $user = User::create([
