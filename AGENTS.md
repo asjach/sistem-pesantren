@@ -140,12 +140,32 @@
 - **Perubahan Board disimpan di database.** Tidak ada sinkronisasi file markdown.
 - **Catatan perubahan (CHANGELOG) bukan alur kerja (workflow):** hanya riwayat rilis. Jangan mencatat rencana/progres di sana.
 
+### Konfirmasi perubahan Board dan syarat perubahan kode
+
+- **Perubahan data Board boleh saat Aktif maupun Draf, setelah konfirmasi
+  eksplisit pengguna.** Sebelum write, tampilkan tindakan, poin/aplikasi yang
+  terdampak, status efektif workflow, serta asal/tujuan bila ada pemindahan;
+  tunggu pengguna menyetujui tindakan tersebut. Pembacaan tidak perlu konfirmasi.
+- Satu konfirmasi boleh mencakup beberapa perubahan yang sudah dijelaskan,
+  termasuk pembaruan status, subpoin, dan hasil verifikasi dalam scope pekerjaan
+  yang disetujui. Jangan meminta konfirmasi ulang untuk paket yang sama; tindakan
+  di luar paket tersebut memerlukan konfirmasi baru.
+- **Full-access, hak super_admin, dan kemampuan write melalui tool/API/CLI/model
+  atau database tidak menggantikan konfirmasi.** Jangan memakai jalur lain untuk
+  melewati gerbang ini. Persetujuan penataan Board tidak mengaktifkan workflow
+  dan tidak memberi izin implementasi. Larangan agen menetapkan Done tetap berlaku.
+- **Perubahan kode wajib menunggu workflow aplikasi terkait efektif Aktif**
+  (master DAN aplikasi aktif), lalu mengikuti gerbang riset, persetujuan scope,
+  dan In Progress. Saat Draf atau status tidak dapat dipastikan, jangan mengubah
+  kode, termasuk kode Board itu sendiri. Untuk perubahan kode lintas aplikasi,
+  semua aplikasi yang benar-benar terdampak wajib efektif Aktif.
+
 ### Perilaku agen: Aktif vs Draf
 
 | Status efektif | Yang WAJIB dilakukan | Yang DILARANG |
 | --- | --- | --- |
 | **Aktif** (master + aplikasi yang dikerjakan aktif) | 1) Baca Board sebelum merencanakan/mengerjakan; jadikan status dan urutan aplikasi itu acuan. 2) Tunggu pengguna memilih pekerjaan pada aplikasi yang status efektifnya Aktif dengan memindahkan poin dari Backlog ke To Do. 3) Riset poin To Do dari alur kerja aktif tersebut, sertakan rekomendasi tampilan dan pengalaman pengguna (UI/UX) bila relevan, susun rancangan subpoin, dan konfirmasikan hal yang belum jelas kepada pengguna. 4) Tampilkan subpoin final dan minta satu konfirmasi untuk mulai mengerjakan; selama belum disetujui, poin tetap To Do. 5) Setelah disetujui, catat subpoin final, pindahkan poin ke In Progress, dan mulai mengerjakan. 6) Setelah selesai, perbarui Board sampai For Review. 7) Pastikan perubahan Board tersimpan. 8) Jika dokumen lain bertentangan, Board yang menang. | Membuat roadmap/TODO/milestone terpisah; memindahkan Backlog ke To Do atas inisiatif agen; memakai To Do dari aplikasi yang efektif Draf; mengerjakan poin yang masih Backlog/To Do; memiliki lebih dari satu In Progress per aplikasi; menulis rencana hanya di PRD/chat; menyelesaikan tugas tanpa memperbarui Board; memindahkan poin ke Done secara otomatis. |
-| **Draf** (pengaturan utama/master mati atau aplikasi itu belum aktif) | 1) Pakai PRD dan kode sebagai rujukan kebutuhan/status. 2) Saat pengguna meminta rencana, prioritas, atau "apa selanjutnya", beri tahu bahwa tidak ada Board efektif Aktif dan sarankan pengguna mengaktifkan pengaturan utama + aplikasi terkait. 3) Boleh mengubah Board hanya bila tugasnya memang membangun/memperbaiki Board itu sendiri. 4) Cek ulang status sebelum memakai Board lagi. | Memakai Board aplikasi itu sebagai acuan alur kerja (workflow), prioritas, atau status; menulis rencana baru ke Board sebagai alur kerja; menyimpulkan pekerjaan sudah/akan dari Board; mengaktifkan alur kerja sendiri. |
+| **Draf** (pengaturan utama/master mati atau aplikasi itu belum aktif) | 1) Pakai PRD dan kode sebagai rujukan kebutuhan/status. 2) Saat pengguna meminta rencana, prioritas, atau "apa selanjutnya", beri tahu bahwa workflow aplikasi itu masih Draf dan sarankan pengguna mengaktifkan pengaturan utama + aplikasi terkait sebelum implementasi. 3) Boleh menambah, mengubah, atau memindahkan data Board setelah konfirmasi sesuai gerbang di atas; data tersebut belum menjadi workflow aktif. 4) Cek ulang status sebelum memakai Board lagi. | Memakai Board aplikasi itu sebagai acuan pelaksanaan workflow, prioritas, atau status implementasi; meriset/mengerjakan To Do sebagai penugasan dari workflow Draf; mengubah kode; menyimpulkan pekerjaan sudah/akan dari Board; mengaktifkan workflow sendiri. |
 
 ### Siklus wajib rencana dan penyelesaian saat Board Aktif
 
@@ -386,14 +406,16 @@ Aturan ini **WAJIB** dan berlaku setiap kali sebuah poin Board memiliki field
   hasil verifikasi, atau bagian dari subpoin induk yang relevan; jangan dibuat
   sebagai poin rencana terpisah.
 
-- **Pekerjaan lintas aplikasi:** pakai alur kerja (workflow) hanya jika SEMUA
+- **Perubahan kode lintas aplikasi:** hanya boleh dikerjakan jika SEMUA
   aplikasi yang terlibat berstatus efektif Aktif. Aplikasi dianggap terlibat bila
   perilaku yang dilihat pengguna, aturan bisnis, data, izin, atau kesepakatan
   komunikasi antaraplikasinya ikut berubah. Pemakaian komponen atau fungsi teknis
   bersama tidak otomatis membuat semua aplikasi pemakainya terlibat, kecuali
   perubahan tersebut turut mengubah perilaku atau kesepakatan komunikasinya.
   Bila salah satu aplikasi yang benar-benar terlibat masih Draf, perlakukan
-  keseluruhan pekerjaan sebagai Draf (aman bila ragu/fail closed).
+  keseluruhan pekerjaan sebagai Draf (aman bila ragu/fail closed). Pemindahan
+  atau penataan data Board lintas aplikasi tetap boleh setelah konfirmasi
+  sesuai gerbang perubahan Board, tanpa mengaktifkan workflow aplikasi tujuan.
 - **Mengaktifkan/menonaktifkan master atau aplikasi adalah keputusan pengguna.** Jangan mengubahnya sendiri; minta konfirmasi. Pengguna dapat menonaktifkan kapan saja, dan sejak saat itu aturan Draf berlaku untuk aplikasi tersebut sampai diaktifkan kembali.
 
 ## Skill (katalog otomatis)
